@@ -786,6 +786,7 @@ void VoicePool::applyPadConfigToSlot(int slot, int padIndex) noexcept
     v.setNoiseLayerResonance(cfg.noiseLayerResonance);
     v.setNoiseLayerDecay(cfg.noiseLayerDecay);
     v.setNoiseLayerColor(cfg.noiseLayerColor);
+    v.setNoiseLayerGain(cfg.noiseLayerGain);
     // Phase 7: always-on click transient
     v.setClickLayerMix(cfg.clickLayerMix);
     v.setClickLayerContactMs(cfg.clickLayerContactMs);

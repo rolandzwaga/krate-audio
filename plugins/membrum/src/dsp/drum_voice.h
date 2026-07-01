@@ -294,7 +294,8 @@ public:
                 // Cached on the mapper inputs so repeated hits on an unchanged
                 // pad pay the probe render only once.
                 bank.setOutputGain(measuredStrikeOutputGain(bank, params_,
-                                                            bodyBank_.getCurrentType()));
+                                                            bodyBank_.getCurrentType(),
+                                                            exciterBank_.getPendingType()));
                 bank.setOutputSoftClipThreshold(0.0f);
             }
             // NOTE: the secondary (shell) bank's output gain is set AFTER
@@ -491,7 +492,7 @@ public:
         // layer is also mixed directly here so it's heard as a broadband
         // transient independent of the body's modal response.
         const float noiseSample =
-            noiseLayer_.processSample() * NoiseLayer::kStandaloneOutputGain;
+            noiseLayer_.processSample() * noiseLayer_.standaloneGain() * noiseLayerGain_;
         const float combinedBody = body + noiseSample + clickSample;
 
         // UnnaturalZone chain per contract: body + modeInject → nonlinear
@@ -795,7 +796,7 @@ private:
             // signal.
             noiseLayer_.processBlock(noiseScratch, chunk);
             {
-                const float gain = NoiseLayer::kStandaloneOutputGain;
+                const float gain = noiseLayer_.standaloneGain() * noiseLayerGain_;
                 for (int i = 0; i < chunk; ++i)
                     noiseScratch[i] *= gain;
             }
@@ -977,7 +978,7 @@ private:
                         // output before the UnnaturalZone chain; click layer
                         // is mixed directly so it's heard as a transient.
                         const float noiseSample =
-                            noiseLayer_.processSample() * NoiseLayer::kStandaloneOutputGain;
+                            noiseLayer_.processSample() * noiseLayer_.standaloneGain() * noiseLayerGain_;
                         const float combinedBody = bodyWithShell + noiseSample + clickSample;
 
                         // UnnaturalZone chain per contract: body + modeInject
@@ -1075,6 +1076,10 @@ public:
     void setNoiseLayerResonance(float v) noexcept { noiseLayerParams_.resonance = v; }
     void setNoiseLayerDecay(float v) noexcept     { noiseLayerParams_.decay     = v; }
     void setNoiseLayerColor(float v) noexcept     { noiseLayerParams_.color     = v; }
+    /// Snare-body fix: per-pad multiplier on the standalone noise-layer gain
+    /// (default 1.0). Lets a snare push its wire buzz to near-body level, which
+    /// the mix knob + global -18 dBFS ceiling cannot reach on their own.
+    void setNoiseLayerGain(float v) noexcept      { noiseLayerGain_ = v; }
 
     void setClickLayerMix(float v) noexcept        { clickLayerParams_.mix        = v; }
     void setClickLayerContactMs(float v) noexcept  { clickLayerParams_.contactMs  = v; }
@@ -1213,9 +1218,75 @@ private:
         return peak;
     }
 
+    // Snare-body Fix D (INVESTIGATION-snare-body): probe the bank with the REAL
+    // excitation shape instead of a clean raised-cosine. The N-1 raised-cosine
+    // proxy rings the low modes coherently and peaks HIGHER than the note's
+    // actual excitation does for phase-random / HF-tilted exciters (NoiseBurst
+    // above all), so kBodyHeadroom / probePeak came out too small and the body
+    // shipped several dB below its budget -- the core "snare sounds like a
+    // hi-hat" cause. Here we drive the bank with a local copy of the configured
+    // exciter at a canonical hard strike (velocity 1.0) plus the click layer's
+    // half-amplitude excitation contribution, exactly as process() feeds the
+    // body. Local instances leave the live exciter/click untouched.
+    //
+    // RT-safe / allocation-free: this reuses the voice's LIVE exciter and click
+    // layer (already prepared in DrumVoice::prepare) rather than constructing
+    // local copies -- ImpactExciter::prepare allocates a comb-delay line, so a
+    // per-probe local ExciterBank would allocate on the audio thread. Triggering
+    // exciterBank_ here applies the deferred exciter-type swap that noteOn()
+    // performs a few lines later anyway (so the net allocation is unchanged),
+    // and both components are re-triggered for the audible note below --
+    // trigger() fully re-seeds/resets their state, so the probe leaves no
+    // residue on the note (bit-identity preserved). exciterType is passed only
+    // to key the cache; the live bank already holds the pending type.
+    [[nodiscard]] float probeStrikePeakExcited(
+        Krate::DSP::ModalResonatorBank& bank, ExciterType exciterType) noexcept
+    {
+        (void)exciterType;
+        const float sr = static_cast<float>(sampleRate_);
+        // 30 ms window: long enough to span the NoiseBurst (up to ~15 ms) plus
+        // the body's early resonant ring-up where the strike peak lives.
+        const int probeLen = std::max(1, static_cast<int>(0.030f * sr));
+
+        const float prevGain = bank.getOutputGain();
+        const float prevClip = bank.getOutputSoftClipThreshold();
+        bank.setOutputGain(1.0f);
+        bank.setOutputSoftClipThreshold(0.0f);
+
+        // Reference velocity 1.0 = canonical hard strike (the level
+        // kBodyHeadroom is defined against). Applies the deferred exciter swap.
+        exciterBank_.trigger(1.0f);
+        clickLayer_.configure(clickLayerParams_);
+        clickLayer_.trigger(1.0f);
+
+        float peak     = 0.0f;
+        float lastBody = 0.0f;
+        for (int i = 0; i < probeLen; ++i)
+        {
+            const float clickSample =
+                clickLayer_.processSample() * ClickLayer::kStandaloneOutputGain;
+            // Non-feedback exciters ignore the feedback arg; Feedback never
+            // reaches this path (it keeps the soft-clip branch instead).
+            const float exc = exciterBank_.process(lastBody) + clickSample * 0.5f;
+            lastBody = bank.processSample(exc);
+            peak     = std::max(peak, std::abs(lastBody));
+        }
+
+        // Leave the live components clean; noteOn() re-triggers both below.
+        exciterBank_.reset();
+        clickLayer_.reset();
+
+        bank.reset();  // clear probe ring, keep configured modes
+        bank.setOutputGain(prevGain);
+        bank.setOutputSoftClipThreshold(prevClip);
+        return peak;
+    }
+
     // Audit N-1: output gain that normalises the bank's measured resonant-strike
     // peak to kBodyHeadroom. Guards a near-silent probe (falls back to the
     // impulse bound) so an empty/degenerate bank can't divide-by-~0.
+    // Raised-cosine proxy path -- used for the secondary (shell) bank, which is
+    // driven by the body output rather than an exciter.
     [[nodiscard]] float measuredStrikeOutputGain(
         Krate::DSP::ModalResonatorBank& bank) const noexcept
     {
@@ -1225,19 +1296,36 @@ private:
         return kBodyHeadroom / peak;
     }
 
+    // Snare-body Fix D: real-excitation variant for the PRIMARY body.
+    [[nodiscard]] float measuredStrikeOutputGainExcited(
+        Krate::DSP::ModalResonatorBank& bank, ExciterType exciter) noexcept
+    {
+        const float peak = probeStrikePeakExcited(bank, exciter);
+        if (peak <= 1.0e-4f)
+            return kBodyHeadroom / bank.getInputGainSum();
+        return kBodyHeadroom / peak;
+    }
+
     // Cached variant for the primary body: re-measures only when the mapper
-    // inputs (and hence the configured mode set) change.
+    // inputs (and hence the configured mode set) OR the excitation shape change.
+    // Snare-body Fix D: keyed additionally on the exciter type + the click/
+    // noise-burst excitation-shaping params so a change to how the body is
+    // struck re-runs the real-excitation probe.
     [[nodiscard]] float measuredStrikeOutputGain(
         Krate::DSP::ModalResonatorBank& bank,
         const VoiceCommonParams& p,
-        BodyModelType body) noexcept
+        BodyModelType body,
+        ExciterType exciter) noexcept
     {
         const StrikeNormKey key{
-            body, p.material, p.size, p.decay, p.strikePos, p.modeStretch,
+            body, exciter, p.material, p.size, p.decay, p.strikePos, p.modeStretch,
             p.decaySkew, p.airLoading, p.modeScatter,
-            p.bodyDampingB1, p.bodyDampingB3};
+            p.bodyDampingB1, p.bodyDampingB3,
+            clickLayerParams_.mix, clickLayerParams_.contactMs,
+            clickLayerParams_.brightness,
+            exciterBank_.getPendingNoiseBurstContactNorm()};
         if (!(key == strikeNormKey_)) {
-            strikeNormGain_ = measuredStrikeOutputGain(bank);
+            strikeNormGain_ = measuredStrikeOutputGainExcited(bank, exciter);
             strikeNormKey_  = key;
         }
         return strikeNormGain_;
@@ -1499,6 +1587,8 @@ private:
     // Phase 7 per-voice layer params (applied at noteOn).
     NoiseLayerParams noiseLayerParams_{};
     ClickLayerParams clickLayerParams_{};
+    // Snare-body fix: per-pad noise-layer gain multiplier (default 1.0).
+    float noiseLayerGain_ = 1.0f;
 
     // Reusable parameter bundle (populated on every noteOn to avoid alloc).
     VoiceCommonParams params_{};
@@ -1511,9 +1601,13 @@ private:
     // unchanged pad reuses the gain instead of re-running the probe render.
     struct StrikeNormKey {
         BodyModelType body = BodyModelType::kCount;  // sentinel = "no cache yet"
+        ExciterType   exciter = ExciterType::kCount; // Fix D: excitation shape
         float material = 0.0f, size = 0.0f, decay = 0.0f, strikePos = 0.0f;
         float modeStretch = 0.0f, decaySkew = 0.0f, airLoading = 0.0f;
         float modeScatter = 0.0f, b1 = 0.0f, b3 = 0.0f;
+        // Fix D: excitation-shaping params that change the probed strike peak.
+        float clickMix = 0.0f, clickContact = 0.0f, clickBright = 0.0f;
+        float noiseBurstContact = 0.0f;
         [[nodiscard]] bool operator==(const StrikeNormKey&) const = default;
     };
     StrikeNormKey strikeNormKey_{};

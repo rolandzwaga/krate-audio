@@ -111,14 +111,22 @@ TEST_CASE("DefaultKit Snare template - pad 2 (MIDI 38)", "[default_kit]")
     DefaultKit::apply(pads);
 
     const auto& snare = pads[pad(38)];
-    REQUIRE(snare.exciterType == ExciterType::NoiseBurst);
+    // Snare-body Fix B (INVESTIGATION-snare-body): the snare is now struck with
+    // a coherent Impulse (was NoiseBurst, which under-drove the body and made
+    // the snare read as a hi-hat).
+    REQUIRE(snare.exciterType == ExciterType::Impulse);
     REQUIRE(snare.bodyModel == BodyModelType::Membrane);
     REQUIRE(snare.material == Approx(0.5f).margin(0.01f));
-    REQUIRE(snare.size == Approx(0.5f).margin(0.01f));
-    REQUIRE(snare.decay == Approx(0.4f).margin(0.01f));
+    // Fix A: Size 0.4 -> f0 ~199 Hz (measured 14" (0,1) mode), was 0.5 (~158 Hz).
+    REQUIRE(snare.size == Approx(0.4f).margin(0.01f));
+    // Snare-body fix: short "tat" body (decay 0.13 + b1 override) so the wire
+    // buzz carries the tail instead of a sustained tone.
+    REQUIRE(snare.decay == Approx(0.13f).margin(0.01f));
+    REQUIRE(snare.noiseLayerGain == Approx(6.2f).margin(0.01f));
     REQUIRE(snare.level == Approx(0.8f).margin(0.01f));
 
-    // NoiseBurstDuration = 8ms -> normalized = (8-2)/13 = 0.461538
+    // NoiseBurstDuration kept as a seed value (Impulse ignores it):
+    // 8ms -> normalized = (8-2)/13 = 0.461538
     REQUIRE(snare.noiseBurstDuration == Approx(0.461538f).margin(0.01f));
 
     REQUIRE(snare.chokeGroup == 0);
@@ -130,7 +138,8 @@ TEST_CASE("DefaultKit Electric Snare - pad 4 (MIDI 40)", "[default_kit]")
     DefaultKit::apply(pads);
 
     const auto& snare2 = pads[pad(40)];
-    REQUIRE(snare2.exciterType == ExciterType::NoiseBurst);
+    // Snare-body Fix B: Impulse strike (was NoiseBurst).
+    REQUIRE(snare2.exciterType == ExciterType::Impulse);
     REQUIRE(snare2.bodyModel == BodyModelType::Membrane);
     REQUIRE(snare2.chokeGroup == 0);
 }

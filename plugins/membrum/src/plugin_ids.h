@@ -27,8 +27,9 @@ static constexpr auto kSubCategories = "Instrument|Drum";
 // not shipped, so no legacy versions are accepted on read. Phase 10 bumped
 // this from 1 to 2 to accompany the per-pad sound-slot widening (52 -> 56).
 // M-9 bumped 2 -> 3 to accompany the per-pad pan slot (56 -> 57) and the
-// per-pad param-stride widening (64 -> 128).
-constexpr Steinberg::int32 kCurrentStateVersion = 3;
+// per-pad param-stride widening (64 -> 128). snare-body bumped 3 -> 4 for the
+// per-pad noiseLayerGain slot (57 -> 58).
+constexpr Steinberg::int32 kCurrentStateVersion = 4;
 
 // Number of new globals introduced by Phase 6 (kUiModeId, kOutputBusId).
 constexpr int kPhase6GlobalCount = 2;
@@ -217,8 +218,8 @@ static_assert(kCouplingDelayId < kUiModeId,
               "Phase 5 and Phase 6 parameter ID ranges must not overlap");
 static_assert(kUiModeId + kPhase6GlobalCount <= kPadBaseId,
               "Phase 6 global parameters must not collide with per-pad range");
-static_assert(kCurrentStateVersion == 3,
-              "Pre-release codec is pinned at state version 3 (M-9 per-pad pan)");
+static_assert(kCurrentStateVersion == 4,
+              "Pre-release codec is pinned at state version 4 (snare-body noiseLayerGain)");
 
 // Phase 7 collision guards: proxy IDs 290..297 must sit below the per-pad base.
 static_assert(kClickLayerBrightnessId < kPadBaseId,

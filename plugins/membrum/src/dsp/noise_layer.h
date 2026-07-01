@@ -84,6 +84,7 @@ public:
         const float reso     = denormResonance(p.resonance);
         filter_.setCutoff(cutoffHz);
         filter_.setResonance(reso);
+        standaloneGain_ = computeStandaloneGain(cutoffHz);
 
         const float decayMs = denormDecayMs(p.decay);
         envelope_.setAttack(0.5f);
@@ -104,6 +105,7 @@ public:
         mix_ = std::clamp(mix, 0.0f, 1.0f);
         filter_.setCutoff(cutoffHz);
         filter_.setResonance(resonance);
+        standaloneGain_ = computeStandaloneGain(cutoffHz);
         envelope_.setAttack(attackMs);
         envelope_.setDecay(decayMs);
         envelope_.setSustain(0.0f);
@@ -172,7 +174,31 @@ public:
     [[nodiscard]] float mix() const noexcept { return mix_; }
     [[nodiscard]] bool  isActive() const noexcept { return mix_ > 0.0f && envelope_.isActive(); }
 
+    /// Cutoff-compensated standalone gain for the direct-to-output path in
+    /// DrumVoice. kStandaloneOutputGain was calibrated at a single cutoff
+    /// (norm 0.5, ~849 Hz); a 2nd-order lowpass passes white-noise energy
+    /// roughly proportional to bandwidth, so a preset running a higher cutoff
+    /// (e.g. the snare's 0.72 -> ~3.2 kHz) ships several dB hotter than the
+    /// calibration assumed. This returns the gain that holds the layer at its
+    /// calibrated ~-18 dBFS peak across cutoffs. Computed once per configure()
+    /// (control-rate), so the audio hot loop just reads the cached value.
+    [[nodiscard]] float standaloneGain() const noexcept { return standaloneGain_; }
+
 private:
+    /// Reference cutoff the kStandaloneOutputGain constant was measured at
+    /// (NoiseLayerParams::cutoff == 0.5 -> ~849 Hz).
+    [[nodiscard]] static float calibrationCutoffHz() noexcept { return denormCutoff(0.5f); }
+
+    /// kStandaloneOutputGain * sqrt(fcRef / fc), clamped to +/-12 dB so the
+    /// square-root bandwidth law can't blow up at the extreme cutoff ends.
+    [[nodiscard]] static float computeStandaloneGain(float cutoffHz) noexcept
+    {
+        const float fc    = std::max(cutoffHz, 1.0f);
+        const float ratio = std::clamp(std::sqrt(calibrationCutoffHz() / fc),
+                                       0.25f, 4.0f);
+        return kStandaloneOutputGain * ratio;
+    }
+
     static float denormCutoff(float norm) noexcept
     {
         const float clamped = std::clamp(norm, 0.0f, 1.0f);
@@ -210,14 +236,13 @@ private:
     // Amplitude calibration for the standalone-layer path in DrumVoice (not
     // used by NoiseBody's hybrid-body delegation, which keeps the primitive's
     // natural amplitude). Gain-staging Step 4 (H-2): the layer is a transient
-    // ACCENT and must sit ~6 dB UNDER the modal body's -12 dBFS budget, i.e.
-    // a ~-18 dBFS layer peak at mix=1.0. The previous 3.0 was calibrated
-    // against the pre-Phase-11 un-attenuated body and buried the body's
-    // Material/Size/StrikePos character under broadband noise (a primary
-    // "all presets sound the same" cause). Verified by
-    // gain_staging_balance_test.cpp.
+    // ACCENT and must sit ~6 dB UNDER the modal body's strike-peak budget
+    // (kBodyHeadroom = -6 dBFS), i.e. a ~-18 dBFS layer peak at mix=1.0 AND at
+    // the reference cutoff (norm 0.5). This constant is the reference-cutoff
+    // calibration; standaloneGain() applies the per-preset cutoff correction on
+    // top of it. Verified by gain_staging_balance_test.cpp.
 public:
-    static constexpr float kStandaloneOutputGain = 0.243f;  // raw peak ~0.518 -> ~-18 dBFS
+    static constexpr float kStandaloneOutputGain = 0.243f;  // raw peak ~0.518 -> ~-18 dBFS @ fcRef
 private:
 
     [[maybe_unused]] double      sampleRate_ = 44100.0;
@@ -225,6 +250,8 @@ private:
     Krate::DSP::SVF              filter_;
     Krate::DSP::ADSREnvelope     envelope_;
     float                        mix_ = 0.0f;
+    // Cutoff-compensated standalone gain, refreshed by configure()/configureRaw().
+    float                        standaloneGain_ = kStandaloneOutputGain;
 };
 
 } // namespace Membrum

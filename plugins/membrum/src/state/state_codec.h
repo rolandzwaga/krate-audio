@@ -55,7 +55,8 @@ struct PadSnapshot
     // index 51       -> offset 59     (enabled)               [Phase 8F]
     // indices 52-55  -> offsets 60-63 (pitchEnv knee/mid/midFraction/curve2) [Phase 10]
     // index 56       -> offset 64     (pan)                   [M-9]
-    std::array<double, 57> sound{};
+    // index 57       -> noiseLayerGain (per-pad wire-buzz level) [snare-body fix]
+    std::array<double, 58> sound{};
 
     std::uint8_t chokeGroup{0};       ///< Authoritative (uint8) on load.
     std::uint8_t outputBus{0};        ///< Authoritative (uint8) on load.
@@ -95,7 +96,7 @@ struct PadPresetSnapshot
 {
     ExciterType   exciterType{};
     BodyModelType bodyModel{};
-    std::array<double, 57> sound{}; ///< Same layout as PadSnapshot::sound (M-9: index 56 = pan). Indices 28-29 (chokeGroup/outputBus float64) and index 51 (kit-level enabled flag) are written but ignored on load -- per-pad presets must not carry routing or per-pad-mute data.
+    std::array<double, 58> sound{}; ///< Same layout as PadSnapshot::sound (M-9: index 56 = pan; index 57 = noiseLayerGain). Indices 28-29 (chokeGroup/outputBus float64) and index 51 (kit-level enabled flag) are written but ignored on load -- per-pad presets must not carry routing or per-pad-mute data.
 };
 
 // ============================================================================
@@ -103,8 +104,8 @@ struct PadPresetSnapshot
 // accepted on read. Bumping these is a breaking change.
 // ============================================================================
 
-constexpr Steinberg::int32 kBlobVersion    = 3;  // M-9: 57-slot sound array (added pan)
-constexpr Steinberg::int32 kPadBlobVersion = 3;  // M-9: 57-slot sound array (added pan)
+constexpr Steinberg::int32 kBlobVersion    = 4;  // snare-body: 58-slot sound array (added noiseLayerGain)
+constexpr Steinberg::int32 kPadBlobVersion = 4;  // snare-body: 58-slot sound array (added noiseLayerGain)
 
 // ============================================================================
 // Blob codec -- one format for full kit/state.

@@ -118,6 +118,14 @@ public:
     [[nodiscard]] ExciterType getCurrentType() const noexcept { return currentType_; }
     [[nodiscard]] ExciterType getPendingType() const noexcept { return pendingType_; }
 
+    /// Cached normalized NoiseBurst contact-time. Exposed so the DrumVoice
+    /// strike-normalisation probe can build a local exciter whose burst length
+    /// matches the note that will actually play.
+    [[nodiscard]] float getPendingNoiseBurstContactNorm() const noexcept
+    {
+        return pendingNoiseBurstContactNorm_;
+    }
+
     /// Phase 7: forward the normalized noise-burst contact-time parameter to
     /// the NoiseBurst exciter if it is (or is about to be) the active variant.
     /// Safe to call regardless of which exciter is currently active -- other

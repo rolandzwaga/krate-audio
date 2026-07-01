@@ -175,10 +175,14 @@ TEST_CASE("Membrum: Note-on (note=36) produces audio > -12 dBFS",
     // Audit N-1: the measured-strike body norm (-6 dBFS strike-peak budget)
     // removed the clipping that previously held a default hit near 0 dBFS, so a
     // sub-max hit (vel 100/127, level 0.8) now peaks ~-18.4 dBFS post-master.
-    // It is still clearly audible; final loudness make-up belongs to master gain
-    // / per-pad Level (Phase-4 tuning), not the per-voice budget. Floor relaxed
-    // to -20 dBFS post-master to assert "audible note-on", not a specific level.
-    REQUIRE(peak > 0.10f);
+    // Snare-body Fix D: the real-excitation strike normalisation seats the body
+    // precisely at its budget, so the kick rings UP to its ~-14 dBFS peak over
+    // ~10-20 ms (past this single first-block window) rather than spiking in the
+    // first block; the first-block transient now peaks ~-22 dBFS. The note is
+    // still clearly audible over its full render (~-14 dBFS peak, see
+    // test_output_level_measure). This smoke test asserts "audible note-on", not
+    // a specific level, so the first-block floor is relaxed accordingly.
+    REQUIRE(peak > 0.05f);
 }
 
 // =============================================================================

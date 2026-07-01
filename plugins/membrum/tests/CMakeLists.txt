@@ -15,6 +15,7 @@ add_executable(membrum_tests
     # Processor tests
     unit/processor/membrum_processor_tests.cpp
     unit/processor/test_morph_host_simulation.cpp
+    unit/processor/test_snare_body_balance.cpp
 
     # Phase 2: architecture refactor tests
     unit/architecture/test_exciter_bank.cpp
@@ -130,6 +131,7 @@ add_executable(membrum_tests
     unit/diagnose/test_orchestral_distortion.cpp
     unit/diagnose/test_body_resonant_peak.cpp
     unit/diagnose/test_snare_body_diagnose.cpp
+    unit/diagnose/test_snare_audition.cpp
     unit/dsp/test_body_headroom_budget.cpp
     unit/ui/test_pad_grid_view.cpp
     unit/ui/test_pitch_envelope_display.cpp
