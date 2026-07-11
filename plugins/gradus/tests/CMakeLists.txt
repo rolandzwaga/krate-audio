@@ -17,6 +17,9 @@ add_executable(gradus_tests
     # Speed curve data model unit tests
     unit/ui/speed_curve_data_tests.cpp
 
+    # Arp param save/load round-trip guardrail over the shared 3000-3372 range (D3)
+    unit/parameters/arpeggiator_params_test.cpp
+
     # VST3 validation and parameter tests
     unit/vst/gradus_vst_tests.cpp
 
