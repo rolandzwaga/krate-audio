@@ -188,7 +188,7 @@ jobs:
           SHARED="${{ needs.detect-changes.outputs.shared }}"
           INFRA="${{ needs.detect-changes.outputs.infra }}"
           if [ "$DSP" = "true" ] || [ "$INFRA" = "true" ]; then
-            TARGETS="$TARGETS dsp_tests"
+            TARGETS="$TARGETS dsp_core_tests dsp_primitives_tests dsp_processors_tests dsp_systems_tests dsp_effects_tests"
           fi
           if [ "$SHARED" = "true" ] || [ "$INFRA" = "true" ]; then
             TARGETS="$TARGETS shared_tests"
@@ -223,7 +223,7 @@ jobs:
       # Run test executables sequentially on Windows — the 2-vCPU runner gets
       # negligible benefit from parallelism, and concurrent heavy DSP tests
       # (FFT, spectral processing) cause memory pressure leading to segfaults.
-      # Note: ctest -R "dsp_tests" doesn't work with catch_discover_tests
+      # Note: ctest -R "<exe name>" doesn't work with catch_discover_tests
       # because CTest registers individual Catch2 case names, not executable names.
       - name: Run Tests
         shell: bash
@@ -235,7 +235,7 @@ jobs:
           INFRA="${{ needs.detect-changes.outputs.infra }}"
           EXES=()
           if [ "$DSP" = "true" ] || [ "$INFRA" = "true" ]; then
-            EXES+=("$BIN/dsp_tests.exe")
+            EXES+=("$BIN/dsp_core_tests.exe" "$BIN/dsp_primitives_tests.exe" "$BIN/dsp_processors_tests.exe" "$BIN/dsp_systems_tests.exe" "$BIN/dsp_effects_tests.exe")
           fi
           if [ "$SHARED" = "true" ] || [ "$INFRA" = "true" ]; then
             EXES+=("$BIN/shared_tests.exe")
@@ -386,7 +386,7 @@ jobs:
           SHARED="${{ needs.detect-changes.outputs.shared }}"
           INFRA="${{ needs.detect-changes.outputs.infra }}"
           if [ "$DSP" = "true" ] || [ "$INFRA" = "true" ]; then
-            TARGETS="$TARGETS dsp_tests"
+            TARGETS="$TARGETS dsp_core_tests dsp_primitives_tests dsp_processors_tests dsp_systems_tests dsp_effects_tests"
           fi
           if [ "$SHARED" = "true" ] || [ "$INFRA" = "true" ]; then
             TARGETS="$TARGETS shared_tests"
@@ -441,7 +441,7 @@ jobs:
           INFRA="${{ needs.detect-changes.outputs.infra }}"
           EXES=()
           if [ "$DSP" = "true" ] || [ "$INFRA" = "true" ]; then
-            EXES+=("$BIN/dsp_tests")
+            EXES+=("$BIN/dsp_core_tests" "$BIN/dsp_primitives_tests" "$BIN/dsp_processors_tests" "$BIN/dsp_systems_tests" "$BIN/dsp_effects_tests")
           fi
           if [ "$SHARED" = "true" ] || [ "$INFRA" = "true" ]; then
             EXES+=("$BIN/shared_tests")
@@ -732,7 +732,7 @@ jobs:
           SHARED="${{ needs.detect-changes.outputs.shared }}"
           INFRA="${{ needs.detect-changes.outputs.infra }}"
           if [ "$DSP" = "true" ] || [ "$INFRA" = "true" ]; then
-            TARGETS="$TARGETS dsp_tests"
+            TARGETS="$TARGETS dsp_core_tests dsp_primitives_tests dsp_processors_tests dsp_systems_tests dsp_effects_tests"
           fi
           if [ "$SHARED" = "true" ] || [ "$INFRA" = "true" ]; then
             TARGETS="$TARGETS shared_tests"
@@ -776,7 +776,7 @@ jobs:
           INFRA="${{ needs.detect-changes.outputs.infra }}"
           EXES=()
           if [ "$DSP" = "true" ] || [ "$INFRA" = "true" ]; then
-            EXES+=("$BIN/dsp_tests")
+            EXES+=("$BIN/dsp_core_tests" "$BIN/dsp_primitives_tests" "$BIN/dsp_processors_tests" "$BIN/dsp_systems_tests" "$BIN/dsp_effects_tests")
           fi
           if [ "$SHARED" = "true" ] || [ "$INFRA" = "true" ]; then
             EXES+=("$BIN/shared_tests")

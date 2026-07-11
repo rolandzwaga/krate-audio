@@ -32,7 +32,7 @@ build with `"$CMAKE" --build build/windows-ninja-dev`.
 
 | Area | Test target(s) | Run path (all test exes land in one bin dir) | pluginval bundle |
 |------|----------------|----------------------------------------------|------------------|
-| DSP library | `dsp_tests` | `build/windows-x64-release/bin/Release/dsp_tests.exe` | — |
+| DSP library | 5 per-layer: `dsp_core_tests` `dsp_primitives_tests` `dsp_processors_tests` `dsp_systems_tests` `dsp_effects_tests` | `.../bin/Release/dsp_<layer>_tests.exe` | — |
 | Iterum | `plugin_tests` **and** `approval_tests` | `.../bin/Release/plugin_tests.exe`, `.../approval_tests.exe` | `Iterum.vst3` |
 | Disrumpo | `disrumpo_tests` | `.../bin/Release/disrumpo_tests.exe` | `Disrumpo.vst3` |
 | Ruinae | `ruinae_tests` | `.../bin/Release/ruinae_tests.exe` | `Ruinae.vst3` |
@@ -49,9 +49,10 @@ ALL test executables land in `build/windows-x64-release/bin/Release/` — not in
   If a target's tests don't appear, check the build output for errors first — do not blame the CMake cache.
 - **Read the Catch2 summary, don't grep it.** Run the exe with `2>&1 | tail -5`. The last line is
   `All tests passed (N assertions in M test cases)` or `test cases: M | N passed | K failed`. One run, one look.
-- **Run one suite** by passing the Catch2 case-name filter positionally: `dsp_tests.exe "SomeTest*"`.
-  Do NOT use `ctest -R dsp_tests` — CTest registers individual case names via `catch_discover_tests`,
-  so `-R dsp_tests` matches zero tests and reports success (false pass).
+- **Run one suite** by passing the Catch2 case-name filter positionally: `dsp_core_tests.exe "SomeTest*"`.
+  Do NOT use `ctest -R dsp_core_tests` — CTest registers individual case names via `catch_discover_tests`,
+  so `-R dsp_core_tests` matches zero tests and reports success (false pass). The DSP suite is 5 per-layer
+  exes (core/primitives/processors/systems/effects); build/run just the layer you touched.
 - **Never re-run the full ~6000-test suite** just to try another grep pattern.
 - **pluginval:** `tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/<Bundle>.vst3"`.
   Run it after any plugin source change; skip for docs/CI/test-only changes.

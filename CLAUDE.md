@@ -419,9 +419,10 @@ CMAKE="/c/Program Files/CMake/bin/cmake.exe"
 # Build (Release)
 "$CMAKE" --build build/windows-x64-release --config Release
 
-# Run DSP tests
-"$CMAKE" --build build/windows-x64-release --config Release --target dsp_tests
-build/windows-x64-release/bin/Release/dsp_tests.exe
+# Run DSP tests (split into 5 per-layer executables: core/primitives/processors/systems/effects)
+"$CMAKE" --build build/windows-x64-release --config Release --target dsp_core_tests dsp_primitives_tests dsp_processors_tests dsp_systems_tests dsp_effects_tests
+for t in dsp_core_tests dsp_primitives_tests dsp_processors_tests dsp_systems_tests dsp_effects_tests; do build/windows-x64-release/bin/Release/$t.exe 2>&1 | tail -3; done
+# (Editing one layer only relinks that layer's exe — e.g. --target dsp_core_tests)
 
 # Run plugin-specific tests
 "$CMAKE" --build build/windows-x64-release --config Release --target plugin_tests    # Iterum
