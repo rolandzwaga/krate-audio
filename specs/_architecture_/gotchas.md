@@ -54,6 +54,12 @@ skill or a spec doc — link it, so the fix lands in one place.
   ParamID or a custom `CView`. Also see [`vst-guide/PITFALLS.md`](../../.claude/skills/vst-guide/PITFALLS.md).
 - **State versioning / backward compatibility:** every stream-format change needs a version bump +
   migration. Canonical: [`plugin-state-persistence.md`](plugin-state-persistence.md).
+- **Shared arp params (Gradus + Ruinae, IDs 3000-3372):** the SAVE prefix is unified in
+  [`plugins/shared/src/parameters/arp_params_common.h`](../../plugins/shared/src/parameters/arp_params_common.h)
+  (`Krate::Shared::saveArpParamsShared`) — change it once, both plugins get it; a cross-plugin byte-golden
+  test (`tests/test_helpers/arp_shared_prefix_golden.h`) fails if they drift. `loadArpParams` is **not**
+  shared on purpose (clamp ranges / version gates legitimately diverge — `mode` clamps 0-9 in Ruinae vs
+  0-11 in Gradus); do not "unify" it or you change one plugin's clamping and can corrupt presets.
 - **Editor-teardown use-after-free** is the #1 crash class. The shared open/close-cycle harness
   ([`project_editor_lifecycle_harness`]) catches it but only has teeth under ASan/valgrind — a Release
   pass proves nothing. See the `crash-triage` agent for the triage flow.

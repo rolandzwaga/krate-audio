@@ -21,6 +21,10 @@
 #include "base/source/fstreamer.h"
 #include "public.sdk/source/common/memorystream.h"
 
+#include "test_helpers/arp_shared_prefix_golden.h"
+
+#include <vector>
+
 using Catch::Approx;
 using namespace Steinberg;
 
@@ -86,4 +90,29 @@ TEST_CASE("Gradus ArpParams_LoadArpParams_BackwardCompatibility", "[arp][params]
         CHECK_FALSE(ok);
         CHECK(params.mode.load() == defaultMode);
     }
+}
+
+// Cross-plugin byte-identity: the shared 200-byte save prefix must match Ruinae's
+// (both go through Krate::Shared::saveArpParamsShared). Same golden constant is
+// asserted in plugins/ruinae/.../arpeggiator_params_test.cpp.
+TEST_CASE("Gradus arp shared-prefix save is byte-golden (D3)", "[arp][params][state][shared]") {
+    using namespace Gradus;
+
+    ArpeggiatorParams p;
+    Krate::Test::setSharedArpFieldsDeterministic(p);
+
+    auto stream = Steinberg::owned(new Steinberg::MemoryStream());
+    {
+        Steinberg::IBStreamer writeStream(stream, kLittleEndian);
+        saveArpParams(p, writeStream);
+    }
+    stream->seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    std::vector<uint8_t> bytes(Krate::Test::kSharedArpPrefixBytes, 0);
+    int32 numRead = 0;
+    stream->read(bytes.data(), static_cast<int32>(bytes.size()), &numRead);
+    REQUIRE(numRead == static_cast<int32>(Krate::Test::kSharedArpPrefixBytes));
+
+    const uint32_t fnv = Krate::Test::fnv1a(bytes.data(), bytes.size());
+    INFO("gradus shared-prefix FNV = 0x" << std::hex << fnv);
+    CHECK(fnv == Krate::Test::kSharedArpPrefixGoldenFnv);
 }

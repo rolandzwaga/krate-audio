@@ -6,10 +6,12 @@ Auto-loads when working under `plugins/gradus/`. Root `CLAUDE.md` still applies.
   Extracted from Ruinae's arp section. **Version:** see `version.json`.
 - **src skeleton:** `controller/ dsp/ parameters/ preset/ processor/ ui/`
   (`dsp/` = minimal built-in audition voice).
-- **Param IDs:** arp base 3000 (`kArpBaseId`=3000 ... 3372). **These IDs are SHARED with Ruinae** —
-  a save/load or registration fix here must stay behavior-compatible with `plugins/ruinae/`.
-  The two plugins currently keep parallel copies of `parameters/arpeggiator_params.h`; Gradus's copy
-  carries the unique MIDI-delay / sequencer / Markov / speed-curve lanes on top of the shared 3000–3372 core.
+- **Param IDs:** arp base 3000 (`kArpBaseId`=3000 ... 3372). **These IDs are SHARED with Ruinae.**
+  The shared SAVE prefix is unified in `plugins/shared/src/parameters/arp_params_common.h`
+  (`Krate::Shared::saveArpParamsShared`) — Gradus's `saveArpParams` calls it, then appends its
+  Gradus-specific tail (MIDI-delay / sequencer / Markov / speed-curve lanes). A cross-plugin byte-golden
+  test guards shared-save identity. `loadArpParams` stays Gradus-local (its clamp ranges / version gates
+  diverge from Ruinae — e.g. `mode` clamps 0-11 here vs 0-9 there — so it must NOT be unified).
   Pipeline: `plugin_ids.h → parameters/ → processor → controller → resources/editor.uidesc`.
 - **Tests:** `gradus_tests`.
   ```bash

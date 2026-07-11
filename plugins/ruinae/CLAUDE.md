@@ -5,9 +5,12 @@ Auto-loads when working under `plugins/ruinae/`. Root `CLAUDE.md` still applies.
 - **Type:** synthesizer instrument (AU `aumu`). **Version:** see `version.json`.
 - **src skeleton:** `controller/ engine/ parameters/ preset/ processor/ update/`
   (`engine/` = synth engine, voice, effects chain).
-- **Param IDs:** section bases (Osc A base 100, ...). **Arp section IDs 3000–3372 are SHARED with Gradus** —
-  any change to arp save/load/registration must stay behavior-compatible with `plugins/gradus/`.
-  Pipeline to add one: `plugin_ids.h → parameters/ → processor → controller → resources/editor.uidesc`.
+- **Param IDs:** section bases (Osc A base 100, ...). **Arp section IDs 3000–3372 are SHARED with Gradus.**
+  The shared SAVE prefix is unified in `plugins/shared/src/parameters/arp_params_common.h`
+  (`Krate::Shared::saveArpParamsShared`) — both plugins call it, so a shared-save fix lands once; a
+  cross-plugin byte-golden test (`tests/test_helpers/arp_shared_prefix_golden.h`) guards it. `loadArpParams`
+  is deliberately NOT shared (clamp ranges / version gates diverge — e.g. `mode` clamps 0-9 here vs 0-11 in
+  Gradus). Pipeline to add one: `plugin_ids.h → parameters/ → processor → controller → resources/editor.uidesc`.
 - **Tests:** `ruinae_tests`.
   ```bash
   build/windows-x64-release/bin/Release/ruinae_tests.exe 2>&1 | tail -5
