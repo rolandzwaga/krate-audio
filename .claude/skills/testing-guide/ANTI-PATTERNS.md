@@ -953,3 +953,27 @@ TEST_CASE("kick is sub-bass dominant", "[render][perceptual]") {
 > - Reference implementation: `tests/test_helpers/audio_features.h` +
 >   `plugins/membrum/tests/unit/dsp/test_render_perceptual.cpp`. The `audio-verification`
 >   agent and `krate-render` use the same features for A/B diagnosis.
+
+---
+
+## Anti-Pattern: The Monster Test File
+
+A single test `.cpp` that grows past a few thousand lines becomes effectively un-editable: huge read
+cost, Edit-anchor collisions on repeated boilerplate, and one slow serial translation unit (the former
+17,222-line `arpeggiator_core_test.cpp` was the single slowest TU in the whole build — see
+`specs/_architecture_/build-times.md`).
+
+### The Rule
+
+> **Soft cap test files at ~1500 lines.** When a suite for one component crosses it, split by
+> feature/spec area into sibling files that share a fixture header.
+
+- Group by user story / spec number (e.g. `arpeggiator_core_{core,lanes,ratcheting,euclidean,...}_test.cpp`),
+  not arbitrarily.
+- Put shared helpers in a `*_test_helpers.h` and mark them **`inline`, not `static`** — a sibling that
+  includes the header but doesn't use a helper would otherwise trip C4505 (unused static function) under
+  `/W4` and break the zero-warning build.
+- **Register every new sibling** in the target's `CMakeLists.txt` (sources are listed explicitly, not
+  globbed — an unregistered file silently does not run). For the DSP suite, add it to the matching
+  per-layer target.
+- After splitting, confirm the **total `TEST_CASE` count is unchanged** so nothing was dropped.

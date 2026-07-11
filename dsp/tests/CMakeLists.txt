@@ -229,7 +229,18 @@ add_executable(dsp_processors_tests
     unit/processors/mono_handler_test.cpp
     unit/processors/note_processor_test.cpp
     unit/processors/trance_gate_test.cpp
-    unit/processors/arpeggiator_core_test.cpp
+    # arpeggiator_core_test.cpp split into spec-area siblings (D1) sharing
+    # arpeggiator_core_test_helpers.h
+    unit/processors/arpeggiator_core_core_test.cpp
+    unit/processors/arpeggiator_core_lanes_test.cpp
+    unit/processors/arpeggiator_core_baseline_test.cpp
+    unit/processors/arpeggiator_core_perstepmods_test.cpp
+    unit/processors/arpeggiator_core_ratcheting_test.cpp
+    unit/processors/arpeggiator_core_euclidean_test.cpp
+    unit/processors/arpeggiator_core_conditional_test.cpp
+    unit/processors/arpeggiator_core_spicehuman_test.cpp
+    unit/processors/arpeggiator_core_dawloop_test.cpp
+    unit/processors/arpeggiator_core_scalechord_test.cpp
     unit/processors/midi_note_delay_test.cpp
     unit/processors/ring_modulator_test.cpp
     unit/processors/harmonic_types_tests.cpp
@@ -580,7 +591,17 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/processors/mono_handler_test.cpp
         unit/processors/note_processor_test.cpp
         unit/processors/trance_gate_test.cpp
-        unit/processors/arpeggiator_core_test.cpp
+        # arpeggiator_core_test.cpp split into spec-area siblings (D1)
+        unit/processors/arpeggiator_core_core_test.cpp
+        unit/processors/arpeggiator_core_lanes_test.cpp
+        unit/processors/arpeggiator_core_baseline_test.cpp
+        unit/processors/arpeggiator_core_perstepmods_test.cpp
+        unit/processors/arpeggiator_core_ratcheting_test.cpp
+        unit/processors/arpeggiator_core_euclidean_test.cpp
+        unit/processors/arpeggiator_core_conditional_test.cpp
+        unit/processors/arpeggiator_core_spicehuman_test.cpp
+        unit/processors/arpeggiator_core_dawloop_test.cpp
+        unit/processors/arpeggiator_core_scalechord_test.cpp
         unit/processors/ring_modulator_test.cpp
         unit/processors/harmonic_types_tests.cpp
         unit/processors/dual_stft_tests.cpp
