@@ -124,6 +124,7 @@ krate_plugin_platform_setup(${PLUGIN_NAME}
 # Post-Build install + compiler warnings (see cmake/KratePlugin.cmake)
 # ==============================================================================
 krate_plugin_install_to_system(${PLUGIN_NAME})
+krate_plugin_install_presets(${PLUGIN_NAME})
 krate_plugin_set_warnings(${PLUGIN_NAME})
 
 # ==============================================================================

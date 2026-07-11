@@ -234,6 +234,8 @@ krate_plugin_platform_setup(${PLUGIN_NAME}
 # Post-Build install + compiler warnings (see cmake/KratePlugin.cmake)
 # ==============================================================================
 krate_plugin_install_to_system(${PLUGIN_NAME})
+# Membrum nests kit presets under "Kit Presets" and the runtime scans a "Kits" subdir.
+krate_plugin_install_presets(${PLUGIN_NAME} SRC_SUBDIR "Kit Presets" DEST_SUBDIR "Kits")
 krate_plugin_set_warnings(${PLUGIN_NAME})
 
 # ==============================================================================
