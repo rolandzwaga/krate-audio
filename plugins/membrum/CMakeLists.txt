@@ -164,6 +164,10 @@ add_library(membrum_core STATIC
     src/processor/meters_block.h
     src/controller/controller.h
     src/controller/controller.cpp
+    # controller split by concern (D2)
+    src/controller/controller_state.cpp
+    src/controller/controller_view_sync.cpp
+    src/controller/controller_param_format.cpp
     src/controller/controller_state_codec.h
     src/controller/controller_state_codec.cpp
     src/ui/pad_grid_view.h
