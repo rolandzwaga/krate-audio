@@ -77,8 +77,12 @@ add_executable(disrumpo_tests
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/dsp/distortion_adapter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/dsp/morph_engine.cpp
 
-    # Processor source (needed for serialization tests)
+    # Processor source (needed for serialization tests) -- split into
+    # core/state/params/messaging (D2)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor_state.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor_params.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor_messaging.cpp
 
     # VST3 SDK sources (needed for serialization round-trip tests)
     ${vst3sdk_SOURCE_DIR}/public.sdk/source/common/memorystream.cpp

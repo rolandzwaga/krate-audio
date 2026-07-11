@@ -14,5 +14,10 @@ Auto-loads when working under `plugins/disrumpo/`. Root `CLAUDE.md` still applie
   ```
 - **pluginval:** `tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Disrumpo.vst3"`
 - **UI:** `resources/editor.uidesc` (custom views: morph pad, spectrum).
-- **Heads-up:** `processor/processor.cpp` (~2558 lines) and `controller.cpp` (~2004) are unsplit monoliths —
-  offset-read/Grep to locate before editing; anchor Edits carefully (repeated boilerplate causes collisions).
+- **Processor is split (D2):** `processor.cpp` (core: lifecycle/process/bus/morph/solo),
+  `processor_state.cpp` (getState/setState), `processor_params.cpp` (shape-slot map +
+  processParameterChanges), `processor_messaging.cpp` (connect/disconnect/spectrum/mod-offset).
+  All four are the same `Processor` class across TUs — put a new method in the file that matches
+  its concern.
+- **Heads-up:** `controller.cpp` (~2004 lines) is still an unsplit monolith — offset-read/Grep to
+  locate before editing; anchor Edits carefully (repeated boilerplate causes collisions).
