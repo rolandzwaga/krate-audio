@@ -32,6 +32,10 @@ smtg_add_vst3plugin(${PLUGIN_NAME}
     src/controller/controller.cpp
     src/controller/controller_param_display.cpp
     src/controller/controller_presets.cpp
+    # further split (D2): state, view sync, ADSR wiring
+    src/controller/controller_state.cpp
+    src/controller/controller_view_sync.cpp
+    src/controller/controller_adsr.cpp
     src/controller/display_data.h
     src/controller/modulator_sub_controller.h
     src/controller/modulator_sub_controller.cpp

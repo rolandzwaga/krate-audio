@@ -126,6 +126,9 @@ add_executable(innexus_tests
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller_param_display.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller_presets.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller_state.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller_view_sync.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller_adsr.cpp
     ${vst3sdk_SOURCE_DIR}/public.sdk/source/common/memorystream.cpp
 
     # Sample analyzer implementation
