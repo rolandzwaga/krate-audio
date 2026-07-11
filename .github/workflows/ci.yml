@@ -213,6 +213,8 @@ jobs:
               TARGETS="$TARGETS $target $extras"
             fi
           done
+          # Build the SDK validator whenever anything is built, so every bundle can be validated.
+          case " $TARGETS " in *" validator "*) ;; *) [ -n "$TARGETS" ] && TARGETS="$TARGETS validator" ;; esac
           if [ -n "$TARGETS" ]; then
             echo "Building targets:$TARGETS"
             cmake --build build --config ${{ env.BUILD_TYPE }} --parallel --target $TARGETS
@@ -277,9 +279,22 @@ jobs:
           done
           exit $FAILED
 
-      - name: Run VST3 Validator (Iterum)
-        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: build/bin/${{ env.BUILD_TYPE }}/validator.exe -e build/VST3/${{ env.BUILD_TYPE }}/Iterum.vst3
+      - name: Validate + resource-check built bundles
+        shell: bash
+        run: |
+          shopt -s nullglob
+          CONFIG="${{ env.BUILD_TYPE }}"
+          BUNDLES=(build/VST3/$CONFIG/*.vst3)
+          if [ ${#BUNDLES[@]} -eq 0 ]; then echo "No bundles built — nothing to check"; exit 0; fi
+          # Resource guard: every bundle must ship editor.uidesc + moduleinfo.json.
+          node tools/check-bundle.js "${BUNDLES[@]}"
+          # SDK hosting validator (module load + instantiate + audio-process) on each.
+          VALIDATOR="build/bin/$CONFIG/validator.exe"
+          if [ -f "$VALIDATOR" ]; then
+            for b in "${BUNDLES[@]}"; do echo "Validating $b"; "$VALIDATOR" -e "$b" || exit 1; done
+          else
+            echo "validator not built this run — ran resource checks only"
+          fi
 
       - name: Upload Iterum Artifact
         if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
@@ -483,9 +498,22 @@ jobs:
           done
           exit $FAILED
 
-      - name: Run VST3 Validator (Iterum)
-        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: build/bin/${{ env.BUILD_TYPE }}/validator -e build/VST3/${{ env.BUILD_TYPE }}/Iterum.vst3
+      - name: Validate + resource-check built bundles
+        shell: bash
+        run: |
+          shopt -s nullglob
+          CONFIG="${{ env.BUILD_TYPE }}"
+          BUNDLES=(build/VST3/$CONFIG/*.vst3)
+          if [ ${#BUNDLES[@]} -eq 0 ]; then echo "No bundles built — nothing to check"; exit 0; fi
+          # Resource guard: every bundle must ship editor.uidesc + moduleinfo.json.
+          node tools/check-bundle.js "${BUNDLES[@]}"
+          # SDK hosting validator (module load + instantiate + audio-process) on each.
+          VALIDATOR="build/bin/$CONFIG/validator"
+          if [ -f "$VALIDATOR" ]; then
+            for b in "${BUNDLES[@]}"; do echo "Validating $b"; "$VALIDATOR" -e "$b" || exit 1; done
+          else
+            echo "validator not built this run — ran resource checks only"
+          fi
 
       # Install AU and run auval validation for Iterum
       - name: Run Iterum AU Validation
@@ -757,6 +785,8 @@ jobs:
               TARGETS="$TARGETS $target $extras"
             fi
           done
+          # Build the SDK validator whenever anything is built, so every bundle can be validated.
+          case " $TARGETS " in *" validator "*) ;; *) [ -n "$TARGETS" ] && TARGETS="$TARGETS validator" ;; esac
           if [ -n "$TARGETS" ]; then
             echo "Building targets:$TARGETS"
             cmake --build build --parallel --target $TARGETS
@@ -818,9 +848,22 @@ jobs:
           done
           exit $FAILED
 
-      - name: Run VST3 Validator (Iterum)
-        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: build/bin/${{ env.BUILD_TYPE }}/validator -e build/VST3/${{ env.BUILD_TYPE }}/Iterum.vst3
+      - name: Validate + resource-check built bundles
+        shell: bash
+        run: |
+          shopt -s nullglob
+          CONFIG="${{ env.BUILD_TYPE }}"
+          BUNDLES=(build/VST3/$CONFIG/*.vst3)
+          if [ ${#BUNDLES[@]} -eq 0 ]; then echo "No bundles built — nothing to check"; exit 0; fi
+          # Resource guard: every bundle must ship editor.uidesc + moduleinfo.json.
+          node tools/check-bundle.js "${BUNDLES[@]}"
+          # SDK hosting validator (module load + instantiate + audio-process) on each.
+          VALIDATOR="build/bin/$CONFIG/validator"
+          if [ -f "$VALIDATOR" ]; then
+            for b in "${BUNDLES[@]}"; do echo "Validating $b"; "$VALIDATOR" -e "$b" || exit 1; done
+          else
+            echo "validator not built this run — ran resource checks only"
+          fi
 
       # Show ccache statistics for debugging cache effectiveness
       - name: Show ccache stats
