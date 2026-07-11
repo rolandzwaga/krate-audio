@@ -55,6 +55,7 @@ This architecture documentation is split into the following sections:
 | [Membrum Plugin](membrum-plugin.md) | Membrum-specific DSP components (DrumVoice, membrane_modes.h), bus config, parameters |
 | [Testing](testing.md) | Testing layers, test helpers infrastructure (artifact detection, signal metrics, golden reference) |
 | [Quick Reference](quick-reference.md) | Layer inclusion rules, common include patterns, ODR prevention |
+| [Cross-Cutting Gotchas](gotchas.md) | Recurring, span-the-repo failure modes (build/install, cross-platform numerics, RT-safety, VST3 state/editor, AU wrapper, tests) — an index into the canonical skill/spec docs |
 
 ---
 
