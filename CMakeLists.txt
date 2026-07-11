@@ -158,6 +158,37 @@ if(ENABLE_ASAN)
 endif()
 
 # ==============================================================================
+# Build-Time Instrumentation (opt-in, OFF by default)
+# ==============================================================================
+# Measure WHERE compile time goes so agents stop guessing header blast radius by
+# grepping include counts. Enable via a timing preset (see CMakePresets.json) or
+# -DKRATE_BUILD_TIMING=ON. Analyze the results with:
+#     node tools/aggregate-build-times.js --build <build-dir>
+#
+#   Clang/GCC (Ninja): -ftime-trace writes a Chrome-trace <obj>.json next to every
+#     object file; the aggregator ranks the worst headers across all TUs. Pair with
+#     ClangBuildAnalyzer for a deeper per-symbol view.
+#   MSVC (windows-ninja): /Bt+ prints front-end + back-end timing per TU and
+#     /d2cgsummary prints a codegen summary; capture the build stdout to a log and
+#     pass it with --msvc-log.
+#   Any Ninja build: the aggregator also reads .ninja_log for a zero-config
+#     slowest-target baseline even without these flags.
+# ==============================================================================
+option(KRATE_BUILD_TIMING "Emit compiler build-time instrumentation (-ftime-trace / MSVC /Bt+)" OFF)
+
+if(KRATE_BUILD_TIMING)
+    if(MSVC)
+        add_compile_options(/Bt+ /d2cgsummary)
+        message(STATUS "[KRATE] Build timing ENABLED (MSVC /Bt+ /d2cgsummary) - capture build stdout to a log, then: node tools/aggregate-build-times.js --msvc-log <log>")
+    elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+        add_compile_options(-ftime-trace)
+        message(STATUS "[KRATE] Build timing ENABLED (-ftime-trace) - per-TU <obj>.json traces; then: node tools/aggregate-build-times.js --build ${CMAKE_BINARY_DIR}")
+    else()
+        message(WARNING "[KRATE] KRATE_BUILD_TIMING not supported for this compiler")
+    endif()
+endif()
+
+# ==============================================================================
 # VST3 SDK Configuration (Shared by all plugins)
 # ==============================================================================
 set(vst3sdk_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/extern/vst3sdk")

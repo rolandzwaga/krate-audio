@@ -80,6 +80,15 @@
             }
         },
         {
+            "name": "windows-ninja-timing",
+            "displayName": "Windows Ninja Timing (build-time instrumentation)",
+            "description": "Ninja build with MSVC /Bt+ /d2cgsummary. Capture build stdout to a log, then: node tools/aggregate-build-times.js --build build/windows-ninja-timing --msvc-log <log>. Run from a VS Developer Command Prompt.",
+            "inherits": "windows-ninja",
+            "cacheVariables": {
+                "KRATE_BUILD_TIMING": "ON"
+            }
+        },
+        {
             "name": "macos-debug",
             "displayName": "macOS Debug",
             "inherits": "base",
@@ -134,6 +143,15 @@
                 "lhs": "${hostSystemName}",
                 "rhs": "Linux"
             }
+        },
+        {
+            "name": "linux-timing",
+            "displayName": "Linux Timing (build-time instrumentation)",
+            "description": "Clang/GCC Ninja build with -ftime-trace. Emits per-TU <obj>.json traces; then: node tools/aggregate-build-times.js --build build/linux-timing",
+            "inherits": "linux-release",
+            "cacheVariables": {
+                "KRATE_BUILD_TIMING": "ON"
+            }
         }
     ],
     "buildPresets": [
@@ -152,6 +170,10 @@
             "configurePreset": "windows-ninja-dev"
         },
         {
+            "name": "windows-ninja-timing",
+            "configurePreset": "windows-ninja-timing"
+        },
+        {
             "name": "macos-debug",
             "configurePreset": "macos-debug",
             "configuration": "Debug"
@@ -168,6 +190,10 @@
         {
             "name": "linux-release",
             "configurePreset": "linux-release"
+        },
+        {
+            "name": "linux-timing",
+            "configurePreset": "linux-timing"
         }
     ],
     "testPresets": [
