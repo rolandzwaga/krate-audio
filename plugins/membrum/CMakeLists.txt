@@ -151,50 +151,68 @@ target_compile_features(membrum_preset_io PUBLIC cxx_std_20)
 smtg_target_setup_universal_binary(membrum_preset_io)
 
 # ==============================================================================
-# Plugin Target
+# membrum_core -- STATIC library of the processor/controller/UI/voice-pool TUs
 # ==============================================================================
-set(PLUGIN_NAME "${MEMBRUM_NAME}")
-
-smtg_add_vst3plugin(${PLUGIN_NAME}
-    # Plugin Entry
-    src/entry.cpp
-
-    # Processor (Audio Thread)
+# Shared by the Membrum plugin bundle AND membrum_tests so these heavy source
+# files compile once per change instead of once per consumer (the canonical dev
+# loop builds both). entry.cpp stays in the bundle: it defines the VST3 factory
+# and includes the generated version.h.
+add_library(membrum_core STATIC
     src/processor/processor.h
     src/processor/processor.cpp
-
-    # Controller (UI Thread)
+    src/processor/macro_mapper.cpp
+    src/processor/meters_block.h
     src/controller/controller.h
     src/controller/controller.cpp
     src/controller/controller_state_codec.h
     src/controller/controller_state_codec.cpp
-
-    # Preset config (plugin-local, header-only)
-    src/preset/membrum_preset_config.h
-
-    # Phase 6: macros, custom editor, meters block (SDK-coupled)
-    src/processor/macro_mapper.cpp
-    src/processor/meters_block.h
     src/ui/pad_grid_view.h
     src/ui/pad_grid_view.cpp
     src/ui/kit_meters_view.h
     src/ui/kit_meters_view.cpp
-
-    # Phase 3: voice pool (multi-voice polyphony, stealing, choke groups)
     src/voice_pool/voice_pool.h
     src/voice_pool/voice_pool.cpp
     src/voice_pool/voice_meta.h
     src/voice_pool/voice_stealing_policy.h
     src/voice_pool/choke_group_table.h
-
-    # Shared
+    src/preset/membrum_preset_config.h
     src/plugin_ids.h
+)
+
+target_include_directories(membrum_core PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+target_link_libraries(membrum_core
+    PUBLIC
+        sdk
+        vstgui_support
+        KrateDSP
+        KratePluginsShared
+        membrum_dsp
+        membrum_preset_io
+)
+
+target_compile_features(membrum_core PUBLIC cxx_std_20)
+krate_plugin_set_warnings(membrum_core)
+smtg_target_setup_universal_binary(membrum_core)
+
+# ==============================================================================
+# Plugin Target
+# ==============================================================================
+set(PLUGIN_NAME "${MEMBRUM_NAME}")
+
+smtg_add_vst3plugin(${PLUGIN_NAME}
+    # Plugin Entry (defines the VST3 factory; includes generated version.h).
+    # All other TUs come from membrum_core (linked below).
+    src/entry.cpp
     src/version.h
 )
 
-# Link SDK, VSTGUI, KrateDSP, and the new membrum_dsp / membrum_preset_io targets
+# Link membrum_core (processor/controller/UI/voice-pool) plus the SDK/DSP libs.
 target_link_libraries(${PLUGIN_NAME}
     PRIVATE
+        membrum_core
         sdk
         vstgui_support
         KrateDSP
