@@ -18,7 +18,7 @@ This skill provides comprehensive guidelines for writing effective tests for thi
 
 | Executable | Purpose | Location |
 |------------|---------|----------|
-| `dsp_tests.exe` | DSP algorithm tests | `build/bin/Release/dsp_tests.exe` |
+| `dsp_<layer>_tests.exe` | DSP tests, one exe per layer: core/primitives/processors/systems/effects (no single `dsp_tests` anymore) | `build/bin/Release/dsp_<layer>_tests.exe` |
 | `plugin_tests.exe` | Plugin tests | `build/bin/Release/plugin_tests.exe` |
 | `approval_tests.exe` | Golden master tests | `build/bin/Release/approval_tests.exe` |
 

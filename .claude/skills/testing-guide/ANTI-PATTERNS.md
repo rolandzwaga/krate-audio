@@ -908,3 +908,48 @@ dsp_tests.exe -c "RingModulator*"  # This filters sections, not test names!
 > - Use `| tail -5` to capture it
 > - ONE run per check. If you need more detail, read the FULL output from that same run.
 > - The suite has 6000+ tests. Each re-run costs 30-60 seconds. Running it 20 times wastes 15+ minutes for zero additional information.
+
+---
+
+## The "It Changed" Audio Test (perceptually blind)
+
+**Problem:** A test for an audible DSP change only asserts the output *differs* from
+before, or is merely non-silent. It passes as long as *something* comes out — even if the
+timbre is completely wrong. This is how a snare that regresses into a hollow woodblock, or
+a kick that loses its sub-bass, ships green: the samples changed, so the test was "happy."
+
+```cpp
+// BAD: proves the pad makes *a* sound, not the *right* sound.
+TEST_CASE("kick renders") {
+    auto out = render(kKickNote);
+    REQUIRE(rms(out) > 0.0);              // non-silent — passes for ANY noise
+    REQUIRE(out != previousRender);        // "it changed" — passes for ANY change
+}
+```
+
+**Fix:** Assert the *perceptual signature* — spectral centroid, per-band energy, decay
+envelope — within tolerance of what the sound physically IS. Use the shared feature
+extractor so measurement is consistent with the render CLI.
+
+```cpp
+// GOOD: encodes what a kick actually is, with margin for legitimate tuning.
+#include "audio_features.h"   // tests/test_helpers
+TEST_CASE("kick is sub-bass dominant", "[render][perceptual]") {
+    auto f = Krate::Test::extractAudioFeatures(renderMono(kKickNote), sr);
+    INFO("features: " << Krate::Test::formatFeatures(f));
+    REQUIRE(f.peakDbfs > -40.0);          // audible
+    REQUIRE(f.band[0] > 0.30);            // strong 20-100 Hz
+    REQUIRE(f.centroidHz < 500.0);        // low centroid
+}
+```
+
+### The Rule
+
+> **For an audible DSP change, assert what it should SOUND like, not just that it changed.**
+>
+> - Render through the full Processor (`krate-render` / the headless harness), not just a leaf DSP class.
+> - Reduce to features (centroid, band energy, decay) and assert within tolerance.
+> - Prefer generous margins so tuning doesn't trip the test, but a real timbre regression does.
+> - Reference implementation: `tests/test_helpers/audio_features.h` +
+>   `plugins/membrum/tests/unit/dsp/test_render_perceptual.cpp`. The `audio-verification`
+>   agent and `krate-render` use the same features for A/B diagnosis.

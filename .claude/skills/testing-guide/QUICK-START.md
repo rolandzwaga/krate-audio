@@ -6,9 +6,15 @@ This document provides **exact, verified commands** for building and running tes
 
 ## Test Executables Overview
 
+> **Note:** the DSP suite was split into 5 per-layer executables —
+> `dsp_core_tests`, `dsp_primitives_tests`, `dsp_processors_tests`, `dsp_systems_tests`,
+> `dsp_effects_tests`. There is no single `dsp_tests.exe` anymore. Examples below that write
+> `dsp_tests.exe` mean "the per-layer exe for the layer your tag lives in" (e.g. `[biquad]` is a
+> primitive → `dsp_primitives_tests.exe`); when unsure, run the tag against each of the five.
+
 | Executable | Purpose | Location |
 |------------|---------|----------|
-| `dsp_tests.exe` | DSP algorithm unit tests (Layer 0-4) | `build/bin/{Config}/dsp_tests.exe` |
+| `dsp_<layer>_tests.exe` | DSP algorithm unit tests, one exe per layer (core/primitives/processors/systems/effects) | `build/bin/{Config}/dsp_<layer>_tests.exe` |
 | `plugin_tests.exe` | Plugin tests (controller, params, preset, UI, VST) | `build/bin/{Config}/plugin_tests.exe` |
 | `approval_tests.exe` | Golden master / regression tests | `build/bin/{Config}/approval_tests.exe` |
 | `validator.exe` | VST3 SDK validator | `build/bin/{Config}/validator.exe` |
