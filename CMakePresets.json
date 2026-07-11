@@ -62,6 +62,24 @@
             }
         },
         {
+            "name": "windows-ninja-dev",
+            "displayName": "Windows Ninja Dev (fast agent iteration)",
+            "description": "Lean Ninja build for fast edit->verify loops. Ninja enables the ccache compiler launcher (the VS generator ignores it); heavy optional tools are off. Run from a VS Developer Command Prompt. ccache/sccache is used automatically if on PATH.",
+            "inherits": "base",
+            "generator": "Ninja",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "USE_CCACHE": "ON",
+                "VSTWORK_BUILD_MEMBRUM_FIT": "OFF",
+                "BUILD_CONTROL_TESTBENCH": "OFF"
+            },
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Windows"
+            }
+        },
+        {
             "name": "macos-debug",
             "displayName": "macOS Debug",
             "inherits": "base",
@@ -130,6 +148,10 @@
             "configuration": "Release"
         },
         {
+            "name": "windows-ninja-dev",
+            "configurePreset": "windows-ninja-dev"
+        },
+        {
             "name": "macos-debug",
             "configurePreset": "macos-debug",
             "configuration": "Debug"
@@ -161,6 +183,13 @@
             "name": "windows-x64-release",
             "configurePreset": "windows-x64-release",
             "configuration": "Release",
+            "output": {
+                "outputOnFailure": true
+            }
+        },
+        {
+            "name": "windows-ninja-dev",
+            "configurePreset": "windows-ninja-dev",
             "output": {
                 "outputOnFailure": true
             }

@@ -57,6 +57,14 @@ This is a **monorepo** for Krate Audio plugins, featuring:
 └── extern/pffft/             # SIMD-optimized FFT (BSD, marton78 fork)
 ```
 
+## Per-Directory Context Files
+
+This file holds cross-cutting rules. **Area-specific `CLAUDE.md` leaf files auto-load when you work in
+their subtree** — read them for the concrete facts (skeleton, param-ID scheme, test target, pluginval path):
+
+- [`dsp/CLAUDE.md`](dsp/CLAUDE.md) — layer architecture, ODR procedure, header-only/SIMD conventions
+- [`plugins/iterum/CLAUDE.md`](plugins/iterum/CLAUDE.md) · [`disrumpo`](plugins/disrumpo/CLAUDE.md) · [`ruinae`](plugins/ruinae/CLAUDE.md) · [`innexus`](plugins/innexus/CLAUDE.md) · [`gradus`](plugins/gradus/CLAUDE.md) · [`membrum`](plugins/membrum/CLAUDE.md)
+
 ## Critical Rules (Non-Negotiable)
 
 ### No Amending Commits
