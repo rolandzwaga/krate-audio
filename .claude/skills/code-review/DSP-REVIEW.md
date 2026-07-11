@@ -8,7 +8,13 @@ Detailed review criteria for all code that runs on or supports the audio thread.
 
 Every line of code reachable from `Processor::process()` must satisfy hard real-time constraints. A single violation causes audible dropouts.
 
-### Forbidden Operations
+> **Canonical rules** (the forbidden-ops definitions + safe alternatives + why) live in
+> [`dsp-architecture/REALTIME-SAFETY.md`](../dsp-architecture/REALTIME-SAFETY.md); the *rule of law* is
+> Constitution Principle II. This section is the **review lens** — it adds what those docs don't: a
+> grep-able search column and a per-operation severity for triage. Do not restate the rules here; if
+> they change, change them there.
+
+### Forbidden Operations — search terms + severity
 
 | Operation | What to Search For | Severity |
 |-----------|--------------------|----------|
@@ -22,12 +28,9 @@ Every line of code reachable from `Processor::process()` must satisfy hard real-
 
 ### What IS Allowed
 
-- `std::atomic` loads/stores with relaxed ordering
-- Pre-allocated `std::vector` access by index
-- `std::array` (stack-allocated, fixed size)
-- `std::span` (view, no allocation)
-- Arithmetic, bitwise operations
-- Inline function calls
+See [`REALTIME-SAFETY.md` → Safe Alternatives](../dsp-architecture/REALTIME-SAFETY.md) for the full
+list (atomics, pre-allocated index access, `std::array`/`std::span`, arithmetic, inline calls). If the
+change stays within those, the allocation/lock/exception criterion passes.
 
 ### Review Pattern
 

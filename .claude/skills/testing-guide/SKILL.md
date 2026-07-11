@@ -1,6 +1,6 @@
 ---
 name: testing-guide
-description: VST3 plugin testing patterns and practices. Use when writing tests, debugging test failures, adding new test cases, when tests don't appear after changes, or when working with DSP algorithms that need verification. Covers build verification, DSP testing strategies, integration testing (processor-level wiring, parameter application, host environment), artifact detection, spectral analysis, Catch2 patterns, and VST3 validation.
+description: VST3 plugin testing patterns and practices — the broad, general-purpose testing skill. Use when writing tests, debugging test failures, adding new test cases, when tests don't appear after changes, running the test suites, or wiring integration tests. Covers build-before-test discipline, Catch2 patterns and test doubles, integration testing (processor-level wiring, parameter application, host environment), VST3 validation, and anti-patterns. For deep DSP-verification (FFT aliasing measurement, THD/SNR, click/artifact detection, spectral golden references) use the companion testing-dsp-analysis skill.
 allowed-tools: Read, Grep, Glob, Bash
 ---
 
@@ -25,20 +25,20 @@ This skill provides comprehensive guidelines for writing effective tests for thi
 ### Build and Run Tests
 
 ```bash
-# 1. BUILD FIRST (always!)
-cmake --build build --config Release --target dsp_tests
+# 1. BUILD FIRST (always!) — build only the layer you touched (no single dsp_tests anymore)
+cmake --build build --config Release --target dsp_primitives_tests
 
-# 2. Run all tests
-"F:/projects/iterum/build/bin/Release/dsp_tests.exe"
+# 2. Run that layer's tests
+"F:/projects/iterum/build/windows-x64-release/bin/Release/dsp_primitives_tests.exe"
 
 # 3. Run tests by tag
-"F:/projects/iterum/build/bin/Release/dsp_tests.exe" "[wavefold_math]"
+"F:/projects/iterum/build/windows-x64-release/bin/Release/dsp_primitives_tests.exe" "[wavefold_math]"
 
 # 4. Run tests by name pattern
-"F:/projects/iterum/build/bin/Release/dsp_tests.exe" "*lambert*"
+"F:/projects/iterum/build/windows-x64-release/bin/Release/dsp_processors_tests.exe" "*lambert*"
 
 # 5. List all tags
-"F:/projects/iterum/build/bin/Release/dsp_tests.exe" --list-tags
+"F:/projects/iterum/build/windows-x64-release/bin/Release/dsp_core_tests.exe" --list-tags
 ```
 
 ### DO NOT DO THIS
@@ -56,11 +56,12 @@ For complete commands and examples, see [QUICK-START.md](QUICK-START.md).
 ## Quick Reference
 
 - **Build commands**: See [QUICK-START.md](QUICK-START.md)
-- **DSP testing strategies**: See [DSP-TESTING.md](DSP-TESTING.md)
 - **Integration testing**: See [INTEGRATION-TESTING.md](INTEGRATION-TESTING.md) **(READ THIS for any processor-level feature)**
 - **VST3-specific testing**: See [VST3-TESTING.md](VST3-TESTING.md)
 - **Catch2 patterns & test doubles**: See [PATTERNS.md](PATTERNS.md)
 - **Anti-patterns to avoid**: See [ANTI-PATTERNS.md](ANTI-PATTERNS.md)
+- **Deep DSP verification** (FFT aliasing, THD, artifact detection, spectral goldens): use the
+  **testing-dsp-analysis** skill (`DSP-TESTING.md`, `SPECTRAL-ANALYSIS.md`, `ARTIFACT-DETECTION.md`)
 
 ---
 
@@ -395,9 +396,12 @@ Before committing code:
 For detailed information, see the supporting files:
 
 - [QUICK-START.md](QUICK-START.md) - Build commands, run commands, troubleshooting
-- [DSP-TESTING.md](DSP-TESTING.md) - Test signals, THD measurement, frequency estimation, deterministic RNG
+- [INTEGRATION-TESTING.md](INTEGRATION-TESTING.md) - Processor-level wiring, parameter application, host environment
 - [VST3-TESTING.md](VST3-TESTING.md) - Validator, state tests, processor/controller separation
 - [PATTERNS.md](PATTERNS.md) - Catch2 patterns, test doubles, UI testing with mocks
 - [ANTI-PATTERNS.md](ANTI-PATTERNS.md) - Common mistakes and how to avoid them
-- [SPECTRAL-ANALYSIS.md](SPECTRAL-ANALYSIS.md) - FFT-based aliasing measurement for waveshaper and ADAA tests
-- [ARTIFACT-DETECTION.md](ARTIFACT-DETECTION.md) - Click detection, LPC analysis, spectral flatness, signal quality metrics, parameter sweep testing
+
+Deep DSP verification lives in the **testing-dsp-analysis** skill:
+- `DSP-TESTING.md` - Test signals, THD measurement, frequency estimation, deterministic RNG
+- `SPECTRAL-ANALYSIS.md` - FFT-based aliasing measurement for waveshaper and ADAA tests
+- `ARTIFACT-DETECTION.md` - Click detection, LPC analysis, spectral flatness, signal quality metrics, parameter sweep testing
