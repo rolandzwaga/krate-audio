@@ -692,6 +692,17 @@ if(VSTWORK_BUILD_MEMBRUM_FIT)
 endif()
 
 # ==============================================================================
+# tools/krate-render -- offline audio render + feature-extraction CLI
+# ==============================================================================
+# Renders a plugin Processor to WAV + a JSON feature summary; the executor for
+# the "render is ground truth" A/B loop. Currently Membrum-only (links membrum_core).
+option(VSTWORK_BUILD_KRATE_RENDER "Build the tools/krate-render offline render CLI" ON)
+
+if(VSTWORK_BUILD_KRATE_RENDER)
+    add_subdirectory(tools/krate-render)
+endif()
+
+# ==============================================================================
 # Copy compile_commands.json to project root (for clangd / Serena)
 # ==============================================================================
 if(EXISTS "${CMAKE_BINARY_DIR}/compile_commands.json")
