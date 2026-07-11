@@ -158,6 +158,9 @@ add_executable(membrum_tests
     # Signal-path audit H-3 / M-1: pitch envelope + Material Morph on all bodies
     unit/dsp/test_pitch_env_all_bodies.cpp
 
+    # Wave 2 V26: perceptual render test (default-kit pads sound like what they are)
+    unit/dsp/test_render_perceptual.cpp
+
     # Factory kit preset round-trip
     unit/preset/test_factory_kit_presets.cpp
 

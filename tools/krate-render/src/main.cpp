@@ -27,7 +27,7 @@
 #include "pluginterfaces/vst/ivstevents.h"
 #include "pluginterfaces/vst/ivstparameterchanges.h"
 
-#include <krate/dsp/primitives/fft.h>
+#include <audio_features.h>
 #include <enable_ftz_daz.h>
 #include <vst_param_changes.h>
 
@@ -133,78 +133,7 @@ bool parseArgs(int argc, char** argv, Args& a) {
     return true;
 }
 
-struct Features {
-    double durationSec = 0.0;
-    double peakDbfs = -160.0;
-    double rmsDbfs = -160.0;
-    double centroidHz = 0.0;
-    // Energy fraction per band: [20-100, 100-500, 500-2k, 2k-8k, 8k-Nyquist]
-    double band[5] = {0, 0, 0, 0, 0};
-};
-
-double toDbfs(double lin) {
-    return lin > 1e-9 ? 20.0 * std::log10(lin) : -160.0;
-}
-
-Features computeFeatures(const std::vector<float>& mono, double sr) {
-    Features f;
-    const size_t n = mono.size();
-    f.durationSec = static_cast<double>(n) / sr;
-
-    double peak = 0.0, sumSq = 0.0;
-    for (float x : mono) {
-        double a = std::fabs(static_cast<double>(x));
-        peak = std::max(peak, a);
-        sumSq += static_cast<double>(x) * x;
-    }
-    f.peakDbfs = toDbfs(peak);
-    f.rmsDbfs = toDbfs(std::sqrt(sumSq / std::max<size_t>(1, n)));
-
-    // Averaged magnitude spectrum via Hann-windowed frames (2048 / hop 1024).
-    constexpr size_t kFft = 2048;
-    constexpr size_t kHop = 1024;
-    Krate::DSP::FFT fft;
-    fft.prepare(kFft);
-    std::vector<float> win(kFft), frame(kFft);
-    for (size_t i = 0; i < kFft; ++i)
-        win[i] = 0.5f * (1.0f - std::cos(2.0f * 3.14159265358979f * static_cast<float>(i) / static_cast<float>(kFft - 1)));
-    std::vector<Krate::DSP::Complex> spec(kFft / 2 + 1);
-    std::vector<double> magAvg(kFft / 2 + 1, 0.0);
-    size_t frames = 0;
-    for (size_t start = 0; start + kFft <= n || (start == 0 && n > 0); start += kHop) {
-        for (size_t i = 0; i < kFft; ++i) {
-            float s = (start + i < n) ? mono[start + i] : 0.0f;
-            frame[i] = s * win[i];
-        }
-        fft.forward(frame.data(), spec.data());
-        for (size_t k = 0; k < spec.size(); ++k) magAvg[k] += spec[k].magnitude();
-        ++frames;
-        if (start + kFft >= n) break;
-    }
-    if (frames > 0)
-        for (double& m : magAvg) m /= static_cast<double>(frames);
-
-    const double binHz = sr / static_cast<double>(kFft);
-    const double nyq = sr * 0.5;
-    const double edges[6] = {20.0, 100.0, 500.0, 2000.0, 8000.0, nyq};
-    double num = 0.0, den = 0.0, bandE[5] = {0, 0, 0, 0, 0}, totalE = 0.0;
-    for (size_t k = 1; k < magAvg.size(); ++k) {  // skip DC
-        double freq = static_cast<double>(k) * binHz;
-        double mag = magAvg[k];
-        double e = mag * mag;
-        num += freq * mag;
-        den += mag;
-        totalE += e;
-        for (int b = 0; b < 5; ++b) {
-            if (freq >= edges[b] && freq < edges[b + 1]) { bandE[b] += e; break; }
-        }
-    }
-    f.centroidHz = den > 0.0 ? num / den : 0.0;
-    for (int b = 0; b < 5; ++b) f.band[b] = totalE > 0.0 ? bandE[b] / totalE : 0.0;
-    return f;
-}
-
-void printJson(const Args& a, const Features& f) {
+void printJson(const Args& a, const Krate::Test::AudioFeatures& f) {
     std::printf("{\n");
     std::printf("  \"plugin\": \"membrum\",\n");
     std::printf("  \"note\": %d,\n", a.note);
@@ -327,7 +256,7 @@ int main(int argc, char** argv) {
     // Feature summary over the mono sum.
     std::vector<float> mono(renderedL.size());
     for (size_t i = 0; i < mono.size(); ++i) mono[i] = 0.5f * (renderedL[i] + renderedR[i]);
-    Features feats = computeFeatures(mono, args.sampleRate);
+    Krate::Test::AudioFeatures feats = Krate::Test::extractAudioFeatures(mono, args.sampleRate);
 
     if (!args.quiet)
         std::fprintf(stderr, "krate-render: wrote %s (%zu frames)\n", args.out.c_str(), renderedL.size());
