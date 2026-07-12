@@ -849,7 +849,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/pitch_shift_processor.h",
-      "line": 617
+      "line": 509
     },
     {
       "name": "HalfbandFilter",
@@ -1473,7 +1473,7 @@
       "scope": "Krate::DSP::ArpeggiatorCore",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/arpeggiator_core.h",
-      "line": 1320
+      "line": 994
     },
     {
       "name": "PffftAlignedDeleter",
@@ -1521,7 +1521,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/pitch_shift_processor.h",
-      "line": 1086
+      "line": 824
     },
     {
       "name": "PingPongDelay",
@@ -1569,7 +1569,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/pitch_shift_processor.h",
-      "line": 1720
+      "line": 1142
     },
     {
       "name": "PitchSyncGranularShifter",
@@ -1577,7 +1577,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/pitch_shift_processor.h",
-      "line": 797
+      "line": 614
     },
     {
       "name": "PitchTracker",
@@ -2065,7 +2065,7 @@
       "scope": "Krate::DSP",
       "layer": "primitives",
       "header": "dsp/include/krate/dsp/primitives/envelope_utils.h",
-      "line": 77
+      "line": 74
     },
     {
       "name": "StereoField",
