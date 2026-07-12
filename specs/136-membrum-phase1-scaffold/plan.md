@@ -293,7 +293,7 @@ plugins/membrum/
   resources/
     au-info.plist                   # AU v2 config (aumu/Mbrm/KrAt)
     auv3/
-      audiounitconfig.h             # AU v3 config (0022 channel config)
+      audiounitconfig.h             # AU v3 config ("02" channel config = 0 in / 2 out; NOT "0022")
     win32resource.rc.in             # Windows resource template
 
   docs/

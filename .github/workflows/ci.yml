@@ -121,6 +121,35 @@ jobs:
             echo "infra=${{ steps.filter.outputs.infra }}" >> $GITHUB_OUTPUT
           fi
 
+  # Verify the generated architecture indexes are in sync with the source tree,
+  # and enforce the deterministic architecture invariants (layer deps, ODR).
+  # The indexes are committed artifacts (repo-map, symbols/ODR index, specs index)
+  # produced by tools/gen-*.js; this job fails if someone changed the tree without
+  # regenerating, or introduced a layer-dependency / duplicate-symbol violation.
+  generated-artifacts:
+    name: Generated Artifacts In Sync
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          submodules: false
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Check repo-map.json
+        run: node tools/gen-repo-map.js --check
+      - name: Check symbols.json (ODR index)
+        run: node tools/gen-symbols.js --check
+      - name: Check specs/INDEX.md
+        run: node tools/gen-specs-index.js --check
+      # Deterministic architecture-invariant gates (prose rules turned into checks).
+      - name: Layer-dependency lint (DSP)
+        run: node tools/lint-layers.js
+      - name: ODR / duplicate-symbol lint
+        run: node tools/lint-odr.js
+
   build-windows:
     name: Windows (MSVC)
     # Pinned to windows-2022 (Visual Studio 2022 / MSVC v143). GitHub migrated
@@ -166,7 +195,7 @@ jobs:
           SHARED="${{ needs.detect-changes.outputs.shared }}"
           INFRA="${{ needs.detect-changes.outputs.infra }}"
           if [ "$DSP" = "true" ] || [ "$INFRA" = "true" ]; then
-            TARGETS="$TARGETS dsp_tests"
+            TARGETS="$TARGETS dsp_core_tests dsp_primitives_tests dsp_processors_tests dsp_systems_tests dsp_effects_tests"
           fi
           if [ "$SHARED" = "true" ] || [ "$INFRA" = "true" ]; then
             TARGETS="$TARGETS shared_tests"
@@ -191,6 +220,8 @@ jobs:
               TARGETS="$TARGETS $target $extras"
             fi
           done
+          # Build the SDK validator whenever anything is built, so every bundle can be validated.
+          case " $TARGETS " in *" validator "*) ;; *) [ -n "$TARGETS" ] && TARGETS="$TARGETS validator" ;; esac
           if [ -n "$TARGETS" ]; then
             echo "Building targets:$TARGETS"
             cmake --build build --config ${{ env.BUILD_TYPE }} --parallel --target $TARGETS
@@ -201,7 +232,7 @@ jobs:
       # Run test executables sequentially on Windows — the 2-vCPU runner gets
       # negligible benefit from parallelism, and concurrent heavy DSP tests
       # (FFT, spectral processing) cause memory pressure leading to segfaults.
-      # Note: ctest -R "dsp_tests" doesn't work with catch_discover_tests
+      # Note: ctest -R "<exe name>" doesn't work with catch_discover_tests
       # because CTest registers individual Catch2 case names, not executable names.
       - name: Run Tests
         shell: bash
@@ -213,7 +244,7 @@ jobs:
           INFRA="${{ needs.detect-changes.outputs.infra }}"
           EXES=()
           if [ "$DSP" = "true" ] || [ "$INFRA" = "true" ]; then
-            EXES+=("$BIN/dsp_tests.exe")
+            EXES+=("$BIN/dsp_core_tests.exe" "$BIN/dsp_primitives_tests.exe" "$BIN/dsp_processors_tests.exe" "$BIN/dsp_systems_tests.exe" "$BIN/dsp_effects_tests.exe")
           fi
           if [ "$SHARED" = "true" ] || [ "$INFRA" = "true" ]; then
             EXES+=("$BIN/shared_tests.exe")
@@ -255,9 +286,22 @@ jobs:
           done
           exit $FAILED
 
-      - name: Run VST3 Validator (Iterum)
-        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: build/bin/${{ env.BUILD_TYPE }}/validator.exe -e build/VST3/${{ env.BUILD_TYPE }}/Iterum.vst3
+      - name: Validate + resource-check built bundles
+        shell: bash
+        run: |
+          shopt -s nullglob
+          CONFIG="${{ env.BUILD_TYPE }}"
+          BUNDLES=(build/VST3/$CONFIG/*.vst3)
+          if [ ${#BUNDLES[@]} -eq 0 ]; then echo "No bundles built — nothing to check"; exit 0; fi
+          # Resource guard: every bundle must ship editor.uidesc + moduleinfo.json.
+          node tools/check-bundle.js "${BUNDLES[@]}"
+          # SDK hosting validator (module load + instantiate + audio-process) on each.
+          VALIDATOR="build/bin/$CONFIG/validator.exe"
+          if [ -f "$VALIDATOR" ]; then
+            for b in "${BUNDLES[@]}"; do echo "Validating $b"; "$VALIDATOR" -e "$b" || exit 1; done
+          else
+            echo "validator not built this run — ran resource checks only"
+          fi
 
       - name: Upload Iterum Artifact
         if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
@@ -364,7 +408,7 @@ jobs:
           SHARED="${{ needs.detect-changes.outputs.shared }}"
           INFRA="${{ needs.detect-changes.outputs.infra }}"
           if [ "$DSP" = "true" ] || [ "$INFRA" = "true" ]; then
-            TARGETS="$TARGETS dsp_tests"
+            TARGETS="$TARGETS dsp_core_tests dsp_primitives_tests dsp_processors_tests dsp_systems_tests dsp_effects_tests"
           fi
           if [ "$SHARED" = "true" ] || [ "$INFRA" = "true" ]; then
             TARGETS="$TARGETS shared_tests"
@@ -419,7 +463,7 @@ jobs:
           INFRA="${{ needs.detect-changes.outputs.infra }}"
           EXES=()
           if [ "$DSP" = "true" ] || [ "$INFRA" = "true" ]; then
-            EXES+=("$BIN/dsp_tests")
+            EXES+=("$BIN/dsp_core_tests" "$BIN/dsp_primitives_tests" "$BIN/dsp_processors_tests" "$BIN/dsp_systems_tests" "$BIN/dsp_effects_tests")
           fi
           if [ "$SHARED" = "true" ] || [ "$INFRA" = "true" ]; then
             EXES+=("$BIN/shared_tests")
@@ -461,9 +505,22 @@ jobs:
           done
           exit $FAILED
 
-      - name: Run VST3 Validator (Iterum)
-        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: build/bin/${{ env.BUILD_TYPE }}/validator -e build/VST3/${{ env.BUILD_TYPE }}/Iterum.vst3
+      - name: Validate + resource-check built bundles
+        shell: bash
+        run: |
+          shopt -s nullglob
+          CONFIG="${{ env.BUILD_TYPE }}"
+          BUNDLES=(build/VST3/$CONFIG/*.vst3)
+          if [ ${#BUNDLES[@]} -eq 0 ]; then echo "No bundles built — nothing to check"; exit 0; fi
+          # Resource guard: every bundle must ship editor.uidesc + moduleinfo.json.
+          node tools/check-bundle.js "${BUNDLES[@]}"
+          # SDK hosting validator (module load + instantiate + audio-process) on each.
+          VALIDATOR="build/bin/$CONFIG/validator"
+          if [ -f "$VALIDATOR" ]; then
+            for b in "${BUNDLES[@]}"; do echo "Validating $b"; "$VALIDATOR" -e "$b" || exit 1; done
+          else
+            echo "validator not built this run — ran resource checks only"
+          fi
 
       # Install AU and run auval validation for Iterum
       - name: Run Iterum AU Validation
@@ -710,7 +767,7 @@ jobs:
           SHARED="${{ needs.detect-changes.outputs.shared }}"
           INFRA="${{ needs.detect-changes.outputs.infra }}"
           if [ "$DSP" = "true" ] || [ "$INFRA" = "true" ]; then
-            TARGETS="$TARGETS dsp_tests"
+            TARGETS="$TARGETS dsp_core_tests dsp_primitives_tests dsp_processors_tests dsp_systems_tests dsp_effects_tests"
           fi
           if [ "$SHARED" = "true" ] || [ "$INFRA" = "true" ]; then
             TARGETS="$TARGETS shared_tests"
@@ -735,6 +792,8 @@ jobs:
               TARGETS="$TARGETS $target $extras"
             fi
           done
+          # Build the SDK validator whenever anything is built, so every bundle can be validated.
+          case " $TARGETS " in *" validator "*) ;; *) [ -n "$TARGETS" ] && TARGETS="$TARGETS validator" ;; esac
           if [ -n "$TARGETS" ]; then
             echo "Building targets:$TARGETS"
             cmake --build build --parallel --target $TARGETS
@@ -754,7 +813,7 @@ jobs:
           INFRA="${{ needs.detect-changes.outputs.infra }}"
           EXES=()
           if [ "$DSP" = "true" ] || [ "$INFRA" = "true" ]; then
-            EXES+=("$BIN/dsp_tests")
+            EXES+=("$BIN/dsp_core_tests" "$BIN/dsp_primitives_tests" "$BIN/dsp_processors_tests" "$BIN/dsp_systems_tests" "$BIN/dsp_effects_tests")
           fi
           if [ "$SHARED" = "true" ] || [ "$INFRA" = "true" ]; then
             EXES+=("$BIN/shared_tests")
@@ -796,9 +855,22 @@ jobs:
           done
           exit $FAILED
 
-      - name: Run VST3 Validator (Iterum)
-        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: build/bin/${{ env.BUILD_TYPE }}/validator -e build/VST3/${{ env.BUILD_TYPE }}/Iterum.vst3
+      - name: Validate + resource-check built bundles
+        shell: bash
+        run: |
+          shopt -s nullglob
+          CONFIG="${{ env.BUILD_TYPE }}"
+          BUNDLES=(build/VST3/$CONFIG/*.vst3)
+          if [ ${#BUNDLES[@]} -eq 0 ]; then echo "No bundles built — nothing to check"; exit 0; fi
+          # Resource guard: every bundle must ship editor.uidesc + moduleinfo.json.
+          node tools/check-bundle.js "${BUNDLES[@]}"
+          # SDK hosting validator (module load + instantiate + audio-process) on each.
+          VALIDATOR="build/bin/$CONFIG/validator"
+          if [ -f "$VALIDATOR" ]; then
+            for b in "${BUNDLES[@]}"; do echo "Validating $b"; "$VALIDATOR" -e "$b" || exit 1; done
+          else
+            echo "validator not built this run — ran resource checks only"
+          fi
 
       # Show ccache statistics for debugging cache effectiveness
       - name: Show ccache stats

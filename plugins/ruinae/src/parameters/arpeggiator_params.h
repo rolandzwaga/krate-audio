@@ -12,6 +12,9 @@
 #include "parameters/dropdown_mappings.h"
 #include "controller/parameter_helpers.h"
 
+// Shared arp save serialization (Gradus + Ruinae), from plugins/shared/src.
+#include "parameters/arp_params_common.h"
+
 #include <krate/dsp/core/note_value.h>
 
 #include <cmath>
@@ -1226,106 +1229,7 @@ inline void saveArpParams(
     const ArpeggiatorParams& params,
     Steinberg::IBStreamer& streamer)
 {
-    // 11 fields in order: operatingMode, mode, octaveRange, octaveMode, tempoSync,
-    // noteValue (all int32), freeRate, gateLength, swing (all float),
-    // latchMode, retrigger (both int32)
-    streamer.writeInt32(params.operatingMode.load(std::memory_order_relaxed));
-    streamer.writeInt32(params.mode.load(std::memory_order_relaxed));
-    streamer.writeInt32(params.octaveRange.load(std::memory_order_relaxed));
-    streamer.writeInt32(params.octaveMode.load(std::memory_order_relaxed));
-    streamer.writeInt32(params.tempoSync.load(std::memory_order_relaxed) ? 1 : 0);
-    streamer.writeInt32(params.noteValue.load(std::memory_order_relaxed));
-    streamer.writeFloat(params.freeRate.load(std::memory_order_relaxed));
-    streamer.writeFloat(params.gateLength.load(std::memory_order_relaxed));
-    streamer.writeFloat(params.swing.load(std::memory_order_relaxed));
-    streamer.writeInt32(params.latchMode.load(std::memory_order_relaxed));
-    streamer.writeInt32(params.retrigger.load(std::memory_order_relaxed));
-
-    // --- Velocity Lane (072-independent-lanes, US1) ---
-    streamer.writeInt32(params.velocityLaneLength.load(std::memory_order_relaxed));
-    for (int i = 0; i < 32; ++i) {
-        streamer.writeFloat(params.velocityLaneSteps[i].load(std::memory_order_relaxed));
-    }
-
-    // --- Gate Lane (072-independent-lanes, US2) ---
-    streamer.writeInt32(params.gateLaneLength.load(std::memory_order_relaxed));
-    for (int i = 0; i < 32; ++i) {
-        streamer.writeFloat(params.gateLaneSteps[i].load(std::memory_order_relaxed));
-    }
-
-    // --- Pitch Lane (072-independent-lanes, US3) ---
-    streamer.writeInt32(params.pitchLaneLength.load(std::memory_order_relaxed));
-    for (int i = 0; i < 32; ++i) {
-        streamer.writeInt32(params.pitchLaneSteps[i].load(std::memory_order_relaxed));
-    }
-
-    // --- Modifier Lane (073-per-step-mods) ---
-    streamer.writeInt32(params.modifierLaneLength.load(std::memory_order_relaxed));
-    for (int i = 0; i < 32; ++i) {
-        streamer.writeInt32(params.modifierLaneSteps[i].load(std::memory_order_relaxed));
-    }
-    streamer.writeInt32(params.accentVelocity.load(std::memory_order_relaxed));
-    streamer.writeFloat(params.slideTime.load(std::memory_order_relaxed));
-
-    // --- Ratchet Lane (074-ratcheting) ---
-    streamer.writeInt32(params.ratchetLaneLength.load(std::memory_order_relaxed));
-    for (int i = 0; i < 32; ++i) {
-        streamer.writeInt32(params.ratchetLaneSteps[i].load(std::memory_order_relaxed));
-    }
-
-    // --- Euclidean Timing (075-euclidean-timing) ---
-    streamer.writeInt32(params.euclideanEnabled.load(std::memory_order_relaxed) ? 1 : 0);
-    streamer.writeInt32(params.euclideanHits.load(std::memory_order_relaxed));
-    streamer.writeInt32(params.euclideanSteps.load(std::memory_order_relaxed));
-    streamer.writeInt32(params.euclideanRotation.load(std::memory_order_relaxed));
-
-    // --- Condition Lane (076-conditional-trigs) ---
-    streamer.writeInt32(params.conditionLaneLength.load(std::memory_order_relaxed));
-    for (int i = 0; i < 32; ++i) {
-        streamer.writeInt32(params.conditionLaneSteps[i].load(std::memory_order_relaxed));
-    }
-    streamer.writeInt32(params.fillToggle.load(std::memory_order_relaxed) ? 1 : 0);
-
-    // --- Spice/Dice & Humanize (077-spice-dice-humanize) ---
-    streamer.writeFloat(params.spice.load(std::memory_order_relaxed));
-    streamer.writeFloat(params.humanize.load(std::memory_order_relaxed));
-    // diceTrigger and overlay arrays NOT serialized (ephemeral, FR-030, FR-037)
-
-    // --- Ratchet Swing (078-ratchet-swing) ---
-    streamer.writeFloat(params.ratchetSwing.load(std::memory_order_relaxed));
-
-    // --- Scale Mode (084-arp-scale-mode) ---
-    streamer.writeInt32(params.scaleType.load(std::memory_order_relaxed));
-    streamer.writeInt32(params.rootNote.load(std::memory_order_relaxed));
-    streamer.writeInt32(params.scaleQuantizeInput.load(std::memory_order_relaxed) ? 1 : 0);
-
-    // --- MIDI Output ---
-    streamer.writeInt32(params.midiOut.load(std::memory_order_relaxed) ? 1 : 0);
-
-    // --- Chord Lane (arp-chord-lane, version 4+) ---
-    streamer.writeInt32(params.chordLaneLength.load(std::memory_order_relaxed));
-    for (int i = 0; i < 32; ++i) {
-        streamer.writeInt32(params.chordLaneSteps[i].load(std::memory_order_relaxed));
-    }
-
-    // --- Inversion Lane (arp-chord-lane, version 4+) ---
-    streamer.writeInt32(params.inversionLaneLength.load(std::memory_order_relaxed));
-    for (int i = 0; i < 32; ++i) {
-        streamer.writeInt32(params.inversionLaneSteps[i].load(std::memory_order_relaxed));
-    }
-
-    // --- Voicing Mode (arp-chord-lane, version 4+) ---
-    streamer.writeInt32(params.voicingMode.load(std::memory_order_relaxed));
-
-    // Per-lane speed multipliers
-    streamer.writeFloat(params.velocityLaneSpeed.load(std::memory_order_relaxed));
-    streamer.writeFloat(params.gateLaneSpeed.load(std::memory_order_relaxed));
-    streamer.writeFloat(params.pitchLaneSpeed.load(std::memory_order_relaxed));
-    streamer.writeFloat(params.modifierLaneSpeed.load(std::memory_order_relaxed));
-    streamer.writeFloat(params.ratchetLaneSpeed.load(std::memory_order_relaxed));
-    streamer.writeFloat(params.conditionLaneSpeed.load(std::memory_order_relaxed));
-    streamer.writeFloat(params.chordLaneSpeed.load(std::memory_order_relaxed));
-    streamer.writeFloat(params.inversionLaneSpeed.load(std::memory_order_relaxed));
+    Krate::Shared::saveArpParamsShared(params, streamer);
 }
 
 // =============================================================================

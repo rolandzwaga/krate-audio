@@ -11,6 +11,7 @@ This is a **monorepo** for Krate Audio plugins, featuring:
 - **Ruinae**: Synthesizer plugin at `plugins/ruinae/`
 - **Innexus**: Harmonic analysis/resynthesis instrument at `plugins/innexus/` (AU type: `aumu`)
 - **Gradus**: Standalone step arpeggiator at `plugins/gradus/` (AU type: `aumu`) — extracted from Ruinae's arp section, shares parameter IDs 3000-3372
+- **Membrum**: Physically-modelled drum synthesizer at `plugins/membrum/` (AU type: `aumu`) — the current active-development plugin
 - **Shared plugin infrastructure** at `plugins/shared/` (presets, UI components, MIDI, platform)
 - **Steinberg VST3 SDK** (not JUCE or other frameworks)
 - **VSTGUI** for user interface
@@ -18,44 +19,25 @@ This is a **monorepo** for Krate Audio plugins, featuring:
 - **CMake 3.20+** build system
 
 ### Monorepo Structure
-```
-├── dsp/                      # Shared KrateDSP library
-│   ├── include/krate/dsp/    # Public headers (use <krate/dsp/...>)
-│   │   ├── core/             # Layer 0: utilities, math, interpolation
-│   │   ├── primitives/       # Layer 1: delay lines, filters, FFT
-│   │   ├── processors/       # Layer 2: grain, pitch shift, diffusion
-│   │   ├── systems/          # Layer 3: engines, feedback networks
-│   │   └── effects/          # Layer 4: complete delay effects
-│   └── tests/unit/           # DSP unit tests (mirrored by layer)
-├── plugins/
-│   ├── iterum/               # Iterum delay plugin
-│   │   ├── src/              # Plugin source
-│   │   ├── tests/            # Plugin tests (unit + approval)
-│   │   └── resources/        # UI, presets, installers
-│   ├── disrumpo/             # Disrumpo multi-band distortion plugin
-│   │   ├── src/              # Plugin source
-│   │   ├── tests/            # Plugin tests
-│   │   └── resources/        # UI, presets, installers
-│   ├── ruinae/               # Ruinae synthesizer plugin
-│   │   ├── src/              # Plugin source
-│   │   └── tests/            # Plugin tests
-│   ├── innexus/              # Innexus harmonic resynthesis instrument
-│   │   ├── src/              # Plugin source
-│   │   ├── tests/            # Plugin tests
-│   │   └── resources/        # UI, AU/AUv3 config
-│   ├── gradus/               # Gradus standalone step arpeggiator
-│   │   ├── src/              # Plugin source (arp params shared with Ruinae)
-│   │   ├── tests/            # Plugin tests
-│   │   └── resources/        # UI, presets, AU/AUv3 config
-│   └── shared/               # Shared plugin infrastructure
-│       ├── src/              # Presets, UI components, MIDI, platform
-│       └── tests/            # Shared tests
-├── tests/                    # Shared test helpers + benchmarks
-├── tools/                    # Dev tools (pluginval, clang-tidy, testbench)
-├── specs/                    # Feature specifications (numbered)
-├── extern/vst3sdk/           # VST3 SDK (shared)
-└── extern/pffft/             # SIMD-optimized FFT (BSD, marton78 fork)
-```
+
+The current roster is whatever lives under `plugins/` — **trust the filesystem, not a hand-maintained
+tree here** (that is exactly where staleness accrues). Plugins today: `iterum`, `disrumpo`, `ruinae`,
+`innexus`, `gradus`, `membrum`, plus `shared`. The shared DSP library is `dsp/` (`Krate::DSP`, 5 layers
+under `dsp/include/krate/dsp/{core,primitives,processors,systems,effects}/`).
+
+- **Per-area detail** (skeleton, param-ID base, test target, pluginval path): the area `CLAUDE.md` leaf
+  files (see below) and the generated maps under `specs/_architecture_/` (`repo-map.json`, layer/plugin
+  reference docs).
+- **Dev tooling** is in `tools/`; feature specs (numbered) in `specs/`; the VST3 SDK is vendored at
+  `extern/vst3sdk/`. Other deps (pffft, Highway, dr_libs) are fetched/vendored — see External Dependencies.
+
+## Per-Directory Context Files
+
+This file holds cross-cutting rules. **Area-specific `CLAUDE.md` leaf files auto-load when you work in
+their subtree** — read them for the concrete facts (skeleton, param-ID scheme, test target, pluginval path):
+
+- [`dsp/CLAUDE.md`](dsp/CLAUDE.md) — layer architecture, ODR procedure, header-only/SIMD conventions
+- [`plugins/iterum/CLAUDE.md`](plugins/iterum/CLAUDE.md) · [`disrumpo`](plugins/disrumpo/CLAUDE.md) · [`ruinae`](plugins/ruinae/CLAUDE.md) · [`innexus`](plugins/innexus/CLAUDE.md) · [`gradus`](plugins/gradus/CLAUDE.md) · [`membrum`](plugins/membrum/CLAUDE.md)
 
 ## Critical Rules (Non-Negotiable)
 
@@ -199,84 +181,11 @@ Use smart pointers, RAII, constexpr, move semantics. Avoid raw `new`/`delete`.
 
 ## File Organization
 
-```
-dsp/                              # Shared KrateDSP library (Krate::DSP namespace)
-├── include/krate/dsp/
-│   ├── core/                     # Layer 0
-│   ├── primitives/               # Layer 1
-│   ├── processors/               # Layer 2
-│   ├── systems/                  # Layer 3
-│   └── effects/                  # Layer 4
-└── tests/unit/                   # DSP unit tests (mirrored by layer)
-    ├── core/
-    ├── primitives/
-    ├── processors/
-    ├── systems/
-    └── effects/
-
-plugins/iterum/                   # Iterum delay plugin
-├── src/
-│   ├── entry.cpp, plugin_ids.h, version.h, delay_mode.h
-│   ├── processor/                # Audio processor
-│   ├── controller/               # UI controller + parameter helpers
-│   ├── parameters/               # Per-mode parameter registration helpers
-│   ├── ui/                       # Custom UI views (tap pattern editor)
-│   └── preset/                   # Preset configuration
-├── tests/
-│   ├── unit/{controller,parameters,preset,ui,vst,processor}/
-│   └── approval/                 # Approval tests with golden references
-└── resources/                    # UI, presets, installers
-
-plugins/disrumpo/                 # Disrumpo multi-band distortion plugin
-├── src/
-│   ├── entry.cpp, plugin_ids.h, version.h
-│   ├── processor/
-│   ├── controller/               # + custom views (morph pad, spectrum, etc.)
-│   ├── dsp/                      # Plugin-local DSP (morph engine, sweep, bands)
-│   └── preset/
-├── tests/
-└── resources/
-
-plugins/ruinae/                   # Ruinae synthesizer plugin
-├── src/
-│   ├── entry.cpp, plugin_ids.h, version.h
-│   ├── processor/
-│   ├── controller/
-│   ├── engine/                   # Synth engine, voice, effects chain
-│   └── parameters/               # Per-section param helpers
-└── tests/
-
-plugins/innexus/                  # Innexus harmonic resynthesis instrument
-├── src/
-│   ├── entry.cpp, plugin_ids.h, version.h
-│   ├── processor/                # Audio processor (instrument: MIDI in, stereo out)
-│   ├── controller/               # UI controller
-│   ├── dsp/                      # Plugin-local DSP (sample analyzer, live analysis pipeline)
-│   └── parameters/               # Parameter registration helpers
-├── tests/
-│   ├── unit/{processor,vst}/     # Isolated DSP component & VST parameter tests
-│   └── integration/              # Full-processor pipeline integration tests
-└── resources/                    # UI, AU/AUv3 config, win32 resources
-
-plugins/gradus/                   # Gradus standalone step arpeggiator
-├── src/
-│   ├── entry.cpp, plugin_ids.h, version.h
-│   ├── processor/                # Audio processor (instrument: MIDI in/out, stereo out)
-│   ├── controller/               # UI controller + arp lane wiring
-│   ├── dsp/                      # Audition voice (minimal built-in synth)
-│   └── parameters/               # Arp parameter registration (shared IDs with Ruinae)
-├── tests/
-│   └── unit/                     # VST parameter & processor tests
-└── resources/                    # UI, presets, AU/AUv3 config
-
-plugins/shared/                   # Shared plugin infrastructure
-├── src/
-│   ├── preset/                   # Preset manager, data source, browser logic
-│   ├── ui/                       # Reusable UI components (arc knob, etc.)
-│   ├── midi/                     # MIDI CC manager
-│   └── platform/                 # Platform-specific helpers (preset paths)
-└── tests/
-```
+Each plugin follows the same skeleton — `src/{processor,controller,...}`, `tests/`, `resources/` — with
+per-plugin deviations (e.g. Membrum has no `parameters/` dir; Ruinae has `engine/`; Innexus/Gradus/Disrumpo
+have a plugin-local `dsp/`). **Read the area `CLAUDE.md` leaf for the exact skeleton** rather than a tree
+here; `specs/_architecture_/plugin-architecture.md` has the full breakdown. DSP is layered under
+`dsp/include/krate/dsp/{core,primitives,processors,systems,effects}/` with unit tests mirroring the layers.
 
 **Include patterns:**
 - DSP headers: `#include <krate/dsp/primitives/delay_line.h>`
@@ -306,7 +215,7 @@ Two classes with same name in same namespace = undefined behavior (garbage value
 
 ### pffft (SIMD-Optimized FFT)
 
-The `FFT` class (`dsp/include/krate/dsp/primitives/fft.h`) uses **pffft** ([marton78 fork](https://github.com/marton78/pffft), BSD license) as its backend. Source files live in `extern/pffft/`.
+The `FFT` class (`dsp/include/krate/dsp/primitives/fft.h`) uses **pffft** ([marton78 fork](https://github.com/marton78/pffft), BSD license) as its backend. pffft is **fetched via FetchContent** (root `CMakeLists.txt`, ~L342-360) and lands in `build/_deps/` — it is **not** vendored in `extern/`.
 
 - **SIMD auto-detection**: SSE on x86/x64 (including MSVC via `_mm_*` intrinsics), NEON on ARM, scalar fallback
 - **Build integration**: pffft is a static C library linked PUBLIC to KrateDSP (see `dsp/CMakeLists.txt`)
@@ -321,6 +230,13 @@ KrateDSP uses [Google Highway](https://github.com/google/highway) (v1.2.0, Apach
 - **Runtime dispatch**: Automatically uses best available ISA (SSE2/AVX2/AVX-512 on x86, NEON on ARM)
 - **Build integration**: Linked PRIVATE to KrateDSP — no Highway headers in public API
 - **Used for**: `spectral_simd.cpp` and related spectral processing internals
+
+### dr_libs (WAV loading)
+
+`dr_wav` (from [dr_libs](https://github.com/mackron/dr_libs), public domain) is a single-header WAV
+loader **vendored** at `extern/dr_libs/`. Used by Innexus's `sample_analyzer` (`plugins/innexus/CMakeLists.txt`
+adds it as an include dir) and the `tools/membrum-fit` offline drum-sample fitter. It is a build-time
+dependency of those two consumers only — not part of the shared KrateDSP public API.
 
 ## DSP Implementation Rules
 
@@ -360,6 +276,9 @@ tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/V
 
 # Gradus
 tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Gradus.vst3"
+
+# Membrum
+tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Membrum.vst3"
 ```
 
 Skip for docs-only, CI config, or test-only changes.
@@ -411,20 +330,32 @@ CMAKE="/c/Program Files/CMake/bin/cmake.exe"
 # Build (Release)
 "$CMAKE" --build build/windows-x64-release --config Release
 
-# Run DSP tests
-"$CMAKE" --build build/windows-x64-release --config Release --target dsp_tests
-build/windows-x64-release/bin/Release/dsp_tests.exe
+# Run DSP tests (split into 5 per-layer executables: core/primitives/processors/systems/effects)
+"$CMAKE" --build build/windows-x64-release --config Release --target dsp_core_tests dsp_primitives_tests dsp_processors_tests dsp_systems_tests dsp_effects_tests
+for t in dsp_core_tests dsp_primitives_tests dsp_processors_tests dsp_systems_tests dsp_effects_tests; do build/windows-x64-release/bin/Release/$t.exe 2>&1 | tail -3; done
+# (Editing one layer only relinks that layer's exe — e.g. --target dsp_core_tests)
 
 # Run plugin-specific tests
 "$CMAKE" --build build/windows-x64-release --config Release --target plugin_tests    # Iterum
+"$CMAKE" --build build/windows-x64-release --config Release --target approval_tests  # Iterum golden-output approvals (see note)
 "$CMAKE" --build build/windows-x64-release --config Release --target disrumpo_tests  # Disrumpo
 "$CMAKE" --build build/windows-x64-release --config Release --target ruinae_tests    # Ruinae
 "$CMAKE" --build build/windows-x64-release --config Release --target innexus_tests   # Innexus
 "$CMAKE" --build build/windows-x64-release --config Release --target gradus_tests    # Gradus
+"$CMAKE" --build build/windows-x64-release --config Release --target membrum_tests   # Membrum
 "$CMAKE" --build build/windows-x64-release --config Release --target shared_tests    # Shared infra
+
+# Iterum has a SECOND, generically-named test target: `approval_tests` holds the
+# golden-reference approval tests. CI builds + runs it for Iterum. Run it for ANY
+# Iterum DSP/output change (running only `plugin_tests` silently skips golden-output
+# regression coverage):
+build/windows-x64-release/bin/Release/approval_tests.exe 2>&1 | tail -5
 
 # Run all tests via CTest
 ctest --test-dir build/windows-x64-release -C Release --output-on-failure
+# NOTE: to run ONE suite, invoke its exe directly (bin/Release/<name>.exe) — do NOT use
+# `ctest -R <exe>`. catch_discover_tests registers individual Catch2 CASE names, not
+# executable names, so `ctest -R dsp_core_tests` matches nothing and reports success.
 
 # Debug build (same pattern)
 "$CMAKE" --preset windows-x64-debug
@@ -437,6 +368,7 @@ ctest --test-dir build/windows-x64-release -C Release --output-on-failure
 - `build/windows-x64-release/VST3/Release/Ruinae.vst3/`
 - `build/windows-x64-release/VST3/Release/Innexus.vst3/`
 - `build/windows-x64-release/VST3/Release/Gradus.vst3/`
+- `build/windows-x64-release/VST3/Release/Membrum.vst3/`
 
 ### AddressSanitizer (ASan)
 
@@ -496,6 +428,7 @@ Use clang-tidy for static analysis to catch bugs, performance issues, and style 
 ./tools/run-clang-tidy.ps1 -Target ruinae -BuildDir build/windows-ninja
 ./tools/run-clang-tidy.ps1 -Target innexus -BuildDir build/windows-ninja
 ./tools/run-clang-tidy.ps1 -Target gradus -BuildDir build/windows-ninja
+./tools/run-clang-tidy.ps1 -Target membrum -BuildDir build/windows-ninja
 
 # Apply automatic fixes (use with caution, review changes)
 ./tools/run-clang-tidy.ps1 -Target all -BuildDir build/windows-ninja -Fix
@@ -507,6 +440,11 @@ cmake --preset linux-release   # or macos-release (generates compile_commands.js
 ./tools/run-clang-tidy.sh --target all
 ./tools/run-clang-tidy.sh --target dsp --fix
 ```
+
+Valid `--target` values (same roster on both scripts): `all`, `dsp`, `shared`, `iterum`, `disrumpo`,
+`ruinae`, `innexus`, `gradus`, `membrum`. **`all` MUST cover dsp + every plugin** — if you add a plugin,
+add its case to BOTH `run-clang-tidy.ps1` and `run-clang-tidy.sh` (and to their `all`), or the Linux/macOS
+pre-commit lint silently skips it.
 
 **Configuration:** The `.clang-tidy` file configures:
 - Enabled: bugprone, performance, modernize, readability, concurrency, cppcoreguidelines
@@ -529,6 +467,7 @@ cmake --preset linux-release   # or macos-release (generates compile_commands.js
 | Add Ruinae parameter | plugins/ruinae/src/plugin_ids.h → parameters/ → processor → controller → uidesc |
 | Add Innexus parameter | plugins/innexus/src/plugin_ids.h → parameters/ → processor → controller → uidesc |
 | Add Gradus parameter | plugins/gradus/src/plugin_ids.h → parameters/ → processor → controller → uidesc |
+| Add Membrum parameter | plugins/membrum/src/plugin_ids.h → processor → controller → uidesc (no `parameters/` dir) |
 | Add DSP component | dsp/include/krate/dsp/{layer}/ → dsp/tests/unit/{layer}/ |
 | Add Iterum test | plugins/iterum/tests/unit/{section}/ |
 | Add Disrumpo test | plugins/disrumpo/tests/ |
@@ -536,10 +475,12 @@ cmake --preset linux-release   # or macos-release (generates compile_commands.js
 | Add Innexus unit test | plugins/innexus/tests/unit/{processor,vst}/ |
 | Add Innexus integration test | plugins/innexus/tests/integration/ |
 | Add Gradus test | plugins/gradus/tests/unit/ |
+| Add Membrum test | plugins/membrum/tests/ |
 | Add shared component | plugins/shared/src/{section}/ → plugins/shared/tests/ |
 | Change Iterum UI | plugins/iterum/resources/editor.uidesc |
 | Change Disrumpo UI | plugins/disrumpo/resources/editor.uidesc |
 | Change Gradus UI | plugins/gradus/resources/editor.uidesc |
+| Change Membrum UI | plugins/membrum/resources/editor.uidesc |
 
 | Your Layer | Location | Can Include |
 |------------|----------|-------------|
@@ -558,6 +499,7 @@ cmake --preset linux-release   # or macos-release (generates compile_commands.js
 **Skills (auto-load when relevant):**
 - `.claude/skills/claude-file/` - Display project CLAUDE.md with all development guidelines
 - `.claude/skills/code-review/` - DSP & VST3 specialized code review (real-time safety, thread safety, numerical stability)
-- `.claude/skills/testing-guide/` - Test patterns, Catch2, DSP testing strategies
+- `.claude/skills/testing-guide/` - Broad testing: build-before-test, Catch2 patterns, integration, VST3 validation, anti-patterns
+- `.claude/skills/testing-dsp-analysis/` - Deep DSP verification: FFT aliasing, THD/SNR, artifact detection, spectral goldens
 - `.claude/skills/vst-guide/` - VST3/VSTGUI patterns, thread safety, UI components
 - `.claude/skills/dsp-architecture/` - Real-time safety, layers, interpolation, performance

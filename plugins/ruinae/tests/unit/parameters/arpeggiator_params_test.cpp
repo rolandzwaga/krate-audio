@@ -17,6 +17,8 @@
 #include "public.sdk/source/vst/vstparameters.h"
 #include "pluginterfaces/vst/vsttypes.h"
 
+#include "test_helpers/arp_shared_prefix_golden.h"
+
 #include <string>
 #include <vector>
 
@@ -2860,4 +2862,30 @@ TEST_CASE("ArpParams_LoadWithVersion2_ReadsMidiOut", "[arp][params][state][versi
 
     // midiOut should be true
     CHECK(loaded.midiOut.load(std::memory_order_relaxed) == true);
+}
+
+// Cross-plugin byte-identity: the shared 200-byte save prefix must match Gradus's
+// (both go through Krate::Shared::saveArpParamsShared). Same golden constant is
+// asserted in plugins/gradus/.../arpeggiator_params_test.cpp — if the two ever
+// diverge in the shared save format, one of these fails.
+TEST_CASE("Ruinae arp shared-prefix save is byte-golden (D3)", "[arp][params][state][shared]") {
+    using namespace Ruinae;
+
+    ArpeggiatorParams p;
+    Krate::Test::setSharedArpFieldsDeterministic(p);
+
+    auto stream = Steinberg::owned(new Steinberg::MemoryStream());
+    {
+        Steinberg::IBStreamer writeStream(stream, kLittleEndian);
+        saveArpParams(p, writeStream);
+    }
+    stream->seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    std::vector<uint8_t> bytes(Krate::Test::kSharedArpPrefixBytes, 0);
+    Steinberg::int32 numRead = 0;
+    stream->read(bytes.data(), static_cast<Steinberg::int32>(bytes.size()), &numRead);
+    REQUIRE(numRead == static_cast<Steinberg::int32>(Krate::Test::kSharedArpPrefixBytes));
+
+    const uint32_t fnv = Krate::Test::fnv1a(bytes.data(), bytes.size());
+    INFO("ruinae shared-prefix FNV = 0x" << std::hex << fnv);
+    CHECK(fnv == Krate::Test::kSharedArpPrefixGoldenFnv);
 }

@@ -19,9 +19,12 @@ smtg_add_vst3plugin(${PLUGIN_NAME}
     # Plugin Entry
     src/entry.cpp
 
-    # Processor (Audio Thread)
+    # Processor (Audio Thread) -- split into core/state/params/messaging (D2)
     src/processor/processor.h
     src/processor/processor.cpp
+    src/processor/processor_state.cpp
+    src/processor/processor_params.cpp
+    src/processor/processor_messaging.cpp
 
     # Controller (UI Thread)
     src/controller/controller.h
@@ -124,6 +127,7 @@ krate_plugin_platform_setup(${PLUGIN_NAME}
 # Post-Build install + compiler warnings (see cmake/KratePlugin.cmake)
 # ==============================================================================
 krate_plugin_install_to_system(${PLUGIN_NAME})
+krate_plugin_install_presets(${PLUGIN_NAME})
 krate_plugin_set_warnings(${PLUGIN_NAME})
 
 # ==============================================================================

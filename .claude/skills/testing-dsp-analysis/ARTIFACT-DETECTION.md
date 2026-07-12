@@ -502,4 +502,4 @@ TEST_CASE("Crossfade produces no discontinuities", "[dsp][crossfade]") {
 
 - [SPECTRAL-ANALYSIS.md](SPECTRAL-ANALYSIS.md) - FFT-based aliasing measurement for ADAA tests
 - [DSP-TESTING.md](DSP-TESTING.md) - General DSP testing strategies
-- [PATTERNS.md](PATTERNS.md) - Catch2 patterns and test doubles
+- `PATTERNS.md` (in the **testing-guide** skill) - Catch2 patterns and test doubles

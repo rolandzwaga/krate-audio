@@ -23,7 +23,7 @@
 
 #pragma once
 
-#include <krate/dsp/primitives/envelope_utils.h>
+#include <krate/dsp/core/env_curve.h>  // EnvCurve (Layer 0 — do NOT reach up into primitives/)
 
 #include <algorithm>
 #include <array>

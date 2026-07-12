@@ -12,7 +12,16 @@
 # ==============================================================================
 # Constitution Principle VIII: DSP algorithms must be independently testable
 
-add_executable(dsp_tests
+# Split into one executable per DSP layer so a leaf edit relinks only its
+# layer's tests, not the whole ~250-TU monolith. The source list below is the
+# same set that used to build dsp_tests, partitioned by layer (union unchanged).
+# NOTE: sources are listed explicitly (no GLOB) — a new test file MUST be added
+#       to the right target here or it silently drops from the build.
+
+# Layer 0 (core) + root dsp_utils + test-helper self-tests
+add_executable(dsp_core_tests
+    # Shared Catch2 main + FTZ/DAZ setup (see dsp_test_main.cpp)
+    dsp_test_main.cpp
     # Root test file
     unit/test_dsp_utils.cpp
 
@@ -51,6 +60,32 @@ add_executable(dsp_tests
     unit/core/hungarian_algorithm_test.cpp
     unit/core/xorshift32_test.cpp
 
+    # Test Helpers tests
+    ${CMAKE_SOURCE_DIR}/tests/test_helpers/spectral_analysis_test.cpp
+    unit/test_helpers/statistical_utils_tests.cpp
+    unit/test_helpers/artifact_detection_tests.cpp
+    unit/test_helpers/signal_metrics_tests.cpp
+    unit/test_helpers/parameter_sweep_tests.cpp
+    unit/test_helpers/lpc_detection_tests.cpp
+    unit/test_helpers/spectral_anomaly_tests.cpp
+    unit/test_helpers/golden_reference_tests.cpp
+    unit/test_helpers/artifact_detection_integration_tests.cpp
+    unit/test_helpers/uidesc_reachability_tests.cpp
+)
+
+target_link_libraries(dsp_core_tests
+    PRIVATE
+        KrateDSP
+        Catch2::Catch2
+        test_helpers
+)
+
+target_compile_features(dsp_core_tests PRIVATE cxx_std_20)
+
+# Layer 1 (primitives)
+add_executable(dsp_primitives_tests
+    # Shared Catch2 main + FTZ/DAZ setup (see dsp_test_main.cpp)
+    dsp_test_main.cpp
     # Layer 1: Primitives
     unit/primitives/envelope_utils_test.cpp
     unit/primitives/adsr_envelope_test.cpp
@@ -105,7 +140,21 @@ add_executable(dsp_tests
     unit/primitives/spectral_transient_detector_test.cpp
     unit/primitives/held_note_buffer_test.cpp
     unit/primitives/arp_lane_test.cpp
+)
 
+target_link_libraries(dsp_primitives_tests
+    PRIVATE
+        KrateDSP
+        Catch2::Catch2
+        test_helpers
+)
+
+target_compile_features(dsp_primitives_tests PRIVATE cxx_std_20)
+
+# Layer 2 (processors)
+add_executable(dsp_processors_tests
+    # Shared Catch2 main + FTZ/DAZ setup (see dsp_test_main.cpp)
+    dsp_test_main.cpp
     # Layer 2: Processors
     unit/processors/markov_matrices_test.cpp
     unit/processors/multimode_filter_test.cpp
@@ -180,7 +229,18 @@ add_executable(dsp_tests
     unit/processors/mono_handler_test.cpp
     unit/processors/note_processor_test.cpp
     unit/processors/trance_gate_test.cpp
-    unit/processors/arpeggiator_core_test.cpp
+    # arpeggiator_core_test.cpp split into spec-area siblings (D1) sharing
+    # arpeggiator_core_test_helpers.h
+    unit/processors/arpeggiator_core_core_test.cpp
+    unit/processors/arpeggiator_core_lanes_test.cpp
+    unit/processors/arpeggiator_core_baseline_test.cpp
+    unit/processors/arpeggiator_core_perstepmods_test.cpp
+    unit/processors/arpeggiator_core_ratcheting_test.cpp
+    unit/processors/arpeggiator_core_euclidean_test.cpp
+    unit/processors/arpeggiator_core_conditional_test.cpp
+    unit/processors/arpeggiator_core_spicehuman_test.cpp
+    unit/processors/arpeggiator_core_dawloop_test.cpp
+    unit/processors/arpeggiator_core_scalechord_test.cpp
     unit/processors/midi_note_delay_test.cpp
     unit/processors/ring_modulator_test.cpp
     unit/processors/harmonic_types_tests.cpp
@@ -210,7 +270,21 @@ add_executable(dsp_tests
     unit/processors/bow_waveguide_coupling_test.cpp
     unit/processors/body_resonance_tests.cpp
     unit/processors/test_modal_bank_frequency.cpp
+)
 
+target_link_libraries(dsp_processors_tests
+    PRIVATE
+        KrateDSP
+        Catch2::Catch2
+        test_helpers
+)
+
+target_compile_features(dsp_processors_tests PRIVATE cxx_std_20)
+
+# Layer 3 (systems)
+add_executable(dsp_systems_tests
+    # Shared Catch2 main + FTZ/DAZ setup (see dsp_test_main.cpp)
+    dsp_test_main.cpp
     # Layer 3: Systems
     unit/systems/delay_engine_test.cpp
     unit/systems/feedback_network_test.cpp
@@ -246,7 +320,21 @@ add_executable(dsp_tests
     unit/systems/harmonizer_engine_test.cpp
     unit/systems/harmonic_model_builder_tests.cpp
     unit/systems/sympathetic_resonance_test.cpp
+)
 
+target_link_libraries(dsp_systems_tests
+    PRIVATE
+        KrateDSP
+        Catch2::Catch2
+        test_helpers
+)
+
+target_compile_features(dsp_systems_tests PRIVATE cxx_std_20)
+
+# Layer 4 (effects)
+add_executable(dsp_effects_tests
+    # Shared Catch2 main + FTZ/DAZ setup (see dsp_test_main.cpp)
+    dsp_test_main.cpp
     # Layer 4: Effects
     unit/effects/tape_delay_test.cpp
     unit/effects/tape_delay_params_diagnostic_test.cpp
@@ -268,27 +356,17 @@ add_executable(dsp_tests
     unit/effects/test_pattern_freeze_mode.cpp
     unit/effects/reverb_test.cpp
     unit/effects/fdn_reverb_test.cpp
-
-    # Test Helpers tests
-    ${CMAKE_SOURCE_DIR}/tests/test_helpers/spectral_analysis_test.cpp
-    unit/test_helpers/statistical_utils_tests.cpp
-    unit/test_helpers/artifact_detection_tests.cpp
-    unit/test_helpers/signal_metrics_tests.cpp
-    unit/test_helpers/parameter_sweep_tests.cpp
-    unit/test_helpers/lpc_detection_tests.cpp
-    unit/test_helpers/spectral_anomaly_tests.cpp
-    unit/test_helpers/golden_reference_tests.cpp
-    unit/test_helpers/artifact_detection_integration_tests.cpp
 )
 
-target_link_libraries(dsp_tests
+target_link_libraries(dsp_effects_tests
     PRIVATE
         KrateDSP
         Catch2::Catch2
         test_helpers
 )
 
-target_compile_features(dsp_tests PRIVATE cxx_std_20)
+target_compile_features(dsp_effects_tests PRIVATE cxx_std_20)
+
 
 # ==============================================================================
 # Disable -ffast-math for files that require IEEE 754 compliant NaN handling
@@ -513,7 +591,17 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/processors/mono_handler_test.cpp
         unit/processors/note_processor_test.cpp
         unit/processors/trance_gate_test.cpp
-        unit/processors/arpeggiator_core_test.cpp
+        # arpeggiator_core_test.cpp split into spec-area siblings (D1)
+        unit/processors/arpeggiator_core_core_test.cpp
+        unit/processors/arpeggiator_core_lanes_test.cpp
+        unit/processors/arpeggiator_core_baseline_test.cpp
+        unit/processors/arpeggiator_core_perstepmods_test.cpp
+        unit/processors/arpeggiator_core_ratcheting_test.cpp
+        unit/processors/arpeggiator_core_euclidean_test.cpp
+        unit/processors/arpeggiator_core_conditional_test.cpp
+        unit/processors/arpeggiator_core_spicehuman_test.cpp
+        unit/processors/arpeggiator_core_dawloop_test.cpp
+        unit/processors/arpeggiator_core_scalechord_test.cpp
         unit/processors/ring_modulator_test.cpp
         unit/processors/harmonic_types_tests.cpp
         unit/processors/dual_stft_tests.cpp
@@ -557,4 +645,8 @@ endif()
 # ==============================================================================
 # CTest Integration
 # ==============================================================================
-catch_discover_tests(dsp_tests REPORTER console)
+catch_discover_tests(dsp_core_tests REPORTER console)
+catch_discover_tests(dsp_primitives_tests REPORTER console)
+catch_discover_tests(dsp_processors_tests REPORTER console)
+catch_discover_tests(dsp_systems_tests REPORTER console)
+catch_discover_tests(dsp_effects_tests REPORTER console)

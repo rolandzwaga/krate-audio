@@ -10,7 +10,7 @@
 - `CMakeLists.txt`: reads `version.json`, generates `version.h` via `configure_file`, uses `smtg_add_vst3plugin`, links `KrateDSP` + `KratePluginsShared`
 - `entry.cpp`: uses `BEGIN_FACTORY_DEF` / `DEF_CLASS2` / `END_FACTORY` pattern with `kDistributable` flag
 - `plugin_ids.h`: static `FUID` constants + `kSubCategories` constexpr + `enum ParameterIds`
-- AU config: `au-info.plist` (type `aumu`, 0-in/2-out) + `audiounitconfig.h` (kSupportedNumChannels `0022`)
+- AU config: `au-info.plist` (type `aumu`, 0-in/2-out) + `audiounitconfig.h` (kSupportedNumChannels `02`; `0022` is wrong — parses as (0,0)+(2,2))
 - Test CMakeLists: compiles processor/controller sources + SDK hosting helpers + Catch2
 
 **Alternatives considered**: Could use Ruinae or Innexus as reference, but Gradus is simpler (no complex engine) and newest.

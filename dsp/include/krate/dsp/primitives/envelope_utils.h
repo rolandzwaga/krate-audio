@@ -20,6 +20,7 @@
 #pragma once
 
 #include <krate/dsp/core/db_utils.h>
+#include <krate/dsp/core/env_curve.h>  // EnvCurve lives in Layer 0 (shared with curve_table.h)
 
 #include <algorithm>
 #include <cmath>
@@ -58,11 +59,7 @@ inline constexpr float kLinearTargetRatio = 100.0f;
 // Enumerations
 // =============================================================================
 
-enum class EnvCurve : uint8_t {
-    Exponential = 0,
-    Linear,
-    Logarithmic
-};
+// EnvCurve is defined in <krate/dsp/core/env_curve.h> (Layer 0), included above.
 
 enum class RetriggerMode : uint8_t {
     Hard = 0,

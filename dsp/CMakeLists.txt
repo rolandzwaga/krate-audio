@@ -10,6 +10,8 @@ add_library(KrateDSP STATIC
     include/krate/dsp/core/dsp_utils.cpp
     include/krate/dsp/core/spectral_simd.cpp
     include/krate/dsp/effects/fdn_reverb_simd.cpp
+    include/krate/dsp/processors/arpeggiator_core.cpp
+    include/krate/dsp/processors/pitch_shift_processor.cpp
     include/krate/dsp/processors/harmonic_oscillator_bank_simd.cpp
     include/krate/dsp/processors/modal_resonator_bank_simd.cpp
     include/krate/dsp/systems/sympathetic_resonance_simd.cpp
@@ -76,6 +78,7 @@ set(KRATE_DSP_CORE_HEADERS
     include/krate/dsp/core/crossfade_utils.h
     include/krate/dsp/core/db_utils.h
     include/krate/dsp/core/dsp_utils.h
+    include/krate/dsp/core/env_curve.h
     include/krate/dsp/core/fast_math.h
     include/krate/dsp/core/spectral_simd.h
     include/krate/dsp/core/grain_envelope.h

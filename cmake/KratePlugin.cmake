@@ -273,6 +273,44 @@ function(krate_plugin_install_to_system target)
 endfunction()
 
 # ------------------------------------------------------------------------------
+# krate_plugin_install_presets(target [SRC_SUBDIR <dir>] [DEST_SUBDIR <dir>])
+# ------------------------------------------------------------------------------
+# POST_BUILD: copy the plugin's generated factory presets from resources/presets/
+# into the shared runtime factory dir (%PROGRAMDATA%\Krate Audio\<target>[\<DEST_SUBDIR>]),
+# matching Krate::Shared getFactoryPresetDirectory(). Windows only; no-op elsewhere.
+#
+# Most plugins keep category folders directly under resources/presets/ and install to
+# .../Krate Audio/<target> — call with no options. Membrum nests presets under
+# "resources/presets/Kit Presets" and the runtime scans a "Kits" subdir, so it passes
+# SRC_SUBDIR "Kit Presets" DEST_SUBDIR "Kits".
+# ------------------------------------------------------------------------------
+function(krate_plugin_install_presets target)
+    cmake_parse_arguments(KPIP "" "SRC_SUBDIR;DEST_SUBDIR" "" ${ARGN})
+
+    if(NOT SMTG_WIN)
+        return()
+    endif()
+
+    set(_src "${CMAKE_CURRENT_SOURCE_DIR}/resources/presets")
+    if(KPIP_SRC_SUBDIR)
+        set(_src "${_src}/${KPIP_SRC_SUBDIR}")
+    endif()
+
+    set(_dest "$ENV{PROGRAMDATA}/Krate Audio/${target}")
+    if(KPIP_DEST_SUBDIR)
+        set(_dest "${_dest}/${KPIP_DEST_SUBDIR}")
+    endif()
+
+    add_custom_command(TARGET ${target} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E echo "[VSTWORK] Installing ${target} factory presets..."
+        COMMAND ${CMAKE_COMMAND} -E copy_directory "${_src}" "${_dest}"
+        COMMAND ${CMAKE_COMMAND} -E echo "[VSTWORK] Factory presets installed to ${_dest}"
+        COMMENT "Installing ${target} factory presets to system directory"
+        VERBATIM
+    )
+endfunction()
+
+# ------------------------------------------------------------------------------
 # krate_plugin_set_warnings(target)
 # ------------------------------------------------------------------------------
 # Apply the project-standard warning posture (Constitution Principle III).

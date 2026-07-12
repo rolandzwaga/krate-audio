@@ -160,18 +160,16 @@ add_executable(membrum_tests
     # Signal-path audit H-3 / M-1: pitch envelope + Material Morph on all bodies
     unit/dsp/test_pitch_env_all_bodies.cpp
 
+    # Wave 2 V26: perceptual render test (default-kit pads sound like what they are)
+    unit/dsp/test_render_perceptual.cpp
+
     # Factory kit preset round-trip
     unit/preset/test_factory_kit_presets.cpp
 
-    # Processor/Controller implementation (needed by plugin shell tests)
-    ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/macro_mapper.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller_state_codec.cpp
+    # Processor/Controller/UI/voice-pool implementation now comes from the
+    # membrum_core static lib (linked below) so these TUs compile once, not twice.
+    # state_codec.cpp stays here (it also lives in membrum_preset_io, as before).
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/state/state_codec.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../src/ui/pad_grid_view.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../src/ui/kit_meters_view.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../src/voice_pool/voice_pool.cpp
     ${vst3sdk_SOURCE_DIR}/public.sdk/source/common/memorystream.cpp
 
     # SDK hosting helpers (HostMessage, HostAttributeList) for IMessage tests
@@ -188,6 +186,7 @@ target_link_libraries(membrum_tests
         KratePluginsShared
         Catch2::Catch2
         test_helpers
+        membrum_core
         membrum_preset_io
         # NOTE: vstgui_support MUST come before sdk so GNU ld can resolve
         # ModuleInitializer/ModuleTerminator/getPlatformModuleHandle symbols
