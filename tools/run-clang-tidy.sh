@@ -59,8 +59,9 @@ while [[ $# -gt 0 ]]; do
             echo "Options:"
             echo "  --build-dir DIR   Build directory with compile_commands.json"
             echo "                    (auto-detected if not specified)"
-            echo "  --target TARGET   Target to analyze: all, dsp, iterum, disrumpo, ruinae"
-            echo "                    Default: all"
+            echo "  --target TARGET   Target to analyze: all, dsp, shared, iterum, disrumpo,"
+            echo "                    ruinae, innexus, gradus, membrum"
+            echo "                    ('all' covers dsp + every plugin). Default: all"
             echo "  --fix             Apply automatic fixes (use with caution)"
             echo "  --quiet           Suppress progress output"
             echo "  --parallel N      Number of parallel processes (default: $PARALLEL)"
@@ -126,6 +127,9 @@ case $TARGET in
     dsp)
         SOURCE_DIRS=("dsp/include" "dsp/tests")
         ;;
+    shared)
+        SOURCE_DIRS=("plugins/shared/src" "plugins/shared/tests")
+        ;;
     iterum)
         SOURCE_DIRS=("plugins/iterum/src" "plugins/iterum/tests")
         ;;
@@ -135,8 +139,29 @@ case $TARGET in
     ruinae)
         SOURCE_DIRS=("plugins/ruinae/src" "plugins/ruinae/tests")
         ;;
+    innexus)
+        SOURCE_DIRS=("plugins/innexus/src" "plugins/innexus/tests")
+        ;;
+    gradus)
+        SOURCE_DIRS=("plugins/gradus/src" "plugins/gradus/tests")
+        ;;
+    membrum)
+        SOURCE_DIRS=("plugins/membrum/src" "plugins/membrum/tests")
+        ;;
     all)
-        SOURCE_DIRS=("dsp/include" "plugins/iterum/src" "plugins/disrumpo/src" "plugins/ruinae/src")
+        # MUST cover dsp + shared + EVERY plugin, or Linux/macOS pre-commit lint
+        # silently skips code the .ps1 (and CI) would analyze. Keep in sync with
+        # the plugin roster in run-clang-tidy.ps1 and trust plugins/ as the source.
+        SOURCE_DIRS=(
+            "dsp/include"
+            "plugins/shared/src"
+            "plugins/iterum/src"
+            "plugins/disrumpo/src"
+            "plugins/ruinae/src"
+            "plugins/innexus/src"
+            "plugins/gradus/src"
+            "plugins/membrum/src"
+        )
         ;;
     *)
         error "Unknown target: $TARGET"

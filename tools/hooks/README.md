@@ -1,17 +1,24 @@
 # Claude Code enforcement hooks
 
-`PreToolUse` hooks wired in [`.claude/settings.json`](../../.claude/settings.json). Each reads the
-tool-call JSON envelope on stdin and **exit code 2 blocks the call**, surfacing the stderr message to
-the agent. All hooks **fail open** (exit 0) on any parse/IO error — a hook must never wedge the
-session.
+Hooks wired in [`.claude/settings.json`](../../.claude/settings.json). Each reads the tool-call JSON
+envelope on stdin. **`PreToolUse` exit code 2 blocks the call**, surfacing the stderr message to the
+agent; the `PostToolUse` reminder is non-blocking and surfaces context via `additionalContext`. All
+hooks **fail open** (exit 0) on any parse/IO error — a hook must never wedge the session.
 
-| Hook | Fires on | Blocks when | Redirects to |
-|------|----------|-------------|--------------|
-| [`guard-version-h.js`](guard-version-h.js) | `Edit` / `Write` / `MultiEdit` | target is `plugins/*/src/version.h` (generated, overwritten on configure) | edit `version.json`, then rebuild |
-| [`guard-changelog.js`](guard-changelog.js) | `Bash` | a `git commit` message says `release X.Y.Z` for a plugin whose `CHANGELOG.md` has no `## [X.Y.Z]` section | add the CHANGELOG entry in the same commit |
+| Hook | Event | Fires on | Effect |
+|------|-------|----------|--------|
+| [`guard-version-h.js`](guard-version-h.js) | PreToolUse | `Edit` / `Write` / `MultiEdit` targeting `plugins/*/src/version.h` (generated) | **Blocks** — redirects to `version.json`, then rebuild |
+| [`guard-changelog.js`](guard-changelog.js) | PreToolUse | `Bash` `git commit` saying `release X.Y.Z` for a plugin whose `CHANGELOG.md` has no `## [X.Y.Z]` | **Blocks** — add the CHANGELOG entry in the same commit |
+| [`remind-rt-safety.js`](remind-rt-safety.js) | PostToolUse | `Edit` / `Write` / `MultiEdit` under `**/src/processor/**`, `**/src/engine/**`, or `dsp/` (excl. `dsp/tests/`) | **Reminds** (once/session) to apply the RT-safety review lens + layer rule; never blocks |
 
-These mechanize two "remember to" rules (version bumps go through `version.json`; a release carries its
-CHANGELOG entry). Test a hook by piping a synthetic envelope:
+The RT-safety reminder deliberately does **not** grep for `new`/`malloc`/`lock` — those appear
+legitimately in `prepare()`/ctors/member decls, so a content grep produces false-positive noise the
+agent learns to ignore. It only nudges toward the review when an audio/DSP path is touched; the hard
+gate for the layer rule is the CI lint (`tools/lint-layers.js`).
+
+These mechanize three "remember to" rules (version bumps go through `version.json`; a release carries
+its CHANGELOG entry; audio-path edits get the RT-safety lens). Test a hook by piping a synthetic
+envelope:
 
 ```bash
 node tools/hooks/guard-changelog.js <<'JSON'

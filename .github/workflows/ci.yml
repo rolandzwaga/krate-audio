@@ -121,9 +121,11 @@ jobs:
             echo "infra=${{ steps.filter.outputs.infra }}" >> $GITHUB_OUTPUT
           fi
 
-  # Verify the generated architecture indexes are in sync with the source tree.
-  # These are committed artifacts (repo-map, symbols/ODR index, specs index) produced
-  # by tools/gen-*.js; this job fails if someone changed the tree without regenerating.
+  # Verify the generated architecture indexes are in sync with the source tree,
+  # and enforce the deterministic architecture invariants (layer deps, ODR).
+  # The indexes are committed artifacts (repo-map, symbols/ODR index, specs index)
+  # produced by tools/gen-*.js; this job fails if someone changed the tree without
+  # regenerating, or introduced a layer-dependency / duplicate-symbol violation.
   generated-artifacts:
     name: Generated Artifacts In Sync
     runs-on: ubuntu-latest
@@ -142,6 +144,11 @@ jobs:
         run: node tools/gen-symbols.js --check
       - name: Check specs/INDEX.md
         run: node tools/gen-specs-index.js --check
+      # Deterministic architecture-invariant gates (prose rules turned into checks).
+      - name: Layer-dependency lint (DSP)
+        run: node tools/lint-layers.js
+      - name: ODR / duplicate-symbol lint
+        run: node tools/lint-odr.js
 
   build-windows:
     name: Windows (MSVC)

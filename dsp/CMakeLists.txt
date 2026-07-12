@@ -78,6 +78,7 @@ set(KRATE_DSP_CORE_HEADERS
     include/krate/dsp/core/crossfade_utils.h
     include/krate/dsp/core/db_utils.h
     include/krate/dsp/core/dsp_utils.h
+    include/krate/dsp/core/env_curve.h
     include/krate/dsp/core/fast_math.h
     include/krate/dsp/core/spectral_simd.h
     include/krate/dsp/core/grain_envelope.h

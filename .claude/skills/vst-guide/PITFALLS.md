@@ -441,6 +441,48 @@ loadComponentStateWithNotify()
 
 ---
 
+### Pitfall 12: Changing a Registered Parameter's Type at the Same ParamID
+
+**Problem:** Swapping a registered VST3 parameter from one type to another at the **same ParamID**
+— e.g. `RangeParameter` ↔ `StringListParameter` — can break editor load in DAWs that cache parameter
+metadata across sessions. The host reopens a project with the old type cached, the new build registers
+the other type at that ID, and the editor fails to instantiate (or the control silently misbehaves).
+
+**Symptom:** A plugin that loads fine in a clean host but crashes/blank-loads only in a specific DAW
+project that was saved with the previous build.
+
+**Wrong:**
+```cpp
+// v1 shipped this ID as a RangeParameter
+parameters.addParameter(STR16("Shape"), STR16(""), 4, 0.0, kCanAutomate, kShapeId);
+// v2 reuses the SAME kShapeId but now as a StringListParameter — caching DAWs break
+auto* p = new StringListParameter(STR16("Shape"), kShapeId, ...);
+```
+
+**Right:** If a control's render style must change, either keep the underlying parameter type and drive
+the new look with a **custom `CView`**, or register the new behavior under a **new ParamID** (retiring
+the old one). Never swap the type on an existing ID that has shipped.
+
+**Cross-ref:** `specs/_architecture_/gotchas.md` (VST3 parameters / state / editor).
+
+---
+
+### Pitfall 13: Hand-Copying a Single VST3 File Instead of Installing via the Build Target
+
+**Problem:** Copying just the `.vst3` DLL/bundle by hand leaves the installed bundle **without
+`Contents/Resources/editor.uidesc`** (and `moduleinfo.json`). The plugin then loads with a **blank UI**
+and often **crashes on unload**.
+
+**Symptom:** Fresh install shows an empty editor window / white panel; closing it takes down the host.
+
+**Right:** Install via the CMake install target (`krate_plugin_install_*` in `cmake/KratePlugin.cmake`),
+which copies the whole bundle including `Resources/`. Presets are separate — they go to
+`%PROGRAMDATA%/Krate Audio/<plugin>/`, **not** inside the bundle (`krate_plugin_install_presets`).
+
+**Cross-ref:** `specs/_architecture_/gotchas.md` (Build / install); root `CLAUDE.md` → Build Commands.
+
+---
+
 ## Key Takeaways
 
 1. **Use the right parameter type** - `StringListParameter` for dropdowns, `RangeParameter` for ranges
@@ -455,3 +497,5 @@ loadComponentStateWithNotify()
 10. **Null cached view pointers on removal** - Views inside UIViewSwitchContainer templates get destroyed on every switch; wire `removed()` callbacks to null cached pointers
 11. **Tag ranges can overlap** - When extending range-based listener registration, verify the new range doesn't include tags already registered explicitly elsewhere; `registerControlListener()` does NOT deduplicate
 12. **Three-point sync for cached tab pointers** - Every cached pointer to a tab-resident view MUST be nulled in `onTabChanged()`, `willClose()`, AND cached in `verifyView()`. Missing any one causes use-after-free during preset switching
+13. **Never change a param's type at the same ParamID** - Swapping `RangeParameter` ↔ `StringListParameter` at a shipped ID breaks editor load in caching DAWs; use a custom `CView` or a new ParamID
+14. **Install via the build target, never hand-copy a single VST3** - A one-file copy omits `Contents/Resources/editor.uidesc` → blank UI + crash on unload; use the `krate_plugin_install_*` targets

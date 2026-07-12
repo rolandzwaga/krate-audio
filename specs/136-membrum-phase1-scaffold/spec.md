@@ -115,7 +115,7 @@ The CI pipeline builds Membrum on all platforms (Windows, macOS, Linux), runs it
 - **FR-003**: Plugin MUST have unique processor and controller FUIDs in `plugin_ids.h` under namespace `Membrum`.
 - **FR-004**: Plugin MUST have `version.json` as the single source of truth for version information, with `version.h.in` template generating `version.h` at CMake configure time. Initial version: `0.1.0`.
 - **FR-005**: Plugin MUST have `entry.cpp` following the Gradus pattern (BEGIN_FACTORY_DEF / DEF_CLASS2 / END_FACTORY).
-- **FR-006**: Plugin MUST include AU configuration files: `resources/au-info.plist` (type `aumu`, subtype `Mbrm`, manufacturer `KrAt`) and `resources/auv3/audiounitconfig.h` with matching type codes and channel config `0022` (0 in / 2 out).
+- **FR-006**: Plugin MUST include AU configuration files: `resources/au-info.plist` (type `aumu`, subtype `Mbrm`, manufacturer `KrAt`) and `resources/auv3/audiounitconfig.h` with matching type codes and channel config `02` (0 in / 2 out). (`0022` is WRONG — the digit-pair format parses it as (0,0)+(2,2), which fails AU init.)
 - **FR-007**: Plugin MUST include `resources/win32resource.rc.in` for Windows resource generation.
 - **FR-008**: Root `CMakeLists.txt` MUST include `add_subdirectory(plugins/membrum)`.
 
@@ -261,7 +261,7 @@ grep -r "class ADSREnvelope" dsp/      # → dsp/include/krate/dsp/primitives/ad
 | FR-003 | ✅ MET | `plugin_ids.h:17-20` — unique kProcessorUID and kControllerUID under namespace Membrum |
 | FR-004 | ✅ MET | `version.json:2` — "0.1.0"; `version.h.in` template; `CMakeLists.txt:8-31` — file(READ) + configure_file |
 | FR-005 | ✅ MET | `entry.cpp:16-48` — BEGIN_FACTORY_DEF, two DEF_CLASS2 registrations, END_FACTORY |
-| FR-006 | ✅ MET | `au-info.plist:37` — aumu/Mbrm/KrAt, 0in/2out; `audiounitconfig.h:5-24` — kSupportedNumChannels=0022 |
+| FR-006 | ✅ MET | `au-info.plist:37` — aumu/Mbrm/KrAt, 0in/2out; `audiounitconfig.h` — kSupportedNumChannels=`02` (0 in / 2 out; `0022` was wrong) |
 | FR-007 | ✅ MET | `win32resource.rc.in` exists; `CMakeLists.txt:36-40` — configure_file generates win32resource.rc |
 | FR-008 | ✅ MET | Root `CMakeLists.txt:365` — add_subdirectory(plugins/membrum) |
 | FR-010 | ✅ MET | `processor.cpp:113` — if pitch != 36 break; test "Note-on (note=36) produces audio > -12 dBFS" passes |
