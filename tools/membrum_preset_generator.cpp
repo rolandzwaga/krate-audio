@@ -38,8 +38,8 @@
 // ==============================================================================
 
 constexpr int kNumPads           = 32;
-constexpr int kVersion           = 4;  // snare-body: 58-slot sound array (added noiseLayerGain)
-constexpr int kSoundSlotsPerPad  = 58;
+constexpr int kVersion           = 5;  // wire-coupling: 59-slot sound array (added wireCoupling)
+constexpr int kSoundSlotsPerPad  = 59;
 
 // kProcessorUID(0x4D656D62, 0x72756D50, 0x726F6331, 0x00000136)
 const char kClassIdAscii[33] = "4D656D6272756D50726F633100000136";
@@ -120,6 +120,9 @@ struct Pad {
     // -18 dBFS accent ceiling). Snares push this up so the wire reaches
     // near-body level. Serialized at sound[57].
     double noiseLayerGain      = 1.0;
+    // Wire coupling: buzz-follows-body depth (0 = independent buzz, legacy).
+    // Serialized at sound[58].
+    double wireCoupling        = 0.0;
     // Phase 7 attack click transient (raised-cosine filtered-noise burst).
     double clickLayerMix        = 0.5;
     double clickLayerContactMs  = 0.3;
@@ -284,6 +287,8 @@ void writePadToBuffer(std::vector<std::uint8_t>& buf, const Pad& p) {
         p.pan,
         // [57] snare-body fix: per-pad noise-layer gain.
         p.noiseLayerGain,
+        // [58] wire coupling: buzz-follows-body depth.
+        p.wireCoupling,
     };
     for (double v : sound)
         writeF64(buf, v);
@@ -579,6 +584,9 @@ Kit acousticKit() {
     pads[2].noiseLayerDecay     = 0.55;
     pads[2].noiseLayerColor     = 0.75;
     pads[2].noiseLayerGain      = 6.2;   // wire reaches snare level (calibrated)
+    // Wire coupling: buzz partially tracks the head so it dies with the body
+    // and chokes on note-off instead of running its full fixed ~600 ms tail.
+    pads[2].wireCoupling        = 0.45;
     pads[2].clickLayerMix        = 0.55;  // stick crack
     pads[2].clickLayerContactMs  = 0.18;
     pads[2].clickLayerBrightness = 0.90;
@@ -2020,6 +2028,7 @@ Kit rockBigRoomKit() {
     pads[2].noiseLayerResonance = 0.15;
     pads[2].noiseLayerColor  = 0.75; pads[2].noiseLayerDecay = 0.55;
     pads[2].noiseLayerGain   = 6.2;
+    pads[2].wireCoupling     = 0.45;  // buzz tracks head: dies with body, chokes on note-off
     pads[2].clickLayerMix    = 0.55; pads[2].clickLayerContactMs = 0.06;
     pads[2].clickLayerBrightness = 0.92;
     pads[2].airLoading = 0.42; pads[2].modeScatter = 0.42;
@@ -2297,6 +2306,7 @@ Kit vintageWoodKit() {
     pads[2].noiseLayerResonance = 0.12;
     pads[2].noiseLayerColor  = 0.70; pads[2].noiseLayerDecay = 0.55;
     pads[2].noiseLayerGain   = 6.2;
+    pads[2].wireCoupling     = 0.45;  // buzz tracks head: dies with body, chokes on note-off
     pads[2].clickLayerMix    = 0.55; pads[2].clickLayerContactMs = 0.08;
     pads[2].clickLayerBrightness = 0.78;
     pads[2].airLoading = 0.45; pads[2].modeScatter = 0.40;

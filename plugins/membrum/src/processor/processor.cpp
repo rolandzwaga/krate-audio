@@ -539,6 +539,11 @@ void Processor::processParameterChanges(IParameterChanges* paramChanges)
             voicePool_.setPadConfigField(selectedPadIndex_, kPadPan, fValue);
             break;
 
+        // ---- Wire coupling ----
+        case kWireCouplingId:
+            voicePool_.setPadConfigField(selectedPadIndex_, kPadWireCoupling, fValue);
+            break;
+
         // ---- Phase 9: global master output gain ----
         case kMasterGainId:
         {

@@ -116,6 +116,10 @@ inline void applyTemplate(PadConfig& cfg, DrumTemplate tmpl, float sizeOverride 
             cfg.noiseLayerDecay      = 0.55f;  // wire tail outlasts the body tat
             cfg.noiseLayerColor      = 0.75f;  // white->violet (bright rattle)
             cfg.noiseLayerGain       = 6.2f;   // wire reaches snare level (calibrated)
+            // Wire coupling: buzz partially tracks the head so it dies with the
+            // body and chokes on note-off, instead of running its full fixed
+            // ~600 ms ADSR tail (Bilbao 2012: wires are driven by head motion).
+            cfg.wireCoupling         = 0.45f;
             cfg.clickLayerMix        = 0.55f;  // stick crack
             cfg.clickLayerContactMs  = 0.2f;
             cfg.clickLayerBrightness = 0.7f;

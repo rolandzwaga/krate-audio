@@ -122,7 +122,7 @@ struct StateFixture
 TEST_CASE("kCurrentStateVersion is the pinned pre-release value",
           "[coupling_state][phase7][state]")
 {
-    STATIC_REQUIRE(Membrum::kCurrentStateVersion == 4);
+    STATIC_REQUIRE(Membrum::kCurrentStateVersion == 5);
 }
 
 // ==============================================================================
@@ -245,11 +245,11 @@ TEST_CASE("Phase 6 (T044b): per-pad preset excludes couplingAmount (FR-022)",
     IBStream* stream = controller.padPresetStateProvider();
     REQUIRE(stream != nullptr);
 
-    // Verify blob size is exactly 476 bytes (snare-body: 4 (version) + 2 * int32
-    // + 58 * float64). Offset 36 (couplingAmount) is NOT part of this format.
+    // Verify blob size is exactly 484 bytes (wire-coupling: 4 (version) + 2 * int32
+    // + 59 * float64). Offset 36 (couplingAmount) is NOT part of this format.
     int64 end = 0;
     stream->seek(0, IBStream::kIBSeekEnd, &end);
-    CHECK(end == 476);
+    CHECK(end == 484);
     stream->seek(0, IBStream::kIBSeekSet, nullptr);
 
     // Now change the pad's couplingAmount to a different value before reload.

@@ -378,6 +378,10 @@ public:
         tensionAmtEffective_ =
             std::clamp(tensionModAmt_, 0.0f, 1.0f) * kTensionEnergyScale;
         energyEnv_ = 0.0f;
+        // Wire coupling: reset the running energy peak and gain modulation so a
+        // reused voice starts tracking from scratch.
+        wireEnergyPeak_ = 0.0f;
+        wireGainMod_    = 1.0f;
 
         // Reset the amp envelope so its attack ramps from 0 instead of
         // from whatever sustain level the previous voice left behind.
@@ -438,6 +442,8 @@ public:
         // overwrites it.
         energyEnv_           = 0.0f;
         tensionAmtEffective_ = 0.0f;
+        wireEnergyPeak_      = 0.0f;
+        wireGainMod_         = 1.0f;
         silentBlockCount_    = 0;
         active_              = false;
     }
@@ -491,8 +497,14 @@ public:
         // treat the combined signal (research-backed SNT pattern). The click
         // layer is also mixed directly here so it's heard as a broadband
         // transient independent of the body's modal response.
+        // wireGainMod_ carries the wire-coupling modulation. This per-sample
+        // process() path (used by unit tests / single-sample hosts) does not run
+        // the block-rate energy follower -- same convention as tension mod and
+        // the secondary shell bank, which are also block-path-only -- so
+        // wireGainMod_ stays 1.0 here and the buzz is un-modulated on this path.
         const float noiseSample =
-            noiseLayer_.processSample() * noiseLayer_.standaloneGain() * noiseLayerGain_;
+            noiseLayer_.processSample() * noiseLayer_.standaloneGain()
+            * noiseLayerGain_ * wireGainMod_;
         const float combinedBody = body + noiseSample + clickSample;
 
         // UnnaturalZone chain per contract: body + modeInject → nonlinear
@@ -672,6 +684,10 @@ private:
                 tensionActive ? std::min(1.0f + tensionAmtEffective_ * energyEnv_,
                                          kTensionPitchModMax)
                               : 1.0f;
+            // Wire coupling drives the same modal-energy follower as tension mod
+            // (below), but ANY modal body participates -- the buzz tracks head
+            // motion regardless of Membrane-only tension physics.
+            const bool wireActive = wireCoupling_ > 1e-6f;
 
             if (pitchEnvActive)
             {
@@ -796,7 +812,11 @@ private:
             // signal.
             noiseLayer_.processBlock(noiseScratch, chunk);
             {
-                const float gain = noiseLayer_.standaloneGain() * noiseLayerGain_;
+                // Wire coupling: wireGainMod_ (block-rate, from the previous
+                // chunk's modal energy) scales the buzz so it tracks the head.
+                // 1.0 when coupling is off => bit-exact legacy path.
+                const float gain =
+                    noiseLayer_.standaloneGain() * noiseLayerGain_ * wireGainMod_;
                 for (int i = 0; i < chunk; ++i)
                     noiseScratch[i] *= gain;
             }
@@ -845,11 +865,16 @@ private:
             // per chunk (the energy envelope is sub-audio-rate) with the
             // per-sample 20 ms coefficient raised to the chunk length. Runs only
             // when tension is active so the default path stays zero-overhead.
-            if (tensionActive)
+            if (tensionActive || wireActive)
             {
                 const float e = bodyBank_.getSharedBank().getModalEnergy();
                 const float a = std::pow(energyAlpha_, static_cast<float>(chunk));
                 energyEnv_ = a * energyEnv_ + (1.0f - a) * e;
+                if (wireActive)
+                {
+                    wireEnergyPeak_ = std::max(wireEnergyPeak_, energyEnv_);
+                    wireGainMod_    = computeWireGainMod();
+                }
             }
 
             offset    += chunk;
@@ -882,6 +907,8 @@ private:
             tensionActive ? std::min(1.0f + tensionAmtEffective_ * energyEnv_,
                                      kTensionPitchModMax)
                           : 1.0f;
+        // Wire coupling mirrors the fast path -- any modal body participates.
+        const bool wireActive = wireCoupling_ > 1e-6f;
 
         // Block-rate refresh (Phase 9): advance each modulator by one sample
         // at the start of the block and refresh the modal bank once. The
@@ -978,7 +1005,8 @@ private:
                         // output before the UnnaturalZone chain; click layer
                         // is mixed directly so it's heard as a transient.
                         const float noiseSample =
-                            noiseLayer_.processSample() * noiseLayer_.standaloneGain() * noiseLayerGain_;
+                            noiseLayer_.processSample() * noiseLayer_.standaloneGain()
+                            * noiseLayerGain_ * wireGainMod_;
                         const float combinedBody = bodyWithShell + noiseSample + clickSample;
 
                         // UnnaturalZone chain per contract: body + modeInject
@@ -1000,11 +1028,16 @@ private:
         // bank's gain-invariant MODAL energy (not the radiated output^2) that
         // feeds next block's tension pitch mod. Runs only when tension is active
         // so the default slow path stays zero-overhead.
-        if (tensionActive)
+        if (tensionActive || wireActive)
         {
             const float e = bodyBank_.getSharedBank().getModalEnergy();
             const float a = std::pow(energyAlpha_, static_cast<float>(numSamples));
             energyEnv_ = a * energyEnv_ + (1.0f - a) * e;
+            if (wireActive)
+            {
+                wireEnergyPeak_ = std::max(wireEnergyPeak_, energyEnv_);
+                wireGainMod_    = computeWireGainMod();
+            }
         }
     }
 
@@ -1080,6 +1113,11 @@ public:
     /// (default 1.0). Lets a snare push its wire buzz to near-body level, which
     /// the mix knob + global -18 dBFS ceiling cannot reach on their own.
     void setNoiseLayerGain(float v) noexcept      { noiseLayerGain_ = v; }
+    /// Wire coupling: 0 = independent buzz envelope (legacy, bit-exact), 1 =
+    /// buzz amplitude fully tracks the body's modal-energy envelope (snare wires
+    /// driven by head motion). Reuses the gain-invariant getModalEnergy()
+    /// follower; block-rate.
+    void setWireCoupling(float v) noexcept        { wireCoupling_ = std::clamp(v, 0.0f, 1.0f); }
 
     void setClickLayerMix(float v) noexcept        { clickLayerParams_.mix        = v; }
     void setClickLayerContactMs(float v) noexcept  { clickLayerParams_.contactMs  = v; }
@@ -1416,6 +1454,24 @@ private:
         return std::clamp(couplingStrength_, 0.0f, 1.0f);
     }
 
+    /// Block-rate wire-buzz gain modulation from the modal-energy envelope.
+    /// Modal energy ~ amplitude^2, so sqrt(energyNorm) tracks the head's
+    /// AMPLITUDE envelope. Self-normalising: wireEnergyPeak_ is the running peak
+    /// of energyEnv_ since noteOn, so the ratio is velocity- and gain-staging-
+    /// independent (a hard hit and a soft hit both start at ~1 and relax to 0).
+    /// Guards: pre-strike (peak ~ 0) and non-modal bodies (String keeps modal
+    /// energy at 0) both return 1.0, so coupling silently bypasses.
+    [[nodiscard]] float computeWireGainMod() const noexcept
+    {
+        if (wireCoupling_ <= 1.0e-6f)
+            return 1.0f;
+        if (wireEnergyPeak_ <= 1.0e-12f)
+            return 1.0f;
+        const float norm  = std::clamp(energyEnv_ / wireEnergyPeak_, 0.0f, 1.0f);
+        const float track = std::sqrt(norm);
+        return 1.0f + wireCoupling_ * (track - 1.0f);   // lerp(1, track, coupling)
+    }
+
     /// Build the common parameter bundle from the voice's cached Phase-1/8
     /// state, overriding only `material`. Single source of truth for the live
     /// param-edit (updateModalParameters) and Material-Morph refresh paths.
@@ -1589,6 +1645,17 @@ private:
     ClickLayerParams clickLayerParams_{};
     // Snare-body fix: per-pad noise-layer gain multiplier (default 1.0).
     float noiseLayerGain_ = 1.0f;
+
+    // Wire coupling: modulate the parallel noise layer ("wire buzz") by the
+    // body's modal energy so the buzz tracks the head's vibration envelope
+    // (Bilbao 2012: snare wires are driven by head motion). 0 = fixed ADSR buzz
+    // (bit-exact legacy), 1 = full tracking. Block-rate, RT-safe. Reuses the
+    // same gain-invariant getModalEnergy() follower as tension modulation
+    // (energyEnv_ below); wireEnergyPeak_ self-normalises the tracking so it is
+    // velocity- and gain-staging-independent.
+    float wireCoupling_   = 0.0f;  // per-pad depth (norm)
+    float wireGainMod_    = 1.0f;  // block-rate gain modulation into noise layer
+    float wireEnergyPeak_ = 0.0f;  // running peak of energyEnv_ since noteOn
 
     // Reusable parameter bundle (populated on every noteOn to avoid alloc).
     VoiceCommonParams params_{};

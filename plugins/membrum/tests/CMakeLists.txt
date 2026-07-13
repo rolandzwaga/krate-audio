@@ -154,6 +154,9 @@ add_executable(membrum_tests
     # Phase 8A: per-mode damping law
     unit/dsp/test_per_mode_damping.cpp
 
+    # Wire coupling: modal-energy-coupled snare wire buzz
+    unit/dsp/test_wire_coupling.cpp
+
     # Physical-modelling audit: body-aware natural fundamental frequency
     unit/dsp/test_natural_fundamental_hz.cpp
 

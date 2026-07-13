@@ -645,6 +645,7 @@ void VoicePool::setPadConfigField(int padIndex, int offset, float normalizedValu
         break;
     }
     case kPadPan:                 cfg.pan = normalizedValue; break;
+    case kPadWireCoupling:        cfg.wireCoupling = normalizedValue; break;
     case kPadOutputBus:
     {
         cfg.outputBus = static_cast<std::uint8_t>(
@@ -787,6 +788,8 @@ void VoicePool::applyPadConfigToSlot(int slot, int padIndex) noexcept
     v.setNoiseLayerDecay(cfg.noiseLayerDecay);
     v.setNoiseLayerColor(cfg.noiseLayerColor);
     v.setNoiseLayerGain(cfg.noiseLayerGain);
+    // Wire coupling: buzz-follows-body depth.
+    v.setWireCoupling(cfg.wireCoupling);
     // Phase 7: always-on click transient
     v.setClickLayerMix(cfg.clickLayerMix);
     v.setClickLayerContactMs(cfg.clickLayerContactMs);

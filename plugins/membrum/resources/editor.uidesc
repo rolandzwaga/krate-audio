@@ -97,6 +97,7 @@
     <control-tag name="NoiseLayerResonance" tag="292"/>
     <control-tag name="NoiseLayerDecay" tag="293"/>
     <control-tag name="NoiseLayerColor" tag="294"/>
+    <control-tag name="WireCoupling" tag="326"/>
     <control-tag name="ClickLayerMix" tag="295"/>
     <control-tag name="ClickLayerContactMs" tag="296"/>
     <control-tag name="ClickLayerBrightness" tag="297"/>
@@ -311,13 +312,15 @@
         <view class="CTextLabel" title="Dec"                   origin="114, 596" size="28, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
         <view class="ArcKnob" control-tag="NoiseLayerColor"    origin="148, 566" size="28, 28" arc-color="accent" arc-width="2.5"/>
         <view class="CTextLabel" title="Color"                 origin="148, 596" size="28, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
-        <view class="CTextLabel" title="Click"                 origin="200, 554" size="140, 10" font="label-font" font-color="text-secondary" transparent="true" horizontal-alignment="left"/>
-        <view class="ArcKnob" control-tag="ClickLayerMix"      origin="200, 566" size="28, 28" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="Mix"                   origin="200, 596" size="28, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
-        <view class="ArcKnob" control-tag="ClickLayerContactMs" origin="234, 566" size="28, 28" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="Cont"                   origin="234, 596" size="28, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
-        <view class="ArcKnob" control-tag="ClickLayerBrightness" origin="268, 566" size="28, 28" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="Brt"                    origin="268, 596" size="28, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="WireCoupling"       origin="182, 566" size="28, 28" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Wire"                  origin="182, 596" size="28, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="CTextLabel" title="Click"                 origin="234, 554" size="140, 10" font="label-font" font-color="text-secondary" transparent="true" horizontal-alignment="left"/>
+        <view class="ArcKnob" control-tag="ClickLayerMix"      origin="234, 566" size="28, 28" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Mix"                   origin="234, 596" size="28, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="ClickLayerContactMs" origin="268, 566" size="28, 28" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Cont"                   origin="268, 596" size="28, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="ClickLayerBrightness" origin="302, 566" size="28, 28" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Brt"                    origin="302, 596" size="28, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
 
         <!-- ============================================================= -->
         <!-- Pitch Envelope                                                -->
