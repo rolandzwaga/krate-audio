@@ -140,13 +140,30 @@ struct NoiseBodyMapper
             1500.0f + 5000.0f * params.material, 200.0f, 15000.0f);
         out.noiseFilterResonance = 0.6f + 0.4f * params.material;
 
-        // Noise envelope scales with Decay parameter.
+        // Noise envelope. For SHORT-decay bodies (hats/toms, decay <= 0.5) this
+        // is the original fixed formula (bit-identical). For LONG-decay bodies
+        // (cymbals) the wash is blended toward the modal lowest-mode T60 so the
+        // sizzle bed rings for the full crash tail instead of dying in ~90 ms
+        // under a multi-second modal ring (CRASH-REDESIGN-PLAN.md Phase 2 / T5).
         out.noiseAttackMs = 0.5f;
-        out.noiseDecayMs  = 60.0f *
+        const float shortDecayMs = 60.0f *
             std::exp(lerp(std::log(0.3f), std::log(3.0f), params.decay));
+        // Lowest-mode (fundamental) T60 from the damping law populated above.
+        const float rateLow = out.modal.damping.b1 +
+            out.modal.damping.b3 * f0 * f0;
+        const float t60LowMs = 6.9078f / std::max(rateLow, 0.2f) * 1000.0f;
+        const float longDecayMs = t60LowMs * 0.55f;
+        // Blend gate: 0 for decay <= 0.5 (short formula wins, hat-safe), rising
+        // to 1 at decay = 1.0 so only genuinely long instruments get the wash.
+        const float washBlend = std::clamp((params.decay - 0.5f) * 2.0f, 0.0f, 1.0f);
+        out.noiseDecayMs = std::clamp(
+            lerp(shortDecayMs, longDecayMs, washBlend), 20.0f, 3000.0f);
 
         out.modalMix = 0.6f;
-        out.noiseMix = 0.4f;
+        // Brighter / more-metallic bodies carry more of their tail in the noise
+        // wash (a cymbal's sizzle), darker bodies less (Phase 2 / T5). Default
+        // material 0.5 gives 0.45, close to the legacy 0.4.
+        out.noiseMix = lerp(0.35f, 0.55f, params.material);
 
         return out;
     }
