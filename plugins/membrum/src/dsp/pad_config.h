@@ -168,6 +168,11 @@ enum PadParamOffset : int
     // 128. Restores the stereo image (audit M-9).
     kPadPan                   = 64,
     kPadActiveParamCountV11   = 65,  // offsets 0-64 are active after M-9
+
+    // Wire coupling: the noise-layer buzz tracks the body's modal-energy
+    // envelope. Default 0 (independent buzz) preserves current behaviour.
+    kPadWireCoupling          = 65,
+    kPadActiveParamCountV12   = 66,  // offsets 0-65 are active after wire-coupling
 };
 
 /// Complete configuration for one drum pad. Pre-allocated, no dynamic memory.
@@ -253,6 +258,11 @@ struct PadConfig
     // near-body level -- the noiseLayerMix + global ceiling alone cap it as a
     // quiet accent, which leaves a snare sounding like a hollow woodblock.
     float noiseLayerGain       = 1.0f;
+    // Wire coupling: 0 = independent buzz envelope (legacy, bit-exact), 1 = buzz
+    // amplitude tracks the body's modal-energy envelope (snare wires driven by
+    // head motion -- Bilbao 2012). Lets the buzz die with the head and choke on
+    // note-off instead of running its full fixed ADSR tail.
+    float wireCoupling         = 0.0f;
 
     // Phase 7: always-on attack "click" transient (2-5 ms raised-cosine
     // filtered-noise burst, fires at noteOn alongside the selected exciter).
@@ -344,7 +354,7 @@ struct PadConfig
     if (padIdx >= kNumPads)
         return -1;
     const int offset = relative % kPadParamStride;
-    if (offset >= kPadActiveParamCountV11)
+    if (offset >= kPadActiveParamCountV12)
         return -1;  // reserved range
     return offset;
 }

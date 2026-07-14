@@ -99,10 +99,10 @@ std::vector<std::uint8_t> readAllBytes(MemoryStream& stream)
 // kCurrentStateVersion sanity check (pinned at 3 by the M-9 per-pad pan update).
 // ==============================================================================
 
-TEST_CASE("State (FR-080): kCurrentStateVersion is 3",
+TEST_CASE("State (FR-080): kCurrentStateVersion is 5",
           "[phase6_state][state_v6][state]")
 {
-    STATIC_REQUIRE(Membrum::kCurrentStateVersion == 4);
+    STATIC_REQUIRE(Membrum::kCurrentStateVersion == 5);
 }
 
 // ==============================================================================
@@ -187,11 +187,11 @@ TEST_CASE("State (FR-084): blob wraps macros + sound slots + master gain, no ove
     REQUIRE(fx.processor.getState(&stream) == kResultOk);
     auto bytes = readAllBytes(stream);
 
-    // Layout (see state_codec.h, snare-body update):
-    //   12 (header) + 32 * 474 (per-pad block: 4 exc + 4 body + 58*8 sound + 2 routing)
+    // Layout (see state_codec.h, wire-coupling update):
+    //   12 (header) + 32 * 482 (per-pad block: 4 exc + 4 body + 59*8 sound + 2 routing)
     //   + 4 (selPad) + 32 (4 globals) + 256 (32 coupling amounts)
-    //   + 1280 (160 macros) + 8 (master gain) = 16760 bytes.
-    CHECK(bytes.size() == 16760u);
+    //   + 1280 (160 macros) + 8 (master gain) = 17016 bytes.
+    CHECK(bytes.size() == 17016u);
 
     // Version field is the first 4 bytes and must equal kCurrentStateVersion.
     int32 version = 0;
@@ -235,9 +235,9 @@ TEST_CASE("State (FR-082): session-scoped params are not on the wire",
     REQUIRE(fx.processor.getState(&stream) == kResultOk);
     auto bytes = readAllBytes(stream);
 
-    // Expected size: 16760 bytes (see FR-084 test, snare-body update). If
+    // Expected size: 17016 bytes (see FR-084 test, wire-coupling update). If
     // kUiModeId had leaked into the processor blob it would add 4 bytes.
-    CHECK(bytes.size() == 16760u);
+    CHECK(bytes.size() == 17016u);
 }
 
 // ==============================================================================

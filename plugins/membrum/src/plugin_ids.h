@@ -28,8 +28,9 @@ static constexpr auto kSubCategories = "Instrument|Drum";
 // this from 1 to 2 to accompany the per-pad sound-slot widening (52 -> 56).
 // M-9 bumped 2 -> 3 to accompany the per-pad pan slot (56 -> 57) and the
 // per-pad param-stride widening (64 -> 128). snare-body bumped 3 -> 4 for the
-// per-pad noiseLayerGain slot (57 -> 58).
-constexpr Steinberg::int32 kCurrentStateVersion = 4;
+// per-pad noiseLayerGain slot (57 -> 58). wire-coupling bumped 4 -> 5 for the
+// per-pad wireCoupling slot (58 -> 59).
+constexpr Steinberg::int32 kCurrentStateVersion = 5;
 
 // Number of new globals introduced by Phase 6 (kUiModeId, kOutputBusId).
 constexpr int kPhase6GlobalCount = 2;
@@ -179,6 +180,11 @@ enum ParameterIds : Steinberg::Vst::ParamID
     // Selected-pad proxy for kPadPan (per-pad offset 64). RangeParameter
     // [0, 1], default 0.5 = center. Restores the stereo image (audit M-9).
     kPadPanId                     = 325,
+
+    // ====== Wire coupling ======
+    // Selected-pad proxy for kPadWireCoupling (per-pad offset 65).
+    // RangeParameter [0, 1], default 0. Buzz-follows-body depth.
+    kWireCouplingId               = 326,
 };
 
 // Compile-time collision guard: Phase 1 IDs (100-104) must not overlap Phase 2
@@ -218,8 +224,8 @@ static_assert(kCouplingDelayId < kUiModeId,
               "Phase 5 and Phase 6 parameter ID ranges must not overlap");
 static_assert(kUiModeId + kPhase6GlobalCount <= kPadBaseId,
               "Phase 6 global parameters must not collide with per-pad range");
-static_assert(kCurrentStateVersion == 4,
-              "Pre-release codec is pinned at state version 4 (snare-body noiseLayerGain)");
+static_assert(kCurrentStateVersion == 5,
+              "Pre-release codec is pinned at state version 5 (wire-coupling)");
 
 // Phase 7 collision guards: proxy IDs 290..297 must sit below the per-pad base.
 static_assert(kClickLayerBrightnessId < kPadBaseId,
@@ -256,5 +262,9 @@ static_assert(kPitchEnvCurve2Id < kPadBaseId,
 // M-9 collision guard: pan proxy ID sits below the per-pad base.
 static_assert(kPadPanId < kPadBaseId,
               "M-9 pan proxy ID must not collide with per-pad range");
+
+// Wire-coupling collision guard: proxy ID sits below the per-pad base.
+static_assert(kWireCouplingId < kPadBaseId,
+              "Wire-coupling proxy ID must not collide with per-pad range");
 
 } // namespace Membrum

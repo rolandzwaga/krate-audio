@@ -34,18 +34,18 @@ using Catch::Approx;
 
 namespace {
 
-constexpr int64 kPadPresetBytes = 476;  // version(4) + exciter(4) + body(4) + 58*float64(464) (snare-body)
+constexpr int64 kPadPresetBytes = 484;  // version(4) + exciter(4) + body(4) + 59*float64(472) (wire-coupling)
 
 /// Number of sound params serialized as float64.
-constexpr int kPadPresetSoundParamCount = 58;  // snare-body: added noiseLayerGain at index 57
+constexpr int kPadPresetSoundParamCount = 59;  // wire-coupling: added wireCoupling at index 58
 
 /// Build a pad preset blob manually for testing load.
-/// Writes version=kPadBlobVersion, exciterType, bodyModel, and 58 float64 sound values.
+/// Writes version=kPadBlobVersion, exciterType, bodyModel, and 59 float64 sound values.
 MemoryStream* buildPadPresetBlob(int32 exciterType, int32 bodyModel,
                                   double soundParams[kPadPresetSoundParamCount])
 {
     auto* stream = new MemoryStream();
-    int32 version = 4;  // snare-body codec version
+    int32 version = 5;  // wire-coupling codec version
     stream->write(&version, sizeof(version), nullptr);
     stream->write(&exciterType, sizeof(exciterType), nullptr);
     stream->write(&bodyModel, sizeof(bodyModel), nullptr);
@@ -116,7 +116,7 @@ TEST_CASE("Pad preset: blob format is version + exciterType + bodyModel + 56 flo
 
     int32 version = 0;
     stream->read(&version, sizeof(version), nullptr);
-    CHECK(version == 4);  // snare-body codec version
+    CHECK(version == 5);  // wire-coupling codec version
 
     int32 exciterTypeI32 = -1;
     stream->read(&exciterTypeI32, sizeof(exciterTypeI32), nullptr);

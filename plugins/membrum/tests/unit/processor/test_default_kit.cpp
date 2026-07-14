@@ -123,6 +123,8 @@ TEST_CASE("DefaultKit Snare template - pad 2 (MIDI 38)", "[default_kit]")
     // buzz carries the tail instead of a sustained tone.
     REQUIRE(snare.decay == Approx(0.13f).margin(0.01f));
     REQUIRE(snare.noiseLayerGain == Approx(6.2f).margin(0.01f));
+    // Wire coupling: buzz partially tracks the head (dies with body / chokes).
+    REQUIRE(snare.wireCoupling == Approx(0.45f).margin(0.01f));
     REQUIRE(snare.level == Approx(0.8f).margin(0.01f));
 
     // NoiseBurstDuration kept as a seed value (Impulse ignores it):

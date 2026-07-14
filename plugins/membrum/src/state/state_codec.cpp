@@ -145,6 +145,8 @@ PadSnapshot toPadSnapshot(const PadConfig& cfg) noexcept
     snap.sound[56] = static_cast<double>(cfg.pan);
     // Snare-body fix: per-pad noise-layer gain multiplier.
     snap.sound[57] = static_cast<double>(cfg.noiseLayerGain);
+    // Wire coupling: buzz-follows-body depth.
+    snap.sound[58] = static_cast<double>(cfg.wireCoupling);
 
     snap.chokeGroup     = cfg.chokeGroup;
     snap.outputBus      = cfg.outputBus;
@@ -239,6 +241,8 @@ void applyPadSnapshot(const PadSnapshot& snap, PadConfig& cfg) noexcept
     cfg.pan                   = std::clamp(static_cast<float>(snap.sound[56]), 0.0f, 1.0f);
     // Snare-body fix: per-pad noise-layer gain multiplier (sanity-clamped).
     cfg.noiseLayerGain        = std::clamp(static_cast<float>(snap.sound[57]), 0.1f, 16.0f);
+    // Wire coupling: buzz-follows-body depth.
+    cfg.wireCoupling          = std::clamp(static_cast<float>(snap.sound[58]), 0.0f, 1.0f);
 
     cfg.chokeGroup      = (snap.chokeGroup > 8U) ? std::uint8_t{0} : snap.chokeGroup;
     cfg.outputBus       = (snap.outputBus > 15U) ? std::uint8_t{0} : snap.outputBus;
@@ -261,8 +265,8 @@ PadPresetSnapshot toPadPresetSnapshot(const PadConfig& cfg) noexcept
     // flag, so loading a preset onto a pad never silently flips its
     // enable state.
     const PadSnapshot full = toPadSnapshot(cfg);
-    // PadPresetSnapshot::sound mirrors PadSnapshot::sound exactly (M-9: both
-    // 57 slots); indices 28-29 (choke/bus float64 mirrors), 51 (kit-level
+    // PadPresetSnapshot::sound mirrors PadSnapshot::sound exactly (both 59
+    // slots); indices 28-29 (choke/bus float64 mirrors), 51 (kit-level
     // enabled flag) and 56 (pan -- positioning, not sound character) are
     // written but ignored on load -- see applyPadPresetSnapshot below.
     std::copy_n(full.sound.begin(), snap.sound.size(), snap.sound.begin());
@@ -320,6 +324,8 @@ void applyPadPresetSnapshot(const PadPresetSnapshot& snap, PadConfig& cfg) noexc
     cfg.clickLayerBrightness = std::clamp(static_cast<float>(snap.sound[41]), 0.0f, 1.0f);
     // Snare-body fix: per-pad noise-layer gain (preset carries wire level).
     cfg.noiseLayerGain       = std::clamp(static_cast<float>(snap.sound[57]), 0.1f, 16.0f);
+    // Wire coupling: preset carries buzz-follows-body depth (sound character).
+    cfg.wireCoupling         = std::clamp(static_cast<float>(snap.sound[58]), 0.0f, 1.0f);
     // Phase 8A: per-mode damping law overrides (sentinel -1.0f kept verbatim).
     {
         const double b1Raw = snap.sound[42];

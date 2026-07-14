@@ -223,6 +223,8 @@ std::vector<GlobalProxyPair> globalProxyMap()
         { kPitchEnvCurve2Id,      kPadTSPitchEnvCurve2 },
         // M-9: per-pad pan.
         { kPadPanId,              kPadPan },
+        // Wire coupling.
+        { kWireCouplingId,        kPadWireCoupling },
     };
 }
 
@@ -265,6 +267,8 @@ std::set<int> proxiedOffsets()
         kPadTSPitchEnvMidFraction, kPadTSPitchEnvCurve2,
         // M-9: per-pad pan offset.
         kPadPan,
+        // Wire coupling offset.
+        kPadWireCoupling,
     };
 }
 

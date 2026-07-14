@@ -5,6 +5,33 @@ All notable changes to Membrum will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Wire coupling (`wireCoupling`).** A per-pad control (0–1, default `0`) that
+  modulates the parallel noise-layer ("wire buzz") amplitude by the body's
+  modal-energy envelope, so the buzz tracks the head's vibration instead of
+  running an independent fixed ADSR. Physically grounded — real snare wires are
+  driven by head motion (Bilbao 2012, *Time domain simulation and sound
+  synthesis for the snare drum*). At `0` the buzz keeps its own envelope
+  (bit-exact legacy behaviour); at `1` it fully follows the modal energy, so it
+  dies with the head, chokes on note-off, and re-excites on flams/rolls. The
+  running-energy-peak normalisation makes the tracking velocity- and
+  gain-staging-independent (the onset is never attenuated), and non-modal bodies
+  (String) bypass it. Reuses the same gain-invariant `getModalEnergy()` follower
+  as tension modulation — block-rate, zero per-sample cost when off. The default
+  kit and the Acoustic Studio / Rock Big Room / Vintage Wood factory snares ship
+  at `0.45`; electronic (808/909) and other snares stay at `0` (their machine-
+  like fixed buzz is intentional).
+
+### Changed
+
+- **State/preset blob format bumped to version 5** (per-pad `wireCoupling`
+  slot). Pre-release, strict version check with no migration: state and presets
+  saved by older builds are rejected on load. All 20 factory kit presets are
+  regenerated in the new format.
+
 ## [0.11.0] - 2026-07-01
 
 ### Added

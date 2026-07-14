@@ -248,10 +248,11 @@ TEST_CASE("padOffsetFromParamId rejects reserved offsets", "[pad_config]")
         CHECK(padOffsetFromParamId(kPadBaseId + off) == off);
     }
 
-    // M-9: offset 64 is now active (per-pad pan); the stride was widened to
-    // 128, so the reserved range is offsets 65..127.
+    // M-9: offset 64 is active (per-pad pan).
     CHECK(padOffsetFromParamId(kPadBaseId + 64) == 64);
-    CHECK(padOffsetFromParamId(kPadBaseId + 65) == -1);  // first reserved offset
+    // Wire coupling: offset 65 is now active; reserved range is offsets 66..127.
+    CHECK(padOffsetFromParamId(kPadBaseId + 65) == 65);
+    CHECK(padOffsetFromParamId(kPadBaseId + 66) == -1);  // first reserved offset
     CHECK(padOffsetFromParamId(kPadBaseId + 127) == -1); // last reserved offset
 }
 

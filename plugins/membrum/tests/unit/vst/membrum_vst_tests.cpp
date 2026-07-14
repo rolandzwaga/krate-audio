@@ -93,8 +93,9 @@ TEST_CASE("Membrum Controller registers all Phase 2 parameters",
     // Phase 10: +4 (knee/midPitch/midFraction/curve2 global proxies) +
     //           128 (32 pads x 4 per-pad offsets) = 2115.
     // M-9:      +1 (kPadPanId proxy) + 32 (32 pads x 1 pan) = 2148.
+    // wire:     +1 (kWireCouplingId proxy) + 32 (32 pads x 1 wireCoupling) = 2181.
     int32 paramCount = controller.getParameterCount();
-    CHECK(paramCount == 2148);
+    CHECK(paramCount == 2181);
 
     REQUIRE(controller.terminate() == kResultOk);
 }

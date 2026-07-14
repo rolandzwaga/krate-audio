@@ -146,6 +146,8 @@ constexpr ProxyMapping kProxyMappings[] = {
     {.globalId = kPitchEnvCurve2Id,             .padOffset = kPadTSPitchEnvCurve2 },
     // M-9: per-pad pan (offset 64).
     {.globalId = kPadPanId,                     .padOffset = kPadPan },
+    // Wire coupling (offset 65).
+    {.globalId = kWireCouplingId,               .padOffset = kPadWireCoupling },
 };
 
 // Per-pad parameter name table
@@ -239,13 +241,15 @@ const PadParamSpec kPadParamSpecs[] = {
     {.offset = kPadTSPitchEnvCurve2,     .name = "PitchEnv Curve2",     .isDiscrete = false, .stepCount = 0, .defaultValue = 0.5 },
     // M-9: per-pad pan (offset 64). 0.5 = center.
     {.offset = kPadPan,                  .name = "Pan",                 .isDiscrete = false, .stepCount = 0, .defaultValue = 0.5 },
+    // Wire coupling (offset 65). 0 = legacy independent buzz.
+    {.offset = kPadWireCoupling,         .name = "Wire Coupling",       .isDiscrete = false, .stepCount = 0, .defaultValue = 0.0 },
 };
 
 constexpr int kPadParamSpecCount =
     static_cast<int>(sizeof(kPadParamSpecs) / sizeof(kPadParamSpecs[0]));
 
-static_assert(kPadParamSpecCount == kPadActiveParamCountV11,
-              "Pad param specs must match active param count (65 after M-9)");
+static_assert(kPadParamSpecCount == kPadActiveParamCountV12,
+              "Pad param specs must match active param count (66 after wire-coupling)");
 
 // Helper: convert narrow string to TChar buffer
 void narrowToTChar(const char* src, TChar* dst, int maxLen)
@@ -654,7 +658,13 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
         new RangeParameter(STR16("Pan"), kPadPanId, nullptr,
                            0.0, 1.0, 0.5, 0, ParameterInfo::kCanAutomate));
 
-    // ---- Phase 4/7/8A..8F/M-9: 2080 per-pad parameters (32 pads x 65 offsets) ----
+    // ---- Wire-coupling global proxy: buzz-follows-body depth ----
+    // Continuous [0, 1], default 0.0 = independent buzz (legacy).
+    parameters.addParameter(
+        new RangeParameter(STR16("Wire Coupling"), kWireCouplingId, nullptr,
+                           0.0, 1.0, 0.0, 0, ParameterInfo::kCanAutomate));
+
+    // ---- Phase 4/7/8A..8F/M-9/wire: 2112 per-pad parameters (32 pads x 66 offsets) ----
     for (int pad = 0; pad < kNumPads; ++pad)
     {
         for (const auto& spec : kPadParamSpecs)

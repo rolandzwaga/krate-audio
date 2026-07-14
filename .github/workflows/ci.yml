@@ -291,7 +291,34 @@ jobs:
         run: |
           shopt -s nullglob
           CONFIG="${{ env.BUILD_TYPE }}"
-          BUNDLES=(build/VST3/$CONFIG/*.vst3)
+          # Only resource-check bundles for plugins actually built THIS run.
+          # `cmake -S . -B build` configures ALL plugins (creating empty bundle
+          # skeleton dirs under build/VST3), but change-detection builds only the
+          # changed ones. Globbing *.vst3 would drag in stale/never-built bundles
+          # whose Resources were never populated and fail the guard — which is
+          # exactly what a single-plugin PR did. Mirror the build step's plugin
+          # selection so we validate precisely the set we (re)built.
+          DSP="${{ needs.detect-changes.outputs.dsp }}"
+          SHARED="${{ needs.detect-changes.outputs.shared }}"
+          INFRA="${{ needs.detect-changes.outputs.infra }}"
+          BUNDLES=()
+          for plugin_info in \
+            "iterum:Iterum" "disrumpo:Disrumpo" "ruinae:Ruinae" \
+            "innexus:Innexus" "gradus:Gradus" "membrum:Membrum"; do
+            IFS=: read -r key bundle <<< "$plugin_info"
+            case "$key" in
+              iterum)   CHANGED="${{ needs.detect-changes.outputs.iterum }}" ;;
+              disrumpo) CHANGED="${{ needs.detect-changes.outputs.disrumpo }}" ;;
+              ruinae)   CHANGED="${{ needs.detect-changes.outputs.ruinae }}" ;;
+              innexus)  CHANGED="${{ needs.detect-changes.outputs.innexus }}" ;;
+              gradus)   CHANGED="${{ needs.detect-changes.outputs.gradus }}" ;;
+              membrum)  CHANGED="${{ needs.detect-changes.outputs.membrum }}" ;;
+            esac
+            if [ "$CHANGED" = "true" ] || [ "$DSP" = "true" ] || [ "$SHARED" = "true" ] || [ "$INFRA" = "true" ]; then
+              b="build/VST3/$CONFIG/$bundle.vst3"
+              [ -d "$b" ] && BUNDLES+=("$b")
+            fi
+          done
           if [ ${#BUNDLES[@]} -eq 0 ]; then echo "No bundles built — nothing to check"; exit 0; fi
           # Resource guard: every bundle must ship editor.uidesc + moduleinfo.json.
           node tools/check-bundle.js "${BUNDLES[@]}"
@@ -510,7 +537,34 @@ jobs:
         run: |
           shopt -s nullglob
           CONFIG="${{ env.BUILD_TYPE }}"
-          BUNDLES=(build/VST3/$CONFIG/*.vst3)
+          # Only resource-check bundles for plugins actually built THIS run.
+          # `cmake -S . -B build` configures ALL plugins (creating empty bundle
+          # skeleton dirs under build/VST3), but change-detection builds only the
+          # changed ones. Globbing *.vst3 would drag in stale/never-built bundles
+          # whose Resources were never populated and fail the guard — which is
+          # exactly what a single-plugin PR did. Mirror the build step's plugin
+          # selection so we validate precisely the set we (re)built.
+          DSP="${{ needs.detect-changes.outputs.dsp }}"
+          SHARED="${{ needs.detect-changes.outputs.shared }}"
+          INFRA="${{ needs.detect-changes.outputs.infra }}"
+          BUNDLES=()
+          for plugin_info in \
+            "iterum:Iterum" "disrumpo:Disrumpo" "ruinae:Ruinae" \
+            "innexus:Innexus" "gradus:Gradus" "membrum:Membrum"; do
+            IFS=: read -r key bundle <<< "$plugin_info"
+            case "$key" in
+              iterum)   CHANGED="${{ needs.detect-changes.outputs.iterum }}" ;;
+              disrumpo) CHANGED="${{ needs.detect-changes.outputs.disrumpo }}" ;;
+              ruinae)   CHANGED="${{ needs.detect-changes.outputs.ruinae }}" ;;
+              innexus)  CHANGED="${{ needs.detect-changes.outputs.innexus }}" ;;
+              gradus)   CHANGED="${{ needs.detect-changes.outputs.gradus }}" ;;
+              membrum)  CHANGED="${{ needs.detect-changes.outputs.membrum }}" ;;
+            esac
+            if [ "$CHANGED" = "true" ] || [ "$DSP" = "true" ] || [ "$SHARED" = "true" ] || [ "$INFRA" = "true" ]; then
+              b="build/VST3/$CONFIG/$bundle.vst3"
+              [ -d "$b" ] && BUNDLES+=("$b")
+            fi
+          done
           if [ ${#BUNDLES[@]} -eq 0 ]; then echo "No bundles built — nothing to check"; exit 0; fi
           # Resource guard: every bundle must ship editor.uidesc + moduleinfo.json.
           node tools/check-bundle.js "${BUNDLES[@]}"
@@ -860,7 +914,34 @@ jobs:
         run: |
           shopt -s nullglob
           CONFIG="${{ env.BUILD_TYPE }}"
-          BUNDLES=(build/VST3/$CONFIG/*.vst3)
+          # Only resource-check bundles for plugins actually built THIS run.
+          # `cmake -S . -B build` configures ALL plugins (creating empty bundle
+          # skeleton dirs under build/VST3), but change-detection builds only the
+          # changed ones. Globbing *.vst3 would drag in stale/never-built bundles
+          # whose Resources were never populated and fail the guard — which is
+          # exactly what a single-plugin PR did. Mirror the build step's plugin
+          # selection so we validate precisely the set we (re)built.
+          DSP="${{ needs.detect-changes.outputs.dsp }}"
+          SHARED="${{ needs.detect-changes.outputs.shared }}"
+          INFRA="${{ needs.detect-changes.outputs.infra }}"
+          BUNDLES=()
+          for plugin_info in \
+            "iterum:Iterum" "disrumpo:Disrumpo" "ruinae:Ruinae" \
+            "innexus:Innexus" "gradus:Gradus" "membrum:Membrum"; do
+            IFS=: read -r key bundle <<< "$plugin_info"
+            case "$key" in
+              iterum)   CHANGED="${{ needs.detect-changes.outputs.iterum }}" ;;
+              disrumpo) CHANGED="${{ needs.detect-changes.outputs.disrumpo }}" ;;
+              ruinae)   CHANGED="${{ needs.detect-changes.outputs.ruinae }}" ;;
+              innexus)  CHANGED="${{ needs.detect-changes.outputs.innexus }}" ;;
+              gradus)   CHANGED="${{ needs.detect-changes.outputs.gradus }}" ;;
+              membrum)  CHANGED="${{ needs.detect-changes.outputs.membrum }}" ;;
+            esac
+            if [ "$CHANGED" = "true" ] || [ "$DSP" = "true" ] || [ "$SHARED" = "true" ] || [ "$INFRA" = "true" ]; then
+              b="build/VST3/$CONFIG/$bundle.vst3"
+              [ -d "$b" ] && BUNDLES+=("$b")
+            fi
+          done
           if [ ${#BUNDLES[@]} -eq 0 ]; then echo "No bundles built — nothing to check"; exit 0; fi
           # Resource guard: every bundle must ship editor.uidesc + moduleinfo.json.
           node tools/check-bundle.js "${BUNDLES[@]}"
