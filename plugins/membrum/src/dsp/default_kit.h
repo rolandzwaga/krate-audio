@@ -191,27 +191,54 @@ inline void applyTemplate(PadConfig& cfg, DrumTemplate tmpl, float sizeOverride 
             break;
 
         case DrumTemplate::Cymbal:
+            // Crash-cymbal redesign (CRASH-REDESIGN-PLAN.md). A crash is a thin
+            // free-edge plate driven into a nonlinear (wave-turbulence) regime:
+            //   * a dense inharmonic mode cloud (stretch + heavy scatter break
+            //     the tuned-plate symmetry so the tail reads as wash, not pitch),
+            //   * frequency-dependent decay -- the lowest modes ring for seconds
+            //     while the top octave dies in ~0.5 s (explicit b1/b3 law), and
+            //   * a delayed-HF "bloom" (energy cascades up after the strike),
+            //     driven downstream by NonlinearCoupling (the bloom is gated on
+            //     coupling > 0, so it activates here and stays off for hats/toms).
             cfg.exciterType = ExciterType::NoiseBurst;
             cfg.bodyModel   = BodyModelType::NoiseBody;
             cfg.material       = 0.95f;
             cfg.size           = 0.3f;
             cfg.decay          = 0.8f;
-            cfg.strikePosition = 0.3f;
+            cfg.strikePosition = 0.32f;  // near-edge but keeps a strong fundamental
             cfg.level          = 0.8f;
             // NoiseBurstDuration = 10ms -> (10-2)/13 = 0.615385...
             cfg.noiseBurstDuration = static_cast<float>((10.0 - 2.0) / 13.0);
+            // Metallic inharmonic cloud: 1.4x stretch + heavy scatter so the 32+
+            // plate modes fuse into a dense wash instead of a resolvable chime.
+            cfg.modeStretch = 0.6f;   // norm of [0.5,2.0] -> ~1.4x
+            cfg.decaySkew   = 0.55f;  // whisper of low-mode emphasis (~+0.1)
+            cfg.modeInjectAmount  = 0.0f;   // NO harmonic drone (a crash has no pitch)
+            cfg.nonlinearCoupling = 0.35f;  // crash bloom (velocity-sensitive)
+            // Frequency-dependent damping (the crash's dark-through-tail decay).
+            // The lowest modes ring for SECONDS -- that long low ring IS the
+            // wash (Rossing; FEM crash studies measure LF T60 up to ~8 s). The
+            // top octave dies in ~0.5 s via the f^2 term. This long low ring is
+            // also what keeps the voice above the pool's -60 dBFS auto-release
+            // floor for the full tail instead of being cut at ~1.5 s.
+            //   b1 = 0.2 + 0.020*49.8 ~ 1.2 s^-1  -> lowest-mode T60 ~ 4.6 s
+            //   b3 = 6.0e-5 * 1e-3 s              -> 15 kHz decayRate ~ 15.5 s^-1
+            //                                        -> top-octave T60 ~ 0.45 s
+            cfg.bodyDampingB1 = 0.020f;
+            cfg.bodyDampingB3 = 0.00006f;
             // Phase 7.1: sustained shimmer noise, short stick click.
             cfg.noiseLayerMix        = 0.95f;
             cfg.noiseLayerCutoff     = 0.82f;
             cfg.noiseLayerResonance  = 0.3f;
-            cfg.noiseLayerDecay      = 0.85f;
+            cfg.noiseLayerDecay      = 0.95f;  // long sizzle wash (~1.6 s)
             cfg.noiseLayerColor      = 0.9f;
             cfg.clickLayerMix        = 0.45f;
             cfg.clickLayerContactMs  = 0.15f;
             cfg.clickLayerBrightness = 0.82f;
-            // Phase 8C: open-air cymbal, noticeable scatter for shimmer.
+            // Phase 8C: open-air cymbal; heavy scatter for a dense inharmonic
+            // cloud (breaks the tuned-plate pitch salience -> wash, not tone).
             cfg.airLoading  = 0.0f;
-            cfg.modeScatter = 0.15f;
+            cfg.modeScatter = 0.35f;
             break;
 
         case DrumTemplate::Perc:
