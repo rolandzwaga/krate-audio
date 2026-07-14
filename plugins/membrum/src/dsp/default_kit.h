@@ -232,9 +232,17 @@ inline void applyTemplate(PadConfig& cfg, DrumTemplate tmpl, float sizeOverride 
             cfg.noiseLayerResonance  = 0.3f;
             cfg.noiseLayerDecay      = 0.95f;  // long sizzle wash (~1.6 s)
             cfg.noiseLayerColor      = 0.9f;
-            cfg.clickLayerMix        = 0.45f;
+            // Make the bloomed wash the dominant tail so its dark->bright cutoff
+            // sweep shapes the COMPOSITE brightness (a crash IS mostly wash --
+            // SOS "HP-noise tail"): darkens the onset, brings HF up over the
+            // first ~50 ms, then darkens through the tail. Like the snare wire
+            // gain, mix + the -18 dBFS ceiling alone can't reach wash level.
+            cfg.noiseLayerGain       = 2.6f;
+            // Darker, quieter stick click so the onset is not a bright tick that
+            // pins the HF maximum at t=0 (defeats the bloom).
+            cfg.clickLayerMix        = 0.30f;
             cfg.clickLayerContactMs  = 0.15f;
-            cfg.clickLayerBrightness = 0.82f;
+            cfg.clickLayerBrightness = 0.45f;
             // Phase 8C: open-air cymbal; heavy scatter for a dense inharmonic
             // cloud (breaks the tuned-plate pitch salience -> wash, not tone).
             cfg.airLoading  = 0.0f;

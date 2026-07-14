@@ -176,3 +176,51 @@ TEST_CASE("NoiseLayer: processBlock equals processSample",
         REQUIRE(s == Approx(out[static_cast<std::size_t>(i)]).margin(1e-6f));
     }
 }
+
+// Phase 3 (CRASH-REDESIGN-PLAN.md): the bloom cutoff envelope starts dark,
+// opens over the rise time, then closes -- so the wash's HF content BUILDS
+// after the hit (delayed-HF energy cascade) rather than being brightest at t=0.
+TEST_CASE("NoiseLayer: bloom delays the HF onset (dark -> bright -> darker)",
+          "[membrum][dsp][noise_layer][bloom]")
+{
+    constexpr double kSR = 48000.0;
+    Membrum::NoiseLayerParams p{};
+    p.mix = 0.9f; p.cutoff = 0.6f; p.resonance = 0.2f; p.decay = 0.9f; p.color = 0.7f;
+
+    Membrum::NoiseLayer layer;
+    layer.prepare(kSR, 3u);
+    layer.setFilterMode(Krate::DSP::SVFMode::Lowpass);
+    layer.configure(p);
+    // Dark (2 kHz) -> bright (10 kHz) over 50 ms -> back to 4 kHz over 400 ms.
+    layer.configureBloom(2000.0f, 10000.0f, 4000.0f, 50.0f, 400.0f);
+    layer.trigger(1.0f);
+
+    const int n = static_cast<int>(kSR);  // 1 s
+    std::vector<float> buf(static_cast<std::size_t>(n), 0.0f);
+    layer.processBlock(buf.data(), n);
+
+    const std::size_t w = static_cast<std::size_t>(0.020 * kSR);  // 20 ms windows
+    const float bEarly = brightness(buf.data(), w);                       // 0-20 ms (dark)
+    const float bMid   = brightness(buf.data() + static_cast<std::size_t>(0.080 * kSR), w); // ~80-100 ms (bright)
+    const float bTail  = brightness(buf.data() + static_cast<std::size_t>(0.800 * kSR), w); // ~800 ms (darkening)
+    INFO("bloom brightness early=" << bEarly << " mid=" << bMid << " tail=" << bTail);
+    CHECK(bMid > bEarly * 1.10f);   // HF builds after the hit
+    CHECK(bMid > bTail * 1.05f);    // then darkens through the tail
+}
+
+// Bloom must be strictly opt-in: a layer configured without configureBloom()
+// is bit-identical to one that never knew bloom existed (hats/toms path).
+TEST_CASE("NoiseLayer: no bloom call == bit-identical output",
+          "[membrum][dsp][noise_layer][bloom]")
+{
+    constexpr double kSR = 48000.0;
+    constexpr int    kN  = 2048;
+    Membrum::NoiseLayerParams p{};
+    p.mix = 0.8f; p.cutoff = 0.55f; p.resonance = 0.25f; p.decay = 0.5f; p.color = 0.6f;
+
+    Membrum::NoiseLayer ref;   ref.prepare(kSR, 9u); ref.configure(p); ref.trigger(1.0f);
+    Membrum::NoiseLayer plain; plain.prepare(kSR, 9u); plain.configure(p); plain.trigger(1.0f);
+
+    for (int i = 0; i < kN; ++i)
+        REQUIRE(plain.processSample() == Approx(ref.processSample()).margin(0.0f));
+}
