@@ -41,6 +41,8 @@
 #include <krate/dsp/core/sigmoid.h>
 #include <krate/dsp/processors/envelope_follower.h>
 
+#include <algorithm>
+
 namespace Membrum {
 
 class NonlinearCoupling
@@ -55,8 +57,10 @@ public:
         // to transient onsets but decays smoothly during sustain.
         envFollower_.prepare(sampleRate, 1);
         envFollower_.setMode(Krate::DSP::DetectionMode::RMS);
-        envFollower_.setAttackTime(5.0f);
-        envFollower_.setReleaseTime(50.0f);
+        // Attack/release are re-set per note by setVelocity() (Phase 4). These
+        // are just safe defaults for callers that never call setVelocity().
+        envFollower_.setAttackTime(80.0f);
+        envFollower_.setReleaseTime(200.0f);
         envFollower_.reset();
 
         // M-4: the follower now supplies the SUSTAINED body level that drives
@@ -70,7 +74,22 @@ public:
     }
 
     void setAmount(float amount) noexcept { amount_ = amount; }
-    void setVelocity(float velocity) noexcept { velocity_ = velocity; }
+
+    /// Set the strike velocity for this note. Phase 4: this also sets the
+    /// envelope-follower attack SLOW and velocity-dependent (30-120 ms) so the
+    /// waveshaper drive RISES over the first tens of ms after the strike rather
+    /// than spiking at the onset edge -- the delayed-HF "bloom" of a struck
+    /// plate (Ducceschi/Touze wave-turbulence cascade). Harder hits bloom
+    /// faster; softer hits build more slowly. Release is slow so the
+    /// brightening rides the early decay rather than fluttering.
+    void setVelocity(float velocity) noexcept
+    {
+        velocity_ = velocity;
+        if (prepared_) {
+            envFollower_.setAttackTime(120.0f - 90.0f * std::clamp(velocity, 0.0f, 1.0f));
+            envFollower_.setReleaseTime(200.0f);
+        }
+    }
 
     [[nodiscard]] float getAmount() const noexcept { return amount_; }
 

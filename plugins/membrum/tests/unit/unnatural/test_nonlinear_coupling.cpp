@@ -322,6 +322,68 @@ TEST_CASE("UnnaturalZone NonlinearCoupling -- amount==0 exact bypass",
 }
 
 // ==============================================================================
+// Phase 4 (CRASH-REDESIGN-PLAN.md) -- the brightening is DELAYED: the
+// waveshaper drive rides a slow, velocity-dependent envelope follower, so the
+// added-harmonic energy PEAKS tens of ms AFTER the strike (the wave-turbulence
+// cascade) instead of spiking at the onset edge. Softer hits peak later.
+// ==============================================================================
+
+// Added-harmonic (nonlinearity) energy = |output - input| RMS, measured in an
+// EARLY window (~0-25 ms, the onset edge) and a LATE window (~150-200 ms). A
+// delayed bloom has late > early (the brightening BUILDS); the old fixed-5 ms
+// attack front-loaded it (early >= late). Sustained sine so the follower
+// attack -- not an input decay -- sets the build shape.
+namespace {
+struct BuildShape { double earlyRms; double lateRms; };
+BuildShape addedEnergyBuild(float velocity, double sr)
+{
+    Membrum::NonlinearCoupling c;
+    c.prepare(sr);
+    c.setAmount(0.6f);
+    c.setVelocity(velocity);
+
+    const int    n     = static_cast<int>(sr * 0.30);   // 300 ms
+    const double omega = 2.0 * 3.14159265358979323846 * 200.0 / sr;
+    const int    earlyStart = 0;
+    const int    earlyEnd   = static_cast<int>(sr * 0.025);
+    const int    lateStart  = static_cast<int>(sr * 0.150);
+    const int    lateEnd    = static_cast<int>(sr * 0.200);
+    double earlySq = 0.0; int earlyN = 0;
+    double lateSq  = 0.0; int lateN  = 0;
+    for (int k = 0; k < n; ++k)
+    {
+        const float in  = static_cast<float>(std::sin(omega * k));  // constant amplitude
+        const float out = c.processSample(in);
+        const double d  = static_cast<double>(out) - in;
+        if (k >= earlyStart && k < earlyEnd) { earlySq += d * d; ++earlyN; }
+        if (k >= lateStart  && k < lateEnd)  { lateSq  += d * d; ++lateN;  }
+    }
+    return { std::sqrt(earlySq / std::max(1, earlyN)),
+             std::sqrt(lateSq  / std::max(1, lateN)) };
+}
+} // namespace
+
+TEST_CASE("UnnaturalZone NonlinearCoupling -- brightening is delayed after onset",
+          "[UnnaturalZone][NonlinearCoupling][bloom]")
+{
+    const BuildShape hard = addedEnergyBuild(1.0f, kSampleRate);
+    const BuildShape soft = addedEnergyBuild(0.3f, kSampleRate);
+    INFO("hard early=" << hard.earlyRms << " late=" << hard.lateRms
+         << " | soft early=" << soft.earlyRms << " late=" << soft.lateRms);
+    // Hard hit: brightening BUILDS -- the late window has more added harmonic
+    // energy than the onset edge (delayed cascade, not a front spike). The
+    // build is modest because recipSqrt shapes even at unit drive (the baseline
+    // floor); the env-dependent bloom rides on top. With the old fixed-5 ms
+    // attack this ratio was ~1.0 (or inverted); the slow attack makes it > 1.
+    CHECK(hard.lateRms > hard.earlyRms * 1.08);
+    // Softer hit builds even more gradually: its early/late ratio is smaller
+    // (slower follower attack), so its onset edge is relatively quieter.
+    const double hardRatio = hard.earlyRms / std::max(1e-9, hard.lateRms);
+    const double softRatio = soft.earlyRms / std::max(1e-9, soft.lateRms);
+    CHECK(softRatio <= hardRatio + 0.05);
+}
+
+// ==============================================================================
 // T105(d) -- Allocation detector: processSample is zero-heap.
 // ==============================================================================
 
