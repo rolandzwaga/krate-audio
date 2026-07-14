@@ -166,6 +166,9 @@ add_executable(membrum_tests
     # Wave 2 V26: perceptual render test (default-kit pads sound like what they are)
     unit/dsp/test_render_perceptual.cpp
 
+    # Crash-cymbal acceptance tests (CRASH-REDESIGN-PLAN.md)
+    unit/dsp/test_crash_acceptance.cpp
+
     # Factory kit preset round-trip
     unit/preset/test_factory_kit_presets.cpp
 
