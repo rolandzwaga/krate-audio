@@ -753,27 +753,32 @@ Kit acousticKit() {
     pads[10].pan = 0.62;  // shared hat image (override of archetype 0.42)
 
     // ---- Pad 13: Crash 1 (NoiseBody/NoiseBurst), bus 1, bloom ----
+    // Crash redesign (CRASH-REDESIGN-PLAN.md): NO harmonic drone (modeInject 0),
+    // long low ring + f^2 HF roll-off (b1 0.020 / b3 8e-5), dominant bloomed
+    // wash (noiseLayerGain), dark stick click. Mirrors the default Cymbal
+    // template; per-kit character kept in level/pan/outputBus/noise colour.
     pads[13].exciterType = ExciterType::NoiseBurst;
     pads[13].bodyModel   = BodyModelType::NoiseBody;
     pads[13].material = 0.93;
     pads[13].size = 0.35;
-    pads[13].decay = 0.70;
-    pads[13].strikePosition = 0.55;
+    pads[13].decay = 0.80;
+    pads[13].strikePosition = 0.32;
     pads[13].level = 0.72;
     pads[13].modeStretch = 0.60;
-    pads[13].modeInjectAmount = 0.25;
+    pads[13].modeInjectAmount = 0.0;
     pads[13].nonlinearCoupling = 0.35;
-    pads[13].modeScatter = 0.60;
-    pads[13].decaySkew = 0.58;
-    pads[13].bodyDampingB1 = 0.30;
-    pads[13].bodyDampingB3 = 0.0;
-    pads[13].noiseLayerMix    = 0.50;
+    pads[13].modeScatter = 0.35;
+    pads[13].decaySkew = 0.55;
+    pads[13].bodyDampingB1 = 0.060;
+    pads[13].bodyDampingB3 = 0.00008;
+    pads[13].noiseLayerMix    = 0.90;
     pads[13].noiseLayerCutoff = 0.85;
     pads[13].noiseLayerColor  = 0.79;  // White-Violet
-    pads[13].noiseLayerDecay  = 0.60;
-    pads[13].clickLayerMix        = 0.20;
-    pads[13].clickLayerContactMs  = 0.30;
-    pads[13].clickLayerBrightness = 0.82;
+    pads[13].noiseLayerDecay  = 0.95;
+    pads[13].noiseLayerGain   = 3.5;   // bloomed wash carries the tail
+    pads[13].clickLayerMix        = 0.30;
+    pads[13].clickLayerContactMs  = 0.15;
+    pads[13].clickLayerBrightness = 0.45;
     pads[13].airLoading = 0.0;
     pads[13].outputBus = 1;
     pads[13].pan = 0.40;
@@ -856,18 +861,23 @@ Kit acousticKit() {
     pads[19].decay = 0.30;
     pads[19].strikePosition = 0.55;
     pads[19].level = 0.70;
+    // Splash = a short, bright crash: same crash-correct engine but a faster
+    // low ring (b1 0.05) and quicker HF roll-off (b3 1e-4) than crash 1.
     pads[19].modeStretch = 0.55;
     pads[19].nonlinearCoupling = 0.28;
-    pads[19].modeScatter = 0.60;
+    pads[19].modeScatter = 0.35;
     pads[19].decaySkew = 0.55;
-    pads[19].bodyDampingB1 = 0.40;
-    pads[19].bodyDampingB3 = 0.0;
-    pads[19].noiseLayerMix       = 0.50;
+    pads[19].strikePosition = 0.32;
+    pads[19].bodyDampingB1 = 0.050;
+    pads[19].bodyDampingB3 = 0.0001;
+    pads[19].noiseLayerMix       = 0.85;
     pads[19].noiseLayerCutoff    = 0.90;
     pads[19].noiseLayerResonance = 0.20;
-    pads[19].noiseLayerDecay     = 0.25;
+    pads[19].noiseLayerDecay     = 0.60;
     pads[19].noiseLayerColor     = 0.90;  // Violet
-    pads[19].clickLayerMix = 0.22;
+    pads[19].noiseLayerGain      = 3.0;
+    pads[19].clickLayerMix        = 0.22;
+    pads[19].clickLayerBrightness = 0.45;
     pads[19].airLoading = 0.0;
     pads[19].outputBus = 1;
     pads[19].pan = 0.36;
@@ -900,20 +910,24 @@ Kit acousticKit() {
     pads[21].material = 0.90;
     pads[21].size = 0.40;
     pads[21].decay = 0.75;
-    pads[21].strikePosition = 0.55;
+    pads[21].strikePosition = 0.32;
     pads[21].level = 0.72;
+    // Crash 2 = darker/larger sister of crash 1 (lower cutoff, White noise).
     pads[21].modeStretch = 0.60;
-    pads[21].modeInjectAmount = 0.25;
+    pads[21].modeInjectAmount = 0.0;
     pads[21].nonlinearCoupling = 0.35;
-    pads[21].modeScatter = 0.65;
+    pads[21].modeScatter = 0.35;
     pads[21].decaySkew = 0.56;
-    pads[21].bodyDampingB1 = 0.28;
-    pads[21].bodyDampingB3 = 0.0;
-    pads[21].noiseLayerMix    = 0.50;
+    pads[21].strikePosition = 0.32;
+    pads[21].bodyDampingB1 = 0.060;
+    pads[21].bodyDampingB3 = 0.00008;
+    pads[21].noiseLayerMix    = 0.90;
     pads[21].noiseLayerCutoff = 0.80;
     pads[21].noiseLayerColor  = 0.70;  // White
-    pads[21].noiseLayerDecay  = 0.65;
-    pads[21].clickLayerMix = 0.20;
+    pads[21].noiseLayerDecay  = 0.90;
+    pads[21].noiseLayerGain   = 3.5;
+    pads[21].clickLayerMix        = 0.30;
+    pads[21].clickLayerBrightness = 0.45;
     pads[21].airLoading = 0.0;
     pads[21].outputBus = 1;
     pads[21].pan = 0.58;
@@ -1242,10 +1256,10 @@ Kit electronicKit() {
     pads[13].exciterType = ExciterType::NoiseBurst;
     pads[13].bodyModel = BodyModelType::NoiseBody;
     pads[13].material = 0.95; pads[13].size = 0.35; pads[13].decay = 0.70;
-    pads[13].level = 0.70; pads[13].strikePosition = 0.55;
-    pads[13].modeStretch = 0.60; pads[13].modeInjectAmount = 0.25;
+    pads[13].level = 0.70; pads[13].strikePosition = 0.32;
+    pads[13].modeStretch = 0.60; pads[13].modeInjectAmount = 0.0;
     pads[13].nonlinearCoupling = 0.35; pads[13].modeScatter = 0.60;
-    pads[13].bodyDampingB1 = 0.30; pads[13].bodyDampingB3 = 0.0;
+    pads[13].bodyDampingB1 = 0.060; pads[13].bodyDampingB3 = 0.00008;
     pads[13].noiseLayerMix    = 0.55;
     pads[13].noiseLayerCutoff = 0.92;
     pads[13].noiseLayerColor  = 0.82;
@@ -1328,8 +1342,8 @@ Kit electronicKit() {
     pads[21].material = 0.96; pads[21].size = 0.28; pads[21].decay = 0.55;
     pads[21].level = 0.68; pads[21].strikePosition = 0.60;
     pads[21].modeStretch = 0.65; pads[21].modeScatter = 0.70;
-    pads[21].nonlinearCoupling = 0.35; pads[21].modeInjectAmount = 0.25;
-    pads[21].bodyDampingB1 = 0.34; pads[21].bodyDampingB3 = 0.0;
+    pads[21].nonlinearCoupling = 0.35; pads[21].modeInjectAmount = 0.0;
+    pads[21].bodyDampingB1 = 0.060; pads[21].bodyDampingB3 = 0.00008;
     pads[21].noiseLayerMix = 0.55; pads[21].noiseLayerCutoff = 0.94;
     pads[21].noiseLayerColor = 0.85; pads[21].noiseLayerDecay = 0.55;
     pads[21].clickLayerMix = 0.20;
@@ -2135,11 +2149,11 @@ Kit rockBigRoomKit() {
     pads[13].bodyModel = BodyModelType::NoiseBody;
     pads[13].material = 0.95; pads[13].size = 0.45; pads[13].decay = 0.85;
     pads[13].level = 0.78;
-    pads[13].strikePosition = 0.55;   // near-edge plate strike
+    pads[13].strikePosition = 0.32;   // near-edge plate strike
     pads[13].modeStretch = 0.60; pads[13].modeScatter = 0.60;
-    pads[13].modeInjectAmount = 0.25; pads[13].nonlinearCoupling = 0.35;
+    pads[13].modeInjectAmount = 0.0; pads[13].nonlinearCoupling = 0.35;
     pads[13].airLoading = 0.0;
-    pads[13].bodyDampingB3 = 0.0; pads[13].bodyDampingB1 = 0.30;
+    pads[13].bodyDampingB3 = 0.00008; pads[13].bodyDampingB1 = 0.060;
     pads[13].noiseLayerMix = 0.65; pads[13].noiseLayerCutoff = 0.92;
     pads[13].noiseLayerColor = 0.85; pads[13].noiseLayerDecay = 0.75;
     pads[13].clickLayerMix = 0.30; pads[13].clickLayerBrightness = 0.85;
@@ -2163,11 +2177,11 @@ Kit rockBigRoomKit() {
 
     // Crash 2 / China (16, NEW) -- trashy morph swell, aux bus 1, pan L.
     pads[16] = pads[13];
-    pads[16].modeStretch = 0.66; pads[16].modeScatter = 0.70;
+    pads[16].modeStretch = 0.66; pads[16].modeScatter = 0.35;
     pads[16].modeInjectAmount = 0.28; pads[16].nonlinearCoupling = 0.35;
     pads[16].morphEnabled = 1.0; pads[16].morphStart = 0.80;
     pads[16].morphEnd = 0.96; pads[16].morphDuration = 0.30;
-    pads[16].strikePosition = 0.55;
+    pads[16].strikePosition = 0.32;
     pads[16].outputBus = 1;
     pads[16].pan = 0.30;
 
@@ -2407,7 +2421,7 @@ Kit vintageWoodKit() {
     pads[13].modeStretch = 0.55; pads[13].modeInjectAmount = 0.20;
     pads[13].nonlinearCoupling = 0.30;
     pads[13].modeScatter = 0.55; pads[13].airLoading = 0.0;
-    pads[13].bodyDampingB3 = 0.0; pads[13].bodyDampingB1 = 0.30;
+    pads[13].bodyDampingB3 = 0.00008; pads[13].bodyDampingB1 = 0.060;
     pads[13].noiseLayerMix = 0.55; pads[13].noiseLayerCutoff = 0.78;
     pads[13].noiseLayerColor = 0.65; pads[13].noiseLayerDecay = 0.60;
     pads[13].clickLayerMix = 0.18; pads[13].clickLayerBrightness = 0.65;
@@ -2959,11 +2973,11 @@ Kit nineOhNineKit() {
     pads[13].exciterType = ExciterType::NoiseBurst;
     pads[13].bodyModel = BodyModelType::NoiseBody;
     pads[13].material = 0.95; pads[13].size = 0.35; pads[13].decay = 0.70;
-    pads[13].strikePosition = 0.55; pads[13].level = 0.72;
-    pads[13].modeStretch = 0.60; pads[13].modeInjectAmount = 0.25;
-    pads[13].nonlinearCoupling = 0.35; pads[13].modeScatter = 0.60;
+    pads[13].strikePosition = 0.32; pads[13].level = 0.72;
+    pads[13].modeStretch = 0.60; pads[13].modeInjectAmount = 0.0;
+    pads[13].nonlinearCoupling = 0.35; pads[13].modeScatter = 0.35;
     pads[13].airLoading = 0.0;
-    pads[13].bodyDampingB3 = 0.0; pads[13].bodyDampingB1 = 0.30;
+    pads[13].bodyDampingB3 = 0.00008; pads[13].bodyDampingB1 = 0.060;
     pads[13].noiseLayerMix = 0.50; pads[13].noiseLayerCutoff = 0.90;
     pads[13].noiseLayerColor = 0.92; pads[13].noiseLayerDecay = 0.60;
     pads[13].clickLayerMix = 0.20; pads[13].clickLayerBrightness = 0.82;
@@ -3157,11 +3171,11 @@ Kit linnDrumKit() {
     pads[13].exciterType = ExciterType::NoiseBurst;
     pads[13].bodyModel = BodyModelType::NoiseBody;
     pads[13].material = 0.92; pads[13].size = 0.30; pads[13].decay = 0.55;
-    pads[13].strikePosition = 0.55; pads[13].level = 0.70;
-    pads[13].modeStretch = 0.60; pads[13].modeInjectAmount = 0.25;
+    pads[13].strikePosition = 0.32; pads[13].level = 0.70;
+    pads[13].modeStretch = 0.60; pads[13].modeInjectAmount = 0.0;
     pads[13].nonlinearCoupling = 0.35; pads[13].modeScatter = 0.45;
     pads[13].airLoading = 0.0;
-    pads[13].bodyDampingB3 = 0.0; pads[13].bodyDampingB1 = 0.30;
+    pads[13].bodyDampingB3 = 0.00008; pads[13].bodyDampingB1 = 0.060;
     pads[13].noiseLayerMix = 0.55; pads[13].noiseLayerCutoff = 0.78;
     pads[13].noiseLayerColor = 0.62; pads[13].noiseLayerDecay = 0.55;
     pads[13].outputBus = 1; pads[13].pan = 0.42;
@@ -3769,11 +3783,11 @@ Kit trapModernKit() {
     pads[13].exciterType = ExciterType::NoiseBurst;
     pads[13].bodyModel = BodyModelType::NoiseBody;
     pads[13].material = 0.95; pads[13].size = 0.32; pads[13].decay = 0.72;
-    pads[13].strikePosition = 0.55; pads[13].level = 0.72;
-    pads[13].modeStretch = 0.60; pads[13].modeInjectAmount = 0.25;
+    pads[13].strikePosition = 0.32; pads[13].level = 0.72;
+    pads[13].modeStretch = 0.60; pads[13].modeInjectAmount = 0.0;
     pads[13].nonlinearCoupling = 0.35; pads[13].decaySkew = 0.55;
     pads[13].modeScatter = 0.65; pads[13].airLoading = 0.0;
-    pads[13].bodyDampingB3 = 0.0; pads[13].bodyDampingB1 = 0.30;
+    pads[13].bodyDampingB3 = 0.00008; pads[13].bodyDampingB1 = 0.060;
     pads[13].noiseLayerMix = 0.78; pads[13].noiseLayerCutoff = 0.95;
     pads[13].noiseLayerColor = 0.92; pads[13].noiseLayerDecay = 0.70;
     pads[13].clickLayerMix = 0.20; pads[13].clickLayerBrightness = 0.82;
@@ -4404,7 +4418,7 @@ Kit latinPercKit() {
     pads[21].noiseLayerColor = 0.62; pads[21].noiseLayerDecay = 0.32;
     pads[21].clickLayerMix = 0.30; pads[21].clickLayerContactMs = 0.30;
     pads[21].airLoading = 0.0; pads[21].modeScatter = 0.62;
-    pads[21].bodyDampingB3 = 0.0; pads[21].bodyDampingB1 = 0.32;
+    pads[21].bodyDampingB3 = 0.00008; pads[21].bodyDampingB1 = 0.060;
     pads[21].macroComplexity = 0.78;
     pads[21].pan = 0.34;
 
