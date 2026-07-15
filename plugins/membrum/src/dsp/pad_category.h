@@ -27,6 +27,13 @@ enum class PadCategory : int {
 [[nodiscard]] inline PadCategory classifyPad(const PadConfig& cfg) noexcept
 {
     if (cfg.bodyModel == BodyModelType::Membrane) {
+        // Rule 0: Membrane + Mallet exciter = a Tom, even with a pitch env
+        // active (the tom "tonk" glide, added by the tom-depth fix). This must
+        // precede the pitch-env rule below, which would otherwise reclassify
+        // the toms as Kick. The Kick uses the Impulse exciter with its pitch
+        // env, so it is unaffected.
+        if (cfg.exciterType == ExciterType::Mallet)
+            return PadCategory::Tom;
         // Rule 1: Membrane + pitch envelope active -> Kick
         if (cfg.tsPitchEnvTime > 0.0f)
             return PadCategory::Kick;

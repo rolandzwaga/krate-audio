@@ -643,10 +643,14 @@ Kit acousticKit() {
     // ---- Toms (Membrane/Mallet) -- true per-pad graded gradient ----
     const int    tomPads[]       = {5, 7, 9, 11, 12, 14};
     const double tomSizes[]      = {0.80, 0.70, 0.60, 0.55, 0.45, 0.40};
-    const double tomPitchStart[] = { 200,  250,  300,  290,  380,  470};
-    const double tomPitchEnd[]   = { 110,  130,  150,  180,  230,  290};
-    const double tomPitchTime[]  = {0.18, 0.16, 0.14, 0.13, 0.10, 0.08};  // 90..40 ms
-    const double tomB1[]         = {0.30, 0.32, 0.34, 0.34, 0.37, 0.40};
+    // Tom-depth Fix E: END = each pad's natural f0 (round(500*0.1^size)); START
+    // a few % above so the bank glides DOWN onto f0 (no up-tuning). Longer glide
+    // (250..120 ms). tomB1 dropped to a low constant so the fundamental rings
+    // long; the b3 f^2 term (0.15 below) supplies the T60 gradient across sizes.
+    const double tomPitchStart[] = {  84,  106,  134,  149,  188,  211};
+    const double tomPitchEnd[]   = {  79,  100,  126,  141,  177,  199};
+    const double tomPitchTime[]  = {0.50, 0.44, 0.38, 0.32, 0.28, 0.24};  // 250..120 ms
+    const double tomB1[]         = {0.055, 0.055, 0.055, 0.055, 0.055, 0.055};
     const double tomAir[]        = {0.65, 0.60, 0.55, 0.55, 0.48, 0.45};
     const double tomSecSize[]    = {0.32, 0.31, 0.30, 0.32, 0.30, 0.29};
     const double tomSkew[]       = {0.42, 0.44, 0.46, 0.48, 0.52, 0.55};
@@ -665,7 +669,7 @@ Kit acousticKit() {
         pads[p].tsPitchEnvTime  = tomPitchTime[i];
         pads[p].tsPitchEnvCurve = 0.15;
         pads[p].bodyDampingB1 = tomB1[i];
-        pads[p].bodyDampingB3 = 0.10;
+        pads[p].bodyDampingB3 = 0.15;  // Tom-depth Fix E: freq-dependent damping
         pads[p].airLoading = tomAir[i];
         pads[p].tensionModAmt = 0.22;
         pads[p].couplingStrength  = 0.40;
@@ -1793,9 +1797,13 @@ Kit jazzBrushesKit() {
     const double tomSizes[]     = {0.72, 0.62, 0.55, 0.48, 0.42, 0.36};
     const double tomMaterials[] = {0.40, 0.43, 0.46, 0.50, 0.55, 0.60};
     const double tomDecays[]    = {0.45, 0.40, 0.36, 0.32, 0.28, 0.24};
-    const double tomB1[]        = {0.30, 0.32, 0.34, 0.36, 0.38, 0.42};
-    const double tomPitchStart[] = {200, 240, 290, 340, 400, 470};
-    const double tomPitchEnd[]   = {110, 135, 165, 200, 240, 290};
+    // Tom-depth Fix E: retune END to each pad's natural f0 (round(500*0.1^size)
+    // for sizes 0.72..0.36 = 95,120,141,166,190,218 Hz), START ~6% above (glide
+    // DOWN), longer graded glide time, low constant b1 for a long fundamental.
+    const double tomB1[]        = {0.055, 0.055, 0.055, 0.055, 0.055, 0.055};
+    const double tomPitchStart[] = {101, 127, 149, 176, 201, 231};
+    const double tomPitchEnd[]   = { 95, 120, 141, 166, 190, 218};
+    const double tomPitchTime[]  = {0.50, 0.44, 0.38, 0.32, 0.28, 0.24};  // 250..120 ms
     const double tomAir[]        = {0.65, 0.61, 0.57, 0.53, 0.49, 0.45};
     const double tomSkew[]       = {0.46, 0.476, 0.492, 0.508, 0.524, 0.54};
     const double tomScatter[]    = {0.10, 0.11, 0.12, 0.13, 0.14, 0.15};
@@ -1810,7 +1818,7 @@ Kit jazzBrushesKit() {
         pads[p].level    = 0.78;
         pads[p].tsPitchEnvStart = toLogNorm(tomPitchStart[i]);
         pads[p].tsPitchEnvEnd   = toLogNorm(tomPitchEnd[i]);
-        pads[p].tsPitchEnvTime  = 0.10;
+        pads[p].tsPitchEnvTime  = tomPitchTime[i];
         pads[p].tsPitchEnvCurve = 0.5;  // Phase 10: was "Lin" StringList -> norm 0.5 = linear (curveAmount 0)
         pads[p].airLoading      = tomAir[i];
         pads[p].modeScatter     = tomScatter[i];
@@ -1823,7 +1831,7 @@ Kit jazzBrushesKit() {
         pads[p].noiseLayerMix = 0.15; pads[p].noiseLayerCutoff = 0.40;
         pads[p].clickLayerMix = 0.40; pads[p].clickLayerContactMs = 0.38;
         pads[p].clickLayerBrightness = 0.45;
-        pads[p].bodyDampingB1 = tomB1[i]; pads[p].bodyDampingB3 = 0.10;
+        pads[p].bodyDampingB1 = tomB1[i]; pads[p].bodyDampingB3 = 0.15;  // Fix E
         pads[p].macroBodySize = 0.45 + 0.03 * i;
         pads[p].macroPunch     = 0.35;
         pads[p].macroBrightness = 0.40;
@@ -2103,9 +2111,13 @@ Kit rockBigRoomKit() {
     const double tomSizes[]     = {0.92, 0.85, 0.75, 0.65, 0.55, 0.48};
     const double tomMaterial[]  = {0.30, 0.34, 0.38, 0.43, 0.50, 0.58};
     const double tomDecay[]     = {0.65, 0.58, 0.50, 0.43, 0.36, 0.30};
-    const double tomPitchHi[]   = {180, 220, 270, 330, 400, 480};
-    const double tomPitchLo[]   = {70,  85, 105, 130, 165, 215};
-    const double tomB1[]        = {0.26, 0.28, 0.30, 0.33, 0.36, 0.40};
+    // Tom-depth Fix E: END(Lo) = natural f0 round(500*0.1^size) for sizes
+    // 0.92..0.48 = 60,71,89,112,141,166 Hz; START(Hi) ~6% above (glide DOWN);
+    // low constant b1 for a long fundamental; graded glide time added below.
+    const double tomPitchHi[]   = { 64,  75,  94, 119, 149, 176};
+    const double tomPitchLo[]   = { 60,  71,  89, 112, 141, 166};
+    const double tomB1[]        = {0.055, 0.055, 0.055, 0.055, 0.055, 0.055};
+    const double tomPitchTime[] = {0.50, 0.44, 0.38, 0.32, 0.28, 0.24};  // 250..120 ms
     const double tomSkew[]      = {0.46, 0.448, 0.436, 0.424, 0.412, 0.40};
     const double tomScatter[]   = {0.14, 0.128, 0.116, 0.104, 0.092, 0.08};
     const double tomTension[]   = {0.34, 0.32, 0.30, 0.28, 0.26, 0.24};
@@ -2122,7 +2134,7 @@ Kit rockBigRoomKit() {
         pads[p].level    = 0.85;
         pads[p].tsPitchEnvStart = toLogNorm(tomPitchHi[i]);
         pads[p].tsPitchEnvEnd   = toLogNorm(tomPitchLo[i]);
-        pads[p].tsPitchEnvTime  = 0.08;
+        pads[p].tsPitchEnvTime  = tomPitchTime[i];
         pads[p].tsPitchEnvCurve = 0.5;  // Phase 10: was "Lin" StringList -> norm 0.5 = linear (curveAmount 0)
         pads[p].tsDriveAmount   = 0.18;
         pads[p].airLoading      = tomAir[i];
@@ -2137,7 +2149,7 @@ Kit rockBigRoomKit() {
         pads[p].noiseLayerMix    = 0.18; pads[p].noiseLayerCutoff = 0.45;
         pads[p].clickLayerMix    = 0.55; pads[p].clickLayerContactMs = 0.30;
         pads[p].clickLayerBrightness = 0.55;
-        pads[p].bodyDampingB1 = tomB1[i]; pads[p].bodyDampingB3 = 0.10;
+        pads[p].bodyDampingB1 = tomB1[i]; pads[p].bodyDampingB3 = 0.15;  // Fix E
         pads[p].macroPunch = 0.85; pads[p].macroBodySize = 0.55 + 0.05 * i;
         pads[p].couplingAmount = 0.70;
         pads[p].pan = tomPan[i];
@@ -2376,9 +2388,13 @@ Kit vintageWoodKit() {
     const double tomSizes[]     = {0.72, 0.62, 0.55, 0.48, 0.42, 0.35};
     const double tomMaterial[]  = {0.30, 0.32, 0.36, 0.42, 0.48, 0.55};
     const double tomDecay[]     = {0.42, 0.38, 0.34, 0.30, 0.26, 0.22};
-    const double tomB1[]        = {0.30, 0.32, 0.35, 0.38, 0.42, 0.46};
-    const double tomPitchHi[]   = {200, 240, 290, 340, 400, 480};
-    const double tomPitchLo[]   = {95, 115, 140, 170, 210, 260};
+    // Tom-depth Fix E: END(Lo) = natural f0 round(500*0.1^size) for sizes
+    // 0.72..0.35 = 95,120,141,166,190,223 Hz; START(Hi) ~6% above (glide DOWN);
+    // low constant b1 for a long fundamental; graded glide time added below.
+    const double tomB1[]        = {0.055, 0.055, 0.055, 0.055, 0.055, 0.055};
+    const double tomPitchHi[]   = {101, 127, 149, 176, 201, 236};
+    const double tomPitchLo[]   = { 95, 120, 141, 166, 190, 223};
+    const double tomPitchTime[] = {0.50, 0.44, 0.38, 0.32, 0.28, 0.24};  // 250..120 ms
     const double tomSkew[]      = {0.44, 0.46, 0.48, 0.50, 0.52, 0.54};
     const double tomPan[]       = {0.36, 0.416, 0.472, 0.528, 0.584, 0.64};
     for (int i = 0; i < 6; ++i) {
@@ -2391,7 +2407,7 @@ Kit vintageWoodKit() {
         pads[p].level    = 0.78;
         pads[p].tsPitchEnvStart = toLogNorm(tomPitchHi[i]);
         pads[p].tsPitchEnvEnd   = toLogNorm(tomPitchLo[i]);
-        pads[p].tsPitchEnvTime  = 0.10;
+        pads[p].tsPitchEnvTime  = tomPitchTime[i];
         pads[p].tsPitchEnvCurve = 0.15;  // exp glide
         pads[p].tsDriveAmount   = 0.25;
         pads[p].airLoading      = 0.55;
@@ -2405,7 +2421,7 @@ Kit vintageWoodKit() {
         pads[p].noiseLayerMix    = 0.15; pads[p].noiseLayerCutoff = 0.42;
         pads[p].clickLayerMix    = 0.50; pads[p].clickLayerContactMs = 0.32;
         pads[p].clickLayerBrightness = 0.45;
-        pads[p].bodyDampingB1 = tomB1[i]; pads[p].bodyDampingB3 = 0.10;
+        pads[p].bodyDampingB1 = tomB1[i]; pads[p].bodyDampingB3 = 0.15;  // Fix E
         pads[p].macroBodySize = 0.45 + 0.04 * i;
         pads[p].macroBrightness = 0.35;
         pads[p].pan = tomPan[i];

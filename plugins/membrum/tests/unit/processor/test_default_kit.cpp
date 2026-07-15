@@ -274,13 +274,22 @@ TEST_CASE("DefaultKit Tom template base parameters", "[default_kit]")
     std::array<PadConfig, kNumPads> pads{};
     DefaultKit::apply(pads);
 
-    // All toms should have strikePosition=0.3, level=0.8
-    const int tomNotes[] = {41, 43, 45, 47, 48, 50};
-    for (int note : tomNotes) {
-        INFO("MIDI note: " << note);
-        REQUIRE(pads[pad(note)].strikePosition == Approx(0.3f).margin(0.01f));
-        REQUIRE(pads[pad(note)].level == Approx(0.8f).margin(0.01f));
+    // All toms keep strikePosition=0.3. Tom-depth Fix D grades level DOWN with
+    // size (bigger tom = louder/weightier) to counteract the per-voice peak
+    // normalizer that otherwise makes the floor tom the quietest body of the
+    // row. Per-pad levels: MIDI 41/43/45/47/48/50 -> 0.95/0.88/0.82/0.76/0.71/0.67.
+    struct TomLvl { int note; float level; };
+    const TomLvl toms[] = {
+        {41, 0.95f}, {43, 0.88f}, {45, 0.82f},
+        {47, 0.76f}, {48, 0.71f}, {50, 0.67f},
+    };
+    for (const auto& t : toms) {
+        INFO("MIDI note: " << t.note);
+        REQUIRE(pads[pad(t.note)].strikePosition == Approx(0.3f).margin(0.01f));
+        REQUIRE(pads[pad(t.note)].level == Approx(t.level).margin(0.01f));
     }
+    // Bigger tom is louder (monotonic across the row, floor -> high).
+    REQUIRE(pads[pad(41)].level > pads[pad(50)].level);
 }
 
 // ---------------------------------------------------------------------------

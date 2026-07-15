@@ -152,18 +152,33 @@ inline void applyTemplate(PadConfig& cfg, DrumTemplate tmpl, float sizeOverride 
             cfg.noiseLayerResonance  = 0.25f;
             cfg.noiseLayerDecay      = 0.4f;
             cfg.noiseLayerColor      = 0.3f;  // pink-leaning
-            cfg.clickLayerMix        = 0.7f;
-            cfg.clickLayerContactMs  = 0.3f;
-            cfg.clickLayerBrightness = 0.45f;
+            // Tom-depth Fix A.3: brighten the felt-mallet click so a real
+            // transient lands at t=0 (baseline toms had ~0 energy in the
+            // 2-8 kHz band -> a swell, not a strike). Shorter contact = more HF.
+            cfg.clickLayerMix        = 0.85f;
+            cfg.clickLayerContactMs  = 0.12f;
+            cfg.clickLayerBrightness = 0.80f;
             // Phase 8C: tom-leaning air-loading + light scatter.
             cfg.airLoading  = 0.6f;
             cfg.modeScatter = 0.15f;
+            // Tom-depth Fix B: frequency-dependent damping. The f^2 term
+            // dissolves the inharmonic 100-500 Hz mid cluster (which rang
+            // nearly as long as the fundamental and made toms read as thin/
+            // toy-like) while the low fundamental keeps its long ring.
+            // Stored NORMALIZED; the mapper denormalizes to b3 = norm * 1.0e-3
+            // (dampingLawFromParams, membrane_mapper.h). bodyDampingB1 is left
+            // at its sentinel (-1) so b1 stays on the legacy long-decay path --
+            // an override here would clobber the long fundamental.
+            cfg.bodyDampingB3 = 0.15f;
             // Phase 8D coupling: off by default, seed values for tom shell.
             cfg.secondarySize     = 0.5f;
             cfg.secondaryMaterial = 0.4f;
-            // Phase 8E: toms are the canonical "kerthump" case -- strong
-            // velocity-dependent pitch glide (JASA 2021 Kirby & Sandler).
-            cfg.tensionModAmt     = 1.0f;
+            // Phase 8E: toms are the canonical "kerthump" case -- velocity-
+            // dependent pitch glide (JASA 2021 Kirby & Sandler). Tom-depth
+            // Fix A.2: lowered 1.0 -> 0.25 so the tension energy-follower (which
+            // drifts the pitch UP as modal energy rises) no longer fights the
+            // downward ToneShaper pitch glide added per-pad in apply().
+            cfg.tensionModAmt     = 0.25f;
             break;
 
         case DrumTemplate::Hat:
@@ -368,6 +383,43 @@ inline void apply(std::array<PadConfig, kNumPads>& pads)
 
     for (int i = 0; i < kNumPads; ++i) {
         applyTemplate(pads[i], kSpecs[i].tmpl, kSpecs[i].sizeOverride);
+    }
+
+    // --- Tom depth pass (fixes thin/toy toms) ---------------------------------
+    // The pitch-env start/end are ABSOLUTE log-Hz norms, so they cannot live in
+    // the shared Tom template (all six toms would get one pitch). Set them here,
+    // per pad, keyed to each tom's size-derived natural fundamental.
+    //
+    // Fix A.1 -- downward "tonk" glide via the ToneShaper pitch envelope. END ==
+    // the pad's natural size-derived f0 (500 * 0.1^size) so the SUSTAINED pitch
+    // equals the membrane's natural fundamental (no up-tuning); START sits a few
+    // % above so the whole modal bank glides DOWN onto f0. Encoding matches the
+    // Kick: norm = log(Hz / 20) / log(100)  (20 Hz -> 0, 2000 Hz -> 1).
+    // Fix D -- bigger tom = louder/weightier, to counteract the per-voice peak
+    // normalizer that otherwise makes the floor tom the QUIETEST body of the row.
+    {
+        // Pad indices 5,7,9,11,12,14 = MIDI 41,43,45,47,48,50 (sizes 0.8..0.4).
+        constexpr int   tomPad[6]   = {5, 7, 9, 11, 12, 14};
+        // Natural f0 = 500 * 0.1^size for size {0.8,0.7,0.6,0.5,0.45,0.4}:
+        constexpr float tomEndHz[6] = {79.24f, 99.76f, 125.59f, 158.11f, 177.42f, 199.05f};
+        // Start = f0 * (1 + glide%), graded +10% (floor) down to +4% (high):
+        constexpr float tomStartHz[6] = {87.16f, 108.74f, 135.64f, 167.60f, 186.29f, 207.01f};
+        // Glide time normalized (ms / 500): 250,220,190,160,140,120 ms.
+        constexpr float tomTimeN[6] = {0.50f, 0.44f, 0.38f, 0.32f, 0.28f, 0.24f};
+        // Fix D: floor tom loudest, high tom quietest (all <= 0.95 for softClip
+        // headroom -- the voice ends in a softClip and > 1 risks clipping).
+        constexpr float tomLevel[6] = {0.95f, 0.88f, 0.82f, 0.76f, 0.71f, 0.67f};
+        auto toLogNorm = [](float hz) {
+            return static_cast<float>(std::log(hz / 20.0f) / std::log(100.0f));
+        };
+        for (int i = 0; i < 6; ++i) {
+            PadConfig& c = pads[static_cast<std::size_t>(tomPad[i])];
+            c.tsPitchEnvStart = toLogNorm(tomStartHz[i]);
+            c.tsPitchEnvEnd   = toLogNorm(tomEndHz[i]);
+            c.tsPitchEnvTime  = tomTimeN[i];   // enables isPitchEnvActive()
+            c.tsPitchEnvCurve = 0.0f;          // 0 = exponential settle
+            c.level           = tomLevel[i];   // Fix D
+        }
     }
 
     // FR-032: Hat pads in choke group 1

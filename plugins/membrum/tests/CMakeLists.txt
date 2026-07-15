@@ -94,6 +94,7 @@ add_executable(membrum_tests
     unit/voice_pool/test_multi_bus_output.cpp
     unit/vst/test_bus_activation.cpp
     unit/processor/test_default_kit.cpp
+    unit/processor/test_tom_body_depth.cpp
     unit/preset/test_pad_preset.cpp
 
     # Phase 5: cross-pad coupling tests

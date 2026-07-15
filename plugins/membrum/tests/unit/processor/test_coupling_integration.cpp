@@ -479,15 +479,35 @@ TEST_CASE("Phase 4: padCategories_ updates when pad body model / exciter / pitch
         CHECK(m.getEffectiveGain(5, 7) == Approx(Membrum::CouplingMatrix::kMaxCoefficient));
     }
 
-    // Apply a non-zero pitch envelope time -> pad 5 becomes Kick.
+    // Tom-depth Rule 0: a Mallet Membrane pad stays a Tom even with a pitch
+    // envelope active (the tom "tonk" glide). Adding a pitch env must NOT
+    // reclassify it as a Kick, so the Tom<->Tom coupling remains.
     const int pitchEnvTimeParam = Membrum::padParamId(padIdx, Membrum::kPadTSPitchEnvTime);
     fix.setParam(static_cast<Steinberg::Vst::ParamID>(pitchEnvTimeParam), 0.25);
+    {
+        const auto& m = fix.processor.couplingMatrixForTest();
+        CHECK(m.getEffectiveGain(5, 7) == Approx(Membrum::CouplingMatrix::kMaxCoefficient));
+    }
+
+    // Switch the exciter to Impulse WHILE the pitch env is active -> now it is a
+    // Kick (Membrane + pitch env + non-Mallet exciter), so the coupling vanishes.
+    const double impulseNorm =
+        (static_cast<double>(static_cast<int>(Membrum::ExciterType::Impulse)) + 0.5) /
+        static_cast<double>(Membrum::ExciterType::kCount);
+    fix.setParam(static_cast<Steinberg::Vst::ParamID>(exciterParam), impulseNorm);
     {
         const auto& m = fix.processor.couplingMatrixForTest();
         CHECK(m.getEffectiveGain(5, 7) == 0.0f);
     }
 
-    // Clear pitch envelope time -> Tom again.
+    // Back to Mallet (pitch env still active) -> Tom again, coupling returns.
+    fix.setParam(static_cast<Steinberg::Vst::ParamID>(exciterParam), malletNorm);
+    {
+        const auto& m = fix.processor.couplingMatrixForTest();
+        CHECK(m.getEffectiveGain(5, 7) == Approx(Membrum::CouplingMatrix::kMaxCoefficient));
+    }
+
+    // Clear pitch envelope time -> still a Mallet Tom, coupling remains.
     fix.setParam(static_cast<Steinberg::Vst::ParamID>(pitchEnvTimeParam), 0.0);
     {
         const auto& m = fix.processor.couplingMatrixForTest();
@@ -534,6 +554,17 @@ TEST_CASE("Phase 4: SC-008 frequency-selective coupling via modal coincidence --
         const int pad9SizeId = Membrum::padParamId(9, Membrum::kPadSize);
         fix.setParam(static_cast<Steinberg::Vst::ParamID>(pad5SizeId), 0.7);
         fix.setParam(static_cast<Steinberg::Vst::ParamID>(pad9SizeId), pad9Size);
+
+        // The tom-depth fix gives the default toms a pitch envelope whose END is
+        // an ABSOLUTE frequency (the natural f0 of the pad's DEFAULT size). This
+        // test tunes the receiver's frequency via Size, so that pitch env -- which
+        // would otherwise pin the sounding pitch to its fixed end and make both
+        // Size configs collapse to the same frequency -- must be cleared on both
+        // pads for Size to govern f0. They remain Mallet Toms (Rule 0).
+        const int pad5PitchTimeId = Membrum::padParamId(5, Membrum::kPadTSPitchEnvTime);
+        const int pad9PitchTimeId = Membrum::padParamId(9, Membrum::kPadTSPitchEnvTime);
+        fix.setParam(static_cast<Steinberg::Vst::ParamID>(pad5PitchTimeId), 0.0);
+        fix.setParam(static_cast<Steinberg::Vst::ParamID>(pad9PitchTimeId), 0.0);
 
         if (couplingOn) {
             fix.setParam(Membrum::kGlobalCouplingId, 1.0);
