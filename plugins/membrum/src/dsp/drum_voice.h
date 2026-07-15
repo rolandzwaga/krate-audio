@@ -191,6 +191,12 @@ public:
         params_.bodyDampingB3 = bodyDampingB3_;
         params_.airLoading    = airLoading_;
         params_.modeScatter   = modeScatter_;
+        // Phase 5: cap NoiseBody modes on the FeedbackExciter slow path (which
+        // pays per-sample coefficient smoothing) so the dense 64-mode crash
+        // cloud doesn't blow the CPU budget on that one costly combination.
+        params_.maxModes =
+            (exciterBank_.getPendingType() == ExciterType::Feedback)
+            ? Bodies::NoiseBodyMapper::kFeedbackModeCap : 0;
 
         // Compute and store the body's natural (Size-derived) fundamental.
         // Each body model has its own base frequency (Membrane 500 Hz, Plate
@@ -1514,6 +1520,12 @@ private:
         p.bodyDampingB3 = bodyDampingB3_;
         p.airLoading    = airLoading_;
         p.modeScatter   = modeScatter_;
+        // Keep the Feedback slow-path mode cap consistent on live re-maps
+        // (material-morph / pitch-env refresh) so mode count never jumps
+        // mid-note (Phase 5).
+        p.maxModes =
+            (exciterBank_.getCurrentType() == ExciterType::Feedback)
+            ? Bodies::NoiseBodyMapper::kFeedbackModeCap : 0;
         return p;
     }
 

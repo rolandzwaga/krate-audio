@@ -54,14 +54,26 @@ struct NoiseBodyMapper
     //      and the 6-mode scalar tail dominated the per-sample cost on
     //      the FAST path for the other 5 exciters. Lesson: mode count must
     //      be a multiple of the widest SIMD lane on the target ISA (AVX2=8).
-    //   6. Final: 32 modes = 4 clean AVX2 SIMD iters, zero scalar tail,
-    //      and 20% lower slow-path `smoothCoefficients()` overhead vs 40.
-    //      This is the best tradeoff for both hot paths simultaneously.
+    //   6. Post-Phase-9: 32 modes = 4 clean AVX2 SIMD iters, zero scalar tail.
+    //   7. Crash redesign (CRASH-REDESIGN-PLAN.md Phase 5): 64 modes. A crash's
+    //      identity is a DENSE inharmonic cloud that fuses into wash; 32 modes
+    //      over 0.7-20 kHz leave ~600 Hz spacing -> individually resolvable ->
+    //      a pitched chime (defect D6 / AC-4). 64 halves the spacing so the
+    //      upper cluster reads as colored noise. 64 = 8 clean AVX2 iters (zero
+    //      scalar tail) and stays within the bank's kMaxModes (96).
+    //      FeedbackExciter forces the per-sample SLOW path (smoothCoefficients
+    //      every sample); to keep that path affordable, DrumVoice caps NoiseBody
+    //      at kFeedbackModeCap (32) modes via VoiceCommonParams::maxModes when
+    //      the Feedback exciter is active (a drone/FX combo where wash density
+    //      matters least).
     //
     // Note: `smoothCoefficients()` is called ONCE per block on the SIMD
     // fast path (fine) but ONCE PER SAMPLE on the slow path (expensive).
     // The slow path is only hit when FeedbackExciter is active.
-    static constexpr int kNoiseBodyModeCount = 32;
+    static constexpr int kNoiseBodyModeCount = 64;
+
+    /// Cap applied on the FeedbackExciter slow path (per-sample smoothing).
+    static constexpr int kFeedbackModeCap = 32;
 
     struct Result
     {
@@ -82,9 +94,13 @@ struct NoiseBodyMapper
         // ----- Modal layer ----- (plate-ratio extended to kNoiseBodyModeCount)
         const float f0 = 1500.0f * std::pow(0.1f, params.size);
 
-        const int numModes = std::min(
+        int numModes = std::min(
             kNoiseBodyModeCount,
             Krate::DSP::ModalResonatorBank::kMaxModes);
+        // Feedback slow-path cap (Phase 5): keep the per-sample smoothing path
+        // affordable. 0 = no cap.
+        if (params.maxModes > 0)
+            numModes = std::min(numModes, params.maxModes);
 
         for (int k = 0; k < numModes; ++k)
             out.modal.frequencies[k] = f0 * kPlateRatios[k];
