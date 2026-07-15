@@ -55,6 +55,12 @@ struct VoiceCommonParams
 
     // Phase 8E: nonlinear tension modulation depth (norm).
     float tensionModAmt        = 0.0f;
+
+    // Crash redesign (CRASH-REDESIGN-PLAN.md Phase 5): optional per-note cap on
+    // the modal mode count. 0 = no cap (use the body's native count). DrumVoice
+    // sets this to NoiseBodyMapper::kFeedbackModeCap when the FeedbackExciter is
+    // active so the per-sample slow path stays within the CPU budget.
+    int maxModes = 0;
 };
 
 } // namespace Membrum

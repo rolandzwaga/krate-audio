@@ -52,13 +52,16 @@ inline bool isNaNOrInfBits(float x) noexcept
 } // namespace
 
 TEST_CASE("NoiseBodyCPU: Impulse + NoiseBody + toneShaper + unnatural "
-          "at kModeCount=40 stays under 1.25% CPU",
+          "at kModeCount=64 stays under 1.25% CPU",
           "[.perf][membrum][benchmark][cpu][noise_body]")
 {
-    // Documented starting point per FR-062.
-    static_assert(Membrum::NoiseBody::kModeCount <= 40,
-                  "NoiseBody::kModeCount must start at 40 or below; "
-                  "reductions must be documented in noise_body.h citing FR-062.");
+    // Crash redesign (CRASH-REDESIGN-PLAN.md Phase 5) raised the count to 64 for
+    // a dense inharmonic cymbal cloud. 64 = 8 clean AVX2 iters on the fast path;
+    // the FeedbackExciter slow path is separately capped (kFeedbackModeCap).
+    // This bound guards against an undocumented FURTHER increase.
+    static_assert(Membrum::NoiseBody::kModeCount <= 64,
+                  "NoiseBody::kModeCount increases must be documented in "
+                  "noise_body_mapper.h and re-benchmarked against the budget.");
 
     Membrum::DrumVoice voice;
     voice.prepare(kSampleRate, 0u);

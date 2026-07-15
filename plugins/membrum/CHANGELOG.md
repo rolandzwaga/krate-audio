@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Crash cymbals now sound like crashes.** A ground-up redesign of the
+  NoiseBody cymbal voicing (default `Cymbal` template + every factory-kit
+  crash/china/splash), driven by the cymbal-acoustics literature (Rossing &
+  Fletcher; Ducceschi & Bilbao wave-turbulence; Poirot 2024 mode coupling;
+  Stowell; Sound on Sound). Six fixes:
+  - **No harmonic drone.** Removed the `modeInject` integer-harmonic series
+    from crashes — a crash has no definite pitch.
+  - **Delayed-HF "bloom".** A new opt-in cutoff-envelope on the wash layer
+    sweeps dark → bright → darker so brightness *builds* over the first tens of
+    ms after the strike (the energy cascade), instead of being brightest at
+    `t=0`. Velocity-scaled (soft tap = bell-like, hard hit = broadband). Gated
+    on NonlinearCoupling > 0 and the NoiseBody body, so hats/toms/snare are
+    bit-identical.
+  - **Delayed nonlinear brightening.** NonlinearCoupling's envelope follower now
+    uses a slow, velocity-dependent attack (30–120 ms) so the waveshaper drive
+    rises after the hit rather than spiking at the onset edge.
+  - **Frequency-dependent decay.** Explicit `b1`/`b3` damping — the lowest modes
+    ring for seconds (the wash) while the top octave dies in ~0.4 s
+    (dark-through-tail).
+  - **Long wash.** The internal noise "sizzle" decay now tracks the modal
+    lowest-mode T60 for long-decay bodies (bit-identical for short-decay
+    hats/toms).
+  - **Denser cloud.** NoiseBody runs 64 modes (was 32); the plate Chladni table
+    extends to 96 entries (first 48 unchanged, so PlateBody is untouched). The
+    FeedbackExciter slow path is capped at 32 modes to stay within CPU budget.
+
 ### Added
 
 - **Wire coupling (`wireCoupling`).** A per-pad control (0–1, default `0`) that

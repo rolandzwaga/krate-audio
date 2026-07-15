@@ -181,6 +181,36 @@ TEST_CASE("NoiseBody: Decay sweep produces >= 3x RT60 range",
     CHECK((rt60High / rt60Low) >= 3.0f);
 }
 
+// Phase 2 (CRASH-REDESIGN-PLAN.md): the internal noise "sizzle" wash decay
+// rides the modal lowest-mode T60 for LONG-decay bodies (cymbals), so the noise
+// bed and the modal skeleton die together instead of a ~90 ms bed under a
+// multi-second ring. Short-decay bodies (hats/toms, decay <= 0.5) are unchanged
+// (bit-identical), so the wash never balloons under a tight instrument.
+TEST_CASE("NoiseBody: crash wash decay tracks the long modal ring",
+          "[membrum][body][noise][wash]")
+{
+    // Crash-like: long decay + explicit long low b1 + f^2 HF damping.
+    auto crash = makeDefaultParams();
+    crash.size          = 0.3f;
+    crash.decay         = 0.8f;
+    crash.bodyDampingB1 = 0.020f;   // b1 ~ 1.2 s^-1 -> long low ring
+    crash.bodyDampingB3 = 0.00006f;
+    const auto rCrash = Membrum::Bodies::NoiseBodyMapper::map(crash, 0.0f);
+    INFO("crash noiseDecayMs=" << rCrash.noiseDecayMs);
+    // Long, wash-scale (not the old fixed ~113 ms), and bounded below the clamp.
+    CHECK(rCrash.noiseDecayMs > 1200.0f);
+    CHECK(rCrash.noiseDecayMs <= 3000.0f);
+
+    // Closed-hat-like: short decay, no explicit damping (legacy path). The wash
+    // must stay tight -- decay <= 0.5 keeps the pre-Phase-2 short formula.
+    auto hat = makeDefaultParams();
+    hat.size  = 0.15f;
+    hat.decay = 0.1f;
+    const auto rHat = Membrum::Bodies::NoiseBodyMapper::map(hat, 0.0f);
+    INFO("hat noiseDecayMs=" << rHat.noiseDecayMs);
+    CHECK(rHat.noiseDecayMs <= 80.0f);
+}
+
 TEST_CASE("NoiseBody: finite output across all exciters",
           "[membrum][body][noise][finite]")
 {

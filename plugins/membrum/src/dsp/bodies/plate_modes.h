@@ -48,8 +48,14 @@
 namespace Membrum::Bodies {
 
 // Phase 8B: plate mode count 16 -> 48 (6 clean AVX2 kernel iters).
+// Crash redesign (CRASH-REDESIGN-PLAN.md Phase 5): the TABLE is extended to 96
+// entries so NoiseBody (cymbals) can run a denser 64-mode cloud that fuses into
+// wash rather than resolving as a pitched chime. PlateBody still uses only the
+// first kPlateModeCount (48) entries -- the first 48 are byte-identical to the
+// pre-extension table (same generator: tools/gen-plate-chladni.js, P=1.7,
+// kappa=0.11), so PlateBody output is unchanged.
 inline constexpr int kPlateModeCount    = 48;
-inline constexpr int kPlateMaxModeCount = 48;
+inline constexpr int kPlateMaxModeCount = 96;
 
 struct PlateModeIndices
 {
@@ -67,10 +73,17 @@ inline constexpr PlateModeIndices kPlateIndices[kPlateMaxModeCount] = {
     {0, 4}, {10, 0}, {5, 2}, {8, 1}, {3, 3}, {11, 0}, {1, 4}, {6, 2},
     {9, 1}, {4, 3}, {12, 0}, {7, 2}, {2, 4}, {10, 1}, {0, 5}, {13, 0},
     {5, 3}, {8, 2}, {3, 4}, {11, 1}, {14, 0}, {6, 3}, {1, 5}, {9, 2},
+    {4, 4}, {12, 1}, {15, 0}, {7, 3}, {2, 5}, {10, 2}, {13, 1}, {16, 0},
+    {5, 4}, {0, 6}, {8, 3}, {3, 5}, {11, 2}, {17, 0}, {14, 1}, {6, 4},
+    {1, 6}, {9, 3}, {12, 2}, {18, 0}, {15, 1}, {4, 5}, {7, 4}, {2, 6},
+    {10, 3}, {19, 0}, {13, 2}, {16, 1}, {5, 5}, {0, 7}, {8, 4}, {20, 0},
+    {11, 3}, {17, 1}, {3, 6}, {14, 2}, {6, 5}, {1, 7}, {21, 0}, {9, 4},
+    {18, 1}, {12, 3}, {15, 2}, {4, 6}, {7, 5}, {22, 0}, {10, 4}, {19, 1},
 };
 
 // Mode ratios relative to the (2,0) fundamental = ((m+2n)^P*(1+kappa*n)) norm.
-// Lock-step with kPlateIndices above (same generator, same order).
+// Lock-step with kPlateIndices above (same generator, same order). First 48
+// entries are byte-identical to the pre-Phase-5 table.
 inline constexpr float kPlateRatios[kPlateMaxModeCount] = {
     1.0000f,  1.1100f,  1.9923f,  2.2115f,  3.2490f,  3.6064f,  3.9638f,  4.7479f,
     5.2701f,  5.7924f,  6.4730f,  7.1850f,  7.8971f,  8.4123f,  8.6091f,  9.3377f,
@@ -78,6 +91,12 @@ inline constexpr float kPlateRatios[kPlateMaxModeCount] = {
     15.2007f, 15.4258f, 15.7333f, 17.1227f, 17.1519f, 18.1391f, 18.5705f, 18.8195f,
     20.1344f, 20.5164f, 21.0309f, 22.1297f, 22.2132f, 23.3443f, 23.9101f, 24.0964f,
     24.1250f, 25.6577f, 26.1204f, 26.7470f, 27.3317f, 27.9710f, 28.1157f, 29.3976f,
+    30.2844f, 30.3382f, 30.7329f, 32.0483f, 32.5978f, 33.3447f, 34.1136f, 34.2968f,
+    34.6989f, 34.9112f, 36.3512f, 37.3495f, 37.4942f, 38.0200f, 38.0694f, 39.3577f,
+    40.0001f, 40.8748f, 41.8420f, 41.8998f, 42.2022f, 42.3641f, 44.2554f, 45.3706f,
+    45.6147f, 45.9336f, 46.3844f, 46.5088f, 47.6361f, 48.3771f, 49.3873f, 50.1187f,
+    50.5666f, 50.9863f, 51.0167f, 51.1178f, 53.1600f, 54.3973f, 54.4530f, 54.7488f,
+    55.6318f, 55.7268f, 56.0389f, 56.9326f, 58.9310f, 58.9342f, 60.3358f, 60.4428f,
 };
 
 /// Strike-position amplitude for free-plate mode (m,n).

@@ -191,6 +191,12 @@ public:
         params_.bodyDampingB3 = bodyDampingB3_;
         params_.airLoading    = airLoading_;
         params_.modeScatter   = modeScatter_;
+        // Phase 5: cap NoiseBody modes on the FeedbackExciter slow path (which
+        // pays per-sample coefficient smoothing) so the dense 64-mode crash
+        // cloud doesn't blow the CPU budget on that one costly combination.
+        params_.maxModes =
+            (exciterBank_.getPendingType() == ExciterType::Feedback)
+            ? Bodies::NoiseBodyMapper::kFeedbackModeCap : 0;
 
         // Compute and store the body's natural (Size-derived) fundamental.
         // Each body model has its own base frequency (Membrane 500 Hz, Plate
@@ -327,6 +333,31 @@ public:
 
         // Parallel noise layer (Phase 7, always-on when mix > 0).
         noiseLayer_.configure(noiseLayerParams_);
+        // Crash "bloom" (CRASH-REDESIGN-PLAN.md Phase 3): when NonlinearCoupling
+        // is engaged (cymbals), sweep the parallel noise cutoff DARK -> BRIGHT
+        // -> darker so the wash's HF energy builds over the first tens of ms
+        // (the wave-turbulence cascade) instead of being brightest at the hit.
+        // Gated on coupling > 0, so hats/toms (coupling == 0) are bit-identical.
+        // Bloom is a CYMBAL-WASH feature: gate it on the NoiseBody body (the
+        // cymbal/hat family) AND coupling > 0. This keeps it off the snare,
+        // which is a Membrane body that also uses NonlinearCoupling (for its
+        // attack bloom) but whose bright wire buzz must NOT be filter-swept.
+        const float nlcAmt = unnaturalZone_.nonlinearCoupling.getAmount();
+        if (nlcAmt > 0.0f &&
+            bodyBank_.getCurrentType() == BodyModelType::NoiseBody) {
+            const float baseHz  = NoiseLayer::cutoffHzFromNorm(noiseLayerParams_.cutoff);
+            const float startHz = baseHz * 0.35f;                 // dark at contact
+            // Peak brightness scales with velocity: a soft tap blooms darker and
+            // less (bell-like), a hard hit blooms bright and broadband
+            // (Stowell tap=bell / hard=broadband).
+            const float peakHz  = std::clamp(
+                baseHz * (1.0f + 1.2f * nlcAmt) * (0.45f + 0.55f * velocity),
+                1500.0f, 16000.0f);
+            const float endHz   = baseHz * 0.55f;                 // darkening tail
+            const float riseMs  = 140.0f - 90.0f * velocity;      // hard hit blooms faster
+            const float fallMs  = 500.0f;
+            noiseLayer_.configureBloom(startHz, peakHz, endHz, riseMs, fallMs);
+        }
         noiseLayer_.trigger(velocity);
 
         // Always-on click transient (Phase 7). Fires alongside the selected
@@ -1489,6 +1520,12 @@ private:
         p.bodyDampingB3 = bodyDampingB3_;
         p.airLoading    = airLoading_;
         p.modeScatter   = modeScatter_;
+        // Keep the Feedback slow-path mode cap consistent on live re-maps
+        // (material-morph / pitch-env refresh) so mode count never jumps
+        // mid-note (Phase 5).
+        p.maxModes =
+            (exciterBank_.getCurrentType() == ExciterType::Feedback)
+            ? Bodies::NoiseBodyMapper::kFeedbackModeCap : 0;
         return p;
     }
 

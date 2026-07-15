@@ -85,6 +85,7 @@ public:
         filter_.setCutoff(cutoffHz);
         filter_.setResonance(reso);
         standaloneGain_ = computeStandaloneGain(cutoffHz);
+        bloomActive_    = false;  // configure() disables bloom (bit-identical)
 
         const float decayMs = denormDecayMs(p.decay);
         envelope_.setAttack(0.5f);
@@ -106,10 +107,43 @@ public:
         filter_.setCutoff(cutoffHz);
         filter_.setResonance(resonance);
         standaloneGain_ = computeStandaloneGain(cutoffHz);
+        bloomActive_    = false;  // configureRaw() disables bloom (bit-identical)
         envelope_.setAttack(attackMs);
         envelope_.setDecay(decayMs);
         envelope_.setSustain(0.0f);
         envelope_.setRelease(decayMs * 0.5f);
+    }
+
+    /// Optional cutoff-envelope "bloom" (CRASH-REDESIGN-PLAN.md Phase 3).
+    /// The lowpass cutoff starts dark at `startHz`, rises toward `peakHz` with
+    /// time-constant `riseMs`, then falls toward `endHz` with `fallMs`. This
+    /// emulates the cymbal wave-turbulence energy cascade at filter level: the
+    /// early wash is DARK, brightness BUILDS over the first tens of ms (delayed
+    /// HF onset), then the tail darkens again. Call AFTER configure()/
+    /// configureRaw() (which disable bloom). trigger() re-arms it from startHz.
+    void configureBloom(float startHz, float peakHz, float endHz,
+                        float riseMs, float fallMs) noexcept
+    {
+        bloomActive_  = true;
+        bloomStartHz_ = startHz;
+        bloomPeakHz_  = peakHz;
+        bloomEndHz_   = endHz;
+        // One-pole step coefficients evaluated once per kBloomUpdateInterval
+        // samples. tau in samples = ms * sr / 1000; coef = 1 - exp(-hop/tau).
+        bloomRiseCoef_ = bloomCoef(riseMs);
+        bloomFallCoef_ = bloomCoef(fallMs);
+        bloomFcCur_   = startHz;
+        bloomPhase_   = 0;       // 0 = rising, 1 = falling
+        bloomCounter_ = 0;
+        filter_.setCutoff(startHz);
+    }
+
+    /// Denormalize a [0,1] cutoff value to Hz using the layer's own log map.
+    /// Exposed so consumers (DrumVoice) can compute bloom bounds relative to
+    /// the same cutoff the layer will use.
+    [[nodiscard]] static float cutoffHzFromNorm(float norm) noexcept
+    {
+        return denormCutoff(norm);
     }
 
     /// Direct access to the underlying noise oscillator for consumers that
@@ -127,6 +161,12 @@ public:
         filter_.reset();
         envelope_.reset();
         envelope_.gate(true);
+        if (bloomActive_) {
+            bloomFcCur_   = bloomStartHz_;
+            bloomPhase_   = 0;
+            bloomCounter_ = 0;
+            filter_.setCutoff(bloomStartHz_);
+        }
     }
 
     /// Per-sample output. Returns the layer's natural amplitude (bandpass-
@@ -137,6 +177,7 @@ public:
     /// original balance by calling processSample() unscaled.
     [[nodiscard]] float processSample() noexcept
     {
+        if (bloomActive_) stepBloom();
         if (mix_ <= 0.0f) {
             (void)noise_.process();
             (void)filter_.process(0.0f);
@@ -156,6 +197,7 @@ public:
     {
         if (mix_ <= 0.0f) {
             for (int i = 0; i < numSamples; ++i) {
+                if (bloomActive_) stepBloom();
                 (void)noise_.process();
                 (void)filter_.process(0.0f);
                 (void)envelope_.process();
@@ -164,6 +206,7 @@ public:
             return;
         }
         for (int i = 0; i < numSamples; ++i) {
+            if (bloomActive_) stepBloom();
             const float n   = noise_.process();
             const float f   = filter_.process(n);
             const float env = envelope_.process();
@@ -185,6 +228,39 @@ public:
     [[nodiscard]] float standaloneGain() const noexcept { return standaloneGain_; }
 
 private:
+    /// Samples between bloom cutoff updates. Control-rate (0.33 ms @ 48 kHz),
+    /// far below audibility for a 30+ ms sweep, so the audio hot loop only
+    /// touches the SVF cutoff once per 16 samples.
+    static constexpr int kBloomUpdateInterval = 16;
+
+    /// One-pole step coefficient for a `ms` time-constant, evaluated once per
+    /// kBloomUpdateInterval-sample hop. Clamped to (0, 1].
+    [[nodiscard]] float bloomCoef(float ms) const noexcept
+    {
+        const float tauSamples = std::max(1.0f,
+            ms * 1e-3f * static_cast<float>(sampleRate_));
+        const float hop = static_cast<float>(kBloomUpdateInterval);
+        return std::clamp(1.0f - std::exp(-hop / tauSamples), 1e-4f, 1.0f);
+    }
+
+    /// Advance the bloom cutoff one sample. Every kBloomUpdateInterval samples
+    /// it one-poles the cutoff toward the phase target (peak while rising, end
+    /// while falling) and writes the SVF cutoff. Switches rise->fall once the
+    /// cutoff is within 2 % of the peak.
+    void stepBloom() noexcept
+    {
+        if (--bloomCounter_ > 0) return;
+        bloomCounter_ = kBloomUpdateInterval;
+        if (bloomPhase_ == 0) {
+            bloomFcCur_ += (bloomPeakHz_ - bloomFcCur_) * bloomRiseCoef_;
+            if (bloomFcCur_ >= bloomPeakHz_ * 0.98f)
+                bloomPhase_ = 1;
+        } else {
+            bloomFcCur_ += (bloomEndHz_ - bloomFcCur_) * bloomFallCoef_;
+        }
+        filter_.setCutoff(bloomFcCur_);
+    }
+
     /// Reference cutoff the kStandaloneOutputGain constant was measured at
     /// (NoiseLayerParams::cutoff == 0.5 -> ~849 Hz).
     [[nodiscard]] static float calibrationCutoffHz() noexcept { return denormCutoff(0.5f); }
@@ -252,6 +328,17 @@ private:
     float                        mix_ = 0.0f;
     // Cutoff-compensated standalone gain, refreshed by configure()/configureRaw().
     float                        standaloneGain_ = kStandaloneOutputGain;
+
+    // Bloom (cutoff-envelope) state. Inactive by default -> bit-identical.
+    bool  bloomActive_   = false;
+    int   bloomPhase_    = 0;      // 0 = rising to peak, 1 = falling to end
+    int   bloomCounter_  = 0;
+    float bloomFcCur_    = 0.0f;
+    float bloomStartHz_  = 0.0f;
+    float bloomPeakHz_   = 0.0f;
+    float bloomEndHz_    = 0.0f;
+    float bloomRiseCoef_ = 0.0f;
+    float bloomFallCoef_ = 0.0f;
 };
 
 } // namespace Membrum

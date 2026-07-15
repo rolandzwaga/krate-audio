@@ -54,14 +54,26 @@ struct NoiseBodyMapper
     //      and the 6-mode scalar tail dominated the per-sample cost on
     //      the FAST path for the other 5 exciters. Lesson: mode count must
     //      be a multiple of the widest SIMD lane on the target ISA (AVX2=8).
-    //   6. Final: 32 modes = 4 clean AVX2 SIMD iters, zero scalar tail,
-    //      and 20% lower slow-path `smoothCoefficients()` overhead vs 40.
-    //      This is the best tradeoff for both hot paths simultaneously.
+    //   6. Post-Phase-9: 32 modes = 4 clean AVX2 SIMD iters, zero scalar tail.
+    //   7. Crash redesign (CRASH-REDESIGN-PLAN.md Phase 5): 64 modes. A crash's
+    //      identity is a DENSE inharmonic cloud that fuses into wash; 32 modes
+    //      over 0.7-20 kHz leave ~600 Hz spacing -> individually resolvable ->
+    //      a pitched chime (defect D6 / AC-4). 64 halves the spacing so the
+    //      upper cluster reads as colored noise. 64 = 8 clean AVX2 iters (zero
+    //      scalar tail) and stays within the bank's kMaxModes (96).
+    //      FeedbackExciter forces the per-sample SLOW path (smoothCoefficients
+    //      every sample); to keep that path affordable, DrumVoice caps NoiseBody
+    //      at kFeedbackModeCap (32) modes via VoiceCommonParams::maxModes when
+    //      the Feedback exciter is active (a drone/FX combo where wash density
+    //      matters least).
     //
     // Note: `smoothCoefficients()` is called ONCE per block on the SIMD
     // fast path (fine) but ONCE PER SAMPLE on the slow path (expensive).
     // The slow path is only hit when FeedbackExciter is active.
-    static constexpr int kNoiseBodyModeCount = 32;
+    static constexpr int kNoiseBodyModeCount = 64;
+
+    /// Cap applied on the FeedbackExciter slow path (per-sample smoothing).
+    static constexpr int kFeedbackModeCap = 32;
 
     struct Result
     {
@@ -82,9 +94,13 @@ struct NoiseBodyMapper
         // ----- Modal layer ----- (plate-ratio extended to kNoiseBodyModeCount)
         const float f0 = 1500.0f * std::pow(0.1f, params.size);
 
-        const int numModes = std::min(
+        int numModes = std::min(
             kNoiseBodyModeCount,
             Krate::DSP::ModalResonatorBank::kMaxModes);
+        // Feedback slow-path cap (Phase 5): keep the per-sample smoothing path
+        // affordable. 0 = no cap.
+        if (params.maxModes > 0)
+            numModes = std::min(numModes, params.maxModes);
 
         for (int k = 0; k < numModes; ++k)
             out.modal.frequencies[k] = f0 * kPlateRatios[k];
@@ -140,13 +156,30 @@ struct NoiseBodyMapper
             1500.0f + 5000.0f * params.material, 200.0f, 15000.0f);
         out.noiseFilterResonance = 0.6f + 0.4f * params.material;
 
-        // Noise envelope scales with Decay parameter.
+        // Noise envelope. For SHORT-decay bodies (hats/toms, decay <= 0.5) this
+        // is the original fixed formula (bit-identical). For LONG-decay bodies
+        // (cymbals) the wash is blended toward the modal lowest-mode T60 so the
+        // sizzle bed rings for the full crash tail instead of dying in ~90 ms
+        // under a multi-second modal ring (CRASH-REDESIGN-PLAN.md Phase 2 / T5).
         out.noiseAttackMs = 0.5f;
-        out.noiseDecayMs  = 60.0f *
+        const float shortDecayMs = 60.0f *
             std::exp(lerp(std::log(0.3f), std::log(3.0f), params.decay));
+        // Lowest-mode (fundamental) T60 from the damping law populated above.
+        const float rateLow = out.modal.damping.b1 +
+            out.modal.damping.b3 * f0 * f0;
+        const float t60LowMs = 6.9078f / std::max(rateLow, 0.2f) * 1000.0f;
+        const float longDecayMs = t60LowMs * 0.55f;
+        // Blend gate: 0 for decay <= 0.5 (short formula wins, hat-safe), rising
+        // to 1 at decay = 1.0 so only genuinely long instruments get the wash.
+        const float washBlend = std::clamp((params.decay - 0.5f) * 2.0f, 0.0f, 1.0f);
+        out.noiseDecayMs = std::clamp(
+            lerp(shortDecayMs, longDecayMs, washBlend), 20.0f, 3000.0f);
 
         out.modalMix = 0.6f;
-        out.noiseMix = 0.4f;
+        // Brighter / more-metallic bodies carry more of their tail in the noise
+        // wash (a cymbal's sizzle), darker bodies less (Phase 2 / T5). Default
+        // material 0.5 gives 0.45, close to the legacy 0.4.
+        out.noiseMix = lerp(0.35f, 0.55f, params.material);
 
         return out;
     }
