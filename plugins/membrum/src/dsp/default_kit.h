@@ -222,10 +222,15 @@ inline void applyTemplate(PadConfig& cfg, DrumTemplate tmpl, float sizeOverride 
             // also what keeps the voice above the pool's -60 dBFS auto-release
             // floor for the full tail instead of being cut at ~1.5 s.
             //   b1 = 0.2 + 0.020*49.8 ~ 1.2 s^-1  -> lowest-mode T60 ~ 4.6 s
-            //   b3 = 6.0e-5 * 1e-3 s              -> 15 kHz decayRate ~ 15.5 s^-1
-            //                                        -> top-octave T60 ~ 0.45 s
+            //   b3 = 8.0e-5 * 1e-3 s              -> 15 kHz decayRate ~ 19 s^-1
+            //                                        -> top-octave T60 ~ 0.36 s
+            // b3 is tuned up (vs the naive 6e-5) because a slightly faster HF
+            // roll-off makes the tail DENSER-sounding / less tonal: a small set
+            // of surviving mid modes reinforces a pitch, whereas rolling them
+            // off sooner leaves the broadband wash in charge (lower tail pitch
+            // salience -- AC-4).
             cfg.bodyDampingB1 = 0.020f;
-            cfg.bodyDampingB3 = 0.00006f;
+            cfg.bodyDampingB3 = 0.00008f;
             // Phase 7.1: sustained shimmer noise, short stick click.
             cfg.noiseLayerMix        = 0.95f;
             cfg.noiseLayerCutoff     = 0.82f;
@@ -237,7 +242,7 @@ inline void applyTemplate(PadConfig& cfg, DrumTemplate tmpl, float sizeOverride 
             // SOS "HP-noise tail"): darkens the onset, brings HF up over the
             // first ~50 ms, then darkens through the tail. Like the snare wire
             // gain, mix + the -18 dBFS ceiling alone can't reach wash level.
-            cfg.noiseLayerGain       = 2.6f;
+            cfg.noiseLayerGain       = 3.5f;
             // Darker, quieter stick click so the onset is not a bright tick that
             // pins the HF maximum at t=0 (defeats the bloom).
             cfg.clickLayerMix        = 0.30f;
