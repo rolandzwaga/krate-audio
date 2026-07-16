@@ -199,6 +199,18 @@ No voicing changes; role/mapping change only (§6).
   3. **MIDI 55:** move **crotales-lo** off the Splash slot to pad 16 (MIDI 52), adjacent to crotales-hi (17); place a **splash-role voice at 55** — a copy of the fixed pad 6 with `decay 0.25, size 0.15`.
   4. **Keep:** the documented 36-timpani/40-gran-cassa swap, the 42/44/46 suspended-cymbal set, 49 gong, 51 ride — role-compatible under GM content and load-bearing for the kit's identity.
   Update `k.crafted` (:2814) and the plan doc's pad table to match.
+
+  > **IMPLEMENTED (phase b, 2026-07-16).** Final layout: 6th timpani at pad 12 (MIDI 48;
+  > hi 395 → lo 190 Hz, size 0.64, decay 0.54, b1 0.19, skew 0.54, pan 0.545 — interpolated
+  > between the 350 and 440 Hz tunings); triangle → pad 18 (MIDI 54); crotales-lo → pad 16
+  > (MIDI 52); splash-role at pad 19 (MIDI 55) = pad-6 copy with decay 0.25 / size 0.15 /
+  > pan 0.35 (choke group 1 shared with the sus-cymbal set; body sits below the washBlend
+  > gate by design — the ~1 s violet noise layer carries the splash sizzle); tubular bell →
+  > pad 23 (MIDI 59). **MIDI 39 decision: castanet stand-in** (GS/XG orchestral tradition),
+  > Shell/Impulse: material 0.30, size 0.18 (f0 ≈ 1 kHz clack), decay 0.10, b1 0.55/b3 0.20,
+  > click 0.75/contact 0.06/brightness 0.85, scatter 0.15, level 0.75, pan 0.45. Castanet
+  > values are a first voicing (no archetype doc exists) — audition and refine by ear.
+  > `k.crafted` now {0..19, 23} (21 pads).
 - **Plan-doc hygiene (05-orchestralKit.md), one pass:** maxPolyphony 20→16; delete/rewrite stale deviation #6 (crash archetype no longer specifies inject 0.25 post-ea89c6c2 — generator's 0 agrees with the CURRENT archetype); remove deviation #7 (timpani inject) and #4 (airLoading 0.80) per §4.1; add NEW deviations: ride decay/wash rebalance (§4.7), gong Plate swap + 0.4 s morph (§4.6), sus-cymbal struck role (decay 0.85 vs archetype closed 0.15); sync pad-1 spec (§4.10), pad-4 b1 line (0.30→0.05); record metallic levels and the GM remap.
 
 ## 7. Constraint compliance

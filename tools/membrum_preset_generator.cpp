@@ -2622,24 +2622,29 @@ Kit orchestralKit() {
     pads[4].couplingAmount = 0.60;
     pads[4].pan = 0.50;
 
-    // Timpani toms -- the SAME instrument as pad 0, 5 tunings. airLoading
+    // Timpani toms -- the SAME instrument as pad 0, 6 tunings. airLoading
     // 1.00 (matches pad 0; full loading is the (m,1) pitch-fusion trick),
     // strikePosition 0.83 edge strike (lifts the pitch-carrying (1,1) mode),
     // modeInject 0 (rings undamped -- the old 0.10-0.12 plateau read as a
     // synth bass note), level 0.82, per-mode decaySkew tilt + pan row sweep.
-    const int    timpaniPads[]   = {5, 7, 9, 11, 14};
-    const double timpaniSize[]   = {0.88, 0.82, 0.75, 0.68, 0.60};
-    const double timpaniHi[]     = {180, 220, 280, 350, 440};
-    const double timpaniLo[]     = {80, 100, 130, 165, 215};
-    const double timpaniDecay[]  = {0.80, 0.72, 0.65, 0.58, 0.50};
-    const double timpaniB1[]     = {0.10, 0.12, 0.14, 0.17, 0.21};
-    const double timpaniSkew[]   = {0.45, 0.47, 0.50, 0.53, 0.55};
-    const double timpaniPan[]    = {0.38, 0.43, 0.47, 0.52, 0.57};
-    for (int i = 0; i < 5; ++i) {
+    // Pad 12 (MIDI 48, GM Hi-Mid Tom) is a 6th tuning inserted between 11
+    // and 14 so GM tom fills run clean across 41/43/45/47/48/50 (the
+    // triangle that used to sit on 48 moved to pad 18 / MIDI 54).
+    const int    timpaniPads[]   = {5, 7, 9, 11, 12, 14};
+    const double timpaniMat[]    = {0.32, 0.36, 0.40, 0.44, 0.46, 0.48};
+    const double timpaniSize[]   = {0.88, 0.82, 0.75, 0.68, 0.64, 0.60};
+    const double timpaniHi[]     = {180, 220, 280, 350, 395, 440};
+    const double timpaniLo[]     = {80, 100, 130, 165, 190, 215};
+    const double timpaniDecay[]  = {0.80, 0.72, 0.65, 0.58, 0.54, 0.50};
+    const double timpaniB1[]     = {0.10, 0.12, 0.14, 0.17, 0.19, 0.21};
+    const double timpaniSkew[]   = {0.45, 0.47, 0.50, 0.53, 0.54, 0.55};
+    const double timpaniMacro[]  = {0.85, 0.80, 0.75, 0.70, 0.675, 0.65};
+    const double timpaniPan[]    = {0.38, 0.43, 0.47, 0.52, 0.545, 0.57};
+    for (int i = 0; i < 6; ++i) {
         const int p = timpaniPads[i];
         pads[p].exciterType = ExciterType::Mallet;
         pads[p].bodyModel = BodyModelType::Membrane;
-        pads[p].material = 0.32 + 0.04 * i;
+        pads[p].material = timpaniMat[i];
         pads[p].size = timpaniSize[i];
         pads[p].decay = timpaniDecay[i];
         pads[p].level = 0.82;
@@ -2660,29 +2665,30 @@ Kit orchestralKit() {
         pads[p].clickLayerMix    = 0.32; pads[p].clickLayerContactMs = 0.28;
         pads[p].clickLayerBrightness = 0.32;
         pads[p].bodyDampingB1 = timpaniB1[i]; pads[p].bodyDampingB3 = 0.10;
-        pads[p].macroBodySize = 0.85 - 0.05 * i;
+        pads[p].macroBodySize = timpaniMacro[i];
         pads[p].macroComplexity = 0.55;
         pads[p].couplingAmount = 0.55;
         pads[p].pan = timpaniPan[i];
     }
 
-    // Triangle (12) -- Bell -> Shell (free-free bar 1:2.757:5.404).
-    pads[12].exciterType = ExciterType::Impulse;
-    pads[12].bodyModel = BodyModelType::Shell;
-    pads[12].material = 0.95; pads[12].size = 0.085; pads[12].decay = 0.85;
-    pads[12].level = 0.72;   // archetype value (0.65 was clip-dodging leftover)
-    pads[12].strikePosition = 0.18;   // free-end antinode
-    pads[12].modeStretch = 0.62; pads[12].decaySkew = 0.40;
-    pads[12].modeScatter = 0.12;
-    pads[12].clickLayerMix = 0.95; pads[12].clickLayerContactMs = 0.10;
-    pads[12].clickLayerBrightness = 0.97;
-    pads[12].noiseLayerMix = 0.0;
-    pads[12].airLoading = 0.0;
-    pads[12].bodyDampingB3 = 0.0;    // 0.02 killed the ~6.7 kHz shimmer in 7 ms
-    pads[12].bodyDampingB1 = 0.02;   // T60 ~5.8 s ring (0.30 choked it at 0.46 s)
-    pads[12].outputBus = 1;
-    pads[12].macroBrightness = 0.95; pads[12].macroComplexity = 0.30;
-    pads[12].pan = 0.62;
+    // Triangle (18, MIDI 54; moved off GM Hi-Mid Tom 48 so tom fills don't
+    // ding a triangle) -- Bell -> Shell (free-free bar 1:2.757:5.404).
+    pads[18].exciterType = ExciterType::Impulse;
+    pads[18].bodyModel = BodyModelType::Shell;
+    pads[18].material = 0.95; pads[18].size = 0.085; pads[18].decay = 0.85;
+    pads[18].level = 0.72;   // archetype value (0.65 was clip-dodging leftover)
+    pads[18].strikePosition = 0.18;   // free-end antinode
+    pads[18].modeStretch = 0.62; pads[18].decaySkew = 0.40;
+    pads[18].modeScatter = 0.12;
+    pads[18].clickLayerMix = 0.95; pads[18].clickLayerContactMs = 0.10;
+    pads[18].clickLayerBrightness = 0.97;
+    pads[18].noiseLayerMix = 0.0;
+    pads[18].airLoading = 0.0;
+    pads[18].bodyDampingB3 = 0.0;    // 0.02 killed the ~6.7 kHz shimmer in 7 ms
+    pads[18].bodyDampingB1 = 0.02;   // T60 ~5.8 s ring (0.30 choked it at 0.46 s)
+    pads[18].outputBus = 1;
+    pads[18].macroBrightness = 0.95; pads[18].macroComplexity = 0.30;
+    pads[18].pan = 0.62;
 
     // Suspended cymbal -- struck (6), choke group 1.
     // decay 0.85: washBlend = clamp((decay-0.5)*2) was 0 at the old 0.50 --
@@ -2811,10 +2817,18 @@ Kit orchestralKit() {
     pads[17].macroBrightness = 0.85;
     pads[17].pan = 0.68;
 
-    // Crotales lo (19, NEW) -- larger constituent bells.
-    pads[19] = pads[17];
-    pads[19].size = 0.22; pads[19].material = 0.88;
-    pads[19].pan = 0.32;
+    // Crotales lo (16, MIDI 52; moved off the GM Splash slot 55) -- larger
+    // constituent bells, adjacent to crotales hi.
+    pads[16] = pads[17];
+    pads[16].size = 0.22; pads[16].material = 0.88;
+    pads[16].pan = 0.32;
+
+    // Splash-role cymbal (19, MIDI 55 = GM Splash) -- short bright copy of
+    // the fixed suspended cymbal so GM content lands on a splash, not a
+    // chime. Shares choke group 1 with the sus-cymbal set.
+    pads[19] = pads[6];
+    pads[19].decay = 0.25; pads[19].size = 0.15;
+    pads[19].pan = 0.35;
 
     // Bell Tree (1, NEW) -- Bell/NoiseBurst cascade with morph dim.
     // decaySkew 0.22 (phys -0.56): NEGATIVE skew lifts the upper partials
@@ -2841,21 +2855,39 @@ Kit orchestralKit() {
     pads[1].outputBus = 1;
     pads[1].pan = 0.55;
 
-    // Tubular bell (3) -- String/Mallet (modal axes inert no-ops on String).
-    pads[3].exciterType = ExciterType::Mallet;
-    pads[3].bodyModel = BodyModelType::String;
-    pads[3].material = 0.85; pads[3].size = 0.55; pads[3].decay = 0.92;
-    pads[3].level = 0.78;
-    pads[3].strikePosition = 0.30;
-    pads[3].modeStretch = 0.50;
-    pads[3].clickLayerMix = 0.40; pads[3].clickLayerContactMs = 0.20;
-    pads[3].clickLayerBrightness = 0.65;
-    pads[3].noiseLayerMix = 0.10;
+    // Tubular bell (23, MIDI 59; moved off the GM Clap slot 39 -- a chime
+    // under a "Clap" label was the user-facing mismatch) -- String/Mallet
+    // (modal axes inert no-ops on String).
+    pads[23].exciterType = ExciterType::Mallet;
+    pads[23].bodyModel = BodyModelType::String;
+    pads[23].material = 0.85; pads[23].size = 0.55; pads[23].decay = 0.92;
+    pads[23].level = 0.78;
+    pads[23].strikePosition = 0.30;
+    pads[23].modeStretch = 0.50;
+    pads[23].clickLayerMix = 0.40; pads[23].clickLayerContactMs = 0.20;
+    pads[23].clickLayerBrightness = 0.65;
+    pads[23].noiseLayerMix = 0.10;
+    pads[23].airLoading = 0.0;
+    pads[23].bodyDampingB1 = 0.30; pads[23].bodyDampingB3 = 0.20;
+    pads[23].decaySkew = 0.55;
+    pads[23].outputBus = 1;
+    pads[23].pan = 0.58;
+
+    // Castanets (3, MIDI 39 = GM Clap slot) -- short dry Shell/Impulse
+    // stand-in (castanets-on-39 is orchestral GS/XG tradition; a clap has
+    // no orchestral role). Shell f0 ~1 kHz clack, hard-damped, bright tick.
+    pads[3].exciterType = ExciterType::Impulse;
+    pads[3].bodyModel = BodyModelType::Shell;
+    pads[3].material = 0.30; pads[3].size = 0.18; pads[3].decay = 0.10;
+    pads[3].level = 0.75;
+    pads[3].strikePosition = 0.25;
+    pads[3].modeScatter = 0.15;
+    pads[3].clickLayerMix = 0.75; pads[3].clickLayerContactMs = 0.06;
+    pads[3].clickLayerBrightness = 0.85;
+    pads[3].noiseLayerMix = 0.0;
     pads[3].airLoading = 0.0;
-    pads[3].bodyDampingB1 = 0.30; pads[3].bodyDampingB3 = 0.20;
-    pads[3].decaySkew = 0.55;
-    pads[3].outputBus = 1;
-    pads[3].pan = 0.58;
+    pads[3].bodyDampingB1 = 0.55; pads[3].bodyDampingB3 = 0.20;
+    pads[3].pan = 0.45;
 
     // Kit globals: headroom recovered post-N-1, so coupling/polyphony
     // restored (long timpani/gong/chime tails overlap; sympathetic
@@ -2865,8 +2897,11 @@ Kit orchestralKit() {
     k.opts.snareBuzz       = 0.20;
     k.opts.tomResonance    = 0.35;
     k.opts.couplingDelayMs = 1.6;
-    // 18 sounding pads; 16, 18, 20-31 disabled (no aux-perc role).
-    k.crafted = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 17, 19};
+    // 21 sounding pads (GM-remapped: timpani row fills 41-50 incl. 48,
+    // castanets on the Clap slot 39, splash-role on 55, triangle on 54,
+    // crotales pair on 52/53, tubular bell on 59); pads 20-22 and 24-31
+    // disabled.
+    k.crafted = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 23};
     return k;
 }
 Kit nineOhNineKit() {
