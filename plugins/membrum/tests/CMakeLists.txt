@@ -23,6 +23,7 @@ add_executable(membrum_tests
 
     # Phase 2: exciter tests
     unit/exciters/test_impulse_exciter.cpp
+    unit/exciters/test_mallet_contact_hint.cpp
     unit/exciters/test_mallet_exciter.cpp
     unit/exciters/test_noise_burst_exciter.cpp
     unit/exciters/test_clap_exciter.cpp

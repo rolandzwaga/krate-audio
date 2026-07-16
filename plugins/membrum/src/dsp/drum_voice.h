@@ -333,6 +333,12 @@ public:
         unnaturalZone_.nonlinearCoupling.setVelocity(velocity);
         unnaturalZone_.nonlinearCoupling.reset();
 
+        // D4 (06-orchestralKit-fix-plan.md): mallet contact time scales with
+        // the struck body -- crotale-sized bodies get ~1 ms contacts, timpani
+        // keep the long soft thump. Cached in the bank, so it survives the
+        // deferred exciter swap inside trigger().
+        exciterBank_.setMalletBodySizeHint(size_);
+
         // Trigger exciter (applies deferred exciter-type swap).
         exciterBank_.trigger(velocity);
 

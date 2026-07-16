@@ -166,6 +166,16 @@ public:
             std::get<FrictionExciter>(active_).setPressure(normalized);
     }
 
+    /// D4 (06-orchestralKit-fix-plan.md): forward the body-size contact hint
+    /// to the Mallet exciter if it is (or is about to be) the active variant.
+    /// Cached so a later variant swap re-applies it.
+    void setMalletBodySizeHint(float sizeNorm) noexcept
+    {
+        pendingMalletSizeHint_ = sizeNorm;
+        if (std::holds_alternative<MalletExciter>(active_))
+            std::get<MalletExciter>(active_).setBodySizeHint(sizeNorm);
+    }
+
 private:
     using Variant = std::variant<
         ImpulseExciter,
@@ -228,6 +238,8 @@ private:
             std::get<FeedbackExciter>(active_).setFeedbackAmount(pendingFeedbackNorm_);
         if (std::holds_alternative<FrictionExciter>(active_))
             std::get<FrictionExciter>(active_).setPressure(pendingFrictionNorm_);
+        if (std::holds_alternative<MalletExciter>(active_))
+            std::get<MalletExciter>(active_).setBodySizeHint(pendingMalletSizeHint_);
     }
 
     Variant      active_;
@@ -241,6 +253,7 @@ private:
     float        pendingFMRatioNorm_  = (1.4f - 1.0f) / 3.0f;
     float        pendingFeedbackNorm_ = 0.0f;
     float        pendingFrictionNorm_ = 0.0f;
+    float        pendingMalletSizeHint_ = 1.0f;  // D4: neutral = legacy mass
     std::uint32_t voiceId_    = 0;
 };
 
