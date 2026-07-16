@@ -324,6 +324,11 @@ public:
         // randomize phases by calling trigger(). NonlinearCoupling picks up
         // velocity for its cross-modal strength.
         unnaturalZone_.modeInject.setFundamentalHz(naturalFundamentalHz_);
+        // D2 (06-orchestralKit-fix-plan.md): tie the inject decay envelope to
+        // the pad's decay so the synthetic series dies WITH the drum instead
+        // of ringing as an undamped plateau. Perceptual curve, not physical:
+        // decay 0 -> ~0.3 s, decay 1 -> ~5 s.
+        unnaturalZone_.modeInject.setDecaySeconds(0.3f + 4.7f * decay_ * decay_);
         unnaturalZone_.modeInject.trigger();
         unnaturalZone_.nonlinearCoupling.setVelocity(velocity);
         unnaturalZone_.nonlinearCoupling.reset();
