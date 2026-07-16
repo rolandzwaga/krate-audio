@@ -4,7 +4,7 @@
 // DefaultKit -- GM-inspired default kit templates for Membrum Phase 4
 // ==============================================================================
 // FR-030: All 32 pads initialized with GM-inspired defaults on first load
-// FR-031: 6 template archetypes (Kick, Snare, Tom, Hat, Cymbal, Perc)
+// FR-031: 7 template archetypes (Kick, Snare, Tom, Hat, Cymbal, Perc, Clap)
 // FR-032: Choke group 1 for hats (MIDI 42, 44, 46)
 // FR-033: Tom pads have progressively increasing Size values
 // ==============================================================================

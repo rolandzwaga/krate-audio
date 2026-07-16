@@ -359,7 +359,7 @@ TEST_CASE("Benchmark144: every combination under 1.25% CPU",
     // ModalResonatorBank API to decouple smoothCoefficients from
     // processSample (cross-layer change). The waiver limit is set to
     // the US7-3 hard ceiling of 2.0% for this single cell. All other
-    // 143/144 cells remain gated on the 1.25% budget.
+    // 167/168 cells remain gated on the 1.25% budget.
     constexpr double kFeedbackNoiseBodyTsUnWaiverPct = 2.00;  // = hard ceiling
     for (const auto& r : results)
     {
