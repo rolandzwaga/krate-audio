@@ -1,62 +1,17 @@
 #include "render_voice.h"
 
 #include "dsp/drum_voice.h"
-#include "dsp/tone_shaper.h"
+// The PadConfig -> DrumVoice mapping is the SHARED production helper --
+// the fitter renders through the identical application surface the plugin
+// uses (noise/click layers, damping overrides, airLoading, modeInject,
+// wireCoupling, secondary shell, material morph included). A private,
+// partial copy used to live here and silently dropped all of those
+// (06-orchestralKit-fix-plan.md D1).
+#include "dsp/pad_config_apply.h"
 
 #include <cmath>
 
 namespace MembrumFit {
-
-namespace {
-
-// Denormalisation helpers matching plugins/membrum/src/processor/processor.cpp.
-// PadConfig stores normalised [0,1] floats; the production processor maps
-// them to physical units before pushing to DrumVoice. The fitter must use the
-// SAME mapping or its rendered loss surface diverges from runtime behaviour.
-inline float denormCutoffHz(float n)   { return 20.0f * std::pow(1000.0f, std::clamp(n, 0.0f, 1.0f)); }
-inline float denormResonance(float n)  { return 0.7f + 9.3f * std::clamp(n, 0.0f, 1.0f); }
-inline float denormPitchHz(float n)    { return 20.0f * std::pow(100.0f, std::clamp(n, 0.0f, 1.0f)); }
-inline float denormPitchTimeMs(float n){ return 500.0f * std::clamp(n, 0.0f, 1.0f); }
-inline float denormFilterEnvMs(float n){ return 5000.0f * std::clamp(n, 0.0f, 1.0f); }
-inline float denormFilterEnvAmt(float n){ return 2.0f * std::clamp(n, 0.0f, 1.0f) - 1.0f; }
-inline float denormModeStretch(float n){ return 0.5f + 1.5f * std::clamp(n, 0.0f, 1.0f); }
-inline float denormDecaySkew(float n)  { return 2.0f * std::clamp(n, 0.0f, 1.0f) - 1.0f; }
-
-void applyPadConfig(Membrum::DrumVoice& v, const Membrum::PadConfig& cfg) {
-    v.setExciterType(cfg.exciterType);
-    v.setBodyModel(cfg.bodyModel);
-    v.setMaterial(cfg.material);
-    v.setSize(cfg.size);
-    v.setDecay(cfg.decay);
-    v.setStrikePosition(cfg.strikePosition);
-    v.setLevel(cfg.level);
-
-    auto& ts = v.toneShaper();
-    const int filterTypeI = static_cast<int>(std::round(cfg.tsFilterType * 2.0f));
-    ts.setFilterType(static_cast<Membrum::ToneShaperFilterType>(std::clamp(filterTypeI, 0, 2)));
-    ts.setFilterCutoff(denormCutoffHz(cfg.tsFilterCutoff));
-    ts.setFilterResonance(denormResonance(cfg.tsFilterResonance));
-    ts.setFilterEnvAmount(denormFilterEnvAmt(cfg.tsFilterEnvAmount));
-    ts.setDriveAmount(std::clamp(cfg.tsDriveAmount, 0.0f, 1.0f));
-    ts.setFoldAmount(std::clamp(cfg.tsFoldAmount, 0.0f, 1.0f));
-    ts.setPitchEnvStartHz(denormPitchHz(cfg.tsPitchEnvStart));
-    ts.setPitchEnvEndHz(denormPitchHz(cfg.tsPitchEnvEnd));
-    ts.setPitchEnvTimeMs(denormPitchTimeMs(cfg.tsPitchEnvTime));
-    ts.setPitchEnvCurve(cfg.tsPitchEnvCurve > 0.5f
-                        ? Membrum::ToneShaperCurve::Linear
-                        : Membrum::ToneShaperCurve::Exponential);
-    ts.setFilterEnvAttackMs(denormFilterEnvMs(cfg.tsFilterEnvAttack));
-    ts.setFilterEnvDecayMs (denormFilterEnvMs(cfg.tsFilterEnvDecay));
-    ts.setFilterEnvSustain (std::clamp(cfg.tsFilterEnvSustain, 0.0f, 1.0f));
-    ts.setFilterEnvReleaseMs(denormFilterEnvMs(cfg.tsFilterEnvRelease));
-
-    auto& uz = v.unnaturalZone();
-    uz.setModeStretch(denormModeStretch(cfg.modeStretch));
-    uz.setDecaySkew  (denormDecaySkew  (cfg.decaySkew));
-    // mode inject / nonlinear coupling have their own setter API; Phase 3 hooks them up.
-}
-
-}  // namespace
 
 struct RenderableMembrumVoice::Impl {
     Membrum::DrumVoice voice;
@@ -73,7 +28,7 @@ void RenderableMembrumVoice::prepare(double sampleRate, int blockSize) {
 
 void RenderableMembrumVoice::render(const Membrum::PadConfig& cfg, float velocity, std::span<float> out) {
     auto& v = impl_->voice;
-    applyPadConfig(v, cfg);
+    Membrum::applyPadConfigToVoice(v, cfg);
     v.noteOn(std::clamp(velocity, 0.0f, 1.0f));
     int remaining = static_cast<int>(out.size());
     int offset = 0;

@@ -93,8 +93,13 @@ public:
     static constexpr float kLegacyMaxB3 = 4.0e-5f;
 
     /// Build a DampingLaw from the legacy (decayTime, brightness) pair.
-    /// decayTime is the t60 for low-frequency modes; brightness rebalances
-    /// the b3 term so brightness=1.0 removes frequency-squared damping.
+    /// decayTime is the 1/e amplitude time constant for low-frequency modes
+    /// (b1 = 1/decayTime), NOT the T60: T60 = ln(1000) * decayTime ~= 6.9x
+    /// decayTime. (Historic comment claimed t60 -- every caller is tuned to
+    /// the actual 1/e behaviour, so reconciling the semantics is a separate
+    /// audited change; see 06-orchestralKit-fix-plan.md D9.) brightness
+    /// rebalances the b3 term so brightness=1.0 removes frequency-squared
+    /// damping.
     [[nodiscard]] static DampingLaw dampingLawFromLegacy(float decayTime,
                                                          float brightness) noexcept
     {
