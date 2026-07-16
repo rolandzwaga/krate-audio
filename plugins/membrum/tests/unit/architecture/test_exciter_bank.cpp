@@ -32,7 +32,7 @@ inline bool isFiniteSample(float x) noexcept
 
 } // namespace
 
-TEST_CASE("ExciterBank: variant holds all 6 alternatives",
+TEST_CASE("ExciterBank: variant holds all 7 alternatives",
           "[membrum][architecture][exciter_bank]")
 {
     Membrum::ExciterBank bank;
@@ -45,6 +45,7 @@ TEST_CASE("ExciterBank: variant holds all 6 alternatives",
         Membrum::ExciterType::Friction,
         Membrum::ExciterType::FMImpulse,
         Membrum::ExciterType::Feedback,
+        Membrum::ExciterType::Clap,
     };
 
     for (auto t : types)
@@ -150,6 +151,7 @@ constexpr const char* exName(Membrum::ExciterType t) noexcept
     case Membrum::ExciterType::Friction:   return "Friction";
     case Membrum::ExciterType::FMImpulse:  return "FMImpulse";
     case Membrum::ExciterType::Feedback:   return "Feedback";
+    case Membrum::ExciterType::Clap:       return "Clap";
     default:                               return "Unknown";
     }
 }
@@ -170,7 +172,7 @@ constexpr const char* bdName(Membrum::BodyModelType t) noexcept
 
 } // namespace
 
-TEST_CASE("ExciterBodyMatrix: sample-rate sweep (36 combos × 5 rates, no NaN/Inf)",
+TEST_CASE("ExciterBodyMatrix: sample-rate sweep (42 combos × 5 rates, no NaN/Inf)",
           "[membrum][architecture][matrix][phase9][samplerate]")
 {
     constexpr double kRates[] = {22050.0, 44100.0, 48000.0, 96000.0, 192000.0};

@@ -151,6 +151,7 @@ TEST_CASE("BellBody: finite output across all exciters",
         Membrum::ExciterType::Friction,
         Membrum::ExciterType::FMImpulse,
         Membrum::ExciterType::Feedback,
+        Membrum::ExciterType::Clap,
     };
 
     for (auto et : exciters)

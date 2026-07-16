@@ -25,6 +25,7 @@ add_executable(membrum_tests
     unit/exciters/test_impulse_exciter.cpp
     unit/exciters/test_mallet_exciter.cpp
     unit/exciters/test_noise_burst_exciter.cpp
+    unit/exciters/test_clap_exciter.cpp
     unit/exciters/test_friction_exciter.cpp
     unit/exciters/test_fm_impulse_exciter.cpp
     unit/exciters/test_feedback_exciter.cpp
@@ -169,6 +170,9 @@ add_executable(membrum_tests
 
     # Crash-cymbal acceptance tests (CRASH-REDESIGN-PLAN.md)
     unit/dsp/test_crash_acceptance.cpp
+
+    # Hand-clap acceptance tests (HAND-CLAP-PLAN)
+    unit/dsp/test_clap_acceptance.cpp
 
     # Factory kit preset round-trip
     unit/preset/test_factory_kit_presets.cpp

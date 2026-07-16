@@ -301,6 +301,7 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
         excList->appendString(STR16("Friction"));
         excList->appendString(STR16("FMImpulse"));
         excList->appendString(STR16("Feedback"));
+        excList->appendString(STR16("Clap"));
         parameters.addParameter(excList);
     }
     {
@@ -687,6 +688,7 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
                 list->appendString(STR16("Friction"));
                 list->appendString(STR16("FMImpulse"));
                 list->appendString(STR16("Feedback"));
+                list->appendString(STR16("Clap"));
                 parameters.addParameter(list);
             }
             else if (spec.isDiscrete && spec.offset == kPadBodyModel)

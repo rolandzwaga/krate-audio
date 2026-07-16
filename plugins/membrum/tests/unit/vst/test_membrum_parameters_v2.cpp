@@ -40,7 +40,7 @@ using namespace Steinberg::Vst;
 namespace {
 
 constexpr int kExpectedParameterCount = 2181;  // Phase 2 (34) + Phase 3 (3) + Phase 4 (1 + 1152) + Phase 5 (4) + Phase 6 US4 (32 per-pad coupling amounts) + Phase 6 US1 (1 session-scoped global + 32*5 macros = 161) + Phase 8 US7 (1 output-bus proxy) + Phase 7 (8 global noise/click proxies + 32*8 per-pad = 264) + Phase 8A (2 global damping proxies + 32*2 per-pad = 66) + Phase 8C (2 global airLoading/scatter proxies + 32*2 per-pad = 66) + Phase 8D (4 + 128) + Phase 8E (1 + 32) + Phase 8F per-pad enable (1 + 32) + Phase 9 master gain (1 true global, no per-pad) + Phase 10 three-point pitch env (4 global proxies + 32*4 per-pad = 132) + M-9 per-pad pan (1 global proxy + 32*1 per-pad = 33) + wire-coupling (1 global proxy + 32*1 per-pad = 33)
-constexpr int kExpectedExciterCount   = 6;
+constexpr int kExpectedExciterCount   = 7;  // = ExciterType::kCount (Clap added)
 constexpr int kExpectedBodyCount      = 6;
 
 // Centralised list of every parameter the controller is required to expose
@@ -185,10 +185,10 @@ TEST_CASE("Phase 2 contract: setParamNormalized round-trips bit-exact for all 34
 
 // ==============================================================================
 // (4) StringListParameter range coverage:
-//     Exciter Type and Body Model each map normalized 0..1 to 6 distinct
-//     plain integer values 0..5.
+//     Exciter Type maps normalized 0..1 to 7 distinct plain integer values
+//     0..6; Body Model maps to 6 distinct values 0..5.
 // ==============================================================================
-TEST_CASE("Phase 2 contract: Exciter Type StringListParameter spans 6 integer values",
+TEST_CASE("Phase 2 contract: Exciter Type StringListParameter spans 7 integer values",
           "[membrum][vst][params][contract]")
 {
     Membrum::Controller controller;

@@ -4,6 +4,7 @@
 
 #include "controller/controller.h"
 #include "plugin_ids.h"
+#include "dsp/exciter_type.h"
 #include "dsp/pad_config.h"
 
 #include "public.sdk/source/vst/vstparameters.h"
@@ -114,10 +115,11 @@ TEST_CASE("Controller: per-pad discrete params are StringListParameter", "[pad_p
 {
     TestController tc;
 
-    // ExciterType for pad 0 (offset 0) should be a list with 6 choices
+    // ExciterType for pad 0 (offset 0) should be a list with 7 choices
     auto* excParam = tc.findParam(static_cast<ParamID>(padParamId(0, kPadExciterType)));
     REQUIRE(excParam != nullptr);
-    CHECK(excParam->getInfo().stepCount == 5); // 6 values = 5 steps
+    CHECK(excParam->getInfo().stepCount ==
+          static_cast<int32>(Membrum::ExciterType::kCount) - 1); // 7 values = 6 steps
 
     // BodyModel for pad 0 (offset 1) should be a list with 6 choices
     auto* bodyParam = tc.findParam(static_cast<ParamID>(padParamId(0, kPadBodyModel)));

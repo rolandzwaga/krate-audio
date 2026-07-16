@@ -4,7 +4,7 @@
 // DefaultKit -- GM-inspired default kit templates for Membrum Phase 4
 // ==============================================================================
 // FR-030: All 32 pads initialized with GM-inspired defaults on first load
-// FR-031: 6 template archetypes (Kick, Snare, Tom, Hat, Cymbal, Perc)
+// FR-031: 7 template archetypes (Kick, Snare, Tom, Hat, Cymbal, Perc, Clap)
 // FR-032: Choke group 1 for hats (MIDI 42, 44, 46)
 // FR-033: Tom pads have progressively increasing Size values
 // ==============================================================================
@@ -27,6 +27,7 @@ enum class DrumTemplate
     Hat,
     Cymbal,
     Perc,
+    Clap,
 };
 
 namespace DefaultKit {
@@ -290,6 +291,62 @@ inline void applyTemplate(PadConfig& cfg, DrumTemplate tmpl, float sizeOverride 
             cfg.airLoading  = 0.4f;
             cfg.modeScatter = 0.15f;
             break;
+
+        case DrumTemplate::Clap:
+            // Hand-clap (HAND-CLAP-PLAN). A clap is NOT a struck resonant body:
+            // it is a multi-burst broadband noise flam + a diffuse room tail.
+            //   * ClapExciter fires 4 bandpassed noise bursts (~10 ms apart) ->
+            //     the "several hands not quite in sync" attack.
+            //   * NoiseBody (dense-mode wash) gives broadband colour. NoiseBody
+            //     is 0.6*modalBank + noise with a FIXED modalMix=0.6 (see
+            //     noise_body_mapper.h) and a modal fundamental f0 = 1500 *
+            //     0.1^size, so pitch salience is real -- it is killed here with
+            //     HEAVY modeScatter + modeStretch (like Cymbal), NOT by relying
+            //     on NoiseBody being pitch-free (it is not).
+            //   * Short body decay + high damping so the modal ring dies fast and
+            //     the 4 bursts stay resolvable (no smearing into one blob).
+            //   * The parallel NoiseLayer supplies the ~200 ms diffuse tail (the
+            //     808 "reverb"); its gain is tuned AGAINST burst resolvability
+            //     (a loud smooth noise floor fills the inter-burst valleys).
+            //   * clickLayer is a small, dark crack -- NOT a bright metallic tick.
+            //   * No modeInject / coupling (a clap has no pitch and must not ring
+            //     undamped).
+            cfg.exciterType = ExciterType::Clap;
+            cfg.bodyModel   = BodyModelType::NoiseBody;
+            cfg.material       = 0.70f;   // moderate broadband brightness
+            cfg.size           = 0.25f;
+            cfg.decay          = 0.10f;   // short modal ring
+            cfg.strikePosition = 0.3f;
+            cfg.level          = 0.8f;
+            // Fast modal decay so the four bursts do not smear together.
+            cfg.bodyDampingB1  = 0.65f;   // high flat damping (short T60)
+            cfg.bodyDampingB3  = 0.30f;
+            // Diffuse "room" tail: low-passed white noise, ~200 ms decay. Gain is
+            // START value; the burst-resolvability test (test_clap_acceptance
+            // test 1) and the tail-audibility test (test 4) TRADE OFF against
+            // this -- tune together.
+            cfg.noiseLayerMix        = 0.70f;
+            cfg.noiseLayerCutoff     = 0.60f;  // parallel layer is LOWPASS (~1.6
+                                               // kHz): tail sits under the burst
+                                               // band and pulls the centroid down.
+            cfg.noiseLayerResonance  = 0.20f;
+            cfg.noiseLayerDecay      = 0.58f;  // ~300 ms tail
+            cfg.noiseLayerColor      = 0.60f;  // white
+            cfg.noiseLayerGain       = 2.20f;  // tail must be AUDIBLE (T60 gate);
+                                               // burst valleys have ~5x margin, so
+                                               // this stays resolvability-safe.
+            // Small dark crack for the initial contact (not a bright ping).
+            cfg.clickLayerMix        = 0.25f;
+            cfg.clickLayerContactMs  = 0.15f;
+            cfg.clickLayerBrightness = 0.50f;
+            // PRIMARY anti-pitch levers (NoiseBody's modalMix is fixed at 0.6 and
+            // is NOT a PadConfig field, so these + damping are the only controls):
+            cfg.airLoading  = 0.0f;
+            cfg.modeScatter = 0.35f;   // heavy scatter -> inharmonic cloud (Cymbal
+                                       // uses 0.35 for exactly this reason).
+            cfg.modeStretch = 0.60f;   // stretch the plate ratios off their tuned
+                                       // grid so no single partial dominates.
+            break;
     }
 
     // Apply size override for toms (FR-033)
@@ -307,7 +364,7 @@ inline void applyTemplate(PadConfig& cfg, DrumTemplate tmpl, float sizeOverride 
 //  0    36   Bass Drum 1          Kick       -
 //  1    37   Side Stick           Perc       -
 //  2    38   Acoustic Snare       Snare      -
-//  3    39   Hand Clap            Perc       -
+//  3    39   Hand Clap            Clap       -
 //  4    40   Electric Snare       Snare      -
 //  5    41   Low Floor Tom        Tom        0.8
 //  6    42   Closed Hi-Hat        Hat        -  (choke 1)
@@ -350,7 +407,7 @@ inline void apply(std::array<PadConfig, kNumPads>& pads)
         {.tmpl = DrumTemplate::Kick,   .sizeOverride = -1.0f },  //  0: MIDI 36 Bass Drum 1
         {.tmpl = DrumTemplate::Perc,   .sizeOverride = -1.0f },  //  1: MIDI 37 Side Stick
         {.tmpl = DrumTemplate::Snare,  .sizeOverride = -1.0f },  //  2: MIDI 38 Acoustic Snare
-        {.tmpl = DrumTemplate::Perc,   .sizeOverride = -1.0f },  //  3: MIDI 39 Hand Clap
+        {.tmpl = DrumTemplate::Clap,   .sizeOverride = -1.0f },  //  3: MIDI 39 Hand Clap
         {.tmpl = DrumTemplate::Snare,  .sizeOverride = -1.0f },  //  4: MIDI 40 Electric Snare
         {.tmpl = DrumTemplate::Tom,    .sizeOverride =  0.8f },  //  5: MIDI 41 Low Floor Tom
         {.tmpl = DrumTemplate::Hat,    .sizeOverride = -1.0f },  //  6: MIDI 42 Closed Hi-Hat
