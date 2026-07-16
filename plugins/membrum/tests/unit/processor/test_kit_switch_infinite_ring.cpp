@@ -36,6 +36,7 @@
 #include <cmath>
 #include <cstdint>
 #include <filesystem>
+#include <set>
 #include <fstream>
 #include <vector>
 
@@ -456,6 +457,14 @@ void runPerPadSustainTest(const std::string& subcat, const std::string& kitName)
         if (kit.pads[static_cast<std::size_t>(pad)].sound[51] < 0.5)
             continue;
 
+        // D3 (06-orchestralKit-fix-plan.md): Friction sustains WITHOUT
+        // note-off by design (bowed excitation) -- a NoteOn-only sweep
+        // would flag it as an infinite ring. Every other exciter must
+        // decay to silence on its own.
+        if (kit.pads[static_cast<std::size_t>(pad)].exciterType ==
+            Membrum::ExciterType::Friction)
+            continue;
+
         // Each pad gets a fresh Processor so leftover state from the prior
         // pad's voice can't mask the current pad's bug.
         Fixture f;
@@ -531,6 +540,54 @@ TEST_CASE("Per-pad single hit decays to silence on Orchestral",
           "[membrum][processor][infinite_ring][regression][factory][per_pad]")
 {
     runPerPadSustainTest("Acoustic", "Orchestral");
+}
+
+// ============================================================================
+// D3 (06-orchestralKit-fix-plan.md): NoteOn-only idle-decay sweep over EVERY
+// factory kit. The six dedicated cases above grew out of specific user
+// reports; the remaining kits were never swept, and several ship
+// modeInject > 0 pads whose pre-D2 undamped plateau (~-20 dBFS) sat above
+// the -60 dBFS voice auto-release threshold -- i.e. they rang forever on
+// note-on-only (pad-style) hosts with zero test coverage. Friction pads are
+// skipped inside the sweep (design-sustain without note-off).
+// ============================================================================
+TEST_CASE("Per-pad single hit decays to silence on every factory kit (NoteOn-only)",
+          "[membrum][processor][infinite_ring][regression][factory][per_pad][all_kits]")
+{
+    const auto root = factoryPresetRoot();
+    if (root.empty())
+    {
+        WARN("factory preset root not found -- skipping");
+        return;
+    }
+
+    // Kits already exercised by their own dedicated TEST_CASEs above.
+    const std::set<std::string> covered = {
+        "Jazz Brushes", "Tabla", "Rock Big Room",
+        "Vintage Wood", "Hand Drums", "Orchestral",
+    };
+
+    int swept = 0;
+    for (const auto& subcatDir : std::filesystem::directory_iterator(root))
+    {
+        if (!subcatDir.is_directory())
+            continue;
+        const std::string subcat = subcatDir.path().filename().string();
+        for (const auto& file : std::filesystem::directory_iterator(subcatDir.path()))
+        {
+            if (file.path().extension() != ".vstpreset")
+                continue;
+            const std::string kitName = file.path().stem().string();
+            if (covered.count(kitName) != 0)
+                continue;
+            INFO("sweeping " << subcat << "/" << kitName);
+            runPerPadSustainTest(subcat, kitName);
+            ++swept;
+        }
+    }
+    // 20 factory kits minus the 6 covered above; a shrinking roster here
+    // means presets went missing, not that everything is clean.
+    CHECK(swept >= 14);
 }
 
 // ============================================================================
