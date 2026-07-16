@@ -73,6 +73,7 @@ constexpr const char* exciterName(Membrum::ExciterType t) noexcept
     case Membrum::ExciterType::Friction:   return "Friction";
     case Membrum::ExciterType::FMImpulse:  return "FMImpulse";
     case Membrum::ExciterType::Feedback:   return "Feedback";
+    case Membrum::ExciterType::Clap:       return "Clap";
     default:                               return "Unknown";
     }
 }
@@ -148,9 +149,9 @@ BlockStats processAndCollect(Membrum::DrumVoice& voice, int numSamples)
 } // namespace
 
 // ==============================================================================
-// FR-090 / US3-1 / US3-2: All 36 combinations are audible, finite, and ≤ 0 dBFS.
+// FR-090 / US3-1 / US3-2: All 42 combinations are audible, finite, and ≤ 0 dBFS.
 // ==============================================================================
-TEST_CASE("ExciterBodyMatrix: all 36 combos audible finite bounded",
+TEST_CASE("ExciterBodyMatrix: all 42 combos audible finite bounded",
           "[membrum][matrix][phase5]")
 {
     constexpr int kNumExciters = static_cast<int>(Membrum::ExciterType::kCount);
@@ -321,9 +322,9 @@ TEST_CASE("ExciterBodyMatrix: body swap while sounding is deferred",
 
 // ==============================================================================
 // Phase 9 T125 / FR-090 extended / SC-011 extended:
-// 144-combination functional matrix (6 exciter × 6 body × 2 tone_shaper ×
+// 168-combination functional matrix (7 exciter × 6 body × 2 tone_shaper ×
 // 2 unnatural). Non-perf gate — runs in regular CI (no [.perf] tag) alongside
-// the CPU benchmark. For each of the 144 cells:
+// the CPU benchmark. For each of the 168 cells:
 //   - Trigger at velocity 100, process 500 ms.
 //   - Assert: no NaN/Inf, peak ≤ 0 dBFS (FR-090 extended), non-silent.
 //   - Wrap the hot path in an AllocationScope and assert zero heap activity
@@ -404,7 +405,7 @@ void configureFor144(Membrum::DrumVoice& voice,
 
 } // namespace
 
-TEST_CASE("ExciterBodyMatrix144: all 144 combos audible finite bounded alloc-free",
+TEST_CASE("ExciterBodyMatrix144: all 168 combos audible finite bounded alloc-free",
           "[membrum][matrix][phase9]")
 {
     constexpr int kNumExciters = static_cast<int>(Membrum::ExciterType::kCount);
@@ -476,6 +477,6 @@ TEST_CASE("ExciterBodyMatrix144: all 144 combos audible finite bounded alloc-fre
         }
     }
 
-    CHECK(tested == 144);
-    CHECK(passed == 144);
+    CHECK(tested == kNumExciters * kNumBodies * 4);
+    CHECK(passed == kNumExciters * kNumBodies * 4);
 }

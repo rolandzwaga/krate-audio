@@ -3,13 +3,14 @@
 // ==============================================================================
 // ExciterBank -- Phase 2 swap-in exciter dispatcher (data-model.md §2.7)
 // ==============================================================================
-// Holds all 6 exciter alternatives in a std::variant, dispatches via
+// Holds all 7 exciter alternatives in a std::variant, dispatches via
 // std::visit, and implements the deferred-swap pattern (setExciterType writes
 // pendingType_ only; the swap happens inside trigger() if pendingType_ differs
 // from currentType_).
 // ==============================================================================
 
 #include "exciter_type.h"
+#include "exciters/clap_exciter.h"
 #include "exciters/feedback_exciter.h"
 #include "exciters/fm_impulse_exciter.h"
 #include "exciters/friction_exciter.h"
@@ -172,7 +173,8 @@ private:
         NoiseBurstExciter,
         FrictionExciter,
         FMImpulseExciter,
-        FeedbackExciter>;
+        FeedbackExciter,
+        ClapExciter>;
 
     void applyPendingSwap() noexcept
     {
@@ -197,6 +199,9 @@ private:
             break;
         case ExciterType::Feedback:
             active_.emplace<FeedbackExciter>();
+            break;
+        case ExciterType::Clap:
+            active_.emplace<ClapExciter>();
             break;
         case ExciterType::kCount:
             // Invalid — clamp back to Impulse.

@@ -153,6 +153,7 @@ TEST_CASE("MembraneBody: finite output across all exciters (SC-007)",
         Membrum::ExciterType::Friction,
         Membrum::ExciterType::FMImpulse,
         Membrum::ExciterType::Feedback,
+        Membrum::ExciterType::Clap,
     };
 
     for (auto et : exciters)

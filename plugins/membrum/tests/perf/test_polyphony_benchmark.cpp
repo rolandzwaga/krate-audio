@@ -67,6 +67,7 @@ constexpr const char* exciterName(Membrum::ExciterType t) noexcept
     case Membrum::ExciterType::Friction:   return "Friction";
     case Membrum::ExciterType::FMImpulse:  return "FMImpulse";
     case Membrum::ExciterType::Feedback:   return "Feedback";
+    case Membrum::ExciterType::Clap:       return "Clap";
     default:                               return "Unknown";
     }
 }

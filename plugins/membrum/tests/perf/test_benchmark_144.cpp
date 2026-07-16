@@ -1,8 +1,8 @@
 // ==============================================================================
-// 144-combination CPU benchmark (Phase 9 — T123)
+// 168-combination CPU benchmark (Phase 9 — T123)
 // ==============================================================================
 // Covers:
-//   - FR-093: CPU benchmark iterates all 144 combinations (6 exciter × 6 body ×
+//   - FR-093: CPU benchmark iterates all 168 combinations (7 exciter × 6 body ×
 //             2 tone_shaper × 2 unnatural).
 //   - FR-070 / SC-003: every combination must stay ≤ 1.25% single-voice CPU at
 //             44.1 kHz (10 s sustained processing).
@@ -67,6 +67,7 @@ constexpr const char* exciterName(Membrum::ExciterType t) noexcept
     case Membrum::ExciterType::Friction:   return "Friction";
     case Membrum::ExciterType::FMImpulse:  return "FMImpulse";
     case Membrum::ExciterType::Feedback:   return "Feedback";
+    case Membrum::ExciterType::Clap:       return "Clap";
     default:                               return "Unknown";
     }
 }
@@ -281,7 +282,7 @@ void appendCsvRow(const BenchResult& r, const std::string& timestamp)
 } // namespace
 
 // ==============================================================================
-// FR-093 / SC-003 / US7-1 / US7-3 : 144-combination CPU benchmark
+// FR-093 / SC-003 / US7-1 / US7-3 : 168-combination CPU benchmark
 // ==============================================================================
 TEST_CASE("Benchmark144: every combination under 1.25% CPU",
           "[.perf][membrum][benchmark][cpu]")
@@ -289,7 +290,7 @@ TEST_CASE("Benchmark144: every combination under 1.25% CPU",
     constexpr int kNumExciters = static_cast<int>(Membrum::ExciterType::kCount);
     constexpr int kNumBodies   = static_cast<int>(Membrum::BodyModelType::kCount);
 
-    std::array<BenchResult, 144> results{};
+    std::array<BenchResult, static_cast<std::size_t>(kNumExciters * kNumBodies * 4)> results{};
     int resultIdx = 0;
 
     const std::string timestamp = isoTimestamp();
