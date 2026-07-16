@@ -51,6 +51,7 @@ enum ExciterType : int {
     Friction   = 3,
     FMImpulse  = 4,
     Feedback   = 5,
+    Clap       = 6,  // multi-burst hand-clap flam (HAND-CLAP-PLAN)
 };
 
 enum BodyModelType : int {
@@ -597,25 +598,29 @@ Kit acousticKit() {
     pads[2].tensionModAmt = 0.16;
     pads[2].pan = 0.50;
 
-    // ---- Pad 3: Hand Clap (NoiseBody/NoiseBurst) -- cupped-hand formant ----
-    pads[3].exciterType = ExciterType::NoiseBurst;
+    // ---- Pad 3: Hand Clap (NoiseBody/Clap) -- multi-burst flam + room tail ----
+    // HAND-CLAP-PLAN: ClapExciter fires the 4-burst flam; NoiseBody with heavy
+    // scatter/stretch + damping stays pitch-free; NoiseLayer is the ~300 ms
+    // roomy tail (acoustic studio flavour). Verified recipe from default kit.
+    pads[3].exciterType = ExciterType::Clap;
     pads[3].bodyModel   = BodyModelType::NoiseBody;
-    pads[3].material = 0.85;
-    pads[3].size = 0.18;
-    pads[3].decay = 0.18;
+    pads[3].material = 0.70;
+    pads[3].size = 0.25;
+    pads[3].decay = 0.10;
     pads[3].level = 0.80;
-    pads[3].noiseBurstDuration = 0.55;   // ~9 ms spread
-    pads[3].noiseLayerMix       = 0.85;
-    pads[3].noiseLayerCutoff    = 0.78;
-    pads[3].noiseLayerResonance = 0.40;  // Q~2.18 clap formant
-    pads[3].noiseLayerDecay     = 0.20;
-    pads[3].noiseLayerColor     = 0.70;  // White
-    pads[3].clickLayerMix        = 0.45;
-    pads[3].clickLayerContactMs  = 0.22;
-    pads[3].clickLayerBrightness = 0.62;
-    pads[3].modeScatter = 0.40;
-    pads[3].bodyDampingB1 = 0.50;
-    pads[3].bodyDampingB3 = 0.0;
+    pads[3].noiseLayerMix       = 0.70;
+    pads[3].noiseLayerCutoff    = 0.60;
+    pads[3].noiseLayerResonance = 0.20;
+    pads[3].noiseLayerDecay     = 0.58;  // ~300 ms room
+    pads[3].noiseLayerColor     = 0.60;  // warm white
+    pads[3].noiseLayerGain      = 2.2;   // tail must be audible vs burst train
+    pads[3].clickLayerMix        = 0.25;
+    pads[3].clickLayerContactMs  = 0.15;
+    pads[3].clickLayerBrightness = 0.50;
+    pads[3].modeScatter = 0.35;
+    pads[3].modeStretch = 0.60;
+    pads[3].bodyDampingB1 = 0.65;
+    pads[3].bodyDampingB3 = 0.30;
     pads[3].airLoading = 0.0;   // no-op on NoiseBody
     pads[3].pan = 0.44;
 
@@ -1204,20 +1209,21 @@ Kit electronicKit() {
     pads[4].noiseLayerDecay = 0.32;
     pads[4].clickLayerMix = 0.55; pads[4].clickLayerBrightness = 0.74;
 
-    // ---- Pad 3: 808 Clap (NoiseBody/NoiseBurst), NEW ----
-    pads[3].exciterType = ExciterType::NoiseBurst;
+    // ---- Pad 3: 808 Clap (NoiseBody/Clap), multi-burst flam ----
+    // HAND-CLAP-PLAN: true 4-burst ClapExciter flam; tighter machine tail.
+    pads[3].exciterType = ExciterType::Clap;
     pads[3].bodyModel = BodyModelType::NoiseBody;
-    pads[3].material = 0.85; pads[3].size = 0.18; pads[3].decay = 0.18;
+    pads[3].material = 0.70; pads[3].size = 0.25; pads[3].decay = 0.10;
     pads[3].level = 0.78;
-    pads[3].noiseBurstDuration = 0.55;   // ~9 ms flam smear
-    pads[3].modeScatter = 0.40;
-    pads[3].noiseLayerMix = 0.85; pads[3].noiseLayerCutoff = 0.78;
-    pads[3].noiseLayerResonance = 0.40;  // ~909 formant
-    pads[3].noiseLayerDecay = 0.20; pads[3].noiseLayerColor = 0.65;
-    pads[3].clickLayerMix = 0.45; pads[3].clickLayerContactMs = 0.22;
-    pads[3].clickLayerBrightness = 0.62;
+    pads[3].modeScatter = 0.35; pads[3].modeStretch = 0.60;
+    pads[3].noiseLayerMix = 0.70; pads[3].noiseLayerCutoff = 0.60;
+    pads[3].noiseLayerResonance = 0.20;
+    pads[3].noiseLayerDecay = 0.55; pads[3].noiseLayerColor = 0.65;
+    pads[3].noiseLayerGain = 2.2;
+    pads[3].clickLayerMix = 0.25; pads[3].clickLayerContactMs = 0.15;
+    pads[3].clickLayerBrightness = 0.50;
     pads[3].airLoading = 0.0;
-    pads[3].bodyDampingB1 = 0.50; pads[3].bodyDampingB3 = 0.0;
+    pads[3].bodyDampingB1 = 0.65; pads[3].bodyDampingB3 = 0.30;
     pads[3].macroBrightness = 0.65; pads[3].macroComplexity = 0.55;
     pads[3].pan = 0.50;
 
@@ -1612,18 +1618,19 @@ Kit experimentalKit() {
     pads[29].bodyDampingB1 = 0.35; pads[29].bodyDampingB3 = 0.0;
     pads[29].outputBus = 1; pads[29].couplingAmount = 0.85; pads[29].pan = 0.60;
 
-    // ---- Pad 30: Clap (NoiseBody/NoiseBurst) ----
-    pads[30].exciterType = ExciterType::NoiseBurst;
+    // ---- Pad 30: Clap (NoiseBody/Clap), multi-burst flam ----
+    pads[30].exciterType = ExciterType::Clap;
     pads[30].bodyModel = BodyModelType::NoiseBody;
-    pads[30].material = 0.85; pads[30].size = 0.18; pads[30].decay = 0.18;
-    pads[30].level = 0.80; pads[30].noiseBurstDuration = 0.60;
-    pads[30].noiseLayerMix = 0.70; pads[30].noiseLayerCutoff = 0.78;
-    pads[30].noiseLayerResonance = 0.40; pads[30].noiseLayerColor = 0.65;
-    pads[30].noiseLayerDecay = 0.20;
-    pads[30].clickLayerMix = 0.40; pads[30].clickLayerContactMs = 0.22;
-    pads[30].clickLayerBrightness = 0.62;
-    pads[30].modeScatter = 0.40;
-    pads[30].bodyDampingB1 = 0.50; pads[30].bodyDampingB3 = 0.0;
+    pads[30].material = 0.70; pads[30].size = 0.25; pads[30].decay = 0.10;
+    pads[30].level = 0.80;
+    pads[30].noiseLayerMix = 0.70; pads[30].noiseLayerCutoff = 0.60;
+    pads[30].noiseLayerResonance = 0.20; pads[30].noiseLayerColor = 0.65;
+    pads[30].noiseLayerDecay = 0.58;
+    pads[30].noiseLayerGain = 2.2;
+    pads[30].clickLayerMix = 0.25; pads[30].clickLayerContactMs = 0.15;
+    pads[30].clickLayerBrightness = 0.50;
+    pads[30].modeScatter = 0.35; pads[30].modeStretch = 0.60;
+    pads[30].bodyDampingB1 = 0.65; pads[30].bodyDampingB3 = 0.30;
     pads[30].macroBrightness = 0.65; pads[30].macroComplexity = 0.55;
     pads[30].pan = 0.50;
 
@@ -2222,19 +2229,19 @@ Kit rockBigRoomKit() {
     pads[1].airLoading = 0.0;
     pads[1].pan = 0.50;
 
-    // Hand Clap (3, NEW) -- cupped-hand formant (noise reso 0.40).
-    pads[3].exciterType = ExciterType::NoiseBurst;
+    // Hand Clap (3, NEW) -- multi-burst ClapExciter flam, big-room tail.
+    pads[3].exciterType = ExciterType::Clap;
     pads[3].bodyModel   = BodyModelType::NoiseBody;
-    pads[3].material = 0.85; pads[3].size = 0.18; pads[3].decay = 0.18;
+    pads[3].material = 0.70; pads[3].size = 0.25; pads[3].decay = 0.10;
     pads[3].level = 0.80;
-    pads[3].noiseBurstDuration = 0.55;
-    pads[3].noiseLayerMix = 0.85; pads[3].noiseLayerCutoff = 0.78;
-    pads[3].noiseLayerResonance = 0.40; pads[3].noiseLayerDecay = 0.20;
-    pads[3].noiseLayerColor = 0.70;
-    pads[3].clickLayerMix = 0.45; pads[3].clickLayerContactMs = 0.22;
-    pads[3].clickLayerBrightness = 0.62;
-    pads[3].modeScatter = 0.40;
-    pads[3].bodyDampingB1 = 0.50; pads[3].bodyDampingB3 = 0.0;
+    pads[3].noiseLayerMix = 0.70; pads[3].noiseLayerCutoff = 0.60;
+    pads[3].noiseLayerResonance = 0.20; pads[3].noiseLayerDecay = 0.62;
+    pads[3].noiseLayerColor = 0.60;
+    pads[3].noiseLayerGain = 2.2;
+    pads[3].clickLayerMix = 0.25; pads[3].clickLayerContactMs = 0.15;
+    pads[3].clickLayerBrightness = 0.50;
+    pads[3].modeScatter = 0.35; pads[3].modeStretch = 0.60;
+    pads[3].bodyDampingB1 = 0.65; pads[3].bodyDampingB3 = 0.30;
     pads[3].airLoading = 0.0;
     pads[3].pan = 0.50;
 
@@ -3012,19 +3019,20 @@ Kit nineOhNineKit() {
     pads[14].clickLayerMix = 0.45; pads[14].clickLayerBrightness = 0.82;
     pads[14].outputBus = 1; pads[14].pan = 0.62;
 
-    // Hand Clap (15) — NoiseBody/NoiseBurst, flam smear + clap formant.
-    pads[15].exciterType = ExciterType::NoiseBurst;
+    // Hand Clap (15) — NoiseBody/Clap, true 909-style multi-burst flam.
+    pads[15].exciterType = ExciterType::Clap;
     pads[15].bodyModel = BodyModelType::NoiseBody;
-    pads[15].material = 0.85; pads[15].size = 0.18; pads[15].decay = 0.18;
+    pads[15].material = 0.70; pads[15].size = 0.25; pads[15].decay = 0.10;
     pads[15].level = 0.78;
-    pads[15].noiseBurstDuration = 0.55;
-    pads[15].noiseLayerMix = 0.85; pads[15].noiseLayerCutoff = 0.78;
-    pads[15].noiseLayerResonance = 0.40; // Q~2.18 clap formant
-    pads[15].noiseLayerColor = 0.65; pads[15].noiseLayerDecay = 0.20;
-    pads[15].clickLayerMix = 0.45; pads[15].clickLayerContactMs = 0.22;
-    pads[15].clickLayerBrightness = 0.62;
-    pads[15].airLoading = 0.0; pads[15].modeScatter = 0.40;
-    pads[15].bodyDampingB1 = 0.50; pads[15].bodyDampingB3 = 0.0;
+    pads[15].noiseLayerMix = 0.70; pads[15].noiseLayerCutoff = 0.60;
+    pads[15].noiseLayerResonance = 0.20;
+    pads[15].noiseLayerColor = 0.65; pads[15].noiseLayerDecay = 0.55;
+    pads[15].noiseLayerGain = 2.2;
+    pads[15].clickLayerMix = 0.25; pads[15].clickLayerContactMs = 0.15;
+    pads[15].clickLayerBrightness = 0.50;
+    pads[15].airLoading = 0.0; pads[15].modeScatter = 0.35;
+    pads[15].modeStretch = 0.60;
+    pads[15].bodyDampingB1 = 0.65; pads[15].bodyDampingB3 = 0.30;
     pads[15].macroBrightness = 0.65; pads[15].macroComplexity = 0.55;
     pads[15].pan = 0.50;
 
@@ -3166,19 +3174,20 @@ Kit linnDrumKit() {
     pads[1].bodyDampingB1 = 0.50; pads[1].bodyDampingB3 = 0.30;
     pads[1].macroPunch = 0.92; pads[1].pan = 0.42;
 
-    // Handclap (3) — was Clave; NoiseBody/NoiseBurst, flam smear + formant.
-    pads[3].exciterType = ExciterType::NoiseBurst;
+    // Handclap (3) — was Clave; NoiseBody/Clap, tight vintage multi-burst flam.
+    pads[3].exciterType = ExciterType::Clap;
     pads[3].bodyModel = BodyModelType::NoiseBody;
-    pads[3].material = 0.85; pads[3].size = 0.18; pads[3].decay = 0.18;
+    pads[3].material = 0.70; pads[3].size = 0.25; pads[3].decay = 0.10;
     pads[3].strikePosition = 0.30; pads[3].level = 0.78;
-    pads[3].noiseBurstDuration = 0.55;
-    pads[3].noiseLayerMix = 0.85; pads[3].noiseLayerCutoff = 0.78;
-    pads[3].noiseLayerResonance = 0.40; pads[3].noiseLayerColor = 0.65;
-    pads[3].noiseLayerDecay = 0.20;
-    pads[3].clickLayerMix = 0.30; pads[3].clickLayerContactMs = 0.22;
-    pads[3].clickLayerBrightness = 0.62;
-    pads[3].airLoading = 0.0; pads[3].modeScatter = 0.40;
-    pads[3].bodyDampingB1 = 0.50; pads[3].bodyDampingB3 = 0.0;
+    pads[3].noiseLayerMix = 0.70; pads[3].noiseLayerCutoff = 0.60;
+    pads[3].noiseLayerResonance = 0.20; pads[3].noiseLayerColor = 0.65;
+    pads[3].noiseLayerDecay = 0.52;
+    pads[3].noiseLayerGain = 2.2;
+    pads[3].clickLayerMix = 0.25; pads[3].clickLayerContactMs = 0.15;
+    pads[3].clickLayerBrightness = 0.50;
+    pads[3].airLoading = 0.0; pads[3].modeScatter = 0.35;
+    pads[3].modeStretch = 0.60;
+    pads[3].bodyDampingB1 = 0.65; pads[3].bodyDampingB3 = 0.30;
     pads[3].macroBrightness = 0.65; pads[3].macroComplexity = 0.55;
     pads[3].pan = 0.5;
 
@@ -3779,19 +3788,20 @@ Kit trapModernKit() {
     pads[3].bodyDampingB1 = 0.32; pads[3].bodyDampingB3 = 0.0;
     pads[3].macroBrightness = 0.65; pads[3].pan = 0.60;
 
-    // 909 Hand Clap (8) — NEW; NoiseBody/NoiseBurst flam smear + formant.
-    pads[8].exciterType = ExciterType::NoiseBurst;
+    // 909 Hand Clap (8) — NEW; NoiseBody/Clap, true multi-burst flam.
+    pads[8].exciterType = ExciterType::Clap;
     pads[8].bodyModel = BodyModelType::NoiseBody;
-    pads[8].material = 0.85; pads[8].size = 0.18; pads[8].decay = 0.18;
+    pads[8].material = 0.70; pads[8].size = 0.25; pads[8].decay = 0.10;
     pads[8].level = 0.80;
-    pads[8].noiseBurstDuration = 0.55;
-    pads[8].noiseLayerMix = 0.85; pads[8].noiseLayerCutoff = 0.78;
-    pads[8].noiseLayerResonance = 0.40; pads[8].noiseLayerColor = 0.65;
-    pads[8].noiseLayerDecay = 0.20;
-    pads[8].clickLayerMix = 0.45; pads[8].clickLayerContactMs = 0.22;
-    pads[8].clickLayerBrightness = 0.62;
-    pads[8].airLoading = 0.0; pads[8].modeScatter = 0.40;
-    pads[8].bodyDampingB1 = 0.50; pads[8].bodyDampingB3 = 0.0;
+    pads[8].noiseLayerMix = 0.70; pads[8].noiseLayerCutoff = 0.60;
+    pads[8].noiseLayerResonance = 0.20; pads[8].noiseLayerColor = 0.65;
+    pads[8].noiseLayerDecay = 0.55;
+    pads[8].noiseLayerGain = 2.2;
+    pads[8].clickLayerMix = 0.25; pads[8].clickLayerContactMs = 0.15;
+    pads[8].clickLayerBrightness = 0.50;
+    pads[8].airLoading = 0.0; pads[8].modeScatter = 0.35;
+    pads[8].modeStretch = 0.60;
+    pads[8].bodyDampingB1 = 0.65; pads[8].bodyDampingB3 = 0.30;
     pads[8].macroBrightness = 0.65; pads[8].macroComplexity = 0.55;
     pads[8].pan = 0.5;
 
