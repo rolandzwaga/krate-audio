@@ -36,7 +36,7 @@ That is a *relatively harmonic* upper spectrum dominated by an octave — unlike
 | Noise Mix (42) | 0.00 | layer off (clean idiophone) |
 | Air Loading (52) | 0.00 | no-op on Bell |
 | Mode Stretch (21) | 0.333 | unstretched (keeps the harmonic octave) |
-| Decay Skew (22) | 0.58 | +0.16: highs decay a touch faster |
+| Decay Skew (22) | 0.35 | phys −0.30: lifts the audible octave/upper partials (NEGATIVE skew brightens; the earlier 0.58/+0.16 tilted energy toward the sub-octave hum) |
 | Pan (64) | 0.62 HI / 0.38 LO | spread the row |
 | FM Ratio (32) | 0.55 | **inert under Mallet** |
 
