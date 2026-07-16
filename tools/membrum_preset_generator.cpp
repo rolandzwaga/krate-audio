@@ -2617,8 +2617,9 @@ Kit orchestralKit() {
     pads[4].clickLayerBrightness = 0.20;
     pads[4].noiseLayerMix = 0.18; pads[4].noiseLayerCutoff = 0.30;
     pads[4].noiseLayerColor = 0.12; pads[4].noiseLayerDecay = 0.45;  // Brown
-    pads[4].bodyDampingB1 = 0.05; pads[4].bodyDampingB3 = 0.55;  // b1 0.05:
-    // T60 ~2.6 s concert-bass bloom (0.30 gave a 0.46 s kit-kick thud)
+    pads[4].bodyDampingB1 = 0.035; pads[4].bodyDampingB3 = 0.55;  // measured:
+    // 0.05 rendered t60 1.83 s (b3 HF loss on top of b1); 0.035 -> ~2.4 s
+    // concert-bass bloom (0.30 gave a 0.46 s kit-kick thud)
     pads[4].couplingAmount = 0.60;
     pads[4].pan = 0.50;
 
@@ -2705,8 +2706,10 @@ Kit orchestralKit() {
     pads[6].nonlinearCoupling = 0.35;
     pads[6].tsFilterType = FilterType::HP;
     pads[6].tsFilterCutoff = 0.62;   // ~1.45 kHz
-    pads[6].noiseLayerMix = 0.65; pads[6].noiseLayerCutoff = 0.82;
+    pads[6].noiseLayerMix = 0.80; pads[6].noiseLayerCutoff = 0.88;
     pads[6].noiseLayerColor = 0.85; pads[6].noiseLayerDecay = 0.85;  // Violet, ~1.0 s
+    // mix 0.80 / cutoff 0.88: measured flatnessHigh 0.26 at mix 0.65 --
+    // modal lines still outweighed the wash in 2-10 kHz
     pads[6].clickLayerMix = 0.20;
     pads[6].airLoading = 0.0; pads[6].modeScatter = 0.60;
     pads[6].bodyDampingB3 = 0.0; pads[6].bodyDampingB1 = 0.05;
@@ -2732,7 +2735,8 @@ Kit orchestralKit() {
     pads[10].modeScatter = 0.65; pads[10].airLoading = 0.0;
     pads[10].nonlinearCoupling = 0.20;
     pads[10].bodyDampingB3 = 0.0; pads[10].bodyDampingB1 = 0.30;
-    pads[10].noiseLayerMix = 0.65; pads[10].noiseLayerCutoff = 0.82;
+    pads[10].noiseLayerMix = 0.85; pads[10].noiseLayerCutoff = 0.88;  // wash-forward
+    // (measured flatnessHigh 0.30 at mix 0.65 -- a roll is mostly wash)
     pads[10].noiseLayerColor = 0.78; pads[10].noiseLayerDecay = 0.95;
     pads[10].clickLayerMix = 0.0;
     pads[10].decaySkew = 0.55;
@@ -2747,7 +2751,9 @@ Kit orchestralKit() {
     // the archetype; ~0.4 s morph bloom; inject 0 (rings undamped).
     pads[13].exciterType = ExciterType::Mallet;
     pads[13].bodyModel = BodyModelType::Plate;
-    pads[13].material = 0.85; pads[13].size = 0.92; pads[13].decay = 0.95;
+    pads[13].material = 0.85; pads[13].size = 0.95; pads[13].decay = 0.95;
+    // size 0.95: measured lowest partial 113.9 Hz at 0.92 (stretch warp on
+    // top of the f0 law); 0.95 lands it in the 90-105 Hz gong band.
     pads[13].level = 0.82;
     pads[13].strikePosition = 0.60;
     pads[13].modeStretch = 0.62;
@@ -2757,10 +2763,15 @@ Kit orchestralKit() {
     pads[13].morphStart = 0.85; pads[13].morphEnd = 0.55;
     pads[13].morphDuration = 0.20; pads[13].morphCurve = 0.5;  // ~0.4 s
     pads[13].modeScatter = 0.65; pads[13].airLoading = 0.0;
-    pads[13].bodyDampingB3 = 0.0; pads[13].bodyDampingB1 = 0.30;
+    pads[13].bodyDampingB3 = 0.0;
+    pads[13].bodyDampingB1 = 0.02;  // measured: 0.30 (15.1 1/s) choked the
+    // tam-tam to a 0.63 s thud; 0.02 -> ~5.8 s ring (real tam-tams ring 10+ s
+    // but the coupled bloom keeps feeding the tail)
     pads[13].clickLayerMix = 0.30; pads[13].clickLayerContactMs = 0.22;
     pads[13].clickLayerBrightness = 0.30;
-    pads[13].noiseLayerMix = 0.20; pads[13].noiseLayerCutoff = 0.85;
+    pads[13].noiseLayerMix = 0.45; pads[13].noiseLayerCutoff = 0.85;
+    // mix 0.45: measured 2-8 kHz fraction 0.0002 at 0.20 -- the violet wash
+    // is the gong's only HF source (Plate modes top out low)
     pads[13].noiseLayerColor = 0.90; pads[13].noiseLayerDecay = 0.92;  // Violet
     pads[13].decaySkew = 0.65;
     pads[13].tensionModAmt = 0.0;   // Bell: tensionMod is a no-op
@@ -2782,8 +2793,10 @@ Kit orchestralKit() {
     pads[15].modeStretch = 0.45; pads[15].decaySkew = 0.70;
     pads[15].nonlinearCoupling = 0.18; pads[15].modeScatter = 0.55;
     pads[15].bodyDampingB1 = 0.16; pads[15].bodyDampingB3 = 0.0;
-    pads[15].noiseLayerMix = 0.45; pads[15].noiseLayerCutoff = 0.90;
+    pads[15].noiseLayerMix = 0.70; pads[15].noiseLayerCutoff = 0.90;
     pads[15].noiseLayerColor = 0.90; pads[15].noiseLayerDecay = 1.00;  // Violet, 2 s ceiling
+    // mix 0.70: measured flatnessHigh 0.012 at 0.45 -- the Bell ladder still
+    // buried the shimmer bed (interim voicing until DSP item D6)
     pads[15].clickLayerMix = 0.45; pads[15].clickLayerContactMs = 0.25;
     pads[15].clickLayerBrightness = 0.82;
     pads[15].airLoading = 0.0;
@@ -2828,6 +2841,8 @@ Kit orchestralKit() {
     // chime. Shares choke group 1 with the sus-cymbal set.
     pads[19] = pads[6];
     pads[19].decay = 0.25; pads[19].size = 0.15;
+    pads[19].bodyDampingB1 = 0.18;  // measured: inherited 0.05 rang 2.5 s;
+                                    // 0.18 (9.2 1/s) -> ~0.75 s splash
     pads[19].pan = 0.35;
 
     // Bell Tree (1, NEW) -- Bell/NoiseBurst cascade with morph dim.

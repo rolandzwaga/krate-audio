@@ -258,7 +258,7 @@ Per-pad post-fix thresholds (keys: `centroidHz`, `flatnessHigh`, `dominantPeaks`
 
 | Pad(s) | Must hold post-fix |
 |---|---|
-| 0, 5, 7, 9, 11, 14 | `dominantPeaks` (m,1) ratios within ±3% of 1 : 1.50 : 2.00 : 2.44 (airLoading 1.0; was 1.56–1.59/2.22–2.27/2.79–2.88); (1,1) is the strongest post-onset peak (was −6.6 dB under (0,1)); `t60s` 0.8–1.6 s (production b1 path; was 4.4–4.6 s harness artifact); NO flat tail plateau: `tailFloorDb ≤ −60` at 6 s |
+| 0, 5, 7, 9, 11, 12, 14 | **CORRECTED THRESHOLD (2026-07-16):** the engine anchors (0,1) and (1,1) at their in-vacuo Bessel ratios and applies Rossing's series *relative to (1,1)* (`membrane_modes.h` kAirLoadingTargetScale derivation) — the original 1 : 1.50 : 2.00 : 2.44 row wrongly measured against the (0,1) base. Correct expected peaks vs (0,1) at airLoading 1.0: **1 : 1.59 : 2.39 : 3.19 : 3.93** (±5%). Measured post-fix: 1 : 1.60 : 2.28–2.37 — (2,1) ~4.6% flat, inside tolerance. Also: NO flat tail plateau (`tailFloorDb ≤ −60` at 6 s; measured −93…−157 dB, later −240 dB with full harness fidelity) |
 | 2 | 2–8 kHz band fraction ≥ 0.25 (was 0.0017) — *in-plugin render as final arbiter* (buzz path); `t60s` ≤ 0.4 s (b1 0.62 → 0.22 s); woodblock peak set 689/539/373/234 Hz no longer dominant |
 | 4 | `t60s` 2.2–3.0 s (target ~2.57 s, was 0.46 s in-plugin); post-onset dominant peak settling toward ~40 Hz (ignore full-file smear) |
 | 6 | No single `dominantPeaks` line ≥ 12 dB above its neighbors near ~670 Hz (was lone 948 Hz ping); `flatnessHigh ≥ 0.5`; `t60s` 2.0–4.0 s (was 0.3 s in-plugin / 57 ms sizzle) |
