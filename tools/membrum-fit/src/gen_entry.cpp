@@ -96,6 +96,42 @@ Membrum::PadConfig padConfigFromJson(const json& j) {
     getFloat("macroBodySize",   cfg.macroBodySize);
     getFloat("macroPunch",      cfg.macroPunch);
     getFloat("macroComplexity", cfg.macroComplexity);
+
+    // D1b (06-orchestralKit-fix-plan.md): the loader stopped at the macro
+    // block and silently dropped every field below -- so renders always used
+    // the Kick-template noise/click layers, damping overrides, airLoading,
+    // wireCoupling, secondary shell, tension mod, and pitch-env knee no
+    // matter what the JSON said. Forward the FULL PadConfig surface; fields
+    // absent from the JSON still inherit the Kick-template seed above.
+    getFloat("noiseLayerMix",       cfg.noiseLayerMix);
+    getFloat("noiseLayerCutoff",    cfg.noiseLayerCutoff);
+    getFloat("noiseLayerResonance", cfg.noiseLayerResonance);
+    getFloat("noiseLayerDecay",     cfg.noiseLayerDecay);
+    getFloat("noiseLayerColor",     cfg.noiseLayerColor);
+    getFloat("noiseLayerGain",      cfg.noiseLayerGain);
+    getFloat("wireCoupling",        cfg.wireCoupling);
+
+    getFloat("clickLayerMix",        cfg.clickLayerMix);
+    getFloat("clickLayerContactMs",  cfg.clickLayerContactMs);
+    getFloat("clickLayerBrightness", cfg.clickLayerBrightness);
+
+    getFloat("bodyDampingB1", cfg.bodyDampingB1);
+    getFloat("bodyDampingB3", cfg.bodyDampingB3);
+    getFloat("airLoading",    cfg.airLoading);
+    getFloat("modeScatter",   cfg.modeScatter);
+
+    getFloat("couplingStrength",  cfg.couplingStrength);
+    getFloat("secondaryEnabled",  cfg.secondaryEnabled);
+    getFloat("secondarySize",     cfg.secondarySize);
+    getFloat("secondaryMaterial", cfg.secondaryMaterial);
+    getFloat("tensionModAmt",     cfg.tensionModAmt);
+
+    getFloat("enabled", cfg.enabled);
+    getFloat("tsPitchEnvKneeEnabled", cfg.tsPitchEnvKneeEnabled);
+    getFloat("tsPitchEnvMidPitch",    cfg.tsPitchEnvMidPitch);
+    getFloat("tsPitchEnvMidFraction", cfg.tsPitchEnvMidFraction);
+    getFloat("tsPitchEnvCurve2",      cfg.tsPitchEnvCurve2);
+    getFloat("pan", cfg.pan);
     return cfg;
 }
 
