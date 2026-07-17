@@ -1,4 +1,24 @@
 <!-- verdict: pass-with-fixes | coverageOk: false | issues fixed: 12 | IMPLEMENTED: 2026-06-09 (commit re-tune Orchestral) -->
+<!-- SUPERSEDED: 2026-07-16 by 06-orchestralKit-fix-plan.md (render-measured audit) -->
+
+> **⚠ SUPERSEDED (2026-07-16).** A render-measured audit found this plan's kit failed
+> audibly on every complaint axis (timpani modeInject plateau, missing snare
+> wireCoupling/noiseLayerGain, choked metallics, GM-slot mismatches). The current
+> plan-of-record is [`06-orchestralKit-fix-plan.md`](06-orchestralKit-fix-plan.md).
+> Corrections to THIS doc's factual errors:
+> - **maxPolyphony 20 was illegal** — the parameter range is [4,16]; the generator ships 16.
+> - **Deviation #7 (timpani modeInject 0.10–0.12) is REVOKED** — `modeInject > 0` rings
+>   as an undamped flat plateau (no envelope in `mode_inject.h`); it was the "synth
+>   bass note" failure. All pads now ship modeInject 0.
+> - **Deviation #4 (timpani airLoading 0.80) is REVOKED** — the "over-thinning" rationale
+>   has no code mechanism (airLoading is frequency-only on 4 modes); generator ships 1.00.
+> - **Deviation #6 (cymbal modeInject 0 vs crash archetype 0.25) is STALE** — the crash
+>   archetype was redesigned (ea89c6c2) and no longer specifies inject; not a deviation.
+> - **Pad 4 b1 0.30 was silent drift** — generator now ships 0.05 (concert-bass T60 ~2.6 s).
+> - **New documented deviations** (see 06 §4): ride decay 0.62 + wash rebalance (archetype
+>   claim "matches exactly" no longer true), gong body Bell→Plate + size 0.92 + ~0.4 s
+>   morph, sus-cymbal struck decay 0.85 (washBlend gate), snare wireCoupling 0.45 /
+>   noiseLayerGain 6.2 (post-e7802363 rollout).
 
 # Orchestral Kit — Corrected Re-Tune Plan (`orchestralKit()`, category Acoustic)
 
@@ -70,7 +90,7 @@ hi: size 0.12, material 0.92; lo: size 0.22, material 0.88. Shared: decay 0.85, 
 material 0.93, size 0.10 *(higher/crotale-like constituent bells; documented deviation from the archetype's 0.30 ≈401 Hz — kept because a bell tree is a stack of tiny bowls sitting just below crotales-hi at 0.12)*, decay 0.60, strikePos 0.15, **decaySkew 0.78 — FIXED from 0.60** (archetype's +0.56 upper-partial tilt = the bright top of the cascade), scatter 0.35, modeStretch 0.45, b3 0/b1 0.35, noise 0.15/Violet/0.40, click 0.30/0.85, **morph ON 0.85→0.55 / Duration 0.50 (~1.1 s) / Curve 0 (linear) — ADDED** (the archetype's 'cascade dims as the beater passes' timbral evolution, previously silently dropped), aux1, pan 0.55.
 
 ## Kit-level options
-- maxPolyphony 16 → **20** (long timpani/gong/chime tails overlap without stealing).
+- maxPolyphony **16** (parameter range is [4,16]; this doc originally said 20 — illegal, capped).
 - globalCoupling 0.20 → **0.28**, snareBuzz 0.20, tomResonance 0.25 → **0.35** (sympathetic timpani resonance restored now the body sum no longer clips).
 - couplingDelayMs 1.6. crafted = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,17,19} (18 pads; +1 and +19 vs the current {0,2,3,4,5,6,7,8,9,10,11,12,13,14,15,17}).
 

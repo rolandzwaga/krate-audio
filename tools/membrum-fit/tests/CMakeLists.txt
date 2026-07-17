@@ -12,6 +12,7 @@ add_executable(membrum_fit_tests
     unit/test_golden_kick.cpp
     unit/test_golden_corpus.cpp
     unit/refinement/test_global_crs.cpp
+    unit/refinement/test_render_fidelity.cpp
     unit/test_cli_e2e.cpp
     unit/test_body_classifier_full.cpp
     unit/mapper_inversion/test_all_inversions_defaults.cpp

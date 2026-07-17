@@ -13,7 +13,7 @@ A bell tree is a vertical stack of 14–28 nested inverted metal bowls / small t
 | Hard metal, very bright | bronze/brass, high partials prominent | **Material 0.95** → brightness 0.985 |
 | **Inharmonic / microtonal** ("no formal scale") | bowls detuned bowl-to-bowl; reads as shimmer not melody | **Mode Stretch 0.55** (partials off canonical ratios) + **Mode Scatter 0.55** (~8% dither) |
 | Long, metallic ring, bright high partials sustain | crotales = "much longer resonance"; low f²-damping | **Decay 0.85** (~2.4 s) + **b3 = 0** (no high-freq roll-off) + **b1 0.30** (~15 s⁻¹ floor) |
-| Bright top of cascade | energy weighted to upper partials | **Decay Skew 0.78** (+0.56; per-mode upper-partial tilt) |
+| Bright top of cascade | energy weighted to upper partials | **Decay Skew 0.22** (phys −0.56; NEGATIVE skew lifts upper partials — the earlier 0.78 had the sign inverted and boosted the sub-octave hum ×2.17 instead) |
 | Dense overlapping mallet contacts | many bowls hit in quick succession | **NoiseBurst exciter** (spreads strike over all modes) + **Click 0.55 / brightness 0.92** sharp metallic ticks |
 | Cascade dims as beater passes | timbral, not pitch, evolution | **Material Morph ON 0.85→0.55** over ~1.1 s, linear |
 | Airy sizzle | many simultaneous metal contacts | **Noise overlay 0.42**, violet, ~13 kHz LP, ~1.1 s decay |
@@ -30,7 +30,7 @@ Decay            0.85  -> ~2.4 s ring
 Strike Position  0.30
 Level            0.70
 Mode Stretch     0.55  -> phys 1.325 (inharmonic)
-Decay Skew       0.78  -> +0.56 (upper-partial tilt)
+Decay Skew       0.22  -> phys -0.56 (upper-partial tilt; negative lifts highs)
 Mode Scatter     0.55  -> ~8% detune
 Morph Enabled    1.0 ; Start 0.85 ; End 0.55 ; Dur 0.55 (1.1 s) ; Curve 0.3 (lin)
 Noise  Mix 0.42 ; Cutoff 0.92 (13 kHz) ; Color 0.85 (violet) ; Decay 0.85 (1.1 s)

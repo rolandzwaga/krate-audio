@@ -23,6 +23,7 @@ add_executable(membrum_tests
 
     # Phase 2: exciter tests
     unit/exciters/test_impulse_exciter.cpp
+    unit/exciters/test_mallet_contact_hint.cpp
     unit/exciters/test_mallet_exciter.cpp
     unit/exciters/test_noise_burst_exciter.cpp
     unit/exciters/test_clap_exciter.cpp
@@ -49,6 +50,7 @@ add_executable(membrum_tests
     unit/unnatural/test_decay_skew.cpp
     unit/unnatural/test_decay_skew_all_bodies.cpp
     unit/unnatural/test_mode_inject.cpp
+    unit/unnatural/test_mode_inject_envelope.cpp
     unit/unnatural/test_nonlinear_coupling.cpp
     unit/unnatural/test_coupling_no_homogenization.cpp
     unit/unnatural/test_material_morph.cpp

@@ -31,6 +31,7 @@
 
 #include <krate/dsp/processors/impact_exciter.h>
 
+#include <algorithm>
 #include <cstdint>
 
 namespace Membrum {
@@ -47,20 +48,44 @@ struct MalletExciter
 
     void reset() noexcept { core_.reset(); }
 
+    /// D4 (06-orchestralKit-fix-plan.md): body-size contact hint. The fixed
+    /// mass 0.3 gives a ~9.5 ms base Hertzian contact -- right for drums,
+    /// hopeless for small metals (a ~8 ms Hann-ish pulse has a spectral null
+    /// region near ~244 Hz and needs to be ~0.5-2 ms for crotales/triangle).
+    /// Piecewise: size >= 0.5 keeps the legacy mass EXACTLY (toms/timpani/
+    /// gran cassa untouched -- the tension-glide calibration depends on the
+    /// legacy contact energy); below 0.5 the effective mass shrinks
+    /// quadratically, giving a crotale (0.12) a ~1.3 ms contact at v=1.
+    /// Deliberately NOT velocity-mapped: velocity-mapped mass was tried and
+    /// reverted (broke the 10 ms centroid window / velocity-ratio tests,
+    /// US1-2).
+    void setBodySizeHint(float sizeNorm) noexcept
+    {
+        bodySizeHint_ = std::clamp(sizeNorm, 0.0f, 1.0f);
+    }
+
     void trigger(float velocity) noexcept
     {
         // FR-011: softer mallet character = lower hardness + darker SVF
-        // (brightness offset) than Impulse. Mass stays at Phase-1 default (0.3)
-        // so the pulse duration tracks the Impulse reference; altering mass
-        // made low-velocity pulses extend past the 10 ms centroid window and
-        // inverted the velocity ratio.
+        // (brightness offset) than Impulse. Mass follows the Phase-1 default
+        // (0.3) scaled by the body-size hint (D4); the VELOCITY mapping never
+        // touches mass -- altering mass by velocity made low-velocity pulses
+        // extend past the 10 ms centroid window and inverted the velocity
+        // ratio.
         //
         // Impulse uses hardness  = lerp(0.3, 0.8, v), brightness = lerp(0.15, 0.4, v).
         // Mallet uses hardness   = lerp(0.1, 0.6, v) (0.2 lower across range)
         //       and  brightness  = lerp(-0.5, -0.2, v) (ca. -0.6 lower).
         const float hardness   = 0.1f  + (0.6f  - 0.1f ) * velocity;
         const float brightness = -0.5f + (-0.2f - (-0.5f)) * velocity;
-        core_.trigger(velocity, hardness, 0.3f, brightness, 0.0f, 0.0f);
+        // D4 piecewise mass: legacy 0.3 for size >= 0.5, cubic shrink below
+        // (continuous at the knee). Cubic because the measured excitation
+        // envelope carries an SVF/noise tail past the Hertzian T -- the
+        // quadratic curve left a crotale at ~2 ms total, still outside the
+        // 0.5-2 ms small-metal class.
+        const float t    = std::min(bodySizeHint_ / 0.5f, 1.0f);
+        const float mass = 0.3f * t * t * t;
+        core_.trigger(velocity, hardness, mass, brightness, 0.0f, 0.0f);
     }
 
     void release() noexcept
@@ -77,6 +102,9 @@ struct MalletExciter
     {
         return core_.isActive();
     }
+
+private:
+    float bodySizeHint_ = 1.0f;  // D4: neutral -> legacy fixed mass 0.3
 };
 
 } // namespace Membrum

@@ -324,9 +324,20 @@ public:
         // randomize phases by calling trigger(). NonlinearCoupling picks up
         // velocity for its cross-modal strength.
         unnaturalZone_.modeInject.setFundamentalHz(naturalFundamentalHz_);
+        // D2 (06-orchestralKit-fix-plan.md): tie the inject decay envelope to
+        // the pad's decay so the synthetic series dies WITH the drum instead
+        // of ringing as an undamped plateau. Perceptual curve, not physical:
+        // decay 0 -> ~0.3 s, decay 1 -> ~5 s.
+        unnaturalZone_.modeInject.setDecaySeconds(0.3f + 4.7f * decay_ * decay_);
         unnaturalZone_.modeInject.trigger();
         unnaturalZone_.nonlinearCoupling.setVelocity(velocity);
         unnaturalZone_.nonlinearCoupling.reset();
+
+        // D4 (06-orchestralKit-fix-plan.md): mallet contact time scales with
+        // the struck body -- crotale-sized bodies get ~1 ms contacts, timpani
+        // keep the long soft thump. Cached in the bank, so it survives the
+        // deferred exciter swap inside trigger().
+        exciterBank_.setMalletBodySizeHint(size_);
 
         // Trigger exciter (applies deferred exciter-type swap).
         exciterBank_.trigger(velocity);

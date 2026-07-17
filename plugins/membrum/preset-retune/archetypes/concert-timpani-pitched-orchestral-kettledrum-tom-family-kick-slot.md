@@ -24,7 +24,7 @@ clear pitch. Single head → **secondary shell OFF**. Level trimmed for headroom
 | Material | 0.32 | woody head, ~0.36 s base decay |
 | Size | 0.90 | f0≈63 Hz → natural (1,1)≈100 Hz, large kettle |
 | Decay | 0.82 | ~2.3× base → long musical ring |
-| Strike Position | 0.28 | r/a≈0.25, edge strike |
+| Strike Position | 0.83 | r/a≈0.75, edge strike (mapper measures from CENTER: r/a = pos×0.9; the old 0.28 was a near-center strike that buried the pitch-carrying (1,1) mode −6.6 dB under the pitchless (0,1)) |
 | Level | 0.68 | linear; headroom trim (N-1) |
 | PitchEnv Start | 0.477 | 180 Hz |
 | PitchEnv End | 0.314 | 85 Hz |

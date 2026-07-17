@@ -23,6 +23,7 @@
 #include <krate/dsp/processors/harmonic_oscillator_bank.h>
 #include <krate/dsp/processors/harmonic_types.h>
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 
@@ -41,6 +42,7 @@ public:
 
         bank_.prepare(sampleRate);
         rng_.seed(voiceId);
+        updateEnvCoeff();  // D2: coeff depends on the sample rate
 
         // Build the static harmonic frame shape. Amplitudes follow the natural
         // harmonic falloff 1/k (-6 dB/oct, the sawtooth/bowed spectrum), then
@@ -79,6 +81,17 @@ public:
 
     void setAmount(float amount) noexcept { amount_ = amount; }
 
+    /// D2 (06-orchestralKit-fix-plan.md): decay envelope T60 in seconds.
+    /// Without an envelope any amount > 0 rang as an undamped flat plateau
+    /// (~-20 dBFS) outlasting the drum -- the "synth bass note" class of bug.
+    /// DrumVoice ties this to the pad's decay at noteOn; the default keeps
+    /// the series finite even for callers that never wire it.
+    void setDecaySeconds(float t60Seconds) noexcept
+    {
+        decayT60Sec_ = std::clamp(t60Seconds, 0.05f, 20.0f);
+        updateEnvCoeff();
+    }
+
     void setFundamentalHz(float hz) noexcept
     {
         fundamentalHz_ = hz;
@@ -111,25 +124,43 @@ public:
         // skipNormalization=true because we pre-chose small per-partial
         // amplitudes; the adaptive normalizer would boost them unexpectedly.
         bank_.loadFrame(frame_, f0, /*skipNormalization=*/true);
+
+        // D2: re-arm the decay envelope for this note.
+        env_ = 1.0f;
+        updateEnvCoeff();
     }
 
     /// Process one sample. FR-052 zero-leak: returns 0 when amount_ is 0,
-    /// without calling the oscillator bank.
+    /// without calling the oscillator bank. D2: the one-pole decay envelope
+    /// makes the injected series die with the drum instead of ringing as an
+    /// undamped plateau.
     [[nodiscard]] float process() noexcept
     {
         if (amount_ == 0.0f)
             return 0.0f;
 
-        return amount_ * bank_.process();
+        const float s = amount_ * env_ * bank_.process();
+        env_ *= envCoeff_;
+        return s;
     }
 
 private:
+    void updateEnvCoeff() noexcept
+    {
+        // T60: 60 dB (factor 10^-3) over decayT60Sec_ seconds.
+        const double n = std::max(1.0, sampleRate_ * static_cast<double>(decayT60Sec_));
+        envCoeff_ = static_cast<float>(std::pow(10.0, -3.0 / n));
+    }
+
     Krate::DSP::HarmonicOscillatorBank bank_;
     Krate::DSP::XorShift32             rng_;
     Krate::DSP::HarmonicFrame          frame_{};
 
     float  amount_        = 0.0f;
     float  fundamentalHz_ = 440.0f;
+    float  decayT60Sec_   = 1.5f;   // D2 default: finite even if never wired
+    float  env_           = 1.0f;
+    float  envCoeff_      = 1.0f;
     double sampleRate_    = 44100.0;
     std::uint32_t voiceId_ = 0;
 };
