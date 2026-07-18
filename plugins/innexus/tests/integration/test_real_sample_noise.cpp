@@ -176,7 +176,15 @@ TEST_CASE("Real sample diagnostic: analyze and dump partial data",
         WARN("  Avg residual totalEnergy: " << avgResEnergy);
     }
 
-    // Force all INFO output by failing an assertion
-    REQUIRE(a.frames.size() == 0); // intentional fail to dump data
-
+    // This diagnostic used to end with `REQUIRE(a.frames.size() == 0)`, an
+    // assertion that can never hold, on the stated rationale of forcing the
+    // output to print. That rationale does not apply: every line above is a
+    // WARN, and Catch2 prints WARN unconditionally -- there is not a single
+    // INFO in this file for a failure to surface. The only effect was to leave
+    // the [.real] tag permanently red, so a genuine regression in the other
+    // [.real] tests would have been indistinguishable from the usual noise.
+    //
+    // Assert what the diagnostic actually depends on instead: the sample was
+    // found, analyzed, and produced frames to dump.
+    REQUIRE(a.frames.size() > 0);
 }
