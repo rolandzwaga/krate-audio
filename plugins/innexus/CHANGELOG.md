@@ -5,6 +5,17 @@ All notable changes to Innexus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.2] - 2026-07-18
+
+### Fixed
+
+- **Denormal flushing never reached the audio thread** — FTZ/DAZ were enabled in `setupProcessing()`, but the MXCSR control register is per-thread state: hosts call `setupProcessing()` on the main thread while `process()` runs on a dedicated audio thread (some hosts rotate plugins across a render thread pool). The flags were therefore set on a thread that runs no DSP, leaving long exponential tails — ADSR release, residual overlap-add, sympathetic resonance — exposed to denormal traps costing hundreds of cycles per operation. Denormal control is now a scoped RAII guard at the top of `process()`, which also restores the host's floating-point environment on exit rather than leaving FTZ/DAZ set on a shared render thread
+
+### Changed
+
+- **Oscillator bank hardens its own bandwidth input** — Per-partial bandwidth from the analysis stage is now normalised to a finite `[0, 1]` at ingestion instead of relying on a downstream gate to neutralise non-finite values. `std::clamp` passes NaN through unchanged (both of its comparisons are false for NaN), so the invariant is now enforced locally and cannot be re-opened by an unrelated edit to the synthesis loop
+- **Dual-window peak merge is frequency-ascending** — `processDualFrame()` appends the long-window (low band) peaks before the short-window (high band) peaks, so the merged peak list is ordered by frequency and the peak-pruning index sort means what its comment claims. No behavioural change: every downstream stage is order-independent
+
 ## [1.0.1] - 2026-04-08
 
 ### Fixed

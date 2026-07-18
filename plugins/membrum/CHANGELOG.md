@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Denormal flushing never reached the audio thread.** FTZ/DAZ were enabled in
+  `setupProcessing()`, but the MXCSR control register is per-thread state: hosts
+  call `setupProcessing()` on the main thread while `process()` runs on a
+  dedicated audio thread (some rotate plugins across a render thread pool). The
+  flags were set on a thread that runs no DSP, leaving modal/waveguide resonator
+  tails and the coupling delay exposed to denormal traps costing hundreds of
+  cycles per operation. Denormal control is now a scoped RAII guard at the top
+  of `process()`, which also restores the host's floating-point environment on
+  exit instead of leaving FTZ/DAZ set on a shared render thread.
+
 ### Changed
 
 - **Crash cymbals now sound like crashes.** A ground-up redesign of the
