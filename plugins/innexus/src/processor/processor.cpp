@@ -20,6 +20,7 @@
 #include <krate/dsp/core/midi_utils.h>
 #include <krate/dsp/core/note_value.h>
 #include <krate/dsp/core/pitch_utils.h>
+#include <krate/dsp/core/scoped_denormal_mode.h> // WI-17: FTZ/DAZ guard for process()
 #include <krate/dsp/core/sigmoid.h>
 
 #include "display/shared_display_bridge.h"
@@ -30,11 +31,6 @@
 #include <cstdint>
 #include <cstring>
 
-// WI-17: FTZ/DAZ denormal control (x86 SSE)
-#if defined(__SSE2__) || defined(_M_X64) || (defined(_M_IX86_FP) && _M_IX86_FP >= 2)
-#include <pmmintrin.h>
-#include <xmmintrin.h>
-#endif
 #include <random>
 #include <utility>
 
@@ -264,13 +260,9 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
     sampleRate_ = newSetup.sampleRate;
     displaySendIntervalSamples_ = 0; // recompute on next send
 
-    // WI-17: flush denormals to zero on the audio thread. Long exponential decay
-    // tails (ADSR release, residual overlap-add, sympathetic resonance) drift into
-    // denormal range where x86 traps cost hundreds of cycles per operation.
-#if defined(__SSE2__) || defined(_M_X64) || (defined(_M_IX86_FP) && _M_IX86_FP >= 2)
-    _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON);
-    _MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_ON);
-#endif
+    // NOTE: denormal (FTZ/DAZ) control used to live here. MXCSR is per-thread,
+    // so setting it on the setup thread never reached the audio thread; it is
+    // now a ScopedDenormalMode at the top of process(). Do not re-add it here.
 
     // FR-011: source crossfade length = 20ms in samples
     sourceCrossfadeLengthSamples_ = static_cast<int>(
@@ -354,6 +346,16 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
 // ==============================================================================
 Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& data)
 {
+    // WI-17: flush denormals to zero for this block. Long exponential decay
+    // tails (ADSR release, residual overlap-add, sympathetic resonance) drift
+    // into denormal range where x86 traps cost hundreds of cycles per operation.
+    //
+    // Must be set HERE and not in setupProcessing(): MXCSR is per-thread state,
+    // and hosts call setupProcessing() on the main thread while process() runs
+    // on a dedicated audio thread (some rotate plugins across a render pool).
+    // The guard restores the host's FP environment on scope exit.
+    const Krate::DSP::ScopedDenormalMode denormalGuard;
+
     // --- Handle parameter changes ---
     processParameterChanges(data.inputParameterChanges);
 

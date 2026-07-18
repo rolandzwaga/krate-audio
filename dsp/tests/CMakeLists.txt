@@ -33,6 +33,7 @@ add_executable(dsp_core_tests
     unit/core/note_value_test.cpp
     unit/core/note_value_mapping_test.cpp
     unit/core/block_context_test.cpp
+    unit/core/scoped_denormal_mode_test.cpp
     unit/core/fast_math_test.cpp
     unit/core/interpolation_test.cpp
     unit/core/stereo_utils_test.cpp
@@ -382,6 +383,10 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/core/note_value_test.cpp
         unit/core/note_value_mapping_test.cpp
         unit/core/block_context_test.cpp
+        # Denormal flush behaviour is only observable under IEEE semantics:
+        # -ffast-math implies -ffinite-math-only and can enable FTZ itself,
+        # which would make the "denormal survives" baseline unobservable.
+        unit/core/scoped_denormal_mode_test.cpp
         unit/core/fast_math_test.cpp
         unit/core/interpolation_test.cpp
         unit/core/pitch_utils_test.cpp
