@@ -897,7 +897,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/harmonic_oscillator_bank.h",
-      "line": 73
+      "line": 74
     },
     {
       "name": "HarmonicSnapshot",
@@ -1657,7 +1657,7 @@
       "scope": "Krate::DSP::PartialTracker",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/partial_tracker.h",
-      "line": 670
+      "line": 932
     },
     {
       "name": "ResetProcessorVisitor",
@@ -2113,7 +2113,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/subharmonic_validator.h",
-      "line": 42
+      "line": 47
     },
     {
       "name": "SubOscillator",
