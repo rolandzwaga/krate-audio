@@ -1,11 +1,11 @@
 // ==============================================================================
 // Layer 2: DSP Processor - Harmonic Oscillator Bank
 // ==============================================================================
-// Synthesizes audio from HarmonicFrames using 48 Gordon-Smith Modified Coupled
+// Synthesizes audio from HarmonicFrames using 96 Gordon-Smith Modified Coupled
 // Form (MCF) oscillators in Structure-of-Arrays (SoA) layout.
 //
 // Features:
-// - 48 MCF oscillators with per-partial frequency/amplitude control
+// - 96 MCF oscillators with per-partial frequency/amplitude control
 // - SoA layout with 32-byte alignment for cache efficiency (FR-036)
 // - Anti-aliasing via soft rolloff near Nyquist (FR-038)
 // - Phase continuity on frequency changes (FR-039)
@@ -52,7 +52,7 @@ namespace Krate::DSP {
 
 /// @brief Harmonic oscillator bank for additive resynthesis from HarmonicFrames.
 ///
-/// Uses 48 Gordon-Smith Modified Coupled Form (MCF) oscillators to resynthesize
+/// Uses 96 Gordon-Smith Modified Coupled Form (MCF) oscillators to resynthesize
 /// audio from the analysis pipeline's HarmonicFrame output. Each oscillator
 /// computes a sine wave via the MCF recurrence:
 ///   sinNew = sin + epsilon * cos
@@ -63,7 +63,7 @@ namespace Krate::DSP {
 ///
 /// @par Memory Model
 /// SoA (Structure-of-Arrays) layout with 32-byte alignment for SIMD-friendly
-/// access. All arrays are fixed-size (kMaxPartials = 48).
+/// access. All arrays are fixed-size (kMaxPartials = 96).
 ///
 /// @par Thread Safety
 /// Single-threaded. All methods must be called from the same thread.
@@ -634,7 +634,7 @@ public:
     /// the constant-power pan coefficients. Used by harmonic modulators for
     /// per-partial pan animation.
     ///
-    /// @param offsets Array of 48 bipolar offsets to add to pan positions
+    /// @param offsets Array of kMaxPartials bipolar offsets to add to pan positions
     /// @note Real-time safe (called once per frame)
     void applyPanOffsets(
         const std::array<float, kMaxPartials>& offsets) noexcept
@@ -655,7 +655,7 @@ public:
     /// Multiplies the given multipliers with the existing detuneMultiplier_
     /// for each partial. Used by harmonic modulators for frequency animation.
     ///
-    /// @param multipliers Array of 48 frequency multipliers
+    /// @param multipliers Array of kMaxPartials frequency multipliers
     /// @note Real-time safe (called once per frame)
     void applyExternalFrequencyMultipliers(
         const std::array<float, kMaxPartials>& multipliers) noexcept

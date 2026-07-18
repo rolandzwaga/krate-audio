@@ -14,6 +14,7 @@
 // ==============================================================================
 
 #include <catch2/catch_test_macros.hpp>
+#include <chrono>
 #include <catch2/catch_approx.hpp>
 
 #include "dsp/harmonic_modulator.h"
@@ -663,5 +664,161 @@ TEST_CASE("HarmonicModulator: target selector gates which modulation applies (WI
         REQUIRE(ampUnchanged(*mod));
         REQUIRE(freqTrivial(*mod));
         REQUIRE_FALSE(panTrivial(*mod));
+    }
+}
+
+// =============================================================================
+// QS-12: the free-running LFO phase accumulator is float, wrapped to [0,1).
+// The accumulator never grows large, but the INCREMENT does not survive the
+// addition: at the minimum 0.01 Hz rate the per-sample increment is
+// 0.01/44100 = 2.27e-7, while one ULP near phase 1.0 is 1.19e-7. Each step is
+// therefore quantised to ~2 ULP, and the rounding is systematic rather than
+// cancelling, so the LFO runs at a measurably wrong rate at slow settings.
+// =============================================================================
+
+TEST_CASE("HarmonicModulator: slow LFO holds its rate (QS-12)",
+          "[innexus][harmonic_modulator][qs12]")
+{
+    constexpr double kSampleRate = 44100.0;
+    constexpr float kRateHz = 0.01f;      // parameter minimum
+    constexpr double kSeconds = 25.0;     // a quarter of one 100 s cycle
+
+    Innexus::HarmonicModulator mod;
+    mod.prepare(kSampleRate);
+    mod.setWaveform(Innexus::ModulatorWaveform::Sine);
+    mod.setRate(kRateHz);
+    mod.reset();
+
+    const auto numSamples =
+        static_cast<long long>(kSampleRate * kSeconds);
+    for (long long i = 0; i < numSamples; ++i)
+        mod.advance();
+
+    const double expectedPhase =
+        static_cast<double>(kRateHz) * kSeconds; // 0.25
+    const double actualPhase = static_cast<double>(mod.getPhase());
+    const double relError =
+        std::abs(actualPhase - expectedPhase) / expectedPhase;
+
+    INFO("expected phase " << expectedPhase << ", got " << actualPhase
+         << " (relative error " << relError * 100.0 << "%)");
+    // 0.1% over 25 s is far tighter than the float path achieves and trivially
+    // met once the accumulator is double.
+    REQUIRE(relError < 0.001);
+}
+
+TEST_CASE("PERF QS-9 modulator advance cost", "[.perf][qs9perf]") {
+    constexpr int kIters = 2000000;
+    Innexus::HarmonicModulator mod;
+    mod.prepare(44100.0);
+    mod.setRate(2.0f);
+
+    for (auto wf : {Innexus::ModulatorWaveform::Sine,
+                    Innexus::ModulatorWaveform::Triangle}) {
+        mod.setWaveform(wf);
+        mod.reset();
+        auto t0 = std::chrono::high_resolution_clock::now();
+        float acc = 0.0f;
+        for (int i = 0; i < kIters; ++i) {
+            mod.advance();
+            acc += mod.getCurrentValue();
+        }
+        auto t1 = std::chrono::high_resolution_clock::now();
+        const double ns = std::chrono::duration<double, std::nano>(t1 - t0).count()
+            / static_cast<double>(kIters);
+        // Share of one core at 44.1 kHz, for TWO modulators.
+        const double cpuPct = (ns * 2.0 * 44100.0) / 1e9 * 100.0;
+        WARN((wf == Innexus::ModulatorWaveform::Sine ? "Sine    " : "Triangle")
+             << ": " << ns << " ns/sample -> " << cpuPct
+             << "% of a core for 2 modulators  [checksum " << acc << "]");
+    }
+    CHECK(true);
+}
+
+TEST_CASE("PERF QS-13 multiplier array cost", "[.perf][qs13perf]") {
+    constexpr int kIters = 2000000;
+    Innexus::HarmonicModulator mod;
+    mod.prepare(44100.0);
+    mod.setRate(2.0f);
+    mod.setWaveform(Innexus::ModulatorWaveform::Sine);
+    mod.setTarget(Innexus::ModulatorTarget::Frequency);
+    mod.setDepth(0.5f);
+    mod.setRange(1, 96);
+
+    std::array<float, Krate::DSP::kMaxPartials> multipliers{};
+    auto t0 = std::chrono::high_resolution_clock::now();
+    float acc = 0.0f;
+    for (int i = 0; i < kIters; ++i) {
+        mod.advance();
+        mod.getFrequencyMultipliers(multipliers);
+        acc += multipliers[0];
+    }
+    auto t1 = std::chrono::high_resolution_clock::now();
+    const double ns = std::chrono::duration<double, std::nano>(t1 - t0).count()
+        / static_cast<double>(kIters);
+    const double cpuPct = (ns * 2.0 * 44100.0) / 1e9 * 100.0;
+    WARN("advance + getFrequencyMultipliers: " << ns << " ns/sample -> "
+         << cpuPct << "% of a core for 2 modulators  [checksum " << acc << "]");
+    CHECK(true);
+}
+
+// =============================================================================
+// QS-13: getFrequencyMultipliers() filled all 96 slots with 1.0 and then walked
+// every slot again with a per-element range test. Measured at ~61 ns/sample,
+// which is 0.63% of a core for two modulators -- six times the LFO itself.
+//
+// The range is contiguous, so the same array can be written as three spans with
+// no per-element branch. This must be EXACTLY output-preserving.
+// =============================================================================
+
+TEST_CASE("HarmonicModulator: frequency multiplier array is unchanged by span fill (QS-13)",
+          "[innexus][harmonic_modulator][qs13]")
+{
+    // Reference implementation: the original fill-then-branch form.
+    auto reference = [](float multiplier, int rangeStart, int rangeEnd) {
+        std::array<float, Krate::DSP::kMaxPartials> out{};
+        out.fill(1.0f);
+        for (size_t i = 0; i < Krate::DSP::kMaxPartials; ++i)
+        {
+            int harmIdx = static_cast<int>(i) + 1;
+            if (harmIdx >= rangeStart && harmIdx <= rangeEnd)
+                out[i] = multiplier;
+        }
+        return out;
+    };
+
+    const std::pair<int, int> ranges[] = {
+        {1, 96}, {1, 1}, {96, 96}, {5, 20}, {40, 41}, {1, 48}, {49, 96}
+    };
+
+    for (const auto& [lo, hi] : ranges)
+    {
+        Innexus::HarmonicModulator mod;
+        mod.prepare(44100.0);
+        mod.setWaveform(Innexus::ModulatorWaveform::Sine);
+        mod.setTarget(Innexus::ModulatorTarget::Frequency);
+        mod.setRate(3.0f);
+        mod.setDepth(0.7f);
+        mod.setRange(lo, hi);
+        mod.reset();
+
+        for (int step = 0; step < 64; ++step)
+        {
+            mod.advance();
+
+            std::array<float, Krate::DSP::kMaxPartials> got{};
+            mod.getFrequencyMultipliers(got);
+
+            const float bipolar = mod.getCurrentValue();
+            const float cents = 0.7f * bipolar * Innexus::HarmonicModulator::kModMaxCents;
+            const auto want = reference(std::pow(2.0f, cents / 1200.0f), lo, hi);
+
+            for (size_t i = 0; i < Krate::DSP::kMaxPartials; ++i)
+            {
+                INFO("range [" << lo << "," << hi << "] step " << step
+                     << " slot " << i);
+                REQUIRE(got[i] == want[i]);
+            }
+        }
     }
 }

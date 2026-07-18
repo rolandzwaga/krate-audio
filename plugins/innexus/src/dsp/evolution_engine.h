@@ -46,13 +46,13 @@ public:
     /// @note NOT real-time safe (called from setupProcessing)
     void prepare(double sampleRate) noexcept
     {
-        inverseSampleRate_ = 1.0f / static_cast<float>(sampleRate);
+        inverseSampleRate_ = 1.0 / sampleRate;
     }
 
     /// @brief Reset phase and direction to initial state.
     void reset() noexcept
     {
-        phase_ = 0.0f;
+        phase_ = 0.0;
         direction_ = 1;
     }
 
@@ -113,24 +113,27 @@ public:
         if (numWaypoints_ < 2)
             return;
 
-        const float phaseIncrement = speed_ * inverseSampleRate_;
+        // QS-12: double accumulator. Evolution speed reaches very low values,
+        // where a float increment is only a couple of ULP of a phase near 1.0
+        // and rounds away with a systematic bias.
+        const double phaseIncrement = static_cast<double>(speed_) * inverseSampleRate_;
 
         switch (mode_)
         {
         case EvolutionMode::Cycle:
             phase_ += phaseIncrement;
-            if (phase_ >= 1.0f)
-                phase_ -= 1.0f;
+            if (phase_ >= 1.0)
+                phase_ -= 1.0;
             break;
 
         case EvolutionMode::PingPong:
-            phase_ += static_cast<float>(direction_) * phaseIncrement;
-            if (phase_ >= 1.0f)
+            phase_ += static_cast<double>(direction_) * phaseIncrement;
+            if (phase_ >= 1.0)
             {
-                phase_ = 2.0f - phase_; // Reflect
+                phase_ = 2.0 - phase_; // Reflect
                 direction_ = -1;
             }
-            else if (phase_ <= 0.0f)
+            else if (phase_ <= 0.0)
             {
                 phase_ = -phase_; // Reflect
                 direction_ = 1;
@@ -141,9 +144,9 @@ public:
         {
             // Random bipolar step scaled by speed and 0.1 factor
             // (data-model.md: limits max per-sample step)
-            float step = rng_.nextFloat() * phaseIncrement * 0.1f;
+            double step = static_cast<double>(rng_.nextFloat()) * phaseIncrement * 0.1;
             phase_ += step;
-            phase_ = std::clamp(phase_, 0.0f, 1.0f - 1e-7f);
+            phase_ = std::clamp(phase_, 0.0, 1.0 - 1e-7);
             break;
         }
         }
@@ -170,7 +173,8 @@ public:
             return false;
 
         // Apply manual offset and depth, clamp to [0, 1] (FR-021)
-        float effectivePos = std::clamp(phase_ * depth_ + manualOffset_, 0.0f, 1.0f);
+        float effectivePos = std::clamp(
+            static_cast<float>(phase_) * depth_ + manualOffset_, 0.0f, 1.0f);
 
         // Map position to waypoint pair
         const float scaledPos = effectivePos * static_cast<float>(numWaypoints_ - 1);
@@ -212,7 +216,8 @@ public:
     /// @brief Get current evolution position [0.0, 1.0].
     [[nodiscard]] float getPosition() const noexcept
     {
-        return std::clamp(phase_ * depth_ + manualOffset_, 0.0f, 1.0f);
+        return std::clamp(
+            static_cast<float>(phase_) * depth_ + manualOffset_, 0.0f, 1.0f);
     }
 
     /// @brief Get number of active waypoints.
@@ -257,13 +262,13 @@ public:
     }
 
 private:
-    float phase_ = 0.0f;
+    double phase_ = 0.0;   ///< double: see advance() (QS-12)
     int direction_ = 1;  // +1 or -1 for PingPong
     EvolutionMode mode_ = EvolutionMode::Cycle;
     float speed_ = 0.1f;
     float depth_ = 0.5f;
     float manualOffset_ = 0.0f;
-    float inverseSampleRate_ = 1.0f / 44100.0f;
+    double inverseSampleRate_ = 1.0 / 44100.0;
 
     int numWaypoints_ = 0;
     std::array<int, 8> waypointIndices_{};

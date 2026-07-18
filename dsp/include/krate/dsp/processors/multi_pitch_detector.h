@@ -68,6 +68,11 @@ public:
     /// The absolute threshold is computed as kMinSalienceRatio * maxAmplitude.
     static constexpr float kMinSalienceRatio = 0.5f;
 
+    /// Fraction of a matched peak's amplitude cancelled for the winning F0.
+    /// The remainder is left behind as a crude allowance for partials shared
+    /// with another source -- see the note in the cancellation step.
+    static constexpr float kCancellationFraction = 0.85f;
+
     /// Salience ratio threshold: stop when salience drops below this fraction
     /// of the strongest F0's salience
     static constexpr float kSalienceDropRatio = 0.15f;
@@ -251,10 +256,20 @@ private:
 
         if (numHarmonicsFound == 0) return;
 
-        // Step 2: Estimate spectral envelope using spectral smoothness.
-        // Smooth the harmonic amplitude contour: fill gaps by linear interpolation
-        // between known harmonics, then use this as the expected amplitude.
-        // For each peak matching a harmonic, subtract the envelope estimate.
+        // Step 2: Subtract this F0's estimated contribution from each matched
+        // peak, leaving the residual for the remaining sources.
+        //
+        // NOTE: Klapuri's spectral-smoothness step estimates the source envelope
+        // by interpolating across neighbouring harmonics, so that a peak shared
+        // between two sources is only partly cancelled. This does NOT do that --
+        // it removes a flat 85% of whatever amplitude the matched peak carries,
+        // independent of its neighbours. The 15% left behind is a blunt stand-in
+        // for the overlap Klapuri's envelope would have modelled.
+        //
+        // The effect is that overlapping partials are over-cancelled for the
+        // weaker source. Implementing the real envelope interpolation would
+        // change every multi-pitch result, so the comment is corrected to match
+        // the code rather than the reverse.
         for (int h = 0; h < kNumHarmonics; ++h) {
             const float hFreq = harmonicFreqs[static_cast<size_t>(h)];
             if (hFreq <= 0.0f || hFreq > nyquist_) break;
@@ -262,16 +277,10 @@ private:
             int peakIdx = harmonicPeakIdx[static_cast<size_t>(h)];
             if (peakIdx < 0) continue;
 
-            // Estimate what fraction of this peak belongs to this F0.
-            // Use the harmonic envelope: expected amplitude from this source
-            // is interpolated from neighboring found harmonics.
+            // The peak's own amplitude stands in for this source's envelope at
+            // harmonic h (see the note above -- no neighbour interpolation).
             float envAmp = harmonicAmps[static_cast<size_t>(h)];
-
-            // Interpolate from neighbors if this harmonic was found
-            // The envelope estimate is the harmonic amplitude itself
-            // (since we found it), weighted by the harmonic weight decay.
-            // Subtract the estimated contribution, leaving residual for other sources.
-            float estimatedContribution = envAmp * 0.85f; // Leave 15% for overlap
+            float estimatedContribution = envAmp * kCancellationFraction;
             amps[peakIdx] = std::max(0.0f, amps[peakIdx] - estimatedContribution);
         }
     }

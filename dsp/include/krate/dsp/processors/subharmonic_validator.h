@@ -1,18 +1,23 @@
 // ==============================================================================
 // Layer 2: DSP Processor - Subharmonic Validator
 // ==============================================================================
-// Validates and corrects YIN F0 estimates using subharmonic summation
-// (Hermes 1988).  YIN is prone to octave errors — it sometimes locks onto
-// a subharmonic (f0/2, f0/3) instead of the true fundamental.
+// A bounded octave-error corrector for YIN F0 estimates. YIN is prone to
+// octave errors — it sometimes locks onto a subharmonic (f0/2, f0/3) instead
+// of the true fundamental.
 //
-// The validator sums the spectral magnitudes at each harmonic of a candidate
-// F0 (weighted by 1/h).  It compares the score for the original F0 against
-// octave-up (f0*2) and octave-down (f0/2) candidates and corrects if a
-// different octave scores significantly higher.
+// The SCORING is Hermes-style subharmonic summation: sum the spectral
+// magnitudes at each harmonic of a candidate F0, weighted by 1/h.
+//
+// The SEARCH is not. Hermes scans a continuum of candidate fundamentals; this
+// scores exactly four — f0, f0*2, f0/2 and f0*4 — and switches only if one
+// beats the original by kCorrectionThreshold. So it can only ever repair the
+// specific octave and double-octave confusions it enumerates. An octave error
+// that survives (or one that is not a power-of-two ratio) is outside what this
+// can fix by construction, not a tuning problem.
 //
 // This uses data already available from the STFT — no additional FFTs needed.
 //
-// Reference: Hermes, D.J. (1988). "Measurement of pitch by subharmonic
+// Scoring reference: Hermes, D.J. (1988). "Measurement of pitch by subharmonic
 // summation." JASA 83(1), pp. 257-264.
 //
 // Constitution Compliance:

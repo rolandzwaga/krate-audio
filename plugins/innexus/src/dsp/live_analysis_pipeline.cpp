@@ -103,6 +103,66 @@ void LiveAnalysisPipeline::prepare(double sampleRate, LatencyMode mode)
 }
 
 // ==============================================================================
+// Mode-switch crossfade
+// ==============================================================================
+void LiveAnalysisPipeline::crossfadeFrames(Krate::DSP::HarmonicFrame& target,
+                                           const Krate::DSP::HarmonicFrame& previous,
+                                           float fadeNew) noexcept
+{
+    constexpr int kMaxP = static_cast<int>(Krate::DSP::kMaxPartials);
+    const float fadeOld = 1.0f - fadeNew;
+    const int numNew = std::min(target.numPartials, kMaxP);
+    const int numOld = std::min(previous.numPartials, kMaxP);
+
+    // Pair partials by harmonic index where both frames assign one. Where an
+    // index is absent (0 = unassigned, e.g. sieve-free polyphonic frames),
+    // fall back to nearest frequency within a small tolerance.
+    constexpr float kFreqMatchTolerance = 0.03f; // 3%
+    auto findMatch = [&](const Krate::DSP::Partial& p, int count,
+                         const Krate::DSP::Partial* pool) noexcept -> int {
+        if (p.harmonicIndex > 0) {
+            for (int j = 0; j < count; ++j) {
+                if (pool[j].harmonicIndex == p.harmonicIndex) return j;
+            }
+        }
+        if (p.frequency <= 0.0f) return -1;
+        int best = -1;
+        float bestErr = kFreqMatchTolerance * p.frequency;
+        for (int j = 0; j < count; ++j) {
+            const float err = std::abs(pool[j].frequency - p.frequency);
+            if (err < bestErr) { bestErr = err; best = j; }
+        }
+        return best;
+    };
+
+    // Partials in the target: blend against their counterpart, or fade in.
+    for (int i = 0; i < numNew; ++i) {
+        const int j = findMatch(target.partials[static_cast<size_t>(i)],
+                                numOld, previous.partials.data());
+        const float oldAmp = (j >= 0)
+            ? previous.partials[static_cast<size_t>(j)].amplitude : 0.0f;
+        target.partials[static_cast<size_t>(i)].amplitude =
+            target.partials[static_cast<size_t>(i)].amplitude * fadeNew
+            + oldAmp * fadeOld;
+    }
+
+    // Partials only in the previous frame: append so they fade out at their own
+    // frequency rather than leaking their amplitude onto a stale slot.
+    int outIdx = numNew;
+    for (int j = 0; j < numOld && outIdx < kMaxP; ++j) {
+        const int i = findMatch(previous.partials[static_cast<size_t>(j)],
+                                numNew, target.partials.data());
+        if (i >= 0) continue; // already blended above
+        auto& dst = target.partials[static_cast<size_t>(outIdx)];
+        dst = previous.partials[static_cast<size_t>(j)];
+        dst.amplitude *= fadeOld;
+        ++outIdx;
+    }
+
+    target.numPartials = outIdx;
+}
+
+// ==============================================================================
 // Reset
 // ==============================================================================
 void LiveAnalysisPipeline::reset()
@@ -398,19 +458,7 @@ void LiveAnalysisPipeline::runAnalysis()
                                    static_cast<float>(kModeSwitchCrossfadeFrames);
         float fadeOld = 1.0f - fadeNew;
 
-        // Crossfade the partial amplitudes of the primary output frame
-        int numNew = latestFrame_.numPartials;
-        int numOld = previousModeFrame_.numPartials;
-        int maxPartials = std::max(numNew, numOld);
-        maxPartials = std::min(maxPartials, static_cast<int>(Krate::DSP::kMaxPartials));
-
-        for (int i = 0; i < maxPartials; ++i)
-        {
-            float newAmp = (i < numNew) ? latestFrame_.partials[i].amplitude : 0.0f;
-            float oldAmp = (i < numOld) ? previousModeFrame_.partials[i].amplitude : 0.0f;
-            latestFrame_.partials[i].amplitude = oldAmp * fadeOld + newAmp * fadeNew;
-        }
-        latestFrame_.numPartials = maxPartials;
+        crossfadeFrames(latestFrame_, previousModeFrame_, fadeNew);
 
         // Also crossfade global amplitude
         latestFrame_.globalAmplitude =

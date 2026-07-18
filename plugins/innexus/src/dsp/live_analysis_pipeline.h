@@ -68,6 +68,28 @@ public:
     /// Number of frames to crossfade when switching modes
     static constexpr int kModeSwitchCrossfadeFrames = 4;
 
+    /// @brief Crossfade one frame toward another, matching partials by identity.
+    ///
+    /// Blends @p target toward itself from @p previous, with @p fadeNew giving
+    /// the weight of the target frame (0 = entirely previous, 1 = entirely
+    /// target).
+    ///
+    /// Partials are paired by harmonic identity, NOT by slot order (QS-1). Mono
+    /// and polyphonic analysis order their partial arrays differently, so slot i
+    /// of one frame is generally a different harmonic to slot i of the other;
+    /// blending by index crossfades unrelated partials. Worse, slots between the
+    /// two frames' partial counts used to receive a fading amplitude while
+    /// keeping whatever frequency was stale in that slot, briefly resurrecting
+    /// partials at meaningless frequencies.
+    ///
+    /// Partials present only in @p previous are appended so they fade out at
+    /// their own frequency; partials only in @p target fade in from silence.
+    ///
+    /// Static and free of pipeline state so it can be tested directly.
+    static void crossfadeFrames(Krate::DSP::HarmonicFrame& target,
+                                const Krate::DSP::HarmonicFrame& previous,
+                                float fadeNew) noexcept;
+
     LiveAnalysisPipeline() = default;
     ~LiveAnalysisPipeline() = default;
 

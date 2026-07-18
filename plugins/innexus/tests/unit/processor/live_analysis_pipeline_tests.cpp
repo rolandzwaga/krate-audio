@@ -22,6 +22,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <new>
+#include <utility>
 #include <vector>
 
 // ==============================================================================
@@ -724,4 +725,97 @@ TEST_CASE("LiveAnalysisPipeline Phase 8 SC-007: spectral coring residual RMS >= 
     // active and non-silent. The end-to-end SC-007 test (T082) measures the
     // actual output dBFS through the ResidualSynthesizer.
     REQUIRE(maxResidualEnergy > 1e-10f); // Clearly non-zero
+}
+
+// =============================================================================
+// QS-1: the mono<->poly mode-switch crossfade blended partial amplitudes by
+// SLOT INDEX. The two analysis modes order their partial arrays differently, so
+// slot i of the outgoing frame is generally a different harmonic to slot i of
+// the incoming one, and the crossfade mixed unrelated partials.
+//
+// Slots between the two partial counts were worse still: they received a fading
+// amplitude while keeping whatever frequency happened to be stale in that slot.
+// =============================================================================
+
+namespace {
+
+Krate::DSP::HarmonicFrame makeFrameFromHarmonics(
+    const std::vector<std::pair<int, float>>& harmonicsAndAmps, float f0)
+{
+    Krate::DSP::HarmonicFrame frame{};
+    frame.f0 = f0;
+    frame.f0Confidence = 1.0f;
+    frame.numPartials = static_cast<int>(harmonicsAndAmps.size());
+    for (size_t i = 0; i < harmonicsAndAmps.size(); ++i)
+    {
+        auto& p = frame.partials[i];
+        p.harmonicIndex = harmonicsAndAmps[i].first;
+        p.amplitude = harmonicsAndAmps[i].second;
+        p.frequency = f0 * static_cast<float>(p.harmonicIndex);
+        p.relativeFrequency = static_cast<float>(p.harmonicIndex);
+        p.stability = 1.0f;
+        p.age = 5;
+    }
+    return frame;
+}
+
+float amplitudeOfHarmonic(const Krate::DSP::HarmonicFrame& f, int harmonic)
+{
+    for (int i = 0; i < f.numPartials; ++i)
+        if (f.partials[static_cast<size_t>(i)].harmonicIndex == harmonic)
+            return f.partials[static_cast<size_t>(i)].amplitude;
+    return -1.0f; // absent
+}
+
+} // namespace
+
+TEST_CASE("LiveAnalysisPipeline: mode crossfade pairs partials by harmonic (QS-1)",
+          "[innexus][live_analysis][qs1]")
+{
+    // Same three harmonics, deliberately stored in a DIFFERENT slot order --
+    // exactly what a mono->poly switch produces.
+    const auto previous = makeFrameFromHarmonics(
+        {{1, 1.0f}, {2, 0.5f}, {3, 0.25f}}, 220.0f);
+    auto target = makeFrameFromHarmonics(
+        {{3, 0.75f}, {1, 0.20f}, {2, 0.60f}}, 220.0f);
+
+    // Halfway through the crossfade each harmonic must be the mean of ITS OWN
+    // two amplitudes, not of whatever shared a slot index.
+    Innexus::LiveAnalysisPipeline::crossfadeFrames(target, previous, 0.5f);
+
+    CHECK(amplitudeOfHarmonic(target, 1) == Catch::Approx(0.5f * (1.0f + 0.20f)));
+    CHECK(amplitudeOfHarmonic(target, 2) == Catch::Approx(0.5f * (0.5f + 0.60f)));
+    CHECK(amplitudeOfHarmonic(target, 3) == Catch::Approx(0.5f * (0.25f + 0.75f)));
+}
+
+TEST_CASE("LiveAnalysisPipeline: mode crossfade fades unmatched partials properly (QS-1)",
+          "[innexus][live_analysis][qs1]")
+{
+    // Harmonic 4 exists only in the outgoing frame, harmonic 5 only in the
+    // incoming one.
+    const auto previous = makeFrameFromHarmonics(
+        {{1, 1.0f}, {4, 0.40f}}, 220.0f);
+    auto target = makeFrameFromHarmonics(
+        {{1, 0.80f}, {5, 0.60f}}, 220.0f);
+
+    Innexus::LiveAnalysisPipeline::crossfadeFrames(target, previous, 0.25f);
+
+    // Shared harmonic: weighted blend.
+    CHECK(amplitudeOfHarmonic(target, 1)
+          == Catch::Approx(0.80f * 0.25f + 1.0f * 0.75f));
+
+    // Incoming-only harmonic fades IN from silence.
+    CHECK(amplitudeOfHarmonic(target, 5) == Catch::Approx(0.60f * 0.25f));
+
+    // Outgoing-only harmonic must survive, fading OUT at its own frequency --
+    // not be dropped, and not land on a slot belonging to another partial.
+    const float h4 = amplitudeOfHarmonic(target, 4);
+    REQUIRE(h4 >= 0.0f); // present at all
+    CHECK(h4 == Catch::Approx(0.40f * 0.75f));
+    for (int i = 0; i < target.numPartials; ++i)
+    {
+        const auto& p = target.partials[static_cast<size_t>(i)];
+        if (p.harmonicIndex == 4)
+            CHECK(p.frequency == Catch::Approx(220.0f * 4.0f));
+    }
 }
