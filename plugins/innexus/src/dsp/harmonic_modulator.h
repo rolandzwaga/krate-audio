@@ -153,6 +153,9 @@ public:
     /// @param frame HarmonicFrame to modify in-place
     void applyAmplitudeModulation(Krate::DSP::HarmonicFrame& frame) const noexcept
     {
+        // WI-10: only act when Amplitude is the selected target.
+        if (target_ != ModulatorTarget::Amplitude)
+            return;
         if (rangeStart_ > rangeEnd_ || depth_ <= 0.0f)
             return;
 
@@ -182,6 +185,9 @@ public:
     {
         multipliers.fill(1.0f);
 
+        // WI-10: only act when Frequency is the selected target.
+        if (target_ != ModulatorTarget::Frequency)
+            return;
         if (rangeStart_ > rangeEnd_ || depth_ <= 0.0f)
             return;
 
@@ -211,6 +217,9 @@ public:
     {
         offsets.fill(0.0f);
 
+        // WI-10: only act when Pan is the selected target.
+        if (target_ != ModulatorTarget::Pan)
+            return;
         if (rangeStart_ > rangeEnd_ || depth_ <= 0.0f)
             return;
 

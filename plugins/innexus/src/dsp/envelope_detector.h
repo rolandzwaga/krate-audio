@@ -68,6 +68,18 @@ public:
         if (peakAmp < 1e-8f)
             return DetectedADSR{};
 
+        // Normalize the contour by its peak so the steady-state slope/variance
+        // thresholds are scale-invariant (independent of recording level): slope
+        // scales ~linearly and variance ~quadratically with level, so absolute
+        // thresholds otherwise fire at different points for the same shape.
+        // The peak becomes 1.0; sustainLevel stays peak-relative and unchanged. (WI-2)
+        {
+            const float invPeak = 1.0f / peakAmp;
+            for (int i = 0; i < numFrames; ++i)
+                contour[static_cast<size_t>(i)] *= invPeak;
+            peakAmp = 1.0f;
+        }
+
         // --- Step 3: Compute Attack ---
         float attackMs = static_cast<float>(peakIdx) * hopTimeSec * 1000.0f;
 

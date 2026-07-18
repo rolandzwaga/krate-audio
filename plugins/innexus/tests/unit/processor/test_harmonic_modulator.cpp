@@ -24,6 +24,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <memory>
 
 using Catch::Approx;
 
@@ -596,4 +597,71 @@ TEST_CASE("HarmonicModulator: reset() exists but is separate from note events",
     // reset() does zero the phase (used by prepare, NOT by MIDI)
     mod.reset();
     REQUIRE(mod.getPhase() == Approx(0.0f).margin(1e-7f));
+}
+
+// =============================================================================
+// WI-10: The modulation Target selector (Amplitude/Frequency/Pan) must gate the
+// applicators. Historically target_ was written but never read, so all three
+// modulations were always applied regardless of the selected target.
+// =============================================================================
+TEST_CASE("HarmonicModulator: target selector gates which modulation applies (WI-10)",
+          "[modulator][target][wi10]")
+{
+    auto makeMod = [](Innexus::ModulatorTarget target) {
+        auto mod = std::make_unique<Innexus::HarmonicModulator>();
+        mod->prepare(44100.0);
+        mod->setWaveform(Innexus::ModulatorWaveform::Sine);
+        mod->setDepth(1.0f);
+        mod->setRange(1, 16);
+        mod->setRate(2.0f);
+        mod->setTarget(target);
+        // Advance to a phase where the LFO is clearly non-zero.
+        for (int i = 0; i < 3000; ++i) mod->advance();
+        return mod;
+    };
+
+    auto ampUnchanged = [](Innexus::HarmonicModulator& mod) {
+        auto frame = makeTestFrame();
+        auto original = frame;
+        mod.applyAmplitudeModulation(frame);
+        for (int i = 0; i < frame.numPartials; ++i)
+            if (std::abs(frame.partials[static_cast<size_t>(i)].amplitude
+                    - original.partials[static_cast<size_t>(i)].amplitude) > 1e-6f)
+                return false;
+        return true;
+    };
+    auto freqTrivial = [](Innexus::HarmonicModulator& mod) {
+        std::array<float, Krate::DSP::kMaxPartials> m{};
+        mod.getFrequencyMultipliers(m);
+        for (float v : m) if (std::abs(v - 1.0f) > 1e-6f) return false;
+        return true;
+    };
+    auto panTrivial = [](Innexus::HarmonicModulator& mod) {
+        std::array<float, Krate::DSP::kMaxPartials> o{};
+        mod.getPanOffsets(o);
+        for (float v : o) if (std::abs(v) > 1e-6f) return false;
+        return true;
+    };
+
+    SECTION("Target=Amplitude: only amplitude modulates")
+    {
+        auto mod = makeMod(Innexus::ModulatorTarget::Amplitude);
+        REQUIRE_FALSE(ampUnchanged(*mod)); // amplitude IS modulated
+        REQUIRE(freqTrivial(*mod));        // frequency is NOT
+        REQUIRE(panTrivial(*mod));         // pan is NOT
+    }
+    SECTION("Target=Frequency: only frequency modulates")
+    {
+        auto mod = makeMod(Innexus::ModulatorTarget::Frequency);
+        REQUIRE(ampUnchanged(*mod));
+        REQUIRE_FALSE(freqTrivial(*mod));
+        REQUIRE(panTrivial(*mod));
+    }
+    SECTION("Target=Pan: only pan modulates")
+    {
+        auto mod = makeMod(Innexus::ModulatorTarget::Pan);
+        REQUIRE(ampUnchanged(*mod));
+        REQUIRE(freqTrivial(*mod));
+        REQUIRE_FALSE(panTrivial(*mod));
+    }
 }

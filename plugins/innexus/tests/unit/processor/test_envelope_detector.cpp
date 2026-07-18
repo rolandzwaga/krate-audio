@@ -53,6 +53,50 @@ static std::vector<Krate::DSP::HarmonicFrame> makeContour(
 static constexpr float kHopTimeSec = 512.0f / 44100.0f; // ~11.6ms
 
 // =============================================================================
+// WI-2: Steady-state detection must be scale-invariant.
+//
+// The slope/variance thresholds were applied to the raw (unnormalized) RMS
+// contour, so the same envelope shape at a different recording level produced a
+// different ADSR. Normalizing the contour by its peak makes detection depend on
+// shape only, not absolute level.
+// =============================================================================
+TEST_CASE("EnvelopeDetector: steady-state detection is scale-invariant",
+          "[envelope_detector][scale_invariance]")
+{
+    // Attack (ramp up) -> decay -> flat sustain -> release (ramp down).
+    std::vector<float> shape;
+    for (int i = 0; i < 6; ++i) shape.push_back(0.15f * static_cast<float>(i + 1)); // attack to ~0.9
+    shape.push_back(1.0f);                                                          // peak
+    for (int i = 0; i < 4; ++i) shape.push_back(0.7f - 0.02f * static_cast<float>(i)); // decay
+    for (int i = 0; i < 20; ++i) shape.push_back(0.6f);                             // flat sustain
+    for (int i = 0; i < 8; ++i) shape.push_back(0.6f - 0.07f * static_cast<float>(i + 1)); // release
+
+    auto detectScaled = [&](float scale) {
+        std::vector<float> amps;
+        amps.reserve(shape.size());
+        for (float v : shape) amps.push_back(v * scale);
+        return Innexus::EnvelopeDetector::detect(makeContour(amps), kHopTimeSec);
+    };
+
+    const auto base = detectScaled(1.0f);
+    const auto quiet = detectScaled(0.1f);
+    const auto loud = detectScaled(10.0f);
+
+    INFO("decay base=" << base.decayMs << " quiet=" << quiet.decayMs
+         << " loud=" << loud.decayMs);
+    INFO("sustainStart base=" << base.sustainStartFrame
+         << " quiet=" << quiet.sustainStartFrame << " loud=" << loud.sustainStartFrame);
+
+    // Detection must depend on shape only, not absolute level.
+    REQUIRE(quiet.sustainStartFrame == base.sustainStartFrame);
+    REQUIRE(loud.sustainStartFrame == base.sustainStartFrame);
+    REQUIRE(quiet.decayMs == Catch::Approx(base.decayMs));
+    REQUIRE(loud.decayMs == Catch::Approx(base.decayMs));
+    REQUIRE(quiet.sustainLevel == Catch::Approx(base.sustainLevel).margin(1e-4));
+    REQUIRE(loud.sustainLevel == Catch::Approx(base.sustainLevel).margin(1e-4));
+}
+
+// =============================================================================
 // Test: Synthetic percussive contour (step-up then decay)
 // =============================================================================
 TEST_CASE("EnvelopeDetector: percussive contour yields short Attack and low Sustain",
