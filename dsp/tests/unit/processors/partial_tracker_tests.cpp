@@ -23,6 +23,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <string>
 #include <vector>
 
 using Catch::Approx;
@@ -937,5 +938,108 @@ TEST_CASE("PartialTracker: dual window resolves fundamentals just above the shor
                                      kLongFft, longScale, f0, kTestSampleRate);
         }
         REQUIRE(hasFundamental(tracker));
+    }
+}
+
+// =============================================================================
+// WI-13: the harmonic sieve tests peaks against a rigid n*f0 template with a
+// sqrt(n) tolerance, but a real stiff string follows Fletcher (1964)
+// f_n = n*f0*sqrt(1 + B*n^2). Measured at f0=220, B=1e-3: partials 7..14 are
+// all rejected. No tolerance widening can fix this -- at n=14 the deviation is
+// ~288 Hz while half the harmonic spacing is only 110 Hz, so a window wide
+// enough to admit the partial would also admit its neighbours. The template
+// itself has to stretch.
+// =============================================================================
+
+TEST_CASE("PartialTracker: stiff-string upper partials keep their harmonic index (WI-13)",
+          "[dsp][partial_tracker][wi13]") {
+    constexpr size_t kFft = 4096;
+    const float f0 = 220.0f;
+    const float B = 1e-3f; // stiff, e.g. a short thick bass string
+
+    std::vector<float> freqs, amps;
+    for (int n = 1; n <= 14; ++n) {
+        const float fn = static_cast<float>(n) * f0
+            * std::sqrt(1.0f + B * static_cast<float>(n * n));
+        freqs.push_back(fn);
+        amps.push_back(1.0f / static_cast<float>(n));
+    }
+
+    SpectralBuffer buf;
+    buf.prepare(kFft);
+    fillRealSpectrum(buf, freqs, amps, kFft, kTestSampleRate);
+
+    PartialTracker tracker;
+    tracker.prepare(kFft, kTestSampleRate);
+    F0Estimate f0e;
+    f0e.frequency = f0;
+    f0e.confidence = 0.95f;
+    f0e.voiced = true;
+    for (int frame = 0; frame < 5; ++frame) {
+        tracker.processFrame(buf, f0e, kFft, kTestSampleRate);
+    }
+
+    const auto& parts = tracker.getPartials();
+    auto correctlyAssigned = [&](int n) {
+        const float target = freqs[static_cast<size_t>(n - 1)];
+        for (int i = 0; i < tracker.getActiveCount(); ++i) {
+            const auto& p = parts[static_cast<size_t>(i)];
+            if (p.harmonicIndex == n && std::abs(p.frequency - target) < 0.02f * target) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    int correct = 0;
+    for (int n = 1; n <= 14; ++n) {
+        if (correctlyAssigned(n)) ++correct;
+    }
+    INFO("correctly assigned " << correct << "/14");
+    REQUIRE(correct >= 12);
+    REQUIRE(correctlyAssigned(10));
+    REQUIRE(correctlyAssigned(14));
+}
+
+TEST_CASE("PartialTracker: near-harmonic assignment is unchanged by the stiffness estimate (WI-13)",
+          "[dsp][partial_tracker][wi13]") {
+    // Guard on the risk WI-13 carries: the stiffness estimate must not perturb
+    // sources that really are harmonic.
+    constexpr size_t kFft = 4096;
+    const float f0 = 220.0f;
+
+    std::vector<float> freqs, amps;
+    for (int n = 1; n <= 20; ++n) {
+        freqs.push_back(f0 * static_cast<float>(n));
+        amps.push_back(1.0f / static_cast<float>(n));
+    }
+
+    SpectralBuffer buf;
+    buf.prepare(kFft);
+    fillRealSpectrum(buf, freqs, amps, kFft, kTestSampleRate);
+
+    PartialTracker tracker;
+    tracker.prepare(kFft, kTestSampleRate);
+    F0Estimate f0e;
+    f0e.frequency = f0;
+    f0e.confidence = 0.95f;
+    f0e.voiced = true;
+    for (int frame = 0; frame < 5; ++frame) {
+        tracker.processFrame(buf, f0e, kFft, kTestSampleRate);
+    }
+
+    const auto& parts = tracker.getPartials();
+    for (int n = 1; n <= 20; ++n) {
+        const float target = f0 * static_cast<float>(n);
+        bool ok = false;
+        for (int i = 0; i < tracker.getActiveCount(); ++i) {
+            const auto& p = parts[static_cast<size_t>(i)];
+            if (p.harmonicIndex == n && std::abs(p.frequency - target) < 0.01f * target) {
+                ok = true;
+                break;
+            }
+        }
+        INFO("harmonic n=" << n);
+        REQUIRE(ok);
     }
 }

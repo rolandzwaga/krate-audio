@@ -86,6 +86,31 @@ public:
     /// harmonic sieve (WI-12).
     static constexpr float kCrossoverBins = 4.0f;
 
+    /// Smallest estimated stiffness that triggers a stretched-template pass.
+    /// Below this the template correction is far under the sieve tolerance at
+    /// every harmonic index, so skipping the second pass leaves near-harmonic
+    /// sources bit-identical to the ideal-series behaviour (WI-13).
+    static constexpr float kMinInharmonicity = 2e-5f;
+
+    /// Upper bound on the estimated stiffness coefficient. Real strings sit
+    /// around 1e-4..1e-3 (Fletcher & Rossing); anything larger is a bad fit,
+    /// not a stiffer string.
+    static constexpr float kMaxInharmonicity = 1e-2f;
+
+    /// Highest harmonic index used to estimate stiffness. Low orders are where
+    /// the rigid first-pass template is still reliable.
+    static constexpr int kMaxInharmonicityEstimationOrder = 8;
+
+    /// Minimum assigned low-order partials required to estimate stiffness.
+    static constexpr int kMinInharmonicityEstimationPeaks = 3;
+
+    /// Estimate/reassign rounds. Each round lets the template explain more
+    /// harmonics, which sharpens the next estimate.
+    static constexpr int kInharmonicityRefineIterations = 4;
+
+    /// Change in B below which refinement is considered converged.
+    static constexpr float kInharmonicityTolerance = 1e-6f;
+
     PartialTracker() noexcept = default;
 
     /// @brief Set the DFT amplitude normalization factor.
@@ -460,27 +485,75 @@ private:
     // Harmonic Sieve (FR-023)
     // =========================================================================
 
-    /// Map detected peaks to integer multiples of F0 with tolerance that
-    /// scales as sqrt(n) per harmonic index.
+    /// Expected frequency of harmonic n for a string of inharmonicity B.
+    /// Fletcher (1964): f_n = n*f0*sqrt(1 + B*n^2). B = 0 gives the ideal
+    /// harmonic series.
+    [[nodiscard]] static float harmonicTemplate(int n, float f0, float B) noexcept {
+        const float fn = static_cast<float>(n);
+        if (B <= 0.0f) return fn * f0;
+        return fn * f0 * std::sqrt(1.0f + B * fn * fn);
+    }
+
+    /// Map detected peaks onto a harmonic template with tolerance that scales
+    /// as sqrt(n) per harmonic index.
+    ///
+    /// Runs twice for stiff sources (WI-13). A real string is not perfectly
+    /// harmonic: stiffness stretches its partials as f_n = n*f0*sqrt(1+B*n^2)
+    /// (Fletcher 1964), and the deviation grows roughly as n^3. Against a rigid
+    /// n*f0 template a stiff string's upper partials fall outside any usable
+    /// tolerance -- at f0=220, B=1e-3 the n=14 deviation is ~288 Hz while half
+    /// the harmonic spacing, the widest a window may ever be without admitting
+    /// the neighbouring harmonic, is only 110 Hz. Widening cannot fix this; the
+    /// template has to stretch.
+    ///
+    /// So: assign against the ideal series, estimate B from the confidently
+    /// assigned low-order partials (where the rigid template is still valid),
+    /// and if the source is measurably stiff, reassign against the stretched
+    /// template. Near-harmonic sources estimate B below kMinInharmonicity and
+    /// skip the second pass entirely, leaving their assignment bit-identical.
     void mapToHarmonics(float f0) noexcept {
-        // Base tolerance factor: fraction of F0
+        float B = 0.0f;
+        assignHarmonics(f0, 0.0f);
+        // Resolve before estimating: several peaks (a true partial and the
+        // window's leakage sidelobes around it) can claim the same harmonic,
+        // and the sidelobes sit nearer the ideal n*f0 than the stretched
+        // partial does. Left in, they drag the stiffness fit toward zero.
+        resolveHarmonicConflicts(f0, 0.0f);
+
+        // Refine: each estimate widens the set of harmonics the template
+        // explains, which in turn sharpens the next estimate. Against the
+        // ideal series only the lowest orders are assigned correctly for a
+        // stiff source -- deviation overtakes tolerance around n=7 at
+        // B=1e-3 -- so a single pass systematically underestimates B.
+        for (int iter = 0; iter < kInharmonicityRefineIterations; ++iter) {
+            const float newB = estimateInharmonicity(f0);
+            if (newB <= kMinInharmonicity && B <= kMinInharmonicity) {
+                break; // harmonic source: leave the ideal-series assignment
+            }
+            const bool converged = std::abs(newB - B) < kInharmonicityTolerance;
+            B = newB;
+            assignHarmonics(f0, B);
+            resolveHarmonicConflicts(f0, B);
+            if (converged) break;
+        }
+    }
+
+    /// Assign each peak to its closest harmonic under the given template.
+    void assignHarmonics(float f0, float B) noexcept {
         constexpr float kBaseToleranceFactor = 0.06f;
 
-        // Maximum harmonic index to search
         const float nyquist = sampleRate_ * 0.5f;
-        const int maxHarmonic =
-            static_cast<int>(nyquist / f0);
 
-        // For each peak, find the best matching harmonic
         for (int p = 0; p < numPeaks_; ++p) {
             const auto pidx = static_cast<size_t>(p);
             const float peakFreq = peakFreqs_[pidx];
             float bestError = std::numeric_limits<float>::max();
             int bestHarmonic = 0;
 
-            for (int n = 1; n <= maxHarmonic &&
-                            n <= static_cast<int>(kMaxPartials); ++n) {
-                const float harmonicFreq = static_cast<float>(n) * f0;
+            for (int n = 1; n <= static_cast<int>(kMaxPartials); ++n) {
+                const float harmonicFreq = harmonicTemplate(n, f0, B);
+                if (harmonicFreq >= nyquist) break;
+
                 const float tolerance =
                     kBaseToleranceFactor * std::sqrt(static_cast<float>(n)) * f0;
                 const float error = std::abs(peakFreq - harmonicFreq);
@@ -493,19 +566,60 @@ private:
 
             peakHarmonicIndex_[pidx] = bestHarmonic;
         }
+    }
 
-        // Resolve conflicts: if two peaks map to the same harmonic,
-        // keep the one with lower error
+    /// Estimate the stiffness coefficient B from already-assigned low-order
+    /// partials.
+    ///
+    /// Rearranging Fletcher's relation gives (f_n / (n*f0))^2 - 1 = B * n^2,
+    /// i.e. a line through the origin in n^2, so B is a one-parameter least
+    /// squares fit.
+    ///
+    /// Points are weighted by peak amplitude. When the current template does
+    /// not yet reach a harmonic, the peak that claims that index is a window
+    /// leakage sidelobe sitting near the ideal n*f0 -- it would contribute
+    /// y ~= 0 at the largest available n^2 and pull the fit hard toward zero.
+    /// Sidelobes are orders of magnitude weaker than the partial they surround
+    /// (~-92 dB for Blackman-Harris), so amplitude weighting all but removes
+    /// them without needing to know in advance which orders are trustworthy.
+    [[nodiscard]] float estimateInharmonicity(float f0) const noexcept {
+        float sumWXY = 0.0f;
+        float sumWXX = 0.0f;
+        int count = 0;
+
+        for (int p = 0; p < numPeaks_; ++p) {
+            const auto pidx = static_cast<size_t>(p);
+            const int n = peakHarmonicIndex_[pidx];
+            // n=1 carries no stiffness information (the n^2 term vanishes).
+            if (n < 2 || n > kMaxInharmonicityEstimationOrder) continue;
+
+            const float fn = static_cast<float>(n);
+            const float ratio = peakFreqs_[pidx] / (fn * f0);
+            const float y = ratio * ratio - 1.0f; // = B * n^2
+            const float x = fn * fn;
+            const float w = peakAmps_[pidx];
+
+            sumWXY += w * x * y;
+            sumWXX += w * x * x;
+            ++count;
+        }
+
+        if (count < kMinInharmonicityEstimationPeaks || sumWXX <= 0.0f) {
+            return 0.0f;
+        }
+        return std::clamp(sumWXY / sumWXX, 0.0f, kMaxInharmonicity);
+    }
+
+    /// If two peaks claim the same harmonic, keep the one closer to the
+    /// template frequency.
+    void resolveHarmonicConflicts(float f0, float B) noexcept {
         for (int i = 0; i < numPeaks_; ++i) {
             if (peakHarmonicIndex_[static_cast<size_t>(i)] == 0) continue;
             for (int j = i + 1; j < numPeaks_; ++j) {
                 if (peakHarmonicIndex_[static_cast<size_t>(j)] ==
                     peakHarmonicIndex_[static_cast<size_t>(i)]) {
-                    // Keep the peak closer to the expected harmonic frequency
-                    const float harmonicFreq =
-                        static_cast<float>(
-                            peakHarmonicIndex_[static_cast<size_t>(i)]) *
-                        f0;
+                    const float harmonicFreq = harmonicTemplate(
+                        peakHarmonicIndex_[static_cast<size_t>(i)], f0, B);
                     const float errI =
                         std::abs(peakFreqs_[static_cast<size_t>(i)] -
                                  harmonicFreq);
@@ -942,6 +1056,7 @@ private:
 
     /// Number of spectral bins (fftSize/2 + 1)
     size_t numBins_ = 0;
+
 
     /// Scratch index list used by prunePeaksToMatcherCapacity()
     std::vector<int> peakSelectIdx_;
