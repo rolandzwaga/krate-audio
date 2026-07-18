@@ -334,3 +334,66 @@ TEST_CASE("EnvelopeDetector: valid contour produces non-default ADSR",
     // This test MUST FAIL with the stub (which returns all defaults)
     REQUIRE_FALSE(isDefault);
 }
+
+// =============================================================================
+// WI-19: the rolling least-squares slope uses an absolute frame index that is
+// never re-centred, so sum_x and sum_x2 grow without bound while the quantity
+// actually wanted -- denom = n*sum_x2 - sum_x^2 -- is the constant 1716 for a
+// 12-frame integer window. Far from the peak the subtraction cancels away most
+// of the float mantissa, and the slope estimate degrades.
+//
+// Expressed as a property: slope is translation-invariant, so the SAME envelope
+// shape must be detected identically whether it sits at the start of a long
+// file or thousands of frames in.
+// =============================================================================
+
+TEST_CASE("EnvelopeDetector: detection is translation-invariant along a long contour (WI-19)",
+          "[innexus][envelope_detector][wi19]")
+{
+    // One envelope shape: fast attack, decay, then a long almost-flat sustain
+    // whose slope sits just under the steady-state threshold.
+    auto makeShape = []() {
+        std::vector<float> shape;
+        for (int i = 0; i < 10; ++i)                    // attack
+            shape.push_back(static_cast<float>(i) / 10.0f);
+        shape.push_back(1.0f);                          // peak
+        for (int i = 0; i < 30; ++i)                    // decay
+            shape.push_back(1.0f - 0.4f * static_cast<float>(i) / 30.0f);
+        for (int i = 0; i < 400; ++i)                   // sustain, tiny droop
+            shape.push_back(0.6f - 1e-4f * static_cast<float>(i));
+        return shape;
+    };
+
+    const auto shape = makeShape();
+
+    // Reference: the shape alone.
+    const auto nearResult = Innexus::EnvelopeDetector::detect(
+        makeContour(shape), kHopTimeSec);
+
+    // Same shape, but preceded by a long quiet lead-in so every window sits at
+    // a large absolute frame index. The lead-in is below the peak, so peakIdx
+    // still lands on the shape's peak and the region past it is identical.
+    constexpr int kLeadIn = 40000; // ~7.5 minutes of audio at 11.6 ms/frame
+    std::vector<float> shifted(static_cast<size_t>(kLeadIn), 0.05f);
+    shifted.insert(shifted.end(), shape.begin(), shape.end());
+    const auto farResult = Innexus::EnvelopeDetector::detect(
+        makeContour(shifted), kHopTimeSec);
+
+    INFO("near: decay=" << nearResult.decayMs
+         << " sustain=" << nearResult.sustainLevel
+         << " sustainStart=" << nearResult.sustainStartFrame
+         << " | far: decay=" << farResult.decayMs
+         << " sustain=" << farResult.sustainLevel
+         << " sustainStart=" << farResult.sustainStartFrame);
+
+    // Decay is measured from the peak, so it must not depend on where the peak
+    // sits in the file.
+    REQUIRE(farResult.decayMs == Catch::Approx(nearResult.decayMs).margin(1.0f));
+    REQUIRE(farResult.sustainLevel
+            == Catch::Approx(nearResult.sustainLevel).margin(0.02f));
+
+    // The sustain region must start the same number of frames after the peak.
+    const int nearOffset = nearResult.sustainStartFrame - 10;
+    const int farOffset = farResult.sustainStartFrame - (kLeadIn + 10);
+    REQUIRE(std::abs(farOffset - nearOffset) <= 1);
+}
