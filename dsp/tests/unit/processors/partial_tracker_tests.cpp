@@ -17,9 +17,13 @@
 #include <krate/dsp/processors/partial_tracker.h>
 #include <krate/dsp/primitives/spectral_buffer.h>
 #include <krate/dsp/processors/harmonic_types.h>
+#include <krate/dsp/primitives/fft.h>
+#include <krate/dsp/core/window_functions.h>
 
+#include <algorithm>
 #include <array>
 #include <cmath>
+#include <string>
 #include <vector>
 
 using Catch::Approx;
@@ -699,4 +703,343 @@ TEST_CASE("PartialTracker: noise-like spectrum produces bandwidth > 0.3",
         }
     }
     REQUIRE(foundPeak);
+}
+
+// =============================================================================
+// WI-1 / FR-018, FR-020, FR-021: Dual-window multi-resolution merge.
+//
+// The offline analyzer runs a long (4096) STFT for low-frequency resolution but
+// historically never fed it to the tracker, so fundamentals below the short
+// window's scan floor (bin 2 = ~86 Hz at 1024/44.1k) were unresolvable. The
+// dual-window path fills the sub-floor gap with long-window peaks while leaving
+// the short-window scan (>= floor) byte-identical.
+// =============================================================================
+TEST_CASE("PartialTracker: long-window merge resolves low fundamental below short floor",
+          "[partial_tracker][dual_window]") {
+    constexpr size_t kShortFft = 1024; // 43.07 Hz/bin; scan floor bin 2 = 86.13 Hz
+    constexpr size_t kLongFft = 4096;  // 10.77 Hz/bin; resolves down to ~40 Hz
+
+    // Fundamental placed exactly on long-window bin 5 (53.83 Hz): well below the
+    // short floor, and dead-on a long bin so the sieve's tight n=1 tolerance
+    // (0.06*f0 ~= 3.2 Hz) accepts it.
+    const float kF0 = kTestSampleRate / static_cast<float>(kLongFft) * 5.0f;
+
+    F0Estimate f0;
+    f0.frequency = kF0;
+    f0.confidence = 1.0f;
+    f0.voiced = true;
+
+    SpectralBuffer shortSpectrum;
+    shortSpectrum.prepare(kShortFft);
+    fillHarmonicSpectrum(shortSpectrum, kF0, 8, kShortFft, kTestSampleRate);
+
+    SpectralBuffer longSpectrum;
+    longSpectrum.prepare(kLongFft);
+    fillHarmonicSpectrum(longSpectrum, kF0, 8, kLongFft, kTestSampleRate);
+
+    const float shortScale = 2.0f / (static_cast<float>(kShortFft) * 0.35875f);
+    const float longScale = 2.0f / (static_cast<float>(kLongFft) * 0.35875f);
+
+    auto hasFundamental = [&](const PartialTracker& t) {
+        const auto& ps = t.getPartials();
+        for (int i = 0; i < t.getActiveCount(); ++i) {
+            if (ps[i].harmonicIndex == 1 && std::abs(ps[i].frequency - kF0) < 6.0f) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    // Short-only path (current behavior): the fundamental is NOT resolved.
+    {
+        PartialTracker tracker;
+        tracker.prepare(kShortFft, kTestSampleRate);
+        tracker.setAmplitudeScale(shortScale);
+        tracker.processFrame(shortSpectrum, f0, kShortFft, kTestSampleRate);
+        REQUIRE_FALSE(hasFundamental(tracker));
+    }
+
+    // Dual-window path: long-window peaks fill the sub-floor gap; fundamental resolved.
+    {
+        PartialTracker tracker;
+        tracker.prepare(kShortFft, kTestSampleRate);
+        tracker.setAmplitudeScale(shortScale);
+        tracker.processDualFrame(shortSpectrum, longSpectrum, kShortFft, kLongFft,
+                                 longScale, f0, kTestSampleRate);
+        REQUIRE(hasFundamental(tracker));
+    }
+}
+
+// =============================================================================
+// Real-spectrum helper: sum of sinusoids -> Blackman-Harris window -> real FFT,
+// matching what the analyzer actually feeds the tracker. Sub-bin peak accuracy
+// questions cannot be answered with an idealized synthetic peak.
+// =============================================================================
+
+namespace {
+
+/// Build a genuine analysis spectrum: sum of sinusoids -> Blackman-Harris
+/// window -> real FFT, matching what the analyzer actually feeds the tracker.
+void fillRealSpectrum(SpectralBuffer& buffer,
+                      const std::vector<float>& freqs,
+                      const std::vector<float>& amps,
+                      size_t fftSize, float sampleRate) {
+    std::vector<float> td(fftSize, 0.0f);
+    for (size_t i = 0; i < freqs.size(); ++i) {
+        const float w = kTwoPiLocal * freqs[i] / sampleRate;
+        for (size_t n = 0; n < fftSize; ++n) {
+            td[n] += amps[i] * std::sin(w * static_cast<float>(n));
+        }
+    }
+
+    std::vector<float> win(fftSize, 0.0f);
+    Krate::DSP::Window::generateBlackmanHarris(win.data(), fftSize);
+    for (size_t n = 0; n < fftSize; ++n) td[n] *= win[n];
+
+    Krate::DSP::FFT fft;
+    fft.prepare(fftSize);
+    std::vector<Krate::DSP::Complex> spec(fftSize / 2 + 1);
+    fft.forward(td.data(), spec.data());
+
+    for (size_t b = 0; b < fftSize / 2 + 1; ++b) {
+        buffer.setCartesian(b, spec[b].real, spec[b].imag);
+    }
+}
+
+} // anonymous namespace
+
+// =============================================================================
+// WI-23: the Hungarian cost matrix is a fixed 128x128 array, but it is indexed
+// as cost[track * numPeaks_ + peak] where numPeaks_ is bounded only by the bin
+// count (2048 for a 4096-point FFT). A dense spectrum therefore writes far past
+// the end of the array -- memory corruption on the analysis path.
+//
+// Secondarily, HungarianAlgorithm::solve() bails out entirely when
+// max(rows, cols) > 128, so even without the overflow every peak would go
+// unmatched and partial identity would be lost on every frame.
+// =============================================================================
+
+TEST_CASE("PartialTracker: dense spectra stay within matcher capacity (WI-23)",
+          "[dsp][partial_tracker][wi23]") {
+    constexpr size_t kFft = 4096;
+    const float f0 = 220.0f;
+
+    // A rich harmonic tone through a real analysis window produces far more
+    // local maxima than 128 once window leakage is included.
+    std::vector<float> freqs, amps;
+    for (int n = 1; n <= 60; ++n) {
+        const float fn = f0 * static_cast<float>(n);
+        if (fn >= kTestSampleRate * 0.45f) break;
+        freqs.push_back(fn);
+        amps.push_back(1.0f / static_cast<float>(n));
+    }
+
+    SpectralBuffer buf;
+    buf.prepare(kFft);
+    fillRealSpectrum(buf, freqs, amps, kFft, kTestSampleRate);
+
+    PartialTracker tracker;
+    tracker.prepare(kFft, kTestSampleRate);
+
+    F0Estimate f0e;
+    f0e.frequency = f0;
+    f0e.confidence = 0.95f;
+    f0e.voiced = true;
+
+    // Frame 1 establishes tracks; later frames must MATCH them, not re-birth.
+    tracker.processFrame(buf, f0e, kFft, kTestSampleRate);
+    REQUIRE(tracker.getActiveCount() > 0);
+
+    for (int frame = 0; frame < 6; ++frame) {
+        tracker.processFrame(buf, f0e, kFft, kTestSampleRate);
+    }
+
+    // On an unchanging spectrum every surviving partial must have aged past
+    // its birth frame. If the matcher silently refused to match (cols > 128),
+    // every partial is reborn each frame and age stays at its initial value.
+    const auto& parts = tracker.getPartials();
+    int aged = 0;
+    for (int i = 0; i < tracker.getActiveCount(); ++i) {
+        if (parts[static_cast<size_t>(i)].age > 3) ++aged;
+    }
+    INFO("active=" << tracker.getActiveCount() << " aged=" << aged);
+    REQUIRE(aged > 0);
+}
+
+// =============================================================================
+// WI-12: the short window's near-DC parabolic peak estimate is biased by more
+// than the sieve's tight n=1 tolerance, so a fundamental just ABOVE the short
+// scan floor (86.1 Hz at 1024/44.1k) is detected as a peak but then rejected by
+// the harmonic sieve. Measured with real Blackman-Harris spectra, f0 = 90 Hz
+// loses its fundamental while 110 Hz and up are fine.
+//
+// The defect is peak-frequency accuracy near DC, not sieve tolerance, so the
+// fix is to let the long window cover this band rather than to widen the sieve
+// (which would loosen harmonic assignment everywhere).
+// =============================================================================
+
+TEST_CASE("PartialTracker: dual window resolves fundamentals just above the short floor (WI-12)",
+          "[dsp][partial_tracker][dual_window][wi12]") {
+    constexpr size_t kShortFft = 1024; // 43.07 Hz/bin, scan floor 86.13 Hz
+    constexpr size_t kLongFft = 4096;  // 10.77 Hz/bin
+    const float kF0 = 90.0f;           // just above the short floor
+
+    std::vector<float> freqs, amps;
+    for (int h = 1; h <= 12; ++h) {
+        const float f = kF0 * static_cast<float>(h);
+        if (f >= kTestSampleRate * 0.45f) break;
+        freqs.push_back(f);
+        amps.push_back(1.0f / static_cast<float>(h));
+    }
+
+    SpectralBuffer shortSpectrum;
+    shortSpectrum.prepare(kShortFft);
+    fillRealSpectrum(shortSpectrum, freqs, amps, kShortFft, kTestSampleRate);
+
+    SpectralBuffer longSpectrum;
+    longSpectrum.prepare(kLongFft);
+    fillRealSpectrum(longSpectrum, freqs, amps, kLongFft, kTestSampleRate);
+
+    const float shortScale = 2.0f / (static_cast<float>(kShortFft) * 0.35875f);
+    const float longScale = 2.0f / (static_cast<float>(kLongFft) * 0.35875f);
+
+    F0Estimate f0;
+    f0.frequency = kF0;
+    f0.confidence = 1.0f;
+    f0.voiced = true;
+
+    auto hasFundamental = [&](const PartialTracker& t) {
+        const auto& ps = t.getPartials();
+        for (int i = 0; i < t.getActiveCount(); ++i) {
+            if (ps[static_cast<size_t>(i)].harmonicIndex == 1) return true;
+        }
+        return false;
+    };
+
+    // Short-only: the near-DC bias pushes the peak outside the n=1 tolerance.
+    {
+        PartialTracker tracker;
+        tracker.prepare(kShortFft, kTestSampleRate);
+        tracker.setAmplitudeScale(shortScale);
+        for (int f = 0; f < 5; ++f) {
+            tracker.processFrame(shortSpectrum, f0, kShortFft, kTestSampleRate);
+        }
+        REQUIRE_FALSE(hasFundamental(tracker));
+    }
+
+    // Dual window: the long window resolves 90 Hz to ~8.4 bins, well inside
+    // the sieve tolerance.
+    {
+        PartialTracker tracker;
+        tracker.prepare(kShortFft, kTestSampleRate);
+        tracker.setAmplitudeScale(shortScale);
+        for (int f = 0; f < 5; ++f) {
+            tracker.processDualFrame(shortSpectrum, longSpectrum, kShortFft,
+                                     kLongFft, longScale, f0, kTestSampleRate);
+        }
+        REQUIRE(hasFundamental(tracker));
+    }
+}
+
+// =============================================================================
+// WI-13: the harmonic sieve tests peaks against a rigid n*f0 template with a
+// sqrt(n) tolerance, but a real stiff string follows Fletcher (1964)
+// f_n = n*f0*sqrt(1 + B*n^2). Measured at f0=220, B=1e-3: partials 7..14 are
+// all rejected. No tolerance widening can fix this -- at n=14 the deviation is
+// ~288 Hz while half the harmonic spacing is only 110 Hz, so a window wide
+// enough to admit the partial would also admit its neighbours. The template
+// itself has to stretch.
+// =============================================================================
+
+TEST_CASE("PartialTracker: stiff-string upper partials keep their harmonic index (WI-13)",
+          "[dsp][partial_tracker][wi13]") {
+    constexpr size_t kFft = 4096;
+    const float f0 = 220.0f;
+    const float B = 1e-3f; // stiff, e.g. a short thick bass string
+
+    std::vector<float> freqs, amps;
+    for (int n = 1; n <= 14; ++n) {
+        const float fn = static_cast<float>(n) * f0
+            * std::sqrt(1.0f + B * static_cast<float>(n * n));
+        freqs.push_back(fn);
+        amps.push_back(1.0f / static_cast<float>(n));
+    }
+
+    SpectralBuffer buf;
+    buf.prepare(kFft);
+    fillRealSpectrum(buf, freqs, amps, kFft, kTestSampleRate);
+
+    PartialTracker tracker;
+    tracker.prepare(kFft, kTestSampleRate);
+    F0Estimate f0e;
+    f0e.frequency = f0;
+    f0e.confidence = 0.95f;
+    f0e.voiced = true;
+    for (int frame = 0; frame < 5; ++frame) {
+        tracker.processFrame(buf, f0e, kFft, kTestSampleRate);
+    }
+
+    const auto& parts = tracker.getPartials();
+    auto correctlyAssigned = [&](int n) {
+        const float target = freqs[static_cast<size_t>(n - 1)];
+        for (int i = 0; i < tracker.getActiveCount(); ++i) {
+            const auto& p = parts[static_cast<size_t>(i)];
+            if (p.harmonicIndex == n && std::abs(p.frequency - target) < 0.02f * target) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    int correct = 0;
+    for (int n = 1; n <= 14; ++n) {
+        if (correctlyAssigned(n)) ++correct;
+    }
+    INFO("correctly assigned " << correct << "/14");
+    REQUIRE(correct >= 12);
+    REQUIRE(correctlyAssigned(10));
+    REQUIRE(correctlyAssigned(14));
+}
+
+TEST_CASE("PartialTracker: near-harmonic assignment is unchanged by the stiffness estimate (WI-13)",
+          "[dsp][partial_tracker][wi13]") {
+    // Guard on the risk WI-13 carries: the stiffness estimate must not perturb
+    // sources that really are harmonic.
+    constexpr size_t kFft = 4096;
+    const float f0 = 220.0f;
+
+    std::vector<float> freqs, amps;
+    for (int n = 1; n <= 20; ++n) {
+        freqs.push_back(f0 * static_cast<float>(n));
+        amps.push_back(1.0f / static_cast<float>(n));
+    }
+
+    SpectralBuffer buf;
+    buf.prepare(kFft);
+    fillRealSpectrum(buf, freqs, amps, kFft, kTestSampleRate);
+
+    PartialTracker tracker;
+    tracker.prepare(kFft, kTestSampleRate);
+    F0Estimate f0e;
+    f0e.frequency = f0;
+    f0e.confidence = 0.95f;
+    f0e.voiced = true;
+    for (int frame = 0; frame < 5; ++frame) {
+        tracker.processFrame(buf, f0e, kFft, kTestSampleRate);
+    }
+
+    const auto& parts = tracker.getPartials();
+    for (int n = 1; n <= 20; ++n) {
+        const float target = f0 * static_cast<float>(n);
+        bool ok = false;
+        for (int i = 0; i < tracker.getActiveCount(); ++i) {
+            const auto& p = parts[static_cast<size_t>(i)];
+            if (p.harmonicIndex == n && std::abs(p.frequency - target) < 0.01f * target) {
+                ok = true;
+                break;
+            }
+        }
+        INFO("harmonic n=" << n);
+        REQUIRE(ok);
+    }
 }

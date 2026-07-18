@@ -1,11 +1,11 @@
 // ==============================================================================
 // Layer 2: DSP Processor - Harmonic Oscillator Bank
 // ==============================================================================
-// Synthesizes audio from HarmonicFrames using 48 Gordon-Smith Modified Coupled
+// Synthesizes audio from HarmonicFrames using 96 Gordon-Smith Modified Coupled
 // Form (MCF) oscillators in Structure-of-Arrays (SoA) layout.
 //
 // Features:
-// - 48 MCF oscillators with per-partial frequency/amplitude control
+// - 96 MCF oscillators with per-partial frequency/amplitude control
 // - SoA layout with 32-byte alignment for cache efficiency (FR-036)
 // - Anti-aliasing via soft rolloff near Nyquist (FR-038)
 // - Phase continuity on frequency changes (FR-039)
@@ -40,6 +40,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 
 // Suppress MSVC C4324: structure was padded due to alignment specifier
 #ifdef _MSC_VER
@@ -51,7 +52,7 @@ namespace Krate::DSP {
 
 /// @brief Harmonic oscillator bank for additive resynthesis from HarmonicFrames.
 ///
-/// Uses 48 Gordon-Smith Modified Coupled Form (MCF) oscillators to resynthesize
+/// Uses 96 Gordon-Smith Modified Coupled Form (MCF) oscillators to resynthesize
 /// audio from the analysis pipeline's HarmonicFrame output. Each oscillator
 /// computes a sine wave via the MCF recurrence:
 ///   sinNew = sin + epsilon * cos
@@ -62,7 +63,7 @@ namespace Krate::DSP {
 ///
 /// @par Memory Model
 /// SoA (Structure-of-Arrays) layout with 32-byte alignment for SIMD-friendly
-/// access. All arrays are fixed-size (kMaxPartials = 48).
+/// access. All arrays are fixed-size (kMaxPartials = 96).
 ///
 /// @par Thread Safety
 /// Single-threaded. All methods must be called from the same thread.
@@ -150,6 +151,36 @@ public:
                 static_cast<float>(sampleRate));
         }
 
+        // WI-8: measure the LCG->cascade output power for unit input and derive a
+        // gain so the filtered noise has E[noise^2] = 0.5, which makes the Loris
+        // bandwidth term ampMod = sqrt(1-bw) + noise*sqrt(2*bw) energy-preserving.
+        {
+            uint32_t seed = 0x9E3779B9u;
+            std::array<float, kNoiseLpNumStages> z1{};
+            std::array<float, kNoiseLpNumStages> z2{};
+            constexpr int kWarmup = 1024;
+            constexpr int kMeasure = 32768;
+            double sumSq = 0.0;
+            for (int n = 0; n < kWarmup + kMeasure; ++n) {
+                seed = seed * 1664525u + 1013904223u;
+                float x = static_cast<float>(static_cast<int32_t>(seed))
+                    * (1.0f / 2147483648.0f);
+                for (size_t s = 0; s < kNoiseLpNumStages; ++s) {
+                    const auto& c = noiseLpCoeffs_[s];
+                    float y = c.b0 * x + z1[s];
+                    z1[s] = c.b1 * x - c.a1 * y + z2[s];
+                    z2[s] = c.b2 * x - c.a2 * y;
+                    x = y;
+                }
+                if (n >= kWarmup)
+                    sumSq += static_cast<double>(x) * x;
+            }
+            const float rms =
+                std::sqrt(static_cast<float>(sumSq / static_cast<double>(kMeasure)));
+            constexpr float kTargetRms = 0.70710678f; // sqrt(0.5)
+            noiseNormGain_ = kTargetRms / std::max(rms, 1e-9f);
+        }
+
         // Crossfade length in samples (FR-040, default 3ms)
         crossfadeLengthSamples_ = static_cast<int>(
             kDefaultCrossfadeTimeSec * static_cast<float>(sampleRate));
@@ -194,6 +225,10 @@ public:
         panLeft_.fill(kCenterGain);
         panRight_.fill(kCenterGain);
         detuneMultiplier_.fill(1.0f);
+        tailScanEnd_ = 0;
+        // Cached pan/detune bases no longer describe this state (WI-20).
+        panBaseValid_ = false;
+        detuneBaseValid_ = false;
         bandwidth_.fill(0.0f);
         // Reset per-partial noise filter state
         for (auto& arr : noiseLpZ1_) arr.fill(0.0f);
@@ -241,7 +276,11 @@ public:
             relativeFrequency_[i] = partial.relativeFrequency;
             inharmonicDeviation_[i] = partial.inharmonicDeviation;
             targetAmplitude_[i] = partial.amplitude;
-            bandwidth_[i] = partial.bandwidth;
+            // QS-8: guard sqrt(1-bw). NaN-safe by construction -- the `> 0.0f`
+            // test is false for NaN, so a non-finite bandwidth falls to 0
+            // rather than through (std::clamp would pass NaN straight out,
+            // since both of its comparisons are false for NaN).
+            bandwidth_[i] = sanitizeBandwidth(partial.bandwidth);
 
             // Initialize oscillator state if this is the first frame
             if (!frameLoaded_) {
@@ -259,6 +298,16 @@ public:
             targetAmplitude_[i] = 0.0f;
             harmonicIndex_[i] = 0;
         }
+
+        // Raise the tail-scan high-water mark so a shrinking partial count still
+        // fades its old partials out (WI-22).
+        tailScanEnd_ = std::max(tailScanEnd_, static_cast<size_t>(numPartials));
+
+        // The cached pan/detune tables are functions of the harmonic indices as
+        // well as the spread values, so a new frame invalidates them even when
+        // the spreads have not moved (WI-20).
+        panBaseValid_ = false;
+        detuneBaseValid_ = false;
 
         // Adaptive output normalization: scale partial amplitudes so the
         // expected oscillator RMS hits a consistent target regardless of how
@@ -409,7 +458,7 @@ public:
                 relativeFrequency_[totalPartials] = partial.relativeFrequency;
                 inharmonicDeviation_[totalPartials] = partial.inharmonicDeviation;
                 targetAmplitude_[totalPartials] = partial.amplitude;
-                bandwidth_[totalPartials] = partial.bandwidth;
+                bandwidth_[totalPartials] = sanitizeBandwidth(partial.bandwidth); // QS-8
                 sourceId_[totalPartials] = partial.sourceId;
                 sourcePitch_[totalPartials] = srcPitch;
 
@@ -488,8 +537,31 @@ public:
     /// @param spread Spread amount [0.0, 1.0]. 0.0 = mono center, 1.0 = max spread.
     /// @note Real-time safe (called once per frame, not per sample)
     void setStereoSpread(float spread) noexcept {
-        stereoSpread_ = std::clamp(spread, 0.0f, 1.0f);
+        const float clamped = std::clamp(spread, 0.0f, 1.0f);
+
+        // WI-20: callers drive this from a per-sample smoother, so it runs at
+        // audio rate even though the doxygen above says "once per frame". The
+        // trig only depends on the spread value and the harmonic indices, so
+        // once the smoother settles every recompute reproduces the same table.
+        // Cache that table and restore it instead.
+        //
+        // The restore cannot be skipped as well: harmonic modulators overwrite
+        // panLeft_/panRight_ via applyPanOffsets(), so leaving them alone would
+        // strand the last modulated values once modulation stops.
+        if (panBaseValid_ && clamped == stereoSpread_) {
+            panPosition_ = basePanPosition_;
+            panLeft_ = basePanLeft_;
+            panRight_ = basePanRight_;
+            return;
+        }
+
+        stereoSpread_ = clamped;
         recalculatePanPositions();
+        basePanPosition_ = panPosition_;
+        basePanLeft_ = panLeft_;
+        basePanRight_ = panRight_;
+        panBaseValid_ = true;
+        ++panRecomputeCount_;
     }
 
     /// @brief Set detune spread amount (FR-030, FR-031, FR-032).
@@ -501,8 +573,41 @@ public:
     /// @param spread Detune amount [0.0, 1.0]. 0.0 = no detune, 1.0 = max.
     /// @note Real-time safe (called once per frame, not per sample)
     void setDetuneSpread(float spread) noexcept {
-        detuneSpread_ = std::clamp(spread, 0.0f, 1.0f);
+        const float clamped = std::clamp(spread, 0.0f, 1.0f);
+
+        // WI-20: as with setStereoSpread, this is driven per sample, and the
+        // std::pow per partial plus the anti-aliasing recompute are the most
+        // expensive things in that loop.
+        //
+        // The restore is mandatory, not an optimization detail:
+        // applyExternalFrequencyMultipliers() multiplies into detuneMultiplier_
+        // in place, so this recompute doubles as the per-sample base reset.
+        // Skipping it outright would let the modulator's multiplier compound
+        // every sample into a runaway detune.
+        //
+        // Anti-aliasing is computed from the BASE detune (it already ran before
+        // any modulator multiply), so an unchanged spread leaves it unchanged.
+        if (detuneBaseValid_ && clamped == detuneSpread_) {
+            detuneMultiplier_ = baseDetuneMultiplier_;
+            return;
+        }
+
+        detuneSpread_ = clamped;
         recalculateDetuneMultipliers();
+        baseDetuneMultiplier_ = detuneMultiplier_;
+        detuneBaseValid_ = true;
+        // Refresh anti-alias gains for the new detuned frequencies (WI-5): a
+        // partial detuned toward Nyquist must fade rather than sustain.
+        recalculateAntiAliasing();
+        ++detuneRecomputeCount_;
+    }
+
+    /// @brief Number of times the pan table was actually recomputed (test hook).
+    [[nodiscard]] int panRecomputeCount() const noexcept { return panRecomputeCount_; }
+
+    /// @brief Number of times the detune table was actually recomputed (test hook).
+    [[nodiscard]] int detuneRecomputeCount() const noexcept {
+        return detuneRecomputeCount_;
     }
 
     /// @brief Get the current stereo spread value.
@@ -511,13 +616,29 @@ public:
     /// @brief Get the current detune spread value.
     [[nodiscard]] float getDetuneSpread() const noexcept { return detuneSpread_; }
 
+    /// @brief True if every active partial's oscillator state is finite.
+    /// Diagnoses MCF divergence (which the output clamp would otherwise hide by
+    /// railing at +/-kOutputClamp). Uses a bit test so it holds under -ffast-math.
+    [[nodiscard]] bool stateFinite() const noexcept {
+        auto finite = [](float x) noexcept {
+            std::uint32_t b = 0;
+            std::memcpy(&b, &x, sizeof(b));
+            return (b & 0x7F800000u) != 0x7F800000u;
+        };
+        for (int i = 0; i < activePartials_; ++i) {
+            const auto idx = static_cast<size_t>(i);
+            if (!finite(sinState_[idx]) || !finite(cosState_[idx])) return false;
+        }
+        return true;
+    }
+
     /// @brief Apply external pan offsets to current pan positions (M6 FR-027).
     ///
     /// Adds the given offset to each partial's pan position and recomputes
     /// the constant-power pan coefficients. Used by harmonic modulators for
     /// per-partial pan animation.
     ///
-    /// @param offsets Array of 48 bipolar offsets to add to pan positions
+    /// @param offsets Array of kMaxPartials bipolar offsets to add to pan positions
     /// @note Real-time safe (called once per frame)
     void applyPanOffsets(
         const std::array<float, kMaxPartials>& offsets) noexcept
@@ -538,7 +659,7 @@ public:
     /// Multiplies the given multipliers with the existing detuneMultiplier_
     /// for each partial. Used by harmonic modulators for frequency animation.
     ///
-    /// @param multipliers Array of 48 frequency multipliers
+    /// @param multipliers Array of kMaxPartials frequency multipliers
     /// @note Real-time safe (called once per frame)
     void applyExternalFrequencyMultipliers(
         const std::array<float, kMaxPartials>& multipliers) noexcept
@@ -595,7 +716,10 @@ public:
                 // MCF oscillator
                 float s = sinState_[i];
                 float c = cosState_[i];
-                float eps = epsilon_[i] * detuneMultiplier_[i];
+                // Clamp the EFFECTIVE coefficient: detune/modulator multipliers
+                // can push epsilon*detune past the |eps|<2 MCF stability bound
+                // even though the base epsilon is clamped, causing divergence. (WI-5)
+                float eps = std::clamp(epsilon_[i] * detuneMultiplier_[i], -1.99f, 1.99f);
 
                 // Bandwidth-enhanced synthesis (Loris model)
                 float bw = bandwidth_[i];
@@ -619,14 +743,26 @@ public:
             }
         }
 
-        // Fade out residual partials beyond activePartials_
-        for (size_t i = static_cast<size_t>(n); i < kMaxPartials; ++i) {
+        // Fade out residual partials beyond activePartials_.
+        //
+        // Only up to the high-water mark of previously-active partials (WI-22).
+        // Everything above it has been silent since the last reset, so scanning
+        // all the way to kMaxPartials just tests 96 zeroes every sample. The
+        // mark is lowered only once the entire tail has decayed, so a partial
+        // that is still fading can never be dropped.
+        const size_t tailEnd = std::min(tailScanEnd_, kMaxPartials);
+        bool tailActive = false;
+        for (size_t i = static_cast<size_t>(n); i < tailEnd; ++i) {
             if (currentAmplitude_[i] > 1e-8f) {
+                tailActive = true;
                 currentAmplitude_[i] += ampSmoothCoeff_ * (0.0f - currentAmplitude_[i]);
 
                 float s = sinState_[i];
                 float c = cosState_[i];
-                float eps = epsilon_[i] * detuneMultiplier_[i];
+                // Clamp the EFFECTIVE coefficient: detune/modulator multipliers
+                // can push epsilon*detune past the |eps|<2 MCF stability bound
+                // even though the base epsilon is clamped, causing divergence. (WI-5)
+                float eps = std::clamp(epsilon_[i] * detuneMultiplier_[i], -1.99f, 1.99f);
                 float ampSample = s * currentAmplitude_[i];
                 sumL += ampSample * panLeft_[i];
                 sumR += ampSample * panRight_[i];
@@ -638,6 +774,9 @@ public:
                 cosState_[i] = cNew;
             }
         }
+        // Nothing above n is fading any more: shrink the scan window. loadFrame
+        // raises it again whenever a larger partial count becomes active.
+        if (!tailActive) tailScanEnd_ = static_cast<size_t>(n);
 
         // Apply crossfade if active (FR-040)
         if (crossfadeRemaining_ > 0) {
@@ -726,9 +865,12 @@ public:
         }
 
         // Also smoothly fade out any partials beyond activePartials_ that
-        // still have residual amplitude
-        for (size_t i = static_cast<size_t>(n); i < kMaxPartials; ++i) {
+        // still have residual amplitude (bounded per WI-22, see processStereo).
+        const size_t tailEnd = std::min(tailScanEnd_, kMaxPartials);
+        bool tailActive = false;
+        for (size_t i = static_cast<size_t>(n); i < tailEnd; ++i) {
             if (currentAmplitude_[i] > 1e-8f) {
+                tailActive = true;
                 currentAmplitude_[i] += ampSmoothCoeff_ * (0.0f - currentAmplitude_[i]);
 
                 float s = sinState_[i];
@@ -742,6 +884,9 @@ public:
                 cosState_[i] = cNew;
             }
         }
+        // Nothing above n is fading any more: shrink the scan window. loadFrame
+        // raises it again whenever a larger partial count becomes active.
+        if (!tailActive) tailScanEnd_ = static_cast<size_t>(n);
 
         // Apply crossfade if active (FR-040)
         if (crossfadeRemaining_ > 0) {
@@ -813,6 +958,30 @@ private:
     // Private Methods
     // =========================================================================
 
+    /// @brief Clamp an incoming bandwidth into [0, 1], mapping non-finite to 0.
+    ///
+    /// The bank hardens its own input rather than trusting the analysis stage:
+    /// bandwidth feeds sqrt(1 - bw), so a value outside [0, 1] yields NaN and a
+    /// NaN would propagate into the output sum (never into the MCF state, which
+    /// is why stateFinite() does not catch it).
+    ///
+    /// Deliberately not std::clamp: clamp is `v < lo ? lo : (hi < v ? hi : v)`,
+    /// and BOTH comparisons are false for NaN, so clamp returns NaN unchanged.
+    /// The `> 0.0f` test below is likewise false for NaN, but here that steers
+    /// NaN to the safe 0 branch. Infinity and negatives are handled by the same
+    /// expression (+inf takes min -> 1, negatives take the else -> 0).
+    ///
+    /// @note At present a NaN would also be neutralised downstream by the
+    ///       `bw > 1e-4f` bandwidth gate in the synthesis loops. That is a
+    ///       coincidence of that gate's comparison direction, not a guarantee;
+    ///       normalising at ingestion keeps the invariant local so a later edit
+    ///       to the gate cannot silently re-open the hole.
+    /// @param bandwidth Raw bandwidth from the analysis frame
+    /// @return A finite value in [0, 1]
+    [[nodiscard]] static float sanitizeBandwidth(float bandwidth) noexcept {
+        return (bandwidth > 0.0f) ? std::min(bandwidth, 1.0f) : 0.0f;
+    }
+
     /// @brief Generate a LP-filtered noise sample for bandwidth modulation.
     /// Uses a per-partial 4th-order Chebyshev Type I LP at 500 Hz (1 dB ripple)
     /// for steep rolloff, matching Loris's filtered noise approach.
@@ -837,7 +1006,7 @@ private:
             z2 = c.b2 * x - c.a2 * y;
             x = y;
         }
-        return x;
+        return x * noiseNormGain_; // WI-8: normalize to E[noise^2] = 0.5
     }
 
     /// @brief Compute per-partial frequency (FR-037).
@@ -895,12 +1064,19 @@ private:
         const float fadeRange = nyquist_ - fadeStart; // 0.2 * nyquist
 
         for (int i = 0; i < activePartials_; ++i) {
-            float freq = computePartialFrequency(i);
+            // WI-5: use the DETUNED frequency actually synthesized (base * detune).
+            // This fades a partial that detune pushes toward/past Nyquist and makes
+            // the MCF elliptical correction match the detuned orbit's eccentricity,
+            // so an over-detuned high partial is amplitude-suppressed instead of
+            // sustaining at a large clamped-epsilon level. When detune is 1.0 this
+            // is identical to the base frequency (no behavior change).
+            float freq = computePartialFrequency(i) * detuneMultiplier_[static_cast<size_t>(i)];
 
             // MCF elliptical orbit correction (Smith, CCRMA):
             // The MCF sin output has amplitude 1/cos(pi*f/fs), so we
             // pre-compensate by multiplying by cos(pi*f/fs).
             float mcfCorrection = std::cos(kPi * freq * inverseSampleRate_);
+            if (mcfCorrection < 0.0f) mcfCorrection = 0.0f; // past Nyquist -> silence
 
             float aaGain;
             if (freq <= fadeStart) {
@@ -992,6 +1168,22 @@ private:
     alignas(32) std::array<float, kMaxPartials> panRight_{};          ///< sin(angle)
     alignas(32) std::array<float, kMaxPartials> detuneMultiplier_{};  ///< freq multiplier
 
+    // WI-20: cached pan/detune tables, recomputed only when the spread value or
+    // the harmonic indices change. detuneMultiplier_ and panLeft_/panRight_ are
+    // mutated in place by the harmonic modulators, so these hold the unmutated
+    // base that each sample is restored from.
+    alignas(32) std::array<float, kMaxPartials> basePanPosition_{};
+    alignas(32) std::array<float, kMaxPartials> basePanLeft_{};
+    alignas(32) std::array<float, kMaxPartials> basePanRight_{};
+    alignas(32) std::array<float, kMaxPartials> baseDetuneMultiplier_{};
+    /// Highest partial index that may still hold a fading tail (WI-22).
+    size_t tailScanEnd_ = kMaxPartials;
+
+    bool panBaseValid_ = false;
+    bool detuneBaseValid_ = false;
+    int panRecomputeCount_ = 0;
+    int detuneRecomputeCount_ = 0;
+
     // --- Source-aware resynthesis arrays (Tier 3b) ---
     alignas(32) std::array<float, kMaxPartials> sourcePitch_{};     ///< Per-partial source pitch (Hz)
     std::array<int, kMaxPartials> sourceId_{};                       ///< Per-partial source ID (0=mono)
@@ -1038,6 +1230,9 @@ private:
     std::array<BiquadCoefficients, kNoiseLpNumStages> noiseLpCoeffs_{};
     std::array<std::array<float, kMaxPartials>, kNoiseLpNumStages> noiseLpZ1_{};
     std::array<std::array<float, kMaxPartials>, kNoiseLpNumStages> noiseLpZ2_{};
+    /// Power-normalization gain applied to the filtered noise so E[noise^2]=0.5
+    /// (energy-preserving Loris bandwidth term). Measured in prepare(). (WI-8)
+    float noiseNormGain_ = 1.0f;
 };
 
 } // namespace Krate::DSP

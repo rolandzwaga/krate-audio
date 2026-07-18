@@ -27,8 +27,7 @@
 
 // FTZ/DAZ for denormal prevention on x86 (SC-007)
 #if defined(_M_X64) || defined(__x86_64__) || defined(_M_IX86) || defined(__i386__)
-#include <xmmintrin.h> // _MM_SET_FLUSH_ZERO_MODE
-#include <pmmintrin.h> // _MM_SET_DENORMALS_ZERO_MODE
+#include <krate/dsp/core/scoped_denormal_mode.h> // FTZ/DAZ guard for process()
 #endif
 
 #include <algorithm>
@@ -623,6 +622,16 @@ void Processor::processEvents(IEventList* events)
 
 tresult PLUGIN_API Processor::process(ProcessData& data)
 {
+    // Flush denormals for this block. Modal/waveguide resonator tails and the
+    // coupling delay decay into denormal range, where x86 traps cost hundreds
+    // of cycles per operation.
+    //
+    // Must be set HERE and not in setupProcessing(): MXCSR is per-thread state,
+    // and hosts call setupProcessing() on the main thread while process() runs
+    // on a dedicated audio thread (some rotate plugins across a render pool).
+    // The guard restores the host's FP environment on scope exit.
+    const Krate::DSP::ScopedDenormalMode denormalGuard;
+
     if (data.numSamples == 0)
         return kResultOk;
 
@@ -1060,10 +1069,9 @@ tresult PLUGIN_API Processor::setBusArrangements(
 
 tresult PLUGIN_API Processor::setupProcessing(ProcessSetup& setup)
 {
-#if defined(_M_X64) || defined(__x86_64__) || defined(_M_IX86) || defined(__i386__)
-    _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON);
-    _MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_ON);
-#endif
+    // NOTE: denormal (FTZ/DAZ) control used to live here. MXCSR is per-thread,
+    // so setting it on the setup thread never reached the audio thread; it is
+    // now a ScopedDenormalMode at the top of process(). Do not re-add it here.
 
     sampleRate_ = setup.sampleRate;
     maxBlockSize_ = setup.maxSamplesPerBlock;

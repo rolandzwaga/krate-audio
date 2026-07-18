@@ -16,6 +16,7 @@
 #include "hwy/foreach_target.h"  // NOLINT(misc-header-include-cycle) Highway self-inclusion by design
 #include "hwy/highway.h"
 
+#include <algorithm>
 #include <cstddef>
 
 // =============================================================================
@@ -62,6 +63,11 @@ void ProcessMcfBatchSIMDImpl(
     const size_t N = hn::Lanes(d);
     const auto vCoeff = hn::Set(d, ampSmoothCoeff);
 
+    // WI-5: clamp the effective MCF coefficient (epsilon*detune) to the |eps|<2
+    // stability bound so detune/modulator multipliers can't drive divergence.
+    const auto vEpsLo = hn::Set(d, -1.99f);
+    const auto vEpsHi = hn::Set(d, 1.99f);
+
     auto vSumL = hn::Zero(d);
     auto vSumR = hn::Zero(d);
 
@@ -93,8 +99,8 @@ void ProcessMcfBatchSIMDImpl(
         vSumL = hn::MulAdd(vAmpSample, vPanL, vSumL);
         vSumR = hn::MulAdd(vAmpSample, vPanR, vSumR);
 
-        // 4. MCF advance with detune: eps_eff = eps * detune
-        const auto vEpsEff = hn::Mul(vEps, vDetune);
+        // 4. MCF advance with detune: eps_eff = clamp(eps * detune, +/-1.99)
+        const auto vEpsEff = hn::Clamp(hn::Mul(vEps, vDetune), vEpsLo, vEpsHi);
         const auto vSinNew = hn::MulAdd(vEpsEff, vCos, vSin);
         const auto vCosNew = hn::NegMulAdd(vEpsEff, vSinNew, vCos);
 
@@ -115,7 +121,7 @@ void ProcessMcfBatchSIMDImpl(
 
         float s = sinState[i];
         float c = cosState[i];
-        float eps = epsilon[i] * detuneMultiplier[i];
+        float eps = std::clamp(epsilon[i] * detuneMultiplier[i], -1.99f, 1.99f);
 
         float ampSample = s * currentAmplitude[i];
         *outSumL += ampSample * panLeft[i];

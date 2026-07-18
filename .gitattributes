@@ -1,0 +1,18 @@
+# Generated architecture artifacts must check out as LF on every platform.
+#
+# tools/gen-repo-map.js, gen-symbols.js and gen-specs-index.js each support a
+# --check mode that CI runs as the "Generated Artifacts In Sync" job. That check
+# is a strict byte comparison between the file on disk and freshly generated
+# output, and the generators emit LF (JSON.stringify / template literals).
+#
+# On Windows, core.autocrlf=true checks these files out as CRLF, so the byte
+# comparison fails and all three report "stale" even when their content is
+# identical -- regenerating produces no diff. Pinning them to LF makes the
+# working tree, the stored blob and the generator output agree everywhere.
+#
+# Deliberately NOT solved by normalising line endings inside the --check
+# comparison: that would also mask a genuine EOL discrepancy in a committed
+# artifact. Better for the files to be incapable of drifting.
+specs/_architecture_/repo-map.json text eol=lf
+specs/_architecture_/symbols.json  text eol=lf
+specs/INDEX.md                     text eol=lf

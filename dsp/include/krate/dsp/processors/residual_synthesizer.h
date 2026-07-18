@@ -70,6 +70,7 @@ public:
         prepared_ = true;
         frameLoaded_ = false;
         cursor_ = 0;
+        ++prepareCallCount_;
     }
 
     void reset() noexcept
@@ -92,6 +93,8 @@ public:
     {
         if (!prepared_)
             return;
+
+        ++loadFrameCallCount_;
 
         // Step 1: Generate white noise (FR-013)
         for (size_t i = 0; i < fftSize_; ++i)
@@ -215,6 +218,23 @@ public:
     [[nodiscard]] size_t fftSize() const noexcept { return fftSize_; }
     [[nodiscard]] size_t hopSize() const noexcept { return hopSize_; }
 
+    /// @brief True if already prepared for exactly these sizes.
+    /// Callers on the audio thread use this to skip prepare() (which allocates)
+    /// when the incoming analysis carries the sizes already prepared. (WI-3)
+    [[nodiscard]] bool isPreparedFor(size_t fftSize, size_t hopSize) const noexcept
+    {
+        return prepared_ && fftSize_ == fftSize && hopSize_ == hopSize;
+    }
+
+    /// @brief Number of times prepare() has run (test hook for RT-alloc guards).
+    [[nodiscard]] size_t prepareCallCount() const noexcept { return prepareCallCount_; }
+
+    /// @brief Number of times loadFrame() has run (test hook for hop-rate gating).
+    [[nodiscard]] size_t loadFrameCallCount() const noexcept { return loadFrameCallCount_; }
+
+    /// @brief Reset the loadFrame() call counter (test hook).
+    void resetLoadFrameCallCount() noexcept { loadFrameCallCount_ = 0; }
+
 private:
     // =========================================================================
     // Internal methods
@@ -309,6 +329,8 @@ private:
     size_t cursor_ = 0;
     bool prepared_ = false;
     bool frameLoaded_ = false;
+    size_t prepareCallCount_ = 0;
+    size_t loadFrameCallCount_ = 0;
 };
 
 } // namespace Krate::DSP

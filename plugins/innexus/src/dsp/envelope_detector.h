@@ -68,6 +68,18 @@ public:
         if (peakAmp < 1e-8f)
             return DetectedADSR{};
 
+        // Normalize the contour by its peak so the steady-state slope/variance
+        // thresholds are scale-invariant (independent of recording level): slope
+        // scales ~linearly and variance ~quadratically with level, so absolute
+        // thresholds otherwise fire at different points for the same shape.
+        // The peak becomes 1.0; sustainLevel stays peak-relative and unchanged. (WI-2)
+        {
+            const float invPeak = 1.0f / peakAmp;
+            for (int i = 0; i < numFrames; ++i)
+                contour[static_cast<size_t>(i)] *= invPeak;
+            peakAmp = 1.0f;
+        }
+
         // --- Step 3: Compute Attack ---
         float attackMs = static_cast<float>(peakIdx) * hopTimeSec * 1000.0f;
 
@@ -75,10 +87,22 @@ public:
         // Start scanning from peak+1 onward. We maintain running sums to compute
         // slope and variance in O(1) per frame.
         //
-        // Rolling window accumulates: n, sum_x, sum_y, sum_xy, sum_x2
-        // Plus Welford online variance: mean, M2
+        // Rolling window keeps the last kWindowSize amplitudes plus Welford
+        // online variance (mean, M2).
         //
-        // Slope = (n*sum_xy - sum_x*sum_y) / (n*sum_x2 - sum_x*sum_x)
+        // Slope is computed directly over the window rather than from running
+        // sums of the absolute frame index (WI-19). The frames in a window are
+        // consecutive integers, so with k indexing the window 0..n-1 the
+        // deviations (k - k_mean) are a fixed symmetric pattern and
+        //     slope = sum_k (k - k_mean) * y_k / (n*(n^2-1)/12)
+        // with an exact constant denominator. Accumulating sum_x/sum_x2 in the
+        // absolute index instead makes n*sum_x2 - sum_x^2 a difference of two
+        // large nearly-equal numbers that must yield the small constant 1716 --
+        // by frame ~40000 the operands exceed float's exactly-representable
+        // integer range and most of the mantissa cancels away. n is 12, so
+        // recomputing directly is also cheaper than maintaining four running
+        // sums and a second circular buffer.
+        //
         // Variance = M2 / n  (population variance)
 
         int steadyStateStart = -1; // first frame where steady-state is detected
@@ -86,35 +110,26 @@ public:
 
         {
             int n = 0;
-            float sum_x = 0.0f;
-            float sum_y = 0.0f;
-            float sum_xy = 0.0f;
-            float sum_x2 = 0.0f;
 
             // Welford online variance accumulators
             float w_mean = 0.0f;
             float w_M2 = 0.0f;
 
-            // Circular buffer to track oldest values for removal
+            // Circular buffer of the window's amplitudes; bufIdx is the slot to
+            // overwrite next, i.e. the oldest sample once the window is full.
             std::vector<float> windowBuf(static_cast<size_t>(kWindowSize), 0.0f);
-            std::vector<float> windowX(static_cast<size_t>(kWindowSize), 0.0f);
             int bufIdx = 0;
 
             bool inSteadyState = false;
 
             for (int i = peakIdx + 1; i < numFrames; ++i)
             {
-                float x = static_cast<float>(i - peakIdx); // local x coordinate
                 float y = contour[static_cast<size_t>(i)];
 
                 if (n < kWindowSize)
                 {
                     // Grow-in phase: add new sample
                     n++;
-                    sum_x += x;
-                    sum_y += y;
-                    sum_xy += x * y;
-                    sum_x2 += x * x;
 
                     // Welford update
                     float delta = y - w_mean;
@@ -123,20 +138,12 @@ public:
                     w_M2 += delta * delta2;
 
                     windowBuf[static_cast<size_t>(bufIdx)] = y;
-                    windowX[static_cast<size_t>(bufIdx)] = x;
                     bufIdx = (bufIdx + 1) % kWindowSize;
                 }
                 else
                 {
                     // Sliding phase: remove oldest, add newest
                     float oldY = windowBuf[static_cast<size_t>(bufIdx)];
-                    float oldX = windowX[static_cast<size_t>(bufIdx)];
-
-                    // Remove oldest from sums
-                    sum_x -= oldX;
-                    sum_y -= oldY;
-                    sum_xy -= oldX * oldY;
-                    sum_x2 -= oldX * oldX;
 
                     // Remove oldest from Welford (reverse update)
                     float delta_old = oldY - w_mean;
@@ -145,12 +152,6 @@ public:
                     float delta_old2 = oldY - w_mean;
                     w_M2 -= delta_old * delta_old2;
 
-                    // Add new
-                    sum_x += x;
-                    sum_y += y;
-                    sum_xy += x * y;
-                    sum_x2 += x * x;
-
                     // Welford add new
                     float delta_new = y - w_mean;
                     w_mean += delta_new / static_cast<float>(n);
@@ -158,7 +159,6 @@ public:
                     w_M2 += delta_new * delta_new2;
 
                     windowBuf[static_cast<size_t>(bufIdx)] = y;
-                    windowX[static_cast<size_t>(bufIdx)] = x;
                     bufIdx = (bufIdx + 1) % kWindowSize;
                 }
 
@@ -166,15 +166,25 @@ public:
                 if (n < kWindowSize)
                     continue;
 
-                // Compute slope: (n*sum_xy - sum_x*sum_y) / (n*sum_x2 - sum_x*sum_x)
+                // Slope over the window, in amplitude per frame. bufIdx is the
+                // oldest slot, so walking forward from it visits the window in
+                // time order.
                 float nf = static_cast<float>(n);
-                float denom = nf * sum_x2 - sum_x * sum_x;
-                float slope = 0.0f;
-                if (std::abs(denom) > 1e-12f)
-                    slope = (nf * sum_xy - sum_x * sum_y) / denom;
+                const float kMean = 0.5f * (nf - 1.0f);
+                float numerator = 0.0f;
+                for (int k = 0; k < n; ++k)
+                {
+                    const auto slot = static_cast<size_t>((bufIdx + k) % kWindowSize);
+                    numerator += (static_cast<float>(k) - kMean) * windowBuf[slot];
+                }
+                // sum_k (k - kMean)^2 for consecutive integers, exact.
+                const float denom = nf * (nf * nf - 1.0f) / 12.0f;
+                const float slope = (denom > 0.0f) ? (numerator / denom) : 0.0f;
 
-                // Compute population variance
-                float variance = (n > 1) ? (w_M2 / nf) : 0.0f;
+                // Compute population variance. The reverse Welford update can
+                // drive M2 slightly negative through rounding on a near-constant
+                // window; clamping keeps the comparison meaningful (QS-11).
+                float variance = (n > 1) ? (std::max(w_M2, 0.0f) / nf) : 0.0f;
 
                 // Check steady-state conditions
                 bool isSteady = (std::abs(slope) < kSlopeThreshold) &&

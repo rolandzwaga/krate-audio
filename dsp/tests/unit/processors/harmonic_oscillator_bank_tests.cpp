@@ -11,11 +11,14 @@
 #include <krate/dsp/core/db_utils.h>
 
 #include <catch2/catch_test_macros.hpp>
+#include <chrono>
 #include <catch2/catch_approx.hpp>
 #include <catch2/benchmark/catch_benchmark.hpp>
 
 #include <array>
 #include <cmath>
+#include <cstdint>
+#include <cstring>
 #include <numeric>
 #include <vector>
 
@@ -98,6 +101,116 @@ static HarmonicFrame makeHarmonicFrame(float f0, int numPartials, float amplitud
     }
     frame.globalAmplitude = amplitude;
     return frame;
+}
+
+// =============================================================================
+// WI-5: MCF effective-epsilon stability under detune.
+//
+// The MCF advance uses eps_eff = epsilon * detuneMultiplier. Only the *base*
+// epsilon was clamped to |eps| < 2; the detune multiply (up to ~1.5x at
+// spread=1, harmonic 48) could push a high-frequency partial's eps_eff past 2,
+// making the coupled-form eigenvalue leave the unit circle and diverge to
+// Inf/NaN. Uses a bit-pattern finite check so it survives -ffast-math (macOS CI).
+// =============================================================================
+static bool isFiniteBits(float x) noexcept {
+    std::uint32_t bits = 0;
+    std::memcpy(&bits, &x, sizeof(bits));
+    return (bits & 0x7F800000u) != 0x7F800000u; // exponent all-ones => Inf/NaN
+}
+
+TEST_CASE("HarmonicOscillatorBank: high-harmonic detune keeps output finite (WI-5)",
+          "[dsp][processors][harmonic_osc_bank][stability]") {
+    for (double sampleRate : {44100.0, 48000.0}) {
+        HarmonicOscillatorBank bank;
+        bank.prepare(sampleRate);
+
+        // Harmonic 47 (odd -> detunes UPWARD) near the top of the band: base
+        // epsilon is already large, and spread=1 detune (2^(47*15/1200) ~= 1.50x)
+        // tips eps_eff past 2. The MCF state then diverges to Inf; the +/-2 output
+        // clamp (kOutputClamp) hides that from the output, so the discriminating
+        // observable is the internal oscillator state, not the output samples.
+        const float freq = static_cast<float>(sampleRate) * 0.27f; // ~11.9 / 13.0 kHz
+        auto frame = makeSimpleFrame(freq / 47.0f, 1.0f, 47);
+        bank.loadFrame(frame, freq / 47.0f);
+        bank.setDetuneSpread(1.0f);
+
+        bool outputFinite = true;
+        for (int s = 0; s < 2000; ++s) {
+            float l = 0.0f;
+            float r = 0.0f;
+            bank.processStereo(l, r);
+            if (!isFiniteBits(l) || !isFiniteBits(r)) { outputFinite = false; break; }
+        }
+        INFO("sampleRate=" << sampleRate);
+        REQUIRE(outputFinite);
+        // The MCF state itself must stay finite (clamp on the effective epsilon).
+        REQUIRE(bank.stateFinite());
+    }
+}
+
+// =============================================================================
+// WI-8: Loris bandwidth term must be energy-preserving.
+//
+// ampMod = sqrt(1-bw) + noise*sqrt(2*bw) preserves energy only when the noise
+// modulator has E[noise^2] = 0.5. The LCG -> 2-stage-LP cascade attenuates the
+// noise variance far below that, so a bandwidth=1 partial lost ~18 dB instead of
+// becoming an equal-energy noise band. Normalizing the cascade power restores it.
+// =============================================================================
+TEST_CASE("HarmonicOscillatorBank: bandwidth=1 preserves energy vs bandwidth=0 (WI-8)",
+          "[dsp][processors][harmonic_osc_bank][bandwidth]") {
+    constexpr double kSampleRate = 44100.0;
+    constexpr size_t kBlockSize = 16384;
+
+    auto measureRms = [&](float bw) {
+        HarmonicOscillatorBank bank;
+        bank.prepare(kSampleRate);
+        auto frame = makeSimpleFrame(440.0f, 1.0f, 1);
+        frame.partials[0].bandwidth = bw;
+        bank.loadFrame(frame, 440.0f);
+        std::vector<float> buf(kBlockSize, 0.0f);
+        bank.processBlock(buf.data(), kBlockSize);
+        // Skip the amplitude-smoothing ramp-in; measure the settled tail.
+        double sumSq = 0.0;
+        const size_t start = kBlockSize / 2;
+        for (size_t i = start; i < kBlockSize; ++i)
+            sumSq += static_cast<double>(buf[i]) * buf[i];
+        return std::sqrt(static_cast<float>(sumSq / static_cast<double>(kBlockSize - start)));
+    };
+
+    const float rmsClean = measureRms(0.0f);
+    const float rmsNoise = measureRms(1.0f);
+    const float ratio = rmsNoise / std::max(rmsClean, 1e-9f);
+    INFO("rms bw=0: " << rmsClean << "  bw=1: " << rmsNoise << "  ratio: " << ratio);
+    // Energy-preserving Loris model: a fully-noisy partial should carry roughly
+    // the same energy as the pure sine, not collapse.
+    REQUIRE(ratio > 0.7f);
+    REQUIRE(ratio < 1.4f);
+}
+
+// =============================================================================
+// QS-8: out-of-range bandwidth must be clamped at the synthesis boundary.
+// bandwidth feeds sqrt(1-bw); bw > 1 yields NaN. Inflated bandwidth is the
+// historical Innexus noise bug, so the bank hardens its own input.
+// =============================================================================
+TEST_CASE("HarmonicOscillatorBank: out-of-range bandwidth is clamped (QS-8)",
+          "[dsp][processors][harmonic_osc_bank][bandwidth]") {
+    for (float bw : {-1.0f, 2.0f, 1000.0f}) {
+        HarmonicOscillatorBank bank;
+        bank.prepare(44100.0);
+        auto frame = makeSimpleFrame(440.0f, 1.0f, 1);
+        frame.partials[0].bandwidth = bw;
+        bank.loadFrame(frame, 440.0f);
+
+        std::vector<float> buf(2048, 0.0f);
+        bank.processBlock(buf.data(), buf.size());
+
+        bool allFinite = true;
+        for (float v : buf)
+            if (!isFiniteBits(v)) { allFinite = false; break; }
+        INFO("bandwidth=" << bw);
+        REQUIRE(allFinite);
+        REQUIRE(bank.stateFinite());
+    }
 }
 
 // =============================================================================
@@ -625,9 +738,13 @@ TEST_CASE("HarmonicOscillatorBank: bandwidth noise is LP-filtered below 500 Hz",
     INFO("Far sideband energy (3000-4000 + 6000-7000 Hz): " << farDB << " dB");
     INFO("Sideband rolloff: " << rolloffDB << " dB");
 
-    // A 4th-order Chebyshev LP at 500 Hz should provide steep rolloff in
-    // the noise modulation. The near-to-far sideband ratio should be > 25 dB.
-    REQUIRE(rolloffDB > 25.0f);
+    // A 4th-order Chebyshev LP at 500 Hz provides steep rolloff in the noise
+    // modulation. WI-8: threshold lowered from 25 to 20 dB. The previous value
+    // reflected an under-powered noise cascade (~-13 dB) whose far-sideband
+    // energy sat at the FFT/leakage floor, inflating the apparent ratio.
+    // Normalizing the noise to E[noise^2]=0.5 lifts the far band to its true
+    // level; the real LP rolloff at these bands is ~22.7 dB.
+    REQUIRE(rolloffDB > 20.0f);
 }
 
 // =============================================================================
@@ -705,4 +822,301 @@ TEST_CASE("HarmonicOscillatorBank: CPU benchmark 48 partials",
         bank.processBlock(buffer.data(), kBlockSize);
         return buffer[0]; // prevent optimization
     };
+}
+
+// =============================================================================
+// WI-20: setStereoSpread() and setDetuneSpread() are documented as "called once
+// per frame, not per sample", but Innexus drives both from per-sample smoothers.
+// Each call rebuilt a 96-entry table -- cos+sin for pan, std::pow per partial
+// for detune, plus a full anti-aliasing recompute -- at audio rate, per voice.
+//
+// Once the smoother settles the recompute reproduces exactly the same table, so
+// it can be cached. The subtlety is that the harmonic modulators mutate
+// detuneMultiplier_ and panLeft_/panRight_ IN PLACE, which makes these setters
+// double as the per-sample base reset. The cached path must still restore that
+// base or a modulator's multiplier compounds every sample.
+// =============================================================================
+
+TEST_CASE("HarmonicOscillatorBank: settled spread values stop recomputing (WI-20)",
+          "[dsp][harmonic_oscillator_bank][wi20]") {
+    HarmonicOscillatorBank bank;
+    bank.prepare(44100.0);
+    bank.loadFrame(makeHarmonicFrame(220.0f, 16), 220.0f);
+
+    bank.setStereoSpread(0.5f);
+    bank.setDetuneSpread(0.3f);
+    const int panAfterFirst = bank.panRecomputeCount();
+    const int detuneAfterFirst = bank.detuneRecomputeCount();
+
+    // A settled smoother hands the same value over and over.
+    for (int i = 0; i < 512; ++i) {
+        bank.setStereoSpread(0.5f);
+        bank.setDetuneSpread(0.3f);
+    }
+    REQUIRE(bank.panRecomputeCount() == panAfterFirst);
+    REQUIRE(bank.detuneRecomputeCount() == detuneAfterFirst);
+
+    // A genuine change must still recompute.
+    bank.setStereoSpread(0.8f);
+    bank.setDetuneSpread(0.6f);
+    REQUIRE(bank.panRecomputeCount() == panAfterFirst + 1);
+    REQUIRE(bank.detuneRecomputeCount() == detuneAfterFirst + 1);
+
+    // A new frame changes the harmonic indices the tables are built from, so it
+    // must invalidate the cache even though the spreads have not moved.
+    bank.loadFrame(makeHarmonicFrame(330.0f, 24), 330.0f);
+    bank.setStereoSpread(0.8f);
+    bank.setDetuneSpread(0.6f);
+    REQUIRE(bank.panRecomputeCount() == panAfterFirst + 2);
+    REQUIRE(bank.detuneRecomputeCount() == detuneAfterFirst + 2);
+}
+
+TEST_CASE("HarmonicOscillatorBank: cached spread path preserves modulator semantics (WI-20)",
+          "[dsp][harmonic_oscillator_bank][wi20]") {
+    // The modulator multiplier must be applied to a FRESH base every sample.
+    // If the cached path failed to restore the base, the multiplier would
+    // compound and the detune would run away.
+    HarmonicOscillatorBank bank;
+    bank.prepare(44100.0);
+    bank.loadFrame(makeHarmonicFrame(220.0f, 8), 220.0f);
+    bank.setDetuneSpread(0.4f);
+
+    std::array<float, kMaxPartials> multipliers{};
+    multipliers.fill(1.01f); // +1% every sample if it compounds
+
+    float firstL = 0.0f, firstR = 0.0f;
+    float lastL = 0.0f, lastR = 0.0f;
+    for (int i = 0; i < 2000; ++i) {
+        bank.setDetuneSpread(0.4f);                    // per-sample base reset
+        bank.applyExternalFrequencyMultipliers(multipliers);
+        float l = 0.0f, r = 0.0f;
+        bank.processStereo(l, r);
+        if (i == 0) { firstL = l; firstR = r; }
+        lastL = l;
+        lastR = r;
+    }
+
+    // 1.01^2000 is astronomically large; a compounding bug shows up as a
+    // non-finite or railed output and a diverged oscillator state.
+    INFO("first=(" << firstL << ", " << firstR << ") last=("
+         << lastL << ", " << lastR << ")");
+    REQUIRE(bank.stateFinite());
+    REQUIRE(std::abs(lastL) <= 2.0f);
+    REQUIRE(std::abs(lastR) <= 2.0f);
+}
+
+TEST_CASE("PERF WI-20 spread cost", "[.perf][wi20perf]") {
+    constexpr int kIters = 200000;
+
+    auto run = [&](bool settled) {
+        HarmonicOscillatorBank bank;
+        bank.prepare(44100.0);
+        bank.loadFrame(makeHarmonicFrame(220.0f, 64), 220.0f);
+        bank.setStereoSpread(0.5f);
+        bank.setDetuneSpread(0.3f);
+        auto t0 = std::chrono::high_resolution_clock::now();
+        float acc = 0.0f;
+        for (int i = 0; i < kIters; ++i) {
+            // "settled" = the smoother has converged (the steady-state case).
+            // Otherwise every sample nudges the value, forcing a recompute --
+            // this is what EVERY sample used to cost.
+            const float d = settled ? 0.0f
+                : (static_cast<float>(i % 1000) * 1e-6f);
+            bank.setStereoSpread(0.5f + d);
+            bank.setDetuneSpread(0.3f + d);
+            float l = 0.0f, r = 0.0f;
+            bank.processStereo(l, r);
+            acc += l + r;
+        }
+        auto t1 = std::chrono::high_resolution_clock::now();
+        const double ns = std::chrono::duration<double, std::nano>(t1 - t0).count()
+            / static_cast<double>(kIters);
+        WARN((settled ? "settled (cached): " : "changing (recompute): ")
+             << ns << " ns/sample  [checksum " << acc << "]");
+        return ns;
+    };
+
+    const double recompute = run(false);
+    const double cached = run(true);
+    WARN("speedup = " << (recompute / cached) << "x");
+    CHECK(cached > 0.0);
+}
+
+// =============================================================================
+// WI-22: the fade-out tail loop scanned every slot from activePartials_ up to
+// kMaxPartials (96) on every sample, per voice, even though the slots above the
+// high-water mark of previously-active partials have been silent since reset.
+//
+// The one correctness subtlety is the reset condition: shrinking the scan
+// window must never drop a partial that is still fading.
+// =============================================================================
+
+TEST_CASE("HarmonicOscillatorBank: bounded tail scan still fades old partials (WI-22)",
+          "[dsp][harmonic_oscillator_bank][wi22]") {
+    HarmonicOscillatorBank bank;
+    bank.prepare(44100.0);
+
+    // Establish 48 partials and let their amplitudes settle.
+    bank.loadFrame(makeHarmonicFrame(220.0f, 48), 220.0f);
+    for (int i = 0; i < 4410; ++i) {
+        float l = 0.0f, r = 0.0f;
+        bank.processStereo(l, r);
+    }
+
+    // Drop to 4 partials. The other 44 must fade out smoothly rather than
+    // being cut off, and must not be skipped by the bounded scan.
+    bank.loadFrame(makeHarmonicFrame(220.0f, 4), 220.0f);
+
+    float peakDuringFade = 0.0f;
+    for (int i = 0; i < 64; ++i) {
+        float l = 0.0f, r = 0.0f;
+        bank.processStereo(l, r);
+        peakDuringFade = std::max(peakDuringFade, std::abs(l) + std::abs(r));
+    }
+    // If the tail had been skipped the drop would be instantaneous; the
+    // smoother is ~2 ms, so energy is still present a few samples later.
+    REQUIRE(peakDuringFade > 0.0f);
+
+    // Let the tail decay fully, then confirm output settles and stays finite.
+    for (int i = 0; i < 44100; ++i) {
+        float l = 0.0f, r = 0.0f;
+        bank.processStereo(l, r);
+    }
+    REQUIRE(bank.stateFinite());
+
+    // Growing the partial count again must re-arm the scan: load 64 partials
+    // and confirm they are all audible.
+    bank.loadFrame(makeHarmonicFrame(220.0f, 64), 220.0f);
+    float energy = 0.0f;
+    for (int i = 0; i < 4410; ++i) {
+        float l = 0.0f, r = 0.0f;
+        bank.processStereo(l, r);
+        energy += l * l + r * r;
+    }
+    REQUIRE(energy > 0.0f);
+    REQUIRE(bank.stateFinite());
+}
+
+// =============================================================================
+// PR #262 review: NaN-safe bandwidth ingestion.
+//
+// loadFrame() used std::clamp(partial.bandwidth, 0.0f, 1.0f) to guard the
+// sqrt(1-bw) in the Loris bandwidth-enhanced amplitude modulation. clamp is
+// `v < lo ? lo : (hi < v ? hi : v)` -- BOTH comparisons are false for NaN, so a
+// NaN bandwidth passed straight through and poisoned ampMod, and from there the
+// output sum. (The MCF state itself stays clean, which is why stateFinite()
+// alone never caught this.)
+//
+// The bank is the layer that hardens its own input, so it must reject NaN here
+// rather than rely on a downstream sanitize in one particular host plugin.
+// =============================================================================
+
+namespace {
+
+/// Build a NaN without std::numeric_limits.
+///
+/// macOS CI compiles with -ffast-math, under which quiet_NaN() folds to finite
+/// garbage. Going through a volatile bit pattern defeats that folding, so the
+/// value that reaches the bank really is a NaN.
+[[nodiscard]] float bitPatternNaN() noexcept {
+    volatile std::uint32_t bits = 0x7FC00000u; // quiet NaN
+    const std::uint32_t observed = bits;       // volatile read defeats folding
+    float out = 0.0f;
+    std::memcpy(&out, &observed, sizeof(out));
+    return out;
+}
+
+/// Same approach for +infinity, the other non-finite bandwidth a corrupt
+/// analysis frame can carry.
+[[nodiscard]] float bitPatternInf() noexcept {
+    volatile std::uint32_t bits = 0x7F800000u;
+    const std::uint32_t observed = bits;       // volatile read defeats folding
+    float out = 0.0f;
+    std::memcpy(&out, &observed, sizeof(out));
+    return out;
+}
+
+} // namespace
+
+TEST_CASE("Non-finite bandwidth cannot reach the output",
+          "[dsp][processors][harmonic_oscillator_bank][robustness]") {
+    constexpr double kSampleRate = 44100.0;
+
+    const float nan = bitPatternNaN();
+    const float inf = bitPatternInf();
+
+    // Guard the guard: if -ffast-math defeated the bit trick, this test would
+    // silently pass without ever exercising the NaN path.
+    REQUIRE(std::isnan(nan));
+    REQUIRE(std::isinf(inf));
+
+    auto runWithBandwidth = [&](float bandwidth) {
+        HarmonicOscillatorBank bank;
+        bank.prepare(kSampleRate);
+
+        auto frame = makeHarmonicFrame(220.0f, 8);
+        for (int i = 0; i < frame.numPartials; ++i) {
+            frame.partials[i].bandwidth = bandwidth;
+        }
+        bank.loadFrame(frame, 220.0f);
+
+        bool allFinite = true;
+        for (int i = 0; i < 4410; ++i) {
+            float l = 0.0f, r = 0.0f;
+            bank.processStereo(l, r);
+            if (!std::isfinite(l) || !std::isfinite(r)) {
+                allFinite = false;
+                break;
+            }
+        }
+        return allFinite;
+    };
+
+    SECTION("NaN bandwidth") {
+        CHECK(runWithBandwidth(nan));
+    }
+
+    SECTION("Infinite bandwidth") {
+        CHECK(runWithBandwidth(inf));
+    }
+
+    SECTION("Negative bandwidth") {
+        CHECK(runWithBandwidth(-1.0f));
+    }
+
+    SECTION("Valid bandwidth still produces audio") {
+        CHECK(runWithBandwidth(0.5f));
+    }
+}
+
+TEST_CASE("Mixed valid/non-finite bandwidth stays finite",
+          "[dsp][processors][harmonic_oscillator_bank][robustness]") {
+    // The single-value cases above all drive hasBandwidth_ to one setting for
+    // the whole frame. This mixes them, so hasBandwidth_ is true (a real 0.5
+    // partial exists) AND a NaN partial is present in the same pass -- the
+    // combination that would expose a per-lane guard that only holds frame-wide.
+    constexpr double kSampleRate = 44100.0;
+
+    HarmonicOscillatorBank bank;
+    bank.prepare(kSampleRate);
+
+    auto frame = makeHarmonicFrame(220.0f, 8);
+    for (int i = 0; i < frame.numPartials; ++i) {
+        frame.partials[i].bandwidth = (i % 2 == 0) ? 0.5f : bitPatternNaN();
+    }
+    bank.loadFrame(frame, 220.0f);
+
+    float energy = 0.0f;
+    for (int i = 0; i < 4410; ++i) {
+        float l = 0.0f, r = 0.0f;
+        bank.processStereo(l, r);
+        REQUIRE(std::isfinite(l));
+        REQUIRE(std::isfinite(r));
+        energy += l * l + r * r;
+    }
+
+    // Not just finite -- still audible. A guard that silenced every partial
+    // would satisfy the finiteness check while destroying the output.
+    REQUIRE(energy > 0.0f);
+    REQUIRE(bank.stateFinite());
 }

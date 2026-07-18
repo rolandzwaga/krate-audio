@@ -276,9 +276,6 @@ private:
 
     // ADSR playback state pointers from processor (Spec 124: T049)
     // Received via IMessage from Processor::process() on first block.
-    std::atomic<float>* adsrOutputPtr_ = nullptr;
-    std::atomic<int>* adsrStagePtr_ = nullptr;
-    std::atomic<bool>* adsrActivePtr_ = nullptr;
 
     // Impact exciter knob container (VSTGUI-owned, nulled in willClose)
     VSTGUI::CViewContainer* impactKnobContainer_ = nullptr;

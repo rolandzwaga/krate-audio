@@ -179,10 +179,17 @@ void SampleAnalyzer::analyzeOnThread(
     preProcessing.prepare(static_cast<double>(sampleRate));
 
     // YIN pitch detector (FR-010 to FR-017)
-    // Window size should be large enough for lowest pitch (40 Hz)
-    // At 44.1kHz, 40 Hz = 1102.5 samples period, need 2x = 2205
-    // Use 2048 as reasonable window size
-    constexpr size_t kYinWindowSize = 2048;
+    //
+    // YIN searches lags up to N/2, so the lowest detectable F0 is
+    // sampleRate/(N/2). The stated 40 Hz floor at 44.1 kHz therefore needs
+    // N >= 2206 (de Cheveigne & Kawahara 2002). This was 2048 -- a 43 Hz floor,
+    // right where the comment's own arithmetic said it should not be -- and a
+    // 41 Hz fundamental came out with zero frames on the true pitch, not even
+    // recovered by the subharmonic validator downstream (WI-15).
+    //
+    // Use the same window the live pipeline already uses, so both paths share
+    // one F0 floor.
+    constexpr size_t kYinWindowSize = kHighPrecisionYinWindowSize; // 4096
     Krate::DSP::YinPitchDetector yin(kYinWindowSize);
     yin.prepare(static_cast<double>(sampleRate));
 
@@ -260,6 +267,21 @@ void SampleAnalyzer::analyzeOnThread(
     const size_t longHopRatio = kLongWindowConfig.hopSize / shortHop; // 2048/512 = 4
     size_t shortHopCounter = 0;
 
+    // Dual-window merge (FR-018/020/021): in the low band the short STFT cannot
+    // place a peak accurately enough for the harmonic sieve -- below its scan
+    // floor (bin 2) the fundamental is unresolvable outright, and just above it
+    // the parabolic estimate is biased past the sieve's low-order tolerance
+    // (WI-12). For voiced frames whose F0 falls in that band, take the low peaks
+    // from the long window (10.77 Hz/bin) instead. The threshold must match
+    // PartialTracker's own crossover or frames would take the dual path while
+    // their fundamental still came from the short window.
+    const float dualWindowMaxF0 = Krate::DSP::PartialTracker::kCrossoverBins
+        * sampleRate / static_cast<float>(kShortWindowConfig.fftSize);
+    const float longAmpScale = 2.0f
+        / (static_cast<float>(kLongWindowConfig.fftSize)
+           * Krate::DSP::Window::coherentGain(kLongWindowConfig.windowType));
+    bool longSpectrumValid = false;
+
     // Pre-processing buffer (process in small blocks)
     constexpr size_t kProcessBlockSize = 512;
     std::vector<float> processBuffer(kProcessBlockSize);
@@ -294,6 +316,7 @@ void SampleAnalyzer::analyzeOnThread(
             // Run long STFT analysis if it's time (every longHopRatio short hops)
             if (longStft.canAnalyze() && (shortHopCounter % longHopRatio == 0)) {
                 longStft.analyze(longSpectrum);
+                longSpectrumValid = true;
             }
 
             // Compute RMS of the current hop region for model builder
@@ -334,9 +357,20 @@ void SampleAnalyzer::analyzeOnThread(
                 f0 = subharmonicValidator.validate(f0, shortSpectrum);
             }
 
-            // Partial tracking with harmonic sieve (FR-022 to FR-028)
-            tracker.processFrame(shortSpectrum, f0,
-                                  kShortWindowConfig.fftSize, sampleRate);
+            // Partial tracking with harmonic sieve (FR-022 to FR-028).
+            // A voiced fundamental below the short-window scan floor is merged
+            // with long-window peaks (FR-018/020/021); everything else uses the
+            // byte-identical single-spectrum path.
+            if (f0.voiced && f0.frequency > 0.0f && f0.frequency < dualWindowMaxF0
+                && longSpectrumValid) {
+                tracker.processDualFrame(shortSpectrum, longSpectrum,
+                                          kShortWindowConfig.fftSize,
+                                          kLongWindowConfig.fftSize,
+                                          longAmpScale, f0, sampleRate);
+            } else {
+                tracker.processFrame(shortSpectrum, f0,
+                                      kShortWindowConfig.fftSize, sampleRate);
+            }
 
             // Build harmonic frame (FR-029 to FR-034)
             Krate::DSP::HarmonicFrame frame = modelBuilder.build(
@@ -419,7 +453,27 @@ void SampleAnalyzer::analyzeOnThread(
                 }
             }
             constexpr float kHighNosinessThreshold = 0.5f;
-            bool tooNoisy = (medianNoisiness > kHighNosinessThreshold);
+
+            // ...but noisiness only carries that meaning when the analysis
+            // window can actually resolve the harmonic series. Harmonics sit f0
+            // apart, and separating two of them needs roughly a main-lobe width
+            // of bins; below that they merge into one blob, the model cannot
+            // account for the energy as discrete partials, and noisiness
+            // saturates -- for a completely correct, completely monophonic F0.
+            //
+            // dualWindowMaxF0 is exactly that limit for the short window (the
+            // one that analyses the bulk of the harmonics), which is why the
+            // dual-window path exists below it. Measured on synthetic tones,
+            // median noisiness runs 0.08 at 440 Hz and 0.13 at 220 Hz, then
+            // 0.47 at 110 Hz and 0.74 at 41 Hz -- tracking the resolution limit,
+            // not polyphony.
+            //
+            // Left ungated, a stable and correctly detected 41 Hz fundamental
+            // (iqrRatio 0.000) was discarded here and every frame in the file
+            // was overwritten with a 708 Hz multi-pitch estimate.
+            const bool f0BelowResolutionLimit = (medianF0 < dualWindowMaxF0);
+            bool tooNoisy = (medianNoisiness > kHighNosinessThreshold)
+                            && !f0BelowResolutionLimit;
 
             needsReanalysis = f0Unstable || tooNoisy;
 

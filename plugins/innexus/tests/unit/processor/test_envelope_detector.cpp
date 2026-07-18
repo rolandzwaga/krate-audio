@@ -53,6 +53,50 @@ static std::vector<Krate::DSP::HarmonicFrame> makeContour(
 static constexpr float kHopTimeSec = 512.0f / 44100.0f; // ~11.6ms
 
 // =============================================================================
+// WI-2: Steady-state detection must be scale-invariant.
+//
+// The slope/variance thresholds were applied to the raw (unnormalized) RMS
+// contour, so the same envelope shape at a different recording level produced a
+// different ADSR. Normalizing the contour by its peak makes detection depend on
+// shape only, not absolute level.
+// =============================================================================
+TEST_CASE("EnvelopeDetector: steady-state detection is scale-invariant",
+          "[envelope_detector][scale_invariance]")
+{
+    // Attack (ramp up) -> decay -> flat sustain -> release (ramp down).
+    std::vector<float> shape;
+    for (int i = 0; i < 6; ++i) shape.push_back(0.15f * static_cast<float>(i + 1)); // attack to ~0.9
+    shape.push_back(1.0f);                                                          // peak
+    for (int i = 0; i < 4; ++i) shape.push_back(0.7f - 0.02f * static_cast<float>(i)); // decay
+    for (int i = 0; i < 20; ++i) shape.push_back(0.6f);                             // flat sustain
+    for (int i = 0; i < 8; ++i) shape.push_back(0.6f - 0.07f * static_cast<float>(i + 1)); // release
+
+    auto detectScaled = [&](float scale) {
+        std::vector<float> amps;
+        amps.reserve(shape.size());
+        for (float v : shape) amps.push_back(v * scale);
+        return Innexus::EnvelopeDetector::detect(makeContour(amps), kHopTimeSec);
+    };
+
+    const auto base = detectScaled(1.0f);
+    const auto quiet = detectScaled(0.1f);
+    const auto loud = detectScaled(10.0f);
+
+    INFO("decay base=" << base.decayMs << " quiet=" << quiet.decayMs
+         << " loud=" << loud.decayMs);
+    INFO("sustainStart base=" << base.sustainStartFrame
+         << " quiet=" << quiet.sustainStartFrame << " loud=" << loud.sustainStartFrame);
+
+    // Detection must depend on shape only, not absolute level.
+    REQUIRE(quiet.sustainStartFrame == base.sustainStartFrame);
+    REQUIRE(loud.sustainStartFrame == base.sustainStartFrame);
+    REQUIRE(quiet.decayMs == Catch::Approx(base.decayMs));
+    REQUIRE(loud.decayMs == Catch::Approx(base.decayMs));
+    REQUIRE(quiet.sustainLevel == Catch::Approx(base.sustainLevel).margin(1e-4));
+    REQUIRE(loud.sustainLevel == Catch::Approx(base.sustainLevel).margin(1e-4));
+}
+
+// =============================================================================
 // Test: Synthetic percussive contour (step-up then decay)
 // =============================================================================
 TEST_CASE("EnvelopeDetector: percussive contour yields short Attack and low Sustain",
@@ -289,4 +333,67 @@ TEST_CASE("EnvelopeDetector: valid contour produces non-default ADSR",
 
     // This test MUST FAIL with the stub (which returns all defaults)
     REQUIRE_FALSE(isDefault);
+}
+
+// =============================================================================
+// WI-19: the rolling least-squares slope uses an absolute frame index that is
+// never re-centred, so sum_x and sum_x2 grow without bound while the quantity
+// actually wanted -- denom = n*sum_x2 - sum_x^2 -- is the constant 1716 for a
+// 12-frame integer window. Far from the peak the subtraction cancels away most
+// of the float mantissa, and the slope estimate degrades.
+//
+// Expressed as a property: slope is translation-invariant, so the SAME envelope
+// shape must be detected identically whether it sits at the start of a long
+// file or thousands of frames in.
+// =============================================================================
+
+TEST_CASE("EnvelopeDetector: detection is translation-invariant along a long contour (WI-19)",
+          "[innexus][envelope_detector][wi19]")
+{
+    // One envelope shape: fast attack, decay, then a long almost-flat sustain
+    // whose slope sits just under the steady-state threshold.
+    auto makeShape = []() {
+        std::vector<float> shape;
+        for (int i = 0; i < 10; ++i)                    // attack
+            shape.push_back(static_cast<float>(i) / 10.0f);
+        shape.push_back(1.0f);                          // peak
+        for (int i = 0; i < 30; ++i)                    // decay
+            shape.push_back(1.0f - 0.4f * static_cast<float>(i) / 30.0f);
+        for (int i = 0; i < 400; ++i)                   // sustain, tiny droop
+            shape.push_back(0.6f - 1e-4f * static_cast<float>(i));
+        return shape;
+    };
+
+    const auto shape = makeShape();
+
+    // Reference: the shape alone.
+    const auto nearResult = Innexus::EnvelopeDetector::detect(
+        makeContour(shape), kHopTimeSec);
+
+    // Same shape, but preceded by a long quiet lead-in so every window sits at
+    // a large absolute frame index. The lead-in is below the peak, so peakIdx
+    // still lands on the shape's peak and the region past it is identical.
+    constexpr int kLeadIn = 40000; // ~7.5 minutes of audio at 11.6 ms/frame
+    std::vector<float> shifted(static_cast<size_t>(kLeadIn), 0.05f);
+    shifted.insert(shifted.end(), shape.begin(), shape.end());
+    const auto farResult = Innexus::EnvelopeDetector::detect(
+        makeContour(shifted), kHopTimeSec);
+
+    INFO("near: decay=" << nearResult.decayMs
+         << " sustain=" << nearResult.sustainLevel
+         << " sustainStart=" << nearResult.sustainStartFrame
+         << " | far: decay=" << farResult.decayMs
+         << " sustain=" << farResult.sustainLevel
+         << " sustainStart=" << farResult.sustainStartFrame);
+
+    // Decay is measured from the peak, so it must not depend on where the peak
+    // sits in the file.
+    REQUIRE(farResult.decayMs == Catch::Approx(nearResult.decayMs).margin(1.0f));
+    REQUIRE(farResult.sustainLevel
+            == Catch::Approx(nearResult.sustainLevel).margin(0.02f));
+
+    // The sustain region must start the same number of frames after the peak.
+    const int nearOffset = nearResult.sustainStartFrame - 10;
+    const int farOffset = farResult.sustainStartFrame - (kLeadIn + 10);
+    REQUIRE(std::abs(farOffset - nearOffset) <= 1);
 }

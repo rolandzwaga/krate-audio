@@ -183,11 +183,23 @@ public:
         frame.numPartials = maxPartials;
         frame.f0Confidence = 1.0f;
 
-        // Fill in harmonicIndex and other per-partial metadata
+        // Fill in harmonicIndex and other per-partial metadata.
+        //
+        // harmonicIndex used to be set to p+1, i.e. slot order, while frequency
+        // was reconstructed from relativeFrequency. For a harmonic source those
+        // agree, but for an inharmonic one they do not: a partial whose
+        // relativeFrequency is 5.4 would be labelled harmonic 3 purely because
+        // it sat in slot 3, and inharmonicDeviation was left at whatever the
+        // blend produced. Derive both from relativeFrequency, matching how
+        // sample_analyzer builds sieve-free frames (harmonic_types.h documents
+        // inharmonicDeviation as exactly relativeFrequency - harmonicIndex).
         for (int p = 0; p < maxPartials; ++p)
         {
             auto& rp = frame.partials[static_cast<size_t>(p)];
-            rp.harmonicIndex = p + 1;
+            rp.harmonicIndex = std::max(1,
+                static_cast<int>(std::round(rp.relativeFrequency)));
+            rp.inharmonicDeviation = rp.relativeFrequency
+                - static_cast<float>(rp.harmonicIndex);
             rp.stability = 1.0f;
             rp.age = 1;
             // Compute frequency from relative (using blended f0)

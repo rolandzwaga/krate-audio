@@ -74,8 +74,8 @@ public:
     /// @param sampleRate Sample rate in Hz
     void prepare(double sampleRate) noexcept
     {
-        inverseSampleRate_ = 1.0f / static_cast<float>(sampleRate);
-        phase_ = 0.0f;
+        inverseSampleRate_ = 1.0 / sampleRate;
+        phase_ = 0.0;
         shValue_ = 0.0f;
         cachedBipolar_ = computeWaveform();
     }
@@ -83,7 +83,7 @@ public:
     /// @brief Reset LFO phase to 0.0.
     void reset() noexcept
     {
-        phase_ = 0.0f;
+        phase_ = 0.0;
         shValue_ = 0.0f;
         cachedBipolar_ = computeWaveform();
     }
@@ -132,11 +132,15 @@ public:
     /// @note Real-time safe
     void advance() noexcept
     {
-        phase_ += rate_ * inverseSampleRate_;
+        // QS-12: accumulate in double. At the 0.01 Hz parameter minimum the
+        // per-sample increment is ~2.27e-7 while one float ULP near phase 1.0
+        // is 1.19e-7, so each step was quantised to ~2 ULP with a systematic
+        // bias -- measured 1.04% rate error over 25 s.
+        phase_ += static_cast<double>(rate_) * inverseSampleRate_;
 
-        if (phase_ >= 1.0f)
+        if (phase_ >= 1.0)
         {
-            phase_ -= 1.0f;
+            phase_ -= 1.0;
             // Update S&H value on wrap (for RandomSH waveform)
             shValue_ = rng_.nextFloat(); // bipolar [-1, 1]
         }
@@ -153,6 +157,9 @@ public:
     /// @param frame HarmonicFrame to modify in-place
     void applyAmplitudeModulation(Krate::DSP::HarmonicFrame& frame) const noexcept
     {
+        // WI-10: only act when Amplitude is the selected target.
+        if (target_ != ModulatorTarget::Amplitude)
+            return;
         if (rangeStart_ > rangeEnd_ || depth_ <= 0.0f)
             return;
 
@@ -180,22 +187,36 @@ public:
     void getFrequencyMultipliers(
         std::array<float, Krate::DSP::kMaxPartials>& multipliers) const noexcept
     {
-        multipliers.fill(1.0f);
-
-        if (rangeStart_ > rangeEnd_ || depth_ <= 0.0f)
+        // WI-10: only act when Frequency is the selected target.
+        if (target_ != ModulatorTarget::Frequency
+            || rangeStart_ > rangeEnd_ || depth_ <= 0.0f)
+        {
+            multipliers.fill(1.0f);
             return;
+        }
 
         const float bipolar = getCurrentValue();
         const float cents = depth_ * bipolar * kModMaxCents;
         const float multiplier = std::pow(2.0f, cents / 1200.0f);
 
-        for (size_t i = 0; i < Krate::DSP::kMaxPartials; ++i)
+        // QS-13: the modulated range is contiguous (harmonic indices are
+        // 1-based and map directly to slots), so write three spans instead of
+        // filling all 96 slots and then re-walking them with a per-element
+        // range test. Exactly output-preserving; the old form cost ~61 ns per
+        // sample, 0.63% of a core across two modulators.
+        constexpr auto kN = static_cast<int>(Krate::DSP::kMaxPartials);
+        const int lo = std::clamp(rangeStart_ - 1, 0, kN);
+        const int hi = std::clamp(rangeEnd_, 0, kN); // one-past-last slot
+        auto* out = multipliers.data();
+        if (lo < hi)
         {
-            int harmIdx = static_cast<int>(i) + 1; // 1-based
-            if (harmIdx >= rangeStart_ && harmIdx <= rangeEnd_)
-            {
-                multipliers[i] = multiplier;
-            }
+            std::fill(out, out + lo, 1.0f);
+            std::fill(out + lo, out + hi, multiplier);
+            std::fill(out + hi, out + kN, 1.0f);
+        }
+        else
+        {
+            multipliers.fill(1.0f);
         }
     }
 
@@ -211,6 +232,9 @@ public:
     {
         offsets.fill(0.0f);
 
+        // WI-10: only act when Pan is the selected target.
+        if (target_ != ModulatorTarget::Pan)
+            return;
         if (rangeStart_ > rangeEnd_ || depth_ <= 0.0f)
             return;
 
@@ -242,28 +266,32 @@ public:
     /// @brief Get current LFO phase [0, 1).
     [[nodiscard]] float getPhase() const noexcept
     {
-        return phase_;
+        return static_cast<float>(phase_);
     }
 
 private:
     /// Compute current waveform value from phase (bipolar).
     [[nodiscard]] float computeWaveform() const noexcept
     {
+        // phase_ is double for accumulation accuracy (QS-12); the waveform
+        // value itself is float, so narrow once here.
+        const float phase = static_cast<float>(phase_);
+
         switch (waveform_)
         {
         case ModulatorWaveform::Sine:
-            return std::sin(Krate::DSP::kTwoPi * phase_);
+            return std::sin(Krate::DSP::kTwoPi * phase);
 
         case ModulatorWaveform::Triangle:
             // 4*|phase - 0.5| - 1: at phase=0 -> 1, phase=0.5 -> -1, phase=1 -> 1
-            return 4.0f * std::abs(phase_ - 0.5f) - 1.0f;
+            return 4.0f * std::abs(phase - 0.5f) - 1.0f;
 
         case ModulatorWaveform::Square:
-            return phase_ < 0.5f ? 1.0f : -1.0f;
+            return phase < 0.5f ? 1.0f : -1.0f;
 
         case ModulatorWaveform::Saw:
             // 2*phase - 1: at phase=0 -> -1, phase=1 -> 1
-            return 2.0f * phase_ - 1.0f;
+            return 2.0f * phase - 1.0f;
 
         case ModulatorWaveform::RandomSH:
             return shValue_;
@@ -272,14 +300,14 @@ private:
         return 0.0f; // unreachable
     }
 
-    float phase_ = 0.0f;
+    double phase_ = 0.0;   ///< double: see advance() (QS-12)
     float rate_ = 1.0f;
     float depth_ = 0.0f;
     int rangeStart_ = 1;   // 1-based
     int rangeEnd_ = 96;    // 1-based
     ModulatorWaveform waveform_ = ModulatorWaveform::Sine;
     ModulatorTarget target_ = ModulatorTarget::Amplitude;
-    float inverseSampleRate_ = 1.0f / 44100.0f;
+    double inverseSampleRate_ = 1.0 / 44100.0;
 
     // S&H state
     float shValue_ = 0.0f;

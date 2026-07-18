@@ -21,6 +21,21 @@ void Processor::processParameterChanges(
     if (!changes)
         return;
 
+    // Parameter automation is applied at BLOCK rate, not sample-accurately
+    // (QS-10). Each queue may carry several points with sample offsets into the
+    // block; only the last is read, and sampleOffset is deliberately ignored.
+    //
+    // This is a considered trade-off rather than an oversight. Every parameter
+    // that is consumed per sample -- stereo spread, detune spread, the two
+    // modulator rates and depths, evolution speed and depth, harmonic and
+    // residual levels, brightness, the physics controls, morph position -- runs
+    // through an OnePoleSmoother with a 5-10 ms time constant (see the smoother
+    // members in processor.h). The smoother ramp is far longer than one block,
+    // so honouring sampleOffset would move the start of a ramp by at most one
+    // block and would not be audible.
+    //
+    // If a parameter is ever consumed per sample WITHOUT a smoother, that
+    // reasoning no longer holds and it would need real sample-accurate handling.
     auto numParams = changes->getParameterCount();
     for (Steinberg::int32 i = 0; i < numParams; ++i)
     {

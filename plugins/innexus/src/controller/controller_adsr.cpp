@@ -111,8 +111,8 @@ void Controller::wireAdsrDisplay(Krate::Plugins::ADSRDisplay* display)
     display->setEndEditCallback(
         [this](uint32_t paramId) { endEdit(paramId); });
 
-    if (adsrOutputPtr_ && adsrStagePtr_ && adsrActivePtr_)
-        display->setPlaybackStatePointers(adsrOutputPtr_, adsrStagePtr_, adsrActivePtr_);
+    // WI-9: playback state is pushed as copied scalars from the DisplayData
+    // bridge each block (see updateViewsFromDisplayData) -- no pointer wiring.
 }
 
 // ==============================================================================

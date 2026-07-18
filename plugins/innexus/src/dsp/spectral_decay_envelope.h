@@ -50,9 +50,6 @@ public:
         numPartials_ = frame.numPartials;
         initialGlobalAmplitude_ = frame.globalAmplitude;
 
-        // Initialize per-partial gains to 1.0 (full amplitude)
-        partialGains_.fill(1.0f);
-
         // Zero-partial frame is immediately fully decayed
         if (numPartials_ <= 0)
             fullyDecayed_ = true;
@@ -126,7 +123,10 @@ public:
 private:
     static constexpr float kSilenceThreshold = 1e-4f; // -80 dBFS
 
-    // Base decay time for the fundamental (seconds)
+    // Decay TIME CONSTANT for the fundamental, in seconds -- the 1/e point,
+    // not the audible tail length. The tail runs far longer: a one-pole at
+    // tau = 0.6 s passes -60 dB at about 4.1 s, and -80 dB (kSilenceThreshold,
+    // where the envelope declares itself fully decayed) at about 5.5 s.
     static constexpr float kBaseDecayTimeSec = 0.6f;
 
     // How much faster higher partials decay relative to fundamental.
@@ -138,9 +138,6 @@ private:
 
     // Per-partial decay coefficient (applied per block)
     std::array<float, Krate::DSP::kMaxPartials> decayCoeffs_{};
-
-    // Current per-partial gain (starts at 1.0, decays toward 0)
-    std::array<float, Krate::DSP::kMaxPartials> partialGains_{};
 
     int numPartials_ = 0;
     float blockDurationSec_ = 0.0f;

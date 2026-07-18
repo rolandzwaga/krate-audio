@@ -74,6 +74,43 @@ public:
     /// Amplitude similarity weight in cost function (0 = freq only, 1 = equal weight)
     static constexpr float kAmplitudeWeight = 0.3f;
 
+    /// Maximum number of spectral peaks handed to the frame-to-frame matcher.
+    /// MUST equal the HungarianAlgorithm capacity below -- costMatrix_ is
+    /// indexed as [track * numPeaks + peak] (WI-23).
+    static constexpr int kMaxTrackablePeaks = 128;
+
+    /// Dual-window crossover, in short-window bins. Below this the long window
+    /// supplies the peaks; above it the short window does. Four bins puts the
+    /// crossover at ~172 Hz for 1024/44.1k, covering the near-DC region where
+    /// the short window's parabolic peak estimate is too biased for the
+    /// harmonic sieve (WI-12).
+    static constexpr float kCrossoverBins = 4.0f;
+
+    /// Smallest estimated stiffness that triggers a stretched-template pass.
+    /// Below this the template correction is far under the sieve tolerance at
+    /// every harmonic index, so skipping the second pass leaves near-harmonic
+    /// sources bit-identical to the ideal-series behaviour (WI-13).
+    static constexpr float kMinInharmonicity = 2e-5f;
+
+    /// Upper bound on the estimated stiffness coefficient. Real strings sit
+    /// around 1e-4..1e-3 (Fletcher & Rossing); anything larger is a bad fit,
+    /// not a stiffer string.
+    static constexpr float kMaxInharmonicity = 1e-2f;
+
+    /// Highest harmonic index used to estimate stiffness. Low orders are where
+    /// the rigid first-pass template is still reliable.
+    static constexpr int kMaxInharmonicityEstimationOrder = 8;
+
+    /// Minimum assigned low-order partials required to estimate stiffness.
+    static constexpr int kMinInharmonicityEstimationPeaks = 3;
+
+    /// Estimate/reassign rounds. Each round lets the template explain more
+    /// harmonics, which sharpens the next estimate.
+    static constexpr int kInharmonicityRefineIterations = 4;
+
+    /// Change in B below which refinement is considered converged.
+    static constexpr float kInharmonicityTolerance = 1e-6f;
+
     PartialTracker() noexcept = default;
 
     /// @brief Set the DFT amplitude normalization factor.
@@ -106,6 +143,9 @@ public:
         peakMatched_.resize(numBins_);
         peakMatchedSlot_.resize(numBins_);
         peakBandwidth_.resize(numBins_);
+        // Reserved here so prunePeaksToMatcherCapacity() never allocates on the
+        // audio thread (it only ever resizes within this capacity).
+        peakSelectIdx_.reserve(numBins_);
 
         reset();
     }
@@ -178,6 +218,84 @@ public:
         updateFrequencyHistory();
     }
 
+    /// @brief Process one frame using dual-resolution (long + short) STFT input.
+    ///
+    /// Partitions the spectrum at a crossover: everything below comes from the
+    /// long window, everything above from the short one (Serra & Smith SMS
+    /// multi-resolution analysis). This delivers FR-018/020/021 (dual-window
+    /// analysis feeding the tracker). Intended for voiced frames whose
+    /// fundamental sits in the low band; for all other content the caller
+    /// should use the single-spectrum processFrame().
+    ///
+    /// The crossover is kCrossoverBins short-window bins rather than the short
+    /// scan floor (bin 2). Near DC the short window's parabolic peak estimate is
+    /// biased by more than the sieve's tight low-order tolerance, so a
+    /// fundamental just ABOVE the scan floor is detected but then rejected as
+    /// inharmonic -- measured at 90 Hz with 1024/44.1k (WI-12). Handing that
+    /// whole band to the long window fixes the frequency estimate at its source
+    /// instead of loosening harmonic assignment everywhere.
+    ///
+    /// @param shortSpectrum Short-window (temporal) magnitude/phase spectrum
+    /// @param longSpectrum  Long-window (low-freq resolution) magnitude/phase spectrum
+    /// @param shortFftSize  Short-window FFT size
+    /// @param longFftSize   Long-window FFT size
+    /// @param longAmpScale  DFT amplitude normalization for the long window
+    ///                      (2/(longFftSize*coherentGain))
+    /// @param f0 Current F0 estimate from the pitch detector
+    /// @param sampleRate Sample rate in Hz
+    /// @note Real-time safe (no allocations)
+    void processDualFrame(const SpectralBuffer& shortSpectrum,
+                          const SpectralBuffer& longSpectrum,
+                          size_t shortFftSize,
+                          size_t longFftSize,
+                          float longAmpScale,
+                          const F0Estimate& f0,
+                          float sampleRate) noexcept {
+        // Save previous state for frame-to-frame matching
+        previousPartials_ = partials_;
+        previousActiveCount_ = activeCount_;
+
+        const float shortBinSpacing = sampleRate / static_cast<float>(shortFftSize);
+        const float crossoverHz = kCrossoverBins * shortBinSpacing;
+
+        const float f0Est = f0.voiced ? f0.frequency : 0.0f;
+
+        // Step 1: Peak detection. The two ranges partition the spectrum at the
+        // crossover, so no partial can be detected twice.
+        //
+        // The LOW band (long window) is appended first so the merged peak list
+        // comes out frequency-ascending. That is what makes the index sort in
+        // prunePeaksToMatcherCapacity() a frequency sort rather than a no-op
+        // relative to merge order (PR #262 review).
+        //
+        // This is a clarity fix, not a behaviour fix: no downstream stage is
+        // order-dependent, and a cap-pressure probe (flat-amplitude spectrum
+        // with more partials than the cap) produced identical tracking under
+        // both orders. Do not reorder these on the assumption that it changes
+        // which partials survive -- it does not.
+        numPeaks_ = 0;
+        appendPeaks(longSpectrum, longFftSize, sampleRate, longAmpScale,
+                    0.0f, crossoverHz, f0Est);
+        appendPeaks(shortSpectrum, shortFftSize, sampleRate, amplitudeScale_,
+                    crossoverHz, sampleRate * 0.5f, f0Est);
+        prunePeaksToMatcherCapacity();
+
+        // Step 2: Harmonic sieve (FR-023) -- only if voiced
+        if (f0.voiced && f0.frequency > 0.0f) {
+            mapToHarmonics(f0.frequency);
+        } else {
+            for (int i = 0; i < numPeaks_; ++i) {
+                peakHarmonicIndex_[static_cast<size_t>(i)] = 0;
+            }
+        }
+
+        // Steps 3-6: matching, birth/death, cap/hysteresis, history
+        matchTracks();
+        updateLifecycles(f0);
+        enforcePartialCap();
+        updateFrequencyHistory();
+    }
+
     /// @brief Get the current tracked partials array.
     /// @return Reference to the fixed-size partial array
     [[nodiscard]] const std::array<Partial, kMaxPartials>& getPartials() const noexcept {
@@ -202,6 +320,84 @@ private:
                      float sampleRate,
                      float f0Estimate = 0.0f) noexcept {
         numPeaks_ = 0;
+        appendPeaks(spectrum, fftSize, sampleRate, amplitudeScale_,
+                    0.0f, sampleRate * 0.5f, f0Estimate);
+        prunePeaksToMatcherCapacity();
+    }
+
+    /// Reduce the peak list to the frame-to-frame matcher's capacity, keeping
+    /// the strongest peaks (WI-23).
+    ///
+    /// matchTracks() indexes costMatrix_ as [track * numPeaks_ + peak] into a
+    /// fixed kMaxTrackablePeaks^2 array, and HungarianAlgorithm refuses to
+    /// solve at all once a dimension exceeds its capacity. numPeaks_ is bounded
+    /// only by the bin count (2048 for a 4096-point FFT), so a dense spectrum
+    /// would otherwise write past the end of costMatrix_ AND lose all partial
+    /// identity. Capping here is the natural policy: only kMaxPartials (96)
+    /// partials can survive enforcePartialCap(), which already selects by
+    /// amplitude, so the discarded peaks could never have been tracked.
+    void prunePeaksToMatcherCapacity() noexcept {
+        if (numPeaks_ <= kMaxTrackablePeaks) return;
+
+        // Select the kMaxTrackablePeaks strongest peaks by amplitude.
+        peakSelectIdx_.resize(static_cast<size_t>(numPeaks_));
+        for (int i = 0; i < numPeaks_; ++i) {
+            peakSelectIdx_[static_cast<size_t>(i)] = i;
+        }
+        const auto keep = static_cast<size_t>(kMaxTrackablePeaks);
+        std::nth_element(peakSelectIdx_.begin(),
+                         peakSelectIdx_.begin() + static_cast<std::ptrdiff_t>(keep),
+                         peakSelectIdx_.end(),
+                         [this](int a, int b) noexcept {
+                             return peakAmps_[static_cast<size_t>(a)] >
+                                    peakAmps_[static_cast<size_t>(b)];
+                         });
+        peakSelectIdx_.resize(keep);
+
+        // Sorting the selected INDICES restores the order the peaks were
+        // appended in. Callers append low band before high (see
+        // processDualFrame), so that order is frequency-ascending.
+        //
+        // Nothing downstream currently requires it -- the sieve, conflict
+        // resolution and the Hungarian match are all order-independent, and
+        // this whole function is skipped when numPeaks_ fits the matcher, so no
+        // stage could rely on it anyway. It is kept because it makes the peak
+        // list's meaning stable, and because birth priority in
+        // updateLifecycles() follows list order.
+        std::sort(peakSelectIdx_.begin(), peakSelectIdx_.end());
+
+        // Compact in place. Destination index is always <= source index, so a
+        // forward pass cannot clobber a not-yet-read entry.
+        //
+        // peakMatched_ / peakMatchedSlot_ are intentionally NOT carried across:
+        // matchTracks() clears peakMatched_ for every peak before use, and
+        // peakMatchedSlot_ is only ever read behind a peakMatched_ check, so
+        // both are fully rewritten each frame.
+        for (size_t dst = 0; dst < keep; ++dst) {
+            const auto src = static_cast<size_t>(peakSelectIdx_[dst]);
+            if (src == dst) continue;
+            peakBins_[dst] = peakBins_[src];
+            peakFreqs_[dst] = peakFreqs_[src];
+            peakAmps_[dst] = peakAmps_[src];
+            peakPhases_[dst] = peakPhases_[src];
+            peakBandwidth_[dst] = peakBandwidth_[src];
+            peakHarmonicIndex_[dst] = peakHarmonicIndex_[src];
+        }
+        numPeaks_ = kMaxTrackablePeaks;
+    }
+
+    /// Append spectral peaks whose interpolated frequency lies in
+    /// [minFreq, maxFreq) to the current peak list WITHOUT resetting numPeaks_.
+    /// Stored amplitudes are scaled by ampScale so peaks from spectra with
+    /// different FFT sizes (e.g. long vs short analysis window) can be merged,
+    /// each with its own DFT normalization (WI-1 dual-window merge).
+    void appendPeaks(const SpectralBuffer& spectrum,
+                     size_t fftSize,
+                     float sampleRate,
+                     float ampScale,
+                     float minFreq,
+                     float maxFreq,
+                     float f0Estimate) noexcept {
         const size_t numBins = fftSize / 2 + 1;
         const float binSpacing = sampleRate / static_cast<float>(fftSize);
 
@@ -226,6 +422,7 @@ private:
                     magLeft, mag, magRight, static_cast<float>(b));
 
                 const float freq = interpolatedBin * binSpacing;
+                if (freq < minFreq || freq >= maxFreq) continue;
                 const float phase = spectrum.getPhase(b);
 
                 // Compute interpolated amplitude
@@ -295,7 +492,7 @@ private:
                 const auto idx = static_cast<size_t>(numPeaks_);
                 peakBins_[idx] = interpolatedBin;
                 peakFreqs_[idx] = freq;
-                peakAmps_[idx] = peakAmp * amplitudeScale_;
+                peakAmps_[idx] = peakAmp * ampScale;
                 peakPhases_[idx] = phase;
                 peakBandwidth_[idx] = bw;
                 peakHarmonicIndex_[idx] = 0; // Will be assigned in sieve
@@ -312,27 +509,75 @@ private:
     // Harmonic Sieve (FR-023)
     // =========================================================================
 
-    /// Map detected peaks to integer multiples of F0 with tolerance that
-    /// scales as sqrt(n) per harmonic index.
+    /// Expected frequency of harmonic n for a string of inharmonicity B.
+    /// Fletcher (1964): f_n = n*f0*sqrt(1 + B*n^2). B = 0 gives the ideal
+    /// harmonic series.
+    [[nodiscard]] static float harmonicTemplate(int n, float f0, float B) noexcept {
+        const float fn = static_cast<float>(n);
+        if (B <= 0.0f) return fn * f0;
+        return fn * f0 * std::sqrt(1.0f + B * fn * fn);
+    }
+
+    /// Map detected peaks onto a harmonic template with tolerance that scales
+    /// as sqrt(n) per harmonic index.
+    ///
+    /// Runs twice for stiff sources (WI-13). A real string is not perfectly
+    /// harmonic: stiffness stretches its partials as f_n = n*f0*sqrt(1+B*n^2)
+    /// (Fletcher 1964), and the deviation grows roughly as n^3. Against a rigid
+    /// n*f0 template a stiff string's upper partials fall outside any usable
+    /// tolerance -- at f0=220, B=1e-3 the n=14 deviation is ~288 Hz while half
+    /// the harmonic spacing, the widest a window may ever be without admitting
+    /// the neighbouring harmonic, is only 110 Hz. Widening cannot fix this; the
+    /// template has to stretch.
+    ///
+    /// So: assign against the ideal series, estimate B from the confidently
+    /// assigned low-order partials (where the rigid template is still valid),
+    /// and if the source is measurably stiff, reassign against the stretched
+    /// template. Near-harmonic sources estimate B below kMinInharmonicity and
+    /// skip the second pass entirely, leaving their assignment bit-identical.
     void mapToHarmonics(float f0) noexcept {
-        // Base tolerance factor: fraction of F0
+        float B = 0.0f;
+        assignHarmonics(f0, 0.0f);
+        // Resolve before estimating: several peaks (a true partial and the
+        // window's leakage sidelobes around it) can claim the same harmonic,
+        // and the sidelobes sit nearer the ideal n*f0 than the stretched
+        // partial does. Left in, they drag the stiffness fit toward zero.
+        resolveHarmonicConflicts(f0, 0.0f);
+
+        // Refine: each estimate widens the set of harmonics the template
+        // explains, which in turn sharpens the next estimate. Against the
+        // ideal series only the lowest orders are assigned correctly for a
+        // stiff source -- deviation overtakes tolerance around n=7 at
+        // B=1e-3 -- so a single pass systematically underestimates B.
+        for (int iter = 0; iter < kInharmonicityRefineIterations; ++iter) {
+            const float newB = estimateInharmonicity(f0);
+            if (newB <= kMinInharmonicity && B <= kMinInharmonicity) {
+                break; // harmonic source: leave the ideal-series assignment
+            }
+            const bool converged = std::abs(newB - B) < kInharmonicityTolerance;
+            B = newB;
+            assignHarmonics(f0, B);
+            resolveHarmonicConflicts(f0, B);
+            if (converged) break;
+        }
+    }
+
+    /// Assign each peak to its closest harmonic under the given template.
+    void assignHarmonics(float f0, float B) noexcept {
         constexpr float kBaseToleranceFactor = 0.06f;
 
-        // Maximum harmonic index to search
         const float nyquist = sampleRate_ * 0.5f;
-        const int maxHarmonic =
-            static_cast<int>(nyquist / f0);
 
-        // For each peak, find the best matching harmonic
         for (int p = 0; p < numPeaks_; ++p) {
             const auto pidx = static_cast<size_t>(p);
             const float peakFreq = peakFreqs_[pidx];
             float bestError = std::numeric_limits<float>::max();
             int bestHarmonic = 0;
 
-            for (int n = 1; n <= maxHarmonic &&
-                            n <= static_cast<int>(kMaxPartials); ++n) {
-                const float harmonicFreq = static_cast<float>(n) * f0;
+            for (int n = 1; n <= static_cast<int>(kMaxPartials); ++n) {
+                const float harmonicFreq = harmonicTemplate(n, f0, B);
+                if (harmonicFreq >= nyquist) break;
+
                 const float tolerance =
                     kBaseToleranceFactor * std::sqrt(static_cast<float>(n)) * f0;
                 const float error = std::abs(peakFreq - harmonicFreq);
@@ -345,19 +590,60 @@ private:
 
             peakHarmonicIndex_[pidx] = bestHarmonic;
         }
+    }
 
-        // Resolve conflicts: if two peaks map to the same harmonic,
-        // keep the one with lower error
+    /// Estimate the stiffness coefficient B from already-assigned low-order
+    /// partials.
+    ///
+    /// Rearranging Fletcher's relation gives (f_n / (n*f0))^2 - 1 = B * n^2,
+    /// i.e. a line through the origin in n^2, so B is a one-parameter least
+    /// squares fit.
+    ///
+    /// Points are weighted by peak amplitude. When the current template does
+    /// not yet reach a harmonic, the peak that claims that index is a window
+    /// leakage sidelobe sitting near the ideal n*f0 -- it would contribute
+    /// y ~= 0 at the largest available n^2 and pull the fit hard toward zero.
+    /// Sidelobes are orders of magnitude weaker than the partial they surround
+    /// (~-92 dB for Blackman-Harris), so amplitude weighting all but removes
+    /// them without needing to know in advance which orders are trustworthy.
+    [[nodiscard]] float estimateInharmonicity(float f0) const noexcept {
+        float sumWXY = 0.0f;
+        float sumWXX = 0.0f;
+        int count = 0;
+
+        for (int p = 0; p < numPeaks_; ++p) {
+            const auto pidx = static_cast<size_t>(p);
+            const int n = peakHarmonicIndex_[pidx];
+            // n=1 carries no stiffness information (the n^2 term vanishes).
+            if (n < 2 || n > kMaxInharmonicityEstimationOrder) continue;
+
+            const float fn = static_cast<float>(n);
+            const float ratio = peakFreqs_[pidx] / (fn * f0);
+            const float y = ratio * ratio - 1.0f; // = B * n^2
+            const float x = fn * fn;
+            const float w = peakAmps_[pidx];
+
+            sumWXY += w * x * y;
+            sumWXX += w * x * x;
+            ++count;
+        }
+
+        if (count < kMinInharmonicityEstimationPeaks || sumWXX <= 0.0f) {
+            return 0.0f;
+        }
+        return std::clamp(sumWXY / sumWXX, 0.0f, kMaxInharmonicity);
+    }
+
+    /// If two peaks claim the same harmonic, keep the one closer to the
+    /// template frequency.
+    void resolveHarmonicConflicts(float f0, float B) noexcept {
         for (int i = 0; i < numPeaks_; ++i) {
             if (peakHarmonicIndex_[static_cast<size_t>(i)] == 0) continue;
             for (int j = i + 1; j < numPeaks_; ++j) {
                 if (peakHarmonicIndex_[static_cast<size_t>(j)] ==
                     peakHarmonicIndex_[static_cast<size_t>(i)]) {
-                    // Keep the peak closer to the expected harmonic frequency
-                    const float harmonicFreq =
-                        static_cast<float>(
-                            peakHarmonicIndex_[static_cast<size_t>(i)]) *
-                        f0;
+                    const float harmonicFreq = harmonicTemplate(
+                        peakHarmonicIndex_[static_cast<size_t>(i)], f0, B);
                     const float errI =
                         std::abs(peakFreqs_[static_cast<size_t>(i)] -
                                  harmonicFreq);
@@ -795,12 +1081,18 @@ private:
     /// Number of spectral bins (fftSize/2 + 1)
     size_t numBins_ = 0;
 
-    /// Cost matrix for Hungarian algorithm (pre-sized for max partials × max peaks)
-    /// Max size: kMaxPartials rows × numBins cols, but in practice both are << 128
-    std::array<float, 128 * 128> costMatrix_{};
+
+    /// Scratch index list used by prunePeaksToMatcherCapacity()
+    std::vector<int> peakSelectIdx_;
+
+    /// Cost matrix for the Hungarian algorithm, indexed [track * numPeaks + peak].
+    /// Rows are bounded by kMaxPartials (96) and columns by kMaxTrackablePeaks,
+    /// which prunePeaksToMatcherCapacity() enforces before matchTracks() runs.
+    std::array<float, static_cast<size_t>(kMaxTrackablePeaks)
+                          * static_cast<size_t>(kMaxTrackablePeaks)> costMatrix_{};
 
     /// Hungarian algorithm solver
-    HungarianAlgorithm<128> hungarian_;
+    HungarianAlgorithm<static_cast<size_t>(kMaxTrackablePeaks)> hungarian_;
 };
 
 } // namespace Krate::DSP

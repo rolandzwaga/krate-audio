@@ -168,6 +168,37 @@ static void processBlock(Innexus::Processor& proc, float* outL, float* outR,
 // Tests
 // ============================================================================
 
+// WI-3: On sample load, Processor::checkForNewAnalysis() (audio thread) must not
+// re-run ResidualSynthesizer::prepare() — which allocates (FFT setup + buffer
+// resizes) — when the incoming analysis carries the sizes the voice is already
+// prepared for. The guard is ResidualSynthesizer::isPreparedFor(); this verifies
+// its semantics and that the guarded pattern skips the redundant allocation.
+TEST_CASE("ResidualSynthesizer: isPreparedFor guards redundant audio-thread re-prepare (WI-3)",
+          "[innexus][residual_integration][rt_safety]")
+{
+    Krate::DSP::ResidualSynthesizer synth;
+
+    // setActive() prepares every voice to the short-window config (1024/512),
+    // which is exactly what the analyzer always emits.
+    synth.prepare(1024, 512, 44100.0f);
+    const size_t afterFirst = synth.prepareCallCount();
+    REQUIRE(afterFirst == 1);
+    REQUIRE(synth.isPreparedFor(1024, 512));
+    REQUIRE_FALSE(synth.isPreparedFor(2048, 512));
+    REQUIRE_FALSE(synth.isPreparedFor(1024, 256));
+
+    // The audio-thread guard: a new analysis with matching sizes skips prepare().
+    if (!synth.isPreparedFor(1024, 512))
+        synth.prepare(1024, 512, 44100.0f);
+    REQUIRE(synth.prepareCallCount() == afterFirst); // no re-allocation
+
+    // A genuine size change must still re-prepare.
+    if (!synth.isPreparedFor(2048, 1024))
+        synth.prepare(2048, 1024, 44100.0f);
+    REQUIRE(synth.prepareCallCount() == afterFirst + 1);
+    REQUIRE(synth.isPreparedFor(2048, 1024));
+}
+
 TEST_CASE("ResidualIntegration: combined harmonic+residual output is non-zero",
           "[innexus][residual_integration]")
 {

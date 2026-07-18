@@ -460,5 +460,13 @@ void Controller::onDisplayTimerFired()
         modActivityView1_->updateData(
             cachedDisplayData_.mod2Phase,
             cachedDisplayData_.mod2Active);
+
+    // WI-9: ADSR playback state arrives as copied scalars on the display block,
+    // not as pointers into processor-owned atomics.
+    if (adsrDisplayView_)
+        adsrDisplayView_->setPlaybackState(
+            cachedDisplayData_.adsrEnvelopeOutput,
+            static_cast<int>(cachedDisplayData_.adsrStage),
+            cachedDisplayData_.adsrActive != 0);
 }
 } // namespace Innexus
