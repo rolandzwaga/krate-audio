@@ -26,6 +26,12 @@ name: Valgrind Nightly
 # `main` catches regressions within 24 h without that cost. Use the manual
 # "Run workflow" button (workflow_dispatch) to run it on demand, e.g. before a
 # release or when touching allocation-sensitive code.
+#
+# Idle-repo skip: the scheduled run is gated on the repository having been
+# pushed to within the last 24 h (see the check-activity job). Re-running a
+# ~90 min memcheck pass over an unchanged tree buys nothing, so on a quiet
+# repo the schedule costs one cheap API call instead of two long jobs. A
+# manual workflow_dispatch always runs, regardless of activity.
 # ============================================================================
 
 on:
@@ -44,6 +50,9 @@ concurrency:
   group: valgrind-nightly
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 env:
   BUILD_TYPE: Release
   CCACHE_MAXSIZE: 500M
@@ -51,9 +60,63 @@ env:
   CCACHE_COMPRESSLEVEL: 6
 
 jobs:
+  # ==========================================================================
+  # Skip the scheduled run entirely when nothing has been pushed for 24 h.
+  # ==========================================================================
+  # Uses the repository's `pushed_at`, which is the timestamp of the most
+  # recent push to ANY branch. That is the literal "has anyone touched this
+  # repo" signal, so a run is skipped only when the whole repository has been
+  # idle. (If you would rather gate on the branch actually being tested, swap
+  # the API call for
+  #     gh api "repos/$REPO/commits?sha=$BRANCH&since=$SINCE" --jq 'length'
+  # and test for a non-zero count -- stricter, but it also skips when work
+  # landed on feature branches only.)
+  #
+  # workflow_dispatch is never gated: the manual button exists precisely for
+  # on-demand runs before a release, when the tree may well be untouched.
+  # ==========================================================================
+  check-activity:
+    name: Check for recent pushes
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.check.outputs.should_run }}
+    steps:
+      - name: Determine whether the repo was pushed to in the last 24 h
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          if [ "${{ github.event_name }}" != "schedule" ]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            echo "Manual run (${{ github.event_name }}) - activity gate not applied." \
+              >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          PUSHED_AT="$(gh api "repos/$REPO" --jq '.pushed_at')"
+          PUSHED_EPOCH="$(date -u -d "$PUSHED_AT" +%s)"
+          NOW_EPOCH="$(date -u +%s)"
+          AGE_SECONDS=$(( NOW_EPOCH - PUSHED_EPOCH ))
+          AGE_HOURS=$(( AGE_SECONDS / 3600 ))
+
+          if [ "$AGE_SECONDS" -lt 86400 ]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            echo "Last push $PUSHED_AT (${AGE_HOURS}h ago) - running valgrind." \
+              >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            echo "Last push $PUSHED_AT (${AGE_HOURS}h ago) - repository idle for over 24h, skipping valgrind." \
+              >> "$GITHUB_STEP_SUMMARY"
+          fi
+
   valgrind-membrum:
     name: Linux Valgrind (Membrum)
     runs-on: ubuntu-latest
+    needs: check-activity
+    if: needs.check-activity.outputs.should_run == 'true'
 
     steps:
       - name: Checkout
@@ -145,6 +208,8 @@ jobs:
   valgrind-editor-lifecycle:
     name: Linux Valgrind (Editor Lifecycle, all plugins)
     runs-on: ubuntu-latest
+    needs: check-activity
+    if: needs.check-activity.outputs.should_run == 'true'
 
     steps:
       - name: Checkout
