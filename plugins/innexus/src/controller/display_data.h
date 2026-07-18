@@ -37,6 +37,14 @@ struct DisplayData
     uint8_t isPolyphonic = 0;          // 1 = poly path was used for this frame
     uint8_t analysisMode = 2;          // 0=Mono, 1=Poly, 2=Auto (mirrors AnalysisMode enum)
     uint32_t frameCounter = 0;        // Monotonic, incremented per new frame
+
+    // WI-9: ADSR playback state travels here as COPIED SCALARS. It was previously
+    // shipped as raw pointers to processor-owned atomics over IMessage, which the
+    // controller dereferenced on the UI thread -- a latent use-after-free on
+    // teardown and invalid whenever the host runs the controller out-of-process.
+    float adsrEnvelopeOutput = 0.0f;  // Current ADSR envelope level [0.0, 1.0]
+    int32_t adsrStage = 0;            // Krate::DSP::ADSRStage as int
+    uint8_t adsrActive = 0;           // 1 = a voice envelope is active
 };
 
 } // namespace Innexus

@@ -27,7 +27,14 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <cstring>
+
+// WI-17: FTZ/DAZ denormal control (x86 SSE)
+#if defined(__SSE2__) || defined(_M_X64) || (defined(_M_IX86_FP) && _M_IX86_FP >= 2)
+#include <pmmintrin.h>
+#include <xmmintrin.h>
+#endif
 #include <random>
 #include <utility>
 
@@ -257,6 +264,14 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
     sampleRate_ = newSetup.sampleRate;
     displaySendIntervalSamples_ = 0; // recompute on next send
 
+    // WI-17: flush denormals to zero on the audio thread. Long exponential decay
+    // tails (ADSR release, residual overlap-add, sympathetic resonance) drift into
+    // denormal range where x86 traps cost hundreds of cycles per operation.
+#if defined(__SSE2__) || defined(_M_X64) || (defined(_M_IX86_FP) && _M_IX86_FP >= 2)
+    _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON);
+    _MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_ON);
+#endif
+
     // FR-011: source crossfade length = 20ms in samples
     sourceCrossfadeLengthSamples_ = static_cast<int>(
         0.020 * sampleRate_);
@@ -470,28 +485,11 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     const SampleAnalysis* analysis =
         currentAnalysis_.load(std::memory_order_acquire);
 
-    // Spec 124 T049: Send ADSR playback state pointers to controller (one-time)
-    if (!adsrPlaybackPtrsSent_) {
-        auto* ptrMsg = allocateMessage();
-        if (ptrMsg) {
-            ptrMsg->setMessageID("ADSRPlaybackState");
-            auto* ptrAttrs = ptrMsg->getAttributes();
-            if (ptrAttrs) {
-                ptrAttrs->setInt("outputPtr",
-                    static_cast<Steinberg::int64>(
-                        reinterpret_cast<intptr_t>(&adsrEnvelopeOutput_)));
-                ptrAttrs->setInt("stagePtr",
-                    static_cast<Steinberg::int64>(
-                        reinterpret_cast<intptr_t>(&adsrStage_)));
-                ptrAttrs->setInt("activePtr",
-                    static_cast<Steinberg::int64>(
-                        reinterpret_cast<intptr_t>(&adsrActive_)));
-            }
-            sendMessage(ptrMsg);
-            ptrMsg->release();
-            adsrPlaybackPtrsSent_ = true;
-        }
-    }
+    // WI-9: ADSR playback state is published as copied scalars on the per-block
+    // DisplayData bridge (see sendDisplayData). It used to be sent here as raw
+    // pointers to processor-owned atomics via IMessage, which the controller
+    // dereferenced on the UI thread -- a latent use-after-free on teardown, and
+    // invalid whenever the host runs the controller in a separate process.
 
     // --- Spec 124: ADSR envelope setup (MUST happen before MIDI events) ---
     // Curve setters enable table processing mode. If called AFTER gate(true),
@@ -1401,6 +1399,30 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             }
         }
 
+        // WI-6: Gate evolution/blend frame RECONSTRUCTION (snapshot recall, lerp,
+        // physics, and the residual STFT inside broadcastFrameToVoices) to the
+        // analysis hop rate rather than per sample -- running it at sample rate is
+        // a ~500x inflation of hop-rate work that overruns CPU and drops out. The
+        // per-sample smoother/engine advance below is unchanged; only the frame
+        // rebuild is gated. Between rebuilds the MCF bank sustains itself and the
+        // amplitude one-pole smoothers cover sub-frame smoothing.
+        bool rebuildEvoBlend = false;
+        if (evolutionEnabled || blendEnabled)
+        {
+            if (evoBlendRebuildCounter_ <= 0)
+            {
+                rebuildEvoBlend = true;
+                evoBlendRebuildCounter_ = (hopSizeInSamples > 0)
+                    ? static_cast<int>(hopSizeInSamples)
+                    : 512;
+            }
+            --evoBlendRebuildCounter_;
+        }
+        else
+        {
+            evoBlendRebuildCounter_ = 0;
+        }
+
         // M6: Evolution Engine per-sample advance (FR-014, FR-022)
         if (evolutionEnabled && !blendEnabled)
         {
@@ -1418,7 +1440,8 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             Krate::DSP::HarmonicFrame evoFrame{};
             Krate::DSP::ResidualFrame evoResidual{};
             Krate::DSP::MemorySlot evoAdsrInterp{};
-            if (evolutionEngine_.getInterpolatedFrame(memorySlots_, evoFrame, evoResidual, &evoAdsrInterp))
+            if (rebuildEvoBlend &&
+                evolutionEngine_.getInterpolatedFrame(memorySlots_, evoFrame, evoResidual, &evoAdsrInterp))
             {
                 voice_.morphedFrame = evoFrame;
                 voice_.morphedResidualFrame = evoResidual;
@@ -1480,7 +1503,8 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
 
             Krate::DSP::HarmonicFrame blendFrame{};
             Krate::DSP::ResidualFrame blendResidual{};
-            if (harmonicBlender_.blend(memorySlots_,
+            if (rebuildEvoBlend &&
+                harmonicBlender_.blend(memorySlots_,
                     currentLiveFrame_, currentLiveResidualFrame_,
                     hasLiveSource, blendFrame, blendResidual))
             {
@@ -1781,20 +1805,31 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
                 float adsrGain = 1.0f - smoothedAmount + smoothedAmount * envVal;
                 vL *= adsrGain;
                 vR *= adsrGain;
+            }
+            else if (v.inAdsrRelease)
+            {
+                // QS-14: adsrAmount was automated to 0 while this voice was still
+                // in its ADSR release, so the global gate above went false. Keep
+                // advancing the envelope so the release can finish.
+                (void)v.adsr.process();
+                (void)v.adsrAmountSmoother.process();
+            }
 
-                if (v.inAdsrRelease &&
-                    v.adsr.getStage() == Krate::DSP::ADSRStage::Idle)
-                {
-                    v.active = false;
-                    v.inAdsrRelease = false;
-                    v.oscillatorBank.reset();
-                    v.residualSynth.reset();
-                    // Signal finished to allocator (poly mode)
-                    if (maxVoicesThisBlock > 1)
-                        voiceAllocator_.voiceFinished(static_cast<size_t>(vi));
-                    vL = 0.0f;
-                    vR = 0.0f;
-                }
+            // QS-14: free a finished ADSR release regardless of the global gate.
+            // Previously this lived inside `if (adsrActive)`, so automating
+            // adsrAmount to 0 mid-release stranded the voice active forever.
+            if (v.inAdsrRelease &&
+                v.adsr.getStage() == Krate::DSP::ADSRStage::Idle)
+            {
+                v.active = false;
+                v.inAdsrRelease = false;
+                v.oscillatorBank.reset();
+                v.residualSynth.reset();
+                // Signal finished to allocator (poly mode)
+                if (maxVoicesThisBlock > 1)
+                    voiceAllocator_.voiceFinished(static_cast<size_t>(vi));
+                vL = 0.0f;
+                vR = 0.0f;
             }
 
             // --- Per-voice release envelope (FR-049) ---
@@ -1873,7 +1908,18 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         // tanh at signal levels below the knee adds measurable intermodulation
         // noise between harmonics (~5 dB SNR degradation at RMS 0.5).
         {
-            auto softLimit = [](float x) noexcept -> float {
+            // WI-17: final non-finite guard (defense in depth). std::clamp and the
+            // soft limiter both pass NaN straight through, so a single pathological
+            // sample (corrupt WAV, degenerate analysis) would otherwise reach the
+            // host. Uses a bit test because -ffast-math makes std::isfinite()
+            // unreliable on some CI toolchains.
+            auto sanitize = [](float x) noexcept -> float {
+                std::uint32_t b = 0;
+                std::memcpy(&b, &x, sizeof(b));
+                return ((b & 0x7F800000u) == 0x7F800000u) ? 0.0f : x; // Inf/NaN -> 0
+            };
+            auto softLimit = [&sanitize](float x) noexcept -> float {
+                x = sanitize(x);
                 constexpr float k = 0.85f;
                 float ax = std::abs(x);
                 if (ax <= k) return x;
@@ -1883,17 +1929,21 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
                     excess / (1.0f - k));
                 return (x >= 0.0f) ? limited : -limited;
             };
-            sampleL = softLimit(sampleL);
-            sampleR = softLimit(sampleR);
-        }
-
-        // Write stereo output (M6: FR-007), or sum to mono (FR-013)
-        if (numOutputChannels >= 2) {
-            out[0][s] = sampleL;
-            out[1][s] = sampleR;
-        } else {
-            // FR-013: mono output bus -- sum both channels
-            out[0][s] = sampleL + sampleR;
+            // Write stereo output (M6: FR-007), or sum to mono (FR-013).
+            // QS-16: the mono bus must limit the SUM once. Limiting L and R
+            // independently and then adding lets two sub-1.0 samples reach ~2.0,
+            // defeating the safety limiter on the mono output.
+            if (numOutputChannels >= 2) {
+                sampleL = softLimit(sampleL);
+                sampleR = softLimit(sampleR);
+                out[0][s] = sampleL;
+                out[1][s] = sampleR;
+            } else {
+                const float mono = softLimit(sampleL + sampleR);
+                sampleL = mono;
+                sampleR = mono;
+                out[0][s] = mono;
+            }
         }
 
         if (sampleL != 0.0f || sampleR != 0.0f)
@@ -2009,9 +2059,17 @@ void Processor::checkForNewAnalysis()
     {
         for (auto& voice : voices_)
         {
-            voice.residualSynth.prepare(
-                result->analysisFFTSize, result->analysisHopSize,
-                static_cast<float>(sampleRate_));
+            // WI-3: prepare() allocates (FFT setup + buffer resizes). Skip it on
+            // the audio thread when the voice is already prepared for these exact
+            // sizes — setActive() prepares all voices to kShortWindowConfig, which
+            // is what the analyzer always emits, so this is normally a no-op.
+            if (!voice.residualSynth.isPreparedFor(
+                    result->analysisFFTSize, result->analysisHopSize))
+            {
+                voice.residualSynth.prepare(
+                    result->analysisFFTSize, result->analysisHopSize,
+                    static_cast<float>(sampleRate_));
+            }
         }
     }
 

@@ -377,7 +377,10 @@ void Processor::handleNoteOn(int noteNumber, float velocity, int32_t noteId)
 
     // Spec 129: Waveguide string parameters
     const float resTypeNorm = resonanceType_.load(std::memory_order_relaxed);
-    const int resType = std::clamp(static_cast<int>(std::round(resTypeNorm * 2.0f)), 0, 2);
+    // WI-7: kResonanceTypeId is a 2-option StringList (Modal=0, Waveguide=1), so
+    // denormalize as round(norm), NOT round(norm*2) (which yields 2 at Waveguide,
+    // out of range, disabling the note-on pluck gate `resonanceType == 1`).
+    const int resType = std::clamp(static_cast<int>(std::round(resTypeNorm)), 0, 1);
     const float wgStiffness = waveguideStiffness_.load(std::memory_order_relaxed);
     const float wgPickPos = waveguidePickPosition_.load(std::memory_order_relaxed);
 

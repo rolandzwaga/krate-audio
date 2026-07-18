@@ -908,9 +908,6 @@ Steinberg::tresult PLUGIN_API Controller::terminate()
 {
     presetManager_.reset();
     updateChecker_.reset();
-    adsrOutputPtr_ = nullptr;
-    adsrStagePtr_ = nullptr;
-    adsrActivePtr_ = nullptr;
     return EditControllerEx1::terminate();
 }
 
@@ -1377,36 +1374,10 @@ Steinberg::tresult PLUGIN_API Controller::notify(
         return Steinberg::kResultOk;
     }
 
-    // Spec 124 T049: Receive ADSR playback state atomic pointers from processor
-    if (std::strcmp(message->getMessageID(), "ADSRPlaybackState") == 0)
-    {
-        auto* attrs = message->getAttributes();
-        if (!attrs)
-            return Steinberg::kResultFalse;
-
-        Steinberg::int64 val = 0;
-
-        if (attrs->getInt("outputPtr", val) == Steinberg::kResultOk) {
-            adsrOutputPtr_ = reinterpret_cast<std::atomic<float>*>( // NOLINT(performance-no-int-to-ptr)
-                static_cast<intptr_t>(val));
-        }
-        if (attrs->getInt("stagePtr", val) == Steinberg::kResultOk) {
-            adsrStagePtr_ = reinterpret_cast<std::atomic<int>*>( // NOLINT(performance-no-int-to-ptr)
-                static_cast<intptr_t>(val));
-        }
-        if (attrs->getInt("activePtr", val) == Steinberg::kResultOk) {
-            adsrActivePtr_ = reinterpret_cast<std::atomic<bool>*>( // NOLINT(performance-no-int-to-ptr)
-                static_cast<intptr_t>(val));
-        }
-
-        // Wire pointers to ADSRDisplay if already created
-        if (adsrDisplayView_ && adsrOutputPtr_ && adsrStagePtr_ && adsrActivePtr_) {
-            adsrDisplayView_->setPlaybackStatePointers(
-                adsrOutputPtr_, adsrStagePtr_, adsrActivePtr_);
-        }
-
-        return Steinberg::kResultOk;
-    }
+    // WI-9: the "ADSRPlaybackState" pointer message is gone. ADSR playback state
+    // now arrives as copied scalars on the DisplayData bridge (see
+    // updateViewsFromDisplayData), so nothing dereferences processor-owned
+    // atomics from the UI thread.
 
     return EditControllerEx1::notify(message);
 }

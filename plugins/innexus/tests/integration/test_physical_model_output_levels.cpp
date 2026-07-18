@@ -464,6 +464,28 @@ TEST_CASE("PM Output Levels: Bow exciter + waveguide string",
 
 
 // =============================================================================
+// WI-7: Waveguide note-on must denormalize the 2-option resonance type as a
+// 2-way selector (round(norm)), not a 3-way (round(norm*2)). The bug set
+// activeResonanceType_ = 2 at Waveguide (norm=1.0), which is out of range and
+// made the pluck gate (resonanceType == 1) false, so the string was never
+// plucked/retuned on note-on.
+// =============================================================================
+TEST_CASE("PM Output Levels: Waveguide note-on sets in-range resonance type (WI-7)",
+          "[innexus][integration][physical-model][waveguide][wi7]")
+{
+    PMFixture fx;
+    fx.injectAnalysis();
+
+    fx.params.addChange(Innexus::kResonanceTypeId, 1.0); // Waveguide (2-option: 0/1)
+    fx.applyParams();
+
+    fx.noteOn(60, 0.8f);
+
+    // Modal=0, Waveguide=1. The bug produced 2 (round(1.0*2)).
+    REQUIRE(fx.processor.testVoiceResonanceType(0) == 1);
+}
+
+// =============================================================================
 // TEST SECTION: Impact Exciter + Waveguide String
 // =============================================================================
 

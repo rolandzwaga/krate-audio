@@ -510,6 +510,21 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
                 static_cast<double>(std::clamp(bodyVal, 0.0f, 1.0f)));
     }
 
+    // --- Sympathetic Resonance parameters (Spec 132, graceful fallback) ---
+    // WI-4: the processor writes these two floats immediately after Body
+    // Resonance and before the instance-ID trailer. Omitting them here left the
+    // params at defaults AND desynced the stream by 8 bytes so the instance-ID
+    // marker below was never recognized.
+    {
+        float symVal = 0.0f;
+        if (streamer.readFloat(symVal))
+            setParamNormalized(kSympatheticAmountId,
+                static_cast<double>(std::clamp(symVal, 0.0f, 1.0f)));
+        if (streamer.readFloat(symVal))
+            setParamNormalized(kSympatheticDecayId,
+                static_cast<double>(std::clamp(symVal, 0.0f, 1.0f)));
+    }
+
     // SharedDisplayBridge: try to read instance ID from state trailer
     {
         Steinberg::int32 marker = 0;

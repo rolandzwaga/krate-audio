@@ -120,6 +120,35 @@ public:
     /// @brief Get loaded file path (TEST ONLY, for state round-trip verification).
     const std::string& getLoadedFilePath() const { return loadedFilePath_; }
 
+    /// @brief Get a voice's active resonance type (TEST ONLY).
+    /// 0 = Modal, 1 = Waveguide; -1 if voice index is out of range.
+    int testVoiceResonanceType(size_t v) const
+    {
+        return v < voices_.size()
+            ? voices_[v].activeResonanceType_
+            : -1;
+    }
+
+    /// @brief Residual-synth loadFrame() call count for a voice (TEST ONLY).
+    /// Used to verify evolution/blend frame rebuilds are hop-rate gated (WI-6).
+    size_t testResidualLoadFrameCount(size_t v) const
+    {
+        return v < voices_.size()
+            ? voices_[v].residualSynth.loadFrameCallCount()
+            : 0;
+    }
+
+    /// @brief Reset the residual-synth loadFrame() counters on all voices (TEST ONLY).
+    void testResetResidualLoadFrameCounts()
+    {
+        for (auto& voice : voices_)
+            voice.residualSynth.resetLoadFrameCallCount();
+    }
+
+    /// @brief The last published display block (TEST ONLY).
+    /// Used to verify ADSR playback state travels as copied scalars (WI-9).
+    const DisplayData& testDisplayData() const { return displayDataBuffer_; }
+
     /// @brief Get current release time in ms (TEST ONLY, for state round-trip verification).
     float getReleaseTimeMs() const
     {
@@ -593,7 +622,6 @@ private:
     std::atomic<bool> adsrActive_{false};
 
     /// One-shot flag: send ADSR playback state pointers to controller (T049)
-    bool adsrPlaybackPtrsSent_ = false;
 
     /// Atomic pointer for lock-free analysis transfer (FR-058)
     std::atomic<SampleAnalysis*> currentAnalysis_{nullptr};
@@ -674,6 +702,10 @@ private:
     int manualFreezeRecoveryLengthSamples_ = 0;
     float manualFreezeRecoveryOldLevel_ = 0.0f;
     static constexpr float kManualFreezeRecoveryTimeSec = 0.010f; // 10ms
+
+    /// WI-6: down-counter that gates evolution/blend frame reconstruction to the
+    /// analysis hop rate instead of per-sample (~500x less residual-STFT work).
+    int evoBlendRebuildCounter_ = 0;
 
     /// Tracks the previous freeze parameter value to detect transitions
     bool previousFreezeState_ = false;

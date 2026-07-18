@@ -146,6 +146,15 @@ void Processor::sendDisplayData(Steinberg::Vst::ProcessData& data)
         (mod2Enable_.load(std::memory_order_relaxed) > 0.5f) &&
         (mod2Depth_.load(std::memory_order_relaxed) > 0.0f);
 
+    // WI-9: ADSR playback state as copied scalars (previously shipped to the
+    // controller as raw pointers to these atomics over IMessage).
+    displayDataBuffer_.adsrEnvelopeOutput =
+        adsrEnvelopeOutput_.load(std::memory_order_relaxed);
+    displayDataBuffer_.adsrStage =
+        static_cast<int32_t>(adsrStage_.load(std::memory_order_relaxed));
+    displayDataBuffer_.adsrActive =
+        adsrActive_.load(std::memory_order_relaxed) ? 1 : 0;
+
     // Increment monotonic frame counter
     displayDataBuffer_.frameCounter = ++displayFrameCounter_;
 

@@ -580,6 +580,72 @@ TEST_CASE("EvolutionEngine Integration: evolution produces spectral drift with 2
     REQUIRE(maxAbs > 0.001f);
 }
 
+TEST_CASE("EvolutionEngine Integration: residual loadFrame runs at hop rate, not per sample (WI-6)",
+          "[evolution][integration][wi6][hoprate]")
+{
+    Innexus::Processor proc;
+    std::array<float, 8192> outL{};
+    std::array<float, 8192> outR{};
+    setupEvoProcessor(proc, outL, outR);
+
+    EvoTestParameterChanges outParams;
+
+    // Note on to activate synthesis.
+    {
+        EvoTestEventList events;
+        events.addNoteOn(60, 0.8f);
+        processEvoBlock(proc, outL.data(), outR.data(), kEvoTestBlockSize,
+                        &events, nullptr, &outParams);
+    }
+    // Capture slot 0.
+    {
+        EvoTestParameterChanges p;
+        p.addChange(Innexus::kMemorySlotId, 0.0 / 7.0);
+        p.addChange(Innexus::kMemoryCaptureId, 1.0);
+        processEvoBlock(proc, outL.data(), outR.data(), kEvoTestBlockSize,
+                        nullptr, &p, &outParams);
+    }
+    // Different analysis, capture slot 1 (need >= 2 waypoints for evolution).
+    {
+        proc.testInjectAnalysis(makeEvoTestAnalysis(100, 880.0f, 16));
+        processEvoBlock(proc, outL.data(), outR.data(), kEvoTestBlockSize,
+                        nullptr, nullptr, &outParams);
+        EvoTestParameterChanges p;
+        p.addChange(Innexus::kMemorySlotId, 1.0 / 7.0);
+        p.addChange(Innexus::kMemoryCaptureId, 1.0);
+        processEvoBlock(proc, outL.data(), outR.data(), kEvoTestBlockSize,
+                        nullptr, &p, &outParams);
+    }
+    // Enable evolution.
+    {
+        EvoTestParameterChanges p;
+        p.addChange(Innexus::kEvolutionEnableId, 1.0);
+        p.addChange(Innexus::kEvolutionSpeedId, 0.5);
+        p.addChange(Innexus::kEvolutionDepthId, 1.0);
+        p.addChange(Innexus::kEvolutionModeId, 0.0);
+        processEvoBlock(proc, outL.data(), outR.data(), kEvoTestBlockSize,
+                        nullptr, &p, &outParams);
+    }
+
+    // Measure: reset the residual loadFrame counter, then process many blocks.
+    proc.testResetResidualLoadFrameCounts();
+    constexpr int kBlocks = 40;
+    const int totalSamples = kBlocks * kEvoTestBlockSize; // 5120 samples, hop = 512
+    for (int b = 0; b < kBlocks; ++b)
+        processEvoBlock(proc, outL.data(), outR.data(), kEvoTestBlockSize,
+                        nullptr, nullptr, &outParams);
+
+    const size_t loadCount = proc.testResidualLoadFrameCount(0);
+    INFO("residual loadFrame calls=" << loadCount << " over " << totalSamples
+         << " samples (hop=512)");
+    // The residual synth must be driven (evolution mode loads residual frames)...
+    REQUIRE(loadCount > 0);
+    // ...but at the analysis hop rate, NOT per sample. Per-sample (the bug) would
+    // be ~totalSamples; hop-gated is ~totalSamples/512 (a few dozen even counting
+    // the normal-advance path).
+    REQUIRE(loadCount < static_cast<size_t>(totalSamples) / 8);
+}
+
 TEST_CASE("EvolutionEngine Integration: blendEnabled=true skips evolution (FR-022, FR-052)", "[evolution][integration]")
 {
     Innexus::Processor proc;

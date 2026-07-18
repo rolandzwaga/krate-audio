@@ -60,6 +60,9 @@ add_executable(innexus_tests
     # State v10 tests (Modulator Tempo Sync)
     unit/vst/test_state_v10.cpp
 
+    # Controller state round-trip (WI-4: sympathetic params + instance-id trailer)
+    unit/vst/controller_state_tests.cpp
+
     # --- Integration tests (real Processor, full pipeline) ---
 
     # Core processor integration (MIDI, state, parameter application)
