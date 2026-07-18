@@ -178,6 +178,68 @@ public:
         updateFrequencyHistory();
     }
 
+    /// @brief Process one frame using dual-resolution (long + short) STFT input.
+    ///
+    /// Fills the sub-floor gap that the short window cannot resolve: long-window
+    /// peaks below the short window's scan floor (bin 2) are merged with the full
+    /// short-window peak scan, which is left byte-identical to processFrame(). This
+    /// delivers FR-018/020/021 (dual-window analysis feeding the tracker) so
+    /// fundamentals below ~86 Hz (at 1024/44.1k) are resolvable. Intended for
+    /// voiced frames whose fundamental sits below the short floor; for all other
+    /// content the caller should use the single-spectrum processFrame().
+    ///
+    /// @param shortSpectrum Short-window (temporal) magnitude/phase spectrum
+    /// @param longSpectrum  Long-window (low-freq resolution) magnitude/phase spectrum
+    /// @param shortFftSize  Short-window FFT size
+    /// @param longFftSize   Long-window FFT size
+    /// @param longAmpScale  DFT amplitude normalization for the long window
+    ///                      (2/(longFftSize*coherentGain))
+    /// @param f0 Current F0 estimate from the pitch detector
+    /// @param sampleRate Sample rate in Hz
+    /// @note Real-time safe (no allocations)
+    void processDualFrame(const SpectralBuffer& shortSpectrum,
+                          const SpectralBuffer& longSpectrum,
+                          size_t shortFftSize,
+                          size_t longFftSize,
+                          float longAmpScale,
+                          const F0Estimate& f0,
+                          float sampleRate) noexcept {
+        // Save previous state for frame-to-frame matching
+        previousPartials_ = partials_;
+        previousActiveCount_ = activeCount_;
+
+        // Crossover = short window's scan floor (bin 2). Short peaks never fall
+        // below this, so the two peak sets do not overlap.
+        const float shortBinSpacing = sampleRate / static_cast<float>(shortFftSize);
+        const float crossoverHz = 2.0f * shortBinSpacing;
+
+        const float f0Est = f0.voiced ? f0.frequency : 0.0f;
+
+        // Step 1: Peak detection. Short scan first (byte-identical to
+        // processFrame's full-range scan), then append long-window peaks below
+        // the short floor.
+        numPeaks_ = 0;
+        appendPeaks(shortSpectrum, shortFftSize, sampleRate, amplitudeScale_,
+                    0.0f, sampleRate * 0.5f, f0Est);
+        appendPeaks(longSpectrum, longFftSize, sampleRate, longAmpScale,
+                    0.0f, crossoverHz, f0Est);
+
+        // Step 2: Harmonic sieve (FR-023) -- only if voiced
+        if (f0.voiced && f0.frequency > 0.0f) {
+            mapToHarmonics(f0.frequency);
+        } else {
+            for (int i = 0; i < numPeaks_; ++i) {
+                peakHarmonicIndex_[static_cast<size_t>(i)] = 0;
+            }
+        }
+
+        // Steps 3-6: matching, birth/death, cap/hysteresis, history
+        matchTracks();
+        updateLifecycles(f0);
+        enforcePartialCap();
+        updateFrequencyHistory();
+    }
+
     /// @brief Get the current tracked partials array.
     /// @return Reference to the fixed-size partial array
     [[nodiscard]] const std::array<Partial, kMaxPartials>& getPartials() const noexcept {
@@ -202,6 +264,22 @@ private:
                      float sampleRate,
                      float f0Estimate = 0.0f) noexcept {
         numPeaks_ = 0;
+        appendPeaks(spectrum, fftSize, sampleRate, amplitudeScale_,
+                    0.0f, sampleRate * 0.5f, f0Estimate);
+    }
+
+    /// Append spectral peaks whose interpolated frequency lies in
+    /// [minFreq, maxFreq) to the current peak list WITHOUT resetting numPeaks_.
+    /// Stored amplitudes are scaled by ampScale so peaks from spectra with
+    /// different FFT sizes (e.g. long vs short analysis window) can be merged,
+    /// each with its own DFT normalization (WI-1 dual-window merge).
+    void appendPeaks(const SpectralBuffer& spectrum,
+                     size_t fftSize,
+                     float sampleRate,
+                     float ampScale,
+                     float minFreq,
+                     float maxFreq,
+                     float f0Estimate) noexcept {
         const size_t numBins = fftSize / 2 + 1;
         const float binSpacing = sampleRate / static_cast<float>(fftSize);
 
@@ -226,6 +304,7 @@ private:
                     magLeft, mag, magRight, static_cast<float>(b));
 
                 const float freq = interpolatedBin * binSpacing;
+                if (freq < minFreq || freq >= maxFreq) continue;
                 const float phase = spectrum.getPhase(b);
 
                 // Compute interpolated amplitude
@@ -295,7 +374,7 @@ private:
                 const auto idx = static_cast<size_t>(numPeaks_);
                 peakBins_[idx] = interpolatedBin;
                 peakFreqs_[idx] = freq;
-                peakAmps_[idx] = peakAmp * amplitudeScale_;
+                peakAmps_[idx] = peakAmp * ampScale;
                 peakPhases_[idx] = phase;
                 peakBandwidth_[idx] = bw;
                 peakHarmonicIndex_[idx] = 0; // Will be assigned in sieve

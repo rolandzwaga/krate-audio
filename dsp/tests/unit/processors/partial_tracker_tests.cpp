@@ -700,3 +700,68 @@ TEST_CASE("PartialTracker: noise-like spectrum produces bandwidth > 0.3",
     }
     REQUIRE(foundPeak);
 }
+
+// =============================================================================
+// WI-1 / FR-018, FR-020, FR-021: Dual-window multi-resolution merge.
+//
+// The offline analyzer runs a long (4096) STFT for low-frequency resolution but
+// historically never fed it to the tracker, so fundamentals below the short
+// window's scan floor (bin 2 = ~86 Hz at 1024/44.1k) were unresolvable. The
+// dual-window path fills the sub-floor gap with long-window peaks while leaving
+// the short-window scan (>= floor) byte-identical.
+// =============================================================================
+TEST_CASE("PartialTracker: long-window merge resolves low fundamental below short floor",
+          "[partial_tracker][dual_window]") {
+    constexpr size_t kShortFft = 1024; // 43.07 Hz/bin; scan floor bin 2 = 86.13 Hz
+    constexpr size_t kLongFft = 4096;  // 10.77 Hz/bin; resolves down to ~40 Hz
+
+    // Fundamental placed exactly on long-window bin 5 (53.83 Hz): well below the
+    // short floor, and dead-on a long bin so the sieve's tight n=1 tolerance
+    // (0.06*f0 ~= 3.2 Hz) accepts it.
+    const float kF0 = kTestSampleRate / static_cast<float>(kLongFft) * 5.0f;
+
+    F0Estimate f0;
+    f0.frequency = kF0;
+    f0.confidence = 1.0f;
+    f0.voiced = true;
+
+    SpectralBuffer shortSpectrum;
+    shortSpectrum.prepare(kShortFft);
+    fillHarmonicSpectrum(shortSpectrum, kF0, 8, kShortFft, kTestSampleRate);
+
+    SpectralBuffer longSpectrum;
+    longSpectrum.prepare(kLongFft);
+    fillHarmonicSpectrum(longSpectrum, kF0, 8, kLongFft, kTestSampleRate);
+
+    const float shortScale = 2.0f / (static_cast<float>(kShortFft) * 0.35875f);
+    const float longScale = 2.0f / (static_cast<float>(kLongFft) * 0.35875f);
+
+    auto hasFundamental = [&](const PartialTracker& t) {
+        const auto& ps = t.getPartials();
+        for (int i = 0; i < t.getActiveCount(); ++i) {
+            if (ps[i].harmonicIndex == 1 && std::abs(ps[i].frequency - kF0) < 6.0f) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    // Short-only path (current behavior): the fundamental is NOT resolved.
+    {
+        PartialTracker tracker;
+        tracker.prepare(kShortFft, kTestSampleRate);
+        tracker.setAmplitudeScale(shortScale);
+        tracker.processFrame(shortSpectrum, f0, kShortFft, kTestSampleRate);
+        REQUIRE_FALSE(hasFundamental(tracker));
+    }
+
+    // Dual-window path: long-window peaks fill the sub-floor gap; fundamental resolved.
+    {
+        PartialTracker tracker;
+        tracker.prepare(kShortFft, kTestSampleRate);
+        tracker.setAmplitudeScale(shortScale);
+        tracker.processDualFrame(shortSpectrum, longSpectrum, kShortFft, kLongFft,
+                                 longScale, f0, kTestSampleRate);
+        REQUIRE(hasFundamental(tracker));
+    }
+}

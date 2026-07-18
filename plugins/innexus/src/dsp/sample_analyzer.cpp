@@ -260,6 +260,17 @@ void SampleAnalyzer::analyzeOnThread(
     const size_t longHopRatio = kLongWindowConfig.hopSize / shortHop; // 2048/512 = 4
     size_t shortHopCounter = 0;
 
+    // Dual-window merge (FR-018/020/021): below the short window's scan floor
+    // (bin 2), fundamentals are unresolvable by the short STFT. For voiced frames
+    // whose F0 falls below the floor, merge long-window peaks (10.77 Hz/bin) so
+    // the low fundamental is tracked. See PartialTracker::processDualFrame.
+    const float shortFloorHz = 2.0f * sampleRate
+        / static_cast<float>(kShortWindowConfig.fftSize);
+    const float longAmpScale = 2.0f
+        / (static_cast<float>(kLongWindowConfig.fftSize)
+           * Krate::DSP::Window::coherentGain(kLongWindowConfig.windowType));
+    bool longSpectrumValid = false;
+
     // Pre-processing buffer (process in small blocks)
     constexpr size_t kProcessBlockSize = 512;
     std::vector<float> processBuffer(kProcessBlockSize);
@@ -294,6 +305,7 @@ void SampleAnalyzer::analyzeOnThread(
             // Run long STFT analysis if it's time (every longHopRatio short hops)
             if (longStft.canAnalyze() && (shortHopCounter % longHopRatio == 0)) {
                 longStft.analyze(longSpectrum);
+                longSpectrumValid = true;
             }
 
             // Compute RMS of the current hop region for model builder
@@ -334,9 +346,20 @@ void SampleAnalyzer::analyzeOnThread(
                 f0 = subharmonicValidator.validate(f0, shortSpectrum);
             }
 
-            // Partial tracking with harmonic sieve (FR-022 to FR-028)
-            tracker.processFrame(shortSpectrum, f0,
-                                  kShortWindowConfig.fftSize, sampleRate);
+            // Partial tracking with harmonic sieve (FR-022 to FR-028).
+            // A voiced fundamental below the short-window scan floor is merged
+            // with long-window peaks (FR-018/020/021); everything else uses the
+            // byte-identical single-spectrum path.
+            if (f0.voiced && f0.frequency > 0.0f && f0.frequency < shortFloorHz
+                && longSpectrumValid) {
+                tracker.processDualFrame(shortSpectrum, longSpectrum,
+                                          kShortWindowConfig.fftSize,
+                                          kLongWindowConfig.fftSize,
+                                          longAmpScale, f0, sampleRate);
+            } else {
+                tracker.processFrame(shortSpectrum, f0,
+                                      kShortWindowConfig.fftSize, sampleRate);
+            }
 
             // Build harmonic frame (FR-029 to FR-034)
             Krate::DSP::HarmonicFrame frame = modelBuilder.build(
