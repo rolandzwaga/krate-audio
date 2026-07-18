@@ -752,3 +752,72 @@ TEST_CASE("E2E: Polyphonic sample produces pitched resynthesis",
     }
 }
 
+
+// =============================================================================
+// WI-24: the polyphonic-reanalysis heuristic treats high "noisiness" as
+// evidence that the detected F0 is wrong (YIN locked onto a subharmonic of a
+// chord). But noisiness is also high whenever the analysis window cannot
+// resolve the harmonic spacing, which is precisely the low-F0 case -- and there
+// it says nothing about whether F0 is correct.
+//
+// A 41 Hz tone was detected perfectly: median F0 41.00 Hz with an inter-quartile
+// ratio of 0.000, i.e. rock stable. It was discarded anyway on noisiness 0.743,
+// and the second pass overwrote every frame in the file with a 708 Hz
+// multi-pitch estimate.
+// =============================================================================
+
+TEST_CASE("INNEXUS_LowF0_NotOverriddenByReanalysis: a stable low F0 survives (WI-24)",
+          "[innexus][integration][sample_load][wi24]")
+{
+    constexpr float kF0 = 41.0f;
+
+    std::string wavPath = writeHarmonicWav(kF0, 8, 2.0f);
+    REQUIRE(!wavPath.empty());
+
+    Innexus::SampleAnalyzer analyzer;
+    analyzer.startAnalysis(wavPath);
+    for (int i = 0; i < 300; ++i)
+    {
+        if (analyzer.isComplete()) break;
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    }
+    REQUIRE(analyzer.isComplete());
+
+    auto result = analyzer.takeResult();
+    REQUIRE(result != nullptr);
+    REQUIRE(result->totalFrames > 0);
+
+    const size_t lo = result->frames.size() / 4;
+    const size_t hi = (result->frames.size() * 3) / 4;
+    int confident = 0;
+    int atFundamental = 0;
+    for (size_t i = lo; i < hi; ++i)
+    {
+        const auto& f = result->frames[i];
+        if (f.f0 <= 0.0f || f.f0Confidence <= 0.3f) continue;
+        ++confident;
+        if (std::abs(f.f0 - kF0) < 0.1f * kF0) ++atFundamental;
+    }
+
+    INFO("confident=" << confident << " atFundamental=" << atFundamental);
+    REQUIRE(confident > 0);
+
+    // The override replaced EVERY frame with one constant pitch unrelated to
+    // the input, so before the fix this was 0 of 86. It is now 82 of 86.
+    //
+    // The remaining four frames read 82 Hz or 164 Hz -- exact octave multiples
+    // of the fundamental, at high YIN confidence. Those are ordinary isolated
+    // YIN octave errors that the subharmonic validator did not catch; they are
+    // a separate pre-existing limitation, neither caused nor addressed here,
+    // and deliberately not papered over by loosening the tolerance to admit
+    // them.
+    REQUIRE(atFundamental * 10 >= confident * 9);
+
+    // Nothing may sit at the bogus reanalysis pitch.
+    for (size_t i = lo; i < hi; ++i)
+    {
+        const auto& f = result->frames[i];
+        INFO("frame " << i << " f0=" << f.f0);
+        REQUIRE(std::abs(f.f0 - 708.0f) > 10.0f);
+    }
+}

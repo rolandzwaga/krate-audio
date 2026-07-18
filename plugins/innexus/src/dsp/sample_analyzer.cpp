@@ -453,7 +453,27 @@ void SampleAnalyzer::analyzeOnThread(
                 }
             }
             constexpr float kHighNosinessThreshold = 0.5f;
-            bool tooNoisy = (medianNoisiness > kHighNosinessThreshold);
+
+            // ...but noisiness only carries that meaning when the analysis
+            // window can actually resolve the harmonic series. Harmonics sit f0
+            // apart, and separating two of them needs roughly a main-lobe width
+            // of bins; below that they merge into one blob, the model cannot
+            // account for the energy as discrete partials, and noisiness
+            // saturates -- for a completely correct, completely monophonic F0.
+            //
+            // dualWindowMaxF0 is exactly that limit for the short window (the
+            // one that analyses the bulk of the harmonics), which is why the
+            // dual-window path exists below it. Measured on synthetic tones,
+            // median noisiness runs 0.08 at 440 Hz and 0.13 at 220 Hz, then
+            // 0.47 at 110 Hz and 0.74 at 41 Hz -- tracking the resolution limit,
+            // not polyphony.
+            //
+            // Left ungated, a stable and correctly detected 41 Hz fundamental
+            // (iqrRatio 0.000) was discarded here and every frame in the file
+            // was overwritten with a 708 Hz multi-pitch estimate.
+            const bool f0BelowResolutionLimit = (medianF0 < dualWindowMaxF0);
+            bool tooNoisy = (medianNoisiness > kHighNosinessThreshold)
+                            && !f0BelowResolutionLimit;
 
             needsReanalysis = f0Unstable || tooNoisy;
 
