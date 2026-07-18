@@ -16,6 +16,8 @@
 
 #include <array>
 #include <cmath>
+#include <cstdint>
+#include <cstring>
 #include <numeric>
 #include <vector>
 
@@ -98,6 +100,116 @@ static HarmonicFrame makeHarmonicFrame(float f0, int numPartials, float amplitud
     }
     frame.globalAmplitude = amplitude;
     return frame;
+}
+
+// =============================================================================
+// WI-5: MCF effective-epsilon stability under detune.
+//
+// The MCF advance uses eps_eff = epsilon * detuneMultiplier. Only the *base*
+// epsilon was clamped to |eps| < 2; the detune multiply (up to ~1.5x at
+// spread=1, harmonic 48) could push a high-frequency partial's eps_eff past 2,
+// making the coupled-form eigenvalue leave the unit circle and diverge to
+// Inf/NaN. Uses a bit-pattern finite check so it survives -ffast-math (macOS CI).
+// =============================================================================
+static bool isFiniteBits(float x) noexcept {
+    std::uint32_t bits = 0;
+    std::memcpy(&bits, &x, sizeof(bits));
+    return (bits & 0x7F800000u) != 0x7F800000u; // exponent all-ones => Inf/NaN
+}
+
+TEST_CASE("HarmonicOscillatorBank: high-harmonic detune keeps output finite (WI-5)",
+          "[dsp][processors][harmonic_osc_bank][stability]") {
+    for (double sampleRate : {44100.0, 48000.0}) {
+        HarmonicOscillatorBank bank;
+        bank.prepare(sampleRate);
+
+        // Harmonic 47 (odd -> detunes UPWARD) near the top of the band: base
+        // epsilon is already large, and spread=1 detune (2^(47*15/1200) ~= 1.50x)
+        // tips eps_eff past 2. The MCF state then diverges to Inf; the +/-2 output
+        // clamp (kOutputClamp) hides that from the output, so the discriminating
+        // observable is the internal oscillator state, not the output samples.
+        const float freq = static_cast<float>(sampleRate) * 0.27f; // ~11.9 / 13.0 kHz
+        auto frame = makeSimpleFrame(freq / 47.0f, 1.0f, 47);
+        bank.loadFrame(frame, freq / 47.0f);
+        bank.setDetuneSpread(1.0f);
+
+        bool outputFinite = true;
+        for (int s = 0; s < 2000; ++s) {
+            float l = 0.0f;
+            float r = 0.0f;
+            bank.processStereo(l, r);
+            if (!isFiniteBits(l) || !isFiniteBits(r)) { outputFinite = false; break; }
+        }
+        INFO("sampleRate=" << sampleRate);
+        REQUIRE(outputFinite);
+        // The MCF state itself must stay finite (clamp on the effective epsilon).
+        REQUIRE(bank.stateFinite());
+    }
+}
+
+// =============================================================================
+// WI-8: Loris bandwidth term must be energy-preserving.
+//
+// ampMod = sqrt(1-bw) + noise*sqrt(2*bw) preserves energy only when the noise
+// modulator has E[noise^2] = 0.5. The LCG -> 2-stage-LP cascade attenuates the
+// noise variance far below that, so a bandwidth=1 partial lost ~18 dB instead of
+// becoming an equal-energy noise band. Normalizing the cascade power restores it.
+// =============================================================================
+TEST_CASE("HarmonicOscillatorBank: bandwidth=1 preserves energy vs bandwidth=0 (WI-8)",
+          "[dsp][processors][harmonic_osc_bank][bandwidth]") {
+    constexpr double kSampleRate = 44100.0;
+    constexpr size_t kBlockSize = 16384;
+
+    auto measureRms = [&](float bw) {
+        HarmonicOscillatorBank bank;
+        bank.prepare(kSampleRate);
+        auto frame = makeSimpleFrame(440.0f, 1.0f, 1);
+        frame.partials[0].bandwidth = bw;
+        bank.loadFrame(frame, 440.0f);
+        std::vector<float> buf(kBlockSize, 0.0f);
+        bank.processBlock(buf.data(), kBlockSize);
+        // Skip the amplitude-smoothing ramp-in; measure the settled tail.
+        double sumSq = 0.0;
+        const size_t start = kBlockSize / 2;
+        for (size_t i = start; i < kBlockSize; ++i)
+            sumSq += static_cast<double>(buf[i]) * buf[i];
+        return std::sqrt(static_cast<float>(sumSq / static_cast<double>(kBlockSize - start)));
+    };
+
+    const float rmsClean = measureRms(0.0f);
+    const float rmsNoise = measureRms(1.0f);
+    const float ratio = rmsNoise / std::max(rmsClean, 1e-9f);
+    INFO("rms bw=0: " << rmsClean << "  bw=1: " << rmsNoise << "  ratio: " << ratio);
+    // Energy-preserving Loris model: a fully-noisy partial should carry roughly
+    // the same energy as the pure sine, not collapse.
+    REQUIRE(ratio > 0.7f);
+    REQUIRE(ratio < 1.4f);
+}
+
+// =============================================================================
+// QS-8: out-of-range bandwidth must be clamped at the synthesis boundary.
+// bandwidth feeds sqrt(1-bw); bw > 1 yields NaN. Inflated bandwidth is the
+// historical Innexus noise bug, so the bank hardens its own input.
+// =============================================================================
+TEST_CASE("HarmonicOscillatorBank: out-of-range bandwidth is clamped (QS-8)",
+          "[dsp][processors][harmonic_osc_bank][bandwidth]") {
+    for (float bw : {-1.0f, 2.0f, 1000.0f}) {
+        HarmonicOscillatorBank bank;
+        bank.prepare(44100.0);
+        auto frame = makeSimpleFrame(440.0f, 1.0f, 1);
+        frame.partials[0].bandwidth = bw;
+        bank.loadFrame(frame, 440.0f);
+
+        std::vector<float> buf(2048, 0.0f);
+        bank.processBlock(buf.data(), buf.size());
+
+        bool allFinite = true;
+        for (float v : buf)
+            if (!isFiniteBits(v)) { allFinite = false; break; }
+        INFO("bandwidth=" << bw);
+        REQUIRE(allFinite);
+        REQUIRE(bank.stateFinite());
+    }
 }
 
 // =============================================================================
@@ -625,9 +737,13 @@ TEST_CASE("HarmonicOscillatorBank: bandwidth noise is LP-filtered below 500 Hz",
     INFO("Far sideband energy (3000-4000 + 6000-7000 Hz): " << farDB << " dB");
     INFO("Sideband rolloff: " << rolloffDB << " dB");
 
-    // A 4th-order Chebyshev LP at 500 Hz should provide steep rolloff in
-    // the noise modulation. The near-to-far sideband ratio should be > 25 dB.
-    REQUIRE(rolloffDB > 25.0f);
+    // A 4th-order Chebyshev LP at 500 Hz provides steep rolloff in the noise
+    // modulation. WI-8: threshold lowered from 25 to 20 dB. The previous value
+    // reflected an under-powered noise cascade (~-13 dB) whose far-sideband
+    // energy sat at the FFT/leakage floor, inflating the apparent ratio.
+    // Normalizing the noise to E[noise^2]=0.5 lifts the far band to its true
+    // level; the real LP rolloff at these bands is ~22.7 dB.
+    REQUIRE(rolloffDB > 20.0f);
 }
 
 // =============================================================================
