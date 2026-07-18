@@ -996,3 +996,127 @@ TEST_CASE("HarmonicOscillatorBank: bounded tail scan still fades old partials (W
     REQUIRE(energy > 0.0f);
     REQUIRE(bank.stateFinite());
 }
+
+// =============================================================================
+// PR #262 review: NaN-safe bandwidth ingestion.
+//
+// loadFrame() used std::clamp(partial.bandwidth, 0.0f, 1.0f) to guard the
+// sqrt(1-bw) in the Loris bandwidth-enhanced amplitude modulation. clamp is
+// `v < lo ? lo : (hi < v ? hi : v)` -- BOTH comparisons are false for NaN, so a
+// NaN bandwidth passed straight through and poisoned ampMod, and from there the
+// output sum. (The MCF state itself stays clean, which is why stateFinite()
+// alone never caught this.)
+//
+// The bank is the layer that hardens its own input, so it must reject NaN here
+// rather than rely on a downstream sanitize in one particular host plugin.
+// =============================================================================
+
+namespace {
+
+/// Build a NaN without std::numeric_limits.
+///
+/// macOS CI compiles with -ffast-math, under which quiet_NaN() folds to finite
+/// garbage. Going through a volatile bit pattern defeats that folding, so the
+/// value that reaches the bank really is a NaN.
+[[nodiscard]] float bitPatternNaN() noexcept {
+    volatile std::uint32_t bits = 0x7FC00000u; // quiet NaN
+    const std::uint32_t observed = bits;       // volatile read defeats folding
+    float out = 0.0f;
+    std::memcpy(&out, &observed, sizeof(out));
+    return out;
+}
+
+/// Same approach for +infinity, the other non-finite bandwidth a corrupt
+/// analysis frame can carry.
+[[nodiscard]] float bitPatternInf() noexcept {
+    volatile std::uint32_t bits = 0x7F800000u;
+    const std::uint32_t observed = bits;       // volatile read defeats folding
+    float out = 0.0f;
+    std::memcpy(&out, &observed, sizeof(out));
+    return out;
+}
+
+} // namespace
+
+TEST_CASE("Non-finite bandwidth cannot reach the output",
+          "[dsp][processors][harmonic_oscillator_bank][robustness]") {
+    constexpr double kSampleRate = 44100.0;
+
+    const float nan = bitPatternNaN();
+    const float inf = bitPatternInf();
+
+    // Guard the guard: if -ffast-math defeated the bit trick, this test would
+    // silently pass without ever exercising the NaN path.
+    REQUIRE(std::isnan(nan));
+    REQUIRE(std::isinf(inf));
+
+    auto runWithBandwidth = [&](float bandwidth) {
+        HarmonicOscillatorBank bank;
+        bank.prepare(kSampleRate);
+
+        auto frame = makeHarmonicFrame(220.0f, 8);
+        for (int i = 0; i < frame.numPartials; ++i) {
+            frame.partials[i].bandwidth = bandwidth;
+        }
+        bank.loadFrame(frame, 220.0f);
+
+        bool allFinite = true;
+        for (int i = 0; i < 4410; ++i) {
+            float l = 0.0f, r = 0.0f;
+            bank.processStereo(l, r);
+            if (!std::isfinite(l) || !std::isfinite(r)) {
+                allFinite = false;
+                break;
+            }
+        }
+        return allFinite;
+    };
+
+    SECTION("NaN bandwidth") {
+        CHECK(runWithBandwidth(nan));
+    }
+
+    SECTION("Infinite bandwidth") {
+        CHECK(runWithBandwidth(inf));
+    }
+
+    SECTION("Negative bandwidth") {
+        CHECK(runWithBandwidth(-1.0f));
+    }
+
+    SECTION("Valid bandwidth still produces audio") {
+        CHECK(runWithBandwidth(0.5f));
+    }
+}
+
+TEST_CASE("Mixed valid/non-finite bandwidth stays finite",
+          "[dsp][processors][harmonic_oscillator_bank][robustness]") {
+    // The single-value cases above all drive hasBandwidth_ to one setting for
+    // the whole frame. This mixes them, so hasBandwidth_ is true (a real 0.5
+    // partial exists) AND a NaN partial is present in the same pass -- the
+    // combination that would expose a per-lane guard that only holds frame-wide.
+    constexpr double kSampleRate = 44100.0;
+
+    HarmonicOscillatorBank bank;
+    bank.prepare(kSampleRate);
+
+    auto frame = makeHarmonicFrame(220.0f, 8);
+    for (int i = 0; i < frame.numPartials; ++i) {
+        frame.partials[i].bandwidth = (i % 2 == 0) ? 0.5f : bitPatternNaN();
+    }
+    bank.loadFrame(frame, 220.0f);
+
+    float energy = 0.0f;
+    for (int i = 0; i < 4410; ++i) {
+        float l = 0.0f, r = 0.0f;
+        bank.processStereo(l, r);
+        REQUIRE(std::isfinite(l));
+        REQUIRE(std::isfinite(r));
+        energy += l * l + r * r;
+    }
+
+    // Not just finite -- still audible. A guard that silenced every partial
+    // would satisfy the finiteness check while destroying the output.
+    REQUIRE(energy > 0.0f);
+    REQUIRE(bank.stateFinite());
+}

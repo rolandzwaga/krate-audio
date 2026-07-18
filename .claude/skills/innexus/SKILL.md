@@ -21,7 +21,7 @@ Two input sources feed one frame contract, selected by `inputSource_`:
 
 Frame selection (`voice_.morphedFrame`): Recall│Capture│ManualFreeze+morph(lerp)│confidence-gated freeze,
 then `applyModulatorAmplitude` → `applyHarmonicPhysics` → `broadcastFrameToVoices` (copy to each voice).
-Per voice: `HarmonicOscillatorBank` (48 Gordon-Smith MCF sines; freq/amp/**phase** seeded from partials,
+Per voice: `HarmonicOscillatorBank` (up to `kMaxPartials` = 96 Gordon-Smith MCF sines; freq/amp/**phase** seeded from partials,
 phase state NOT reset across frames = continuity) + exciter{Impact│Bow│Residual} → resonator{Modal│Waveguide,
 equal-power xfade} → BodyResonance → `PhysicalModelMixer(residual↔physical)`. Σ voices × 1/√activeCount →
 global `SympatheticResonance` → master gain → tanh soft-limiter → out.

@@ -262,11 +262,22 @@ public:
 
         // Step 1: Peak detection. The two ranges partition the spectrum at the
         // crossover, so no partial can be detected twice.
+        //
+        // The LOW band (long window) is appended first so the merged peak list
+        // comes out frequency-ascending. That is what makes the index sort in
+        // prunePeaksToMatcherCapacity() a frequency sort rather than a no-op
+        // relative to merge order (PR #262 review).
+        //
+        // This is a clarity fix, not a behaviour fix: no downstream stage is
+        // order-dependent, and a cap-pressure probe (flat-amplitude spectrum
+        // with more partials than the cap) produced identical tracking under
+        // both orders. Do not reorder these on the assumption that it changes
+        // which partials survive -- it does not.
         numPeaks_ = 0;
-        appendPeaks(shortSpectrum, shortFftSize, sampleRate, amplitudeScale_,
-                    crossoverHz, sampleRate * 0.5f, f0Est);
         appendPeaks(longSpectrum, longFftSize, sampleRate, longAmpScale,
                     0.0f, crossoverHz, f0Est);
+        appendPeaks(shortSpectrum, shortFftSize, sampleRate, amplitudeScale_,
+                    crossoverHz, sampleRate * 0.5f, f0Est);
         prunePeaksToMatcherCapacity();
 
         // Step 2: Harmonic sieve (FR-023) -- only if voiced
@@ -343,11 +354,25 @@ private:
                          });
         peakSelectIdx_.resize(keep);
 
-        // Restore ascending-frequency order, which downstream stages assume.
+        // Sorting the selected INDICES restores the order the peaks were
+        // appended in. Callers append low band before high (see
+        // processDualFrame), so that order is frequency-ascending.
+        //
+        // Nothing downstream currently requires it -- the sieve, conflict
+        // resolution and the Hungarian match are all order-independent, and
+        // this whole function is skipped when numPeaks_ fits the matcher, so no
+        // stage could rely on it anyway. It is kept because it makes the peak
+        // list's meaning stable, and because birth priority in
+        // updateLifecycles() follows list order.
         std::sort(peakSelectIdx_.begin(), peakSelectIdx_.end());
 
         // Compact in place. Destination index is always <= source index, so a
         // forward pass cannot clobber a not-yet-read entry.
+        //
+        // peakMatched_ / peakMatchedSlot_ are intentionally NOT carried across:
+        // matchTracks() clears peakMatched_ for every peak before use, and
+        // peakMatchedSlot_ is only ever read behind a peakMatched_ check, so
+        // both are fully rewritten each frame.
         for (size_t dst = 0; dst < keep; ++dst) {
             const auto src = static_cast<size_t>(peakSelectIdx_[dst]);
             if (src == dst) continue;
@@ -357,7 +382,6 @@ private:
             peakPhases_[dst] = peakPhases_[src];
             peakBandwidth_[dst] = peakBandwidth_[src];
             peakHarmonicIndex_[dst] = peakHarmonicIndex_[src];
-            peakMatched_[dst] = peakMatched_[src];
         }
         numPeaks_ = kMaxTrackablePeaks;
     }

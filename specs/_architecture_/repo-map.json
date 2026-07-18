@@ -61,7 +61,7 @@
     "core": {
       "index": 0,
       "folder": "dsp/include/krate/dsp/core",
-      "header_count": 37
+      "header_count": 38
     },
     "primitives": {
       "index": 1,

@@ -55,7 +55,9 @@ struct MalletExciter
     /// Piecewise: size >= 0.5 keeps the legacy mass EXACTLY (toms/timpani/
     /// gran cassa untouched -- the tension-glide calibration depends on the
     /// legacy contact energy); below 0.5 the effective mass shrinks
-    /// quadratically, giving a crotale (0.12) a ~1.3 ms contact at v=1.
+    /// cubically, giving a crotale (0.12) a ~1.3 ms contact at v=1.
+    /// (Cubic, not quadratic -- see the rationale in trigger(): the quadratic
+    /// curve left a crotale at ~2 ms, still too long.)
     /// Deliberately NOT velocity-mapped: velocity-mapped mass was tried and
     /// reverted (broke the 10 ms centroid window / velocity-ratio tests,
     /// US1-2).

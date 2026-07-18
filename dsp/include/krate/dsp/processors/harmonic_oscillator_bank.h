@@ -276,7 +276,11 @@ public:
             relativeFrequency_[i] = partial.relativeFrequency;
             inharmonicDeviation_[i] = partial.inharmonicDeviation;
             targetAmplitude_[i] = partial.amplitude;
-            bandwidth_[i] = std::clamp(partial.bandwidth, 0.0f, 1.0f); // QS-8: guard sqrt(1-bw)
+            // QS-8: guard sqrt(1-bw). NaN-safe by construction -- the `> 0.0f`
+            // test is false for NaN, so a non-finite bandwidth falls to 0
+            // rather than through (std::clamp would pass NaN straight out,
+            // since both of its comparisons are false for NaN).
+            bandwidth_[i] = sanitizeBandwidth(partial.bandwidth);
 
             // Initialize oscillator state if this is the first frame
             if (!frameLoaded_) {
@@ -454,7 +458,7 @@ public:
                 relativeFrequency_[totalPartials] = partial.relativeFrequency;
                 inharmonicDeviation_[totalPartials] = partial.inharmonicDeviation;
                 targetAmplitude_[totalPartials] = partial.amplitude;
-                bandwidth_[totalPartials] = std::clamp(partial.bandwidth, 0.0f, 1.0f); // QS-8
+                bandwidth_[totalPartials] = sanitizeBandwidth(partial.bandwidth); // QS-8
                 sourceId_[totalPartials] = partial.sourceId;
                 sourcePitch_[totalPartials] = srcPitch;
 
@@ -953,6 +957,30 @@ private:
     // =========================================================================
     // Private Methods
     // =========================================================================
+
+    /// @brief Clamp an incoming bandwidth into [0, 1], mapping non-finite to 0.
+    ///
+    /// The bank hardens its own input rather than trusting the analysis stage:
+    /// bandwidth feeds sqrt(1 - bw), so a value outside [0, 1] yields NaN and a
+    /// NaN would propagate into the output sum (never into the MCF state, which
+    /// is why stateFinite() does not catch it).
+    ///
+    /// Deliberately not std::clamp: clamp is `v < lo ? lo : (hi < v ? hi : v)`,
+    /// and BOTH comparisons are false for NaN, so clamp returns NaN unchanged.
+    /// The `> 0.0f` test below is likewise false for NaN, but here that steers
+    /// NaN to the safe 0 branch. Infinity and negatives are handled by the same
+    /// expression (+inf takes min -> 1, negatives take the else -> 0).
+    ///
+    /// @note At present a NaN would also be neutralised downstream by the
+    ///       `bw > 1e-4f` bandwidth gate in the synthesis loops. That is a
+    ///       coincidence of that gate's comparison direction, not a guarantee;
+    ///       normalising at ingestion keeps the invariant local so a later edit
+    ///       to the gate cannot silently re-open the hole.
+    /// @param bandwidth Raw bandwidth from the analysis frame
+    /// @return A finite value in [0, 1]
+    [[nodiscard]] static float sanitizeBandwidth(float bandwidth) noexcept {
+        return (bandwidth > 0.0f) ? std::min(bandwidth, 1.0f) : 0.0f;
+    }
 
     /// @brief Generate a LP-filtered noise sample for bandwidth modulation.
     /// Uses a per-partial 4th-order Chebyshev Type I LP at 500 Hz (1 dB ripple)
