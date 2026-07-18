@@ -74,6 +74,18 @@ public:
     /// Amplitude similarity weight in cost function (0 = freq only, 1 = equal weight)
     static constexpr float kAmplitudeWeight = 0.3f;
 
+    /// Maximum number of spectral peaks handed to the frame-to-frame matcher.
+    /// MUST equal the HungarianAlgorithm capacity below -- costMatrix_ is
+    /// indexed as [track * numPeaks + peak] (WI-23).
+    static constexpr int kMaxTrackablePeaks = 128;
+
+    /// Dual-window crossover, in short-window bins. Below this the long window
+    /// supplies the peaks; above it the short window does. Four bins puts the
+    /// crossover at ~172 Hz for 1024/44.1k, covering the near-DC region where
+    /// the short window's parabolic peak estimate is too biased for the
+    /// harmonic sieve (WI-12).
+    static constexpr float kCrossoverBins = 4.0f;
+
     PartialTracker() noexcept = default;
 
     /// @brief Set the DFT amplitude normalization factor.
@@ -106,6 +118,9 @@ public:
         peakMatched_.resize(numBins_);
         peakMatchedSlot_.resize(numBins_);
         peakBandwidth_.resize(numBins_);
+        // Reserved here so prunePeaksToMatcherCapacity() never allocates on the
+        // audio thread (it only ever resizes within this capacity).
+        peakSelectIdx_.reserve(numBins_);
 
         reset();
     }
@@ -180,13 +195,20 @@ public:
 
     /// @brief Process one frame using dual-resolution (long + short) STFT input.
     ///
-    /// Fills the sub-floor gap that the short window cannot resolve: long-window
-    /// peaks below the short window's scan floor (bin 2) are merged with the full
-    /// short-window peak scan, which is left byte-identical to processFrame(). This
-    /// delivers FR-018/020/021 (dual-window analysis feeding the tracker) so
-    /// fundamentals below ~86 Hz (at 1024/44.1k) are resolvable. Intended for
-    /// voiced frames whose fundamental sits below the short floor; for all other
-    /// content the caller should use the single-spectrum processFrame().
+    /// Partitions the spectrum at a crossover: everything below comes from the
+    /// long window, everything above from the short one (Serra & Smith SMS
+    /// multi-resolution analysis). This delivers FR-018/020/021 (dual-window
+    /// analysis feeding the tracker). Intended for voiced frames whose
+    /// fundamental sits in the low band; for all other content the caller
+    /// should use the single-spectrum processFrame().
+    ///
+    /// The crossover is kCrossoverBins short-window bins rather than the short
+    /// scan floor (bin 2). Near DC the short window's parabolic peak estimate is
+    /// biased by more than the sieve's tight low-order tolerance, so a
+    /// fundamental just ABOVE the scan floor is detected but then rejected as
+    /// inharmonic -- measured at 90 Hz with 1024/44.1k (WI-12). Handing that
+    /// whole band to the long window fixes the frequency estimate at its source
+    /// instead of loosening harmonic assignment everywhere.
     ///
     /// @param shortSpectrum Short-window (temporal) magnitude/phase spectrum
     /// @param longSpectrum  Long-window (low-freq resolution) magnitude/phase spectrum
@@ -208,21 +230,19 @@ public:
         previousPartials_ = partials_;
         previousActiveCount_ = activeCount_;
 
-        // Crossover = short window's scan floor (bin 2). Short peaks never fall
-        // below this, so the two peak sets do not overlap.
         const float shortBinSpacing = sampleRate / static_cast<float>(shortFftSize);
-        const float crossoverHz = 2.0f * shortBinSpacing;
+        const float crossoverHz = kCrossoverBins * shortBinSpacing;
 
         const float f0Est = f0.voiced ? f0.frequency : 0.0f;
 
-        // Step 1: Peak detection. Short scan first (byte-identical to
-        // processFrame's full-range scan), then append long-window peaks below
-        // the short floor.
+        // Step 1: Peak detection. The two ranges partition the spectrum at the
+        // crossover, so no partial can be detected twice.
         numPeaks_ = 0;
         appendPeaks(shortSpectrum, shortFftSize, sampleRate, amplitudeScale_,
-                    0.0f, sampleRate * 0.5f, f0Est);
+                    crossoverHz, sampleRate * 0.5f, f0Est);
         appendPeaks(longSpectrum, longFftSize, sampleRate, longAmpScale,
                     0.0f, crossoverHz, f0Est);
+        prunePeaksToMatcherCapacity();
 
         // Step 2: Harmonic sieve (FR-023) -- only if voiced
         if (f0.voiced && f0.frequency > 0.0f) {
@@ -266,6 +286,55 @@ private:
         numPeaks_ = 0;
         appendPeaks(spectrum, fftSize, sampleRate, amplitudeScale_,
                     0.0f, sampleRate * 0.5f, f0Estimate);
+        prunePeaksToMatcherCapacity();
+    }
+
+    /// Reduce the peak list to the frame-to-frame matcher's capacity, keeping
+    /// the strongest peaks (WI-23).
+    ///
+    /// matchTracks() indexes costMatrix_ as [track * numPeaks_ + peak] into a
+    /// fixed kMaxTrackablePeaks^2 array, and HungarianAlgorithm refuses to
+    /// solve at all once a dimension exceeds its capacity. numPeaks_ is bounded
+    /// only by the bin count (2048 for a 4096-point FFT), so a dense spectrum
+    /// would otherwise write past the end of costMatrix_ AND lose all partial
+    /// identity. Capping here is the natural policy: only kMaxPartials (96)
+    /// partials can survive enforcePartialCap(), which already selects by
+    /// amplitude, so the discarded peaks could never have been tracked.
+    void prunePeaksToMatcherCapacity() noexcept {
+        if (numPeaks_ <= kMaxTrackablePeaks) return;
+
+        // Select the kMaxTrackablePeaks strongest peaks by amplitude.
+        peakSelectIdx_.resize(static_cast<size_t>(numPeaks_));
+        for (int i = 0; i < numPeaks_; ++i) {
+            peakSelectIdx_[static_cast<size_t>(i)] = i;
+        }
+        const auto keep = static_cast<size_t>(kMaxTrackablePeaks);
+        std::nth_element(peakSelectIdx_.begin(),
+                         peakSelectIdx_.begin() + static_cast<std::ptrdiff_t>(keep),
+                         peakSelectIdx_.end(),
+                         [this](int a, int b) noexcept {
+                             return peakAmps_[static_cast<size_t>(a)] >
+                                    peakAmps_[static_cast<size_t>(b)];
+                         });
+        peakSelectIdx_.resize(keep);
+
+        // Restore ascending-frequency order, which downstream stages assume.
+        std::sort(peakSelectIdx_.begin(), peakSelectIdx_.end());
+
+        // Compact in place. Destination index is always <= source index, so a
+        // forward pass cannot clobber a not-yet-read entry.
+        for (size_t dst = 0; dst < keep; ++dst) {
+            const auto src = static_cast<size_t>(peakSelectIdx_[dst]);
+            if (src == dst) continue;
+            peakBins_[dst] = peakBins_[src];
+            peakFreqs_[dst] = peakFreqs_[src];
+            peakAmps_[dst] = peakAmps_[src];
+            peakPhases_[dst] = peakPhases_[src];
+            peakBandwidth_[dst] = peakBandwidth_[src];
+            peakHarmonicIndex_[dst] = peakHarmonicIndex_[src];
+            peakMatched_[dst] = peakMatched_[src];
+        }
+        numPeaks_ = kMaxTrackablePeaks;
     }
 
     /// Append spectral peaks whose interpolated frequency lies in
@@ -874,12 +943,17 @@ private:
     /// Number of spectral bins (fftSize/2 + 1)
     size_t numBins_ = 0;
 
-    /// Cost matrix for Hungarian algorithm (pre-sized for max partials × max peaks)
-    /// Max size: kMaxPartials rows × numBins cols, but in practice both are << 128
-    std::array<float, 128 * 128> costMatrix_{};
+    /// Scratch index list used by prunePeaksToMatcherCapacity()
+    std::vector<int> peakSelectIdx_;
+
+    /// Cost matrix for the Hungarian algorithm, indexed [track * numPeaks + peak].
+    /// Rows are bounded by kMaxPartials (96) and columns by kMaxTrackablePeaks,
+    /// which prunePeaksToMatcherCapacity() enforces before matchTracks() runs.
+    std::array<float, static_cast<size_t>(kMaxTrackablePeaks)
+                          * static_cast<size_t>(kMaxTrackablePeaks)> costMatrix_{};
 
     /// Hungarian algorithm solver
-    HungarianAlgorithm<128> hungarian_;
+    HungarianAlgorithm<static_cast<size_t>(kMaxTrackablePeaks)> hungarian_;
 };
 
 } // namespace Krate::DSP

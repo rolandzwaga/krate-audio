@@ -260,12 +260,16 @@ void SampleAnalyzer::analyzeOnThread(
     const size_t longHopRatio = kLongWindowConfig.hopSize / shortHop; // 2048/512 = 4
     size_t shortHopCounter = 0;
 
-    // Dual-window merge (FR-018/020/021): below the short window's scan floor
-    // (bin 2), fundamentals are unresolvable by the short STFT. For voiced frames
-    // whose F0 falls below the floor, merge long-window peaks (10.77 Hz/bin) so
-    // the low fundamental is tracked. See PartialTracker::processDualFrame.
-    const float shortFloorHz = 2.0f * sampleRate
-        / static_cast<float>(kShortWindowConfig.fftSize);
+    // Dual-window merge (FR-018/020/021): in the low band the short STFT cannot
+    // place a peak accurately enough for the harmonic sieve -- below its scan
+    // floor (bin 2) the fundamental is unresolvable outright, and just above it
+    // the parabolic estimate is biased past the sieve's low-order tolerance
+    // (WI-12). For voiced frames whose F0 falls in that band, take the low peaks
+    // from the long window (10.77 Hz/bin) instead. The threshold must match
+    // PartialTracker's own crossover or frames would take the dual path while
+    // their fundamental still came from the short window.
+    const float dualWindowMaxF0 = Krate::DSP::PartialTracker::kCrossoverBins
+        * sampleRate / static_cast<float>(kShortWindowConfig.fftSize);
     const float longAmpScale = 2.0f
         / (static_cast<float>(kLongWindowConfig.fftSize)
            * Krate::DSP::Window::coherentGain(kLongWindowConfig.windowType));
@@ -350,7 +354,7 @@ void SampleAnalyzer::analyzeOnThread(
             // A voiced fundamental below the short-window scan floor is merged
             // with long-window peaks (FR-018/020/021); everything else uses the
             // byte-identical single-spectrum path.
-            if (f0.voiced && f0.frequency > 0.0f && f0.frequency < shortFloorHz
+            if (f0.voiced && f0.frequency > 0.0f && f0.frequency < dualWindowMaxF0
                 && longSpectrumValid) {
                 tracker.processDualFrame(shortSpectrum, longSpectrum,
                                           kShortWindowConfig.fftSize,
