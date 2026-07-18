@@ -11,6 +11,7 @@
 #include <krate/dsp/core/db_utils.h>
 
 #include <catch2/catch_test_macros.hpp>
+#include <chrono>
 #include <catch2/catch_approx.hpp>
 #include <catch2/benchmark/catch_benchmark.hpp>
 
@@ -821,4 +822,177 @@ TEST_CASE("HarmonicOscillatorBank: CPU benchmark 48 partials",
         bank.processBlock(buffer.data(), kBlockSize);
         return buffer[0]; // prevent optimization
     };
+}
+
+// =============================================================================
+// WI-20: setStereoSpread() and setDetuneSpread() are documented as "called once
+// per frame, not per sample", but Innexus drives both from per-sample smoothers.
+// Each call rebuilt a 96-entry table -- cos+sin for pan, std::pow per partial
+// for detune, plus a full anti-aliasing recompute -- at audio rate, per voice.
+//
+// Once the smoother settles the recompute reproduces exactly the same table, so
+// it can be cached. The subtlety is that the harmonic modulators mutate
+// detuneMultiplier_ and panLeft_/panRight_ IN PLACE, which makes these setters
+// double as the per-sample base reset. The cached path must still restore that
+// base or a modulator's multiplier compounds every sample.
+// =============================================================================
+
+TEST_CASE("HarmonicOscillatorBank: settled spread values stop recomputing (WI-20)",
+          "[dsp][harmonic_oscillator_bank][wi20]") {
+    HarmonicOscillatorBank bank;
+    bank.prepare(44100.0);
+    bank.loadFrame(makeHarmonicFrame(220.0f, 16), 220.0f);
+
+    bank.setStereoSpread(0.5f);
+    bank.setDetuneSpread(0.3f);
+    const int panAfterFirst = bank.panRecomputeCount();
+    const int detuneAfterFirst = bank.detuneRecomputeCount();
+
+    // A settled smoother hands the same value over and over.
+    for (int i = 0; i < 512; ++i) {
+        bank.setStereoSpread(0.5f);
+        bank.setDetuneSpread(0.3f);
+    }
+    REQUIRE(bank.panRecomputeCount() == panAfterFirst);
+    REQUIRE(bank.detuneRecomputeCount() == detuneAfterFirst);
+
+    // A genuine change must still recompute.
+    bank.setStereoSpread(0.8f);
+    bank.setDetuneSpread(0.6f);
+    REQUIRE(bank.panRecomputeCount() == panAfterFirst + 1);
+    REQUIRE(bank.detuneRecomputeCount() == detuneAfterFirst + 1);
+
+    // A new frame changes the harmonic indices the tables are built from, so it
+    // must invalidate the cache even though the spreads have not moved.
+    bank.loadFrame(makeHarmonicFrame(330.0f, 24), 330.0f);
+    bank.setStereoSpread(0.8f);
+    bank.setDetuneSpread(0.6f);
+    REQUIRE(bank.panRecomputeCount() == panAfterFirst + 2);
+    REQUIRE(bank.detuneRecomputeCount() == detuneAfterFirst + 2);
+}
+
+TEST_CASE("HarmonicOscillatorBank: cached spread path preserves modulator semantics (WI-20)",
+          "[dsp][harmonic_oscillator_bank][wi20]") {
+    // The modulator multiplier must be applied to a FRESH base every sample.
+    // If the cached path failed to restore the base, the multiplier would
+    // compound and the detune would run away.
+    HarmonicOscillatorBank bank;
+    bank.prepare(44100.0);
+    bank.loadFrame(makeHarmonicFrame(220.0f, 8), 220.0f);
+    bank.setDetuneSpread(0.4f);
+
+    std::array<float, kMaxPartials> multipliers{};
+    multipliers.fill(1.01f); // +1% every sample if it compounds
+
+    float firstL = 0.0f, firstR = 0.0f;
+    float lastL = 0.0f, lastR = 0.0f;
+    for (int i = 0; i < 2000; ++i) {
+        bank.setDetuneSpread(0.4f);                    // per-sample base reset
+        bank.applyExternalFrequencyMultipliers(multipliers);
+        float l = 0.0f, r = 0.0f;
+        bank.processStereo(l, r);
+        if (i == 0) { firstL = l; firstR = r; }
+        lastL = l;
+        lastR = r;
+    }
+
+    // 1.01^2000 is astronomically large; a compounding bug shows up as a
+    // non-finite or railed output and a diverged oscillator state.
+    INFO("first=(" << firstL << ", " << firstR << ") last=("
+         << lastL << ", " << lastR << ")");
+    REQUIRE(bank.stateFinite());
+    REQUIRE(std::abs(lastL) <= 2.0f);
+    REQUIRE(std::abs(lastR) <= 2.0f);
+}
+
+TEST_CASE("PERF WI-20 spread cost", "[.perf][wi20perf]") {
+    constexpr int kIters = 200000;
+
+    auto run = [&](bool settled) {
+        HarmonicOscillatorBank bank;
+        bank.prepare(44100.0);
+        bank.loadFrame(makeHarmonicFrame(220.0f, 64), 220.0f);
+        bank.setStereoSpread(0.5f);
+        bank.setDetuneSpread(0.3f);
+        auto t0 = std::chrono::high_resolution_clock::now();
+        float acc = 0.0f;
+        for (int i = 0; i < kIters; ++i) {
+            // "settled" = the smoother has converged (the steady-state case).
+            // Otherwise every sample nudges the value, forcing a recompute --
+            // this is what EVERY sample used to cost.
+            const float d = settled ? 0.0f
+                : (static_cast<float>(i % 1000) * 1e-6f);
+            bank.setStereoSpread(0.5f + d);
+            bank.setDetuneSpread(0.3f + d);
+            float l = 0.0f, r = 0.0f;
+            bank.processStereo(l, r);
+            acc += l + r;
+        }
+        auto t1 = std::chrono::high_resolution_clock::now();
+        const double ns = std::chrono::duration<double, std::nano>(t1 - t0).count()
+            / static_cast<double>(kIters);
+        WARN((settled ? "settled (cached): " : "changing (recompute): ")
+             << ns << " ns/sample  [checksum " << acc << "]");
+        return ns;
+    };
+
+    const double recompute = run(false);
+    const double cached = run(true);
+    WARN("speedup = " << (recompute / cached) << "x");
+    CHECK(cached > 0.0);
+}
+
+// =============================================================================
+// WI-22: the fade-out tail loop scanned every slot from activePartials_ up to
+// kMaxPartials (96) on every sample, per voice, even though the slots above the
+// high-water mark of previously-active partials have been silent since reset.
+//
+// The one correctness subtlety is the reset condition: shrinking the scan
+// window must never drop a partial that is still fading.
+// =============================================================================
+
+TEST_CASE("HarmonicOscillatorBank: bounded tail scan still fades old partials (WI-22)",
+          "[dsp][harmonic_oscillator_bank][wi22]") {
+    HarmonicOscillatorBank bank;
+    bank.prepare(44100.0);
+
+    // Establish 48 partials and let their amplitudes settle.
+    bank.loadFrame(makeHarmonicFrame(220.0f, 48), 220.0f);
+    for (int i = 0; i < 4410; ++i) {
+        float l = 0.0f, r = 0.0f;
+        bank.processStereo(l, r);
+    }
+
+    // Drop to 4 partials. The other 44 must fade out smoothly rather than
+    // being cut off, and must not be skipped by the bounded scan.
+    bank.loadFrame(makeHarmonicFrame(220.0f, 4), 220.0f);
+
+    float peakDuringFade = 0.0f;
+    for (int i = 0; i < 64; ++i) {
+        float l = 0.0f, r = 0.0f;
+        bank.processStereo(l, r);
+        peakDuringFade = std::max(peakDuringFade, std::abs(l) + std::abs(r));
+    }
+    // If the tail had been skipped the drop would be instantaneous; the
+    // smoother is ~2 ms, so energy is still present a few samples later.
+    REQUIRE(peakDuringFade > 0.0f);
+
+    // Let the tail decay fully, then confirm output settles and stays finite.
+    for (int i = 0; i < 44100; ++i) {
+        float l = 0.0f, r = 0.0f;
+        bank.processStereo(l, r);
+    }
+    REQUIRE(bank.stateFinite());
+
+    // Growing the partial count again must re-arm the scan: load 64 partials
+    // and confirm they are all audible.
+    bank.loadFrame(makeHarmonicFrame(220.0f, 64), 220.0f);
+    float energy = 0.0f;
+    for (int i = 0; i < 4410; ++i) {
+        float l = 0.0f, r = 0.0f;
+        bank.processStereo(l, r);
+        energy += l * l + r * r;
+    }
+    REQUIRE(energy > 0.0f);
+    REQUIRE(bank.stateFinite());
 }

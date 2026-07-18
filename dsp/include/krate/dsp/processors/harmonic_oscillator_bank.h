@@ -225,6 +225,10 @@ public:
         panLeft_.fill(kCenterGain);
         panRight_.fill(kCenterGain);
         detuneMultiplier_.fill(1.0f);
+        tailScanEnd_ = 0;
+        // Cached pan/detune bases no longer describe this state (WI-20).
+        panBaseValid_ = false;
+        detuneBaseValid_ = false;
         bandwidth_.fill(0.0f);
         // Reset per-partial noise filter state
         for (auto& arr : noiseLpZ1_) arr.fill(0.0f);
@@ -290,6 +294,16 @@ public:
             targetAmplitude_[i] = 0.0f;
             harmonicIndex_[i] = 0;
         }
+
+        // Raise the tail-scan high-water mark so a shrinking partial count still
+        // fades its old partials out (WI-22).
+        tailScanEnd_ = std::max(tailScanEnd_, static_cast<size_t>(numPartials));
+
+        // The cached pan/detune tables are functions of the harmonic indices as
+        // well as the spread values, so a new frame invalidates them even when
+        // the spreads have not moved (WI-20).
+        panBaseValid_ = false;
+        detuneBaseValid_ = false;
 
         // Adaptive output normalization: scale partial amplitudes so the
         // expected oscillator RMS hits a consistent target regardless of how
@@ -519,8 +533,31 @@ public:
     /// @param spread Spread amount [0.0, 1.0]. 0.0 = mono center, 1.0 = max spread.
     /// @note Real-time safe (called once per frame, not per sample)
     void setStereoSpread(float spread) noexcept {
-        stereoSpread_ = std::clamp(spread, 0.0f, 1.0f);
+        const float clamped = std::clamp(spread, 0.0f, 1.0f);
+
+        // WI-20: callers drive this from a per-sample smoother, so it runs at
+        // audio rate even though the doxygen above says "once per frame". The
+        // trig only depends on the spread value and the harmonic indices, so
+        // once the smoother settles every recompute reproduces the same table.
+        // Cache that table and restore it instead.
+        //
+        // The restore cannot be skipped as well: harmonic modulators overwrite
+        // panLeft_/panRight_ via applyPanOffsets(), so leaving them alone would
+        // strand the last modulated values once modulation stops.
+        if (panBaseValid_ && clamped == stereoSpread_) {
+            panPosition_ = basePanPosition_;
+            panLeft_ = basePanLeft_;
+            panRight_ = basePanRight_;
+            return;
+        }
+
+        stereoSpread_ = clamped;
         recalculatePanPositions();
+        basePanPosition_ = panPosition_;
+        basePanLeft_ = panLeft_;
+        basePanRight_ = panRight_;
+        panBaseValid_ = true;
+        ++panRecomputeCount_;
     }
 
     /// @brief Set detune spread amount (FR-030, FR-031, FR-032).
@@ -532,11 +569,41 @@ public:
     /// @param spread Detune amount [0.0, 1.0]. 0.0 = no detune, 1.0 = max.
     /// @note Real-time safe (called once per frame, not per sample)
     void setDetuneSpread(float spread) noexcept {
-        detuneSpread_ = std::clamp(spread, 0.0f, 1.0f);
+        const float clamped = std::clamp(spread, 0.0f, 1.0f);
+
+        // WI-20: as with setStereoSpread, this is driven per sample, and the
+        // std::pow per partial plus the anti-aliasing recompute are the most
+        // expensive things in that loop.
+        //
+        // The restore is mandatory, not an optimization detail:
+        // applyExternalFrequencyMultipliers() multiplies into detuneMultiplier_
+        // in place, so this recompute doubles as the per-sample base reset.
+        // Skipping it outright would let the modulator's multiplier compound
+        // every sample into a runaway detune.
+        //
+        // Anti-aliasing is computed from the BASE detune (it already ran before
+        // any modulator multiply), so an unchanged spread leaves it unchanged.
+        if (detuneBaseValid_ && clamped == detuneSpread_) {
+            detuneMultiplier_ = baseDetuneMultiplier_;
+            return;
+        }
+
+        detuneSpread_ = clamped;
         recalculateDetuneMultipliers();
+        baseDetuneMultiplier_ = detuneMultiplier_;
+        detuneBaseValid_ = true;
         // Refresh anti-alias gains for the new detuned frequencies (WI-5): a
         // partial detuned toward Nyquist must fade rather than sustain.
         recalculateAntiAliasing();
+        ++detuneRecomputeCount_;
+    }
+
+    /// @brief Number of times the pan table was actually recomputed (test hook).
+    [[nodiscard]] int panRecomputeCount() const noexcept { return panRecomputeCount_; }
+
+    /// @brief Number of times the detune table was actually recomputed (test hook).
+    [[nodiscard]] int detuneRecomputeCount() const noexcept {
+        return detuneRecomputeCount_;
     }
 
     /// @brief Get the current stereo spread value.
@@ -672,9 +739,18 @@ public:
             }
         }
 
-        // Fade out residual partials beyond activePartials_
-        for (size_t i = static_cast<size_t>(n); i < kMaxPartials; ++i) {
+        // Fade out residual partials beyond activePartials_.
+        //
+        // Only up to the high-water mark of previously-active partials (WI-22).
+        // Everything above it has been silent since the last reset, so scanning
+        // all the way to kMaxPartials just tests 96 zeroes every sample. The
+        // mark is lowered only once the entire tail has decayed, so a partial
+        // that is still fading can never be dropped.
+        const size_t tailEnd = std::min(tailScanEnd_, kMaxPartials);
+        bool tailActive = false;
+        for (size_t i = static_cast<size_t>(n); i < tailEnd; ++i) {
             if (currentAmplitude_[i] > 1e-8f) {
+                tailActive = true;
                 currentAmplitude_[i] += ampSmoothCoeff_ * (0.0f - currentAmplitude_[i]);
 
                 float s = sinState_[i];
@@ -694,6 +770,9 @@ public:
                 cosState_[i] = cNew;
             }
         }
+        // Nothing above n is fading any more: shrink the scan window. loadFrame
+        // raises it again whenever a larger partial count becomes active.
+        if (!tailActive) tailScanEnd_ = static_cast<size_t>(n);
 
         // Apply crossfade if active (FR-040)
         if (crossfadeRemaining_ > 0) {
@@ -782,9 +861,12 @@ public:
         }
 
         // Also smoothly fade out any partials beyond activePartials_ that
-        // still have residual amplitude
-        for (size_t i = static_cast<size_t>(n); i < kMaxPartials; ++i) {
+        // still have residual amplitude (bounded per WI-22, see processStereo).
+        const size_t tailEnd = std::min(tailScanEnd_, kMaxPartials);
+        bool tailActive = false;
+        for (size_t i = static_cast<size_t>(n); i < tailEnd; ++i) {
             if (currentAmplitude_[i] > 1e-8f) {
+                tailActive = true;
                 currentAmplitude_[i] += ampSmoothCoeff_ * (0.0f - currentAmplitude_[i]);
 
                 float s = sinState_[i];
@@ -798,6 +880,9 @@ public:
                 cosState_[i] = cNew;
             }
         }
+        // Nothing above n is fading any more: shrink the scan window. loadFrame
+        // raises it again whenever a larger partial count becomes active.
+        if (!tailActive) tailScanEnd_ = static_cast<size_t>(n);
 
         // Apply crossfade if active (FR-040)
         if (crossfadeRemaining_ > 0) {
@@ -1054,6 +1139,22 @@ private:
     alignas(32) std::array<float, kMaxPartials> panLeft_{};           ///< cos(angle)
     alignas(32) std::array<float, kMaxPartials> panRight_{};          ///< sin(angle)
     alignas(32) std::array<float, kMaxPartials> detuneMultiplier_{};  ///< freq multiplier
+
+    // WI-20: cached pan/detune tables, recomputed only when the spread value or
+    // the harmonic indices change. detuneMultiplier_ and panLeft_/panRight_ are
+    // mutated in place by the harmonic modulators, so these hold the unmutated
+    // base that each sample is restored from.
+    alignas(32) std::array<float, kMaxPartials> basePanPosition_{};
+    alignas(32) std::array<float, kMaxPartials> basePanLeft_{};
+    alignas(32) std::array<float, kMaxPartials> basePanRight_{};
+    alignas(32) std::array<float, kMaxPartials> baseDetuneMultiplier_{};
+    /// Highest partial index that may still hold a fading tail (WI-22).
+    size_t tailScanEnd_ = kMaxPartials;
+
+    bool panBaseValid_ = false;
+    bool detuneBaseValid_ = false;
+    int panRecomputeCount_ = 0;
+    int detuneRecomputeCount_ = 0;
 
     // --- Source-aware resynthesis arrays (Tier 3b) ---
     alignas(32) std::array<float, kMaxPartials> sourcePitch_{};     ///< Per-partial source pitch (Hz)
