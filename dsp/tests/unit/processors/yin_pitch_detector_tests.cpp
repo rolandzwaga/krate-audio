@@ -401,3 +401,45 @@ TEST_CASE("YIN reset clears internal state",
     REQUIRE(est.frequency == Approx(0.0f).margin(0.01f));
     REQUIRE(est.voiced == false);
 }
+
+// =============================================================================
+// WI-15: YIN searches lags up to N/2, so its lowest detectable F0 is
+// sampleRate/(N/2) -- 43 Hz for a 2048-sample window at 44.1 kHz. Innexus's
+// offline analyzer used 2048 while documenting a 40 Hz floor (and while the
+// live pipeline used 4096).
+//
+// This pins the requirement: a window that cannot span two periods of the
+// target does not merely lose accuracy, it reports the wrong pitch. Any change
+// to the analyzer's window constant has to keep N >= 2*sampleRate/minF0.
+// =============================================================================
+
+TEST_CASE("YIN window must span two periods to reach the stated F0 floor",
+          "[dsp][yin][pitch][wi15]") {
+    constexpr float kF0 = 41.0f; // below a 2048 window's 43 Hz floor
+
+    SECTION("2048 samples cannot resolve 41 Hz") {
+        YinPitchDetector yin(2048, 40.0f, 2000.0f);
+        yin.prepare(kSampleRate);
+        std::vector<float> buffer(2048);
+        generateSine(buffer.data(), buffer.size(), kF0, kSampleRate);
+
+        F0Estimate est = yin.detect(buffer.data(), buffer.size());
+        const bool correct = est.voiced
+            && std::abs(est.frequency - kF0) < 0.05f * kF0;
+        INFO("2048-window estimate: " << est.frequency
+             << " voiced=" << est.voiced);
+        REQUIRE_FALSE(correct);
+    }
+
+    SECTION("4096 samples resolve 41 Hz") {
+        YinPitchDetector yin(4096, 40.0f, 2000.0f);
+        yin.prepare(kSampleRate);
+        std::vector<float> buffer(4096);
+        generateSine(buffer.data(), buffer.size(), kF0, kSampleRate);
+
+        F0Estimate est = yin.detect(buffer.data(), buffer.size());
+        INFO("4096-window estimate: " << est.frequency);
+        REQUIRE(est.voiced);
+        REQUIRE(est.frequency == Catch::Approx(kF0).margin(2.0f));
+    }
+}

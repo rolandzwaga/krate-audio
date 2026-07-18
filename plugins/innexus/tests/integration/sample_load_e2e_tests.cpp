@@ -751,3 +751,4 @@ TEST_CASE("E2E: Polyphonic sample produces pitched resynthesis",
         CHECK(magTarget > 0.0003f);
     }
 }
+

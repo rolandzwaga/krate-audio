@@ -179,10 +179,17 @@ void SampleAnalyzer::analyzeOnThread(
     preProcessing.prepare(static_cast<double>(sampleRate));
 
     // YIN pitch detector (FR-010 to FR-017)
-    // Window size should be large enough for lowest pitch (40 Hz)
-    // At 44.1kHz, 40 Hz = 1102.5 samples period, need 2x = 2205
-    // Use 2048 as reasonable window size
-    constexpr size_t kYinWindowSize = 2048;
+    //
+    // YIN searches lags up to N/2, so the lowest detectable F0 is
+    // sampleRate/(N/2). The stated 40 Hz floor at 44.1 kHz therefore needs
+    // N >= 2206 (de Cheveigne & Kawahara 2002). This was 2048 -- a 43 Hz floor,
+    // right where the comment's own arithmetic said it should not be -- and a
+    // 41 Hz fundamental came out with zero frames on the true pitch, not even
+    // recovered by the subharmonic validator downstream (WI-15).
+    //
+    // Use the same window the live pipeline already uses, so both paths share
+    // one F0 floor.
+    constexpr size_t kYinWindowSize = kHighPrecisionYinWindowSize; // 4096
     Krate::DSP::YinPitchDetector yin(kYinWindowSize);
     yin.prepare(static_cast<double>(sampleRate));
 
