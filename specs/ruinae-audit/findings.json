@@ -1,0 +1,338 @@
+[
+  {
+    "id": "F001",
+    "title": "willClose fails to null mod-source display and sidechain indicator pointers (dangling after editor close)",
+    "file": "plugins/ruinae/src/controller/controller.cpp",
+    "line": 711,
+    "category": "bug",
+    "severity": "critical"
+  },
+  {
+    "id": "F002",
+    "title": "Mod-source view sub-view pointers dangle on ModSourceViewMode switch (use-after-free)",
+    "file": "plugins/ruinae/src/controller/controller_view_sync.cpp",
+    "line": 78,
+    "category": "bug",
+    "severity": "high"
+  },
+  {
+    "id": "F003",
+    "title": "onTabChanged omits rungler/sampleHold/random displays and sidechain indicators (MOD-tab residents left dangling)",
+    "file": "plugins/ruinae/src/controller/controller_settings.cpp",
+    "line": 39,
+    "category": "bug",
+    "severity": "high"
+  },
+  {
+    "id": "F004",
+    "title": "Unison partial-group steal can allocate the same voice slot multiple times",
+    "file": "dsp/include/krate/dsp/systems/voice_allocator.h",
+    "line": 966,
+    "category": "bug",
+    "severity": "high"
+  },
+  {
+    "id": "F005",
+    "title": "Stale portamento glide replays on voice reuse, overriding the new note's pitch",
+    "file": "plugins/ruinae/src/engine/ruinae_voice.h",
+    "line": 365,
+    "category": "bug",
+    "severity": "medium"
+  },
+  {
+    "id": "F006",
+    "title": "Reverb type crossfade double-processes the tail of the completion block through the incoming reverb",
+    "file": "plugins/ruinae/src/engine/ruinae_effects_chain.h",
+    "line": 1077,
+    "category": "bug",
+    "severity": "medium"
+  },
+  {
+    "id": "F007",
+    "title": "Effect-mix and all-voice modulation leave stale values when the modulation source stops (guarded by != 0.0f)",
+    "file": "plugins/ruinae/src/engine/ruinae_engine.h",
+    "line": 878,
+    "category": "bug",
+    "severity": "medium"
+  },
+  {
+    "id": "F008",
+    "title": "OSC A/B Level (and per-sample OscLevel modulation) are silently ignored in SpectralMorph mix mode",
+    "file": "plugins/ruinae/src/engine/ruinae_voice.h",
+    "line": 471,
+    "category": "wrong-implementation",
+    "severity": "medium"
+  },
+  {
+    "id": "F009",
+    "title": "Duplicate VST3 ParamID 3400: kArpVelocityCurveAmountId aliases kSidechainActiveId",
+    "file": "plugins/ruinae/src/plugin_ids.h",
+    "line": 1243,
+    "category": "bug",
+    "severity": "medium"
+  },
+  {
+    "id": "F010",
+    "title": "Reverb type-crossfade double-processes the completing block's tail through the incoming reverb",
+    "file": "plugins/ruinae/src/engine/ruinae_effects_chain.h",
+    "line": 1061,
+    "category": "bug",
+    "severity": "medium"
+  },
+  {
+    "id": "F011",
+    "title": "Reverb crossfade equal-power blend swells the correlated dry signal by ~+3 dB at midpoint",
+    "file": "plugins/ruinae/src/engine/ruinae_effects_chain.h",
+    "line": 1064,
+    "category": "wrong-implementation",
+    "severity": "medium"
+  },
+  {
+    "id": "F012",
+    "title": "Delay and Reverb enable/disable are hard bool toggles with no fade (tail cut / click)",
+    "file": "plugins/ruinae/src/engine/ruinae_effects_chain.h",
+    "line": 322,
+    "category": "anti-pattern",
+    "severity": "medium"
+  },
+  {
+    "id": "F013",
+    "title": "OscAParams and OscBParams are fully duplicated (~800 lines each, byte-identical modulo A/B)",
+    "file": "plugins/ruinae/src/parameters/osc_b_params.h",
+    "line": 25,
+    "category": "duplication",
+    "severity": "medium"
+  },
+  {
+    "id": "F014",
+    "title": "OSC A / OSC B parameter headers are ~90% copy-paste duplicates",
+    "file": "plugins/ruinae/src/parameters/osc_b_params.h",
+    "line": 1,
+    "category": "duplication",
+    "severity": "medium"
+  },
+  {
+    "id": "F015",
+    "title": "Inconsistent param dispatch: flanger/chorus applied inline with magic scaling, unlike every other effect",
+    "file": "plugins/ruinae/src/processor/processor_params.cpp",
+    "line": 113,
+    "category": "anti-pattern",
+    "severity": "medium"
+  },
+  {
+    "id": "F016",
+    "title": "FormantFilter::process() recomputes all 5 biquad coefficient sets (5×sin + 5×cos) every sample",
+    "file": "dsp/include/krate/dsp/processors/formant_filter.h",
+    "line": 507,
+    "category": "efficiency",
+    "severity": "medium"
+  },
+  {
+    "id": "F017",
+    "title": "Phaser recomputes the same allpass coefficient (a std::tan) once per stage every sample",
+    "file": "dsp/include/krate/dsp/processors/phaser.h",
+    "line": 478,
+    "category": "efficiency",
+    "severity": "medium"
+  },
+  {
+    "id": "F018",
+    "title": "Phaser sweep-frequency mapping calls std::pow three times per sample per channel",
+    "file": "dsp/include/krate/dsp/processors/phaser.h",
+    "line": 612,
+    "category": "efficiency",
+    "severity": "medium"
+  },
+  {
+    "id": "F019",
+    "title": "setBinary() heap-allocates on the audio thread in sendVoiceModRouteState(), despite pre-warm comment claiming otherwise",
+    "file": "plugins/ruinae/src/processor/processor_messaging.cpp",
+    "line": 170,
+    "category": "rt-safety",
+    "severity": "medium"
+  },
+  {
+    "id": "F020",
+    "title": "Mono mode processes the voice one sample at a time via processBlock(&sample, 1)",
+    "file": "plugins/ruinae/src/engine/ruinae_engine.h",
+    "line": 2043,
+    "category": "efficiency",
+    "severity": "low"
+  },
+  {
+    "id": "F021",
+    "title": "kNumParameters sentinel (3401) is smaller than many valid parameter IDs (arp block runs to kArpEndId = 3445)",
+    "file": "plugins/ruinae/src/plugin_ids.h",
+    "line": 1246,
+    "category": "bug",
+    "severity": "low"
+  },
+  {
+    "id": "F022",
+    "title": "MIDI note events are not sample-accurate: event.sampleOffset is discarded",
+    "file": "plugins/shared/src/midi/midi_event_dispatcher.h",
+    "line": 92,
+    "category": "wrong-implementation",
+    "severity": "low"
+  },
+  {
+    "id": "F023",
+    "title": "kVoiceDestParamIds constant duplicated across two translation units",
+    "file": "plugins/ruinae/src/controller/controller_mod_matrix.cpp",
+    "line": 20,
+    "category": "duplication",
+    "severity": "low"
+  },
+  {
+    "id": "F024",
+    "title": "Arp velocity-curve / transpose IDs (kArpVelocityCurveTypeId 3399, kArpVelocityCurveAmountId 3400, kArpTransposeId 3401) are declared but never registered, processed, saved, or loaded",
+    "file": "plugins/ruinae/src/plugin_ids.h",
+    "line": 1216,
+    "category": "wrong-implementation",
+    "severity": "low"
+  },
+  {
+    "id": "F025",
+    "title": "getActiveVoiceCount() reports 0 in Mono mode while a voice is sounding",
+    "file": "dsp/include/krate/dsp/systems/poly_synth_engine.h",
+    "line": 577,
+    "category": "bug",
+    "severity": "low"
+  },
+  {
+    "id": "F026",
+    "title": "Muted harmonizer voices freeze their smoothers and cut abruptly in non-PhaseVocoder paths",
+    "file": "dsp/include/krate/dsp/systems/harmonizer_engine.h",
+    "line": 466,
+    "category": "anti-pattern",
+    "severity": "low"
+  },
+  {
+    "id": "F027",
+    "title": "RingModulator::reset() zeroes frequency smoothers instead of snapping to effective frequency, causing a carrier pitch chirp on every reset",
+    "file": "dsp/include/krate/dsp/processors/ring_modulator.h",
+    "line": 305,
+    "category": "bug",
+    "severity": "low"
+  },
+  {
+    "id": "F028",
+    "title": "LFO fade-in increment not recomputed on sample-rate change in prepare()",
+    "file": "dsp/include/krate/dsp/primitives/lfo.h",
+    "line": 84,
+    "category": "bug",
+    "severity": "low"
+  },
+  {
+    "id": "F029",
+    "title": "ChaosWaveshaper Henon 'continuous output' interpolation is not implemented; prevHenonX_ is dead",
+    "file": "dsp/include/krate/dsp/primitives/chaos_waveshaper.h",
+    "line": 795,
+    "category": "wrong-implementation",
+    "severity": "low"
+  },
+  {
+    "id": "F030",
+    "title": "OSC dropdown string tables defined in dropdown_mappings.h are unused; identical literals hardcoded twice in osc_a/osc_b register functions",
+    "file": "plugins/ruinae/src/parameters/dropdown_mappings.h",
+    "line": 505,
+    "category": "duplication",
+    "severity": "low"
+  },
+  {
+    "id": "F031",
+    "title": "chorus_params.h and flanger_params.h are near-identical param modules (not consolidated like LFO)",
+    "file": "plugins/ruinae/src/parameters/flanger_params.h",
+    "line": 20,
+    "category": "duplication",
+    "severity": "low"
+  },
+  {
+    "id": "F032",
+    "title": "Flanger and Chorus DSP-dispatch switch blocks in processor_params.cpp are near-duplicates",
+    "file": "plugins/ruinae/src/processor/processor_params.cpp",
+    "line": 113,
+    "category": "duplication",
+    "severity": "low"
+  },
+  {
+    "id": "F033",
+    "title": "Logarithmic normalized<->units mapping helpers duplicated across LFO / env-follower / pitch-follower params",
+    "file": "plugins/ruinae/src/parameters/env_follower_params.h",
+    "line": 30,
+    "category": "duplication",
+    "severity": "low"
+  },
+  {
+    "id": "F034",
+    "title": "God-function: applyParamsToEngine() is ~920 lines of flat setter dispatch",
+    "file": "plugins/ruinae/src/processor/processor_params.cpp",
+    "line": 233,
+    "category": "anti-pattern",
+    "severity": "low"
+  },
+  {
+    "id": "F035",
+    "title": "Duplicated 30-element OSC value arrays in applyParamsToEngine",
+    "file": "plugins/ruinae/src/processor/processor_params.cpp",
+    "line": 269,
+    "category": "duplication",
+    "severity": "low"
+  },
+  {
+    "id": "F036",
+    "title": "Magic number: hardcoded voice count 16 despite RuinaeEngine::kMaxPolyphony constant",
+    "file": "plugins/ruinae/src/processor/processor.cpp",
+    "line": 622,
+    "category": "anti-pattern",
+    "severity": "low"
+  },
+  {
+    "id": "F037",
+    "title": "Magic number: arp step count 32 repeated 9+ times without a shared named constant",
+    "file": "plugins/ruinae/src/processor/processor_params.cpp",
+    "line": 999,
+    "category": "anti-pattern",
+    "severity": "low"
+  },
+  {
+    "id": "F038",
+    "title": "Leftover debug-logging scaffolding with 'remove after debugging' notes",
+    "file": "plugins/ruinae/src/engine/ruinae_effects_chain.h",
+    "line": 47,
+    "category": "anti-pattern",
+    "severity": "low"
+  },
+  {
+    "id": "F039",
+    "title": "RuinaeVoice filter loop sets cutoff on BOTH SVF stages every sample even when second stage is unused (wasted std::tan/sample)",
+    "file": "plugins/ruinae/src/engine/ruinae_voice.h",
+    "line": 489,
+    "category": "efficiency",
+    "severity": "low"
+  },
+  {
+    "id": "F040",
+    "title": "RingModulator recomputes std::sin per sample for the Gordon-Smith sine carrier, defeating the magic-circle optimization",
+    "file": "dsp/include/krate/dsp/processors/ring_modulator.h",
+    "line": 444,
+    "category": "simd",
+    "severity": "low"
+  },
+  {
+    "id": "F041",
+    "title": "Phaser and Flanger use std::tanh in the per-sample feedback path while FastMath::fastTanh is available",
+    "file": "dsp/include/krate/dsp/processors/phaser.h",
+    "line": 483,
+    "category": "efficiency",
+    "severity": "low"
+  },
+  {
+    "id": "F042",
+    "title": "sendMessage() invoked from the audio thread (process()) — synchronous host/controller connection call",
+    "file": "plugins/ruinae/src/processor/processor.cpp",
+    "line": 659,
+    "category": "rt-safety",
+    "severity": "low"
+  }
+]
