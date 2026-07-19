@@ -1186,3 +1186,73 @@ TEST_CASE("Edge: Pitch bend -2 semitones on MIDI note 0 produces valid frequency
                    !detail::isInf(events[0].frequency);
     REQUIRE(isValid);
 }
+
+// =============================================================================
+// Regression: unison steal must never hand out the same voice slot twice
+// =============================================================================
+// The idle pre-scan in allocateNote marks each voice it takes as Active so the
+// next findIdleVoice() skips it. The unison steal path does not: neither the
+// victim-group loop nor the top-up `while` loop reserves what it selects, and
+// voices are only written back as Active in the final assignment loop. So
+// findIdleVoiceAny() keeps returning the same idle index, and the
+// oldest/round-robin victim finders keep re-picking the same still-Active voice.
+// The result is duplicate indices in `allocated[]`: several NoteOn events for one
+// physical voice, and fewer distinct voices sounding than the unison count asks
+// for.
+//
+// Raising the unison count while notes are held is the reachable trigger --
+// setUnisonCount() does not re-provision the voices already sounding.
+
+TEST_CASE("Unison steal never allocates the same voice slot twice",
+          "[voice_allocator][unison][regression]") {
+    VoiceAllocator alloc;
+    (void)alloc.setVoiceCount(8);
+
+    // Five voices held in mono-unison, three left idle.
+    alloc.setUnisonCount(1);
+    for (int i = 0; i < 5; ++i) {
+        auto events = alloc.noteOn(static_cast<uint8_t>(60 + i), 100);
+        REQUIRE(events.size() == 1);
+    }
+
+    // Raise unison past the idle headroom, so the next note has to both take the
+    // idle voices and steal to make up the difference.
+    alloc.setUnisonCount(4);
+    auto events = alloc.noteOn(72, 100);
+
+    std::vector<uint8_t> noteOnVoices;
+    for (const auto& ev : events) {
+        if (ev.type == VoiceEvent::Type::NoteOn) noteOnVoices.push_back(ev.voiceIndex);
+    }
+
+    REQUIRE_FALSE(noteOnVoices.empty());
+
+    const std::set<uint8_t> distinct(noteOnVoices.begin(), noteOnVoices.end());
+    CHECK(distinct.size() == noteOnVoices.size());
+}
+
+TEST_CASE("Unison steal with no idle voices allocates distinct slots",
+          "[voice_allocator][unison][regression]") {
+    VoiceAllocator alloc;
+    (void)alloc.setVoiceCount(8);
+
+    // Fill every voice, then demand a four-voice unison group. Every slot must be
+    // taken by stealing, and no slot may be stolen twice.
+    alloc.setUnisonCount(1);
+    for (int i = 0; i < 8; ++i) {
+        (void)alloc.noteOn(static_cast<uint8_t>(48 + i), 100);
+    }
+
+    alloc.setUnisonCount(4);
+    auto events = alloc.noteOn(84, 100);
+
+    std::vector<uint8_t> noteOnVoices;
+    for (const auto& ev : events) {
+        if (ev.type == VoiceEvent::Type::NoteOn) noteOnVoices.push_back(ev.voiceIndex);
+    }
+
+    REQUIRE_FALSE(noteOnVoices.empty());
+
+    const std::set<uint8_t> distinct(noteOnVoices.begin(), noteOnVoices.end());
+    CHECK(distinct.size() == noteOnVoices.size());
+}

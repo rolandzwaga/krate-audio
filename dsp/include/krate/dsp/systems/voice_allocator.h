@@ -581,6 +581,30 @@ private:
         return best;
     }
 
+    /// True when @p idx has already been committed to the in-progress allocation.
+    /// The voice finders search the voice pool by state and timestamp, and cannot
+    /// see which slots the current allocateNote() call has already claimed, so the
+    /// caller has to filter their results.
+    [[nodiscard]] static bool isAlreadyAllocated(
+        const std::array<size_t, kMaxUnisonCount>& allocated,
+        size_t allocCount, size_t idx) noexcept {
+        for (size_t i = 0; i < allocCount; ++i) {
+            if (allocated[i] == idx) return true;
+        }
+        return false;
+    }
+
+    /// Claim @p idx for the in-progress allocation so the finders stop returning
+    /// it. Marking Active alone is not enough: the oldest/round-robin victim
+    /// strategies rank by timestamp, so a freshly claimed voice must also look
+    /// newest or it is immediately picked again as the best steal victim. The
+    /// final assignment loop rewrites both fields authoritatively.
+    void reserveVoice(size_t idx) noexcept {
+        voices_[idx].state.store(static_cast<uint8_t>(VoiceState::Active),
+                                  std::memory_order_relaxed);
+        voices_[idx].timestamp = timestamp_;
+    }
+
     /// Any: select the first available idle voice.
     [[nodiscard]] size_t findIdleVoiceAny() noexcept {
         for (size_t i = 0; i < voiceCount_; ++i) {
@@ -960,6 +984,7 @@ private:
                         });
                     }
                     allocated[allocCount++] = vi;
+                    reserveVoice(vi);
                 }
 
                 // If victim group was smaller than needed, find more voices
@@ -970,6 +995,9 @@ private:
                         // Steal another voice
                         idx = findStealVictimSingle();
                         if (idx >= kMaxVoices) break;
+                        // Every remaining candidate is already spoken for: stop
+                        // rather than emit a second Steal/NoteOn for one slot.
+                        if (isAlreadyAllocated(allocated, allocCount, idx)) break;
                         if (stealMode_ == StealMode::Hard) {
                             pushEvent(VoiceEvent{
                                 VoiceEvent::Type::Steal,
@@ -987,8 +1015,11 @@ private:
                                 voices_[idx].frequency
                             });
                         }
+                    } else if (isAlreadyAllocated(allocated, allocCount, idx)) {
+                        break;
                     }
                     allocated[allocCount++] = idx;
+                    reserveVoice(idx);
                 }
             } else {
                 // Single voice steal
