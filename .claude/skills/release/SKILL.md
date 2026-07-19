@@ -42,9 +42,35 @@ without permission). Follow every step; do not skip or reorder.
    ### Added / Changed / Fixed
    - <concise bullets describing what shipped>
    ```
-   Use only the Keep-a-Changelog subsections that apply. Get the changes from the user or from the
-   commits since the last release (`git log --oneline` scoped to `plugins/<plugin>/`). Use the real
-   current date — do NOT hardcode a stale one.
+   Use only the Keep-a-Changelog subsections that apply. Use the real current date — do NOT
+   hardcode a stale one.
+
+   **Do NOT source the changes from `git log --oneline` alone.** That misses work two ways, and
+   has already shipped an entry covering 3 of ~30 changes:
+
+   - The baseline is not "the last few commits" or the last tag. It is the commit that **wrote
+     the previous `## [X.Y.Z]` heading** — the last point at which the changelog was known
+     complete. Anything merged after it and never released belongs in this entry.
+   - **Squash merges erase the detail.** A PR that squashes 12 commits lands on `main` as one
+     commit whose message describes none of them. Reading `git log` after the squash finds
+     nothing to read, so the work goes unrecorded rather than merely unsummarised.
+
+   Run the coverage tool, which resolves the real baseline and expands squash merges via `gh`:
+
+   ```bash
+   node tools/check-changelog-coverage.js <plugin>
+   ```
+
+   It exits **1** when `version.json` has no matching entry, or when commits exist in range and
+   the entry has no bullets. Otherwise it prints every commit to reconcile — including the
+   constituent commits of each squashed PR, and shared `dsp/` commits that can change this
+   plugin's output without touching its directory.
+
+   **Exit 0 does not mean the entry is complete** — no tool can judge prose. It means the range
+   has been surfaced. Read each commit and confirm it is either covered by a bullet or genuinely
+   not user-facing. When a commit's own message explains a defect well (measured numbers, the
+   user-visible symptom), prefer that wording over paraphrasing from memory; write what a user
+   would notice, not the work-item ID.
 
 3. **Build.** (Full CMake path required on Windows.)
    ```bash
