@@ -430,6 +430,12 @@ public:
     }
 
     /// @brief Get the currently active delay type.
+    /// @brief Current delay dry/wet mix target (the externally applied mix).
+    [[nodiscard]] float getDelayMix() const noexcept { return userDelayMix_; }
+
+    /// @brief Current reverb dry/wet mix target (the externally applied mix).
+    [[nodiscard]] float getReverbMix() const noexcept { return userReverbMix_; }
+
     [[nodiscard]] RuinaeDelayType getActiveDelayType() const noexcept {
         return activeDelayType_;
     }

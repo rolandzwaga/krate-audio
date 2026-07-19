@@ -1157,6 +1157,13 @@ public:
     ADSREnvelope& getModEnvelope() noexcept { return modEnv_; }
     LFO& getVoiceLFO() noexcept { return voiceLfo_; }
 
+    /// @brief Current filter cutoff in Hz (post-clamp, including any
+    /// engine-level modulation the engine has pushed down).
+    [[nodiscard]] float getFilterCutoff() const noexcept { return filterCutoffHz_; }
+
+    /// @brief Current oscillator mix / morph position [0,1].
+    [[nodiscard]] float getMixPosition() const noexcept { return mixPosition_; }
+
     [[nodiscard]] const ADSREnvelope& getAmpEnvelope() const noexcept { return ampEnv_; }
     [[nodiscard]] const ADSREnvelope& getFilterEnvelope() const noexcept { return filterEnv_; }
     [[nodiscard]] const ADSREnvelope& getModEnvelope() const noexcept { return modEnv_; }

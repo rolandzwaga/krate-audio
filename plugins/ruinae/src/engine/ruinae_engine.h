@@ -874,11 +874,12 @@ public:
             masterGain_ + masterVolOffset * 2.0f,
             kMinMasterGain, kMaxMasterGain);
 
-        // Effect mix modulation (FR-032 step 5)
-        if (effectMixOffset != 0.0f) {
-            float modMix = std::clamp(baseDelayMix_ + effectMixOffset, 0.0f, 1.0f);
-            effectsChain_.setDelayMix(modMix);
-        }
+        // Effect mix modulation (FR-032 step 5). Applied unconditionally, like
+        // the global filter and master gain above: a zero offset must write the
+        // base value back, otherwise removing a route (or dropping its depth to
+        // zero) leaves the last modulated mix stuck until the user touches the
+        // parameter.
+        effectsChain_.setDelayMix(std::clamp(baseDelayMix_ + effectMixOffset, 0.0f, 1.0f));
 
         // Step 6: Process pitch bend smoother once per block
         [[maybe_unused]] auto bendValue = noteProcessor_.processPitchBend();
@@ -1648,6 +1649,11 @@ public:
     }
 
     /// @brief Get the amp envelope of a specific voice (for display state readback).
+    /// @brief Read-only access to a voice, for tests and UI introspection.
+    [[nodiscard]] const RuinaeVoice& getVoice(size_t voiceIndex) const noexcept {
+        return voices_[voiceIndex];
+    }
+
     [[nodiscard]] const ADSREnvelope& getVoiceAmpEnvelope(size_t voiceIndex) const noexcept {
         return voices_[std::min(voiceIndex, kMaxPolyphony - 1)].getAmpEnvelope();
     }
@@ -1897,9 +1903,15 @@ private:
         // Step 7c: Forward AllVoice modulation offsets (FR-021)
         // Exponential semitone scaling: cutoff * 2^(offset * 48 / 12)
         // ±1.0 offset = ±48 semitones (4 octaves), perceptually symmetric.
+        //
+        // Forwarded unconditionally. A zero offset is not a no-op to skip: it is
+        // exactly when the base value has to be written back, otherwise removing
+        // a route (or dropping its depth to zero) leaves the last modulated value
+        // stuck on every voice. semitonesToRatio(0) is 1 and adding 0 changes
+        // nothing, so a zero offset restores the base by construction.
         // Per-voice modulation is handled internally by each voice;
         // the global offset shifts the base value for all voices.
-        if (allVoiceFilterCutoffOffset != 0.0f) {
+        {
             constexpr float kFilterModSemitones = 48.0f;
             float modCutoff = std::clamp(
                 voiceFilterCutoffHz_ * semitonesToRatio(
@@ -1909,14 +1921,14 @@ private:
                 voices_[i].setFilterCutoff(modCutoff);
             }
         }
-        if (allVoiceMorphOffset != 0.0f) {
+        {
             float modMorph = std::clamp(
                 voiceMixPosition_ + allVoiceMorphOffset, 0.0f, 1.0f);
             for (size_t i = 0; i < polyphonyCount_; ++i) {
                 voices_[i].setMixPosition(modMorph);
             }
         }
-        if (allVoiceTranceGateOffset != 0.0f) {
+        {
             float modRate = std::clamp(
                 baseTranceGateRateHz_ + allVoiceTranceGateOffset * 50.0f,
                 0.1f, 100.0f);
@@ -1924,7 +1936,7 @@ private:
                 voices_[i].setTranceGateRate(modRate);
             }
         }
-        if (allVoiceTiltOffset != 0.0f) {
+        {
             float modTilt = std::clamp(
                 voiceMixTilt_ + allVoiceTiltOffset * 24.0f,
                 -12.0f, 12.0f);
@@ -1932,7 +1944,7 @@ private:
                 voices_[i].setMixTilt(modTilt);
             }
         }
-        if (allVoiceResonanceOffset != 0.0f) {
+        {
             float modReso = std::clamp(
                 voiceFilterResonance_ + allVoiceResonanceOffset * 10.0f,
                 0.1f, 30.0f);
@@ -1940,7 +1952,7 @@ private:
                 voices_[i].setFilterResonance(modReso);
             }
         }
-        if (allVoiceFilterEnvAmtOffset != 0.0f) {
+        {
             float modEnvAmt = std::clamp(
                 voiceFilterEnvAmount_ + allVoiceFilterEnvAmtOffset * 48.0f,
                 -96.0f, 96.0f);
@@ -1996,7 +2008,7 @@ private:
                           float allVoiceFilterEnvAmtOffset) noexcept {
         // Forward AllVoice modulation offsets to voice 0 (FR-021)
         // Exponential semitone scaling (same as poly path)
-        if (allVoiceFilterCutoffOffset != 0.0f) {
+        {
             constexpr float kFilterModSemitones = 48.0f;
             float modCutoff = std::clamp(
                 voiceFilterCutoffHz_ * semitonesToRatio(
@@ -2004,30 +2016,30 @@ private:
                 20.0f, 20000.0f);
             voices_[0].setFilterCutoff(modCutoff);
         }
-        if (allVoiceMorphOffset != 0.0f) {
+        {
             float modMorph = std::clamp(
                 voiceMixPosition_ + allVoiceMorphOffset, 0.0f, 1.0f);
             voices_[0].setMixPosition(modMorph);
         }
-        if (allVoiceTranceGateOffset != 0.0f) {
+        {
             float modRate = std::clamp(
                 baseTranceGateRateHz_ + allVoiceTranceGateOffset * 50.0f,
                 0.1f, 100.0f);
             voices_[0].setTranceGateRate(modRate);
         }
-        if (allVoiceTiltOffset != 0.0f) {
+        {
             float modTilt = std::clamp(
                 voiceMixTilt_ + allVoiceTiltOffset * 24.0f,
                 -12.0f, 12.0f);
             voices_[0].setMixTilt(modTilt);
         }
-        if (allVoiceResonanceOffset != 0.0f) {
+        {
             float modReso = std::clamp(
                 voiceFilterResonance_ + allVoiceResonanceOffset * 10.0f,
                 0.1f, 30.0f);
             voices_[0].setFilterResonance(modReso);
         }
-        if (allVoiceFilterEnvAmtOffset != 0.0f) {
+        {
             float modEnvAmt = std::clamp(
                 voiceFilterEnvAmount_ + allVoiceFilterEnvAmtOffset * 48.0f,
                 -96.0f, 96.0f);
