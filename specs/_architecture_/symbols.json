@@ -617,7 +617,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/flanger.h",
-      "line": 67
+      "line": 68
     },
     {
       "name": "FlexibleFeedbackNetwork",
@@ -1289,7 +1289,7 @@
       "scope": "Krate::DSP::VoiceAllocator",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/voice_allocator.h",
-      "line": 708
+      "line": 732
     },
     {
       "name": "NoteProcessor",
@@ -1513,7 +1513,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/phaser.h",
-      "line": 87
+      "line": 88
     },
     {
       "name": "PhaseVocoderPitchShifter",
@@ -2361,7 +2361,7 @@
       "scope": "Krate::DSP::HarmonizerEngine",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/harmonizer_engine.h",
-      "line": 756
+      "line": 757
     },
     {
       "name": "VoiceAllocator",
