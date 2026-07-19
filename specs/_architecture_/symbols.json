@@ -1873,7 +1873,7 @@
       "scope": "Krate::DSP",
       "layer": "core",
       "header": "dsp/include/krate/dsp/core/scoped_denormal_mode.h",
-      "line": 53
+      "line": 60
     },
     {
       "name": "SelectableOscillator",

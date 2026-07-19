@@ -338,6 +338,38 @@ REQUIRE(nearZeroValue == Approx(0.0f).margin(1e-6f));
 
 ---
 
+## Platform-Dependent Behaviour (Windows-green ≠ CI-green)
+
+A test can encode an assumption that is true on Windows and false on Linux/macOS. It passes
+locally every time and fails only in CI, ~40 min later.
+
+**Known divergences that have already broken CI:**
+
+| Behaviour | Windows | Linux / glibc |
+|-----------|---------|---------------|
+| MXCSR (FTZ/DAZ) in a **newly created** thread | fresh default | **inherits the creator's** |
+| `-ffast-math` (macOS CI) folding `quiet_NaN()`/`infinity()` | n/a | non-finite becomes finite garbage |
+
+Real example (PR #262): a test set FTZ on the main thread, spawned a worker, and asserted the
+worker did *not* flush denormals. True on Windows; on glibc `clone()` copies the FPU state, so
+the worker inherited FTZ and the assertion failed. The test was also modelling the wrong thing —
+a host's audio thread already exists when `setupProcessing()` runs. **Fix the model, not the
+assertion**: start the worker first, then change the state.
+
+**Verify on real Linux before pushing** — Ubuntu WSL with g++ 13 is installed:
+
+```bash
+# Compile the behaviour under test as a standalone TU; no CMake, runs in seconds.
+wsl -e bash -lc 'g++ -std=c++20 -O2 -fno-fast-math \
+  -I /mnt/f/projects/iterum/dsp/include /tmp/probe.cpp -o /tmp/probe -pthread && /tmp/probe'
+```
+
+Do this whenever a test depends on **threads, FP environment, locale, filesystem
+case-sensitivity, `long double`, or struct padding**. Write the probe so it exercises BOTH the
+old and new shape — that proves the diagnosis, not just that the new code passes.
+
+---
+
 ## Guard Rail Tests
 
 Ensure DSP code doesn't produce invalid output. **Important:** Never put `REQUIRE`/`INFO` inside sample-processing loops — collect metrics in the loop and assert once after. See [ANTI-PATTERNS.md #13](ANTI-PATTERNS.md#13-the-loop-assertion-catch2-performance-killer).

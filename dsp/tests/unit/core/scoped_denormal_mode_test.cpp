@@ -16,6 +16,8 @@
 
 #include <krate/dsp/core/scoped_denormal_mode.h>
 
+#include <condition_variable>
+#include <mutex>
 #include <thread>
 
 using Krate::DSP::ScopedDenormalMode;
@@ -108,33 +110,59 @@ TEST_CASE("ScopedDenormalMode restores an already-enabled mode",
     REQUIRE(_MM_GET_DENORMALS_ZERO_MODE() == _MM_DENORMALS_ZERO_ON);
 }
 
-TEST_CASE("Denormal mode does not leak across threads",
+TEST_CASE("Setting the denormal mode does not reach an already-running thread",
           "[dsp][core][denormal]")
 {
-    // This is the actual PR #262 bug, expressed as a test: enabling FTZ on one
-    // thread (the "setupProcessing" thread) leaves a second thread (the "audio"
-    // thread) completely unaffected. Only a guard constructed ON the audio
-    // thread fixes it.
+    // The PR #262 bug, expressed as a test: a host calls setupProcessing() on
+    // the main thread, while process() runs on an audio thread that ALREADY
+    // EXISTS. Setting MXCSR on the former cannot affect the latter; only a
+    // guard constructed on the audio thread itself works.
+    //
+    // The worker must be started BEFORE the main thread enables FTZ, and that
+    // ordering is the whole point rather than an implementation detail: on
+    // Linux/glibc a newly created thread INHERITS the creator's MXCSR (clone
+    // copies the FPU state), whereas Windows gives it a fresh default. Spawning
+    // after the change therefore proves nothing portable -- and worse, it models
+    // the wrong scenario, since a host's audio thread is not spawned by our
+    // setup call. Sequencing it correctly is both faithful and platform-neutral.
     const AmbientDenormalModeRestorer restoreAmbient;
 
-    _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON);
-    _MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_ON);
-    REQUIRE(denormalsAreFlushed());
+    _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_OFF);
+    _MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_OFF);
 
-    bool flushedOnOtherThreadWithoutGuard = true;
-    bool flushedOnOtherThreadWithGuard = false;
+    std::mutex m;
+    std::condition_variable cv;
+    bool mainThreadHasSetFtz = false;
+    bool workerObservedFlush = true;
+    bool workerFlushesUnderGuard = false;
 
     std::thread worker([&] {
-        // Inherits the default FP environment, NOT this process's other thread.
-        flushedOnOtherThreadWithoutGuard = denormalsAreFlushed();
+        // Running with the default FP environment before the main thread acts.
+        std::unique_lock<std::mutex> lock(m);
+        cv.wait(lock, [&] { return mainThreadHasSetFtz; });
+        lock.unlock();
+
+        // The main thread's FTZ change happened after this thread started, so
+        // it must be invisible here -- exactly the setupProcessing() failure.
+        workerObservedFlush = denormalsAreFlushed();
 
         const ScopedDenormalMode guard;
-        flushedOnOtherThreadWithGuard = denormalsAreFlushed();
+        workerFlushesUnderGuard = denormalsAreFlushed();
     });
+
+    // Stand in for setupProcessing() running on the main thread.
+    _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON);
+    _MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_ON);
+    REQUIRE(denormalsAreFlushed()); // in effect *here*...
+    {
+        std::lock_guard<std::mutex> lock(m);
+        mainThreadHasSetFtz = true;
+    }
+    cv.notify_one();
     worker.join();
 
-    CHECK_FALSE(flushedOnOtherThreadWithoutGuard);
-    CHECK(flushedOnOtherThreadWithGuard);
+    CHECK_FALSE(workerObservedFlush);     // ...but not on the audio thread
+    CHECK(workerFlushesUnderGuard);       // ...until the guard runs there
 }
 
 #else

@@ -44,6 +44,50 @@ No allocations, locks, exceptions, or I/O on the audio path. Enable FTZ/DAZ for 
 `-ffast-math` breaks `std::isnan()` — detect NaN via bit manipulation on a `-fno-fast-math` TU.
 See the `dsp-architecture` skill for interpolation choice, oversampling, DC blocking, perf budgets.
 
+## Cross-platform: never arch-guard a krate include
+
+macOS CI builds **universal (x86_64 + arm64)**. A Windows-only local build passes the x86
+branch of every `#if defined(__x86_64__)` and can never catch the arm64 side.
+
+**Include krate headers unconditionally.** Headers that wrap intrinsics (e.g.
+`core/scoped_denormal_mode.h`) do the architecture split internally and become a zero-cost
+no-op elsewhere. Guarding the `#include` drops the declaration on arm64 while the using code
+stays unconditional → `no type named 'X' in namespace 'Krate::DSP'`, macOS leg only.
+
+```bash
+node tools/lint-arch-guarded-includes.js   # gate; also runs in CI
+```
+
+When replacing an `#include`, **read the lines around it first** — the one you are swapping may
+itself sit inside an arch `#if` that a grep for the include line will not show.
+
+To syntax-check a header for arm64 without a Mac:
+```bash
+"/c/Program Files/LLVM/bin/clang++.exe" --target=aarch64-unknown-linux-gnu \
+  -std=c++20 -fsyntax-only -I dsp/include <file>.cpp
+```
+
+## Verify platform-dependent BEHAVIOUR on Linux via WSL (Ubuntu + g++ 13 installed)
+
+Compiling for another arch only catches *compile* errors. Runtime semantics that differ by
+platform will still pass on Windows and fail in CI. Known divergence that has already bitten:
+
+| Behaviour | Windows | Linux / glibc |
+|---|---|---|
+| MXCSR (FTZ/DAZ) in a newly created thread | fresh default | **inherits the creating thread's** |
+
+A test that spawns a thread *after* changing FP state therefore proves nothing portable.
+Model the real scenario instead (host audio thread already running), and check it on Linux:
+
+```bash
+# Fast path: compile just the TU under test as a standalone main, no CMake needed.
+wsl -e bash -lc 'g++ -std=c++20 -O2 -fno-fast-math \
+  -I /mnt/f/projects/iterum/dsp/include /tmp/probe.cpp -o /tmp/probe -pthread && /tmp/probe'
+```
+
+Reach for this whenever a test encodes an assumption about threads, FP environment, locales,
+filesystem case-sensitivity, or `long double` — it takes seconds and CI takes ~40 min.
+
 ## Build & test
 
 The suite is split into 5 per-layer executables (`dsp_core_tests`, `dsp_primitives_tests`,
