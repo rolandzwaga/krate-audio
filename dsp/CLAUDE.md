@@ -67,6 +67,33 @@ To syntax-check a header for arm64 without a Mac:
   -std=c++20 -fsyntax-only -I dsp/include <file>.cpp
 ```
 
+## MSVC accepts what GCC and Clang reject — check before pushing
+
+A green Windows build is **not** evidence the Linux and macOS legs will compile.
+MSVC is lenient about constructs the other two refuse, so the first sign of trouble
+is a red CI job ~7 minutes in. Real example that broke both legs:
+
+```cpp
+// MSVC: fine.   GCC + Clang: error, not a constant expression.
+constexpr Steinberg::FIDString kPlatformType = Steinberg::kPlatformTypeHWND;
+```
+
+The SDK declares those as plain `const FIDString`. Use `const`, not `constexpr`,
+for anything initialized from an SDK constant.
+
+Syntax-check changed translation units with GCC before committing — seconds, versus
+a CI round-trip:
+
+```bash
+node tools/check-portability.js            # everything this branch changed
+node tools/check-portability.js --staged   # staged only
+```
+
+A `guard-portability.js` PreToolUse hook runs the `--staged` form before every
+`git commit` and blocks on failure. It needs WSL with g++ and skips silently
+without it — so on a machine lacking WSL, run the check by hand or expect CI to
+find it for you.
+
 ## Verify platform-dependent BEHAVIOUR on Linux via WSL (Ubuntu + g++ 13 installed)
 
 Compiling for another arch only catches *compile* errors. Runtime semantics that differ by

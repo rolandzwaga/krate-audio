@@ -38,12 +38,15 @@ std::string uidescPath() {
     return std::string(RUINAE_RESOURCES_DIR) + "/editor.uidesc";
 }
 
+// `const`, not `constexpr`: the SDK declares these as plain `const FIDString`
+// (iplugview.h), so they are not usable in a constant expression. MSVC accepts
+// the constexpr form anyway; GCC and Clang correctly reject it.
 #if SMTG_OS_WINDOWS
-constexpr Steinberg::FIDString kPlatformType = Steinberg::kPlatformTypeHWND;
+const Steinberg::FIDString kPlatformType = Steinberg::kPlatformTypeHWND;
 #elif SMTG_OS_MACOS
-constexpr Steinberg::FIDString kPlatformType = Steinberg::kPlatformTypeNSView;
+const Steinberg::FIDString kPlatformType = Steinberg::kPlatformTypeNSView;
 #else
-constexpr Steinberg::FIDString kPlatformType = Steinberg::kPlatformTypeX11EmbedWindowID;
+const Steinberg::FIDString kPlatformType = Steinberg::kPlatformTypeX11EmbedWindowID;
 #endif
 
 void collectSwitchContainers(VSTGUI::CViewContainer* parent,
