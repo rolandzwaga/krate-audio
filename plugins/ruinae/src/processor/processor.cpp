@@ -135,15 +135,26 @@ Steinberg::tresult PLUGIN_API Processor::initialize(FUnknown* context) {
         skipMessages_[static_cast<size_t>(i)] = Steinberg::owned(allocateMessage());
         if (skipMessages_[static_cast<size_t>(i)]) {
             skipMessages_[static_cast<size_t>(i)]->setMessageID("ArpSkipEvent");
+            // Create the attribute nodes now. sendSkipEvent() runs on the audio
+            // thread and only overwrites them; without this the first send per
+            // lane would insert into the attribute map and allocate.
+            if (auto* attrs = skipMessages_[static_cast<size_t>(i)]->getAttributes()) {
+                attrs->setInt("lane", 0);
+                attrs->setInt("step", 0);
+            }
         }
     }
 
-    // Pre-allocate voice route sync message (Issue 1: avoid allocateMessage on audio thread)
+    // Pre-allocate the voice route sync message so sendVoiceModRouteState() does
+    // not have to call allocateMessage().
+    //
+    // Note this does NOT make the send allocation-free: setBinary copies into a
+    // fresh buffer on every call. Creating the attribute-map nodes up front only
+    // saves the map insert. That is why the route sync is issued from setState()
+    // and notify() on the message thread and never from process().
     voiceRouteSyncMsg_ = Steinberg::owned(allocateMessage());
     if (voiceRouteSyncMsg_) {
         voiceRouteSyncMsg_->setMessageID("VoiceModRouteState");
-        // Pre-warm the binary attribute with a dummy payload so the attribute
-        // list allocates storage once, not on every sendVoiceModRouteState().
         static constexpr size_t kRouteDataBytes = 14 * static_cast<size_t>(Krate::Plugins::kMaxVoiceRoutes);
         uint8_t dummy[kRouteDataBytes]{};
         auto* attrs = voiceRouteSyncMsg_->getAttributes();
@@ -247,6 +258,16 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
     return AudioEffect::setupProcessing(setup);
 }
 
+void Processor::sendOneTimeHandshakes() {
+    if (handshakeMessagesSent_) return;
+
+    if (playbackMsg_) sendMessage(playbackMsg_);
+    if (envDisplayMsg_) sendMessage(envDisplayMsg_);
+    if (morphPadModMsg_) sendMessage(morphPadModMsg_);
+
+    handshakeMessagesSent_ = true;
+}
+
 Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state) {
     if (state) {
         // Activating: reset DSP state
@@ -254,6 +275,12 @@ Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state) {
         arpCore_.reset();
         std::fill(mixBufferL_.begin(), mixBufferL_.end(), 0.0f);
         std::fill(mixBufferR_.begin(), mixBufferR_.end(), 0.0f);
+
+        // These carry pointers to lifetime-stable member atomics, so they can go
+        // out from here (message thread) rather than from the first process()
+        // call, which made three synchronous host sendMessage() calls on the
+        // audio thread.
+        sendOneTimeHandshakes();
     }
 
     return AudioEffect::setActive(state);
@@ -652,29 +679,6 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             modEnvDisplayStage_.store(
                 static_cast<int>(modEnv.getStage()), std::memory_order_relaxed);
         }
-    }
-
-    // Send playback pointer message to controller (one-time, pre-allocated)
-    if (!playbackMessageSent_ && playbackMsg_) {
-        sendMessage(playbackMsg_);
-        playbackMessageSent_ = true;
-    }
-
-    // Send envelope display state pointers to controller (one-time, pre-allocated)
-    if (!envDisplayMessageSent_ && envDisplayMsg_) {
-        sendMessage(envDisplayMsg_);
-        envDisplayMessageSent_ = true;
-    }
-
-    // Send morph pad modulation pointers to controller (one-time, pre-allocated)
-    if (!morphPadModMessageSent_ && morphPadModMsg_) {
-        sendMessage(morphPadModMsg_);
-        morphPadModMessageSent_ = true;
-    }
-
-    // Send voice route state to controller after a preset snapshot was applied
-    if (needVoiceRouteSync_.exchange(false, std::memory_order_relaxed)) {
-        sendVoiceModRouteState();
     }
 
     return Steinberg::kResultTrue;

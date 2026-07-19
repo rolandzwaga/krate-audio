@@ -183,6 +183,11 @@ public:
         return static_cast<Steinberg::Vst::IAudioProcessor*>(new Processor());
     }
 
+    /// Test hook: true once the one-time pointer handshakes have been issued to
+    /// the controller. These are sent from setActive() so that process() makes no
+    /// synchronous host sendMessage() calls.
+    [[nodiscard]] bool handshakeMessagesSent() const { return handshakeMessagesSent_; }
+
 protected:
     // ==========================================================================
     // Parameter Handling
@@ -203,6 +208,9 @@ protected:
     Steinberg::IPtr<Steinberg::Vst::IMessage> playbackMsg_;
     Steinberg::IPtr<Steinberg::Vst::IMessage> envDisplayMsg_;
     Steinberg::IPtr<Steinberg::Vst::IMessage> morphPadModMsg_;
+
+    /// Pre-allocated IMessages for arp skip events (one per lane, 6 total)
+    std::array<Steinberg::IPtr<Steinberg::Vst::IMessage>, 6> skipMessages_{};
 
 private:
     // ==========================================================================
@@ -295,7 +303,14 @@ private:
 
     std::atomic<int> tranceGatePlaybackStep_{-1};
     std::atomic<bool> isTransportPlaying_{false};
-    bool playbackMessageSent_ = false;
+
+    /// Guard for the one-time controller handshakes issued from setActive().
+    /// Kept so a deactivate/reactivate cycle does not re-send them.
+    bool handshakeMessagesSent_ = false;
+
+    /// Send the pointer-handshake messages to the controller. Message thread
+    /// only: sendMessage() is a synchronous host call.
+    void sendOneTimeHandshakes();
 
     // ==========================================================================
     // Envelope Display State (shared with controller via IMessage pointer)
@@ -345,9 +360,6 @@ private:
     // Arp Skip Event State (Phase 11c - FR-012)
     // ==========================================================================
 
-    /// Pre-allocated IMessages for skip events (one per lane, 6 total)
-    std::array<Steinberg::IPtr<Steinberg::Vst::IMessage>, 6> skipMessages_{};
-
     /// Send a skip event to the controller (no allocations)
     void sendSkipEvent(int lane, int step);
 
@@ -360,9 +372,6 @@ private:
 
     /// Lock-free triple-buffer for transferring preset bytes from UI to audio thread
     Steinberg::Vst::RTTransferT<PresetSnapshot> stateTransfer_;
-
-    /// Flag set by applyPresetSnapshot() to trigger voice route sync in process()
-    std::atomic<bool> needVoiceRouteSync_{false};
 
     /// Apply a serialized preset snapshot on the audio thread (RT-safe)
     void applyPresetSnapshot(const PresetSnapshot& snapshot);

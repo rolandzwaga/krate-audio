@@ -48,6 +48,9 @@ public:
     Steinberg::Vst::IMessage* getMorphPadModMsg() const {
         return morphPadModMsg_.get();
     }
+    Steinberg::Vst::IMessage* getSkipMsg(int lane) const {
+        return skipMessages_[static_cast<size_t>(lane)].get();
+    }
 };
 
 std::unique_ptr<TestableProcessor> makeTestableProcessor() {
@@ -397,4 +400,97 @@ TEST_CASE("Process succeeds without pre-allocated messages (null-safe)",
     REQUIRE(proc->process(data) == Steinberg::kResultTrue);
 
     proc->terminate();
+}
+
+// =============================================================================
+// Route restore must not depend on the audio thread
+// =============================================================================
+// Route restore used to be deferred to applyPresetSnapshot(), which runs on the
+// audio thread out of the RTTransfer drain, and the controller was then notified
+// from process() via a needVoiceRouteSync_ flag. That send called
+// IAttributeList::setBinary, which allocates on every call in the SDK's reference
+// host -- a heap allocation on the audio thread once per preset load. Pre-warming
+// the attribute in initialize() only created the map node; it did not make the
+// call allocation-free.
+//
+// Voice routes are per-field atomics, so they are safe to store from the message
+// thread, where the rest of the preset's parameters already land. Asserting that
+// the routes are readable straight after setState() -- with no process() call in
+// between -- pins the restore to the message thread and keeps the audio path out
+// of it.
+
+TEST_CASE("Preset routes are restored by setState without running the audio thread",
+          "[voice-route][rt-safety]") {
+    auto source = makeTestableProcessor();
+    source->notify(makeRouteUpdateMsg(/*slot=*/2, /*source=*/3, /*dest=*/4,
+                                      /*amount=*/0.75, /*curve=*/1,
+                                      /*smoothMs=*/12.0, /*scale=*/2,
+                                      /*bypass=*/0, /*active=*/1));
+    const auto preset = captureState(source.get());
+
+    auto target = makeTestableProcessor();
+    loadState(target.get(), preset);
+
+    // Deliberately no process() call here: the drain never runs.
+    const auto routes = extractRoutes(captureState(target.get()));
+    REQUIRE(routes.size() > 2);
+
+    CHECK(routes[2].active == 1);
+    CHECK(routes[2].source == 3);
+    CHECK(routes[2].destination == 4);
+    CHECK(routes[2].amount == Catch::Approx(0.75f));
+}
+
+// =============================================================================
+// Audio-thread message hygiene
+// =============================================================================
+
+TEST_CASE("Skip-event attribute keys are pre-warmed by initialize",
+          "[voice-route][rt-safety]") {
+    // allocateMessage() needs a host context; the other tests here pass nullptr
+    // and get null messages back, which would make this assertion vacuous.
+    Steinberg::Vst::HostApplication host;
+    auto proc = std::make_unique<TestableProcessor>();
+    REQUIRE(proc->initialize(&host) == Steinberg::kResultOk);
+
+    // sendSkipEvent() runs inside the arp loop on the audio thread and only
+    // overwrites these attributes. If the keys do not exist yet, the first send
+    // per lane inserts a new node into the attribute map -- an allocation on the
+    // audio thread. Creating them up front makes every runtime setInt an
+    // overwrite.
+    for (int lane = 0; lane < 6; ++lane) {
+        auto* msg = proc->getSkipMsg(lane);
+        REQUIRE(msg != nullptr);
+        auto* attrs = msg->getAttributes();
+        REQUIRE(attrs != nullptr);
+
+        Steinberg::int64 value = -1;
+        CHECK(attrs->getInt("lane", value) == Steinberg::kResultOk);
+        CHECK(attrs->getInt("step", value) == Steinberg::kResultOk);
+
+        // Negative control: a key that was never set must not report kResultOk,
+        // otherwise the two checks above would hold for any message at all.
+        CHECK(attrs->getInt("neverSetKey", value) != Steinberg::kResultOk);
+    }
+}
+
+TEST_CASE("One-time controller handshakes are sent from setActive, not process",
+          "[voice-route][rt-safety]") {
+    // These three messages carry pointers to lifetime-stable member atomics, so
+    // there is nothing audio-thread-specific about them -- they were merely
+    // issued from the first process() call, which meant three synchronous host
+    // sendMessage() calls on the audio thread.
+    auto proc = std::make_unique<TestableProcessor>();
+    proc->initialize(nullptr);
+
+    Steinberg::Vst::ProcessSetup setup{};
+    setup.processMode = Steinberg::Vst::kRealtime;
+    setup.symbolicSampleSize = Steinberg::Vst::kSample32;
+    setup.sampleRate = 44100.0;
+    setup.maxSamplesPerBlock = 512;
+    proc->setupProcessing(setup);
+
+    CHECK_FALSE(proc->handshakeMessagesSent());
+    proc->setActive(true);
+    CHECK(proc->handshakeMessagesSent());
 }
