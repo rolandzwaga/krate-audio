@@ -10,6 +10,8 @@
 
 #include "public.sdk/source/vst/vstparameters.h"
 #include "pluginterfaces/base/ustring.h"
+#include <algorithm>
+#include <cmath>
 #include <initializer_list>
 
 namespace Krate::Plugins {
@@ -65,6 +67,24 @@ inline Steinberg::Vst::StringListParameter* createDropdownParameterWithDefault(
     }
 
     return param;
+}
+
+// ==============================================================================
+// Logarithmic normalized <-> units mappings
+// ==============================================================================
+// The pair `units = mn * pow(mx/mn, x)` and its inverse was hand-reimplemented
+// in every parameter module that exposes a log-scaled control, at inconsistent
+// precision. Both directions clamp on the way in and on the way out, so a
+// round-trip through them is stable at the endpoints.
+
+inline double logMapFromNormalized(double normalized, double mn, double mx) {
+    const double clamped = std::clamp(normalized, 0.0, 1.0);
+    return std::clamp(mn * std::pow(mx / mn, clamped), mn, mx);
+}
+
+inline double logMapToNormalized(double units, double mn, double mx) {
+    const double clamped = std::clamp(units, mn, mx);
+    return std::clamp(std::log(clamped / mn) / std::log(mx / mn), 0.0, 1.0);
 }
 
 // ==============================================================================

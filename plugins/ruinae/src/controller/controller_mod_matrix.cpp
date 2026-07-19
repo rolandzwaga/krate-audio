@@ -13,21 +13,12 @@
 
 #include "pluginterfaces/base/ibstream.h"
 
+#include "controller/mod_ring_dest_ids.h"
+
 namespace Ruinae {
 
 // Maps destination index to the actual VST parameter ID of that knob.
 // Duplicated from controller.cpp — both TUs need these for mod ring sync.
-static constexpr std::array<Steinberg::Vst::ParamID,
-    Krate::Plugins::kNumVoiceDestinations> kVoiceDestParamIds = {{
-    kFilterCutoffId,          // 0: Filter Cutoff
-    kFilterResonanceId,       // 1: Filter Resonance
-    kMixerPositionId,         // 2: Morph Position
-    kDistortionDriveId,       // 3: Distortion Drive
-    kTranceGateDepthId,       // 4: TranceGate Depth
-    kOscATuneId,              // 5: OSC A Pitch
-    kOscBTuneId,              // 6: OSC B Pitch
-    kMixerTiltId,             // 7: Spectral Tilt
-}};
 
 static constexpr std::array<Steinberg::Vst::ParamID,
     Krate::Plugins::kNumGlobalDestinations> kGlobalDestParamIds = {{

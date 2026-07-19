@@ -24,6 +24,97 @@
 
 namespace Ruinae {
 
+namespace {
+
+// ==============================================================================
+// applyParamsToEngine helpers
+// ==============================================================================
+
+/// Forward one oscillator's type-specific parameters to the engine.
+///
+/// The values are read out in the positional order of kParamIdToOscParam and
+/// forwarded through it, so this order is load-bearing -- it is what maps each
+/// slot to its OscParam. Integer atomics are widened to float; the engine's
+/// adapter narrows them back.
+template <typename Pack, typename SetParam>
+void applyOscTypeParams(const Pack& p, SetParam setParam) {
+    const float values[] = {
+        static_cast<float>(p.waveform.load(std::memory_order_relaxed)),          // 0: Waveform
+        p.pulseWidth.load(std::memory_order_relaxed),                            // 1: PulseWidth
+        p.phaseMod.load(std::memory_order_relaxed),                              // 2: PhaseModulation
+        p.freqMod.load(std::memory_order_relaxed),                               // 3: FrequencyModulation
+        static_cast<float>(p.pdWaveform.load(std::memory_order_relaxed)),        // 4: PDWaveform
+        p.pdDistortion.load(std::memory_order_relaxed),                          // 5: PDDistortion
+        p.syncRatio.load(std::memory_order_relaxed),                             // 6: SyncSlaveRatio
+        static_cast<float>(p.syncWaveform.load(std::memory_order_relaxed)),      // 7: SyncSlaveWaveform
+        static_cast<float>(p.syncMode.load(std::memory_order_relaxed)),          // 8: SyncMode
+        p.syncAmount.load(std::memory_order_relaxed),                            // 9: SyncAmount
+        p.syncPulseWidth.load(std::memory_order_relaxed),                        // 10: SyncSlavePulseWidth
+        static_cast<float>(p.additivePartials.load(std::memory_order_relaxed)),  // 11: AdditiveNumPartials
+        p.additiveTilt.load(std::memory_order_relaxed),                          // 12: AdditiveSpectralTilt
+        p.additiveInharm.load(std::memory_order_relaxed),                        // 13: AdditiveInharmonicity
+        static_cast<float>(p.chaosAttractor.load(std::memory_order_relaxed)),    // 14: ChaosAttractor
+        p.chaosAmount.load(std::memory_order_relaxed),                           // 15: ChaosAmount
+        p.chaosCoupling.load(std::memory_order_relaxed),                         // 16: ChaosCoupling
+        static_cast<float>(p.chaosOutput.load(std::memory_order_relaxed)),       // 17: ChaosOutput
+        p.particleScatter.load(std::memory_order_relaxed),                       // 18: ParticleScatter
+        p.particleDensity.load(std::memory_order_relaxed),                       // 19: ParticleDensity
+        p.particleLifetime.load(std::memory_order_relaxed),                      // 20: ParticleLifetime
+        static_cast<float>(p.particleSpawnMode.load(std::memory_order_relaxed)), // 21: ParticleSpawnMode
+        static_cast<float>(p.particleEnvType.load(std::memory_order_relaxed)),   // 22: ParticleEnvType
+        p.particleDrift.load(std::memory_order_relaxed),                         // 23: ParticleDrift
+        static_cast<float>(p.formantVowel.load(std::memory_order_relaxed)),      // 24: FormantVowel
+        p.formantMorph.load(std::memory_order_relaxed),                          // 25: FormantMorph
+        p.spectralPitch.load(std::memory_order_relaxed),                         // 26: SpectralPitchShift
+        p.spectralTilt.load(std::memory_order_relaxed),                          // 27: SpectralTilt
+        p.spectralFormant.load(std::memory_order_relaxed),                       // 28: SpectralFormantShift
+        static_cast<float>(p.noiseColor.load(std::memory_order_relaxed)),        // 29: NoiseColor
+    };
+    static_assert(sizeof(values) / sizeof(values[0]) == kOscTypeSpecificParamCount,
+                  "oscillator value list must stay in step with kParamIdToOscParam");
+
+    for (size_t i = 0; i < kOscTypeSpecificParamCount; ++i) {
+        setParam(kParamIdToOscParam[i], values[i]);
+    }
+}
+
+} // namespace
+
+// ==============================================================================
+// Envelope forwarding
+// ==============================================================================
+// The amp, filter and mod envelopes were three near-identical 25-line blocks
+// that differed only in which setAmp*/setFilter*/setMod* family they called. The
+// setter names are formed by token pasting, which a function template cannot do
+// -- passing ten callables instead would either need std::function (which may
+// allocate, and this runs on the audio thread) or a ten-parameter template.
+// #undef'd immediately after the three uses below.
+#define RUINAE_APPLY_ENVELOPE(pack, Prefix)                                          \
+    do {                                                                             \
+        const auto ld = [](const auto& a) { return a.load(std::memory_order_relaxed); }; \
+        engine_.set##Prefix##Attack(ld((pack).attackMs));                            \
+        engine_.set##Prefix##Decay(ld((pack).decayMs));                              \
+        engine_.set##Prefix##Sustain(ld((pack).sustain));                            \
+        engine_.set##Prefix##Release(ld((pack).releaseMs));                          \
+        /* Bezier control points take precedence over the scalar curve amounts, */   \
+        /* so exactly one of the two families is pushed down per envelope.      */   \
+        if (ld((pack).bezierEnabled) >= 0.5f) {                                      \
+            engine_.set##Prefix##AttackBezierCurve(                                  \
+                ld((pack).bezierAttackCp1X), ld((pack).bezierAttackCp1Y),            \
+                ld((pack).bezierAttackCp2X), ld((pack).bezierAttackCp2Y));           \
+            engine_.set##Prefix##DecayBezierCurve(                                   \
+                ld((pack).bezierDecayCp1X), ld((pack).bezierDecayCp1Y),              \
+                ld((pack).bezierDecayCp2X), ld((pack).bezierDecayCp2Y));             \
+            engine_.set##Prefix##ReleaseBezierCurve(                                 \
+                ld((pack).bezierReleaseCp1X), ld((pack).bezierReleaseCp1Y),          \
+                ld((pack).bezierReleaseCp2X), ld((pack).bezierReleaseCp2Y));         \
+        } else {                                                                     \
+            engine_.set##Prefix##AttackCurve(ld((pack).attackCurve));                \
+            engine_.set##Prefix##DecayCurve(ld((pack).decayCurve));                  \
+            engine_.set##Prefix##ReleaseCurve(ld((pack).releaseCurve));              \
+        }                                                                            \
+    } while (0)
+
 // ==============================================================================
 // Parameter Handling
 // ==============================================================================
@@ -175,87 +266,13 @@ void Processor::applyParamsToEngine() {
     engine_.setOscBPhaseMode(oscBParams_.phase.load(std::memory_order_relaxed) >= 0.5f
         ? PhaseMode::Continuous : PhaseMode::Reset);
 
-    // --- OSC A Type-Specific Parameters (068-osc-type-params) ---
-    {
-        using Krate::DSP::OscParam;
-        // Read denormalized DSP-domain values from atomics and forward to engine.
-        // Integer atomics are cast to float -- the adapter casts back internally.
-        const float oscAValues[] = {
-            static_cast<float>(oscAParams_.waveform.load(std::memory_order_relaxed)),         // 0: Waveform
-            oscAParams_.pulseWidth.load(std::memory_order_relaxed),                           // 1: PulseWidth
-            oscAParams_.phaseMod.load(std::memory_order_relaxed),                             // 2: PhaseModulation
-            oscAParams_.freqMod.load(std::memory_order_relaxed),                              // 3: FrequencyModulation
-            static_cast<float>(oscAParams_.pdWaveform.load(std::memory_order_relaxed)),       // 4: PDWaveform
-            oscAParams_.pdDistortion.load(std::memory_order_relaxed),                         // 5: PDDistortion
-            oscAParams_.syncRatio.load(std::memory_order_relaxed),                            // 6: SyncSlaveRatio
-            static_cast<float>(oscAParams_.syncWaveform.load(std::memory_order_relaxed)),     // 7: SyncSlaveWaveform
-            static_cast<float>(oscAParams_.syncMode.load(std::memory_order_relaxed)),         // 8: SyncMode
-            oscAParams_.syncAmount.load(std::memory_order_relaxed),                           // 9: SyncAmount
-            oscAParams_.syncPulseWidth.load(std::memory_order_relaxed),                       // 10: SyncSlavePulseWidth
-            static_cast<float>(oscAParams_.additivePartials.load(std::memory_order_relaxed)), // 11: AdditiveNumPartials
-            oscAParams_.additiveTilt.load(std::memory_order_relaxed),                         // 12: AdditiveSpectralTilt
-            oscAParams_.additiveInharm.load(std::memory_order_relaxed),                       // 13: AdditiveInharmonicity
-            static_cast<float>(oscAParams_.chaosAttractor.load(std::memory_order_relaxed)),   // 14: ChaosAttractor
-            oscAParams_.chaosAmount.load(std::memory_order_relaxed),                          // 15: ChaosAmount
-            oscAParams_.chaosCoupling.load(std::memory_order_relaxed),                        // 16: ChaosCoupling
-            static_cast<float>(oscAParams_.chaosOutput.load(std::memory_order_relaxed)),      // 17: ChaosOutput
-            oscAParams_.particleScatter.load(std::memory_order_relaxed),                      // 18: ParticleScatter
-            oscAParams_.particleDensity.load(std::memory_order_relaxed),                      // 19: ParticleDensity
-            oscAParams_.particleLifetime.load(std::memory_order_relaxed),                     // 20: ParticleLifetime
-            static_cast<float>(oscAParams_.particleSpawnMode.load(std::memory_order_relaxed)),// 21: ParticleSpawnMode
-            static_cast<float>(oscAParams_.particleEnvType.load(std::memory_order_relaxed)),  // 22: ParticleEnvType
-            oscAParams_.particleDrift.load(std::memory_order_relaxed),                        // 23: ParticleDrift
-            static_cast<float>(oscAParams_.formantVowel.load(std::memory_order_relaxed)),     // 24: FormantVowel
-            oscAParams_.formantMorph.load(std::memory_order_relaxed),                         // 25: FormantMorph
-            oscAParams_.spectralPitch.load(std::memory_order_relaxed),                        // 26: SpectralPitchShift
-            oscAParams_.spectralTilt.load(std::memory_order_relaxed),                         // 27: SpectralTilt
-            oscAParams_.spectralFormant.load(std::memory_order_relaxed),                      // 28: SpectralFormantShift
-            static_cast<float>(oscAParams_.noiseColor.load(std::memory_order_relaxed)),       // 29: NoiseColor
-        };
-        for (size_t i = 0; i < Ruinae::kOscTypeSpecificParamCount; ++i) {
-            engine_.setOscAParam(Ruinae::kParamIdToOscParam[i], oscAValues[i]);
-        }
-    }
-
-    // --- OSC B Type-Specific Parameters (068-osc-type-params) ---
-    {
-        using Krate::DSP::OscParam;
-        const float oscBValues[] = {
-            static_cast<float>(oscBParams_.waveform.load(std::memory_order_relaxed)),
-            oscBParams_.pulseWidth.load(std::memory_order_relaxed),
-            oscBParams_.phaseMod.load(std::memory_order_relaxed),
-            oscBParams_.freqMod.load(std::memory_order_relaxed),
-            static_cast<float>(oscBParams_.pdWaveform.load(std::memory_order_relaxed)),
-            oscBParams_.pdDistortion.load(std::memory_order_relaxed),
-            oscBParams_.syncRatio.load(std::memory_order_relaxed),
-            static_cast<float>(oscBParams_.syncWaveform.load(std::memory_order_relaxed)),
-            static_cast<float>(oscBParams_.syncMode.load(std::memory_order_relaxed)),
-            oscBParams_.syncAmount.load(std::memory_order_relaxed),
-            oscBParams_.syncPulseWidth.load(std::memory_order_relaxed),
-            static_cast<float>(oscBParams_.additivePartials.load(std::memory_order_relaxed)),
-            oscBParams_.additiveTilt.load(std::memory_order_relaxed),
-            oscBParams_.additiveInharm.load(std::memory_order_relaxed),
-            static_cast<float>(oscBParams_.chaosAttractor.load(std::memory_order_relaxed)),
-            oscBParams_.chaosAmount.load(std::memory_order_relaxed),
-            oscBParams_.chaosCoupling.load(std::memory_order_relaxed),
-            static_cast<float>(oscBParams_.chaosOutput.load(std::memory_order_relaxed)),
-            oscBParams_.particleScatter.load(std::memory_order_relaxed),
-            oscBParams_.particleDensity.load(std::memory_order_relaxed),
-            oscBParams_.particleLifetime.load(std::memory_order_relaxed),
-            static_cast<float>(oscBParams_.particleSpawnMode.load(std::memory_order_relaxed)),
-            static_cast<float>(oscBParams_.particleEnvType.load(std::memory_order_relaxed)),
-            oscBParams_.particleDrift.load(std::memory_order_relaxed),
-            static_cast<float>(oscBParams_.formantVowel.load(std::memory_order_relaxed)),
-            oscBParams_.formantMorph.load(std::memory_order_relaxed),
-            oscBParams_.spectralPitch.load(std::memory_order_relaxed),
-            oscBParams_.spectralTilt.load(std::memory_order_relaxed),
-            oscBParams_.spectralFormant.load(std::memory_order_relaxed),
-            static_cast<float>(oscBParams_.noiseColor.load(std::memory_order_relaxed)),
-        };
-        for (size_t i = 0; i < Ruinae::kOscTypeSpecificParamCount; ++i) {
-            engine_.setOscBParam(Ruinae::kParamIdToOscParam[i], oscBValues[i]);
-        }
-    }
+    // --- OSC A / OSC B Type-Specific Parameters (068-osc-type-params) ---
+    applyOscTypeParams(oscAParams_, [this](Krate::DSP::OscParam param, float value) {
+        engine_.setOscAParam(param, value);
+    });
+    applyOscTypeParams(oscBParams_, [this](Krate::DSP::OscParam param, float value) {
+        engine_.setOscBParam(param, value);
+    });
 
     // --- Mixer ---
     engine_.setMixMode(static_cast<MixMode>(
@@ -349,86 +366,12 @@ void Processor::applyParamsToEngine() {
         }
     }
 
-    // --- Amp Envelope ---
-    engine_.setAmpAttack(ampEnvParams_.attackMs.load(std::memory_order_relaxed));
-    engine_.setAmpDecay(ampEnvParams_.decayMs.load(std::memory_order_relaxed));
-    engine_.setAmpSustain(ampEnvParams_.sustain.load(std::memory_order_relaxed));
-    engine_.setAmpRelease(ampEnvParams_.releaseMs.load(std::memory_order_relaxed));
-    if (ampEnvParams_.bezierEnabled.load(std::memory_order_relaxed) >= 0.5f) {
-        engine_.setAmpAttackBezierCurve(
-            ampEnvParams_.bezierAttackCp1X.load(std::memory_order_relaxed),
-            ampEnvParams_.bezierAttackCp1Y.load(std::memory_order_relaxed),
-            ampEnvParams_.bezierAttackCp2X.load(std::memory_order_relaxed),
-            ampEnvParams_.bezierAttackCp2Y.load(std::memory_order_relaxed));
-        engine_.setAmpDecayBezierCurve(
-            ampEnvParams_.bezierDecayCp1X.load(std::memory_order_relaxed),
-            ampEnvParams_.bezierDecayCp1Y.load(std::memory_order_relaxed),
-            ampEnvParams_.bezierDecayCp2X.load(std::memory_order_relaxed),
-            ampEnvParams_.bezierDecayCp2Y.load(std::memory_order_relaxed));
-        engine_.setAmpReleaseBezierCurve(
-            ampEnvParams_.bezierReleaseCp1X.load(std::memory_order_relaxed),
-            ampEnvParams_.bezierReleaseCp1Y.load(std::memory_order_relaxed),
-            ampEnvParams_.bezierReleaseCp2X.load(std::memory_order_relaxed),
-            ampEnvParams_.bezierReleaseCp2Y.load(std::memory_order_relaxed));
-    } else {
-        engine_.setAmpAttackCurve(ampEnvParams_.attackCurve.load(std::memory_order_relaxed));
-        engine_.setAmpDecayCurve(ampEnvParams_.decayCurve.load(std::memory_order_relaxed));
-        engine_.setAmpReleaseCurve(ampEnvParams_.releaseCurve.load(std::memory_order_relaxed));
-    }
+    // --- Amp / Filter / Mod Envelopes ---
+    RUINAE_APPLY_ENVELOPE(ampEnvParams_, Amp);
+    RUINAE_APPLY_ENVELOPE(filterEnvParams_, Filter);
+    RUINAE_APPLY_ENVELOPE(modEnvParams_, Mod);
 
-    // --- Filter Envelope ---
-    engine_.setFilterAttack(filterEnvParams_.attackMs.load(std::memory_order_relaxed));
-    engine_.setFilterDecay(filterEnvParams_.decayMs.load(std::memory_order_relaxed));
-    engine_.setFilterSustain(filterEnvParams_.sustain.load(std::memory_order_relaxed));
-    engine_.setFilterRelease(filterEnvParams_.releaseMs.load(std::memory_order_relaxed));
-    if (filterEnvParams_.bezierEnabled.load(std::memory_order_relaxed) >= 0.5f) {
-        engine_.setFilterAttackBezierCurve(
-            filterEnvParams_.bezierAttackCp1X.load(std::memory_order_relaxed),
-            filterEnvParams_.bezierAttackCp1Y.load(std::memory_order_relaxed),
-            filterEnvParams_.bezierAttackCp2X.load(std::memory_order_relaxed),
-            filterEnvParams_.bezierAttackCp2Y.load(std::memory_order_relaxed));
-        engine_.setFilterDecayBezierCurve(
-            filterEnvParams_.bezierDecayCp1X.load(std::memory_order_relaxed),
-            filterEnvParams_.bezierDecayCp1Y.load(std::memory_order_relaxed),
-            filterEnvParams_.bezierDecayCp2X.load(std::memory_order_relaxed),
-            filterEnvParams_.bezierDecayCp2Y.load(std::memory_order_relaxed));
-        engine_.setFilterReleaseBezierCurve(
-            filterEnvParams_.bezierReleaseCp1X.load(std::memory_order_relaxed),
-            filterEnvParams_.bezierReleaseCp1Y.load(std::memory_order_relaxed),
-            filterEnvParams_.bezierReleaseCp2X.load(std::memory_order_relaxed),
-            filterEnvParams_.bezierReleaseCp2Y.load(std::memory_order_relaxed));
-    } else {
-        engine_.setFilterAttackCurve(filterEnvParams_.attackCurve.load(std::memory_order_relaxed));
-        engine_.setFilterDecayCurve(filterEnvParams_.decayCurve.load(std::memory_order_relaxed));
-        engine_.setFilterReleaseCurve(filterEnvParams_.releaseCurve.load(std::memory_order_relaxed));
-    }
-
-    // --- Mod Envelope ---
-    engine_.setModAttack(modEnvParams_.attackMs.load(std::memory_order_relaxed));
-    engine_.setModDecay(modEnvParams_.decayMs.load(std::memory_order_relaxed));
-    engine_.setModSustain(modEnvParams_.sustain.load(std::memory_order_relaxed));
-    engine_.setModRelease(modEnvParams_.releaseMs.load(std::memory_order_relaxed));
-    if (modEnvParams_.bezierEnabled.load(std::memory_order_relaxed) >= 0.5f) {
-        engine_.setModAttackBezierCurve(
-            modEnvParams_.bezierAttackCp1X.load(std::memory_order_relaxed),
-            modEnvParams_.bezierAttackCp1Y.load(std::memory_order_relaxed),
-            modEnvParams_.bezierAttackCp2X.load(std::memory_order_relaxed),
-            modEnvParams_.bezierAttackCp2Y.load(std::memory_order_relaxed));
-        engine_.setModDecayBezierCurve(
-            modEnvParams_.bezierDecayCp1X.load(std::memory_order_relaxed),
-            modEnvParams_.bezierDecayCp1Y.load(std::memory_order_relaxed),
-            modEnvParams_.bezierDecayCp2X.load(std::memory_order_relaxed),
-            modEnvParams_.bezierDecayCp2Y.load(std::memory_order_relaxed));
-        engine_.setModReleaseBezierCurve(
-            modEnvParams_.bezierReleaseCp1X.load(std::memory_order_relaxed),
-            modEnvParams_.bezierReleaseCp1Y.load(std::memory_order_relaxed),
-            modEnvParams_.bezierReleaseCp2X.load(std::memory_order_relaxed),
-            modEnvParams_.bezierReleaseCp2Y.load(std::memory_order_relaxed));
-    } else {
-        engine_.setModAttackCurve(modEnvParams_.attackCurve.load(std::memory_order_relaxed));
-        engine_.setModDecayCurve(modEnvParams_.decayCurve.load(std::memory_order_relaxed));
-        engine_.setModReleaseCurve(modEnvParams_.releaseCurve.load(std::memory_order_relaxed));
-    }
+#undef RUINAE_APPLY_ENVELOPE
 
     // --- LFO 1 ---
     engine_.setGlobalLFO1Rate(lfo1Params_.rateHz.load(std::memory_order_relaxed));

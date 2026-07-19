@@ -1,5 +1,6 @@
 #pragma once
 #include "plugin_ids.h"
+#include "controller/parameter_helpers.h"
 #include "pluginterfaces/base/ustring.h"
 #include "public.sdk/source/vst/vstparameters.h"
 #include "public.sdk/source/vst/vsteditcontroller.h"
@@ -29,14 +30,12 @@ struct PitchFollowerParams {
 // =============================================================================
 
 inline float pitchFollowerMinHzFromNormalized(double normalized) {
-    double clamped = std::clamp(normalized, 0.0, 1.0);
-    return static_cast<float>(std::clamp(
-        20.0 * std::pow(25.0, clamped), 20.0, 500.0));
+    return static_cast<float>(
+        logMapFromNormalized(normalized, 20.0, 500.0));
 }
 
 inline double pitchFollowerMinHzToNormalized(float hz) {
-    double clampedHz = std::clamp(static_cast<double>(hz), 20.0, 500.0);
-    return std::clamp(std::log(clampedHz / 20.0) / std::log(25.0), 0.0, 1.0);
+    return logMapToNormalized(static_cast<double>(hz), 20.0, 500.0);
 }
 
 // =============================================================================
@@ -46,14 +45,12 @@ inline double pitchFollowerMinHzToNormalized(float hz) {
 // =============================================================================
 
 inline float pitchFollowerMaxHzFromNormalized(double normalized) {
-    double clamped = std::clamp(normalized, 0.0, 1.0);
-    return static_cast<float>(std::clamp(
-        200.0 * std::pow(25.0, clamped), 200.0, 5000.0));
+    return static_cast<float>(
+        logMapFromNormalized(normalized, 200.0, 5000.0));
 }
 
 inline double pitchFollowerMaxHzToNormalized(float hz) {
-    double clampedHz = std::clamp(static_cast<double>(hz), 200.0, 5000.0);
-    return std::clamp(std::log(clampedHz / 200.0) / std::log(25.0), 0.0, 1.0);
+    return logMapToNormalized(static_cast<double>(hz), 200.0, 5000.0);
 }
 
 // =============================================================================

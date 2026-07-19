@@ -419,3 +419,39 @@ TEST_CASE("Loading a preset restores flanger and chorus DSP values",
     CHECK(target->engine().effectsChain().chorus().getDepth()
           == Approx(expectedChorusDepth).margin(1e-4));
 }
+
+// =============================================================================
+// Each envelope's parameters must reach its own envelope
+// =============================================================================
+// The amp, filter and mod envelope blocks in applyParamsToEngine are generated
+// from one body with the setAmp*/setFilter*/setMod* prefix pasted in. Crossing
+// two prefixes still compiles -- every family has the same setter names -- so
+// this drives the three attack times to different values and checks that each
+// envelope responded to its own.
+
+TEST_CASE("Amp, filter and mod envelope parameters reach their own envelopes",
+          "[ruinae][processor][envelope][regression]") {
+    auto proc = makeModTestableProcessor();
+
+    ModParamChangeBatch params;
+    params.add(Ruinae::kAmpEnvAttackId, 1.0);    // longest attack
+    params.add(Ruinae::kFilterEnvAttackId, 0.0); // instant
+    params.add(Ruinae::kModEnvAttackId, 0.0);    // instant
+
+    ModMockEventList noteOn;
+    noteOn.addNoteOn(60, 0.8f);
+
+    std::vector<float> l;
+    std::vector<float> r;
+    processModBlockWithEvents(proc.get(), 512, l, r, &params, &noteOn);
+
+    const float amp = proc->engine().getVoiceAmpEnvelope(0).getOutput();
+    const float filter = proc->engine().getVoiceFilterEnvelope(0).getOutput();
+    const float mod = proc->engine().getVoiceModEnvelope(0).getOutput();
+
+    // A few milliseconds into the note the two instant envelopes are already up
+    // while the slow one has barely moved. Swap any two prefixes and this flips.
+    CHECK(filter > 0.5f);
+    CHECK(mod > 0.5f);
+    CHECK(amp < filter);
+}

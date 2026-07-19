@@ -617,3 +617,84 @@ TEST_CASE("Very old preset with absent modulationType defaults to Phaser", "[fla
     proc2->setActive(false);
     proc2->terminate();
 }
+
+// ==============================================================================
+// Byte-golden: the modulation-effect streams must not move
+// ==============================================================================
+// Chorus and flanger serialize almost the same field list, but chorus writes an
+// extra `voices` int between stereoSpread and waveform. Consolidating the two
+// parameter modules has to preserve that asymmetry exactly, or every existing
+// preset reads one field out of step from there on. Round-trip fidelity would
+// not catch it -- a save/load pair that agree with each other still misread
+// presets written by the old code.
+
+namespace {
+
+struct ModEffectDigest {
+    size_t bytes;
+    uint64_t hash;
+};
+
+ModEffectDigest digestModEffectStream(Steinberg::MemoryStream& stream) {
+    Steinberg::int64 size = 0;
+    stream.seek(0, Steinberg::IBStream::kIBSeekEnd, &size);
+    stream.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+
+    std::vector<char> data(static_cast<size_t>(size));
+    Steinberg::int32 read = 0;
+    stream.read(data.data(), static_cast<Steinberg::int32>(size), &read);
+
+    uint64_t hash = 1469598103934665603ULL;
+    for (char c : data) {
+        hash ^= static_cast<uint8_t>(c);
+        hash *= 1099511628211ULL;
+    }
+    return {data.size(), hash};
+}
+
+} // namespace
+
+TEST_CASE("Chorus saved byte stream is unchanged", "[chorus][params][golden]") {
+    using namespace Ruinae;
+
+    RuinaeChorusParams p;
+    p.rateHz.store(3.25f, std::memory_order_relaxed);
+    p.depth.store(0.8f, std::memory_order_relaxed);
+    p.feedback.store(-0.4f, std::memory_order_relaxed);
+    p.mix.store(0.65f, std::memory_order_relaxed);
+    p.stereoSpread.store(270.0f, std::memory_order_relaxed);
+    p.voices.store(4, std::memory_order_relaxed);
+    p.waveform.store(0, std::memory_order_relaxed);
+    p.sync.store(true, std::memory_order_relaxed);
+    p.noteValue.store(5, std::memory_order_relaxed);
+
+    Steinberg::MemoryStream stream;
+    Steinberg::IBStreamer streamer(&stream, kLittleEndian);
+    saveChorusParams(p, streamer);
+
+    const auto digest = digestModEffectStream(stream);
+    CHECK(digest.bytes == 36);
+    CHECK(digest.hash == 0x8b8e04c28f6a4dddULL);
+}
+
+TEST_CASE("Flanger saved byte stream is unchanged", "[flanger][params][golden]") {
+    using namespace Ruinae;
+
+    RuinaeFlangerParams p;
+    p.rateHz.store(3.25f, std::memory_order_relaxed);
+    p.depth.store(0.8f, std::memory_order_relaxed);
+    p.feedback.store(-0.4f, std::memory_order_relaxed);
+    p.mix.store(0.65f, std::memory_order_relaxed);
+    p.stereoSpread.store(270.0f, std::memory_order_relaxed);
+    p.waveform.store(0, std::memory_order_relaxed);
+    p.sync.store(true, std::memory_order_relaxed);
+    p.noteValue.store(5, std::memory_order_relaxed);
+
+    Steinberg::MemoryStream stream;
+    Steinberg::IBStreamer streamer(&stream, kLittleEndian);
+    saveFlangerParams(p, streamer);
+
+    const auto digest = digestModEffectStream(stream);
+    CHECK(digest.bytes == 32);
+    CHECK(digest.hash == 0x870046309c197209ULL);
+}

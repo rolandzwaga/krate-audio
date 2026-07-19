@@ -13,6 +13,9 @@
 #include "processor/processor.h"
 #include "plugin_ids.h"
 #include "drain_preset_transfer.h"
+#include "controller/mod_ring_dest_ids.h"
+
+#include <set>
 
 #include "public.sdk/source/common/memorystream.h"
 #include "base/source/fstreamer.h"
@@ -253,4 +256,33 @@ TEST_CASE("Detail param IDs follow expected formulas", "[modmatrix][unit]") {
     // Verify no overlap between base and detail ranges
     REQUIRE(Ruinae::kModMatrixSlot7AmountId == 1323);
     REQUIRE(Ruinae::kModMatrixDetailBaseId == 1324);
+}
+
+// =============================================================================
+// The destination -> ParamID map has one definition
+// =============================================================================
+// controller_view_sync.cpp and controller_mod_matrix.cpp each used to carry
+// their own static copy of this array. A drift between the two would desync the
+// ring indicators from the routes they display, with no build error. Both now
+// include mod_ring_dest_ids.h; this pins the mapping and its coverage.
+
+TEST_CASE("Voice destination ParamID map covers every destination",
+          "[mod_matrix][params][regression]") {
+    using namespace Ruinae;
+
+    REQUIRE(kVoiceDestParamIds.size() == Krate::Plugins::kVoiceDestNames.size());
+
+    CHECK(kVoiceDestParamIds[0] == kFilterCutoffId);
+    CHECK(kVoiceDestParamIds[1] == kFilterResonanceId);
+    CHECK(kVoiceDestParamIds[2] == kMixerPositionId);
+    CHECK(kVoiceDestParamIds[3] == kDistortionDriveId);
+    CHECK(kVoiceDestParamIds[4] == kTranceGateDepthId);
+    CHECK(kVoiceDestParamIds[5] == kOscATuneId);
+    CHECK(kVoiceDestParamIds[6] == kOscBTuneId);
+    CHECK(kVoiceDestParamIds[7] == kMixerTiltId);
+
+    // Each destination drives a distinct knob.
+    const std::set<Steinberg::Vst::ParamID> distinct(
+        kVoiceDestParamIds.begin(), kVoiceDestParamIds.end());
+    CHECK(distinct.size() == kVoiceDestParamIds.size());
 }
