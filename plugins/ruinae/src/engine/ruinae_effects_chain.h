@@ -207,6 +207,10 @@ public:
         reverbCrossfadeTempL_.resize(maxBlockSize, 0.0f);
         reverbCrossfadeTempR_.resize(maxBlockSize, 0.0f);
 
+        // Dry capture for the reverb slot's external dry/wet mix.
+        reverbDryL_.resize(maxBlockSize, 0.0f);
+        reverbDryR_.resize(maxBlockSize, 0.0f);
+
         // Force each delay processor's internal mix to 100% wet. The chain
         // performs the dry/wet mix externally so that the latency-compensation
         // delay only delays the wet signal, not the dry signal.
@@ -216,9 +220,11 @@ public:
         granularDelay_.setDryWet(1.0f);
         spectralDelay_.setDryWetMix(1.0f);
 
-        // Configure the external dry/wet smoother so parameter changes don't click.
+        // Configure the external dry/wet smoothers so parameter changes don't click.
         userDelayMixSmoother_.configure(20.0f, static_cast<float>(sampleRate));
         userDelayMixSmoother_.snapTo(userDelayMix_);
+        userReverbMixSmoother_.configure(20.0f, static_cast<float>(sampleRate));
+        userReverbMixSmoother_.snapTo(userReverbMix_);
 
         // Snap parameters on all delays to avoid initial smoothing artifacts
         digitalDelay_.snapParameters();
@@ -284,6 +290,7 @@ public:
         pingPongDelay_.snapParameters();
         spectralDelay_.snapParameters();
         userDelayMixSmoother_.snapTo(userDelayMix_);
+        userReverbMixSmoother_.snapTo(userReverbMix_);
     }
 
     // =========================================================================
@@ -643,9 +650,21 @@ public:
     // =========================================================================
 
     /// @brief Set all reverb parameters to both reverb types (FR-027).
+    ///
+    /// Both reverbs are forced to 100% wet and the requested mix is applied
+    /// externally, mirroring the delay slot. Otherwise each reverb would emit
+    /// its own copy of the correlated dry signal, and the equal-power crossfade
+    /// -- whose gains sum to sqrt(2) at the midpoint, as they should for two
+    /// decorrelated wet tails -- would swell that shared dry part by ~3 dB.
     void setReverbParams(const ReverbParams& params) noexcept {
-        reverb_.setParams(params);
-        fdnReverb_.setParams(params);
+        ReverbParams wetOnly = params;
+        wetOnly.mix = 1.0f;
+        reverb_.setParams(wetOnly);
+        fdnReverb_.setParams(wetOnly);
+
+        userReverbMix_ = std::clamp(params.mix, 0.0f, 1.0f);
+        userReverbMixSmoother_.setTarget(userReverbMix_);
+
         lastReverbParams_ = params;
     }
 
@@ -1024,7 +1043,21 @@ private:
         // Slot 3: Reverb (FR-005, FR-022, 125-dual-reverb FR-024/FR-025)
         // ---------------------------------------------------------------
         if (reverbEnabled_) {
+            // Capture the dry input before the (wet-only) reverbs run, then mix
+            // it back in externally. Doing the dry/wet balance out here rather
+            // than inside each reverb keeps the equal-power type crossfade
+            // operating on wet tails alone.
+            std::memcpy(reverbDryL_.data(), left, numSamples * sizeof(float));
+            std::memcpy(reverbDryR_.data(), right, numSamples * sizeof(float));
+
             processReverbSlot(left, right, numSamples);
+
+            for (size_t i = 0; i < numSamples; ++i) {
+                const float wetGain = userReverbMixSmoother_.process();
+                const float dryGain = 1.0f - wetGain;
+                left[i]  = dryGain * reverbDryL_[i] + wetGain * left[i];
+                right[i] = dryGain * reverbDryR_[i] + wetGain * right[i];
+            }
         }
     }
 
@@ -1070,15 +1103,12 @@ private:
             reverbCrossfadeAlpha_ += reverbCrossfadeIncrement_;
 
             if (reverbCrossfadeAlpha_ >= 1.0f) {
-                // Complete the crossfade
+                // Complete the crossfade. The remaining samples are already
+                // 100% incoming reverb -- the incoming type processed the whole
+                // block in-place above -- so there is nothing left to do.
+                // Running processReverbType() over them again would reverberate
+                // already-wet output and advance the reverb state twice.
                 completeReverbCrossfade();
-
-                // Process remaining samples through the new active reverb only
-                size_t remaining = numSamples - i - 1;
-                if (remaining > 0) {
-                    processReverbType(activeReverbType_, left + i + 1,
-                                     right + i + 1, remaining);
-                }
                 return;
             }
         }
@@ -1384,6 +1414,13 @@ private:
     // Reverb crossfade temp buffers (pre-allocated in prepare)
     std::vector<float> reverbCrossfadeTempL_;
     std::vector<float> reverbCrossfadeTempR_;
+
+    // External dry/wet mix for the reverb slot. Both reverbs run 100% wet, so
+    // the type crossfade blends wet tails only. Mirrors the delay slot.
+    float userReverbMix_ = 0.3f;
+    OnePoleSmoother userReverbMixSmoother_;
+    std::vector<float> reverbDryL_;
+    std::vector<float> reverbDryR_;
 
     // Temporary buffers (pre-allocated in prepare)
     std::vector<float> tempL_;
