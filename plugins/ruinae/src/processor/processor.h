@@ -197,6 +197,24 @@ protected:
     void processEvents(Steinberg::Vst::IEventList* events);
     void applyParamsToEngine();
 
+    // applyParamsToEngine() is split into one helper per parameter section,
+    // mirroring the handle*ParamChange split on the other side. They are called
+    // in a fixed order -- see the definition in processor_params.cpp.
+    void applyVoiceAndOscParams();
+    void applyFilterParams();
+    void applyDistortionParams();
+    void applyTranceGateParams();
+    void applyEnvelopeParams();
+    void applyModSourceParams();
+    void applyModRoutingParams();
+    void applyGlobalFilterAndFxEnableParams();
+    void applyDelayParams();
+    void applyReverbParams();
+    void applyModulationEffectParams();
+    void applyHarmonizerParams();
+    void applyAuxModSourceParams();
+    void applyArpParams();
+
     // ==========================================================================
     // Pre-allocated IMessages (accessible to test subclass)
     // ==========================================================================

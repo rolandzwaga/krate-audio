@@ -5337,3 +5337,67 @@ TEST_CASE("Harmonizer wet output level diagnostic",
         CHECK(rmsL > monoRMS * 0.5f);
     }
 }
+
+// =============================================================================
+// Muted voices keep their smoothers running
+// =============================================================================
+// All three pitch-shift paths skip the shifting work for a voice at zero gain,
+// which is the point of muting it. The PhaseVocoder path also advanced that
+// voice's smoothers; Simple and PitchSync did not, so unmuting resumed the level
+// smoother from wherever it was frozen and the voice arrived at full gain in a
+// single block instead of over its 5 ms ramp.
+//
+// The first block after unmuting should therefore be quieter than the settled
+// level, and only by having ramped -- not by being silent.
+
+namespace {
+
+float harmonizerBlockRms(Krate::DSP::HarmonizerEngine& engine,
+                         std::size_t numSamples = 256) {
+    std::vector<float> input(numSamples);
+    std::vector<float> outL(numSamples);
+    std::vector<float> outR(numSamples);
+    for (std::size_t i = 0; i < numSamples; ++i) {
+        input[i] = 0.5f * std::sin(2.0f * 3.14159265f * 220.0f
+                                   * static_cast<float>(i) / 44100.0f);
+    }
+    engine.process(input.data(), outL.data(), outR.data(), numSamples);
+
+    double sum = 0.0;
+    for (std::size_t i = 0; i < numSamples; ++i) {
+        sum += static_cast<double>(outL[i]) * outL[i];
+    }
+    return static_cast<float>(std::sqrt(sum / static_cast<double>(numSamples)));
+}
+
+} // namespace
+
+TEST_CASE("Unmuting a harmonizer voice ramps rather than jumping",
+          "[harmonizer_engine][mute][regression]") {
+    using namespace Krate::DSP;
+
+    for (const auto mode : {PitchMode::Simple, PitchMode::PitchSync}) {
+        HarmonizerEngine engine;
+        setupChromaticEngine(engine, 44100.0, 512);
+        engine.setPitchShiftMode(mode);
+        engine.setNumVoices(1);
+        engine.setVoiceInterval(0, 7);
+        engine.setVoiceLevel(0, 0.0f);
+
+        // Settle at full level, then mute and let the mute settle.
+        for (int i = 0; i < 40; ++i) (void)harmonizerBlockRms(engine);
+        const float settled = harmonizerBlockRms(engine);
+        REQUIRE(settled > 1e-4f);
+
+        engine.setVoiceLevel(0, -60.0f);
+        for (int i = 0; i < 40; ++i) (void)harmonizerBlockRms(engine);
+
+        // Unmute: the very first block should be on its way up, not already there.
+        engine.setVoiceLevel(0, 0.0f);
+        const float firstBlock = harmonizerBlockRms(engine);
+
+        INFO("mode " << static_cast<int>(mode)
+             << " settled " << settled << " first block " << firstBlock);
+        CHECK(firstBlock < settled);
+    }
+}

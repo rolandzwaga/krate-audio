@@ -2026,3 +2026,119 @@ TEST_CASE("RuinaeEffectsChain reverb crossfade does not swell the dry signal",
         CHECK(outR[i] == Approx(inputR[i]).margin(1e-4));
     }
 }
+
+// =============================================================================
+// Disabling a wet slot must ramp, not cut
+// =============================================================================
+// setDelayEnabled/setReverbEnabled were hard bool flips: an audible wet tail
+// vanished in a single sample, which clicks. Both slots now fade their wet
+// contribution over ~20 ms and reset their buffers only once the fade lands.
+//
+// The measurement is the largest sample-to-sample step in the output. A cut tail
+// shows up as one step the size of the tail itself; a ramp spreads that over
+// hundreds of samples.
+
+TEST_CASE("Disabling the delay ramps the wet tail out",
+          "[systems][ruinae_effects_chain][regression]") {
+    constexpr size_t kBlock = 512;
+
+    RuinaeEffectsChain chain;
+    prepareChain(chain, kSampleRate, kBlock);
+    chain.setDelayEnabled(true);
+    chain.setDelayMix(1.0f);
+    chain.setDelayTime(50.0f);
+    chain.setDelayFeedback(0.6f);
+
+    // Build up a tail, then stop feeding input so the output is tail only.
+    std::vector<float> left(kBlock);
+    std::vector<float> right(kBlock);
+    for (int b = 0; b < 20; ++b) {
+        fillSine(left.data(), kBlock, 440.0f, kSampleRate);
+        fillSine(right.data(), kBlock, 440.0f, kSampleRate);
+        chain.processBlock(left.data(), right.data(), kBlock);
+    }
+
+    std::fill(left.begin(), left.end(), 0.0f);
+    std::fill(right.begin(), right.end(), 0.0f);
+    chain.processBlock(left.data(), right.data(), kBlock);
+    const float tailLevel = calculateRMS(left.data(), kBlock);
+    REQUIRE(tailLevel > 1e-3f);
+
+
+    // Disable and capture the transition.
+    chain.setDelayEnabled(false);
+    std::vector<float> captured;
+    for (int b = 0; b < 4; ++b) {
+        std::fill(left.begin(), left.end(), 0.0f);
+        std::fill(right.begin(), right.end(), 0.0f);
+        chain.processBlock(left.data(), right.data(), kBlock);
+        captured.insert(captured.end(), left.begin(), left.end());
+    }
+
+    // The tail is gone by the end of the window...
+    const float afterLevel = calculateRMS(captured.data() + captured.size() - kBlock, kBlock);
+    CHECK(afterLevel < tailLevel * 0.1f);
+
+    // ...but it got there by ramping. A hard cut leaves one step the size of the
+    // tail; the ramp keeps every step far below that.
+    // The fade spans about 20 ms, so a short window straight after the disable
+    // must still carry most of the tail. A hard flip drops it to silence within
+    // one sample, which is what this distinguishes. Sample-to-sample step size
+    // does not distinguish it: a broadband tail already steps by roughly its own
+    // amplitude between neighbouring samples.
+    constexpr size_t kEarlyWindow = 128;
+    const float earlyLevel = calculateRMS(captured.data(), kEarlyWindow);
+    INFO("tail RMS " << tailLevel << ", first " << kEarlyWindow
+         << " samples after disable RMS " << earlyLevel);
+    CHECK(earlyLevel > tailLevel * 0.4f);
+}
+
+TEST_CASE("Disabling the reverb ramps the wet tail out",
+          "[systems][ruinae_effects_chain][regression]") {
+    constexpr size_t kBlock = 512;
+
+    ReverbParams params;
+    params.mix = 1.0f;
+    params.roomSize = 0.9f;
+    params.damping = 0.2f;
+
+    RuinaeEffectsChain chain;
+    prepareChain(chain, kSampleRate, kBlock);
+    chain.setReverbEnabled(true);
+    chain.setReverbParams(params);
+
+    std::vector<float> left(kBlock);
+    std::vector<float> right(kBlock);
+    for (int b = 0; b < 20; ++b) {
+        fillSine(left.data(), kBlock, 440.0f, kSampleRate);
+        fillSine(right.data(), kBlock, 440.0f, kSampleRate);
+        chain.processBlock(left.data(), right.data(), kBlock);
+    }
+
+    std::fill(left.begin(), left.end(), 0.0f);
+    std::fill(right.begin(), right.end(), 0.0f);
+    chain.processBlock(left.data(), right.data(), kBlock);
+    const float tailLevel = calculateRMS(left.data(), kBlock);
+    REQUIRE(tailLevel > 1e-3f);
+
+
+    chain.setReverbEnabled(false);
+    std::vector<float> captured;
+    for (int b = 0; b < 4; ++b) {
+        std::fill(left.begin(), left.end(), 0.0f);
+        std::fill(right.begin(), right.end(), 0.0f);
+        chain.processBlock(left.data(), right.data(), kBlock);
+        captured.insert(captured.end(), left.begin(), left.end());
+    }
+
+    // The fade spans about 20 ms, so a short window straight after the disable
+    // must still carry most of the tail. A hard flip drops it to silence within
+    // one sample, which is what this distinguishes. Sample-to-sample step size
+    // does not distinguish it: a broadband tail already steps by roughly its own
+    // amplitude between neighbouring samples.
+    constexpr size_t kEarlyWindow = 128;
+    const float earlyLevel = calculateRMS(captured.data(), kEarlyWindow);
+    INFO("tail RMS " << tailLevel << ", first " << kEarlyWindow
+         << " samples after disable RMS " << earlyLevel);
+    CHECK(earlyLevel > tailLevel * 0.4f);
+}

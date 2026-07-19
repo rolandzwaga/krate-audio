@@ -16,6 +16,7 @@
 #include "parameters/arp_params_common.h"
 
 #include <krate/dsp/core/note_value.h>
+#include <krate/dsp/primitives/arp_lane.h>
 
 #include <cmath>
 
@@ -31,6 +32,13 @@
 #include <cstdio>
 
 namespace Ruinae {
+
+/// Steps in an arpeggiator lane. The value lives in ArpLane's template default;
+/// this is the one place Ruinae re-states it, so the loop bounds, lane lengths
+/// and normalization divisors elsewhere cannot drift apart from it or from the
+/// DSP layer.
+inline constexpr int kMaxArpSteps =
+    static_cast<int>(Krate::DSP::ArpLane<float>::kMaxSteps);
 
 // =============================================================================
 // ArpeggiatorParams: Atomic parameter storage (FR-004)

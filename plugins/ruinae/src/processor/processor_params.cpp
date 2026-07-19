@@ -235,7 +235,32 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
 // Apply Parameters to Engine
 // ==============================================================================
 
+
+// applyParamsToEngine() is split into one helper per parameter section,
+// mirroring the handle*ParamChange split on the other side. The call order
+// below is the order the original flat function used and must not be
+// changed: some engine state has ordering dependencies, and the arp section
+// in particular ends by enabling the core only once everything else is set.
+
 void Processor::applyParamsToEngine() {
+    applyVoiceAndOscParams();
+    applyFilterParams();
+    applyDistortionParams();
+    applyTranceGateParams();
+    applyEnvelopeParams();
+    applyModSourceParams();
+    applyModRoutingParams();
+    applyGlobalFilterAndFxEnableParams();
+    applyDelayParams();
+    applyReverbParams();
+    applyModulationEffectParams();
+    applyHarmonizerParams();
+    applyAuxModSourceParams();
+    applyArpParams();
+}
+
+/// Apply voice-level globals, both oscillators and the mixer.
+void Processor::applyVoiceAndOscParams() {
     using namespace Krate::DSP;
 
     // --- Global ---
@@ -279,6 +304,11 @@ void Processor::applyParamsToEngine() {
         mixerParams_.mode.load(std::memory_order_relaxed)));
     engine_.setMixPosition(mixerParams_.position.load(std::memory_order_relaxed));
     engine_.setMixTilt(mixerParams_.tilt.load(std::memory_order_relaxed));
+}
+
+/// Apply the per-voice filter.
+void Processor::applyFilterParams() {
+    using namespace Krate::DSP;
 
     // --- Filter ---
     engine_.setFilterType(static_cast<RuinaeFilterType>(
@@ -305,6 +335,11 @@ void Processor::applyParamsToEngine() {
     engine_.setFilterSelfOscExtMix(filterParams_.selfOscExtMix.load(std::memory_order_relaxed));
     engine_.setFilterSelfOscShape(filterParams_.selfOscShape.load(std::memory_order_relaxed));
     engine_.setFilterSelfOscRelease(filterParams_.selfOscRelease.load(std::memory_order_relaxed));
+}
+
+/// Apply the distortion stage.
+void Processor::applyDistortionParams() {
+    using namespace Krate::DSP;
 
     // --- Distortion ---
     engine_.setDistortionType(static_cast<RuinaeDistortionType>(
@@ -338,6 +373,11 @@ void Processor::applyParamsToEngine() {
     engine_.setDistortionRingRatio(distortionParams_.ringRatio.load(std::memory_order_relaxed));
     engine_.setDistortionRingWaveform(distortionParams_.ringWaveform.load(std::memory_order_relaxed));
     engine_.setDistortionRingStereoSpread(distortionParams_.ringStereoSpread.load(std::memory_order_relaxed));
+}
+
+/// Apply the trance gate.
+void Processor::applyTranceGateParams() {
+    using namespace Krate::DSP;
 
     // --- Trance Gate ---
     engine_.setTranceGateEnabled(tranceGateParams_.enabled.load(std::memory_order_relaxed));
@@ -365,6 +405,11 @@ void Processor::applyParamsToEngine() {
                     std::memory_order_relaxed));
         }
     }
+}
+
+/// Apply the amp, filter and mod envelopes.
+void Processor::applyEnvelopeParams() {
+    using namespace Krate::DSP;
 
     // --- Amp / Filter / Mod Envelopes ---
     RUINAE_APPLY_ENVELOPE(ampEnvParams_, Amp);
@@ -372,6 +417,11 @@ void Processor::applyParamsToEngine() {
     RUINAE_APPLY_ENVELOPE(modEnvParams_, Mod);
 
 #undef RUINAE_APPLY_ENVELOPE
+}
+
+/// Apply the LFOs and the chaos generator.
+void Processor::applyModSourceParams() {
+    using namespace Krate::DSP;
 
     // --- LFO 1 ---
     engine_.setGlobalLFO1Rate(lfo1Params_.rateHz.load(std::memory_order_relaxed));
@@ -417,6 +467,11 @@ void Processor::applyParamsToEngine() {
             chaosModParams_.noteValue.load(std::memory_order_relaxed));
         engine_.setChaosNoteValue(mapping.note, mapping.modifier);
     }
+}
+
+/// Apply the global mod matrix and the per-voice routes.
+void Processor::applyModRoutingParams() {
+    using namespace Krate::DSP;
 
     // --- Mod Matrix (8 slots) ---
     static constexpr float kScaleMultipliers[] = {0.25f, 0.5f, 1.0f, 2.0f, 4.0f};
@@ -477,6 +532,11 @@ void Processor::applyParamsToEngine() {
             }
         }
     }
+}
+
+/// Apply the global filter and the FX enable flags.
+void Processor::applyGlobalFilterAndFxEnableParams() {
+    using namespace Krate::DSP;
 
     // --- Global Filter ---
     engine_.setGlobalFilterEnabled(globalFilterParams_.enabled.load(std::memory_order_relaxed));
@@ -495,6 +555,11 @@ void Processor::applyParamsToEngine() {
     engine_.setReverbEnabled(reverbEnabled_.load(std::memory_order_relaxed));
     engine_.effectsChain().setModulationType(
         static_cast<Krate::DSP::ModulationType>(modulationType_.load(std::memory_order_relaxed)));
+}
+
+/// Apply the delay slot, including its type-specific settings.
+void Processor::applyDelayParams() {
+    using namespace Krate::DSP;
 
     // --- Delay ---
     engine_.setDelayType(static_cast<RuinaeDelayType>(
@@ -564,6 +629,11 @@ void Processor::applyParamsToEngine() {
     engine_.setDelayPingPongWidth(delayParams_.pingPongWidth.load(std::memory_order_relaxed));
     engine_.setDelayPingPongModDepth(delayParams_.pingPongModDepth.load(std::memory_order_relaxed));
     engine_.setDelayPingPongModRate(delayParams_.pingPongModRateHz.load(std::memory_order_relaxed));
+}
+
+/// Apply the reverb slot.
+void Processor::applyReverbParams() {
+    using namespace Krate::DSP;
 
     // --- Reverb ---
     {
@@ -580,6 +650,11 @@ void Processor::applyParamsToEngine() {
         engine_.setReverbParams(rp);
     }
     engine_.setReverbType(reverbParams_.reverbType.load(std::memory_order_relaxed));
+}
+
+/// Apply the phaser, flanger and chorus.
+void Processor::applyModulationEffectParams() {
+    using namespace Krate::DSP;
 
     // --- Phaser ---
     engine_.setPhaserRate(phaserParams_.rateHz.load(std::memory_order_relaxed));
@@ -635,6 +710,11 @@ void Processor::applyParamsToEngine() {
             chorusParams_.noteValue.load(std::memory_order_relaxed));
         chorus.setNoteValue(mapping.note, mapping.modifier);
     }
+}
+
+/// Apply the harmonizer.
+void Processor::applyHarmonizerParams() {
+    using namespace Krate::DSP;
 
     // --- Harmonizer ---
     engine_.setHarmonizerEnabled(harmonizerEnabled_.load(std::memory_order_relaxed));
@@ -659,6 +739,11 @@ void Processor::applyParamsToEngine() {
         engine_.setHarmonizerVoiceDetune(v,
             harmonizerParams_.voiceDetuneCents[vi].load(std::memory_order_relaxed));
     }
+}
+
+/// Apply macros, rungler, settings, mono mode and the four follower sources.
+void Processor::applyAuxModSourceParams() {
+    using namespace Krate::DSP;
 
     // --- Macros ---
     for (int i = 0; i < 4; ++i) {
@@ -738,6 +823,11 @@ void Processor::applyParamsToEngine() {
     engine_.setTransientSensitivity(transientParams_.sensitivity.load(std::memory_order_relaxed));
     engine_.setTransientAttack(transientParams_.attackMs.load(std::memory_order_relaxed));
     engine_.setTransientDecay(transientParams_.decayMs.load(std::memory_order_relaxed));
+}
+
+/// Apply the arpeggiator and all of its lanes.
+void Processor::applyArpParams() {
+    using namespace Krate::DSP;
 
     // --- Arpeggiator (FR-009) ---
     // IMPORTANT: Only call setters when the value actually changes.
@@ -890,8 +980,8 @@ void Processor::applyParamsToEngine() {
     // then set the actual length afterward.
     {
         const auto velLen = arpParams_.velocityLaneLength.load(std::memory_order_relaxed);
-        arpCore_.velocityLane().setLength(32);
-        for (int i = 0; i < 32; ++i) {
+        arpCore_.velocityLane().setLength(kMaxArpSteps);
+        for (int i = 0; i < kMaxArpSteps; ++i) {
             arpCore_.velocityLane().setStep(
                 static_cast<size_t>(i),
                 arpParams_.velocityLaneSteps[i].load(std::memory_order_relaxed));
@@ -901,8 +991,8 @@ void Processor::applyParamsToEngine() {
     // --- Gate Lane (072-independent-lanes, US2) ---
     {
         const auto gateLen = arpParams_.gateLaneLength.load(std::memory_order_relaxed);
-        arpCore_.gateLane().setLength(32);
-        for (int i = 0; i < 32; ++i) {
+        arpCore_.gateLane().setLength(kMaxArpSteps);
+        for (int i = 0; i < kMaxArpSteps; ++i) {
             arpCore_.gateLane().setStep(
                 static_cast<size_t>(i),
                 arpParams_.gateLaneSteps[i].load(std::memory_order_relaxed));
@@ -912,8 +1002,8 @@ void Processor::applyParamsToEngine() {
     // --- Pitch Lane (072-independent-lanes, US3) ---
     {
         const auto pitchLen = arpParams_.pitchLaneLength.load(std::memory_order_relaxed);
-        arpCore_.pitchLane().setLength(32);
-        for (int i = 0; i < 32; ++i) {
+        arpCore_.pitchLane().setLength(kMaxArpSteps);
+        for (int i = 0; i < kMaxArpSteps; ++i) {
             int val = std::clamp(
                 arpParams_.pitchLaneSteps[i].load(std::memory_order_relaxed), -24, 24);
             arpCore_.pitchLane().setStep(
@@ -924,8 +1014,8 @@ void Processor::applyParamsToEngine() {
     // --- Modifier Lane (073-per-step-mods) ---
     {
         const auto modLen = arpParams_.modifierLaneLength.load(std::memory_order_relaxed);
-        arpCore_.modifierLane().setLength(32);  // Expand first (FR-031)
-        for (int i = 0; i < 32; ++i) {
+        arpCore_.modifierLane().setLength(kMaxArpSteps);  // Expand first (FR-031)
+        for (int i = 0; i < kMaxArpSteps; ++i) {
             arpCore_.modifierLane().setStep(
                 static_cast<size_t>(i),
                 static_cast<uint8_t>(arpParams_.modifierLaneSteps[i].load(
@@ -940,8 +1030,8 @@ void Processor::applyParamsToEngine() {
     // --- Ratchet Lane (074-ratcheting, FR-035) ---
     {
         const auto ratchetLen = arpParams_.ratchetLaneLength.load(std::memory_order_relaxed);
-        arpCore_.ratchetLane().setLength(32);  // Expand first
-        for (int i = 0; i < 32; ++i) {
+        arpCore_.ratchetLane().setLength(kMaxArpSteps);  // Expand first
+        for (int i = 0; i < kMaxArpSteps; ++i) {
             int val = std::clamp(
                 arpParams_.ratchetLaneSteps[i].load(std::memory_order_relaxed), 1, 4);
             arpCore_.ratchetLane().setStep(
@@ -964,8 +1054,8 @@ void Processor::applyParamsToEngine() {
     // --- Condition Lane (076-conditional-trigs) ---
     {
         const auto condLen = arpParams_.conditionLaneLength.load(std::memory_order_relaxed);
-        arpCore_.conditionLane().setLength(32);  // Expand first
-        for (int i = 0; i < 32; ++i) {
+        arpCore_.conditionLane().setLength(kMaxArpSteps);  // Expand first
+        for (int i = 0; i < kMaxArpSteps; ++i) {
             int val = std::clamp(
                 arpParams_.conditionLaneSteps[i].load(std::memory_order_relaxed), 0, 17);
             arpCore_.conditionLane().setStep(
@@ -1009,8 +1099,8 @@ void Processor::applyParamsToEngine() {
     // --- Chord Lane (arp-chord-lane) ---
     {
         const auto chordLen = arpParams_.chordLaneLength.load(std::memory_order_relaxed);
-        arpCore_.chordLane().setLength(32);  // Expand first
-        for (int i = 0; i < 32; ++i) {
+        arpCore_.chordLane().setLength(kMaxArpSteps);  // Expand first
+        for (int i = 0; i < kMaxArpSteps; ++i) {
             int val = std::clamp(
                 arpParams_.chordLaneSteps[i].load(std::memory_order_relaxed), 0, 4);
             arpCore_.chordLane().setStep(
@@ -1020,8 +1110,8 @@ void Processor::applyParamsToEngine() {
     }
     {
         const auto invLen = arpParams_.inversionLaneLength.load(std::memory_order_relaxed);
-        arpCore_.inversionLane().setLength(32);  // Expand first
-        for (int i = 0; i < 32; ++i) {
+        arpCore_.inversionLane().setLength(kMaxArpSteps);  // Expand first
+        for (int i = 0; i < kMaxArpSteps; ++i) {
             int val = std::clamp(
                 arpParams_.inversionLaneSteps[i].load(std::memory_order_relaxed), 0, 3);
             arpCore_.inversionLane().setStep(

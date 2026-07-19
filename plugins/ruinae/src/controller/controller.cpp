@@ -518,10 +518,10 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
                     auto* param = getParameterObject(playheadParamId);
                     if (!param) return;
 
-                    constexpr long kMaxArpSteps = 32;
+                    constexpr long kMaxArpStepsL = static_cast<long>(kMaxArpSteps);
                     double normalized = param->getNormalized();
-                    long rawStep = std::lround(normalized * kMaxArpSteps);
-                    int32_t step = rawStep >= kMaxArpSteps ? -1 : static_cast<int32_t>(rawStep);
+                    long rawStep = std::lround(normalized * kMaxArpStepsL);
+                    int32_t step = rawStep >= kMaxArpStepsL ? -1 : static_cast<int32_t>(rawStep);
 
                     if (step != lastPolledSteps_[static_cast<size_t>(laneIdx)]) {
                         lastPolledSteps_[static_cast<size_t>(laneIdx)] = step;

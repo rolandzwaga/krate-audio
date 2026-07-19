@@ -44,43 +44,6 @@
 #include <cstring>
 #include <vector>
 
-// DEBUG: Phaser signal path tracing (remove after debugging)
-#define RUINAE_FX_CHAIN_DEBUG 0
-#if RUINAE_FX_CHAIN_DEBUG
-#include <cstdarg>
-#include <cstdio>
-#ifdef _WIN32
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
-#include <windows.h>
-#endif
-extern int s_logCounter;
-static inline void logFxChain(const char* fmt, ...) {
-    char buf[512];
-    va_list args;
-    va_start(args, fmt);
-    vsnprintf(buf, sizeof(buf), fmt, args);
-    va_end(args);
-#ifdef _WIN32
-    OutputDebugStringA(buf);
-#else
-    fprintf(stderr, "%s", buf);
-#endif
-}
-static inline float peakLevel(const float* buf, size_t n) {
-    float peak = 0.0f;
-    for (size_t i = 0; i < n; ++i) {
-        float a = std::fabs(buf[i]);
-        if (a > peak) peak = a;
-    }
-    return peak;
-}
-#endif
-
 namespace Krate::DSP {
 
 /// @brief Modulation type selector for the modulation effects slot.
@@ -276,6 +239,12 @@ public:
         }
         activeCompIdx_ = 0;
 
+        // Reset slot enable/disable fades
+        delayFadeState_ = SlotFadeState::Off;
+        reverbFadeState_ = SlotFadeState::Off;
+        delayFadeAlpha_ = 0.0f;
+        reverbFadeAlpha_ = 0.0f;
+
         // Reset pre-warm state
         preWarming_ = false;
         preWarmRemaining_ = 0;
@@ -326,8 +295,38 @@ public:
     // FX Enable/Disable
     // =========================================================================
 
-    void setDelayEnabled(bool enabled) noexcept { delayEnabled_ = enabled; }
-    void setReverbEnabled(bool enabled) noexcept { reverbEnabled_ = enabled; }
+    /// @brief Enable or disable the delay slot with a short wet crossfade.
+    ///
+    /// A hard bool flip cut the wet tail in a single sample, which clicks. The
+    /// slot keeps processing through the fade-out and its lines are cleared only
+    /// once the fade completes, so the next enable starts from silence instead
+    /// of replaying whatever was left in the buffers.
+    void setDelayEnabled(bool enabled) noexcept {
+        if (enabled == delayEnabled_) return;
+        delayEnabled_ = enabled;
+
+        if (enabled) {
+            delayFadeState_ = SlotFadeState::FadingIn;
+        } else {
+            delayFadeState_ = SlotFadeState::FadingOut;
+        }
+        slotFadeIncrement_ = 1000.0f / (kSlotFadeMs * static_cast<float>(sampleRate_));
+    }
+
+    /// @brief Enable or disable the reverb slot with a short wet crossfade.
+    /// Same reasoning as setDelayEnabled: the tank is reset only after the
+    /// fade-out finishes, so the tail is not truncated.
+    void setReverbEnabled(bool enabled) noexcept {
+        if (enabled == reverbEnabled_) return;
+        reverbEnabled_ = enabled;
+
+        if (enabled) {
+            reverbFadeState_ = SlotFadeState::FadingIn;
+        } else {
+            reverbFadeState_ = SlotFadeState::FadingOut;
+        }
+        slotFadeIncrement_ = 1000.0f / (kSlotFadeMs * static_cast<float>(sampleRate_));
+    }
 
     /// @brief Set the modulation type directly (no crossfade).
     /// Used during applyParamsToEngine() per-block updates.
@@ -830,7 +829,7 @@ private:
         // pushed back by ~6144 samples (~140 ms), which is audible as a
         // late synth onset relative to MIDI input.
         // ---------------------------------------------------------------
-        if (!delayEnabled_) {
+        if (delayFadeState_ == SlotFadeState::Off) {
             // Skip delay processing entirely
         } else if (preWarming_) {
             // Save dry input before any delay processing for external mix.
@@ -957,12 +956,30 @@ private:
         // the 100%-wet (and latency-compensated) delay output; delayDryL_/R_
         // hold the dry input captured before delay processing. Smoothed
         // per-sample to avoid zipper noise on mix changes.
-        if (delayEnabled_) {
+        if (delayFadeState_ != SlotFadeState::Off) {
             for (size_t i = 0; i < numSamples; ++i) {
-                const float wetGain = userDelayMixSmoother_.process();
+                // The enable/disable fade scales the wet contribution only, so
+                // the dry path is untouched and the tail decays instead of
+                // being cut off.
+                const float fade = tickSlotFade(delayFadeState_, delayFadeAlpha_);
+                const float wetGain = userDelayMixSmoother_.process() * fade;
                 const float dryGain = 1.0f - wetGain;
                 left[i]  = dryGain * delayDryL_[i] + wetGain * left[i];
                 right[i] = dryGain * delayDryR_[i] + wetGain * right[i];
+            }
+
+            // Clear the lines only once the fade-out has finished, so the next
+            // enable does not replay stale buffer content.
+            if (delayFadeState_ == SlotFadeState::Off) {
+                digitalDelay_.reset();
+                tapeDelay_.reset();
+                pingPongDelay_.reset();
+                granularDelay_.reset();
+                spectralDelay_.reset();
+                for (size_t i = 0; i < 2; ++i) {
+                    compDelayL_[i].reset();
+                    compDelayR_[i].reset();
+                }
             }
         }
 
@@ -1048,7 +1065,7 @@ private:
         // ---------------------------------------------------------------
         // Slot 3: Reverb (FR-005, FR-022, 125-dual-reverb FR-024/FR-025)
         // ---------------------------------------------------------------
-        if (reverbEnabled_) {
+        if (reverbFadeState_ != SlotFadeState::Off) {
             // Capture the dry input before the (wet-only) reverbs run, then mix
             // it back in externally. Doing the dry/wet balance out here rather
             // than inside each reverb keeps the equal-power type crossfade
@@ -1059,10 +1076,18 @@ private:
             processReverbSlot(left, right, numSamples);
 
             for (size_t i = 0; i < numSamples; ++i) {
-                const float wetGain = userReverbMixSmoother_.process();
+                const float fade = tickSlotFade(reverbFadeState_, reverbFadeAlpha_);
+                const float wetGain = userReverbMixSmoother_.process() * fade;
                 const float dryGain = 1.0f - wetGain;
                 left[i]  = dryGain * reverbDryL_[i] + wetGain * left[i];
                 right[i] = dryGain * reverbDryR_[i] + wetGain * right[i];
+            }
+
+            // Reset the tank only after the fade-out completes, so the tail is
+            // heard out rather than truncated.
+            if (reverbFadeState_ == SlotFadeState::Off) {
+                reverb_.reset();
+                fdnReverb_.reset();
             }
         }
     }
@@ -1395,6 +1420,42 @@ private:
     std::vector<float> harmonizerMonoScratch_;
     std::vector<float> harmonizerDryL_;
     std::vector<float> harmonizerDryR_;
+
+    // Delay / reverb enable-disable crossfade. Same four-state shape as the
+    // harmonizer's, applied to the wet gain of each slot's external dry/wet mix.
+    enum class SlotFadeState { Off, FadingIn, On, FadingOut };
+    static constexpr float kSlotFadeMs = 20.0f;
+    SlotFadeState delayFadeState_ = SlotFadeState::Off;
+    SlotFadeState reverbFadeState_ = SlotFadeState::Off;
+    float delayFadeAlpha_ = 0.0f;
+    float reverbFadeAlpha_ = 0.0f;
+    float slotFadeIncrement_ = 0.0f;
+
+    /// Advance a slot's fade by one sample and return the wet multiplier to use
+    /// for it. Off contributes nothing; On contributes fully.
+    [[nodiscard]] float tickSlotFade(SlotFadeState& state, float& alpha) noexcept {
+        switch (state) {
+            case SlotFadeState::Off:
+                return 0.0f;
+            case SlotFadeState::On:
+                return 1.0f;
+            case SlotFadeState::FadingIn:
+                alpha += slotFadeIncrement_;
+                if (alpha >= 1.0f) {
+                    alpha = 1.0f;
+                    state = SlotFadeState::On;
+                }
+                return alpha;
+            case SlotFadeState::FadingOut:
+                alpha -= slotFadeIncrement_;
+                if (alpha <= 0.0f) {
+                    alpha = 0.0f;
+                    state = SlotFadeState::Off;
+                }
+                return alpha;
+        }
+        return 0.0f;
+    }
 
     // Harmonizer enable/disable crossfade
     enum class HarmonizerFadeState { Off, FadingIn, On, FadingOut };
