@@ -20,17 +20,25 @@ name: Valgrind Nightly
 # such a mismatch deterministically, independent of test order. This is the
 # regression guard for that class of bug.
 #
-# Why nightly (not per-PR): a full memcheck pass over the heavy DSP suite takes
-# ~20-60 min and can emit spurious "uninitialised value" reports on SIMD code,
-# so running it on every PR would tax feedback and risk flaky reds. Nightly on
-# `main` catches regressions within 24 h without that cost. Use the manual
-# "Run workflow" button (workflow_dispatch) to run it on demand, e.g. before a
-# release or when touching allocation-sensitive code.
+# Why nightly (not per-PR): a full memcheck pass over the heavy DSP suite costs
+# ~50x native (and --track-origins roughly doubles that) and can emit spurious
+# "uninitialised value" reports on SIMD code, so running it on every PR would
+# tax feedback and risk flaky reds. Nightly on `main` catches regressions
+# within 24 h without that cost. Use the manual "Run workflow" button
+# (workflow_dispatch) to run it on demand, e.g. before a release or when
+# touching allocation-sensitive code.
+#
+# Sharding: the Membrum suite is ~107 s natively, which put a single memcheck
+# pass past the 90 min step budget (it timed out on 2026-07-19). The run is
+# split into 4 Catch2 shards, each a disjoint quarter of the TEST_CASEs, so no
+# coverage is lost and the slowest shard is ~1/3 of the serial wall clock. If
+# it creeps back toward the budget, raise the shard count -- do not simply
+# raise the timeout.
 #
 # Idle-repo skip: the scheduled run is gated on the repository having been
 # pushed to within the last 24 h (see the check-activity job). Re-running a
-# ~90 min memcheck pass over an unchanged tree buys nothing, so on a quiet
-# repo the schedule costs one cheap API call instead of two long jobs. A
+# long memcheck pass over an unchanged tree buys nothing, so on a quiet repo
+# the schedule costs one cheap API call instead of several long jobs. A
 # manual workflow_dispatch always runs, regardless of activity.
 # ============================================================================
 
@@ -113,10 +121,21 @@ jobs:
           fi
 
   valgrind-membrum:
-    name: Linux Valgrind (Membrum)
+    name: Linux Valgrind (Membrum, shard ${{ matrix.shard }}/4)
     runs-on: ubuntu-latest
     needs: check-activity
     if: needs.check-activity.outputs.should_run == 'true'
+
+    # Sharded because the suite outgrew a single 90 min memcheck budget.
+    # memcheck costs ~50-80x native and --track-origins roughly doubles that,
+    # so a ~60 s native suite lands near two hours on a CI runner. Catch2's
+    # --shard-count splits at TEST_CASE granularity, so each shard runs a
+    # disjoint quarter of the cases; together they still cover every test.
+    # fail-fast is off so one bad shard does not hide errors in the others.
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3]
 
     steps:
       - name: Checkout
@@ -159,13 +178,15 @@ jobs:
       - name: Build membrum_tests
         run: cmake --build build-vg --parallel --target membrum_tests
 
-      # One memcheck run is enough: the new/delete family mismatch is detected
-      # per-allocation, regardless of test order. --error-exitcode=99 turns any
-      # memcheck error (mismatched free, invalid read/write, uninitialised use)
-      # into a job failure. Leak checking is off — we only care about invalid
-      # accesses and mismatched frees, not the static/"still reachable"
-      # allocations Catch2 keeps for the process lifetime.
-      - name: Run membrum_tests under Valgrind/memcheck
+      # One memcheck pass over each shard is enough: the new/delete family
+      # mismatch is detected per-allocation, regardless of test order, so
+      # splitting the suite across processes does not weaken the check.
+      # --error-exitcode=99 turns any memcheck error (mismatched free, invalid
+      # read/write, uninitialised use) into a job failure. Leak checking is off
+      # — we only care about invalid accesses and mismatched frees, not the
+      # static/"still reachable" allocations Catch2 keeps for the process
+      # lifetime.
+      - name: Run membrum_tests under Valgrind/memcheck (shard ${{ matrix.shard }})
         timeout-minutes: 90
         run: |
           BIN="build-vg/bin/${{ env.BUILD_TYPE }}/membrum_tests"
@@ -179,7 +200,8 @@ jobs:
             --track-origins=yes \
             --num-callers=25 \
             "$BIN" '~[performance]~[perf]~[benchmark]~[!benchmark]~[lifecycle]' --skip-benchmarks \
-              --order rand --rng-seed "$SEED"
+              --order rand --rng-seed "$SEED" \
+              --shard-count 4 --shard-index ${{ matrix.shard }}
 
       - name: Show ccache stats
         if: always()
