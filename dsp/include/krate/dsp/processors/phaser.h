@@ -29,6 +29,7 @@
 #include <krate/dsp/primitives/smoother.h>
 #include <krate/dsp/core/db_utils.h>
 #include <krate/dsp/core/note_value.h>
+#include <krate/dsp/core/fast_math.h>
 
 #include <algorithm>
 #include <array>
@@ -242,6 +243,10 @@ public:
         // Reset feedback state
         feedbackStateL_ = 0.0f;
         feedbackStateR_ = 0.0f;
+
+        // Invalidate the sweep cache so the next block re-derives its bounds.
+        cachedCenterFreq_ = -1.0f;
+        cachedDepth_ = -1.0f;
 
         // Snap smoothers to targets
         rateSmoother_.snapToTarget();
@@ -474,13 +479,16 @@ public:
         // Calculate sweep frequency with exponential mapping (FR-002)
         const float sweepFreq = calculateSweepFrequency(lfoValue, smoothedCenterFreq, smoothedDepth);
 
-        // Set allpass filter frequencies
+        // Set allpass filter frequencies. Every stage is swept to the same
+        // frequency, so the coefficient -- which costs a std::tan -- is derived
+        // once and shared rather than recomputed per stage.
+        const float coeff = OnePoleAllpass::coeffFromFrequency(sweepFreq, sampleRate_);
         for (int i = 0; i < numStages_; ++i) {
-            stagesL_[static_cast<size_t>(i)].setFrequency(sweepFreq);
+            stagesL_[static_cast<size_t>(i)].setCoefficient(coeff);
         }
 
         // Add feedback to input (tanh soft-clipped) (FR-012)
-        const float feedbackSignal = std::tanh(feedbackStateL_ * smoothedFeedback);
+        const float feedbackSignal = FastMath::fastTanh(feedbackStateL_ * smoothedFeedback);
         float signal = input + feedbackSignal;
 
         // Process through allpass cascade
@@ -558,11 +566,12 @@ public:
                 feedbackStateL_ = 0.0f;
             }
 
+            const float coeffL = OnePoleAllpass::coeffFromFrequency(sweepFreqL, sampleRate_);
             for (int s = 0; s < numStages_; ++s) {
-                stagesL_[static_cast<size_t>(s)].setFrequency(sweepFreqL);
+                stagesL_[static_cast<size_t>(s)].setCoefficient(coeffL);
             }
 
-            const float feedbackSignalL = std::tanh(feedbackStateL_ * smoothedFeedback);
+            const float feedbackSignalL = FastMath::fastTanh(feedbackStateL_ * smoothedFeedback);
             float signalL = inputL + feedbackSignalL;
 
             for (int s = 0; s < numStages_; ++s) {
@@ -581,11 +590,12 @@ public:
                 feedbackStateR_ = 0.0f;
             }
 
+            const float coeffR = OnePoleAllpass::coeffFromFrequency(sweepFreqR, sampleRate_);
             for (int s = 0; s < numStages_; ++s) {
-                stagesR_[static_cast<size_t>(s)].setFrequency(sweepFreqR);
+                stagesR_[static_cast<size_t>(s)].setCoefficient(coeffR);
             }
 
-            const float feedbackSignalR = std::tanh(feedbackStateR_ * smoothedFeedback);
+            const float feedbackSignalR = FastMath::fastTanh(feedbackStateR_ * smoothedFeedback);
             float signalR = inputR + feedbackSignalR;
 
             for (int s = 0; s < numStages_; ++s) {
@@ -609,28 +619,46 @@ private:
     /// @param centerFreq Center frequency in Hz
     /// @param depth Modulation depth [0, 1]
     /// @return Sweep frequency in Hz
-    [[nodiscard]] float calculateSweepFrequency(float lfoValue, float centerFreq, float depth) const noexcept {
+    /// Refresh the cached sweep bounds if the smoothed depth or centre frequency
+    /// has moved. Both smoothers settle to an exact float fixed point, so in
+    /// steady state this is a pair of compares and the two std::pow calls do not
+    /// run at all -- while during a parameter ramp the bounds still track every
+    /// sample.
+    ///
+    /// std::pow is kept rather than swapped for the cheaper std::exp2f: the two
+    /// round differently, and the substitution shifts the rendered output. This
+    /// change is meant to be free, so it stays bit-exact and only the redundant
+    /// evaluations are removed.
+    void updateSweepCache(float centerFreq, float depth) noexcept {
+        if (centerFreq == cachedCenterFreq_ && depth == cachedDepth_) {
+            return;
+        }
+        cachedCenterFreq_ = centerFreq;
+        cachedDepth_ = depth;
+
+        // Symmetric in log-frequency: depth=0.5 gives kMaxSweepOctaves/2 octaves
+        // each direction (FR-007).
+        const float octaves = depth * kMaxSweepOctaves;
+        const float maxFreq = centerFreq * std::pow(2.0f, octaves);
+        cachedMinFreq_ = std::max(centerFreq * std::pow(2.0f, -octaves), kMinSweepFreq);
+        cachedFreqRatio_ = maxFreq / cachedMinFreq_;
+    }
+
+    [[nodiscard]] float calculateSweepFrequency(float lfoValue, float centerFreq, float depth) noexcept {
         // If depth is 0, return center frequency (stationary notches)
         if (depth < 0.001f) {
             return centerFreq;
         }
 
-        // Calculate min/max from center and depth using octave-based mapping (FR-007)
-        // Symmetric in log-frequency: depth=0.5 gives kMaxSweepOctaves/2 octaves each direction
-        const float octaves = depth * kMaxSweepOctaves;
-        float minFreq = centerFreq * std::pow(2.0f, -octaves);
-        float maxFreq = centerFreq * std::pow(2.0f, octaves);
-
-        // Clamp min to prevent sub-audible frequencies
-        minFreq = std::max(minFreq, kMinSweepFreq);
+        updateSweepCache(centerFreq, depth);
 
         // Map LFO [-1, +1] to [0, 1]
         const float lfoNorm = (lfoValue + 1.0f) * 0.5f;
 
-        // Exponential mapping for perceptually even sweep (FR-002)
-        // freq = minFreq * pow(maxFreq/minFreq, lfoNorm)
-        const float freqRatio = maxFreq / minFreq;
-        const float sweepFreq = minFreq * std::pow(freqRatio, lfoNorm);
+        // Exponential mapping for perceptually even sweep (FR-002):
+        // freq = minFreq * (maxFreq/minFreq)^lfoNorm. One pow per sample now,
+        // down from three.
+        const float sweepFreq = cachedMinFreq_ * std::pow(cachedFreqRatio_, lfoNorm);
 
         // Clamp to safe range (0.99 * Nyquist)
         const float maxSafeFreq = static_cast<float>(sampleRate_) * 0.5f * 0.99f;
@@ -659,6 +687,13 @@ private:
     // Feedback state
     float feedbackStateL_ = 0.0f;
     float feedbackStateR_ = 0.0f;
+
+    // Sweep bounds cache, keyed on the smoothed depth and centre frequency.
+    // The sentinels are chosen so the first call always misses.
+    float cachedCenterFreq_ = -1.0f;
+    float cachedDepth_ = -1.0f;
+    float cachedMinFreq_ = 0.0f;
+    float cachedFreqRatio_ = 1.0f;
 
     // Configuration
     double sampleRate_ = 44100.0;

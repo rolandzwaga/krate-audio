@@ -819,7 +819,15 @@ public:
 
     /// @brief Set SVF slope (1=12dB single stage, 2=24dB cascaded).
     void setFilterSvfSlope(int stages) noexcept {
+        const int previous = svfSlopeStages_;
         svfSlopeStages_ = std::clamp(stages, 1, 2);
+
+        // Stage 2's cutoff is only tracked while it is in use, so bring it up to
+        // date on the transition rather than relying on the next per-sample
+        // update alone.
+        if (previous < 2 && svfSlopeStages_ >= 2) {
+            filterSvf2_.setCutoff(filterCutoffHz_);
+        }
     }
 
     /// @brief Set SVF drive (0-24 dB post-filter soft clipping).
@@ -1371,7 +1379,14 @@ private:
             case RuinaeFilterType::SVF_LowShelf:
             case RuinaeFilterType::SVF_HighShelf:
                 filterSvf_.setCutoff(hz);
-                filterSvf2_.setCutoff(hz);
+                // setCutoff runs a std::tan. In single-stage mode filterSvf2_ is
+                // never processed, so that was a transcendental per sample per
+                // voice whose result nothing read. This function runs before
+                // processActiveFilter in the same iteration, so a 1 -> 2 slope
+                // switch still primes stage 2 before its first use.
+                if (svfSlopeStages_ >= 2) {
+                    filterSvf2_.setCutoff(hz);
+                }
                 break;
             case RuinaeFilterType::Ladder:
                 if (filterLadder_) filterLadder_->setCutoff(hz);

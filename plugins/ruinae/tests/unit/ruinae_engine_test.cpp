@@ -1570,3 +1570,66 @@ TEST_CASE("AllVoice modulation returns to base when the offset goes to zero",
     CHECK(engine.getVoice(0).getFilterCutoff() == Approx(kBaseCutoff).margin(1.0f));
     CHECK(engine.getVoice(0).getMixPosition() == Approx(kBaseMorph).margin(1e-4));
 }
+
+// =============================================================================
+// Mono portamento stays continuous across the chunked render
+// =============================================================================
+// Mono used to drive voice 0 with a one-sample processBlock, which re-ran all of
+// the voice's per-call block-rate work for every sample. It now renders in
+// 32-sample chunks and advances the glide ramp across each chunk. The pitch
+// therefore updates on chunk boundaries rather than per sample, so the guard is
+// that the glide is still audibly smooth -- no silence, no discontinuity -- not
+// that the output is bit-identical.
+
+TEST_CASE("Mono portamento renders smoothly across chunk boundaries",
+          "[ruinae_engine][mono][portamento]") {
+    constexpr size_t kBlockSize = 512;
+    constexpr size_t kBlocks = 8;
+
+    RuinaeEngine engine;
+    engine.prepare(44100.0, kBlockSize);
+    engine.setMode(VoiceMode::Mono);
+    engine.setPortamentoTime(200.0f);
+
+    engine.noteOn(48, 100);
+    std::vector<float> left(kBlockSize);
+    std::vector<float> right(kBlockSize);
+    engine.processBlock(left.data(), right.data(), kBlockSize);
+
+    // Glide to a note two octaves up and render across it.
+    engine.noteOn(72, 100);
+
+    std::vector<float> rendered;
+    rendered.reserve(kBlockSize * kBlocks);
+    for (size_t b = 0; b < kBlocks; ++b) {
+        std::fill(left.begin(), left.end(), 0.0f);
+        std::fill(right.begin(), right.end(), 0.0f);
+        engine.processBlock(left.data(), right.data(), kBlockSize);
+        rendered.insert(rendered.end(), left.begin(), left.end());
+    }
+
+    // Sound is being produced throughout: a chunking bug that dropped or
+    // duplicated samples would show up as a silent or frozen stretch.
+    for (size_t b = 0; b < kBlocks; ++b) {
+        float peak = 0.0f;
+        for (size_t i = 0; i < kBlockSize; ++i) {
+            peak = std::max(peak, std::abs(rendered[b * kBlockSize + i]));
+        }
+        INFO("block " << b);
+        CHECK(peak > 1e-4f);
+    }
+
+    // No sample-to-sample discontinuity large enough to click. A chunk boundary
+    // that reset oscillator phase would break this.
+    float worstJump = 0.0f;
+    for (size_t i = 1; i < rendered.size(); ++i) {
+        worstJump = std::max(worstJump, std::abs(rendered[i] - rendered[i - 1]));
+    }
+    INFO("worst sample-to-sample jump " << worstJump);
+    CHECK(worstJump < 0.5f);
+
+    // Everything finite.
+    for (float s : rendered) {
+        REQUIRE(std::isfinite(s));
+    }
+}

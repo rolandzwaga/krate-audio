@@ -2050,23 +2050,37 @@ private:
         bool wasActive = voices_[0].isActive();
 
         if (voices_[0].isActive()) {
-            // Step 7b: Per-sample portamento processing (FR-009)
-            // Process sample-by-sample for accurate portamento
-            for (size_t s = 0; s < numSamples; ++s) {
-                float glidingFreq = monoHandler_.processPortamento();
+            // Step 7b: portamento (FR-009).
+            //
+            // The glide ramp is advanced once per sample, but the voice renders
+            // in chunks. A one-sample processBlock re-runs all of the voice's
+            // per-call block-rate work -- keytrack log2, oscillator frequency
+            // divisions, distortion and gate modulation setup -- for every
+            // single sample. Chunking moves the pitch update to a 32-sample
+            // boundary, about 0.7 ms at 44.1 kHz, which is well below the
+            // threshold where a glide stops sounding continuous. Going to full
+            // block-rate portamento would reintroduce audible zipper.
+            const float panPosition = voicePanPositions_[0];
+            const float leftGain = std::cos(panPosition * kPi * 0.5f);
+            const float rightGain = std::sin(panPosition * kPi * 0.5f);
+
+            for (size_t start = 0; start < numSamples; start += kPortamentoChunk) {
+                const size_t chunk = std::min(kPortamentoChunk, numSamples - start);
+
+                // Advance the glide across the whole chunk and render at the
+                // frequency it ends on.
+                float glidingFreq = 0.0f;
+                for (size_t s = 0; s < chunk; ++s) {
+                    glidingFreq = monoHandler_.processPortamento();
+                }
                 voices_[0].setFrequency(glidingFreq);
 
-                // Process 1 sample at a time
-                float sample = 0.0f;
-                voices_[0].processBlock(&sample, 1);
+                voices_[0].processBlock(monoChunkBuffer_.data(), chunk);
 
-                // Voice 0 always pans to center (0.5)
-                const float panPosition = voicePanPositions_[0];
-                const float leftGain = std::cos(panPosition * kPi * 0.5f);
-                const float rightGain = std::sin(panPosition * kPi * 0.5f);
-
-                mixBufferL_[s] += sample * leftGain;
-                mixBufferR_[s] += sample * rightGain;
+                for (size_t s = 0; s < chunk; ++s) {
+                    mixBufferL_[start + s] += monoChunkBuffer_[s] * leftGain;
+                    mixBufferR_[start + s] += monoChunkBuffer_[s] * rightGain;
+                }
             }
         }
 
@@ -2092,6 +2106,14 @@ private:
     // =========================================================================
     // Scratch Buffers (allocated in prepare())
     // =========================================================================
+
+    /// Samples the mono voice renders between portamento frequency updates.
+    /// 32 samples is about 0.7 ms at 44.1 kHz.
+    static constexpr size_t kPortamentoChunk = 32;
+
+    /// Render target for one mono chunk. Fixed size, so no allocation and no
+    /// dependency on the host's block size.
+    std::array<float, kPortamentoChunk> monoChunkBuffer_{};
 
     std::vector<float> voiceScratchBuffer_;
     std::vector<float> mixBufferL_;

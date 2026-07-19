@@ -20,6 +20,7 @@
 
 #include <array>
 #include <cmath>
+#include <cstring>
 #include <numbers>
 #include <chrono>
 #include <vector>
@@ -1760,4 +1761,92 @@ TEST_CASE("Phaser - Feedback resonance from allpass output", "[Phaser][PhaserFix
 
     // Feedback should increase peak-to-notch ratio significantly (>6 dB)
     REQUIRE(peakToNotchWithFb > peakToNotchNoFb + 6.0f);
+}
+
+// ==============================================================================
+// Output-preserving refactor guards
+// ==============================================================================
+// Hoisting the allpass coefficient out of the per-stage loop and caching the
+// sweep min/max are pure efficiency changes: every stage is swept to the same
+// frequency, and the cached values are recomputed whenever the smoothers move,
+// so the rendered output must not shift at all. These digests pin it.
+//
+// The feedback path's move from std::tanh to FastMath::fastTanh is NOT
+// output-preserving -- it is a Pade approximant -- so these digests were
+// regenerated deliberately when that swap was made. The bound on the
+// approximation error is asserted directly in flanger_test.cpp, so the digests
+// are not the only thing standing behind that change.
+
+namespace {
+
+uint64_t digestSamples(const std::vector<float>& samples) {
+    uint64_t hash = 1469598103934665603ULL;
+    for (float s : samples) {
+        uint32_t bits = 0;
+        std::memcpy(&bits, &s, sizeof(bits));
+        for (int b = 0; b < 4; ++b) {
+            hash ^= static_cast<uint8_t>((bits >> (b * 8)) & 0xFF);
+            hash *= 1099511628211ULL;
+        }
+    }
+    return hash;
+}
+
+/// A sweep long enough for the LFO to traverse its range several times, with
+/// feedback engaged so the tanh path is exercised.
+std::vector<float> renderPhaserMono() {
+    constexpr size_t kNumSamples = 4096;
+
+    Phaser phaser;
+    phaser.prepare(44100.0);
+    phaser.setRate(2.0f);
+    phaser.setDepth(0.8f);
+    phaser.setCenterFrequency(800.0f);
+    phaser.setFeedback(0.7f);
+    phaser.setMix(1.0f);
+    phaser.setNumStages(8);
+
+    std::vector<float> buffer(kNumSamples);
+    for (size_t i = 0; i < kNumSamples; ++i) {
+        buffer[i] = 0.7f * std::sin(2.0f * kPi * 220.0f
+                                    * static_cast<float>(i) / 44100.0f);
+    }
+    phaser.processBlock(buffer.data(), kNumSamples);
+    return buffer;
+}
+
+std::vector<float> renderPhaserStereo() {
+    constexpr size_t kNumSamples = 4096;
+
+    Phaser phaser;
+    phaser.prepare(44100.0);
+    phaser.setRate(1.5f);
+    phaser.setDepth(0.6f);
+    phaser.setCenterFrequency(1200.0f);
+    phaser.setFeedback(-0.5f);
+    phaser.setMix(0.8f);
+    phaser.setNumStages(12);
+    phaser.setStereoSpread(90.0f);
+
+    std::vector<float> left(kNumSamples);
+    std::vector<float> right(kNumSamples);
+    for (size_t i = 0; i < kNumSamples; ++i) {
+        const float t = static_cast<float>(i) / 44100.0f;
+        left[i] = 0.6f * std::sin(2.0f * kPi * 330.0f * t);
+        right[i] = 0.6f * std::sin(2.0f * kPi * 440.0f * t);
+    }
+    phaser.processStereo(left.data(), right.data(), kNumSamples);
+
+    left.insert(left.end(), right.begin(), right.end());
+    return left;
+}
+
+} // namespace
+
+TEST_CASE("Phaser mono render is unchanged", "[phaser][golden]") {
+    CHECK(digestSamples(renderPhaserMono()) == 0x32844ddc7557acf1ULL);
+}
+
+TEST_CASE("Phaser stereo render is unchanged", "[phaser][golden]") {
+    CHECK(digestSamples(renderPhaserStereo()) == 0x38549af920a52a45ULL);
 }
