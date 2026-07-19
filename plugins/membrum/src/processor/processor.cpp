@@ -25,10 +25,11 @@
 #include "pluginterfaces/vst/ivstmessage.h"
 #include "public.sdk/source/vst/utility/dataexchange.h"
 
-// FTZ/DAZ for denormal prevention on x86 (SC-007)
-#if defined(_M_X64) || defined(__x86_64__) || defined(_M_IX86) || defined(__i386__)
-#include <krate/dsp/core/scoped_denormal_mode.h> // FTZ/DAZ guard for process()
-#endif
+// FTZ/DAZ for denormal prevention (SC-007). Included UNCONDITIONALLY: the
+// header does its own per-architecture handling and compiles to an empty,
+// zero-cost object off x86. Wrapping it in an arch #if breaks the arm64 build,
+// because process() names Krate::DSP::ScopedDenormalMode unconditionally.
+#include <krate/dsp/core/scoped_denormal_mode.h>
 
 #include <algorithm>
 #include <array>

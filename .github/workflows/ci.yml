@@ -149,6 +149,12 @@ jobs:
         run: node tools/lint-layers.js
       - name: ODR / duplicate-symbol lint
         run: node tools/lint-odr.js
+      # Catches the cross-platform break that only the arm64 leg would find,
+      # ~40 min later in the build matrix: a portable krate header included
+      # behind an #if defined(__x86_64__)-style guard, while the code using it
+      # is unconditional. Compiles on x86, undeclared-identifier on arm64.
+      - name: Architecture-guarded include lint
+        run: node tools/lint-arch-guarded-includes.js
 
   build-windows:
     name: Windows (MSVC)

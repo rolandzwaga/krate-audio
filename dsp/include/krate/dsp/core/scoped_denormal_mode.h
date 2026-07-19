@@ -25,6 +25,13 @@
 //
 // Non-x86 targets (e.g. AArch64) compile this to an empty, zero-cost object:
 // ARM NEON flushes denormals by default in the common FPCR configuration.
+//
+// INCLUDE THIS HEADER UNCONDITIONALLY. It handles the architecture split
+// internally, so wrapping the #include in an `#if defined(__x86_64__)`-style
+// guard buys nothing and actively breaks the arm64 build: the declaration
+// disappears while process() still names ScopedDenormalMode, giving
+// "no type named 'ScopedDenormalMode' in namespace 'Krate::DSP'" on the macOS
+// universal build only. tools/lint-arch-guarded-includes.js enforces this.
 // ==============================================================================
 
 #if defined(__SSE2__) || defined(_M_X64) || defined(__x86_64__) \
