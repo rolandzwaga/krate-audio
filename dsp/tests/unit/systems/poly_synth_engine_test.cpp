@@ -1092,3 +1092,23 @@ TEST_CASE("PolySynthEngine voice allocation latency", "[poly-engine][performance
         REQUIRE(findPeak(output.data(), output.size()) > 0.0f);
     }
 }
+
+// =============================================================================
+// Active voice count must account for mono mode
+// =============================================================================
+// Mono mode bypasses the allocator entirely and drives voice 0 directly, so the
+// allocator's count stayed at zero however many notes were sounding. Anything
+// gating on "is the synth making noise" -- meters, idle detection, voice
+// displays -- read zero for the whole of a mono performance.
+
+TEST_CASE("Mono mode reports one active voice while sounding",
+          "[poly_synth_engine][mono][regression]") {
+    PolySynthEngine engine;
+    engine.prepare(44100.0, 128);
+    engine.setMode(VoiceMode::Mono);
+
+    REQUIRE(engine.getActiveVoiceCount() == 0);
+
+    engine.noteOn(60, 100);
+    CHECK(engine.getActiveVoiceCount() == 1);
+}

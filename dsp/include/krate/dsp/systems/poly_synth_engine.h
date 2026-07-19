@@ -574,7 +574,13 @@ public:
     // =========================================================================
 
     /// @brief Get the number of active voices (FR-030).
+    ///
+    /// Mono mode bypasses the allocator entirely and drives voice 0 directly, so
+    /// the allocator's count stays at zero there however many notes are playing.
     [[nodiscard]] uint32_t getActiveVoiceCount() const noexcept {
+        if (mode_ == VoiceMode::Mono) {
+            return voices_[0].isActive() ? 1u : 0u;
+        }
         return allocator_.getActiveVoiceCount();
     }
 

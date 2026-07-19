@@ -15,6 +15,7 @@
 
 #include "pluginterfaces/vst/ivsteditcontroller.h"
 
+#include <set>
 #include <string>
 
 using namespace Steinberg;
@@ -389,4 +390,41 @@ TEST_CASE("Mod matrix parameters are all registered", "[controller][params]") {
     }
 
     ctrl->terminate();
+}
+
+// =============================================================================
+// Registered ParamIDs must be unique
+// =============================================================================
+// VST3 requires unique ParamIDs, and a collision is invisible until a host
+// happens to route the wrong parameter. kSidechainActiveId was defined as 3400,
+// which sits inside the arp routing range (kArpBaseId..kArpEndId) -- so
+// processParameterChanges dispatched it to handleArpParamChange. Rather than
+// pin the specific pair, this walks the whole registered set, which also catches
+// the next accidental reuse.
+
+TEST_CASE("All registered parameter IDs are unique",
+          "[ruinae][controller][params][regression]") {
+    auto* ctrl = makeControllerRaw();
+
+    const int32 count = ctrl->getParameterCount();
+    REQUIRE(count > 0);
+
+    std::set<ParamID> seen;
+    for (int32 i = 0; i < count; ++i) {
+        ParameterInfo info{};
+        REQUIRE(ctrl->getParameterInfo(i, info) == kResultOk);
+        INFO("duplicate ParamID " << info.id << " at index " << i);
+        CHECK(seen.insert(info.id).second);
+    }
+
+    ctrl->terminate();
+    ctrl->release();
+}
+
+TEST_CASE("Sidechain status parameter sits outside the arp routing range",
+          "[ruinae][controller][params][regression]") {
+    // processParameterChanges dispatches the whole kArpBaseId..kArpEndId span to
+    // the arp handler, so any non-arp parameter placed in that window is routed
+    // to the wrong destination regardless of whether its ID happens to collide.
+    CHECK(Ruinae::kSidechainActiveId > Ruinae::kArpEndId);
 }

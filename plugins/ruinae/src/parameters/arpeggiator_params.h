@@ -153,10 +153,9 @@ struct ArpeggiatorParams {
     std::atomic<float> chordLaneSwing{0.0f};
     std::atomic<float> inversionLaneSwing{0.0f};
 
-    // --- v1.5 Part 2 ---
-    std::atomic<int>   velocityCurveType{0};
-    std::atomic<float> velocityCurveAmount{0.0f};
-    std::atomic<int>   transpose{0};
+    // v1.5 Part 2's velocityCurveType/velocityCurveAmount/transpose are absent:
+    // Ruinae's arp engine consumes none of them, so they were never written or
+    // read, and they are not part of the arp SAVE prefix shared with Gradus.
 
     // Per-lane length jitter (0-4 steps)
     std::atomic<int>   velocityLaneJitter{0};

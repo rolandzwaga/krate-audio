@@ -302,9 +302,15 @@ inline void RingModulator::reset() noexcept {
     noiseOsc_.reset();
     noiseOscR_.reset();
 
-    // Reset smoothers
-    freqSmoother_.reset();
-    freqSmootherR_.reset();
+    // Snap the frequency smoothers to the configured frequency rather than
+    // zeroing them. reset() clears state without changing parameters, so a
+    // plain reset() would leave the carrier ramping up from ~0 Hz over the
+    // 5 ms smoothing time on the next block -- an audible chirp. Snap to the
+    // unspread frequency, as prepare() does; the per-channel spread offset is
+    // re-applied by setTarget() in processBlock.
+    const float effectiveFreq = computeEffectiveFrequency();
+    freqSmoother_.snapTo(effectiveFreq);
+    freqSmootherR_.snapTo(effectiveFreq);
 }
 
 // -----------------------------------------------------------------------------
