@@ -109,95 +109,9 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
         } else if (paramId >= kFlangerRateId && paramId <= kFlangerEndId) {
             // Store to atomic param struct for state save/load
             handleFlangerParamChange(flangerParams_, paramId, value);
-            // Flanger parameter dispatch (direct to DSP object)
-            switch (paramId) { // NOLINT(bugprone-branch-clone): each case dispatches to a different setter with different value scaling
-                case kFlangerRateId:
-                    engine_.effectsChain().flanger().setRate(
-                        std::clamp(static_cast<float>(0.05 + value * 4.95), 0.05f, 5.0f));
-                    break;
-                case kFlangerDepthId:
-                    engine_.effectsChain().flanger().setDepth(
-                        static_cast<float>(value));
-                    break;
-                case kFlangerFeedbackId:
-                    engine_.effectsChain().flanger().setFeedback(
-                        static_cast<float>(value * 2.0 - 1.0));
-                    break;
-                case kFlangerMixId:
-                    engine_.effectsChain().flanger().setMix(
-                        static_cast<float>(value));
-                    break;
-                case kFlangerStereoSpreadId:
-                    engine_.effectsChain().flanger().setStereoSpread(
-                        static_cast<float>(value * 360.0));
-                    break;
-                case kFlangerWaveformId:
-                    engine_.effectsChain().flanger().setWaveform(
-                        static_cast<Krate::DSP::Waveform>(
-                            std::clamp(static_cast<int>(value * 1.0 + 0.5), 0, 1)));
-                    break;
-                case kFlangerSyncId:
-                    engine_.effectsChain().flanger().setTempoSync(value > 0.5);
-                    break;
-                case kFlangerNoteValueId: {
-                    const int noteIdx = std::clamp(
-                        static_cast<int>(value * (Krate::DSP::kNoteValueDropdownCount - 1) + 0.5),
-                        0, Krate::DSP::kNoteValueDropdownCount - 1);
-                    auto mapping = Krate::DSP::getNoteValueFromDropdown(noteIdx);
-                    engine_.effectsChain().flanger().setNoteValue(mapping.note, mapping.modifier);
-                    break;
-                }
-                default:
-                    break;
-            }
         } else if (paramId >= kChorusBaseId && paramId <= kChorusEndId) {
             // Store to atomic param struct for state save/load
             handleChorusParamChange(chorusParams_, paramId, value);
-            // Chorus parameter dispatch (direct to DSP object)
-            switch (paramId) { // NOLINT(bugprone-branch-clone): each case dispatches to a different setter with different value scaling
-                case kChorusRateId:
-                    engine_.effectsChain().chorus().setRate(
-                        std::clamp(static_cast<float>(0.05 + value * 9.95), 0.05f, 10.0f));
-                    break;
-                case kChorusDepthId:
-                    engine_.effectsChain().chorus().setDepth(
-                        static_cast<float>(value));
-                    break;
-                case kChorusFeedbackId:
-                    engine_.effectsChain().chorus().setFeedback(
-                        static_cast<float>(value * 2.0 - 1.0));
-                    break;
-                case kChorusMixId:
-                    engine_.effectsChain().chorus().setMix(
-                        static_cast<float>(value));
-                    break;
-                case kChorusStereoSpreadId:
-                    engine_.effectsChain().chorus().setStereoSpread(
-                        static_cast<float>(value * 360.0));
-                    break;
-                case kChorusVoicesId:
-                    engine_.effectsChain().chorus().setVoices(
-                        std::clamp(static_cast<int>(value * 3.0 + 0.5) + 1, 1, 4));
-                    break;
-                case kChorusWaveformId:
-                    engine_.effectsChain().chorus().setWaveform(
-                        static_cast<Krate::DSP::Waveform>(
-                            std::clamp(static_cast<int>(value * 1.0 + 0.5), 0, 1)));
-                    break;
-                case kChorusSyncId:
-                    engine_.effectsChain().chorus().setTempoSync(value > 0.5);
-                    break;
-                case kChorusNoteValueId: {
-                    const int noteIdx = std::clamp(
-                        static_cast<int>(value * (Krate::DSP::kNoteValueDropdownCount - 1) + 0.5),
-                        0, Krate::DSP::kNoteValueDropdownCount - 1);
-                    auto mapping = Krate::DSP::getNoteValueFromDropdown(noteIdx);
-                    engine_.effectsChain().chorus().setNoteValue(mapping.note, mapping.modifier);
-                    break;
-                }
-                default:
-                    break;
-            }
         } else if (paramId >= kPhaserBaseId && paramId <= kPhaserEndId) {
             handlePhaserParamChange(phaserParams_, paramId, value);
         } else if (paramId >= kMonoBaseId && paramId <= kMonoEndId) {
@@ -739,6 +653,44 @@ void Processor::applyParamsToEngine() {
         auto mapping = getNoteValueFromDropdown(
             phaserParams_.noteValue.load(std::memory_order_relaxed));
         engine_.setPhaserNoteValue(mapping.note, mapping.modifier);
+    }
+
+    // --- Flanger ---
+    // Re-applied from the atomics every block, like every other effect. Driving
+    // the DSP only from live change-points left it at reset defaults after a
+    // preset load, since applyPresetSnapshot() calls engine_.reset(). The
+    // atomics are already denormalized and clamped by handleFlangerParamChange,
+    // so nothing is rescaled here.
+    {
+        auto& flanger = engine_.effectsChain().flanger();
+        flanger.setRate(flangerParams_.rateHz.load(std::memory_order_relaxed));
+        flanger.setDepth(flangerParams_.depth.load(std::memory_order_relaxed));
+        flanger.setFeedback(flangerParams_.feedback.load(std::memory_order_relaxed));
+        flanger.setMix(flangerParams_.mix.load(std::memory_order_relaxed));
+        flanger.setStereoSpread(flangerParams_.stereoSpread.load(std::memory_order_relaxed));
+        flanger.setWaveform(static_cast<Krate::DSP::Waveform>(
+            flangerParams_.waveform.load(std::memory_order_relaxed)));
+        flanger.setTempoSync(flangerParams_.sync.load(std::memory_order_relaxed));
+        auto mapping = getNoteValueFromDropdown(
+            flangerParams_.noteValue.load(std::memory_order_relaxed));
+        flanger.setNoteValue(mapping.note, mapping.modifier);
+    }
+
+    // --- Chorus ---
+    {
+        auto& chorus = engine_.effectsChain().chorus();
+        chorus.setRate(chorusParams_.rateHz.load(std::memory_order_relaxed));
+        chorus.setDepth(chorusParams_.depth.load(std::memory_order_relaxed));
+        chorus.setFeedback(chorusParams_.feedback.load(std::memory_order_relaxed));
+        chorus.setMix(chorusParams_.mix.load(std::memory_order_relaxed));
+        chorus.setStereoSpread(chorusParams_.stereoSpread.load(std::memory_order_relaxed));
+        chorus.setVoices(chorusParams_.voices.load(std::memory_order_relaxed));
+        chorus.setWaveform(static_cast<Krate::DSP::Waveform>(
+            chorusParams_.waveform.load(std::memory_order_relaxed)));
+        chorus.setTempoSync(chorusParams_.sync.load(std::memory_order_relaxed));
+        auto mapping = getNoteValueFromDropdown(
+            chorusParams_.noteValue.load(std::memory_order_relaxed));
+        chorus.setNoteValue(mapping.note, mapping.modifier);
     }
 
     // --- Harmonizer ---

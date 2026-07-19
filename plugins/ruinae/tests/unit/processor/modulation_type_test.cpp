@@ -51,6 +51,7 @@ using ModParamChangeBatch = Krate::Test::ParameterChanges;
 class ModTestableProcessor : public Ruinae::Processor {
 public:
     using Ruinae::Processor::processParameterChanges;
+    using Ruinae::Processor::engine;
 };
 
 // =============================================================================
@@ -334,4 +335,87 @@ TEST_CASE("Switching modulation type with nullptr process context does not crash
 
     proc->setActive(false);
     proc->terminate();
+}
+
+// =============================================================================
+// Flanger and chorus must be re-applied from the loaded preset state
+// =============================================================================
+// Every other effect re-applies its parameters from the atomics in
+// applyParamsToEngine() every block. Flanger and chorus were driven only by live
+// parameter-change events through an inline switch, and applyParamsToEngine()
+// never touched them. Loading a preset calls engine_.reset(), which returns the
+// flanger and chorus DSP to their defaults -- and nothing then pushed the loaded
+// values back down, so both ran at reset defaults until the user moved a control.
+
+namespace {
+
+void setNormalizedParam(Ruinae::Processor* proc, Steinberg::Vst::ParamID id, double value) {
+    Krate::Test::ParameterChanges changes;
+    changes.addChange(id, value);
+    std::vector<float> l;
+    std::vector<float> r;
+    processModBlock(proc, 32, l, r, &changes);
+}
+
+std::vector<char> grabState(Ruinae::Processor* proc) {
+    Steinberg::MemoryStream stream;
+    proc->getState(&stream);
+    Steinberg::int64 size = 0;
+    stream.seek(0, Steinberg::IBStream::kIBSeekEnd, &size);
+    stream.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    std::vector<char> data(static_cast<size_t>(size));
+    Steinberg::int32 read = 0;
+    stream.read(data.data(), static_cast<Steinberg::int32>(size), &read);
+    return data;
+}
+
+void putState(Ruinae::Processor* proc, const std::vector<char>& bytes) {
+    Steinberg::MemoryStream stream;
+    stream.write(const_cast<char*>(bytes.data()),
+                 static_cast<Steinberg::int32>(bytes.size()), nullptr);
+    stream.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    proc->setState(&stream);
+}
+
+} // namespace
+
+TEST_CASE("Loading a preset restores flanger and chorus DSP values",
+          "[ruinae][processor][flanger][chorus][regression]") {
+    auto source = makeModTestableProcessor();
+
+    // Drive the parameters well away from their defaults, then capture.
+    setNormalizedParam(source.get(), Ruinae::kFlangerRateId, 0.9);
+    setNormalizedParam(source.get(), Ruinae::kFlangerDepthId, 0.8);
+    setNormalizedParam(source.get(), Ruinae::kChorusRateId, 0.9);
+    setNormalizedParam(source.get(), Ruinae::kChorusDepthId, 0.8);
+
+    const float expectedFlangerRate =
+        source->engine().effectsChain().flanger().getRate();
+    const float expectedFlangerDepth =
+        source->engine().effectsChain().flanger().getDepth();
+    const float expectedChorusRate =
+        source->engine().effectsChain().chorus().getRate();
+    const float expectedChorusDepth =
+        source->engine().effectsChain().chorus().getDepth();
+
+    const auto preset = grabState(source.get());
+
+    auto target = makeModTestableProcessor();
+    putState(target.get(), preset);
+    drainPresetTransfer(target.get());
+
+    // One ordinary block, with no parameter changes -- exactly what happens in a
+    // host after a preset is recalled and before the user touches anything.
+    std::vector<float> l;
+    std::vector<float> r;
+    processModBlock(target.get(), 32, l, r);
+
+    CHECK(target->engine().effectsChain().flanger().getRate()
+          == Approx(expectedFlangerRate).margin(1e-4));
+    CHECK(target->engine().effectsChain().flanger().getDepth()
+          == Approx(expectedFlangerDepth).margin(1e-4));
+    CHECK(target->engine().effectsChain().chorus().getRate()
+          == Approx(expectedChorusRate).margin(1e-4));
+    CHECK(target->engine().effectsChain().chorus().getDepth()
+          == Approx(expectedChorusDepth).margin(1e-4));
 }

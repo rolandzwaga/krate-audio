@@ -2419,3 +2419,80 @@ TEST_CASE("RuinaeVoice: rapid retrigger stress test with multiple filter types",
         }
     }
 }
+
+// =============================================================================
+// OSC A/B Level must reach the SpectralMorph input
+// =============================================================================
+// The oscillator level scaling lived only in the per-sample mix loop, which is
+// gated to CrossfadeMix. In SpectralMorph mode the raw oscillator buffers went
+// straight into the spectral morph, so the OSC A/B Level knobs -- and the
+// OscALevel/OscBLevel modulation destinations -- did nothing at all.
+
+TEST_CASE("SpectralMorph mode responds to OSC A level",
+          "[ruinae_voice][spectral_morph][regression]") {
+    constexpr size_t kBlockSize = 512;
+    constexpr size_t kBlocks = 8; // let the FFT-based morph fill its pipeline
+
+    auto render = [](float oscALevel) {
+        RuinaeVoice voice;
+        voice.prepare(44100.0, kBlockSize);
+        voice.setMixMode(MixMode::SpectralMorph);
+        voice.setMixPosition(0.0f); // fully OSC A
+        voice.setOscALevel(oscALevel);
+        voice.setOscBLevel(1.0f);
+        voice.noteOn(220.0f, 1.0f);
+
+        std::vector<float> out(kBlockSize * kBlocks, 0.0f);
+        for (size_t b = 0; b < kBlocks; ++b) {
+            voice.processBlock(out.data() + b * kBlockSize, kBlockSize);
+        }
+        return out;
+    };
+
+    const auto full = render(1.0f);
+    const auto silenced = render(0.0f);
+
+    auto rms = [](const std::vector<float>& v) {
+        double sum = 0.0;
+        for (float s : v) sum += static_cast<double>(s) * s;
+        return std::sqrt(sum / static_cast<double>(v.size()));
+    };
+
+    const double fullRms = rms(full);
+    REQUIRE(fullRms > 1e-4);
+    CHECK(rms(silenced) < fullRms * 0.5);
+}
+
+// =============================================================================
+// A retriggered voice must not resume an interrupted glide
+// =============================================================================
+// The portamento fields are set only by glideToFrequency() and were cleared by
+// neither reset() nor noteOn(). If a glide was interrupted with progress < 1.0
+// and the voice was later reused by a non-legato noteOn(), the first processBlock
+// re-entered the glide branch with the previous note's source and target and
+// overwrote the freshly set frequency -- the reused voice sang the old note.
+
+TEST_CASE("Retriggered voice does not resume a stale portamento glide",
+          "[ruinae_voice][portamento][regression]") {
+    constexpr size_t kBlockSize = 64;
+
+    RuinaeVoice voice;
+    voice.prepare(44100.0, kBlockSize);
+    voice.setPortamentoTime(500.0f); // long enough to stay mid-glide
+
+    voice.noteOn(220.0f, 1.0f);
+    voice.glideToFrequency(880.0f);
+
+    std::vector<float> scratch(kBlockSize, 0.0f);
+    voice.processBlock(scratch.data(), kBlockSize);
+    // Mid-glide: nowhere near either endpoint's completion.
+    REQUIRE(voice.getNoteFrequency() > 220.0f);
+    REQUIRE(voice.getNoteFrequency() < 880.0f);
+
+    // Reuse the voice for an unrelated note, the way the allocator would.
+    voice.noteOn(110.0f, 1.0f);
+    std::fill(scratch.begin(), scratch.end(), 0.0f);
+    voice.processBlock(scratch.data(), kBlockSize);
+
+    CHECK(voice.getNoteFrequency() == Approx(110.0f).margin(0.01f));
+}

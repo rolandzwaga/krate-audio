@@ -214,6 +214,9 @@ public:
         expressionTuning_ = 0.0f;
         expressionVolume_ = 1.0f;
         expressionBrightness_ = 0.5f;
+        portamentoProgress_ = 1.0f;
+        portamentoSourceFreq_ = 0.0f;
+        portamentoTargetFreq_ = 0.0f;
     }
 
     // =========================================================================
@@ -232,6 +235,15 @@ public:
         // Clear stale pitch modulation offsets from previous note
         oscAPitchModSemitones_ = 0.0f;
         oscBPitchModSemitones_ = 0.0f;
+
+        // Retire any glide left over from the previous note. An interrupted
+        // glide (progress < 1.0) would otherwise be resumed by the first
+        // processBlock with the OLD source and target, overwriting the frequency
+        // just set here. Legato transitions go through glideToFrequency(), not
+        // noteOn(), so this does not disturb them.
+        portamentoProgress_ = 1.0f;
+        portamentoSourceFreq_ = 0.0f;
+        portamentoTargetFreq_ = 0.0f;
 
         // Reset MPE expression fields for new note
         expressionTuning_ = 0.0f;
@@ -383,6 +395,32 @@ public:
 
         // Step 3: Mix oscillators (FR-006, FR-007)
         if (mixMode_ == MixMode::SpectralMorph && spectralMorph_) {
+            // Apply the OSC levels to the morph INPUTS. The per-sample loop below
+            // that normally does this is gated to CrossfadeMix, so without this
+            // the level knobs and the OscALevel/OscBLevel modulation
+            // destinations had no effect in this mode. Scaling the morphed
+            // output instead would be a single gain and could not express the
+            // A-vs-B balance.
+            //
+            // spectralMorph_ is block-based, so OscLevel modulation is block-rate
+            // in this mode: the offset is sampled once per block rather than per
+            // sample.
+            const float blockOscALevel = std::clamp(
+                oscALevel_ + modRouter_.getOffset(VoiceModDest::OscALevel)
+                    * modDestScales_[static_cast<size_t>(VoiceModDest::OscALevel)],
+                0.0f, 1.0f);
+            const float blockOscBLevel = std::clamp(
+                oscBLevel_ + modRouter_.getOffset(VoiceModDest::OscBLevel)
+                    * modDestScales_[static_cast<size_t>(VoiceModDest::OscBLevel)],
+                0.0f, 1.0f);
+
+            if (blockOscALevel != 1.0f) {
+                for (size_t i = 0; i < numSamples; ++i) oscABuffer_[i] *= blockOscALevel;
+            }
+            if (blockOscBLevel != 1.0f) {
+                for (size_t i = 0; i < numSamples; ++i) oscBBuffer_[i] *= blockOscBLevel;
+            }
+
             // SpectralMorph mode: FFT-based spectral interpolation (FR-006)
             spectralMorph_->processBlock(oscABuffer_.data(), oscBBuffer_.data(),
                                          spectralMorphBuffer_.data(), numSamples);
@@ -1156,6 +1194,10 @@ public:
     ADSREnvelope& getFilterEnvelope() noexcept { return filterEnv_; }
     ADSREnvelope& getModEnvelope() noexcept { return modEnv_; }
     LFO& getVoiceLFO() noexcept { return voiceLfo_; }
+
+    /// @brief The voice's current note frequency in Hz, after any portamento
+    /// glide has been applied.
+    [[nodiscard]] float getNoteFrequency() const noexcept { return noteFrequency_; }
 
     /// @brief Current filter cutoff in Hz (post-clamp, including any
     /// engine-level modulation the engine has pushed down).

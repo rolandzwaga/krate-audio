@@ -212,6 +212,10 @@ protected:
     /// Pre-allocated IMessages for arp skip events (one per lane, 6 total)
     std::array<Steinberg::IPtr<Steinberg::Vst::IMessage>, 6> skipMessages_{};
 
+    /// Read-only engine access for tests that need to assert on DSP state
+    /// rather than infer it from rendered audio.
+    [[nodiscard]] const Krate::DSP::RuinaeEngine& engine() const noexcept { return engine_; }
+
 private:
     // ==========================================================================
     // Processing State
