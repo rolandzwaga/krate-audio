@@ -75,6 +75,7 @@ constexpr VSTGUI::CCoord kMainTabSwitchWidth = 1400.0;
 constexpr VSTGUI::CCoord kModSourceSwitchWidth = 540.0;
 constexpr int kMainTabModIndex = 1;   // template-names="Tab_Sound,Tab_Mod,Tab_Fx,Tab_Seq"
 constexpr int kModSourceTemplateCount = 10;
+constexpr int kModSourceRunglerIndex = 4; // ...,Chaos,Macros,Rungler,...
 
 // Bring the mod-source views into existence and return the mod-source switch.
 //
@@ -121,6 +122,73 @@ TEST_CASE("willClose nulls every cached mod-source view pointer",
 
     CHECK(controller.modSourceViewPointerCount() == 0);
 
+    view->release();
+    controller.terminate();
+}
+TEST_CASE("ModSourceViewMode switch nulls the destroyed mod-source pointers",
+          "[ruinae][controller][ui][lifecycle]")
+{
+    Ruinae::Controller controller;
+    REQUIRE(controller.initialize(nullptr) == Steinberg::kResultOk);
+
+    Krate::TestSupport::ensureVstguiInitialized();
+
+    auto* editor = new VSTGUI::VST3Editor(&controller, "editor", uidescPath().c_str());
+    Steinberg::IPlugView* view = editor;
+    REQUIRE(view->attached(nullptr, kPlatformType) == Steinberg::kResultTrue);
+    REQUIRE(editor->getFrame() != nullptr);
+
+    auto* modSourceSwitch = showModTab(editor->getFrame());
+    REQUIRE(controller.modSourceViewPointerCount() > 0);
+
+    // Each switch destroys the previous template's children. Whatever was cached
+    // from the outgoing template must be dropped before the next one is built,
+    // otherwise the stale entries dangle.
+    for (int i = 1; i < kModSourceTemplateCount; ++i) {
+        // Mirror the real switch: the dropdown moves the parameter, and the
+        // container follows. Nothing can swap the template without the parameter
+        // changing, so the controller's parameter hook is the teardown point.
+        controller.setParamNormalized(
+            Ruinae::kModSourceViewModeTag,
+            static_cast<Steinberg::Vst::ParamValue>(i) / (kModSourceTemplateCount - 1));
+        modSourceSwitch->setCurrentViewIndex(i);
+        // At most the views of the single visible template may be cached. Nine
+        // pointers spread across ten templates means no template contributes more
+        // than the three sidechain indicators' worth at once.
+        CHECK(controller.modSourceViewPointerCount() <= 3);
+    }
+
+    view->removed();
+    view->release();
+    controller.terminate();
+}
+
+TEST_CASE("MainTab switch away from MOD nulls the mod-source pointers",
+          "[ruinae][controller][ui][lifecycle]")
+{
+    Ruinae::Controller controller;
+    REQUIRE(controller.initialize(nullptr) == Steinberg::kResultOk);
+
+    Krate::TestSupport::ensureVstguiInitialized();
+
+    auto* editor = new VSTGUI::VST3Editor(&controller, "editor", uidescPath().c_str());
+    Steinberg::IPlugView* view = editor;
+    REQUIRE(view->attached(nullptr, kPlatformType) == Steinberg::kResultTrue);
+    REQUIRE(editor->getFrame() != nullptr);
+
+    // Show a mod-source template whose view is NOT among the three that
+    // onTabChanged already cleared, otherwise the assertion below would hold for
+    // the wrong reason.
+    auto* modSourceSwitch = showModTab(editor->getFrame());
+    modSourceSwitch->setCurrentViewIndex(kModSourceRunglerIndex);
+    REQUIRE(controller.modSourceViewPointerCount() > 0);
+
+    // onTabChanged() is the controller-side teardown hook for a MainTab switch.
+    controller.notifyTabChangedForTest(0); // -> Tab_Sound
+
+    CHECK(controller.modSourceViewPointerCount() == 0);
+
+    view->removed();
     view->release();
     controller.terminate();
 }

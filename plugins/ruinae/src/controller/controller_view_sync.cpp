@@ -89,6 +89,13 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
         spectralCurveDropdown_ = nullptr;
         spectralBitsGroup_ = nullptr;
     }
+    // Same lifecycle hazard one level down: the nine mod-source views live inside
+    // the ModSourceViewMode UIViewSwitchContainer, so switching it destroys the
+    // outgoing template's children while the controller still caches pointers to
+    // them.
+    if (tag == kModSourceViewModeTag) {
+        resetModSourceViewPointers();
+    }
 
     // During bulk parameter loads (preset switching), skip per-param view updates.
     // syncAllViews() will do a single batch sync afterwards.

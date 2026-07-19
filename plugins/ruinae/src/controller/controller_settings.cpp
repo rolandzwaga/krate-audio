@@ -34,9 +34,12 @@ void Controller::onTabChanged([[maybe_unused]] int newTab) {
     lfo2RateGroup_ = nullptr;
     lfo1NoteValueGroup_ = nullptr;
     lfo2NoteValueGroup_ = nullptr;
-    lfo1WaveformDisplay_ = nullptr;
-    lfo2WaveformDisplay_ = nullptr;
-    chaosModDisplay_ = nullptr;
+    // Clears the LFO/chaos displays plus the rungler, S&H, random and sidechain
+    // views. Those last six were previously left dangling here even though the
+    // MOD template that owns them is destroyed on a tab switch -- and the
+    // sidechain indicators are touched by the kSidechainActiveId branch in
+    // setParamNormalized, which fires regardless of which tab is showing.
+    resetModSourceViewPointers();
     chaosRateGroup_ = nullptr;
     chaosNoteValueGroup_ = nullptr;
     shRateGroup_ = nullptr;
