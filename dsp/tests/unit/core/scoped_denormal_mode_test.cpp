@@ -155,7 +155,7 @@ TEST_CASE("Setting the denormal mode does not reach an already-running thread",
     _MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_ON);
     REQUIRE(denormalsAreFlushed()); // in effect *here*...
     {
-        std::lock_guard<std::mutex> lock(m);
+        const std::scoped_lock lock(m);
         mainThreadHasSetFtz = true;
     }
     cv.notify_one();

@@ -88,9 +88,12 @@ void applyOscTypeParams(const Pack& p, SetParam setParam) {
 // setter names are formed by token pasting, which a function template cannot do
 // -- passing ten callables instead would either need std::function (which may
 // allocate, and this runs on the audio thread) or a ten-parameter template.
-// #undef'd immediately after the three uses below.
+// #undef'd immediately after the three uses below. It expands to a braced block
+// rather than the usual do-while wrapper, so the uses carry no trailing
+// semicolon; every use here is a standalone statement, and do-while draws a
+// clang-tidy warning for no benefit at this call depth.
 #define RUINAE_APPLY_ENVELOPE(pack, Prefix)                                          \
-    do {                                                                             \
+    {                                                                                \
         const auto ld = [](const auto& a) { return a.load(std::memory_order_relaxed); }; \
         engine_.set##Prefix##Attack(ld((pack).attackMs));                            \
         engine_.set##Prefix##Decay(ld((pack).decayMs));                              \
@@ -113,7 +116,7 @@ void applyOscTypeParams(const Pack& p, SetParam setParam) {
             engine_.set##Prefix##DecayCurve(ld((pack).decayCurve));                  \
             engine_.set##Prefix##ReleaseCurve(ld((pack).releaseCurve));              \
         }                                                                            \
-    } while (0)
+    }
 
 // ==============================================================================
 // Parameter Handling
@@ -412,9 +415,9 @@ void Processor::applyEnvelopeParams() {
     using namespace Krate::DSP;
 
     // --- Amp / Filter / Mod Envelopes ---
-    RUINAE_APPLY_ENVELOPE(ampEnvParams_, Amp);
-    RUINAE_APPLY_ENVELOPE(filterEnvParams_, Filter);
-    RUINAE_APPLY_ENVELOPE(modEnvParams_, Mod);
+    RUINAE_APPLY_ENVELOPE(ampEnvParams_, Amp)
+    RUINAE_APPLY_ENVELOPE(filterEnvParams_, Filter)
+    RUINAE_APPLY_ENVELOPE(modEnvParams_, Mod)
 
 #undef RUINAE_APPLY_ENVELOPE
 }

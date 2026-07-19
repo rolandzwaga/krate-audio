@@ -72,9 +72,15 @@ enum OscParamOffset : Steinberg::Vst::ParamID {
 
 static_assert(kOscBTypeId - kOscATypeId == kOscBNoiseColorId - kOscANoiseColorId,
               "OSC A and OSC B parameter blocks must be identically spaced");
-static_assert(kOscATypeId + kOscNoiseColorOffset == kOscANoiseColorId,
+// The casts keep MSVC from warning about arithmetic between two different
+// enumeration types (the plugin-wide ParamID enum and OscParamOffset).
+static_assert(static_cast<Steinberg::Vst::ParamID>(kOscATypeId)
+                  + static_cast<Steinberg::Vst::ParamID>(kOscNoiseColorOffset)
+              == static_cast<Steinberg::Vst::ParamID>(kOscANoiseColorId),
               "OscParamOffset must match the OSC A id block");
-static_assert(kOscBTypeId + kOscNoiseColorOffset == kOscBNoiseColorId,
+static_assert(static_cast<Steinberg::Vst::ParamID>(kOscBTypeId)
+                  + static_cast<Steinberg::Vst::ParamID>(kOscNoiseColorOffset)
+              == static_cast<Steinberg::Vst::ParamID>(kOscBNoiseColorId),
               "OscParamOffset must match the OSC B id block");
 
 // =============================================================================

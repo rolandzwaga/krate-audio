@@ -44,7 +44,7 @@ TEST_CASE("uidesc reachability: referenced names across templates", "[test_helpe
     CHECK(names.count("Gain") == 1);
     CHECK(names.count("Mix") == 1);
     CHECK(names.count("Cutoff") == 1);  // on the inactive 'filter' template — still counted
-    CHECK(names.count("Hidden") == 0);  // defined but never bound
+    CHECK_FALSE(names.contains("Hidden"));  // defined but never bound
 }
 
 TEST_CASE("uidesc reachability: unreachable diff + allowlist", "[test_helpers][reachability]") {
