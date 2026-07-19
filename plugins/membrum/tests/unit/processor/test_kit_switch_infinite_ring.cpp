@@ -551,13 +551,29 @@ TEST_CASE("Per-pad single hit decays to silence on Orchestral",
 // note-on-only (pad-style) hosts with zero test coverage. Friction pads are
 // skipped inside the sweep (design-sustain without note-off).
 // ============================================================================
-TEST_CASE("Per-pad single hit decays to silence on every factory kit (NoteOn-only)",
-          "[membrum][processor][infinite_ring][regression][factory][per_pad][all_kits]")
+// One TEST_CASE per subcategory rather than a single all-kits loop. The
+// sweep is the heaviest case in the suite (~25 s natively, and memcheck
+// multiplies that by ~50-80x), and Catch2's --shard-count splits at
+// TEST_CASE granularity -- a monolithic sweep pins that whole cost onto a
+// single shard and blew the nightly valgrind job's 90 min budget. Splitting
+// per subcategory makes the work distributable with identical coverage.
+// The subcategory roster is fixed (see the Membrum preset invariants), so
+// this list is exhaustive by construction.
+namespace {
+
+void sweepSubcategory(const std::string& subcat, int minKits)
 {
     const auto root = factoryPresetRoot();
     if (root.empty())
     {
         WARN("factory preset root not found -- skipping");
+        return;
+    }
+
+    const auto dir = root / subcat;
+    if (!std::filesystem::is_directory(dir))
+    {
+        WARN(subcat << " subcategory dir not found -- skipping");
         return;
     }
 
@@ -568,26 +584,48 @@ TEST_CASE("Per-pad single hit decays to silence on every factory kit (NoteOn-onl
     };
 
     int swept = 0;
-    for (const auto& subcatDir : std::filesystem::directory_iterator(root))
+    for (const auto& file : std::filesystem::directory_iterator(dir))
     {
-        if (!subcatDir.is_directory())
+        if (file.path().extension() != ".vstpreset")
             continue;
-        const std::string subcat = subcatDir.path().filename().string();
-        for (const auto& file : std::filesystem::directory_iterator(subcatDir.path()))
-        {
-            if (file.path().extension() != ".vstpreset")
-                continue;
-            const std::string kitName = file.path().stem().string();
-            if (covered.count(kitName) != 0)
-                continue;
-            INFO("sweeping " << subcat << "/" << kitName);
-            runPerPadSustainTest(subcat, kitName);
-            ++swept;
-        }
+        const std::string kitName = file.path().stem().string();
+        if (covered.contains(kitName))
+            continue;
+        INFO("sweeping " << subcat << "/" << kitName);
+        runPerPadSustainTest(subcat, kitName);
+        ++swept;
     }
-    // 20 factory kits minus the 6 covered above; a shrinking roster here
-    // means presets went missing, not that everything is clean.
-    CHECK(swept >= 14);
+    // A shrinking roster here means presets went missing, not that
+    // everything is clean.
+    CHECK(swept >= minKits);
+}
+
+} // namespace
+
+TEST_CASE("Per-pad single hit decays to silence on every Acoustic kit (NoteOn-only)",
+          "[membrum][processor][infinite_ring][regression][factory][per_pad][all_kits]")
+{
+    // 5 Acoustic kits, 4 of them covered by dedicated cases above.
+    sweepSubcategory("Acoustic", 1);
+}
+
+TEST_CASE("Per-pad single hit decays to silence on every Electronic kit (NoteOn-only)",
+          "[membrum][processor][infinite_ring][regression][factory][per_pad][all_kits]")
+{
+    sweepSubcategory("Electronic", 5);
+}
+
+TEST_CASE("Per-pad single hit decays to silence on every Percussive kit (NoteOn-only)",
+          "[membrum][processor][infinite_ring][regression][factory][per_pad][all_kits]")
+{
+    // 5 Percussive kits, 2 of them covered by dedicated cases above.
+    sweepSubcategory("Percussive", 3);
+}
+
+TEST_CASE("Per-pad single hit decays to silence on every Unnatural kit (NoteOn-only)",
+          "[membrum][processor][infinite_ring][regression][factory][per_pad][all_kits]")
+{
+    sweepSubcategory("Unnatural", 5);
 }
 
 // ============================================================================
