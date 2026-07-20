@@ -214,7 +214,29 @@ public:
 
     DELEGATE_REFCOUNT(EditController)
 
+    // ===========================================================================
+    // Test hooks
+    // ===========================================================================
+
+    /// Number of cached mod-source view pointers (the nine views that live inside
+    /// the ModSourceViewMode switch container, plus the sidechain indicators) that
+    /// are currently non-null. Editor-lifecycle tests use this to assert that every
+    /// teardown path clears them: a dangling non-null pointer silently passes the
+    /// `if (ptr)` guards at the deref sites, so "null after teardown" is the only
+    /// observable invariant that distinguishes safe from use-after-free.
+    int modSourceViewPointerCount() const;
+
+    /// Drive the MainTab teardown hook directly. In a real editor this is invoked
+    /// from setParamNormalized() when the host/UI moves kMainTabTag; tests need it
+    /// without a live control to fake the parameter change through.
+    void notifyTabChangedForTest(int newTab) { onTabChanged(newTab); }
+
 private:
+    /// Null every cached mod-source view pointer. Called from all three teardown
+    /// paths: willClose(), a MainTab switch away from MOD, and a ModSourceViewMode
+    /// switch (each destroys the views but leaves the cached pointers dangling).
+    void resetModSourceViewPointers();
+
     /// Wire an ADSRDisplay instance based on its control-tag
     void wireAdsrDisplay(Krate::Plugins::ADSRDisplay* display);
 

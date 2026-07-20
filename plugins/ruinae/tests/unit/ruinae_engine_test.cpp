@@ -1500,3 +1500,136 @@ TEST_CASE("RuinaeEngine Rungler setters forward to ModulationEngine",
         // Should not crash
     }
 }
+
+// =============================================================================
+// Modulation destinations must self-heal when the offset returns to zero
+// =============================================================================
+// The global filter and master gain are recomputed unconditionally every block,
+// so removing a route -- or turning its depth down to zero -- puts them straight
+// back on the user's base value. EffectMix and every AllVoice* destination were
+// instead guarded by `if (offset != 0.0f)`, which skips the write precisely when
+// the base value needs restoring. The last modulated value was then orphaned
+// until the user happened to touch the base parameter again.
+
+namespace {
+
+void processSilentBlock(RuinaeEngine& engine, size_t numSamples = 64) {
+    std::vector<float> left(numSamples, 0.0f);
+    std::vector<float> right(numSamples, 0.0f);
+    engine.processBlock(left.data(), right.data(), numSamples);
+}
+
+} // namespace
+
+TEST_CASE("EffectMix modulation returns to base when the offset goes to zero",
+          "[ruinae_engine][modulation][regression]") {
+    RuinaeEngine engine;
+    engine.prepare(44100.0, 512);
+
+    constexpr float kBaseMix = 0.2f;
+    engine.setDelayMix(kBaseMix);
+
+    // External source slots hold a value we set directly, so the offset is
+    // pinned rather than drifting the way an LFO's would.
+    engine.setGlobalModRoute(0, ModSource::External0, RuinaeModDest::EffectMix, 1.0f);
+    engine.setExternalSourceValue(0, 0.5f);
+    processSilentBlock(engine);
+    REQUIRE(engine.effectsChain().getDelayMix() > kBaseMix + 0.05f);
+
+    engine.setExternalSourceValue(0, 0.0f);
+    processSilentBlock(engine);
+    CHECK(engine.effectsChain().getDelayMix() == Approx(kBaseMix).margin(1e-4));
+}
+
+TEST_CASE("AllVoice modulation returns to base when the offset goes to zero",
+          "[ruinae_engine][modulation][regression]") {
+    RuinaeEngine engine;
+    engine.prepare(44100.0, 512);
+
+    constexpr float kBaseCutoff = 1000.0f;
+    constexpr float kBaseMorph = 0.25f;
+    engine.setFilterCutoff(kBaseCutoff);
+    engine.setMixPosition(kBaseMorph);
+
+    engine.setGlobalModRoute(0, ModSource::External0,
+                             RuinaeModDest::AllVoiceFilterCutoff, 1.0f);
+    engine.setGlobalModRoute(1, ModSource::External1,
+                             RuinaeModDest::AllVoiceMorphPosition, 1.0f);
+    engine.setExternalSourceValue(0, 0.5f);
+    engine.setExternalSourceValue(1, 0.5f);
+    engine.noteOn(60, 100);
+    processSilentBlock(engine);
+
+    REQUIRE(engine.getVoice(0).getFilterCutoff() > kBaseCutoff * 1.5f);
+    REQUIRE(engine.getVoice(0).getMixPosition() > kBaseMorph + 0.05f);
+
+    engine.setExternalSourceValue(0, 0.0f);
+    engine.setExternalSourceValue(1, 0.0f);
+    processSilentBlock(engine);
+
+    CHECK(engine.getVoice(0).getFilterCutoff() == Approx(kBaseCutoff).margin(1.0f));
+    CHECK(engine.getVoice(0).getMixPosition() == Approx(kBaseMorph).margin(1e-4));
+}
+
+// =============================================================================
+// Mono portamento stays continuous across the chunked render
+// =============================================================================
+// Mono used to drive voice 0 with a one-sample processBlock, which re-ran all of
+// the voice's per-call block-rate work for every sample. It now renders in
+// 32-sample chunks and advances the glide ramp across each chunk. The pitch
+// therefore updates on chunk boundaries rather than per sample, so the guard is
+// that the glide is still audibly smooth -- no silence, no discontinuity -- not
+// that the output is bit-identical.
+
+TEST_CASE("Mono portamento renders smoothly across chunk boundaries",
+          "[ruinae_engine][mono][portamento]") {
+    constexpr size_t kBlockSize = 512;
+    constexpr size_t kBlocks = 8;
+
+    RuinaeEngine engine;
+    engine.prepare(44100.0, kBlockSize);
+    engine.setMode(VoiceMode::Mono);
+    engine.setPortamentoTime(200.0f);
+
+    engine.noteOn(48, 100);
+    std::vector<float> left(kBlockSize);
+    std::vector<float> right(kBlockSize);
+    engine.processBlock(left.data(), right.data(), kBlockSize);
+
+    // Glide to a note two octaves up and render across it.
+    engine.noteOn(72, 100);
+
+    std::vector<float> rendered;
+    rendered.reserve(kBlockSize * kBlocks);
+    for (size_t b = 0; b < kBlocks; ++b) {
+        std::fill(left.begin(), left.end(), 0.0f);
+        std::fill(right.begin(), right.end(), 0.0f);
+        engine.processBlock(left.data(), right.data(), kBlockSize);
+        rendered.insert(rendered.end(), left.begin(), left.end());
+    }
+
+    // Sound is being produced throughout: a chunking bug that dropped or
+    // duplicated samples would show up as a silent or frozen stretch.
+    for (size_t b = 0; b < kBlocks; ++b) {
+        float peak = 0.0f;
+        for (size_t i = 0; i < kBlockSize; ++i) {
+            peak = std::max(peak, std::abs(rendered[b * kBlockSize + i]));
+        }
+        INFO("block " << b);
+        CHECK(peak > 1e-4f);
+    }
+
+    // No sample-to-sample discontinuity large enough to click. A chunk boundary
+    // that reset oscillator phase would break this.
+    float worstJump = 0.0f;
+    for (size_t i = 1; i < rendered.size(); ++i) {
+        worstJump = std::max(worstJump, std::abs(rendered[i] - rendered[i - 1]));
+    }
+    INFO("worst sample-to-sample jump " << worstJump);
+    CHECK(worstJump < 0.5f);
+
+    // Everything finite.
+    for (float s : rendered) {
+        REQUIRE(std::isfinite(s));
+    }
+}

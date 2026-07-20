@@ -391,8 +391,8 @@ private:
     float smoothedY_ = 0.0f;     ///< Smoothed Y for asymmetry modulation
     float smoothCoeff_ = 0.0f;   ///< One-pole smoothing coefficient (precomputed)
 
-    // Henon-specific state for interpolation
-    float prevHenonX_ = 0.0f;
+    // Henon iteration phase. The map advances when this wraps; output is held
+    // in between (see updateHenon).
     float henonPhase_ = 0.0f;
 
     // Input coupling envelope accumulator
@@ -713,7 +713,6 @@ inline void ChaosWaveshaper::resetModelState() noexcept {
         case ChaosModel::Henon:
             // Henon: a=1.4, b=0.3
             state_ = {0.0f, 0.0f, 0.0f};  // y stored in y, z unused
-            prevHenonX_ = 0.0f;
             henonPhase_ = 0.0f;
             baseDt_ = 1.0f;  // One iteration per update
             safeBound_ = 5.0f;
@@ -804,7 +803,6 @@ inline void ChaosWaveshaper::updateHenon() noexcept {
     // Iterate map when phase wraps
     if (henonPhase_ >= 1.0f) {
         henonPhase_ -= 1.0f;
-        prevHenonX_ = state_.x;
 
         // Henon map iteration
         const float newX = 1.0f - a * state_.x * state_.x + state_.y;
@@ -813,9 +811,10 @@ inline void ChaosWaveshaper::updateHenon() noexcept {
         state_.y = newY;
     }
 
-    // Interpolate for continuous output (FR-017 clarification)
-    // Linear interpolation between previous and current X
-    // Note: actual output uses normalizedX_ which is updated in updateAttractor
+    // Henon output is HELD between map iterations, not interpolated: the output
+    // comes from normalizedX_, which updateAttractor() derives from state_.x, and
+    // state_.x only changes when the phase wraps above. henonPhase_ therefore
+    // controls the iteration rate, not a ramp between iterations.
 }
 
 inline void ChaosWaveshaper::updateSmoothCoeff() noexcept {

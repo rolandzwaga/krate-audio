@@ -518,10 +518,10 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
                     auto* param = getParameterObject(playheadParamId);
                     if (!param) return;
 
-                    constexpr long kMaxArpSteps = 32;
+                    constexpr long kMaxArpStepsL = static_cast<long>(kMaxArpSteps);
                     double normalized = param->getNormalized();
-                    long rawStep = std::lround(normalized * kMaxArpSteps);
-                    int32_t step = rawStep >= kMaxArpSteps ? -1 : static_cast<int32_t>(rawStep);
+                    long rawStep = std::lround(normalized * kMaxArpStepsL);
+                    int32_t step = rawStep >= kMaxArpStepsL ? -1 : static_cast<int32_t>(rawStep);
 
                     if (step != lastPolledSteps_[static_cast<size_t>(laneIdx)]) {
                         lastPolledSteps_[static_cast<size_t>(laneIdx)] = step;
@@ -628,6 +628,34 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
     }
 }
 
+int Controller::modSourceViewPointerCount() const {
+    int count = 0;
+    if (lfo1WaveformDisplay_) ++count;
+    if (lfo2WaveformDisplay_) ++count;
+    if (chaosModDisplay_) ++count;
+    if (runglerDisplay_) ++count;
+    if (sampleHoldDisplay_) ++count;
+    if (randomModDisplay_) ++count;
+    if (sidechainIndicatorEnvFollower_) ++count;
+    if (sidechainIndicatorPitchFollower_) ++count;
+    if (sidechainIndicatorTransient_) ++count;
+    return count;
+}
+
+void Controller::resetModSourceViewPointers() {
+    // Individual assignments: the members are heterogeneous pointer types, so a
+    // chained `a_ = b_ = nullptr` does not compile.
+    lfo1WaveformDisplay_ = nullptr;
+    lfo2WaveformDisplay_ = nullptr;
+    chaosModDisplay_ = nullptr;
+    runglerDisplay_ = nullptr;
+    sampleHoldDisplay_ = nullptr;
+    randomModDisplay_ = nullptr;
+    sidechainIndicatorEnvFollower_ = nullptr;
+    sidechainIndicatorPitchFollower_ = nullptr;
+    sidechainIndicatorTransient_ = nullptr;
+}
+
 void Controller::willClose(VSTGUI::VST3Editor* editor) {
     if (activeEditor_ == editor) {
         stepPatternEditor_ = nullptr;
@@ -687,6 +715,12 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
         arpQuantizeInputGroup_ = nullptr;
         spectralCurveDropdown_ = nullptr;
         spectralBitsGroup_ = nullptr;
+
+        // Mod-source visualizers and sidechain indicator labels. Omitting these
+        // left them dangling after the frame was destroyed; setComponentState() ->
+        // syncAllViews() then dereferenced freed memory, since a dangling pointer
+        // is non-null and passes the `if (ptr)` guards at every deref site.
+        resetModSourceViewPointers();
 
         settingsDrawer_ = nullptr;
         settingsOverlay_ = nullptr;

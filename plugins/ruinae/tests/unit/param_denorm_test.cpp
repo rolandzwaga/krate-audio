@@ -12,6 +12,10 @@
 
 #include <cmath>
 
+#include "parameters/env_follower_params.h"
+#include "parameters/lfo_params.h"
+#include "parameters/pitch_follower_params.h"
+
 using Catch::Approx;
 
 // ==============================================================================
@@ -269,4 +273,62 @@ TEST_CASE("Filter Env Amount denormalization", "[params][denorm]") {
     REQUIRE(denormFilterEnvAmt(0.0) == Approx(-48.0f));
     REQUIRE(denormFilterEnvAmt(0.5) == Approx(0.0f));
     REQUIRE(denormFilterEnvAmt(1.0) == Approx(48.0f));
+}
+
+// =============================================================================
+// Logarithmic parameter mappings: pinned values and round-trip stability
+// =============================================================================
+// Five normalized<->units pairs now delegate to the shared logMap helpers in
+// parameter_helpers.h instead of each re-deriving `mn * pow(mx/mn, x)`. Four
+// were already evaluated in double and are unchanged; the LFO rate pair moved
+// from float to double, so its values are pinned here rather than left to drift
+// silently.
+
+TEST_CASE("Logarithmic parameter mappings hit their documented anchors",
+          "[params][denorm][logmap]") {
+    using namespace Ruinae;
+
+    SECTION("endpoints") {
+        CHECK(envFollowerAttackFromNormalized(0.0) == Approx(0.1f));
+        CHECK(envFollowerAttackFromNormalized(1.0) == Approx(500.0f));
+        CHECK(envFollowerReleaseFromNormalized(0.0) == Approx(1.0f));
+        CHECK(envFollowerReleaseFromNormalized(1.0) == Approx(5000.0f));
+        CHECK(pitchFollowerMinHzFromNormalized(0.0) == Approx(20.0f));
+        CHECK(pitchFollowerMinHzFromNormalized(1.0) == Approx(500.0f));
+        CHECK(pitchFollowerMaxHzFromNormalized(0.0) == Approx(200.0f));
+        CHECK(pitchFollowerMaxHzFromNormalized(1.0) == Approx(5000.0f));
+        CHECK(lfoRateFromNormalized(0.0) == Approx(0.01f));
+        CHECK(lfoRateFromNormalized(1.0) == Approx(50.0f));
+    }
+
+    SECTION("documented defaults") {
+        // The comments in each module quote these; they are what a host shows
+        // when a fresh preset is loaded.
+        CHECK(envFollowerAttackToNormalized(10.0f) == Approx(0.5406).margin(1e-3));
+        CHECK(envFollowerReleaseToNormalized(100.0f) == Approx(0.5406).margin(1e-3));
+        CHECK(pitchFollowerMinHzToNormalized(80.0f) == Approx(0.4307).margin(1e-3));
+        CHECK(pitchFollowerMaxHzToNormalized(2000.0f) == Approx(0.7153).margin(1e-3));
+    }
+
+    SECTION("round trip") {
+        for (double n : {0.0, 0.1, 0.25, 0.5, 0.75, 0.9, 1.0}) {
+            INFO("normalized " << n);
+            CHECK(envFollowerAttackToNormalized(envFollowerAttackFromNormalized(n))
+                  == Approx(n).margin(1e-6));
+            CHECK(envFollowerReleaseToNormalized(envFollowerReleaseFromNormalized(n))
+                  == Approx(n).margin(1e-6));
+            CHECK(pitchFollowerMinHzToNormalized(pitchFollowerMinHzFromNormalized(n))
+                  == Approx(n).margin(1e-6));
+            CHECK(pitchFollowerMaxHzToNormalized(pitchFollowerMaxHzFromNormalized(n))
+                  == Approx(n).margin(1e-6));
+            CHECK(lfoRateToNormalized(lfoRateFromNormalized(n))
+                  == Approx(n).margin(1e-6));
+        }
+    }
+
+    SECTION("LFO rate: values pinned across the float-to-double move") {
+        CHECK(lfoRateFromNormalized(0.25) == Approx(0.0840896f).margin(1e-5f));
+        CHECK(lfoRateFromNormalized(0.5) == Approx(0.7071068f).margin(1e-5f));
+        CHECK(lfoRateFromNormalized(0.75) == Approx(5.9460354f).margin(1e-5f));
+    }
 }

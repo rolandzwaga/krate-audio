@@ -28,7 +28,7 @@ size_t ArpeggiatorCore::processBlock(const BlockContext& ctx,
                 // Emit NoteOff for all currently sounding arp notes
                 for (size_t i = 0; i < currentArpNoteCount_ && eventCount < maxEvents; ++i) {
                     outputEvents[eventCount++] = ArpEvent{
-                        ArpEvent::Type::NoteOff, currentArpNotes_[i], 0, 0};
+                        .type = ArpEvent::Type::NoteOff, .note = currentArpNotes_[i], .velocity = 0, .sampleOffset = 0};
                 }
                 // Emit pending NoteOffs, skipping duplicates already emitted
                 // from currentArpNotes_ (FR-027, 082-presets-polish)
@@ -42,7 +42,7 @@ size_t ArpeggiatorCore::processBlock(const BlockContext& ctx,
                     }
                     if (!alreadyEmitted) {
                         outputEvents[eventCount++] = ArpEvent{
-                            ArpEvent::Type::NoteOff, pendingNoteOffs_[i].note, 0, 0};
+                            .type = ArpEvent::Type::NoteOff, .note = pendingNoteOffs_[i].note, .velocity = 0, .sampleOffset = 0};
                     }
                 }
                 currentArpNoteCount_ = 0;
@@ -62,7 +62,7 @@ size_t ArpeggiatorCore::processBlock(const BlockContext& ctx,
                 // We emit from currentArpNotes_ only to avoid duplicates.
                 for (size_t i = 0; i < currentArpNoteCount_ && eventCount < maxEvents; ++i) {
                     outputEvents[eventCount++] = ArpEvent{
-                        ArpEvent::Type::NoteOff, currentArpNotes_[i], 0, 0};
+                        .type = ArpEvent::Type::NoteOff, .note = currentArpNotes_[i], .velocity = 0, .sampleOffset = 0};
                 }
                 currentArpNoteCount_ = 0;
                 pendingNoteOffCount_ = 0;
@@ -81,7 +81,7 @@ size_t ArpeggiatorCore::processBlock(const BlockContext& ctx,
             // Emit NoteOffs for all currently sounding arp notes
             for (size_t i = 0; i < currentArpNoteCount_ && eventCount < maxEvents; ++i) {
                 outputEvents[eventCount++] = ArpEvent{
-                    ArpEvent::Type::NoteOff, currentArpNotes_[i], 0, 0};
+                    .type = ArpEvent::Type::NoteOff, .note = currentArpNotes_[i], .velocity = 0, .sampleOffset = 0};
             }
             currentArpNoteCount_ = 0;
             pendingNoteOffCount_ = 0;
@@ -129,7 +129,7 @@ size_t ArpeggiatorCore::processBlock(const BlockContext& ctx,
             if (needsDisableNoteOff_) {
                 for (size_t i = 0; i < currentArpNoteCount_ && eventCount < maxEvents; ++i) {
                     outputEvents[eventCount++] = ArpEvent{
-                        ArpEvent::Type::NoteOff, currentArpNotes_[i], 0, 0};
+                        .type = ArpEvent::Type::NoteOff, .note = currentArpNotes_[i], .velocity = 0, .sampleOffset = 0};
                 }
                 // Flush all pending NoteOffs immediately at sampleOffset 0
                 for (size_t i = 0; i < pendingNoteOffCount_ && eventCount < maxEvents; ++i) {
@@ -145,7 +145,7 @@ size_t ArpeggiatorCore::processBlock(const BlockContext& ctx,
                     }
                     if (!alreadyEmitted) {
                         outputEvents[eventCount++] = ArpEvent{
-                            ArpEvent::Type::NoteOff, pendingNoteOffs_[i].note, 0, 0};
+                            .type = ArpEvent::Type::NoteOff, .note = pendingNoteOffs_[i].note, .velocity = 0, .sampleOffset = 0};
                     }
                 }
                 currentArpNoteCount_ = 0;
@@ -174,9 +174,8 @@ size_t ArpeggiatorCore::processBlock(const BlockContext& ctx,
             // samplesProcessed position)
             size_t samplesUntilNoteOff = SIZE_MAX;
             for (size_t i = 0; i < pendingNoteOffCount_; ++i) {
-                if (pendingNoteOffs_[i].samplesRemaining < samplesUntilNoteOff) {
-                    samplesUntilNoteOff = pendingNoteOffs_[i].samplesRemaining;
-                }
+                samplesUntilNoteOff =
+                    std::min(samplesUntilNoteOff, pendingNoteOffs_[i].samplesRemaining);
             }
 
             // Retrigger Beat: how many samples until bar boundary?
@@ -200,19 +199,18 @@ size_t ArpeggiatorCore::processBlock(const BlockContext& ctx,
 
             // Determine which event fires first
             // Priority: BarBoundary > NoteOff > Step > SubStep (FR-014)
-            enum class NextEvent { BlockEnd, NoteOff, Step, SubStep, BarBoundary };
+            enum class NextEvent : uint8_t { BlockEnd, NoteOff, Step, SubStep, BarBoundary };
             NextEvent next = NextEvent::BlockEnd;
 
             if (samplesUntilStep <= jump) {
                 jump = samplesUntilStep;
                 next = NextEvent::Step;
             }
-            // SubStep: lower priority than Step (FR-014)
-            if (samplesUntilSubStep < jump) {
-                jump = samplesUntilSubStep;
-                next = NextEvent::SubStep;
-            } else if (samplesUntilSubStep == jump && next == NextEvent::BlockEnd) {
-                // SubStep fires at block end boundary -- process SubStep
+            // SubStep: lower priority than Step (FR-014). The equal-distance
+            // case is only taken when nothing else claimed this position, so a
+            // Step at the same offset still wins.
+            if (samplesUntilSubStep < jump ||
+                (samplesUntilSubStep == jump && next == NextEvent::BlockEnd)) {
                 jump = samplesUntilSubStep;
                 next = NextEvent::SubStep;
             }
@@ -367,11 +365,11 @@ void ArpeggiatorCore::fireSubStep([[maybe_unused]] const BlockContext& ctx,
             // v1.5: Reuse strum offsets from main fireStep path for direction consistency
             for (size_t i = 0; i < ratchetNoteCount_ && eventCount < maxEvents; ++i) {
                 outputEvents[eventCount++] = ArpEvent{
-                    ArpEvent::Type::NoteOn,
-                    ratchetNotes_[i],
-                    applyDecay(ratchetVelocities_[i]),
-                    sampleOffset + strumOffsetFor(i),
-                    false};  // Sub-steps after first are never legato
+                    .type = ArpEvent::Type::NoteOn,
+                    .note = ratchetNotes_[i],
+                    .velocity = applyDecay(ratchetVelocities_[i]),
+                    .sampleOffset = sampleOffset + strumOffsetFor(i),
+                    .legato = false};  // Sub-steps after first are never legato
             }
             // Update currentArpNotes_ tracking
             for (size_t i = 0; i < ratchetNoteCount_ && i < 32; ++i) {
@@ -382,11 +380,11 @@ void ArpeggiatorCore::fireSubStep([[maybe_unused]] const BlockContext& ctx,
             // Single note mode
             if (eventCount < maxEvents) {
                 outputEvents[eventCount++] = ArpEvent{
-                    ArpEvent::Type::NoteOn,
-                    ratchetNote_,
-                    applyDecay(ratchetVelocity_),
-                    sampleOffset,
-                    false};  // Sub-steps after first are never legato
+                    .type = ArpEvent::Type::NoteOn,
+                    .note = ratchetNote_,
+                    .velocity = applyDecay(ratchetVelocity_),
+                    .sampleOffset = sampleOffset,
+                    .legato = false};  // Sub-steps after first are never legato
             }
             currentArpNotes_[0] = ratchetNote_;
             currentArpNoteCount_ = 1;
@@ -399,8 +397,7 @@ void ArpeggiatorCore::fireSubStep([[maybe_unused]] const BlockContext& ctx,
         // Sub-steps 0 through N-2 always schedule their noteOffs normally.
         bool suppressGateNoteOff = false;
         if (ratchetIsLastSubStep_) {
-            uint8_t nextModFlags = modifierLane_.getStep(
-                static_cast<size_t>(modifierLane_.currentStep()));
+            uint8_t nextModFlags = modifierLane_.getStep(modifierLane_.currentStep());
             bool nextStepIsTie = (nextModFlags & kStepActive) != 0 &&
                                  (nextModFlags & kStepTie) != 0;
             bool nextStepIsSlide = (nextModFlags & kStepActive) != 0 &&
@@ -541,9 +538,11 @@ void ArpeggiatorCore::fireStep(const BlockContext& ctx,
                 uint8_t& counter = laneSwingCounters_[laneIdx];
 
                 accum += speed;
-                float threshold = (swing > 0.0f)
-                    ? ((counter & 1u) == 0u ? 1.0f + swing : 1.0f - swing)
-                    : 1.0f;
+                // Swing lengthens even-numbered sub-steps and shortens odd ones.
+                float threshold = 1.0f;
+                if (swing > 0.0f) {
+                    threshold = ((counter & 1u) == 0u) ? 1.0f + swing : 1.0f - swing;
+                }
 
                 while (accum >= threshold) {
                     accum -= threshold;
@@ -658,7 +657,7 @@ void ArpeggiatorCore::fireStep(const BlockContext& ctx,
                     // Emit noteOff for all currently sounding notes
                     for (size_t i = 0; i < currentArpNoteCount_ && eventCount < maxEvents; ++i) {
                         outputEvents[eventCount++] = ArpEvent{
-                            ArpEvent::Type::NoteOff, currentArpNotes_[i], 0, sampleOffset};
+                            .type = ArpEvent::Type::NoteOff, .note = currentArpNotes_[i], .velocity = 0, .sampleOffset = sampleOffset};
                     }
                     currentArpNoteCount_ = 0;
 
@@ -683,8 +682,8 @@ void ArpeggiatorCore::fireStep(const BlockContext& ctx,
                     // 081-interaction-polish: emit kSkip event (FR-007, FR-008)
                     if (eventCount < maxEvents) {
                         outputEvents[eventCount++] = ArpEvent{
-                            ArpEvent::Type::kSkip,
-                            static_cast<uint8_t>(velStep), 0, sampleOffset};
+                            .type = ArpEvent::Type::kSkip,
+                            .note = static_cast<uint8_t>(velStep), .velocity = 0, .sampleOffset = sampleOffset};
                     }
                     return;
                 }
@@ -700,7 +699,7 @@ void ArpeggiatorCore::fireStep(const BlockContext& ctx,
                 // Emit noteOff for all currently sounding notes
                 for (size_t i = 0; i < currentArpNoteCount_ && eventCount < maxEvents; ++i) {
                     outputEvents[eventCount++] = ArpEvent{
-                        ArpEvent::Type::NoteOff, currentArpNotes_[i], 0, sampleOffset};
+                        .type = ArpEvent::Type::NoteOff, .note = currentArpNotes_[i], .velocity = 0, .sampleOffset = sampleOffset};
                 }
                 currentArpNoteCount_ = 0;
 
@@ -723,8 +722,8 @@ void ArpeggiatorCore::fireStep(const BlockContext& ctx,
                 // 081-interaction-polish: emit kSkip event (FR-007, FR-008)
                 if (eventCount < maxEvents) {
                     outputEvents[eventCount++] = ArpEvent{
-                        ArpEvent::Type::kSkip,
-                        static_cast<uint8_t>(velStep), 0, sampleOffset};
+                        .type = ArpEvent::Type::kSkip,
+                        .note = static_cast<uint8_t>(velStep), .velocity = 0, .sampleOffset = sampleOffset};
                 }
                 return;
             }
@@ -751,7 +750,7 @@ void ArpeggiatorCore::fireStep(const BlockContext& ctx,
                 // Emit noteOff for all currently sounding notes
                 for (size_t i = 0; i < currentArpNoteCount_ && eventCount < maxEvents; ++i) {
                     outputEvents[eventCount++] = ArpEvent{
-                        ArpEvent::Type::NoteOff, currentArpNotes_[i], 0, sampleOffset};
+                        .type = ArpEvent::Type::NoteOff, .note = currentArpNotes_[i], .velocity = 0, .sampleOffset = sampleOffset};
                 }
                 currentArpNoteCount_ = 0;
                 tieActive_ = false;
@@ -767,8 +766,8 @@ void ArpeggiatorCore::fireStep(const BlockContext& ctx,
                 // 081-interaction-polish: emit kSkip event (FR-007, FR-008)
                 if (eventCount < maxEvents) {
                     outputEvents[eventCount++] = ArpEvent{
-                        ArpEvent::Type::kSkip,
-                        static_cast<uint8_t>(velStep), 0, sampleOffset};
+                        .type = ArpEvent::Type::kSkip,
+                        .note = static_cast<uint8_t>(velStep), .velocity = 0, .sampleOffset = sampleOffset};
                 }
                 return;
             }
@@ -806,7 +805,7 @@ void ArpeggiatorCore::fireStep(const BlockContext& ctx,
             if (tieActive_) {
                 for (size_t i = 0; i < currentArpNoteCount_ && eventCount < maxEvents; ++i) {
                     outputEvents[eventCount++] = ArpEvent{
-                        ArpEvent::Type::NoteOff, currentArpNotes_[i], 0, sampleOffset};
+                        .type = ArpEvent::Type::NoteOff, .note = currentArpNotes_[i], .velocity = 0, .sampleOffset = sampleOffset};
                 }
                 currentArpNoteCount_ = 0;
             }
@@ -960,6 +959,10 @@ void ArpeggiatorCore::fireStep(const BlockContext& ctx,
                             case 2: // Skip
                                 keep = false;
                                 break;
+                            default:
+                                // Unknown mode: leave the note as-is rather than
+                                // silently dropping or relocating it.
+                                break;
                         }
                     }
                     if (keep) {
@@ -1013,8 +1016,7 @@ void ArpeggiatorCore::fireStep(const BlockContext& ctx,
             // skip scheduling gate-based noteOffs so the notes sustain into
             // the next step (FR-012: Tie overrides gate; FR-015: Slide suppresses
             // previous noteOff to keep currentArpNoteCount_ > 0 for legato).
-            uint8_t nextModFlags = modifierLane_.getStep(
-                static_cast<size_t>(modifierLane_.currentStep()));
+            uint8_t nextModFlags = modifierLane_.getStep(modifierLane_.currentStep());
             bool nextStepIsTie = (nextModFlags & kStepActive) != 0 &&
                                  (nextModFlags & kStepTie) != 0;
             bool nextStepIsSlide = (nextModFlags & kStepActive) != 0 &&
@@ -1043,7 +1045,7 @@ void ArpeggiatorCore::fireStep(const BlockContext& ctx,
                 if (!isSlide) {
                     for (size_t i = 0; i < currentArpNoteCount_ && eventCount < maxEvents; ++i) {
                         outputEvents[eventCount++] = ArpEvent{
-                            ArpEvent::Type::NoteOff, currentArpNotes_[i], 0, sampleOffset};
+                            .type = ArpEvent::Type::NoteOff, .note = currentArpNotes_[i], .velocity = 0, .sampleOffset = sampleOffset};
                     }
                     currentArpNoteCount_ = 0;
                 }
@@ -1053,11 +1055,11 @@ void ArpeggiatorCore::fireStep(const BlockContext& ctx,
                 prepareStrumOffsets(result.count);
                 for (size_t i = 0; i < result.count && eventCount < maxEvents; ++i) {
                     outputEvents[eventCount++] = ArpEvent{
-                        ArpEvent::Type::NoteOn,
-                        result.notes[i],
-                        result.velocities[i],
-                        humanizedSampleOffset + strumOffsetFor(i),
-                        isSlide};  // legato on first sub-step if Slide
+                        .type = ArpEvent::Type::NoteOn,
+                        .note = result.notes[i],
+                        .velocity = result.velocities[i],
+                        .sampleOffset = humanizedSampleOffset + strumOffsetFor(i),
+                        .legato = isSlide};  // legato on first sub-step if Slide
                 }
 
                 // Track currently sounding notes
@@ -1111,11 +1113,11 @@ void ArpeggiatorCore::fireStep(const BlockContext& ctx,
                     prepareStrumOffsets(result.count);
                     for (size_t i = 0; i < result.count && eventCount < maxEvents; ++i) {
                         outputEvents[eventCount++] = ArpEvent{
-                            ArpEvent::Type::NoteOn,
-                            result.notes[i],
-                            result.velocities[i],
-                            humanizedSampleOffset + strumOffsetFor(i),
-                            true};  // legato=true
+                            .type = ArpEvent::Type::NoteOn,
+                            .note = result.notes[i],
+                            .velocity = result.velocities[i],
+                            .sampleOffset = humanizedSampleOffset + strumOffsetFor(i),
+                            .legato = true};  // legato=true
                     }
                     // Track all new chord notes as currently sounding
                     for (size_t i = 0; i < result.count && i < 32; ++i) {
@@ -1126,11 +1128,11 @@ void ArpeggiatorCore::fireStep(const BlockContext& ctx,
                     // Single note slide
                     if (eventCount < maxEvents) {
                         outputEvents[eventCount++] = ArpEvent{
-                            ArpEvent::Type::NoteOn,
-                            result.notes[0],
-                            result.velocities[0],
-                            humanizedSampleOffset,
-                            true};  // legato=true
+                            .type = ArpEvent::Type::NoteOn,
+                            .note = result.notes[0],
+                            .velocity = result.velocities[0],
+                            .sampleOffset = humanizedSampleOffset,
+                            .legato = true};  // legato=true
                     }
                     // Replace the previous note tracking with the new note
                     currentArpNotes_[0] = result.notes[0];
@@ -1153,7 +1155,7 @@ void ArpeggiatorCore::fireStep(const BlockContext& ctx,
                 // sounding notes first (to replace the previous chord)
                 for (size_t i = 0; i < currentArpNoteCount_ && eventCount < maxEvents; ++i) {
                     outputEvents[eventCount++] = ArpEvent{
-                        ArpEvent::Type::NoteOff, currentArpNotes_[i], 0, sampleOffset};
+                        .type = ArpEvent::Type::NoteOff, .note = currentArpNotes_[i], .velocity = 0, .sampleOffset = sampleOffset};
                 }
                 currentArpNoteCount_ = 0;
 
@@ -1162,10 +1164,10 @@ void ArpeggiatorCore::fireStep(const BlockContext& ctx,
                 prepareStrumOffsets(result.count);
                 for (size_t i = 0; i < result.count && eventCount < maxEvents; ++i) {
                     outputEvents[eventCount++] = ArpEvent{
-                        ArpEvent::Type::NoteOn,
-                        result.notes[i],
-                        result.velocities[i],
-                        humanizedSampleOffset + strumOffsetFor(i)};
+                        .type = ArpEvent::Type::NoteOn,
+                        .note = result.notes[i],
+                        .velocity = result.velocities[i],
+                        .sampleOffset = humanizedSampleOffset + strumOffsetFor(i)};
                 }
 
                 // Track all chord notes as currently sounding (FR-025)
@@ -1188,10 +1190,10 @@ void ArpeggiatorCore::fireStep(const BlockContext& ctx,
                 // Single note path (result.count == 1)
                 if (eventCount < maxEvents) {
                     outputEvents[eventCount++] = ArpEvent{
-                        ArpEvent::Type::NoteOn,
-                        result.notes[0],
-                        result.velocities[0],
-                        humanizedSampleOffset};
+                        .type = ArpEvent::Type::NoteOn,
+                        .note = result.notes[0],
+                        .velocity = result.velocities[0],
+                        .sampleOffset = humanizedSampleOffset};
                 }
 
                 // Track currently sounding note (FR-025)
@@ -1219,9 +1221,11 @@ void ArpeggiatorCore::fireStep(const BlockContext& ctx,
                 uint8_t& counter = laneSwingCounters_[laneIdx];
 
                 accum += speed;
-                float threshold = (swing > 0.0f)
-                    ? ((counter & 1u) == 0u ? 1.0f + swing : 1.0f - swing)
-                    : 1.0f;
+                // Swing lengthens even-numbered sub-steps and shortens odd ones.
+                float threshold = 1.0f;
+                if (swing > 0.0f) {
+                    threshold = ((counter & 1u) == 0u) ? 1.0f + swing : 1.0f - swing;
+                }
 
                 while (accum >= threshold) {
                     accum -= threshold;
@@ -1255,7 +1259,7 @@ void ArpeggiatorCore::fireStep(const BlockContext& ctx,
             // currently sounding arp note to prevent stuck notes (FR-024).
             for (size_t i = 0; i < currentArpNoteCount_ && eventCount < maxEvents; ++i) {
                 outputEvents[eventCount++] = ArpEvent{
-                    ArpEvent::Type::NoteOff, currentArpNotes_[i], 0, sampleOffset};
+                    .type = ArpEvent::Type::NoteOff, .note = currentArpNotes_[i], .velocity = 0, .sampleOffset = sampleOffset};
             }
             currentArpNoteCount_ = 0;
 

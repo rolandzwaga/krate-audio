@@ -6,10 +6,14 @@
 // ==============================================================================
 
 #include <krate/dsp/processors/flanger.h>
+#include <krate/dsp/core/fast_math.h>
 
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
 
+#include "render_fingerprint.h"
+
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <vector>
@@ -1389,4 +1393,86 @@ TEST_CASE("Flanger SC-002: parameter ramp produces no step discontinuities", "[f
         }
     }
     REQUIRE_FALSE(hasNaN);
+}
+
+// ==============================================================================
+// Feedback saturation: fastTanh error bound and pinned render
+// ==============================================================================
+// The flanger and phaser feedback paths use FastMath::fastTanh rather than
+// std::tanh, as the chorus already did. It is a Pade approximant, so the
+// rendered output is NOT bit-identical to the std::tanh version -- the
+// reference below was regenerated deliberately when the swap was made, and the
+// bound on the approximation error is asserted directly so the pinned render is
+// not the only thing standing behind the change.
+//
+// This was originally pinned with an FNV digest over the raw sample bits, which
+// is not portable across toolchains and broke the Linux and macOS CI legs. See
+// tests/test_helpers/render_fingerprint.h for why, and for the measured spread
+// the tolerances come from.
+
+namespace {
+
+const Krate::DSP::TestUtils::RenderFingerprint kFlangerStereoReference{
+    .rms = 0.226748320,
+    .peak = 0.582209349,
+    .meanAbs = 0.200218773,
+    .totalVariation = 53.4143310,
+    .checkpoints = {
+        0.00000000f, -0.172239959f, -0.0898909345f, 0.237378553f,
+        0.331911504f, 0.188301235f, -0.133214042f, -0.326596767f,
+        -0.205732316f, 0.0807387382f, 0.305046976f, 0.236866891f,
+        -0.0288814902f, -0.275410473f, -0.260709286f, -0.0199269168f,
+        0.00000000f, 0.0208362639f, 0.205868855f, -0.0791999847f,
+        0.108047098f, -0.0460830927f, 0.0282499753f, 0.00742725655f,
+        -0.0293564461f, 0.0570263676f, -0.0782312304f, 0.102229558f,
+        -0.122855172f, 0.143174857f, -0.161849916f, 0.179866403f,
+    },
+};
+
+} // namespace
+
+TEST_CASE("fastTanh tracks std::tanh across the feedback range",
+          "[flanger][phaser][fastmath]") {
+    // Feedback is clamped to [-1, 1] and multiplied by a state that the flanger
+    // and phaser both keep bounded, so this is the range that matters.
+    float worst = 0.0f;
+    for (int i = -400; i <= 400; ++i) {
+        const float x = static_cast<float>(i) * 0.01f;
+        worst = std::max(worst, std::abs(Krate::DSP::FastMath::fastTanh(x) - std::tanh(x)));
+    }
+    INFO("worst absolute error " << worst);
+    // Measured worst case is ~1.8e-3 near the ends of the range; the bound is
+    // set just above it rather than at a rounder number that would not hold.
+    CHECK(worst < 2.5e-3f);
+}
+
+TEST_CASE("Flanger stereo render is unchanged", "[flanger][golden]") {
+    using namespace Krate::DSP;
+    constexpr size_t kNumSamples = 4096;
+
+    Flanger flanger;
+    flanger.prepare(44100.0);
+    flanger.setRate(0.8f);
+    flanger.setDepth(0.7f);
+    flanger.setFeedback(0.85f);
+    flanger.setMix(0.9f);
+    flanger.setStereoSpread(120.0f);
+
+    std::vector<float> left(kNumSamples);
+    std::vector<float> right(kNumSamples);
+    for (size_t i = 0; i < kNumSamples; ++i) {
+        const float t = static_cast<float>(i) / 44100.0f;
+        left[i] = 0.7f * std::sin(2.0f * 3.14159265f * 200.0f * t);
+        right[i] = 0.7f * std::sin(2.0f * 3.14159265f * 260.0f * t);
+    }
+    flanger.processStereo(left.data(), right.data(), kNumSamples);
+
+    left.insert(left.end(), right.begin(), right.end());
+
+    using namespace Krate::DSP::TestUtils;
+    const auto cmp = compareFingerprints(fingerprintRender(left), kFlangerStereoReference);
+    INFO(cmp.detail);
+    INFO("worst metric relative error " << cmp.worstMetricRelativeError
+                                        << ", worst sample error " << cmp.worstSampleError);
+    CHECK(cmp.withinTolerance());
 }

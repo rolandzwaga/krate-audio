@@ -40,25 +40,11 @@
 #include "parameters/mod_env_params.h"
 #include "parameters/harmonizer_params.h"
 
+#include "controller/mod_ring_dest_ids.h"
+
 #include <cmath>
 
 namespace Ruinae {
-
-// Maps destination index to the actual VST parameter ID of that knob.
-// Tab-dependent: voice tab and global tab have different mappings.
-// Sizes derived from central registry in mod_matrix_types.h.
-// Used by ModRingIndicator base value sync (T069-T072).
-static constexpr std::array<Steinberg::Vst::ParamID,
-    Krate::Plugins::kNumVoiceDestinations> kVoiceDestParamIds = {{
-    kFilterCutoffId,          // 0: Filter Cutoff
-    kFilterResonanceId,       // 1: Filter Resonance
-    kMixerPositionId,         // 2: Morph Position
-    kDistortionDriveId,       // 3: Distortion Drive
-    kTranceGateDepthId,       // 4: TranceGate Depth
-    kOscATuneId,              // 5: OSC A Pitch
-    kOscBTuneId,              // 6: OSC B Pitch
-    kMixerTiltId,             // 7: Spectral Tilt
-}};
 
 // ==============================================================================
 // setParamNormalized: Incremental per-param view updates
@@ -88,6 +74,13 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
     if (tag == kDistortionTypeId) {
         spectralCurveDropdown_ = nullptr;
         spectralBitsGroup_ = nullptr;
+    }
+    // Same lifecycle hazard one level down: the nine mod-source views live inside
+    // the ModSourceViewMode UIViewSwitchContainer, so switching it destroys the
+    // outgoing template's children while the controller still caches pointers to
+    // them.
+    if (tag == kModSourceViewModeTag) {
+        resetModSourceViewPointers();
     }
 
     // During bulk parameter loads (preset switching), skip per-param view updates.

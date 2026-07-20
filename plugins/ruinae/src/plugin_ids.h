@@ -1212,10 +1212,13 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kArpChordLaneSwingId     = 3397,
     kArpInversionLaneSwingId = 3398,
 
-    // --- v1.5 Part 2: Velocity Curve, Transpose, Per-Lane Length Jitter (3399-3409) ---
-    kArpVelocityCurveTypeId   = 3399,
-    kArpVelocityCurveAmountId = 3400,
-    kArpTransposeId           = 3401,
+    // --- v1.5 Part 2: Per-Lane Length Jitter (3402-3409) ---
+    // 3399-3401 were kArpVelocityCurveType/Amount/Transpose. Ruinae's arp engine
+    // consumes none of those v1.5 fields: they were never registered, processed,
+    // saved or loaded here, and their backing atomics were never read. Gradus
+    // still defines them at the same numbers for its own arp; the two plugins
+    // share the arp SAVE prefix, not the whole ID block, and none of the three
+    // appear in that prefix.
 
     // Per-lane length jitter (3402-3409)
     kArpVelocityLaneJitterId  = 3402,
@@ -1240,10 +1243,14 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kArpEndId = 3445,
 
     // --- Sidechain Status (output parameter, not persisted) ---
-    kSidechainActiveId        = 3400,   // hidden: 0.0 = inactive, 1.0 = active
+    // Must stay OUTSIDE kArpBaseId..kArpEndId: processParameterChanges routes
+    // that whole span to the arp handler. This previously sat at 3400, inside
+    // the range and colliding with kArpVelocityCurveAmountId.
+    kSidechainActiveId        = 3500,   // hidden: 0.0 = inactive, 1.0 = active
 
     // ==========================================================================
-    kNumParameters = 3401,
+    // One past the highest ID above.
+    kNumParameters = 3501,
 
     // ==========================================================================
     // UI Action Button Tags (NOT VST parameters - UI-only triggers)

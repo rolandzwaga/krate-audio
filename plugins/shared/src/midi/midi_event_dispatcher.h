@@ -76,6 +76,13 @@ concept HasNoteExpression = requires(H& h, int32_t noteId, uint32_t typeId, doub
 /// - kLegacyMIDICCOutEvent with kPitchBend → 14-bit decode → onPitchBend
 ///   (only if handler has onPitchBend, detected at compile time)
 ///
+/// @par Timing: events are block-quantized by design.
+/// Event.sampleOffset is deliberately not read, and the handler callbacks carry
+/// no offset. Every note in a block is therefore dispatched as if it landed on
+/// the block boundary, so note timing is quantized to the host's block size
+/// (about 1.5 ms at 512 samples / 44.1 kHz). Sample-accurate placement would
+/// require the engines to render in sub-block segments split at each event.
+///
 /// @tparam Handler Must have onNoteOn(int16_t, float) and onNoteOff(int16_t).
 ///         May optionally have onPitchBend(float).
 /// @param events VST3 event list (may be null)

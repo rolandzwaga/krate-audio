@@ -284,6 +284,16 @@ private:
     /// @brief Update filter coefficients from smoothed values.
     void updateFilterCoefficients() noexcept;
 
+    /// True only when every frequency and bandwidth smoother has reached its
+    /// target, i.e. the filter coefficients would not change if recomputed.
+    [[nodiscard]] bool smoothersSettled() const noexcept {
+        for (int i = 0; i < kMaxFormants; ++i) {
+            if (!freqSmoothers_[static_cast<size_t>(i)].isComplete()) return false;
+            if (!bwSmoothers_[static_cast<size_t>(i)].isComplete()) return false;
+        }
+        return true;
+    }
+
     /// @brief Clamp frequency to valid range.
     [[nodiscard]] float clampFrequency(float freq) const noexcept;
 
@@ -505,8 +515,17 @@ inline float FormantFilter::calculateQ(float frequency, float bandwidth) noexcep
 }
 
 inline float FormantFilter::process(float input) noexcept {
-    // Update filter coefficients with smoothed parameters
-    updateFilterCoefficients();
+    // Recompute the five biquads only while the smoothers are still moving.
+    // Once every frequency and bandwidth smoother has landed on its target the
+    // coefficients are constant, and this was the most expensive per-voice
+    // filter option precisely because it re-derived five sin/cos pairs and their
+    // divisions on every sample regardless.
+    //
+    // No dirty flag is needed: every parameter setter routes through
+    // calculateTargetFormants() -> setTarget(), which re-arms the smoothers.
+    if (!smoothersSettled()) {
+        updateFilterCoefficients();
+    }
 
     // Process through active parallel formant filters and sum
     // Each band is scaled by Q (bandGain_) to convert from "constant 0 dB peak"

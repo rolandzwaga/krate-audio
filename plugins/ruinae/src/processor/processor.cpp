@@ -24,78 +24,10 @@
 #include <krate/dsp/core/modulation_types.h>
 
 #include "parameters/dropdown_mappings.h"
+#include "parameters/arpeggiator_params.h"
 
 #include <algorithm>
 #include <cstdint>
-
-// =============================================================================
-// DEBUG: Phaser signal path tracing (remove after debugging)
-// =============================================================================
-#define RUINAE_PHASER_DEBUG 0
-#define RUINAE_TGATE_DEBUG 0
-
-#if RUINAE_PHASER_DEBUG
-#include <cstdarg>
-#include <cstdio>
-#ifdef _WIN32
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
-#include <windows.h>
-#endif
-
-int s_logCounter = 0;  // NOLINT(cppcoreguidelines-avoid-non-const-global-variables) shared debug counter with ruinae_effects_chain.h
-
-static void logPhaser(const char* fmt, ...) {
-    char buf[512];
-    va_list args;
-    va_start(args, fmt);
-    vsnprintf(buf, sizeof(buf), fmt, args);
-    va_end(args);
-#ifdef _WIN32
-    OutputDebugStringA(buf);
-#else
-    fprintf(stderr, "%s", buf);
-#endif
-}
-#else
-static void logPhaser(const char*, ...) {}
-#endif
-
-#if RUINAE_TGATE_DEBUG
-#include <cstdarg>
-#include <cstdio>
-#ifdef _WIN32
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
-#include <windows.h>
-#endif
-
-static int s_tgLogCounter = 0;  // NOLINT
-static int s_tgLastStep = -1;   // NOLINT
-
-static void logTGate(const char* fmt, ...) {
-    char buf[512];
-    va_list args;
-    va_start(args, fmt);
-    vsnprintf(buf, sizeof(buf), fmt, args);
-    va_end(args);
-#ifdef _WIN32
-    OutputDebugStringA(buf);
-#else
-    fprintf(stderr, "%s", buf);
-#endif
-}
-#else
-[[maybe_unused]] static void logTGate(const char*, ...) {}
-#endif
 
 namespace Ruinae {
 
@@ -135,15 +67,26 @@ Steinberg::tresult PLUGIN_API Processor::initialize(FUnknown* context) {
         skipMessages_[static_cast<size_t>(i)] = Steinberg::owned(allocateMessage());
         if (skipMessages_[static_cast<size_t>(i)]) {
             skipMessages_[static_cast<size_t>(i)]->setMessageID("ArpSkipEvent");
+            // Create the attribute nodes now. sendSkipEvent() runs on the audio
+            // thread and only overwrites them; without this the first send per
+            // lane would insert into the attribute map and allocate.
+            if (auto* attrs = skipMessages_[static_cast<size_t>(i)]->getAttributes()) {
+                attrs->setInt("lane", 0);
+                attrs->setInt("step", 0);
+            }
         }
     }
 
-    // Pre-allocate voice route sync message (Issue 1: avoid allocateMessage on audio thread)
+    // Pre-allocate the voice route sync message so sendVoiceModRouteState() does
+    // not have to call allocateMessage().
+    //
+    // Note this does NOT make the send allocation-free: setBinary copies into a
+    // fresh buffer on every call. Creating the attribute-map nodes up front only
+    // saves the map insert. That is why the route sync is issued from setState()
+    // and notify() on the message thread and never from process().
     voiceRouteSyncMsg_ = Steinberg::owned(allocateMessage());
     if (voiceRouteSyncMsg_) {
         voiceRouteSyncMsg_->setMessageID("VoiceModRouteState");
-        // Pre-warm the binary attribute with a dummy payload so the attribute
-        // list allocates storage once, not on every sendVoiceModRouteState().
         static constexpr size_t kRouteDataBytes = 14 * static_cast<size_t>(Krate::Plugins::kMaxVoiceRoutes);
         uint8_t dummy[kRouteDataBytes]{};
         auto* attrs = voiceRouteSyncMsg_->getAttributes();
@@ -242,9 +185,17 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
     // Reset transport detection so the flag is re-learned if plugin moves between hosts
     hostSupportsTransport_ = false;
 
-    logPhaser("[RUINAE] setupProcessing: sampleRate=%.0f maxBlock=%d\n", sampleRate_, maxBlockSize_);
-
     return AudioEffect::setupProcessing(setup);
+}
+
+void Processor::sendOneTimeHandshakes() {
+    if (handshakeMessagesSent_) return;
+
+    if (playbackMsg_) sendMessage(playbackMsg_);
+    if (envDisplayMsg_) sendMessage(envDisplayMsg_);
+    if (morphPadModMsg_) sendMessage(morphPadModMsg_);
+
+    handshakeMessagesSent_ = true;
 }
 
 Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state) {
@@ -254,6 +205,12 @@ Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state) {
         arpCore_.reset();
         std::fill(mixBufferL_.begin(), mixBufferL_.end(), 0.0f);
         std::fill(mixBufferR_.begin(), mixBufferR_.end(), 0.0f);
+
+        // These carry pointers to lifetime-stable member atomics, so they can go
+        // out from here (message thread) rather than from the first process()
+        // call, which made three synchronous host sendMessage() calls on the
+        // audio thread.
+        sendOneTimeHandshakes();
     }
 
     return AudioEffect::setActive(state);
@@ -285,22 +242,6 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
 
     // Apply all parameter values to the engine
     applyParamsToEngine();
-
-#if RUINAE_PHASER_DEBUG
-    if (s_logCounter % 200 == 0) {
-        bool pEn = modulationType_.load(std::memory_order_relaxed) == 1; // Phaser
-        float pRate = phaserParams_.rateHz.load(std::memory_order_relaxed);
-        float pDepth = phaserParams_.depth.load(std::memory_order_relaxed);
-        float pMix = phaserParams_.mix.load(std::memory_order_relaxed);
-        float pFb = phaserParams_.feedback.load(std::memory_order_relaxed);
-        int pStages = phaserParams_.stages.load(std::memory_order_relaxed);
-        float pCenter = phaserParams_.centerFreqHz.load(std::memory_order_relaxed);
-        logPhaser("[RUINAE][block %d] phaserEnabled=%d rate=%.2f depth=%.2f mix=%.2f fb=%.2f stages=%d(%d) center=%.0f\n",
-            s_logCounter, pEn ? 1 : 0, pRate, pDepth, pMix, pFb,
-            pStages, phaserStagesFromIndex(pStages), pCenter);
-    }
-    ++s_logCounter;
-#endif
 
     // Build and forward BlockContext from host tempo/transport
     Krate::DSP::BlockContext blockCtx;
@@ -392,9 +333,6 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
                 }
                 // Only dispatch note events to engine in MIDI/MIDI+Mod modes
                 if (isArpDispatchingNotes) {
-#if RUINAE_TGATE_DEBUG
-                    logTGate("[TGATE] >>> arp noteOn note=%d vel=%d legato=%d (gate will reset)\n", evt.note, evt.velocity, evt.legato ? 1 : 0);
-#endif
                     engine_.noteOn(evt.note, evt.velocity, evt.legato);
                     if (midiOutEnabled && data.outputEvents) {
                         Steinberg::Vst::Event e{};
@@ -441,7 +379,7 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         // Encoding: stepIndex / 32.0 (kMaxSteps as denominator, consistent
         // regardless of actual lane length).
         if (data.outputParameterChanges) {
-            constexpr float kMaxStepsF = 32.0f;
+            constexpr float kMaxStepsF = static_cast<float>(kMaxArpSteps);
             const auto velStep = static_cast<float>(
                 arpCore_.velocityLane().currentStep());
             const auto gateStep = static_cast<float>(
@@ -556,34 +494,6 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     // Process audio through the engine
     engine_.processBlock(outputL, outputR, numSamples);
 
-#if RUINAE_TGATE_DEBUG
-    {
-        const int tgStep = engine_.getTranceGateCurrentStep();
-        const bool stepChanged = (tgStep != s_tgLastStep && tgStep >= 0);
-
-        // Log on step change or every 200 blocks
-        if (stepChanged || (s_tgLogCounter % 200 == 0 && tgStep >= 0)) {
-            const int tgNumSteps = engine_.getTranceGateNumSteps();
-            const size_t tgSamplesPerStep = engine_.getTranceGateSamplesPerStep();
-            const double tgTempo = engine_.getTranceGateTempoBPM();
-            const bool tgSync = engine_.getTranceGateTempoSync();
-            const size_t tgSampleCtr = engine_.getTranceGateSampleCounter();
-            const int voiceIdx = engine_.getTranceGateActiveVoiceIndex();
-
-            if (stepChanged) {
-                logTGate("[TGATE] STEP %d->%d | voice=%d numSteps=%d samplesPerStep=%zu tempo=%.1f sync=%d sampleCtr=%zu hostTempo=%.1f\n",
-                    s_tgLastStep, tgStep, voiceIdx, tgNumSteps, tgSamplesPerStep, tgTempo, tgSync ? 1 : 0, tgSampleCtr, tempoBPM_);
-            } else {
-                logTGate("[TGATE] periodic | step=%d/%d voice=%d samplesPerStep=%zu tempo=%.1f sync=%d sampleCtr=%zu hostTempo=%.1f\n",
-                    tgStep, tgNumSteps, voiceIdx, tgSamplesPerStep, tgTempo, tgSync ? 1 : 0, tgSampleCtr, tempoBPM_);
-            }
-        }
-
-        s_tgLastStep = tgStep;
-        ++s_tgLogCounter;
-    }
-#endif
-
     // Update morph pad modulated position for UI animation
     {
         using Krate::DSP::RuinaeModDest;
@@ -619,7 +529,7 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         bool anyActive = false;
 
         // Check all voices for the one with highest timestamp
-        for (size_t i = 0; i < 16; ++i) {
+        for (size_t i = 0; i < Krate::DSP::RuinaeEngine::kMaxPolyphony; ++i) {
             if (engine_.isVoiceActive(i)) {
                 anyActive = true;
                 bestVoice = i;
@@ -652,29 +562,6 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             modEnvDisplayStage_.store(
                 static_cast<int>(modEnv.getStage()), std::memory_order_relaxed);
         }
-    }
-
-    // Send playback pointer message to controller (one-time, pre-allocated)
-    if (!playbackMessageSent_ && playbackMsg_) {
-        sendMessage(playbackMsg_);
-        playbackMessageSent_ = true;
-    }
-
-    // Send envelope display state pointers to controller (one-time, pre-allocated)
-    if (!envDisplayMessageSent_ && envDisplayMsg_) {
-        sendMessage(envDisplayMsg_);
-        envDisplayMessageSent_ = true;
-    }
-
-    // Send morph pad modulation pointers to controller (one-time, pre-allocated)
-    if (!morphPadModMessageSent_ && morphPadModMsg_) {
-        sendMessage(morphPadModMsg_);
-        morphPadModMessageSent_ = true;
-    }
-
-    // Send voice route state to controller after a preset snapshot was applied
-    if (needVoiceRouteSync_.exchange(false, std::memory_order_relaxed)) {
-        sendVoiceModRouteState();
     }
 
     return Steinberg::kResultTrue;

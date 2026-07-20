@@ -16,6 +16,7 @@
 #include "parameters/arp_params_common.h"
 
 #include <krate/dsp/core/note_value.h>
+#include <krate/dsp/primitives/arp_lane.h>
 
 #include <cmath>
 
@@ -31,6 +32,13 @@
 #include <cstdio>
 
 namespace Ruinae {
+
+/// Steps in an arpeggiator lane. The value lives in ArpLane's template default;
+/// this is the one place Ruinae re-states it, so the loop bounds, lane lengths
+/// and normalization divisors elsewhere cannot drift apart from it or from the
+/// DSP layer.
+inline constexpr int kMaxArpSteps =
+    static_cast<int>(Krate::DSP::ArpLane<float>::kMaxSteps);
 
 // =============================================================================
 // ArpeggiatorParams: Atomic parameter storage (FR-004)
@@ -153,10 +161,9 @@ struct ArpeggiatorParams {
     std::atomic<float> chordLaneSwing{0.0f};
     std::atomic<float> inversionLaneSwing{0.0f};
 
-    // --- v1.5 Part 2 ---
-    std::atomic<int>   velocityCurveType{0};
-    std::atomic<float> velocityCurveAmount{0.0f};
-    std::atomic<int>   transpose{0};
+    // v1.5 Part 2's velocityCurveType/velocityCurveAmount/transpose are absent:
+    // Ruinae's arp engine consumes none of them, so they were never written or
+    // read, and they are not part of the arp SAVE prefix shared with Gradus.
 
     // Per-lane length jitter (0-4 steps)
     std::atomic<int>   velocityLaneJitter{0};

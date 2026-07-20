@@ -30,6 +30,7 @@
 #include <krate/dsp/primitives/smoother.h>
 #include <krate/dsp/core/db_utils.h>
 #include <krate/dsp/core/note_value.h>
+#include <krate/dsp/core/fast_math.h>
 
 #include <algorithm>
 #include <cmath>
@@ -327,7 +328,7 @@ public:
             const float delaySamplesL = delayMsL * sampleRateF * 0.001f;
 
             // Write input + feedback to delay line
-            const float feedbackSignalL = std::tanh(clampedFeedback * feedbackStateL_);
+            const float feedbackSignalL = FastMath::fastTanh(clampedFeedback * feedbackStateL_);
             delayL_.write(dryL + feedbackSignalL);
 
             // Read wet signal from delay line
@@ -355,7 +356,7 @@ public:
             const float delayMsR = kMinDelayMs + unipolarR * (maxDelayMs - kMinDelayMs);
             const float delaySamplesR = delayMsR * sampleRateF * 0.001f;
 
-            const float feedbackSignalR = std::tanh(clampedFeedback * feedbackStateR_);
+            const float feedbackSignalR = FastMath::fastTanh(clampedFeedback * feedbackStateR_);
             delayR_.write(dryR + feedbackSignalR);
 
             const float wetR = delayR_.readLinear(delaySamplesR);

@@ -2073,9 +2073,11 @@ TEST_CASE("SpiceHumanize_AllThreeParams_Registered", "[arp][params][spice][human
         CHECK((info.flags & ParameterInfo::kIsHidden) == 0);
     }
 
-    // Verify sentinels (updated for dual-reverb/flanger additions)
+    // Verify sentinels (updated for dual-reverb/flanger additions).
+    // kNumParameters is documented as one past the highest ID, so assert the
+    // invariant rather than a literal that silently goes stale as IDs are added.
     CHECK(kArpEndId == 3445);
-    CHECK(kNumParameters == 3401);
+    CHECK(kNumParameters > kArpEndId);
 }
 
 // T062: formatArpParam for Spice: percentage display

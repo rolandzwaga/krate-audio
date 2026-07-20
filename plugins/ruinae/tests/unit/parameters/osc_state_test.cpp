@@ -17,6 +17,9 @@
 #include "public.sdk/source/common/memorystream.h"
 #include "base/source/fstreamer.h"
 
+#include <cstdint>
+#include <vector>
+
 using Catch::Approx;
 
 // ==============================================================================
@@ -407,4 +410,112 @@ TEST_CASE("OscBParams loadOscBParams with old preset (no type-specific data) use
     CHECK(params.spectralFormant.load() == Approx(0.0f));
 
     CHECK(params.noiseColor.load() == 0);
+}
+
+// ==============================================================================
+// Byte-golden: the saved stream must not move
+// ==============================================================================
+// Round-trip fidelity alone would not catch a field being reordered, resized, or
+// silently dropped -- a save/load pair that agree with each other still read
+// existing presets wrong. These pin the exact byte stream so that consolidating
+// the OSC A and OSC B parameter modules cannot change the on-disk format.
+
+namespace {
+
+struct StreamDigest {
+    size_t bytes;
+    uint64_t hash;
+};
+
+/// FNV-1a over the serialized bytes: a stable, order-sensitive summary that
+/// pins content as well as length without embedding 200 bytes of literal.
+StreamDigest digestStream(const Steinberg::MemoryStream& stream) {
+    auto& mutableStream = const_cast<Steinberg::MemoryStream&>(stream);
+    Steinberg::int64 size = 0;
+    mutableStream.seek(0, Steinberg::IBStream::kIBSeekEnd, &size);
+    mutableStream.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+
+    std::vector<char> data(static_cast<size_t>(size));
+    Steinberg::int32 read = 0;
+    mutableStream.read(data.data(), static_cast<Steinberg::int32>(size), &read);
+
+    uint64_t hash = 1469598103934665603ULL;
+    for (char c : data) {
+        hash ^= static_cast<uint8_t>(c);
+        hash *= 1099511628211ULL;
+    }
+    return {data.size(), hash};
+}
+
+/// Populate every field with a distinct, non-default value so that a reordering
+/// changes the digest rather than swapping equal values.
+template <typename Params>
+void fillDistinct(Params& p) {
+    p.type.store(3, std::memory_order_relaxed);
+    p.tuneSemitones.store(7.0f, std::memory_order_relaxed);
+    p.fineCents.store(-25.0f, std::memory_order_relaxed);
+    p.level.store(0.75f, std::memory_order_relaxed);
+    p.phase.store(0.5f, std::memory_order_relaxed);
+    p.waveform.store(3, std::memory_order_relaxed);
+    p.pulseWidth.store(0.25f, std::memory_order_relaxed);
+    p.phaseMod.store(0.6f, std::memory_order_relaxed);
+    p.freqMod.store(-0.3f, std::memory_order_relaxed);
+    p.pdWaveform.store(5, std::memory_order_relaxed);
+    p.pdDistortion.store(0.7f, std::memory_order_relaxed);
+    p.syncRatio.store(3.5f, std::memory_order_relaxed);
+    p.syncWaveform.store(2, std::memory_order_relaxed);
+    p.syncMode.store(1, std::memory_order_relaxed);
+    p.syncAmount.store(0.8f, std::memory_order_relaxed);
+    p.syncPulseWidth.store(0.3f, std::memory_order_relaxed);
+    p.additivePartials.store(64, std::memory_order_relaxed);
+    p.additiveTilt.store(-6.0f, std::memory_order_relaxed);
+    p.additiveInharm.store(0.4f, std::memory_order_relaxed);
+    p.chaosAttractor.store(2, std::memory_order_relaxed);
+    p.chaosAmount.store(0.55f, std::memory_order_relaxed);
+    p.chaosCoupling.store(0.35f, std::memory_order_relaxed);
+    p.chaosOutput.store(2, std::memory_order_relaxed);
+    p.particleScatter.store(5.0f, std::memory_order_relaxed);
+    p.particleDensity.store(32, std::memory_order_relaxed);
+    p.particleLifetime.store(750.0f, std::memory_order_relaxed);
+    p.particleSpawnMode.store(2, std::memory_order_relaxed);
+    p.particleEnvType.store(4, std::memory_order_relaxed);
+    p.particleDrift.store(0.65f, std::memory_order_relaxed);
+    p.formantVowel.store(3, std::memory_order_relaxed);
+    p.formantMorph.store(2.5f, std::memory_order_relaxed);
+    p.spectralPitch.store(-9.0f, std::memory_order_relaxed);
+    p.spectralTilt.store(4.0f, std::memory_order_relaxed);
+    p.spectralFormant.store(-3.0f, std::memory_order_relaxed);
+    p.noiseColor.store(4, std::memory_order_relaxed);
+}
+
+} // namespace
+
+TEST_CASE("OscAParams saved byte stream is unchanged", "[osc-state][golden]") {
+    using namespace Ruinae;
+
+    OscAParams src;
+    fillDistinct(src);
+
+    Steinberg::MemoryStream stream;
+    Steinberg::IBStreamer streamer(&stream, kLittleEndian);
+    saveOscAParams(src, streamer);
+
+    const auto digest = digestStream(stream);
+    CHECK(digest.bytes == 140);
+    CHECK(digest.hash == 0x1e3f658a7d1ae371ULL);
+}
+
+TEST_CASE("OscBParams saved byte stream is unchanged", "[osc-state][golden]") {
+    using namespace Ruinae;
+
+    OscBParams src;
+    fillDistinct(src);
+
+    Steinberg::MemoryStream stream;
+    Steinberg::IBStreamer streamer(&stream, kLittleEndian);
+    saveOscBParams(src, streamer);
+
+    const auto digest = digestStream(stream);
+    CHECK(digest.bytes == 140);
+    CHECK(digest.hash == 0x1e3f658a7d1ae371ULL);
 }

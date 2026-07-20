@@ -15,6 +15,9 @@ namespace Ruinae {
 // ==============================================================================
 
 void Processor::processEvents(Steinberg::Vst::IEventList* events) {
+    // Note triggers align to the block start: the shared dispatcher does not
+    // read Event.sampleOffset, so all events in a block are quantized to its
+    // boundary. See midi_event_dispatcher.h.
     Krate::Plugins::dispatchMidiEvents(events, *this);
 }
 

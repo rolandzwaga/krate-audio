@@ -192,6 +192,7 @@ private:
     [[nodiscard]] float generateCarrierSample(
         OnePoleSmoother& smoother,
         float& sinState, float& cosState, int& counter,
+        float& epsilonCache, float& epsilonFreqCache,
         PolyBlepOscillator& osc, NoiseOscillator& noise) noexcept;
 
     // =========================================================================
@@ -220,6 +221,14 @@ private:
     float sinStateR_ = 0.0f;
     float cosStateR_ = 1.0f;
     int renormCounterR_ = 0;
+
+    // Magic-circle epsilon, cached per channel against the frequency it was
+    // derived from. The sentinel frequency is negative so the first sample of a
+    // block always recomputes.
+    float sineEpsilon_ = 0.0f;
+    float sineEpsilonFreq_ = -1.0f;
+    float sineEpsilonR_ = 0.0f;
+    float sineEpsilonFreqR_ = -1.0f;
 
     // PolyBLEP oscillator (Triangle/Sawtooth/Square)
     PolyBlepOscillator polyBlepOsc_;
@@ -266,6 +275,10 @@ inline void RingModulator::prepare(double sampleRate,
     cosStateR_ = 1.0f;
     renormCounterR_ = 0;
 
+    // Invalidate the epsilon cache along with the phasor state.
+    sineEpsilonFreq_ = -1.0f;
+    sineEpsilonFreqR_ = -1.0f;
+
     // Prepare PolyBLEP oscillators
     // Note: prepare() resets waveform to Sine, so we re-apply the user's
     // chosen waveform afterward via setCarrierWaveform().
@@ -296,15 +309,25 @@ inline void RingModulator::reset() noexcept {
     cosStateR_ = 1.0f;
     renormCounterR_ = 0;
 
+    // Invalidate the epsilon cache along with the phasor state.
+    sineEpsilonFreq_ = -1.0f;
+    sineEpsilonFreqR_ = -1.0f;
+
     // Reset sub-components
     polyBlepOsc_.reset();
     polyBlepOscR_.reset();
     noiseOsc_.reset();
     noiseOscR_.reset();
 
-    // Reset smoothers
-    freqSmoother_.reset();
-    freqSmootherR_.reset();
+    // Snap the frequency smoothers to the configured frequency rather than
+    // zeroing them. reset() clears state without changing parameters, so a
+    // plain reset() would leave the carrier ramping up from ~0 Hz over the
+    // 5 ms smoothing time on the next block -- an audible chirp. Snap to the
+    // unspread frequency, as prepare() does; the per-channel spread offset is
+    // re-applied by setTarget() in processBlock.
+    const float effectiveFreq = computeEffectiveFrequency();
+    freqSmoother_.snapTo(effectiveFreq);
+    freqSmootherR_.snapTo(effectiveFreq);
 }
 
 // -----------------------------------------------------------------------------
@@ -434,16 +457,23 @@ inline void RingModulator::tickSineCarrier(float& s, float& c, float epsilon,
 inline float RingModulator::generateCarrierSample(
     OnePoleSmoother& smoother,
     float& sinState, float& cosState, int& counter,
+    float& epsilonCache, float& epsilonFreqCache,
     PolyBlepOscillator& osc, NoiseOscillator& noise) noexcept {
 
     const float smoothedFreq = smoother.process();
 
     switch (carrierWaveform_) {
         case RingModCarrierWaveform::Sine: {
-            // Compute epsilon from smoothed frequency
-            const float epsilon = 2.0f * std::sin(
-                kPi * smoothedFreq / static_cast<float>(sampleRate_));
-            tickSineCarrier(sinState, cosState, epsilon, counter);
+            // Epsilon depends only on the smoothed frequency, and the smoother
+            // lands on an exact float fixed point once settled -- so the sin()
+            // that the magic-circle phasor is meant to avoid only runs while the
+            // frequency is actually moving.
+            if (smoothedFreq != epsilonFreqCache) {
+                epsilonCache = 2.0f * std::sin(
+                    kPi * smoothedFreq / static_cast<float>(sampleRate_));
+                epsilonFreqCache = smoothedFreq;
+            }
+            tickSineCarrier(sinState, cosState, epsilonCache, counter);
             // Clamp to [-1, +1] to bound output amplitude (FR-002).
             // Gordon-Smith sine values can slightly exceed unity between
             // renormalization intervals due to the approximation nature
@@ -481,7 +511,7 @@ inline void RingModulator::processBlock(float* buffer,
     for (size_t i = 0; i < numSamples; ++i) {
         const float carrier = generateCarrierSample(
             freqSmoother_, sinState_, cosState_, renormCounter_,
-            polyBlepOsc_, noiseOsc_);
+            sineEpsilon_, sineEpsilonFreq_, polyBlepOsc_, noiseOsc_);
 
         buffer[i] *= carrier * amplitude_;
     }
@@ -501,12 +531,12 @@ inline void RingModulator::processBlock(float* left, float* right,
         // Left channel carrier
         const float carrierL = generateCarrierSample(
             freqSmoother_, sinState_, cosState_, renormCounter_,
-            polyBlepOsc_, noiseOsc_);
+            sineEpsilon_, sineEpsilonFreq_, polyBlepOsc_, noiseOsc_);
 
         // Right channel carrier
         const float carrierR = generateCarrierSample(
             freqSmootherR_, sinStateR_, cosStateR_, renormCounterR_,
-            polyBlepOscR_, noiseOscR_);
+            sineEpsilonR_, sineEpsilonFreqR_, polyBlepOscR_, noiseOscR_);
 
         left[i] *= carrierL * amplitude_;
         right[i] *= carrierR * amplitude_;

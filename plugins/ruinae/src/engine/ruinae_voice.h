@@ -214,6 +214,9 @@ public:
         expressionTuning_ = 0.0f;
         expressionVolume_ = 1.0f;
         expressionBrightness_ = 0.5f;
+        portamentoProgress_ = 1.0f;
+        portamentoSourceFreq_ = 0.0f;
+        portamentoTargetFreq_ = 0.0f;
     }
 
     // =========================================================================
@@ -232,6 +235,15 @@ public:
         // Clear stale pitch modulation offsets from previous note
         oscAPitchModSemitones_ = 0.0f;
         oscBPitchModSemitones_ = 0.0f;
+
+        // Retire any glide left over from the previous note. An interrupted
+        // glide (progress < 1.0) would otherwise be resumed by the first
+        // processBlock with the OLD source and target, overwriting the frequency
+        // just set here. Legato transitions go through glideToFrequency(), not
+        // noteOn(), so this does not disturb them.
+        portamentoProgress_ = 1.0f;
+        portamentoSourceFreq_ = 0.0f;
+        portamentoTargetFreq_ = 0.0f;
 
         // Reset MPE expression fields for new note
         expressionTuning_ = 0.0f;
@@ -383,6 +395,32 @@ public:
 
         // Step 3: Mix oscillators (FR-006, FR-007)
         if (mixMode_ == MixMode::SpectralMorph && spectralMorph_) {
+            // Apply the OSC levels to the morph INPUTS. The per-sample loop below
+            // that normally does this is gated to CrossfadeMix, so without this
+            // the level knobs and the OscALevel/OscBLevel modulation
+            // destinations had no effect in this mode. Scaling the morphed
+            // output instead would be a single gain and could not express the
+            // A-vs-B balance.
+            //
+            // spectralMorph_ is block-based, so OscLevel modulation is block-rate
+            // in this mode: the offset is sampled once per block rather than per
+            // sample.
+            const float blockOscALevel = std::clamp(
+                oscALevel_ + modRouter_.getOffset(VoiceModDest::OscALevel)
+                    * modDestScales_[static_cast<size_t>(VoiceModDest::OscALevel)],
+                0.0f, 1.0f);
+            const float blockOscBLevel = std::clamp(
+                oscBLevel_ + modRouter_.getOffset(VoiceModDest::OscBLevel)
+                    * modDestScales_[static_cast<size_t>(VoiceModDest::OscBLevel)],
+                0.0f, 1.0f);
+
+            if (blockOscALevel != 1.0f) {
+                for (size_t i = 0; i < numSamples; ++i) oscABuffer_[i] *= blockOscALevel;
+            }
+            if (blockOscBLevel != 1.0f) {
+                for (size_t i = 0; i < numSamples; ++i) oscBBuffer_[i] *= blockOscBLevel;
+            }
+
             // SpectralMorph mode: FFT-based spectral interpolation (FR-006)
             spectralMorph_->processBlock(oscABuffer_.data(), oscBBuffer_.data(),
                                          spectralMorphBuffer_.data(), numSamples);
@@ -781,7 +819,15 @@ public:
 
     /// @brief Set SVF slope (1=12dB single stage, 2=24dB cascaded).
     void setFilterSvfSlope(int stages) noexcept {
+        const int previous = svfSlopeStages_;
         svfSlopeStages_ = std::clamp(stages, 1, 2);
+
+        // Stage 2's cutoff is only tracked while it is in use, so bring it up to
+        // date on the transition rather than relying on the next per-sample
+        // update alone.
+        if (previous < 2 && svfSlopeStages_ >= 2) {
+            filterSvf2_.setCutoff(filterCutoffHz_);
+        }
     }
 
     /// @brief Set SVF drive (0-24 dB post-filter soft clipping).
@@ -1157,6 +1203,17 @@ public:
     ADSREnvelope& getModEnvelope() noexcept { return modEnv_; }
     LFO& getVoiceLFO() noexcept { return voiceLfo_; }
 
+    /// @brief The voice's current note frequency in Hz, after any portamento
+    /// glide has been applied.
+    [[nodiscard]] float getNoteFrequency() const noexcept { return noteFrequency_; }
+
+    /// @brief Current filter cutoff in Hz (post-clamp, including any
+    /// engine-level modulation the engine has pushed down).
+    [[nodiscard]] float getFilterCutoff() const noexcept { return filterCutoffHz_; }
+
+    /// @brief Current oscillator mix / morph position [0,1].
+    [[nodiscard]] float getMixPosition() const noexcept { return mixPosition_; }
+
     [[nodiscard]] const ADSREnvelope& getAmpEnvelope() const noexcept { return ampEnv_; }
     [[nodiscard]] const ADSREnvelope& getFilterEnvelope() const noexcept { return filterEnv_; }
     [[nodiscard]] const ADSREnvelope& getModEnvelope() const noexcept { return modEnv_; }
@@ -1322,7 +1379,14 @@ private:
             case RuinaeFilterType::SVF_LowShelf:
             case RuinaeFilterType::SVF_HighShelf:
                 filterSvf_.setCutoff(hz);
-                filterSvf2_.setCutoff(hz);
+                // setCutoff runs a std::tan. In single-stage mode filterSvf2_ is
+                // never processed, so that was a transcendental per sample per
+                // voice whose result nothing read. This function runs before
+                // processActiveFilter in the same iteration, so a 1 -> 2 slope
+                // switch still primes stage 2 before its first use.
+                if (svfSlopeStages_ >= 2) {
+                    filterSvf2_.setCutoff(hz);
+                }
                 break;
             case RuinaeFilterType::Ladder:
                 if (filterLadder_) filterLadder_->setCutoff(hz);

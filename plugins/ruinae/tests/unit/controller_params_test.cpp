@@ -15,6 +15,8 @@
 
 #include "pluginterfaces/vst/ivsteditcontroller.h"
 
+#include <set>
+#include "parameters/osc_params.h"
 #include <string>
 
 using namespace Steinberg;
@@ -389,4 +391,115 @@ TEST_CASE("Mod matrix parameters are all registered", "[controller][params]") {
     }
 
     ctrl->terminate();
+}
+
+// =============================================================================
+// Registered ParamIDs must be unique
+// =============================================================================
+// VST3 requires unique ParamIDs, and a collision is invisible until a host
+// happens to route the wrong parameter. kSidechainActiveId was defined as 3400,
+// which sits inside the arp routing range (kArpBaseId..kArpEndId) -- so
+// processParameterChanges dispatched it to handleArpParamChange. Rather than
+// pin the specific pair, this walks the whole registered set, which also catches
+// the next accidental reuse.
+
+TEST_CASE("All registered parameter IDs are unique",
+          "[ruinae][controller][params][regression]") {
+    auto* ctrl = makeControllerRaw();
+
+    const int32 count = ctrl->getParameterCount();
+    REQUIRE(count > 0);
+
+    std::set<ParamID> seen;
+    for (int32 i = 0; i < count; ++i) {
+        ParameterInfo info{};
+        REQUIRE(ctrl->getParameterInfo(i, info) == kResultOk);
+        INFO("duplicate ParamID " << info.id << " at index " << i);
+        CHECK(seen.insert(info.id).second);
+    }
+
+    ctrl->terminate();
+    ctrl->release();
+}
+
+TEST_CASE("Sidechain status parameter sits outside the arp routing range",
+          "[ruinae][controller][params][regression]") {
+    // processParameterChanges dispatches the whole kArpBaseId..kArpEndId span to
+    // the arp handler, so any non-arp parameter placed in that window is routed
+    // to the wrong destination regardless of whether its ID happens to collide.
+    CHECK(Ruinae::kSidechainActiveId > Ruinae::kArpEndId);
+}
+
+// =============================================================================
+// OSC dropdown labels must come from the canonical tables
+// =============================================================================
+// Each OSC dropdown used to exist in three hand-synced copies: the canonical
+// k*Strings table in dropdown_mappings.h (which nothing read), plus an inline
+// literal list in the OSC A registration and another in OSC B. This walks the
+// registered parameters and compares every label against the table, so the
+// registration cannot drift away from the single source of truth again.
+
+namespace {
+
+void checkDropdownMatchesTable(Ruinae::Controller* ctrl,
+                               ParamID id,
+                               const Steinberg::Vst::TChar* const* strings,
+                               int count) {
+    auto* param = ctrl->getParameterObject(id);
+    REQUIRE(param != nullptr);
+
+    const auto info = param->getInfo();
+    INFO("param " << id);
+    REQUIRE(info.stepCount == count - 1);
+
+    for (int i = 0; i < count; ++i) {
+        const ParamValue normalized =
+            (count > 1) ? static_cast<ParamValue>(i) / static_cast<ParamValue>(count - 1)
+                        : 0.0;
+        String128 actual{};
+        param->toString(normalized, actual);
+
+        INFO("param " << id << " index " << i);
+        CHECK(std::u16string(reinterpret_cast<const char16_t*>(actual))
+              == std::u16string(reinterpret_cast<const char16_t*>(strings[i])));
+    }
+}
+
+} // namespace
+
+TEST_CASE("OSC dropdowns are registered from the canonical label tables",
+          "[ruinae][controller][params][dropdowns]") {
+    using namespace Ruinae;
+
+    auto* ctrl = makeControllerRaw();
+
+    // Both banks, so a table wired into only one of them is still caught.
+    for (const ParamID base : {static_cast<ParamID>(kOscATypeId),
+                               static_cast<ParamID>(kOscBTypeId)}) {
+        checkDropdownMatchesTable(ctrl, base + kOscTypeOffset,
+                                  kOscTypeStrings, kOscTypeCount);
+        checkDropdownMatchesTable(ctrl, base + kOscWaveformOffset,
+                                  kOscWaveformStrings, kOscWaveformCount);
+        checkDropdownMatchesTable(ctrl, base + kOscSyncWaveformOffset,
+                                  kOscWaveformStrings, kOscWaveformCount);
+        checkDropdownMatchesTable(ctrl, base + kOscPDWaveformOffset,
+                                  kPDWaveformStrings, kPDWaveformCount);
+        checkDropdownMatchesTable(ctrl, base + kOscSyncModeOffset,
+                                  kSyncModeStrings, kSyncModeCount);
+        checkDropdownMatchesTable(ctrl, base + kOscChaosAttractorOffset,
+                                  kChaosAttractorStrings, kChaosAttractorCount);
+        checkDropdownMatchesTable(ctrl, base + kOscChaosOutputOffset,
+                                  kChaosOutputStrings, kChaosOutputCount);
+        checkDropdownMatchesTable(ctrl, base + kOscParticleSpawnModeOffset,
+                                  kParticleSpawnModeStrings, kParticleSpawnModeCount);
+        checkDropdownMatchesTable(ctrl, base + kOscParticleEnvTypeOffset,
+                                  kParticleEnvTypeStrings, kParticleEnvTypeCount);
+        checkDropdownMatchesTable(ctrl, base + kOscFormantVowelOffset,
+                                  kFormantVowelStrings, kFormantVowelCount);
+        checkDropdownMatchesTable(ctrl, base + kOscNoiseColorOffset,
+                                  kNoiseColorStrings, kNoiseColorCount);
+    }
+
+    ctrl->terminate();
+    ctrl->release();
 }

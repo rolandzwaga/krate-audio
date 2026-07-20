@@ -182,21 +182,35 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
         }
         if (!loadMonoModeParams(monoModeParams_, streamer)) return Steinberg::kResultTrue;
 
-        // SKIP voiceRoutes_ here — deferred to audio thread via RTTransferT
-
-        // Skip past voiceRoutes bytes in the stream (16 routes x 8 fields)
-        for (int i = 0; i < Krate::Plugins::kMaxVoiceRoutes; ++i) {
+        // Voice routes — per-field atomic stores, safe from this (message)
+        // thread, and restored here alongside the rest of the preset's
+        // parameters. Keeping them off the audio thread also keeps the
+        // controller notification below off it: that send calls setBinary,
+        // which allocates on every call.
+        for (auto& ar : voiceRoutes_) {
+            Krate::Plugins::VoiceModRoute r{};
             Steinberg::int8 i8 = 0;
             float f = 0.0f;
-            if (!streamer.readInt8(i8)) break; // source
-            if (!streamer.readInt8(i8)) break; // dest
-            if (!streamer.readFloat(f)) break; // amount
-            if (!streamer.readInt8(i8)) break; // curve
-            if (!streamer.readFloat(f)) break; // smoothMs
-            if (!streamer.readInt8(i8)) break; // scale
-            if (!streamer.readInt8(i8)) break; // bypass
-            if (!streamer.readInt8(i8)) break; // active
+            if (!streamer.readInt8(i8)) break;
+            r.source = static_cast<uint8_t>(i8);
+            if (!streamer.readInt8(i8)) break;
+            r.destination = static_cast<uint8_t>(i8);
+            if (!streamer.readFloat(f)) break;
+            r.amount = f;
+            if (!streamer.readInt8(i8)) break;
+            r.curve = static_cast<uint8_t>(i8);
+            if (!streamer.readFloat(f)) break;
+            r.smoothMs = f;
+            if (!streamer.readInt8(i8)) break;
+            r.scale = static_cast<uint8_t>(i8);
+            if (!streamer.readInt8(i8)) break;
+            r.bypass = static_cast<uint8_t>(i8);
+            if (!streamer.readInt8(i8)) break;
+            r.active = static_cast<uint8_t>(i8);
+            ar.store(r);
         }
+
+        sendVoiceModRouteState();
 
         // FX enable flags
         Steinberg::int8 i8 = 0;
@@ -284,9 +298,8 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
 void Processor::applyPresetSnapshot(const PresetSnapshot& snapshot) {
     // =========================================================================
     // Audio-thread-only operations for preset loading:
-    //   1. voiceRoutes_ deserialization (atomic store per field)
-    //   2. engine_.reset() + arpCore_.reset() (kill stale voices)
-    //   3. Force arp tracking re-application
+    //   1. engine_.reset() + arpCore_.reset() (kill stale voices)
+    //   2. Force arp tracking re-application
     //
     // Atomic parameter writes are done immediately in setState() for host
     // compatibility. This method only handles the unsafe/deferred operations.
@@ -332,28 +345,19 @@ void Processor::applyPresetSnapshot(const PresetSnapshot& snapshot) {
     }
     if (!loadMonoModeParams(monoModeParams_, streamer)) return;
 
-    // Voice routes — atomic store per field (safe from any thread)
-    for (auto& ar : voiceRoutes_) {
-        Krate::Plugins::VoiceModRoute r{};
+    // Voice routes were already restored (and the controller notified) in
+    // setState() on the message thread. Only skip past their bytes here.
+    for (int i = 0; i < Krate::Plugins::kMaxVoiceRoutes; ++i) {
         Steinberg::int8 i8 = 0;
         float f = 0.0f;
-        if (!streamer.readInt8(i8)) break;
-        r.source = static_cast<uint8_t>(i8);
-        if (!streamer.readInt8(i8)) break;
-        r.destination = static_cast<uint8_t>(i8);
-        if (!streamer.readFloat(f)) break;
-        r.amount = f;
-        if (!streamer.readInt8(i8)) break;
-        r.curve = static_cast<uint8_t>(i8);
-        if (!streamer.readFloat(f)) break;
-        r.smoothMs = f;
-        if (!streamer.readInt8(i8)) break;
-        r.scale = static_cast<uint8_t>(i8);
-        if (!streamer.readInt8(i8)) break;
-        r.bypass = static_cast<uint8_t>(i8);
-        if (!streamer.readInt8(i8)) break;
-        r.active = static_cast<uint8_t>(i8);
-        ar.store(r);
+        if (!streamer.readInt8(i8)) break; // source
+        if (!streamer.readInt8(i8)) break; // dest
+        if (!streamer.readFloat(f)) break; // amount
+        if (!streamer.readInt8(i8)) break; // curve
+        if (!streamer.readFloat(f)) break; // smoothMs
+        if (!streamer.readInt8(i8)) break; // scale
+        if (!streamer.readInt8(i8)) break; // bypass
+        if (!streamer.readInt8(i8)) break; // active
     }
 
     // Reset DSP state to prevent stale voices/state from the old preset
@@ -374,9 +378,6 @@ void Processor::applyPresetSnapshot(const PresetSnapshot& snapshot) {
     prevArpNoteValue_ = -1;
     prevArpLatchMode_ = static_cast<Krate::DSP::LatchMode>(-1);
     prevArpRetrigger_ = static_cast<Krate::DSP::ArpRetriggerMode>(-1);
-
-    // Signal process() to send voice route state to controller
-    needVoiceRouteSync_.store(true, std::memory_order_relaxed);
 }
 
 } // namespace Ruinae

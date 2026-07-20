@@ -1615,3 +1615,36 @@ TEST_CASE("LFO quantize off produces continuous output", "[lfo][quantize]") {
     // Should have many unique values (continuous)
     CHECK(uniqueValues.size() > 100u);
 }
+
+// ==============================================================================
+// Fade-in duration must survive a re-prepare
+// ==============================================================================
+// The fade-in increment is rate-derived, like the phase and crossfade
+// increments, but prepare() recomputed only the latter two -- it was otherwise
+// updated solely by setFadeInTime(). Re-preparing at a different sample rate
+// therefore left the fade running for the wrong wall-clock duration: at double
+// the rate it completed in half the time.
+
+TEST_CASE("LFO fade-in duration is recomputed on prepare",
+          "[lfo][fade_in][regression]") {
+    constexpr float kFadeMs = 100.0f;
+
+    LFO lfo;
+    lfo.prepare(44100.0);
+    lfo.setFadeInTime(kFadeMs);
+    lfo.setFrequency(1.0f);
+
+    // Re-prepare at double the sample rate; the fade should still take 100 ms,
+    // which is now twice as many samples.
+    lfo.prepare(88200.0);
+    lfo.retrigger();
+
+    const size_t halfFade = static_cast<size_t>(0.5 * kFadeMs * 0.001 * 88200.0);
+    for (size_t i = 0; i < halfFade; ++i) {
+        (void)lfo.process();
+    }
+
+    // Halfway through the fade the gain must still be climbing. With a stale
+    // 44.1 kHz increment it would have reached full scale already.
+    CHECK(lfo.getFadeInGain() < 0.99f);
+}

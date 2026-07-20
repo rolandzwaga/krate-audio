@@ -7,4 +7,6 @@ namespace Ruinae {
     using Krate::Plugins::createDropdownParameter;
     using Krate::Plugins::createDropdownParameterWithDefault;
     using Krate::Plugins::createNoteValueDropdown;
+    using Krate::Plugins::logMapFromNormalized;
+    using Krate::Plugins::logMapToNormalized;
 } // namespace Ruinae

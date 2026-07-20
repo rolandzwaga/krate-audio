@@ -1453,3 +1453,53 @@ TEST_CASE("RingModulator performance: sine carrier < 0.3% CPU at 44.1 kHz",
     // Use a generous threshold for CI/test machines that may be slower
     REQUIRE(cpuPercent < 0.3);
 }
+
+// ==============================================================================
+// reset() must not make the carrier ramp up from zero
+// ==============================================================================
+// reset() clears state without changing parameters, so the carrier should resume
+// at the configured frequency. It called reset() on the frequency smoothers,
+// which zeroes both current and target, leaving the carrier to ramp from ~0 Hz
+// over the 5 ms smoothing time -- an audible chirp at the start of every block
+// after a reset. prepare() already snapped instead; reset() now does the same.
+//
+// A carrier that starts near DC modulates far less than one at the configured
+// frequency, so comparing the first few hundred samples against a
+// freshly-prepared instance detects the ramp without measuring frequency
+// directly.
+
+TEST_CASE("RingModulator reset does not ramp the carrier from zero",
+          "[ring_modulator][regression]") {
+    constexpr size_t kBlockSize = 256;
+    constexpr float kCarrierHz = 500.0f;
+
+    auto makeInput = [] {
+        std::vector<float> buf(kBlockSize);
+        for (size_t i = 0; i < kBlockSize; ++i) {
+            buf[i] = std::sin(2.0f * Krate::DSP::kPi
+                              * 220.0f * static_cast<float>(i) / 44100.0f);
+        }
+        return buf;
+    };
+
+    Krate::DSP::RingModulator fresh;
+    fresh.prepare(44100.0, kBlockSize);
+    fresh.setFrequency(kCarrierHz);
+    fresh.prepare(44100.0, kBlockSize); // re-snap after the frequency change
+    auto freshBuf = makeInput();
+    fresh.processBlock(freshBuf.data(), kBlockSize);
+
+    Krate::DSP::RingModulator afterReset;
+    afterReset.prepare(44100.0, kBlockSize);
+    afterReset.setFrequency(kCarrierHz);
+    auto warm = makeInput();
+    afterReset.processBlock(warm.data(), kBlockSize); // settle the smoother
+    afterReset.reset();
+    auto resetBuf = makeInput();
+    afterReset.processBlock(resetBuf.data(), kBlockSize);
+
+    for (size_t i = 0; i < kBlockSize; ++i) {
+        INFO("sample " << i);
+        CHECK(resetBuf[i] == Catch::Approx(freshBuf[i]).margin(1e-4));
+    }
+}

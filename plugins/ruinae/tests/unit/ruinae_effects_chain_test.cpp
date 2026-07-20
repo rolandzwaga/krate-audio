@@ -1914,3 +1914,231 @@ TEST_CASE("Effects chain: harmonizer wet output level diagnostic",
         CHECK(rms > inputRMS * 0.3f);
     }
 }
+
+// =============================================================================
+// Reverb crossfade completion must not re-process the tail
+// =============================================================================
+// The incoming reverb processes the whole block in-place before the blend loop
+// runs. When the crossfade completed mid-block, the completion branch then ran
+// processReverbType() again over the remainder -- which by that point held
+// already-wet output. The tail came out double-reverberated, and the reverb's
+// internal state was advanced twice for those samples. The delay slot's
+// equivalent branch just returns.
+//
+// After completion the tail is 100% incoming reverb, so it must match a chain
+// that was on the incoming type from the start and saw the same input.
+
+TEST_CASE("RuinaeEffectsChain reverb crossfade tail is not processed twice",
+          "[systems][ruinae_effects_chain][regression]") {
+    // 30 ms of crossfade at 44.1 kHz is 1323 samples, so a 2048-sample block
+    // completes the crossfade partway through and exposes the tail.
+    constexpr size_t kLongBlock = 2048;
+    constexpr size_t kCrossfadeSamples = 1323;
+
+    ReverbParams params;
+    params.mix = 1.0f;
+    params.roomSize = 0.7f;
+    params.damping = 0.5f;
+
+    std::vector<float> inputL(kLongBlock);
+    std::vector<float> inputR(kLongBlock);
+    fillSine(inputL.data(), kLongBlock, 440.0f, kSampleRate);
+    fillSine(inputR.data(), kLongBlock, 440.0f, kSampleRate);
+
+    // Crossfading chain: starts on reverb type 0, switches to type 1.
+    RuinaeEffectsChain crossfading;
+    prepareChain(crossfading, kSampleRate, kLongBlock);
+    crossfading.setReverbEnabled(true);
+    crossfading.setReverbParams(params);
+    crossfading.setReverbType(1);
+
+    // Reference chain: on reverb type 1 from the start, same input.
+    RuinaeEffectsChain reference;
+    prepareChain(reference, kSampleRate, kLongBlock);
+    reference.setReverbEnabled(true);
+    reference.setReverbParams(params);
+    reference.setReverbTypeDirect(1);
+
+    std::vector<float> crossL = inputL;
+    std::vector<float> crossR = inputR;
+    crossfading.processBlock(crossL.data(), crossR.data(), kLongBlock);
+
+    std::vector<float> refL = inputL;
+    std::vector<float> refR = inputR;
+    reference.processBlock(refL.data(), refR.data(), kLongBlock);
+
+    // Skip a margin past the completion point so the comparison is unambiguous.
+    for (size_t i = kCrossfadeSamples + 64; i < kLongBlock; ++i) {
+        INFO("sample " << i);
+        CHECK(crossL[i] == Approx(refL[i]).margin(1e-6));
+        CHECK(crossR[i] == Approx(refR[i]).margin(1e-6));
+    }
+}
+
+// =============================================================================
+// Reverb crossfade must not double-count the dry signal
+// =============================================================================
+// Both reverbs receive the same ReverbParams, so each output carries its own
+// copy of the correlated dry signal. The equal-power crossfade gains sum to
+// sqrt(2) at the midpoint, which is correct for two decorrelated wet tails but
+// swells the shared dry component by about 3 dB.
+//
+// Setting the reverb mix to zero isolates the effect exactly: the slot should be
+// a pass-through at every point of the crossfade, since there is no wet signal
+// to blend. Any deviation is the dry component being scaled by the blend.
+
+TEST_CASE("RuinaeEffectsChain reverb crossfade does not swell the dry signal",
+          "[systems][ruinae_effects_chain][regression]") {
+    constexpr size_t kLongBlock = 2048;
+
+    ReverbParams params;
+    params.mix = 0.0f; // fully dry: the slot must be transparent
+    params.roomSize = 0.7f;
+    params.damping = 0.5f;
+
+    std::vector<float> inputL(kLongBlock);
+    std::vector<float> inputR(kLongBlock);
+    fillSine(inputL.data(), kLongBlock, 440.0f, kSampleRate);
+    fillSine(inputR.data(), kLongBlock, 440.0f, kSampleRate);
+
+    RuinaeEffectsChain crossfading;
+    prepareChain(crossfading, kSampleRate, kLongBlock);
+    crossfading.setReverbEnabled(true);
+    crossfading.setReverbParams(params);
+
+    // Let the dry/wet smoother reach the requested mix before the crossfade
+    // starts, so what is measured is the blend and not the 20 ms mix ramp.
+    {
+        std::vector<float> warmL = inputL;
+        std::vector<float> warmR = inputR;
+        crossfading.processBlock(warmL.data(), warmR.data(), kLongBlock);
+    }
+
+    crossfading.setReverbType(1);
+
+    std::vector<float> outL = inputL;
+    std::vector<float> outR = inputR;
+    crossfading.processBlock(outL.data(), outR.data(), kLongBlock);
+
+    for (size_t i = 0; i < kLongBlock; ++i) {
+        INFO("sample " << i);
+        CHECK(outL[i] == Approx(inputL[i]).margin(1e-4));
+        CHECK(outR[i] == Approx(inputR[i]).margin(1e-4));
+    }
+}
+
+// =============================================================================
+// Disabling a wet slot must ramp, not cut
+// =============================================================================
+// setDelayEnabled/setReverbEnabled were hard bool flips: an audible wet tail
+// vanished in a single sample, which clicks. Both slots now fade their wet
+// contribution over ~20 ms and reset their buffers only once the fade lands.
+//
+// The measurement is the largest sample-to-sample step in the output. A cut tail
+// shows up as one step the size of the tail itself; a ramp spreads that over
+// hundreds of samples.
+
+TEST_CASE("Disabling the delay ramps the wet tail out",
+          "[systems][ruinae_effects_chain][regression]") {
+    constexpr size_t kBlock = 512;
+
+    RuinaeEffectsChain chain;
+    prepareChain(chain, kSampleRate, kBlock);
+    chain.setDelayEnabled(true);
+    chain.setDelayMix(1.0f);
+    chain.setDelayTime(50.0f);
+    chain.setDelayFeedback(0.6f);
+
+    // Build up a tail, then stop feeding input so the output is tail only.
+    std::vector<float> left(kBlock);
+    std::vector<float> right(kBlock);
+    for (int b = 0; b < 20; ++b) {
+        fillSine(left.data(), kBlock, 440.0f, kSampleRate);
+        fillSine(right.data(), kBlock, 440.0f, kSampleRate);
+        chain.processBlock(left.data(), right.data(), kBlock);
+    }
+
+    std::fill(left.begin(), left.end(), 0.0f);
+    std::fill(right.begin(), right.end(), 0.0f);
+    chain.processBlock(left.data(), right.data(), kBlock);
+    const float tailLevel = calculateRMS(left.data(), kBlock);
+    REQUIRE(tailLevel > 1e-3f);
+
+
+    // Disable and capture the transition.
+    chain.setDelayEnabled(false);
+    std::vector<float> captured;
+    for (int b = 0; b < 4; ++b) {
+        std::fill(left.begin(), left.end(), 0.0f);
+        std::fill(right.begin(), right.end(), 0.0f);
+        chain.processBlock(left.data(), right.data(), kBlock);
+        captured.insert(captured.end(), left.begin(), left.end());
+    }
+
+    // The tail is gone by the end of the window...
+    const float afterLevel = calculateRMS(captured.data() + captured.size() - kBlock, kBlock);
+    CHECK(afterLevel < tailLevel * 0.1f);
+
+    // ...but it got there by ramping. A hard cut leaves one step the size of the
+    // tail; the ramp keeps every step far below that.
+    // The fade spans about 20 ms, so a short window straight after the disable
+    // must still carry most of the tail. A hard flip drops it to silence within
+    // one sample, which is what this distinguishes. Sample-to-sample step size
+    // does not distinguish it: a broadband tail already steps by roughly its own
+    // amplitude between neighbouring samples.
+    constexpr size_t kEarlyWindow = 128;
+    const float earlyLevel = calculateRMS(captured.data(), kEarlyWindow);
+    INFO("tail RMS " << tailLevel << ", first " << kEarlyWindow
+         << " samples after disable RMS " << earlyLevel);
+    CHECK(earlyLevel > tailLevel * 0.4f);
+}
+
+TEST_CASE("Disabling the reverb ramps the wet tail out",
+          "[systems][ruinae_effects_chain][regression]") {
+    constexpr size_t kBlock = 512;
+
+    ReverbParams params;
+    params.mix = 1.0f;
+    params.roomSize = 0.9f;
+    params.damping = 0.2f;
+
+    RuinaeEffectsChain chain;
+    prepareChain(chain, kSampleRate, kBlock);
+    chain.setReverbEnabled(true);
+    chain.setReverbParams(params);
+
+    std::vector<float> left(kBlock);
+    std::vector<float> right(kBlock);
+    for (int b = 0; b < 20; ++b) {
+        fillSine(left.data(), kBlock, 440.0f, kSampleRate);
+        fillSine(right.data(), kBlock, 440.0f, kSampleRate);
+        chain.processBlock(left.data(), right.data(), kBlock);
+    }
+
+    std::fill(left.begin(), left.end(), 0.0f);
+    std::fill(right.begin(), right.end(), 0.0f);
+    chain.processBlock(left.data(), right.data(), kBlock);
+    const float tailLevel = calculateRMS(left.data(), kBlock);
+    REQUIRE(tailLevel > 1e-3f);
+
+
+    chain.setReverbEnabled(false);
+    std::vector<float> captured;
+    for (int b = 0; b < 4; ++b) {
+        std::fill(left.begin(), left.end(), 0.0f);
+        std::fill(right.begin(), right.end(), 0.0f);
+        chain.processBlock(left.data(), right.data(), kBlock);
+        captured.insert(captured.end(), left.begin(), left.end());
+    }
+
+    // The fade spans about 20 ms, so a short window straight after the disable
+    // must still carry most of the tail. A hard flip drops it to silence within
+    // one sample, which is what this distinguishes. Sample-to-sample step size
+    // does not distinguish it: a broadband tail already steps by roughly its own
+    // amplitude between neighbouring samples.
+    constexpr size_t kEarlyWindow = 128;
+    const float earlyLevel = calculateRMS(captured.data(), kEarlyWindow);
+    INFO("tail RMS " << tailLevel << ", first " << kEarlyWindow
+         << " samples after disable RMS " << earlyLevel);
+    CHECK(earlyLevel > tailLevel * 0.4f);
+}

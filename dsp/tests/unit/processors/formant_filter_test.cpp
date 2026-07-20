@@ -1018,3 +1018,70 @@ TEST_CASE("FormantFilter output level is within -12 dB of input for white noise"
         }
     }
 }
+
+// ==============================================================================
+// Coefficient recompute is gated on the smoothers, not skipped
+// ==============================================================================
+// process() used to recompute all five biquads -- five sin/cos pairs and their
+// divisions -- on every sample, even when the smoothers had long since settled
+// and the coefficients could not change. It now recomputes only while they are
+// moving. The risk of that gate is that it might also skip a genuine parameter
+// change, so both halves are asserted: the response is stable once settled, and
+// it starts moving again when the vowel changes.
+
+namespace {
+
+/// Impulse response energy, as a cheap proxy for "the filter response".
+double responseEnergy(Krate::DSP::FormantFilter& filter, size_t numSamples = 512) {
+    double sum = 0.0;
+    for (size_t i = 0; i < numSamples; ++i) {
+        const float out = filter.process(i == 0 ? 1.0f : 0.0f);
+        sum += static_cast<double>(out) * out;
+    }
+    return sum;
+}
+
+void settle(Krate::DSP::FormantFilter& filter, size_t numSamples = 8192) {
+    for (size_t i = 0; i < numSamples; ++i) {
+        (void)filter.process(0.0f);
+    }
+}
+
+} // namespace
+
+TEST_CASE("FormantFilter response is stable once smoothers settle",
+          "[formant_filter][efficiency]") {
+    using namespace Krate::DSP;
+
+    FormantFilter filter;
+    filter.prepare(44100.0);
+    filter.setVowel(Vowel::A);
+    settle(filter);
+
+    const double first = responseEnergy(filter);
+    settle(filter);
+    const double second = responseEnergy(filter);
+
+    REQUIRE(first > 0.0);
+    CHECK(second == Catch::Approx(first).epsilon(1e-9));
+}
+
+TEST_CASE("FormantFilter still responds after the smoothers have settled",
+          "[formant_filter][efficiency]") {
+    using namespace Krate::DSP;
+
+    FormantFilter filter;
+    filter.prepare(44100.0);
+    filter.setVowel(Vowel::A);
+    settle(filter);
+    const double vowelA = responseEnergy(filter);
+
+    // A settled filter must not become deaf to parameter changes.
+    filter.setVowel(Vowel::I);
+    settle(filter);
+    const double vowelI = responseEnergy(filter);
+
+    REQUIRE(vowelA > 0.0);
+    REQUIRE(vowelI > 0.0);
+    CHECK(vowelI != Catch::Approx(vowelA).epsilon(1e-6));
+}

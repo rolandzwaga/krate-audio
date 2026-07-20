@@ -86,6 +86,10 @@ public:
         generateWavetables();
         updatePhaseIncrement();
         updateCrossfadeIncrement();
+        // Rate-derived like the increments above, and only otherwise recomputed
+        // in setFadeInTime() -- so re-preparing at a new sample rate left the
+        // fade-in running for the wrong duration.
+        updateFadeInIncrement();
         reset();
     }
 
@@ -264,6 +268,9 @@ public:
     // =========================================================================
 
     /// @brief Retrigger the LFO phase.
+    /// @brief Current fade-in multiplier, 0 at retrigger ramping to 1.
+    [[nodiscard]] float getFadeInGain() const noexcept { return fadeInGain_; }
+
     void retrigger() noexcept {
         if (retriggerEnabled_) {
             phaseAcc_.reset();

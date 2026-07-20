@@ -241,14 +241,7 @@ public:
                 for (int v = 0; v < numActiveVoices_; ++v) {
                     auto& voice = voices_[static_cast<std::size_t>(v)];
                     if (voice.linearGain == 0.0f) {
-                        // Still advance smoothers for muted voices
-                        voice.pitchSmoother.setTarget(0.0f);
-                        (void)voice.pitchSmoother.process();
-                        if (numSamples > 1) {
-                            voice.pitchSmoother.advanceSamples(numSamples - 1);
-                        }
-                        voice.levelSmoother.advanceSamples(numSamples);
-                        voice.panSmoother.advanceSamples(numSamples);
+                        advanceMutedVoiceSmoothers(voice, numSamples);
                         continue;
                     }
 
@@ -383,8 +376,12 @@ public:
                 for (int v = 0; v < numActiveVoices_; ++v) {
                     auto& voice = voices_[static_cast<std::size_t>(v)];
 
-                    // Skip muted voices (optimization)
+                    // Skip the pitch-shifting work for muted voices, but keep
+                    // their smoothers running -- as the PhaseVocoder path does.
+                    // A frozen level smoother makes an unmuted voice arrive at
+                    // full gain in a single block instead of over its 5 ms ramp.
                     if (voice.linearGain == 0.0f) {
+                        advanceMutedVoiceSmoothers(voice, numSamples);
                         continue;
                     }
 
@@ -462,8 +459,12 @@ public:
                 for (int v = 0; v < numActiveVoices_; ++v) {
                     auto& voice = voices_[static_cast<std::size_t>(v)];
 
-                    // Skip muted voices (optimization)
+                    // Skip the pitch-shifting work for muted voices, but keep
+                    // their smoothers running -- as the PhaseVocoder path does.
+                    // A frozen level smoother makes an unmuted voice arrive at
+                    // full gain in a single block instead of over its 5 ms ramp.
                     if (voice.linearGain == 0.0f) {
+                        advanceMutedVoiceSmoothers(voice, numSamples);
                         continue;
                     }
 
@@ -776,6 +777,24 @@ private:
         float fadeInGain      = 1.0f; // 0→1 ramp over ~5ms
         float fadeInIncrement = 0.0f; // per-sample increment (0 = not fading)
     };
+
+    /// Keep a muted voice's smoothers in step with wall-clock time.
+    ///
+    /// All three processing paths skip the pitch-shifting work for a voice at
+    /// zero gain, which is the point of muting it. But if the smoothers are
+    /// frozen too, unmuting resumes them from wherever they were left: the level
+    /// smoother jumps to full gain in one block rather than ramping over its
+    /// 5 ms, which clicks. Advancing them here costs a few scalar multiplies and
+    /// keeps the three paths behaving alike.
+    static void advanceMutedVoiceSmoothers(Voice& voice, std::size_t numSamples) noexcept {
+        voice.pitchSmoother.setTarget(0.0f);
+        (void)voice.pitchSmoother.process();
+        if (numSamples > 1) {
+            voice.pitchSmoother.advanceSamples(numSamples - 1);
+        }
+        voice.levelSmoother.advanceSamples(numSamples);
+        voice.panSmoother.advanceSamples(numSamples);
+    }
 
     // =========================================================================
     // Members

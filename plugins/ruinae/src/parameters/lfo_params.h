@@ -59,14 +59,17 @@ enum LFOParamOffset {
 // Normalized <-> denormalized mappings (shared by both LFOs)
 // ============================================================================
 
-// Exponential rate: 0-1 -> 0.01-50 Hz
+// Exponential rate: 0-1 -> 0.01-50 Hz.
+// Now evaluated in double via the shared helper rather than in float; the two
+// agree to well within a display digit, and the golden round-trip test pins the
+// current values.
 inline float lfoRateFromNormalized(double value) {
-    float hz = 0.01f * std::pow(5000.0f, static_cast<float>(value));
-    return std::clamp(hz, 0.01f, 50.0f);
+    return static_cast<float>(
+        logMapFromNormalized(value, 0.01, 50.0));
 }
 
 inline double lfoRateToNormalized(float hz) {
-    return std::clamp(static_cast<double>(std::log(hz / 0.01f) / std::log(5000.0f)), 0.0, 1.0);
+    return logMapToNormalized(static_cast<double>(hz), 0.01, 50.0);
 }
 
 // Exponential fade-in: 0-1 -> 0-5000 ms (0 = off)

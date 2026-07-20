@@ -153,7 +153,7 @@ void GranularPitchShifter::process(const float* input, float* output, std::size_
 
             // Hann window crossfade (smoother than half-sine)
             // Map crossfadePhase [0,1] to Hann window index
-            std::size_t fadeIdx = static_cast<std::size_t>(crossfadePhase_ *
+            auto fadeIdx = static_cast<std::size_t>(crossfadePhase_ *
                                   static_cast<float>(crossfadeWindowSize_));
             if (fadeIdx >= crossfadeWindowSize_) fadeIdx = crossfadeWindowSize_ - 1;
 
@@ -243,7 +243,7 @@ void PitchSyncGranularShifter::processGranularSample(float* output, std::size_t 
         float sample2 = readInterpolated(readPos2);
 
         // Hann window crossfade
-        std::size_t fadeIdx = static_cast<std::size_t>(crossfadePhase_ *
+        auto fadeIdx = static_cast<std::size_t>(crossfadePhase_ *
                               static_cast<float>(crossfadeWindowSize_));
         if (fadeIdx >= crossfadeWindowSize_) fadeIdx = crossfadeWindowSize_ - 1;
 
@@ -284,6 +284,14 @@ void PitchSyncGranularShifter::processGranularSample(float* output, std::size_t 
         writePos_ = (writePos_ + 1) % bufferSize_;
     }
 
+// prepare() allocates (vector::resize), so a std::bad_alloc could in principle
+// escape a noexcept function and terminate. That is the intended contract
+// throughout this library: prepare() is the non-realtime setup call, running out
+// of memory while sizing the FFT buffers is not something a caller could
+// meaningfully recover from, and every other prepare() in KrateDSP is noexcept
+// for the same reason. Dropping noexcept here would break that uniformity for no
+// gain.
+// NOLINTNEXTLINE(bugprone-exception-escape)
 void PhaseVocoderPitchShifter::prepare(double sampleRate, std::size_t /*maxBlockSize*/) noexcept {
         sampleRate_ = static_cast<float>(sampleRate);
 
@@ -480,13 +488,13 @@ void PhaseVocoderPitchShifter::processFrame(const SpectralBuffer& analysis, Spec
                 float srcBin = static_cast<float>(k) / pitchRatio;
                 if (srcBin >= static_cast<float>(numBins - 1)) continue;
 
-                std::size_t srcBinRounded = static_cast<std::size_t>(srcBin + 0.5f);
+                auto srcBinRounded = static_cast<std::size_t>(srcBin + 0.5f);
                 if (srcBinRounded >= numBins) srcBinRounded = numBins - 1;
 
                 if (!isPeak_[srcBinRounded]) continue; // Skip non-peaks in Pass 1
 
                 // Standard bin mapping and magnitude interpolation
-                std::size_t srcBin0 = static_cast<std::size_t>(srcBin);
+                auto srcBin0 = static_cast<std::size_t>(srcBin);
                 std::size_t srcBin1 = srcBin0 + 1;
                 if (srcBin1 >= numBins) srcBin1 = numBins - 1;
 
@@ -509,13 +517,13 @@ void PhaseVocoderPitchShifter::processFrame(const SpectralBuffer& analysis, Spec
                 float srcBin = static_cast<float>(k) / pitchRatio;
                 if (srcBin >= static_cast<float>(numBins - 1)) continue;
 
-                std::size_t srcBinRounded = static_cast<std::size_t>(srcBin + 0.5f);
+                auto srcBinRounded = static_cast<std::size_t>(srcBin + 0.5f);
                 if (srcBinRounded >= numBins) srcBinRounded = numBins - 1;
 
                 if (isPeak_[srcBinRounded]) continue; // Skip peaks in Pass 2
 
                 // Standard bin mapping and magnitude interpolation
-                std::size_t srcBin0 = static_cast<std::size_t>(srcBin);
+                auto srcBin0 = static_cast<std::size_t>(srcBin);
                 std::size_t srcBin1 = srcBin0 + 1;
                 if (srcBin1 >= numBins) srcBin1 = numBins - 1;
 
@@ -527,7 +535,7 @@ void PhaseVocoderPitchShifter::processFrame(const SpectralBuffer& analysis, Spec
                 uint16_t analysisPeak = regionPeak_[srcBinRounded];
 
                 // Find the synthesis bin corresponding to the analysis peak
-                std::size_t synthPeakBin = static_cast<std::size_t>(
+                auto synthPeakBin = static_cast<std::size_t>(
                     static_cast<float>(analysisPeak) * pitchRatio + 0.5f);
                 if (synthPeakBin >= numBins) synthPeakBin = numBins - 1;
 
@@ -558,7 +566,7 @@ void PhaseVocoderPitchShifter::processFrame(const SpectralBuffer& analysis, Spec
                 if (srcBin >= static_cast<float>(numBins - 1)) continue;
 
                 // Linear interpolation for magnitude
-                std::size_t srcBin0 = static_cast<std::size_t>(srcBin);
+                auto srcBin0 = static_cast<std::size_t>(srcBin);
                 std::size_t srcBin1 = srcBin0 + 1;
                 if (srcBin1 >= numBins) srcBin1 = numBins - 1;
 
