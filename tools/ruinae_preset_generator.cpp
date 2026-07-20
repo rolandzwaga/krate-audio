@@ -3010,7 +3010,7 @@ std::vector<PresetDef> createAllPresets() {
         auto& s = p.state;
         // --- Voice: shifted freeze morphing against a dark inharmonic additive tone ---
         s.oscA.type = 8;                  // Spectral Freeze
-        s.oscA.spectralPitch = 5.0f;      // shifted up, detached from key
+        s.oscA.spectralPitch = 5.0f;      // a fourth above the played note
         s.oscA.spectralTilt = -4.0f;      // darker
         s.oscA.spectralFormant = -3.0f;   // hollow, ghostly formant shift
         s.oscA.level = 0.7f;
@@ -4644,23 +4644,28 @@ std::vector<PresetDef> createAllPresets() {
         // --- Chaos oscillator (Duffing) + grey noise grit
         s.oscA.type = 5;                           // Chaos
         s.oscA.chaosAttractor = 3;                 // Duffing
-        s.oscA.chaosAmount = 0.5f; s.oscA.chaosCoupling = 0.25f;
+        s.oscA.chaosAmount = 0.65f; s.oscA.chaosCoupling = 0.25f;
         s.oscA.chaosOutput = 0;                    // X axis
-        s.oscA.level = 0.65f;
+        s.oscA.level = 1.0f;
         s.oscB.type = 9; s.oscB.noiseColor = 5;    // Grey noise
-        s.oscB.level = 0.1f;
+        s.oscB.level = 0.2f;
         s.mixer.position = 0.15f;
-        // --- SVF bandpass frames the chaos into a formant-like window
-        s.filter.type = 2;                         // SVF BP
-        s.filter.cutoffHz = 1800.0f; s.filter.resonance = 0.4f;
-        s.filter.svfSlope = 1;
+        // --- Driven ladder lowpass. A bandpass framed the chaos more tightly but
+        //     threw away almost all of its energy: the Duffing X output is a slow,
+        //     low-level excursion and there is no tonal oscillator to carry the
+        //     patch, so the band-limited result was inaudible. The alien
+        //     "formant" character now comes from the ring modulator instead.
+        s.filter.type = 4;                         // Ladder LP
+        s.filter.cutoffHz = 1400.0f; s.filter.resonance = 0.35f;
+        s.filter.ladderSlope = 4;                  // 24 dB/oct
+        s.filter.ladderDrive = 15.0f;              // dB of input drive: makeup + grit
         // --- Ring modulator at a note-tracked ratio = the metallic alien voice
         s.distortion.type = 6;                     // RingModulator
         s.distortion.drive = 0.4f;
         s.distortion.ringFreqMode = 1;             // NoteTrack (follows the key)
         s.distortion.ringRatio = 0.22f;            // normalized -> ~3x ratio
         s.distortion.ringWaveform = 0;             // Sine
-        s.distortion.character = 0.5f; s.distortion.mix = 0.7f;
+        s.distortion.character = 0.5f; s.distortion.mix = 0.45f;
         s.distortion.ringStereoSpread = 0.3f;      // stereo shimmer on the sidebands
         // --- Slow amp swell/long tail
         s.ampEnv.attackMs = 500.0f; s.ampEnv.decayMs = 900.0f;
@@ -4670,19 +4675,24 @@ std::vector<PresetDef> createAllPresets() {
         s.chaosMod.rateHz = 0.3f; s.chaosMod.type = 1; // Rossler attractor
         s.chaosMod.depth = 0.6f; s.chaosMod.sync = 0;  // raised from default 0 so it's audible
         s.random.rateHz = 0.5f; s.random.smoothness = 0.6f;
-        setModSlot(s, 0, kSrcChaos,  kDstAllFltCut,    0.5f, kCurveStepped); // lurching sweep
-        setModSlot(s, 1, kSrcRandom, kDstAllResonance, 0.3f, kCurveLinear);  // Q jitter
+        // Both amounts kept moderate: a wide stepped cutoff sweep over a narrow
+        // resonant band lands on chaotic energy only intermittently, which reads
+        // as a mostly-silent patch punctuated by resonant level spikes.
+        setModSlot(s, 0, kSrcChaos,  kDstAllFltCut,    0.3f,  kCurveStepped); // lurching sweep
+        setModSlot(s, 1, kSrcRandom, kDstAllResonance, 0.12f, kCurveLinear);  // Q jitter
         // --- Spectral delay smears the drone into an inharmonic cloud
         s.delayEnabled = 1; s.delay.type = 4;      // Spectral
-        s.delay.timeMs = 500.0f; s.delay.feedback = 0.4f; s.delay.mix = 0.3f;
+        s.delay.timeMs = 500.0f; s.delay.feedback = 0.4f; s.delay.mix = 0.22f;
         s.delay.sync = 0;
         s.delay.spectralFFTSize = 2; s.delay.spectralSpreadMs = 400.0f;
         s.delay.spectralDiffusion = 0.5f; s.delay.spectralWidth = 0.6f;
-        // --- Big diffuse HALL
+        // --- Big diffuse HALL. Wet kept below the original 0.4 so the dry chaos
+        //     body still carries the patch rather than dissolving into the tail.
         s.reverbEnabled = 1; s.reverbType = 1;     // Hall
-        s.reverb.size = 0.85f; s.reverb.mix = 0.4f;
+        s.reverb.size = 0.85f; s.reverb.mix = 0.3f;
         s.reverb.damping = 0.5f; s.reverb.diffusion = 0.8f;
         s.global.width = 1.3f; s.global.spread = 0.4f;
+        s.global.masterGain = 2.0f;                // chaos+ringmod chain still loses level
         presets.push_back(std::move(p));
     }
 
