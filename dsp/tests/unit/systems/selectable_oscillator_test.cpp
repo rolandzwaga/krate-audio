@@ -10,6 +10,8 @@
 #include <krate/dsp/systems/selectable_oscillator.h>
 #include <krate/dsp/systems/oscillator_types.h>
 #include <krate/dsp/systems/voice_mod_types.h>
+#include <krate/dsp/primitives/fft.h>
+#include <krate/dsp/core/math_constants.h>
 
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
@@ -21,6 +23,7 @@
 #include <cmath>
 #include <cstddef>
 #include <numeric>
+#include <vector>
 
 using Catch::Approx;
 using namespace Krate::DSP;
@@ -771,4 +774,135 @@ TEST_CASE("SelectableOscillator: zero heap allocations during processBlock (SC-0
 
     INFO("processBlock caused " << allocs << " allocations");
     REQUIRE(allocs == 0);
+}
+
+// =============================================================================
+// SpectralFreeze note tracking
+// =============================================================================
+// The SpectralFreeze slot freezes a fixed 440 Hz reference sine at prepare time
+// and has no setFrequency() of its own. Its pitch must therefore follow the
+// played note through the oscillator's pitch-shift control, or every key on the
+// keyboard sounds the same concert A.
+
+namespace {
+
+/// @brief Estimate dominant frequency via FFT peak with parabolic interpolation.
+float estimateDominantFrequency(const float* buffer, size_t numSamples,
+                                float sampleRate) {
+    constexpr size_t kFftSize = 8192;
+    if (numSamples < kFftSize) return 0.0f;
+
+    FFT fft;
+    fft.prepare(kFftSize);
+
+    std::vector<float> windowed(kFftSize);
+    for (size_t i = 0; i < kFftSize; ++i) {
+        const float w = 0.5f - 0.5f * std::cos(kTwoPi * static_cast<float>(i)
+                                               / static_cast<float>(kFftSize));
+        windowed[i] = buffer[i] * w;
+    }
+
+    std::vector<Complex> spectrum(kFftSize / 2 + 1);
+    fft.forward(windowed.data(), spectrum.data());
+
+    // Skip DC and the lowest bins, which collect window leakage.
+    size_t bestBin = 0;
+    float bestMag = 0.0f;
+    for (size_t k = 2; k < kFftSize / 2; ++k) {
+        const float mag = spectrum[k].magnitude();
+        if (mag > bestMag) {
+            bestMag = mag;
+            bestBin = k;
+        }
+    }
+    if (bestBin == 0) return 0.0f;
+
+    // Parabolic interpolation around the peak for sub-bin accuracy.
+    float refined = static_cast<float>(bestBin);
+    if (bestBin > 0 && bestBin + 1 < kFftSize / 2) {
+        const float m0 = spectrum[bestBin - 1].magnitude();
+        const float m1 = spectrum[bestBin].magnitude();
+        const float m2 = spectrum[bestBin + 1].magnitude();
+        const float denom = m0 - 2.0f * m1 + m2;
+        if (std::abs(denom) > 1e-12f) {
+            refined += 0.5f * (m0 - m2) / denom;
+        }
+    }
+    return refined * sampleRate / static_cast<float>(kFftSize);
+}
+
+/// @brief Drive a prepared SpectralFreeze oscillator at `hz` and measure its f0.
+float renderSpectralFreezeF0(SelectableOscillator& osc, float hz) {
+    osc.setFrequency(hz);
+
+    std::array<float, kBlockSize> block{};
+
+    // Let the overlap-add pipeline flush the previous pitch setting.
+    for (size_t i = 0; i < 16; ++i) {
+        osc.processBlock(block.data(), kBlockSize);
+    }
+
+    constexpr size_t kAnalysisLen = 8192;
+    std::vector<float> analysis(kAnalysisLen);
+    for (size_t i = 0; i < kAnalysisLen; i += kBlockSize) {
+        const size_t n = std::min(kBlockSize, kAnalysisLen - i);
+        osc.processBlock(block.data(), n);
+        std::copy_n(block.data(), n, analysis.data() + i);
+    }
+
+    return estimateDominantFrequency(analysis.data(), kAnalysisLen,
+                                     static_cast<float>(kSampleRate));
+}
+
+} // namespace
+
+TEST_CASE("SelectableOscillator: SpectralFreeze pitch follows the played note",
+          "[selectable_oscillator][spectral_freeze][pitch]") {
+    SelectableOscillator osc;
+    osc.prepare(kSampleRate, kBlockSize);
+    osc.setType(OscType::SpectralFreeze);
+
+    // Bin resolution of the per-voice 1024-point FFT is ~43 Hz, and pitch
+    // shifting is bin remapping, so the tolerance is proportional rather than
+    // tight. 6% is roughly one semitone.
+    struct Case { float requested; };
+    const std::array<Case, 4> cases{{{220.0f}, {440.0f}, {880.0f}, {1760.0f}}};
+
+    for (const auto& c : cases) {
+        const float measured = renderSpectralFreezeF0(osc, c.requested);
+        INFO("requested " << c.requested << " Hz, measured " << measured << " Hz");
+        REQUIRE(measured == Approx(c.requested).epsilon(0.06));
+    }
+}
+
+TEST_CASE("SelectableOscillator: SpectralFreeze tracks notes above the old "
+          "+24 semitone shift limit",
+          "[selectable_oscillator][spectral_freeze][pitch]") {
+    SelectableOscillator osc;
+    osc.prepare(kSampleRate, kBlockSize);
+    osc.setType(OscType::SpectralFreeze);
+
+    // A7 is +36 semitones above the 440 Hz reference: beyond the pitch-shift
+    // range the oscillator originally clamped to.
+    const float measured = renderSpectralFreezeF0(osc, 3520.0f);
+    INFO("requested 3520 Hz, measured " << measured << " Hz");
+    REQUIRE(measured == Approx(3520.0f).epsilon(0.06));
+}
+
+TEST_CASE("SelectableOscillator: SpectralFreeze pitch-shift parameter offsets "
+          "the played note",
+          "[selectable_oscillator][spectral_freeze][pitch]") {
+    SelectableOscillator osc;
+    osc.prepare(kSampleRate, kBlockSize);
+    osc.setType(OscType::SpectralFreeze);
+
+    // The preset-facing SpectralPitchShift parameter is an offset on top of note
+    // tracking, not a replacement for it: +12 st on a 220 Hz note gives 440 Hz.
+    // The note is deliberately not 440 Hz, so an implementation that applied the
+    // parameter but ignored the note would land on 880 Hz and fail.
+    osc.setParam(OscParam::SpectralPitchShift, 12.0f);
+
+    const float measured = renderSpectralFreezeF0(osc, 220.0f);
+    INFO("requested 220 Hz + 12 st, measured " << measured << " Hz");
+    REQUIRE(measured == Approx(440.0f).epsilon(0.06));
 }
