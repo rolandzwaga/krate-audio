@@ -9453,6 +9453,926 @@ std::vector<PresetDef> createAllPresets() {
         presets.push_back(std::move(p));
     }
 
+    // ==================== Rhythmic Arp Batch (20 presets) ====================
+    //
+    // The bank already carries 25 arp presets across the dedicated Arp* categories,
+    // and those run the arpeggiator BARE: each one exists to demonstrate a lane, a
+    // mode, or a scale system. These twenty are deliberately different in kind --
+    // every one pairs the arp with a SECOND rhythmic element (trance gate,
+    // transient duck, Euclidean gate, ratchet lane, or a synced FX rate) whose
+    // cycle length does not divide the arp's. The two grids drift against each
+    // other, so the groove is polyrhythmic rather than a plain note pattern. That
+    // is what earns them a place in Rhythmic instead of Arp*, and it is why they
+    // do not collapse into the existing 25 on an A/B listen.
+
+    // "Gate Ladder" - 16-step arp against a 12-step gate: the two grids realign
+    // only every 3 bars, so a single held chord keeps re-accenting itself
+    {
+        PresetDef p;
+        p.name = "Gate Ladder";
+        p.category = "Rhythmic";
+        auto& s = p.state;
+        // Classic warm dual saw - deliberately plain, so the GRID is the interest
+        s.oscA.type = 0; s.oscA.waveform = 1; s.oscA.level = 0.78f;
+        s.oscB.type = 0; s.oscB.waveform = 1;
+        s.oscB.fineCents = 7.0f; s.oscB.level = 0.6f;
+        s.mixer.position = 0.45f;
+        s.global.polyphony = 8; s.global.width = 1.3f;
+        // Ladder LP with a per-note sweep so every arp step re-opens
+        s.filter.type = 4;                  // Ladder LP
+        s.filter.cutoffHz = 1600.0f; s.filter.resonance = 5.20f;
+        s.filter.ladderSlope = 4; s.filter.ladderDrive = 3.5f;
+        s.filter.envAmount = 24.0f; s.filter.keyTrack = 0.35f;
+        s.filterEnv.attackMs = 2.0f; s.filterEnv.decayMs = 140.0f;
+        s.filterEnv.sustain = 0.3f; s.filterEnv.releaseMs = 120.0f;
+        s.ampEnv.attackMs = 3.0f; s.ampEnv.decayMs = 200.0f;
+        s.ampEnv.sustain = 0.7f; s.ampEnv.releaseMs = 180.0f;
+        // ARP: straight 16ths, two octaves
+        setArpEnabled(s, true); setArpMode(s, kModeUp); setTempoSync(s, true);
+        setArpRate(s, kNote1_16); setArpGateLength(s, 70.0f);
+        s.arp.octaveRange = 2;
+        // THE HOOK: gate runs TWELVE steps at the same 1/16 clock. 12 vs 16 means
+        // the accent pattern lands on a different arp note every bar and only
+        // repeats after three -- a free-running polymeter from two static lanes.
+        s.tranceGate.enabled = 1; s.tranceGate.numSteps = 12;
+        s.tranceGate.tempoSync = 1; s.tranceGate.noteValue = kNote1_16;
+        s.tranceGate.depth = 0.9f;
+        s.tranceGate.attackMs = 2.0f; s.tranceGate.releaseMs = 18.0f;
+        float tg[] = {1,0,1,1, 0,1,0,1, 1,0,1,0};
+        for (int i = 0; i < 12; ++i) s.tranceGate.stepLevels[i] = tg[i];
+        // Gate output flicks the morph so the accents differ in timbre, not just level
+        setVoiceRoute(s, 0, kVSrcGate, kVDstMorphPos, 0.3f);
+        setVoiceRoute(s, 1, kVSrcVelocity, kVDstFltCut, 0.4f);
+        // Synced digital delay at 1/8D adds a third, non-dividing period
+        s.delayEnabled = 1; s.delay.type = 0;   // Digital
+        s.delay.sync = 1; s.delay.noteValue = kNote1_8D;
+        s.delay.mix = 0.24f; s.delay.feedback = 0.36f;
+        s.reverbEnabled = 1; s.reverbType = 0;  // Plate
+        s.reverb.size = 0.42f; s.reverb.mix = 0.18f;
+        presets.push_back(std::move(p));
+    }
+
+    // "Duck Runner" - phase-distortion runner that ducks itself: the transient
+    // detector pumps master volume on every arp attack, keyed-compressor style
+    {
+        PresetDef p;
+        p.name = "Duck Runner";
+        p.category = "Rhythmic";
+        auto& s = p.state;
+        s.oscA.type = 2;                    // Phase Distortion
+        s.oscA.pdWaveform = 1; s.oscA.pdDistortion = 0.55f; s.oscA.level = 0.85f;
+        s.oscB.type = 2; s.oscB.pdWaveform = 4; s.oscB.pdDistortion = 0.35f;
+        s.oscB.tuneSemitones = -12.0f; s.oscB.level = 0.45f;
+        s.mixer.position = 0.4f;
+        s.filter.type = 0;                  // SVF LP
+        s.filter.cutoffHz = 2800.0f; s.filter.resonance = 3.60f;
+        s.filter.svfDrive = 3.0f; s.filter.envAmount = 20.0f;
+        s.filterEnv.attackMs = 2.0f; s.filterEnv.decayMs = 160.0f;
+        s.filterEnv.sustain = 0.3f; s.filterEnv.releaseMs = 130.0f;
+        s.ampEnv.attackMs = 2.0f; s.ampEnv.decayMs = 220.0f;
+        s.ampEnv.sustain = 0.75f; s.ampEnv.releaseMs = 170.0f;
+        // ARP: 1/8 UpDown -- a slower grid than the duck's release, on purpose
+        setArpEnabled(s, true); setArpMode(s, kModeUpDown); setTempoSync(s, true);
+        setArpRate(s, kNote1_8); setArpGateLength(s, 78.0f);
+        s.arp.octaveRange = 2;
+        // THE HOOK: each arp note triggers the transient detector, which ducks
+        // master volume (negative amount). The 200 ms recovery is LONGER than the
+        // 1/8 step at most tempos, so ducks overlap and the line breathes in waves
+        // instead of pumping uniformly -- a rhythm the arp alone cannot produce.
+        s.transient.sensitivity = 0.75f;
+        s.transient.attackMs = 1.0f; s.transient.decayMs = 200.0f;
+        setModSlot(s, 0, kSrcTransient, kDstMasterVol, -0.5f, kCurveExp);
+        // The same detector opens the filter as it ducks: quieter but brighter
+        setModSlot(s, 1, kSrcTransient, kDstAllFltCut, 0.35f, kCurveExp);
+        setVoiceRoute(s, 0, kVSrcVelocity, kVDstFltCut, 0.45f);
+        s.modulationType = 3;               // Chorus
+        s.chorus.rateHz = 0.5f; s.chorus.depth = 0.4f; s.chorus.mix = 0.3f;
+        s.delayEnabled = 1; s.delay.type = 2;   // PingPong
+        s.delay.sync = 1; s.delay.noteValue = kNote1_16;
+        s.delay.mix = 0.2f; s.delay.feedback = 0.3f;
+        s.delay.pingPongWidth = 130.0f;
+        s.reverbEnabled = 1; s.reverbType = 0;
+        s.reverb.size = 0.38f; s.reverb.mix = 0.16f;
+        presets.push_back(std::move(p));
+    }
+
+    // "Euclid Pluck" - comb-resonator pluck on a 5-in-8 Euclidean arp, with a
+    // ratchet lane of a different length rolling across the gaps
+    {
+        PresetDef p;
+        p.name = "Euclid Pluck";
+        p.category = "Rhythmic";
+        auto& s = p.state;
+        // Noise burst into a key-tracked comb = Karplus-ish plucked string
+        s.oscA.type = 9; s.oscA.noiseColor = 1; s.oscA.level = 0.5f;  // pink exciter
+        s.oscB.type = 0; s.oscB.waveform = 4; s.oscB.level = 0.35f;   // triangle body
+        s.mixer.position = 0.4f;
+        s.filter.type = 6;                  // Comb
+        s.filter.cutoffHz = 440.0f; s.filter.resonance = 7.50f;
+        s.filter.combDamping = 0.35f; s.filter.keyTrack = 1.0f; // tracks the played note
+        s.ampEnv.attackMs = 1.0f; s.ampEnv.decayMs = 320.0f;
+        s.ampEnv.sustain = 0.15f; s.ampEnv.releaseMs = 260.0f;
+        // ARP with EUCLIDEAN gating: 5 hits spread over 8 steps
+        setArpEnabled(s, true); setArpMode(s, kModeUp); setTempoSync(s, true);
+        setArpRate(s, kNote1_16); setArpGateLength(s, 45.0f);  // short = plucky
+        s.arp.octaveRange = 2;
+        setEuclidean(s, true, 5, 8, 2);     // rotated so the pattern starts off-beat
+        // THE HOOK: ratchet lane is SEVEN long against the 8-step Euclidean cycle,
+        // so which Euclidean hit gets rolled advances by one every bar.
+        int32_t ratch7[] = {1, 1, 3, 1, 2, 1, 4};
+        setRatchetLane(s, 7, ratch7);
+        s.arp.ratchetSwing = 56.0f;
+        float vel7[] = {1.0f, 0.6f, 0.85f, 0.55f, 0.95f, 0.6f, 0.75f};
+        setVelocityLane(s, 7, vel7);
+        setVoiceRoute(s, 0, kVSrcVelocity, kVDstFltRes, 0.4f);  // harder = more ring
+        // Tape echo softens the pluck tails without washing the transients
+        s.delayEnabled = 1; s.delay.type = 1;   // Tape
+        s.delay.sync = 1; s.delay.noteValue = kNote1_8;
+        s.delay.mix = 0.26f; s.delay.feedback = 0.34f;
+        s.delay.tapeSaturation = 0.45f; s.delay.tapeWear = 0.3f;
+        s.reverbEnabled = 1; s.reverbType = 1;  // Hall
+        s.reverb.size = 0.5f; s.reverb.mix = 0.22f; s.reverb.damping = 0.45f;
+        s.global.masterGain = 1.4f;             // noise-excited comb is a quiet source
+        presets.push_back(std::move(p));
+    }
+
+    // "Half Time Crush" - dotted-8th arp crushed under a straight 1/16 gate; the
+    // dotted grid slides against the gate so the crush lands somewhere new each bar
+    {
+        PresetDef p;
+        p.name = "Half Time Crush";
+        p.category = "Rhythmic";
+        auto& s = p.state;
+        s.oscA.type = 1;                    // Wavetable
+        s.oscA.waveform = 2; s.oscA.level = 0.8f;
+        s.oscB.type = 0; s.oscB.waveform = 3; s.oscB.pulseWidth = 0.35f;
+        s.oscB.tuneSemitones = -12.0f; s.oscB.level = 0.5f;
+        s.mixer.position = 0.45f;
+        s.filter.type = 0;                  // SVF LP
+        s.filter.cutoffHz = 2200.0f; s.filter.resonance = 4.40f;
+        s.filter.envAmount = 22.0f;
+        s.filterEnv.attackMs = 1.0f; s.filterEnv.decayMs = 130.0f;
+        s.filterEnv.sustain = 0.25f; s.filterEnv.releaseMs = 110.0f;
+        s.ampEnv.attackMs = 2.0f; s.ampEnv.decayMs = 240.0f;
+        s.ampEnv.sustain = 0.7f; s.ampEnv.releaseMs = 150.0f;
+        // Spectral bit-reduction: the "crush"
+        s.distortion.type = 2;              // Spectral
+        s.distortion.drive = 0.45f; s.distortion.mix = 0.7f;
+        s.distortion.spectralMode = 3; s.distortion.spectralBits = 0.35f;
+        s.distortion.spectralCurve = 3;
+        // ARP: DOTTED 8ths -- 3/16 per step, which never aligns with a 16-step gate
+        setArpEnabled(s, true); setArpMode(s, kModeUp); setTempoSync(s, true);
+        setArpRate(s, kNote1_8D); setArpGateLength(s, 85.0f);
+        s.arp.octaveRange = 2;
+        // THE HOOK: gate is straight 1/16 over 16 steps. Arp steps every 3/16,
+        // gate cycle is 16/16: they realign only every 3 bars.
+        s.tranceGate.enabled = 1; s.tranceGate.numSteps = 16;
+        s.tranceGate.tempoSync = 1; s.tranceGate.noteValue = kNote1_16;
+        s.tranceGate.depth = 0.8f;
+        s.tranceGate.attackMs = 1.0f; s.tranceGate.releaseMs = 12.0f;
+        float tg[] = {1,1,0,0, 1,0,1,1, 0,1,1,0, 1,0,0,1};
+        for (int i = 0; i < 16; ++i) s.tranceGate.stepLevels[i] = tg[i];
+        // Gate drives distortion drive: the crush intensity is itself rhythmic
+        setVoiceRoute(s, 0, kVSrcGate, kVDstDistDrive, 0.45f);
+        s.lfo1.rateHz = 0.2f; s.lfo1.shape = 1; s.lfo1.depth = 0.5f; s.lfo1.sync = 1;
+        s.lfo1Ext.noteValue = 19;           // whole-note tilt drift
+        setModSlot(s, 0, kSrcLFO1, kDstAllSpecTilt, 0.35f, kCurveSCurve);
+        s.delayEnabled = 1; s.delay.type = 0;   // Digital
+        s.delay.sync = 1; s.delay.noteValue = kNote1_16;
+        s.delay.mix = 0.18f; s.delay.feedback = 0.28f;
+        presets.push_back(std::move(p));
+    }
+
+    // "Swing Vox" - heavily swung formant arp over a sparse gate lane; the vowel
+    // moves per step so the pattern reads as syllables, not notes
+    {
+        PresetDef p;
+        p.name = "Swing Vox";
+        p.category = "Rhythmic";
+        auto& s = p.state;
+        s.oscA.type = 7;                    // Formant
+        s.oscA.formantVowel = 0; s.oscA.formantMorph = 0.3f; s.oscA.level = 0.85f;
+        s.oscB.type = 0; s.oscB.waveform = 1; s.oscB.level = 0.3f;
+        s.mixer.position = 0.3f;
+        s.filter.type = 5;                  // Formant filter on a formant osc
+        s.filter.cutoffHz = 900.0f; s.filter.resonance = 3.20f;
+        s.filter.formantMorph = 0.4f; s.filter.formantGender = 0.3f;
+        s.ampEnv.attackMs = 8.0f; s.ampEnv.decayMs = 200.0f;
+        s.ampEnv.sustain = 0.65f; s.ampEnv.releaseMs = 220.0f;
+        // ARP: 1/16 with heavy swing -- the shuffle IS the rhythmic partner here
+        setArpEnabled(s, true); setArpMode(s, kModeUpDown); setTempoSync(s, true);
+        setArpRate(s, kNote1_16); setArpGateLength(s, 62.0f);
+        setArpSwing(s, 62.0f);              // deep shuffle, near triplet feel
+        s.arp.octaveRange = 2;
+        // THE HOOK: a 5-step gate lane against the swung 16ths. Because the gate
+        // lane is odd-length AND the clock is shuffled, the clipped steps fall on
+        // alternating sides of the swing pair -- the phrase never repeats a bar.
+        // The short values are 0.15, not 0.0: the arp clamps gate duration to a
+        // 1-sample minimum (FR-014 always fires a NoteOff), so a 0.0 lane value
+        // is a click rather than a rest. 0.15 is a real staccato syllable.
+        float gate5[] = {1.0f, 0.15f, 0.85f, 0.6f, 0.18f};
+        setGateLane(s, 5, gate5);
+        float vel5[] = {1.0f, 0.5f, 0.8f, 0.65f, 0.9f};
+        setVelocityLane(s, 5, vel5);
+        // Vowel follows the arp's own pitch: higher notes open toward "ee"
+        setModSlot(s, 0, kSrcArpPitch, kDstAllMorphPos, 0.55f, kCurveLinear);
+        s.lfo1.rateHz = 0.35f; s.lfo1.shape = 0; s.lfo1.depth = 0.5f; s.lfo1.sync = 0;
+        setModSlot(s, 1, kSrcLFO1, kDstAllFltCut, 0.25f, kCurveSCurve);
+        setVoiceRoute(s, 0, kVSrcVelocity, kVDstMorphPos, 0.35f);
+        s.modulationType = 3;               // Chorus widens the choir
+        s.chorus.rateHz = 0.45f; s.chorus.depth = 0.5f; s.chorus.mix = 0.35f;
+        s.reverbEnabled = 1; s.reverbType = 1;  // Hall
+        s.reverb.size = 0.55f; s.reverb.mix = 0.26f; s.reverb.damping = 0.4f;
+        presets.push_back(std::move(p));
+    }
+
+    // "Sub Pulse Grid" - mono sub-bass arp descending under an 8-step gate;
+    // built to sit below a kick, so the gate carves the space rather than adding
+    {
+        PresetDef p;
+        p.name = "Sub Pulse Grid";
+        p.category = "Rhythmic";
+        auto& s = p.state;
+        s.oscA.type = 0; s.oscA.waveform = 1; s.oscA.level = 0.85f;
+        s.oscA.tuneSemitones = -12.0f;
+        s.oscB.type = 0; s.oscB.waveform = 0; s.oscB.level = 0.5f;   // sine sub
+        s.oscB.tuneSemitones = -24.0f;
+        s.mixer.position = 0.5f;
+        s.filter.type = 4;                  // Ladder LP
+        s.filter.cutoffHz = 700.0f; s.filter.resonance = 3.80f;
+        s.filter.ladderSlope = 4; s.filter.ladderDrive = 7.0f;  // drive = weight
+        s.filter.envAmount = 20.0f;
+        s.filterEnv.attackMs = 1.0f; s.filterEnv.decayMs = 110.0f;
+        s.filterEnv.sustain = 0.2f; s.filterEnv.releaseMs = 90.0f;
+        s.ampEnv.attackMs = 1.0f; s.ampEnv.decayMs = 180.0f;
+        s.ampEnv.sustain = 0.8f; s.ampEnv.releaseMs = 100.0f;
+        // Mono, no glide: each arp step must be a separate, tight sub hit
+        s.global.voiceMode = 1; s.global.polyphony = 1;
+        s.monoMode.priority = 0; s.monoMode.legato = 0;
+        // ARP: descending 16ths, ONE octave -- stays in the sub register
+        setArpEnabled(s, true); setArpMode(s, kModeDown); setTempoSync(s, true);
+        setArpRate(s, kNote1_16); setArpGateLength(s, 55.0f);
+        s.arp.octaveRange = 1;
+        // THE HOOK: 8-step gate at 1/8 -- HALF the arp's clock. Every other arp
+        // note is silenced, and because the gate pattern is asymmetric the surviving
+        // notes trace a slower melody out of the fast run.
+        s.tranceGate.enabled = 1; s.tranceGate.numSteps = 8;
+        s.tranceGate.tempoSync = 1; s.tranceGate.noteValue = kNote1_8;
+        s.tranceGate.depth = 1.0f;
+        s.tranceGate.attackMs = 1.0f; s.tranceGate.releaseMs = 30.0f;
+        float tg[] = {1,0,1,1, 0,1,0,1};
+        for (int i = 0; i < 8; ++i) s.tranceGate.stepLevels[i] = tg[i];
+        setVoiceRoute(s, 0, kVSrcVelocity, kVDstFltCut, 0.35f);
+        setVoiceRoute(s, 1, kVSrcGate, kVDstDistDrive, 0.3f);
+        s.distortion.type = 5;              // Tape Saturator for sub harmonics
+        s.distortion.drive = 0.4f; s.distortion.mix = 0.5f;
+        s.distortion.tapeSaturation = 0.55f;
+        s.global.masterGain = 0.9f;         // sub energy needs headroom
+        presets.push_back(std::move(p));
+    }
+
+    // "Ratchet Bell" - inharmonic additive bell on a 7-in-16 Euclidean arp, each
+    // hit subdivided by a ratchet lane of a different length
+    {
+        PresetDef p;
+        p.name = "Ratchet Bell";
+        p.category = "Rhythmic";
+        auto& s = p.state;
+        s.oscA.type = 4;                    // Additive
+        s.oscA.additivePartials = 24; s.oscA.additiveInharm = 0.35f;
+        s.oscA.additiveTilt = -0.3f; s.oscA.level = 0.8f;
+        s.oscB.type = 0; s.oscB.waveform = 0; s.oscB.level = 0.25f;
+        s.mixer.position = 0.25f;
+        s.filter.type = 8;                  // SVF Peak - emphasises one partial band
+        s.filter.cutoffHz = 2400.0f; s.filter.resonance = 4.20f;
+        s.filter.svfGain = 6.0f;
+        s.ampEnv.attackMs = 1.0f; s.ampEnv.decayMs = 600.0f;
+        s.ampEnv.sustain = 0.1f; s.ampEnv.releaseMs = 700.0f;  // long ring
+        // ARP: Euclidean 7-in-16 -- a dense but uneven bell pattern
+        setArpEnabled(s, true); setArpMode(s, kModeUp); setTempoSync(s, true);
+        setArpRate(s, kNote1_16); setArpGateLength(s, 40.0f);
+        s.arp.octaveRange = 3;              // bells span wide
+        setEuclidean(s, true, 7, 16, 3);
+        // THE HOOK: 5-long ratchet lane against the 16-step Euclidean cycle. Which
+        // of the seven hits gets a roll advances every bar (5 and 16 are coprime),
+        // so the bell figure reshuffles continuously from static data.
+        int32_t ratch5[] = {1, 2, 1, 3, 1};
+        setRatchetLane(s, 5, ratch5);
+        s.arp.ratchetSwing = 50.0f;
+        setModSlot(s, 0, kSrcArpPitch, kDstAllSpecTilt, 0.4f, kCurveLinear);
+        setVoiceRoute(s, 0, kVSrcVelocity, kVDstSpecTilt, 0.35f);
+        s.delayEnabled = 1; s.delay.type = 2;   // PingPong scatters the bells
+        s.delay.sync = 1; s.delay.noteValue = kNote1_8T;
+        s.delay.mix = 0.28f; s.delay.feedback = 0.4f;
+        s.delay.pingPongWidth = 160.0f; s.delay.pingPongCrossFeed = 0.7f;
+        s.reverbEnabled = 1; s.reverbType = 1;  // Hall
+        s.reverb.size = 0.7f; s.reverb.mix = 0.3f; s.reverb.damping = 0.35f;
+        presets.push_back(std::move(p));
+    }
+
+    // "Chaos Step" - Lorenz-driven timbre on a Random-order arp whose steps fire
+    // probabilistically; the note order and the note COUNT both vary each bar
+    {
+        PresetDef p;
+        p.name = "Chaos Step";
+        p.category = "Rhythmic";
+        auto& s = p.state;
+        s.oscA.type = 5;                    // Chaos
+        s.oscA.chaosAttractor = 0;          // Lorenz
+        s.oscA.chaosAmount = 0.45f; s.oscA.chaosCoupling = 0.3f;
+        s.oscA.level = 0.7f;
+        s.oscB.type = 0; s.oscB.waveform = 3; s.oscB.level = 0.5f;
+        s.mixer.position = 0.55f;           // keep a solid pitched anchor
+        s.filter.type = 2;                  // SVF BP
+        s.filter.cutoffHz = 1200.0f; s.filter.resonance = 5.60f;
+        s.filter.envAmount = 26.0f;
+        s.filterEnv.attackMs = 1.0f; s.filterEnv.decayMs = 150.0f;
+        s.filterEnv.sustain = 0.2f; s.filterEnv.releaseMs = 120.0f;
+        s.ampEnv.attackMs = 2.0f; s.ampEnv.decayMs = 200.0f;
+        s.ampEnv.sustain = 0.6f; s.ampEnv.releaseMs = 180.0f;
+        // ARP: Random order at 1/16
+        setArpEnabled(s, true); setArpMode(s, kModeRandom); setTempoSync(s, true);
+        setArpRate(s, kNote1_16); setArpGateLength(s, 65.0f);
+        s.arp.octaveRange = 2;
+        // THE HOOK: the CONDITION lane makes steps probabilistic, so the pattern
+        // is rhythmically sparse in a way that changes every pass. Random order
+        // alone reorders a fixed note count; this varies the count too.
+        int32_t cond8[] = {kCondAlways, kCondProb50, kCondProb75, kCondProb25,
+                           kCondAlways, kCondProb90, kCondProb50, kCondProb10};
+        setConditionLane(s, 8, cond8, 0);
+        float vel8[] = {1.0f, 0.6f, 0.85f, 0.5f, 0.95f, 0.7f, 0.8f, 0.55f};
+        setVelocityLane(s, 8, vel8);
+        s.arp.humanize = 0.25f;             // micro-timing keeps it from feeling gridded
+        // Chaos source also wanders the filter, so timbre drifts under the rhythm
+        setModSlot(s, 0, kSrcChaos, kDstAllFltCut, 0.4f, kCurveSCurve, 30.0f);
+        setModSlot(s, 1, kSrcRandom, kDstAllResonance, 0.25f, kCurveStepped);
+        setVoiceRoute(s, 0, kVSrcVelocity, kVDstFltCut, 0.4f);
+        s.delayEnabled = 1; s.delay.type = 0;   // Digital
+        s.delay.sync = 1; s.delay.noteValue = kNote1_16;
+        s.delay.mix = 0.22f; s.delay.feedback = 0.35f;
+        s.reverbEnabled = 1; s.reverbType = 0;
+        s.reverb.size = 0.45f; s.reverb.mix = 0.2f;
+        s.global.masterGain = 1.1f;
+        presets.push_back(std::move(p));
+    }
+
+    // "Tape Shuffle" - triplet arp on genuinely worn tape; the wow drift is slow
+    // and unsynced, so the triplet grid never sits perfectly still
+    {
+        PresetDef p;
+        p.name = "Tape Shuffle";
+        p.category = "Rhythmic";
+        auto& s = p.state;
+        s.oscA.type = 1;                    // Wavetable
+        s.oscA.waveform = 1; s.oscA.level = 0.75f;
+        s.oscB.type = 0; s.oscB.waveform = 1; s.oscB.fineCents = -6.0f;
+        s.oscB.level = 0.55f;
+        s.mixer.position = 0.45f;
+        s.filter.type = 4;                  // Ladder LP
+        s.filter.cutoffHz = 2600.0f; s.filter.resonance = 3.40f;
+        s.filter.ladderDrive = 5.0f; s.filter.envAmount = 18.0f;
+        s.filterEnv.attackMs = 4.0f; s.filterEnv.decayMs = 200.0f;
+        s.filterEnv.sustain = 0.35f; s.filterEnv.releaseMs = 160.0f;
+        s.ampEnv.attackMs = 5.0f; s.ampEnv.decayMs = 260.0f;
+        s.ampEnv.sustain = 0.7f; s.ampEnv.releaseMs = 200.0f;
+        // ARP: 1/8 TRIPLETS with swing on top of the triplet grid
+        setArpEnabled(s, true); setArpMode(s, kModeUpDown); setTempoSync(s, true);
+        setArpRate(s, kNote1_8T); setArpGateLength(s, 72.0f);
+        setArpSwing(s, 22.0f);
+        s.arp.octaveRange = 2;
+        // THE HOOK: heavy tape saturation + wear in the DELAY, fed at a dotted
+        // rate. Against a triplet arp a dotted delay is maximally non-aligning:
+        // 3-against-2-against-3, and the tape wear smears the collisions.
+        s.delayEnabled = 1; s.delay.type = 1;   // Tape
+        s.delay.sync = 1; s.delay.noteValue = kNote1_8D;
+        s.delay.mix = 0.32f; s.delay.feedback = 0.45f;
+        s.delay.tapeSaturation = 0.6f; s.delay.tapeWear = 0.5f;
+        s.delay.tapeAge = 0.4f; s.delay.tapeInertiaMs = 420.0f;
+        // Tape saturator in the voice too, so the source is warm before the echo
+        s.distortion.type = 5;              // Tape Saturator
+        s.distortion.drive = 0.35f; s.distortion.mix = 0.45f;
+        s.distortion.tapeSaturation = 0.5f; s.distortion.tapeBias = 0.55f;
+        s.lfo1.rateHz = 0.18f; s.lfo1.shape = 0; s.lfo1.depth = 0.4f; s.lfo1.sync = 0;
+        setModSlot(s, 0, kSrcLFO1, kDstAllFltCut, 0.3f, kCurveSCurve);
+        setVoiceRoute(s, 0, kVSrcVelocity, kVDstFltCut, 0.4f);
+        s.modulationType = 3;               // Chorus
+        s.chorus.rateHz = 0.3f; s.chorus.depth = 0.35f; s.chorus.mix = 0.25f;
+        s.reverbEnabled = 1; s.reverbType = 0;
+        s.reverb.size = 0.45f; s.reverb.mix = 0.18f;
+        presets.push_back(std::move(p));
+    }
+
+    // "Spectral Ratchet" - frozen-spectrum arp: note-tracked freeze (the spectral
+    // oscillator now follows pitch) machine-gunned by ratchets into a spectral delay
+    {
+        PresetDef p;
+        p.name = "Spectral Ratchet";
+        p.category = "Rhythmic";
+        auto& s = p.state;
+        s.oscA.type = 8;                    // Spectral Freeze
+        s.oscA.spectralTilt = 0.2f; s.oscA.spectralFormant = 0.15f;
+        s.oscA.level = 0.8f;
+        s.oscB.type = 0; s.oscB.waveform = 0; s.oscB.level = 0.3f;  // sine anchor
+        s.mixer.position = 0.3f;
+        s.filter.type = 0;                  // SVF LP
+        s.filter.cutoffHz = 3200.0f; s.filter.resonance = 2.80f;
+        s.ampEnv.attackMs = 3.0f; s.ampEnv.decayMs = 260.0f;
+        s.ampEnv.sustain = 0.55f; s.ampEnv.releaseMs = 300.0f;
+        // ARP at 1/16
+        setArpEnabled(s, true); setArpMode(s, kModeUp); setTempoSync(s, true);
+        setArpRate(s, kNote1_16); setArpGateLength(s, 58.0f);
+        s.arp.octaveRange = 2;
+        // THE HOOK: a 6-long ratchet lane and a 4-long gate lane run at once. Six
+        // against four resolves every 12 steps, and neither divides the 16-step
+        // bar, so the stutter figure walks around the bar continuously.
+        int32_t ratch6[] = {1, 3, 1, 2, 4, 1};
+        setRatchetLane(s, 6, ratch6);
+        float gate4[] = {1.0f, 0.7f, 0.16f, 0.9f};   // 0.16 not 0.0: see FR-014
+        setGateLane(s, 4, gate4);
+        s.arp.ratchetSwing = 60.0f;
+        // Arp pitch pushes spectral tilt: high notes are brighter frozen spectra
+        setModSlot(s, 0, kSrcArpPitch, kDstAllSpecTilt, 0.5f, kCurveLinear);
+        s.lfo1.rateHz = 0.25f; s.lfo1.shape = 1; s.lfo1.depth = 0.5f; s.lfo1.sync = 1;
+        s.lfo1Ext.noteValue = 19;
+        setModSlot(s, 1, kSrcLFO1, kDstAllMorphPos, 0.35f, kCurveSCurve);
+        s.delayEnabled = 1; s.delay.type = 4;   // Spectral
+        s.delay.sync = 1; s.delay.noteValue = kNote1_8;
+        s.delay.mix = 0.3f; s.delay.feedback = 0.42f;
+        s.reverbEnabled = 1; s.reverbType = 1;  // Hall
+        s.reverb.size = 0.6f; s.reverb.mix = 0.25f; s.reverb.damping = 0.4f;
+        s.global.masterGain = 1.2f;
+        presets.push_back(std::move(p));
+    }
+
+    // "Granular Cascade" - three-octave particle arp poured into a granular delay;
+    // the delay's grain rate is a second, unsynced rhythm under the note grid
+    {
+        PresetDef p;
+        p.name = "Granular Cascade";
+        p.category = "Rhythmic";
+        auto& s = p.state;
+        s.oscA.type = 6;                    // Particle
+        s.oscA.particleDensity = 22.0f; s.oscA.particleScatter = 4.0f;
+        s.oscA.particleLifetime = 140.0f; s.oscA.particleDrift = 0.3f;
+        s.oscA.particleEnvType = 1; s.oscA.level = 0.8f;
+        s.oscB.type = 0; s.oscB.waveform = 4; s.oscB.level = 0.35f;
+        s.mixer.position = 0.32f;
+        s.filter.type = 0;                  // SVF LP
+        s.filter.cutoffHz = 2800.0f; s.filter.resonance = 3.20f;
+        s.filter.envAmount = 16.0f;
+        s.filterEnv.attackMs = 3.0f; s.filterEnv.decayMs = 180.0f;
+        s.filterEnv.sustain = 0.35f; s.filterEnv.releaseMs = 200.0f;
+        s.ampEnv.attackMs = 4.0f; s.ampEnv.decayMs = 240.0f;
+        s.ampEnv.sustain = 0.6f; s.ampEnv.releaseMs = 260.0f;
+        // ARP: 1/16 over THREE octaves, interleaved so octaves weave
+        setArpEnabled(s, true); setArpMode(s, kModeUp); setTempoSync(s, true);
+        setArpRate(s, kNote1_16); setArpGateLength(s, 68.0f);
+        s.arp.octaveRange = 3; s.arp.octaveMode = 1;   // Interleaved
+        // THE HOOK: the granular delay runs ~30 grains/sec, which is unrelated to
+        // the note clock. Each arp note is shattered into a grain burst that keeps
+        // sounding across the following steps -- a second rhythm at audio-adjacent
+        // rate layered under the arp's musical one.
+        s.delayEnabled = 1; s.delay.type = 3;   // Granular
+        s.delay.sync = 1; s.delay.noteValue = kNote1_8D;
+        s.delay.mix = 0.35f; s.delay.feedback = 0.42f;
+        s.delay.granularSizeMs = 55.0f; s.delay.granularDensity = 30.0f;
+        s.delay.granularPitchSpray = 0.3f; s.delay.granularPanSpray = 0.7f;
+        s.delay.granularJitter = 0.35f; s.delay.granularReverseProb = 0.2f;
+        float vel6[] = {1.0f, 0.65f, 0.8f, 0.55f, 0.9f, 0.7f};
+        setVelocityLane(s, 6, vel6);        // 6 against a 16-step bar
+        setVoiceRoute(s, 0, kVSrcVelocity, kVDstFltCut, 0.4f);
+        s.lfo1.rateHz = 0.22f; s.lfo1.shape = 2; s.lfo1.depth = 0.5f; s.lfo1.sync = 0;
+        setModSlot(s, 0, kSrcLFO1, kDstEffectMix, 0.3f, kCurveSCurve);
+        s.reverbEnabled = 1; s.reverbType = 1;  // Hall
+        s.reverb.size = 0.65f; s.reverb.mix = 0.28f; s.reverb.damping = 0.4f;
+        s.global.masterGain = 1.25f;
+        presets.push_back(std::move(p));
+    }
+
+    // "Acid Gate" - a 303 line with a trance gate over it. The acid presets in the
+    // Arp categories run the line bare; here the gate chops the slides mid-glide,
+    // which turns legato squelch into stabs without changing a single arp note
+    {
+        PresetDef p;
+        p.name = "Acid Gate";
+        p.category = "Rhythmic";
+        auto& s = p.state;
+        s.oscA.type = 0; s.oscA.waveform = 1; s.oscA.level = 0.9f;   // single saw
+        s.oscB.level = 0.0f;
+        s.mixer.position = 0.0f;
+        s.filter.type = 4;                  // Ladder LP - the 303 filter
+        s.filter.cutoffHz = 620.0f; s.filter.resonance = 9.50f;      // squelch
+        s.filter.ladderSlope = 4; s.filter.ladderDrive = 8.0f;
+        s.filter.envAmount = 34.0f;
+        s.filterEnv.attackMs = 1.0f; s.filterEnv.decayMs = 190.0f;
+        s.filterEnv.sustain = 0.12f; s.filterEnv.releaseMs = 140.0f;
+        s.filterEnv.decayCurve = 0.35f;
+        s.ampEnv.attackMs = 1.0f; s.ampEnv.decayMs = 200.0f;
+        s.ampEnv.sustain = 0.7f; s.ampEnv.releaseMs = 90.0f;
+        // Mono + legato glide = the slide
+        s.global.voiceMode = 1; s.global.polyphony = 1;
+        s.monoMode.priority = 0; s.monoMode.legato = 1;
+        s.monoMode.portamentoTimeMs = 60.0f; s.monoMode.portaMode = 1;
+        // ARP: 1/16 as-played, with the SLIDE/ACCENT modifier lane doing 303 duty
+        setArpEnabled(s, true); setArpMode(s, kModeAsPlayed); setTempoSync(s, true);
+        setArpRate(s, kNote1_16); setArpGateLength(s, 88.0f);   // long = notes join
+        s.arp.octaveRange = 2;
+        int32_t mod8[] = {kStepActive | kStepAccent, kStepActive,
+                          kStepActive | kStepSlide,  kStepActive,
+                          kStepActive | kStepAccent, kStepActive | kStepSlide,
+                          kStepActive,               kStepActive | kStepAccent};
+        setModifierLane(s, 8, mod8, 40, 55.0f);
+        // THE HOOK: a 6-step gate at 1/16 over the 8-step modifier lane. The gate
+        // cuts the line mid-slide, and because 6 and 8 resolve only every 24 steps
+        // a different slide gets truncated each time round.
+        s.tranceGate.enabled = 1; s.tranceGate.numSteps = 6;
+        s.tranceGate.tempoSync = 1; s.tranceGate.noteValue = kNote1_16;
+        s.tranceGate.depth = 0.95f;
+        s.tranceGate.attackMs = 1.0f; s.tranceGate.releaseMs = 8.0f;
+        float tg[] = {1,1,0,1, 0,1};
+        for (int i = 0; i < 6; ++i) s.tranceGate.stepLevels[i] = tg[i];
+        setVoiceRoute(s, 0, kVSrcVelocity, kVDstFltCut, 0.55f);  // accents open up
+        s.distortion.type = 5;              // Tape Saturator for 303 grit
+        s.distortion.drive = 0.45f; s.distortion.mix = 0.4f;
+        s.delayEnabled = 1; s.delay.type = 0;
+        s.delay.sync = 1; s.delay.noteValue = kNote1_8D;
+        s.delay.mix = 0.2f; s.delay.feedback = 0.35f;
+        presets.push_back(std::move(p));
+    }
+
+    // "Polymeter Pulse" - the deliberate extreme: velocity 5, gate 7, ratchet 3,
+    // all running at once on one clock. Full cycle is 105 steps
+    {
+        PresetDef p;
+        p.name = "Polymeter Pulse";
+        p.category = "Rhythmic";
+        auto& s = p.state;
+        // Plain square + saw: the patch is simple so the RHYTHM is unmistakable
+        s.oscA.type = 0; s.oscA.waveform = 3; s.oscA.pulseWidth = 0.4f;
+        s.oscA.level = 0.75f;
+        s.oscB.type = 0; s.oscB.waveform = 1; s.oscB.fineCents = 5.0f;
+        s.oscB.level = 0.5f;
+        s.mixer.position = 0.45f;
+        s.filter.type = 0;                  // SVF LP
+        s.filter.cutoffHz = 2400.0f; s.filter.resonance = 4.80f;
+        s.filter.envAmount = 22.0f;
+        s.filterEnv.attackMs = 1.0f; s.filterEnv.decayMs = 130.0f;
+        s.filterEnv.sustain = 0.25f; s.filterEnv.releaseMs = 110.0f;
+        s.ampEnv.attackMs = 2.0f; s.ampEnv.decayMs = 190.0f;
+        s.ampEnv.sustain = 0.65f; s.ampEnv.releaseMs = 140.0f;
+        setArpEnabled(s, true); setArpMode(s, kModeUp); setTempoSync(s, true);
+        setArpRate(s, kNote1_16); setArpGateLength(s, 70.0f);
+        s.arp.octaveRange = 2;
+        // THE HOOK: three coprime lane lengths. 5 x 7 x 3 = 105 steps before the
+        // combination repeats -- over six bars of 16ths from entirely static data.
+        float vel5[] = {1.0f, 0.55f, 0.85f, 0.6f, 0.95f};
+        setVelocityLane(s, 5, vel5);
+        float gate7[] = {1.0f, 0.8f, 0.0f, 1.0f, 0.6f, 0.0f, 0.9f};
+        setGateLane(s, 7, gate7);
+        int32_t ratch3[] = {1, 1, 2};
+        setRatchetLane(s, 3, ratch3);
+        // A fourth period: the condition lane is 4 long, coprime with 5 and 7
+        int32_t cond4[] = {kCondAlways, kCondAlways, kCondProb75, kCondAlways};
+        setConditionLane(s, 4, cond4, 0);
+        setVoiceRoute(s, 0, kVSrcVelocity, kVDstFltCut, 0.5f);
+        s.lfo1.rateHz = 0.15f; s.lfo1.shape = 1; s.lfo1.depth = 0.45f; s.lfo1.sync = 1;
+        s.lfo1Ext.noteValue = 19;
+        setModSlot(s, 0, kSrcLFO1, kDstAllFltCut, 0.3f, kCurveSCurve);
+        s.modulationType = 1;               // Phaser
+        s.phaser.rateHz = 0.2f; s.phaser.depth = 0.5f; s.phaser.feedback = 0.35f;
+        s.phaser.mix = 0.3f; s.phaser.stages = 2;
+        s.delayEnabled = 1; s.delay.type = 2;
+        s.delay.sync = 1; s.delay.noteValue = kNote1_8;
+        s.delay.mix = 0.22f; s.delay.feedback = 0.32f;
+        s.delay.pingPongWidth = 140.0f;
+        presets.push_back(std::move(p));
+    }
+
+    // "Noise Tick" - pitched noise ticks through a high-pass: an arp used as a
+    // percussion sequencer rather than a melodic one
+    {
+        PresetDef p;
+        p.name = "Noise Tick";
+        p.category = "Rhythmic";
+        auto& s = p.state;
+        s.oscA.type = 9; s.oscA.noiseColor = 3; s.oscA.level = 0.6f;  // blue noise
+        s.oscB.type = 0; s.oscB.waveform = 0; s.oscB.level = 0.4f;    // sine pitch anchor
+        s.mixer.position = 0.5f;
+        // High-pass with a strong resonant peak: the noise becomes a pitched tick
+        s.filter.type = 1;                  // SVF HP
+        s.filter.cutoffHz = 1800.0f; s.filter.resonance = 8.20f;
+        s.filter.envAmount = -18.0f;        // sweeps DOWN, so each tick chirps
+        s.filter.keyTrack = 0.6f;
+        s.filterEnv.attackMs = 0.5f; s.filterEnv.decayMs = 60.0f;
+        s.filterEnv.sustain = 0.0f; s.filterEnv.releaseMs = 50.0f;
+        // Very short amp env = a tick, not a note
+        s.ampEnv.attackMs = 0.5f; s.ampEnv.decayMs = 70.0f;
+        s.ampEnv.sustain = 0.0f; s.ampEnv.releaseMs = 60.0f;
+        // ARP: fast 16ths, tiny gate
+        setArpEnabled(s, true); setArpMode(s, kModeUp); setTempoSync(s, true);
+        setArpRate(s, kNote1_16); setArpGateLength(s, 18.0f);   // staccato ticks
+        s.arp.octaveRange = 3;
+        // THE HOOK: Euclidean 9-in-16 gives a dense, uneven hi-hat-like pattern,
+        // and a 5-long velocity lane makes the accent walk through it.
+        setEuclidean(s, true, 9, 16, 0);
+        float vel5[] = {1.0f, 0.45f, 0.7f, 0.4f, 0.85f};
+        setVelocityLane(s, 5, vel5);
+        s.arp.humanize = 0.2f;
+        setVoiceRoute(s, 0, kVSrcVelocity, kVDstFltCut, 0.5f);
+        s.delayEnabled = 1; s.delay.type = 2;   // PingPong scatters the ticks wide
+        s.delay.sync = 1; s.delay.noteValue = kNote1_16D;
+        s.delay.mix = 0.26f; s.delay.feedback = 0.38f;
+        s.delay.pingPongWidth = 170.0f; s.delay.pingPongCrossFeed = 0.75f;
+        s.reverbEnabled = 1; s.reverbType = 0;  // Plate
+        s.reverb.size = 0.35f; s.reverb.mix = 0.18f;
+        s.global.masterGain = 1.5f;             // short ticks measure quiet
+        presets.push_back(std::move(p));
+    }
+
+    // "Fold Groove" - wavefolder whose fold depth is driven by a synced LFO at a
+    // rate the arp does not divide: the timbre pulses on its own meter
+    {
+        PresetDef p;
+        p.name = "Fold Groove";
+        p.category = "Rhythmic";
+        auto& s = p.state;
+        s.oscA.type = 0; s.oscA.waveform = 4; s.oscA.level = 0.8f;   // triangle folds best
+        s.oscB.type = 0; s.oscB.waveform = 0; s.oscB.tuneSemitones = -12.0f;
+        s.oscB.level = 0.45f;
+        s.mixer.position = 0.4f;
+        s.filter.type = 0;                  // SVF LP
+        s.filter.cutoffHz = 3000.0f; s.filter.resonance = 3.10f;
+        s.filter.envAmount = 14.0f;
+        s.filterEnv.attackMs = 3.0f; s.filterEnv.decayMs = 170.0f;
+        s.filterEnv.sustain = 0.4f; s.filterEnv.releaseMs = 150.0f;
+        s.ampEnv.attackMs = 3.0f; s.ampEnv.decayMs = 230.0f;
+        s.ampEnv.sustain = 0.7f; s.ampEnv.releaseMs = 190.0f;
+        // Wavefolder: harmonics appear and vanish as drive moves
+        s.distortion.type = 4;              // Wavefolder
+        s.distortion.drive = 0.45f; s.distortion.mix = 0.65f;
+        s.distortion.foldType = 1;          // Sine fold - smooth harmonic bloom
+        // ARP: straight 1/8
+        setArpEnabled(s, true); setArpMode(s, kModeUpDown); setTempoSync(s, true);
+        setArpRate(s, kNote1_8); setArpGateLength(s, 80.0f);
+        s.arp.octaveRange = 2;
+        // THE HOOK: the fold depth is driven by a synced LFO at a DOTTED QUARTER,
+        // which is 3/8 -- against 1/8 arp steps the timbre peak lands on a
+        // different note of the run every cycle. Level stays put; harmonics move.
+        s.lfo1.shape = 0; s.lfo1.depth = 1.0f; s.lfo1.sync = 1;
+        s.lfo1Ext.noteValue = 14;           // dotted quarter
+        setModSlot(s, 0, kSrcLFO1, kDstEffectMix, 0.5f, kCurveSCurve);
+        setVoiceRoute(s, 0, kVSrcVoiceLFO, kVDstDistDrive, 0.4f);
+        setVoiceRoute(s, 1, kVSrcVelocity, kVDstDistDrive, 0.35f);
+        // A second synced LFO at 1/2 gives a slower, also-non-dividing swell
+        s.lfo2.shape = 1; s.lfo2.depth = 0.8f; s.lfo2.sync = 1;
+        s.lfo2Ext.noteValue = 16;           // half note
+        setModSlot(s, 1, kSrcLFO2, kDstAllFltCut, 0.35f, kCurveSCurve);
+        s.modulationType = 2;               // Flanger emphasises the fold harmonics
+        s.flanger.rateHz = 0.25f; s.flanger.depth = 0.55f; s.flanger.feedback = 0.4f;
+        s.flanger.mix = 0.35f; s.flanger.stereoSpread = 100.0f;
+        s.reverbEnabled = 1; s.reverbType = 0;
+        s.reverb.size = 0.45f; s.reverb.mix = 0.2f;
+        presets.push_back(std::move(p));
+    }
+
+    // "Ring Sequence" - the PITCH lane writes a melody the player does not: hold
+    // one note and the arp transposes it through a fixed interval sequence
+    {
+        PresetDef p;
+        p.name = "Ring Sequence";
+        p.category = "Rhythmic";
+        auto& s = p.state;
+        s.oscA.type = 0; s.oscA.waveform = 3; s.oscA.pulseWidth = 0.45f;
+        s.oscA.level = 0.8f;
+        s.oscB.type = 0; s.oscB.waveform = 0; s.oscB.level = 0.4f;
+        s.mixer.position = 0.45f;
+        s.filter.type = 0;                  // SVF LP
+        s.filter.cutoffHz = 2600.0f; s.filter.resonance = 4.10f;
+        s.filter.envAmount = 20.0f;
+        s.filterEnv.attackMs = 1.0f; s.filterEnv.decayMs = 140.0f;
+        s.filterEnv.sustain = 0.3f; s.filterEnv.releaseMs = 110.0f;
+        s.ampEnv.attackMs = 2.0f; s.ampEnv.decayMs = 200.0f;
+        s.ampEnv.sustain = 0.65f; s.ampEnv.releaseMs = 150.0f;
+        // Note-tracked ring mod: metallic, but stays in key
+        s.distortion.type = 6;              // RingModulator
+        s.distortion.drive = 0.35f; s.distortion.mix = 0.4f;
+        s.distortion.ringFreqMode = 1;      // NoteTrack
+        s.distortion.ringRatio = 0.1667f;   // ~3:1
+        s.distortion.ringWaveform = 0;
+        // ARP: as-played at 1/16 -- one held note is enough
+        setArpEnabled(s, true); setArpMode(s, kModeAsPlayed); setTempoSync(s, true);
+        setArpRate(s, kNote1_16); setArpGateLength(s, 62.0f);
+        s.arp.octaveRange = 1;
+        // THE HOOK: a 9-step PITCH lane over a 16-step bar. The melody it writes
+        // is 9 long, so it rotates through the bar and takes 9 bars to come home.
+        // Intervals are a minor-pentatonic shape, so it stays musical while moving.
+        int32_t pitch9[] = {0, 3, 5, 7, 10, 7, 5, 3, 12};
+        setPitchLane(s, 9, pitch9);
+        // 4 against 9: the clipped step rotates through the melody. 0.15 rather
+        // than 0.0 -- gate duration clamps to 1 sample, so 0.0 clicks (FR-014).
+        float gate4[] = {1.0f, 0.75f, 0.9f, 0.15f};
+        setGateLane(s, 4, gate4);
+        setModSlot(s, 0, kSrcArpPitch, kDstEffectMix, 0.4f, kCurveLinear);
+        setVoiceRoute(s, 0, kVSrcVelocity, kVDstFltCut, 0.4f);
+        s.delayEnabled = 1; s.delay.type = 0;
+        s.delay.sync = 1; s.delay.noteValue = kNote1_8;
+        s.delay.mix = 0.24f; s.delay.feedback = 0.36f;
+        s.reverbEnabled = 1; s.reverbType = 0;
+        s.reverb.size = 0.42f; s.reverb.mix = 0.2f;
+        presets.push_back(std::move(p));
+    }
+
+    // "Comb Runner" - key-tracked comb resonance turns every arp step into a
+    // struck tube; the flanger sweeps at a rate unrelated to the note grid
+    {
+        PresetDef p;
+        p.name = "Comb Runner";
+        p.category = "Rhythmic";
+        auto& s = p.state;
+        s.oscA.type = 0; s.oscA.waveform = 1; s.oscA.level = 0.7f;
+        s.oscB.type = 9; s.oscB.noiseColor = 0; s.oscB.level = 0.2f;  // white edge
+        s.mixer.position = 0.35f;
+        s.filter.type = 6;                  // Comb
+        s.filter.cutoffHz = 330.0f; s.filter.resonance = 6.80f;
+        s.filter.combDamping = 0.28f; s.filter.keyTrack = 1.0f;
+        s.ampEnv.attackMs = 2.0f; s.ampEnv.decayMs = 280.0f;
+        s.ampEnv.sustain = 0.45f; s.ampEnv.releaseMs = 240.0f;
+        setArpEnabled(s, true); setArpMode(s, kModeUp); setTempoSync(s, true);
+        setArpRate(s, kNote1_16); setArpGateLength(s, 52.0f);
+        s.arp.octaveRange = 2;
+        // THE HOOK: an 11-step velocity lane. Eleven is coprime with every common
+        // bar length, so the comb's excitation strength -- and therefore how hard
+        // the tube rings -- never lands the same way twice inside a phrase.
+        float vel11[] = {1.0f, 0.5f, 0.8f, 0.6f, 0.95f, 0.45f,
+                         0.85f, 0.7f, 0.55f, 0.9f, 0.65f};
+        setVelocityLane(s, 11, vel11);
+        setVoiceRoute(s, 0, kVSrcVelocity, kVDstFltRes, 0.45f);
+        setVoiceRoute(s, 1, kVSrcKeyTrack, kVDstFltCut, 0.3f);
+        // Flanger at a free (unsynced) rate: a third period against the grid
+        s.modulationType = 2;               // Flanger
+        s.flanger.rateHz = 0.17f; s.flanger.depth = 0.65f;
+        s.flanger.feedback = 0.55f; s.flanger.mix = 0.4f;
+        s.flanger.stereoSpread = 120.0f;
+        s.lfo1.rateHz = 0.28f; s.lfo1.shape = 1; s.lfo1.depth = 0.45f; s.lfo1.sync = 0;
+        setModSlot(s, 0, kSrcLFO1, kDstAllResonance, 0.3f, kCurveSCurve);
+        s.delayEnabled = 1; s.delay.type = 1;   // Tape
+        s.delay.sync = 1; s.delay.noteValue = kNote1_8T;
+        s.delay.mix = 0.24f; s.delay.feedback = 0.38f;
+        s.delay.tapeSaturation = 0.4f;
+        s.reverbEnabled = 1; s.reverbType = 1;
+        s.reverb.size = 0.55f; s.reverb.mix = 0.24f; s.reverb.damping = 0.45f;
+        s.global.masterGain = 1.3f;
+        presets.push_back(std::move(p));
+    }
+
+    // "PWM Strut" - dotted-8th arp where pulse width is swept by a synced LFO on
+    // a different note value; the hollow/full timbre cycle walks across the strut
+    {
+        PresetDef p;
+        p.name = "PWM Strut";
+        p.category = "Rhythmic";
+        auto& s = p.state;
+        s.oscA.type = 0; s.oscA.waveform = 3; s.oscA.pulseWidth = 0.5f;
+        s.oscA.level = 0.8f;
+        s.oscB.type = 0; s.oscB.waveform = 3; s.oscB.pulseWidth = 0.3f;
+        s.oscB.fineCents = 8.0f; s.oscB.level = 0.6f;
+        s.mixer.position = 0.5f;
+        s.filter.type = 4;                  // Ladder LP
+        s.filter.cutoffHz = 2900.0f; s.filter.resonance = 3.90f;
+        s.filter.ladderDrive = 4.0f; s.filter.envAmount = 18.0f;
+        s.filterEnv.attackMs = 3.0f; s.filterEnv.decayMs = 180.0f;
+        s.filterEnv.sustain = 0.35f; s.filterEnv.releaseMs = 140.0f;
+        s.ampEnv.attackMs = 3.0f; s.ampEnv.decayMs = 220.0f;
+        s.ampEnv.sustain = 0.7f; s.ampEnv.releaseMs = 170.0f;
+        // ARP: dotted 8ths = the strut
+        setArpEnabled(s, true); setArpMode(s, kModeUp); setTempoSync(s, true);
+        setArpRate(s, kNote1_8D); setArpGateLength(s, 76.0f);
+        setArpSwing(s, 15.0f);
+        s.arp.octaveRange = 2;
+        // THE HOOK: PWM is driven by a synced LFO at 1/4. Arp steps are 3/16 and
+        // the LFO cycle is 4/16, so the point in the PWM sweep where each note is
+        // struck advances every step -- classic PWM, but phase-locked to nothing.
+        s.lfo1.shape = 0; s.lfo1.depth = 1.0f; s.lfo1.sync = 1;
+        s.lfo1Ext.noteValue = 13;           // 1/4
+        setModSlot(s, 0, kSrcLFO1, kDstAllMorphPos, 0.6f, kCurveSCurve);
+        setVoiceRoute(s, 0, kVSrcVoiceLFO, kVDstMorphPos, 0.45f);
+        setVoiceRoute(s, 1, kVSrcVelocity, kVDstFltCut, 0.4f);
+        // Synced phaser at yet another value keeps the stereo image moving
+        s.modulationType = 1;               // Phaser
+        s.phaser.rateHz = 0.22f; s.phaser.depth = 0.55f;
+        s.phaser.feedback = 0.45f; s.phaser.mix = 0.35f; s.phaser.stages = 3;
+        s.phaser.centerFreqHz = 800.0f;
+        s.delayEnabled = 1; s.delay.type = 2;
+        s.delay.sync = 1; s.delay.noteValue = kNote1_4;
+        s.delay.mix = 0.22f; s.delay.feedback = 0.34f;
+        s.delay.pingPongWidth = 145.0f;
+        s.reverbEnabled = 1; s.reverbType = 0;
+        s.reverb.size = 0.45f; s.reverb.mix = 0.2f;
+        presets.push_back(std::move(p));
+    }
+
+    // "Sync Ratchet" - hard-sync screams cut into bursts; the accent lane and the
+    // ratchet lane are different lengths so emphasis and subdivision drift apart
+    {
+        PresetDef p;
+        p.name = "Sync Ratchet";
+        p.category = "Rhythmic";
+        auto& s = p.state;
+        s.oscA.type = 3;                    // Sync
+        s.oscA.waveform = 1; s.oscA.syncRatio = 3.0f;
+        s.oscA.syncWaveform = 1; s.oscA.syncMode = 0; s.oscA.syncAmount = 1.0f;
+        s.oscA.level = 0.85f;
+        s.oscB.type = 0; s.oscB.waveform = 1; s.oscB.tuneSemitones = -12.0f;
+        s.oscB.level = 0.4f;
+        s.mixer.position = 0.35f;
+        s.filter.type = 4;                  // Ladder LP
+        s.filter.cutoffHz = 1900.0f; s.filter.resonance = 5.40f;
+        s.filter.ladderDrive = 6.0f; s.filter.envAmount = 28.0f;
+        s.filter.keyTrack = 0.4f;
+        s.filterEnv.attackMs = 1.0f; s.filterEnv.decayMs = 120.0f;
+        s.filterEnv.sustain = 0.22f; s.filterEnv.releaseMs = 100.0f;
+        s.ampEnv.attackMs = 1.0f; s.ampEnv.decayMs = 170.0f;
+        s.ampEnv.sustain = 0.6f; s.ampEnv.releaseMs = 120.0f;
+        setArpEnabled(s, true); setArpMode(s, kModeUp); setTempoSync(s, true);
+        setArpRate(s, kNote1_16); setArpGateLength(s, 58.0f);
+        s.arp.octaveRange = 2;
+        // THE HOOK: 4-long ratchet lane vs 7-long modifier (accent) lane. The
+        // rolled step and the accented step coincide only every 28 steps, so the
+        // pattern alternates between "loud roll" and "quiet roll" over 7 bars.
+        int32_t ratch4[] = {1, 2, 4, 1};
+        setRatchetLane(s, 4, ratch4);
+        int32_t mod7[] = {kStepActive | kStepAccent, kStepActive, kStepActive,
+                          kStepActive | kStepAccent, kStepActive,
+                          kStepActive | kStepAccent, kStepActive};
+        setModifierLane(s, 7, mod7, 45, 40.0f);
+        s.arp.ratchetSwing = 62.0f;
+        // Sync sweep follows the arp's pitch: higher notes scream harder
+        setModSlot(s, 0, kSrcArpPitch, kDstAllFltCut, 0.4f, kCurveExp);
+        setVoiceRoute(s, 0, kVSrcVelocity, kVDstFltCut, 0.5f);
+        setVoiceRoute(s, 1, kVSrcEnv3, kVDstOscAPitch, 0.3f);   // per-note sync zap
+        s.modEnv.attackMs = 1.0f; s.modEnv.decayMs = 90.0f;
+        s.modEnv.sustain = 0.0f; s.modEnv.releaseMs = 80.0f;
+        s.distortion.type = 5;              // Tape Saturator tames the sync edge
+        s.distortion.drive = 0.4f; s.distortion.mix = 0.4f;
+        s.delayEnabled = 1; s.delay.type = 2;
+        s.delay.sync = 1; s.delay.noteValue = kNote1_8D;
+        s.delay.mix = 0.24f; s.delay.feedback = 0.36f;
+        s.delay.pingPongWidth = 150.0f;
+        s.reverbEnabled = 1; s.reverbType = 0;
+        s.reverb.size = 0.4f; s.reverb.mix = 0.16f;
+        s.global.masterGain = 0.9f;         // sync + drive is a hot source
+        presets.push_back(std::move(p));
+    }
+
+    // "Vapor Arp" - the slow one. Quarter-note arp, long gate, shimmer hall: the
+    // batch needed a preset that proves an arp does not have to be busy
+    {
+        PresetDef p;
+        p.name = "Vapor Arp";
+        p.category = "Rhythmic";
+        auto& s = p.state;
+        s.oscA.type = 1;                    // Wavetable
+        s.oscA.waveform = 2; s.oscA.level = 0.7f;
+        s.oscB.type = 4;                    // Additive shimmer partner
+        s.oscB.additivePartials = 16; s.oscB.additiveTilt = -0.5f;
+        s.oscB.level = 0.5f;
+        s.mixer.position = 0.5f;
+        s.global.polyphony = 8; s.global.width = 1.4f; s.global.spread = 0.35f;
+        s.filter.type = 0;                  // SVF LP
+        s.filter.cutoffHz = 3400.0f; s.filter.resonance = 2.20f;
+        s.filter.envAmount = 12.0f;
+        s.filterEnv.attackMs = 120.0f; s.filterEnv.decayMs = 600.0f;
+        s.filterEnv.sustain = 0.5f; s.filterEnv.releaseMs = 800.0f;
+        // Slow attack: notes bloom rather than strike
+        s.ampEnv.attackMs = 180.0f; s.ampEnv.decayMs = 700.0f;
+        s.ampEnv.sustain = 0.7f; s.ampEnv.releaseMs = 1200.0f;
+        // ARP: QUARTER notes, near-legato, three octaves
+        setArpEnabled(s, true); setArpMode(s, kModeUpDown); setTempoSync(s, true);
+        setArpRate(s, kNote1_4); setArpGateLength(s, 115.0f);   // >100% = overlap
+        s.arp.octaveRange = 3; s.arp.octaveMode = 1;
+        // THE HOOK: a 3-step gate lane against the quarter-note arp. With 3/4
+        // against a 4/4 bar the soft dip walks around the bar, so a slow pad
+        // acquires a drifting internal pulse it would never have on its own.
+        float gate3[] = {1.0f, 0.55f, 0.8f};
+        setGateLane(s, 3, gate3);
+        float vel5[] = {0.9f, 0.65f, 1.0f, 0.7f, 0.8f};
+        setVelocityLane(s, 5, vel5);        // 5 vs 3: 15-step combined cycle
+        s.lfo1.shape = 0; s.lfo1.depth = 0.6f; s.lfo1.sync = 1;
+        s.lfo1Ext.noteValue = 19;           // whole-note morph drift
+        setModSlot(s, 0, kSrcLFO1, kDstAllMorphPos, 0.4f, kCurveSCurve);
+        setModSlot(s, 1, kSrcArpPitch, kDstAllSpecTilt, 0.3f, kCurveLinear);
+        setVoiceRoute(s, 0, kVSrcVelocity, kVDstFltCut, 0.3f);
+        s.modulationType = 3;               // Chorus
+        s.chorus.rateHz = 0.25f; s.chorus.depth = 0.5f; s.chorus.mix = 0.35f;
+        constexpr int32_t kNote1_4D = 14;   // dotted quarter (dropdown index 14)
+        s.delayEnabled = 1; s.delay.type = 4;   // Spectral
+        s.delay.sync = 1; s.delay.noteValue = kNote1_4D;
+        s.delay.mix = 0.3f; s.delay.feedback = 0.45f;
+        s.reverbEnabled = 1; s.reverbType = 1;  // Hall
+        s.reverb.size = 0.8f; s.reverb.mix = 0.38f; s.reverb.damping = 0.3f;
+        presets.push_back(std::move(p));
+    }
+
     return presets;
 }
 
