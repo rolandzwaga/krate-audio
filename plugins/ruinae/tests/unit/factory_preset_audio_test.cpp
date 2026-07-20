@@ -23,6 +23,7 @@
 #include "pluginterfaces/vst/ivstprocesscontext.h"
 
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/catch_approx.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -32,6 +33,7 @@
 
 using namespace Steinberg;
 using namespace Steinberg::Vst;
+using Catch::Approx;
 
 namespace {
 
@@ -371,6 +373,58 @@ TEST_CASE("Ruinae factory presets use real Q values for filter resonance",
 
         proc->setActive(false);
         proc->terminate();
+        controller.terminate();
+    }
+}
+
+TEST_CASE("Ruinae filter resonance defaults to Butterworth",
+          "[processor][presets][resonance][defaults]")
+{
+    // The default sat at Q 0.1 -- the minimum of the [0.1, 30] range -- so a
+    // fresh instance, or any preset that simply omitted the field, had a filter
+    // with no resonant peak whatsoever. GlobalFilterState already defaulted to
+    // 0.707; this brings the per-voice filter in line.
+    constexpr double kButterworthQ = 0.707;
+
+    SECTION("processor default state") {
+        auto proc = std::make_unique<Ruinae::Processor>();
+        proc->initialize(nullptr);
+
+        ProcessSetup setup{};
+        setup.processMode = kRealtime;
+        setup.symbolicSampleSize = kSample32;
+        setup.sampleRate = kSampleRate;
+        setup.maxSamplesPerBlock = kBlockSize;
+        proc->setupProcessing(setup);
+
+        MemoryStream saved;
+        REQUIRE(proc->getState(&saved) == kResultTrue);
+        saved.seek(0, IBStream::kIBSeekSet, nullptr);
+
+        Ruinae::Controller controller;
+        REQUIRE(controller.initialize(nullptr) == kResultOk);
+        REQUIRE(controller.setComponentState(&saved) == kResultTrue);
+
+        const double q = 0.1 + controller.getParamNormalized(Ruinae::kFilterResonanceId) * 29.9;
+        INFO("default resonance Q: " << q);
+        CHECK(q == Approx(kButterworthQ).margin(0.01));
+
+        proc->terminate();
+        controller.terminate();
+    }
+
+    SECTION("controller's registered parameter default") {
+        // What a host restores on "reset to default"; it must agree with the
+        // processor's own default rather than snapping back to the range floor.
+        Ruinae::Controller controller;
+        REQUIRE(controller.initialize(nullptr) == kResultOk);
+
+        const double normalized =
+            controller.getParamNormalized(Ruinae::kFilterResonanceId);
+        const double q = 0.1 + normalized * 29.9;
+        INFO("registered default Q: " << q);
+        CHECK(q == Approx(kButterworthQ).margin(0.01));
+
         controller.terminate();
     }
 }

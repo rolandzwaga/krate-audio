@@ -184,7 +184,7 @@ struct MixerState {
 struct FilterState {
     int32_t type = 0;
     float cutoffHz = 20000.0f;
-    float resonance = 0.1f;
+    float resonance = 0.707f;  // Butterworth; matches GlobalFilterState
     float envAmount = 0.0f;
     float keyTrack = 0.0f;
     int32_t ladderSlope = 4;

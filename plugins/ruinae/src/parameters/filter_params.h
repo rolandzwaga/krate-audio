@@ -22,7 +22,7 @@ namespace Ruinae {
 struct RuinaeFilterParams {
     std::atomic<int> type{0};            // RuinaeFilterType (0-12)
     std::atomic<float> cutoffHz{20000.0f}; // 20-20000 Hz (exponential)
-    std::atomic<float> resonance{0.1f};  // 0.1-30.0
+    std::atomic<float> resonance{0.707f};  // 0.1-30.0, default Butterworth
     std::atomic<float> envAmount{0.0f};  // -48 to +48 semitones
     std::atomic<float> keyTrack{0.0f};   // 0-1
     // Type-specific params
@@ -212,7 +212,10 @@ inline void registerFilterParams(Steinberg::Vst::ParameterContainer& parameters)
     ));
     parameters.addParameter(STR16("Filter Cutoff"), STR16("Hz"), 0, 1.0,
         ParameterInfo::kCanAutomate, kFilterCutoffId);
-    parameters.addParameter(STR16("Filter Resonance"), STR16(""), 0, 0.0,
+    // Default 0.0203 normalized == Q 0.707 (Butterworth), matching the
+    // processor's default above. A 0.0 default would put a host's "reset to
+    // default" at Q 0.1, the bottom of the range, i.e. no resonance at all.
+    parameters.addParameter(STR16("Filter Resonance"), STR16(""), 0, 0.0203,
         ParameterInfo::kCanAutomate, kFilterResonanceId);
     parameters.addParameter(STR16("Filter Env Amount"), STR16("st"), 0, 0.5,
         ParameterInfo::kCanAutomate, kFilterEnvAmountId);
