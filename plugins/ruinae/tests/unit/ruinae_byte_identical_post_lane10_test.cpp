@@ -5,7 +5,11 @@
 // reading the loaded arp state, not by category name -- load the preset, force
 // kArpMidiOutId=1 (same as the harness in gen_v2_fixtures/), drive the processor
 // with the canonical 60-second MIDI sequence, and assert the emitted MIDI
-// matches the paired golden text file byte-for-byte.
+// matches the paired golden text file: event count, order, kind, pitch and
+// velocity exactly, timestamps within a measured cross-toolchain tolerance.
+// (Byte-for-byte cannot be asserted here -- the offsets are FP math truncated
+// to integers and the GCC/Clang legs build with -ffast-math. See
+// tests/test_helpers/midi_golden_compare.h.)
 //
 // This proves that bumping ArpeggiatorCore::kNumLanes from 9 to 10 (with the
 // lane 10 conditional-inert branch in Live mode) does not perturb Ruinae's
@@ -16,6 +20,8 @@
 #include "processor/processor.h"
 #include "controller/controller.h"
 #include "plugin_ids.h"
+
+#include "test_helpers/midi_golden_compare.h"
 
 #include "public.sdk/source/common/memorystream.h"
 #include "public.sdk/source/vst/vstpresetfile.h"
@@ -415,10 +421,20 @@ void verifyPreset(const std::filesystem::path& presetPath,
         return;
     }
 
+    // Compare portably rather than byte-for-byte. Every sample offset in the
+    // golden is FP arithmetic truncated to an integer, and the GCC/Clang legs
+    // build with -ffast-math, so byte-identity demands bit-identical FP math
+    // across MSVC/GCC/AppleClang and is structurally incapable of holding.
+    // Event count, order, kind, pitch and velocity are still exact; only
+    // timestamps carry a (measured, sub-millisecond) tolerance. See
+    // tests/test_helpers/midi_golden_compare.h.
+    const auto comparison = Krate::TestUtils::compareMidiGolden(actual, golden);
+
     INFO("preset: " << stem);
     INFO("actual bytes: " << actual.size()
         << "  golden bytes: " << golden.size());
-    REQUIRE(actual == golden);
+    INFO("comparison: " << comparison.message);
+    REQUIRE(comparison.ok);
 }
 
 /// @brief True when a preset actually runs its arpeggiator.

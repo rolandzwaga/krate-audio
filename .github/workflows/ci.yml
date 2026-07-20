@@ -161,6 +161,13 @@ jobs:
       # such a test is green only on the machine its digest was generated on.
       - name: Bit-exact float golden lint
         run: node tools/lint-float-bit-goldens.js
+      # Same failure mode, one step removed: a captured MIDI dump compared to a
+      # golden with a raw string equality. The text looks like bytes, but every
+      # sample offset in it is FP math truncated to an integer, so a 1-ULP
+      # difference becomes a whole sample. This is how the Ruinae SC-004b
+      # goldens went red on Linux and macOS while passing every Windows gate.
+      - name: Byte-exact MIDI timing golden lint
+        run: node tools/lint-midi-timing-goldens.js
 
   build-windows:
     name: Windows (MSVC)

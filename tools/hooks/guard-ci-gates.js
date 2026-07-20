@@ -40,6 +40,7 @@ const LINTS = [
     { script: 'lint-odr.js', what: 'duplicate symbol (ODR hazard)' },
     { script: 'lint-arch-guarded-includes.js', what: 'arch-guarded krate include' },
     { script: 'lint-float-bit-goldens.js', what: 'bit-exact float golden digest' },
+    { script: 'lint-midi-timing-goldens.js', what: 'byte-exact MIDI timing golden' },
 ];
 
 function readStdin() {

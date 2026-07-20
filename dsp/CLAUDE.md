@@ -129,6 +129,36 @@ way to pin a preset format — those bytes are stored values, not arithmetic res
 node tools/lint-float-bit-goldens.js   # gate; also runs in CI
 ```
 
+### The same trap one step removed: integer timestamps derived from float math
+
+A captured MIDI dump compared with `REQUIRE(actual == golden)` *looks* like a byte
+comparison, but every sample offset in it is FP arithmetic **truncated** to an integer.
+Truncation converts a 1-ULP difference into a whole sample, so the assertion silently
+demands bit-exact FP math from every compiler — the same impossible requirement, just
+disguised as text. `ArpeggiatorCore`'s durations land exactly on integers by construction,
+which is the worst possible input to a truncating cast:
+
+```cpp
+baseDuration = (size_t)(secondsPerBeat * beatsPerStep * sampleRate);
+swung        = (size_t)((double)baseDuration * (1.0 + swing));
+// 11025 * 1.36 is exactly 14994 in real arithmetic, but evaluates to
+// 14993.999999999998 or 14994.000000000002 depending on how the product is
+// formed -> truncates to 14993 or 14994.
+```
+
+That is how the Ruinae SC-004b goldens went red on Linux and macOS while passing every
+Windows gate (full suite, pluginval, clang-tidy). Measured on the real 60-second
+`Tape_Shuffle` sequence: **504 events on both legs, 0 differing in kind/pitch/order, 146
+differing in timing, worst 2 samples (~45 µs)** — bounded, not cumulative, because
+durations are recomputed per step from the tempo rather than accumulated.
+
+Compare structure exactly (count, order, kind, pitch, velocity) and timestamps at a
+measured tolerance: `tests/test_helpers/midi_golden_compare.h` is the drop-in replacement.
+
+```bash
+node tools/lint-midi-timing-goldens.js   # gate; also runs in CI
+```
+
 ## Verify platform-dependent BEHAVIOUR on Linux via WSL (Ubuntu + g++ 13 installed)
 
 Compiling for another arch only catches *compile* errors. Runtime semantics that differ by
