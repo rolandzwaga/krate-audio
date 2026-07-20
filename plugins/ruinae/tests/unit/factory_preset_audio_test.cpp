@@ -12,8 +12,10 @@
 // ==============================================================================
 
 #include "processor/processor.h"
+#include "controller/controller.h"
 #include "plugin_ids.h"
 
+#include "public.sdk/source/common/memorystream.h"
 #include "public.sdk/source/vst/vstpresetfile.h"
 #include "pluginterfaces/base/ibstream.h"
 #include "pluginterfaces/vst/ivstevents.h"
@@ -308,5 +310,67 @@ TEST_CASE("No Ruinae factory preset is drastically quieter than the bank",
         // CHECK, not REQUIRE: report every outlier in one run rather than
         // aborting on the first.
         CHECK(db > medianDb - kMaxBelowMedianDb);
+    }
+}
+
+// =============================================================================
+// Filter resonance is a Q value, not a normalized 0-1 fraction
+// =============================================================================
+// kFilterResonanceId denormalizes as 0.1 + value * 29.9, and the preset stream
+// stores the resulting Q directly (filter_params.h: "0.1-30.0"). A preset
+// author writing 0.3 for "30% resonance" therefore gets Q = 0.3 -- below
+// Butterworth, so the filter has no resonant peak at all. Nothing caught this:
+// the format compatibility test byte-compares the layout without ever checking
+// what the numbers mean.
+
+TEST_CASE("Ruinae factory presets use real Q values for filter resonance",
+          "[processor][presets][resonance]")
+{
+    auto presets = enumerateAllPresets();
+    REQUIRE_FALSE(presets.empty());
+
+    // Butterworth. At or below this a filter is critically damped or
+    // overdamped: no resonant peak, which is never a deliberate choice across
+    // an entire factory bank.
+    constexpr double kMinUsefulQ = 0.7;
+
+    for (const auto& p : presets) {
+        auto proc = std::make_unique<Ruinae::Processor>();
+        proc->initialize(nullptr);
+
+        ProcessSetup setup{};
+        setup.processMode = kRealtime;
+        setup.symbolicSampleSize = kSample32;
+        setup.sampleRate = kSampleRate;
+        setup.maxSamplesPerBlock = kBlockSize;
+        proc->setupProcessing(setup);
+        proc->setActive(true);
+        REQUIRE(loadPresetFileIntoProcessor(p, *proc));
+
+        {
+            ProcessData drainData{};
+            drainData.numSamples = 0;
+            proc->process(drainData);
+        }
+
+        MemoryStream saved;
+        REQUIRE(proc->getState(&saved) == kResultTrue);
+        saved.seek(0, IBStream::kIBSeekSet, nullptr);
+
+        Ruinae::Controller controller;
+        REQUIRE(controller.initialize(nullptr) == kResultOk);
+        REQUIRE(controller.setComponentState(&saved) == kResultTrue);
+
+        const double normalized =
+            controller.getParamNormalized(Ruinae::kFilterResonanceId);
+        const double q = 0.1 + normalized * 29.9;
+
+        INFO("preset: " << p.stem().string());
+        INFO("resonance Q: " << q);
+        CHECK(q >= kMinUsefulQ);
+
+        proc->setActive(false);
+        proc->terminate();
+        controller.terminate();
     }
 }

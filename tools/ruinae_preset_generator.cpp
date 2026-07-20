@@ -292,7 +292,7 @@ void setSynthPad(RuinaePresetState& s) {
     s.mixer.position = 0.45f;  // Slightly favor Osc A
     s.filter.type = 0;  // Ladder LP
     s.filter.cutoffHz = 3000.0f;
-    s.filter.resonance = 0.2f;
+    s.filter.resonance = 2.96f;
     s.ampEnv.attackMs = 200.0f;
     s.ampEnv.decayMs = 500.0f;
     s.ampEnv.sustain = 0.7f;
@@ -315,7 +315,7 @@ void setSynthBass(RuinaePresetState& s) {
     s.mixer.position = 0.6f;
     s.filter.type = 0;  // Ladder LP
     s.filter.cutoffHz = 5000.0f;
-    s.filter.resonance = 0.15f;
+    s.filter.resonance = 2.40f;
     s.ampEnv.attackMs = 2.0f;
     s.ampEnv.decayMs = 200.0f;
     s.ampEnv.sustain = 0.6f;
@@ -333,7 +333,7 @@ void setSynthLead(RuinaePresetState& s) {
     s.mixer.position = 0.5f;
     s.filter.type = 0;  // Ladder LP
     s.filter.cutoffHz = 8000.0f;
-    s.filter.resonance = 0.2f;
+    s.filter.resonance = 2.96f;
     s.ampEnv.attackMs = 5.0f;
     s.ampEnv.decayMs = 300.0f;
     s.ampEnv.sustain = 0.7f;
@@ -348,7 +348,7 @@ void setSynthAcid(RuinaePresetState& s) {
     s.mixer.position = 0.0f;  // Osc A only
     s.filter.type = 0;  // Ladder LP
     s.filter.cutoffHz = 800.0f;  // Low cutoff for squelch
-    s.filter.resonance = 0.7f;  // High resonance
+    s.filter.resonance = 8.61f;  // High resonance
     s.filter.envAmount = 4000.0f;  // Strong filter envelope
     s.ampEnv.attackMs = 1.0f;
     s.ampEnv.decayMs = 150.0f;
@@ -468,7 +468,7 @@ std::vector<PresetDef> createAllPresets() {
         // --- Filter: warm SVF LP, gentle motion (choir, not pluck) ---
         p.state.filter.type = 0;          // SVF LP
         p.state.filter.cutoffHz = 3500.0f;
-        p.state.filter.resonance = 0.5f;
+        p.state.filter.resonance = 6.35f;
         p.state.filter.envAmount = 14.0f; // small, soft swell (semitones, correct units)
         // Slow bloom so each descending step blossoms rather than clicks
         p.state.filterEnv.attackMs = 90.0f;
@@ -586,7 +586,7 @@ std::vector<PresetDef> createAllPresets() {
         // --- Ladder LP: the analog half of the pair (NOT SVF) ---
         s.filter.type = 4;         // Ladder LP (type 4, not the template's SVF)
         s.filter.cutoffHz = 600.0f;   // low base so the env-sweep is the timbre
-        s.filter.resonance = 0.75f;   // squelchy but pre-self-osc
+        s.filter.resonance = 9.18f;   // squelchy but pre-self-osc
         s.filter.ladderSlope = 4;     // 24 dB/oct - fat 303 slope
         s.filter.ladderDrive = 6.0f;  // transistor grit that thickens the saw
         s.filter.keyTrack = 0.3f;     // higher notes sit a touch brighter
@@ -971,7 +971,7 @@ std::vector<PresetDef> createAllPresets() {
         //     bug: envAmount is SEMITONES (-48..+48), so +18 is a real, audible sweep.
         p.state.filter.type = 0;               // SVF LP
         p.state.filter.cutoffHz = 3800.0f;
-        p.state.filter.resonance = 0.35f;
+        p.state.filter.resonance = 4.66f;
         p.state.filter.svfSlope = 1;           // 24 dB
         p.state.filter.envAmount = 18.0f;      // +18 st slow filter breath (was buggy 4000)
         p.state.filter.keyTrack = 0.3f;        // brighter up the keyboard
@@ -1064,7 +1064,7 @@ std::vector<PresetDef> createAllPresets() {
         //     is SEMITONES, +30 = a punchy acid sweep (the old 4000 was inaudible).
         p.state.filter.type = 4;               // Ladder LP
         p.state.filter.cutoffHz = 380.0f;      // low base so the env sweep is obvious
-        p.state.filter.resonance = 0.5f;
+        p.state.filter.resonance = 6.35f;
         p.state.filter.ladderSlope = 4;        // 24 dB/oct
         p.state.filter.ladderDrive = 6.0f;     // dB of drive for bass grit
         p.state.filter.envAmount = 30.0f;      // +30 st acid sweep (was buggy 4000)
@@ -1576,7 +1576,7 @@ std::vector<PresetDef> createAllPresets() {
         // --- Filter: Formant (type 5) gives the choir its vowel colour
         s.filter.type = 5;               // Formant filter
         s.filter.cutoffHz = 2600.0f;
-        s.filter.resonance = 0.3f;
+        s.filter.resonance = 4.09f;
         s.filter.formantMorph = 0.8f;    // sit between A and E vowels
         s.filter.formantGender = 0.15f;  // nudge toward a female/choir formant set
         // --- Amp env: organ-like, slow-ish swell with high sustain
@@ -1819,7 +1819,7 @@ std::vector<PresetDef> createAllPresets() {
         // --- Filter: SVF High-Shelf boosts the air above cutoff for the 'aurora' sheen
         s.filter.type = 10;              // SVF_HighShelf
         s.filter.cutoffHz = 3000.0f;
-        s.filter.resonance = 0.4f;
+        s.filter.resonance = 5.22f;
         s.filter.svfSlope = 1;
         s.filter.svfGain = 6.0f;         // +6 dB of air
         // --- Amp env: long, slow, ambient swell
@@ -1989,7 +1989,7 @@ std::vector<PresetDef> createAllPresets() {
         // Ladder LP at 18 dB/oct with a touch of drive = creamy analog color
         s.filter.type = 4; // Ladder LP
         s.filter.cutoffHz = 2600.0f;
-        s.filter.resonance = 0.28f;
+        s.filter.resonance = 3.86f;
         s.filter.ladderSlope = 3; // 18 dB/oct (softer than full 24)
         s.filter.ladderDrive = 4.0f; // gentle input drive for saturation
         // Gentle filter-env bloom (CORRECTED: semitones, not the old 4000 Hz bug)
@@ -2079,7 +2079,7 @@ std::vector<PresetDef> createAllPresets() {
         // SVF Hi-Shelf lifts the air band (this preset keeps the air-boost identity)
         s.filter.type = 10; // SVF Hi-Shelf
         s.filter.cutoffHz = 4000.0f;
-        s.filter.resonance = 0.2f;
+        s.filter.resonance = 2.96f;
         s.filter.svfGain = 6.0f; // +6 dB shelf boost for glassy top
         s.filter.svfSlope = 1;
         // Amp env with an exponential decay tail (per-stage curve)
@@ -2159,7 +2159,7 @@ std::vector<PresetDef> createAllPresets() {
         // Comb filter adds a metallic resonant body with damped feedback
         s.filter.type = 6; // Comb
         s.filter.cutoffHz = 3000.0f; // comb tuning
-        s.filter.resonance = 0.4f;
+        s.filter.resonance = 5.22f;
         s.filter.combDamping = 0.35f; // tames the high comb peaks
         // Mild spectral bit-erosion for grit under the drone
         s.distortion.type = 2; // Spectral
@@ -2232,7 +2232,7 @@ std::vector<PresetDef> createAllPresets() {
         // Formant FILTER on top of the formant osc = doubly vocal
         s.filter.type = 5; // Formant filter
         s.filter.cutoffHz = 1200.0f;
-        s.filter.resonance = 0.3f;
+        s.filter.resonance = 4.09f;
         s.filter.formantMorph = 1.0f; // shift the filter vowel toward 'E'
         s.filter.formantGender = -0.2f; // slightly higher/lighter formants
         // Filter env gives a vowel-brightening swell (CORRECTED semitone amount)
@@ -2312,7 +2312,7 @@ std::vector<PresetDef> createAllPresets() {
         // Low overdriven 24 dB ladder = the dark core
         s.filter.type = 4; // Ladder LP
         s.filter.cutoffHz = 700.0f;
-        s.filter.resonance = 0.42f;
+        s.filter.resonance = 5.45f;
         s.filter.ladderSlope = 4; // 24 dB/oct
         s.filter.ladderDrive = 6.0f; // pushes the ladder into saturation
         // Big CORRECTED filter-env bloom: +30 st slow sweep (was the 4000 Hz bug)
@@ -2385,7 +2385,7 @@ std::vector<PresetDef> createAllPresets() {
         // Warm Ladder LP, gentle drive for analog glue, moderate cutoff so detune stays audible
         s.filter.type = 4; // Ladder LP
         s.filter.cutoffHz = 3500.0f;
-        s.filter.resonance = 0.15f;
+        s.filter.resonance = 2.40f;
         s.filter.ladderSlope = 4; // full 24 dB for a rounded top
         s.filter.ladderDrive = 3.0f; // subtle saturation for thickness
         s.filter.envAmount = 18.0f; // FIXED: audible +18 st opening (was a token 12)
@@ -2437,7 +2437,7 @@ std::vector<PresetDef> createAllPresets() {
         // Driven SVF LP for a searing tone; svfDrive adds the scream
         s.filter.type = 0; // SVF LP
         s.filter.cutoffHz = 3000.0f;
-        s.filter.resonance = 0.3f;
+        s.filter.resonance = 4.09f;
         s.filter.svfSlope = 1; // 24 dB cascaded
         s.filter.svfDrive = 4.0f; // post-filter grit
         s.filter.envAmount = 30.0f; // strong audible sweep (was 24)
@@ -2501,7 +2501,7 @@ std::vector<PresetDef> createAllPresets() {
         // Resonant BANDPASS: emphasises the CZ formant peak
         s.filter.type = 2; // SVF BP
         s.filter.cutoffHz = 2500.0f;
-        s.filter.resonance = 0.7f;
+        s.filter.resonance = 8.61f;
         s.filter.svfDrive = 3.0f; // a little edge in the passband
         s.filter.envAmount = 20.0f; // env pushes the bandpass peak up on attack
         s.filterEnv.attackMs = 2.0f; s.filterEnv.decayMs = 250.0f;
@@ -2551,7 +2551,7 @@ std::vector<PresetDef> createAllPresets() {
         // High-pass to shed the inharmonic low rumble
         s.filter.type = 1; // SVF HP
         s.filter.cutoffHz = 180.0f;
-        s.filter.resonance = 0.1f;
+        s.filter.resonance = 1.83f;
         // Long bell decay with a low sustain floor
         s.ampEnv.attackMs = 2.0f; s.ampEnv.decayMs = 1800.0f;
         s.ampEnv.sustain = 0.1f; s.ampEnv.releaseMs = 1600.0f;
@@ -2613,7 +2613,7 @@ std::vector<PresetDef> createAllPresets() {
         // Resonant 24 dB ladder with heavy input drive
         s.filter.type = 4; // Ladder LP
         s.filter.cutoffHz = 1800.0f;
-        s.filter.resonance = 0.55f;
+        s.filter.resonance = 6.92f;
         s.filter.ladderSlope = 4; // 24 dB
         s.filter.ladderDrive = 8.0f; // slam the ladder input
         s.filter.envAmount = 34.0f; // big audible sweep (was fine, kept generous)
@@ -2676,7 +2676,7 @@ std::vector<PresetDef> createAllPresets() {
         // SVF LP with full key-tracking so the sub stays even across the keyboard
         s.filter.type = 0;         // SVF LP
         s.filter.cutoffHz = 500.0f;
-        s.filter.resonance = 0.1f;
+        s.filter.resonance = 1.83f;
         s.filter.keyTrack = 1.0f;
         s.ampEnv.attackMs = 2.0f;
         s.ampEnv.decayMs = 150.0f;
@@ -2727,7 +2727,7 @@ std::vector<PresetDef> createAllPresets() {
         s.mixer.position = 0.5f;
         s.filter.type = 4;          // Ladder LP
         s.filter.cutoffHz = 2400.0f;
-        s.filter.resonance = 0.25f;
+        s.filter.resonance = 3.53f;
         s.filter.ladderSlope = 4;   // 24 dB/oct
         s.filter.ladderDrive = 2.0f;
         s.ampEnv.attackMs = 8.0f; s.ampEnv.decayMs = 300.0f;
@@ -2767,7 +2767,7 @@ std::vector<PresetDef> createAllPresets() {
         s.mixer.position = 0.0f;    // Osc A only
         s.filter.type = 4;          // Ladder LP
         s.filter.cutoffHz = 500.0f;
-        s.filter.resonance = 0.8f;  // squelchy
+        s.filter.resonance = 9.74f;  // squelchy
         s.filter.envAmount = 30.0f; // PROPER semitone sweep (was the 4000 Hz-value bug in the acid template)
         s.filter.ladderSlope = 4;
         s.filter.ladderDrive = 4.0f; // ladder overdrive = the 303 grit
@@ -2809,7 +2809,7 @@ std::vector<PresetDef> createAllPresets() {
         s.oscB.tuneSemitones = -12.0f; s.oscB.level = 0.5f;
         s.mixer.position = 0.25f;   // start FM-heavy (favor Osc A)...
         s.filter.type = 0;          // SVF LP
-        s.filter.cutoffHz = 3800.0f; s.filter.resonance = 0.15f;
+        s.filter.cutoffHz = 3800.0f; s.filter.resonance = 2.40f;
         s.ampEnv.attackMs = 1.0f; s.ampEnv.decayMs = 320.0f;
         s.ampEnv.sustain = 0.45f; s.ampEnv.releaseMs = 110.0f;
         s.global.voiceMode = 1;
@@ -2840,7 +2840,7 @@ std::vector<PresetDef> createAllPresets() {
         s.oscB.tuneSemitones = -12.0f; s.oscB.level = 0.6f;
         s.mixer.position = 0.45f;
         s.filter.type = 4;          // Ladder LP
-        s.filter.cutoffHz = 1600.0f; s.filter.resonance = 0.55f;
+        s.filter.cutoffHz = 1600.0f; s.filter.resonance = 6.92f;
         s.filter.ladderSlope = 4; s.filter.ladderDrive = 4.0f;
         s.ampEnv.attackMs = 2.0f; s.ampEnv.decayMs = 200.0f;
         s.ampEnv.sustain = 0.85f; s.ampEnv.releaseMs = 150.0f;
@@ -3024,7 +3024,7 @@ std::vector<PresetDef> createAllPresets() {
         // --- Filter: SVF High-Pass hollows the low end -> cold air ---
         s.filter.type = 1;                // SVF HP
         s.filter.cutoffHz = 320.0f;
-        s.filter.resonance = 0.3f;
+        s.filter.resonance = 4.09f;
         // --- Motion 1: a QUANTIZED LFO steps the spectral morph -> the ghost drifts in stages ---
         s.lfo1.rateHz = 0.12f;
         s.lfo1.shape = 1;                 // Triangle
@@ -3165,7 +3165,7 @@ std::vector<PresetDef> createAllPresets() {
         // --- Filter: resonant Comb -> metallic ringing body ---
         s.filter.type = 6;                // Comb
         s.filter.cutoffHz = 700.0f;       // comb tuning
-        s.filter.resonance = 0.72f;       // long ring, still stable
+        s.filter.resonance = 8.84f;       // long ring, still stable
         s.filter.combDamping = 0.25f;
         // --- Percussive filter env sweeps the comb on each strike ---
         // (envAmount is PLAIN semitones, range -48..+48 -- NOT a Hz value)
@@ -3229,7 +3229,7 @@ std::vector<PresetDef> createAllPresets() {
         // --- Ladder LP with a CORRECTED audible filter-env swell (semitones, not Hz)
         s.filter.type = 4;         // Ladder LP
         s.filter.cutoffHz = 2600.0f;
-        s.filter.resonance = 0.32f;
+        s.filter.resonance = 4.32f;
         s.filter.ladderSlope = 3;  // 18 dB/oct, softer than full 24
         s.filter.envAmount = 18.0f; // +18 st bloom (was the broken 4000 idiom)
         s.filterEnv.attackMs = 350.0f;
@@ -3304,7 +3304,7 @@ std::vector<PresetDef> createAllPresets() {
         // --- SVF LP, bright, with a CORRECTED filter-env snap on each note
         s.filter.type = 0;         // SVF LP
         s.filter.cutoffHz = 3500.0f;
-        s.filter.resonance = 0.3f;
+        s.filter.resonance = 4.09f;
         s.filter.svfDrive = 4.0f;  // a little edge
         s.filter.envAmount = 28.0f; // +28 st zap (corrected semitone amount)
         s.filterEnv.attackMs = 2.0f;
@@ -3380,7 +3380,7 @@ std::vector<PresetDef> createAllPresets() {
         s.mixer.position = 0.4f;
         s.filter.type = 4;         // Ladder LP
         s.filter.cutoffHz = 900.0f;
-        s.filter.resonance = 0.45f;
+        s.filter.resonance = 5.79f;
         s.filter.ladderSlope = 4;  // 24 dB/oct
         s.filter.ladderDrive = 7.0f; // grit (osc levels moderated to compensate)
         // CORRECTED filter-env: a hard +30 st thump on every hit
@@ -3447,7 +3447,7 @@ std::vector<PresetDef> createAllPresets() {
         s.mixer.position = 0.45f;
         s.filter.type = 0;         // SVF LP
         s.filter.cutoffHz = 3200.0f;
-        s.filter.resonance = 0.18f;
+        s.filter.resonance = 2.73f;
         // CORRECTED filter-env: a gentle bow-swell opening as the note sustains
         s.filter.envAmount = 14.0f;
         s.filterEnv.attackMs = 400.0f;
@@ -3524,7 +3524,7 @@ std::vector<PresetDef> createAllPresets() {
         s.mixer.position = 0.25f;
         s.filter.type = 0;         // SVF LP
         s.filter.cutoffHz = 4500.0f;
-        s.filter.resonance = 0.25f;
+        s.filter.resonance = 3.53f;
         s.ampEnv.attackMs = 25.0f;
         s.ampEnv.decayMs = 400.0f;
         s.ampEnv.sustain = 0.7f;
@@ -3599,7 +3599,7 @@ std::vector<PresetDef> createAllPresets() {
         // --- SVF band-pass keeps only the resonant core of the noise ---
         s.filter.type = 2; // SVF BP
         s.filter.cutoffHz = 1400.0f; // low base so the upward chaos/env sweep is audible
-        s.filter.resonance = 0.45f;
+        s.filter.resonance = 5.79f;
         s.filter.envAmount = 18.0f; // FIXED semitone value (was the class of 4000-Hz bug); +18 st = clear sweep
         s.filterEnv.attackMs = 4.0f; s.filterEnv.decayMs = 700.0f;
         s.filterEnv.sustain = 0.2f; s.filterEnv.releaseMs = 500.0f;
@@ -3672,6 +3672,7 @@ std::vector<PresetDef> createAllPresets() {
         s.filter.formantMorph = 0.5f;
         s.filter.formantGender = -0.4f; // FORMANTGENDER coverage: shift toward male/monster
         s.filter.cutoffHz = 5000.0f;
+        s.filter.resonance = 0.71f;     // inert for Formant, but keeps the bank off the Q floor
         // --- Ring modulator, NOTE-TRACKED so the metallic edge stays musical (classic robot voice) ---
         s.distortion.type = 6; // Ring Modulator
         s.distortion.drive = 0.3f;
@@ -3746,7 +3747,7 @@ std::vector<PresetDef> createAllPresets() {
         // --- ENV-FILTER (auto-wah): the filter itself follows dynamics, base freq stepped by S&H ---
         s.filter.type = 11; // Env Filter
         s.filter.cutoffHz = 800.0f; // low base so the wah has room to open
-        s.filter.resonance = 0.5f;
+        s.filter.resonance = 6.35f;
         s.filter.envSubType = 1; // BP response = vocal wah
         s.filter.envSensitivity = 8.0f; // dB - reacts to input level
         s.filter.envDepth = 0.8f;
@@ -3808,7 +3809,7 @@ std::vector<PresetDef> createAllPresets() {
         // --- SVF band-pass isolates the folded formant peak; fast filter-env pluck ---
         s.filter.type = 2; // SVF BP
         s.filter.cutoffHz = 1200.0f; // low base; env + envFollower sweep it up
-        s.filter.resonance = 0.45f;
+        s.filter.resonance = 5.79f;
         s.filter.svfDrive = 6.0f; // a little post-filter grit
         s.filter.envAmount = 30.0f; // +30 st snappy pluck sweep (FIXED semitone value)
         s.filterEnv.attackMs = 2.0f; s.filterEnv.decayMs = 260.0f;
@@ -3868,7 +3869,7 @@ std::vector<PresetDef> createAllPresets() {
         // --- COMB filter: metallic, resonant, tuneable ringing = the Benjolin voice ---
         s.filter.type = 6; // Comb
         s.filter.cutoffHz = 1200.0f; // comb tuning
-        s.filter.resonance = 0.6f; // feedback = strong metallic ring
+        s.filter.resonance = 7.48f; // feedback = strong metallic ring
         s.filter.combDamping = 0.3f; // tame the extreme highs in the feedback
         // --- Granular waveshaper distortion: chops the noise into grains ---
         s.distortion.type = 3; // Granular
@@ -3930,7 +3931,7 @@ std::vector<PresetDef> createAllPresets() {
         // Ladder filter exercised with real drive/slope (not the stock SVF LP).
         s.filter.type = 4;           // Ladder
         s.filter.cutoffHz = 3200.0f;
-        s.filter.resonance = 0.25f;
+        s.filter.resonance = 3.53f;
         s.filter.ladderSlope = 4;    // 24 dB/oct
         s.filter.ladderDrive = 4.0f; // warm valve-ish saturation into the ladder
         s.filter.keyTrack = 0.3f;    // filter opens with pitch for natural top
@@ -3996,7 +3997,7 @@ std::vector<PresetDef> createAllPresets() {
         s.filter.type = 10;          // SVF Hi Shelf
         s.filter.cutoffHz = 4500.0f; // shelf corner
         s.filter.svfGain = 9.0f;     // +9 dB of icy air above 4.5 kHz
-        s.filter.resonance = 0.2f; s.filter.svfSlope = 1;
+        s.filter.resonance = 2.96f; s.filter.svfSlope = 1;
         s.ampEnv.attackMs = 600.0f; s.ampEnv.decayMs = 800.0f;
         s.ampEnv.sustain = 0.65f;   s.ampEnv.releaseMs = 2500.0f;
         // Big MODULATED HALL with pre-delay = the frozen cathedral of ice.
@@ -4047,7 +4048,7 @@ std::vector<PresetDef> createAllPresets() {
         s.mixer.position = 0.4f;
         // SVF LP with post-filter drive = analog grit that distinguishes it from HH's Ladder.
         s.filter.type = 0;           // SVF LP
-        s.filter.cutoffHz = 3200.0f; s.filter.resonance = 0.15f;
+        s.filter.cutoffHz = 3200.0f; s.filter.resonance = 2.40f;
         s.filter.svfDrive = 3.0f;    // gentle saturation in the filter
         // NOT STATIC: a corrected filter-env AND a slow modEnv both bloom the cutoff.
         s.filter.envAmount = 15.0f;  // +15 st (fixed semitone value, was garbage 4000)
@@ -4102,7 +4103,7 @@ std::vector<PresetDef> createAllPresets() {
         // SPECTRAL MORPH mixer - FFT interpolation between the two spectra, with tilt.
         s.mixer.mode = 1;            // SpectralMorph
         s.mixer.position = 0.5f; s.mixer.tilt = 3.0f; // brighten the morphed spectrum
-        s.filter.type = 0; s.filter.cutoffHz = 6000.0f; s.filter.resonance = 0.15f;
+        s.filter.type = 0; s.filter.cutoffHz = 6000.0f; s.filter.resonance = 2.40f;
         // BEZIER amp envelope: a hand-shaped slow-then-fast swell (never used elsewhere).
         s.ampEnv.attackMs = 700.0f; s.ampEnv.decayMs = 500.0f;
         s.ampEnv.sustain = 0.85f;   s.ampEnv.releaseMs = 2000.0f;
@@ -4149,7 +4150,7 @@ std::vector<PresetDef> createAllPresets() {
         s.oscB.type = 0; s.oscB.waveform = 2;
         s.oscB.tuneSemitones = 12.0f; s.oscB.level = 0.4f;         // octave-up rank
         s.mixer.position = 0.35f;
-        s.filter.type = 0; s.filter.cutoffHz = 5500.0f; s.filter.resonance = 0.1f;
+        s.filter.type = 0; s.filter.cutoffHz = 5500.0f; s.filter.resonance = 1.83f;
         // Quick-on, high-sustain organ amp shape.
         s.ampEnv.attackMs = 120.0f; s.ampEnv.decayMs = 400.0f;
         s.ampEnv.sustain = 0.9f;    s.ampEnv.releaseMs = 900.0f;
@@ -4205,7 +4206,7 @@ std::vector<PresetDef> createAllPresets() {
         s.mixer.shift = 12.0f; // small inharmonic freq shift for otherworldliness
         // FILTER: SVF LP (NON-spectral) kept below max so the corrected filter-env sweep is audible
         s.filter.type = 0; // SVF LP
-        s.filter.cutoffHz = 2500.0f; s.filter.resonance = 0.3f;
+        s.filter.cutoffHz = 2500.0f; s.filter.resonance = 4.09f;
         s.filter.envAmount = 22.0f; // +22 semitones = big, SLOW audible sweep (bug-fixed range)
         s.filterEnv.attackMs = 2000.0f; s.filterEnv.decayMs = 3500.0f;
         s.filterEnv.sustain = 0.35f; s.filterEnv.releaseMs = 4000.0f;
@@ -4263,7 +4264,7 @@ std::vector<PresetDef> createAllPresets() {
         s.mixer.position = 0.42f; // favour the PD core slightly
         // FILTER: 24 dB Ladder WITH drive - the tape-warmth engine's front end
         s.filter.type = 4; // Ladder
-        s.filter.cutoffHz = 2600.0f; s.filter.resonance = 0.3f;
+        s.filter.cutoffHz = 2600.0f; s.filter.resonance = 4.09f;
         s.filter.ladderSlope = 4; // 24 dB/oct
         s.filter.ladderDrive = 6.0f; // pushes the ladder into gentle saturation
         s.filter.envAmount = 20.0f; // corrected: +20 semitones for an audible opening swell
@@ -4329,7 +4330,7 @@ std::vector<PresetDef> createAllPresets() {
         // the divergent filter (type 9) that breaks the 4-way hi-shelf collision.
         s.filter.type = 9; // SVF Lo Shelf
         s.filter.cutoffHz = 400.0f;  // shelf corner - everything below is lifted
-        s.filter.resonance = 0.2f;
+        s.filter.resonance = 2.96f;
         s.filter.svfGain = 6.0f;     // +6 dB low shelf = warm, round bottom
         s.filter.svfSlope = 1;
         // AMP: warm swell, exponential slow-start
@@ -4384,7 +4385,7 @@ std::vector<PresetDef> createAllPresets() {
         // FILTER: Formant filter shapes a second vocal-tract layer, gender shifted feminine
         s.filter.type = 5; // Formant filter
         s.filter.formantMorph = 1.0f; s.filter.formantGender = -0.3f;
-        s.filter.cutoffHz = 4000.0f; s.filter.resonance = 0.4f;
+        s.filter.cutoffHz = 4000.0f; s.filter.resonance = 5.22f;
         // AMP: choir swell
         s.ampEnv.attackMs = 450.0f; s.ampEnv.decayMs = 700.0f;
         s.ampEnv.sustain = 0.8f; s.ampEnv.releaseMs = 1600.0f;
@@ -4431,7 +4432,7 @@ std::vector<PresetDef> createAllPresets() {
         s.mixer.position = 0.25f; // mostly the formant voice
         // FILTER: SVF HIGH-PASS to thin the lows -> airy, glassy choir with no mud
         s.filter.type = 1; // SVF HP
-        s.filter.cutoffHz = 220.0f; s.filter.resonance = 0.4f;
+        s.filter.cutoffHz = 220.0f; s.filter.resonance = 5.22f;
         s.filter.svfSlope = 1;
         // AMP: eased swell, both attack and release curved for a breathing choir
         s.ampEnv.attackMs = 400.0f; s.ampEnv.decayMs = 600.0f;
@@ -4485,7 +4486,7 @@ std::vector<PresetDef> createAllPresets() {
         // --- Comb filter = the metallic cavern resonance; low tuning, moderate damping
         s.filter.type = 6;                         // Comb
         s.filter.cutoffHz = 300.0f;                // low comb pitch for a big hollow space
-        s.filter.resonance = 0.5f;
+        s.filter.resonance = 6.35f;
         s.filter.combDamping = 0.55f;              // rounds off the harsh metallic top
         s.filter.keyTrack = 1.0f;                  // comb resonance follows the played note
         // --- Slow, generous amp shape with an exponential (slow) release tail
@@ -4542,7 +4543,7 @@ std::vector<PresetDef> createAllPresets() {
         s.mixer.shift = 0.15f;                     // subtle inharmonic freq shift
         // --- SVF Hi-Shelf filter lifts the very top for that solar sparkle
         s.filter.type = 10;                        // SVF Hi Shelf
-        s.filter.cutoffHz = 3500.0f; s.filter.resonance = 0.2f;
+        s.filter.cutoffHz = 3500.0f; s.filter.resonance = 2.96f;
         s.filter.svfGain = 6.0f;                   // +6 dB shelf boost above 3.5 kHz
         s.filter.svfSlope = 1;
         // --- Per-bin SPECTRAL distortion adds gentle harmonic glint
@@ -4598,7 +4599,7 @@ std::vector<PresetDef> createAllPresets() {
         // --- Driven LADDER filter, 18 dB/oct. Starts nearly closed so the env does the work.
         s.filter.type = 4;                         // Ladder LP
         s.filter.cutoffHz = 900.0f;                // low base -> big audible sweep on top
-        s.filter.resonance = 0.35f;
+        s.filter.resonance = 4.66f;
         s.filter.envAmount = 30.0f;                // CORRECTED: +30 SEMITONES (not the bugged Hz value)
         s.filter.ladderSlope = 3;                  // 18 dB/oct
         s.filter.ladderDrive = 4.0f;               // input drive = brassy grind
@@ -4656,7 +4657,7 @@ std::vector<PresetDef> createAllPresets() {
         //     patch, so the band-limited result was inaudible. The alien
         //     "formant" character now comes from the ring modulator instead.
         s.filter.type = 4;                         // Ladder LP
-        s.filter.cutoffHz = 1400.0f; s.filter.resonance = 0.35f;
+        s.filter.cutoffHz = 1400.0f; s.filter.resonance = 4.66f;
         s.filter.ladderSlope = 4;                  // 24 dB/oct
         s.filter.ladderDrive = 15.0f;              // dB of input drive: makeup + grit
         // --- Ring modulator at a note-tracked ratio = the metallic alien voice
@@ -4711,7 +4712,7 @@ std::vector<PresetDef> createAllPresets() {
         s.oscB.tuneSemitones = 12.0f; s.oscB.level = 0.2f;         // octave up glassy anchor
         s.mixer.position = 0.18f;
         // --- Gentle LP keeps it glassy, not harsh
-        s.filter.type = 0; s.filter.cutoffHz = 5500.0f; s.filter.resonance = 0.15f;
+        s.filter.type = 0; s.filter.cutoffHz = 5500.0f; s.filter.resonance = 2.40f;
         // --- BEZIER amp envelope: a hand-shaped slow ease-in swell + long tail
         s.ampEnv.attackMs = 900.0f; s.ampEnv.decayMs = 700.0f;
         s.ampEnv.sustain = 0.85f; s.ampEnv.releaseMs = 3200.0f;
@@ -4764,7 +4765,7 @@ std::vector<PresetDef> createAllPresets() {
         // --- Filter: Envelope Filter (auto-wah) is the quack engine ---
         s.filter.type = 11;           // EnvelopeFilter
         s.filter.cutoffHz = 1400.0f;  // rest position of the wah
-        s.filter.resonance = 0.7f;    // vocal peak
+        s.filter.resonance = 8.61f;    // vocal peak
         s.filter.envSubType = 0;      // LP response
         s.filter.envSensitivity = 8.0f;  // reacts strongly to input level -> quacks on dynamics
         s.filter.envDepth = 0.8f;     // wide sweep
@@ -4810,7 +4811,7 @@ std::vector<PresetDef> createAllPresets() {
         // --- Ladder filter: 18 dB with a touch of drive for saw warmth ---
         s.filter.type = 4;            // Ladder
         s.filter.cutoffHz = 4500.0f;
-        s.filter.resonance = 0.25f;
+        s.filter.resonance = 3.53f;
         s.filter.ladderSlope = 3;     // 18 dB/oct
         s.filter.ladderDrive = 4.0f;  // gentle input push
         // --- Amp ---
@@ -4874,7 +4875,7 @@ std::vector<PresetDef> createAllPresets() {
         // --- Ladder 24 dB with drive tames + thickens the chaos ---
         s.filter.type = 4;            // Ladder
         s.filter.cutoffHz = 3500.0f;
-        s.filter.resonance = 0.35f;
+        s.filter.resonance = 4.66f;
         s.filter.ladderSlope = 4;     // 24 dB/oct
         s.filter.ladderDrive = 6.0f;
         s.filter.envAmount = 22.0f;   // CORRECTED: +22 SEMITONES (old 18 was ~inaudible)
@@ -4926,7 +4927,7 @@ std::vector<PresetDef> createAllPresets() {
         // --- SVF Bandpass, tracking the keyboard, with a filter-env sweep ---
         s.filter.type = 2;            // SVF BP
         s.filter.cutoffHz = 1300.0f;
-        s.filter.resonance = 0.5f;
+        s.filter.resonance = 6.35f;
         s.filter.keyTrack = 1.0f;     // band follows pitch -> consistent grit per note
         s.filter.svfSlope = 1;        // 24 dB
         s.filter.svfDrive = 3.0f;
@@ -4972,7 +4973,7 @@ std::vector<PresetDef> createAllPresets() {
         // --- Comb filter adds tuned metallic resonance to the ring output ---
         s.filter.type = 6;            // Comb
         s.filter.cutoffHz = 2500.0f;  // comb tuning
-        s.filter.resonance = 0.5f;    // feedback depth
+        s.filter.resonance = 6.35f;    // feedback depth
         s.filter.combDamping = 0.4f;  // roll off the high resonances a touch
         // --- Ring modulator, note-tracked at ~3.5x for inharmonic clang ---
         s.distortion.type = 6;        // Ring Modulator
@@ -5015,7 +5016,7 @@ std::vector<PresetDef> createAllPresets() {
         s.mixer.position = 0.42f;
         // Ladder pushed hard: the diode drive is half this lead's grit
         s.filter.type = 4; // Ladder
-        s.filter.cutoffHz = 3800.0f; s.filter.resonance = 0.3f;
+        s.filter.cutoffHz = 3800.0f; s.filter.resonance = 4.09f;
         s.filter.ladderSlope = 4;    // 24 dB/oct = full ladder body
         s.filter.ladderDrive = 8.0f; // strong input drive into the ladder
         s.filter.keyTrack = 0.2f;    // a touch of tracking so highs stay open
@@ -5074,7 +5075,7 @@ std::vector<PresetDef> createAllPresets() {
         s.mixer.position = 0.25f; // favor the particle cloud, sine underneath
         // Ladder keeps grain fizz musical
         s.filter.type = 4; // Ladder
-        s.filter.cutoffHz = 4200.0f; s.filter.resonance = 0.25f;
+        s.filter.cutoffHz = 4200.0f; s.filter.resonance = 3.53f;
         s.filter.ladderSlope = 3; // 18 dB/oct, a hair softer
         s.filter.envAmount = 18.0f; // gentle attack lift (fixed: semitones)
         s.filterEnv.attackMs = 8.0f; s.filterEnv.decayMs = 260.0f;
@@ -5164,7 +5165,7 @@ std::vector<PresetDef> createAllPresets() {
         s.mixer.position = 0.12f; // mostly saw, noise just sparks the resonance
         // Comb filter, key-tracked so the metallic pitch follows the note
         s.filter.type = 6; // Comb
-        s.filter.cutoffHz = 1200.0f; s.filter.resonance = 0.7f; // feedback = the 'ring'
+        s.filter.cutoffHz = 1200.0f; s.filter.resonance = 8.61f; // feedback = the 'ring'
         s.filter.combDamping = 0.25f; // static HF damping in the feedback path
         s.filter.keyTrack = 0.85f;
         // Small env on comb frequency = a short metallic chirp as the note starts
@@ -5254,7 +5255,7 @@ std::vector<PresetDef> createAllPresets() {
         s.oscB.level = 0.85f;
         s.mixer.position = 0.5f;   // centered so morph can travel full A<->B
         // Plain SVF LP with a touch of drive for body under the hollow pulses.
-        s.filter.type = 0; s.filter.cutoffHz = 3800.0f; s.filter.resonance = 0.35f;
+        s.filter.type = 0; s.filter.cutoffHz = 3800.0f; s.filter.resonance = 4.66f;
         s.filter.svfSlope = 1; s.filter.svfDrive = 4.0f;
         s.ampEnv.attackMs = 8.0f; s.ampEnv.decayMs = 400.0f;
         s.ampEnv.sustain = 0.75f; s.ampEnv.releaseMs = 350.0f;
@@ -5294,7 +5295,7 @@ std::vector<PresetDef> createAllPresets() {
         s.mixer.position = 0.35f;
         // Ladder 18 dB/oct with input drive = the classic brass filter voice.
         s.filter.type = 4; // Ladder
-        s.filter.cutoffHz = 1400.0f; s.filter.resonance = 0.3f;
+        s.filter.cutoffHz = 1400.0f; s.filter.resonance = 4.09f;
         s.filter.ladderSlope = 3;   // 18 dB/oct
         s.filter.ladderDrive = 6.0f;
         // *** BUG FIX ***: envAmount is PLAIN SEMITONES (-48..+48), not Hz.
@@ -5338,7 +5339,7 @@ std::vector<PresetDef> createAllPresets() {
         s.mixer.position = 0.25f;
         // Comb filter = metallic, hollow resonance that suits the airy source.
         s.filter.type = 6; // Comb
-        s.filter.cutoffHz = 1800.0f; s.filter.resonance = 0.45f;
+        s.filter.cutoffHz = 1800.0f; s.filter.resonance = 5.79f;
         s.filter.combDamping = 0.3f; // tame the highest comb teeth
         s.ampEnv.attackMs = 40.0f; s.ampEnv.decayMs = 600.0f;
         s.ampEnv.sustain = 0.8f; s.ampEnv.releaseMs = 700.0f; // long airy tail
@@ -5380,7 +5381,7 @@ std::vector<PresetDef> createAllPresets() {
         s.mixer.position = 0.35f;
         // SVF bandpass isolates a nasal formant band for the LFO to sweep.
         s.filter.type = 2; // SVF BP
-        s.filter.cutoffHz = 2000.0f; s.filter.resonance = 0.5f; s.filter.svfSlope = 1;
+        s.filter.cutoffHz = 2000.0f; s.filter.resonance = 6.35f; s.filter.svfSlope = 1;
         // A modest filter-env sweep on top (envAmount is PLAIN SEMITONES).
         s.filter.envAmount = 20.0f;
         s.ampEnv.attackMs = 2.0f; s.ampEnv.decayMs = 300.0f;
@@ -5422,7 +5423,7 @@ std::vector<PresetDef> createAllPresets() {
         s.mixer.position = 0.45f;
         // Envelope-follower filter (auto-wah): the fold/attack energy sweeps it.
         s.filter.type = 11; // Env Filter
-        s.filter.cutoffHz = 600.0f; s.filter.resonance = 0.4f;
+        s.filter.cutoffHz = 600.0f; s.filter.resonance = 5.22f;
         s.filter.envSubType = 0;      // LP response
         s.filter.envSensitivity = 6.0f;
         s.filter.envDepth = 0.8f;
@@ -5475,7 +5476,7 @@ std::vector<PresetDef> createAllPresets() {
 
             // Ladder LP with input drive — the tube-y grind stage (Ladder slope/drive)
             s.filter.type = 4;            // Ladder
-            s.filter.cutoffHz = 1800.0f; s.filter.resonance = 0.3f;
+            s.filter.cutoffHz = 1800.0f; s.filter.resonance = 4.09f;
             s.filter.ladderSlope = 4;     // 24 dB/oct
             s.filter.ladderDrive = 6.0f;  // dB of input drive for extra grit
 
@@ -5589,7 +5590,7 @@ std::vector<PresetDef> createAllPresets() {
             // EnvFilter auto-wah: input envelope opens the filter per note
             s.filter.type = 11;            // Env Filter
             s.filter.cutoffHz = 350.0f;    // base
-            s.filter.resonance = 0.5f;
+            s.filter.resonance = 6.35f;
             s.filter.envSubType = 0;       // LP response
             s.filter.envSensitivity = 6.0f;
             s.filter.envDepth = 0.85f;
@@ -5645,7 +5646,7 @@ std::vector<PresetDef> createAllPresets() {
             // SVF LP (24 dB) with a touch of drive; the filter env sweeps it down hard
             s.filter.type = 0;             // SVF LP
             s.filter.cutoffHz = 500.0f;
-            s.filter.resonance = 0.5f;
+            s.filter.resonance = 6.35f;
             s.filter.svfSlope = 1;         // 24 dB
             s.filter.svfDrive = 4.0f;
             s.filter.envAmount = 28.0f;    // FIX: +28 semitones of sweep (was 30 => near-zero)
@@ -5693,7 +5694,7 @@ std::vector<PresetDef> createAllPresets() {
             // Key-tracked comb filter => a hollow, resonant body that follows pitch
             s.filter.type = 6;             // Comb
             s.filter.cutoffHz = 1600.0f;
-            s.filter.resonance = 0.35f;
+            s.filter.resonance = 4.66f;
             s.filter.combDamping = 0.35f;  // tame the HF in the comb feedback
             s.filter.keyTrack = 1.0f;      // comb resonance tracks the note
 
@@ -5746,7 +5747,7 @@ std::vector<PresetDef> createAllPresets() {
         // FORMANT FILTER (type 5) — a SECOND vowel stage; morph+gender for a masculine 'aw'
         s.filter.type = 5;
         s.filter.cutoffHz = 800.0f;
-        s.filter.resonance = 0.4f;
+        s.filter.resonance = 5.22f;
         s.filter.formantMorph = 1.2f;   // filter vowel toward E — combs the formant osc for a talking timbre
         s.filter.formantGender = -0.3f; // shift formants down = chest-voice / male bass
         // Corrected filter-env: PLAIN semitones (+18 = audible vowel-brightening on attack)
@@ -5797,7 +5798,7 @@ std::vector<PresetDef> createAllPresets() {
         // (no ring-out motion) vs Sinew's live, moving string.
         s.filter.type = 6;
         s.filter.cutoffHz = 220.0f;  // low comb reference (keytrack scales it per-note)
-        s.filter.resonance = 0.72f;  // rings, but tamed by damping below
+        s.filter.resonance = 8.84f;  // rings, but tamed by damping below
         s.filter.combDamping = 0.45f;// strong HF loss in feedback = warm, dead, static string
         s.filter.keyTrack = 1.0f;    // comb follows pitch - essential for a tuned pluck
         // Corrected filter-env: PLAIN +28 st fast decay = bright pluck attack that dulls quickly
@@ -5882,7 +5883,7 @@ std::vector<PresetDef> createAllPresets() {
         // SVF NOTCH (type 3): scoops a mid band so it doesn't sit on its siblings' LP curve
         s.filter.type = 3;
         s.filter.cutoffHz = 700.0f;  // notch centre in the low-mids
-        s.filter.resonance = 0.8f;
+        s.filter.resonance = 9.74f;
         // Corrected filter-env: PLAIN +22 st sweeps the notch on attack = moving hollow
         s.filter.envAmount = 22.0f;
         s.filterEnv.attackMs = 2.0f; s.filterEnv.decayMs = 200.0f;
@@ -5935,7 +5936,7 @@ std::vector<PresetDef> createAllPresets() {
         // ENV FILTER (type 11) auto-wah: the cloud squelches under its own envelope
         s.filter.type = 11;
         s.filter.cutoffHz = 350.0f;      // base — the auto-wah sweeps up from here
-        s.filter.resonance = 1.0f;
+        s.filter.resonance = 12.00f;
         s.filter.envSubType = 0;         // LP response
         s.filter.envSensitivity = 6.0f;  // +6 dB input drive into the follower
         s.filter.envDepth = 0.8f;        // strong sweep
@@ -5976,7 +5977,7 @@ std::vector<PresetDef> createAllPresets() {
         s.mixer.position = 0.32f;                        // favour the saw
         // SVF LP with a CORRECTED filter-env sweep (semitones, not Hz) => plucky per note
         s.filter.type = 0;                               // SVF LP
-        s.filter.cutoffHz = 420.0f; s.filter.resonance = 0.9f;
+        s.filter.cutoffHz = 420.0f; s.filter.resonance = 10.87f;
         s.filter.envAmount = 22.0f;                      // +22 st sweep (fixes the bogus-Hz envAmount bug class)
         s.filterEnv.attackMs = 2.0f; s.filterEnv.decayMs = 180.0f;
         s.filterEnv.sustain = 0.18f; s.filterEnv.releaseMs = 200.0f;
@@ -6020,7 +6021,7 @@ std::vector<PresetDef> createAllPresets() {
         s.mixer.position = 0.5f;
         // Comb filter, key-tracked => hollow phasey resonances that follow the note
         s.filter.type = 6;                               // Comb
-        s.filter.cutoffHz = 200.0f; s.filter.resonance = 0.35f;
+        s.filter.cutoffHz = 200.0f; s.filter.resonance = 4.66f;
         s.filter.combDamping = 0.5f;                     // tame the metallic top so it stays a bass
         s.filter.keyTrack = 1.0f;                        // comb tunes with pitch
         s.ampEnv.attackMs = 3.0f; s.ampEnv.decayMs = 200.0f;
@@ -6056,7 +6057,7 @@ std::vector<PresetDef> createAllPresets() {
         s.mixer.position = 0.35f;
         // A TRUE ladder (24 dB) with drive + keytrack - the audit's mislabelled "ladder" made real
         s.filter.type = 4;                               // Ladder
-        s.filter.cutoffHz = 900.0f; s.filter.resonance = 0.3f;
+        s.filter.cutoffHz = 900.0f; s.filter.resonance = 4.09f;
         s.filter.ladderSlope = 4;                        // 24 dB/oct
         s.filter.ladderDrive = 3.0f;                     // gentle valve warmth
         s.filter.keyTrack = 0.5f;                        // follows pitch so high notes stay open
@@ -6094,7 +6095,7 @@ std::vector<PresetDef> createAllPresets() {
         s.mixer.position = 0.25f;
         // Envelope FILTER (auto-wah) - opens upward on each note attack
         s.filter.type = 11;                              // EnvFilter
-        s.filter.cutoffHz = 1400.0f; s.filter.resonance = 0.55f;
+        s.filter.cutoffHz = 1400.0f; s.filter.resonance = 6.92f;
         s.filter.envSubType = 0;                         // LP response
         s.filter.envSensitivity = 8.0f; s.filter.envDepth = 0.8f;
         s.filter.envAttack = 3.0f; s.filter.envRelease = 60.0f;
@@ -6176,7 +6177,7 @@ std::vector<PresetDef> createAllPresets() {
         // FILTER: SVF Allpass (category owns it) - flat magnitude, phase-only.
         // Sweeping its cutoff via ModEnv creates a phaser-like notch once summed
         // through the widened/harmonised/reverberated stereo field.
-        s.filter.type = 7; s.filter.cutoffHz = 6000.0f; s.filter.resonance = 0.3f;
+        s.filter.type = 7; s.filter.cutoffHz = 6000.0f; s.filter.resonance = 4.09f;
         s.filter.svfSlope = 1;
         s.filter.envAmount = 20.0f;                                 // +20 st allpass sweep (bug-fixed range)
         s.filterEnv.attackMs = 1500.0f; s.filterEnv.decayMs = 3000.0f;
@@ -6246,7 +6247,9 @@ std::vector<PresetDef> createAllPresets() {
         s.oscB.level = 0.45f;
         s.mixer.mode = 0; s.mixer.position = 0.45f;
         // FILTER: resonant SVF Band-Pass carves a formant band out of the noise
-        s.filter.type = 2; s.filter.cutoffHz = 1500.0f; s.filter.resonance = 0.5f;
+        // Bandpass on pink noise: keep Q moderate so the band still passes level.
+        s.filter.type = 2; s.filter.cutoffHz = 1500.0f; s.filter.resonance = 2.0f;
+        s.global.masterGain = 1.8f;   // BP + 50% ring mod on a noise bed costs a lot of level
         s.filter.svfSlope = 1;
         s.filter.envAmount = 18.0f;                                    // slow BP sweep on note (bug-fixed)
         s.filterEnv.attackMs = 400.0f; s.filterEnv.decayMs = 1500.0f;
@@ -6316,7 +6319,7 @@ std::vector<PresetDef> createAllPresets() {
         // FILTER: tuned COMB -> metallic, key-tracked resonant body (replaces the shared SVF HP)
         s.filter.type = 6;                // Comb
         s.filter.cutoffHz = 220.0f;
-        s.filter.resonance = 0.6f;
+        s.filter.resonance = 7.48f;
         s.filter.combDamping = 0.3f;
         s.filter.keyTrack = 0.5f;
         // DISTORTION: WAVEFOLDER -> harsh digital fold (replaces the shared spectral bitcrush)
@@ -6389,7 +6392,7 @@ std::vector<PresetDef> createAllPresets() {
         s.oscB.level = 0.3f;
         s.mixer.mode = 0; s.mixer.position = 0.35f;
         // FILTER: SVF Notch (category owns it) - carves a moving gap out of the noise
-        s.filter.type = 3; s.filter.cutoffHz = 1200.0f; s.filter.resonance = 0.4f;
+        s.filter.type = 3; s.filter.cutoffHz = 1200.0f; s.filter.resonance = 5.22f;
         s.filter.svfSlope = 1;
         s.filter.envAmount = 15.0f;                                    // slow notch rise (bug-fixed)
         s.filterEnv.attackMs = 600.0f; s.filterEnv.decayMs = 2000.0f;
@@ -6451,7 +6454,7 @@ std::vector<PresetDef> createAllPresets() {
         s.mixer.mode = 1;                          // SpectralMorph
         s.mixer.position = 0.5f; s.mixer.tilt = 0.0f;
         // FILTER: resonant Comb adds a metallic, hollow throat body
-        s.filter.type = 6; s.filter.cutoffHz = 600.0f; s.filter.resonance = 0.5f;
+        s.filter.type = 6; s.filter.cutoffHz = 600.0f; s.filter.resonance = 6.35f;
         s.filter.combDamping = 0.4f;
         // AMP: breathy slow swell, high sustain
         s.ampEnv.attackMs = 900.0f; s.ampEnv.decayMs = 600.0f;
@@ -6520,7 +6523,7 @@ std::vector<PresetDef> createAllPresets() {
         // --- Resonant comb = the "string" the excitation drives ---
         s.filter.type = 6;            // Comb
         s.filter.cutoffHz = 440.0f;   // comb tuned near A4
-        s.filter.resonance = 0.85f;   // long ringing bow tail
+        s.filter.resonance = 10.30f;   // long ringing bow tail
         s.filter.combDamping = 0.30f; // bow damping in the feedback path
         s.filter.envAmount = 18.0f;   // FIX: plain semitones (audible swell) - not a Hz value
         // Filter env = the bow drawing across the string (slow rise, no re-attack)
@@ -6830,7 +6833,7 @@ std::vector<PresetDef> createAllPresets() {
         // SVF Allpass: no amplitude notch, just frequency-dependent phase smear -
         // the diffuse "wash" character this category owns.
         s.filter.type = 7;                              // SVF Allpass
-        s.filter.cutoffHz = 2200.0f; s.filter.resonance = 0.6f;
+        s.filter.cutoffHz = 2200.0f; s.filter.resonance = 7.48f;
         s.ampEnv.attackMs = 700.0f; s.ampEnv.decayMs = 600.0f;
         s.ampEnv.sustain = 0.8f; s.ampEnv.releaseMs = 2600.0f;
         s.ampEnv.attackCurve = 0.4f;                    // gentle slow-start swell
@@ -6871,7 +6874,7 @@ std::vector<PresetDef> createAllPresets() {
         s.mixer.position = 0.25f;                       // mostly saw, noise as fringe
         // SVF BandPass windows the grain cloud (per directive).
         s.filter.type = 2;                              // SVF BandPass
-        s.filter.cutoffHz = 2600.0f; s.filter.resonance = 0.5f;
+        s.filter.cutoffHz = 2600.0f; s.filter.resonance = 6.35f;
         s.filter.svfDrive = 4.0f;                       // slight post-filter grit
         // Granular distortion = the destroyer. All four grain params engaged.
         s.distortion.type = 3;                          // Granular
@@ -6921,7 +6924,7 @@ std::vector<PresetDef> createAllPresets() {
         s.mixer.position = 0.35f;
         // 24 dB ladder, low and resonant with input drive, to shape the rumble.
         s.filter.type = 4;                              // Ladder
-        s.filter.cutoffHz = 550.0f; s.filter.resonance = 0.45f;
+        s.filter.cutoffHz = 550.0f; s.filter.resonance = 5.79f;
         s.filter.ladderSlope = 4; s.filter.ladderDrive = 6.0f;
         // Tape saturation glues the low end.
         s.distortion.type = 5;                          // TapeSaturator
@@ -6971,7 +6974,7 @@ std::vector<PresetDef> createAllPresets() {
         s.mixer.position = 0.42f;
         // SVF Notch hollows the mid -> glassy "rain through a window" timbre.
         s.filter.type = 3;                              // SVF Notch
-        s.filter.cutoffHz = 1500.0f; s.filter.resonance = 0.8f;
+        s.filter.cutoffHz = 1500.0f; s.filter.resonance = 9.74f;
         // Ring modulator sprinkles inharmonic droplets (note-tracked carrier).
         s.distortion.type = 6;                          // RingModulator
         s.distortion.ringFreq = 0.6882f;               // ~440 Hz carrier (normalized)
@@ -7020,7 +7023,7 @@ std::vector<PresetDef> createAllPresets() {
         s.mixer.position = 0.5f; s.mixer.tilt = 1.0f;   // centered, gentle bright tilt
         // SVF High-pass thins the low end so the choir floats.
         s.filter.type = 1;                              // SVF HP
-        s.filter.cutoffHz = 180.0f; s.filter.resonance = 0.3f;
+        s.filter.cutoffHz = 180.0f; s.filter.resonance = 4.09f;
         s.ampEnv.attackMs = 900.0f; s.ampEnv.decayMs = 700.0f;
         s.ampEnv.sustain = 0.85f; s.ampEnv.releaseMs = 2800.0f;
         s.ampEnv.attackCurve = 0.5f;                    // breathy slow-start swell
@@ -7072,7 +7075,7 @@ std::vector<PresetDef> createAllPresets() {
         // --- Ladder LP with a REAL filter-env sweep (env is +semitones, not Hz) ---
         s.filter.type = 4;                        // Ladder LP for warmth
         s.filter.cutoffHz = 2200.0f;              // start dark so the sweep is audible
-        s.filter.resonance = 0.35f;
+        s.filter.resonance = 4.66f;
         s.filter.ladderSlope = 4;                 // 24 dB/oct
         s.filter.ladderDrive = 4.0f;              // gentle input push
         s.filter.envAmount = 22.0f;               // +22 st sweep (bug-fixed: NOT a Hz value)
@@ -7148,7 +7151,7 @@ std::vector<PresetDef> createAllPresets() {
         s.filter.type = 6;           // Comb
         s.filter.cutoffHz = 3000.0f; // comb tuning
         s.filter.combDamping = 0.3f;
-        s.filter.resonance = 0.5f;
+        s.filter.resonance = 6.35f;
         // --- Ring modulator: note-tracked so the clang stays musical ---
         s.distortion.type = 6;                 // Ring Modulator
         s.distortion.drive = 0.45f;
@@ -7201,7 +7204,7 @@ std::vector<PresetDef> createAllPresets() {
         // --- SVF LP with post-drive + a corrected filter-env sweep ---
         s.filter.type = 0;           // SVF LP
         s.filter.cutoffHz = 3200.0f;
-        s.filter.resonance = 0.3f;
+        s.filter.resonance = 4.09f;
         s.filter.svfSlope = 1;       // 24 dB
         s.filter.svfDrive = 6.0f;    // saturated LP for warmth
         s.filter.envAmount = 18.0f;  // +18 st sweep (bug-fixed semitone value)
@@ -7382,7 +7385,7 @@ std::vector<PresetDef> createAllPresets() {
         // Driven resonant ladder is the wobble's voice
         s.filter.type = 4; // Ladder
         s.filter.cutoffHz = 700.0f; // starts low so the LFO opens it dramatically
-        s.filter.resonance = 0.55f;
+        s.filter.resonance = 6.92f;
         s.filter.ladderSlope = 4; s.filter.ladderDrive = 3.0f;
         // FIXED filter-env: plain semitones (was the category's 4000 bug elsewhere).
         // +26 st per-note snap gives each gate hit a plucky attack under the wobble.
@@ -7440,7 +7443,7 @@ std::vector<PresetDef> createAllPresets() {
         s.mixer.position = 0.3f; // favour the spectral engine
         // SVF LP with a real filter-env so each chop MOVES (fixes the inert original)
         s.filter.type = 0; // SVF LP
-        s.filter.cutoffHz = 3000.0f; s.filter.resonance = 0.3f;
+        s.filter.cutoffHz = 3000.0f; s.filter.resonance = 4.09f;
         s.filter.envAmount = 30.0f; // +30 st sweep per note
         s.filterEnv.attackMs = 5.0f; s.filterEnv.decayMs = 260.0f;
         s.filterEnv.sustain = 0.3f; s.filterEnv.releaseMs = 300.0f;
@@ -7479,7 +7482,7 @@ std::vector<PresetDef> createAllPresets() {
         s.oscB.fineCents = 11.0f; s.oscB.level = 0.55f; // wider detune than a plain pad
         s.mixer.position = 0.4f;
         s.filter.type = 0; // SVF LP
-        s.filter.cutoffHz = 4200.0f; s.filter.resonance = 0.28f;
+        s.filter.cutoffHz = 4200.0f; s.filter.resonance = 3.86f;
         s.filter.svfDrive = 3.0f; // a little grit on the lead
         // FIXED filter-env: +18 st gives the lead a plucky opening on each note
         s.filter.envAmount = 18.0f;
@@ -7524,7 +7527,7 @@ std::vector<PresetDef> createAllPresets() {
         s.oscB.level = 0.45f;
         s.mixer.position = 0.35f;
         s.filter.type = 0; // SVF LP
-        s.filter.cutoffHz = 2500.0f; s.filter.resonance = 0.35f;
+        s.filter.cutoffHz = 2500.0f; s.filter.resonance = 4.66f;
         // FIXED filter-env: +24 st fast decay makes each Euclidean hit snap
         s.filter.envAmount = 24.0f;
         s.filterEnv.attackMs = 3.0f; s.filterEnv.decayMs = 160.0f;
@@ -7572,6 +7575,7 @@ std::vector<PresetDef> createAllPresets() {
         s.filter.type = 5; // Formant
         s.filter.formantMorph = 1.6f;   // between E and I -> present, articulate
         s.filter.formantGender = 0.3f;  // slightly higher formants
+        s.filter.resonance = 0.71f;     // inert for Formant, but keeps the bank off the Q floor
         // NOTE: for the Formant filter, 'cutoff' maps to FORMANT SHIFT (semitones).
         // 1000 Hz = 0 semitone shift baseline; the LFO/env below move it => vowel motion.
         s.filter.cutoffHz = 1000.0f;
@@ -7614,7 +7618,7 @@ std::vector<PresetDef> createAllPresets() {
         s.oscB.type = 0; s.oscB.waveform = 1; s.oscB.fineCents = 7.0f;  s.oscB.level = 0.60f;
         s.mixer.mode = 0; s.mixer.position = 0.5f;        // centre crossfade; LFO1 sweeps it
         // SVF LP with a slow, AUDIBLE filter-env swell (envAmount is in SEMITONES)
-        s.filter.type = 0; s.filter.cutoffHz = 2400.0f; s.filter.resonance = 0.35f;
+        s.filter.type = 0; s.filter.cutoffHz = 2400.0f; s.filter.resonance = 4.66f;
         s.filter.envAmount = 16.0f; s.filter.keyTrack = 0.2f; s.filter.svfDrive = 3.0f;
         // Slow pad amp + a long gradual filter swell for the wash
         s.ampEnv.attackMs = 180.0f; s.ampEnv.decayMs = 600.0f;
@@ -7670,7 +7674,7 @@ std::vector<PresetDef> createAllPresets() {
         s.oscB.type = 0; s.oscB.waveform = 4; s.oscB.fineCents = 5.0f; s.oscB.level = 0.5f; // Triangle
         s.mixer.position = 0.4f;
         // FORMANT filter (type 5) => vocal aah/ooh pulses instead of the usual LP monoculture
-        s.filter.type = 5; s.filter.cutoffHz = 1200.0f; s.filter.resonance = 0.6f;
+        s.filter.type = 5; s.filter.cutoffHz = 1200.0f; s.filter.resonance = 7.48f;
         s.filter.formantMorph = 1.5f;    // between E and I
         s.filter.formantGender = -0.3f;  // slightly larger throat
         s.filter.envAmount = 20.0f;      // filterEnv sweeps the vowel (semitones, corrected)
@@ -7713,7 +7717,7 @@ std::vector<PresetDef> createAllPresets() {
         s.oscB.type = 0; s.oscB.waveform = 4; s.oscB.tuneSemitones = -12.0f; s.oscB.level = 0.55f;
         s.mixer.position = 0.38f;
         // Ladder LP (type 4) with a STRONG corrected filter env (semitones, +22)
-        s.filter.type = 4; s.filter.cutoffHz = 900.0f; s.filter.resonance = 0.5f;
+        s.filter.type = 4; s.filter.cutoffHz = 900.0f; s.filter.resonance = 6.35f;
         s.filter.envAmount = 22.0f; s.filter.ladderSlope = 4; s.filter.ladderDrive = 4.0f;
         // Punchy pluck amp; fast snappy filter env
         s.ampEnv.attackMs = 2.0f; s.ampEnv.decayMs = 220.0f;
@@ -7758,7 +7762,7 @@ std::vector<PresetDef> createAllPresets() {
         s.oscB.tuneSemitones = -12.0f; s.oscB.fineCents = 4.0f; s.oscB.level = 0.5f;
         s.mixer.position = 0.42f;
         // Ladder LP with an audible env sweep so each ratchet burst chirps
-        s.filter.type = 4; s.filter.cutoffHz = 1500.0f; s.filter.resonance = 0.45f;
+        s.filter.type = 4; s.filter.cutoffHz = 1500.0f; s.filter.resonance = 5.79f;
         s.filter.envAmount = 26.0f; s.filter.ladderDrive = 5.0f; s.filter.keyTrack = 0.4f;
         s.ampEnv.attackMs = 3.0f; s.ampEnv.decayMs = 180.0f;
         s.ampEnv.sustain = 0.55f; s.ampEnv.releaseMs = 140.0f;
@@ -7803,7 +7807,7 @@ std::vector<PresetDef> createAllPresets() {
         s.oscA.type = 0; s.oscA.waveform = 4; s.oscA.level = 0.7f;   // Triangle
         s.oscB.type = 9; s.oscB.noiseColor = 3; s.oscB.level = 0.18f; // Blue noise
         s.mixer.position = 0.18f;
-        s.filter.type = 0; s.filter.cutoffHz = 3800.0f; s.filter.resonance = 0.3f;
+        s.filter.type = 0; s.filter.cutoffHz = 3800.0f; s.filter.resonance = 4.09f;
         s.filter.envAmount = 18.0f; // corrected semitone sweep
         // SPECTRAL distortion as a bitcrusher/decimator
         s.distortion.type = 2; s.distortion.drive = 0.4f; s.distortion.mix = 0.85f;
@@ -8267,7 +8271,7 @@ std::vector<PresetDef> createAllPresets() {
         s.mixer.position = 0.0f;
         // Ladder with drive so the source has grit before it hits the tape
         s.filter.type = 4;                 // Ladder LP
-        s.filter.cutoffHz = 2200.0f; s.filter.resonance = 0.28f;
+        s.filter.cutoffHz = 2200.0f; s.filter.resonance = 3.86f;
         s.filter.ladderSlope = 4;          // 24 dB/oct
         s.filter.ladderDrive = 6.0f;       // pushes the ladder into warm saturation
         s.filter.envAmount = 24.0f;        // +24 st sweep (FIX: was the 4000 'Hz' bug elsewhere)
@@ -8312,7 +8316,9 @@ std::vector<PresetDef> createAllPresets() {
         s.mixer.position = 0.35f;
         // Internal bandpass envelope filter (auto-wah #1)
         s.filter.type = 11;                // Envelope Filter
-        s.filter.cutoffHz = 1400.0f; s.filter.resonance = 0.85f;
+        // Bandpass: Q narrows the band rather than adding a resonant boost, so
+        // it stays moderate here -- a high Q starves a noise source of level.
+        s.filter.cutoffHz = 1400.0f; s.filter.resonance = 4.0f;
         s.filter.envSubType = 1;           // BP
         s.filter.envSensitivity = 12.0f; s.filter.envDepth = 0.9f;
         s.filter.envAttack = 4.0f; s.filter.envRelease = 120.0f;
@@ -8407,7 +8413,7 @@ std::vector<PresetDef> createAllPresets() {
         s.mixer.position = 0.32f;
         // Filter that actually moves (fixes the inert 6k LP)
         s.filter.type = 0;                 // SVF LP
-        s.filter.cutoffHz = 3500.0f; s.filter.resonance = 0.4f; s.filter.keyTrack = 0.4f;
+        s.filter.cutoffHz = 3500.0f; s.filter.resonance = 5.22f; s.filter.keyTrack = 0.4f;
         s.filter.envAmount = 20.0f;        // +20 st opening sweep
         s.filterEnv.attackMs = 80.0f; s.filterEnv.decayMs = 900.0f;
         s.filterEnv.sustain = 0.5f; s.filterEnv.releaseMs = 1000.0f;
@@ -8459,7 +8465,7 @@ std::vector<PresetDef> createAllPresets() {
         s.mixer.position = 0.4f;
         // Key-tracked comb resonator (the string body)
         s.filter.type = 6;                 // Comb
-        s.filter.cutoffHz = 220.0f; s.filter.resonance = 0.85f;
+        s.filter.cutoffHz = 220.0f; s.filter.resonance = 10.30f;
         s.filter.combDamping = 0.2f; s.filter.keyTrack = 1.0f;
         s.filter.envAmount = 15.0f;        // +15 st brightness 'ping' at attack
         s.filterEnv.attackMs = 0.0f; s.filterEnv.decayMs = 400.0f;
@@ -8507,7 +8513,7 @@ std::vector<PresetDef> createAllPresets() {
         // Comb filter: tuned resonant teeth turn the drone metallic/glassy.
         s.filter.type = 6;             // Comb
         s.filter.cutoffHz = 320.0f;    // comb fundamental
-        s.filter.resonance = 0.6f;
+        s.filter.resonance = 7.48f;
         s.filter.combDamping = 0.45f;  // soften the high feedback teeth
         // Very slow swell; long release so the frozen tail rings on.
         s.ampEnv.attackMs = 1200.0f; s.ampEnv.decayMs = 800.0f;
@@ -8628,7 +8634,7 @@ std::vector<PresetDef> createAllPresets() {
         // Formant filter makes the folded metal "speak" a vowel; gender + morph
         // give it a distinct throat.
         s.filter.type = 5;             // Formant
-        s.filter.cutoffHz = 1200.0f; s.filter.resonance = 0.8f;
+        s.filter.cutoffHz = 1200.0f; s.filter.resonance = 9.74f;
         s.filter.formantMorph = 1.6f;  // between E and I
         s.filter.formantGender = -0.5f; // deeper/darker throat
         s.filter.envAmount = 18.0f;    // filter env sweeps the vowel (semitones, bug-fixed)
@@ -8678,7 +8684,7 @@ std::vector<PresetDef> createAllPresets() {
         // SVF High-Pass thins the low end so only the metallic ring survives;
         // keyTrack makes the HP corner follow pitch so low notes stay clear.
         s.filter.type = 1;             // SVF HP
-        s.filter.cutoffHz = 300.0f; s.filter.resonance = 0.4f;
+        s.filter.cutoffHz = 300.0f; s.filter.resonance = 5.22f;
         s.filter.keyTrack = 1.0f; s.filter.svfSlope = 1; // 24 dB
         // Near-percussive strike: instant attack, long decay/release ring.
         s.ampEnv.attackMs = 1.0f; s.ampEnv.decayMs = 3500.0f;
@@ -8734,7 +8740,7 @@ std::vector<PresetDef> createAllPresets() {
         s.mixer.position = 0.18f;
         // Driven 4-pole ladder: real analog dirt before the waveshaper.
         s.filter.type = 4;             // Ladder
-        s.filter.cutoffHz = 1400.0f; s.filter.resonance = 0.5f;
+        s.filter.cutoffHz = 1400.0f; s.filter.resonance = 6.35f;
         s.filter.ladderSlope = 4; s.filter.ladderDrive = 8.0f;
         s.filter.envAmount = 30.0f;    // strong acid-style sweep (semitones, bug-fixed)
         s.filter.keyTrack = 0.3f;
@@ -8792,7 +8798,7 @@ std::vector<PresetDef> createAllPresets() {
         // --- Ladder LP, 24 dB, driven: the classic acid growl ---
         s.filter.type = 4;                             // Ladder
         s.filter.cutoffHz = 900.0f;                    // low resting cutoff to sweep UP from
-        s.filter.resonance = 0.5f;                     // squelch, not self-osc
+        s.filter.resonance = 6.35f;                     // squelch, not self-osc
         s.filter.ladderSlope = 4;                      // 24 dB/oct
         s.filter.ladderDrive = 4.0f;                   // growl (tamed by moderate res + soft limit)
         s.filter.keyTrack = 0.3f;                      // filter follows the keyboard a touch
@@ -8858,7 +8864,7 @@ std::vector<PresetDef> createAllPresets() {
         s.mixer.position = 0.3f;                       // start near the vowel
         s.mixer.tilt = 2.0f;                           // morph-domain brightness lift
         // Open, gentle filter - the timbre motion lives in the MORPH, not the filter
-        s.filter.type = 0; s.filter.cutoffHz = 6000.0f; s.filter.resonance = 0.18f;
+        s.filter.type = 0; s.filter.cutoffHz = 6000.0f; s.filter.resonance = 2.73f;
         s.ampEnv.attackMs = 8.0f;  s.ampEnv.decayMs = 320.0f;
         s.ampEnv.sustain = 0.7f;   s.ampEnv.releaseMs = 260.0f;
         s.ampEnv.attackCurve = 0.3f;                   // soft vocal onset
@@ -8903,7 +8909,7 @@ std::vector<PresetDef> createAllPresets() {
         s.oscB.type = 0; s.oscB.waveform = 1;          // PolyBLEP Saw body underneath
         s.oscB.level = 0.45f; s.oscB.fineCents = 5.0f;
         s.mixer.position = 0.4f;
-        s.filter.type = 0; s.filter.cutoffHz = 9000.0f; s.filter.resonance = 0.12f;
+        s.filter.type = 0; s.filter.cutoffHz = 9000.0f; s.filter.resonance = 2.06f;
         // PAD-shaped amp env so held notes ring as a sustained wash (audible in Mod-only mode)
         s.ampEnv.attackMs = 120.0f; s.ampEnv.decayMs = 500.0f;
         s.ampEnv.sustain = 0.8f;    s.ampEnv.releaseMs = 900.0f;
@@ -8962,7 +8968,7 @@ std::vector<PresetDef> createAllPresets() {
         s.oscB.level = 0.4f;
         s.mixer.mode = 1;                              // SpectralMorph (chaos<->sync FFT blend)
         s.mixer.position = 0.4f;
-        s.filter.type = 4; s.filter.cutoffHz = 1800.0f; s.filter.resonance = 0.42f;
+        s.filter.type = 4; s.filter.cutoffHz = 1800.0f; s.filter.resonance = 5.45f;
         s.filter.ladderSlope = 4; s.filter.envAmount = 30.0f; // +30 SEMITONES stab (audible!)
         s.ampEnv.attackMs = 3.0f; s.ampEnv.decayMs = 300.0f;
         s.ampEnv.sustain = 0.6f;  s.ampEnv.releaseMs = 200.0f;
@@ -9033,7 +9039,7 @@ std::vector<PresetDef> createAllPresets() {
         s.oscB.level = 0.4f;
         s.mixer.mode = 1;                              // SpectralMorph so Macro->Morph is AUDIBLE
         s.mixer.position = 0.35f;
-        s.filter.type = 4; s.filter.cutoffHz = 4200.0f; s.filter.resonance = 0.28f;
+        s.filter.type = 4; s.filter.cutoffHz = 4200.0f; s.filter.resonance = 3.86f;
         s.filter.ladderSlope = 4;
         s.ampEnv.attackMs = 12.0f; s.ampEnv.decayMs = 460.0f;
         s.ampEnv.sustain = 0.7f;   s.ampEnv.releaseMs = 380.0f;
@@ -9095,7 +9101,7 @@ std::vector<PresetDef> createAllPresets() {
         s.mixer.position = 0.3f;  // favour the ResSaw, keep sub as a bed
         // Ladder LP with envelope movement; cutoff is ALSO an ArpPitch target below
         s.filter.type = 4;        // Ladder
-        s.filter.cutoffHz = 2600.0f; s.filter.resonance = 0.4f;
+        s.filter.cutoffHz = 2600.0f; s.filter.resonance = 5.22f;
         s.filter.ladderSlope = 4; s.filter.ladderDrive = 2.0f;
         s.filter.envAmount = 26.0f; // +26 st = an audible per-note pluck sweep (was a sane 20)
         // Amp: pluck-ish so each step has a transient the self-mod can articulate
@@ -9179,7 +9185,7 @@ std::vector<PresetDef> createAllPresets() {
         // Ladder LP; filter env in SEMITONES (+24 = ~2-octave sweep, not the old bug value)
         s.filter.type = 4;                // Ladder
         s.filter.cutoffHz = 2200.0f;
-        s.filter.resonance = 0.35f;
+        s.filter.resonance = 4.66f;
         s.filter.ladderSlope = 4;         // 24 dB/oct
         s.filter.envAmount = 24.0f;       // audible upward sweep
         s.filterEnv.attackMs = 400.0f; s.filterEnv.decayMs = 3000.0f;
@@ -9296,7 +9302,7 @@ std::vector<PresetDef> createAllPresets() {
         s.mixer.position = 0.35f;                 // mostly saw at rest; velocity pushes to additive
 
         // Ladder LP with gentle drive; filter env in SEMITONES (+32 velocity-scaled sweep)
-        s.filter.type = 4; s.filter.cutoffHz = 1600.0f; s.filter.resonance = 0.3f;
+        s.filter.type = 4; s.filter.cutoffHz = 1600.0f; s.filter.resonance = 4.09f;
         s.filter.ladderSlope = 4;
         s.filter.ladderDrive = 4.0f;              // saturated ladder character
         s.filter.envAmount = 32.0f;
@@ -9386,7 +9392,7 @@ std::vector<PresetDef> createAllPresets() {
         s.mixer.position = 0.3f;
         s.mixer.tilt = 2.0f;                      // brighten the morphed spectrum a touch
 
-        s.filter.type = 4; s.filter.cutoffHz = 2600.0f; s.filter.resonance = 0.25f;
+        s.filter.type = 4; s.filter.cutoffHz = 2600.0f; s.filter.resonance = 3.53f;
         s.filter.ladderSlope = 4;
 
         s.ampEnv.attackMs = 10.0f; s.ampEnv.decayMs = 400.0f;
