@@ -18,9 +18,10 @@
 #include <krate/dsp/core/window_functions.h>
 #include <krate/dsp/core/math_constants.h>
 
+#include "render_fingerprint.h"
+
 #include <array>
 #include <cmath>
-#include <cstring>
 #include <numbers>
 #include <chrono>
 #include <vector>
@@ -1769,28 +1770,23 @@ TEST_CASE("Phaser - Feedback resonance from allpass output", "[Phaser][PhaserFix
 // Hoisting the allpass coefficient out of the per-stage loop and caching the
 // sweep min/max are pure efficiency changes: every stage is swept to the same
 // frequency, and the cached values are recomputed whenever the smoothers move,
-// so the rendered output must not shift at all. These digests pin it.
+// so the rendered output must not shift at all. These fingerprints pin it.
 //
 // The feedback path's move from std::tanh to FastMath::fastTanh is NOT
-// output-preserving -- it is a Pade approximant -- so these digests were
+// output-preserving -- it is a Pade approximant -- so these references were
 // regenerated deliberately when that swap was made. The bound on the
-// approximation error is asserted directly in flanger_test.cpp, so the digests
-// are not the only thing standing behind that change.
+// approximation error is asserted directly in flanger_test.cpp, so the pinned
+// render is not the only thing standing behind that change.
+//
+// This was originally pinned with an FNV digest over the raw sample bits, which
+// is not portable: MSVC, GCC and Apple Clang differ in the last bits of every
+// transcendental, and macOS CI additionally builds with -ffast-math. One 1-ULP
+// difference anywhere changes the digest completely, so an MSVC-generated
+// digest was guaranteed red on the Linux and macOS legs -- and was. See
+// tests/test_helpers/render_fingerprint.h for the measured cross-toolchain
+// spread and the tolerances derived from it.
 
 namespace {
-
-uint64_t digestSamples(const std::vector<float>& samples) {
-    uint64_t hash = 1469598103934665603ULL;
-    for (float s : samples) {
-        uint32_t bits = 0;
-        std::memcpy(&bits, &s, sizeof(bits));
-        for (int b = 0; b < 4; ++b) {
-            hash ^= static_cast<uint8_t>((bits >> (b * 8)) & 0xFF);
-            hash *= 1099511628211ULL;
-        }
-    }
-    return hash;
-}
 
 /// A sweep long enough for the LFO to traverse its range several times, with
 /// feedback engaged so the tanh path is exercised.
@@ -1841,12 +1837,58 @@ std::vector<float> renderPhaserStereo() {
     return left;
 }
 
+const Krate::DSP::TestUtils::RenderFingerprint kPhaserMonoReference{
+    .rms = 1.58787647,
+    .peak = 2.17389440,
+    .meanAbs = 1.44889942,
+    .totalVariation = 175.851741,
+    .checkpoints = {
+        0.00000000f, -1.66101754f, 2.15135312f, -1.33535957f,
+        -0.706086040f, 2.05002952f, -1.97869587f, 0.707246780f,
+        1.44018543f, -2.17158413f, 1.62668502f, 0.101532251f,
+        -1.88347220f, 2.10485911f, -1.11326146f, -0.980249464f,
+        2.11962438f, -1.85924697f, 0.446086347f, 1.62041462f,
+        -2.16587281f, 1.45071769f, 0.361451805f, -1.99065137f,
+        2.02950907f, -0.896682620f, -1.17687142f, 2.15567279f,
+        -1.72332883f, 0.208855048f, 1.75672936f, -2.13221812f,
+    },
+};
+
+const Krate::DSP::TestUtils::RenderFingerprint kPhaserStereoReference{
+    .rms = 0.651588377,
+    .peak = 0.922576904,
+    .meanAbs = 0.586472197,
+    .totalVariation = 264.353509,
+    .checkpoints = {
+        0.00000000f, -0.470835626f, -0.807353616f, -0.921391964f,
+        -0.780947089f, -0.425459057f, 0.0468170121f, 0.506566882f,
+        0.827212691f, 0.919274688f, 0.757042229f, 0.386143565f,
+        -0.0909452811f, -0.543438435f, -0.846303463f, -0.914841831f,
+        0.00000000f, -0.254867792f, 0.536251068f, -0.756318808f,
+        0.889558554f, -0.920073867f, 0.843739748f, -0.669106960f,
+        0.416564763f, -0.115746781f, -0.198290884f, 0.489235282f,
+        -0.723510802f, 0.873807192f, -0.922323108f, 0.863064527f,
+    },
+};
+
 } // namespace
 
 TEST_CASE("Phaser mono render is unchanged", "[phaser][golden]") {
-    CHECK(digestSamples(renderPhaserMono()) == 0x32844ddc7557acf1ULL);
+    using namespace Krate::DSP::TestUtils;
+    const auto cmp = compareFingerprints(fingerprintRender(renderPhaserMono()),
+                                         kPhaserMonoReference);
+    INFO(cmp.detail);
+    INFO("worst metric relative error " << cmp.worstMetricRelativeError
+                                        << ", worst sample error " << cmp.worstSampleError);
+    CHECK(cmp.withinTolerance());
 }
 
 TEST_CASE("Phaser stereo render is unchanged", "[phaser][golden]") {
-    CHECK(digestSamples(renderPhaserStereo()) == 0x38549af920a52a45ULL);
+    using namespace Krate::DSP::TestUtils;
+    const auto cmp = compareFingerprints(fingerprintRender(renderPhaserStereo()),
+                                         kPhaserStereoReference);
+    INFO(cmp.detail);
+    INFO("worst metric relative error " << cmp.worstMetricRelativeError
+                                        << ", worst sample error " << cmp.worstSampleError);
+    CHECK(cmp.withinTolerance());
 }

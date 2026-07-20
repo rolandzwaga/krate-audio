@@ -94,6 +94,41 @@ A `guard-portability.js` PreToolUse hook runs the `--staged` form before every
 without it — so on a machine lacking WSL, run the check by hand or expect CI to
 find it for you.
 
+## Never pin a render with a bit-exact digest over float samples
+
+Hashing the raw bits of rendered samples (FNV over `memcpy(&bits, &sample, 4)`) asserts
+**bit-identical floating-point math on every compiler that will ever build the test**. It
+cannot hold: MSVC, GCC and Apple Clang differ in the last bits of every transcendental, and
+the macOS leg builds with `-ffast-math`. One 1-ULP difference anywhere in the buffer changes
+the digest completely, so a digest generated on Windows is *guaranteed* red on Linux and
+macOS. This broke both legs once already.
+
+Measured cross-toolchain spread for the phaser/flanger renders (g++ -O3, g++ -O3 -ffast-math,
+clang++ -O2):
+
+| Quantity | Worst spread |
+|---|---|
+| per-sample absolute difference | 2.9e-5 (signal peak 2.17) |
+| aggregate relative difference (RMS, peak, mean-abs, total variation) | 1.9e-7 |
+
+Use `tests/test_helpers/render_fingerprint.h` instead: aggregate metrics plus spaced sample
+checkpoints, at tolerances derived from those measurements. Total variation is the sharp
+metric — it tracks waveform shape, so a stale filter cache or changed coefficient moves it
+far outside tolerance (a deliberately injected stale-sweep-cache bug produced a 0.38 sample
+error against a 1e-4 bound).
+
+Know the limit: at a portable tolerance you can no longer detect changes *smaller* than the
+toolchain spread. Swapping `std::tanh` for `FastMath::fastTanh` moves these renders by only
+2.7e-6 and is invisible to the fingerprint — that change carries its own dedicated
+error-bound test, which is the right way to cover it.
+
+Digests over a **serialized byte stream** (saved plugin state) are fine and are the correct
+way to pin a preset format — those bytes are stored values, not arithmetic results.
+
+```bash
+node tools/lint-float-bit-goldens.js   # gate; also runs in CI
+```
+
 ## Verify platform-dependent BEHAVIOUR on Linux via WSL (Ubuntu + g++ 13 installed)
 
 Compiling for another arch only catches *compile* errors. Runtime semantics that differ by

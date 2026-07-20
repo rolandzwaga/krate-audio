@@ -155,6 +155,12 @@ jobs:
       # is unconditional. Compiles on x86, undeclared-identifier on arm64.
       - name: Architecture-guarded include lint
         run: node tools/lint-arch-guarded-includes.js
+      # Catches a test that pins a DSP render with a bit-exact digest over the
+      # raw float sample bits. That asserts bit-identical floating-point math
+      # across MSVC, GCC and Apple Clang (-ffast-math), which cannot hold, so
+      # such a test is green only on the machine its digest was generated on.
+      - name: Bit-exact float golden lint
+        run: node tools/lint-float-bit-goldens.js
 
   build-windows:
     name: Windows (MSVC)

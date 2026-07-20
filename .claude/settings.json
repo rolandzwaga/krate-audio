@@ -24,7 +24,7 @@
           },
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/tools/hooks/guard-generated-artifacts.js\""
+            "command": "node \"$CLAUDE_PROJECT_DIR/tools/hooks/guard-ci-gates.js\""
           },
           {
             "type": "command",

@@ -11,9 +11,10 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
 
+#include "render_fingerprint.h"
+
 #include <algorithm>
 #include <array>
-#include <cstring>
 #include <cmath>
 #include <vector>
 
@@ -1399,25 +1400,34 @@ TEST_CASE("Flanger SC-002: parameter ramp produces no step discontinuities", "[f
 // ==============================================================================
 // The flanger and phaser feedback paths use FastMath::fastTanh rather than
 // std::tanh, as the chorus already did. It is a Pade approximant, so the
-// rendered output is NOT bit-identical to the std::tanh version -- the digest
-// below was regenerated deliberately when the swap was made, and the bound on
-// the approximation error is asserted directly so the digest is not the only
-// thing standing behind the change.
+// rendered output is NOT bit-identical to the std::tanh version -- the
+// reference below was regenerated deliberately when the swap was made, and the
+// bound on the approximation error is asserted directly so the pinned render is
+// not the only thing standing behind the change.
+//
+// This was originally pinned with an FNV digest over the raw sample bits, which
+// is not portable across toolchains and broke the Linux and macOS CI legs. See
+// tests/test_helpers/render_fingerprint.h for why, and for the measured spread
+// the tolerances come from.
 
 namespace {
 
-uint64_t digestFlangerSamples(const std::vector<float>& samples) {
-    uint64_t hash = 1469598103934665603ULL;
-    for (float s : samples) {
-        uint32_t bits = 0;
-        std::memcpy(&bits, &s, sizeof(bits));
-        for (int b = 0; b < 4; ++b) {
-            hash ^= static_cast<uint8_t>((bits >> (b * 8)) & 0xFF);
-            hash *= 1099511628211ULL;
-        }
-    }
-    return hash;
-}
+const Krate::DSP::TestUtils::RenderFingerprint kFlangerStereoReference{
+    .rms = 0.226748320,
+    .peak = 0.582209349,
+    .meanAbs = 0.200218773,
+    .totalVariation = 53.4143310,
+    .checkpoints = {
+        0.00000000f, -0.172239959f, -0.0898909345f, 0.237378553f,
+        0.331911504f, 0.188301235f, -0.133214042f, -0.326596767f,
+        -0.205732316f, 0.0807387382f, 0.305046976f, 0.236866891f,
+        -0.0288814902f, -0.275410473f, -0.260709286f, -0.0199269168f,
+        0.00000000f, 0.0208362639f, 0.205868855f, -0.0791999847f,
+        0.108047098f, -0.0460830927f, 0.0282499753f, 0.00742725655f,
+        -0.0293564461f, 0.0570263676f, -0.0782312304f, 0.102229558f,
+        -0.122855172f, 0.143174857f, -0.161849916f, 0.179866403f,
+    },
+};
 
 } // namespace
 
@@ -1458,5 +1468,11 @@ TEST_CASE("Flanger stereo render is unchanged", "[flanger][golden]") {
     flanger.processStereo(left.data(), right.data(), kNumSamples);
 
     left.insert(left.end(), right.begin(), right.end());
-    CHECK(digestFlangerSamples(left) == 0x99389febef584d51ULL);
+
+    using namespace Krate::DSP::TestUtils;
+    const auto cmp = compareFingerprints(fingerprintRender(left), kFlangerStereoReference);
+    INFO(cmp.detail);
+    INFO("worst metric relative error " << cmp.worstMetricRelativeError
+                                        << ", worst sample error " << cmp.worstSampleError);
+    CHECK(cmp.withinTolerance());
 }
