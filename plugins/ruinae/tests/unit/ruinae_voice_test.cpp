@@ -2496,3 +2496,49 @@ TEST_CASE("Retriggered voice does not resume a stale portamento glide",
 
     CHECK(voice.getNoteFrequency() == Approx(110.0f).margin(0.01f));
 }
+
+// =============================================================================
+// Self-oscillating filter: musical Q values must actually oscillate
+// =============================================================================
+// The SelfOscillating filter type only oscillates once its normalized internal
+// resonance passes 0.9 -- that gate controls both the impulse that seeds the
+// oscillation and the gain normalisation that brings it to a usable level. The
+// voice maps the user-facing Q range [0.1, 30] onto that normalized value, so if
+// the mapping is linear across the whole range, only Q > 27 oscillates and the
+// entire lower 90% of the control is inert. Factory presets picked Q 18-25 as
+// "high resonance, rings on its own" and got a thin, near-silent patch.
+
+TEST_CASE("RuinaeVoice: self-oscillating filter sounds at musical Q values",
+          "[ruinae_voice][filter][self_osc]") {
+    // No oscillator level at all: the resonator must be the only sound source,
+    // which is exactly how the factory presets use this filter type.
+    const auto measurePeak = [](float q) {
+        RuinaeVoice voice;
+        voice.prepare(44100.0, 512);
+        voice.setOscALevel(0.0f);
+        voice.setOscBLevel(0.0f);
+        voice.setFilterType(RuinaeFilterType::SelfOscillating);
+        voice.setFilterCutoff(440.0f);
+        voice.setFilterResonance(q);
+        voice.noteOn(440.0f, 1.0f);
+
+        auto out = processNSamples(voice, 44100);  // 1 second
+        float peak = 0.0f;
+        for (float s : out) peak = std::max(peak, std::abs(s));
+        return peak;
+    };
+
+    SECTION("Q values used by factory presets produce audible oscillation") {
+        for (float q : {18.0f, 20.0f, 25.0f}) {
+            const float peak = measurePeak(q);
+            INFO("Q = " << q << ", peak = " << peak);
+            REQUIRE(peak > 0.05f);
+        }
+    }
+
+    SECTION("higher Q is not quieter than lower Q") {
+        // Guards against a mapping that only reaches the oscillating region at
+        // the very top of the range.
+        REQUIRE(measurePeak(25.0f) >= measurePeak(18.0f) * 0.5f);
+    }
+}

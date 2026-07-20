@@ -1,0 +1,242 @@
+[0] noteOn  60 102
+[14056] noteOff 60
+[16538] noteOn  72 102
+[30594] noteOff 72
+[33075] noteOn  60 102
+[47131] noteOff 60
+[49613] noteOn  72 102
+[63669] noteOff 72
+[66150] noteOn  60 102
+[80206] noteOff 60
+[82688] noteOn  72 102
+[96744] noteOff 72
+[99225] noteOn  60 102
+[113281] noteOff 60
+[115763] noteOn  72 102
+[129819] noteOff 72
+[132300] noteOn  60 102
+[146356] noteOff 60
+[148838] noteOn  72 102
+[162894] noteOff 72
+[165375] noteOn  60 102
+[165376] noteOn  72 102
+[179431] noteOff 60
+[179432] noteOff 72
+[181913] noteOn  60 102
+[195969] noteOff 60
+[198450] noteOn  72 102
+[212506] noteOff 72
+[214988] noteOn  60 102
+[229044] noteOff 60
+[231525] noteOn  76 102
+[245581] noteOff 76
+[248063] noteOn  64 102
+[262119] noteOff 64
+[264600] noteOn  76 102
+[278656] noteOff 76
+[281138] noteOn  64 102
+[295194] noteOff 64
+[297675] noteOn  76 102
+[311731] noteOff 76
+[314213] noteOn  64 102
+[328269] noteOff 64
+[330750] noteOn  76 102
+[344806] noteOff 76
+[347288] noteOn  64 102
+[361344] noteOff 64
+[363825] noteOn  76 102
+[377881] noteOff 76
+[380363] noteOn  64 102
+[394419] noteOff 64
+[396900] noteOn  76 102
+[410956] noteOff 76
+[413438] noteOn  64 102
+[427494] noteOff 64
+[429975] noteOn  76 102
+[444031] noteOff 76
+[446513] noteOn  67 102
+[460569] noteOff 67
+[463050] noteOn  79 102
+[477106] noteOff 79
+[479588] noteOn  67 102
+[493644] noteOff 67
+[496125] noteOn  79 102
+[510181] noteOff 79
+[512663] noteOn  67 102
+[526719] noteOff 67
+[529200] noteOn  79 102
+[543256] noteOff 79
+[545738] noteOn  67 102
+[559794] noteOff 67
+[562275] noteOn  79 102
+[576331] noteOff 79
+[578813] noteOn  67 102
+[592869] noteOff 67
+[595350] noteOn  79 102
+[609406] noteOff 79
+[611888] noteOn  67 102
+[625944] noteOff 67
+[628425] noteOn  79 102
+[642481] noteOff 79
+[644963] noteOn  67 102
+[659019] noteOff 67
+[661500] noteOn  72 102
+[675556] noteOff 72
+[678038] noteOn  76 102
+[692094] noteOff 76
+[694575] noteOn  79 102
+[708631] noteOff 79
+[711113] noteOn  60 102
+[725169] noteOff 60
+[727650] noteOn  64 102
+[741706] noteOff 64
+[744188] noteOn  67 102
+[758244] noteOff 67
+[760725] noteOn  72 102
+[774781] noteOff 72
+[777263] noteOn  76 102
+[791319] noteOff 76
+[793800] noteOn  79 102
+[807856] noteOff 79
+[810338] noteOn  60 102
+[824394] noteOff 60
+[826875] noteOn  64 102
+[840931] noteOff 64
+[843413] noteOn  67 102
+[857469] noteOff 67
+[859950] noteOn  72 102
+[874006] noteOff 72
+[876488] noteOn  76 102
+[890544] noteOff 76
+[893025] noteOn  79 102
+[907081] noteOff 79
+[909563] noteOn  60 102
+[923619] noteOff 60
+[926100] noteOn  64 102
+[940156] noteOff 64
+[942638] noteOn  67 102
+[956694] noteOff 67
+[959175] noteOn  72 102
+[973231] noteOff 72
+[975713] noteOn  76 102
+[989769] noteOff 76
+[992250] noteOn  79 102
+[1006306] noteOff 79
+[1008788] noteOn  60 102
+[1022844] noteOff 60
+[1025325] noteOn  64 102
+[1039381] noteOff 64
+[1041863] noteOn  67 102
+[1055919] noteOff 67
+[1058400] noteOn  72 102
+[1072456] noteOff 72
+[1074938] noteOn  76 102
+[1088994] noteOff 76
+[1091475] noteOn  79 102
+[1105531] noteOff 79
+[1108013] noteOn  60 102
+[1122069] noteOff 60
+[1124550] noteOn  64 102
+[1138606] noteOff 64
+[1141088] noteOn  67 102
+[1155144] noteOff 67
+[1157625] noteOn  72 102
+[1171681] noteOff 72
+[1174163] noteOn  76 102
+[1188219] noteOff 76
+[1190700] noteOn  79 102
+[1204756] noteOff 79
+[1207238] noteOn  60 102
+[1221294] noteOff 60
+[1223775] noteOn  64 102
+[1237831] noteOff 64
+[1240313] noteOn  67 102
+[1254369] noteOff 67
+[1256850] noteOn  72 102
+[1270906] noteOff 72
+[1273388] noteOn  76 102
+[1287444] noteOff 76
+[1289925] noteOn  79 102
+[1303981] noteOff 79
+[1306463] noteOn  60 102
+[1320519] noteOff 60
+[1323000] noteOn  64 102
+[1337056] noteOff 64
+[1339538] noteOn  67 102
+[1353594] noteOff 67
+[1356075] noteOn  72 102
+[1370131] noteOff 72
+[1372613] noteOn  76 102
+[1386669] noteOff 76
+[1389150] noteOn  79 102
+[1403206] noteOff 79
+[1405688] noteOn  60 102
+[1419744] noteOff 60
+[1422225] noteOn  64 102
+[1436281] noteOff 64
+[1438763] noteOn  67 102
+[1452819] noteOff 67
+[1455300] noteOn  72 102
+[1469356] noteOff 72
+[1471838] noteOn  76 102
+[1485894] noteOff 76
+[1488375] noteOn  79 102
+[1502431] noteOff 79
+[1504913] noteOn  60 102
+[1518969] noteOff 60
+[1521450] noteOn  64 102
+[1535506] noteOff 64
+[1537988] noteOn  67 102
+[1552044] noteOff 67
+[1554525] noteOn  72 102
+[1568581] noteOff 72
+[1571063] noteOn  76 102
+[1585119] noteOff 76
+[1587600] noteOn  79 102
+[1601656] noteOff 79
+[1604138] noteOn  60 102
+[1618194] noteOff 60
+[1620675] noteOn  64 102
+[1634731] noteOff 64
+[1637213] noteOn  67 102
+[1651269] noteOff 67
+[1653750] noteOn  72 102
+[1667806] noteOff 72
+[1670288] noteOn  76 102
+[1684344] noteOff 76
+[1686825] noteOn  79 102
+[1700881] noteOff 79
+[1703363] noteOn  60 102
+[1717419] noteOff 60
+[1719900] noteOn  64 102
+[1733956] noteOff 64
+[1736438] noteOn  67 102
+[1750494] noteOff 67
+[1752975] noteOn  72 102
+[1767031] noteOff 72
+[1769513] noteOn  76 102
+[1783569] noteOff 76
+[1786050] noteOn  79 102
+[1800106] noteOff 79
+[1802588] noteOn  60 102
+[1816644] noteOff 60
+[1819125] noteOn  64 102
+[1833181] noteOff 64
+[1835663] noteOn  67 102
+[1849719] noteOff 67
+[1852200] noteOn  72 102
+[1866256] noteOff 72
+[1868738] noteOn  76 102
+[1882794] noteOff 76
+[1885275] noteOn  79 102
+[1899331] noteOff 79
+[1901813] noteOn  60 102
+[1915869] noteOff 60
+[1918350] noteOn  64 102
+[1932406] noteOff 64
+[1934888] noteOn  67 102
+[1948944] noteOff 67
+[1951425] noteOn  72 102
+[1965481] noteOff 72
+[1967963] noteOn  76 102
+[1982019] noteOff 76

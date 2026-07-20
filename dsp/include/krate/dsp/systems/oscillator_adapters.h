@@ -33,6 +33,7 @@
 
 // Layer 0
 #include <krate/dsp/core/math_constants.h>
+#include <krate/dsp/core/pitch_utils.h>
 
 // Layer 1 oscillators
 #include <krate/dsp/primitives/polyblep_oscillator.h>
@@ -163,7 +164,13 @@ public:
             osc_.setMasterFrequency(hz);
             osc_.setSlaveFrequency(hz * slaveRatio_);
         }
-        // Group D: No frequency control (SpectralFreeze, Noise)
+        // Group D: Frozen spectrum, pitched by shifting rather than by phase rate.
+        // The frozen content is a fixed reference sine, so the played note is
+        // expressed as a pitch shift away from that reference.
+        else if constexpr (std::is_same_v<OscT, SpectralFreezeOscillator>) {
+            applySpectralFreezePitch();
+        }
+        // Group E: No frequency control (Noise)
         else {
             (void)hz;
         }
@@ -307,7 +314,10 @@ public:
         else if constexpr (std::is_same_v<OscT, SpectralFreezeOscillator>) {
             switch (param) {
                 case OscParam::SpectralPitchShift:
-                    osc_.setPitchShift(value);
+                    // An offset on top of note tracking, not a replacement for
+                    // it -- applySpectralFreezePitch() sums the two.
+                    spectralPitchOffsetSemitones_ = value;
+                    applySpectralFreezePitch();
                     break;
                 case OscParam::SpectralTilt:
                     osc_.setSpectralTilt(value);
@@ -376,18 +386,42 @@ private:
     // SpectralFreeze Initialization Helper
     // =========================================================================
 
+    /// @brief Pitch of the synthetic spectrum frozen at prepare time.
+    ///
+    /// Note tracking is expressed relative to this, so the two must agree.
+    static constexpr float kSpectralFreezeReferenceHz = 440.0f;
+
     /// @brief Feed a synthetic sine wave and freeze it for immediate output.
     void initSpectralFreeze() noexcept {
         if constexpr (std::is_same_v<OscT, SpectralFreezeOscillator>) {
             constexpr size_t kFreezeBlockSize = 2048;
             float sineBuffer[kFreezeBlockSize];
-            constexpr float kFreq = 440.0f;
             for (size_t i = 0; i < kFreezeBlockSize; ++i) {
                 sineBuffer[i] = std::sin(
-                    kTwoPi * kFreq * static_cast<float>(i)
+                    kTwoPi * kSpectralFreezeReferenceHz * static_cast<float>(i)
                     / static_cast<float>(sampleRate_));
             }
             osc_.freeze(sineBuffer, kFreezeBlockSize);
+            applySpectralFreezePitch();
+        }
+    }
+
+    /// @brief Drive the frozen spectrum to the played note, plus any offset.
+    ///
+    /// The frozen content cannot be re-captured per note: freeze() restarts the
+    /// overlap-add pipeline, and setFrequency() is called every block for glide
+    /// and pitch modulation, so re-freezing would click and cost an FFT per
+    /// block. Shifting the existing spectrum is both cheap and continuous.
+    void applySpectralFreezePitch() noexcept {
+        if constexpr (std::is_same_v<OscT, SpectralFreezeOscillator>) {
+            // Guard the logarithm; a voice can be left at 0 Hz between notes.
+            const float noteSemitones =
+                (currentFrequency_ > 0.0f)
+                    ? ratioToSemitones(currentFrequency_ / kSpectralFreezeReferenceHz)
+                    : 0.0f;
+            // setPitchShift clamps, so an extreme sum flattens out rather than
+            // producing a nonsense ratio.
+            osc_.setPitchShift(noteSemitones + spectralPitchOffsetSemitones_);
         }
     }
 
@@ -402,6 +436,10 @@ private:
     // SyncOscillator slave-to-master frequency ratio (default 2x).
     // Used by setFrequency() and setParam(SyncSlaveRatio).
     float slaveRatio_{2.0f};
+
+    // SpectralFreeze pitch offset from OscParam::SpectralPitchShift, summed with
+    // note tracking by applySpectralFreezePitch(). Unused by other types.
+    float spectralPitchOffsetSemitones_{0.0f};
 
     // Resource pointer for WavetableOscillator (non-owning, set at construction).
     // Unused by other oscillator types but only wastes 8 bytes per adapter.

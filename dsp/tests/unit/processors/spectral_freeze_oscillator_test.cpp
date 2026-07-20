@@ -793,12 +793,22 @@ TEST_CASE("SpectralFreezeOscillator: setPitchShift/getPitchShift parameter (FR-0
         REQUIRE(osc.getPitchShift() == 7.0f);
     }
 
-    SECTION("clamped to [-24, +24]") {
-        osc.setPitchShift(30.0f);
-        REQUIRE(osc.getPitchShift() == 24.0f);
+    SECTION("clamped to [-48, +48]") {
+        osc.setPitchShift(60.0f);
+        REQUIRE(osc.getPitchShift() == 48.0f);
 
-        osc.setPitchShift(-30.0f);
-        REQUIRE(osc.getPitchShift() == -24.0f);
+        osc.setPitchShift(-60.0f);
+        REQUIRE(osc.getPitchShift() == -48.0f);
+    }
+
+    SECTION("accepts shifts beyond two octaves") {
+        // Four octaves each way keeps note-driven callers on-pitch across the
+        // keyboard instead of flattening out past +/-24 semitones.
+        osc.setPitchShift(36.0f);
+        REQUIRE(osc.getPitchShift() == 36.0f);
+
+        osc.setPitchShift(-36.0f);
+        REQUIRE(osc.getPitchShift() == -36.0f);
     }
 }
 

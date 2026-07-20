@@ -1,10 +1,15 @@
 // ==============================================================================
 // Ruinae Byte-Identical Regression Test post lane 10 extension (SC-004b, spec 142)
 // ==============================================================================
-// For each Ruinae factory arp preset (8 sub-directories under Arp*), load the
-// preset, force kArpMidiOutId=1 (same as the harness in gen_v2_fixtures/), drive
-// the processor with the canonical 60-second MIDI sequence, and assert the
-// emitted MIDI matches the paired golden text file byte-for-byte.
+// For each Ruinae factory preset whose arpeggiator is enabled -- selected by
+// reading the loaded arp state, not by category name -- load the preset, force
+// kArpMidiOutId=1 (same as the harness in gen_v2_fixtures/), drive the processor
+// with the canonical 60-second MIDI sequence, and assert the emitted MIDI
+// matches the paired golden text file: event count, order, kind, pitch and
+// velocity exactly, timestamps within a measured cross-toolchain tolerance.
+// (Byte-for-byte cannot be asserted here -- the offsets are FP math truncated
+// to integers and the GCC/Clang legs build with -ffast-math. See
+// tests/test_helpers/midi_golden_compare.h.)
 //
 // This proves that bumping ArpeggiatorCore::kNumLanes from 9 to 10 (with the
 // lane 10 conditional-inert branch in Live mode) does not perturb Ruinae's
@@ -13,7 +18,10 @@
 // ==============================================================================
 
 #include "processor/processor.h"
+#include "controller/controller.h"
 #include "plugin_ids.h"
+
+#include "test_helpers/midi_golden_compare.h"
 
 #include "public.sdk/source/common/memorystream.h"
 #include "public.sdk/source/vst/vstpresetfile.h"
@@ -26,6 +34,7 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
@@ -190,6 +199,23 @@ std::string readFile(const std::filesystem::path& p) {
     return ss.str();
 }
 
+// Golden-fixture maintenance. The factory arp presets are generated data; when
+// they are intentionally revised the paired goldens must be rebuilt from the new
+// bank. Setting RUINAE_REGEN_GOLDENS=1 rewrites each golden from the captured
+// MIDI instead of asserting against it. It is OFF by default, so CI and normal
+// local runs always assert. Regenerate deliberately, then re-run without the
+// variable to confirm the suite passes.
+bool regenGoldensRequested() {
+    const char* v = std::getenv("RUINAE_REGEN_GOLDENS");
+    return v != nullptr && v[0] == '1';
+}
+
+void writeFile(const std::filesystem::path& p, const std::string& contents) {
+    std::ofstream out(p, std::ios::binary);
+    REQUIRE(out.good());
+    out << contents;
+}
+
 // Sanitize a string the same way tools/gen_v2_fixtures/common.cpp does.
 std::string sanitizeForFilename(const std::string& in) {
     std::string out;
@@ -341,11 +367,15 @@ void verifyPreset(const std::filesystem::path& presetPath,
     const auto goldenPath = fixturesDir /
         ("ruinae_factory_" + safe + "_golden_midi.txt");
 
+    const bool regen = regenGoldensRequested();
+
     // SC-004b requires 100% factory-preset coverage. A missing golden must be
     // a hard failure so any future preset added without a paired golden trips
     // CI immediately (compliance fix, spec 142 Phase 3 retry).
-    INFO("missing golden file: " << goldenPath.string());
-    REQUIRE(std::filesystem::exists(goldenPath));
+    if (!regen) {
+        INFO("missing golden file: " << goldenPath.string());
+        REQUIRE(std::filesystem::exists(goldenPath));
+    }
 
     auto golden = readFile(goldenPath);
 
@@ -384,12 +414,81 @@ void verifyPreset(const std::filesystem::path& presetPath,
 
     auto actual = formatCaptured(captured);
 
+    if (regen) {
+        writeFile(goldenPath, actual);
+        WARN("regenerated golden: " << goldenPath.filename().string()
+            << " (" << actual.size() << " bytes)");
+        return;
+    }
+
+    // Compare portably rather than byte-for-byte. Every sample offset in the
+    // golden is FP arithmetic truncated to an integer, and the GCC/Clang legs
+    // build with -ffast-math, so byte-identity demands bit-identical FP math
+    // across MSVC/GCC/AppleClang and is structurally incapable of holding.
+    // Event count, order, kind, pitch and velocity are still exact; only
+    // timestamps carry a (measured, sub-millisecond) tolerance. See
+    // tests/test_helpers/midi_golden_compare.h.
+    const auto comparison = Krate::TestUtils::compareMidiGolden(actual, golden);
+
     INFO("preset: " << stem);
     INFO("actual bytes: " << actual.size()
         << "  golden bytes: " << golden.size());
-    REQUIRE(actual == golden);
+    INFO("comparison: " << comparison.message);
+    REQUIRE(comparison.ok);
 }
 
+/// @brief True when a preset actually runs its arpeggiator.
+///
+/// kArpOperatingModeId is a 4-entry list (Off/MIDI/Mod/MIDI+Mod), so any
+/// normalized value above the Off entry means the arp is live. Reading the
+/// loaded state back through the controller is the same route
+/// factory_preset_audio_test uses to inspect a preset's parameters.
+bool presetUsesArp(const std::filesystem::path& presetPath)
+{
+    auto proc = std::make_unique<RuinaeHarnessProcessor>();
+    proc->initialize(nullptr);
+
+    ProcessSetup setup{};
+    setup.processMode = kRealtime;
+    setup.symbolicSampleSize = kSample32;
+    setup.sampleRate = kSampleRate;
+    setup.maxSamplesPerBlock = kBlockSize;
+    proc->setupProcessing(setup);
+    proc->setActive(true);
+
+    bool usesArp = false;
+    if (loadPresetFileIntoProcessor(presetPath, *proc)) {
+        // Drain the deferred preset snapshot so getState reflects the preset.
+        ProcessData drainData{};
+        drainData.numSamples = 0;
+        proc->process(drainData);
+
+        MemoryStream saved;
+        if (proc->getState(&saved) == kResultTrue) {
+            saved.seek(0, IBStream::kIBSeekSet, nullptr);
+            Ruinae::Controller controller;
+            controller.initialize(nullptr);
+            if (controller.setComponentState(&saved) == kResultTrue) {
+                usesArp = controller.getParamNormalized(
+                    Ruinae::kArpOperatingModeId) > 1e-6;
+            }
+            controller.terminate();
+        }
+    }
+
+    proc->setActive(false);
+    proc->terminate();
+    return usesArp;
+}
+
+/// @brief Every factory preset whose arpeggiator is enabled, wherever it lives.
+///
+/// This used to filter on an "Arp" directory-name prefix, which quietly scoped
+/// SC-004b to the dedicated Arp* categories: an arp preset filed under any other
+/// category (Rhythmic, say) escaped MIDI regression coverage entirely despite
+/// the requirement asking for 100% of factory arp presets. Selecting on the
+/// loaded arp state instead means a new arp preset is covered no matter which
+/// category it ships in.
 std::vector<std::filesystem::path> enumerateArpPresets()
 {
     const std::filesystem::path presetRoot{
@@ -398,17 +497,13 @@ std::vector<std::filesystem::path> enumerateArpPresets()
     std::vector<std::filesystem::path> result;
     if (!std::filesystem::exists(presetRoot)) return result;
 
-    for (const auto& subdir : std::filesystem::directory_iterator(presetRoot)) {
-        if (!subdir.is_directory()) continue;
-        const auto subName = subdir.path().filename().string();
-        if (subName.rfind("Arp", 0) != 0) continue;
-        for (const auto& file :
-             std::filesystem::directory_iterator(subdir.path()))
-        {
-            if (!file.is_regular_file()) continue;
-            if (file.path().extension() == ".vstpreset") {
-                result.push_back(file.path());
-            }
+    for (const auto& entry :
+         std::filesystem::recursive_directory_iterator(presetRoot))
+    {
+        if (!entry.is_regular_file()) continue;
+        if (entry.path().extension() != ".vstpreset") continue;
+        if (presetUsesArp(entry.path())) {
+            result.push_back(entry.path());
         }
     }
     std::sort(result.begin(), result.end());

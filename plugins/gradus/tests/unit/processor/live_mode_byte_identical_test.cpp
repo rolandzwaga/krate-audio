@@ -3,7 +3,11 @@
 // ==============================================================================
 // Loads each v2 fixture binary, runs the canonical 60-second MIDI sequence
 // (notes 60/64/67 held 5s each + chord 60+64+67 for 30s, plus 15s tail) and
-// asserts the emitted MIDI matches the paired golden text file byte-for-byte.
+// asserts the emitted MIDI matches the paired golden text file: event count,
+// order, kind, pitch and velocity exactly, timestamps within a measured
+// cross-toolchain tolerance. (Byte-for-byte cannot be asserted here -- the
+// offsets are FP math truncated to integers and the GCC/Clang legs build with
+// -ffast-math. See tests/test_helpers/midi_golden_compare.h.)
 //
 // This proves that bumping kNumLanes 9->10 and the lane 10 conditional-inert
 // branch do NOT perturb Gradus Live-mode MIDI for pre-existing presets.
@@ -11,6 +15,8 @@
 
 #include "processor/processor.h"
 #include "plugin_ids.h"
+
+#include "test_helpers/midi_golden_compare.h"
 
 #include "public.sdk/source/common/memorystream.h"
 #include "pluginterfaces/base/ibstream.h"
@@ -329,11 +335,23 @@ void runFixture(const std::string& fixtureName)
 
     auto actual = formatCaptured(captured);
 
+    // Compare portably rather than byte-for-byte. Every sample offset in the
+    // golden is FP arithmetic truncated to an integer, and the GCC/Clang legs
+    // build with -ffast-math, so byte-identity demands bit-identical FP math
+    // across MSVC/GCC/AppleClang and is structurally incapable of holding. The
+    // Ruinae SC-004b goldens broke exactly this way; these fixtures share the
+    // same ArpeggiatorCore duration math and were one boundary-landing swing
+    // value away from the same failure. Event count, order, kind, pitch and
+    // velocity stay exact; only timestamps carry a (measured, sub-millisecond)
+    // tolerance. See tests/test_helpers/midi_golden_compare.h.
+    const auto comparison = Krate::TestUtils::compareMidiGolden(actual, golden);
+
     // INFO captures diagnostics if the assertion fails; the body still runs.
     INFO("fixture: " << fixtureName);
     INFO("actual bytes: " << actual.size()
         << "  golden bytes: " << golden.size());
-    REQUIRE(actual == golden);
+    INFO("comparison: " << comparison.message);
+    REQUIRE(comparison.ok);
 }
 
 }  // namespace

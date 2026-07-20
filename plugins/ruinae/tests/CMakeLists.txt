@@ -104,6 +104,9 @@ add_executable(ruinae_tests
     # SC-004b: byte-identical MIDI regression after ArpeggiatorCore kNumLanes 9->10 (spec 142)
     unit/ruinae_byte_identical_post_lane10_test.cpp
 
+    # Every factory preset must actually make a sound
+    unit/factory_preset_audio_test.cpp
+
     # Preset Safety Tests (RTTransferT crash-proof loading)
     unit/preset_safety_test.cpp
     integration/preset_switch_safety_test.cpp

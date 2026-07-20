@@ -373,9 +373,16 @@ public:
     // =========================================================================
 
     /// @brief Set pitch shift in semitones (FR-012).
-    /// @param semitones Pitch shift [-24, +24]. Clamped to range.
+    ///
+    /// The range spans four octaves each way so that callers driving this from a
+    /// played note (rather than as a fixed offset) can reach the whole keyboard
+    /// from a fixed frozen reference. Shifting is bin remapping, so downward
+    /// shifts lose resolution as the spectrum is squeezed into fewer bins; at
+    /// small FFT sizes the extremes are coarse rather than clean.
+    ///
+    /// @param semitones Pitch shift [-48, +48]. Clamped to range.
     void setPitchShift(float semitones) noexcept {
-        pitchShiftSemitones_ = std::clamp(semitones, -24.0f, 24.0f);
+        pitchShiftSemitones_ = std::clamp(semitones, -48.0f, 48.0f);
     }
 
     /// @brief Get current pitch shift in semitones.

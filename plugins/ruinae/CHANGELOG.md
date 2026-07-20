@@ -5,14 +5,61 @@ All notable changes to Ruinae will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.12.0] - 2026-07-20
 
-Remediation of a full-codebase audit of Ruinae. Several entries below are fixes
-in shared KrateDSP components that Ruinae uses; they are listed here because they
-change how Ruinae sounds or behaves, and are marked *(shared DSP)*.
+Two strands of work: a rebuild of the factory preset bank, and the remediation of
+a full-codebase audit of Ruinae. Several entries below are fixes in shared KrateDSP
+components that Ruinae uses; they are listed here because they change how Ruinae
+sounds or behaves, and are marked *(shared DSP)*.
+
+### Added
+
+- **Factory bank rebuilt — 168 presets across 15 categories** — Every one of the
+  original 148 presets was rewritten. The bank had drifted toward a house sound:
+  most presets leaned on the same saw-into-ladder voice with reverb, so they were
+  hard to tell apart and large parts of the synth were never demonstrated by
+  anything. Each preset now has a stated identity and between them they exercise
+  every oscillator engine, every filter type, every distortion and delay type, the
+  harmonizer, the mod matrix, the chaos and rungler sources, and the arpeggiator's
+  lane system
+- **Twenty arpeggiated presets in the Rhythmic category** — Rhythmic previously
+  contained exactly one preset that used the arpeggiator. It now has twenty-one,
+  taking the category to 40. These are deliberately not more of what the dedicated
+  Arp categories already do: those run the arp on its own to demonstrate a lane or
+  a mode, whereas each of these pairs it with a second rhythmic element — a trance
+  gate, a transient duck, a Euclidean gate, a ratchet lane or a tempo-synced
+  effect — whose cycle length does not divide the arp's, so the two grids drift
+  against one another. *Polymeter Pulse* is the clearest case: lane lengths of 5,
+  7, 3 and 4 produce a 420-step cycle from entirely static data
 
 ### Fixed
 
+- **Spectral-freeze presets playing one fixed pitch regardless of the note
+  played** — The oscillator adapter had no frequency handling for the spectral
+  freeze engine, and the frozen spectrum itself was a hard-coded 440 Hz sine, so
+  every note in every spectral-freeze preset sounded concert A. Affected nine
+  presets including *Frozen Time* and *Nebula Rise*. The played note is now
+  expressed as a pitch shift away from the frozen reference, and the shift range
+  was widened so notes at the top of the keyboard are reachable *(shared DSP)*
+- **The self-oscillating filter never actually self-oscillating** — Ruinae mapped
+  its Q range of 0.1–30 linearly onto the filter's normalized resonance, but the
+  filter only begins to oscillate above 0.9 normalized, which required a Q above
+  27 out of a maximum of 30. Every preset built around this filter was therefore
+  silent — all three measured a peak of exactly zero. Oscillation now begins
+  around Q 10, and the three affected presets produce sound without any change to
+  their stored data
+- **Filter resonance stored as a normalized fraction instead of a Q value** — 116
+  of 150 factory resonance values had been authored as if the field ran 0–1, but
+  it is a raw Q in the range 0.1–30. Values intended as moderate resonance were
+  landing at or near the bottom of the range, which is why so much of the bank
+  sounded flat and characterless. All affected presets were remapped onto a
+  musical Q range; two bandpass presets that grew quieter under the remap (higher
+  Q narrows their band rather than adding a boost) were re-balanced individually
+- **Filter resonance defaulting to the bottom of its range** — A new instance, and
+  a host's "reset to default" on the resonance control, both landed on Q 0.1 — no
+  resonance at all. The default is now Q 0.707 (Butterworth) in the processor, the
+  preset format and the registered parameter alike. Saved projects are unaffected
+  because they carry explicit values
 - **Crash after closing the editor, switching tabs, or switching mod source** — The controller cached raw pointers to nine frame-owned views (the LFO 1/2 waveform, chaos, rungler, sample & hold and random visualisers, plus the three sidechain indicator labels). Three separate teardown paths destroyed those views without clearing the pointers: editor close, a MainTab switch away from MOD, and any change of the Mod Source dropdown. Because a dangling pointer is non-null, it passed every `if (ptr)` guard at the places they were read, so the next preset load or automation sync walked freed memory. All three paths now clear them
 - **Unison notes sounding thinner than the voice count** — In the shared voice allocator, a unison group that had to steal voices could be handed the same voice slot more than once: several note-ons targeted one physical voice, so a four-voice unison could sound as few as one. Reachable by raising the unison count while notes are held. Each voice is now claimed as it is committed *(shared DSP)*
 - **Reverb type switch double-reverberating and jumping ~3 dB** — Two faults in the same crossfade. The incoming reverb already processed the whole block, but when the crossfade finished mid-block the remainder was run through it a second time, producing a doubly-reverberated tail. Separately, both reverbs were fed the user's dry/wet mix, so each emitted its own copy of the dry signal; the equal-power crossfade gains sum to √2 at the midpoint, which is correct for two decorrelated tails but swelled the shared dry part by about 3 dB every time the type changed. Both reverbs now run 100 % wet with the mix applied outside them, matching how the delay slot already worked
@@ -35,6 +82,12 @@ change how Ruinae sounds or behaves, and are marked *(shared DSP)*.
 - **Phaser and flanger feedback saturation** — Both now use the same fast hyperbolic-tangent approximation the chorus already used. This is a genuine, very small change to the sound of the feedback path (worst-case error about 0.0018 across the usable range), not a bit-identical optimisation
 - **Mono voice rendering** — The mono path rendered one sample at a time, re-running all of the voice's per-block setup for every single sample. It now renders in 32-sample chunks. Portamento is still advanced per sample, but the pitch is applied at chunk boundaries — about 0.7 ms at 44.1 kHz — rather than per sample
 - **Arpeggiator note timing documented as block-quantised** — Note events are dispatched at block boundaries rather than at their exact sample offset. This is unchanged behaviour, now stated in the code rather than left implicit
+- **Internal: arpeggiator preset regression coverage widened** — The golden-MIDI
+  regression test selected presets by an "Arp" category-name prefix, which meant an
+  arpeggiated preset filed under any other category was not covered at all — one
+  had in fact been shipping that way. It now selects on the preset's actual
+  arpeggiator state, so an arp preset is covered whichever category it ships in.
+  Coverage went from 25 presets to 46
 - **Internal: parameter modules consolidated** — The OSC A and OSC B parameter modules (about 1670 lines, identical apart from the bank letter) and the chorus and flanger modules were each collapsed to a single implementation with thin per-bank bindings, and the OSC dropdown labels now come from one canonical table instead of three hand-synced copies. `applyParamsToEngine`, an ~810-line function, is split into fourteen per-section helpers. No behaviour or preset-format change: the saved byte streams are pinned by tests
 
 ### Removed

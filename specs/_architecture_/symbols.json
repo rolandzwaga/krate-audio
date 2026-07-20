@@ -1369,7 +1369,7 @@
       "scope": "Krate::DSP",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/oscillator_adapters.h",
-      "line": 85
+      "line": 86
     },
     {
       "name": "OscillatorResources",
@@ -1377,7 +1377,7 @@
       "scope": "Krate::DSP",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/oscillator_adapters.h",
-      "line": 66
+      "line": 67
     },
     {
       "name": "OscillatorSlot",

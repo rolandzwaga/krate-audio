@@ -281,6 +281,13 @@ TEST_CASE("Voice mod route ENV3 -> FilterCutoff with negative amount darkens sou
     // High cutoff so negative modulation can pull it down
     constexpr double kHighCutoffNorm = 0.9;
 
+    // Pin resonance to the bottom of its range. This test measures how much
+    // energy a closing cutoff removes, and a resonant peak partially offsets
+    // that as the cutoff sweeps down -- so leaving resonance at whatever the
+    // default happens to be makes the measurement depend on an unrelated
+    // parameter's default rather than on the modulation under test.
+    constexpr double kNoResonanceNorm = 0.0;
+
     // Negative amount: ENV3 should close the filter
     sendVoiceModRoute(*procWithMod,
         /*slotIndex=*/0,
@@ -296,6 +303,7 @@ TEST_CASE("Voice mod route ENV3 -> FilterCutoff with negative amount darkens sou
         events.addNoteOn(60, 0.8f);
         MockParamChangesWithData params;
         params.addChange(Ruinae::kFilterCutoffId, kHighCutoffNorm);
+        params.addChange(Ruinae::kFilterResonanceId, kNoResonanceNorm);
         outputWithMod = processBlocks(*procWithMod, events, &params, kNumBlocks);
     }
 
@@ -305,6 +313,7 @@ TEST_CASE("Voice mod route ENV3 -> FilterCutoff with negative amount darkens sou
         events.addNoteOn(60, 0.8f);
         MockParamChangesWithData params;
         params.addChange(Ruinae::kFilterCutoffId, kHighCutoffNorm);
+        params.addChange(Ruinae::kFilterResonanceId, kNoResonanceNorm);
         outputNoMod = processBlocks(*procNoMod, events, &params, kNumBlocks);
     }
 

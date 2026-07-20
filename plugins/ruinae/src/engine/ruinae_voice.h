@@ -1439,7 +1439,7 @@ private:
                 if (filterEnvFilter_) filterEnvFilter_->setResonance(std::clamp(q, 0.5f, 20.0f));
                 break;
             case RuinaeFilterType::SelfOscillating:
-                if (filterSelfOsc_) filterSelfOsc_->setResonance(std::clamp((q - 0.1f) / 29.9f, 0.0f, 1.0f));
+                if (filterSelfOsc_) filterSelfOsc_->setResonance(remapResonanceForSelfOsc(q));
                 break;
             default: break;
         }
@@ -1625,6 +1625,33 @@ private:
     [[nodiscard]] static float remapResonanceForLadder(float q) noexcept {
         float normalized = std::clamp((q - 0.1f) / 29.9f, 0.0f, 1.0f);
         return normalized * 3.8f;
+    }
+
+    /// @brief Remap voice resonance (Q range [0.1, 30]) for SelfOscillatingFilter.
+    ///
+    /// SelfOscillatingFilter takes a normalized [0, 1] resonance and only
+    /// oscillates above 0.9 -- that gate arms both the impulse that seeds the
+    /// oscillation and the gain normalisation that brings it to a usable level.
+    /// A plain linear remap therefore confines every oscillating setting to
+    /// Q > 27, leaving the lower 90% of the control silent for a filter type
+    /// whose entire purpose is to oscillate.
+    ///
+    /// Instead the upper two thirds of the Q range is dedicated to the
+    /// oscillating region, so Q >= 10 rings and the range below it stays
+    /// available as a merely-resonant filter. The knee is well below the
+    /// oscillation gate rather than just above it: the filter's internal ladder
+    /// only sustains once its feedback passes k ~ 4.0, which normalized 0.9
+    /// alone does not reach, so a knee placed at the gate still decays.
+    [[nodiscard]] static float remapResonanceForSelfOsc(float q) noexcept {
+        constexpr float kOscKneeQ = 10.0f;      // Q at which oscillation begins
+        constexpr float kOscKneeNorm = 0.9f;    // filter's internal oscillation gate
+        const float clamped = std::clamp(q, 0.1f, 30.0f);
+
+        if (clamped <= kOscKneeQ) {
+            return kOscKneeNorm * (clamped - 0.1f) / (kOscKneeQ - 0.1f);
+        }
+        return kOscKneeNorm
+             + (1.0f - kOscKneeNorm) * (clamped - kOscKneeQ) / (30.0f - kOscKneeQ);
     }
 
     // =========================================================================
