@@ -26,6 +26,7 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
@@ -190,6 +191,23 @@ std::string readFile(const std::filesystem::path& p) {
     return ss.str();
 }
 
+// Golden-fixture maintenance. The factory arp presets are generated data; when
+// they are intentionally revised the paired goldens must be rebuilt from the new
+// bank. Setting RUINAE_REGEN_GOLDENS=1 rewrites each golden from the captured
+// MIDI instead of asserting against it. It is OFF by default, so CI and normal
+// local runs always assert. Regenerate deliberately, then re-run without the
+// variable to confirm the suite passes.
+bool regenGoldensRequested() {
+    const char* v = std::getenv("RUINAE_REGEN_GOLDENS");
+    return v != nullptr && v[0] == '1';
+}
+
+void writeFile(const std::filesystem::path& p, const std::string& contents) {
+    std::ofstream out(p, std::ios::binary);
+    REQUIRE(out.good());
+    out << contents;
+}
+
 // Sanitize a string the same way tools/gen_v2_fixtures/common.cpp does.
 std::string sanitizeForFilename(const std::string& in) {
     std::string out;
@@ -341,11 +359,15 @@ void verifyPreset(const std::filesystem::path& presetPath,
     const auto goldenPath = fixturesDir /
         ("ruinae_factory_" + safe + "_golden_midi.txt");
 
+    const bool regen = regenGoldensRequested();
+
     // SC-004b requires 100% factory-preset coverage. A missing golden must be
     // a hard failure so any future preset added without a paired golden trips
     // CI immediately (compliance fix, spec 142 Phase 3 retry).
-    INFO("missing golden file: " << goldenPath.string());
-    REQUIRE(std::filesystem::exists(goldenPath));
+    if (!regen) {
+        INFO("missing golden file: " << goldenPath.string());
+        REQUIRE(std::filesystem::exists(goldenPath));
+    }
 
     auto golden = readFile(goldenPath);
 
@@ -383,6 +405,13 @@ void verifyPreset(const std::filesystem::path& presetPath,
     proc->terminate();
 
     auto actual = formatCaptured(captured);
+
+    if (regen) {
+        writeFile(goldenPath, actual);
+        WARN("regenerated golden: " << goldenPath.filename().string()
+            << " (" << actual.size() << " bytes)");
+        return;
+    }
 
     INFO("preset: " << stem);
     INFO("actual bytes: " << actual.size()
