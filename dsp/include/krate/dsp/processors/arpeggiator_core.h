@@ -156,7 +156,14 @@ public:
     // =========================================================================
 
     static constexpr size_t kMaxEvents = 128;
-    static constexpr size_t kMaxPendingNoteOffs = 32;
+    /// Scheduled NoteOffs in flight. Must cover the worst case the parameter
+    /// ranges permit, or addPendingNoteOff starts evicting: a full 32-note
+    /// chord (HeldNoteBuffer and ArpNoteResult both cap at 32) sustained at up
+    /// to kMaxGateLength = 200% overlaps itself across two steps, so 2 x 32.
+    /// At 32 the ring overflowed on every step of a big sustained chord, and
+    /// each eviction fired that note's NoteOff early at sampleOffset 0 --
+    /// cutting notes short and emitting events out of time order.
+    static constexpr size_t kMaxPendingNoteOffs = 64;
     /// 0=velocity, 1=gate, 2=pitch, 3=modifier, 4=ratchet, 5=condition,
     /// 6=chord, 7=inversion, 8=MIDI delay, 9=sequencer note (spec 142, lane 10).
     /// Lane 9 is conditionally inert in Live mode (`sourceMode_ == Live`).
@@ -1692,7 +1699,10 @@ private:
 
     std::array<uint8_t, 32> currentArpNotes_{};
     size_t currentArpNoteCount_ = 0;
-    std::array<PendingNoteOff, 32> pendingNoteOffs_{};
+    // Sized from the capacity constant, not a literal: addPendingNoteOff bounds
+    // itself on kMaxPendingNoteOffs, so a hardcoded size here means raising the
+    // constant writes past the end of this array.
+    std::array<PendingNoteOff, kMaxPendingNoteOffs> pendingNoteOffs_{};
     size_t pendingNoteOffCount_ = 0;
 
     // =========================================================================

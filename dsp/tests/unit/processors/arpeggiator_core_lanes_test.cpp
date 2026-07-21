@@ -1740,3 +1740,147 @@ TEST_CASE("ArpeggiatorCore: sounding-note tracking stays within bounds under cho
     for (int pitch = 0; pitch < 128; ++pitch) totalOns += onCount[pitch];
     CHECK(totalOns > 0);
 }
+
+TEST_CASE("ArpeggiatorCore: pending-note-off eviction never drops its NoteOff",
+          "[processors][arpeggiator_core][bounds][pending-noteoff]") {
+    // addPendingNoteOff evicts the oldest entry when pendingNoteOffs_ is full,
+    // emitting its NoteOff early. The eviction (shift-down + decrement) is
+    // unconditional, but the emission is guarded by `eventCount < maxEvents` --
+    // so when the caller's output span is already full the note-off obligation
+    // is destroyed outright and that note hangs forever.
+    //
+    // Reproduce deterministically: 32 held notes in Chord mode fills
+    // pendingNoteOffs_ to its 32-entry capacity in one step, a long gate keeps
+    // them all pending, and a deliberately small output span guarantees
+    // eventCount saturates before the next step's evictions run.
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Chord);
+    arp.setNoteValue(NoteValue::ThirtySecond, NoteModifier::None);
+    arp.setGateLength(200.0f);   // notes stay sounding across step boundaries
+
+    for (int n = 0; n < 32; ++n) {
+        arp.noteOn(static_cast<uint8_t>(36 + n), 100);
+    }
+
+    BlockContext ctx{};
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+
+    std::array<int, 128> onCount{};
+    std::array<int, 128> offCount{};
+
+    // Small span: maxEvents = 16, far below the 32 events one chord emits.
+    std::array<ArpEvent, 16> smallSpan{};
+    for (int b = 0; b < 40; ++b) {
+        const size_t count = arp.processBlock(ctx, smallSpan);
+        for (size_t i = 0; i < count; ++i) {
+            if (smallSpan[i].type == ArpEvent::Type::NoteOn)  ++onCount[smallSpan[i].note];
+            else if (smallSpan[i].type == ArpEvent::Type::NoteOff) ++offCount[smallSpan[i].note];
+        }
+        ctx.transportPositionSamples += static_cast<int64_t>(ctx.blockSize);
+    }
+
+    // Release everything and drain with a generous span so every outstanding
+    // note-off has room to be emitted.
+    for (int n = 0; n < 32; ++n) {
+        arp.noteOff(static_cast<uint8_t>(36 + n));
+    }
+    std::array<ArpEvent, 128> bigSpan{};
+    for (int b = 0; b < 200; ++b) {
+        const size_t count = arp.processBlock(ctx, bigSpan);
+        for (size_t i = 0; i < count; ++i) {
+            if (bigSpan[i].type == ArpEvent::Type::NoteOn)  ++onCount[bigSpan[i].note];
+            else if (bigSpan[i].type == ArpEvent::Type::NoteOff) ++offCount[bigSpan[i].note];
+        }
+        ctx.transportPositionSamples += static_cast<int64_t>(ctx.blockSize);
+    }
+
+    for (int pitch = 0; pitch < 128; ++pitch) {
+        INFO("pitch=" << pitch << " on=" << onCount[pitch] << " off=" << offCount[pitch]);
+        CHECK(offCount[pitch] >= onCount[pitch]);
+    }
+}
+
+TEST_CASE("ArpeggiatorCore: a sustained full chord does not overflow the pending-NoteOff ring",
+          "[processors][arpeggiator_core][bounds][pending-noteoff]") {
+    // pendingNoteOffs_ has to cover the worst case the parameter ranges permit.
+    // A full 32-note chord (HeldNoteBuffer and ArpNoteResult both cap at 32)
+    // held at kMaxGateLength = 200% overlaps itself across two steps, so 64
+    // NoteOffs can legitimately be in flight at once.
+    //
+    // Sized at 32, the ring overflowed on essentially every step of a big
+    // sustained chord. Each overflow evicted the oldest entry and fired that
+    // note's NoteOff early, at sampleOffset 0 -- mid-block, after NoteOns that
+    // had already been emitted at later offsets. That cut notes short AND
+    // produced output events that stepped backwards in time.
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Chord);
+    arp.setNoteValue(NoteValue::ThirtySecond, NoteModifier::None);
+    arp.setGateLength(ArpeggiatorCore::kMaxGateLength);  // 200%: maximum overlap
+
+    for (int n = 0; n < 32; ++n) {
+        arp.noteOn(static_cast<uint8_t>(36 + n), 100);
+    }
+
+    BlockContext ctx{};
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+
+    std::array<ArpEvent, 128> events{};
+    int backwardsSteps = 0;
+    std::array<bool, 128> lastWasNoteOn{};
+    std::array<bool, 128> everSeen{};
+
+    // Alternate Chord with a single-note mode so both fireStep paths schedule
+    // NoteOffs against a ring that a full chord has already loaded up.
+    for (int round = 0; round < 20; ++round) {
+        arp.setMode((round % 2 == 0) ? ArpMode::Chord : ArpMode::Up);
+        for (int b = 0; b < 4; ++b) {
+            const size_t count = arp.processBlock(ctx, events);
+            for (size_t i = 0; i < count; ++i) {
+                if (i > 0 && events[i].sampleOffset < events[i - 1].sampleOffset) {
+                    ++backwardsSteps;
+                }
+                everSeen[events[i].note] = true;
+                lastWasNoteOn[events[i].note] =
+                    (events[i].type == ArpEvent::Type::NoteOn);
+            }
+            ctx.transportPositionSamples += static_cast<int64_t>(ctx.blockSize);
+        }
+    }
+
+    // Emitted events must be in non-decreasing sampleOffset order. Overflow
+    // evictions injected NoteOffs at offset 0 mid-block; this measured 28
+    // backwards steps over the same run before the ring was resized.
+    INFO("backwards sampleOffset steps: " << backwardsSteps);
+    CHECK(backwardsSteps == 0);
+
+    // Release everything and drain: no pitch may be left with a NoteOn as its
+    // final event.
+    for (int n = 0; n < 32; ++n) {
+        arp.noteOff(static_cast<uint8_t>(36 + n));
+    }
+    for (int b = 0; b < 60; ++b) {
+        const size_t count = arp.processBlock(ctx, events);
+        for (size_t i = 0; i < count; ++i) {
+            everSeen[events[i].note] = true;
+            lastWasNoteOn[events[i].note] =
+                (events[i].type == ArpEvent::Type::NoteOn);
+        }
+        ctx.transportPositionSamples += static_cast<int64_t>(ctx.blockSize);
+    }
+
+    for (int pitch = 0; pitch < 128; ++pitch) {
+        if (!everSeen[pitch]) continue;
+        INFO("pitch " << pitch << " ended on a NoteOn");
+        CHECK_FALSE(lastWasNoteOn[pitch]);
+    }
+}
