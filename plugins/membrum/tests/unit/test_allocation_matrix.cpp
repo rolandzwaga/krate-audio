@@ -28,95 +28,10 @@
 #include <new>
 #include <string>
 
-// ==============================================================================
-// Global operator new overrides — required for AllocationDetector to observe
-// heap allocations in this binary. These are the only allocation-operator
-// overrides in the membrum_tests TU set.
-//
-// Replacing these is only well-defined if the WHOLE matched set is replaced and
-// every replacement is visible program-wide. Two earlier shapes both corrupted
-// the heap and surfaced as an intermittent, test-order-dependent SIGSEGV on the
-// Linux CI leg:
-//
-//   1. new -> malloc together with a delete -> free override, compiled under
-//      -fvisibility=hidden. Hidden symbols do NOT interpose libstdc++, so a
-//      std::string allocated inside libstdc++ but destroyed in executable code
-//      was freed by this TU's free() while libstdc++ had allocated it.
-//   2. Replacing ONLY new / new[] and leaving operator delete at the library
-//      default. That looks safe on glibc (default delete does call free), but
-//      [new.delete] requires a replaced operator new to be paired with a
-//      replaced operator delete: the pair must agree on which allocator owns
-//      the block. AddressSanitizer reports it directly --
-//      "alloc-dealloc-mismatch (malloc vs operator delete)" -- raised during
-//      Catch2's own static test registration, i.e. before any test body runs.
-//      Whatever runs next inherits a poisoned allocator, which is why the crash
-//      lands on an arbitrary later test (CI died in the voice-pool steal test)
-//      and never reproduces in isolation.
-//
-// The fix is to do it properly: replace the entire set -- throwing, nothrow,
-// array and sized forms -- all on malloc/free so new and delete always agree,
-// and give them default visibility so exactly one definition serves the whole
-// process, libstdc++ included. With one allocator and one matched set there is
-// no cross-module mismatch left to hit.
-// ==============================================================================
-#if defined(_MSC_VER)
-#  define KRATE_ALLOC_REPLACEMENT
-#else
-#  define KRATE_ALLOC_REPLACEMENT __attribute__((visibility("default")))
-#endif
-
-KRATE_ALLOC_REPLACEMENT void* operator new(std::size_t size)
-{
-    TestHelpers::AllocationDetector::instance().recordAllocation();
-    void* p = std::malloc(size ? size : 1);
-    if (!p) throw std::bad_alloc();
-    return p;
-}
-
-KRATE_ALLOC_REPLACEMENT void* operator new[](std::size_t size)
-{
-    TestHelpers::AllocationDetector::instance().recordAllocation();
-    void* p = std::malloc(size ? size : 1);
-    if (!p) throw std::bad_alloc();
-    return p;
-}
-
-KRATE_ALLOC_REPLACEMENT void* operator new(std::size_t size,
-                                           const std::nothrow_t&) noexcept
-{
-    TestHelpers::AllocationDetector::instance().recordAllocation();
-    return std::malloc(size ? size : 1);
-}
-
-KRATE_ALLOC_REPLACEMENT void* operator new[](std::size_t size,
-                                             const std::nothrow_t&) noexcept
-{
-    TestHelpers::AllocationDetector::instance().recordAllocation();
-    return std::malloc(size ? size : 1);
-}
-
-KRATE_ALLOC_REPLACEMENT void operator delete(void* p) noexcept { std::free(p); }
-KRATE_ALLOC_REPLACEMENT void operator delete[](void* p) noexcept { std::free(p); }
-
-KRATE_ALLOC_REPLACEMENT void operator delete(void* p, std::size_t) noexcept
-{
-    std::free(p);
-}
-
-KRATE_ALLOC_REPLACEMENT void operator delete[](void* p, std::size_t) noexcept
-{
-    std::free(p);
-}
-
-KRATE_ALLOC_REPLACEMENT void operator delete(void* p, const std::nothrow_t&) noexcept
-{
-    std::free(p);
-}
-
-KRATE_ALLOC_REPLACEMENT void operator delete[](void* p, const std::nothrow_t&) noexcept
-{
-    std::free(p);
-}
+// Global allocation-operator replacements live in ONE shared header so the
+// matched set and its visibility cannot drift per-TU. See that header for the
+// two broken shapes this repo already shipped and the ASan numbers behind them.
+#include <allocation_operator_overrides.h>
 
 namespace {
 

@@ -177,6 +177,14 @@ jobs:
       # 10 minutes in, while every Windows gate was green.
       - name: Hardcoded platform-type constant lint
         run: node tools/lint-platform-type-literals.js
+      # Catches a hand-rolled global operator new / delete. A partial or
+      # hidden-visibility replacement set corrupts the heap; MSVC never shows
+      # it, and on Linux it surfaces as an intermittent SIGSEGV in whatever
+      # unrelated test runs later, which never reproduces in isolation. ASan on
+      # membrum_tests measured 694,513 alloc-dealloc mismatches from one such
+      # partial set, the first during Catch2's static registration.
+      - name: Hand-rolled allocation-operator lint
+        run: node tools/lint-allocation-operator-overrides.js
 
   build-windows:
     name: Windows (MSVC)

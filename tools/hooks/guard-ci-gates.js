@@ -42,6 +42,7 @@ const LINTS = [
     { script: 'lint-float-bit-goldens.js', what: 'bit-exact float golden digest' },
     { script: 'lint-midi-timing-goldens.js', what: 'byte-exact MIDI timing golden' },
     { script: 'lint-platform-type-literals.js', what: 'hardcoded platform-type constant in a test' },
+    { script: 'lint-allocation-operator-overrides.js', what: 'hand-rolled global operator new/delete' },
 ];
 
 function readStdin() {

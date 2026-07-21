@@ -24,31 +24,11 @@
 #include <new>
 #include <utility>
 #include <vector>
+// Global allocation-operator replacements live in ONE shared header so the
+// matched set and its visibility cannot drift per-TU (this TU previously
+// omitted the nothrow forms and default visibility).
+#include <allocation_operator_overrides.h>
 
-// ==============================================================================
-// Global operator new overrides for allocation detection in this TU.
-// These allow AllocationDetector to count heap allocations during pushSamples().
-// ==============================================================================
-void* operator new(std::size_t size)
-{
-    TestHelpers::AllocationDetector::instance().recordAllocation();
-    void* p = std::malloc(size);
-    if (!p) throw std::bad_alloc();
-    return p;
-}
-
-void* operator new[](std::size_t size)
-{
-    TestHelpers::AllocationDetector::instance().recordAllocation();
-    void* p = std::malloc(size);
-    if (!p) throw std::bad_alloc();
-    return p;
-}
-
-void operator delete(void* p) noexcept { std::free(p); }
-void operator delete[](void* p) noexcept { std::free(p); }
-void operator delete(void* p, std::size_t) noexcept { std::free(p); }
-void operator delete[](void* p, std::size_t) noexcept { std::free(p); }
 
 using Catch::Approx;
 
