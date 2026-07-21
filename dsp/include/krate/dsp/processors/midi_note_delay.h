@@ -166,7 +166,14 @@ public:
         // --- 3. Emit due pending echoes (NoteOns and NoteOffs) ---
         emitDueEchoes(ctx, outputEvents, outCount, maxOutput);
 
-        // --- 4. Advance time and compact ---
+        // --- 4. Restore non-decreasing sampleOffset order ---
+        // The three emission passes above append in emission order, not time
+        // order: a due echo (early in the block) lands after a pass-through arp
+        // event that occurs late in it. Hosts are entitled to a monotonic event
+        // stream, so re-order before returning.
+        sortBySampleOffset(outputEvents, outCount);
+
+        // --- 5. Advance time and compact ---
         advanceAndCompact(ctx.blockSize);
 
         return outCount;
@@ -303,6 +310,30 @@ private:
                     false};
                 echo.noteOffEmitted = true;
             }
+        }
+    }
+
+    // =========================================================================
+    // Output Ordering
+    // =========================================================================
+
+    /// @brief Stable in-place sort of the emitted span by sampleOffset.
+    ///
+    /// Insertion sort: allocation-free (std::stable_sort allocates), and the
+    /// span is nearly sorted already -- the pass-through events are in order
+    /// and only the echoes are out of place -- so it runs close to linear.
+    /// Stability matters: events sharing a sampleOffset keep their emission
+    /// order, which is what keeps an echo's own NoteOn ahead of its NoteOff.
+    static void sortBySampleOffset(std::span<ArpEvent> events, size_t count) noexcept
+    {
+        for (size_t i = 1; i < count; ++i) {
+            const ArpEvent key = events[i];
+            size_t j = i;
+            while (j > 0 && events[j - 1].sampleOffset > key.sampleOffset) {
+                events[j] = events[j - 1];
+                --j;
+            }
+            events[j] = key;
         }
     }
 

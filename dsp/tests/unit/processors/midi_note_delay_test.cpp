@@ -910,3 +910,54 @@ TEST_CASE("MidiNoteDelay: output-span saturation never strands an echo NoteOff",
         REQUIRE(offCount[pitch] >= onCount[pitch]);
     }
 }
+
+// =============================================================================
+// Output event ordering (Gradus audit F5)
+// =============================================================================
+// process() appends pass-through arp events first, then emergency NoteOffs at
+// sampleOffset 0, then due echoes in pending-array order -- and the Gradus
+// processor forwards the combined span to the host verbatim, with no sort. A
+// due echo emitted after a later pass-through arp event therefore produces a
+// backwards step in sampleOffset within one block.
+//
+// Verify-first: this asserts the ordering claim itself, NOT stuck notes. Both
+// audit verifiers agreed an echo's own NoteOff can never precede its NoteOn, so
+// the hanging-note consequence is unreachable; what remains is cross-event
+// timing order, which strict hosts are entitled to expect.
+
+TEST_CASE("MidiNoteDelay: output events are non-decreasing in sampleOffset",
+          "[MidiNoteDelay][ordering][F5]")
+{
+    MidiNoteDelay delay;
+    auto ctx = makeCtx(44100.0, 512);
+
+    MidiDelayStepConfig config;
+    config.active = true;
+    config.timeMode = TimeMode::Free;
+    config.delayTimeMs = 10.0f;   // 441 samples -- due inside the next block
+    config.feedbackCount = 4;
+    config.velocityDecay = 0.0f;
+    delay.setStepConfig(0, config);
+
+    std::array<ArpEvent, 512> output{};
+
+    // Block 0: a note at offset 0 schedules echoes at 441, 882, ...
+    std::array<ArpEvent, 1> first{makeNoteOn(60, 100, 0)};
+    (void)delay.process(ctx, std::span<const ArpEvent>(first.data(), 1), 1,
+                        std::span<ArpEvent>(output.data(), output.size()), 0);
+
+    // Block 1: a pass-through arp event LATE in the block (offset 500) is
+    // appended before the echo that is due EARLY in the same block (offset ~441
+    // - 512 -> clamped to 0), so the raw stream steps backwards.
+    std::array<ArpEvent, 1> second{makeNoteOn(64, 100, 500)};
+    const size_t count = delay.process(
+        ctx, std::span<const ArpEvent>(second.data(), 1), 1,
+        std::span<ArpEvent>(output.data(), output.size()), 0);
+
+    REQUIRE(count >= 2);
+    for (size_t i = 1; i < count; ++i) {
+        INFO("event " << i << " offset " << output[i].sampleOffset
+             << " follows offset " << output[i - 1].sampleOffset);
+        CHECK(output[i].sampleOffset >= output[i - 1].sampleOffset);
+    }
+}

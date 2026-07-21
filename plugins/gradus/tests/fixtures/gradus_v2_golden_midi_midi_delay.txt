@@ -119,12 +119,12 @@
 [196246] noteOff 60
 [197347] noteOff 60
 [198450] noteOn  60 101
-[198451] noteOn  60 13
 [198450] noteOn  60 51
+[198451] noteOn  60 13
 [202859] noteOff 60
 [203963] noteOn  60 101
-[207271] noteOff 60
 [207270] noteOff 60
+[207271] noteOff 60
 [208372] noteOff 60
 [209475] noteOn  60 101
 [209475] noteOn  60 25
