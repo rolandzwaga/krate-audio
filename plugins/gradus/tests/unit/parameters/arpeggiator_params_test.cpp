@@ -116,3 +116,38 @@ TEST_CASE("Gradus arp shared-prefix save is byte-golden (D3)", "[arp][params][st
     INFO("gradus shared-prefix FNV = 0x" << std::hex << fnv);
     CHECK(fnv == Krate::Test::kSharedArpPrefixGoldenFnv);
 }
+
+// =============================================================================
+// speedValueToNormalized (Gradus audit F10)
+// =============================================================================
+// The value->nearest-dropdown-index snap used to be copy-pasted three times in
+// the load paths with drifted (dead) search seeds. This pins the single helper
+// they now share; the existing save/load round-trip guardrails above cover the
+// behaviour-identity of the refactor itself.
+
+TEST_CASE("speedValueToNormalized snaps to the nearest kLaneSpeedValues entry",
+          "[gradus][params][F10]")
+{
+    const auto normFor = [](int index) {
+        return static_cast<double>(index)
+             / static_cast<double>(Gradus::kLaneSpeedCount - 1);
+    };
+
+    // Exact entries map to their own index.
+    for (int i = 0; i < Gradus::kLaneSpeedCount; ++i) {
+        INFO("entry " << i << " = " << Gradus::kLaneSpeedValues[i]);
+        CHECK(Gradus::speedValueToNormalized(Gradus::kLaneSpeedValues[i])
+              == Catch::Approx(normFor(i)));
+    }
+
+    // Values between entries snap to the nearer one.
+    CHECK(Gradus::speedValueToNormalized(0.26f) == Catch::Approx(normFor(0)));   // -> 0.25
+    CHECK(Gradus::speedValueToNormalized(0.9f)  == Catch::Approx(normFor(3)));   // -> 1.0
+    CHECK(Gradus::speedValueToNormalized(1.9f)  == Catch::Approx(normFor(7)));   // -> 2.0
+    CHECK(Gradus::speedValueToNormalized(2.6f)  == Catch::Approx(normFor(8)));   // -> 3.0
+
+    // Out-of-range values snap to the extremes rather than the default index.
+    CHECK(Gradus::speedValueToNormalized(-100.0f) == Catch::Approx(normFor(0)));
+    CHECK(Gradus::speedValueToNormalized(1.0e9f)
+          == Catch::Approx(normFor(Gradus::kLaneSpeedCount - 1)));
+}
