@@ -50,6 +50,9 @@ add_executable(gradus_tests
     # Deactivation must not strand sounding notes (audit F4)
     unit/processor/set_active_flush_test.cpp
 
+    # Audition silence reporting + tempo validity (audit F18, F19)
+    unit/processor/audition_and_tempo_test.cpp
+
     # Piano-roll view tests (spec 142, Phase 6, US3)
     unit/ui/piano_roll_view_test.cpp
     unit/ui/piano_roll_playhead_test.cpp

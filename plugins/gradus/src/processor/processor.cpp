@@ -184,14 +184,14 @@ tresult PLUGIN_API Processor::process(ProcessData& data)
     if (data.processContext) {
         const bool transportPlaying =
             (data.processContext->state & ProcessContext::kPlaying) != 0;
-        blockCtx.tempoBPM = data.processContext->tempo;
+        // Fall back to 120 BPM for any non-positive tempo, whatever the
+        // transport state. The fallback used to sit inside the !playing branch
+        // only, so a host reporting kPlaying with tempo 0 left tempoBPM at 0 --
+        // and synced step math divides 60.0 / tempoBPM.
+        blockCtx.tempoBPM = data.processContext->tempo > 0
+            ? data.processContext->tempo : 120.0;
         // Sequencer follows the host transport; Live free-runs.
         blockCtx.isPlaying = isSequencer ? transportPlaying : true;
-        // Only sync to musical position when transport is actually playing
-        if (!transportPlaying) {
-            blockCtx.tempoBPM = data.processContext->tempo > 0
-                ? data.processContext->tempo : 120.0;
-        }
     } else {
         // No host transport context (e.g. offline/standalone): Sequencer has no
         // transport to follow, so keep it running; Live free-runs as always.
@@ -294,14 +294,25 @@ tresult PLUGIN_API Processor::process(ProcessData& data)
         }
 
         // Apply audition voice params and render
-        if (auditionEnabled_.load(std::memory_order_relaxed)) {
+        const bool auditionOn = auditionEnabled_.load(std::memory_order_relaxed);
+        if (auditionOn) {
             auditionVoice_.setWaveform(auditionWaveform_.load(std::memory_order_relaxed));
             auditionVoice_.setDecay(auditionDecay_.load(std::memory_order_relaxed));
             auditionVoice_.setVolume(auditionVolume_.load(std::memory_order_relaxed));
             auditionVoice_.processBlock(outL, outR, numSamples);
+        } else if (auditionVoice_.isActive()) {
+            // The voice stops being rendered the moment audition is switched
+            // off, and AuditionVoice::active_ only clears from inside
+            // processBlock -- so without this it would stay flagged active
+            // forever, and the silence report below would keep claiming a
+            // buffer we are in fact leaving at zero.
+            auditionVoice_.reset();
         }
 
-        data.outputs[0].silenceFlags = auditionVoice_.isActive() ? 0 : 0x3;
+        // Report silence from what we actually wrote: the buffers were cleared
+        // above and only the enabled audition voice adds to them.
+        data.outputs[0].silenceFlags =
+            (auditionOn && auditionVoice_.isActive()) ? 0 : 0x3;
     }
 
     return kResultOk;
