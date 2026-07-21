@@ -4,6 +4,9 @@
 // arpeggiator_core_test_helpers.h.
 #include "arpeggiator_core_test_helpers.h"
 
+#include <atomic>
+#include <thread>
+
 
 
 // =============================================================================
@@ -1546,4 +1549,98 @@ TEST_CASE("ArpeggiatorCore: EdgeCase_LaneResetOnTransportStop",
     CHECK(arp.velocityLane().currentStep() == 0);
     CHECK(arp.gateLane().currentStep() == 0);
     CHECK(arp.pitchLane().currentStep() == 0);
+}
+
+// =============================================================================
+// Per-lane speed-curve depth: cross-thread access (Gradus audit F1)
+// =============================================================================
+// Depth for lanes 0-7 is only ever set from the host's message thread (Gradus
+// routes it through Processor::notify's "SpeedCurveTable" handler), while the
+// audio thread reads it every block in the per-lane speed advance. Its two
+// sibling fields are already synchronized -- the 256-entry table via a staging
+// buffer plus an atomic dirty flag, and the enabled flag as std::atomic<bool> --
+// but depth was a plain float, i.e. an unsynchronized cross-thread access.
+//
+// The fix is the atomic type itself; a single-threaded test cannot observe a
+// data race, and on x86-64/ARM64 an aligned 4-byte load never tears, so these
+// cases lock the behaviour the atomicity must not change (round-trip, clamping,
+// effect on lane advance) and exercise the concurrent path so a
+// ThreadSanitizer build has something to flag.
+
+TEST_CASE("ArpeggiatorCore: speed-curve depth round-trips and clamps",
+          "[processors][arpeggiator_core][speed-curve][F1]") {
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+
+    for (size_t lane = 0; lane < ArpeggiatorCore::kNumLanes; ++lane) {
+        arp.setLaneSpeedCurveDepth(lane, 0.75f);
+        CHECK(arp.laneSpeedCurveDepth(lane) == Catch::Approx(0.75f));
+    }
+
+    // Writes are clamped to [0, 1].
+    arp.setLaneSpeedCurveDepth(0, -3.0f);
+    CHECK(arp.laneSpeedCurveDepth(0) == Catch::Approx(0.0f));
+    arp.setLaneSpeedCurveDepth(0, 12.0f);
+    CHECK(arp.laneSpeedCurveDepth(0) == Catch::Approx(1.0f));
+
+    // Out-of-range lane indices are ignored on write and read back as 0.
+    arp.setLaneSpeedCurveDepth(ArpeggiatorCore::kNumLanes, 1.0f);
+    CHECK(arp.laneSpeedCurveDepth(ArpeggiatorCore::kNumLanes) == Catch::Approx(0.0f));
+}
+
+TEST_CASE("ArpeggiatorCore: speed-curve depth is safe to set while processing",
+          "[processors][arpeggiator_core][speed-curve][F1]") {
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setNoteValue(NoteValue::Sixteenth, NoteModifier::None);
+    arp.noteOn(60, 100);
+
+    // Enable the curve on every lane so the audio thread actually reads depth
+    // (the read is gated on the enabled flag).
+    std::array<float, 256> table{};
+    for (size_t i = 0; i < table.size(); ++i) {
+        table[i] = static_cast<float>(i) / 255.0f;
+    }
+    for (size_t lane = 0; lane < ArpeggiatorCore::kNumLanes; ++lane) {
+        arp.setLaneSpeedCurveEnabled(lane, true);
+        arp.setLaneSpeedCurveTable(lane, table);
+    }
+    arp.consumePendingCurveTables();
+
+    BlockContext ctx{};
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+
+    std::atomic<bool> stop{false};
+    // Writer stands in for the message thread hammering the depth control.
+    std::thread writer([&arp, &stop] {
+        const float values[] = {0.0f, 0.25f, 0.5f, 0.75f, 1.0f};
+        int i = 0;
+        while (!stop.load(std::memory_order_relaxed)) {
+            for (size_t lane = 0; lane < 8; ++lane) {
+                arp.setLaneSpeedCurveDepth(lane, values[i % 5]);
+            }
+            ++i;
+        }
+    });
+
+    std::array<ArpEvent, 128> events{};
+    for (int block = 0; block < 500; ++block) {
+        (void)arp.processBlock(ctx, events);
+        ctx.transportPositionSamples += static_cast<int64_t>(ctx.blockSize);
+    }
+    stop.store(true, std::memory_order_relaxed);
+    writer.join();
+
+    // Whatever interleaving occurred, every lane must hold one of the written
+    // values -- never a torn or out-of-range one.
+    for (size_t lane = 0; lane < 8; ++lane) {
+        const float d = arp.laneSpeedCurveDepth(lane);
+        INFO("lane " << lane << " depth " << d);
+        CHECK(d >= 0.0f);
+        CHECK(d <= 1.0f);
+    }
 }

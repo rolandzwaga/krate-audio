@@ -518,9 +518,14 @@ void ArpeggiatorCore::fireStep(const BlockContext& ctx,
                 float& accum = laneAccumulators_[laneIdx];
                 float speed = laneSpeedMultipliers_[laneIdx];
 
-                // Apply speed curve modulation: curve offsets the center speed
+                // Apply speed curve modulation: curve offsets the center speed.
+                // Depth is written from the message thread, so load it once and
+                // use that snapshot for both the gate and the offset -- two
+                // separate loads could straddle a write and disagree.
+                const float curveDepth =
+                    laneSpeedCurveDepths_[laneIdx].load(std::memory_order_relaxed);
                 if (laneSpeedCurveEnabled_[laneIdx].load(std::memory_order_relaxed) &&
-                    laneSpeedCurveDepths_[laneIdx] > 0.0f) {
+                    curveDepth > 0.0f) {
                     float loopPos = static_cast<float>(lane.currentStep())
                                   / std::max(1.0f, static_cast<float>(lane.length()));
                     int tableIdx = std::clamp(
@@ -528,8 +533,7 @@ void ArpeggiatorCore::fireStep(const BlockContext& ctx,
                     float curveVal = laneSpeedCurveTables_[laneIdx]
                                      [static_cast<size_t>(tableIdx)];
                     // curveVal 0.5 = no offset, 0.0 = -depth, 1.0 = +depth
-                    float offset = (curveVal - 0.5f) * 2.0f
-                                 * laneSpeedCurveDepths_[laneIdx];
+                    float offset = (curveVal - 0.5f) * 2.0f * curveDepth;
                     speed *= (1.0f + offset);
                     speed = std::clamp(speed, 0.1f, 8.0f);
                 }

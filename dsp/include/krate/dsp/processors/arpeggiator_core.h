@@ -675,7 +675,8 @@ public:
     /// @brief Set speed curve depth for a lane (0 = off, 1 = full range).
     void setLaneSpeedCurveDepth(size_t laneIndex, float depth) noexcept {
         if (laneIndex < kNumLanes)
-            laneSpeedCurveDepths_[laneIndex] = std::clamp(depth, 0.0f, 1.0f);
+            laneSpeedCurveDepths_[laneIndex].store(std::clamp(depth, 0.0f, 1.0f),
+                                                  std::memory_order_relaxed);
     }
 
     /// @brief Enable/disable speed curve for a lane. Thread-safe (atomic store).
@@ -705,7 +706,9 @@ public:
 
     /// @brief Read per-lane speed-curve depth (returns 0 if OOB).
     [[nodiscard]] float laneSpeedCurveDepth(size_t laneIndex) const noexcept {
-        return laneIndex < kNumLanes ? laneSpeedCurveDepths_[laneIndex] : 0.0f;
+        return laneIndex < kNumLanes
+            ? laneSpeedCurveDepths_[laneIndex].load(std::memory_order_relaxed)
+            : 0.0f;
     }
 
     /// @brief Read per-lane speed-curve enabled flag (returns false if OOB).
@@ -1500,7 +1503,10 @@ private:
     std::array<std::array<float, 256>, kNumLanes> laneSpeedCurveTables_{};
     std::array<std::array<float, 256>, kNumLanes> laneSpeedCurveTablesStaging_{};
     std::array<std::atomic<bool>, kNumLanes> laneSpeedCurveTableDirty_{};
-    std::array<float, kNumLanes> laneSpeedCurveDepths_{};
+    // Written from the host message thread (Gradus routes depth through
+    // Processor::notify), read on the audio thread every block -- atomic for
+    // the same reason as laneSpeedCurveEnabled_ below.
+    std::array<std::atomic<float>, kNumLanes> laneSpeedCurveDepths_{};
     std::array<std::atomic<bool>, kNumLanes> laneSpeedCurveEnabled_{};
 
     // =========================================================================
