@@ -303,9 +303,17 @@ private:
             if (echo.noteOnEmitted && echo.noteOffEmitted) {
                 continue;
             }
-            // Safety: remove echoes whose NoteOff is past and somehow missed
+            // Safety: an echo whose NoteOff is more than a block overdue was
+            // starved by a saturated output span. If its NoteOn already reached
+            // the output it still owes a NoteOff, so it must be retained (with
+            // the NoteOff forced immediately due) rather than discarded --
+            // dropping it here would leave the note sounding forever. Echoes
+            // that never emitted their NoteOn owe nothing and can go.
             if (echo.noteOffRemaining < -bs) {
-                continue;
+                if (!echo.noteOnEmitted) {
+                    continue;
+                }
+                echo.noteOffRemaining = 0;
             }
 
             if (writeIdx != i) {
@@ -349,15 +357,22 @@ private:
         size_t& outCount,
         size_t maxOutput) noexcept
     {
-        for (size_t i = 0; i < emergencyNoteOffCount_ && outCount < maxOutput; ++i) {
+        size_t emitted = 0;
+        for (; emitted < emergencyNoteOffCount_ && outCount < maxOutput; ++emitted) {
             outputEvents[outCount++] = ArpEvent{
                 ArpEvent::Type::NoteOff,
-                emergencyNoteOffs_[i],
+                emergencyNoteOffs_[emitted],
                 0,
                 0,
                 false};
         }
-        emergencyNoteOffCount_ = 0;
+        // Keep whatever did not fit in this block's output span -- clearing the
+        // queue unconditionally would drop the note-off obligation entirely and
+        // strand the note (same failure mode as discarding a starved echo).
+        for (size_t i = emitted; i < emergencyNoteOffCount_; ++i) {
+            emergencyNoteOffs_[i - emitted] = emergencyNoteOffs_[i];
+        }
+        emergencyNoteOffCount_ -= emitted;
     }
 
     // =========================================================================
