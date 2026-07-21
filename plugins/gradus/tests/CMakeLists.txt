@@ -44,6 +44,9 @@ add_executable(gradus_tests
     # Live-mode transport Play-edge hygiene (audit F3)
     unit/processor/live_mode_play_edge_test.cpp
 
+    # MIDI-delay lane metadata reaches the engine (audit F14)
+    unit/processor/midi_delay_lane_metadata_test.cpp
+
     # Piano-roll view tests (spec 142, Phase 6, US3)
     unit/ui/piano_roll_view_test.cpp
     unit/ui/piano_roll_playhead_test.cpp

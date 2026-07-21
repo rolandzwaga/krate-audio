@@ -761,6 +761,24 @@ void Processor::applyParamsToEngine()
         const auto delayLen = arpParams_.midiDelayLaneLength.load(std::memory_order_relaxed);
         arpCore_.midiDelayLane().setLength(static_cast<size_t>(delayLen));
 
+        // Lane 8 modulators (speed / swing / jitter / speed-curve depth).
+        // The delay lane advances via advanceLaneBySpeed(midiDelayLane_, 8),
+        // which reads exactly these slots -- without these calls params
+        // 3703-3706 were stored, saved, loaded and shown in the UI but never
+        // reached the engine, so the lane always clocked at the base rate.
+        // Mirrors the lane-9 (Sequencer Note) block below.
+        arpCore_.setLaneSpeed(8,
+            arpParams_.midiDelayLaneSpeed.load(std::memory_order_relaxed));
+        arpCore_.setLaneSwing(8,
+            arpParams_.midiDelayLaneSwing.load(std::memory_order_relaxed));
+        arpCore_.setLaneLengthJitter(8,
+            arpParams_.midiDelayLaneJitter.load(std::memory_order_relaxed));
+        // Depth only takes effect once lane 8's speed curve is enabled; the
+        // enabled flags currently cover lanes 0-7 only. Applied anyway so the
+        // engine matches the stored value if that changes.
+        arpCore_.setLaneSpeedCurveDepth(8,
+            arpParams_.midiDelayLaneSpeedCurveDepth.load(std::memory_order_relaxed));
+
         for (int i = 0; i < 32; ++i) {
             MidiDelayStepConfig cfg;
             cfg.timeMode = arpParams_.midiDelayTimeModeSteps[i].load(std::memory_order_relaxed)
