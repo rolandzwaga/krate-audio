@@ -248,6 +248,7 @@ public:
         currentArpNoteCount_ = 0;
         pendingNoteOffCount_ = 0;
         needsDisableNoteOff_ = false;
+        panicRequested_ = false;
         physicalKeysHeld_ = 0;
         latchActive_ = false;
         selector_.reset();
@@ -613,10 +614,20 @@ public:
     [[nodiscard]] SourceMode sourceMode() const noexcept { return sourceMode_; }
 
     /// @brief Request a panic note-off for any currently sounding arp note.
-    /// On the next `processBlock`, all notes in `currentArpNotes_` will emit
-    /// a noteOff at sample offset 0. Lane playheads are NOT touched. Spec 142
-    /// uses this on source-mode toggle to avoid stuck notes.
-    void requestPanicNoteOff() noexcept { needsDisableNoteOff_ = true; }
+    /// On the next `processBlock`, all notes in `currentArpNotes_` (plus any
+    /// still-pending NoteOffs) emit at sample offset 0. Lane playheads are NOT
+    /// touched. Spec 142 uses this on source-mode toggle, and Gradus uses it on
+    /// deactivation, to avoid stuck notes.
+    ///
+    /// @note This discharges unconditionally at the top of the next
+    /// processBlock -- regardless of enabled state, transport, source mode, or
+    /// whether keys are still held. `needsDisableNoteOff_` alone is only
+    /// consumed on the disabled and empty-held-buffer paths, so a panic
+    /// requested while a chord was still held would otherwise never fire.
+    void requestPanicNoteOff() noexcept {
+        needsDisableNoteOff_ = true;
+        panicRequested_ = true;
+    }
 
     // =========================================================================
     // HeldNoteBuffer Accessor (read-only; spec 142 transposition root needs it)
@@ -1336,6 +1347,40 @@ private:
                           [[maybe_unused]] size_t samplesProcessed,
                           [[maybe_unused]] size_t blockSize) noexcept;
 
+    /// @brief Emit NoteOffs at sampleOffset 0 for every sounding arp note and
+    /// every still-pending NoteOff, then clear both trackers.
+    /// Shared by the disabled path, the empty-held-buffer path and the
+    /// unconditional panic discharge -- they had three copies of this loop.
+    inline void emitPanicNoteOffs(std::span<ArpEvent> outputEvents,
+                                  size_t& eventCount,
+                                  size_t maxEvents) noexcept {
+        for (size_t i = 0; i < currentArpNoteCount_ && eventCount < maxEvents; ++i) {
+            outputEvents[eventCount++] = ArpEvent{
+                .type = ArpEvent::Type::NoteOff, .note = currentArpNotes_[i],
+                .velocity = 0, .sampleOffset = 0};
+        }
+        // Pending NoteOffs track notes that are also in currentArpNotes_, so
+        // skip any we just emitted (FR-027, 082-presets-polish).
+        for (size_t i = 0; i < pendingNoteOffCount_ && eventCount < maxEvents; ++i) {
+            bool alreadyEmitted = false;
+            for (size_t j = 0; j < currentArpNoteCount_; ++j) {
+                if (pendingNoteOffs_[i].note == currentArpNotes_[j]) {
+                    alreadyEmitted = true;
+                    break;
+                }
+            }
+            if (!alreadyEmitted) {
+                outputEvents[eventCount++] = ArpEvent{
+                    .type = ArpEvent::Type::NoteOff, .note = pendingNoteOffs_[i].note,
+                    .velocity = 0, .sampleOffset = 0};
+            }
+        }
+        currentArpNoteCount_ = 0;
+        pendingNoteOffCount_ = 0;
+        needsDisableNoteOff_ = false;
+        panicRequested_ = false;
+    }
+
     /// @brief Remove a note from the currentArpNotes_ tracking array.
     inline void removeFromCurrentArpNotes(uint8_t note) noexcept {
         for (size_t i = 0; i < currentArpNoteCount_; ++i) {
@@ -1651,6 +1696,9 @@ private:
     // =========================================================================
 
     bool needsDisableNoteOff_ = false;
+    /// Set only by requestPanicNoteOff(); discharged unconditionally at the top
+    /// of processBlock (see that method's note).
+    bool panicRequested_ = false;
 
     // =========================================================================
     // Scale Mode (084-arp-scale-mode)

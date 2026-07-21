@@ -56,8 +56,25 @@ tresult PLUGIN_API Processor::terminate()
 tresult PLUGIN_API Processor::setActive(TBool state)
 {
     if (state) {
-        arpCore_.reset();  // Also resets midiDelayLane_ inside
-        midiDelay_.reset();
+        // Skip the reset when a deactivation flush is still outstanding: it
+        // would clear the very note-off obligations recorded below, which the
+        // first process() after reactivation still has to emit.
+        if (pendingDeactivateFlush_) {
+            pendingDeactivateFlush_ = false;
+        } else {
+            arpCore_.reset();  // Also resets midiDelayLane_ inside
+            midiDelay_.reset();
+        }
+    } else {
+        // Gradus emits its own arp and echo NoteOns to a MIDI *output* bus that
+        // the host cannot recall, so deactivating mid-note would strand them
+        // downstream. VST3 does not call process() after setActive(false)
+        // returns, so we cannot emit here -- instead record the obligation and
+        // let the first process() after reactivation discharge it.
+        arpCore_.requestPanicNoteOff();
+        midiDelay_.flushWithNoteOffs();
+        pendingDeactivateFlush_ = true;
+        auditionVoice_.reset();
     }
     return AudioEffect::setActive(state);
 }

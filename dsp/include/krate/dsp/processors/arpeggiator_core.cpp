@@ -22,32 +22,20 @@ size_t ArpeggiatorCore::processBlock(const BlockContext& ctx,
 
         size_t eventCount = 0;
 
+        // (b) Explicit panic discharge. An explicitly requested panic must
+        // always fire, whatever the enabled state, transport, source mode, or
+        // whether keys are still held -- the needsDisableNoteOff_ paths below
+        // only run when the arp is disabled or the held buffer just emptied, so
+        // a panic raised mid-chord (source toggle, host deactivation) would
+        // otherwise sit unconsumed and strand the sounding notes.
+        if (panicRequested_) {
+            emitPanicNoteOffs(outputEvents, eventCount, maxEvents);
+        }
+
         // (c) Disabled check (FR-008)
         if (!enabled_) {
             if (needsDisableNoteOff_) {
-                // Emit NoteOff for all currently sounding arp notes
-                for (size_t i = 0; i < currentArpNoteCount_ && eventCount < maxEvents; ++i) {
-                    outputEvents[eventCount++] = ArpEvent{
-                        .type = ArpEvent::Type::NoteOff, .note = currentArpNotes_[i], .velocity = 0, .sampleOffset = 0};
-                }
-                // Emit pending NoteOffs, skipping duplicates already emitted
-                // from currentArpNotes_ (FR-027, 082-presets-polish)
-                for (size_t i = 0; i < pendingNoteOffCount_ && eventCount < maxEvents; ++i) {
-                    bool alreadyEmitted = false;
-                    for (size_t j = 0; j < currentArpNoteCount_; ++j) {
-                        if (pendingNoteOffs_[i].note == currentArpNotes_[j]) {
-                            alreadyEmitted = true;
-                            break;
-                        }
-                    }
-                    if (!alreadyEmitted) {
-                        outputEvents[eventCount++] = ArpEvent{
-                            .type = ArpEvent::Type::NoteOff, .note = pendingNoteOffs_[i].note, .velocity = 0, .sampleOffset = 0};
-                    }
-                }
-                currentArpNoteCount_ = 0;
-                pendingNoteOffCount_ = 0;
-                needsDisableNoteOff_ = false;
+                emitPanicNoteOffs(outputEvents, eventCount, maxEvents);
             }
             return eventCount;
         }
@@ -127,30 +115,7 @@ size_t ArpeggiatorCore::processBlock(const BlockContext& ctx,
             // emit NoteOff for currently sounding arp note(s) and flush
             // ALL pending NoteOffs at sampleOffset 0 to prevent stuck notes.
             if (needsDisableNoteOff_) {
-                for (size_t i = 0; i < currentArpNoteCount_ && eventCount < maxEvents; ++i) {
-                    outputEvents[eventCount++] = ArpEvent{
-                        .type = ArpEvent::Type::NoteOff, .note = currentArpNotes_[i], .velocity = 0, .sampleOffset = 0};
-                }
-                // Flush all pending NoteOffs immediately at sampleOffset 0
-                for (size_t i = 0; i < pendingNoteOffCount_ && eventCount < maxEvents; ++i) {
-                    // Avoid duplicate: only emit if not already in currentArpNotes_
-                    // (which we just emitted above). Since pending NoteOffs track
-                    // notes that ARE in currentArpNotes_, skip duplicates.
-                    bool alreadyEmitted = false;
-                    for (size_t j = 0; j < currentArpNoteCount_; ++j) {
-                        if (pendingNoteOffs_[i].note == currentArpNotes_[j]) {
-                            alreadyEmitted = true;
-                            break;
-                        }
-                    }
-                    if (!alreadyEmitted) {
-                        outputEvents[eventCount++] = ArpEvent{
-                            .type = ArpEvent::Type::NoteOff, .note = pendingNoteOffs_[i].note, .velocity = 0, .sampleOffset = 0};
-                    }
-                }
-                currentArpNoteCount_ = 0;
-                pendingNoteOffCount_ = 0;
-                needsDisableNoteOff_ = false;
+                emitPanicNoteOffs(outputEvents, eventCount, maxEvents);
             }
             return eventCount;
         }

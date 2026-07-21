@@ -1465,7 +1465,7 @@
       "scope": "Krate::DSP::MidiNoteDelay",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/midi_note_delay.h",
-      "line": 158
+      "line": 180
     },
     {
       "name": "PendingNoteOff",
@@ -1473,7 +1473,7 @@
       "scope": "Krate::DSP::ArpeggiatorCore",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/arpeggiator_core.h",
-      "line": 997
+      "line": 1008
     },
     {
       "name": "PffftAlignedDeleter",

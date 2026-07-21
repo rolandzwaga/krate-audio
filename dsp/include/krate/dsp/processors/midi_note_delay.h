@@ -103,6 +103,28 @@ public:
         emergencyNoteOffCount_ = 0;
     }
 
+    /// @brief Drop pending echoes but keep every outstanding NoteOff obligation.
+    ///
+    /// Use instead of reset() whenever the host is still listening (transport
+    /// changes, deactivation): reset() discards echoes whose NoteOn already
+    /// reached the output, hanging those notes downstream. Echoes that never
+    /// sounded owe nothing and are discarded; the rest are retained with their
+    /// NoteOff immediately due, so the next process() emits it at offset 0.
+    void flushWithNoteOffs() noexcept
+    {
+        size_t writeIdx = 0;
+        for (size_t i = 0; i < pendingCount_; ++i) {
+            auto& echo = pendingEchoes_[i];
+            if (!echo.noteOnEmitted || echo.noteOffEmitted) continue;
+            echo.noteOffRemaining = 0;
+            if (writeIdx != i) {
+                pendingEchoes_[writeIdx] = pendingEchoes_[i];
+            }
+            ++writeIdx;
+        }
+        pendingCount_ = writeIdx;
+    }
+
     /// @brief Get current number of pending echoes (for diagnostics/testing).
     [[nodiscard]] size_t pendingCount() const noexcept { return pendingCount_; }
 
