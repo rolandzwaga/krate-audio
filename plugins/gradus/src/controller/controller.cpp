@@ -94,11 +94,16 @@ tresult PLUGIN_API Controller::setComponentState(IBStream* state)
 
     IBStreamer streamer(state, kLittleEndian);
 
-    // Read and discard state version (single version, no migration needed)
+    // Accept the same versions the processor does (v2 legacy, v3 current); the
+    // v3 appendix is EOF-tolerant, so a v2 stream simply leaves the newer
+    // fields at their defaults. Anything else must be refused here too --
+    // otherwise the processor keeps defaults while the controller parses the
+    // payload into its parameter cache and the two components disagree.
     int32 version = 0;
     if (!streamer.readInt32(version))
         return kResultFalse;
-    (void)version;
+    if (version != 2 && version != 3)
+        return kResultFalse;
 
     // Single path for all state loading (arp params + speed curves + delay)
     auto setParam = [this](ParamID id, ParamValue value) {
@@ -224,18 +229,8 @@ tresult PLUGIN_API Controller::notify(IMessage* message)
 {
     if (!message) return kResultFalse;
 
-    // Handle arp skip events from processor
-    if (strcmp(message->getMessageID(), "ArpSkip") == 0) {
-        auto* attrs = message->getAttributes();
-        int64 lane = 0;
-        int64 step = 0;
-        if (attrs && attrs->getInt("lane", lane) == kResultOk &&
-            attrs->getInt("step", step) == kResultOk) {
-            handleArpSkipEvent(static_cast<int>(lane), static_cast<int>(step));
-        }
-        return kResultOk;
-    }
-
+    // The Gradus processor sends no IMessage at all -- messaging runs one way,
+    // controller to processor (speed-curve tables). Nothing to intercept here.
     return EditControllerEx1::notify(message);
 }
 

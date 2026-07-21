@@ -12,27 +12,6 @@
 
 namespace Gradus {
 
-void Controller::handleArpSkipEvent(int lane, int step) {
-    if (lane < 0 || lane >= kArpLaneCount) return;
-    if (step < 0 || step >= 32) return;
-
-    Krate::Plugins::IArpLane* lanes[kArpLaneCount] = {
-        velocityLane_, gateLane_, pitchLane_,
-        ratchetLane_, modifierLane_, conditionLane_,
-        chordLane_, inversionLane_, midiDelayLane_
-    };
-
-    auto* targetLane = lanes[lane];
-    if (!targetLane) return;
-
-    targetLane->setSkippedStep(static_cast<int32_t>(step));
-
-    auto* view = targetLane->getView();
-    if (view) {
-        view->invalid();
-    }
-}
-
 // Gradus addresses its arp lanes in TWO different orders, and they disagree at
 // indices 3/4/5:
 //

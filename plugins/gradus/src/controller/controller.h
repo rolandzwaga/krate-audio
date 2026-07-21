@@ -83,7 +83,6 @@ public:
 
     // Arp lane management
     void constructArpLanes();
-    void handleArpSkipEvent(int lane, int step);
     Krate::Plugins::IArpLane* getArpLane(int index);
     uint32_t getArpLaneStepBaseParamId(int index);
     uint32_t getArpLaneLengthParamId(int index);

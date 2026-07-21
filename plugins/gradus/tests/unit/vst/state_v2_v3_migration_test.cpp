@@ -24,6 +24,7 @@
 #include <catch2/catch_approx.hpp>
 
 #include "processor/processor.h"
+#include "controller/controller.h"
 #include "parameters/arpeggiator_params.h"
 #include "plugin_ids.h"
 
@@ -349,6 +350,46 @@ TEST_CASE("v3 setState rejects unknown future versions",
 
     stream->release();
     REQUIRE(processor.terminate() == kResultOk);
+}
+
+// -----------------------------------------------------------------------------
+// Audit F8/F15: the controller must apply the same {2,3} version gate.
+// Processor::setState rejects anything else, but the controller read the
+// leading int32, discarded it, and parsed the payload regardless -- so an
+// out-of-range stream left the processor on defaults while the controller
+// pushed the payload into its parameter cache, i.e. the two components
+// disagreed about the patch. The stale comment claimed "single version, no
+// migration needed", which the real v2/v3 gate contradicts.
+// -----------------------------------------------------------------------------
+
+TEST_CASE("Controller rejects out-of-range state version like the processor",
+          "[gradus][vst][state][migration][F8]")
+{
+    Gradus::Controller controller;
+    REQUIRE(controller.initialize(nullptr) == kResultOk);
+
+    // Baseline: a param the payload below would visibly change.
+    const ParamValue before = controller.getParamNormalized(Gradus::kArpGateLaneStep0Id);
+
+    // Build a stream with a future version followed by a plausible payload.
+    auto* stream = new MemoryStream();
+    {
+        IBStreamer writer(stream, kLittleEndian);
+        writer.writeInt32(4);          // out of the accepted {2, 3} range
+        for (int i = 0; i < 256; ++i) {
+            writer.writeFloat(0.123f); // payload the controller must not apply
+        }
+    }
+    stream->seek(0, IBStream::kIBSeekSet, nullptr);
+
+    controller.setComponentState(stream);
+
+    const ParamValue after = controller.getParamNormalized(Gradus::kArpGateLaneStep0Id);
+    INFO("gate step 0 before=" << before << " after=" << after);
+    CHECK(after == before);
+
+    stream->release();
+    REQUIRE(controller.terminate() == kResultOk);
 }
 
 // =============================================================================
