@@ -33,37 +33,89 @@
 // heap allocations in this binary. These are the only allocation-operator
 // overrides in the membrum_tests TU set.
 //
-// We deliberately override ONLY operator new / new[] (which `std::malloc`),
-// and leave operator delete to the standard library default (which `std::free`s).
-// This keeps every allocation/deallocation in the SAME malloc/free family:
-//   - executable allocations  -> our new (malloc)        + default delete (free)
-//   - libstdc++ allocations    -> libstdc++ new (malloc)  + libstdc++ delete (free)
+// Replacing these is only well-defined if the WHOLE matched set is replaced and
+// every replacement is visible program-wide. Two earlier shapes both corrupted
+// the heap and surfaced as an intermittent, test-order-dependent SIGSEGV on the
+// Linux CI leg:
 //
-// Overriding operator delete here is unsound: the build uses -fvisibility=hidden,
-// so these overrides do NOT interpose libstdc++. A std::string allocated inside
-// libstdc++ (e.g. by operator+) but destroyed in executable code would then be
-// freed by a `std::free` override while it was allocated by libstdc++'s
-// operator new — a cross-module "operator new vs free" family mismatch. That is
-// UB; on a vanilla glibc heap it is silent, but under a different heap layout it
-// corrupts allocator bookkeeping and surfaces as an intermittent, test-order-
-// dependent SIGSEGV on CI. Routing all deallocation through the default
-// operator delete removes the mismatch entirely. (Valgrind memcheck confirmed
-// both the bug and the fix; see the Linux ASan/valgrind CI lane.)
+//   1. new -> malloc together with a delete -> free override, compiled under
+//      -fvisibility=hidden. Hidden symbols do NOT interpose libstdc++, so a
+//      std::string allocated inside libstdc++ but destroyed in executable code
+//      was freed by this TU's free() while libstdc++ had allocated it.
+//   2. Replacing ONLY new / new[] and leaving operator delete at the library
+//      default. That looks safe on glibc (default delete does call free), but
+//      [new.delete] requires a replaced operator new to be paired with a
+//      replaced operator delete: the pair must agree on which allocator owns
+//      the block. AddressSanitizer reports it directly --
+//      "alloc-dealloc-mismatch (malloc vs operator delete)" -- raised during
+//      Catch2's own static test registration, i.e. before any test body runs.
+//      Whatever runs next inherits a poisoned allocator, which is why the crash
+//      lands on an arbitrary later test (CI died in the voice-pool steal test)
+//      and never reproduces in isolation.
+//
+// The fix is to do it properly: replace the entire set -- throwing, nothrow,
+// array and sized forms -- all on malloc/free so new and delete always agree,
+// and give them default visibility so exactly one definition serves the whole
+// process, libstdc++ included. With one allocator and one matched set there is
+// no cross-module mismatch left to hit.
 // ==============================================================================
-void* operator new(std::size_t size)
+#if defined(_MSC_VER)
+#  define KRATE_ALLOC_REPLACEMENT
+#else
+#  define KRATE_ALLOC_REPLACEMENT __attribute__((visibility("default")))
+#endif
+
+KRATE_ALLOC_REPLACEMENT void* operator new(std::size_t size)
 {
     TestHelpers::AllocationDetector::instance().recordAllocation();
-    void* p = std::malloc(size);
+    void* p = std::malloc(size ? size : 1);
     if (!p) throw std::bad_alloc();
     return p;
 }
 
-void* operator new[](std::size_t size)
+KRATE_ALLOC_REPLACEMENT void* operator new[](std::size_t size)
 {
     TestHelpers::AllocationDetector::instance().recordAllocation();
-    void* p = std::malloc(size);
+    void* p = std::malloc(size ? size : 1);
     if (!p) throw std::bad_alloc();
     return p;
+}
+
+KRATE_ALLOC_REPLACEMENT void* operator new(std::size_t size,
+                                           const std::nothrow_t&) noexcept
+{
+    TestHelpers::AllocationDetector::instance().recordAllocation();
+    return std::malloc(size ? size : 1);
+}
+
+KRATE_ALLOC_REPLACEMENT void* operator new[](std::size_t size,
+                                             const std::nothrow_t&) noexcept
+{
+    TestHelpers::AllocationDetector::instance().recordAllocation();
+    return std::malloc(size ? size : 1);
+}
+
+KRATE_ALLOC_REPLACEMENT void operator delete(void* p) noexcept { std::free(p); }
+KRATE_ALLOC_REPLACEMENT void operator delete[](void* p) noexcept { std::free(p); }
+
+KRATE_ALLOC_REPLACEMENT void operator delete(void* p, std::size_t) noexcept
+{
+    std::free(p);
+}
+
+KRATE_ALLOC_REPLACEMENT void operator delete[](void* p, std::size_t) noexcept
+{
+    std::free(p);
+}
+
+KRATE_ALLOC_REPLACEMENT void operator delete(void* p, const std::nothrow_t&) noexcept
+{
+    std::free(p);
+}
+
+KRATE_ALLOC_REPLACEMENT void operator delete[](void* p, const std::nothrow_t&) noexcept
+{
+    std::free(p);
 }
 
 namespace {
