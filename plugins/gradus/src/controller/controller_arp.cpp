@@ -33,6 +33,18 @@ void Controller::handleArpSkipEvent(int lane, int step) {
     }
 }
 
+// Gradus addresses its arp lanes in TWO different orders, and they disagree at
+// indices 3/4/5:
+//
+//   lane-param order (this function, getArpLaneStepBaseParamId,
+//   getArpLaneLengthParamId):
+//       0 Vel  1 Gate  2 Pitch  3 Ratchet   4 Modifier   5 Condition  6 Chord  7 Inv  8 Delay
+//   ring / UI order (subZoneToLaneIndex, ringDataBridge_.setLane,
+//   RingRenderer::isBarTypeLane, kDepthParamIds):
+//       0 Vel  1 Gate  2 Pitch  3 Modifier  4 Condition  5 Ratchet    6 Chord  7 Inv
+//
+// Anything fed a lane index by the ring renderer is in RING order and must go
+// through getRingLaneStepBaseParamId(), never getArpLaneStepBaseParamId().
 Krate::Plugins::IArpLane* Controller::getArpLane(int index) {
     Krate::Plugins::IArpLane* lanes[kArpLaneCount] = {
         velocityLane_, gateLane_, pitchLane_,
@@ -41,6 +53,23 @@ Krate::Plugins::IArpLane* Controller::getArpLane(int index) {
     };
     if (index < 0 || index >= kArpLaneCount) return nullptr;
     return lanes[index];
+}
+
+uint32_t Controller::getRingLaneStepBaseParamId(int ringIndex) {
+    // RING order -- note 3/4/5 vs the lane-param table in
+    // getArpLaneStepBaseParamId(). The MIDI delay lane has no ring slot.
+    static constexpr uint32_t kRingStepBaseIds[8] = {
+        kArpVelocityLaneStep0Id,
+        kArpGateLaneStep0Id,
+        kArpPitchLaneStep0Id,
+        kArpModifierLaneStep0Id,
+        kArpConditionLaneStep0Id,
+        kArpRatchetLaneStep0Id,
+        kArpChordLaneStep0Id,
+        kArpInversionLaneStep0Id
+    };
+    if (ringIndex < 0 || ringIndex >= 8) return 0;
+    return kRingStepBaseIds[ringIndex];
 }
 
 // NOLINTNEXTLINE(readability-convert-member-functions-to-static)

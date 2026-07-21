@@ -87,6 +87,9 @@ public:
     Krate::Plugins::IArpLane* getArpLane(int index);
     uint32_t getArpLaneStepBaseParamId(int index);
     uint32_t getArpLaneLengthParamId(int index);
+    /// Step-base ParamID for a lane addressed in RING (UI) order, which differs
+    /// from getArpLane order at indices 3/4/5. See getArpLane() for both tables.
+    static uint32_t getRingLaneStepBaseParamId(int ringIndex);
     void onLaneCopy(int laneIndex);
     void onLanePaste(int targetLaneIndex);
     void wireCopyPasteCallbacks();

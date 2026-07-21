@@ -52,6 +52,9 @@ add_executable(gradus_tests
     # Editor open/close lifecycle regression (willClose UAF guard)
     unit/ui/editor_lifecycle_test.cpp
 
+    # Ring edit routing / geometry seeding lane-order guard (audit F11 + F12)
+    unit/ui/ring_edit_routing_test.cpp
+
     # Processor/Controller implementation (needed by plugin shell tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller.cpp
