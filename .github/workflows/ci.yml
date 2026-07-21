@@ -168,6 +168,15 @@ jobs:
       # goldens went red on Linux and macOS while passing every Windows gate.
       - name: Byte-exact MIDI timing golden lint
         run: node tools/lint-midi-timing-goldens.js
+      # Catches a test that names a kPlatformType* constant directly instead of
+      # calling Krate::TestSupport::nativePlatformType(). These are plain
+      # strings, so the wrong one compiles on every platform and every
+      # compile-based gate -- including tools/check-portability.js -- passes.
+      # It fails only at runtime: IPlugView::attached() rejects a foreign
+      # platform type, so the Linux and macOS legs go red on "1 == 0" roughly
+      # 10 minutes in, while every Windows gate was green.
+      - name: Hardcoded platform-type constant lint
+        run: node tools/lint-platform-type-literals.js
 
   build-windows:
     name: Windows (MSVC)

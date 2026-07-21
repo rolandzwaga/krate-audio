@@ -138,7 +138,7 @@ TEST_CASE("Ring edit routes the UI lane index to the matching step param",
         (std::string(GRADUS_RESOURCES_DIR) + "/editor.uidesc").c_str());
 
     Steinberg::IPlugView* view = editor;
-    REQUIRE(view->attached(nullptr, Steinberg::kPlatformTypeHWND)
+    REQUIRE(view->attached(nullptr, Krate::TestSupport::nativePlatformType())
             == Steinberg::kResultTrue);
     REQUIRE(editor->getFrame() != nullptr);
 
@@ -200,7 +200,7 @@ TEST_CASE("Ring geometry init seeds step counts in UI lane order",
         (std::string(GRADUS_RESOURCES_DIR) + "/editor.uidesc").c_str());
 
     Steinberg::IPlugView* view = editor;
-    REQUIRE(view->attached(nullptr, Steinberg::kPlatformTypeHWND)
+    REQUIRE(view->attached(nullptr, Krate::TestSupport::nativePlatformType())
             == Steinberg::kResultTrue);
     REQUIRE(editor->getFrame() != nullptr);
 

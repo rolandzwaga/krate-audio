@@ -38,16 +38,16 @@ std::string uidescPath() {
     return std::string(RUINAE_RESOURCES_DIR) + "/editor.uidesc";
 }
 
+// The platform mapping lives in the harness (nativePlatformType()) so it exists
+// exactly once. This ladder used to be duplicated here, and duplicating it is
+// how the Gradus ring tests ended up pinning the Windows constant and going red
+// on the Linux and macOS legs. tools/lint-platform-type-literals.js now forbids
+// naming these constants outside the harness.
+//
 // `const`, not `constexpr`: the SDK declares these as plain `const FIDString`
 // (iplugview.h), so they are not usable in a constant expression. MSVC accepts
 // the constexpr form anyway; GCC and Clang correctly reject it.
-#if SMTG_OS_WINDOWS
-const Steinberg::FIDString kPlatformType = Steinberg::kPlatformTypeHWND;
-#elif SMTG_OS_MACOS
-const Steinberg::FIDString kPlatformType = Steinberg::kPlatformTypeNSView;
-#else
-const Steinberg::FIDString kPlatformType = Steinberg::kPlatformTypeX11EmbedWindowID;
-#endif
+const Steinberg::FIDString kPlatformType = Krate::TestSupport::nativePlatformType();
 
 void collectSwitchContainers(VSTGUI::CViewContainer* parent,
                              std::vector<VSTGUI::UIViewSwitchContainer*>& out) {
