@@ -116,6 +116,12 @@ tresult PLUGIN_API Processor::process(ProcessData& data)
     arpCore_.consumePendingCurveTables();
 
     // --- 4. Transport sync ---
+    // Source = Sequencer behaves like a step sequencer and follows the host
+    // transport (spec 142 US1/FR-031): Stop must halt note emission. Source =
+    // Live is a classic arp that free-runs off held notes, so it must keep
+    // clocking even when the transport is stopped.
+    const bool isSequencer =
+        arpParams_.sourceMode.load(std::memory_order_relaxed) == 1;
     if (data.processContext) {
         const auto& ctx = *data.processContext;
         const bool isPlaying = (ctx.state & ProcessContext::kPlaying) != 0;
@@ -137,7 +143,17 @@ tresult PLUGIN_API Processor::process(ProcessData& data)
             prevProjectTimeMusic_ = ctx.projectTimeMusic;
         }
 
-        if (isPlaying && !wasTransportPlaying_) {
+        // Restart the pattern on the rising transport-play edge -- but ONLY in
+        // Sequencer mode. The sequencer is transport-gated, so it is silent
+        // while stopped and a reset here is a clean pattern restart.
+        //
+        // Live mode free-runs off held notes: at this instant notes are already
+        // sounding and a chord is already held. reset() emits no NoteOff (it
+        // just clears currentArpNotes_/pendingNoteOffs_) and clears heldNotes_,
+        // so resetting here orphaned every sounding note downstream and left
+        // the arp silent until the keys were physically re-pressed. Pressing
+        // Play is simply not the free-running arp's business.
+        if (isSequencer && isPlaying && !wasTransportPlaying_) {
             arpCore_.reset();  // Also resets midiDelayLane_ inside
             midiDelay_.reset();
         }
@@ -148,12 +164,6 @@ tresult PLUGIN_API Processor::process(ProcessData& data)
     BlockContext blockCtx{};
     blockCtx.sampleRate = sampleRate_;
     blockCtx.blockSize = static_cast<size_t>(data.numSamples);
-    // Source = Sequencer behaves like a step sequencer and follows the host
-    // transport (spec 142 US1/FR-031): Stop must halt note emission. Source =
-    // Live is a classic arp that free-runs off held notes, so it must keep
-    // clocking even when the transport is stopped.
-    const bool isSequencer =
-        arpParams_.sourceMode.load(std::memory_order_relaxed) == 1;
     if (data.processContext) {
         const bool transportPlaying =
             (data.processContext->state & ProcessContext::kPlaying) != 0;

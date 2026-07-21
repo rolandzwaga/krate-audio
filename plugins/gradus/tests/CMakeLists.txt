@@ -41,6 +41,9 @@ add_executable(gradus_tests
     # Sequencer transport-gating tests (spec 142, FR-031 at the Processor boundary)
     unit/processor/sequencer_transport_gating_test.cpp
 
+    # Live-mode transport Play-edge hygiene (audit F3)
+    unit/processor/live_mode_play_edge_test.cpp
+
     # Piano-roll view tests (spec 142, Phase 6, US3)
     unit/ui/piano_roll_view_test.cpp
     unit/ui/piano_roll_playhead_test.cpp
