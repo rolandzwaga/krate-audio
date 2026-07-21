@@ -217,11 +217,15 @@ public:
 
         // Spec 142: Sequencer Note lane defaults. Pitch step[0]=60 (C4), all
         // rest flags=1 (rest) so a fresh pattern is silent until user populates.
-        seqNoteLane_.setLength(16);
+        // Expand to full capacity first: ArpLane::setStep clamps its index to
+        // length-1, so filling at length 16 would collapse steps 16-31 onto
+        // index 15 and leave them at 0 once the lane is later expanded.
+        seqNoteLane_.setLength(32);
         for (size_t i = 0; i < 32; ++i) {
             seqNoteLane_.setStep(i, static_cast<uint8_t>(60));
             seqRestFlags_[i].store(1, std::memory_order_relaxed);
         }
+        seqNoteLane_.setLength(16);
     }
 
     // =========================================================================

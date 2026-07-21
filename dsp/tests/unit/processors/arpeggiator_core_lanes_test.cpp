@@ -1644,3 +1644,99 @@ TEST_CASE("ArpeggiatorCore: speed-curve depth is safe to set while processing",
         CHECK(d <= 1.0f);
     }
 }
+
+// =============================================================================
+// Bounds / initialization hardening (Gradus audit F7, F13)
+// =============================================================================
+
+TEST_CASE("ArpeggiatorCore: seqNote steps above the default length initialize to C4",
+          "[processors][arpeggiator_core][sequencer][F13]") {
+    // The constructor sets seqNoteLane_.setLength(16) and *then* fills steps
+    // 0..31 with 60. ArpLane::setStep clamps its index to length-1, so steps
+    // 16-31 never received 60 and stayed 0 -- only masked in Gradus because the
+    // processor repopulates all 32 steps from its params every block. A bare
+    // core (or any other consumer) that expands the lane sees pitch 0.
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+
+    arp.seqNoteLane().setLength(32);
+    for (size_t i = 16; i < 32; ++i) {
+        INFO("seqNote step " << i);
+        CHECK(static_cast<int>(arp.seqNoteLane().getStep(i)) == 60);
+    }
+}
+
+TEST_CASE("ArpeggiatorCore: sounding-note tracking stays within bounds under chord stress",
+          "[processors][arpeggiator_core][bounds][F7]") {
+    // fireStep's single-note path wrote currentArpNotes_[currentArpNoteCount_]
+    // *before* checking the count against the array bound, so a count already
+    // at 32 -- reachable because the chord path sets it to min(result.count, 32)
+    // and a long gate keeps the notes sounding into the next step -- wrote one
+    // past the end of a std::array<uint8_t, 32>.
+    //
+    // The overflow itself is NOT observable from a Release unit test: the count
+    // is clamped to 32 either way, so only the stray write differs and nothing
+    // in the public API reports it. The correct detector is ASan/valgrind -- so
+    // this case exists to *drive* the chord-then-single-note transition hard
+    // enough that those builds have the overflow to catch, and to pin the
+    // reachable invariant (the flush on transport stop never reports more
+    // sounding notes than the tracking array can hold).
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setNoteValue(NoteValue::ThirtySecond, NoteModifier::None);
+    arp.setGateLength(180.0f);  // >100%: notes stay sounding across step boundaries
+
+    // Hold a wide chord so the chord path pushes the sounding-note count high.
+    for (int n = 0; n < 32; ++n) {
+        arp.noteOn(static_cast<uint8_t>(36 + n), 100);
+    }
+
+    BlockContext ctx{};
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+
+    std::array<int, 128> onCount{};
+    std::array<int, 128> offCount{};
+    std::array<ArpEvent, 128> events{};
+
+    auto drive = [&](int blocks) {
+        for (int b = 0; b < blocks; ++b) {
+            const size_t count = arp.processBlock(ctx, events);
+            for (size_t i = 0; i < count; ++i) {
+                if (events[i].type == ArpEvent::Type::NoteOn)  ++onCount[events[i].note];
+                else if (events[i].type == ArpEvent::Type::NoteOff) ++offCount[events[i].note];
+            }
+            ctx.transportPositionSamples += static_cast<int64_t>(ctx.blockSize);
+        }
+    };
+
+    // Alternate Chord mode (many simultaneous notes) with single-note modes so
+    // the count is repeatedly driven up and then used by the single-note path.
+    for (int round = 0; round < 20; ++round) {
+        arp.setMode(ArpMode::Chord);
+        drive(4);
+        arp.setMode(ArpMode::Up);
+        drive(4);
+    }
+
+    // Stop the transport in a single block. That path emits exactly one NoteOff
+    // per entry in currentArpNotes_, so the count of NoteOffs in this one block
+    // is a direct read-out of the tracking array's occupancy -- it must never
+    // exceed its 32-element capacity.
+    ctx.isPlaying = false;
+    const size_t stopCount = arp.processBlock(ctx, events);
+    int flushedNoteOffs = 0;
+    for (size_t i = 0; i < stopCount; ++i) {
+        if (events[i].type == ArpEvent::Type::NoteOff) ++flushedNoteOffs;
+    }
+    INFO("note-offs flushed on transport stop: " << flushedNoteOffs);
+    CHECK(flushedNoteOffs <= 32);
+
+    // Sanity: the stress loop actually exercised the paths under test.
+    int totalOns = 0;
+    for (int pitch = 0; pitch < 128; ++pitch) totalOns += onCount[pitch];
+    CHECK(totalOns > 0);
+}

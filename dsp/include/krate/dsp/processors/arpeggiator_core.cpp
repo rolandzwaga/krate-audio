@@ -1165,10 +1165,13 @@ void ArpeggiatorCore::fireStep(const BlockContext& ctx,
                         .sampleOffset = humanizedSampleOffset};
                 }
 
-                // Track currently sounding note (FR-025)
-                currentArpNotes_[currentArpNoteCount_] = result.notes[0];
+                // Track currently sounding note (FR-025). The store must sit
+                // INSIDE the bound check -- the chord path above can leave the
+                // count at 32, and a long gate keeps those notes sounding into
+                // this step, so writing first put one element past the end of
+                // currentArpNotes_ (std::array<uint8_t, 32>).
                 if (currentArpNoteCount_ < 32) {
-                    ++currentArpNoteCount_;
+                    currentArpNotes_[currentArpNoteCount_++] = result.notes[0];
                 }
 
                 // Schedule NoteOff for this note.
