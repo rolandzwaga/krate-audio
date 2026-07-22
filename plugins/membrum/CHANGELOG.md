@@ -5,7 +5,55 @@ All notable changes to Membrum will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.12.0] - 2026-07-22
+
+### Added
+
+- **Clap exciter (`ExciterType::Clap`) and a matching `Clap` drum template.**
+  The Hand Clap pad used the generic Perc voicing (Mallet into a Plate body),
+  which read as a struck metal triangle — a single strike into a pitched
+  ~403 Hz modal ring. A clap is a multi-impulse broadband noise event, so the
+  new exciter fires a one-shot train of four bandpassed white-noise bursts at
+  0/10/21/33 ms (aperiodic flam), with velocity driving both amplitude and the
+  1200–2200 Hz bandpass centre. The paired template scatters/stretches a
+  NoiseBody hard enough to kill the modal pitch and adds a ~200 ms lowpassed
+  room tail. Rendered at velocity 0.9 the pad moves from centroid 687 Hz to
+  2455 Hz, with the 100–500 Hz band dropping from 0.99 to 0.08. The seven
+  factory kits with a clap pad were re-voiced onto it (Acoustic Studio, Rock
+  Big Room, 808, 909, LinnDrum CR-78, Trap Modern, Experimental FX); Modular
+  West Coast's rim hybrid and World Metal's wood clapper are deliberate designs
+  and were left alone.
+- **Wire coupling (`wireCoupling`).** A per-pad control (0–1, default `0`) that
+  modulates the parallel noise-layer ("wire buzz") amplitude by the body's
+  modal-energy envelope, so the buzz tracks the head's vibration instead of
+  running an independent fixed ADSR. Physically grounded — real snare wires are
+  driven by head motion (Bilbao 2012, *Time domain simulation and sound
+  synthesis for the snare drum*). At `0` the buzz keeps its own envelope
+  (bit-exact legacy behaviour); at `1` it fully follows the modal energy, so it
+  dies with the head, chokes on note-off, and re-excites on flams/rolls. The
+  running-energy-peak normalisation makes the tracking velocity- and
+  gain-staging-independent (the onset is never attenuated), and non-modal bodies
+  (String) bypass it. Reuses the same gain-invariant `getModalEnergy()` follower
+  as tension modulation — block-rate, zero per-sample cost when off. The default
+  kit and the Acoustic Studio / Rock Big Room / Vintage Wood factory snares ship
+  at `0.45`; electronic (808/909) and other snares stay at `0` (their machine-
+  like fixed buzz is intentional).
+- **Mode injection now decays instead of ringing forever.** Any `modeInject`
+  above `0` used to ring as an undamped flat plateau (~-20 dBFS) that outlasted
+  the drum body and hard-cut at voice retire — this was the "synth bass note"
+  under the Orchestral timpani. The injected series now runs a one-pole T60
+  envelope, re-armed on trigger and tied by `noteOn()` to the pad's decay
+  (`0.3 + 4.7·decay²` s), so it dies with the drum. `setDecaySeconds()` clamps
+  to [0.05, 20] s and defaults to 1.5 s so the series stays finite even for
+  callers that never wire it; `amount == 0` remains an exact bypass. **Pads in
+  any kit that ship `modeInject > 0` will sound different** — they previously
+  carried the plateau.
+- **Mallet contact time scales with body size.** `MalletExciter` had a hardcoded
+  effective mass giving a ~9.5 ms Hertzian contact — right for timpani, hopeless
+  for small metals, whose ~8 ms pulse has a spectral null near 244 Hz.
+  Bodies at size ≥ 0.5 keep the legacy mass exactly (toms, timpani, gran cassa
+  and the tension-glide calibration are untouched); below 0.5 the mass shrinks
+  cubically, bringing crotales/triangle/bell-tree contacts down to ~1.8 ms.
 
 ### Fixed
 
@@ -18,9 +66,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   cycles per operation. Denormal control is now a scoped RAII guard at the top
   of `process()`, which also restores the host's floating-point environment on
   exit instead of leaving FTZ/DAZ set on a shared render thread.
+- **Rare crash on AVX-512 machines.** The modal-bank SIMD kernel used aligned
+  Highway loads/stores against 32-byte-aligned state, but the required alignment
+  is the runtime-dispatched vector width — 64 bytes on AVX-512 — so an array
+  landing at 32-mod-64 faulted. Switched to unaligned loads (no measurable cost
+  on post-2011 x86); a lint now rejects aligned Highway loads/stores repo-wide.
+- **macOS Apple Silicon build failure.** Membrum's denormal-guard include sat
+  inside an x86-only conditional while `process()` named the guard type
+  unconditionally, so the arm64 slice failed to compile. The header is portable
+  and degrades to a zero-cost no-op off x86, so the guard was removed.
+- **Offline render/fitter results were measured against an incomplete voice.**
+  The `membrum-fit` harness carried a private, partial copy of the
+  PadConfig→DrumVoice apply path that silently dropped the noise layer, click
+  layer, damping overrides, air loading, mode injection, wire coupling,
+  FM/feedback/friction, secondary shell, tension modulation and the whole
+  material-morph block, and denormalised several fields differently from
+  production. Both consumers now call one shared helper, so a new `PadConfig`
+  field reaches both or neither.
 
 ### Changed
 
+- **Toms have weight again.** Factory and default toms sounded thin and
+  toy-like: no downward pitch glide or percussive onset (the voice swelled like
+  a filtered sine), an inharmonic 100–500 Hz mid cluster ringing nearly as long
+  as the fundamental, and a peak-normaliser that made the floor tom the quietest
+  drum in the row. Toms now glide down onto their natural size-derived
+  fundamental, add frequency-dependent damping (`b3`) to dissolve the mid
+  cluster while the low fundamental keeps a long ring, carry a brighter/shorter
+  felt-mallet click, and grade level up with size. The four Acoustic factory
+  kits (Acoustic Studio, Jazz Brushes, Rock Big Room, Vintage Wood) were
+  regenerated to match; the Orchestral timpani row is a deliberate tuned design
+  and was left alone. Floor-tom render A/B: 100–500 Hz band 0.317 → 0.162,
+  20–100 Hz 0.683 → 0.838, centroid 160 → 128 Hz.
+- **Orchestral kit re-voiced from a render-measured audit.** It failed on every
+  axis. The timpani row loses its undamped injection plateau and moves to a real
+  edge strike with correct air loading (its mode series was 37–74 cents flat);
+  the gran cassa blooms for ~2.6 s instead of 0.46 s; suspended cymbals, the
+  ride and the roll get real wash instead of a bare ping; the gong moves from
+  Bell to Plate (it measured *zero* energy 2–8 kHz); the triangle keeps its
+  6.7 kHz shimmer; crotales and the bell tree are fixed (the bell tree's decay
+  skew had the wrong sign, boosting the hum and cutting the partials); and the
+  snare gets the same wire-buzz treatment as its siblings. The layout is also
+  GM-remapped — a sixth timpani tuning, triangle/crotales/tubular-bell moved to
+  their GM slots, a splash voice added, castanets on the GM clap slot — so GM
+  tom fills run clean.
 - **Crash cymbals now sound like crashes.** A ground-up redesign of the
   NoiseBody cymbal voicing (default `Cymbal` template + every factory-kit
   crash/china/splash), driven by the cymbal-acoustics literature (Rossing &
@@ -46,26 +135,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Denser cloud.** NoiseBody runs 64 modes (was 32); the plate Chladni table
     extends to 96 entries (first 48 unchanged, so PlateBody is untouched). The
     FeedbackExciter slow path is capped at 32 modes to stay within CPU budget.
-
-### Added
-
-- **Wire coupling (`wireCoupling`).** A per-pad control (0–1, default `0`) that
-  modulates the parallel noise-layer ("wire buzz") amplitude by the body's
-  modal-energy envelope, so the buzz tracks the head's vibration instead of
-  running an independent fixed ADSR. Physically grounded — real snare wires are
-  driven by head motion (Bilbao 2012, *Time domain simulation and sound
-  synthesis for the snare drum*). At `0` the buzz keeps its own envelope
-  (bit-exact legacy behaviour); at `1` it fully follows the modal energy, so it
-  dies with the head, chokes on note-off, and re-excites on flams/rolls. The
-  running-energy-peak normalisation makes the tracking velocity- and
-  gain-staging-independent (the onset is never attenuated), and non-modal bodies
-  (String) bypass it. Reuses the same gain-invariant `getModalEnergy()` follower
-  as tension modulation — block-rate, zero per-sample cost when off. The default
-  kit and the Acoustic Studio / Rock Big Room / Vintage Wood factory snares ship
-  at `0.45`; electronic (808/909) and other snares stay at `0` (their machine-
-  like fixed buzz is intentional).
-
-### Changed
 
 - **State/preset blob format bumped to version 5** (per-pad `wireCoupling`
   slot). Pre-release, strict version check with no migration: state and presets
