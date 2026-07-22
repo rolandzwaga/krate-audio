@@ -37,6 +37,17 @@
 //
 // tools/lint-allocation-operator-overrides.js enforces that no other file
 // defines these operators.
+//
+// noinline is load-bearing, for valgrind: memcheck intercepts the OUTLINE
+// operator new/delete symbols process-wide (including ours), but GCC inlines
+// a same-TU replacement operator delete into its callers, leaving a bare
+// free() at the call site. Valgrind then sees "allocated by (intercepted)
+// operator new, freed by free()" and reports a spurious
+// "Mismatched free() / delete" -- 78 of them across membrum_tests, enough to
+// redden the valgrind-nightly lane. Natively both paths are plain
+// malloc/free, so this is purely a bookkeeping artifact. Keeping every form
+// noinline means call sites always go through the interceptable symbol, and
+// valgrind's alloc/free buckets stay consistent.
 // ==============================================================================
 
 #pragma once
@@ -47,9 +58,9 @@
 #include <new>
 
 #if defined(_MSC_VER)
-#  define KRATE_ALLOC_REPLACEMENT
+#  define KRATE_ALLOC_REPLACEMENT __declspec(noinline)
 #else
-#  define KRATE_ALLOC_REPLACEMENT __attribute__((visibility("default")))
+#  define KRATE_ALLOC_REPLACEMENT __attribute__((visibility("default"), noinline))
 #endif
 
 KRATE_ALLOC_REPLACEMENT void* operator new(std::size_t size)
