@@ -4,6 +4,9 @@
 // arpeggiator_core_test_helpers.h.
 #include "arpeggiator_core_test_helpers.h"
 
+#include <atomic>
+#include <thread>
+
 
 
 // =============================================================================
@@ -1546,4 +1549,338 @@ TEST_CASE("ArpeggiatorCore: EdgeCase_LaneResetOnTransportStop",
     CHECK(arp.velocityLane().currentStep() == 0);
     CHECK(arp.gateLane().currentStep() == 0);
     CHECK(arp.pitchLane().currentStep() == 0);
+}
+
+// =============================================================================
+// Per-lane speed-curve depth: cross-thread access (Gradus audit F1)
+// =============================================================================
+// Depth for lanes 0-7 is only ever set from the host's message thread (Gradus
+// routes it through Processor::notify's "SpeedCurveTable" handler), while the
+// audio thread reads it every block in the per-lane speed advance. Its two
+// sibling fields are already synchronized -- the 256-entry table via a staging
+// buffer plus an atomic dirty flag, and the enabled flag as std::atomic<bool> --
+// but depth was a plain float, i.e. an unsynchronized cross-thread access.
+//
+// The fix is the atomic type itself; a single-threaded test cannot observe a
+// data race, and on x86-64/ARM64 an aligned 4-byte load never tears, so these
+// cases lock the behaviour the atomicity must not change (round-trip, clamping,
+// effect on lane advance) and exercise the concurrent path so a
+// ThreadSanitizer build has something to flag.
+
+TEST_CASE("ArpeggiatorCore: speed-curve depth round-trips and clamps",
+          "[processors][arpeggiator_core][speed-curve][F1]") {
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+
+    for (size_t lane = 0; lane < ArpeggiatorCore::kNumLanes; ++lane) {
+        arp.setLaneSpeedCurveDepth(lane, 0.75f);
+        CHECK(arp.laneSpeedCurveDepth(lane) == Catch::Approx(0.75f));
+    }
+
+    // Writes are clamped to [0, 1].
+    arp.setLaneSpeedCurveDepth(0, -3.0f);
+    CHECK(arp.laneSpeedCurveDepth(0) == Catch::Approx(0.0f));
+    arp.setLaneSpeedCurveDepth(0, 12.0f);
+    CHECK(arp.laneSpeedCurveDepth(0) == Catch::Approx(1.0f));
+
+    // Out-of-range lane indices are ignored on write and read back as 0.
+    arp.setLaneSpeedCurveDepth(ArpeggiatorCore::kNumLanes, 1.0f);
+    CHECK(arp.laneSpeedCurveDepth(ArpeggiatorCore::kNumLanes) == Catch::Approx(0.0f));
+}
+
+TEST_CASE("ArpeggiatorCore: speed-curve depth is safe to set while processing",
+          "[processors][arpeggiator_core][speed-curve][F1]") {
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setNoteValue(NoteValue::Sixteenth, NoteModifier::None);
+    arp.noteOn(60, 100);
+
+    // Enable the curve on every lane so the audio thread actually reads depth
+    // (the read is gated on the enabled flag).
+    std::array<float, 256> table{};
+    for (size_t i = 0; i < table.size(); ++i) {
+        table[i] = static_cast<float>(i) / 255.0f;
+    }
+    for (size_t lane = 0; lane < ArpeggiatorCore::kNumLanes; ++lane) {
+        arp.setLaneSpeedCurveEnabled(lane, true);
+        arp.setLaneSpeedCurveTable(lane, table);
+    }
+    arp.consumePendingCurveTables();
+
+    BlockContext ctx{};
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+
+    std::atomic<bool> stop{false};
+    // Writer stands in for the message thread hammering the depth control.
+    std::thread writer([&arp, &stop] {
+        const float values[] = {0.0f, 0.25f, 0.5f, 0.75f, 1.0f};
+        int i = 0;
+        while (!stop.load(std::memory_order_relaxed)) {
+            for (size_t lane = 0; lane < 8; ++lane) {
+                arp.setLaneSpeedCurveDepth(lane, values[i % 5]);
+            }
+            ++i;
+        }
+    });
+
+    std::array<ArpEvent, 128> events{};
+    for (int block = 0; block < 500; ++block) {
+        (void)arp.processBlock(ctx, events);
+        ctx.transportPositionSamples += static_cast<int64_t>(ctx.blockSize);
+    }
+    stop.store(true, std::memory_order_relaxed);
+    writer.join();
+
+    // Whatever interleaving occurred, every lane must hold one of the written
+    // values -- never a torn or out-of-range one.
+    for (size_t lane = 0; lane < 8; ++lane) {
+        const float d = arp.laneSpeedCurveDepth(lane);
+        INFO("lane " << lane << " depth " << d);
+        CHECK(d >= 0.0f);
+        CHECK(d <= 1.0f);
+    }
+}
+
+// =============================================================================
+// Bounds / initialization hardening (Gradus audit F7, F13)
+// =============================================================================
+
+TEST_CASE("ArpeggiatorCore: seqNote steps above the default length initialize to C4",
+          "[processors][arpeggiator_core][sequencer][F13]") {
+    // The constructor sets seqNoteLane_.setLength(16) and *then* fills steps
+    // 0..31 with 60. ArpLane::setStep clamps its index to length-1, so steps
+    // 16-31 never received 60 and stayed 0 -- only masked in Gradus because the
+    // processor repopulates all 32 steps from its params every block. A bare
+    // core (or any other consumer) that expands the lane sees pitch 0.
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+
+    arp.seqNoteLane().setLength(32);
+    for (size_t i = 16; i < 32; ++i) {
+        INFO("seqNote step " << i);
+        CHECK(static_cast<int>(arp.seqNoteLane().getStep(i)) == 60);
+    }
+}
+
+TEST_CASE("ArpeggiatorCore: sounding-note tracking stays within bounds under chord stress",
+          "[processors][arpeggiator_core][bounds][F7]") {
+    // fireStep's single-note path wrote currentArpNotes_[currentArpNoteCount_]
+    // *before* checking the count against the array bound, so a count already
+    // at 32 -- reachable because the chord path sets it to min(result.count, 32)
+    // and a long gate keeps the notes sounding into the next step -- wrote one
+    // past the end of a std::array<uint8_t, 32>.
+    //
+    // The overflow itself is NOT observable from a Release unit test: the count
+    // is clamped to 32 either way, so only the stray write differs and nothing
+    // in the public API reports it. The correct detector is ASan/valgrind -- so
+    // this case exists to *drive* the chord-then-single-note transition hard
+    // enough that those builds have the overflow to catch, and to pin the
+    // reachable invariant (the flush on transport stop never reports more
+    // sounding notes than the tracking array can hold).
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setNoteValue(NoteValue::ThirtySecond, NoteModifier::None);
+    arp.setGateLength(180.0f);  // >100%: notes stay sounding across step boundaries
+
+    // Hold a wide chord so the chord path pushes the sounding-note count high.
+    for (int n = 0; n < 32; ++n) {
+        arp.noteOn(static_cast<uint8_t>(36 + n), 100);
+    }
+
+    BlockContext ctx{};
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+
+    std::array<int, 128> onCount{};
+    std::array<int, 128> offCount{};
+    std::array<ArpEvent, 128> events{};
+
+    auto drive = [&](int blocks) {
+        for (int b = 0; b < blocks; ++b) {
+            const size_t count = arp.processBlock(ctx, events);
+            for (size_t i = 0; i < count; ++i) {
+                if (events[i].type == ArpEvent::Type::NoteOn)  ++onCount[events[i].note];
+                else if (events[i].type == ArpEvent::Type::NoteOff) ++offCount[events[i].note];
+            }
+            ctx.transportPositionSamples += static_cast<int64_t>(ctx.blockSize);
+        }
+    };
+
+    // Alternate Chord mode (many simultaneous notes) with single-note modes so
+    // the count is repeatedly driven up and then used by the single-note path.
+    for (int round = 0; round < 20; ++round) {
+        arp.setMode(ArpMode::Chord);
+        drive(4);
+        arp.setMode(ArpMode::Up);
+        drive(4);
+    }
+
+    // Stop the transport in a single block. That path emits exactly one NoteOff
+    // per entry in currentArpNotes_, so the count of NoteOffs in this one block
+    // is a direct read-out of the tracking array's occupancy -- it must never
+    // exceed its 32-element capacity.
+    ctx.isPlaying = false;
+    const size_t stopCount = arp.processBlock(ctx, events);
+    int flushedNoteOffs = 0;
+    for (size_t i = 0; i < stopCount; ++i) {
+        if (events[i].type == ArpEvent::Type::NoteOff) ++flushedNoteOffs;
+    }
+    INFO("note-offs flushed on transport stop: " << flushedNoteOffs);
+    CHECK(flushedNoteOffs <= 32);
+
+    // Sanity: the stress loop actually exercised the paths under test.
+    int totalOns = 0;
+    for (int pitch = 0; pitch < 128; ++pitch) totalOns += onCount[pitch];
+    CHECK(totalOns > 0);
+}
+
+TEST_CASE("ArpeggiatorCore: pending-note-off eviction never drops its NoteOff",
+          "[processors][arpeggiator_core][bounds][pending-noteoff]") {
+    // addPendingNoteOff evicts the oldest entry when pendingNoteOffs_ is full,
+    // emitting its NoteOff early. The eviction (shift-down + decrement) is
+    // unconditional, but the emission is guarded by `eventCount < maxEvents` --
+    // so when the caller's output span is already full the note-off obligation
+    // is destroyed outright and that note hangs forever.
+    //
+    // Reproduce deterministically: 32 held notes in Chord mode fills
+    // pendingNoteOffs_ to its 32-entry capacity in one step, a long gate keeps
+    // them all pending, and a deliberately small output span guarantees
+    // eventCount saturates before the next step's evictions run.
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Chord);
+    arp.setNoteValue(NoteValue::ThirtySecond, NoteModifier::None);
+    arp.setGateLength(200.0f);   // notes stay sounding across step boundaries
+
+    for (int n = 0; n < 32; ++n) {
+        arp.noteOn(static_cast<uint8_t>(36 + n), 100);
+    }
+
+    BlockContext ctx{};
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+
+    std::array<int, 128> onCount{};
+    std::array<int, 128> offCount{};
+
+    // Small span: maxEvents = 16, far below the 32 events one chord emits.
+    std::array<ArpEvent, 16> smallSpan{};
+    for (int b = 0; b < 40; ++b) {
+        const size_t count = arp.processBlock(ctx, smallSpan);
+        for (size_t i = 0; i < count; ++i) {
+            if (smallSpan[i].type == ArpEvent::Type::NoteOn)  ++onCount[smallSpan[i].note];
+            else if (smallSpan[i].type == ArpEvent::Type::NoteOff) ++offCount[smallSpan[i].note];
+        }
+        ctx.transportPositionSamples += static_cast<int64_t>(ctx.blockSize);
+    }
+
+    // Release everything and drain with a generous span so every outstanding
+    // note-off has room to be emitted.
+    for (int n = 0; n < 32; ++n) {
+        arp.noteOff(static_cast<uint8_t>(36 + n));
+    }
+    std::array<ArpEvent, 128> bigSpan{};
+    for (int b = 0; b < 200; ++b) {
+        const size_t count = arp.processBlock(ctx, bigSpan);
+        for (size_t i = 0; i < count; ++i) {
+            if (bigSpan[i].type == ArpEvent::Type::NoteOn)  ++onCount[bigSpan[i].note];
+            else if (bigSpan[i].type == ArpEvent::Type::NoteOff) ++offCount[bigSpan[i].note];
+        }
+        ctx.transportPositionSamples += static_cast<int64_t>(ctx.blockSize);
+    }
+
+    for (int pitch = 0; pitch < 128; ++pitch) {
+        INFO("pitch=" << pitch << " on=" << onCount[pitch] << " off=" << offCount[pitch]);
+        CHECK(offCount[pitch] >= onCount[pitch]);
+    }
+}
+
+TEST_CASE("ArpeggiatorCore: a sustained full chord does not overflow the pending-NoteOff ring",
+          "[processors][arpeggiator_core][bounds][pending-noteoff]") {
+    // pendingNoteOffs_ has to cover the worst case the parameter ranges permit.
+    // A full 32-note chord (HeldNoteBuffer and ArpNoteResult both cap at 32)
+    // held at kMaxGateLength = 200% overlaps itself across two steps, so 64
+    // NoteOffs can legitimately be in flight at once.
+    //
+    // Sized at 32, the ring overflowed on essentially every step of a big
+    // sustained chord. Each overflow evicted the oldest entry and fired that
+    // note's NoteOff early, at sampleOffset 0 -- mid-block, after NoteOns that
+    // had already been emitted at later offsets. That cut notes short AND
+    // produced output events that stepped backwards in time.
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Chord);
+    arp.setNoteValue(NoteValue::ThirtySecond, NoteModifier::None);
+    arp.setGateLength(ArpeggiatorCore::kMaxGateLength);  // 200%: maximum overlap
+
+    for (int n = 0; n < 32; ++n) {
+        arp.noteOn(static_cast<uint8_t>(36 + n), 100);
+    }
+
+    BlockContext ctx{};
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+
+    std::array<ArpEvent, 128> events{};
+    int backwardsSteps = 0;
+    std::array<bool, 128> lastWasNoteOn{};
+    std::array<bool, 128> everSeen{};
+
+    // Alternate Chord with a single-note mode so both fireStep paths schedule
+    // NoteOffs against a ring that a full chord has already loaded up.
+    for (int round = 0; round < 20; ++round) {
+        arp.setMode((round % 2 == 0) ? ArpMode::Chord : ArpMode::Up);
+        for (int b = 0; b < 4; ++b) {
+            const size_t count = arp.processBlock(ctx, events);
+            for (size_t i = 0; i < count; ++i) {
+                if (i > 0 && events[i].sampleOffset < events[i - 1].sampleOffset) {
+                    ++backwardsSteps;
+                }
+                everSeen[events[i].note] = true;
+                lastWasNoteOn[events[i].note] =
+                    (events[i].type == ArpEvent::Type::NoteOn);
+            }
+            ctx.transportPositionSamples += static_cast<int64_t>(ctx.blockSize);
+        }
+    }
+
+    // Emitted events must be in non-decreasing sampleOffset order. Overflow
+    // evictions injected NoteOffs at offset 0 mid-block; this measured 28
+    // backwards steps over the same run before the ring was resized.
+    INFO("backwards sampleOffset steps: " << backwardsSteps);
+    CHECK(backwardsSteps == 0);
+
+    // Release everything and drain: no pitch may be left with a NoteOn as its
+    // final event.
+    for (int n = 0; n < 32; ++n) {
+        arp.noteOff(static_cast<uint8_t>(36 + n));
+    }
+    for (int b = 0; b < 60; ++b) {
+        const size_t count = arp.processBlock(ctx, events);
+        for (size_t i = 0; i < count; ++i) {
+            everSeen[events[i].note] = true;
+            lastWasNoteOn[events[i].note] =
+                (events[i].type == ArpEvent::Type::NoteOn);
+        }
+        ctx.transportPositionSamples += static_cast<int64_t>(ctx.blockSize);
+    }
+
+    for (int pitch = 0; pitch < 128; ++pitch) {
+        if (!everSeen[pitch]) continue;
+        INFO("pitch " << pitch << " ended on a NoteOn");
+        CHECK_FALSE(lastWasNoteOn[pitch]);
+    }
 }

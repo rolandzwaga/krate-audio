@@ -22,32 +22,20 @@ size_t ArpeggiatorCore::processBlock(const BlockContext& ctx,
 
         size_t eventCount = 0;
 
+        // (b) Explicit panic discharge. An explicitly requested panic must
+        // always fire, whatever the enabled state, transport, source mode, or
+        // whether keys are still held -- the needsDisableNoteOff_ paths below
+        // only run when the arp is disabled or the held buffer just emptied, so
+        // a panic raised mid-chord (source toggle, host deactivation) would
+        // otherwise sit unconsumed and strand the sounding notes.
+        if (panicRequested_) {
+            emitPanicNoteOffs(outputEvents, eventCount, maxEvents);
+        }
+
         // (c) Disabled check (FR-008)
         if (!enabled_) {
             if (needsDisableNoteOff_) {
-                // Emit NoteOff for all currently sounding arp notes
-                for (size_t i = 0; i < currentArpNoteCount_ && eventCount < maxEvents; ++i) {
-                    outputEvents[eventCount++] = ArpEvent{
-                        .type = ArpEvent::Type::NoteOff, .note = currentArpNotes_[i], .velocity = 0, .sampleOffset = 0};
-                }
-                // Emit pending NoteOffs, skipping duplicates already emitted
-                // from currentArpNotes_ (FR-027, 082-presets-polish)
-                for (size_t i = 0; i < pendingNoteOffCount_ && eventCount < maxEvents; ++i) {
-                    bool alreadyEmitted = false;
-                    for (size_t j = 0; j < currentArpNoteCount_; ++j) {
-                        if (pendingNoteOffs_[i].note == currentArpNotes_[j]) {
-                            alreadyEmitted = true;
-                            break;
-                        }
-                    }
-                    if (!alreadyEmitted) {
-                        outputEvents[eventCount++] = ArpEvent{
-                            .type = ArpEvent::Type::NoteOff, .note = pendingNoteOffs_[i].note, .velocity = 0, .sampleOffset = 0};
-                    }
-                }
-                currentArpNoteCount_ = 0;
-                pendingNoteOffCount_ = 0;
-                needsDisableNoteOff_ = false;
+                emitPanicNoteOffs(outputEvents, eventCount, maxEvents);
             }
             return eventCount;
         }
@@ -127,30 +115,7 @@ size_t ArpeggiatorCore::processBlock(const BlockContext& ctx,
             // emit NoteOff for currently sounding arp note(s) and flush
             // ALL pending NoteOffs at sampleOffset 0 to prevent stuck notes.
             if (needsDisableNoteOff_) {
-                for (size_t i = 0; i < currentArpNoteCount_ && eventCount < maxEvents; ++i) {
-                    outputEvents[eventCount++] = ArpEvent{
-                        .type = ArpEvent::Type::NoteOff, .note = currentArpNotes_[i], .velocity = 0, .sampleOffset = 0};
-                }
-                // Flush all pending NoteOffs immediately at sampleOffset 0
-                for (size_t i = 0; i < pendingNoteOffCount_ && eventCount < maxEvents; ++i) {
-                    // Avoid duplicate: only emit if not already in currentArpNotes_
-                    // (which we just emitted above). Since pending NoteOffs track
-                    // notes that ARE in currentArpNotes_, skip duplicates.
-                    bool alreadyEmitted = false;
-                    for (size_t j = 0; j < currentArpNoteCount_; ++j) {
-                        if (pendingNoteOffs_[i].note == currentArpNotes_[j]) {
-                            alreadyEmitted = true;
-                            break;
-                        }
-                    }
-                    if (!alreadyEmitted) {
-                        outputEvents[eventCount++] = ArpEvent{
-                            .type = ArpEvent::Type::NoteOff, .note = pendingNoteOffs_[i].note, .velocity = 0, .sampleOffset = 0};
-                    }
-                }
-                currentArpNoteCount_ = 0;
-                pendingNoteOffCount_ = 0;
-                needsDisableNoteOff_ = false;
+                emitPanicNoteOffs(outputEvents, eventCount, maxEvents);
             }
             return eventCount;
         }
@@ -518,9 +483,14 @@ void ArpeggiatorCore::fireStep(const BlockContext& ctx,
                 float& accum = laneAccumulators_[laneIdx];
                 float speed = laneSpeedMultipliers_[laneIdx];
 
-                // Apply speed curve modulation: curve offsets the center speed
+                // Apply speed curve modulation: curve offsets the center speed.
+                // Depth is written from the message thread, so load it once and
+                // use that snapshot for both the gate and the offset -- two
+                // separate loads could straddle a write and disagree.
+                const float curveDepth =
+                    laneSpeedCurveDepths_[laneIdx].load(std::memory_order_relaxed);
                 if (laneSpeedCurveEnabled_[laneIdx].load(std::memory_order_relaxed) &&
-                    laneSpeedCurveDepths_[laneIdx] > 0.0f) {
+                    curveDepth > 0.0f) {
                     float loopPos = static_cast<float>(lane.currentStep())
                                   / std::max(1.0f, static_cast<float>(lane.length()));
                     int tableIdx = std::clamp(
@@ -528,8 +498,7 @@ void ArpeggiatorCore::fireStep(const BlockContext& ctx,
                     float curveVal = laneSpeedCurveTables_[laneIdx]
                                      [static_cast<size_t>(tableIdx)];
                     // curveVal 0.5 = no offset, 0.0 = -depth, 1.0 = +depth
-                    float offset = (curveVal - 0.5f) * 2.0f
-                                 * laneSpeedCurveDepths_[laneIdx];
+                    float offset = (curveVal - 0.5f) * 2.0f * curveDepth;
                     speed *= (1.0f + offset);
                     speed = std::clamp(speed, 0.1f, 8.0f);
                 }
@@ -1196,10 +1165,13 @@ void ArpeggiatorCore::fireStep(const BlockContext& ctx,
                         .sampleOffset = humanizedSampleOffset};
                 }
 
-                // Track currently sounding note (FR-025)
-                currentArpNotes_[currentArpNoteCount_] = result.notes[0];
+                // Track currently sounding note (FR-025). The store must sit
+                // INSIDE the bound check -- the chord path above can leave the
+                // count at 32, and a long gate keeps those notes sounding into
+                // this step, so writing first put one element past the end of
+                // currentArpNotes_ (std::array<uint8_t, 32>).
                 if (currentArpNoteCount_ < 32) {
-                    ++currentArpNoteCount_;
+                    currentArpNotes_[currentArpNoteCount_++] = result.notes[0];
                 }
 
                 // Schedule NoteOff for this note.

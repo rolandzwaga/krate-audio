@@ -77,6 +77,10 @@ private:
     // emit a panic note-off for any sounding programmed note.
     int prevSourceMode_{0};  // 0 = Live (matches ArpeggiatorParams::sourceMode default)
 
+    // Set on setActive(false) when note-off obligations were recorded for the
+    // first process() after reactivation to discharge; see setActive().
+    bool pendingDeactivateFlush_{false};
+
     // Transport state
     bool wasTransportPlaying_{false};
     bool hostSupportsTransport_{false};

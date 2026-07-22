@@ -102,6 +102,18 @@ public:
         }
     }
 
+    /// @brief Silence the voice immediately and drop its envelope state.
+    /// `active_` otherwise only clears from inside processBlock, so a voice
+    /// that stops being rendered (deactivation, audition switched off
+    /// mid-envelope) would stay flagged active forever.
+    void reset() noexcept {
+        envPhase_ = EnvPhase::Release;
+        envLevel_ = 0.0f;
+        releaseRate_ = 0.0f;
+        velocity_ = 0.0f;
+        active_ = false;
+    }
+
     [[nodiscard]] bool isActive() const noexcept { return active_; }
 
 private:

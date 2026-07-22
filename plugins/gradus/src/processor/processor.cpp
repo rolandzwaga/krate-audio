@@ -56,8 +56,25 @@ tresult PLUGIN_API Processor::terminate()
 tresult PLUGIN_API Processor::setActive(TBool state)
 {
     if (state) {
-        arpCore_.reset();  // Also resets midiDelayLane_ inside
-        midiDelay_.reset();
+        // Skip the reset when a deactivation flush is still outstanding: it
+        // would clear the very note-off obligations recorded below, which the
+        // first process() after reactivation still has to emit.
+        if (pendingDeactivateFlush_) {
+            pendingDeactivateFlush_ = false;
+        } else {
+            arpCore_.reset();  // Also resets midiDelayLane_ inside
+            midiDelay_.reset();
+        }
+    } else {
+        // Gradus emits its own arp and echo NoteOns to a MIDI *output* bus that
+        // the host cannot recall, so deactivating mid-note would strand them
+        // downstream. VST3 does not call process() after setActive(false)
+        // returns, so we cannot emit here -- instead record the obligation and
+        // let the first process() after reactivation discharge it.
+        arpCore_.requestPanicNoteOff();
+        midiDelay_.flushWithNoteOffs();
+        pendingDeactivateFlush_ = true;
+        auditionVoice_.reset();
     }
     return AudioEffect::setActive(state);
 }
@@ -116,6 +133,12 @@ tresult PLUGIN_API Processor::process(ProcessData& data)
     arpCore_.consumePendingCurveTables();
 
     // --- 4. Transport sync ---
+    // Source = Sequencer behaves like a step sequencer and follows the host
+    // transport (spec 142 US1/FR-031): Stop must halt note emission. Source =
+    // Live is a classic arp that free-runs off held notes, so it must keep
+    // clocking even when the transport is stopped.
+    const bool isSequencer =
+        arpParams_.sourceMode.load(std::memory_order_relaxed) == 1;
     if (data.processContext) {
         const auto& ctx = *data.processContext;
         const bool isPlaying = (ctx.state & ProcessContext::kPlaying) != 0;
@@ -137,7 +160,17 @@ tresult PLUGIN_API Processor::process(ProcessData& data)
             prevProjectTimeMusic_ = ctx.projectTimeMusic;
         }
 
-        if (isPlaying && !wasTransportPlaying_) {
+        // Restart the pattern on the rising transport-play edge -- but ONLY in
+        // Sequencer mode. The sequencer is transport-gated, so it is silent
+        // while stopped and a reset here is a clean pattern restart.
+        //
+        // Live mode free-runs off held notes: at this instant notes are already
+        // sounding and a chord is already held. reset() emits no NoteOff (it
+        // just clears currentArpNotes_/pendingNoteOffs_) and clears heldNotes_,
+        // so resetting here orphaned every sounding note downstream and left
+        // the arp silent until the keys were physically re-pressed. Pressing
+        // Play is simply not the free-running arp's business.
+        if (isSequencer && isPlaying && !wasTransportPlaying_) {
             arpCore_.reset();  // Also resets midiDelayLane_ inside
             midiDelay_.reset();
         }
@@ -148,23 +181,17 @@ tresult PLUGIN_API Processor::process(ProcessData& data)
     BlockContext blockCtx{};
     blockCtx.sampleRate = sampleRate_;
     blockCtx.blockSize = static_cast<size_t>(data.numSamples);
-    // Source = Sequencer behaves like a step sequencer and follows the host
-    // transport (spec 142 US1/FR-031): Stop must halt note emission. Source =
-    // Live is a classic arp that free-runs off held notes, so it must keep
-    // clocking even when the transport is stopped.
-    const bool isSequencer =
-        arpParams_.sourceMode.load(std::memory_order_relaxed) == 1;
     if (data.processContext) {
         const bool transportPlaying =
             (data.processContext->state & ProcessContext::kPlaying) != 0;
-        blockCtx.tempoBPM = data.processContext->tempo;
+        // Fall back to 120 BPM for any non-positive tempo, whatever the
+        // transport state. The fallback used to sit inside the !playing branch
+        // only, so a host reporting kPlaying with tempo 0 left tempoBPM at 0 --
+        // and synced step math divides 60.0 / tempoBPM.
+        blockCtx.tempoBPM = data.processContext->tempo > 0
+            ? data.processContext->tempo : 120.0;
         // Sequencer follows the host transport; Live free-runs.
         blockCtx.isPlaying = isSequencer ? transportPlaying : true;
-        // Only sync to musical position when transport is actually playing
-        if (!transportPlaying) {
-            blockCtx.tempoBPM = data.processContext->tempo > 0
-                ? data.processContext->tempo : 120.0;
-        }
     } else {
         // No host transport context (e.g. offline/standalone): Sequencer has no
         // transport to follow, so keep it running; Live free-runs as always.
@@ -267,14 +294,25 @@ tresult PLUGIN_API Processor::process(ProcessData& data)
         }
 
         // Apply audition voice params and render
-        if (auditionEnabled_.load(std::memory_order_relaxed)) {
+        const bool auditionOn = auditionEnabled_.load(std::memory_order_relaxed);
+        if (auditionOn) {
             auditionVoice_.setWaveform(auditionWaveform_.load(std::memory_order_relaxed));
             auditionVoice_.setDecay(auditionDecay_.load(std::memory_order_relaxed));
             auditionVoice_.setVolume(auditionVolume_.load(std::memory_order_relaxed));
             auditionVoice_.processBlock(outL, outR, numSamples);
+        } else if (auditionVoice_.isActive()) {
+            // The voice stops being rendered the moment audition is switched
+            // off, and AuditionVoice::active_ only clears from inside
+            // processBlock -- so without this it would stay flagged active
+            // forever, and the silence report below would keep claiming a
+            // buffer we are in fact leaving at zero.
+            auditionVoice_.reset();
         }
 
-        data.outputs[0].silenceFlags = auditionVoice_.isActive() ? 0 : 0x3;
+        // Report silence from what we actually wrote: the buffers were cleared
+        // above and only the enabled audition voice adds to them.
+        data.outputs[0].silenceFlags =
+            (auditionOn && auditionVoice_.isActive()) ? 0 : 0x3;
     }
 
     return kResultOk;
@@ -750,6 +788,24 @@ void Processor::applyParamsToEngine()
         using namespace Krate::DSP;
         const auto delayLen = arpParams_.midiDelayLaneLength.load(std::memory_order_relaxed);
         arpCore_.midiDelayLane().setLength(static_cast<size_t>(delayLen));
+
+        // Lane 8 modulators (speed / swing / jitter / speed-curve depth).
+        // The delay lane advances via advanceLaneBySpeed(midiDelayLane_, 8),
+        // which reads exactly these slots -- without these calls params
+        // 3703-3706 were stored, saved, loaded and shown in the UI but never
+        // reached the engine, so the lane always clocked at the base rate.
+        // Mirrors the lane-9 (Sequencer Note) block below.
+        arpCore_.setLaneSpeed(8,
+            arpParams_.midiDelayLaneSpeed.load(std::memory_order_relaxed));
+        arpCore_.setLaneSwing(8,
+            arpParams_.midiDelayLaneSwing.load(std::memory_order_relaxed));
+        arpCore_.setLaneLengthJitter(8,
+            arpParams_.midiDelayLaneJitter.load(std::memory_order_relaxed));
+        // Depth only takes effect once lane 8's speed curve is enabled; the
+        // enabled flags currently cover lanes 0-7 only. Applied anyway so the
+        // engine matches the stored value if that changes.
+        arpCore_.setLaneSpeedCurveDepth(8,
+            arpParams_.midiDelayLaneSpeedCurveDepth.load(std::memory_order_relaxed));
 
         for (int i = 0; i < 32; ++i) {
             MidiDelayStepConfig cfg;

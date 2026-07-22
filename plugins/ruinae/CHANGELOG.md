@@ -5,6 +5,17 @@ All notable changes to Ruinae will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.1] - 2026-07-21
+
+Fixes in the shared KrateDSP arpeggiator engine, found while auditing Gradus.
+Ruinae drives the same engine, so they are listed here too and marked
+*(shared DSP)*. No Ruinae-specific code changed.
+
+### Fixed
+
+- **Arpeggiated notes cut short, and arp events emitted out of time order, during a big sustained chord** *(shared DSP)* — The engine's scheduled-note-off ring held 32 entries, but a full 32-note chord sustained at the maximum 200 % gate overlaps itself across two steps and needs 64. Measured on such a chord the ring overflowed 307 times in a single run; each overflow fired the oldest note's note-off early — truncating that note — and emitted it at the start of the block, after notes that had already been placed later in it. That produced 28 events stepping backwards in time. Ruinae passes the arpeggiator's output straight to the host without re-sorting, so those were reaching the host as-is.
+- **Out-of-bounds write while tracking sounding notes** *(shared DSP)* — The single-note path stored into the sounding-note array *before* checking it against the array's bound. A chord can leave that array full, and a gate above 100 % keeps those notes sounding into the next step, so the following single note wrote one element past the end.
+
 ## [0.12.0] - 2026-07-20
 
 Two strands of work: a rebuild of the factory preset bank, and the remediation of

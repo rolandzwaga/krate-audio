@@ -381,28 +381,12 @@ TEST_CASE("SelectableOscillator: RMS levels within +/-3 dB across all types",
 // (SpectralFreeze, Additive) may allocate during prepare.
 // The allocation tracking uses a simple counter approach.
 
-namespace {
-std::atomic<int> g_allocationCount{0};
-bool g_trackAllocations = false;
-} // anonymous namespace
+// Global allocation-operator replacements live in ONE shared header so the
+// matched set and its visibility cannot drift per-TU (this TU previously
+// defined new/delete/sized-delete only -- no array or nothrow forms, and no
+// default visibility). Tracking now goes through AllocationDetector.
+#include <allocation_operator_overrides.h>
 
-// Override global operator new for allocation tracking
-void* operator new(std::size_t size) {
-    if (g_trackAllocations) {
-        g_allocationCount.fetch_add(1, std::memory_order_relaxed);
-    }
-    void* p = std::malloc(size);  // NOLINT(cppcoreguidelines-no-malloc) intentional: operator new override for allocation tracking
-    if (!p) throw std::bad_alloc();
-    return p;
-}
-
-void operator delete(void* p) noexcept {
-    std::free(p);  // NOLINT(cppcoreguidelines-no-malloc) intentional: operator delete override
-}
-
-void operator delete(void* p, [[maybe_unused]] std::size_t size) noexcept {
-    std::free(p);  // NOLINT(cppcoreguidelines-no-malloc) intentional: operator delete override
-}
 
 TEST_CASE("SelectableOscillator: zero heap allocations during type switch for ALL types (SC-004)",
           "[selectable_oscillator][sc004]") {
@@ -431,13 +415,11 @@ TEST_CASE("SelectableOscillator: zero heap allocations during type switch for AL
             osc.setType(OscType::PolyBLEP);
 
             // Track allocations during the switch
-            g_allocationCount.store(0, std::memory_order_relaxed);
-            g_trackAllocations = true;
+            TestHelpers::AllocationDetector::instance().startTracking();
 
             osc.setType(type);
 
-            g_trackAllocations = false;
-            int allocs = g_allocationCount.load(std::memory_order_relaxed);
+            const int allocs = static_cast<int>(TestHelpers::AllocationDetector::instance().stopTracking());
 
             INFO("OscType " << static_cast<int>(type) << " caused " << allocs << " allocations");
             REQUIRE(allocs == 0);
@@ -764,13 +746,11 @@ TEST_CASE("SelectableOscillator: zero heap allocations during processBlock (SC-0
     std::array<float, kBlockSize> buffer{};
 
     // Track allocations during processBlock
-    g_allocationCount.store(0, std::memory_order_relaxed);
-    g_trackAllocations = true;
+    TestHelpers::AllocationDetector::instance().startTracking();
 
     osc.processBlock(buffer.data(), kBlockSize);
 
-    g_trackAllocations = false;
-    int allocs = g_allocationCount.load(std::memory_order_relaxed);
+    const int allocs = static_cast<int>(TestHelpers::AllocationDetector::instance().stopTracking());
 
     INFO("processBlock caused " << allocs << " allocations");
     REQUIRE(allocs == 0);

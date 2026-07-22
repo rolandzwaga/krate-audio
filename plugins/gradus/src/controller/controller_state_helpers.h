@@ -125,17 +125,7 @@ void Controller::loadMidiDelayFromStream(
     }
     // Lane metadata
     if (!streamer.readFloat(fv)) return;
-    {
-        float speed = std::clamp(fv, 0.25f, 4.0f);
-        int bestIdx = 3;
-        float bestDist = 99.0f;
-        for (int i = 0; i < kLaneSpeedCount; ++i) {
-            float dist = std::abs(kLaneSpeedValues[i] - speed);
-            if (dist < bestDist) { bestDist = dist; bestIdx = i; }
-        }
-        setParam(kArpMidiDelayLaneSpeedId,
-            static_cast<double>(bestIdx) / static_cast<double>(kLaneSpeedCount - 1));
-    }
+    setParam(kArpMidiDelayLaneSpeedId, speedValueToNormalized(fv));
     if (streamer.readFloat(fv))
         setParam(kArpMidiDelayLaneSwingId,
             static_cast<double>(std::clamp(fv, 0.0f, 75.0f)) / 75.0);
@@ -196,17 +186,7 @@ void loadSequencerNoteLaneFromStream(Steinberg::IBStreamer& streamer, SetParamFn
     //    entry as the lane uses StringList-style snapping, same pattern as
     //    kArpMidiDelayLaneSpeedId above.
     if (!streamer.readFloat(fv)) return;
-    {
-        float speed = std::clamp(fv, 0.25f, 4.0f);
-        int bestIdx = kLaneSpeedDefault; // 1.0x
-        float bestDist = 99.0f;
-        for (int i = 0; i < kLaneSpeedCount; ++i) {
-            float dist = std::abs(kLaneSpeedValues[i] - speed);
-            if (dist < bestDist) { bestDist = dist; bestIdx = i; }
-        }
-        setParam(kArpSequencerNoteLaneSpeedId,
-            static_cast<double>(bestIdx) / static_cast<double>(kLaneSpeedCount - 1));
-    }
+    setParam(kArpSequencerNoteLaneSpeedId, speedValueToNormalized(fv));
 
     // 6. Lane Swing (0..75)
     if (!streamer.readFloat(fv)) return;

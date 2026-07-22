@@ -67,6 +67,14 @@ public:
         lanes_.fill(nullptr);
     }
 
+    /// Lane bound to a RING (UI) slot, or nullptr. Ring order differs from
+    /// Controller::getArpLane order at indices 3/4/5, so anything seeding
+    /// ring-indexed state must read it from here.
+    [[nodiscard]] Krate::Plugins::IArpLane* laneAt(int ringIndex) const
+    {
+        return getLane(ringIndex);
+    }
+
     // =========================================================================
     // Euclidean State (cached from controller parameter sync)
     // =========================================================================

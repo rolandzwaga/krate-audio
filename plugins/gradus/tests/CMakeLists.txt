@@ -41,6 +41,18 @@ add_executable(gradus_tests
     # Sequencer transport-gating tests (spec 142, FR-031 at the Processor boundary)
     unit/processor/sequencer_transport_gating_test.cpp
 
+    # Live-mode transport Play-edge hygiene (audit F3)
+    unit/processor/live_mode_play_edge_test.cpp
+
+    # MIDI-delay lane metadata reaches the engine (audit F14)
+    unit/processor/midi_delay_lane_metadata_test.cpp
+
+    # Deactivation must not strand sounding notes (audit F4)
+    unit/processor/set_active_flush_test.cpp
+
+    # Audition silence reporting + tempo validity (audit F18, F19)
+    unit/processor/audition_and_tempo_test.cpp
+
     # Piano-roll view tests (spec 142, Phase 6, US3)
     unit/ui/piano_roll_view_test.cpp
     unit/ui/piano_roll_playhead_test.cpp
@@ -48,6 +60,9 @@ add_executable(gradus_tests
 
     # Editor open/close lifecycle regression (willClose UAF guard)
     unit/ui/editor_lifecycle_test.cpp
+
+    # Ring edit routing / geometry seeding lane-order guard (audit F11 + F12)
+    unit/ui/ring_edit_routing_test.cpp
 
     # Processor/Controller implementation (needed by plugin shell tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor.cpp

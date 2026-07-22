@@ -15,6 +15,7 @@
 #include <array>
 #include <cstdint>
 #include <vector>
+#include <set>
 
 using namespace Krate::DSP;
 
@@ -75,17 +76,30 @@ TEST_CASE("Sequencer: all-rest pattern emits zero noteOns while playhead advance
     ctx.tempoBPM = 120.0;
     ctx.isPlaying = true;
 
-    auto events = collectEvents(arp, ctx, 400);  // ~4.6 s of clock
+    // Sample the playhead as we go: an all-rest pattern must keep CLOCKING, so
+    // "emitted nothing" alone is not the property under test. Run the ~4.6 s in
+    // chunks and record every distinct step the lane visits.
+    //
+    // Previously the playhead half of this case was commented-out prose and the
+    // only live assertion was the note-on count -- which a completely frozen
+    // playhead passes, so the test could not fail for its stated purpose.
+    std::vector<ArpEvent> events;
+    std::set<size_t> stepsVisited;
+    stepsVisited.insert(arp.seqNoteLane().currentStep());
+    for (int chunk = 0; chunk < 400; ++chunk) {
+        auto chunkEvents = collectEvents(arp, ctx, 1);
+        events.insert(events.end(), chunkEvents.begin(), chunkEvents.end());
+        stepsVisited.insert(arp.seqNoteLane().currentStep());
+    }
+
     REQUIRE(countNoteOns(events) == 0);
 
-    // The playhead must have advanced (wrapped) at least once — at 120 BPM /
-    // 1/16 notes / 400 blocks @ 512 samples we have ~28 sequencer ticks,
-    // so the playhead has wrapped around at least once. Looser check:
-    // playhead is not stuck at step 0.
-    // (currentStep() is the step that will fire NEXT, so after a wrap it
-    // points somewhere in [0, 31].)
-    // The strict check is that .seqNoteLane() advanced past step 0 at least
-    // once. We can verify by capturing the playhead a few times.
+    // At 120 BPM / 1/16 notes, 400 blocks of 512 samples is ~28 sequencer
+    // ticks, so the lane must have visited many distinct steps rather than
+    // sitting on one.
+    INFO("distinct seqNote steps visited: " << stepsVisited.size());
+    REQUIRE(stepsVisited.size() > 1);
+    REQUIRE(arp.seqNoteLane().currentStep() != 0);
 }
 
 // =============================================================================

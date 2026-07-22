@@ -76,6 +76,25 @@ inline void ensureVstguiInitialized()
     (void)initialized;
 }
 
+// Native window type for the running platform. IPlugView::attached() gates on
+// isPlatformTypeSupported(type), so passing another platform's constant makes
+// attached() return kResultFalse -- it still COMPILES everywhere (these are
+// plain strings), so a compile-only portability check cannot catch the mistake.
+// It only shows up as a red Linux/macOS test run.
+//
+// ALWAYS call this instead of naming a kPlatformType* constant in a test.
+// tools/lint-platform-type-literals.js enforces that.
+[[nodiscard]] inline Steinberg::FIDString nativePlatformType()
+{
+#if SMTG_OS_WINDOWS
+    return Steinberg::kPlatformTypeHWND;
+#elif SMTG_OS_MACOS
+    return Steinberg::kPlatformTypeNSView;
+#else
+    return Steinberg::kPlatformTypeX11EmbedWindowID;
+#endif
+}
+
 // Open and close the editor `cycles` times against `controller` as the delegate.
 // `templateName` is the root view template in the .uidesc (e.g. "editor",
 // "Editor", "EditorDefault"). `uidescAbsolutePath` is an absolute path to the
@@ -85,16 +104,9 @@ inline void exerciseEditorLifecycle(Steinberg::Vst::EditController& controller,
                                     const std::string& uidescAbsolutePath,
                                     int cycles = 3)
 {
-    // Native window type for the running platform. attached() gates on
-    // isPlatformTypeSupported(type); the parent pointer stays null so no real
-    // window is created (CFrame::open(nullptr) fails harmlessly).
-#if SMTG_OS_WINDOWS
-    const Steinberg::FIDString kPlatformType = Steinberg::kPlatformTypeHWND;
-#elif SMTG_OS_MACOS
-    const Steinberg::FIDString kPlatformType = Steinberg::kPlatformTypeNSView;
-#else
-    const Steinberg::FIDString kPlatformType = Steinberg::kPlatformTypeX11EmbedWindowID;
-#endif
+    // The parent pointer stays null so no real window is created
+    // (CFrame::open(nullptr) fails harmlessly).
+    const Steinberg::FIDString kPlatformType = nativePlatformType();
 
     ensureVstguiInitialized();
 

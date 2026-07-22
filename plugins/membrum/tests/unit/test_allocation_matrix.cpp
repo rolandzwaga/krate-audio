@@ -28,43 +28,10 @@
 #include <new>
 #include <string>
 
-// ==============================================================================
-// Global operator new overrides — required for AllocationDetector to observe
-// heap allocations in this binary. These are the only allocation-operator
-// overrides in the membrum_tests TU set.
-//
-// We deliberately override ONLY operator new / new[] (which `std::malloc`),
-// and leave operator delete to the standard library default (which `std::free`s).
-// This keeps every allocation/deallocation in the SAME malloc/free family:
-//   - executable allocations  -> our new (malloc)        + default delete (free)
-//   - libstdc++ allocations    -> libstdc++ new (malloc)  + libstdc++ delete (free)
-//
-// Overriding operator delete here is unsound: the build uses -fvisibility=hidden,
-// so these overrides do NOT interpose libstdc++. A std::string allocated inside
-// libstdc++ (e.g. by operator+) but destroyed in executable code would then be
-// freed by a `std::free` override while it was allocated by libstdc++'s
-// operator new — a cross-module "operator new vs free" family mismatch. That is
-// UB; on a vanilla glibc heap it is silent, but under a different heap layout it
-// corrupts allocator bookkeeping and surfaces as an intermittent, test-order-
-// dependent SIGSEGV on CI. Routing all deallocation through the default
-// operator delete removes the mismatch entirely. (Valgrind memcheck confirmed
-// both the bug and the fix; see the Linux ASan/valgrind CI lane.)
-// ==============================================================================
-void* operator new(std::size_t size)
-{
-    TestHelpers::AllocationDetector::instance().recordAllocation();
-    void* p = std::malloc(size);
-    if (!p) throw std::bad_alloc();
-    return p;
-}
-
-void* operator new[](std::size_t size)
-{
-    TestHelpers::AllocationDetector::instance().recordAllocation();
-    void* p = std::malloc(size);
-    if (!p) throw std::bad_alloc();
-    return p;
-}
+// Global allocation-operator replacements live in ONE shared header so the
+// matched set and its visibility cannot drift per-TU. See that header for the
+// two broken shapes this repo already shipped and the ASan numbers behind them.
+#include <allocation_operator_overrides.h>
 
 namespace {
 

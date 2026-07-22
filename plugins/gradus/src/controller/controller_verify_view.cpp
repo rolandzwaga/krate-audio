@@ -1092,10 +1092,15 @@ void Controller::constructArpLanes()
     if (renderer) {
         renderer->setDataSource(&ringDataBridge_);
 
-        // Sync step counts to geometry
+        // Sync step counts to geometry. RingGeometry::hitTest reads
+        // laneStepCounts_ in RING order, so seed it from the ring data bridge
+        // (populated in ring order just above) -- getArpLane(i) would swap the
+        // Modifier/Condition/Ratchet counts. The kDirtyLaneLengths update path
+        // in controller_view_sync.cpp already re-seeds in ring order; this is
+        // the init path agreeing with it.
         auto& geo = renderer->geometry();
         for (int i = 0; i < 8; ++i) {
-            auto* lane = getArpLane(i);
+            auto* lane = ringDataBridge_.laneAt(i);
             if (lane)
                 geo.setLaneStepCount(i, lane->getActiveLength());
         }
@@ -1113,22 +1118,24 @@ void Controller::constructArpLanes()
                 static_cast<int>(std::round(eucRotParam->getNormalized() * 31.0)));
         }
 
-        // Wire ring edit callbacks
+        // Wire ring edit callbacks. The renderer reports lane indices in RING
+        // order, which differs from getArpLane order at 3/4/5 -- resolve them
+        // with getRingLaneStepBaseParamId, not getArpLaneStepBaseParamId.
         renderer->setBeginEditCallback(
             [this](int laneIndex, int step) {
-                uint32_t paramId = getArpLaneStepBaseParamId(laneIndex)
+                uint32_t paramId = getRingLaneStepBaseParamId(laneIndex)
                     + static_cast<uint32_t>(step);
                 beginEdit(paramId);
             });
         renderer->setEndEditCallback(
             [this](int laneIndex, int step) {
-                uint32_t paramId = getArpLaneStepBaseParamId(laneIndex)
+                uint32_t paramId = getRingLaneStepBaseParamId(laneIndex)
                     + static_cast<uint32_t>(step);
                 endEdit(paramId);
             });
         renderer->setValueChangeCallback(
             [this](int laneIndex, int step, float value) {
-                uint32_t paramId = getArpLaneStepBaseParamId(laneIndex)
+                uint32_t paramId = getRingLaneStepBaseParamId(laneIndex)
                     + static_cast<uint32_t>(step);
                 setParamNormalized(paramId, static_cast<double>(value));
                 performEdit(paramId, static_cast<double>(value));

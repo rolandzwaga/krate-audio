@@ -5,6 +5,33 @@ All notable changes to Gradus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.1] - 2026-07-21
+
+Remediation of a full-codebase audit of Gradus. Several entries are fixes in the
+shared KrateDSP arpeggiator engine; they are listed here because they change how
+Gradus behaves, and are marked *(shared DSP)*.
+
+### Fixed
+
+- **The chord you were holding when you pressed Play did nothing** — Source = Live free-runs off held notes and keeps clocking while the transport is stopped, so notes are already sounding and a chord is already held when Play is pressed. The rising transport edge reset the engine unconditionally, which clears the held notes and the sounding-note list *without emitting any note-off*: every note sounding at that instant was orphaned in the host, and the arp then fell silent until the keys were physically re-pressed. The regression fixtures had recorded five full seconds of that silence as expected output. The reset is now gated to Source = Sequencer, which is the mode that wants it (Stop/Play restarts the pattern there as before).
+- **Editing the Modifier, Condition or Ratchet ring changed a different lane** — The ring display numbers its lanes in a different order from the parameter tables, and the two disagree at exactly those three positions. Ring edits were resolved through the parameter-table order, so dragging Modifier wrote Ratchet's step parameters, Condition wrote Modifier's, and Ratchet — which is a continuous drag lane — pushed smoothly-varying values into the discrete Condition lane. The ring's initial step counts were seeded in the wrong order too, so hit-testing used one lane's length for another until the first length edit corrected it.
+- **MIDI Delay lane Speed, Swing, Jitter and Curve Depth did nothing** — All four were stored, saved, restored and mirrored back into the UI, so the whole surrounding chain implied they worked. They were simply never applied to the engine, and the delay lane always clocked at the base rate.
+- **Notes left sounding when the host deactivated the plugin** — Gradus emits its arp and echo notes to a MIDI *output* bus, which the host cannot recall on its behalf, and deactivation released nothing. Outstanding note-offs are now recorded on deactivate and emitted by the first block after the plugin is reactivated.
+- **Echo note-offs lost when a block's event output filled up** *(shared DSP)* — The MIDI delay writes into a fixed output slot budget shared with the arp's own events. Once that filled, a due echo's note-off was skipped and then discarded outright on the following block, leaving its note-on unbalanced in the host forever.
+- **MIDI output events could step backwards in time within a block** *(shared DSP)* — Pass-through arp events, emergency note-offs and due echoes were appended in emission order rather than time order, so an echo due early in a block could follow an arp note occurring late in it. Hosts are entitled to a monotonic event stream.
+- **Notes cut short during a big sustained chord** *(shared DSP)* — The engine's scheduled-note-off ring held 32 entries, but a full 32-note chord sustained at the maximum 200 % gate overlaps itself across two steps and needs 64. Measured on such a chord the ring overflowed 307 times in a single run, and each overflow fired the oldest note's note-off early — truncating that note and emitting the event out of time order.
+- **Out-of-bounds write while tracking sounding notes** *(shared DSP)* — The single-note path stored into the sounding-note array *before* checking it against the array's bound. A chord can leave that array full, and a gate above 100 % keeps those notes sounding into the next step, so the following single note wrote one element past the end.
+- **Unsynchronised read of the per-lane speed-curve depth** *(shared DSP)* — Depth is set from the editor while the audio thread reads it every block, but it was a plain float while its two sibling curve fields were already synchronised. The audible worst case was a single block using the previous depth; it is now atomic like the others, and the audio thread takes one snapshot per block instead of two reads that could disagree.
+- **Sequencer pattern steps 17-32 defaulted to a pitch of 0 instead of C4** — The engine filled all 32 steps while the lane was still 16 long, and the lane clamps writes to its current length, so the upper half never received the default. Masked in normal use because the processor rewrites every step each block.
+- **Plugin reported audio on a silent buffer** — Switching audition off part-way through a note left the audition voice permanently flagged active, so Gradus kept telling the host the output was non-silent while writing nothing but zeros.
+- **A host reporting tempo 0 while playing produced degenerate note timing** — The fallback to 120 BPM was applied only while the transport was stopped, which is the case that needs it least.
+- **The editor accepted preset and session data the processor rejects** — The processor refuses state versions outside v2/v3, but the controller read the version, discarded it and parsed the payload regardless. An out-of-range stream left the processor on its defaults while the editor showed the loaded values.
+- **Speed curves with more than 64 points corrupted the saved state** — The writer emitted every point while the reader consumed at most 64, so the surplus was left in the stream and every field after it — the remaining lanes' curves, the whole MIDI Delay lane block and the sequencer pattern — was read from the wrong offset. The curve editor adds points without a limit, so this was reachable by drawing a detailed curve. Both sides now honour the same 64-point bound.
+
+### Removed
+
+- **Dead arp-skip message handler in the editor** — The controller listened for a message the processor never sends.
+
 ## [1.9.0] - 2026-06-29
 
 ### Added

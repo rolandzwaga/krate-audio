@@ -103,6 +103,28 @@ public:
         emergencyNoteOffCount_ = 0;
     }
 
+    /// @brief Drop pending echoes but keep every outstanding NoteOff obligation.
+    ///
+    /// Use instead of reset() whenever the host is still listening (transport
+    /// changes, deactivation): reset() discards echoes whose NoteOn already
+    /// reached the output, hanging those notes downstream. Echoes that never
+    /// sounded owe nothing and are discarded; the rest are retained with their
+    /// NoteOff immediately due, so the next process() emits it at offset 0.
+    void flushWithNoteOffs() noexcept
+    {
+        size_t writeIdx = 0;
+        for (size_t i = 0; i < pendingCount_; ++i) {
+            auto& echo = pendingEchoes_[i];
+            if (!echo.noteOnEmitted || echo.noteOffEmitted) continue;
+            echo.noteOffRemaining = 0;
+            if (writeIdx != i) {
+                pendingEchoes_[writeIdx] = pendingEchoes_[i];
+            }
+            ++writeIdx;
+        }
+        pendingCount_ = writeIdx;
+    }
+
     /// @brief Get current number of pending echoes (for diagnostics/testing).
     [[nodiscard]] size_t pendingCount() const noexcept { return pendingCount_; }
 
@@ -144,7 +166,14 @@ public:
         // --- 3. Emit due pending echoes (NoteOns and NoteOffs) ---
         emitDueEchoes(ctx, outputEvents, outCount, maxOutput);
 
-        // --- 4. Advance time and compact ---
+        // --- 4. Restore non-decreasing sampleOffset order ---
+        // The three emission passes above append in emission order, not time
+        // order: a due echo (early in the block) lands after a pass-through arp
+        // event that occurs late in it. Hosts are entitled to a monotonic event
+        // stream, so re-order before returning.
+        sortBySampleOffset(outputEvents, outCount);
+
+        // --- 5. Advance time and compact ---
         advanceAndCompact(ctx.blockSize);
 
         return outCount;
@@ -285,6 +314,30 @@ private:
     }
 
     // =========================================================================
+    // Output Ordering
+    // =========================================================================
+
+    /// @brief Stable in-place sort of the emitted span by sampleOffset.
+    ///
+    /// Insertion sort: allocation-free (std::stable_sort allocates), and the
+    /// span is nearly sorted already -- the pass-through events are in order
+    /// and only the echoes are out of place -- so it runs close to linear.
+    /// Stability matters: events sharing a sampleOffset keep their emission
+    /// order, which is what keeps an echo's own NoteOn ahead of its NoteOff.
+    static void sortBySampleOffset(std::span<ArpEvent> events, size_t count) noexcept
+    {
+        for (size_t i = 1; i < count; ++i) {
+            const ArpEvent key = events[i];
+            size_t j = i;
+            while (j > 0 && events[j - 1].sampleOffset > key.sampleOffset) {
+                events[j] = events[j - 1];
+                --j;
+            }
+            events[j] = key;
+        }
+    }
+
+    // =========================================================================
     // Time Advancement & Compaction
     // =========================================================================
 
@@ -303,9 +356,17 @@ private:
             if (echo.noteOnEmitted && echo.noteOffEmitted) {
                 continue;
             }
-            // Safety: remove echoes whose NoteOff is past and somehow missed
+            // Safety: an echo whose NoteOff is more than a block overdue was
+            // starved by a saturated output span. If its NoteOn already reached
+            // the output it still owes a NoteOff, so it must be retained (with
+            // the NoteOff forced immediately due) rather than discarded --
+            // dropping it here would leave the note sounding forever. Echoes
+            // that never emitted their NoteOn owe nothing and can go.
             if (echo.noteOffRemaining < -bs) {
-                continue;
+                if (!echo.noteOnEmitted) {
+                    continue;
+                }
+                echo.noteOffRemaining = 0;
             }
 
             if (writeIdx != i) {
@@ -349,15 +410,22 @@ private:
         size_t& outCount,
         size_t maxOutput) noexcept
     {
-        for (size_t i = 0; i < emergencyNoteOffCount_ && outCount < maxOutput; ++i) {
+        size_t emitted = 0;
+        for (; emitted < emergencyNoteOffCount_ && outCount < maxOutput; ++emitted) {
             outputEvents[outCount++] = ArpEvent{
                 ArpEvent::Type::NoteOff,
-                emergencyNoteOffs_[i],
+                emergencyNoteOffs_[emitted],
                 0,
                 0,
                 false};
         }
-        emergencyNoteOffCount_ = 0;
+        // Keep whatever did not fit in this block's output span -- clearing the
+        // queue unconditionally would drop the note-off obligation entirely and
+        // strand the note (same failure mode as discarding a starved echo).
+        for (size_t i = emitted; i < emergencyNoteOffCount_; ++i) {
+            emergencyNoteOffs_[i - emitted] = emergencyNoteOffs_[i];
+        }
+        emergencyNoteOffCount_ -= emitted;
     }
 
     // =========================================================================

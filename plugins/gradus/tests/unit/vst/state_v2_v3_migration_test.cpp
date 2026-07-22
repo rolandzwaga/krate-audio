@@ -24,6 +24,7 @@
 #include <catch2/catch_approx.hpp>
 
 #include "processor/processor.h"
+#include "controller/controller.h"
 #include "parameters/arpeggiator_params.h"
 #include "plugin_ids.h"
 
@@ -351,6 +352,46 @@ TEST_CASE("v3 setState rejects unknown future versions",
     REQUIRE(processor.terminate() == kResultOk);
 }
 
+// -----------------------------------------------------------------------------
+// Audit F8/F15: the controller must apply the same {2,3} version gate.
+// Processor::setState rejects anything else, but the controller read the
+// leading int32, discarded it, and parsed the payload regardless -- so an
+// out-of-range stream left the processor on defaults while the controller
+// pushed the payload into its parameter cache, i.e. the two components
+// disagreed about the patch. The stale comment claimed "single version, no
+// migration needed", which the real v2/v3 gate contradicts.
+// -----------------------------------------------------------------------------
+
+TEST_CASE("Controller rejects out-of-range state version like the processor",
+          "[gradus][vst][state][migration][F8]")
+{
+    Gradus::Controller controller;
+    REQUIRE(controller.initialize(nullptr) == kResultOk);
+
+    // Baseline: a param the payload below would visibly change.
+    const ParamValue before = controller.getParamNormalized(Gradus::kArpGateLaneStep0Id);
+
+    // Build a stream with a future version followed by a plausible payload.
+    auto* stream = new MemoryStream();
+    {
+        IBStreamer writer(stream, kLittleEndian);
+        writer.writeInt32(4);          // out of the accepted {2, 3} range
+        for (int i = 0; i < 256; ++i) {
+            writer.writeFloat(0.123f); // payload the controller must not apply
+        }
+    }
+    stream->seek(0, IBStream::kIBSeekSet, nullptr);
+
+    controller.setComponentState(stream);
+
+    const ParamValue after = controller.getParamNormalized(Gradus::kArpGateLaneStep0Id);
+    INFO("gate step 0 before=" << before << " after=" << after);
+    CHECK(after == before);
+
+    stream->release();
+    REQUIRE(controller.terminate() == kResultOk);
+}
+
 // =============================================================================
 // SC-005 / FR-039 — Phase 5 (US4): preset round-trip preserves 100% of
 // Sequencer Note lane state.
@@ -663,4 +704,109 @@ TEST_CASE("FR-039 v3 preset restores source, pitches, rest flags, length, modula
     round2Out->release();
     REQUIRE(processorA.terminate() == kResultOk);
     REQUIRE(processorB.terminate() == kResultOk);
+}
+
+// =============================================================================
+// Audit F9: save/load coverage gaps in the speed-curve and MIDI-delay blocks
+// =============================================================================
+// The speed-curve block writes curve.points.size() uncapped but the loader
+// clamps the count to 64 and reads only that many points. A curve with more
+// than 64 points therefore leaves 6 floats per surplus point unread, desyncing
+// everything that follows it in the stream -- the remaining lanes' curves, the
+// whole MIDI Delay Lane block, and the sequencer appendix. The speed-curve
+// editor inserts points with no cap, so this is reachable from normal UI use.
+
+TEST_CASE("State round-trip survives a speed curve with more than 64 points",
+          "[gradus][vst][state][F9]")
+{
+    Gradus::ArpeggiatorParams saved;
+
+    // 65 points on lane 0 -- one past what the loader will consume.
+    {
+        auto& curve = saved.speedCurves[0];
+        curve.enabled = true;
+        curve.presetIndex = -1;  // custom
+        curve.points.clear();
+        for (int i = 0; i < 65; ++i) {
+            Gradus::SpeedCurvePoint pt;
+            pt.x = static_cast<float>(i) / 64.0f;
+            pt.y = 0.25f;
+            curve.points.push_back(pt);
+        }
+        REQUIRE(curve.points.size() == 65);
+    }
+
+    // Distinctive values in the blocks that follow the curves in the stream.
+    saved.midiDelayLaneLength.store(21, std::memory_order_relaxed);
+    saved.midiDelayLaneSpeed.store(2.0f, std::memory_order_relaxed);
+    saved.midiDelayLaneSwing.store(42.0f, std::memory_order_relaxed);
+    saved.midiDelayLaneJitter.store(3, std::memory_order_relaxed);
+    saved.midiDelayFeedbackSteps[5].store(9, std::memory_order_relaxed);
+
+    auto* stream = new MemoryStream();
+    {
+        IBStreamer writer(stream, kLittleEndian);
+        Gradus::saveArpParams(saved, writer);
+    }
+    stream->seek(0, IBStream::kIBSeekSet, nullptr);
+
+    Gradus::ArpeggiatorParams loaded;
+    {
+        IBStreamer reader(stream, kLittleEndian);
+        REQUIRE(Gradus::loadArpParams(loaded, reader) == true);
+    }
+    stream->release();
+
+    // If the reader and writer disagree on the point count, the stream slips
+    // and these tail fields come back as garbage from the wrong offsets.
+    CHECK(loaded.midiDelayLaneLength.load(std::memory_order_relaxed) == 21);
+    CHECK(loaded.midiDelayLaneSpeed.load(std::memory_order_relaxed) == Approx(2.0f));
+    CHECK(loaded.midiDelayLaneSwing.load(std::memory_order_relaxed) == Approx(42.0f));
+    CHECK(loaded.midiDelayLaneJitter.load(std::memory_order_relaxed) == 3);
+    CHECK(loaded.midiDelayFeedbackSteps[5].load(std::memory_order_relaxed) == 9);
+}
+
+TEST_CASE("MIDI-delay block truncated before its active flags keeps lane metadata",
+          "[gradus][vst][state][F9]")
+{
+    // The active-flag appendix is EOF-tolerant: a stream that ends before it
+    // must still load everything up to that point and leave the flags at their
+    // defaults, rather than discarding the lane metadata that preceded them.
+    Gradus::ArpeggiatorParams saved;
+    saved.midiDelayLaneLength.store(11, std::memory_order_relaxed);
+    saved.midiDelayLaneSwing.store(33.0f, std::memory_order_relaxed);
+    for (int i = 0; i < 32; ++i) {
+        saved.midiDelayActiveSteps[i].store(1, std::memory_order_relaxed);
+    }
+
+    // Full stream, then truncate the trailing 32 active-flag int32s.
+    std::vector<char> bytes;
+    {
+        auto* full = new MemoryStream();
+        {
+            IBStreamer writer(full, kLittleEndian);
+            Gradus::saveArpParams(saved, writer);
+        }
+        int64 size = 0;
+        full->seek(0, IBStream::kIBSeekEnd, &size);
+        full->seek(0, IBStream::kIBSeekSet, nullptr);
+        bytes.resize(static_cast<size_t>(size));
+        int32 read = 0;
+        full->read(bytes.data(), static_cast<int32>(size), &read);
+        REQUIRE(read == static_cast<int32>(size));
+        full->release();
+    }
+    REQUIRE(bytes.size() > 32 * sizeof(int32));
+
+    auto* truncated = makeStreamFromBytes(bytes);
+    Gradus::ArpeggiatorParams loaded;
+    {
+        IBStreamer reader(truncated, kLittleEndian);
+        // A truncated tail is tolerated, not an error.
+        CHECK(Gradus::loadArpParams(loaded, reader) == true);
+    }
+    truncated->release();
+
+    CHECK(loaded.midiDelayLaneLength.load(std::memory_order_relaxed) == 11);
+    CHECK(loaded.midiDelayLaneSwing.load(std::memory_order_relaxed) == Approx(33.0f));
 }

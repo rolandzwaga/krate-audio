@@ -156,7 +156,14 @@ public:
     // =========================================================================
 
     static constexpr size_t kMaxEvents = 128;
-    static constexpr size_t kMaxPendingNoteOffs = 32;
+    /// Scheduled NoteOffs in flight. Must cover the worst case the parameter
+    /// ranges permit, or addPendingNoteOff starts evicting: a full 32-note
+    /// chord (HeldNoteBuffer and ArpNoteResult both cap at 32) sustained at up
+    /// to kMaxGateLength = 200% overlaps itself across two steps, so 2 x 32.
+    /// At 32 the ring overflowed on every step of a big sustained chord, and
+    /// each eviction fired that note's NoteOff early at sampleOffset 0 --
+    /// cutting notes short and emitting events out of time order.
+    static constexpr size_t kMaxPendingNoteOffs = 64;
     /// 0=velocity, 1=gate, 2=pitch, 3=modifier, 4=ratchet, 5=condition,
     /// 6=chord, 7=inversion, 8=MIDI delay, 9=sequencer note (spec 142, lane 10).
     /// Lane 9 is conditionally inert in Live mode (`sourceMode_ == Live`).
@@ -217,11 +224,15 @@ public:
 
         // Spec 142: Sequencer Note lane defaults. Pitch step[0]=60 (C4), all
         // rest flags=1 (rest) so a fresh pattern is silent until user populates.
-        seqNoteLane_.setLength(16);
+        // Expand to full capacity first: ArpLane::setStep clamps its index to
+        // length-1, so filling at length 16 would collapse steps 16-31 onto
+        // index 15 and leave them at 0 once the lane is later expanded.
+        seqNoteLane_.setLength(32);
         for (size_t i = 0; i < 32; ++i) {
             seqNoteLane_.setStep(i, static_cast<uint8_t>(60));
             seqRestFlags_[i].store(1, std::memory_order_relaxed);
         }
+        seqNoteLane_.setLength(16);
     }
 
     // =========================================================================
@@ -248,6 +259,7 @@ public:
         currentArpNoteCount_ = 0;
         pendingNoteOffCount_ = 0;
         needsDisableNoteOff_ = false;
+        panicRequested_ = false;
         physicalKeysHeld_ = 0;
         latchActive_ = false;
         selector_.reset();
@@ -613,10 +625,20 @@ public:
     [[nodiscard]] SourceMode sourceMode() const noexcept { return sourceMode_; }
 
     /// @brief Request a panic note-off for any currently sounding arp note.
-    /// On the next `processBlock`, all notes in `currentArpNotes_` will emit
-    /// a noteOff at sample offset 0. Lane playheads are NOT touched. Spec 142
-    /// uses this on source-mode toggle to avoid stuck notes.
-    void requestPanicNoteOff() noexcept { needsDisableNoteOff_ = true; }
+    /// On the next `processBlock`, all notes in `currentArpNotes_` (plus any
+    /// still-pending NoteOffs) emit at sample offset 0. Lane playheads are NOT
+    /// touched. Spec 142 uses this on source-mode toggle, and Gradus uses it on
+    /// deactivation, to avoid stuck notes.
+    ///
+    /// @note This discharges unconditionally at the top of the next
+    /// processBlock -- regardless of enabled state, transport, source mode, or
+    /// whether keys are still held. `needsDisableNoteOff_` alone is only
+    /// consumed on the disabled and empty-held-buffer paths, so a panic
+    /// requested while a chord was still held would otherwise never fire.
+    void requestPanicNoteOff() noexcept {
+        needsDisableNoteOff_ = true;
+        panicRequested_ = true;
+    }
 
     // =========================================================================
     // HeldNoteBuffer Accessor (read-only; spec 142 transposition root needs it)
@@ -675,7 +697,8 @@ public:
     /// @brief Set speed curve depth for a lane (0 = off, 1 = full range).
     void setLaneSpeedCurveDepth(size_t laneIndex, float depth) noexcept {
         if (laneIndex < kNumLanes)
-            laneSpeedCurveDepths_[laneIndex] = std::clamp(depth, 0.0f, 1.0f);
+            laneSpeedCurveDepths_[laneIndex].store(std::clamp(depth, 0.0f, 1.0f),
+                                                  std::memory_order_relaxed);
     }
 
     /// @brief Enable/disable speed curve for a lane. Thread-safe (atomic store).
@@ -705,7 +728,9 @@ public:
 
     /// @brief Read per-lane speed-curve depth (returns 0 if OOB).
     [[nodiscard]] float laneSpeedCurveDepth(size_t laneIndex) const noexcept {
-        return laneIndex < kNumLanes ? laneSpeedCurveDepths_[laneIndex] : 0.0f;
+        return laneIndex < kNumLanes
+            ? laneSpeedCurveDepths_[laneIndex].load(std::memory_order_relaxed)
+            : 0.0f;
     }
 
     /// @brief Read per-lane speed-curve enabled flag (returns false if OOB).
@@ -1333,6 +1358,40 @@ private:
                           [[maybe_unused]] size_t samplesProcessed,
                           [[maybe_unused]] size_t blockSize) noexcept;
 
+    /// @brief Emit NoteOffs at sampleOffset 0 for every sounding arp note and
+    /// every still-pending NoteOff, then clear both trackers.
+    /// Shared by the disabled path, the empty-held-buffer path and the
+    /// unconditional panic discharge -- they had three copies of this loop.
+    inline void emitPanicNoteOffs(std::span<ArpEvent> outputEvents,
+                                  size_t& eventCount,
+                                  size_t maxEvents) noexcept {
+        for (size_t i = 0; i < currentArpNoteCount_ && eventCount < maxEvents; ++i) {
+            outputEvents[eventCount++] = ArpEvent{
+                .type = ArpEvent::Type::NoteOff, .note = currentArpNotes_[i],
+                .velocity = 0, .sampleOffset = 0};
+        }
+        // Pending NoteOffs track notes that are also in currentArpNotes_, so
+        // skip any we just emitted (FR-027, 082-presets-polish).
+        for (size_t i = 0; i < pendingNoteOffCount_ && eventCount < maxEvents; ++i) {
+            bool alreadyEmitted = false;
+            for (size_t j = 0; j < currentArpNoteCount_; ++j) {
+                if (pendingNoteOffs_[i].note == currentArpNotes_[j]) {
+                    alreadyEmitted = true;
+                    break;
+                }
+            }
+            if (!alreadyEmitted) {
+                outputEvents[eventCount++] = ArpEvent{
+                    .type = ArpEvent::Type::NoteOff, .note = pendingNoteOffs_[i].note,
+                    .velocity = 0, .sampleOffset = 0};
+            }
+        }
+        currentArpNoteCount_ = 0;
+        pendingNoteOffCount_ = 0;
+        needsDisableNoteOff_ = false;
+        panicRequested_ = false;
+    }
+
     /// @brief Remove a note from the currentArpNotes_ tracking array.
     inline void removeFromCurrentArpNotes(uint8_t note) noexcept {
         for (size_t i = 0; i < currentArpNoteCount_; ++i) {
@@ -1500,7 +1559,10 @@ private:
     std::array<std::array<float, 256>, kNumLanes> laneSpeedCurveTables_{};
     std::array<std::array<float, 256>, kNumLanes> laneSpeedCurveTablesStaging_{};
     std::array<std::atomic<bool>, kNumLanes> laneSpeedCurveTableDirty_{};
-    std::array<float, kNumLanes> laneSpeedCurveDepths_{};
+    // Written from the host message thread (Gradus routes depth through
+    // Processor::notify), read on the audio thread every block -- atomic for
+    // the same reason as laneSpeedCurveEnabled_ below.
+    std::array<std::atomic<float>, kNumLanes> laneSpeedCurveDepths_{};
     std::array<std::atomic<bool>, kNumLanes> laneSpeedCurveEnabled_{};
 
     // =========================================================================
@@ -1637,7 +1699,10 @@ private:
 
     std::array<uint8_t, 32> currentArpNotes_{};
     size_t currentArpNoteCount_ = 0;
-    std::array<PendingNoteOff, 32> pendingNoteOffs_{};
+    // Sized from the capacity constant, not a literal: addPendingNoteOff bounds
+    // itself on kMaxPendingNoteOffs, so a hardcoded size here means raising the
+    // constant writes past the end of this array.
+    std::array<PendingNoteOff, kMaxPendingNoteOffs> pendingNoteOffs_{};
     size_t pendingNoteOffCount_ = 0;
 
     // =========================================================================
@@ -1645,6 +1710,9 @@ private:
     // =========================================================================
 
     bool needsDisableNoteOff_ = false;
+    /// Set only by requestPanicNoteOff(); discharged unconditionally at the top
+    /// of processBlock (see that method's note).
+    bool panicRequested_ = false;
 
     // =========================================================================
     // Scale Mode (084-arp-scale-mode)

@@ -833,3 +833,131 @@ TEST_CASE("MidiNoteDelay: different tempo changes synced delay time", "[MidiNote
         CHECK(noteOns[1].sampleOffset == 44100);
     }
 }
+
+// =============================================================================
+// Output-span saturation (Gradus audit F6)
+// =============================================================================
+// The Gradus processor hands MidiNoteDelay a fixed 512-slot output span shared
+// with the arp's own events. When that span fills, `emitDueEchoes` stops
+// emitting -- including NoteOffs for echoes whose NoteOn already reached the
+// host. `advanceAndCompact`'s safety rule then discards those echoes outright
+// once their NoteOff is more than one block overdue, so the NoteOn is never
+// balanced and the note hangs downstream forever.
+//
+// This drives that path directly by shrinking the output span for a stretch of
+// blocks (no input events in those blocks, so only echo emission is starved),
+// then draining with a generous span. Every echo NoteOn that reached the output
+// must eventually be matched by a NoteOff.
+
+TEST_CASE("MidiNoteDelay: output-span saturation never strands an echo NoteOff",
+          "[MidiNoteDelay][saturation][F6]")
+{
+    MidiNoteDelay delay;
+    auto ctx = makeCtx(44100.0, 512);
+
+    MidiDelayStepConfig config;
+    config.active = true;
+    config.timeMode = TimeMode::Free;
+    config.delayTimeMs = 10.0f;   // 441 samples; gate = 0.8 * 441 = 352 samples
+    config.feedbackCount = 8;
+    config.velocityDecay = 0.0f;  // keep every echo at full velocity
+    delay.setStepConfig(0, config);
+
+    // Tally per-pitch NoteOn/NoteOff counts over the whole run.
+    std::array<int, 128> onCount{};
+    std::array<int, 128> offCount{};
+
+    std::array<ArpEvent, 512> output{};
+
+    auto runBlock = [&](std::span<const ArpEvent> input, size_t spanSize) {
+        size_t count = delay.process(ctx, input, input.size(),
+                                     std::span<ArpEvent>(output.data(), spanSize), 0);
+        for (size_t i = 0; i < count; ++i) {
+            if (output[i].type == ArpEvent::Type::NoteOn)  ++onCount[output[i].note];
+            else if (output[i].type == ArpEvent::Type::NoteOff) ++offCount[output[i].note];
+        }
+    };
+
+    // Block 0: 16 source notes at offset 0, each as a NoteOn/NoteOff pair so the
+    // pass-through stream is self-balancing (MidiNoteDelay only owes NoteOffs for
+    // the echoes it generates; balancing the source note is the arp core's job).
+    // Generous span so every source is passed through and schedules its 8 echoes
+    // (128 pending < kMaxPendingEchoes, so the oldest-stealing overflow path is
+    // NOT what we are testing here).
+    std::array<ArpEvent, 32> sources{};
+    for (size_t i = 0; i < 16; ++i) {
+        const auto pitch = static_cast<uint8_t>(60 + i);
+        sources[i * 2]     = makeNoteOn(pitch, 100, 0);
+        sources[i * 2 + 1] = ArpEvent{ArpEvent::Type::NoteOff, pitch, 0, 0, false};
+    }
+    runBlock(std::span<const ArpEvent>(sources.data(), sources.size()), 512);
+
+    // Blocks 1-6: output span throttled to 4 events and no new input. Many
+    // echo NoteOffs are due each block but only a handful fit, so the rest are
+    // starved for more than one block -- exactly the condition the safety rule
+    // in advanceAndCompact discards.
+    for (int b = 0; b < 6; ++b) {
+        runBlock(std::span<const ArpEvent>(), 4);
+    }
+
+    // Drain: generous span, plenty of blocks for every outstanding NoteOff.
+    for (int b = 0; b < 200; ++b) {
+        runBlock(std::span<const ArpEvent>(), 512);
+    }
+
+    for (int pitch = 0; pitch < 128; ++pitch) {
+        INFO("pitch=" << pitch << " on=" << onCount[pitch] << " off=" << offCount[pitch]);
+        REQUIRE(offCount[pitch] >= onCount[pitch]);
+    }
+}
+
+// =============================================================================
+// Output event ordering (Gradus audit F5)
+// =============================================================================
+// process() appends pass-through arp events first, then emergency NoteOffs at
+// sampleOffset 0, then due echoes in pending-array order -- and the Gradus
+// processor forwards the combined span to the host verbatim, with no sort. A
+// due echo emitted after a later pass-through arp event therefore produces a
+// backwards step in sampleOffset within one block.
+//
+// Verify-first: this asserts the ordering claim itself, NOT stuck notes. Both
+// audit verifiers agreed an echo's own NoteOff can never precede its NoteOn, so
+// the hanging-note consequence is unreachable; what remains is cross-event
+// timing order, which strict hosts are entitled to expect.
+
+TEST_CASE("MidiNoteDelay: output events are non-decreasing in sampleOffset",
+          "[MidiNoteDelay][ordering][F5]")
+{
+    MidiNoteDelay delay;
+    auto ctx = makeCtx(44100.0, 512);
+
+    MidiDelayStepConfig config;
+    config.active = true;
+    config.timeMode = TimeMode::Free;
+    config.delayTimeMs = 10.0f;   // 441 samples -- due inside the next block
+    config.feedbackCount = 4;
+    config.velocityDecay = 0.0f;
+    delay.setStepConfig(0, config);
+
+    std::array<ArpEvent, 512> output{};
+
+    // Block 0: a note at offset 0 schedules echoes at 441, 882, ...
+    std::array<ArpEvent, 1> first{makeNoteOn(60, 100, 0)};
+    (void)delay.process(ctx, std::span<const ArpEvent>(first.data(), 1), 1,
+                        std::span<ArpEvent>(output.data(), output.size()), 0);
+
+    // Block 1: a pass-through arp event LATE in the block (offset 500) is
+    // appended before the echo that is due EARLY in the same block (offset ~441
+    // - 512 -> clamped to 0), so the raw stream steps backwards.
+    std::array<ArpEvent, 1> second{makeNoteOn(64, 100, 500)};
+    const size_t count = delay.process(
+        ctx, std::span<const ArpEvent>(second.data(), 1), 1,
+        std::span<ArpEvent>(output.data(), output.size()), 0);
+
+    REQUIRE(count >= 2);
+    for (size_t i = 1; i < count; ++i) {
+        INFO("event " << i << " offset " << output[i].sampleOffset
+             << " follows offset " << output[i - 1].sampleOffset);
+        CHECK(output[i].sampleOffset >= output[i - 1].sampleOffset);
+    }
+}

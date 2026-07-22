@@ -57,6 +57,35 @@ static constexpr float kLaneSpeedValues[] = {
 static constexpr int kLaneSpeedCount = 10;
 static constexpr int kLaneSpeedDefault = 3; // index 3 = 1.0x
 
+/// Maximum speed-curve control points the state stream carries per lane.
+/// The reader has always clamped to this; the writer must honour the same
+/// bound or the point count and the point payload disagree and every
+/// subsequent field in the stream shifts.
+static constexpr int kMaxSpeedCurvePoints = 64;
+
+/// @brief Snap a stored lane-speed multiplier to its normalized dropdown
+/// position (the lane speed control is StringList-style, not continuous).
+///
+/// Single home for what used to be three near-identical copies of this loop in
+/// the load paths, which had drifted on their (dead) search seeds -- 99.0f vs
+/// 999.0f, literal 3 vs kLaneSpeedDefault -- and on whether they clamped first.
+/// Clamping is behaviour-neutral here: an out-of-range value snaps to the same
+/// extreme entry with or without it, and clamping makes the seed provably
+/// unreachable.
+[[nodiscard]] inline double speedValueToNormalized(float speed) noexcept
+{
+    const float clamped = std::clamp(speed, kLaneSpeedValues[0],
+                                     kLaneSpeedValues[kLaneSpeedCount - 1]);
+    int bestIdx = kLaneSpeedDefault;
+    float bestDist = std::abs(kLaneSpeedValues[0] - clamped);
+    bestIdx = 0;
+    for (int i = 1; i < kLaneSpeedCount; ++i) {
+        const float dist = std::abs(kLaneSpeedValues[i] - clamped);
+        if (dist < bestDist) { bestDist = dist; bestIdx = i; }
+    }
+    return static_cast<double>(bestIdx) / static_cast<double>(kLaneSpeedCount - 1);
+}
+
 struct ArpeggiatorParams {
     // Base arp params (Phase 3)
     std::atomic<int>   operatingMode{kArpOff};  // ArpOperatingMode (0-3)
@@ -2073,8 +2102,17 @@ inline void saveArpParams(
             const auto& curve = params.speedCurves[static_cast<size_t>(lane)];
             streamer.writeInt32(curve.enabled ? 1 : 0);
             streamer.writeInt32(curve.presetIndex);
-            streamer.writeInt32(static_cast<Steinberg::int32>(curve.points.size()));
-            for (const auto& pt : curve.points) {
+            // Honour the same bound the reader clamps to. Writing the full
+            // (uncapped) size while the reader consumed only 64 points left the
+            // surplus points unread and shifted every following field in the
+            // stream -- the remaining lanes' curves, the whole MIDI Delay Lane
+            // block and the sequencer appendix. The curve editor inserts points
+            // without a cap, so >64 is reachable from normal use.
+            const size_t pointCount = std::min(curve.points.size(),
+                static_cast<size_t>(kMaxSpeedCurvePoints));
+            streamer.writeInt32(static_cast<Steinberg::int32>(pointCount));
+            for (size_t p = 0; p < pointCount; ++p) {
+                const auto& pt = curve.points[p];
                 streamer.writeFloat(pt.x);
                 streamer.writeFloat(pt.y);
                 streamer.writeFloat(pt.cpLeftX);
@@ -2430,7 +2468,8 @@ inline bool loadArpParams(
 
             Steinberg::int32 numPoints = 0;
             if (!streamer.readInt32(numPoints)) return false;
-            numPoints = std::clamp(numPoints, Steinberg::int32{0}, Steinberg::int32{64});
+            numPoints = std::clamp(numPoints, Steinberg::int32{0},
+                                   Steinberg::int32{kMaxSpeedCurvePoints});
 
             curve.points.clear();
             curve.points.reserve(static_cast<size_t>(numPoints));
@@ -2825,14 +2864,7 @@ inline void loadArpParamsToController(
         };
         for (auto pid : kSpeedIds) {
             if (streamer.readFloat(floatVal)) {
-                // Find the closest speed index for normalization
-                int bestIdx = kLaneSpeedDefault;
-                float bestDist = 999.0f;
-                for (int si = 0; si < kLaneSpeedCount; ++si) {
-                    float dist = std::abs(kLaneSpeedValues[si] - floatVal);
-                    if (dist < bestDist) { bestDist = dist; bestIdx = si; }
-                }
-                setParam(pid, static_cast<double>(bestIdx) / (kLaneSpeedCount - 1));
+                setParam(pid, speedValueToNormalized(floatVal));
             }
         }
     }
