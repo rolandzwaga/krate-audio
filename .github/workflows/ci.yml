@@ -186,6 +186,16 @@ jobs:
       - name: Hand-rolled allocation-operator lint
         run: node tools/lint-allocation-operator-overrides.js
 
+      # Catches aligned hn::Load / hn::Store in Highway kernels. With runtime
+      # dispatch (ScalableTag) the required alignment is the dispatched vector
+      # width -- 64 bytes on AVX-512 -- so alignas(32) buffers fault on the
+      # subset of ubuntu runners with AVX-512 hardware. Surfaces as an
+      # intermittent Linux-only CI SIGSEGV that never reproduces locally.
+      # Regressed once already (c2f76e50 fixed it repo-wide, a perf pass
+      # reintroduced it); LoadU/StoreU costs the same on aligned addresses.
+      - name: SIMD aligned Load/Store lint
+        run: node tools/lint-simd-aligned-loadstore.js
+
   build-windows:
     name: Windows (MSVC)
     # Pinned to windows-2022 (Visual Studio 2022 / MSVC v143). GitHub migrated
