@@ -64,6 +64,7 @@ function discoverGeneratedIncludes() {
             'catch2-src/src',
             'catch2-build/generated-includes',
             'pffft-src/include',
+            'highway-src',
         ];
         for (const c of candidates) {
             const p = path.join(deps, c);

@@ -43,6 +43,7 @@ const LINTS = [
     { script: 'lint-midi-timing-goldens.js', what: 'byte-exact MIDI timing golden' },
     { script: 'lint-platform-type-literals.js', what: 'hardcoded platform-type constant in a test' },
     { script: 'lint-allocation-operator-overrides.js', what: 'hand-rolled global operator new/delete' },
+    { script: 'lint-simd-aligned-loadstore.js', what: 'aligned hn::Load/Store (faults on AVX-512 runners)' },
 ];
 
 function readStdin() {

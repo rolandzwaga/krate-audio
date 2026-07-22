@@ -68,21 +68,29 @@ void ProcessModalBankSampleSIMDImpl(
     size_t i = 0;
     const size_t count = static_cast<size_t>(numModes);
 
-    // Phase 9 perf: state arrays in ModalResonatorBank are alignas(32) so we
-    // can use aligned Load/Store. Saves a couple of cycles vs LoadU on
-    // older AVX hardware. (Tail uses ScalarLoad implicitly.)
+    // MUST be LoadU/StoreU (unaligned), like every other Highway kernel in
+    // this repo. ScalableTag dispatches at runtime: on AVX-512 runners the
+    // vector is 64 bytes, and aligned Load on the alignas(32) state arrays
+    // faults (#GP -> SIGSEGV) whenever an array lands at 32-mod-64. GitHub's
+    // ubuntu runner fleet is mixed hardware, so this surfaced as an
+    // intermittent Linux-CI-only crash that never reproduced locally.
+    // c2f76e50 fixed exactly this repo-wide ("Use unaligned SIMD
+    // loads/stores in all Highway code"); a later perf pass reintroduced
+    // aligned Load here. On post-2011 x86, LoadU on an aligned address costs
+    // the same as Load -- there is no perf win to protect.
+    // tools/lint-simd-aligned-loadstore.js now enforces this.
 
     // SIMD loop: process N modes per iteration. Even iters fold into vSum0,
     // odd into vSum1 -- the writes to sinState are independent across iters
     // so there's no in-loop hazard.
     bool useSum0 = true;
     for (; i + N <= count; i += N) {
-        // Load per-mode state (aligned: state arrays are alignas(32))
-        auto vSin = hn::Load(d, sinState + i);
-        auto vCos = hn::Load(d, cosState + i);
-        const auto vEps = hn::Load(d, epsilon + i);
-        const auto vR = hn::Load(d, radius + i);
-        const auto vGain = hn::Load(d, inputGain + i);
+        // Load per-mode state
+        auto vSin = hn::LoadU(d, sinState + i);
+        auto vCos = hn::LoadU(d, cosState + i);
+        const auto vEps = hn::LoadU(d, epsilon + i);
+        const auto vR = hn::LoadU(d, radius + i);
+        const auto vGain = hn::LoadU(d, inputGain + i);
 
         // Coupled-form resonator (FR-003):
         // s_new = R * (s + eps * c) + gain * excitation
@@ -102,9 +110,9 @@ void ProcessModalBankSampleSIMDImpl(
         }
         useSum0 = !useSum0;
 
-        // Write back state (aligned)
-        hn::Store(vSNew, d, sinState + i);
-        hn::Store(vCNew, d, cosState + i);
+        // Write back state
+        hn::StoreU(vSNew, d, sinState + i);
+        hn::StoreU(vCNew, d, cosState + i);
     }
 
     // Combine split accumulators, then horizontal-sum once.
