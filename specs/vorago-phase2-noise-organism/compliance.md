@@ -2,7 +2,8 @@
 
 **Spec slug:** `vorago-phase2-noise-organism`
 **Date:** 2026-09-01
-**Overall status:** COMPLETE WITH THREE DOCUMENTED GAPS — 86 of 89 items `pass`, 3 `partial`. No `fail`.
+**Overall status:** COMPLETE WITH TWO DOCUMENTED GAPS — 87 of 89 items `pass`, 2 `partial`. No `fail`.
+(Updated 2026-09-09: FR-073 closed by decision, see below. Originally 86 / 3.)
 
 89 items: 68 functional requirements and 21 success criteria.
 
@@ -115,20 +116,23 @@ Mechanism divergences, recorded rather than smoothed over:
   than 44.1 kHz, because FR-093's sample-rate work landed in the same phase. Anchored so
   44.1 kHz is unchanged; `PinkNoiseFilter_RateAnchor` now pins that.
 
-### The three gaps
+### The gaps (two open; FR-073 closed 2026-09-09)
 
-**FR-073 — `partial`. Spec and implementation genuinely disagree; this needs a decision.**
-`spec.md:833` requires that *"a slot at `amount == 0` with `dormant == false` still runs its
-chain (so it re-enters at the correct filter state)"*. The implementation does not:
-`chainActive` (`noise_organism.h:2191-2195`) keys the skip on the **gate ramp** reaching exactly
-`0.0f`, and `gateSteady` (`:1674`) returns `s.wakeAmount` for a non-dormant slot — so
-`setSourceWake(slot, 0.0f)` skips the resonator/comb/filter stages identically to dormancy.
-`tasks.md:789-792` records the gate-based design as a deliberate choice. The ramp law itself
-(per-sample, linear, 50 ms) is implemented and enforced at 1-sample resolution at four sample
-rates. Nothing tests either reading of the disputed clause. Empirically the concern it guards —
-bad re-entry state — does not manifest: SC-009's click criteria pass. **Either the spec clause
-is amended to match the recorded decision, or the implementation gains a dormancy-flag-aware
-branch. Not resolved unilaterally.**
+**FR-073 — `pass` (closed 2026-09-09 by decision, spec amended to match the code).** The
+original gap: `spec.md:833` required a slot at `amount == 0` with `dormant == false` to keep
+running its chain, while `chainActive` (`noise_organism.h:2191-2195`) keys the skip on the
+**gate ramp** reaching exactly `0.0f` and `gateSteady` (`:1674`) returns `s.wakeAmount` for a
+non-dormant slot, so `setSourceWake(slot, 0.0f)` skips the chain identically to dormancy.
+Decision: the code is right — the gate-keyed skip is what earns the CPU budget and "awake but
+silent" has no audible meaning that would justify burning it. The spec clause now says the two
+states are behaviourally identical (spec Q9, FR-073), and the roadmap carries it as a
+cross-cutting rule for every later dormant component. Enforced by
+`NoiseOrganism_WakeZeroIsDormant` (`noise_organism_test.cpp:1741`): (a) wake-0 and dormant arms
+agree **exactly** (`maxAbsDiff == 0.0f`) over a 5 s silent window plus 2 s re-entry, fade-out and
+fade-in included; (b) both contribute exactly zero once the gate has landed; (c) non-vacuity — an
+always-awake control arm separates from the dormant arm after re-entry by 0.00077 against a
+0.00587 control peak (13 % of full scale, bar 5 %), so chain state is visible in the window and a
+chain that kept running would fail (a). All three arms green, 22 assertions.
 
 **FR-067 — `partial`. Implemented, unobservable, untested.** The filter-resonance wander lane is
 complete (`:727-736`, salted lane `:1133`, driven at `:2350-2358`) but there is no

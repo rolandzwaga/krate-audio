@@ -1738,6 +1738,111 @@ void configureQWanderFixture(NoiseOrganism& organism) {
 
 } // namespace
 
+TEST_CASE("NoiseOrganism_WakeZeroIsDormant", "[noise_organism]") {
+    // FR-073, decided 2026-09-09 (the Phase 2 compliance pass's open gap): a
+    // slot at wake == 0 with dormant == false is BEHAVIOURALLY IDENTICAL to a
+    // dormant slot. Once the gate ramp lands on exactly 0 the chain is skipped,
+    // the source and wander lanes freewheel (FR-071), and re-entry is the same
+    // 50 ms per-sample linear fade. The two states differ only on the FR-015
+    // read surface. This case pins that rule so it cannot drift: under the
+    // spec's earlier reading (a dormancy-flag-aware chain branch that keeps a
+    // wake-0 slot's chain running) the wake-0 arm's comb lines, filter state
+    // and StochasticFilter randomiser evolve through the silent window and its
+    // re-entry audio diverges from the dormant arm's.
+    NoiseOrganism::PrepareConfig singleSlot{};
+    singleSlot.numSources = std::size_t{1};
+
+    constexpr std::size_t kSilentSteps  = 5 * kStepsPerSecond;  // 5 s
+    constexpr std::size_t kReentrySteps = 2 * kStepsPerSecond;  // 2 s
+    // The 50 ms gate ramp is 38 control steps at 48 kHz / 64 samples; 188 steps
+    // (~250 ms) clears it with margin on both the fade-out and the fade-in.
+    constexpr std::size_t kRampClearSteps = 188;
+
+    NoiseOrganism wakeZeroArm;
+    prepareOrganism(wakeZeroArm, singleSlot);
+    wakeZeroArm.setSourceWake(0, 0.0f);
+
+    NoiseOrganism dormantArm;
+    prepareOrganism(dormantArm, singleSlot);
+    dormantArm.setSourceDormant(0, true);
+
+    // Anti-vacuity control: never silenced, so its chain is never skipped.
+    NoiseOrganism awakeArm;
+    prepareOrganism(awakeArm, singleSlot);
+
+    // The read surface is the ONE place the two states differ.
+    REQUIRE_FALSE(wakeZeroArm.isSourceDormant(0));
+    REQUIRE(wakeZeroArm.getSourceWakeAmount(0) == 0.0f);
+    REQUIRE(dormantArm.isSourceDormant(0));
+    REQUIRE(dormantArm.getSourceWakeAmount(0) == 1.0f);
+
+    const std::size_t kTotalSamples =
+        (kSilentSteps + kReentrySteps) * NoiseOrganism::kControlChunkSamples;
+    std::vector<float> wakeZeroAudio;
+    std::vector<float> dormantAudio;
+    std::vector<float> awakeAudio;
+    wakeZeroAudio.reserve(kTotalSamples);
+    dormantAudio.reserve(kTotalSamples);
+    awakeAudio.reserve(kTotalSamples);
+
+    renderControlSteps(wakeZeroArm, 0, kSilentSteps, nullptr, &wakeZeroAudio);
+    renderControlSteps(dormantArm, 0, kSilentSteps, nullptr, &dormantAudio);
+    renderControlSteps(awakeArm, 0, kSilentSteps, nullptr, &awakeAudio);
+
+    wakeZeroArm.setSourceWake(0, 1.0f);       // re-enter
+    dormantArm.setSourceDormant(0, false);    // re-enter
+
+    renderControlSteps(wakeZeroArm, 0, kReentrySteps, nullptr, &wakeZeroAudio);
+    renderControlSteps(dormantArm, 0, kReentrySteps, nullptr, &dormantAudio);
+    renderControlSteps(awakeArm, 0, kReentrySteps, nullptr, &awakeAudio);
+
+    REQUIRE(wakeZeroAudio.size() == kTotalSamples);
+
+    const auto slice = [](const std::vector<float>& v, std::size_t fromStep,
+                          std::size_t toStep) {
+        const auto from = static_cast<std::ptrdiff_t>(fromStep * NoiseOrganism::kControlChunkSamples);
+        const auto to   = static_cast<std::ptrdiff_t>(toStep * NoiseOrganism::kControlChunkSamples);
+        return std::vector<float>(v.begin() + from, v.begin() + to);
+    };
+
+    SECTION("(a) the whole render agrees exactly: fade-out, silence, fade-in") {
+        const float worst = maxAbsDiff(wakeZeroAudio, dormantAudio);
+        CAPTURE(worst);
+        REQUIRE(worst == 0.0f);
+    }
+
+    SECTION("(b) both contribute exactly zero once the gate has landed (FR-071)") {
+        const float wakeZeroSilence =
+            maxAbs(slice(wakeZeroAudio, kRampClearSteps, kSilentSteps));
+        const float dormantSilence = maxAbs(slice(dormantAudio, kRampClearSteps, kSilentSteps));
+        CAPTURE(wakeZeroSilence, dormantSilence);
+        REQUIRE(wakeZeroSilence == 0.0f);
+        REQUIRE(dormantSilence == 0.0f);
+    }
+
+    SECTION("(c) non-vacuity: chain state IS visible after re-entry") {
+        // Past the fade-in both silenced arms sit at full gain on the SAME
+        // source stream as the control arm, so any separation left is chain
+        // state alone - the comb lines, filter state and StochasticFilter
+        // randomiser the skip froze. A chain that had kept running would carry
+        // that same separation against the dormant arm, which is what makes
+        // arm (a)'s exact agreement a discriminating clause.
+        const std::size_t from = kSilentSteps + kRampClearSteps;
+        const std::size_t to   = kSilentSteps + kReentrySteps;
+        const float separation =
+            maxAbsDiff(slice(dormantAudio, from, to), slice(awakeAudio, from, to));
+        const float controlLevel = maxAbs(slice(awakeAudio, from, to));
+        // The bar is RELATIVE to the control arm's peak: the FR-016 defaults are
+        // a quiet fixture (a -12 dB slot into narrow resonators, then the
+        // 1/sqrt(kMaxSources) mix trim), so an absolute bar pins a level this
+        // arm is not about. Measured: separation 0.00077 against a control
+        // peak of 0.00587 (13 % of full scale) at 48 kHz.
+        CAPTURE(separation, controlLevel);
+        REQUIRE(controlLevel > 1.0e-3f);
+        REQUIRE(separation > 0.05f * controlLevel);
+    }
+}
+
 TEST_CASE("NoiseOrganism_QWanderAudible", "[noise_organism]") {
     constexpr std::size_t kTotalSteps = kQwSegments * kQwSegmentSteps;  // 600 s
 

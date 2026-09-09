@@ -72,6 +72,12 @@ way emit *bit-identical* noise and sum coherently at +12 dB instead of +6).
   organism track note pitch? → A: Expose the three comb setters (`setCombTuning`, `setCombFeedback`)
   and matching getters; no key-following or note input in this phase — that idiom belongs to roadmap
   Phase 3. [FR-015, FR-057]
+- Q9 (wake-0 vs dormant, decided 2026-09-09 to close the compliance pass's FR-073 gap): Does a slot
+  at `wake == 0` with `dormant == false` keep running its chain? → A: No. Gain at zero means chain
+  skipped; the two states are behaviourally identical and differ only on the read surface. The
+  gate-keyed skip is what earns the CPU budget, and "awake but silent" has no audible meaning that
+  would justify burning it. Recorded as a roadmap cross-cutting rule so every later dormant component
+  inherits it. [FR-071, FR-073]
 - OQ-MONO-AND-SHIFTER (roadmap-silent decisions, reconfirmed): Mono output and no `FrequencyShifter`
   in `MetallicHiss`? → A: Both confirmed as already specified; Non-Goals expanded with the cost
   derivation and the explicit contrast against `HarmonicCloud::processStereoBlock`. [FR-003, FR-042]
@@ -830,8 +836,14 @@ ODR sweep run this session over `dsp/`, `plugins/` and `tools/` with
   for a −96 → +12 dB step the linear-in-gain and linear-in-dB shapes differ by orders of magnitude.
   The gain is recomputed **every sample**, not held across the FR-007 64-sample control grid — a
   1.33 ms staircase on the one signal whose monotonicity is a success criterion (SC-009 (a)) is not
-  acceptable. A slot at `amount == 0` with `dormant == false` still runs its chain (so it re-enters at
-  the correct filter state).
+  acceptable. **A slot at `amount == 0` with `dormant == false` is behaviourally identical to a
+  dormant slot (decided 2026-09-09, Q9):** once the gate ramp lands on exactly 0 the
+  resonator/comb/`StochasticFilter` chain is skipped, the source and wander lanes keep running
+  (FR-071), and re-entry is the same 50 ms per-sample linear fade. The two states differ only on the
+  FR-015 read surface (`isSourceDormant` / `getSourceWakeAmount`), never in the audio or the CPU cost.
+  Pinned by `NoiseOrganism_WakeZeroIsDormant`, whose exact-agreement clause is discriminating: a
+  dormancy-flag-aware chain branch lets the wake-0 arm's comb lines, filter state and randomiser
+  evolve through the silent window and its re-entry audio diverge from the dormant arm's.
   `setSourceDormant(slot, true)` (FR-071) skips only the chain stages, not the source — it is **not**
   "the cheap variant that also skips the DSP" in the sense of stopping the source render; it applies
   over the same 50 ms per-sample linear ramp so it cannot click.

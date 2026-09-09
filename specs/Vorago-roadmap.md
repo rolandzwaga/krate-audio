@@ -178,11 +178,12 @@ clicks); 60 s CSV renders inspected for organic character (Phase 1 Seraphis eval
 ### Phase 2: Noise Organism
 
 **Status: ✅ COMPLETE (2026-09-01)** — see specs/vorago-phase2-noise-organism/compliance.md
-(86 of 89 items pass, 3 partial, 0 fail). Three gaps are recorded there rather than closed,
-and one of them needs a decision before Phase 10 consumes this component: **FR-073** — spec
-and implementation disagree on whether a slot at `wake == 0` with `dormant == false` still
-runs its chain. **FR-067** and **FR-056** are implemented but unassertable without new public
-accessors on `StochasticFilter`. Five success criteria were rewritten during the build after
+(87 of 89 items pass, 2 partial, 0 fail). **FR-073** (whether a slot at `wake == 0` with
+`dormant == false` still runs its chain) was closed 2026-09-09: it does not, the spec was
+amended to match the code, and the rule is now the "Dormancy" cross-cutting constraint below.
+Two gaps remain recorded rather than closed: **FR-067** and **FR-056** are implemented but
+unassertable without new public accessors on `StochasticFilter`. Five success criteria were
+rewritten during the build after
 measurement showed the originals could not discriminate (details in compliance.md), and
 FR-095's CPU ceiling moved 1 % → 1.75 % by explicit user decision under the spec's own
 stop-and-surface rule.
@@ -484,6 +485,12 @@ atmosphere engine) are consumed as-is from day one.
   can run away or die overnight is broken by definition.
 - **Layer discipline** + **ODR sweep** before every new class name.
 - **CPU budgets are FRs**, measured in tests (per-voice budgets phases 2–8, global 9–10).
+- **Dormancy (decided 2026-09-09, Phase 2 FR-073):** gain at zero means the component's
+  processing chain is skipped; its source/generator and modulation lanes keep running; re-entry is
+  a 50 ms per-sample linear fade. "Dormant" and "awake at zero gain" are behaviourally identical
+  and differ only on the read surface. Every sleep/wake life cycle (Phase 3 peaks, Phase 5 loops,
+  Phase 8 agents) inherits this; a spec that wants a silent slot to keep burning its chain must say
+  what the listener would hear that justifies it.
 - **No bit-exact float goldens** — `render_fingerprint.h` / measured tolerances only.
 - **Portability:** `node tools/check-portability.js` before commits; WSL probe for Linux doubts;
   aligned-load lint on any new SIMD.
