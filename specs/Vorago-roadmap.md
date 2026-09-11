@@ -254,9 +254,9 @@ New component (L2, `processors/spectral_smear.h`):
   — no speculative unification).
 - Smear amount and tilt are modulation targets (fog rolls in via `TidalModulator`).
 
-**Success criteria:** spectral-flatness increase monotonic with smear amount, latency reported
-correctly, transparent at 0% (null test within tolerance), no time-domain smearing artifacts
-(pre-echo metric), CPU ≤ 0.5% global.
+**Success criteria:** spectral-flatness increase monotonic with decoherence amount; per-bin magnitude
+flux reduction monotonic with smear amount; latency reported correctly, transparent at 0% (null test
+within tolerance), no time-domain smearing artifacts (pre-echo metric), CPU ≤ 0.5% global.
 
 ---
 
