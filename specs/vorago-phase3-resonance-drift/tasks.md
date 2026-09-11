@@ -1063,17 +1063,31 @@ at max depth**, `wanderRate = 1.0` (so `decimation == 1`, the un-decimated path)
 * `B` and `P` are **the same 99.9th percentile** of their own populations (a max-vs-percentile
   comparison sits at the 99.9989th quantile for this length and goes red from extreme-value
   statistics alone).
+> **Corrections C-14 … C-17 (build stage, 2026-09-10) apply to this whole case.** The fixture, the
+> (b) assertion and the (c) schedule and bound below were all rewritten against measurement; the
+> authoritative text is spec.md's SC-002 plus its "Build-stage corrections" section, and the numbers
+> are recorded in the test file beside each arm. The bullets here are updated to match.
+
+* The fixture renders at **−12 dB** wet trim after **1 s of discarded settling**, and all three arms
+  `REQUIRE(getClampEngagementCount() == 0)` (C-17): at the provisional +30 dB default this patch
+  clipped 16–21 % of every render and `B/P` was the clipper's, pinned at 1.06. The settle also primes
+  the estimator, so the populations are the full **135 000 / 2 745 000**.
 * (a) `B <= kBoundaryRatio · P`, with `kBoundaryRatio` **measured at T019 across ≥ 8 seeds under this
   partition** (provisional **1.5**; a figure measured under a `{0,1}` partition may not be carried
-  over).
-* (b) control arm with `setWanderEnabled(false)`: `B_off / P_off <= 1.05` **and**
-  `|P_on − P_off| / P_off <= 0.10`.
-* (c) **injection, mandatory, systematic, through the public surface** (correction C-12): with
+  over). Measured on the linear fixture after C-16: **1.010 / 0.992 / 1.023** across three seeds.
+* (b) control arm with `setWanderEnabled(false)`: `B_off / P_off <= 1.05`, **and (C-14)** the control
+  arm's interior curvature matches the drive sine's closed form,
+  `|P_off/A_off − 4·sin²(π·f/fs)| / (4·sin²(π·f/fs)) <= 0.10` (measured 1.0003), **and** the
+  directional `P_on > P_off`. The original `|P_on − P_off| / P_off <= 0.10` measured 210.8 clipping
+  and 14.7 linear and is unsatisfiable by any build — `P` is a level statistic and the two arms carry
+  different levels by construction.
+* (c) **injection, mandatory, systematic, through the public surface** (corrections C-12, C-17): with
   `setSlewCeilings(24.0f, 24.0f)` — an in-spec setting, **no `#ifdef` hook and no edit to the header
-  under test** — apply an **alternating ±1-octave `setPeakAnchorHz` jump on every control chunk for
-  the full pinned 60 s render**. Same duration, partition and statistic as (a); only the injection
-  schedule changes. **`B / P` must exceed 10.** (One-shot injection is arithmetically unsatisfiable:
-  three outliers cannot move a 135 000-sample 99.9th percentile.)
+  under test** — apply a **±1-octave `setPeakAnchorHz` jump on every sixteenth control chunk, side
+  drawn from a coin**, for the full pinned 60 s render. Same duration, partition and statistic as (a).
+  **`B / P` must exceed `kInjectionRatio` = 3.0 (measured: 4.01 / 4.00 / 4.66) and also
+  `kBoundaryRatio`.** The original "alternating, every chunk, > 10" was a parametric pump that drove
+  the component non-finite for 97 % of the render (C-15) and a bound no implementation can reach.
 
 Add **SC-018 (c)** here, in the same TU and on the same machinery:
 `ResonanceDriftNetwork_SlewLimit`'s (c) arm renders for the **same pinned 60 s**, repeating the

@@ -525,6 +525,96 @@ public:
         }
     }
 
+    /// @brief Process one sample, writing each resonator's INDIVIDUAL contribution.
+    /// @param input Input sample
+    /// @param outPerResonator Destination for exactly kMaxResonators floats
+    ///
+    /// Additive companion to process() (:470), added for Vorago Phase 3 FR-013
+    /// Tier 1: a caller that needs a per-resonator per-sample gate cannot get it
+    /// from process(), which returns only the summed wet output.
+    ///
+    /// Writes exactly kMaxResonators floats; a disabled slot writes 0.0f. The
+    /// exciter-mix stage (:514) is deliberately NOT applied. Advances the three
+    /// global smoothers exactly once, exactly as process() does - a caller must
+    /// use EITHER process() OR processIndividual() for a given sample, never
+    /// both. A pending trigger is consumed here exactly as process() consumes it.
+    ///
+    /// A null outPerResonator is a total no-op (no smoother advances, no trigger
+    /// consumed, no filter state touched). On an un-prepared bank this writes
+    /// kMaxResonators zeros and returns without advancing anything, mirroring
+    /// process()'s !prepared_ early-out (:471).
+    ///
+    /// The loop below intentionally DUPLICATES process()'s body instead of
+    /// sharing a helper with it: FR-013 requires every pre-existing method to
+    /// stay byte-for-byte unchanged, so process() is not refactored. The only
+    /// deliberate omissions are process()'s unused effectiveQ local (:493) and
+    /// the exciter-mix stage; every surviving term is computed in the same order
+    /// so the per-resonator values sum to process()'s return up to float
+    /// summation order.
+    void processIndividual(float input, float* outPerResonator) noexcept {
+        if (outPerResonator == nullptr) return;
+
+        if (!prepared_) {
+            for (size_t i = 0; i < kMaxResonators; ++i) {
+                outPerResonator[i] = 0.0f;
+            }
+            return;
+        }
+
+        // Get smoothed global parameters. The exciter-mix smoother is advanced
+        // and discarded: its stage is not applied here, but skipping the advance
+        // would desynchronise it from process()'s per-sample cadence.
+        const float currentDamping = dampingSmoother_.process();
+        static_cast<void>(exciterMixSmoother_.process());
+        const float currentTilt = spectralTiltSmoother_.process();
+
+        // Handle trigger
+        float excitation = input;
+        if (triggerPending_) {
+            excitation += triggerVelocity_;
+            triggerPending_ = false;
+        }
+
+        // Process through all enabled resonators, writing each contribution
+        for (size_t i = 0; i < kMaxResonators; ++i) {
+            if (!enabled_[i]) {
+                outPerResonator[i] = 0.0f;
+                continue;
+            }
+
+            // Damping is applied as an output reduction, exactly as in process()
+            const float dampingScale = 1.0f - currentDamping * 0.99f;
+
+            float filterOutput = filters_[i].process(excitation);
+
+            // Apply damping as output reduction (approximation for real-time safety)
+            filterOutput *= dampingScale;
+
+            // Apply per-resonator gain
+            filterOutput *= gains_[i];
+
+            // Apply spectral tilt
+            const float tiltGain = calculateTiltGain(frequencies_[i], currentTilt);
+            filterOutput *= tiltGain;
+
+            outPerResonator[i] = filterOutput;
+        }
+    }
+
+    /// @brief Clear one resonator's filter state, leaving its configuration alone.
+    /// @param index Resonator index (0-15); out of range is a silent no-op
+    ///
+    /// Added for Vorago Phase 3 (FR-013 Tier 1, plan OQ-1). reset() (:213) is a
+    /// CONFIGURATION wipe - it returns every slot to 440 Hz, kDefaultDecayTime,
+    /// unity gain, kDefaultResonatorQ and enabled_[i] = false (:225-231) - so it
+    /// cannot be used to silence a single ringing resonator on a sleep edge.
+    /// This clears the biquad's delay line and nothing else: frequency, decay,
+    /// gain, Q and the enabled flag all survive.
+    void resetResonatorState(std::size_t index) noexcept {
+        if (index >= kMaxResonators) return;
+        filters_[index].reset();
+    }
+
     // =========================================================================
     // State Query
     // =========================================================================

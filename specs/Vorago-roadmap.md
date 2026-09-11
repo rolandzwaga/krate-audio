@@ -211,6 +211,17 @@ CPU ≤ 1% per voice.
 
 ### Phase 3: Resonance Drift Network
 
+**Status: ✅ COMPLETE (2026-09-11)** — see specs/vorago-phase3-resonance-drift/compliance.md
+(98 of 99 items pass, 1 partial, 0 fail after the SC-004 (b) amendment). The engine shipped as ONE
+twelve-resonator `ResonatorBank` via two additive methods (`processIndividual`, `resetResonatorState`),
+not twelve banks: the FR-060 probe put the twelve-bank shape over budget, exactly as plan S10.4
+projected. SC-004 (b)'s original "≥ 10 % saving with wander off" was structurally unreachable once the
+Dormancy rule fixed that lanes keep advancing (measured 4–5 %); amended by user decision to a
+directional clause with the saving transcribed. Remaining partial: the portability gate skips itself
+on this machine (WSL broken); the new TUs were syntax-checked against libstdc++ via MSYS2 g++ 14.2
+instead. The build's fixer also caught and fixed a NaN path reachable through the public API
+(parametric pump under SC-002 (c)'s injection) and a real gain/pan zipper.
+
 **Spec:** `vorago-phase3-resonance-drift`
 **Goal:** Standing waves inside a cave — 12 independently wandering resonant peaks.
 

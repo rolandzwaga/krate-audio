@@ -1437,6 +1437,62 @@ The projection is recorded here so the implementation order (S15) puts the probe
 time for the Tier-1 branch rather than discovering it at the end — the same reason the Phase 2 probe
 existed before `NoiseOrganism` did.
 
+### S9.3b MEASURED — the probe ran, and Tier 1 IS TAKEN (FR-013's mandatory record)
+
+FR-013 makes one thing mandatory when a tier is exercised: *"the substitution is recorded in
+`plan.md` **with the measured figures**."* This subsection is that record. Everything above it in S9.3
+is the pre-build **projection** and decides nothing; everything here is measurement.
+
+**Probe:** `ResonanceDriftNetwork_StageCostProbe` (`[.perf]`, FR-060), 48 kHz, 512-sample blocks,
+best-of-25 × 500 blocks after 400 warm-up, run in isolation. Measured 2026-09-11 on the Windows
+x64 Release build (the run this record is transcribed from), and independently reproduced twice
+during the compliance pass at 74 507.6 and 80 998.0 ns/block for stage (a1) — all three agree on the
+verdict by a wide margin.
+
+| stage | measured (ns/block) | % of one core |
+|---|---|---|
+| **(a1) engine, Tier 0: 12 × single-resonator `ResonatorBank`** | **71 712.8** | 0.672 % |
+| (a2) engine, Tier 1: 1 × 12-resonator bank, raw | 17 461.6 | 0.164 % |
+| (a2) engine, Tier 1: net of the shared 512-float refill | 17 452.8 | 0.164 % |
+| (b) 48 lanes, decimation 1 (rate 1.0 Hz) | 11 968.4 | 0.112 % |
+| (b) 48 lanes, decimation 2 (the FR-016 default rate) | 5 458.8 | 0.051 % |
+| (b) 48 lanes, decimation 17 (rate 0.002 Hz) | 704.8 | 0.007 % |
+| (b) 12 pan lanes ISOLATED, decimation 2 (FR-038's own term) | 1 375.6 | 0.013 % |
+| (c) control writes, no change detection | 2 873.6 | 0.027 % |
+| (c) control writes, FR-015 OR-pair (freq+Q always together) | 1 814.6 | 0.017 % |
+| (c) control writes, static (FR-034 off) | 219.0 | 0.002 % |
+| (d) FR-044 per-sample tail (no banks) | 13 892.6 | 0.130 % |
+| (e) FR-042 sleep edge | 49.0 **ns per edge** | amortised ~0 |
+
+**Gate 1 — FR-013's trigger, on stage (a1) alone (spec.md:292-296).** 71 712.8 ns/block against the
+48 000 ns/block trigger: **exceeded by 49 %, so Tier 1 is taken.** The projection in S9.3 had put
+Tier 0 at ≈ 66 400 ns; the measurement is 8 % worse than that, and the direction is the same. Tier 2
+(`processSympatheticBankSIMD`, S9.5) is **not** exercised: Tier 1 alone puts the engine at 17 452.8
+ns, a factor of 4.1 below Tier 0 and comfortably inside the budget, and FR-013 orders Tier 2 behind
+Tier 1 for exactly this outcome.
+
+**Gate 2 — the SC-004 projection on the total, recomputed on the (a2) net figure.**
+17 452.8 (engine) + 5 458.8 (lanes at the default decimation) + 1 814.6 (control writes) + 13 892.6
+(per-sample tail) = **38 618.8 ns/block against the 80 000 ns ceiling — 48 % of it, with 41 381.2 ns
+of headroom.** No escalation is triggered on this path.
+
+**What was actually added, and under which authority.** Two methods on `ResonatorBank`, both purely
+additive:
+
+| method | site | authority |
+|---|---|---|
+| `void processIndividual(float in, float* outPerResonator) noexcept` | `resonator_bank.h:528` | FR-013 Tier 1's own example signature |
+| `void resetResonatorState(std::size_t index) noexcept` | `resonator_bank.h:608` | **OQ-1, ruled 2026-09-10, option (i)** — Q3's "one additive method" is read as one additive *capability*, and FR-042's per-peak state clear needs the companion |
+
+`git diff --numstat dsp/include/krate/dsp/processors/resonator_bank.h` = **`90  0`** — ninety
+insertions, **zero** deletions, a single hunk at `@@ -527,0 +528,90 @@`. Every pre-existing method's
+body, signature and semantics are therefore byte-for-byte unchanged, which is FR-013's binding
+condition. The new method **duplicates** `process()`'s loop rather than extracting a shared helper,
+for that reason, and says so in its own comment.
+
+**The regression gate (SC-013).** Recorded with the before/after suite results in
+`compliance.md` under SC-013.
+
 ### S9.4 Tier 1 — one purely additive `ResonatorBank` method (preferred fallback)
 
 Exactly **one** new method. Every existing method's body, signature and semantics stay

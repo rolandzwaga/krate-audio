@@ -166,7 +166,10 @@ No new free functions, no new enumerators on existing enums, no new `ModSource` 
   method allowed to allocate. `PrepareConfig` (nested, `NoiseOrganism::PrepareConfig` shape,
   `noise_organism.h:190-194`) carries `std::size_t maxBlockSamples` (default 2048, clamped
   `[64, 8192]`) and `std::size_t numPeaks` (default `kMaxPeaks`, clamped `[1, kMaxPeaks]`).
-  `sampleRate` is floored at 1 Hz (`brownian_drift.h:122` idiom). Re-preparing is legal, fully
+  `sampleRate` is floored at `kMinUsableSampleRate = 8000.0` Hz — **not** at 1 Hz, because at 1 Hz the
+  derived clamp pair `[kMinResonatorFrequency, 0.45·fs]` inverts and `std::clamp` becomes UB; the
+  Edge Cases section states the derivation in full. `prepare` is the only method *allowed* to
+  allocate, and under FR-062 it in fact allocates nothing at all. Re-preparing is legal, fully
   re-initialises, and is the **only** path back to the FR-016 defaults.
 - **FR-003** — `void processBlock(const float* inL, const float* inR, float* outL, float* outR,
   std::size_t numSamples) noexcept` renders **stereo** audio and **overwrites** `outL`/`outR` (it does
@@ -346,10 +349,14 @@ No new free functions, no new enumerators on existing enums, no new `ModSource` 
   reason: `setFrequency` re-derives `qValues_[index] = rt60ToQ(frequencies_[index], decays_[index])`
   (`:333`), so a frequency write **after** a Q write silently discards the Q. The network **never**
   calls `ResonatorBank::setDecay` (`:348`), which would overwrite Q from the same stale decay table.
-  Q is owned exclusively by FR-031.
+  Q is owned exclusively by FR-031. Since correction C-16 the third write is a **constant `0 dB`** —
+  the bank's per-slot gain is pinned at unity and the peak's dB rides FR-044 step 1's two per-sample
+  factors instead — but it keeps its mandated third position, because it is what re-pins a slot whose
+  configuration the FR-013 seam may have wiped.
 - **FR-015** — A control step writes a peak's parameter **only when it changed** since the last write
   (per-parameter change detection against the last applied value), **with one mandatory exemption: Q.**
-  Change detection applies to **frequency and gain only**. Whenever a frequency write happens, the Q
+  Change detection applies to **frequency only** — correction C-16 removed the control-rate gain write
+  the earlier "frequency and gain" clause named (see FR-014). Whenever a frequency write happens, the Q
   write for that peak happens **immediately after it in the same control step, whether or not Q
   changed**, because `setFrequency` clobbers Q — `qValues_[index] = rt60ToQ(frequencies_[index],
   decays_[index])` (`resonator_bank.h:333`) — from a decay table the network never writes (FR-014), so
@@ -400,16 +407,51 @@ No new free functions, no new enumerators on existing enums, no new `ModSource` 
   | `mix` | 1.0 | `[0, 1]` |
 
 - **FR-017** — `void setPeakLevel(std::size_t peak, float dB) noexcept` sets the peak's **base** gain
-  in dB, clamped `[-60, +12]`. The value written to the peak's bank via `setGain` (`resonator_bank.h:367`)
-  is `baseDb + gainWanderOffsetDb` (FR-033), clamped to the same `[-60, +12]`. The FR-041 gate is
-  **not** part of that dB value and is never expressed in dB — see FR-044 for the composition.
-  The read surface reports the dB value and the gate separately (FR-052).
+  in dB, clamped `[-60, +12]`. The peak's composed dB value is `baseDb + gainWanderOffsetDb` (FR-033),
+  clamped to the same `[-60, +12]`; that composed value is what FR-052's `getPeakCurrentGainDb`
+  reports.
+
+  **The base level is owned by a per-peak, per-sample `LinearRamp` at `kGainRampMs` (50 ms)** — the
+  `Slot::levelRamp` shape of the shipped sibling (`noise_organism.h:1189`, documented there as "the
+  SOLE owner of the user's slot level", advanced per sample at `:502-507`). Its target is
+  `dbToGain(baseDb)` and is set **only from `setPeakLevel`** (plus a snap in `prepare`, `reset` and
+  `clearAudioState`), which makes it immune by construction to the `LinearRamp` re-target trap the
+  FR-041 gate is guarded against. It advances per sample for **every** peak — dormant and
+  out-of-count included — so SC-010's block-size invariance holds. The ramp is not optional: without
+  it a mid-render `setPeakLevel(i, −60 → +12)` steps that peak 72 dB in a single sample, because
+  `ResonatorBank::setGain` writes `gains_[index] = dbToGain(dB)` (`resonator_bank.h:367-371`) and
+  `:504` consumes it with a bare multiply and no smoother of any kind.
+
+  **The peak's bank is therefore told NOTHING about the peak's dB at all: its per-slot gain is pinned
+  at unity and both dB factors are applied per sample** (**correction C-16**) — the base level on the
+  `LinearRamp` above, and the wander part `appliedGainDb − baseDb` on a second per-peak factor
+  interpolated linearly across one control chunk, retargeted every control step from wherever the
+  previous segment ended. Since
+  `dbToGain(appliedGainDb − baseDb) · dbToGain(baseDb) == dbToGain(appliedGainDb)`, the composition
+  above is arithmetically unchanged; the split only decides which factors are ramped per sample, and
+  since C-16 the answer is all of them. The earlier form wrote the wander part to the bank once per
+  control step via `setGain` (`resonator_bank.h:367`); FR-035 records what SC-002 measured of that.
+  The FR-041 gate is **not** part of that dB value and is never expressed in dB — see FR-044 for the
+  full composition. The read surface reports the dB value and the gate separately (FR-052).
 - **FR-018** — The network applies a final safety clamp of `±kOutputClamp` (`= 4.0f`, the
   `noise_organism.h:180` value) to **each of its two output channels independently** and counts
   engagements in a single saturating `std::uint32_t` shared across both channels, readable via
   `getClampEngagementCount()` (`noise_organism.h:992` pattern). The clamp
   is a last resort, not a level control: SC-001 requires **zero engagements** in every in-spec
   configuration, so a non-zero count is a diagnosis, not a pass.
+
+  **Non-finite guard, immediately before the FR-043 crossfade (correction C-15).** The clamp bounds
+  `±inf` (`inf > kOutputClamp` is true) but **cannot bound a NaN**: every comparison against a NaN is
+  false, so a NaN walks through the clamp untouched and out of the component. And a NaN is reachable
+  **without a non-finite input**, through the public control surface alone: a resonator whose centre
+  frequency is retuned fast and far is a parametrically pumped oscillator, and SC-002 (c)'s own
+  injection is the textbook 2f case — measured, the shipped build's wet sum went non-finite 1.83 s
+  into that render and stayed non-finite for 97 % of it. The network therefore tests the stereo wet
+  sum for finiteness once per sample and, on a sample that fails, **clears the ring of every peak
+  whose engine output is non-finite** (a state clear only — configuration, gate, level ramp and lanes
+  are untouched, so the peak resumes rather than latching silent), substitutes a zero wet sum for that
+  sample and counts one engagement. Two finite tests per sample on the fast path; the repair loop runs
+  only on the sample that diverged.
 - **FR-019** — Twelve peaks summed together can add constructively. The network applies a
   `1/sqrt(N)` normalisation, identically to both channels of the stereo wet sum (FR-044), where
   **`N` is defined to be exactly `numPeaks`**
@@ -557,15 +599,30 @@ No new free functions, no new enumerators on existing enums, no new `ModSource` 
   (≈ 24 cents per 64 samples, ≈ 18 octaves/s at 48 kHz — far above any in-spec drift, so at the default
   it never shapes normal motion) and `kDefaultQStepOctaves = 0.05`. The limiter exists for
   discontinuous inputs — a `setNoteFrequency` jump, an anchor-mode switch, a gravity sweep — not for
-  drift. Gain needs no slew limit: it is ramped per sample by the FR-041 gate and the FR-017
-  base-level ramp.
+  drift. Gain needs no slew limit: **every factor of it is applied per sample** — the FR-041 gate, the
+  FR-017 base-level `LinearRamp` at `kGainRampMs`, and (**correction C-16**) the FR-017 per-sample
+  interpolation of the wander part `appliedGainDb − baseDb` across one control chunk. An earlier form
+  of this sentence let the wander part reach the bank on the control grid instead and argued that "its
+  per-chunk step is bounded by the gain lane's own 150 ms output smoother inside `BrownianDrift`".
+  Bounded is not continuous: `ResonatorBank::setGain` is a bare `gains_[index] = dbToGain(dB)` with no
+  smoother of any kind (`resonator_bank.h:367-371`), so the drifting factor stepped once per 64
+  samples and SC-002 (a) measured that gain path alone at `B/P = 15.72` against a bound of 1.5. The
+  bank's per-slot gain is now pinned at unity.
 
-  **One exemption, and only one (Clarifications Q6): the FR-042 wake-edge snap.** The single
-  frequency-then-Q-then-gain write a dormant peak receives when its gate leaves `0.0f` is **not**
-  slew-limited — it is written in full on that control step regardless of how far it moved during the
-  dormant interval. The justification is that the gate is provably still exactly `0.0f` at that instant
-  (FR-042), so the jump is inaudible by construction; every other write in the component, including a
-  peak's very next control step after waking, remains subject to this FR's ceiling.
+  **One exemption, and only one (Clarifications Q6): the FR-042 dormant interval, of which the
+  wake-edge snap is the audible boundary.** While a peak's gate sits at exactly `0.0f`, that peak's
+  applied frequency and Q track their targets **unslewed** — for the whole dormant interval, not only
+  on the wake edge — so that the single frequency-then-Q-then-gain write it receives when its gate
+  leaves `0.0f` is **written in full on that control step regardless of how far it moved during the
+  dormant interval**. The wider form is what FR-042's own normative sentence requires: a slew-limited
+  dormant peak would still be fifty control steps from target at the wake edge after a mid-dormancy
+  octave jump, and could not satisfy it. The justification is that the gate is provably exactly
+  `0.0f` throughout the interval (FR-042), so no coefficient motion inside it is audible by
+  construction; every other write in the component, including a peak's very next control step after
+  waking, remains subject to this FR's ceiling. The two designs are observationally identical under
+  drift, which never reaches the default ceiling, so SC-015 (f) is the arm that distinguishes them:
+  after a mid-dormancy anchor jump the applied frequency reflects the new anchor within **one**
+  control step, not fifty.
 
   **Both ceilings are settable, not compile-time constants:**
   `void setSlewCeilings(float freqOctavesPerStep, float qOctavesPerStep) noexcept`, each clamped to
@@ -715,26 +772,35 @@ No new free functions, no new enumerators on existing enums, no new `ModSource` 
   restating a piece of it (Clarifications Q8 corrects the ordering an earlier draft of this FR stated,
   which conflicted with FR-019, FR-043 and SC-015 (c)).** For peak *i* at sample *n*, in order:
 
-  1. **Per-peak gated mono sample (FR-011, FR-041):**
-     `peakOut[i][n] = bank_[i].process(0.5·(inL[n] + inR[n])) · gate[i][n]`, where
-     `gate[i][n] ∈ [0, 1]` is the FR-041 per-sample `LinearRamp` value — a **linear multiply applied to
-     the bank's output sample**, never a dB offset folded into `setGain`. The reason is arithmetic, not
+  1. **Per-peak gated mono sample (FR-011, FR-017, FR-041):**
+     `peakOut[i][n] = bank_[i].process(0.5·(inL[n] + inR[n])) · gate[i][n] · levelGain[i][n] ·
+     wanderGain[i][n]`, where `gate[i][n] ∈ [0, 1]` is the FR-041 per-sample `LinearRamp` value,
+     `levelGain[i][n]` is the FR-017 per-sample base-level `LinearRamp` value (target
+     `dbToGain(baseDb)`, `kGainRampMs`) and `wanderGain[i][n]` is the FR-017 per-sample interpolation
+     of `dbToGain(appliedGainDb − baseDb)` across one control chunk (**correction C-16**) — all three
+     **linear multiplies applied to the bank's output sample**, never dB offsets folded into
+     `setGain`. The bank's own per-slot gain is pinned at unity, so the product
+     `levelGain[i][n] · wanderGain[i][n]` settles at exactly `dbToGain(appliedGainDb)` and FR-017's
+     composition is unchanged by the split. For the gate the reason is arithmetic, not
      stylistic: a gate of 0 in dB is `−inf`, and FR-033's clamp would floor it at `−60 dB`, which is
      `1.0e-3` of full scale — audible bleed, not silence. `gate == 0.0f` makes the peak's contribution
      **exactly** `0.0f` by multiplication, and FR-042 additionally stops calling `bank_[i].process` at
      all once the ramp has settled at zero. These are the **only** two mechanisms that produce an exact
      zero; no dB path does.
   2. **Per-peak equal-power pan, folded into the stereo sum (FR-038):**
-     `wetSumL[n] = Σ_i peakOut[i][n]·gainL[i]`, `wetSumR[n] = Σ_i peakOut[i][n]·gainR[i]`, summed over
-     the twelve gated, panned peaks. This is "the wet sum" FR-019 and Clarifications Q8 refer to —
+     `wetSumL[n] = Σ_i peakOut[i][n]·gainL[i][n]`, `wetSumR[n] = Σ_i peakOut[i][n]·gainR[i][n]`, summed
+     over the twelve gated, panned peaks. This is "the wet sum" FR-019 and Clarifications Q8 refer to —
      already stereo, because pan is a per-peak weight and can only be applied before the cross-peak
-     sum, not after it.
+     sum, not after it. Both weights are **per-sample interpolations across the control chunk** of the
+     equal-power pair the control step computed (**correction C-16**), for the reason SC-002's preamble
+     records.
   3. **Normalise (FR-019):** `wetNormL[n] = wetSumL[n] · (1/√numPeaks)`, and likewise for R — the same
      scalar on both channels, since it is peak-invariant and therefore commutes with step 2's ordering.
   4. **Trim (FR-045, Clarifications Q2):** `wetTrimmedL[n] = wetNormL[n] · wetGainLinear`, and likewise
      for R — again the same scalar on both channels.
   5. **Crossfade against the stereo dry path (FR-043):** `outL[n] = (1−mix)·dryL[n] + mix·wetTrimmedL[n]`,
-     and likewise for R.
+     and likewise for R. The wet sum is tested for finiteness before this step, and the rings of any
+     peaks that diverged are cleared (FR-018, correction C-15).
   6. **Final clamp (FR-018):** `outL[n]`/`outR[n]` are each clamped to `±kOutputClamp` independently,
      sharing one engagement counter.
 
@@ -806,8 +872,10 @@ No new free functions, no new enumerators on existing enums, no new `ModSource` 
   applied state (Clarifications Q6).** `getPeakCurrentFrequency(i)`, `getPeakCurrentQ(i)`,
   `getPeakCurrentGainDb(i)` and `getPeakCurrentPan(i)` read the network's own internally tracked
   values — which FR-042 keeps computing every control step even while it skips writing them to
-  `bank_[i]` — so they move exactly as they would for an awake peak (SC-015 (b)) despite the bank
-  itself holding whatever it was last written before the sleep edge.
+  `bank_[i]` — so they move as an awake peak's do (SC-015 (b)), **except that the FR-035 slew ceiling
+  does not apply while the gate sits at exactly zero**: a dormant peak's applied frequency and Q
+  track their targets unslewed, per FR-035's dormant-interval exemption, and SC-015 (f) is what
+  reads the difference. The bank itself holds whatever it was last written before the sleep edge.
 
   **`isPeakEngineActive(std::size_t peak)` returns `true` while the network is still calling that
   peak's `bank_[peak].process` and its slot 0 is enabled, `false` once FR-042's sleep edge has fired**
@@ -843,17 +911,21 @@ No new free functions, no new enumerators on existing enums, no new `ModSource` 
   threshold relaxation, a cap reduction or a budget raise (Clarifications Q3, Q4).
 - **FR-061** — Zero allocation after `prepare` (roadmap line 481), including across the entire setter
   surface, `setNumPeaks` changes, mode switches and `reset()`.
-- **FR-062** — The prepare-time footprint is bounded and reported by `getAllocatedBytes()`. **The only
-  heap term is the dry-path scratch buffer, `maxBlockSamples × sizeof(float)` (8 KB at the 2048
-  default), and the declared fixed overhead is exactly zero:** the twelve `ResonatorBank` instances,
-  the 48 `BrownianDrift` lanes (FR-038 adds the pan lane), every ramp and every peak table are
-  fixed-size members with no heap
-  state (`resonator_bank.h:184-209` allocates nothing; `brownian_drift.h:121-128` likewise).
-  Therefore `getAllocatedBytes() == maxBlockSamples * sizeof(float)` **exactly**, and `prepare`
-  performs exactly **one** heap allocation. Both figures are independently recomputable by a test
-  without reading the implementation, which is what SC-011 requires. If the implementation finds it
-  needs a second buffer, the constant is **declared here first** and SC-011's expected values are
-  re-derived from the declaration — never transcribed from the code.
+- **FR-062** — The prepare-time footprint is bounded and reported by `getAllocatedBytes()`. **There is
+  no heap term at all: the declared prepare-time footprint is exactly zero bytes, `prepare` performs
+  exactly zero heap allocations, and `getAllocatedBytes()` returns `0`.** The twelve `ResonatorBank`
+  instances, the 48 `BrownianDrift` lanes (FR-038 adds the pan lane), every ramp and every peak table
+  are fixed-size members with no heap
+  state (`resonator_bank.h:184-209` allocates nothing; `brownian_drift.h:121-128` likewise), and no
+  dry-path scratch buffer exists: the render path captures both dry samples into locals before either
+  output is written, which satisfies every aliasing case FR-003 admits, including the cross-aliased
+  one. **`PrepareConfig::maxBlockSamples` is retained** — FR-002 mandates the field and Phase 10/12
+  may want it, and removing it would be a gratuitous API change — clamped to `[64, 8192]` and
+  reported by the read surface, but it **sizes nothing in this component** and no reported figure is
+  derived from it. Both figures are independently recomputable by a test without reading the
+  implementation, which is what SC-011 requires. If the implementation ever finds it needs a buffer,
+  the constant is **declared here first** and SC-011's expected values are re-derived from the
+  declaration — never transcribed from the code.
 - **FR-063** — Sample-rate changes are handled by `prepare` only. Every time constant (lane tau via
   smoothness, `kGainRampMs`, the 20 ms mix smoother) is expressed in seconds and re-derived there;
   every frequency is in Hz and re-clamped against the new `0.45·fs` (FR-025).
@@ -891,12 +963,20 @@ golden (roadmap line 494).
   property the criterion is trying to express, replacing the earlier "peak magnitude ≤ 2.0" bound,
   which could not fail: twelve constant-0 dB-peak bandpasses of width `f/100`
   (`resonator_bank.h:560-591`) on a −12 dBFS broadband drive sum to tens of dB *below* the drive, so a
-  2.0 bound sat ≈ 40 dB clear of any real value and (b) already forbids the clamp. Instead: render the
-  identical patch at `numPeaks = 4` and at `numPeaks = 12` (peaks 0–3 configured identically in both)
-  and require the two **peak magnitudes** to agree within a bound **measured across ≥ 8 seeds during
-  the build and set above the observed maximum**, recorded in `compliance.md` with the distribution —
-  a real regression detector for the `1/sqrt(N)` law, which a wrong exponent or a missing
-  normalisation moves by `20·log10(sqrt(3)) = 4.77 dB`; (d) after the drive stops the output falls
+  2.0 bound sat ≈ 40 dB clear of any real value and (b) already forbids the clamp. It also replaces
+  the "agree within a measured bound" form that followed it: under FR-016's geometric anchors at equal
+  Q the `numPeaks = 4` and `numPeaks = 12` arms carry **different acoustic content** (`Σf` = 273 Hz
+  vs 4624 Hz), so a correct build differs by ≈ 7.5 dB — larger than the 4.77 dB defect the arm targets
+  — and any bound "set above the observed maximum" would therefore absorb the very defect it was
+  written to catch. **The arm is instead a derived relationship, with the acoustic content held
+  identical so that only `N` differs:** render the same patch twice with **peaks 4–11 dormant in both
+  arms**, once at `numPeaks = 4` and once at `numPeaks = 12`, and require the level difference between
+  them to equal the derived `20·log10(sqrt(12/4)) = **4.77 dB ± 0.5 dB**`, with the `numPeaks = 12`
+  arm the quieter of the two. A wrong exponent or a missing normalisation moves that number out of the
+  window. This is also the **only** assertion anywhere in this spec of FR-019's "`N` is `numPeaks`,
+  not the awake count": with peaks 4–11 dormant in both arms, a build whose `N` counted awake peaks
+  computes `1/sqrt(4)` in **both** arms and the measured difference collapses to 0 dB;
+  (d) after the drive stops the output falls
   below **−80 dBFS**
   (`1.0e-4`, Membrum's threshold, `test_kit_switch_infinite_ring.cpp:59`) within a bound
   **computed in the test from shipped constants**, not transcribed:
@@ -915,13 +995,22 @@ golden (roadmap line 494).
   ceiling, the fastest legal retuning (so `decimation == 1`, FR-037: the un-decimated lane path is the
   one this criterion stresses). **Render duration is fixed at exactly 60 s** (2 880 000 samples at
   48 kHz, 45 000 control chunks) — pinned because the boundary population's size determines the
-  statistic. **The metric is computed on the left output channel** (`x[n] = outL[n]`); the pan lane's
-  own drift is already continuous through `BrownianDrift`'s internal output smoother (`brownian_drift.h`,
-  `kDriftOutputSmoothMs`) rather than hard-swapped like a bank coefficient, so it contributes no new
-  boundary discontinuities of the kind this criterion targets — SC-021 is the dedicated pan criterion.
+  statistic. **The metric is computed on the left output channel** (`x[n] = outL[n]`). An earlier
+  draft of this paragraph claimed the pan lane "contributes no new boundary discontinuities of the
+  kind this criterion targets", because `BrownianDrift`'s internal output smoother
+  (`kDriftOutputSmoothMs`) makes the lane itself continuous. **That was wrong, and this criterion
+  caught it:** a continuous lane sampled once per control step and held for 64 samples is a staircase,
+  and the pan pair alone measured `B/P = 8.79` against a bound of 1.5. Correction C-16 interpolates
+  the pan gains across the chunk instead; SC-021 remains the dedicated pan criterion.
   For every sample compute `d[n] = |x[n] − 2·x[n−1] + x[n−2]|`, then partition the samples into the
-  **boundary** population (`n mod 64` in `{0, 1}`, 2/64 of the render) and the **interior** population
-  (the other 62/64).
+  **boundary** population (`n mod 64` in `{0, 1, 2}`, 3/64 of the render) and the **interior**
+  population (the other 61/64). The residue set is `{0, 1, 2}` and not `{0, 1}`: the control step runs
+  at `controlPhase_ == 0`, so the first sample it affects is `n ≡ 0`, and a second difference spans
+  three samples — `d[n]`, `d[n+1]` and `d[n+2]` each touch it. Leaving residue 2 in the interior
+  population puts discontinuity-carrying samples into the 0.1 % tail `P` is drawn from — 1.6 % of that
+  population against a 0.1 % tail — which lifts `P` and collapses `B/P` toward 1 on a build that does
+  have a zipper. **`kBoundaryRatio` is measured under this corrected partition**; a figure measured
+  under the `{0, 1}` partition may not be carried over.
 
   **Both statistics are the same quantile of their own population.** `B` = the 99.9th percentile of `d`
   over the boundary population; `P` = the 99.9th percentile of `d` over the interior population. The
@@ -939,18 +1028,82 @@ golden (roadmap line 494).
   quietly widened past what (c) can still discriminate.
   (b) **control arm, `setWanderEnabled(false)` — directional and scalar.** Two assertions, both on
   numbers: `B_off / P_off <= 1.05` (with no retuning happening at all, the boundary population is
-  statistically indistinguishable from the interior one), **and** `|P_on − P_off| / P_off <= 0.10`
-  (the underlying signal is the same sine in both arms, so the interior curvature must not move — this
-  is what proves the estimator is reading retuning rather than the drive). The earlier form compared
-  an unnamed statistic against a *distribution*, which no assertion could be written from, and asserted
-  that the boundary statistic **stays the same** when retuning is switched off — a claim an estimator
-  that measures nothing would also satisfy.
-  (c) **injection check, mandatory, through the public surface.** Call
+  statistically indistinguishable from the interior one), **and — correction C-14 — the control arm's
+  interior curvature equals the drive sine's own closed form**:
+  `| P_off / A_off − 4·sin²(π·f_drive/fs) | / (4·sin²(π·f_drive/fs)) <= 0.10`, where `A_off` is the
+  same 99.9th percentile of `|x[n−1]|` over the same interior population. For `x[n] = A·sin(ωn)` the
+  estimator is exact rather than approximate — `|x[n] − 2x[n−1] + x[n−2]| = 4·sin²(ω/2)·|x[n−1]|` — so
+  this says the control arm's interior population is the drive's own curvature and **nothing else**:
+  no residual retuning, no numerical junk, no partition drift. That is what "the estimator is reading
+  retuning rather than the drive" means as a number. Measured: 1.0003 of the closed form across three
+  seeds and two wet trims. A third, directional assertion survives from the original form:
+  `P_on > P_off` — switching retuning on can only add curvature to the interior population.
+
+  **Correction C-14 — what this assertion used to say, and why no build could satisfy it.** The
+  original form was `|P_on − P_off| / P_off <= 0.10` on the raw statistic, justified as "the
+  underlying signal is the same sine in both arms, so the interior curvature must not move". The
+  premise is false. `P` is a level statistic as much as a curvature one (the identity above), and the
+  two arms do not carry the same output level **by construction**: (a)'s mandated patch runs all four
+  lanes at maximum depth, so the on arm's gain lane alone swings the peak level over [−24, +24] dB
+  around base and its frequency lane sweeps resonances onto and off the drive. The input sine is the
+  same; the output is not, and cannot be. Measured, the ratio is **210.8** at the provisional +30 dB
+  trim (where the on arm is also clipping) and still **14.7** on a perfectly linear render — three and
+  a half orders of magnitude, then 147×, from a bound of 0.10. What *is* invariant is the curvature
+  per unit amplitude: 0.9907 (on) against 1.0004 (off) of the closed form, i.e. the two arms agree to
+  0.97 %, an order of magnitude inside the spec's own tolerance — which is the quantity the corrected
+  assertion uses, and the reason that tolerance is unchanged. The form before both corrections
+  compared an unnamed statistic against a *distribution* and asserted that the boundary statistic
+  **stays the same** when retuning is switched off — a claim an estimator that measures nothing would
+  also satisfy.
+  (c) **injection check, mandatory, through the public surface — and systematic, not one-shot.** Call
   `setSlewCeilings(24.0f, 24.0f)` — an in-spec setting under FR-035, whose ceilings are settable
   precisely so this arm needs no `#ifdef` hook and no edit to the header under test — then apply a
-  ±1-octave `setPeakAnchorHz` jump on one control step. `B / P` must exceed **10**. A criterion that
-  cannot fail on a real defect is not a criterion; this is the arm that proves the (a) estimator can
-  see a discontinuity at all, and its ratio is re-checked whenever (a)'s bound is re-derived.
+  **±1-octave `setPeakAnchorHz` jump on every sixteenth control chunk for the full pinned 60 s render,
+  with the side of each jump drawn from a coin rather than alternated** (**correction C-17**,
+  measured; see below). `B / P` must exceed **`kInjectionRatio`, measured at 3.0**, and must also
+  exceed `kBoundaryRatio` — an injection this arm passes is one the (a) arm would have gone red on,
+  which is the arm's whole purpose. The injection has to be systematic rather than one-shot because
+  `B` is the 99.9th percentile of a 135 000-sample boundary population at the pinned duration: a
+  single jump contributes ≈ 3 outliers, which cannot move that percentile at all (correction C-12).
+
+  **Correction C-17 — the original form of this arm, measured.** It specified an *alternating* jump on
+  *every* control chunk with a bound of 10. Neither survived measurement:
+  - *Every chunk, alternating* is a 750 Hz square modulation of twelve resonances sitting at
+    110–880 Hz — modulation at ≈ 2f for the peaks near 375 Hz, i.e. a **parametric pump**. Measured on
+    the shipped build, that render's wet sum passes 3.4e38, goes **non-finite 1.83 s in and stays
+    non-finite for the remaining 97 % of the render**, at every wet trim (the trim is a post-sum
+    multiply). The statistic was therefore computed over NaNs, through a `std::sort` whose comparator
+    NaN makes non-transitive: the numbers that arm produced were undefined behaviour, not evidence.
+    FR-018's non-finite guard (**correction C-15**) keeps the output finite, but the render still
+    saturates the clamp at every trim, so it can never be the linear render the statistic needs.
+    Drawing the side from a coin removes the coherence the pump needs; jumping once every sixteen
+    chunks still perturbs ≈ 1 430 boundary triples against a 0.1 % tail of 135 samples.
+  - *B/P > 10* is unreachable by **any** implementation with this estimator. An anchor jump does not
+    put a lone spike on the boundary sample and stop: it re-tunes a resonator, and the resonator
+    **rings** — broadband, past the end of the chunk — so each jump lifts ≈ 3 boundary samples **and**
+    the ≈ 61 interior samples behind them. That is the same 3 : 61 ratio as the partition, so both
+    tails rise together and `B/P` converges on the per-sample contrast between the coefficient-switch
+    step and the ring it excites, not on the number of jumps. Measured across three seeds on the
+    linear fixture: 4.01 / 4.00 / 4.66 for this arm, against a null (the (a) arm) of
+    1.010 / 0.992 / 1.023. Making the jump bigger or more frequent moves it **down** (×8 jumps: 2.77;
+    every fourth chunk: 1.32), because the extra ring dominates. `kInjectionRatio` is therefore set
+    the way `kBoundaryRatio` is — below the observed minimum with margin — at **3.0**, still 3× above
+    the null and 2× above `kBoundaryRatio`.
+
+  **The fixture renders at a wet trim that keeps it linear, and all three arms assert
+  `getClampEngagementCount() == 0` (correction C-17).** At FR-045's provisional
+  `kDefaultWetGainDb = +30 dB` a 220 Hz sine parked on twelve resonances with the gain lane at its
+  24 dB maximum drives **16–21 % of the render into FR-018's ±4.0 clamp** (measured 599 219 / 520 614 /
+  465 382 engagements across three seeds), and a clipped render's second difference is the *clipper's*,
+  in both populations at once — which pinned `B/P` at 1.06 and made the (a) arm unable to fail. Every
+  statistic SC-002 defines is a ratio and is therefore trim-invariant while the render is linear, so
+  the fixture runs at **−12 dB** (worst measured peak 0.23 against a clamp of 4.0) and checks
+  linearity rather than assuming it. **One second of render is discarded before the pinned 60 s**: the
+  FR-045 trim rides the same 50 ms `LinearRamp` as FR-019's normalisation and can only be set after
+  `prepare`, so an unsettled render's first 2 400 samples — 0.08 % of it, landing on top of the 0.1 %
+  tail both statistics are drawn from — are louder than the patch asks for. The discarded pass also
+  primes the estimator's two-sample history, so the measured populations are the full 3/64 and 61/64
+  of the pinned render (135 000 and 2 745 000) rather than losing `n = 0` and `n = 1`.
   (d) **gate ramp — the estimator is named, because the bound is written about a control value, not
   about audio.** Primary assertion, on `getPeakGate(i)` (FR-052) sampled at **single-sample block
   granularity** (`processBlock` called with `numSamples == 1`, which FR-003 admits): after
@@ -1029,8 +1182,15 @@ golden (roadmap line 494).
   (frequency, Q, gain, pan — FR-038) at their FR-016 defaults, wander enabled, `mix = 1`, all peaks
   awake, drive identical on both channels (Success Criteria stereo convention).
   Thresholds: (a) the reference configuration measures **≤ 80 000 ns** per 512-sample block at 48 kHz;
-  (b) a wander-disabled arm measures **at least 10 % below** the reference arm — a change-detection
-  path (FR-015) that saves nothing is not implemented; (c) an all-dormant arm measures **at least 40 %
+  (b) **Amended 2026-09-11 (user decision, compliance gap SC-004):** a wander-disabled arm measures
+  **below** the reference arm, and the saving is recorded as a **transcribed measurement**, not gated
+  by a percentage. The original "at least 10 %" floor was written before Clarifications Q6/Q7 and the
+  roadmap's Dormancy rule fixed that the 48 lanes keep advancing with wander off (FR-036); the only
+  cost wander-off can remove is therefore FR-015's control-write term, which the FR-060 probe and the
+  isolated SC-004 run both put at **4–6 %** of the reference (measured 4.83 % isolated, 3.38 % under
+  suite load) — structurally short of 10 % and not a defect. The directional clause still rejects a
+  change-detection path that saves nothing; the 40 % arm in (c) remains the real dormancy criterion.
+  (c) an all-dormant arm measures **at least 40 %
   below** the reference arm, which is FR-042's "stop calling `bank_[i].process`" skip **and** its
   control-write skip (Clarifications Q6 — the network also stops calling `setFrequency`/`setQ`/
   `setGain` for a dormant peak, not just `process`) earning their keep.
@@ -1137,14 +1297,15 @@ golden (roadmap line 494).
   floating-point summation order.
   Measured by: `ResonanceDriftNetwork_BlockSizeInvariance`.
 - **SC-011 — Prepare footprint (FR-062).**
-  Threshold: `getAllocatedBytes() == maxBlockSamples * sizeof(float)` **exactly** — the test recomputes
-  the expected value from `PrepareConfig::maxBlockSamples` alone, because FR-062 declares the fixed
-  overhead to be **zero**, so nothing has to be transcribed from the implementation. `prepare` performs
-  exactly **1** allocation (the dry-path scratch buffer; the twelve banks and 48 lanes (FR-038 adds the
-  pan lane) are fixed-size members with no heap state, `resonator_bank.h:184-209`,
-  `brownian_drift.h:121-128`). Checked at
-  `maxBlockSamples` = 64, 2048 and 8192 so the relationship, not one value, is what passes. If a second
-  buffer is ever needed, FR-062's declaration changes first and this criterion is re-derived from it.
+  Threshold: `getAllocatedBytes() == 0` **exactly**, and `prepare` performs exactly **0** allocations —
+  both re-derived from FR-062's declaration that the prepare-time heap footprint is zero bytes, so
+  nothing has to be transcribed from the implementation and nothing is computed from
+  `PrepareConfig::maxBlockSamples`, which sizes nothing here. There is no dry-path scratch buffer, and
+  the twelve banks and 48 lanes (FR-038 adds the pan lane) are fixed-size members with no heap state
+  (`resonator_bank.h:184-209`, `brownian_drift.h:121-128`). Checked at
+  `maxBlockSamples` = 64, 2048 and 8192 so the **relationship** — a footprint independent of the
+  configured block size — and not one value, is what passes. If a buffer is ever needed, FR-062's
+  declaration changes first and this criterion is re-derived from it.
   Measured by: `ResonanceDriftNetwork_PrepareFootprint`.
 - **SC-012 — Lints and portability (roadmap lines 486, 496).**
   Thresholds: `node tools/lint-odr.js`, `node tools/lint-layers.js`,
@@ -1361,12 +1522,19 @@ golden (roadmap line 494).
   defaults, `AnchorMode::Free`, `mix = 1`) driven by SC-001's broadband source (white noise at
   −12 dBFS); the wet RMS at the measured `kDefaultWetGainDb` lands within the window recorded in
   `compliance.md` from the FR-045 measurement (a few dB of the drive RMS, per FR-045's method) — this is
-  the compliance row FR-045 promises, not a re-measurement; (b) **`mix = 0.5` is audibly a blend, not a
-  mute.** With the same reference patch and drive at the default `wetGain`, the wet contribution's RMS
-  (isolated by comparing the `mix = 0.5` render against the `mix = 0` dry-only render) is within roughly
-  **6 dB** of the dry path's RMS — i.e. `mix = 0.5` moves the output by a perceptible, blend-sized
-  amount rather than leaving it indistinguishable from dry, which is what a network shipped at the
-  earlier draft's implicit `wetGain = 0 dB` would fail; (c) **`setWetGain` is a real, clamped control**:
+  the compliance row FR-045 promises, not a re-measurement; (b) **the wet path is a real, blend-sized
+  signal — isolated directly, never by differencing renders.** With the same reference patch and drive
+  at the default `wetGain`, render at `mix = 1` and at `mix = 0` and require
+  `|RMS_wet_dB − RMS_dry_dB| <= 6 dB`, where `RMS_wet_dB` is the RMS of the `mix = 1` render and
+  `RMS_dry_dB` that of the `mix = 0` render — the wet path measured on its own, which is what a
+  network shipped at the earlier draft's implicit `wetGain = 0 dB` would fail. The earlier form
+  isolated the wet contribution by differencing the `mix = 0.5` render against the `mix = 0` one,
+  i.e. `0.5·wetTrimmed − 0.5·dry`; with the wet path muted that degenerates to `0.5·dry`, an RMS of
+  exactly `dry − 6.02 dB`, landing inside the "within roughly 6 dB" pass window — so the criterion
+  reported a healthy blend for the very failure it names. The `mix = 0.5` render is retained only as a
+  **monotonicity** check: its RMS must lie between the `mix = 0` and `mix = 1` RMS values, within
+  measurement tolerance, so the crossfade is verified monotone without any statistic being computed
+  from a difference of renders; (c) **`setWetGain` is a real, clamped control**:
   `getWetGain()` echoes the last set value clamped to `[-24, +48]` dB, and a lower trim (e.g. 0 dB)
   measurably reduces the wet RMS relative to the default-trim render from (a) by the expected dB
   difference within 0.5 dB.
@@ -1442,8 +1610,9 @@ SC-003 (e)'s same-seed control, and SC-017's write-order swap.
 - `numSamples == 0` — no-op; the control phase does not advance, so a caller that issues zero-length
   blocks cannot drift the control grid (FR-003, FR-007).
 - `numSamples` far above `PrepareConfig::maxBlockSamples` (e.g. 65 536 with `maxBlockSamples = 64`) —
-  legal and correct; the dry-path scratch buffer is consumed in `maxBlockSamples`-sized slices rather
-  than reallocated (FR-061).
+  legal and correct, and not a special case at all: `maxBlockSamples` sizes nothing in this component
+  (FR-062), there is no scratch buffer to slice, and the render path is driven entirely by the
+  absolute control grid, so any `numSamples` renders directly with no reallocation (FR-061).
 - `processBlock` before `prepare` — writes `numSamples` zeros to both `outL` and `outR` and advances
   nothing (FR-003).
 - In-place call (`inL == outL`, `inR == outR`) — supported and equal to the out-of-place result
@@ -1499,8 +1668,16 @@ SC-003 (e)'s same-seed control, and SC-017's write-order swap.
   `prepare` fully re-initialises (FR-002). All time constants re-derive; all anchors re-clamp against
   the new Nyquist limit (FR-063). Lane seeds are unchanged, so the same seed still reproduces the same
   *walk*, though not the same audio (different rate ⇒ different control-step count per second).
-- A sample rate below 1 Hz or non-finite — floored at 1 Hz (`brownian_drift.h:122` idiom), which keeps
-  every derived coefficient finite instead of producing NaN coefficients that would poison the bank.
+- A sample rate below `kMinUsableSampleRate = 8000.0` Hz or non-finite — floored at
+  `kMinUsableSampleRate`, **not at 1 Hz**. A 1 Hz floor is not merely useless, it is undefined
+  behaviour: at 1 Hz the derived frequency-clamp pair `[kMinResonatorFrequency = 20, 0.45·fs = 0.45]`
+  is **inverted**, and `std::clamp` with `hi < lo` is UB — MSVC fires
+  `_STL_VERIFY("invalid bounds argument passed to std::clamp")` — including inside the shipped
+  `ResonatorBank::clampFrequency` (`resonator_bank.h:542-545`), which SC-013 forbids amending. At the
+  8 kHz floor the pair is `[20, 3600]` and correctly ordered, every derived coefficient is finite
+  rather than a NaN that would poison the bank, and no clamp in this component or its dependencies
+  can be called with inverted bounds. The ordering is carried as a `static_assert` on the constants
+  and asserted at runtime by `ResonanceDriftNetwork_ControlSurfaceClamps`.
 
 **Seed determinism.**
 
@@ -1841,3 +2018,43 @@ Two items plan S17/S14 put to the user after the plan review; both ruled before 
   — same `PrepareConfig` shape as `NoiseOrganism` so Phase 10 configures both siblings identically,
   documented as sizing nothing in this component. FR-062/SC-011 stand as re-derived (zero bytes, zero
   allocations). [FR-062, SC-011]
+
+### Build-stage corrections, 2026-09-10 (all forced by measurement, none by preference)
+
+Four corrections raised while making group P's spectral criteria run. Each is recorded at its FR/SC
+site with the numbers; this list exists so the compliance pass can find them from one place. Every
+figure below is a 60 s render of SC-002's own fixture at 48 kHz, three seeds
+(`0x5C02A001` / `0x11111111` / `0xDEADBEEF`).
+
+- **C-14 — SC-002 (b)'s second assertion was unsatisfiable, and is now normalised.**
+  `|P_on − P_off| / P_off <= 0.10` measured **210.8** at the provisional +30 dB trim and **14.7** on a
+  perfectly linear render, because `P` scales with output level and the two arms cannot carry the same
+  level (all four lanes at maximum depth). Replaced by the closed-form identity on the control arm —
+  `P_off / A_off` versus `4·sin²(π·f/fs)`, measured **1.0003** — plus the surviving directional clause
+  `P_on > P_off`. [SC-002 (b)]
+- **C-15 — the network could emit NaN, through the public control surface alone.** FR-018's clamp
+  bounds `±inf` but not NaN. Under SC-002 (c)'s own injection the resonators are parametrically pumped
+  (750 Hz modulation of peaks at 110–880 Hz): the wet sum went **non-finite 1.83 s into the render and
+  stayed non-finite for 97 % of it**, at every wet trim, and the criterion's statistic was being
+  computed over NaNs through a non-transitive `std::sort` comparator. FR-018 now tests the wet sum per
+  sample and clears the ring of any peak whose engine output is non-finite. [FR-018, FR-044 step 5]
+- **C-16 — the component had a real zipper, in gain and in pan.** On a linear render the shipped build
+  measured `B/P` = **15.72** with only the gain lane open and **8.79** with only the pan lane open,
+  against SC-002 (a)'s bound of 1.5 (frequency 1.00, Q 1.02 — the two the slew limiter already
+  guards). Both are per-control-step **multiplies** applied straight to the sample: the bank's
+  per-slot gain (`ResonatorBank::setGain` has no smoother) and the equal-power pan pair. Both are now
+  interpolated across the control chunk; re-measured, `B/P` = **1.010 / 0.992 / 1.023**. FR-017,
+  FR-035, FR-044 and SC-002's preamble each carried a claim this measurement refuted, and each is
+  corrected in place. [FR-014, FR-015, FR-017, FR-035, FR-044, SC-002]
+- **C-17 — SC-002's fixture and its injection arm.** The fixture ran at FR-045's provisional
+  `kDefaultWetGainDb = +30 dB` and clipped **16–21 %** of every render, which pinned `B/P` at 1.06 and
+  made the (a) arm unable to fail; it now renders at −12 dB, discards one second of settling, and
+  asserts `getClampEngagementCount() == 0` on all three arms. The injection schedule (every chunk,
+  alternating) was the parametric pump C-15 found, and its bound of 10 is unreachable by any
+  implementation because a retune rings into the interior population at the same 3 : 61 ratio as the
+  partition; the schedule is now one coin-flipped jump every sixteenth chunk and the bound is
+  **measured at 3.0** against a null of ~1.0. [SC-002 (a), (c)]
+
+**Still owned by T019, unchanged by the above:** `kDefaultWetGainDb` itself. Whatever value it lands
+on, SC-002's fixture keeps its own trim — a criterion about a boundary discontinuity cannot be
+measured on a render that is clipping.

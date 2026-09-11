@@ -400,6 +400,21 @@ add_executable(dsp_systems_tests
     unit/systems/noise_organism_spectral_test.cpp
     unit/systems/noise_organism_perf_test.cpp
     unit/systems/noise_organism_nonfinite_test.cpp
+    # Vorago Phase 3 (specs/vorago-phase3-resonance-drift): ResonanceDriftNetwork.
+    # This list is ENUMERATED, not globbed - an unregistered TU silently drops
+    # out of the build and its cases never run.
+    #   resonance_drift_network_test.cpp          SC-005, SC-006, SC-007, SC-008,
+    #                                             SC-010, SC-011, SC-014, SC-017,
+    #                                             SC-018, SC-019, SC-020, SC-021,
+    #                                             SC-022 + the clamps/clamp-engages cases
+    #   resonance_drift_network_spectral_test.cpp SC-001, SC-002, SC-003 [long],
+    #                                             SC-015 [long], SC-016 [long]
+    #   resonance_drift_network_perf_test.cpp     SC-004 + the FR-060 stage probe [.perf]
+    #   resonance_drift_network_nonfinite_test.cpp SC-009 only
+    unit/systems/resonance_drift_network_test.cpp
+    unit/systems/resonance_drift_network_spectral_test.cpp
+    unit/systems/resonance_drift_network_perf_test.cpp
+    unit/systems/resonance_drift_network_nonfinite_test.cpp
 )
 
 target_link_libraries(dsp_systems_tests
@@ -795,6 +810,14 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         # TU must stay out too: -fno-fast-math would change the figures its
         # baselines are pinned to.
         unit/systems/noise_organism_nonfinite_test.cpp
+        # Vorago Phase 3: SC-009 injects NaN/Inf via bit patterns in this TU and
+        # needs IEEE semantics to assert on them. ONLY this one of the four Phase 3
+        # TUs is listed; the other three must NOT be. resonance_drift_network_test.cpp
+        # and resonance_drift_network_spectral_test.cpp stay out so the FR-008/FR-009
+        # guards are proved in the /fp:fast + -ffast-math mode the header actually
+        # ships in. The perf TU must stay out too: -fno-fast-math would change the
+        # figures its baselines are pinned to.
+        unit/systems/resonance_drift_network_nonfinite_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 

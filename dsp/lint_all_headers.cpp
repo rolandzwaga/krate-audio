@@ -177,6 +177,9 @@
 // Vorago Phase 2 (specs/vorago-phase2-noise-organism), FR-001
 #include <krate/dsp/systems/noise_organism.h>
 
+// Vorago Phase 3 (specs/vorago-phase3-resonance-drift), FR-001
+#include <krate/dsp/systems/resonance_drift_network.h>
+
 // Layer 4: Effects
 #include <krate/dsp/effects/aether_reverb.h>
 #include <krate/dsp/effects/bbd_delay.h>
