@@ -135,6 +135,7 @@
 #include <krate/dsp/processors/spectral_distortion.h>
 #include <krate/dsp/processors/spectral_gate.h>
 #include <krate/dsp/processors/spectral_morph_filter.h>
+#include <krate/dsp/processors/spectral_smear.h>
 #include <krate/dsp/processors/spectral_tilt.h>
 #include <krate/dsp/processors/stochastic_filter.h>
 #include <krate/dsp/processors/tape_saturator.h>

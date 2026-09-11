@@ -242,6 +242,8 @@ voice.
 
 ### Phase 4: Spectral Smear
 
+**Status: ✅ COMPLETE (2026-09-12)** — see specs/vorago-phase4-spectral-smear/compliance.md
+
 **Spec:** `vorago-phase4-spectral-smear`
 **Goal:** Fog, distance, age — spectral blur that is not reverb.
 

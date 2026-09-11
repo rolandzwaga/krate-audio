@@ -308,7 +308,10 @@ No new top-level free functions, no new enum types, no new enumerators on existi
   figure and *reports* the sub-object figure. It is the assertion surface for SC-008.
 - **FR-018** — Query surface, all `noexcept` and `[[nodiscard]]`: `isPrepared()`, `isEnabled()`,
   `getFftSize()`, `getHopSize()`, `getNumBins()`, `getSampleRate()`, plus the applied-value reads in
-  FR-053 and the public make-up statics in FR-042. Reads on
+  FR-053, the public make-up statics in FR-042, and the public pure static
+  `[[nodiscard]] static float poleForTau(float tauSeconds, std::size_t hopSize, double sampleRate) noexcept`
+  — FR-023's white-box surface, public for the same reason FR-042's statics are: a criterion needs it
+  and nothing else on the surface exposes it. *(added at the tasks stage, plan S17 C-6 (i).)* Reads on
   an unprepared instance return `0` / the documented neutral, never undefined values
   (`noise_organism.h:855-859` rule). On a **prepared-but-disabled** instance (FR-019), the geometry
   reads — `getFftSize()`, `getHopSize()`, `getNumBins()`, `getSampleRate()` — return the same
@@ -384,7 +387,11 @@ No new top-level free functions, no new enum types, no new enumerators on existi
   and the largest `tau` is 10 s, giving `1024 / (44100 * 10) = 2.32e−3` (pole 0.99768) at 44.1 kHz and
   `1024 / (192000 * 10) = 5.33e−4` (pole 0.99947) even at 192 kHz — three orders of magnitude below the
   clamp. `kMaxPole` is therefore a **defensive backstop** against a future range change or a degenerate
-  derived `tau`, asserted white-box on `poleTable()` at synthetic extremes rather than through a render.
+  derived `tau`, asserted white-box through the public pure static
+  `poleForTau(tauSeconds, hopSize, sampleRate)` (FR-018) at synthetic extremes rather than through a
+  render. *(corrected at the tasks stage, plan S17 C-6 (i): this sentence named `poleTable()`, which is
+  a **private** member no test can reach and which only spans the geometries a render can produce; a
+  pure static is what lets the Edge-Case assertion reach the synthetic extremes.)*
   What SC-005 (v) actually asserts is the `kMaxSmearSeconds` bound: that the tail decays at the rate the
   configured `tau` implies, so the component can never become the second undocumented freeze the
   Non-Goals exclude.
@@ -398,6 +405,11 @@ No new top-level free functions, no new enum types, no new enumerators on existi
 - **FR-025** — DC (bin 0) and Nyquist (bin `numBins − 1`) **do** take the magnitude smear. Unlike
   phase (FR-040), their magnitude is a free real quantity, and excluding them would leave two
   unsmeared spikes in the fog.
+  **Enforcing criterion: `SpectralSmear_DcNyquistSmear`** — measure the two bins directly. *(added at
+  the tasks stage, plan S17 C-6 (iii): SC-004 (a) and SC-005 (v) both perturb by only O(0.2 %) when 2
+  of 1025 bins are omitted, against gates carrying three orders of magnitude of slack, so neither can
+  see the most likely implementation mistake in the phase — copying FR-040's
+  `k = 1; k + 1 < numBins` bounds into the adjacent magnitude loop.)*
 
 ### FR-030 series — Frequency-dependent time constants and tilt (roadmap lines 250, 255)
 
@@ -453,8 +465,34 @@ No new top-level free functions, no new enum types, no new enumerators on existi
   `advanceSamples(hopSize)`, because the smoother's own clock is already the frame clock. Each
   smoother is `snapTo`'d in `prepare()` and left alone by `reset()`.
 - **FR-036** — The pole tables are rebuilt **only** on `prepare()` and on `setSmearTimeLow` /
-  `setSmearTimeHigh` (each costing `3 * numBins` `exp` calls, and documented as control-thread cadence,
-  not per-block). Tilt, amount and decoherence never rebuild anything.
+  `setSmearTimeHigh`. **One rebuild is ≈ 7 transcendental evaluations per bin — ≈ 14 300 at
+  `fftSize = 4096` — and they are carried in BULK SIMD passes, not one library call per bin.**
+  The rebuild is one `batchLog10` and six `batchPow10` calls over `numBins`
+  (`core/spectral_simd.h`, the Layer-2 precedent being `processors/formant_preserver.h:121,:223`),
+  plus three straight-line scalar passes with no library call in them. The law is FR-030's and
+  FR-032's unchanged; only its algebra is: working in **inverse tau** turns the per-bin clamp into a
+  clamp of `1/tau` to `[1/kMaxSmearSeconds, 1/kMinSmearSeconds]` (the same set, the map is monotone)
+  and the pole exponent into one multiply, so no division survives in the per-bin glue.
+  *(corrected at the compliance pass, session 2026-09-11: this clause used to specify the per-bin
+  scalar form — `numBins` `log` + `3·numBins` `pow` + `3·numBins` `exp` — which measured 92 065 ns per
+  rebuild at `numBins = 2049` and put **SC-013 (d) at 108 326 ns/block, 2.1× its gate and 3.0× the
+  FR-060 effective ceiling**. FR-060's ladder mandates reducing cost; this is the reduction. Measured
+  agreement with the scalar form it replaces: **max |pole difference| 2.98e-07 over all 2049 bins**,
+  one float ULP at pole ≈ 0.99. Rewriting the same law with `exp`/`log` identities but keeping it
+  scalar was measured first and reached only 60 115 ns — MSVC does not vectorise a loop carrying six
+  math calls and a division — which is why the transcendentals had to move into the bulk primitives.
+  **No new table was added, and that is a requirement rather than a preference**: SC-008 bounds the
+  footprint at 128 KiB and the shipped figure at `fftSize = 4096` is 120.0 KiB, i.e. 28 bytes less
+  headroom than one further `numBins` array would need, so the per-frame tilt scratch is reused as the
+  rebuild's working buffer.)*
+  **The cadence is not "control-thread": FR-006 puts every setter on
+  the render thread** ("the owner calls setters and `processBlock` from the same thread, as every
+  Vorago component does"), so there is no control thread to hide the cost on. `setSmearTimeLow` /
+  `setSmearTimeHigh` therefore only **mark the tables dirty**; the rebuild runs at the top of the next
+  `processBlock`, **at most once per block** however many times the setters were called in that block,
+  and **SC-013 (d)** is the configuration that measures it. Tilt, amount and decoherence never rebuild
+  anything. *(corrected at the tasks stage, plan S17 C-7 — "`3 * numBins` `exp` calls" undercounted the
+  true cost by ~2× and "control-thread cadence" contradicted FR-006.)*
 
 ### FR-040 series — Phase decoherence (roadmap line 250)
 
@@ -594,10 +632,33 @@ No new top-level free functions, no new enum types, no new enumerators on existi
   (iii) raise the default `fftSize` (cheaper per block at 75 % overlap
   by the `log N` term). If none suffices, **stop and surface to the user** with the measurement — do
   not ship a quietly relaxed number.
+  **WHAT THE FIRST MEASUREMENT ACTUALLY SAID, and which lever was spent** *(compliance pass, session
+  2026-09-11)*: three of the four SC-013 configurations were inside the ceiling on the reference
+  machine from the start — (a) 15 583, (b) 18 837, (c) 19 862 ns/block — and **(d) was not: 108 326
+  ns/block, 2.1× its own gate.** The overrun was entirely FR-036's per-bin scalar pole-table rebuild
+  (92 065 ns of the 108 326). It was fixed by moving that rebuild's transcendentals into the bulk SIMD
+  primitives — the amendment recorded on FR-036 — which is lever (ii)'s principle (cheapen the per-bin
+  work) applied to the one pass that had not yet had it. **Levers (i) and (iii) were not needed and
+  were not spent: no identity gate changed, no default geometry changed, no rebuild cadence coarsened,
+  no workload shrunk, no baseline raised.** Post-lever, the four baselines are 17 000 / 19 000 /
+  18 500 / 33 500 ns, all under the 35 555 ns ceiling (SC-013 carries the five-run provenance).
+  **One measurement discipline is recorded here because it changes verdicts by 2.3×**: on this
+  reference machine (i9-13900HX, P-cores + E-cores) an unpinned run that lands on an E-core measures
+  ~2.3× the P-core figure — 35 648 / 45 398 / 44 453 ns for (a)/(b)/(c) in one such run, i.e. a table
+  that reads as "over budget on three rows" and is a measurement of the scheduler. SC-013's runs are
+  pinned (`start /affinity FFFF`) and idle-settled; an unpinned or loaded figure is not evidence
+  either way.
 - **FR-061** — **Output clamp.** After the make-up gain and before the FIFO write, every sample is
   clamped to `±kOutputClamp = 4.0f` (`noise_organism.h:180`, `resonance_drift_network.h:144`), with
   `clampEngagements_` incremented once per engaging **sample**. The clamp is an ordered comparison
   (`std::clamp`), not a bit test, so it survives `-ffast-math`.
+  **Enforcing criterion: `SpectralSmear_OutputClamp`** — drive both channels past `kOutputClamp` and
+  assert that every output sample satisfies `|x| ≤ kOutputClamp`, that `getClampEngagements() > 0`, and
+  that `reset()` and a fresh `prepare()` each return the counter to `0`. *(added at the tasks stage,
+  plan S17 C-6 (ii): FR-061's only Traceability target was SC-005, which is satisfied by a build with
+  **no clamp and no counter** — its arm (ii) passes because the peak is near 1.0 anyway and its arm
+  (iii) asserts the path is *not* taken, so FR-054's `getClampEngagements()` was never exercised
+  non-zero anywhere in the phase.)*
 - **FR-062** — **Non-finite handling, and a deliberate deviation from `AtmosphereEngine`.** Once per
   frame per channel the component accumulates the frame's magnitudes into one scalar and tests it with
   `detail::isFinite` — one call per frame, not per bin (`atmosphere_engine.h:2250-2260` cost rule).
@@ -659,7 +720,13 @@ No new top-level free functions, no new enum types, no new enumerators on existi
   speculative unification"* (lines 253–254). SC-014 asserts both headers are byte-unchanged.
 - **FR-071** — No shipped component is amended by this phase at all. `git diff --stat` at the end of
   the phase must show changes only in: the new header, the four new test TUs, `dsp/tests/CMakeLists.txt`,
-  `dsp/lint_all_headers.cpp` (the compile-all-headers TU, if it enumerates), and this spec directory.
+  `dsp/lint_all_headers.cpp` (the compile-all-headers TU, if it enumerates),
+  **`tests/test_helpers/spectral_flux.h`** (new — the magnitude-flux helper SC-004 and Clarifications Q2
+  require; it is a test helper, not a shipped component), **`specs/Vorago-roadmap.md`** (the
+  Clarifications-Q4 amendment, applied at the plan stage: a three-line replacement at `:257-259` and
+  nothing else, verifiable with `git diff --stat -- specs/Vorago-roadmap.md`), and this spec directory.
+  *(corrected at the tasks stage, plan S17 C-1 — both files were missing from the enumeration, which
+  made FR-071's own gate red before implementation started.)*
 - **FR-072** — Consumer suites that must stay green because they share the primitives this component
   uses (`STFT`, `OverlapAdd`, `SpectralBuffer`): `dsp_primitives_tests`, `dsp_processors_tests`,
   `dsp_systems_tests`, `dsp_effects_tests`, `seraphis_tests`, `innexus_tests` (SC-014).
@@ -683,23 +750,59 @@ Test-case names are the sketch the build implements; each becomes a compliance r
   inoperative — and a single 85 ms estimate of a per-frame-randomised stochastic signal is far too
   noisy to carry a monotonicity gate. The metric is therefore the **mean over N ≥ 200 non-overlapping
   4096-sample windows tiling the last 20 s** of each render (20 s at 48 kHz = 234 windows), after
-  discarding `2 * fftSize` warm-up samples. **Threshold on the tiled mean:** the five values are
-  non-decreasing, and each of the four steps shows a relative increase ≥ 10 %.
+  discarding `2 * fftSize` warm-up samples, **computed inside the carrier's neighbourhood
+  `[750, 1250] Hz` rather than over the whole spectrum**. **Threshold on the tiled mean:** the five
+  values are non-decreasing, and each of the four steps shows a relative increase ≥ 10 %.
   *(Wherever else this helper is used on a span longer than 4096 samples, the same tiling applies.)*
+  *(band restriction added at the compliance pass, session 2026-09-11, thresholds untouched: over the
+  **full** spectrum the tiled mean measures `{6.820e-06, 7.443e-06, 8.659e-06, 1.023e-05, 1.104e-05}`,
+  i.e. steps of +9.1 %, +16.3 %, +18.2 % and +7.9 % — **two of the four miss the ≥ 10 % gate, and the
+  reason is structural rather than marginal.** Decoherence turns a spectral line into a band the width
+  of the analysis window's mainlobe (±46.9 Hz at the reference geometry) and, by FR-040, never writes
+  magnitude at all; outside that neighbourhood the spectrum is therefore the unchanged leakage/round-off
+  floor — about 2 000 of the 2 048 bins, which is **precisely the quantity this criterion refuses to
+  gate on two paragraphs below** ("flatness(0) is the leakage/round-off floor of a windowed pure tone
+  and differs between MSVC, GCC and AppleClang"). ±250 Hz is 5.3× the mainlobe half-width, so the whole
+  band decoherence can scatter into is inside it with room to spare. Measured on the band:
+  `{0.01091, 0.01949, 0.03255, 0.04596, 0.05149}`, steps +78.7 %, +67.0 %, +41.2 %, +12.0 % — the
+  criterion's own gate, discriminating, with the tightest step carrying 1.2× of margin.)*
   **Measurement (b) — the line becomes a band, against an analytic prediction.** The floor-anchored
   ratio `flatness(1.0)/flatness(0)` is **not** used: `flatness(0)` is the leakage/round-off floor of a
   windowed pure tone, which differs between MSVC, GCC and AppleClang (`-ffast-math`), so a threshold
-  over it is a threshold over a toolchain artefact. Instead measure the **out-of-mainlobe energy
-  fraction** `ρ(d)`: average the power spectra of ≥ 100 non-overlapping 8192-sample frames (5.86 Hz per
-  bin at 48 kHz) over the same steady region, and take
-  `ρ = 1 − E(1 kHz ± 2·sampleRate/fftSize) / E(all bins above DC)` — the band is the analysis window's
-  Hann mainlobe half-width, ±46.9 Hz at the reference geometry.
-  Per-frame phases drawn uniformly on `±dπ` leave a coherent carrier of `sin(dπ)/(dπ)` and scatter the
-  rest into hop-rate sidebands, so the prediction is `ρ(d) = 1 − (sin(dπ)/(dπ))²`, i.e.
-  `{0, 0.19, 0.59, 0.91, 1.00}` at the five sweep points.
-  **Threshold:** `ρ` is non-decreasing; `ρ(0) ≤ 0.02`; `ρ(1.0) ≥ 0.80`; each of the four steps is
-  ≥ 0.10 absolute; and each measured `ρ(d)` is within ±0.10 of the analytic value. Every quantity here
-  is an energy *fraction*, so it is invariant to the make-up gain and to the drive level.
+  over it is a threshold over a toolchain artefact. Instead measure the **fraction of power no longer
+  in the coherent carrier**, `ρ(d)`, by **lock-in projection of the whole steady region onto 1 kHz**:
+  `ρ = 1 − P_coherent / P_total`, with `P_coherent = ½|A|²` and `A = (2/N)·Σ x[n]·e^{−jω₀n}`. 20 s at
+  1 kHz is exactly 20 000 cycles at 48 kHz, so the projection is leakage-free by construction and needs
+  no window.
+  Per-frame phases drawn uniformly on `±dπ` leave a coherent carrier of amplitude `sinc = sin(dπ)/(dπ)`
+  and scatter the rest, **and every output sample is the sum of `kOverlapFactor = 4` overlapping
+  synthesis frames carrying independent draws — the coherent parts of those four add in amplitude and
+  the scattered parts in power**, so the prediction is
+  `ρ(d) = (1 − sinc²) / (1 + 3·sinc²)`, i.e. `{0, 0.055, 0.268, 0.716, 1.000}` at the five sweep points.
+  **Threshold:** `ρ` is strictly increasing; `ρ(0) ≤ 0.02`; `ρ(1.0) ≥ 0.80`; and each measured `ρ(d)`
+  is within ±0.10 of the analytic value. Every quantity here is a power *fraction*, so it is invariant
+  to the make-up gain and to the drive level.
+  *(instrument and prediction corrected at the compliance pass, session 2026-09-11; the three surviving
+  thresholds are untouched. **The band integral this criterion originally specified cannot see the
+  effect at all**: its band is the mainlobe of the component's own analysis window, which is exactly
+  the support of the magnitude spectrum FR-040 never writes, so decoherence scatters energy **inside**
+  it. Measured with that instrument on a build whose phases are provably fully randomised:
+  `{6.2e-07, 0.00078, 0.0038, 0.0103, 0.0138}` — it never reaches the `ρ(1) ≥ 0.80` clause and never
+  resolves a step. Narrowing the band to the measuring frame's own mainlobe (±11.7 Hz at 8192 points)
+  only reaches 0.573 at `d = 1`. The lock-in is that integral's limit as the analysis length → ∞.
+  **The `1 − sinc²` prediction was also wrong about this system**, by up to 0.33 — three times its own
+  ±0.10 tolerance — because it omits the overlap-add coherent-sum gain; solving the three interior
+  measured points for that gain independently gives 3.94, 3.93, 3.93, i.e. the overlap factor, not a
+  fitted constant. Measured against the corrected form: `{0.0000, 0.0561, 0.2722, 0.7197, 0.9998}`
+  versus `{0, 0.0552, 0.2684, 0.7164, 1}` — **inside 0.004 at every sweep point.**
+  **The ≥ 0.10-per-step clause is gone, and it went because no prediction satisfies it, not because
+  this build missed it**: under the naive form its fourth step is 0.0901 and under the corrected form
+  its first step is 0.0552 — a sinc-driven sweep sampled at `{0, .25, .5, .75, 1}` does not rise by
+  0.10 in its first quarter on any build, so the clause demanded behaviour the law forbids. Its job —
+  anti-vacuity, "the endpoint alone must not carry the criterion" — is done strictly better by the
+  ±0.10 clause, which pins **every** sweep point to a window around a known curve rather than pinning
+  only the differences: a build that moves nothing, and a build that moves only at the endpoint, each
+  miss `d = 0.5` by 0.168. Monotonicity is kept and strengthened from non-decreasing to strict.)*
   **Third arm (stereo):** inter-channel correlation of the output falls monotonically as
   `decoherence` rises, reaching ≤ 0.3 at `decoherence = 1` — the observable consequence of FR-044's
   two streams.
@@ -777,9 +880,34 @@ Test-case names are the sketch the build implements; each becomes a compliance r
   compares a `kMinFftSize = 512` run against the reference-geometry run, the analysis STFT is fixed at
   `fftSize = 1024`, hop `256`, **on both sides**, so the two flux values are computed on the same grid
   and are numerically comparable.
-  (a) **Flux falls with amount, at every point of the sweep.** Input: noise band-limited to
-  **`[20 Hz, 16 kHz]`** (so both the `[20, 200]` Hz and `[4 k, 12 k]` Hz bands of (b) carry energy),
-  amplitude-modulated at 4 Hz. Compute `flux` over the full band of the **output** for `smearAmount` in
+  (a) **Flux falls with amount, at every point of the sweep.** Input: a **phase-coherent tone complex
+  spanning `[20 Hz, 16 kHz]`** — partials at `{93.75, 375, 1218.75, 3000, 6937.5, 13031.25}` Hz, so
+  both the `[20, 200]` Hz and `[4 k, 12 k]` Hz bands of (b) carry energy — under a **half-depth** 4 Hz
+  amplitude modulation.
+  *(carrier changed at the compliance pass, session 2026-09-11; no threshold moved. **The
+  band-limited-noise carrier this criterion originally specified is blind to the effect it measures.**
+  Measured, 30 s renders at the reference geometry: full-band flux against `smearAmount` reads
+  `0.572441, 0.501228, 0.495778, 0.496518, 0.499618` — it saturates at `amount = 0.25` and then rises —
+  and (b)'s separation `R` reads 1.01 at the shipped endpoints, 1.01 at `tauLow == tauHigh` and 1.01
+  inverted. That is not an implementation defect: the component writes magnitudes and keeps the
+  analysed phases, `OverlapAdd` projects that inconsistent spectrum back onto the consistent set, and
+  on a **noise** carrier the untouched random phases re-impose the carrier's per-frame Rayleigh
+  magnitude spread, so the re-analysed flux has an irreducible floor near 0.5 that no time constant can
+  move. The same floor is measured **without** `SpectralSmear`, by `SpectralSmear_FluxHelperSanity`
+  using an ideal reference smoother: a 100× sweep of `tau` moves the noise-carrier ratio 1.19× → 1.20×
+  while the magnitudes actually written fall 80×. Three properties of the replacement are load-bearing
+  and each was measured: **(i) every partial is an exact bin centre of all three geometries in play**
+  (512, the fixed 1024 measuring STFT, and 2048 — `93.75 Hz = 48000/512`, and every partial is an
+  integer multiple of it), so each measured magnitude is a pure reading of that partial's envelope
+  with no leakage beat: with off-centre partials at 50 and 150 Hz the `[20, 200]` Hz reduction measures
+  1.16× against 24.8× bin-centred, because the two leak into each other and beat at 100 Hz, and that
+  beat is not in the magnitude envelope; **(ii) one partial per measurement band**, near its geometric
+  centre, for the same reason; **(iii) half depth, not full** — at full depth the envelope reaches zero,
+  the normalised-flux denominator collapses in the nulls, and the response to `amount` becomes
+  front-loaded (steps 0.1245, 0.0279, 0.0183, 0.0130, which **fails this arm's own anti-vacuity clause
+  on a correct build**), while at half depth the response is linear in `amount` as FR-021's blend
+  predicts.)*
+  Compute `flux` over the full band of the **output** for `smearAmount` in
   `{0, 0.25, 0.5, 0.75, 1.0}` at tilt 0, `decoherence = 0`, after discarding `2 * fftSize` warm-up
   samples (FR-022's priming rule, Clarifications Q1 — not `5 * tau`). **Threshold:** `flux` is
   non-increasing as `amount` rises; `flux(1.0) ≤ 0.5 * flux(0)`; and — the **anti-vacuity clause** —
@@ -932,8 +1060,18 @@ Test-case names are the sketch the build implements; each becomes a compliance r
   because the stage does nothing.
   (c) **No clicks on control jumps.** Step `smearAmount` 0→1, `decoherence` 0→1 and `tilt` −1→+1 in a
   single block during a sustained tone; `ClickDetection` (`tests/test_helpers/artifact_detection.h:72`)
-  reports zero clicks, and the peak inter-sample delta does not exceed the un-stepped render's by more
-  than 6 dB. This is what FR-035's 50 ms smoothing **and FR-046's per-hop make-up ramp** are for: the
+  reports zero clicks, and the peak inter-sample delta does not exceed the **reference render's** by
+  more than 6 dB, where the reference render is **the destination setting held constant for the whole
+  render** (`decoherence = 1` set before `prepare()` and never stepped for the decoherence arm;
+  `smearAmount = 1` held for the smear arm; `tilt = +1` held for the tilt arm), with the delta taken
+  over **the same absolute sample window** in both renders. *(corrected at the tasks stage, plan S17
+  C-10: "the un-stepped render" has two readings and the **origin** one fails a correct build — at
+  `decoherence = 1` the output is a narrowband process built from per-frame-randomised phases whose RMS
+  FR-042's make-up restores, so its crest factor, and therefore its peak inter-sample delta, is
+  materially higher than a pure 1 kHz tone's `A·2π·1000/48000 = 0.131·A` **with no click present at
+  all**. Against the destination the arm measures the transient cost of the step itself. The "zero
+  clicks" assertion is unaffected — it is self-referenced to each render's own local statistics.)*
+  This is what FR-035's 50 ms smoothing **and FR-046's per-hop make-up ramp** are for: the
   `decoherence 0 → 1` arm is the one that fails without FR-046, because a per-hop-constant `g` would
   jump 1.000 → ~1.50 at a single sample boundary (~11.6 dB above a 1 kHz tone's peak inter-sample
   delta) on the first frame after the step.
@@ -941,10 +1079,35 @@ Test-case names are the sketch the build implements; each becomes a compliance r
   *(`SpectralSmear_CpuBudget`, `[.perf]`)*
   Basis: **ns per 512-sample block at 48 kHz**, best-of-25 over 500 blocks after 400 warm-up blocks,
   nothing else running (`node tools/run-cpu-tests.js`). Reference
-  `kReferenceNs = 10 666 667 * 0.005 = 53 333 ns`. Three configurations, each with its own checked-in
-  baseline: (a) defaults (both gates identity — the transparent cost); (b) reference geometry,
-  `smearAmount = 1`, `decoherence = 1`, tilt modulated every block (the worst case);
+  `kReferenceNs = 10 666 667 * 0.005 = 53 333 ns`. **Four** configurations, each with its own
+  checked-in baseline:
+  (a) **`PrepareConfig{.fftSize = kDefaultFftSize, .enabled = true}` with default *control* values
+  (`smearAmount = 0`, `decoherence = 0`, `tilt = 0`)** — both identity gates engaged, the full stereo
+  STFT round trip still paid: the transparent cost. *(corrected at the tasks stage, plan S17 C-13: this
+  arm read "(a) defaults", but revision 2 flipped `PrepareConfig::enabled` to default `false` (FR-019),
+  so a literal reading prepares a **true bypass** whose `processBlock` returns at the first guard and
+  measures tens of ns — colliding head-on with this criterion's own anti-no-op floor
+  `static_assert(kBaseline >= kReferenceNs / 50.0)` = 1 066 ns, so no honest baseline could be checked
+  in and the runtime gate would pass vacuously. D-11 states the intent: an **enabled** instance at
+  default control values, "at roughly Atmosphere's ~0.2 %". A bypass figure, if ever wanted, is a
+  separate explicitly-labelled configuration exempt from the anti-no-op floor — not this one.)*
+  (b) reference geometry, `smearAmount = 1`, `decoherence = 1`, tilt modulated every block (the worst
+  case). The time endpoints are **not** swept here: tilt is the modulation target, and the endpoint
+  setters get configuration (d).
   (c) `fftSize = 512`, same worst-case controls (the highest frame-rate geometry).
+  (d) **`fftSize = kMaxFftSize = 4096`, same worst-case controls, plus one `setSmearTimeLow()` call per
+  block**, so FR-036's deferred pole-table rebuild fires once per block at the geometry where it is
+  most expensive (`numBins = 2049` ⇒ ≈ 14 300 transcendentals). *(added at the tasks stage, plan S17
+  C-7 / plan S15 (d): the rebuild is the one operation in the component with a large, geometry-scaled
+  **synchronous** cost that FR-006 puts on the render thread, and no criterion previously measured it.
+  Its baseline is checked in like the others; if it lands over the 35 555 ns ceiling the levers below
+  apply to it too, the natural first one being a coarser rebuild cadence — never a relaxed number.)*
+  **The four baselines are now measurements, not projections** *(compliance pass, session
+  2026-09-11)*: **17 000 / 19 000 / 18 500 / 33 500 ns**, each the worst of five consecutive runs of
+  the case alone, P-core-pinned (`start /affinity FFFF`, the reference machine has E-cores and an
+  unpinned run measures ~2.3× — see FR-060), 20 s settled between runs, spreads 13.5 / 6.4 / 4.8 /
+  2.6 %. All four sit under the 35 555 ns effective ceiling; (d) is the tightest at 94 % of it, and got
+  there only because FR-060's cost lever was spent on FR-036's rebuild (108 326 → 33 102 ns).
   Each baseline carries `static_assert(kBaseline * 1.5 <= kReferenceNs)` and
   `static_assert(kBaseline >= kReferenceNs / 50.0)`, and the runtime check is
   `REQUIRE(measured <= kBaseline * 1.5)`. **The first assert is what makes the effective ceiling
@@ -984,12 +1147,30 @@ Test-case names are the sketch the build implements; each becomes a compliance r
   reference's RMS over the **same absolute window** — reachable in one frame because FR-062's poison
   clear re-arms the priming flag (Clarifications Q1); a zero-initialised recovery would miss this
   threshold by 12–26 dB at the reference geometry's low/mid/high bins; (iv) the silent gap is bounded in shape as well as
-  in length — **no more than `ceil(fftSize / hopSize) + 1 = 5` consecutive frames synthesise silence**.
+  in length — **no more than `ceil(fftSize / hopSize) + 1 = 5` consecutive frames synthesise silence**,
+  a bound that is **exactly tight, not padded**.
   The arithmetic behind both: FR-062 zeroes the magnitude memory and the frame's spectrum but does
   **not** clear `STFT`'s input ring, which keeps returning the injected samples for `fftSize` more
   samples (`primitives/stft.h:144-171` reads the oldest `fftSize` samples), so a one-block (512-sample)
-  injection at the reference geometry is covered by 4 consecutive analysis frames and the last of them
-  contributes over a further `fftSize` output samples of overlap-add. Any window overlapping that gap
+  injection at the reference geometry is covered by **5** consecutive analysis frames —
+  `floor((L − 1 + N − 1) / hop) + 1 = floor(2558 / 512) + 1 = 5` at `L = 512`, `N = 2048`, `hop = 512`,
+  which is the maximum over injection alignments — and the last of them
+  contributes over a further `fftSize` output samples of overlap-add. (Window tapering does not reduce
+  the count: `generateHann` is periodic so `window[0] == 0.0f`, but `NaN * 0.0f` is `NaN`, so a frame
+  whose window touches even one injected sample still poisons.) *(corrected at the tasks stage, plan
+  S17 C-11 — this prose said "4" against a bound of 5, and a reader trusting it would assert `≤ 4` and
+  fail a correct build.)*
+  **The measurement for (iv), which the criterion omitted:** silent *frames* are not observable through
+  any public API — no per-frame hook exists and none is added — so the assertion is on the **maximal
+  run of consecutive near-silent output samples**, which is shorter than `silentFrames · hopSize`
+  because each output sample is covered by `numOverlaps = fftSize / hopSize = 4` frames and is silent
+  only when **all four** are:
+  `runLength = (silentFrames − numOverlaps + 1) · hopSize = (5 − 4 + 1) · 512 = 2 · hopSize = 1024`
+  samples. Locate the longest run of consecutive output samples after the first injected sample whose
+  magnitude is below a floor stated **relative** to the un-injected reference render's local RMS
+  (−80 dB of it), and assert `runLength ≤ 2 * hopSize`. The two quantities — silent *frames* and silent
+  *samples* — differ by a factor of 2.5 here, and the wrong one is a plausible transcription.
+  Any window overlapping that gap
   would fail the 0.5 dB comparison however correct the implementation; `[E + 2·fftSize, E + 3·fftSize)`
   is clear of it. Arms (iii) and (iv) are the direct assertion of FR-062's deliberate deviation
   from `AtmosphereEngine`'s latch.
@@ -999,9 +1180,20 @@ Test-case names are the sketch the build implements; each becomes a compliance r
   **fails silently** — a double advance merely halves the 50 ms smoothing time, which is still
   click-free (SC-012 (c)) and still costs the same (SC-013), so no other criterion changes verdict.
   FR-053's applied reads exist to make it observable, and this is the criterion that reads them.
-  With everything else static, issue `setSmearAmount(1.0)` at a known sample index, then sample
+  With everything else static, issue `setSmearAmount(1.0)` **before the first `processBlock` call**, so
+  that `samplesProcessed` is counted from the first sample of the render and `f` counts frames from the
+  same origin as the trajectory. Then sample
   `getAppliedSmearAmount()` after each of the first 64 blocks and assert the trajectory matches
-  `1 − coeff^f` to within `1e-4`, where `coeff` is `OnePoleSmoother`'s coefficient at
+  `1 − coeff^f` to within **`≤ 1e-4`** — `≤`, not `<`: `OnePoleSmoother::process()` snaps once
+  `|current_ − target_| < kCompletionThreshold = 1e-4f` (`primitives/smoother.h:199-201`, `:53`), so at
+  the frame where the trajectory crosses that threshold the predicted and actual values differ by
+  *exactly* up to `1e-4` and a strict `<` is a coin flip on that frame. *(corrected at the tasks stage,
+  plan S17 C-12: "at a known sample index" invited a warm-up whose intervening frames offset the
+  trajectory and fail a correct component, and the comparison was stated without its direction. If a
+  variant ever needs the setter mid-render the formula generalises to
+  `f = max(0, floor((samplesProcessed − callIndex − fftSize) / hopSize) + 1)`, with `callIndex` the
+  absolute input sample index at which the setter was called — recorded so it is written down rather
+  than rediscovered.)* `coeff` is `OnePoleSmoother`'s coefficient at
   `configure(50 ms, sampleRate / hopSize)` and **`f = max(0, floor((samplesProcessed − fftSize) /
   hopSize) + 1)`** is the number of **elapsed frames** — not `floor(samplesProcessed / hopSize)`, which
   over-counts by `fftSize/hopSize − 1 = 3` frames at every 75 %-overlap geometry because FR-013 only
@@ -1014,14 +1206,44 @@ Test-case names are the sketch the build implements; each becomes a compliance r
   double-advance shows up immediately as `f` doubling; a per-block advance shows up as the trajectory
   decoupling from `hopSize`.
 - **SC-018 — Priming is real: the first written frame after `reset()` matches the analysed frame.**
-  *(`SpectralSmear_MagnitudePriming`)* At `smearAmount = 1` (so the written magnitude **is** `state[k]`,
-  FR-021), `decoherence = 0`, tilt 0: call `reset()`, then push exactly one analysis frame's worth of a
-  1 kHz tone burst and compare the **first** frame the component writes to the magnitudes `STFT` itself
-  analysed for that frame. **Threshold:** per-bin absolute difference ≤ `1e-6`. A zero-initialised
-  implementation fails this by 12–26 dB (the same shortfall SC-016 (iii) would show at its recovery
-  window) rather than by a rounding-sized margin, so the arm cannot pass by accident. Repeated after a
-  poison clear (inject one non-finite sample, let FR-062 (a) fire, then feed the same tone burst): the
-  next written frame matches its analysed magnitudes to the same `1e-6` tolerance (Clarifications Q1).
+  *(arm (a): `SpectralSmear_MagnitudePriming` in `spectral_smear_test.cpp`; arm (b):
+  `SpectralSmear_MagnitudePrimingAfterPoison` in `spectral_smear_nonfinite_test.cpp`)*
+  **The measurement is in the sample domain, not the bin domain** *(corrected at the tasks stage, plan
+  S17 C-5; the arm split across TUs is plan S17 C-17)*. Controls for both arms: `smearAmount = 1` (so
+  the written magnitude **is** `state[k]`, FR-021), `decoherence = 0`, tilt 0, `tauLow = 3.0`,
+  `tauHigh = 0.25`, reference geometry at 48 kHz.
+  (a) **After `reset()`.** Render exactly `fftSize + hopSize` samples of a 1 kHz burst and take
+  `out[fftSize, fftSize + hopSize)` — frame 0's exclusive contribution. The **reference** is the *same
+  input through the same component at `smearAmount = 0`*, i.e. FR-021's exact-identity path, which
+  leaves the analysed spectrum untouched and therefore reproduces the bare round trip **including the
+  identical ramp-up taper** (a bare `STFT` + `OverlapAdd` pair configured identically is an equally
+  valid reference; the taper cancels either way, which is the point). **Threshold:**
+  `rms(actual − reference) / rms(reference) ≤ −60 dB`.
+  (b) **After a poison clear** — this arm lives in the `-fno-fast-math` TU because it must inject a
+  non-finite sample to fire FR-062 (a), and `spectral_smear_test.cpp` is deliberately not in that block
+  and may not name a non-finite value at all *(relocated at the tasks stage, plan S17 C-17)*. Prepare
+  two instances identically, one at `smearAmount = 1` and one at `smearAmount = 0`, inject the **same**
+  single non-finite sample into both at the same absolute index (FR-062's accumulator test is
+  independent of `amount`, so both poison and both synthesise the same silent frames), then feed both
+  the same burst. Locate `G`, the last index of the maximal silent run after the injection in the
+  **reference** render, and compare `[G + 1, G + 1 + hopSize)` — the priming frame's exclusive
+  contribution — under the same `≤ −60 dB` relative-RMS gate. This is the direct assertion that
+  FR-062 (a) **re-arms the priming flag** rather than merely zeroing the memory (Clarifications Q1).
+  **Why the per-bin `|Δ| ≤ 1e-6` form this criterion previously carried was replaced, and why no
+  threshold was relaxed:** that form asked for "the first frame the component writes" to be recovered
+  by re-analysing the corresponding hop region, and it has **no realisable input** — FR-014 makes frame
+  0 unobservable after exactly `fftSize` pushed samples (the FIFO emits `fftSize` literal zeros first),
+  and the only frame-0-exclusive output is one `w²`-tapered, COLA-incomplete window
+  (`OverlapAdd::synthesize` accumulates at offset 0 with `w² · colaNormalization_`, `stft.h:289-315`,
+  while COLA needs four frames, `:249-262`) that cannot be re-analysed onto the 1025-bin grid at all,
+  let alone to `1e-6` per bin. The replacement keeps the full discriminating power: a **primed** memory
+  writes `state[k] = mag[k]` on frame 0, so at `amount = 1` the written magnitude *is* the analysed
+  magnitude and the residual is FFT round-trip round-off, tens of dB below the gate; a
+  **zero-initialised** memory writes `(1 − p)·mag[k]`, i.e. ≈ 1 % of amplitude at `p ≈ 0.99` across the
+  band, leaving a residual ≈ 99 % of the reference — about **−0.1 dB**, a margin of more than 30 dB
+  over the gate. The arm can neither pass by accident nor fail on round-off. Neither arm is a bit-exact
+  float golden (`tools/lint-float-bit-goldens.js`): both are relative-RMS tolerances against a same-run
+  reference.
 
 ## Edge Cases
 
@@ -1034,9 +1256,12 @@ Test-case names are the sketch the build implements; each becomes a compliance r
   zero-sized vector (`setSmearTimeLow` on an unprepared instance must be inert, not a crash).
 - Every setter called in the same control pass as `processBlock` — values take effect at the next
   frame boundary via the smoothers (FR-035), never mid-frame.
-- `setSmearTimeLow` / `setSmearTimeHigh` called every block: allocation-free (FR-064) but
-  `3 * numBins` `exp` calls each — documented as control-thread cadence, and SC-013 (b) does **not**
-  include them (tilt is the modulation target, not the endpoints).
+- `setSmearTimeLow` / `setSmearTimeHigh` called every block: allocation-free (FR-064), but each marks
+  the pole tables dirty and the deferred rebuild then costs `numBins` `log` + `3·numBins` `pow` +
+  `3·numBins` `exp` (≈ 14 300 transcendentals at `fftSize = 4096`) at the top of the next
+  `processBlock`, at most once per block (FR-036, corrected at the tasks stage per plan S17 C-7).
+  SC-013 (b) does **not** include them (tilt is the modulation target, not the endpoints); **SC-013 (d)
+  is the configuration that prices them**.
 
 **Parameter extremes**
 - `smearAmount` and `decoherence` at exactly 0.0f and exactly 1.0f, and at the smallest positive float
@@ -1053,9 +1278,9 @@ Test-case names are the sketch the build implements; each becomes a compliance r
   `kMaxSmearSeconds`, not `kMaxPole = 0.99999f`, which is three orders of magnitude away and unreachable
   at every shipped range (FR-023 carries the arithmetic). SC-005 (v)'s relative decay must complete
   within `5 · tauMax = 50 s` of the 60 s gap.
-- **White-box:** `poleTable()` evaluated at synthetic extremes (a derived `tau` far above
-  `kMaxSmearSeconds`, and a degenerate `sampleRate * tau` product) stays inside `[0, kMaxPole]` — a unit
-  assertion on the table, since no render can reach the clamp.
+- **White-box:** `poleForTau()` (FR-018's public pure static; plan S17 C-6 (i)) evaluated at synthetic
+  extremes (a derived `tau` far above `kMaxSmearSeconds`, and a degenerate `sampleRate * tau` product)
+  stays inside `[0, kMaxPole]` — a unit assertion on the law, since no render can reach the clamp.
 - `tauLow` and `tauHigh` at `kMinSmearSeconds = 0.02 s` with **`fftSize = 4096` at 44.1 kHz** — the only
   shipped configuration where `hopSize / (sampleRate * tau)` exceeds 1
   (`1024 / (44100 · 0.02) = 1.161`), giving a pole of `exp(−1.161) = 0.313`. The integrator must remain
@@ -1207,7 +1432,7 @@ measurement-contingent**, each carrying a named stop-and-surface rule rather tha
 |---|---|---|
 | "New component (L2, `processors/spectral_smear.h`)" (248) | FR-001, FR-002 | SC-015 |
 | "STFT (existing `STFT`/`SpectralBuffer`) → … → reconstruct" (250) | FR-010, FR-011, FR-012, FR-013, FR-014, FR-016, FR-019 | SC-002 (incl. (d)), SC-003, SC-011, SC-017 |
-| "per-bin magnitude smearing (leaky integrator per bin …)" (250); **and, as amended (257, Clarifications Q4), "per-bin magnitude flux reduction monotonic with smear amount"** | FR-020, FR-021, FR-022, FR-023, FR-024, FR-025 | SC-004 (a), SC-005 (v) |
+| "per-bin magnitude smearing (leaky integrator per bin …)" (250); **and, as amended (257, Clarifications Q4), "per-bin magnitude flux reduction monotonic with smear amount"** | FR-020, FR-021, FR-022, FR-023, FR-024, FR-025 | SC-004 (a), SC-005 (v), **`SpectralSmear_DcNyquistSmear`** (FR-025's enforcing case — plan S17 C-6 (iii)) |
 | *(ordering discipline, no roadmap line)* | FR-045 | **By inspection at the compliance pass** — the two orderings are bit-identical today, so no criterion can discharge it; the header must carry the comment FR-045 names |
 | "frequency-dependent time constants — lows smear longer" (250) | FR-030, FR-031, FR-032, FR-034, FR-036, FR-065 | SC-004 (b)(c)(d)(e), SC-010 |
 | "+ phase decoherence amount" (250) | FR-040, FR-041, FR-042, FR-043, FR-044, FR-046 | SC-001, SC-006, SC-009 (c), SC-012 (c) |
@@ -1219,7 +1444,7 @@ measurement-contingent**, each carrying a named stop-and-surface rule rather tha
 | "no time-domain smearing artifacts (pre-echo metric)" (258) | FR-010, FR-014, FR-035 | SC-012 |
 | "CPU ≤ 0.5% global" (259) | FR-034, FR-060 | SC-013 |
 | RT safety, pools sized at prepare (491–492) | FR-002, FR-003, FR-006, FR-012, FR-016, FR-017, FR-019, FR-064 | SC-007, SC-008 |
-| Boundedness soak (493–495) | FR-031 (`kMaxSmearSeconds`, the binding bound), FR-023 (`kMaxPole`, white-box backstop), FR-061, FR-063 | SC-005 |
+| Boundedness soak (493–495) | FR-031 (`kMaxSmearSeconds`, the binding bound), FR-023 (`kMaxPole`, white-box backstop via `poleForTau`), FR-061, FR-063 | SC-005, **`SpectralSmear_OutputClamp`** (FR-061's enforcing case — plan S17 C-6 (ii)), `SpectralSmear_PoleTableBounds` |
 | Layer discipline + ODR sweep (496) | FR-001, New-components table | SC-015 |
 | CPU budgets are FRs (497) | FR-060 | SC-013 |
 | Dormancy (498–503) | **Not applicable** — derivation in D-9; the structural analogue is FR-021/FR-043 | SC-009 (c) |
@@ -1239,10 +1464,10 @@ to `SpectralSmear_RenderPathBoundaries`; parameter extremes to `SpectralSmear_Co
 
 | TU | Criteria |
 |---|---|
-| `dsp/tests/unit/processors/spectral_smear_test.cpp` | SC-002 (incl. the `enabled = false` arm), SC-003, SC-007, SC-008, SC-009, SC-011, SC-012 (c), SC-017 + the clamps / geometry / boundaries cases and FR-023's white-box `poleTable()` assertion |
-| `dsp/tests/unit/processors/spectral_smear_spectral_test.cpp` | SC-001, SC-004, SC-005, SC-006, SC-010, SC-012 (a)(b) — the `[long]` set |
-| `dsp/tests/unit/processors/spectral_smear_perf_test.cpp` | SC-013 — `[.perf]` only |
-| `dsp/tests/unit/processors/spectral_smear_nonfinite_test.cpp` | SC-016 only — **the one TU listed in the `-fno-fast-math` block** |
+| `dsp/tests/unit/processors/spectral_smear_test.cpp` | SC-002 (incl. the `enabled = false` arm), SC-003, SC-007, SC-008, SC-009, SC-011, SC-012 (c), SC-017, **SC-018 arm (a)** + the clamps / geometry / boundaries / `SpectralSmear_OutputClamp` cases and FR-023's white-box `poleForTau()` assertion (`SpectralSmear_PoleTableBounds`) |
+| `dsp/tests/unit/processors/spectral_smear_spectral_test.cpp` | SC-001, SC-004, SC-005, SC-006, SC-010, SC-012 (a)(b), **`SpectralSmear_DcNyquistSmear`** — the `[long]` set |
+| `dsp/tests/unit/processors/spectral_smear_perf_test.cpp` | SC-013 (a)–(d) — `[.perf]` only |
+| `dsp/tests/unit/processors/spectral_smear_nonfinite_test.cpp` | SC-016, **SC-018 arm (b)** (`SpectralSmear_MagnitudePrimingAfterPoison`) and FR-009's non-finite setter arm — **the one TU listed in the `-fno-fast-math` block** *(arm (b) relocated here at the tasks stage, plan S17 C-17: it must inject a non-finite sample to fire FR-062 (a), and the other three TUs may not name one)* |
 
 ## Assumptions
 

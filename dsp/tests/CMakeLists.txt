@@ -291,6 +291,24 @@ add_executable(dsp_processors_tests
     unit/processors/vorago_p1_perf_test.cpp
     unit/processors/vorago_p1_longrun_test.cpp
     unit/processors/vorago_p1_harness.cpp
+    # Vorago Phase 4 (specs/vorago-phase4-spectral-smear): SpectralSmear.
+    # This list is ENUMERATED, not globbed - an unregistered TU silently drops
+    # out of the build and its cases never run.
+    #   spectral_smear_test.cpp           SC-002, SC-003, SC-007, SC-008, SC-009,
+    #                                     SC-011, SC-012 (c), SC-017, SC-018 (a)
+    #                                     + geometry / clamps / boundaries /
+    #                                       pole-bounds / output-clamp cases
+    #   spectral_smear_spectral_test.cpp  SC-001, SC-004, SC-005, SC-006, SC-010,
+    #                                     SC-012 (a)(b), SpectralSmear_TimeConstantLaw,
+    #                                     SpectralSmear_DcNyquistSmear, the flux
+    #                                     helper sanity case  -- the [long] set
+    #   spectral_smear_perf_test.cpp      SC-013 (a)-(d), [.perf] only
+    #   spectral_smear_nonfinite_test.cpp SC-016, SC-018 (b), FR-009's non-finite
+    #                                     setter arm -- the ONE -fno-fast-math TU
+    unit/processors/spectral_smear_test.cpp
+    unit/processors/spectral_smear_spectral_test.cpp
+    unit/processors/spectral_smear_perf_test.cpp
+    unit/processors/spectral_smear_nonfinite_test.cpp
 )
 
 target_link_libraries(dsp_processors_tests
@@ -818,6 +836,20 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         # ships in. The perf TU must stay out too: -fno-fast-math would change the
         # figures its baselines are pinned to.
         unit/systems/resonance_drift_network_nonfinite_test.cpp
+        # Vorago Phase 4: this TU owns EVERY non-finite value in the phase -
+        # SC-016's NaN/Inf audio injection, SC-018 (b)'s poison-then-reprime arm,
+        # and FR-009's non-finite setter arm - because all three build their values
+        # from bit patterns through a volatile sink and need IEEE semantics to
+        # assert on them. ONLY this one of the four Phase 4 TUs is listed; the
+        # other three must NOT be, and none of them may name a non-finite value:
+        # std::numeric_limits<float>::quiet_NaN()/infinity() fold to finite garbage
+        # on the -ffast-math legs, so such a test passes vacuously or reds at
+        # random. spectral_smear_test.cpp and spectral_smear_spectral_test.cpp stay
+        # out so the FR-008/FR-009 guards are proved in the /fp:fast + -ffast-math
+        # mode the header actually ships in (the
+        # resonance_drift_network_test.cpp:38-42 precedent). The perf TU stays out
+        # too: -fno-fast-math would change the figures its baselines are pinned to.
+        unit/processors/spectral_smear_nonfinite_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 
