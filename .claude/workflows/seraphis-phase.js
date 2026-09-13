@@ -491,26 +491,49 @@ for (const group of dispatch.groups) {
     }
   }
 
+  // Honour an implementer's stop-and-surface (ported 2026-09-13 from vorago-phase.js,
+  // where a probe reported status 'blocked' and the loop carried on for 8 h).
+  const blockedHere = implResults.filter(r => r && r.status === 'blocked' && group.tasks.some(t => t.id === r.task_id))
+  if (blockedHere.length) {
+    log(`Group "${group.name}": ${blockedHere.map(r => r.task_id).join(', ')} reported BLOCKED — stopping the stage`)
+    return {
+      stage: 'build', phase: phaseNum, slug: SLUG, status: 'BLOCKED',
+      blocked_group: group.name,
+      blocked_tasks: blockedHere,
+      impl_results: implResults,
+      next: 'A task reported status "blocked" (stop-and-surface). Read its notes, take the decision it asks for, then re-run stage "build" with resumeFromRunId — completed agents replay from cache.',
+    }
+  }
+
   // Build + fix loop after every group so errors localize to the group that caused them.
   phase('Build+Test')
   // Gate-scope narrowing (encoded 2026-08-04 after the Phase 12 fixer loop): a group that
   // touches only this plugin's surface gates on this plugin's targets; the full roster runs
   // when the group touches shared/dsp/root-CMake surface, and always on the final group.
   const isLastGroup = group === dispatch.groups[dispatch.groups.length - 1]
+  // Wide gate (every target) only when a group touches something OTHER phases or
+  // plugins consume: shared DSP layers 0-2, plugins/shared, test helpers, a CMake
+  // file, or the lint TU. A phase's own new header and its own test TUs gate on
+  // the phase's primary targets only; the final group always runs the full set.
+  // Ported 2026-09-13 from vorago-phase.js: the previous rule treated ANY dsp/
+  // path as wide, so every gate of a DSP-library phase ran all suites (~12 min).
   const touchesWide = group.tasks.some(t => (t.files || []).some(f => {
     const p = String(f).replace(/\\/g, '/')
-    return p.includes('dsp/') || p.includes('plugins/shared') || p.includes('tests/test_helpers')
+    return /dsp\/include\/krate\/dsp\/(core|primitives|processors)\//.test(p)
+      || p.includes('plugins/shared') || p.includes('tests/test_helpers')
       || (p.includes('CMakeLists.txt') && !p.includes('plugins/seraphis'))
+      || p.includes('lint_all_headers')
   }))
+  const primaryTargets = dispatch.test_targets.filter(t => /seraphis/i.test(t))
   const gateTargets = (isLastGroup || touchesWide)
     ? dispatch.test_targets
-    : dispatch.test_targets.filter(t => /seraphis/i.test(t))
+    : (primaryTargets.length ? primaryTargets : dispatch.test_targets.slice(0, 1))
   if (gateTargets.length < dispatch.test_targets.length) log(`Gate for "${group.name}" narrowed to: ${gateTargets.join(', ')}`)
   let attempt = 0
   while (attempt < 4) {
     attempt++
     buildLog = await run(
-      `${CONTEXT_LITE}\n\nBuild and test the current tree.${BUILD_CMDS(gateTargets)}\nReport verbatim results. Fix NOTHING — you are a reporter.\n\nGATE SEMANTICS — this gate follows group "${group.name}"; later groups are NOT implemented yet (Phase 8/9 lesson, encoded 2026-08-04 after a Phase 12 fixer loop):\n- A requested cmake target that DOES NOT EXIST yet because the tasks.md task that creates it is in a LATER group is NOT a build failure. Skip it, name it in summary as "not yet created (later group)", and do not set build_ok=false over it. build_ok=false is ONLY for a compile/link error in a target that exists.\n- TDD expected-reds: before reporting tests_ok=false, open ${TASKS} and read the sections for the tasks implemented so far (up to and including group "${group.name}"). A failing case that a task section EXPLICITLY documents as expected-red until a later task lands is NOT a failure: count it as green, and record the case name + the tasks.md line you relied on in summary. Any failing case NOT so documented is a real red.\n\nREPORTING CONTRACT (violations poison the whole pipeline):\n- WAIT for every suite to print its final Catch2 summary line, however long it takes (suites can run several minutes; use foreground commands with generous timeouts).\n- An unfinished or timed-out run is NOT a result: re-run that suite to completion before reporting. NEVER report tests_ok=false because a measurement was incomplete.\n- NEVER return placeholder text in any field. summary must contain the real verbatim summary line per target; tests_ok=false REQUIRES the actual failing test names + assertion output in failures.\n- Hidden-tag tests ([.perf] etc.) are excluded from plain suite runs by design — do not run them with wildcard filters and do not count them.\n(retry-epoch 4: the tree may have been repaired outside the workflow since the last attempt — measure fresh, do not assume prior failures still hold.)`,
+      `${CONTEXT_LITE}\n\nBuild and test the current tree.${BUILD_CMDS(gateTargets)}\nReport verbatim results. Fix NOTHING — you are a reporter.\n\nEXECUTION RULES (a gate died on 2026-09-10 by ignoring these; violating them fails the gate):\n- Run the build and then EACH suite as a FOREGROUND Bash command with timeout 600000, one command per suite, stdout+stderr redirected to a log file, then tail -5 that log.\n- NEVER use run_in_background. NEVER use the Monitor tool. NEVER sleep, echo, poll, or "hold" while waiting — a foreground command returns when the suite is done, so there is nothing to wait for.\n- The moment the last suite's Catch2 summary line is in hand, call StructuredOutput. Do not write prose about waiting; do not defer the call.\n\nGATE SEMANTICS — this gate follows group "${group.name}"; later groups are NOT implemented yet (Phase 8/9 lesson, encoded 2026-08-04 after a Phase 12 fixer loop):\n- A requested cmake target that DOES NOT EXIST yet because the tasks.md task that creates it is in a LATER group is NOT a build failure. Skip it, name it in summary as "not yet created (later group)", and do not set build_ok=false over it. build_ok=false is ONLY for a compile/link error in a target that exists.\n- TDD expected-reds: before reporting tests_ok=false, open ${TASKS} and read the sections for the tasks implemented so far (up to and including group "${group.name}"). A failing case that a task section EXPLICITLY documents as expected-red until a later task lands is NOT a failure: count it as green, and record the case name + the tasks.md line you relied on in summary. Any failing case NOT so documented is a real red.\n\nREPORTING CONTRACT (violations poison the whole pipeline):\n- WAIT for every suite to print its final Catch2 summary line, however long it takes (suites can run several minutes; use foreground commands with generous timeouts).\n- An unfinished or timed-out run is NOT a result: re-run that suite to completion before reporting. NEVER report tests_ok=false because a measurement was incomplete.\n- NEVER return placeholder text in any field. summary must contain the real verbatim summary line per target; tests_ok=false REQUIRES the actual failing test names + assertion output in failures.\n- Hidden-tag tests ([.perf] etc.) are excluded from plain suite runs by design — do not run them with wildcard filters and do not count them.\n(retry-epoch 4: the tree may have been repaired outside the workflow since the last attempt — measure fresh, do not assume prior failures still hold.)`,
       { label: `build:${group.name}:a${attempt}`, phase: 'Build+Test', schema: BUILD_RESULT, model: MECH },
     )
     if (!buildLog) throw new Error('Build agent died — aborting to avoid blind fixes')
