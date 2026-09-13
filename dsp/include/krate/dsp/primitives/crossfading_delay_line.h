@@ -32,8 +32,7 @@
 #include <algorithm>
 #include <cmath>
 
-namespace Krate {
-namespace DSP {
+namespace Krate::DSP {
 
 /// @brief Delay line with click-free delay time changes using two-tap crossfading.
 ///
@@ -204,6 +203,14 @@ public:
         targetDelaySamples_ = clampedDelay;
         tapADelaySamples_ = clampedDelay;
         tapBDelaySamples_ = clampedDelay;
+        // Land on the same steady state reset() leaves (tap A live at 1.0f,
+        // tap B at 0.0f). Before 2026-09-13 a snap taken MID-crossfade kept the
+        // interrupted equal-power gains (e.g. 0.707 / 0.707) forever, so the
+        // line sat at a fixed gain of ~1.41 until the next crossfade completed;
+        // with the taps co-located that is the only observable difference.
+        tapAGain_ = 1.0f;
+        tapBGain_ = 0.0f;
+        activeIsTapA_ = true;
         crossfading_ = false;
         crossfadePosition_ = 0.0f;
     }
@@ -231,6 +238,19 @@ public:
     /// perceived loudness during the transition. This eliminates the -3dB dip
     /// that occurs with linear crossfading at the midpoint.
     [[nodiscard]] float read() noexcept {
+        // Outside a crossfade exactly one tap is live at gain 1.0f and the other
+        // sits at 0.0f (reset, snap and every completion assign the literals), so
+        // the idle tap's interpolated read is pure cost. Reading only the live
+        // tap is value-identical except for the sign of an exact zero (x * 1.0f
+        // + y * 0.0f can turn -0.0f into +0.0f); no tolerance-based criterion in
+        // this repo observes that. Measured 2026-09-13 (Vorago Phase 5 stage
+        // probe): six lines cost 62 091 ns per 512-block at 48 kHz, about half
+        // of it in the idle read.
+        if (!crossfading_) {
+            return delayLine_.readLinear(activeIsTapA_ ? tapADelaySamples_
+                                                       : tapBDelaySamples_);
+        }
+
         // Read from both taps
         const float tapAOutput = delayLine_.readLinear(tapADelaySamples_);
         const float tapBOutput = delayLine_.readLinear(tapBDelaySamples_);
@@ -335,5 +355,4 @@ private:
     double sampleRate_ = 44100.0;
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP

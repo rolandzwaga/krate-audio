@@ -376,7 +376,10 @@ exist with the specified values so a later "tidy-up" cannot move one silently:
   `kDefaultDelayWanderFraction == {0.16, 0.10, 0.06, 0.04, 0.03, 0.02}`.
 * `kDefaultResonanceRt60 == 1.0f`; `kDefaultFilterQ == SVF::kButterworthQ`;
   `kMaxFilterQ == SVF::kButterworthQ`; `kMinFilterQ == SVF::kMinQ`.
-* Governor: `kDefaultGovernorThresholdDb == -6.0f`, `kDefaultGovernorRatio == 8.0f`,
+* Governor: `kDefaultGovernorThresholdDb == -52.0f` (amended at T012 by SC-006's own
+  re-measurement protocol; it read `-6.0f` here and `kMinGovernorThresholdDb` read `-36.0f`, both
+  sized from the input level rather than from FR-043's tracker — see the header's DERIVATION
+  TABLE 3), `kDefaultGovernorRatio == 8.0f`,
   `kGovernorMinGain == 0.05f`, `kGovernorAttackMs == 20.0f`, `kGovernorReleaseMs == 800.0f`.
 * Wander: `kDefaultWanderRateHz == 0.03f`, `kMinWanderRateHz == 0.002f`, `kMaxWanderRateHz == 1.0f`,
   `kMaxDelayWanderFraction == 0.5f`, `kMaxCutoffWanderOctaves == 4.0f`,
@@ -772,9 +775,17 @@ build/windows-x64-release/bin/Release/dsp_systems_tests.exe "FeedbackEcology_*" 
 
 **Test first — `TEST_CASE("FeedbackEcology_SeedDeterminism", "[feedback_ecology]")`, arm (d) only
 (the rest in T015):**
-*Statistical:* over a 120 s render the pairwise Pearson correlation between the twelve **lane target**
-trajectories read through `getLoopTargetDelayMs(i)` / `getLoopTargetCutoffHz(i)` is **below 0.25** for
-every pair. The realised readings must **not** be used — the staircase has near-zero variance and its
+*Statistical:* over a 120 s render the pairwise Pearson correlation between the **per-block first
+differences** of the twelve **lane target** trajectories read through `getLoopTargetDelayMs(i)` /
+`getLoopTargetCutoffHz(i)` is **below 0.25** for every pair, plus a positive control (two lanes on one
+shared stream, read through the two different mappings) **above 0.9**.
+**AMENDED after this task's first build — see spec.md SC-009 (d) for the measurements.** The original
+wording correlated the trajectory LEVELS, which over a 120 s window of 33.3 s-decorrelation-time lanes
+supplies N_eff ≈ 2 samples: twelve provably independent shipped `BrownianDrift` streams measured worst
+|r| = 0.6916 at seed `0x5EED` and 0.5994…0.8894 across 64 base seeds, i.e. the criterion was
+unsatisfiable by any correct implementation. The increments measure 0.0715 / 0.0922 respectively
+against the **unchanged** 0.25 bound, and a shared stream still reports 0.9855.
+The realised readings must **not** be used — the staircase has near-zero variance and its
 correlation is 0/0 or dominated by two quantisation steps.
 *Deterministic:* the twelve `deriveStreamSeed(seed, salt)` values from the S1.6 salt table are
 pairwise **distinct**, computed directly in the test. This is the actual salt-collision guard.
@@ -1098,8 +1109,17 @@ build/windows-x64-release/bin/Release/dsp_systems_tests.exe "FeedbackEcology_*" 
   `render_fingerprint.h` tolerances.
 * **(b)** `reset()` followed by the same render reproduces the first render within the same
   tolerances.
-* **(c)** Two different seeds differ: `compareFingerprints(...).withinTolerance()` is **false** and
-  the mean absolute difference exceeds `100 × kSampleTolerance`.
+* **(c)** Two different seeds differ: `compareFingerprints(...).withinTolerance()` is **false**, the
+  mean absolute difference exceeds **50 % of the reference render's own `meanAbs`**, and it also
+  exceeds `kSampleTolerance` in absolute terms.
+  **AMENDED after this task's first build — see spec.md SC-009 (c) for the measurements.** The
+  original wording floored the difference at `100 × kSampleTolerance` = 0.05 in absolute sample
+  units. The reference patch renders at **RMS 0.0014655 (−56.7 dBFS), meanAbs 0.0011695** — quiet by
+  design, for the same reason `kDefaultGovernorThresholdDb` had to move to −52 dB at T012 — so
+  `mean|a−b| ≤ mean|a| + mean|b| = 0.00234` and the old floor was unsatisfiable by **any**
+  implementation, by 43×. Measured here: `mean|a−b|` = **0.0013306** = **1.138 ×** the render's own
+  meanAbs, against √2 = 1.414 for two statistically independent renders and **0** for a build whose
+  seed never reaches the lanes. The threshold's intent, the render length and the seeds did not move.
 
 **Test first — `FeedbackEcology_SampleRate` render arms (SC-011):** rendered at **44.1, 48, 96 and
 192 kHz** with the reference patch: RMS within **1 dB** across rates, spectral centroid within

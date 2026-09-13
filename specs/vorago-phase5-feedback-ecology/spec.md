@@ -203,7 +203,7 @@ Every row was opened and read in this session; signatures are quoted from the fi
 | `Xorshift32` / `deriveStreamSeed` (L0) | `core/random.h:41` / `:102` | Per-lane RNG streams. `nextFloat()` is bipolar `[-1,+1]` (`:59-63`); `constexpr std::uint32_t deriveStreamSeed(std::uint32_t base, std::size_t salt) noexcept` (`:102-103`) is the lowbias32 finaliser with a guaranteed-non-zero result, load-bearing because `Xorshift32::seed()` silently substitutes its default for 0 (`:73-75`) and two lanes hashing to 0 would collapse onto one stream (`:97-100`). |
 | `OnePoleSmoother` / `LinearRamp` (L1) | `primitives/smoother.h:134` / `:305` | Control smoothing. `LinearRamp`: `configure(float rampTimeMs, float sampleRate) :329`, `setTarget :342`, `getTarget :358`, `getCurrentValue :364`, `[[nodiscard]] float process() :370`, `isComplete :409`, `snapToTarget :414`, `snapTo(float) :421`. `LinearRamp` is the Phase-2/3 choice for gain gates (`noise_organism.h:98`, `resonance_drift_network.h:383-387`) and is what FR-060's 50 ms wake fade and FR-045's governor ramp use; `OnePoleSmoother` is what `SVF`'s internal smoothing already provides. |
 | `detail::isNaN` / `isInf` / `isFinite` / `flushDenormal`, `dbToGain` / `gainToDb` (L0) | `core/db_utils.h:99` / `:260` / `:118` / `:245`, `:293` / `:317` | The `-ffast-math`-proof finiteness tests (bit pattern behind an opaque barrier) and the dB conversions. FR-008 forbids `std::isnan`/`std::isinf`/`std::isfinite`; `tools/lint-nonfinite-symbols.js` enforces it. `detail::constexprLn` (`:156`) over `detail::kLn2` (`:144`) is the constexpr-log idiom FR-012 needs, because `std::log2` is **not** constexpr in C++20 — it compiles as a GCC/MSVC builtin extension and is **rejected by Clang**, breaking the macOS and Linux legs while Windows stays green (`resonance_drift_network.h:255-266`). |
-| `kMaxAudioFreqHz`, `kPi`, `kTwoPi` (L0) | `core/audio_constants.h:25`, `core/math_constants.h:28`, `:32` | Upper cutoff anchor and the RT60↔Q constants. |
+| `kPi`, `kTwoPi` (L0) | `core/math_constants.h:28`, `:32` | The RT60↔Q constants. **`core/audio_constants.h` is deliberately not included** (FR-001): its `kMaxAudioFreqHz` has no user here — the cutoff ceiling is `SVF::kMaxCutoffRatio * fs`. If a later phase introduces a use, the include comes back with that use. |
 | Test helpers | `tests/test_helpers/` | `render_fingerprint.h:58 kSampleTolerance = 5.0e-4f`, `:61 kMetricTolerance = 2.5e-4`, `:63 struct RenderFingerprint`, `:122 compareFingerprints` for SC-010/SC-011; `allocation_detector.h:48 AllocationDetector` / `:111 AllocationScope` for SC-007; `artifact_detection.h:38 ClickDetectorConfig` / `:72 ClickDetection` / `:130 detect(...)` for SC-003; `signal_metrics.h:326 calculateSpectralFlatness`, `:222 calculateCrestFactorDb`; `spectral_flux.h:75 computeMagnitudeFlux`; `statistical_utils.h:41 computeMean` / `:76 computeStdDev`. **There is no coherence helper in the tree** (searched: `tests/test_helpers/*.h`), so SC-002's magnitude-squared-coherence estimator is a new plain function added to `tests/test_helpers/` and reused by every SC-002 arm — the Phase-4 precedent for a missing metric. |
 | Perf-test idiom | `dsp/tests/unit/systems/resonance_drift_network_perf_test.cpp:1-90`; `dsp/tests/unit/systems/atmosphere_engine_perf_test.cpp` | The measurement basis SC-004 inherits: **ns per 512-sample block at 48 kHz** (`:67-76` — "A percent-of-core figure is not reproducible across dev machines or CI runners"), best-of-25 × 500 blocks after 400 warm-up blocks (`:78-84`), tagged `[.perf]` so the per-push CI filter `~[performance]~[perf]~[benchmark]~[!benchmark]~[long]` excludes it, with `static_assert`s on the checked-in baselines so the absolute ceiling is evaluated on every CI leg (`:26-28`). One block period at 48 kHz is **10 666 667 ns**, so the roadmap's 1 %/voice is **106 666 ns/block**. The **stop-and-surface rule** at `:59-65` is inherited verbatim by FR-080. |
 
@@ -245,7 +245,10 @@ result (SC-019).
   `dsp/include/krate/dsp/systems/feedback_ecology.h`, header-only. Its includes reach **down only**:
   `core/db_utils.h`, `core/math_constants.h`, `core/random.h`, `primitives/smoother.h`,
   `primitives/svf.h`, `primitives/biquad.h`, `primitives/crossfading_delay_line.h`,
-  `primitives/dc_blocker.h`, `processors/brownian_drift.h`, `processors/envelope_follower.h`,
+  `primitives/dc_blocker.h`, `primitives/delay_line.h` (for `nextPowerOf2`, `delay_line.h:26`, which
+  `getAllocatedBytes()` calls and which reaches this header today only transitively through
+  `crossfading_delay_line.h:31` — an IWYU or clang-tidy pass on another leg would break it),
+  `processors/brownian_drift.h`, `processors/envelope_follower.h`,
   `processors/resonator_bank.h` (for `rt60ToQ` and the resonator constants only), plus
   `<algorithm> <array> <cmath> <cstddef> <cstdint>`. It includes **no** Layer 3 or Layer 4 header, and
   in particular not `filter_feedback_matrix.h`, `feedback_network.h` or
@@ -463,14 +466,38 @@ result (SC-019).
   the coupling row (FR-035) and for the DC blocker's Nyquist overshoot (FR-014). It is applied
   **once** per circulation, in FR-015's input sum, and appears nowhere else in the per-sample path.
 - **FR-019** — Every loop's five stages are cleared together by one private `clearLoopAudio(i)`:
-  `svf_[i].reset()` (which also snaps the smoother targets via `reset() :277`),
-  `delay_[i].reset()` (`crossfading_delay_line.h:123` — also cancels any crossfade in flight and
-  re-syncs both taps to the target), `resonator_[i].reset()` (`Biquad::reset() :385`, which
+  `svf_[i].reset()` (which also snaps the smoother targets via `reset() :277`), the delay clear
+  described below, `resonator_[i].reset()` (`Biquad::reset() :385`, which
   clears the filter state and leaves the current coefficients — a hard-swap resonator has none of
   `SmoothedBiquad`'s coefficient smoothers to snap, FR-013), `dcBlocker_[i].reset()`, and
   `prevY_[i] = prevOut_[i] = 0.0f` (FR-031's two previous-sample vectors). It is called from
   `prepare()`, `reset()`, the FR-060 sleep edge and the FR-047 non-finite trap, and from nowhere else —
   one owner, so the four paths cannot drift apart.
+  **The delay clear is split by caller thread, and the split is normative.** `delay_[i].reset()`
+  (`crossfading_delay_line.h:123`) is an `std::fill` over the whole power-of-two buffer
+  (`delay_line.h:281-285`) — 131 072 B per loop at 48 kHz and 524 288 B at 192 kHz (FR-082) — and two
+  of the four callers run on the **audio thread**: the FR-063 sleep edge inside the control step and
+  the FR-047 trap inside the per-sample body, where `setNumLoops(6 → 1)` can fire six of them inside
+  one 64-sample control chunk. A single such fill already exceeds the whole chunk's share of FR-080's
+  budget.
+  - `prepare()` and `reset()` — **control-thread** calls with no real-time contract — keep the real
+    O(buffer) `delay_[i].reset()`, and leave no read-mute window open. They are the only
+    paths that leave the buffer literally zeroed, which is what SC-009 (b)'s reset-and-re-render
+    reproducibility needs.
+  - The FR-063 sleep edge and the FR-047 trap — **audio-thread** callers — instead open an **O(1)
+    read-mute window of exactly one delay length**: the loop keeps writing but reads `0.0f` for
+    `ceil(getCurrentDelaySamples()) + 1` samples, having snapped the line to its *current* position
+    with `snapToDelaySamples` (`crossfading_delay_line.h:202`, which cancels any crossfade in flight
+    and re-syncs both taps without touching the buffer). The delay position is **frozen** while the
+    window runs — the control step skips that loop's delay write exactly as it does for a skipped
+    loop — so the read head cannot outrun the fresh data; the target getters keep moving throughout
+    (FR-062) and the position resumes tracking when the window closes.
+  Both branches deliver FR-063's audible property, which is what the Dormancy deviation is justified
+  in: **a woken loop refills from its input tap rather than replaying the stale ring.** `write()` and
+  `read()` are separable public calls (`crossfading_delay_line.h:223`, `:233`), so a loop that writes
+  without reading cannot emit anything the buffer already held. SC-004 (f) is the detector: it
+  measures the block containing a simultaneous multi-loop sleep edge, and the block containing a trap
+  fire, against the absolute per-block ceiling at both 48 and 192 kHz.
 
 ### FR-020 series — The delay stage and the delay-time staircase (roadmap lines 272, 281)
 
@@ -648,7 +675,7 @@ result (SC-019).
   wet sum (via the FR-075 ramp) — the quantity the governor is controlling, measured before its own
   action (pre-governor, pre-gate, pre-`tanh`), which is what makes the loop a first-order regulator
   rather than an oscillator. Scaling by `normGain` here, and not only at the wet-sum output, is
-  load-bearing: without it, `Σ_i b_i` grows with `numLoops`, so `kGovernorThresholdDb = -6.0f` would
+  load-bearing: without it, `Σ_i b_i` grows with `numLoops`, so `kGovernorThresholdDb` would
   name a different absolute wet level at `numLoops = 1` than at 6 — up to ≈ 7.8 dB apart
   (`10·log10(6)`) — and the threshold's meaning would shift again every time a loop sleeps or
   `setNumLoops` (FR-075) is called. With `normGain` applied, the tracked quantity **is** the wet
@@ -665,8 +692,20 @@ result (SC-019).
   targetGain = (over <= 1.0f) ? 1.0f
                               : std::clamp(std::pow(over, 1.0f/ratio - 1.0f), kGovernorMinGain, 1.0f)
   ```
-  `threshold = dbToGain(governorThresholdDb_)`, default `kGovernorThresholdDb = -6.0f`, range
-  `[-36, 0]` dB; `ratio` default `kGovernorRatio = 8.0f`, range `[1, 20]`;
+  `threshold = dbToGain(governorThresholdDb_)`, default `kGovernorThresholdDb = -52.0f`, range
+  `[-72, 0]` dB; `ratio` default `kGovernorRatio = 8.0f`, range `[1, 20]`;
+  **AMENDED DURING THE BUILD (T012), BY MEASUREMENT.** The default and the range floor read `-6.0f`
+  and `-36` dB until SC-006's sweep was first run; both came from Assumption 1, which sized a
+  **tracker** threshold from the component's **input** level. FR-043's tracker reads
+  `normGain · Σ_i b_i`, and on the default tables every loop carries a `Q ≈ 100` resonator whose
+  equivalent noise bandwidth is 3.3–18.8 Hz out of 24 kHz, so a broadband drive reaches the tracker
+  ≈ 30 dB down: measured at 48 kHz on the reference patch, the tracker reads **−42.3 dB at the
+  −12 dBFS reference drive** and **−31.0 dB at 0 dBFS**, i.e. the entire old `[-36, 0]` dB window sat
+  above every level the tracker can produce and the governor was inert at every setting, leaving rung
+  3 of FR-041 decorative. This is the re-measurement SC-006 (a) prescribes in advance
+  ("re-measure and record `kGovernorThresholdDb` the Phase-3 way, never move an assertion"); the
+  measured sweep, the reason for `-52` specifically and the rejected alternatives are recorded in the
+  header's DERIVATION TABLE 3 (`feedback_ecology.h`), which is the normative record of the figure.
   `kGovernorMinGain = 0.05f`. `ratio == 1` is exactly unity gain (the exponent is 0), which is the
   documented "governor off" setting; the governor **can never mute** the network, which is the other
   half of "a drone left running overnight must neither die nor explode" (roadmap line 94–95). One
@@ -674,6 +713,20 @@ result (SC-019).
 - **FR-045** — The governor gain reaches the per-sample path through a `LinearRamp` configured at
   `kGovernorRampMs = 20.0f` (`primitives/smoother.h:329`), re-targeted once per control step and
   advanced once per sample. There is no per-sample governor arithmetic.
+  **The ramp is re-targeted only when the target actually changes** (added during the build, T012).
+  `LinearRamp::setTarget` recomputes `increment_ = (target_ − current_)/rampSamples`
+  (`smoother.h:353`) from the *current* position, so re-issuing an unchanged target every 64 samples
+  converts the 20 ms linear ramp into a geometric approach covering 64/960 = 6.67 % of the remaining
+  distance per step, which never trips `process()`'s overshoot clamp (`smoother.h:378-382`) — the
+  only place a `LinearRamp` is set exactly equal to its target. It then stalls permanently one
+  rounding step short: once the remainder falls under `rampSamples · ulp(1.0f)/2 = 2.9e-5`,
+  `current_ += increment_` rounds back to `current_`. Measured before the guard, every SC-006 sweep
+  step *after* the governor's first momentary engagement reported `getGovernorGain() == 0.999973f`
+  even 20 dB below the threshold, which breaks SC-006 (a)'s "exactly `1.0f` below the threshold" and
+  makes SC-006 (f)'s crossing level report the first momentary touch instead of the level at which
+  the governor is engaged (a 6 dB error at `numLoops = 1`). With the guard the constant-target case
+  is the shipped linear ramp and reaches exactly `1.0f` within `kGovernorRampMs`; while the law's
+  target is genuinely moving the behaviour is unchanged.
 - **FR-046** — **Rung 4: the hard output clamp, and where exactly it sits.** The clamp is applied to
   `wetGain * (Σ_i out_i * normGain)` — i.e. **after** the FR-017 normalisation **and after** the
   FR-072 wet trim, immediately **before** the FR-072 mix crossfade (FR-015's output-stage block is
@@ -862,10 +915,11 @@ result (SC-019).
   configuration reads cannot show once smoothing, wander and FR-035 normalisation have acted:
   `getLoopCurrentDelayMs(i)` (from `CrossfadingDelayLine::getCurrentDelaySamples() :306`),
   `getLoopCurrentCutoffHz(i)`, `getLoopTargetDelayMs(i)`, `getLoopTargetCutoffHz(i)`,
-  `getLoopCrossfadeCount(i)`, `getLoopAppliedOwnFeedback(i)`, `getLoopAppliedTotalGain(i)` (FR-035's
+  `getLoopCrossfadeCount(i)`, `getLoopAppliedOwnFeedback(i)`, `getLoopAppliedCoupling(from, to)`
+  (FR-035's per-pair coefficient **after** normalisation), `getLoopAppliedTotalGain(i)` (FR-035's
   `G_i` after normalisation), `getLoopGate(i)`, `isLoopEngineActive(i)`, `getGovernorGain()`,
   `getGovernorRms()`, `getLaneDecimation()`, `getClampEngagementCount()`, `getNonFiniteResetCount()`.
-  Four of these are here because a criterion could not otherwise be written against a correct
+  Five of these are here because a criterion could not otherwise be written against a correct
   implementation:
   - `getLoopTargetDelayMs(i)` / `getLoopTargetCutoffHz(i)` — the FR-052/FR-053 **mapped lane values**
     as of the last control step, reported **whether or not the loop is skipped** (FR-062). They are
@@ -890,8 +944,16 @@ result (SC-019).
     previous write — an exact count of onsets, not of completed steps, and the two differ whenever a
     crossfade is retriggered mid-fade (`:176-181`). SC-003 (c) counts these instead of guessing at
     step detection.
+  - `getLoopAppliedCoupling(from, to)` — the coupling coefficient in force from loop `from` into loop
+    `to`, after FR-035's row normalisation; `0.0f` for an out-of-range index or `from == to`, without
+    indexing (FR-009), and it adds no state. Without it SC-015 cannot observe the normalisation at
+    all: `getLoopAppliedTotalGain(i)` is `min(G_i, kMaxTotalLoopGain)` **by construction**, so it
+    satisfies SC-015 (a)'s clauses identically whatever coefficients are actually in force, and a
+    build that computed the reported total correctly but dropped the normalisation scale from the
+    coefficient writes passes unchanged. The per-pair getter is what turns that criterion from a
+    tautology into a measurement.
   The rest exist for the same reason: SC-005 reads the realised delay, SC-006 the governor gain,
-  SC-014 the gate and the engine-active flag, SC-015 the applied total.
+  SC-014 the gate and the engine-active flag, SC-015 the applied per-pair and total gains.
 - **FR-072** — **Output stage.** `setMix(float)` clamped `[0,1]`, default
   **`kDefaultMix = 0.15f`** — roadmap line 278, "output mixed back at low level". At `mix == 0.0f`
   the dry path is **bit-exact** (the wet is not merely attenuated; it is not summed) while every loop,
@@ -988,10 +1050,18 @@ result (SC-019).
 
 ### FR-080 series — Safety, budget, footprint
 
-- **FR-080** — **CPU: ≤ 1 % of one core per voice at 48 kHz** (roadmap line 282). The measurement
-  basis is **ns per 512-sample block at 48 kHz**; one block period is 10 666 667 ns, so the ceiling is
-  **106 666 ns/block**, with the gated baseline at `baseline × 1.5 <= 106 666`, i.e.
-  **`baseline <= 71 111 ns`** (SC-004). The reference workload is `numLoops = 6`, all loops awake,
+- **FR-080** — **CPU: ≤ 1.5 % of one core per voice at 48 kHz** (roadmap line 282, **amended
+  2026-09-13 by user decision from 1 %**). The measurement basis is **ns per 512-sample block at
+  48 kHz**; one block period is 10 666 667 ns, so the ceiling is **160 000 ns/block**, with the gated
+  baseline at `baseline × 1.5 <= 160 000`, i.e. **`baseline <= 106 667 ns`** (SC-004). *Why:* the
+  build's isolated measurement put the reference arm at 1.73 % (≈ 1.0 % machine-corrected) against
+  the original 1 %; the two engineering levers the ladder did not list — reading only the live delay
+  tap outside a crossfade (`CrossfadingDelayLine::read`, ~half of the 62 091 ns delay stage) and
+  pushing cutoff to the SVF only on a real move so its smoother early-out fires — brought it to
+  **94 106 ns = 0.88 %** P-core-pinned, under the 1 % ceiling but over its 0.667 % gated line. With the
+  roadmap's 4–5 % per-voice envelope and the Atmosphere (1 → 1.5 %) and Phase 2 (1 → 1.75 %) precedents,
+  the budget was raised rather than a seventh of the ensemble (lever 5) or the resonator (lever 4, 3 %
+  of the cost) dropped. The reference workload is `numLoops = 6`, all loops awake,
   default tables, wander on, governor engaged. **A stage-cost probe runs before the component is
   written** (the Phase-2/3 pattern, `resonance_drift_network_perf_test.cpp:30-50`) and measures, in
   the loop position and per 512-sample block: (a) `SVF::process` × 6, (b)
@@ -1125,7 +1195,12 @@ sketch the build implements; each becomes a compliance row.
   `setLoopDormant` and whole-matrix `setCouplingMatrix` writes; `wetGain` again from `[-24, 0]` dB).
   The four boundedness assertions apply to **every** setter without exception. The click assertion —
   no click above the SC-003 threshold at any jump instant — applies to every setter FR-076 declares
-  **smoothed**; the five FR-076 declares **stepped** (`setLoopFilterMode`, `setSeed`,
+  **smoothed**, and is **gated on a 110 Hz sine carrier at −12 dBFS inside a 70 ms window after each
+  jump** (`kGainRampMs + kCrossfadeMs`, the longest smoothing the component performs); the same sweep
+  is repeated on the broadband reference drive and its detector count is **reported, not gated**
+  (amended 2026-09-13: `ClickDetector` is a per-frame mean+5σ relative detector, and a `setMix` ramp
+  straddling a frame fires it on the dry noise itself — reproduced with the coupling matrix zeroed —
+  so the broadband pass measures the detector, not the component); the five FR-076 declares **stepped** (`setLoopFilterMode`, `setSeed`,
   `setWanderEnabled`, `setLoopResonanceHz`, `setLoopResonanceRt60`) are jumped in the same arm and are
   exempt from the click assertion only, with
   the exemption listed by name in the test so it cannot quietly widen. **The matrix is seeded at
@@ -1150,30 +1225,57 @@ sketch the build implements; each becomes a compliance row.
   by reporting the figure; the **gated** instrument isolates coupling by construction.
   **Gated instrument: single-loop excitation, cross-loop transfer.** `setLoopInputGain(0, 1.0f)` and
   `setLoopInputGain(i, 0.0f)` for `i >= 1`; reference patch otherwise; drive on throughout a 60 s
-  render with the FR-073 taps installed. Define
+  render with the FR-073 taps installed. **Fixture rule, mandatory and shared by every criterion in
+  this phase: `configure → reset() → render`.** Every setter is called first, then `reset()`, then the
+  render begins. `prepare()` snaps `inputRamp` to `kDefaultLoopInputGain = 1.0f` and the coupling
+  smoothers to FR-033's default 0.04 ring (FR-005), so a fixture that renders straight after the
+  setters glides for ~960 samples with loops 1–5 driven and coupled — which would make (a)'s exact
+  zero unreachable on a **correct** build. `reset()` preserves the configured values and rewinds the
+  ramps and the audio state to them (FR-004), so the render starts already at `c = 0` with silent
+  delay lines. Define
   `T(c) = 20·log10( RMS over the taps of loops 1…5 / RMS of loop 0's tap )`, with every off-diagonal
-  coupling entry set uniformly to `c`. Sweep `c ∈ {0, 0.02, 0.05, 0.10, 0.20}`.
+  coupling entry set uniformly to `c`, **every loop's own feedback at `kSweepOwnFeedback = 0.5`**, and
+  **every loop's resonator at `kSweepResonanceHz = 1000 Hz`** — an exact comb tooth of every default
+  delay at once, since they are integer milliseconds (`f_i = round(1000·T_i)/T_i = 1000`) — with
+  **every cutoff at `kSweepCutoffHz = 2400 Hz`** so the tooth is inside every SVF passband, and
+  **wander off** so the tooth stays put (all amended 2026-09-13). The shared tooth puts coupled energy
+  inside every receiver's 3 Hz passband *and* makes recirculation constructive in every loop — at an
+  arbitrary round-trip phase the regeneration gain `1/|1 − 0.5·e^{jφ}|` ranges 0.67× to 2× per loop
+  and the pooled figure averaged −0.04 dB; a per-loop nearest tooth to 300 Hz left the sender's tooth
+  outside the receivers' bands (sender +1.7 dB, receivers +0.8 dB, T down 0.9 dB): on the
+  default sub-cutoff table (1200 … 210 Hz) each Q ≈ 100 resonator rejects the others' centres by
+  ≈ 30 dB, the coupled transfer is set by the receiver's first pass alone, and the build measured
+  `T(c) − T_ff(c) = −0.10 dB` at every point — regeneration invisible on mismatched resonators, a
+  property of the default voicing (see the compliance report's note for Phase 10), not a defect.
+  Sweep `c ∈ {0, 0.01, 0.02, 0.04, 0.08}`. Both choices keep the FR-035 row sum
+  under `kMaxTotalLoopGain = 0.95` at every point (`0.5 + 5 × 0.08 = 0.90`): at the reference
+  `kDefaultLoopGain = 0.72` the cap engaged from `c = 0.05` and the normaliser converted own
+  regeneration into cross paths, so raising `c` *lowered* regeneration — the 2026-09-13 build measured
+  `T(0.20) − T(0.02) = 14.96 dB` against a feed-forward `19.55 dB`, the earlier clause inverted by the
+  cap, not by the coupling.
   **(a) The floor is exact, not statistical.** At `c = 0` every undriven loop's tap is **exactly**
   `0.0f` for the whole render — its input sum is `0·monoIn + appliedOwnFb·0 + 0`, and `prepare()`
   zeroes the delay buffers — so the assertion is `== 0.0f` on every sample of five taps, not a
   threshold on a level.
   **(b) Monotone rise.** `T(c)` is **strictly increasing** across the four non-zero points.
-  **(c) Anti-vacuity: the rise must be more than mixing.** Repeat the whole sweep with every
-  `ownFb = 0` (six parallel feed-forward chains) and record `T_ff(c)`. There the dominant path is a
-  single hop, so `T_ff(c) ≈ 20·log10(c) + K` with `K` constant in `c` and
-  `T_ff(0.20) − T_ff(0.02) ≈ 20 dB` (slightly more, because two-hop `c²` paths exist once the coupling
-  is all-to-all — which is exactly why the baseline is **measured** in the same test rather than
-  assumed). With feedback at `kDefaultLoopGain`, regeneration must make the same difference larger:
-  `T(0.20) − T(0.02) >= (T_ff(0.20) − T_ff(0.02)) + kInteractionMarginDb`. A build that merely mixes
-  the loop outputs together reproduces the feed-forward figure and fails this arm.
+  **(c) Anti-vacuity: regeneration, not just mixing (amended 2026-09-13).** Repeat the whole sweep
+  with every `ownFb = 0` (six parallel feed-forward chains) and record `T_ff(c)`. At **every** non-zero
+  point `T(c) >= T_ff(c) + kInteractionMarginDb`: the receiving loops regenerate what they are handed
+  (`1 / (1 − 0.5) = 2×`, about +6 dB before the loop filters shape it), while a build that merely mixes
+  the loop outputs reproduces `T_ff(c)` exactly and fails. The earlier form compared the *slopes*
+  `T(0.20) − T(0.02)` against `T_ff(0.20) − T_ff(0.02)`; with the fixture over the row-sum cap that
+  slope was set by the normaliser and the clause could not be satisfied by a correct build.
   **(d) Reported, never gated.** The mean pairwise magnitude-squared coherence over `[40 Hz, 4 kHz]`
   (Welch, 4096-point Hann, 50 % overlap) at each coupling point, from the new `tests/test_helpers/`
   estimator (none exists in the tree — searched this session), printed beside the transfer table so
   the roadmap's named metric is on the record together with the evidence for why it cannot gate here.
-  **Provisional numbers, and the rule that governs them.** `kInteractionMarginDb` (provisional
-  **1.5 dB**) is the only free number in this criterion and no measurement in the tree anchors it. The
-  build runs the sweep as a **probe first**, prints `T(c)` and `T_ff(c)`, and pins the constant from
-  the measurement — under the FR-080 stop-and-surface rule verbatim. The **shape** assertions — (a)'s
+  **The one free number, pinned.** `kInteractionMarginDb = 0.5 dB` (pinned 2026-09-13; was a
+  provisional 1.5 dB with nothing in the tree behind it). On the final fixture the build measured
+  `T(c) − T_ff(c) = +1.062 / +1.081 / +1.118 / +1.188 dB` at `c = 0.01 / 0.02 / 0.04 / 0.08` —
+  positive, monotone in `c`, spread by hundredths across four 60 s renders. It is below the ≈ +4 dB a
+  pure in-band estimate predicts because loop 0's tap also carries its Q ≈ 100 resonator's broadband
+  skirt leakage, which the receivers reject rather than regenerate. The margin is half the measured
+  minimum; a build that merely mixes loop outputs sits at exactly 0 dB and fails. The **shape** assertions — (a)'s
   exact zero, (b)'s strict monotonicity, and (c)'s strict inequality against the measured
   feed-forward baseline — may never be weakened, and a margin may be re-pinned only by recording the
   measurement that justifies it.
@@ -1187,8 +1289,11 @@ sketch the build implements; each becomes a compliance row.
   over the whole render, at a `ClickDetectorConfig` (`:38`) whose `sampleRate` is set to the render
   rate (measurement conventions — the struct's default is 44100.0f).
   **(b)** Two clauses, both relative to the render's own level so a quiet render cannot pass. The
-  render's **peak absolute sample must be ≥ 0.05** (it is a −12 dBFS sine through a unity-ish wet
-  path at `mix = 1`), and given that, the maximum absolute first difference of the output is **below
+  render's **peak absolute sample must be ≥ 0.05** with the wet trim at **`kMaxWetGainDb = +24 dB`**
+  (amended 2026-09-13: the six Q ≈ 100 resonators pass a −12 dBFS sine ≈ 30 dB down — the header's
+  DERIVATION TABLE 3 — so at the 0 dB default the peak is 0.0095 and the "unity-ish wet path" the
+  floor assumed does not exist; the trim is a linear gain after the loops and does not touch the
+  click clauses), and given that, the maximum absolute first difference of the output is **below
   5 % of that measured peak**, and no first difference exceeds **8×** the median of the largest 1 000
   first differences.
   **(c) The crossfades actually happened.** Sum `getLoopCrossfadeCount(i)` (FR-071 — an exact count of
@@ -1199,19 +1304,21 @@ sketch the build implements; each becomes a compliance row.
   completed steps and misses every crossfade retriggered mid-fade (`:176-181`) — so the count is
   defined on one named accessor. Without this arm a build whose delay never moves passes (a) and (b)
   trivially.
-- **SC-004 — CPU ≤ 1 % of one core per voice at 48 kHz. (Roadmap line 282.)**
+- **SC-004 — CPU ≤ 1.5 % of one core per voice at 48 kHz. (Roadmap line 282, amended 2026-09-13;
+  see FR-080 for the measured history.)**
   *(`FeedbackEcology_CpuBudget`, `[.perf]`)*
   Basis: **ns per 512-sample block at 48 kHz**, best-of-25 trials × 500 blocks after 400 warm-up
-  blocks, the `resonance_drift_network_perf_test.cpp:78-84` shape. Ceiling **106 666 ns/block**;
-  gated baseline `kBaseline × 1.5 <= 106 666` (so `kBaseline <= 71 111 ns`), with
+  blocks, the `resonance_drift_network_perf_test.cpp:78-84` shape. Ceiling **160 000 ns/block**;
+  gated baseline `kBaseline × 1.5 <= 160 000` (so `kBaseline <= 106 667 ns`), with
   `static_assert(kBaseline * kRegressionFactor <= kReferenceNs)` and
   `static_assert(kBaseline >= kReferenceNs / 50.0)` binding the absolute figure at compile time on
   every CI leg.
   Arms: **(a)** reference patch, six loops awake, wander on. **(b)** six loops, wander off (FR-056) —
-  reported, and required to be **within +2 % of (a)**, a band and not a bare inequality: FR-056 keeps
-  the lanes advancing and only zeroes the depth term the mapping applies, so the true difference is a
-  handful of control-rate multiplies inside a best-of-25 × 500-block measurement, well under
-  run-to-run noise. An
+  reported, and required to be **at most 2 % above (a)**; the band is one-sided and any saving passes
+  (clarified 2026-09-13: with cutoff pushed to the SVF only on a real move, wander-off measures
+  ~18 % *below* (a) because the SVF smoother sits settled, which is a saving, not a defect). FR-056
+  keeps the lanes advancing and only zeroes the depth term the mapping applies, so an untoleranced
+  equality here would fail on a scheduling accident inside a best-of-25 × 500-block measurement. An
   untoleranced comparison here fails on a scheduling accident, not on a defect — the Phase-3
   precedent, where the same arm's "≥ 10 % saving with wander off" was structurally unreachable once
   the Dormancy rule fixed that lanes keep advancing and had to be amended mid-build (roadmap lines
@@ -1220,7 +1327,15 @@ sketch the build implements; each becomes a compliance row.
   and the only thing that proves dormancy is not cosmetic. **(d)** `numLoops = 1` — reported, sets the
   per-loop marginal cost. **(e)** the FR-080 stage probe table, `[.perf]`, printed not gated,
   including the `MultimodeFilter` and single-slot `ResonatorBank` alternatives that D-1 and D-3 are
-  decided from. The percent-of-core figure is **reported, never asserted**
+  decided from. **(f) The transition blocks — FR-019's detector.** Arms (a)–(d) are all steady state,
+  so a per-transition spike is unmeasured by design. Two 512-sample blocks are timed, each gated
+  against the **absolute** 160 000 ns ceiling and not against `kBaseline` (a transition may cost more
+  than steady state, just not more than the block period): the block containing a **simultaneous
+  multi-loop sleep edge** (drive to steady state, then `setNumLoops(6 → 1)`, so five `clearLoopAudio`
+  calls land inside one 64-sample control chunk), and the block containing a **rung-5 trap fire**
+  injected through the FR-048 probe. Both are repeated at **192 kHz**, where the block period is
+  2 666 667 ns and the ceiling is **40 000 ns** — that is where an O(buffer) delay clear on an
+  audio-thread path shows first. The percent-of-core figure is **reported, never asserted**
   (`resonance_drift_network_perf_test.cpp:67-76`). Run in isolation, nothing else executing
   (`node tools/run-cpu-tests.js`).
 - **SC-005 — The delay wander actually moves the delay, and its absence is documented rather than
@@ -1277,6 +1392,15 @@ sketch the build implements; each becomes a compliance row.
   the rejected raw, unscaled `Σ_i b_i` reading the two counts' effective thresholds differ by
   `10·log10(6) ≈ 7.8 dB`, so this arm is what a build that omits FR-043's `normGain` scaling fails, and
   no build that scales by it can fail.
+  **Measured resolution, recorded during the build (T012), so a later reader does not over-read the
+  arm.** The crossing level is quantised to the sweep's 6 dB grid, so "within 1 dB" is in practice
+  "the same step", and the two counts' tracker curves are **not** identical even with `normGain`
+  applied: `numLoops = 1` is loop 0 alone — the widest-band resonator of the six — and reads ≈ 2.9 dB
+  hotter than the six-loop average (measured, per-step, both counts, three drive seeds). The arm
+  therefore discriminates the 7.8 dB `normGain` defect it was written for, but it does not certify
+  agreement finer than one sweep step, and `kDefaultGovernorThresholdDb = -52.0f` is placed inside
+  the (−54.6, −49.2) dB window where both curves cross between the same pair of steps
+  (DERIVATION TABLE 3).
 - **SC-007 — Zero allocation after `prepare()`.** *(`FeedbackEcology_NoAllocation`)*
   `AllocationScope` (`tests/test_helpers/allocation_detector.h:111`) around: 1 000 `processBlock`
   calls at irregular sizes; every setter on the surface at extremes; `reset()`; `setSeed()`;
@@ -1292,16 +1416,59 @@ sketch the build implements; each becomes a compliance row.
   `render_fingerprint.h` tolerances (`kSampleTolerance = 5.0e-4f`, `kMetricTolerance = 2.5e-4`).
   **(b)** `reset()` followed by the same render reproduces the first render within the same
   tolerances.
-  **(c)** Two different seeds differ: the fingerprint comparison **fails**, and the mean absolute
-  difference exceeds `100 × kSampleTolerance`.
+  **(c)** Two different seeds differ: the fingerprint comparison **fails**, the mean absolute
+  difference between the two renders exceeds **50 % of the reference render's own mean absolute
+  level** (`fingerprintRender(a).meanAbs`), and that difference also exceeds `kSampleTolerance` in
+  absolute terms.
+  **AMENDED after T015's first build, from a measurement (the original wording read "the mean
+  absolute difference exceeds `100 × kSampleTolerance`" — 0.05 in absolute sample units — and is
+  preserved here because the reason matters).** That floor is **unsatisfiable by any implementation
+  of this spec, correct or broken, and by a factor of 43** — it is out of reach before the seed is
+  even chosen. The reference patch is quiet **by design**, and this spec already records why: every
+  default loop carries a Q ≈ 100 resonator (`kMaxResonatorQ`, DERIVATION TABLE 2) whose equivalent
+  noise bandwidth is 3.3–18.8 Hz out of 24 kHz, so a broadband drive reaches the loops ≈ 30 dB down
+  — the same measurement that moved `kDefaultGovernorThresholdDb` from −6 dB to −52 dB at T012
+  (FR-044). Measured at T015 (30 s at 48 kHz, reference patch, seeds `0x5EED` and `0xA11CE`): each
+  render has **RMS 0.0014655 (−56.7 dBFS), peak 0.0076627, meanAbs 0.0011695**, so
+  `mean|a−b| ≤ mean|a| + mean|b| = 0.00234` for *any* pair of renders of this patch. No fixture
+  rescues the old number either: the FR-044 governor turns a 40 dB drive rise into 20.6 dB of output
+  rise (SC-006 (b)), so even the maximum wet trim (+24 dB, ×15.85) over a 0 dBFS drive lands near
+  0.04 — and would then be measuring the trim rather than the seed.
+  The replacement **floors the difference against the render's own level**, which is the quantity
+  "audibly different" was always about. Two statistically independent renders of one process give
+  `mean|a−b| / mean|a| = √2 = 1.414`; a build in which the seed never reaches the twelve lanes gives
+  **exactly 0** — and that build is what arm (a) renders, which is why (a) is this arm's control;
+  this build measures **1.138**, i.e. 80 % of the independent limit and a **2.28× margin** over the
+  0.5 bound. The absolute clause survives as the comparator's own resolution: the measured
+  **0.0013306** clears `kSampleTolerance = 5.0e-4` by 2.66×. The **intent**, the render length, the
+  seeds and the fingerprint clause did not move; only the quantity the floor is expressed against
+  did.
   **(d)** Lane independence, on two arms — one statistical, one deterministic.
-  *Statistical:* over a 120 s render, the pairwise Pearson correlation between the twelve **lane
-  target** trajectories, read through `getLoopTargetDelayMs(i)` / `getLoopTargetCutoffHz(i)`
-  (FR-071), is **below 0.25** for every pair. The realised readings must **not** be used here:
-  `getLoopCurrentDelayMs` is the crossfade staircase, which changes only on completed ≥ 100-sample
-  steps and, per SC-005 (b), is documented to never change at all in some configurations — a
-  near-constant series has ~zero variance and its correlation is dominated by two or three
-  quantisation steps, or is 0/0.
+  *Statistical:* over a 120 s render, the pairwise Pearson correlation between the **per-block
+  first differences** of the twelve **lane target** trajectories, read through
+  `getLoopTargetDelayMs(i)` / `getLoopTargetCutoffHz(i)` (FR-071) once per 512-sample block, is
+  **below 0.25** for every pair; a **positive control** in the same arm — two lanes driven from one
+  shared stream, read through the two different mappings — must report **above 0.9**, so the bound is
+  known to discriminate rather than merely to be small.
+  **AMENDED after T010's first build, from a measurement (the original wording correlated the
+  trajectory LEVELS and is preserved here because the reason matters).** Levels cannot be correlated
+  over this window: each lane is a `BrownianDrift` at the FR-055 default 0.03 Hz, whose real-time
+  decorrelation time is 33.3 s (per-advance `tau` 16.667 s × `laneDecimation_` 2), so 120 s supplies
+  N_eff ≈ 2 independent samples and the sampling standard deviation of r between two **independent**
+  lanes is ≈ 0.5. A standalone probe driving twelve shipped `BrownianDrift` lanes with this
+  component's seeds, smoothness and decimation — no `FeedbackEcology` code in the picture — measured
+  worst |r| on levels = **0.6916** at seed `0x5EED` (the exact figure the component produced) and
+  **0.5994 … 0.8894 across 64 different base seeds, above 0.25 for 64 of 64**. The level criterion was
+  therefore unsatisfiable by any correct implementation, and it converges only on absurd windows
+  (0.2970 at 1800 s, 0.1579 at 7200 s, 0.0819 at 28800 s). The **increments** are driven by each
+  lane's own OU innovations, so they converge inside the pinned 120 s: worst |r| = **0.0715** at seed
+  `0x5EED`, **0.0922** across the same 64 seeds — a 2.7× margin under the **unchanged** 0.25 bound —
+  while a shared stream still reports **0.9855**. The **estimator** moved; the threshold, the render
+  length and the criterion's intent did not.
+  The realised readings must **not** be used here either: `getLoopCurrentDelayMs` is the crossfade
+  staircase, which changes only on completed ≥ 100-sample steps and, per SC-005 (b), is documented to
+  never change at all in some configurations — a near-constant series has ~zero variance and its
+  correlation is dominated by two or three quantisation steps, or is 0/0.
   *Deterministic:* the twelve `deriveStreamSeed(seed, salt)` values from FR-054's salt table are
   pairwise **distinct**, computed directly in the test (`core/random.h:102`). This is the actual
   salt-collision guard (`:97-100` — `Xorshift32::seed(0)` silently substitutes its default, so two
@@ -1474,7 +1641,9 @@ sketch the build implements; each becomes a compliance row.
   change, and a subsequent `setMix(1.0f)` produces, after the crossfade settles, a wet signal within
   `render_fingerprint.h` tolerances of a reference render that ran at `mix = 1` throughout — i.e. the
   loops were charged, not asleep (FR-072).
-- **SC-019 — Layer, ODR, naming and portability gates.** *(`FeedbackEcology_StaticGates`, plus CI)*
+- **SC-019 — Layer, ODR, naming and portability gates.** *(no Catch2 case: every clause below is a
+  `node tools/lint-*.js` / `check-portability.js` invocation, nothing a runtime test can observe. The
+  criterion is discharged by the recorded transcript of those commands in the build log, plus CI.)*
   `node tools/lint-layers.js`, `node tools/lint-odr.js`, `node tools/lint-nonfinite-symbols.js`,
   `node tools/lint-float-bit-goldens.js`, `node tools/lint-arch-guarded-includes.js` and
   `node tools/check-portability.js` all pass on the new header and the four new TUs. No
@@ -1496,12 +1665,16 @@ sketch the build implements; each becomes a compliance row.
   two different tests:
   **(a) Not static.** The standard deviation of the centroid across the 180 windows is **> 3 %** of
   its mean.
-  **(b) Not periodic.** For every lag from 15 to 25 minutes, the **cosine similarity between the
-  log-band-energy vectors** (natural log of each of the 8 band energies, no per-vector normalisation
-  beyond the log) of the two windows at that lag is **< 0.99**; the maximum over all such pairs is
-  reported. The earlier "within 1 % of the window 20 minutes earlier" named no distance and no
-  normalisation, and on an 8-dimensional vector a 1 % match under any of the candidate definitions is
-  a near-impossible coincidence — the arm could not have discriminated anything.
+  **(b) Not periodic (amended 2026-09-13).** Sample the six continuous FR-052 cutoff trajectories
+  (`getLoopTargetCutoffHz(i)`) at the end of every window. For every lag from 15 to 25 minutes, **no
+  two windows agree on all six values within 1e-6 relative**; the count of repeating pairs is asserted
+  zero. A frozen wander repeats at every lag and an LFO-driven one repeats at the lag matching its
+  period (the roadmap's "no LFO loops"), while a bounded random walk never does. The **log-band cosine
+  similarity** (natural log of the 8 band energies) at those lags is still computed and its maximum
+  **reported, not gated**: the build measured 0.99999 between windows 20 s apart in phase, because the
+  0.05 Hz raised-cosine excitation makes the spectral envelope periodic by construction, so that
+  metric measured the drive and not the ecology. The earlier "within 1 % of the window 20 minutes
+  earlier" named no distance and no normalisation and could not have discriminated anything.
   **(c) Not divergent.** The centroid never leaves `[0.5×, 2×]` its median.
   **(d) Neither dying nor creeping.** The **least-squares slope** of the window RMS series in dB
   against time, multiplied by the render length, is within **±1 dB**. "No monotone trend" named no
@@ -1534,6 +1707,88 @@ sketch the build implements; each becomes a compliance row.
   across the call and for 500 ms after it. Without FR-075's divisor ramp this assertion is unreachable —
   which is why FR-075 exists: no requirement defined `setNumLoops` at all before this revision, while
   three criteria called it.
+- **SC-023 — The resonator's realised ring, not the value it filed.** *(`FeedbackEcology_ResonatorRing`)*
+  FR-013's `kMaxResonatorQ = 100` ceiling has no other detector. `getLoopResonanceRt60(i)` derives
+  from `appliedResonanceQ`, which `updateResonator` stores from `rt60ToQ(...)` **before** the
+  coefficients are written, so a build that regressed to `Biquad::configure`/`BiquadCoefficients::calculate`
+  — clamped at `biquad.h`'s `kMaxQ = 30` — would still store `Q = 95.5`, still report 1.0 s, and still
+  run a filter at `Q = 30`. This criterion measures the ring itself.
+  *Fixture (one `SECTION` per loop under test).* `prepare()`; `setLoopGain(i, 0.0f)` on every loop and
+  every coupling entry to `0.0f`, so there is **no feedback** and the tap is the loop chain's own
+  impulse response rather than a loop resonance; `setLoopCutoffHz(i, maxCutoffHz)` with
+  `setLoopFilterMode(i, Lowpass)` so the `SVF` in front of the resonator is near-transparent at the
+  resonator centre; `setWanderEnabled(false)`; `setLoopInputGain` 1.0 on the loop under test and 0.0
+  elsewhere; then **`reset()`** (the mandatory `configure → reset() → render` rule, SC-002), then a
+  single-sample unit impulse followed by 3 s of silence, read through the FR-073 tap.
+  **(a) The realised ring at the lowest default centre.** Loop 5 (`kDefaultLoopResonanceHz[5] = 210 Hz`,
+  `kDefaultResonanceRt60 = 1.0 s`) is the one centre at which 1.0 s is reachable without clamping:
+  `rt60ToQ(210, 1.0) = 95.50 < kMaxResonatorQ`. Measure the decay — peak of `|tap|` in each successive
+  1-cycle window, converted to dB, least-squares fit of the dB-versus-time line over the span from
+  −5 dB to −40 dB below the initial peak, extrapolated to −60 dB. **The measured RT60 is within ±10 %
+  of 1.000 s**, and is reported.
+  **(b) The realised ring at a clamped centre.** Loop 0 (1200 Hz, request 1.0 s, `rt60ToQ` returns
+  545.70, clamped to `kMaxResonatorQ = 100`, realised 0.1833 s). Same measurement, **within ±10 % of
+  0.1833 s**.
+  **(c) The getter tells the truth about the filter in force.** For every loop,
+  `getLoopResonanceRt60(i)` agrees with that arm's measured RT60 to within the same ±10 %, and
+  reproduces the six-row default table (0.1833, 0.2587, 0.3665, 0.5174, 0.7330, 1.0000 s) to within
+  `1e-3 s`. (b) and (c) together are what tie the bookkeeping field to the coefficients.
+  **The floor that may never be weakened**, because it is the whole point of the criterion: **loop 5's
+  measured RT60 must exceed 0.5 s.** At `kMaxQ = 30` the realised figure is
+  `30 × kLn1000 / (π × 210) = 0.3141 s`, and loop 0's is `0.0550 s` — the defect misses by 219 % and
+  233 % against a ±10 % band. If the ±10 % band proves too tight for the measurement method (the delay
+  and the DC blocker are in the path, and the fit is over a finite window), it may be re-pinned from a
+  **recorded** measurement under FR-080's stop-and-surface rule; the 0.5 s floor and the shape of the
+  assertion may not move, and the response to a genuine miss is to fix the coefficient path, never to
+  lower the floor.
+- **SC-024 — FR-003's entry-point contract: the guard ladder and both legal aliasings.**
+  *(`FeedbackEcology_EntryPointContract`)*
+  None of the criteria FR-003 was previously mapped to touches a null pointer, a zero length, an
+  unprepared render or either aliasing. Four arms, on a prepared, settled reference-patch instance:
+  **(a) Null pointers write nothing and advance nothing.** For each of `inL`, `inR`, `outL`, `outR`
+  passed as `nullptr` in turn, and all four at once: pre-fill both output buffers with a sentinel
+  (`-7.5f`), record `getLoopCurrentDelayMs(i)`, `getLoopGate(i)`, `getGovernorRms()` and
+  `getLoopCrossfadeCount(i)` for every loop, call `processBlock`, then assert the output buffers are
+  **unchanged sample for sample** and every recorded value is **unchanged**.
+  **(b) `numSamples == 0` consumes no control step.** Render 512 samples, call `processBlock(..., 0)`
+  a hundred times, render another 512; the concatenation is **bit-identical** to an unbroken
+  1024-sample render on a second instance. This is SC-010's partition-invariance instrument applied to
+  the zero-length case, and it is the only way to observe `controlPhase_`.
+  **(c) An unprepared instance writes exactly `numSamples` zeros.** On a default-constructed instance,
+  pre-fill both outputs with the sentinel beyond `numSamples`, call `processBlock` with
+  `numSamples = 333`: the first 333 samples of both channels are exactly `0.0f`, sample 333 onward
+  still holds the sentinel, and every FR-071 getter is unchanged.
+  **(d) Both legal aliasings reproduce the non-aliased render bit-identically.** `inL == outL` (with
+  `inR == outR`), and the crossed pairing `inL == outR` with `inR == outL`, each rendered 10 s on an
+  instance configured identically to a non-aliased reference and compared with **exact `==`**, not a
+  tolerance — the aliased and non-aliased paths are the same code, and the render's per-sample local
+  dry capture is why both are legal. Any difference is a real divergence, not float drift.
+- **SC-025 — FR-055's lane decimation, and the rebase that is not a reset.**
+  *(`FeedbackEcology_WanderRateMapping`)*
+  Every other wander-exercising criterion runs at the default (decimation 2, effective 33.3 s,
+  indistinguishable from a hard-wired-decimation-1 build's `kTauMax`-saturated 30 s) or at
+  `kMaxWanderRateHz` (decimation 1 in both builds). The mechanism only bites near `kMinWanderRateHz`,
+  and the `laneCounter_ %= newDecimation` rebase was untested entirely.
+  **(a) The mapping.** `setWanderRate(kMinWanderRateHz)` → `getLaneDecimation() == 17`;
+  `setWanderRate(kDefaultWanderRateHz)` → `2`; `setWanderRate(kMaxWanderRateHz)` → `1`. Plus the clamp
+  ends: `setWanderRate(0.0f)` and `setWanderRate(1e6f)` land on `kMinWanderRateHz` / `kMaxWanderRateHz`
+  as reported by `getWanderRate()`, with the matching decimations; a non-finite argument is a no-op
+  (FR-009).
+  **(b) The behavioural arm — the one a hard-wired decimation fails.** Two 300 s renders of the
+  reference patch at 48 kHz from the same seed, one at `kMinWanderRateHz = 0.002` (decimation 17,
+  effective correlation time 500 s) and one at `0.0333 Hz` (decimation 1, `tau` saturated at
+  `kTauMax = 30 s`). For every loop, record the **range** (max − min) of `getLoopTargetDelayMs(i)`
+  sampled once per block over the window. **The mean range across the six loops at `kMinWanderRateHz`
+  is at most half the mean range at 0.0333 Hz**, and both are reported. A build with `laneDecimation_`
+  hard-wired to 1 produces a ratio of **1.0** and fails; a correct build's ratio is driven by
+  `sqrt(30 / 500)` and is comfortably beyond 2. The **factor of 2 is the floor** and may be re-pinned
+  upward, never downward, from a recorded measurement (FR-080).
+  **(c) The rebase, not a reset.** Render 60 s of the reference patch while calling
+  `setWanderRate(getWanderRate())` — the **same** value, so `smoothness` and the new decimation are
+  unchanged — every 96 samples, a phase that is not a multiple of `kControlChunkSamples`. Compare
+  against an unmolested 60 s reference from the same seed: **within `render_fingerprint.h`
+  tolerances.** A build that wrote `laneCounter_ = 0` instead of `laneCounter_ %= newDecimation`
+  advances the lanes on every control step instead of every second one and diverges grossly.
 
 ## Edge Cases
 
@@ -1682,17 +1937,17 @@ sketch the build implements; each becomes a compliance row.
 | Roadmap statement (line) | Requirements | Criteria |
 |---|---|---|
 | "New component (L3, `systems/feedback_ecology.h`)" (270) | FR-001, FR-002 | SC-019 |
-| "Micro-loop = filter (`MultimodeFilter`) → …" (272) — **DEVIATION: `SVF`**, ratified in Clarifications (DECISIONS-CONFIRMED), D-1, evidence in Overview 1; roadmap write-back runs as an early build-prep task (OQ-3) | FR-011, FR-012 | SC-004 (e) probe arms (a)/(b), SC-001, SC-003 |
+| "Micro-loop = filter (`SVF`) → …" (272) — the roadmap names `SVF` since the OQ-3 write-back; the substitution for the original `MultimodeFilter` was ratified in Clarifications (DECISIONS-CONFIRMED), D-1, evidence in Overview 1 | FR-011, FR-012 | SC-004 (e) probe arms (a)/(b), SC-001, SC-003 |
 | "… → delay (`CrossfadingDelayLine`, 10–500 ms) → …" (272) | FR-020, FR-021, FR-022, FR-023, FR-024, FR-052 | SC-003, SC-005 |
-| "… → resonator (single `IResonator` mode) → …" (272) — **DEVIATION: one `Biquad` bandpass, direct RBJ coefficients at `Q <= 100` (OQ-1)**, ratified in Clarifications (DECISIONS-CONFIRMED), D-3, evidence in Overview 2; roadmap write-back runs as an early build-prep task (OQ-3) | FR-013 | SC-004 (e) probe arms (d)/(g), SC-001 |
+| "… → resonator (one RBJ bandpass, the `ResonatorBank` slot's Q range) → …" (272) — the roadmap names the RBJ bandpass since the OQ-3 write-back; the realisation is one `Biquad` fed direct RBJ coefficients at `Q <= kMaxResonatorQ = 100` (OQ-1), ratified in Clarifications (DECISIONS-CONFIRMED), D-3, evidence in Overview 2 | FR-013 | SC-004 (e) probe arms (d)/(g), SC-001, **SC-023** |
 | "… → gain (< 1) → back" (272) — applied **once** per circulation, in FR-015's input sum | FR-015, FR-018, FR-035, FR-041 | SC-001, SC-015 |
 | "with `DCBlocker` in-loop" (272) | FR-014, FR-047, FR-048 | SC-001, SC-012 (b)–(d) |
 | "5–6 instances" (272) | FR-010, FR-075 | SC-022 |
 | "Cross-coupling matrix (each loop bleeds a few % into its neighbours)" (274) | FR-030, FR-031, FR-032, FR-033, FR-034 | SC-002, SC-015 |
 | "reuse `FilterFeedbackMatrix`/`FlexibleFeedbackNetwork` topology knowledge" (275) — reused as **knowledge**, not code; D-2/FR-092 record why the class cannot be instantiated (`N <= 4`) | FR-031, FR-034, FR-042, FR-090, FR-091, FR-092 | SC-020 |
 | "**Energy governor:** global RMS tracker with soft compression of total loop energy — interaction without runaway" (276–277) | FR-043, FR-044, FR-045 | SC-006, SC-001 (b) |
-| "Per-loop tiny life-modulation of delay time and filter cutoff" (277) | FR-050, FR-051, FR-052, FR-053, FR-054, FR-055, FR-056 | SC-005, SC-009 (d), SC-021 |
-| "Input taps from cloud + noise organism" (278) — **DEVIATION: the two named sources reach the loops as one pre-summed stereo pair, not as distinct per-loop signals.** Phase 10 pre-sums the cloud and noise-organism taps before this stage; per-loop diversity comes from FR-074's scalar tap level plus each loop's own filter/delay/resonator settings, never from hearing a different source mix. This entry-point signature is frozen for Phases 8–12 the moment SC-016's bit-identity fixtures exist. | FR-003, FR-016, FR-074 | SC-016, SC-017, SC-018 |
+| "Per-loop tiny life-modulation of delay time and filter cutoff" (277) | FR-050, FR-051, FR-052, FR-053, FR-054, FR-055, FR-056 | SC-005, SC-009 (d), SC-021, **SC-025** (FR-055's lane decimation and the `laneCounter_` rebase, which no other criterion can discriminate) |
+| "Input taps from cloud + noise organism" (278) — **DEVIATION: the two named sources reach the loops as one pre-summed stereo pair, not as distinct per-loop signals.** Phase 10 pre-sums the cloud and noise-organism taps before this stage; per-loop diversity comes from FR-074's scalar tap level plus each loop's own filter/delay/resonator settings, never from hearing a different source mix. This entry-point signature is frozen for Phases 8–12 the moment SC-016's bit-identity fixtures exist. | FR-003, FR-016, FR-074 | SC-016, SC-017, SC-018, **SC-024** (FR-003's guard ladder and both legal aliasings — no other criterion touches them) |
 | "output mixed back at low level" (278) — trim, then clamp, then crossfade (FR-015's output-stage block) | FR-072 (`kDefaultMix = 0.15f`), FR-017, FR-046 | SC-018, SC-022, SC-013 |
 | "bounded output for ANY parameter combination over 30 min renders … worst-case gain/coupling sweep" (280) | FR-040, FR-041, FR-042, FR-044, FR-046, FR-047, FR-035 | **SC-001** (a)–(d), SC-013, SC-015 |
 | "audible cross-loop interaction (coherence metric between loop outputs rises with coupling)" (281) — the **gated** instrument is a cross-loop transfer measurement under single-loop excitation; magnitude-squared coherence is identically 1 under this component's common mono drive and is therefore **reported, not gated** (SC-002's opening paragraph carries the algebra) | FR-030, FR-031, FR-033, FR-073, FR-074 | SC-002, SC-016 |
@@ -1715,9 +1970,9 @@ out of the build and its cases never run, `dsp/tests/CMakeLists.txt:409-410`):
 
 | TU | Criteria |
 |---|---|
-| `dsp/tests/unit/systems/feedback_ecology_test.cpp` | SC-005, SC-006, SC-007, SC-008, SC-009, SC-010, SC-011, SC-013, SC-014, SC-015, SC-016, SC-017, SC-018, SC-022 |
+| `dsp/tests/unit/systems/feedback_ecology_test.cpp` | SC-005, SC-006, SC-007, SC-008, SC-009, SC-010, SC-011, SC-013, SC-014, SC-015, SC-016, SC-017, SC-018, SC-022, SC-023, SC-024, SC-025 |
 | `dsp/tests/unit/systems/feedback_ecology_spectral_test.cpp` | SC-001, SC-002, SC-003, SC-021 — the `[long]` set |
-| `dsp/tests/unit/systems/feedback_ecology_perf_test.cpp` | SC-004 (a)–(e) including the FR-080 stage probe — `[.perf]` only, plus the `static_assert`ed baselines that CI evaluates on every leg |
+| `dsp/tests/unit/systems/feedback_ecology_perf_test.cpp` | SC-004 (a)–(f) including the FR-080 stage probe — `[.perf]` only, plus the `static_assert`ed baselines that CI evaluates on every leg |
 | `dsp/tests/unit/systems/feedback_ecology_nonfinite_test.cpp` | SC-012 only — **the one TU listed in the `-fno-fast-math` block** (`dsp/tests/CMakeLists.txt:528`), because it injects non-finite samples built from bit patterns |
 
 New shared helper: a magnitude-squared-coherence estimator added to `tests/test_helpers/` (none
@@ -1730,9 +1985,17 @@ transfer metric is plain RMS over the FR-073 taps.
 1. **The component's input is the voice-internal bus after the resonance drift network, at roughly
    −12 dBFS per channel.** The roadmap's architecture diagram (lines 45–72) places Feedback Ecology
    below the Resonance Drift Network and beside Granular Ghosts, inside the per-voice block. The
-   level is an assumption used only to choose `kGovernorThresholdDb = -6.0f` and the SC drive level;
+   level is an assumption used only to choose `kGovernorThresholdDb` and the SC drive level;
    Phase 10 owns the real level, and the governor threshold is a settable parameter precisely so that
    assumption is cheap to correct.
+   **Corrected during the build (T012).** The assumption was used wrongly, not merely optimistically:
+   the threshold names a level on FR-043's **tracker**, not on the input, and the two differ by
+   ≈ 30 dB on this component's default tables (narrow resonators, broadband drive). The input-level
+   assumption itself is untouched and still Phase 10's to confirm; what changed is that
+   `kGovernorThresholdDb` is now derived from a *measured* tracker level (−52 dB default, range
+   floor −72 dB — FR-044 and DERIVATION TABLE 3) instead of from the input level. If Phase 10 finds
+   the real input level is not −12 dBFS, the correction is the same one-constant edit, re-measured
+   the same way.
 2. **Six loops per voice, at 4–8 voices, is the Phase-10 shape.** Roadmap line 92 budgets ~4–5 % per
    voice; the 1 % this phase claims is one fifth of that. If Phase 10 finds the ecology needs to be
    per-voice-optional, nothing here changes — the component is already fully bypassable at zero cost

@@ -264,13 +264,26 @@ within tolerance), no time-domain smearing artifacts (pre-echo metric), CPU ≤ 
 
 ### Phase 5: Feedback Ecology
 
+**Status: ✅ COMPLETE (2026-09-13)** — see specs/vorago-phase5-feedback-ecology/compliance.md
+(97 of 97 items pass after the main-loop resolution; the build stage stopped at 90/6/1). Six SVF →
+crossfading delay → RBJ-bandpass (ResonatorBank's Q ≤ 100 law) → DC blocker micro-loops, 6×6
+row-sum-normalised coupling, a governor tracking the normalised wet level, per-loop delay/cutoff
+wander, sleep/wake with the loop's audio cleared at the sleep edge. CPU budget amended 1 % → 1.5 %
+per voice by user decision after two engineering levers (live-tap-only delay read outside a
+crossfade, cutoff pushed to the SVF only on a real move) brought the reference arm to 0.88 %. Four
+criteria were re-fixtured or re-specified from measurement, shapes kept: SC-002 (regeneration is only
+visible where loops share a resonance and the row-sum cap is not engaged), SC-003 (wet path is ~30 dB
+down by voicing), SC-021 (the periodic excitation dominated the similarity metric), SC-001 (d). Note
+for Phase 10: on the default voicing cross-loop interaction is small by construction (T ≈ −84 dB);
+shared resonances or lower Q make it audible.
+
 **Spec:** `vorago-phase5-feedback-ecology`
 **Goal:** Five or six tiny interacting feedback loops that behave like coupled vibrating objects.
 
 New component (L3, `systems/feedback_ecology.h`):
 
-- Micro-loop = filter (`MultimodeFilter`) → delay (`CrossfadingDelayLine`, 10–500 ms) → resonator
-  (single `IResonator` mode) → gain (< 1) → back, with `DCBlocker` in-loop. 5–6 instances.
+- Micro-loop = filter (`SVF`) → delay (`CrossfadingDelayLine`, 10–500 ms) → resonator (one RBJ
+  bandpass, the `ResonatorBank` slot's Q range) → gain (< 1) → back, with `DCBlocker` in-loop. 5–6 instances.
 - Cross-coupling matrix (each loop bleeds a few % into its neighbours) — reuse
   `FilterFeedbackMatrix`/`FlexibleFeedbackNetwork` topology knowledge.
 - **Energy governor:** global RMS tracker with soft compression of total loop energy — interaction
@@ -279,7 +292,10 @@ New component (L3, `systems/feedback_ecology.h`):
 
 **Success criteria:** bounded output for ANY parameter combination over 30 min renders (this is the
 critical test — worst-case gain/coupling sweep), audible cross-loop interaction (coherence metric
-between loop outputs rises with coupling), no zipper on delay-time drift, CPU ≤ 1% per voice.
+between loop outputs rises with coupling), no zipper on delay-time drift, CPU ≤ 1.5% per voice
+(amended 2026-09-13 from 1% by user decision: measured 0.88% after the two engineering levers, over
+the 1%-derived regression gate; same call as Atmosphere 1→1.5% and Phase 2 1→1.75%, inside the 4–5%
+per-voice envelope above).
 
 ---
 
@@ -503,7 +519,10 @@ atmosphere engine) are consumed as-is from day one.
   a 50 ms per-sample linear fade. "Dormant" and "awake at zero gain" are behaviourally identical
   and differ only on the read surface. Every sleep/wake life cycle (Phase 3 peaks, Phase 5 loops,
   Phase 8 agents) inherits this; a spec that wants a silent slot to keep burning its chain must say
-  what the listener would hear that justifies it.
+  what the listener would hear that justifies it. **Stated exception (Phase 5 FR-063, 2026-09-12):**
+  a feedback loop has no generator behind it, so "skip the chain" would freeze a charged delay line
+  that replays as a stale burst on wake; the sleep edge therefore clears the loop's audio state, and
+  the wake starts from silence (SC-014 (d): ≤ −80 dBFS for 500 ms after a wake into silence).
 - **No bit-exact float goldens** — `render_fingerprint.h` / measured tolerances only.
 - **Portability:** `node tools/check-portability.js` before commits; WSL probe for Linux doubts;
   aligned-load lint on any new SIMD.

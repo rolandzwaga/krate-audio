@@ -433,6 +433,20 @@ add_executable(dsp_systems_tests
     unit/systems/resonance_drift_network_spectral_test.cpp
     unit/systems/resonance_drift_network_perf_test.cpp
     unit/systems/resonance_drift_network_nonfinite_test.cpp
+    # Vorago Phase 5 (specs/vorago-phase5-feedback-ecology): FeedbackEcology.
+    # This list is ENUMERATED, not globbed - an unregistered TU silently drops
+    # out of the build and its cases never run.
+    #   feedback_ecology_test.cpp           SC-005, SC-006, SC-007, SC-008, SC-009,
+    #                                       SC-010, SC-011, SC-013, SC-014, SC-015,
+    #                                       SC-016, SC-017, SC-018, SC-022, SC-023,
+    #                                       SC-024, SC-025
+    #   feedback_ecology_spectral_test.cpp  SC-001, SC-002, SC-003, SC-021   (the [long] set)
+    #   feedback_ecology_perf_test.cpp      SC-004 (a)-(f) + the FR-080 stage probe   [.perf]
+    #   feedback_ecology_nonfinite_test.cpp SC-012 only
+    unit/systems/feedback_ecology_test.cpp
+    unit/systems/feedback_ecology_spectral_test.cpp
+    unit/systems/feedback_ecology_perf_test.cpp
+    unit/systems/feedback_ecology_nonfinite_test.cpp
 )
 
 target_link_libraries(dsp_systems_tests
@@ -850,6 +864,16 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         # resonance_drift_network_test.cpp:38-42 precedent). The perf TU stays out
         # too: -fno-fast-math would change the figures its baselines are pinned to.
         unit/processors/spectral_smear_nonfinite_test.cpp
+        # Vorago Phase 5: SC-012 injects NaN/Inf via bit patterns in this TU and
+        # needs IEEE semantics to assert on them; it is also the only definition
+        # of detail::FeedbackEcologyNonFiniteProbe. ONLY this one of the four
+        # Phase 5 TUs is listed; the other three must NOT be.
+        # feedback_ecology_test.cpp and feedback_ecology_spectral_test.cpp stay
+        # out so the FR-008/FR-009 guards are proved in the /fp:fast +
+        # -ffast-math mode the header actually ships in. The perf TU stays out
+        # too: -fno-fast-math would change the figures its baselines are pinned
+        # to.
+        unit/systems/feedback_ecology_nonfinite_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 

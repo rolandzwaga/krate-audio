@@ -186,8 +186,8 @@ static constexpr float kMaxTotalLoopGain    = 0.95f;    // FR-035 row-sum ceilin
 static constexpr float kOutputClamp         = 4.0f;     // FR-046 (noise_organism.h:180)
 
 // --- the governor (FR-043..FR-045) ----------------------------------------
-static constexpr float kDefaultGovernorThresholdDb = -6.0f;
-static constexpr float kMinGovernorThresholdDb     = -36.0f;
+static constexpr float kDefaultGovernorThresholdDb = -52.0f;  // AMENDED T012, MEASURED - see below
+static constexpr float kMinGovernorThresholdDb     = -72.0f;  // AMENDED T012, MEASURED - see below
 static constexpr float kMaxGovernorThresholdDb     =   0.0f;
 static constexpr float kDefaultGovernorRatio = 8.0f;
 static constexpr float kMinGovernorRatio     = 1.0f;
@@ -199,6 +199,17 @@ static_assert(kGovernorAttackMs  >= EnvelopeFollower::kMinAttackMs
            && kGovernorAttackMs  <= EnvelopeFollower::kMaxAttackMs,  "attack inside the follower's range");
 static_assert(kGovernorReleaseMs >= EnvelopeFollower::kMinReleaseMs
            && kGovernorReleaseMs <= EnvelopeFollower::kMaxReleaseMs, "release inside the follower's range");
+// AMENDED DURING THE BUILD (T012): the threshold default and range floor above read
+// -6.0f and -36.0f until SC-006's sweep was first run. Both were sized from the
+// component's INPUT level (spec Assumption 1), but FR-043's tracker reads
+// normGain * sum_i b_i, which on the default tables (six Q ~ 100 resonators, ENBW
+// 3.3-18.8 Hz of 24 kHz) sits ~30 dB BELOW a broadband drive: measured -42.3 dB at the
+// -12 dBFS reference drive, -31.0 dB at 0 dBFS. The whole old [-36, 0] window was
+// therefore unreachable and the governor inert at every setting. -52.0f is 10 dB under
+// the measured nominal and is the placement that satisfies every SC-006 arm with margin;
+// the sweep, the reasoning and the rejected alternatives live in the header's
+// DERIVATION TABLE 3, which is the normative record. spec.md FR-044 and Assumption 1
+// carry the same amendment.
 
 // --- wander (FR-052, FR-053, FR-055) --------------------------------------
 static constexpr float kDefaultWanderRateHz = 0.03f;
@@ -1222,6 +1233,19 @@ these instead of guessing at step detection. The sampling cannot miss an onset: 
     // by construction TODAY. The test is written anyway, because the failure mode it
     // catches is a silent permanent mute rather than an audible artefact, and because
     // a later phase adding a term to this law must not be able to reintroduce it.
+    // AMENDED DURING THE BUILD (T012): this write goes through
+    //   retargetGovernorRamp(v) { if (v != governorRamp_.getTarget()) governorRamp_.setTarget(v); }
+    // and so does the health guard's setTarget(1.0f) above. Re-issuing an unchanged
+    // target is NOT a no-op on LinearRamp: setTarget recomputes
+    // increment_ = (target_ - current_) / rampSamples (smoother.h:353) from the current
+    // position, so a target re-issued every 64 samples becomes a geometric approach
+    // covering 64/960 = 6.67 % of the remainder per step, never trips process()'s
+    // overshoot clamp (smoother.h:378-382) - the only place a LinearRamp is set exactly
+    // equal to its target - and STALLS permanently at ~2.9e-5 short, where
+    // current_ + increment_ rounds back to current_. Measured before the guard: every
+    // SC-006 step after the first momentary engagement reported getGovernorGain() ==
+    // 0.999973f even 20 dB below the threshold, breaking SC-006 (a)'s exact-1.0f arm and
+    // shifting SC-006 (f)'s crossing level by a full 6 dB step at numLoops = 1.
     governorRamp_.setTarget(detail::isFinite(target) ? target : 1.0f);
 ```
 
@@ -2263,8 +2287,14 @@ and is **identical** for `maxBlockSamples` of 64, 512 and 8192 and for `numLoops
 * **(a)** Two instances prepared identically with the same seed produce renders equal within
   `render_fingerprint.h` tolerances (`kSampleTolerance = 5.0e-4f`, `kMetricTolerance = 2.5e-4`).
 * **(b)** `reset()` followed by the same render reproduces the first render within the same tolerances.
-* **(c)** Two different seeds differ: `compareFingerprints(...).withinTolerance()` is **false** and the
-  mean absolute difference exceeds `100 × kSampleTolerance`.
+* **(c)** Two different seeds differ: `compareFingerprints(...).withinTolerance()` is **false**, the
+  mean absolute difference exceeds **50 % of the reference render's own `meanAbs`**, and it also
+  exceeds `kSampleTolerance` in absolute terms. **AMENDED after T015's first build, by measurement —
+  spec.md SC-009 (c) carries the figures.** The original `100 × kSampleTolerance` = 0.05 absolute
+  floor is unsatisfiable by any implementation by 43×: the reference patch renders at meanAbs
+  0.0011695 (RMS −56.7 dBFS), so `mean|a−b| ≤ 0.00234` whatever the seeds. Measured: 0.0013306, i.e.
+  1.138 × the render's own meanAbs (√2 for two independent renders, 0 for a seed that never reaches
+  the lanes).
 * **(d) Lane independence, two arms.**
   *Statistical:* over a 120 s render, the pairwise Pearson correlation between the twelve **lane
   target** trajectories read through `getLoopTargetDelayMs(i)` / `getLoopTargetCutoffHz(i)` is **below

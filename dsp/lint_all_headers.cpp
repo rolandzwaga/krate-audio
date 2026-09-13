@@ -181,6 +181,9 @@
 // Vorago Phase 3 (specs/vorago-phase3-resonance-drift), FR-001
 #include <krate/dsp/systems/resonance_drift_network.h>
 
+// Vorago Phase 5 (specs/vorago-phase5-feedback-ecology), FR-001
+#include <krate/dsp/systems/feedback_ecology.h>
+
 // Layer 4: Effects
 #include <krate/dsp/effects/aether_reverb.h>
 #include <krate/dsp/effects/bbd_delay.h>
