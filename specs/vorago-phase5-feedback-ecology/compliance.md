@@ -20,10 +20,10 @@ carries the new measured evidence.
 
 Everything else — all remaining FR items, SC-005 through SC-019 and SC-022 through SC-025, and all five
 constitution/constraint checks (CC-rt, CC-layers, CC-naming, CC-warnings, CC-portability) — passes with
-verified, cited evidence. CC-portability: WSL was repaired on 2026-09-13 and `node tools/check-portability.js`
-compiled the five changed translation units under Ubuntu g++ 13.3, all clear (see the row); the MSYS2 g++ 14.2
-syntax checks of both changed headers (clean; the only warning is the pre-existing `effectiveQ` in untouched
-ResonatorBank code) were the interim substitute while WSL was down.
+verified, cited evidence. CC-portability: `node tools/check-portability.js` compiled the five changed
+translation units under g++ 13.3, all clear (see the row); both changed headers were additionally
+syntax-checked with MSYS2 g++ 14.2 (clean; the only warning is the pre-existing `effectiveQ` in untouched
+ResonatorBank code).
 
 **Process note.** The build stage's T005 probe reported `status: "blocked"` with the over-budget table at
 14:38 on 2026-09-12 and the workflow carried on for eight hours because nothing acted on that status.

@@ -217,9 +217,9 @@ twelve-resonator `ResonatorBank` via two additive methods (`processIndividual`, 
 not twelve banks: the FR-060 probe put the twelve-bank shape over budget, exactly as plan S10.4
 projected. SC-004 (b)'s original "≥ 10 % saving with wander off" was structurally unreachable once the
 Dormancy rule fixed that lanes keep advancing (measured 4–5 %); amended by user decision to a
-directional clause with the saving transcribed. Remaining partial: the portability gate skips itself
-on this machine (WSL broken); the new TUs were syntax-checked against libstdc++ via MSYS2 g++ 14.2
-instead. The build's fixer also caught and fixed a NaN path reachable through the public API
+directional clause with the saving transcribed. The new TUs were syntax-checked against libstdc++
+with MSYS2 g++ 14.2 in addition to the MSVC build. The build's fixer also caught and fixed a NaN
+path reachable through the public API
 (parametric pump under SC-002 (c)'s injection) and a real gain/pan zipper.
 
 **Spec:** `vorago-phase3-resonance-drift`

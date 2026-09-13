@@ -1333,7 +1333,7 @@ node tools/lint-allocation-operator-overrides.js
 All seven must pass. What each is actually guarding here:
 
 * **check-portability** — MSVC accepts what GCC/AppleClang reject. A green Windows build proves
-  nothing about the Linux/macOS legs. **If this machine's WSL is still broken (it was in Phase 3),
+  nothing about the Linux/macOS legs. **If `check-portability.js` cannot run g++ on this machine,
   syntax-check the new TUs and the header against libstdc++ with MSYS2 `g++ 14.2` instead and say so
   explicitly in the compliance notes** — do not record a skipped gate as a pass.
 * **lint-layers** — the header includes Layers 0–1 only. (Note for the reader, not a gate: a Layer 3
