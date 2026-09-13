@@ -511,7 +511,7 @@ for (const group of dispatch.groups) {
 
   const runTask = (t) => () =>
     run(
-      `${CONTEXT}\n\nExecute this implementation task EXACTLY. FIRST open ${TASKS} and read the full section for task ${t.id} — that section is your AUTHORITATIVE instruction (the summary below is orientation only). Artifacts for reference: ${SPEC}, ${PLAN}. Write the failing test FIRST, then implement. Do NOT build or run tests (a dedicated build agent does that after your group) — but re-read every file you wrote before finishing and fix anything that obviously would not compile. Do not touch any file outside your task's file list. Never commit.\n\nTASK ${t.id}: ${t.title}\nFILES: ${t.files.join(', ')}\n\nORIENTATION: ${t.instructions}`,
+      `${CONTEXT}\n\nExecute this implementation task EXACTLY. FIRST open ${TASKS} and read the full section for task ${t.id} — that section is your AUTHORITATIVE instruction (the summary below is orientation only). Artifacts for reference: ${SPEC}, ${PLAN}. Write the failing test FIRST, then implement. Do NOT build or run tests (a dedicated build agent does that after your group) — but re-read every file you wrote before finishing and fix anything that obviously would not compile. Do not touch any file outside your task's file list. Never commit. If the task section says STOP AND SURFACE (or its outcome is a decision only the user can take), return status "blocked" with the measured table and the decision needed in notes — a "done" whose notes merely say to stop is NOT honoured and the next tasks will run.\n\nTASK ${t.id}: ${t.title}\nFILES: ${t.files.join(', ')}\n\nORIENTATION: ${t.instructions}`,
       { label: `impl:${t.id}`, phase: 'Implement', schema: IMPL_RESULT },
     )
 
