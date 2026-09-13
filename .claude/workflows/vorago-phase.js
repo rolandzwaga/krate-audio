@@ -525,6 +525,20 @@ for (const group of dispatch.groups) {
     }
   }
 
+  // Honour an implementer's stop-and-surface (2026-09-13: Phase 5's T005 probe reported
+  // status 'blocked' with a measured over-budget table and the loop carried on for 8 h).
+  const blockedHere = implResults.filter(r => r && r.status === 'blocked' && group.tasks.some(t => t.id === r.task_id))
+  if (blockedHere.length) {
+    log(`Group "${group.name}": ${blockedHere.map(r => r.task_id).join(', ')} reported BLOCKED — stopping the stage`)
+    return {
+      stage: 'build', phase: phaseNum, slug: SLUG, status: 'BLOCKED',
+      blocked_group: group.name,
+      blocked_tasks: blockedHere,
+      impl_results: implResults,
+      next: 'A task reported status "blocked" (stop-and-surface). Read its notes, take the decision it asks for, then re-run stage "build" with resumeFromRunId — completed agents replay from cache.',
+    }
+  }
+
   // Build + fix loop after every group so errors localize to the group that caused them.
   phase('Build+Test')
   // Gate-scope narrowing (encoded 2026-08-04 after the Phase 12 fixer loop): a group that
