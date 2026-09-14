@@ -12,7 +12,8 @@ ruling in the compliance record.
 **Regression set that must stay green (FR-080, SC-016):** `dsp_core_tests`, `dsp_primitives_tests`,
 `dsp_processors_tests` (in particular `sub_oscillator_test.cpp`), `dsp_systems_tests`.
 **Plugin work:** none. Vorago's plugin starts at Phase 11; phases 1–10 are KrateDSP-only.
-**Shipped components amended: none.** These ten headers must be **byte-unchanged** at the end of the
+**Shipped components amended: one, by ruling (2026-09-14, SC-013 (c)):** `processors/sub_oscillator.h`
+gains an append-only `advance()`; `process()` is untouched. The other nine headers must be **byte-unchanged** at the end of the
 phase (FR-080, SC-016): `processors/sub_oscillator.h`, `primitives/minblep_table.h`,
 `processors/envelope_follower.h`, `primitives/two_pole_lp.h`, `processors/saturation_processor.h`,
 `primitives/dc_blocker.h`, `processors/breathing_modulator.h`, `primitives/smoother.h`,
@@ -681,8 +682,10 @@ build/windows-x64-release/bin/Release/dsp_systems_tests.exe "SubharmonicEngine_*
   `kMinWetGainDb` with tones **awake** → also bit-identical, chain still running.
 * **(b)** `isToneDormant` true for all three; false on the first sample after a level write above the
   floor, **within the ≤ 64-sample control latency** Q5 grants.
-* **(c)** The four-step sequence with `trackingAmount = 0` throughout and a **≥ 2 s charging render**
-  before sleep: output ≤ **−80 dBFS** over the first 500 ms after the wake.
+* **(c)** The four-step sequence with `trackingAmount` at its FR-033 default of **1.0** and a
+  **≥ 2 s charging render** before sleep: output ≤ **−80 dBFS** over the first 500 ms after the wake.
+  (At 0 the restored sub itself is ≈ −13 dBFS because the tones are generators; at 1.0 the tracking
+  mute sits upstream of the blocker, whose un-reset state still rings ≈ −36.6 dBFS into the window.)
 * **(c2) Mutation check — run once during implementation and recorded in compliance.** With the
   **two** sleep-edge lines `lowpass_.reset()` and `blocker_.reset()` removed, (c) must **fail**. It is
   deliberately a two-line mutation: `saturator_.reset()` clears no audio state reachable from
@@ -692,7 +695,9 @@ build/windows-x64-release/bin/Release/dsp_systems_tests.exe "SubharmonicEngine_*
   (below the −18 dBFS reference, so `envNorm ≈ 0.251` and is **unclamped**; at −12 dBFS the clamp at
   1.0 would hide a reset within ~35 ms and the check would be vacuous), drive the tones to
   `kMinToneLevelDb`, render 500 ms sampling `getTrackedEnvelope()` once per 64 samples: after the
-  50 ms level ramp has parked, **every** sample stays within **1e-3** of the pre-dormancy value.
+  50 ms level ramp has parked, **every** sample stays within **1e-3** of a never-dormant twin fed
+  byte-identical input, and within a measured **5e-3** of the pre-dormancy value (the follower's
+  110 Hz ripple on a 55 Hz body is 3.25e-3 peak-to-peak; a 1e-3 absolute band fails on a correct build).
 * **(d)** Two seeded instances, A dormant for **37 s**: (d1) `getToneBreathValue` agree within
   **1e-3**; (d2) A's own value moved by **> 0.05** across the dormancy on **≥ 2** tones (at 37 s the
   27 / 43 / 71 s breathers have moved 1.37 / 0.86 / 0.52 of a cycle); (d3) a 5 s post-wake render with
@@ -740,7 +745,9 @@ SC-013 (c) gates.
     **12 dB ± 0.1 dB** in sub-band RMS. Without this arm an implementation that taps *after* the wet
     multiply is green everywhere (every other tap-reading criterion runs at 0 dB wet) and Phase 10
     inherits the wrong signal.
-  * **(c)** toggling the flag mid-render is click-free (`ClickDetectorConfig{.sampleRate = 48000.0f}`).
+  * **(c)** toggling the flag mid-render adds nothing beyond its own step: `ClickDetector`
+    (`ClickDetectorConfig{.sampleRate = 48000.0f}`) reports no detection outside a one-sample window
+    of each toggle index, and at least one toggle step exceeds the detector threshold (non-vacuity).
   * **(d)** `isToneDormant`, `isToneInfrasonicFloored` and `getClampEngagementCount()` are unaffected
     by the flag's state.
 * `TEST_CASE("SubharmonicEngine_ClampScope", "[subharmonic_engine]")` — **the only assertion in the
@@ -860,7 +867,14 @@ mutation is written into the case.
 the `resonance_drift_network_perf_test.cpp` source), `f = 55`, all levels `kMaxToneLevelDb`, wet
 `kMaxWetGainDb`, drive `kMaxDriveDb`, tracking default.
 (a) `getClampEngagementCount() == 0` **and** `measureTruePeakDb(out) ≤ +9.5 dBTP`, value transcribed
-into compliance. (b) through a default `TruePeakLimiter` (ceiling −1 dB) → **≤ −0.9 dBTP**.
+into compliance. (b) **amended 2026-09-14 (spec D-16)** — through a default `TruePeakLimiter`
+(ceiling −1 dB): every **sample** **≤ −0.9 dBFS** (the limiter's exact guarantee, and the spec's
+figure), the residual **true** peak **≤ +0.5 dBTP**, and that true peak **no worse than +0.25 dB**
+against a **dry control** (the same fixture input, no engine in the path, scaled to the engine
+render's sample peak, through the same limiter). The earlier "≤ −0.9 dBTP" is **withdrawn**: this
+limiter is zero-latency with an instantaneous attack, and its own unit test pins the inter-sample
+slack at `ceil + 0.06` linear ≈ −0.43 dBTP on a pure sine (`true_peak_limiter_test.cpp:88-89`), so
+−0.9 dBTP is unreachable for any input, engine or not. **`true_peak_limiter.h` is not modified.**
 (c) at **default** tone levels and wet gain the limiter's minimum gain over the render stays **above
 −6 dB**. `TruePeakLimiter` exposes no gain read surface and **no getter may be added to it**: keep an
 **unlimited copy** of the render, run the limiter on the copy, and compute the per-sample gain as
@@ -930,14 +944,18 @@ in the same TU and must precede this one in declaration order).
 **Test 2:** `TEST_CASE("SubharmonicEngine_DividerTHD", "[subharmonic_engine]")` (SC-004). Same fixture
 and sweeps, `measureLowFrequencyThdPercent(..., maxHarmonic = 10)`.
 (a) **≤ 2.0 %** for every tone at every fundamental, **every value transcribed** into compliance;
-(b) monotonically non-increasing within **each tone's own** descending sweep (220→110→55 for
-Div2/Fifth; 440→220→110 for Div4), never across tones. A **negative sentinel FAILS** the case.
-The 2 % ceiling is derived, not guessed — plan S4.2's table bounds the Sine phase-reset discontinuity
-at 1.44 % (Div2 @ 220 Hz), 1.44 % (Div4 @ 440 Hz) and 1.92 % (Fifth @ 220 Hz), and the step is a
-once-per-sub-period impulse whose energy spreads across the series, so the measured figure sits below
-those bounds. **If measurement disagrees, stop and surface**: the pre-authorised lever is D-4's
-rejected alternative (a private `PhaseAccumulator` + `std::sin` for the Sine path), **never** a
-relaxed ceiling.
+(b) **amended 2026-09-14 (spec D-15)** — the **FR-042-corrected** THD is **flat within each tone's
+own** descending sweep (220→110→55 for Div2/Fifth; 440→220→110 for Div4): peak-to-peak spread
+**≤ 4 % of the sweep mean**, with the **raw** spread required to **exceed 5 %** so the correction
+cannot become the identity; never compared across tones. The earlier "monotonically non-increasing"
+form is **withdrawn** — measured, the raw figure *rises* as `f` descends on all three tones and the
+whole rise is the FR-042 tilt the correction removes. A **negative sentinel FAILS** the case.
+The 2 % ceiling is derived, not guessed, and is **untouched** — plan S4.2's table bounds the Sine
+phase-reset *step* at 1.44 % (Div2 @ 220 Hz), 1.44 % (Div4 @ 440 Hz) and 1.92 % (Fifth @ 220 Hz); it
+is an upper bound, not a prediction, and measured the reset contributes ≈ 0.007 % while FR-041's
+`tanh` supplies ≈ 100 % of what is measured. **If measurement disagrees with the ceiling, stop and
+surface**: the pre-authorised lever is D-4's rejected alternative (a private `PhaseAccumulator` +
+`std::sin` for the Sine path), **never** a relaxed ceiling.
 
 **Verify:** build, run both cases (they are minutes-long — capture to a log on the first run), run the
 falsification, restore, run the suite.
@@ -968,10 +986,14 @@ criterion exists to measure):
 Configuration: tracking 1.0 (the quantity under test), all three tones at their FR-020 defaults,
 breath depths 0, `f = 55`, input a **mono-identical** 55 Hz sine held 8 s per step with the last 4 s
 measured. Sweep body RMS **−60 / −48 / −36 / −24 / −18 / −12 / −6 dBFS**; measure `subTap` RMS.
-(a) unity slope in dB, **±1.0 dB**, across −60…−18; (b) flat **±0.5 dB** across −18…−6; (c) with
+(a) unity slope in dB, **±1.0 dB**, across −60…−24 (the −18 point is already past the knee — the
+RMS sensor over-reads a steady sine by ≈ 1.9 dB, so the knee sits at reference − 1.9 dB; ruled
+2026-09-13); (b) flat **±0.5 dB** across −18…−6; (c) with
 tracking 0, flat **±0.5 dB** across the whole sweep; (d) `getTrackingGain()` agrees with
-`(1−a) + a·getTrackedEnvelope()` within **1e-4**; (e) with `setTrackReferenceDb(-30)` the knee moves
-to −30 dBFS **±1.0 dB** (the −24 point becomes rising, the −18 point becomes flat). The follower is
+`(1−a) + a·getTrackedEnvelope()` within **max(1e-4, 2 % of predicted)** (the sensor's ≈ 1.5 % 2f
+ripple is averaged by the ramp, not by the getter; ruled 2026-09-13); (e) the knee lies at reference − 1.9 dB (the
+recorded sensor bias) **±1.0 dB** at both the default reference and `setTrackReferenceDb(-30)`, and
+moves by **−12 dB ±1.0 dB** between them (the −24 point becomes flat at the −30 reference). The follower is
 RMS-mode, so a sine of peak `A` reads `A/√2` — compute the body's actual RMS from the rendered buffer
 rather than assuming a dBFS convention. Every measured point is transcribed into compliance.
 
@@ -1182,7 +1204,8 @@ for t in dsp_core_tests dsp_primitives_tests dsp_processors_tests dsp_systems_te
 All four green, including `sub_oscillator_test.cpp` inside `dsp_processors_tests` and the
 `seraphis_*` cases inside `dsp_systems_tests` (they consume the same shipped headers).
 
-Then the **byte-unchanged** check — this must print **nothing**:
+Then the **byte-unchanged** check — this must print **nothing** for nine headers; `sub_oscillator.h`
+shows only the appended `advance()` (ruled 2026-09-14):
 
 ```bash
 git diff --stat -- dsp/include/krate/dsp/processors/sub_oscillator.h \

@@ -447,6 +447,20 @@ add_executable(dsp_systems_tests
     unit/systems/feedback_ecology_spectral_test.cpp
     unit/systems/feedback_ecology_perf_test.cpp
     unit/systems/feedback_ecology_nonfinite_test.cpp
+    # Vorago Phase 6 (specs/vorago-phase6-subharmonic): SubharmonicEngine.
+    # This list is ENUMERATED, not globbed - an unregistered TU silently drops
+    # out of the build and its cases never run.
+    #   subharmonic_engine_test.cpp           SC-001, SC-006, SC-007, SC-008, SC-010,
+    #                                         SC-011, SC-012, SC-014, SC-019, SC-020,
+    #                                         SC-021, SC-022
+    #   subharmonic_engine_spectral_test.cpp  SC-002, SC-003, SC-004, SC-005,
+    #                                         SC-017 (A)+(B)   (the [long] set)
+    #   subharmonic_engine_perf_test.cpp      SC-013 + the FR-071 stage/placement probe [.perf]
+    #   subharmonic_engine_nonfinite_test.cpp SC-009 only
+    unit/systems/subharmonic_engine_test.cpp
+    unit/systems/subharmonic_engine_spectral_test.cpp
+    unit/systems/subharmonic_engine_perf_test.cpp
+    unit/systems/subharmonic_engine_nonfinite_test.cpp
 )
 
 target_link_libraries(dsp_systems_tests
@@ -874,6 +888,15 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         # too: -fno-fast-math would change the figures its baselines are pinned
         # to.
         unit/systems/feedback_ecology_nonfinite_test.cpp
+        # Vorago Phase 6: SC-009 injects NaN/Inf via bit patterns in this TU and
+        # needs IEEE semantics to assert on them; it is also the only definition
+        # of detail::SubharmonicEngineNonFiniteProbe. ONLY this one of the four
+        # Phase 6 TUs is listed. subharmonic_engine_test.cpp and
+        # subharmonic_engine_spectral_test.cpp stay out so the FR-008/FR-009
+        # guards are proved in the /fp:fast + -ffast-math mode the header
+        # actually ships in. The perf TU stays out too: -fno-fast-math would
+        # change the figures its baselines are pinned to.
+        unit/systems/subharmonic_engine_nonfinite_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 

@@ -301,6 +301,16 @@ per-voice envelope above).
 
 ### Phase 6: Subharmonic Engine
 
+**Status: ✅ COMPLETE (2026-09-14)** — see specs/vorago-phase6-subharmonic/compliance.md
+(102 of 102 items pass after the main-loop resolution; the build stage stopped at 100/2, both the
+SC-013 (c) dormancy-saving clause). Three phase-locked `SubOscillator` dividers (f/2, f/4 and the
+fifth below as (4f/3)/2 off a second master, no divider change), RMS envelope tracking with a settable
+reference, three-factor per-tone gain with house breathing, 18 Hz Bessel high-pass instead of an
+infrasonic gate, low-pass → low-drive saturation → DC blocker, sub-only clamp, a supported sub tap with
+a sub-to-main enable, control-step dormancy. Measured: 0.18 % of one core at defaults against the
+0.5 % budget; dormant 66–75 % cheaper after `SubOscillator::advance()` (the phase's one shared-header
+change, append-only). Open Question 4 ruled: **global, post-voice-sum**.
+
 **Spec:** `vorago-phase6-subharmonic`
 **Goal:** Impossible low frequencies — cinematic weight.
 
@@ -539,7 +549,9 @@ atmosphere engine) are consumed as-is from day one.
 3. Cavern space: configuration layer over shared `AetherReverb` vs separate L4 effect — Phase 9,
    after Seraphis Phase 6 exists.
 4. Subharmonic engine placement: global (track lowest voice) vs per-voice — Phase 6, after CPU
-   measurement.
+   measurement. **Decided in Phase 6: global, post-voice-sum** (one instance, 0.19 % of one core;
+   per-voice measured affordable at 0.19 % per voice but not taken — see
+   `vorago-phase6-subharmonic/spec.md` OQ-1 for the table and reasoning). Binds Phase 10's wiring.
 5. Voice count (4, 6, or 8) and whether ghost/atmosphere is per-voice or global — Phase 10, after
    budgets are real.
 6. Macro roster trim (which of the 15 concepts survive listening) — Phase 10/12.

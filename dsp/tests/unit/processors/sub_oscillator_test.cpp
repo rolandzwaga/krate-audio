@@ -1462,3 +1462,79 @@ TEST_CASE("SC-013: memory footprint <= 300 bytes per instance",
     REQUIRE(totalEstimate <= 300);
 }
 
+
+// ==============================================================================
+// advance(): state-equivalent to process() with the output discarded
+// ==============================================================================
+// Added 2026-09-14 for Vorago Phase 6 (SC-013 (c)): a dormant consumer advances
+// the oscillator through advance() instead of process() and must be able to
+// resume process() with a BIT-IDENTICAL output sequence, for every waveform and
+// both octaves, whether the advance() stretch is one long run or interleaved.
+
+TEST_CASE("advance() is state-equivalent to process() with the output discarded",
+          "[sub_oscillator]") {
+    constexpr double kSampleRate = 48000.0;
+    constexpr float kIncrement = static_cast<float>(55.0 / kSampleRate);
+    constexpr size_t kWarmUp = 2000;   // both process(): outputs must already agree
+    constexpr size_t kDormant = 3000;  // ~3.4 master periods: wraps, toggles, resyncs
+    constexpr size_t kResume = 4000;
+
+    for (const SubWaveform waveform : {SubWaveform::Square, SubWaveform::Sine,
+                                       SubWaveform::Triangle}) {
+        for (const SubOctave octave : {SubOctave::OneOctave, SubOctave::TwoOctaves}) {
+            SubOscillator reference(&sharedSubTable());
+            SubOscillator advanced(&sharedSubTable());
+            for (SubOscillator* osc : {&reference, &advanced}) {
+                osc->prepare(kSampleRate);
+                osc->setWaveform(waveform);
+                osc->setOctave(octave);
+            }
+            PhaseAccumulator master;
+            master.increment = static_cast<double>(kIncrement);
+
+            INFO("waveform " << static_cast<int>(waveform) << ", octave "
+                             << static_cast<int>(octave));
+
+            for (size_t i = 0; i < kWarmUp; ++i) {
+                const bool wrapped = master.advance();
+                const float a = reference.process(wrapped, kIncrement);
+                const float b = advanced.process(wrapped, kIncrement);
+                REQUIRE(a == b);
+            }
+
+            // One long dormant stretch: reference keeps rendering, advanced
+            // only advances.
+            for (size_t i = 0; i < kDormant; ++i) {
+                const bool wrapped = master.advance();
+                static_cast<void>(reference.process(wrapped, kIncrement));
+                advanced.advance(wrapped, kIncrement);
+            }
+
+            float peak = 0.0f;
+            for (size_t i = 0; i < kResume; ++i) {
+                const bool wrapped = master.advance();
+                const float a = reference.process(wrapped, kIncrement);
+                const float b = advanced.process(wrapped, kIncrement);
+                INFO("resume sample " << i);
+                REQUIRE(a == b);
+                peak = std::max(peak, std::fabs(a));
+            }
+            // Non-vacuity: the sequence being compared is a real waveform.
+            REQUIRE(peak > 0.5f);
+
+            // Interleaved: advanced alternates advance()/process() sample by
+            // sample; every process() output must still match the reference.
+            for (size_t i = 0; i < kResume; ++i) {
+                const bool wrapped = master.advance();
+                const float a = reference.process(wrapped, kIncrement);
+                if ((i % 2) == 0) {
+                    advanced.advance(wrapped, kIncrement);
+                } else {
+                    const float b = advanced.process(wrapped, kIncrement);
+                    INFO("interleaved sample " << i);
+                    REQUIRE(a == b);
+                }
+            }
+        }
+    }
+}

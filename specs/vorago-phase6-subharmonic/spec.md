@@ -124,13 +124,34 @@ a steeper in-chain filter plus a far-below backstop gate, not a 16 Hz hard mute 
 - **Q7 (breathing depth convention)** — FR-021's `setDepth` passthrough, or the house affine span?
   → **The house affine span.** `BreathingModulator` depth is left at its library default of 1.0; the
   engine applies `1 + kBreathGainSpan * depth * b` with `kBreathGainSpan = 0.45`
-  (`noise_organism.h:174`). Max swing is ±45%; `kMaxPreSaturationMagnitude` recomputes to ≈ 8.7; the
+  (`noise_organism.h:174`). Max swing is ±45%; `kMaxPreSaturationMagnitude` recomputes to ≈ 8.7
+  [**figure superseded — the applied constant is ≈ 17.36; see FR-052.** The value quoted here when
+  this answer was recorded omitted `SubOscillator`'s own `[-2, +2]` output clamp. The *decision*
+  (the house affine span) is unchanged; only its arithmetic consequence is corrected]; the
   depth parameter is now comparable to `NoiseOrganism`'s for the Phase 10 macros. [FR-021, FR-022,
   FR-052]
 - **Q8 (sub-only routing)** — Does the sub need a separately routable output for Phases 9/10? →
   **Promote the tap to a supported output** and add a sub-to-main enable flag
   (`setSubToMainEnabled`, default enabled) so Phase 10 can route the sub around the Phase-9 space
   engine. The routing decision itself still belongs to Phase 10. [FR-050, FR-062, FR-064, SC-022]
+- **Note (not a Q — raised during planning, surfaced rather than applied): `EnvelopeFollower`'s
+  attack/release milliseconds are ~99 %-settling times, not time constants.**
+  `calculateCoefficient` is `coeff = exp(-2π / (ms · 0.001 · fs))` (`envelope_follower.h:356-365`),
+  so the effective τ is `ms / 2π`. FR-031's `kDefaultFollowerAttackMs = 120` is therefore
+  τ = **19.1 ms** and its `kDefaultFollowerReleaseMs = 800` is τ = **127.3 ms** — and the release
+  smooths in the *squared* domain (`:309-325`), so the envelope's amplitude τ is 254.6 ms. This is a
+  materially **faster** follower than FR-031's own rationale ("a drone's body moves on the scale of
+  seconds") describes. Two consequences are recorded here rather than acted on: (i) SC-001 (b)'s
+  parenthetical "≈ 96 % at 400 ms" was computed on the settling-time convention — on the true
+  convention the prediction is ≈ 100 %, and the criterion's 50 % floor stands unchanged either way;
+  (ii) no audio bracket on the *attack* constant is constructible, because FR-032's 50 ms gain ramp
+  dominates the composite (at 100 ms after a body step a correct build reads 0.82 of steady state
+  and a build that never pushed the value reads 0.86), which is why the attack is bracketed on the
+  read surface and only the release is bracketed in audio.
+  **The FR-031 defaults are NOT changed by this note.** Changing them is a spec decision and it is
+  carried as **OQ-2**: if the stated behaviour is what is wanted, the values become ≈ **750 ms** and
+  ≈ **5000 ms**, and the release bracket's measurement window moves with them. Until OQ-2 is ruled
+  on, `120 / 800` are the normative defaults and the build is written against them.
 - **OQ-1 (placement ruling)** — Unchanged: placement (global vs per-voice) is decided by the user
   from the FR-071 measured table at the end of the build stage; the build stage must present that
   table and stop for the ruling. It binds Phase 10's wiring, not this component's code. [FR-076,
@@ -440,10 +461,20 @@ new `ModSource` value.** `SubOctave` and `SubWaveform` are reused verbatim from
   worst-case arm) muted completely once per breath cycle — tremolo, not "slow level-breathing".
   `getToneBreathDepth` reports the clamped `depth_i` the engine holds.
   Defaults — deliberately different per tone so the three never breathe in lockstep:
-  rates `{0.037, 0.023, 0.014}` Hz (27 s, 43 s, 71 s per breath), depths `{0.35, 0.25, 0.45}`. Under
-  FR-022's revised affine map (`kBreathGainSpan = 0.45`) these give per-tone swings of
+  rates `{0.037, 0.023, 0.014}` Hz (27 s, 43 s, 71 s per breath), depths `{0.35, 0.25, 0.45}`,
+  **irregularity `0.25` on all three** (`kDefaultBreathIrregularity`). Under
+  FR-022's revised affine map (`kBreathGainSpan = 0.45`) the depths give per-tone swings of
   approximately `Div2: +1.27 / -1.49 dB`, `Div4: +0.93 / -1.04 dB`, `FifthBelow: +1.60 / -1.96 dB` —
   audible motion, never a mute, at every default depth.
+  **The irregularity default is load-bearing, not decoration.** `BreathingModulator`'s RNG has
+  exactly one consumer, `drawCycleJitter()` (`breathing_modulator.h:262-271`), and it draws
+  **nothing** at the modulator's shipped `kDefaultIrregularity = 0.0f` (`:113`, `:296`). The three
+  breathers are this component's only stochastic element, so at an irregularity of zero the FR-070
+  seed has no observable effect whatever: two different seeds render **bit-identically** and
+  SC-011 (b) — "the fingerprint comparison fails" — cannot happen on any implementation, correct or
+  not. `0.25` is the smallest value that makes the seed observable within SC-011 (b)'s 60 s horizon.
+  It is **not exposed as a setter**: FR-060's list stays closed, and the value is written by
+  `applyDefaults()` alone.
 - **FR-022** — **The house three-factor gain form** (revised per the Clarifications session, Q1,
   following `noise_organism.h:937` `getSourceGain` / `:1842-1844` `updateBreathGain`), replacing an
   earlier draft's single composite ramp. The **effective tone gain** is
@@ -502,14 +533,27 @@ new `ModSource` value.** `SubOctave` and `SubWaveform` are reused verbatim from
   50 ms fade cannot mask that: 50 ms is exactly one period of a 20 Hz tone and *shorter* than one
   period of every tone the FR-016 backstop admits below 20 Hz, so the fade envelope and the
   discontinuity occupy the same time scale and the listener hears a thump at the very bottom of the
-  spectrum — the one artefact this phase exists to avoid. The tone generator costs three flops and one
-  `std::sin`; the chain it protects is the expensive part, and that *is* skipped.
+  spectrum — the one artefact this phase exists to avoid. Measured (SC-013, 2026-09-13), the three
+  `std::sin` calls were ≈ 45 % of the awake cost — more than the chain — and left the dormant saving
+  at 16–21 % on clean runs and inside the machine's noise on others. So a dormant tone advances its
+  `SubOscillator` through `advance()` (FR-080's one exception), which performs `process()`'s state
+  transitions without the waveform arithmetic: the chain *and* the waveform arithmetic are what
+  dormancy skips, and the generator state still never freezes.
 - **FR-026** — **Sleep edge, evaluated at control-step granularity** (revised per Q5). On the
   64-sample control chunk at which the engine-wide dormancy condition of FR-025 first holds for the
   whole chunk, the chain's audio state is cleared at the start of that chunk: `TwoPoleLP::reset()`,
   `SaturationProcessor::reset()`, `DCBlocker2::reset()`. Without this, a stale tail sits in the
   filter's `y1_`/`y2_` and replays on wake. The `EnvelopeFollower` is **not** reset — it is the
   sensor and must keep tracking the body while the subs sleep.
+  **What each of the three calls actually does here, and what one of them costs.** The stale-tail
+  justification is true of `TwoPoleLP` and `DCBlocker2` and **false** of `SaturationProcessor` as
+  this component calls it: `processSample` (`saturation_processor.h:228-250`) reads neither
+  `dryBuffer_` nor the processor's internal `dcBlocker_`, so the only state its `reset()` clears
+  that is reachable from this component's audio path is its three parameter smoothers. What the
+  call *does* cost is a `std::fill` over `dryBuffer_` (`:159`) — an O(`maxBlockSamples`) memset on
+  the audio thread at every dormancy edge and every FR-055 recovery. **The call stays** — this FR
+  names it, and the smoother snap is harmless — but the cost is on the record, and SC-014 (c2)'s
+  mutation is scoped to the **two** lines that are actually audio-falsifiable.
 
 ### FR-030 series — Envelope tracking of the voice body (roadmap lines 312–313)
 
@@ -641,13 +685,21 @@ subMonoSum = Σ_i g_i * subOsc_i.process(...)        (FR-022 per-tone gains)
 - **FR-052** — Rung 1 of the safety ladder is structural: every tone gain, the tracking gain and the
   wet gain are bounded above, and the low-pass is non-expansive. Two distinct bounds, named
   separately because an earlier draft conflated them, **both recomputed this session** (Q2, Q7):
-  - `kMaxPreSaturationMagnitude = kNumTones * dbToGain(kMaxToneLevelDb) * (1.0f + kBreathGainSpan)`
-    ≈ `3 * 1.9953 * 1.45` ≈ **8.68** — the worst-case magnitude *entering* the saturator (three
-    tones, each at `+6 dB`, each with FR-022's `breathGain_i` at its `1 + kBreathGainSpan = 1.45`
-    ceiling). Down from an earlier draft's ≈ 11.97, which used the withdrawn `(1 + breath)` bracket
-    at its `[0, 2]` ceiling (Q7): the house affine span bounds `breathGain_i` to `[0.55, 1.45]`
-    instead, so the worst case is smaller by construction. This is the number that says the
-    saturator is always the stage that catches the peak, never the clamp.
+  - `kMaxPreSaturationMagnitude = kNumTones * kSubOscillatorOutputBound * dbToGain(kMaxToneLevelDb)
+    * (1.0f + kBreathGainSpan)` ≈ `3 * 2.0 * 1.9953 * 1.45` ≈ **17.36** — the worst-case magnitude
+    *entering* the saturator (three tones, each at `+6 dB`, each with FR-022's `breathGain_i` at its
+    `1 + kBreathGainSpan = 1.45` ceiling), where `kSubOscillatorOutputBound = 2.0f` **carries the
+    `SubOscillator`'s own output bound**: `SubOscillator::sanitize` clamps every tone to `[-2, +2]`
+    (`sub_oscillator.h:356-364`), and the Square path's minBLEP residual genuinely exceeds 1.0, so a
+    per-tone bound of 1.0 was not a bound at all. Two earlier drafts of this figure were wrong in
+    opposite directions: ≈ 11.97 used the withdrawn `(1 + breath)` bracket at its `[0, 2]` ceiling
+    (Q7 replaced it with the affine span `[0.55, 1.45]`, which bounds `breathGain_i` by
+    construction), and the draft that corrected *that* then dropped the sub-oscillator's own clamp
+    and came out a factor of two low. Both figures are withdrawn. **Nothing downstream moves:**
+    `kMaxPreClampMagnitude` is **unchanged at ≈ 2.00** — the `tanh` bounds the
+    chain regardless of what enters it — and the `static_assert(kMaxPreSaturationMagnitude >
+    kSaturatorOutputBound)` becomes *more* true. This is the number that says the saturator is
+    always the stage that catches the peak, never the clamp.
   - `kMaxPreClampMagnitude = kSaturatorOutputBound * kInfrasonicFilterPeakGain * dbToGain(kMaxWetGainDb)`
     ≈ `1.0 * 1.0 * 1.9953` ≈ **2.00** — the worst-case magnitude *reaching* the FR-054 clamp (applied
     to the sub contribution only, Q6), where `kSaturatorOutputBound = 1.0f` is FR-053's `tanh` range,
@@ -692,6 +744,26 @@ subMonoSum = Σ_i g_i * subOsc_i.process(...)        (FR-022 per-tone gains)
   `EnvelopeFollower::processSample` "does NOT validate input" (`envelope_follower.h:163`); one
   non-finite sample poisons either for the life of the object, and `detail::flushDenormal` does not
   clear a NaN.
+  **The sensor guard (added by the plan's S7.6 trace; without it SC-009 (c2) fails on an
+  implementation that is correct by the rest of this FR).** The trap above cannot see the one path
+  that matters, because that path ends in a *finite* value. Two additional guards, both on the
+  **sensor** and nowhere else:
+  - **Per sample**, the follower is fed `detail::isFinite(mono) ? mono : 0.0f` rather than `mono`.
+  - **Per control step**, a non-finite `follower_.getCurrentValue()` is rejected: `follower_.reset()`
+    runs and `0.0f` is substituted **before** the value can reach FR-032's tracking ramp.
+
+  The trace the guards close: a non-finite input sample poisons `squaredEnvelope_` permanently
+  (`envelope_follower.h:311-325`; the release branch runs and `flushDenormal` does not clear a NaN);
+  `envNorm = clamp(NaN / ref, 0, 1)` is NaN (`std::clamp` returns `v` when both comparisons are
+  false); `LinearRamp::setTarget(NaN)` does **not** propagate the NaN — it **mutes**,
+  `target_ = current_ = increment_ = 0` instantly, with no counter and no way back
+  (`smoother.h:343-348`). The sub is then exactly `0.0f`, which is **finite**, so this rung's trap
+  never fires and the engine is silently dead for the rest of the session. During a dormant stretch
+  the sub is zero anyway, so the poisoning has no symptom at all until the next wake.
+  **The dry path is still not sanitised.** Only the *sensor's* input is substituted, and a
+  non-finite sample carries no body-level information, so FR-055's stated principle — a host's audio
+  is not sanitised behind its back — is intact. Cost: one bit test per sample plus one per control
+  step, priced by FR-071 arm (e).
 
 ### FR-060 series — Control and read surface
 
@@ -795,10 +867,17 @@ subMonoSum = Σ_i g_i * subOsc_i.process(...)        (FR-022 per-tone gains)
 
 ### FR-080 series — Shared components stay untouched
 
-- **FR-080** — `sub_oscillator.h`, `minblep_table.h`, `envelope_follower.h`, `two_pole_lp.h`,
-  `saturation_processor.h`, `dc_blocker.h`, `breathing_modulator.h`, `smoother.h`, `phase_utils.h`
-  and `random.h` are **byte-unchanged** by this phase. Roadmap line 531 anticipated a `SubOscillator`
-  extension; FR-012 removes the need for one. Their shipped test TUs — in particular
+- **FR-080** — `minblep_table.h`, `envelope_follower.h`, `two_pole_lp.h`, `saturation_processor.h`,
+  `dc_blocker.h`, `breathing_modulator.h`, `smoother.h`, `phase_utils.h` and `random.h` are
+  **byte-unchanged** by this phase. `sub_oscillator.h` gains **exactly one append-only method**,
+  `advance(bool masterPhaseWrapped, float masterPhaseIncrement)`, by ruling on 2026-09-14 (SC-013 (c)):
+  it performs `process()`'s state transitions — master phase estimate, both flip-flops, the
+  Sine/Triangle sub-phase accumulator with its rising-edge resync, and the minBLEP residual — and
+  skips only the waveform arithmetic; `process()` and every other line of the header are unchanged,
+  and `sub_oscillator_test.cpp` gains a case proving a caller that alternates `advance()` and
+  `process()` sees a bit-identical `process()` sequence. Roadmap line 531 anticipated a
+  `SubOscillator` extension; FR-012 removed the need for one for the *fifth*, and this is the
+  smaller extension dormancy needed. Their shipped test TUs — in particular
   `dsp/tests/unit/processors/sub_oscillator_test.cpp` — must stay green (SC-016).
 - **FR-081** — The four new test TUs are registered by name in the **enumerated** `dsp_systems_tests`
   list (`dsp/tests/CMakeLists.txt`, list opens at `:324`), appended after the Phase-5 block that ends
@@ -850,20 +929,34 @@ and pass every criterion below while measuring nothing.
   over −60, −48, −36, −24, −18, −12, −6 dBFS. Measure the `subTap` RMS through
   `processBlockTapped`, which by FR-062 is post-tracking-gain and is therefore the point at which
   the law is observable at all.
-  (a) Between −60 and −18 dBFS the sub RMS rises with **unity slope in dB**, within **±1.0 dB** at
-  every point. (b) Between −18 and −6 dBFS the sub RMS is **flat within ±0.5 dB** (the
+  (a) Between −60 and −24 dBFS the sub RMS rises with **unity slope in dB**, within **±1.0 dB** at
+  every point. The rising region stops one step short of the reference because the FR-030 sensor —
+  `EnvelopeFollower` in RMS mode — smooths asymmetrically in the squared domain and reads a steady
+  sine ≈ 1.9 dB above its true RMS at the FR-031 constants (a pinned property of the shared
+  component, `envelope_follower_test.cpp`; measured 1.8788 dB here against a 1.8783 dB simulation
+  of the recursion). The FR-032 knee therefore sits at the reference **minus ≈ 1.9 dB** (≈ −19.9 dBFS
+  at the default), and the −18 dBFS point is already on the plateau: an earlier draft ended the
+  rising region there and missed unity by exactly that bias. (b) Between −18 and −6 dBFS the sub RMS is **flat within ±0.5 dB** (the
   `trackReferenceRms` clamp, at its default −18 dBFS). (c) With `trackingAmount = 0` and everything
   else identical, the sub RMS is flat within **±0.5 dB** across the whole sweep — free-running by
   design, and the criterion records that it is stable, not silent. (d) `getTrackingGain()` sampled
   at the end of each step agrees with `(1 - trackingAmount) + trackingAmount * envNorm` computed
-  from `getTrackedEnvelope()` within `1e-4`, so the audio measurement and the read surface
-  corroborate each other rather than either standing alone.
-  (e) **The reference is load-bearing, not cosmetic (new, Q4/FR-035).** Repeating (a)/(b) with
-  `setTrackReferenceDb(-30.0f)` moves the boundary between the rising region and the flat region
-  from −18 dBFS to **−30 dBFS, within ±1.0 dB** — the −24 dBFS point, flat at the default reference,
-  now falls in the rising region, and the −18 dBFS point, previously the top of the rising region,
-  is now flat. This is the criterion that would fail if `setTrackReferenceDb` reached its getter but
-  not `envNorm`'s denominator.
+  from `getTrackedEnvelope()` within **max(1e-4, 2 % of the predicted value)**, so the audio
+  measurement and the read surface corroborate each other rather than either standing alone. The
+  relative term is measured, not chosen: the RMS sensor's output carries a ≈ 1.5 % peak-to-peak
+  ripple at 2f on a steady 55 Hz body, the 50 ms tracking ramp averages that ripple out while the
+  getter reads it instantaneously, so a 1e-4 absolute band fails at every rising point above
+  −60 dBFS on a correct build (measured 1.8e-4 at −48 dBFS, predicted 4.6e-3 at −24 dBFS). On the
+  clamped plateau the ripple is gone and the 1e-4 floor applies. A getter wired to the wrong
+  quantity — a reset ramp, a stale target, `trackingAmount` ignored — misses by 10 % or more.
+  (e) **The reference is load-bearing, not cosmetic (new, Q4/FR-035).** The knee — the boundary
+  between the rising region and the flat region, estimated from the sweep — lies at the reference
+  **minus the ≈ 1.9 dB sensor bias recorded under (a)**, within ±1.0 dB, at both the default
+  reference (≈ −19.9 dBFS) and at `setTrackReferenceDb(-30.0f)` (≈ −31.9 dBFS); and the knee
+  **moves by −12 dB ± 1.0 dB** between the two, which is the bias-independent statement. At the
+  −30 dBFS reference the −24 dBFS point, rising at the default reference, is now flat. This is the
+  criterion that would fail if `setTrackReferenceDb` reached its getter but not `envNorm`'s
+  denominator.
 - **SC-003 — The dividers are at the right frequencies.**
   `SubharmonicEngine_DividerFrequencyAccuracy`, in `subharmonic_engine_spectral_test.cpp`.
   The isolated-sub fixture, `SubWaveform::Sine`, **one tone enabled at a time with a per-tone
@@ -908,19 +1001,48 @@ and pass every criterion below while measuring nothing.
   is the property `calculateTHD` lacks and the reason the helper exists. The helper returns a
   negative sentinel if the fundamental's summed power is below −60 dBFS, so a silent tone fails.
   (a) THD is **≤ 2.0 %** for every tone at every fundamental in its sweep, and the measured values
-  are transcribed into the compliance record. The 2 % ceiling is derived, not guessed, and the
-  derivation now names every term: the dominant one is the once-per-sub-period phase reset at
-  `sub_oscillator.h:274-278`, whose discontinuity is bounded by `masterInc / octaveFactor` cycles —
-  at `f = 220 Hz`, 48 kHz, `Div2` that is `2.3e-3` cycles, an amplitude step of ≈ `1.4e-2`,
-  ≈ −37 dB relative (≈ 1.4 %), spread across harmonics; plus FR-041's always-in-circuit `tanh` at
-  ≈ `A²/24` = 0.042 % for the fixture's `A = 0.1`; plus the helper's ≤ 0.001 % leakage floor. If
-  measurement disagrees, FR-071's stop-and-surface rule applies: surface the number, do not relax
-  the line.
-  (b) For **each tone separately**, THD is **monotonically non-increasing** as that tone's own
-  fundamental sweep descends (220 → 110 → 55 Hz for `Div2` and `FifthBelow`; 440 → 220 → 110 Hz for
-  `Div4`) — the signature of the phase-reset mechanism, and the check that distinguishes it from a
-  coefficient bug. The trend is asserted within each tone's sweep, never across tones, because the
-  three tones sit at different divider ratios and are not comparable point-for-point.
+  are transcribed into the compliance record. **The ceiling is untouched at 2.0 %**; the worst
+  measured point is **0.1024 %** (`Div2`/`Div4` at the bottom of their sweeps), i.e. 24× of margin.
+  The 2 % ceiling is derived, not guessed, and the derivation names two upper bounds plus a floor:
+  the once-per-sub-period phase reset at `sub_oscillator.h:274-278`, whose discontinuity is bounded
+  by `masterInc / octaveFactor` cycles — at `f = 220 Hz`, 48 kHz, `Div2` that is `2.3e-3` cycles, an
+  amplitude step of ≈ `1.4e-2`, ≈ −37 dB relative (≈ 1.4 %), spread across harmonics; plus FR-041's
+  always-in-circuit `tanh` at ≈ `A²/24` = 0.042 % for the fixture's `A = 0.1`; plus the helper's
+  ≤ 0.001 % leakage floor. **Amended 2026-09-14 after measurement** (see D-15): the phase-reset term
+  is an upper bound on the phase *step*, **not** a prediction of measured THD, and it is not the
+  dominant term. Measured, the spectrum is ≈ 100 % third harmonic (`Div2 @ 220 Hz`: H3 = 0.0841 %
+  against 0.0008 % each for H2 and H4…H10) — the signature of FR-041's memoryless odd `tanh`, whose
+  0.042 % ≈ `A²/24` estimate is the term that actually sets the floor; backing that flat shaper term
+  out in quadrature leaves ≈ 0.007 % for the phase reset, ≈ 200× under its bound, because the reset
+  lands at the sine zero crossing (phase jitter, not an amplitude step) and its energy spreads over
+  the whole band while THD counts only `k = 2..10`. If measurement disagrees with the **ceiling**,
+  FR-071's stop-and-surface rule applies: surface the number, do not relax the line.
+  (b) **The dividers add no frequency-dependent distortion of their own.** For **each tone
+  separately**, the THD measured across that tone's own descending fundamental sweep
+  (220 → 110 → 55 Hz for `Div2` and `FifthBelow`; 440 → 220 → 110 Hz for `Div4`), **corrected for the
+  FR-042 blocker's per-harmonic response**, is **flat**: its peak-to-peak spread is **≤ 4 % of the
+  sweep mean**. The correction divides each harmonic's power by the steady-state magnitude of the
+  **shipped `DCBlocker2` at the engine's own `kInfrasonicFilterHz` corner**, obtained by quadrature
+  demodulation of that filter rather than from a transcribed biquad formula, so the correction is the
+  response of the filter actually in circuit. **Non-vacuity, asserted:** the **raw** (uncorrected)
+  spread must **exceed 5 %** in the same sweep, so the arm cannot pass by the correction quietly
+  becoming the identity. The trend is evaluated within each tone's sweep, never across tones, because
+  the three tones sit at different divider ratios and are not comparable point-for-point. Measured:
+  corrected spreads **0.325 / 0.310 / 0.344 %** against the 4 % ceiling (≈ 12× margin), raw spreads
+  **20.0 / 20.0 / 10.4 %** against the 5 % floor.
+  **This clause replaces an earlier "monotonically non-increasing as the sweep descends", which was
+  false as written on a correct build** and is amended here rather than left standing (D-15). That
+  formulation rested on the phase reset dominating (a)'s budget and being strictly proportional to
+  `masterInc`; measured, the raw figure **rises** as `f` descends, on all three tones — 0.0842 →
+  0.0871 → 0.1024 % for `Div2` — and the whole of that rise is the FR-042 tilt this clause now
+  divides out (the 18 Hz Bessel high-pass attenuates a 27.5 Hz fundamental by 0.7915 while passing
+  its 82.5 Hz third harmonic at 0.9773, a 1.234× inflation of the ratio, against 1.011× at 110 Hz;
+  the measured raw/corrected quotients 1.0114 / 1.0488 / 1.2347 match that response to better than
+  0.1 %). D-4's pre-authorised lever (a private `PhaseAccumulator` + `std::sin`) would **remove** the
+  only term that trends with `f` at all and make the old clause *more* false, not less. The flatness
+  form makes the same claim the old one was written to make — a divider coefficient bug cannot hide —
+  against the mechanism that is actually measurable, and it is **not weaker**: raw monotonicity would
+  admit a 20 % frequency-dependent excursion so long as it pointed downhill; 4 % flatness does not.
 - **SC-005 — The Square path produces no inharmonic content.** `SubharmonicEngine_SquareSpectrum`,
   in `subharmonic_engine_spectral_test.cpp`. The isolated-sub fixture with **`Div2` alone** enabled
   (single tone, named explicitly: with three tones sounding, 55, 27.5 and 73.33 Hz have no common
@@ -951,9 +1073,31 @@ and pass every criterion below while measuring nothing.
   body peaked coherently, which they do not — so a pass means the ladder behaved as FR-052 claims
   and a regression that pushes the sub past the saturator's bound fails. The `== 0` clamp count is
   the direct statement that the clamp is a backstop and not a shaping stage.
-  (b) Passing that output through a default
-  `TruePeakLimiter` (ceiling `kDefaultCeilingDb = -1.0f`, `true_peak_limiter.h:46`) yields a measured
-  true peak **≤ −0.9 dBTP**. (c) At **default** tone levels and default wet gain, the limiter's
+  (b) **The render limits cleanly downstream.** Passing that output through a default
+  `TruePeakLimiter` (ceiling `kDefaultCeilingDb = -1.0f`, `processors/true_peak_limiter.h:46`) yields
+  **three** measured figures, all transcribed: (b1) every output **sample** at or under
+  **−0.9 dBFS** — the limiter's *exact* guarantee (`tp ≥ |sample|` and the applied gain is
+  `min(1, ceiling/tp)`, `true_peak_limiter.h:139-160`), and a statement that the render reached the
+  limiter finite; (b2) the residual **true** peak under a **+0.5 dBTP** backstop; (b3) the limited
+  true peak **no worse than +0.25 dB** relative to the *same* fixture input, with **no engine in the
+  path**, scaled to the engine render's sample peak and limited by the same limiter. (b3) is the arm
+  that keeps (b) a claim about *this engine* rather than a re-measurement of the shipped limiter.
+  Measured: **−0.069 dBTP** limited true peak, **−1.000 dBFS** limited sample peak, **+0.030 dBTP**
+  for the dry control (the engine is 0.099 dB *better* than an equally loud plain signal).
+  **Amended 2026-09-14 (see D-16): this clause previously read "a measured true peak ≤ −0.9 dBTP",
+  which is unreachable with the shipped limiter for reasons that have nothing to do with this
+  engine.** `TruePeakLimiter` is **zero-latency** with an instantaneous attack (`true_peak_limiter.h:1-18`):
+  the gain it multiplies in is itself a broadband signal, so while every output *sample* is bounded
+  exactly, the *inter-sample* peaks of the product are not. The shipped limiter's own unit test pins
+  that slack rather than the ceiling — `REQUIRE(tp <= ceil + 0.06f)`, "within ~0.5 dB of the −1 dBTP
+  target" (`true_peak_limiter_test.cpp:88-89`), i.e. ≈ **−0.43 dBTP on a pure sine**, already above
+  the −0.9 this clause used to demand, and measured there on a linear-phase FIR meter. Re-measuring
+  this render on that FIR basis does not rescue it either (−0.251 dBTP), so the measurement basis is
+  not the cause and A-4's basis stands unchanged. The −0.9 figure is therefore **kept, on the metric
+  where the limiter's guarantee is exact** (b1), with the true-peak residual held by a backstop (b2)
+  and the engine's own contribution isolated by a control (b3). Loosening it into a bare
+  "≤ +0.5 dBTP" with no control was rejected: that would assert nothing about this engine.
+  (c) At **default** tone levels and default wet gain, the limiter's
   minimum gain over the render stays **above −6 dB** — i.e. the shipped defaults do not force
   pathological limiting downstream. (c) is the criterion that makes the defaults a claim rather than
   a guess.
@@ -1081,19 +1225,38 @@ and pass every criterion below while measuring nothing.
   (b) `isToneDormant(tone)` is true for all three, and becomes false on the first sample after a
   level write above the floor.
   (c) **The sleep-edge clear (FR-026), with the precondition that makes it observable.** Sequence:
-  (1) fundamental at its default 55 Hz, `trackingAmount = 0`, all three tones at their FR-020
-  defaults, wet gain 0 dB, and a −12 dBFS 55 Hz body rendered for **≥ 2 s** — this is the step the
-  earlier draft omitted, and without it the chain is never charged, so there is no stale tail for
-  FR-026 to clear and nothing for the criterion to detect; (2) all three tone levels driven to
-  `kMinToneLevelDb` and held **dormant for 10 s** with the body removed; (3) all three levels
-  restored, waking into a **silent input**, with `trackingAmount` still **0** so a stale tail would
-  be at full level and plainly audible. Assertion: the output is **≤ −80 dBFS for the first 500 ms**
-  after the wake. `trackingAmount = 0` is load-bearing: at the FR-033 default of 1.0 with a silent
-  input, FR-032 gives `envNorm = 0` → `trackGain = 0` → the sub is zero for the whole window whether
-  or not FR-026's resets happened, and the subclause would pass with FR-026 deleted.
+  (1) fundamental at its default 55 Hz, `trackingAmount` at its FR-033 default of **1.0**, all three
+  tones at their FR-020 defaults, wet gain 0 dB, and a −12 dBFS 55 Hz body rendered for **≥ 2 s** —
+  without this step the chain is never charged, so there is no stale tail for FR-026 to clear and
+  nothing for the criterion to detect; (2) all three tone levels driven to `kMinToneLevelDb` and
+  held **dormant for 10 s** with the body removed; (3) all three levels restored, waking into a
+  **silent input**. Assertion: the output is **≤ −80 dBFS for the first 500 ms** after the wake.
+  `trackingAmount = 1.0` is load-bearing, and an earlier draft had it inverted: the tones are
+  generators, so at `trackingAmount = 0` the restored sub itself sits at ≈ −13 dBFS and the arm
+  fails on a correct build. At 1.0 with a silent input `trackGain` is exactly 0 and mutes the
+  restored sub, but the tracking multiply sits **upstream** of the DC blocker in the FR-040 chain,
+  so a blocker left un-reset at the sleep edge rings its frozen state into the wake window
+  regardless (≈ 1.5e-2 peak, −36.6 dBFS, against exactly 0.0 with the resets). The arm therefore
+  detects the missing reset with ≈ 43 dB of margin, and (c2) proves it.
   (c2) **Mutation check**, run once during implementation and recorded in the compliance note: with
-  the FR-026 resets removed, (c) must **fail**. A sleep-edge criterion that passes both with and
-  without the mechanism it names is not a criterion.
+  the **two** sleep-edge lines `lowpass_.reset()` and `blocker_.reset()` removed, (c) must **fail**.
+  A sleep-edge criterion that passes both with and without the mechanism it names is not a
+  criterion. The mutation is deliberately **two** lines and not three: `SaturationProcessor::reset()`
+  clears no audio state reachable from `processSample` (FR-026's cost note), so removing it too
+  would over-claim what the check proves — the criterion would then be evidence for a line whose
+  removal it cannot detect.
+  (c3) **The sensor is not reset at the sleep edge** (FR-026's last sentence, and the natural
+  mistake, since the other three chain stages are). With a −30 dBFS steady 55 Hz body held
+  throughout (below the −18 dBFS reference, so `envNorm` is unclamped), drive the tones to
+  `kMinToneLevelDb` and render 500 ms sampling `getTrackedEnvelope()` once per 64 samples after
+  the 50 ms level ramp has parked. Two assertions: (c3-diff) a second instance fed byte-identical
+  input but never made dormant agrees with the first within **1e-3** at every sample — the two
+  followers run in lockstep, so only a reset can separate them; (c3-abs) every sample stays within
+  **5e-3** of the pre-dormancy value. The absolute band is measured, not chosen: the RMS follower is
+  an asymmetric one-pole in the squared domain, and a 55 Hz body leaves a 110 Hz ripple of 3.25e-3
+  peak-to-peak in its output at the FR-031 constants, so a 1e-3 absolute band fails on a correct
+  build; 5e-3 is ≈ 3× the measured spread and ≈ 44× below the ≈ 0.22 excursion a
+  `follower_.reset()` at the edge would produce.
   (d) **Generators advance while dormant (FR-025), measured differentially.** Two instances are
   prepared identically with the same seed and the same setter sequence; instance A is made dormant
   for **37 s** (deliberately not a whole multiple of any FR-021 default breath period — 27 s, 43 s,
@@ -1111,9 +1274,11 @@ and pass every criterion below while measuring nothing.
   `node tools/check-portability.js` all pass on the new header and the four new TUs. No `std::isnan`
   / `std::isinf` / `std::isfinite`. No narrowing in any brace init. No SIMD is introduced, so the
   aligned-load lint is vacuous but must still pass.
-- **SC-016 — Shared components stay green and unchanged.** `git diff --stat` over the ten headers
-  named in FR-080 is empty, and `dsp_processors_tests`, `dsp_primitives_tests` and `dsp_core_tests`
-  pass unchanged — in particular `sub_oscillator_test.cpp`. Seraphis's suites
+- **SC-016 — Shared components stay green and unchanged.** `git diff --stat` over the nine
+  byte-frozen headers named in FR-080 is empty; the diff of `sub_oscillator.h` is the appended
+  `advance()` and nothing else (verified by reading it); and `dsp_processors_tests`,
+  `dsp_primitives_tests` and `dsp_core_tests` pass — in particular `sub_oscillator_test.cpp`,
+  including its new `advance()`/`process()` equivalence case. Seraphis's suites
   (`seraphis_*` cases inside `dsp_systems_tests`) also pass, per roadmap lines 530–532.
 - **SC-017 — Long-render stationarity, at defaults and at worst case.**
   `SubharmonicEngine_LongRenderStationarity`, `[long]`, in `subharmonic_engine_spectral_test.cpp`.
@@ -1207,17 +1372,37 @@ and pass every criterion below while measuring nothing.
   `subharmonic_engine_test.cpp`. A body and all three tones at their defaults, rendered once with
   `setSubToMainEnabled(true)` (the default) and once with `setSubToMainEnabled(false)`, same seed and
   setter sequence otherwise.
-  (a) With the flag `true`, the main output (`processBlock` and `processBlockTapped`) is
-  bit-identical to a render of the same configuration taken before FR-064 existed (i.e. identical to
-  FR-050's formula with `subToMainEnabled` omitted) — the flag's default is a no-op, not a behaviour
-  change, for every existing criterion that does not set it explicitly.
+  (a) **The flag's default is a no-op, stated as a computable assertion** (rewritten: an earlier
+  draft asked for bit-identity against "a render of the same configuration taken before FR-064
+  existed". That operand is **not producible** — the shipped implementation always has the flag, so
+  the only render an author can put on the right-hand side is another flag-`true` render, and the
+  criterion could not fail on any implementation. What FR-050's formula actually claims is asserted
+  directly instead):
+  **(a1)** with a **silent** stereo input and the flag `true`, after 100 ms of settling,
+  `outL[i] == outR[i]` and `outL[i] == clamp(subTap[i] * wetGainLinear, ±kOutputClamp)` at **every**
+  sample, **bit-exactly**, where `wetGainLinear` is the linear form of `getWetGainDb()` (FR-051's
+  exact-zero fader bottom included). Exact rather than approximate because a settled `LinearRamp`
+  lands *on* its target (`smoother.h:379-383`) and a silent input makes `out` the added scalar
+  itself rather than a rounded sum.
+  **(a2)** with the decorrelated stereo body of (b), `(outL[i] − inL[i])` and `(outR[i] − inR[i])`
+  agree within `1e-6 · max(1, |in[i]|)` — the same-scalar-on-both-channels claim under a real
+  input, where the rounding of the add is the only admissible difference.
+  Neither arm is a checked-in golden: both are **within-render** relations, so
+  `tools/lint-float-bit-goldens.js` is satisfied.
   (b) With the flag `false`: the main output is **bit-identical to the dry input** on both channels
   and both entry points, while `subTap` from `processBlockTapped` is **bit-identical to the `subTap`
   produced with the flag `true`** — i.e. disabling the flag changes only what reaches `out`, never
   what reaches `subTap`, which is the entire point of promoting the tap (Q8). (c) Toggling the flag
-  mid-render is **click-free** (`artifact_detection.h:38,72`) — the transition is a plain conditional
-  add, not a ramp, so this asserts the toggle itself introduces no discontinuity beyond what the
-  FR-022/FR-051 ramps already smooth. (d) `isToneDormant`, `isToneInfrasonicFloored` and
+  mid-render **adds nothing beyond its own step**: `ClickDetector` (`artifact_detection.h:38,72`)
+  reports **no detection outside a one-sample window** of each toggle index, in both directions.
+  The gate is a plain conditional add, not a ramp — a fade would break (b)'s bit-identity — so the
+  step at the toggle index itself is the sub's instantaneous value and is expected; the arm asserts
+  it is the *only* discontinuity (no ringing, no delayed tail, nothing on either side of the
+  toggle). Non-vacuity: at least one of the two toggle steps must exceed the detector's own
+  threshold (≈ 1.5e-3 against a −12 dBFS 55 Hz body), so the exclusion window is shown to be
+  excluding a real step. An earlier draft asked for the toggle to be click-free outright; with the
+  sub at 0.02–0.15 at the FR-020 defaults that is 15–100× over the detector threshold on any
+  correct build, and could only pass if the toggle were timed to a zero crossing of the sub. (d) `isToneDormant`, `isToneInfrasonicFloored` and
   `getClampEngagementCount()` are **unaffected** by the flag's state (dormancy and the clamp are
   defined on `subChain`/`clampedSub`, computed identically regardless of routing).
 
@@ -1408,9 +1593,48 @@ and pass every criterion below while measuring nothing.
   mechanism at the cost of one flag; which way Phase 10 actually wires it remains that phase's
   decision, not this one's.
 
+The two decisions below were taken **after implementation**, against measurements on the shipped
+build, and amend criteria this spec had written from a derivation that measurement contradicted.
+Both were surfaced by FR-071's stop-and-surface rule rather than absorbed silently, and in both
+cases the *engine* is correct and the *criterion* was wrong. Neither relaxes a ceiling: SC-004's 2 %
+line and SC-006's −0.9 figure both survive.
+
+- **D-15 — SC-004 (b) states flatness after the FR-042 tilt, not raw monotonicity (amended
+  2026-09-14).** The old clause required THD to fall as each tone's fundamental descends, on the
+  premise that the Sine phase reset dominates the measurement and is proportional to `masterInc`.
+  Measured, the phase-reset term is ≈ 0.007 % — ≈ 200× under plan S4.2's bound, because that bound
+  prices the worst-case phase *step* as if it landed in `k = 2..10`, while the reset happens at the
+  sine zero crossing and spreads over the whole band. What SC-004 actually measures is ≈ 100 % third
+  harmonic from FR-041's always-in-circuit `tanh`, a memoryless odd nonlinearity whose relative
+  harmonic content does not depend on frequency at all, tilted by the FR-042 18 Hz Bessel high-pass
+  (which passes a tone's third harmonic more than the tone). The raw figure therefore **rises** as
+  `f` descends on all three tones, and no implementation can make it fall: D-4's pre-authorised
+  lever removes the only term that trends with `f`, making the old clause *more* false. The amended
+  clause divides the shipped blocker's measured per-harmonic response out and requires the result to
+  be flat within 4 % of the sweep mean, with a raw-spread ≥ 5 % floor keeping the correction
+  load-bearing. It makes the claim the old clause was written to make — no frequency-dependent
+  divider distortion — and is tighter than raw monotonicity, which would have admitted a 20 %
+  excursion pointing downhill. The 2 % ceiling of (a) is untouched; (a)'s derivation is corrected in
+  place to name the `tanh` term as dominant and the phase-reset term as an upper bound.
+- **D-16 — SC-006 (b) holds −0.9 on the sample peak, with a true-peak backstop and a dry control
+  (amended 2026-09-14).** The old clause required ≤ −0.9 dBTP after a default `TruePeakLimiter`.
+  That limiter is zero-latency with an instantaneous attack and no look-ahead, so its guarantee is
+  exact on samples and approximate between them; its own unit test pins the inter-sample slack at
+  `ceil + 0.06` linear ≈ **−0.43 dBTP on a pure sine**, i.e. the shipped component cannot reach
+  −0.9 dBTP for *any* input, with or without this engine. Three measurements on this fixture make
+  that concrete: the engine render limits to −0.069 dBTP, the *same input with no engine at all*
+  scaled to the same peak limits to +0.030 dBTP (0.10 dB **worse**), and re-measuring on a
+  linear-phase FIR meter gives −0.251 dBTP, so the meter is not the cause. Adding a look-ahead
+  limiter, or a getter or a ceiling change to `true_peak_limiter.h`, was rejected on FR-080 grounds
+  (this phase touches no shipped header) and on scope. The amended clause keeps −0.9 where it is
+  exact (the sample peak), holds the residual with a +0.5 dBTP backstop, and adds the dry control
+  that makes the arm falsifiable *about this engine*: a regression that made this output materially
+  harder to limit than an equally loud plain signal trips (b3) 0.25 dB before the backstop moves.
+
 ## Open Questions
 
-Exactly one, and it is the one the roadmap explicitly defers to this spec.
+Two. **OQ-1** is the one the roadmap explicitly defers to this spec; **OQ-2** was raised during
+planning, against shipped code, and is recorded rather than decided unilaterally.
 
 - **OQ-1 (roadmap Open Question 4, lines 541–542; roadmap line 316–317) — Is the Subharmonic Engine
   global (post-voice-sum, tracking the lowest sounding voice's pitch) or per-voice?**
@@ -1439,6 +1663,53 @@ Exactly one, and it is the one the roadmap explicitly defers to this spec.
   **The ruling is the user's**, taken from the FR-071 table at the end of the build stage, and it
   binds Phase 10's wiring, not this component's code — but per FR-076 the phase is not complete until
   it is taken and written down.
+
+  **RULED 2026-09-13 — (A) GLOBAL, post-voice-sum.** The SC-018 record:
+  (a) FR-071 arms, measured with MSVC Release at 48 kHz, 512-sample blocks, best-of-25 × 500
+  blocks after 400 warm-up, the process pinned to the P-cores (affinity mask 0xFFFF), three
+  isolated runs 20 s apart with nothing else executing, the lowest of the three taken:
+
+  | Arm | ns per 512-sample block | % of the 10 666 667 ns block period |
+  |---|---|---|
+  | (i) defaults, three tones awake | 19 591.6 | 0.184 % |
+  | (j) all three tones Square | 13 312.6 | 0.125 % |
+  | (k) dormant | 15 415.0 | 0.145 % |
+  | (l) one instance at defaults | 19 925.6 | 0.187 % |
+  | (m) eight instances at defaults | 163 104.2 | 1.529 % (0.191 % per instance) |
+
+  The dormancy saving (k)/(i) was 21.3 %, 16.4 % and 4.0 % across the three runs against SC-013 (c)'s
+  15 % margin; the 4.0 % run carried a matching outlier in arm (n) and is treated as interference,
+  but the margin on that clause is thin and is recorded as such.
+  (b) Against the envelope: the roadmap allows ≈ 4–5 % per voice (line 92); phases 2, 3 and 5 have
+  spent 1.75 % + 0.75 % + 1.5 % = 4.0 %, leaving 0.5–1.0 % per voice. Global: one instance,
+  0.187 % of one core, charged once and off the per-voice line. Per-voice: 0.187 % per voice from
+  arm (l), 0.191 % per voice at eight from arm (m) — 4 voices 79 702 ns = 0.747 %, 6 voices
+  119 554 ns = 1.121 %, 8 voices 163 104 ns = 1.529 % of one core in total. Both placements fit
+  the numbers, so the arithmetic does not force the ruling.
+  (c) **Ruling: global.** One instance after the voice sum, tracking the lowest sounding voice's
+  pitch, with FR-035's reference calibrated for the summed level. Reasoning: the instrument is
+  played as one or two held notes (roadmap line 92), where one sub pitch is the right weight; a
+  per-voice placement would stack up to eight sub chains in the low end, moving headroom and mono
+  compatibility from this component's own criteria (SC-006, SC-007) into Phase 10; and the
+  per-voice CPU, while affordable, buys a chord behaviour the instrument does not lead with. Phase
+  10 wires one `SubharmonicEngine` post-voice-sum; this component's code is unchanged by the ruling.
+
+- **OQ-2 (raised at the plan's S14 C-10; carried to the phase report) — do FR-031's follower
+  defaults stay at `120 / 800 ms`, or move to the values that deliver the behaviour FR-031's
+  rationale describes?**
+  `EnvelopeFollower`'s milliseconds are ~99 %-settling times, not time constants:
+  `coeff = exp(-2π / (ms · 0.001 · fs))` (`envelope_follower.h:356-365`), so `120 / 800 ms` are
+  τ = **19.1 / 127.3 ms** (release in the squared domain, i.e. amplitude τ = 254.6 ms) — a faster
+  follower than FR-031's own "a drone's body moves on the scale of seconds" describes. See the
+  Clarifications note for the full derivation and for the two consequences that were recorded
+  rather than acted on.
+  **Status: not decided, and deliberately not decided by the implementer.** The spec's normative
+  defaults remain `120 / 800 ms` and the build is written against them; every criterion in this
+  phase passes at those values. If the user rules that the stated behaviour is what is wanted, the
+  defaults become ≈ **750 / 5000 ms** and the release bracket's measurement window moves with them
+  — a spec change, taken before or after this phase, not silently inside it.
+  **The ruling is the user's**, from the phase report. Unlike OQ-1 this question has no FR/SC gate
+  of its own: it changes a default, not a contract, and nothing in the phase is blocked by it.
 
 ## Traceability
 
@@ -1480,8 +1751,11 @@ Exactly one, and it is the one the roadmap explicitly defers to this spec.
   overriding `ModulationSource`). FR-024 reads it three times per 64-sample control chunk, i.e. 3/64
   virtual calls per sample; the assumption that this is negligible is **measured**, not asserted, by
   FR-071 arm (i) against arms (a)–(h).
-- **A-2** — `SaturationProcessor::processSample` advances three `LinearRamp`s per call
-  (`:233-235`) even when no parameter is moving. The assumption that three ramp advances per sample
+- **A-2** — `SaturationProcessor::processSample` advances three **`OnePoleSmoother`s** per call
+  (`:233-235`) even when no parameter is moving. (An earlier draft of this assumption called them
+  `LinearRamp`s; the shipped members are `OnePoleSmoother`s, `saturation_processor.h:415-417`. The
+  type name is the only thing that was wrong — the three-advances-per-`processSample` assumption
+  and its measurement are unaffected.) The assumption that three smoother advances per sample
   are affordable inside a 53 333 ns/block budget is measured by FR-071 arm (g). If it is not, the
   pre-authorised lever is to bypass the processor's smoothers by writing gains only on change — a
   change to *this* component's call pattern, never to the shipped processor.
@@ -1492,9 +1766,12 @@ Exactly one, and it is the one the roadmap explicitly defers to this spec.
   Adding a test helper is not a shared-DSP change and does not fall under FR-080. Each is validated
   against a synthetic signal of known truth in the same TU that consumes it, so a helper bug fails as
   a helper bug:
-  - `measureTruePeakDb(const float* l, const float* r, size_t n)` — SC-006; built on the shipped
-    `Oversampler` (`primitives/oversampler.h:226`), the 4× basis `TruePeakLimiter::processChunk`
-    uses (`true_peak_limiter.h:125-146`).
+  - `measureTruePeakDb(const float* l, const float* r, size_t n, double sampleRate)` — SC-006; built
+    on the shipped `Oversampler` (`primitives/oversampler.h:226`), the 4× basis
+    `TruePeakLimiter::processChunk` uses (`true_peak_limiter.h:125-146`), with the raw sample folded
+    into the max. **The fourth parameter is a correction to this assumption's earlier
+    three-argument sketch:** `Oversampler::prepare(double sampleRate, size_t maxBlockSize, …)`
+    (`oversampler.h:288`) requires a rate, so the helper cannot be written without one.
   - a pointer/length `calculateCorrelation` overload beside `buffer_comparison.h:201` — SC-007; the
     shipped form is `template <size_t N>` over `std::array` and is unusable on a multi-minute heap
     render.
