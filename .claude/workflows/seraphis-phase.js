@@ -45,6 +45,15 @@ const phaseNum = A && A.phase
 const stage = (A && A.stage) || 'specify'
 if (!SLUGS[phaseNum]) throw new Error(`args.phase must be 1-12, got: ${JSON.stringify(phaseNum)}. Usage: {phase: 1, stage: "specify"|"plan"|"build", clarifications?: {...}}`)
 if (stage !== 'specify' && stage !== 'plan' && stage !== 'build') throw new Error(`args.stage must be "specify", "plan" or "build", got: ${JSON.stringify(stage)}`)
+// args.unblock: task ids whose cached status "blocked" has been RULED ON by the user (the
+// decision is recorded in spec/plan/tasks). On a resume those results are treated as done
+// so the stage continues past the stop instead of re-surfacing the same decision.
+const unblocked = Array.isArray(A.unblock) ? A.unblock.map(String) : []
+// args.retry_epochs: {"Group O": 5} bumps the gate prompt for ONE group so its cached red
+// gate results are re-measured on a resume after a main-loop fix, without invalidating
+// every other group's cached gate (each gate re-run costs minutes).
+const groupKey = (name) => String(name).split(/\s+[—-]\s+/)[0]
+const retryEpoch = (name) => (A.retry_epochs && A.retry_epochs[groupKey(name)]) || 4
 
 const SLUG = SLUGS[phaseNum]
 const DIR = `specs/${SLUG}`
@@ -493,7 +502,8 @@ for (const group of dispatch.groups) {
 
   // Honour an implementer's stop-and-surface (ported 2026-09-13 from vorago-phase.js,
   // where a probe reported status 'blocked' and the loop carried on for 8 h).
-  const blockedHere = implResults.filter(r => r && r.status === 'blocked' && group.tasks.some(t => t.id === r.task_id))
+  const blockedHere = implResults.filter(r => r && r.status === 'blocked' && group.tasks.some(t => t.id === r.task_id) && !unblocked.includes(r.task_id))
+  for (const r of implResults) if (r && r.status === 'blocked' && unblocked.includes(r.task_id) && group.tasks.some(t => t.id === r.task_id)) log(`Group "${group.name}": ${r.task_id} is blocked in the cache but listed in args.unblock — continuing (ruling recorded)`)
   if (blockedHere.length) {
     log(`Group "${group.name}": ${blockedHere.map(r => r.task_id).join(', ')} reported BLOCKED — stopping the stage`)
     return {
@@ -501,7 +511,7 @@ for (const group of dispatch.groups) {
       blocked_group: group.name,
       blocked_tasks: blockedHere,
       impl_results: implResults,
-      next: 'A task reported status "blocked" (stop-and-surface). Read its notes, take the decision it asks for, then re-run stage "build" with resumeFromRunId — completed agents replay from cache.',
+      next: 'A task reported status "blocked" (stop-and-surface). Read its notes, take the decision it asks for, then re-run stage "build" with resumeFromRunId and args.unblock: ["<task_id>"] — completed agents replay from cache and the ruled task no longer stops the stage.',
     }
   }
 
@@ -533,7 +543,7 @@ for (const group of dispatch.groups) {
   while (attempt < 4) {
     attempt++
     buildLog = await run(
-      `${CONTEXT_LITE}\n\nBuild and test the current tree.${BUILD_CMDS(gateTargets)}\nReport verbatim results. Fix NOTHING — you are a reporter.\n\nEXECUTION RULES (a gate died on 2026-09-10 by ignoring these; violating them fails the gate):\n- Run the build and then EACH suite as a FOREGROUND Bash command with timeout 600000, one command per suite, stdout+stderr redirected to a log file, then tail -5 that log.\n- NEVER use run_in_background. NEVER use the Monitor tool. NEVER sleep, echo, poll, or "hold" while waiting — a foreground command returns when the suite is done, so there is nothing to wait for.\n- The moment the last suite's Catch2 summary line is in hand, call StructuredOutput. Do not write prose about waiting; do not defer the call.\n\nGATE SEMANTICS — this gate follows group "${group.name}"; later groups are NOT implemented yet (Phase 8/9 lesson, encoded 2026-08-04 after a Phase 12 fixer loop):\n- A requested cmake target that DOES NOT EXIST yet because the tasks.md task that creates it is in a LATER group is NOT a build failure. Skip it, name it in summary as "not yet created (later group)", and do not set build_ok=false over it. build_ok=false is ONLY for a compile/link error in a target that exists.\n- TDD expected-reds: before reporting tests_ok=false, open ${TASKS} and read the sections for the tasks implemented so far (up to and including group "${group.name}"). A failing case that a task section EXPLICITLY documents as expected-red until a later task lands is NOT a failure: count it as green, and record the case name + the tasks.md line you relied on in summary. Any failing case NOT so documented is a real red.\n\nREPORTING CONTRACT (violations poison the whole pipeline):\n- WAIT for every suite to print its final Catch2 summary line, however long it takes (suites can run several minutes; use foreground commands with generous timeouts).\n- An unfinished or timed-out run is NOT a result: re-run that suite to completion before reporting. NEVER report tests_ok=false because a measurement was incomplete.\n- NEVER return placeholder text in any field. summary must contain the real verbatim summary line per target; tests_ok=false REQUIRES the actual failing test names + assertion output in failures.\n- Hidden-tag tests ([.perf] etc.) are excluded from plain suite runs by design — do not run them with wildcard filters and do not count them.\n(retry-epoch 4: the tree may have been repaired outside the workflow since the last attempt — measure fresh, do not assume prior failures still hold.)`,
+      `${CONTEXT_LITE}\n\nBuild and test the current tree.${BUILD_CMDS(gateTargets)}\nReport verbatim results. Fix NOTHING — you are a reporter.\n\nEXECUTION RULES (a gate died on 2026-09-10 by ignoring these; violating them fails the gate):\n- Run the build and then EACH suite as a FOREGROUND Bash command with timeout 600000, one command per suite, stdout+stderr redirected to a log file, then tail -5 that log.\n- NEVER use run_in_background. NEVER use the Monitor tool. NEVER sleep, echo, poll, or "hold" while waiting — a foreground command returns when the suite is done, so there is nothing to wait for.\n- The moment the last suite's Catch2 summary line is in hand, call StructuredOutput. Do not write prose about waiting; do not defer the call.\n\nGATE SEMANTICS — this gate follows group "${group.name}"; later groups are NOT implemented yet (Phase 8/9 lesson, encoded 2026-08-04 after a Phase 12 fixer loop):\n- A requested cmake target that DOES NOT EXIST yet because the tasks.md task that creates it is in a LATER group is NOT a build failure. Skip it, name it in summary as "not yet created (later group)", and do not set build_ok=false over it. build_ok=false is ONLY for a compile/link error in a target that exists.\n- TDD expected-reds: before reporting tests_ok=false, open ${TASKS} and read the sections for the tasks implemented so far (up to and including group "${group.name}"). A failing case that a task section EXPLICITLY documents as expected-red until a later task lands is NOT a failure: count it as green, and record the case name + the tasks.md line you relied on in summary. Any failing case NOT so documented is a real red.\n\nREPORTING CONTRACT (violations poison the whole pipeline):\n- WAIT for every suite to print its final Catch2 summary line, however long it takes (suites can run several minutes; use foreground commands with generous timeouts).\n- An unfinished or timed-out run is NOT a result: re-run that suite to completion before reporting. NEVER report tests_ok=false because a measurement was incomplete.\n- NEVER return placeholder text in any field. summary must contain the real verbatim summary line per target; tests_ok=false REQUIRES the actual failing test names + assertion output in failures.\n- Hidden-tag tests ([.perf] etc.) are excluded from plain suite runs by design — do not run them with wildcard filters and do not count them.\n(retry-epoch ${retryEpoch(group.name)}: the tree may have been repaired outside the workflow since the last attempt — measure fresh, do not assume prior failures still hold.)`,
       { label: `build:${group.name}:a${attempt}`, phase: 'Build+Test', schema: BUILD_RESULT, model: MECH },
     )
     if (!buildLog) throw new Error('Build agent died — aborting to avoid blind fixes')
@@ -541,10 +551,26 @@ for (const group of dispatch.groups) {
     if (buildLog.build_ok && buildLog.tests_ok) { log(`Group "${group.name}" green: ${buildLog.summary}`); break }
     if (attempt >= 4) break
     log(`Group "${group.name}" red (attempt ${attempt}) — dispatching fixer`)
-    await run(
+    const fixNote = await run(
       `${CONTEXT}\n\nThe build/tests are failing after implementing group "${group.name}" of ${TASKS}. Diagnose and fix the ROOT CAUSE. Rules: never weaken or delete a failing test to make it pass unless it demonstrably contradicts ${SPEC} (then say so loudly in your notes); no warnings allowed; fix all failures, not just the first. NOT failures (do not "fix" these, just note them): targets a LATER tasks.md group creates that don't exist yet, and failing cases a tasks.md section explicitly documents as expected-red until a later task lands. You MAY build/run tests yourself while iterating.${BUILD_CMDS(gateTargets)}\n\nFAILURES:\n${buildLog.failures}\n\nTASK NOTES SO FAR:\n${JSON.stringify(implResults, null, 2)}`,
       { label: `fix:${group.name}:a${attempt}`, phase: 'Build+Test' },
     )
+    // A fixer that concludes the red is a spec contradiction needing a user ruling must stop
+    // the stage, not be re-dispatched (2026-09-13: Phase 6 group O ran the same diagnosis
+    // three times, each behind a rebuild, before FAILED_RED_TREE).
+    const fixText = typeof fixNote === 'string' ? fixNote : JSON.stringify(fixNote || '')
+    const fixId = `fix:${groupKey(group.name)}`
+    if (/STOP AND SURFACE|user ruling|not fixable in code|NOT A CODE DEFECT/i.test(fixText) && !unblocked.includes(fixId)) {
+      log(`Group "${group.name}": fixer reports the red needs a user ruling — stopping the stage`)
+      return {
+        stage: 'build', phase: phaseNum, slug: SLUG, status: 'BLOCKED',
+        blocked_group: group.name,
+        blocked_tasks: [{ task_id: fixId, status: 'blocked', files_written: [], notes: fixText }],
+        last_build: buildLog,
+        impl_results: implResults,
+        next: `The fixer reports a spec contradiction. Take the ruling, amend spec/plan/tasks and the test, then re-run stage "build" with resumeFromRunId, args.unblock including "${fixId}" and args.retry_epochs {"${groupKey(group.name)}": 5} so this group's gate is re-measured.`,
+      }
+    }
   }
   if (!buildLog.build_ok || !buildLog.tests_ok) {
     // Hard stop: comply on a red tree is meaningless.
