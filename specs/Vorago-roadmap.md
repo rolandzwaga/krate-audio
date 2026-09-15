@@ -334,6 +334,16 @@ check (`midside` correlation), CPU ≤ 0.5%.
 
 ### Phase 7: Harmonic Bloom
 
+**Status: ✅ COMPLETE (2026-09-15)** — see specs/vorago-phase7-harmonic-bloom/compliance.md
+(92 of 92 items pass after one main-loop ruling, SC-004 (b)'s peak bound). `BloomEngine` is an
+array-in/array-out control-rate transformer over `HarmonicCloud`'s spectral-target arrays (the cloud
+has no per-partial setter): strongest-K parents, octave / fifth / detuned-neighbour children with a
+bounded seeded retry and a detuned fallback on spacing collisions, a 45 s → hold (±50 % jitter) →
+180 s smoothstep lifecycle in a fixed 16-record table, round-robin reserved slots below the cloud's
+richness-derived active count with a live `setCapacity` (deferred shrink), a tilt-compensated latch,
+one RNG draw per control step. Measured 415 ns per 512-sample block (0.004 % of a core) against the
+0.1 % ceiling; no shared header touched.
+
 **Spec:** `vorago-phase7-harmonic-bloom`
 **Goal:** Every few minutes the drone grows new harmonics; later they die back.
 

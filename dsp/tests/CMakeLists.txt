@@ -461,6 +461,19 @@ add_executable(dsp_systems_tests
     unit/systems/subharmonic_engine_spectral_test.cpp
     unit/systems/subharmonic_engine_perf_test.cpp
     unit/systems/subharmonic_engine_nonfinite_test.cpp
+    # Vorago Phase 7 (specs/vorago-phase7-harmonic-bloom): BloomEngine.
+    # This list is ENUMERATED, not globbed - an unregistered TU silently drops
+    # out of the build and its cases never run.
+    #   bloom_engine_test.cpp           SC-003, SC-005, SC-006, SC-007, SC-008,
+    #                                   SC-012, SC-014, SC-016, SC-017, SC-018
+    #   bloom_engine_spectral_test.cpp  SC-001, SC-002, SC-004, SC-010, SC-015
+    #                                   (the [long] set)
+    #   bloom_engine_perf_test.cpp      SC-011 + the FR-073 stage probe   [.perf]
+    #   bloom_engine_nonfinite_test.cpp SC-009 only
+    unit/systems/bloom_engine_test.cpp
+    unit/systems/bloom_engine_spectral_test.cpp
+    unit/systems/bloom_engine_perf_test.cpp
+    unit/systems/bloom_engine_nonfinite_test.cpp
 )
 
 target_link_libraries(dsp_systems_tests
@@ -897,6 +910,14 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         # actually ships in. The perf TU stays out too: -fno-fast-math would
         # change the figures its baselines are pinned to.
         unit/systems/subharmonic_engine_nonfinite_test.cpp
+        # Vorago Phase 7: SC-009 injects NaN/Inf via bit patterns in this TU and
+        # needs IEEE semantics to assert on them; it is also the only definition
+        # of detail::BloomEngineNonFiniteProbe. ONLY this one of the four Phase 7
+        # TUs is listed. bloom_engine_test.cpp and bloom_engine_spectral_test.cpp
+        # stay out so the FR-008/FR-009 guards are proved in the /fp:fast +
+        # -ffast-math mode the header actually ships in. The perf TU stays out
+        # too: -fno-fast-math would change the figures its baselines are pinned to.
+        unit/systems/bloom_engine_nonfinite_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 

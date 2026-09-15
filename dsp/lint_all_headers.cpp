@@ -187,6 +187,9 @@
 // Vorago Phase 6 (specs/vorago-phase6-subharmonic), FR-001
 #include <krate/dsp/systems/subharmonic_engine.h>
 
+// Vorago Phase 7 (specs/vorago-phase7-harmonic-bloom), FR-001
+#include <krate/dsp/systems/bloom_engine.h>
+
 // Layer 4: Effects
 #include <krate/dsp/effects/aether_reverb.h>
 #include <krate/dsp/effects/bbd_delay.h>

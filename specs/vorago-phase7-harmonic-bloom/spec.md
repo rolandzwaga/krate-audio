@@ -824,8 +824,13 @@ shape: `bloom_engine_test.cpp` (behaviour), `bloom_engine_spectral_test.cpp` (th
   likewise kept only as a **reference-relative** claim: the bloom run must reach a count the
   reference run never reaches;
   (b) *never divergent* — RMS in the last 5 minutes is within **±1.5 dB** of RMS in minutes 5–10
-  (the Membrum infinite-ring pattern, roadmap lines 522–524), peak sample `< 1.0`, and
-  `cloud.stateFinite()` true throughout;
+  (the Membrum infinite-ring pattern, roadmap lines 522–524); the peak sample of the bloom run is
+  below `HarmonicCloud::kOutputClamp` (2.0, the only output bound the cloud promises — its FR-017
+  normaliser pins RMS, not peak) **and** within **+6 dB** of the no-bloom reference run's peak (the
+  bloom raises crest factor, not energy: measured +2.9 dB with RMS identical to the reference); and
+  `cloud.stateFinite()` true throughout. An earlier draft asserted an absolute `< 1.0` full-scale
+  peak, which FR-023 forbids and which a 1/n² parent set at the 0.35 default child gain exceeds by
+  0.2 dB on a correct build (ruled 2026-09-14);
   (c) *spawn activity is real, pooled across seeds* — the spawn count over 30 minutes at the default
   1/240 Hz rate is Poisson with `λ = 7.5`, for which `P(X <= 4) = 0.13`: a single-seed
   `>= 5` floor is a coin flip on the seed and invites seed-shopping instead of investigation. So:

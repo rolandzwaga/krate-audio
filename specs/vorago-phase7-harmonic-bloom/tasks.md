@@ -1042,7 +1042,9 @@ largest such value, and broadband RMS.
   `numChildSlots = 0` off): `max|centroid_on − centroid_off| >= 5 %` of the reference mean,
   **sustained for ≥ 60 s** after a spawn, and the bloom run must reach a partial count the reference
   never reaches;
-* (b) RMS of the last 5 minutes within **±1.5 dB** of minutes 5–10; peak sample `< 1.0`;
+* (b) RMS of the last 5 minutes within **±1.5 dB** of minutes 5–10; bloom peak below
+  `HarmonicCloud::kOutputClamp` (2.0) and within **+6 dB** of the reference run's peak (ruled
+  2026-09-14; the absolute `< 1.0` bound contradicted FR-023);
   `cloud.stateFinite()` true throughout (never static, never divergent — roadmap line 353);
 * (c) **pooled over 5 seeds**: `Σ getSpawnEventCount() >= 30` against `λ_total = 37.5` written into
   the test as a **named constant**, with the per-seed counts reported via `WARN`.
