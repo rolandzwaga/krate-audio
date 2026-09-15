@@ -70,7 +70,8 @@ const KIND_COUNT = KINDS.length;
 function defaultConfig() {
   return {
     agentCount: 32,              // roadmap: ~24-48 per voice
-    dimensions: 1,               // 1D toroidal habitat (2 = 2D torus)
+    dimensions: 2,               // 2D torus (round 2: +70 % activity, -38 %
+                                 // correlation and 4x fewer pair ops vs 1D)
     energyBudget: 1.0,           // total conserved energy (pool + agents)
     initialPoolFraction: 0.5,
 
@@ -85,12 +86,38 @@ function defaultConfig() {
     // seeds correlating at 0.999). 1 = pure predation (weak feeds strong).
     // >0.5 is the regime where structure survives; the carrying capacity below
     // is what stops predation collapsing onto a single permanent winner.
-    predation: 0.5,
+    // Round 2: 0.5 makes the (1 - 2*predation) factor exactly zero, i.e. the
+    // exchange rule OFF. 0.55 is mildly predatory: +35 % activity over 0.5
+    // with no deaths once the refuge floor below is in place.
+    predation: 0.55,
+    // Refuge (round 2, see the exchange second pass): energy an agent can never
+    // be preyed below. Absolute; 0.016 is half the mean per-agent energy at
+    // the 1.0 budget / 32 agents. At 0.008 predation >= 0.6 still parked a
+    // third of the agents at the floor; at 0.016 no agent freezes up to 0.85.
+    preyFloor: 0.016,
     capacity: 1.0,               // per-agent energy ceiling; excess spills to pool
     leakExponent: 1.0,           // leak = leakRate * e^exp; >1 punishes hoarding
     moveRate: 0.200,             // habitat movement speed
     maxSpeed: 0.030,             // slew limit on movement (habitat units/s)
-    syncRate: 0.030,             // Kuramoto phase coupling
+    // FORAGING (round 2). Movement driven only by kind affinity was inert:
+    // the affinity force is scaled by the neighbour's ENERGY, and with a 1.0
+    // budget spread over 32 agents a neighbour holds ~0.016, so the force
+    // never approached maxSpeed and "no movement" ablated as a no-op. Foraging
+    // drives an agent up the local RESOURCE gradient (Gaussian-weighted over
+    // the cells it can sense), which is the behaviour the spatial model was
+    // built for: a grazed patch is left, an ungrazed one is sought. Rate in
+    // habitat units per second per unit of normalised gradient.
+    forageRate: 0.010,
+    // Crowding repulsion (round 2, see RULE 2): strength in the same units as
+    // the affinity force, radius in habitat units. 0 disables.
+    crowding: 0.05,
+    crowdingRadius: 0.02,
+    // Kuramoto phase coupling. Round 2: OFF by default. Aligned phases mean
+    // aligned appetites, i.e. the agents feed in unison and their energies
+    // correlate: removing sync at 0.03 nearly doubled activity (+86 %) and
+    // halved correlation (-52 %). It stays as a knob (a Phase-10 "coherence"
+    // macro can dial it in deliberately); it is not a default-on rule.
+    syncRate: 0.0,
     // Resource field. A single global pool was the first draft and it failed:
     // every agent feeding from one scalar shares a common-mode signal, so all
     // 32 agents rose and fell together (measured mean pairwise correlation
@@ -101,13 +128,22 @@ function defaultConfig() {
     resourceCells: 64,
     cellCapacity: 0.05,          // max energy one cell can hold
     regenRate: 0.05,             // pool -> cells
-    grazeRate: 1.5,              // cells -> agents
+    grazeRate: 0.75,             // cells -> agents (round 2: 1.5 over-grazed)
     feedRate: 0.0,              // (legacy global feed; 0 disables)
     leakRate: 0.06,              // agents -> pool
     freqLo: 0.0015,              // intrinsic phase freq (Hz): 1/0.0015 = 667 s
     freqHi: 0.0180,              // 1/0.018 = 56 s
     freqDrift: 0.00004,          // bounded OU drift on intrinsic freq
     appetiteDepth: 0.8,          // how strongly phase gates feeding [0..1]
+    // SATIATION (round 2). Without it grazing is unlimited: at the defaults a
+    // cell drains 30x faster than it regrows (grazeRate 1.5 vs regenRate
+    // 0.05), the field settles at ~1-3 % fill, agents that happen to sit on
+    // empty ground drop to exactly zero energy and stay there, and the whole
+    // energy distribution freezes within the first minute (measured over a
+    // fixed 600 s window: 12 of 32 agents dead, activity 0.04). An agent's
+    // demand is scaled by max(0, 1 - e / satiation): a fed agent stops eating,
+    // the field regrows, the agent leaks, hunger returns. 0 disables.
+    satiation: 0.0,
 
     // Kind-pair interaction matrix, A[i][j] > 0 attract, < 0 repel.
     // Null = build the default structured matrix (same kind repels, others attract).
@@ -196,6 +232,7 @@ class Ecosystem {
     for (let k = 0; k < c.resourceCells; k++) this.res[k] *= rScale;
     this.pool = remaining - resTarget;
 
+    this.pathLength = new Float64Array(n);  // habitat units travelled, per agent
     this.time = 0;
     this.pairOps = 0;
     this.poolWentNegative = false;
@@ -263,6 +300,19 @@ class Ecosystem {
         fy[i] += a * w * this.e[j] * uy;
         fx[j] -= a * w * this.e[i] * ux;
         fy[j] -= a * w * this.e[i] * uy;
+        // CROWDING (round 2): a kind-independent, energy-independent repulsion
+        // inside crowdingRadius. Attraction with no short-range repulsion
+        // collapsed the population into a handful of exactly co-located clumps
+        // (measured: 32 agents at six distinct positions after 30 min); a clump
+        // of starved agents exerts no force, feels none, and never moves
+        // again, and co-located agents are one modulation signal copied.
+        if (c.crowding > 0 && dist < c.crowdingRadius) {
+          const push = c.crowding * (1 - dist / c.crowdingRadius);
+          fx[i] -= push * ux;
+          fy[i] -= push * uy;
+          fx[j] += push * ux;
+          fy[j] += push * uy;
+        }
 
         // RULE 3 — SYNCHRONIZE. Kuramoto coupling, weighted by proximity.
         const pd = twoPi * (this.phase[j] - this.phase[i]);
@@ -278,10 +328,16 @@ class Ecosystem {
     // sides of a transfer move by the same amount, so the sum stays exactly
     // zero and conservation survives however hostile the rule settings are.
     // A solvent agent is never throttled: its scale is 1.
+    // REFUGE (round 2): an agent can only transfer away what it holds ABOVE
+    // preyFloor. Without it predation above ~0.6 drains the weakest agents to
+    // zero and keeps them there (a rich neighbour takes each joule they graze),
+    // a cliff 0.05 from the default; with it the floor is an untouchable
+    // reserve, so a preyed-on agent keeps a heartbeat and can recover.
     const scale = new Float64Array(n);
     for (let i = 0; i < n; i++) {
       const want = outflow[i] * dt;
-      scale[i] = (want > this.e[i] && want > 0) ? this.e[i] / want : 1.0;
+      const spare = this.e[i] - c.preyFloor;
+      scale[i] = (want > 0 && want > spare) ? (spare > 0 ? spare / want : 0.0) : 1.0;
     }
     for (let p = 0; p < pairCount; p++) {
       const i = pairI[p], j = pairJ[p];
@@ -319,23 +375,44 @@ class Ecosystem {
     // which falsified the claim that conservation was structural. The drift
     // was small (1.1e-11) but it is a violation of the exact invariant the
     // whole boundedness argument rests on.
+    // PROPORTIONAL when the pool is short (round 2). The first draft walked
+    // the cells in index order and gave each its full regrowth until the pool
+    // ran out. The pool is empty at steady state (agents hold ~96 % of the
+    // budget and the leak trickles back), so cells 0-19 took every joule and
+    // cells 20-63 NEVER regrew: 70 % of the habitat was a permanent desert
+    // (resource 1e-234) and every agent that wandered into it starved. The
+    // desired regrowth is now summed first and scaled by what the pool can
+    // pay, so a shortfall is shared by every cell in proportion to its room.
     let avail = this.pool;
     if (avail > 0) {
+      let want = 0;
+      for (let k = 0; k < c.resourceCells; k++) {
+        const room = c.cellCapacity - this.res[k];
+        if (room > 0) want += c.regenRate * room * dt;
+      }
+      const share = want > avail ? avail / want : 1.0;
       for (let k = 0; k < c.resourceCells; k++) {
         const room = c.cellCapacity - this.res[k];
         if (room <= 0) continue;
-        const give = Math.min(c.regenRate * room * dt, avail);
+        const give = c.regenRate * room * dt * share;
         if (give <= 0) continue;
         this.res[k] += give;
         poolDelta -= give;
         avail -= give;
       }
+      if (avail < 0) avail = 0;
     }
 
     // --- grazing: cells -> agents, LOCAL. Demand is normalised per cell so a
     // cell can never hand out more than it holds (conservation stays exact),
     // which also makes crowded neighbourhoods genuinely competitive.
+    // --- foraging: the same pass accumulates the resource GRADIENT each agent
+    // senses, d/dx of the Gaussian-weighted resource sum, normalised by
+    // cellCapacity so the drive is in habitat units regardless of the field's
+    // absolute scale. Applied to fx below with the affinity force.
     const graze = new Float64Array(n);
+    const forage = new Float64Array(n);
+    const sigmaSq = c.kernelSigma * c.kernelSigma;
     for (let k = 0; k < c.resourceCells; k++) {
       if (this.res[k] <= 0) continue;
       let demandSum = 0;
@@ -344,14 +421,32 @@ class Ecosystem {
         const d = Ecosystem.wrapDelta(this.cellPos[k] - this.x[i]);
         const w = Math.exp(-(d * d) / twoSigmaSq);
         if (w < 1e-6) continue;
-        demand[i] = w * appetite[i];
+        const hunger = c.satiation > 0 ? Math.max(0, 1 - this.e[i] / c.satiation) : 1;
+        demand[i] = w * appetite[i] * hunger;
         demandSum += demand[i];
+        if (c.forageRate > 0) {
+          forage[i] += (this.res[k] / c.cellCapacity) * w * (d / sigmaSq);
+        }
       }
       if (demandSum <= 0) continue;
-      const taken = Math.min(c.grazeRate * this.res[k] * dt, this.res[k]);
+      // DEMAND-SCALED intake (round 2). The first draft handed out a FIXED
+      // amount per cell per step and split it by demand share, so a lone
+      // grazer ate the same whatever its appetite or satiation said: the phase
+      // gate and the hunger term only decided who won a contested cell, never
+      // how much left it. Every configuration then settled at a starvation
+      // fixed point (measured: 12-30 of 32 agents frozen at every satiation
+      // and grazeRate tried). Now each agent asks for grazeRate * res * demand
+      // per second and the cell caps the total at what it holds, so appetite
+      // and hunger set the flux and a resting agent lets its patch regrow.
+      const perUnitDemand = c.grazeRate * this.res[k] * dt;
+      let ask = perUnitDemand * demandSum;
+      const cap = ask > this.res[k] ? this.res[k] / ask : 1.0;
+      let taken = 0;
       for (let i = 0; i < n; i++) {
         if (demand[i] <= 0) continue;
-        graze[i] += taken * (demand[i] / demandSum);
+        const g = perUnitDemand * demand[i] * cap;
+        graze[i] += g;
+        taken += g;
       }
       this.res[k] -= taken;
     }
@@ -392,8 +487,9 @@ class Ecosystem {
         this.e[i] = c.capacity;
       }
 
-      let vx = c.moveRate * fx[i] * dt;
+      let vx = (c.moveRate * fx[i] + c.forageRate * forage[i]) * dt;
       let vy = c.moveRate * fy[i] * dt;
+      this.pathLength[i] += Math.min(Math.abs(vx), maxStep);
       const speed = Math.sqrt(vx * vx + vy * vy);
       if (speed > maxStep) {
         const k = maxStep / speed;
@@ -466,6 +562,26 @@ class Ecosystem {
 // -----------------------------------------------------------------------------
 // Metrics over a run
 // -----------------------------------------------------------------------------
+// Liveness thresholds (round 2). An agent is FROZEN when its energy's
+// std/grand-mean over the late window is under kFrozenActivity; a run is ALIVE
+// when the mean late activity clears kAliveActivity and no more than
+// kAliveMaxFrozenFraction of its agents are frozen. The late window is a fixed
+// length so the verdict does not depend on how long the run was.
+const kLateWindowSeconds = 600;
+const kFrozenActivity = 0.02;
+const kAliveActivity = 0.10;
+const kAliveMaxFrozenFraction = 0.25;
+const kCycleAutocorr = 0.8;
+
+/// One verdict for every command: 'unbounded' | 'frozen' | 'cycle' | 'alive'.
+function liveness(r) {
+  if (!r.bounded || r.nonFinite) return 'unbounded';
+  const n = r.agentSeries && r.agentSeries.length ? r.agentSeries[0].length : 1;
+  if (r.lateActivity < kAliveActivity || r.lateFrozen > kAliveMaxFrozenFraction * n) return 'frozen';
+  if (r.worstAutocorr > kCycleAutocorr) return 'cycle';
+  return 'alive';
+}
+
 function mean(a) { return a.reduce((s, v) => s + v, 0) / a.length; }
 function stddev(a) {
   const m = mean(a);
@@ -574,6 +690,41 @@ function run(config, seed, durationSeconds, opts = {}) {
   }
   const meanAgentPairCorr = pairCorrCount ? pairCorrSum / pairCorrCount : 1;
 
+  // --- FIXED-WINDOW liveness (round 2). The whole-run statistics above scale
+  // with run length for signals this slow, and the entropy late-quarter std
+  // used as the verdict flipped between 1200 s ("frozen") and 1800 s ("still
+  // moving") on the same configuration. Everything here is computed over the
+  // LAST `lateWindowSeconds` of the run on the fixed ~1 Hz sample grid, so the
+  // number means the same thing at any run length >= the window.
+  const sampleHzLate = blockRate / sampleEvery;
+  const lateWindowSeconds = opts.lateWindowSeconds || kLateWindowSeconds;
+  const lateCount = Math.min(agentSeries.length,
+                             Math.max(2, Math.round(lateWindowSeconds * sampleHzLate)));
+  let lateActivity = 0, lateFrozen = 0, latePairCorr = 1;
+  if (agentSeries.length > 1) {
+    const n = agentSeries[0].length;
+    const tail = agentSeries.slice(agentSeries.length - lateCount);
+    const cols = [];
+    for (let i = 0; i < n; i++) cols.push(tail.map(row => row[i]));
+    const grandMean = mean(cols.map(c => mean(c))) || 1e-12;
+    for (const c of cols) {
+      const s = stddev(c) / grandMean;
+      lateActivity += s;
+      if (s < kFrozenActivity) lateFrozen++;
+    }
+    lateActivity /= n;
+    let sum = 0, cnt = 0;
+    for (let i = 0; i < n; i++) {
+      for (let j = i + 1; j < n; j++) { sum += Math.abs(pearson(cols[i], cols[j])); cnt++; }
+    }
+    latePairCorr = cnt ? sum / cnt : 1;
+  }
+  const meanPathPerHour = sim.time > 0
+    ? (sim.pathLength.reduce((s, v) => s + v, 0) / sim.cfg.agentCount) / (sim.time / 3600)
+    : 0;
+  const meanResourceFill = sim.res.reduce((s, v) => s + v, 0) /
+                           (sim.res.length * sim.cfg.cellCapacity);
+
   const q = Math.floor(hSeries.length / 4);
   const lastQuarter = hSeries.slice(hSeries.length - q);
   const hStd = hSeries.length ? stddev(hSeries) : 0;
@@ -615,6 +766,10 @@ function run(config, seed, durationSeconds, opts = {}) {
              Math.abs(minTotal - budget) / budget < 1e-9,
     // The real non-triviality gates (see note above).
     agentActivity, frozenAgents, meanAgentPairCorr,
+    // Round-2 fixed-window liveness, plus movement and field diagnostics.
+    lateActivity, lateFrozen, latePairCorr,
+    lateWindowSeconds: lateCount / sampleHzLate,
+    meanPathPerHour, meanResourceFill,
     // non-triviality
     entropyMean: hSeries.length ? mean(hSeries) : 0,
     entropyStd: hStd,
@@ -632,5 +787,7 @@ function run(config, seed, durationSeconds, opts = {}) {
 
 module.exports = {
   Xorshift32, deriveStreamSeed, Ecosystem, KINDS, KIND_COUNT,
-  defaultConfig, defaultAffinity, run, autocorr, mean, stddev,
+  defaultConfig, defaultAffinity, run, autocorr, mean, stddev, pearson,
+  liveness, kLateWindowSeconds, kFrozenActivity, kAliveActivity, kAliveMaxFrozenFraction,
+  kCycleAutocorr,
 };
