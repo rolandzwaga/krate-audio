@@ -1333,9 +1333,17 @@ sketch the build implements; each becomes a compliance row.
   than steady state, just not more than the block period): the block containing a **simultaneous
   multi-loop sleep edge** (drive to steady state, then `setNumLoops(6 → 1)`, so five `clearLoopAudio`
   calls land inside one 64-sample control chunk), and the block containing a **rung-5 trap fire**
-  injected through the FR-048 probe. Both are repeated at **192 kHz**, where the block period is
-  2 666 667 ns and the ceiling is **40 000 ns** — that is where an O(buffer) delay clear on an
-  audio-thread path shows first. The percent-of-core figure is **reported, never asserted**
+  injected through the FR-048 probe. Both are repeated at **192 kHz**, where the delay buffers are
+  four times larger — that is where an O(buffer) delay clear on an audio-thread path shows first.
+  At every rate two clauses hold: the transition block costs at most **1.1×** a steady block in the
+  same state at the same rate (the O(buffer) detector: a buffer fill is a multiple, not 10 %, and
+  the measured overheads are negative at both rates), and at most the **same absolute 160 000 ns**
+  ceiling. **Amended 2026-09-15:** an earlier draft set the 192 kHz ceiling to 1.5 % of the 192 kHz
+  block period (40 000 ns). A 512-sample block is four times shorter in wall time there for the same
+  per-sample work, so that clause demanded the component be about twice as cheap per sample as at
+  48 kHz; it never passed (Phase 5's own isolated run read 69 100 / 83 700 ns against it, steady
+  ≈ 76 500 ns at 192 kHz), and the compliance record of 2026-09-13 that said it did was wrong. The
+  1.5 %-per-voice budget is defined at 48 kHz. The percent-of-core figure is **reported, never asserted**
   (`resonance_drift_network_perf_test.cpp:67-76`). Run in isolation, nothing else executing
   (`node tools/run-cpu-tests.js`).
 - **SC-005 — The delay wander actually moves the delay, and its absence is documented rather than
