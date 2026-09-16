@@ -25,6 +25,15 @@
 // the previous one. Hence SETTLE_MS between suites; raise it if you see the same
 // suite flip verdicts across runs.
 //
+// CORE PLACEMENT (Windows, hybrid CPUs): on a part with performance and
+// efficiency cores the other dominant noise source is the whole process landing
+// on an efficiency core. Measured on identical code: EcosystemEngine SC-011 (a)
+// read 28 528 ns/block on a performance core and 50 281 ns/block unpinned, a
+// 1.76x swing against a 53 333 ns/block ceiling. So on Windows every suite is
+// launched through tools/pin-perf-cores.ps1, which pins it to the cores of the
+// highest efficiency class (detected, not indexed). Single-class parts, Linux
+// and macOS run unpinned. The mask is printed at the top of each suite's log.
+//
 // Usage: node tools/run-cpu-tests.js [target ...]     (default: all suites)
 //        SETTLE_MS=30000 node tools/run-cpu-tests.js  (longer cooldown)
 
@@ -75,7 +84,12 @@ for (const t of targets) {
   first = false;
   process.stdout.write(`RUN  ${t} ... `);
   // Strictly sequential: spawnSync blocks, so no two suites are ever in flight.
-  const r = spawnSync(exe, [FILTER], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+  // On Windows the suite goes through the pinning helper (see CORE PLACEMENT).
+  const opts = { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 };
+  const r = process.platform === 'win32'
+    ? spawnSync('pwsh', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
+        '-File', path.join('tools', 'pin-perf-cores.ps1'), '-Exe', exe, '-ExeArgs', FILTER], opts)
+    : spawnSync(exe, [FILTER], opts);
   const out = `${r.stdout || ''}${r.stderr || ''}`;
   const log = path.join('f:/tmp', `cpu_${t}.log`);
   try { fs.writeFileSync(log, out); } catch { /* log dir optional */ }
