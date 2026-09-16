@@ -474,6 +474,21 @@ add_executable(dsp_systems_tests
     unit/systems/bloom_engine_spectral_test.cpp
     unit/systems/bloom_engine_perf_test.cpp
     unit/systems/bloom_engine_nonfinite_test.cpp
+    # Vorago Phase 8 (specs/vorago-phase8-ecosystem): EcosystemEngine.
+    # This list is ENUMERATED, not globbed - an unregistered TU silently drops
+    # out of the build and its cases never run.
+    #   ecosystem_engine_test.cpp           SC-002, SC-004, SC-006, SC-007, SC-008,
+    #                                       SC-009 (d), SC-010 (b), SC-014, SC-015, SC-019,
+    #                                       SC-020, SC-021, plus the FR-011/FR-021/FR-064
+    #                                       and perturb-edge cases (S14 D-O, D-P)
+    #   ecosystem_engine_longrun_test.cpp   SC-001 (a)-(d), SC-003, SC-005, SC-010 (a)(c),
+    #                                       SC-012, SC-013, SC-017, SC-018  (the [long] set)
+    #   ecosystem_engine_perf_test.cpp      SC-011 + the stage probe   [.perf]
+    #   ecosystem_engine_nonfinite_test.cpp SC-009 only
+    unit/systems/ecosystem_engine_test.cpp
+    unit/systems/ecosystem_engine_longrun_test.cpp
+    unit/systems/ecosystem_engine_perf_test.cpp
+    unit/systems/ecosystem_engine_nonfinite_test.cpp
 )
 
 target_link_libraries(dsp_systems_tests
@@ -918,6 +933,13 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         # -ffast-math mode the header actually ships in. The perf TU stays out
         # too: -fno-fast-math would change the figures its baselines are pinned to.
         unit/systems/bloom_engine_nonfinite_test.cpp
+        # Vorago Phase 8: SC-009 injects NaN/Inf via bit patterns in this TU and
+        # needs IEEE semantics to assert on them; it is also the only definition
+        # of detail::EcosystemEngineNonFiniteProbe. ONLY this one of the four
+        # Phase 8 TUs is listed - the other three stay out so the FR-064/FR-083
+        # guards are proved in the /fp:fast + -ffast-math mode the header actually
+        # ships in, and so the perf TU's figures are not changed by the flag.
+        unit/systems/ecosystem_engine_nonfinite_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 

@@ -284,7 +284,8 @@ FR-001's stricter "Layer 0 + stdlib only" rule (plan S14 D-J).
 * Every constant of **S1.2** with its live `static_assert`s: `kMaxAgents = 48`, `kMinAgents = 1`,
   `kMaxResourceCells = 96`, `kNumKinds = 5`, `kMaxPairs = 1128` (+ `static_assert(kMaxPairs == 1128)`
   and `static_assert(kMaxAgents <= 255)`), `kControlChunkSamples = 64` (+ its `static_assert`),
-  `kMinStepIntervalChunks = 1`, `kMaxStepIntervalChunks = 64`, `kDefaultStepIntervalChunks = 8`,
+  `kMinStepIntervalChunks = 8` (was 1; ruled 1 -> 4 -> 8 on 2026-09-16 at T016), `kMaxStepIntervalChunks = 64`,
+  `kDefaultStepIntervalChunks = 8`,
   `kMinUsableSampleRate = 8000.0`, `kDefaultSampleRate = 48000.0`, `kMinEnergyBudget = 1.0e-3`,
   `kMaxEnergyBudget = 1.0e3`, `kWakeSilenceEpsilon = 1.0e-6f`, `kGainRampMs = 50.0f`,
   `kOutputAnchor = 0.5`, `kMinAffinity = -2.0f`, `kMaxAffinity = +2.0f`,
@@ -531,7 +532,8 @@ asserting S8's three classes **separately**:
 *Falsification:* reset `samplePhase_` at the top of `processChunk` — arms (iii) and (iv) must fail.
 
 **3. `EcosystemEngine_StepIntervalBand`** (SC-010 (b)). For `sampleRate ∈ {44100, 48000, 96000}` ×
-`stepIntervalChunks ∈ {4, 8, 16}` (nine cells), feed `duration = 60.0 s` worth of samples in
+`stepIntervalChunks ∈ {8, 16, 32}` (nine cells; the band was 4 / 8 / 16 until the
+2026-09-16 rulings moved FR-082’s floor to 8), feed `duration = 60.0 s` worth of samples in
 512-sample blocks and assert `getControlStepCount()` is within **one** of
 `duration · sampleRate / (stepIntervalChunks · 64)`. Then call `prepare()` a **second** time at a
 different rate and assert `getStepDurationSeconds()` and `getControlStepCount()` both reflect the new
@@ -869,9 +871,17 @@ scaled anchor would also satisfy). `energyBudget` ∈ {0.1, 1.0, 10.0} × `agent
 (nine cells) × 3 seeds × 1800 s:
 
 * the late-window **mean of `getAgentOutput` over the population is 0.5 ± 0.05**;
-* the population's late-window output range (5th–95th percentile) agrees across all nine cells to
-  **±0.05 absolute**;
-* **also report** (`WARN`) `Σ energy_ / energyBudget` per cell — the mean output is
+* the late-window **5th percentile** agrees across all nine cells to **±0.05 absolute**;
+* every cell sits inside the envelope **p05 ∈ [0.12, 0.24]**, **median ∈ [0.25, 0.55]**,
+  **p95 ∈ [0.70, 1.00]**, **upper-rail sample fraction ≤ 0.20**;
+* ⚠️ **the original second bullet — "the population's late-window output range (5th–95th percentile)
+  agrees across all nine cells to ±0.05 absolute" — is STRUCK and must not be restored.** It is false
+  of the shipped rules *and* of the prototype (measured: p05 spread 0.0156 ✓, p95 spread **0.199** ✗,
+  p95 = 1.0 in the `B = 10 × n = 48` corner in both implementations), and it rested on reading
+  `FINDINGS.md:252`'s per-agent-over-time 0.44 as a population spread. spec.md SC-019 carries the
+  full correction, the measurement table and the movement-ablation evidence;
+* **also report** (`WARN`) the p05/p25/p50/p75/p95 ladder, the rail fraction and
+  `Σ energy_ / energyBudget` per cell — the mean output is
   `0.5 · (Σe)/B`, so a cell outside the band immediately says whether the *anchor* or the agents'
   *share of the budget* moved (plan R-5; at steady state agents hold ~96 %, so the expected mean is
   ~0.48).
@@ -1005,9 +1015,11 @@ Best-of-25 trials × 500 blocks after 400 warm-up blocks. Worst-case rule config
 cutoff), `syncRate` on, `leakExponent > 1`. **Two gated arms at the same ceiling:**
 
 * **(a)** `stepIntervalChunks = 8` — one step per block;
-* **(b)** `stepIntervalChunks = 1` — one step per 64-sample chunk, **8× the step rate and 8× the
-  cost**, reachable through the documented `PrepareConfig` and the case a Phase-10 CPU regression
-  would hit. Gating only (a) would verify one eighth of the cost the API allows.
+* **(b)** `stepIntervalChunks = kMinStepIntervalChunks` — the floor of FR-082's range, reachable
+  through the documented `PrepareConfig` and the case a Phase-10 CPU regression would hit. Gating
+  only (a) would verify a fraction of the cost the API allows. *(Written and first measured at 1;
+  the two 2026-09-16 rulings at T016 moved the floor to 4 and then to 8, the default — so (a) IS the
+  floor now and (b) gates the cheap end at 64.)*
 
 A percent-of-core figure is **reported, never asserted**.
 
@@ -1032,6 +1044,46 @@ recorded in the compliance notes — **whether or not it passes**.
 ## Group N — The lever decision
 
 ### T016 — Decide the lever list from the measured table (and escalate if needed)
+
+**RULED AND APPLIED 2026-09-16 — this task is now a verification, not a decision.** T015's first
+table (pinned, alone: (a) 55 275 ns/block, 1.04× over; (b) at `stepIntervalChunks = 1` 404 614
+ns/block, 7.59× over; stage probe: grazing loop 32 452 ns = two thirds of the step, pair kernel
+11 120, Kuramoto `sin` 6 680) went to the user. (b) at 1 cannot fit at any lever — 1 128 pairs plus
+4 608 cell visits eight times a block is ~120 000 ns of plain loop body with every transcendental
+free. **Ruling:** FR-082's minimum becomes **4** (L6, spec amendment), plus two **exact** levers —
+**E-1** (FR-040's cell weight by the Gaussian recurrence along the uniform cell grid,
+`cellKernelWeight`) and **E-2** (FR-035's and FR-050's sines from one per-agent sin/cos table,
+`refreshPhaseTrig` / `pairPhaseSine`); **L4/L5 declined.** **Second ruling, same day:** with E-1,
+E-2 and the bit-identical **E-3** hoists the floor at 4 still read 56 587–60 176 ns/block
+(1.06–1.13× over, four pinned runs; reciprocal multiplies and an agent-outer grazing walk measured
+at zero and at +25 % and were reverted), the LUT was declined again, and **FR-082's minimum became
+8** — the tuned default. Final gate, pinned: (a) at 8 **29 074 ns/block** (54.5 % of the ceiling),
+(b) at 64 **6 265 ns/block**. Plan S12.3 (E-1/E-2/E-3 rows), S12.2 (both measured tables), S14
+**D-P**; spec FR-082, FR-085, SC-010 (band 8–32), SC-011 (a) at the floor 8 / (b) at 64 and the new
+**SC-011 (c)**, SC-014 (b) arms 8/16/64, Appendix A, OQ-2, Clarifications session 2026-09-16.
+
+**Already landed by the orchestrator (do NOT re-implement):** `ecosystem_engine.h`
+(`kMinStepIntervalChunks = 8`; `cellSpacing_`/`cellSpacingSq_`/`cellRatioStep_` in
+`refreshKernelDerivatives()`; `cellKernelWeight()`, `refreshPhaseTrig()`, `pairPhaseSine()`; the
+stage-6 empty-cell skip moved after E-1's per-agent bookkeeping; E-3's hoists and register
+accumulators in stages 2 and 6; six new scratch arrays; footprint line ≈ 23.5 KB),
+`ecosystem_engine_test.cpp` (probe accessors for the two identities,
+`EcosystemEngine_ExactIdentitiesMatchFormulas` = SC-011 (c), SC-010's band at 8/16/32, SC-014 (b)'s
+arms at 8/16/64), `ecosystem_engine_perf_test.cpp` (arm (a) at the floor, (b) at 64, the floor-4
+rung dropped from the probe; header records both tables). Verified before resuming: warning-free
+build; all 24 `[ecosystem_engine]` non-perf cases pass; `EcosystemEngine_CpuBudget` passes pinned —
+the figures are in the compliance notes and spec SC-011's record.
+
+**What remains for this task:** confirm the exact levers are present (L1 the exp-free pre-test, L2
+the `syncRate_ > 0.0f` guard, L3 the `leakExponent == 1` path, E-1 `cellKernelWeight`, E-2
+`pairPhaseSine`, E-3 the hoisted locals `cutDistSq`/`exchangeSign`/`fill` and the row accumulators
+`fxi`/`fyi`/`outflowI`/`dPhaseI`), that `kMinStepIntervalChunks == 8`, and that no LUT exists (grep
+`std::array<double, 1025>` → none), and record that both rulings are applied. **Done when** those
+checks are recorded. The original decision procedure is kept below for the record.
+
+---
+
+*Original text (superseded by the ruling above):*
 
 **Files:** none, unless the user authorises L4/L5 — in which case this task edits
 `dsp/include/krate/dsp/systems/ecosystem_engine.h` (alone in its group) **and**
@@ -1110,9 +1162,11 @@ Contents, each a transcription with its prototype line (plan S10.2):
   started at 9 s.
 * `bool verdictAlive(const Trace&)` — **SC-002's verdict function, which is NOT its defaults gate**:
   over the last 600 s of a run of ≥ 900 s, alive iff `lateActivity >= 0.10` **and**
-  `lateFrozen <= 0.25 · agents` **and** no agent's **output** series has a short cycle. Clause (iii)
-  runs on **output**, never on entropy (Clarification Q3) — the one place the C++ deliberately
-  differs from `ecosystem-sim.js:576-583`, whose cycle clause ran on `hSeries`.
+  `lateFrozen <= 0.25 · agents` **and** the **population-mean output** series has no short cycle
+  (`meanOutputSeries`; ruled 2026-09-16 at T023, plan D-Q — per agent the clause flagged FR-050's
+  own intrinsic-period oscillation). Clause (iii) runs on **output**, never on entropy
+  (Clarification Q3) — the one place the C++ deliberately differs from `ecosystem-sim.js:576-583`,
+  whose cycle clause ran on `hSeries`.
 * `std::size_t distinctPositions(const EcosystemEngine&, int dp = 2)` — SC-002 (c)'s metric, positions
   rounded to 2 dp.
 
@@ -1277,8 +1331,10 @@ Per configuration assert:
 0 unbounded, drift 2.4e-15–1.9e-13.** A regression in either conservation guard (FR-023's two-pass
 exchange, FR-054's single withdrawal balance) fails **here first**.
 
-**Runtime budget — part of the criterion.** The batch must complete in **≤ 30 minutes**
-single-threaded, Release; the test **prints its own wall clock**. Projection: ~25.5 min (plan S10.5).
+**Runtime budget — part of the criterion.** The batch must complete in **≤ 60 minutes**
+single-threaded, Release (written as 30; measured 32.9 min alone / 43 min after a full suite with
+every clause green, and amended to 60 by the user on 2026-09-16, plan D-Q); the test **prints its
+own wall clock**. Projection was ~25.5 min (plan S10.5).
 If it misses, **FR-085's stop-and-surface rule applies: the config count (the roadmap's own 1000),
 the duration (the 900 s the 500/500 reference was measured at) and the perturb schedule's coverage
 are NOT to be shrunk** — reduce per-step cost, or put the measured wall-clock table to the user.
@@ -1290,10 +1346,10 @@ A Debug build is 10–50× slower and will never fit; the `[long]` lane is Relea
 
 ## Group S — The remaining `[long]` criteria
 
-### T021 — Longrun TU: SC-003, SC-005, SC-013, SC-017, SC-018
+### T021 — Longrun TU: SC-003, SC-005, SC-010 (a)(c), SC-013, SC-017, SC-018
 
 **Files to edit:** `dsp/tests/unit/systems/ecosystem_engine_longrun_test.cpp` only.
-All five use T017's helper header. Projected total ~11 min (plan S10.5).
+All six use T017's helper header. Projected total ~11 min (plan S10.5) plus ~50 s for case 6.
 
 **1. `EcosystemEngine_LivenessIsDurationStable` `[long]`** (SC-003). The same configuration at
 **600 / 900 / 1200 / 1800 / 3600** simulated seconds × 3 seeds (15 cells): `verdictAlive` true in
@@ -1303,10 +1359,12 @@ incompatible readings that differ by up to 2× on the prototype's own numbers. P
 0.430 / 0.434 / 0.433 / 0.442 / 0.459 → **0.066**. *This criterion exists because round 1's "best"
 configuration was a decaying transient whose verdict flipped between 1200 s and 1800 s.*
 
-**2. `EcosystemEngine_NoShortLimitCycle` `[long]`** (SC-005). 1800 s at the defaults; for **each**
-agent's `getAgentOutput` series, `hasShortCycle(series) == false`. The escape clause is guarded: a
-series whose late-window sample variance is exactly 0 **fails outright**. Prototype reference: worst
-post-decay peak **0.175 at 557 s**.
+**2. `EcosystemEngine_NoShortLimitCycle` `[long]`** (SC-005). 1800 s at the defaults; for the
+**population-mean** `getAgentOutput` series, `hasShortCycle(series) == false` (ruled 2026-09-16 at
+T023, plan D-Q: per agent the scan flagged FR-050's intrinsic oscillation, 3 of 32 agents, worst
+0.848 at 109 s); every agent's own series is scanned and **reported**. The escape clause is guarded:
+a series whose late-window sample variance is exactly 0 **fails outright**, on the gated series and
+per agent. Prototype reference: worst post-decay peak **0.175 at 557 s**.
 
 **3. `EcosystemEngine_SaneBoxLiveness` `[long]`** (SC-013). **500** configurations from the **sane**
 box × **900 s**: **≥ 70 %** alive under SC-002's *verdict function*, and **0** unbounded. Prototype
@@ -1335,6 +1393,26 @@ instrument that can run away or die overnight is broken by definition"). **28 80
 (a) `lateActivity >= 0.30` and (b) `lateFrozen == 0` measured over the **final 600 s** window. No
 other criterion in this spec reaches a drone-realistic duration — SC-001 runs 900 s, SC-003 tops out
 at 3600 s.
+
+**6. `EcosystemEngine_SampleRateIndependent` `[long]`** (SC-010 (a) and (c) — added at the
+compliance pass, which found the criterion half-built: clause (b) had a case
+(`EcosystemEngine_StepIntervalBand`, T006 (3)) but **no test anywhere evaluated liveness at any
+sample rate other than 48 kHz**, so the half of SC-010 that can actually catch a `dt`-sensitive rule
+set was unimplemented). **Eighteen cells: 3 seeds × [44 100 / 48 000 / 96 000 Hz at 8 chunks] and
+3 seeds × [8 / 16 / 32 chunks at 48 kHz]**, 1800 simulated seconds each, at the shipped defaults.
+`verdictAlive` true in **every** cell — the verdict function (activity ≥ 0.10, frozen ≤ 25 %, no
+short cycle on the population-mean output), **not** SC-002's stricter defaults gate, which is stated
+at 48 kHz only and would be silently re-gated at three rates otherwise.
+
+Clause (c) is the table: per-cell late activity, the realised trace grid, the step count, frozen
+count, pairwise correlation and the cross-seed spread `(max − min)/mean`, all `WARN`-reported and
+**not** gated. No cross-`dt` band has ever been measured — every prototype figure was taken at one
+`dt` — so asserting one here would be a coin flip; SC-010 (c) says so itself and permits a band by
+**amendment** once the C++ table exists. This is that table.
+
+*The chunk arm is 8 / 16 / 32, not plan S10.4's 4 / 8 / 16: the 2026-09-16 rulings moved FR-082's
+floor to 8, and the spec (SC-010 (a)) carries the corrected band. 48 kHz / 8 chunks appears in both
+arms deliberately — it is the shared corner the other five cells are read against.*
 
 **Verify:** `build/windows-x64-release/bin/Release/dsp_systems_tests.exe "[long]" 2>&1 | tee log`,
 read the log.
@@ -1489,5 +1567,5 @@ for each rather than discovering them.
 | P | T018 | SC-002 (a)–(d), SC-004 (a)(b) |
 | Q | T019 | Fuzz harness + SC-012 |
 | R | T020 | SC-001 (a)–(d) |
-| S | T021 | SC-003, SC-005, SC-013, SC-017, SC-018 |
+| S | T021 | SC-003, SC-005, SC-010 (a)(c), SC-013, SC-017, SC-018 |
 | T | T022 [P], T023 [P], T024 [P] | Registration audit; full-suite + FR-090 diff check; portability/lints/clang-tidy |

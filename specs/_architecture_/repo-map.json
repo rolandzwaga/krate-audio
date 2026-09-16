@@ -84,7 +84,7 @@
     "systems": {
       "index": 3,
       "folder": "dsp/include/krate/dsp/systems",
-      "header_count": 46
+      "header_count": 47
     },
     "effects": {
       "index": 4,

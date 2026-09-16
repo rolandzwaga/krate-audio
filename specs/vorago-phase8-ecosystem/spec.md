@@ -261,7 +261,7 @@ exactly **one** namespace-scope name to `Krate::DSP`.
   Clang errors on and MSVC does not (`resonance_drift_network.h:297-306`). Fields and defaults are
   Appendix A. A sample rate below `kMinUsableSampleRate`, a non-finite sample rate, an `agentCount`
   outside `[kMinAgents, kMaxAgents]`, a `resourceCells` outside `[1, kMaxResourceCells]`, a
-  `stepIntervalChunks` outside `[1, 64]` or an `energyBudget` outside **`[1e-3, 1e3]`** (non-finite
+  `stepIntervalChunks` outside `[8, 64]` or an `energyBudget` outside **`[1e-3, 1e3]`** (non-finite
   included) is **clamped**, and the getter reports the clamp. The `energyBudget` floor is load-bearing
   and not decorative: it is FR-061's divisor and SC-001 (c)'s reference value, so a zero or non-finite
   budget accepted here would publish a non-finite output through the public API (SC-019, SC-009 (c)).
@@ -420,7 +420,8 @@ exactly **one** namespace-scope name to `Krate::DSP`.
   the torus. Defaults `moveRate = 0.20`, `maxSpeed = 0.03`.
 - **FR-035** **Rule 3 — synchronization (Kuramoto), OFF by default.**
   `dPhase_i += syncRate · w · sin(2π(phase_j − phase_i))`, antisymmetric (`:317-322`). Default
-  `syncRate = 0`. The roadmap lists "synchronize" among the core rules (line 372); the measurement
+  `syncRate = 0`. (The sine is evaluated as `s_j c_i − c_j s_i` from a per-agent sin/cos table —
+  lever E-2, FR-085, an identity gated by SC-011 (c); the formula is unchanged.) The roadmap lists "synchronize" among the core rules (line 372); the measurement
   demotes it to a knob: aligned phases mean aligned appetites, so agents feed in unison and their
   energies correlate — removing it at 0.03 nearly **doubled** activity in 1-D (+86 %) and halved
   correlation, and re-adding it at the final 2-D defaults costs 18 % activity
@@ -435,7 +436,9 @@ exactly **one** namespace-scope name to `Krate::DSP`.
   correlation 0.84–0.99 (`FINDINGS.md:59-68`). **Geometry, as proven:** cell `k` sits at
   `x = (k + 0.5)/resourceCells` and grazing/foraging weight uses the **x separation only**
   (`ecosystem-sim.js:228`, `:421`, `:428`), so in the 2-D habitat the field is a set of vertical
-  strips. Every published figure was measured on this geometry. See OQ-1.
+  strips. Every published figure was measured on this geometry. See OQ-1. (The weight
+  `exp(−d²/(2σ²))` is evaluated along the cell grid by the exact Gaussian recurrence — lever E-1,
+  FR-085, gated by SC-011 (c); the formula is unchanged.)
 - **FR-041** **Initial energy partition** (Clarifications, Q5). The prototype's three-way split of
   `energyBudget` is encoded verbatim (`ecosystem-sim.js:197-232`), computed once at `prepare()` and
   re-computed identically at `setSeed()` (which re-derives the whole initial state, FR-080): each
@@ -462,7 +465,8 @@ exactly **one** namespace-scope name to `Krate::DSP`.
 ### FR-050 series — Rule 4b: metabolism
 
 - **FR-050** **Phase-gated appetite**: `appetite_i = max(0, 1 + appetiteDepth · sin(2π · phase_i))`
-  (`ecosystem-sim.js:355-360`). Default `appetiteDepth = 0.8`. This is **the load-bearing rule**: the
+  (`ecosystem-sim.js:355-360`). Default `appetiteDepth = 0.8`. (The sine is the per-agent table entry
+  of lever E-2, FR-085 — the same `std::sin` call, taken once at the start of the step.) This is **the load-bearing rule**: the
   ablation prices its removal at **−96 % activity, +323 % correlation, 26 of 32 agents frozen**
   (`FINDINGS.md:264`).
 - **FR-051** **Demand-scaled grazing.** For each cell, each agent's demand is
@@ -524,9 +528,11 @@ exactly **one** namespace-scope name to `Krate::DSP`.
   coupling.
 - **FR-061** **Output normalisation.** `getAgentOutput(i) = clamp(0.5 · e_i · agentCount /
   energyBudget · wakeGain_i, 0, 1)`. The anchor is deliberate: the population mean share is
-  `energyBudget / agentCount`, so an agent at the mean publishes **0.5** and the measured ±44 %
-  late-window swing (`FINDINGS.md:252-253`) maps to roughly `[0.28, 0.72]` with headroom for the
-  boom/bust tail. Raw energy would hand Phase 10 a value whose scale depends on `agentCount` and
+  `energyBudget / agentCount`, so an agent at the mean publishes **0.5**. *(An earlier draft added
+  "and the measured ±44 % late-window swing maps to roughly `[0.28, 0.72]`" — struck: `FINDINGS.md`'s
+  0.44 is `std(e_i)/grandMean` **per agent over time**, not a population spread, and the measured
+  pooled band at the defaults is `[0.18, 0.92]`. See SC-019, which was written on that misreading and
+  is corrected there.)* Raw energy would hand Phase 10 a value whose scale depends on `agentCount` and
   `energyBudget` — two knobs the macros move. The consumers' own clamps
   (`resonance_drift_network.h:765-770`) are a second net, not the first. The anchor invariance is
   gated by **SC-019**, not left as prose.
@@ -655,7 +661,9 @@ exactly **one** namespace-scope name to `Krate::DSP`.
 - **FR-082** **Step interval.** One simulation step occurs every `stepIntervalChunks` × 64 samples,
   `stepIntervalChunks` defaulting to **8** — i.e. 512 samples ≈ 10.67 ms at 48 kHz, which is
   **exactly the `dt` the prototype's rule set was tuned at** (`ecosystem-sim.js:619`,
-  `blockRate = 48000 / 512`). Range `[1, 64]`. `dt = stepIntervalChunks · 64 / sampleRate` is
+  `blockRate = 48000 / 512`). Range **`[8, 64]`** — the floor is the tuned default. The minimum was 1
+  until two **2026-09-16 rulings** narrowed it, 1 → 4 → 8, each on SC-011's measured table (FR-085's
+  named escalation; the record is under SC-011). `dt = stepIntervalChunks · 64 / sampleRate` is
   computed at `prepare()`, so all rates stay per-second and behaviour is wall-clock-driven at any
   sample rate (SC-010). The 64-sample residue grid is kept so a Phase-10 voice can call this inside
   the same chunk loop every other Vorago component uses. See OQ-2.
@@ -678,6 +686,31 @@ exactly **one** namespace-scope name to `Krate::DSP`.
   - `getNonFiniteContainmentCount()` (monotonic, non-saturating, **separate from**
     `getConservationViolationCount()`) increments once per containment event, and the step then
     proceeds normally.
+  *(Corrected at implementation time, in the same spirit as FR-071's S14 D-L correction above, and
+  for the same reason: the normative text as written is not executable arithmetic. Two clauses, both
+  live in `ecosystem_engine.h:1216-1344`.*
+
+  1. ***"Charging the difference between the pre- and post-repair totals" cannot be computed.*** *The
+     pre-repair total contains the non-finite value that triggered the repair, and NaN minus anything
+     is NaN — the charge would publish the very quantity the rung exists to remove. The operative form
+     is the algebraic equivalent that **is** computable: sum the post-repair bodies (agents + cells)
+     and set `pool = energyBudget − bodies`. That re-establishes `total == energyBudget` to one
+     rounding, which is precisely and only what SC-001 (c) gates. Intent preserved; it is the one
+     arithmetic that exists.*
+  2. ***The mean share is the repair TARGET, not an entitlement the budget must fund.*** *Reinstating a
+     repaired agent at `energyBudget / agentCount` **creates** energy whenever the value it replaced
+     was smaller, and the pool is the residual of a budgeted economy — at steady state the population
+     holds ~97 % of the budget and the pool ~0.06 % of it. Measured at the defaults: pool 6.2e-4,
+     repaired agent 2.51e-2 against a mean share of 3.125e-2, pool after the charge **−4.9e-3**. A
+     negative pool is exactly what `getConservationViolationCount()` means (FR-056), so funding the
+     repair from an overdraft would make that counter fire on a **containment** event — the
+     one-counter-two-meanings confusion FR-056 and SC-009 (b) forbid by name. The pool floor is
+     therefore honoured first: where the budget cannot fund the full reinstatement, the repaired
+     agents (and only they) are cut **pro rata** — an equal split, since they were all just set to the
+     same share — and the pool lands at 0 instead of below it. Conservation stays exact, the
+     containment stays a repair rather than an abandonment, and FR-056's counter keeps its single
+     meaning.)*
+
   SC-009 gates this, including the clause that the component keeps *moving* after a containment event
   rather than being permanently dead but finite.
 - **FR-084** **The energy economy is `double`.** Agent energies, cell energies and the pool are
@@ -691,20 +724,45 @@ exactly **one** namespace-scope name to `Krate::DSP`.
   per 512-sample block at 48 kHz** — one block period is 10 666 667 ns, so the ceiling is
   **53 333 ns/block**. The ceiling is stated **per block, at every legal `stepIntervalChunks`**, not
   only at the FR-082 default. That is deliberate and it is a correction: the roadmap states the budget
-  as an unconditional FR, while `stepIntervalChunks = 1` is reachable through the documented
-  `PrepareConfig` and runs **8× the step rate and 8× the cost** of the default — a configuration that,
-  gated only at the default, would exceed the roadmap's FR by 8× with no criterion failing. SC-011
-  therefore gates **both ends of the range it retains** (1 and 8) at the same 53 333 ns/block ceiling,
-  at the worst-case rule configuration.
+  as an unconditional FR, while the floor of FR-082's range is reachable through the documented
+  `PrepareConfig` and runs a multiple of the step rate and cost of the default — a configuration that,
+  gated only at the default, would exceed the roadmap's FR with no criterion failing. SC-011
+  therefore gates **both ends of the range it retains** (the floor and 8) at the same 53 333 ns/block
+  ceiling, at the worst-case rule configuration.
   The **stop-and-surface rule** applies verbatim (`resonance_drift_network_perf_test.cpp:57-64`): no
   implementing agent may lower `kMaxAgents`, raise the budget, relax a threshold or shrink a workload
   to make a figure fit. Reduce cost, or put the measured table to the user. Concretely, if the
-  measured figure at `stepIntervalChunks = 1` cannot be brought inside 53 333 ns/block, the **only**
-  permitted responses are to reduce the per-step cost, or to put the measured table to the user with
-  a proposal to **narrow FR-082's minimum** (a spec amendment, which re-scopes the public API rather
-  than the gate). Raising the budget, restating it per step, or exempting the cheap end are all
-  forbidden — restating a per-block budget as a per-step budget is an 8× relaxation wearing a
-  derivation.
+  measured figure at the floor cannot be brought inside 53 333 ns/block, the **only** permitted
+  responses are to reduce the per-step cost, or to put the measured table to the user with a proposal
+  to **narrow FR-082's minimum** (a spec amendment, which re-scopes the public API rather than the
+  gate). Raising the budget, restating it per step, or exempting the cheap end are all forbidden —
+  restating a per-block budget as a per-step budget is a relaxation wearing a derivation.
+  **Ruling of 2026-09-16, taken on the first measured table (recorded under SC-011):** at
+  `stepIntervalChunks = 1` the worst case measured **404 614 ns/block**, 7.6× the ceiling, and cannot
+  fit at any lever — 1 128 pairs plus 4 608 cell visits eight times a block is ~120 000 ns of plain
+  loop body with every transcendental free. The user took the named escalation: **FR-082's minimum is
+  4**, together with two **exact** cost levers, neither of which changes a normative formula:
+  - **E-1** — FR-040's cell weight `exp(−d²/(2σ²))` is evaluated along the uniform cell grid by the
+    Gaussian recurrence `w(d+h) = w(d)·exp(−(2dh+h²)/(2σ²))`, whose ratio advances by the constant
+    `exp(−h²/σ²)` per cell (`h = 1/resourceCells`): two `exp` seed a run of consecutive in-range
+    cells, each further cell costs two multiplies; the run re-seeds at the torus wrap and after any
+    cell the FR-012 pre-test rejects. ~192 `exp` per step instead of 4 608 at the worst case.
+  - **E-2** — one `sin`/`cos` per agent of `2π·phase_i` at the start of the step; FR-035's
+    `sin(2π(phase_j − phase_i))` is `s_j c_i − c_j s_i` and FR-050's appetite `sin` is the table
+    entry. 96 transcendental calls per step instead of 1 176.
+  Both are algebraic identities with rounding-level error and are **gated by SC-011 (c)** against
+  `std::exp` / `std::sin` on the component's own state. L4/L5 (lookup tables, approximations of the
+  same formulas) were offered and **not** adopted; they remain not pre-authorised.
+  **Second ruling, same day, on the re-measured table:** with E-1, E-2 and **E-3** (step invariants
+  hoisted into locals and the pair loop's row accumulators kept in registers — bit-identical, the
+  same operations in the same order) the worst case reads **27 224 ns/block at 8** (51 % of the
+  ceiling) but **56 587–60 176 ns/block at 4**, 1.06–1.13× over across four pinned runs. Reciprocal
+  multiplies measured at zero and were reverted (not bit-identical); an agent-outer two-pass grazing
+  walk measured 25 % *slower* and was reverted; the remaining per-visit cost is memory- and
+  dependency-bound and the 1 128 pair `exp` have no exact reduction for arbitrary positions. The user
+  again declined the pair-kernel LUT and took the escalation once more: **FR-082's minimum is 8** —
+  the floor is the tuned default, and nothing below it had a consumer. SC-011 gates the floor (a) and
+  the cheap end (b) at 64.
 - **FR-086** Worst-case cost is `O(agentCount²)` pairs plus `O(resourceCells · agentCount)` cell
   visits per step: at the capacities of FR-004 that is 1 128 pairs + 4 608 cell visits per step. The
   `w < 1e-6` cutoffs (FR-012, `ecosystem-sim.js:423`) cut the *work*, not the *visits* — at the
@@ -746,8 +804,26 @@ exactly **one** namespace-scope name to `Krate::DSP`.
   `harmonic_cloud.h` and `atmosphere_engine.h` are **byte-unchanged**, and this file includes none of
   them. Seraphis's and Vorago's existing suites must stay green (roadmap lines 550–552).
 - **FR-091** The only repository files this phase adds or edits are: the new header, four new test
-  TUs, their lines in `dsp/tests/CMakeLists.txt`'s enumerated `dsp_systems_tests` list (plus one line
-  in the `-fno-fast-math` block for the non-finite TU), and this spec's own directory.
+  TUs **plus one test-local metric helper header beside them**, their lines in
+  `dsp/tests/CMakeLists.txt`'s enumerated `dsp_systems_tests` list (plus one line in the
+  `-fno-fast-math` block for the non-finite TU), **one `#include` line in `dsp/lint_all_headers.cpp`**,
+  and this spec's own directory.
+
+  *(Enumeration corrected at implementation time, two additions, both recorded here rather than left
+  as an undeclared file in `git status`:*
+  1. *`dsp/tests/unit/systems/ecosystem_metrics_test_helpers.h` — the verdict function and the
+     activity / frozen / pairwise-correlation / cycle statistics are needed by **both** the behaviour
+     TU (SC-002, SC-004, SC-010) and the longrun TU (SC-003, SC-005, SC-013, SC-017, SC-018), and two
+     copies of ~150 lines of statistics are how a criterion quietly stops measuring what it claims.
+     It takes **no CMake entry** — the `dsp_systems_tests` list names `.cpp` only — and the pattern
+     has two precedents in this tree: `dsp/tests/unit/processors/arpeggiator_core_test_helpers.h` and
+     `dsp/tests/unit/systems/harmonic_cloud_pre_amendment_fingerprints.h`. Plan S14 D-D.*
+  2. *`dsp/lint_all_headers.cpp` — one `#include <krate/dsp/systems/ecosystem_engine.h>` line. This
+     is the house's standalone-compile lint: every shipped header is included there exactly once, and
+     a new header omitted from it is never compiled outside its own test TU. Every prior Vorago phase
+     added the same single line (`bloom_engine.h` for Phase 7, immediately above it). FR-090 is
+     untouched by this: no **shipped DSP component header** is modified, and this file includes
+     rather than alters them.)*
 
 ---
 
@@ -776,8 +852,11 @@ expensive, and those carry `[long]` and a stated runtime budget.
   box with **one documented omission**: the prototype's `dimensions` knob (`run.js:305`, randomised
   1/2) is dropped because FR-012 fixes the habitat as 2-D, so the prototype's 500/500 figure covers a
   **superset** of the shipped geometry.
-  **Runtime budget:** the batch must complete in **≤ 30 minutes** single-threaded on the nightly
-  `[long]` lane. Reference for the estimate: the prototype's JS runner takes ~16.5 s per 900 s hostile
+  **Runtime budget:** the batch must complete in **≤ 60 minutes** single-threaded on the nightly
+  `[long]` lane — written as 30 minutes; **amended to 60 by the user on 2026-09-16** from the measured
+  table: 32.9 min run alone and 43 min after a full suite (Release, pinned), every clause green
+  (worst drift 2.8e-12, 0 violations, 0 containments, 92 812 500 steps, 998 750 perturb calls), and
+  the exact per-step CPU levers exhausted (SC-011's record). Count, durations and schedule unchanged. Reference for the estimate: the prototype's JS runner takes ~16.5 s per 900 s hostile
   config (measured: `node run.js fuzz 8` = 131.7 s wall clock), so 1000 configs is ~4.6 h in
   JavaScript and the C++ port must be roughly an order of magnitude faster to fit. If it does not fit,
   FR-085's stop-and-surface rule applies: **the config count and the duration are not to be shrunk** —
@@ -812,14 +891,23 @@ expensive, and those carry `[long]` and a stated runtime budget.
   and by nothing else): over the **last 600 s of a run of at least 900 s**, on a fixed 1 Hz sample
   grid, a configuration is *alive* when (i) per-agent activity `std(e_i)/grandMean` averaged over
   agents is **≥ 0.10**, (ii) the count of frozen agents (activity < 0.02) is **≤ 25 %** of the
-  population, **and (iii)** (Clarifications, Q3) **no agent's `getAgentOutput` series exhibits a
+  population, **and (iii)** (Clarifications, Q3; series amended by the 2026-09-16 ruling) **the
+  population-mean `getAgentOutput` series** (the mean over agents at every sample) **exhibits no
   short limit cycle**, by the same recurrence test SC-005 defines — scan lags upward until
   autocorrelation first falls below 0.2, then the maximum afterward must be **≤ 0.8**; a series that
   never decorrelates within half the verdict window passes, subject to SC-005's zero-variance guard —
-  applied here per agent over the verdict function's own window rather than SC-005's full 1800 s run.
+  applied here over the verdict function's own window rather than SC-005's full 1800 s run.
   Clause (iii) is stated on published **output**, never on `getEnergyEntropy()` (FR-066 and D-9 forbid
   gating on entropy); this is a deliberate difference from the prototype, whose own cycle clause ran
-  on the entropy series instead (see SC-013's note below). Clauses (i)–(ii) are the prototype's
+  on the entropy series instead (see SC-013's note below). **Why the population mean and not each
+  agent (ruling 2026-09-16, T023):** scanned per agent the clause flagged FR-050's *designed*
+  oscillation — each agent's appetite is phase-gated at its own intrinsic frequency (periods 56–667 s
+  at the defaults), so its output decorrelates at a quarter period and recurs at one period; measured
+  at the defaults 3 of 32 agents above 0.8 (worst 0.848 at 109 s) with activity 0.42–0.48, zero frozen
+  and pairwise |corr| 0.17–0.19, and 127 of 500 sane-box configurations dead on that clause alone. The
+  limit cycle the roadmap forbids is the ecosystem's — the population locked into a common boom/bust
+  — which is what the population mean shows and what independent intrinsic oscillations average out
+  of; the prototype's clause was population-level too. Per-agent recurrence is **reported** by SC-005. Clauses (i)–(ii) are the prototype's
   classification thresholds verbatim (`ecosystem-sim.js:570-583`, `kAliveActivity = 0.10`,
   `kAliveMaxFrozenFraction = 0.25`, consumed by `liveness()` at `:576-583` to bucket fuzz runs) and,
   together, they are **not** a defaults gate: an implementation landing at activity 0.11 with 12 of 48
@@ -859,6 +947,10 @@ expensive, and those carry `[long]` and a stated runtime budget.
   transient whose whole-run activity of 0.32 came entirely from its first ten minutes, and whose
   verdict flipped between 1200 s and 1800 s (`FINDINGS.md:177-190`). Prototype reference:
   0.430 / 0.434 / 0.433 / 0.442 / 0.459, zero frozen at every length (`FINDINGS.md:256-258`).
+  *Record (2026-09-16): with the verdict's cycle clause per agent, 5 of 15 cells read "not alive"
+  on that clause alone while activity was 0.42–0.48 and zero agents frozen in every cell; under the
+  population-mean clause (ruling, SC-002 (iii)) alive in 15 of 15, spreads 0.078 / 0.080 / 0.112,
+  seed-mean 0.434 / 0.435 / 0.440 / 0.450 / 0.467.*
   *`EcosystemEngine_LivenessIsDurationStable` `[long]`.*
 - **SC-004 — Decorrelation: the agents are a bank, not one signal copied.**
   (a) **Inter-agent**: over the last 600 s of an **1800 s** run at the defaults, mean pairwise
@@ -881,10 +973,16 @@ expensive, and those carry `[long]` and a stated runtime budget.
   *`EcosystemEngine_AgentsDecorrelate`, `EcosystemEngine_SeedsProduceDifferentVoices`.*
 - **SC-005 — No short limit cycle, by recurrence** (roadmap line 395: "no limit cycles shorter than
   N minutes").
-  For each agent's `getAgentOutput` series over an **1800 s** run: scan lags upward until
-  autocorrelation first falls **below 0.2** (the signal forgets itself); only **after** that lag, the
-  maximum autocorrelation must be **≤ 0.8**. A series that never decorrelates within half the run
-  passes — it is one slow trend, the opposite of a short cycle. **That escape clause is guarded, not
+  For the **population-mean** `getAgentOutput` series (the mean over agents at every sample; the
+  2026-09-16 ruling, see SC-002's clause (iii) for the measured reason) over an **1800 s** run: scan
+  lags upward until autocorrelation first falls **below 0.2** (the signal forgets itself); only
+  **after** that lag, the maximum autocorrelation must be **≤ 0.8**. A series that never decorrelates
+  within half the run passes — it is one slow trend, the opposite of a short cycle. Every agent's own
+  series is scanned and **reported** (count recurring, worst post-decay peak and lag); recurrence at
+  an agent's intrinsic period is FR-050's design, not a defect. *Record, first measurement with the
+  gate per agent (2026-09-16): 3 of 32 flagged, worst 0.848 at 109.3 s (agent 1, decorrLag 25.1 s),
+  0 constant, 0 never-decorrelated. Under the ruling, the population-mean output: not cycled,
+  post-decay peak 0.188 at 17.0 s, late window not constant — the compliance record.* **That escape clause is guarded, not
   open:** a series railed at FR-061's clamp also never decorrelates, so this criterion alone would
   award a constant output a pass; SC-002 (d) gates clamp engagement at the same defaults, and a series
   whose sample variance is zero over the late window fails here outright rather than taking the
@@ -943,11 +1041,12 @@ expensive, and those carry `[long]` and a stated runtime budget.
   `EcosystemEngine_DivisorKnobExtremes`.*
 - **SC-010 — Sample-rate independence, step-interval band, and re-prepare.**
   Both halves of this criterion apply the **same** standard, because changing the sample rate from
-  48 kHz to 96 kHz halves `dt` exactly as changing `stepIntervalChunks` from 8 to 4 does, and gating
+  48 kHz to 96 kHz halves `dt` exactly as changing `stepIntervalChunks` from 16 to 8 does, and gating
   one while exempting the other was incoherent.
   (a) **Gated, on the verdict:** the same configuration run for 1800 simulated seconds on **three
-  seeds** at 44 100 / 48 000 / 96 000 Hz, and at `stepIntervalChunks` of 4 / 8 / 16 at 48 kHz —
-  SC-002's *verdict function* returns *alive* in every one of those cells.
+  seeds** at 44 100 / 48 000 / 96 000 Hz, and at `stepIntervalChunks` of 8 / 16 / 32 at 48 kHz (the
+  floor and two slower settings; the band was 4 / 8 / 16 until the 2026-09-16 rulings set FR-082's
+  floor at 8) — SC-002's *verdict function* returns *alive* in every one of those cells.
   (b) **Gated, exactly:** the number of simulation steps is within one step of
   `duration · sampleRate / (stepIntervalChunks · 64)` in every cell, and `prepare()` called a second
   time with a different rate is clean (no stale `dt`, no drift in the residue clock).
@@ -965,16 +1064,34 @@ expensive, and those carry `[long]` and a stated runtime budget.
   **run alone** via `node tools/run-cpu-tests.js dsp_systems_tests`. Worst-case rule configuration:
   `agentCount = 48`, `resourceCells = 96`, `kernelSigma = 0.35` so every pair survives the cutoff.
   Gate: **≤ 53 333 ns/block at BOTH ends of FR-082's retained range** —
-  (a) `stepIntervalChunks = 8` (the default, one step per block), and
-  (b) `stepIntervalChunks = 1` (one step per 64-sample chunk, **8× the step rate**), which the public
-  `PrepareConfig` permits and which is the case a Phase-10 CPU regression would hit. Gating only (a)
-  would verify one eighth of the cost the API allows and leave the roadmap's unconditional 0.5 % FR
-  unverified over its own permitted range. If (b) cannot be met, FR-085 names the only permitted
-  responses — reduce cost, or put the table to the user with a proposal to narrow FR-082's minimum.
+  (a) `stepIntervalChunks = 8` (the floor **and** the default since the 2026-09-16 rulings: one step
+  per block, the dearest legal configuration), and
+  (b) `stepIntervalChunks = 64` (the cheap end, one step per eight blocks). (b) cannot fail where (a)
+  passes; it is retained so the gate states the ceiling at every legal step interval, as FR-085
+  does. If (a) cannot be met, FR-085 names the only permitted responses — reduce cost, or put the
+  table to the user; with the floor at the default there is nothing left to narrow.
+  (c) **The two exact levers are exact.** On the component's own state and through its own member
+  functions: FR-040's cell weight by the E-1 recurrence equals `std::exp(−d²/(2σ²))` to **≤ 1e-12
+  relative** over every in-range (cell, agent) visit at σ ∈ {0.01, 0.03, 0.12, 0.35} and cell counts
+  {1, 2, 7, 64, 96}, with the multiply path exercised at least 4 000 times; FR-035's
+  `sin(2π(phase_j − phase_i))` by the E-2 identity equals `std::sin` to **≤ 1e-14 absolute** over all
+  1 128 pairs, and FR-050's table entry equals `std::sin(2π·phase_i)` exactly.
   A stage probe reports, as a non-gating
-  table: pair loop / grazing loop / integrate / output publication, at `stepIntervalChunks` 1, 8 and
+  table: pair loop / grazing loop / integrate / output publication, at `stepIntervalChunks` 8 and
   64, plus the defaults configuration and an all-dormant configuration.
-  *`EcosystemEngine_CpuBudget`, `EcosystemEngine_StageCostProbe`.*
+  *`EcosystemEngine_CpuBudget`, `EcosystemEngine_StageCostProbe`,
+  `EcosystemEngine_ExactIdentitiesMatchFormulas`.*
+  **Record — first measured table, 2026-09-16** (pinned to P-cores, alone, best-of-25 × 500 blocks,
+  floor still 1, before E-1/E-2): (a) **55 274.8 ns/block** (1.04× over), (b at 1)
+  **404 613.6 ns/block** (7.59× over); stage probe: grazing loop 32 452 ns (4 608 cell `exp`), pair
+  kernel 11 120, Kuramoto `sin` 6 680, traversal 3 358; Appendix-A defaults 8 143 (15 % of the
+  ceiling); all-dormant −4 % of the worst case (FR-072's prediction held). The plan's projection had
+  blamed the pair `exp`s; the probe put two thirds of the step in the cell loop, which is why E-1 is
+  the lever that mattered. The first ruling followed from this table.
+  **Record — after E-1/E-2/E-3, floor 4** (four pinned runs): (a) at 8 **26 576–28 796 ns/block**
+  (50–54 % of the ceiling); (b) at 4 **56 587–60 176 ns/block** (1.06–1.13× over); stage probe at 8:
+  grazing loop 17 487, pair kernel 11 166, Kuramoto term −213 (noise: the sines are gone),
+  traversal 2 690; defaults 6 387. The second ruling (floor 8) followed from this table.
 - **SC-012 — The fuzz harness cannot silently stop testing a rule.**
   The C++ fuzz asserts **coverage** over the `PrepareConfig` knob set:
   (a) the harness carries a **static knob list** and asserts its length **equals the number of numeric
@@ -1012,7 +1129,12 @@ expensive, and those carry `[long]` and a stated runtime budget.
   computed on the entropy series (`hSeries`, `ecosystem-sim.js:736-757`), not on per-agent output as
   SC-002's verdict function now requires (Clarifications, Q3)** — the C++ figure re-measures under the
   corrected, output-based cycle clause and may differ from 83.0 %; a divergence is a finding to
-  surface (FR-085), not a threshold to move silently. The test additionally **reports** the alive
+  surface (FR-085), not a threshold to move silently. *Record (2026-09-16): with the clause on
+  per-agent output the C++ figure was **52.8 %** (264/500; deaths: 53 too quiet, 56 too frozen, 127
+  on the cycle clause alone — the agents' own FR-050 oscillation, see SC-005), 0 unbounded, worst
+  drift 5.1e-14, 13.6 min. The ruling moved the clause to the population-mean output; under it:
+  **78.2 % alive (391/500)**, deaths 53 too quiet / 56 too frozen / **0** on the cycle clause,
+  0 unbounded — the compliance record.* The test additionally **reports** the alive
   fraction per tercile of each knob, so Phase 10 inherits the death predictors rather than
   rediscovering them.
   *`EcosystemEngine_SaneBoxLiveness` `[long]`.*
@@ -1051,8 +1173,10 @@ expensive, and those carry `[long]` and a stated runtime budget.
   introduced, so `lint-simd-aligned-loadstore.js` is vacuous but must still pass.
   *(CI/lint, not a Catch2 case.)*
 - **SC-016 — No shared header moved** (FR-090).
-  `git diff --stat` over the phase touches no file outside the new header, the four TUs, the
-  `dsp/tests/CMakeLists.txt` lines and this spec directory; `dsp_core_tests`, `dsp_primitives_tests`,
+  `git diff --stat` over the phase touches no file outside the new header, the four TUs and their
+  test-local helper header, the `dsp/tests/CMakeLists.txt` lines, the one `#include` line in
+  `dsp/lint_all_headers.cpp` and this spec directory (the enumeration FR-091 carries, corrected there
+  at implementation time); `dsp_core_tests`, `dsp_primitives_tests`,
   `dsp_processors_tests`, `dsp_systems_tests`, `dsp_effects_tests` all green.
   *(Gate, verified in the compliance pass.)*
 - **SC-017 — The refuge floor holds the predation cliff** (FR-022 — previously normative with no
@@ -1085,17 +1209,55 @@ expensive, and those carry `[long]` and a stated runtime budget.
   promoted from an Edge Cases bullet, because the plan and tasks stages enumerate FR/SC and prose
   drops out silently).
   At `energyBudget` **0.1× / 1× / 10×** the default and `agentCount` **24 / 32 / 48** (nine cells),
-  1800 s, three seeds: the late-window **mean of `getAgentOutput` over the population is
-  0.5 ± 0.05**, and the population's late-window output range (5th–95th percentile) agrees across all
-  nine cells to within **±0.05** absolute. This is the consumer contract Phase 10's depth mapping
-  rests on — "independent of `agentCount` and `energyBudget`" — and SC-009 only asserts outputs stay
-  finite and in `[0, 1]`, which a wrongly-scaled anchor would also satisfy.
-  **FR-008's share-unit conversion** of `preyFloor`, `capacity`, `cellCapacity` and `satiation`
-  (Clarifications, Q1) is what makes this gate meaningful on the `agentCount`/`resourceCells` axis, not
-  only on the `energyBudget` axis: expressed absolutely, the mean-share-relative rules (the refuge
-  floor, carrying capacity, cell capacity) would drift out of their intended regime as `agentCount` or
-  `resourceCells` changed, independently of anything FR-061's normalisation does — so this criterion is
-  invariant on **both** its axes by construction, not only on the budget one.
+  1800 s, three seeds, statistics pooled over the seeds' late 600 s at ~1 Hz:
+  (a) the late-window **mean of `getAgentOutput` over the population is 0.5 ± 0.05** in every cell;
+  (b) the late-window **5th percentile** agrees across all nine cells to within **±0.05** absolute;
+  (c) every cell's late-window distribution sits inside the envelope **p05 ∈ [0.12, 0.24]**,
+  **median ∈ [0.25, 0.55]**, **p95 ∈ [0.70, 1.00]**, and the fraction of late-window samples at
+  FR-061's **upper rail is ≤ 0.20**;
+  (d) the percentile ladder (p05 / p25 / p50 / p75 / p95), the rail fraction and `Σ energy_ /
+  energyBudget` are **reported** per cell (plan R-5) and gated only through (a)–(c).
+  This is the consumer contract Phase 10's depth mapping rests on — "independent of `agentCount` and
+  `energyBudget`" — and SC-009 only asserts outputs stay finite and in `[0, 1]`, which a wrongly
+  scaled anchor would also satisfy. The three clauses keep that tooth: dropping `agentCount` from
+  FR-061's formula, doubling the anchor, or normalising by `resourceCells` instead of `agentCount`
+  each breaks (a), (b) **and** (c) at once.
+
+  **Clause (c) replaces this criterion's original second clause and that clause is STRUCK:** *"the
+  population's late-window output range (5th–95th percentile) agrees across all nine cells to within
+  ±0.05 absolute"*, together with the paragraph that claimed FR-008's share conversion made this
+  criterion "invariant on **both** its axes by construction". Both were **false of the shipped rule
+  set and of the prototype they were drawn from** — measured, not argued:
+  * The implementation's nine cells (`dsp_systems_tests`, 1800 s × 3 seeds) give p05 ∈
+    [0.174, 0.190] — **spread 0.0156, inside ±0.05** — but p95 ∈ [0.801, 1.000], **spread 0.199**,
+    with the median spreading 0.156 and p25 0.064. The mean is invariant (0.460–0.487), which is why
+    clause (a) survives untouched.
+  * The **reference prototype reproduces those figures** (`prototype/ecosystem-sim.js`, same grid,
+    share-converted knobs): p05 spread ~0.014, p95 spread ~0.21, p95 reaching 1.0 in the
+    `B = 10 × n = 48` corner. The C++ is faithful to the proven rules; the criterion was not.
+  * **Why the tail moves, in the spec's own normative rules.** *Budget axis:* FR-030's affinity
+    force is scaled by the neighbour's **absolute** energy while FR-032's crowding repulsion is
+    energy-**independent** and FR-034's `moveRate` / `maxSpeed` are absolute habitat units — FR-033
+    states the asymmetry outright ("at a 1.0 budget over 32 agents a neighbour holds ~0.016, so the
+    force never approached `maxSpeed`"). Every other rule is homogeneous of degree 1 in energy, and
+    the ablation proves it: with `moveRate = forageRate = crowding = 0` the prototype's statistics
+    are **identical to four decimals across B = 0.1 / 1 / 10**, and with movement on they are not.
+    *Population axis:* `agentCount` agents in a **fixed** unit torus at a fixed `kernelSigma`,
+    grazing a **fixed** `resourceCells` field, is a different interaction topology, not a rescaling:
+    pair density per agent rises with `agentCount`, so predation (FR-020, default 0.55) concentrates
+    energy harder and the upper tail widens. FR-008's share conversion (D-10) normalises the
+    **thresholds** — refuge floor, carrying capacity, cell capacity, satiation — which is what keeps
+    clauses (a) and (b) true on that axis; it cannot normalise the number of neighbours.
+  * The struck clause's band also rested on an **arithmetic misreading**: FR-061's "±44 % swing maps
+    to roughly `[0.28, 0.72]`" reads `FINDINGS.md:252`'s 0.44 as a population spread, but 0.44 is
+    `std(e_i)/grandMean` **per agent over time**. The pooled band at the defaults is `[0.18, 0.92]`
+    in both implementations — so the struck clause was unreachable even in the **default** cell,
+    before any invariance question.
+  **Finding on the record, not absorbed:** the rail fraction climbs from 0.03 % (`B = 1, n = 24`)
+  to **10.7 %** in the `B = 10, n = 48` corner, where the mean also dips to its lowest 0.460. The
+  corner is legal configuration, outside the defaults SC-002 (d) gates; clause (c)'s 0.20 ceiling
+  carries ~2× margin over the measured worst cell, and a measured value above it is a finding to
+  surface, not a threshold to move.
   *`EcosystemEngine_OutputAnchorIsScaleInvariant`.*
 - **SC-020 — Exchange pass 2 is well-formed** (FR-023 — a probe-level assertion, because SC-001
   provably cannot discriminate it: a sign-reversed pair flow is still antisymmetric, so conservation
@@ -1153,8 +1315,11 @@ expensive, and those carry `[long]` and a stated runtime budget.
 - `capacity` below the mean share (`energyBudget / agentCount`): every agent saturates and spills
   continuously to the pool (FR-055). Bounded; the spill path is exercised.
 - `energyBudget` scaling: outputs are normalised by `energyBudget / agentCount` (FR-061), so the
-  published range is invariant to the budget — **gated by SC-019** at 0.1×, 1× and 10× crossed with
-  `agentCount` 24 / 32 / 48. `energyBudget` is prepare-time (FR-006) and clamped to `[1e-3, 1e3]`
+  published **anchor** — the population mean, and the lower band with it — is invariant to the budget
+  — **gated by SC-019** at 0.1×, 1× and 10× crossed with `agentCount` 24 / 32 / 48. The **upper tail**
+  is not, and SC-019 says why: the FR-030 affinity force scales with absolute energy against an
+  energy-independent FR-032 crowding term and absolute FR-034 speeds, so the movement regime — and
+  only the movement regime — moves with the budget. `energyBudget` is prepare-time (FR-006) and clamped to `[1e-3, 1e3]`
   (FR-005), so FR-061's division can never see zero; SC-009 (c) drives it to both clamps.
 - `leakRate = 0` with `regenRate = 0`: nothing moves. Bounded, frozen, and correctly reported frozen.
 - `cellCapacity` at its minimum with `grazeRate` at its maximum: cells empty every step and approach
@@ -1173,12 +1338,12 @@ expensive, and those carry `[long]` and a stated runtime budget.
 - A second `prepare()` with a different rate mid-life: residue clock and `dt` both refreshed, no
   stale state.
 - A sample rate below `kMinUsableSampleRate` or non-finite: clamped, reported by the getter (FR-005).
-- `stepIntervalChunks = 1` (step every 64 samples): 8× the step rate and 8× the CPU, and the case a
-  Phase-10 CPU regression would hit. **It is gated, not exempted:** FR-085 states the 53 333 ns/block
-  ceiling at every legal step interval and **SC-011 (b)** measures it here at the worst-case rule
-  configuration. Exempting it would leave a configuration reachable through the documented
-  `PrepareConfig` running at ~4 % of a core with no criterion failing — an 8× breach of the roadmap's
-  unconditional CPU FR.
+- `stepIntervalChunks = 8` is both the floor and the default (step every 512 samples): the dearest
+  legal configuration and the one a Phase-10 CPU regression would hit. **It is gated, not
+  exempted:** FR-085 states the 53 333 ns/block ceiling at every legal step interval and **SC-011
+  (a)** measures it at the worst-case rule configuration; (b) gates the cheap end at 64. (Floors of 1
+  and then 4 were removed from the range by the two 2026-09-16 rulings rather than exempted: at 1 the
+  worst case measured ~3.8 % of a core and at 4 still 1.06–1.13× the ceiling after every exact lever.)
 - `stepIntervalChunks = 64` (4096 samples = 85.3 ms at 48 kHz): one control step is **longer than the
   50 ms wake ramp**, so FR-070's `rampSteps` floors at 1 and the published output reaches its target
   in a single step. SC-014 (b) asserts that single-step jump rather than an unobservable ramp.
@@ -1230,8 +1395,11 @@ expensive, and those carry `[long]` and a stated runtime budget.
   all: FR-012 fixes 2-D.
 - **D-10 — Four energy-scale knobs are share-relative, converted once at `prepare()`** (FR-008,
   Clarifications Q1): `preyFloor`, `capacity` and `satiation` in units of the mean per-agent share,
-  `cellCapacity` in units of the per-cell share. This is what makes SC-019's output-anchor gate
-  invariant on the `agentCount`/`resourceCells` axis and not only the `energyBudget` axis.
+  `cellCapacity` in units of the per-cell share. This is what keeps SC-019's **anchor** clauses (a)
+  and (b) true on the `agentCount`/`resourceCells` axis and not only the `energyBudget` axis. It does
+  **not** make the whole distribution invariant on that axis — it normalises the rule *thresholds*,
+  not the number of neighbours a given `agentCount` produces in a fixed habitat; SC-019 carries the
+  measurement and the correction.
 - **D-11 — Agent kinds are stratified at `prepare()`, not drawn i.i.d.** (FR-011, Clarifications Q6):
   every kind gets at least one agent whenever `agentCount >= 5`. SC-002's defaults figures are
   re-measured against the resulting histogram rather than reused from the prototype's unconstrained
@@ -1271,10 +1439,11 @@ and each is already normative in the FR body cited; nothing here is still open.
   Decision: ship the strip field (FR-040) and record the limitation (the "Two prototype-only defects"
   note above); a 2-D grid is deferred, to be revisited only if Phase 10 listening shows banding
   along y.
-- **OQ-2 — RESOLVED: step interval default 8 control chunks (512 samples), range [1, 64] chunks.**
-  512 samples is the `dt` every published figure was measured at; 64 samples costs ~8× the CPU and
-  would put the worst-case configuration near the 0.5 % ceiling. SC-010 tests a 4–16 chunk band
-  either way. Normative at FR-082.
+- **OQ-2 — RESOLVED: step interval default 8 control chunks (512 samples), range [8, 64] chunks.**
+  512 samples is the `dt` every published figure was measured at. The range was resolved as [1, 64]
+  on 2026-09-15; two 2026-09-16 rulings narrowed the minimum to 4 and then to 8 on SC-011's measured
+  tables (64 samples cost 7.6× the ceiling at the worst case, 256 samples still 1.06–1.13× after
+  every exact lever, FR-085). SC-010 tests an 8–32 chunk band. Normative at FR-082.
 - **OQ-3 — RESOLVED: default population 32 agents, `kMaxAgents = 48`.**
   Every prototype figure is at 32; 48 raises pair cost 2.25×. Normative at FR-004 (`kMaxAgents = 48`)
   and Appendix A (`agentCount` default 32).
@@ -1376,7 +1545,7 @@ autocorrelation 0.175 at 557 s, 5.7 M pair operations. Ranges are the hostile-fu
 | `freqLo` / `freqHi` | 0.0015 / 0.018 Hz | [0.0005, 0.005] / [0.006, 0.05] | FR-013 | runtime |
 | `freqDrift` | 0.00004 | [0, 0.0002] | FR-013 | runtime |
 | `affinity[k][k]` / `affinity[i][j]` | −1.0 / +0.45 | [−2, +2] | FR-031 | runtime |
-| `stepIntervalChunks` | 8 (= 512 samples) | [1, 64] | FR-082 | **prepare** |
+| `stepIntervalChunks` | 8 (= 512 samples) | [8, 64] (min 8 since the 2026-09-16 rulings) | FR-082 | **prepare** |
 
 **Lifetime column:** *prepare* = FR-006's prepare-time set, no runtime setter; *runtime* = FR-064's
 setter/getter pair. The five *prepare* knobs are candidates for SC-012's normative fuzz-coverage
@@ -1409,7 +1578,8 @@ higher correlation in 2-D** (`FINDINGS.md:234-236`, ablation row `:266`).
    clock), so SC-001's 1000 configs would be ~4.6 h in JavaScript and needs roughly an order of
    magnitude from the C++ port to meet its stated ≤ 30 min budget. That budget is part of SC-001, so
    a miss is a surfaced finding — never a silent shrink of the config count or the duration, which
-   FR-085's inherited stop-and-surface rule forbids by name. The `[long]` tag is applied to the fuzz,
+   FR-085's inherited stop-and-surface rule forbids by name. *(Outcome: measured 32.9 min, ~30× the
+   JavaScript; surfaced and amended to 60 min by ruling on 2026-09-16 — SC-001.)* The `[long]` tag is applied to the fuzz,
    the duration sweeps and the soak regardless (the `[long]` convention: toolchain-independent,
    > ~15 s).
 3. **No consumer needs an output faster than one control step.** Supported by FR-062's evidence
@@ -1433,7 +1603,10 @@ rather than silent.
    instruction not to resolve by relaxing a threshold applies. (b) narrows the public API on the
    strength of a cost figure nobody has measured yet; it is retained as the **named escalation path**
    in FR-085 (put the measured table to the user with a proposal to narrow the minimum) rather than
-   applied pre-emptively.
+   applied pre-emptively. *Outcome (2026-09-16):* the table was measured, (b) at 1 missed by 7.6×
+   and could not fit at any lever, and the escalation was taken by ruling — minimum 4, plus the two
+   exact levers E-1/E-2; re-measured, (b) at 4 still missed by 1.06–1.13× after E-3 as well, and a
+   second ruling set the minimum at 8, the default (FR-085, SC-011 record).
 
 2. **SC-014 (b) — the wake ramp.** The review offered (a) restating the criterion in control steps or
    (b) adding an FR that evaluates wake gain on the 64-sample chunk grid, exempt from FR-062.
@@ -1518,6 +1691,29 @@ Two further clarifications worth recording, both accepted as raised:
   is untuned and out of scope. [FR-040]
 - **OQ-2** (step interval default) → 8 control chunks (512 samples, the `dt` every prototype figure
   was measured at), range [1, 64] chunks. [FR-082]
+
+### Session 2026-09-16 (build stage, T016 — the SC-011 ruling)
+
+- **SC-011 / FR-085** (first measured table: (a) 55 275 ns/block, 1.04× over; (b) at
+  `stepIntervalChunks = 1` 404 614 ns/block, 7.59× over, unfittable at any lever) → Take FR-085's
+  named escalation: **FR-082's minimum becomes 4** (range [4, 64]; SC-011 (b) re-gated at 4), plus
+  two **exact** cost levers — E-1, FR-040's cell weight by the Gaussian recurrence along the uniform
+  cell grid; E-2, FR-035's and FR-050's sines from one per-agent sin/cos table — gated for exactness
+  by the new **SC-011 (c)**. The L4/L5 lookup tables (approximations) were offered and declined; the
+  ceiling is unchanged. [FR-082, FR-085, SC-011, Appendix A, OQ-2]
+- **SC-011 / FR-085, second table** ((a) at 8: 27 224 ns/block; (b) at 4: 56 587–60 176 ns/block,
+  1.06–1.13× over after E-1, E-2 and the bit-identical E-3 hoists; reciprocals and an agent-outer
+  grazing walk measured at zero and at +25 % and reverted) → Take the escalation once more:
+  **FR-082's minimum becomes 8**, the tuned default (range [8, 64]); SC-011 gates the floor (a) and
+  the cheap end (b) at 64; SC-010's band moves to 8–32 chunks; SC-014 (b)'s arms are 8, 16 and 64.
+  The pair-kernel LUT was declined again. [FR-082, FR-085, SC-010, SC-011, SC-014, Appendix A, OQ-2]
+- **Cycle clause series** (T023's full-suite run: per-agent output recurrence flagged FR-050's own
+  intrinsic oscillation — 3 of 32 agents at the defaults, worst 0.848 at 109 s; SC-003 red in 5 of 15
+  cells on that clause alone; SC-013 at 52.8 % with 127 of 500 cycle deaths) → SC-005 and SC-002's
+  verdict clause (iii) scan the **population-mean** `getAgentOutput` series; per-agent recurrence is
+  reported, not gated. Still output, never entropy. [SC-002, SC-003, SC-005, SC-013]
+- **SC-001 runtime budget** (measured 32.9 min alone, 43 min after a full suite, all clauses green)
+  → **60 minutes**; the config count, durations and perturb schedule are unchanged. [SC-001]
 - **OQ-3** (default population) → 32 agents, `kMaxAgents = 48`. [FR-004]
 - **OQ-4** (ModulationSource adapter) → No adapter now; the indexed read surface (FR-060) is the
   contract; an adapter is append-only later if a consumer needs it. [FR-060]

@@ -162,7 +162,7 @@ static_assert(kMaxAgents <= 255, "pair index arrays are std::uint8_t");
 // ---- the shared control grid --------------------------------------------
 static constexpr std::size_t kControlChunkSamples = 64;   // bloom_engine.h:221
 static_assert(kControlChunkSamples == 64, "shared 64-sample control grid");
-static constexpr std::size_t kMinStepIntervalChunks = 1;   // FR-082
+static constexpr std::size_t kMinStepIntervalChunks = 8;   // FR-082 (was 1; ruled 1 -> 4 -> 8 on 2026-09-16, D-P)
 static constexpr std::size_t kMaxStepIntervalChunks = 64;  // FR-082
 static constexpr std::size_t kDefaultStepIntervalChunks = 8;  // 512 samples = the tuned dt (OQ-2)
 
@@ -219,7 +219,7 @@ struct PrepareConfig {
     std::size_t resourceCells       = 64;    // clamped [1, kMaxResourceCells]
     double      energyBudget        = 1.0;   // clamped [kMinEnergyBudget, kMaxEnergyBudget]
     double      initialPoolFraction = 0.5;   // clamped [0.1, 0.9]
-    std::size_t stepIntervalChunks  = kDefaultStepIntervalChunks;  // clamped [1, 64]
+    std::size_t stepIntervalChunks  = kDefaultStepIntervalChunks;  // clamped [8, 64] (D-P)
 };
 ```
 
@@ -493,7 +493,7 @@ the dominant cost (S12), so this is not premature — it is the layout the budge
 as a named type would then exist only to be decomposed, so it is not introduced at all; the
 component adds exactly one namespace-scope name, which is what the ODR sweep promised.
 
-**Footprint: S9's itemised table is the single authority, and it totals ≈ 21.5 KB.** The member list
+**Footprint: S9's itemised table is the single authority, and it totals ≈ 23.5 KB (≈ 21.5 KB before D-P added 1 992 B of run state).** The member list
 above declares **19** agent-indexed `double` arrays — 9 persistent state (`energy_ x_ y_ phase_
 freq_ freq0_ x0_ y0_ phase0_`) plus 10 per-step scratch (`dE_ fx_ fy_ dPhase_ outflow_ scale_
 appetite_ graze_ forage_ cellDemand_`) — and S9 counts them as 9 + 10. No second total is stated
@@ -1454,7 +1454,8 @@ is the reason SC-013's 83.0 % reference is annotated as re-measurable.
 | pair scratch (`pairFlow_`, `pairI_`, `pairJ_`) | 1128 × 8 + 2 × 1128 | 11 280 |
 | affinity | 25 × 4 | 100 |
 | scalars, counters, RNG | — | ~200 |
-| **total** | | **≈ 21.5 KB** |
+| E-1/E-2 run state (D-P, 2026-09-16): `cellW_`, `cellRatio_`, `cellPrevD_`, `sinPhase_`, `cosPhase_` + `cellSeeded_` + 3 pitch doubles | 5 × 48 × 8 + 48 + 24 | 1 992 |
+| **total** | | **≈ 23.5 KB** |
 
 No heap term anywhere: `getAllocatedBytes()` returns `0u` unconditionally, deliberately non-`static`
 so the Phase-10 host can total its children uniformly (`resonance_drift_network.h:906-912`;
@@ -1471,13 +1472,13 @@ object is how a later reader "reconciles" them by shrinking the object.
 | L4 kernel LUT `std::array<double, 1025>` | 1025 × 8 | 8 200 | ≈ 29.7 KB |
 | L5 phase-sine LUT `std::array<double, 1025>` | 1025 × 8 | 8 200 | ≈ 37.9 KB (both) |
 
-Adopting both takes the object from ≈ 21.5 KB to **≈ 37.9 KB**, which R-9's stack-local warning is
+Adopting both would take the object from ≈ 23.5 KB to **≈ 39.9 KB** (neither was adopted, D-P), which R-9's stack-local warning is
 restated against: at 38 KB a stack local is not merely inadvisable, it is within an order of
 magnitude of a default 1 MB thread stack once a Phase-10 voice holds several children. The lever
 list is not adopted silently — S14 D-M is the entry, and the ledger row is updated in the same
 commit as the lever.
 
-**A 21.5 KB object is too large for a casual stack local.** Tests and Phase-10 callers construct it
+**A 23.5 KB object is too large for a casual stack local.** Tests and Phase-10 callers construct it
 as a member or through `std::make_unique`; the header says so in one line. SC-007's
 `AllocationScope` must therefore wrap only `prepare()` and the stepping, with the object constructed
 *outside* the scope if it is heap-allocated — otherwise the `make_unique` itself counts as an
@@ -1546,10 +1547,11 @@ Transcriptions, each with its prototype line:
   over the window is exactly 0 **fails outright** rather than taking the escape — a railed constant
   output also never decorrelates.
 * **`verdictAlive`** (SC-002's verdict function, distinct from its defaults gate): last 600 s of a
-  run of ≥ 900 s; alive iff `lateActivity >= 0.10` **and** `lateFrozen <= 0.25 * agents` **and** no
-  agent's **output** series has a short cycle. Clause (iii) runs on **output**, never on entropy
-  (Clarification Q3) — this is the one place the C++ deliberately differs from
-  `ecosystem-sim.js:576-583`, whose cycle clause ran on `hSeries`.
+  run of ≥ 900 s; alive iff `lateActivity >= 0.10` **and** `lateFrozen <= 0.25 * agents` **and** the
+  **population-mean output** series (`meanOutputSeries`) has no short cycle. Clause (iii) runs on
+  **output**, never on entropy (Clarification Q3) — this is the one place the C++ deliberately
+  differs from `ecosystem-sim.js:576-583`, whose cycle clause ran on `hSeries`. *Amended 2026-09-16
+  (D-Q): per agent, the clause flagged FR-050's designed intrinsic-period oscillation.*
 
 ### S10.3 The fuzz harness (longrun TU, SC-001 / SC-012 / SC-013)
 
@@ -1610,7 +1612,7 @@ one documented restatement**:
 | **SC-003** | `EcosystemEngine_LivenessIsDurationStable` `[long]` | 600/900/1200/1800/3600 s × 3 seeds. `verdictAlive` true in all 15 cells; `(max − min)/mean` of `lateActivity` across the five lengths **< 0.20** (the statistic is written out because the three readings of "varies by < 20 %" differ by up to 2×). Prototype: 0.430/0.434/0.433/0.442/0.459 → 0.066. |
 | **SC-004 (a)** | `EcosystemEngine_AgentsDecorrelate` | 1800 s, last 600 s, defaults: mean pairwise `|corr(e_i, e_j)| <= 0.35` (prototype 0.18; the failure regime measured 0.84–0.99). |
 | **SC-004 (b)** | `EcosystemEngine_SeedsProduceDifferentVoices` | **Relative, never absolute** (Clarification Q7). Within-run floor: mean `|corr(e_i, e_j)|` between different agents of the **seed-0** run, over the **full 900 s** on the ~1 Hz grid, on **energies**. Across 8 seeds, mean per-agent cross-seed `|corr|` (same quantity, grid, duration) **≤ 1.5 × floor**. Reference: 0.13 vs 0.12. The round-1 0.61/0.50 figures are struck. |
-| **SC-005** | `EcosystemEngine_NoShortLimitCycle` `[long]` | 1800 s; per agent, `hasShortCycle(output_i)` false. Escape clause guarded: zero late-window sample variance **fails**. Prototype worst post-decay peak 0.175 at 557 s. |
+| **SC-005** | `EcosystemEngine_NoShortLimitCycle` `[long]` | 1800 s; `hasShortCycle` of the **population-mean output** false (D-Q, ruling 2026-09-16 — per agent it flagged FR-050's intrinsic oscillation: 3 of 32, worst 0.848 at 109 s); every agent's own series scanned and **reported**. Escape clause guarded: zero late-window sample variance **fails**, on the gated series and per agent. Prototype worst post-decay peak 0.175 at 557 s. |
 | **SC-006 (a)** | `EcosystemEngine_DeterministicUnderSeed` | Two instances, same seed, 100 000 control steps: `memcmp`-equal on every agent `double` (energy, x, y, phase, freq) and the pool — bit-identical, same binary. **The compared set explicitly includes `getAgentOutput(i)` and `getAgentWake(i)` for every agent**, plus every resource cell: a doubles-only comparison leaves FR-062's published surface outside both bit-identity criteria (see the SC-014 (e) row). |
 | **SC-006 (b)** | same | Seeds `n`, `n+1`: per-agent cross-seed `|corr|` under SC-004 (b)'s relative bound; adjacent-seed **entropy** correlation `|ρ| <= 0.2` (prototype −0.02). |
 | **SC-006 (c)** | same | `reset()` reproduces `prepare()`'s state exactly (bit-identical). |
@@ -1622,7 +1624,7 @@ one documented restatement**:
 | **SC-009 (b)** | `EcosystemEngine_NonFiniteStateIsContained` | Probe-inject a non-finite agent energy, cell energy and pool. Next step: every `getAgentOutput` finite and in `[0, 1]`; `getNonFiniteContainmentCount()` incremented; `getConservationViolationCount()` **unchanged**; total back inside 1e-9 relative. Then **1000 further steps produce finite, in-range outputs that CHANGE** (≥ 1 agent's output differs from its containment-step value) — the clause that fails a "freeze forever but finite" implementation. |
 | **SC-009 (c)** | `EcosystemEngine_DivisorKnobExtremes` | `prepare()` with `energyBudget` 0 / negative / 1e-300 / 1e300 / non-finite; `agentCount` 0 and `SIZE_MAX`; `resourceCells` 0; `stepIntervalChunks` 0 and `SIZE_MAX`. **Sample rate: non-finite (NaN, ±Inf, bit-pattern-built) *and* below the floor** — `{0.0, -48000.0, 1.0, 7999.0}`, each asserting `getSampleRate() == kMinUsableSampleRate` (8000.0) and `getStepDurationSeconds() == stepChunks·64 / 8000.0`. FR-005 and the spec's Edge Cases clamp *both* cases ("a sample rate below `kMinUsableSampleRate` **or** non-finite: clamped, reported by the getter"), and only the sub-floor arm exercises S2.1 step 1's `std::max` floor, on which `dt_`, `sqrtDt_` and `rampSteps_` all depend. Each clamp asserted through `getEnergyBudget()`, `getAgentCount()`, `getResourceCells()`, `getStepIntervalChunks()`, `getSampleRate()`; the resulting outputs finite and in `[0, 1]`. |
 | **SC-009 (d)** | `EcosystemEngine_NegativePoolIsNotAbsorbedByAnAgent` | The S4.5 blocker's regression, and a `[not long]` case because it is one step. Prepare at the defaults (`feedRate_ == 0`), settle 200 steps, snapshot every `getAgentEnergy(i)`; probe-inject `pool_ = -0.25 · energyBudget`; step **once**. Assert no agent's energy moved by more than the magnitude the ordinary rules can produce in one step (bound it by re-running the same step from the same snapshot with `pool_ = 0.0` and requiring the two per-agent deltas to agree to `1e-12` relative), and in particular that **agent 0** did not absorb ≈ the full deficit. An implementation with the clamp inside the `if (avail > 0)` branch charges agent 0 `influx = graze_[0] + avail` and fails on the first assertion. Repeat at `feedRate_ = 0.5` (where the deficit is *split* by appetite share rather than dumped on agent 0) so the case is not accidentally specific to the `-0.0 > avail` path. |
-| **SC-010 (a)** | `EcosystemEngine_SampleRateIndependent` | 1800 s × 3 seeds at 44 100 / 48 000 / 96 000 Hz, and `stepIntervalChunks` 4 / 8 / 16 at 48 kHz: `verdictAlive` true in all 18 cells. |
+| **SC-010 (a)** | `EcosystemEngine_SampleRateIndependent` | 1800 s × 3 seeds at 44 100 / 48 000 / 96 000 Hz, and `stepIntervalChunks` **8 / 16 / 32** at 48 kHz (this row read 4 / 8 / 16 until the 2026-09-16 rulings moved FR-082’s floor to 8; the spec’s SC-010 (a) carries the corrected band and is the authority): `verdictAlive` true in all 18 cells. Implemented at the compliance pass as case 6 of T021, `[long]`, in the longrun TU. |
 | **SC-010 (b)** | `EcosystemEngine_StepIntervalBand` | `getControlStepCount()` within **one** of `duration · sampleRate / (stepIntervalChunks · 64)` in every cell; a second `prepare()` at a different rate is clean (no stale `dt_`, residues zeroed). |
 | **SC-010 (c)** | same, `WARN` | Late activity per cell + cross-seed spread printed as a table. **Not gated** — no cross-`dt` band has ever been measured, and asserting one would be a coin flip. A band derived from the measured spread may be added by amendment. |
 | **SC-011 (a)+(b)** | `EcosystemEngine_CpuBudget` `[.perf]` | See S12. |
@@ -1801,6 +1803,40 @@ probe replaces them with measurements.)
 the plan, on purpose — the Phase-3 precedent is that the plan projected the twelve-bank shape over
 budget and the probe confirmed it, which is how the phase avoided discovering it at the end.
 
+**Measured (2026-09-16, T015, pinned to P-cores, alone, best-of-25 × 500 blocks):** the projection's
+totals were right and its attribution was wrong.
+
+| Arm | projected | measured | verdict |
+|---|---|---|---|
+| (a) worst case, `stepChunks = 8` | ~58 000 | **55 275** | 1.04× over |
+| (b) worst case, `stepChunks = 1` | ~464 000 | **404 614** | 7.59× over |
+| defaults | ~7 000 | **8 143** | 15 % of the ceiling |
+
+Stage probe, per step at (a): **grazing loop 32 452 ns** (4 608 cell `exp`, two thirds of the
+step), pair kernel 11 120, Kuramoto `sin` 6 680, nonlinear leak within noise, traversal 3 358;
+all-dormant −4 % (FR-072's prediction held). The cost model above priced every `exp` alike and so
+put the phase's problem in the *pair* loop; the probe put it in the *cell* loop, whose visits sit on
+a uniform grid — which is what made an exact recurrence (E-1, S12.3) available there and not for
+the pairs. (b) at 1 cannot fit at any lever: 1 128 pairs plus 4 608 visits eight times a block is
+~120 000 ns of plain loop body with every transcendental free. The user took L6 with E-1/E-2 and
+without L4/L5 (S14 D-P).
+
+**Re-measured after E-1/E-2/E-3 (floor 4, four pinned runs):**
+
+| Arm | measured | verdict |
+|---|---|---|
+| (a) worst case, `stepChunks = 8` | **26 576–28 796** | 50–54 % of the ceiling |
+| (b) worst case, `stepChunks = 4` | **56 587–60 176** | 1.06–1.13× over |
+| defaults | **6 387** | 12 % of the ceiling |
+
+Stage probe at 8: grazing loop 17 487 (the recurrence halved it; the rest is per-visit memory and
+dependency cost — six loads/stores of the per-agent run state, the serial demand sum), pair kernel
+11 166 (the 1 128 `std::exp` have no exact reduction for arbitrary positions), traversal 2 690.
+Reciprocal multiplies measured at zero and were reverted (not bit-identical); an agent-outer
+two-pass walk that keeps the run in registers measured **25 % slower** (the doubled sweep costs more
+than the traffic it saves) and was reverted. The user declined the pair-kernel LUT a second time and
+took L6 once more: **the floor is 8, the tuned default** (S14 D-P).
+
 ### S12.3 The ordered lever list (apply in this order; each is exact or error-bounded)
 
 | # | Lever | Effect on the worst case | Cost |
@@ -1808,9 +1844,12 @@ budget and the probe confirmed it, which is how the phase avoided discovering it
 | **L1** | The two-stage cutoff (S4.0, already in the design) | **none** at σ=0.35 (nothing is skipped); −93 % of pair `exp` and −68 % of cell `exp` at the defaults | free |
 | **L2** | `syncRate == 0` guard on the `sin` (A-7) | none (sync is on in the worst case); −34 `sin`/step at the defaults | free |
 | **L3** | `leakExponent == 1` fast path (S4.7) | −48 `std::pow`/step | free |
+| **E-1** *(adopted by ruling 2026-09-16)* | **Cell-grid Gaussian recurrence.** FR-040's cell weight `exp(−d²/2σ²)` along the uniform cell pitch `h = 1/resourceCells`: `w(d+h) = w(d)·exp(−(2dh+h²)/2σ²)`, the ratio advancing by the constant `exp(−h²/σ²)` per cell. Two `exp` seed a run of consecutive in-range cells, each further cell costs two multiplies; re-seeded at the torus wrap and after a pre-test rejection (`cellKernelWeight`). | 4 608 cell `exp` → ~192 per step at the worst case; the stage probe had put the cell loop at **two thirds** of the step (32 452 of 49 188 ns) | **exact** (identity, ~n ulp over a run of n cells); 1 176 B of per-agent run state; gated by SC-011 (c) at 1e-12 relative on the engine's own state |
+| **E-3** *(taken under the same ruling, bit-identical)* | **Invariant hoists and register accumulators.** Step-invariant member scalars read once into locals before the pair and cell loops (a compiler that cannot prove the member-array stores do not alias the member scalars reloads them per visit); the per-cell `res/cellCap` quotient computed once per cell; row `i`'s four accumulators (`fx`, `fy`, `outflow`, `dPhase`) held in registers across the inner pair loop. Same operations, same order. | −8 % on the worst case (56 587 vs 65 263 ns/block at floor 4). Reciprocal multiplies (not bit-identical) and an agent-outer two-pass grazing walk were measured at zero and at +25 % and reverted. | **exact** (bit-identical); no state |
+| **E-2** *(adopted by ruling 2026-09-16)* | **Sine-difference table.** One `sin`/`cos` of `2π·phase_i` per agent at the start of the step (`refreshPhaseTrig`); FR-035's `sin(2π(φ_j − φ_i))` is `s_j c_i − c_j s_i` (`pairPhaseSine`) and FR-050's appetite `sin` is the table entry. | 1 176 `sin` → 96 `sin`/`cos` per step at the worst case (the probe priced the Kuramoto sines at 6 680 ns) | **exact**; 768 B; gated by SC-011 (c) at 1e-14 absolute |
 | **L4** | **σ-independent kernel LUT.** Tabulate `exp(−u)` for `u = d²/(2σ²) ∈ [0, 13.8155]` in a `std::array<double, 1025>` built once at `prepare()` (σ-independent by construction — the *only* σ-dependence is the `u` scaling), linear interpolation. Relative error ≤ **2.3e-5**, independent of σ. | `E` cost drops ~7 ns → ~1.5 ns: worst case **58 000 → ~26 000** (a) and **464 000 → ~208 000** (b) | **NOT pre-authorised.** 8 200 B member (S9's conditional ledger row); replaces **FR-012's normative** `w = exp(−d²/2σ²)`; requires the S14 D-M entry, the `ApproximationTablesAreAccurate` arm, and **user sign-off from the measured table — the same route as L6** |
 | **L5** | **Phase-sine LUT.** `sin(2π·Δφ)` over `[0, 1)`, 1024 entries + lerp, for the Kuramoto term and the appetite gate. Error ≤ ~1e-5. | −1 176 `sin`/step: worst case **26 000 → ~14 000** (a) and **208 000 → ~112 000** (b) | **NOT pre-authorised.** 8 200 B; replaces **FR-050's** `sin(2π·phase)` appetite gate and **FR-035's** Kuramoto `sin`, both normative; same D-M entry, same accuracy arm, same sign-off |
-| **L6** | **Escalate.** FR-085 names exactly two permitted responses when the cost cannot be reduced further: reduce cost, **or** put the measured table to the user with a proposal to **narrow FR-082's minimum**. Restating the budget per *step* is **forbidden by name** (it is an 8× relaxation wearing a derivation); so is raising the ceiling, lowering `kMaxAgents`, or exempting the cheap end. | With L1–L5 the projection clears (a) comfortably and still misses (b) by ~2×; the likely proposal is `kMinStepIntervalChunks = 4` (projected ~28 000 ns/block) | a **spec amendment**, decided by the user from the measured table |
+| **L6** | **Escalate.** FR-085 names exactly two permitted responses when the cost cannot be reduced further: reduce cost, **or** put the measured table to the user with a proposal to **narrow FR-082's minimum**. Restating the budget per *step* is **forbidden by name** (it is an 8× relaxation wearing a derivation); so is raising the ceiling, lowering `kMaxAgents`, or exempting the cheap end. | With L1–L5 the projection clears (a) comfortably and still misses (b) by ~2×; the likely proposal is `kMinStepIntervalChunks = 4` (projected ~28 000 ns/block) | a **spec amendment**, decided by the user from the measured table. **TAKEN TWICE 2026-09-16:** `kMinStepIntervalChunks = 4` with E-1/E-2 and without L4/L5, then `= 8` (the default) when the floor at 4 still read 1.06–1.13× over after E-3 (S14 D-P). Nothing is left to narrow. |
 
 **L1–L3 are ordinary levers; L4–L6 are not.** L1, L2 and L3 are exact — the two-stage cutoff is
 monotone-equivalent to the normative test and strictly conservative (S4.0), the `sin` guard
@@ -1847,7 +1886,7 @@ and S9's conditional footprint row moved into the main ledger in the same commit
 
 | # | Risk | Mitigation |
 |---|---|---|
-| **R-1** | **SC-011 (b) misses by ~9×** (S12). The worst case is pinned by the spec (48 agents × 96 cells × σ=0.35) and `stepIntervalChunks = 1` is reachable through the documented `PrepareConfig`. | S12.3's ordered levers, measured first. If L1–L5 are not enough, FR-085's named escalation (narrow FR-082's minimum) goes to the **user** with the table. Never a threshold move. |
+| **R-1** | **SC-011 (b) misses by ~9×** (S12). The worst case is pinned by the spec (48 agents × 96 cells × σ=0.35) and `stepIntervalChunks = 1` is reachable through the documented `PrepareConfig`. | S12.3's ordered levers, measured first. If L1–L5 are not enough, FR-085's named escalation (narrow FR-082's minimum) goes to the **user** with the table. Never a threshold move. **Realised 2026-09-16:** measured 7.59× over at 1, unfittable at any lever; ruled — minimum 4 plus E-1/E-2; re-measured 1.06–1.13× over at 4 after E-3 too; ruled again — minimum 8, the default (D-P). |
 | **R-2** | **SC-002's defaults figures were measured against a different kind histogram** (FR-011 stratifies; the prototype drew i.i.d.). Activity could land below the 0.30 gate for a reason that is a *design decision*, not a defect. | The spec already flags this. `EcosystemEngine_KindAssignmentIsStratified` (S10.4) **gates** the deal, the ≤ 1 spread, the ≥ 1-per-kind guarantee above `agentCount = 5` and the shuffle's decorrelation — printing the histogram was never a check, and without the gate an implementation that silently kept the i.i.d. draw, or dealt without shuffling, passed every criterion. SC-002 then prints the measured activity, frozen count and per-kind histogram; a deviation is surfaced under FR-085 with the histogram attached, so the user can decide between adjusting the gate and reverting stratification. |
 | **R-3** | **A `min(1, spare/want)` paraphrase of FR-023** looks equivalent and is not: it yields a negative scale below the floor, reversing every flow in the pair — and the reversal is *antisymmetric*, so SC-001 cannot see it. | The exact ternary is in S4.3 and in the header verbatim, with the two guards named. SC-020 gates it at probe level with a configuration where both branches are the common case. |
 | **R-4** | **Denormal cell energies.** The prototype reached `1e-234`; on x86 with FTZ/DAZ enabled by the test main the behaviour differs between the test binary and a plugin host that has not set MXCSR. | FR-043's snap is unconditional and in `double` (FTZ applies to SSE scalar doubles too, but the snap fires at 1e-30, far above the subnormal threshold, so behaviour is identical with and without FTZ). SC-021 asserts exactly `0.0` and that the snapped amount reached the pool. |
@@ -1855,8 +1894,8 @@ and S9's conditional footprint row moved into the main ledger in the same commit
 | **R-6** | **`float` vs `double` RNG.** `Xorshift32::nextUnipolar()` is `float`; the prototype is `double`. Using the shipped accessor would make every prototype figure incomparable for a reason unrelated to the rules. | S1.6's `nextUnipolarD`/`nextBipolarD`/`rangeD` over the shipped `next()`. `random.h` is not modified (FR-090). |
 | **R-7** | **Conditional RNG draws** (the prototype draws the drift noise only when `freqDrift > 0`) make the stream position a function of a runtime knob, breaking SC-006/SC-008 the moment a test or a macro toggles it. | A-8: the draw is unconditional, application is conditional (`bloom_engine.h:914-916` rule). Behaviour at the defaults is unchanged. |
 | **R-8** | **Portability.** MSVC accepts `std::size_t`/`double` narrowing in brace init that Clang rejects; `-ffast-math` on the macOS leg folds `std::isnan`. | `PrepareConfig` is designated-initialiser-only and documented as such; `detail::isFinite` only, enforced by `lint-nonfinite-symbols.js`; `node tools/check-portability.js` before commit; the WSL g++ probe for any doubt about libstdc++ (`std::span` in the test helper, `std::array` CTAD). No SIMD is introduced, so the aligned-load lint is vacuous but must pass. |
-| **R-9** | **The 21.5 KB object as a stack local** in a test or a Phase-10 voice — **≈ 37.9 KB if both S12.3 LUTs are adopted** (S9's conditional rows). | Documented in the header, with S9's table as the single footprint authority (S1.5 states no competing total); SC-007 constructs it outside the `AllocationScope`. If L4/L5 are adopted, the header line and S9's ledger are updated in the same commit as the lever (S14 D-M). |
-| **R-10** | **SC-001's 30-minute budget.** The projection (S10.5) lands at ~25 min in Release with L1 in place; without the two-stage cutoff it is ~3× that. A Debug build is 10–50× slower and will never fit. | L1 is part of the design, not a lever. The test prints its own wall clock and the `[long]` lane is Release-only. A miss is surfaced with the measured table; the config count (the roadmap's 1000) and the duration (900 s, the reference's own) are not to be shrunk. |
+| **R-9** | **The 23.5 KB object as a stack local** in a test or a Phase-10 voice — **≈ 37.9 KB if both S12.3 LUTs are adopted** (S9's conditional rows). | Documented in the header, with S9's table as the single footprint authority (S1.5 states no competing total); SC-007 constructs it outside the `AllocationScope`. If L4/L5 are adopted, the header line and S9's ledger are updated in the same commit as the lever (S14 D-M). |
+| **R-10** | **SC-001's 30-minute budget.** The projection (S10.5) lands at ~25 min in Release with L1 in place; without the two-stage cutoff it is ~3× that. A Debug build is 10–50× slower and will never fit. | L1 is part of the design, not a lever. The test prints its own wall clock and the `[long]` lane is Release-only. A miss is surfaced with the measured table; the config count (the roadmap's 1000) and the duration (900 s, the reference's own) are not to be shrunk. **Realised 2026-09-16:** 32.9 min alone, 43 min after a full suite, every clause green; surfaced, and the user amended the budget to **60 min** (D-Q). |
 | **R-11** | **Two probe structs, one header.** A future edit that defines `EcosystemEngineInspectProbe` in a second TU is an ODR violation the linker may not diagnose. | Each probe's forward declaration in the header names its **one** defining TU by path, the `bloom_engine.h:150-162` form. |
 
 ---
@@ -1879,6 +1918,16 @@ the compliance pass cites the deviation rather than discovering it.
   between the pre-repair and post-repair totals to the pool" cannot be computed when the pre-repair
   total is NaN. The operative form (S7.2) charges `energyBudget_ − (post-repair total)`, which
   re-establishes the invariant SC-001 (c) gates. Intent preserved; arithmetic corrected.
+* **D-C2 — the repair's mean share is a TARGET, capped by what the budget can fund** (added at
+  implementation, `ecosystem_engine.h:1280-1339`; spec FR-083 amended to record it, alongside D-C).
+  Reinstating a repaired agent at `meanShare_` *creates* energy whenever the value it replaced was
+  smaller, and the pool is a thin residual — measured at the defaults: pool 6.2e-4, repaired agent
+  2.51e-2 against `meanShare_` 3.125e-2, pool after the charge **−4.9e-3**. A negative pool is
+  exactly what `getConservationViolationCount()` means (FR-056), so funding the repair from an
+  overdraft would fire that counter on a **containment** event — the one-counter-two-meanings
+  confusion FR-056 and SC-009 (b) forbid. The pool floor is honoured first and the repaired agents
+  (only they) are cut pro rata, landing the pool at 0. Conservation stays exact, containment stays a
+  repair, and FR-056's counter keeps its single meaning.
 * **D-D — one test-local helper header is added** (`ecosystem_metrics_test_helpers.h`, S10.1),
   beyond FR-091's "four new test TUs". It needs no CMake edit and has two in-tree precedents. The
   alternative is duplicating ~150 lines of statistics across two TUs, which is how two copies of a
@@ -1936,9 +1985,44 @@ the compliance pass cites the deviation rather than discovering it.
   `EcosystemEngine_ApproximationTablesAreAccurate` (S10.4) asserting
   `max |LUT(u) − exp(−u)| / exp(−u) <= 2.3e-5` over `[0, 13.8155]` and
   `max |LUT(φ) − sin(2πφ)| <= 1e-5` over `[0, 1)`; S9's conditional footprint rows moved into the
-  main table (≈ 21.5 KB → ≈ 29.7 KB with one, ≈ 37.9 KB with both); and R-9's stack-local line
+  main table (≈ 23.5 KB → ≈ 31.7 KB with one, ≈ 39.9 KB with both); and R-9's stack-local line
   restated against the new figure. Re-measuring SC-002/SC-004 is *not* the gate — their ±30 % and
   ≤ 0.35 margins cannot see a 2e-5 error, correct or incorrect.
+* **D-P — The SC-011 ruling of 2026-09-16: FR-082's minimum narrowed to 4, levers E-1/E-2 adopted,
+  L4/L5 declined.** T015's first table ((a) 55 275, (b) at 1: 404 614 ns/block, S12.2) went to the
+  user with four packages. Chosen: `kMinStepIntervalChunks = 4` (L6, a spec amendment — FR-082,
+  FR-006's clamp, Appendix A, OQ-2, the edge-case list and SC-011 (b) all restated at 4) plus two
+  **exact** identities that leave every normative formula in place: E-1, FR-040's cell weight by the
+  Gaussian recurrence along the uniform cell grid (`cellKernelWeight`; 4 608 `exp` → ~192 per step);
+  E-2, FR-035's and FR-050's sines from one per-agent sin/cos table (`refreshPhaseTrig`,
+  `pairPhaseSine`; 1 176 `sin` → 96). Their exactness is a new gate, **SC-011 (c)**
+  (`EcosystemEngine_ExactIdentitiesMatchFormulas`: ≤ 1e-12 relative against `std::exp` and ≤ 1e-14
+  absolute against `std::sin`, driven on the engine's own members through the inspect probe). S9's
+  ledger gains 1 992 B of run state (≈ 23.5 KB total) and the header's footprint line moves with it.
+  L4/L5 stay not pre-authorised; D-M's conditional machinery is unused. The stage-6 empty-cell skip
+  moved from before the agent loop to after E-1's per-agent bookkeeping (a run must not span a
+  skipped cell); the arithmetic an empty cell contributes is unchanged (none).
+  **Second ruling, same day:** with E-1, E-2 and the bit-identical **E-3** hoists (S12.3) the floor
+  at 4 still read 56 587–60 176 ns/block (1.06–1.13× over; S12.2's second table). The user declined
+  the pair-kernel LUT again and narrowed **FR-082's minimum to 8** — the floor is the tuned default.
+  Consequences: SC-011 (a) gates the floor (= default) and (b) the cheap end at 64; the stage probe
+  drops its floor-4 rung; SC-010's band test runs at 8, 16 and 32 (spec text 8–32); SC-014 (b)'s
+  arms are 8, 16 and 64 (5, 3 and 1 ramp steps); FR-006's clamp, Appendix A and OQ-2 say [8, 64].
+* **D-Q — Two rulings from T023's full-suite run (2026-09-16).** (1) **The cycle clause scans the
+  population-mean output.** Per agent (Clarification Q3 as first written), SC-005's recurrence scan
+  flagged FR-050's designed oscillation — each agent's appetite is phase-gated at its own intrinsic
+  frequency, so its output recurs at one period: 3 of 32 agents at the defaults (worst 0.848 at
+  109 s) with activity 0.42–0.48, zero frozen and |corr| 0.17–0.19; SC-003 red in 5 of 15 cells on
+  that clause alone; SC-013 at 52.8 % with 127 of 500 cycle deaths (78 % without them, against the
+  prototype's 83 % under its population-level entropy clause). The user ruled the series to be the
+  mean over agents of `getAgentOutput` — the signal an ecosystem-level boom/bust shows in, and the
+  one independent intrinsic oscillations average out of; still output, never entropy (D-9).
+  `meanOutputSeries` in the helper; per-agent recurrence stays reported by SC-005. (2) **SC-001's
+  runtime budget is 60 min** (was 30): measured 32.9 min alone and 43 min after a full suite with
+  every clause green and the exact CPU levers exhausted (D-P); count, durations and schedule
+  unchanged. Also from that run: an unrelated `[perf]` benchmark in `dsp_primitives_tests` went red
+  inside the full suite and passed alone, pinned — a load artefact, recorded here so nobody
+  re-diagnoses it.
 * **D-N — SC-020's clause is stated per agent, which needed probe surface the plan did not have**
   (A-10). `outflow(i)` and `divided(i)` are added to `EcosystemEngineInspectProbe`, and
   `clampedSteps(i)` for SC-002 (d)'s window. Without them SC-020's "no division is performed when
@@ -1966,7 +2050,8 @@ the compliance pass cites the deviation rather than discovering it.
 
 **No open questions remain for the user at plan time.** OQ-1 through OQ-5 are resolved in the spec's
 Clarifications and are encoded above (strip resource field, `stepIntervalChunks` default 8 / range
-[1, 64], 32 agents / `kMaxAgents = 48`, no `ModulationSource` adapter, dormancy gates the output).
+[1, 64] — narrowed to [8, 64] at build time by the two 2026-09-16 rulings, D-P — 32 agents /
+`kMaxAgents = 48`, no `ModulationSource` adapter, dormancy gates the output).
 The decisions this plan *expects* to escalate are all downstream of the **measured** perf table, and
 none before it: **L4 and L5** (approximating FR-012's kernel and FR-050/FR-035's sines, D-M) and, if
 those are not enough, **FR-082's minimum** (L6). One correction is escalated *now* rather than

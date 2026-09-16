@@ -367,6 +367,16 @@ render shows spectral centroid/partial-count trajectory, never static, never div
 
 ### Phase 8: Ecosystem Engine (flagship, highest risk)
 
+**Status: ✅ COMPLETE (2026-09-16)** — see specs/vorago-phase8-ecosystem/compliance.md
+(52 of 52 items pass after four main-loop rulings). `EcosystemEngine` is a header-only Layer 3
+agent simulation: up to 48 autonomous agents on a 96-cell resource strip, 13 fixed-order stages per
+control step (sense, exchange, forage, reproduce, die, sync, report), seeded and deterministic, with
+the FR-085 stop-and-surface rule applied. Rulings: the step-interval range is [8, 64] chunks with the
+tuned default 8 as the floor (29 074 ns per 512-sample block against the 53 333 ns ceiling, after
+three exact-arithmetic levers — cell-grid Gaussian recurrence, per-agent sin/cos table, invariant
+hoists — and no lookup tables); the short-cycle clause runs on the population-mean output (sane-box
+alive rate 78.2 %); the hostile-fuzz budget is 60 min (measured 32.9 min). Phase 10 wires the outputs.
+
 **Spec:** `vorago-phase8-ecosystem`
 **Goal:** The differentiator — agents, not modulation. Dozens of tiny autonomous entities (partial
 clusters, resonator peaks, noise emitters, feedback loops, ghost triggers) that sense one another's
