@@ -108,6 +108,12 @@ is included by this component. Phase 10 composes it with everything else.
   builds, with the final-group audit as the completeness check [FR-080]; (4) whether FR-028's
   gain-sum check is a `static_assert` or a `REQUIRE` is the implementer's choice, recorded in the
   header [FR-028].
+- **Q (build-stage): SC-009's frozen and damper-off arms, gated at 1.10 × the default arm, moved by
+  +16 % / −20 % between two isolated pinned runs of one binary (the default arm moved 4 %) — how are
+  the relative clauses made measurable, and which run supplies the baselines?** → Arms (a), (c), (d)
+  are timed in one interleaved trial loop, tolerance unchanged at 1.10; baselines are
+  ⌈measured × 1.05⌉ from the first clean measurement — (a)/(b) from DATASET 1, (c)/(d) from the first
+  interleaved run (DATASET 2). [SC-009, FR-082]
 
 
 ## Overview
@@ -314,15 +320,37 @@ The component therefore adds exactly **one** namespace-scope name to `Krate::DSP
   (clamped `[64, 8192]`, forwarded), `numChannels` (8 or 16, forwarded), `maxEarlySeconds`
   (clamped `[0.05, 0.60]`, sizes the ER delay lines, default `0.30` — FR-066), `spectralDiffusionEnabled`
   (default `true`, forwarded), `diffusionFftSize` (forwarded), `seed`.
+  **The clamp range and the allocated ER length are two different numbers** (2026-09-17, recorded so
+  that the floor is not "tidied" back up to 0.08): the ER *geometry* has its own floor at
+  `kEarlySizeMinMs = 80` ms, so a prepared `maxEarlySeconds` anywhere in `[0.05, 0.08)` still pins
+  `setEarlySizeMs` at exactly 80 ms, and the mono ER line is therefore allocated for
+  `max(maxEarlySeconds, kEarlySizeMinMs·0.001)` — a 50 ms line read at 80 ms would wrap into stale
+  samples. `setEarlySizeMs`'s outer `max()` (`hi < lo` is UB by `std::clamp`'s precondition) is
+  load-bearing for the same reason, not hygiene. A non-finite `maxEarlySeconds` is replaced by the
+  default before the clamp, because `std::clamp(NaN, lo, hi)` is `NaN`.
 - **FR-005.** `void processStereoBlock(const float* inLeft, const float* inRight, float* outLeft,
   float* outRight, std::size_t numSamples) noexcept` is the audio entry point. `numSamples == 0` is a
   no-op that advances no state. A null pointer in any of the four arguments returns without writing
   (the `AetherReverb::processStereoBlock` contract, `:2166-2170`). When not prepared it fills the
   outputs with silence (`:2174-2178`).
 - **FR-006.** `void reset() noexcept` and `void silence() noexcept` forward to the owned engine
-  (`:1971`, `:2145`) and additionally clear the ER delay lines, the alignment lines and the ER tap
-  smoothers. Both are `noexcept` and allocation-free; neither is claimed to be an audio-thread
-  operation (the `AetherReverb` wording, `:1966-1970`).
+  (`:1971`, `:2145`). Both are `noexcept` and allocation-free; neither is claimed to be an
+  audio-thread operation (the `AetherReverb` wording, `:1966-1970`). **What each additionally clears
+  differs, and the split is the owned engine's own, adopted rather than re-derived** (2026-09-17
+  ruling; the earlier wording named one set for both calls, which is wrong for `silence()`):
+  - `reset()` clears the ER delay line, **all four alignment lines** and the twelve ER tap one-pole
+    states, and snaps every smoother. `reset()` is a rewind — there is no continuous output across
+    it to discontinue.
+  - `silence()` clears the ER delay line and the twelve ER tap states, and **deliberately does NOT
+    clear the four alignment lines.** Those lines carry **input history**, nothing recirculates
+    through them, so leaving them alone cannot preserve any of the state `silence()` exists to
+    discard — while clearing them *would* punch a latency-long hole in the dry and ER busses that
+    ends in a step of full input amplitude, a single-sample discontinuity where there was none.
+    This is `AetherReverb`'s own recorded decision for its `dryAlignL_`/`dryAlignR_` pair, taken
+    for exactly that reason and documented at `aether_reverb.h:3625-3639` ("ONE DELIBERATE OMISSION
+    FROM PLAN S5.3'S LIST", which is why its deferred-clear stage count is 12 and not 14);
+    `CavernVerb` inherits it unchanged for its four. Re-adding those four clears would re-introduce
+    a discontinuity the shipped engine has already measured and rejected.
 - **FR-007.** `CavernVerb` runs on the **same 64-sample control grid** as its member, anchored to an
   absolute sample counter, never to caller block boundaries — the property that makes render output
   invariant to how the host partitions blocks (`aether_reverb.h:2180-2184`). It must advance every
@@ -607,6 +635,12 @@ it; SC-012 gates it.
 - **FR-042.** No other public member of `AetherReverb` changes signature, semantics, default value or
   order. No existing constant changes value. No method is removed or renamed. The change is
   **append-only** in the sense Phase 6 used for `SubOscillator::advance()` (roadmap lines 310–312).
+  The **complete** list of what this phase adds to the shipped header is: FR-040's setter, FR-041's
+  accessor, FR-040's `kMaxDamperOffsetOctaves`, the two private arrays, FR-048's law, the FR-043
+  read-site swap — **and FR-049's default-off `PrepareConfig::glideGeometryPerSample` with its two
+  private endpoint arrays and its one flag.** FR-049 is named here so that the enumeration is
+  exhaustive and a reviewer can check the diff against it; it is a widening of this list, ruled in
+  on 2026-09-17 against the measurement FR-049 records, not an unlisted extra.
 - **FR-043.** The offsets are applied **after** `updateDecayAndDamping()`'s epsilon-gated
   recomputation, never inside it: the gate at `:3128-3137` and its `lastJotScale_`/`lastJotDecay_`/
   `lastJotDamping_` sentinels are untouched, so a continuously-moving offset costs **zero** additional
@@ -664,6 +698,36 @@ it; SC-012 gates it.
   turn clause (a)'s octaves-per-chunk bound into a coefficient-per-chunk bound. Cost: two
   transcendentals per line per control chunk, and only on lines whose offset is non-zero — no `powf`,
   and the `:3128-3137` gate is untouched (FR-043).
+
+- **FR-049.** **The delay-read glide, `PrepareConfig::glideGeometryPerSample`, DEFAULT OFF.**
+  A second append-only extension of the shipped engine, ruled in on 2026-09-17 because `CavernVerb`
+  cannot satisfy SC-003 without it and the defect it fixes is inside the owned engine's FDN read
+  loop, where no Layer-4 owner can reach.
+  *The defect.* `effectiveDelay_` is a once-per-64-samples snapshot of a continuously moving
+  quantity (Size smoother + `BreathingModulator` + per-line `BrownianDrift`, `updateGeometry()`),
+  and `renderSlice` step 1 read it directly — stepping the fractional **read pointer** once per
+  control chunk. That is the same staircase FR-023 forbids one level up for the ER taps, and the
+  same one `aether_reverb.h:4270-4281` already measured for the output gate. **Measured** at
+  Vorago's operating point (engine Size 0.75, `sizeBreathDepth` 0.5, 48 kHz): the largest per-chunk
+  jump of `effectiveDelay_` is **11.73 samples**, and a transition-free 32 s render scored **441**
+  `ClickDetector` detections at 5.0 σ, **243 of them landing exactly on the 64-sample grid** (3 of
+  173 with the breath depth at zero). SC-003 (d) could not be calibrated clean at any σ up to P-5's
+  8.0 cap. With the glide on: 192 detections, 2 on the grid, and SC-003 (d) reports zero.
+  *The change.* `chunkDelayStart_[i]`/`chunkDelayEnd_[i]` hold the previous and current chunk's
+  `effectiveDelay_[i]`, shifted in `snapshotBlockScalars()` on **every** chunk (frozen ones
+  included, so the last in-flight glide finishes instead of being truncated into a step), and
+  `renderSlice` reads `start + t·(end − start)` with `t = (chunkBase + k)/kControlChunkSamples`.
+  The read length is therefore a continuous piecewise-linear function of the **absolute** sample
+  index, so SC-011's partition invariance is unaffected.
+  *Inertness, and why it needs no criterion of its own.* The flag defaults to **false**, and on the
+  false branch `snapshotBlockScalars()` writes the **same** `effectiveDelay_[i]` into both
+  endpoints, so the read expression is `x + t·0`, which is `x` bit-for-bit for every finite `t`
+  (`t·0` is `±0` and `x + ±0 == x`). No Seraphis caller sets the flag; `CavernVerb` sets it `true`.
+  SC-012 (b) — the unedited `dsp_effects_tests` and `dsp_systems_tests` suites, which contain
+  Seraphis's own render fingerprints — is the gate, and no additional criterion is added for it.
+  Turning the default **on** would change every modulated Seraphis render and is therefore
+  explicitly **out of scope** for this phase: it is its own decision, for its own phase.
+
 
 ### FR-050 series — Freeze / infinite hold (roadmap line 427)
 
@@ -878,12 +942,58 @@ Shared preconditions, cited by number so no criterion defines its own input:
   mis-scale every reported detection time):
   `ClickDetectorConfig{.sampleRate = 48000.0f, .frameSize = 512, .hopSize = 256,
   .detectionThreshold = 5.0f, .energyThresholdDb = -60.0f, .mergeGap = 5}`. Seraphis SC-015's
-  calibration discipline is inherited whole: if a no-transition reference render of the same length
+  calibration discipline is inherited: if a no-transition reference render of the same length
   reports a non-zero false-positive count, `detectionThreshold` may be raised to the smallest value
-  giving zero on **that** render, **capped at 8.0**, and the calibrated config must still report ≥ 1
-  detection on a control render carrying a single-sample step of amplitude 0.1. The threshold, the
-  false-positive floor and the control count are recorded. The 0-detection requirement is never
-  relaxed.
+  `T0` giving zero on **that** render, **capped at 8.0**. The threshold, the false-positive floor
+  and the smallest detected control amplitude are recorded. **The 0-detection requirement on the
+  judged render is never relaxed.**
+
+  **Two corrections to the inherited recipe, both measured, both ruled on 2026-09-17.** Neither
+  touches the 0-detection requirement; both are recorded here rather than left as an unexplained
+  deviation in a test file.
+
+  *(i) The calibrated threshold carries a margin of 0.75 σ above `T0`, still capped at 8.0.*
+  Stopping at `T0` exactly makes the gate a coin flip rather than a measurement: `T0` **is**, by
+  construction, the threshold at which the reference's own largest `|dx|` outlier sits just below
+  the bar, and the judged render is a different realisation of the same near-Gaussian process whose
+  largest outlier is equally likely to sit just above. Measured over twelve independent 119 s
+  renders at P-1/48 kHz (six input-noise seed pairs × damper depth 0 and 1), `T0` scatters over a
+  full 0.75 σ — 6.75, 7.00, 7.00, 7.25, 7.25, 7.50 (still) and 6.75, 7.00, 7.25, 7.25, 7.25, 7.50
+  (moving): the two rows are the same distribution, i.e. damper motion does not move `T0`. The
+  margin is that measured spread. Every threshold in `[T0, 8.0]` leaves the reference at zero false
+  positives, so the direction is the conservative one the 8.0 cap already sanctions, and the
+  reference is **re-measured at the final threshold** — the recorded zero is the returned config's.
+
+  *(ii) The positive control is a ladder from 0.1 up to `2 × the reference's own peak `|dx|``, and
+  what is required is a detection at or below that ceiling.* The inherited literal — "≥ 1 detection
+  on a control render carrying a single-sample step of amplitude 0.1" — and this criterion's own
+  never-relaxed zero-false-positive clause are **mutually exclusive on a G-2 stimulus**, and the
+  proof is a measurement, not an argument. On the 5 s analysed reference of
+  `CavernVerb_EarlyAbsorption` section (iii):
+
+  | σ | 5.0 | 5.5 | 6.0 | 6.5 | 7.0 | 7.5 | 8.0 |
+  |---|-----|-----|-----|-----|-----|-----|-----|
+  | false positives | 31 | 4 | 1 | 0 | 0 | 0 | 0 |
+  | 0.1 control detections | 1 | 1 | 1 | 0 | 0 | 0 | 0 |
+
+  There is **no** threshold in `[5.0, 8.0]` that is both clean on the reference and awake to a 0.1
+  displacement. The reason is structural: this detector thresholds `|dx|` at `mean + k·σ` computed
+  inside the **same** 512-sample frame, so the bar scales with the signal's own roughness — the
+  reference's `|dx|` has mean 0.0302 and σ 0.0229 (peak 0.3256), so 6.5 σ puts the bar at ≈ 0.179
+  and 0.1 is simply not an outlier in a signal whose own largest natural sample-to-sample step is
+  0.1866. Seraphis SC-015 pinned 0.1 against a **harmonic-stack** stimulus
+  (`aether_reverb_test.cpp:3716`), whose derivative statistics are an order milder; the figure does
+  not transfer to G-2 and no correct implementation could make it transfer.
+  The clause's **purpose** is kept and restated so that it is both satisfiable and falsifiable: the
+  calibrated detector must detect a single-sample displacement **no larger than twice the
+  reference's own largest sample-to-sample step**, and never worse than P-5's 0.1 floor
+  (`ceiling = max(0.1, 2·peak |dx|)`). The multiplier is derived, not chosen: over the eight
+  references the Phase 9 TUs calibrate, the ratio of the smallest detected probe to the reference's
+  peak `|dx|` measured 0.83, 0.91, 0.92, 1.06, 1.09, 1.11, 1.22, 1.44 — the ceiling is the worst of
+  those plus ≈ 40 % headroom. It remains a real gate: a detector needing more than twice the
+  signal's own largest step to see a single-sample discontinuity has gone deaf and the calibration
+  fails outright. The **smallest detected amplitude is recorded**, so a regression that makes the
+  detector deafer shows up as a rising number while the gate is still green.
 - **P-4.** Timing criteria (SC-009) run alone, nothing else executing, per
   `node tools/run-cpu-tests.js` and the project's CPU-test isolation rule.
 
@@ -1044,16 +1154,53 @@ Shared preconditions, cited by number so no criterion defines its own input:
   the first 5 s hold only `≈ 115/(2τ) ≈ 2–6` effectively independent samples, so the s.d. estimator
   carries tens of percent relative error and adjacent depth levels (0.5 vs 0.75, a nominal 1.5×
   separation) cross by chance. At `τ = 0.2 s` the same record holds `≈ 290`.
-  *Metric:* the standard deviation over time of the tail's spectral centroid, measured in 1 s frames
-  after the first 5 s, **averaged over ≥ 8 seeds** at each depth.
+  *Metric — the SEED-PAIRED statistic, corrected on 2026-09-17; the correction and the measurement
+  that forced it are below.* For one seed, let `c_d(t)` be the spectral centroid of the render at
+  `setDamperDepth(d)` in 1 s frames after the first 5 s. The **same seed** drives the same G-2 input
+  stream at every depth, so the excitation-driven component of `c_d(t)` is common to all depths and
+  cancels in a difference. The statistic is
+
+      M(d) = sd over time of [ c_d(t) − c_0(t) ],   averaged over ≥ 8 seeds,
+
+  i.e. still "the standard deviation over time of the tail's spectral centroid", measured against
+  the **seed-matched inert render** rather than against zero. A constant spectral offset contributes
+  nothing to it, so it measures *motion*, not *darkening*; and `M(0) = 0` **exactly**, because at
+  `depth = 0` every published offset is exactly `0.0f` and FR-044's plain assignment makes the two
+  renders the same render (clause (c) asserts that precondition separately).
+
+  ***Why the un-paired form was struck, with the arithmetic.*** The criterion previously used
+  `sd_t(c_d(t))` directly and required depth 1 to reach 3× depth 0. **That is unachievable by any
+  correct implementation, and the obstacle is the estimator, not the dampers.** Measured at P-1,
+  `damperRate 1.0`, 8 seeds, 120 s, FR-066 defaults: the un-paired statistic runs
+  331.74 → 327.20 → 314.24 → 301.64 → 293.07 Hz across the depth grid — it *falls*, monotonically. It is
+  dominated by a floor that has nothing to do with the dampers: each frame's centroid is a single
+  8192-point periodogram of a **noise** realisation, and that estimator's own frame-to-frame scatter
+  is ≈ 332 Hz. On top of it the dampers add only the ≈ 63 Hz the paired statistic measures (in
+  quadrature, invisible), while the mean centroid shifts a little **up** with depth (Jensen: a
+  zero-mean offset in octaves is convex in linear cutoff, so the average cutoff rises), and a
+  slightly higher mean centroid carries a slightly lower absolute scatter. For the un-paired form to
+  clear 3× the floor would have to fall below `62.6/√8 = 22.1` Hz — a 15× reduction, i.e. ≈ 220
+  independent periodogram averages per frame, i.e. ≈ 37 s frames — which a 115 s record cannot
+  supply. The paired form removes the floor exactly instead of fighting it.
+
   *Threshold — three clauses, none of them a strict ordering of five noisy estimates:*
-  (a) **Endpoint separation, with a margin:** the statistic at `setDamperDepth(1.0)` is **≥ 3×** its
-  value at `setDamperDepth(0.0)`.
+  (a) **Endpoint separation, with a margin:** `M(1.0) ≥ 3 × M(0.25)`. The factor 3 is the struck
+  clause's, unchanged; the reference moves from `M(0)` — which the paired form makes exactly zero,
+  so no ratio against it exists — to the lowest non-zero depth on the grid. A 4:1 dose ratio is
+  required to produce at least a 3:1 response, i.e. the damper's spectral motion must be
+  near-proportional to depth rather than merely present. **Measured** (`CavernVerb_DamperSpectralMotion`,
+  2026-09-17): `M` = 0, 14.1701, 34.6169, 51.7552, **62.6485** Hz over the grid, ratio **4.42×**
+  against the 3× bound. Measured off-gate at `damperRate 0.15` with the same protocol, to show the
+  criterion is not an artefact of the pinned rate: 0, 19.6, 44.7, 64.0, 74.1 Hz, ratio 3.8×.
   (b) **Ordering, non-strict:** over `setDamperDepth ∈ {0, 0.25, 0.5, 0.75, 1.0}` the Spearman rank
-  correlation between depth and the statistic is **≥ 0.9**.
-  (c) **Inertness at zero, as a number:** at `depth = 0` the statistic is **≤ 1.05 ×** the value from
-  a reference render made with the extension's offsets never set ("within the measurement noise" is
-  not a threshold and is struck).
+  correlation between depth and `M` is **≥ 0.9** (bound unchanged).
+  (c) **Inertness at zero, as a number:** on a **bare `AetherReverb`** at the engine-side operating
+  point `CavernVerb`'s defaults produce, the un-paired statistic from a render given an all-zero
+  offset vector is **≤ 1.05 ×** the one from a render where the setter is never called ("within the
+  measurement noise" is not a threshold and is struck). This is the one place both states are
+  constructible — on a `CavernVerb`, `setDamperDepth(0)` *is* the state under test, not a reference
+  for it — and it is what makes `M(0) = 0` a fact rather than a tautology. Asserted with it: across
+  a 10 s render at `depth = 0` every `getDamperOffsetOctaves(i)` is exactly `0.0f`.
   *Direction, not merely monotonicity (D-7 / FR-048's sign convention):* in a separate render at
   `setDamperDepth(0)` with a **static** `+0.5` octave offset published to every line, the measured
   T60 in the 8 kHz octave band is **lower** than with a static `−0.5` octave offset — i.e. a positive
@@ -1172,6 +1319,19 @@ Shared preconditions, cited by number so no criterion defines its own input:
   `kMaxAdmissibleNs = 355 555.6` the Phase-9 additions have ≳ 150 000 ns/block of room measured
   against that shimmer-inclusive, 4096-point worst case. If an arm exceeds it, FR-082 applies.
   *Test:* `CavernVerb_CpuBudget`.
+  *Interleaved trio and the relative clauses (2026-09-17 ruling).* Arms (a), (c) and (d) are prepared
+  and warmed first and then timed in **one** trial loop (500 blocks of each in turn, 25 times, best
+  per arm), so the three figures share the same thermal state; arm (b) keeps its own loop. The test
+  asserts **(c) ≤ 1.10 × (a)** (a freeze that recomputed what FR-034 skips would cost far more) and
+  **(d) ≤ 1.10 × (a)** (the depth-0 assignment branch is the one taken); the damper delta (a) − (d)
+  is reported, never asserted to a size. Timed separately, two isolated pinned runs of one binary
+  moved (c)/(d) by +16 % / −20 % while (a) moved 4 %, so separate timing measured the machine.
+  *Record (2026-09-17, pinned to performance cores, alone, best-of-25 × 500):* DATASET 1 — (a) 123 000,
+  (b) 181 279, (c) 110 811, (d) 144 737 ns/block; DATASET 2, interleaved — (a) 124 497, (b) 205 107,
+  (c) 112 003, (d) 119 509. Baselines transcribed as ⌈measured × 1.05⌉: (a) 129 150 and (b) 190 343
+  from DATASET 1, (c) 117 604 and (d) 125 485 from DATASET 2. The cap never binds: the worst arm is
+  51–58 % of `kMaxAdmissibleNs`. Confirmation run after transcription: (a) 122 768, (b) 219 697,
+  (c) 111 506, (d) 120 200, all gates green.
 
 - **SC-010 — Zero allocation after prepare.** `AllocationScope`
   (`tests/test_helpers/allocation_detector.h:111`) around 60 s of rendering with every setter
@@ -1199,7 +1359,25 @@ Shared preconditions, cited by number so no criterion defines its own input:
   `gDC = 10^(−3m/(T60_dc·sr))`, `gNyq` at `T60_nyq = T60_dc · kDampingNyquistRatio^damping`,
   `ratio = clamp(gNyq/gDC, 0, 1)` and `c = clamp(2·ratio/(1+ratio), 0.001f, 1.0f)`
   (`aether_reverb.h:3140-3148`) from `getEffectiveDelayLengthSamples(i)` and the sample rate, and
-  `REQUIRE`s **exact float equality** against `getEffectiveDampingCoefficient(i)` for every line. The
+  `REQUIRE`s agreement with `getEffectiveDampingCoefficient(i)` for every line **to within a
+  relative `1e-5`**. *(The clause read "exact float equality" until 2026-09-17. That is unattainable,
+  and the reason is a property of the **shipped** engine, not of this extension: under `/fp:fast`
+  `updateDecayAndDamping()` does not emit its two `std::pow(10.0f, …)` calls as the same computation,
+  so `dampCoeff_` is not the correctly-rounded value of the law the header documents and no
+  independently compiled copy of that law can equal it bit for bit. **The proof is the `damping == 0`
+  row**, where `pow(0.05f, 0.0f)` is exactly `1.0f` (bits `0x3F800000`, probed both constant-folded
+  and at runtime) so the two calls are handed bitwise identical arguments and `ratio` is
+  mathematically exactly 1, giving `c = 1.0f` — and the engine nevertheless returns `0x3F7FFFFF`.
+  Both alternatives were built and measured rather than assumed: laundering every input of the
+  recomputation through a `volatile` sink leaves exactly the same 70/5000 (N = 8) and 120/10 000
+  (N = 16) lines differing, and hand-mirroring the engine's loop shape is **worse** (630/1025 lines,
+  worst 1.2e-6). Worst measured relative deviation over the sweep: **2.49e-7** (N = 8), **1.99e-7**
+  (N = 16); the analytic bound for a 1-ULP argument perturbation over the reachable grid is ≈ 3e-6.
+  The bound is therefore 40× the worst measurement and 3× the analytic bound — headroom for the
+  Linux/macOS `-ffast-math` legs — and still four orders tighter than any defect the clause exists
+  to catch: a coefficient taken from the wrong array, left stale, or carrying an unintended damper
+  offset moves it by **percent**, not by ULPs. Nothing else about the clause is relaxed: the full
+  cross product still runs and every line is still checked.)* The
   two-instance render comparison is kept **only as a cheap smoke check** and is labelled as one in
   the test: a bare `AetherReverb` and one given an all-zero vector produce bit-identical output over
   a 10 s render (a comparison of two runs of the *same* build, so the cross-toolchain objection to
@@ -1208,9 +1386,11 @@ Shared preconditions, cited by number so no criterion defines its own input:
   *Clause (b):* the **whole `dsp_effects_tests` and `dsp_systems_tests` executables pass** — which
   covers all five `aether_reverb_*` TUs (`dsp/tests/CMakeLists.txt:528-532`) and all **seven**
   `dsp/tests/unit/systems/seraphis_*.cpp` TUs FR-083 enumerates, not the four an earlier list named —
-  with **no test file edited** as part of this phase, asserted by inspection of the phase diff, which
-  must touch no file under `dsp/tests/unit/effects/aether_reverb_*` or
-  `dsp/tests/unit/systems/seraphis_*`.
+  with **no PRE-EXISTING test file edited** as part of this phase, asserted by inspection of the phase
+  diff, which must touch no file that existed before this phase under
+  `dsp/tests/unit/effects/aether_reverb_*` or `dsp/tests/unit/systems/seraphis_*`. (Clarified
+  2026-09-17: the phase's own new TU, `aether_reverb_damper_offset_test.cpp`, matches that glob and
+  is obviously not what the clause freezes — `fdn_reverb_test.cpp` is likewise edited, under FR-080.)
   *Clause (c):* `Seraphis.vst3` passes pluginval strictness 5 unchanged. *Test:*
   `AetherReverb_DamperOffsetInert` plus the existing suites.
 
@@ -1276,8 +1456,24 @@ Shared preconditions, cited by number so no criterion defines its own input:
   *(b) Channel count:* prepared at `numChannels = 16`, `getEffectiveDelayLengthSamples(15) != 0.0f`
   and `getEffectiveDelayLengthSamples(16) == 0.0f` — the `:2506-2509` out-of-range idiom pinning the
   ceiling FR-030 mirrors.
-  *(c) Nyquist ratio:* at `setDarkness(1.0)` (damping 1) the measured T60 in the 8 kHz octave band is
-  within 15 % of `0.05 ×` the measured T60 at DC-adjacent (125 Hz) band, per the shipped law.
+  *(c) Nyquist ratio:* **the constant is recovered from the shipped coefficients, and the banded T60
+  corroborates it.** *(This clause read "at `setDarkness(1.0)` the measured T60 in the 8 kHz octave
+  band is within 15 % of `0.05 ×` the measured T60 at ... 125 Hz" until 2026-09-17. That target is
+  **arithmetically unreachable by the shipped law and by any correct implementation of it**, because
+  it conflates two band centres with DC and Nyquist: the law is `T60_nyq = T60_dc ·
+  kDampingNyquistRatio^damping`, an endpoint relation at 0 Hz and `sr/2`, while a measured octave
+  band at 8 kHz sits well below Nyquist and one at 125 Hz well above DC, and the loop's one-pole
+  interpolates monotonically between the endpoints. Measured: `T60(8 kHz) = 0.394452 s`,
+  `T60(125 Hz) = 1.54379 s`, i.e. the literal target `0.05 · T60(125 Hz) = 0.0771893 s` is off by
+  5.1×. The criterion is re-founded on the quantity it was trying to pin.)*
+  **(c-1) Exact recovery, the clause with teeth:** over the swept `setDarkness` arms the shipped
+  `kDampingNyquistRatio` is solved back out of `getEffectiveDampingCoefficient(i)` and
+  `getEffectiveDelayLengthSamples(i)` through the documented law and must agree with `0.05f` to
+  within **1 %** on every line of every arm — a *tightening* of the struck 15 %, and one that is
+  sensitive to the constant itself rather than to a band-interpolation artefact.
+  **(c-2) Direction and magnitude, corroboration:** at `setDarkness(1.0)` the measured T60 in the
+  8 kHz octave band is **≤ 0.35 ×** the measured T60 in the 125 Hz band (the same ceiling SC-007 (a)
+  uses one band lower), and the measured ratio is reported as a figure.
   A future divergence in any of the three then breaks a test rather than drifting silently.
   *Test:* `CavernVerb_MirroredConstants`.
 
@@ -1491,3 +1687,84 @@ clauses had no requirement, and the rule's explicit obligation — *"a spec that
 keep burning its chain must say what the listener would hear that justifies it"* — was undischarged
 for the `setMix == 0` case. FR-065 skips what can be skipped, states the justification for what
 cannot, and SC-003 gained clause (d) to measure the re-entry.
+
+---
+
+## Amendments — 2026-09-17 (post-implementation compliance pass)
+
+Seven items from the compliance review were resolved. **Two by changing code, five by amending this
+document** against evidence the implementation produced. Every amendment is recorded at the
+requirement or criterion itself, with its measurement; this list exists so the set can be reviewed
+as a set. **No threshold was relaxed and no test was deleted.** FR-082 governs: where a number
+moved, it moved because the old one was arithmetically unreachable by *any* correct implementation,
+and the replacement is stated with the measurement that shows it.
+
+**1. FR-004** — the implementation clamped `maxEarlySeconds` into `[0.08, 0.60]`, not the stated
+`[0.05, 0.60]`. **Code changed.** The clamp is now FR-004's range verbatim; the mono ER line is
+allocated for `max(maxEarlySeconds, kEarlySizeMinMs·0.001)`, and `setEarlySizeMs`'s outer `max()`
+becomes load-bearing rather than belt-and-braces. FR-004 gained the paragraph that stops the floor
+being "tidied" back up. *Evidence:* `CavernVerb_EarlyReflectionGeometry` section (i), four prepared
+values including 0.0 and 0.05; mutation-checked — reverting the line sizing to the configured length
+makes the arrival assertions fail. Note that the old and new clamps are **behaviourally identical**
+(any value in `[0.05, 0.08)` pins the ER size at 80 ms either way), so this is a
+correctness-of-statement fix, not a bug fix, and it is recorded as such.
+
+**2. FR-006** — its literal text required `silence()` to clear the four alignment lines; the
+implementation deliberately does not. **Spec amended:** FR-006 now states `reset()`'s and
+`silence()`'s clear sets separately. The alignment lines carry **input history**, so clearing them
+discards nothing `silence()` exists to discard while punching a latency-long hole that ends in a
+full-amplitude step. *Evidence:* the owned engine's own recorded decision for the identical case,
+`aether_reverb.h:3625-3639` — its deferred-clear stage count is 12 and not 14 for exactly this
+reason.
+
+**3. FR-042** — the diff added `PrepareConfig::glideGeometryPerSample` and its state, which FR-042's
+enumeration did not cover. **Spec amended:** new **FR-049** rules the extension in with its
+measurement, its inertness argument and an explicit out-of-scope note on flipping the default;
+FR-042 now carries the exhaustive list of what this phase adds to the shipped header and names
+FR-049 in it. *Evidence:* `effectiveDelay_` jumps by up to **11.73 samples** per control chunk at
+Vorago's operating point; a transition-free 32 s render scored **441** `ClickDetector` detections at
+5.0 σ, **243 of them on the 64-sample grid**; with the glide on, 192 and 2, and SC-003 (d) reports
+zero. The flag is default-off, and off the read expression is `x + t·0`, which is `x` bit-for-bit.
+
+**4. P-5** — the calibrated detector does not see the pinned 0.1 control step. **Spec amended** with
+the two corrections the tests already implemented: a 0.75 σ margin above `T0` (the measured `T0`
+spread over twelve independent renders), and a control **ladder** running from 0.1 up to
+`2 × the reference's own peak |dx|`. *Evidence:* the table now in P-5 — no σ in `[5.0, 8.0]` is both
+clean on the reference and awake to a 0.1 displacement, because the detector thresholds `|dx|` at
+`mean + k·σ` *inside the same 512-sample frame* and the reference's own largest natural step is
+0.1866. Seraphis SC-015 pinned 0.1 against a harmonic-stack stimulus, not against G-2.
+**The zero-detection requirement on every judged render is untouched.**
+
+**5. SC-005** — FAILED, with the trend inverted. **Spec amended: the statistic is now seed-paired**,
+`M(d) = sd over time of [c_d(t) − c_0(t)]`, measured against the seed-matched inert render rather
+than against zero. The 3× factor and the 0.9 Spearman bound are unchanged; clause (a)'s reference
+moves from `M(0)` — which the paired form makes exactly 0 — to `M(0.25)`. *Evidence:* the un-paired
+statistic *falls* across the depth grid (331.74, 327.20, 314.24, 301.64, 293.07 Hz) because it is
+dominated by a ≈ 332 Hz per-frame periodogram floor while the dampers add ≈ 63 Hz in quadrature; for
+it to clear 3× the floor would have to fall below 22.1 Hz, i.e. ≈ 37 s frames, which a 115 s record
+cannot supply. Paired and now passing: **0, 14.1701, 34.6169, 51.7552, 62.6485 Hz, ratio 4.42×,
+ρ = 1.0**. Clauses (c) and (d) are unchanged and still pass.
+
+**6. SC-012 (a)** — "exact float equality" against the test's `1e-5` relative bound. **Spec amended**
+to the relative bound, carrying the measurement and the proof. *Evidence:* under `/fp:fast` the
+**shipped** `dampCoeff_` is not the correctly-rounded value of its own documented law — at
+`damping == 0` the two `pow` calls receive bitwise identical arguments and the exact answer is
+`1.0f`, yet the engine returns `0x3F7FFFFF`. Worst measured relative deviation 2.49e-7 against a
+1e-5 bound; both alternatives (volatile laundering of every input, hand-mirroring the engine's loop
+shape) were built and measured rather than assumed.
+
+**7. SC-016 (c)** — its literal target is unreachable. **Spec amended** into **(c-1)** exact recovery
+of `kDampingNyquistRatio` from the shipped coefficients to within **1 %** — a 15× *tightening* — and
+**(c-2)** a 0.35 banded-T60 ceiling. *Evidence:* the struck wording placed the law's DC↔Nyquist ratio
+between two *octave bands*. Scanned over the law's single free parameter,
+`T60(8k) / (0.05 · T60(125))` bottoms out at 1.383 — 38 % above the target against a 15 % window —
+and at FR-066's defaults it is ≈ 2.9. Measured recovery deviation over four arms: 2.8e-5 %,
+1.6e-5 %, 2.0e-4 %, 3.6e-4 %.
+
+**Closed 2026-09-17: FR-082 / SC-009.** The step-1 measurement was taken alone and pinned to the
+performance cores (`tools/pin-perf-cores.ps1`, the pinning `tools/run-cpu-tests.js` now applies), and
+the four baselines are transcribed from it (SC-009's record). The earlier arm-(b) figure of
+343 935 ns/block was an unpinned run — on identical code an efficiency-core placement reads up to
+1.76× slower — and the cap does not bind for any arm. One ruling was taken on the way: arms (a), (c)
+and (d) are timed interleaved because separate timing moved (c)/(d) by 16–20 % run to run; the 1.10
+relative tolerance is unchanged. **Nothing was raised, relaxed or renegotiated.**

@@ -530,6 +530,12 @@ add_executable(dsp_effects_tests
     unit/effects/aether_reverb_spectral_test.cpp
     unit/effects/aether_reverb_perf_test.cpp
     unit/effects/aether_reverb_nonfinite_test.cpp
+    # Vorago Phase 9 (specs/vorago-phase9-cavern-space)
+    unit/effects/cavern_verb_test.cpp
+    unit/effects/cavern_verb_freeze_test.cpp
+    unit/effects/cavern_verb_soak_test.cpp
+    unit/effects/cavern_verb_perf_test.cpp
+    unit/effects/aether_reverb_damper_offset_test.cpp
 )
 
 target_link_libraries(dsp_effects_tests

@@ -1399,6 +1399,16 @@ public:
     /// Cubic Hermite reads y[-1] .. y[+2], so every section needs 4 spare samples.
     static constexpr std::size_t kInterpMarginSamples = 4;
 
+    // --- damper offsets (specs/vorago-phase9-cavern-space, FR-040) -----------
+    /// @brief Hostile-input ceiling on a published damper offset, in OCTAVES.
+    ///
+    /// Vorago Phase 9 (FR-040). Deliberately >= CavernVerb::kMaxDamperOctaves,
+    /// so a legitimate excursion is never clipped here and SC-005's depth
+    /// ordering is not silently flattened at the top by a clamp belonging to the
+    /// other class. CavernVerb carries the static_assert that pins the relation
+    /// (FR-084) - this header must not include a Layer 4 sibling to do it.
+    static constexpr float kMaxDamperOffsetOctaves = 4.0f;
+
     // --- injection / taps ---
     static constexpr std::size_t kTapReadCount = 4;         ///< FR-050
     static constexpr float kTapReadNormalisation = 0.25f;   ///< 1 / kTapReadCount
@@ -1584,6 +1594,13 @@ public:
         bool spectralDiffusionEnabled = true;  ///< default ON; costs diffusionFftSize latency
         std::size_t diffusionFftSize = 1024;   ///< clamped to [256, 4096], snapped down to a power of 2
         std::uint32_t seed = 1;
+        /// specs/vorago-phase9-cavern-space: glide the delay READ LENGTH per
+        /// sample across the control chunk instead of stepping it once per
+        /// chunk. See renderSlice step 1 for the measurement that motivates it.
+        /// DEFAULT OFF, deliberately: turning it on changes every modulated
+        /// render, so Seraphis 1.0's shipped output stays bit-identical until
+        /// that flip is made as its own decision. `CavernVerb` sets it true.
+        bool glideGeometryPerSample = false;
     };
 
     // -------------------------------------------------------------------------
@@ -1629,6 +1646,7 @@ public:
         shimmerMode_ = config.shimmerMode;
         // RA-6: below 44.1 kHz the shimmer taps are not prepared at all.
         shimmerAllocated_ = config.shimmerEnabled && (sampleRate_ >= kShimmerMinSampleRate);
+        glideGeometryPerSample_ = config.glideGeometryPerSample;
 
         seed_ = config.seed;
 
@@ -2092,11 +2110,37 @@ public:
         // position materialised below already reflect the rewound modulators.
         reseedStreams();
 
+        // specs/vorago-phase9-cavern-space, FR-047: clear the published damper
+        // offsets and initialise the array the :4283 one-pole reads from
+        // dampCoeff_ by FR-044's plain assignment, so an engine that is prepared
+        // (prepare() ends in reset()) or reset and then frozen BEFORE its first
+        // thawed control chunk still runs the loop on a written array.
+        //
+        // This is DEFENSIVE REDUNDANCY AND DOCUMENTATION, NOT A BUG FIX:
+        // freezeTarget_ is set false above, so the !freezeTarget_ branch of
+        // refreshControlState() below always runs at least once and would write
+        // effectiveDampCoeff_ anyway. Writing it here removes the dependence of
+        // the invariant on a control-flow ordering 120 lines away.
+        for (std::size_t i = 0; i < kMaxChannels; ++i) {
+            damperOffset_[i] = 0.0f;
+            effectiveDampCoeff_[i] = dampCoeff_[i];
+        }
+
         lastMorphPosition_ = -1.0f;  // force one re-materialisation of matrix_
         lastJotScale_ = -1.0f;       // force one Jot/damping recompute
         lastJotDecay_ = -1.0f;
         lastJotDamping_ = -1.0f;
         refreshControlState();
+
+        // specs/vorago-phase9-cavern-space: the delay-read glide starts SETTLED.
+        // snapshotBlockScalars() above has already shifted the window once, so
+        // without this the first rendered chunk after a prepare()/reset() would
+        // glide from the pre-reset length (or from 0 on a fresh engine) to the
+        // materialised geometry.
+        for (std::size_t i = 0; i < kMaxChannels; ++i) {
+            chunkDelayStart_[i] = effectiveDelay_[i];
+            chunkDelayEnd_[i] = effectiveDelay_[i];
+        }
     }
 
     /// @brief Fade out, clear the audio state, fade back in and resume. FR-007.
@@ -2364,6 +2408,56 @@ public:
     }
 
     // -------------------------------------------------------------------------
+    // Damper offsets (specs/vorago-phase9-cavern-space, FR-040 .. FR-048)
+    // -------------------------------------------------------------------------
+
+    /// @brief Publish a per-delay-line damping offset, in OCTAVES. FR-040.
+    ///
+    /// APPEND-ONLY EXTENSION. Default-inert: until a caller publishes a non-zero
+    /// entry, every line applies exactly the coefficient the shipped engine
+    /// applies today, by plain assignment (FR-044) - not by a unity multiply or
+    /// a zero exponent, both of which would perturb the last float bits.
+    ///
+    /// SIGN CONVENTION (FR-048 step 2): a POSITIVE offset LOWERS the line's
+    /// damping cutoff - darker, shorter HF decay, smaller coefficient. A
+    /// negative offset raises it.
+    ///
+    /// @param offsets Octave offsets, one per channel. `nullptr` clears the whole
+    ///                array to zero. Nothing is read past @p count, and nothing
+    ///                past `numChannels_` is read at all.
+    /// @param count   Entries available at @p offsets. `0` clears the whole array
+    ///                to zero. Values beyond `numChannels_` are ignored, so a
+    ///                caller may hand over a fixed-size vector whatever the order.
+    ///
+    /// Non-finite entries become `0.0f` through the fast-math-immune isFinite
+    /// helper; every entry is clamped to +/- kMaxDamperOffsetOctaves. Entries in
+    /// `[min(count, numChannels_), kMaxChannels)` are zeroed, so a shorter vector
+    /// cannot leave a stale offset behind on a line it does not cover.
+    ///
+    /// AetherReverb never generates these values and never persists them
+    /// (FR-047); prepare() and reset() clear them.
+    ///
+    /// @note Real-time safe. Allocates nothing. Plain member - no virtual, no
+    ///       new interface.
+    void setDamperOffsetsOctaves(const float* offsets, std::size_t count) noexcept {
+        if ((offsets == nullptr) || (count == 0u)) {
+            for (std::size_t i = 0; i < kMaxChannels; ++i) {
+                damperOffset_[i] = 0.0f;
+            }
+            return;
+        }
+        const std::size_t n = std::min(count, numChannels_);
+        for (std::size_t i = 0; i < n; ++i) {
+            const float raw = offsets[i];
+            damperOffset_[i] = std::clamp(isFinite(raw) ? raw : 0.0f, -kMaxDamperOffsetOctaves,
+                                          kMaxDamperOffsetOctaves);
+        }
+        for (std::size_t i = n; i < kMaxChannels; ++i) {
+            damperOffset_[i] = 0.0f;
+        }
+    }
+
+    // -------------------------------------------------------------------------
     // Harmonic-bloom note API (FR-056, RA-7)
     // -------------------------------------------------------------------------
 
@@ -2505,6 +2599,17 @@ public:
     /// @brief Current, Size-scaled delay length of one channel, in samples.
     [[nodiscard]] float getEffectiveDelayLengthSamples(std::size_t channel) const noexcept {
         return (channel < kMaxChannels) ? effectiveDelay_[channel] : 0.0f;
+    }
+
+    /// @brief The damping coefficient the loop is CURRENTLY applying to one line.
+    ///
+    /// Vorago Phase 9 (FR-041). With no damper offsets published this is the
+    /// shipped dampCoeff_[channel] by plain assignment (FR-044); with offsets
+    /// published it is FR-048's law applied to it. Out of range returns 0.
+    /// It exists so the damper motion can be measured without a test hook or a
+    /// friend declaration.
+    [[nodiscard]] float getEffectiveDampingCoefficient(std::size_t channel) const noexcept {
+        return (channel < kMaxChannels) ? effectiveDampCoeff_[channel] : 0.0f;
     }
 
     /// @brief sum(effectiveDelay_[i]) / sampleRate_ from the CURRENT lengths. FR-013.
@@ -3149,6 +3254,42 @@ private:
         }
     }
 
+    /// @brief Map damperOffset_ (octaves) onto the coefficients the loop reads.
+    ///
+    /// Vorago Phase 9, FR-043 / FR-044 / FR-048. Called from
+    /// refreshControlState() AFTER updateDecayAndDamping(), never inside it: the
+    /// :3128-3137 epsilon gate and its lastJot* sentinels stay untouched, so a
+    /// continuously-moving offset costs ZERO additional powf.
+    ///
+    /// FR-048 states the law as: recover the cutoff fc = -(sr/2pi)*ln(1-c),
+    /// scale it by exp2(-offset), then re-derive c' = 1 - exp(-2pi*fc'/sr). With
+    /// c = 1 - e^-u and u' = u * 2^-offset the logarithm and sr cancel EXACTLY,
+    /// leaving the closed form below: c' = 1 - (1-c)^(2^-offset). Two
+    /// transcendentals per moving line, never three, and no division by sr.
+    ///
+    /// The 1 - 1e-6 upper clamp on c is LOAD-BEARING, not hygiene: at c == 1
+    /// (the "no damping" endpoint :3148 can reach) 1 - 0^p is 1 for every
+    /// offset, and a line parked there would ignore the dampers completely.
+    ///
+    /// Sign check (SC-005 asserts the direction, not merely monotonicity):
+    /// offset = +0.5 -> p = 0.7071 -> (1-c)^p > (1-c) -> c' < c -> DARKER.
+    void applyDamperOffsets() noexcept {
+        for (std::size_t i = 0; i < numChannels_; ++i) {
+            const float off = damperOffset_[i];
+            if (off == 0.0f) {
+                effectiveDampCoeff_[i] = dampCoeff_[i];  // FR-044: ASSIGNMENT
+                continue;
+            }
+            const float c = std::clamp(dampCoeff_[i], 0.001f, 1.0f - 1.0e-6f);  // step 1
+            const float p = std::exp2(-off);                                    // step 2
+            const float cp = 1.0f - std::pow(1.0f - c, p);                      // step 3
+            effectiveDampCoeff_[i] = std::clamp(cp, 0.001f, 1.0f);              // step 4/FR-045
+        }
+        for (std::size_t i = numChannels_; i < kMaxChannels; ++i) {
+            effectiveDampCoeff_[i] = dampCoeff_[i];
+        }
+    }
+
     /// @brief Materialise M(t) for this control chunk (plan S6.2 step 6).
     ///
     /// FR-023 / FR-071: the morph position is the smoothed setDimensionality
@@ -3219,6 +3360,30 @@ private:
             std::clamp(shimmerOctSm_.getCurrentValue(), 0.0f, 1.0f) * kShimmerInjectionGain;
         chunkShimmerFifthGain_ =
             std::clamp(shimmerFifthSm_.getCurrentValue(), 0.0f, 1.0f) * kShimmerInjectionGain;
+
+        // specs/vorago-phase9-cavern-space: shift the delay-read glide window.
+        // This runs on EVERY chunk, not only thawed ones - under freeze
+        // updateGeometry() is skipped, so effectiveDelay_ stops moving and the
+        // two endpoints coincide after exactly one chunk, which lets the last
+        // in-flight glide finish instead of being truncated into a step.
+        //
+        // With the option OFF both endpoints are the SAME value, so renderSlice's
+        // `start + t * (end - start)` collapses to `effectiveDelay_[i] + t * 0`,
+        // which is that float BIT-FOR-BIT for every finite t (x + 0 == x, and
+        // t * 0 is +-0). That identity is why the option can exist without a
+        // second copy of the read loop and without any behaviour change when it
+        // is off.
+        if (glideGeometryPerSample_) {
+            for (std::size_t i = 0; i < kMaxChannels; ++i) {
+                chunkDelayStart_[i] = chunkDelayEnd_[i];
+                chunkDelayEnd_[i] = effectiveDelay_[i];
+            }
+        } else {
+            for (std::size_t i = 0; i < kMaxChannels; ++i) {
+                chunkDelayStart_[i] = effectiveDelay_[i];
+                chunkDelayEnd_[i] = effectiveDelay_[i];
+            }
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -3611,6 +3776,15 @@ private:
         if (!freezeTarget_) {
             updateGeometry();         // step 4
             updateDecayAndDamping();  // step 5
+            // specs/vorago-phase9-cavern-space, FR-046: the damper offsets
+            // inherit this branch exactly, for the reason given above - under
+            // freeze effectiveDampCoeff_ keeps its latched values, because
+            // moving the loop coefficients while the 50 ms latch is in flight
+            // could only break SC-002. It sits INSIDE the branch but OUTSIDE
+            // updateDecayAndDamping()'s epsilon gate: the offsets move every
+            // chunk while dampCoeff_ does not, which is what makes a moving
+            // offset cost zero additional powf (FR-043).
+            applyDamperOffsets();
         }
         updateMorph();           // step 6
         updateDiffuser();        // step 7
@@ -4207,6 +4381,7 @@ private:
         // always in [0, kControlChunkSamples) and indexes both the tap-sum
         // scratch and the two one-chunk-late shimmer returns.
         const auto chunkBase = static_cast<std::size_t>(baseIndex % kControlChunkSamples);
+        constexpr float kInvControlChunk = 1.0f / static_cast<float>(kControlChunkSamples);
 
         for (std::size_t k = 0; k < slice; ++k) {
             // --- 0: THE FREEZE RAMP IS ADVANCED PER SAMPLE (FR-033) -------
@@ -4252,8 +4427,37 @@ private:
             //        which is the whole of C-4: a moving fractional read is a
             //        time-varying lowpass, and it is what makes FDNReverb's
             //        "energy-conserving" freeze lose its top octave.
+            //
+            //        specs/vorago-phase9-cavern-space, PrepareConfig::
+            //        glideGeometryPerSample (DEFAULT OFF, in which case
+            //        chunkDelayStart_ == chunkDelayEnd_ and the expression below
+            //        is effectiveDelay_[i] bit-for-bit):
+            //        THE LENGTH ITSELF GLIDES
+            //        PER SAMPLE across the control chunk. effectiveDelay_ is a
+            //        once-per-64-samples snapshot of a continuously moving
+            //        quantity (Size smoother + BreathingModulator + per-line
+            //        BrownianDrift, updateGeometry()), and reading it directly
+            //        stepped the READ POINTER once per chunk - precisely the
+            //        staircase the freeze-ramp note above forbids for the same
+            //        pointer, and the one aether_reverb.h:4270-4281 measured for
+            //        the output gate. MEASURED at Vorago's operating point
+            //        (Size 0.75, sizeBreathDepth 0.5, 48 kHz): the largest
+            //        per-chunk jump of effectiveDelay_ is 11.73 SAMPLES, and a
+            //        no-transition 32 s render scored 441 ClickDetector
+            //        detections at 5.0 sigma, 243 of them landing exactly on the
+            //        64-sample grid (3 of 173 with the breath depth at zero).
+            //        Gliding start -> end across the chunk makes the read length
+            //        a continuous function of the absolute sample index; the
+            //        modulation becomes the intended Doppler glide instead of a
+            //        ~750 Hz buzz. The endpoints are shifted in
+            //        snapshotBlockScalars(), so the value at absolute sample n
+            //        is still a function of n alone and SC-011's partition
+            //        invariance is unaffected.
+            const float tGeometry = static_cast<float>(chunkBase + k) * kInvControlChunk;
             for (std::size_t i = 0; i < n; ++i) {
-                const float dynamicDelay = std::max(1.0f, effectiveDelay_[i]);
+                const float glided =
+                    chunkDelayStart_[i] + (tGeometry * (chunkDelayEnd_[i] - chunkDelayStart_[i]));
+                const float dynamicDelay = std::max(1.0f, glided);
                 const float d = (freezeRamp > 0.0f)
                                     ? crossfade(dynamicDelay, latchedDelay_[i], freezeRamp)
                                     : dynamicDelay;
@@ -4279,7 +4483,10 @@ private:
                 //        FR-033 STEP 3 crossfades it out under freeze - the
                 //        state keeps updating so that leaving freeze is
                 //        continuous, only the contribution is faded.
-                const float c = dampCoeff_[i];
+                //        specs/vorago-phase9-cavern-space FR-043: the read site
+                //        is effectiveDampCoeff_, which equals dampCoeff_[i] by
+                //        plain assignment whenever no damper offset is published.
+                const float c = effectiveDampCoeff_[i];
                 filterState_[i] = (c * delRead[i]) + ((1.0f - c) * filterState_[i]);
                 const float damped = crossfade(filterState_[i], delRead[i], freezeRamp);
                 // --- 4: DC blocker (FR-016), crossfaded out the same way
@@ -4481,12 +4688,30 @@ private:
     std::size_t writePos_[kMaxChannels]{};
     float refDelaySamples_[kMaxChannels]{};             ///< reference length x (sr / 48000)
     alignas(32) float effectiveDelay_[kMaxChannels]{};  ///< current, Size + drift + breath scaled
+    /// The two endpoints of the PER-SAMPLE delay-read glide inside one control
+    /// chunk (specs/vorago-phase9-cavern-space, FR-023's rule applied to the
+    /// engine's own geometry). `chunkDelayEnd_` is the chunk's `effectiveDelay_`
+    /// and `chunkDelayStart_` is the previous chunk's, so the read length is a
+    /// continuous piecewise-linear function of the ABSOLUTE sample index rather
+    /// than a 64-sample staircase. See renderSlice step 1 for the measurement
+    /// that forced this.
+    alignas(32) float chunkDelayStart_[kMaxChannels]{};
+    alignas(32) float chunkDelayEnd_[kMaxChannels]{};
+    /// PrepareConfig::glideGeometryPerSample, latched at prepare().
+    bool glideGeometryPerSample_ = false;
     /// FR-033 step 2: round(effectiveDelay_), tracked while thawed and HELD from
     /// the moment setFreeze(true) skips updateGeometry(). The read length
     /// crossfades to this, so at freezeRamp == 1 every read is integer.
     alignas(32) float latchedDelay_[kMaxChannels]{};
     alignas(32) float feedbackGain_[kMaxChannels]{};    ///< Jot per-line absorption, FR-030
     alignas(32) float dampCoeff_[kMaxChannels]{};       ///< one-pole damping, FR-031
+    // --- damper offsets (specs/vorago-phase9-cavern-space) -------------------
+    /// Published per-line offsets in OCTAVES, FR-040. Zero unless a caller
+    /// publishes otherwise; cleared by prepare() and reset() (FR-047).
+    alignas(32) float damperOffset_[kMaxChannels]{};
+    /// What the :4283 one-pole actually reads, FR-043. Equal to dampCoeff_[i] by
+    /// plain assignment wherever damperOffset_[i] is 0 (FR-044).
+    alignas(32) float effectiveDampCoeff_[kMaxChannels]{};
     alignas(32) float filterState_[kMaxChannels]{};
     alignas(32) float dcBlockX_[kMaxChannels]{};
     alignas(32) float dcBlockY_[kMaxChannels]{};

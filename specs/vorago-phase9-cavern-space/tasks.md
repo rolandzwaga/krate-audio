@@ -253,7 +253,8 @@ may be edited by this task or any other in this phase.**
    `T60_dc = decaySeconds`, `gDC = pow(10, -3*m/(T60_dc*sr))`,
    `T60_nyq = T60_dc * pow(0.05f, damping)`, `gNyq = pow(10, -3*m/(T60_nyq*sr))`,
    `ratio = clamp(gNyq/gDC, 0, 1)`, `c = clamp(2*ratio/(1+ratio), 0.001f, 1.0f)` — and
-   `REQUIRE(getEffectiveDampingCoefficient(i) == c)` by **exact float equality**.
+   `REQUIRE` `getEffectiveDampingCoefficient(i)` within a **relative `1e-5`** of `c`
+   (amended 2026-09-17; `==` is unattainable — see SC-012 (a)).
    Then a **labelled smoke check**: a bare engine and one handed an all-zero 8-vector produce
    bit-identical output over a 10 s render (two runs of the same build; nothing is committed, so
    `tools/lint-float-bit-goldens.js` and the no-bit-exact-goldens rule are not engaged).
@@ -1111,6 +1112,13 @@ lane).
 ## T016 [P] — Perf TU: SC-009 (`[.perf]`)
 
 **Files edited:** `dsp/tests/unit/effects/cavern_verb_perf_test.cpp` (delete the T001 scaffold).
+
+**RULED AND APPLIED 2026-09-17 (after the build stage):** the step-1 measurement was taken alone and
+pinned, the four baselines are transcribed (129 150 / 190 343 / 117 604 / 125 485 ns/block), and arms
+(a), (c) and (d) are timed in one interleaved trial loop (`measureTrio`) because separate timing moved
+(c)/(d) by 16–20 % run to run against a 10 % relative window; the 1.10 tolerance is unchanged (spec
+SC-009, plan S12.2 record). The sketch below is what T016 built; the interleaving supersedes its
+per-arm `measureArm` for those three arms.
 
 **Test first** — `TEST_CASE("CavernVerb_CpuBudget", "[.perf][cavern]")`, inheriting the
 `dsp/tests/unit/effects/aether_reverb_perf_test.cpp:130-150` construction **verbatim** (verified this

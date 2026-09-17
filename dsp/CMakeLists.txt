@@ -179,6 +179,8 @@ set(KRATE_DSP_SYSTEMS_HEADERS
 # Layer 4: Effects
 set(KRATE_DSP_EFFECTS_HEADERS
     include/krate/dsp/effects/aether_reverb.h
+    # Vorago Phase 9 (specs/vorago-phase9-cavern-space), FR-001
+    include/krate/dsp/effects/cavern_verb.h
     include/krate/dsp/effects/bbd_delay.h
     include/krate/dsp/effects/digital_delay.h
     include/krate/dsp/effects/ducking_delay.h

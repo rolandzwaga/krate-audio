@@ -409,6 +409,18 @@ fixed points, no limit cycles shorter than N minutes), determinism harness, CPU 
 
 ### Phase 9: Cavern Space Engine
 
+**Status: ✅ COMPLETE (2026-09-17)** — see specs/vorago-phase9-cavern-space/compliance.md
+(104 of 104 items pass after eighteen main-loop rulings). `CavernVerb` is a header-only Layer 4
+insert that owns an `AetherReverb` by value and adds what Vorago needs: a twelve-tap cavern
+early-reflection stage from a coprime generating law (60–220 ms at the default size, per-tap
+geometric stone absorption, mono-sum source placed by side) that alone excites the late field; one
+`BrownianDrift` per delay line wandering its damping cutoff up to 1.5 octaves through a new
+append-only, default-inert `AetherReverb` per-line damper-offset extension; dark tuning with shimmer
+and bloom absent; freeze retained; equal-power mix over an aligned dry path; controls sliced on an
+absolute 64-sample grid. Measured 181 279–205 107 ns per 512-sample block for the worst arm against
+the 355 556 ns admissible baseline (5 % ceiling 533 333); SC-009's three compared arms are timed
+interleaved by ruling. Phase 10 wires it after the spectral smear.
+
 **Spec:** `vorago-phase9-cavern-space`
 **Depends on:** `AetherReverb` — **already built** (`dsp/include/krate/dsp/effects/aether_reverb.h`,
 Seraphis Phase 6); reuse it as the shared core.
