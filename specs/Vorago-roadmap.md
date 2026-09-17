@@ -111,7 +111,7 @@ Legend: ✅ = exists and is largely sufficient · 🔶 = exists, needs extension
 | L3 Resonance Network | `resonator_bank`, `modal_resonator_bank_simd`, `iresonator`, `timevar_comb_bank`, `sympathetic_resonance_simd` | 🆕 `ResonanceDriftNetwork` (L3): 12 peaks whose freq/Q/gain each wander via life modulators — thin composition of `ResonatorBank` + `BrownianDrift`; the banks themselves need no new DSP. |
 | L4 Spectral Smear | `STFT`, `spectral_buffer`, `spectral_simd`, spectral-blur stage inside `atmosphere_engine` (Seraphis Phase 5) | 🔶 Blur math exists but is embedded per-grain in AtmosphereEngine. 🆕 Extract standalone `SpectralSmear` (L2): bin-magnitude smearing + phase decoherence on a continuous stream. |
 | L5 Feedback Ecology | `feedback_network`, `flexible_feedback_network`, `filter_feedback_matrix`, `i_feedback_processor`, `crossfading_delay_line`, `dc_blocker` | 🔶 Single-loop infrastructure is mature. 🆕 `FeedbackEcology` (L3): 5–6 micro-loops (osc→filter→delay→resonator→back), cross-coupling matrix, per-loop tiny gain/mod, **global energy governor**. |
-| L6 Granular Ghosts | `systems/atmosphere_engine.h` (Seraphis Phase 5: self-granulating capture, 50 ms–30 s grains, spectral blur, per-grain pitch drift), `rolling_capture_buffer`, `reverse_buffer`, `grain_pool/scheduler/processor`, `slice_pool` | ✅ **~90% built.** 🔶 Add ghost-flavoured config: reverse playback per grain, event-triggered (not continuous-density) scheduling, darker blur defaults. |
+| L6 Granular Ghosts | `systems/atmosphere_engine.h` (Seraphis Phase 5: self-granulating capture, 50 ms–30 s grains, spectral blur, per-grain pitch drift), `rolling_capture_buffer`, `reverse_buffer`, `grain_pool/scheduler/processor`, `slice_pool` | ✅ **~90% built.** 🔶 Ghost-flavoured config (darker blur defaults, event-gated level) is Phase 10 configuration; reverse playback per grain and event-triggered (not continuous-density) scheduling are source changes owned by **Phase 10a** (ruled 2026-09-17, Phase 10 spec Q-B). |
 | L7 Harmonic Bloom | `harmonic_snapshot`, `spectral_coring_estimator`, `fft_autocorrelation`, `sympathetic_resonance_simd`; Seraphis Phase 6 plans in-loop shimmer/bloom | 🆕 `BloomEngine` (L3): analyze strongest current peaks → spawn child partials into the cloud → 45 s fade-in / 3 min fade-out lifecycle. Peak analysis and partial banks exist; the lifecycle manager is new. |
 | L8 Dark Modulation | **Seraphis Phase 1 suite ✅**: `brownian_drift` (Ornstein–Uhlenbeck), `tidal_modulator` (30 s–10 min never-repeating = "seasonal cycles"), `spline_trajectory`, `orbit_modulator`, `breathing_modulator`, `growth_envelope`; `chaos_mod_source` (Lorenz/Rossler/Chua/Henon), `random_source`, `sample_hold_source`, `modulation_engine`, `voice_mod_router` | ✅ **Almost entirely built.** 🆕 Only gaps: `PerlinNoiseSource` (L2, small) and optionally the Aizawa attractor added to `ChaosModSource`. |
 | L9 Space Engine | `fdn_reverb`, `reverb`, `diffusion_network`, `pitch_shift_processor`; **Seraphis Phase 6 `AetherReverb`** (ER→diffusion→FDN→spectral damping, freeze, life-modulated internals) is the same topology | 🔶 **Strategic reuse point:** `AetherReverb` is **already built** (`effects/aether_reverb.h`) and is the shared L4 space core; Vorago's "cavern" is a dark configuration + `MovingDampers` extension (per-line damping filters that wander). Avoid building two big FDNs. |
@@ -474,6 +474,29 @@ bit-exact goldens, project rule).
 
 ---
 
+### Phase 10a: AtmosphereEngine Ghost Extension
+
+**Spec:** `vorago-phase10a-ghost-extension`
+**Depends on:** Phase 10 (its polyphony ruling and global-stage CPU baseline); sequenced before
+Phase 14 so presets can use it.
+**Goal:** Deliver the two ghost-tap behaviours Phase 10 could not configure (ruled 2026-09-17, Phase 10
+spec Q-B): the shipped `AtmosphereEngine` has no reverse control and no event-trigger entry point.
+
+- Append-only extension of `systems/atmosphere_engine.h` on the `ContinuousBody` model: a per-grain
+  reverse flag read at grain birth (substrate: `primitives/reverse_buffer.h`; the component already
+  snapshots pitch, position and drift at birth), and an event-trigger entry point beside the density
+  scheduler so a `SlowEventScheduler` event spawns a grain instead of only raising the level.
+- Default-inert: with neither feature engaged the render is unchanged; Seraphis's suites stay green
+  with no test edited (the Phase 10 SC-016 gate shape).
+- The added CPU sits in Phase 10's **global** stage (the ghost tap is global by Phase 10's OQ-1
+  ruling) and is measured against Phase 10's checked-in global baseline.
+
+**Success criteria:** reverse grains measurably time-reversed against the capture; one grain per
+trigger call, bounded by the pool; default-inert render identity under `render_fingerprint.h`
+tolerances; Seraphis green with git-diff evidence; global-stage CPU delta recorded, ceiling unchanged.
+
+---
+
 ## Part B — Plugin (plugins/vorago/)
 
 Follows the Seraphis Part B template nearly verbatim — those phases were specified against the same
@@ -534,9 +557,9 @@ usual seconds). Release gate via `release-readiness` flow.
                   ├─→ Phase 3 (resonance drift) ─┤
 Phase 1           ├─→ Phase 4 (spectral smear) ──┤
 (events + ────────┼─→ Phase 5 (feedback ecology)─┼─→ Phase 10 (voice/engine) ─→ Phase 11 (scaffold)
- Perlin/Aizawa)   ├─→ Phase 6 (subharmonic) ─────┤            ▲                        │
-                  ├─→ Phase 7 (bloom) ───────────┤            │                        ▼
-                  └─→ Phase 8 (ecosystem) ───────┘            │           Phase 12 → 13 → 14
+ Perlin/Aizawa)   ├─→ Phase 6 (subharmonic) ─────┤            ▲         │              │
+                  ├─→ Phase 7 (bloom) ───────────┤            │         ▼              ▼
+                  └─→ Phase 8 (ecosystem) ───────┘            │   Phase 10a (ghost) → Phase 12 → 13 → 14
                                                               │
 AetherReverb ✅ (shipped) ─────────→ Phase 9 (cavern space) ───┘
 seraphis_voice/engine ✅ (shipped) ───────────────────────────┘  (pattern template, not code dep)
@@ -569,7 +592,7 @@ atmosphere engine) are consumed as-is from day one.
 - **Portability:** `node tools/check-portability.js` before commits; WSL probe for Linux doubts;
   aligned-load lint on any new SIMD.
 - **Naming:** `k{Section}{Parameter}Id`; standard parameter names from the project table.
-- **Shared-component changes** (AtmosphereEngine ghost config, ContinuousBody materials,
+- **Shared-component changes** (AtmosphereEngine ghost extension in Phase 10a, ContinuousBody materials,
   SubOscillator extension, AetherReverb extensions) must keep Seraphis's tests green — they are
   consumers of the same components.
 
