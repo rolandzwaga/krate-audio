@@ -150,7 +150,7 @@ public:
     ITERUM_NOINLINE void setStageTime(int stage, float ms) noexcept {
         if (stage < 0 || stage >= kMaxStages) return;
         if (detail::isNaN(ms)) return;
-        stages_[static_cast<size_t>(stage)].timeMs = std::clamp(ms, 0.0f, kMaxStageTimeMs);
+        stages_[static_cast<size_t>(stage)].timeMs = std::clamp(ms, 0.0f, maxStageTimeMs_);
 
         // FR-031: If this is the currently active stage, recalculate coefficients
         if (state_ == MultiStageEnvState::Running && stage == currentStage_) {
@@ -167,7 +167,7 @@ public:
         if (stage < 0 || stage >= kMaxStages) return;
         if (detail::isNaN(level) || detail::isNaN(ms)) return;
         stages_[static_cast<size_t>(stage)].targetLevel = std::clamp(level, 0.0f, 1.0f);
-        stages_[static_cast<size_t>(stage)].timeMs = std::clamp(ms, 0.0f, kMaxStageTimeMs);
+        stages_[static_cast<size_t>(stage)].timeMs = std::clamp(ms, 0.0f, maxStageTimeMs_);
         stages_[static_cast<size_t>(stage)].curve = curve;
     }
 
@@ -205,8 +205,34 @@ public:
 
     ITERUM_NOINLINE void setReleaseTime(float ms) noexcept {
         if (detail::isNaN(ms)) return;
-        releaseTimeMs_ = std::clamp(ms, 0.0f, kMaxStageTimeMs);
+        releaseTimeMs_ = std::clamp(ms, 0.0f, maxStageTimeMs_);
     }
+
+    // =========================================================================
+    // Per-instance stage-time ceiling (Vorago Phase 10 append, default-inert)
+    // =========================================================================
+
+    /// Raises (or lowers) the ceiling every later setStage / setStageTime /
+    /// setReleaseTime call clamps to. Defaults to kMaxStageTimeMs, so an
+    /// instance that never calls this behaves exactly as before the append:
+    /// Seraphis and Ruinae derive their parameter ranges from the constant and
+    /// are untouched. Applied at set time only - stage times already stored are
+    /// not re-clamped. NaN is ignored; negative values floor at 0.
+    void setMaxStageTimeMs(float ms) noexcept {
+        if (detail::isNaN(ms)) return;
+        maxStageTimeMs_ = std::max(ms, 0.0f);
+    }
+
+    [[nodiscard]] float getMaxStageTimeMs() const noexcept { return maxStageTimeMs_; }
+
+    /// The stage time the generator actually holds (post-clamp), in ms.
+    [[nodiscard]] float getStageTime(int stage) const noexcept {
+        if (stage < 0 || stage >= kMaxStages) return 0.0f;
+        return stages_[static_cast<size_t>(stage)].timeMs;
+    }
+
+    /// The release time the generator actually holds (post-clamp), in ms.
+    [[nodiscard]] float getReleaseTime() const noexcept { return releaseTimeMs_; }
 
     // =========================================================================
     // Retrigger Mode (FR-028, FR-029)
@@ -460,6 +486,7 @@ private:
     int loopStart_ = 0;
     int loopEnd_ = 0;
     float releaseTimeMs_ = 100.0f;
+    float maxStageTimeMs_ = kMaxStageTimeMs;  // per-instance ceiling, see setMaxStageTimeMs
     RetriggerMode retriggerMode_ = RetriggerMode::Hard;
 
     // Runtime state

@@ -88,7 +88,8 @@ authored, everything is grown.
 1. **Emergence over scripting.** The Ecosystem Engine (agents exchanging energy) and the Slow Event
    Engine (discrete scheduled happenings) are the identity layer — the analogue of Seraphis's
    spectral-morph layer. They ship as first-class DSP components, unit-tested for boundedness.
-2. **Few, enormous voices.** 4–8 voices. A drone instrument is played with one or two held notes;
+2. **Few, enormous voices.** 4–6 voices (Phase 10 ruling; 4–8 as first written). A drone instrument
+   is played with one or two held notes;
    per-voice CPU budget is correspondingly generous (~4–5% per voice vs Seraphis's ~3%).
 3. **All randomness bounded and slow.** Every stochastic process has hard bounds, mean-reversion,
    and slew limits. Feedback ecology has an energy governor. A drone left running overnight must
@@ -445,6 +446,13 @@ metallic ringing via echo-density metric) + damper-motion smoothness test, CPU �
 
 ### Phase 10: Vorago Voice & Engine
 
+**Status: ✅ COMPLETE (2026-09-22)** — see specs/vorago-phase10-voice-engine/compliance.md
+(129 of 131 items pass after twenty main-loop rulings; the two remaining rows are SC-008’s Gravity,
+Pressure and Mass macro axes, recorded FAILED by ruling with thresholds untouched and the fix deferred
+to Phase 12 as a product decision, and SC-016 clause 3, closed by Q-S on the paired ContinuousBody
+tables). Shipped polyphony 4, `kMaxVoices` 6, SC-001b gate 2 864 890 ns/block with the Cavern term =
+89.5 % of the 30 % ceiling, measured alone.
+
 **Spec:** `vorago-phase10-voice-engine`
 **Depends on:** all above; pattern-template from the shipped `seraphis_voice.h` / `seraphis_engine.h`
 / `seraphis_macro_matrix.h` (Seraphis Phase 7).
@@ -457,7 +465,8 @@ metallic ringing via echo-density metric) + damper-motion smoothness test, CPU �
 - Dark material data: Stone Chamber, Steel Tank, Wooden Hull, Cathedral Column, Cavern Wall, Glass
   Sphere — mode-ratio tables + frequency-dependent damping laws (Aramaki-style, the Membrum/
   Seraphis material pattern; this is data authoring + listening, not new DSP).
-- `VoragoEngine` (L3) — 4–8 voices (`VoiceAllocator`, quietest-steal with long-release amnesty),
+- `VoragoEngine` (L3) — 4–6 voices (ruled 2026-09-19 in the Phase 10 spec, Q-H: shipped polyphony 4,
+  `kMaxVoices` 6; was 4–8) (`VoiceAllocator`, quietest-steal with long-release amnesty),
   per-voice unique seeds, voice-sum → subharmonic engine → spectral smear → cavern space → output
   (`TapeSaturator` low drive + `TruePeakLimiter`).
 - **Concept macro system** (via `ModulationEngine` presets): Darkness, Age, Density, Movement,
@@ -467,8 +476,13 @@ metallic ringing via echo-density metric) + damper-motion smoothness test, CPU �
   ghost mix ↑ + distance filtering). Trim the list in-spec if some macros prove redundant in
   listening — 15 concepts is a ceiling, not a target.
 
-**Success criteria:** full-poly CPU: 8 voices everything-on ≤ 30% of one core @ 48 kHz (sets
-per-voice budgets with headroom); overnight soak render (8 h) bounded and non-static; macro sweeps
+**Success criteria:** full-poly CPU: **full polyphony** everything-on ≤ 30% of one core @ 48 kHz
+(sets per-voice budgets with headroom) — **"8 voices" as originally written became unreachable when
+Q-H ruled shipped polyphony 4 / `kMaxVoices` 6 two bullets above, so this line is amended to the
+same ruling and the Phase 10 spec splits it into SC-001a (measure, all of {1, 2, 4, 6, 8}, gates
+nothing) and SC-001b (the gate, at the ruled polyphony 4). The 30 % ceiling itself is untouched:
+measured 2 690 670 ns/block with the Cavern term = 84.1 % of `kReferenceNs`, i.e. 25.2 % of one
+core**; overnight soak render (8 h) bounded and non-static; macro sweeps
 render-verified along documented axes; determinism harness (`render_fingerprint.h` tolerances — no
 bit-exact goldens, project rule).
 

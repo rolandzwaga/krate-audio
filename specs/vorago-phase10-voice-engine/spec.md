@@ -18,9 +18,18 @@ session.
 
 **Layer:** three new **Layer 3** components in `dsp/include/krate/dsp/systems/` — `VoragoVoice`
 (`vorago_voice.h`), `VoragoEngine` (`vorago_engine.h`), `VoragoMacroMatrix`
-(`vorago_macro_matrix.h`) — **plus one append-only extension to the shipped Layer 3
-`ContinuousBody`** (the dark material table; justified in *Architecture ruling AR-4*, bounded by
-FR-030 – FR-039, gated by SC-016 and SC-025).
+(`vorago_macro_matrix.h`) — **plus two append-only extensions to shipped Layer 3 components**
+(amendment **A-13**, plan S14.1):
+
+1. **`ContinuousBody`** — the dark material table; justified in *Architecture ruling AR-4*, bounded
+   by FR-030 – FR-039, gated by SC-016 and SC-025.
+2. **`FeedbackEcology`** — one appended public method, `void silenceAudio() noexcept`, the RT-safe
+   half of `reset()` (which the component itself documents as a control-thread call,
+   `feedback_ecology.h:861-862`), required by the voice's steal and non-finite-recovery paths
+   (plan B-7, FR-005, FR-072). **Zero deleted lines**, no new class, member, enumerator or constant.
+   **SC-016's Seraphis gate does not widen to cover it**: `FeedbackEcology` has no Seraphis
+   consumer — a repo-wide sweep finds only Vorago Layer 3 peers, `dsp/lint_all_headers.cpp` and its
+   own five test TUs — so its green gate is its own suites, not `seraphis_*`.
 
 **Test target:** `dsp_systems_tests` — an **enumerated, not globbed** source list opening at
 `add_executable(dsp_systems_tests` (`dsp/tests/CMakeLists.txt:324`). A TU that is not listed there
@@ -155,7 +164,7 @@ FR-081 and drives **Open Question 1**.
   ecosystem stays **per-voice** (voices diverge; roadmap line 390's agent counts stand; L-2
   rejected). Shipped polyphony is **not** ruled here: the plan runs the FR-082 stage-cost probe
   first, then presents the measured per-voice and global table with a recommended shipped polyphony
-  and `kMaxVoices` (ceiling 8) as a plan-stage ruling for the user. The 30 % ceiling,
+  and `kMaxVoices` (ceiling 8; ruled 6 at Q-H) as a plan-stage ruling for the user. The 30 % ceiling,
   `kRegressionFactor` 1.5 and the ban on relaxing thresholds or shrinking workloads all stand.
   [FR-002, FR-041, FR-056, FR-020b, FR-081, SC-001a]
 - **OQ2 (roadmap Open Question 6 / spec OQ-2) — macro roster.** Confirmed at twelve: `Darkness, Age,
@@ -178,6 +187,168 @@ FR-081 and drives **Open Question 1**.
   forward-declared in `vorago_engine.h` and defined in the test TU, in the shipped
   `SeraphisEngineNonFiniteProbe` shape; no `KRATE_DSP_VORAGO_TEST_HOOKS` compile definition, because
   the class definition does not change. FR-087's wording is amended at T002. [FR-087, SC-021]
+- **Q-D (plan-stage) — what parent count the voice hands `BloomEngine::processChunk`, and when
+  FR-011's `count` equals `getActivePartialCount()`.** The count handed to
+  `BloomEngine::processChunk` is `reserveBase()` (`bloom_engine.h:710`), **never**
+  `getActivePartialCount()` — handing the active count would overrun the component's reserved
+  region and destroy `getOverlapEngagementCount()`'s meaning as a real signal. Because the voice
+  keeps `setCapacity` at `clamp(getActivePartialCount(), kMinCloudCapacity, kMaxPartials)`,
+  `count == getActivePartialCount()` holds whenever richness keeps the active count at or above
+  `kMinCloudCapacity = 14`. FR-011/FR-012's wording is amended at T002. [FR-011, FR-012, SC-018]
+- **Q-E (build-stage, T012) — FR-015's mono-sum clauses.** The clauses as written (mono-fold
+  deviation ≤ 3.0 dB, and ≥ 6 dB better than a **one-sample**-delay pair) are unsatisfiable by
+  construction: the fold is `2|cos(Δφ/2)|`, a unit delay reaches only 60° at 8 kHz and so barely
+  folds (measured 1.25 dB), and even a perfect quadrature network folds a constant 3.01 dB.
+  Measured on the shipped pair: 3.66 dB at 8 kHz; adding sections makes it worse (4.48 / 4.68 dB).
+  Ruled 2026-09-18: **keep the code**; the bound becomes **≤ 4.0 dB** over [20 Hz, 8 kHz], and the
+  comparator becomes the **1 ms fractional-delay pair** FR-015's prose names (measured 19.19 dB at
+  465 Hz on the test's bin grid), at least 6 dB better. Per-channel flatness ≤ 0.01 dB stands.
+  [FR-015, SC-021]
+- **Q-F (build-stage, T009) — `kNumMaterials` sites outside FR-038's list.** Four more exist:
+  `continuous_body_spectral_test.cpp` (three count-sized arrays, silent zero-fill), and in the
+  **shipped Seraphis plugin** `dropdown_mappings.h` (the ID 800 label list and index clamp) and
+  `param_perf_test.cpp` (a `static_assert` plus three count-sized arrays and two loops). Ruled
+  2026-09-18: Seraphis's Body Material dropdown **stays at five**; every one of those sites is
+  re-pointed at `kNumSeraphisMaterials` (FR-038a). ID 800's step count and normalised mapping are
+  host-visible and do not move. FR-038's table gains rows 8–11; SC-016 gains clause 5. [FR-038,
+  SC-016]
+- **Q-G (build-stage, T010) — the envelope components' ceilings.** `MultiStageEnvelope` clamps
+  every stage and the release to `kMaxStageTimeMs = 10 000 ms` and `GrowthEnvelope` clamps its
+  duration to `kMaxDuration = 60 s`; FR-014's 20 s / 30–60 s / 45 s shape and FR-090's 120 s growth
+  ran clamped while the voice's getters reported the authored numbers. Seraphis derives parameter
+  ranges from both constants, so widening them is host-visible. Ruled 2026-09-18: **append-only
+  per-instance ceiling setters** — `MultiStageEnvelope::setMaxStageTimeMs` (plus `getStageTime` /
+  `getReleaseTime` / `getMaxStageTimeMs`) and `GrowthEnvelope::setMaxDuration` / `getMaxDuration` —
+  defaulting to the shipped constants. `VoragoVoice::prepare()` raises them to
+  `kEnvelopeMaxStageTimeMs = 120 000 ms` and `kGrowthMaxDurationSeconds = 120 s` before authoring
+  a stage; `envelope().getStageTime(st)` now reads back FR-014's table. Two more shared-component
+  changes under SC-016's expected-deletion bar. [FR-014, FR-090, SC-016]
+
+### Session 2026-09-19 (build stage, after the first full [long] and isolated perf runs)
+
+- **Q-H (Q-A / OQ-1(a)) — shipped polyphony and `kMaxVoices`.** Measured P-core-pinned and alone:
+  V = 506 961 ns per voice, L = 12 692 per idle slot, G = 404 518 global, CavernVerb 124 497.
+  Polyphony 4 everything-on = 2 704 220 ns/block = 25.4 % of one core, inside roadmap line 470's
+  30 % ceiling; it fails only SC-001b's clause (ii) (baseline ≤ ceiling/1.5). Ruled: **shipped
+  polyphony 4, `kMaxVoices = 6`** (roadmap line 460's "4–8" becomes "4–6"), no voicing levers
+  (L-3 refused, L-4 held in reserve), and SC-001b clause (ii) **reformulated**: the gate is
+  measured ≤ `kReferenceNs` AND measured ≤ checked-in baseline × `kRegressionFactor`; the baseline
+  is ceil(measured × 1.05) and may sit above `kMaxAdmissibleNs`, which is recorded as the
+  regression headroom actually available (the ceiling binds first). The baseline is transcribed
+  from a re-measurement taken after a restart and cool-down, not from the warm-machine survey.
+  **Transcribed 2026-09-21** (P-core-pinned, `[.perf]` cases only, run alone after a restart and a
+  15-minute idle): engine at polyphony 4 = 2 566 170 ns/block (2 690 670 with the Cavern term,
+  84.1 % of the reference; the warm survey's 2 579 723 agrees within 0.6 %). Checked-in baseline
+  `kEngineBaselineNsAtPoly4 = 2 694 479` (engine term only; the Cavern term is the Phase 9
+  constant). Available regression headroom before the ceiling trips: 1.141× of the baseline. A
+  run of the same lane started two minutes after a 25-minute test lane, with the survey placed
+  after three accelerated soaks, read 2 757 260 (+7.4 %) and was not transcribed — the protocol's
+  "after a restart and cool-down" is load-bearing.
+  [FR-041, FR-081, SC-001a, SC-001b]
+- **Q-I — SC-004b settle-window tolerance.** The 10 s moving-average monotone clause carries a
+  stated tolerance of **0.1 dB** (2.28 % in mean-square). The test's 1e-9 epsilon failed on a
+  single 0.25 % (0.011 dB) dip during the attack of a chaotic drone; the clause's intent is a rise,
+  not a collapse, and 0.1 dB still fails any real sag. [SC-004b]
+- **Q-J — SC-005 centroid CV shortfall (0.031 vs 0.05 on all three seeds).** Ruled: probe the
+  shipped travel levers with accelerated renders, raise FR-090's defaults where a lever moves the
+  CV, and re-soak once. Recorded below when the probe lands. [SC-005, FR-090]
+- **Q-K — SC-016 clause 3.** The pre-change survey (T001) was captured on a heat-soaked machine
+  with ten unrelated timing reds; every Seraphis figure read 8–27 % higher than the isolated
+  post-change run and the argmax (Chamber vs Strings) is inside a 3.3 % gap. Ruled: re-capture
+  **both** surveys in one thermal state (the pre-change tree from a worktree at `ad7481f6`, then
+  the post-change tree, each alone), and clause 3 becomes **noise-robust**: the argmax stays within
+  the five Seraphis materials AND no Seraphis material's figure moves by more than **10 %** between
+  the pair. [SC-016]
+- **Q-L — B-7's 10× clearing-path ratio.** `silenceAudio()` wipes the same delay memory
+  `FeedbackEcology::reset()` does, so the RT-safe paths differ from `reset()` by one small call
+  (measured 23.4 µs vs 37.3 µs at 48 kHz). The ratio clause rested on a false premise and is
+  **dropped**; each RT-safe path must be no dearer than `reset()` and must fit one 64-sample control
+  chunk at both rates (the absolute clause, which passed by 50×). [FR-013, plan B-7]
+- **Q-M — SC-026 (a)/(b) construction.** As literally written they contradict FR-046/SC-030 (an
+  idle slot's identity layer keeps advancing so a re-triggered voice never starts cold). Ruled:
+  (a) and (b) rewind with `VoragoEngine::reset()` before the replay, which restores run state
+  without re-deriving slot seeds — so a note cycle that consumed or advanced a slot seed would
+  replay differently, which is what the criterion tests. The stale "noteOn re-derives run state"
+  sentences in `vorago_engine.h` and plan.md are corrected. [SC-026, FR-046, FR-048]
+- **Q-N — SC-008 rows after the first sweep.** Life's `EventRateScale` row carried an inverted
+  sign (fixed: the voice divides the interval ranges by the scale); Movement's amounts were
+  retuned to the component ceilings; Age, Entropy and Life gained measurement constructions that
+  can see them (a C4 note for Age, a harmonic-band flatness for Entropy, a 210 s render with the
+  edge count over [90 s, 210 s] for Life). Ruled for the rows still short: **Darkness, Mass and
+  Fog** get metrics that can see the concept on this instrument (energy ratio above/below 4·f0;
+  energy below 80 Hz plus readbacks; harmonic-band flatness plus readbacks) with thresholds
+  derived from a probe and recorded; **Gravity and Pressure** are recorded as **failed**, thresholds
+  untouched (the keyed ratio table caps Gravity's air/stone endpoint at 24 % in theory, 18 %
+  measured, against 30 %; saturation moves the crest of a sub-plus-fundamental beat by 0.4 dB
+  against 3 dB) — a Phase 12 product decision, never a threshold move. [SC-008]
+- **Q-O — SC-008 Depth (composed).** The wet/dry RMS share cannot see decay time on this drone:
+  its energy sits at 16–65 Hz, below the cavern FDN's DC-blocker corner, so decay is invisible even
+  at the 60 s clamp and a larger size lowers steady-state energy. Ruled: the Depth metric becomes
+  the **post-note-off tail** (time for the composed output to fall 30 dB after note-off), which
+  `CavernDecaySeconds` moves directly; monotone positive with an endpoint derived from a probe.
+  Amends A-1. [SC-008]
+- **Q-Q — the post-note-off sub floor.** Measuring Depth's tail exposed a −20 dB floor that never
+  decays: FR-090 shipped sub tracking at 0.60, leaving 40 % of the sub level static and independent
+  of the voice envelope (the component's own default is 1.0). Ruled: **sub tracking ships at 1.0**
+  (the subs follow the voice-sum envelope and decay with the tail), and the Mass → SubTrackingAmount
+  row becomes a claim row (amount 0). With the subs fully tracked no Mass row can raise the < 80 Hz
+  band (measured −0.35 dB endpoint, rho −1.0), so **Mass is recorded as failed** alongside Gravity
+  and Pressure. [FR-090, SC-008]
+- **Q-R — SC-005 levers (closing Q-J).** Probed on an exact harness of the test's statistic:
+  drift depth, breathing, tidal, wander rates, bloom, smear, blur and ghost move the full-band
+  centroid CV by ≤ 0.01; the centroid sits at 47 Hz, pinned by the subs and fundamental exactly as
+  SC-008's Darkness row was. Ecosystem depth 0.50 → **0.85** is the largest admissible lever (1.0
+  pins the cloud mutation clamp and breaks Entropy's folded clause) and measures CV 0.0509 / 0.0490 /
+  0.0499 unaccelerated over 8 h — a coin flip against 0.05. Ruled: FR-090 ships ecosystem depth
+  0.85, and **SC-005's centroid is computed on the band above 4·f0** (sub-immune, the Darkness
+  construction); the 0.05 bar is unchanged. Measured on the same harness after the change, 8 h
+  unaccelerated at depth 0.85: CV **0.168 / 0.165 / 0.187**, worst autocorrelation 0.36 at lag 2
+  (60 s); at the old depth 0.50, seed 1 reads 0.122. [SC-005, FR-090]
+- **Q-P — SC-015 materials.** All six were separated by alpha alone (minimum pair separation 0.08,
+  all below Glass 899.6 Hz); no material dropped. Measured under SC-015's construction: raising
+  `b1` **brightens** the centroid, so the FR-035 note's "alpha and b1" lever is corrected to alpha.
+  [FR-035, SC-015]
+
+### Session 2026-09-21 (build stage, after the restart and the cooled re-measurement)
+
+- **Q-S — SC-016 clause 3's measuring TU (closing Q-K).** Q-K's paired capture was taken seven
+  times, in both orders (pre-first ×4, post-first ×3), each survey alone and P-core-pinned. The
+  `seraphis_perf_test.cpp` material survey (best-of-16 × 200 blocks) scatters ±20 % between
+  identical-code runs of the **same** tree, and the untouched pre-change tree failed its own
+  composition-ratio gate in two of three runs (1.21, 1.29 against 1.10) — so its per-material
+  medians (Glass −4 %, Strings +2 %, MetalPlate +16 %, Chamber +15 %, Ice +17 %) measure the
+  machine, not the header. `ContinuousBody_CpuBudget` measures the same standalone body at the
+  same five materials with best-of-25 × 500 in three configurations; its paired tables read **fourteen of
+  fifteen** Seraphis figures within ±3 % between the trees on the cleanest pair (steady / operating /
+  crossfade, post-first, `cbpair7`); the fifteenth is MetalPlate’s operating row, 49 459 pre vs 39 671
+  post (−19.8 %), where the **pre** side is the outlier — the same row reads 38 390 and 38 936 in the
+  other two pre captures, and the post side matches them — and a fourth pair showed a uniform +25 % step on **every** material in
+  one table and none in the next — a load burst, not a material. Seraphis's 8-voice headline is
+  within 1.5 % across all pairs and the argmax stayed within the five in every capture. Ruled:
+  clause 3's per-material 10 % comparison is taken from **`ContinuousBody_CpuBudget`'s paired
+  tables**, the survey's medians and the 8-voice headline are reported alongside, and the argmax
+  clause is unchanged. No threshold moved. [SC-016]
+
+### Session 2026-09-22 (build stage, after the workflow’s compliance pass)
+
+- **Q-T — FR-006’s literal total and the widened header set.** The workflow’s remediation agent closed
+  FR-006 (“`getAllocatedBytes()` reports the prepare-time total”) by appending `const noexcept`
+  `getAllocatedBytes()` getters down the chain the voice’s two `ContinuousBody` instances own:
+  `primitives/delay_line.h` (the only true allocator, `buffer_.capacity() * sizeof(float)`),
+  `primitives/comb_filter.h`, `processors/diffusion_network.h` (stage and network),
+  `processors/waveguide_string.h`, `systems/timevar_comb_bank.h` and `systems/continuous_body.h`, with
+  the voice sum at `vorago_voice.h` including both bodies (engine total 7 974 936 → 10 924 056 bytes,
+  still invariant across render / noteOff / silence / steal / recovery / reset,
+  `VoragoVoice_AllocationAccounting`). That is **five shared headers outside the phase’s enumerated
+  set**, one of them Layer 1 and consumed by every plugin — a scope widening the phase did not
+  announce. Verified before the ruling: every edit append-only (0 deletions; `continuous_body.h` still
+  exactly the two FR-039 deletions, `check-seraphis-green` in scope), none on an audio path, the
+  core / primitives / processors / shared / seraphis / systems / effects per-push suites green,
+  clang-tidy 0 / 0, lint-layers and lint-odr clean. Ruled: **accepted**; the widened set is named here
+  and in the commit. The same pass also amended FR-069 (a non-finite macro write keeps the previous
+  value), FR-021 (routing depth per destination, `setEcosystemDepthFor`), FR-083/FR-086/FR-068 text,
+  and roadmap line 470’s “8 voices” wording to the Q-H ruling — each under the spec’s own FR text,
+  no threshold moved. [FR-006, FR-021, FR-069, SC-016]
 
 Every question the pre-clarification scan raised is answered above; downstream stages (plan, tasks,
 comply) read the FR/SC updates this session made, not this log.
@@ -335,6 +506,19 @@ compiling:
   that a Vorago requirement with a Vorago lever (re-voice or drop the material), never a baseline
   move.
 
+**A-13 — this phase makes *two* append-only shared-component changes, not one.** AR-4 is the first.
+The second is `FeedbackEcology`, which gains exactly one appended public method,
+`void silenceAudio() noexcept` — the RT-safe half of `reset()`, which the component's own comment
+declares a control-thread call (`feedback_ecology.h:861-862`) and whose per-loop `delay.reset()`
+`std::fill` the component itself quantifies at 131 072 B at 48 kHz and 524 288 B at 192 kHz, one
+131 KB fill alone exceeding the control-chunk budget (`:2401-2412`). The voice's steal path and
+FR-072's deferred non-finite recovery are audio-thread paths (plan B-7) and may not reach `reset()`.
+The change adds **no** class, member, enumerator or constant and deletes **zero** lines, so
+`tools/lint-odr.js` sees nothing new. **SC-016's Seraphis gate does not widen to cover it**:
+`FeedbackEcology` has no Seraphis consumer (repo-wide sweep: only Vorago Layer 3 peers,
+`dsp/lint_all_headers.cpp` and its own five test TUs include it), so its green gate is its own
+`FeedbackEcology*` suites, not `seraphis_*`. Assumption 2 is amended to match.
+
 ### AR-5 — The voice envelope gates the **excitation**, not the voice output
 
 Roadmap line 456 lists "voice envelope" last in the voice's arrow chain. Applying a gate there would
@@ -418,7 +602,7 @@ Every signature below was read in the header at the cited line this session and 
 | `VoragoMacroValues` (struct) | 3 | same header | **0 matches** |
 | `VoragoCavernTargets` (struct) | 3 | same header | **0 matches** (swept as `VoragoCavernTargets`; the `SeraphisAetherTargets` analogue) |
 | `detail::VoragoVoiceSilenceRampProbe` | 3 | `vorago_voice.h` | **0 matches** |
-| `detail::VoragoEngineNonFiniteProbe` | 3 | `vorago_engine.h` | **0 matches**. Compiled **target-wide** on `dsp_systems_tests` under `KRATE_DSP_VORAGO_TEST_HOOKS` (FR-087); exercises FR-072 for SC-029 |
+| `detail::VoragoEngineNonFiniteProbe` | 3 | `vorago_engine.h` | **0 matches**. A `detail`-namespace friend struct **forward-declared** in `vorago_engine.h` and **defined in the test TU** (`vorago_nonfinite_test.cpp`), in the `seraphis_engine.h:193-195` shape — **no compile definition** (Q-C, FR-087); exercises FR-072 for SC-029 |
 
 **Near-name hazards checked** (roadmap line 128 names the long list): `ResonatorBank`,
 `FeedbackNetwork`, `NoiseGenerator`, `GranularEngine`, `PatternScheduler` all exist and are **not**
@@ -427,7 +611,8 @@ used as new names here. No new class in this phase reuses any existing identifie
 
 **No new class names are added to `ContinuousBody`.** AR-4's change appends **enumerators** and
 **table rows** to existing class-scoped entities; `MaterialProfile` (`continuous_body.h:653`) is
-reused as-is.
+reused as-is. **Nor to `FeedbackEcology`** (A-13): its change appends one public **method**,
+`silenceAudio()`, and no class, member, enumerator or constant.
 
 ---
 
@@ -464,6 +649,34 @@ reused as-is.
   output (`seraphis_voice.h:424`, `:155`) so a steal completes inside one control chunk.
 - **FR-006** Every method other than `prepare()` is `noexcept`, allocation-free and lock-free.
   `getAllocatedBytes()` reports the prepare-time total and is unchanged by any subsequent call.
+
+  **"The prepare-time total" is literal, and the sub-components had to be made able to say it
+  (2026-09-22).** Of the voice's members only `NoiseOrganism`, `FeedbackEcology`,
+  `ResonanceDriftNetwork`, `BloomEngine` and `EcosystemEngine` published a figure; the voice
+  summed those five and its own getter said so, describing itself as *incomplete by construction*.
+  That is a partial figure, not a total. The one real gap was `ContinuousBody` — **two** per voice,
+  each holding a waveguide, a comb bank and the decay cloud's delays and diffusion. It now publishes
+  its own figure, via a `getAllocatedBytes()` added down the chain it owns: `DelayLine` (the only
+  true allocator — `buffer_.capacity() * sizeof(float)`), `FeedbackComb`, `DiffusionNetwork`'s
+  `AllpassStage`, `DiffusionNetwork`, `WaveguideString`, `TimeVaryingCombBank`, `ContinuousBody`.
+  The seven remaining voice members (`HarmonicCloud`, `MultiStageEnvelope`, `GrowthEnvelope`,
+  `SlowEventScheduler`, `BreathingModulator`, `TidalModulator`, and this class's own arrays)
+  reach no allocator at all — every one of those headers declares only `std::array` and scalar
+  members and names no `std::vector`, `new` or allocator — so they contribute a provable zero and
+  the sum is the whole figure. `VoragoVoice_AllocationAccounting` asserts it as an **exact
+  equality** against the per-sub-component sum with a non-vacuity floor on each heap-owning part, so
+  a member dropped from the sum is red.
+
+  **SC-016 scope:** `continuous_body.h` gains a public `const` getter — **append-only**, zero
+  deletions, no change to any Seraphis-observable behaviour, and `node tools/check-seraphis-green.js`
+  still reports the required exactly-two deletions. The other six are Layer 0–2 primitives gaining
+  the same kind of inert `const` getter.
+
+  This does **not** displace SC-014: an invariant total proves nothing was *resized*; `AllocationScope`
+  proves nothing was *allocated*. Both still run. The **engine**'s `getAllocatedBytes()` stays
+  explicitly partial — `AtmosphereEngine`, `SubharmonicEngine` and `TruePeakLimiter` publish no
+  figure — because this requirement words the total clause on the **voice**; the engine getter carries
+  only SC-004a/SC-004b's invariance clause, which a partial-but-stable figure satisfies.
 - **FR-007** `kControlChunkSamples = 64`, matching `HarmonicCloud`, `ContinuousBody`,
   `AtmosphereEngine`, `NoiseOrganism`, `ResonanceDriftNetwork`, `FeedbackEcology`, `BloomEngine`
   and `EcosystemEngine` (all cited in the *Existing components* table). The voice **never renders a
@@ -520,6 +733,11 @@ reused as-is.
 - **FR-012** `BloomEngine::setCapacity()` is kept equal to the parent count the voice publishes, and
   `setConsumerTiltDb()` is kept equal to the cloud's current `getSpectralTiltDb()`, at every control
   step in which either changes. `reserveBase()` never exceeds `HarmonicCloud::kMaxPartials`.
+  **(Q-D)** The parent count the voice hands `BloomEngine::processChunk` is `reserveBase()`
+  (`bloom_engine.h:710`), never `getActivePartialCount()`, and — because `setCapacity` is kept at
+  `clamp(getActivePartialCount(), kMinCloudCapacity, HarmonicCloud::kMaxPartials)` — FR-011's
+  `count == getActivePartialCount()` holds whenever richness keeps the active count at or above
+  `kMinCloudCapacity = 14`.
 - **FR-013** Voice lifecycle: `noteOn(float frequencyHz, float velocity)` retunes the cloud
   (`setFundamentalHz`), both bodies (`setNoteFrequencyHz`) and the resonance network
   (`setNoteFrequency`), and gates the envelope; `noteOff()` releases the envelope **only**.
@@ -544,6 +762,22 @@ reused as-is.
   **release 45 s**. `Growth` multiplies the stage envelope by `GrowthEnvelope::getCurrentValue()`,
   held across the chunk (`seraphis_voice.h:1064-1072`). Like FR-017's ghost values and FR-061's
   macro neutrals, these three numbers are a block FR-090 may only **reproduce**, never re-derive.
+
+  **(A-4) "The 4-stage `MultiStageEnvelope`" means four *pre-sustain* stages, not a stage count of
+  four.** The shipped configuration is `kEnvelopeStages = 6` with `kEnvelopeSustainPoint = 4`: the
+  four pre-sustain stages at indices 0–3 (attack plus three body stages) are followed by a **0 ms
+  sustain-hold at index 4** and a **0 ms post-sustain stage at index 5**, both required by
+  `MultiStageEnvelope::advanceToNextStage()`'s contract. This is a restatement of what FR-014 always
+  meant, not a change: the attack, stage range and release numbers above are untouched, and FR-090's
+  table reproduces all six rows.
+
+  **(Q-G) The shape actually runs.** `MultiStageEnvelope` ships a 10 s per-stage ceiling and
+  `GrowthEnvelope` a 60 s duration ceiling; both components gain an append-only, default-inert
+  per-instance ceiling setter, and `VoragoVoice::prepare()` raises this instance's ceilings
+  (`kEnvelopeMaxStageTimeMs = 120 000 ms`, `kGrowthMaxDurationSeconds = 120 s`) **before** it
+  authors a stage. The generator's own `getStageTime()` / `getReleaseTime()` and
+  `growth().getDuration()` therefore read back this table, and `VoragoVoice_EnvelopeShapeIsShipped`
+  pins the generator, not only the voice's shadow arrays.
 - **FR-014a** **The fast-attack test fixture (Q5).** Because FR-014's drone envelope has a 20 s
   attack, several criteria need a render that reaches full level inside a short window without
   altering the shipped character. **One** named fixture, `kFastAttackEnvelopeConfig` —
@@ -557,8 +791,12 @@ reused as-is.
 - **FR-015** The noise organism is summed into the excitation bus at a settable level and stereo
   placement. Its output is **mono** (`noise_organism.h:414`); the voice decorrelates it to stereo by
   a **fixed 2nd-order all-pass filter pair** (Q8) — one biquad per channel, **different, named
-  `constexpr` coefficients per channel**, stated in the header — producing a **flat mono magnitude
-  response** (unlike a fractional-delay pair, which comb-filters on the mono sum). Allocation-free,
+  `constexpr` coefficients per channel**, stated in the header, with the right channel additionally
+  delayed by one sample (plan B-3) — **per-channel magnitude exactly flat** (≤ 0.01 dB), and a
+  **bounded mono sum**: the mono-fold deviation over [20 Hz, 8 kHz] is **≤ 4.0 dB** and at least
+  **6 dB better** than a 1 ms fractional-delay pair, which comb-filters on the mono sum (Q-E: a flat
+  mono sum is unattainable with two sections, and the earlier 3.0 dB / one-sample-delay clauses were
+  unsatisfiable by construction; measured 3.66 dB at 8 kHz on the shipped pair). Allocation-free,
   sized at `prepare()`, two biquads per voice.
 - **FR-016** `ResonanceDriftNetwork` ships in **`AnchorMode::Hybrid`** (not `Keyed`) — the only mode
   that consumes `setGravity` (`resonance_drift_network.h:1412-1437`) — with `setNoteFrequency`
@@ -627,6 +865,22 @@ reused as-is.
 - **FR-021** Routing depth is a per-destination scalar in `[0, 1]`; at depth 0 every destination
   reads its configured base value and the ecosystem changes nothing. An unprepared or zero-agent
   ecosystem is neutral.
+
+  **"Per destination" is the `EcosystemEngine::Kind` roster, and it is literal (2026-09-22).** The
+  destinations are exactly the five kinds the routing already indexes — `Partial` → cloud mutation
+  and bloom depth, `Resonator` → peak wakes, `Noise` → source wakes, `Feedback` → loop wakes,
+  `Ghost` → the FR-020b ghost request (`slotCountForKind()`, `vorago_voice.h`) — so the depth is
+  `std::array<float, EcosystemEngine::kNumKinds>` and is applied per kind where the lane is stored.
+  An earlier draft carried **one shared scalar** and leaned on the per-destination wake **bases**
+  (`noiseWakeBase_` / `peakWakeBase_` / `loopWakeBase_`) to satisfy this sentence; the bases are a
+  different quantity, and the sentence says *depth*. `setEcosystemDepth(d)` writes all five — how
+  every shipped caller uses it, prepare()'s FR-090 default and the `Life` macro row's
+  `EcosystemDepth` target included — and `setEcosystemDepthFor(kind, d)` moves one alone, with
+  FR-071's index and non-finite rules. `getEcosystemDepth()` reports the **maximum** over the five,
+  so a caller using only the scalar setter reads back exactly what it wrote (SC-009's
+  `base == getter-after-prepare()` row) and "is anything routed at all" stays one call. Asserted by
+  `VoragoVoice_AgentReductionRule`, section *"FR-021: the depth is PER DESTINATION"*, which a single
+  shared scalar fails.
 - **FR-022** `kNumEventSchedulers = 2` (Q7): a **fast** `SlowEventScheduler` with
   `setIntervalRange` in **20–90 s** and a **slow** one in **3–10 min**, each with its own derived
   seed, `setBipolarProbability(0)` (every event is a **positive wake** — sleep events are out of
@@ -658,6 +912,18 @@ reused as-is.
   0, summed with the `Gravity` macro per FR-016 — **not** `HarmonicCloud::setSpectralGravity`, Q4)
   and `TidalModulator` drives the smear/fog macro depth the voice publishes (roadmap line 257: "fog
   rolls in via `TidalModulator`"). Both are advanced once per chunk with `processBlock(64)`.
+
+  **(A-12) Neither lane carries a voice-side depth factor, and both are observable.** `BreathingModulator`
+  and `TidalModulator` each scale their own output internally through `setDepth`
+  (`breathing_modulator.h:177`, `tidal_modulator.h:209`), so a second multiply in the voice would be
+  a duplicate depth control the spec never asked for and a value neither component's getter would
+  report. The voice therefore publishes what it routes, unscaled: the breathing lane as the value it
+  sums into `ResonanceDriftNetwork::setGravity` (base 0, FR-016), and the tidal lane as a **net**,
+  `max(0, ·)`, because the smear/fog macro depth it feeds is unipolar and a negative tide would
+  subtract from the macro rather than roll fog in. Both become observable through
+  `VoragoVoice::getBreathingGravityLane()` and `VoragoVoice::getTidalFogDepth()`, which is what lets
+  SC-008's `Entropy` folded clause read "the life-modulator depths" off the product instead of
+  inferring them from the render.
 
 ### FR-030 series — Dark materials and the two-body blend (roadmap lines 457–459, 122)
 
@@ -693,7 +959,8 @@ reused as-is.
   64-sample staircase — the same zipper SC-010 guards for macros — and SC-017's endpoint and
   ramp-return clauses would not see it, so **SC-017a** measures it directly.
 - **FR-038** **Every site sized or pinned by `kNumMaterials` is updated in the same change.** There
-  are **seven**, in three files, and they do **not** all take the same treatment. Four of them are
+  are **eleven**, in six files (Q-F widened the original seven-in-three), and they do **not** all
+  take the same treatment. Four of them are
   `constexpr std::array<…, ContinuousBody::kNumMaterials>` written with exactly five initialisers:
   raising the count leaves them **compiling** and zero-filled, which is silent UB (six `Glass`
   entries, six null `const char*`), not a build break. Enumerated:
@@ -707,6 +974,10 @@ reused as-is.
   | 5 | `continuous_body_test.cpp:1082` | `REQUIRE(CB::kNumMaterials == 5u)` | becomes `== 11u` |
   | 6 | `seraphis_perf_test.cpp:419` | `static_assert(kNumMaterials == 5, "SC-001 measures all five materials and uses the worst")` | **re-pointed at `kNumSeraphisMaterials`** (FR-038a), message unchanged in substance |
   | 7 | `seraphis_perf_test.cpp:571` + `:579` + `:654` + `:662` + `:1196` | `kMaterials`, `kMaterialNames`, `MaterialSurvey::nsPerBlock` and both loops, all sized/bounded by `kNumMaterials` | **re-sized/re-bounded to `kNumSeraphisMaterials`**; the five initialisers and their content are **unchanged** (FR-038a) |
+  | 8 | `continuous_body_spectral_test.cpp:202` + `:210` + `:1457` | `kAllMaterials`, `kAllNames`, `kExpectedT60` and every per-material result array, sized by `kNumMaterials` with five initialisers | **re-sized to `kNumSeraphisMaterials`** with a `static_assert(kNumSeraphisMaterials == 5)`; SC-003's thresholds were measured over the five (Q-F) |
+  | 9 | `plugins/seraphis/src/parameters/dropdown_mappings.h:201` | `std::array<const TChar*, 5> kBodyMaterialLabels` + `static_assert(size() == kNumMaterials)` | **sized by and asserted against `kNumSeraphisMaterials`**, plus `static_assert(kNumSeraphisMaterials == 5)`: ID 800 keeps five steps (Q-F) |
+  | 10 | `plugins/seraphis/src/parameters/dropdown_mappings.h:302` | `toBodyMaterial` clamps to `kNumMaterials − 1` | clamps to **`kNumSeraphisMaterials − 1`** so a corrupt index can never select a Vorago material through Seraphis's parameter |
+  | 11 | `plugins/seraphis/tests/integration/param_perf_test.cpp:584` + `:1884` + `:1888` + `:1896` + `:1909` + `:2532` | `static_assert(kNumMaterials == 5)`, `MaterialSurvey::modeCount`, `kMaterials`, `kMaterialNames` and both survey loops | **re-pointed / re-sized / re-bounded to `kNumSeraphisMaterials`**; initialisers unchanged (FR-038a) |
 
   No other Seraphis assertion, baseline or default may move. SC-016 gates it.
 - **FR-038a** **`ContinuousBody` gains `static constexpr std::size_t kNumSeraphisMaterials = 5;`**,
@@ -960,6 +1231,36 @@ reused as-is.
   SC-008 asserts the folded clauses directionally on the `Age`, `Depth` and `Entropy` rows, so a
   mapping that drops one is red. The remaining six mappings are authored in `kRows` and each row's
   direction is stated in a comment above it.
+
+  **Amended 2026-09-19/09-22 — two rows above ship as CLAIM ROWS (`amount = 0`).** Both follow
+  from rulings already recorded in Clarifications; this paragraph is those rulings written into
+  FR-068's own text, which is where a reader checks the mapping:
+
+  - **`Fog` → `HarmonicCloud::setSpectralTiltDb` (the voice-owned half of the folded
+    `Distance`).** Q-N re-based SC-008's `Fog` metric on **harmonic-band spectral flatness**,
+    which the smear and the ghost *raise* (blur) and which a **steeper tilt collapses** (measured
+    −61 % for the tilt alone against +19 % for the ghost). The two moves therefore oppose each
+    other on the same metric, and the tilt is the smaller, darker one. Ruled: the target stays
+    **claimed at the FR-090 tilt base (−4.0 dB) with `amount = 0`**, and the folded `Distance`
+    behaviour is carried **entirely by the two `Cavern`-owned rows**, `CavernFog` (+0.55) and
+    `CavernDarkness` (+0.15). "Distance filtering ↑" is therefore satisfied cavern-side; the
+    voice-side row exists because FR-063/`everyTargetIsClaimed` requires every enumerator to be
+    claimed exactly once, not because it is expected to move.
+  - **`Depth` → `CavernMix` ("raising the reverb return share").** Q-O established that the
+    wet/dry RMS share cannot see this drone at all — its energy sits at 16–65 Hz, below the cavern
+    FDN's DC-blocker corner — and amended SC-008's `Depth` metric to the **post-note-off tail**.
+    Independently, `CavernMix`'s FR-090 base is **1.00**, the component's own clamp maximum: the
+    row is already fully wet at `Depth = 0`, so its available travel is **exactly zero** and any
+    non-zero amount would be clamped away rather than heard. Ruled: `CavernMix` ships
+    **claimed at 1.00 with `amount = 0`**, and `Depth`'s movement is carried by
+    `CavernDecaySeconds` ↑ and `CavernSize` ↑ (+0.45), which are the two rows SC-008's amended
+    metric measures.
+
+  A claim row is **not** a dropped mapping: it is a target whose value this phase pins and does not
+  modulate, and both are visible as such in `kRows` with the reasoning above quoted at the row
+  (`vorago_macro_matrix.h`). Moving either one is a Phase 12 product decision — a different
+  shipped `CavernMix` base, or a `Fog` metric that separates blur from tilt — never a silent
+  amount edit.
 - **FR-069** `setMacro(VoragoMacro, float)` clamps to `[0, 1]`, rejects non-finite input (the
   previous value stands), and `getMacro` reports the clamp. `setMacros(const VoragoMacroValues&)`
   and `getMacros()` round-trip. An out-of-range `VoragoMacro` is a silent no-op on set and returns
@@ -979,6 +1280,16 @@ reused as-is.
 - **FR-070** No allocation, lock, exception, system call or I/O outside `prepare()` on any path in
   any of the three new components. A zero-allocation assertion (the repo's
   `getAllocatedBytes()`-invariance pattern) is asserted over an 8 h-equivalent accelerated render.
+
+  **(A-3) Division of labour between SC-014 and SC-004b — neither criterion is narrowed by the
+  other.** Two arms carry this requirement, and they carry different halves of it:
+  **SC-014** is the **per-push** arm — an `AllocationScope`/`allocation_detector` assertion over a
+  **10-minute-equivalent** accelerated render that exercises every wake/sleep edge, every bloom
+  spawn/retire, every steal and every macro extreme, i.e. it gates the *edge coverage* on every
+  push. **SC-004b** carries this requirement's **8 h `getAllocatedBytes()`-invariance clause**
+  **unaccelerated**, in the `[long]` lane, i.e. it gates the *duration*. Reading either as
+  superseding the other would drop a half: SC-014 at 10 minutes does not prove 8 h invariance, and
+  SC-004b's 8 h held note does not walk the edges SC-014 walks. Both stand as written.
 - **FR-071** Every public float setter rejects non-finite input (previous value stands) and clamps
   out-of-range input, with the getter reporting the clamp. Every index-taking setter treats an
   out-of-range index as a silent no-op. This is the uniform rule phases 2–9 all adopted
@@ -1069,6 +1380,14 @@ reused as-is.
   polyphony (OQ-1 (a)) remains open** (see Open Questions).
 
   The ordered levers, applied in this order before any budget is renegotiated:
+  **L-7** *(A-5 — **the ladder's first step**, despite its number: it is appended to the list and
+  the list is not renumbered)* **lower `kMaxVoices`**. `kMaxVoices` is a **budget number, not a free
+  ceiling** (plan B-6): the CPU solve is `N·V + (kMaxVoices − N)·L + G ≤ budget`, where `L` is a
+  non-rendering slot's `advanceLifeOnly` cost (FR-009, FR-046), so every slot above the shipped
+  polyphony is paid for on every block whether or not it sounds. Lowering the ceiling is therefore
+  the cheapest lever and is tried first. **Bounded below at the shipped polyphony** — a ceiling below
+  the number of voices that actually sound is a reduction of the shipped polyphony, which is L-5, and
+  L-5's own floor of 4 applies to it;
   **L-1** *(APPLIED — OQ-1 ruling (b), FR-056)* make the ghost/atmosphere tap **global** instead of
   per-voice (roadmap line 588 names this as part of the same question) — removes 113 298 from
   **each** voice but **adds one instance to the global stage**, so the global figure rises to
@@ -1081,7 +1400,8 @@ reused as-is.
   `FeedbackEcology` 6 → 4, `ResonanceDriftNetwork` 12 → 8) — projected ≈ −125 889 per voice, and
   **this row is a projection of a projection**: FR-082's probe supplies the real figure before it is
   relied on;
-  **L-5** reduce the shipped polyphony — **bounded below at 4.** Roadmap line 460 says "4–8 voices"
+  **L-5** reduce the shipped polyphony — **bounded below at 4.** Roadmap line 460 says "4–6 voices"
+  ("4–8" before Q-H lowered `kMaxVoices`)
   and roadmap Open Question 5 offers "4, 6, or 8". A polyphony below 4 is **outside the roadmap**
   and is not a lever this spec may pull: it requires an explicit, recorded user ruling amending
   roadmap line 460, taken at L-6, not a quiet reduction inside the build;
@@ -1124,8 +1444,23 @@ reused as-is.
   SC-003, at 1.15× (FR-081's × 1.15 column).
 - **FR-083** Every checked-in perf baseline is `⌈measured × 1.05⌉` transcribed from a clean,
   P-core-pinned, alone, post-idle run via `node tools/run-cpu-tests.js dsp_systems_tests`, with a
-  `static_assert(baseline <= kMaxAdmissibleNs, …)` in the TU. A baseline above `kMaxAdmissibleNs`
-  means the phase is over budget and FR-081's ladder applies.
+  `static_assert` in the TU pinning the transcription (baseline = ⌈measured × 1.05⌉) **and** a
+  `static_assert` pinning the baseline against the gate the criterion is actually taken at. A
+  baseline above `kMaxAdmissibleNs` means the phase is over budget and FR-081's ladder applies.
+
+  **Amended 2026-09-19 by Q-H, which this sentence completes.** Q-H ran FR-081's ladder, ruled
+  shipped polyphony 4 with `kMaxVoices = 6` and **reformulated SC-001b clause (ii)**: the gate is
+  measured ≤ `kReferenceNs` AND measured ≤ baseline × `kRegressionFactor`, and the baseline **may
+  sit above `kMaxAdmissibleNs`**, with the regression headroom that remains recorded beside it.
+  The original `static_assert(baseline <= kMaxAdmissibleNs, …)` is therefore **not** the assertion
+  this phase ships — it asserts a clause the ruling replaced, and at
+  `kEngineBaselineNsAtPoly4 = 2 694 479` against `kMaxAdmissibleNs = 2 133 333` it would fail the
+  build on a figure the user has already ruled admissible. The shipped assertions are the three
+  SC-001b names: baseline = ⌈measured × 1.05⌉, baseline + Cavern ≤ `kReferenceNs`, headroom > 1
+  (`dsp/tests/unit/systems/vorago_perf_test.cpp:257-273`). The ladder was applied, not skipped;
+  what changed is which inequality the baseline is asserted against, and only for a phase whose
+  ruling names the replacement. A phase without such a ruling still ships the
+  `baseline <= kMaxAdmissibleNs` form.
   **No full-instrument baseline may be checked in before SC-001b exists**, i.e. before the OQ-1
   ruling has been recorded in this spec as an amendment naming the polyphony, the lever set and the
   `kReferenceNs` the gate is taken against. A baseline transcribed against an unruled configuration
@@ -1139,9 +1474,12 @@ reused as-is.
   exercising `engine.processStereoBlock` → `CavernVerb` → `engine.processOutputStage` is a **single
   dedicated TU**, registered with `dsp_effects_tests` **beside `CavernVerb`'s own tests**, so it
   compiles under that target's `KRATE_DSP_AETHER_TEST_HOOKS` definition **consistently with every
-  other TU linked into the same executable** — the same ODR reasoning FR-087 states for
-  `KRATE_DSP_VORAGO_TEST_HOOKS` on `dsp_systems_tests`. It is the **only** Phase 10 TU registered
-  there. **Every other** Phase 10 TU (voice, engine, macro-matrix, dark-material, budget and
+  other TU linked into the same executable** — the ODR reasoning that applies whenever a compile
+  definition **changes a class definition**. (Q-C/A-11 removes the symmetric `dsp_systems_tests`
+  case: FR-087's probe is a forward-declared friend, which changes no class definition, so **this
+  phase adds no `target_compile_definitions` line anywhere** and `KRATE_DSP_AETHER_TEST_HOOKS` —
+  which already exists on `dsp_effects_tests` — is the only such definition in play.) It is the
+  **only** Phase 10 TU registered there. **Every other** Phase 10 TU (voice, engine, macro-matrix, dark-material, budget and
   determinism cases) registers with `dsp_systems_tests` (FR-084) and includes **no** `effects/`
   header, mirroring the production code's Layer 3 discipline (AR-1).
 - **FR-085** Multi-minute render cases carry the `[long]` tag **only** when they cost > ~15 s **and**
@@ -1183,19 +1521,35 @@ reused as-is.
     audio* trajectory — SC-004b's block-RMS and SC-005's centroid series — are asserted on an
     **unaccelerated** render in the `[long]` lane, with the real wall-clock cost recorded. Only
     criteria whose property is about *event counts, accounting and boundedness* — SC-013b, SC-014,
-    SC-018, SC-019, SC-020, SC-020a — may use `A`.
+    SC-018, SC-019, SC-020, SC-020a **and SC-027** — may use `A`.
+
+    **SC-027 is in that list, corrected here.** SC-027's own text has always read "over a 10-minute
+    render (accelerated per FR-086)", and its clause 2 counts **ghost burst edges on a control
+    lane** — an event-count property, the family this enumeration admits, not a statistic over a
+    rendered audio trajectory. Its omission from the list was a transcription gap between the two
+    paragraphs, not a decision: at the shipped ranges (fast 20–90 s, slow 3–10 min, one family in
+    five being the ghost) 600 s of instrument time carries about 2.5 expected ghost events against
+    a **≥ 6** bar, so the criterion is unreachable without the acceleration its own sentence grants.
+    `vorago_engine_test.cpp` flagged the inconsistency in-place; this is the resolution.
 
   Phase 8's own acceleration is **not** transferable: there it meant calling
   `EcosystemEngine::processChunk` with no audio at all. Phase 10's criteria assert properties of
   rendered audio, which cannot be produced without rendering the samples.
 - **FR-087** **The non-finite fault-injection hook is declared, not improvised.**
   `detail::VoragoEngineNonFiniteProbe` writes a non-finite value into one voice's audio state so
-  FR-072's containment path can be exercised (SC-029). It is compiled **target-wide** on
-  `dsp_systems_tests` under `KRATE_DSP_VORAGO_TEST_HOOKS`, in the shape
-  `dsp/tests/CMakeLists.txt:547-555` uses for `KRATE_DSP_AETHER_TEST_HOOKS`, and for the same
-  stated reason: the hook changes the class definition, so every TU linked into the executable must
-  see the same one or it is an ODR violation. The shipping build never defines it, and
-  `dsp_lint_stub` does not see it.
+  FR-072's containment path can be exercised (SC-029). **It is a `detail`-namespace friend struct
+  forward-declared in `vorago_engine.h` and defined in `vorago_nonfinite_test.cpp`, in the shape
+  `seraphis_engine.h:193-195` uses — no compile definition is added, because the class definition
+  does not change.**
+
+  **(A-11)** The probe's shape is carried as **Q-C** (Clarifications, 2026-09-17), and the sentence
+  above is that ruling written in. The earlier wording specified a target-wide
+  `KRATE_DSP_VORAGO_TEST_HOOKS` definition on `dsp_systems_tests`, in the
+  `dsp/tests/CMakeLists.txt:547-555` / `KRATE_DSP_AETHER_TEST_HOOKS` shape; that reasoning applies
+  only when the hook **changes the class definition**, which a forward-declared friend does not, so
+  the ODR hazard it guarded against does not arise and **no `target_compile_definitions` line is
+  added anywhere by this phase** (plan B-4). The shipping build still has no way to call the probe —
+  the library never defines it — and `dsp_lint_stub` still does not see it.
 
 ### FR-090 series — Defaults
 
@@ -1227,12 +1581,36 @@ reused as-is.
 Each criterion names the metric, the threshold and the test that measures it. Test names are
 sketches; the plan fixes them.
 
+> **Evidence ledger for the `[.perf]` and `[long]` criteria (2026-09-21).** Those cases assert
+> wall-clock or render for hours, so they are measured ONCE, alone and P-core-pinned, by the main
+> loop — never re-run inside the workflow, where three verifiers share the machine and every CPU
+> figure reads red on untouched code. Compliance rows for SC-001a, SC-001b, SC-002, SC-003, SC-004b,
+> SC-005, SC-008, SC-013b, SC-015, SC-016 clause 3, SC-018–SC-021b and SC-025 quote these logs
+> under `specs/vorago-phase10-voice-engine/artifacts/` (local, uncommitted, like every earlier phase):
+> `systems-long-and-perf-lane-2026-09-21.log` (the full `[long]` + `[.perf]` systems lane, 4 h 03 min;
+> its CPU figures are HOT and superseded), `systems-perf-only-cooled-2026-09-21.log` (`[.perf]` minus
+> `[long]`, after a restart and a 15-minute idle — the SC-001a figures the baseline is transcribed
+> from), `sc001b-cpubudget-alone-2026-09-21.log` (SC-001b alone), `effects-long-and-perf-lane-2026-09-21.log`,
+> `systems-perpush-2026-09-21.log`, `effects-perpush-2026-09-21.log`, and `sc016-c3-paired/` (seven
+> Seraphis pairs and three ContinuousBody pairs, pre-change worktree at `ad7481f6` vs this tree).
+
 - **SC-001 — Full-polyphony CPU (roadmap line 470).** FR-081's arithmetic shows this criterion has
   **no satisfiable option at spec time**: at `V = 587 693` and `G = 298 032` the regression-gated
   line admits 3 voices (2 with SC-003's overhead) and `kReferenceNs` admits 4, while OQ-1 (a) offers
   4, 6 or 8 and L-5's floor forbids 3. A single criterion that is **known red before a line is
   implemented** is not a criterion, so it is split into a measurement that always runs and a gate
   that is fixed by the ruling.
+
+  **The parent form is retired, and the roadmap now says so (amended 2026-09-22).** Roadmap line
+  470 read "8 voices everything-on ≤ 30 % of one core @ 48 kHz". Q-H ruled `kMaxVoices = 6`, so
+  **8 voices is not a configuration this instrument can be put into** and the sentence cannot be
+  measured, let alone met — SC-001a still *surveys* polyphony 8 by construction, but only through
+  the arithmetic projection, and the survey reads 43.4 % of one core already at polyphony 6. That
+  is a roadmap amendment following a ruling the roadmap itself records two bullets earlier
+  (`specs/Vorago-roadmap.md`, the `VoragoEngine` bullet), **not** a threshold move: the 30 %
+  ceiling is untouched and is met at the ruled polyphony (2 690 670 ns/block with the Cavern term
+  = 84.1 % of `kReferenceNs` = 25.2 % of one core). Compliance for SC-001 is therefore read off
+  **SC-001a and SC-001b**, which are the criterion; the parent line is a pointer to them.
 
   - **SC-001a — measure and report (runs unconditionally, gates nothing).** With `kMaxVoices`
     voices sounding, every sub-component enabled at the FR-090 defaults, macros at neutral, and the
@@ -1243,18 +1621,31 @@ sketches; the plan fixes them.
     lever ladder re-computed from the **measured** `V` and `G`.
     Assertions limited to finite-and-positive; everything else is `WARN`. This is the artefact OQ-1
     is ruled from. `VoragoEngine_CpuSurvey` `[.perf]`.
-  - **SC-001b — the gate (written into this spec as an amendment, after the OQ-1 ruling, before any
-    baseline is checked in).** At the **ruled** polyphony and with the **ruled** lever set: measured
-    ns per 512-sample block at 48 kHz **≤ `kReferenceNs` (3 200 000)** and the checked-in baseline
-    **≤ `kMaxAdmissibleNs` (2 133 333)**. Best-of-25 × 500 blocks, P-core-pinned, run alone.
+  - **SC-001b — the gate (ruled 2026-09-19, Q-H; written before any baseline is checked in).** At
+    the **ruled** shipped polyphony **4** with `kMaxVoices = 6` and **no voicing levers**: measured
+    ns per 512-sample block at 48 kHz **≤ `kReferenceNs` (3 200 000)** AND **≤ the checked-in
+    baseline × `kRegressionFactor` (1.5)**, where the baseline is ceil(clean measurement × 1.05).
+    The earlier clause (ii) — baseline ≤ `kMaxAdmissibleNs` (2 133 333) — is **not met** at
+    polyphony 4 (measured 2 704 220 on the warm machine, 84.5 % of the reference) and is replaced
+    by ruling: the ceiling binds before the 1.5× line does, and the headroom actually available is
+    recorded next to the baseline. Best-of-25 × 500 blocks, P-core-pinned, run alone, after a
+    restart and cool-down.
     The admissible (polyphony, lever set) pairs are enumerated in FR-081's option set; a ruling
     outside it is a roadmap amendment, not a spec edit. **No baseline may be checked in before this
     amendment exists** — that is the FR-083 discipline applied to the one criterion that cannot
     state its own threshold yet. `VoragoEngine_CpuBudget` `[.perf]`.
+    **Baseline transcribed 2026-09-21 (Q-H):** engine 2 566 170 ns/block at polyphony 4, cooled
+    protocol; `kEngineBaselineNsAtPoly4 = 2 694 479` = ⌈2 566 170 × 1.05⌉, with the Cavern term
+    added arithmetically in clause (i) only. Baseline + Cavern = 2 818 976 > `kMaxAdmissibleNs`, so
+    the original clause (ii) is not met and the available headroom (1.141×) is recorded in the TU
+    next to the baseline. Three `static_assert`s pin it: baseline = ⌈measured × 1.05⌉ of the
+    transcribed measurement, baseline + Cavern ≤ `kReferenceNs`, headroom > 1.
 - **SC-002 — Per-stage cost breakdown (measurement, not a closure gate).** The FR-082 stage probe
   measures each stage **standalone, in the same TU** — cloud, noise, resonance, ecology, bloom,
-  ecosystem, body A, body B, atmosphere, envelope/mix for the voice; voice sum, subharmonic, smear,
-  output stage for the engine — and prints the table with each figure's share of the directly
+  ecosystem, body A, body B, envelope/mix for the **voice**; voice sum, **atmosphere** (A-6: OQ-1
+  ruling (b) moved `AtmosphereEngine` to `VoragoEngine`, FR-056, so its cost is a global stage paid
+  once, not a per-voice stage paid `N` times), subharmonic, smear, output stage for the **engine** —
+  and prints the table with each figure's share of the directly
   measured whole. **Assertions are limited to finite-and-positive; the breakdown is `WARN`-reported
   (FR-082).**
 
@@ -1287,7 +1678,8 @@ sketches; the plan fixes them.
       the longest bloom fade-in and the atmosphere capture fill time, each cited to its FR-090 row,
       **rounded up to the next whole minute** and stated numerically in the test.
     - **During** `[0, T_settle)`: block RMS is asserted only to be **monotone non-decreasing on a
-      10 s moving average** from silence — a rise, not a bound.
+      10 s moving average** from silence — a rise, not a bound — with a stated tolerance of
+      **0.1 dB** between consecutive averages (Q-I).
     - **After** `T_settle`: block RMS stays within **[−60 dBFS, −6 dBFS]** for the remainder of the
       render, and the RMS of the **last** 60 s is within **±6 dB** of the RMS of the 60 s window
       starting at `T_settle + 300 s` (neither dies nor runs away).
@@ -1348,18 +1740,18 @@ sketches; the plan fixes them.
 
   | Macro | Primary metric | Direction, 1 vs 0 | Endpoint threshold |
   |---|---|---|---|
-  | Darkness | spectral centroid | lower | ≥ 20 % |
+  | Darkness | **energy ratio above vs below 4·f0** (A-3; was spectral centroid) | lower | ≥ 6 dB (A-3, derived) |
   | Age | HF band energy (> 4 kHz) | lower | ≥ 3 dB |
   | Density | active partial count + awake noise-source count, summed | higher | ≥ 50 % |
   | Movement | per-band energy total variation | higher | ≥ 20 % |
-  | Gravity | mean \|log2(partial ratio) − nearest integer\| | lower | ≥ 30 % |
+  | Gravity | mean \|log2(partial ratio) − nearest integer\| | lower | ≥ 30 % — **recorded as failed (A-3): measured 18 %; the shipped keyed ratio table caps the theoretical endpoint at 24 %** |
   | Entropy | spectral flatness | higher | ≥ 25 % |
-  | Pressure | crest factor | lower | ≥ 3 dB |
+  | Pressure | crest factor | lower | ≥ 3 dB — **recorded as failed (A-3): measured 0.07–0.16 dB; saturation at its ceiling barely moves the crest of a sub-plus-fundamental beat** |
   | Weight | energy below 80 Hz | higher | ≥ 6 dB |
-  | Fog | per-bin magnitude flux | lower | ≥ 20 % |
+  | Fog | **spectral flatness over the harmonic band [0.94·f0, 20·f0]** (A-3; was per-bin flux, which the smear stage itself raises) | higher | ≥ 10 % (A-3, derived) |
   | Life | wake/sleep edges per minute, counted over the five routed destination families | higher | ≥ 2 × |
-  | Depth | **reverb-return energy share**: RMS of the composed render minus the RMS of the same render with `CavernVerb::setMix(0)`, as a ratio of the wet path to the total, both windows `[10 s, 60 s]` stated in samples | higher | ≥ 6 dB |
-  | Mass | **energy in the body's modal band relative to broadband**: the ratio of energy within ±1 semitone of each of body A's first eight mode frequencies (computed from the material's ratio table × the note frequency) to broadband energy, window `[10 s, 60 s]` | higher | ≥ 4 dB |
+  | Depth | **post-note-off tail (A-3, Q-O; replaces A-1's level ratio)**: seconds after note-off until the composed chain's 100 ms mean-square envelope first falls 30 dB below its last-second-before-note-off level, note **C4**, hold 10 s, fast-attack fixture, capped at 120 s | higher | ≥ 3 s (A-3, derived from a mean measured endpoint of +6.4 s) |
+  | Mass | **energy below 80 Hz at C3** (A-3; the modal-band share was capped near 0 dB because the subs never sit in body A's mode bands) | higher | ≥ 0.25 dB (A-3, derived) — **recorded as failed (Q-Q): with the subs fully tracked every Mass row thins the bus; measured −0.35 to −0.45 dB** |
 
   The `Depth` and `Mass` metrics are stated this way because their earlier forms were **not
   observable**: "late/early energy ratio" is an impulse-response statistic and there is no impulse
@@ -1367,6 +1759,45 @@ sketches; the plan fixes them.
   tap that FR-047 does not expose and FR-010's chain does not survive past one control step. Both
   replacements are computed **at the engine's own output**, which is the only thing the product
   exposes.
+
+  **A-1 — why the `Depth` metric is a level ratio and not a wet/total share.** The earlier form
+  expressed the same measurement as "a ratio of the wet path to the total". That share is
+  **saturated at both endpoints** and therefore measures nothing on this product: FR-063 duplicates
+  `CavernVerb`'s `kDefaultMix = 1.00f` (`cavern_verb.h:264`) and `setMix`'s own doxygen defines the
+  control as the wet/dry blend at full wet by default, so the wet share is 1.0 at macro 0 and 1.0 at
+  macro 1 and the endpoint difference is 0 dB by construction. The **dB ratio of the two renders'
+  RMS** — composed, versus the same render with `CavernVerb::setMix(0)` — is the same physical
+  quantity expressed on a scale the product can actually move. **The ≥ 6 dB endpoint threshold, the
+  `[10 s, 60 s]` window, the direction and the Spearman ≥ 0.9 requirement are unchanged.**
+
+  **A-2 — the `Mass` row stands unchanged, and the deletion next to it is deliberate.** `Mass`'s
+  metric (energy in body A's modal band relative to broadband) and its **≥ 4 dB** endpoint threshold
+  are **not amended**. What changed is in `kRows`, not here: the plan **deleted the
+  `Mass → BodyBlend` row**, because biasing the two-body blend `b` toward body B moves energy out of
+  the band the metric measures on body **A** and therefore **opposes** the metric — a row that would
+  have made a correct implementation red. The row's absence is a deliberate design decision, not an
+  omission to be repaired by a later reader; `Mass`'s remaining rows carry it. `Weight`'s own
+  blend clause (FR-068) is unaffected: it is a different macro with a different metric (energy below
+  80 Hz), which the blend does not oppose.
+
+  **A-3 — the first full sweep (2026-09-19, Q-N / Q-O / Q-Q) and what it changed.** Measured on
+  the built instrument, the output at C1 is a near-sinusoid (the bodies leave harmonics ≥ 35 dB
+  down) with its magnitude mass in the sub tones and the fundamental, so three metrics could not see
+  their concept and were replaced (Darkness, Fog, Mass, above), and the composed Depth metric was
+  replaced because the drone's energy sits below the cavern FDN's ~40 Hz DC-blocker corner where
+  decay time is invisible in RMS. Thresholds marked *derived* are half the mean measured endpoint
+  rounded to a clean figure, recorded with the measurement in compliance.md. Measurement
+  constructions that changed (all still the named metric): Age and Weight/Mass are measured at
+  **C4 / C3** (at C1 the 18-partial cloud tops out at 1.2 kHz and the fundamental owns the < 80 Hz
+  band); Life renders **210 s** and counts edges over **[90 s, 210 s]** (every scheduler draws its
+  first onset from the unscaled 20–90 s range at prepare); Entropy's flatness is taken over the
+  **harmonic band [0.94·f0, 20·f0]** (the full band is pinned by ~3 400 empty bins). Rows retuned in
+  `kRows`: Life → EventRateScale sign corrected (−0.65 → +9.0; the voice divides the interval
+  ranges by the scale); Movement raised to the component ceilings; Fog tilt row made a claim row
+  and ghost amount 0.4; Mass resonance-mix −0.30 and the sub-tracking row a claim row (Q-Q). Three
+  rows are **recorded as failed** with their measured tables, thresholds untouched: Gravity,
+  Pressure, Mass — a Phase 12 product decision. The case asserts every row with `CHECK` so one run
+  prints every verdict, and renders the sweep once.
 
   **Folded-concept clauses (FR-061, FR-068), asserted as additional rows on the same fixture:**
   - **Age** — cavern decay target (`VoragoCavernTargets::decaySeconds`) at macro 1 is **shorter**
@@ -1428,6 +1859,12 @@ sketches; the plan fixes them.
   immediately after `prepare()` and after a 10-minute-equivalent render (accelerated per FR-086;
   allocation accounting is an event-and-accounting property, so it survives clock scaling) that
   exercises every wake/sleep edge, every bloom spawn/retire, every steal and every macro extreme.
+
+  **(A-3) This is the per-push `AllocationScope` arm, and it is not FR-070's whole allocation
+  clause.** SC-014 gates the **edge coverage** at 10-minute-equivalent on every push; **SC-004b**
+  carries FR-070's **8 h `getAllocatedBytes()`-invariance clause unaccelerated** in the `[long]`
+  lane and gates the **duration**. Neither narrows the other, and the build may not merge them:
+  10 minutes does not prove 8 h, and an 8 h held note does not walk SC-014's edges.
   `VoragoEngine_NoAllocationAfterPrepare`.
 - **SC-015 — Dark materials are darker (FR-035).** Under identical excitation and identical
   resonance/damping settings, each of the six new materials' steady-state spectral centroid is
@@ -1436,13 +1873,15 @@ sketches; the plan fixes them.
   times). This criterion measures **timbre only**; the six materials' **CPU** is a separate,
   non-negotiable requirement measured by **SC-025** against the shipped `continuous_body_perf_test`
   baselines (FR-038b). `ContinuousBody_DarkMaterialsSpectral` `[long]`.
-- **SC-016 — Seraphis stays green (roadmap lines 572–574).** After the FR-030 – FR-039b change, the
+- **SC-016 — Seraphis stays green (roadmap lines 572–574).** After the **FR-030 – FR-039** change
+  (A-7: the earlier upper bound named a requirement number this spec does not define; the range ends
+  at FR-039), the
   full `dsp_systems_tests` suite passes, including every `continuous_body_*` and `seraphis_*` case,
-  with **no Seraphis assertion, threshold, baseline or default modified** other than the seven
-  enumerated `kNumMaterials` sites (FR-038). Four clauses:
+  with **no Seraphis assertion, threshold, baseline or default modified** other than the eleven
+  enumerated `kNumMaterials` sites (FR-038). Five clauses:
   1. **Modification scope.** `git diff --numstat --diff-filter=M dsp/tests/unit/systems/` names
-     **exactly** `continuous_body_perf_test.cpp`, `continuous_body_test.cpp` and
-     `seraphis_perf_test.cpp`. Every other file this phase touches in that directory is newly
+     **exactly** `continuous_body_perf_test.cpp`, `continuous_body_spectral_test.cpp`,
+     `continuous_body_test.cpp` and `seraphis_perf_test.cpp` (Q-F added the spectral TU). Every other file this phase touches in that directory is newly
      **ADDED** (`--diff-filter=A`), with zero pre-existing lines changed. The earlier
      `git diff --stat` form was false by construction of this spec — FR-084 requires new Phase 10
      TUs in the same directory, so a bare `--stat` always names them and the check would be loosened
@@ -1451,12 +1890,43 @@ sketches; the plan fixes them.
      **exactly two deleted lines**, and `git diff -U0` confirms they are the `BodyMaterial`
      enumerator line and the `kNumMaterials` line and nothing else (FR-039).
   3. **Seraphis's measured subject is unchanged.** `seraphis_perf_test.cpp`'s material survey still
-     runs over `kNumSeraphisMaterials` (FR-038a) and reports the **same worst material** as before
-     the change — recorded in the run log, compared against the pre-change log. Seraphis's SC-001 /
-     SC-002 subject may not be re-pointed at a Vorago material by this phase.
+     runs over `kNumSeraphisMaterials` (FR-038a); the pre-change and post-change surveys are
+     captured **in one thermal state** (the pre-change tree built from a worktree at the docs
+     commit, each survey run alone, back to back after the runner's settle), and the comparison is
+     **noise-robust** (Q-K): the worst material stays **within the five Seraphis materials** and no
+     Seraphis material's ns/block figure moves by more than **10 %** between the pair. **The
+     per-material figures are `ContinuousBody_CpuBudget`'s paired tables (Q-S: best-of-25 × 500,
+     steady / operating / crossfade, the same standalone body at the same five materials), captured
+     pre and post in alternating order; the Seraphis survey's argmax, its per-material medians and
+     the 8-voice headline are reported alongside.** Seraphis's
+     SC-001 / SC-002 subject may not be re-pointed at a Vorago material by this phase.
   4. **Seraphis's crossfade pairings are unchanged.** `continuous_body_perf_test.cpp`'s
      `crossfadePartner` still maps Glass→Strings→MetalPlate→Chamber→Ice→Glass for the five Seraphis
      materials (FR-038 site 4); the six new materials cycle among themselves.
+  5. **The shipped plugin (Q-F).** `git diff --numstat --diff-filter=M plugins/seraphis/` names
+     **exactly** `src/parameters/dropdown_mappings.h` and `tests/integration/param_perf_test.cpp`
+     (FR-038 sites 9–11); the `Seraphis` target and `seraphis_tests` build with zero warnings, the
+     per-push `seraphis_tests` run is green, and `pluginval --strictness-level 5` passes on the
+     rebuilt bundle. ID 800 still reports five steps.
+
+  **(A-13) This gate does not widen to the phase's second shared-component change.** `FeedbackEcology`
+  gains `silenceAudio()` (A-13, AR-4's neighbourhood) and has **no Seraphis consumer** — a repo-wide
+  sweep finds only Vorago Layer 3 peers, `dsp/lint_all_headers.cpp` and its own five test TUs — so
+  no `seraphis_*` case can observe it and there is nothing for this criterion to gate. Its green
+  gate is its own `FeedbackEcology*` suites, plus the zero-deletion bar clause 2 applies to
+  `continuous_body.h`, applied separately to `feedback_ecology.h`:
+  `git diff --numstat dsp/include/krate/dsp/systems/feedback_ecology.h` shows **zero deleted lines**.
+
+  **(Q-G) The envelope ceilings are the phase's third and fourth shared-component changes, and both
+  HAVE Seraphis consumers.** `multi_stage_envelope.h` and `growth_envelope.h` each gain a
+  per-instance ceiling setter that defaults to the shipped constant; their only non-append effect is
+  that the existing clamp lines read the instance ceiling instead of the constant. The bar is
+  therefore **exactly the expected deletions**: three `std::clamp(ms, 0.0f, kMaxStageTimeMs)` lines
+  in the first, one doc line and one `std::clamp(seconds, kMinDuration, kMaxDuration)` line in the
+  second, and nothing else — `tools/check-seraphis-green.js` matches them by pattern. Seraphis's
+  envelope parameter ranges still derive from the untouched constants; clause 5's `seraphis_tests`
+  run and `dsp_processors_tests`' `MultiStageEnvelope*` / `GrowthEnvelope*` suites are the green
+  gate, and the two new `per-instance ... ceiling` cases pin the default-inert behaviour.
 
   `ContinuousBody_MaterialTableIsAppendOnly` plus a full suite run.
 - **SC-017 — Two-body blend endpoints are exact (FR-036).** Restated in terms the product can
@@ -1499,7 +1969,11 @@ sketches; the plan fixes them.
      **exactly** their configured bases over a 10-minute render, read back through
      `NoiseOrganism::getSourceWakeAmount` (`noise_organism.h:880`),
      `ResonanceDriftNetwork::getPeakWakeAmount` (`resonance_drift_network.h:855`),
-     `FeedbackEcology::getLoopWakeAmount` (`feedback_ecology.h:1393`) and, for the `Ghost` family,
+     `FeedbackEcology::getLoopWakeAmount` (`feedback_ecology.h:1393`), for the **`Partial`** family
+     `HarmonicCloud::getMutation()` (`harmonic_cloud.h:493`) and `BloomEngine::getDepth()`
+     (`bloom_engine.h:679`) **(A-9 — the `Partial` family's two destinations were routed by FR-020
+     but read back by nothing, so clause 1 asserted its base-equality over four families out of
+     five)**, and, for the `Ghost` family,
      `VoragoVoice::getGhostRequest()` (FR-020b — `AtmosphereEngine` itself is engine-owned, OQ-1
      ruling (b); this clause is measured at polyphony 1 so the voice's own request is directly
      observable). The scheduler precondition is
@@ -1511,10 +1985,18 @@ sketches; the plan fixes them.
   2. **Ecosystem contribution with the schedulers live.** With the schedulers at their shipped
      depths and ecosystem depth at 1, each destination's trace **never falls below** the
      scheduler-only trace recorded on the same seed with ecosystem depth 0 — the FR-023 maximum rule,
-     observed on the product in the state it actually runs in.
-  3. **Attribution.** At ecosystem depth 1, each of the five destination families shows **≥ 3
+     observed on the product in the state it actually runs in. **(A-9) For the `Partial` family this
+     arm reduces to "never below base"**: FR-022's five scheduler families are bloom trigger,
+     noise-source wake, resonance-peak wake, ecology-loop wake and ghost-burst level — **no
+     scheduler family writes `HarmonicCloud::setMutation` or `BloomEngine::setDepth`** — so the
+     scheduler-only trace for those two targets is their configured base, and asserting
+     "never below the scheduler-only trace" against a family no scheduler addresses would be
+     asserting a maximum combine that does not exist there.
+  3. **Attribution.** At ecosystem depth 1, each of the five destination families — including the
+     `Partial` family, read back through `getMutation()` and `getDepth()` **(A-9)** — shows **≥ 3
      distinct value changes per minute** attributable to the ecosystem (i.e. changes at control
-     steps where the scheduler contribution is unchanged), and each family's driving agent kind is
+     steps where the scheduler contribution is unchanged; for the `Partial` family every change is
+     so attributable, since no scheduler writes it), and each family's driving agent kind is
      confirmed by setting that kind's agents dormant and observing the ecosystem contribution go
      static while the scheduler contribution continues.
 
@@ -1562,7 +2044,13 @@ sketches; the plan fixes them.
   2. **Group delay on the engine's own output.** Two engines, identical seed, configuration and
      note sequence, differing **only** in the prepare-time `SpectralSmear` enable flag — which
      `spectral_smear.h:15-16, 342-347` documents as a **bit-identical bypass**, so the comparison is
-     of the same signal, delayed. `noteOn` one voice, render, and compare the onset sample index
+     of the same signal, delayed. **(A-10) The smear-*enabled* arm is configured
+     `setSmearAmount(0)` (`spectral_smear.h:376`) and `setDecoherence(0)` (`:381`) before the
+     render**, because only at 0/0 is `SpectralSmear` an exact identity delayed by `fftSize`: at any
+     non-zero amount or decoherence it is a spectral *smear*, the onset is smeared along with
+     everything else, and the onset-index difference measures the smear's time spread rather than
+     its latency — which would make the ±1-sample bound below unsatisfiable on a correct
+     implementation. `noteOn` one voice, render, and compare the onset sample index
      (first sample above a stated threshold, measured using the **FR-014a `kFastAttackEnvelopeConfig`**
      fixture so the onset is sharp enough to index) of the smear-enabled render against the
      smear-disabled one. The difference **equals `getLatencySamples()` within ±1 sample**.
@@ -1574,7 +2062,24 @@ sketches; the plan fixes them.
   engine and matrix returns its documented neutral and writes nothing out of bounds; `n = 0`,
   null pointers, polyphony 1, zero agents, zero noise sources, zero ecology loops and zero resonance
   peaks all render silence or pass-through without a non-finite sample.
-  `VoragoEngine_UnpreparedAndDegenerate`.
+
+  **(A-8) Two arms this criterion's own text demanded but did not name.**
+  1. **The matrix arm.** The sentence above says "voice, engine **and matrix**", but the named case
+     covers only the engine. `VoragoMacroMatrix` gets its own case: every public method on an
+     unprepared matrix returns its documented neutral, `apply()` on an unprepared engine writes
+     nothing, `computeCavernTargets()` returns exactly the FR-063 defaults, and an out-of-range
+     `VoragoMacro` is a silent no-op on set and returns the macro's neutral on get (FR-069).
+     `VoragoMacro_UnpreparedAndDegenerate`.
+  2. **The degenerate sample-rate arm — the only assertion of FR-076's second sentence anywhere in
+     this spec.** FR-076 requires that a non-finite sample rate is **substituted** and that any rate
+     below the components' shared `kMinUsableSampleRate = 8000.0` is **floored, not rejected**; SC-021a
+     and SC-021b sweep only valid rates and would pass with a `prepare()` that rejected a bad one.
+     `prepare()` is therefore called at three degenerate rates — **NaN** (constructed from a bit
+     pattern through a `volatile`, **never** `std::numeric_limits`, which `-ffast-math` folds;
+     roadmap line 570, FR-072), **`0.0`**, and **`4000.0`** — and in all three `isPrepared()` is
+     **true** and a subsequent render is finite and bounded. No threshold elsewhere is affected.
+
+  `VoragoEngine_UnpreparedAndDegenerate`, `VoragoMacro_UnpreparedAndDegenerate`.
 - **SC-024 — Portability gate (FR-075).** `node tools/check-portability.js` is clean, the three new
   headers compile in `dsp/lint_all_headers.cpp`, and the new TUs compile under libstdc++ as well as
   MSVC. Recorded, not asserted in-suite.
@@ -1587,10 +2092,12 @@ sketches; the plan fixes them.
   not hide the rest (`:875-880`). A material over budget is **re-voiced or dropped** (FR-038b); the
   baselines do not move. `ContinuousBody_DarkMaterialBudgets` `[.perf]`.
 - **SC-026 — A slot's seed is per slot, not per note (FR-048).** Same engine seed and configuration
-  throughout. (a) Play note *n* on slot *s*, let it retire, play note *n* on slot *s* again: the two
-  renders compare **within fingerprint tolerance** (the same slot reproduces its trajectory).
-  (b) Force a **steal** of slot *s* mid-render, then play note *n* on it: same result, i.e. a steal
-  does not advance the slot's seed. (c) Play note *n* on slot *s* and on slot *s′* ≠ *s*
+  throughout. (a) Play note *n* on slot *s*, let it retire, **rewind with `VoragoEngine::reset()`**
+  (which restores run state but does not re-derive slot seeds), play note *n* on slot *s* again: the
+  two renders compare **within fingerprint tolerance** (the same slot reproduces its trajectory).
+  (b) Force a **steal** of slot *s* mid-render, rewind the same way, then play note *n* on it: same
+  result, i.e. a steal does not advance the slot's seed. (Q-M: without the rewind the replay
+  legitimately differs, because FR-046/SC-030 keep an idle slot's identity layer advancing.) (c) Play note *n* on slot *s* and on slot *s′* ≠ *s*
   simultaneously: `worstMetricRelativeError` **> 100 ×** `kMetricTolerance` (FR-045's disjoint
   salts genuinely separate them). Untagged — it is a determinism case (FR-085).
   `VoragoEngine_SlotSeedReproducibility`.
@@ -1619,9 +2126,9 @@ sketches; the plan fixes them.
   `getNonFiniteRecoveryCount()` asserts it is **zero**, i.e. asserts the recovery path never runs —
   so an implementation whose containment branch is dead, mis-indexed or resets the wrong voice would
   pass the whole suite. This criterion injects the fault deliberately, through
-  `detail::VoragoEngineNonFiniteProbe` compiled under `KRATE_DSP_VORAGO_TEST_HOOKS` on
-  `dsp_systems_tests` (FR-087), in the shape `dsp/tests/CMakeLists.txt:547-555` uses for
-  `AetherReverb::injectNonFiniteStateForTest`. With `k ≥ 2` voices sounding, inject a non-finite
+  `detail::VoragoEngineNonFiniteProbe` — forward-declared in `vorago_engine.h` and **defined in this
+  criterion's own TU**, `vorago_nonfinite_test.cpp`, in the `seraphis_engine.h:193-195` shape, with
+  **no compile definition** (Q-C, FR-087, A-11). With `k ≥ 2` voices sounding, inject a non-finite
   value into voice *i*'s audio state mid-render and assert: the block output is **finite**
   throughout; `getNonFiniteRecoveryCount()` increments by **exactly 1**; the **other** voices'
   output is **bit-unchanged** against a reference render with no injection; voice *i* **resumes
@@ -1759,8 +2266,8 @@ to this spec, and this spec, in turn, refuses to decide on its own authority.
   above. L-5's floor still forbids dropping below the roadmap's 4 (line 460). **This is not ruled at
   spec stage:** FR-082's stage-cost probe and SC-001a's measured survey run first; the plan stage
   then presents the **measured** per-voice and global table (not this spec's projection) with a
-  recommended shipped polyphony and `kMaxVoices` (ceiling 8), and that recommendation is a
-  **plan-stage ruling for the user**, taken before SC-001b's gate or any baseline is checked in. The
+  recommended shipped polyphony and `kMaxVoices` (ceiling 8; **ruled 4 and 6 at Q-H**), and that
+  recommendation is a **plan-stage ruling for the user**, taken before SC-001b's gate or any baseline is checked in. The
   30 % ceiling (`kReferenceNs`), `kRegressionFactor = 1.5` and the ban on relaxing thresholds or
   shrinking workloads all stand.
 - **OQ-2 (roadmap Open Question 6, line 589) — macro roster trim. Resolved: confirmed at twelve.**
@@ -1844,9 +2351,17 @@ to this spec, and this spec, in turn, refuses to decide on its own authority.
    surface Phase 10 needs — sleep/wake, trigger, depth, mix, seed. If the build finds a missing
    accessor, the response is to surface it, not to extend a shipped component quietly (the Phase 6
    `SubOscillator::advance()` precedent: one append-only change, spec'd, recorded at roadmap lines
-   309–311).
-2. **`ContinuousBody` is the only shared component this phase changes**, and the change is
-   append-only data (AR-4).
+   309–311). **One exception, surfaced rather than taken quietly (A-13):** `FeedbackEcology` acquires
+   `void silenceAudio() noexcept`, on exactly that precedent — the voice's steal and non-finite
+   recovery paths are audio-thread paths and the component's only clearing entry point, `reset()`,
+   documents itself as control-thread (`feedback_ecology.h:861-862`). It is spec'd here, recorded in
+   AR-4's neighbourhood, and gated by its own suites.
+2. **Two shared components change in this phase, both append-only** (**A-13**, superseding this
+   assumption's earlier "`ContinuousBody` is the only shared component this phase changes"):
+   `ContinuousBody` gains append-only **data** (AR-4, FR-030 – FR-039), and `FeedbackEcology` gains
+   one appended public **method**, `silenceAudio()` (AR-4's neighbourhood, plan B-7) — zero deleted
+   lines, no new class, member, enumerator or constant, and no Seraphis consumer, so SC-016's gate
+   does not widen.
 3. **Measured figures in FR-081 are the isolated, P-core-pinned figures** each phase recorded, and
    the composition's measured cost may exceed their sum by the SC-003 overhead factor — which is why
    FR-081 now solves the polyphony question in **two columns**, bare and × 1.15, rather than

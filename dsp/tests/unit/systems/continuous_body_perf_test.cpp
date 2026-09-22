@@ -146,7 +146,13 @@ constexpr double kMaxAdmissibleHalfPctNs = kReferenceHalfPctNs / kRegressionFact
 //
 // Each cell is the WORST of the five materials in that configuration, in
 // ns/block (SC-005 pins one baseline per configuration to the most expensive
-// material and REQUIREs all five against it). All figures x1e3 ns.
+// material and REQUIREs every material against it). All figures x1e3 ns.
+//
+// The grid below was measured over the FIVE Seraphis Phase 4 materials, before
+// Vorago Phase 10 appended six more (AR-4). The baselines it pinned DO NOT MOVE:
+// Vorago SC-025 requires each of the six new materials to fit inside them at
+// kRegressionFactor, and a material that does not is re-voiced or dropped
+// (FR-038b) - never accommodated by raising a number here.
 //
 //   run           |   1     2     3     4     5     6     7     8 |  min    max
 //   steady        | 35.2  34.7  34.6  35.4  34.6  34.9  35.6  35.7 | 34.6  35.7
@@ -280,8 +286,11 @@ static_assert(kBlockSize / ContinuousBody::kControlChunkSamples == 8,
 static_assert(ContinuousBody::kModeCountCeiling == 32,
               "SC-005 measures the 32-mode ceiling. kModeCountCeiling is fixed (A-3 / OQ-2) "
               "and is NOT a CPU lever - see the lever list in this file's header");
-static_assert(ContinuousBody::kNumMaterials == 5,
-              "SC-005 measures 5 materials x 4 configurations = 20 measurements");
+static_assert(ContinuousBody::kNumMaterials == 11,
+              "SC-005 / SC-025 measures 11 materials x 4 configurations = 44 measurements");
+static_assert(ContinuousBody::kNumSeraphisMaterials == 5,
+              "the first five materials are Seraphis's; crossfadePartner() keeps their "
+              "measured pairings by wrapping inside that prefix (Vorago FR-038 site 4)");
 
 constexpr std::size_t kChunksPerBlock = kBlockSize / ContinuousBody::kControlChunkSamples;
 
@@ -350,32 +359,57 @@ template <typename BlockFn>
 // silent. Order MUST match BodyMaterial's enumerator order - both tables are
 // indexed by the enumerator's underlying value.
 constexpr std::array<ContinuousBody::BodyMaterial, ContinuousBody::kNumMaterials> kMaterials = {{
+    // --- the five Seraphis Phase 4 materials (indices 0-4) -------------------
     ContinuousBody::BodyMaterial::Glass,
     ContinuousBody::BodyMaterial::Strings,
     ContinuousBody::BodyMaterial::MetalPlate,
     ContinuousBody::BodyMaterial::Chamber,
     ContinuousBody::BodyMaterial::Ice,
+    // --- the six Vorago Phase 10 dark materials (indices 5-10) ---------------
+    ContinuousBody::BodyMaterial::StoneChamber,
+    ContinuousBody::BodyMaterial::SteelTank,
+    ContinuousBody::BodyMaterial::WoodenHull,
+    ContinuousBody::BodyMaterial::CathedralColumn,
+    ContinuousBody::BodyMaterial::CavernWall,
+    ContinuousBody::BodyMaterial::GlassSphere,
 }};
 
 constexpr std::array<const char*, ContinuousBody::kNumMaterials> kMaterialNames = {{
     "Glass", "Strings", "MetalPlate", "Chamber", "Ice",
+    "StoneChamber", "SteelTank", "WoodenHull", "CathedralColumn", "CavernWall", "GlassSphere",
 }};
 
-/// The material each one is crossfaded against: its cyclic successor.
+/// The material each one is crossfaded against: its cyclic successor WITHIN ITS
+/// OWN BLOCK.
 ///
 /// A per-material crossfade figure is necessarily a figure for a PAIR - FR-024's
 /// window has two engines in it by definition. The cyclic successor is used
-/// because it is deterministic, covers every engine pairing exactly once across
-/// the five measurements (Modal/Waveguide, Waveguide/Modal, Modal/Comb,
-/// Comb/Modal, Modal/Modal), and always includes the material's own engine.
+/// because it is deterministic and always includes the material's own engine.
+///
+/// The cycle wraps inside each block rather than across all eleven materials
+/// (Vorago FR-038 site 4). A single eleven-long cycle would re-point Ice's
+/// partner from Glass to StoneChamber, i.e. it would change a pairing Seraphis
+/// already measured, which SC-016 forbids. So:
+///   - indices 0-4  (Seraphis) cycle among themselves, preserving the original
+///     five pairings and their engine coverage (Modal/Waveguide,
+///     Waveguide/Modal, Modal/Comb, Comb/Modal, Modal/Modal);
+///   - indices 5-10 (the Vorago dark materials) cycle among themselves; all six
+///     are Modal, so those six pairings are Modal/Modal.
 /// Metal Plate's row is still expected to be the largest, which is what the
 /// baseline is pinned to.
 [[nodiscard]] ContinuousBody::BodyMaterial crossfadePartner(
     ContinuousBody::BodyMaterial m) noexcept
 {
+    constexpr std::size_t kSeraphisCount = ContinuousBody::kNumSeraphisMaterials;
+    constexpr std::size_t kDarkCount = ContinuousBody::kNumMaterials - kSeraphisCount;
+    static_assert(kDarkCount == 6, "the Vorago block is the six dark materials (AR-4)");
+
     const auto idx = static_cast<std::size_t>(m);
-    return static_cast<ContinuousBody::BodyMaterial>((idx + 1u)
-                                                     % ContinuousBody::kNumMaterials);
+    const std::size_t partner =
+        (idx < kSeraphisCount)
+            ? ((idx + 1u) % kSeraphisCount)
+            : (kSeraphisCount + ((idx - kSeraphisCount + 1u) % kDarkCount));
+    return static_cast<ContinuousBody::BodyMaterial>(partner);
 }
 
 // =============================================================================
@@ -746,9 +780,12 @@ struct CrossfadeMeasurement {
 // =============================================================================
 // SC-005: CPU <= 1 % of one core per voice with the body active
 // =============================================================================
-// Four configurations x five materials = twenty measurements, gated against four
-// checked-in constants. See BASELINE PROVENANCE above for how the constants are
-// pinned and what to do when one is exceeded.
+// Four configurations x eleven materials = forty-four measurements, gated
+// against four checked-in constants. See BASELINE PROVENANCE above for how the
+// constants are pinned and what to do when one is exceeded.
+//
+// Materials 5-10 are Vorago Phase 10's dark materials; their rows are Vorago
+// SC-025, measured against the SAME four unmoved baselines (FR-038b).
 
 TEST_CASE("ContinuousBody_CpuBudget", "[.perf]")
 {
@@ -836,7 +873,7 @@ TEST_CASE("ContinuousBody_CpuBudget", "[.perf]")
     // WHY THE SUBTRACTION IS PART OF THE CRITERION AND NOT A CONVENIENCE:
     // the decay cloud is PER-VOICE (FR-050, scope item 5) and is the SAME work
     // for every material - `configureBody` leaves it identically configured and
-    // FR-063 is off, so the only thing that differs between the five
+    // FR-063 is off, so the only thing that differs between the per-material
     // steady-state figures is which engine is being advanced. A ratio taken on
     // the RAW steady-state figures is therefore a ratio of
     // (shared cloud + engine), and it approaches 1 as the shared term grows -
@@ -872,7 +909,7 @@ TEST_CASE("ContinuousBody_CpuBudget", "[.perf]")
     // -------------------------------------------------------------------------
     // 6. THE GATES
     // -------------------------------------------------------------------------
-    // Deliberately AFTER all twenty measurements and all five reports. A
+    // Deliberately AFTER all forty-four measurements and all five reports. A
     // `REQUIRE` aborts the case, so gating each configuration where it is
     // measured means the first over-budget configuration hides the other three
     // and the spread clause entirely - which is exactly how this case reported

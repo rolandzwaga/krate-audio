@@ -489,6 +489,31 @@ add_executable(dsp_systems_tests
     unit/systems/ecosystem_engine_longrun_test.cpp
     unit/systems/ecosystem_engine_perf_test.cpp
     unit/systems/ecosystem_engine_nonfinite_test.cpp
+    # Vorago Phase 10 (specs/vorago-phase10-voice-engine): VoragoVoice, VoragoEngine,
+    # VoragoMacroMatrix + the six dark ContinuousBody materials.
+    # This list is ENUMERATED, not globbed - an unregistered TU silently drops out of
+    # the build and its cases never run.
+    #   vorago_voice_test.cpp           SC-007(voice), SC-017, SC-017a, SC-018a, SC-019a,
+    #                                   SC-019b, SC-020a, SC-023(voice), SC-028(voice)
+    #   vorago_voice_longrun_test.cpp   SC-018, SC-019, SC-020            (the [long] set)
+    #   vorago_engine_test.cpp          SC-004a, SC-006, SC-007(engine), SC-011, SC-012,
+    #                                   SC-013a, SC-014, SC-021a, SC-022, SC-023, SC-026,
+    #                                   SC-027, SC-028, SC-030, SC-031
+    #   vorago_engine_longrun_test.cpp  SC-004b, SC-005, SC-013b, SC-021b (the [long] set)
+    #   vorago_macro_test.cpp           SC-008 (eleven macros), SC-009, SC-010, SC-023(matrix),
+    #                                   SC-028, FR-067's VoragoMacro_ApplyIsIdempotent
+    #   vorago_dark_materials_test.cpp  SC-015, SC-016 (3)(4)
+    #   vorago_nonfinite_test.cpp       SC-029 only, + the probe definition
+    #   vorago_perf_test.cpp            SC-001a, SC-001b, SC-002 (+ the advanceLifeOnly/L arm),
+    #                                   SC-003, VoragoVoice_ClearingPathCost      [.perf]
+    unit/systems/vorago_voice_test.cpp
+    unit/systems/vorago_voice_longrun_test.cpp
+    unit/systems/vorago_engine_test.cpp
+    unit/systems/vorago_engine_longrun_test.cpp
+    unit/systems/vorago_macro_test.cpp
+    unit/systems/vorago_dark_materials_test.cpp
+    unit/systems/vorago_nonfinite_test.cpp
+    unit/systems/vorago_perf_test.cpp
 )
 
 target_link_libraries(dsp_systems_tests
@@ -536,6 +561,11 @@ add_executable(dsp_effects_tests
     unit/effects/cavern_verb_soak_test.cpp
     unit/effects/cavern_verb_perf_test.cpp
     unit/effects/aether_reverb_damper_offset_test.cpp
+    # Vorago Phase 10 (specs/vorago-phase10-voice-engine): the composed
+    # engine -> CavernVerb -> processOutputStage chain. It lives HERE, not in
+    # dsp_systems_tests, so it compiles under this target's KRATE_DSP_AETHER_TEST_HOOKS
+    # consistently with every other TU in this executable (FR-084a / OQ3).
+    unit/effects/vorago_composed_chain_test.cpp
 )
 
 target_link_libraries(dsp_effects_tests

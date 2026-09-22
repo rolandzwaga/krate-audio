@@ -197,14 +197,20 @@ inline constexpr std::array<const Steinberg::Vst::TChar*, 2> kEnvelopeModeLabels
 // ID 800 - kBodyMaterialId
 // ==============================================================================
 // Declaration order of ContinuousBody::BodyMaterial (continuous_body.h:81):
-// Glass = 0, Strings, MetalPlate, Chamber, Ice.
-inline constexpr std::array<const Steinberg::Vst::TChar*, 5> kBodyMaterialLabels = {
-    STR16("Glass"), STR16("Strings"), STR16("Metal Plate"),
-    STR16("Chamber"), STR16("Ice")};
+// Glass = 0, Strings, MetalPlate, Chamber, Ice. Vorago Phase 10 appended six
+// dark materials after Ice (kNumMaterials == 11); Seraphis's dropdown stays at
+// its five (ruled 2026-09-18): the step count and normalised mapping of ID 800
+// are host-visible, and ContinuousBody::kNumSeraphisMaterials pins the five.
+inline constexpr std::array<const Steinberg::Vst::TChar*,
+                            Krate::DSP::ContinuousBody::kNumSeraphisMaterials>
+    kBodyMaterialLabels = {STR16("Glass"), STR16("Strings"), STR16("Metal Plate"),
+                           STR16("Chamber"), STR16("Ice")};
 
-static_assert(kBodyMaterialLabels.size() == Krate::DSP::ContinuousBody::kNumMaterials,
+static_assert(kBodyMaterialLabels.size() == Krate::DSP::ContinuousBody::kNumSeraphisMaterials,
               "FR-015: an enum extension must not silently desynchronise the label "
-              "list from the materials the body ships (continuous_body.h:81, :84)");
+              "list from the materials Seraphis ships (continuous_body.h:81, :84)");
+static_assert(Krate::DSP::ContinuousBody::kNumSeraphisMaterials == 5,
+              "ID 800 ships five steps; widening it re-maps every saved preset");
 
 // ==============================================================================
 // ID 1016 - kAtmosGrainEnvelopeId
@@ -299,7 +305,8 @@ static_assert(Krate::DSP::dropdownToDelayMs(kFxDelaySyncNoteDefaultIndex, 120.0)
 // The clamp is what keeps a hostile or corrupt index out of a static_cast.
 
 [[nodiscard]] inline Krate::DSP::ContinuousBody::BodyMaterial toBodyMaterial(int index) noexcept {
-    const int i = std::clamp(index, 0, static_cast<int>(Krate::DSP::ContinuousBody::kNumMaterials) - 1);
+    const int i = std::clamp(index, 0,
+                             static_cast<int>(Krate::DSP::ContinuousBody::kNumSeraphisMaterials) - 1);
     return static_cast<Krate::DSP::ContinuousBody::BodyMaterial>(i);
 }
 

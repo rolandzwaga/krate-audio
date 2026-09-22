@@ -176,6 +176,11 @@ public:
         return output;
     }
 
+    /// @brief Bytes of heap held - the stage's delay line and nothing else.
+    [[nodiscard]] size_t getAllocatedBytes() const noexcept {
+        return delayLine_.getAllocatedBytes();
+    }
+
 private:
     DelayLine delayLine_;
     float sampleRate_ = 44100.0f;
@@ -288,6 +293,19 @@ public:
         updateDensityTargets();
 
         reset();
+    }
+
+    /// @brief Bytes of heap held - the 2 x kNumDiffusionStages allpass stages.
+    ///
+    /// Every other member is a fixed-size array, a smoother or a scalar, so
+    /// this IS the network's total.
+    [[nodiscard]] size_t getAllocatedBytes() const noexcept {
+        size_t total = 0;
+        for (size_t i = 0; i < kNumDiffusionStages; ++i) {
+            total += stagesL_[i].getAllocatedBytes();
+            total += stagesR_[i].getAllocatedBytes();
+        }
+        return total;
     }
 
     /// @brief Reset all internal state.

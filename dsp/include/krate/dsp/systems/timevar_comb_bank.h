@@ -165,6 +165,14 @@ public:
     /// @return true if prepare() has been called successfully
     [[nodiscard]] bool isPrepared() const noexcept;
 
+    /// @brief Bytes of heap held - the combs' delay lines.
+    ///
+    /// EVERY slot is counted, not just the getNumCombs() active ones: prepare()
+    /// sizes them all, so this is the PREPARE-TIME figure and setNumCombs()
+    /// cannot move it. Every other per-comb member is an LFO, a smoother, an
+    /// RNG or a scalar.
+    [[nodiscard]] size_t getAllocatedBytes() const noexcept;
+
     // =========================================================================
     // Comb Configuration (FR-001, FR-002, FR-003, FR-004, FR-005)
     // =========================================================================
@@ -496,6 +504,14 @@ inline void TimeVaryingCombBank::reset() noexcept {
 
 inline bool TimeVaryingCombBank::isPrepared() const noexcept {
     return prepared_;
+}
+
+inline size_t TimeVaryingCombBank::getAllocatedBytes() const noexcept {
+    size_t total = 0;
+    for (size_t i = 0; i < kMaxCombs; ++i) {
+        total += channels_[i].comb.getAllocatedBytes();
+    }
+    return total;
 }
 
 inline void TimeVaryingCombBank::setNumCombs(size_t count) noexcept {

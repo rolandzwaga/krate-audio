@@ -905,6 +905,38 @@ public:
         snapControlState();
     }
 
+    /// @brief The RT-SAFE half of reset(): clears every OWNED loop's audio with
+    /// NO O(buffer) wipe. Added for Vorago Phase 10's voice steal and deferred
+    /// non-finite-recovery paths (plan B-7, specs/vorago-phase10-voice-engine).
+    ///
+    /// It calls clearLoopAudio(i) for i < config_.numLoops and NOTHING ELSE: no
+    /// delay.reset(), no counter cleared, no configuration touched, no smoother
+    /// snapped, no lane reseeded, no control residue moved. Safe on the audio
+    /// thread, which reset() deliberately is not (see its step 2 above:
+    /// "reset() is a control-thread call").
+    ///
+    /// WHY DROPPING THE O(buffer) WIPE IS SOUND, not a corner cut. reset()'s
+    /// extra L.delay.reset() is a std::fill over the whole power-of-two ring -
+    /// 131 072 B per loop at 44.1/48 kHz and 524 288 B at 192 kHz - so six loops
+    /// clear ~786 KB at 48 kHz and ~3.1 MB at 192 kHz, against an 8 889 ns
+    /// control-chunk budget that a SINGLE 131 KB fill already exceeds (the
+    /// measurement is clearLoopAudio()'s own, below). clearLoopAudio does not
+    /// zero the ring: it installs a READ-MUTE WINDOW OF EXACTLY ONE DELAY LENGTH
+    /// with the write position frozen while the window runs (renderChunk's
+    /// read-mute branch and updateControl step (4d)). During the window the read
+    /// contributes 0; after it, every sample the read tap can reach was WRITTEN
+    /// AFTER the clear. A stale - or non-finite - sample already in the ring is
+    /// therefore never read, which is the entire property the wipe was buying.
+    ///
+    /// The bound is config_.numLoops, NOT kMaxLoops: an out-of-count loop is
+    /// gated to silence by FR-075 (gateSteady) and was already cleared by its
+    /// sleep edge, so clearing it again would cost work on the audio thread and
+    /// buy nothing.
+    void silenceAudio() noexcept {
+        if (!prepared_) { return; }
+        for (std::size_t i = 0; i < config_.numLoops; ++i) { clearLoopAudio(i); }
+    }
+
     /// @brief FR-003. Renders one block, overwriting both outputs. The inputs may
     /// alias the outputs in either pairing.
     ///

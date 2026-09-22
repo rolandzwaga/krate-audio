@@ -104,6 +104,13 @@ material** after the append as before it. With no pre-change capture the clause 
 build-time resolution is to quietly weaken it to "the worst material is one of the five" — which is not
 what SC-016 asks. The survey case is `[.perf]` and a default run skips it, so it must be requested.
 
+> **Superseded for the per-material comparison (Q-K, Q-S).** This capture was taken on a heat-soaked
+> machine; Q-K re-captured both trees in one thermal state from a worktree at `ad7481f6`, and Q-S
+> (2026-09-21) moved the per-material 10 % comparison to `ContinuousBody_CpuBudget`'s paired tables
+> because the Seraphis survey's best-of-16 × 200 shape scatters ±20 % on identical code. The argmax
+> clause still reads this survey. The seven Seraphis pairs and three ContinuousBody pairs are in
+> `artifacts/sc016-c3-paired/`.
+
 ```bash
 mkdir -p specs/vorago-phase10-voice-engine/artifacts
 node tools/run-cpu-tests.js dsp_systems_tests 2>&1 \
@@ -176,7 +183,7 @@ explicit `f` suffixes, 32 entries each:
 |---|---|
 | `kRoomModeRatios` | `f(nx,ny,nz) = (c/2)·sqrt((nx/Lx)² + (ny/Ly)² + (nz/Lz)²)` over `nx,ny,nz ∈ [0,4]`, excluding `(0,0,0)`; room proportions **1 : 1.26 : 1.59** (Sepmeyer); sorted ascending, normalised by the first so `r[0] = 1.0` exactly, thinned to a **minimum spacing of 1.5 %**, first 32 kept |
 | `kClampedPlateRatios` | The eight published clamped-circular-plate values verbatim — **1.000, 2.080, 3.410, 3.890, 5.000, 5.950, 6.820, 8.280** (Leissa NASA SP-160 Table 4.4) — then a constant-modal-density **linear continuation** of the LSQ slope over `k = 4..8`, anchored at `k = 8`. **Print the LSQ slope**, so the number in the header comment is the number the script computed |
-| `kBarRatios` | `r[n] = (β_n / β_1)²`, `β_1..β_5 = 4.73004, 7.85320, 10.99561, 14.13717, 17.27876`, `β_n = (2n+1)π/2` for `n ≥ 6`. First eight must print as **1.0000, 2.7565, 5.4039, 8.9330, 13.3443, 18.6379, 24.8137, 31.8718** |
+| `kBarRatios` | `r[n] = (β_n / β_1)²`, `β_1..β_5 = 4.73004, 7.85320, 10.99561, 14.13717, 17.27876`, `β_n = (2n+1)π/2` for `n ≥ 6`. First eight must print as **1.0000, 2.7565, 5.4039, 8.9330, 13.3443, 18.6379, 24.8138, 31.8719** (corrected at T003; a six-digit π gave 24.8137 / 31.8718) |
 
 Assertions inside the script: every table strictly ascending over all 32 entries; `r[0] == 1.0000`;
 the room table's consecutive ratio gaps all `>= 1.015`.
@@ -776,8 +783,10 @@ Plus **exactly equal** `ecosystem().getControlStepCount()` across the three arms
 `TEST_CASE("VoragoVoice_NoiseDecorrelationMonoSum", "[systems][vorago]")` — FR-015 / B-3. Sweep
 20 Hz – 8 kHz through the two all-passes:
 - **per-channel** magnitude flat within **0.01 dB** (the all-pass property, exact by construction);
-- **mono-sum** magnitude deviation **≤ 3.0 dB** across the band;
-- and at least **6 dB better** than a one-sample-delay pair measured in the same case.
+- **mono-sum** magnitude deviation **≤ 4.0 dB** across the band (ruled 2026-09-18, spec Q-E; was
+  3.0 dB, unsatisfiable by construction — measured 3.66 dB at 8 kHz);
+- and at least **6 dB better** than a **1 ms fractional-delay** pair measured in the same case (the
+  one-sample pair is kept in the WARN line for the record only).
 Print the measured worst deviation — that figure is what the header quotes.
 
 `TEST_CASE("VoragoVoice_BodyBlendEndpoints", "[systems][vorago]")` — SC-017. At `b = 0`: render with
@@ -1756,11 +1765,11 @@ build/windows-x64-release/bin/Release/dsp_systems_tests.exe "ContinuousBody*" 2>
 build/windows-x64-release/bin/Release/dsp_systems_tests.exe "Seraphis*"      2>&1 | tail -5
 node tools/check-seraphis-green.js          # clauses 1-2, the git-diff scope checks
 
-# clause 3: the survey's worst material, diffed against T001's pre-change capture
-node tools/run-cpu-tests.js dsp_systems_tests 2>&1 \
-  | tee specs/vorago-phase10-voice-engine/artifacts/seraphis-material-survey-postchange.log
-diff <(grep -i "worst material" specs/vorago-phase10-voice-engine/artifacts/seraphis-material-survey-prechange.log) \
-     <(grep -i "worst material" specs/vorago-phase10-voice-engine/artifacts/seraphis-material-survey-postchange.log)
+# clause 3 (Q-K / Q-S): paired capture, pre-change worktree at ad7481f6 vs this tree, each alone
+# and P-core-pinned, alternating order; argmax from the Seraphis survey, per-material 10 % from
+# ContinuousBody_CpuBudget's tables. See plan.md's SC-016 block for the exact commands.
+grep -i "worst material" specs/vorago-phase10-voice-engine/artifacts/sc016-c3-paired/pair*-*.log
+grep -E "^\s+(Glass|Strings|MetalPlate|Chamber|Ice) :" specs/vorago-phase10-voice-engine/artifacts/sc016-c3-paired/cbpair*-*.log
 
 # 2. B-7's second shared-component change: FeedbackEcology's own suites, in full.
 #    silenceAudio() is append-only and has no Seraphis consumer, so THIS is its gate.
@@ -1810,12 +1819,16 @@ the gated ×1.15 column falls from 4.30 to **3.99**, on a break-even margin of 6
 ruled (spec.md Clarifications, Q-B, 2026-09-17): FR-017's configuration ships now and roadmap Phase 10a
 owns the other two. Record it as ruled in the phase report; do not surface it.
 
-**Step 4 — only after the ruling is written back into `spec.md` as SC-001b** (FR-083):
-- apply the ruled lever set and, if ruled, lower `kMaxVoices` in `vorago_engine.h`;
-- add `TEST_CASE("VoragoEngine_CpuBudget", "[systems][vorago][.perf]")` to `vorago_perf_test.cpp`:
-  measured `<= kReferenceNs` (3 200 000) and the checked-in baseline `<= kMaxAdmissibleNs` (2 133 333),
-  with the paired `static_assert(kBaseline <= kMaxAdmissibleNs, …)` in the TU. Every baseline is
-  `ceil(measured × 1.05)`.
+**Step 4 — only after the ruling is written back into `spec.md` as SC-001b** (FR-083).
+**RULED AND APPLIED 2026-09-21 — verification only.** Q-H (2026-09-19) ruled polyphony 4,
+`kMaxVoices = 6`, no voicing levers, and reformulated clause (ii); the baseline was transcribed from
+the cooled re-measurement on 2026-09-21:
+- `kMaxVoices` lowered 8 → 6 in `vorago_engine.h` (done at Q-A/Q-H);
+- `TEST_CASE("VoragoEngine_CpuBudget", "[systems][vorago][.perf]")` is in `vorago_perf_test.cpp`:
+  (i) engine + Cavern `<= kReferenceNs` (3 200 000) and (ii) engine `<= kEngineBaselineNsAtPoly4 × 1.5`,
+  baseline `2 694 479 = ceil(2 566 170 × 1.05)`. The original "baseline `<= kMaxAdmissibleNs`" clause
+  is not met by ruling; the TU `static_assert`s baseline = ⌈measured × 1.05⌉, baseline + Cavern
+  `<= kReferenceNs`, and records the available headroom (1.141×) next to the baseline.
 - **No baseline may be checked in before that amendment exists.** A baseline transcribed against an
   unruled configuration pins the wrong workload and is the one way the ladder gets skipped in practice.
 
@@ -1832,7 +1845,8 @@ When the phase reports complete:
   ns/block figures, the measured `V` / `L` / `G`, the composition-overhead ratio, the four clearing-path
   figures at both rates, the soak's settled RMS and its ±dB drift, the eleven Spearman rhos and eleven
   endpoint deltas, the burst-edge count;
-- **SC-016 clause 3** quotes the worst material from **both** capture logs by path;
+- **SC-016 clause 3** quotes the worst material from **both** capture logs by path, and the
+  per-material pre/post figures from `ContinuousBody_CpuBudget`'s paired tables (Q-S);
 - **SC-024** records the `check-portability.js` result, the three headers' presence in
   `lint_all_headers.cpp`, and the libstdc++ syntax pass;
 - **Q-A and Q-B** are recorded as ruled or as still open, with SC-001b present or explicitly absent.

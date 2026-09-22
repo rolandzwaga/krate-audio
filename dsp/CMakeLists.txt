@@ -174,6 +174,10 @@ set(KRATE_DSP_SYSTEMS_HEADERS
     include/krate/dsp/systems/seraphis_voice.h
     include/krate/dsp/systems/seraphis_engine.h
     include/krate/dsp/systems/seraphis_macro_matrix.h
+    # Vorago Phase 10 (specs/vorago-phase10-voice-engine), FR-001
+    include/krate/dsp/systems/vorago_voice.h
+    include/krate/dsp/systems/vorago_engine.h
+    include/krate/dsp/systems/vorago_macro_matrix.h
 )
 
 # Layer 4: Effects

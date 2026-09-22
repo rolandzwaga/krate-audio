@@ -416,7 +416,12 @@ static_assert(SeraphisEngine::kBloomPartialCap
               "FR-071's Layer-3 duplicate of the Layer-4 cap must still agree with it");
 static_assert(HarmonicCloud::kMaxPartials == 64,
               "RA-1's cloud row is the 64-partial configuration");
-static_assert(ContinuousBody::kNumMaterials == 5,
+// Pinned to the SERAPHIS prefix, not to kNumMaterials: Vorago Phase 10 appended
+// six dark materials to BodyMaterial (kNumMaterials == 11), and Seraphis's
+// checked-in baselines were measured against these five alone. Surveying the
+// appended ones here would re-point SC-001/SC-002's subject onto a material
+// Seraphis never measured (Vorago FR-038a).
+static_assert(ContinuousBody::kNumSeraphisMaterials == 5,
               "SC-001 measures all five materials and uses the worst");
 
 // =============================================================================
@@ -567,8 +572,11 @@ constexpr float kBodyWidth = 1.0f;
 
 // Double-braced (the continuous_body.h:506-508 idiom): std::array wraps a
 // C-array member, and the explicit inner brace keeps Clang's -Wmissing-braces
-// silent. Order MUST match BodyMaterial's enumerator order.
-constexpr std::array<ContinuousBody::BodyMaterial, ContinuousBody::kNumMaterials> kMaterials = {{
+// silent. Order MUST match BodyMaterial's enumerator order - and this table is
+// the SERAPHIS PREFIX of that enumeration (the first kNumSeraphisMaterials
+// values), unchanged by Vorago's six appended materials (FR-038a).
+constexpr std::array<ContinuousBody::BodyMaterial, ContinuousBody::kNumSeraphisMaterials>
+    kMaterials = {{
     ContinuousBody::BodyMaterial::Glass,
     ContinuousBody::BodyMaterial::Strings,
     ContinuousBody::BodyMaterial::MetalPlate,
@@ -576,7 +584,7 @@ constexpr std::array<ContinuousBody::BodyMaterial, ContinuousBody::kNumMaterials
     ContinuousBody::BodyMaterial::Ice,
 }};
 
-constexpr std::array<const char*, ContinuousBody::kNumMaterials> kMaterialNames = {{
+constexpr std::array<const char*, ContinuousBody::kNumSeraphisMaterials> kMaterialNames = {{
     "Glass", "Strings", "MetalPlate", "Chamber", "Ice",
 }};
 
@@ -651,7 +659,7 @@ void applyPinnedBody(SeraphisVoice& voice, ContinuousBody::BodyMaterial m) noexc
 /// idiom. The worst material is CHOSEN FROM THE MEASUREMENT rather than by hand,
 /// so the scenario can never be pointed at an accidentally cheap case.
 struct MaterialSurvey {
-    std::array<double, ContinuousBody::kNumMaterials> nsPerBlock{};
+    std::array<double, ContinuousBody::kNumSeraphisMaterials> nsPerBlock{};
     std::size_t worstIndex = 0;
     double sink = 0.0;
 };
@@ -659,7 +667,7 @@ struct MaterialSurvey {
 [[nodiscard]] MaterialSurvey surveyMaterials()
 {
     MaterialSurvey out{};
-    for (std::size_t i = 0; i < ContinuousBody::kNumMaterials; ++i) {
+    for (std::size_t i = 0; i < ContinuousBody::kNumSeraphisMaterials; ++i) {
         out.nsPerBlock[i] = measureMaterialNsPerBlock(kMaterials[i], out.sink);
     }
     const auto worst = std::max_element(out.nsPerBlock.begin(), out.nsPerBlock.end());
@@ -1193,7 +1201,7 @@ TEST_CASE("SeraphisEngine_FullPolyCpuBudget", "[.perf][systems][seraphis]")
         std::ostringstream os;
         os << "SC-001 body-material survey (standalone ContinuousBody, the phase-4 perf "
               "configuration):\n";
-        for (std::size_t i = 0; i < ContinuousBody::kNumMaterials; ++i) {
+        for (std::size_t i = 0; i < ContinuousBody::kNumSeraphisMaterials; ++i) {
             os << "  " << kMaterialNames[i] << " : " << survey.nsPerBlock[i] << " ns/block\n";
         }
         os << "  worst material  : " << kMaterialNames[survey.worstIndex]

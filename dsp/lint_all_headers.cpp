@@ -193,6 +193,11 @@
 // Vorago Phase 8 (specs/vorago-phase8-ecosystem), FR-001
 #include <krate/dsp/systems/ecosystem_engine.h>
 
+// Vorago Phase 10 (specs/vorago-phase10-voice-engine), FR-001
+#include <krate/dsp/systems/vorago_voice.h>
+#include <krate/dsp/systems/vorago_engine.h>
+#include <krate/dsp/systems/vorago_macro_matrix.h>
+
 // Layer 4: Effects
 #include <krate/dsp/effects/aether_reverb.h>
 #include <krate/dsp/effects/cavern_verb.h>  // Vorago Phase 9 (specs/vorago-phase9-cavern-space), FR-001
