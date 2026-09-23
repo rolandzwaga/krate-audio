@@ -32,6 +32,7 @@ const SLUGS = {
   8: 'vorago-phase8-ecosystem',
   9: 'vorago-phase9-cavern-space',
   10: 'vorago-phase10-voice-engine',
+  '10a': 'vorago-phase10a-ghost-extension',
   11: 'vorago-phase11-plugin-scaffold',
   12: 'vorago-phase12-parameters',
   13: 'vorago-phase13-ui',
@@ -45,7 +46,7 @@ if (typeof A === 'string') {
 }
 const phaseNum = A && A.phase
 const stage = (A && A.stage) || 'specify'
-if (!SLUGS[phaseNum]) throw new Error(`args.phase must be 1-14, got: ${JSON.stringify(phaseNum)}. Usage: {phase: 1, stage: "specify"|"plan"|"build", clarifications?: {...}}`)
+if (!SLUGS[phaseNum]) throw new Error(`args.phase must be 1-14 or "10a", got: ${JSON.stringify(phaseNum)}. Usage: {phase: 1, stage: "specify"|"plan"|"build", clarifications?: {...}}`)
 if (stage !== 'specify' && stage !== 'plan' && stage !== 'build') throw new Error(`args.stage must be "specify", "plan" or "build", got: ${JSON.stringify(stage)}`)
 // args.unblock: task ids whose cached status "blocked" has been RULED ON by the user (the
 // decision is recorded in spec/plan/tasks). On a resume those results are treated as done

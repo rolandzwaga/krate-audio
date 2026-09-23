@@ -497,7 +497,7 @@ Phase 14 so presets can use it.
 spec Q-B): the shipped `AtmosphereEngine` has no reverse control and no event-trigger entry point.
 
 - Append-only extension of `systems/atmosphere_engine.h` on the `ContinuousBody` model: a per-grain
-  reverse flag read at grain birth (substrate: `primitives/reverse_buffer.h`; the component already
+  reverse flag read at grain birth (substrate: a backwards walk of the existing grain read index through the capture ring — `primitives/reverse_buffer.h` is mono, self-capturing and allocating, ruled out by the spec's ADR-1; the component already
   snapshots pitch, position and drift at birth), and an event-trigger entry point beside the density
   scheduler so a `SlowEventScheduler` event spawns a grain instead of only raising the level.
 - Default-inert: with neither feature engaged the render is unchanged; Seraphis's suites stay green
