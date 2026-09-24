@@ -618,6 +618,7 @@ atmosphere engine) are consumed as-is from day one.
 ## Open Questions (resolve in the relevant spec, not before)
 
 1. Final name (Vorago is a placeholder) — before Phase 11 (FUIDs/subtype/bundle-id depend on it).
+   **Decided 2026-09-24: Vorago is final** — subtype `Vrgo`, `plugins/vorago/`, `vorago_tests`, bundle id derived from it; nothing renames.
 2. Ecosystem rule set: which agent kinds and interaction rules survive the offline prototype —
    Phase 8, after prototyping.
 3. Cavern space: configuration layer over shared `AetherReverb` vs separate L4 effect — Phase 9,
