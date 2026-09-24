@@ -1,0 +1,247 @@
+================================================================================
+T031 - CPU-BUDGET LANE: the measurement, the recomputed FR-081 ladder,
+       and the Q-A decision request (SC-001b is NOT written yet)
+================================================================================
+
+PROVENANCE OF EVERY FIGURE BELOW
+-------------------------------
+  command     : node tools/run-cpu-tests.js dsp_systems_tests
+  capture     : specs/vorago-phase10-voice-engine/artifacts/
+                seraphis-material-survey-postchange.log   (2026-09-19, 00:08-04:25)
+  run mode    : ALONE - machine idled 180 s before the run; nothing else executing
+                for its whole 4 h 17 min; pin-perf-cores mask 0xFFFF
+                (tools/pin-perf-cores.ps1, efficiency-class pinning)
+  binary      : build/windows-x64-release/bin/Release/dsp_systems_tests.exe
+                built 2026-09-18 16:33:04, which is NEWER than every Phase 10
+                source in the tree (latest source mtime:
+                vorago_dark_materials_test.cpp 2026-09-18 16:32:12; the three new
+                headers 2026-09-18 15:49-15:57).
+  conditions  : this is exactly FR-083's required shape (spec.md:1244-1247) -
+                clean, P-core-pinned, alone, post-idle, via run-cpu-tests.js.
+
+  NO NEW RUN WAS PERFORMED FOR T031. The T030 invocation is the same command
+  T031 step 1 prescribes and it covered the whole timing lane of
+  dsp_systems_tests (90 cases, 442 379 assertions), which includes every case
+  T031 step 1 names: VoragoEngine_CpuSurvey (SC-001a), VoragoVoice_StageCostProbe
+  (SC-002, incl. the standalone advanceLifeOnly arm that measures L),
+  VoragoVoice_CompositionOverhead (SC-003), VoragoVoice_ClearingPathCost and the
+  material surveys (SC-025). Re-running the lane immediately after it would have
+  been a BACK-TO-BACK timing run, which tools/run-cpu-tests.js:17-26 documents as
+  a dominant measurement-error source on this machine (+14 % observed on
+  identical code). The figures below are transcribed verbatim from that capture,
+  with the emitting source line cited per block.
+
+================================================================================
+SECTION 1 - SC-001a, the measured survey  (vorago_perf_test.cpp:744, :805, :827)
+================================================================================
+
+  block budget          : 10 666 666.7 ns      (512 / 48 000)
+  kReferenceNs (30 %)   :  3 200 000   ns/block   roadmap line 470, GLOBAL
+  kMaxAdmissibleNs      :  2 133 333   ns/block   = kReferenceNs / 1.5
+  kMaxVoices (compiled) : 8                      vorago_engine.h:168
+  V (voice, standalone) : 506 961   ns/block
+  L (advanceLifeOnly)   :  12 692.4 ns/block     B-6's spare-slot term
+  Cavern (arithmetic)   : 124 497   ns/block     phase-9 measured, vorago_perf_test.cpp:203
+
+  Measured engine, all sub-components at FR-090 defaults, macros neutral,
+  composed chain INCLUDING CavernVerb (vorago_perf_test.cpp:827):
+
+    poly | engine measured | + Cavern   | % of one | % of ref  | % of gated | G derived
+         |      ns/block   |  ns/block  |   core   | 3 200 000 | 2 133 333  | (lower bound)
+    -----+-----------------+------------+----------+-----------+------------+-----------
+      1  |     867 411     |   991 908  |  9.299 % |   31.00 % |    46.50 % |  271 603
+      2  |   1 396 590     | 1 521 090  | 14.260 % |   47.53 % |    71.30 % |  306 514
+      4  |   2 579 720     | 2 704 220  | 25.352 % |   84.51 % |   126.76 % |  501 111
+      6  |   3 471 670     | 3 596 160  | 33.714 % |  112.38 % |   168.57 % |  404 518
+      8  |   4 460 800     | 4 585 300  | 42.987 % |  143.29 % |   214.94 % |  405 116
+
+    G (median of the five derived estimates) = 404 518 ns/block.
+
+  Per-stage breakdown used for the lever projections in SECTION 3
+  (SC-002, vorago_perf_test.cpp:1247; measured whole VoragoVoice 549 148 ns):
+
+    cloud                       71 411.5      body A (StoneChamber)   32 127
+    noise + decorrelation      137 933        body B (SteelTank)      34 570
+    resonance                   57 120.5      envelope + blend         2 231.5
+    ecology                    102 147        L = advanceLifeOnly     10 123
+    bloom (step 2)                 224        ecosystem (inside L)     5 867.5
+    ENGINE COLUMN: atmosphere 28 285.5 | subharmonic 22 709.5 | smear 18 462.5
+                   output stage 139 572 | engine column sum 704 682
+
+================================================================================
+SECTION 2 - the FR-081 ladder recomputed from the MEASURED V / L / G
+================================================================================
+
+  Solve: total(N, kMaxVoices) = N*V + (kMaxVoices - N)*L + G + Cavern
+         with V = 506 961, L = 12 692.4, G = 404 518, Cavern = 124 497
+         (so the constant term G + Cavern = 529 015).
+  Recomputed by hand here and cross-checked against the in-test ladder
+  (vorago_perf_test.cpp:869) - every figure agrees to the printed precision.
+
+  kMaxVoices = 4
+    N | bare ns    | % ref  | % gated | x1.15 ns   | % ref  | % gated
+    --+------------+--------+---------+------------+--------+--------
+    1 |  1 074 053 | 33.56  |  50.35  |  1 150 097 | 35.94  |  53.91
+    2 |  1 568 322 | 49.01  |  73.52  |  1 720 410 | 53.76  |  80.64
+    3 |  2 062 590 | 64.46  |  96.68  |  2 290 723 | 71.59  | 107.38
+    4 |  2 556 859 | 79.90  | 119.85  |  2 861 036 | 89.41  | 134.11
+    N_ref bare = 4 / x1.15 = 4     N_gate bare = 3 / x1.15 = 2
+
+  kMaxVoices = 6
+    1 |  1 099 438 | 34.36  |  51.54  |  1 175 482 | 36.73  |  55.10
+    2 |  1 593 707 | 49.80  |  74.71  |  1 745 795 | 54.56  |  81.83
+    4 |  2 582 244 | 80.70  | 121.04  |  2 886 420 | 90.20  | 135.30
+    6 |  3 570 781 | 111.59 | 167.38  |  4 027 046 | 125.85 | 188.77
+    N_ref bare = 5 / x1.15 = 4     N_gate bare = 3 / x1.15 = 2
+
+  kMaxVoices = 8  (as compiled today)
+    1 |  1 124 822 | 35.15  |  52.73  |  1 200 866 | 37.53  |  56.29
+    2 |  1 619 092 | 50.60  |  75.89  |  1 771 180 | 55.35  |  83.02
+    4 |  2 607 629 | 81.49  | 122.23  |  2 911 805 | 90.99  | 136.49
+    6 |  3 596 160 | 112.38 | 168.57  |  4 052 426 | 126.64 | 189.96
+    8 |  4 584 703 | 143.27 | 214.91  |  5 193 056 | 162.28 | 243.42
+    N_ref bare = 5 / x1.15 = 4     N_gate bare = 3 / x1.15 = 2
+
+  WHAT THE MEASUREMENT CHANGES ABOUT THE PLAN'S PROJECTION
+  -------------------------------------------------------
+  The plan carried V = 474 395, G = 411 330, L ~ 31 000 and expected the
+  kMaxVoices choice to be decisive on a 645 ns/spare-slot margin. MEASURED
+  L = 12 692.4 - LESS THAN HALF the projected spare-slot cost. Therefore:
+
+    * at polyphony 4, lowering kMaxVoices 8 -> 6 saves     25 385 ns = 0.79 % of ref
+    * at polyphony 4, lowering kMaxVoices 8 -> 4 saves     50 770 ns = 1.59 % of ref
+
+  L-7 does not change a single verdict in the tables above: N_ref and N_gate are
+  identical at kMaxVoices 4, 6 and 8. The lever is nearly free to apply and
+  nearly worthless as a budget instrument. The plan's expectation that
+  "polyphony 4 clears the gated line only with L-4 applied and kMaxVoices at 6"
+  is FALSIFIED by the measurement in both directions: kMaxVoices is not the
+  lever, and L-4 alone is not enough either (SECTION 3).
+
+================================================================================
+SECTION 3 - what SC-001b would actually require at each candidate polyphony
+================================================================================
+
+  SC-001b (spec.md:1375-1383) has TWO clauses:
+    (i)  measured <= kReferenceNs      = 3 200 000
+    (ii) checked-in baseline, = ceil(measured x 1.05) (FR-083, spec.md:1244),
+         <= kMaxAdmissibleNs           = 2 133 333
+  Clause (ii) binds first: it caps the MEASURED figure at 2 133 333 / 1.05 =
+  2 031 746 ns/block.
+
+    poly | measured + Cavern | clause (i)  | baseline ceil(x1.05) | clause (ii)
+    -----+-------------------+-------------+----------------------+-------------
+      1  |   991 908         | PASS  31.0 %|   1 041 504          | PASS  48.8 %
+      2  | 1 521 090         | PASS  47.5 %|   1 597 145          | PASS  74.9 %
+      4  | 2 704 220         | PASS  84.5 %|   2 839 431          | FAIL 133.1 %
+      6  | 3 596 160         | FAIL 112.4 %|  3 775 968           | FAIL 177.0 %
+      8  | 4 585 300         | FAIL 143.3 %|  4 814 565           | FAIL 225.7 %
+
+  READ ROW 4 TWICE. At the roadmap's own floor of 4 voices the instrument
+  ALREADY MEETS roadmap line 470's 30 %-of-a-core ceiling (84.5 % of it, i.e.
+  25.4 % of one core, everything on, cavern included). What it does not meet is
+  the repo's internal regression-headroom convention, kMaxAdmissibleNs =
+  kReferenceNs / 1.5, which FR-083 applies to the CHECKED-IN BASELINE.
+
+  Gap to close at polyphony 4: 2 704 220 -> 2 031 746 = -672 474 ns (-24.9 %).
+
+  The ladder, costed from the MEASURED stage table (SECTION 1), applied at
+  polyphony 4. Every figure marked (proj) is a projection from a standalone
+  stage measurement and must be RE-MEASURED before it is believed:
+
+    lever                                    delta ns (N=4) | total     | % of 2 031 746
+    ------------------------------------------------------ + --------- + --------------
+    (measured, kMaxVoices = 8)                           - | 2 704 220 |   133.1 %
+    L-7  kMaxVoices 8 -> 4 (4 spare slots x L)     -50 770 | 2 653 450 |   130.6 %
+    L-4  noise 4->2, ecology 6->4, resonance 12->8
+         per voice: -68 967 -34 049 -19 040 = -122 056 (proj)
+         x 4 voices                                -488 223 | 2 165 227 |   106.6 %
+    cheaper material voicing                    unquantified - no measurement exists
+    L-3  one body instead of two (body B 34 570/voice)
+         x 4 voices                                -138 280 | 2 026 947 |    99.8 %
+
+  So: L-7 + L-4 + L-3 together land 0.2 % under the ceiling ON PROJECTIONS OF
+  PROJECTIONS, with no margin whatsoever, and L-3 deletes roadmap line 122's
+  multi-body-blend deliverable. L-7 + L-4 alone is 6.6 % short. L-7 alone is
+  30.6 % short. There is no lever set short of L-3 that reaches clause (ii) at
+  polyphony 4 on these numbers.
+
+  Reducing polyphony below 4 is L-5, whose floor is 4 (spec.md FR-081, L-5) -
+  roadmap line 460 says "4-8 voices", so polyphony 2 is OUTSIDE THE ROADMAP and
+  needs an explicit recorded amendment, not a quiet reduction inside the build.
+
+================================================================================
+SECTION 4 - Q-A, the decision only the user can take (FR-081 L-6 / FR-083)
+================================================================================
+
+  Q-A has two halves. NOTHING has been applied and NO baseline has been checked
+  in: vorago_engine.h still carries kMaxVoices = 8 (vorago_engine.h:168), the
+  VoragoEngine_CpuBudget case does not exist, and spec.md has no SC-001b.
+
+  Q-A.1 - kMaxVoices. Recommendation: lower it to 6, on grounds of honesty
+  rather than CPU - it narrows roadmap line 460's "4-8 voices" to "4-6" and is
+  therefore a roadmap-touching choice, which is why it is the user's. Measured
+  value of the lever: 0.79 % of kReferenceNs at polyphony 4. It changes no
+  verdict anywhere in SECTION 2. Keeping 8 costs 50 770 ns/block at polyphony 4
+  plus the prepared-but-silent state of four extra voice slots.
+
+  Q-A.2 - shipped polyphony and the lever set. The four honest options:
+
+    (A) Polyphony 4, kMaxVoices 6, NO voicing levers.
+        Meets roadmap line 470 (84.5 % of the 30 % ceiling; 25.4 % of a core).
+        Does NOT meet SC-001b clause (ii) - baseline 2 839 431 vs 2 133 333.
+        Requires the user to rule clause (ii) itself: either SC-001b's baseline
+        clause is taken against kReferenceNs, or SC-001b is written as clause
+        (i) only. EITHER IS A RELAXATION OF THE REPO CONVENTION and the build
+        may not take it - only the user may, recorded in spec.md as the
+        amendment.
+    (B) Polyphony 4, kMaxVoices 4, L-4 + L-3 applied, then RE-MEASURE.
+        Projected 2 026 947 (99.8 % of the clause-(ii) ceiling) - no margin, and
+        it costs roadmap line 122's two-body blend plus half the shipped
+        source/loop/peak counts, i.e. a sound-design change, not a tuning.
+    (C) Polyphony 2, no levers. Passes both clauses with 25 % headroom
+        (baseline 1 597 145 = 74.9 % of kMaxAdmissibleNs). Amends roadmap
+        line 460's floor - explicitly outside what this spec may choose.
+    (D) Polyphony 4, kMaxVoices 6, L-4 only, then RE-MEASURE, and accept
+        whatever clause-(ii) residual remains (projected 106.6 %) - i.e. (A)'s
+        ruling with a cheaper voice.
+
+  RECOMMENDATION: (A) with Q-A.1 = 6 - ship polyphony 4 at kMaxVoices 6, write
+  SC-001b's gate at kReferenceNs, and record explicitly in the amendment that
+  the x1.5 regression margin is NOT met at polyphony 4 and why (the alternative
+  costs a roadmap deliverable for 0.2 % of projected margin). The measurement
+  does not support pretending otherwise, and FR-081 L-6 is exactly this: stop
+  and surface.
+
+  WHAT HAPPENS AFTER THE RULING (T031 step 4, currently BLOCKED):
+    1. write the ruling into spec.md as SC-001b (polyphony, lever set, and the
+       ceiling the gate is taken against);
+    2. apply the ruled levers, incl. kMaxVoices in vorago_engine.h:168;
+    3. RE-MEASURE - any lever invalidates the table above;
+    4. add TEST_CASE("VoragoEngine_CpuBudget", "[systems][vorago][.perf]") to
+       vorago_perf_test.cpp with baseline = ceil(re-measured x 1.05) and the
+       paired static_assert against the ceiling the ruling names.
+
+================================================================================
+SECTION 5 - other red cases in the same lane (NOT T031's to fix; recorded here
+            because the same run measured them)
+================================================================================
+
+  * VoragoVoice_CompositionOverhead (vorago_perf_test.cpp:1290, FAILED at :1482)
+      ratio whole/sum = 1.15852 vs the 1.15 bound; measured VoragoVoice 514 909
+      vs sum-of-standalone 444 453 (bound in ns: 511 120). FR-082: fix the
+      COMPOSITION, never the 1.15. The 0.74 % excess is immaterial to SECTION 3.
+  * VoragoVoice_ClearingPathCost (vorago_perf_test.cpp:1511, FAILED at :1600)
+      REQUIRE(reset >= 10 x recovery): 37 314 >= 234 340 at 48 kHz. reset() is
+      only 1.59x the RT paths, not 10x. Measured at 48 kHz: reset 37 314,
+      resetForRecovery 23 434, resetForSteal 21 657, silence 19 842; at 192 kHz:
+      146 785 / 78 125 / 78 108 / 90 337. kClearingPathRatio = 10.0
+      (vorago_perf_test.cpp:251) is a threshold and may NOT be lowered to make
+      this green.
+  * SC-015 dark-materials separation (vorago_dark_materials_test.cpp:508)
+      StoneChamber 477.698 Hz vs WoodenHull 494.053 Hz, separation 0.0331 < 0.05.
+  * The engine/voice longrun and macro-sweep failures recorded in the same
+    capture (vorago_engine_longrun_test.cpp:776 / :895, vorago_macro_test.cpp:1096).
+
+  Lane totals for that run: 90 cases, 84 passed, 6 failed; 442 379 assertions,
+  442 373 passed, 6 failed.

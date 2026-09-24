@@ -1,0 +1,29 @@
+pin-perf-cores: performance-core mask 0xFFFF
+Filters: "SympatheticResonance SIMD performance benchmark"
+Randomness seeded to: 170115993
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+SympatheticResonance SIMD performance benchmark
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\sympathetic_resonance_test.cpp(2453)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\sympathetic_resonance_test.cpp(2526): warning:
+  Scalar throughput: 55.5129 Msamples/sec (7.9441 ms for 441000 samples, 64
+  resonators)
+
+F:\projects\iterum\dsp\tests\unit\systems\sympathetic_resonance_test.cpp(2559): warning:
+  SIMD throughput:   50.4231 Msamples/sec (8.746 ms for 441000 samples, 64
+  resonators)
+
+F:\projects\iterum\dsp\tests\unit\systems\sympathetic_resonance_test.cpp(2564): warning:
+  SIMD/Scalar ratio: 0.908312x
+
+===============================================================================
+All tests passed (3 assertions in 1 test case)
+
+exit 0

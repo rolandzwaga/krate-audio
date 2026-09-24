@@ -1,0 +1,96 @@
+Mon Sep 21 23:45:52 WEDT 2026
+pin-perf-cores: performance-core mask 0xFFFF
+Filters: "ContinuousBody_CpuBudget"
+Randomness seeded to: 3785463631
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+ContinuousBody_CpuBudget
+-------------------------------------------------------------------------------
+C:\Users\scab\AppData\Local\Temp\claude\p10pre\dsp\tests\unit\systems\continuous_body_perf_test.cpp(753)
+...............................................................................
+
+C:\Users\scab\AppData\Local\Temp\claude\p10pre\dsp\tests\unit\systems\continuous_body_perf_test.cpp(774): warning:
+  SC-005 (steady state - one material, cloud active, no crossfade, static
+  params) ContinuousBody, ns per 512-sample block @ 48 kHz
+    block budget    : 1.06667e+07 ns
+    reference       : 53333.3 ns/block  (0.5 % of one core)
+    checked-in base : 35500 ns/block  (gate: x1.5 = 53250 ns/block)
+    Glass : 29543.4 ns/block  (0.276969 % of one core)
+    Strings : 37911 ns/block  (0.355416 % of one core)
+    MetalPlate : 31338.8 ns/block  (0.293801 % of one core)
+    Chamber : 35998.6 ns/block  (0.337487 % of one core)
+    Ice : 30671.6 ns/block  (0.287546 % of one core)
+    worst material  : Strings at 37911 ns/block (this is what the baseline must
+  be pinned to)
+
+C:\Users\scab\AppData\Local\Temp\claude\p10pre\dsp\tests\unit\systems\continuous_body_perf_test.cpp(789): warning:
+  SC-005 (operating point - every setter stepped per 64-sample chunk, note
+  gliding) ContinuousBody, ns per 512-sample block @ 48 kHz
+    block budget    : 1.06667e+07 ns
+    reference       : 53333.3 ns/block  (0.5 % of one core)
+    checked-in base : 35500 ns/block  (gate: x1.5 = 53250 ns/block)
+    Glass : 34842.2 ns/block  (0.326646 % of one core)
+    Strings : 43182.4 ns/block  (0.404835 % of one core)
+    MetalPlate : 38936 ns/block  (0.365025 % of one core)
+    Chamber : 38764.4 ns/block  (0.363416 % of one core)
+    Ice : 35161.8 ns/block  (0.329642 % of one core)
+    worst material  : Strings at 43182.4 ns/block (this is what the baseline
+  must be pinned to)
+
+C:\Users\scab\AppData\Local\Temp\claude\p10pre\dsp\tests\unit\systems\continuous_body_perf_test.cpp(810): warning:
+  SC-005 (crossfade window - material change, two engines advanced)
+  ContinuousBody, ns per 512-sample block @ 48 kHz
+    block budget    : 1.06667e+07 ns
+    reference       : 106667 ns/block  (1 % of one core (the roadmap figure; no
+  transient exemption))
+    checked-in base : 54000 ns/block  (gate: x1.5 = 81000 ns/block)
+    Glass : 48520.6 ns/block  (0.454881 % of one core)
+    Strings : 49266 ns/block  (0.461869 % of one core)
+    MetalPlate : 46030.6 ns/block  (0.431537 % of one core)
+    Chamber : 44714.2 ns/block  (0.419196 % of one core)
+    Ice : 35478.4 ns/block  (0.33261 % of one core)
+    worst material  : Strings at 49266 ns/block (this is what the baseline must
+  be pinned to)
+
+C:\Users\scab\AppData\Local\Temp\claude\p10pre\dsp\tests\unit\systems\continuous_body_perf_test.cpp(825): warning:
+  SC-005 (cloud only - setResonatorBypass(true), cloudMix 1.0) ContinuousBody,
+  ns per 512-sample block @ 48 kHz
+    block budget    : 1.06667e+07 ns
+    reference       : 53333.3 ns/block  (0.5 % of one core)
+    checked-in base : 26500 ns/block  (gate: x1.5 = 39750 ns/block)
+    Glass : 23901.4 ns/block  (0.224076 % of one core)
+    Strings : 24853 ns/block  (0.232997 % of one core)
+    MetalPlate : 29982.8 ns/block  (0.281089 % of one core)
+    Chamber : 23924.2 ns/block  (0.224289 % of one core)
+    Ice : 30614.6 ns/block  (0.287012 % of one core)
+    worst material  : Ice at 30614.6 ns/block (this is what the baseline must
+  be pinned to)
+
+C:\Users\scab\AppData\Local\Temp\claude\p10pre\dsp\tests\unit\systems\continuous_body_perf_test.cpp(869): warning:
+  SC-005 per-material spread, engine-attributable (steady state minus that
+  material's own cloud-only figure):
+    Glass : 5642 ns/block  (29543.4 - 23901.4)
+    Strings : 13058 ns/block  (37911 - 24853)
+    MetalPlate : 1356 ns/block  (31338.8 - 29982.8)
+    Chamber : 12074.4 ns/block  (35998.6 - 23924.2)
+    Ice : 57 ns/block  (30671.6 - 30614.6)
+    cheapest 57, most expensive 13058, ratio 0.00436514 (required: <= 0.7)
+
+C:\Users\scab\AppData\Local\Temp\claude\p10pre\dsp\tests\unit\systems\continuous_body_perf_test.cpp(990): warning:
+  SC-005 / risk R-6 (30 s tail, cloud only, material Ice, cloudDecay 30 s,
+  silent input):
+    early tail      : 32179 ns/block
+    after 30 s      : 31081 ns/block
+    ratio late/early: 0.965878  (a denormal stall is a 10-100x event; expected
+  ~1)
+    checked-in base : 26500 ns/block  (gate: x1.5 = 39750 ns/block)
+
+===============================================================================
+All tests passed (71 assertions in 1 test case)
+
+exit=0
+Mon Sep 21 23:46:03 WEDT 2026

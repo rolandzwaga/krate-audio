@@ -1,0 +1,76 @@
+// FR-046 probe analysis: per-metric cross-toolchain spread against the stored
+// MSVC in-suite references.
+const fs = require('fs');
+
+const REF = {
+  A: {
+    rms: 0.045187897370990084,
+    peak: 0.33692830801010132,
+    meanAbs: 0.032592553826707081,
+    totalVariation: 10665.913020271684,
+    cp: [0.0, 0.0, 0.0106146391, -0.0268118661, 0.0180485547, -0.0440961868, 0.0131073035,
+      -0.0413083509, 0.00852230657, 0.0368464105, 0.0120678088, 0.0335803144, -0.120695569,
+      0.0142731145, -0.0414592922, -0.0222398806, 0.0609053336, -0.0864504129, 0.00113214867,
+      0.0223359391, 0.0264347196, -0.0045719496, -0.0384042189, -0.0134430099, -0.0516529046,
+      -0.0402912796, -0.108581103, 0.0112841651, 0.0489074551, 0.0338527374, -0.0236443058,
+      -0.0199564919]
+  },
+  B: {
+    rms: 0.10584018809847234,
+    peak: 0.28841844201087952,
+    meanAbs: 0.084950359182566965,
+    totalVariation: 1595.9558681194799,
+    cp: [0.0, 0.0102007203, 0.0254982039, 0.0518970042, -0.0978992134, -0.0179690085,
+      -0.163007259, 0.0488205999, -0.0893889517, 0.0580466166, 0.158383504, 0.0916293189,
+      0.177875027, -0.120974518, 0.0338675305, -0.174887195, -0.108078532, -0.102700792,
+      -0.0340998136, 0.207726911, 0.0203725398, 0.126996040, -0.0808575451, 0.0179890692,
+      -0.102840424, -0.160841048, -0.0418781452, -0.0654609054, 0.143871486, 0.0234865677,
+      0.242045194, 0.00852372590]
+  }
+};
+
+function parse(file) {
+  const out = {};
+  for (const line of fs.readFileSync(file, 'utf8').split(/\r?\n/)) {
+    const m = line.match(/^([AB])\.(\w+) (\S+)$/);
+    if (!m) continue;
+    const [, fx, key, val] = m;
+    out[fx] = out[fx] || { cp: [] };
+    if (key.startsWith('cp') && /^cp\d\d$/.test(key)) out[fx].cp[parseInt(key.slice(2), 10)] = parseFloat(val);
+    else out[fx][key] = parseFloat(val);
+  }
+  return out;
+}
+
+const legs = process.argv.slice(2);
+const acc = {};
+for (const leg of legs) {
+  const got = parse(leg);
+  for (const fx of ['A', 'B']) {
+    const r = REF[fx], g = got[fx];
+    acc[fx] = acc[fx] || { rms: 0, peak: 0, meanAbs: 0, totalVariation: 0, cpAbs: 0, cpIdx: -1, worstLeg: {} };
+    for (const k of ['rms', 'peak', 'meanAbs', 'totalVariation']) {
+      const rel = Math.abs(g[k] - r[k]) / Math.max(Math.abs(r[k]), 1e-12);
+      if (rel > acc[fx][k]) { acc[fx][k] = rel; acc[fx].worstLeg[k] = leg; }
+    }
+    for (let i = 0; i < 32; i++) {
+      // float32 round-trip of the reference literal, as the C++ comparison does
+      const refF = Math.fround(r.cp[i]);
+      const e = Math.abs(Math.fround(g.cp[i]) - refF);
+      if (e > acc[fx].cpAbs) { acc[fx].cpAbs = e; acc[fx].cpIdx = i; acc[fx].worstLeg.cp = leg; }
+    }
+    console.log(`${leg}  ${fx}  rms=${(Math.abs(g.rms - r.rms) / Math.abs(r.rms)).toExponential(4)}` +
+      ` peak=${(Math.abs(g.peak - r.peak) / Math.abs(r.peak)).toExponential(4)}` +
+      ` meanAbs=${(Math.abs(g.meanAbs - r.meanAbs) / Math.abs(r.meanAbs)).toExponential(4)}` +
+      ` totVar=${(Math.abs(g.totalVariation - r.totalVariation) / Math.abs(r.totalVariation)).toExponential(4)}`);
+  }
+}
+console.log('\n=== WORST OVER ALL LEGS ===');
+for (const fx of ['A', 'B']) {
+  const a = acc[fx];
+  console.log(`Fixture ${fx}:`);
+  for (const k of ['rms', 'peak', 'meanAbs', 'totalVariation'])
+    console.log(`  ${k.padEnd(15)} ${a[k].toExponential(4)}   (${a.worstLeg[k]})`);
+  console.log(`  worst checkpoint ${a.cpAbs.toExponential(4)} at cp${a.cpIdx}  (${a.worstLeg.cp})`);
+  console.log(`  => worst METRIC relative ${Math.max(a.rms, a.peak, a.meanAbs, a.totalVariation).toExponential(4)}`);
+}

@@ -1,0 +1,153 @@
+Filters: "AtmosphereGhost_ReverseFillDeficit","ZZ_SC011_StaleReadProbe"
+Randomness seeded to: 2299091567
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+AtmosphereGhost_ReverseFillDeficit
+  (a) rejection inside the filling regime, then (a2) admission at the threshold
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\atmosphere_ghost_test.cpp(1913)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\atmosphere_ghost_test.cpp(1921): PASSED:
+  REQUIRE( engine->getGrainReverseProbability() == 1.0f )
+with expansion:
+  1.0f == 1.0f
+
+F:\projects\iterum\dsp\tests\unit\systems\atmosphere_ghost_test.cpp(1930): PASSED:
+  REQUIRE( engine->getCaptureCapacitySamples() == VoragoGhostFix::kBaseCommitCaptureCapacity )
+with expansion:
+  1048576 (0x100000) == 1048576 (0x100000)
+
+F:\projects\iterum\dsp\tests\unit\systems\atmosphere_ghost_test.cpp(1935): PASSED:
+  REQUIRE( rMax == 0.5 )
+with expansion:
+  0.5 == 0.5
+
+F:\projects\iterum\dsp\tests\unit\systems\atmosphere_ghost_test.cpp(1953): PASSED:
+  REQUIRE( w * requested <= slackMin )
+with expansion:
+  864000.0 <= 1047219.9999656677
+
+F:\projects\iterum\dsp\tests\unit\systems\atmosphere_ghost_test.cpp(1968): PASSED:
+  REQUIRE( availableAtSpanEnd < admitThresholdSamples )
+with expansion:
+  280000.0 < 288128.0
+with message:
+  C=1.04858e+06 L'=576000 rMax=0.5 admitThresholdSamples=288128
+
+F:\projects\iterum\dsp\tests\unit\systems\atmosphere_ghost_test.cpp(1982): PASSED:
+  REQUIRE( render.rendered() == kPreRollSamples )
+with expansion:
+  240000 (0x3a980) == 240000 (0x3a980)
+with message:
+  C=1.04858e+06 L'=576000 rMax=0.5 admitThresholdSamples=288128
+
+F:\projects\iterum\dsp\tests\unit\systems\atmosphere_ghost_test.cpp(2025): PASSED:
+  REQUIRE( render.rendered() == kPreRollSamples + kRejectSpan )
+with expansion:
+  280000 (0x445c0) == 280000 (0x445c0)
+with message:
+  C=1.04858e+06 L'=576000 rMax=0.5 admitThresholdSamples=288128
+
+F:\projects\iterum\dsp\tests\unit\systems\atmosphere_ghost_test.cpp(2037): FAILED:
+  REQUIRE( bornDelta == std::uint64_t{0} )
+with expansion:
+  1 == 0
+with messages:
+  C=1.04858e+06 L'=576000 rMax=0.5 admitThresholdSamples=288128
+  (a) bornDelta=1 coldDelta=0 poolFullDelta=0
+
+0.031 s: (a) rejection inside the filling regime, then (a2) admission at the threshold
+0.000 s: AtmosphereGhost_ReverseFillDeficit
+-------------------------------------------------------------------------------
+AtmosphereGhost_ReverseFillDeficit
+  (c) forward arm at the filling ring - base-commit counters, unmoved
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\atmosphere_ghost_test.cpp(2094)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\atmosphere_ghost_test.cpp(2100): PASSED:
+  REQUIRE( engine->getGrainReverseProbability() == 0.0f )
+with expansion:
+  0.0f == 0.0f
+
+F:\projects\iterum\dsp\tests\unit\systems\atmosphere_ghost_test.cpp(2101): PASSED:
+  REQUIRE( engine->getCaptureCapacitySamples() == VoragoGhostFix::kBaseCommitCaptureCapacity )
+with expansion:
+  1048576 (0x100000) == 1048576 (0x100000)
+
+F:\projects\iterum\dsp\tests\unit\systems\atmosphere_ghost_test.cpp(2106): PASSED:
+  REQUIRE( render.rendered() == kPreRollSamples + kRejectSpan )
+with expansion:
+  280000 (0x445c0) == 280000 (0x445c0)
+
+F:\projects\iterum\dsp\tests\unit\systems\atmosphere_ghost_test.cpp(2109): PASSED:
+  REQUIRE( engine->getTotalGrainsBorn() == VoragoGhostFix::kBaseCommitShortPreRollBorn )
+with expansion:
+  1 == 1
+
+F:\projects\iterum\dsp\tests\unit\systems\atmosphere_ghost_test.cpp(2110): PASSED:
+  REQUIRE( engine->getTotalGrainsRetired() == VoragoGhostFix::kBaseCommitShortPreRollRetired )
+with expansion:
+  0 == 0
+
+F:\projects\iterum\dsp\tests\unit\systems\atmosphere_ghost_test.cpp(2112): PASSED:
+  REQUIRE( engine->getSkippedTriggerCountRingCold() == VoragoGhostFix::kBaseCommitShortPreRollRingCold )
+with expansion:
+  1 == 1
+
+F:\projects\iterum\dsp\tests\unit\systems\atmosphere_ghost_test.cpp(2114): PASSED:
+  REQUIRE( engine->getSkippedTriggerCountPoolFull() == VoragoGhostFix::kBaseCommitShortPreRollPoolFull )
+with expansion:
+  0 == 0
+
+F:\projects\iterum\dsp\tests\unit\systems\atmosphere_ghost_test.cpp(2116): PASSED:
+  REQUIRE( engine->getGrainRngState() == VoragoGhostFix::kBaseCommitShortPreRollGrainRngState )
+with expansion:
+  1385444124 (0x5294331c)
+  ==
+  1385444124 (0x5294331c)
+
+0.020 s: (c) forward arm at the filling ring - base-commit counters, unmoved
+0.020 s: AtmosphereGhost_ReverseFillDeficit
+-------------------------------------------------------------------------------
+ZZ_SC011_StaleReadProbe
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\zz_sc011_clause_disabled_probe.cpp(27)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\zz_sc011_clause_disabled_probe.cpp(122): warning:
+  SC-011 (iii) STALE-READ MEASUREMENT, FR-050 clause compiled OUT:
+    capacity                 = 1048576
+    pre-roll                 = 240000
+    lifetime (L')            = 576000
+    total rendered           = 816000
+    births at trigger time   = 1
+    total grains born        = 6
+    ring-cold skips          = 1
+    last birth age           = 48738.7
+    max observed grain age   = 894410
+    FIRST boundary at which maxObservedAge > available - 2: 354112
+      maxObservedAge         = 354113
+      available              = 354112
+    worst excess over (available - 2) = 178358
+  SC-011 (ii) ARM (a2)'s CONDITION, FR-050 clause compiled OUT:
+    sawBirth   = yes
+    A_born     = 240064
+    birthAge   = 29792.1
+    L'         = 576000
+    rMax       = 0.5
+    rhs        = 317857
+    A_born >= rhs ? NO (a2 is RED)
+
+F:\projects\iterum\dsp\tests\unit\systems\zz_sc011_clause_disabled_probe.cpp(123): PASSED:
+
+0.078 s: ZZ_SC011_StaleReadProbe
+===============================================================================
+test cases:  2 |  1 passed | 1 failed
+assertions: 17 | 16 passed | 1 failed
+

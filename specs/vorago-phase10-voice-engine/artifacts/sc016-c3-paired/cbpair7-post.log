@@ -1,0 +1,126 @@
+Mon Sep 21 23:44:17 WEDT 2026
+pin-perf-cores: performance-core mask 0xFFFF
+Filters: "ContinuousBody_CpuBudget"
+Randomness seeded to: 2089125673
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+ContinuousBody_CpuBudget
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\continuous_body_perf_test.cpp(790)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\continuous_body_perf_test.cpp(811): warning:
+  SC-005 (steady state - one material, cloud active, no crossfade, static
+  params) ContinuousBody, ns per 512-sample block @ 48 kHz
+    block budget    : 1.06667e+07 ns
+    reference       : 53333.3 ns/block  (0.5 % of one core)
+    checked-in base : 35500 ns/block  (gate: x1.5 = 53250 ns/block)
+    Glass : 30613.6 ns/block  (0.287003 % of one core)
+    Strings : 37101.4 ns/block  (0.347826 % of one core)
+    MetalPlate : 30977.6 ns/block  (0.290415 % of one core)
+    Chamber : 35909.6 ns/block  (0.336653 % of one core)
+    Ice : 29673.2 ns/block  (0.278186 % of one core)
+    StoneChamber : 31413.8 ns/block  (0.294504 % of one core)
+    SteelTank : 31280.6 ns/block  (0.293256 % of one core)
+    WoodenHull : 31596 ns/block  (0.296213 % of one core)
+    CathedralColumn : 29541 ns/block  (0.276947 % of one core)
+    CavernWall : 37067.8 ns/block  (0.347511 % of one core)
+    GlassSphere : 29799.8 ns/block  (0.279373 % of one core)
+    worst material  : Strings at 37101.4 ns/block (this is what the baseline
+  must be pinned to)
+
+F:\projects\iterum\dsp\tests\unit\systems\continuous_body_perf_test.cpp(826): warning:
+  SC-005 (operating point - every setter stepped per 64-sample chunk, note
+  gliding) ContinuousBody, ns per 512-sample block @ 48 kHz
+    block budget    : 1.06667e+07 ns
+    reference       : 53333.3 ns/block  (0.5 % of one core)
+    checked-in base : 35500 ns/block  (gate: x1.5 = 53250 ns/block)
+    Glass : 36178.8 ns/block  (0.339176 % of one core)
+    Strings : 40407.2 ns/block  (0.378818 % of one core)
+    MetalPlate : 39671.2 ns/block  (0.371918 % of one core)
+    Chamber : 38693.8 ns/block  (0.362754 % of one core)
+    Ice : 35324.4 ns/block  (0.331166 % of one core)
+    StoneChamber : 38214.8 ns/block  (0.358264 % of one core)
+    SteelTank : 38860.2 ns/block  (0.364314 % of one core)
+    WoodenHull : 43948 ns/block  (0.412013 % of one core)
+    CathedralColumn : 34474.8 ns/block  (0.323201 % of one core)
+    CavernWall : 38894 ns/block  (0.364631 % of one core)
+    GlassSphere : 34016.4 ns/block  (0.318904 % of one core)
+    worst material  : WoodenHull at 43948 ns/block (this is what the baseline
+  must be pinned to)
+
+F:\projects\iterum\dsp\tests\unit\systems\continuous_body_perf_test.cpp(847): warning:
+  SC-005 (crossfade window - material change, two engines advanced)
+  ContinuousBody, ns per 512-sample block @ 48 kHz
+    block budget    : 1.06667e+07 ns
+    reference       : 106667 ns/block  (1 % of one core (the roadmap figure; no
+  transient exemption))
+    checked-in base : 54000 ns/block  (gate: x1.5 = 81000 ns/block)
+    Glass : 48405.4 ns/block  (0.453801 % of one core)
+    Strings : 50719.6 ns/block  (0.475496 % of one core)
+    MetalPlate : 45362.6 ns/block  (0.425274 % of one core)
+    Chamber : 44216.4 ns/block  (0.414529 % of one core)
+    Ice : 37011.4 ns/block  (0.346982 % of one core)
+    StoneChamber : 38423.6 ns/block  (0.360221 % of one core)
+    SteelTank : 41895.6 ns/block  (0.392771 % of one core)
+    WoodenHull : 41040.4 ns/block  (0.384754 % of one core)
+    CathedralColumn : 40432.8 ns/block  (0.379058 % of one core)
+    CavernWall : 39463.6 ns/block  (0.369971 % of one core)
+    GlassSphere : 39560 ns/block  (0.370875 % of one core)
+    worst material  : Strings at 50719.6 ns/block (this is what the baseline
+  must be pinned to)
+
+F:\projects\iterum\dsp\tests\unit\systems\continuous_body_perf_test.cpp(862): warning:
+  SC-005 (cloud only - setResonatorBypass(true), cloudMix 1.0) ContinuousBody,
+  ns per 512-sample block @ 48 kHz
+    block budget    : 1.06667e+07 ns
+    reference       : 53333.3 ns/block  (0.5 % of one core)
+    checked-in base : 26500 ns/block  (gate: x1.5 = 39750 ns/block)
+    Glass : 30084 ns/block  (0.282038 % of one core)
+    Strings : 29646.2 ns/block  (0.277933 % of one core)
+    MetalPlate : 24459.8 ns/block  (0.229311 % of one core)
+    Chamber : 24618.6 ns/block  (0.230799 % of one core)
+    Ice : 24933.2 ns/block  (0.233749 % of one core)
+    StoneChamber : 24413 ns/block  (0.228872 % of one core)
+    SteelTank : 29296.2 ns/block  (0.274652 % of one core)
+    WoodenHull : 30552.6 ns/block  (0.286431 % of one core)
+    CathedralColumn : 29647 ns/block  (0.277941 % of one core)
+    CavernWall : 30155.8 ns/block  (0.282711 % of one core)
+    GlassSphere : 24439.8 ns/block  (0.229123 % of one core)
+    worst material  : WoodenHull at 30552.6 ns/block (this is what the baseline
+  must be pinned to)
+
+F:\projects\iterum\dsp\tests\unit\systems\continuous_body_perf_test.cpp(906): warning:
+  SC-005 per-material spread, engine-attributable (steady state minus that
+  material's own cloud-only figure):
+    Glass : 529.6 ns/block  (30613.6 - 30084)
+    Strings : 7455.2 ns/block  (37101.4 - 29646.2)
+    MetalPlate : 6517.8 ns/block  (30977.6 - 24459.8)
+    Chamber : 11291 ns/block  (35909.6 - 24618.6)
+    Ice : 4740 ns/block  (29673.2 - 24933.2)
+    StoneChamber : 7000.8 ns/block  (31413.8 - 24413)
+    SteelTank : 1984.4 ns/block  (31280.6 - 29296.2)
+    WoodenHull : 1043.4 ns/block  (31596 - 30552.6)
+    CathedralColumn : -106 ns/block  (29541 - 29647)
+    CavernWall : 6912 ns/block  (37067.8 - 30155.8)
+    GlassSphere : 5360 ns/block  (29799.8 - 24439.8)
+    cheapest -106, most expensive 11291, ratio -0.00938801 (required: <= 0.7)
+
+F:\projects\iterum\dsp\tests\unit\systems\continuous_body_perf_test.cpp(1027): warning:
+  SC-005 / risk R-6 (30 s tail, cloud only, material WoodenHull, cloudDecay 30
+  s, silent input):
+    early tail      : 24168 ns/block
+    after 30 s      : 24523 ns/block
+    ratio late/early: 1.01469  (a denormal stall is a 10-100x event; expected
+  ~1)
+    checked-in base : 26500 ns/block  (gate: x1.5 = 39750 ns/block)
+
+===============================================================================
+All tests passed (149 assertions in 1 test case)
+
+exit=0
+Mon Sep 21 23:44:40 WEDT 2026

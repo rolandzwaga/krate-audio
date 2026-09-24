@@ -1,0 +1,331 @@
+Filters: ~[performance] ~[perf] ~[benchmark] ~[!benchmark] ~[long]
+Randomness seeded to: 3741492006
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+seraphis_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+Seraphis_ProcessorRendersHeldNote
+  Seraphis_HeldNoteIsNotSilent
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\seraphis\tests\integration\processor_audio_test.cpp(623)
+...............................................................................
+
+F:\projects\iterum\plugins\seraphis\tests\integration\processor_audio_test.cpp(646): warning:
+  SC-005 held note, registered defaults (48 kHz / 512, master gain unity,
+  polyphony 8, note 60, velocity 100, 4 s): peak L=0.061002 R=0.0751796 rms L=
+  0.020563 | floor = 0.0005
+
+-------------------------------------------------------------------------------
+Seraphis_ProcessorRendersHeldNote
+  Seraphis_HeldNoteLoudnessIsNominal
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\seraphis\tests\integration\processor_audio_test.cpp(679)
+...............................................................................
+
+F:\projects\iterum\plugins\seraphis\tests\integration\processor_audio_test.cpp(713): warning:
+  SC-005a single note, registered defaults (48 kHz / 512, master gain unity,
+  polyphony 8, note 60, velocity 127, 4 s): peak = 0.0813758 (-21.7901 dBFS),
+  rms L = 0.0172983 | window = [-28, -12] dBFS
+
+-------------------------------------------------------------------------------
+Seraphis_ProcessorRendersHeldNote
+  Seraphis_HeldNoteReachesLevelQuickly
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\seraphis\tests\integration\processor_audio_test.cpp(741)
+...............................................................................
+
+F:\projects\iterum\plugins\seraphis\tests\integration\processor_audio_test.cpp(768): warning:
+  SC-005b single note, registered defaults, 12 s: peak[2-4 s] = 0.0670979 (-23.
+  4658 dBFS), peak[8-10 s] = 0.101432 (-19.8765 dBFS), shortfall = -3.58934 dB
+  | tolerance +/-8 dB
+
+-------------------------------------------------------------------------------
+Seraphis_ParamFlowReachesEngine
+  clause 1: the snap seam silences a ringing chain from sample 0
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\seraphis\tests\integration\param_flow_test.cpp(477)
+...............................................................................
+
+F:\projects\iterum\plugins\seraphis\tests\integration\param_flow_test.cpp(527): warning:
+  snap seam: peak[0..] L=0.000908552 R=0.000229683 | peak[0.5 s..] L=0 R=0
+
+-------------------------------------------------------------------------------
+Seraphis_ParamFlowReachesEngine
+  clause 2: master gain scales the render by exactly the gain ratio
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\seraphis\tests\integration\param_flow_test.cpp(557)
+...............................................................................
+
+F:\projects\iterum\plugins\seraphis\tests\integration\param_flow_test.cpp(576): warning:
+  SC-019 clause 2 levels: peak(norm 0.5) L=0.0611305 R=0.0758457, peak(norm 1.
+  0) L=0.122261 R=0.151691
+
+-------------------------------------------------------------------------------
+Seraphis_ParamFlowReachesEngine
+  Seraphis_SoftLimitIsMeasurable
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\seraphis\tests\integration\param_flow_test.cpp(715)
+...............................................................................
+
+F:\projects\iterum\plugins\seraphis\tests\integration\param_flow_test.cpp(796): warning:
+  SC-027 L0 1 note, vel 0.8, gain x1, poly 8, 2 s: pre-output-stage rms=0.
+  0384647 peak=0.0758457 (limiter ceiling 0.891251) | maxAbsDiff(on,off)=2.
+  17184e-05 (kSampleTolerance 0.0005) | relative RMS difference=0.00015229 |
+  on-arm rms=0.0384594 | worst-channel relative RMS drop=6.12521e-05
+
+F:\projects\iterum\plugins\seraphis\tests\integration\param_flow_test.cpp(796): warning:
+  SC-027 L1 6 notes, vel 1.0, gain x2, poly 8, 2 s: pre-output-stage rms=0.
+  164044 peak=0.50976 (limiter ceiling 0.891251) | maxAbsDiff(on,off)=0.
+  00557238 (kSampleTolerance 0.0005) | relative RMS difference=0.00402244 | on-
+  arm rms=0.163483 | worst-channel relative RMS drop=0.0028243
+
+F:\projects\iterum\plugins\seraphis\tests\integration\param_flow_test.cpp(796): warning:
+  SC-027 L2 16 notes, vel 1.0, gain x2, poly 16, 2 s: pre-output-stage rms=0.
+  263689 peak=0.891251 (limiter ceiling 0.891251) | maxAbsDiff(on,off)=0.
+  0264347 (kSampleTolerance 0.0005) | relative RMS difference=0.0111078 | on-
+  arm rms=0.262562 | worst-channel relative RMS drop=0.00427167
+
+F:\projects\iterum\plugins\seraphis\tests\integration\param_flow_test.cpp(796): warning:
+  SC-027 L3 16 notes, vel 1.0, gain x2, poly 16, 4 s: pre-output-stage rms=0.
+  223532 peak=0.891251 (limiter ceiling 0.891251) | maxAbsDiff(on,off)=0.
+  0264347 (kSampleTolerance 0.0005) | relative RMS difference=0.00969649 | on-
+  arm rms=0.222491 | worst-channel relative RMS drop=0.00406988
+
+F:\projects\iterum\plugins\seraphis\tests\integration\param_flow_test.cpp(796): warning:
+  SC-027 L4 16 notes, vel 1.0, gain x2, poly 16, 16 s: pre-output-stage rms=0.
+  235532 peak=0.891251 (limiter ceiling 0.891251) | maxAbsDiff(on,off)=0.
+  0267574 (kSampleTolerance 0.0005) | relative RMS difference=0.0103906 | on-
+  arm rms=0.235542 | worst-channel relative RMS drop=-3.98519e-05
+
+F:\projects\iterum\plugins\seraphis\tests\integration\param_flow_test.cpp(825): warning:
+  SC-027 loudest rung: L4 16 notes, vel 1.0, gain x2, poly 16, 16 s | pre-
+  output-stage rms=0.235532 peak=0.891251 | maxAbsDiff=0.0267574 | relative RMS
+  difference=0.0103906 | on-arm rms=0.235542 | worst-channel relative RMS drop=
+  -3.98519e-05
+
+F:\projects\iterum\plugins\seraphis\tests\integration\param_flow_test.cpp(829): warning:
+  SC-027 direction rung: L1 6 notes, vel 1.0, gain x2, poly 8, 2 s | pre-
+  output-stage peak=0.50976 | worst-channel relative RMS drop=0.0028243
+
+-------------------------------------------------------------------------------
+Seraphis_MorphSync_DerivesAndFallsBack
+  clause 5b - an invalid tempo flag leaves ID 404 in charge and the render
+  sounds
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\seraphis\tests\unit\morph_sync_test.cpp(341)
+...............................................................................
+
+F:\projects\iterum\plugins\seraphis\tests\unit\morph_sync_test.cpp(371): warning:
+  SC-018 clause 5b (sync on, kTempoValid clear, note 60, 4 s): peak L=0.061002
+  R=0.0751796 | floor = 0.0001
+
+-------------------------------------------------------------------------------
+Seraphis_EveryParameter_ReachesDsp
+  2 kSoftLimitId - the harmonic-signature carve-out
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\seraphis\tests\integration\param_reach_test.cpp(1136)
+...............................................................................
+
+F:\projects\iterum\plugins\seraphis\tests\integration\param_reach_test.cpp(1189): warning:
+  soft limit harmonic signature: ON -35.944 dB, OFF -35.9813 dB
+
+F:\projects\iterum\plugins\seraphis\tests\integration\param_reach_test.cpp(1208): warning:
+  soft-limit difference-signal ratio = 0.00202928
+
+-------------------------------------------------------------------------------
+Seraphis_EveryParameter_ReachesDsp
+  AE - 1202 kAetherDensityId (echo density)
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\seraphis\tests\integration\param_reach_test.cpp(1232)
+...............................................................................
+
+F:\projects\iterum\plugins\seraphis\tests\integration\param_reach_test.cpp(1258): warning:
+  SC-003 ID 1202 echo density: sparse 1561 -> dense 4463  (factor 2.85906;
+  floor 2.7)
+
+-------------------------------------------------------------------------------
+Seraphis_ParameterAutomation_IsClickFree_PositiveControls
+  criterion wiring
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\seraphis\tests\integration\param_continuity_test.cpp(1025)
+...............................................................................
+
+F:\projects\iterum\plugins\seraphis\tests\integration\param_continuity_test.cpp(1049): warning:
+  SC-005 positive control (b): bypassed max test statistic 0.0186636 vs
+  smoothed 0.0032579 -> ratio 5.72873 (measured design point 5.7 x; the bound
+  is 1.5 x)
+
+-------------------------------------------------------------------------------
+Seraphis_ParameterSurface_IsSampleRateIndependent
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\seraphis\tests\integration\param_character_test.cpp(590)
+...............................................................................
+
+F:\projects\iterum\plugins\seraphis\tests\integration\param_character_test.cpp(627): warning:
+  
+SC-019 - sample-rate independence of the parameter surface
+    settled tail, 65536-pt Blackman-Harris, metrics over 20 Hz - 16000 Hz
+    rate(Hz)      RMS(dBFS)   centroid(Hz)   flatness(recorded)
+    44100    -40.0462    352.657    0.00759103
+    48000    -39.7879    359.367    0.0079843
+    96000    -39.9971    355.604    0.00616066
+
+-------------------------------------------------------------------------------
+Seraphis_Seed_IsDeterministicAndDistinct
+  clause 2 - the sixteen seeds are separated, and the gate is measured
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\seraphis\tests\integration\param_character_test.cpp(704)
+...............................................................................
+
+F:\projects\iterum\plugins\seraphis\tests\integration\param_character_test.cpp(748): warning:
+  
+SC-020 cl.2 - sixteen-seed total-variation table
+    (note 60 vel 100, held 3 s, 4 s total, 48 kHz, block 512, poly 8,
+     drift depth 25 cents, material Glass)
+    idx  seed        TV(L)+TV(R)
+    0    1    251.213
+    1    1369994395    229.917
+    2    718000625    235.467
+    3    780771731    240.634
+    4    1916812297    246.283
+    5    993276985    256.112
+    6    990805295    261.038
+    7    1184369837    266.08
+    8    1806167785    271.038
+    9    3023258529    276.424
+    10    3560340855    281.947
+    11    991828857    287.931
+    12    1818940687    293.101
+    13    2800924009    298.292
+    14    1917616621    303.371
+    15    1950002761    309.28
+    min pairwise spread = 4.89874  (seeds 0 and 5)
+    floor(min / 1.05)   = 4   (shipped kSeedSpreadGate = 2; a LOWER derived
+  value means C-10's table needs re-picking - see the block at the top of this
+  file)
+
+-------------------------------------------------------------------------------
+Seraphis_MacroDissolve_ReachesEffects
+  (a) Entropy sweeps the isolated wander image from exactly zero
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\seraphis\tests\integration\effects_chain_test.cpp(5254)
+...............................................................................
+
+F:\projects\iterum\plugins\seraphis\tests\integration\effects_chain_test.cpp(5292): warning:
+  C-10 clause 1 / FR-037, Entropy -> FxWanderDepth `.amount` = 0.5.
+    Isolated M/S SIDE RMS of the effects stage, five-point Entropy sweep:
+    Entropy 0.00  side RMS = 0
+    Entropy 0.25  side RMS = 0.000464157
+    Entropy 0.50  side RMS = 0.00092818
+    Entropy 0.75  side RMS = 0.0013949
+    Entropy 1.00  side RMS = 0.00186224
+    side RMS(1) / side RMS(0.25) = 4.01208 (4.0 would be exactly linear in the
+  composed depth).
+    RECORDED in spec C-10 clause 1 and in seraphis_macro_matrix.h on 2026-08-
+  04; the amount was NOT moved because the sweep is monotone.
+
+-------------------------------------------------------------------------------
+Seraphis_MacroRing_PerturbsConstellation
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\seraphis\tests\integration\cloud_frame_test.cpp(1018)
+...............................................................................
+
+F:\projects\iterum\plugins\seraphis\tests\integration\cloud_frame_test.cpp(1046): warning:
+  SC-017(a) Bloom sweep, P = amplitude-weighted octaves above f0:
+    Bloom 0.00  P = 1.81624  (window spread 0.0869709)
+    Bloom 0.25  P = 2.78791  (window spread 0.0582665)
+    Bloom 0.50  P = 3.50097  (window spread 0.0438952)
+    Bloom 0.75  P = 4.03203  (window spread 0.0426494)
+    Bloom 1.00  P = 4.40121  (window spread 0.0404959)
+    P(1) - P(0) = 2.58497 oct, against the MEASURED threshold T = 2.58 oct (2.
+  58497 rounded DOWN to two decimals, written back here and into spec SC-017(a)
+  on 2026-08-04). T only ever moves UP.
+
+F:\projects\iterum\plugins\seraphis\tests\integration\cloud_frame_test.cpp(1089): warning:
+  SC-017(b) negative control, kMasterGainId swept over the same five points
+  with every macro at neutral:
+    gain 0.00  P = 1.81624
+    gain 0.25  P = 1.81624
+    gain 0.50  P = 1.81624
+    gain 0.75  P = 1.81624
+    gain 1.00  P = 1.81624
+    |dP| control = 0 oct,  |dP| swept = 2.58497 oct,  drift-only window spread
+  = 0.0868847 oct.
+
+-------------------------------------------------------------------------------
+Seraphis_FactoryPresets_TreeMatchesGenerator
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\seraphis\tests\unit\preset\factory_preset_test.cpp(2677)
+...............................................................................
+
+F:\projects\iterum\plugins\seraphis\tests\unit\preset\factory_preset_test.cpp(3074): warning:
+  
+=== FR-029 tree-vs-generator margins (T021) ============================
+    toolchain          : MSVC _MSC_VER=1944
+    presets compared   : 42
+    scalar tolerance   : 1.200000e-07 (PINNED 2026-08-05 at 1 float ULP - the
+  measured worst was exactly 0 on MSVC and on GCC 13.3.0, and 10x0 would be a
+  forbidden bit-exact golden)
+    payload tolerance  : 1.200000e-06 (PINNED 2026-08-05 at 10x GCC 13.3.0's
+  worst, 1.175472e-07)
+    macOS leg          : NOT YET MEASURED - a disagreement there is
+  INVESTIGATED, never widened
+    SCALAR  worst relative error = 0.000000000e+00
+        preset      : Bells/Bell Garden
+        field       : [global].masterGain
+        committed   : 1.000000000e+00
+        regenerated : 1.000000000e+00
+        10x worst   : 0.000000000e+00
+    PAYLOAD worst relative error = 0.000000000e+00
+        preset      : Bells/Bell Garden
+        field       : payload[0].ratios[0]
+        committed   : 1.019803882e+00
+        regenerated : 1.019803882e+00
+        10x worst   : 0.000000000e+00
+  ========================================================================
+
+-------------------------------------------------------------------------------
+Seraphis_PresetSweep_DecayMatchesRt60
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\seraphis\tests\integration\preset_render_sweep_test.cpp(863)
+...............................................................................
+
+F:\projects\iterum\plugins\seraphis\tests\integration\preset_render_sweep_test.cpp(955): warning:
+  SC-011 tightest margin over 38 unfrozen preset(s): 10.2501 dB above its own
+  bound, held by Drones/Stone Circle @ 44100 Hz
+
+-------------------------------------------------------------------------------
+Seraphis_PresetSweep_FrozenPresetsHold
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\seraphis\tests\integration\preset_render_sweep_test.cpp(991)
+...............................................................................
+
+F:\projects\iterum\plugins\seraphis\tests\integration\preset_render_sweep_test.cpp(1091): warning:
+  SC-012 arm 2 measured margins | Choirs/Ghost Choir (Atmos/FX freeze): final -
+  0.323864 dB (margin 1.32386 dB), loudest 0.72468 dB (margin 0.27532 dB) vs
+  the 1 dB allowance | Cinematic/Signal Lost (Atmos/FX freeze): final -0.
+  00482282 dB (margin 1.00482 dB), loudest 0.00795356 dB (margin 0.992046 dB)
+  vs the 1 dB allowance
+
+F:\projects\iterum\plugins\seraphis\tests\integration\preset_render_sweep_test.cpp(1191): warning:
+  SC-012 arm 1 measured bands | Cinematic/Event Horizon (Aether freeze): band
+  0.629658 dB over 60 s (margin 1.37034 dB) | Cinematic/Vast (Aether freeze):
+  band 0.536846 dB over 60 s (margin 1.46315 dB)
+
+-------------------------------------------------------------------------------
+Seraphis_PresetSweep_PresetsAreDistinct
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\seraphis\tests\integration\preset_render_sweep_test.cpp(1969)
+...............................................................................
+
+F:\projects\iterum\plugins\seraphis\tests\integration\preset_render_sweep_test.cpp(2102): warning:
+  SC-028 over 861 pair(s): observedMinimum = 0.0243324 held by Choirs/Ghost
+  Choir vs Pads/Cathedral Moss | median = 0.561704 | max = 0.961405 | pinned
+  floor = max(0.02, 0.5 x observedMinimum) = 0.02 | closest pair's worst raw
+  checkpoint delta (REPORTED, never gated) = 3.13645
+
+===============================================================================
+All tests passed (444660 assertions in 109 test cases)
+

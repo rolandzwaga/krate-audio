@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+set -e
+R=/mnt/f/projects/iterum
+S=/mnt/f/projects/iterum/.probe_scratch
+CXX="$1"; shift
+FLAGS="$@"
+OUT=$S/out_$(basename $CXX)_$(echo "$FLAGS" | tr -d ' /-')
+mkdir -p $OUT
+INC="-I$R/dsp/include -I$R/tests/test_helpers -I$R/dsp/tests/unit/systems -I$R/build/windows-x64-release/_deps/pffft-src/include -I$R/build/windows-x64-release/_deps/pffft-src -I$R/build/windows-x64-release/_deps/highway-src"
+# pffft (C)
+CC=gcc; [ "$CXX" = "clang++" ] && CC=clang
+$CC -O3 -c $R/build/windows-x64-release/_deps/pffft-src/src/pffft.c -o $OUT/pffft.o -I$R/build/windows-x64-release/_deps/pffft-src/include/pffft -I$R/build/windows-x64-release/_deps/pffft-src/include -DPFFFT_ENABLE_FLOAT
+$CC -O3 -c $R/build/windows-x64-release/_deps/pffft-src/src/pffft_common.c -o $OUT/pffft_common.o -I$R/build/windows-x64-release/_deps/pffft-src/include/pffft -I$R/build/windows-x64-release/_deps/pffft-src/include -DPFFFT_ENABLE_FLOAT
+OBJS="$OUT/pffft.o $OUT/pffft_common.o"
+for f in core/dsp_utils core/spectral_simd processors/spectral_state effects/fdn_reverb_simd processors/arpeggiator_core processors/pitch_shift_processor processors/grain_span_simd processors/harmonic_oscillator_bank_simd processors/modal_resonator_bank_simd systems/sympathetic_resonance_simd; do
+  b=$(echo $f | tr '/' '_')
+  $CXX -std=c++20 $FLAGS $INC -c $R/dsp/include/krate/dsp/$f.cpp -o $OUT/$b.o
+  OBJS="$OBJS $OUT/$b.o"
+done
+# highway
+HWY=$R/build/windows-x64-release/_deps/highway-src
+for f in hwy/aligned_allocator hwy/targets hwy/per_target hwy/print hwy/abort hwy/timer hwy/nanobenchmark; do
+  if [ -f $HWY/$f.cc ]; then
+    b=$(echo $f | tr '/' '_')
+    $CXX -std=c++20 -O2 -I$HWY -c $HWY/$f.cc -o $OUT/$b.o
+    OBJS="$OBJS $OUT/$b.o"
+  fi
+done
+$CXX -std=c++20 $FLAGS $INC -c $S/fr046_probe.cpp -o $OUT/probe.o
+$CXX $FLAGS $OBJS $OUT/probe.o -o $OUT/probe -lpthread
+echo "BUILT $OUT/probe"

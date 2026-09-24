@@ -1,0 +1,5 @@
+capacity = 1024 (expect 1024)
+preRolled = 1024, born = 0, active = 0
+chunk 1: active = 62, deltaRetired = 2
+chunk 2: deltaRetired = 188 (teeth: > 128, FR-051 bound: <= 192)
+NO SANITIZER ERROR
