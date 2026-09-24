@@ -47,6 +47,7 @@ const DEFAULT_TARGETS = [
   'dsp_systems_tests', 'dsp_effects_tests', 'shared_tests',
   'plugin_tests', 'approval_tests', 'disrumpo_tests', 'ruinae_tests',
   'innexus_tests', 'gradus_tests', 'membrum_tests', 'seraphis_tests',
+  'vorago_tests',
 ];
 
 // Catch2 unions comma-separated tags. [!benchmark] and hidden [.perf] cases are

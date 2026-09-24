@@ -10,7 +10,8 @@ TUs, `entry.cpp`, 6 headers, resources, installers, leaf `CLAUDE.md`); a new tes
 outside `plugins/` (root CMake, `.gitignore`, `ci.yml`, `release.yml`, `valgrind-nightly.yml`, both
 clang-tidy scripts, `check-changelog-coverage.js`, `gen-specs-index.js`, `run-cpu-tests.js`, root
 `CLAUDE.md`, regenerated `repo-map.json` / `INDEX.md`).
-**No new DSP.** No file under `dsp/`, `plugins/seraphis/` or `plugins/shared/` is modified (SC-027).
+**No new DSP.** No file under `dsp/`, `plugins/seraphis/` or `plugins/shared/` is modified (SC-027),
+except the one dead line removed from `dsp/include/krate/dsp/processors/resonator_bank.h` (B-2).
 
 All paths are repo-relative to `f:/projects/iterum`.
 
@@ -685,9 +686,14 @@ a **minimal** `buildEventOrder`); `tests/integration/processor_audio_test.cpp`;
 - `SECTION("OutputNeverExceedsCeiling")` (SC-006): polyphony normalized `1.0` (→ 6) and master gain
   normalized `1.0` (→ linear 2.0) in block 0's changes; six notes `{36, 40, 43, 47, 50, 53}` at velocity
   `100/127.f`, offset 0; 30 s = 2813 blocks. `REQUIRE(max |x| <= 0.9661f)` on **both** channels, all
-  finite; `WARN` both peaks. **Discrimination arm:** same script at master gain normalized `0.5` →
-  `REQUIRE(max(peakL, peakR) >= 0.49f)`; `WARN` both. If short of 0.49, lengthen / raise velocity to
-  127 — never lower 0.49 (it is `0.9661 / 2`). **Not** `[long]`; record wall time.
+  finite; `WARN` both peaks. Same script at master gain normalized `0.5`: `WARN` both peaks,
+  recorded not gated (B-1, 2026-09-24: ~0.24). **Discrimination arm (B-1):** add the public
+  `Processor::renderGainAndOutputStage(l, r, n)` (FR-024 steps 5–6, called by `renderSlice`) and
+  `renderProbeThroughGainAndOutputStage(gainNorm)`: prepare, one silent `process()` block at
+  `gainNorm`, then 40 blocks of a 0.6-amplitude 110 Hz tone through the seam; peak of the last block.
+  `REQUIRE(unity peak >= 0.49f)`, `REQUIRE(gain-2.0 peak <= 0.9661f)` both channels,
+  `REQUIRE(gain-2.0 peak > unity peak)`. Never lower 0.49 (it is `0.9661 / 2`). **Not** `[long]`;
+  record wall time.
 
 `TEST_CASE("Vorago_ParamFlowReachesEngine", "[vorago][integration]")`:
 - `SECTION("GainZeroSilences")` (SC-019.1 + P-2): gain normalized `0.0` in block 0's changes,
@@ -1124,7 +1130,7 @@ grep -cE "name: Vorago-(Windows-x64|macOS|Linux-x64)" .github/workflows/ci.yml  
 grep -c "/plugins/vorago/" .gitignore                                             # 3
 grep -c "'vorago', 'Vorago'" tools/gen-specs-index.js                             # 1
 grep -c "'vorago_tests'" tools/run-cpu-tests.js                                   # 1
-git diff --stat <phase-base>..HEAD -- dsp/ plugins/seraphis/ plugins/shared/      # empty (SC-027), plus: git status --porcelain dsp/ plugins/seraphis/ plugins/shared/ empty
+git diff --stat <phase-base>..HEAD -- dsp/ plugins/seraphis/ plugins/shared/      # exactly resonator_bank.h (SC-027, B-2), plus: git status --porcelain dsp/ plugins/seraphis/ plugins/shared/ empty
 grep -rn "std::isnan\|std::isinf\|std::isfinite" plugins/vorago                   # nothing (FR-062)
 ```
 Portability reminders the gate enforces: no narrowing in brace init (designated initialisers for

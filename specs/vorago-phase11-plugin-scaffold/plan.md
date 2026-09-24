@@ -1134,10 +1134,14 @@ Fixture at 48 kHz / 512; defaults (no param changes); `NoteOn(48, 100/127.f)` at
 
 **SC-006 — ceiling** (same case, SECTION `OutputNeverExceedsCeiling`). Polyphony normalized 1.0
 (= 6), master gain normalized 1.0 (linear 2.0), six notes `{36, 40, 43, 47, 50, 53}` at offset 0,
-30 s. `REQUIRE(max|x| <= 0.9661f)` on both channels, all finite. **Discrimination arm:** same script at
-master gain 0.5 → `REQUIRE(peak >= 0.49f)` on at least one channel (`WARN` both peaks). If the arm is
-short of 0.49 the script changes (longer render, velocity 1.0 → 127), never the number. Not `[long]`
-(P-7).
+30 s. `REQUIRE(max|x| <= 0.9661f)` on both channels, all finite. The same script at master gain 0.5 is
+rendered and both peaks `WARN`ed, **recorded not gated** (B-1: it peaks at ~0.24; no six-voice render
+reaches the limiter). **Discrimination arm (B-1):** `renderProbeThroughGainAndOutputStage(gainNorm)` —
+prepare, one silent `process()` block at `gainNorm` (snaps the smoother), then 40 blocks of a
+0.6-amplitude 110 Hz tone through `Processor::renderGainAndOutputStage()` (steps 5–6 alone, public);
+peak of the last block. `REQUIRE(unity peak >= 0.49f)`, `REQUIRE(gain-2.0 peak <= 0.9661f)` both
+channels, `REQUIRE(gain-2.0 peak > unity peak)`. Never lower 0.49, never raise 0.6 above 0.72. Not
+`[long]` (P-7).
 
 **SC-024 — cavern targets pushed** (same case, SECTION `CavernTargetsArePushed`, all in this TU).
 Three heap `CavernVerb`s prepared with `makeVoragoCavernConfig(512)` at 48 kHz. Input: a deterministic
@@ -1472,7 +1476,7 @@ grep -c "CC64" plugins/vorago/CLAUDE.md                                         
 grep -o 'class="[^"]*"' plugins/vorago/resources/editor.uidesc | sort -u \
   | grep -vE 'class="(CViewContainer|CSlider|COptionMenu|CTextLabel)"'                                 # FR-054: prints nothing
 git status --porcelain plugins/vorago                                                                   # SC-020: empty
-git diff --stat <phase-base>..HEAD -- dsp/ plugins/seraphis/ plugins/shared/                            # SC-027: empty
+git diff --stat <phase-base>..HEAD -- dsp/ plugins/seraphis/ plugins/shared/                            # SC-027: exactly resonator_bank.h (B-2)
 node tools/run-cpu-tests.js vorago_tests                    # SC-014, ALONE, nothing else running
 # SC-012.5: ASan Debug build (CMakeLists.txt:112 ENABLE_ASAN), separate dir:
 "$CMAKE" -S . -B build-asan -G "Visual Studio 17 2022" -A x64 -DENABLE_ASAN=ON
@@ -1482,7 +1486,8 @@ build-asan/bin/Debug/vorago_tests.exe "[lifecycle]"
 
 SC-004 (`auval`) and the Linux/macOS legs of SC-001 are verified by CI; locally the
 `check-portability.js` gate is the stand-in (memory: *"Green Windows build proves nothing for
-Linux/macOS"*). DSP suites need no run: SC-027 proves `dsp/` is untouched.
+Linux/macOS"*). B-2: `dsp_processors_tests`, `dsp_systems_tests` and `seraphis_tests` run once in
+the closure because `resonator_bank.h` lost one dead line; every other DSP suite needs no run.
 
 ---
 

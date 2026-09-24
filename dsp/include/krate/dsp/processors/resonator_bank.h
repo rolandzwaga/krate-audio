@@ -490,7 +490,6 @@ public:
             // Calculate effective Q based on damping
             // Damping=1 means very low Q (instant silence), damping=0 means full Q
             const float dampingScale = 1.0f - currentDamping * 0.99f;  // Keep some Q even at max damping
-            const float effectiveQ = qValues_[i] * dampingScale;
 
             // Update filter if Q changed significantly (via damping)
             // For real-time safety, we apply damping as a gain reduction instead
@@ -547,10 +546,9 @@ public:
     /// The loop below intentionally DUPLICATES process()'s body instead of
     /// sharing a helper with it: FR-013 requires every pre-existing method to
     /// stay byte-for-byte unchanged, so process() is not refactored. The only
-    /// deliberate omissions are process()'s unused effectiveQ local (:493) and
-    /// the exciter-mix stage; every surviving term is computed in the same order
-    /// so the per-resonator values sum to process()'s return up to float
-    /// summation order.
+    /// deliberate omission is the exciter-mix stage; every surviving term is
+    /// computed in the same order so the per-resonator values sum to process()'s
+    /// return up to float summation order.
     void processIndividual(float input, float* outPerResonator) noexcept {
         if (outPerResonator == nullptr) return;
 

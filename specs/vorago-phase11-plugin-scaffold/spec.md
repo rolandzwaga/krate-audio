@@ -256,7 +256,9 @@ param-type swaps on registered IDs, ever"* (roadmap line 559) applies from the m
   (`"Vorago"`), `description`, `publisher` (`"Krate Audio"`), `url` (`"https://krateaudio.com/vorago/"`),
   `copyright`. It must not have a `preset_subdir` key (the Seraphis template's FR-002 reasoning applies:
   release staging then puts presets directly under `Krate Audio/Vorago`, which is the path roadmap
-  line 566 names).
+  line 566 names). **Verification** (plan §5.7 content check, §8.2 item 12): the `node -e` key check
+  over `plugins/vorago/version.json` (sorted keys == `copyright,description,name,publisher,url,version`,
+  plus the four literal values) exits 0; the result is cited in `compliance.md`.
 - **FR-003** The target MUST be created with `smtg_add_vst3plugin` using an **enumerated** source list
   (no globs), and link `sdk vstgui_support KrateDSP KratePluginsShared` PRIVATE with
   `${CMAKE_CURRENT_SOURCE_DIR}/src` PRIVATE (model :18–82).
@@ -333,7 +335,15 @@ param-type swaps on registered IDs, ever"* (roadmap line 559) applies from the m
   5. **sustain pedal deferral** (Clarification Q4, 2026-09-24): CC64 and every non-note event are
      ignored in Phase 11 (FR-031); sustain is taken in Phase 12 together with the `IMidiMapping`
      addition from item 1, as a wrapper-side note-off latch, because `VoragoEngine` has no sustain API.
+
+  **Verification** (plan §5.7 content checks, §8.2 item 12), each result cited in `compliance.md`:
+  item 1 — `grep -c "OQ-7"` and `grep -ciE "host-cache|host cache"` on `plugins/vorago/CLAUDE.md`
+  each `>= 1`; item 2 — `grep -c "Drones"` and `grep -ciE "grow only|only grow|never rename"` each
+  `>= 1`; item 3 — `grep -ciE "soft-limit|soft limit"` `>= 1`; item 4 — `grep -c "37.99"` `>= 1`;
+  item 5 — `grep -c "CC64"` `>= 1`.
 - **FR-010** `CHANGELOG.md` MUST contain a `## [0.1.0]` section describing the scaffold.
+  **Verification** (plan §5.7 content check, §8.2 item 12): `node tools/check-changelog-coverage.js
+  vorago` exits 0; the result is cited in `compliance.md`.
 
 ### B. Identity
 
@@ -407,10 +417,25 @@ param-type swaps on registered IDs, ever"* (roadmap line 559) applies from the m
 
   A repeated `setupProcessing()` (a sample-rate change) MUST follow the same path. `VoragoEngine::prepare`
   is documented as repeatable (`vorago_engine.h:270–276`).
-- **FR-024** `Processor::process()` MUST, for each slice:
-  0. push the global parameters (FR-024a);
+- **FR-024** `Processor::process()` MUST perform steps 0 and 2 once per call and steps 1 and 3–6 for
+  each slice:
+  0. push the global parameters (FR-024a) once per `process()`, before the first slice (P-9, plan
+     §8.2 item 9). This is observationally identical to a per-slice push: the only writers of the
+     global atomics are `processParameterChanges` (run once, at the top of `process()`, taking each
+     queue's last point, FR-043) and `setState` (not concurrent with `process()`), so they hold one
+     value for the whole call;
   1. dispatch the host events due at the slice start (FR-025, FR-031);
-  2. `macros_.apply(*engine_)` and `applyCavernTargets(*cavern_, macros_.computeCavernTargets())`;
+  2. once per `process()`, after step 0 and before the first slice: `macros_.apply(*engine_)` and
+     `applyCavernTargets(*cavern_, macros_.computeCavernTargets())` (P-10, plan §8.2 item 10).
+     **Equivalence argument:** this matches the per-slice form in Phase 11 because every input of
+     both calls is fixed for the whole call: (a) `macros_` is never written after construction
+     (FR-042, inert); (b) the set of slots `apply()` writes is `i < getPolyphony()`, and polyphony
+     changes only in step 0, which runs before it; (c) the values it writes are plain scalar stores or
+     `setTarget()`s, never a snap (`vorago_macro_matrix.h:45–56`), and they survive a mid-block steal
+     or retrigger (`clearRunState()` re-installs the identity lanes from the stored bases,
+     `vorago_voice.h:1473–1482`; `VoragoVoice::noteOn`, `:900–919`, writes no `apply()` destination).
+     **Phase 12 rule:** when the macros become live they are pushed **per block, never per slice** —
+     a macro change is block-granular like every other parameter (SC-008 (2));
   3. `engine_->processStereoBlock(outL, outR, n)`;
   4. `cavern_->processStereoBlock(outL, outR, outL, outR, n)`, in place. This is the documented call,
      and it is safe with aliased buffers (`vorago_composed_chain_test.cpp:33–38`);
@@ -442,10 +467,24 @@ param-type swaps on registered IDs, ever"* (roadmap line 559) applies from the m
      **snapped** to the current atomic value on the first `process()` after
      `setupProcessing()`/`setActive(true)` and ramps after that. It is applied **after the cavern and
      before `processOutputStage`**. A multiply after the limiter is forbidden: at gain 2.0 it would
-     break SC-006 by construction.
+     break SC-006 by construction. The processor MUST expose a **snap seam** (P-2, plan §8.2 item 2):
+     `float masterGainValueForTest() const noexcept` returning the smoother's current value
+     (`masterGain_.getCurrentValue()`, `smoother.h:191`), so SC-019.1 observes the snap directly.
+     Steps 5–6 of FR-024 (the per-sample multiply, then `processOutputStage`) MUST live in one
+     public audio-thread method `void renderGainAndOutputStage(float* l, float* r, std::size_t n)
+     noexcept` that `renderSlice` calls after the cavern, so SC-006's discrimination arm can drive
+     the gain → limiter order with a signal of known level (ruling B-1, 2026-09-24).
 - **FR-025** The host block MUST be split at every event's `sampleOffset`, because
   `VoragoEngine::noteOn/noteOff` take no offset. Events are applied in `sampleOffset` order. An offset
   at or past the end of the block is clamped to the last sample, and a negative offset is clamped to 0.
+  **Ordering mechanism (P-3, plan §8.2 item 3, §3.2):** the first `min(count, kMaxEventsPerBlock)`
+  events, `kMaxEventsPerBlock = 1024`, are ordered by an allocation-free **stable insertion sort** of
+  `(clampedOffset, listIndex)` pairs into a fixed-capacity `std::array` (strict `>` shift, so events
+  at equal offsets keep list order). **Overflow rule (`count > 1024`):** events `[1024, count)` are not
+  stored and none is dropped; they are applied after the sorted queue, in list order, each at the
+  effective offset `max(clampedOffset, previous effective offset)` (the first "previous" being the
+  last sorted entry's offset), so effective offsets never decrease and the cursor never rewinds. Offset
+  order is guaranteed for the first 1024 events of a host block only (Clarification R-2).
 - **FR-026** No slice passed to the engine or the cavern may exceed `VoragoEngine::kMaxBlockSamples`
   (2048). A longer host block is sub-divided. The processor MUST expose a **slice-count seam**: the
   number of engine slices rendered by the most recent `process()` call, readable through a `const`
@@ -464,6 +503,11 @@ param-type swaps on registered IDs, ever"* (roadmap line 559) applies from the m
 - **FR-029** `process()` MUST NOT allocate, lock, throw or perform I/O, and MUST construct a
   `Krate::DSP::ScopedDenormalMode` at its top. FTZ/DAZ is per-thread, so setting it in
   `setupProcessing()` does not reach the audio thread (`plugins/seraphis/src/processor/processor.cpp:1295–1298`).
+  The `ScopedDenormalMode` clause is **verified by inspection (grep of processor.cpp)** (plan §8.2
+  item 11, §4.1): `grep -n "ScopedDenormalMode" plugins/vorago/src/processor/processor.cpp` shows it as
+  the first statement of `Processor::process()`, cited in `compliance.md`. `test_main.cpp` enables
+  FTZ/DAZ on the test thread, which masks a missing guard, so no test case can claim this clause;
+  `Vorago_ProcessorLifecycle` covers only the no-allocation half.
 - **FR-030** Degenerate shapes produce silence and `kResultOk` without touching the chain. The guard
   order is binding and matches `plugins/seraphis/src/processor/processor.cpp:1325–1356`: parameter
   changes are latched first, then `numOutputs > 0 && outputs != nullptr`, then
@@ -535,7 +579,8 @@ param-type swaps on registered IDs, ever"* (roadmap line 559) applies from the m
   `VoragoMacroMatrix` (roadmap line 548 gives that wiring to Phase 12).
 - **FR-043** `processParameterChanges()` MUST dispatch by ID range: IDs `< 100` go to
   `handleGlobalParamChange` and IDs `100–199` go to `handleMacroParamChange`. It takes the **last**
-  point of each queue.
+  point of each queue. `handleMacroParamChange` ignores `id > kMacroMassId` (an unregistered in-band
+  ID such as 150 or 199 changes no atomic; plan §8.2 item 8, SC-009).
 - **FR-044** Denormalization: master gain `clamp(value * 2.0, 0, 2)`; polyphony
   `clamp(int(value * 5 + 1 + 0.5), 1, 6)`, which is `VoragoEngine::setPolyphony`'s own clamp range
   `[1, kMaxVoices]` (`vorago_engine.h:508`); macros `clamp(value, 0, 1)`.
@@ -548,7 +593,11 @@ param-type swaps on registered IDs, ever"* (roadmap line 559) applies from the m
   `load…ParamsToController` helpers, so every registered parameter updates when a preset loads.
 - **FR-048** `Controller::initialize()` MUST register exactly the fourteen parameters.
   Polyphony uses `createDropdownParameterWithDefault(..., 3, {"1","2","3","4","5","6"})`
-  (`plugins/shared/src/ui/parameter_helpers.h:47`).
+  (`plugins/shared/src/ui/parameter_helpers.h:47`). After that call, and before `addParameter`, the
+  controller MUST set `getInfo().defaultNormalizedValue = 3.0 / 5.0` (P-1, plan §8.2 item 1): the
+  helper calls `setNormalized(...)`, which moves only the current value and leaves
+  `ParameterInfo::defaultNormalizedValue` at 0 (index 0, one voice). SC-009's default clause catches
+  the omission.
 
 ### E. Controller, preset and update adapters, resources
 
@@ -582,6 +631,10 @@ param-type swaps on registered IDs, ever"* (roadmap line 559) applies from the m
   shipped IDs: continuous controls for master gain and the twelve macros, and a `COptionMenu` for
   polyphony. It MUST contain no custom view class name and must not be empty, because
   `tools/check-bundle.js` fails a bundle without a non-empty `editor.uidesc`.
+  **Verification** (plan §5.7 content check, §8.2 item 12): `grep -o 'class="[^"]*"'
+  plugins/vorago/resources/editor.uidesc | sort -u | grep -vE
+  'class="(CViewContainer|CSlider|COptionMenu|CTextLabel)"'` prints nothing, cited in `compliance.md`;
+  the fourteen-control binding is SC-012 (2).
 - **FR-055** `Controller::createView("editor")` MUST return a `VSTGUI::VST3Editor` on that template
   (model `controller.cpp:434–436`). The controller MUST survive `willClose()` on a view tree that was
   never attached to a window.
@@ -624,11 +677,16 @@ param-type swaps on registered IDs, ever"* (roadmap line 559) applies from the m
   | `unit/param_denorm_test.cpp` | `Vorago_ParamDenormRoundTrip` | FR-043, FR-044, FR-048 |
   | `unit/state_roundtrip_test.cpp` | `Vorago_StateRoundTrip` | FR-042, FR-045–FR-047 |
   | `unit/midi_event_test.cpp` | `Vorago_MidiEventTranslation` | FR-025, FR-026, FR-031 |
-  | `unit/lifecycle_test.cpp` | `Vorago_ProcessorLifecycle` | FR-023, FR-029, FR-030, FR-032, FR-033 |
+  | `unit/lifecycle_test.cpp` | `Vorago_ProcessorLifecycle` | FR-023, FR-029 (no-allocation half only; the `ScopedDenormalMode` clause is verified by inspection (grep of processor.cpp)), FR-030, FR-032, FR-033 |
   | `unit/controller/editor_lifecycle_test.cpp` | `Vorago_EditorLifecycle` tagged `[vorago][controller][ui][lifecycle]` | FR-050, FR-054, FR-055 |
   | `integration/processor_audio_test.cpp` | `Vorago_ProcessorRendersHeldNote` | FR-024, FR-024a, FR-034, FR-034a |
   | `integration/param_flow_test.cpp` | `Vorago_ParamFlowReachesEngine` | FR-023, FR-024a, FR-042 |
   | `integration/processor_cpu_test.cpp` | `Vorago_ProcessorCpu` tagged `[vorago][.perf][performance]` | FR-067, FR-067a (hidden: **excluded** from SC-002's default list and run) |
+
+  SC-008 (2) (parameter timing is block-granular) lives in `Vorago_ParamFlowReachesEngine` with the
+  other parameter-flow checks, not in `Vorago_MidiEventTranslation` (plan §8.2 item 7); SC-008 (1)
+  stays in `Vorago_MidiEventTranslation`. FR-029's `ScopedDenormalMode` clause is not claimed through
+  `Vorago_ProcessorLifecycle` (plan §8.2 item 11).
 
   The `[lifecycle]` tag is required. `valgrind-nightly.yml:283` filters test binaries with
   `'[lifecycle]'`, so without the tag the nightly lane would select no Vorago test.
@@ -732,13 +790,19 @@ Each criterion gives its metric, its threshold, and the test or command that mea
   held, master gain normalized 1.0 (linear 2.0), 30 s rendered. **Threshold:** `max |sample| <=
   0.9661` (`10^(-0.3/20)`, `kOutputCeilingDb`, `vorago_engine.h:203`) on both channels, with every
   sample finite. The measured peak is recorded. The master gain sits before the limiter (FR-024a), so
-  the bound holds by construction. **Discrimination clause:** the same 30 s render at master gain
-  normalized 0.5 (linear 1.0) MUST have a peak `>= 0.49` on at least one channel, printed with `WARN`
-  and recorded. The limiter guarantees `|out| <= ceiling` (`true_peak_limiter.h:12–14`), so with the
-  gain moved after the limiter the gain-2.0 peak would be 2 × that peak, `>= 0.98 > 0.9661`. This
-  clause is what makes "a gain after the limiter fails SC-006" true by measurement. `0.49` is derived
-  from `0.9661 / 2` and MUST NOT be lowered; if the render does not reach it, the script changes
-  (longer render, velocity 127), never the threshold.
+  the bound holds by construction. The same 30 s render at master gain normalized 0.5 (linear 1.0) is
+  also rendered and its peak printed with `WARN` and recorded, **not gated** (ruling B-1, 2026-09-24:
+  it measures ~0.24; the best 5 s window over 100 s is 0.28, velocity 127 changes nothing, so no
+  six-voice render reaches the limiter at any registered gain). **Discrimination clause (B-1):** the
+  arm drives `Processor::renderGainAndOutputStage()` (FR-024a.2, steps 5–6 alone) with a
+  0.6-amplitude 110 Hz tone after one silent `process()` block has snapped the gain: at master gain
+  normalized 0.5 the last block's peak MUST be `>= 0.49` on at least one channel; at normalized 1.0
+  (linear 2.0, pre-limiter level 1.2) the peak MUST be `<= 0.9661` on both channels and strictly above
+  the unity peak. The limiter guarantees `|out| <= ceiling` (`true_peak_limiter.h:12–14`), so with
+  the gain moved after the limiter the gain-2.0 peak would be 2 × the unity peak, `>= 0.98 > 0.9661`.
+  This clause is what makes "a gain after the limiter fails SC-006" true by measurement. `0.49` is
+  derived from `0.9661 / 2` and MUST NOT be lowered; the probe amplitude 0.6 MUST NOT be raised above
+  0.9661 / 2 × 1.5 = 0.72 (it must stay comfortably below the ceiling at unity).
 - **SC-007 — Zero allocations in `process()`.** `Vorago_ProcessorLifecycle` section: after prepare and
   one warm-up block, a 2 s render with note-ons/offs and parameter changes inside an `AllocationScope`.
   **Threshold:** `AllocationDetector::instance().getAllocationCount()` read **inside** the scope is `0`.
@@ -747,7 +811,9 @@ Each criterion gives its metric, its threshold, and the test or command that mea
   script (note events at non-multiples of every partition, and **no parameter change**: FR-043 applies
   a parameter change per host block, so a change at any offset > 0 lands at a partition-dependent
   sample, and no offset > 0 is a boundary shared by every partition within 4 s) rendered at host blocks
-  **{1, 7, 64, 65, 512, 2048, 4096}**. Each is compared against the 512 reference. **Threshold:** max
+  **{1, 7, 64, 65, 512, 2048, 4096}**. Each is compared against the 512 reference. **Precondition
+  (P-6):** the 512 reference's peak over `[3072, end)` is `>= 1e-4`; if it is not, the script is
+  lengthened (longer render, velocity 127), never the threshold. **Threshold:** max
   absolute per-sample difference `<= 1.0e-5` per channel. The test MUST also assert that a partition
   boundary fell inside a 64-sample control chunk (block 65 guarantees this) and that the 4096 run went
   through FR-026's sub-division, observed through FR-026's slice-count seam (an event-free 4096 block
@@ -763,9 +829,15 @@ Each criterion gives its metric, its threshold, and the test or command that mea
   a no-change render by `> 1e-3` RMS.
 - **SC-009 — Denormalization round-trip.** `Vorago_ParamDenormRoundTrip`: for each of the fourteen IDs
   and normalized values `{0, 0.25, 0.5, 0.75, 1}`, send the value through `processParameterChanges` and
-  read the atomic back. **Thresholds:** master gain within `1e-6` of `2v`. Polyphony gives exactly
+  read the atomic back. The round-trip arm runs through `process()` on an initialized, **unprepared**
+  processor with `numOutputs = 0` (parameter latching precedes the shape guards, FR-030) and reads the
+  atomics through the const test seams `globalParamsForTest()` / `macroParamsForTest()` (plan §8.2
+  item 8). **Thresholds:** master gain within `1e-6` of `2v`. Polyphony gives exactly
   `{1, 2, 4, 5, 6}`. Macros are within `1e-6` of `v`. A multi-point queue `{0.1 @ 0, 0.9 @ 100}` stores
-  `0.9`. Each registered parameter's `toPlain(getDefaultNormalizedValue())` matches the table.
+  `0.9`. **Unregistered in-band sub-arm:** with all twelve macros set to distinct non-defaults, one-point
+  changes (value 0.9) on IDs **150** and **199** sent through `process()` leave all twelve macro
+  atomics and both globals unchanged (FR-043). Each registered parameter's
+  `toPlain(getDefaultNormalizedValue())` matches the table.
 - **SC-010 — State round-trip.** `Vorago_StateRoundTrip`: (1) set all fourteen to non-default values,
   then `getState` → fresh `setState` → `getState`, and the two streams are **byte-identical**; (2) the
   default state's stream decodes to `gravity == 0.5f` and polyphony 4; (3) a stream with version
@@ -782,7 +854,9 @@ Each criterion gives its metric, its threshold, and the test or command that mea
   fourteen IDs, and the `kPolyphonyId` control is a `COptionMenu`; (3) `makeVoragoPresetConfig()` reports
   `pluginName == "Vorago"` and `subcategoryNames == {"Drones"}`. A `PresetManager` built from it,
   with its factory override (`preset_manager.h:53–60`) pointed at a temp directory holding one file
-  `Drones/Probe.vstpreset`, returns exactly **1** preset from `scanPresets()`, and that preset has
+  `Drones/Probe.vstpreset` and its user override pointed at a **separate empty** temp directory (P-4:
+  `scanPresets()` scans both, so one shared directory double-counts and an unset user override reads
+  the machine's real user folder), returns exactly **1** preset from `scanPresets()`, and that preset has
   `subcategory == "Drones"`. The scan keys on the `.vstpreset` extension and derives the subcategory
   from the parent directory (`preset_manager.cpp:63, :95–101`). Separately, the controller's own preset
   manager is non-null after `initialize()`, read through a `presetManagerForTest()` getter modelled on
@@ -811,6 +885,18 @@ Each criterion gives its metric, its threshold, and the test or command that mea
   script and block count, `Processor::process()` time MUST be `<= 1.05×` the same chain driven
   directly (`engine_->processStereoBlock` → `CavernVerb::processStereoBlock` in place → master-gain
   multiply → `engine_->processOutputStage`, no `process()` call in between) — FR-067a.
+  **Arm P timing rule (P-10, plan §8.2 item 10):** the processor arm is timed through a **bare**
+  `proc->process(data)` call: the `ProcessData`, its stereo output bus and output buffers are built
+  before timing starts, the four note-ons ride on the first warm-up block only, and every timed block
+  has `inputEvents = nullptr` and `inputParameterChanges = nullptr`. The timed region contains no
+  capture, canary check, allocation or fixture call, so the 1.05× gate measures only what the wrapper
+  adds.
+  **Arm E (event-dense worst case, `WARN`-recorded, not gated; P-10):** a fresh processor at 48 kHz /
+  `maxBlock = 2048`, polyphony 4, four held notes after one warm-up block; 16 trials, each timing one
+  2048-sample `process()` whose pre-built `EventList` holds 1024 events in strictly reverse offset
+  order (offsets 2047 down to 1024, alternating `NoteOn(60)` / `NoteOff(60)`). The best-of-16 ns and its
+  ratio to the block's real-time duration are recorded in `compliance.md`; a ratio `>= 1.0` is surfaced
+  to the user as a finding. No threshold is set for this arm.
   **Recorded (non-gating):** ns per 512-sample block against `kReferenceNs` = 30% of `10 666 666.7` ns
   = `3 200 000` ns (FR-067). **A figure above `kReferenceNs` is surfaced to the user as a Phase 10
   budget finding. It is never absorbed, and no workload is shrunk to pass either threshold.**
@@ -832,7 +918,11 @@ Each criterion gives its metric, its threshold, and the test or command that mea
   `OK   Vorago.vst3: editor.uidesc + moduleinfo.json present`.
 - **SC-019 — The global parameters reach the chain.** `Vorago_ParamFlowReachesEngine`: (1) with master
   gain normalized 0.0 set before the first block and a note held, the peak over the whole 4 s render is
-  `< 1e-6` (possible only because of the first-block snap); (2) polyphony normalized 0.0 → `getPolyphony()
+  `< 1e-6`. **Non-vacuity arm (P-2):** the same script at master gain normalized 0.5 peaks `>= 1e-4`
+  (the SC-005 floor; lengthen the render if not, never the threshold). **Snap arm (P-2):** after the
+  first 512-sample `process()` with target 0, `masterGainValueForTest() == 0.0f` exactly (FR-024a.2's
+  snap seam); without the snap, a smoother constructed at `1.0f` reads about `0.086` there. The
+  3072-sample latency and 20 s attack make the peak clause alone blind to a missing snap; (2) polyphony normalized 0.0 → `getPolyphony()
   == 1`, and 1.0 → `6`; (3) sending the same polyphony value twice calls `setPolyphony` once, observed **only** through
   FR-024a.1's call-count seam. A redundant call is invisible in the render and in `getPolyphony()`, so
   no other oracle is accepted. The test first proves the seam sees a real change: a different value
@@ -865,10 +955,23 @@ Each criterion gives its metric, its threshold, and the test or command that mea
   NoteOn at offset 511, and one at offset −5 within `1e-5` of offset 0, each over the clause-5 window
   with the same `>= 1e-4` peak precondition; (8) **event ordering** (FR-025): the event list
   `[NoteOn(55) @ 400, NoteOn(48) @ 100]` renders within `1e-5` max-abs of the same two events delivered
-  in offset order, over the clause-5 window with the same peak precondition.
+  in offset order, over the clause-5 window with the same peak precondition; (9) **overflow ordering**
+  (FR-025's >1024 rule; P-3, plan §8.2 items 3 and 10, §4.3): one 2048-sample block (fixture prepared
+  with `maxBlock = 2048`, default polyphony 4) carrying 1100 events — a **sorted segment**, list
+  indices `[0, 1024)`: alternating `NoteOn(60, 1.0)` / `NoteOff(60)` at offset `= index` (index 1023 is
+  a `NoteOff`); an **overflow segment**, list indices `[1024, 1100)`: index 1024 = `NoteOn(62, 1.0)` @
+  1100, index 1025 = `NoteOn(64, 1.0)` @ **5** (an out-of-order offset below the running maximum, which
+  must be clamped up to 1100 rather than rewind the cursor), indices `[1026, 1100)` = 74 alternating
+  `NoteOn(60)` / `NoteOff(60)` at offsets 1101…1174 (index 1099 is a `NoteOff`). `process()` returns
+  `kResultOk`, the output is finite and the fixture canaries are clean; then exactly **2** slots
+  `i < kMaxVoices` read `VoiceState::Active` (notes 62 and 64) and `getActiveVoiceCount() == 3` (plus
+  pitch 60 `Releasing`). Dropping the overflow queue leaves 0 Active slots and dropping the
+  out-of-order event leaves 1, so both fail.
 - **SC-023 — The macros are inert (the Phase 12 negative control).** A section of
   `Vorago_ParamFlowReachesEngine`: a render with all twelve macro parameters at 1.0 and one with all at
-  their defaults, same script, have max-abs difference `<= 1e-5`.
+  their defaults, same script, have max-abs difference `<= 1e-5`. **Precondition (P-6):** the
+  default-macro render's peak over `[3072, end)` is `>= 1e-4`; if not, the script is lengthened, never
+  the threshold.
 - **SC-024 — Cavern targets are pushed.** A section of `Vorago_ProcessorRendersHeldNote` calls
   `applyCavernTargets` directly on a prepared `CavernVerb`. (1) Pushing non-neutral targets
   (`size 0.9, darkness 0.2, decaySeconds 5, fog 0.8, damperDepth 0.9, mix 0.5, width 0.3`) gives a
@@ -884,12 +987,22 @@ Each criterion gives its metric, its threshold, and the test or command that mea
   site; (6) `grep -c "'vorago_tests'" tools/run-cpu-tests.js` → 1 (FR-081). As a diagnostic (not a gate), `grep -ci vorago ci.yml` is compared with `grep -ci seraphis ci.yml`
   (51 today), and any difference is explained in `compliance.md`.
 - **SC-026 — `setActive` leaves no tail and does not allocate.** A section of `Vorago_ProcessorLifecycle`:
-  hold a note for 2 s, `setActive(false)`, `setActive(true)`, then render 1 s with no notes. The peak
-  over that second is `< 1e-6`. Without FR-032 the 45 s release and 20 s cavern decay would show here.
-  `setActive(true)` runs inside an `AllocationScope` that reads 0.
+  hold a note (velocity 127) for **8 s** (P-6; the SC-005 window, where a held note is known to reach
+  `1e-4`), `setActive(false)`, `setActive(true)`, then render 1 s with no notes. The peak over that
+  second is `< 1e-6`. Without FR-032 the 45 s release and 20 s cavern decay would show here.
+  `setActive(true)` runs inside an `AllocationScope` that reads 0. **Precondition (P-6):** the peak
+  over the last 1 s before `setActive(false)` is `>= 1e-4`. **Negative control (P-6):** a second
+  processor runs the identical script **without** the `setActive(false/true)` pair, and the peak of its
+  following 1 s is `>= 1e-4`, which proves the `< 1e-6` assertion can fail. If either precondition
+  misses `1e-4`, the hold is lengthened, never either threshold.
 - **SC-027 — Shared code untouched.** `git diff --stat <phase-base>..HEAD -- dsp/ plugins/seraphis/
-  plugins/shared/` is empty, so the Vorago and Seraphis DSP suites cannot have changed because of
-  this phase.
+  plugins/shared/` lists **exactly one file**, `dsp/include/krate/dsp/processors/resonator_bank.h`
+  (ruling B-2, 2026-09-24: the unused local `effectiveQ` in `ResonatorBank::process()`, C4189,
+  flagged since Phase 3 and recorded "pre-existing" three times, is deleted together with the
+  `processIndividual` doc comment that referred to it; no executable statement changes). Because
+  that header is shared, the closure MUST run `dsp_processors_tests`, `dsp_systems_tests` and
+  `seraphis_tests` and record their summary lines; every other path under those three directories
+  is untouched, so the remaining DSP suites cannot have changed because of this phase.
 
 ---
 
@@ -975,9 +1088,10 @@ Each criterion gives its metric, its threshold, and the test or command that mea
   never advanced per note (`vorago_engine.h:526–543`), so a render depends only on (seed, config,
   note sequence). Two plugin instances with identical input render identically, and that is accepted
   for Phase 11. A per-instance or user seed is a Phase 12 parameter decision.
-- `setActive(false)` calls `silence()`, which clears voice audio state. It does **not** rewind the
-  slots' life/ecosystem trajectories the way `prepare()` does. A render after reactivation is
-  therefore not guaranteed to match a fresh instance, and no test may assume it does.
+- `setActive(false)` calls `silence()`, which clears voice audio state. Whether it rewinds the
+  slots' life/ecosystem trajectories the way `prepare()` does is not asserted (P-5: `silence()` calls
+  `voices_[v].reset()` for every slot, `vorago_engine.h:447–456`). A render after reactivation is
+  therefore not guaranteed to match a fresh instance, and no test may assume either way.
 
 **Long time constants**
 - 20 s attack and 45 s release (`vorago_voice.h:322–324`), plus a 20 s cavern decay
@@ -1100,3 +1214,43 @@ Only one question is explicitly deferred to this spec by the roadmap.
   (plugin and test `CMakeLists.txt`, root `add_subdirectory`) in G4 so tests can compile from then
   on, with a final-group audit. → **Accepted** (Phase 10 precedent); the final CMake task audits and
   makes the one deferred `/wd4459` change. [FR-001, FR-060]
+
+### Session 2026-09-24 (build stage, group 9 stop-and-surface)
+
+- B-1: SC-006's discrimination arm required the six-voice unity-gain render to peak `>= 0.49`; it
+  peaks at 0.237 over 30 s (best 5 s window 0.279 over 100 s, velocity 127 unchanged), and the spec's
+  only permitted remedies (longer render, velocity 127) cannot reach it. The processor is correct
+  (gain-2.0 peak = 1.99 × unity peak). How is "gain before the limiter" proven? → **Drive the
+  post-gain stage directly**: FR-024 steps 5–6 become the public `renderGainAndOutputStage()`
+  (called by `renderSlice`); the arm feeds a 0.6-amplitude tone — unity peak `>= 0.49`, gain-2.0
+  peak `<= 0.9661` while the pre-limiter level is 1.2 — so the limiter provably engaged after the
+  gain. The six-voice unity peak is recorded, not gated. 0.49 unchanged. [FR-024a.2, SC-006]
+- B-2: A fixer deleted the unused local `effectiveQ` (C4189) in
+  `dsp/include/krate/dsp/processors/resonator_bank.h` to reach the zero-warning gate, against
+  SC-027's empty `dsp/` diff. Keep it? → **Keep, amend SC-027**: that one file is the sole
+  permitted shared-code change; the closure re-runs `dsp_processors_tests`, `dsp_systems_tests`
+  and `seraphis_tests`. [SC-027]
+
+### Session 2026-09-24 (build stage, group 20 stop-and-surface)
+
+- B-3: `gen-symbols --check` fails because `specs/_architecture_/symbols.json` has been stale since
+  Phase 10a (eight class line numbers in `atmosphere_engine.h` / `vorago_engine.h`); nothing in this
+  phase moves a symbol and T027's file list omitted it. → **Regenerate now**: T027 also runs
+  `node tools/gen-symbols.js`; the file is committed with the phase. [SC-017]
+- B-4: `check-portability.js` fails on `processor_cpu_test.cpp`'s `#include VORAGO_PERF_BUDGET_HEADER`
+  because its per-plugin flag list never defines the macro CMake sets on every platform (a tool false
+  positive that also blocks the commit hook). → **Define it in `check-portability.js`**:
+  `pluginFlagsFor()` pushes `-DVORAGO_PERF_BUDGET_HEADER` resolving to
+  `dsp/tests/unit/systems/vorago_perf_budget.h` from the repo root, like the Aether-hook and
+  Phase 1 harness special cases; the no-include-dir design (FR-060) stays. [SC-015]
+
+### Session 2026-09-24 (main-loop closure)
+
+- B-5: The remediation pass proposed amending SC-014's protocol (counterbalanced P,D,D,P trial order,
+  or more than 16 trials) after its loaded runs swung P/D between 0.97 and 1.05. Every isolated run
+  passed (1.012, 0.969 in the workflow; 0.941, 0.835 cooled and pinned), and Phase 10's untouched
+  engine case read 4.05–4.31 ms/block on the same binary that read 2.53 ms this morning, so the
+  absolute figures are machine state. Change the protocol? → **Keep the protocol**: SC-014 stands as
+  written; the two cooled lanes and the two Phase 10 control runs are the recorded evidence; a
+  cold-machine re-measure is a recorded follow-up, not a gate; the remediation's "Phase 10 budget
+  finding" is marked unsupported. [SC-014, FR-067, FR-067a]

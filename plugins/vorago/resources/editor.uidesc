@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<vstgui-ui-description version="1">
+  <!-- Phase 11 PLACEHOLDER — Phase 13 replaces this file wholesale; stock views only.
+       (specs/vorago-phase11-plugin-scaffold, tasks T004 and T018.) No bitmaps, no
+       custom view classes. Fourteen bound controls (FR-054, SC-012.2): thirteen
+       CSliders (master gain + twelve macros, plain Vst::Parameters) and one
+       COptionMenu (polyphony, a StringListParameter), each beside an untagged
+       decorative CTextLabel. -->
+  <colors>
+    <color name="bg"       rgba="#101014ff"/>
+    <color name="text"     rgba="#D8D8E0ff"/>
+    <color name="text-dim" rgba="#8C8C9Cff"/>
+    <color name="track"    rgba="#22222Aff"/>
+    <color name="accent"   rgba="#7A8CA8ff"/>
+  </colors>
+  <fonts>
+    <font name="label-font" font-name="Arial" size="11"/>
+  </fonts>
+  <control-tags>
+    <control-tag name="MasterGain"    tag="0"/>
+    <control-tag name="Polyphony"     tag="1"/>
+    <control-tag name="MacroDarkness" tag="100"/>
+    <control-tag name="MacroAge"      tag="101"/>
+    <control-tag name="MacroDensity"  tag="102"/>
+    <control-tag name="MacroMovement" tag="103"/>
+    <control-tag name="MacroGravity"  tag="104"/>
+    <control-tag name="MacroEntropy"  tag="105"/>
+    <control-tag name="MacroPressure" tag="106"/>
+    <control-tag name="MacroWeight"   tag="107"/>
+    <control-tag name="MacroFog"      tag="108"/>
+    <control-tag name="MacroLife"     tag="109"/>
+    <control-tag name="MacroDepth"    tag="110"/>
+    <control-tag name="MacroMass"     tag="111"/>
+  </control-tags>
+  <template name="editor" class="CViewContainer" size="420, 520" minSize="420, 520"
+            maxSize="420, 520" background-color="bg" transparent="false">
+    <view class="CTextLabel" title="Vorago — Phase 11 placeholder" origin="10, 10"
+          size="400, 24" font-color="~ WhiteCColor" transparent="true" text-alignment="left"/>
+
+    <view class="CTextLabel" title="Gain" origin="10, 48" size="110, 18"
+          font="label-font" font-color="text-dim" transparent="true"
+          text-alignment="left" mouse-enabled="false"/>
+    <view class="CSlider" control-tag="MasterGain" origin="130, 48" size="280, 18"
+          orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true"
+          frame-color="accent" back-color="track" value-color="accent"/>
+
+    <view class="CTextLabel" title="Voices" origin="10, 80" size="110, 18"
+          font="label-font" font-color="text-dim" transparent="true"
+          text-alignment="left" mouse-enabled="false"/>
+    <view class="COptionMenu" control-tag="Polyphony" origin="130, 80" size="80, 18"
+          font="label-font" font-color="text" frame-color="accent" back-color="track"
+          fill-color="track" frame-width="1" transparent="false"
+          style-3D-in="false" style-3D-out="false"/>
+
+    <view class="CTextLabel" title="Darkness" origin="10, 112" size="110, 18"
+          font="label-font" font-color="text-dim" transparent="true"
+          text-alignment="left" mouse-enabled="false"/>
+    <view class="CSlider" control-tag="MacroDarkness" origin="130, 112" size="280, 18"
+          orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true"
+          frame-color="accent" back-color="track" value-color="accent"/>
+
+    <view class="CTextLabel" title="Age" origin="10, 144" size="110, 18"
+          font="label-font" font-color="text-dim" transparent="true"
+          text-alignment="left" mouse-enabled="false"/>
+    <view class="CSlider" control-tag="MacroAge" origin="130, 144" size="280, 18"
+          orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true"
+          frame-color="accent" back-color="track" value-color="accent"/>
+
+    <view class="CTextLabel" title="Density" origin="10, 176" size="110, 18"
+          font="label-font" font-color="text-dim" transparent="true"
+          text-alignment="left" mouse-enabled="false"/>
+    <view class="CSlider" control-tag="MacroDensity" origin="130, 176" size="280, 18"
+          orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true"
+          frame-color="accent" back-color="track" value-color="accent"/>
+
+    <view class="CTextLabel" title="Movement" origin="10, 208" size="110, 18"
+          font="label-font" font-color="text-dim" transparent="true"
+          text-alignment="left" mouse-enabled="false"/>
+    <view class="CSlider" control-tag="MacroMovement" origin="130, 208" size="280, 18"
+          orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true"
+          frame-color="accent" back-color="track" value-color="accent"/>
+
+    <view class="CTextLabel" title="Gravity" origin="10, 240" size="110, 18"
+          font="label-font" font-color="text-dim" transparent="true"
+          text-alignment="left" mouse-enabled="false"/>
+    <view class="CSlider" control-tag="MacroGravity" origin="130, 240" size="280, 18"
+          orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true"
+          frame-color="accent" back-color="track" value-color="accent"/>
+
+    <view class="CTextLabel" title="Entropy" origin="10, 272" size="110, 18"
+          font="label-font" font-color="text-dim" transparent="true"
+          text-alignment="left" mouse-enabled="false"/>
+    <view class="CSlider" control-tag="MacroEntropy" origin="130, 272" size="280, 18"
+          orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true"
+          frame-color="accent" back-color="track" value-color="accent"/>
+
+    <view class="CTextLabel" title="Pressure" origin="10, 304" size="110, 18"
+          font="label-font" font-color="text-dim" transparent="true"
+          text-alignment="left" mouse-enabled="false"/>
+    <view class="CSlider" control-tag="MacroPressure" origin="130, 304" size="280, 18"
+          orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true"
+          frame-color="accent" back-color="track" value-color="accent"/>
+
+    <view class="CTextLabel" title="Weight" origin="10, 336" size="110, 18"
+          font="label-font" font-color="text-dim" transparent="true"
+          text-alignment="left" mouse-enabled="false"/>
+    <view class="CSlider" control-tag="MacroWeight" origin="130, 336" size="280, 18"
+          orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true"
+          frame-color="accent" back-color="track" value-color="accent"/>
+
+    <view class="CTextLabel" title="Fog" origin="10, 368" size="110, 18"
+          font="label-font" font-color="text-dim" transparent="true"
+          text-alignment="left" mouse-enabled="false"/>
+    <view class="CSlider" control-tag="MacroFog" origin="130, 368" size="280, 18"
+          orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true"
+          frame-color="accent" back-color="track" value-color="accent"/>
+
+    <view class="CTextLabel" title="Life" origin="10, 400" size="110, 18"
+          font="label-font" font-color="text-dim" transparent="true"
+          text-alignment="left" mouse-enabled="false"/>
+    <view class="CSlider" control-tag="MacroLife" origin="130, 400" size="280, 18"
+          orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true"
+          frame-color="accent" back-color="track" value-color="accent"/>
+
+    <view class="CTextLabel" title="Depth" origin="10, 432" size="110, 18"
+          font="label-font" font-color="text-dim" transparent="true"
+          text-alignment="left" mouse-enabled="false"/>
+    <view class="CSlider" control-tag="MacroDepth" origin="130, 432" size="280, 18"
+          orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true"
+          frame-color="accent" back-color="track" value-color="accent"/>
+
+    <view class="CTextLabel" title="Mass" origin="10, 464" size="110, 18"
+          font="label-font" font-color="text-dim" transparent="true"
+          text-alignment="left" mouse-enabled="false"/>
+    <view class="CSlider" control-tag="MacroMass" origin="130, 464" size="280, 18"
+          orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true"
+          frame-color="accent" back-color="track" value-color="accent"/>
+  </template>
+</vstgui-ui-description>

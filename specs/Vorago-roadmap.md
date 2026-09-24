@@ -523,6 +523,12 @@ repo infrastructure and their checklists apply directly.
 
 ### Phase 11: Plugin Scaffold
 
+**Status: ✅ COMPLETE (2026-09-24)** — see specs/vorago-phase11-plugin-scaffold/compliance.md (27 of 27 SC
+measured in the main loop, FR 79 of 79; Windows leg zero warnings, pluginval 5 clean, ASan lifecycle clean,
+clang-tidy 14 files 0/0; SC-014 wrapper overhead P/D = 0.835025 against 1.05, composed chain
+3.83259e+06 ns/block = 1.19769 × kReferenceNs, recorded; 14 parameters, 12 inert macros; MPE/sustain/seed/
+soft-limit deferred to Phase 12; Linux/macOS legs and auval run on push).
+
 **Spec:** `vorago-phase11-plugin-scaffold`
 
 - **Template: Ruinae shape** (poly instrument, large parameter surface, `parameters/` packs,
@@ -575,7 +581,7 @@ usual seconds). Release gate via `release-readiness` flow.
                   ┌─→ Phase 2 (noise organism) ──┐
                   ├─→ Phase 3 (resonance drift) ─┤
 Phase 1           ├─→ Phase 4 (spectral smear) ──┤
-(events + ────────┼─→ Phase 5 (feedback ecology)─┼─→ Phase 10 (voice/engine) ─→ Phase 11 (scaffold)
+(events + ────────┼─→ Phase 5 (feedback ecology)─┼─→ Phase 10 (voice/engine) ─→ Phase 11 (scaffold) ✅
  Perlin/Aizawa)   ├─→ Phase 6 (subharmonic) ─────┤            ▲         │              │
                   ├─→ Phase 7 (bloom) ───────────┤            │         ▼              ▼
                   └─→ Phase 8 (ecosystem) ───────┘            │   Phase 10a (ghost) ✅ → Phase 12 → 13 → 14
@@ -632,3 +638,5 @@ atmosphere engine) are consumed as-is from day one.
 6. Macro roster trim (which of the 15 concepts survive listening) — Phase 10/12.
 7. MPE / channel-pressure mapping (pressure → Weight/Pressure macros is a natural fit) — Phase
    11/12 scope call.
+   **Decided in Phase 11 (2026-09-24, Clarification Q3/Q4): Phase 12**, together with sustain/CC64 and the
+   single `IMidiMapping` addition, before any release (no host-cache cost). Phase 11 ships neither interface.

@@ -113,7 +113,7 @@
       "scope": "Krate::DSP",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/atmosphere_engine.h",
-      "line": 179
+      "line": 188
     },
     {
       "name": "AtmosphereGrain",
@@ -121,7 +121,7 @@
       "scope": "Krate::DSP::AtmosphereEngine",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/atmosphere_engine.h",
-      "line": 1181
+      "line": 1307
     },
     {
       "name": "AttractorConstants",
@@ -561,7 +561,7 @@
       "scope": "Krate::DSP::AtmosphereEngine",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/atmosphere_engine.h",
-      "line": 1210
+      "line": 1340
     },
     {
       "name": "DriftLanes",
@@ -593,7 +593,7 @@
       "scope": "Krate::DSP::AtmosphereEngine",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/atmosphere_engine.h",
-      "line": 2591
+      "line": 2851
     },
     {
       "name": "DustGrain",
@@ -945,7 +945,7 @@
       "scope": "Krate::DSP::AtmosphereEngine",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/atmosphere_engine.h",
-      "line": 1220
+      "line": 1350
     },
     {
       "name": "GrainParams",
@@ -1953,7 +1953,7 @@
       "scope": "Krate::DSP::AtmosphereEngine",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/atmosphere_engine.h",
-      "line": 369
+      "line": 385
     },
     {
       "name": "PrepareConfig",
@@ -2105,7 +2105,7 @@
       "scope": "Krate::DSP::AtmosphereEngine",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/atmosphere_engine.h",
-      "line": 2584
+      "line": 2844
     },
     {
       "name": "Reverb",
@@ -2977,7 +2977,7 @@
       "scope": "Krate::DSP",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/vorago_engine.h",
-      "line": 156
+      "line": 163
     },
     {
       "name": "VoragoEngineConfig",

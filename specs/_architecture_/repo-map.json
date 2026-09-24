@@ -63,6 +63,14 @@
         "seraphis_tests"
       ],
       "pluginval_bundle": "build/windows-x64-release/VST3/Release/Seraphis.vst3"
+    },
+    {
+      "dir": "plugins/vorago",
+      "name": "Vorago",
+      "test_targets": [
+        "vorago_tests"
+      ],
+      "pluginval_bundle": "build/windows-x64-release/VST3/Release/Vorago.vst3"
     }
   ],
   "dsp_layers": {
