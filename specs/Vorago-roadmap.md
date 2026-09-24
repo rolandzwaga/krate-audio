@@ -490,6 +490,11 @@ bit-exact goldens, project rule).
 
 ### Phase 10a: AtmosphereEngine Ghost Extension
 
+**Status: ✅ COMPLETE (2026-09-24)** — see specs/vorago-phase10a-ghost-extension/compliance.md (61 of 61;
+default render bit-identical to `374580d7` at engine level; SC-009 arm 5 346 508 vs 439 535 ns/block;
+Phase 10's SC-001b unchanged at 2 657 690 ns/block with the Cavern term = 83.1 %; FR-046 bounds
+measured on MSVC / g++ 13.3 / clang++ 18.1; both features ship inert, Phase 14 presets engage them).
+
 **Spec:** `vorago-phase10a-ghost-extension`
 **Depends on:** Phase 10 (its polyphony ruling and global-stage CPU baseline); sequenced before
 Phase 14 so presets can use it.
@@ -573,7 +578,7 @@ Phase 1           ├─→ Phase 4 (spectral smear) ──┤
 (events + ────────┼─→ Phase 5 (feedback ecology)─┼─→ Phase 10 (voice/engine) ─→ Phase 11 (scaffold)
  Perlin/Aizawa)   ├─→ Phase 6 (subharmonic) ─────┤            ▲         │              │
                   ├─→ Phase 7 (bloom) ───────────┤            │         ▼              ▼
-                  └─→ Phase 8 (ecosystem) ───────┘            │   Phase 10a (ghost) → Phase 12 → 13 → 14
+                  └─→ Phase 8 (ecosystem) ───────┘            │   Phase 10a (ghost) ✅ → Phase 12 → 13 → 14
                                                               │
 AetherReverb ✅ (shipped) ─────────→ Phase 9 (cavern space) ───┘
 seraphis_voice/engine ✅ (shipped) ───────────────────────────┘  (pattern template, not code dep)

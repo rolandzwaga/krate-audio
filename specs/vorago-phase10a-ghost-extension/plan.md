@@ -1427,7 +1427,8 @@ The accessor is `engine.atmosphere()` —
 `[[nodiscard]] const AtmosphereEngine& atmosphere() const noexcept` (`vorago_engine.h:1066`); there is
 **no** `VoragoEngine::atmos()` (`atmos_` is the private member at `:1498`).
 
-- (a) `VoragoEngineConfig` at its defaults, 60 s Vorago render (built with
+- (a) `VoragoEngineConfig` at its defaults plus one held note-on (B-2, 2026-09-23: `setSeed(0x6057u)`,
+  `setPolyphony(1u)`, `noteOn(33u, 100u)` at sample 0 — the no-note-on render is silence), 60 s Vorago render (built with
   `TestUtils::Vorago::makeEngine` / `renderEngine`, `vorago_fixtures.h:734`, `:750`) compared against a
   transcribed base-commit `kBaseCommitVoragoFingerprint` under the same FR-046 measured-bounds protocol
   as SC-001 clause 1; plus `engine.atmosphere().getTotalTriggeredGrainsBorn() == 0` and

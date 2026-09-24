@@ -514,6 +514,26 @@ add_executable(dsp_systems_tests
     unit/systems/vorago_dark_materials_test.cpp
     unit/systems/vorago_nonfinite_test.cpp
     unit/systems/vorago_perf_test.cpp
+    # Vorago Phase 10a (specs/vorago-phase10a-ghost-extension): the AtmosphereEngine
+    # ghost extension (reverse grains + triggerGrain). ENUMERATED, not globbed -
+    # an unregistered TU silently drops out of the build and its cases never run.
+    #   atmosphere_ghost_test.cpp          SC-001, SC-002, SC-004 (short arm, never
+    #                                      [long]), SC-005, SC-006, SC-007 (a)-(c),
+    #                                      SC-008 (a)(c)(d)(e), SC-011, SC-012,
+    #                                      FR-049's short twin
+    #   atmosphere_ghost_longrun_test.cpp  SC-003, SC-007 (d), SC-004's sweep
+    #                                      sibling            (the [long] set)
+    #   atmosphere_ghost_nonfinite_test.cpp SC-008 (b) only - the ONE TU that
+    #                                      injects NaN/Inf bit patterns, and the
+    #                                      only Phase 10a entry in the
+    #                                      -fno-fast-math block below
+    #   atmosphere_ghost_perf_test.cpp     SC-009 only        [.perf]
+    #   vorago_ghost_ext_test.cpp          SC-010 only (the vorago_engine.h side)
+    unit/systems/atmosphere_ghost_test.cpp
+    unit/systems/atmosphere_ghost_longrun_test.cpp
+    unit/systems/atmosphere_ghost_nonfinite_test.cpp
+    unit/systems/atmosphere_ghost_perf_test.cpp
+    unit/systems/vorago_ghost_ext_test.cpp
 )
 
 target_link_libraries(dsp_systems_tests
@@ -894,6 +914,16 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         # disable the only check that has teeth. The perf TU must stay out too:
         # -fno-fast-math would change the figures the baselines are pinned to.
         unit/systems/atmosphere_engine_nonfinite_test.cpp
+        # Vorago Phase 10a: SC-008 (b) injects NaN/Inf via bit patterns in this TU.
+        # ONLY this one of the five Phase 10a TUs is listed - the perf TU in
+        # particular must stay out, or -fno-fast-math would move the figures it
+        # measures. Listed here, beside the Phase 5 AtmosphereEngine entry above,
+        # because it is the same component's non-finite TU. atmosphere_ghost_test.cpp
+        # stays out DELIBERATELY: SC-004's detection-only NaN/Inf check lives there
+        # on the fast-math path and uses the bit-pattern predicate
+        # VoragoGhostFix::isNonFiniteBits, so the ITERUM_NOINLINE isFinite guards are
+        # proved in the FP mode the header actually ships in.
+        unit/systems/atmosphere_ghost_nonfinite_test.cpp
         # Seraphis Phase 6: SC-014 injects NaN/Inf via bit patterns in this TU and
         # needs IEEE semantics to assert on them. ONLY this one of the five Phase 6
         # TUs is listed; the other four must NOT be. For aether_reverb_test.cpp and

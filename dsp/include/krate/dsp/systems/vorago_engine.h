@@ -124,6 +124,13 @@ struct VoragoEngineConfig {
     std::size_t atmosBlurFftSize = 1024;
     std::size_t atmosFreezeFftSize = 2048;
 
+    /// Phase 10a. BOTH INERT BY DEFAULT (ADR-3, Clarifications 2026-09-22 Q5):
+    /// Phase 10's SC-027 and its checked-in kEngineBaselineNsAtPoly4 were measured
+    /// on the shipped ghost path, and a phase whose own criteria say the ceiling is
+    /// unchanged may not move either. Phase 14 presets engage them.
+    float atmosGhostReverseProbability = 0.0f;
+    bool atmosGhostEventTriggers = false;
+
     // --- the global smear (FR-052) ---
 
     /// THE COMPONENT DEFAULTS TO false (spectral_smear.h:141-149). Vorago's Fog
@@ -205,6 +212,12 @@ public:
     /// BASE is 0.0 - a base of 0 is what makes a burst a burst.
     static constexpr float kGhostBurstPeak = 0.60f;
 
+    /// Phase 10a FR-031's edge predicate, on the GATED level `ghostPeak_ * ghost`.
+    /// Defined FROM kGhostBurstPeak so they cannot drift from Phase 10's SC-027
+    /// detector thresholds (vorago_engine_test.cpp:2666-2667).
+    static constexpr float kGhostTriggerRise = 0.5f * kGhostBurstPeak;
+    static constexpr float kGhostTriggerFall = 0.05f * kGhostBurstPeak;
+
     /// FR-013's heap-free-giant guard, asserted just below the class.
     ///
     /// Expressed AGAINST VoragoVoice::kVoiceSizeBound rather than as a frozen
@@ -271,6 +284,11 @@ public:
         const std::size_t maxBlock =
             std::clamp(cfg.maxBlockSamples, std::size_t{1}, kMaxBlockSamples);
         polyphony_ = std::clamp(polyphony_, std::size_t{1}, kMaxVoices);
+        // Phase 10a FR-030's config shadow. It lands HERE - the step that already
+        // turns cfg fields into engine state - and NOT in the FR-017 block, which
+        // gains exactly one line (the setGrainReverseProbability forward).
+        ghostEventTriggers_ = cfg.atmosGhostEventTriggers;
+        ghostTriggerHigh_ = false;  // FR-031's latch starts disarmed
 
         // --- 3. voices: seed, then prepare, for ALL kMaxVoices (FR-042) ------
         for (std::size_t v = 0; v < kMaxVoices; ++v) {
@@ -302,6 +320,7 @@ public:
         atmos_.setPositionSpread(0.90f);  // read ages scatter across the capture
         atmos_.setBlur(atmosBlur_);       // roadmap line 114's darker blur default (0.85)
         atmos_.setDecorrelation(0.85f);   // wide, unlocalised
+        atmos_.setGrainReverseProbability(cfg.atmosGhostReverseProbability);  // FR-034, dflt 0
         // Event-driven: the BASE is 0.0 and the control step writes
         // ghostPeak_ * max(getGhostRequest()) every chunk (T015).
         atmos_.setLevel(0.0f);
@@ -1160,6 +1179,10 @@ private:
     /// seed survive" (spectral_smear.h:295-301).
     void clearRunState() noexcept {
         atmos_.reset();  // the 20 s capture ring - see the reset() warning
+        // Phase 10a FR-031's latch is run STATE, so it rewinds here; the
+        // ghostEventTriggers_ CONFIG shadow is a parameter and survives, exactly
+        // as every sub-component reset() above leaves its parameters unchanged.
+        ghostTriggerHigh_ = false;
         sub_.reset();
         smear_.reset();
         satL_.reset();
@@ -1270,6 +1293,35 @@ private:
         // FR-017's gating. The BASE is 0.0 - a base of 0 is what makes a burst a
         // burst - and the burst peak is the engine-owned ghostPeak_.
         atmos_.setLevel(ghostPeak_ * ghost);  // atmosphere_engine.h:982
+
+        // --- Phase 10a FR-031. The spawn path rides the SAME definition of "a
+        //     ghost burst" Phase 10's SC-027 detector uses
+        //     (vorago_engine_test.cpp:2666-2667, detector :2699-2704): a rising
+        //     crossing of half the burst peak, re-armed only below 5 % of it. A
+        //     hysteresis band and NOT "was exactly 0, now > 0", because the
+        //     combined request is combineWake(0, eco, sched) = max
+        //     (vorago_voice.h:1011-1014, :1846) whose ecosystem term
+        //     ecosystemDepth_[k] * output[i] (:1734) is CONTINUOUS and prepare()
+        //     installs depth 0.85 for every kind (:617) - an exact-zero predicate
+        //     would fire at most once per render. THE LATCHED QUANTITY IS THE
+        //     GATED VALUE - the very expression written above - so the spawn path
+        //     closes with the level gate (SC-010 (c) is then literally SC-027
+        //     clause 2's closed arm) and no grain is ever spawned for a ghost
+        //     nobody can hear. FR-033: the setLevel write above is NEITHER moved
+        //     NOR conditioned. FR-032: with the flag false this block is skipped
+        //     entirely, triggerGrain() is never called and the latch does not
+        //     advance. runPreRenderControlStep() runs inside processStereoBlock on
+        //     the AUDIO THREAD, called only at phase == 0 (:887-889), so Vorago
+        //     issues at most one trigger per control chunk.
+        if (ghostEventTriggers_) {
+            const float gated = ghostPeak_ * ghost;
+            if (!ghostTriggerHigh_ && gated >= kGhostTriggerRise) {
+                ghostTriggerHigh_ = true;
+                atmos_.triggerGrain();  // FR-018
+            } else if (ghostTriggerHigh_ && gated <= kGhostTriggerFall) {
+                ghostTriggerHigh_ = false;
+            }
+        }
 
         // FR-051. When NO voice sounds the LAST VALUE IS HELD and
         // setFundamentalHz is not called at all - never reset to a default,
@@ -1513,6 +1565,9 @@ private:
     float smearDecoherence_ = kDefaultSmearDecoherence;
     float smearTilt_ = 0.0f;
     float ghostPeak_ = kGhostBurstPeak;
+    bool ghostEventTriggers_ = false;  ///< FR-030's config shadow
+    bool ghostTriggerHigh_ = false;    ///< FR-031's latch, the VoragoVoice::eventWasActive_
+                                       ///< shape (vorago_voice.h:1775-1784)
     float subToneOffsetDb_ = 0.0f;
     float subTracking_ = kDefaultSubTracking;
     float atmosBlur_ = kDefaultAtmosBlur;

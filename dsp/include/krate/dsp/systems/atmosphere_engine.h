@@ -34,6 +34,15 @@
 //   the six windows prepare() generated (see regenerateEnvelopeBank()) - it is
 //   a store, safe to drive from an automation lane at block rate.
 //
+//   THAT BLOCK-RATE AUTOMATION CONTRACT DOES NOT EXTEND TO triggerGrain()
+//   (FR-020). Every other mutator here is a pure STORE of a value the audio
+//   thread only reads; triggerGrain() is a READ-MODIFY-WRITE of
+//   pendingTriggers_/droppedTriggers_, counters pass A also read-modify-writes.
+//   It is therefore AUDIO THREAD ONLY: an off-thread caller is a data race that
+//   breaks FR-022's "consumed exactly once". No atomic is introduced because no
+//   caller is off-thread - a control-thread caller would need
+//   std::atomic<std::uint32_t> with a CAS saturation loop, not a bare increment.
+//
 // MEMORY (FR-073, plan RA-2). The rolling capture ring dominates: it is stereo
 //   float and its capacity is rounded UP to a power of two
 //   (rolling_capture_buffer.h:83), so
@@ -333,6 +342,12 @@ public:
     static constexpr std::size_t kSchedulerSalt = 0x3000;
     static constexpr std::size_t kDriftSaltBase = 0x4000;
 
+    /// Phase 10a (FR-004): the reverse-decision stream's salt. Placed ABOVE the
+    /// WHOLE kDriftSaltBase span, which runs [0x4000, 0x4000 + kMaxGrains), so
+    /// the reverse stream can never be a second view of a per-grain drift lane.
+    /// The static_assert below is the enforcement; this comment is not.
+    static constexpr std::size_t kReverseSalt = 0x5000;
+
     static constexpr std::uint32_t kDefaultSeed = 1u;
 
     // -------------------------------------------------------------------------
@@ -358,6 +373,7 @@ public:
                   "FR-027's edge ramp must extend past the forced zero run it subsumes, and the "
                   "two ends must not meet");
     static_assert(kDriftSaltBase > kSchedulerSalt + kMaxGrains, "salt ranges must not overlap");
+    static_assert(kReverseSalt > kDriftSaltBase + kMaxGrains, "salt ranges must not overlap");
 
     // -------------------------------------------------------------------------
     // Prepare-time configuration
@@ -434,11 +450,25 @@ public:
         scheduler_.prepare(sampleRate_);
 
         // 5b. Phase 11.5 pass-A/pass-B scratch (renderGrainChunk). Sized ONCE
-        //     here: <= kMaxGrains grains active at a chunk start plus
-        //     <= kControlChunkSamples births can retire inside one chunk, and
-        //     kControlChunkSamples == kMaxGrains, so 2 * kMaxGrains bounds both.
-        retiredScratch_.assign(kMaxGrains * 2, RetiredGrainSpan{});
-        dueScratch_.assign(kMaxGrains * 2, DueEntry{});
+        //     here, and FR-051 RE-DERIVES the bound now that pass A has TWO
+        //     birth sites per sample (the density scheduler AND FR-020's
+        //     external trigger), not one:
+        //       - a newborn only inserts a due entry when it retires inside the
+        //         same chunk, which needs lifetime >= 2 (clamped at birth in
+        //         tryBirthGrain()), so it can only be born at
+        //         i <= numSamples - 2: with kControlChunkSamples == 64 that is
+        //         63 positions x 2 births = 126 in-chunk newborn entries;
+        //       - plus the <= kMaxGrains = 64 grains already active at the
+        //         chunk start, every one of which may fall due inside it;
+        //       - 126 + 64 = 190 <= 3 * kMaxGrains = 192.
+        //     retiredScratch_ is bounded by the SAME count: every entry there is
+        //     a retirement, and only a due grain retires. Both vectors are
+        //     written by UNCHECKED INDEX on the audio thread
+        //     (retiredScratch_[retiredCount], dueScratch_[k]), so 3x is a
+        //     correctness bound, not headroom - at 2x the second birth site
+        //     overruns the heap allocation.
+        retiredScratch_.assign(kMaxGrains * 3, RetiredGrainSpan{});
+        dueScratch_.assign(kMaxGrains * 3, DueEntry{});
 
         // 6. Drift lanes.
         driftSmoothCoeff_ =
@@ -554,6 +584,7 @@ public:
         // 4. Engine-level streams.
         grainRng_.seed(deriveStreamSeed(seed_, kGrainSalt));
         blurRng_.seed(deriveStreamSeed(seed_, kBlurSalt));
+        reverseRng_.seed(deriveStreamSeed(seed_, kReverseSalt));
 
         // 5. Drift lanes: zeroed AND re-seeded. Re-seeding on reset is
         //    BrownianDrift::reset()'s documented behaviour (:133-135 -> :243);
@@ -636,6 +667,15 @@ public:
         lastBirthSlot_ = 0;
         lastBirthPanL_ = 1.0f;
         lastBirthPanR_ = 1.0f;
+
+        // 11. Phase 10a ghost counters (FR-024). silence() deliberately does
+        //     NOT clear these - reset() is the one documented re-entry, and a
+        //     latched engine must still report what it did before it latched.
+        pendingTriggers_ = 0;
+        droppedTriggers_ = 0;
+        totalTriggered_ = 0;
+        totalReverseBorn_ = 0;
+        lastBirthReversed_ = false;
     }
 
     /// @brief Fade out over kSilenceRampMs and LATCH (FR-007).
@@ -904,6 +944,19 @@ public:
     }
     [[nodiscard]] float getDecorrelation() const noexcept { return decorrelation_; }
 
+    /// Probability that a newly born grain plays its captured span BACKWARDS
+    /// (FR-001). Range [0, 1], default 0 - which is exactly the shipped,
+    /// Seraphis-facing behaviour, so an untouched consumer never sees a
+    /// reversed grain. Read at BIRTH only: the decision is snapshotted into
+    /// AtmosphereGrain::reversed and never re-read for a live grain, so moving
+    /// this knob cannot flip a grain that is already sounding (FR-008).
+    /// Non-finite input falls back to 0 through the component's own isFinite()
+    /// - never std::isnan, which -ffast-math is free to fold away (FR-043).
+    void setGrainReverseProbability(float probability) noexcept {
+        reverseProbability_ = std::clamp(isFinite(probability) ? probability : 0.0f, 0.0f, 1.0f);
+    }
+    [[nodiscard]] float getGrainReverseProbability() const noexcept { return reverseProbability_; }
+
     /// Spectral blur (phase-randomisation) amount. Range [0, 1], default 0.
     /// Smoothed over kBlurSmoothMs and advanced by advanceSamples(hopSize)
     /// immediately BEFORE each blur frame reads it - never by process().
@@ -997,6 +1050,47 @@ public:
     }
     [[nodiscard]] GrainEnvelopeType getGrainEnvelope() const noexcept { return envelopeType_; }
 
+    /// @brief Request ONE extra grain birth, consumed at the next pass-A sample
+    ///        (FR-020).
+    ///
+    /// REAL-TIME SAFE: allocation-free, lock-free, I/O-free and noexcept - the
+    /// whole body is a bounds test and one increment of a counter.
+    ///
+    /// The request is a SATURATING COUNTER BOUNDED BY kMaxGrains. A call made
+    /// while kMaxGrains requests are already pending is DROPPED, NEVER QUEUED,
+    /// and moves getDroppedTriggerCount() (FR-019). That is the same "skip,
+    /// never steal" philosophy as skipPoolFull_ in tryBirthGrain() and the
+    /// OPERATING RULE in the banner above: a saturated engine loses the
+    /// request, never a live grain.
+    ///
+    /// A NO-OP before prepare() and while Latched (FR-023). A latched engine
+    /// returns from processStereoBlock() before pass A and would never drain
+    /// the queue, so a banked request would otherwise fire long after the
+    /// latch. Neither no-op is a drop, so neither moves
+    /// getDroppedTriggerCount(). ACCEPTED while Silencing - that state still
+    /// renders.
+    ///
+    /// THREADING - AUDIO THREAD ONLY. Unlike every other mutator on this
+    /// component, which is a pure STORE of a value the audio thread only reads
+    /// (setDensity(), setGrainSeconds(), setGrainReverseProbability(),
+    /// setGrainEnvelope(), ...), this is a READ-MODIFY-WRITE of
+    /// pendingTriggers_/droppedTriggers_ - counters pass A also
+    /// read-modify-writes. An off-thread caller is a data race that breaks
+    /// FR-022's "consumed exactly once". The banner's block-rate automation
+    /// contract DOES NOT extend to this method. No atomic is introduced because
+    /// no caller is off-thread; a control-thread caller would need
+    /// std::atomic<std::uint32_t> with a CAS saturation loop, not this.
+    void triggerGrain() noexcept {
+        if (!prepared_ || runState_ == RunState::Latched) {
+            return;
+        }
+        if (pendingTriggers_ >= static_cast<std::uint32_t>(kMaxGrains)) {
+            ++droppedTriggers_;
+            return;
+        }
+        ++pendingTriggers_;
+    }
+
     /// @brief Re-seed every RNG stream (FR-070). Default seed is 1.
     ///
     /// Every derived value goes through deriveStreamSeed (core/random.h:102-111)
@@ -1014,6 +1108,7 @@ public:
         seed_ = seedValue;
         grainRng_.seed(deriveStreamSeed(seedValue, kGrainSalt));
         blurRng_.seed(deriveStreamSeed(seedValue, kBlurSalt));
+        reverseRng_.seed(deriveStreamSeed(seedValue, kReverseSalt));
         scheduler_.seed(deriveStreamSeed(seedValue, kSchedulerSalt));
         for (std::size_t i = 0; i < kMaxGrains; ++i) {
             driftLanes_.rng[i].rng.seed(deriveStreamSeed(seedValue, kDriftSaltBase + i));
@@ -1117,6 +1212,37 @@ public:
     /// the blur stage did not consume from it (FR-044).
     [[nodiscard]] std::uint32_t getGrainRngState() const noexcept { return grainRng_.state(); }
 
+    /// Whether the MOST RECENT birth was drawn reversed (FR-026). Meaningless
+    /// until getTotalGrainsBorn() > 0, exactly like the other last-birth
+    /// accessors above.
+    [[nodiscard]] bool getLastBornGrainReversed() const noexcept { return lastBirthReversed_; }
+
+    /// Total grains born REVERSED since reset(). Counted at the birth site, not
+    /// derived from a probability, so a draw that never reached a birth cannot
+    /// inflate it.
+    [[nodiscard]] std::uint64_t getTotalReverseGrainsBorn() const noexcept {
+        return totalReverseBorn_;
+    }
+
+    /// Raw state of the REVERSE stream (core/random.h:79). The only way to prove
+    /// the reverse decision consumed from its OWN stream and left grainRng_
+    /// bit-identical to the shipped engine's (FR-006).
+    [[nodiscard]] std::uint32_t getReverseRngState() const noexcept { return reverseRng_.state(); }
+
+    /// Total grains born FROM an external trigger since reset() (FR-026), kept
+    /// SEPARATE from getTotalGrainsBorn() so the scheduler's births and the
+    /// triggered ones are never conflated.
+    [[nodiscard]] std::uint64_t getTotalTriggeredGrainsBorn() const noexcept {
+        return totalTriggered_;
+    }
+
+    /// External triggers refused because the pending queue was already
+    /// saturated (FR-019). A call that never reached the queue at all - one on
+    /// an unprepared engine - is NOT a drop and does not move this (FR-023).
+    [[nodiscard]] std::uint64_t getDroppedTriggerCount() const noexcept {
+        return droppedTriggers_;
+    }
+
     /// @brief Latency of the WHOLE layer, in samples - both crossfade legs.
     ///
     /// The freeze leg is delay-matched to the same figure, so there is never a
@@ -1180,7 +1306,10 @@ private:
     /// its lifetime was truncated for.
     struct AtmosphereGrain {
         std::uint64_t readIndexInt = 0;  ///< absolute source index, integer part
-        float readFrac = 0.0f;           ///< absolute source index, fraction in [0,1)
+        float readFrac = 0.0f;           ///< absolute source index, fraction in [0,1] - a
+                                         ///< reverse grain's borrow can land on exactly
+                                         ///< 1.0f; see the advanceBy banner (the borrow
+                                         ///< table) in renderGrainSpan
         float ratio = 1.0f;              ///< r, recomputed per control step, held within a chunk
         float staticSemis = 0.0f;        ///< s, snapshot
         float driftSemis = 0.0f;         ///< d, snapshot
@@ -1198,6 +1327,7 @@ private:
         std::uint32_t lifetime = 0;    ///< L' in samples (FR-025 truncation), always >= 2
         std::uint32_t ageSamples = 0;  ///< samples since birth; retirement is an INTEGER compare
         bool active = false;
+        bool reversed = false;  ///< FR-008: snapshot at birth, never re-read
     };
 
     /// Wrapper so `std::array<..., kMaxGrains>{}` is value-initialisable:
@@ -1619,6 +1749,17 @@ private:
         const float uPan = grainRng_.nextFloat();     // [-1, 1] pan
         const float uDec = grainRng_.nextUnipolar();  // [ 0, 1] decorrelation
 
+        // --- The FIFTH draw, on its OWN stream (FR-006). UNCONDITIONAL: a draw taken
+        //     only when the probability is non-zero would make the stream position a
+        //     function of the control value, and setGrainReverseProbability would stop
+        //     being a pure gain on a fixed stream. Consumed even when the admission
+        //     tests below then reject the birth - exactly as the four draws above are.
+        //
+        //     nextUnipolar() returns [0, 1] (core/random.h:65-67), so `< 0.0f` is never
+        //     true at the default and `< 1.0f` is true for every value EXCEPT the single
+        //     exact 1.0f: at probability 1 the expected forward-grain rate is 2^-32.
+        const bool reversed = reverseRng_.nextUnipolar() < reverseProbability_;
+
         // --- (a) Pitch envelope snapshot (FR-031). The +/-36 clamp is applied
         //     to the ENVELOPE ENDPOINTS, not only to s, so r stays in
         //     [0.125, 8] at every instant of the grain's life and ratioMin /
@@ -1648,8 +1789,13 @@ private:
         const double decorr = static_cast<double>(decorrAge);
         // wUp: the age SHRINKS at this rate (the grain reads forward faster than
         // the write head). wDown: the age GROWS at this rate.
-        const double wUp = std::max(static_cast<double>(ratioMax) - 1.0, 0.0);
-        const double wDown = std::max(1.0 - static_cast<double>(ratioMin), 0.0);
+        // A REVERSE grain's read walks BACKWARDS while the write head walks
+        // forwards, so its age can only GROW, at 1 + r per sample - it never
+        // catches up with the write head and wUp is identically 0
+        // (Phase 10a FR-014). Everything below is unchanged in form.
+        const double wUp = reversed ? 0.0 : std::max(static_cast<double>(ratioMax) - 1.0, 0.0);
+        const double wDown = reversed ? (1.0 + static_cast<double>(ratioMax))
+                                      : std::max(1.0 - static_cast<double>(ratioMin), 0.0);
         // THE SUM, NEVER THE MAXIMUM. When the envelope straddles r = 1 both
         // terms are non-zero: at s = 0, d = 2 the sum is 0.2316 against a
         // maximum of 0.1225. A maximum-based w under-truncates by ~2x and leaves
@@ -1740,6 +1886,26 @@ private:
             return;
         }
 
+        // --- (e2) FR-050 (Phase 10a): a REVERSE grain's read age grows at 1 + r
+        //     per sample while the ring fills at 1, so the shipped birth-sample
+        //     test above is only a statement about t = 0. The deficit accumulates
+        //     at ratioMax until the ring saturates, after which step (c)'s window
+        //     (wDown = 1 + ratioMax) already bounds the whole life. So the ONE
+        //     extra quantity is the deficit up to saturation:
+        //         t* = min(lifetime, capacity - available).
+        //     VACUOUS ON A FULL RING (t* == 0) and never evaluated for a forward
+        //     grain, which is what keeps every shipped admission decision
+        //     bit-identical.
+        if (reversed) {
+            const double avail = static_cast<double>(capture_.getAvailableSamples());
+            const double fillDeficit =
+                std::ceil(static_cast<double>(ratioMax) * std::min(lifetime, capacity - avail));
+            if (avail < needed + fillDeficit) {
+                ++skipRingCold_;
+                return;
+            }
+        }
+
         // --- (f) Equal-power pan (FR-032), the same law GrainProcessor uses
         //     (processors/grain_processor.h:101-103), computed ONCE. Hoisting
         //     these two transcendentals to birth is the single largest cost
@@ -1785,6 +1951,7 @@ private:
         grain.lifetime = static_cast<std::uint32_t>(lifetime);
         grain.envPhaseInc = 1.0f / static_cast<float>(lifetime - 1.0);
         grain.ageSamples = 0;
+        grain.reversed = reversed;  // FR-008: snapshot at birth, never re-read
         grain.active = true;
         refreshGrainRatio(grain, slot);
 
@@ -1803,7 +1970,11 @@ private:
         lastBirthSlot_ = slot;
         lastBirthPanL_ = panL;
         lastBirthPanR_ = panR;
+        lastBirthReversed_ = reversed;  // FR-026
         ++totalBorn_;
+        if (reversed) {
+            ++totalReverseBorn_;
+        }
         foldObservedAge(static_cast<float>(birthAge));
         foldObservedAge(static_cast<float>(birthAge + decorr));
     }
@@ -1869,101 +2040,145 @@ private:
             }
         };
         // Advance: integer + fraction, exact for the whole lifetime at any
-        // rate. TRUNCATION, NOT std::floor: readFrac is non-negative for the
-        // grain's whole life, so truncation toward zero IS the floor - and
-        // std::floor(float) is a CRT call on MSVC's default /arch. The carry
-        // is in [0, 8] because ratio <= 8.
-        const auto advance = [&]() noexcept {
-            readFrac += ratio;
-            const auto carryInt = static_cast<std::int32_t>(readFrac);
-            readIndexInt += static_cast<std::uint64_t>(carryInt);
-            readFrac -= static_cast<float>(carryInt);
+        // rate, in EITHER direction (FR-010..FR-013). TRUNCATION, NOT
+        // std::floor, on both paths - std::floor(float) is a CRT call on
+        // MSVC's default /arch.
+        //
+        // FORWARD: readFrac is non-negative, so truncation toward zero IS
+        // the floor; the carry is in [0, 8] because ratio <= 8.
+        //
+        // BACKWARDS: readFrac - ratio lands in [-8, 1) and the step is a
+        // BORROW of ceil(-readFrac), formed as the same truncation plus one
+        // compare. Exact for every legal ratio in [0.125, 8] - the range the
+        // birth-time kMaxAbsGrainSemitones clamp guarantees. Two consequences,
+        // both harmless and both load-bearing to state here:
+        //   * readIndexInt is unsigned and MAY wrap below zero on a backwards
+        //     walk. Every age is a modulo-2^64 subtraction cast to int64
+        //     (ageAt above), exact for the true difference (< 2^22), so the
+        //     wrap never reaches an age or a ring index.
+        //   * the correction can leave readFrac at exactly 1.0f (a readFrac of
+        //     -2.98e-8 plus 1.0f rounds to 1.0f), so the invariant is [0, 1],
+        //     not [0, 1). readFrac is consumed in exactly ONE place in this
+        //     renderer - ageAt's subtraction - and never as an interpolation
+        //     weight: fracL/fracR come from reader.indexAt(), which derives its
+        //     own fraction from the CLAMPED age inside LinearReader::index0
+        //     (rolling_capture_buffer.h:313-321).
+        const auto advanceBy = [&]<bool kBackwards>() noexcept {
+            if constexpr (kBackwards) {
+                readFrac -= ratio;                                   // now in [-8, 1)
+                auto borrow = static_cast<std::int32_t>(-readFrac);  // trunc toward zero
+                if (readFrac + static_cast<float>(borrow) < 0.0f) {  // ceil correction
+                    ++borrow;
+                }
+                readIndexInt -= static_cast<std::uint64_t>(borrow);
+                readFrac += static_cast<float>(borrow);
+            } else {
+                readFrac += ratio;
+                const auto carryInt = static_cast<std::int32_t>(readFrac);
+                readIndexInt += static_cast<std::uint64_t>(carryInt);
+                readFrac -= static_cast<float>(carryInt);
+            }
             ++age;
         };
 
-        if (!reader.isValid() || envelope == nullptr) {
-            // Cold path: every read yields 0 (the reader's own rule), so the
-            // span contributes nothing - but state, folds and ages must still
-            // advance exactly. Unreachable while any grain is admitted (FR-014
-            // demands >= kMinAgeSamples available at birth); kept for the same
-            // defensive reason readStereo() zero-fills.
-            for (std::size_t i = start; i < spanEnd; ++i) {
-                foldAt(i, ageAt(i));
-                advance();
+        // Direction is resolved ONCE per span (FR-013), never per sample: both
+        // loops live in a templated lambda instantiated for each direction, so
+        // the forward instantiation is the shipped code instruction for
+        // instruction (an `if constexpr` the front end folds away, no runtime
+        // test, no extra register live across the loop) and the backwards one
+        // carries no per-sample branch of its own either. The dispatch below is
+        // the ONLY read of the direction flag in this function.
+        const auto runSpan = [&]<bool kBackwards>() noexcept {
+            if (!reader.isValid() || envelope == nullptr) {
+                // Cold path: every read yields 0 (the reader's own rule), so the
+                // span contributes nothing - but state, folds and ages must still
+                // advance exactly. Unreachable while any grain is admitted (FR-014
+                // demands >= kMinAgeSamples available at birth); kept for the same
+                // defensive reason readStereo() zero-fills.
+                for (std::size_t i = start; i < spanEnd; ++i) {
+                    foldAt(i, ageAt(i));
+                    advanceBy.template operator()<kBackwards>();
+                }
+            } else {
+                // --- Phase 1 (scalar): exact per-sample recurrences --------------
+                // Ring indices/weights via LinearReader::indexAt - the SAME
+                // clamp/truncate/rebase arithmetic as readStereoOffset(), so every
+                // position and weight is bit-identical to the pre-SIMD shape.
+                // Envelope index/weight is GrainEnvelope::lookup's arithmetic
+                // verbatim (core/grain_envelope.h:165-196, including the NaN-safe
+                // clamp and the index1-at-the-boundary rule, so no gather can
+                // overread the envelope bank). Everything lands in stack arrays
+                // sized for one control chunk (~2.3 KB).
+                alignas(32) std::array<std::int32_t, kControlChunkSamples> idxL0;
+                alignas(32) std::array<std::int32_t, kControlChunkSamples> idxL1;
+                alignas(32) std::array<float, kControlChunkSamples> fracL;
+                alignas(32) std::array<std::int32_t, kControlChunkSamples> idxR0;
+                alignas(32) std::array<std::int32_t, kControlChunkSamples> idxR1;
+                alignas(32) std::array<float, kControlChunkSamples> fracR;
+                alignas(32) std::array<std::int32_t, kControlChunkSamples> envI0;
+                alignas(32) std::array<std::int32_t, kControlChunkSamples> envI1;
+                alignas(32) std::array<float, kControlChunkSamples> envF;
+
+                const bool decorr = decorrAge > 0.0f;
+                const auto lastEnv = static_cast<std::ptrdiff_t>(kEnvelopeTableSize - 1);
+                std::size_t m = 0;
+                for (std::size_t i = start; i < spanEnd; ++i, ++m) {
+                    const float ageNow = ageAt(i);
+                    // The reader snapshot is END-of-chunk; the index is rebased by
+                    // how many samples newer than sample i that snapshot is, so
+                    // position and weights match a per-sample snapshot bit for bit.
+                    const std::size_t newerOffset = numSamples - 1u - i;
+                    reader.indexAt(ageNow, newerOffset, idxL0[m], idxL1[m], fracL[m]);
+                    if (decorr) {
+                        // The R channel reads a DIFFERENT point of the ring;
+                        // skipped entirely at decorrelation = 0.
+                        reader.indexAt(ageNow + decorrAge, newerOffset, idxR0[m], idxR1[m],
+                                       fracR[m]);
+                    }
+
+                    // Envelope phase is MULTIPLIED, never accumulated: ageSamples
+                    // is exact to 2^24, so this costs one rounding, whereas a
+                    // `phase += 1/L'` accumulator over 1.44 M additions drifts by
+                    // up to ~4 % of full scale and would retire a grain at
+                    // envelope ~0.02 instead of 0 - a click.
+                    float phase = static_cast<float>(age) * envPhaseInc;
+                    if (!(phase >= 0.0f)) {
+                        phase = 0.0f;
+                    }
+                    if (phase > 1.0f) {
+                        phase = 1.0f;
+                    }
+                    const float indexFloat = phase * static_cast<float>(lastEnv);
+                    const auto e0 = static_cast<std::ptrdiff_t>(indexFloat);
+                    envI0[m] = static_cast<std::int32_t>(e0);
+                    envI1[m] = static_cast<std::int32_t>((e0 < lastEnv) ? e0 + 1 : lastEnv);
+                    envF[m] = indexFloat - static_cast<float>(e0);
+
+                    foldAt(i, ageNow);
+                    advanceBy.template operator()<kBackwards>();
+                }
+
+                // --- Phase 2 (vector): gathers + lerps + accumulate --------------
+                // Six gathers, three lerps, two FMAs per sample, all PER-LANE - no
+                // cross-lane reduction - so vector grouping (and therefore the
+                // caller's block partition) cannot change any sample's value; see
+                // grain_span_simd.h. A non-decorrelated grain hands the L index
+                // arrays to the R reads: same positions, R channel data.
+                accumulateGrainSpanSIMD(reader.leftData(), reader.rightData(), idxL0.data(),
+                                        idxL1.data(), fracL.data(),
+                                        decorr ? idxR0.data() : idxL0.data(),
+                                        decorr ? idxR1.data() : idxL1.data(),
+                                        decorr ? fracR.data() : fracL.data(), envelope,
+                                        envI0.data(), envI1.data(), envF.data(), grain.panL,
+                                        grain.panR, m, busL_.data() + start,
+                                        busR_.data() + start);
             }
+        };
+
+        if (grain.reversed) {
+            runSpan.template operator()<true>();
         } else {
-            // --- Phase 1 (scalar): exact per-sample recurrences --------------
-            // Ring indices/weights via LinearReader::indexAt - the SAME
-            // clamp/truncate/rebase arithmetic as readStereoOffset(), so every
-            // position and weight is bit-identical to the pre-SIMD shape.
-            // Envelope index/weight is GrainEnvelope::lookup's arithmetic
-            // verbatim (core/grain_envelope.h:165-196, including the NaN-safe
-            // clamp and the index1-at-the-boundary rule, so no gather can
-            // overread the envelope bank). Everything lands in stack arrays
-            // sized for one control chunk (~2.3 KB).
-            alignas(32) std::array<std::int32_t, kControlChunkSamples> idxL0;
-            alignas(32) std::array<std::int32_t, kControlChunkSamples> idxL1;
-            alignas(32) std::array<float, kControlChunkSamples> fracL;
-            alignas(32) std::array<std::int32_t, kControlChunkSamples> idxR0;
-            alignas(32) std::array<std::int32_t, kControlChunkSamples> idxR1;
-            alignas(32) std::array<float, kControlChunkSamples> fracR;
-            alignas(32) std::array<std::int32_t, kControlChunkSamples> envI0;
-            alignas(32) std::array<std::int32_t, kControlChunkSamples> envI1;
-            alignas(32) std::array<float, kControlChunkSamples> envF;
-
-            const bool decorr = decorrAge > 0.0f;
-            const auto lastEnv = static_cast<std::ptrdiff_t>(kEnvelopeTableSize - 1);
-            std::size_t m = 0;
-            for (std::size_t i = start; i < spanEnd; ++i, ++m) {
-                const float ageNow = ageAt(i);
-                // The reader snapshot is END-of-chunk; the index is rebased by
-                // how many samples newer than sample i that snapshot is, so
-                // position and weights match a per-sample snapshot bit for bit.
-                const std::size_t newerOffset = numSamples - 1u - i;
-                reader.indexAt(ageNow, newerOffset, idxL0[m], idxL1[m], fracL[m]);
-                if (decorr) {
-                    // The R channel reads a DIFFERENT point of the ring;
-                    // skipped entirely at decorrelation = 0.
-                    reader.indexAt(ageNow + decorrAge, newerOffset, idxR0[m], idxR1[m],
-                                   fracR[m]);
-                }
-
-                // Envelope phase is MULTIPLIED, never accumulated: ageSamples
-                // is exact to 2^24, so this costs one rounding, whereas a
-                // `phase += 1/L'` accumulator over 1.44 M additions drifts by
-                // up to ~4 % of full scale and would retire a grain at
-                // envelope ~0.02 instead of 0 - a click.
-                float phase = static_cast<float>(age) * envPhaseInc;
-                if (!(phase >= 0.0f)) {
-                    phase = 0.0f;
-                }
-                if (phase > 1.0f) {
-                    phase = 1.0f;
-                }
-                const float indexFloat = phase * static_cast<float>(lastEnv);
-                const auto e0 = static_cast<std::ptrdiff_t>(indexFloat);
-                envI0[m] = static_cast<std::int32_t>(e0);
-                envI1[m] = static_cast<std::int32_t>((e0 < lastEnv) ? e0 + 1 : lastEnv);
-                envF[m] = indexFloat - static_cast<float>(e0);
-
-                foldAt(i, ageNow);
-                advance();
-            }
-
-            // --- Phase 2 (vector): gathers + lerps + accumulate --------------
-            // Six gathers, three lerps, two FMAs per sample, all PER-LANE - no
-            // cross-lane reduction - so vector grouping (and therefore the
-            // caller's block partition) cannot change any sample's value; see
-            // grain_span_simd.h. A non-decorrelated grain hands the L index
-            // arrays to the R reads: same positions, R channel data.
-            accumulateGrainSpanSIMD(reader.leftData(), reader.rightData(), idxL0.data(),
-                                    idxL1.data(), fracL.data(),
-                                    decorr ? idxR0.data() : idxL0.data(),
-                                    decorr ? idxR1.data() : idxL1.data(),
-                                    decorr ? fracR.data() : fracL.data(), envelope,
-                                    envI0.data(), envI1.data(), envF.data(), grain.panL,
-                                    grain.panR, m, busL_.data() + start,
-                                    busR_.data() + start);
+            runSpan.template operator()<false>();
         }
 
         grain.readIndexInt = readIndexInt;
@@ -2080,6 +2295,61 @@ private:
             }
         };
 
+        // FR-045 anchor (iii). Pass A has TWO birth sites per sample - the
+        // density scheduler (FR-021) and FR-020's external trigger - and they
+        // must birth IDENTICALLY, so the birth-and-track body lives here ONCE
+        // and both call it. Returns true iff a grain was actually born:
+        // tryBirthGrain() refuses on a full pool, a cold ring or a
+        // non-finite-input chunk, and a refusal is a skip, never a retry.
+        const auto birthAndTrack = [&](std::size_t i) noexcept -> bool {
+            const std::size_t before = activeCount_;
+            tryBirthGrain();
+            if (activeCount_ <= before) {
+                return false;
+            }
+            const std::size_t slot = activeIdx_[activeCount_ - 1];
+            bornAt[slot] = static_cast<std::uint32_t>(i) + 1u;
+            // A newborn can retire inside this same chunk (lifetime is only
+            // bounded below by 2): insert its due entry into the unconsumed,
+            // still-sorted suffix.
+            const auto lifetime = static_cast<std::size_t>(grains_[slot].lifetime);
+            if (i + lifetime <= numSamples) {
+                const auto r = static_cast<std::uint32_t>(i + lifetime - 1u);
+                std::size_t k = dueCount;
+                while (k > dueCursor && dueScratch_[k - 1].r > r) {
+                    dueScratch_[k] = dueScratch_[k - 1];
+                    --k;
+                }
+                dueScratch_[k] = DueEntry{r, static_cast<std::uint8_t>(slot)};
+                ++dueCount;
+            }
+            return true;
+        };
+
+        // FR-025: ONE test per chunk, not one per sample. The pending count
+        // cannot GROW during pass A - triggerGrain() is audio-thread-only and
+        // this loop runs on that thread - so hoisting the test is exact: empty
+        // here means empty for the whole chunk, and the per-sample body then
+        // costs one load-free predicate.
+        const bool anyPending = pendingTriggers_ > 0u;
+
+        // FR-022's consumption, lifted OUT of the per-sample body so that
+        // `pendingTriggers_` occurs there EXACTLY ONCE - as the right operand of
+        // the short-circuited `&&` whose left operand is `anyPending`, which is
+        // the literal token rule SC-006 clause 6 anchor 2 states. Keeping the
+        // decrement inline left the token appearing twice: semantically the zero
+        // path still loaded nothing (the decrement sits inside the taken branch),
+        // but the criterion is a `git diff -U0` TOKEN count a reviewer discharges
+        // by reading, not a semantic property they have to re-derive, so the code
+        // is shaped to the count rather than the count argued away.
+        const auto consumePendingTrigger = [this, &birthAndTrack](std::size_t sampleIndex) {
+            --pendingTriggers_;  // FR-022: consumed EXACTLY ONCE, whether or
+                                 // not the attempt actually produced a grain.
+            if (birthAndTrack(sampleIndex)) {
+                ++totalTriggered_;
+            }
+        };
+
         for (std::size_t i = 0; i < numSamples; ++i) {
             // Retire every grain whose final sample was i - 1: its slot is
             // available to a birth from THIS sample, the former availability
@@ -2107,32 +2377,22 @@ private:
             ++writeCounter_;  // FR-013: monotonic uint64; getSamplesWritten()
                               // saturates at capacity (:119-121) and cannot serve
 
-            // --- Scheduling (FR-021). GrainScheduler::process() draws exactly
-            //     one rng value on a trigger (grain_scheduler.h:82). The
-            //     admission tests inside tryBirthGrain() read the capture ring
-            //     AS OF THIS SAMPLE - this pass stays per-sample for exactly
-            //     that reason.
+            // --- Scheduling (FR-021), then FR-020's external trigger.
+            //     GrainScheduler::process() draws exactly one rng value on a
+            //     trigger (grain_scheduler.h:82). The admission tests inside
+            //     tryBirthGrain() read the capture ring AS OF THIS SAMPLE -
+            //     this pass stays per-sample for exactly that reason.
+            //
+            //     THE ORDER IS FIXED AND DOCUMENTED: scheduler FIRST, trigger
+            //     SECOND, at most one of each per sample, in sample order. Both
+            //     go through birthAndTrack(), so a triggered grain is born by
+            //     the same code, with the same draws in the same order, as a
+            //     scheduled one.
             if (scheduler_.process()) {
-                const std::size_t before = activeCount_;
-                tryBirthGrain();
-                if (activeCount_ > before) {
-                    const std::size_t slot = activeIdx_[activeCount_ - 1];
-                    bornAt[slot] = static_cast<std::uint32_t>(i) + 1u;
-                    // A newborn can retire inside this same chunk (lifetime is
-                    // only bounded below by 2): insert its due entry into the
-                    // unconsumed, still-sorted suffix.
-                    const auto lifetime = static_cast<std::size_t>(grains_[slot].lifetime);
-                    if (i + lifetime <= numSamples) {
-                        const auto r = static_cast<std::uint32_t>(i + lifetime - 1u);
-                        std::size_t k = dueCount;
-                        while (k > dueCursor && dueScratch_[k - 1].r > r) {
-                            dueScratch_[k] = dueScratch_[k - 1];
-                            --k;
-                        }
-                        dueScratch_[k] = DueEntry{r, static_cast<std::uint8_t>(slot)};
-                        ++dueCount;
-                    }
-                }
+                static_cast<void>(birthAndTrack(i));
+            }
+            if (anyPending && pendingTriggers_ > 0u) {
+                consumePendingTrigger(i);
             }
         }
         // Retirements landing on the chunk's last sample(s) have no later
@@ -2592,8 +2852,11 @@ private:
         std::uint32_t r = 0;
         std::uint8_t slot = 0;
     };
-    // Sized once in prepare() (2 * kMaxGrains each); indexed by count, never
-    // pushed on the audio thread.
+    // Sized once in prepare() (3 * kMaxGrains each - FR-051: pass A has TWO
+    // birth sites per sample, the density scheduler and FR-020's trigger, so one
+    // chunk can hold 126 in-chunk newborn retirements on top of the 64 grains
+    // already active; the derivation is at the assign site, prepare() step 5b).
+    // Indexed by count, never pushed on the audio thread.
     std::vector<RetiredGrainSpan> retiredScratch_;
     std::vector<DueEntry> dueScratch_;
     std::size_t nextSlot_ = 0;  ///< FR-020 round-robin cursor
@@ -2676,11 +2939,13 @@ private:
     float driftRangeSemitones_ = 2.0f;
     float panSpread_ = 0.7f;
     float decorrelation_ = 0.5f;
+    float reverseProbability_ = 0.0f;  ///< FR-001: read at birth only
     /// The smoothers' TARGETS, kept so reset() can snap without re-deriving.
     float blur_ = 0.0f;
     float freezeMix_ = 0.0f;
     float level_ = 1.0f;
     Xorshift32 grainRng_{1};
+    Xorshift32 reverseRng_{1};   ///< FR-004: SEPARATE from grainRng_
     std::uint32_t seed_ = kDefaultSeed;
 
     // --- clock, scratch, introspection ---------------------------------------
@@ -2705,6 +2970,13 @@ private:
     std::size_t lastBirthSlot_ = 0;
     float lastBirthPanL_ = 1.0f;
     float lastBirthPanR_ = 1.0f;
+
+    // --- Phase 10a ghost extension (FR-019, FR-024, FR-026) ------------------
+    std::uint32_t pendingTriggers_ = 0;   ///< queued external triggers, drained at the birth pass
+    std::uint64_t droppedTriggers_ = 0;   ///< triggers refused because the queue was saturated
+    std::uint64_t totalTriggered_ = 0;    ///< grains born FROM a trigger since reset()
+    std::uint64_t totalReverseBorn_ = 0;  ///< grains born REVERSED since reset()
+    bool lastBirthReversed_ = false;      ///< reverse snapshot of the most recent birth
 
     // --- Phase 11.5 Step 0c stage timers (test-only; see ProcessStage) --------
     bool processInstrumented_ = false;

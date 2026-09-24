@@ -101,6 +101,8 @@
 
 #include <vorago_fixtures.h>
 
+#include "vorago_perf_budget.h"
+
 #include <algorithm>
 #include <array>
 #include <chrono>
@@ -152,12 +154,12 @@ namespace {
 // global instrument budget, not Phase 9's five percent for one reverb.
 // =============================================================================
 
-constexpr double kSr48 = 48000.0;
+using Krate::DSP::TestUtils::Vorago::kSr48;
 constexpr double kSr192 = 192000.0;
-constexpr std::size_t kBlockSize = 512;
+using Krate::DSP::TestUtils::Vorago::kBlockSize;
 
 /// Wall-clock budget of one 512-sample block at 48 kHz, in nanoseconds.
-constexpr double kBlockBudgetNs = (static_cast<double>(kBlockSize) / kSr48) * 1.0e9;
+using Krate::DSP::TestUtils::Vorago::kBlockBudgetNs;
 
 /// The relative regression bound the checked-in baseline carries (SC-001b's
 /// clause (ii)). The LADDER is read against the gated line, not only the
@@ -165,7 +167,7 @@ constexpr double kBlockBudgetNs = (static_cast<double>(kBlockSize) / kSr48) * 1.
 constexpr double kRegressionFactor = 1.5;
 
 /// roadmap line 470's global ceiling: 30 % of one core, 3 200 000 ns/block.
-constexpr double kReferenceNs = kBlockBudgetNs * 0.30;
+using Krate::DSP::TestUtils::Vorago::kReferenceNs;
 
 /// The baseline at which the 1.5x regression line and the ceiling coincide:
 /// 2 133 333.3 ns/block. SC-001b's ORIGINAL clause (ii) required the baseline
@@ -212,7 +214,7 @@ constexpr std::size_t kChunksPerBlock = kBlockSize / kChunk;
 // "(a) default : 124497" ns per 512-sample block at 48 kHz. Arm (a) is the right
 // arm: Vorago drives the cavern at VoragoCavernTargets, which ARE CavernVerb's
 // own FR-066 defaults, not arm (b)'s every-control-at-its-extreme worst case.
-constexpr double kCavernMeasuredNsPerBlock = 124497.0;
+using Krate::DSP::TestUtils::Vorago::kCavernMeasuredNsPerBlock;
 
 /// The CHECKED-IN Phase 9 baseline for the same arm, ceil(measured x 1.05)
 /// (cavern_verb_perf_test.cpp:255, compliance.md:85). Printed alongside the
@@ -253,8 +255,8 @@ constexpr double kCavernBaselineNsPerBlock = 129150.0;
 // baseline, rather than implied by kRegressionFactor:
 //   (kReferenceNs - Cavern) / baseline = 1.141x.
 // A regression larger than that trips clause (i), not clause (ii).
-constexpr double kEngineMeasuredNsAtPoly4 = 2566170.0;
-constexpr double kEngineBaselineNsAtPoly4 = 2694479.0;
+using Krate::DSP::TestUtils::Vorago::kEngineMeasuredNsAtPoly4;
+using Krate::DSP::TestUtils::Vorago::kEngineBaselineNsAtPoly4;
 constexpr double kBaselineWithCavernNs = kEngineBaselineNsAtPoly4 + kCavernMeasuredNsPerBlock;
 constexpr double kAvailableRegressionHeadroom =
     (kReferenceNs - kCavernMeasuredNsPerBlock) / kEngineBaselineNsAtPoly4;

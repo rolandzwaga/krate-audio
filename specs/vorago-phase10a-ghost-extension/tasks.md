@@ -221,7 +221,7 @@ No production or test file in the working tree changes except the constants appe
 | `kBaseCommitFingerprint` (`RenderFingerprint`: `rms`, `peak`, `meanAbs`, `totalVariation`, 32 `checkpoints`, `render_fingerprint.h:63-69`) | 60 s at 48 kHz, `applyVoragoGhost`, `captureSeconds = 20`, seed 1, `excitePinkPlusTone`, left channel |
 | `kBaseCommitGrainRngState` (`std::uint32_t`) | `getGrainRngState()` (`atmosphere_engine.h:1118`) after that same render |
 | `kBaseCommitTotalBorn`, `kBaseCommitTotalRetired`, `kBaseCommitSkipPoolFull`, `kBaseCommitSkipRingCold`, `kBaseCommitLatencySamples` | the same render (`:1053-1070`, `:1128`) |
-| `kBaseCommitVoragoFingerprint` | 60 s Vorago render at `VoragoEngineConfig` defaults via `TestUtils::Vorago::makeEngine` (`tests/test_helpers/vorago_fixtures.h:734`) / `renderEngine` (`:750`) |
+| `kBaseCommitVoragoFingerprint` | 60 s Vorago render at `VoragoEngineConfig` defaults **plus one held note-on (B-2, 2026-09-23: `setSeed(0x6057u)`, `setPolyphony(1u)`, `noteOn(33u, 100u)` at sample 0; the first, no-note-on harvest was all zeros and is superseded)** via `TestUtils::Vorago::makeEngine` (`tests/test_helpers/vorago_fixtures.h:734`) / `renderEngine` (`:750`) |
 | `kBaseCommitShortPreRollBorn / …Retired / …RingCold / …PoolFull / …GrainRngState` | SC-011 (c)'s forward arm: 5 s (240 000-sample) pre-roll at SC-011's configuration, probability irrelevant (base commit has none), then the 40 000-sample span |
 
 5. `git worktree remove ../iterum-basecommit`.
@@ -1066,7 +1066,8 @@ per decision D-4 (Phase 10's own 600 s ghost case is untagged at `vorago_engine_
 this arm actually renders grains). **If (b) measures under 15 s, fold it back into the untagged case;
 record the measured runtime either way.**
 
-- **(a)** `VoragoEngineConfig` at its **defaults**, 60 s Vorago render via
+- **(a)** `VoragoEngineConfig` at its **defaults plus one held note-on** (B-2: `setSeed(0x6057u)`,
+  `setPolyphony(1u)`, `noteOn(33u, 100u)` at sample 0, nothing else written), 60 s Vorago render via
   `TestUtils::Vorago::makeEngine` (`vorago_fixtures.h:734`) / `renderEngine` (`:750`), compared against
   the transcribed `kBaseCommitVoragoFingerprint` (T005) under the **same FR-046 measured-bounds
   protocol** as T018 clause 1; plus
@@ -1361,6 +1362,11 @@ For each stored-golden comparison this phase adds — **T018 clause 1** (`kBaseC
 **T020 (a)** (`kBaseCommitVoragoFingerprint`) — run the identical fixture on three toolchains:
 - **MSVC**, measured directly here;
 - **GNU** and **LLVM**, from the CI legs or a local WSL run.
+
+**Ruled 2026-09-23 (B-1): executed by the MAIN LOOP after T026's Windows gate is green**, as
+standalone WSL builds of the two fixture recipes (g++ 13.3.0 `-O3`, g++ `-O3 -ffast-math`,
+clang++ 18.1.3 `-O2`; the `noise_organism_test.cpp:3217` method), never from a push. Inside the
+workflow T025 is recorded as deferred to the main loop with both SKIP guards in place.
 
 Take the **worst observed deviation across all three, add headroom**, and set
 `kMeasuredMetricTolerance` / `kMeasuredSampleTolerance` per comparison. Each must be **looser** than

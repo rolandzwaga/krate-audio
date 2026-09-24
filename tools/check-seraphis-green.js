@@ -44,6 +44,12 @@
 //      of the constant: exactly those clamp lines may be deleted (three and
 //      two respectively, matched by pattern) and nothing else, so the change
 //      stays default-inert for Seraphis and Ruinae.
+//      `atmosphere_engine.h` (Phase 10a, FR-045) is the one entry whose
+//      allowed deletions are not a handful of clamp lines: the ghost
+//      extension rewrites two private member-function bodies in place. Its
+//      whole measured anchor set, with the per-anchor counts and how they
+//      compare with SC-006 clause 2's prediction, is tabulated on the entry
+//      itself below.
 //
 //   4. The MODIFIED files under `plugins/seraphis/` are drawn from exactly
 //      {src/parameters/dropdown_mappings.h, tests/integration/param_perf_test.cpp}
@@ -114,6 +120,236 @@ const APPEND_ONLY_HEADERS = [
       { count: 1, name: 'the kMaxDuration clamp line', pattern: /std::clamp\(seconds, kMinDuration, kMaxDuration\)/ },
     ],
   },
+  {
+    // -------------------------------------------------------------------------
+    // Vorago Phase 10a (specs/vorago-phase10a-ghost-extension), FR-045 and
+    // SC-006 clauses 1-2, 5-6. `AtmosphereEngine` is the SHIPPED Seraphis
+    // atmosphere; the ghost extension appends reverse grains, an external
+    // `triggerGrain()` and a separate blur RNG stream to it.
+    //
+    // Every `count` below was MEASURED from the real
+    // `git diff HEAD -U0 -- dsp/include/krate/dsp/systems/atmosphere_engine.h`
+    // (121 deleted lines, 380 added) and is now FROZEN. The bar is exact on
+    // both sides: a deletion anywhere else in the header either matches no
+    // pattern (the `unmatched` arm) or pushes one pattern's tally off its
+    // frozen count (the `offCount` arm). Both fail the gate. Do not "fix" a
+    // red run by bumping a count -- the count IS the assertion.
+    //
+    // MEASURED anchor set, by PRE-change line range, against the six anchors
+    // SC-006 clause 2 predicted:
+    //
+    //   (i)   :1651-1652    2   the wUp/wDown rate lines       AS PREDICTED
+    //   (ii)  :1872-1880    9   the advance() lambda and the   WIDER than
+    //         :1884-1928   45   two renderGrainSpan loops      predicted
+    //         :1931-1941   11   that call it                   (87 lines over
+    //         :1943-1950    8                                   5 ranges, not
+    //         :1953-1966   14                                   25 over 3:
+    //                                                           :1876-1882,
+    //                                                           :1888-1891,
+    //                                                           :1917-1930)
+    //   (iii) :2110-2114    5   the pass-A scheduler tick      WIDER than
+    //         :2116-2134   19                                  predicted
+    //                                                          (:2115 alone;
+    //                                                           :2115 itself
+    //                                                           is CONTEXT,
+    //                                                           not deleted)
+    //   (iv)  :555-556      0   the reset()/setSeed() blur-    NARROWER:
+    //         :1015-1017    0   seed lines                     pure appends,
+    //                                                          zero deletions
+    //   (v)   :437-441      5   the pass-A scratch sizing      within the
+    //                           comment + the two assigns      predicted
+    //                                                          :436-441
+    //   (vi)  :1183         1   readFrac's range comment       AS PREDICTED
+    //         :2595-2596    2   the scratch decl comment       AS PREDICTED
+    //                    ----
+    //                     121
+    //
+    // (ii) and (iii) are private member-function bodies (`renderGrainSpan`
+    // and the pass-A birth loop) rewritten in place to carry the reversed
+    // flag and the external-trigger drain. No public declaration, no default,
+    // no constant and no Seraphis-observable value is among the 121; that is
+    // what keeps the append-only argument standing despite the width. The
+    // (iv) row is kept at `count: 0` deliberately: it is a live negative
+    // assertion that the blur-seed lines stay pure appends.
+    // -------------------------------------------------------------------------
+    file: 'dsp/include/krate/dsp/systems/atmosphere_engine.h',
+    what: 'the Phase 10a ghost extension (reverse grains + triggerGrain)',
+    expected: [
+      // --- (v) :437-441 -- prepare()'s pass-A scratch sizing -----------------
+      {
+        count: 3,
+        name: 'the pass-A scratch sizing comment (:437-439)',
+        pattern:
+          /^\s+\/\/\s+(here: <= kMaxGrains grains active at a chunk start plus|<= kControlChunkSamples births can retire inside one chunk, and|kControlChunkSamples == kMaxGrains, so 2 \* kMaxGrains bounds both\.)$/,
+      },
+      {
+        count: 2,
+        name: 'the pass-A scratch assign lines (:440-441)',
+        pattern:
+          /^\s+(retiredScratch_\.assign\(kMaxGrains \* 2, RetiredGrainSpan\{\}\);|dueScratch_\.assign\(kMaxGrains \* 2, DueEntry\{\}\);)$/,
+      },
+
+      // --- (vi) :1183 and :2595-2596 -- the two corrected comments -----------
+      {
+        count: 1,
+        name: "AtmosphereGrain::readFrac's range comment (:1183)",
+        pattern: /^\s+float readFrac = 0\.0f;\s+\/\/\/< absolute source index, fraction in \[0,1\)$/,
+      },
+      {
+        count: 2,
+        name: 'the pass-A scratch declaration comment (:2595-2596)',
+        pattern:
+          /^\s+\/\/ (Sized once in prepare\(\) \(2 \* kMaxGrains each\); indexed by count, never|pushed on the audio thread\.)$/,
+      },
+
+      // --- (i) :1651-1652 -- the blur-width rate lines -----------------------
+      {
+        count: 2,
+        name: 'the wUp/wDown rate lines (:1651-1652)',
+        pattern: /^\s+const double w(Up|Down) = std::max\(/,
+      },
+
+      // --- (iv) :555-556 and :1015-1017 -- MEASURED ZERO ---------------------
+      {
+        count: 0,
+        name: 'the reset()/setSeed() blur-seed lines (MEASURED ZERO: pure appends)',
+        pattern: /blurRng_\.seed\(deriveStreamSeed\(/,
+      },
+
+      // --- (ii) :1872-1880, :1884-1928, :1931-1941, :1943-1950, :1953-1966 ---
+      {
+        count: 4,
+        name: "the advance lambda's truncation comment (:1872-1875)",
+        pattern:
+          /^\s+\/\/ (rate\. TRUNCATION, NOT std::floor: readFrac is non-negative for the|grain's whole life, so truncation toward zero IS the floor - and|std::floor\(float\) is a CRT call on MSVC's default \/arch\. The carry|is in \[0, 8\] because ratio <= 8\.)$/,
+      },
+      {
+        count: 5,
+        name: 'the advance lambda itself (:1876-1880)',
+        pattern:
+          /^\s+(const auto advance = \[&\]\(\) noexcept \{|readFrac \+= ratio;|const auto carryInt = static_cast<std::int32_t>\(readFrac\);|readIndexInt \+= static_cast<std::uint64_t>\(carryInt\);|readFrac -= static_cast<float>\(carryInt\);)$/,
+      },
+      {
+        count: 2,
+        name: 'the two advance() call sites inside renderGrainSpan',
+        pattern: /^\s+advance\(\);$/,
+      },
+      {
+        count: 5,
+        name: "renderGrainSpan's cold-path comment",
+        pattern:
+          /^\s+\/\/ (Cold path: every read yields 0 \(the reader's own rule\), so the|span contributes nothing - but state, folds and ages must still|advance exactly\. Unreachable while any grain is admitted \(FR-014|demands >= kMinAgeSamples available at birth\); kept for the same|defensive reason readStereo\(\) zero-fills\.)$/,
+      },
+      {
+        count: 4,
+        name: "renderGrainSpan's cold-path branch and loop",
+        pattern:
+          /^\s+(if \(!reader\.isValid\(\) \|\| envelope == nullptr\) \{|for \(std::size_t i = start; i < spanEnd; \+\+i\) \{|foldAt\(i, ageAt\(i\)\);|\} else \{)$/,
+      },
+      {
+        count: 9,
+        name: "renderGrainSpan's Phase 1 comment",
+        pattern:
+          /^\s+\/\/ (--- Phase 1 \(scalar\): exact per-sample recurrences --------------|Ring indices\/weights via LinearReader::indexAt - the SAME|clamp\/truncate\/rebase arithmetic as readStereoOffset\(\), so every|position and weight is bit-identical to the pre-SIMD shape\.|Envelope index\/weight is GrainEnvelope::lookup's arithmetic|verbatim \(core\/grain_envelope\.h:165-196, including the NaN-safe|clamp and the index1-at-the-boundary rule, so no gather can|overread the envelope bank\)\. Everything lands in stack arrays|sized for one control chunk \(~2\.3 KB\)\.)$/,
+      },
+      {
+        count: 9,
+        name: "renderGrainSpan's nine Phase 1 stack arrays",
+        pattern:
+          /^\s+alignas\(32\) std::array<(std::int32_t|float), kControlChunkSamples> (idxL0|idxL1|fracL|idxR0|idxR1|fracR|envI0|envI1|envF);$/,
+      },
+      {
+        count: 3,
+        name: "renderGrainSpan's Phase 1 locals",
+        pattern:
+          /^\s+(const bool decorr = decorrAge > 0\.0f;|const auto lastEnv = static_cast<std::ptrdiff_t>\(kEnvelopeTableSize - 1\);|std::size_t m = 0;)$/,
+      },
+      {
+        count: 5,
+        name: "renderGrainSpan's reader-snapshot comment",
+        pattern:
+          /^\s+\/\/ (The reader snapshot is END-of-chunk; the index is rebased by|how many samples newer than sample i that snapshot is, so|position and weights match a per-sample snapshot bit for bit\.|The R channel reads a DIFFERENT point of the ring;|skipped entirely at decorrelation = 0\.)$/,
+      },
+      {
+        count: 7,
+        name: "renderGrainSpan's Phase 1 loop head and ring reads",
+        pattern:
+          /^\s+(for \(std::size_t i = start; i < spanEnd; \+\+i, \+\+m\) \{|const float ageNow = ageAt\(i\);|const std::size_t newerOffset = numSamples - 1u - i;|reader\.indexAt\(ageNow, newerOffset, idxL0\[m\], idxL1\[m\], fracL\[m\]\);|if \(decorr\) \{|reader\.indexAt\(ageNow \+ decorrAge, newerOffset, idxR0\[m\], idxR1\[m\],|fracR\[m\]\);)$/,
+      },
+      {
+        count: 5,
+        name: "renderGrainSpan's envelope-phase comment",
+        pattern:
+          /^\s+\/\/ (Envelope phase is MULTIPLIED, never accumulated: ageSamples|is exact to 2\^24, so this costs one rounding, whereas a|`phase \+= 1\/L'` accumulator over 1\.44 M additions drifts by|up to ~4 % of full scale and would retire a grain at|envelope ~0\.02 instead of 0 - a click\.)$/,
+      },
+      {
+        count: 10,
+        name: "renderGrainSpan's envelope index arithmetic",
+        pattern:
+          /^\s+(float phase = static_cast<float>\(age\) \* envPhaseInc;|if \(!\(phase >= 0\.0f\)\) \{|phase = 0\.0f;|if \(phase > 1\.0f\) \{|phase = 1\.0f;|const float indexFloat = phase \* static_cast<float>\(lastEnv\);|const auto e0 = static_cast<std::ptrdiff_t>\(indexFloat\);|envI0\[m\] = static_cast<std::int32_t>\(e0\);|envI1\[m\] = static_cast<std::int32_t>\(\(e0 < lastEnv\) \? e0 \+ 1 : lastEnv\);|envF\[m\] = indexFloat - static_cast<float>\(e0\);)$/,
+      },
+      {
+        count: 1,
+        name: "renderGrainSpan's Phase 1 fold call",
+        pattern: /^\s+foldAt\(i, ageNow\);$/,
+      },
+      {
+        count: 6,
+        name: "renderGrainSpan's Phase 2 comment",
+        pattern:
+          /^\s+\/\/ (--- Phase 2 \(vector\): gathers \+ lerps \+ accumulate --------------|Six gathers, three lerps, two FMAs per sample, all PER-LANE - no|cross-lane reduction - so vector grouping \(and therefore the|caller's block partition\) cannot change any sample's value; see|grain_span_simd\.h\. A non-decorrelated grain hands the L index|arrays to the R reads: same positions, R channel data\.)$/,
+      },
+      {
+        count: 8,
+        name: "renderGrainSpan's accumulateGrainSpanSIMD call",
+        pattern:
+          /^\s+(accumulateGrainSpanSIMD\(reader\.leftData\(\), reader\.rightData\(\), idxL0\.data\(\),|idxL1\.data\(\), fracL\.data\(\),|decorr \? idxR0\.data\(\) : idxL0\.data\(\),|decorr \? idxR1\.data\(\) : idxL1\.data\(\),|decorr \? fracR\.data\(\) : fracL\.data\(\), envelope,|envI0\.data\(\), envI1\.data\(\), envF\.data\(\), grain\.panL,|grain\.panR, m, busL_\.data\(\) \+ start,|busR_\.data\(\) \+ start\);)$/,
+      },
+
+      // --- (iii) :2110-2114 and :2116-2134 -- the pass-A scheduler tick ------
+      {
+        count: 5,
+        name: 'the pass-A scheduling comment (:2110-2114)',
+        pattern:
+          /^\s+\/\/\s+(--- Scheduling \(FR-021\)\. GrainScheduler::process\(\) draws exactly|one rng value on a trigger \(grain_scheduler\.h:82\)\. The|admission tests inside tryBirthGrain\(\) read the capture ring|AS OF THIS SAMPLE - this pass stays per-sample for exactly|that reason\.)$/,
+      },
+      {
+        count: 5,
+        name: 'the scheduler-tick birth block (:2116-2120)',
+        pattern:
+          /^\s+(const std::size_t before = activeCount_;|tryBirthGrain\(\);|if \(activeCount_ > before\) \{|const std::size_t slot = activeIdx_\[activeCount_ - 1\];|bornAt\[slot\] = static_cast<std::uint32_t>\(i\) \+ 1u;)$/,
+      },
+      {
+        count: 3,
+        name: "the scheduler tick's newborn-due comment (:2121-2123)",
+        pattern:
+          /^\s+\/\/ (A newborn can retire inside this same chunk \(lifetime is|only bounded below by 2\): insert its due entry into the|unconsumed, still-sorted suffix\.)$/,
+      },
+      {
+        count: 9,
+        name: "the scheduler tick's due-entry insertion (:2124-2133)",
+        pattern:
+          /^\s+(const auto lifetime = static_cast<std::size_t>\(grains_\[slot\]\.lifetime\);|if \(i \+ lifetime <= numSamples\) \{|const auto r = static_cast<std::uint32_t>\(i \+ lifetime - 1u\);|std::size_t k = dueCount;|while \(k > dueCursor && dueScratch_\[k - 1\]\.r > r\) \{|dueScratch_\[k\] = dueScratch_\[k - 1\];|--k;|dueScratch_\[k\] = DueEntry\{r, static_cast<std::uint8_t>\(slot\)\};|\+\+dueCount;)$/,
+      },
+
+      // --- the six structural lines the rewritten spans also carry -----------
+      // Deliberately indentation-exact: a stray brace deleted at any OTHER
+      // depth matches nothing, and a second one at the same depth breaks the
+      // frozen count.
+      { count: 2, name: 'the two blank lines inside the rewritten spans', pattern: /^$/ },
+      { count: 1, name: 'the 12-space closing brace (cold-path loop)', pattern: /^ {12}\}$/ },
+      // TWO of these, at the two 16-space depths the rewrite closes: the
+      // envelope clamp inside renderGrainSpan's Phase 1 loop, and the
+      // `if (activeCount_ > before) {` that closed the pass-A scheduler tick's
+      // newborn bookkeeping. The second appeared when FR-022's consumption moved
+      // out of the per-sample body into the `consumePendingTrigger` lambda
+      // (SC-006 clause 6 anchor 2's token rule); before that the diff aligned the
+      // brace against the trigger block's own closer and reported one.
+      { count: 2, name: 'the 16-space closing braces (envelope clamp, scheduler-tick if)', pattern: /^ {16}\}$/ },
+      { count: 1, name: 'the 20-space closing brace (newborn-due if)', pattern: /^ {20}\}$/ },
+      { count: 1, name: 'the 24-space closing brace (insertion while)', pattern: /^ {24}\}$/ },
+    ],
+  },
 ];
 const SERAPHIS_PLUGIN_DIR = 'plugins/seraphis';
 /// The only files under the shipped Seraphis plugin Phase 10 may modify.
@@ -128,6 +364,10 @@ const ALLOWED_SYSTEMS_TUS = [
   'continuous_body_spectral_test.cpp',
   'continuous_body_test.cpp',
   'seraphis_perf_test.cpp',
+  // Phase 10a FR-047 -- the only edit is replacing seven constant definitions
+  // with `#include "vorago_perf_budget.h"`; every other line is unchanged and
+  // its own static_asserts stay in place.
+  'vorago_perf_test.cpp',
 ];
 
 /// The two lines the header widening is allowed to delete, as they stand at
