@@ -1,0 +1,29 @@
+Filters: "Vorago_ProcessorRendersHeldNote"
+Randomness seeded to: 4120815910
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+vorago_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+Vorago_ProcessorRendersHeldNote
+  OutputNeverExceedsCeiling
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\vorago\tests\integration\processor_audio_test.cpp(240)
+...............................................................................
+
+F:\projects\iterum\plugins\vorago\tests\integration\processor_audio_test.cpp(244): warning:
+  SC-006 gain 2.0 peak L=0.470359 R=0.474021 wall=14.0666 s
+
+F:\projects\iterum\plugins\vorago\tests\integration\processor_audio_test.cpp(254): warning:
+  SC-006 gain 1.0 (discrimination) peak L=0.236611 R=0.238425 wall=14.6883 s
+
+F:\projects\iterum\plugins\vorago\tests\integration\processor_audio_test.cpp(256): FAILED:
+  REQUIRE( std::max(unity.peakL, unity.peakR) >= kDiscriminationFloor )
+with expansion:
+  0.23843f >= 0.49f
+
+===============================================================================
+test cases:     1 |     0 passed | 1 failed
+assertions: 33769 | 33768 passed | 1 failed
+

@@ -1,0 +1,195 @@
+Filters: ~[performance] ~[perf] ~[benchmark] ~[!benchmark] ~[long]
+Randomness seeded to: 590983730
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_processors_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+Flanger SC-004: output bounded with unity-level input at various feedback
+  Feedback = 0.0
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\processors\flanger_test.cpp(1233)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\processors\flanger_test.cpp(1236): warning:
+  Feedback=0.0: max magnitude = 0.999997
+
+-------------------------------------------------------------------------------
+Flanger SC-004: output bounded with unity-level input at various feedback
+  Feedback = +0.95
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\processors\flanger_test.cpp(1240)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\processors\flanger_test.cpp(1243): warning:
+  Feedback=+0.95: max magnitude = 1.95186
+
+-------------------------------------------------------------------------------
+Flanger SC-004: output bounded with unity-level input at various feedback
+  Feedback = -0.95
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\processors\flanger_test.cpp(1251)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\processors\flanger_test.cpp(1254): warning:
+  Feedback=-0.95: max magnitude = 1.95194
+
+-------------------------------------------------------------------------------
+Flanger SC-004: output bounded with unity-level input at various feedback
+  Feedback = +0.98 (at clamp limit)
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\processors\flanger_test.cpp(1258)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\processors\flanger_test.cpp(1261): warning:
+  Feedback=+0.98: max magnitude = 1.95751
+
+-------------------------------------------------------------------------------
+Flanger SC-004: output bounded with unity-level input at various feedback
+  Feedback = 1.0 (clamped internally to 0.98)
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\processors\flanger_test.cpp(1265)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\processors\flanger_test.cpp(1268): warning:
+  Feedback=1.0: max magnitude = 1.95751
+
+-------------------------------------------------------------------------------
+Flanger SC-005: tempo sync at 20 BPM extreme
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\processors\flanger_test.cpp(1277)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\processors\flanger_test.cpp(1295): warning:
+  20 BPM: measured period = 132250 samples, expected = 132300
+
+-------------------------------------------------------------------------------
+Flanger SC-005: tempo sync at 300 BPM extreme
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\processors\flanger_test.cpp(1299)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\processors\flanger_test.cpp(1317): warning:
+  300 BPM: measured period = 8825 samples, expected = 8820
+
+-------------------------------------------------------------------------------
+Flanger SC-002: parameter ramp produces no step discontinuities
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\processors\flanger_test.cpp(1325)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\processors\flanger_test.cpp(1376): warning:
+  Max sample-to-sample step during mix ramp: 0.0624425
+
+-------------------------------------------------------------------------------
+SC-008 Calibration: Measure actual frequencies
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\processors\chaos_oscillator_test.cpp(841)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\processors\chaos_oscillator_test.cpp(871): warning:
+  === Calibration: Target 440 Hz, measuring actual output ===
+
+F:\projects\iterum\dsp\tests\unit\processors\chaos_oscillator_test.cpp(868): warning:
+  Lorenz: autocorr=2004.55 Hz, ZC=328 Hz, peak=80 Hz, range=[-0.879567,0.
+  884325]
+
+F:\projects\iterum\dsp\tests\unit\processors\chaos_oscillator_test.cpp(868): warning:
+  Rossler: autocorr=31.2988 Hz, ZC=469.5 Hz, peak=470 Hz, range=[-0.789251,0.
+  861264]
+
+F:\projects\iterum\dsp\tests\unit\processors\chaos_oscillator_test.cpp(868): warning:
+  Chua: autocorr=2004.55 Hz, ZC=373 Hz, peak=120 Hz, range=[-0.893045,0.855091]
+
+F:\projects\iterum\dsp\tests\unit\processors\chaos_oscillator_test.cpp(868): warning:
+  Duffing: autocorr=441 Hz, ZC=439.5 Hz, peak=440 Hz, range=[-0.00537055,0.
+  00535861]
+
+F:\projects\iterum\dsp\tests\unit\processors\chaos_oscillator_test.cpp(868): warning:
+  VanDerPol: autocorr=55.0562 Hz, ZC=440.5 Hz, peak=440 Hz, range=[-0.684976,0.
+  684977]
+
+F:\projects\iterum\dsp\tests\unit\processors\chaos_oscillator_test.cpp(877): warning:
+  === End calibration ===
+
+-------------------------------------------------------------------------------
+SlowEventScheduler_IntervalDistribution
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\processors\slow_event_scheduler_test.cpp(266)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\processors\slow_event_scheduler_test.cpp(306): warning:
+  SC-008(b) mean drawn period: 54.8526 s over 16000 events
+
+F:\projects\iterum\dsp\tests\unit\processors\slow_event_scheduler_test.cpp(323): warning:
+  SC-008(c) worst histogram deviation: 3.875 %
+
+F:\projects\iterum\dsp\tests\unit\processors\slow_event_scheduler_test.cpp(367): warning:
+  SC-008(e) kDefaultEventSeed pre-roll: 41.2365 s (expected ~41.236 s)
+
+-------------------------------------------------------------------------------
+SlowEventScheduler_EnvelopeC1AtJoins
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\processors\slow_event_scheduler_test.cpp(540)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\processors\slow_event_scheduler_test.cpp(562): warning:
+  SC-009(i) stride=24 events=14 interiorMax=0.000535131 joinMax=0.000106443
+  maxDelta=0.000724316
+
+F:\projects\iterum\dsp\tests\unit\processors\slow_event_scheduler_test.cpp(585): warning:
+  SC-009(ii) stride=1440 events=16 interiorMax=0.000192702 joinMax=2.88265e-05
+  maxDelta=7.27177e-06
+
+-------------------------------------------------------------------------------
+SlowEventScheduler_BoundedOverLongRun
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\processors\slow_event_scheduler_test.cpp(718)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\processors\slow_event_scheduler_test.cpp(820): warning:
+  SC-011 depth peaks: A=0.499138 B=0.998277
+
+-------------------------------------------------------------------------------
+SlowEventScheduler_SampleRateInvariant
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\processors\slow_event_scheduler_test.cpp(836)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\processors\slow_event_scheduler_test.cpp(871): warning:
+  SC-012 worst onset-position difference over 50 events: 0.000716553 s
+  (tolerance 0.000725624 s)
+
+-------------------------------------------------------------------------------
+SlowEventScheduler_NoAllocInProcess
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\processors\slow_event_scheduler_test.cpp(910)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\processors\slow_event_scheduler_test.cpp(956): warning:
+  SC-013 rising edges inside the tracked window: 45 (expected ~45)
+
+-------------------------------------------------------------------------------
+SlowEventScheduler_SetterStormContinuity
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\processors\slow_event_scheduler_test.cpp(966)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\processors\slow_event_scheduler_test.cpp(1066): warning:
+  SC-018 storm steps=2026 maxPerSampleDelta=7.24494e-05 worstLatchDrift=0
+
+-------------------------------------------------------------------------------
+SpectralSmear_AllocatedBytes
+  the largest geometry stays inside the 128 KiB budget
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\processors\spectral_smear_test.cpp(432)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\processors\spectral_smear_test.cpp(447): warning:
+  informational: sub-object heap at fftSize 4096 is about 524320 bytes
+
+===============================================================================
+All tests passed (10697080 assertions in 3311 test cases)
+
+EXIT=0

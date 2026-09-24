@@ -1,0 +1,39 @@
+MSBuild version 17.14.51+25f168cee for .NET Framework
+
+  Checking File Globs
+  1>Checking Build System
+  Catch2.vcxproj -> F:\projects\iterum\build-asan\lib\Debug\Catch2d.lib
+  PFFFT.vcxproj -> F:\projects\iterum\build-asan\lib\Debug\pffft.lib
+  hwy.vcxproj -> F:\projects\iterum\build-asan\lib\Debug\hwy.lib
+  hwy_contrib.vcxproj -> F:\projects\iterum\build-asan\lib\Debug\hwy_contrib.lib
+  KrateDSP.vcxproj -> F:\projects\iterum\build-asan\lib\Debug\KrateDSP.lib
+  base.vcxproj -> F:\projects\iterum\build-asan\lib\Debug\base.lib
+  pluginterfaces.vcxproj -> F:\projects\iterum\build-asan\lib\Debug\pluginterfaces.lib
+  sdk_common.vcxproj -> F:\projects\iterum\build-asan\lib\Debug\sdk_common.lib
+  sdk.vcxproj -> F:\projects\iterum\build-asan\lib\Debug\sdk.lib
+  vstgui.vcxproj -> F:\projects\iterum\build-asan\lib\Debug\vstgui.lib
+  KratePluginsShared.vcxproj -> F:\projects\iterum\build-asan\lib\Debug\KratePluginsShared.lib
+  vstgui_uidescription.vcxproj -> F:\projects\iterum\build-asan\lib\Debug\vstgui_uidescription.lib
+  vstgui_support.vcxproj -> F:\projects\iterum\build-asan\lib\Debug\vstgui_support.lib
+  Building Custom Rule F:/projects/iterum/plugins/vorago/tests/CMakeLists.txt
+  test_main.cpp
+  processor_bus_test.cpp
+  param_denorm_test.cpp
+  state_roundtrip_test.cpp
+  midi_event_test.cpp
+  lifecycle_test.cpp
+  editor_lifecycle_test.cpp
+  processor_audio_test.cpp
+  param_flow_test.cpp
+  processor_cpu_test.cpp
+  processor.cpp
+  controller.cpp
+  memorystream.cpp
+  hostclasses.cpp
+  pluginterfacesupport.cpp
+  vstgui_test_stubs.cpp
+  moduleinit.cpp
+  pluginfactory.cpp
+     Creating library F:/projects/iterum/build-asan/lib/Debug/vorago_tests.lib and object F:/projects/iterum/build-asan/lib/Debug/vorago_tests.exp
+  vorago_tests.vcxproj -> F:\projects\iterum\build-asan\bin\Debug\vorago_tests.exe
+BUILD_EXIT=0
