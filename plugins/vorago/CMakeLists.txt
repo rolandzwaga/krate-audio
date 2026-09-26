@@ -31,6 +31,7 @@ smtg_add_vst3plugin(${PLUGIN_NAME}
     # Processor (Audio Thread)
     src/processor/processor.h
     src/processor/processor.cpp
+    src/processor/sustain_latch.h
 
     # Controller (UI Thread)
     src/controller/controller.h
@@ -39,6 +40,22 @@ smtg_add_vst3plugin(${PLUGIN_NAME}
     # Parameter Packs
     src/parameters/global_params.h
     src/parameters/macro_params.h
+    src/parameters/param_mapping.h
+    src/parameters/cloud_params.h
+    src/parameters/noise_params.h
+    src/parameters/resonance_params.h
+    src/parameters/ecology_params.h
+    src/parameters/sub_params.h
+    src/parameters/smear_params.h
+    src/parameters/events_params.h
+    src/parameters/ecosystem_params.h
+    src/parameters/body_params.h
+    src/parameters/space_params.h
+    src/parameters/envelope_params.h
+    src/parameters/bloom_params.h
+    src/parameters/ghost_params.h
+    src/parameters/life_params.h
+    src/parameters/param_routes.h
 
     # Prepare-time engine/reverb configuration (no DSP)
     src/engine/vorago_engine_config.h

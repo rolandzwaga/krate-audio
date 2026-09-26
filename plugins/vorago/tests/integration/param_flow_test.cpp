@@ -2,8 +2,9 @@
 // Vorago - parameter flow tests (SC-008 (2), SC-019, SC-023)
 // ==============================================================================
 // Vorago_ParamFlowReachesEngine (T014): the two globals reach the render chain
-// (SC-019, with P-2's non-vacuity and snap arms), the twelve macros are inert in
-// Phase 11 (SC-023), and parameter timing is block-granular (SC-008 (2)).
+// (SC-019, with P-2's non-vacuity and snap arms), the twelve macros are LIVE from
+// Phase 12 (Phase 11 SC-023 inverted by T037, FR-050), and parameter timing is
+// block-granular (SC-008 (2)).
 // ==============================================================================
 
 #include "plugin_ids.h"
@@ -17,6 +18,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <span>
@@ -27,6 +29,9 @@ constexpr double kSampleRate = 48000.0;
 constexpr std::size_t kBlock = 512;
 constexpr float kVelocity100 = 100.0f / 127.0f;
 constexpr std::size_t kFourSecondBlocks = 375;  // 4 s at 512
+// MacrosAreLive: at C3 the drone is still swelling at 4 s (rmsDiff 6.8e-4 < 1e-3);
+// lengthened to 8 s, never loosened.
+constexpr std::size_t kEightSecondBlocks = 750;  // 8 s at 512
 constexpr std::size_t kLatencySamples = 3072;   // FR-033: smear 2048 + cavern 1024
 
 void prepareFixture(VoragoTest::ProcessorFixture& fx) {
@@ -159,8 +164,9 @@ TEST_CASE("Vorago_ParamFlowReachesEngine", "[vorago][integration]") {
         REQUIRE(b.proc->engineForTest()->getPolyphony() == 2u);
     }
 
-    SECTION("MacrosAreInert") {
-        // SC-023: all twelve macros at 1.0 render identically to the defaults.
+    SECTION("MacrosAreLive") {
+        // Phase 11 SC-023 INVERTED (T037, FR-050): all twelve macros at 1.0 now
+        // move the matrix-driven getters and the render.
         Krate::Test::ParameterChanges macrosHigh;
         for (Steinberg::Vst::ParamID id = ::Vorago::kMacroDarknessId;
              id <= ::Vorago::kMacroMassId; ++id) {
@@ -174,24 +180,38 @@ TEST_CASE("Vorago_ParamFlowReachesEngine", "[vorago][integration]") {
 
         Krate::Test::EventList ev;
         ev.addNoteOn(48, kVelocity100, 0);
-        renderBlocks(m0, kFourSecondBlocks, &ev, nullptr);
-        renderBlocks(m1, kFourSecondBlocks, &ev, &macrosHigh);
+        renderBlocks(m0, kEightSecondBlocks, &ev, nullptr);
+        renderBlocks(m1, kEightSecondBlocks, &ev, &macrosHigh);
 
-        // The macro atomics really moved (the render is not trivially identical
-        // because the changes were dropped).
+        // The macro atomics moved AND reached the matrix.
         REQUIRE(m1.proc->macroParamsForTest().darkness.load() == 1.0f);
+        const Krate::DSP::VoragoMacroValues live = m1.proc->macrosForTest().getMacros();
+        REQUIRE(live.darkness == 1.0f);
+        REQUIRE(live.gravity == 1.0f);
+        REQUIRE(live.mass == 1.0f);
+
+        // Matrix-driven getters (engine-owned and voice 0) are no longer the defaults.
+        const auto getters = [](const Krate::DSP::VoragoEngine& e) {
+            const Krate::DSP::VoragoVoice& v = e.getVoice(0);
+            return std::array<float, 8>{e.getOutputSaturation(), e.getSubToneLevelOffsetDb(),
+                                        e.getSmearAmount(),      e.getGhostPeakLevel(),
+                                        e.getSubTrackingAmount(), v.getRichness(),
+                                        v.getNoiseLevelDb(),     v.getBodyMix()};
+        };
+        REQUIRE(getters(*m0.proc->engineForTest()) != getters(*m1.proc->engineForTest()));
 
         const float precondition = stereoPeak(m0, kLatencySamples);
-        WARN("SC-023 precondition peak(M0, [3072, end))=" << precondition);
+        WARN("macros-live precondition peak(M0, [3072, end))=" << precondition);
         REQUIRE(precondition >= 1.0e-4f);
 
-        const float diffL = VoragoTest::maxAbsDiff(std::span<const float>(m0.capturedL),
-                                                   std::span<const float>(m1.capturedL));
-        const float diffR = VoragoTest::maxAbsDiff(std::span<const float>(m0.capturedR),
-                                                   std::span<const float>(m1.capturedR));
-        INFO("maxAbsDiff(M0, M1) L=" << diffL << " R=" << diffR);
-        REQUIRE(diffL <= 1.0e-5f);
-        REQUIRE(diffR <= 1.0e-5f);
+        const double rmsL = VoragoTest::rmsDiff(std::span<const float>(m0.capturedL),
+                                                std::span<const float>(m1.capturedL),
+                                                kLatencySamples);
+        const double rmsR = VoragoTest::rmsDiff(std::span<const float>(m0.capturedR),
+                                                std::span<const float>(m1.capturedR),
+                                                kLatencySamples);
+        WARN("macros-live rmsDiff(M0, M1) L=" << rmsL << " R=" << rmsR);
+        REQUIRE(std::max(rmsL, rmsR) > 1.0e-3);
     }
 
     SECTION("ParamTimingIsBlockGranular") {

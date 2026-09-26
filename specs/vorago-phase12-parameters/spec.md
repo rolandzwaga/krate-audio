@@ -120,6 +120,91 @@ which is asserted as a same-binary negative control (SC-002).
 - **R-7 (tasks deviation):** parameter titles are ASCII only (e.g. "Sub Div2 Level", never "÷"); the
   title/unit strings tasks chose for IDs the plan's table left untitled are ratified. [FR-041, SC-018]
 
+### Session 2026-09-24 (build stage, gate P-0 read-out and group 4 stop-and-surface)
+
+- **Q9 (T005 read-out of `artifacts/fr060_probe.log`, 672 assertions, exit 0):** every baseline row
+  reproduces Phase 10 (Gravity rho −0.9333 / endpoint 0.1801; Pressure rho −0.5667 / 0.0736 dB; Mass
+  rho −1.0000 / −0.4464 dB). **Mass:** `Mass → SubToneLevelOffsetDb` +3.0 dB PASSES (rho 1.0000,
+  endpoint 2.4343 dB ≥ 0.25; +4.5 → 3.8398, +6.0 → 5.2107) — T006 lands **+3.0 dB**, the smallest
+  passing amount. **Gravity:** G-a 0.1950, G-b 0.1775, G-a+G-b 0.2024, all < 0.30 → no admissible set on
+  the 39 targets, path B. **Pressure:** all 15 subsets of {P-a, P-b, P-c, P-d} fail; best P-a+P-b
+  1.5030 dB < 3 dB (P-a 0.3541, P-b 1.2478, P-c 0.0737 = baseline, P-d −0.1579) → path B. [FR-060,
+  SC-021]
+- **B-1 (Gravity new target, R-1 path B):** the wander-depth target named in T007 is rejected on the
+  probe data (wander spreads peaks *around* anchors it cannot move; the metric's stone-end floor 0.209 is
+  set by the shipped keyed ratios, which are harmonic, not octave-aligned, while the metric measures
+  distance to the nearest octave). Ruling: **a Voice-owned `ResonanceOctaveLock` target** — in
+  `ResonanceDriftNetwork`, the keyed anchor becomes `noteLog2 + lerp(ratioLog2, round(ratioLog2), lock)`
+  with `lock ∈ [0, 1]`, so 0 is bit-equal to the shipped ratios and 1 puts every keyed anchor on an
+  octave of the note; forwarded through `VoragoVoice`. Base 0 (default-inert, SC-002 unchanged);
+  Gravity's new row pulls it to 1 at the stone end (g = +1) and contributes 0 at neutral and at the air
+  end (clamped at 0). Predicted stone-end metric ≈ wander spread only (≈ 0.06), endpoint ≈ 70 % ≥ 30 %.
+  FR-007's file list widens by `resonance_drift_network.h` (consumed only by Vorago Layer 3 systems:
+  bloom, ecosystem, feedback ecology, subharmonic, voice — never by Seraphis) and `vorago_voice.h`.
+  [FR-007, FR-060, SC-021, SC-002]
+- **B-2 (Pressure new target, R-1 path B):** ruling: **an Engine-owned `OutputDriveDb` target with
+  makeup compensation** — `VoragoEngine::setOutputDriveDb(d)` applies `+d` dB into both
+  `TapeSaturator`s (`setDrive`, range ±24 dB) and `−d` dB linear gain after them, before the limiter,
+  so loudness stays level while the tanh curvature lowers the crest factor. The makeup gain is **ramped
+  per sample** over the saturators' own 5 ms drive smoothing time (a per-chunk scalar failed SC-011 for
+  channel pressure and the Pressure macro at ratio 2.19 on 2026-09-25; every other ID passed). Base 0 dB (= the retired
+  `kOutputDriveDb` constant; default-inert). Landed **together with the P-a retune** (Pressure →
+  OutputSaturation amount 0.35 → 0.88). The drive amount is **probed after the setter lands** over
+  {6, 12, 18, 24} dB with P-a applied, using the same SC-008 fixture; the smallest passing amount lands.
+  The uncompensated form is rejected. [FR-007, FR-060, SC-021, SC-002]
+- **B-3 (SC-023 (1) positive control, group 5 stop-and-surface, 2026-09-25):** the slot-2 noise-model
+  toggle moves the render by 2.1e-6 RMS against the `> 1e-3` floor because the noise bed is inaudible
+  at the fixture (see SC-023). Measured alternatives: cloud spectral gravity toggle 2.5e-3, sub tone 0
+  level −12/−60 dB 3.6e-3, body material A toggle 7.4e-3. Ruling: **body material A toggle** (same
+  `applyVoiceParams` path as the original control). The `1e-3` floor and the `1e-5` inertness bound
+  are unchanged. [SC-023]
+- **B-4 (SC-014 (4) live reseed, group 11 red tree, 2026-09-25):** a seed change on a prepared instance
+  differed from a fresh instance at that seed by 5.6e-3 (bound 1e-5): `AetherReverb` builds its
+  Dimensionality matrix endpoint only in `prepare()` (5.565e-3, the dominant term, documented FR-021 /
+  FR-073 / Edge case 23) and the engine's components re-seed their streams without rewinding prepare-time
+  state (6.7e-5). Ruling: **full live reseed, FR-007 widened** — three opt-in additive methods
+  (`AetherReverb::rebuildMatrixFromSeed()`, `CavernVerb::rebuildMatrixFromSeed()`,
+  `VoragoEngine::rewindIdleVoices()`) that only the plugin's seed route calls; `setSeed()` semantics and
+  every existing golden (Phase 10a SC-010 fingerprint) stay untouched. Rejected: re-scoping (4) to the
+  next prepare (a preset's seed would not reproduce until the host re-prepares) and dropping the cavern
+  reseed. [FR-007, FR-023, SC-014]
+- **B-5 (SC-004 cavern non-vacuity, group 11 red tree, 2026-09-25):** on a single held C2 the guard
+  (`> 1e-3` RMS vs the default cavern) is unreachable for Darkness 1.1e-4, Damper Depth 8e-5, Early
+  Absorption 1.6e-4 and Damper Rate 3e-6 even at 30 s (reference RMS 4.6e-3), while route equality
+  against the reference chain is exact for all 16 IDs. Ruling: **component-level noise stimulus** — the
+  non-vacuity arm feeds two `CavernVerb`s 4 s of identical seeded white noise, same `1e-3` bound; the
+  plugin-render equality arm is unchanged. Rejected: a relative threshold (Darkness reaches 2.4 %) and
+  exempting the four IDs. [SC-004] Probe values stay the test's 0.8 / 0.2 rule except Damper Rate (1114), probed at its
+  range end 1 Hz: measured 1.8e-4 at 0.39 Hz and 3.75e-3 at 1 Hz under the noise stimulus.
+- **B-6 (SC-011 window geometry, group 13 stop-and-surface, 2026-09-25):** the spec centred every test
+  window on `step + 3072`, but only engine-path IDs land there; a master-gain or saturation step lands at
+  the output immediately and cavern-side steps within 1024, so for those IDs the step fell inside the
+  *reference* window and positive control (b) could not fail. Ruling: **three windows per step at
+  +0 / +1024 / +3072**, the test statistic the max over them, the reference the same three offsets at the
+  midpoint (symmetric draws), step spacing 27 blocks (288 ms) so every reference window is ≥ 50 ms clear.
+  Bound 1.5×, 20 ms windows and 64 steps unchanged. Rejected: a per-ID path-latency table (guessable
+  wrong for cavern controls) and two windows (misses the diffusion path). [SC-011]
+- **Q10 (T007 part 2 drive probe read-out, `artifacts/fr060_drive_probe.log`, 2026-09-25):** with P-a
+  (saturation amount 0.88) the compensated drive alone reads, at 6 / 12 / 18 / 24 dB, endpoints 1.1654 /
+  2.0188 / 2.4876 / 2.6003 dB (rho −1.0 throughout) — **no drive amount reaches 3 dB**; the crest floor at
+  C1 is the sub-tone beating, which the drive cannot touch. Combined with a Pressure →
+  `SubToneLevelOffsetDb` row (P-b family, base 0.0 dB shared with Weight and Mass): +18 dB with −12 /
+  −18 / −24 dB → 3.5217 / 3.7010 / 3.7902; +24 dB with −12 / −18 / −24 dB → 3.8821 / 4.0550 / 4.1278.
+  [FR-060, SC-021]
+- **B-7 (Pressure row set, 2026-09-25):** ruling: **drive +18 dB + Pressure → `SubToneLevelOffsetDb`
+  −12 dB** (the smallest passing set, 3.5217 dB ≥ 3 dB, rho −1.0), on top of the P-a retune. The new row
+  is on an existing target with its shared base, admissible under ruling (b); `kNumRows` 49 → 50. At full
+  Pressure the sub tones sit 12 dB lower. Rejected: +24 dB drive (more margin, saturator at its ceiling),
+  −18 dB sub, and recording Pressure FAILED at 2.60 dB. [FR-060, SC-021]
+- **B-8 (SC-021 CPU clause, 2026-09-25):** the SC-001b gate `VoragoEngine_CpuBudget` fails clause (i) on
+  this machine today for the **untouched pre-phase binary** as well: same-conditions A/B (16 min idle
+  each, P-core pinned, alone) reads f149cced 4.23711e6 / 4.36161e6 ns/block (136.3 % of the 3.2e6
+  reference, `artifacts/sc021_cpu_base_f149cced.log`) against the Phase 12 tree 3.89004e6 / 4.01454e6
+  (125.5 %, `artifacts/sc021_cpu.log`) — Phase 12 is **8 % faster** than the baseline; clause (ii) passes
+  on both. Ruling: **record machine-limited with the A/B** (the Phase 11 B-5 precedent): the compliance
+  row cites both logs, states no regression, and keeps the cold-machine re-measure as the recorded
+  follow-up. The reference is not moved and the phase is not blocked on it. [SC-021]
+
 ---
 
 ## Scope
@@ -527,7 +612,15 @@ every latched note receives `engine_->noteOff`. No `dsp/` change.
   whole block, `vorago_engine.h:1312-1316`, so no audio or counter shows the latch). `prepare()` keeps installing the `VoragoEngineConfig` values, and a
   later setter value survives a re-prepare (FR-077 of Phase 10: engine-owned setter values survive).
 - **FR-007** No other `dsp/` file is modified, **except** the matrix's `kRows` for the Gravity, Pressure
-  and Mass axes, retuned / added per the OQ-2 (b) ruling (FR-060 (b)); no Seraphis-consumed header is
+  and Mass axes, retuned / added per the OQ-2 (b) ruling (FR-060 (b)), and — under R-1 path B as ruled in
+  B-1 / B-2 — the two new macro targets: `ResonanceOctaveLock` (`resonance_drift_network.h` setter,
+  `vorago_voice.h` forwarder, both Vorago-only) and `OutputDriveDb` (`vorago_engine.h`), each
+  additive and default-inert; and — under B-4 — the three **opt-in, additive** reseed methods
+  `AetherReverb::rebuildMatrixFromSeed()` (`aether_reverb.h`, a Seraphis-consumed header: nothing inside
+  the header calls it, so Seraphis keeps prepare()-only matrix semantics bit for bit; `dsp_effects_tests`
+  and `seraphis_tests` are re-run green as the Phase 11 B-2 precedent requires),
+  `CavernVerb::rebuildMatrixFromSeed()` (`cavern_verb.h`) and `VoragoEngine::rewindIdleVoices()`
+  (`vorago_engine.h`); no other Seraphis-consumed header is
   touched; every
   `dsp_systems_tests` / `dsp_effects_tests` case passes **unedited**; new Layer 3 cases land in
   `dsp/tests/unit/systems/` registered with `dsp_systems_tests`.
@@ -568,8 +661,9 @@ every latched note receives `engine_->noteOff`. No `dsp/` change.
   per `process()`. With pressure 0 the vector equals the twelve atomics exactly.
 - **FR-022** `pushAllSurfaces()` per C-3, reached from `setupProcessing()` and (by a release-store request)
   from `setState()`.
-- **FR-023** Seed changes (ENG) are applied on change by `engine_->setSeed(v)` and `cavern_->setSeed(...)`
-  per C-8. `setupProcessing()` seeds from the parameter **before** `prepare()` (Phase 11 FR-023.2 order).
+- **FR-023** Seed changes (ENG) are applied on change by `engine_->setSeed(v)` **+
+  `engine_->rewindIdleVoices()`** and `cavern_->setSeed(...)` **+ `cavern_->rebuildMatrixFromSeed()`**
+  per C-8 and B-4 (the two rewinds are what make a live reseed reproduce a fresh instance, SC-014 (4)). `setupProcessing()` seeds from the parameter **before** `prepare()` (Phase 11 FR-023.2 order).
   A live reseed is **not** assumed a no-op (`vorago_voice.h:961-967` reseeds immediately;
   `ecosystem_engine.h:398-407` `setSeed` = `reset()`); it MUST be allocation-free and bounded (SC-014).
 - **FR-024** No parameter may change `getLatencySamples()` (remains `engine + cavern` = 3072 after prepare).
@@ -690,8 +784,10 @@ bit-exact float golden is checked in**. "Same binary" comparisons render both ar
     `makeVoragoCavernConfig` and the same seed, unity master gain and the same `processOutputStage` —
     rendered with the same 512-sample partition and the same note, with the cavern setter for this ID
     applied by hand before the first block. Plugin output vs reference: max-abs `≤ 1e-6` per channel.
-    Non-vacuity: the reference differs from the same reference with a **default** cavern by `> 1e-3` RMS
-    over `[3072, end)`. Precondition: the reference RMS over `[3072, end)` is `≥ 1e-4` (else lengthen,
+    Non-vacuity (B-5): two `CavernVerb`s prepared with `makeVoragoCavernConfig`, one at the default
+    targets and one with this ID's change applied as the processor applies it (matrix base for MB rows,
+    setter for CV rows), fed 4 s of identical seeded white noise (±0.25), differ by `> 1e-3` RMS over
+    `[3072, end)`. Precondition: the reference RMS over `[3072, end)` is `≥ 1e-4` (else lengthen,
     never loosen). Freeze additionally via `isFrozen()`.
 - **SC-005 — Macros are live.** `Vorago_MacrosDriveTheMatrix`: (1) for each of the 12 macros at 1.0
   (Gravity at 0.0 and 1.0), every Voice/Engine target read back from the plugin's engine equals, exactly,
@@ -746,15 +842,18 @@ bit-exact float golden is checked in**. "Same binary" comparisons render both ar
   `specs/seraphis-phase9-parameters/spec.md:2092-2125`).** `Vorago_ParameterStepsAreContinuous`
   (`[long]`). Scope: every continuous, non-stepped ID of C-6 plus master gain. For each ID, one render at
   48 kHz / 512-sample blocks with a note (C2, velocity 100) held from sample 0 and 1 s of warm-up, in which
-  the parameter is automated from one extreme to the other in **64 equal steps spaced 125 ms apart**
-  (8 s of automation; Seraphis's 2 s / 64 geometry spaces steps 31.25 ms apart, which cannot seat a 20 ms
-  window 50 ms clear of every step, so the spacing — not the statistic — is changed):
-  1. *Test statistic.* For each step, `maxPerSampleDelta` over the **±10 ms window** centred, **in the
-     output domain**, on `step sample + 3072` (engine + cavern latency, FR-024 / SC-017; 64 ms at 48 kHz,
-     more than the whole window, so without the shift the clause measures the wrong audio).
-  2. *Reference.* **One 20 ms window per measured step** from the **same render**, centred midway between
-     consecutive steps (62.5 ms from each, same output-domain shift), so every reference window lies
-     ≥ 50 ms clear of any step — **the same number of draws on both sides** (64).
+  the parameter is automated from one extreme to the other in **64 equal steps spaced 288 ms apart**
+  (27 blocks of 512; B-6 — Seraphis's 2 s / 64 geometry spaces steps 31.25 ms apart, which cannot seat a
+  20 ms window 50 ms clear of every step, so the spacing — not the statistic — is changed):
+  1. *Test statistic (B-6).* For each step, the **max** of `maxPerSampleDelta` over three **±10 ms
+     windows** centred, **in the output domain**, on `step sample + {0, 1024, 3072}`: a step lands at the
+     output immediately for the output-stage IDs (master gain, output saturation), after the cavern's
+     1024-sample diffusion for cavern-side IDs and after the full 3072 (smear + cavern, FR-024 / SC-017)
+     for engine-path IDs, so the three offsets are measured and no per-ID latency table is needed.
+  2. *Reference.* **The same three windows per measured step** from the **same render**, centred on the
+     midpoint between consecutive steps + {0, 1024, 3072}, so every reference window lies ≥ 50 ms clear of
+     the preceding step's last test window and of the next step — **the same number of draws on both
+     sides** (192).
   3. *Bound.* `max(test statistics) ≤ 1.5 × max(reference statistics)`.
   4. *Non-finite clause (every registered ID, no exemptions).* No sample is non-finite (bit-pattern test,
      never `std::isnan`), and peak ≤ the limiter ceiling (`kOutputCeilingDb = −0.3`,
@@ -859,10 +958,12 @@ bit-exact float golden is checked in**. "Same binary" comparisons render both ar
   `VoragoEngine_RepeatedBroadcastIsInert` (`dsp_systems_tests`): a prepared engine with polyphony 6 and six
   held notes renders 10 s twice — once with `applyVoiceParams(p)` for a non-default `p` and
   `setSubToneLevelDb(t, v_t)` called **once**, once with the identical calls repeated **every 512-sample
-  block** — and the two renders match within `1e-5` max-abs per channel. Positive control: a third render
-  that writes slot 2's model alternately `Direct` / `FilteredWind` every block (each write arming a duck,
-  `noise_organism.h:456-461`) differs from the first by `> 1e-3` RMS, proving the comparison can see a
-  duck. (2) `Vorago_HostResendsEveryParameter` (`vorago_tests`): a processor whose host re-sends **every**
+  block** — and the two renders match within `1e-5` max-abs per channel. Positive control (B-3): a third
+  render that writes `bodyMaterialA` alternately the fixture's material / `Glass` every block through
+  the same `applyVoiceParams` call differs from the first by `> 1e-3` RMS, proving the comparison can
+  see a per-block write that reaches the audio. (The original slot-2 model toggle is unreachable at this
+  fixture: the noise bed at −18 dB with wake 0.35 contributes ≈ 2e-6 RMS of a 0.0078 RMS render, so no
+  noise-slot write can move it past the floor — measured 2026-09-25, all four slots 1.9–2.7e-6.) (2) `Vorago_HostResendsEveryParameter` (`vorago_tests`): a processor whose host re-sends **every**
   registered ID at its current value in every block renders a held note for 10 s within `1e-5` max-abs of
   one that sends nothing after block 0.
 

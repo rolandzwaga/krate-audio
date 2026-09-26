@@ -7,8 +7,17 @@
 // reduced to two fields (master gain, polyphony). Plan section 2.3.
 //
 // Stream: float masterGain + int32 polyphony = 8 bytes (plan section 3.4).
+//
+// Phase 12 extension (T030, plan sections 3.2 / 4.9):
+//   2 Seed               L(16) "Seed 1".."Seed 16"   default 0     ENG
+//   3 Output Saturation  %  [0, 1]  0.12  lin                      MB
+//   4 Sustain Pedal      [0, 1], >= 0.5 = down, kIsHidden, NOT persisted
+//   5 Channel Pressure   %  [0, 1]  0, kIsHidden, NOT persisted
+// The v1 8-byte block above is untouched; the v2 extension block is
+// int32 seedIndex + float outputSaturation = 8 bytes (saveGlobalParamsV2Ext).
 // ==============================================================================
 
+#include "parameters/param_mapping.h"
 #include "plugin_ids.h"
 
 #include "ui/parameter_helpers.h"  // plugins/shared/src/ui/parameter_helpers.h (FR-048)
@@ -31,6 +40,10 @@ namespace Vorago {
 struct GlobalParams {
     std::atomic<float> masterGain{1.0f};  ///< linear [0, 2]; normalized 0.5 == unity
     std::atomic<int> polyphony{4};        ///< [1, 6]; == VoragoEngine::kDefaultPolyphony
+    std::atomic<int> seedIndex{0};               ///< index 0-15 into kVoragoSeedValues
+    std::atomic<float> outputSaturation{0.12f};  ///< [0, 1]
+    std::atomic<float> sustainPedal{0.0f};       ///< [0, 1]; >= 0.5 = down; never persisted
+    std::atomic<float> channelPressure{0.0f};    ///< [0, 1]; never persisted
 };
 
 /// The ONE conversion into the engine's polyphony domain (Seraphis global_params.h
@@ -59,6 +72,24 @@ inline void handleGlobalParamChange(GlobalParams& params, Steinberg::Vst::ParamI
             params.polyphony.store(std::clamp(static_cast<int>(value * 5.0 + 1.0 + 0.5), 1, 6),
                                    std::memory_order_relaxed);
             break;
+        case kSeedId:
+            params.seedIndex.store(indexFromNormalized(value, kNumSeeds),
+                                   std::memory_order_relaxed);
+            break;
+        case kOutputSaturationId:
+            params.outputSaturation.store(
+                static_cast<float>(linearFromNormalized(value, 0.0, 1.0)),
+                std::memory_order_relaxed);
+            break;
+        case kSustainPedalId:
+            params.sustainPedal.store(static_cast<float>(linearFromNormalized(value, 0.0, 1.0)),
+                                      std::memory_order_relaxed);
+            break;
+        case kChannelPressureId:
+            params.channelPressure.store(
+                static_cast<float>(linearFromNormalized(value, 0.0, 1.0)),
+                std::memory_order_relaxed);
+            break;
         default:
             break;
     }
@@ -83,6 +114,28 @@ inline void registerGlobalParams(Steinberg::Vst::ParameterContainer& parameters)
     // REGISTERED default must be pinned here or a host "reset to default" yields one voice.
     poly->getInfo().defaultNormalizedValue = 3.0 / 5.0;
     parameters.addParameter(poly);
+
+    // Seed (16 curated seeds, default index 0 == kEngineSeed) -> StringListParameter
+    auto* seed = Krate::Plugins::createDropdownParameterWithDefault(
+        STR16("Seed"), kSeedId, /*defaultIndex=*/0,
+        {STR16("Seed 1"), STR16("Seed 2"), STR16("Seed 3"), STR16("Seed 4"),
+         STR16("Seed 5"), STR16("Seed 6"), STR16("Seed 7"), STR16("Seed 8"),
+         STR16("Seed 9"), STR16("Seed 10"), STR16("Seed 11"), STR16("Seed 12"),
+         STR16("Seed 13"), STR16("Seed 14"), STR16("Seed 15"), STR16("Seed 16")});
+    seed->getInfo().defaultNormalizedValue = 0.0;  // P-1: pin the REGISTERED default
+    parameters.addParameter(seed);
+
+    parameters.addParameter(STR16("Output Saturation"), STR16("%"), 0, 0.12,
+                            ParameterInfo::kCanAutomate, kOutputSaturationId);
+
+    // Performance controllers (CC64 / channel aftertouch via IMidiMapping): hidden
+    // from the host's generic UI and never persisted in state (FR-045).
+    parameters.addParameter(STR16("Sustain Pedal"), STR16(""), 0, 0.0,
+                            ParameterInfo::kCanAutomate | ParameterInfo::kIsHidden,
+                            kSustainPedalId);
+    parameters.addParameter(STR16("Channel Pressure"), STR16("%"), 0, 0.0,
+                            ParameterInfo::kCanAutomate | ParameterInfo::kIsHidden,
+                            kChannelPressureId);
 }
 
 // ==============================================================================
@@ -102,7 +155,17 @@ inline Steinberg::tresult formatGlobalParam(Steinberg::Vst::ParamID id,
         UString(string, 128).fromAscii(text);
         return kResultOk;
     }
-    // kPolyphonyId is a StringListParameter and formats itself.
+    if (id == kOutputSaturationId || id == kChannelPressureId) {
+        char8 text[32];
+        snprintf(text, sizeof(text), "%.0f%%", linearFromNormalized(value, 0.0, 1.0) * 100.0);
+        UString(string, 128).fromAscii(text);
+        return kResultOk;
+    }
+    if (id == kSustainPedalId) {
+        UString(string, 128).fromAscii(value >= 0.5 ? "Down" : "Up");
+        return kResultOk;
+    }
+    // kPolyphonyId and kSeedId are StringListParameters and format themselves.
     return kResultFalse;
 }
 
@@ -136,6 +199,36 @@ inline bool loadGlobalParams(GlobalParams& params, Steinberg::IBStreamer& stream
 }
 
 // ==============================================================================
+// State Persistence - v2 extension, 8 bytes (int32 seedIndex + float
+// outputSaturation)   FR-045. Sustain pedal and channel pressure are NEVER written.
+// ==============================================================================
+
+inline void saveGlobalParamsV2Ext(const GlobalParams& params, Steinberg::IBStreamer& streamer) {
+    streamer.writeInt32(
+        static_cast<Steinberg::int32>(params.seedIndex.load(std::memory_order_relaxed)));
+    streamer.writeFloat(params.outputSaturation.load(std::memory_order_relaxed));
+}
+
+/// EOF-safe: stops at the first failed read (returns false; later fields keep their
+/// CURRENT values). The seed index is clamped to [0, 15]; a non-finite saturation
+/// leaves its field unchanged, a finite one is clamped to [0, 1].
+inline bool loadGlobalParamsV2Ext(GlobalParams& params, Steinberg::IBStreamer& streamer) {
+    Steinberg::int32 i = 0;
+    float f = 0.0f;
+
+    if (!streamer.readInt32(i)) { return false; }
+    params.seedIndex.store(std::clamp(static_cast<int>(i), 0, kNumSeeds - 1),
+                           std::memory_order_relaxed);
+
+    if (!streamer.readFloat(f)) { return false; }
+    if (Krate::DSP::detail::isFinite(f)) {
+        params.outputSaturation.store(std::clamp(f, 0.0f, 1.0f), std::memory_order_relaxed);
+    }
+
+    return true;
+}
+
+// ==============================================================================
 // Controller State Sync (FR-047 - inverts every mapping above)
 // ==============================================================================
 
@@ -155,6 +248,22 @@ inline void loadGlobalParamsToController(Steinberg::IBStreamer& streamer,
     }
     if (streamer.readInt32(n)) {
         setParam(kPolyphonyId, (static_cast<double>(clampPolyphony(n)) - 1.0) / 5.0);
+    }
+}
+
+/// Mirrors loadGlobalParamsV2Ext (same read order and rules).
+template <typename SetParamFunc>
+inline void loadGlobalParamsV2ExtToController(Steinberg::IBStreamer& streamer,
+                                              SetParamFunc setParam) {
+    Steinberg::int32 i = 0;
+    float f = 0.0f;
+
+    if (!streamer.readInt32(i)) { return; }
+    setParam(kSeedId, indexToNormalized(static_cast<int>(i), kNumSeeds));
+
+    if (!streamer.readFloat(f)) { return; }
+    if (Krate::DSP::detail::isFinite(f)) {
+        setParam(kOutputSaturationId, linearToNormalized(static_cast<double>(f), 0.0, 1.0));
     }
 }
 

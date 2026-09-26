@@ -416,7 +416,10 @@ ADVANCE.** The remedy for any axis the probe confirms unreachable is **(iii) one
 per unreachable axis** (additive, default-inert, macro-only, no parameter ID; `Count` 39 → 40/41). Gate
 P-0 therefore no longer waits on a user answer: T005 reads the probe table and picks, per axis, either the
 admissible row set or the new-target path. The paragraphs below record the prediction that motivated the
-ruling. **Original status: BLOCKED, not open.** As encoded (ruling (b), FR-007's single `kRows` edit, `Count == 39`,
+ruling. **Probe outcome (2026-09-24, `artifacts/fr060_probe.log`): Mass +3.0 dB passes (2.4343 dB);
+Gravity best 0.2024 and Pressure best 1.5030 dB — both path B. The wander-depth and bare-drive targets
+named here were rejected on the data; the landed designs are spec B-1 (`ResonanceOctaveLock`, Voice-owned)
+and B-2 (`OutputDriveDb` with makeup compensation, Engine-owned, plus the P-a saturation retune).** **Original status: BLOCKED, not open.** As encoded (ruling (b), FR-007's single `kRows` edit, `Count == 39`,
 frozen bases, unchanged thresholds), the spec admits no mechanism this plan predicts can close Gravity or
 Pressure; Phase 10's own test records why (`vorago_macro_test.cpp:1306-1315`, figures quoted below) and
 names the levers (keyed ratio table, a saturator drive row) — both outside ruling (b). The plan therefore
@@ -920,9 +923,9 @@ TOTAL                                                                       428 
 ```
 
 `setState`: read version; `> 2` → `kResultFalse`, nothing changed; `≤ 1` → v1 block only, every Phase 12
-field keeps its registered default (atomics are never reset by a v1 load — they hold defaults on a fresh
-instance; a v1 load into a dirty instance leaves v2 fields as they are, matching "EOF-safe, later fields
-unchanged"); `== 2` → v1 block then the chain `loadGlobalParamsV2Ext && loadCloud && … && loadLife`
+field is set to its registered default (spec C-7; compliance fix 2026-09-26 — a v1 load into a dirty
+instance resets every v2 field to default: the default-constructed packs' v2 tail is serialized and loaded
+through the same chain); `== 2` → v1 block then the chain `loadGlobalParamsV2Ext && loadCloud && … && loadLife`
 (short-circuit = EOF-safe). Then `sustainPedal = channelPressure = 0`, raise both requests. `getState`
 writes the same order. The controller's `setComponentState` mirrors it with the `…ToController` functions.
 

@@ -8,6 +8,9 @@
 // Processor::process() (FR-043 latch: last point wins, ID-band routing).
 // T017: section "ControllerRegistersFourteen" - Controller::initialize registers
 // exactly the 14 IDs with their defaults, and getParamStringByValue formats them.
+// Phase 12 T033: renamed "ControllerRegistersAll" - the controller now registers
+// every ID of the route table kParamRoutes (108); the Phase 11 defaults and formats
+// checked below are unchanged.
 // ==============================================================================
 
 #include <catch2/catch_approx.hpp>
@@ -16,6 +19,7 @@
 #include "controller/controller.h"
 #include "parameters/global_params.h"
 #include "parameters/macro_params.h"
+#include "parameters/param_routes.h"
 #include "plugin_ids.h"
 #include "vorago_test_fixture.h"
 
@@ -128,7 +132,7 @@ TEST_CASE("Vorago_ParamDenormRoundTrip", "[vorago][params]") {
         Steinberg::Vst::ParameterContainer pc;
         registerGlobalParams(pc);
         registerMacroParams(pc);
-        REQUIRE(pc.getParameterCount() == 14);
+        REQUIRE(pc.getParameterCount() == 18);  // Phase 12 T030: global pack is now 6
 
         auto* poly = pc.getParameter(kPolyphonyId);
         REQUIRE(poly != nullptr);
@@ -219,24 +223,24 @@ TEST_CASE("Vorago_ParamDenormRoundTrip", "[vorago][params]") {
         REQUIRE(g.polyphony.load() == polyBefore);
     }
 
-    SECTION("ControllerRegistersFourteen") {  // SC-009 controller arm
+    SECTION("ControllerRegistersAll") {  // SC-009 controller arm; Phase 12 FR-041
         auto controller = Steinberg::owned(new ::Vorago::Controller());
         REQUIRE(controller->initialize(nullptr) == Steinberg::kResultOk);
-        REQUIRE(controller->getParameterCount() == 14);
+        REQUIRE(controller->getParameterCount() == 108);
 
-        std::set<Steinberg::Vst::ParamID> expectedIds{kMasterGainId, kPolyphonyId};
-        for (int i = 0; i < 12; ++i) {
-            expectedIds.insert(macroId(i));
+        std::set<Steinberg::Vst::ParamID> expectedIds;
+        for (const auto& e : kParamRoutes) {
+            expectedIds.insert(e.id);
         }
-        REQUIRE(expectedIds.size() == 14u);
+        REQUIRE(expectedIds.size() == 108u);
         for (const auto id : expectedIds) {
             INFO("id " << id);
             REQUIRE(controller->getParameterObject(id) != nullptr);
         }
 
-        // FR-041: exactly the fourteen, no soft-limit, no extra.
+        // FR-041: exactly the route-table IDs, no soft-limit, no extra.
         std::set<Steinberg::Vst::ParamID> registeredIds;
-        for (Steinberg::int32 i = 0; i < 14; ++i) {
+        for (Steinberg::int32 i = 0; i < 108; ++i) {
             Steinberg::Vst::ParameterInfo info{};
             REQUIRE(controller->getParameterInfo(i, info) == Steinberg::kResultOk);
             registeredIds.insert(info.id);

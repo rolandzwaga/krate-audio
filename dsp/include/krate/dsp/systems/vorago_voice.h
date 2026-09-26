@@ -555,6 +555,11 @@ public:
         // Noise organism. NoiseOrganism::prepare() restores its OWN defaults
         // (:219-221), which is exactly why this block runs on every prepare().
         noise_.setNumSources(numNoise);
+        // Phase 12 (plan S2.3): the forwarder shadows go back with the organism.
+        combTuningSet_.fill(false);
+        combHzReq_.fill(0.0f);
+        combSpreadReq_.fill(0.0f);
+        combFeedbackLatched_.fill(false);
         noise_.setSourceModel(0, NoiseOrganismModel::FilteredWind);
         noise_.setSourceModel(1, NoiseOrganismModel::GranularDust);
         noise_.setSourceModel(2, NoiseOrganismModel::Direct);
@@ -1144,6 +1149,87 @@ public:
     void setStereoSpread(float s) noexcept { cloud_.setStereoSpread(s); }
     [[nodiscard]] float getStereoSpread() const noexcept { return cloud_.getStereoSpread(); }
 
+    // --- Vorago Phase 12 (FR-004): seven parameter forwarders ----------------
+    // A repeated identical broadcast must arm no duck, restart no ramp and not
+    // re-mark anchors dirty (SC-023 (1)). Where the owner already rejects
+    // non-finite input and early-outs an unchanged write the forward is bare;
+    // elsewhere the guard lives here (plan S2.3).
+
+    /// Owner rejects NaN/Inf and early-outs unchanged (harmonic_cloud.h:478-488).
+    void setCloudSpectralGravity(float g) noexcept { cloud_.setSpectralGravity(g); }
+
+    /// Owner: invalid slot is a no-op; an unchanged goal is a full no-op with no
+    /// duck (noise_organism.h:463-471, :1703-1735).
+    void setNoiseSourceModel(std::size_t slot, NoiseOrganismModel m) noexcept {
+        noise_.setSourceModel(slot, m);
+    }
+
+    /// Same owner rule as setNoiseSourceModel (noise_organism.h:478-484).
+    void setNoiseSourceType(std::size_t slot, NoiseType t) noexcept {
+        noise_.setSourceNoiseType(slot, t);
+    }
+
+    /// The owner SUBSTITUTES its defaults for a non-finite argument
+    /// (noise_organism.h:573-575), so the voice rejects the whole call instead.
+    /// The early-out compares against the last REQUEST, because the owner's
+    /// getter reports a sample-rate-clamped value.
+    void setNoiseCombTuning(std::size_t slot, float hz, float spread) noexcept {
+        if (slot >= NoiseOrganism::kMaxSources) {
+            return;
+        }
+        if (!detail::isFinite(hz) || !detail::isFinite(spread)) {
+            return;  // FR-071: rejected, the previous value stands
+        }
+        if (combTuningSet_[slot] && hz == combHzReq_[slot] && spread == combSpreadReq_[slot]) {
+            return;
+        }
+        combTuningSet_[slot] = true;
+        combHzReq_[slot] = hz;
+        combSpreadReq_[slot] = spread;
+        noise_.setCombTuning(slot, hz, spread);
+    }
+
+    /// LATCH-AWARE early-out (C-4): the FIRST push always reaches the owner, even
+    /// at the value already running, because only the owner's write latches the
+    /// slot against a later model change re-deriving its feedback
+    /// (noise_organism.h:579-598).
+    void setNoiseCombFeedback(std::size_t slot, float fb) noexcept {
+        if (slot >= NoiseOrganism::kMaxSources) {
+            return;
+        }
+        if (!detail::isFinite(fb)) {
+            return;  // FR-071: the owner would substitute its default (:594)
+        }
+        if (combFeedbackLatched_[slot]
+            && std::clamp(fb, 0.0f, NoiseOrganism::kCombFeedbackCap)
+                   == noise_.getCombFeedback(slot)) {
+            return;
+        }
+        noise_.setCombFeedback(slot, fb);
+        combFeedbackLatched_[slot] = true;
+    }
+
+    /// The owner has no early-out and re-marks anchors dirty on every write
+    /// (resonance_drift_network.h:587-590).
+    void setResonanceAnchorMode(ResonanceDriftNetwork::AnchorMode m) noexcept {
+        if (m == resonance_.getAnchorMode()) {
+            return;
+        }
+        resonance_.setAnchorMode(m);
+    }
+
+    /// The owner validates the enumerator but has no early-out
+    /// (feedback_ecology.h:1035-1044).
+    void setEcologyLoopFilterMode(std::size_t loop, FeedbackEcology::FilterMode m) noexcept {
+        if (loop >= FeedbackEcology::kMaxLoops) {
+            return;
+        }
+        if (m == ecology_.getLoopFilterMode(loop)) {
+            return;
+        }
+        ecology_.setLoopFilterMode(loop, m);
+    }
+
     /// FAN-OUT: every CONFIGURED source slot.
     void setNoiseLevelDb(float dB) noexcept {
         if (!detail::isFinite(dB)) {
@@ -1200,6 +1286,14 @@ public:
         resonance_.setGravity(gravityBase_);
     }
     [[nodiscard]] float getResonanceGravity() const noexcept { return gravityBase_; }
+
+    /// Vorago Phase 12, spec B-1: the Gravity macro's octave-lock target.
+    /// A plain forward - ResonanceDriftNetwork::setOctaveLock rejects
+    /// non-finite, clamps [0, 1] and early-outs an unchanged write (FR-067).
+    void setResonanceOctaveLock(float lock) noexcept { resonance_.setOctaveLock(lock); }
+    [[nodiscard]] float getResonanceOctaveLock() const noexcept {
+        return resonance_.getOctaveLock();
+    }
 
     void setResonanceMix(float m) noexcept { resonance_.setMix(m); }
     [[nodiscard]] float getResonanceMix() const noexcept { return resonance_.getMix(); }
@@ -2248,6 +2342,15 @@ private:
     Biquad noiseApR_;
     float noiseApDelayR_ = 0.0f;
     LinearRamp noiseGain_;  // kGainRampMs
+
+    // --- Phase 12 forwarder shadows (FR-004, plan S2.3) ----------------------
+    // Cleared in prepare() step 5, because NoiseOrganism::prepare() clears the
+    // organism's own feedback latch: a stale voice-side flag would suppress the
+    // first post-prepare push.
+    std::array<bool, NoiseOrganism::kMaxSources> combTuningSet_{};
+    std::array<float, NoiseOrganism::kMaxSources> combHzReq_{};
+    std::array<float, NoiseOrganism::kMaxSources> combSpreadReq_{};
+    std::array<bool, NoiseOrganism::kMaxSources> combFeedbackLatched_{};
 
     // --- the two-body blend (FR-036, FR-037) ---------------------------------
     LinearRamp blend_;  // advanced PER SAMPLE inside the chunk

@@ -52,6 +52,10 @@ if (stage !== 'specify' && stage !== 'plan' && stage !== 'build') throw new Erro
 // decision is recorded in spec/plan/tasks). On a resume those results are treated as done
 // so the stage continues past the stop instead of re-surfacing the same decision.
 const unblocked = Array.isArray(A.unblock) ? A.unblock.map(String) : []
+// args.retry_tasks: task ids whose tasks.md section was REWRITTEN after a user ruling. The
+// task prompt gains a marker so the cached (blocked) result is bypassed and the task
+// re-executes against the new section; every other task replays from cache.
+const retryTasks = Array.isArray(A.retry_tasks) ? A.retry_tasks.map(String) : []
 // args.retry_epochs: {"Group O": 5} bumps the gate prompt for ONE group so its cached red
 // gate results are re-measured on a resume after a main-loop fix, without invalidating
 // every other group's cached gate (each gate re-run costs minutes).
@@ -521,7 +525,7 @@ for (const group of dispatch.groups) {
 
   const runTask = (t) => () =>
     run(
-      `${CONTEXT}\n\nExecute this implementation task EXACTLY. FIRST open ${TASKS} and read the full section for task ${t.id} — that section is your AUTHORITATIVE instruction (the summary below is orientation only). Artifacts for reference: ${SPEC}, ${PLAN}. Write the failing test FIRST, then implement. Do NOT build or run tests (a dedicated build agent does that after your group) — but re-read every file you wrote before finishing and fix anything that obviously would not compile. Do not touch any file outside your task's file list. Never commit. If the task section says STOP AND SURFACE (or its outcome is a decision only the user can take), return status "blocked" with the measured table and the decision needed in notes — a "done" whose notes merely say to stop is NOT honoured and the next tasks will run.\n\nTASK ${t.id}: ${t.title}\nFILES: ${t.files.join(', ')}\n\nORIENTATION: ${t.instructions}`,
+      `${CONTEXT}\n\nExecute this implementation task EXACTLY. FIRST open ${TASKS} and read the full section for task ${t.id} — that section is your AUTHORITATIVE instruction (the summary below is orientation only). Artifacts for reference: ${SPEC}, ${PLAN}. Write the failing test FIRST, then implement. Do NOT build or run tests (a dedicated build agent does that after your group) — but re-read every file you wrote before finishing and fix anything that obviously would not compile. Do not touch any file outside your task's file list. Never commit. If the task section says STOP AND SURFACE (or its outcome is a decision only the user can take), return status "blocked" with the measured table and the decision needed in notes — a "done" whose notes merely say to stop is NOT honoured and the next tasks will run.\n\nTASK ${t.id}: ${t.title}\nFILES: ${t.files.join(', ')}\n\nORIENTATION: ${t.instructions}${retryTasks.includes(t.id) ? `\n\nRETRY (epoch ${retryEpoch(group.name)}): this task's section in ${TASKS} was REWRITTEN after a user ruling (see the spec's Clarifications). Its own file list SUPERSEDES the FILES line above; the title and orientation above may be stale.` : ''}`,
       { label: `impl:${t.id}`, phase: 'Implement', schema: IMPL_RESULT },
     )
 

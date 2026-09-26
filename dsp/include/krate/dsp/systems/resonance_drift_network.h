@@ -636,6 +636,21 @@ public:
         anchorsDirty_ = true;
     }
 
+    /// @brief Pull every KEYED anchor toward the nearest octave of the note
+    ///        (Vorago Phase 12, spec B-1; the Gravity macro's stone end).
+    ///        The keyed anchor becomes noteLog2 + lerp(ratioLog2,
+    ///        round(ratioLog2), lock): 0 is BIT-EQUAL to the shipped ratios,
+    ///        1 puts every keyed anchor on an octave of the note. Applies
+    ///        wherever the keyed anchor is used (Keyed and Hybrid modes).
+    /// @param lock Clamped [0, 1]; non-finite is rejected (previous value stands).
+    void setOctaveLock(float lock) noexcept {
+        if (!detail::isFinite(lock)) return;
+        const float clamped = std::clamp(lock, 0.0f, 1.0f);
+        if (clamped == octaveLock_) return;  // an unchanged write dirties nothing
+        octaveLock_ = clamped;
+        anchorsDirty_ = true;
+    }
+
     /// @brief Set peak `peak`'s BASE level in dB (FR-017).
     /// @param dB Clamped [kMinPeakLevelDb, kMaxPeakLevelDb].
     ///
@@ -815,6 +830,7 @@ public:
     [[nodiscard]] AnchorMode getAnchorMode() const noexcept { return anchorMode_; }
     [[nodiscard]] float getNoteFrequency() const noexcept { return noteHz_; }
     [[nodiscard]] float getGravity() const noexcept { return gravity_; }
+    [[nodiscard]] float getOctaveLock() const noexcept { return octaveLock_; }
     [[nodiscard]] float getWanderRate() const noexcept { return wanderRateHz_; }
     [[nodiscard]] float getFreqSlewCeiling() const noexcept { return freqSlewOct_; }
     [[nodiscard]] float getQSlewCeiling() const noexcept { return qSlewOct_; }
@@ -1087,6 +1103,7 @@ private:
     AnchorMode anchorMode_ = AnchorMode::Free;
     float noteHz_ = kDefaultNoteHz;
     float gravity_ = 0.0f;
+    float octaveLock_ = 0.0f;  ///< spec B-1 (Vorago Phase 12): 0 = shipped ratios
     float wanderRateHz_ = kDefaultWanderRateHz;
     bool wanderEnabled_ = true;
     float freqSlewOct_ = kDefaultFreqStepOctaves;
@@ -1364,6 +1381,7 @@ private:
         anchorMode_ = AnchorMode::Free;
         noteHz_ = kDefaultNoteHz;
         gravity_ = 0.0f;
+        octaveLock_ = 0.0f;
         wanderEnabled_ = true;
         freqSlewOct_ = kDefaultFreqStepOctaves;
         qSlewOct_ = kDefaultQStepOctaves;
@@ -1394,7 +1412,7 @@ private:
     /// @brief Resolve every peak's anchor from the current AnchorMode (plan S4,
     ///        FR-020..FR-025). Runs on the control grid, ONLY when anchorsDirty_
     ///        (set by setAnchorMode, setPeakAnchorHz, setPeakRatio,
-    ///        setNoteFrequency and setGravity - FR-024).
+    ///        setNoteFrequency, setGravity and setOctaveLock - FR-024).
     ///
     /// Entirely in log2, which is the same closed form FR-023 states in natural
     /// logs (log f = log f_free + g * (log f_keyed - log f_free) is
@@ -1404,6 +1422,14 @@ private:
     void recomputeAnchors() noexcept {
         const float noteLog2 = std::log2(noteHz_);
         for (Peak& p : peaks_) {
+            // spec B-1: the keyed ratio, pulled toward its nearest octave by
+            // octaveLock_. The `> 0` short-circuit is the bit-equality
+            // assertion at lock 0 (the same argument as the Hybrid g == 0
+            // branch below), not an optimisation.
+            const float ratioL2 =
+                (octaveLock_ > 0.0f)
+                    ? p.ratioLog2 + octaveLock_ * (std::round(p.ratioLog2) - p.ratioLog2)
+                    : p.ratioLog2;
             // The initialiser IS the Free anchor (cached by setPeakAnchorHz and
             // applyDefaults), and it is also the fallback for an AnchorMode
             // value outside the three enumerators - which is why there is no
@@ -1413,7 +1439,7 @@ private:
             case AnchorMode::Free:
                 break;
             case AnchorMode::Keyed:
-                log2Hz = noteLog2 + p.ratioLog2;  // == log2(noteHz_ * ratio)
+                log2Hz = noteLog2 + ratioL2;  // == log2(noteHz_ * ratio) at lock 0
                 break;
             case AnchorMode::Hybrid:
                 if (gravity_ == 0.0f) {
@@ -1427,7 +1453,7 @@ private:
                     // the assertion, not an optimisation.
                     log2Hz = p.freeLog2Hz;
                 } else {
-                    const float keyedLog2 = noteLog2 + p.ratioLog2;
+                    const float keyedLog2 = noteLog2 + ratioL2;
                     // Index-PAIRED (FR-023): peak i moves between its OWN free
                     // anchor and its OWN keyed anchor, so the twelve results stay
                     // twelve distinct frequencies at g = 1 instead of collapsing

@@ -6,7 +6,10 @@
 // Constitution Principle I: VST3 Architecture Separation. This header includes
 // NO processor header.
 //
-// NO INoteExpressionController and NO IMidiMapping (FR-019, OQ-7 ruling). No
+// IMidiMapping (Phase 12 T034, FR-031): on bus 0, any channel, CC64
+// (kCtrlSustainOnOff) maps to kSustainPedalId and channel aftertouch
+// (kAfterTouch) maps to kChannelPressureId; every other controller is
+// unmapped. NO INoteExpressionController (FR-019, OQ-7 ruling). No
 // createCustomView / verifyView: stock views only in Phase 11 (FR-055).
 //
 // The class declaration is FINAL (T005). The bodies in controller.cpp start as
@@ -15,6 +18,7 @@
 
 #include "preset/preset_manager.h"
 
+#include "pluginterfaces/vst/ivstmidicontrollers.h"
 #include "public.sdk/source/vst/vsteditcontroller.h"
 #include "vstgui/plugin-bindings/vst3editor.h"
 
@@ -22,7 +26,9 @@
 
 namespace Vorago {
 
-class Controller : public Steinberg::Vst::EditControllerEx1, public VSTGUI::VST3EditorDelegate {
+class Controller : public Steinberg::Vst::EditControllerEx1,
+                   public Steinberg::Vst::IMidiMapping,
+                   public VSTGUI::VST3EditorDelegate {
 public:
     Controller() = default;
     ~Controller() override = default;
@@ -38,6 +44,17 @@ public:
         Steinberg::Vst::ParamID tag, Steinberg::Vst::ParamValue valueNormalized,
         Steinberg::Vst::String128 string) override;
     Steinberg::IPlugView* PLUGIN_API createView(Steinberg::FIDString name) override;
+
+    // IMidiMapping (FR-031)
+    Steinberg::tresult PLUGIN_API getMidiControllerAssignment(
+        Steinberg::int32 busIndex, Steinberg::int16 channel,
+        Steinberg::Vst::CtrlNumber midiControllerNumber, Steinberg::Vst::ParamID& id) override;
+
+    DEFINE_INTERFACES
+        DEF_INTERFACE(Steinberg::Vst::IMidiMapping)
+    END_DEFINE_INTERFACES(EditControllerEx1)
+
+    DELEGATE_REFCOUNT(EditControllerEx1)
 
     [[nodiscard]] Krate::Plugins::PresetManager* presetManagerForTest() const noexcept {
         return presetManager_.get();  // model plugins/seraphis/src/controller/controller.h:196

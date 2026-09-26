@@ -13,6 +13,18 @@
 //   Arm E  - event-dense worst case (1024 reverse-ordered events in one 2048
 //            block), WARN-recorded, not gated.
 //
+// Phase 12 (SC-016, T052):
+//   - Arm P's first warm-up block carries the host's initial sync: every one of
+//     the 108 registered IDs at its registered default (kExpectedParams), so the
+//     gated quiescent arm runs with every route (MB / VP / ENG / CV / MAC /
+//     Local) wired at defaults. Arm D is unchanged: the defaults are inert
+//     (SC-019), so the direct chain is the same DSP state.
+//   - Arm A - IDs 201 (Cloud Tilt, MB) and 206 (Spectral Gravity, VP) automated
+//     every block; P_A / D WARN-recorded, not gated.
+//   - Arm E is also recorded against Phase 11's 1.79691e+07 ns (not gated).
+//   - R-5 remedy arm: T048 landed no remedy (artifacts/sc011_continuity.log), so
+//     the arm is N/A and the log records exactly that.
+//
 // kReferenceNs comes from the Phase 10 budget header (single source, never
 // re-typed), included through VORAGO_PERF_BUDGET_HEADER (tests/CMakeLists.txt).
 //
@@ -21,11 +33,14 @@
 // ==============================================================================
 
 #include "engine/vorago_engine_config.h"
+#include "plugin_ids.h"
+#include "unit/param_table_expected.h"
 #include "vorago_test_fixture.h"
 
 #include VORAGO_PERF_BUDGET_HEADER
 
 #include <vst_event_list.h>
+#include <vst_param_changes.h>
 
 #include <krate/dsp/effects/cavern_verb.h>
 #include <krate/dsp/primitives/smoother.h>
@@ -63,6 +78,11 @@ constexpr double kWrapperOverheadCeiling = 1.05;  // FR-067a
 constexpr std::size_t kDenseBlock = 2048;
 constexpr std::size_t kDenseEvents = 1024;  // == Processor::kMaxEventsPerBlock
 constexpr std::int16_t kDensePitch = 60;
+constexpr double kPhase11ArmENs = 1.79691e+07;  // Phase 11 recorded arm E best (SC-016)
+
+// Arm A: a triangle sweep over [0.2, 0.8] so every block carries a NEW value
+// (the trackers compare plain values; a repeated value would push nothing).
+constexpr std::size_t kSweepSteps = 64;
 
 using Clock = std::chrono::steady_clock;
 
@@ -155,11 +175,21 @@ TEST_CASE("Vorago_ProcessorCpu", "[vorago][.perf][performance]") {
         notesP.addNoteOn(static_cast<Steinberg::int16>(note), kCpuVelocity, 0);
     }
 
+    // SC-016: the host's initial sync - every registered ID at its registered
+    // default - so every route is wired before the quiescent measurement.
+    Krate::Test::ParameterChanges defaultsSync;
+    for (const VoragoTest::ExpectedParamRow& row : VoragoTest::kExpectedParams) {
+        defaultsSync.addChange(row.id, row.defaultNormalized);
+    }
+    REQUIRE(defaultsSync.getParameterCount() ==
+            static_cast<Steinberg::int32>(VoragoTest::kNumExpectedParams));
+
     // ---------------------------------------------------------------- arm D setup
     DirectChain chainD;
 
     // ---------------------------------------------------------------- warm-up (discarded)
     callP.data.inputEvents = &notesP;  // first warm-up block ONLY
+    callP.data.inputParameterChanges = &defaultsSync;
     REQUIRE(proc->process(callP.data) == Steinberg::kResultOk);
     callP.data.inputEvents = nullptr;  // detached for every later block
     callP.data.inputParameterChanges = nullptr;
@@ -200,7 +230,81 @@ TEST_CASE("Vorago_ProcessorCpu", "[vorago][.perf][performance]") {
     WARN("SC-014 P / kReferenceNs (" << Krate::DSP::TestUtils::Vorago::kReferenceNs
                                      << " ns, recorded only, FR-067): " << ratioRef);
 
-    REQUIRE(pBestNs <= kWrapperOverheadCeiling * dBestNs);  // FR-067a
+    if (ratioRef > 1.0) {
+        WARN("SC-016 SURFACE: arm P is ABOVE the Phase 10 30 % ceiling (kReferenceNs) by "
+             << ratioRef << "x - surface to the user, never absorbed");
+    }
+
+    REQUIRE(pBestNs <= kWrapperOverheadCeiling * dBestNs);  // FR-067a / SC-016
+
+    // ---------------------------------------------------------------- arm A (WARN only)
+    // SC-016: one MB ID (201) and one VP ID (206) automated every block.
+    VoragoTest::ProcessorFixture fixtureA;
+    fixtureA.prepare(kCpuSampleRate, static_cast<Steinberg::int32>(kCpuBlock));
+    ::Vorago::Processor* const procA = fixtureA.proc.get();
+    REQUIRE(procA != nullptr);
+
+    BareProcessCall callA(kCpuBlock);
+
+    // Built once before timing: one ParameterChanges per sweep step.
+    std::vector<Krate::Test::ParameterChanges> sweep(kSweepSteps);
+    for (std::size_t k = 0; k < kSweepSteps; ++k) {
+        const double phase = static_cast<double>(k) / static_cast<double>(kSweepSteps);
+        const double tri = (phase < 0.5) ? (2.0 * phase) : (2.0 - 2.0 * phase);
+        const double v = 0.2 + 0.6 * tri;
+        sweep[k].addChange(::Vorago::kCloudTiltId, v);
+        sweep[k].addChange(::Vorago::kCloudSpectralGravityId, 1.0 - v);
+    }
+    // Each step carries both IDs; consecutive triangle steps differ, so every block pushes.
+    for (std::size_t k = 0; k < kSweepSteps; ++k) {
+        REQUIRE(sweep[k].getParameterCount() == 2);
+    }
+
+    callA.data.inputEvents = &notesP;  // same notes + initial sync as arm P
+    callA.data.inputParameterChanges = &defaultsSync;
+    REQUIRE(procA->process(callA.data) == Steinberg::kResultOk);
+    callA.data.inputEvents = nullptr;
+
+    std::size_t sweepIndex = 0;
+    const auto nextSweep = [&sweep, &sweepIndex]() noexcept {
+        Krate::Test::ParameterChanges* pc = &sweep[sweepIndex];
+        sweepIndex = (sweepIndex + 1u) % kSweepSteps;
+        return pc;
+    };
+    for (std::size_t b = 1; b < kWarmupBlocks; ++b) {
+        callA.data.inputParameterChanges = nextSweep();
+        procA->process(callA.data);
+    }
+
+    double bestA = std::numeric_limits<double>::max();
+    double bestDA = std::numeric_limits<double>::max();
+    for (std::size_t trial = 0; trial < kTrials; ++trial) {
+        const Clock::time_point a0 = Clock::now();
+        for (std::size_t b = 0; b < kBlocksPerTrial; ++b) {
+            callA.data.inputParameterChanges = nextSweep();
+            procA->process(callA.data);
+        }
+        const Clock::time_point a1 = Clock::now();
+        bestA = std::min(bestA, elapsedNs(a0, a1));
+
+        const Clock::time_point d0 = Clock::now();
+        for (std::size_t b = 0; b < kBlocksPerTrial; ++b) {
+            chainD.processBlock();
+        }
+        const Clock::time_point d1 = Clock::now();
+        bestDA = std::min(bestDA, elapsedNs(d0, d1));
+    }
+
+    const double aBestNs = bestA / static_cast<double>(kBlocksPerTrial);
+    const double daBestNs = bestDA / static_cast<double>(kBlocksPerTrial);
+    WARN("SC-016 arm A best ns/block (IDs 201 + 206 automated every block): " << aBestNs);
+    WARN("SC-016 arm A interleaved arm D best ns/block: " << daBestNs);
+    WARN("SC-016 arm A P_A/D ratio (recorded, not gated): " << aBestNs / daBestNs);
+    WARN("SC-016 arm A / arm P (automation cost over quiescent): " << aBestNs / pBestNs);
+
+    // ---------------------------------------------------------------- R-5 remedy arm
+    // T048 (artifacts/sc011_continuity.log): "failing IDs (hand to T048): none".
+    WARN("SC-016 remedy arm: no R-5 remedy \xE2\x80\x94 arm N/A");
 
     // ---------------------------------------------------------------- arm E (WARN only)
     VoragoTest::ProcessorFixture fixtureE;
@@ -245,4 +349,7 @@ TEST_CASE("Vorago_ProcessorCpu", "[vorago][.perf][performance]") {
          << bestE);
     WARN("SC-014 arm E ratio to real time (2048 / 48000 s = " << denseBudgetNs
                                                               << " ns): " << bestE / denseBudgetNs);
+    WARN("SC-016 arm E vs Phase 11 recorded " << kPhase11ArmENs
+                                              << " ns (recorded, not gated): " << bestE
+                                              << " ns, ratio " << bestE / kPhase11ArmENs);
 }

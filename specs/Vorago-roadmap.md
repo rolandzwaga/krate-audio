@@ -549,6 +549,8 @@ both scripts.
 
 ### Phase 12: Full Parameter Surface & State
 
+**Status: ✅ COMPLETE (2026-09-26)** — see specs/vorago-phase12-parameters/compliance.md
+
 **Spec:** `vorago-phase12-parameters`
 
 All engine parameters registered/denormalized/persisted with `kCurrentStateVersion`; concept-macro
@@ -584,7 +586,7 @@ Phase 1           ├─→ Phase 4 (spectral smear) ──┤
 (events + ────────┼─→ Phase 5 (feedback ecology)─┼─→ Phase 10 (voice/engine) ─→ Phase 11 (scaffold) ✅
  Perlin/Aizawa)   ├─→ Phase 6 (subharmonic) ─────┤            ▲         │              │
                   ├─→ Phase 7 (bloom) ───────────┤            │         ▼              ▼
-                  └─→ Phase 8 (ecosystem) ───────┘            │   Phase 10a (ghost) ✅ → Phase 12 → 13 → 14
+                  └─→ Phase 8 (ecosystem) ───────┘            │   Phase 10a (ghost) ✅ → Phase 12 ✅ → 13 → 14
                                                               │
 AetherReverb ✅ (shipped) ─────────→ Phase 9 (cavern space) ───┘
 seraphis_voice/engine ✅ (shipped) ───────────────────────────┘  (pattern template, not code dep)

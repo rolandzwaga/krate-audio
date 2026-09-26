@@ -534,6 +534,20 @@ add_executable(dsp_systems_tests
     unit/systems/atmosphere_ghost_nonfinite_test.cpp
     unit/systems/atmosphere_ghost_perf_test.cpp
     unit/systems/vorago_ghost_ext_test.cpp
+    # Vorago Phase 12 (specs/vorago-phase12-parameters): the DSP side of the full
+    # parameter surface (VoragoMacroMatrix base overrides, VoragoVoiceParams /
+    # applyVoiceParams, per-tone sub level, re-prepare-proof ghost setters, the
+    # seven VoragoVoice forwarders). ENUMERATED, not globbed - an unregistered TU
+    # silently drops out of the build and its cases never run.
+    #   vorago_param_surface_test.cpp       SC-006, SC-019 (+ its [long] arms and
+    #                                       their short twins), SC-022, SC-023 (1),
+    #                                       FR-004's forwarder unit case - the
+    #                                       only Phase 12 entry in the
+    #                                       -fno-fast-math block below
+    #   vorago_macro_retune_probe_test.cpp  FR-060 retune probe  [.probe] - prints
+    #                                       only, never in CI
+    unit/systems/vorago_param_surface_test.cpp
+    unit/systems/vorago_macro_retune_probe_test.cpp
 )
 
 target_link_libraries(dsp_systems_tests
@@ -1006,6 +1020,8 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         # guards are proved in the /fp:fast + -ffast-math mode the header actually
         # ships in, and so the perf TU's figures are not changed by the flag.
         unit/systems/ecosystem_engine_nonfinite_test.cpp
+        # Vorago Phase 12: injects NaN/Inf bit patterns into the Phase 12 setters.
+        unit/systems/vorago_param_surface_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 

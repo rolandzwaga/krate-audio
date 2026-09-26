@@ -15,6 +15,32 @@ add_executable(vorago_tests
     integration/processor_audio_test.cpp
     integration/param_flow_test.cpp
     integration/processor_cpu_test.cpp
+    # Phase 12 (specs/vorago-phase12-parameters)
+    unit/state_v2_test.cpp
+    unit/param_table_test.cpp
+    integration/param_surface_test.cpp
+    integration/sustain_test.cpp
+    integration/channel_pressure_test.cpp
+    integration/seed_test.cpp
+    integration/automation_rt_test.cpp
+    integration/continuity_test.cpp
+    integration/soak_test.cpp
+    # Phase 12 parameter packs: one contract TU per pack
+    unit/params/global_ext_params_test.cpp
+    unit/params/cloud_params_test.cpp
+    unit/params/noise_params_test.cpp
+    unit/params/resonance_params_test.cpp
+    unit/params/ecology_params_test.cpp
+    unit/params/sub_params_test.cpp
+    unit/params/smear_params_test.cpp
+    unit/params/events_params_test.cpp
+    unit/params/ecosystem_params_test.cpp
+    unit/params/body_params_test.cpp
+    unit/params/space_params_test.cpp
+    unit/params/envelope_params_test.cpp
+    unit/params/bloom_params_test.cpp
+    unit/params/ghost_params_test.cpp
+    unit/params/life_params_test.cpp
 
     # SECOND compilation of every plugin .cpp (needed by the plugin-shell tests).
     # A new plugin .cpp must appear here AND in plugins/vorago/CMakeLists.txt.
@@ -73,6 +99,27 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/lifecycle_test.cpp            # bit-pattern finiteness over renders
         integration/processor_audio_test.cpp
         integration/param_flow_test.cpp
+        unit/state_v2_test.cpp             # SC-008 (5) NaN bit pattern per float field
+        unit/param_table_test.cpp          # SC-010 normalized NaN/+-Inf on every ID
+        integration/automation_rt_test.cpp # bit-pattern finiteness over renders
+        integration/continuity_test.cpp    # bit-pattern finiteness over renders
+        integration/soak_test.cpp          # bit-pattern finiteness over renders
+        # Phase 12 pack TUs: each injects NaN into its pack's loader
+        unit/params/global_ext_params_test.cpp
+        unit/params/cloud_params_test.cpp
+        unit/params/noise_params_test.cpp
+        unit/params/resonance_params_test.cpp
+        unit/params/ecology_params_test.cpp
+        unit/params/sub_params_test.cpp
+        unit/params/smear_params_test.cpp
+        unit/params/events_params_test.cpp
+        unit/params/ecosystem_params_test.cpp
+        unit/params/body_params_test.cpp
+        unit/params/space_params_test.cpp
+        unit/params/envelope_params_test.cpp
+        unit/params/bloom_params_test.cpp
+        unit/params/ghost_params_test.cpp
+        unit/params/life_params_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
     # integration/processor_cpu_test.cpp is DELIBERATELY ABSENT: the flag would

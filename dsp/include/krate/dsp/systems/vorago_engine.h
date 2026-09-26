@@ -89,6 +89,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <span>
+#include <type_traits>
 
 namespace Krate {
 namespace DSP {
@@ -139,6 +140,55 @@ struct VoragoEngineConfig {
     bool smearEnabled = true;
     std::size_t smearFftSize = 2048;
 };
+
+// =============================================================================
+// VoragoVoiceParams (Vorago Phase 12, FR-003)
+// =============================================================================
+
+/// @brief The run-time per-voice parameter set, broadcast by
+///        VoragoEngine::applyVoiceParams to every slot.
+///
+/// @par Layer: 3 (systems/). Plain data; copying is trivial and allocation-free.
+///
+/// NO FIELD HERE MAY NAME A VoragoMacroTarget (the seraphis_engine.h:110-112
+/// rule): those values reach the voices through VoragoMacroMatrix::setTargetBase,
+/// and a second write path would double-apply them.
+///
+/// It is *not* VoragoVoiceConfig, which is prepare-time. Every default member
+/// initializer is the voice's prepare() step-5 value, so broadcasting a
+/// default-constructed instance is a no-op on the render.
+struct VoragoVoiceParams {
+    static constexpr std::size_t kNumNoiseSlots = NoiseOrganism::kMaxSources;  // 4
+    static constexpr std::size_t kNumLoops = FeedbackEcology::kMaxLoops;       // 6
+
+    float stereoSpread = 0.45f;          // vorago_voice.h prepare(): setStereoSpread(0.45f)
+    float cloudSpectralGravity = 0.10f;  // vorago_voice.h prepare(): cloud_.setSpectralGravity(0.10f)
+    ContinuousBody::BodyMaterial bodyMaterialA = ContinuousBody::BodyMaterial::StoneChamber;
+    ContinuousBody::BodyMaterial bodyMaterialB = ContinuousBody::BodyMaterial::SteelTank;
+    std::array<NoiseOrganismModel, kNumNoiseSlots> noiseModel{
+        {NoiseOrganismModel::FilteredWind, NoiseOrganismModel::GranularDust,
+         NoiseOrganismModel::Direct, NoiseOrganismModel::MetallicHiss}};
+    /// The REQUESTED type; the organism's own default (noise_organism.h:1138).
+    std::array<NoiseType, kNumNoiseSlots> noiseType{
+        {NoiseType::Brown, NoiseType::Brown, NoiseType::Brown, NoiseType::Brown}};
+    std::array<float, kNumNoiseSlots> noiseCombFundamentalHz{{60.0f, 60.0f, 60.0f, 60.0f}};
+    std::array<float, kNumNoiseSlots> noiseCombSpread{{0.35f, 0.35f, 0.35f, 0.35f}};
+    /// C-4: the per-model defaults the slots run at after prepare().
+    std::array<float, kNumNoiseSlots> noiseCombFeedback{
+        {NoiseOrganism::kDefaultCombFeedback, NoiseOrganism::kDefaultCombFeedback,
+         NoiseOrganism::kDefaultCombFeedback, NoiseOrganism::kMetallicCombFeedback}};
+    ResonanceDriftNetwork::AnchorMode resonanceAnchorMode =
+        ResonanceDriftNetwork::AnchorMode::Hybrid;
+    std::array<FeedbackEcology::FilterMode, kNumLoops> ecologyLoopFilterMode{
+        {FeedbackEcology::FilterMode::Lowpass, FeedbackEcology::FilterMode::Lowpass,
+         FeedbackEcology::FilterMode::Lowpass, FeedbackEcology::FilterMode::Lowpass,
+         FeedbackEcology::FilterMode::Lowpass, FeedbackEcology::FilterMode::Lowpass}};
+
+    /// 2 + 2 + 4 x 5 + 1 + 6 = 31 scalar values (FR-003).
+    static constexpr std::size_t kFieldCount = 31;
+};
+static_assert(std::is_trivially_copyable_v<VoragoVoiceParams>);
+static_assert(VoragoVoiceParams::kNumNoiseSlots == 4 && VoragoVoiceParams::kNumLoops == 6);
 
 // =============================================================================
 // VoragoEngine
@@ -199,6 +249,8 @@ public:
     /// FR-053. Low drive (roadmap line 462): the saturator is a gluing stage,
     /// not an effect.
     static constexpr float kOutputSaturation = 0.12f;
+    /// The shipped drive, and outputDriveDb_'s initial value. Since Phase 12
+    /// (spec B-2) prepare() installs the STORED drive, not this constant.
     static constexpr float kOutputDriveDb = 0.0f;
     static constexpr float kOutputCeilingDb = -0.3f;
 
@@ -287,7 +339,7 @@ public:
         // Phase 10a FR-030's config shadow. It lands HERE - the step that already
         // turns cfg fields into engine state - and NOT in the FR-017 block, which
         // gains exactly one line (the setGrainReverseProbability forward).
-        ghostEventTriggers_ = cfg.atmosGhostEventTriggers;
+        if (!ghostTriggersSet_) { ghostEventTriggers_ = cfg.atmosGhostEventTriggers; }  // FR-006
         ghostTriggerHigh_ = false;  // FR-031's latch starts disarmed
 
         // --- 3. voices: seed, then prepare, for ALL kMaxVoices (FR-042) ------
@@ -320,7 +372,8 @@ public:
         atmos_.setPositionSpread(0.90f);  // read ages scatter across the capture
         atmos_.setBlur(atmosBlur_);       // roadmap line 114's darker blur default (0.85)
         atmos_.setDecorrelation(0.85f);   // wide, unlocalised
-        atmos_.setGrainReverseProbability(cfg.atmosGhostReverseProbability);  // FR-034, dflt 0
+        if (!ghostReverseSet_) { ghostReverseProbability_ = cfg.atmosGhostReverseProbability; }  // FR-006
+        atmos_.setGrainReverseProbability(ghostReverseProbability_);  // FR-034, dflt 0
         // Event-driven: the BASE is 0.0 and the control step writes
         // ghostPeak_ * max(getGhostRequest()) every chunk (T015).
         atmos_.setLevel(0.0f);
@@ -346,7 +399,7 @@ public:
         // these values instead of gliding into them, which is what SC-026
         // compares against a reset() one.
         sub_.prepare(sr, SubharmonicEngine::PrepareConfig{.maxBlockSamples = maxBlock});
-        applySubToneLevels();            // kDefaultToneLevelDb + subToneOffsetDb_
+        applySubToneLevels();            // subToneBaseDb_ + subToneOffsetDb_
         sub_.setTrackingAmount(subTracking_);
         sub_.reset();                    // re-snap both ramps to the values above
         // FR-051: the fundamental is HELD. prepare() does not invent one - the
@@ -366,8 +419,8 @@ public:
         // The setters run BEFORE prepare() so the saturator's parameter
         // smoothers are SNAPPED to them (tape_saturator.h:164-168) instead of
         // ramping in from the ctor defaults.
-        satL_.setDrive(kOutputDriveDb);
-        satR_.setDrive(kOutputDriveDb);
+        satL_.setDrive(outputDriveDb_);  // Phase 12 (spec B-2): the STORED drive
+        satR_.setDrive(outputDriveDb_);
         satL_.setSaturation(outputSaturation_);
         satR_.setSaturation(outputSaturation_);
         satL_.setMix(1.0f);
@@ -377,6 +430,11 @@ public:
         // the cadence processOutputStage drives it on, not because it is a limit.
         satL_.prepare(sr, kControlChunkSamples);
         satR_.prepare(sr, kControlChunkSamples);
+        // spec B-2 makeup: ramped per sample over the SAME 5 ms the saturators
+        // ramp their drive gain (tape_saturator.h:159-165), and SNAPPED here
+        // for the same reason their smoothers are.
+        makeupSm_.configure(TapeSaturator::kDefaultSmoothingMs, static_cast<float>(sr));
+        makeupSm_.snapTo(dbToGain(-outputDriveDb_));
 
         limiter_.setCeilingDb(kOutputCeilingDb);  // true_peak_limiter.h:85
         limiter_.prepare(sr, kMaxBlockSamples);   // chunks internally (:104-118)
@@ -550,6 +608,31 @@ public:
     }
 
     [[nodiscard]] std::uint32_t getSeed() const noexcept { return seed_; }
+
+    /// @brief Phase 12 (spec B-4 / FR-023). Rewind every slot that is NOT
+    ///        rendering, so a seed change applied while silent reproduces a
+    ///        fresh instance prepared at that seed (SC-014 (4)).
+    ///
+    /// setSeed() only re-seeds each component's stream (its documented
+    /// contract, kept unchanged for every existing caller and golden): state a
+    /// component drew from the OLD seed at prepare()/reset() time - modulator
+    /// phases, scheduler positions, body pre-rolls - survives it. Rewinding a
+    /// silent slot with resetForRecovery() (RT-safe, B-7) re-draws that state
+    /// from the new streams. Sounding slots are left alone: their seed is part
+    /// of the note they are playing (spec Q6).
+    ///
+    /// @note Real-time safe; allocation-free (resetForRecovery is). No-op
+    ///       before prepare().
+    void rewindIdleVoices() noexcept {
+        if (!prepared_) {
+            return;
+        }
+        for (std::size_t v = 0; v < kMaxVoices; ++v) {
+            if (voices_[v].isConfigurable()) {
+                voices_[v].resetForRecovery();
+            }
+        }
+    }
 
     // =========================================================================
     // Notes (FR-044)
@@ -756,11 +839,49 @@ public:
     }
 
     // =========================================================================
+    // Phase 12 parameter surface (FR-003)
+    // =========================================================================
+
+    /// @brief Broadcast the run-time voice parameter set to EVERY slot.
+    ///
+    /// THE BOUND IS kMaxVoices, NOT getPolyphony() (the seraphis_engine.h:704-713
+    /// reason): setPolyphony() leaves an excess slot rendering its release as an
+    /// orphan tail and processStereoBlock's loop bound is kMaxVoices
+    /// unconditionally, so a polyphony bound would leave that tail - and any slot
+    /// the allocator hands out after a polyphony increase - on stale values.
+    ///
+    /// Every forwarder early-outs an unchanged value (the T008 forwarders,
+    /// HarmonicCloud::setStereoSpread, ContinuousBody::setMaterial), so a repeated
+    /// identical broadcast is inert (SC-023 (1)). VoragoVoice::prepare()
+    /// re-installs the defaults, so callers re-push after every prepare().
+    ///
+    /// @par Real-Time Safety: allocation-, lock-, exception- and I/O-free.
+    void applyVoiceParams(const VoragoVoiceParams& p) noexcept {
+        for (std::size_t v = 0; v < kMaxVoices; ++v) {
+            VoragoVoice& voice = voices_[v];
+            voice.setStereoSpread(p.stereoSpread);
+            voice.setCloudSpectralGravity(p.cloudSpectralGravity);
+            voice.setBodyMaterialA(p.bodyMaterialA);
+            voice.setBodyMaterialB(p.bodyMaterialB);
+            for (std::size_t s = 0; s < VoragoVoiceParams::kNumNoiseSlots; ++s) {
+                voice.setNoiseSourceModel(s, p.noiseModel[s]);
+                voice.setNoiseSourceType(s, p.noiseType[s]);
+                voice.setNoiseCombTuning(s, p.noiseCombFundamentalHz[s], p.noiseCombSpread[s]);
+                voice.setNoiseCombFeedback(s, p.noiseCombFeedback[s]);
+            }
+            voice.setResonanceAnchorMode(p.resonanceAnchorMode);
+            for (std::size_t l = 0; l < VoragoVoiceParams::kNumLoops; ++l) {
+                voice.setEcologyLoopFilterMode(l, p.ecologyLoopFilterMode[l]);
+            }
+        }
+    }
+
+    // =========================================================================
     // The global chain's own surface (the Engine-owned macro targets)
     // =========================================================================
 
     /// @brief FR-068's Weight row. A shared offset fanned out over the three
-    ///        tones, on top of SubharmonicEngine::kDefaultToneLevelDb.
+    ///        tones, on top of the per-tone base (setSubToneLevelDb, FR-005).
     void setSubToneLevelOffsetDb(float dB) noexcept {
         if (!detail::isFinite(dB)) {
             return;  // FR-071: rejected, the previous value stands
@@ -779,6 +900,30 @@ public:
         applySubToneLevels();
     }
     [[nodiscard]] float getSubToneLevelOffsetDb() const noexcept { return subToneOffsetDb_; }
+
+    /// @brief FR-005. Per-tone BASE under the shared macro offset:
+    ///        level(t) = subToneBaseDb_[t] + subToneOffsetDb_.
+    ///
+    /// Out-of-range tone / non-finite dB: no-op (the previous value stands).
+    /// An UNCHANGED value early-outs for the setSubToneLevelOffsetDb reason
+    /// above (a re-armed LinearRamp stretches an in-flight glide), and only
+    /// tone t is written, so the other two tones' in-flight ramps are never
+    /// re-armed. The owner clamps the sum (SubharmonicEngine::setToneLevelDb).
+    /// The base is an engine field that applySubToneLevels() reads, so it
+    /// survives prepare().
+    void setSubToneLevelDb(std::size_t tone, float dB) noexcept {
+        if (tone >= SubharmonicEngine::kNumTones || !detail::isFinite(dB)) {
+            return;
+        }
+        if (dB == subToneBaseDb_[tone]) {
+            return;
+        }
+        subToneBaseDb_[tone] = dB;
+        sub_.setToneLevelDb(tone, subToneBaseDb_[tone] + subToneOffsetDb_);
+    }
+    [[nodiscard]] float getSubToneLevelDb(std::size_t tone) const noexcept {
+        return (tone < SubharmonicEngine::kNumTones) ? subToneBaseDb_[tone] : 0.0f;
+    }
 
     void setSubTrackingAmount(float a) noexcept {
         if (!detail::isFinite(a)) {
@@ -838,6 +983,35 @@ public:
     }
     [[nodiscard]] float getGhostPeakLevel() const noexcept { return ghostPeak_; }
 
+    /// Vorago Phase 12 FR-006: the ghost grain reverse probability. Survives a
+    /// re-prepare - prepare() uses the config value only until this is called.
+    /// @param p Clamped [0, 1]; non-finite is rejected (the previous value stands).
+    void setGhostReverseProbability(float p) noexcept {
+        if (!detail::isFinite(p)) {
+            return;  // FR-071: rejected (the atmosphere itself would map NaN to 0)
+        }
+        ghostReverseProbability_ = std::clamp(p, 0.0f, 1.0f);
+        ghostReverseSet_ = true;
+        atmos_.setGrainReverseProbability(ghostReverseProbability_);  // birth-time read
+    }
+    [[nodiscard]] float getGhostReverseProbability() const noexcept {
+        return atmos_.getGrainReverseProbability();
+    }
+
+    /// Vorago Phase 12 FR-006: Phase 10a FR-030's event-trigger switch as a
+    /// parameter. on -> off disarms FR-031's latch (SC-022 (2)). Survives a
+    /// re-prepare - prepare() uses the config value only until this is called.
+    void setGhostEventTriggers(bool on) noexcept {
+        if (ghostEventTriggers_ && !on) {
+            ghostTriggerHigh_ = false;  // on -> off disarms
+        }
+        ghostEventTriggers_ = on;
+        ghostTriggersSet_ = true;
+    }
+    [[nodiscard]] bool getGhostEventTriggers() const noexcept { return ghostEventTriggers_; }
+    /// Test observable: FR-031's trigger latch.
+    [[nodiscard]] bool isGhostTriggerLatchHigh() const noexcept { return ghostTriggerHigh_; }
+
     void setAtmosBlur(float a) noexcept {
         if (!detail::isFinite(a)) {
             return;  // FR-071: rejected, the previous value stands
@@ -856,6 +1030,34 @@ public:
         satR_.setSaturation(outputSaturation_);
     }
     [[nodiscard]] float getOutputSaturation() const noexcept { return outputSaturation_; }
+
+    /// Vorago Phase 12, spec B-2: MAKEUP-COMPENSATED output drive (the
+    /// Pressure macro's target). +d dB goes into both TapeSaturators and
+    /// -d dB of linear gain is applied after them, before the limiter, so the
+    /// loudness stays level while the tanh curvature lowers the crest factor.
+    /// 0 dB (the default, == kOutputDriveDb) is bit-equal to the shipped stage:
+    /// processOutputStage skips the makeup multiply entirely at 0 once the
+    /// makeup ramp has settled there.
+    /// The makeup gain is a per-sample OnePoleSmoother target (5 ms, the
+    /// saturators' own drive smoothing time) - a plain per-chunk scalar stepped
+    /// at block rate and failed SC-011 for the Pressure macro (ratio 2.19),
+    /// measured 2026-09-25 - plus the saturators' own setTarget (FR-067).
+    /// @param d Clamped [TapeSaturator::kMinDriveDb, kMaxDriveDb]; non-finite
+    ///        is rejected (the previous value stands).
+    void setOutputDriveDb(float d) noexcept {
+        if (!detail::isFinite(d)) {
+            return;  // FR-071: rejected, the previous value stands
+        }
+        outputDriveDb_ = std::clamp(d, TapeSaturator::kMinDriveDb, TapeSaturator::kMaxDriveDb);
+        if (prepared_) {
+            makeupSm_.setTarget(dbToGain(-outputDriveDb_));  // ramped, like the drive
+        } else {
+            makeupSm_.snapTo(dbToGain(-outputDriveDb_));  // prepare() snaps again
+        }
+        satL_.setDrive(outputDriveDb_);
+        satR_.setDrive(outputDriveDb_);
+    }
+    [[nodiscard]] float getOutputDriveDb() const noexcept { return outputDriveDb_; }
 
     // =========================================================================
     // Render (FR-050, FR-053, FR-072, AR-1, B-5)
@@ -1011,6 +1213,16 @@ public:
             const std::size_t slice = std::min(kControlChunkSamples, n - done);
             satL_.process(l + done, slice);  // tape_saturator.h:335 - mono, in place
             satR_.process(r + done, slice);
+            // spec B-2 makeup, ramped per sample. The short-circuit keeps the
+            // default stage bit-equal to the shipped one: at 0 dB with the ramp
+            // settled on 1.0 no multiply runs at all.
+            if (outputDriveDb_ != 0.0f || !makeupSm_.isComplete()) {
+                for (std::size_t i = 0; i < slice; ++i) {
+                    const float g = makeupSm_.process();
+                    l[done + i] *= g;
+                    r[done + i] *= g;
+                }
+            }
         }
         limiter_.processBlock(l, r, static_cast<int>(n));  // true_peak_limiter.h:104
     }
@@ -1153,7 +1365,7 @@ private:
 
     void applySubToneLevels() noexcept {
         for (std::size_t t = 0; t < SubharmonicEngine::kNumTones; ++t) {
-            sub_.setToneLevelDb(t, SubharmonicEngine::kDefaultToneLevelDb[t] + subToneOffsetDb_);
+            sub_.setToneLevelDb(t, subToneBaseDb_[t] + subToneOffsetDb_);
         }
     }
 
@@ -1568,10 +1780,19 @@ private:
     bool ghostEventTriggers_ = false;  ///< FR-030's config shadow
     bool ghostTriggerHigh_ = false;    ///< FR-031's latch, the VoragoVoice::eventWasActive_
                                        ///< shape (vorago_voice.h:1775-1784)
+    float ghostReverseProbability_ = 0.0f;  ///< FR-006 (Phase 12)
+    bool ghostReverseSet_ = false;          ///< FR-006: the setter overrides the config
+    bool ghostTriggersSet_ = false;         ///< FR-006: the setter overrides the config
     float subToneOffsetDb_ = 0.0f;
+    /// FR-005's per-tone base, initialised to the shipped constants so
+    /// applySubToneLevels() computes the identical float sum until a set.
+    std::array<float, SubharmonicEngine::kNumTones> subToneBaseDb_ =
+        SubharmonicEngine::kDefaultToneLevelDb;
     float subTracking_ = kDefaultSubTracking;
     float atmosBlur_ = kDefaultAtmosBlur;
     float outputSaturation_ = kOutputSaturation;
+    float outputDriveDb_ = kOutputDriveDb;  ///< spec B-2 (Phase 12)
+    OnePoleSmoother makeupSm_;              ///< -> dbToGain(-outputDriveDb_), 5 ms per-sample ramp
 
     std::uint32_t nonFinitePending_ = 0u;      ///< FR-072's deferred-reset bitmask (T015)
     std::uint32_t nonFiniteRecoveries_ = 0u;   ///< FR-072's lifetime counter

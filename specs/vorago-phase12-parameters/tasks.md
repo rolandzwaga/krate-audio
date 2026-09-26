@@ -219,28 +219,81 @@ These add coverage only; SC-008 / SC-018 still exercise the packs in aggregate.
   row's `CHECK`s pass with rho ≥ 0.9 and endpoint ≥ 0.25 dB; every axis that passed in Phase 10 still
   passes; Gravity/Pressure still fail exactly as before (expected until T007). Record the Mass figures.
 
-### T007 — Gravity / Pressure rows — two fixed paths per axis, chosen by T005
+### T007 — Gravity and Pressure new targets (spec B-1 / B-2; FR-060, SC-021)
 
-- **Precondition:** T005 has recorded Q9. **Path A (admissible set found):** land exactly that set as real
-  `kRows` rows (plan §2.6 step 3), with `kNumRows` and its comment formula updated, curves
-  Linear/Exponential/SCurve only, new rows carrying their target's existing base, and
-  `VoragoMacroTarget::Count` untouched for that axis.
-- **Path B (R-1, axis unreachable on the 39 targets):** add one new `VoragoMacroTarget` for the axis in
-  its owner block (Pressure: an Engine-owned `OutputDriveDb` target whose setter replaces the
-  `kOutputDriveDb` constant read, `vorago_engine.h:202`, default = that constant; Gravity: a Voice-owned
-  resonance wander-depth target forwarded to the existing 1.5 st wander depth, `vorago_voice.h:575`,
-  default = the shipped value — or another target the probe data predicts reaches the threshold, named in
-  Q9). Requirements: base equals the shipped chain's value (SC-002 unchanged, SC-006 (1) holds); the new
-  setter is `noexcept`, RT-safe, ramped/inert at default; exactly one new `kRows` row per new target,
-  contributing zero at macro-neutral; `Count` 40 or 41, `kNumTargets` and every per-target table/array
-  sized from `Count` (grep `kNumTargets` and the three static_asserts, `vorago_macro_matrix.h:1107`);
-  **no parameter ID, no route entry** (`kMbRoutes[39]` and `kParamRoutes[108]` stay; any static_assert
-  tying MB to `Count` is written against `kMbRoutes` size). Extend `VoragoMacro_TargetBaseOverride` to
-  the new target(s). Failing test first: the unedited `VoragoMacro_SweepAxes` row for the axis.
-- **Verify (when executable):** `VoragoMacro_SweepAxes` and `VoragoComposed_DepthMacroAxis`
-  (`dsp/tests/unit/effects/vorago_composed_chain_test.cpp:623`) run alone to logs; all twelve axes pass at
-  Phase 10's unchanged thresholds; SC-002 (T036) stays green.
-- **Otherwise (either path fails the threshold after landing):** STOP AND SURFACE with the figures.
+Two parts, ONE task: both edit `vorago_macro_matrix.h` and the same test TU. File list for the whole task: `dsp/include/krate/dsp/systems/resonance_drift_network.h`, `vorago_voice.h`, `vorago_engine.h`, `vorago_macro_matrix.h`, `dsp/tests/unit/systems/vorago_param_surface_test.cpp`, `dsp/tests/unit/systems/vorago_macro_retune_probe_test.cpp`. Part 2 lands its drive row with a PROVISIONAL amount A = 12 dB; the main loop runs the drive probe alone after this group's gate and adjusts A to the smallest passing amount (recorded as spec Q10).
+
+#### T007, part 1 — Gravity: `ResonanceOctaveLock` target + row (spec B-1)
+
+- **Ruling (spec Clarifications Q9 / B-1, 2026-09-24):** the probe found no admissible set (best
+  G-a+G-b 0.2024 < 0.30); the wander-depth idea is rejected. Land the octave-lock target.
+- **Failing test first:** the unedited `VoragoMacro_SweepAxes` Gravity row (T004 baseline 0.1801). Add to
+  `vorago_param_surface_test.cpp` a `ResonanceDriftNetwork` unit case: lock 0 is **bit-equal** to the
+  shipped anchors (compare `getPeakCurrentFrequency` over all peaks after `prepare`+`setNoteFrequency`+
+  `setGravity(1)`, exact ==); lock 1 puts every keyed anchor's `log2(f / note)` within 1e-4 of an
+  integer (measure at wander depth 0 via `setFreqWander(p, 0)`); non-finite and out-of-range inputs are
+  rejected / clamped. Extend `VoragoMacro_TargetBaseOverride` to the new target.
+- **Implement, `resonance_drift_network.h` (Vorago-only, FR-007 as widened by B-1):** member
+  `float octaveLock_ = 0.0f;`; `void setOctaveLock(float lock) noexcept` (reject non-finite, clamp
+  [0, 1], set `anchorsDirty_`), `getOctaveLock()`. In the anchor recompute (the `keyedLog2` line near
+  `:1430`): `const float ratioL2 = (octaveLock_ > 0.0f) ? p.ratioLog2 + octaveLock_ * (std::round(p.ratioLog2) - p.ratioLog2) : p.ratioLog2;`
+  then `keyedLog2 = noteLog2 + ratioL2`. The `> 0` short-circuit keeps lock 0 bit-equal (same pattern as
+  the Free branch's comment). Applies in Keyed and Hybrid modes alike (Keyed uses the keyed anchor
+  directly — read the switch first).
+- **Implement, `vorago_voice.h`:** forwarder `setResonanceOctaveLock(float)` / getter onto
+  `resonance_`, next to `setResonanceGravity`.
+- **Implement, `vorago_macro_matrix.h`:** enumerator `ResonanceOctaveLock` at the END of the Voice
+  block (before the Engine block; keep the owner-block biconditional and `kFirstEngineTarget` correct —
+  read `:254-265` and every table sized from `Count`/`kNumTargets`; grep `kNumTargets`, `cavernFieldIndex`,
+  `literalBaseFor` and the three static_asserts); `apply()` writes it through the voice forwarder in the
+  `i < engine.getPolyphony()` loop like the other Voice targets. New row at the end of the Gravity
+  block: `{.macro = VoragoMacro::Gravity, .owner = Voice, .target = ResonanceOctaveLock, .base = 0.0f, .amount = 1.0f, .curve = ModCurve::Linear}`
+  — Gravity's bipolar contribution `amount·curve(|g|)·sign(g)` is +1 at stone, 0 at neutral, −1 at air,
+  and the setter's clamp makes the air end 0 (inert). `kNumRows` 47 → 48, comment formula updated.
+  Update the stale "24 Voice-owned" / "39" counts in the header comments and `Count` references
+  (`Count` is 40 after part 1, 41 after part 2).
+- **Verify:** BUILD `dsp_systems_tests dsp_effects_tests vorago_tests` zero warnings; RUN the new unit
+  case, `VoragoMacro_TargetBaseOverride`, `"VoragoMacro_*" "~[long]"` and `"VoragoEngine_*" "~[long]~[.perf]~[performance]"`
+  green; the T036 SC-002 guard (once it exists) stays green because the base is 0. Then **alone**:
+  `dsp_systems_tests.exe "VoragoMacro_SweepAxes" > artifacts/sc021_sweepaxes_gravity.log 2>&1` —
+  Gravity rho ≤ −0.9 and endpoint ≥ 0.30 at Phase 10's unchanged threshold; every other axis unchanged.
+  If Gravity still fails: STOP AND SURFACE with the figures. Never move a threshold, never move a base.
+
+#### T007, part 2 — Pressure: `OutputDriveDb` compensated target + P-a retune + drive probe (spec B-2)
+
+- **Ruling (spec Q9 / B-2):** best existing set 1.5030 dB < 3 dB. Land a makeup-compensated drive target
+  together with the P-a saturation retune, then probe the drive amount and land the smallest that passes.
+- **Failing test first:** the unedited `VoragoMacro_SweepAxes` Pressure row (baseline 0.0736 dB). Add to
+  `vorago_param_surface_test.cpp`: `setOutputDriveDb(0)` is bit-equal to the shipped output stage on a
+  64-block render (exact ==); `setOutputDriveDb(12)` on a −12 dBFS 110 Hz tone keeps RMS within 1 dB of
+  the 0 dB case (compensation) while lowering crest factor; non-finite rejected, clamp
+  [`TapeSaturator::kMinDriveDb`, `kMaxDriveDb`]. Extend `VoragoMacro_TargetBaseOverride`.
+- **Implement, `vorago_engine.h`:** replace the `kOutputDriveDb` constant reads (`:369-370`) with a member
+  `outputDriveDb_ = 0.0f` and `makeupGain_ = 1.0f`; `void setOutputDriveDb(float d) noexcept` (reject
+  non-finite, clamp to the saturator range, `satL_/satR_.setDrive(d)`, `makeupGain_ = dbToGain(-d)`
+  using the existing dB helper in the header), `getOutputDriveDb()`. In `processOutputStage`, after both
+  saturators and before `limiter_.processBlock`, multiply the slice by `makeupGain_` when `outputDriveDb_ != 0`
+  (the `!= 0` short-circuit keeps the default bit-equal). `prepare()` re-applies the stored drive.
+- **Implement, `vorago_macro_matrix.h`:** enumerator `OutputDriveDb` at the END of the Engine block
+  (before the Cavern block; `kFirstCavernTarget` and `cavernFieldIndex` must stay correct), written by
+  `apply()` via `setOutputDriveDb`. P-a retune: the existing `Pressure → OutputSaturation` row's amount
+  0.35 → 0.88 (base 0.12 unchanged). New row `{.macro = Pressure, .owner = Engine, .target = OutputDriveDb, .base = 0.0f, .amount = A, .curve = ModCurve::Linear}`.
+  `kNumRows` 48 → 49; `Count` 40 → 41.
+- **Drive probe (alone, after the build is green):** extend `vorago_macro_retune_probe_test.cpp` with a
+  second hidden case `VoragoMacro_Phase12DriveProbe` `[.probe]` that emulates, through `setTargetBase`,
+  P-a (+0.53 saturation delta) plus `OutputDriveDb` at A ∈ {6, 12, 18, 24} dB on the Pressure fixture,
+  printing rho / endpoint / PASS-FAIL exactly like T004. Run alone:
+  `dsp_systems_tests.exe "VoragoMacro_Phase12DriveProbe" > artifacts/fr060_drive_probe.log 2>&1`.
+  The implementer writes the probe TU and lands A = 12 dB provisionally; the MAIN LOOP runs the probe
+  and sets **A = the smallest amount that PASSES** (rho ≤ −0.9, endpoint ≥ 3 dB), recording the table
+  in spec Clarifications as **Q10**. If none passes: STOP AND SURFACE with the figures. Outcome (2026-09-25, spec Q10 / B-7): no
+  drive amount alone passes (2.60 dB at +24); the landed set is drive **+18 dB** plus a new
+  `Pressure → SubToneLevelOffsetDb` −12 dB row (3.5217 dB), `kNumRows` 50.
+- **Verify:** zero-warning build; the new unit cases, `VoragoMacro_TargetBaseOverride`,
+  `"VoragoMacro_*" "~[long]"` green; then **alone**:
+  `dsp_systems_tests.exe "VoragoMacro_SweepAxes" > artifacts/sc021_sweepaxes_all.log 2>&1` — all twelve
+  axes pass at Phase 10's unchanged thresholds — and
+  `dsp_effects_tests.exe "VoragoComposed_DepthMacroAxis" > artifacts/sc021_depth_axis.log 2>&1`.
   Never move a threshold, never move a base.
 
 ---
@@ -363,8 +416,9 @@ are Layer 3 and already include what they need).
   six held notes (36, 43, 48, 55, 60, 67; velocity 100), 10 s at 48 kHz. Arm A: non-default `p` (every
   field changed, comb fundamental 440 Hz) + `setSubToneLevelDb(t, v_t)` (−12/−20/−36) called once.
   Arm B: identical calls repeated every 512-sample block. `REQUIRE(maxAbsDiff ≤ 1e-5)` per channel.
-  Positive control arm C: as A but slot 2's model written alternately `Direct` / `FilteredWind` every
-  block → `rmsDiff(A, C) > 1e-3`. Add an untagged 2 s twin `VoragoEngine_RepeatedBroadcastIsInert_Short`
+  Positive control arm C (spec B-3, 2026-09-25): as A but `bodyMaterialA` written alternately the
+  fixture's material / `Glass` every block through `applyVoiceParams` → `rmsDiff(A, C) > 1e-3`
+  (the slot-2 model toggle measured 2.1e-6 and is rejected). Add an untagged 2 s twin `VoragoEngine_RepeatedBroadcastIsInert_Short`
   with the same bounds.
 - **Verify:** BUILD; RUN the short twin; RUN the `[long]` case alone. If arm B diverges, the defect is a
   missing early-out in T008/T010 — fix there, never loosen 1e-5.
@@ -839,8 +893,8 @@ render comparisons use `maxAbsDiff` / `rmsDiff` / `peakOf` / `allFinite` from
 - **Implement:** `lastCv_[8]`, `lastFreeze_`, `cvValid_`; `pushCavernParams()` calling `setDensity`,
   `setDimensionality`, `setBreath`, `setEarlySizeMs`, `setEarlyLevel`, `setEarlyAbsorption`, `setEarlySend`,
   `setDamperRate`, `setFreeze` on change.
-- **Verify:** BUILD zero warnings; RUN SECTION `"Cavern"` + SC-002 guard. A failing non-vacuity check on an
-  ID means the test value is inaudible in 4 s — lengthen the render, never loosen.
+- **Verify:** BUILD zero warnings; RUN SECTION `"Cavern"` + SC-002 guard. Non-vacuity runs on the cavern
+  component under seeded white noise (spec B-5, 2026-09-25); the `1e-3` bound is never loosened.
 
 ### T041 — `pushAllSurfaces`, re-prepare, default read-back, host re-send, latency (FR-022, SC-003, SC-004 re-prepare, SC-017, SC-023 (2))
 
@@ -993,9 +1047,10 @@ render comparisons use `maxAbsDiff` / `rmsDiff` / `peakOf` / `allFinite` from
   class B 12 IDs: 64 indices from a checked-in sequence `kDiscreteStepSeq` generated from seed 12011 with
   no index equal to its predecessor, ID 403's sequence containing all six ordered pairs; for 320–323 the
   slot model is set to Direct at sample 0; class C 11 IDs: same stepping, clause 4 only). Per ID: 48 kHz,
-  512 blocks, note C2 vel 100 from 0, 1 s warm-up, steps 125 ms apart. Clause 1: `maxDeltaInWindow`
-  (`tests/test_helpers/vorago_fixtures.h:381`) over ±10 ms centred on `step + 3072`; clause 2: 64 reference
-  windows midway between steps (same shift); clause 3: `max(test) ≤ 1.5 × max(ref)` for classes A and B;
+  512 blocks, note C2 vel 100 from 0, 1 s warm-up, steps 27 blocks (288 ms) apart (spec B-6). Clause 1:
+  max of `maxDeltaInWindow` (`tests/test_helpers/vorago_fixtures.h:381`) over three ±10 ms windows
+  centred on `step + {0, 1024, 3072}`; clause 2: the same three windows at the midpoint between steps
+  (symmetric draws); clause 3: `max(test) ≤ 1.5 × max(ref)` for classes A and B;
   clause 4 (all 108): every sample finite, peak ≤ −0.3 dBFS. Positive controls: (a) a one-sample step of
   2 × a reference window's own statistic injected into that window must exceed the bound; (b) with the
   probe engaged, master gain's 64-step render must **fail** clause 3. Print a per-ID table.
@@ -1124,7 +1179,7 @@ render comparisons use `maxAbsDiff` / `rmsDiff` / `peakOf` / `allFinite` from
 G1 T001 → T002
 G2 T003
 G3 T004 → T005 (probe read-out; ruling R-1 pre-taken; blocks T007 only)
-G4 T006 → T007 (path A or B per T005)
+G4 T006 → T007 (parts 1 and 2: spec B-1 / B-2 designs)
 G5 T008 → T009 → T010 → T011 → T012 → T013
 G6 T014 → T015
 G7 T016..T029 [P]

@@ -55,11 +55,22 @@
 // twice - once with apply() called once before the render, once with it called
 // at every control chunk - and requires the two renders to be bit-identical.
 //
-// NOT PROVIDED, DELIBERATELY: setTargetBase / resetTargetBases / getTargetBase.
-// Those are Phase 12's surface (FR-069), and their ABSENCE is what keeps
-// everyRowSharesOneBasePerTarget() a compile-time guarantee and SC-009 clause 1
-// unconditional - a per-target base override would make the seeded base a
-// run-time quantity that no static_assert can reach.
+// PER-TARGET BASE OVERRIDE (Phase 12, specs/vorago-phase12-parameters FR-001 /
+// FR-002): setTargetBase / resetTargetBases / getTargetBase.
+// WHY IT EXISTS: the plugin exposes each macro target's base as its own
+// automatable parameter, and the macros must keep composing ON TOP of that
+// user-set base rather than fighting it. evaluateAll() therefore seeds each
+// target with the override when one is set, else with the kRows literal, and
+// accumulates the row contributions exactly as before.
+// WHAT STILL HOLDS: everyRowSharesOneBasePerTarget() still guarantees ONE
+// literal base per target at compile time - the override replaces that literal
+// as the seed, it never makes two rows disagree. NO HEADROOM RESCALING: an
+// override near the destination's travel limit is not re-scaled to leave room
+// for the macro; the summed value is clamped by the destination setter (the
+// "summation first, clamp at the destination" rule of apply()), and the matrix
+// itself clamps nothing. Phase 10's SC-009 clause 1 (every row's base equals the
+// prepared value) holds WITH NO OVERRIDE SET; a matrix never given an override,
+// or one after resetTargetBases(), is bit-identical to the Phase 10 matrix.
 //
 // BUILD STATE (tasks.md).
 // T006 established this file as a compiling, lint-visible stub.
@@ -116,6 +127,12 @@ enum class VoragoMacroTargetOwner : std::uint8_t { Voice = 0, Engine, Cavern };
 /// EVERY enumerator is float-valued on a SHIPPED setter (Q1): there is no
 /// discrete-target row, and this phase adds no DSP to express one.
 ///
+/// Phase 12 (specs/vorago-phase12-parameters, ruling R-1 path B, B-1 / B-2)
+/// adds TWO macro-only targets, each default-inert (base == the shipped value,
+/// 0) and each the last enumerator of its owner block: ResonanceOctaveLock
+/// (Voice) for Gravity and OutputDriveDb (Engine) for Pressure. Neither adds a
+/// registered parameter ID.
+///
 /// Declared in OWNER BLOCKS, and the block an enumerator sits in IS its owner -
 /// everyRowOwnerIsValid() turns that sentence into a compile-time biconditional.
 /// The Cavern block's order IS VoragoCavernTargets' field order, so
@@ -146,6 +163,7 @@ enum class VoragoMacroTarget : std::uint8_t {
     BreathingDepth,         ///< setBreathingDepth      (:1202)
     BreathingIrregularity,  ///< setBreathingIrregularity (:1207)
     TidalDepth,             ///< setTidalDepth          (:1212)
+    ResonanceOctaveLock,    ///< setResonanceOctaveLock (Phase 12, spec B-1)
     // -- Engine-owned (VoragoEngine setters, vorago_engine.h:713-774) --------
     SubToneLevelOffsetDb,  ///< setSubToneLevelOffsetDb (:713)
     SubTrackingAmount,     ///< setSubTrackingAmount    (:719)
@@ -155,6 +173,7 @@ enum class VoragoMacroTarget : std::uint8_t {
     GhostPeakLevel,        ///< setGhostPeakLevel       (:758)
     AtmosBlur,             ///< setAtmosBlur            (:763)
     OutputSaturation,      ///< setOutputSaturation     (:769)
+    OutputDriveDb,         ///< setOutputDriveDb        (Phase 12, spec B-2)
     // -- Cavern-owned (each MUST have a 1:1 VoragoCavernTargets field) -------
     CavernSize,
     CavernDarkness,
@@ -252,9 +271,9 @@ public:
     static constexpr std::size_t kNumTargets = static_cast<std::size_t>(VoragoMacroTarget::Count);
 
     /// FR-060's table length: 3 Darkness + 3 Age + 4 Density + 5 Movement
-    /// + 1 Gravity + 5 Entropy + 3 Pressure + 4 Weight + 7 Fog + 3 Life
-    /// + 4 Depth + 4 Mass = 46.
-    static constexpr std::size_t kNumRows = 46;
+    /// + 2 Gravity + 5 Entropy + 5 Pressure + 4 Weight + 7 Fog + 3 Life
+    /// + 4 Depth + 5 Mass = 50.
+    static constexpr std::size_t kNumRows = 50;
 
     /// The first enumerator of each owner block. The block an enumerator sits in
     /// IS its owner (see VoragoMacroTarget), and these three constants are how
@@ -423,6 +442,17 @@ public:
          .base = 0.0f,  // S8.2 resonance_.setGravity, AnchorMode::Hybrid (FR-016)
          .amount = 1.0f,
          .curve = ModCurve::Linear},  // air -1.0 <- 0.0 -> +1.0 stone
+        // FR-060 (Phase 12, spec Q9 / B-1, R-1 path B): no admissible row on the
+        // 39 Phase 10 targets reached the 30 % endpoint (probe best 0.2024), so
+        // Gravity gains the octave-lock target. Bipolar contribution: +1 at stone
+        // (every keyed anchor on an octave of the note), 0 at neutral, -1 at air,
+        // which the setter's [0, 1] clamp makes inert. Base 0 == shipped ratios.
+        {.macro = VoragoMacro::Gravity,
+         .owner = VoragoMacroTargetOwner::Voice,
+         .target = VoragoMacroTarget::ResonanceOctaveLock,
+         .base = 0.0f,  // ResonanceDriftNetwork octaveLock_ default (applyDefaults)
+         .amount = 1.0f,
+         .curve = ModCurve::Linear},  // stone locks the keyed anchors to octaves
 
         // ---------------------------------------------------------------------
         // ENTROPY - carries the folded `Instability` concept (FR-068).
@@ -477,8 +507,32 @@ public:
          .owner = VoragoMacroTargetOwner::Engine,
          .target = VoragoMacroTarget::OutputSaturation,
          .base = 0.12f,  // S8.3 satL_/satR_.setSaturation (kOutputSaturation)
-         .amount = 0.35f,
+         .amount = 0.88f,  // Phase 12 P-a retune (spec B-2): 0.35 -> 0.88
          .curve = ModCurve::Linear},  // the glue closes
+        // FR-060 (Phase 12, spec Q9 / B-2 / B-7, R-1 path B): no admissible set on
+        // the Phase 10 targets reached 3 dB (probe best P-a+P-b 1.5030 dB), so
+        // Pressure gains the makeup-COMPENSATED output drive. Base 0 dB ==
+        // kOutputDriveDb (default-inert). The drive ALONE tops out at 2.60 dB at
+        // the saturator's +24 dB ceiling (spec Q10: 6/12/18/24 dB -> 1.17 / 2.02
+        // / 2.49 / 2.60), because the crest floor is the sub-tone beating - so
+        // B-7 pairs it with the sub-level row below. +18 dB is the smallest
+        // drive amount whose pair passes (3.5217 dB).
+        {.macro = VoragoMacro::Pressure,
+         .owner = VoragoMacroTargetOwner::Engine,
+         .target = VoragoMacroTarget::OutputDriveDb,
+         .base = 0.0f,  // VoragoEngine::kOutputDriveDb
+         .amount = 18.0f,
+         .curve = ModCurve::Linear},  // crest factor down, loudness held
+        // B-7: the sub tones ARE the crest floor at C1, so Pressure lowers them
+        // directly. Shares Weight's and Mass's target and base (0.0 dB);
+        // contributes 0 at Pressure = 0 (Linear). -12 dB is the smallest amount
+        // that passes with +18 dB drive (spec Q10: 3.5217 dB >= 3 dB, rho -1).
+        {.macro = VoragoMacro::Pressure,
+         .owner = VoragoMacroTargetOwner::Engine,
+         .target = VoragoMacroTarget::SubToneLevelOffsetDb,
+         .base = 0.0f,
+         .amount = -12.0f,
+         .curve = ModCurve::Linear},  // the floor itself comes down
 
         // ---------------------------------------------------------------------
         // WEIGHT - FR-068 normative (roadmap line 465): sub levels up, the blend
@@ -689,6 +743,16 @@ public:
          .target = VoragoMacroTarget::SubTrackingAmount,
          .base = 1.0f,  // S8.3 sub_.setTrackingAmount (kDefaultSubTracking, ruled 2026-09-19)
          .amount = 0.0f,
+         .curve = ModCurve::Linear},
+        // FR-060 (Phase 12, OQ-2 ruled (b)): the sub band is Mass's metric (Q-Q), so Mass raises it directly.
+        // Shares Weight's target and base (0.0 dB). Contributes 0 at Mass = 0 (Linear).
+        // Amount +3.0 dB: the smallest candidate the T004 probe measured PASS
+        // (specs/vorago-phase12-parameters/artifacts/fr060_probe.log: rho 1.0, endpoint 2.4343 dB).
+        {.macro = VoragoMacro::Mass,
+         .owner = VoragoMacroTargetOwner::Engine,
+         .target = VoragoMacroTarget::SubToneLevelOffsetDb,
+         .base = 0.0f,  // == Weight's base (everyRowSharesOneBasePerTarget)
+         .amount = 3.0f,
          .curve = ModCurve::Linear},
     }};
 
@@ -930,6 +994,41 @@ public:
     [[nodiscard]] VoragoMacroValues getMacros() const noexcept { return values_; }
 
     // =========================================================================
+    // Per-target base override (Phase 12 FR-001 / FR-002)
+    // =========================================================================
+
+    /// @brief FR-001. Replaces @p target's seeded base with @p base.
+    ///
+    /// An out-of-range target (>= kNumTargets, including `Count`) or a
+    /// non-finite base is a SILENT NO-OP - the previous base stands
+    /// (isFiniteBits, never std::isnan). NOT clamped here: the destination
+    /// setter clamps the summed value.
+    void setTargetBase(VoragoMacroTarget target, float base) noexcept {
+        const auto i = static_cast<std::size_t>(target);
+        if (i >= kNumTargets || !isFiniteBits(base)) {
+            return;
+        }
+        baseOverride_[i] = base;
+        hasOverride_[i] = true;
+    }
+
+    /// @brief FR-001. Drops every override; every target seeds from kRows again.
+    void resetTargetBases() noexcept {
+        hasOverride_.fill(false);
+        baseOverride_.fill(0.0f);
+    }
+
+    /// @brief FR-001. The override if one is set, else the kRows literal; 0 for
+    ///        an out-of-range target.
+    [[nodiscard]] float getTargetBase(VoragoMacroTarget target) const noexcept {
+        const auto i = static_cast<std::size_t>(target);
+        if (i >= kNumTargets) {
+            return 0.0f;
+        }
+        return hasOverride_[i] ? baseOverride_[i] : literalBaseFor(target);
+    }
+
+    // =========================================================================
     // AR-1's two application surfaces (FR-062)
     // =========================================================================
 
@@ -966,6 +1065,7 @@ public:
         engine.setGhostPeakLevel(at(v, VoragoMacroTarget::GhostPeakLevel));
         engine.setAtmosBlur(at(v, VoragoMacroTarget::AtmosBlur));
         engine.setOutputSaturation(at(v, VoragoMacroTarget::OutputSaturation));
+        engine.setOutputDriveDb(at(v, VoragoMacroTarget::OutputDriveDb));
 
         // -- Voice-owned -----------------------------------------------------
         const std::size_t voiceCount = engine.getPolyphony();
@@ -1009,6 +1109,9 @@ public:
             voice.setBreathingDepth(at(v, VoragoMacroTarget::BreathingDepth));
             voice.setBreathingIrregularity(at(v, VoragoMacroTarget::BreathingIrregularity));
             voice.setTidalDepth(at(v, VoragoMacroTarget::TidalDepth));
+
+            // Phase 12 (spec B-1)
+            voice.setResonanceOctaveLock(at(v, VoragoMacroTarget::ResonanceOctaveLock));
         }
     }
 
@@ -1077,7 +1180,7 @@ private:
         for (const VoragoMacroRow& row : kRows) {
             const auto i = static_cast<std::size_t>(row.target);
             if (!seeded[i]) {
-                value[i] = row.base;
+                value[i] = hasOverride_[i] ? baseOverride_[i] : row.base;
                 seeded[i] = true;
             }
             value[i] += contributionOf(row);
@@ -1085,8 +1188,23 @@ private:
         return value;
     }
 
+    /// The kRows base for @p t: the first row on it (everyTargetIsClaimed
+    /// guarantees one exists; everyRowSharesOneBasePerTarget makes it THE base).
+    [[nodiscard]] static constexpr float literalBaseFor(VoragoMacroTarget t) noexcept {
+        for (const VoragoMacroRow& row : kRows) {
+            if (row.target == t) {
+                return row.base;
+            }
+        }
+        return 0.0f;  // unreachable: everyTargetIsClaimed is static_assert'ed
+    }
+
     /// FR-061: the twelve knobs, already at their documented neutrals.
     VoragoMacroValues values_{};
+
+    /// FR-001: the per-target seed overrides; hasOverride_[i] false = kRows literal.
+    std::array<float, kNumTargets> baseOverride_{};
+    std::array<bool, kNumTargets> hasOverride_{};
 };
 
 // =============================================================================
@@ -1107,10 +1225,11 @@ static_assert(VoragoMacroMatrix::everyTargetIsClaimed(VoragoMacroMatrix::kRows),
 static_assert(VoragoMacroMatrix::everyRowSharesOneBasePerTarget(VoragoMacroMatrix::kRows),
               "FR-064: rows sharing a target must agree on `base`");
 
-// 24 Voice-owned + 8 Engine-owned + 7 Cavern-owned. A thirteenth macro or a
-// fortieth target is a spec amendment, not an edit.
-static_assert(static_cast<std::size_t>(VoragoMacroTarget::Count) == 39,
-              "FR-060: 24 Voice + 8 Engine + 7 Cavern targets");
+// 25 Voice-owned + 9 Engine-owned + 7 Cavern-owned (Phase 10's 24 + 8 + 7 plus
+// the Phase 12 spec B-1 / B-2 amendment). A thirteenth macro or a forty-second
+// target is a spec amendment, not an edit.
+static_assert(static_cast<std::size_t>(VoragoMacroTarget::Count) == 41,
+              "FR-060: 25 Voice + 9 Engine + 7 Cavern targets");
 static_assert(VoragoMacroMatrix::kNumMacros == 12, "OQ-2: the macro count is confirmed at twelve");
 static_assert(VoragoMacroMatrix::kFirstCavernTarget + VoragoMacroMatrix::kNumCavernTargets
                   == VoragoMacroMatrix::kNumTargets,

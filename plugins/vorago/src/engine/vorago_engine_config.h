@@ -52,10 +52,10 @@ makeVoragoEngineConfig(std::size_t maxBlockSamples) noexcept {
 /// maxEarlySeconds 0.30, maxDelaySeconds 0.50, diffusion on at 1024 - all equal to
 /// the PrepareConfig defaults).
 [[nodiscard]] inline Krate::DSP::CavernVerb::PrepareConfig
-makeVoragoCavernConfig(std::size_t maxBlockSamples) noexcept {
+makeVoragoCavernConfig(std::size_t maxBlockSamples, std::uint32_t seed = kCavernSeed) noexcept {
     Krate::DSP::CavernVerb::PrepareConfig cfg{};
     cfg.maxBlockSamples = maxBlockSamples;  // cavern clamps to [64, 8192] (:381)
-    cfg.seed = kCavernSeed;
+    cfg.seed = seed;  // Phase 12 C-8: cavernSeedFor(seed index) (param_mapping.h)
     return cfg;
 }
 

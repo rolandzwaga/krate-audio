@@ -760,6 +760,13 @@ public:
         reseed();
     }
 
+    /// @brief Phase 12 (spec B-4 / FR-023). Rebuild the inner engine's
+    ///        Dimensionality matrix endpoint from the seed setSeed() stored, so a
+    ///        live seed change reproduces a fresh instance prepared at that seed.
+    ///        Forwards to AetherReverb::rebuildMatrixFromSeed(); RT-safe, no-op
+    ///        before prepare().
+    void rebuildMatrixFromSeed() noexcept { engine_.rebuildMatrixFromSeed(); }
+
     // -------------------------------------------------------------------------
     // Introspection (FR-008, FR-009, FR-027, FR-037, FR-062).
     // Out-of-range indices return 0.0f everywhere (the
