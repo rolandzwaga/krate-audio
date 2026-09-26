@@ -1,0 +1,1696 @@
+Filters: ~[.perf] ~[.perf] ~[performance]
+Randomness seeded to: 2143734793
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_effects_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+AetherReverb_Rt60Accuracy
+  Clause A: T60 within +/-15% across decay x size
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(710)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(720): warning:
+  SC-005 clause A: decaySeconds=0.5 size=0.25 measured T60=0.479016 s
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(720): warning:
+  SC-005 clause A: decaySeconds=0.5 size=1 measured T60=0.522507 s
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(720): warning:
+  SC-005 clause A: decaySeconds=4 size=0.25 measured T60=3.72839 s
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(720): warning:
+  SC-005 clause A: decaySeconds=4 size=1 measured T60=4.02311 s
+
+-------------------------------------------------------------------------------
+AetherReverb_Rt60Accuracy
+  Clause B: T60 monotone non-decreasing in setDecaySeconds
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(729)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(740): warning:
+  SC-005 clause B: decaySeconds=0.5 measured T60=0.511087 s
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(740): warning:
+  SC-005 clause B: decaySeconds=1 measured T60=1.00599 s
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(740): warning:
+  SC-005 clause B: decaySeconds=2 measured T60=1.99871 s
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(740): warning:
+  SC-005 clause B: decaySeconds=4 measured T60=4.00534 s
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(740): warning:
+  SC-005 clause B: decaySeconds=8 measured T60=7.98654 s
+
+-------------------------------------------------------------------------------
+AetherReverb_Rt60Accuracy
+  Clause C2: the full 60 s configuration
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(753)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(760): warning:
+  SC-005 clause C2: decaySeconds=60 size=0.5 measured T60=59.6752 s
+
+-------------------------------------------------------------------------------
+AetherReverb_Rt60Accuracy
+  Clause D: damping shortens the 8 kHz octave relative to 250 Hz
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(767)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(778): warning:
+  SC-005 clause D raw T60s: damping=0 -> 8k=4.00975 s, 250=3.59554 s | damping=
+  1 -> 8k=0.368079 s, 250=3.1131 s
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(788): warning:
+  SC-005 clause D ratios: ratio(0)=1.1152 ratio(1)=0.118236 (need ratio(1) <=
+  0.2788)
+
+-------------------------------------------------------------------------------
+AetherReverb_FreezeEnergyConservation
+  Clause 1: state energy within +/-0.5 dB over 60 s (tideDepth = 1)
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(817)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(832): warning:
+  SC-002 clause 1: E(0)=28.6781 dB, E(60)=28.6782 dB, worst deviation=0.
+  000614943 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(840): warning:
+  SC-002 clause 2 (tide 1): wet 1 s-window RMS worst deviation=0.683684 dB
+
+-------------------------------------------------------------------------------
+AetherReverb_FreezeEnergyConservation
+  Clauses 2 + 3: positive control and per-octave hold at tideDepth = 0
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(845)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(860): warning:
+  SC-002 clause 2 (tide 0 positive control): worst deviation=0.139088 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(883): warning:
+  SC-002 clause 3: octave 125 Hz reference=-52.4475 dBFS, worst deviation=0.
+  0441668 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(883): warning:
+  SC-002 clause 3: octave 250 Hz reference=-48.2098 dBFS, worst deviation=0.
+  0563681 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(883): warning:
+  SC-002 clause 3: octave 500 Hz reference=-44.7435 dBFS, worst deviation=0.
+  0322077 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(883): warning:
+  SC-002 clause 3: octave 1000 Hz reference=-41.538 dBFS, worst deviation=0.
+  0536761 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(883): warning:
+  SC-002 clause 3: octave 2000 Hz reference=-38.7419 dBFS, worst deviation=0.
+  0298591 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(883): warning:
+  SC-002 clause 3: octave 4000 Hz reference=-35.649 dBFS, worst deviation=0.
+  0102036 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(883): warning:
+  SC-002 clause 3: octave 8000 Hz reference=-33.6994 dBFS, worst deviation=0.
+  0128542 dB
+
+-------------------------------------------------------------------------------
+AetherReverb_FreezeEnergyConservation
+  Clause 4: the sends and the spectral stage do not change the bound
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(891)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(915): warning:
+  SC-002 clause 4: sends=1 worst state-energy deviation=0.000577442 dB
+
+-------------------------------------------------------------------------------
+AetherReverb_SeededDeterminism
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(1386)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(1440): warning:
+  SC-010 clause 2(a) matrix path, seed 1 vs 0xA5A5A5A5: L{metric=0.123915
+  sample=0.081149 checkpoint[28] actual=0.011226 reference=-0.069923}  R
+  {metric=0.189267 sample=0.084220 checkpoint[13] actual=-0.040019 reference=0.
+  044202}
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(1470): warning:
+  SC-010 clause 2(b) modulator/smear path, seed 1 vs 0xC0FFEE11: L{metric=0.
+  229276 sample=0.496004 checkpoint[21] actual=0.057617 reference=-0.438387}  R
+  {metric=0.165198 sample=0.327272 checkpoint[16] actual=0.457005 reference=0.
+  129733}
+
+-------------------------------------------------------------------------------
+AetherReverb_LifeModulation
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(1512)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(1554): warning:
+  SC-017 clause 1a: refDelaySamples_[0]=967  b in [-0.999946, 0.999945]
+  expected p-p=3626.25 samples  measured p-p=3626.25 samples  (>= 80 % required
+  = 2901)
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(1562): warning:
+  SC-017 clause 1a depth-0 control: channel 0 p-p = 0 samples
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(1576): warning:
+  SC-017 clause 1a controls (ii): refDelaySamples_[N-1]=5087  channel N-1 p-p=
+  49.5615 samples  ceiling=61.044 samples (= 1.2 * 2 * kModExcursionFraction *
+  ref * S; the 2 is the one-sided-to-peak-to-peak correction documented at
+  driftExcursionCeilingSamples)
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(1584): warning:
+  SC-017 clause 1a controls (iii): modDepth=0 channel N-1 p-p = 0 samples
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(1600): warning:
+  SC-017 clause 2a: morph p-p over the first 10 s = 0.63589 (>= 0.05 required),
+  depth-0 p-p = 0 (<= 1e-6)
+
+-------------------------------------------------------------------------------
+AetherReverb_ShimmerRegenerationStability
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(1937)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(1955): warning:
+  SC-006 clause 1: global peak over 180 s = 0.542347 (bound 4.0)
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(1960): warning:
+  SC-006 clause 2: window 0 [25 s, 45 s) = E2 peak=0.0512395 rms=0.00369837
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(1960): warning:
+  SC-006 clause 2: window 1 [45 s, 65 s) peak=0.00415092 rms=0.000326506
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(1960): warning:
+  SC-006 clause 2: window 2 [65 s, 85 s) peak=0.000335882 rms=3.04876e-05
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(1960): warning:
+  SC-006 clause 2: window 3 [85 s, 105 s) peak=3.26529e-05 rms=3.01394e-06
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(1960): warning:
+  SC-006 clause 2: window 4 [105 s, 125 s) peak=3.46765e-06 rms=2.94103e-07
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(1960): warning:
+  SC-006 clause 2: window 5 [125 s, 145 s) peak=3.01666e-07 rms=2.87602e-08
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(1960): warning:
+  SC-006 clause 2: window 6 [145 s, 165 s) peak=3.43827e-08 rms=2.7558e-09
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(1963): warning:
+  SC-006 clause 2: E_final [160 s, 180 s) peak=5.86817e-09 rms=4.77806e-10
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(1967): warning:
+  SC-006 clause 3: HF(E1)=4.72507e-07 HF(E_final)=2.02672e-06 | centroid(E1)=
+  810.277 Hz centroid(E_final)=1284.78 Hz
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(1971): warning:
+  SC-006 clause 3 reference (all sends 0): HF(E1)=5.3995e-07 HF(E_final)=3.
+  51406e-06 | centroid(E1)=827.62 Hz centroid(E_final)=1513.92 Hz
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(1973): warning:
+  SC-006 clause 4: non-finite output samples = 0, getNonFiniteRecoveryCount() =
+  0
+
+-------------------------------------------------------------------------------
+AetherReverb_BlockPartitionInvariance
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(2284)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(2320): warning:
+  SC-011 worst sample-wise |whole - partitioned| = 0 at sample 0 (channel L),
+  bound 1e-06, render peak 0.637752
+
+-------------------------------------------------------------------------------
+AetherReverb_LatencyAndDryAlignment
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(2545)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(2600): warning:
+  SC-018 clause 2 (stage ON): peak lag 1024 corr 1 (expected lag 1024)
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(2618): warning:
+  SC-018 clause 2 (stage OFF): peak lag 0 corr 1
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(2641): warning:
+  SC-018 clause 3: primary lag 1024 corr 0.979143, strongest secondary 0.
+  0357749 at lag 1170
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(2675): warning:
+  SC-018 clause 4: wet onset at preDelay 0 = 20.1667 ms, at preDelay 100 = 120.
+  167 ms, shift = 100 ms
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(2718): warning:
+  SC-018 clause 5: first non-zero output sample = 1024, latency = 1024
+
+-------------------------------------------------------------------------------
+AetherReverb_NoAllocationAfterPrepare
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(3180)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(3315): warning:
+  SC-001: allocations over 1440256 samples at N = 16 / Granular / bloom /
+  spectral@4096 = 0, peak |out| = 1.69933
+
+-------------------------------------------------------------------------------
+AetherReverb_SampleRateIndependence
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(3344)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(3357): warning:
+  SC-009 rate 44100 Hz: T60=3.74224 s, NED=1 (318/318 over W=317.937 ms),
+  modalDensity=0.425583 modes/Hz, m_0=888.431 samples, m_long=4673.68 samples,
+  shimmerActive=1
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(3357): warning:
+  SC-009 rate 48000 Hz: T60=4.0026 s, NED=1 (318/318 over W=317.938 ms),
+  modalDensity=0.425583 modes/Hz, m_0=967 samples, m_long=5087 samples,
+  shimmerActive=1
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(3357): warning:
+  SC-009 rate 96000 Hz: T60=3.99888 s, NED=1 (318/318 over W=317.938 ms),
+  modalDensity=0.425583 modes/Hz, m_0=1934 samples, m_long=10174 samples,
+  shimmerActive=1
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(3357): warning:
+  SC-009 rate 192000 Hz: T60=4.00273 s, NED=1 (318/318 over W=317.938 ms),
+  modalDensity=0.425583 modes/Hz, m_0=3868 samples, m_long=20348 samples,
+  shimmerActive=1
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(3380): warning:
+  SC-009 spread vs 48 kHz at 44100 Hz: T60 error = 6.50474 %, modal-density
+  error = 0 %
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(3380): warning:
+  SC-009 spread vs 48 kHz at 48000 Hz: T60 error = 0 %, modal-density error = 0
+  %
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(3380): warning:
+  SC-009 spread vs 48 kHz at 96000 Hz: T60 error = 0.0928707 %, modal-density
+  error = 0 %
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(3380): warning:
+  SC-009 spread vs 48 kHz at 192000 Hz: T60 error = 0.00334864 %, modal-density
+  error = 0 %
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(3433): warning:
+  SC-009 at 8 kHz: modalDensity measured=0.425583 expected=0.425583 (1.30717e-
+  07 %), m_0 measured=161.167 expected=161.167 samples
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(3446): warning:
+  SC-009 at 8 kHz: T60 = 3.6246 s (target 4 s), NED = 1
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(3467): warning:
+  SC-009 sub-44.1 kHz inertness: L{metric=0.000000 sample=0.000000 }  R{metric=
+  0.000000 sample=0.000000 }
+
+-------------------------------------------------------------------------------
+AetherReverb_BoundedUnderAdversarialInput
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(3495)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(3598): warning:
+  SC-012: peak |out| = 6.1892, non-finite samples = 0, recoveries = 0, |DC|
+  over the final second = 2.70912e-07
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(3687): warning:
+  SC-012 per-5 s peak over the silent tail: 0.431246 0.164077 
+
+-------------------------------------------------------------------------------
+AetherReverb_NoTransitionClicks
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(3714)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(3838): warning:
+  SC-015 calibration: false-positive floor at the pinned 5.0 sigma = 637
+  detections over the 120 s no-transition reference set; calibrated
+  detectionThreshold = 6.75 (cap 8), floor there = 0
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(3845): warning:
+  SC-015 calibration, per operating point [engine defaults]: 0 detections at
+  the calibrated 6.75 sigma
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(3845): warning:
+  SC-015 calibration, per operating point [after t=90 s: decay 60, density 1]:
+  0 detections at the calibrated 6.75 sigma
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(3845): warning:
+  SC-015 calibration, per operating point [after t=95 s: + shimmerOctaveSend 1]
+  : 0 detections at the calibrated 6.75 sigma
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(3845): warning:
+  SC-015 calibration, per operating point [after t=100 s: + spectralDiffusion
+  1]: 0 detections at the calibrated 6.75 sigma
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(3900): warning:
+  SC-015 positive control: the calibrated detector (threshold = 6.75) reports 2
+  detections on the 0.1 single-sample step at t = 5 s
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(4011): warning:
+  SC-015 transition render: 0 detections over 120 s at threshold 6.75
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(4183): warning:
+  SC-015 clause S: wet RMS over the 40 ms from the silence() call = -36.5329
+  dBFS (SC-015's literal -80 dBFS form is UNSATISFIABLE - see the block above);
+  longest bit-exact-zero run = 1024 samples; cleared-vs-gated delta over [50,
+  150] ms = -11.1318 dB; final 200 ms subject = -26.668 dBFS, reference = -23.
+  9275 dBFS, delta = -2.74057 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(4307): warning:
+  SC-015 clause F: wet RMS before the step = -26.2742 dBFS, settled = -23.2195
+  dBFS, amount-0 -> amount-1 separation = 3.05465 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_test.cpp(4343): warning:
+  SC-015 clause F: first 100 ms window within 1 dB of settled = 0 (i.e. 0 ms
+  after the step); worst deviation from the SETTLED level at or after 500 ms =
+  2.09962 dB, at window 8; worst deviation from the NO-STEP CONTROL at or after
+  500 ms = 0 dB, at window 0
+
+-------------------------------------------------------------------------------
+AetherReverb_EchoDensity
+  SC-003 clause 1: NED >= 0.80 across Size x Dimensionality at N = 8
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(605)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(591): warning:
+  SC-003: size=0 dim=0 density=0.7 N=8 | m_short=5.03646 ms, m_long=26.4948 ms,
+  t_start=5 ms, excluded=5 windows, W=250 ms, occupied=248/250, peakWindowRms=
+  0.0129712, NED=0.992, mean inter-arrival=1.0081 ms (whole-window figure,
+  saturates at the 1 ms bin - see kEarlyArrivalCount), early onsets=3 -> early
+  mean=2.61458 ms
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(591): warning:
+  SC-003: size=0 dim=1 density=0.7 N=8 | m_short=5.03646 ms, m_long=26.4948 ms,
+  t_start=5 ms, excluded=5 windows, W=250 ms, occupied=248/250, peakWindowRms=
+  0.010816, NED=0.992, mean inter-arrival=1.0081 ms (whole-window figure,
+  saturates at the 1 ms bin - see kEarlyArrivalCount), early onsets=3 -> early
+  mean=2.61458 ms
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(591): warning:
+  SC-003: size=0.5 dim=0 density=0.7 N=8 | m_short=20.1458 ms, m_long=105.979
+  ms, t_start=20 ms, excluded=20 windows, W=317.938 ms, occupied=318/318,
+  peakWindowRms=0.00190931, NED=1, mean inter-arrival=1 ms (whole-window
+  figure, saturates at the 1 ms bin - see kEarlyArrivalCount), early onsets=1 -
+  > early mean=0 ms
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(591): warning:
+  SC-003: size=0.5 dim=1 density=0.7 N=8 | m_short=20.1458 ms, m_long=105.979
+  ms, t_start=20 ms, excluded=20 windows, W=317.938 ms, occupied=318/318,
+  peakWindowRms=0.00170994, NED=1, mean inter-arrival=1 ms (whole-window
+  figure, saturates at the 1 ms bin - see kEarlyArrivalCount), early onsets=1 -
+  > early mean=0 ms
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(591): warning:
+  SC-003: size=1 dim=0 density=0.7 N=8 | m_short=80.5833 ms, m_long=423.917 ms,
+  t_start=80 ms, excluded=80 windows, W=1271.75 ms, occupied=1270/1272,
+  peakWindowRms=0.000832914, NED=0.998428, mean inter-arrival=1.00158 ms
+  (whole-window figure, saturates at the 1 ms bin - see kEarlyArrivalCount),
+  early onsets=3 -> early mean=806.281 ms
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(591): warning:
+  SC-003: size=1 dim=1 density=0.7 N=8 | m_short=80.5833 ms, m_long=423.917 ms,
+  t_start=80 ms, excluded=80 windows, W=1271.75 ms, occupied=1270/1272,
+  peakWindowRms=0.000832914, NED=0.998428, mean inter-arrival=1.00158 ms
+  (whole-window figure, saturates at the 1 ms bin - see kEarlyArrivalCount),
+  early onsets=3 -> early mean=774.01 ms
+
+-------------------------------------------------------------------------------
+AetherReverb_EchoDensity
+  SC-003 clause 2: NED is non-decreasing in Density, strictly lower at 0 than
+                   at 1
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(625)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(591): warning:
+  SC-003: size=0.5 dim=0.5 density=0 N=8 | m_short=20.1458 ms, m_long=105.979
+  ms, t_start=20 ms, excluded=20 windows, W=317.938 ms, occupied=279/318,
+  peakWindowRms=0.00930934, NED=0.877358, mean inter-arrival=1.14029 ms (whole-
+  window figure, saturates at the 1 ms bin - see kEarlyArrivalCount), early
+  onsets=3 -> early mean=6 ms
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(591): warning:
+  SC-003: size=0.5 dim=0.5 density=0.25 N=8 | m_short=20.1458 ms, m_long=105.
+  979 ms, t_start=20 ms, excluded=20 windows, W=317.938 ms, occupied=317/318,
+  peakWindowRms=0.00540151, NED=0.996855, mean inter-arrival=1.00316 ms (whole-
+  window figure, saturates at the 1 ms bin - see kEarlyArrivalCount), early
+  onsets=2 -> early mean=3.375 ms
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(591): warning:
+  SC-003: size=0.5 dim=0.5 density=0.5 N=8 | m_short=20.1458 ms, m_long=105.979
+  ms, t_start=20 ms, excluded=20 windows, W=317.938 ms, occupied=318/318,
+  peakWindowRms=0.00385968, NED=1, mean inter-arrival=1 ms (whole-window
+  figure, saturates at the 1 ms bin - see kEarlyArrivalCount), early onsets=1 -
+  > early mean=0 ms
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(591): warning:
+  SC-003: size=0.5 dim=0.5 density=0.75 N=8 | m_short=20.1458 ms, m_long=105.
+  979 ms, t_start=20 ms, excluded=20 windows, W=317.938 ms, occupied=318/318,
+  peakWindowRms=0.00402381, NED=1, mean inter-arrival=1 ms (whole-window
+  figure, saturates at the 1 ms bin - see kEarlyArrivalCount), early onsets=1 -
+  > early mean=0 ms
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(591): warning:
+  SC-003: size=0.5 dim=0.5 density=1 N=8 | m_short=20.1458 ms, m_long=105.979
+  ms, t_start=20 ms, excluded=20 windows, W=317.938 ms, occupied=318/318,
+  peakWindowRms=0.00355574, NED=1, mean inter-arrival=1 ms (whole-window
+  figure, saturates at the 1 ms bin - see kEarlyArrivalCount), early onsets=1 -
+  > early mean=0 ms
+
+-------------------------------------------------------------------------------
+AetherReverb_EchoDensity
+  SC-003 clause 3(c): mean inter-arrival time scales with S at density = 0
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(665)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(591): warning:
+  SC-003: size=0.25 dim=0.5 density=0 N=8 | m_short=10.0729 ms, m_long=52.9896
+  ms, t_start=10 ms, excluded=10 windows, W=250 ms, occupied=239/250,
+  peakWindowRms=0.00829199, NED=0.956, mean inter-arrival=1.04622 ms (whole-
+  window figure, saturates at the 1 ms bin - see kEarlyArrivalCount), early
+  onsets=3 -> early mean=3 ms
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(591): warning:
+  SC-003: size=1 dim=0.5 density=0 N=8 | m_short=80.5833 ms, m_long=423.917 ms,
+  t_start=80 ms, excluded=80 windows, W=1271.75 ms, occupied=681/1272,
+  peakWindowRms=0.00784914, NED=0.535377, mean inter-arrival=1.86029 ms (whole-
+  window figure, saturates at the 1 ms bin - see kEarlyArrivalCount), early
+  onsets=3 -> early mean=24 ms
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(718): warning:
+  SC-003 clause 3(c): early mean inter-arrival 3 ms (size=0.25) -> 24 ms (size=
+  1.0), measured ratio 8 vs S ratio 8 | whole-window means (saturated at the 1
+  ms bin, see kEarlyArrivalCount) were 1.04622 -> 1.86029 ms
+
+-------------------------------------------------------------------------------
+AetherReverb_ShimmerBloomEffect
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(1365)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(933): warning:
+  SC-016 reference (both sends 0): L(f0=220)=1.67864 dB, L(1.5f0=330)=-39.563
+  dB, L(2f0=440)=-37.2014 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(933): warning:
+  SC-016 octave send = 1: L(f0=220)=1.68085 dB, L(1.5f0=330)=-39.8152 dB, L
+  (2f0=440)=-4.43182 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(933): warning:
+  SC-016 fifth send = 1: L(f0=220)=1.69731 dB, L(1.5f0=330)=-0.917371 dB, L
+  (2f0=440)=-17.8895 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(1186): warning:
+  SC-016 clause 3 (spectral=on) band 125 Hz: ref=-24.5068 dB on=-21.9417 dB
+  rise=2.5651 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(1186): warning:
+  SC-016 clause 3 (spectral=on) band 157.49 Hz: ref=-5.45374 dB on=-3.01561 dB
+  rise=2.43813 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(1186): warning:
+  SC-016 clause 3 (spectral=on) band 198.425 Hz: ref=31.668 dB on=44.6767 dB
+  rise=13.0087 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(1186): warning:
+  SC-016 clause 3 (spectral=on) band 250 Hz: ref=20.5402 dB on=29.6483 dB rise=
+  9.1081 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(1186): warning:
+  SC-016 clause 3 (spectral=on) band 314.98 Hz: ref=-3.32121 dB on=-1.75089 dB
+  rise=1.57032 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(1186): warning:
+  SC-016 clause 3 (spectral=on) band 396.85 Hz: ref=0.127821 dB on=8.68205 dB
+  rise=8.55423 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(1186): warning:
+  SC-016 clause 3 (spectral=on) band 500 Hz: ref=-6.6592 dB on=-8.08482 dB
+  rise=-1.42562 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(1186): warning:
+  SC-016 clause 3 (spectral=on) band 629.961 Hz: ref=-8.17511 dB on=1.72635 dB
+  rise=9.90146 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(1186): warning:
+  SC-016 clause 3 (spectral=on) band 793.701 Hz: ref=-12.0461 dB on=1.9778 dB
+  rise=14.0239 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(1186): warning:
+  SC-016 clause 3 (spectral=on) band 1000 Hz: ref=-14.4127 dB on=-13.4302 dB
+  rise=0.982497 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(1186): warning:
+  SC-016 clause 3 (spectral=on) band 1259.92 Hz: ref=-18.4883 dB on=-19.2789 dB
+  rise=-0.790617 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(1186): warning:
+  SC-016 clause 3 (spectral=on) band 1587.4 Hz: ref=-21.1092 dB on=-21.6014 dB
+  rise=-0.492244 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(1186): warning:
+  SC-016 clause 3 (spectral=on) band 2000 Hz: ref=-22.6281 dB on=-22.8418 dB
+  rise=-0.213713 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(1186): warning:
+  SC-016 clause 3 (spectral=on) band 2519.84 Hz: ref=-26.1687 dB on=-26.2899 dB
+  rise=-0.121228 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(1186): warning:
+  SC-016 clause 3 (spectral=on) band 3174.8 Hz: ref=-29.1042 dB on=-29.1821 dB
+  rise=-0.0778706 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(1186): warning:
+  SC-016 clause 3 (spectral=on) band 4000 Hz: ref=-32.5771 dB on=-32.6187 dB
+  rise=-0.0415858 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(1186): warning:
+  SC-016 clause 3 (spectral=on) band 5039.68 Hz: ref=-35.4098 dB on=-35.4382 dB
+  rise=-0.0283614 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(1186): warning:
+  SC-016 clause 3 (spectral=on) band 6349.6 Hz: ref=-38.0117 dB on=-38.0251 dB
+  rise=-0.0133959 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(1186): warning:
+  SC-016 clause 3 (spectral=on) band 8000 Hz: ref=-40.293 dB on=-40.3009 dB
+  rise=-0.00786739 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(1212): warning:
+  SC-016 clause 3 (spectral=on) mean non-target rise over 15 bands = 0.896776
+  dB
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(1233): warning:
+  SC-016 clause 3 release: band 198.425 Hz residual = 0.387257 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(1233): warning:
+  SC-016 clause 3 release: band 396.85 Hz residual = -0.193996 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(1233): warning:
+  SC-016 clause 3 release: band 629.961 Hz residual = 0.332509 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(1233): warning:
+  SC-016 clause 3 release: band 793.701 Hz residual = 0.273965 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(1186): warning:
+  SC-016 clause 3 (spectral=off) band 125 Hz: ref=-24.5732 dB on=-22.0501 dB
+  rise=2.52316 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(1186): warning:
+  SC-016 clause 3 (spectral=off) band 157.49 Hz: ref=-5.93506 dB on=-3.50893 dB
+  rise=2.42613 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(1186): warning:
+  SC-016 clause 3 (spectral=off) band 198.425 Hz: ref=31.5669 dB on=44.6456 dB
+  rise=13.0787 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(1186): warning:
+  SC-016 clause 3 (spectral=off) band 250 Hz: ref=20.4385 dB on=29.5588 dB
+  rise=9.12024 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(1186): warning:
+  SC-016 clause 3 (spectral=off) band 314.98 Hz: ref=-3.51471 dB on=-1.90634 dB
+  rise=1.60837 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(1186): warning:
+  SC-016 clause 3 (spectral=off) band 396.85 Hz: ref=0.0666267 dB on=8.59758 dB
+  rise=8.53095 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(1186): warning:
+  SC-016 clause 3 (spectral=off) band 500 Hz: ref=-6.8174 dB on=-8.23986 dB
+  rise=-1.42246 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(1186): warning:
+  SC-016 clause 3 (spectral=off) band 629.961 Hz: ref=-8.17603 dB on=1.78301 dB
+  rise=9.95905 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(1186): warning:
+  SC-016 clause 3 (spectral=off) band 793.701 Hz: ref=-12.1511 dB on=1.82161 dB
+  rise=13.9727 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(1186): warning:
+  SC-016 clause 3 (spectral=off) band 1000 Hz: ref=-14.3958 dB on=-13.2286 dB
+  rise=1.16715 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(1186): warning:
+  SC-016 clause 3 (spectral=off) band 1259.92 Hz: ref=-18.6096 dB on=-19.4165
+  dB rise=-0.806831 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(1186): warning:
+  SC-016 clause 3 (spectral=off) band 1587.4 Hz: ref=-21.1378 dB on=-21.6282 dB
+  rise=-0.490377 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(1186): warning:
+  SC-016 clause 3 (spectral=off) band 2000 Hz: ref=-22.7138 dB on=-22.9263 dB
+  rise=-0.212567 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(1186): warning:
+  SC-016 clause 3 (spectral=off) band 2519.84 Hz: ref=-26.2952 dB on=-26.4152
+  dB rise=-0.119965 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(1186): warning:
+  SC-016 clause 3 (spectral=off) band 3174.8 Hz: ref=-29.142 dB on=-29.2195 dB
+  rise=-0.077582 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(1186): warning:
+  SC-016 clause 3 (spectral=off) band 4000 Hz: ref=-32.5741 dB on=-32.6158 dB
+  rise=-0.0417119 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(1186): warning:
+  SC-016 clause 3 (spectral=off) band 5039.68 Hz: ref=-35.526 dB on=-35.5545 dB
+  rise=-0.0285023 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(1186): warning:
+  SC-016 clause 3 (spectral=off) band 6349.6 Hz: ref=-38.0393 dB on=-38.0526 dB
+  rise=-0.0133364 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(1186): warning:
+  SC-016 clause 3 (spectral=off) band 8000 Hz: ref=-40.367 dB on=-40.3749 dB
+  rise=-0.00785496 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(1212): warning:
+  SC-016 clause 3 (spectral=off) mean non-target rise over 15 bands = 0.908257
+  dB
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(1443): warning:
+  SC-016 clause 4: L(2f0) early=7.04282 dB late=7.02343 dB drift=-0.019382 dB
+
+-------------------------------------------------------------------------------
+AetherReverb_TailSmoothness
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(1883)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(1894): warning:
+  SC-007 M-1(G-5) empirical ceiling = 0.844407 (SE 0.00088498, 46 frames)
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(1917): warning:
+  SC-007 amount=0 M-1=0.742618 SE=0.00146351 frames=46 peak/median=12.7192 dB
+  LRcorr=0.0779072 wetRMS=-25.8822 dBFS
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(1917): warning:
+  SC-007 amount=0.25 M-1=0.750662 SE=0.00131531 frames=46 peak/median=12.407 dB
+  LRcorr=0.074253 wetRMS=-25.8814 dBFS
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(1917): warning:
+  SC-007 amount=0.5 M-1=0.772575 SE=0.0012308 frames=46 peak/median=11.164 dB
+  LRcorr=0.0579686 wetRMS=-25.8907 dBFS
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(1917): warning:
+  SC-007 amount=0.75 M-1=0.796553 SE=0.00113782 frames=46 peak/median=7.90986
+  dB LRcorr=0.0231762 wetRMS=-25.9001 dBFS
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(1917): warning:
+  SC-007 amount=1 M-1=0.806458 SE=0.00142537 frames=46 peak/median=5.0798 dB
+  LRcorr=0.0005453 wetRMS=-25.8925 dBFS
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(2000): warning:
+  SC-007 clause 3: worst |err| L=7.45058e-08 R=8.9407e-08, err RMS L=-161.333
+  dBFS R=-160.808 dBFS
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(2015): warning:
+  SC-007 clause 3 negative control (50 % overlap): worst |err|=0.108784, err
+  RMS=-36.7987 dBFS
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(2026): warning:
+  SC-007 clause 3 positive control (75 % overlap): worst |err|=7.45058e-08, err
+  RMS=-161.521 dBFS
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(2069): warning:
+  SC-007 clause 4(a) at size 0: worst ridge 4.42656 dB at 314.98 Hz (bound 9
+  dB)
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(2069): warning:
+  SC-007 clause 4(a) at size 0.5: worst ridge 7.97108 dB at 198.425 Hz (bound 9
+  dB)
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(2069): warning:
+  SC-007 clause 4(a) at size 1: worst ridge 3.1663 dB at 314.98 Hz (bound 9 dB)
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(2095): warning:
+  SC-007 clause 5: wet RMS spread over the five amounts = 0.01863 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_spectral_test.cpp(2114): warning:
+  SC-007 clause 6: LR corr at width 0 = 1, at width 1 = 0.0779072
+
+-------------------------------------------------------------------------------
+AetherReverb_NonFiniteHygiene
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_nonfinite_test.cpp(337)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_nonfinite_test.cpp(406): warning:
+  SC-014 clause 3: fault at 144000, recovery point at 146048 (42.6667 ms after
+  the fault)
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_nonfinite_test.cpp(430): warning:
+  SC-014 clause 3 windows (dB subject / reference / |diff|): -18.5944 / -20.
+  1125 / 1.51814 | -19.1005 / -20.1098 / 1.00927 | -19.8364 / -20.1095 / 0.
+  273086 | -20.1323 / -20.1095 / 0.0227516 | -19.9651 / -20.1105 / 0.145425
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_nonfinite_test.cpp(485): warning:
+  SC-014 clause 3 clause-(a) window vs last convergence window (|diff| dB): 0.
+  0227516 -> 0.145425
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_nonfinite_test.cpp(497): warning:
+  SC-014 clause 3 MEASURED convergence (|diff| <= 1 dB) by 800 ms after the
+  recovery point
+
+-------------------------------------------------------------------------------
+CavernVerb_EarlyReflectionGeometry
+  (d) incommensurability, FR-022 / SC-006 (d)
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(505)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(518): warning:
+  FR-022 incommensurability, order 2 = 0.0541082 (tolerance 0.05, expected 0.
+  05411)
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(518): warning:
+  FR-022 incommensurability, order 4 = 0.0541082 (tolerance 0.05, expected 0.
+  05411)
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(518): warning:
+  FR-022 incommensurability, order 6 = 0.0541082 (tolerance 0.05, expected 0.
+  05411)
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(535): warning:
+  FR-022 incommensurability, order 8 (NON-GATE) = 0.000342762
+
+-------------------------------------------------------------------------------
+CavernVerb_EarlyReflectionGeometry
+  gain law and sum, FR-020 / FR-028
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(559)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(576): warning:
+  FR-028 sum|g_i| = 1.86576 (kEarlyGainSum 1.86576, ceiling 2.0)
+
+-------------------------------------------------------------------------------
+CavernVerb_EarlyReflectionGeometry
+  (c) size biased huge, SC-007 (c)
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(594)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(640): warning:
+  SC-007 (c) size bias = 4.59479x (nominal 4.594; per-line spread 4.59479 .. 4.
+  59479)
+
+-------------------------------------------------------------------------------
+CavernVerb_EarlyReflectionGeometry
+  (c) sparsity, SC-006 (c)
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(726)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(759): warning:
+  SC-006 (c) NED over [first, last] arrival = 0.075 over 160 windows (ceiling
+  0.5)
+
+-------------------------------------------------------------------------------
+CavernVerb_EarlyReflectionGeometry
+  (e) the send is not vacuous, FR-026
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(763)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(798): warning:
+  SC-006 (e) tail energy after 2 x last tap: send 1 vs send 0 = 293.881 dB
+  (floor 20 dB; energies 0.244388 / 4.01778e-36)
+
+-------------------------------------------------------------------------------
+CavernVerb_EarlyReflectionGeometry
+  (f) mono-sum invariance, FR-020
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(802)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(830): warning:
+  SC-006 (f) worst |L-only - R-only| = 8.74228e-08 (tolerance 0.0005)
+
+-------------------------------------------------------------------------------
+CavernVerb_EarlyReflectionGeometry
+  (g) side rule, FR-020
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(834)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(880): warning:
+  SC-006 (g) sum g_L / sum g_R = 0.803314 dB (expected +0.80; sum g_L 0.975989,
+  sum g_R 0.889773)
+
+-------------------------------------------------------------------------------
+CavernVerb_EarlyReflectionGeometry
+  (h) width independence, FR-019
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(883)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(924): warning:
+  SC-006 (h) worst |width 0 - width 1| over the ER-only render = 1.35525e-20
+
+-------------------------------------------------------------------------------
+CavernVerb_ProcessContract
+  (iv) a block larger than maxBlockSamples matches a ragged render
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(1091)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(1119): warning:
+  FR-007 worst |5000-sample block - {37,111,513} partitions| = 0
+
+-------------------------------------------------------------------------------
+CavernVerb_SampleRates
+  allocation formula and latency, FR-075 / SC-015
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(1304)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(1326): warning:
+  SC-015 allocation at 44100 Hz: 98304 B, formula 98304 B, factor 1
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(1326): warning:
+  SC-015 allocation at 48000 Hz: 98304 B, formula 98304 B, factor 1
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(1326): warning:
+  SC-015 allocation at 96000 Hz: 163840 B, formula 163840 B, factor 1
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(1326): warning:
+  SC-015 allocation at 192000 Hz: 294912 B, formula 294912 B, factor 1
+
+-------------------------------------------------------------------------------
+CavernVerb_SampleRates
+  ER tap times are rate-invariant, SC-015
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(1348)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(1367): warning:
+  SC-015 worst ER tap-time spread across 44.1/48/96/192 kHz = 1.08645e-05 ms
+
+-------------------------------------------------------------------------------
+CavernVerb_SampleRates
+  renders at four rates
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(1383)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(1412): warning:
+  SC-015 render at 44100 Hz: 441000 samples, peak 0.285614, non-finite L 0 / R
+  0, recovery count 0
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(1412): warning:
+  SC-015 render at 48000 Hz: 480000 samples, peak 0.282533, non-finite L 0 / R
+  0, recovery count 0
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(1412): warning:
+  SC-015 render at 96000 Hz: 960000 samples, peak 0.240642, non-finite L 0 / R
+  0, recovery count 0
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(1412): warning:
+  SC-015 render at 192000 Hz: 1920000 samples, peak 0.178181, non-finite L 0 /
+  R 0, recovery count 0
+
+-------------------------------------------------------------------------------
+CavernVerb_SampleRates
+  re-prepare leaves no stale state
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(1431)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(1288): warning:
+  SC-015 re-prepare at 96 kHz vs a freshly constructed instance: worst metric
+  error L 0 / R 0 (bound 0.00025), worst sample error L 0 / R 0 (bound 0.0005)
+
+-------------------------------------------------------------------------------
+CavernVerb_EarlyAbsorption
+  (ii) one state per tap, gated behaviourally, FR-025 / FR-027
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(1676)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(1754): warning:
+  FR-025 per-tap dullness (centroid / interpolation reference) at v = 1: 0.
+  961084, 0.932707, 0.896452, 0.862291, 0.814437, 0.770422, 0.723619, 0.682754,
+  0.645047, 0.619895, 0.587585, 0.560165
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(1769): warning:
+  FR-025 tap 11 vs tap 0, normalised energy above 4000 Hz: 6.63836 dB (floor 6.
+  0 dB; hfRatio[0] = 0.959511, hfRatio[11] = 0.208072)
+
+-------------------------------------------------------------------------------
+CavernVerb_EarlyAbsorption
+  (iii) bypass entry and exit are click-free, FR-025 / FR-024
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(1773)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(428): warning:
+  P-5 click detector: threshold 7.25 sigma (smallest zero-false-positive
+  threshold 6.5 + margin 0.75, cap 8), false positives 0, control detections 1
+  at probe amplitude 0.15 (ladder from 0.1, ceiling = 2 x reference peak |dx| =
+  0.360293)
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(1822): warning:
+  FR-025 absorption 0.60 -> 0 -> 0.60: 0 click detections
+
+-------------------------------------------------------------------------------
+CavernVerb_MixLaw
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(1874)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(1910): warning:
+  FR-063 L: dry/wet correlation rho = 0.00063658
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(1952): warning:
+  FR-063 L mix 0: dryG 1 (expect 1), wetG 0 (expect 0), power -9.64327e-16 dB,
+  residual 1.61852e-16
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(1952): warning:
+  FR-063 L mix 0.25: dryG 0.92388 (expect 0.92388), wetG 0.382683 (expect 0.
+  382683), power 0.00195468 dB, residual 3.63143e-08
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(1952): warning:
+  FR-063 L mix 0.5: dryG 0.707107 (expect 0.707107), wetG 0.707107 (expect 0.
+  707107), power 0.00276436 dB, residual 3.85185e-08
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(1952): warning:
+  FR-063 L mix 0.75: dryG 0.382683 (expect 0.382683), wetG 0.92388 (expect 0.
+  92388), power 0.00195461 dB, residual 4.25067e-08
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(1952): warning:
+  FR-063 L mix 1: dryG 0 (expect 1.22465e-16), wetG 1 (expect 1), power -9.
+  64327e-16 dB, residual 1.63559e-16
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(1910): warning:
+  FR-063 R: dry/wet correlation rho = 0.00126099
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(1952): warning:
+  FR-063 R mix 0: dryG 1 (expect 1), wetG 0 (expect 0), power -9.64327e-16 dB,
+  residual 1.62045e-16
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(1952): warning:
+  FR-063 R mix 0.25: dryG 0.92388 (expect 0.92388), wetG 0.382683 (expect 0.
+  382683), power 0.00387092 dB, residual 3.63472e-08
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(1952): warning:
+  FR-063 R mix 0.5: dryG 0.707107 (expect 0.707107), wetG 0.707107 (expect 0.
+  707107), power 0.00547358 dB, residual 3.83593e-08
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(1952): warning:
+  FR-063 R mix 0.75: dryG 0.382683 (expect 0.382683), wetG 0.92388 (expect 0.
+  92388), power 0.00387086 dB, residual 4.25219e-08
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(1952): warning:
+  FR-063 R mix 1: dryG 0 (expect 1.22465e-16), wetG 1 (expect 1), power -9.
+  64327e-16 dB, residual 1.63866e-16
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(1967): warning:
+  FR-063 witness: a LINEAR crossfade reads -3.0103 dB at mix 0.5 - outside the
+  +/-0.5 dB band
+
+-------------------------------------------------------------------------------
+CavernVerb_DamperMotionSmoothness
+  (d) dormancy re-entry
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(2145)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(428): warning:
+  P-5 click detector: threshold 7.25 sigma (smallest zero-false-positive
+  threshold 6.5 + margin 0.75, cap 8), false positives 0, control detections 1
+  at probe amplitude 0.25 (ladder from 0.1, ceiling = 2 x reference peak |dx| =
+  0.542345)
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(428): warning:
+  P-5 click detector: threshold 5.75 sigma (smallest zero-false-positive
+  threshold 5 + margin 0.75, cap 8), false positives 0, control detections 1 at
+  probe amplitude 0.55 (ladder from 0.1, ceiling = 2 x reference peak |dx| = 1.
+  13224)
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(2232): warning:
+  FR-065 dormancy re-entry, six 0 <-> 1 gate steps: 0 click detections
+
+-------------------------------------------------------------------------------
+CavernVerb_DamperMotionSmoothness
+  (d) ER size sweep
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(2236)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(2273): warning:
+  FR-023 ER size sweep, last tap: 3840 -> 28799.9 samples
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(428): warning:
+  P-5 click detector: threshold 7.25 sigma (smallest zero-false-positive
+  threshold 6.5 + margin 0.75, cap 8), false positives 0, control detections 1
+  at probe amplitude 0.25 (ladder from 0.1, ceiling = 2 x reference peak |dx| =
+  0.347807)
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(428): warning:
+  P-5 click detector: threshold 6.75 sigma (smallest zero-false-positive
+  threshold 6 + margin 0.75, cap 8), false positives 0, control detections 1 at
+  probe amplitude 0.15 (ladder from 0.1, ceiling = 2 x reference peak |dx| = 0.
+  329349)
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(2313): warning:
+  FR-023 ER size sweep 80 -> 600 -> 80 ms: 0 click detections
+
+-------------------------------------------------------------------------------
+CavernVerb_DamperMotionSmoothness
+  (a) trajectory, FR-033 / FR-037 / SC-003 (a)
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(2324)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(2344): warning:
+  SC-003 (a): max published offset step 0.111904 octaves/chunk, bound 0.195626
+  (peak |offset| 1.5 of 1.5)
+
+-------------------------------------------------------------------------------
+CavernVerb_DamperMotionSmoothness
+  (b) coefficient, FR-041 / FR-048 / SC-003 (b)
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(2355)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(2419): warning:
+  SC-003 (b): max effective damping-coefficient step 0.0268228 per chunk, bound
+  0.0498826 (coefficient range [0.220283, 0.998398])
+
+-------------------------------------------------------------------------------
+CavernVerb_DamperMotionSmoothness
+  (c) audible, FR-033 / SC-003 (c)
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(2427)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(428): warning:
+  P-5 click detector: threshold 8 sigma (smallest zero-false-positive threshold
+  7.25 + margin 0.75, cap 8), false positives 0, control detections 1 at probe
+  amplitude 0.25 (ladder from 0.1, ceiling = 2 x reference peak |dx| = 0.40929)
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(2438): warning:
+  SC-003 (c): 120 s at damper depth 1 / rate 1 - 0 click detections
+
+-------------------------------------------------------------------------------
+CavernVerb_DamperMotionSmoothness
+  (d) depth step
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(2442)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(428): warning:
+  P-5 click detector: threshold 7 sigma (smallest zero-false-positive threshold
+  6.25 + margin 0.75, cap 8), false positives 0, control detections 1 at probe
+  amplitude 0.2 (ladder from 0.1, ceiling = 2 x reference peak |dx| = 0.368583)
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(428): warning:
+  P-5 click detector: threshold 7.25 sigma (smallest zero-false-positive
+  threshold 6.5 + margin 0.75, cap 8), false positives 0, control detections 1
+  at probe amplitude 0.2 (ladder from 0.1, ceiling = 2 x reference peak |dx| =
+  0.361175)
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(2496): warning:
+  FR-031 depth step 0.35 -> 1.0 -> 0.35 at damper rate 1: 0 click detections
+
+-------------------------------------------------------------------------------
+CavernVerb_DamperDecorrelation
+  (a) gating arm, setDamperRate(1.0)
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(2800)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(2805): warning:
+  SC-004 (a) damperRate 1.0 (tau = 0.2 s, ~1500 effective samples over 600 s):
+  mean pairwise |r| = 0.0150171 (bound 0.3), max = 0.0598763 (bound 0.6)
+
+-------------------------------------------------------------------------------
+CavernVerb_DamperDecorrelation
+  (b) shipped default rate, against an in-test null distribution
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(2820)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(2844): warning:
+  SC-004 (b) kDefaultDamperRate = 0.15 (tau ~ 25.5 s): mean pairwise |r| = 0.
+  147608, max = 0.325476; null over 100 independently re-seeded banks: median
+  max |r| = 0.420819, P99 = 0.585075
+
+-------------------------------------------------------------------------------
+CavernVerb_DamperDecorrelation
+  negative control - the metric can discriminate
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(2848)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(2859): warning:
+  SC-004 negative control (one drift broadcast to all 8 lines): mean pairwise
+  |r| = 1, max = 1
+
+-------------------------------------------------------------------------------
+CavernVerb_DamperDecorrelation
+  salt separation, FR-034
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(2864)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(2903): warning:
+  FR-034 salt separation: closest damper/jitter trajectory pair differs by 3
+  octaves at its widest point (separation floor 0.001)
+
+-------------------------------------------------------------------------------
+CavernVerb_DamperSpectralMotion
+  (a) endpoint separation
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(3342)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(3349): warning:
+  SC-005 (a) paired statistic M(d) (s.d. over time of the tail's spectral
+  centroid against the seed-matched depth-0 render, 8 seeds, damperRate 1.0): M
+  (0.25) = 14.1701 Hz, M(1) = 62.6485 Hz, ratio 4.42117x (bound 3x)
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(3354): warning:
+  SC-005 reported, not gated - un-paired s.d. by depth: 331.742, 327.204, 314.
+  242, 301.643, 293.073 Hz; absolute centroid excursion depth 0 = 1200.02 Hz,
+  depth 1 = 1095.98 Hz (mean centroid 6196.79 -> 6268.63 Hz)
+
+-------------------------------------------------------------------------------
+CavernVerb_DamperSpectralMotion
+  (b) ordering, non-strict
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(3363)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(3375): warning:
+  SC-005 (b) paired statistic by depth {0, 0.25, 0.5, 0.75, 1}: 0, 14.1701, 34.
+  6169, 51.7552, 62.6485 Hz; Spearman rho = 1 (bound 0.9)
+
+-------------------------------------------------------------------------------
+CavernVerb_DamperSpectralMotion
+  (c) inertness at zero, as a number
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(3379)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(3422): warning:
+  SC-005 (c) bare-engine pair: offsets never set = 395.16 Hz, all-zero offsets
+  published = 395.16 Hz, ratio 1x (bound 1.05x); CavernVerb depth-0 statistic
+  331.742 Hz
+
+-------------------------------------------------------------------------------
+CavernVerb_DamperSpectralMotion
+  (d) direction, not merely monotonicity - FR-048's sign convention
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(3427)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(3450): warning:
+  SC-005 direction at setDarkness(0.0) (engine damping 0.5): 8 kHz T60 = 1.3465
+  s at offset +0.5, 2.3146 s at offset -0.5
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(3450): warning:
+  SC-005 direction at setDarkness(kDefault) (engine damping 0.9): 8 kHz T60 =
+  0.573697 s at offset +0.5, 0.601841 s at offset -0.5
+
+-------------------------------------------------------------------------------
+CavernVerb_EchoDensity
+  clause 1 - NED >= 0.8 over the size x dimensionality grid
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(3652)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(3693): warning:
+  SC-002 clause 1: size 0, dimensionality 0: t_start = 81 ms, m_long = 8037.78
+  samples, W = 502 ms (502 windows, 0 excluded), NED = 0.994024 (floor 0.8)
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(3693): warning:
+  SC-002 clause 1: size 0, dimensionality 1: t_start = 81 ms, m_long = 8037.78
+  samples, W = 502 ms (502 windows, 0 excluded), NED = 0.994024 (floor 0.8)
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(3693): warning:
+  SC-002 clause 1: size 0.5, dimensionality 0: t_start = 81 ms, m_long = 14999
+  samples, W = 937 ms (937 windows, 0 excluded), NED = 0.989328 (floor 0.8)
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(3693): warning:
+  SC-002 clause 1: size 0.5, dimensionality 1: t_start = 81 ms, m_long = 14999
+  samples, W = 937 ms (937 windows, 0 excluded), NED = 0.989328 (floor 0.8)
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(3693): warning:
+  SC-002 clause 1: size 1, dimensionality 0: t_start = 81 ms, m_long = 20340.1
+  samples, W = 1271 ms (1271 windows, 0 excluded), NED = 0.984264 (floor 0.8)
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(3693): warning:
+  SC-002 clause 1: size 1, dimensionality 1: t_start = 81 ms, m_long = 20340.1
+  samples, W = 1271 ms (1271 windows, 0 excluded), NED = 0.984264 (floor 0.8)
+
+-------------------------------------------------------------------------------
+CavernVerb_EchoDensity
+  clauses 2 and 3 - the ER must not punch a sparse hole, non-vacuously
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(3701)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(3725): warning:
+  SC-002 clause 3 (i): earlyLevel = 0 render peak = 0.00489659 (-46.2021 dBFS,
+  floor -60)
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(3763): warning:
+  SC-002 clause 2: t_start(earlyLevel 0) = 86 ms, t_start(earlyLevel 1) = 81
+  ms; m_long = 14999 samples, W = 937 ms (937 windows, 0 excluded); NED
+  (earlyLevel 0) = 1, NED(earlyLevel 1) = 0.993597, drop = 0.00640342
+  (allowance 0.05)
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(3785): warning:
+  SC-002 clause 3 (ii): energy after 2 x last tap (461.333 ms): earlyLevel 0 =
+  0.0319406, earlySend 0 = 1.34318e-36, margin = 285.043 dB (floor 20 dB)
+
+-------------------------------------------------------------------------------
+CavernVerb_DarkTuning
+  (a) the HF decay is strongly shortened - FR-013 / FR-014
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(4005)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(4022): warning:
+  SC-007 (a): T60(8 kHz) = 3.24697 s, T60(250 Hz) = 18.0768 s, ratio = 0.179621
+  (ceiling 0.35)
+
+-------------------------------------------------------------------------------
+CavernVerb_DarkTuning
+  (b) darker than a bare AetherReverb at its own defaults
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(4031)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(4072): warning:
+  SC-007 (b): tail centroid over [4.5, 6.37733) s: CavernVerb = 1720.65 Hz
+  (tail rms 0.0135717), bare AetherReverb = 3087 Hz (tail rms 0.00506776),
+  ratio = 0.557386 (ceiling 0.7)
+
+-------------------------------------------------------------------------------
+CavernVerb_DarkTuning
+  (d) no shimmer - FR-010 / FR-011
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(4082)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(4171): warning:
+  SC-007 (d): relative to the 220 Hz band, 330 Hz = -77.2781 dB and 440 Hz = -
+  88.011 dB (ceiling -40 dB); isShimmerActive() = 0
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(4202): warning:
+  SC-007 (d), REPORTED ONLY - the same probes at FR-066's Breath 0.50 / Fog 0.
+  30: 330 Hz = -12.8733 dB and 440 Hz = -19.4382 dB. These are the breath's
+  Doppler skirt, not a shimmer image; see the block comment at the head of this
+  section.
+
+-------------------------------------------------------------------------------
+CavernVerb_MirroredConstants
+  (a) the decay clamp is at [0.5, 60] s
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(4430)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(4445): warning:
+  SC-016 (a): broadband T60 at decay 0.4 s = 0.417737 s vs 0.5 s = 0.417737 s
+  (delta 0 %); at 61 s = 41.684 s vs 60 s = 41.684 s (delta 0 %); tolerance 5 %
+
+-------------------------------------------------------------------------------
+CavernVerb_MirroredConstants
+  (b) the channel-count ceiling is 16
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(4456)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(4468): warning:
+  SC-016 (b): at numChannels = 16, line 15 = 2726.06 samples, line 16 = 0
+  samples
+
+-------------------------------------------------------------------------------
+CavernVerb_MirroredConstants
+  (c) the Nyquist damping ratio is 0.05
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(4473)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(4392): warning:
+  SC-016 (c) exact arm [damping 1 (darkness 1), decay 20 s (FR-066 default)]:
+  kDampingNyquistRatio recovered from the shipped coefficients of all 8 lines
+  lies in [0.05, 0.05] against 0.05 - worst deviation 2.80301e-05 % (tolerance
+  1 %)
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(4392): warning:
+  SC-016 (c) exact arm [damping 1 (darkness 1), decay 5 s]:
+  kDampingNyquistRatio recovered from the shipped coefficients of all 8 lines
+  lies in [0.05, 0.05] against 0.05 - worst deviation 1.61723e-05 % (tolerance
+  1 %)
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(4392): warning:
+  SC-016 (c) exact arm [damping 0.5 (darkness 0 = kCavernDampingFloor), decay
+  20 s]: kDampingNyquistRatio recovered from the shipped coefficients of all 8
+  lines lies in [0.0499999, 0.05] against 0.05 - worst deviation 0.000197777 %
+  (tolerance 1 %)
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(4392): warning:
+  SC-016 (c) exact arm [damping 0.5 (darkness 0 = kCavernDampingFloor), decay
+  60 s (the clamp)]: kDampingNyquistRatio recovered from the shipped
+  coefficients of all 8 lines lies in [0.0499998, 0.0500002] against 0.05 -
+  worst deviation 0.000361208 % (tolerance 1 %)
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(4604): warning:
+  SC-016 (c) measured arm: T60(8 kHz) = 0.394452 s, T60(125 Hz) = 1.54379 s,
+  ratio 0.25551 (ceiling 0.35); the criterion's literal target, 0.05 x T60(125
+  Hz) = 0.0771893 s, is unreachable by the shipped law - see the block comment
+  above. What the law predicts per line at damping 1, decay 2 s: shortest line
+  m = 518.202 -> T60(8 kHz) 0.228824 s, T60(125 Hz) 1.99441 s, T60(Nyquist) 0.1
+  s; longest line m = 2726.06 -> T60(8 kHz) 0.121427 s, T60(125 Hz) 1.56421 s,
+  T60(Nyquist) 0.1 s
+
+-------------------------------------------------------------------------------
+CavernVerb_NoAllocation
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(4690)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(4815): warning:
+  SC-010: allocations over 2880000 samples (60 s at 48 kHz, N = 8, spectral
+  @1024, 87 full setter sweeps) = 0, getAllocatedBytes() = 163840 throughout,
+  peak |out| = 0.71993
+
+-------------------------------------------------------------------------------
+CavernVerb_Determinism
+  two instances with the same seed render the same thing
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(4902)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(4880): warning:
+  SC-011 same seed, ragged partitions: worst metric error L 0 / R 0 (bound 0.
+  00025), worst sample error L 0 / R 0 (bound 0.0005)
+
+-------------------------------------------------------------------------------
+CavernVerb_Determinism
+  a different seed changes the render
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(4933)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(4962): warning:
+  SC-011 different seed: relative total-variation difference L 0.00608028 / R
+  0.00228396 (must exceed 0.00025)
+
+-------------------------------------------------------------------------------
+CavernVerb_Determinism
+  setSeed then reset restores the opening trajectory
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(4977)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(4880): warning:
+  SC-011 setSeed + reset replay: worst metric error L 0 / R 0 (bound 0.00025),
+  worst sample error L 0 / R 0 (bound 0.0005)
+
+-------------------------------------------------------------------------------
+CavernVerb_Determinism
+  the render is invariant to how the caller partitions its blocks
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(5015)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(4880): warning:
+  SC-011 {37, 111, 513} vs 4096-sample calls: worst metric error L 0 / R 0
+  (bound 0.00025), worst sample error L 0 / R 0 (bound 0.0005)
+
+-------------------------------------------------------------------------------
+CavernVerb_Determinism
+  controls configured before prepare() are re-applied by it
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(5046)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(4880): warning:
+  SC-011 five controls set before prepare() vs after: worst metric error L 0 /
+  R 0 (bound 0.00025), worst sample error L 0 / R 0 (bound 0.0005)
+
+-------------------------------------------------------------------------------
+CavernVerb_Determinism
+  freeze survives reset()
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(5102)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(5135): warning:
+  SC-011 freeze across reset(): state energy 69.0057 before reset, 3.04259e-36
+  after (reset() clears the tail by design; what is asserted is the freeze
+  FLAG, not the energy)
+
+-------------------------------------------------------------------------------
+CavernVerb_NonFiniteSentinel
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(5171)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(5275): warning:
+  FR-064 sentinel (60 s, SC-009 arm (b)): non-finite output samples 0 before
+  the injection, 0 inside the 188-block flush window, 0 after it; peak 0.291667
+  before / 0.309211 after; recovery count 0 (was 0 immediately before the
+  injection)
+
+-------------------------------------------------------------------------------
+CavernVerb_BreathDualTarget
+  (i) the size breath moves the delay geometry
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(5365)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(5449): warning:
+  FR-017 (i): at breath 0 the un-jittered half spreads by at most 0 samples (4
+  of 4 exactly static; 4 of 8 lines moving in total); at breath 1 8 of 8 lines
+  move, the least by 3626.25 samples
+
+-------------------------------------------------------------------------------
+CavernVerb_BreathDualTarget
+  (ii) the dimensionality tide is routed too
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(5476)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(5573): warning:
+  FR-017 (ii): worst morph-position gap 0.355119, relative total-variation
+  difference L 0.0383551 / R 0.0731147 (must exceed 0.00025)
+
+-------------------------------------------------------------------------------
+CavernVerb_FreezeEnergyConservation
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_freeze_test.cpp(579)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_freeze_test.cpp(599): warning:
+  SC-001 clause 1 (breath 1, matrix morphing): reference state energy 25.8528
+  dB, worst deviation over 60 s 0.00140396 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_freeze_test.cpp(641): warning:
+  SC-001 clause 3 (i): largest |offset(last chunk) - offset(first chunk)| over
+  the frozen span = 2.63718 octaves, bound 10 x 0.195626 = 1.95626
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_freeze_test.cpp(713): warning:
+  SC-001 clause 3 (ii): post-thaw largest |coefficient - latched| = 0.648221
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_freeze_test.cpp(738): warning:
+  SC-001 clause 2 (breath 0, matrix static): worst getStateEnergy() deviation
+  0.000328492 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_freeze_test.cpp(761): warning:
+  SC-001 clause 2: octave 125 Hz reference -49.5388 dBFS, worst deviation 0.
+  0558117 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_freeze_test.cpp(761): warning:
+  SC-001 clause 2: octave 250 Hz reference -45.0175 dBFS, worst deviation 0.
+  0628614 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_freeze_test.cpp(761): warning:
+  SC-001 clause 2: octave 500 Hz reference -43.1661 dBFS, worst deviation 0.
+  0379618 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_freeze_test.cpp(761): warning:
+  SC-001 clause 2: octave 1000 Hz reference -40.9567 dBFS, worst deviation 0.
+  038299 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_freeze_test.cpp(761): warning:
+  SC-001 clause 2: octave 2000 Hz reference -39.2745 dBFS, worst deviation 0.
+  0128787 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_freeze_test.cpp(761): warning:
+  SC-001 clause 2: octave 4000 Hz reference -38.3766 dBFS, worst deviation 0.
+  014837 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_freeze_test.cpp(761): warning:
+  SC-001 clause 2: octave 8000 Hz reference -38.7679 dBFS, worst deviation 0.
+  00685995 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_freeze_test.cpp(768): warning:
+  SC-001 clause 2: 7 of 7 octaves qualified, worst qualifying deviation 0.
+  0628614 dB
+
+-------------------------------------------------------------------------------
+CavernVerb_FreezeCycles
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_freeze_test.cpp(785)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_freeze_test.cpp(893): warning:
+  SC-008 (a): span 0 entry 22.9383 dB, exit 22.9379 dB, delta -0.000404949 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_freeze_test.cpp(893): warning:
+  SC-008 (a): span 1 entry 21.2672 dB, exit 21.2673 dB, delta 0.000129682 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_freeze_test.cpp(893): warning:
+  SC-008 (a): span 2 entry 19.5502 dB, exit 19.5503 dB, delta 0.000130459 dB
+  [excluded - G-2 input]
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_freeze_test.cpp(893): warning:
+  SC-008 (a): span 3 entry 22.0523 dB, exit 22.0524 dB, delta 0.000108649 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_freeze_test.cpp(893): warning:
+  SC-008 (a): span 4 entry 20.5169 dB, exit 20.517 dB, delta 5.47129e-05 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_freeze_test.cpp(893): warning:
+  SC-008 (a): span 5 entry 22.429 dB, exit 22.4291 dB, delta 0.000128789 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_freeze_test.cpp(893): warning:
+  SC-008 (a): span 6 entry 21.3791 dB, exit 21.3791 dB, delta -1.7366e-05 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_freeze_test.cpp(893): warning:
+  SC-008 (a): span 7 entry 19.0804 dB, exit 19.0833 dB, delta 0.00293704 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_freeze_test.cpp(893): warning:
+  SC-008 (a): span 8 entry 21.4719 dB, exit 21.4719 dB, delta -2.92757e-05 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_freeze_test.cpp(893): warning:
+  SC-008 (a): span 9 entry 19.4906 dB, exit 19.4906 dB, delta 4.6572e-05 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_freeze_test.cpp(225): warning:
+  P-5 click detector: threshold 8 sigma (smallest zero-false-positive threshold
+  7.25 + margin 0.75, cap 8), false positives 0, control detections 1 at probe
+  amplitude 0.25 (ceiling = 2 x reference peak |dx| = 0.41093)
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_freeze_test.cpp(912): warning:
+  SC-008 (b): 10 freeze/thaw cycles over 82 s - 0 click detections
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_freeze_test.cpp(979): warning:
+  SC-008 (c): third frozen span, peak cross-correlation at lag 3904 samples
+  (latency 1024 + tap), closest tap miss 0 samples, matched tap 0, normalised
+  |r| 0.350241, peak/floor 26.9913
+
+-------------------------------------------------------------------------------
+CavernVerb_SilenceContract
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_freeze_test.cpp(1002)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_freeze_test.cpp(1062): warning:
+  FR-006 silence(): recovery (gate open AND clear finished) at sample 99072 (64
+  ms after the call)
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_freeze_test.cpp(225): warning:
+  P-5 click detector: threshold 6.75 sigma (smallest zero-false-positive
+  threshold 6 + margin 0.75, cap 8), false positives 0, control detections 1 at
+  probe amplitude 0.1 (ceiling = 2 x reference peak |dx| = 0.301624)
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_freeze_test.cpp(1076): warning:
+  FR-006 silence(): 0 click detections over the second after the call
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_freeze_test.cpp(1083): warning:
+  FR-006 silence(): getStateEnergy() -360.563 dB at recovery, -351.524 dB at
+  the end of the render
+
+-------------------------------------------------------------------------------
+CavernVerb_Soak
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_soak_test.cpp(275)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_soak_test.cpp(278): warning:
+  G-2 calibration gain 1.52291
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_soak_test.cpp(338): warning:
+  SC-014 input peak 1
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_soak_test.cpp(342): warning:
+  SC-014 (a) measured peak 0.584594 against the bound 4
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_soak_test.cpp(355): warning:
+  SC-014 (b) longest strictly monotone run 5 of 30
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_soak_test.cpp(363): warning:
+  SC-014 (b) minute 30 vs minute 10: -0.0183751 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_soak_test.cpp(440): warning:
+  SC-014 (d) worst frozen energy deviation 0.0113614 dB at +1326 s of 1739
+
+-------------------------------------------------------------------------------
+VoragoComposed_OutputIsBounded
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\vorago_composed_chain_test.cpp(382)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\vorago_composed_chain_test.cpp(428): warning:
+  FR-073: worst |out| over 156 composed renders (26 macro extremes x polyphony
+  1..6) = 0.372997 (bound 1.0)
+
+-------------------------------------------------------------------------------
+VoragoComposed_DepthMacroAxis
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\vorago_composed_chain_test.cpp(623)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\vorago_composed_chain_test.cpp(698): warning:
+  SC-008 Depth (tail), seed 1: composed RT30 s at Depth {0, 0.25, 0.5, 0.75, 1}
+  = 8.85, 10.75, 12.65, 14.55, 15.85 (cap 120 s; quietest block rel. note-off
+  level dB = -271.347, -271.574, -271.665, -235.549, -208.871) | Spearman rho =
+  1 | endpoint = 7 s
+
+F:\projects\iterum\dsp\tests\unit\effects\vorago_composed_chain_test.cpp(698): warning:
+  SC-008 Depth (tail), seed 7: composed RT30 s at Depth {0, 0.25, 0.5, 0.75, 1}
+  = 8.45, 9.85, 11.75, 12.85, 14.45 (cap 120 s; quietest block rel. note-off
+  level dB = -269.593, -269.67, -269.697, -234.984, -209.572) | Spearman rho =
+  1 | endpoint = 6 s
+
+F:\projects\iterum\dsp\tests\unit\effects\vorago_composed_chain_test.cpp(698): warning:
+  SC-008 Depth (tail), seed 1337: composed RT30 s at Depth {0, 0.25, 0.5, 0.75,
+  1} = 8.55, 9.95, 11.25, 12.45, 14.25 (cap 120 s; quietest block rel. note-off
+  level dB = -271.334, -271.421, -271.443, -238.525, -210.616) | Spearman rho =
+  1 | endpoint = 5.7 s
+
+F:\projects\iterum\dsp\tests\unit\effects\vorago_composed_chain_test.cpp(713): warning:
+  SC-008 Depth (tail): mean Spearman rho = 1 (bound +0.9), mean endpoint = 6.
+  23333 s (bound 3 s)
+
+===============================================================================
+All tests passed (122746 assertions in 499 test cases)
+

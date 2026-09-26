@@ -1,0 +1,31 @@
+Filters: "VoragoEngine_NewSettersDefaultInert"
+Randomness seeded to: 2681696845
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+VoragoEngine_NewSettersDefaultInert
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1302)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1191): PASSED:
+  REQUIRE( maxL <= 1e-6f )
+with expansion:
+  0.0f <= 0.0f
+with message:
+  max-abs diff L 0  R 0
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1192): PASSED:
+  REQUIRE( maxR <= 1e-6f )
+with expansion:
+  0.0f <= 0.0f
+with message:
+  max-abs diff L 0  R 0
+
+10.018 s: VoragoEngine_NewSettersDefaultInert
+===============================================================================
+All tests passed (2 assertions in 1 test case)
+

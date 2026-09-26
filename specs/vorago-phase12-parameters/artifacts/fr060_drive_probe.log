@@ -1,0 +1,65 @@
+Filters: "VoragoMacro_Phase12DriveProbe"
+Randomness seeded to: 2784072675
+FR-060 drive probe (T007 part 2, spec B-2; SC-008 Pressure fixture: seeds 101/202/303 x points 0/.25/.5/.75/1 x 60 s @ 48 kHz; note C1)
+Shipped kRows amounts: Pressure->OutputSaturation=0.8800  Pressure->OutputDriveDb=12.0000 dB; every candidate below is emulated as the delta to P-a (0.8800) plus the named drive amount
+Threshold (Phase 10, unchanged): Pressure rho<=-0.9 endpoint>=3 dB
+Pressure shipped kRows  [crest factor (dB) @C1]
+    mean rho=-1.0000  mean endpoint=2.0188  threshold=3.0000  -> FAIL
+    per-seed rho/endpoint:  101: -1.0000 / 1.7139  202: -1.0000 / 2.1672  303: -1.0000 / 2.1752
+    mean metric [0, .25, .5, .75, 1]: [7.5886, 7.3672, 6.9380, 6.2830, 5.5699]
+Pressure P-a + OutputDriveDb +6 dB  [crest factor (dB) @C1]
+    mean rho=-1.0000  mean endpoint=1.1654  threshold=3.0000  -> FAIL
+    per-seed rho/endpoint:  101: -1.0000 / 0.8854  202: -1.0000 / 1.2411  303: -1.0000 / 1.3696
+    mean metric [0, .25, .5, .75, 1]: [7.5886, 7.4279, 7.1794, 6.8496, 6.4233]
+Pressure P-a + OutputDriveDb +12 dB  [crest factor (dB) @C1]
+    mean rho=-1.0000  mean endpoint=2.0188  threshold=3.0000  -> FAIL
+    per-seed rho/endpoint:  101: -1.0000 / 1.7139  202: -1.0000 / 2.1672  303: -1.0000 / 2.1752
+    mean metric [0, .25, .5, .75, 1]: [7.5886, 7.3672, 6.9380, 6.2830, 5.5699]
+Pressure P-a + OutputDriveDb +18 dB  [crest factor (dB) @C1]
+    mean rho=-1.0000  mean endpoint=2.4876  threshold=3.0000  -> FAIL
+    per-seed rho/endpoint:  101: -1.0000 / 2.1677  202: -1.0000 / 2.5617  303: -1.0000 / 2.7334
+    mean metric [0, .25, .5, .75, 1]: [7.5886, 7.3001, 6.7024, 5.8317, 5.1010]
+Pressure P-a + OutputDriveDb +24 dB  [crest factor (dB) @C1]
+    mean rho=-1.0000  mean endpoint=2.6003  threshold=3.0000  -> FAIL
+    per-seed rho/endpoint:  101: -1.0000 / 2.2993  202: -1.0000 / 2.6354  303: -1.0000 / 2.8664
+    mean metric [0, .25, .5, .75, 1]: [7.5886, 7.2308, 6.5431, 5.6780, 4.9883]
+Pressure P-a + OutputDriveDb +18 dB + SubToneLevelOffsetDb -12 dB  [crest factor (dB) @C1]
+    mean rho=-1.0000  mean endpoint=3.5217  threshold=3.0000  -> PASS
+    per-seed rho/endpoint:  101: -1.0000 / 3.2608  202: -1.0000 / 3.5862  303: -1.0000 / 3.7183
+    mean metric [0, .25, .5, .75, 1]: [7.5886, 6.9264, 6.0034, 4.9788, 4.0669]
+Pressure P-a + OutputDriveDb +18 dB + SubToneLevelOffsetDb -18 dB  [crest factor (dB) @C1]
+    mean rho=-1.0000  mean endpoint=3.7010  threshold=3.0000  -> PASS
+    per-seed rho/endpoint:  101: -1.0000 / 3.4268  202: -1.0000 / 3.7583  303: -1.0000 / 3.9179
+    mean metric [0, .25, .5, .75, 1]: [7.5886, 6.7504, 5.7428, 4.7075, 3.8876]
+Pressure P-a + OutputDriveDb +18 dB + SubToneLevelOffsetDb -24 dB  [crest factor (dB) @C1]
+    mean rho=-1.0000  mean endpoint=3.7902  threshold=3.0000  -> PASS
+    per-seed rho/endpoint:  101: -1.0000 / 3.5052  202: -1.0000 / 3.8425  303: -1.0000 / 4.0230
+    mean metric [0, .25, .5, .75, 1]: [7.5886, 6.5964, 5.5341, 4.5524, 3.7984]
+Pressure P-a + OutputDriveDb +24 dB + SubToneLevelOffsetDb -12 dB  [crest factor (dB) @C1]
+    mean rho=-1.0000  mean endpoint=3.8821  threshold=3.0000  -> PASS
+    per-seed rho/endpoint:  101: -1.0000 / 3.6753  202: -1.0000 / 3.8835  303: -1.0000 / 4.0877
+    mean metric [0, .25, .5, .75, 1]: [7.5886, 6.8552, 5.8572, 4.8535, 3.7065]
+Pressure P-a + OutputDriveDb +24 dB + SubToneLevelOffsetDb -18 dB  [crest factor (dB) @C1]
+    mean rho=-1.0000  mean endpoint=4.0550  threshold=3.0000  -> PASS
+    per-seed rho/endpoint:  101: -1.0000 / 3.8110  202: -1.0000 / 4.0953  303: -1.0000 / 4.2586
+    mean metric [0, .25, .5, .75, 1]: [7.5886, 6.6792, 5.5951, 4.5870, 3.5337]
+Pressure P-a + OutputDriveDb +24 dB + SubToneLevelOffsetDb -24 dB  [crest factor (dB) @C1]
+    mean rho=-1.0000  mean endpoint=4.1278  threshold=3.0000  -> PASS
+    per-seed rho/endpoint:  101: -1.0000 / 3.8729  202: -1.0000 / 4.1687  303: -1.0000 / 4.3417
+    mean metric [0, .25, .5, .75, 1]: [7.5886, 6.5256, 5.3851, 4.4204, 3.4609]
+
+==== SUMMARY (candidate | mean rho | mean endpoint | verdict) ====
+  Pressure shipped kRows                    rho= -1.0000  endpoint=   2.0188  FAIL
+  Pressure P-a + OutputDriveDb +6 dB        rho= -1.0000  endpoint=   1.1654  FAIL
+  Pressure P-a + OutputDriveDb +12 dB       rho= -1.0000  endpoint=   2.0188  FAIL
+  Pressure P-a + OutputDriveDb +18 dB       rho= -1.0000  endpoint=   2.4876  FAIL
+  Pressure P-a + OutputDriveDb +24 dB       rho= -1.0000  endpoint=   2.6003  FAIL
+  Pressure P-a + OutputDriveDb +18 dB + SubToneLevelOffsetDb -12 dB  rho= -1.0000  endpoint=   3.5217  PASS
+  Pressure P-a + OutputDriveDb +18 dB + SubToneLevelOffsetDb -18 dB  rho= -1.0000  endpoint=   3.7010  PASS
+  Pressure P-a + OutputDriveDb +18 dB + SubToneLevelOffsetDb -24 dB  rho= -1.0000  endpoint=   3.7902  PASS
+  Pressure P-a + OutputDriveDb +24 dB + SubToneLevelOffsetDb -12 dB  rho= -1.0000  endpoint=   3.8821  PASS
+  Pressure P-a + OutputDriveDb +24 dB + SubToneLevelOffsetDb -18 dB  rho= -1.0000  endpoint=   4.0550  PASS
+  Pressure P-a + OutputDriveDb +24 dB + SubToneLevelOffsetDb -24 dB  rho= -1.0000  endpoint=   4.1278  PASS
+===============================================================================
+All tests passed (308 assertions in 1 test case)
+

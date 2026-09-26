@@ -1,0 +1,73 @@
+===== node tools/check-portability.js =====
+warning: in the working copy of 'dsp/include/krate/dsp/effects/cavern_verb.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'dsp/include/krate/dsp/systems/resonance_drift_network.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'dsp/include/krate/dsp/systems/vorago_engine.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'dsp/include/krate/dsp/systems/vorago_macro_matrix.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'dsp/include/krate/dsp/systems/vorago_voice.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/vorago/CLAUDE.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/vorago/src/controller/controller.cpp', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/vorago/src/controller/controller.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/vorago/src/engine/vorago_engine_config.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/vorago/src/parameters/global_params.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/vorago/src/plugin_ids.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/vorago/src/processor/processor.cpp', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/vorago/src/processor/processor.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/vorago/tests/integration/param_flow_test.cpp', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/vorago/tests/integration/processor_cpu_test.cpp', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/vorago/tests/unit/param_denorm_test.cpp', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/vorago/tests/unit/state_roundtrip_test.cpp', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'specs/vorago-phase12-parameters/plan.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'specs/vorago-phase12-parameters/spec.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'specs/vorago-phase12-parameters/tasks.md', LF will be replaced by CRLF the next time Git touches it
+check-portability: 32 translation unit(s) with g++
+
+  OK      dsp/tests/unit/systems/vorago_macro_retune_probe_test.cpp
+  OK      dsp/tests/unit/systems/vorago_param_surface_test.cpp
+  OK      plugins/vorago/tests/integration/automation_rt_test.cpp
+  OK      plugins/vorago/tests/integration/channel_pressure_test.cpp
+  OK      plugins/vorago/tests/integration/continuity_test.cpp
+  OK      plugins/vorago/tests/integration/param_surface_test.cpp
+  OK      plugins/vorago/tests/integration/seed_test.cpp
+  OK      plugins/vorago/tests/integration/soak_test.cpp
+  OK      plugins/vorago/tests/integration/sustain_test.cpp
+  OK      plugins/vorago/tests/unit/param_table_test.cpp
+  OK      plugins/vorago/tests/unit/params/bloom_params_test.cpp
+  OK      plugins/vorago/tests/unit/params/body_params_test.cpp
+  OK      plugins/vorago/tests/unit/params/cloud_params_test.cpp
+  OK      plugins/vorago/tests/unit/params/ecology_params_test.cpp
+  OK      plugins/vorago/tests/unit/params/ecosystem_params_test.cpp
+  OK      plugins/vorago/tests/unit/params/envelope_params_test.cpp
+  OK      plugins/vorago/tests/unit/params/events_params_test.cpp
+  OK      plugins/vorago/tests/unit/params/ghost_params_test.cpp
+  OK      plugins/vorago/tests/unit/params/global_ext_params_test.cpp
+  OK      plugins/vorago/tests/unit/params/life_params_test.cpp
+  OK      plugins/vorago/tests/unit/params/noise_params_test.cpp
+  OK      plugins/vorago/tests/unit/params/resonance_params_test.cpp
+  OK      plugins/vorago/tests/unit/params/smear_params_test.cpp
+  OK      plugins/vorago/tests/unit/params/space_params_test.cpp
+  OK      plugins/vorago/tests/unit/params/sub_params_test.cpp
+  OK      plugins/vorago/tests/unit/state_v2_test.cpp
+  OK      plugins/vorago/src/controller/controller.cpp
+  OK      plugins/vorago/src/processor/processor.cpp
+  OK      plugins/vorago/tests/integration/param_flow_test.cpp
+  OK      plugins/vorago/tests/integration/processor_cpu_test.cpp
+  OK      plugins/vorago/tests/unit/param_denorm_test.cpp
+  OK      plugins/vorago/tests/unit/state_roundtrip_test.cpp
+
+check-portability: all clear -- 32 compiled.
+exit=0
+===== node tools/lint-odr.js =====
+lint-odr: OK — 800 definitions scanned, no cross-file name collisions.
+exit=0
+===== node tools/lint-layers.js =====
+lint-layers: OK — no layer-dependency violations in 5-layer DSP tree.
+exit=0
+===== node tools/lint-nonfinite-symbols.js =====
+lint-nonfinite-symbols: all clear (17 guarded files)
+exit=0
+===== node tools/lint-float-bit-goldens.js =====
+lint-float-bit-goldens: clean (1619 files scanned)
+exit=0
+===== node tools/lint-plugin-roster.js =====
+lint-plugin-roster: OK — 8 plugins present in every roster (disrumpo, gradus, innexus, iterum, membrum, ruinae, seraphis, vorago)
+exit=0

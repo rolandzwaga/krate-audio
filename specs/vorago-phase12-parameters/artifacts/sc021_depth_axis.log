@@ -1,0 +1,42 @@
+Filters: "VoragoComposed_DepthMacroAxis"
+Randomness seeded to: 2902090567
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_effects_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+VoragoComposed_DepthMacroAxis
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\vorago_composed_chain_test.cpp(623)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\vorago_composed_chain_test.cpp(698): 
+warning:
+  SC-008 Depth (tail), seed 1: composed RT30 s at Depth {0, 0.25, 0.5, 0.75, 1}
+  = 8.85, 10.75, 12.65, 14.55, 15.85 (cap 120 s; quietest block rel. note-off
+  level dB = -271.347, -271.574, -271.665, -235.549, -208.871) | Spearman rho =
+  1 | endpoint = 7 s
+
+F:\projects\iterum\dsp\tests\unit\effects\vorago_composed_chain_test.cpp(698): 
+warning:
+  SC-008 Depth (tail), seed 7: composed RT30 s at Depth {0, 0.25, 0.5, 0.75, 1}
+  = 8.45, 9.85, 11.75, 12.85, 14.45 (cap 120 s; quietest block rel. note-off
+  level dB = -269.593, -269.67, -269.697, -234.984, -209.572) | Spearman rho =
+  1 | endpoint = 6 s
+
+F:\projects\iterum\dsp\tests\unit\effects\vorago_composed_chain_test.cpp(698): 
+warning:
+  SC-008 Depth (tail), seed 1337: composed RT30 s at Depth {0, 0.25, 0.5, 0.75,
+  1} = 8.55, 9.95, 11.25, 12.45, 14.25 (cap 120 s; quietest block rel. note-off
+  level dB = -271.334, -271.421, -271.443, -238.525, -210.616) | Spearman rho =
+  1 | endpoint = 5.7 s
+
+F:\projects\iterum\dsp\tests\unit\effects\vorago_composed_chain_test.cpp(713): 
+warning:
+  SC-008 Depth (tail): mean Spearman rho = 1 (bound +0.9), mean endpoint = 6.
+  23333 s (bound 3 s)
+
+===============================================================================
+All tests passed (5 assertions in 1 test case)
+

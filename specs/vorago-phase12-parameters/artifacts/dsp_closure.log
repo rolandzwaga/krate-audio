@@ -1,0 +1,73 @@
+T013 - DSP closure (FR-007, SC-019 'unedited' clause) - RETRY epoch 4
+Run: 2026-09-25, branch feat/vorago-phase1-events-modulation, HEAD ec6c5419, baseline f149cced
+VERDICT: PASS - build 0 warnings/0 errors; systems 1402/1402 cases pass; effects 495/495 cases pass;
+  dsp/ diff = expected set (+ resonance_drift_network.h, admitted by the B-1 widening of FR-007, spec.md:142);
+  no pre-existing unit TU changed; std::isnan: 0 code uses (8 literal grep hits, all in comments - see section 6).
+  (Supersedes the earlier FAIL run of this log, whose VoragoEngine_RepeatedBroadcastIsInert_Short failure no longer reproduces.)
+
+=== 1. BUILD: cmake --build build/windows-x64-release --config Release --target dsp_systems_tests dsp_effects_tests ===
+exit 0; warning lines (': warning' / 'warning Cnnnn'): 0; error lines: 0
+MSBuild version 17.14.51+25f168cee for .NET Framework
+
+  Checking File Globs
+  Catch2.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\Catch2.lib
+  PFFFT.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\pffft.lib
+  hwy.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy.lib
+  hwy_contrib.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy_contrib.lib
+  KrateDSP.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\KrateDSP.lib
+  dsp_systems_tests.vcxproj -> F:\projects\iterum\build\windows-x64-release\bin\Release\dsp_systems_tests.exe
+MSBuild version 17.14.51+25f168cee for .NET Framework
+
+  Checking File Globs
+  Catch2.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\Catch2.lib
+  PFFFT.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\pffft.lib
+  hwy.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy.lib
+  hwy_contrib.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy_contrib.lib
+  KrateDSP.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\KrateDSP.lib
+  dsp_effects_tests.vcxproj -> F:\projects\iterum\build\windows-x64-release\bin\Release\dsp_effects_tests.exe
+
+=== 2. RUN: dsp_systems_tests.exe "~[.perf]~[performance]~[long]~[.probe]" ===
+exit 0
+===============================================================================
+All tests passed (6020502 assertions in 1402 test cases)
+
+
+=== 3. RUN: dsp_effects_tests.exe "~[.perf]~[performance]~[long]" ===
+exit 0
+===============================================================================
+All tests passed (115009 assertions in 495 test cases)
+
+
+=== 4. git diff --stat f149cced -- dsp/ (tracked) ===
+ .../krate/dsp/systems/resonance_drift_network.h    |  32 +++-
+ dsp/include/krate/dsp/systems/vorago_engine.h      | 195 ++++++++++++++++++++-
+ .../krate/dsp/systems/vorago_macro_matrix.h        | 135 ++++++++++++--
+ dsp/include/krate/dsp/systems/vorago_voice.h       | 103 +++++++++++
+ dsp/tests/CMakeLists.txt                           |  16 ++
+ 5 files changed, 457 insertions(+), 24 deletions(-)
+--- git status --short --untracked-files=all dsp/ (incl. new TUs) ---
+ M dsp/include/krate/dsp/systems/resonance_drift_network.h
+ M dsp/include/krate/dsp/systems/vorago_engine.h
+ M dsp/include/krate/dsp/systems/vorago_macro_matrix.h
+ M dsp/include/krate/dsp/systems/vorago_voice.h
+ M dsp/tests/CMakeLists.txt
+?? dsp/tests/unit/systems/vorago_macro_retune_probe_test.cpp
+?? dsp/tests/unit/systems/vorago_param_surface_test.cpp
+Expected: vorago_macro_matrix.h, vorago_engine.h, vorago_voice.h, dsp/tests/CMakeLists.txt, two new TUs;
+  resonance_drift_network.h is admitted by FR-007 as widened by B-1 (spec.md:142; tasks.md:224, :236). Nothing else.
+
+=== 5. git diff f149cced -- dsp/tests/unit/ (pre-existing TUs) ===
+diff lines: 0  -> no pre-existing unit TU changed
+
+=== 6. grep -rn "std::isnan" <4 edited headers + 2 new TUs> ===
+dsp/include/krate/dsp/systems/vorago_macro_matrix.h:992:    /// (isFiniteBits, never std::isnan). NOT clamped here: the destination
+dsp/include/krate/dsp/systems/vorago_macro_matrix.h:1131:    /// -ffast-math folds std::isnan away on the macOS leg, so finiteness is a
+dsp/include/krate/dsp/systems/vorago_engine.h:68:#include <krate/dsp/core/db_utils.h>  // detail::isFinite - NEVER std::isnan (-ffast-math)
+dsp/include/krate/dsp/systems/vorago_engine.h:1095:                    // only (never std::isnan, which -ffast-math folds away). The
+dsp/include/krate/dsp/systems/vorago_engine.h:1393:    /// NEVER std::isnan / std::isinf / std::isfinite: -ffast-math licenses the
+dsp/include/krate/dsp/systems/resonance_drift_network.h:1240:    /// (core/db_utils.h:118) - a plain `v != v` or std::isnan folds away on the
+dsp/tests/unit/systems/vorago_param_surface_test.cpp:11:// std::numeric_limits, and nothing here calls std::isnan.
+dsp/tests/unit/systems/vorago_macro_retune_probe_test.cpp:56:// PORTABILITY: no std::isnan / std::isfinite; finiteness via the fast-math-
+Literal hits: 8. Every hit is prose in a // or /// comment (vorago_engine.h:68 is a
+  trailing comment on an #include) stating that std::isnan is NOT used. Code call sites: 0.
+  Lines added vs f149cced in the headers containing the string: 1 (vorago_macro_matrix.h:992, comment).

@@ -1,0 +1,160 @@
+CMake is re-running because F:/projects/iterum/build-asan/dsp/tests/CMakeFiles/generate.stamp is out-of-date.
+  the file 'F:/projects/iterum/dsp/tests/CMakeLists.txt'
+  is newer than 'F:/projects/iterum/build-asan/dsp/tests/CMakeFiles/generate.stamp.depend'
+  result='-1'
+-- Selecting Windows SDK version 10.0.26100.0 to target Windows 10.0.26200.
+-- [KRATE] AddressSanitizer ENABLED - memory errors will be detected at runtime
+-- [KRATE] Using MSVC AddressSanitizer (/fsanitize=address)
+-- [KRATE] Disabled /RTC1 and /ZI (incompatible with ASan)
+-- [SMTG] SMTG_VSTGUI_SOURCE_DIR is set to: F:/projects/iterum/extern/vst3sdk/vstgui4
+-- Could NOT find EXPAT (missing: EXPAT_LIBRARY EXPAT_INCLUDE_DIR) 
+-- VSTGUI will use the embedded Expat package!
+-- [SMTG] SMTG_AAX_SDK_PATH is not set. If you need it, please download the AAX SDK!
+-- Could NOT find LIBJACK (missing: LIBJACK_LIBRARIES LIBJACK_INCLUDE_DIR) 
+-- Could NOT find LIBJACK (missing: LIBJACK_LIBRARIES LIBJACK_INCLUDE_DIR) 
+-- [SMTG] LIBJACK_FOUND is not set.
+INFO useCompilerCache() disabled, as not called at root of project
+CMAKE_CXX_COMPILER = C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/cl.exe
+CMAKE_CXX_COMPILER_ID = MSVC
+CMAKE_CXX_COMPILER_VERSION = 19.44.35228.0
+CMAKE_CXX_FLAGS = /DWIN32 /D_WINDOWS /EHsc
+CMake Deprecation Warning at build-asan/_deps/highway-src/CMakeLists.txt:28 (cmake_policy):
+  The OLD behavior for policy CMP0111 will be removed from a future version
+  of CMake.
+
+  The cmake-policies(7) manual explains that the OLD behaviors of all
+  policies are deprecated and that a policy should be set to OLD only under
+  specific short-term circumstances.  Projects should be ported to the NEW
+  behavior and not rely on setting a policy to OLD.
+
+
+CMake Warning at build-asan/_deps/pffft-src/cmake/target_optimizations.cmake:63 (message):
+  unsupported CMAKE_SYSTEM_PROCESSOR 'AMD64'
+Call Stack (most recent call first):
+  build-asan/_deps/pffft-src/CMakeLists.txt:65 (include)
+
+
+-- Could NOT find PAPI (missing: PAPI_LIBRARIES PAPI_INCLUDE_DIRS) 
+-- Could NOT find MIPP (missing: MIPP_INCLUDE_DIRS) 
+CMake Warning at build-asan/_deps/pffft-src/cmake/FindMIPP.cmake:23 (message):
+  MIPP not found.
+Call Stack (most recent call first):
+  build-asan/_deps/pffft-src/CMakeLists.txt:68 (find_package)
+
+
+-- NOT found MIPP
+-- INFO: CMAKE_C_COMPILER_ID is MSVC
+-- INFO: CMAKE_CXX_COMPILER_ID is MSVC
+-- INFO: detected WIN32
+-- INFO: NOT MINGW
+-- INFO: detected MSVC with compiler MSVC
+-- INFO: detected MSVC: will not link math lib m
+-- C ARCH for target PFFFT is not set!
+-- C additional options for target PFFFT is not set!
+-- C++ ARCH for target PFDSP is not set!
+-- C++ additional options for target PFDSP is not set!
+-- Using the multi-header code from F:/projects/iterum/build-asan/_deps/nlohmann_json-src/include/
+CMake Warning (dev) at C:/Program Files/CMake/share/cmake-3.31/Modules/FetchContent.cmake:1953 (message):
+  Calling FetchContent_Populate(Eigen3) is deprecated, call
+  FetchContent_MakeAvailable(Eigen3) instead.  Policy CMP0169 can be set to
+  OLD to allow FetchContent_Populate(Eigen3) to be called directly for now,
+  but the ability to call it with declared details will be removed completely
+  in a future version.
+Call Stack (most recent call first):
+  CMakeLists.txt:406 (FetchContent_Populate)
+This warning is for project developers.  Use -Wno-dev to suppress it.
+
+CMake Deprecation Warning at build-asan/_deps/cli11-src/CMakeLists.txt:1 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+
+
+CMake Deprecation Warning at build-asan/_deps/nlopt-src/CMakeLists.txt:15 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+
+
+-- NLopt version 2.7.1
+-- [ITERUM] Version: 0.15.2 (0.15.2)
+-- [SMTG] Setup running moduleinfotool for Iterum
+-- [DISRUMPO] Version: 0.9.9 (0.9.9)
+-- [SMTG] Setup running moduleinfotool for Disrumpo
+-- [RUINAE] Version: 0.12.2 (0.12.2)
+-- [SMTG] Setup running moduleinfotool for Ruinae
+-- [INNEXUS] Version: 1.0.2 (1.0.2)
+-- [SMTG] Setup running moduleinfotool for Innexus
+-- [GRADUS] Version: 1.10.0 (1.10.0)
+-- [SMTG] Setup running moduleinfotool for Gradus
+-- [MEMBRUM] Version: 0.12.0 (0.12.0)
+-- [SMTG] Setup running moduleinfotool for Membrum
+-- [SERAPHIS] Version: 1.0.0 (1.0.0)
+-- [SMTG] Setup running moduleinfotool for Seraphis
+-- [VORAGO] Version: 0.1.0 (0.1.0)
+-- [SMTG] Setup running moduleinfotool for Vorago
+-- Configuring done (23.2s)
+-- Generating done (2.7s)
+-- Build files have been written to: F:/projects/iterum/build-asan
+MSBuild version 17.14.51+25f168cee for .NET Framework
+
+  Checking File Globs
+  Catch2.vcxproj -> F:\projects\iterum\build-asan\lib\Debug\Catch2d.lib
+  PFFFT.vcxproj -> F:\projects\iterum\build-asan\lib\Debug\pffft.lib
+  hwy.vcxproj -> F:\projects\iterum\build-asan\lib\Debug\hwy.lib
+  hwy_contrib.vcxproj -> F:\projects\iterum\build-asan\lib\Debug\hwy_contrib.lib
+  KrateDSP.vcxproj -> F:\projects\iterum\build-asan\lib\Debug\KrateDSP.lib
+  base.vcxproj -> F:\projects\iterum\build-asan\lib\Debug\base.lib
+  pluginterfaces.vcxproj -> F:\projects\iterum\build-asan\lib\Debug\pluginterfaces.lib
+  sdk_common.vcxproj -> F:\projects\iterum\build-asan\lib\Debug\sdk_common.lib
+  sdk.vcxproj -> F:\projects\iterum\build-asan\lib\Debug\sdk.lib
+  vstgui.vcxproj -> F:\projects\iterum\build-asan\lib\Debug\vstgui.lib
+  KratePluginsShared.vcxproj -> F:\projects\iterum\build-asan\lib\Debug\KratePluginsShared.lib
+  vstgui_uidescription.vcxproj -> F:\projects\iterum\build-asan\lib\Debug\vstgui_uidescription.lib
+  vstgui_support.vcxproj -> F:\projects\iterum\build-asan\lib\Debug\vstgui_support.lib
+  test_main.cpp
+  processor_bus_test.cpp
+  param_denorm_test.cpp
+  state_roundtrip_test.cpp
+  midi_event_test.cpp
+  lifecycle_test.cpp
+  editor_lifecycle_test.cpp
+  processor_audio_test.cpp
+  param_flow_test.cpp
+  processor_cpu_test.cpp
+  state_v2_test.cpp
+  param_table_test.cpp
+  param_surface_test.cpp
+  sustain_test.cpp
+  channel_pressure_test.cpp
+  seed_test.cpp
+  automation_rt_test.cpp
+  continuity_test.cpp
+  soak_test.cpp
+  global_ext_params_test.cpp
+  cloud_params_test.cpp
+  noise_params_test.cpp
+  resonance_params_test.cpp
+  ecology_params_test.cpp
+  sub_params_test.cpp
+  smear_params_test.cpp
+  events_params_test.cpp
+  ecosystem_params_test.cpp
+  body_params_test.cpp
+  space_params_test.cpp
+  envelope_params_test.cpp
+  bloom_params_test.cpp
+  ghost_params_test.cpp
+  life_params_test.cpp
+  processor.cpp
+  controller.cpp
+  vstgui_test_stubs.cpp
+     Creating library F:/projects/iterum/build-asan/lib/Debug/vorago_tests.lib and object F:/projects/iterum/build-asan/lib/Debug/vorago_tests.exp
+  vorago_tests.vcxproj -> F:\projects\iterum\build-asan\bin\Debug\vorago_tests.exe
+build exit=0

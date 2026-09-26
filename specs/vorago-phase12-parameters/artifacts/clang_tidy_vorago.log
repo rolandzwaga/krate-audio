@@ -1,0 +1,51 @@
+[INFO] Using clang-tidy: C:\Program Files\LLVM\bin\clang-tidy.exe
+[INFO] Parallel jobs: 32
+[INFO] Using compile_commands.json from: build/windows-ninja
+[INFO] Found 38 source files to analyze
+[1/38] plugins/vorago/tests/unit/params/events_params_test.cpp                    
+[2/38] plugins/vorago/tests/unit/controller/editor_lifecycle_test.cpp                    
+[3/38] plugins/vorago/tests/unit/params/global_ext_params_test.cpp                    
+[4/38] plugins/vorago/tests/unit/params/smear_params_test.cpp                    
+[5/38] plugins/vorago/tests/unit/params/life_params_test.cpp                    
+[6/38] plugins/vorago/tests/unit/params/ecology_params_test.cpp                    
+[7/38] plugins/vorago/tests/unit/params/ecosystem_params_test.cpp                    
+[8/38] plugins/vorago/tests/unit/params/envelope_params_test.cpp                    
+[9/38] plugins/vorago/tests/unit/params/sub_params_test.cpp                    
+[10/38] plugins/vorago/tests/unit/params/cloud_params_test.cpp                    
+[11/38] plugins/vorago/tests/unit/params/noise_params_test.cpp                    
+[12/38] plugins/vorago/tests/unit/params/body_params_test.cpp                    
+[13/38] plugins/vorago/tests/unit/params/resonance_params_test.cpp                    
+[14/38] plugins/vorago/tests/unit/params/bloom_params_test.cpp                    
+[15/38] plugins/vorago/tests/integration/processor_audio_test.cpp                    
+[16/38] plugins/vorago/tests/vstgui_test_stubs.cpp                    
+[17/38] plugins/vorago/tests/integration/processor_cpu_test.cpp                    
+[18/38] plugins/vorago/tests/integration/seed_test.cpp                    
+[19/38] plugins/vorago/tests/unit/params/space_params_test.cpp                    
+[20/38] plugins/vorago/tests/unit/params/ghost_params_test.cpp                    
+[21/38] plugins/vorago/tests/unit/midi_event_test.cpp                    
+[22/38] plugins/vorago/tests/integration/automation_rt_test.cpp                    
+[23/38] plugins/vorago/tests/integration/param_flow_test.cpp                    
+[24/38] plugins/vorago/tests/integration/continuity_test.cpp                    
+[25/38] plugins/vorago/tests/unit/lifecycle_test.cpp                    
+[26/38] plugins/vorago/tests/integration/soak_test.cpp                    
+[27/38] plugins/vorago/src/entry.cpp                    
+[28/38] plugins/vorago/tests/integration/sustain_test.cpp                    
+[29/38] plugins/vorago/tests/integration/channel_pressure_test.cpp                    
+[30/38] plugins/vorago/tests/unit/param_denorm_test.cpp                    
+[31/38] plugins/vorago/tests/unit/test_main.cpp                    
+[32/38] plugins/vorago/tests/integration/param_surface_test.cpp                    
+[33/38] plugins/vorago/tests/unit/param_table_test.cpp                    
+[34/38] plugins/vorago/tests/unit/processor_bus_test.cpp                    
+[35/38] plugins/vorago/src/processor/processor.cpp                    
+[36/38] plugins/vorago/tests/unit/state_roundtrip_test.cpp                    
+[37/38] plugins/vorago/src/controller/controller.cpp                    
+[38/38] plugins/vorago/tests/unit/state_v2_test.cpp                    
+
+
+============================================================
+[INFO] Clang-Tidy Analysis Complete
+  Files analyzed: 38
+[OK]   Errors: 0
+[OK]   Warnings: 0
+============================================================
+exit=0
