@@ -568,9 +568,48 @@ signature visualization: the **ecosystem view** — live agent habitat (agents a
 energy as brightness, interactions as fading links) via DataExchange piggyback (Membrum MetersBlock
 pattern — no new queues). No param-type swaps on registered IDs, ever.
 
+### Phase 13b: Ecosystem Audibility
+
+**Spec:** `vorago-phase13b-ecosystem-audibility`
+**Depends on:** Phase 10 (the wake-lane routing, FR-020…FR-023) and Phase 13 (the ecosystem view).
+Inserted 2026-09-27 and sequenced before Phase 14 resumes: Phase 14 is paused at its gate G1.
+**Premise (measured 2026-09-27, `specs/vorago-phase14-presets-release/compliance.md` FR-070 runs 1–4):**
+by Phase 14's C-7.2 sound-space descriptor, switching the ecosystem off moves the default surface by
+0.37 of a reseed (t0 = 1.71), the Life-max surface by 0.98 (t0 = 2.16), and 0.90 even with the
+peak/loop/noise wake bases forced to 0 so the colony owns every wake; the most audible rule-knob
+extreme anywhere is 0.99 of a reseed and it is a colony kill (grazeRate → 0, leakRate → 1). Cause:
+Phase 10 made the ecosystem a wake-only lane — `combineWake = max(base, eco, sched)` with bases
+0.50 / 0.50 / 0.35 and the slow-event schedulers waking the same slots — and the sections it wakes are
+mixed quietly at the default surface. The ecosystem never shapes level, timbre or motion directly.
+**Goal:** the ecosystem becomes something a listener hears. Agent state gets direct, depth-scaled
+sonic levers on the sections it drives (candidates: peak level and wander, noise-source level and
+colour, loop gain and coupling, bloom depth and cloud mutation — already additive — and ghost level),
+the wake bases are retuned so the colony's decisions carry, and the rule knobs are then audible enough
+to expose in Phase 14.
+
+- Gate on the same probe (`Vorago_EcosystemRuleProbe`, diagnostic options documented in the TU
+  header): ecosystem OFF vs on ≥ 2·t0 at the default surface AND at Life max; then at least four rule
+  knobs whose best extreme is ≥ 2·t0 and is not a colony kill (that render stays within ±6 dB of the
+  base RMS and above the −60 dBFS non-silence floor).
+- The default render may change — this is a voicing change — and the before/after descriptors are
+  recorded; Seraphis is untouched (Vorago-only voice and engine); Phase 10's SC-019 routing
+  observability, every boundedness soak and the Phase 2–13 suites stay green; CPU stays inside Phase
+  10's ceiling with the delta recorded.
+- Phase 14 then re-runs its specify stage against the new surface: Q2's roster comes from the 13b
+  probe table, and state v3 plus the ecosystem-page controls follow as already ruled.
+
+**Success criteria:** both probe gates with cited logs; the full knob table recorded; the
+default-render change documented as intentional; no regression in the earlier suites; CPU delta.
+
+---
+
 ### Phase 14: Factory Presets & Release Readiness
 
 **Spec:** `vorago-phase14-presets-release`
+**Status: ⏸ PAUSED at gate G1 (2026-09-27)** — the FR-070 audibility probe found 0 of 14 rule knobs
+audible and the ecosystem itself below one reseed (runs 1–4 in its compliance record); Phase 13b fixes
+the cause first, then this phase re-runs its specify stage. Kept from the first pass: spec, plan, tasks
+(rulings Q1–Q8, R-1–R-8), the probe TU, `preset_test_support.h` part 0 and the inert probe friend.
 
 Fixed preset category set (filesystem dirs + XML metadata must match — Membrum lesson), installed to
 `C:\ProgramData\Krate Audio\Vorago\`. Validation harness: round-trip tests + all-presets NoteOn-only
@@ -607,7 +646,7 @@ Phase 1           ├─→ Phase 4 (spectral smear) ──┤
 (events + ────────┼─→ Phase 5 (feedback ecology)─┼─→ Phase 10 (voice/engine) ─→ Phase 11 (scaffold) ✅
  Perlin/Aizawa)   ├─→ Phase 6 (subharmonic) ─────┤            ▲         │              │
                   ├─→ Phase 7 (bloom) ───────────┤            │         ▼              ▼
-                  └─→ Phase 8 (ecosystem) ───────┘            │   Phase 10a (ghost) ✅ → Phase 12 ✅ → 13 ✅ → 14
+                  └─→ Phase 8 (ecosystem) ───────┘            │   Phase 10a (ghost) ✅ → Phase 12 ✅ → 13 ✅ → 13b → 14
                                                               │
 AetherReverb ✅ (shipped) ─────────→ Phase 9 (cavern space) ───┘
 seraphis_voice/engine ✅ (shipped) ───────────────────────────┘  (pattern template, not code dep)

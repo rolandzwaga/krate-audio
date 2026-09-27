@@ -1,0 +1,25 @@
+10:50:21
+Filters: "Vorago_EcosystemRuleProbe"
+Randomness seeded to: 3329418197
+[probe] surface overrides: none; knob filter: -; reference: 900=0
+[probe] rendering default surface (340 s)...
+[probe] rendering seed twin (340 s)...
+[probe] rendering reference (340 s)...
+
+=== Vorago_EcosystemRuleProbe (FR-070) ===
+renders: 2 (default + seed twin + 0 extremes), 340 s each, 48 kHz, block 512
+surface overrides: none
+default M1 stereo RMS: -26.10 dBFS
+t0 = d(default, seed twin) = 1.7128   INAUDIBLE threshold 2*t0 = 3.4256
+reference (900=0): d(default, reference) = 0.6312   d/t0 = 0.368   M1 RMS -25.62 dBFS
+
+knob           range              default    extreme      d         d/t0      flag       E cells (P-4)
+
+audible knobs: 0 of 0
+WARNING: fewer than 4 audible knobs - a 4-6 roster cannot be proposed from audible knobs alone (surface at G1)
+=== STOP: gate G1 - ratify R with the user (FR-071) ===
+===============================================================================
+All tests passed (95653 assertions in 1 test case)
+
+exit=0
+10:52:14

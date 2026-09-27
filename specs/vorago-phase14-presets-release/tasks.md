@@ -158,7 +158,7 @@
   - Descriptor and distance: `#include "preset_test_support.h"` (T001b, ruling R-8) and use
     `VoragoTest::describe`, `descriptorDistance` and `meanOf` (§5.4/§5.5); `D(P)` = mean of the three
     minutes. This TU carries **no** copy of the descriptor math.
-  - Renders (29): default; seed twin of the default (`kSeedId` 2 → normalized `1/15`); one per
+  - Renders (28 = default + seed twin + 26 extremes; syncRate and feedRate contribute `.hi` only): default; seed twin of the default (`kSeedId` 2 → normalized `1/15`); one per
     non-default extreme of each candidate (clamp ends; default in parentheses, all from
     `ecosystem_engine.h:2373-2396` read this session): predation [0,1] (0.55); syncRate [0,0.5] (0 → hi
     only); exchangeRate [0,3] (0.35); crowding [0,0.2] (0.05); forageRate [0,0.05] (0.01); feedRate
@@ -196,7 +196,7 @@
 
 - **Run (alone, logged):**
   `build/windows-x64-release/bin/Release/vorago_tests.exe "Vorago_EcosystemRuleProbe" > f:/tmp/vorago_probe.log 2>&1`
-  (29 × 340 s renders; expect tens of minutes — run in the background and wait for completion).
+  (28 × 340 s renders; expect tens of minutes — run in the background and wait for completion).
 - **Record:** create `specs/vorago-phase14-presets-release/compliance.md` (if absent) with a section
   "FR-070 / SC-025 — audibility probe" holding the full printed table, `t0`, the log path and the date.
 - **Verify:** the case passed (its two assertions), every candidate has a row.

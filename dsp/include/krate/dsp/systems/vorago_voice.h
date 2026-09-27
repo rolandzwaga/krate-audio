@@ -167,6 +167,8 @@ struct VoragoEngineNonFiniteProbe;
 /// ENUMERATED pair table can only reach VoragoVoice::applyIdentityLanes() and
 /// VoragoVoice::reduceAgentLanes() through a friend.
 struct VoragoVoiceIdentityProbe;
+/// Phase 14 FR-070's rule-knob audibility probe. B-4: DEFINED IN THE TEST TU.
+struct VoragoEcosystemRuleProbe;
 }  // namespace detail
 
 // =============================================================================
@@ -1530,6 +1532,7 @@ private:
     friend struct detail::VoragoVoiceSilenceRampProbe;  // SC-011
     friend struct detail::VoragoEngineNonFiniteProbe;   // SC-029 (B-4)
     friend struct detail::VoragoVoiceIdentityProbe;     // SC-019a / SC-019b (B-4)
+    friend struct detail::VoragoEcosystemRuleProbe;     // Phase 14 FR-070 (B-4)
     friend class VoragoEngine;                          // the engine owns its voices
     friend class VoragoMacroMatrix;                     // S7's apply() needs non-const access
 

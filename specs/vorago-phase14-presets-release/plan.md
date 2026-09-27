@@ -364,7 +364,8 @@ is copied into `compliance.md` and into the G1 message.
   `leakExponent` is excluded: "leakExponent above ~1.3 kills the ecosystem … the upper half [is not]
   musically usable" (`:531-537`).
 - **Renders:** 1 default, 1 seed twin of the default (next seed index), and one per non-default
-  extreme (27). That is 29 renders of 340 s.
+  extreme (26: twelve knobs have two clamp ends, syncRate and feedRate only `.hi` per P-4). That is
+  28 renders of 340 s (the earlier "27 / 29" was an arithmetic slip caught by T002).
 - **Metric per extreme:** `d(default, extreme)` (§5.5), and its ratio to `t0 = d(default, seed twin)`.
   Each knob's audibility is the maximum over its extremes. A knob whose best `d < 2·t0` is flagged as
   inaudible.

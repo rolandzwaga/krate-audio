@@ -1,0 +1,12 @@
+warning: in the working copy of 'dsp/include/krate/dsp/systems/vorago_engine.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'dsp/include/krate/dsp/systems/vorago_voice.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/vorago/tests/CMakeLists.txt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'specs/vorago-phase14-presets-release/plan.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'specs/vorago-phase14-presets-release/tasks.md', LF will be replaced by CRLF the next time Git touches it
+check-portability: 1 translation unit(s) with g++
+
+  OK      plugins/vorago/tests/integration/ecosystem_rule_probe_test.cpp
+
+check-portability: all clear -- 1 compiled.
+exit=0
+wsl-shutdown=0

@@ -48,6 +48,8 @@ add_executable(vorago_tests
     unit/controller/ecosystem_view_test.cpp
     unit/controller/editor_layout_test.cpp
     integration/preset_browser_test.cpp
+    # Phase 14 (specs/vorago-phase14-presets-release)
+    integration/ecosystem_rule_probe_test.cpp
 
     # SECOND compilation of every plugin .cpp (needed by the plugin-shell tests).
     # A new plugin .cpp must appear here AND in plugins/vorago/CMakeLists.txt.
@@ -131,6 +133,8 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/params/life_params_test.cpp
         # Phase 13: sanitizeFrameFloat cases build NaN/Inf by bit pattern
         unit/ecosystem_frame_builder_test.cpp
+        # Phase 14 (specs/vorago-phase14-presets-release)
+        integration/ecosystem_rule_probe_test.cpp # bit-pattern finiteness over renders
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
     # integration/processor_cpu_test.cpp is DELIBERATELY ABSENT: the flag would
