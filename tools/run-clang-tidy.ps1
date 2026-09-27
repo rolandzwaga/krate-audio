@@ -248,6 +248,8 @@ switch ($Target) {
 }
 
 # Find all source files (only .cpp files for analysis, headers are checked via includes)
+# The exclusion matches whole directory segments (/extern/, /build/, /vst3sdk/), not
+# substrings: a plain "build" once silently skipped ecosystem_frame_builder_test.cpp.
 $SourceFiles = @()
 
 # Recursive search in subdirectories
@@ -255,7 +257,7 @@ foreach ($Dir in $SourceDirs) {
     $FullPath = Join-Path $ProjectRoot $Dir
     if (Test-Path $FullPath) {
         $Files = Get-ChildItem -Path $FullPath -Recurse -Include "*.cpp" |
-            Where-Object { $_.FullName -notmatch "extern|build|vst3sdk" }
+            Where-Object { $_.FullName -notmatch "[\/](extern|build|vst3sdk)[\/]" }
         $SourceFiles += $Files
     }
 }
@@ -265,7 +267,7 @@ foreach ($Dir in $RootSourceDirs) {
     $FullPath = Join-Path $ProjectRoot $Dir
     if (Test-Path $FullPath) {
         $Files = Get-ChildItem -Path $FullPath -Filter "*.cpp" |
-            Where-Object { $_.FullName -notmatch "extern|build|vst3sdk" }
+            Where-Object { $_.FullName -notmatch "[\/](extern|build|vst3sdk)[\/]" }
         $SourceFiles += $Files
     }
 }
