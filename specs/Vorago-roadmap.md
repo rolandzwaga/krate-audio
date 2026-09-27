@@ -559,6 +559,8 @@ system wired; per-section parameter packs (`cloud`, `noise`, `resonance`, `ecolo
 
 ### Phase 13: UI
 
+**Status: ✅ COMPLETE (2026-09-27)** — see specs/vorago-phase13-ui/compliance.md
+
 **Spec:** `vorago-phase13-ui`
 
 VSTGUI only. **Concept-first layout:** the macro concepts dominate; engine panels beneath. One
@@ -586,7 +588,7 @@ Phase 1           ├─→ Phase 4 (spectral smear) ──┤
 (events + ────────┼─→ Phase 5 (feedback ecology)─┼─→ Phase 10 (voice/engine) ─→ Phase 11 (scaffold) ✅
  Perlin/Aizawa)   ├─→ Phase 6 (subharmonic) ─────┤            ▲         │              │
                   ├─→ Phase 7 (bloom) ───────────┤            │         ▼              ▼
-                  └─→ Phase 8 (ecosystem) ───────┘            │   Phase 10a (ghost) ✅ → Phase 12 ✅ → 13 → 14
+                  └─→ Phase 8 (ecosystem) ───────┘            │   Phase 10a (ghost) ✅ → Phase 12 ✅ → 13 ✅ → 14
                                                               │
 AetherReverb ✅ (shipped) ─────────→ Phase 9 (cavern space) ───┘
 seraphis_voice/engine ✅ (shipped) ───────────────────────────┘  (pattern template, not code dep)
