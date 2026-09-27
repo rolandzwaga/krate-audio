@@ -1396,11 +1396,15 @@ TEST_CASE("VoragoVoice_StageCostProbe", "[systems][vorago][.perf]") {
 // =============================================================================
 // SC-003 - composition overhead. THIS ONE GATES.
 // =============================================================================
-// measured(VoragoVoice) <= 1.15 x sum(standalone sub-components), both measured
-// IN THIS TU IN THE SAME RUN so the machine state is shared - the Phase 9
-// DATASET 1 lesson (cavern_verb_perf_test.cpp:216-231): the same binary, one
-// minute apart, moved by 16-20 % on arms that were compared against each other
-// while the code did not change.
+// measured(VoragoVoice) <= 1.15 x measured(standalone sub-components run
+// back-to-back in ONE timed block), both measured IN THIS TU IN THE SAME RUN so
+// the machine state is shared - the Phase 9 DATASET 1 lesson
+// (cavern_verb_perf_test.cpp:216-231): the same binary, one minute apart, moved
+// by 16-20 % on arms that were compared against each other while the code did
+// not change. Ruled 2026-09-27 (Phase 13b T014 resolution): the reference was
+// the SUM of nine independently minimised parts until then; that estimator is
+// biased low and read 1.22 on code whose true composition overhead is 1.00-1.03.
+// The sum is still printed.
 //
 // Seraphis's bound is 1.1 and it passed with 1.5 % margin
 // (specs/seraphis-phase7-voice-engine/compliance.md:144); Vorago's voice has
@@ -1424,14 +1428,14 @@ TEST_CASE("VoragoVoice_CompositionOverhead", "[systems][vorago][.perf]") {
 
     // --- the nine standalone terms -------------------------------------------
     auto cloud = buildCloud();
-    const double nsCloud =
-        warmThenMeasure(kWarmupBlocks, kTrials, kBlocksPerTrial, [&]() noexcept {
-            for (std::size_t c = 0; c < kChunksPerBlock; ++c) {
-                cloud->processStereoBlock(buf.outLeft.data() + (c * kChunk),
-                                          buf.outRight.data() + (c * kChunk), kChunk);
-            }
-            sink += static_cast<double>(buf.outLeft[0]);
-        });
+    const auto runCloud = [&]() noexcept {
+        for (std::size_t c = 0; c < kChunksPerBlock; ++c) {
+            cloud->processStereoBlock(buf.outLeft.data() + (c * kChunk),
+                                      buf.outRight.data() + (c * kChunk), kChunk);
+        }
+        sink += static_cast<double>(buf.outLeft[0]);
+    };
+    const double nsCloud = warmThenMeasure(kWarmupBlocks, kTrials, kBlocksPerTrial, runCloud);
 
     auto noise = buildNoise();
     Biquad apL;
@@ -1450,51 +1454,51 @@ TEST_CASE("VoragoVoice_CompositionOverhead", "[systems][vorago][.perf]") {
     noiseGain.configure(NoiseOrganism::kGainRampMs, static_cast<float>(kSr48));
     noiseGain.snapTo(1.0f);
     float apDelayR = 0.0f;
-    const double nsNoise =
-        warmThenMeasure(kWarmupBlocks, kTrials, kBlocksPerTrial, [&]() noexcept {
-            for (std::size_t c = 0; c < kChunksPerBlock; ++c) {
-                const std::size_t off = c * kChunk;
-                noise->processBlock(buf.mono.data() + off, kChunk);
-                for (std::size_t s = 0; s < kChunk; ++s) {
-                    const float g = noiseGain.process();
-                    const float m = buf.mono[off + s] * g;
-                    const float aL = apL.process(m);
-                    const float aR = apR.process(apDelayR);
-                    apDelayR = m;
-                    buf.outLeft[off + s] += aL;
-                    buf.outRight[off + s] += aR;
-                }
+    const auto runNoise = [&]() noexcept {
+        for (std::size_t c = 0; c < kChunksPerBlock; ++c) {
+            const std::size_t off = c * kChunk;
+            noise->processBlock(buf.mono.data() + off, kChunk);
+            for (std::size_t s = 0; s < kChunk; ++s) {
+                const float g = noiseGain.process();
+                const float m = buf.mono[off + s] * g;
+                const float aL = apL.process(m);
+                const float aR = apR.process(apDelayR);
+                apDelayR = m;
+                buf.outLeft[off + s] += aL;
+                buf.outRight[off + s] += aR;
             }
-            sink += static_cast<double>(buf.outLeft[0]);
-        });
+        }
+        sink += static_cast<double>(buf.outLeft[0]);
+    };
+    const double nsNoise = warmThenMeasure(kWarmupBlocks, kTrials, kBlocksPerTrial, runNoise);
 
     auto res = buildResonance();
-    const double nsResonance =
-        warmThenMeasure(kWarmupBlocks, kTrials, kBlocksPerTrial, [&]() noexcept {
-            std::copy(buf.inLeft.begin(), buf.inLeft.end(), buf.scratchLeft.begin());
-            std::copy(buf.inRight.begin(), buf.inRight.end(), buf.scratchRight.begin());
-            for (std::size_t c = 0; c < kChunksPerBlock; ++c) {
-                const std::size_t off = c * kChunk;
-                res->processBlock(buf.scratchLeft.data() + off, buf.scratchRight.data() + off,
-                                  buf.scratchLeft.data() + off, buf.scratchRight.data() + off,
-                                  kChunk);
-            }
-            sink += static_cast<double>(buf.scratchLeft[0]);
-        });
+    const auto runResonance = [&]() noexcept {
+        std::copy(buf.inLeft.begin(), buf.inLeft.end(), buf.scratchLeft.begin());
+        std::copy(buf.inRight.begin(), buf.inRight.end(), buf.scratchRight.begin());
+        for (std::size_t c = 0; c < kChunksPerBlock; ++c) {
+            const std::size_t off = c * kChunk;
+            res->processBlock(buf.scratchLeft.data() + off, buf.scratchRight.data() + off,
+                              buf.scratchLeft.data() + off, buf.scratchRight.data() + off,
+                              kChunk);
+        }
+        sink += static_cast<double>(buf.scratchLeft[0]);
+    };
+    const double nsResonance = warmThenMeasure(kWarmupBlocks, kTrials, kBlocksPerTrial, runResonance);
 
     auto ecology = buildEcology(kSr48);
-    const double nsEcology =
-        warmThenMeasure(kWarmupBlocks, kTrials, kBlocksPerTrial, [&]() noexcept {
-            std::copy(buf.inLeft.begin(), buf.inLeft.end(), buf.scratchLeft.begin());
-            std::copy(buf.inRight.begin(), buf.inRight.end(), buf.scratchRight.begin());
-            for (std::size_t c = 0; c < kChunksPerBlock; ++c) {
-                const std::size_t off = c * kChunk;
-                ecology->processBlock(buf.scratchLeft.data() + off, buf.scratchRight.data() + off,
-                                      buf.scratchLeft.data() + off, buf.scratchRight.data() + off,
-                                      kChunk);
-            }
-            sink += static_cast<double>(buf.scratchLeft[0]);
-        });
+    const auto runEcology = [&]() noexcept {
+        std::copy(buf.inLeft.begin(), buf.inLeft.end(), buf.scratchLeft.begin());
+        std::copy(buf.inRight.begin(), buf.inRight.end(), buf.scratchRight.begin());
+        for (std::size_t c = 0; c < kChunksPerBlock; ++c) {
+            const std::size_t off = c * kChunk;
+            ecology->processBlock(buf.scratchLeft.data() + off, buf.scratchRight.data() + off,
+                                  buf.scratchLeft.data() + off, buf.scratchRight.data() + off,
+                                  kChunk);
+        }
+        sink += static_cast<double>(buf.scratchLeft[0]);
+    };
+    const double nsEcology = warmThenMeasure(kWarmupBlocks, kTrials, kBlocksPerTrial, runEcology);
 
     auto bloom = buildBloom();
     std::array<float, BloomEngine::kMaxSlots> ratios{};
@@ -1504,71 +1508,91 @@ TEST_CASE("VoragoVoice_CompositionOverhead", "[systems][vorago][.perf]") {
                                 - HarmonicCloud::kRichnessMinExponent)
                                * 0.70f);
     std::size_t bloomCounts = 0;
-    const double nsBloom =
-        warmThenMeasure(kWarmupBlocks, kTrials, kBlocksPerTrial, [&]() noexcept {
-            for (std::size_t c = 0; c < kChunksPerBlock; ++c) {
-                const std::size_t parents = bloom->reserveBase();
-                for (std::size_t i = 0; i < parents; ++i) {
-                    ratios[i] = static_cast<float>(i + 1);
-                    amplitudes[i] =
-                        std::exp2(-pExponent * Krate::DSP::detail::kHarmonicCloudLog2N[i]);
-                }
-                bloomCounts += bloom->processChunk(ratios.data(), amplitudes.data(), parents,
-                                                   kChunk);
+    const auto runBloom = [&]() noexcept {
+        for (std::size_t c = 0; c < kChunksPerBlock; ++c) {
+            const std::size_t parents = bloom->reserveBase();
+            for (std::size_t i = 0; i < parents; ++i) {
+                ratios[i] = static_cast<float>(i + 1);
+                amplitudes[i] =
+                    std::exp2(-pExponent * Krate::DSP::detail::kHarmonicCloudLog2N[i]);
             }
-            sink += static_cast<double>(amplitudes[0]);
-        });
+            bloomCounts += bloom->processChunk(ratios.data(), amplitudes.data(), parents,
+                                               kChunk);
+        }
+        sink += static_cast<double>(amplitudes[0]);
+    };
+    const double nsBloom = warmThenMeasure(kWarmupBlocks, kTrials, kBlocksPerTrial, runBloom);
 
     auto bodyA = buildBody(ContinuousBody::BodyMaterial::StoneChamber, VoragoVoice::kBodyASalt);
-    const double nsBodyA =
-        warmThenMeasure(kWarmupBlocks, kTrials, kBlocksPerTrial, [&]() noexcept {
-            for (std::size_t c = 0; c < kChunksPerBlock; ++c) {
-                const std::size_t off = c * kChunk;
-                bodyA->processStereoBlock(buf.inLeft.data() + off, buf.inRight.data() + off,
-                                          buf.outLeft.data() + off, buf.outRight.data() + off,
-                                          kChunk);
-            }
-            sink += static_cast<double>(buf.outLeft[0]);
-        });
+    const auto runBodyA = [&]() noexcept {
+        for (std::size_t c = 0; c < kChunksPerBlock; ++c) {
+            const std::size_t off = c * kChunk;
+            bodyA->processStereoBlock(buf.inLeft.data() + off, buf.inRight.data() + off,
+                                      buf.outLeft.data() + off, buf.outRight.data() + off,
+                                      kChunk);
+        }
+        sink += static_cast<double>(buf.outLeft[0]);
+    };
+    const double nsBodyA = warmThenMeasure(kWarmupBlocks, kTrials, kBlocksPerTrial, runBodyA);
 
     auto bodyB = buildBody(ContinuousBody::BodyMaterial::SteelTank, VoragoVoice::kBodyBSalt);
-    const double nsBodyB =
-        warmThenMeasure(kWarmupBlocks, kTrials, kBlocksPerTrial, [&]() noexcept {
-            for (std::size_t c = 0; c < kChunksPerBlock; ++c) {
-                const std::size_t off = c * kChunk;
-                bodyB->processStereoBlock(buf.inLeft.data() + off, buf.inRight.data() + off,
-                                          buf.outLeft.data() + off, buf.outRight.data() + off,
-                                          kChunk);
-            }
-            sink += static_cast<double>(buf.outLeft[0]);
-        });
+    const auto runBodyB = [&]() noexcept {
+        for (std::size_t c = 0; c < kChunksPerBlock; ++c) {
+            const std::size_t off = c * kChunk;
+            bodyB->processStereoBlock(buf.inLeft.data() + off, buf.inRight.data() + off,
+                                      buf.outLeft.data() + off, buf.outRight.data() + off,
+                                      kChunk);
+        }
+        sink += static_cast<double>(buf.outLeft[0]);
+    };
+    const double nsBodyB = warmThenMeasure(kWarmupBlocks, kTrials, kBlocksPerTrial, runBodyB);
 
     auto mse = buildEnvelope();
     LinearRamp blend;
     blend.configure(VoragoVoice::kBlendRampMs, static_cast<float>(kSr48));
     blend.snapTo(0.35f);
-    const double nsEnvelope =
-        warmThenMeasure(kWarmupBlocks, kTrials, kBlocksPerTrial, [&]() noexcept {
-            float peak = 0.0f;
-            for (std::size_t s = 0; s < kBlockSize; ++s) {
-                const float g = mse->process();
-                buf.scratchLeft[s] = buf.inLeft[s] * g;
-                buf.scratchRight[s] = buf.inRight[s] * g;
-            }
-            for (std::size_t s = 0; s < kBlockSize; ++s) {
-                const float b = blend.process();
-                const float a = 1.0f - b;
-                buf.outLeft[s] = (a * buf.scratchLeft[s]) + (b * buf.inLeft[s]);
-                buf.outRight[s] = (a * buf.scratchRight[s]) + (b * buf.inRight[s]);
-                peak = std::max(peak,
-                                std::max(std::fabs(buf.outLeft[s]), std::fabs(buf.outRight[s])));
-            }
-            sink += static_cast<double>(peak);
-        });
+    const auto runEnvelope = [&]() noexcept {
+        float peak = 0.0f;
+        for (std::size_t s = 0; s < kBlockSize; ++s) {
+            const float g = mse->process();
+            buf.scratchLeft[s] = buf.inLeft[s] * g;
+            buf.scratchRight[s] = buf.inRight[s] * g;
+        }
+        for (std::size_t s = 0; s < kBlockSize; ++s) {
+            const float b = blend.process();
+            const float a = 1.0f - b;
+            buf.outLeft[s] = (a * buf.scratchLeft[s]) + (b * buf.inLeft[s]);
+            buf.outRight[s] = (a * buf.scratchRight[s]) + (b * buf.inRight[s]);
+            peak = std::max(peak,
+                            std::max(std::fabs(buf.outLeft[s]), std::fabs(buf.outRight[s])));
+        }
+        sink += static_cast<double>(peak);
+    };
+    const double nsEnvelope = warmThenMeasure(kWarmupBlocks, kTrials, kBlocksPerTrial, runEnvelope);
 
     auto lifeVoice = buildVoice(kSr48, /*sounding=*/false);
-    const double nsLife = warmThenMeasure(kWarmupBlocks, kTrials, kBlocksPerTrial,
-                                          [&]() noexcept { lifeVoice->advanceLifeOnly(kBlockSize); });
+    const auto runLife = [&]() noexcept { lifeVoice->advanceLifeOnly(kBlockSize); };
+    const double nsLife = warmThenMeasure(kWarmupBlocks, kTrials, kBlocksPerTrial, runLife);
+
+    // THE GATE'S REFERENCE (ruled 2026-09-27, Phase 13b T014 resolution): the nine
+    // parts run back-to-back inside ONE timed block, minimised as a whole exactly
+    // like the voice. The former reference, `sum` of nine independently minimised
+    // parts, is biased low (each part's best trial rarely coincides, and each runs
+    // alone with only its own state hot in cache) and read 1.22 on code Phase 10
+    // measured at 1.08-1.14 when the machine was quieter, while this statistic
+    // read 1.00-1.03 on the same runs. `sum` and the nine terms stay printed.
+    const double nsComposite =
+        warmThenMeasure(kWarmupBlocks, kTrials, kBlocksPerTrial, [&]() noexcept {
+            runCloud();
+            runNoise();
+            runResonance();
+            runEcology();
+            runBloom();
+            runBodyA();
+            runBodyB();
+            runEnvelope();
+            runLife();
+        });
 
     // --- the whole -----------------------------------------------------------
     auto voice = buildVoice(kSr48, /*sounding=*/true);
@@ -1582,6 +1606,7 @@ TEST_CASE("VoragoVoice_CompositionOverhead", "[systems][vorago][.perf]") {
                        + nsEnvelope + nsLife;
     constexpr double kOverheadBound = 1.15;
     const double ratio = (sum > 0.0) ? (nsVoice / sum) : 0.0;
+    const double ratioParts = (nsComposite > 0.0) ? (nsVoice / nsComposite) : 0.0;
 
     // --- report, before any REQUIRE ------------------------------------------
     {
@@ -1597,10 +1622,12 @@ TEST_CASE("VoragoVoice_CompositionOverhead", "[systems][vorago][.perf]") {
            << "    envelope + blend      : " << nsEnvelope << "\n"
            << "    L (step 1 in full)    : " << nsLife << "\n"
            << "    ------------------------------------------\n"
-           << "    sum of standalone     : " << sum << "\n"
+           << "    sum of standalone     : " << sum << "   (nine independent minima; printed, not gated)\n"
+           << "    ratio whole / sum     : " << ratio << "   (printed, not gated - biased low, see comment)\n"
+           << "    parts back-to-back    : " << nsComposite << "   (one timed block, same statistic as the whole)\n"
            << "    measured VoragoVoice  : " << nsVoice << "\n"
-           << "    ratio whole / sum     : " << ratio << "   (bound " << kOverheadBound << ")\n"
-           << "    bound in ns           : " << (sum * kOverheadBound)
+           << "    ratio whole / parts   : " << ratioParts << "   (bound " << kOverheadBound << ", THE GATE)\n"
+           << "    bound in ns           : " << (nsComposite * kOverheadBound)
            << "   - if this is exceeded, fix the COMPOSITION, never the 1.15 (FR-082)";
         WARN(os.str());
     }
@@ -1609,7 +1636,8 @@ TEST_CASE("VoragoVoice_CompositionOverhead", "[systems][vorago][.perf]") {
     REQUIRE(bloomCounts > 0u);
     REQUIRE(sum > 0.0);
     REQUIRE(nsVoice > 0.0);
-    REQUIRE(nsVoice <= (sum * kOverheadBound));
+    REQUIRE(nsComposite > 0.0);
+    REQUIRE(nsVoice <= (nsComposite * kOverheadBound));
 }
 
 // =============================================================================

@@ -1663,6 +1663,12 @@ sketches; the plan fixes them.
   FR-002 sub-components measured standalone in the same TU (Seraphis's bound is 1.1 and it passed
   with 1.5 % margin, `specs/seraphis-phase7-voice-engine/compliance.md:144`; Vorago's voice has more
   inter-stage buffer traffic, hence 1.15). `VoragoVoice_CompositionOverhead` `[.perf]`.
+  **Amended 2026-09-27 (Phase 13b T014 resolution, user ruling):** the reference is the nine
+  sub-components run **back-to-back inside one timed block**, minimised as a whole exactly like the
+  voice; the former reference — the sum of nine independently minimised timings — is biased low and
+  read 1.22 on this very code (Phase 10 recorded 1.08–1.14 on a quieter machine) while the
+  same-statistic reference read 1.00–1.03. The bound stays 1.15; the sum is still printed. Evidence:
+  `specs/vorago-phase13b-ecosystem-audibility/artifacts/t014_cpu_resolution.md`.
 - **SC-004 — Soak, bounded (roadmap lines 471, 553–555).** Split per FR-085.
   - **SC-004a — per-push, untagged.** A 60 s full-polyphony render with one held note: every sample
     finite, `|out| ≤ 1.0`, `getNonFiniteRecoveryCount() == 0`, `getAllocatedBytes()` unchanged from
