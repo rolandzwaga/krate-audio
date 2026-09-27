@@ -577,6 +577,18 @@ Fixed preset category set (filesystem dirs + XML metadata must match — Membrum
 **long-render** sweep (drone presets need minutes-scale non-silence/non-runaway assertions, not the
 usual seconds). Release gate via `release-readiness` flow.
 
+**Variety is the governing requirement of this phase (added 2026-09-27).** The factory set exists to
+show off everything the instrument can do, so the presets must sound as different from one another as
+the synth allows. Every section (noise organism, resonance drift, spectral smear, feedback ecology,
+subharmonic, bloom, ecosystem, cavern space, ghost/atmosphere), every macro and every distinct
+ecosystem behaviour must be foregrounded by at least one preset, and no two presets may be
+near-variants of each other. This mindset governs the whole phase, not just the sound-design task:
+the spec must carry a preset × capability coverage matrix as an FR, the plan must derive the preset
+list from that matrix rather than from a per-category quota, and the validation harness must measure
+distinctness (pairwise measured-tolerance spectral/fingerprint distance over the long-render sweep)
+alongside boundedness, with the threshold ruled in the spec rather than assumed. A preset that
+showcases nothing another preset already shows is a defect.
+
 ---
 
 ## Dependency Graph
