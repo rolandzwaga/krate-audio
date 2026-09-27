@@ -1,0 +1,36 @@
+warning: in the working copy of 'dsp/include/krate/dsp/systems/ecosystem_engine.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/vorago/CHANGELOG.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/vorago/CLAUDE.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/vorago/resources/editor.uidesc', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/vorago/src/controller/controller.cpp', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/vorago/src/controller/controller.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/vorago/src/entry.cpp', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/vorago/src/preset/vorago_preset_config.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/vorago/src/processor/processor.cpp', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/vorago/src/processor/processor.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/vorago/tests/integration/processor_cpu_test.cpp', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/vorago/tests/unit/controller/editor_lifecycle_test.cpp', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/vorago/tests/vorago_test_fixture.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/vorago/version.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'specs/vorago-phase13-ui/plan.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'specs/vorago-phase13-ui/tasks.md', LF will be replaced by CRLF the next time Git touches it
+check-portability: 14 translation unit(s) with g++
+
+  OK      dsp/tests/unit/systems/ecosystem_engine_pair_accessors_test.cpp
+  OK      plugins/vorago/src/ui/ecosystem_view.cpp
+  OK      plugins/vorago/src/ui/panel_sub_controller.cpp
+  OK      plugins/vorago/tests/integration/ecosystem_frame_test.cpp
+  OK      plugins/vorago/tests/integration/preset_browser_test.cpp
+  OK      plugins/vorago/tests/unit/controller/ecosystem_consumer_test.cpp
+  OK      plugins/vorago/tests/unit/controller/ecosystem_view_test.cpp
+  OK      plugins/vorago/tests/unit/controller/editor_layout_test.cpp
+  OK      plugins/vorago/tests/unit/ecosystem_frame_builder_test.cpp
+  OK      plugins/vorago/src/controller/controller.cpp
+  OK      plugins/vorago/src/entry.cpp
+  OK      plugins/vorago/src/processor/processor.cpp
+  OK      plugins/vorago/tests/integration/processor_cpu_test.cpp
+  OK      plugins/vorago/tests/unit/controller/editor_lifecycle_test.cpp
+
+check-portability: all clear -- 14 compiled.
+exit=0
+wsl-shutdown=0
