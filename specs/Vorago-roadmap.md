@@ -589,6 +589,13 @@ distinctness (pairwise measured-tolerance spectral/fingerprint distance over the
 alongside boundedness, with the threshold ruled in the spec rather than assumed. A preset that
 showcases nothing another preset already shows is a defect.
 
+**Ruled 2026-09-27 (Phase 14 Q2): the ecosystem rule knobs become registered parameters inside this
+phase.** Only depth, seed and the Life macro reached the ecosystem before; the variety mandate needs
+colony temperaments that a player can set and a preset can store. Phase 14 therefore also registers a
+curated set of `EcosystemEngine` rule parameters (chosen by a hidden audibility probe, ratified at the
+plan step), bumps the state to v3 and adds their controls to the ecosystem page. The coverage matrix
+and the preset list are derived after that surface exists.
+
 ---
 
 ## Dependency Graph
