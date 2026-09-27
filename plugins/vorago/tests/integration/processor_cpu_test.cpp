@@ -25,6 +25,19 @@
 //   - R-5 remedy arm: T048 landed no remedy (artifacts/sc011_continuity.log), so
 //     the arm is N/A and the log records exactly that.
 //
+// Phase 13 (SC-012, SC-007 e; T011):
+//   - Arm PF - arm P with setEcosystemFrameForcedForTest(true), which forces
+//     both the handler-existence check and the cadence trigger, so EVERY call
+//     performs a full EcosystemFrame fill (never the cheap no-fill path).
+//     P, PF and D are timed interleaved in one trial loop; the gate is
+//     REQUIRE(PF_best <= 1.05 * D_best) with the unchanged
+//     kWrapperOverheadCeiling. PF/P is WARN-recorded. The P gate is unchanged.
+//   - Vorago_SelectStrongestLinks_WorstCase - selectStrongestLinks timed on a
+//     directly prepared EcosystemEngine (48 agents, kernelSigma 0.35) stepped
+//     until getPairInteractionCount() == 1128: best of 16 trials x 1000 calls,
+//     ns/call and ns/call / (512 / 48000 s) WARN-recorded. NOT gated: 1128
+//     pairs is not a product state; the product cost is gated by arm PF.
+//
 // kReferenceNs comes from the Phase 10 budget header (single source, never
 // re-typed), included through VORAGO_PERF_BUDGET_HEADER (tests/CMakeLists.txt).
 //
@@ -34,6 +47,8 @@
 
 #include "engine/vorago_engine_config.h"
 #include "plugin_ids.h"
+#include "processor/ecosystem_frame.h"
+#include "processor/ecosystem_frame_builder.h"
 #include "unit/param_table_expected.h"
 #include "vorago_test_fixture.h"
 
@@ -44,6 +59,7 @@
 
 #include <krate/dsp/effects/cavern_verb.h>
 #include <krate/dsp/primitives/smoother.h>
+#include <krate/dsp/systems/ecosystem_engine.h>
 #include <krate/dsp/systems/vorago_engine.h>
 
 #include <pluginterfaces/vst/ivstaudioprocessor.h>
@@ -58,6 +74,7 @@
 #include <cstdint>
 #include <limits>
 #include <memory>
+#include <span>
 #include <vector>
 
 namespace {
@@ -83,6 +100,13 @@ constexpr double kPhase11ArmENs = 1.79691e+07;  // Phase 11 recorded arm E best 
 // Arm A: a triangle sweep over [0.2, 0.8] so every block carries a NEW value
 // (the trackers compare plain values; a repeated value would push nothing).
 constexpr std::size_t kSweepSteps = 64;
+
+// SC-007 (e): the SC-007 (b) configuration (ecosystem_frame_builder_test.cpp).
+constexpr std::uint32_t kLinkSeed = 0x5EED1234u;
+constexpr std::size_t kLinkAgents = 48;
+constexpr float kLinkKernelSigma = 0.35f;
+constexpr int kLinkMaxSteps = 200;
+constexpr std::size_t kLinkCallsPerTrial = 1000;
 
 using Clock = std::chrono::steady_clock;
 
@@ -184,6 +208,17 @@ TEST_CASE("Vorago_ProcessorCpu", "[vorago][.perf][performance]") {
     REQUIRE(defaultsSync.getParameterCount() ==
             static_cast<Steinberg::int32>(VoragoTest::kNumExpectedParams));
 
+    // ---------------------------------------------------------------- arm PF setup
+    // SC-012: arm P plus the forced seam (gate AND cadence trigger), so every
+    // call in this arm performs a full frame fill.
+    VoragoTest::ProcessorFixture fixturePF;
+    fixturePF.prepare(kCpuSampleRate, static_cast<Steinberg::int32>(kCpuBlock));
+    ::Vorago::Processor* const procPF = fixturePF.proc.get();
+    REQUIRE(procPF != nullptr);
+    procPF->setEcosystemFrameForcedForTest(true);
+
+    BareProcessCall callPF(kCpuBlock);
+
     // ---------------------------------------------------------------- arm D setup
     DirectChain chainD;
 
@@ -196,12 +231,25 @@ TEST_CASE("Vorago_ProcessorCpu", "[vorago][.perf][performance]") {
     for (std::size_t b = 1; b < kWarmupBlocks; ++b) {
         proc->process(callP.data);
     }
+    callPF.data.inputEvents = &notesP;  // same notes + initial sync as arm P
+    callPF.data.inputParameterChanges = &defaultsSync;
+    REQUIRE(procPF->process(callPF.data) == Steinberg::kResultOk);
+    callPF.data.inputEvents = nullptr;
+    callPF.data.inputParameterChanges = nullptr;
+    for (std::size_t b = 1; b < kWarmupBlocks; ++b) {
+        procPF->process(callPF.data);
+    }
+    // Non-vacuity: the forced seam attempts a publish on every process() call.
+    const std::uint64_t pfAttemptsBefore = procPF->ecosystemFramePublishAttemptCountForTest();
+    procPF->process(callPF.data);
+    REQUIRE(procPF->ecosystemFramePublishAttemptCountForTest() == pfAttemptsBefore + 1u);
     for (std::size_t b = 0; b < kWarmupBlocks; ++b) {
         chainD.processBlock();
     }
 
     // ---------------------------------------------------------------- interleaved trials
     double bestP = std::numeric_limits<double>::max();
+    double bestPF = std::numeric_limits<double>::max();
     double bestD = std::numeric_limits<double>::max();
     for (std::size_t trial = 0; trial < kTrials; ++trial) {
         const Clock::time_point p0 = Clock::now();
@@ -210,6 +258,13 @@ TEST_CASE("Vorago_ProcessorCpu", "[vorago][.perf][performance]") {
         }
         const Clock::time_point p1 = Clock::now();
         bestP = std::min(bestP, elapsedNs(p0, p1));
+
+        const Clock::time_point f0 = Clock::now();
+        for (std::size_t b = 0; b < kBlocksPerTrial; ++b) {
+            procPF->process(callPF.data);
+        }
+        const Clock::time_point f1 = Clock::now();
+        bestPF = std::min(bestPF, elapsedNs(f0, f1));
 
         const Clock::time_point d0 = Clock::now();
         for (std::size_t b = 0; b < kBlocksPerTrial; ++b) {
@@ -220,8 +275,10 @@ TEST_CASE("Vorago_ProcessorCpu", "[vorago][.perf][performance]") {
     }
 
     const double pBestNs = bestP / static_cast<double>(kBlocksPerTrial);
+    const double pfBestNs = bestPF / static_cast<double>(kBlocksPerTrial);
     const double dBestNs = bestD / static_cast<double>(kBlocksPerTrial);
     const double ratioPD = pBestNs / dBestNs;
+    const double ratioPFD = pfBestNs / dBestNs;
     const double ratioRef = pBestNs / Krate::DSP::TestUtils::Vorago::kReferenceNs;
 
     WARN("SC-014 arm P best ns/block (512 @ 48 kHz, poly 4): " << pBestNs);
@@ -236,6 +293,14 @@ TEST_CASE("Vorago_ProcessorCpu", "[vorago][.perf][performance]") {
     }
 
     REQUIRE(pBestNs <= kWrapperOverheadCeiling * dBestNs);  // FR-067a / SC-016
+
+    WARN("SC-012 arm PF best ns/block (forced ecosystem frame, every call a full fill): "
+         << pfBestNs);
+    WARN("SC-012 PF/D ratio (gate <= " << kWrapperOverheadCeiling << "): " << ratioPFD);
+    WARN("SC-012 PF/P ratio (frame producer cost over quiescent, recorded): "
+         << pfBestNs / pBestNs);
+
+    REQUIRE(pfBestNs <= kWrapperOverheadCeiling * dBestNs);  // SC-012
 
     // ---------------------------------------------------------------- arm A (WARN only)
     // SC-016: one MB ID (201) and one VP ID (206) automated every block.
@@ -352,4 +417,62 @@ TEST_CASE("Vorago_ProcessorCpu", "[vorago][.perf][performance]") {
     WARN("SC-016 arm E vs Phase 11 recorded " << kPhase11ArmENs
                                               << " ns (recorded, not gated): " << bestE
                                               << " ns, ratio " << bestE / kPhase11ArmENs);
+}
+
+// SC-007 (e): selectStrongestLinks at the 1128-pair worst case. Recorded, NOT gated.
+TEST_CASE("Vorago_SelectStrongestLinks_WorstCase", "[vorago][.perf][performance]") {
+    using Krate::DSP::EcosystemEngine;
+
+    auto eng = std::make_unique<EcosystemEngine>();
+    eng->setSeed(kLinkSeed);
+    eng->setKernelSigma(kLinkKernelSigma);
+    eng->prepare(kCpuSampleRate, EcosystemEngine::PrepareConfig{.agentCount = kLinkAgents});
+    REQUIRE(eng->getAgentCount() == kLinkAgents);
+    const std::size_t stepSamples =
+        eng->getStepIntervalChunks() * EcosystemEngine::kControlChunkSamples;
+
+    // Step one simulation step at a time until the whole pair table is recorded.
+    bool fullTable = false;
+    for (int step = 0; step < kLinkMaxSteps && !fullTable; ++step) {
+        const std::uint64_t prev = eng->getControlStepCount();
+        eng->processChunk(stepSamples);
+        REQUIRE(eng->getControlStepCount() == prev + 1u);
+        fullTable = (eng->getPairInteractionCount() == EcosystemEngine::kMaxPairs);
+    }
+    REQUIRE(fullTable);
+    REQUIRE(eng->getPairInteractionCount() == 1128u);
+
+    std::array<std::uint16_t, EcosystemEngine::kMaxPairs> scratch{};
+    const std::span<std::uint16_t, EcosystemEngine::kMaxPairs> scratchSpan{scratch};
+    ::Vorago::EcosystemFrame frame{};
+
+    // Warm-up call (discarded) + non-vacuity: the full table yields a full link set.
+    ::Vorago::selectStrongestLinks(*eng, scratchSpan, frame);
+    REQUIRE(static_cast<std::size_t>(frame.linkCount) == ::Vorago::kMaxFrameLinks);
+
+    // Keeps the timed calls observable to the optimiser.
+    volatile std::uint32_t sink = 0;
+
+    double best = std::numeric_limits<double>::max();
+    for (std::size_t trial = 0; trial < kTrials; ++trial) {
+        std::uint32_t acc = 0;
+        const Clock::time_point t0 = Clock::now();
+        for (std::size_t c = 0; c < kLinkCallsPerTrial; ++c) {
+            ::Vorago::selectStrongestLinks(*eng, scratchSpan, frame);
+            acc += static_cast<std::uint32_t>(frame.linkCount);
+        }
+        const Clock::time_point t1 = Clock::now();
+        sink = sink + acc;
+        best = std::min(best, elapsedNs(t0, t1));
+    }
+
+    const double nsPerCall = best / static_cast<double>(kLinkCallsPerTrial);
+    const double blockPeriodNs = (static_cast<double>(kCpuBlock) / kCpuSampleRate) * 1.0e9;
+    WARN("SC-007 (e) selectStrongestLinks best ns/call at 1128 pairs (recorded, not gated): "
+         << nsPerCall);
+    WARN("SC-007 (e) ns/call / one 512-sample block period at 48 kHz (" << blockPeriodNs
+                                                                         << " ns): "
+                                                                         << nsPerCall / blockPeriodNs);
+    const std::uint32_t sinkValue = sink;
+    REQUIRE(sinkValue > 0u);
 }

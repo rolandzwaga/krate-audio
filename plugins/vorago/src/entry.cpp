@@ -9,16 +9,23 @@
 // - Each has its own unique FUID
 // - Host can instantiate them independently
 //
-// FR-018: this file MUST NOT include any ui/*.h or custom-view header. Phase 11
-// registers no custom views (the placeholder editor uses stock VSTGUI views
-// only); Phase 13 adds the view-creator includes here when the real interface
-// lands.
+// Phase 13 (FR-041): the FR-018 prohibition on ui/*.h includes has expired with
+// the phase that wrote it. This file now includes <ui/arc_knob.h>, whose inline
+// global gArcKnobCreator (plugins/shared/src/ui/arc_knob.h:714-716) registers the
+// shared "ArcKnob" view class; an inline global only runs its constructor in a
+// translation unit that is actually LINKED, so the entry TU is where the creator
+// must be pulled in. ArcKnob is the only registered creator Vorago needs:
+// EcosystemView and the header preset-browser button are built by
+// Controller::createCustomView (custom-view-name="EcosystemView" /
+// "PresetBrowserButton"), which needs no view-creator registration.
 // ==============================================================================
 
 #include "plugin_ids.h"
 #include "version.h"
 #include "processor/processor.h"
 #include "controller/controller.h"
+
+#include <ui/arc_knob.h>
 
 #include "public.sdk/source/main/pluginfactory.h"
 

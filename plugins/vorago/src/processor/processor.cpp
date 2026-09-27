@@ -12,9 +12,12 @@
 
 #include "engine/vorago_engine_config.h"
 #include "plugin_ids.h"
+#include "processor/ecosystem_frame_builder.h"
 
 #include "base/source/fstreamer.h"
 #include "public.sdk/source/common/memorystream.h"
+// Phase 13 FR-021: DataExchangeHandler's definition (forward-declared in processor.h).
+#include "public.sdk/source/vst/utility/dataexchange.h"
 #include "pluginterfaces/vst/ivstevents.h"
 #include "pluginterfaces/vst/ivstparameterchanges.h"
 #include "pluginterfaces/vst/vstspeaker.h"
@@ -27,6 +30,7 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <memory>
 #include <optional>
 #include <utility>
@@ -227,7 +231,18 @@ tresult PLUGIN_API Processor::setupProcessing(ProcessSetup& setup) {
 tresult PLUGIN_API Processor::setActive(TBool state) {
     if (state != 0) {
         snapGainPending_ = true;
+        // Phase 13 FR-021 (plan 4.2): open the EcosystemFrame queue. Host thread,
+        // audio stopped: the SDK fallback's allocations in onActivate
+        // (dataexchange.cpp:76-105) never reach the audio thread. processSetup is
+        // the AudioEffect member setupProcessing() filled.
+        if (dataExchangeHandler_ != nullptr) {
+            dataExchangeHandler_->onActivate(processSetup);
+        }
     } else {
+        // Phase 13 FR-021 (plan 4.2): close the queue BEFORE release/silence.
+        if (dataExchangeHandler_ != nullptr) {
+            dataExchangeHandler_->onDeactivate();
+        }
         // FR-030 / plan 4.7: release every latched note BEFORE silencing (off the
         // render path; engine_->noteOff is a no-op on an unprepared engine).
         latch_.releaseAll([this](std::uint8_t n) noexcept { noteOffToEngine(n); });
@@ -241,6 +256,37 @@ tresult PLUGIN_API Processor::setActive(TBool state) {
         }
     }
     return AudioEffect::setActive(state);
+}
+
+// Phase 13 FR-021 (plan 4.2). Shape copied from Seraphis processor.cpp:1194-1220.
+// The handler is built here and released in disconnect(); setActive() opens and
+// closes the queue. Host thread only.
+tresult PLUGIN_API Processor::connect(IConnectionPoint* other) {
+    const tresult result = AudioEffect::connect(other);
+    if (result == kResultTrue) {
+        auto configCallback = [](DataExchangeHandler::Config& config,
+                                 const ProcessSetup& /*setup*/) {
+            config.blockSize = static_cast<uint32>(sizeof(EcosystemFrame));
+            config.numBlocks = 4;
+            config.alignment = 32;
+            config.userContextID = kEcosystemFrameUserContextId;
+            return true;
+        };
+        dataExchangeHandler_ = std::make_unique<DataExchangeHandler>(this, configCallback);
+        dataExchangeHandler_->onConnect(other, getHostContext());
+        // C-2 trigger (iii): a (re)connected consumer gets a fill on the next call.
+        frameResyncPending_.store(true, std::memory_order_relaxed);
+    }
+    return result;
+}
+
+tresult PLUGIN_API Processor::disconnect(IConnectionPoint* other) {
+    if (dataExchangeHandler_ != nullptr) {
+        dataExchangeHandler_->onDisconnect(other);
+        // Released, not merely idled: the publish gate closes again.
+        dataExchangeHandler_.reset();
+    }
+    return AudioEffect::disconnect(other);
 }
 
 // Plan 2.5.6. T012: denormal guard, parameter latch, FR-030 shape guards.
@@ -390,8 +436,119 @@ tresult PLUGIN_API Processor::process(ProcessData& data) {
     // Every clamped pedal offset is < total, so the loop consumed them all.
     numPedalPoints_ = 0;
 
+    publishEcosystemFrame();  // Phase 13 FR-022: once per rendered block, no early return reaches it
+
     data.outputs[0].silenceFlags = 0;  // FR-024: every rendered block
     return kResultOk;
+}
+
+// Phase 13 FR-022 - FR-027 (plan 4.3; the step order below is normative).
+// Audio thread: no allocation, lock, exception, I/O or transcendental. Fills go
+// through the builder functions and const getters only.
+void Processor::publishEcosystemFrame() noexcept {
+    // 0. GATE: no consumer and no seam -> nothing at all.
+    if (dataExchangeHandler_ == nullptr && !frameForced_ && !frameEnabled_) {
+        return;
+    }
+    // 1. C-2 clause 7, counter 1.
+    ++frameProcessCalls_;
+
+    // 2. FOCUS (C-2 clause 4), evaluated every call over every slot.
+    using Krate::DSP::VoiceState;
+    using Krate::DSP::VoragoEngine;
+    const VoragoEngine& eng = *engine_;
+    std::size_t best = VoragoEngine::kMaxVoices;  // none
+    std::uint64_t bestSerial = 0;
+    for (std::size_t v = 0; v < VoragoEngine::kMaxVoices; ++v) {
+        if (eng.getVoiceState(v) != VoiceState::Idle) {
+            const std::uint64_t serial = eng.getVoiceAllocationSerial(v);
+            if (best == VoragoEngine::kMaxVoices || serial > bestSerial) {
+                best = v;
+                bestSerial = serial;
+            }
+        }
+    }
+    std::size_t focus = 0;
+    char rule = 'c';
+    if (best < VoragoEngine::kMaxVoices) {
+        focus = best;
+        rule = 'a';
+    } else if (eng.getVoiceLevel(frameFocusVoice_) > kEcosystemFrameSilenceLevel) {
+        focus = frameFocusVoice_;
+        rule = 'b';
+    }
+    frameFocusVoice_ = focus;
+    frameFocusRule_ = rule;
+
+    // 3. HABITAT. Rule (c) uses sentinels: nothing is sounding.
+    const Krate::DSP::EcosystemEngine& eco = eng.getVoice(focus).ecosystem();
+    const std::size_t agentCount =
+        (rule == 'c') ? std::size_t{0}
+                      : std::min(eco.getAgentCount(), kMaxFrameAgents);
+    const std::uint64_t step = (rule == 'c') ? std::uint64_t{0} : eco.getControlStepCount();
+
+    // 4. TRIGGER (compare with !=: a reset / reseed rewinds the step count).
+    const bool resync = frameResyncPending_.exchange(false, std::memory_order_relaxed);
+    const bool fire = frameForced_ || resync || step != frameLastStep_
+                      || focus != frameLastFilledFocus_ || agentCount != frameLastAgentCount_;
+    if (!fire) {
+        return;  // no fill, no queue write
+    }
+
+    // 5. Counter 2.
+    ++framePublishAttempts_;
+    frameLastStep_ = step;
+    frameLastFilledFocus_ = focus;
+    frameLastAgentCount_ = agentCount;
+
+    // 6. FILL.
+    EcosystemFrame& f = pendingFrame_;
+    f.sequence = ++frameSequence_;
+    f.activeVoices = static_cast<std::uint8_t>(std::min<std::size_t>(eng.getActiveVoiceCount(), 255u));
+    f.focusVoice = static_cast<std::uint8_t>(focus);
+    f.agentCount = static_cast<std::uint8_t>(agentCount);
+    f.voiceLevel = sanitizeFrameFloat(static_cast<double>(eng.getVoiceLevel(focus)));
+    const double budget = (agentCount > 0) ? eco.getEnergyBudget() : 0.0;
+    for (std::size_t i = 0; i < agentCount; ++i) {
+        f.agentX[i] = sanitizeFrameFloat(eco.getAgentPositionX(i));
+        f.agentY[i] = sanitizeFrameFloat(eco.getAgentPositionY(i));
+        f.agentGlow[i] = ecosystemEnergyGlow(eco.getAgentEnergy(i), agentCount, budget);
+        f.agentKind[i] = static_cast<std::uint8_t>(eco.getAgentKind(i));
+        f.agentDormant[i] = eco.isAgentDormant(i) ? std::uint8_t{1} : std::uint8_t{0};
+    }
+    for (std::size_t i = agentCount; i < kMaxFrameAgents; ++i) {
+        f.agentX[i] = 0.0f;
+        f.agentY[i] = 0.0f;
+        f.agentGlow[i] = 0.0f;
+        f.agentKind[i] = 0;
+        f.agentDormant[i] = 0;
+    }
+    if (agentCount > 0) {
+        selectStrongestLinks(eco, linkScratch_, f);
+        f.linkFlowScale = sanitizeFrameFloat(budget / static_cast<double>(agentCount));
+    } else {
+        for (std::size_t l = 0; l < kMaxFrameLinks; ++l) {
+            f.linkA[l] = 0;
+            f.linkB[l] = 0;
+            f.linkStrength[l] = 0.0f;
+        }
+        f.linkCount = 0;
+        f.linkFlowScale = 0.0f;
+    }
+
+    // 7. TRANSPORT (Seraphis processor.cpp:4210-4225 shape).
+    if (dataExchangeHandler_ == nullptr) {
+        return;  // seam-only path: the frame stays in pendingFrame_
+    }
+    const DataExchangeBlock block = dataExchangeHandler_->getCurrentOrNewBlock();
+    if (block.blockID == InvalidDataExchangeBlockID || block.data == nullptr
+        || block.size < sizeof(EcosystemFrame)) {
+        // Recorded, never retried or blocked on (C-2 clause 7).
+        ++frameSkippedBlocks_;
+        return;
+    }
+    std::memcpy(block.data, &pendingFrame_, sizeof(EcosystemFrame));
+    dataExchangeHandler_->sendCurrentBlock();
 }
 
 // FR-033 (plan 2.5.9): smear (2048) + cavern diffusion (1024) = 3072 after any

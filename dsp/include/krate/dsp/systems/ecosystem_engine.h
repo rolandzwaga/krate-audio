@@ -960,6 +960,26 @@ public:
     ///        most recent simulation step (NOT a cumulative total).
     [[nodiscard]] std::size_t getPairInteractionCount() const noexcept { return pairCount_; }
 
+    /// @brief Pair @p p of the most recent simulation step's recorded interaction
+    ///        table (stage 2), p < getPairInteractionCount().
+    ///
+    /// Contract class (i) (see the three-class banner above): NEUTRAL ON AN
+    /// OUT-OF-RANGE INDEX ONLY (0 / 0 / 0.0), before and after prepare(), and never
+    /// reads out of range. getPairAgentA(p) < getPairAgentB(p) < getAgentCount()
+    /// for every in-range p (stage 2 records j > i).
+    [[nodiscard]] std::size_t getPairAgentA(std::size_t p) const noexcept {
+        return (p < pairCount_) ? static_cast<std::size_t>(pairI_[p]) : std::size_t{0};
+    }
+    [[nodiscard]] std::size_t getPairAgentB(std::size_t p) const noexcept {
+        return (p < pairCount_) ? static_cast<std::size_t>(pairJ_[p]) : std::size_t{0};
+    }
+    /// The RECORDED, signed, PRE-stage-3-scale flow - the exchange the rule asked
+    /// for, not the joules stage 3 actually moved after its spare/want scaling.
+    /// Identically 0.0 at predation == 0.5 (see the FR-021 trap at stage 2).
+    [[nodiscard]] double getPairFlow(std::size_t p) const noexcept {
+        return (p < pairCount_) ? pairFlow_[p] : 0.0;
+    }
+
     /// @brief Steps whose end-of-step pool was negative (FR-056).
     ///
     /// Counts EXACTLY ONE THING. Non-finite containment has its own counter

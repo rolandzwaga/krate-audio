@@ -489,6 +489,8 @@ add_executable(dsp_systems_tests
     unit/systems/ecosystem_engine_longrun_test.cpp
     unit/systems/ecosystem_engine_perf_test.cpp
     unit/systems/ecosystem_engine_nonfinite_test.cpp
+    # Vorago Phase 13 (specs/vorago-phase13-ui): SC-019 pair accessors (strength/cooldown/partner).
+    unit/systems/ecosystem_engine_pair_accessors_test.cpp
     # Vorago Phase 10 (specs/vorago-phase10-voice-engine): VoragoVoice, VoragoEngine,
     # VoragoMacroMatrix + the six dark ContinuousBody materials.
     # This list is ENUMERATED, not globbed - an unregistered TU silently drops out of
@@ -1020,6 +1022,9 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         # guards are proved in the /fp:fast + -ffast-math mode the header actually
         # ships in, and so the perf TU's figures are not changed by the flag.
         unit/systems/ecosystem_engine_nonfinite_test.cpp
+        # Vorago Phase 13: SC-019 recomputes the reference exchange and must
+        # associate the arithmetic exactly as the engine does.
+        unit/systems/ecosystem_engine_pair_accessors_test.cpp
         # Vorago Phase 12: injects NaN/Inf bit patterns into the Phase 12 setters.
         unit/systems/vorago_param_surface_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"

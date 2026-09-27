@@ -12,8 +12,11 @@ Auto-loads when working under `plugins/vorago/`. Root `CLAUDE.md` still applies.
   — `engine/` = `vorago_engine_config.h` (thin prepare-time config factories, no DSP);
   `parameters/` = one pack header per band (`global_params.h`, `macro_params.h`, `cloud_params.h` …
   `life_params.h`) plus `param_mapping.h` (tapers) and `param_routes.h` (the route table);
-  `processor/sustain_latch.h` is the wrapper-side CC64 latch; `ui/` is **empty** (`.gitkeep`) until Phase 13
-  registers custom views; `preset/` and `update/` are the shared-config adapters
+  `processor/sustain_latch.h` is the wrapper-side CC64 latch; `processor/ecosystem_frame.h` is the POD
+  `EcosystemFrame` payload (shared by processor and controller) and `processor/ecosystem_frame_builder.h` its
+  **processor-only** pure fill helpers; `ui/` holds `ecosystem_view.{h,cpp}` (`Vorago::UI::EcosystemView`, the
+  live habitat display) and `panel_sub_controller.{h,cpp}` (`VoragoPanelSubController`, all session-UI
+  routing) — see "Phase 13 interface" below; `preset/` and `update/` are the shared-config adapters
   (`makeVoragoPresetConfig()` / `makeVoragoUpdateConfig()`).
   Generated, never hand-edited, never committed (see `.gitignore`): `src/version.h`,
   `resources/win32resource.rc`, `resources/auv3/audiounitconfig.h` — only `audiounitconfig.h.in` is authored.
@@ -124,6 +127,52 @@ C-3's "every tracker"):
   forcing it would falsify Phase 11's polyphony edge-trigger counter.
 
 Do not "fix" either exclusion. Every other re-push of an unchanged value is inert by construction.
+
+## Phase 13 interface — frame data path, binding, pages, session tags
+
+Spec: `specs/vorago-phase13-ui/` (plan §3–§7 are normative).
+
+**Ecosystem frame data path — one-way, change-triggered.** Processor → controller only, over VST3
+DataExchange with `userContextID = kEcosystemFrameUserContextId` (`0x5645434F`, `'VECO'`), block size
+`sizeof(EcosystemFrame)` = **1072 bytes** (pinned by `static_assert`s in `processor/ecosystem_frame.h`; the
+struct is trivially copyable and memcpy'd, so never reorder or pad it). `Processor::publishEcosystemFrame()`
+runs once per `process()`, after the slice loop; it is gated on a connected `DataExchangeHandler` and fills
+and sends a frame **only when the habitat changed** (control-step count, focus voice or agent count differs
+from the last fill, or a resync is pending after `connect()`). The focus is the newest sounding voice. Nothing
+flows back: the view never writes to the processor.
+- `ecosystem_frame.h` includes `<cstddef> <cstdint> <type_traits>` only — the controller and `ui/` may include it.
+- `ecosystem_frame_builder.h` pulls in the Layer 3 `ecosystem_engine.h` and is **processor-only**: never
+  include it from `controller/` or `ui/`. `EcosystemView` keeps its own local torus delta for the same reason.
+- **Two test seams:** `setEcosystemFrameForcedForTest(true)` forces the **gate and the trigger** (every call
+  fills — used for the CPU case); `setEcosystemFrameEnabledForTest(true)` opens the **gate only** and leaves
+  the natural change trigger in place (used for cadence). Shipping logic never branches on either except at
+  the gate. A seam-free `ConnectedFixture` in `tests/integration/ecosystem_frame_test.cpp` covers the real handler.
+
+**Binding — 106 IDs, `{4, 5}` is the complete reachability allowlist.** `resources/editor.uidesc` binds
+every registered ID exactly once except `kSustainPedalId` (4) and `kChannelPressureId` (5), which are hidden
+and reached only through `IMidiMapping`. Adding a parameter means adding its control-tag and a bound view;
+never widen the allowlist.
+
+**Page table** (seven sibling `CViewContainer`s `page-0`..`page-6` under `page-area`, switched by the
+`CSegmentButton` page strip — never a `UIViewSwitchContainer`). Grid: 68 × 74 cells; continuous IDs are
+44 × 44 `ArcKnob`s, list IDs 96 × 18 `COptionMenu`s, Freeze (1115) and Ghost Event Triggers (1403) are
+`CCheckBox`es. The twelve macros sit as 96 × 96 `ArcKnob`s either side of the `EcosystemView`.
+
+| Page | Rows (one row = one functional group) |
+|---|---|
+| 0 Cloud | r0: 200–206 · r1: 1300, 1301 (Bloom) |
+| 1 Noise | r0: 300, 301, 302 · then one column group per slot s (0–3): menus 310+s, 320+s, knobs 330+s, 340+s, 350+s |
+| 2 Resonance | r0: 400, 401, 402, menu 403 · r1: 500, 501 · r2: menus 510–515 |
+| 3 Body | r0: 1000–1003, menus 1004, 1005 · r1: menu 1200, knobs 1201–1206 |
+| 4 Sub / Smear | r0: 600, 601, 610, 611, 612 · r1: 700, 701, 702 |
+| 5 Space | r0: 1100–1107 · r1: 1108–1114, checkbox 1115 |
+| 6 Life | r0: 800, 900 · r1: 1400, 1401, 1402, checkbox 1403 · r2: 1500, 1501, 1502 |
+
+**Session tags are `>= 9000` and never a ParamID** (`Vorago::UI::kSessionTagBase = 9000` in
+`ui/panel_sub_controller.h`; preset button 9000, page strip 9100; the highest registered ID is 1502).
+Controls with no parameter carry a `session-tag` attribute; `VoragoPanelSubController` assigns the tag and
+swallows their `valueChanged` / `controlBeginEdit` / `controlEndEdit`, so none reaches `performEdit`. Keep
+new session controls in this range and never let the parameter bands grow into it.
 
 ## Near-name hazard — `Vorago::` vs `Seraphis::`
 

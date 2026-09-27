@@ -1,5 +1,5 @@
 // ==============================================================================
-// Vorago - editor lifecycle tests (SC-012)
+// Vorago - editor lifecycle tests (Phase 11 SC-012, Phase 13 SC-016 a)
 // ==============================================================================
 // The [lifecycle] tag is REQUIRED: valgrind-nightly.yml selects cases by it.
 //
@@ -8,16 +8,24 @@
 // temp directories (P-4): scanPresets() scans user AND factory
 // (preset_manager.cpp:41-49), so one shared directory double-counts, and an
 // unset user override would read the machine's real user preset folder.
+// Phase 13 (plan D-4): the browser tab labels are "All" + the subcategories.
 //
-// SECTION "HarnessCycles" (SC-012.1, FR-055): three headless open/close cycles
-// through the shared harness (tests/test_helpers/editor_lifecycle_harness.h:102),
-// then the controller's own preset manager is non-null.
+// SECTION "HarnessCycles" (SC-016 a, FR-055): ten headless open/close cycles
+// through the shared harness (tests/test_helpers/editor_lifecycle_harness.h:102)
+// - every cycle builds and drops the EcosystemView, the page sub-controller and
+// the PresetBrowserView overlay - then the controller's preset manager is non-null.
 //
-// SECTION "EditorBindsFourteenControls" (SC-012.2, FR-054): the BUILT view tree
-// carries exactly the fourteen bound controls. The harness alone proves nothing
-// about the file's contents - a template holding one CTextLabel passes it.
+// SECTION "EditorBindsSurface" (SC-016 a, FR-041, FR-042, FR-071): the BUILT
+// view tree carries exactly the 106 bound controls (every registered ID except
+// the hidden 4 and 5), exactly one EcosystemView, and the preset browser
+// overlay; the controller's frame-owned pointers are dropped on close; unknown
+// custom-view and sub-controller names return null.
 // The getTag() >= 0 filter is load-bearing: CTextLabel IS-A CControl and keeps
 // tag -1 when untagged, so an unfiltered walk would also count the labels.
+// Session tags (>= Vorago::UI::kSessionTagBase: page strip, preset button) are
+// never ParamIDs and are excluded. The walk never descends into the didOpen
+// PresetBrowserView overlay: it holds its own tagged buttons (tags 1-31,
+// preset_browser_view.h:34-50) that would collide with ParamIDs 1-5.
 //
 // NEVER name a kPlatformType* constant here - always
 // Krate::TestSupport::nativePlatformType() (lint-platform-type-literals.js).
@@ -29,7 +37,12 @@
 #include "plugin_ids.h"
 #include "preset/preset_manager.h"
 #include "preset/vorago_preset_config.h"
+#include "ui/ecosystem_view.h"
+#include "ui/panel_sub_controller.h"
+#include "unit/param_table_expected.h"
 #include "update/vorago_update_config.h"
+
+#include "ui/preset_browser_view.h"
 
 #include "pluginterfaces/base/smartpointer.h"
 #include "pluginterfaces/gui/iplugview.h"
@@ -37,8 +50,8 @@
 #include "vstgui/lib/cview.h"
 #include "vstgui/lib/cviewcontainer.h"
 #include "vstgui/lib/controls/ccontrol.h"
-#include "vstgui/lib/controls/coptionmenu.h"
 #include "vstgui/plugin-bindings/vst3editor.h"
+#include "vstgui/uidescription/uiattributes.h"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -61,9 +74,12 @@ unsigned long long nextTempCounter() {
     return ++counter;
 }
 
-/// Recursive walk collecting every CControl bound to a parameter (tag >= 0).
+/// Recursive walk collecting every CControl bound to a parameter
+/// (0 <= tag < kSessionTagBase) and counting EcosystemView instances. Never
+/// descends into the PresetBrowserView overlay (its own tagged buttons).
 void collectBoundControls(VSTGUI::CViewContainer* container,
-                          std::vector<VSTGUI::CControl*>& out) {
+                          std::vector<VSTGUI::CControl*>& out,
+                          std::size_t& ecosystemViewCount) {
     if (container == nullptr) {
         return;
     }
@@ -73,13 +89,20 @@ void collectBoundControls(VSTGUI::CViewContainer* container,
         if (view == nullptr) {
             continue;
         }
+        if (dynamic_cast<::Vorago::UI::EcosystemView*>(view) != nullptr) {
+            ++ecosystemViewCount;
+        }
         if (auto* control = dynamic_cast<VSTGUI::CControl*>(view)) {
-            if (control->getTag() >= 0) {
+            const std::int32_t tag = control->getTag();
+            if (tag >= 0 && tag < ::Vorago::UI::kSessionTagBase) {
                 out.push_back(control);
             }
         }
+        if (dynamic_cast<Krate::Plugins::PresetBrowserView*>(view) != nullptr) {
+            continue;
+        }
         if (auto* child = dynamic_cast<VSTGUI::CViewContainer*>(view)) {
-            collectBoundControls(child, out);
+            collectBoundControls(child, out, ecosystemViewCount);
         }
     }
 }
@@ -92,6 +115,8 @@ TEST_CASE("Vorago_EditorLifecycle", "[vorago][controller][ui][lifecycle]") {
         REQUIRE(cfg.pluginName == "Vorago");
         REQUIRE(cfg.pluginCategoryDesc == "Synth");
         REQUIRE(cfg.subcategoryNames == std::vector<std::string>{"Drones"});
+        REQUIRE(::Vorago::makeVoragoPresetTabLabels() ==
+                std::vector<std::string>{"All", "Drones"});  // plan D-4 (T012)
         const bool processorUidMatches = (cfg.processorUID == ::Vorago::kProcessorUID);
         REQUIRE(processorUidMatches);
 
@@ -140,18 +165,19 @@ TEST_CASE("Vorago_EditorLifecycle", "[vorago][controller][ui][lifecycle]") {
         REQUIRE(u.pluginName == "Vorago");
     }
 
-    SECTION("HarnessCycles") {  // SC-012.1
+    SECTION("HarnessCycles") {  // SC-016 a
         auto controller = Steinberg::owned(new ::Vorago::Controller());
         REQUIRE(controller->initialize(nullptr) == Steinberg::kResultOk);
 
         Krate::TestSupport::exerciseEditorLifecycle(
-            *controller, "editor", std::string(VORAGO_RESOURCES_DIR) + "/editor.uidesc");
+            *controller, "editor", std::string(VORAGO_RESOURCES_DIR) + "/editor.uidesc",
+            /*cycles=*/10);
 
         REQUIRE(controller->presetManagerForTest() != nullptr);
         REQUIRE(controller->terminate() == Steinberg::kResultOk);
     }
 
-    SECTION("EditorBindsFourteenControls") {  // SC-012.2
+    SECTION("EditorBindsSurface") {  // SC-016 a, FR-041, FR-042, FR-071
         auto controller = Steinberg::owned(new ::Vorago::Controller());
         REQUIRE(controller->initialize(nullptr) == Steinberg::kResultOk);
 
@@ -165,38 +191,58 @@ TEST_CASE("Vorago_EditorLifecycle", "[vorago][controller][ui][lifecycle]") {
         REQUIRE(editor->getFrame() != nullptr);
 
         std::vector<VSTGUI::CControl*> controls;
-        collectBoundControls(editor->getFrame(), controls);
+        std::size_t ecosystemViewCount = 0;
+        collectBoundControls(editor->getFrame(), controls, ecosystemViewCount);
 
         std::set<std::int32_t> tags;
-        VSTGUI::CControl* polyphonyControl = nullptr;
         for (auto* control : controls) {
             tags.insert(control->getTag());
-            if (control->getTag() == static_cast<std::int32_t>(::Vorago::kPolyphonyId)) {
-                polyphonyControl = control;
-            }
         }
 
-        // Explicit casts, not brace-narrowing: ParamID is uint32.
-        std::set<std::int32_t> expected{static_cast<std::int32_t>(::Vorago::kMasterGainId),
-                                        static_cast<std::int32_t>(::Vorago::kPolyphonyId)};
-        for (auto id = static_cast<std::int32_t>(::Vorago::kMacroDarknessId);
-             id <= static_cast<std::int32_t>(::Vorago::kMacroMassId); ++id) {
-            expected.insert(id);
+        // Every registered ID except the hidden 4 (SustainPedal) and 5
+        // (ChannelPressure). Explicit casts, not brace-narrowing: ParamID is uint32.
+        std::set<std::int32_t> expected;
+        for (const auto& row : VoragoTest::kExpectedParams) {
+            if (row.id != 4u && row.id != 5u) {
+                expected.insert(static_cast<std::int32_t>(row.id));
+            }
         }
-        REQUIRE(expected.size() == 14u);
+        REQUIRE(expected.size() == 106u);
 
         const std::size_t controlCount = controls.size();
         const bool tagsMatch = (tags == expected);
-        const bool polyphonyIsMenu =
-            dynamic_cast<VSTGUI::COptionMenu*>(polyphonyControl) != nullptr;
+        const bool ecosystemViewWhileOpen = (controller->ecosystemViewForTest() != nullptr);
+        const bool browserWhileOpen = (controller->presetBrowserViewForTest() != nullptr);
+
+        // FR-071: the header button's open path reaches the overlay.
+        controller->openPresetBrowser();
+        const auto* browser = controller->presetBrowserViewForTest();
+        const bool browserOpened = (browser != nullptr) && browser->isOpen();
+
+        // Unknown names fall through to null (FR-042, FR-043).
+        VSTGUI::UIAttributes noAttributes;
+        VSTGUI::CView* unknownView =
+            controller->createCustomView("Nope", noAttributes, nullptr, editor);
+        VSTGUI::IController* unknownSub = controller->createSubController("Nope", nullptr, editor);
+        const bool unknownViewNull = (unknownView == nullptr);
+        const bool unknownSubNull = (unknownSub == nullptr);
 
         view->removed();
+        const bool ecosystemViewAfterClose = (controller->ecosystemViewForTest() != nullptr);
+        const bool browserAfterClose = (controller->presetBrowserViewForTest() != nullptr);
         view->release();
         REQUIRE(controller->terminate() == Steinberg::kResultOk);
 
-        REQUIRE(controlCount == 14u);
+        REQUIRE(controlCount == 106u);
         REQUIRE(tagsMatch);
-        REQUIRE(polyphonyIsMenu);
+        REQUIRE(ecosystemViewCount == 1u);
+        REQUIRE(ecosystemViewWhileOpen);
+        REQUIRE(browserWhileOpen);  // R-2: no save-dialog accessor to assert
+        REQUIRE(browserOpened);
+        REQUIRE(unknownViewNull);
+        REQUIRE(unknownSubNull);
+        REQUIRE_FALSE(ecosystemViewAfterClose);
+        REQUIRE_FALSE(browserAfterClose);
     }
 
     SECTION("CreateViewNames") {  // FR-055

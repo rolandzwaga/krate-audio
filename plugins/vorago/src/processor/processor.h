@@ -30,10 +30,12 @@
 #include "parameters/smear_params.h"
 #include "parameters/space_params.h"
 #include "parameters/sub_params.h"
+#include "processor/ecosystem_frame.h"
 #include "processor/sustain_latch.h"
 
 #include <krate/dsp/effects/cavern_verb.h>
 #include <krate/dsp/primitives/smoother.h>
+#include <krate/dsp/systems/ecosystem_engine.h>
 #include <krate/dsp/systems/vorago_engine.h>
 #include <krate/dsp/systems/vorago_macro_matrix.h>
 
@@ -42,6 +44,14 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+
+// Phase 13 FR-021 (plan 4.1). Forward-declared (Membrum processor.h:33-34
+// pattern) so this header stays cheap; dataexchange.h is included by
+// processor.cpp alone. The unique_ptr member over this incomplete type is
+// legal because ~Processor() is defined out of line in processor.cpp.
+namespace Steinberg::Vst {
+class DataExchangeHandler;
+}  // namespace Steinberg::Vst
 
 namespace Vorago {
 
@@ -77,6 +87,30 @@ public:
     Steinberg::tresult PLUGIN_API setState(Steinberg::IBStream* state) override;
     Steinberg::tresult PLUGIN_API getState(Steinberg::IBStream* state) override;
     // getTailSamples(): NOT overridden -> SDK default kNoTail (Clarification Q6).
+
+    // Phase 13 FR-021 (plan 4.2): the EcosystemFrame DataExchange lifecycle.
+    Steinberg::tresult PLUGIN_API connect(Steinberg::Vst::IConnectionPoint* other) override;
+    Steinberg::tresult PLUGIN_API disconnect(Steinberg::Vst::IConnectionPoint* other) override;
+
+    // ---- Phase 13 test seams (plan 4.1). Shipping logic branches only on the
+    // two gates; everything else is read-only. ----
+    /// FR-026: opens the gate AND forces the trigger (a full fill every call).
+    void setEcosystemFrameForcedForTest(bool on) noexcept { frameForced_ = on; }
+    /// Plan D-2: opens the gate only; the natural trigger still decides fills.
+    void setEcosystemFrameEnabledForTest(bool on) noexcept { frameEnabled_ = on; }
+    [[nodiscard]] const EcosystemFrame& lastPublishedFrameForTest() const noexcept {
+        return pendingFrame_;
+    }
+    [[nodiscard]] std::uint64_t ecosystemFrameProcessCallCountForTest() const noexcept {
+        return frameProcessCalls_;
+    }
+    [[nodiscard]] std::uint64_t ecosystemFramePublishAttemptCountForTest() const noexcept {
+        return framePublishAttempts_;
+    }
+    [[nodiscard]] std::uint64_t ecosystemFrameSkippedBlockCountForTest() const noexcept {
+        return frameSkippedBlocks_;
+    }
+    [[nodiscard]] char ecosystemFocusRuleForTest() const noexcept { return frameFocusRule_; }
 
     // ---- test-access seams: const, allocation-free, never called by process() ----
     [[nodiscard]] const Krate::DSP::VoragoEngine* engineForTest() const noexcept {  // FR-026a
@@ -187,6 +221,9 @@ private:
     std::size_t buildEventOrder(Steinberg::Vst::IEventList* events, std::size_t total) noexcept;
     void dispatchEvent(const Steinberg::Vst::Event& e) noexcept;
     void renderSlice(float* outL, float* outR, std::size_t n) noexcept;
+    /// Phase 13 FR-022 - FR-027 (plan 4.3). Called exactly once per rendered
+    /// process() block, after the slice loop. Audio thread, allocation-free.
+    void publishEcosystemFrame() noexcept;
 
     std::unique_ptr<Krate::DSP::VoragoEngine> engine_;  // FR-022: NEVER by value / stack
     std::unique_ptr<Krate::DSP::CavernVerb> cavern_;    // FR-022
@@ -274,6 +311,26 @@ private:
     SustainLatch latch_{};
     std::array<PedalPoint, kMaxPedalPoints> pedalPoints_{};
     std::size_t numPedalPoints_ = 0;
+
+    // Phase 13 EcosystemFrame producer (plan 4.1). The handler is built in
+    // connect() and released in disconnect(); setActive() opens/closes its queue.
+    std::unique_ptr<Steinberg::Vst::DataExchangeHandler> dataExchangeHandler_;
+    EcosystemFrame pendingFrame_{};  // 1072 B, filled in place
+    std::array<std::uint16_t, Krate::DSP::EcosystemEngine::kMaxPairs> linkScratch_{};  // 2256 B
+    std::uint32_t frameSequence_ = 0;
+    std::uint64_t frameLastStep_ = 0;
+    std::size_t frameFocusVoice_ = 0;       // last EVALUATED focus (rule (b) reads it)
+    std::size_t frameLastFilledFocus_ = 0;  // focus at the last FILL (trigger (ii))
+    std::size_t frameLastAgentCount_ = 0;   // agentCount at the last FILL (trigger (ii))
+    // Trigger (iii): connect() (host thread) sets it; publishEcosystemFrame() consumes it.
+    std::atomic<bool> frameResyncPending_{true};
+    char frameFocusRule_ = 'c';
+    bool frameForced_ = false;
+    bool frameEnabled_ = false;
+    std::uint64_t frameProcessCalls_ = 0;     // C-2 clause 7 counter 1
+    std::uint64_t framePublishAttempts_ = 0;  // counter 2
+    std::uint64_t frameSkippedBlocks_ = 0;    // counter 3
+    static constexpr float kEcosystemFrameSilenceLevel = 1.0e-4f;  // Seraphis kCloudFrameSilenceLevel
 };
 
 // FR-064: unique_ptr ownership keeps the object small; tests still heap-allocate it.

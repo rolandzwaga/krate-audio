@@ -41,11 +41,20 @@ add_executable(vorago_tests
     unit/params/bloom_params_test.cpp
     unit/params/ghost_params_test.cpp
     unit/params/life_params_test.cpp
+    # Phase 13 (specs/vorago-phase13-ui)
+    unit/ecosystem_frame_builder_test.cpp
+    integration/ecosystem_frame_test.cpp
+    unit/controller/ecosystem_consumer_test.cpp
+    unit/controller/ecosystem_view_test.cpp
+    unit/controller/editor_layout_test.cpp
+    integration/preset_browser_test.cpp
 
     # SECOND compilation of every plugin .cpp (needed by the plugin-shell tests).
     # A new plugin .cpp must appear here AND in plugins/vorago/CMakeLists.txt.
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/ui/ecosystem_view.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/ui/panel_sub_controller.cpp
 
     # VST3 SDK sources
     ${vst3sdk_SOURCE_DIR}/public.sdk/source/common/memorystream.cpp
@@ -120,6 +129,8 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/params/bloom_params_test.cpp
         unit/params/ghost_params_test.cpp
         unit/params/life_params_test.cpp
+        # Phase 13: sanitizeFrameFloat cases build NaN/Inf by bit pattern
+        unit/ecosystem_frame_builder_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
     # integration/processor_cpu_test.cpp is DELIBERATELY ABSENT: the flag would

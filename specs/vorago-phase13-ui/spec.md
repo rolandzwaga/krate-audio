@@ -811,7 +811,7 @@ run only through `node tools/run-cpu-tests.js vorago_tests`, alone.
   `linkFlowScale > 0`, output is monotonic non-decreasing in `linkStrength` over 256 steps of a wide range,
   equals `0.5f` when `linkStrength == linkFlowScale`, is `< 1` at `linkStrength = 48 * linkFlowScale`, and is
   exactly `0.0f` for `linkStrength <= 0` or `linkFlowScale <= 0`. **`habitatBrightness` (Q6, R-3):** with
-  ε = 1e-6, `0.01 → 1/3`, `0.1 → 2/3`, `0.5 → 0.899660`, `1 → 1.0f`; exactly `0.0f` at `0`, `-1` and
+  ε = 1e-6, `0.01 → 1/3`, `0.1 → 2/3`, `0.5 → 0.899657` (= (20·log10(0.5) + 60) / 60 = 0.8996567, rounded), `1 → 1.0f`; exactly `0.0f` at `0`, `-1` and
   `1e-3` (−60 dB, the floor); exactly `1.0f` at `2`; monotonic non-decreasing over 256 steps in `[-1, 2]`. **`activeVoicesText` (Q6):** equals
   `std::to_string(activeVoices)` for `{0, 1, 6, 255}`.
 - **SC-015 — Link fade.** `Vorago_EcosystemView_LinkFade`: a link present once then absent has alpha

@@ -32,10 +32,18 @@ smtg_add_vst3plugin(${PLUGIN_NAME}
     src/processor/processor.h
     src/processor/processor.cpp
     src/processor/sustain_latch.h
+    src/processor/ecosystem_frame.h
+    src/processor/ecosystem_frame_builder.h
 
     # Controller (UI Thread)
     src/controller/controller.h
     src/controller/controller.cpp
+
+    # UI
+    src/ui/ecosystem_view.h
+    src/ui/ecosystem_view.cpp
+    src/ui/panel_sub_controller.h
+    src/ui/panel_sub_controller.cpp
 
     # Parameter Packs
     src/parameters/global_params.h

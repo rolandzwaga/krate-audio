@@ -15,6 +15,9 @@
 #include "preset/preset_manager_config.h"
 #include "../plugin_ids.h"
 
+#include <string>
+#include <vector>
+
 namespace Vorago {
 
 // Field order is load-bearing (plugins/shared/src/preset/preset_manager_config.h:19-24).
@@ -24,6 +27,20 @@ inline Krate::Plugins::PresetManagerConfig makeVoragoPresetConfig() {
         /*.pluginName        =*/"Vorago",
         /*.pluginCategoryDesc=*/"Synth",
         /*.subcategoryNames  =*/{"Drones"}};
+}
+
+/// The preset browser tab labels: "All" first, then the config subcategory list in
+/// order. The controller builds the browser from this function, so a test can pin the
+/// exact list the controller uses (copied from makeSeraphisPresetTabLabels(),
+/// plugins/seraphis/src/preset/seraphis_preset_config.h:52-60).
+[[nodiscard]] inline std::vector<std::string> makeVoragoPresetTabLabels() {
+    const Krate::Plugins::PresetManagerConfig config = makeVoragoPresetConfig();
+    std::vector<std::string> tabLabels;
+    tabLabels.reserve(config.subcategoryNames.size() + 1u);
+    tabLabels.emplace_back("All");
+    tabLabels.insert(tabLabels.end(), config.subcategoryNames.begin(),
+                     config.subcategoryNames.end());
+    return tabLabels;
 }
 
 }  // namespace Vorago

@@ -128,7 +128,7 @@
     `emptyHabitatGridLines(r)`: 6 segments, exactly 3 vertical at `x = 450, 550, 650` and 3 horizontal at `y = 136, 236, 336`.
     `linkAlpha`: with scale 2.0, monotonic non-decreasing over 256 strengths in `[0, 200]`; `linkAlpha(2,2) == 0.5f`;
     `linkAlpha(96,2) < 1.0f`; `== 0.0f` for strength `0`, `-1`, and for scale `0`, `-1`.
-    `habitatBrightness` (R-3, ε = 1e-6): `0.01 → 1/3`, `0.1 → 2/3`, `0.5 → 0.899660`, `1 → 1.0f`; exactly
+    `habitatBrightness` (R-3, ε = 1e-6): `0.01 → 1/3`, `0.1 → 2/3`, `0.5 → 0.899657`, `1 → 1.0f`; exactly
     `0.0f` at `0`, `-1` and `1e-3`; exactly `1.0f` at `2`; monotonic non-decreasing over 256 steps in `[-1, 2]`.
     `activeVoicesText(n) == std::to_string(n)` for `{0, 1, 6, 255}`.
   - `Vorago_EcosystemView_LinkFade` (SC-015): hand-built frame (agentCount 8, one drawable link 1–2,
@@ -285,7 +285,7 @@
     `CTextLabel` with no `control-tag` and `mouse-enabled="false"`; per `page-N` the descendant ID set equals spec
     C-4 (page-0 {200–206,1300,1301}; page-1 {300–302,310–313,320–323,330–333,340–343,350–353};
     page-2 {400–403,500,501,510–515}; page-3 {1000–1005,1200–1206}; page-4 {600,601,610–612,700–702};
-    page-5 {1100–1115}; page-6 {800,900,1400–1403,1500–1502}); union 94, no page ID outside `page-area`;
+    page-5 {1100–1115}; page-6 {800,900,1400–1403,1500–1502}); union 90 (106 − 4 − 12), no page ID outside `page-area`;
     every `class=` ∈ {CViewContainer, CTextLabel, CSlider, COptionMenu, CCheckBox, CSegmentButton, CView, ArcKnob};
     every `custom-view-name=` ∈ {EcosystemView, PresetBrowserButton}.
   - `Vorago_Editor_PageSwitch` (SC-017): headless `VST3Editor` open idiom from

@@ -280,7 +280,7 @@ struct ProcessorFixture {
         std::size_t patternIndex = 0;
         while (start < totalSamples) {
             const std::size_t want = blockPattern[patternIndex];
-            REQUIRE(want > 0);
+            REQUIRE(want > 0u);
             patternIndex = (patternIndex + 1) % blockPattern.size();
             const std::size_t n = std::min(want, totalSamples - start);
 
