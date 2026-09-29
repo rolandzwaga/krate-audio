@@ -32,7 +32,8 @@ and changes only what the post-13b surface forces:
 
 1. **The roster source is fixed (C-2.3, FR-070).** Q2's roster is counted from Phase 13b's two FR-013
    tables — not from a new probe — per roadmap lines 598–600 and 606. Those tables count **two** knobs,
-   `syncRate` and `selfAffinity`, both one-sided (`.hi`); the proposed `R` and its ratification are OQ-9.
+   `syncRate` and `selfAffinity`, both one-sided (`.hi`); `R` is now **ratified as exactly this pair**
+   (Clarifications session 2026-09-29, Q1 — see **## Clarifications**).
 2. **The distinctness threshold must be re-ruled (C-7.3, OQ-10).** The same C-7.2 descriptor
    (`VoragoTest::describe`/`meanOf`, `plugins/vorago/tests/preset_test_support.h:96`, `:167`) now
    measures the **default surface's own seed twin at d = 5.9515** (Life max 6.8514)
@@ -41,10 +42,15 @@ and changes only what the post-13b surface forces:
    (b) requires a seed twin `d ≤ F/2 = 2.0` and its floor carries a `2 · t_max` term, so as written the
    harness is **predicted to stop-and-surface at the pilot** (FR-017) and every floor would sit at
    ≥ 11.9. This is the roadmap's "threshold ruled in the spec" (line 637) and is surfaced, not assumed.
+   **Resolved** (Clarifications session 2026-09-29, Q2–Q4): a **seed-marginal descriptor** — `D(P)` is
+   averaged over K takes, so the take term shrinks with K instead of F rising to swallow the measured
+   spread; F = 4.0 and every first-pass margin stand; K is ruled at the pilot (Q3, hard-capped at 8).
 3. **The roster-extension cells' role must be re-ruled (C-2.3, OQ-11).** The counted knob extremes move
    the descriptor by 2.1606 (`syncRate` → 0.5, default surface) and 2.6401 (`selfAffinity` → +2, Life
    max) — above the secondary bar D_abl = 1.5 but below the primary bar F = 4.0 that plan ruling R-2
-   (N == 38 + |E-ext|, every E-ext cell a primary) requires.
+   (N == 38 + |E-ext|, every E-ext cell a primary) requires. **Resolved** (Clarifications session
+   2026-09-29, Q5): primaries, as R-2 ruled — one pilot candidate per knob, FR-017 stops if the bar is
+   unreachable; N = 38 + |R| = 40.
 
 Everything else is carried forward unchanged, with every line citation re-verified against the post-13b
 tree (only `vorago_voice.h` and `vorago_engine.h` changed under `dsp/include` since the first pass:
@@ -146,13 +152,16 @@ In scope:
   (`dsp/include/krate/dsp/systems/ecosystem_engine.h:469-707`) to new registered `float`/enum parameter
   IDs on the Phase 13 ecosystem page only; every registered parameter *type* stays frozen
   (`plugin_ids.h:82-83`). Unlike a normal Non-goal, the registered **surface size** and
-  `kCurrentStateVersion` DO move in this phase: 108 IDs → 108 + |R| (the ratified roster, C-2.3), version
-  **2 → 3**, with v2 presets/state loading at the new knobs' current hard-coded defaults (FR-072). This is
+  `kCurrentStateVersion` DO move in this phase: 108 IDs → **110** (108 + |R| = 108 + 2, `R` ratified
+  Clarifications Q1, 2026-09-29), version **2 → 3**, with v2 presets/state loading at the new knobs'
+  current hard-coded defaults (FR-072). This is
   the one scope-widening exception Clarification Q2 authorises, and it is gated end-to-end by the
-  roster ratification (FR-071, OQ-9 — the roster counted from Phase 13b's FR-013 tables, FR-070) before
+  roster ratification (FR-071 — `R` = {`syncRate`, `selfAffinity`}, ratified Clarifications Q1,
+  2026-09-29, counted from Phase 13b's FR-013 tables, FR-070) before
   any ID, format, control or preset is authored. The Phase 10-style append-only `dsp/` wiring ruled in
   R-1 (one `VoragoVoice` forwarder, one `VoragoVoiceParams` field and one `applyVoiceParams` line per
-  ratified knob; `VoragoVoiceParams::kFieldCount = 31` today, `vorago_engine.h:160`, `:188`, `:859`)
+  ratified knob; `VoragoVoiceParams::kFieldCount = 31` today, `vorago_engine.h:160`, `:188`, `:859`,
+  becoming **33** = 31 + |R|)
   is the only `dsp/` edit this phase makes.
 - **Re-voicing the ecosystem.** Phase 13b owns the colony levers, wake bases and the Gate 2 shortfall
   (recorded UNMET by ruling, roadmap lines 602–610). This phase consumes the shipped levers as they are;
@@ -222,10 +231,10 @@ the first pass, now **exists** (Existing components table) and is reused, not re
 | `VoragoTest::SweepTimeline` | struct, C-6 timeline | `plugins/vorago/tests/preset_test_support.h` | 1 hit: `SeraphisTest::SweepTimeline` (`plugins/seraphis/tests/preset_test_support.h:592`) — different namespace and target |
 | `VoragoTest::DecodedPresetState` | struct, typed decode (FR-031) | `plugins/vorago/tests/preset_test_support.h` | 1 hit: `SeraphisTest::DecodedPresetState` (`plugins/seraphis/tests/preset_test_support.h:387`) — different namespace and target |
 | Catch2-free host drive (name chosen by the plan) | header, tool+test shared | `plugins/vorago/tests/` or `tools/` (plan decides) | plan MUST sweep its chosen name before creating it |
-| `kEcosystemSyncRateId` *(proposed, OQ-9)* | parameter ID, ecosystem block 900–999 (`plugin_ids.h:78`, `:172-173`) | `plugins/vorago/src/plugin_ids.h` | **0 hits** (`grep -rn kEcosystemSyncRateId dsp/ plugins/ tools/ tests/`) |
-| `kEcosystemSelfAffinityId` *(proposed, OQ-9)* | parameter ID, ecosystem block | `plugins/vorago/src/plugin_ids.h` | **0 hits** |
+| `kEcosystemSyncRateId` *(ratified — Clarifications Q1, 2026-09-29)* | parameter ID, ecosystem block 900–999 (`plugin_ids.h:78`, `:172-173`) | `plugins/vorago/src/plugin_ids.h` | **0 hits** (`grep -rn kEcosystemSyncRateId dsp/ plugins/ tools/ tests/`) |
+| `kEcosystemSelfAffinityId` *(ratified — Clarifications Q1, 2026-09-29)* | parameter ID, ecosystem block | `plugins/vorago/src/plugin_ids.h` | **0 hits** |
 | `kStateV3Bytes` | constant | `plugins/vorago/src/plugin_ids.h` | **0 hits** |
-| `Vorago::detail::VoragoEcosystemRosterProbe` | inert test-probe friend of `Vorago::Processor` (plugin, not DSP) — the SC-026a access path, on the `VoragoMasterGainSmootherBypassProbe` precedent (`processor.h:58-63`, `:186`) | forward declaration + friend in `plugins/vorago/src/processor/processor.h`; definition in the SC-026a test TU | **0 hits** (`grep -rn VoragoEcosystemRosterProbe dsp/ plugins/ tools/ tests/`) |
+| ~~`Vorago::detail::VoragoEcosystemRosterProbe`~~ | **Withdrawn (plan-stage ruling P2-4, 2026-09-29):** SC-026a reads through the existing public const `Processor::engineForTest()` (`processor.h:116-118`); no new friend | — | — |
 | `loadEcosystemParamsV3Ext` / `saveEcosystemParamsV3Ext` (names from plan R-3; final names the plan's) | free functions | `plugins/vorago/src/parameters/ecosystem_params.h` | **0 hits** for `loadEcosystemParamsV3Ext` |
 
 Sweeps run 2026-09-29 on HEAD `59fbd9e6`: `VoragoPresetDef` 0, `Capability` 0, `CellSpec` 0 (plan-side
@@ -380,8 +389,9 @@ section un-showcaseable. Default-state cells count toward coverage but are **ine
   the primary of its own preset, plus the most audible discrete D cells (the 11 body materials, the 4
   noise models, and the envelope-mode/attack-span extremes, D8/D9) authored as primaries; the ≥ 3-per-
   category floor (FR-004) and SC-013's wall-clock budget (C-10) still bind within that band. *(Plan
-  ruling R-2 superseded the band with N == 38 + |E-ext|; with the 13b tables `|E-ext|` is 0, 1 or 2
-  depending on OQ-9, and whether E-ext cells count as primaries at all is OQ-11 — so N is 38, 39 or 40.)*
+  ruling R-2 superseded the band with N == 38 + |E-ext|; `R` is ratified as {`syncRate`, `selfAffinity`}
+  (Clarifications Q1, 2026-09-29) and both counted extremes are showcase primaries (Clarifications Q5,
+  2026-09-29), so `|E-ext|` = 2 and **N = 40**.)*
 
 #### C-2.3 What "distinct ecosystem behaviour" means: routes, plus a ratified rule-knob roster (Clarification Q2)
 
@@ -429,28 +439,31 @@ axis: a curated roster of the ecosystem's own rule knobs becomes registered para
   `selfAffinity` is also not one setter: the probe applies it as `setAffinity(k, k, v)` for all five
   kinds (`applyAffinityDiagonal`, `ecosystem_rule_probe_test.cpp:279-284`), so the registered parameter
   writes the whole diagonal, exactly as measured.
-- **Ratification gate (FR-071).** Unchanged from the first pass: no new parameter ID, no state v3
-  format, no UI control and no preset referencing `R` is authored until the user ratifies `R`. The
-  proposal and its alternatives are **OQ-9**; this spec does not pick the roster. If the ratified `R` is
-  empty, FR-072…FR-075 are void, the state stays v2 (`kCurrentStateVersion = 2`, `plugin_ids.h:23`), and
-  every `kStateV3Bytes` reference in this spec reads `kStateV2Bytes`.
-- **Consequences once `R` is ratified:**
-  - New parameter IDs are added to the ecosystem block for every knob in `R` (FR-072); the registered
-    surface grows from 108 to 108 + |R| IDs.
-  - The state format bumps to **v3** (`kCurrentStateVersion = 3`), with **v2 load compatibility**: a v2
-    stream (or a v2 factory preset) loads with every knob in `R` at its *current hard-coded default*
+- **Ratification gate (FR-071) — ratified.** No new parameter ID, no state v3
+  format, no UI control and no preset referencing `R` is authored until the user ratifies `R`. **`R` is
+  now ratified: `R` = {`syncRate`, `selfAffinity`}** (Clarifications Q1, session 2026-09-29) — exactly
+  the counted set, option (a) of OQ-9. `R` is non-empty, so FR-072…FR-075 apply in full: the state
+  becomes v3, `kStateV3Bytes = 436` (= 428 + 4·2).
+- **Consequences of the ratified `R`:**
+  - New parameter IDs are added to the ecosystem block for `syncRate` and `selfAffinity` (FR-072); the
+    registered surface grows from 108 to **110** IDs.
+  - The state format bumps to **v3** (`kCurrentStateVersion = 3`), `kStateV3Bytes = 436`, with **v2 load
+    compatibility**: a v2
+    stream (or a v2 factory preset) loads with both knobs at their *current hard-coded default*
     (FR-072).
-  - Controls for every knob in `R` are added to the Phase 13 ecosystem page (`resources/editor.uidesc`);
+  - Controls for `syncRate` and `selfAffinity` are added to the Phase 13 ecosystem page
+    (`resources/editor.uidesc`);
     the page union, bound-ID count and allowlist tests are updated to include them (FR-073).
   - Processor, controller, uidesc, param-table and state tests are updated for the new IDs and the v3
     format (FR-074).
-  - **Coverage matrix Group E is extended** (FR-075): for every ratified knob `k ∈ R`, each extreme
-    that **exists and was counted** in the 13b tables becomes a `Capability` cell (`E6.hi`, `E7.hi`, … in
-    ratification order; an `.lo` cell only for a knob whose `.lo` extreme was counted — none in the
-    tables above), verified by C-7.4 ablation (the knob's ID reset to its registered default) — **in
-    addition to**, never in place of, the five kind→destination routes E1…E5. Whether these cells must be
-    **primaries** (plan ruling R-2: one showcase preset each, at the primary bar F) or may be verified
-    **secondaries** (bar D_abl) is **OQ-11**: the tables measure them at 2.1–2.6, between the two bars.
+  - **Coverage matrix Group E is extended** (FR-075): the two counted extremes become `Capability` cells
+    `E6.hi` (`syncRate`, ratification order) and `E7.hi` (`selfAffinity`) — no `.lo` cell for either
+    knob, both being one-sided in the 13b tables — verified by C-7.4 ablation (the knob's ID reset to
+    its registered default) — **in
+    addition to**, never in place of, the five kind→destination routes E1…E5. **Both cells are showcase
+    primaries** (Clarifications Q5, session 2026-09-29 — option (a) of OQ-11, as plan ruling R-2 required):
+    each is scored at the primary bar F with one pilot candidate per knob (FR-017a); FR-017 stops if
+    either bar is unreachable. This fixes N = 38 + |R| = **40** (SC-029).
 - This is the only Non-goal exception this phase authorises (see the updated Non-goals entry); every
   other new-parameter surface stays out of scope.
 
@@ -597,14 +610,31 @@ passed as distinct. With `E_hi` normalisation a sub-level change moves `b0` alon
 
 #### C-7.3 The ruled threshold
 
-- **Self-distance** `s(P)`: the **largest** pairwise `d` among P's three per-minute descriptors
-  (`M1`, `M2`, `M3`) — the preset's own intrinsic variation across the whole hold, free of charge. For an
-  ablation/E twin rendered only to the end of `Sus`, `s` of that render is `d` between `Sus`'s two 30 s
-  halves.
-- **Measured take-to-take distance** `t_max`: the largest seed-twin `d` observed in control (b) below.
+**Seed-marginal descriptor (Clarification Q2, session 2026-09-29 — resolving OQ-10 as option (a)).**
+`D(P)` is redefined as the mean, over **K takes**, of P's three per-minute descriptors: the stored seed
+plus `K − 1` fixed seed-index offsets from it. This absorbs the post-13b take-to-take spread (finding 5;
+default-surface seed twin measured at 5.9515) by averaging it down instead of raising F to swallow it.
+F = 4.0, the factor 2, the F/2 margins and the 0.05 level bound are **unchanged** from the first pass.
+
+- **K takes and `t_K` (Clarification Q3, session 2026-09-29 — option (a)).** Only 16 seed indices exist
+  (`global_params.h:118-124`). The K takes of a preset are the stored seed plus offsets forming **two
+  disjoint sets** of seed indices `(stored + j) mod 16`; `t_K` is the sound-space `d` between the two
+  disjoint K-take means of the same preset. Since two disjoint sets of 16 indices admit at most 8 each,
+  **K is hard-capped at 8**. K itself is ruled once, at the pilot (FR-017a), as the smallest K with
+  `2 · t_K ≤ F`; if `K = 8` does not reach that, FR-017 stops and surfaces the measured `t_K` curve — K
+  is never pushed past 8 and F is never raised to compensate.
+- **Self-distance** `s(P)`: the **largest** pairwise `d` among P's three per-minute descriptors, **each
+  averaged over the ruled K takes** (Clarification Q4, session 2026-09-29 — option (a): `s(P)` uses the
+  K-take-averaged `M1`, `M2`, `M3`, never a single take's spread or the largest single-take spread) —
+  the preset's own intrinsic variation across the whole hold, free of charge. For an
+  ablation/E twin, which stays **single-take at the stored seed** (Clarification Q4), rendered only to
+  the end of `Sus`, `s` of that render is `d` between `Sus`'s two 30 s
+  halves of that one take.
+- **Measured take-to-take distance** `t_max`: the largest `t_K` observed across the control set in
+  control (b) below (the K-fold generalisation of the first pass's single seed-twin `d`).
 - **Distinctness floor:** for every pair, `d(P, Q) ≥ max(F, 2 · max(s(P), s(Q)), 2 · t_max)` with
-  **F = 4.0**. The `2 · t_max` term ties the floor to measurement: if a new take of one preset moves the
-  descriptor by `t`, two presets must differ by at least twice that.
+  **F = 4.0**. The `2 · t_max` term ties the floor to measurement: if a new K-take mean of one preset
+  moves the descriptor by `t_K`, two presets must differ by at least twice that.
 - **Calibration of F with the `E_hi` normalisation.** A 1 dB/octave tilt across the eight `E_hi` bands
   moves them by 0…7 dB about the energy-weighted pivot: with the pivot mid-spectrum the deviations are
   ±0.5…±3.5 dB → `d` ≈ √(42/9) ≈ 2.2; with the pivot at the lowest band (a dark preset) 0…7 dB →
@@ -625,42 +655,46 @@ passed as distinct. With `E_hi` normalisation a sub-level change moves `b0` alon
   (`processor.cpp:1106-1113`) — and Pressure drives `OutputDriveDb` up to +18 dB
   (`vorago_macro_matrix.h:520-525`), so this is **not** a level-only change; its ruled budget for the
   nonlinearity is `d ≤ F / 2`.
-  (b) *Seed twin* — each preset in `C` at the next seed index scores `d ≤ F / 2` (= 2.0): a margin, not
-  merely `< F`, above take-to-take variation. A seed twin above F/2 means the metric barely tells a new
-  take from a new preset: **stop and surface**, never lower F or widen the margin silently.
+  (b) *Seed twin (K-fold, Clarification Q3)* — for each preset in `C`, `t_K` (the `d` between its two
+  disjoint K-take means, as defined above) scores `d ≤ F / 2` (= 2.0): a margin, not
+  merely `< F`, above take-to-take variation. `t_max` is the largest `t_K` observed across `C`. A `t_K`
+  above F/2 means the metric barely tells a new K-take mean from a new preset: **stop and surface**
+  (FR-017), never lower F or widen the margin silently — this is the same stop-and-surface path K's own
+  hard cap at 8 can trigger (FR-017a).
   (c) *Sub twin* — each preset in `C` with `kSubLevelOffsetId` at stored ± 6 dB (normalized ± 0.125;
   nothing else changed) scores `d < F`. A side whose shifted value would leave [0, 1] is **not
   rendered** (an out-of-range definition is a generator error, Edge Cases); the control uses the
   in-range side(s) only — at least one always exists, the range being 1.0 wide — and the harness
   records which side(s) ran.
-- **Pilot-calibrated, not merely asserted (Clarification Q3, session 2026-09-27, FR-017a).** F is not
+- **Pilot-calibrated, not merely asserted (Clarification Q3, session 2026-09-27; K ruled by Clarification
+  Q2–Q4, Q6, session 2026-09-29 — FR-017a).** F is not
   ratified from arithmetic alone: before the full library is authored, the plan renders a 6–8 preset
-  pilot set, measures the seed-twin `t_max` and a deliberately near-variant pair's `d`, then rules F from
-  that measurement (never below **4.0**) and freezes it. Every threshold below assumes the frozen
-  **F = 4.0** floor; if the pilot rules higher, every F-based bar in this spec scales with it and the
-  change is recorded as a ruling. The factor 2, the F/2 margins and the 0.05 level bound are this spec's
+  pilot set (including the default surface and one showcase candidate per ratified roster knob),
+  measures `t_K` for increasing K, rules **K** as the smallest with `2 · t_K ≤ F` (hard-capped at 8), and
+  measures a deliberately near-variant pair's `d` as a **floor check** (it must score `d < F`; scoring
+  `d ≥ F` is itself an FR-017 stop, not a signal to raise F). F is frozen at **4.0** — the K-take
+  averaging (not a higher F) is what absorbs the post-13b take-to-take spread. Every threshold in this
+  spec uses the frozen
+  **F = 4.0** floor. The factor 2, the F/2 margins and the 0.05 level bound are this spec's
   ruling per roadmap line 636-637 and do not move with the pilot.
-- **Post-13b measurement against these rules (second pass — the threshold is re-opened as OQ-10).** The
+- **Post-13b measurement, resolved (second pass — OQ-10 resolved by Clarifications Q2–Q4, Q6, session
+  2026-09-29).** The
   seed-twin control is no longer a prediction. The 13b tables render the **default surface** and its
   seed twin (`kSeedId` index 0 → 1, `ecosystem_rule_probe_test.cpp:185`) with this exact descriptor and
   hold windows (M1–M3 of a 340 s render = `A + 185` for the default `A` = 155 s), and print
-  `t0on = d(default, seed twin)` = **5.9515** (default) and **6.8514** (Life max); the colony-off
-  reseed distance is 4.0439 / 4.0645 (six-seed medians, 13b compliance FR-010/FR-011 rows). Against the
-  first-pass rules this means, before any preset exists:
-  - control (b), `d ≤ F/2 = 2.0`, is exceeded ~3× by the default surface itself — FR-017's stop fires at
-    the pilot unless F ≥ 11.9;
-  - the `2 · t_max` floor term is ≥ 11.9, so every pair would need `d ≥ 11.9`; for scale, switching the
-    whole ecosystem off moves the default surface by 5.6272 and the loudest counted rule knob by 2.6401;
-  - the self-distance term `2 · s(P)` is unmeasured on the post-13b surface (the tables do not print
-    per-minute spreads), so its size is unknown, not assumed.
-  The first pass sized F = 4.0 and F/2 against a take-to-take distance of 1.7128 (first-pass run 1); 13b
-  tripled it with an intentional voicing change (finding 5). The roadmap requires the threshold to be
-  "ruled in the spec rather than assumed" (line 637), so this spec does **not** silently rescale F or
-  drop the take term: OQ-10 lists the options and a recommendation. **Until OQ-10 is ruled, the F-based numbers in C-7.3, C-7.4, FR-011, FR-015 and FR-017a are the
-  first-pass values and are known not to be simultaneously satisfiable on the post-13b surface.** SC-008,
-  SC-010 and SC-011 therefore carry them as **symbols** (F, `t_max` / `t_K`, K) defined by the OQ-10
-  ruling and are marked **blocked on OQ-10**: no compliance row may be filled against the first-pass
-  numbers.
+  `t0on = d(default, seed twin)` = **5.9515** (default) and **6.8514** (Life max) — this is the K = 1
+  case of `t_K`. The colony-off
+  reseed distance is 4.0439 / 4.0645 (six-seed medians, 13b compliance FR-010/FR-011 rows). Rather than
+  raising F to ≥ 11.9 to swallow this spread (option (b), rejected) or dropping the take term altogether
+  (option (c), rejected — the weakest reading of "measured-tolerance", roadmap line 636), this spec
+  **keeps F = 4.0 and the take term, and averages the spread down**: the pilot measures `t_K` at
+  increasing K and rules K as the smallest with `2 · t_K ≤ F`; if per-take spread falls roughly as
+  `1/√K`, the 5.95 figure needs K ≈ 9, so the pilot's hard cap at K = 8 (only 16 seed indices exist,
+  C-7.3 above) **may bind** — if it does, FR-017a's stop-and-surface fires with the measured `t_K` curve,
+  not a fallback to (b) or (c). The main render's K× cost is absorbed by C-10's sharding lever, never by
+  shortening. **The F-based numbers in C-7.3, C-7.4, FR-011, FR-015 and FR-017a are no longer blocked:**
+  F = 4.0, the factor 2 and the F/2 margins stand as ruled; `t_max` and K are measured at the pilot per
+  FR-017a. SC-008, SC-010 and SC-011 are unblocked and read the concrete formulas above.
 
 #### C-7.4 Ablation (verifies Group S and M claims)
 
@@ -770,11 +804,12 @@ roster, and thread parallelism buys little on 2–3 vCPUs. So:
   state-derived — `Rel` (release, `kEnvelopeReleaseId`) + the **effective** RT60 (C-6's cavern-target
   calculation, not the stored decay alone) + the ghost-grain ceiling `G` = `AtmosphereEngine::kMaxGrainSeconds` (30 s, FR-060), from the current decoded state,
   and **`kInfiniteTail`** while Space Freeze is On. Tested against the decoded state (FR-060).
-- **Ghost density vs trigger (Phase 10a Q1).** Additive (density scheduler keeps running at 0.30
-  grains/s, triggered grains on top) is what ships; replacement needs a density control the plugin does
-  not register (`ghost_params.h:35-40` has peak level, blur, reverse probability, triggers only).
-  **Recommended:** presets use the additive behaviour; replacement is not reachable without a new
-  parameter and is out of scope. *(OQ-4.)*
+- **Ghost density vs trigger (Phase 10a Q1) — RESOLVED (Clarifications Q8, session 2026-09-29).**
+  Additive, as shipped: the density scheduler keeps running at 0.30
+  grains/s, and triggered grains add on top; no new parameter is introduced. Replacement would need a
+  density control the plugin does
+  not register (`ghost_params.h:35-40` has peak level, blur, reverse probability, triggers only) and is
+  out of scope. [FR-061]
 - **`docs/index.html` (Phase 11 FR-080).** `plugins/vorago/docs/` holds only `.gitkeep`; the Seraphis
   page (`plugins/seraphis/docs/index.html`, `assets/style.css`) is the template. `docs.yml` needs no edit.
 
@@ -800,7 +835,8 @@ roster, and thread parallelism buys little on 2–3 vCPUs. So:
 - **FR-005** Names MUST be unique across the library, satisfy `PresetManager::isValidPresetName`
   (`preset_manager.h:120`), and be ASCII with no path separator.
 - **FR-006** Every `Comp` chunk MUST be a full current-version stream: first int32 == `kCurrentStateVersion`
-  (3 once FR-072 lands), length == `kStateV3Bytes` (= 428 + 4·|R|). (Plan ruling R-3 / P-2: factory
+  (= 3), length == `kStateV3Bytes` (= 428 + 4·|R| = **436**, `R` = {`syncRate`, `selfAffinity`} ratified
+  Clarifications Q1). (Plan ruling R-3 / P-2: factory
   presets are v3, never "version 2, 428 bytes".)
 - **FR-007** Every preset MUST store polyphony index ≤ 3 (≤ 4 voices) (C-5).
 - **FR-008** Every preset MUST satisfy the C-6 authoring ceilings `A ≤ 180 s`, `Rel ≤ 60 s`.
@@ -809,8 +845,9 @@ roster, and thread parallelism buys little on 2–3 vCPUs. So:
 ### Coverage matrix (the variety requirement)
 
 - **FR-010** `tools/vorago_preset_defs.h` MUST declare the `Capability` enum with **exactly** the C-2.1
-  cells (S1–S10, M1–M12, E1–E5, D1.1–D14.2), plus the ratified-roster extension cells of C-2.3/FR-075
-  (one cell per existing, counted extreme of each knob in `R` — `E6.hi`, `E7.hi` for the proposed roster, FR-075), each carrying its group, its predicate and — for S/M and
+  cells (S1–S10, M1–M12, E1–E5, D1.1–D14.2), plus the ratified-roster extension cells of C-2.3/FR-075:
+  `E6.hi` (`syncRate`) and `E7.hi` (`selfAffinity`), the two counted extremes of the ratified `R`
+  (Clarifications Q1), each carrying its group, its predicate and — for S/M and
   the roster extension — its ablation override. [roadmap 634]
 - **FR-011** Every `VoragoPresetDef` MUST declare one **primary** cell and zero or more secondary cells;
   no two definitions share a primary; no primary is a default-state cell; every primary verifies at the C-7.4 **primary bar** (`d ≥ max(F, 2·s)`) (C-2.2). [roadmap 632, 637-638]
@@ -833,14 +870,17 @@ roster, and thread parallelism buys little on 2–3 vCPUs. So:
   cached vector at the bar for the claim's role and fail on any claim that does not verify; it MUST also
   run the default surface through the D predicates to identify default-state cells. FR-011a and FR-013's
   printed matrix are derived from these cached vectors, never re-rendered per ordered pair.
-- **FR-013** Every C-2.1 cell MUST be verified by ≥ 1 preset; every E*k* MUST be the verified **primary**
-  of ≥ 1 preset (five distinct presets). The harness MUST print the full preset × cell matrix (verified
+- **FR-013** Every C-2.1 cell MUST be verified by ≥ 1 preset; every E*k* (E1–E5) MUST be the verified
+  **primary** of ≥ 1 preset (five distinct presets); and, per Clarification Q5 (resolving OQ-11), every
+  ratified roster-extension cell (`E6.hi`, `E7.hi`) MUST likewise be the verified **primary** of its own
+  distinct preset (seven distinct primary presets across Group E in total). The harness MUST print the full preset × cell matrix (verified
   as primary / verified as secondary / claimed-failed / unclaimed), the default-state cells, and the
   FR-011a witnesses for the compliance record.
 - **FR-014** Every preset MUST satisfy C-7.1 (parameter-space distinctness) against every other preset
   and against the default surface. [roadmap 633]
-- **FR-015** Every preset pair MUST satisfy C-7.3's sound-space floor (including the `2·t_max` term);
-  all four C-7.3 negative controls (level, gain, seed, sub twins) MUST pass on the control set in the
+- **FR-015** Every preset pair MUST satisfy C-7.3's sound-space floor, computed on the seed-marginal,
+  K-take descriptor `D(P)` (Clarification Q2/FR-017a) and including the `2·t_K` term; all four C-7.3
+  negative controls (level, gain, seed, sub twins) MUST pass on the control set in the
   same run. [roadmap 635-637]
 - **FR-016** The plan MUST derive the preset list from the matrix (each preset = a primary cell plus
   compatible secondaries), and only then assign categories; the plan MUST NOT start from a per-category
@@ -848,19 +888,40 @@ roster, and thread parallelism buys little on 2–3 vCPUs. So:
 - **FR-017** **Stop-and-surface.** If a cell cannot be verified by any authorable preset, or a C-7.3
   control fails, the build stops and reports the finding with measurements; it MUST NOT relax a predicate,
   a floor or a control, drop a cell, or edit `dsp/` to pass.
-- **FR-017a** **Pilot calibration of F (Clarification Q3).** Before authoring the full preset library, the
-  plan MUST render a **6–8 preset pilot set**, measure the seed-twin `t_max` (C-7.3) and the sound-space
-  `d` of a deliberately authored near-variant pair from that pilot set, then **rule F from that
-  measurement** (F MUST NOT be set below **4.0**) and **freeze** F before authoring the remaining presets.
-  The pilot measurement and the frozen F MUST be recorded in the compliance record; every F-based
-  threshold elsewhere in this spec (C-7.3, C-7.4, FR-011, FR-015, SC-008, SC-010, SC-011) uses **F = 4.0**
-  as the default value unless the pilot rules a higher F, in which case every such threshold scales with
-  it and the change is recorded as a ruling, never a silent retune (F never moves below 4.0, per C-7.3).
-  **Second pass:** the pilot's seed-twin measurement is already predicted by the 13b tables (t0on
-  5.9515 / 6.8514, C-7.3 "Post-13b measurement"); how F, the take term and control (b) are re-ruled is
-  OQ-10, and FR-017a runs under whatever OQ-10 rules. The pilot set MUST include the default surface as a
-  pseudo-preset (so the pilot re-measures the 13b figure on the harness's own renders) and, if OQ-11
-  keeps E-ext cells as primaries, one showcase candidate per ratified knob.
+- **FR-017a** **Pilot calibration, seed-marginal descriptor and K (Clarifications Q2–Q4, Q6, session
+  2026-09-29 — resolving OQ-10).** Before authoring the full preset library, the
+  plan MUST render a **6–8 preset pilot set** that includes the default surface as a pseudo-preset (so
+  the pilot re-measures the 13b figure on the harness's own renders) and **one showcase candidate per
+  ratified roster knob** (`syncRate`, `selfAffinity` — OQ-11 is resolved as primaries, Clarification Q5,
+  so both `E6.hi` and `E7.hi` need a pilot candidate). F stays **4.0** (never set below it) and is not
+  raised to absorb the post-13b seed-twin spread; instead:
+  - **Seed-marginal descriptor.** `D(P)` is redefined as the mean, over **K takes**, of the per-minute
+    descriptors (C-7.3): the stored seed plus `K − 1` fixed seed-index offsets from it. `t_K` is the `d`
+    between two disjoint K-take means of the same preset (Clarification Q3): the K takes split into two
+    disjoint sets of seed indices `(stored + j) mod 16` for `j` in each half; **K is hard-capped at 8**
+    (two disjoint sets of 16 seed indices admit at most 8 each). The pilot MUST measure `t_K` for
+    `K = 1, 2, 4, 8` (or the smallest prefix needed) on the pilot set and **rule K** as the smallest K
+    with `2 · t_K ≤ F`. If `K = 8` does not reach `2 · t_8 ≤ F`, **FR-017 stops and surfaces the measured
+    `t_K` curve** (K is not raised past 8, F is not raised, and the run is not silently retried at a
+    different K).
+  - **Self-distance `s(P)`.** Per Clarification Q4, `s(P)` is the largest pairwise `d` among the three
+    per-minute descriptors, **each averaged over the ruled K takes** — i.e. `s(P)` is computed from the
+    K-take-averaged `M1`, `M2`, `M3`, not from a single take's spread and not from the largest
+    single-take spread across takes.
+  - **What runs on every take vs. the stored seed only (Clarification Q4).** The C-6 long-render arms
+    1–4 (FR-033, SC-012) run on **every one of the K takes**. The C-7.4 ablation renders and the Group E
+    route-isolated renders (`R_k`, `R_k⁰`, `R_∅`, `R_∅⁰`) stay **single-take, at the stored seed**, and
+    are scored against that take's `M1` (`Sus`) descriptor — they are same-seed comparisons whose noise
+    term is `s(P)`, not the take-to-take term. The main K-take render's cost (K× the single-take cost) is
+    absorbed by C-10's sharding lever, never by shortening any render.
+  - **Near-variant pilot pair (Clarification Q6).** The pilot's deliberately authored near-variant pair
+    is a **floor check only**: it MUST score `d < F`. If it scores `d ≥ F`, that is itself an FR-017
+    stop — the descriptor cannot tell near-variants apart at F = 4.0 — never a signal to raise F from
+    the pair's measured `d` (F is not set from this pair; option (b) of the original Q6 choice is
+    rejected).
+  - The pilot measurement (`t_K` per K, the ruled K, the near-variant pair's `d`, and every showcase
+    candidate's pilot score) MUST be recorded in the compliance record. Every F-based threshold elsewhere
+    in this spec (C-7.3, C-7.4, FR-011, FR-015, SC-008, SC-010, SC-011) uses **F = 4.0**.
 
 ### Ecosystem rule-knob parameters (Clarification Q2 — scope widening, inside Phase 14)
 
@@ -870,11 +931,11 @@ roster, and thread parallelism buys little on 2–3 vCPUs. So:
   probe is run; the probe TU (`Vorago_EcosystemRuleProbe`, `[.probe]`) stays in the tree unchanged as the
   instrument that produced the evidence. The compliance record MUST cite both tables' knob rows for every
   knob in `R` and for every counted knob left out of `R`. [roadmap 598-600, 606, 640-645]
-- **FR-071** **Stop-and-surface roster ratification.** `R` MUST be ratified by the user (OQ-9) before
-  any new parameter ID, the state v3 format, any UI control, or any preset referencing `R` is authored.
-  A knob outside the counted set MUST NOT enter `R` without the ratification naming it and citing its
-  measured `d` (the first-pass ruling that the goal is audible knobs, not knobs that measure inaudible,
-  `compliance.md` "G1 rulings"). [roadmap 644]
+- **FR-071** **Stop-and-surface roster ratification — discharged.** `R` MUST be ratified by the user
+  before any new parameter ID, the state v3 format, any UI control, or any preset referencing `R` is
+  authored. **`R` is ratified as `R` = {`syncRate`, `selfAffinity`}** (Clarifications Q1, session
+  2026-09-29 — option (a): exactly the counted set; no additional knob outside the counted set is
+  added). [roadmap 644]
 - **FR-071a** **Parameter semantics follow the measurement.** Each registered knob MUST drive exactly
   the setter call(s) the 13b probe measured: `syncRate` → `EcosystemEngine::setSyncRate(float)` on every
   voice's engine, range [0, 0.5], default 0 (`ecosystem_engine.h:595-599`); `selfAffinity` →
@@ -891,24 +952,27 @@ roster, and thread parallelism buys little on 2–3 vCPUs. So:
   the new IDs.
 - **FR-074** **Test coverage.** Processor, controller, uidesc, param-table and state-format tests MUST be
   updated for the new IDs and the v3 format (round-trip, v2→v3 default-load preconditioned per SC-027, bounds).
-- **FR-075** **Coverage matrix extension.** For every knob `k ∈ R`, each C-2.3 extreme cell that exists
-  and was counted (for the proposed roster: `E6.hi` = `syncRate` high, `E7.hi` = `selfAffinity` high;
-  no `.lo` cell) MUST be added to the `Capability` enum (FR-010) and to the coverage matrix
-  (FR-012/FR-013), verified by C-7.4 ablation (the knob's ID reset to its registered default) at the bar
-  OQ-11 rules for its role, **in addition to** the five kind→destination routes E1…E5 (never in place of
-  them). **Side predicate (plan §5.8, `plan.md:781`):** an `E{n}.hi` claim additionally requires the
+- **FR-075** **Coverage matrix extension.** For `syncRate` and `selfAffinity` (the ratified `R`), the two
+  extreme cells that exist and were counted (`E6.hi` = `syncRate` high, `E7.hi` = `selfAffinity` high;
+  no `.lo` cell for either knob) MUST be added to the `Capability` enum (FR-010) and to the coverage matrix
+  (FR-012/FR-013), verified by C-7.4 ablation (the knob's ID reset to its registered default) at the
+  **primary bar F** (Clarification Q5, session 2026-09-29 — resolving OQ-11 as option (a): both cells
+  MUST be showcase primaries, never merely secondaries), **in addition to** the five kind→destination
+  routes E1…E5 (never in place of
+  them). **Side predicate, ratified at 0.5 (Clarification Q7, session 2026-09-29 — resolving OQ-9
+  sub-question (d)):** an `E{n}.hi` claim additionally requires the
   decoded normalized knob `n ≥ n₀ + 0.5·(1 − n₀)`, and an `E{n}.lo` claim (where one exists)
   `n ≤ n₀ − 0.5·n₀`, with `n₀` the registered default normalized — the stored value sits at least
   halfway from the default toward the counted extreme, so the reversion scores the counted extreme's
-  neighbourhood, not a token nudge. For the proposed roster: `syncRate` (n₀ = 0) stored ≥ 0.25 plain;
-  `selfAffinity` (n₀ = 0.25 over [−2, 2]) stored ≥ +0.5 plain. The 0.5 margin is ratified with `R` at G1
-  (OQ-9 sub-question (d)).
+  neighbourhood, not a token nudge; `.lo` and `.hi` are mutually exclusive on any one preset. Concretely:
+  `syncRate` (n₀ = 0) stored ≥ 0.25 plain;
+  `selfAffinity` (n₀ = 0.25 over [−2, 2]) stored ≥ +0.5 plain.
 - **FR-076** **Non-goals boundary.** No DSP class is created for `R` (existing `EcosystemEngine::set*`
   setters only, C-2.3); no parameter outside the ecosystem block and its page is added; every other
   Non-goal (new DSP, new parameter *types*, retuning to force variety, `Info`-chunk read-back, user-preset
   UX, non-Windows factory installers) is unaffected by this widening. **The `dsp/` edit is bounded (plan ruling R-1):** the only `dsp/`
   edits are, per `k ∈ R`, one `VoragoVoice` forwarder, one `VoragoVoiceParams` field
-  (`kFieldCount` becomes exactly 31 + |R|, `vorago_engine.h:187`) and one `applyVoiceParams` line
+  (`kFieldCount` becomes exactly **33** = 31 + |R|, `vorago_engine.h:187`) and one `applyVoiceParams` line
   (`:859`), all append-only (no existing field, line or forwarder reordered or changed), beside the inert
   probe friends already in the tree (`vorago_voice.h:171`, `:1568`; `vorago_engine.h:1304`). Each knob
   reaches the engine only through `VoragoVoiceParams` → `applyVoiceParams` → the forwarder; no direct
@@ -946,6 +1010,10 @@ roster, and thread parallelism buys little on 2–3 vCPUs. So:
 
 ### Validation harness (all TUs enumerated in `plugins/vorago/tests/CMakeLists.txt`, never globbed)
 
+- **FR-027a** **Harness registration staging** (plan ruling R-7(i), coverage fix, Clarifications session
+  2026-09-29): the probe TU MUST be registered in `plugins/vorago/tests/CMakeLists.txt` before gate G1;
+  every other new test TU and the generator targets MUST be registered in **one** mid-phase task; the
+  final task group only audits the registration (no new registrations at that point).
 - **FR-028** **Container:** every file has the `VST3` magic, the class id of `kProcessorUID`, a chunk
   list holding `Comp` and `Info`, in-bounds offsets.
 - **FR-029** **Round-trip:** `setState(Comp)` returns `kResultOk` and a following `getState()` is
@@ -963,7 +1031,8 @@ roster, and thread parallelism buys little on 2–3 vCPUs. So:
   regeneration from FR-022's definitions, on all three CI legs, tolerances measured and pinned.
 - **FR-033** **Long-render sweep** (`[long][vorago-sweep]`): for every preset, the C-6 render and its
   four arms (bounded / non-silence / neither-dies-nor-explodes / tail, the Freeze-On tail with its
-  absolute floor), and, for the D10.1 host preset (the S8-primary preset, FR-011b), the
+  absolute floor), run on **every one of the preset's K takes** (Clarification Q4, session 2026-09-29 —
+  C-7.3's seed-marginal descriptor), and, for the D10.1 host preset (the S8-primary preset, FR-011b), the
   **freeze-gesture protocol** (Clarification Q1): the preset stores Space Freeze Off; an **additional**
   render, the freeze-gesture render, delivers `kSpaceFreezeId` → On via `IParameterChanges` at
   `A + 65 s` and is scored by arm 1 and the Freeze-On tail criteria including the floor **only** — arms
@@ -987,9 +1056,10 @@ roster, and thread parallelism buys little on 2–3 vCPUs. So:
 - **FR-036** **Sound-space distinctness** (`[long][vorago-sweep]`, unsharded job — plan ruling R-4 / P-6: that
   job loads the shard jobs' descriptor and verification-vector record artifacts into one process and
   renders only the control twins; "one process" means one evaluation, not one re-render): `PresetDescriptor` of
-  every preset (mean of `M1…M3`) from the FR-033 render; C-7.3 over all C(N, 2) pairs; all four negative
+  every preset (mean of `M1…M3`, each averaged over the ruled K takes per Clarification Q2/FR-017a) from
+  the FR-033 render; C-7.3 over all C(N, 2) pairs; all four negative
   controls on the control set. The run MUST print min / median / max `d`, the minimum pair's names, every
-  `s(P)`, `t_max`, every control's `d`, and the effective floor.
+  `s(P)`, `t_max`, the ruled K, and the effective floor.
 - **FR-037** **Ablation — full verification vector** (`[long][vorago-sweep]`, Clarification Q5): one
   ablation render per **every** S/M cell (not only claimed ones) and per ablation-conjunct D cell, for
   every preset (C-7.4, scored at the claim's role's bar where claimed, recorded regardless); four renders
@@ -1046,7 +1116,11 @@ roster, and thread parallelism buys little on 2–3 vCPUs. So:
   set: (i) minimum stored decay (0.5 s) with no decay-raising macro; (ii) maximum stored decay (60 s)
   with Depth = 1 and Age = 1 (the 60 s clamp engaged); (iii) Space Freeze On (`kInfiniteTail`); (iv) the
   default surface; (v) every factory preset.
-- **FR-061** The density-vs-trigger choice MUST be recorded (OQ-4); presets that verify D12.1 use it.
+- **FR-061** **Ghost density and event triggers are additive (Clarification Q8, session 2026-09-29).**
+  The 0.30 grains/s density scheduler MUST keep running unchanged when Ghost Event Triggers is On;
+  triggered grains MUST add on top of it, never replace it. No new parameter is introduced. Presets that
+  verify D12.1 (Ghost Event Triggers On) use this additive behaviour, and the compliance record cites
+  this ruling.
 - **FR-062** `plugins/vorago/docs/index.html` MUST exist, on the Seraphis page's structure, describing
   the shipped instrument and its factory categories.
 - **FR-063** `vorago` MUST be added to `PLUGIN_MAP` in `.claude/workflows/release-readiness.js`
@@ -1083,12 +1157,12 @@ roster, and thread parallelism buys little on 2–3 vCPUs. So:
 | SC-005 | Stream shape + operating point | 100 %: version == `kCurrentStateVersion`, length == `kStateV3Bytes` (R-3), finite, polyphony ≤ 4, `A ≤ 180 s`, `Rel ≤ 60 s` | `Vorago_FactoryPresets_StreamShape` |
 | SC-006 | Committed tree == generator | 0 path/XML/int mismatches; floats within the pinned measured tolerance on MSVC, GCC and AppleClang legs | `Vorago_FactoryPresets_TreeMatchesGenerator` |
 | SC-007 | Generator determinism | two runs byte-identical; re-run over the tree changes 0 bytes | `node tools/check-preset-generator-determinism.js --plugin vorago` exit 0 |
-| SC-008 | Coverage + showcase | 100 % of C-2.1 cells verified; each E*k* the verified primary of a distinct preset; 0 claimed-but-failed; **blocked on OQ-10** (F as ruled there); unique primaries, none a default-state cell, D10.1 no preset's primary (FR-011b), each at the primary bar `d ≥ max(F, 2·s)` (envelope primaries by the C-7.4 attack-window reversion); every ordered pair (P, Q) has a claimed witness of P that Q fails (FR-011a); D cells verified with their audibility conjuncts | `Vorago_PresetMatrix_CoverageComplete`, `Vorago_PresetMatrix_NoShowcaseSubset` ([long][vorago-sweep]; + printed matrix, default-state cells and witnesses) |
+| SC-008 | Coverage + showcase | 100 % of C-2.1 cells verified; each E*k* (E1–E5) **and** each ratified roster-extension cell (`E6.hi`, `E7.hi`) the verified primary of a distinct preset (seven distinct primary presets in Group E); 0 claimed-but-failed; F = 4.0 (Clarifications Q2–Q4, Q6); unique primaries, none a default-state cell, D10.1 no preset's primary (FR-011b), each at the primary bar `d ≥ max(F, 2·s)` (`s` from the K-take-averaged descriptor; envelope primaries by the C-7.4 attack-window reversion); every ordered pair (P, Q) has a claimed witness of P that Q fails (FR-011a); D cells verified with their audibility conjuncts | `Vorago_PresetMatrix_CoverageComplete`, `Vorago_PresetMatrix_NoShowcaseSubset` ([long][vorago-sweep]; + printed matrix, default-state cells and witnesses) |
 | SC-009 | Parameter-space distinctness | every pair and preset-vs-default: ≥ 8 IDs differ (≥ 0.10 normalized or index) | `Vorago_PresetMatrix_ParameterSpaceDistinct` |
-| SC-010 | Sound-space distinctness | **Blocked on OQ-10 — no compliance row may be filled against the first-pass numbers.** Descriptor per the OQ-10 ruling: under (a), `D(P)` = mean of the `M1…M3` descriptors over K takes (stored seed + K − 1 fixed seed-index offsets), `t_K` = `d` between two disjoint K-take means of the same preset, measured on every control-set preset, `t_max` = the largest `t_K`; under (b)/(c), `D(P)` = mean of `M1…M3` of the single stored-seed take, `t_max` = the largest seed-twin `d` (b) or recorded only (c). Bands relative to `E_hi`, −60 dB clamp. Every pair `d ≥ max(F, 2·max(s), 2·t_max)` with F, the take term and K as ruled; on the control set `C` (≥ 3 named presets): post-render level twin `d < 0.05` (every preset), rendered gain twin on the highest-Pressure preset `d ≤ F/2`, seed twins `d ≤ F/2` (recorded, not gated, under (c)), sub twins (±0.125 normalized, in-range side(s) only, C-7.3 (c)) `d < F` | `Vorago_PresetSweep_SoundSpaceDistinct` ([long][vorago-sweep]) |
-| SC-011 | Ablation | every claimed secondary S/M/ablation-D cell `d(P, P_abl) ≥ max(1.5, 2·s(P))`; every primary `≥ max(F, 2·s(P))` (**blocked on OQ-10**; D_abl = 1.5 is fixed); envelope cells (D8.x/D9.x) scored by the C-7.4 attack-window reversion including its `d_Sus + 1.5` attributability conjunct; every claimed E cell passes the route-isolated test at its role's bar and exceeds `d(R_∅, R_∅⁰) + 1.5` | `Vorago_PresetSweep_AblationVerifiesClaims` ([long][vorago-sweep]) |
+| SC-010 | Sound-space distinctness | Resolved (Clarifications Q2–Q4, Q6, session 2026-09-29): `D(P)` = mean of the `M1…M3` descriptors over K takes (stored seed + K − 1 fixed seed-index offsets, two disjoint sets of `(stored + j) mod 16`, K hard-capped at 8); `t_K` = `d` between two disjoint K-take means of the same preset, measured on every control-set preset; `t_max` = the largest `t_K`; K ruled at the pilot as the smallest with `2·t_K ≤ F` (FR-017a; FR-017 stop if K = 8 does not reach it). Bands relative to `E_hi`, −60 dB clamp. Every pair `d ≥ max(F, 2·max(s), 2·t_max)` with **F = 4.0**; on the control set `C` (≥ 3 named presets): post-render level twin `d < 0.05` (every preset), rendered gain twin on the highest-Pressure preset `d ≤ F/2`, seed twins (`t_K`) `d ≤ F/2` (gated), sub twins (±0.125 normalized, in-range side(s) only, C-7.3 (c)) `d < F` | `Vorago_PresetSweep_SoundSpaceDistinct` ([long][vorago-sweep]) |
+| SC-011 | Ablation | every claimed secondary S/M/ablation-D cell `d(P, P_abl) ≥ max(1.5, 2·s(P))`; every primary `≥ max(F, 2·s(P))` with **F = 4.0** (Clarifications Q2–Q4, Q6); D_abl = 1.5 is fixed; `s(P)` from the K-take-averaged descriptor for the preset's own full render, single-take for the ablation twin itself (Clarification Q4); envelope cells (D8.x/D9.x) scored by the C-7.4 attack-window reversion including its `d_Sus + 1.5` attributability conjunct; every claimed E cell (E1–E5 **and** the ratified `E6.hi`/`E7.hi`) passes the route-isolated or plain-ablation test at its role's bar and exceeds `d(R_∅, R_∅⁰) + 1.5` where applicable | `Vorago_PresetSweep_AblationVerifiesClaims` ([long][vorago-sweep]) |
 | SC-012 | Long-render boundedness | 100 % presets: finite; peak ≤ 0.9661; every 10 s RMS ≤ −6 dBFS over `[0, Total]`; every 10 s RMS ≥ −60 dBFS over `[A, H]`; late/early ratio in [−18, +12] dB; tail arm per freeze with `Tail` placed on the **effective** RT60; Freeze-On tail loudest-10 s ≥ RMS(`Sus`) − 20 dB | `Vorago_PresetSweep_LongRender` ([long]) |
-| SC-013 | Wall clock (CI lane) | every Vorago sweep job, per OS, measured step time ≤ 60 % of its `timeout-minutes` (≤ 180); shared per-push "Run Tests" step ≤ 80 % of its 20 min on every OS; generic nightly `[long]` step unchanged by this phase (filter `[long]~[vorago-sweep]`); local alone-run durations recorded for reference; under OQ-10 (a) the K-fold main-render cost is met by sharding, never by shortening | CI job/step durations from the run logs (URLs cited in compliance); `-d yes` local durations |
+| SC-013 | Wall clock (CI lane) | every Vorago sweep job, per OS, measured step time ≤ 60 % of its `timeout-minutes` (≤ 180); shared per-push "Run Tests" step ≤ 80 % of its 20 min on every OS; generic nightly `[long]` step unchanged by this phase (filter `[long]~[vorago-sweep]`); local alone-run durations recorded for reference; the K-fold (Clarification Q2) main-render cost is met by sharding, never by shortening | CI job/step durations from the run logs (URLs cited in compliance); `-d yes` local durations |
 | SC-014 | Short load-time guard | 100 % presets finite, peak ≤ 0.9661 at 44.1/48/96 kHz and chord (load-time guard only; no sustain claim) | `Vorago_PresetSweep_ShortBounded` |
 | SC-015 | Reproducibility | `withinTolerance()` true for every preset | `Vorago_PresetSweep_RendersAreReproducible` ([long]) |
 | SC-016 | RT-safe loading | sequential: 0 allocations; concurrent: 0 audio-thread allocations, 100 % `kResultOk`, bounded output | `Vorago_FactoryPresets_SequentialLoadNoAlloc`, `Vorago_FactoryPresets_ConcurrentLoadIsRtSafe` |
@@ -1100,14 +1174,14 @@ roster, and thread parallelism buys little on 2–3 vCPUs. So:
 | SC-022 | Sustain at 44.1/96 kHz | 100 % presets over `[0, A + 65 s]` at 44.1 and 96 kHz: finite, peak ≤ 0.9661, every 10 s RMS ≤ −6 dBFS | `Vorago_PresetSweep_SustainAtAllRates` ([long][vorago-sweep]) |
 | SC-023 | Dedicated sweep lane | `long-tests-nightly.yml` holds the FR-066 job(s) on three OSes, each `timeout-minutes` ≤ 180; `ci.yml` nightly filter is `[long]~[vorago-sweep]` on all three legs | grep in compliance record + one green nightly run URL |
 | SC-024 | Freeze showcase | the **S8-primary** preset claims and verifies D10.1 as a **secondary** under the freeze-gesture protocol: its additional gesture render passes arm 1 and C-6 arm 4's Freeze-On criteria including the −20 dB absolute floor, and its `kSpaceMixId` → 0 dry-residue twin scores loudest-10 s `Tail` ≤ RMS(`Sus`) − 40 dB; **no preset names D10.1 as primary** (FR-011b); **no diff** to the processor's or `CavernVerb`/`AetherReverb`'s freeze load path over the phase (Clarification Q1, FR-033) | `Vorago_PresetSweep_FreezeGesture` ([long][vorago-sweep]); subset of SC-012 / SC-008; `git diff` of `processor.cpp` freeze/setState handling, `cavern_verb.h`, `aether_reverb.h` cited in compliance |
-| SC-025 | Roster evidence | every knob in `R` and every counted knob outside `R` cited by its row in both 13b FR-013 tables (d, d/t0, flags); every `R` knob counted (`d ≥ 0.5·t0`, not KILL/OFF-LIKE) on ≥ 1 surface, or named explicitly by the OQ-9 ruling with its measured `d` | compliance record (FR-070, FR-071) |
-| SC-026 | Ecosystem roster ratified before authoring | the ratified `R` (OQ-9) is recorded, dated, before the first commit that adds a roster parameter ID, the v3 format, a roster UI control or a preset referencing `R` (commit order in `git log`) | compliance record (FR-071) |
-| SC-026a | Knob semantics | for each `k ∈ R`, a processor-level test reaches the engine through the inert probe friend `Vorago::detail::VoragoEcosystemRosterProbe` (New components; an allowed plugin edit on the R-1 / `processor.h:186` precedent) reading `engine_` (`processor.h:228`), and iterates **all `kMaxVoices` = 6 voices** via `VoragoEngine::getVoice(i)` (`vorago_engine.h:1280`) after ≥ 1 `process()`, once with no note held and again with a note held; it sets the registered knob to its counted extreme and asserts every voice's `ecosystem()` getter (`getSyncRate()`, `ecosystem_engine.h:601`; `getAffinity(k, k)` for all five kinds, `:721`) equals the plain value, and at the registered default equals the component defaults (0.0, −1.0); the count of voices checked is asserted == 6 in each pass | `Vorago_EcosystemRosterReachesEngine` (FR-071a) |
-| SC-027 | Ecosystem parameters + state v3 | new IDs registered for every `k ∈ R`; `kCurrentStateVersion == 3`; `static_assert(VoragoVoiceParams::kFieldCount == 31 + \|R\|)` in a test TU (R-1 bound, FR-076); v2 load **from a non-default state**: every `k ∈ R` first driven to its counted extreme (by `IParameterChanges` or by loading a v3 stream with non-default values) and one `process()` run, then `setState(v2)` and one `process()`; both the persisted values (`getState` decode) and the engine getters on all 6 voices (`getSyncRate()`, `getAffinity(k, k)` for all five kinds, via the SC-026a probe) equal the hard-coded defaults | `Vorago_State_V2LoadsWithRosterDefaults`, `Vorago_VoiceParams_FieldCount`, param-table test (FR-072, FR-076) |
-| SC-028 | Ecosystem UI + coverage extension | one control per `k ∈ R` on the ecosystem page; page union/bound-ID/allowlist tests updated; every existing, counted `E{n}` cell (FR-075) verified by ≥ 1 preset at the bar OQ-11 rules for its role | `Vorago_Ecosystem_PageBindsRosterIds`, subset of SC-008 (FR-073, FR-075) |
-| SC-029 | Library size + primaries | N == **38 + \|E-ext primaries\|** — 38, 39 or 40 on the 13b tables, fixed once OQ-9 and OQ-11 are ruled (plan ruling R-2 / P-3; supersedes Q4's [35, 45] band — default-state cells are ineligible primaries under FR-011, so the floor of unique primaries is 10 S + 12 M + 5 E + 9 non-default materials + D8.2 + D9.1 = 38, plus one preset per roster-extension cell; D10.1 is excluded by FR-011b and D8.2/D9.1 are scored by the C-7.4 attack-window reversion); every S, M, E (incl. roster-extension) cell is some preset's primary; each **non-default-state** member of the 11 body materials, 4 noise models and D8/D9 envelope extremes is some preset's primary (R-3 / P-5; the default-state members are verified secondaries of factory presets, never primaries) | grep/count in compliance record + coverage matrix; `Vorago_FactoryPresets_LibraryShape` (SC-031) (FR-004, FR-011, FR-011b, FR-013) |
+| SC-025 | Roster evidence | every knob in `R` = {`syncRate`, `selfAffinity`} and every counted knob outside `R` (none, per Clarification Q1) cited by its row in both 13b FR-013 tables (d, d/t0, flags); every `R` knob counted (`d ≥ 0.5·t0`, not KILL/OFF-LIKE) on ≥ 1 surface | compliance record (FR-070, FR-071) |
+| SC-026 | Ecosystem roster ratified before authoring | the ratified `R` = {`syncRate`, `selfAffinity`} (Clarifications Q1, session 2026-09-29) is recorded, dated, before the first commit that adds a roster parameter ID, the v3 format, a roster UI control or a preset referencing `R` (commit order in `git log`) | compliance record (FR-071) |
+| SC-026a | Knob semantics | for each `k ∈ R`, a processor-level test reaches the engine through the existing public const `Processor::engineForTest()` (`processor.h:116-118`; plan-stage ruling P2-4, 2026-09-29 — no new friend), and iterates **all `kMaxVoices` = 6 voices** via `VoragoEngine::getVoice(i)` (`vorago_engine.h:1280`) after ≥ 1 `process()`, once with no note held and again with a note held; it sets the registered knob to its counted extreme and asserts every voice's `ecosystem()` getter (`getSyncRate()`, `ecosystem_engine.h:601`; `getAffinity(k, k)` for all five kinds, `:721`) equals the plain value, and at the registered default equals the component defaults (0.0, −1.0); the count of voices checked is asserted == 6 in each pass | `Vorago_EcosystemRosterReachesEngine` (FR-071a) |
+| SC-027 | Ecosystem parameters + state v3 | new IDs registered for `syncRate` and `selfAffinity`; `kCurrentStateVersion == 3`; `kStateV3Bytes == 436`; `static_assert(VoragoVoiceParams::kFieldCount == 33)` (= 31 + \|R\|) in a test TU (R-1 bound, FR-076); v2 load **from a non-default state**: every `k ∈ R` first driven to its counted extreme (by `IParameterChanges` or by loading a v3 stream with non-default values) and one `process()` run, then `setState(v2)` and one `process()`; both the persisted values (`getState` decode) and the engine getters on all 6 voices (`getSyncRate()`, `getAffinity(k, k)` for all five kinds, via the SC-026a probe) equal the hard-coded defaults | `Vorago_State_V2LoadsWithRosterDefaults`, `Vorago_VoiceParams_FieldCount`, param-table test (FR-072, FR-076) |
+| SC-028 | Ecosystem UI + coverage extension | one control per `k ∈ R` on the ecosystem page; page union/bound-ID/allowlist tests updated; `E6.hi` (`syncRate`) and `E7.hi` (`selfAffinity`) each verified by ≥ 1 preset at the **primary bar F** (Clarification Q5, resolving OQ-11 as primaries) | `Vorago_Ecosystem_PageBindsRosterIds`, subset of SC-008 (FR-073, FR-075) |
+| SC-029 | Library size + primaries | N == **38 + \|R\| = 40** (Clarifications Q1, Q5, session 2026-09-29 — `R` = {`syncRate`, `selfAffinity`}, both counted extremes are primaries; plan ruling R-2 / P-3; supersedes Q4's [35, 45] band — default-state cells are ineligible primaries under FR-011, so the floor of unique primaries is 10 S + 12 M + 5 E + 9 non-default materials + D8.2 + D9.1 = 38, plus one preset per roster-extension cell (`E6.hi`, `E7.hi`) = 40; D10.1 is excluded by FR-011b and D8.2/D9.1 are scored by the C-7.4 attack-window reversion); every S, M, E (incl. `E6.hi`, `E7.hi`) cell is some preset's primary; each **non-default-state** member of the 11 body materials, 4 noise models and D8/D9 envelope extremes is some preset's primary (R-3 / P-5; the default-state members are verified secondaries of factory presets, never primaries) | grep/count in compliance record + coverage matrix; `Vorago_FactoryPresets_LibraryShape` (SC-031) (FR-004, FR-011, FR-011b, FR-013) |
 | SC-030 | Tail samples | `getTailSamples()` == `llround((Rel + RT60_eff + G) · sampleRate)` within ±1 sample, `G` = `AtmosphereEngine::kMaxGrainSeconds` = 30 s (`atmosphere_engine.h:311`), from independently decoded state, for FR-060's named set (min decay; max decay with Depth = Age = 1; default surface; every factory preset); `kInfiniteTail` when Space Freeze is On | `Vorago_Processor_GetTailSamplesMatchesState` (FR-060) |
-| SC-031 | Library shape | every C-1 category holds ≥ 3 presets (FR-004); N == 38 + \|E-ext primaries\| (SC-029; the Q6 N floor of 21 is met a fortiori) (FR-001, FR-004, Clarification Q6) | `Vorago_FactoryPresets_LibraryShape` (per-push; its own test case per plan ruling R-7(ii)) |
+| SC-031 | Library shape | every C-1 category holds ≥ 3 presets (FR-004); N == **40** (SC-029; the Q6 N floor of 21 is met a fortiori) (FR-001, FR-004, Clarification Q6) | `Vorago_FactoryPresets_LibraryShape` (per-push; its own test case per plan ruling R-7(ii)) |
 | SC-032 | Install path | `krate_plugin_install_presets(${PLUGIN_NAME})` (`plugins/vorago/CMakeLists.txt:123`) resolves to `%PROGRAMDATA%/Krate Audio/Vorago` = `Platform::getFactoryPresetDirectory("Vorago")` (`preset_paths.h:27`); `setup.iss:66-68` and `installers/linux/README.txt:29-44` name the same destinations (FR-026, FR-027) | grep/inspection in compliance record, citing each file:line |
 
 ---
@@ -1147,107 +1221,80 @@ roster, and thread parallelism buys little on 2–3 vCPUs. So:
 
 ---
 
-## Open Questions (deferred to this spec by the roadmap or by earlier specs)
+## Open Questions (deferred to this spec by the roadmap or by earlier specs — all now resolved)
 
-Six of the eight items below were resolved in the Clarifications session of 2026-09-27 (see
-**## Clarifications**); the resolution is recorded here and carried by the FR/SC ids cited. OQ-4 and
-OQ-6 were not part of that session and remain as originally recommended/ruled.
+All eleven items below are resolved: eight in the Clarifications session of 2026-09-27, and OQ-9, OQ-10
+and OQ-11 (opened by the second specify pass) in the Clarifications session of 2026-09-29 (see
+**## Clarifications**). The resolution is recorded here and carried by the FR/SC ids cited.
 
-- **OQ-1 — Category names** — **RESOLVED (Clarifications Q6).** Ratified as proposed: Drones · Abyss ·
+- **OQ-1 — Category names** — **RESOLVED (Clarifications Q6, 2026-09-27).** Ratified as proposed: Drones · Abyss ·
   Caverns · Organisms · Machines · Textures · Ghosts, `Drones` first and verbatim, permanent once shipped.
   Carried by FR-001, FR-002.
-- **OQ-2 — Distinctness thresholds** — **RE-OPENED by OQ-10 (second pass).** First-pass resolution (Clarifications Q3): pilot-calibrated, not ratified from
-  arithmetic alone.** F = 4.0 is a **floor**, not a fixed value: FR-017a requires a 6–8 preset pilot
-  render measuring the seed-twin `t_max` and a near-variant pair's `d` before F is ruled (never below
-  4.0) and frozen. Every other value here is fixed as originally ruled: self-distance factor 2 (over the
+- **OQ-2 — Distinctness thresholds** — **RESOLVED (Clarifications Q3, 2026-09-27; numbers re-affirmed and
+  extended by Clarifications Q2–Q4, Q6, 2026-09-29).** Pilot-calibrated, not ratified from
+  arithmetic alone: F = 4.0 is a **floor**, not a fixed value, but stays exactly 4.0 through both
+  sessions. FR-017a requires a 6–8 preset pilot
+  render measuring `t_K` (the K-fold seed-twin term) and a near-variant pair's `d` (a floor check only)
+  before K is ruled and F is frozen. Every other value here is fixed as originally ruled: self-distance
+  factor 2 (over the
   three hold minutes), the `2·t_max` measured-take term, seed-twin and gain-twin margin F/2, sub-twin
   bound F, level-twin bound 0.05, band clamp −60 dB, primary bar = F, secondary bar D_abl = 1.5,
-  Freeze-On tail floor X = 20 dB, parameter-space K = 8 at Δ ≥ 0.10. Carried by FR-017a and every F-based
+  Freeze-On tail floor X = 20 dB, parameter-space K = 8 at Δ ≥ 0.10 (C-7.1's parameter-space K, distinct
+  from the sound-space take-count K of OQ-10). Carried by FR-017a and every F-based
   FR/SC (FR-011, FR-015, SC-008, SC-010, SC-011).
-- **OQ-3 — `getTailSamples()`** — **RESOLVED (Clarifications Q7).** State-derived tail:
+- **OQ-3 — `getTailSamples()`** — **RESOLVED (Clarifications Q7, 2026-09-27).** State-derived tail:
   `Rel + effective-RT60 + ghost-grain ceiling`, `kInfiniteTail` under freeze. Carried by FR-060, SC-030.
-- **OQ-4 — Ghost density vs trigger** (Phase 10a Q1 → Phase 12/14) — **not part of this session, unchanged.**
-  Recommended: additive as shipped.
-- **OQ-5 — Ecosystem behaviour definition** — **RESOLVED (Clarifications Q2): scope widened, inside Phase
-  14.** The five kind→destination routes (E1–E5) stay; a curated roster of ecosystem rule knobs (~4–6,
-  chosen by an audibility probe and stop-and-surface ratified before any ID/format/UI/preset is authored)
-  becomes registered parameters this phase — new IDs, state v3 with v2 load compatibility, ecosystem-page
-  controls, and matching coverage-matrix `E{n}.lo`/`E{n}.hi` cells. Carried by C-2.3, FR-070…FR-076,
-  SC-025…SC-028. *Second pass:* the roster now comes from 13b's tables (FR-070) and its ratification is
-  OQ-9; the E cells' role is OQ-11.
-- **OQ-6 — "Showcases nothing another preset already shows"** (C-2.2) — **not part of this session,
-  unchanged.** Ruled as: unique, non-default, primary-bar primary **and** the non-subset rule on verified
-  sets (FR-011a) **and** each E*k* a distinct preset's primary. Ratify.
-- **OQ-7 — Release version** — **RESOLVED (Clarifications Q8).** `1.0.0` — the public release with the
+- **OQ-4 — Ghost density vs trigger** (Phase 10a Q1 → Phase 12/14) — **RESOLVED (Clarifications Q8,
+  2026-09-29).** Additive, as shipped: the 0.30 grains/s density scheduler keeps running and triggered
+  grains add on top; no new parameter. Carried by FR-061.
+- **OQ-5 — Ecosystem behaviour definition** — **RESOLVED (Clarifications Q2, 2026-09-27, scope widened,
+  inside Phase 14; roster and E-cell role fixed by Clarifications Q1 and Q5, 2026-09-29).** The five
+  kind→destination routes (E1–E5) stay; the ratified roster `R` = {`syncRate`, `selfAffinity`} (OQ-9)
+  becomes registered parameters — new IDs, state v3 with v2 load compatibility, ecosystem-page
+  controls, and coverage-matrix cells `E6.hi`/`E7.hi`, both showcase primaries (OQ-11). Carried by C-2.3,
+  FR-070…FR-076, SC-025…SC-028.
+- **OQ-6 — "Showcases nothing another preset already shows"** (C-2.2) — **RESOLVED (ratified as
+  recommended).** Unique, non-default, primary-bar primary **and** the non-subset rule on verified
+  sets (FR-011a) **and** each E*k* (including the ratified `E6.hi`/`E7.hi`) a distinct preset's primary.
+- **OQ-7 — Release version** — **RESOLVED (Clarifications Q8, 2026-09-27).** `1.0.0` — the public release with the
   factory library; the controller interface set is frozen from this version. Carried by FR-064.
-- **OQ-8 — How factory freeze is played** — **RESOLVED (Clarifications Q1).** D10.1 is verified by the
+- **OQ-8 — How factory freeze is played** — **RESOLVED (Clarifications Q1, 2026-09-27).** D10.1 is verified by the
   **freeze-gesture** render: the preset stores Space Freeze Off; the harness delivers `kSpaceFreezeId` →
   On at `A + 65 s` through `IParameterChanges`; the preset's `Comment` tells the player to engage Freeze
   once the drone has bloomed. No processor load-behaviour change. Carried by C-6 arm 4, FR-033, SC-024.
-
-### Open in the second pass (2026-09-29) — each deferred to this spec by the roadmap
-
-The three items below — with OQ-9's sub-question (d), the §5.8 E-ext halfway margin the plan-stage log names as pending for G1 — are the only decisions this pass leaves open. Each is one the roadmap assigns to
-this spec: the roster is "ratified at the plan step" and "comes from the 13b probe table" (lines 598–600,
-643-644); the distinctness threshold is "ruled in the spec rather than assumed" (line 637). OQ-2 above
-is **re-opened by OQ-10** (its values stand as the first-pass ruling until OQ-10 replaces them).
-
-- **OQ-9 — The roster `R` (Q2's G1 ratification, now on 13b's evidence).**
-  The 13b tables count two knobs, both one-sided `.hi` (C-2.3 table).
-  - (a) **`R` = {`syncRate`, `selfAffinity`}** — exactly the counted set. Two new IDs in the 900 block,
-    `kStateV3Bytes = 428 + 8 = 436`, two ecosystem-page controls, cells `E6.hi` and `E7.hi`. Fewer than
-    Q2's "roughly 4–6", which 13b's Gate 2 already recorded UNMET by ruling.
-  - (b) (a) plus the next-most-audible non-kill knobs named by measurement — `kernelSigma` (best 1.8636,
-    0.459·t0, Life max), `moveRate` (1.5393, 0.379·t0) — each below 13b's counted bar; FR-071 requires the
-    ruling to name them with those figures. Their E cells would be **secondary-at-best** (≥ 1.5 only at
-    Life max) and could not be primaries at any bar above 1.9.
-  - (c) **`R` = ∅** — no v3, no new controls; Q2's intent is carried by E1–E5 only.
-  - **Recommended: (a).** It is the only roster measured audible on the shipped tree, it honours the
-    first-pass G1 ruling ("the goal is audible knobs, not knobs that measure inaudible", `compliance.md`),
-    and it realises Q2's "temperaments a preset can store" (sync-locked colony; self-attracting colony).  - **Sub-question (d) — the E-ext halfway margin** (plan §5.8, `plan.md:781`; named pending in the
-    plan-stage log). Ratified with `R`: an `E{n}.hi` claim requires decoded `n ≥ n₀ + 0.5·(1 − n₀)`
-    (`.lo` symmetric, `n ≤ n₀ − 0.5·n₀`) besides its reversion ablation (FR-075). **Recommended:
-    ratify 0.5 as proposed** — scale-free, feasible on every existing side, and it makes `.lo`/`.hi`
-    mutually exclusive (`plan.md:783-788`). Void if `R` = ∅.
-  - Carried by FR-070, FR-071, FR-071a, FR-072…FR-075, SC-025, SC-026, SC-026a, SC-027, SC-028, SC-029.
-- **OQ-10 — The distinctness threshold on the post-13b surface.** Measured: the default surface's seed
+- **OQ-9 — The roster `R` (Q2's G1 ratification, on 13b's evidence)** — **RESOLVED (Clarifications Q1,
+  2026-09-29 — option (a)).** `R` = {`syncRate`, `selfAffinity`}, exactly the counted set: two new IDs
+  in the 900 block, `kStateV3Bytes = 436`, two ecosystem-page controls, cells `E6.hi` and `E7.hi`. Fewer
+  than Q2's "roughly 4–6", which 13b's Gate 2 already recorded UNMET by ruling — accepted, because this
+  is the only roster measured audible on the shipped tree. **Sub-question (d) — the E-ext halfway
+  margin** — **RESOLVED (Clarifications Q7, 2026-09-29 — option (a)).** Ratified at 0.5: an `E{n}.hi`
+  claim requires decoded `n ≥ n₀ + 0.5·(1 − n₀)` (`.lo` symmetric, `n ≤ n₀ − 0.5·n₀`), `.lo`/`.hi`
+  mutually exclusive. Concretely `syncRate` stored ≥ 0.25, `selfAffinity` stored ≥ +0.5. Carried by
+  FR-070, FR-071, FR-071a, FR-072…FR-075, SC-025, SC-026, SC-026a, SC-027, SC-028, SC-029.
+- **OQ-10 — The distinctness threshold on the post-13b surface** — **RESOLVED (Clarifications Q2, Q3,
+  Q4, Q6, 2026-09-29 — option (a) of Q2).** Measured: the default surface's seed
   twin is d = 5.9515 (Life max 6.8514); first-pass control (b) requires ≤ F/2 = 2.0 and the floor's
-  `2·t_max` term puts every pair at ≥ 11.9 (C-7.3 "Post-13b measurement"). Options:
-  - (a) **Seed-marginal descriptor.** `D(P)` becomes the mean of the three-minute descriptors over **K
-    takes** (the stored seed plus K − 1 fixed seed-index offsets from it); the take term
-    `t_max` is measured between two disjoint K-take means, so it shrinks with K while F, the factor 2,
-    F/2 and every other first-pass number stay. K is ruled from the pilot as the smallest K with
-    `2·t_K ≤ F`; if per-take spread averages down as 1/√K, the 5.95 figure needs K ≈ 9 — cost scales the
-    FR-033 main render by K (ablation/E twins stay single-take, same seed, as they are same-seed
-    comparisons whose noise term is `s(P)`). Budget via C-10's sharding lever, never by shortening.
-  - (b) **Raise F to the measurement.** `F = max(4.0, 2·t_max)` from the pilot (≈ 12 on the 13b figure),
-    every F-based bar scaling with it. Predicted consequence: the primary bar exceeds the whole-ecosystem
-    on/off distance (5.6272) and every counted rule knob (≤ 2.6401), so E1–E5 and E-ext primaries, and
-    likely many S/M primaries, become unverifiable (FR-017 stop), shrinking the showcase.
-  - (c) **Common-take evaluation.** Sound-space distinctness and its controls are scored on renders at
-    one common harness seed for every preset (the stored seed still ships and is reproducibility-tested);
-    the take term is dropped from the floor, control (b) becomes a recorded (not gated) seed-twin per
-    control preset, and "not a near-variant by take" is carried by C-7.1's ≥ 8-ID parameter gate. Cheapest;
-    weakest reading of "measured-tolerance" (roadmap line 636).
-  - **Recommended: (a), with K measured at the pilot.** It keeps every first-pass ruling and the
-    roadmap's measured-tolerance meaning, and answers the variance with more takes instead of a lower
-    bar or a blinder metric. If the pilot measures that no K ≤ 9 reaches `2·t_K ≤ F`, that is an FR-017
-    stop to surface with the measured curve, not an automatic fall-back to (b) or (c).
-  - Carried by C-7.2, C-7.3, C-7.4, FR-011, FR-015, FR-017a, FR-036, SC-008, SC-010, SC-011, SC-013.
-- **OQ-11 — Role of the rule-knob E cells.** Plan ruling R-2 made every E-ext cell the primary of its
-  own showcase preset (primary bar F = 4.0). The tables measure `syncRate` → 0.5 at 2.1606 (default) /
-  2.1446 (Life max) and `selfAffinity` → +2 at 1.9460 / 2.6401 — above the secondary bar D_abl = 1.5,
-  below F. Options:
-  - (a) **Primaries as ruled (R-2).** A showcase preset must author a surface on which the knob's
-    reversion moves the preset by ≥ `max(F, 2·s(P))`; the pilot (FR-017a) includes one candidate per
-    knob and FR-017 stops if none reaches it. N = 38 + |`R`|.
-  - (b) **Secondaries only.** E-ext cells need ≥ 1 verified secondary claim (bar `max(1.5, 2·s(P))`);
-    "every distinct ecosystem behaviour foregrounded" is carried by the E1–E5 primaries. N = 38.
-  - **Recommended: (a), measured at the pilot before the library is authored** — "foregrounded" is the
-    roadmap's word (line 631-632), and the tables were measured only at the default and Life-max
-    surfaces, not at a surface authored to feature the colony; the pilot measures instead of assuming.
-    If the pilot cannot reach the primary bar, surface it with the numbers (FR-017) and re-rule then.
-  - Carried by C-2.2, C-2.3, FR-011, FR-017a, FR-075, SC-008, SC-028, SC-029.
+  `2·t_max` term would otherwise put every pair at ≥ 11.9 (C-7.3 "Post-13b measurement"). Resolution:
+  a **seed-marginal descriptor** — `D(P)` becomes the mean of the three-minute descriptors over **K
+  takes** (the stored seed plus K − 1 fixed seed-index offsets from it, two disjoint sets of
+  `(stored + j) mod 16`, hard-capped at K = 8 — Clarification Q3, option (a)); the take term
+  `t_max` (the largest `t_K` across the control set) is measured between two disjoint K-take means, so it
+  shrinks with K while F = 4.0, the factor 2,
+  F/2 and every other first-pass number stay unchanged. K is ruled from the pilot as the smallest K with
+  `2·t_K ≤ F`; if `K = 8` does not reach it, FR-017 stops and surfaces the measured `t_K` curve — never a
+  silent fall-back to raising F or dropping the take term. `s(P)` is the largest pairwise `d` among the
+  K-take-averaged per-minute descriptors; the C-6 long-render arms 1–4 run on every take; the ablation
+  and E twins stay single-take at the stored seed, scored against that take's `M1` (Clarification Q4,
+  option (a)). The pilot's near-variant pair is a floor check only (`d < F` required; `d ≥ F` is itself
+  an FR-017 stop) and never sets F (Clarification Q6, option (a)). Budget via C-10's sharding lever,
+  never by shortening. Carried by C-7.2, C-7.3, C-7.4, FR-011, FR-015, FR-017a, FR-036, SC-008, SC-010,
+  SC-011, SC-013.
+- **OQ-11 — Role of the rule-knob E cells** — **RESOLVED (Clarifications Q5, 2026-09-29 — option (a)).**
+  `E6.hi` and `E7.hi` are **primaries**, as plan ruling R-2 required: a showcase preset must author a
+  surface on which the knob's reversion moves the preset by ≥ `max(F, 2·s(P))`; the pilot (FR-017a)
+  includes one candidate per knob and FR-017 stops if either bar is unreachable. This fixes
+  **N = 38 + |R| = 40**. Carried by C-2.2, C-2.3, FR-011, FR-013, FR-017a, FR-075, SC-008, SC-028,
+  SC-029.
 
 ---
 
@@ -1347,11 +1394,12 @@ roster `R` (with P-4's one-sided cells and the §5.8 E-ext halfway margin) remai
 - **R-6 — the CPU runner excludes the sweep.** `tools/run-cpu-tests.js`'s `FILTER` gains
   `~[vorago-sweep]` so `node tools/run-cpu-tests.js vorago_tests` stays the one documented protocol
   for every suite and the sweep never shares a CPU run. [FR-041, SC-017]
-- **R-7 — structure accepted.** (i) CMake registration is split: the probe TU is registered before G1,
-  every other new TU and the generator targets in one mid-phase task, and the final group only audits.
-  (ii) The library-size and ≥ 3-per-category checks live in their own
+- **R-7 — structure accepted** (coverage fix, Clarifications session 2026-09-29: citation corrected —
+  FR-035 and SC-004 were wrong citations). (i) CMake registration is split: the probe TU is registered
+  before G1, every other new TU and the generator targets in one mid-phase task, and the final group only
+  audits. (ii) The library-size and ≥ 3-per-category checks live in their own
   `Vorago_FactoryPresets_LibraryShape` case so it is the only red while the library is partly authored.
-  [FR-004, FR-035, SC-004]
+  [FR-027a, FR-004, SC-031]
 - **R-8 — harness-first descriptor, no duplication.** The C-7.2 descriptor and C-7.3 distance land in
   `preset_test_support.h` before the probe TU exists, and the probe includes them from there; the probe
   ranking and the sweep use one implementation. [FR-070, FR-036, C-7.2]
@@ -1360,22 +1408,111 @@ roster `R` (with P-4's one-sided cells and the §5.8 E-ext halfway margin) remai
 
 Re-specified against the post-13b tree (HEAD `59fbd9e6`). Every ruling above stands except where noted:
 
-- **Q1, Q5, Q6, Q7, Q8; R-1, R-3, R-4, R-5, R-6, R-7, R-8** — unchanged. R-1's append-only `dsp/` wiring
+- **Q1, Q5, Q6, Q7, Q8; R-1, R-3, R-4, R-5, R-6, R-7 [FR-027a, FR-004, SC-031], R-8** — unchanged
+  (R-7's citation corrected, coverage fix, Clarifications session 2026-09-29). R-1's append-only `dsp/` wiring
   (forwarder + `VoragoVoiceParams` field + `applyVoiceParams` line per knob) now targets
   `vorago_engine.h:160`, `:188`, `:859` and the post-13b `vorago_voice.h`; the inert probe friends it
   added are at `vorago_voice.h:171`, `:1568` and `vorago_engine.h:1304`. R-8's descriptor is shipped
   (`preset_test_support.h:40-167`) and was the instrument of 13b's tables.
 - **Q2** — stands (rule knobs become registered parameters, state v3, ecosystem-page controls). Its
-  *probe* half is discharged by Phase 13b's FR-013 tables (FR-070); its *ratification* half is OQ-9.
-- **Q3** — stands as a procedure (pilot, then freeze), but its numbers are re-opened by OQ-10: the 13b
-  tables already measure the seed twin at 5.9515, outside every first-pass bound that uses it.
-- **Q4 / R-2** — N is 38 + |E-ext primaries|; |E-ext| is 0–2 on the 13b tables and their role is OQ-11.
-- **First-pass gate G1** — its "roster not ratified" ruling is superseded by OQ-9 on the new evidence;
-  its "E-route risk: keep E cells as primaries, FR-017 catches an unverifiable route" ruling stands and
+  *probe* half is discharged by Phase 13b's FR-013 tables (FR-070); its *ratification* half, OQ-9, is
+  **now resolved** (Clarifications Q1, session 2026-09-29): `R` = {`syncRate`, `selfAffinity`}.
+- **Q3** — stands as a procedure (pilot, then freeze); its numbers, re-opened by OQ-10 when the 13b
+  tables measured the seed twin at 5.9515, are **now resolved** (Clarifications Q2–Q4, Q6, session
+  2026-09-29): the seed-marginal K-take descriptor, F = 4.0 unchanged.
+- **Q4 / R-2** — N is 38 + |E-ext primaries|; **now resolved** (Clarifications Q1, Q5, session
+  2026-09-29): |E-ext| = 2, both cells primaries (OQ-11), so **N = 40**.
+- **First-pass gate G1** — its "roster not ratified" ruling is superseded by OQ-9's resolution; its
+  "E-route risk: keep E cells as primaries, FR-017 catches an unverifiable route" ruling stands and
   is now expected to be exercised with measurable effects (the ecosystem on/off distance is 5.6272 at the
   default surface, finding 5).
 
+### Session 2026-09-29 (second pass clarifications — resolving OQ-9, OQ-10, OQ-11)
+
+The user was interviewed on the second pass's three open items (OQ-9, OQ-10, OQ-11) plus their internal
+sub-questions. All eight questions are resolved; the former **## Open Clarifications** section (which
+posed them) is removed — its content is superseded by this log and by the FR/SC text it updated.
+
+- **Q1 — Which ecosystem rule knobs form the ratified roster `R` (OQ-9)?** Option (a): `R` =
+  {`syncRate`, `selfAffinity`} — exactly the counted set. Two new IDs in the 900 block,
+  `kStateV3Bytes = 436`, cells `E6.hi` and `E7.hi`. `kernelSigma` and `moveRate` are **not** in `R`.
+  [FR-070, FR-071, FR-071a, FR-072, FR-073, FR-074, FR-075, FR-076, FR-006, FR-010, FR-013, SC-025,
+  SC-026, SC-026a, SC-027, SC-028, SC-029, SC-031]
+- **Q2 — How is the distinctness threshold re-ruled given the default surface's seed twin at
+  d = 5.9515 (OQ-10)?** Option (a): a **seed-marginal descriptor** — `D(P)` is the mean over K takes;
+  F = 4.0 and every first-pass margin (factor 2, F/2, 0.05 level bound) stay; K is ruled at the pilot as
+  the smallest K with `2·t_K ≤ F`; the main render costs K× and is absorbed by C-10's sharding, never by
+  shortening. [C-7.2, C-7.3, FR-015, FR-017a, FR-036, SC-010, SC-013]
+- **Q3 — How are the K takes and `t_K` built, with only 16 seed indices?** Option (a): two **disjoint**
+  take sets from the 16 seed indices, seeds `(stored + j) mod 16`, hard-capped at **K ≤ 8**. If K = 8
+  still fails `2·t_8 ≤ F`, FR-017 stops and surfaces the measured `t_K` curve. [C-7.3, FR-017, FR-017a,
+  SC-010]
+- **Q4 — Which take(s) feed `s(P)`, the long-render arms and the ablation/E twins?** Option (a): `s(P)`
+  is taken from the K-take-averaged per-minute descriptors; the C-6 long-render arms 1–4 run on every
+  take; the ablation and E twins stay single-take at the stored seed, scored against that take's `M1`.
+  [C-6, C-7.3, C-7.4, FR-011, FR-017a, SC-011, SC-012]
+- **Q5 — Must each rule-knob E cell (`E6.hi`, `E7.hi`) be the primary of its own showcase preset
+  (OQ-11)?** Option (a): primaries, as plan ruling R-2 required — one pilot candidate per knob; FR-017
+  stops if the bar is unreachable. N = 38 + |R| = **40**. [C-2.2, C-2.3, FR-011, FR-013, FR-017a,
+  FR-075, SC-008, SC-028, SC-029, SC-031]
+- **Q6 — In the FR-017a pilot, what does the near-variant pair's `d` decide?** Option (a): a **floor
+  check only** — the pair MUST score `d < F`; scoring `d ≥ F` is itself an FR-017 stop (the descriptor
+  cannot tell near-variants apart), and the pair never sets F. [FR-017a, C-7.3]
+- **Q7 — Is the E-ext side-predicate margin ratified at 0.5 (OQ-9 sub-question (d))?** Option (a):
+  ratify 0.5 — `syncRate` stored ≥ 0.25, `selfAffinity` stored ≥ +0.5; `.lo` and `.hi` stay mutually
+  exclusive. [FR-075]
+- **Q8 — How do ghost density and event triggers interact in the factory presets (OQ-4)?** Option (a):
+  additive, as shipped — the 0.30 grains/s density scheduler keeps running and triggered grains add on
+  top; no new parameter. [FR-061]
+- **R7-coverage — Coverage fix for plan ruling R-7's citation (structure accepted; ruled 2026-09-27,
+  unchanged).** Mint **FR-027a — Harness registration staging** under the "Validation harness" heading,
+  carrying R-7 clause (i) verbatim: the probe TU is registered in `plugins/vorago/tests/CMakeLists.txt`
+  before gate G1; every other new test TU and the generator targets are registered in one mid-phase task;
+  the final task group only audits the registration (no new registrations). Clause (ii) — the
+  library-size and ≥ 3-per-category checks live in their own `Vorago_FactoryPresets_LibraryShape` case so
+  it is the only red while the library is partly authored — is carried by SC-031 (already states it) and
+  FR-004. R-7's citation is corrected to [FR-027a, FR-004, SC-031] (FR-035 and SC-004 were wrong
+  citations). [FR-027a, FR-004, SC-031]
+
 ---
+
+### Plan stage (2026-09-29) — plan §12 rulings and task confirmations
+
+Ruled by the user 2026-09-29 on the second-pass plan (plan §12 items 1–6) and the tasks agent's
+confirmations. Every item took the plan's default unless stated.
+
+- **P2-2 — take sets acknowledged.** `A_K = {(s+j) mod 16 : j < K}` feeds `D(P)`; `B_K = {(s+K+j) mod 16 :
+  j < K}` feeds `t_K`; each set holds K takes, so K ≤ 8. [FR-015, FR-017a, SC-008, SC-010]
+- **P2-3 — controls (a), (a′), (c) are same-seed single-take comparisons.** Master gain and the sub
+  offset act downstream of every voice, so their take term is exactly zero; no K-take twins. [FR-017a,
+  SC-011]
+- **P2-4 — the `VoragoEcosystemRosterProbe` friend is DROPPED.** SC-026a reads through the existing
+  public const `Processor::engineForTest()` (`processor.h:116-118`); every read it makes is const. No
+  new friend in `processor.h`; the New-components row is withdrawn. [SC-026a, FR-071a]
+- **P2-1 — E0 runs before stage B.** The default surface's take curve over all 16 seeds (hard-coded
+  timeline, no decode/defs/tail estimate) is measured first, so a predicted G2 stop (K = 8 extrapolates
+  to 4.21 / 4.84 against F = 4.0) surfaces after ≈ 9 min of rendering, not after the harness is built.
+  [FR-017, FR-017a, SC-008]
+- **§6.11 skip rules acknowledged.** A render is skipped only where its verdict is known exactly without
+  it (override equal to the stored value; an M cell below its displacement threshold; E1–E5 with 900
+  stored at 0; a D cell with a false state predicate; an E-ext cell with a false side predicate); the
+  skip reason is recorded in the record; the raw `d` of the last four kinds is not rendered. FR-037's
+  "recorded regardless" reads as "the verdict is recorded regardless". [FR-037, SC-013]
+- **SC-011's envelope clause** applies to the envelope **primaries** (D8.2, D9.1: attack-window
+  reversion); the D8/D9 **secondaries** are always-audible state cells (their default-state reversion
+  is the preset itself, d = 0). [SC-011]
+- **Task confirmations:** (i) FR-027a's single mid-phase registration is T003 (ten skeleton TUs, the
+  generator targets, the fast-math exemptions, `${CMAKE_SOURCE_DIR}/tools` on the `vorago_tests` include
+  path per the Seraphis precedent `plugins/seraphis/tests/CMakeLists.txt:109`), T060 only audits;
+  (ii) ruling R-6 (`run-cpu-tests.js` FILTER gains `~[vorago-sweep]`) moves to T002, before any sweep
+  case exists; (iii) the tasks agent's added per-push cases stay (`Vorago_PresetHost_DriveContract`,
+  the `Vorago_PresetSupport_*` mechanics cases, `Vorago_PresetDefs_DStatePredicates` /
+  `RequiredPrimaries` / `InfoXmlBytes`, `Vorago_ControllerState_V3AndV2`,
+  `Vorago_State_V2LoadsWithRosterDefaults_Engine`); (iv) E0's reproduction check of 13b's `t0on`
+  (5.9515) uses tolerance 0.0015. [FR-027a, FR-074, SC-008]
+- **Push / CI-dispatch tasks** (T048 AppleClang tree tolerance, T057 runner measurements, T063 auval on
+  the release commit) stay **pending** until the user grants a push at that point; nothing is pushed
+  without an explicit ruling.
 
 ## Review notes (spec challenge, second pass, 2026-09-29)
 
@@ -1399,43 +1536,3 @@ All eighteen issues were applied; none was rejected. Where an issue offered alte
   remains how D1 *primaries* are scored.
 - **E-ext halfway margin (major).** Carried both ways: as FR-075's side predicate and as OQ-9
   sub-question (d), so the G1 ratification rules it explicitly.
-
----
-
-## Open Clarifications
-
-Clarification scan, second specify pass (2026-09-29). Later stages gate on this section until every
-answer is encoded into the FRs/SCs it names. Q1, Q2 and Q5 restate OQ-9, OQ-10 and OQ-11; Q3, Q4 and Q6
-are gaps found inside OQ-10's recommended option and FR-017a; Q7 is OQ-9 (d); Q8 is OQ-4.
-
-- **Q1 — Which ecosystem rule knobs form the ratified roster `R` (OQ-9)?**
-  - (a) `R` = {`syncRate`, `selfAffinity`}, the counted set: two IDs in the 900 block, `kStateV3Bytes = 436`, cells `E6.hi`, `E7.hi`.
-  - (b) (a) plus `kernelSigma` (1.8636, 0.459·t0) and `moveRate` (1.5393, 0.379·t0), named with their figures per FR-071. Four IDs, 444 bytes; the extra cells can only ever be secondaries.
-  - (c) `R` = ∅: state stays v2 (428 bytes), no new controls, FR-072…FR-075 void, N = 38.
-- **Q2 — How is the distinctness threshold re-ruled now that the default surface's seed twin measures d = 5.9515 (OQ-10)?**
-  - (a) Seed-marginal descriptor: `D(P)` = mean over K takes; F = 4.0, the factor 2 and the F/2 margins stay; K is ruled at the pilot as the smallest K with `2·t_K ≤ F`. The main render costs K× and is absorbed by sharding.
-  - (b) Raise F to `max(4.0, 2·t_max)` (≈ 12): predicted to make E1–E5, E-ext and many S/M primaries unverifiable, so FR-017 stops.
-  - (c) Common-take evaluation: one harness seed for all presets; the take term is dropped and control (b) is only recorded. Cheapest option, and the weakest reading of "measured-tolerance".
-- **Q3 — If Q2 = (a), how are the K takes and `t_K` built, given only 16 seed indices exist (`global_params.h:118-124`)?**
-  - (a) Two disjoint K-take sets, seed indices (stored + j) mod 16. K is hard-capped at 8 (2K ≤ 16). If K = 8 does not reach `2·t_8 ≤ F`, FR-017 stops. Since 1/√K predicts K ≈ 9, the cap may bind.
-  - (b) Measure the per-take spread from all 16 takes of each control preset and model `t_K` as the split-half `t` scaled by `√(8/K)`. This allows K up to 16 but trusts a model instead of a direct measurement.
-  - (c) Fix K = 8 for every preset, with no search. `t_8` is measured directly and the render cost is known in advance.
-- **Q4 — If Q2 = (a), which take(s) feed `s(P)`, the long-render arms (C-6 arms 1–4) and the ablation/E twins?**
-  - (a) `s(P)` = the largest pairwise `d` among the three per-minute descriptors, each averaged over the K takes. Arms 1–4 run on every take. Ablation and E twins stay single-take at the stored seed, scored against that take's M1.
-  - (b) `s(P)` = the largest single-take spread across the K takes. This makes it larger and so raises every primary bar `max(F, 2·s)`. Arms 1–4 run on the stored seed only.
-  - (c) Everything, `s(P)` and the arms alike, is taken from the stored-seed take only. K takes feed `D(P)` and `t_K` alone.
-- **Q5 — Must each rule-knob E cell (`E6.hi`, `E7.hi`) be the primary of its own showcase preset (OQ-11)?**
-  - (a) Primaries, as R-2 ruled: scored at bar F, with one candidate per knob in the pilot. FR-017 stops if the bar is unreachable. N = 38 + |R|.
-  - (b) Secondaries only, at bar `max(1.5, 2·s)`. Foregrounding rests on E1–E5. N = 38.
-  - (c) Primary if the pilot reaches F, otherwise demoted to secondary automatically, with the demotion recorded. N depends on the measurement.
-- **Q6 — In the FR-017a pilot, what does the deliberately authored near-variant pair's `d` decide?**
-  - (a) It only checks the floor: the pair MUST score `d < F`. If it scores ≥ F, that is an FR-017 stop, because the descriptor cannot tell near-variants apart.
-  - (b) It sets F: F = max(4.0, take term, `d_nv` + margin). Every F-based bar scales with it.
-  - (c) It is recorded only and has no gating role.
-- **Q7 — Is the E-ext side-predicate margin ratified at 0.5 (OQ-9 (d); `n ≥ n₀ + 0.5·(1 − n₀)`, `.lo` symmetric)?**
-  - (a) Ratify 0.5: `syncRate` stored ≥ 0.25, `selfAffinity` stored ≥ +0.5, and `.lo`/`.hi` stay mutually exclusive.
-  - (b) A stricter 0.75: showcases must sit near the counted extreme, which shrinks the authoring room.
-  - (c) No side predicate: the reversion ablation alone decides, and a token nudge could claim the cell.
-- **Q8 — How do ghost density and event triggers interact in the factory presets (OQ-4, FR-061)?**
-  - (a) Additive, as shipped: the 0.30 grains/s density scheduler keeps running and triggered grains are added on top. No new parameter.
-  - (b) Replacement: triggers replace density. This needs a new ghost-density parameter, which is outside FR-076's roster-only widening and would itself need a scope ruling.

@@ -143,3 +143,17 @@ WARNING: fewer than 4 audible knobs - a 4-6 roster cannot be proposed from audib
 - clang-tidy: `artifacts/clang_tidy_vorago_probe.log` — `-Target vorago`, 47 files, Errors 0, Warnings 0 (the first pass reported 21 in the probe TU: designated initialisers, a `_dupenv_s`/`free` pair replaced by `getenv_s`, nested conditionals, an uninitialised member, and the plan §4.3 `const_cast` marked NOLINT with its reason — all fixed, then re-run).
 - Portability: `artifacts/portability_probe.log` — `check-portability: all clear -- 1 compiled.` (the probe TU), followed by `wsl --shutdown` (exit 0).
 - The four probe runs above were made with the pre-tidy probe binary; the tidy pass changed no arithmetic (initialiser syntax, env reading, string branches), so their figures stand.
+
+## Plan §12 rulings (second pass)
+
+Ruled by the user 2026-09-29 (spec Clarifications "Plan stage (2026-09-29)" is the canonical record):
+
+1. P2-2 take sets — acknowledged (`A_K` / `B_K` of K takes each, K ≤ 8).
+2. P2-3 controls (a), (a′), (c) — same-seed single-take comparisons.
+3. P2-4 SC-026a access path — **drop** the `VoragoEcosystemRosterProbe` friend; read through `Processor::engineForTest()`.
+4. P2-1 order — E0 before stage B, acknowledged.
+5. §6.11 skip rules — acknowledged (skip only where the verdict is exact; reason recorded).
+6. SC-011 envelope clause — primaries by attack-window reversion, D8/D9 secondaries as state cells; acknowledged.
+
+Task confirmations: T003 is the single mid-phase registration (FR-027a), T060 audits; R-6 lands at T002; the tasks
+agent's added per-push cases stay; E0 tolerance 0.0015. Push-dependent tasks (T048, T057, T063) pending a push ruling.
