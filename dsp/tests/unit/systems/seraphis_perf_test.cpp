@@ -385,9 +385,11 @@ static_assert(kMeasuredWorstFullPolyNs * kBaselineHeadroom <= kMaxAdmissibleNs,
               "Phase 7's own composition cost); never raise the baseline");
 
 /// SC-002's bound: one SeraphisVoice::processStereoBlock costs at most 110 % of
-/// the arithmetic sum of its eight standalone sub-components. The 10 % allowance
-/// covers the carry-FIFO copies, the per-sample envelope multiply, the spatial
-/// stage's two multiplies and the morph->cloud handoff, and nothing else.
+/// its eight standalone sub-components run back-to-back in one timed block
+/// (amended 2026-09-29 - see the subject block below; the arithmetic sum of the
+/// eight is still printed). The 10 % allowance covers the carry-FIFO copies, the
+/// per-sample envelope multiply, the spatial stage's two multiplies and the
+/// morph->cloud handoff, and nothing else.
 constexpr double kCompositionOverheadBound = 1.10;
 
 /// FR-040's shipped default polyphony, and the count RQ-1 selected from RA-1's
@@ -901,61 +903,97 @@ struct SubjectResult {
     return SubjectResult{bestNsPerBlock(kSubjectTrials, kSubjectBlocksPerTrial, renderBlock), sink};
 }
 
-/// (1) HarmonicCloud, per-chunk cadence, generator.
-[[nodiscard]] SubjectResult measureCloudSubject()
-{
-    auto cloud = std::make_unique<HarmonicCloud>();
-    cloud->prepare(kSr48);
-    cloud->setSeed(deriveStreamSeed(kSc002Seed, SeraphisVoice::kCloudSalt));
-    // FR-019 defaults (seraphis_voice.h:269-277) with the SC-001/SC-002 pins on
-    // top - richness, mutation, drift and spread.
-    cloud->setRichness(kPinRichness);
-    cloud->setInharmonicity(0.030f);
-    cloud->setSpectralTiltDb(0.0f);
-    cloud->setMutation(kPinMutation);
-    cloud->setSpectralGravity(0.20f);
-    cloud->setDriftDepthCents(HarmonicCloud::kMaxDriftCents);
-    cloud->setStereoSpread(kPinStereoSpread);
-    cloud->setAttackTimeSec(0.05f);
-    cloud->setDecayTimeSec(0.5f);
-    cloud->setFundamentalHz(kBodyNoteHz);
-    cloud->noteOn();
+// The eight standalone subjects are OBJECTS, not measuring functions: each is
+// built once in the pinned configuration, warmed once, and then timed twice in
+// the same run - ALONE (best-of-N, the printed per-subject figure and their sum)
+// and BACK-TO-BACK with the other seven inside ONE timed block (best-of-N of the
+// whole, the SC-002 gate). Amended 2026-09-29 (user ruling, Phase 13b T030
+// resolution): the reference was the SUM of eight independently minimised
+// timings until then; that estimator is biased low - the minimum of a sum is
+// never below the sum of the minima - and on this very code it read 1.02, 1.11,
+// 1.17 and 1.19 across four idle, pinned runs of two binaries that differ in no
+// Seraphis source (`specs/vorago-phase13b-ecosystem-audibility/artifacts/
+// t014_cpu_resolution.md`, T030), exactly the flip Vorago's twin showed before
+// e0beed68 moved it onto the same statistic as the voice. The sum is still
+// printed. Each object holds its own Buffers, so they live on the heap
+// (std::make_unique) rather than eight copies on the test's stack.
 
+template <typename Subject>
+void warmSubject(Subject& subject) noexcept
+{
+    for (int i = 0; i < kSubjectWarmupBlocks; ++i) {
+        subject.renderBlock();
+    }
+}
+
+/// Best-of-N of one subject alone. The subject must already be warm.
+template <typename Subject>
+[[nodiscard]] SubjectResult measureAlone(Subject& subject)
+{
+    const auto renderBlock = [&]() noexcept { subject.renderBlock(); };
+    return SubjectResult{bestNsPerBlock(kSubjectTrials, kSubjectBlocksPerTrial, renderBlock),
+                         subject.sink};
+}
+
+/// (1) HarmonicCloud, per-chunk cadence, generator.
+struct CloudSubject {
+    std::unique_ptr<HarmonicCloud> cloud = std::make_unique<HarmonicCloud>();
     Buffers buf;
     double sink = 0.0;
-    const auto renderBlock = [&]() noexcept {
+
+    CloudSubject()
+    {
+        cloud->prepare(kSr48);
+        cloud->setSeed(deriveStreamSeed(kSc002Seed, SeraphisVoice::kCloudSalt));
+        // FR-019 defaults (seraphis_voice.h:269-277) with the SC-001/SC-002 pins on
+        // top - richness, mutation, drift and spread.
+        cloud->setRichness(kPinRichness);
+        cloud->setInharmonicity(0.030f);
+        cloud->setSpectralTiltDb(0.0f);
+        cloud->setMutation(kPinMutation);
+        cloud->setSpectralGravity(0.20f);
+        cloud->setDriftDepthCents(HarmonicCloud::kMaxDriftCents);
+        cloud->setStereoSpread(kPinStereoSpread);
+        cloud->setAttackTimeSec(0.05f);
+        cloud->setDecayTimeSec(0.5f);
+        cloud->setFundamentalHz(kBodyNoteHz);
+        cloud->noteOn();
+    }
+
+    void renderBlock() noexcept
+    {
         for (std::size_t c = 0; c < kChunksPerBlock; ++c) {
             const std::size_t off = c * kChunk;
             cloud->processStereoBlock(buf.outLeft.data() + off, buf.outRight.data() + off, kChunk);
         }
         sink += static_cast<double>(buf.outLeft[0])
                 + static_cast<double>(buf.outRight[kBlockSize - 1]);
-    };
-    for (int i = 0; i < kSubjectWarmupBlocks; ++i) {
-        renderBlock();
     }
-    return SubjectResult{bestNsPerBlock(kSubjectTrials, kSubjectBlocksPerTrial, renderBlock), sink};
-}
+};
 
 /// (2) SpectralMorphEngine (which carries EntropyProcessor). One updateChunk per
 /// control chunk, the cadence seraphis_voice.h:887 drives.
-[[nodiscard]] SubjectResult measureMorphSubject()
-{
-    auto morph = std::make_unique<SpectralMorphEngine>();
-    morph->prepare(kSr48);
-    morph->setSeed(deriveStreamSeed(kSc002Seed, SeraphisVoice::kMorphSalt));
-    // FR-019a's two-state set plus FR-019's morph rows (seraphis_voice.h:256-282).
-    morph->setState(0, makeFactoryState(SpectralStateId::SineStack));
-    morph->setState(1, makeFactoryState(SpectralStateId::Glass));
-    morph->setStateCount(2);
-    morph->setTravelMode(SpectralMorphEngine::TravelMode::External);
-    morph->setTargetPosition(0.0f);
-    morph->setEntropy(0.20f);
-    morph->setBloom(0.0f);
-    morph->setTravelRate(SpectralMorphEngine::kMinTravelRate);
-
+struct MorphSubject {
+    std::unique_ptr<SpectralMorphEngine> morph = std::make_unique<SpectralMorphEngine>();
     double sink = 0.0;
-    const auto renderBlock = [&]() noexcept {
+
+    MorphSubject()
+    {
+        morph->prepare(kSr48);
+        morph->setSeed(deriveStreamSeed(kSc002Seed, SeraphisVoice::kMorphSalt));
+        // FR-019a's two-state set plus FR-019's morph rows (seraphis_voice.h:256-282).
+        morph->setState(0, makeFactoryState(SpectralStateId::SineStack));
+        morph->setState(1, makeFactoryState(SpectralStateId::Glass));
+        morph->setStateCount(2);
+        morph->setTravelMode(SpectralMorphEngine::TravelMode::External);
+        morph->setTargetPosition(0.0f);
+        morph->setEntropy(0.20f);
+        morph->setBloom(0.0f);
+        morph->setTravelRate(SpectralMorphEngine::kMinTravelRate);
+    }
+
+    void renderBlock() noexcept
+    {
         for (std::size_t c = 0; c < kChunksPerBlock; ++c) {
             morph->updateChunk(kChunk);
         }
@@ -964,24 +1002,24 @@ struct SubjectResult {
         // the pipeline away.
         const float* amps = morph->getOutputAmplitudes();
         sink += static_cast<double>(amps[0]);
-    };
-    for (int i = 0; i < kSubjectWarmupBlocks; ++i) {
-        renderBlock();
     }
-    return SubjectResult{bestNsPerBlock(kSubjectTrials, kSubjectBlocksPerTrial, renderBlock), sink};
-}
+};
 
 /// (3) ContinuousBody, per-chunk cadence, in the pinned worst-material config.
-[[nodiscard]] SubjectResult measureBodySubject(ContinuousBody::BodyMaterial worstMaterial)
-{
-    auto body = std::make_unique<ContinuousBody>();
-    configurePinnedBody(*body, worstMaterial);
-    body->setSeed(deriveStreamSeed(kSc002Seed, SeraphisVoice::kBodySalt));
-
+struct BodySubject {
+    std::unique_ptr<ContinuousBody> body = std::make_unique<ContinuousBody>();
     Buffers buf;
-    fillExcitation(buf);
     double sink = 0.0;
-    const auto renderBlock = [&]() noexcept {
+
+    explicit BodySubject(ContinuousBody::BodyMaterial worstMaterial)
+    {
+        configurePinnedBody(*body, worstMaterial);
+        body->setSeed(deriveStreamSeed(kSc002Seed, SeraphisVoice::kBodySalt));
+        fillExcitation(buf);
+    }
+
+    void renderBlock() noexcept
+    {
         for (std::size_t c = 0; c < kChunksPerBlock; ++c) {
             const std::size_t off = c * kChunk;
             body->processStereoBlock(buf.inLeft.data() + off, buf.inRight.data() + off,
@@ -989,39 +1027,39 @@ struct SubjectResult {
         }
         sink += static_cast<double>(buf.outLeft[0])
                 + static_cast<double>(buf.outRight[kBlockSize - 1]);
-    };
-    for (int i = 0; i < kSubjectWarmupBlocks; ++i) {
-        renderBlock();
     }
-    return SubjectResult{bestNsPerBlock(kSubjectTrials, kSubjectBlocksPerTrial, renderBlock), sink};
-}
+};
 
 /// (4) AtmosphereEngine, per-chunk cadence, at the FR-014 shipped capture
 /// configuration and the FR-019 control values, UNFROZEN.
-[[nodiscard]] SubjectResult measureAtmosphereSubject()
-{
-    const SeraphisVoiceConfig vc{};  // the FR-014 shipped voice config
-    auto atmos = std::make_unique<AtmosphereEngine>();
-    atmos->prepare(kSr48, AtmosphereEngine::PrepareConfig{.captureSeconds = vc.captureSeconds,
-                                                          .blurEnabled = vc.blurEnabled,
-                                                          .freezeEnabled = vc.freezeEnabled,
-                                                          .blurFftSize = vc.blurFftSize,
-                                                          .freezeFftSize = vc.freezeFftSize,
-                                                          .maxBlockSamples = vc.maxBlockSamples});
-    atmos->setSeed(deriveStreamSeed(kSc002Seed, SeraphisVoice::kAtmosSalt));
-    atmos->setLevel(0.5f);
-    atmos->setBlur(0.0f);
-    atmos->setDensity(4.0f);
-    atmos->setGrainSeconds(4.0f);
-    atmos->setDriftDepth(0.3f);
-    atmos->setPanSpread(0.7f);
-    atmos->setDecorrelation(0.5f);
-    atmos->setFreezeMix(0.0f);
-
+struct AtmosphereSubject {
+    std::unique_ptr<AtmosphereEngine> atmos = std::make_unique<AtmosphereEngine>();
     Buffers buf;
-    fillExcitation(buf);
     double sink = 0.0;
-    const auto renderBlock = [&]() noexcept {
+
+    AtmosphereSubject()
+    {
+        const SeraphisVoiceConfig vc{};  // the FR-014 shipped voice config
+        atmos->prepare(kSr48, AtmosphereEngine::PrepareConfig{.captureSeconds = vc.captureSeconds,
+                                                              .blurEnabled = vc.blurEnabled,
+                                                              .freezeEnabled = vc.freezeEnabled,
+                                                              .blurFftSize = vc.blurFftSize,
+                                                              .freezeFftSize = vc.freezeFftSize,
+                                                              .maxBlockSamples = vc.maxBlockSamples});
+        atmos->setSeed(deriveStreamSeed(kSc002Seed, SeraphisVoice::kAtmosSalt));
+        atmos->setLevel(0.5f);
+        atmos->setBlur(0.0f);
+        atmos->setDensity(4.0f);
+        atmos->setGrainSeconds(4.0f);
+        atmos->setDriftDepth(0.3f);
+        atmos->setPanSpread(0.7f);
+        atmos->setDecorrelation(0.5f);
+        atmos->setFreezeMix(0.0f);
+        fillExcitation(buf);
+    }
+
+    void renderBlock() noexcept
+    {
         for (std::size_t c = 0; c < kChunksPerBlock; ++c) {
             const std::size_t off = c * kChunk;
             atmos->processStereoBlock(buf.inLeft.data() + off, buf.inRight.data() + off,
@@ -1029,33 +1067,26 @@ struct SubjectResult {
         }
         sink += static_cast<double>(buf.outLeft[0])
                 + static_cast<double>(buf.outRight[kBlockSize - 1]);
-    };
-    for (int i = 0; i < kSubjectWarmupBlocks; ++i) {
-        renderBlock();
     }
-    return SubjectResult{bestNsPerBlock(kSubjectTrials, kSubjectBlocksPerTrial, renderBlock), sink};
-}
+};
 
 /// (5) MultiStageEnvelope: one process() per SAMPLE, the cadence
 /// seraphis_voice.h:906-911 drives.
-[[nodiscard]] SubjectResult measureEnvelopeSubject()
-{
+struct EnvelopeSubject {
     MultiStageEnvelope mse;
-    configureStandardEnvelope(mse);
-
     double sink = 0.0;
-    const auto renderBlock = [&]() noexcept {
+
+    EnvelopeSubject() { configureStandardEnvelope(mse); }
+
+    void renderBlock() noexcept
+    {
         float acc = 0.0f;
         for (std::size_t s = 0; s < kBlockSize; ++s) {
             acc += mse.process();
         }
         sink += static_cast<double>(acc);
-    };
-    for (int i = 0; i < kSubjectWarmupBlocks; ++i) {
-        renderBlock();
     }
-    return SubjectResult{bestNsPerBlock(kSubjectTrials, kSubjectBlocksPerTrial, renderBlock), sink};
-}
+};
 
 /// (6) GrowthEnvelope: one processBlock per control chunk plus the held read,
 /// the cadence seraphis_voice.h:897-898 drives IN GROWTH MODE.
@@ -1075,77 +1106,80 @@ struct SubjectResult {
 /// (growth_envelope.h - it holds). trigger() is a documented no-op while Rising
 /// or Complete, so a per-trial re-arm is not reachable without a reset() inside
 /// the timed region, which would measure the reset instead.
-[[nodiscard]] SubjectResult measureGrowthSubject()
-{
+struct GrowthSubject {
     GrowthEnvelope growth;
-    growth.prepare(kSr48);
-    growth.setDuration(10.0f);  // FR-019's shipped duration
-    growth.trigger();
-
     double sink = 0.0;
-    const auto renderBlock = [&]() noexcept {
+
+    GrowthSubject()
+    {
+        growth.prepare(kSr48);
+        growth.setDuration(10.0f);  // FR-019's shipped duration
+        growth.trigger();
+    }
+
+    void renderBlock() noexcept
+    {
         float acc = 0.0f;
         for (std::size_t c = 0; c < kChunksPerBlock; ++c) {
             growth.processBlock(kChunk);
             acc += growth.getCurrentValue();
         }
         sink += static_cast<double>(acc);
-    };
-    for (int i = 0; i < kSubjectWarmupBlocks; ++i) {
-        renderBlock();
     }
-    return SubjectResult{bestNsPerBlock(kSubjectTrials, kSubjectBlocksPerTrial, renderBlock), sink};
-}
+};
 
 /// (7) OrbitModulator: one processBlock per control chunk plus both axis reads,
 /// the cadence seraphis_voice.h:1013-1015 drives.
-[[nodiscard]] SubjectResult measureOrbitSubject()
-{
+struct OrbitSubject {
     OrbitModulator orbit;
-    orbit.prepare(kSr48);
-    orbit.setSeed(deriveStreamSeed(kSc002Seed, SeraphisVoice::kOrbitSalt));
-    orbit.setDepth(kSc002SpatialDepth);
-    orbit.setRate(0.1f);      // FR-019 (unchanged)
-    orbit.setCoupling(0.0f);  // FR-019 (unchanged)
-    orbit.setGrowth(0.0f);    // FR-019 (unchanged)
-
     double sink = 0.0;
-    const auto renderBlock = [&]() noexcept {
+
+    OrbitSubject()
+    {
+        orbit.prepare(kSr48);
+        orbit.setSeed(deriveStreamSeed(kSc002Seed, SeraphisVoice::kOrbitSalt));
+        orbit.setDepth(kSc002SpatialDepth);
+        orbit.setRate(0.1f);      // FR-019 (unchanged)
+        orbit.setCoupling(0.0f);  // FR-019 (unchanged)
+        orbit.setGrowth(0.0f);    // FR-019 (unchanged)
+    }
+
+    void renderBlock() noexcept
+    {
         float acc = 0.0f;
         for (std::size_t c = 0; c < kChunksPerBlock; ++c) {
             orbit.processBlock(kChunk);
             acc += orbit.getCurrentValue() + orbit.getY();
         }
         sink += static_cast<double>(acc);
-    };
-    for (int i = 0; i < kSubjectWarmupBlocks; ++i) {
-        renderBlock();
     }
-    return SubjectResult{bestNsPerBlock(kSubjectTrials, kSubjectBlocksPerTrial, renderBlock), sink};
-}
+};
 
 /// (8) MidSideProcessor: one setWidth + one process per control chunk, the
 /// cadence seraphis_voice.h:1029/1037 drives. The width table spans exactly the
 /// excursion the FR-025 stage produces at SC-002's spatial depth
 /// (100 +- 0.5 * kVoiceWidthSpanPct), so the smoother is genuinely in motion
 /// rather than parked on a constant target.
-[[nodiscard]] SubjectResult measureMidSideSubject()
-{
+struct MidSideSubject {
     MidSideProcessor ms;
-    ms.prepare(static_cast<float>(kSr48), kChunk);
-
     std::array<float, kChunksPerBlock> widths{};
-    for (std::size_t c = 0; c < kChunksPerBlock; ++c) {
-        const float phase = 6.283185307179586f * static_cast<float>(c)
-                            / static_cast<float>(kChunksPerBlock);
-        widths[c] = 100.0f
-                    + kSc002SpatialDepth * SeraphisVoice::kVoiceWidthSpanPct * std::sin(phase);
+    Buffers buf;
+    double sink = 0.0;
+
+    MidSideSubject()
+    {
+        ms.prepare(static_cast<float>(kSr48), kChunk);
+        for (std::size_t c = 0; c < kChunksPerBlock; ++c) {
+            const float phase = 6.283185307179586f * static_cast<float>(c)
+                                / static_cast<float>(kChunksPerBlock);
+            widths[c] = 100.0f
+                        + kSc002SpatialDepth * SeraphisVoice::kVoiceWidthSpanPct * std::sin(phase);
+        }
+        fillExcitation(buf);
     }
 
-    Buffers buf;
-    fillExcitation(buf);
-    double sink = 0.0;
-    const auto renderBlock = [&]() noexcept {
+    void renderBlock() noexcept
+    {
         for (std::size_t c = 0; c < kChunksPerBlock; ++c) {
             const std::size_t off = c * kChunk;
             ms.setWidth(widths[c]);
@@ -1154,12 +1188,8 @@ struct SubjectResult {
         }
         sink += static_cast<double>(buf.outLeft[0])
                 + static_cast<double>(buf.outRight[kBlockSize - 1]);
-    };
-    for (int i = 0; i < kSubjectWarmupBlocks; ++i) {
-        renderBlock();
     }
-    return SubjectResult{bestNsPerBlock(kSubjectTrials, kSubjectBlocksPerTrial, renderBlock), sink};
-}
+};
 
 // =============================================================================
 // Reporting
@@ -1334,40 +1364,78 @@ TEST_CASE("SeraphisVoice_CompositionOverhead", "[.perf][systems][seraphis]")
     const ContinuousBody::BodyMaterial worstMaterial = kMaterials[survey.worstIndex];
 
     // The eight sub-components FR-002 enumerates, each standalone in the same
-    // pinned configuration, each best-of-N in its own right. The ratio is
-    // computed from these AGGREGATES, never from single runs.
-    const SubjectResult cloud = measureCloudSubject();
-    const SubjectResult morph = measureMorphSubject();
-    const SubjectResult body = measureBodySubject(worstMaterial);
-    const SubjectResult atmos = measureAtmosphereSubject();
-    const SubjectResult mse = measureEnvelopeSubject();
-    const SubjectResult growth = measureGrowthSubject();
-    const SubjectResult orbit = measureOrbitSubject();
-    const SubjectResult midside = measureMidSideSubject();
+    // pinned configuration, built and warmed once.
+    auto cloudS = std::make_unique<CloudSubject>();
+    auto morphS = std::make_unique<MorphSubject>();
+    auto bodyS = std::make_unique<BodySubject>(worstMaterial);
+    auto atmosS = std::make_unique<AtmosphereSubject>();
+    auto mseS = std::make_unique<EnvelopeSubject>();
+    auto growthS = std::make_unique<GrowthSubject>();
+    auto orbitS = std::make_unique<OrbitSubject>();
+    auto midsideS = std::make_unique<MidSideSubject>();
+    warmSubject(*cloudS);
+    warmSubject(*morphS);
+    warmSubject(*bodyS);
+    warmSubject(*atmosS);
+    warmSubject(*mseS);
+    warmSubject(*growthS);
+    warmSubject(*orbitS);
+    warmSubject(*midsideS);
+
+    // Each alone, best-of-N in its own right: the printed per-subject figures.
+    const SubjectResult cloud = measureAlone(*cloudS);
+    const SubjectResult morph = measureAlone(*morphS);
+    const SubjectResult body = measureAlone(*bodyS);
+    const SubjectResult atmos = measureAlone(*atmosS);
+    const SubjectResult mse = measureAlone(*mseS);
+    const SubjectResult growth = measureAlone(*growthS);
+    const SubjectResult orbit = measureAlone(*orbitS);
+    const SubjectResult midside = measureAlone(*midsideS);
+
+    // THE REFERENCE (amended 2026-09-29): the eight run back-to-back inside ONE
+    // timed block, minimised as a whole exactly like the voice - the same
+    // statistic on both sides of the ratio. Measured right before the voice so
+    // the two arms share the machine state as closely as one run allows.
+    const auto renderParts = [&]() noexcept {
+        cloudS->renderBlock();
+        morphS->renderBlock();
+        bodyS->renderBlock();
+        atmosS->renderBlock();
+        mseS->renderBlock();
+        growthS->renderBlock();
+        orbitS->renderBlock();
+        midsideS->renderBlock();
+    };
+    const double partsNs = bestNsPerBlock(kSubjectTrials, kSubjectBlocksPerTrial, renderParts);
 
     const SubjectResult voice = measureVoiceSubject(worstMaterial);
 
+    // The former reference, the arithmetic sum of eight independently minimised
+    // timings: PRINTED, never gated (biased low - see the subject block above).
     const double sumNs = cloud.nsPerBlock + morph.nsPerBlock + body.nsPerBlock + atmos.nsPerBlock
                          + mse.nsPerBlock + growth.nsPerBlock + orbit.nsPerBlock
                          + midside.nsPerBlock;
     // The same sum WITHOUT GrowthEnvelope, which the Standard-mode voice never
-    // advances (see measureGrowthSubject's note). Reported, not gated - SC-002's
+    // advances (see GrowthSubject's note). Reported, not gated - SC-002's
     // denominator is the eight.
     const double sumWithoutGrowthNs = sumNs - growth.nsPerBlock;
 
     // Non-vacuity: every subject must have produced real work and a finite sink,
-    // otherwise the ratio is a division of noise by noise.
-    const std::array<double, 9> allSinks = {{cloud.sink, morph.sink, body.sink, atmos.sink,
-                                             mse.sink, growth.sink, orbit.sink, midside.sink,
-                                             voice.sink}};
+    // otherwise the ratio is a division of noise by noise. The sinks are read
+    // AFTER the back-to-back arm, so they cover every timed pass.
+    const std::array<double, 9> allSinks = {{cloudS->sink, morphS->sink, bodyS->sink, atmosS->sink,
+                                             mseS->sink, growthS->sink, orbitS->sink,
+                                             midsideS->sink, voice.sink}};
     for (std::size_t i = 0; i < allSinks.size(); ++i) {
         INFO("subject sink index " << i);
         REQUIRE(isFiniteValue(static_cast<float>(allSinks[i])));
     }
     REQUIRE(sumNs > 0.0);
+    REQUIRE(partsNs > 0.0);
     REQUIRE(voice.nsPerBlock > 0.0);
 
-    const double ratio = voice.nsPerBlock / sumNs;
+    const double ratioParts = voice.nsPerBlock / partsNs;
+    const double ratioSum = voice.nsPerBlock / sumNs;
 
     {
         std::ostringstream os;
@@ -1387,10 +1455,13 @@ TEST_CASE("SeraphisVoice_CompositionOverhead", "[.perf][systems][seraphis]")
            << "                        the ratio DOWNWARD - see the ratio excluding it below)\n"
            << "  OrbitModulator      : " << orbit.nsPerBlock << " ns/block\n"
            << "  MidSideProcessor    : " << midside.nsPerBlock << " ns/block\n"
-           << "  --- sum of eight    : " << sumNs << " ns/block\n"
+           << "  --- sum of eight    : " << sumNs << " ns/block  (printed, not gated)\n"
+           << "  --- parts back-to-back: " << partsNs << " ns/block  (THE REFERENCE)\n"
            << "  SeraphisVoice       : " << voice.nsPerBlock << " ns/block\n"
-           << "  ratio (SC-002)      : " << ratio << "   (bound <= " << kCompositionOverheadBound
-           << ")\n"
+           << "  ratio whole / parts : " << ratioParts << "   (bound <= " << kCompositionOverheadBound
+           << ", THE GATE - SC-002 as amended 2026-09-29)\n"
+           << "  ratio whole / sum   : " << ratioSum
+           << "   (printed, not gated - biased low, see the subject block)\n"
            << "  ratio excl. growth  : " << (voice.nsPerBlock / sumWithoutGrowthNs)
            << "   (reported for compliance.md, NOT the gate)";
         WARN(os.str());
@@ -1399,7 +1470,7 @@ TEST_CASE("SeraphisVoice_CompositionOverhead", "[.perf][systems][seraphis]")
     INFO("SC-002: the 10 % allowance covers the carry-FIFO copies, the per-sample envelope "
          "multiply, the spatial stage's two multiplies and the morph->cloud handoff, and nothing "
          "else");
-    REQUIRE(ratio <= kCompositionOverheadBound);
+    REQUIRE(ratioParts <= kCompositionOverheadBound);
 }
 
 // =============================================================================

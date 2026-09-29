@@ -1449,6 +1449,14 @@ already derives.
   `Standard` mode gated on, spatial depth 0.5, 512-sample blocks at 48 kHz.
   *Measurement discipline, copied from SC-001:* ≥ 8 trials, **best-of-N** per subject, the ratio computed
   from the aggregated figures — never from single runs.
+  **Amended 2026-09-29 (Vorago Phase 13b T030 resolution, user ruling):** the reference is the eight
+  sub-components run **back-to-back inside one timed block**, minimised as a whole exactly like the
+  voice; the former reference — the arithmetic sum of eight independently minimised timings — is biased
+  low (the minimum of a sum is never below the sum of the minima) and on unchanged Seraphis code read
+  1.02, 1.11, 1.17 and 1.19 across four idle, pinned runs of two binaries, flipping the verdict at the
+  1.1 bound, exactly as the Vorago twin did before `e0beed68`. The bound stays 1.10; the sum is still
+  printed. Evidence: `specs/vorago-phase13b-ecosystem-audibility/artifacts/t014_cpu_resolution.md` (T030)
+  and `seraphis_fix_CompositionOverhead_run{1,2}.log` there.
   *Test:* `SeraphisVoice_CompositionOverhead` `[.perf]`.
 - **SC-003 — Voice-steal clicklessness.** Roadmap line 312. Measured on **the composed chain**.
 

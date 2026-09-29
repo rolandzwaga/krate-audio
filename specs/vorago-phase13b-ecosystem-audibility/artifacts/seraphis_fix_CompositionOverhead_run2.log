@@ -1,0 +1,47 @@
+START 2026-09-29 09:50:15 run2 SeraphisVoice_CompositionOverhead gated on parts back-to-back (alone, pinned, 60 s settle)
+pin-perf-cores: performance-core mask 0xFFFF
+Filters: "SeraphisVoice_CompositionOverhead"
+Randomness seeded to: 930452325
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+SeraphisVoice_CompositionOverhead
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\seraphis_perf_test.cpp(1360)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\seraphis_perf_test.cpp(1467): warning:
+  SC-002 per-voice composition overhead (512-sample blocks @ 48 kHz, best-of-16
+  x 200,
+          64 partials + drift, FR-019 defaults, worst body material (Chamber),
+  atmosphere UNFROZEN,
+          Standard envelope gated on, spatial depth 0.5):
+    HarmonicCloud       : 21011 ns/block
+    SpectralMorphEngine : 8507.5 ns/block
+    ContinuousBody      : 33858 ns/block
+    AtmosphereEngine    : 76938.5 ns/block
+    MultiStageEnvelope  : 1474 ns/block
+    GrowthEnvelope      : 17 ns/block  (in the denominator by FR-002's eight;
+  the
+                          Standard-mode voice never advances it, so this term
+  biases
+                          the ratio DOWNWARD - see the ratio excluding it
+  below)
+    OrbitModulator      : 589.5 ns/block
+    MidSideProcessor    : 1737 ns/block
+    --- sum of eight    : 144132 ns/block  (printed, not gated)
+    --- parts back-to-back: 167678 ns/block  (THE REFERENCE)
+    SeraphisVoice       : 162195 ns/block
+    ratio whole / parts : 0.9673   (bound <= 1.1, THE GATE - SC-002 as amended
+  2026-09-29)
+    ratio whole / sum   : 1.12532   (printed, not gated - biased low, see the
+  subject block)
+    ratio excl. growth  : 1.12545   (reported for compliance.md, NOT the gate)
+
+===============================================================================
+All tests passed (14 assertions in 1 test case)
+
+exit=0 END 2026-09-29 09:50:18

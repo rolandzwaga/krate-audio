@@ -54,3 +54,14 @@ Pinned perf roster alone (`after_cpu_final2.log`, `pin-perf-cores.ps1`, filter `
 | `VoragoVoice_CompositionOverhead` (Phase 10 SC-003, parts-back-to-back gate 1.15) | PASS in the roster | 1.07392 (`perf_fix_CompositionOverhead_gated_run1.log`) | PASS |
 | SympatheticResonance SIMD benchmark (`[sympathetic][simd]`, bound SIMD ≥ 0.9× scalar) | 0.71× in the roster (back-to-back, 4.5 min into it) | 1.02× (`before_cpu.log`) | re-run alone after a 5-min settle: **0.93× PASS** (`after_perf_isolated_SympatheticResonance_SIMD.log`) — the roster's back-to-back heat, not the code (untouched by this phase) |
 | `SeraphisVoice_CompositionOverhead` (Seraphis SC-002, sum-of-eight estimator, bound 1.1) | 1.16887 | 1.01677 (`before_perf_isolated_SeraphisVoice_CompositionOverhead.log`) | alone after a 5-min settle: 1.18631 FAIL (`after_perf_isolated_SeraphisVoice_CompositionOverhead.log`); alternating A/B, alone, pinned, 5-min settles: **`05d04f66` (pre-phase binary) 1.11308 FAIL, current tree 1.07634 PASS** (`after_perf_ab_{05d04f66,new}_SeraphisVoice_CompositionOverhead.log`). The verdict flips between runs of BOTH binaries (old 1.017 → 1.113; new 1.169 → 1.186 → 1.076) and the newer binary reads lower in the paired run: this is the sum-of-minima estimator bias already diagnosed for `VoragoVoice_CompositionOverhead` (this file, perf-fix section; fixed for Vorago in `e0beed68` by gating on parts-back-to-back), now showing on the Seraphis twin. Not a Phase 13b regression — no Seraphis or shared-component source changed in this phase (dsp/ production diff: `vorago_voice.h`, `vorago_engine.h` only). Surfaced under FR-017 for a ruling: apply the `e0beed68` estimator fix to `seraphis_perf_test.cpp` in its own commit, as was done for Vorago |
+
+### Ruling and fix (2026-09-29 09:40-09:50)
+
+User ruling: apply the `e0beed68` estimator fix to `seraphis_perf_test.cpp` in its own commit. The eight standalone subjects became objects (built and warmed once), timed alone (printed) and back-to-back inside one timed block (the SC-002 gate, bound 1.10 unchanged); Seraphis Phase 7 spec SC-002 amended. Alone, pinned, 60 s settles:
+
+| run | parts back-to-back | voice | **whole / parts (gate)** | whole / sum (printed) | log |
+|---|---|---|---|---|---|
+| 1 | 159570 | 153466 | **0.9617 PASS** | 0.9051 | `seraphis_fix_CompositionOverhead_run1.log` |
+| 2 | 167678 | 162195 | **0.9673 PASS** | 1.1253 | `seraphis_fix_CompositionOverhead_run2.log` |
+
+The gated statistic moves by 0.006 between the runs while the old sum-of-minima ratio moves by 0.22 and crosses the bound — the bias the ruling names. Build 0 warnings; clang-tidy and portability in `seraphis_fix_clang_tidy_dsp.log` / `seraphis_fix_portability.log`.
