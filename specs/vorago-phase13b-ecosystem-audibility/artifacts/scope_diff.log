@@ -1,0 +1,90 @@
+T032 - Scope and surface check (SC-015, SC-017, FR-026..FR-028)
+date: 2026-09-29T04:49:27Z
+branch: feat/vorago-phase1-events-modulation   HEAD: b6a93f9a
+phase-base: 6cef994b (from artifacts/phase_base.txt; plan named 9ecd6d10, HEAD had moved by the docs-only commit 6cef994b)
+diff scope: phase-base vs working tree (git diff 6cef994b, covers committed b6a93f9a/e0beed68 + uncommitted) plus untracked files
+
+== 1. git diff --stat 6cef994b (artifacts/ excluded for readability) ==
+ .serena/project.yml                                |   48 +-
+ dsp/include/krate/dsp/systems/vorago_engine.h      |    1 +
+ dsp/include/krate/dsp/systems/vorago_voice.h       |  253 ++-
+ dsp/tests/CMakeLists.txt                           |    9 +
+ dsp/tests/unit/systems/atmosphere_ghost_fixtures.h |   63 +-
+ dsp/tests/unit/systems/vector_mixer_tests.cpp      |   42 +-
+ .../vorago_ecosystem_lever_longrun_test.cpp        |  207 ++
+ .../unit/systems/vorago_ecosystem_lever_test.cpp   | 2015 ++++++++++++++++++++
+ dsp/tests/unit/systems/vorago_perf_test.cpp        |  248 +--
+ .../unit/systems/vorago_voice_longrun_test.cpp     |   17 +-
+ .../integration/ecosystem_rule_probe_test.cpp      |  626 +++++-
+ specs/vorago-phase10-voice-engine/spec.md          |    6 +
+ specs/vorago-phase13b-ecosystem-audibility/plan.md |    2 +-
+ specs/vorago-phase13b-ecosystem-audibility/spec.md |  118 +-
+ .../vorago-phase13b-ecosystem-audibility/tasks.md  |   59 +-
+ 15 files changed, 3444 insertions(+), 270 deletions(-)
+
+== 2. Untracked files (git ls-files --others --exclude-standard) ==
+specs/vorago-phase13b-ecosystem-audibility/artifacts/after_cpu.log
+specs/vorago-phase13b-ecosystem-audibility/artifacts/after_suite_dsp_core_tests.log
+specs/vorago-phase13b-ecosystem-audibility/artifacts/after_suite_dsp_effects_tests.log
+specs/vorago-phase13b-ecosystem-audibility/artifacts/after_suite_dsp_primitives_tests.log
+specs/vorago-phase13b-ecosystem-audibility/artifacts/after_suite_dsp_processors_tests.log
+specs/vorago-phase13b-ecosystem-audibility/artifacts/after_suite_dsp_systems_tests.log
+specs/vorago-phase13b-ecosystem-audibility/artifacts/after_suite_seraphis_tests.log
+specs/vorago-phase13b-ecosystem-audibility/artifacts/after_suite_shared_tests.log
+specs/vorago-phase13b-ecosystem-audibility/artifacts/after_suite_vorago_tests.log
+specs/vorago-phase13b-ecosystem-audibility/artifacts/scope_diff.log
+
+== 3. Production files changed (dsp/include/** or plugins/*/src/**) ==
+dsp/include/krate/dsp/systems/vorago_engine.h
+dsp/include/krate/dsp/systems/vorago_voice.h
+-> expected exactly: dsp/include/krate/dsp/systems/vorago_engine.h, dsp/include/krate/dsp/systems/vorago_voice.h
+
+== 4. numstat of production files ==
+1	0	dsp/include/krate/dsp/systems/vorago_engine.h
+238	15	dsp/include/krate/dsp/systems/vorago_voice.h
+
+== 5. vorago_engine.h full diff (must be one friend line) ==
+diff --git a/dsp/include/krate/dsp/systems/vorago_engine.h b/dsp/include/krate/dsp/systems/vorago_engine.h
+index 6400dd7f..51eb10c6 100644
+--- a/dsp/include/krate/dsp/systems/vorago_engine.h
++++ b/dsp/include/krate/dsp/systems/vorago_engine.h
+@@ -1302,6 +1302,7 @@ private:
+     friend class VoragoMacroMatrix;                   // apply() needs non-const voice access
+     friend struct detail::VoragoEngineNonFiniteProbe;  // SC-029 (B-4)
+     friend struct detail::VoragoEcosystemRuleProbe;    // Phase 14 FR-070 (B-4)
++    friend struct detail::VoragoEcosystemLeverProbe;   // Phase 13b FR-023 (B-4)
+ 
+     // =========================================================================
+     // Engine-owned defaults that are NOT component defaults (S8.3)
+
+== 6. vorago_voice.h #include changes (none expected) ==
+(none)
+
+== 7. Forbidden-path sweep over git diff --name-only 6cef994b ==
+pattern: plugins/seraphis/ | plugins/vorago/src/ | harmonic_cloud.h | atmosphere_engine.h | continuous_body.h | aether_reverb.h | entropy_processor.h | brownian_drift | tidal_modulator | spline_trajectory | orbit_modulator | breathing_modulator | growth_envelope | seraphis_*.h | noise_organism.h | resonance_drift_network.h | feedback_ecology.h | bloom_engine.h | ecosystem_engine.h | vorago_macro_matrix.h
+(no matches - grep exit 1)
+(no untracked files under dsp/ or plugins/)
+
+== 8. plugins/vorago/src diff line count ==
+0
+
+== 9. kCurrentStateVersion ==
+plugins/vorago/src/plugin_ids.h:23:constexpr Steinberg::int32 kCurrentStateVersion = 2;
+0
+
+== 10. Non-production, non-spec changes (tests / tooling) for the record ==
+.serena/project.yml
+dsp/tests/CMakeLists.txt
+dsp/tests/unit/systems/atmosphere_ghost_fixtures.h
+dsp/tests/unit/systems/vector_mixer_tests.cpp
+dsp/tests/unit/systems/vorago_ecosystem_lever_longrun_test.cpp
+dsp/tests/unit/systems/vorago_ecosystem_lever_test.cpp
+dsp/tests/unit/systems/vorago_perf_test.cpp
+dsp/tests/unit/systems/vorago_voice_longrun_test.cpp
+plugins/vorago/tests/integration/ecosystem_rule_probe_test.cpp
+note: .serena/project.yml is an IDE-tool config modification present in the working tree at session start (not phase work, not production).
+note: vector_mixer_tests.cpp, vorago_perf_test.cpp and specs/vorago-phase10-voice-engine/spec.md changed in e0beed68 (perf-gate test fix, T014 user ruling) - test/spec only.
+
+== VERDICT ==
+PASS: production changes confined to vorago_voice.h (+238/-15, no include changes) and vorago_engine.h (+1: friend struct detail::VoragoEcosystemLeverProbe);
+      no plugins/seraphis/**, no plugins/vorago/src/**, none of the forbidden DSP headers touched; kCurrentStateVersion == 2 (plugin_ids.h:23, unchanged).

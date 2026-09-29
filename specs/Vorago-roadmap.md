@@ -598,6 +598,15 @@ to expose in Phase 14.
 - Phase 14 then re-runs its specify stage against the new surface: Q2's roster comes from the 13b
   probe table, and state v3 plus the ecosystem-page controls follow as already ruled.
 
+**Status: ✅ COMPLETE (2026-09-29)** — see specs/vorago-phase13b-ecosystem-audibility/compliance.md.
+Gate 1 PASS on both surfaces at the bar ruled on the measured ladder (f = 0.5 of the six-seed off-reseed
+median: 0.656 default / 0.638 Life max; before the phase 0.132 / 0.263 in the same unit). Gate 2 **recorded
+UNMET by ruling (2026-09-28)**: 2 of the 4 knobs (syncRate, selfAffinity) count on the shipped tree — the
+wander lever that made 4 count (6 st) broke Phase 10's zipper bound, and the shipped 3 st,
+rate-compensated lever keeps both Phase 10 bounds instead. Phase 14 Q2 counts its knobs from the two
+FR-013 tables. CPU after 89 % of before; every Phase 2-13 suite, pluginval, clang-tidy, portability and the
+[long] soaks green.
+
 **Success criteria:** both probe gates with cited logs; the full knob table recorded; the
 default-render change documented as intentional; no regression in the earlier suites; CPU delta.
 
@@ -646,7 +655,7 @@ Phase 1           ├─→ Phase 4 (spectral smear) ──┤
 (events + ────────┼─→ Phase 5 (feedback ecology)─┼─→ Phase 10 (voice/engine) ─→ Phase 11 (scaffold) ✅
  Perlin/Aizawa)   ├─→ Phase 6 (subharmonic) ─────┤            ▲         │              │
                   ├─→ Phase 7 (bloom) ───────────┤            │         ▼              ▼
-                  └─→ Phase 8 (ecosystem) ───────┘            │   Phase 10a (ghost) ✅ → Phase 12 ✅ → 13 ✅ → 13b → 14
+                  └─→ Phase 8 (ecosystem) ───────┘            │   Phase 10a (ghost) ✅ → Phase 12 ✅ → 13 ✅ → 13b ✅ → 14
                                                               │
 AetherReverb ✅ (shipped) ─────────→ Phase 9 (cavern space) ───┘
 seraphis_voice/engine ✅ (shipped) ───────────────────────────┘  (pattern template, not code dep)

@@ -155,6 +155,12 @@ re-run the sweep for any name it actually introduces.
   `artifacts/` directory.
   These are the "before" side of FR-030 and FR-032; SC-002's and SC-016's deltas are computed against these
   logged figures, never against a checked-in constant.
+  **Before-record in the gate unit (2026-09-29).** After the build-stage ruling moved Gate 1 to six-seed
+  GATE1M medians over the off-reseed `t0`, the before-record was re-run in that unit on the production tree
+  of the phase base `6cef994b` (probe TU = HEAD's, instrument only, as this FR allows):
+  `artifacts/before_gate1m_default.log` (GATE1M ratio 0.132, median d(on, off) 0.5407, median off-reseed
+  4.1091) and `artifacts/before_gate1m_lifemax.log` (ratio 0.263, 1.0864 / 4.1354). Seed 0 reproduces the
+  single-seed before-record exactly (0.6311 default, 2.1323 Life max).
   [roadmap 594: "before/after descriptors are recorded"; roadmap 596–597: "CPU delta"]
 - **FR-002 — Same probe.** The gates are measured by `Vorago_EcosystemRuleProbe` with the stimulus, timeline,
   descriptor and distance unchanged: NoteOn 36 velocity 100/127 at sample 0, 512-sample blocks, 48 kHz,
@@ -209,12 +215,13 @@ re-run the sweep for any name it actually introduces.
 
 ### B. The gates
 
-- **FR-010 — Gate 1a, default surface.** `d(ecosystem on, ecosystem off) ≥ 2·t0` — **since 2026-09-28: the
-  median over seed indices 0-5 against the median off-reseed of consecutive pairs (Clarifications "Build
-  stage"), threshold ruled on the data** — ecosystem off = the FR-007
+- **FR-010 — Gate 1a, default surface.** `d(ecosystem on, ecosystem off) ≥ f·t0` with **f = 0.5** (ruled
+  2026-09-28 on the measured ladder; the roadmap's "2·t0" was written in the single-seed, ecosystem-on unit
+  that E-10 shows saturates near 1) — **since 2026-09-28: the median over seed indices 0-5 against the
+  median off-reseed of consecutive pairs (Clarifications "Build stage")** — ecosystem off = the FR-007
   true-off reference, on the shipped default surface. (`VORAGO_PROBE_REF=900=0` is equivalent here because
   Life = 0, and is reported as the FR-007 cross-check.) [roadmap 590–591]
-- **FR-011 — Gate 1b, Life max.** The same inequality (multi-seed since 2026-09-28) with `VORAGO_PROBE_SURFACE=109=1` (Life macro at 1.0),
+- **FR-011 — Gate 1b, Life max.** The same inequality (f = 0.5, multi-seed since 2026-09-28) with `VORAGO_PROBE_SURFACE=109=1` (Life macro at 1.0),
   ecosystem off = the FR-007 true-off reference. `900=0` is **not** an admissible reference here (it leaves
   depth 0.15). [roadmap 591]
 - **FR-012 — Gate 2, rule knobs.** At the default surface, at least **four** of the 14 candidates have a best
@@ -371,7 +378,21 @@ re-run the sweep for any name it actually introduces.
   **Surfaced list (build stage, 2026-09-28, user ruling):** (1) `VoragoEngine_GhostExtensionWiring`
   clause (a) — `kBaseCommitVoragoFingerprint` (`atmosphere_ghost_fixtures.h` §6.2) pins the pre-13b
   60 s default render; expected red through the tuning ladder, re-measured ONCE on the final tree
-  (tasks T028) with a refilled PROVENANCE block. No other test encodes the old voicing as data.
+  (tasks T028) with a refilled PROVENANCE block. (2) `VoragoVoice_EcosystemRouting` (Phase 10 SC-019
+  clause 1, `vorago_voice_longrun_test.cpp:181-182`) — `kShippedPeakWakeBase` / `kShippedLoopWakeBase`
+  were the literals `0.50f`, the old peak/loop wake bases reproduced as data because the voice exposed no
+  getter; surfaced at T029 before any edit (`artifacts/t031_t037_gates.md`, "FR-031(b): old voicing pinned
+  as data; surfaced for ruling before any edit") and resolved by naming the voice's now-public
+  `VoragoVoice::kPeakWakeBase` / `kLoopWakeBase`; the assertion (every destination reads exactly its
+  configured base) is unchanged (`artifacts/after_routing_named_bases.log`). (3) Not voicing data but a
+  measurement defect, recorded here because it edits pre-existing test files inside the phase range:
+  commit `e0beed68` changed the perf-gate estimators of `VoragoVoice_CompositionOverhead`
+  (`vorago_perf_test.cpp`, reference = the nine parts back-to-back) and the VectorMixer SC-003 benchmark
+  (`vector_mixer_tests.cpp`, warm-up + best of 25), bounds unchanged (1.15, 0.05 %), user ruling recorded
+  in Phase 10 spec SC-003 (`artifacts/t014_cpu_resolution.md`). The remaining pre-existing test files
+  edited in `6cef994b..HEAD` are scope-required, not voicing data: the gate instrument
+  `ecosystem_rule_probe_test.cpp` (Scope item 3; FR-004, FR-005, FR-007) and the registration of the two
+  new lever TUs in `dsp/tests/CMakeLists.txt` (R-1). No other test encodes the old voicing as data.
   Separately, a latent Phase 10 defect exposed by SC-012 (a reset voice took its next note at the same
   pitch without the fresh twin's glide and pitch-jump crossfade) was fixed in `clearRunState()` — a
   behavioural bound, FR-031(a), not a re-measure (`artifacts/t025_resolution.md`).
@@ -609,8 +630,11 @@ carrier.
   extreme counts at d ≥ f·t0 and is OFF-LIKE below f·t0/2; the table runs pin t0 to the GATE1M six-seed
   median off-reseed of the same tree and surface (`VORAGO_PROBE_T0`). Scale: half an off-reseed (≈ 2.0)
   is the Life macro's whole travel, so f = 0.5 means "the colony matters at least as much as the biggest
-  macro gesture". Measured on the shipped tree: 0.76 (default) and 0.74 (Life max), against 0.37 / 0.99
-  before the phase; the per-seed minimum (0.75 / 1.19) is recorded, not gated. The "2·t0" figures in the
+  macro gesture". Measured (ratio of six-seed medians; per-seed minimum d(on, off) recorded, not gated):
+  L5 tree (6 st wander span) 0.759 / 0.742 (min 0.75 / 1.19); **shipped tree 0.656 (default) / 0.638
+  (Life max)** (min 1.26 / 1.51; `artifacts/final2_gate1m_{default,lifemax}.log`); **before the phase,
+  same unit, 0.132 / 0.263** (min 0.22 / 0.71; `artifacts/before_gate1m_{default,lifemax}.log`). The
+  0.37 / 0.99 figures quoted earlier are the single-seed, ecosystem-on-t0 unit and are not comparable. The "2·t0" figures in the
   overview, FR-004, FR-010–FR-012, SC-001–SC-003 and E-9 read as f·t0 with f = 0.5; the roadmap's
   "≥ 2·t0" was written in the single-seed, ecosystem-on unit that E-10 shows saturates near 1.
 - **Gate 2 surface (ruled 2026-09-28 on the shipped tree, FR-017).** A knob counts when its best non-kill
@@ -618,16 +642,19 @@ carrier.
   default surface is the most conservative one for the colony. Measured: default 2 of 14 (moveRate 4.02,
   leakRate 2.63), Life max 3 of 14 (syncRate 4.20, moveRate 3.61, freqDrift 2.54) → **4 distinct knobs:
   moveRate, leakRate, syncRate, freqDrift — Gate 2 PASS.** grazeRate → 0 and syncRate → 0.5 (default
-  surface) are colony kills (OFF-LIKE). This roster is the FR-034 hand-off to Phase 14 Q2.
+  surface) are colony kills (OFF-LIKE). *Superseded by the next entry:* this was the 6 st (L5) tree, not
+  the shipped one, and per FR-034 these are counted knobs in a table, not a roster.
 - **Gate 2 outcome on the shipped tree (ruled 2026-09-28, FR-017).** After the ladder, Phase 10's SC-010
   zipper bound (`VoragoMacro_NoZipper`, Movement ramp ≤ 1.5× its reference) read 1.62× with the wander
   lever at 6 st; the span is the cause (slew irrelevant), and the sweep gave 4 st 1.55× FAIL, 3 st 1.38×
   PASS, 2 st 1.17× PASS. **Shipped: 3 st.** On that tree Gate 1 passes (0.656 default, 0.638 Life max,
   six-seed medians) but Gate 2 counts syncRate (default) and selfAffinity + syncRate (Life max): a union
-  of **2 of the 4 required — Gate 2 is recorded as UNMET**, with the sweep as the reason. The FR-034
-  hand-off roster to Phase 14 Q2 is therefore **syncRate, selfAffinity** (plus the five routes); the 6 st
-  roster (moveRate, leakRate, syncRate, freqDrift) is recorded as what a future zipper-safe wander lever
-  would restore.
+  of **2 of the 4 required — Gate 2 is recorded as UNMET**, with the sweep as the reason. Per FR-034 this
+  phase names no roster: the hand-off to Phase 14 Q2 is the two FR-013 tables
+  (`artifacts/final2_table_{default,lifemax}.log`), in which the knobs counted on the shipped tree are
+  **syncRate, selfAffinity** (the 2026-09-28 19:40 ruling in `artifacts/ladder_record.md` records these
+  as Q2's starting point; choosing the roster stays Phase 14's). The 6 st tree's counted knobs (moveRate,
+  leakRate, syncRate, freqDrift) are recorded as what a future zipper-safe wander lever would restore.
 - **Wander lever rate compensation (surfaced at T026, 2026-09-28, FR-018b).** On the 3 st tree Phase 10's
   SC-008 (`VoragoMacro_SweepAxes`) read Movement's per-band total variation at rho 0.867 (bound 0.9): one
   of the three seeds inverts two of the top sweep points. Base 1.5 / span 3, base 1.5 / span 2 and base
