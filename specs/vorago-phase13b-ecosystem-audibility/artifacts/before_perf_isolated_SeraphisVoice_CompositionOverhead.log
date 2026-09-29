@@ -1,0 +1,44 @@
+START 2026-09-27 20:37:06 case=SeraphisVoice_CompositionOverhead
+pin-perf-cores: performance-core mask 0xFFFF
+Filters: "SeraphisVoice_CompositionOverhead"
+Randomness seeded to: 602491827
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+SeraphisVoice_CompositionOverhead
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\seraphis_perf_test.cpp(1330)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\seraphis_perf_test.cpp(1396): warning:
+  SC-002 per-voice composition overhead (512-sample blocks @ 48 kHz, best-of-16
+  x 200,
+          64 partials + drift, FR-019 defaults, worst body material (Chamber),
+  atmosphere UNFROZEN,
+          Standard envelope gated on, spatial depth 0.5):
+    HarmonicCloud       : 24525 ns/block
+    SpectralMorphEngine : 8055.5 ns/block
+    ContinuousBody      : 36817 ns/block
+    AtmosphereEngine    : 99643 ns/block
+    MultiStageEnvelope  : 1744.5 ns/block
+    GrowthEnvelope      : 22 ns/block  (in the denominator by FR-002's eight;
+  the
+                          Standard-mode voice never advances it, so this term
+  biases
+                          the ratio DOWNWARD - see the ratio excluding it
+  below)
+    OrbitModulator      : 733.5 ns/block
+    MidSideProcessor    : 2032 ns/block
+    --- sum of eight    : 173572 ns/block
+    SeraphisVoice       : 176482 ns/block
+    ratio (SC-002)      : 1.01677   (bound <= 1.1)
+    ratio excl. growth  : 1.01689   (reported for compliance.md, NOT the gate)
+
+===============================================================================
+All tests passed (13 assertions in 1 test case)
+
+EXIT 0
+END 2026-09-27 20:37:09

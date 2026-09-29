@@ -1,0 +1,24 @@
+START 2026-09-27 23:49:44
+Filters: "Vorago_EcosystemRuleProbe"
+Randomness seeded to: 3345747175
+[probe] surface overrides: 109=1; knob filter: -; reference: none + true-off; wake bases: shipped (0.50/0.50)
+[probe] rendering default surface (340 s)...
+[probe] rendering seed twin (340 s)...
+[probe] rendering true-off reference (340 s)...
+
+=== Vorago_EcosystemRuleProbe (FR-070) ===
+renders: 2 (default + seed twin + 0 extremes), 340 s each, 48 kHz, block 512
+surface overrides: 109=1; wake bases: shipped (0.50/0.50)
+default M1 stereo RMS: -26.09 dBFS
+default per-minute: M1 RMS -26.09 dBFS colony 0.483648 | M2 RMS -25.75 dBFS colony 0.481807 | M3 RMS -25.24 dBFS colony 0.482763
+t0 = d(default, seed twin) = 2.6192   INAUDIBLE threshold 2*t0 = 5.2385
+DESCRIPTOR default band=7.526489,-0.042174,-5.623983,-7.427581,-12.427639,-14.704241,-16.373888,-17.479719,-17.959877 motion=0.140722 flux=-2.253382 corr=-3.523591 energySpread=0.403494 crest=3.112433
+DESCRIPTOR trueoff band=7.613230,-0.029023,-5.856899,-9.026559,-12.609231,-14.004763,-15.081399,-16.063800,-16.787644 motion=0.193665 flux=-2.302827 corr=-3.528856 energySpread=0.281031 crest=3.005751
+true-off reference (FR-007, offValid): d(default, true-off) = 2.8674   d/t0 = 1.095   M1 RMS -25.64 dBFS
+GATE1 surface=109=1 t0=2.6192 d(on,off)=2.8674 d/t0=1.095 verdict=FAIL
+===============================================================================
+All tests passed (95660 assertions in 1 test case)
+
+
+EXIT 0
+END 2026-09-27 23:51:31

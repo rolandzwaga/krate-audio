@@ -10,6 +10,11 @@
 - R-2: `VoragoEngine_EcosystemLeverBounded` stays per-push at 60 s; T022 prints its wall clock and T031
   cites it; **if it exceeds 4 minutes measured locally, STOP and surface the figure** — never shorten,
   split or tag it `[long]`.
+- Build-stage ruling (2026-09-28, T025): `VoragoEngine_GhostExtensionWiring` clause (a) is the one
+  FR-031(b) surfaced item — expected red through the ladder, re-pinned once at T028 on the final tree.
+  Also fixed at T025 by the main loop (FR-031(a) defect in this phase's SC-012): `clearRunState()`
+  now restores the prepare-time note defaults before the component resets (see
+  `artifacts/t025_resolution.md`).
 - R-3: **L8 is pre-authorised** in T026: if L7 is reached, lower the noise wake base default (parameter
   301 / `kNoiseWakeId`, 0.35, and its macro base) as a recorded ruling, update the Phase 12
   parameter-table expectation (`param_table_expected.h`) under FR-031's surfaced list, re-run Gate 1,
@@ -253,10 +258,12 @@ All four tasks edit `plugins/vorago/tests/integration/ecosystem_rule_probe_test.
   - `KILL` ⇔ ∃m: `|ΔRMS[m]| > 6.0` dB **or** `rms[m] < -60.0` dBFS;
   - `OFF-LIKE` ⇔ `dOff < t0`;
   - `INAUDIBLE` ⇔ `d < 2·t0`.
+  - **`t0` (ruling 2026-09-28, applied by the main loop at T026):** `d(true-off, true-off seed twin)`, one
+    extra render inside the true-off block; `d(default, seed twin)` prints as `t0on`; `GATE1` carries both.
   A counted extreme is `d >= 2·t0 && !KILL && !OFF-LIKE`; a knob's best is its best counted extreme. Lines:
   - `DESCRIPTOR default band=b0,…,b8 motion=… flux=… corr=… energySpread=… crest=…` and the same for
     `trueoff` (all 14 `PresetDescriptor` components, `%.6f`), every run;
-  - `GATE1 surface=<default|109=1> t0=… d(on,off)=… d/t0=… verdict=PASS|FAIL` (PASS ⇔ `d/t0 >= 2.0`);
+  - `GATE1 surface=<default|109=1> t0=… d(on,off)=… d/t0=… verdict=PASS|FAIL` (PASS ⇔ `d/t0 >= f`, **f = 0.5, ruled 2026-09-28**; the six-seed `GATE1M` line is the gate);
   - `audible non-kill knobs: N of 14`;
   - `GATE2 verdict=PASS|FAIL (N >= 4)` only on a default-surface full-table run;
   - replace the Phase 14 roster/`STOP` block with `table for Phase 14 Q2 — no roster named here`.
@@ -502,7 +509,7 @@ them pass.
   Then, alone, one after another:
   `VORAGO_PROBE_KNOBS=- VORAGO_PROBE_REF=off VORAGO_PROBE_GR=1 … > artifacts/L2_gate1_default.log` and
   `VORAGO_PROBE_KNOBS=- VORAGO_PROBE_REF=off VORAGO_PROBE_SURFACE=109=1 … > artifacts/L2_gate1_lifemax.log`.
-- **Read from the logs:** both `GATE1 … d/t0` (target ≥ 2.0); SC-005: default M1 RMS within ±3 dB of
+- **Read from the logs:** both `GATE1M … ratio` (target ≥ f = 0.5, ruled 2026-09-28); SC-005: default M1 RMS within ±3 dB of
   `before_gate1_default.log`'s value and `GR max ≤ 1.0` dB.
 
 ---
@@ -528,7 +535,10 @@ them pass.
     0.1 st, `T_lever` = the slew time rounded up to whole chunks) and re-run `…Bounded` after each change.
   - **L5** lower `kRingCouplingBase` / `kFreqWanderBaseSemis` (only for a lever L4 added).
   - **L6** `kLeverInputGain[k] ∈ {1.5, 2, 3}` for Noise/Resonator/Feedback only; `…LaneShapingFidelity`
-    becomes active and must pass.
+    becomes active and must pass. **Ruled 2026-09-28: L6 runs BEFORE L4 step 2** (it targets the measured
+    cause); from L4 on, Gate 1 is the multi-seed `GATE1M` line (`VORAGO_PROBE_SEEDS=6 VORAGO_PROBE_KNOBS=-
+    VORAGO_PROBE_REF=off`, default surface per rung, Life max at the end), and the threshold is ruled on the
+    data after the ladder (spec Clarifications "Build stage").
   - **L7** voice-owned rungs exhausted → **L8** (ruling R-3): lower the noise wake base default —
     parameter 301 in `noise_params.h` (registration default and the pack default), the macro base in
     `param_routes.h`, and `param_table_expected.h` — as a recorded ruling in `compliance.md`; re-run
@@ -536,25 +546,46 @@ them pass.
 - **Never:** change a threshold, candidate, range, a macro-row base, or any file outside
   `vorago_voice.h` / `vorago_engine.h` production — except the L8 files above, and only at L8.
 - **Verify:** final rung's logs show both `GATE1 verdict=PASS` and SC-005 in bounds.
+- **Main-loop note (2026-09-28, FR-018b):** the wander lever's span 6 → 3 st zipper fix left Phase 10
+  SC-008 (`VoragoMacro_SweepAxes`) at rho 0.867 for every base/span pair under the zipper ceiling
+  (`artifacts/base15_sweepaxes.log`, `cand_*_sweepaxes.log`). Rung added: the span is scaled by
+  (0.03 Hz / resonance wander rate)^0.75 above the default rate (`wanderLeverRateComp`; k = 1 flattened
+  the sweep's endpoint to +19 %, k = 0.5 inverted the mean's top pair, k = 0.75 reads rho 1.000 / +21 %), verified by
+  `VoragoVoice_EcosystemLeverRateCompensation` (SC-022) and by re-running `VoragoMacro_NoZipper` and
+  `VoragoMacro_SweepAxes` (`artifacts/ratecomp_*.log`). Gate 1 / Gate 2 surfaces run at 0.03 Hz where the
+  factor is 1.
 
 ---
 
 ## Group 12 — Gate 2 and knob tables (sequential; long runs, alone)
 
 ### T027 — After tables on the Gate-1-passing tree
+**Main-loop note (2026-09-28):** the ladder (T026) and these tables were run by the main loop; the logs `artifacts/after_table_default.log` (t0 pinned 4.0438) and `artifacts/after_table_lifemax.log` (t0 pinned 4.0656) are already produced by the main loop. An agent verifies them against the clauses below and transcribes; it does NOT re-run them.
 `vorago_tests.exe "Vorago_EcosystemRuleProbe" > artifacts/after_table_default.log 2>&1`, then
 `VORAGO_PROBE_SURFACE=109=1 … > artifacts/after_table_lifemax.log 2>&1`.
-- **Verify:** default log `GATE2 verdict=PASS (N >= 4)`; each counted knob row shows `d/t0 ≥ 2`, all three
-  `|ΔRMS[m]| ≤ 6` and `rms[m] ≥ −60`, `dOff/t0 ≥ 1`. Record `git rev-parse HEAD`-equivalent tree state
+- **Verify (ruled 2026-09-28):** a knob counts on EITHER surface — the union of the counted knobs of the default and
+  Life-max tables is ≥ 4 (the default log alone printed `GATE2 verdict=FAIL (N >= 4)` at 2; the union is 4:
+  moveRate, leakRate, syncRate, freqDrift at 6 st). **Final tree (wander span 3 st after the SC-010 zipper fix, ruled
+  2026-09-28): union = 2 (syncRate, selfAffinity) — Gate 2 recorded as UNMET (2 of 4); logs `final_table_*.log`.** each counted knob row shows `d/t0 ≥ 0.5` (f), all three
+  `|ΔRMS[m]| ≤ 6` and `rms[m] ≥ −60`, `dOff/t0 ≥ 0.25` (f/2); t0 pinned with `VORAGO_PROBE_T0=<GATE1M median_t0off>`. Record `git rev-parse HEAD`-equivalent tree state
   (same as the Gate-1 logs; FR-014).
 - **If Gate 2 fails with Gate 1 green:** re-enter T026 at L4–L6 aimed at statistic sensitivity, re-run
   Gate 1 + SC-005, then T027. If it still fails: **stop and surface**.
 
 ### T028 — Final Gate-1 logs on the shipped tree
+**Main-loop note (2026-09-28):** `artifacts/after_gate1m_default.log` and `artifacts/after_gate1m_lifemax.log` (six-seed `GATE1M`, f = 0.5) plus `artifacts/L5_gate1_default.log` (SC-005 guard, GR twin) are produced by the main loop; the fingerprint re-pin below is DONE by the main loop (`artifacts/t028_ghost_fingerprint_{before_repin,before_repin_run2,after_repin}.log`, fourth-harvest PROVENANCE in `atmosphere_ghost_fixtures.h`). Verify only.
 Re-run the T025 pair on the final tree into `artifacts/after_gate1_default.log` (with GR) and
 `artifacts/after_gate1_lifemax.log` **only if** the tree changed after the last `L<n>` Gate-1 logs.
 If it did not change, cite the `L<n>` logs directly and do not copy them under a new name. **Verify:** both `GATE1 verdict=PASS`,
 SC-005 bounds, `DESCRIPTOR default` present for the FR-030 before/after table.
+
+**FR-031(b) re-pin (user ruling, 2026-09-28, surfaced at T025):** on this final tree, and only here,
+re-measure `kBaseCommitVoragoFingerprint` (`dsp/tests/unit/systems/atmosphere_ghost_fixtures.h` §6.2,
+consumed by `VoragoEngine_GhostExtensionWiring` clause (a), `vorago_ghost_ext_test.cpp:458/507`):
+run the case, paste the literal it prints, and refill its PROVENANCE block naming this phase, the
+shipped spans/bases and the log. Until this step the case is an **expected red** (FR-031(b): it pins
+the pre-13b default voicing as data) and every earlier regression run cites it as such. Re-pin ONCE;
+if the tree changes again afterwards, repeat only then.
 
 ---
 
@@ -566,11 +597,20 @@ SC-005 bounds, `DESCRIPTOR default` present for the FR-030 before/after table.
 overnight-soak equivalent) and `vorago_tests.exe "[long]" > artifacts/after_vorago_long.log 2>&1`.
 **Verify:** all passed; no test file edited except any listed under FR-031's surfaced list.
 
-### T030 — After CPU (alone, idle, cooled)
-`node tools/run-cpu-tests.js dsp_systems_tests > artifacts/after_cpu.log 2>&1`. **Verify:**
+### T030 — After CPU (alone, idle ≥ 15 min, cooled)
+**Amended by the main loop (2026-09-27) after T014:** the runner's filter includes `[long]`, so
+`node tools/run-cpu-tests.js dsp_systems_tests` re-runs the multi-hour `[long]` roster T029 has just
+run (T014's run took 5 h and ended on a hot machine with a false red — see
+`artifacts/t014_cpu_resolution.md`). Run the perf roster alone through the same pinned path, without
+`[long]`:
+`pwsh -NoProfile -File tools/pin-perf-cores.ps1 -Exe build/windows-x64-release/bin/Release/dsp_systems_tests.exe -ExeArgs "[performance],[perf],[.perf],[benchmark],[!benchmark]" > artifacts/after_cpu.log 2>&1`
+(one process, nothing else executing, machine idle ≥ 15 min and not straight after T029). **Verify:**
 `VoragoEngine_CpuBudget` passes both clauses (i) engine + `kCavernMeasuredNsPerBlock` ≤ 3 200 000 ns and
-(ii) engine ≤ `kEngineBaselineNsAtPoly4` × 1.5; compute the delta vs `before_cpu.log` in ns and %.
-Never relax a budget; a failure is re-run once alone after idling before it is treated as a defect.
+(ii) engine ≤ `kEngineBaselineNsAtPoly4` × 1.5; compute the delta vs the **isolated before figure**
+(`artifacts/before_cpu_isolated.log`: engine 2.75016e+06, with Cavern 2.87466e+06 ns/block — never
+`before_cpu.log`'s hot-lane figures) in ns and %. `VoragoVoice_CompositionOverhead` gates on
+whole / parts-back-to-back ≤ 1.15 (commit `e0beed68`). Never relax a budget; a failure is re-run once
+alone after idling before it is treated as a defect.
 
 ### T031 — Full regression suite (SC-014)
 Build every target (`dsp_core_tests dsp_primitives_tests dsp_processors_tests dsp_systems_tests
@@ -636,6 +676,7 @@ G0 T001 → G1 T002 → G2 {T003 ∥ T004} → G3 T005 → G4 T006→T007→T008
 | FR-016 | T019 (LaneShapingFidelity Partial check), T020 `static_assert` |
 | FR-018, SC-020 | T015, T021 (WakeUnmasked), T023 |
 | FR-018a | T026 (L3, L5) |
+| FR-018b, SC-022 | T026 (main-loop rung, rate compensation) |
 | FR-019a, SC-021 | T019, T026 (L6) |
 | FR-021, SC-009 | T016, T020 |
 | FR-022, SC-012 | T017, T018, T020 |

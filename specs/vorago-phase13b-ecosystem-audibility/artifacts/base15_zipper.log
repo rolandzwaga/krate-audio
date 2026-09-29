@@ -1,0 +1,43 @@
+START 2026-09-28 22:12:22 base 1.5 st, span 3 st
+Filters: "VoragoMacro_NoZipper"
+Randomness seeded to: 1014366248
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+VoragoMacro_NoZipper
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1514)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1580): 
+warning:
+  SC-010 zipper statistic (20 ms window; reference 64 ms clear of the ramp)
+    macro 0  ramp=3.2133e-03  reference=3.2910e-03  ratio=9.7640e-01
+    macro 1  ramp=3.1557e-03  reference=3.2424e-03  ratio=9.7328e-01
+    macro 2  ramp=2.8466e-03  reference=2.8941e-03  ratio=9.8359e-01
+    macro 3  ramp=3.7369e-03  reference=2.4115e-03  ratio=1.5496e+00
+    macro 4  ramp=3.8106e-03  reference=3.1491e-03  ratio=1.2101e+00
+    macro 5  ramp=1.8957e-03  reference=1.6734e-03  ratio=1.1329e+00
+    macro 6  ramp=2.5575e-03  reference=2.7141e-03  ratio=9.4229e-01
+    macro 7  ramp=3.3747e-03  reference=3.9330e-03  ratio=8.5805e-01
+    macro 8  ramp=2.5478e-03  reference=2.8980e-03  ratio=8.7914e-01
+    macro 9  ramp=3.0430e-03  reference=3.1267e-03  ratio=9.7323e-01
+    macro 10  ramp=3.0366e-03  reference=3.1353e-03  ratio=9.6852e-01
+    macro 11  ramp=2.8058e-03  reference=2.3273e-03  ratio=1.2056e+00
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1587): FAILED:
+  REQUIRE( rampStat[m] <= (kBound * baselineStat[m]) )
+with expansion:
+  0.0037369058 <= 0.0036172019
+with message:
+  macro index 3  ramp 0.00373691  reference 0.00241147
+
+===============================================================================
+test cases: 1 | 1 failed
+assertions: 8 | 7 passed | 1 failed
+
+EXIT 1
+END 2026-09-28 22:13:08

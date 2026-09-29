@@ -1,0 +1,81 @@
+START 2026-09-28 15:20:37 lever
+Filters: "VoragoVoice_EcosystemLever*","VoragoEngine_EcosystemLever*","VoragoVoice_EcosystemWakeUnmasked","VoragoVoice_EcosystemLaneShapingFidelity"
+Randomness seeded to: 3896851240
+0.151 s: VoragoVoice_EcosystemLeverBaseReadBack
+[LeverReset] reset()                            L metric=0.000e+00 sample=0.000e+00 | R metric=0.000e+00 sample=0.000e+00
+[LeverReset] silence() + resetForSteal()        L metric=0.000e+00 sample=0.000e+00 | R metric=0.000e+00 sample=0.000e+00
+[LeverReset] resetForRecovery()                 L metric=0.000e+00 sample=0.000e+00 | R metric=0.000e+00 sample=0.000e+00
+[LeverReset] prepare(96000) -> prepare(48000)   L metric=0.000e+00 sample=0.000e+00 | R metric=0.000e+00 sample=0.000e+00
+1.455 s: VoragoVoice_EcosystemLeverReset
+[LeverLifeOnlyParity] seed=0x925863E5 chunks checked=22500, chunks with a wake move=2813
+7.953 s: VoragoVoice_EcosystemLeverLifeOnlyParity
+[LeverMapping] seed=0x925863E5 L=0.00 chunks=450000  sched-live=107966  sched>L=107966  sched-all-zero=296505
+[LeverMapping] seed=0x925863E5 L=0.25 chunks=450000  sched-live=107966  sched>L=78235  sched-all-zero=296505
+[LeverMapping] seed=0x925863E5 L=0.50 chunks=450000  sched-live=107966  sched>L=55621  sched-all-zero=296505
+[LeverMapping] seed=0x925863E5 L=1.00 chunks=450000  sched-live=107966  sched>L=0  sched-all-zero=296505
+16.473 s: VoragoVoice_EcosystemLeverMapping
+[LeverNeutral] fs=44100 seed=0x925863E5 chunks=413437 scheduler events seen=12
+[LeverNeutral] fs=48000 seed=0x925863E5 chunks=450000 scheduler events seen=12
+[LeverNeutral] fs=96000 seed=0x925863E5 chunks=900000 scheduler events seen=12
+14.591 s: VoragoVoice_EcosystemLeverNeutral
+[LeverSchedulerBlind] seed=0x925863E5 chunks=450000 rateScale=10
+[LeverSchedulerBlind]   BloomTrigger onsets=19 lastEventTarget changes=15
+[LeverSchedulerBlind]   NoiseWake    onsets=16 lastEventTarget changes=15
+[LeverSchedulerBlind]   PeakWake     onsets=25 lastEventTarget changes=17
+[LeverSchedulerBlind]   LoopWake     onsets=15 lastEventTarget changes=12
+[LeverSchedulerBlind]   GhostBurst   onsets=28 lastEventTarget changes=21
+3.587 s: VoragoVoice_EcosystemLeverSchedulerBlind
+0.006 s: VoragoVoice_EcosystemLaneShapingFidelity
+[LeverAttribution] fs=44100 seed=0x925863E5 stepChunks=8 dt=11.6100 ms rampSteps=5 T_settle=69.6599 ms (48 chunks)
+[LeverAttribution] fs=44100 before Noise source level   changes/min: noise=55 peak=175 loop=63
+[LeverAttribution] fs=44100 Noise source level   dormant, changes/min: noise=5 peak=103 loop=69 (at base after 48 chunks)
+[LeverAttribution] fs=44100 before Resonator peak level changes/min: noise=41 peak=158 loop=49
+[LeverAttribution] fs=44100 Resonator peak level dormant, changes/min: noise=27 peak=5 loop=65 (at base after 48 chunks)
+[LeverAttribution] fs=44100 before Feedback loop gain   changes/min: noise=56 peak=114 loop=46
+[LeverAttribution] fs=44100 Feedback loop gain   dormant, changes/min: noise=20 peak=161 loop=5 (at base after 48 chunks)
+[LeverAttribution] fs=48000 seed=0x925863E5 stepChunks=8 dt=10.6667 ms rampSteps=5 T_settle=64.0000 ms (48 chunks)
+[LeverAttribution] fs=48000 before Noise source level   changes/min: noise=53 peak=175 loop=64
+[LeverAttribution] fs=48000 Noise source level   dormant, changes/min: noise=5 peak=104 loop=70 (at base after 48 chunks)
+[LeverAttribution] fs=48000 before Resonator peak level changes/min: noise=41 peak=159 loop=50
+[LeverAttribution] fs=48000 Resonator peak level dormant, changes/min: noise=28 peak=5 loop=65 (at base after 48 chunks)
+[LeverAttribution] fs=48000 before Feedback loop gain   changes/min: noise=51 peak=116 loop=45
+[LeverAttribution] fs=48000 Feedback loop gain   dormant, changes/min: noise=21 peak=156 loop=5 (at base after 48 chunks)
+[LeverAttribution] fs=96000 seed=0x925863E5 stepChunks=8 dt=5.3333 ms rampSteps=10 T_settle=58.6667 ms (88 chunks)
+[LeverAttribution] fs=96000 before Noise source level   changes/min: noise=51 peak=181 loop=63
+[LeverAttribution] fs=96000 Noise source level   dormant, changes/min: noise=10 peak=110 loop=67 (at base after 88 chunks)
+[LeverAttribution] fs=96000 before Resonator peak level changes/min: noise=46 peak=153 loop=53
+[LeverAttribution] fs=96000 Resonator peak level dormant, changes/min: noise=35 peak=10 loop=66 (at base after 88 chunks)
+[LeverAttribution] fs=96000 before Feedback loop gain   changes/min: noise=45 peak=117 loop=45
+[LeverAttribution] fs=96000 Feedback loop gain   dormant, changes/min: noise=18 peak=157 loop=10 (at base after 88 chunks)
+10.730 s: VoragoVoice_EcosystemLeverAttribution
+
+[WakeUnmasked] fs=48000 seed=0x925863E5 depth=0.85 window=[155 s, 340 s] steps surveyed=17344
+[WakeUnmasked] shipped bases: peakWakeBase=0.450 loopWakeBase=0.450 noiseWakeBase=0.350
+[WakeUnmasked] Resonator fraction above shipped base = 0.4366 (53007/121408)
+[WakeUnmasked] Feedback  fraction above shipped base = 0.4062 (42275/104064)
+[WakeUnmasked] Noise     fraction above shipped base = 0.6329 (43906/69376)  [recorded, not gated]
+2.371 s: VoragoVoice_EcosystemWakeUnmasked
+[LeverClickFree] fs=48000 seed=0x925863E5 schedule: Noise Resonator Feedback Partial Ghost All (each 1 s @0, 1 s @1, 1 s @0)
+[LeverClickFree] clicks stress L=0 R=0 | twin L=0 R=0 | stress peak=0.6233 max |stress - twin|=4.0630e-01 non-finite=0
+17.936 s: VoragoVoice_EcosystemLeverClickFree
+[LeverBounded] (a) injected L=1     fs=44100 voices=6 60 s: peak=0.544826 over-ceiling=0 non-finite=0 recoveries=0 bytes before=10924056 after=10924056
+[LeverBounded] (a) injected L=1     fs=48000 voices=6 60 s: peak=0.520499 over-ceiling=0 non-finite=0 recoveries=0 bytes before=10924056 after=10924056
+[LeverBounded] (a) injected L=1     fs=48000 GR twin (ceiling +60 dB): max reduction=0.000 dB at t=0.000 s (twin non-finite=0) [informative]
+[LeverBounded] (a) injected L=1     fs=96000 voices=6 60 s: peak=0.534218 over-ceiling=0 non-finite=0 recoveries=0 bytes before=21737496 after=21737496
+[LeverBounded] (b) natural colony   fs=44100 voices=6 60 s: peak=0.596820 over-ceiling=0 non-finite=0 recoveries=0 bytes before=10924056 after=10924056
+[LeverBounded] (b) natural colony   fs=48000 voices=6 60 s: peak=0.585011 over-ceiling=0 non-finite=0 recoveries=0 bytes before=10924056 after=10924056
+[LeverBounded] (b) natural colony   fs=48000 GR twin (ceiling +60 dB): max reduction=0.000 dB at t=0.000 s (twin non-finite=0) [informative]
+[LeverBounded] (b) natural colony   fs=96000 voices=6 60 s: peak=0.570970 over-ceiling=0 non-finite=0 recoveries=0 bytes before=21737496 after=21737496
+[LeverBounded] case wall clock = 482.1 s (ruling R-2: > 240 s measured alone -> stop and surface)
+482.123 s: VoragoEngine_EcosystemLeverBounded
+[LeverDeterminism] depth=1 seed A=0x000D0DA1: same-seed worst metric L=0.000e+00 R=0.000e+00; seed A+1 worst metric=1.186e-01 (bar 2.500e-02)
+52.255 s: VoragoEngine_EcosystemLeverDeterminism
+[LeverClickFreeNatural] fs=48000 seed=0x925863E5 render=28800000 samples (600 s) step boundaries=56250
+[LeverClickFreeNatural] depth1 clicks L=0 (on-boundary 0, off 0) R=0 (on-boundary 0, off 0) peak=0.8938 non-finite=0
+[LeverClickFreeNatural] depth0 twin clicks L=0 R=0 peak=0.5295 non-finite=0 (record only)
+103.485 s: VoragoVoice_EcosystemLeverClickFreeNatural
+===============================================================================
+All tests passed (23571 assertions in 13 test cases)
+
+EXIT 0
+END 2026-09-28 15:32:31

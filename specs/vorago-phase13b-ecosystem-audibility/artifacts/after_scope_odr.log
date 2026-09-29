@@ -1,0 +1,45 @@
+=== git diff --name-only 6cef994b (phase base) -- tree
+warning: in the working copy of 'dsp/include/krate/dsp/systems/vorago_engine.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'dsp/include/krate/dsp/systems/vorago_voice.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'dsp/tests/unit/systems/atmosphere_ghost_fixtures.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/vorago/tests/integration/ecosystem_rule_probe_test.cpp', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'specs/vorago-phase13b-ecosystem-audibility/plan.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'specs/vorago-phase13b-ecosystem-audibility/spec.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'specs/vorago-phase13b-ecosystem-audibility/tasks.md', LF will be replaced by CRLF the next time Git touches it
+.serena/project.yml
+dsp/include/krate/dsp/systems/vorago_engine.h
+dsp/include/krate/dsp/systems/vorago_voice.h
+dsp/tests/CMakeLists.txt
+dsp/tests/unit/systems/atmosphere_ghost_fixtures.h
+dsp/tests/unit/systems/vector_mixer_tests.cpp
+dsp/tests/unit/systems/vorago_perf_test.cpp
+plugins/vorago/tests/integration/ecosystem_rule_probe_test.cpp
+specs/vorago-phase10-voice-engine/spec.md
+specs/vorago-phase13b-ecosystem-audibility/plan.md
+specs/vorago-phase13b-ecosystem-audibility/spec.md
+specs/vorago-phase13b-ecosystem-audibility/tasks.md
+=== untracked (excluding artifacts)
+dsp/tests/unit/systems/vorago_ecosystem_lever_longrun_test.cpp
+dsp/tests/unit/systems/vorago_ecosystem_lever_test.cpp
+=== SC-015 Seraphis files touched:
+warning: in the working copy of 'dsp/include/krate/dsp/systems/vorago_engine.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'dsp/include/krate/dsp/systems/vorago_voice.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'dsp/tests/unit/systems/atmosphere_ghost_fixtures.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/vorago/tests/integration/ecosystem_rule_probe_test.cpp', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'specs/vorago-phase13b-ecosystem-audibility/plan.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'specs/vorago-phase13b-ecosystem-audibility/spec.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'specs/vorago-phase13b-ecosystem-audibility/tasks.md', LF will be replaced by CRLF the next time Git touches it
+0
+=== SC-017 parameter surface files touched:
+warning: in the working copy of 'dsp/include/krate/dsp/systems/vorago_engine.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'dsp/include/krate/dsp/systems/vorago_voice.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'dsp/tests/unit/systems/atmosphere_ghost_fixtures.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/vorago/tests/integration/ecosystem_rule_probe_test.cpp', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'specs/vorago-phase13b-ecosystem-audibility/plan.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'specs/vorago-phase13b-ecosystem-audibility/spec.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'specs/vorago-phase13b-ecosystem-audibility/tasks.md', LF will be replaced by CRLF the next time Git touches it
+0
+=== FR-024 ODR sweep
+2
+dsp/include/krate/dsp/systems/vorago_voice.h:173:struct VoragoEcosystemLeverProbe;
+dsp/tests/unit/systems/vorago_ecosystem_lever_test.cpp:60:struct VoragoEcosystemLeverProbe {

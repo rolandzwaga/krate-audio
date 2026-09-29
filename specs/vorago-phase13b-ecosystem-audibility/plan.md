@@ -720,7 +720,7 @@ For each extreme, against the base render:
 | Output | Definition |
 |---|---|
 | `d` | as today |
-| `d/t0` | as today |
+| `d/t0` | as today, with `t0 = d(true-off, true-off seed twin)` (ruling 2026-09-28, spec Clarifications "Build stage"; the ecosystem-on twin distance is printed as `t0on`) |
 | `dOff/t0` | `descriptorDistance(extreme, trueOff) / t0` |
 | `rms[m]` | stereo RMS of minute m |
 | `ΔRMS[m]` | `rms[m] − base.rms[m]` |

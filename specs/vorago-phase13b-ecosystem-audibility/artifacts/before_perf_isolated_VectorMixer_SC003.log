@@ -1,0 +1,30 @@
+START 2026-09-27 20:43:19 case=[vector_mixer][!benchmark]
+pin-perf-cores: performance-core mask 0xFFFF
+Filters: [vector_mixer] [!benchmark]
+Randomness seeded to: 4099505284
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+VectorMixer: 512 samples mono performance benchmark (SC-003)
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vector_mixer_tests.cpp(1045)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vector_mixer_tests.cpp(1077): FAILED:
+  REQUIRE( cpuPercent < 0.05 )
+with expansion:
+  0.0785982586 < 0.05
+with messages:
+  Per-block time: 0.00912524 ms
+  Audio buffer duration: 11.61 ms
+  CPU usage: 0.0785983%
+
+===============================================================================
+test cases: 1 | 1 failed
+assertions: 1 | 1 failed
+
+EXIT 1
+END 2026-09-27 20:43:21

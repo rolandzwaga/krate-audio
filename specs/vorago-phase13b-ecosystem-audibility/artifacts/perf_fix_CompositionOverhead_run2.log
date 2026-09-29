@@ -1,0 +1,48 @@
+START 2026-09-27 21:12:27 case=VoragoVoice_CompositionOverhead
+pin-perf-cores: performance-core mask 0xFFFF
+Filters: "VoragoVoice_CompositionOverhead"
+Randomness seeded to: 3712691383
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+VoragoVoice_CompositionOverhead
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_perf_test.cpp(1420)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_perf_test.cpp(1624): 
+warning:
+  SC-003 - VoragoVoice composition overhead, ns per 512-sample block @ 48 kHz
+      cloud                 : 64266.4
+      noise + decorrelation : 141311
+      resonance             : 61445.6
+      ecology               : 110739
+      bloom (step 2)        : 215
+      body A                : 31132.2
+      body B                : 30539.6
+      envelope + blend      : 1866.8
+      L (step 1 in full)    : 9143.8
+      ------------------------------------------
+      sum of standalone     : 450660
+      measured VoragoVoice  : 549789
+      ratio whole / sum     : 1.21996   (bound 1.15)
+      parts back-to-back    : 534561   (one timed block, same statistic as the
+  whole)
+      ratio whole / parts   : 1.02849   (printed, not gated)
+      bound in ns           : 518259   - if this is exceeded, fix the
+  COMPOSITION, never the 1.15 (FR-082)
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_perf_test.cpp(1631): FAILED:
+  REQUIRE( nsVoice <= (sum * kOverheadBound) )
+with expansion:
+  549789.0 <= 518258.77
+
+===============================================================================
+test cases: 1 | 1 failed
+assertions: 5 | 4 passed | 1 failed
+
+EXIT 1
+END 2026-09-27 21:12:51

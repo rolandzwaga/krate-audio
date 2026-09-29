@@ -550,6 +550,15 @@ add_executable(dsp_systems_tests
     #                                       only, never in CI
     unit/systems/vorago_param_surface_test.cpp
     unit/systems/vorago_macro_retune_probe_test.cpp
+    # Vorago Phase 13b (specs/vorago-phase13b-ecosystem-audibility): ecosystem levers.
+    # ENUMERATED, not globbed - an unregistered TU silently drops out of the build.
+    #   vorago_ecosystem_lever_test.cpp          SC-006..SC-009, SC-010 (a), SC-011, SC-012,
+    #                                            SC-013, SC-018, SC-020, SC-021, the
+    #                                            LaneSurvey [.probe]; + the ONE definition of
+    #                                            detail::VoragoEcosystemLeverProbe
+    #   vorago_ecosystem_lever_longrun_test.cpp  SC-010 (b)            (the [long] set)
+    unit/systems/vorago_ecosystem_lever_test.cpp
+    unit/systems/vorago_ecosystem_lever_longrun_test.cpp
 )
 
 target_link_libraries(dsp_systems_tests

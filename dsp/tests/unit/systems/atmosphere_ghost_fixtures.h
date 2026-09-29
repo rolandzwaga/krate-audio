@@ -525,7 +525,8 @@ inline constexpr std::size_t kBaseCommitLatencySamples = 1024u;
 // divides by max(|reference|, 1e-12)), so ruling B-2 superseded it with the
 // sounding recipe above. The all-zero constant is gone; it is not a fallback.
 //
-// PROVENANCE (this constant, third harvest - ruling B-3):
+// PROVENANCE (third harvest - ruling B-3; SUPERSEDED 2026-09-28 by the fourth
+// harvest below, kept for the record):
 //   Base commit    374580d7d0f0631561413310bd3085e15ba7279c
 //   Recipe         sounding recipe per B-2 (above)
 //   Harvested      INSIDE `dsp_systems_tests` (B-3): the test binary's own link
@@ -557,20 +558,56 @@ inline constexpr std::size_t kBaseCommitLatencySamples = 1024u;
 //                  consuming clause additionally guards `actual.rms > 0`.
 //   Checkpoint 0   is exactly 0 because the render starts from a silent engine
 //                  at sample 0 (printed with `std::showpoint` as `0.00000000f`).
+// PROVENANCE (this constant, FIFTH harvest - Phase 13b FR-031(b) re-pin,
+// user ruling 2026-09-28, specs/vorago-phase13b-ecosystem-audibility):
+//   Why            Phase 13b changes the default voicing BY DESIGN (FR-030): the
+//                  ecosystem's agents now drive noise level, peak level, loop
+//                  gain, ring coupling and peak freq wander through depth-scaled
+//                  levers, and the peak/loop wake bases moved 0.50 -> 0.45. The
+//                  third-harvest constant pinned the pre-13b render; clause (a)
+//                  read worst metric error 0.0244 (bound 0.005) against it on the
+//                  L2 tree, was carried as an EXPECTED RED through the tuning
+//                  ladder, and is re-pinned ONCE here on the shipped tree
+//                  (tasks T028). The clause's meaning is unchanged: "the
+//                  ghost extension, default-inert, renders the default
+//                  identically" - now against the 13b default.
+//   Tree           Phase 13b FINAL tree: docs 6cef994b + fix e0beed68 + the
+//                  phase's voice/engine edits INCLUDING the post-ladder wander-span
+//                  fix (6 -> 3 st, Phase 10 SC-010) that moved the tree after the
+//                  fourth harvest (which is therefore superseded). Committed as the
+//                  phase's feat commit right after this harvest.
+//   Recipe         sounding recipe per B-2 (unchanged; the consuming clause's
+//                  own render, vorago_ghost_ext_test.cpp:458-507)
+//   Harvested      INSIDE `dsp_systems_tests` (B-3): the consuming clause's own
+//                  paste-ready printer, run as
+//                  `dsp_systems_tests.exe "VoragoEngine_GhostExtensionWiring"`;
+//                  logs specs/vorago-phase13b-ecosystem-audibility/artifacts/
+//                  final_ghost_fingerprint_harvest_run1.log and _run2.log
+//   Machine        CodeBox, 13th Gen Intel(R) Core(TM) i9-13900HX,
+//                  Windows 11 Pro 10.0.26200
+//   Toolchain      MSVC 19.44.35228 (cl.exe 14.44.35207), Visual Studio 17 2022
+//                  generator, x64, preset `windows-x64-release` (Release);
+//                  `enableFTZDAZ()` via `dsp_test_main.cpp` before the render
+//   Date           2026-09-28
+//   Reproducible   the case was run TWICE on the same binary; the two printed
+//                  literals are byte-identical (md5 49afab675fb70cd1b3fdb3b0636c3198)
+//   Non-vacuous    rms = 0.098545025744880874 and peak = 0.29962226748466492 are
+//                  both NON-ZERO; checkpoint 0 is exactly 0 (silent engine at
+//                  sample 0), as before.
 inline constexpr Krate::DSP::TestUtils::RenderFingerprint kBaseCommitVoragoFingerprint{
-    .rms = 0.10584018809847234,
-    .peak = 0.28841844201087952,
-    .meanAbs = 0.084950359182566965,
-    .totalVariation = 1595.9558681194799,
+    .rms = 0.098545025744880874,
+    .peak = 0.29962226748466492,
+    .meanAbs = 0.07696901013732621,
+    .totalVariation = 1449.3243352220029,
     .checkpoints = {
-        0.00000000f, 0.0102007203f, 0.0254982039f, 0.0518970042f,
-        -0.0978992134f, -0.0179690085f, -0.163007259f, 0.0488205999f,
-        -0.0893889517f, 0.0580466166f, 0.158383504f, 0.0916293189f,
-        0.177875027f, -0.120974518f, 0.0338675305f, -0.174887195f,
-        -0.108078532f, -0.102700792f, -0.0340998136f, 0.207726911f,
-        0.0203725398f, 0.126996040f, -0.0808575451f, 0.0179890692f,
-        -0.102840424f, -0.160841048f, -0.0418781452f, -0.0654609054f,
-        0.143871486f, 0.0234865677f, 0.242045194f, 0.00852372590f,}};
+        0.00000000f, 0.0122139724f, 0.0198170003f, 0.0310098715f,
+        -0.0260050558f, -0.000627643138f, -0.0926316008f, 0.0137929553f,
+        -0.122988209f, 0.0285053961f, 0.111592554f, 0.0875841379f,
+        0.195237577f, -0.0759189799f, 0.0804813355f, -0.158811763f,
+        -0.100936487f, -0.132443830f, -0.0644180775f, 0.190877080f,
+        -0.0126119293f, 0.153386593f, -0.134734020f, -0.0129285371f,
+        -0.0707455799f, -0.148535773f, -0.000959891884f, -0.0285174381f,
+        0.0651586726f, -0.00597775169f, 0.230548337f, 0.0402021408f,}};
 
 // -----------------------------------------------------------------------------
 // 6.3 Fixture C - SC-011 (c)'s forward arm at the SHORT (filling-ring) pre-roll

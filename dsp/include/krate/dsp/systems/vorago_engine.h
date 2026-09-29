@@ -1302,6 +1302,7 @@ private:
     friend class VoragoMacroMatrix;                   // apply() needs non-const voice access
     friend struct detail::VoragoEngineNonFiniteProbe;  // SC-029 (B-4)
     friend struct detail::VoragoEcosystemRuleProbe;    // Phase 14 FR-070 (B-4)
+    friend struct detail::VoragoEcosystemLeverProbe;   // Phase 13b FR-023 (B-4)
 
     // =========================================================================
     // Engine-owned defaults that are NOT component defaults (S8.3)

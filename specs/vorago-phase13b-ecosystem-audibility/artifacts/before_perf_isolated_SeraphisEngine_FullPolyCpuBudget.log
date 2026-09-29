@@ -1,0 +1,46 @@
+START 2026-09-27 20:35:59 case=SeraphisEngine_FullPolyCpuBudget
+pin-perf-cores: performance-core mask 0xFFFF
+Filters: "SeraphisEngine_FullPolyCpuBudget"
+Randomness seeded to: 865609223
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+SeraphisEngine_FullPolyCpuBudget
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\seraphis_perf_test.cpp(1192)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\seraphis_perf_test.cpp(1209): warning:
+  SC-001 body-material survey (standalone ContinuousBody, the phase-4 perf
+  configuration):
+    Glass : 30024.5 ns/block
+    Strings : 37369 ns/block
+    MetalPlate : 33111.5 ns/block
+    Chamber : 39299 ns/block
+    Ice : 36924 ns/block
+    worst material  : Chamber  (the one SC-001 and SC-002 pin)
+
+F:\projects\iterum\dsp\tests\unit\systems\seraphis_perf_test.cpp(1318): warning:
+  SC-001 full-poly composed chain (polyphony 8, all sounding, atmosphere
+  FROZEN,
+          worst measured body material, 64 partials + drift, AetherReverb
+  config (c)):
+    block budget    : 1.06667e+07 ns  (512 samples @ 48 kHz)
+    reference (25 %): 2.66667e+06 ns/block  (roadmap line 311, KEPT by RQ-1)
+    measured        : 2.21369e+06 ns/block  (20.7533 % of one core)
+    RA-1 prediction : 20.36 % of one core (before the voice sum, the spatial
+  stage,
+                      the output stage and the macro matrix)
+    checked-in base : 2.24764e+06 ns/block  (MEASURED 2026-07-31; gate: x1.15 =
+  2.58479e+06 ns/block)
+    admissible base : 2.31884e+06 ns/block  (25 % / 1.15 = 21.74 %)
+    headroom vs ref : 83.0133 % of the reference
+
+===============================================================================
+All tests passed (52 assertions in 1 test case)
+
+EXIT 0
+END 2026-09-27 20:36:06

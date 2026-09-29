@@ -1,0 +1,175 @@
+START 2026-09-28 11:19:55
+Filters: "Vorago_EcosystemRuleProbe"
+Randomness seeded to: 3391360256
+[probe] surface overrides: 109=1; knob filter: all; reference: none + true-off; wake bases: shipped (vorago_voice.h kPeakWakeBase / kLoopWakeBase)
+[probe] rendering default surface (340 s)...
+[probe] rendering seed twin (340 s)...
+[probe] rendering true-off reference (340 s)...
+[probe] rendering true-off seed twin (340 s)...
+t0 pinned by VORAGO_PROBE_T0 = 4.0656 (six-seed median off-reseed); this run's own off pair = 3.5834
+[probe] rendering predation = 0 (340 s)...
+[probe] rendering predation = 1 (340 s)...
+[probe] rendering syncRate = 0.5 (340 s)...
+[probe] rendering exchangeRate = 0 (340 s)...
+[probe] rendering exchangeRate = 3 (340 s)...
+[probe] rendering crowding = 0 (340 s)...
+[probe] rendering crowding = 0.2 (340 s)...
+[probe] rendering forageRate = 0 (340 s)...
+[probe] rendering forageRate = 0.05 (340 s)...
+[probe] rendering feedRate = 1 (340 s)...
+[probe] rendering grazeRate = 0 (340 s)...
+[probe] rendering grazeRate = 3 (340 s)...
+[probe] rendering leakRate = 0 (340 s)...
+[probe] rendering leakRate = 1 (340 s)...
+[probe] rendering moveRate = 0 (340 s)...
+[probe] rendering moveRate = 0.5 (340 s)...
+[probe] rendering maxSpeed = 0.001 (340 s)...
+[probe] rendering maxSpeed = 0.05 (340 s)...
+[probe] rendering kernelSigma = 0.01 (340 s)...
+[probe] rendering kernelSigma = 0.35 (340 s)...
+[probe] rendering freqDrift = 0 (340 s)...
+[probe] rendering freqDrift = 0.0002 (340 s)...
+[probe] rendering selfAffinity = -2 (340 s)...
+[probe] rendering selfAffinity = 2 (340 s)...
+[probe] rendering crossAffinity = -2 (340 s)...
+[probe] rendering crossAffinity = 2 (340 s)...
+
+=== Vorago_EcosystemRuleProbe (FR-070) ===
+renders: 28 (default + seed twin + 26 extremes), 340 s each, 48 kHz, block 512
+surface overrides: 109=1; wake bases: shipped (vorago_voice.h kPeakWakeBase / kLoopWakeBase)
+default M1 stereo RMS: -26.03 dBFS
+default per-minute: M1 RMS -26.03 dBFS colony 0.483648 | M2 RMS -25.69 dBFS colony 0.481807 | M3 RMS -25.09 dBFS colony 0.482763
+t0on = d(default, seed twin) = 5.4741   (ecosystem on; informational since 2026-09-28)
+t0 = d(true-off, true-off seed twin) = 4.0656   INAUDIBLE threshold f*t0 = 2.0328   (f = 0.50; the yardstick: non-ecosystem randomness, rulings 2026-09-28)
+DESCRIPTOR default band=7.496904,-0.035133,-5.769539,-7.854314,-13.158901,-15.403672,-16.786765,-17.837801,-18.596397 motion=0.198970 flux=-2.211046 corr=-3.535653 energySpread=0.977204 crest=3.626309
+DESCRIPTOR trueoff band=7.621398,-0.029173,-5.860552,-8.976713,-12.350944,-13.701616,-14.759922,-15.728727,-16.446924 motion=0.183212 flux=-2.304297 corr=-3.528611 energySpread=0.260329 crest=2.988310
+true-off reference (FR-007, offValid): d(default, true-off) = 4.3520   d/t0 = 1.070   M1 RMS -25.65 dBFS
+GATE1 surface=109=1 t0=4.0656 t0on=5.4741 d(on,off)=4.3520 d/t0=1.070 verdict=PASS
+
+knob           range              default    extreme      d         d/t0      dOff/t0   flags / E cells (P-4)
+syncRate       [0, 0.5]           0          0.5          4.1970    1.032     0.418     counted .hi
+                 M1 rms -26.40 dBFS  dRMS -0.37 dB  colony 0.478464  colony/base 0.989
+                 M2 rms -25.50 dBFS  dRMS +0.18 dB  colony 0.483353  colony/base 1.003
+                 M3 rms -25.18 dBFS  dRMS -0.09 dB  colony 0.482871  colony/base 1.000
+               best counted d 4.1970 (d/t0 1.032)   max d 4.1970 (d/t0 1.032)
+moveRate       [0, 0.5]           0.2        0            0.2065    0.051     1.088     INAUDIBLE .lo,.hi
+                 M1 rms -26.15 dBFS  dRMS -0.12 dB  colony 0.483756  colony/base 1.000
+                 M2 rms -25.88 dBFS  dRMS -0.20 dB  colony 0.481989  colony/base 1.000
+                 M3 rms -25.07 dBFS  dRMS +0.02 dB  colony 0.482784  colony/base 1.000
+                                             0.5          3.6086    0.888     0.348     counted 
+                 M1 rms -25.73 dBFS  dRMS +0.30 dB  colony 0.480482  colony/base 0.993
+                 M2 rms -25.83 dBFS  dRMS -0.14 dB  colony 0.480353  colony/base 0.997
+                 M3 rms -25.04 dBFS  dRMS +0.04 dB  colony 0.482240  colony/base 0.999
+               best counted d 3.6086 (d/t0 0.888)   max d 3.6086 (d/t0 0.888)
+freqDrift      [0, 0.0002]        4e-05      0            1.5396    0.379     0.733     INAUDIBLE .lo,.hi
+                 M1 rms -26.10 dBFS  dRMS -0.08 dB  colony 0.483215  colony/base 0.999
+                 M2 rms -25.78 dBFS  dRMS -0.09 dB  colony 0.482106  colony/base 1.001
+                 M3 rms -25.01 dBFS  dRMS +0.08 dB  colony 0.483391  colony/base 1.001
+                                             0.0002       2.5375    0.624     0.558     counted 
+                 M1 rms -25.89 dBFS  dRMS +0.14 dB  colony 0.484365  colony/base 1.001
+                 M2 rms -25.82 dBFS  dRMS -0.13 dB  colony 0.479770  colony/base 0.996
+                 M3 rms -25.19 dBFS  dRMS -0.11 dB  colony 0.482296  colony/base 0.999
+               best counted d 2.5375 (d/t0 0.624)   max d 2.5375 (d/t0 0.624)
+grazeRate      [0, 3]             0.75       0            4.3530    1.071     0.000     OFF-LIKE .lo,.hi
+                 M1 rms -25.66 dBFS  dRMS +0.37 dB  colony 0.000004  colony/base 0.000
+                 M2 rms -25.67 dBFS  dRMS +0.02 dB  colony 0.000000  colony/base 0.000
+                 M3 rms -25.43 dBFS  dRMS -0.35 dB  colony 0.000000  colony/base 0.000
+                                             3            0.8585    0.211     1.256     INAUDIBLE 
+                 M1 rms -26.05 dBFS  dRMS -0.03 dB  colony 0.495508  colony/base 1.025
+                 M2 rms -25.70 dBFS  dRMS -0.02 dB  colony 0.494287  colony/base 1.026
+                 M3 rms -25.06 dBFS  dRMS +0.03 dB  colony 0.494776  colony/base 1.025
+               best counted d 0.0000 (d/t0 0.000) [none counted]   max d 4.3530 (d/t0 1.071)
+leakRate       [0, 1]             0.06       0            1.4136    0.348     0.762     INAUDIBLE .lo,.hi
+                 M1 rms -25.62 dBFS  dRMS +0.40 dB  colony 0.481558  colony/base 0.996
+                 M2 rms -25.33 dBFS  dRMS +0.36 dB  colony 0.464615  colony/base 0.964
+                 M3 rms -25.50 dBFS  dRMS -0.42 dB  colony 0.455870  colony/base 0.944
+                                             1            3.5335    0.869     0.220     OFF-LIKE 
+                 M1 rms -25.79 dBFS  dRMS +0.24 dB  colony 0.077918  colony/base 0.161
+                 M2 rms -25.67 dBFS  dRMS +0.01 dB  colony 0.077459  colony/base 0.161
+                 M3 rms -25.42 dBFS  dRMS -0.33 dB  colony 0.077976  colony/base 0.162
+               best counted d 0.0000 (d/t0 0.000) [none counted]   max d 3.5335 (d/t0 0.869)
+forageRate     [0, 0.05]          0.01       0            2.0237    0.498     1.518     INAUDIBLE .lo,.hi
+                 M1 rms -26.44 dBFS  dRMS -0.41 dB  colony 0.477793  colony/base 0.988
+                 M2 rms -25.74 dBFS  dRMS -0.05 dB  colony 0.474865  colony/base 0.986
+                 M3 rms -25.20 dBFS  dRMS -0.11 dB  colony 0.479307  colony/base 0.993
+                                             0.05         1.3799    0.339     0.750     INAUDIBLE 
+                 M1 rms -25.97 dBFS  dRMS +0.06 dB  colony 0.483601  colony/base 1.000
+                 M2 rms -25.89 dBFS  dRMS -0.20 dB  colony 0.482452  colony/base 1.001
+                 M3 rms -25.07 dBFS  dRMS +0.02 dB  colony 0.483212  colony/base 1.001
+               best counted d 0.0000 (d/t0 0.000) [none counted]   max d 2.0237 (d/t0 0.498)
+kernelSigma    [0.01, 0.35]       0.03       0.01         1.9242    0.473     0.632     INAUDIBLE .lo,.hi
+                 M1 rms -25.95 dBFS  dRMS +0.07 dB  colony 0.447559  colony/base 0.925
+                 M2 rms -25.90 dBFS  dRMS -0.22 dB  colony 0.443083  colony/base 0.920
+                 M3 rms -25.21 dBFS  dRMS -0.12 dB  colony 0.443810  colony/base 0.919
+                                             0.35         1.6572    0.408     0.797     INAUDIBLE 
+                 M1 rms -25.19 dBFS  dRMS +0.83 dB  colony 0.257574  colony/base 0.533
+                 M2 rms -25.06 dBFS  dRMS +0.62 dB  colony 0.251649  colony/base 0.522
+                 M3 rms -25.34 dBFS  dRMS -0.25 dB  colony 0.256891  colony/base 0.532
+               best counted d 0.0000 (d/t0 0.000) [none counted]   max d 1.9242 (d/t0 0.473)
+selfAffinity   [-2, 2]            -1         -2           0.0466    0.011     1.061     INAUDIBLE .lo,.hi
+                 M1 rms -26.02 dBFS  dRMS +0.01 dB  colony 0.483648  colony/base 1.000
+                 M2 rms -25.70 dBFS  dRMS -0.02 dB  colony 0.481804  colony/base 1.000
+                 M3 rms -25.09 dBFS  dRMS -0.00 dB  colony 0.482762  colony/base 1.000
+                                             2            1.8471    0.454     0.787     INAUDIBLE 
+                 M1 rms -26.14 dBFS  dRMS -0.11 dB  colony 0.483607  colony/base 1.000
+                 M2 rms -26.01 dBFS  dRMS -0.32 dB  colony 0.479787  colony/base 0.996
+                 M3 rms -25.00 dBFS  dRMS +0.08 dB  colony 0.481917  colony/base 0.998
+               best counted d 0.0000 (d/t0 0.000) [none counted]   max d 1.8471 (d/t0 0.454)
+exchangeRate   [0, 3]             0.35       0            0.4998    0.123     0.950     INAUDIBLE .lo,.hi
+                 M1 rms -26.01 dBFS  dRMS +0.02 dB  colony 0.483680  colony/base 1.000
+                 M2 rms -25.83 dBFS  dRMS -0.15 dB  colony 0.481860  colony/base 1.000
+                 M3 rms -25.06 dBFS  dRMS +0.02 dB  colony 0.482674  colony/base 1.000
+                                             3            1.3278    0.327     1.300     INAUDIBLE 
+                 M1 rms -26.23 dBFS  dRMS -0.20 dB  colony 0.478820  colony/base 0.990
+                 M2 rms -25.30 dBFS  dRMS +0.39 dB  colony 0.471728  colony/base 0.979
+                 M3 rms -24.99 dBFS  dRMS +0.10 dB  colony 0.477065  colony/base 0.988
+               best counted d 0.0000 (d/t0 0.000) [none counted]   max d 1.3278 (d/t0 0.327)
+predation      [0, 1]             0.55       0            1.0065    0.248     1.294     INAUDIBLE .lo,.hi
+                 M1 rms -26.09 dBFS  dRMS -0.06 dB  colony 0.483628  colony/base 1.000
+                 M2 rms -25.60 dBFS  dRMS +0.09 dB  colony 0.481813  colony/base 1.000
+                 M3 rms -25.10 dBFS  dRMS -0.02 dB  colony 0.482589  colony/base 1.000
+                                             1            1.2471    0.307     1.274     INAUDIBLE 
+                 M1 rms -26.28 dBFS  dRMS -0.26 dB  colony 0.481935  colony/base 0.996
+                 M2 rms -25.36 dBFS  dRMS +0.32 dB  colony 0.477264  colony/base 0.991
+                 M3 rms -25.02 dBFS  dRMS +0.07 dB  colony 0.479259  colony/base 0.993
+               best counted d 0.0000 (d/t0 0.000) [none counted]   max d 1.2471 (d/t0 0.307)
+crowding       [0, 0.2]           0.05       0            0.6892    0.170     0.911     INAUDIBLE .lo,.hi
+                 M1 rms -26.02 dBFS  dRMS +0.01 dB  colony 0.482656  colony/base 0.998
+                 M2 rms -25.72 dBFS  dRMS -0.04 dB  colony 0.481773  colony/base 1.000
+                 M3 rms -25.07 dBFS  dRMS +0.02 dB  colony 0.482547  colony/base 1.000
+                                             0.2          0.0515    0.013     1.082     INAUDIBLE 
+                 M1 rms -26.05 dBFS  dRMS -0.02 dB  colony 0.483631  colony/base 1.000
+                 M2 rms -25.72 dBFS  dRMS -0.03 dB  colony 0.481823  colony/base 1.000
+                 M3 rms -25.09 dBFS  dRMS -0.00 dB  colony 0.482764  colony/base 1.000
+               best counted d 0.0000 (d/t0 0.000) [none counted]   max d 0.6892 (d/t0 0.170)
+crossAffinity  [-2, 2]            0.45       -2           0.5875    0.144     0.931     INAUDIBLE .lo,.hi
+                 M1 rms -26.05 dBFS  dRMS -0.02 dB  colony 0.483851  colony/base 1.000
+                 M2 rms -25.91 dBFS  dRMS -0.22 dB  colony 0.482050  colony/base 1.001
+                 M3 rms -25.07 dBFS  dRMS +0.01 dB  colony 0.482839  colony/base 1.000
+                                             2            0.4944    0.122     1.182     INAUDIBLE 
+                 M1 rms -25.97 dBFS  dRMS +0.06 dB  colony 0.483315  colony/base 0.999
+                 M2 rms -25.63 dBFS  dRMS +0.05 dB  colony 0.481531  colony/base 0.999
+                 M3 rms -25.09 dBFS  dRMS -0.01 dB  colony 0.482449  colony/base 0.999
+               best counted d 0.0000 (d/t0 0.000) [none counted]   max d 0.5875 (d/t0 0.144)
+maxSpeed       [0.001, 0.05]      0.03       0.001        0.2608    0.064     1.091     INAUDIBLE .lo,.hi
+                 M1 rms -26.19 dBFS  dRMS -0.17 dB  colony 0.483064  colony/base 0.999
+                 M2 rms -25.75 dBFS  dRMS -0.07 dB  colony 0.481045  colony/base 0.998
+                 M3 rms -25.07 dBFS  dRMS +0.01 dB  colony 0.482379  colony/base 0.999
+                                             0.05         0.0007    0.000     1.070     INAUDIBLE 
+                 M1 rms -26.03 dBFS  dRMS +0.00 dB  colony 0.483648  colony/base 1.000
+                 M2 rms -25.69 dBFS  dRMS +0.00 dB  colony 0.481807  colony/base 1.000
+                 M3 rms -25.09 dBFS  dRMS +0.00 dB  colony 0.482763  colony/base 1.000
+               best counted d 0.0000 (d/t0 0.000) [none counted]   max d 0.2608 (d/t0 0.064)
+feedRate       [0, 1]             0          1            0.0256    0.006     1.065     INAUDIBLE .hi
+                 M1 rms -26.02 dBFS  dRMS +0.00 dB  colony 0.483637  colony/base 1.000
+                 M2 rms -25.68 dBFS  dRMS +0.00 dB  colony 0.481808  colony/base 1.000
+                 M3 rms -25.09 dBFS  dRMS -0.00 dB  colony 0.482763  colony/base 1.000
+               best counted d 0.0000 (d/t0 0.000) [none counted]   max d 0.0256 (d/t0 0.006)
+
+audible non-kill knobs: 3 of 14
+table for Phase 14 Q2 — no roster named here
+===============================================================================
+All tests passed (956583 assertions in 1 test case)
+
+EXIT 0
+END 2026-09-28 11:41:30

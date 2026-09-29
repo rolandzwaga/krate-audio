@@ -171,15 +171,14 @@ static_assert(kChunksPerAudioSecond * kChunk == 48000u, "one audio second in chu
 // -----------------------------------------------------------------------------
 // noiseWakeBase_ has a public setter and getter (setNoiseWakeBase / getNoiseWakeBase,
 // :1098-1101), so its base is read from the VOICE and cannot drift from this TU.
-// peakWakeBase_ and loopWakeBase_ have NEITHER - they are filled at prepare()
-// (vorago_voice.h:578 and :591) and are not on the macro surface - so their
-// shipped values are reproduced here. A drift between prepare() and these two
-// literals turns SC-019 clause 1 red, which is the correct outcome: clause 1
-// asserts the destinations read EXACTLY their configured bases, and a base
-// nobody can name is not a configured base.
+// peakWakeBase_ and loopWakeBase_ have no setter; prepare() fills them from the
+// voice's PUBLIC constants VoragoVoice::kPeakWakeBase / kLoopWakeBase (Phase 13b
+// retuned them 0.50 -> 0.45 and made them public, ruling 2026-09-28, so this TU
+// names the configured base instead of reproducing it: this constant and the
+// literal it once was can no longer drift apart).
 
-constexpr float kShippedPeakWakeBase = 0.50f;  ///< vorago_voice.h:578
-constexpr float kShippedLoopWakeBase = 0.50f;  ///< vorago_voice.h:591
+constexpr float kShippedPeakWakeBase = VoragoVoice::kPeakWakeBase;
+constexpr float kShippedLoopWakeBase = VoragoVoice::kLoopWakeBase;
 
 // -----------------------------------------------------------------------------
 // Test-side doors through the voice's const sub-component accessors

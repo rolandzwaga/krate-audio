@@ -169,6 +169,8 @@ struct VoragoEngineNonFiniteProbe;
 struct VoragoVoiceIdentityProbe;
 /// Phase 14 FR-070's rule-knob audibility probe. B-4: DEFINED IN THE TEST TU.
 struct VoragoEcosystemRuleProbe;
+/// Phase 13b FR-023 lane-injection / lever probe. B-4: DEFINED IN THE TEST TU.
+struct VoragoEcosystemLeverProbe;
 }  // namespace detail
 
 // =============================================================================
@@ -380,6 +382,15 @@ public:
     /// The library-wide gain-ramp time (noise_organism.h:178).
     static constexpr float kBlendRampMs = 50.0f;
 
+    /// The configured peak and loop wake BASES (FR-021 per-destination bases;
+    /// Phase 13b FR-018 retune by the plan S3.4 rule from
+    /// specs/vorago-phase13b-ecosystem-audibility/artifacts/lane_survey.log,
+    /// ":18 [Resonator] ... = 0.45", ":29 [Feedback] ... = 0.45"; they were the
+    /// 0.50 prepare() literals). Public so a test asserts the configured base
+    /// BY NAME rather than reproducing it (ruling 2026-09-28, Phase 10 SC-019).
+    static constexpr float kPeakWakeBase = 0.45f;
+    static constexpr float kLoopWakeBase = 0.45f;
+
     // --- seed salts (FR-025); pairwise distinct, asserted just below ---------
     static constexpr std::size_t kCloudSalt = 0x0100;
     static constexpr std::size_t kNoiseSalt = 0x0200;
@@ -566,6 +577,9 @@ public:
         noise_.setSourceModel(1, NoiseOrganismModel::GranularDust);
         noise_.setSourceModel(2, NoiseOrganismModel::Direct);
         noise_.setSourceModel(3, NoiseOrganismModel::MetallicHiss);
+        // Phase 13b (plan S2.3): the lever offsets start at zero on every prepare.
+        noiseLevelOffsetDb_.fill(0.0f);
+        loopGainOffset_.fill(0.0f);
         setNoiseLevelDb(-18.0f);     // component -12.0: the noise is a bed, not a layer
         setNoiseWanderRate(0.03f);   // (unchanged) kDefaultWanderRateHz
         setNoiseWakeBase(0.35f);     // FR-021's per-destination base (voice-owned)
@@ -578,11 +592,12 @@ public:
         setResonanceMix(0.45f);
         resonance_.setWetGain(ResonanceDriftNetwork::kDefaultWetGainDb);  // (unchanged) 34.5 dB
         for (std::size_t p = 0; p < ResonanceDriftNetwork::kMaxPeaks; ++p) {
-            resonance_.setPeakLevel(p, -9.0f);
-            resonance_.setFreqWander(p, 1.5f);
+            resonance_.setPeakLevel(p, kPeakLevelBaseDb);  // Phase 13b: was the literal -9.0f
+            resonance_.setFreqWander(p, kFreqWanderBaseSemis);  // Phase 13b L4: was 1.5f
         }
+        freqWanderApplied_.fill(kFreqWanderBaseSemis);
         setResonanceWanderRate(0.03f);  // (unchanged); Movement's row moves it
-        peakWakeBase_.fill(0.50f);      // half the peaks awake at the neutral
+        peakWakeBase_.fill(kPeakWakeBase);  // half the peaks awake at the neutral
 
         // Feedback ecology.
         ecology_.setNumLoops(numLoops);
@@ -593,9 +608,10 @@ public:
         // voicing (roadmap lines 276-278); 0.12 is Phase 10's answer, recorded
         // here rather than pretended about.
         for (std::size_t l = 0; l < numLoops; ++l) {
-            ecology_.setCoupling(l, (l + 1u) % numLoops, 0.12f);
+            ecology_.setCoupling(l, (l + 1u) % numLoops, kRingCouplingBase);  // Phase 13b L4: was 0.12f
         }
-        loopWakeBase_.fill(0.50f);
+        ringCouplingApplied_.fill(kRingCouplingBase);
+        loopWakeBase_.fill(kLoopWakeBase);
 
         // Bloom engine.
         setBloomDepth(0.60f);        // component 1.0; Density's row moves it up
@@ -702,6 +718,10 @@ public:
         quiescentChunksToRetire_ = std::max(
             1, static_cast<int>(std::lround(kQuiescentSeconds * sampleRate_
                                             / static_cast<double>(kControlChunkSamples))));
+        // Phase 13b L4 step 2: the freq-wander lever's full-span slew, per chunk.
+        freqWanderSlewPerChunk_ =
+            kFreqWanderLeverSpanSemis * static_cast<float>(kControlChunkSamples)
+            / (static_cast<float>(sampleRate_) * kFreqWanderLeverSlewSeconds);
         noiseGain_.configure(NoiseOrganism::kGainRampMs, static_cast<float>(sampleRate_));
         blend_.configure(kBlendRampMs, static_cast<float>(sampleRate_));
         // FR-015 / B-3: two SECOND-ORDER all-passes, {b0 = a, b1 = 0, b2 = 1,
@@ -1245,17 +1265,24 @@ public:
         // step apply()-every-block must not produce. The clamp mirrors the
         // component's own (noise_organism.h:493) so the comparison is against the
         // value the component would store; a non-finite dB never reaches it.
+        //
+        // Phase 13b FR-021: the early-out is now against the voice's SHADOW of
+        // the base, because the component holds base + the Noise lever offset.
+        // writeNoiseLevel() early-outs per source against the COMPONENT, which
+        // is what keeps a re-prepare correct (plan S2.3).
         const float clamped =
             std::clamp(dB, NoiseGenerator::kMinLevelDb, NoiseGenerator::kMaxLevelDb);
-        const std::size_t n = noise_.getNumSources();
-        if (n > 0 && clamped == noise_.getSourceLevel(0)) {
+        if (clamped == noiseLevelBaseDb_) {
             return;
         }
+        noiseLevelBaseDb_ = clamped;
+        const std::size_t n = std::min(noise_.getNumSources(), NoiseOrganism::kMaxSources);
         for (std::size_t s = 0; s < n; ++s) {
-            noise_.setSourceLevel(s, dB);
+            writeNoiseLevel(s);  // base + the held lever offset
         }
     }
-    [[nodiscard]] float getNoiseLevelDb() const noexcept { return noise_.getSourceLevel(0); }
+    /// FR-021: the BASE, not the component's lever-offset level.
+    [[nodiscard]] float getNoiseLevelDb() const noexcept { return noiseLevelBaseDb_; }
 
     /// FR-021's per-destination wake BASE. Voice-owned: NoiseOrganism's own
     /// setSourceWake is written by publishIdentity() each control step from this
@@ -1317,14 +1344,20 @@ public:
     }
     [[nodiscard]] float getEcologyMix() const noexcept { return ecology_.getMix(); }
 
-    /// FAN-OUT: every CONFIGURED loop.
+    /// FAN-OUT: every CONFIGURED loop. Phase 13b FR-021: the voice shadows the
+    /// BASE, because the component holds base + the Feedback lever offset.
     void setEcologyLoopGain(float g) noexcept {
-        const std::size_t n = ecology_.getNumLoops();
+        if (!detail::isFinite(g)) {
+            return;  // mirrors the owner's reject (feedback_ecology.h:1113)
+        }
+        loopGainBase_ = std::clamp(g, FeedbackEcology::kMinLoopGain, FeedbackEcology::kMaxLoopGain);
+        const std::size_t n = std::min(ecology_.getNumLoops(), FeedbackEcology::kMaxLoops);
         for (std::size_t l = 0; l < n; ++l) {
-            ecology_.setLoopGain(l, g);
+            writeLoopGain(l);
         }
     }
-    [[nodiscard]] float getEcologyLoopGain() const noexcept { return ecology_.getLoopGain(0); }
+    /// FR-021: the BASE, not the component's lever-offset gain.
+    [[nodiscard]] float getEcologyLoopGain() const noexcept { return loopGainBase_; }
 
     /// FR-036 / FR-037. Advanced PER SAMPLE inside the chunk, never stepped at
     /// the chunk boundary.
@@ -1533,8 +1566,110 @@ private:
     friend struct detail::VoragoEngineNonFiniteProbe;   // SC-029 (B-4)
     friend struct detail::VoragoVoiceIdentityProbe;     // SC-019a / SC-019b (B-4)
     friend struct detail::VoragoEcosystemRuleProbe;     // Phase 14 FR-070 (B-4)
+    friend struct detail::VoragoEcosystemLeverProbe;    // Phase 13b FR-023 (B-4)
     friend class VoragoEngine;                          // the engine owns its voices
     friend class VoragoMacroMatrix;                     // S7's apply() needs non-const access
+
+    // =========================================================================
+    // Phase 13b levers (FR-015 .. FR-025). Shipped values are fixed by the
+    // tuning procedure (plan S3.5) and recorded before/after in compliance.
+    // =========================================================================
+
+    static constexpr float kPeakLevelBaseDb = -9.0f;  // was the prepare() literal (FR-018a-retunable)
+    // S2.1 initial spans, set at plan S3.5 L2 (were 0 at the S7 step 3 inert refactor):
+    // noise 9.0 dB, peak 12.0 dB, loop gain 0.15. L2 Gate 1 FAILED on both arms
+    // (artifacts/L2_gate1_default.log "d/t0=1.858 verdict=FAIL", L2_gate1_lifemax.log
+    // "d/t0=1.095 verdict=FAIL"); L3 skipped (M1 -26.34 vs before -26.10 dBFS, inside
+    // +/-1.5 dB). S3.5 L4 step 1: spans raised to their caps (noise <= 12, peak <= 18,
+    // loop gain <= 0.18). All three stay clamped by writeNoiseLevel / the peak clamp /
+    // writeLoopGain (E-5, SC-011).
+    static constexpr float kNoiseLevelLeverSpanDb = 12.0f;  // L2 9.0 -> L4 12.0
+    static constexpr float kPeakLevelLeverSpanDb = 18.0f;   // L2 12.0 -> L4 18.0
+    static constexpr float kLoopGainLeverSpan = 0.18f;      // L2 0.15 -> L4 0.18
+    // L4 step 2 (2026-09-28, plan S2.8): the ladder levers - motion and timbre
+    // rather than level, because the level levers alone topped out at a six-seed
+    // median of 1.66 (ladder record). Bases were the prepare() literals.
+    // L5 (2026-09-28): bases lowered so the colony's lever contrast widens -
+    // at lane 0 the peaks wander less and the ring couples less than Phase 10's
+    // literals (1.5 st / 0.12), and the levers span from there.
+    static constexpr float kFreqWanderBaseSemis = 0.75f;      // FR-018a-retunable; L5 1.5 -> 0.75
+    static constexpr float kRingCouplingBase = 0.06f;         // FR-018a-retunable; L4 0.12 -> L5 0.06
+    static constexpr float kCouplingLeverSpan = 0.30f;        // ring pair only (Q8, E-4); <= 0.30
+    // 6 -> 3 st (2026-09-28): Phase 10 SC-010 (VoragoMacro_NoZipper, bound 1.5x)
+    // read 1.62x on the Movement macro's ramp at 6 st - the colony-driven peak
+    // motion at Movement's 1 Hz wander rate, not the slew (0.05 s and 0.5 s both
+    // read 1.62x; span 0 reads 0.98x). Measured: 4 st 1.55x FAIL, 3 st 1.38x
+    // PASS, 2 st 1.17x PASS (artifacts/zipper_e3_span*.log).
+    static constexpr float kFreqWanderLeverSpanSemis = 3.0f;  // <= 6 st; slewed (E-6)
+    static constexpr float kFreqWanderLeverSlewSeconds = 0.050f;  // full-span slew time
+    // FR-018b (2026-09-28): the wander lever's span is scaled by the resonance
+    // wander RATE, (0.03 Hz / rate)^k for rates above the shipped 0.03 Hz, so
+    // the colony's extra wander is full at the default and fades towards the
+    // Movement macro's 1 Hz ceiling (7 % of the span at k = 0.75). Without it
+    // Phase 10 SC-008 (VoragoMacro_SweepAxes) read Movement's per-band total
+    // variation at rho 0.867 (bound 0.9) for every span 2-3 st and base
+    // 0.75-1.5 st tried (artifacts/cand_*_sweepaxes.log, base15_sweepaxes.log):
+    // the colony's wander, multiplied by the macro's faster rate, out-varied the
+    // macro's own ordering at its top points. Measured (artifacts/ratecomp_*):
+    // k = 1 (depth x rate constant) rho 0.967 but endpoint +19 % against the
+    // >= 20 % bound; k = 0.5 rho 0.967, +23 %, the mean series' top pair
+    // inverted; k = 0.75 rho 1.000 (every seed monotone), +21 %, zipper 1.00x.
+    static constexpr float kWanderLeverRateCompExponent = 0.75f;
+    [[nodiscard]] static float wanderLeverRateComp(float rateHz) noexcept {
+        return (rateHz > ResonanceDriftNetwork::kDefaultWanderRateHz)
+                   ? std::pow(ResonanceDriftNetwork::kDefaultWanderRateHz / rateHz,
+                              kWanderLeverRateCompExponent)
+                   : 1.0f;
+    }
+    // FR-019a lane shaping (S3.5 L6). 1.0 = identity. Indexed by
+    // EcosystemEngine::Kind {Partial, Resonator, Noise, Feedback, Ghost}; only
+    // the FR-015 lever kinds may be shaped. L6 (2026-09-28, ruled before L4
+    // step 2 because it targets the measured cause): the lane survey put the
+    // typical lane at Q(0.50) = 0.40-0.45 of the lever span, and at L4 the
+    // colony's on/off effect read 0.62-1.28 on four seeds against 2.92 on the
+    // default seed; gain 2 puts the median lane at the top of the span.
+    // Gain 3 was measured and rejected (ladder record): six-seed median 1.31
+    // against 1.66 at gain 2 - with most lanes clamped at 1 the levers become a
+    // fixed boost that the level-normalised descriptor largely cancels.
+    static constexpr std::array<float, EcosystemEngine::kNumKinds> kLeverInputGain{
+        1.0f, 2.0f, 2.0f, 2.0f, 1.0f};  // L6: Resonator, Noise, Feedback 1.0 -> 2.0
+    static_assert(kLeverInputGain[static_cast<std::size_t>(EcosystemEngine::Kind::Partial)] == 1.0f
+                      && kLeverInputGain[static_cast<std::size_t>(EcosystemEngine::Kind::Ghost)]
+                             == 1.0f,
+                  "FR-016/FR-019a: Partial and Ghost are already-direct lanes and are never shaped");
+    // FR-018 wake-base retune floor: never at or below kWakeSilenceEpsilon, so the
+    // colony path can never generate a dormancy edge (E-3, Phase 5 FR-063).
+    static constexpr float kMinRetunedWakeBase = 0.05f;
+    // kPeakWakeBase / kLoopWakeBase are PUBLIC (declared with the other public
+    // constants above) so that a test can name the configured base instead of
+    // reproducing it as a literal (ruling 2026-09-28, Phase 10 SC-019 clause 1).
+    static_assert(kPeakWakeBase >= kMinRetunedWakeBase && kLoopWakeBase >= kMinRetunedWakeBase,
+                  "FR-018: a retuned wake base must stay above the silence floor");
+
+    /// FR-019a lever input; identity while gain == 1. 0 -> +0.0f exactly;
+    /// [0, 1] -> [0, 1] (SC-021).
+    [[nodiscard]] static float shapeLeverInput(float lane, float gain) noexcept {
+        return std::clamp(gain * lane, 0.0f, 1.0f);
+    }
+
+    /// The ONLY caller of NoiseOrganism::setSourceLevel. E-7: compares against
+    /// the COMPONENT's stored target, so an unchanged level never re-arms the
+    /// ramp, while a re-prepare (which puts the component back at its own
+    /// -12 dB default) is still written.
+    void writeNoiseLevel(std::size_t s) noexcept {
+        const float t = std::clamp(noiseLevelBaseDb_ + noiseLevelOffsetDb_[s], -96.0f, 12.0f);
+        if (t != noise_.getSourceLevel(s)) {
+            noise_.setSourceLevel(s, t);
+        }
+    }
+    /// The ONLY caller of FeedbackEcology::setLoopGain. Same E-7 contract.
+    void writeLoopGain(std::size_t l) noexcept {
+        const float t = std::clamp(loopGainBase_ + loopGainOffset_[l],
+                                   FeedbackEcology::kMinLoopGain, FeedbackEcology::kMaxLoopGain);
+        if (t != ecology_.getLoopGain(l)) {
+            ecology_.setLoopGain(l, t);
+        }
+    }
 
     // =========================================================================
     // Seeding
@@ -1577,6 +1712,25 @@ private:
         // reset snaps TO, which is the only spelling that is idempotent - and a
         // clearing path that is not idempotent is not a rewind.
         installIdentityNeutral();
+
+        // Phase 13b SC-012 (found by VoragoVoice_EcosystemLeverReset): the per-NOTE
+        // configuration noteOn() writes SURVIVES the component resets below.
+        // ContinuousBody::reset() snaps its 20 ms log-frequency note glide to the
+        // PRESERVED noteHz_ (continuous_body.h refreshSmootherTargets +
+        // snapToTarget), and HarmonicCloud::reset() keeps fundamentalHz_ and
+        // early-outs an unchanged setFundamentalHz(), so a voice reset after a
+        // note takes its next noteOn() at the same pitch as "no change": no
+        // glide, no FR-013 pitch-jump crossfade - and renders unlike a freshly
+        // prepared twin, which glides and crossfades from the defaults. Restore
+        // the prepare-time defaults FIRST; the resets then snap to them exactly
+        // as prepare() does. Scalar writes only, so every clearing path -
+        // including the RT-safe steal and recovery ones - can afford them.
+        // The resonance network keeps noteHz_ too, but it holds no smoother on
+        // it (setNoteFrequency only dirties the anchors, which reset() dirties
+        // anyway), so both twins recompute the same anchors at the first step.
+        cloud_.setFundamentalHz(220.0f);  // harmonic_cloud.h: `float fundamentalHz_ = 220.0f;`
+        bodies_[0].setNoteFrequencyHz(ContinuousBody::kDefaultNoteHz);
+        bodies_[1].setNoteFrequencyHz(ContinuousBody::kDefaultNoteHz);
 
         // FR-011's latch is state in TWO objects, and clearing only ours strands
         // the other. HarmonicCloud::reset() deliberately does NOT drop a spectral
@@ -1941,6 +2095,53 @@ private:
         bloom_.setDepth(std::clamp(bloomDepthBase_ + partialEco, 0.0f, 1.0f));
 
         ghostRequest_ = combineWake(0.0f, lanes.eco[kGhost][0], lanes.sched[kGhost][0]);
+
+        // Phase 13b levers (FR-015, FR-017, FR-019, FR-020). They read ONLY
+        // lanes.eco (FR-019: scheduler-blind) and are appended here so both
+        // callers - publishIdentity() and installIdentityNeutral() - run them
+        // (FR-022). The wake, Partial and Ghost writes above keep the RAW lane.
+        // Noise: level up.
+        for (std::size_t s = 0; s < sources; ++s) {
+            noiseLevelOffsetDb_[s] = kNoiseLevelLeverSpanDb
+                                     * shapeLeverInput(lanes.eco[kNoise][s], kLeverInputGain[kNoise]);
+            writeNoiseLevel(s);
+        }
+        // Resonator: level up.
+        const float wanderSpan =
+            kFreqWanderLeverSpanSemis * wanderLeverRateComp(resonance_.getWanderRate());  // FR-018b
+        for (std::size_t p = 0; p < peaks; ++p) {
+            const float x =
+                shapeLeverInput(lanes.eco[kResonator][p], kLeverInputGain[kResonator]);
+            const float lvl = std::clamp(kPeakLevelBaseDb + kPeakLevelLeverSpanDb * x,
+                                         ResonanceDriftNetwork::kMinPeakLevelDb,
+                                         ResonanceDriftNetwork::kMaxPeakLevelDb);
+            if (lvl != resonance_.getPeakLevel(p)) {
+                resonance_.setPeakLevel(p, lvl);  // E-7: never re-arm an unchanged ramp
+            }
+            // L4 step 2: freq wander up, slewed by the voice (E-6: the component
+            // applies setFreqWander unsmoothed).
+            const float goal = kFreqWanderBaseSemis + wanderSpan * x;
+            freqWanderApplied_[p] += std::clamp(goal - freqWanderApplied_[p],
+                                                -freqWanderSlewPerChunk_, freqWanderSlewPerChunk_);
+            const float w = std::clamp(freqWanderApplied_[p], 0.0f,
+                                       ResonanceDriftNetwork::kMaxFreqWanderSemis);
+            if (w != resonance_.getFreqWander(p)) {
+                resonance_.setFreqWander(p, w);
+            }
+        }
+        // Feedback: own gain up, and (L4 step 2) the shipped ring pair's coupling up.
+        for (std::size_t l = 0; l < loops; ++l) {
+            const float x = shapeLeverInput(lanes.eco[kFeedback][l], kLeverInputGain[kFeedback]);
+            loopGainOffset_[l] = kLoopGainLeverSpan * x;
+            writeLoopGain(l);
+            const std::size_t to = (l + 1u) % loops;  // the shipped ring pair only (Q8, E-4)
+            const float c = std::clamp(kRingCouplingBase + kCouplingLeverSpan * x, 0.0f,
+                                       FeedbackEcology::kMaxCouplingPerPair);
+            if (to != l && c != ringCouplingApplied_[l]) {
+                ringCouplingApplied_[l] = c;
+                ecology_.setCoupling(l, to, c);  // control-rate smoothed in the component
+            }
+        }
     }
 
     /// The identity layer's SIX destinations, written at their bases with no
@@ -1972,6 +2173,9 @@ private:
         // steal reaches this twice (silence() then resetForSteal()), so a
         // function-local constant costs a zero-fill of nothing at all.
         static constexpr IdentityLanes kNoLanes{};
+        // L4 step 2: SNAP the slewed wander state, so the neutral lanes below
+        // write the base directly (FR-022, SC-012).
+        freqWanderApplied_.fill(kFreqWanderBaseSemis);
         applyIdentityLanes(kNoLanes);  // every lane zero: the bases alone
         resonance_.setGravity(std::clamp(gravityBase_, -1.0f, 1.0f));
     }
@@ -2021,8 +2225,12 @@ private:
     /// life-only advances indistinguishable to the identity layer.
     void publishIdentity() noexcept {
         IdentityLanes lanes{};
-        gatherEcosystemLanes(lanes);
-        gatherSchedulerLanes(lanes);
+        if (ecoInjectionActive_) {  // FR-023: detail::VoragoEcosystemLeverProbe only
+            lanes.eco = injectedEco_;
+        } else {
+            gatherEcosystemLanes(lanes);
+        }
+        gatherSchedulerLanes(lanes);  // unchanged: the schedulers keep running
         applyIdentityLanes(lanes);
         publishLifeLanes();
         applyEventRateScale();
@@ -2376,6 +2584,21 @@ private:
     float bloomDepthBase_ = 0.60f;
     float breathGravityLane_ = 0.0f;
     float tidalFogDepth_ = 0.0f;
+    // --- Phase 13b lever state (FR-021 shadows, FR-023 seam) ------------------
+    float noiseLevelBaseDb_ = -18.0f;                                     // shadow of setNoiseLevelDb
+    float loopGainBase_ = FeedbackEcology::kDefaultLoopGain;              // shadow of setEcologyLoopGain
+    std::array<float, NoiseOrganism::kMaxSources> noiseLevelOffsetDb_{};  // last applied offset
+    std::array<float, FeedbackEcology::kMaxLoops> loopGainOffset_{};      // last applied offset
+    // L4 step 2 ladder levers (plan S2.8): the slewed freq-wander state per peak
+    // (E-6: setFreqWander is applied unsmoothed, so the voice slews it) and the
+    // last ring coupling written per loop (E-7 guard against the voice's own
+    // last write, so the component's smoother is never re-armed unchanged).
+    std::array<float, ResonanceDriftNetwork::kMaxPeaks> freqWanderApplied_{};
+    std::array<float, FeedbackEcology::kMaxLoops> ringCouplingApplied_{};
+    float freqWanderSlewPerChunk_ = 0.0f;  // derived at prepare() step 7
+    // FR-023 lane-injection seam: written ONLY by detail::VoragoEcosystemLeverProbe.
+    std::array<std::array<float, kMaxSlotsPerKind>, EcosystemEngine::kNumKinds> injectedEco_{};
+    bool ecoInjectionActive_ = false;
     // The two modulator DEPTHS are deliberately NOT shadowed: setBreathingDepth /
     // setTidalDepth forward to breath_.setDepth / tide_.setDepth and the FR-071
     // getters read the components' own breathing_modulator.h:189 /

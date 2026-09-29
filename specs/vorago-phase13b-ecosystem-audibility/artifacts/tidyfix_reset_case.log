@@ -1,0 +1,12 @@
+START 2026-09-28 15:00:59
+Filters: "VoragoVoice_EcosystemLeverReset"
+Randomness seeded to: 3783398525
+[LeverReset] reset()                            L metric=0.000e+00 sample=0.000e+00 | R metric=0.000e+00 sample=0.000e+00
+[LeverReset] silence() + resetForSteal()        L metric=0.000e+00 sample=0.000e+00 | R metric=0.000e+00 sample=0.000e+00
+[LeverReset] resetForRecovery()                 L metric=0.000e+00 sample=0.000e+00 | R metric=0.000e+00 sample=0.000e+00
+[LeverReset] prepare(96000) -> prepare(48000)   L metric=0.000e+00 sample=0.000e+00 | R metric=0.000e+00 sample=0.000e+00
+===============================================================================
+All tests passed (518 assertions in 1 test case)
+
+EXIT 0
+END 2026-09-28 15:01:00

@@ -1,0 +1,43 @@
+START 2026-09-28 15:12:22 span=4.0 slew=0.05
+Filters: "VoragoMacro_NoZipper"
+Randomness seeded to: 3591672201
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+VoragoMacro_NoZipper
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1514)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1580): 
+warning:
+  SC-010 zipper statistic (20 ms window; reference 64 ms clear of the ramp)
+    macro 0  ramp=3.2101e-03  reference=3.2821e-03  ratio=9.7805e-01
+    macro 1  ramp=3.1488e-03  reference=3.2330e-03  ratio=9.7395e-01
+    macro 2  ramp=2.8381e-03  reference=2.8861e-03  ratio=9.8335e-01
+    macro 3  ramp=3.7485e-03  reference=2.4224e-03  ratio=1.5474e+00
+    macro 4  ramp=3.8450e-03  reference=3.1996e-03  ratio=1.2017e+00
+    macro 5  ramp=1.8873e-03  reference=1.6508e-03  ratio=1.1433e+00
+    macro 6  ramp=2.5535e-03  reference=2.7217e-03  ratio=9.3822e-01
+    macro 7  ramp=3.3690e-03  reference=3.9268e-03  ratio=8.5795e-01
+    macro 8  ramp=2.5424e-03  reference=2.8967e-03  ratio=8.7767e-01
+    macro 9  ramp=3.0470e-03  reference=3.1264e-03  ratio=9.7460e-01
+    macro 10  ramp=3.0270e-03  reference=3.1241e-03  ratio=9.6891e-01
+    macro 11  ramp=2.7800e-03  reference=2.3128e-03  ratio=1.2020e+00
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1587): FAILED:
+  REQUIRE( rampStat[m] <= (kBound * baselineStat[m]) )
+with expansion:
+  0.0037484802 <= 0.00363365
+with message:
+  macro index 3  ramp 0.00374848  reference 0.00242243
+
+===============================================================================
+test cases: 1 | 1 failed
+assertions: 8 | 7 passed | 1 failed
+
+EXIT 1
+END 2026-09-28 15:12:45

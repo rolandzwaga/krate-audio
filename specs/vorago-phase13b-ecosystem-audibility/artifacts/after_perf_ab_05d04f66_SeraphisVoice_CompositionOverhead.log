@@ -1,0 +1,53 @@
+START 2026-09-29 06:11:31 SeraphisVoice_CompositionOverhead 05d04f66 (alone, pinned, 5 min settle) exe=/f/tmp/p13b_ab/build/windows-x64-release/bin/Release/dsp_systems_tests.exe
+pin-perf-cores: performance-core mask 0xFFFF
+Filters: "SeraphisVoice_CompositionOverhead"
+Randomness seeded to: 1363403739
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+SeraphisVoice_CompositionOverhead
+-------------------------------------------------------------------------------
+F:\tmp\p13b_ab\dsp\tests\unit\systems\seraphis_perf_test.cpp(1330)
+...............................................................................
+
+F:\tmp\p13b_ab\dsp\tests\unit\systems\seraphis_perf_test.cpp(1396): warning:
+  SC-002 per-voice composition overhead (512-sample blocks @ 48 kHz, best-of-16
+  x 200,
+          64 partials + drift, FR-019 defaults, worst body material (Chamber),
+  atmosphere UNFROZEN,
+          Standard envelope gated on, spatial depth 0.5):
+    HarmonicCloud       : 21566 ns/block
+    SpectralMorphEngine : 8596 ns/block
+    ContinuousBody      : 33794 ns/block
+    AtmosphereEngine    : 77676.5 ns/block
+    MultiStageEnvelope  : 1345 ns/block
+    GrowthEnvelope      : 18.5 ns/block  (in the denominator by FR-002's eight;
+  the
+                          Standard-mode voice never advances it, so this term
+  biases
+                          the ratio DOWNWARD - see the ratio excluding it
+  below)
+    OrbitModulator      : 565.5 ns/block
+    MidSideProcessor    : 1739.5 ns/block
+    --- sum of eight    : 145301 ns/block
+    SeraphisVoice       : 161732 ns/block
+    ratio (SC-002)      : 1.11308   (bound <= 1.1)
+    ratio excl. growth  : 1.11322   (reported for compliance.md, NOT the gate)
+
+F:\tmp\p13b_ab\dsp\tests\unit\systems\seraphis_perf_test.cpp(1402): FAILED:
+  REQUIRE( ratio <= kCompositionOverheadBound )
+with expansion:
+  1.1130790566 <= 1.1
+with message:
+  SC-002: the 10 % allowance covers the carry-FIFO copies, the per-sample
+  envelope multiply, the spatial stage's two multiplies and the morph->cloud
+  handoff, and nothing else
+
+===============================================================================
+test cases:  1 |  0 passed | 1 failed
+assertions: 13 | 12 passed | 1 failed
+
+exit=1 END 2026-09-29 06:11:34

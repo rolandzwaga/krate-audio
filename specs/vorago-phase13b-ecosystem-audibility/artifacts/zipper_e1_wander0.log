@@ -1,0 +1,35 @@
+START 2026-09-28 15:09:16 E1: kFreqWanderLeverSpanSemis=0
+Filters: "VoragoMacro_NoZipper"
+Randomness seeded to: 1330455713
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+VoragoMacro_NoZipper
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1514)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1580): 
+warning:
+  SC-010 zipper statistic (20 ms window; reference 64 ms clear of the ramp)
+    macro 0  ramp=3.2672e-03  reference=3.2978e-03  ratio=9.9070e-01
+    macro 1  ramp=3.2163e-03  reference=3.2660e-03  ratio=9.8477e-01
+    macro 2  ramp=2.8815e-03  reference=2.9658e-03  ratio=9.7155e-01
+    macro 3  ramp=2.9954e-03  reference=3.0533e-03  ratio=9.8102e-01
+    macro 4  ramp=3.7889e-03  reference=3.4032e-03  ratio=1.1133e+00
+    macro 5  ramp=2.1247e-03  reference=1.9601e-03  ratio=1.0840e+00
+    macro 6  ramp=2.6031e-03  reference=2.8576e-03  ratio=9.1094e-01
+    macro 7  ramp=3.4633e-03  reference=3.9960e-03  ratio=8.6668e-01
+    macro 8  ramp=2.5918e-03  reference=2.9873e-03  ratio=8.6760e-01
+    macro 9  ramp=3.1052e-03  reference=3.1861e-03  ratio=9.7461e-01
+    macro 10  ramp=3.0923e-03  reference=3.1639e-03  ratio=9.7735e-01
+    macro 11  ramp=2.8413e-03  reference=2.4621e-03  ratio=1.1540e+00
+
+===============================================================================
+All tests passed (24 assertions in 1 test case)
+
+EXIT 0
+END 2026-09-28 15:09:39

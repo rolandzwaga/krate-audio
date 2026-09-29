@@ -1,0 +1,43 @@
+START 2026-09-29 06:16:34 SeraphisVoice_CompositionOverhead new (alone, pinned, 5 min settle) exe=build/windows-x64-release/bin/Release/dsp_systems_tests.exe
+pin-perf-cores: performance-core mask 0xFFFF
+Filters: "SeraphisVoice_CompositionOverhead"
+Randomness seeded to: 4035052759
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+SeraphisVoice_CompositionOverhead
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\seraphis_perf_test.cpp(1330)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\seraphis_perf_test.cpp(1396): warning:
+  SC-002 per-voice composition overhead (512-sample blocks @ 48 kHz, best-of-16
+  x 200,
+          64 partials + drift, FR-019 defaults, worst body material (Strings),
+  atmosphere UNFROZEN,
+          Standard envelope gated on, spatial depth 0.5):
+    HarmonicCloud       : 20030 ns/block
+    SpectralMorphEngine : 8716.5 ns/block
+    ContinuousBody      : 35688.5 ns/block
+    AtmosphereEngine    : 76026.5 ns/block
+    MultiStageEnvelope  : 1434 ns/block
+    GrowthEnvelope      : 17.5 ns/block  (in the denominator by FR-002's eight;
+  the
+                          Standard-mode voice never advances it, so this term
+  biases
+                          the ratio DOWNWARD - see the ratio excluding it
+  below)
+    OrbitModulator      : 577.5 ns/block
+    MidSideProcessor    : 1635.5 ns/block
+    --- sum of eight    : 144126 ns/block
+    SeraphisVoice       : 155128 ns/block
+    ratio (SC-002)      : 1.07634   (bound <= 1.1)
+    ratio excl. growth  : 1.07647   (reported for compliance.md, NOT the gate)
+
+===============================================================================
+All tests passed (13 assertions in 1 test case)
+
+exit=0 END 2026-09-29 06:16:36
