@@ -48,6 +48,11 @@
 
 namespace VoragoTest {
 
+// Phase 14 FR-074: the ecosystem roster knobs (901 Sync Rate, 902 Self Affinity)
+// added to the 108-ID Phase 12 surface. Tests that pin the registered surface
+// spell it `108 + kNumEcosystemRosterParams`; true v2 literals stay as they are.
+inline constexpr std::size_t kNumEcosystemRosterParams = 2;
+
 // -----------------------------------------------------------------------------
 // MultiPointParamValueQueue - a parameter queue carrying an arbitrary number of
 // automation points at arbitrary offsets, reported in insertion order.

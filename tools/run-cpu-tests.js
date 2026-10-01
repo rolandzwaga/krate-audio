@@ -52,7 +52,8 @@ const DEFAULT_TARGETS = [
 
 // Catch2 unions comma-separated tags. [!benchmark] and hidden [.perf] cases are
 // excluded from a default run, so they must be named explicitly to run at all.
-const FILTER = '[performance],[perf],[.perf],[benchmark],[!benchmark],[long]';
+// Phase 14 R-6: the Vorago preset sweep never shares a CPU run
+const FILTER = '[performance],[perf],[.perf],[benchmark],[!benchmark],[long]~[vorago-sweep]';
 
 const targets = process.argv.slice(2).length ? process.argv.slice(2) : DEFAULT_TARGETS;
 const results = [];

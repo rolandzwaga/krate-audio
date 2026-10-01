@@ -1,0 +1,56 @@
+START 18:05:39
+MSBuild version 17.14.51+25f168cee for .NET Framework
+
+  Checking File Globs
+  Catch2.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\Catch2.lib
+  PFFFT.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\pffft.lib
+  hwy.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy.lib
+  hwy_contrib.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy_contrib.lib
+  KrateDSP.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\KrateDSP.lib
+  noise_organism_test.cpp
+  vorago_engine_test.cpp
+  vorago_voice_test.cpp
+  dsp_systems_tests.vcxproj -> F:\projects\iterum\build\windows-x64-release\bin\Release\dsp_systems_tests.exe
+build exit=0 warnings=0 18:06:03
+Filters: "NoiseOrganism_TypeSwitchedAfterPrepareReplaysAfterReset","VoragoEngine_SlotSeedReproducibility","VoragoEngine_GhostExtensionWiring"
+Randomness seeded to: 2576139582
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+VoragoEngine_GhostExtensionWiring
+  clause (a) - the 60 s default render is unchanged from the base commit
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(458)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(509): warning:
+  SC-010 (a) fingerprint arm ran in 20.0949 s
+
+-------------------------------------------------------------------------------
+VoragoEngine_GhostExtensionWiring
+  clause (c) - the closed gate spawns nothing while the events still fire
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(522)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(557): warning:
+  SC-010 (c) closed-gate arm: 600 s at 8000 Hz ran in 32.2859 s; max ghost
+  request 0.992646
+
+-------------------------------------------------------------------------------
+VoragoEngine_GhostExtensionWiring
+  clause (e) - atmosGhostReverseProbability reaches the component
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(577)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(609): warning:
+  SC-010 (e) reverse-wire arm: 25 grains born, all reverse; ran in 4.47733 s
+
+===============================================================================
+All tests passed (41 assertions in 3 test cases)
+
+run exit=0 END 18:07:03

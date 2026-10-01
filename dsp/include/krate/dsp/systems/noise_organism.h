@@ -1943,6 +1943,16 @@ private:
         }
         s.generator.setNoiseLevel(s.activeType, sourceGeneratorDb(s.activeType));
         s.generator.setMasterLevel(0.0f);
+        // The generator's per-type level smoothers are NOT part of its reset()
+        // and prepare()'s warm-up settles only the types active at prepare, so
+        // a type first enabled here would fade in on the slot's next render
+        // and settle only by rendering - after which reset() could no longer
+        // reproduce the post-switch stream from configuration (Phase 14,
+        // NoiseOrganism_TypeSwitchedAfterPrepareReplaysAfterReset). Snapping is
+        // click-free at every call site: a type change reaches here through the
+        // duck at gate 0 (serviceDuck), and every other caller re-pushes the
+        // same targets, on which the snap is a no-op.
+        s.generator.snapLevelSmoothers();
         // FR-013's model-specific forwards for the two FLOORED signal-dependent
         // types. Unconditional: they are constant configuration, cost two
         // clamped stores, and pushing them only on the matching activeType would

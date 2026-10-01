@@ -51,6 +51,7 @@
 #include <cstdint>
 #include <cstring>
 #include <iomanip>   // std::setprecision, for the SC-013 capture literal
+#include <memory>    // std::make_unique, for the Phase 14 reset-after-type-switch case
 #include <sstream>   // std::ostringstream, likewise
 #include <string>    // likewise
 #include <utility>  // std::pair, for the T012 clamp-engagement guard
@@ -3719,4 +3720,75 @@ TEST_CASE("NoiseOrganism_HissBrightBranch", "[noise_organism]") {
         CAPTURE(levelRatioDb);
         REQUIRE(std::fabs(levelRatioDb) < 3.0);
     }
+}
+
+// =============================================================================
+// Phase 14 (Vorago presets release, 2026-09-30): reset() after a type switch.
+//
+// NoiseGenerator keeps one 5 ms level smoother PER NOISE TYPE, and its reset()
+// leaves them alone. prepare()'s warm-up settles the smoothers of the types that
+// are active AT PREPARE (Brown on every slot); a type enabled afterwards
+// (MetallicHiss -> Blue here) had its smoother parked at 0 with a target it has
+// never reached. An instance that has never rendered since the switch therefore
+// fades that type in over its first ~8 ms, while an instance that rendered first
+// starts settled - and reset() reproduces neither from the other. Found by the
+// Phase 10 slot-seed sentinel after the noise-bus make-up gain lifted the bed
+// above the sentinel's bound (VoragoEngine_SlotSeedReproducibility, 2.65e-4
+// against 2.5e-4; divergence from the first sample, MetallicHiss only).
+//
+// The contract: after reset(), the stream is a function of the configuration
+// alone - whether or not the instance rendered between the type switch and the
+// reset. Bit-identity, no tolerance.
+// =============================================================================
+TEST_CASE("NoiseOrganism_TypeSwitchedAfterPrepareReplaysAfterReset", "[noise_organism]") {
+    constexpr double kSr = 8000.0;  // the sentinel's rate; the fade is ~64 samples here
+    constexpr std::size_t kWindow = 16000u;
+    constexpr std::size_t kBlock = 64u;
+
+    const auto build = []() {
+        auto o = std::make_unique<NoiseOrganism>();
+        o->setSeed(kTestSeed);
+        o->prepare(kSr, NoiseOrganism::PrepareConfig{.numSources = 4});
+        for (std::size_t s = 0; s < 4u; ++s) {
+            o->setSourceLevel(s, 12.0f);
+            o->setSourceWake(s, 1.0f);
+            o->setSourceModel(s, NoiseOrganismModel::MetallicHiss);  // Blue: never active at prepare
+        }
+        return o;
+    };
+    const auto render = [](NoiseOrganism& o, std::size_t n) {
+        std::vector<float> out(n, 0.0f);
+        for (std::size_t done = 0; done < n; done += kBlock) {
+            o.processBlock(out.data() + done, std::min(std::size_t{kBlock}, n - done));
+        }
+        return out;
+    };
+
+    // Arm A: switched, never rendered, reset, captured.
+    auto never = build();
+    (*never).reset();
+    const std::vector<float> a = render(*never, kWindow);
+
+    // Arm B: switched, rendered (which settles the generator's smoothers), reset,
+    // captured. Same seed, same configuration, same reset.
+    auto rendered = build();
+    (void)render(*rendered, kWindow);
+    (*rendered).reset();
+    const std::vector<float> b = render(*rendered, kWindow);
+
+    float peak = 0.0f;
+    float maxDiff = 0.0f;
+    std::size_t firstDiff = a.size();
+    for (std::size_t i = 0; i < a.size(); ++i) {
+        peak = std::max(peak, std::fabs(a[i]));
+        const float d = std::fabs(a[i] - b[i]);
+        if (d > 0.0f && firstDiff == a.size()) {
+            firstDiff = i;
+        }
+        maxDiff = std::max(maxDiff, d);
+    }
+    CAPTURE(peak, maxDiff, firstDiff);
+    REQUIRE(peak > 0.01f);  // the bed is audible, so identity is not vacuous
+    CHECK(maxDiff == 0.0f);
+    CHECK(firstDiff == a.size());
 }

@@ -1,0 +1,66 @@
+START 14:30:31
+== Spore Drift | 300=0.888889,301=0.75
+[probe] override 300 = 0.888889 (replaced)
+[probe] override 301 = 0.750000 (replaced)
+[probe] Spore Drift - primary D3.3 noise model GranularDust (stored seed 9, 2 twin render(s))
+  conjunct S1 noise organism: d 4.3746, bar 1.5 -> ok
+  primary d 4.3746  bar 4.0000  attribBase -1.0000  state ok  -> PASS
+   14:33:46
+== Spore Drift | 300=0.833333,301=0.75
+[probe] override 300 = 0.833333 (replaced)
+[probe] override 301 = 0.750000 (replaced)
+[probe] Spore Drift - primary D3.3 noise model GranularDust (stored seed 9, 2 twin render(s))
+  conjunct S1 noise organism: d 2.9702, bar 1.5 -> ok
+  primary d 2.9702  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+   14:36:44
+== Spore Drift | 300=0.861111,301=1.0
+[probe] override 300 = 0.861111 (replaced)
+[probe] override 301 = 1.000000 (replaced)
+[probe] Spore Drift - primary D3.3 noise model GranularDust (stored seed 9, 2 twin render(s))
+  conjunct S1 noise organism: d 4.2719, bar 1.5 -> ok
+  primary d 4.2719  bar 4.0000  attribBase -1.0000  state ok  -> PASS
+   14:39:23
+== Dead Air | 300=1.0,301=1.0,320=0.0,321=0.090909,322=0.181818,323=0.454545
+[probe] override 300 = 1.000000 (replaced)
+[probe] override 301 = 1.000000 (replaced)
+[probe] override 320 = 0.000000 (replaced)
+[probe] override 321 = 0.090909 (replaced)
+[probe] override 322 = 0.181818 (replaced)
+[probe] override 323 = 0.454545 (replaced)
+[probe] Dead Air - primary D3.1 noise model Direct (stored seed 4, 2 twin render(s))
+  conjunct S1 noise organism: d 4.1026, bar 1.5 -> ok
+  primary d 4.1026  bar 4.0000  attribBase -1.0000  state ok  -> PASS
+   14:42:14
+== Dead Air | 300=0.944444,301=1.0,320=0.0,321=0.090909,322=0.181818,323=0.454545
+[probe] override 300 = 0.944444 (replaced)
+[probe] override 301 = 1.000000 (replaced)
+[probe] override 320 = 0.000000 (replaced)
+[probe] override 321 = 0.090909 (replaced)
+[probe] override 322 = 0.181818 (replaced)
+[probe] override 323 = 0.454545 (replaced)
+[probe] Dead Air - primary D3.1 noise model Direct (stored seed 4, 2 twin render(s))
+  conjunct S1 noise organism: d 2.8950, bar 1.5 -> ok
+  primary d 2.8950  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+   14:45:27
+== Slow Bloom | 
+[probe] Slow Bloom - primary S6 harmonic bloom (stored seed 7, 1 twin render(s))
+  primary d 0.0000  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+   14:48:24
+== Slow Bloom | 900=0.0
+[probe] override 900 = 0.000000 (appended)
+[probe] Slow Bloom - primary S6 harmonic bloom (stored seed 7, 1 twin render(s))
+  primary d 0.0000  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+   14:51:18
+== Choir of Absence | 
+[probe] Choir of Absence - primary S9 ghost / atmosphere (stored seed 10, 1 twin render(s))
+  primary d 0.2229  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+   14:54:47
+== Teeming | 
+[probe] Teeming - primary M10 Life (stored seed 11, 1 twin render(s))
+  primary d 0.4286  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+   14:58:07
+== Drifting Strata | 
+[probe] Drifting Strata - primary M4 Movement (stored seed 3, 1 twin render(s))
+  primary d 2.1514  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+   15:01:28
+END 15:01:28

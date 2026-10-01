@@ -3,7 +3,7 @@
 // ==============================================================================
 // Vorago Phase 12 - route table kParamRoutes / kMbRoutes (C-2, plan section 4.1)
 // ==============================================================================
-// Every registered parameter ID (108, plan section 3.2) carries exactly one Route:
+// Every registered parameter ID (110, plan 3.2 + Phase 14 FR-074) carries exactly one Route:
 //   MB    - a VoragoMacroMatrix target base (setTargetBase), mapped by kMbRoutes
 //   VP    - a per-voice parameter (VoragoVoiceParams -> applyVoiceParams)
 //   ENG   - a direct VoragoEngine setter
@@ -33,7 +33,7 @@ struct ParamRouteEntry {
 };
 
 /// Plan section 3.2 Route column, ascending ID.
-inline constexpr std::array<ParamRouteEntry, 108> kParamRoutes = {{
+inline constexpr std::array<ParamRouteEntry, 110> kParamRoutes = {{
     // --- Global (0-99) ---
     {kMasterGainId, Route::Local},
     {kPolyphonyId, Route::ENG},
@@ -110,9 +110,11 @@ inline constexpr std::array<ParamRouteEntry, 108> kParamRoutes = {{
     {kSmearAmountId, Route::MB},
     {kSmearDecoherenceId, Route::MB},
     {kSmearTiltId, Route::MB},
-    // --- Events (800) / Ecosystem (900) ---
+    // --- Events (800) / Ecosystem (900-902) ---
     {kEventsRateScaleId, Route::MB},
     {kEcosystemDepthId, Route::MB},
+    {kEcosystemSyncRateId, Route::VP},      // Phase 14 FR-074
+    {kEcosystemSelfAffinityId, Route::VP},  // Phase 14 FR-074
     // --- Body (1000-1005) ---
     {kBodyBlendId, Route::MB},
     {kBodyDampingId, Route::MB},
@@ -159,7 +161,7 @@ inline constexpr std::array<ParamRouteEntry, 108> kParamRoutes = {{
     {kLifeTidalDepthId, Route::MB},
 }};
 
-/// Linear scan (108 entries); std::nullopt for any unregistered ID.
+/// Linear scan (110 entries); std::nullopt for any unregistered ID.
 [[nodiscard]] constexpr std::optional<Route> routeOf(Steinberg::Vst::ParamID id) noexcept {
     for (const auto& e : kParamRoutes) {
         if (e.id == id)
@@ -278,7 +280,8 @@ namespace RouteTableDetail {
 
 static_assert(RouteTableDetail::idsStrictlyAscending(), "kParamRoutes must be strictly ascending");
 static_assert(RouteTableDetail::countRoute(Route::MB) == 39, "MB route count (plan 3.2)");
-static_assert(RouteTableDetail::countRoute(Route::VP) == 31, "VP route count (plan 3.2)");
+static_assert(RouteTableDetail::countRoute(Route::VP) == 33,
+              "VP route count (plan 3.2 + Phase 14 FR-074: 901, 902)");
 static_assert(RouteTableDetail::countRoute(Route::ENG) == 14, "ENG route count (plan 3.2)");
 static_assert(RouteTableDetail::countRoute(Route::CV) == 9, "CV route count (plan 3.2)");
 static_assert(RouteTableDetail::countRoute(Route::MAC) == 13, "MAC route count (plan 3.2)");

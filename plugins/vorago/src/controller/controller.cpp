@@ -233,6 +233,18 @@ tresult Controller::applyStateStream(IBStream* state, const SetParam& setParam) 
         tail->seek(0, IBStream::kIBSeekSet, nullptr);
         loadV2Tail(out);
     }
+    // Phase 14 FR-072 / FR-074 mirror of Processor::setState: the v3 extension
+    // (ecosystem roster) follows the life pack; an older stream returns both
+    // roster fields to their registered defaults through the same inverse mapping.
+    if (version >= 3) {
+        loadEcosystemParamsV3ExtToController(streamer, setParam);
+    } else {
+        auto ext = owned(new MemoryStream());
+        IBStreamer out(ext, kLittleEndian);
+        saveEcosystemParamsV3Ext(EcosystemParams{}, out);
+        ext->seek(0, IBStream::kIBSeekSet, nullptr);
+        loadEcosystemParamsV3ExtToController(out, setParam);
+    }
 
     return kResultOk;
 }

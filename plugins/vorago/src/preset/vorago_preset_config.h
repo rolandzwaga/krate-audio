@@ -3,7 +3,10 @@
 // ==============================================================================
 // Vorago Preset Configuration (FR-050, FR-051)   Plan section 2.7
 // ==============================================================================
-// `Drones` is the seed category. The list is ADDITIVE-ONLY: a rename orphans every
+// The seven categories, in this order, were ratified in Clarifications session
+// 2026-09-27 Q6 (specs/vorago-phase14-presets-release/spec.md FR-001): Drones,
+// Abyss, Caverns, Organisms, Machines, Textures, Ghosts. `Drones` is the Phase 11
+// seed category and stays verbatim. The list is ADDITIVE-ONLY: a rename orphans every
 // preset saved against it, because PresetManager::parsePresetFile matches the
 // parent directory name against `subcategoryNames` by exact `==` and leaves
 // `subcategory` EMPTY on a miss (plugins/shared/src/preset/preset_manager.cpp:95-103).
@@ -26,7 +29,8 @@ inline Krate::Plugins::PresetManagerConfig makeVoragoPresetConfig() {
         /*.processorUID      =*/kProcessorUID,
         /*.pluginName        =*/"Vorago",
         /*.pluginCategoryDesc=*/"Synth",
-        /*.subcategoryNames  =*/{"Drones"}};
+        /*.subcategoryNames  =*/{"Drones", "Abyss", "Caverns", "Organisms", "Machines",
+                                 "Textures", "Ghosts"}};
 }
 
 /// The preset browser tab labels: "All" first, then the config subcategory list in

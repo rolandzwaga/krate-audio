@@ -1,0 +1,253 @@
+START 2026-09-30 14:02:36 vorago per-push after the D3 rule + NoiseGenerator reset fix
+Filters: ~[performance] ~[perf] ~[benchmark] ~[!benchmark] ~[long]
+Filters: ~[performance] ~[perf] ~[benchmark] ~[!benchmark] ~[long]
+Randomness seeded to: 554440589
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+vorago_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+Vorago_MidiEventTranslation
+  OffsetTiming
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\vorago\tests\unit\midi_event_test.cpp(290)
+...............................................................................
+
+F:\projects\iterum\plugins\vorago\tests\unit\midi_event_test.cpp(323): warning:
+  SC-022 (5) peak(A)=0.00362554 maxAbsDiff(A,B)=0 maxAbsDiff(A,C)=0.00448656
+
+-------------------------------------------------------------------------------
+Vorago_MidiEventTranslation
+  OffsetClamping
+  past the end clamps to the last sample
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\vorago\tests\unit\midi_event_test.cpp(344)
+...............................................................................
+
+F:\projects\iterum\plugins\vorago\tests\unit\midi_event_test.cpp(355): warning:
+  SC-022 (7) @600 vs @511: peak=0.0035995 maxAbsDiff=0
+
+-------------------------------------------------------------------------------
+Vorago_MidiEventTranslation
+  OffsetClamping
+  negative clamps to zero
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\vorago\tests\unit\midi_event_test.cpp(359)
+...............................................................................
+
+F:\projects\iterum\plugins\vorago\tests\unit\midi_event_test.cpp(370): warning:
+  SC-022 (7) @-5 vs @0: peak=0.00415801 maxAbsDiff=0
+
+-------------------------------------------------------------------------------
+Vorago_MidiEventTranslation
+  OutOfOrderEventsAreSorted
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\vorago\tests\unit\midi_event_test.cpp(376)
+...............................................................................
+
+F:\projects\iterum\plugins\vorago\tests\unit\midi_event_test.cpp(389): warning:
+  SC-022 (8) peak=0.00413481 maxAbsDiff(unsorted, sorted)=0
+
+-------------------------------------------------------------------------------
+Vorago_MidiEventTranslation
+  BlockSizeInvariance
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\vorago\tests\unit\midi_event_test.cpp(432)
+...............................................................................
+
+F:\projects\iterum\plugins\vorago\tests\unit\midi_event_test.cpp(461): warning:
+  SC-008 (1) reference (512) peak over [3072, end) = 0.00936035
+
+F:\projects\iterum\plugins\vorago\tests\unit\midi_event_test.cpp(495): warning:
+  SC-008 (1) BlockSizeInvariance wall time = 11.7806 s
+
+-------------------------------------------------------------------------------
+Vorago_ProcessorLifecycle
+  ReportedLatency
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\vorago\tests\unit\lifecycle_test.cpp(85)
+...............................................................................
+
+F:\projects\iterum\plugins\vorago\tests\unit\lifecycle_test.cpp(90): warning:
+  latency before prepare = 1024
+
+-------------------------------------------------------------------------------
+Vorago_ProcessorRendersHeldNote
+  HeldNoteIsAudible
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\vorago\tests\integration\processor_audio_test.cpp(248)
+...............................................................................
+
+F:\projects\iterum\plugins\vorago\tests\integration\processor_audio_test.cpp(277): warning:
+  SC-005 last-second peak L=0.0300778 R=0.0215429 rms L=0.0116355 R=0.00894929
+  wall=1.77366 s
+
+-------------------------------------------------------------------------------
+Vorago_ProcessorRendersHeldNote
+  OutputNeverExceedsCeiling
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\vorago\tests\integration\processor_audio_test.cpp(281)
+...............................................................................
+
+F:\projects\iterum\plugins\vorago\tests\integration\processor_audio_test.cpp(285): warning:
+  SC-006 gain 2.0 peak L=0.364633 R=0.407471 wall=22.8429 s
+
+F:\projects\iterum\plugins\vorago\tests\integration\processor_audio_test.cpp(295): warning:
+  SC-006 gain 1.0 six-voice peak (recorded) L=0.182974 R=0.204682 wall=22.8425
+  s
+
+F:\projects\iterum\plugins\vorago\tests\integration\processor_audio_test.cpp(307): warning:
+  SC-006 probe 0.6 tone: unity peak L=0.590433 R=0.590433 | gain 2.0 peak L=0.
+  966051 R=0.966051
+
+-------------------------------------------------------------------------------
+Vorago_ParamFlowReachesEngine
+  GainZeroSilences
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\vorago\tests\integration\param_flow_test.cpp(92)
+...............................................................................
+
+F:\projects\iterum\plugins\vorago\tests\integration\param_flow_test.cpp(96): warning:
+  SC-019.1 gain 0 peak=0 gain after block 0=0
+
+F:\projects\iterum\plugins\vorago\tests\integration\param_flow_test.cpp(106): warning:
+  SC-019.1 non-vacuity gain 1.0 peak=0.00781988
+
+-------------------------------------------------------------------------------
+Vorago_ParamFlowReachesEngine
+  MacrosAreLive
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\vorago\tests\integration\param_flow_test.cpp(167)
+...............................................................................
+
+F:\projects\iterum\plugins\vorago\tests\integration\param_flow_test.cpp(204): warning:
+  macros-live precondition peak(M0, [3072, end))=0.0300778
+
+F:\projects\iterum\plugins\vorago\tests\integration\param_flow_test.cpp(213): warning:
+  macros-live rmsDiff(M0, M1) L=0.00626658 R=0.00450359
+
+-------------------------------------------------------------------------------
+Vorago_ParamFlowReachesEngine
+  ParamTimingIsBlockGranular
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\vorago\tests\integration\param_flow_test.cpp(217)
+...............................................................................
+
+F:\projects\iterum\plugins\vorago\tests\integration\param_flow_test.cpp(263): warning:
+  SC-008 (2) non-vacuity rmsDiff(R0, R1) L=0.00790609 R=0.00530594
+
+-------------------------------------------------------------------------------
+Vorago_MacrosDriveTheMatrix
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\vorago\tests\integration\param_surface_test.cpp(280)
+...............................................................................
+
+F:\projects\iterum\plugins\vorago\tests\integration\param_surface_test.cpp(373): warning:
+  SC-005 (3) rmsDiff(defaults, all macros at 1) L=0.00833547 R=0.00571564
+
+-------------------------------------------------------------------------------
+Vorago_MacroPushOncePerProcess
+  BlockSizeInvariance
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\vorago\tests\integration\param_surface_test.cpp(586)
+...............................................................................
+
+F:\projects\iterum\plugins\vorago\tests\integration\param_surface_test.cpp(596): warning:
+  SC-007 reference (512) peak over [3072, end) = 0.0018
+
+F:\projects\iterum\plugins\vorago\tests\integration\param_surface_test.cpp(616): warning:
+  SC-007 block 1 maxAbsDiff vs 512: L=0 R=0
+
+F:\projects\iterum\plugins\vorago\tests\integration\param_surface_test.cpp(616): warning:
+  SC-007 block 7 maxAbsDiff vs 512: L=0 R=0
+
+F:\projects\iterum\plugins\vorago\tests\integration\param_surface_test.cpp(616): warning:
+  SC-007 block 64 maxAbsDiff vs 512: L=0 R=0
+
+F:\projects\iterum\plugins\vorago\tests\integration\param_surface_test.cpp(616): warning:
+  SC-007 block 65 maxAbsDiff vs 512: L=0 R=0
+
+F:\projects\iterum\plugins\vorago\tests\integration\param_surface_test.cpp(616): warning:
+  SC-007 block 2048 maxAbsDiff vs 512: L=0 R=0
+
+F:\projects\iterum\plugins\vorago\tests\integration\param_surface_test.cpp(616): warning:
+  SC-007 block 4096 maxAbsDiff vs 512: L=0 R=0
+
+F:\projects\iterum\plugins\vorago\tests\integration\param_surface_test.cpp(633): warning:
+  SC-007 BlockSizeInvariance wall time = 11.5686 s
+
+-------------------------------------------------------------------------------
+Vorago_EcosystemFrame_MatchesEngine
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\vorago\tests\integration\ecosystem_frame_test.cpp(749)
+...............................................................................
+
+F:\projects\iterum\plugins\vorago\tests\integration\ecosystem_frame_test.cpp(794): warning:
+  SC-006 held voiceLevel over 1875 blocks: min 8.16724e-08, median 0.0837575,
+  max 0.16438
+
+F:\projects\iterum\plugins\vorago\tests\integration\ecosystem_frame_test.cpp(800): warning:
+  SC-006 non-vacuity: the 20 s render never had two agents with share >= 2 and
+  differing glow; repeating the arm on a directly prepared EcosystemEngine (48
+  agents, setExchangeRate(3.0f))
+
+-------------------------------------------------------------------------------
+Vorago_EcosystemFrame_FocusVoice
+  release the later of two -> the earlier slot, rule (a)
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\vorago\tests\integration\ecosystem_frame_test.cpp(1045)
+...............................................................................
+
+F:\projects\iterum\plugins\vorago\tests\integration\ecosystem_frame_test.cpp(1069): warning:
+  SC-009 released later voice reached Idle after 12.4907 s
+
+-------------------------------------------------------------------------------
+Vorago_EcosystemFrame_FocusVoice
+  all released -> (a) while Releasing, then (c) with agentCount 0, never (b)
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\vorago\tests\integration\ecosystem_frame_test.cpp(1072)
+...............................................................................
+
+F:\projects\iterum\plugins\vorago\tests\integration\ecosystem_frame_test.cpp(1093): warning:
+  SC-009 time-to-Idle after release: 13.12 s
+
+-------------------------------------------------------------------------------
+Vorago_EcosystemFrame_FocusVoice
+  orphan tail -> focus 3 by rule (b), then (c) with agentCount 0
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\vorago\tests\integration\ecosystem_frame_test.cpp(1121)
+...............................................................................
+
+F:\projects\iterum\plugins\vorago\tests\integration\ecosystem_frame_test.cpp(1154): warning:
+  SC-009 orphan row: slots 0-2 reached Idle after 13.4933 s
+
+F:\projects\iterum\plugins\vorago\tests\integration\ecosystem_frame_test.cpp(1181): warning:
+  SC-009 orphan tail fell below the silence level after 20.2667 s
+
+-------------------------------------------------------------------------------
+Vorago_FactoryPresets_TreeMatchesGenerator
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\vorago\tests\unit\preset\factory_preset_test.cpp(1799)
+...............................................................................
+
+F:\projects\iterum\plugins\vorago\tests\unit\preset\factory_preset_test.cpp(1837): warning:
+  tree vs generator over 42 preset(s); per float field worst |c - r| / max(|c|,
+  1e-30) (tolerance 1.19e-07):
+    86 float field(s) bit-identical on every preset
+    overall worst 0
+
+-------------------------------------------------------------------------------
+Vorago_PresetMatrix_ParameterSpaceDistinct
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\vorago\tests\unit\preset\factory_preset_test.cpp(1848)
+...............................................................................
+
+F:\projects\iterum\plugins\vorago\tests\unit\preset\factory_preset_test.cpp(1901): warning:
+  parameter-space minimum: 8 differing IDs (Organisms/Colony Pulse vs
+  Organisms/Teeming); floor 8
+
+===============================================================================
+All tests passed (4024693 assertions in 118 test cases)
+
+exit=0 END 2026-09-30 14:12:26

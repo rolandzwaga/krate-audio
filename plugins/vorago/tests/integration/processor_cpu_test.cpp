@@ -14,11 +14,11 @@
 //            block), WARN-recorded, not gated.
 //
 // Phase 12 (SC-016, T052):
-//   - Arm P's first warm-up block carries the host's initial sync: every one of
-//     the 108 registered IDs at its registered default (kExpectedParams), so the
-//     gated quiescent arm runs with every route (MB / VP / ENG / CV / MAC /
-//     Local) wired at defaults. Arm D is unchanged: the defaults are inert
-//     (SC-019), so the direct chain is the same DSP state.
+//   - Arm P's first warm-up block carries the host's initial sync: every
+//     registered ID (108 + the Phase 14 roster) at its registered default
+//     (kExpectedParams), so the gated quiescent arm runs with every route (MB /
+//     VP / ENG / CV / MAC / Local) wired at defaults. Arm D is unchanged: the
+//     defaults are inert (SC-019), so the direct chain is the same DSP state.
 //   - Arm A - IDs 201 (Cloud Tilt, MB) and 206 (Spectral Gravity, VP) automated
 //     every block; P_A / D WARN-recorded, not gated.
 //   - Arm E is also recorded against Phase 11's 1.79691e+07 ns (not gated).

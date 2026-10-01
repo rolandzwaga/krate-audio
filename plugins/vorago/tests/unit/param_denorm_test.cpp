@@ -10,7 +10,7 @@
 // exactly the 14 IDs with their defaults, and getParamStringByValue formats them.
 // Phase 12 T033: renamed "ControllerRegistersAll" - the controller now registers
 // every ID of the route table kParamRoutes (108); the Phase 11 defaults and formats
-// checked below are unchanged.
+// checked below are unchanged. Phase 14 T020: 108 + the ecosystem roster (901, 902).
 // ==============================================================================
 
 #include <catch2/catch_approx.hpp>
@@ -31,9 +31,11 @@
 
 #include <array>
 #include <bit>
+#include <cstddef>
 #include <cstdint>
 #include <set>
 #include <string>
+#include <utility>
 
 namespace {
 
@@ -226,13 +228,14 @@ TEST_CASE("Vorago_ParamDenormRoundTrip", "[vorago][params]") {
     SECTION("ControllerRegistersAll") {  // SC-009 controller arm; Phase 12 FR-041
         auto controller = Steinberg::owned(new ::Vorago::Controller());
         REQUIRE(controller->initialize(nullptr) == Steinberg::kResultOk);
-        REQUIRE(controller->getParameterCount() == 108);
+        constexpr std::size_t kRegistered = 108 + VoragoTest::kNumEcosystemRosterParams;
+        REQUIRE(std::cmp_equal(controller->getParameterCount(), kRegistered));
 
         std::set<Steinberg::Vst::ParamID> expectedIds;
         for (const auto& e : kParamRoutes) {
             expectedIds.insert(e.id);
         }
-        REQUIRE(expectedIds.size() == 108u);
+        REQUIRE(expectedIds.size() == kRegistered);
         for (const auto id : expectedIds) {
             INFO("id " << id);
             REQUIRE(controller->getParameterObject(id) != nullptr);
@@ -240,7 +243,7 @@ TEST_CASE("Vorago_ParamDenormRoundTrip", "[vorago][params]") {
 
         // FR-041: exactly the route-table IDs, no soft-limit, no extra.
         std::set<Steinberg::Vst::ParamID> registeredIds;
-        for (Steinberg::int32 i = 0; i < 108; ++i) {
+        for (Steinberg::int32 i = 0; std::cmp_less(i, kRegistered); ++i) {
             Steinberg::Vst::ParameterInfo info{};
             REQUIRE(controller->getParameterInfo(i, info) == Steinberg::kResultOk);
             registeredIds.insert(info.id);

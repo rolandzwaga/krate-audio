@@ -16,13 +16,15 @@
 //       begin/value/end triple, outline_button.h:117-129) opens it and reaches
 //       the host as 0 edits; closing the editor with the browser still open
 //       nulls the view pointer (R-2: there is no save dialog).
-//   (2) the state provider's stream is the processor's own getState bytes (428).
-//   (3) all 106 non-hidden IDs are randomized with a seeded Xorshift32 (list IDs
-//       snapped to their steps), each to a value that differs from the capture.
+//   (2) the state provider's stream is the processor's own getState bytes
+//       (kStateV3Bytes, 436).
+//   (3) all non-hidden IDs (106 + the Phase 14 roster) are randomized with a
+//       seeded Xorshift32 (list IDs snapped to their steps), each to a value that
+//       differs from the capture.
 //   (4) the load provider restores the capture, telling the host exactly one
 //       Begin/Perform/End triple per ID; a second controller fed the same stream
 //       through setComponentState agrees.
-//   (5) a version-3 stream is rejected before any setter runs.
+//   (5) a future-version stream (4 since Phase 14) is rejected before any setter runs.
 //
 // NAMESPACE HAZARD (vorago_test_fixture.h): plugin types are spelled ::Vorago::.
 // ==============================================================================
@@ -70,9 +72,10 @@ namespace {
 using Steinberg::Vst::ParamID;
 using Steinberg::Vst::ParamValue;
 
-constexpr std::size_t kNumRegistered = 108;
-constexpr std::size_t kNumPersisted = 106;  // all but 4 and 5 (hidden, FR-045 of Phase 12)
-constexpr double kValueTolerance = 1e-9;    // the Phase 12 state_v2_test.cpp tolerance
+constexpr std::size_t kNumRegistered = 108 + VoragoTest::kNumEcosystemRosterParams;
+constexpr std::size_t kNumPersisted =
+    106 + VoragoTest::kNumEcosystemRosterParams;  // all but 4 and 5 (hidden, FR-045 of Phase 12)
+constexpr double kValueTolerance = 1e-9;  // the Phase 12 state_v2_test.cpp tolerance
 
 // -----------------------------------------------------------------------------
 // Component handler stub: records begin/perform/endEdit and forwards an
@@ -324,8 +327,8 @@ TEST_CASE("Vorago_PresetBrowser_SaveLoadRoundTrip", "[vorago][integration][prese
         REQUIRE(fx.proc->getState(direct) == Steinberg::kResultOk);
         directBytes = streamBytes(direct);
     }
-    REQUIRE(savedBytes.size() == ::Vorago::kStateV2Bytes);
-    REQUIRE(directBytes.size() == ::Vorago::kStateV2Bytes);
+    REQUIRE(savedBytes.size() == ::Vorago::kStateV3Bytes);
+    REQUIRE(directBytes.size() == ::Vorago::kStateV3Bytes);
     REQUIRE(savedBytes == directBytes);
 
     // ------------------------------------------------------------------------
@@ -405,7 +408,7 @@ TEST_CASE("Vorago_PresetBrowser_SaveLoadRoundTrip", "[vorago][integration][prese
     // ------------------------------------------------------------------------
     {
         constexpr Steinberg::int32 kFutureVersion = ::Vorago::kCurrentStateVersion + 1;
-        static_assert(kFutureVersion == 3, "SC-023 (5) names a version-3 stream");
+        static_assert(kFutureVersion == 4, "SC-023 (5): the first future version (v3 is current)");
 
         // Move the controller off the capture first so "unchanged" is not
         // indistinguishable from "reloaded".

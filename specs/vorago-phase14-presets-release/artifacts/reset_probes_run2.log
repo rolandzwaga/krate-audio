@@ -1,0 +1,35 @@
+START 13:29:07
+Filters: "VoragoVoice_ResetReproProbe","VoragoVoice_NoiseOrganismResetProbe","VoragoEngine_ResetReproProbe"
+Randomness seeded to: 2247383078
+  [reset probe] noise -96 dB eco 0.00: max|first-again| L 7.460e-05 (first 0) R 9.947e-05 (0); first samples a -9.824e-19 2.634e-17 1.966e-16 | b 0.000e+00 2.011e-17 1.133e-16
+  [reset probe]   controls: fresh voice max|a-c| 0.000e+00 (first 384000); reset before any note max|a-e| 6.969e-05 (first 0)
+  [reset probe] noise -96 dB eco 0.85: max|first-again| L 1.981e-05 (first 0) R 4.230e-05 (0); first samples a -9.824e-19 2.634e-17 1.965e-16 | b 0.000e+00 2.010e-17 1.132e-16
+  [reset probe]   controls: fresh voice max|a-c| 0.000e+00 (first 384000); reset before any note max|a-e| 2.571e-05 (first 0)
+  [reset probe] noise +12 dB eco 0.00: max|first-again| L 5.189e-05 (first 0) R 6.477e-05 (0); first samples a -9.954e-19 2.653e-17 1.997e-16 | b -9.213e-16 -1.037e-14 -5.198e-14
+  [reset probe]   controls: fresh voice max|a-c| 0.000e+00 (first 384000); reset before any note max|a-e| 8.350e-04 (first 0)
+  [reset probe] noise +12 dB eco 0.85: max|first-again| L 1.054e-04 (first 0) R 1.246e-04 (0); first samples a -9.954e-19 2.653e-17 1.997e-16 | b -9.213e-16 -1.037e-14 -5.198e-14
+  [reset probe]   controls: fresh voice max|a-c| 0.000e+00 (first 384000); reset before any note max|a-e| 9.946e-05 (first 0)
+  [organism probe] start
+  [organism probe]   configured
+  [organism probe]   rendering: prepare -> render
+  [organism probe]   rendered
+  [organism probe]   configured
+  [organism probe]   rendering: prepare -> render (path 1 warm-up)
+  [organism probe]   rendered
+  [organism probe] path 1: reset done
+  [organism probe] path 1: wake + level re-written
+  [organism probe]   rendering: path 1: reset -> re-write -> render
+  [organism probe]   rendered
+  [organism probe] prepare-render vs reset+rewrite-render: max diff 2.134e-02 (first 0), peak 0.2513, x[0..2] 2.973e-09 1.793e-08 5.116e-08 | y[0..2] 4.683e-08 2.808e-07 7.960e-07
+  [organism probe] path 2: bare reset done
+  [organism probe]   rendering: path 2: bare reset -> render
+  [organism probe]   rendered
+  [organism probe] prepare-render vs bare-reset-render: max diff 2.134e-02 (first 0), peak 0.2513, x[0..2] 2.973e-09 1.793e-08 5.116e-08 | y[0..2] 4.683e-08 2.808e-07 7.960e-07
+  [engine probe] default                                        max|diff| 4.065e-05, first differing sample 2049
+  [engine probe] smear 0                                        max|diff| 4.295e-05, first differing sample 2049
+  [engine probe] ghost 0                                        max|diff| 4.065e-05, first differing sample 2049
+  [engine probe] smear 0 + ghost 0                              max|diff| 4.295e-05, first differing sample 2049
+===============================================================================
+All tests passed (3 assertions in 3 test cases)
+
+exit=0 END 13:29:21

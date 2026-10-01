@@ -174,7 +174,7 @@ sections to that file and never rewrite those.
     (`:643-660`, including `/wd4459`);
   - `add_custom_target(generate_vorago_presets COMMAND vorago_preset_generator
     "${CMAKE_SOURCE_DIR}/plugins/vorago/resources/presets" DEPENDS vorago_preset_generator COMMENT "Generating
-    Vorago factory presets (40 presets across 7 categories)" VERBATIM)`.
+    Vorago factory presets (38 presets across 7 categories)" VERBATIM)` (38 since the G2 ruling; T003 wrote 40).
 - **Verify:** reconfigure (`--preset windows-x64-release`); build `vorago_tests` and `vorago_preset_generator` with
   **zero warnings**; `vorago_tests.exe "~[performance]~[perf]~[benchmark]~[!benchmark]~[long]" 2>&1 | tail -3` → all
   pass; `git diff -- plugins/vorago/tests/integration/ecosystem_rule_probe_test.cpp` empty.
@@ -554,7 +554,10 @@ IDs early to make it build.
   `body_params_test.cpp`, `envelope_params_test.cpp`, `param_denorm_test.cpp` — each hit read and classified.
   `editor_layout_test.cpp` is T021's.
 - **Test-first note:** these are already red after T018 (their pins are stale); this task is the fix.
-- **Verify:** zero warnings; per-push filter of `vorago_tests` → all pass except `editor_layout_test.cpp` cases.
+- **Verify:** zero warnings; per-push filter of `vorago_tests` → all pass except `editor_layout_test.cpp` cases and
+  `Vorago_EditorLifecycle` / `EditorBindsSurface` (`unit/controller/editor_lifecycle_test.cpp`): its built-view
+  bound-control count and tag set are pinned at `106 + kNumEcosystemRosterParams` (the SC-028 "bound-ID count"
+  test), which cannot be green until T021 adds the 901/902 knobs to the uidesc. Expected-red until T021.
 
 ## Group 17 — ecosystem page UI (uidesc via XSLT + layout test)
 
@@ -576,7 +579,9 @@ IDs early to make it build.
     `size`, `arc-color`, `guide-color` and label attributes copied from `:387-388`; tooltips "How strongly the
     colony's agents fall into step" / "How much each agent kind attracts its own kind".
   `git diff` of the uidesc shows only those added lines.
-- **Verify:** every `editor_layout_test.cpp` case passes; the full per-push filter of `vorago_tests` passes.
+- **Verify:** every `editor_layout_test.cpp` case passes; `Vorago_EditorLifecycle` / `EditorBindsSurface`
+  (`unit/controller/editor_lifecycle_test.cpp`, already pinned at `106 + kNumEcosystemRosterParams` by T020) passes;
+  the full per-push filter of `vorago_tests` passes.
 
 ## Group 18 — stage B gate (no code)
 
@@ -934,11 +939,11 @@ stage-D test is a fast per-push case on synthetic data or short renders. The `[l
 ### T037 — Author the six pilot presets (§6.16 P1–P6 = §7 rows 28, 29, 5, 8, 39, 30)
 
 - **Edit:** `tools/vorago_preset_defs.h` `allPresets()`:
-  - "Locked Choir" — Organisms — primary `E6SyncRateHi`; 901 normalized ≥ 0.5 (plain ≥ 0.25; author at 1.0 = the
+  - ~~"Locked Choir" — Organisms — primary `E6SyncRateHi`~~ (withdrawn at gate G2, 2026-09-29: E6.hi is a secondary; its former definition: 901 normalized ≥ 0.5 (plain ≥ 0.25; author at 1.0 = the
     counted extreme 0.5), colony-forward per P2-5: Life (109) high, Ecosystem Depth (900) 1.0, the sections the colony
-    drives (noise, resonance, ecology levels) prominent.
-  - "Clotting Colony" — Organisms — primary `E7SelfAffinityHi`; 902 normalized ≥ 0.625 (plain ≥ +0.5; author at 1.0
-    = +2, the measured extreme at Life max); Life high, Depth 1.0, colony-driven sections prominent.
+    drives (noise, resonance, ecology levels) prominent.)
+  - ~~"Clotting Colony" — Organisms — primary `E7SelfAffinityHi`~~ (withdrawn at G2: E7.hi is a secondary; former definition: 902 normalized ≥ 0.625 (plain ≥ +0.5; author at 1.0
+    = +2, the measured extreme at Life max); Life high, Depth 1.0, colony-driven sections prominent.)
   - "Tectonic Floor" — Abyss — primary `S5Sub`; secondary `D7FifthBelow` (fifth-below strictly loudest).
   - "Cathedral Void" — Caverns — primary `S8Cavern`; secondary `D10FreezeHolds`; Freeze stored **Off**; long decay;
     `Comment` includes "Engage Freeze once the drone has bloomed".
@@ -976,6 +981,8 @@ stage-D test is a fast per-push case on synthetic data or short renders. The `[l
 ## Group 33 — run the pilot (gate G2)
 
 ### T039 — Run the pilot alone; rule K; STOP on any failure (FR-017a, FR-017, Q5, Q6)
+
+**Main-loop note (2026-09-29):** run 1 (`artifacts/pilot_calibrate.log`) stopped at G2 and its three fronts were ruled by the user (spec Clarifications "Gate G2 rulings"); the main loop encoded the rulings, re-authored Growth Ring (v3) and Glass Well (v4) through the new `Vorago_PresetPilot_PrimaryProbe` case, and ran the pilot again: **run 3 = `artifacts/pilot_calibrate_run3.log`, `G2: PROCEED with K = 4`**, every pilot primary at or above F = 4.0, the near-variant floor holding at 1.64 (compliance "Pilot run 3 — gate G2"). T040 freezes **K = 4** from that log; nothing here is re-run by an agent.
 
 - **Run:** `VORAGO_SWEEP_THREADS=4 vorago_tests.exe "Vorago_PresetPilot_Calibrate" > f:/tmp/p14/pilot.log 2>&1`
   alone (§10: ≈ 20 min on 4 threads). Copy to `artifacts/pilot_calibrate.log`.
@@ -1048,6 +1055,8 @@ stage-D test is a fast per-push case on synthetic data or short renders. The `[l
 
 ### T043 — Measure the default-state set before authoring; correct the constant or STOP (§6.12, §7 step 2, §11)
 
+**RULED 2026-09-29 (main loop):** the measured set is 9 cells (`artifacts/default_state_vector.log`; D3.1–D3.4, D4.6 and D6.1 fell out: S1 d 0.0110, S4 d 0.0009 on the default surface) → |requiredPrimaryCells()| = **42**; the user accepted **N = 42**. `kRecordedDefaultStateCells` now holds the 9 measured cells; the RequiredPrimaries / LibraryShape counts are 42; Stage F authors four noise-model rows (D3.1 Direct, D3.2 FilteredWind, D3.3 GranularDust, D3.4 MetallicHiss), each with an audible noise organism (S1 verified as its secondary at 1.5) and D4.6 / D6.1 attached as secondaries where the noise is audible, keeping every category ≥ 3. Spec Clarifications "T043 ruling". Nothing here is re-run by an agent.
+
 - **Run** (alone, logged): `VORAGO_SWEEP_SHARD=6/7 vorago_tests.exe "Vorago_PresetSweep_AblationVerifiesClaims" >
   f:/tmp/p14/default_state.log 2>&1` — with the six pilot defs, index N = 6 is the pseudo-preset and `6 mod 7 == 6`
   selects it alone. Copy to `artifacts/default_state_vector.log`.
@@ -1062,7 +1071,7 @@ stage-D test is a fast per-push case on synthetic data or short renders. The `[l
 
 ---
 
-## Stage F — the matrix-derived library (FR-016; plan §7, N = 40)
+## Stage F — the matrix-derived library (FR-016; plan §7, **N = 42** after the T043 ruling: 38 after G2 — rows 28/29 withdrawn, E6.hi / E7.hi carried as secondaries by Organisms rows that store the knobs at the Q7 margin on a Life-high surface — plus four noise-model rows D3.1–D3.4, each with an audible noise organism)
 
 Authoring constraints for **every** row (§7): polyphony index ≤ 3 (normalized ≤ 0.6); `A ≤ 180 s`, `Rel ≤ 60 s`;
 Freeze stored Off; no point for ID 4 or 5; output saturation only via its MB base; description (the `Comment`) free
@@ -1114,13 +1123,31 @@ authoring task: build + run `generate_vorago_presets`, then the per-push filter 
   Ghosts) · 40 "Sudden Chasm" (D9.1 A ≤ 10 s; Abyss). Each D1 row: the material at blend weight ≥ 0.35 on its side,
   body audible (S10 verifies).
 - Remove `plugins/vorago/resources/presets/Drones/.gitkeep` (Drones now holds presets).
-- **Verify:** per-push filter → **all green including `Vorago_FactoryPresets_LibraryShape`** (N == 40, every
+- **Verify:** per-push filter → **all green including `Vorago_FactoryPresets_LibraryShape`** (N == 42, every
   required primary present once, every category ≥ 3; §7 counts Textures 5, Caverns 6, Machines 6, Abyss 5, Drones
   7, Organisms 7, Ghosts 4).
 
 ## Group 42 — full local sweep loop
 
 ### T048 — Full sweep, matrix, distinctness; re-author loop; pin the tree tolerance (FR-011…FR-017, FR-032…FR-038)
+
+**Main-loop note (2026-09-30):** sweep 1 (`f:/tmp/p14/shard_{0..3}.log`, `aggregate.log`, 2 h 38 min + 8 min)
+verified 17 of 42 primaries; three findings were ruled (spec Clarifications "Sweep rulings"): S-1 noise-bus
+make-up gain (`kNoiseBusMakeupDb` 30 dB in `vorago_voice.h`, FR-077 / SC-033), S-2 pair floor
+max(F, 2·t_max), S-3 twins scored on M1…M3. Re-authored before sweep 2: Stone Gravity (over the limiter
+ceiling) and Slow Bloom (no bloom inside the window). Sweep 2 runs the same four-shard protocol on the amended
+tree; the re-author loop continues from its results.
+
+**Main-loop note (2026-09-30, sweep 2):** sweep 2 (`artifacts/sweep2_*.log`, 4 h 38 min + 13 min) verified
+14 of 42 primaries and left 99 pairs under the floor. Three rulings (spec Clarifications "Sweep 2 rulings"):
+S-4 D3 primary rule (state ∧ S1 ablation d ≥ F; harness pass-3 copy, `applyD3PrimaryRule` in the pilot),
+S-5 make-up stays +30 dB, S-6 reset defect fixed in `NoiseGenerator::snapLevelSmoothers()` /
+`NoiseOrganism::applySlotConfiguration` (FR-077a / SC-033a). The pilot probe gained `VORAGO_PILOT_OVERRIDE`
+(a re-author candidate measured in ~2 min without a rebuild). The re-author loop continues from sweep 2's
+data; sweep 3 follows.
+
+**Main-loop note (2026-09-30, re-author rulings S-7..S-10):** S-7 ghost-tap make-up measured before ruling (engine `setGhostTapMakeupDb`); S-8 ecosystem- and bloom-limited primaries (E1, E3, E4, M10, S6; S7 still authoring) recorded UNMET at their measured ceilings, N stays 42; S-9 the attack window is the audible attack (`audibleAttackSeconds`, plan 6.8 amended); S-10 one more probe round, then regenerate and sweep 3.
+S-7 ruled 17:25: the ghost-tap make-up ships at +12 dB (FR-077b / SC-033b); S9 / E5 UNMET at 1.83 / 1.19. Presets regenerated; final-tree chain then sweep 3.
 
 - **Run** (alone, logged): four shard processes `VORAGO_SWEEP_SHARD=i/4 VORAGO_SWEEP_OUT=f:/tmp/p14/sweep-out
   VORAGO_SWEEP_THREADS=1 vorago_tests.exe "[vorago-sweep]~[vorago-aggregate]" -d yes > f:/tmp/p14/shard_i.log 2>&1`
@@ -1159,7 +1186,7 @@ authoring task: build + run `generate_vorago_presets`, then the per-push filter 
 ### T050 — FR-042 / SC-020: the user auditions every preset
 
 - Prepare in `compliance.md` a table (preset, category, primary, "character note", "category fit", "reads as a
-  variant of"). **STOP** and ask the user to audition the 40 presets (installed by the `Vorago` build's POST_BUILD
+  variant of"). **STOP** and ask the user to audition the 42 presets (installed by the `Vorago` build's POST_BUILD
   step to `%PROGRAMDATA%\Krate Audio\Vorago\`). Nothing automated substitutes. Re-file / re-author only on the
   user's notes, then re-run T048's affected shards and the aggregate.
 
@@ -1253,7 +1280,7 @@ authoring task: build + run `generate_vorago_presets`, then the per-push filter 
 ### T058 — `version.json` 1.0.0 + `CHANGELOG.md` `[1.0.0]` (FR-064)
 
 - `plugins/vorago/version.json` `"version": "0.2.0"` → `"1.0.0"`; `plugins/vorago/CHANGELOG.md` gains `## [1.0.0] -
-  <date>` above `[0.2.0]` describing the factory library (40 presets, seven categories, the two ecosystem rule knobs
+  <date>` above `[0.2.0]` describing the factory library (42 presets, seven categories, the two ecosystem rule knobs
   and state v3, the tail-length report, the freeze-gesture note) in the file's existing style. Only these two files
   carry the version (release skill).
 - **Verify:** `node tools/check-changelog-coverage.js` passes.
@@ -1314,3 +1341,13 @@ authoring task: build + run `generate_vorago_presets`, then the per-push filter 
   needs a push (**ask the user**); until then SC-019's auval clause is recorded as pending, never assumed.
 - Write the FR / SC-001…SC-032 compliance table in `compliance.md`, every row citing a file:line, a test name and its
   actual log line (root `CLAUDE.md` "Completion Honesty"); green/red verdict.
+
+**PAUSED at T048 (2026-09-30 22:30, second pause; ruling in the main chat):** sweep 3 verified 28 of 42
+primaries with 46 pairs under the floor, and the re-author loop measured the remaining cells as inaudible at any
+preset setting (compliance "Re-author loop after sweep 2", "Sweep 3"). The user ruled that no feature ships
+inaudible and no preset ships generic: rulings S-8's "record UNMET at the ceiling" is WITHDRAWN as a release
+outcome — it stands only as the measurement record. **Phase 13c (capability audibility,
+`vorago-phase13c-capability-audibility`, roadmap entry 2026-09-30)** fixes the features first; this phase
+resumes at T048 on the new levers with sweep 4 as the confirming run. Sweep 4 on the sweep-3 repairs (level-arm
+defects, quiet noise types moved) runs overnight 2026-09-30/10-01 as the record of the current tree. T049 (the
+pinned CPU lane) ran once after sweep 3 (`artifacts/t049_cpu_arm.log`) and is re-run on the final tree.

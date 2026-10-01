@@ -1,0 +1,12 @@
+START 2026-09-29 18:22:47 primary probe: Growth Ring (re-author v2)
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 859978673
+[probe] Growth Ring - primary D8.2 envelope Growth (stored seed 9, 1 twin render(s))
+  attack window (W_end 160.0 s): d_att 5.5424, d_Sus 6.9823 (attributable iff d_att >= 8.4823)
+    P: first reaches RMS(Sus) - 6 dB at 30 s
+    P_rev: first reaches RMS(Sus) - 6 dB at 8 s
+  primary d 5.5424  bar 4.0000  attribBase 6.9823  state ok  -> FAIL
+===============================================================================
+All tests passed (7 assertions in 1 test case)
+
+exit=0 END 2026-09-29 18:24:43

@@ -31,7 +31,7 @@ spec says so.
 | S5 ablation: the three tone levels only | Also `kSubLevelOffsetId` 600 → 0.0 | spec C-2.1 S5 |
 | `getTailSamples()` ghost term = 12 s (the configured grain), `ceil` | `G` = `AtmosphereEngine::kMaxGrainSeconds` = 30 s, `llround`, ±1 sample | spec FR-060 |
 | Cost anchored on an estimate (0.15× real time) | Anchored on the **measured** probe wall clock: 28 renders × 340 s in 17 min 45 s = 0.112× real time (`compliance.md`, Run 1); Phase 13b recorded CPU at 89 % of before (roadmap line 609), so 0.10× is used | measured |
-| N = 38 + \|E-ext\| (open) | **N = 40** | Clarifications 2026-09-29 Q5 |
+| N = 38 + \|E-ext\| (open) | **N = 40**, then **N = 38** at gate G2 (E cells secondaries) | Clarifications 2026-09-29 Q5; G2 rulings 2026-09-29 |
 
 Everything else in the first-pass plan that the spec did not change is carried forward: the host
 design, the generator, the record/shard architecture (R-4), the exact skip rules, the non-subset
@@ -218,7 +218,7 @@ own `timeout-minutes`, not queue time, so the gate holds. The macOS queue time i
 compliance record as a fact, not gated.
 
 **Plan-stage rulings R-1…R-8** (spec "Plan stage", re-affirmed by the second pass): all stand and are
-applied below. R-1 is §5.1. R-2 gives N = 40 (§7). R-3 is FR-006/FR-031/C-9/SC-005 at v3. R-4 is §5.8
+applied below. R-1 is §5.1. R-2 gave N = 40 (§7); gate G2 (2026-09-29) made the E-ext cells secondaries, N = 38. R-3 is FR-006/FR-031/C-9/SC-005 at v3. R-4 is §5.8
 and §5.10. R-5 is D10.1 as a secondary of S8 (§6.3, §7). R-6 is §5.10. R-7 is FR-027a plus the
 `LibraryShape` case (§8, §9). R-8 is the shipped `preset_test_support.h` part 0, reused in §6.4.
 
@@ -740,7 +740,7 @@ In the root `CMakeLists.txt`, after `generate_seraphis_presets` (`:664-669`), ad
 add_custom_target(generate_vorago_presets
     COMMAND vorago_preset_generator "${CMAKE_SOURCE_DIR}/plugins/vorago/resources/presets"
     DEPENDS vorago_preset_generator
-    COMMENT "Generating Vorago factory presets (40 presets across 7 categories)"
+    COMMENT "Generating Vorago factory presets (42 presets across 7 categories)"
     VERBATIM)
 ```
 `release.yml` needs no edit (`:150-182`). A WSL/GCC build of the target runs before C2 merges
@@ -999,6 +999,12 @@ stimulus:
 
 `A_rev` comes from `P_rev`'s decode (the override applied to the decoded state).
 
+> **Ruled 2026-09-30 (spec Clarifications "Re-author loop rulings", S-9):** `A_P` and `A_rev` here are the
+> AUDIBLE attack (`audibleAttackSeconds`: Standard -> stage 0's time; Growth -> the growth duration), not C-6's
+> stage-time sum, which stays the timeline's `A`. The registered envelope is at full level after its 20 s stage 0,
+> so a sum-sized window compared 150 s of sustain (Sudden Chasm d_att 1.25 vs a 4.83 floor). `W_end` and
+> `Sus_rev` below read from the audible attack.
+
 **Windows and renders.**
 - `W_end = max(A_P, A_rev) + 5 s`.
 - `P_rev` is rendered from t = 0 to `max(W_end, A_rev + 65)`, capturing `[0, W_end]` and its own
@@ -1091,7 +1097,7 @@ primary uses bar F = 4.0.
 | `RouteIsolated` | E1–E5 | `R(1.5)`, `attribBase = d(R_∅, R_∅⁰)` (§6.9) | `R(4.0)` |
 | `ExtReversion` | E6.hi, E7.hi | `R(1.5)`, `stateOk` = the side predicate (§6.7) | `R(4.0)` |
 | `StateWithReversion` | D13.x, D14.x | `R(1.5)`, `stateOk` = the state predicate, `conjunctOk` = S7's secondary verdict (D13) or `true` (D14), `d` = the reversion / depth ablation (§6.7) | `R(4.0)` (no §7 row uses it) |
-| `StateWithS` | D1–D7, D11, D12.1 | `stateOk && conjunctOk`, where `conjunctOk` = the named S cell's secondary verdict on the same vector (§6.10). **No `d` term.** | D1.x only: `stateOk && conjunctOk && rendered && d ≥ max(4.0, twoS)`, with `d` = the per-material reversion (§6.7). Any other `StateWithS` cell: `false`. That case is reachable only after the "Required primaries" stop below, which would have to rule its reversion first |
+| `StateWithS` | D1–D7, D11, D12.1 | `stateOk && conjunctOk`, where `conjunctOk` = the named S cell's secondary verdict on the same vector (§6.10). **No `d` term.** | D1.x only: `stateOk && conjunctOk && rendered && d ≥ max(4.0, twoS)`, with `d` = the per-material reversion (§6.7). Any other `StateWithS` cell: `false`. That case is reachable only after the "Required primaries" stop below, which would have to rule its reversion first **Ruled 2026-09-30 (spec Clarifications "Sweep 2 rulings", S-4): D3.x at Primary = `stateOk && conjunctOk && rendered && d ≥ 4.0` with `rendered` / `d` copied from the S1 conjunct in pass 3 — the showcase is the audible noise organism.** |
 | `AttackWindow` | D8.x, D9.x | `stateOk` (always audible; `conjunctOk = true`). **No `d` term.** | D8.2, D9.1: `R(4.0)` with `d = d_att`, `attribBase = d_Sus` (§6.8) |
 | `FreezeGesture` | D10.1 | `stateOk && conjunctOk`, where `stateOk` = "P is the S8-primary preset" and `conjunctOk` = G passes arm 1 and Freeze-On arm 4 including the floor, **and** G₀ passes its −40 dB bound (§6.3). **No `d` term.** | `false` (FR-011b) |
 | `StateOnly` | D10.2, D12.2 | `stateOk` | `false` (default-state by construction) |
@@ -1140,8 +1146,8 @@ set the count is 29 + (11 − 2) + (4 − 4) + (2 − 1) + (2 − 1) = **40**. T
 `Vorago_FactoryPresets_LibraryShape` derives its required set from this function. It does not keep a
 hard-coded list.
 
-**Stop rule.** SC-029 fixes N = 40. If the measured default-state set makes
-`|requiredPrimaryCells()| ≠ 40`, that is an **FR-017 stop**, surfaced with the measured set before
+**Stop rule.** SC-029 fixes N = 42 (T043 ruling 2026-09-29 on the measured default-state set; 38 after G2, 40 before it). If the measured default-state set makes
+`|requiredPrimaryCells()| ≠ 42`, that is an **FR-017 stop**, surfaced with the measured set before
 any authoring. The plan does not choose between N and the primary list. Two examples: S1 fails on the
 default surface, so D3.1–D3.4 need noise-model primaries (44); or S10 fails there, so
 D1.StoneChamber and D1.SteelTank need primaries (42). The same stop applies if a later nightly
@@ -1240,7 +1246,12 @@ The default host is re-pre-rolled whenever its next block would leave its own `S
 
 ---
 
-## 7. Matrix-derived library (FR-016) — N = 40
+> **Sweep rulings 2026-09-30 (spec Clarifications "Sweep rulings"):** the noise organism's bus gains a
+> constant +30 dB make-up in `VoragoVoice` (FR-077, the phase's one DSP change beyond R-1); the pair floor
+> is max(F, 2·t_max); twins are scored on the mean of the three sustain minutes (twin renders end at M3).
+> §6.7 / §6.9 / §6.11 read accordingly; the nightly load in §10 grows by about 55 %.
+
+## 7. Matrix-derived library (FR-016) — N = 40 as planned, **N = 38 after gate G2** (rows 28 and 29 withdrawn; E6.hi / E7.hi are secondaries on Organisms rows storing the knobs), **N = 42 after T043** (four noise-model rows added: D3.1 Direct, D3.2 FilteredWind, D3.3 GranularDust, D3.4 MetallicHiss — each a preset whose noise organism is audible, categories chosen to keep every category ≥ 3; D4.6 and D6.1 verified as their secondaries)
 
 **Derivation.**
 1. Enumerate the 79 cells (the `Capability` enum: 10 S + 12 M + 7 E + 50 D).
@@ -1287,8 +1298,8 @@ primaries do not.
 | 25 | E3 | Swarm Breath | D3.4 MetallicHiss, D4.7–D4.9 | Textures |
 | 26 | E4 | Feeding Loops | — | Machines |
 | 27 | E5 | Haunted Colony | — | Ghosts |
-| 28 | E6.hi | Locked Choir (sync 901 ≥ 0.5) | — | Organisms |
-| 29 | E7.hi | Clotting Colony (self affinity 902 ≥ 0.625) | — | Organisms |
+| ~~28~~ | ~~E6.hi~~ | ~~Locked Choir~~ — withdrawn at G2 (E6.hi is a secondary; a Life-high Organisms row stores 901 ≥ 0.5) | — | — |
+| ~~29~~ | ~~E7.hi~~ | ~~Clotting Colony~~ — withdrawn at G2 (E7.hi is a secondary; a Life-high Organisms row stores 902 ≥ 0.625) | — | — |
 | 30 | D1.Glass | Glass Well | — | Caverns |
 | 31 | D1.Strings | Strung Abyss | — | Drones |
 | 32 | D1.MetalPlate | Iron Plate | — | Machines |
@@ -1475,7 +1486,7 @@ there are 28 twins (10 S + 12 M + 4 D13/D14 + 2 E-ext) instead of ≈ 14. The pe
 2 520 + 3 500 + 1 500 + 365 + 250 ≈ **8 150 s**: ≈ 14 min local, ≈ 34 min CI. The nightly then needs
 41 × 34 / (108 × 1.6) ≈ 8.1, so **9 shards per OS**, still inside the starting n = 10.
 
-**Nightly load.** 41 units (40 presets + the pseudo-preset) × 27 min ≈ 18.5 CI-hours per OS. The
+**Nightly load.** 43 units (42 presets + the pseudo-preset; 39 after G2, 41 before it) × 27 min ≈ 18.5 CI-hours per OS. The
 usable budget per job is 60 % of 180 min = 108 min. With 2 threads on a 2-vCPU runner, at a measured
 speed-up (≈ 1.6× assumed), that needs ≈ 7 shards per OS. The plan starts at **n = 10 per OS** (30
 jobs) for margin and adjusts from the first nightly's `-d yes` durations. At K = 4 the total drops

@@ -9,6 +9,8 @@
 // truncated-stream macro retention and null-stream rejection (SC-010.1-4).
 // Phase 12 T042: the stream is now v2 (kStateV2Bytes, kCurrentStateVersion 2); the
 // hand-built v1 decode arm lives in state_v2_test.cpp (SC-008 (2)).
+// Phase 14 T020: the current stream is v3 (kStateV3Bytes, kCurrentStateVersion 3); the
+// future-version arms therefore reject 4. The legacy v2 load lives in state_v2_test.cpp.
 // T016: "CorruptStreamConverges" - a +Inf gain / polyphony-99 stream loads
 // clamped, and the next process() pushes polyphony exactly once (plan 2.3).
 // T017: "ControllerLoadsComponentState" (SC-010.5) - Controller::setComponentState
@@ -239,15 +241,15 @@ TEST_CASE("Vorago_StateRoundTrip", "[vorago][state]") {
 
         auto s1 = makeStream();
         REQUIRE(src.proc->getState(s1) == Steinberg::kResultOk);
-        REQUIRE(s1->getSize() == static_cast<Steinberg::int64>(kStateV2Bytes));
+        REQUIRE(s1->getSize() == static_cast<Steinberg::int64>(kStateV3Bytes));
 
         VoragoTest::ProcessorFixture dst;  // fresh processor
         rewindStream(*s1);
         REQUIRE(dst.proc->setState(s1) == Steinberg::kResultOk);
         auto s2 = makeStream();
         REQUIRE(dst.proc->getState(s2) == Steinberg::kResultOk);
-        REQUIRE(s2->getSize() == static_cast<Steinberg::int64>(kStateV2Bytes));
-        REQUIRE(std::memcmp(s1->getData(), s2->getData(), kStateV2Bytes) == 0);
+        REQUIRE(s2->getSize() == static_cast<Steinberg::int64>(kStateV3Bytes));
+        REQUIRE(std::memcmp(s1->getData(), s2->getData(), kStateV3Bytes) == 0);
         REQUIRE(snapshot(*dst.proc) == snapshot(*src.proc));
     }
 
@@ -255,7 +257,8 @@ TEST_CASE("Vorago_StateRoundTrip", "[vorago][state]") {
         VoragoTest::ProcessorFixture fx;
         auto st = makeStream();
         REQUIRE(fx.proc->getState(st) == Steinberg::kResultOk);
-        REQUIRE(st->getSize() == static_cast<Steinberg::int64>(kStateV2Bytes));
+        REQUIRE(st->getSize() == static_cast<Steinberg::int64>(kStateV3Bytes));
+        STATIC_REQUIRE(kCurrentStateVersion == 3);
         REQUIRE(leInt32At(*st, 0) == kCurrentStateVersion);  // v1 prefix follows unchanged
         REQUIRE(bitsOf(leFloatAt(*st, 4)) == bitsOf(1.0f));
         REQUIRE(leInt32At(*st, 8) == 4);
@@ -293,7 +296,7 @@ TEST_CASE("Vorago_StateRoundTrip", "[vorago][state]") {
         setAllNonDefaultThroughProcess(src, 0.2, 0.4, 0.05);
         auto full = makeStream();
         REQUIRE(src.proc->getState(full) == Steinberg::kResultOk);
-        REQUIRE(full->getSize() == static_cast<Steinberg::int64>(kStateV2Bytes));
+        REQUIRE(full->getSize() == static_cast<Steinberg::int64>(kStateV3Bytes));
 
         // Target: macros at OTHER non-defaults, globals left at their defaults.
         VoragoTest::ProcessorFixture dst;
@@ -373,7 +376,7 @@ TEST_CASE("Vorago_StateRoundTrip", "[vorago][state]") {
 
         auto s1 = makeStream();
         REQUIRE(src.proc->getState(s1) == Steinberg::kResultOk);
-        REQUIRE(s1->getSize() == static_cast<Steinberg::int64>(kStateV2Bytes));
+        REQUIRE(s1->getSize() == static_cast<Steinberg::int64>(kStateV3Bytes));
         rewindStream(*s1);
 
         auto controller = Steinberg::owned(new ::Vorago::Controller());

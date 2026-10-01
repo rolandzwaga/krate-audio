@@ -2,15 +2,21 @@
 // Vorago Phase 12 - state v2 round trip (SC-008)
 // ==============================================================================
 // T042 (specs/vorago-phase12-parameters/tasks.md; plan 4.9, 6.3; spec C-7,
-// FR-040, FR-045). Vorago_StateRoundTripV2:
-//   (1) all 106 persisted IDs at seeded (std::mt19937{12008}) non-default values
-//       -> getState (kStateV2Bytes) -> fresh setState -> every atomic bit-identical;
-//       controller setComponentState normalized within 1e-9; 4 s held-note render
-//       of both processors within 1e-5;
+// FR-040, FR-045). Vorago_StateRoundTripV2 - since Phase 14 T020 (FR-072, FR-074)
+// the LEGACY v2 LOAD test: the current stream is v3 (kStateV3Bytes), and a v2
+// stream is its getState() bytes with version 2, truncated to kStateV2Bytes
+// (exact, because v2 is a strict prefix of v3):
+//   (1) all persisted IDs at seeded (std::mt19937{12008}) non-default values
+//       -> getState (kStateV3Bytes) -> v2 stream -> fresh setState -> every v2
+//       field bit-identical, the two roster fields (901, 902) at their registered
+//       defaults (also from a pre-dirtied instance); the loaded state equals a
+//       reference driven to the same v2 values; controller setComponentState
+//       normalized within 1e-9; 4 s held-note render of both within 1e-5;
 //   (2) a hand-built 60-byte v1 stream restores the 14 v1 fields and leaves the
-//       92 other persisted fields at their registered defaults - in a fresh AND a
+//       94 other persisted fields at their registered defaults - in a fresh AND a
 //       pre-dirtied processor / controller (C-7);
-//   (3) truncation at every length 0..427 into a fresh and a pre-dirtied instance;
+//   (3) truncation of the v2 stream at every length 0..427 into a fresh and a
+//       pre-dirtied instance;
 //   (4) version kCurrentStateVersion + 1 -> kResultFalse, no atomic changed;
 //   (5) a NaN bit pattern in each float field in turn -> that field unchanged;
 //   (6) sustain / channel pressure are never serialized and are zeroed by setState.
@@ -52,11 +58,19 @@ using Steinberg::Vst::ParamID;
 using VoragoTest::ExpectedParamRow;
 using VoragoTest::kExpectedParams;
 
-constexpr std::size_t kNumIds = VoragoTest::kNumExpectedParams;  // 108
-constexpr std::size_t kNumPersisted = 106;                       // all but 4 and 5
+constexpr std::size_t kNumIds = VoragoTest::kNumExpectedParams;  // 108 + roster
+constexpr std::size_t kNumPersisted = kNumIds - 2;               // all but 4 and 5
+// The v2 stream carries every persisted ID except the Phase 14 roster (901, 902),
+// which v3 appends after byte kStateV2Bytes.
+constexpr std::size_t kNumV2Fields = kNumPersisted - VoragoTest::kNumEcosystemRosterParams;
+static_assert(kNumV2Fields == 106);
 
 [[nodiscard]] bool isPersisted(ParamID id) noexcept {
     return id != ::Vorago::kSustainPedalId && id != ::Vorago::kChannelPressureId;
+}
+
+[[nodiscard]] bool isRosterId(ParamID id) noexcept {
+    return id == ::Vorago::kEcosystemSyncRateId || id == ::Vorago::kEcosystemSelfAffinityId;
 }
 
 [[nodiscard]] bool isInRange(ParamID id, ParamID first, ParamID last) noexcept {
@@ -113,6 +127,8 @@ constexpr std::size_t kNumPersisted = 106;                       // all but 4 an
         case Vg::kSmearTiltId: return &p.smear.tilt;
         case Vg::kEventsRateScaleId: return &p.events.eventRateScale;
         case Vg::kEcosystemDepthId: return &p.ecosystem.depth;
+        case Vg::kEcosystemSyncRateId: return &p.ecosystem.syncRate;
+        case Vg::kEcosystemSelfAffinityId: return &p.ecosystem.selfAffinity;
         case Vg::kBodyBlendId: return &p.body.blend;
         case Vg::kBodyDampingId: return &p.body.damping;
         case Vg::kBodyResonanceId: return &p.body.resonance;
@@ -188,7 +204,7 @@ constexpr std::size_t kNumPersisted = 106;                       // all but 4 an
     return 0u;
 }
 
-/// Every one of the 108 atomics, in kExpectedParams order.
+/// Every registered atomic (108 + the roster), in kExpectedParams order.
 using Snapshot = std::array<std::uint32_t, kNumIds>;
 
 [[nodiscard]] Snapshot snapshotAll(const ::Vorago::Processor& proc) {
@@ -212,7 +228,8 @@ using Snapshot = std::array<std::uint32_t, kNumIds>;
 // ------------------------------------------------------------------------------
 // The v2 stream layout (spec C-7, plan 4.9), built from the checked-in table, not
 // from the pack headers: version, [v1] gain, polyphony, 12 macros, [v2] seed,
-// saturation, then every ID >= 200 ascending. Discrete rows are int32.
+// saturation, then every ID >= 200 ascending except the Phase 14 roster (901, 902),
+// which v3 appends after the v2 bytes. Discrete rows are int32.
 // ------------------------------------------------------------------------------
 
 struct Field {
@@ -230,7 +247,7 @@ struct Field {
     order.push_back(Vg::kSeedId);
     order.push_back(Vg::kOutputSaturationId);
     for (const ExpectedParamRow& row : kExpectedParams) {
-        if (row.id >= Vg::kMacroParamRangeEnd) {
+        if (row.id >= Vg::kMacroParamRangeEnd && !isRosterId(row.id)) {
             order.push_back(row.id);
         }
     }
@@ -277,6 +294,17 @@ void putLeWord(std::vector<char>& bytes, std::size_t offset, std::uint32_t w) {
     }
 }
 
+/// A legacy v2 stream from current getState() bytes: v2 is a strict prefix of
+/// v3, so the version word is set to 2 and the stream truncated to kStateV2Bytes.
+[[nodiscard]] std::vector<char> asV2Stream(const std::vector<char>& currentBytes) {
+    REQUIRE(currentBytes.size() == ::Vorago::kStateV3Bytes);
+    const auto v2End =
+        currentBytes.begin() + static_cast<std::ptrdiff_t>(::Vorago::kStateV2Bytes);
+    std::vector<char> v2(currentBytes.begin(), v2End);
+    putLeWord(v2, 0, 2u);
+    return v2;
+}
+
 // ------------------------------------------------------------------------------
 // Seeded values
 // ------------------------------------------------------------------------------
@@ -321,6 +349,18 @@ void applyNormalized(VoragoTest::ProcessorFixture& fx, const NormalizedSet& set)
         out.emplace_back(row.id, n);
     }
     REQUIRE(out.size() == kNumPersisted);
+    return out;
+}
+
+/// `set` without the Phase 14 roster IDs: the state a v2 stream can carry.
+[[nodiscard]] NormalizedSet withoutRoster(const NormalizedSet& set) {
+    NormalizedSet out;
+    for (const auto& entry : set) {
+        if (!isRosterId(entry.first)) {
+            out.push_back(entry);
+        }
+    }
+    REQUIRE(out.size() == kNumV2Fields);
     return out;
 }
 
@@ -388,22 +428,24 @@ void renderHeldNote(VoragoTest::ProcessorFixture& fx) {
 TEST_CASE("Vorago_StateRoundTripV2", "[vorago][state]") {
     namespace Vg = ::Vorago;
 
-    STATIC_REQUIRE(Vg::kCurrentStateVersion == 2);
+    // Phase 14: the current stream is v3; this case loads LEGACY v2 streams.
+    STATIC_REQUIRE(Vg::kCurrentStateVersion == 3);
     STATIC_REQUIRE(Vg::kStateV2Bytes == 428u);
 
     const std::vector<Field> layout = streamLayout();
-    REQUIRE(layout.size() == kNumPersisted);
+    REQUIRE(layout.size() == kNumV2Fields);
     REQUIRE(layout.back().offset + 4u == Vg::kStateV2Bytes);  // C-7 sum == the table
 
     VoragoTest::ProcessorFixture defaults;  // registered defaults (SC-003)
     const Snapshot defaultSnap = snapshotAll(*defaults.proc);
 
-    // The seeded source of every arm: 106 IDs, each off its default.
+    // The seeded source of every arm: every persisted ID, each off its default.
     VoragoTest::ProcessorFixture src;
     const NormalizedSet srcSet = seedPersisted(src, 12008u, *defaults.proc);
     const Snapshot srcSnap = snapshotAll(*src.proc);
     const std::vector<char> srcBytes = stateBytes(*src.proc);
-    REQUIRE(srcBytes.size() == Vg::kStateV2Bytes);
+    REQUIRE(srcBytes.size() == Vg::kStateV3Bytes);  // the current stream
+    const std::vector<char> v2Bytes = asV2Stream(srcBytes);
 
     // A second, pre-dirtied state whose every persisted field differs from src.
     NormalizedSet dirtySet;
@@ -412,37 +454,69 @@ TEST_CASE("Vorago_StateRoundTripV2", "[vorago][state]") {
         dirtySet = seedPersisted(d, 12009u, *src.proc);
     }
 
-    SECTION("(1) full round trip") {
-        VoragoTest::ProcessorFixture dst;
-        REQUIRE(dst.proc->setState(streamOf(srcBytes, srcBytes.size())) == Steinberg::kResultOk);
-        const Snapshot dstSnap = snapshotAll(*dst.proc);
-        for (std::size_t k = 0; k < kNumIds; ++k) {
-            INFO("ID " << kExpectedParams[k].id);
-            REQUIRE(dstSnap[k] == srcSnap[k]);
-        }
-        REQUIRE(stateBytes(*dst.proc) == srcBytes);
+    SECTION("(1) legacy v2 load") {
+        // Reference: driven through process() to the v2 fields of src only, so its
+        // roster fields sit at their registered defaults.
+        VoragoTest::ProcessorFixture ref;
+        applyNormalized(ref, withoutRoster(srcSet));
+        const Snapshot refSnap = snapshotAll(*ref.proc);
 
-        // Controller mirror: every persisted ID at the taper inverse of the plain value.
+        VoragoTest::ProcessorFixture dst;
+        REQUIRE(dst.proc->setState(streamOf(v2Bytes, v2Bytes.size())) == Steinberg::kResultOk);
+        const Snapshot dstSnap = snapshotAll(*dst.proc);
+        std::size_t rosterChecked = 0;
+        for (std::size_t k = 0; k < kNumIds; ++k) {
+            const ParamID id = kExpectedParams[k].id;
+            INFO("ID " << id);
+            if (isRosterId(id)) {
+                REQUIRE(srcSnap[k] != defaultSnap[k]);  // non-vacuity: src was off default
+                REQUIRE(dstSnap[k] == defaultSnap[k]);  // absent from v2: registered default
+                ++rosterChecked;
+            } else {
+                REQUIRE(dstSnap[k] == srcSnap[k]);  // every v2 field restored
+            }
+            REQUIRE(dstSnap[k] == refSnap[k]);
+        }
+        REQUIRE(rosterChecked == VoragoTest::kNumEcosystemRosterParams);
+
+        // Re-saved as the current stream: the v2 body verbatim, then the default roster.
+        const std::vector<char> dstBytes = stateBytes(*dst.proc);
+        REQUIRE(dstBytes.size() == Vg::kStateV3Bytes);
+        REQUIRE(dstBytes == stateBytes(*ref.proc));
+        REQUIRE(std::memcmp(dstBytes.data() + 4, srcBytes.data() + 4,
+                            Vg::kStateV2Bytes - 4u) == 0);
+
+        // A pre-dirtied instance (roster included) lands on the same state.
+        VoragoTest::ProcessorFixture dirty;
+        applyNormalized(dirty, dirtySet);
+        REQUIRE(dirty.proc->setState(streamOf(v2Bytes, v2Bytes.size())) == Steinberg::kResultOk);
+        REQUIRE(snapshotAll(*dirty.proc) == refSnap);
+
+        // Controller mirror, pre-dirtied by a full current-stream load: every v2 ID at
+        // the taper inverse of the plain value, the roster back at its defaults.
         auto controller = Steinberg::owned(new Vg::Controller());
         REQUIRE(controller->initialize(nullptr) == Steinberg::kResultOk);
         REQUIRE(controller->setComponentState(streamOf(srcBytes, srcBytes.size())) ==
+                Steinberg::kResultOk);
+        REQUIRE(controller->setComponentState(streamOf(v2Bytes, v2Bytes.size())) ==
                 Steinberg::kResultOk);
         for (const ExpectedParamRow& row : kExpectedParams) {
             if (!isPersisted(row.id)) {
                 continue;
             }
-            const double want = expectedNormalized(row, *src.proc);
+            const double want = isRosterId(row.id) ? expectedNormalized(row, *defaults.proc)
+                                                   : expectedNormalized(row, *src.proc);
             const double got = controller->getParamNormalized(row.id);
             INFO("ID " << row.id << " controller=" << got << " expected=" << want);
             REQUIRE(std::fabs(got - want) <= 1.0e-9);
         }
         REQUIRE(controller->terminate() == Steinberg::kResultOk);
 
-        // Both processors render a held note identically.
-        renderHeldNote(src);
+        // The loaded and the reference processor render a held note identically.
+        renderHeldNote(ref);
         renderHeldNote(dst);
-        const auto sL = std::span<const float>(src.capturedL);
-        const auto sR = std::span<const float>(src.capturedR);
+        const auto sL = std::span<const float>(ref.capturedL);
+        const auto sR = std::span<const float>(ref.capturedR);
         const auto dL = std::span<const float>(dst.capturedL);
         const auto dR = std::span<const float>(dst.capturedR);
         REQUIRE(VoragoTest::allFinite(sL));
@@ -451,7 +525,7 @@ TEST_CASE("Vorago_StateRoundTripV2", "[vorago][state]") {
         REQUIRE(VoragoTest::allFinite(dR));
         const float peak = std::max(VoragoTest::peakOf(sL.subspan(3072)),
                                     VoragoTest::peakOf(sR.subspan(3072)));
-        INFO("source peak past latency " << peak);
+        INFO("reference peak past latency " << peak);
         REQUIRE(peak >= 1.0e-4f);  // precondition: the comparison is not 0 == 0
         const float diffL = VoragoTest::maxAbsDiff(sL, dL);
         const float diffR = VoragoTest::maxAbsDiff(sR, dR);
@@ -487,7 +561,8 @@ TEST_CASE("Vorago_StateRoundTripV2", "[vorago][state]") {
                    isInRange(id, Vg::kMacroDarknessId, Vg::kMacroMassId);
         };
 
-        // Fresh instance: the 92 other persisted fields stay at registered defaults.
+        // Fresh instance: the 94 other persisted fields (roster included) stay at
+        // registered defaults.
         VoragoTest::ProcessorFixture fresh;
         REQUIRE(fresh.proc->setState(streamOf(v1, v1.size())) == Steinberg::kResultOk);
         requireV1Fields(*fresh.proc);
@@ -502,9 +577,9 @@ TEST_CASE("Vorago_StateRoundTripV2", "[vorago][state]") {
             REQUIRE(freshSnap[k] == defaultSnap[k]);
             others += isPersisted(id) ? 1u : 0u;
         }
-        REQUIRE(others == 92u);
+        REQUIRE(others == kNumPersisted - 14u);
 
-        // Dirty instance: C-7 - a v1 load leaves every Phase 12 field at its
+        // Dirty instance: C-7 - a v1 load leaves every post-v1 field at its
         // REGISTERED DEFAULT, not at the previous preset's value (FR-040).
         VoragoTest::ProcessorFixture dirty;
         applyNormalized(dirty, srcSet);  // every persisted field off its default
@@ -522,7 +597,8 @@ TEST_CASE("Vorago_StateRoundTripV2", "[vorago][state]") {
             dirtiedOthers += (isPersisted(id) && before[k] != defaultSnap[k]) ? 1u : 0u;
             REQUIRE(after[k] == defaultSnap[k]);
         }
-        REQUIRE(dirtiedOthers == 92u);  // non-vacuity: every Phase 12 field was off default
+        // Non-vacuity: every post-v1 field was off default.
+        REQUIRE(dirtiedOthers == kNumPersisted - 14u);
 
         // Controller mirror of the same version gate: the 14 v1 values.
         auto controller = Steinberg::owned(new Vg::Controller());
@@ -538,8 +614,8 @@ TEST_CASE("Vorago_StateRoundTripV2", "[vorago][state]") {
         }
         REQUIRE(controller->terminate() == Steinberg::kResultOk);
 
-        // Dirty controller: after a full v2 load, a v1 load returns every Phase 12
-        // persisted ID to its registered default (C-7 mirror).
+        // Dirty controller: after a full current-stream load, a v1 load returns every
+        // post-v1 persisted ID to its registered default (C-7 mirror).
         auto dirtyCtl = Steinberg::owned(new Vg::Controller());
         REQUIRE(dirtyCtl->initialize(nullptr) == Steinberg::kResultOk);
         REQUIRE(dirtyCtl->setComponentState(streamOf(srcBytes, srcBytes.size())) ==
@@ -556,7 +632,7 @@ TEST_CASE("Vorago_StateRoundTripV2", "[vorago][state]") {
             REQUIRE(std::fabs(got - want) <= 1.0e-9);
             ++ctlOthers;
         }
-        REQUIRE(ctlOthers == 92u);
+        REQUIRE(ctlOthers == kNumPersisted - 14u);
         REQUIRE(dirtyCtl->terminate() == Steinberg::kResultOk);
     }
 
@@ -570,7 +646,7 @@ TEST_CASE("Vorago_StateRoundTripV2", "[vorago][state]") {
                     pressPedalAndPressure(fx);
                 }
                 const Snapshot before = snapshotAll(*fx.proc);
-                const Steinberg::tresult r = fx.proc->setState(streamOf(srcBytes, cut));
+                const Steinberg::tresult r = fx.proc->setState(streamOf(v2Bytes, cut));
                 const Snapshot after = snapshotAll(*fx.proc);
 
                 if (cut < 4u) {  // no version: nothing loads, nothing changes
@@ -586,6 +662,12 @@ TEST_CASE("Vorago_StateRoundTripV2", "[vorago][state]") {
                         REQUIRE(after[k] == srcSnap[k]);  // before the cut: restored
                     } else {
                         REQUIRE(after[k] == before[k]);  // from the cut on: unchanged
+                    }
+                }
+                for (std::size_t k = 0; k < kNumIds; ++k) {
+                    if (isRosterId(kExpectedParams[k].id)) {  // a v2 stream: roster defaults
+                        INFO("roster ID " << kExpectedParams[k].id);
+                        REQUIRE(after[k] == defaultSnap[k]);
                     }
                 }
                 requirePedalAndPressureZero(*fx.proc);
@@ -620,7 +702,7 @@ TEST_CASE("Vorago_StateRoundTripV2", "[vorago][state]") {
             }
             ++floatFields;
             INFO("NaN at ID " << nanField.id << " offset " << nanField.offset);
-            std::vector<char> bytes = srcBytes;
+            std::vector<char> bytes = v2Bytes;
             putLeWord(bytes, nanField.offset, kQuietNaNBits);
 
             VoragoTest::ProcessorFixture fx;
@@ -646,7 +728,7 @@ TEST_CASE("Vorago_StateRoundTripV2", "[vorago][state]") {
         applyNormalized(pressed, srcSet);
         pressPedalAndPressure(pressed);
         const std::vector<char> pressedBytes = stateBytes(*pressed.proc);
-        REQUIRE(pressedBytes.size() == Vg::kStateV2Bytes);
+        REQUIRE(pressedBytes.size() == Vg::kStateV3Bytes);  // the current stream
         REQUIRE(pressedBytes == srcBytes);  // src holds pedal 0 / pressure 0
 
         VoragoTest::ProcessorFixture target;

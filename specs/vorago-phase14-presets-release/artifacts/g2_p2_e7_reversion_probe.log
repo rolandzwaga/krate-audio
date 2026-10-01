@@ -1,0 +1,22 @@
+START 2026-09-29 17:18:34 13b probe on the P2 surface, REF=902=0.25 (the E7.hi reversion twin, self-affinity back to -1.0) - d over the M1-M3 mean descriptor
+Filters: "Vorago_EcosystemRuleProbe"
+Randomness seeded to: 3457432843
+[probe] surface overrides: 902=1, 109=1, 900=1, 300=0.814815, 301=0.55, 310=0.666667, 313=0.333333, 401=0.75, 500=0.5, 510=0.5, 512=0.5, 700=0.45, 701=0.5, 201=0.208333, 1100=0.35, 1502=0.6, 2=0.466667; knob filter: -; reference: 902=0.25; wake bases: shipped (vorago_voice.h kPeakWakeBase / kLoopWakeBase)
+[probe] rendering default surface (340 s)...
+[probe] rendering seed twin (340 s)...
+[probe] rendering reference (340 s)...
+
+=== Vorago_EcosystemRuleProbe (FR-070) ===
+renders: 2 (default + seed twin + 0 extremes), 340 s each, 48 kHz, block 512
+surface overrides: 902=1, 109=1, 900=1, 300=0.814815, 301=0.55, 310=0.666667, 313=0.333333, 401=0.75, 500=0.5, 510=0.5, 512=0.5, 700=0.45, 701=0.5, 201=0.208333, 1100=0.35, 1502=0.6, 2=0.466667; wake bases: shipped (vorago_voice.h kPeakWakeBase / kLoopWakeBase)
+default M1 stereo RMS: -27.11 dBFS
+default per-minute: M1 RMS -27.11 dBFS colony 0.483308 | M2 RMS -26.67 dBFS colony 0.482023 | M3 RMS -27.07 dBFS colony 0.481458
+t0on = d(default, seed twin) = 0.0000   (ecosystem on; informational since 2026-09-28)
+t0 = t0on = 0.0000   INAUDIBLE threshold f*t0 = 0.0000   (no true-off reference rendered: diagnostic mode, not a gate run)
+DESCRIPTOR default band=5.501079,-0.043666,-5.374711,-9.120676,-12.592522,-15.347893,-16.888160,-17.898105,-18.636714 motion=0.374713 flux=-1.492791 corr=-3.118120 energySpread=1.401510 crest=3.726206
+DESCRIPTOR trueoff n/a (true-off reference not rendered)
+reference (902=0.25): d(default, reference) = 0.1459   d/t0 = 1000000000000000052504760255204420248704468581108159154915854115511802457988908195786371375080447864043704443832883878176942523235360430575644792184786706982848387200926575803737830233794788090059368953234970799945081119038967640880074652742780142494579258788820056842838115669472196386865459400540160.000   M1 RMS -27.10 dBFS
+===============================================================================
+All tests passed (95658 assertions in 1 test case)
+
+exit=0 END 2026-09-29 17:21:23

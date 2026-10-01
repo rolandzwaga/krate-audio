@@ -723,6 +723,14 @@ void requireVpReadback(const Krate::DSP::VoragoVoice& v, Steinberg::Vst::ParamID
     } else if (id == ::Vorago::kBodyMaterialBId) {
         REQUIRE(v.bodyB().getMaterial() ==
                 static_cast<Krate::DSP::ContinuousBody::BodyMaterial>(index));
+    } else if (id == ::Vorago::kEcosystemSyncRateId) {  // Phase 14 FR-071a
+        REQUIRE(withinRelative(v.ecosystem().getSyncRate(), want));
+    } else if (id == ::Vorago::kEcosystemSelfAffinityId) {  // Phase 14: the affinity diagonal
+        for (std::size_t k = 0; k < Krate::DSP::EcosystemEngine::kNumKinds; ++k) {
+            const auto kind = static_cast<Krate::DSP::EcosystemEngine::Kind>(k);
+            INFO("kind " << k << " getAffinity=" << v.ecosystem().getAffinity(kind, kind));
+            REQUIRE(withinRelative(v.ecosystem().getAffinity(kind, kind), want));
+        }
     } else {
         FAIL("VP ID without a read-back: " << id);
     }
@@ -941,6 +949,8 @@ void storeViaPack(LocalPacks& p, Steinberg::Vst::ParamID id, double n) noexcept 
         case Vg::kSmearTiltId: return f(p.smear.tilt);
         case Vg::kEventsRateScaleId: return f(p.events.eventRateScale);
         case Vg::kEcosystemDepthId: return f(p.ecosystem.depth);
+        case Vg::kEcosystemSyncRateId: return f(p.ecosystem.syncRate);
+        case Vg::kEcosystemSelfAffinityId: return f(p.ecosystem.selfAffinity);
         case Vg::kBodyBlendId: return f(p.body.blend);
         case Vg::kBodyDampingId: return f(p.body.damping);
         case Vg::kBodyResonanceId: return f(p.body.resonance);
@@ -1047,6 +1057,12 @@ void storeViaPack(LocalPacks& p, Steinberg::Vst::ParamID id, double n) noexcept 
     if (id == Vg::kBodyMaterialBId) {
         return static_cast<int>(p.bodyMaterialB);
     }
+    if (id == Vg::kEcosystemSyncRateId) {  // Phase 14 FR-071a
+        return p.ecosystemSyncRate;
+    }
+    if (id == Vg::kEcosystemSelfAffinityId) {
+        return p.ecosystemSelfAffinity;
+    }
     FAIL("VP ID without a VoragoVoiceParams field: " << id);
     return 0.0;
 }
@@ -1111,9 +1127,9 @@ struct ProbeValue {
 constexpr std::array<int, 4> kProbeNoiseModels = {0, 0, 1, 0};
 constexpr int kProbeSeedIndex = 7;
 
-/// Every persisted ID (106: all but sustain 4 and pressure 5) at the per-ID
-/// non-default value of the MB / VP / ENG / Cavern sections; macros and master
-/// gain at 0.8 of the range.
+/// Every persisted ID (106 + the Phase 14 roster: all but sustain 4 and
+/// pressure 5) at the per-ID non-default value of the MB / VP / ENG / Cavern
+/// sections; macros and master gain at 0.8 of the range.
 [[nodiscard]] std::vector<ProbeValue> surfaceProbe() {
     namespace Vg = ::Vorago;
     std::vector<ProbeValue> out;
@@ -1444,7 +1460,7 @@ TEST_CASE("Vorago_EveryRouteReachesTheChain", "[vorago][integration]") {
                 requireVpReadback(engine->getVoice(i), id, probe.plain);
             }
         }
-        REQUIRE(checked == 31u);
+        REQUIRE(checked == 31u + VoragoTest::kNumEcosystemRosterParams);  // + 901, 902
     }
 
     // T039 (FR-023): envelope, sub tones, ghost reverse / triggers and the seed
@@ -1734,7 +1750,7 @@ TEST_CASE("Vorago_EveryRouteReachesTheChain", "[vorago][integration]") {
     // Without the VP / ENG / CV invalidation this read-back fails.
     SECTION("SurvivesReprepare") {
         const std::vector<ProbeValue> probe = surfaceProbe();
-        REQUIRE(probe.size() == 106u);
+        REQUIRE(probe.size() == 106u + VoragoTest::kNumEcosystemRosterParams);
 
         struct Rate {
             double sampleRate;
@@ -1792,7 +1808,7 @@ TEST_CASE("Vorago_RegisteredDefaultsMatchEngine", "[vorago][integration]") {
     auto controller = Steinberg::owned(new Vg::Controller());
     REQUIRE(controller->initialize(nullptr) == Steinberg::kResultOk);
     const Steinberg::int32 paramCount = controller->getParameterCount();
-    REQUIRE(paramCount == 108);
+    REQUIRE(std::cmp_equal(paramCount, 108 + VoragoTest::kNumEcosystemRosterParams));
     const auto registeredDefault = [&controller, paramCount](Steinberg::Vst::ParamID id) {
         for (Steinberg::int32 k = 0; k < paramCount; ++k) {
             Steinberg::Vst::ParameterInfo info{};
@@ -1843,7 +1859,7 @@ TEST_CASE("Vorago_RegisteredDefaultsMatchEngine", "[vorago][integration]") {
             REQUIRE(row != nullptr);
             INFO("ID " << id);
             switch (entry.route) {
-                case Vg::Route::VP: {  // ---- VP (31) ----
+                case Vg::Route::VP: {  // ---- VP (31 + roster 901, 902) ----
                     ++rows;
                     const double plain = packDenormalized(id, registeredDefault(id));
                     const double ref = vpStructValue(vpDefaults, id);
@@ -1933,7 +1949,7 @@ TEST_CASE("Vorago_RegisteredDefaultsMatchEngine", "[vorago][integration]") {
         }
 
         INFO("SC-003 rows: " << rows);
-        REQUIRE(rows == 97u);
+        REQUIRE(rows == 97u + VoragoTest::kNumEcosystemRosterParams);  // + VP 901, 902
     }
 
     // Push integrity (not the default proof): the same references read back from
@@ -1974,7 +1990,7 @@ TEST_CASE("Vorago_RegisteredDefaultsMatchEngine", "[vorago][integration]") {
         for (const Vg::ParamRouteEntry& entry : Vg::kParamRoutes) {
             const Steinberg::Vst::ParamID id = entry.id;
             INFO("ID " << id);
-            if (entry.route == Vg::Route::VP) {  // ---- VP (31) ----
+            if (entry.route == Vg::Route::VP) {  // ---- VP (31 + roster 901, 902) ----
                 ++rows;
                 const double ref = vpStructValue(vpDefaults, id);
                 if (isInRange(id, Vg::kNoiseSlot0TypeId, Vg::kNoiseSlot3TypeId)) {
@@ -2042,7 +2058,7 @@ TEST_CASE("Vorago_RegisteredDefaultsMatchEngine", "[vorago][integration]") {
         }
 
         INFO("SC-003 push-integrity rows: " << rows);
-        REQUIRE(rows == 97u);
+        REQUIRE(rows == 97u + VoragoTest::kNumEcosystemRosterParams);  // + VP 901, 902
     }
 }
 
@@ -2054,17 +2070,19 @@ TEST_CASE("Vorago_HostResendsEveryParameter", "[vorago][integration]") {
 
     auto controller = Steinberg::owned(new ::Vorago::Controller());
     REQUIRE(controller->initialize(nullptr) == Steinberg::kResultOk);
-    REQUIRE(controller->getParameterCount() == 108);
+    constexpr auto kRegistered =
+        static_cast<Steinberg::int32>(108 + VoragoTest::kNumEcosystemRosterParams);
+    REQUIRE(controller->getParameterCount() == kRegistered);
 
     // The host's current value of every ID: its registered default, sent once by
     // both arms in block 0 (the initial sync), then every block by arm B.
     Krate::Test::ParameterChanges current;
-    for (Steinberg::int32 k = 0; k < 108; ++k) {
+    for (Steinberg::int32 k = 0; k < kRegistered; ++k) {
         Steinberg::Vst::ParameterInfo info{};
         REQUIRE(controller->getParameterInfo(k, info) == Steinberg::kResultOk);
         current.addChange(info.id, info.defaultNormalizedValue);
     }
-    REQUIRE(current.getParameterCount() == 108);
+    REQUIRE(current.getParameterCount() == kRegistered);
 
     VoragoTest::ProcessorFixture armA;
     VoragoTest::ProcessorFixture armB;
@@ -2148,7 +2166,7 @@ TEST_CASE("Vorago_LatencyIndependentOfParameters", "[vorago][integration]") {
 // T042 - SC-009
 // ==============================================================================
 
-// SC-009 / FR-022: a prepared, rendering processor loads a v2 stream with every
+// SC-009 / FR-022: a prepared, rendering processor loads a current (v3) stream with every
 // persisted ID non-default; setState() itself makes no DSP call (the engine still
 // carries the old seed right after it returns), and ONE process() - the block that
 // consumes the release-store request - re-pushes every route, so the full SC-004
@@ -2156,7 +2174,7 @@ TEST_CASE("Vorago_LatencyIndependentOfParameters", "[vorago][integration]") {
 // smoother has settled onto the loaded value within that single block.
 TEST_CASE("Vorago_SetStateAfterPrepareReachesDsp", "[vorago][integration]") {
     const std::vector<ProbeValue> probe = surfaceProbe();
-    REQUIRE(probe.size() == 106u);
+    REQUIRE(probe.size() == 106u + VoragoTest::kNumEcosystemRosterParams);
 
     // The stream, written by an unprepared processor holding the probe values.
     VoragoTest::ProcessorFixture src;
@@ -2169,7 +2187,7 @@ TEST_CASE("Vorago_SetStateAfterPrepareReachesDsp", "[vorago][integration]") {
     }
     auto stream = Steinberg::owned(new Steinberg::MemoryStream());
     REQUIRE(src.proc->getState(stream) == Steinberg::kResultOk);
-    REQUIRE(stream->getSize() == static_cast<Steinberg::int64>(::Vorago::kStateV2Bytes));
+    REQUIRE(stream->getSize() == static_cast<Steinberg::int64>(::Vorago::kStateV3Bytes));
     REQUIRE(stream->seek(0, Steinberg::IBStream::kIBSeekSet, nullptr) == Steinberg::kResultOk);
 
     // The rendering processor: registered defaults, polyphony 6, six held notes.

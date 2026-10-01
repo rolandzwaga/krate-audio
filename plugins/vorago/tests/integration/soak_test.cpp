@@ -3,7 +3,7 @@
 // ==============================================================================
 // T050 (specs/vorago-phase12-parameters/tasks.md). 5 seeds (12020..12024) x 60 s
 // at 48 kHz, notes C2 + G2 velocity 100 held from sample 0. Every registered ID
-// (unit/param_table_expected.h, the checked-in 108-row table) EXCEPT master gain
+// (unit/param_table_expected.h, 108 + the Phase 14 roster rows) EXCEPT master gain
 // (0), sustain (4), channel pressure (5), ecology mix (500), body mix (1003) and
 // cavern mix (1105) is re-drawn to a seeded uniform normalized value every 5 s
 // (t = 0, 5, ..., 55 s), each change landing at its exact sample offset. Those

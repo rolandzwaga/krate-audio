@@ -1,0 +1,42 @@
+Filters: "VoragoVoice_SentinelShapeProbe"
+Randomness seeded to: 2705563917
+  [shape probe] default                                  max|diff| 8.130e-07 (peak 9.783e-03), first differing sample 0
+  [shape probe] body 0, noise -96 dB                     max|diff| 2.135e-06 (peak 2.022e-01), first differing sample 0
+  [shape probe] body 0, noise +12, wake 1                max|diff| 2.771e-03 (peak 3.400e+00), first differing sample 0
+  [shape probe] ... eco depth 0                          max|diff| 1.540e-03 (peak 1.670e+00), first differing sample 0
+  [shape probe] ... all Direct                           max|diff| 0.000e+00 (peak 1.429e+00), first differing sample 16000
+  [shape probe] ... all FilteredWind                     max|diff| 0.000e+00 (peak 1.549e+00), first differing sample 16000
+  [shape probe] ... all GranularDust                     max|diff| 0.000e+00 (peak 8.215e-01), first differing sample 16000
+  [shape probe] ... all MetallicHiss                     max|diff| 5.404e-03 (peak 3.400e+00), first differing sample 0
+  [shape probe] ... hiss + wander rate 0                 max|diff| 5.564e-03 (peak 3.400e+00), first differing sample 0
+  [shape probe] ... hiss + breathing depth 0             max|diff| 5.269e-03 (peak 3.400e+00), first differing sample 0
+  [shape probe] ... hiss + eco depth 0                   max|diff| 2.884e-03 (peak 2.911e+00), first differing sample 0
+  [shape probe] ... hiss + wander 0 + breathing 0 + eco 0 max|diff| 3.130e-03 (peak 3.400e+00), first differing sample 0
+  [shape probe] combs arm A after prime reset
+    slot 0: fund 60 spread 0.35 fb 0.75 delays 16.6667 14.3444
+    slot 1: fund 60 spread 0.35 fb 0.75 delays 16.6667 14.3444
+    slot 2: fund 60 spread 0.35 fb 0.75 delays 16.6667 14.3444
+    slot 3: fund 60 spread 0.35 fb 0.75 delays 16.6667 14.3444
+  [shape probe] combs arm A after first block
+    slot 0: fund 60 spread 0.35 fb 0.75 delays 16.6667 14.3444
+    slot 1: fund 60 spread 0.35 fb 0.75 delays 16.6654 14.3455
+    slot 2: fund 60 spread 0.35 fb 0.75 delays 16.6679 14.3444
+    slot 3: fund 60 spread 0.35 fb 0.75 delays 16.6667 14.3455
+  [shape probe] combs arm B end of tail
+    slot 0: fund 60 spread 0.35 fb 0.75 delays 16.062 15.005
+    slot 1: fund 60 spread 0.35 fb 0.75 delays 16.5423 14.1509
+    slot 2: fund 60 spread 0.35 fb 0.75 delays 16.1624 14.464
+    slot 3: fund 60 spread 0.35 fb 0.75 delays 16.4418 14.2374
+  [shape probe] combs arm B after reset
+    slot 0: fund 60 spread 0.35 fb 0.75 delays 16.6667 14.3444
+    slot 1: fund 60 spread 0.35 fb 0.75 delays 16.6667 14.3444
+    slot 2: fund 60 spread 0.35 fb 0.75 delays 16.6667 14.3444
+    slot 3: fund 60 spread 0.35 fb 0.75 delays 16.6667 14.3444
+  [shape probe] combs arm B after first block
+    slot 0: fund 60 spread 0.35 fb 0.75 delays 16.6667 14.3444
+    slot 1: fund 60 spread 0.35 fb 0.75 delays 16.6654 14.3455
+    slot 2: fund 60 spread 0.35 fb 0.75 delays 16.6679 14.3444
+    slot 3: fund 60 spread 0.35 fb 0.75 delays 16.6667 14.3455
+===============================================================================
+All tests passed (1 assertion in 1 test case)
+

@@ -1,0 +1,74 @@
+START 14:31:43
+== Smeared Horizon | 1105=0.2
+[probe] override 1105 = 0.200000 (replaced)
+[probe] Smeared Horizon - primary S3 spectral smear (stored seed 4, 1 twin render(s))
+  primary d 4.3010  bar 4.0000  attribBase -1.0000  state ok  -> PASS
+   14:34:35
+== Smeared Horizon | 702=1.0,1105=0.2
+[probe] override 702 = 1.000000 (replaced)
+[probe] override 1105 = 0.200000 (replaced)
+[probe] Smeared Horizon - primary S3 spectral smear (stored seed 4, 1 twin render(s))
+  primary d 4.2369  bar 4.0000  attribBase -1.0000  state ok  -> PASS
+   14:37:24
+== Resonant Shaft | 1105=0.2
+[probe] override 1105 = 0.200000 (appended)
+[probe] Resonant Shaft - primary S2 resonance drift (stored seed 3, 1 twin render(s))
+  primary d 4.7602  bar 4.0000  attribBase -1.0000  state ok  -> PASS
+   14:39:55
+== Resonant Shaft | 400=0.15,1105=0.2
+[probe] override 400 = 0.150000 (replaced)
+[probe] override 1105 = 0.200000 (appended)
+[probe] Resonant Shaft - primary S2 resonance drift (stored seed 3, 1 twin render(s))
+  primary d 4.7602  bar 4.0000  attribBase -1.0000  state ok  -> PASS
+   14:42:44
+== Stone Gravity | 600=0.375
+[probe] override 600 = 0.375000 (replaced)
+[probe] Stone Gravity - primary M5 Gravity (stored seed 1, 1 twin render(s))
+  primary d 3.5242  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+   14:46:03
+== Stone Gravity | 600=0.25,200=0.4
+[probe] override 600 = 0.250000 (replaced)
+[probe] override 200 = 0.400000 (replaced)
+[probe] Stone Gravity - primary M5 Gravity (stored seed 1, 1 twin render(s))
+  primary d 3.1923  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+   14:49:19
+== Ice Shelf | 1002=0.99,1001=0.01,201=1.0
+[probe] override 1002 = 0.990000 (replaced)
+[probe] override 1001 = 0.010000 (replaced)
+[probe] override 201 = 1.000000 (replaced)
+[probe] Ice Shelf - primary D1.5 material Ice (stored seed 6, 2 twin render(s))
+  conjunct S10 acoustic body: d 12.4036, bar 1.5 -> ok
+  primary d 4.3676  bar 4.0000  attribBase -1.0000  state ok  -> PASS
+   14:52:59
+== Glass Sphere | 1002=0.99,1001=0.02,201=1.0
+[probe] override 1002 = 0.990000 (replaced)
+[probe] override 1001 = 0.020000 (replaced)
+[probe] override 201 = 1.000000 (replaced)
+[probe] Glass Sphere - primary D1.11 material GlassSphere (stored seed 2, 2 twin render(s))
+  conjunct S10 acoustic body: d 12.9937, bar 1.5 -> ok
+  primary d 3.9445  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+   14:56:31
+== Crowded Dark | 200=0.2
+[probe] override 200 = 0.200000 (replaced)
+[probe] Crowded Dark - primary M3 Density (stored seed 15, 1 twin render(s))
+  primary d 1.8576  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+   14:59:48
+== Weighted Deep | 1003=1.0
+[probe] override 1003 = 1.000000 (appended)
+[probe] Weighted Deep - primary M8 Weight (stored seed 7, 1 twin render(s))
+  primary d 2.7782  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+   15:03:05
+== Dead Air | 300=1.0,301=1.0,320=0.0,321=0.090909,322=0.181818,323=0.454545,200=0.2,1003=0.3
+[probe] override 300 = 1.000000 (replaced)
+[probe] override 301 = 1.000000 (replaced)
+[probe] override 320 = 0.000000 (replaced)
+[probe] override 321 = 0.090909 (replaced)
+[probe] override 322 = 0.181818 (replaced)
+[probe] override 323 = 0.454545 (replaced)
+[probe] override 200 = 0.200000 (replaced)
+[probe] override 1003 = 0.300000 (appended)
+[probe] Dead Air - primary D3.1 noise model Direct (stored seed 4, 2 twin render(s))
+  conjunct S1 noise organism: d 8.8078, bar 1.5 -> ok
+  primary d 8.8078  bar 4.0000  attribBase -1.0000  state ok  -> PASS
+   15:06:12
+END 15:06:12

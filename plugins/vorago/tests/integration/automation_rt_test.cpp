@@ -2,8 +2,8 @@
 // Vorago Phase 12 - full-surface automation RT safety (SC-015)
 // ==============================================================================
 // T046 (specs/vorago-phase12-parameters/tasks.md). 2 000 blocks x 512 at 48 kHz:
-// every registered ID (unit/param_table_expected.h, the checked-in 108-row table
-// Vorago_ParameterInfoTable pins to the controller) receives a seeded random
+// every registered ID (unit/param_table_expected.h, the checked-in 108 + roster-row
+// table Vorago_ParameterInfoTable pins to the controller) receives a seeded random
 // normalized value EVERY block (std::mt19937{12015}), at a random offset; the
 // sustain pedal additionally gets a second point per block; random note-ons /
 // note-offs arrive at random offsets. An AllocationScope wraps each process()

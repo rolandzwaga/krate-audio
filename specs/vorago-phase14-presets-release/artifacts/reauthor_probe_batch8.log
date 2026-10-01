@@ -1,0 +1,61 @@
+START 17:00:57 (ghost tap +12 dB, audible attack rule)
+== Choir of Absence | 
+[probe] Choir of Absence - primary S9 ghost / atmosphere (stored seed 10, 1 twin render(s))
+  primary d 1.8349  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+   17:03:36
+== Haunted Colony | 
+[probe] Haunted Colony - primary E5 ghost -> ghost bursts (stored seed 12, 4 twin render(s))
+  route arms: d(R_k, R_k0) 1.1920, attribBase d(R_0, R_00) 0.3296 (attributable iff d >= 1.8296)
+  primary d 1.1920  bar 4.0000  attribBase 0.3296  state ok  -> FAIL
+   17:06:29
+== Sudden Chasm | 
+[probe] Sudden Chasm - primary D9.1 attack span <= 10 s (stored seed 5, 1 twin render(s))
+  attack window (W_end 25.0 s): d_att 2.7661, d_Sus 4.3038 (attributable iff d_att >= 5.8038)
+    P: first reaches RMS(Sus) - 6 dB at 4 s
+    P_rev: first reaches RMS(Sus) - 6 dB at 6 s
+  primary d 2.7661  bar 4.0000  attribBase 4.3038  state ok  -> FAIL
+   17:08:02
+== Growth Ring | 
+[probe] Growth Ring - primary D8.2 envelope Growth (stored seed 9, 1 twin render(s))
+  attack window (W_end 65.0 s): d_att 8.1714, d_Sus 2.4636 (attributable iff d_att >= 3.9636)
+    P: first reaches RMS(Sus) - 6 dB at 30 s
+    P_rev: first reaches RMS(Sus) - 6 dB at 4 s
+  primary d 8.1714  bar 4.0000  attribBase 2.4636  state ok  -> PASS
+   17:09:49
+== Colony Pulse | 
+[probe] Colony Pulse - primary S7 ecosystem (stored seed 8, 1 twin render(s))
+  primary d 13.3188  bar 4.0000  attribBase -1.0000  state ok  -> PASS
+   17:12:12
+== Drifting Strata | 1105=0.2,201=1.0,1502=1.0
+[probe] override 1105 = 0.200000 (appended)
+[probe] override 201 = 1.000000 (appended)
+[probe] override 1502 = 1.000000 (replaced)
+[probe] Drifting Strata - primary M4 Movement (stored seed 3, 1 twin render(s))
+  primary d 3.0004  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+   17:14:29
+== Monolith | 1105=0.2,201=0.0
+[probe] override 1105 = 0.200000 (replaced)
+[probe] override 201 = 0.000000 (replaced)
+[probe] Monolith - primary M12 Mass (stored seed 4, 1 twin render(s))
+  primary d 3.0795  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+   17:16:29
+== Stone Gravity | 1105=0.2,600=0.375,201=0.0
+[probe] override 1105 = 0.200000 (appended)
+[probe] override 600 = 0.375000 (replaced)
+[probe] override 201 = 0.000000 (appended)
+[probe] Stone Gravity - primary M5 Gravity (stored seed 1, 1 twin render(s))
+  primary d 2.8372  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+   17:18:28
+== Erosion | 1105=0.6
+[probe] override 1105 = 0.600000 (appended)
+[probe] Erosion - primary M2 Age (stored seed 14, 1 twin render(s))
+  primary d 1.7981  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+   17:20:56
+== Feedback Mire | 1105=0.0,500=1.0,501=1.0
+[probe] override 1105 = 0.000000 (replaced)
+[probe] override 500 = 1.000000 (replaced)
+[probe] override 501 = 1.000000 (replaced)
+[probe] Feedback Mire - primary S4 feedback ecology (stored seed 6, 1 twin render(s))
+  primary d 8.4463  bar 4.0000  attribBase -1.0000  state ok  -> PASS
+   17:23:12
+END 17:23:12

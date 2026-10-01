@@ -558,8 +558,10 @@ inline constexpr std::size_t kBaseCommitLatencySamples = 1024u;
 //                  consuming clause additionally guards `actual.rms > 0`.
 //   Checkpoint 0   is exactly 0 because the render starts from a silent engine
 //                  at sample 0 (printed with `std::showpoint` as `0.00000000f`).
-// PROVENANCE (this constant, FIFTH harvest - Phase 13b FR-031(b) re-pin,
-// user ruling 2026-09-28, specs/vorago-phase13b-ecosystem-audibility):
+// PROVENANCE (FIFTH harvest - Phase 13b FR-031(b) re-pin, user ruling
+// 2026-09-28; SUPERSEDED 2026-09-30 by the sixth harvest below, kept for the
+// record; its literal is in specs/vorago-phase13b-ecosystem-audibility/artifacts/
+// final_ghost_fingerprint_harvest_run1.log):
 //   Why            Phase 13b changes the default voicing BY DESIGN (FR-030): the
 //                  ecosystem's agents now drive noise level, peak level, loop
 //                  gain, ring coupling and peak freq wander through depth-scaled
@@ -594,20 +596,94 @@ inline constexpr std::size_t kBaseCommitLatencySamples = 1024u;
 //   Non-vacuous    rms = 0.098545025744880874 and peak = 0.29962226748466492 are
 //                  both NON-ZERO; checkpoint 0 is exactly 0 (silent engine at
 //                  sample 0), as before.
+// PROVENANCE (SIXTH harvest - Phase 14 FR-077 / FR-077a re-pin, user rulings
+// 2026-09-30; SUPERSEDED the same day by the seventh harvest below, kept for
+// the record; its literal is in specs/vorago-phase14-presets-release/artifacts/
+// ghost_fingerprint_harvest6_run1.log):
+//   Why            Phase 14 amends the default voicing BY RULING twice: sweep
+//                  ruling S-1 adds the +30 dB noise-bus make-up in VoragoVoice
+//                  (FR-077; the default -18 dB bed goes from inaudible to faint,
+//                  and the faint bed re-routes the colony's trajectory), and
+//                  sweep-2 ruling S-6 fixes NoiseGenerator's per-type level
+//                  smoothers surviving reset() (FR-077a; the default slot-3
+//                  MetallicHiss no longer fades in on its first render). The
+//                  fifth-harvest constant pinned the 13b render; clause (a) read
+//                  worst metric error 0.0864 (bound 0.005; checkpoint[30] 0.155
+//                  vs 0.231) against it and is re-pinned ONCE here on the final
+//                  Phase 14 tree. The clause's meaning is unchanged: "the ghost
+//                  extension, default-inert, renders the default identically" -
+//                  now against the Phase 14 default.
+//   Tree           Phase 14 tree at the sixth harvest: 13b `59fbd9e6` + Phase 14
+//                  docs `7a5198ed` + the phase's voice/plugin edits INCLUDING
+//                  kNoiseBusMakeupDb = 30 (vorago_voice.h) and
+//                  NoiseGenerator::snapLevelSmoothers() called from
+//                  NoiseOrganism::applySlotConfiguration. Committed as the
+//                  phase's feat commit.
+//   Recipe         sounding recipe per B-2 (unchanged; the consuming clause's
+//                  own render, vorago_ghost_ext_test.cpp:458-507)
+//   Harvested      INSIDE `dsp_systems_tests` (B-3): the consuming clause's own
+//                  paste-ready printer, run as
+//                  `dsp_systems_tests.exe "VoragoEngine_GhostExtensionWiring"`;
+//                  logs specs/vorago-phase14-presets-release/artifacts/
+//                  ghost_fingerprint_harvest6_run1.log and _run2.log
+//   Machine        CodeBox, 13th Gen Intel(R) Core(TM) i9-13900HX,
+//                  Windows 11 Pro 10.0.26200
+//   Toolchain      MSVC 19.44.35228 (cl.exe 14.44.35207), Visual Studio 17 2022
+//                  generator, x64, preset `windows-x64-release` (Release);
+//                  `enableFTZDAZ()` via `dsp_test_main.cpp` before the render
+//   Date           2026-09-30
+//   Reproducible   the case was run TWICE on the same binary; the two printed
+//                  literals are byte-identical (md5 f1e53f803ff886a231cdc88ebed02698)
+//   Non-vacuous    rms = 0.090743041569614491 and peak = 0.29633152484893799 are
+//                  both NON-ZERO; checkpoint 0 is exactly 0 (silent engine at
+//                  sample 0), as before.
+// PROVENANCE (this constant, SEVENTH harvest - Phase 14 FR-077b re-pin, user
+// ruling S-7 2026-09-30 17:25, specs/vorago-phase14-presets-release):
+//   Why            Re-author ruling S-7 adds the +12 dB ghost-tap make-up in
+//                  VoragoEngine (FR-077b): the atmosphere's wet texture, which
+//                  the default surface already carries at ghost peak level
+//                  kGhostBurstPeak, is 12 dB louder in the render. The
+//                  sixth-harvest constant pinned the pre-make-up render; clause
+//                  (a) read worst metric error 0.1291 (bound 0.005;
+//                  checkpoint[12] 0.259 vs 0.190) against it and is re-pinned
+//                  ONCE here on the final Phase 14 tree. The clause's meaning is
+//                  unchanged: "the ghost extension, default-inert, renders the
+//                  default identically" - now against the Phase 14 default.
+//   Tree           Phase 14 FINAL tree: the sixth-harvest tree plus
+//                  kGhostTapMakeupDb = 12 (vorago_engine.h). Committed as the
+//                  phase's feat commit.
+//   Recipe         sounding recipe per B-2 (unchanged; the consuming clause's
+//                  own render, vorago_ghost_ext_test.cpp:458-507)
+//   Harvested      INSIDE `dsp_systems_tests` (B-3): the consuming clause's own
+//                  paste-ready printer, run as
+//                  `dsp_systems_tests.exe "VoragoEngine_GhostExtensionWiring"`;
+//                  logs specs/vorago-phase14-presets-release/artifacts/
+//                  ghost_fingerprint_harvest7_run1.log and _run2.log
+//   Machine        CodeBox, 13th Gen Intel(R) Core(TM) i9-13900HX,
+//                  Windows 11 Pro 10.0.26200
+//   Toolchain      MSVC 19.44.35228 (cl.exe 14.44.35207), Visual Studio 17 2022
+//                  generator, x64, preset `windows-x64-release` (Release);
+//                  `enableFTZDAZ()` via `dsp_test_main.cpp` before the render
+//   Date           2026-09-30
+//   Reproducible   the case was run TWICE on the same binary; the two printed
+//                  literals are byte-identical (md5 4805f945856d17ad52f15b0a41d75f4e)
+//   Non-vacuous    rms = 0.096512938463810455 and peak = 0.33458879590034485 are
+//                  both NON-ZERO; checkpoint 0 is exactly 0 (silent engine at
+//                  sample 0), as before.
 inline constexpr Krate::DSP::TestUtils::RenderFingerprint kBaseCommitVoragoFingerprint{
-    .rms = 0.098545025744880874,
-    .peak = 0.29962226748466492,
-    .meanAbs = 0.07696901013732621,
-    .totalVariation = 1449.3243352220029,
+    .rms = 0.096512938463810455,
+    .peak = 0.33458879590034485,
+    .meanAbs = 0.07429593256042348,
+    .totalVariation = 1360.6318547050969,
     .checkpoints = {
-        0.00000000f, 0.0122139724f, 0.0198170003f, 0.0310098715f,
-        -0.0260050558f, -0.000627643138f, -0.0926316008f, 0.0137929553f,
-        -0.122988209f, 0.0285053961f, 0.111592554f, 0.0875841379f,
-        0.195237577f, -0.0759189799f, 0.0804813355f, -0.158811763f,
-        -0.100936487f, -0.132443830f, -0.0644180775f, 0.190877080f,
-        -0.0126119293f, 0.153386593f, -0.134734020f, -0.0129285371f,
-        -0.0707455799f, -0.148535773f, -0.000959891884f, -0.0285174381f,
-        0.0651586726f, -0.00597775169f, 0.230548337f, 0.0402021408f,}};
+        0.00000000f, 0.0155310892f, 0.0187097006f, 0.0274781603f,
+        -0.0228411946f, -0.00340456283f, -0.0663383454f, 0.0193302277f,
+        -0.118752718f, 0.0310297534f, 0.108154535f, 0.0823825076f,
+        0.258899033f, -0.0920445323f, 0.0534681156f, -0.134736657f,
+        -0.0789924040f, -0.0948311687f, -0.0457251072f, 0.170493796f,
+        -0.0386724509f, 0.165529475f, -0.137944981f, -0.0123875961f,
+        -0.0644778684f, -0.130238369f, -0.00648829388f, -0.0381648354f,
+        0.0639965832f, -0.0275731701f, 0.220924973f, 0.0335450284f,}};
 
 // -----------------------------------------------------------------------------
 // 6.3 Fixture C - SC-011 (c)'s forward arm at the SHORT (filling-ring) pre-roll

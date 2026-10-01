@@ -1476,6 +1476,27 @@ public:
         return (k < EcosystemEngine::kNumKinds) ? ecosystemDepth_[k] : 0.0f;
     }
 
+    /// @brief Phase 14 FR-071a / R-1: the registered Ecosystem Sync knob (ID 901).
+    ///        Forwards to EcosystemEngine::setSyncRate (ecosystem_engine.h:595): a
+    ///        non-finite value is rejected, a finite one clamped to [0, 0.5].
+    ///        A pure store, so a repeated identical broadcast is inert (the
+    ///        applyVoiceParams contract, vorago_engine.h:852-855).
+    void setEcosystemSyncRate(float v) noexcept { ecosystem_.setSyncRate(v); }
+
+    /// @brief Phase 14 FR-071a / R-1: the registered Ecosystem Self Affinity knob
+    ///        (ID 902). Writes the affinity DIAGONAL - setAffinity(k, k, v) for all
+    ///        five kinds - exactly as the Phase 13b tables measured it
+    ///        (ecosystem_rule_probe_test.cpp applyAffinityDiagonal). Off-diagonal
+    ///        entries are untouched. The index guard comes first, a non-finite
+    ///        value is rejected, a finite one clamped to [-2, 2], and the write
+    ///        is not symmetrised (ecosystem_engine.h:707-720).
+    void setEcosystemSelfAffinity(float v) noexcept {
+        for (std::size_t k = 0; k < EcosystemEngine::kNumKinds; ++k) {
+            const auto kind = static_cast<EcosystemEngine::Kind>(k);
+            ecosystem_.setAffinity(kind, kind, v);
+        }
+    }
+
     /// FR-022's interval scale - Life's target. Voice-owned; APPLIED to the two
     /// SlowEventSchedulers by publishIdentity() (T013), which is the only place
     /// that owns the scheduler interval ranges.
@@ -1602,6 +1623,16 @@ private:
     // PASS, 2 st 1.17x PASS (artifacts/zipper_e3_span*.log).
     static constexpr float kFreqWanderLeverSpanSemis = 3.0f;  // <= 6 st; slewed (E-6)
     static constexpr float kFreqWanderLeverSlewSeconds = 0.050f;  // full-span slew time
+    // Phase 14 (2026-09-30, user ruling): make-up gain on the noise organism's
+    // bus. The organism calibrates every model to a -50.6 dBFS slot reference
+    // (noise_organism.h kModelTrimDb), so before this gain the bed sat about 33 dB
+    // under the drone at its +12 dB maximum (VoragoVoice_NoiseBusProbe: output
+    // RMS -19.79 dBFS with the noise at +12 dB vs -19.69 dBFS at -96 dB,
+    // difference -52.7 dBFS) - the section could not be showcased by any preset.
+    // Sized by that probe so +12 dB reaches the cloud's level; the -18 dB default
+    // stays a faint bed well under the drone.
+    static constexpr float kNoiseBusMakeupDb = 30.0f;
+    static constexpr float kNoiseBusMakeupGain = 31.6227766f;  // 10^(30/20)
     // FR-018b (2026-09-28): the wander lever's span is scaled by the resonance
     // wander RATE, (0.03 Hz / rate)^k for rates above the shipped 0.03 Hz, so
     // the colony's extra wander is full at the default and fades towards the
@@ -2393,7 +2424,7 @@ private:
         //    (FR-015, B-3). noise_.processBlock is MONO out.
         noise_.processBlock(noiseMono_.data(), n);  // noise_organism.h:414
         for (std::size_t s = 0; s < n; ++s) {
-            const float g = noiseGain_.process();
+            const float g = noiseGain_.process() * kNoiseBusMakeupGain;
             const float m = noiseMono_[s] * g;
             const float aL = noiseApL_.process(m);              // biquad.h:352
             const float aR = noiseApR_.process(noiseApDelayR_);  // the one-sample branch delay

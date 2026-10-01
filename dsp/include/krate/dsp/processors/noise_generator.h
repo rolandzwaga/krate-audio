@@ -335,6 +335,25 @@ public:
         masterSmoother_.setTarget(dbToGain(dB));
     }
 
+    /// @brief Land every level smoother (one per noise type, plus the master)
+    ///        on its target immediately.
+    ///
+    /// reset() deliberately leaves the level smoothers alone, so a type enabled
+    /// AFTER prepare() keeps a smoother parked at 0 with a target it has never
+    /// reached: an instance that has not rendered since the change fades that
+    /// type in over its first ~5 ms, one that has rendered starts settled, and
+    /// reset() reproduces neither from the other. A caller that changes the
+    /// enabled type under its own silence gate (NoiseOrganism's duck) calls this
+    /// after its level pushes so the stream after the change is a function of
+    /// configuration alone (Vorago Phase 14, NoiseOrganism_TypeSwitchedAfter-
+    /// PrepareReplaysAfterReset). A no-op on a settled instance.
+    void snapLevelSmoothers() noexcept {
+        for (OnePoleSmoother& smoother : levelSmoothers_) {
+            smoother.snapToTarget();
+        }
+        masterSmoother_.snapToTarget();
+    }
+
     /// @brief Get master output level
     /// @return Master level in decibels
     [[nodiscard]] float getMasterLevel() const noexcept {

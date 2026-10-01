@@ -612,10 +612,58 @@ default-render change documented as intentional; no regression in the earlier su
 
 ---
 
+### Phase 13c: Capability Audibility
+
+**Spec:** `vorago-phase13c-capability-audibility`
+**Depends on:** Phase 13b (the ecosystem levers), Phase 14's harness (the C-7.2 descriptor, the pilot
+probe with `VORAGO_PILOT_OVERRIDE`, the route arms, the sweep protocol).
+Inserted 2026-09-30 and sequenced before Phase 14 resumes: Phase 14 is paused at T048 after sweep 3.
+**Premise (measured 2026-09-30, `specs/vorago-phase14-presets-release/compliance.md` "Re-author loop after
+sweep 2" and "Sweep 3"):** three full library sweeps and eight probe batches measured every capability's
+audible range on its own showcase preset, by the phase's descriptor against the primary bar F = 4.0 (a
+reseed of the default surface is 4.0; half a reseed is 13b's Gate-1 bar). The strong half of the
+instrument reads far above the bar — resonance drift, spectral smear, the sub engine, the cavern, the
+acoustic body, all eleven materials and the four noise models move a preset by 5 to 16, and 28 presets
+verify. A third of the capability matrix does not reach the output at any preset setting: the ecosystem
+routes E1 partial → bloom 0.06, E3 noise wake 0.65, E4 loop wake 1.22, E5 ghost bursts 1.19 (after the
++12 dB ghost-tap make-up); the Life macro 0.63 at full travel; the harmonic bloom 1.74 at best (its six
+children scale with parents that are silent below richness 0.7); the Age, Fog, Movement, Gravity and
+Mass macros 2.3 to 3.9; the ghost alone 1.83 (14 dB under the drone before the make-up); the fast-attack
+cell 2.77 because the registered envelope is at full level in 20 s. Two level make-ups this phase measured
+and shipped (noise bus +30 dB, ghost tap +12 dB) each took a feature from inaudible to present within an
+hour: these are level and lever-size problems, not design problems. A preset built on an inaudible
+feature has nothing of its own to sound like, which is why 46 of 861 preset pairs sit under the
+distinctness floor — all of them among the presets whose primary is one of these cells.
+**Goal:** every capability cell in the matrix is something a listener hears at its showcase preset — the
+primary bar F = 4.0 on the Phase 14 descriptor, measured by the Phase 14 pilot probe on the phase's own
+showcase presets — with no cell recorded UNMET. Candidates, one lever per feature, each measured
+before it is ruled: the bloom's child gain and parent selection (children attach to sounding parents;
+richness independence); the ecosystem route lever strengths behind E1, E3, E4 and E5 (13b's levers scaled
+so one route alone clears the bar on a preset that exposes it); the macro-matrix row amounts of Life, Age,
+Fog, Movement, Gravity and Mass (rows that move less than the bar are widened or given targets that
+move); the ghost tap's level and burst density where the make-up alone is short; the registered
+envelope's audible attack (the D9.1 comparison window) as ruled in Phase 14 S-9.
+
+- Gate per cell: the Phase 14 pilot probe on the cell's showcase preset reads d ≥ 4.0 (route cells on
+  their route arms with the attributability clause; the attack cell on the audible window), with the
+  preset's four level arms green in the same printout. The gate is re-measured on the final tree.
+- The default render may change (voicing) and every before/after descriptor is recorded; Phase 10's
+  bounds (zipper, SweepAxes, CPU ceiling), 13b's gates, the Phase 2–13 suites, pluginval, clang-tidy,
+  portability and the [long] soaks stay green; fingerprints that move are re-harvested inside their
+  consuming binary.
+- Phase 14 then resumes at T048: the showcase presets are re-authored on the new levers, sweep 4 is the
+  confirming run, and the distinctness floor is met by every pair — no primary and no pair is recorded
+  UNMET in the release.
+
+**Success criteria:** every cell's gate with cited probe log; the lever table (feature, lever, before,
+after); the default-render change documented; no regression in the earlier suites; CPU delta.
+
+---
+
 ### Phase 14: Factory Presets & Release Readiness
 
 **Spec:** `vorago-phase14-presets-release`
-**Status: ⏸ PAUSED at gate G1 (2026-09-27)** — the FR-070 audibility probe found 0 of 14 rule knobs
+**Status: ⏸ PAUSED at T048 (2026-09-30), second pause** — three full sweeps measured a third of the capability matrix as inaudible at any preset setting (28 of 42 primaries verify, 46 pairs under the floor, all among the presets built on those cells); the user ruled the instrument ships with no inaudible feature, so Phase 13c fixes the features first and this phase resumes at T048 with sweep 4 as the confirming run. First pause (2026-09-27, gate G1): the FR-070 audibility probe found 0 of 14 rule knobs
 audible and the ecosystem itself below one reseed (runs 1–4 in its compliance record); Phase 13b fixes
 the cause first, then this phase re-runs its specify stage. Kept from the first pass: spec, plan, tasks
 (rulings Q1–Q8, R-1–R-8), the probe TU, `preset_test_support.h` part 0 and the inert probe friend.
@@ -655,7 +703,7 @@ Phase 1           ├─→ Phase 4 (spectral smear) ──┤
 (events + ────────┼─→ Phase 5 (feedback ecology)─┼─→ Phase 10 (voice/engine) ─→ Phase 11 (scaffold) ✅
  Perlin/Aizawa)   ├─→ Phase 6 (subharmonic) ─────┤            ▲         │              │
                   ├─→ Phase 7 (bloom) ───────────┤            │         ▼              ▼
-                  └─→ Phase 8 (ecosystem) ───────┘            │   Phase 10a (ghost) ✅ → Phase 12 ✅ → 13 ✅ → 13b ✅ → 14
+                  └─→ Phase 8 (ecosystem) ───────┘            │   Phase 10a (ghost) ✅ → Phase 12 ✅ → 13 ✅ → 13b ✅ → 13c → 14
                                                               │
 AetherReverb ✅ (shipped) ─────────→ Phase 9 (cavern space) ───┘
 seraphis_voice/engine ✅ (shipped) ───────────────────────────┘  (pattern template, not code dep)

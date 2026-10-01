@@ -6,10 +6,15 @@
 // T016 (entry.cpp) and T017 (lifecycle test). Red until those land.
 //
 // XML half (SC-002 .. SC-005) parses resources/editor.uidesc directly:
-//   - Vorago_UidescBindsEverySurfaceId (SC-002): unreachableParams(xml, all 108,
-//     {4, 5}) is empty; the control-tag="..." multiset is exactly the 106
-//     non-hidden IDs, each once; 4 and 5 never bound; every bound element has a
-//     non-empty tooltip (FR-006, FR-010, FR-011).
+//   - Vorago_UidescBindsEverySurfaceId (SC-002): unreachableParams(xml, all
+//     108 + kNumEcosystemRosterParams, {4, 5}) is empty; the control-tag="..."
+//     multiset is exactly the 106 + kNumEcosystemRosterParams non-hidden IDs
+//     (Phase 14 FR-073 added 901/902 on page 6), each once; 4 and 5 never
+//     bound; every bound element has a non-empty tooltip (FR-006, FR-010,
+//     FR-011).
+//   - Vorago_Ecosystem_PageBindsRosterIds (SC-028): page 6 binds 901 and 902;
+//     the unbound allowlist is exactly {4, 5}; both knobs lie inside the
+//     1100 x 296 page and overlap no other view.
 //   - Vorago_UidescTagTable (SC-003): every <control-tag> is a registered ID,
 //     every referenced name is declared, the 14 Phase 11 names keep their values,
 //     every name is the plugin_ids.h enumerator minus "k"/"Id" (FR-012, plan 7.1).
@@ -55,6 +60,7 @@
 #include "ui/ecosystem_view.h"
 #include "ui/panel_sub_controller.h"
 #include "unit/param_table_expected.h"
+#include "vorago_test_fixture.h"  // VoragoTest::kNumEcosystemRosterParams
 
 #include "ui/arc_knob.h"
 #include "ui/outline_button.h"
@@ -106,7 +112,7 @@ struct IdName {
 };
 
 // clang-format off
-constexpr std::array<IdName, 108> kIdNames = {{
+constexpr std::array<IdName, 108 + VoragoTest::kNumEcosystemRosterParams> kIdNames = {{
     {.id = ::Vorago::kMasterGainId, .name = "MasterGain"},
     {.id = ::Vorago::kPolyphonyId, .name = "Polyphony"},
     {.id = ::Vorago::kSeedId, .name = "Seed"},
@@ -177,6 +183,8 @@ constexpr std::array<IdName, 108> kIdNames = {{
     {.id = ::Vorago::kSmearTiltId, .name = "SmearTilt"},
     {.id = ::Vorago::kEventsRateScaleId, .name = "EventsRateScale"},
     {.id = ::Vorago::kEcosystemDepthId, .name = "EcosystemDepth"},
+    {.id = ::Vorago::kEcosystemSyncRateId, .name = "EcosystemSyncRate"},
+    {.id = ::Vorago::kEcosystemSelfAffinityId, .name = "EcosystemSelfAffinity"},
     {.id = ::Vorago::kBodyBlendId, .name = "BodyBlend"},
     {.id = ::Vorago::kBodyDampingId, .name = "BodyDamping"},
     {.id = ::Vorago::kBodyResonanceId, .name = "BodyResonance"},
@@ -252,6 +260,8 @@ std::vector<std::set<int>> expectedPageIds() {
     // page-6 Life (Events, Ecosystem, Ghost, Life)
     pages[6].insert(800);
     pages[6].insert(900);
+    pages[6].insert(901);  // Phase 14 FR-073: Ecosystem Sync
+    pages[6].insert(902);  // Phase 14 FR-073: Ecosystem Self Affinity
     range(pages[6], 1400, 1403);
     range(pages[6], 1500, 1502);
     return pages;
@@ -835,8 +845,8 @@ TEST_CASE("Vorago_UidescBindsEverySurfaceId", "[vorago][controller][ui]") {
             nonHidden.insert(static_cast<int>(row.id));
         }
     }
-    REQUIRE(all108.size() == 108u);
-    REQUIRE(nonHidden.size() == 106u);
+    REQUIRE(all108.size() == 108u + VoragoTest::kNumEcosystemRosterParams);
+    REQUIRE(nonHidden.size() == 106u + VoragoTest::kNumEcosystemRosterParams);
     REQUIRE(!nonHidden.contains(static_cast<int>(::Vorago::kSustainPedalId)));
     REQUIRE(!nonHidden.contains(static_cast<int>(::Vorago::kChannelPressureId)));
 
@@ -870,7 +880,7 @@ TEST_CASE("Vorago_UidescBindsEverySurfaceId", "[vorago][controller][ui]") {
     }
     CAPTURE(unresolved);
     REQUIRE(unresolved.empty());
-    REQUIRE(boundIds.size() == 106u);
+    REQUIRE(boundIds.size() == 106u + VoragoTest::kNumEcosystemRosterParams);
     for (const int id : nonHidden) {
         CAPTURE(id);
         REQUIRE(boundIds.count(id) == 1u);
@@ -906,7 +916,7 @@ TEST_CASE("Vorago_UidescTagTable", "[vorago][controller][ui]") {
     for (const auto& e : kIdNames) {
         expectedName[static_cast<int>(e.id)] = e.name;
     }
-    REQUIRE(expectedName.size() == 108u);
+    REQUIRE(expectedName.size() == 108u + VoragoTest::kNumEcosystemRosterParams);
 
     // Every <control-tag> value is a registered ID and its name is the
     // plugin_ids.h enumerator minus "k"/"Id".
@@ -918,8 +928,9 @@ TEST_CASE("Vorago_UidescTagTable", "[vorago][controller][ui]") {
         REQUIRE(name == expectedName[value]);
         REQUIRE(declaredValues.insert(value).second);  // one name per ID
     }
-    // Plan 7.1: 106 tags, none for the hidden performance controllers.
-    REQUIRE(tagMap.size() == 106u);
+    // Plan 7.1: 106 tags (+ the Phase 14 roster 901/902), none for the hidden
+    // performance controllers.
+    REQUIRE(tagMap.size() == 106u + VoragoTest::kNumEcosystemRosterParams);
     REQUIRE(!declaredValues.contains(static_cast<int>(::Vorago::kSustainPedalId)));
     REQUIRE(!declaredValues.contains(static_cast<int>(::Vorago::kChannelPressureId)));
 
@@ -975,7 +986,7 @@ TEST_CASE("Vorago_UidescViewClassRule", "[vorago][controller][ui]") {
             ++continuousRows;
         }
     }
-    REQUIRE(continuousRows == 84u);
+    REQUIRE(continuousRows == 84u + VoragoTest::kNumEcosystemRosterParams);  // 901, 902 continuous
     REQUIRE(listRows == 22u);
 
     std::size_t checked = 0;
@@ -1005,7 +1016,7 @@ TEST_CASE("Vorago_UidescViewClassRule", "[vorago][controller][ui]") {
         REQUIRE(cls == expected);
         ++checked;
     }
-    REQUIRE(checked == 106u);
+    REQUIRE(checked == 106u + VoragoTest::kNumEcosystemRosterParams);
 }
 
 // ==============================================================================
@@ -1124,7 +1135,8 @@ TEST_CASE("Vorago_UidescLayout", "[vorago][controller][ui]") {
         REQUIRE(ids == expectedPages[static_cast<std::size_t>(k)]);
         pageUnion.insert(ids.begin(), ids.end());
     }
-    REQUIRE(pageUnion.size() == 90u);  // 106 bound - 4 header - 12 macros
+    // 106 + roster bound - 4 header - 12 macros
+    REQUIRE(pageUnion.size() == 90u + VoragoTest::kNumEcosystemRosterParams);
 
     // No page ID outside page-area; every page control inside the page-area rect;
     // every page knob <= 48 x 48.
@@ -1173,7 +1185,7 @@ TEST_CASE("Vorago_UidescLayout", "[vorago][controller][ui]") {
         REQUIRE(labels >= controls);
         labelledControls += controls;
     }
-    REQUIRE(labelledControls == 12u + 90u);
+    REQUIRE(labelledControls == 12u + 90u + VoragoTest::kNumEcosystemRosterParams);
 
     // --- FR-005: class and custom-view-name whitelists (all views) -----------
     const std::set<std::string> allowedClasses = {"CViewContainer", "CTextLabel", "CSlider",
@@ -1198,6 +1210,76 @@ TEST_CASE("Vorago_UidescLayout", "[vorago][controller][ui]") {
     for (const int ecosystem : findLabelled(scan, "ecosystem")) {
         REQUIRE(scan.nodes[static_cast<std::size_t>(ecosystem)].get("custom-view-name") ==
                 "EcosystemView");
+    }
+}
+
+// ==============================================================================
+// SC-028 - the Phase 14 ecosystem roster knobs on page 6 (FR-073)
+// ==============================================================================
+TEST_CASE("Vorago_Ecosystem_PageBindsRosterIds", "[vorago][ui]") {
+    const std::string xml = readUidesc();
+    const auto tagMap = Krate::Test::extractControlTagMap(xml);
+    const auto scan = scanUidesc(xml);
+    REQUIRE(scan.wellFormed);
+
+    const auto page6 = findLabelled(scan, "page-6");
+    REQUIRE(page6.size() == 1u);
+    const int page = page6[0];
+    const Rect pageRect = scan.nodes[static_cast<std::size_t>(page)].window;
+    REQUIRE(pageRect.width() == 1100.0);
+    REQUIRE(pageRect.height() == 296.0);
+
+    // Every registered ID bound somewhere; the unbound set is exactly {4, 5}.
+    const auto bound = boundNodes(scan, tagMap);
+    std::set<int> boundIds;
+    for (const auto& e : bound) {
+        boundIds.insert(e.second);
+    }
+    std::set<int> unbound;
+    for (const auto& row : VoragoTest::kExpectedParams) {
+        if (!boundIds.contains(static_cast<int>(row.id))) {
+            unbound.insert(static_cast<int>(row.id));
+        }
+    }
+    const std::set<int> allowlist = {static_cast<int>(::Vorago::kSustainPedalId),
+                                     static_cast<int>(::Vorago::kChannelPressureId)};
+    CAPTURE(unbound);
+    REQUIRE(unbound == allowlist);
+
+    // 901 and 902: each bound exactly once, an ArcKnob under page-6, inside the
+    // 1100 x 296 page, overlapping no other view on the page.
+    for (const int rosterId : {static_cast<int>(::Vorago::kEcosystemSyncRateId),
+                               static_cast<int>(::Vorago::kEcosystemSelfAffinityId)}) {
+        CAPTURE(rosterId);
+        std::vector<int> nodes;
+        for (const auto& [index, id] : bound) {
+            if (id == rosterId) {
+                nodes.push_back(index);
+            }
+        }
+        REQUIRE(nodes.size() == 1u);
+        const int knob = nodes[0];
+        const auto& kn = scan.nodes[static_cast<std::size_t>(knob)];
+        REQUIRE(kn.get("class") == "ArcKnob");
+        REQUIRE(isDescendantOf(scan, knob, page));
+        const Rect r = kn.window;
+        CAPTURE(r.left, r.top, r.right, r.bottom);
+        REQUIRE(r.width() > 0.0);
+        REQUIRE(r.height() > 0.0);
+        REQUIRE(pageRect.contains(r));
+
+        for (std::size_t i = 0; i < scan.nodes.size(); ++i) {
+            const int other = static_cast<int>(i);
+            if (other == knob || !isDescendantOf(scan, other, page)) {
+                continue;
+            }
+            const Rect o = scan.nodes[i].window;
+            const bool overlaps =
+                r.left < o.right && o.left < r.right && r.top < o.bottom && o.top < r.bottom;
+            CAPTURE(scan.nodes[i].get("class"), scan.nodes[i].get("control-tag"),
+                    scan.nodes[i].get("title"), o.left, o.top, o.right, o.bottom);
+            REQUIRE_FALSE(overlaps);
+        }
     }
 }
 
@@ -1302,9 +1384,11 @@ TEST_CASE("Vorago_Editor_PageSwitchIsSessionOnly", "[vorago][controller][ui]") {
     REQUIRE(controller->initialize(nullptr) == Steinberg::kResultOk);
     REQUIRE(controller->setComponentHandler(&handler) == Steinberg::kResultOk);
 
-    REQUIRE(controller->getParameterCount() == 108);
+    constexpr auto kRegistered =
+        static_cast<Steinberg::int32>(108 + VoragoTest::kNumEcosystemRosterParams);
+    REQUIRE(controller->getParameterCount() == kRegistered);
     const auto before = snapshotParams(*controller);
-    REQUIRE(before.size() == 108u);
+    REQUIRE(before.size() == 108u + VoragoTest::kNumEcosystemRosterParams);
 
     {
         EditorSession session(*controller);
@@ -1345,7 +1429,7 @@ TEST_CASE("Vorago_Editor_PageSwitchIsSessionOnly", "[vorago][controller][ui]") {
     REQUIRE(handler.begins == 0);
     REQUIRE(handler.performs == 0);
     REQUIRE(handler.ends == 0);
-    REQUIRE(controller->getParameterCount() == 108);
+    REQUIRE(controller->getParameterCount() == kRegistered);
     const auto after = snapshotParams(*controller);
     REQUIRE(after == before);
 

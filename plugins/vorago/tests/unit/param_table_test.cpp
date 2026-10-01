@@ -128,6 +128,8 @@ TEST_CASE("Vorago_ParamIdMap", "[vorago][params]") {
     // --- Events (800-899) / Ecosystem (900-999) ---
     STATIC_REQUIRE(kEventsRateScaleId == 800);
     STATIC_REQUIRE(kEcosystemDepthId == 900);
+    STATIC_REQUIRE(kEcosystemSyncRateId == 901);      // Phase 14 FR-072
+    STATIC_REQUIRE(kEcosystemSelfAffinityId == 902);  // Phase 14 FR-072
 
     // --- Body (1000-1099) ---
     STATIC_REQUIRE(kBodyBlendId == 1000);
@@ -197,8 +199,8 @@ TEST_CASE("Vorago_ParamIdMap", "[vorago][params]") {
     STATIC_REQUIRE(kGhostParamRangeEnd == 1500);
     STATIC_REQUIRE(kLifeParamRangeEnd == 1600);
 
-    // State version was bumped to 2 by T042 (plan 4.9).
-    STATIC_REQUIRE(kCurrentStateVersion == 2);
+    // State version was bumped to 2 by T042 (plan 4.9), to 3 by Phase 14 FR-072.
+    STATIC_REQUIRE(kCurrentStateVersion == 3);
 }
 
 // T015 / plan section 3.3, spec C-8: every mapping reference value, the seed table,
@@ -321,13 +323,13 @@ TEST_CASE("Vorago_ParamMapping", "[vorago][params]") {
     }
 }
 
-// T031 / spec C-2, plan sections 3.2 and 4.1: the 108-entry ID -> Route table and
+// T031 / spec C-2, plan sections 3.2 and 4.1: the 110-entry ID -> Route table and
 // the 39-entry MB target mapping.
 TEST_CASE("Vorago_RouteTable", "[vorago][params]") {
     using Krate::DSP::VoragoMacroTarget;
 
     SECTION("size, order and per-route counts") {
-        REQUIRE(kParamRoutes.size() == 108);
+        REQUIRE(kParamRoutes.size() == 110);  // 108 + Phase 14 FR-074 (901, 902)
         for (std::size_t i = 1; i < kParamRoutes.size(); ++i) {
             INFO("i = " << i);
             REQUIRE(kParamRoutes[i - 1].id < kParamRoutes[i].id);
@@ -336,7 +338,7 @@ TEST_CASE("Vorago_RouteTable", "[vorago][params]") {
         for (const auto& e : kParamRoutes)
             ++counts[static_cast<std::size_t>(e.route)];
         REQUIRE(counts[static_cast<std::size_t>(Route::MB)] == 39);
-        REQUIRE(counts[static_cast<std::size_t>(Route::VP)] == 31);
+        REQUIRE(counts[static_cast<std::size_t>(Route::VP)] == 33);
         REQUIRE(counts[static_cast<std::size_t>(Route::ENG)] == 14);
         REQUIRE(counts[static_cast<std::size_t>(Route::CV)] == 9);
         REQUIRE(counts[static_cast<std::size_t>(Route::MAC)] == 13);
@@ -353,6 +355,11 @@ TEST_CASE("Vorago_RouteTable", "[vorago][params]") {
         REQUIRE(routeOf(kCloudStereoSpreadId) == Route::VP);
         REQUIRE(routeOf(kSpaceFreezeId) == Route::CV);
         REQUIRE(routeOf(kGhostReverseProbabilityId) == Route::ENG);
+        // Phase 14 FR-074: the ecosystem roster knobs are per-voice, broadcast.
+        REQUIRE(routeOf(kEcosystemDepthId) == Route::MB);
+        REQUIRE(routeOf(kEcosystemSyncRateId) == Route::VP);
+        REQUIRE(routeOf(kEcosystemSelfAffinityId) == Route::VP);
+        REQUIRE_FALSE(routeOf(903).has_value());
         for (Steinberg::Vst::ParamID id = 100; id <= 111; ++id) {
             INFO("id = " << id);
             REQUIRE(routeOf(id) == Route::MAC);
@@ -399,7 +406,7 @@ TEST_CASE("Vorago_RouteTable", "[vorago][params]") {
 }
 
 // ==============================================================================
-// T033 / FR-041, SC-018: the controller registers, describes and formats all 108
+// T033 / FR-041, SC-018: the controller registers, describes and formats all 110
 // parameters exactly as the checked-in table (unit/param_table_expected.h) says.
 // ==============================================================================
 
@@ -465,6 +472,11 @@ std::optional<double> packDenormalize(Steinberg::Vst::ParamID id, double n) {
         return logMapFromNormalized(n, V::kEventsRateScaleMin, V::kEventsRateScaleMax);
     if (id == V::kEcosystemDepthId)
         return V::linearFromNormalized(n, V::kEcosystemDepthMin, V::kEcosystemDepthMax);
+    if (id == V::kEcosystemSyncRateId)
+        return V::linearFromNormalized(n, V::kEcosystemSyncRateMin, V::kEcosystemSyncRateMax);
+    if (id == V::kEcosystemSelfAffinityId)
+        return V::linearFromNormalized(n, V::kEcosystemSelfAffinityMin,
+                                       V::kEcosystemSelfAffinityMax);
     if (id >= V::kBodyBlendId && id <= V::kBodyMixId)
         return V::linearFromNormalized(n, 0.0, 1.0);  // handleBodyParamChange lin01
     for (const auto sid : V::kSpaceFloatIds) {
@@ -554,10 +566,12 @@ std::optional<double> packHandledPlain(Steinberg::Vst::ParamID id, double n) {
         V::handleEventsParamChange(p, id, n);
         return rd(p.eventRateScale);
     }
-    if (id == V::kEcosystemDepthId) {
+    if (id >= V::kEcosystemDepthId && id <= V::kEcosystemSelfAffinityId) {
         V::EcosystemParams p;
         V::handleEcosystemParamChange(p, id, n);
-        return rd(p.depth);
+        if (id == V::kEcosystemDepthId) return rd(p.depth);
+        if (id == V::kEcosystemSyncRateId) return rd(p.syncRate);
+        return rd(p.selfAffinity);
     }
     if (id >= V::kBodyBlendId && id <= V::kBodyMixId) {
         V::BodyParams p;
@@ -611,10 +625,10 @@ TEST_CASE("Vorago_ParameterInfoTable", "[vorago][params]") {
     REQUIRE(controller->initialize(nullptr) == Steinberg::kResultOk);
 
     SECTION("count and band order") {
-        REQUIRE(controller->getParameterCount() == 108);
-        REQUIRE(kExpectedParams.size() == 108);
+        REQUIRE(controller->getParameterCount() == 110);  // 108 + Phase 14 (901, 902)
+        REQUIRE(kExpectedParams.size() == 110);
         // Registration order == band order == ascending ID == the table's row order.
-        for (Steinberg::int32 i = 0; i < 108; ++i) {
+        for (Steinberg::int32 i = 0; i < 110; ++i) {
             Steinberg::Vst::ParameterInfo info{};
             REQUIRE(controller->getParameterInfo(i, info) == Steinberg::kResultOk);
             INFO("index " << i);
@@ -692,8 +706,9 @@ TEST_CASE("Vorago_ParameterInfoTable", "[vorago][params]") {
             REQUIRE(stored.has_value());
             CHECK(closeRel(*stored, row.mid, 1e-6));
         }
-        // 85 group-A rows + Sustain Pedal (4, group C but a continuous Vst::Parameter).
-        REQUIRE(continuousRows == 86);
+        // 87 group-A rows (85 + Phase 14's 901, 902) + Sustain Pedal (4, group C but a
+        // continuous Vst::Parameter).
+        REQUIRE(continuousRows == 88);
     }
 
     SECTION("body materials: list index n == BodyMaterial n") {
@@ -742,9 +757,9 @@ using PacksView = ::Vorago::Processor::PacksForTest;
 
 /// The plain value an ID's atomic holds, read through the processor's const seam,
 /// in the units of kExpectedParams (discrete rows in INDEX units, so Polyphony's
-/// stored voice count [1, 6] is read back as index [0, 5]). The 108 registered IDs
+/// stored voice count [1, 6] is read back as index [0, 5]). The 110 registered IDs
 /// cover every atomic of every pack exactly once (6 + 12 + 7 + 23 + 4 + 8 + 5 + 3 +
-/// 1 + 1 + 6 + 16 + 7 + 2 + 4 + 3 == 108), so a snapshot over them is a snapshot
+/// 1 + 3 + 6 + 16 + 7 + 2 + 4 + 3 == 110), so a snapshot over them is a snapshot
 /// of every atomic. std::nullopt for an unknown ID.
 std::optional<double> packsReadPlain(const PacksView& p, Steinberg::Vst::ParamID id) {
     namespace V = ::Vorago;
@@ -793,6 +808,8 @@ std::optional<double> packsReadPlain(const PacksView& p, Steinberg::Vst::ParamID
     if (id == V::kSmearTiltId) return rf(p.smear.tilt);
     if (id == V::kEventsRateScaleId) return rf(p.events.eventRateScale);
     if (id == V::kEcosystemDepthId) return rf(p.ecosystem.depth);
+    if (id == V::kEcosystemSyncRateId) return rf(p.ecosystem.syncRate);
+    if (id == V::kEcosystemSelfAffinityId) return rf(p.ecosystem.selfAffinity);
     if (id == V::kBodyBlendId) return rf(p.body.blend);
     if (id == V::kBodyDampingId) return rf(p.body.damping);
     if (id == V::kBodyResonanceId) return rf(p.body.resonance);
@@ -864,7 +881,7 @@ TEST_CASE("Vorago_ParamInputHygiene", "[vorago][params]") {
 
     SECTION("unregistered IDs change nothing") {
         constexpr std::array<Steinberg::Vst::ParamID, 18> kUnregistered = {
-            6, 99, 112, 207, 399, 516, 613, 703, 801, 901, 1006, 1116, 1207, 1302, 1404, 1503,
+            6, 99, 112, 207, 399, 516, 613, 703, 801, 903, 1006, 1116, 1207, 1302, 1404, 1503,
             1599, 1600};
         for (const auto id : kUnregistered) {
             INFO("unregistered id " << id);

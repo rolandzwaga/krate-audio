@@ -86,7 +86,9 @@ public:
     Steinberg::uint32 PLUGIN_API getLatencySamples() override;
     Steinberg::tresult PLUGIN_API setState(Steinberg::IBStream* state) override;
     Steinberg::tresult PLUGIN_API getState(Steinberg::IBStream* state) override;
-    // getTailSamples(): NOT overridden -> SDK default kNoTail (Clarification Q6).
+    /// Phase 14 FR-060: Rel + RT60_eff + G from the stored state (tail_estimate.h);
+    /// kInfiniteTail while Freeze is On. Relaxed atomics only, allocation-free.
+    Steinberg::uint32 PLUGIN_API getTailSamples() override;
 
     // Phase 13 FR-021 (plan 4.2): the EcosystemFrame DataExchange lifecycle.
     Steinberg::tresult PLUGIN_API connect(Steinberg::Vst::IConnectionPoint* other) override;

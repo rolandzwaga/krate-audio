@@ -13,6 +13,7 @@
 #include "engine/vorago_engine_config.h"
 #include "plugin_ids.h"
 #include "processor/ecosystem_frame_builder.h"
+#include "processor/tail_estimate.h"
 
 #include "base/source/fstreamer.h"
 #include "public.sdk/source/common/memorystream.h"
@@ -28,6 +29,7 @@
 #include <algorithm>
 #include <array>
 #include <cassert>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -561,8 +563,8 @@ uint32 PLUGIN_API Processor::getLatencySamples() {
     return static_cast<uint32>(engine_->getLatencySamples() + cavern_->getLatencySamples());
 }
 
-// FR-045 / FR-046 (plan 2.5.10), Phase 12 C-7 / FR-040 (plan 4.9): v2, 428 bytes
-// (kStateV2Bytes), little-endian; the v1 60-byte stream is its strict prefix.
+// FR-045 / FR-046 (plan 2.5.10), Phase 12 C-7 / FR-040 (plan 4.9), Phase 14 FR-072:
+// v3, 436 bytes (kStateV3Bytes), little-endian; v2 and v1 are strict prefixes.
 // Writes atomics only, so it is safe beside process(); no prepare is reachable and
 // NO DSP call is made (FR-022, FR-030): the re-push and the latch release are
 // requested by release stores and done by the next process().
@@ -591,9 +593,10 @@ tresult PLUGIN_API Processor::setState(IBStream* state) {
                loadLifeParams(lifeParams_, in);
     };
     const bool v1Complete = loadGlobalParams(globalParams_, s) && loadMacroParams(macroParams_, s);
+    bool v2Complete = false;
     if (version >= 2) {
         if (v1Complete) {
-            [[maybe_unused]] const bool v2Complete = loadV2Tail(s);
+            v2Complete = loadV2Tail(s);
         }
     } else {
         // C-7 / FR-040: a version < 2 stream is the v1 block only (a version < 1 is
@@ -623,6 +626,23 @@ tresult PLUGIN_API Processor::setState(IBStream* state) {
         tailStream.seek(0, IBStream::kIBSeekSet, nullptr);
         [[maybe_unused]] const bool defaultsLoaded = loadV2Tail(out);
         assert(defaultsLoaded);
+        v2Complete = true;
+    }
+    // Phase 14 FR-072: the v3 ecosystem rule-knob extension. A version < 3 stream
+    // leaves both fields at their REGISTERED DEFAULT (the same stack-serialized
+    // default pattern as the v2 tail above).
+    if (version >= 3) {
+        if (v2Complete) {
+            [[maybe_unused]] const bool v3 = loadEcosystemParamsV3Ext(ecosystemParams_, s);
+        }
+    } else {
+        std::array<char, kStateV3Bytes - kStateV2Bytes> ext{};
+        MemoryStream extStream(ext.data(), static_cast<TSize>(ext.size()));
+        IBStreamer out(&extStream, kLittleEndian);
+        saveEcosystemParamsV3Ext(EcosystemParams{}, out);
+        extStream.seek(0, IBStream::kIBSeekSet, nullptr);
+        [[maybe_unused]] const bool defaultsLoaded = loadEcosystemParamsV3Ext(ecosystemParams_, out);
+        assert(defaultsLoaded);
     }
     // FR-045: the performance controllers are never persisted and restart at 0.
     globalParams_.sustainPedal.store(0.0f, std::memory_order_relaxed);
@@ -633,7 +653,8 @@ tresult PLUGIN_API Processor::setState(IBStream* state) {
     return kResultOk;
 }
 
-// Plan 4.9 write order: version, v1 block, v2 global extension, 14 packs in band order.
+// Plan 4.9 write order: version, v1 block, v2 global extension, 14 packs in band order,
+// then the Phase 14 FR-072 v3 ecosystem extension.
 tresult PLUGIN_API Processor::getState(IBStream* state) {
     if (state == nullptr) {
         return kResultFalse;
@@ -657,7 +678,36 @@ tresult PLUGIN_API Processor::getState(IBStream* state) {
     saveBloomParams(bloomParams_, s);
     saveGhostParams(ghostParams_, s);
     saveLifeParams(lifeParams_, s);
+    saveEcosystemParamsV3Ext(ecosystemParams_, s);
     return kResultOk;
+}
+
+// Phase 14 FR-060 (plan 5.3): Freeze On -> infinite; else Rel + RT60_eff + G at the
+// current rate. The macro vector is the stored KNOBS only (not buildMacroVector(),
+// which adds channel pressure - a performance controller, not state). Relaxed
+// atomics and a stack matrix only: allocation-free on any host thread.
+uint32 PLUGIN_API Processor::getTailSamples() {
+    constexpr auto kRelaxed = std::memory_order_relaxed;
+    if (spaceParams_.freeze.load(kRelaxed) != 0) {
+        return kInfiniteTail;
+    }
+    Krate::DSP::VoragoMacroValues knobs{};
+    knobs.darkness = macroParams_.darkness.load(kRelaxed);
+    knobs.age = macroParams_.age.load(kRelaxed);
+    knobs.density = macroParams_.density.load(kRelaxed);
+    knobs.movement = macroParams_.movement.load(kRelaxed);
+    knobs.gravity = macroParams_.gravity.load(kRelaxed);
+    knobs.entropy = macroParams_.entropy.load(kRelaxed);
+    knobs.pressure = macroParams_.pressure.load(kRelaxed);
+    knobs.weight = macroParams_.weight.load(kRelaxed);
+    knobs.fog = macroParams_.fog.load(kRelaxed);
+    knobs.life = macroParams_.life.load(kRelaxed);
+    knobs.depth = macroParams_.depth.load(kRelaxed);
+    knobs.mass = macroParams_.mass.load(kRelaxed);
+    const float rt60 =
+        effectiveCavernDecaySeconds(knobs, spaceParams_.decaySeconds.load(kRelaxed));
+    const double seconds = tailSeconds(envelopeParams_.releaseMs.load(kRelaxed), rt60);
+    return static_cast<uint32>(std::llround(seconds * processSetup.sampleRate));
 }
 
 // FR-043 (plan 2.5.8): the LAST point of each queue wins; routed by ID band.
@@ -858,6 +908,9 @@ void Processor::pushVoiceParams() noexcept {
         p.ecologyLoopFilterMode[l] = static_cast<FeedbackEcology::FilterMode>(
             clampedIndex(ecologyParams_.loopFilterMode[l], kEcologyNumFilterModes));
     }
+
+    p.ecosystemSyncRate = ecosystemParams_.syncRate.load(kRelaxed);        // Phase 14 FR-072
+    p.ecosystemSelfAffinity = ecosystemParams_.selfAffinity.load(kRelaxed);  // Phase 14 FR-072
 
     engine_->applyVoiceParams(p);  // vorago_engine.h:829, every slot < kMaxVoices
     lastAppliedVpGen_ = voiceParamGeneration_;

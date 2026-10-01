@@ -1,0 +1,93 @@
+START 17:57:45
+MSBuild version 17.14.51+25f168cee for .NET Framework
+
+  Checking File Globs
+  Catch2.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\Catch2.lib
+  PFFFT.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\pffft.lib
+  hwy.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy.lib
+  hwy_contrib.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy_contrib.lib
+  KrateDSP.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\KrateDSP.lib
+  noise_organism_test.cpp
+  dsp_systems_tests.vcxproj -> F:\projects\iterum\build\windows-x64-release\bin\Release\dsp_systems_tests.exe
+build exit=0 warnings=0 17:57:59
+Filters: "NoiseOrganism_TypeSwitchedAfterPrepareReplaysAfterReset"
+Randomness seeded to: 3729906754
+===============================================================================
+All tests passed (3 assertions in 1 test case)
+
+regression exit=0 17:57:59
+warning: in the working copy of 'CMakeLists.txt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'dsp/include/krate/dsp/systems/vorago_engine.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'dsp/include/krate/dsp/systems/vorago_voice.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'dsp/tests/unit/systems/atmosphere_ghost_fixtures.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'dsp/tests/unit/systems/noise_organism_test.cpp', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'dsp/tests/unit/systems/vorago_engine_test.cpp', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'dsp/tests/unit/systems/vorago_param_surface_test.cpp', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'dsp/tests/unit/systems/vorago_voice_test.cpp', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/vorago/resources/editor.uidesc', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/vorago/src/controller/controller.cpp', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/vorago/src/parameters/ecosystem_params.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/vorago/src/parameters/param_routes.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/vorago/src/plugin_ids.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/vorago/src/preset/vorago_preset_config.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/vorago/src/processor/processor.cpp', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/vorago/src/processor/processor.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/vorago/tests/CMakeLists.txt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/vorago/tests/integration/automation_rt_test.cpp', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/vorago/tests/integration/continuity_test.cpp', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/vorago/tests/integration/param_surface_test.cpp', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/vorago/tests/integration/preset_browser_test.cpp', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/vorago/tests/integration/processor_cpu_test.cpp', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/vorago/tests/integration/soak_test.cpp', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/vorago/tests/preset_test_support.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/vorago/tests/unit/controller/editor_layout_test.cpp', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/vorago/tests/unit/controller/editor_lifecycle_test.cpp', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/vorago/tests/unit/param_denorm_test.cpp', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/vorago/tests/unit/param_table_expected.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/vorago/tests/unit/param_table_test.cpp', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/vorago/tests/unit/params/ecosystem_params_test.cpp', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/vorago/tests/unit/state_roundtrip_test.cpp', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/vorago/tests/unit/state_v2_test.cpp', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/vorago/tests/vorago_test_fixture.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'specs/vorago-phase14-presets-release/compliance.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'specs/vorago-phase14-presets-release/plan.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'specs/vorago-phase14-presets-release/spec.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'specs/vorago-phase14-presets-release/tasks.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tools/run-cpu-tests.js', LF will be replaced by CRLF the next time Git touches it
+check-portability: 31 translation unit(s) with g++
+
+  OK      plugins/vorago/tests/integration/preset_cpu_test.cpp
+  OK      plugins/vorago/tests/integration/preset_load_rt_test.cpp
+  OK      plugins/vorago/tests/integration/preset_matrix_test.cpp
+  OK      plugins/vorago/tests/integration/preset_pilot_test.cpp
+  OK      plugins/vorago/tests/integration/preset_sweep_test.cpp
+  OK      plugins/vorago/tests/unit/ecosystem_roster_test.cpp
+  OK      plugins/vorago/tests/unit/ghost_triggers_additive_test.cpp
+  OK      plugins/vorago/tests/unit/preset/factory_preset_test.cpp
+  OK      plugins/vorago/tests/unit/state_v3_test.cpp
+  OK      plugins/vorago/tests/unit/tail_samples_test.cpp
+  skip    tools/vorago_preset_generator.cpp  (plugin_ids.h: No such file or directory)
+  OK      dsp/tests/unit/systems/seraphis_perf_test.cpp
+  OK      dsp/tests/unit/systems/noise_organism_test.cpp
+  OK      dsp/tests/unit/systems/vorago_engine_test.cpp
+  OK      dsp/tests/unit/systems/vorago_param_surface_test.cpp
+  OK      dsp/tests/unit/systems/vorago_voice_test.cpp
+  OK      plugins/vorago/src/controller/controller.cpp
+  OK      plugins/vorago/src/processor/processor.cpp
+  OK      plugins/vorago/tests/integration/automation_rt_test.cpp
+  OK      plugins/vorago/tests/integration/continuity_test.cpp
+  OK      plugins/vorago/tests/integration/param_surface_test.cpp
+  OK      plugins/vorago/tests/integration/preset_browser_test.cpp
+  OK      plugins/vorago/tests/integration/processor_cpu_test.cpp
+  OK      plugins/vorago/tests/integration/soak_test.cpp
+  OK      plugins/vorago/tests/unit/controller/editor_layout_test.cpp
+  OK      plugins/vorago/tests/unit/controller/editor_lifecycle_test.cpp
+  OK      plugins/vorago/tests/unit/param_denorm_test.cpp
+  OK      plugins/vorago/tests/unit/param_table_test.cpp
+  OK      plugins/vorago/tests/unit/params/ecosystem_params_test.cpp
+  OK      plugins/vorago/tests/unit/state_roundtrip_test.cpp
+  OK      plugins/vorago/tests/unit/state_v2_test.cpp
+
+check-portability: all clear -- 30 compiled, 1 skipped.
+portability exit=0 18:02:09
+wsl shutdown END 18:02:14

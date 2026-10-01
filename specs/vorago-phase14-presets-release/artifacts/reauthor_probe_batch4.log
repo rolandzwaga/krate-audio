@@ -1,0 +1,69 @@
+START 15:03:59
+== Slow Bloom | 200=0.7
+[probe] override 200 = 0.700000 (replaced)
+[probe] Slow Bloom - primary S6 harmonic bloom (stored seed 7, 1 twin render(s))
+  primary d 1.7414  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+   15:06:49
+== Slow Bloom | 200=0.9
+[probe] override 200 = 0.900000 (replaced)
+[probe] Slow Bloom - primary S6 harmonic bloom (stored seed 7, 1 twin render(s))
+  primary d 0.4708  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+   15:09:37
+== Glass Sphere | 1002=0.995,1001=0.01,201=1.0,1105=0.05
+[probe] override 1002 = 0.995000 (replaced)
+[probe] override 1001 = 0.010000 (replaced)
+[probe] override 201 = 1.000000 (replaced)
+[probe] override 1105 = 0.050000 (replaced)
+[probe] Glass Sphere - primary D1.11 material GlassSphere (stored seed 2, 2 twin render(s))
+  conjunct S10 acoustic body: d 12.8088, bar 1.5 -> ok
+  primary d 3.9712  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+   15:12:45
+== Stone Gravity | 1105=0.2,600=0.375
+[probe] override 1105 = 0.200000 (appended)
+[probe] override 600 = 0.375000 (replaced)
+[probe] Stone Gravity - primary M5 Gravity (stored seed 1, 1 twin render(s))
+  primary d 3.0192  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+   15:15:43
+== Stone Gravity | 1105=0.2,1003=0.3,600=0.375
+[probe] override 1105 = 0.200000 (appended)
+[probe] override 1003 = 0.300000 (replaced)
+[probe] override 600 = 0.375000 (replaced)
+[probe] Stone Gravity - primary M5 Gravity (stored seed 1, 1 twin render(s))
+  primary d 3.0527  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+   15:18:38
+== Weighted Deep | 1105=0.2
+[probe] override 1105 = 0.200000 (appended)
+[probe] Weighted Deep - primary M8 Weight (stored seed 7, 1 twin render(s))
+  primary d 3.5562  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+   15:21:30
+== Crowded Dark | 200=0.6
+[probe] override 200 = 0.600000 (replaced)
+[probe] Crowded Dark - primary M3 Density (stored seed 15, 1 twin render(s))
+  primary d 2.1494  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+   15:24:17
+== Crowded Dark | 1105=0.2
+[probe] override 1105 = 0.200000 (appended)
+[probe] Crowded Dark - primary M3 Density (stored seed 15, 1 twin render(s))
+  primary d 3.4623  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+   15:26:54
+== Erosion | 1105=0.2
+[probe] override 1105 = 0.200000 (appended)
+[probe] Erosion - primary M2 Age (stored seed 14, 1 twin render(s))
+  primary d 0.9929  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+   15:29:30
+== Drifting Strata | 1105=0.2
+[probe] override 1105 = 0.200000 (appended)
+[probe] Drifting Strata - primary M4 Movement (stored seed 3, 1 twin render(s))
+  primary d 2.3794  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+   15:32:18
+== Monolith | 1105=0.2
+[probe] override 1105 = 0.200000 (replaced)
+[probe] Monolith - primary M12 Mass (stored seed 4, 1 twin render(s))
+  primary d 3.2511  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+   15:34:56
+== Fogbound | 1105=0.9
+[probe] override 1105 = 0.900000 (replaced)
+[probe] Fogbound - primary M9 Fog (stored seed 9, 1 twin render(s))
+  primary d 1.7019  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+   15:37:47
+END 15:37:47

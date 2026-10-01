@@ -1,0 +1,34 @@
+START 16:33:31
+MSBuild version 17.14.51+25f168cee for .NET Framework
+
+  Checking File Globs
+  Catch2.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\Catch2.lib
+  PFFFT.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\pffft.lib
+  hwy.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy.lib
+  hwy_contrib.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy_contrib.lib
+  KrateDSP.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\KrateDSP.lib
+  vorago_ecosystem_lever_longrun_test.cpp
+  vorago_ecosystem_lever_test.cpp
+  vorago_engine_longrun_test.cpp
+  vorago_engine_test.cpp
+  vorago_ghost_ext_test.cpp
+  vorago_macro_retune_probe_test.cpp
+  vorago_macro_test.cpp
+  vorago_nonfinite_test.cpp
+  vorago_param_surface_test.cpp
+  vorago_perf_test.cpp
+  vorago_voice_test.cpp
+  dsp_systems_tests.vcxproj -> F:\projects\iterum\build\windows-x64-release\bin\Release\dsp_systems_tests.exe
+build exit=0 warnings=0 16:33:53
+Filters: "VoragoEngine_GhostLevelProbe"
+Randomness seeded to: 3972372163
+  [ghost probe] ghost peak level 0.0: RMS(220-340 s) -19.30 dBFS, difference vs ghost 0: -300.00 dBFS, loudest 1 s window -300.00 dBFS, windows above -40 dBFS 0 of 120
+  [ghost probe] ghost peak level 0.5: RMS(220-340 s) -19.27 dBFS, difference vs ghost 0: -44.71 dBFS, loudest 1 s window -39.05 dBFS, windows above -40 dBFS 5 of 120
+  [ghost probe] ghost peak level 1.0: RMS(220-340 s) -19.19 dBFS, difference vs ghost 0: -38.63 dBFS, loudest 1 s window -32.99 dBFS, windows above -40 dBFS 62 of 120
+  [ghost probe] ghost peak level 1.0: RMS(220-340 s) -18.91 dBFS, difference vs ghost 0: -32.46 dBFS, loudest 1 s window -26.89 dBFS, windows above -40 dBFS 111 of 120
+  [ghost probe] ghost peak level 1.0: RMS(220-340 s) -18.11 dBFS, difference vs ghost 0: -26.27 dBFS, loudest 1 s window -20.75 dBFS, windows above -40 dBFS 120 of 120
+  [ghost probe] ghost peak level 1.0: RMS(220-340 s) -16.31 dBFS, difference vs ghost 0: -20.27 dBFS, loudest 1 s window -15.02 dBFS, windows above -40 dBFS 120 of 120
+===============================================================================
+All tests passed (1 assertion in 1 test case)
+
+probe exit=0 END 16:34:41

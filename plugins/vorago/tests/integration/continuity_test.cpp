@@ -2,7 +2,7 @@
 // Vorago Phase 12 - parameter-step continuity (SC-011, [long])
 // ==============================================================================
 // T047 (specs/vorago-phase12-parameters/tasks.md), plan section 6.4. For every
-// one of the 108 registered IDs (the SC-011 column of unit/param_table_expected.h):
+// registered ID - 108 + the Phase 14 roster (the SC-011 column of unit/param_table_expected.h):
 // 48 kHz, 512-sample blocks, note C2 velocity 100 held from sample 0, 1 s warm-up,
 // then 64 steps. Classes A / B: clause 1 (maxDeltaInWindow over +-10 ms centred on
 // step + {0, 1024, 3072} in the output domain - spec B-6: a step lands at the
@@ -141,8 +141,10 @@ static_assert(isValidSeq(kDiscreteStepSeq16, 16));
 static_assert(hasAllSixPairs(kDiscreteStepSeq3));
 
 // Scope = the SC-011 column of the checked-in table (plan 6.4).
-static_assert(VoragoTest::kNumExpectedParams == 108);
-static_assert(VoragoTest::detail_expected::countClass(VoragoTest::Sc011::A) == 85);
+static_assert(VoragoTest::kNumExpectedParams == 108 + VoragoTest::kNumEcosystemRosterParams);
+// Phase 14: the roster IDs 901 and 902 are continuous group-A rows.
+static_assert(VoragoTest::detail_expected::countClass(VoragoTest::Sc011::A) ==
+              85 + VoragoTest::kNumEcosystemRosterParams);
 static_assert(VoragoTest::detail_expected::countClass(VoragoTest::Sc011::B) == 12);
 static_assert(VoragoTest::detail_expected::countClass(VoragoTest::Sc011::C) == 11);
 
@@ -202,7 +204,16 @@ struct SweepResult {
         x.subspan(centre - kHalfWindow, 2u * kHalfWindow), 0);
 }
 
-[[nodiscard]] SweepResult renderSweep(const VoragoTest::ExpectedParamRow& row, bool probe) {
+/// `probe` engages FR-053's master-gain smoother bypass (control (b)); `control`
+/// replaces the row's 64 sweep values with 0.25 / 1.0 alternating - a full-range
+/// snap at every step - so control (b) tests the CRITERION with a discontinuity
+/// no bed can hide. Phase 14 (FR-077, 2026-09-30): the +30 dB noise-bus make-up
+/// raised the default surface's own sample-to-sample deltas until the sweep's
+/// 1/64-range snaps read 1.47 x max(ref) against the 1.5 bound and the control
+/// reported itself broken; the criterion and the bound are unchanged, the
+/// control's stimulus is now decisive by construction.
+[[nodiscard]] SweepResult renderSweep(const VoragoTest::ExpectedParamRow& row, bool probe,
+                                      bool control = false) {
     VoragoTest::ProcessorFixture fx;
     fx.prepare(kSampleRate, 2048);
     if (probe) {
@@ -210,7 +221,12 @@ struct SweepResult {
     }
     fx.reserveCapture(kTotalSamples);
 
-    const std::array<double, kSteps> values = stepValues(row);
+    std::array<double, kSteps> values = stepValues(row);
+    if (control) {
+        for (std::size_t k = 0; k < kSteps; ++k) {
+            values[k] = (k % 2u == 0u) ? 1.0 : 0.25;
+        }
+    }
     const bool isNoiseType = row.id >= ::Vorago::kNoiseSlot0TypeId &&
                              row.id <= ::Vorago::kNoiseSlot3TypeId;
 
@@ -370,7 +386,7 @@ TEST_CASE("Vorago_ParameterStepsAreContinuous", "[vorago][integration][long]") {
         const VoragoTest::ExpectedParamRow* row =
             VoragoTest::detail_expected::findRow(::Vorago::kMasterGainId);
         REQUIRE(row != nullptr);
-        const SweepResult r = renderSweep(*row, true);
+        const SweepResult r = renderSweep(*row, true, true);  // snapped, full-range steps
         const double maxTest = maxOf(r.test);
         const double maxRef = maxOf(r.ref);
         const bool failsClause3 = maxTest > kBoundFactor * maxRef;

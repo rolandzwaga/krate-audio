@@ -3113,3 +3113,175 @@ TEST_CASE("VoragoEngine_SetterContract", "[systems][vorago]") {
         REQUIRE(engine->getEnvelopeStageTimeMs(kStages) == 0.0f);
     }
 }
+
+// =============================================================================
+// Engine reset-reproducibility probe (Phase 14 noise make-up, 2026-09-30):
+// VoragoEngine_SlotSeedReproducibility (a) reads a worst metric of 2.65e-4
+// against 2.5e-4 with the +30 dB noise-bus make-up. The first version of this
+// probe found the two renders diverging at sample 2049 (= one 2048-sample
+// structure plus one) in every reset variant, so this version bisects by
+// section: the same reset-right-after-render scenario with the smear at 0, the
+// ghost at 0, and both. Hidden.
+// =============================================================================
+TEST_CASE("VoragoEngine_ResetReproProbe", "[.probe][systems][vorago]") {
+    VoragoEngineConfig cfg{};
+    cfg.atmosCaptureSeconds = 1.0f;
+    constexpr std::size_t kWindow = 16000u;
+    constexpr std::uint8_t kNote = 45u;
+    constexpr std::uint32_t kSeed = 0x51075Eu;
+    std::setvbuf(stdout, nullptr, _IONBF, 0);
+
+    const auto compare = [](const char* what, const std::vector<float>& a,
+                            const std::vector<float>& b) {
+        std::size_t first = a.size();
+        float maxAbs = 0.0f;
+        for (std::size_t i = 0; i < a.size(); ++i) {
+            const float d = std::fabs(a[i] - b[i]);
+            if (d > 0.0f && first == a.size()) {
+                first = i;
+            }
+            maxAbs = std::max(maxAbs, d);
+        }
+        std::printf("  [engine probe] %-46s max|diff| %.3e, first differing sample %zu\n", what,
+                    static_cast<double>(maxAbs), first);
+    };
+
+    // Each variant pushes one or two macro-matrix target BASES through
+    // VoragoMacroMatrix::apply() (the engine exposes no per-voice setters), so a
+    // lane can be zeroed and the divergence bisected. An empty list is the
+    // shipped default; "matrix defaults" applies the matrix with every base at
+    // its shipped value (the control for apply() itself).
+    struct Push {
+        Krate::DSP::VoragoMacroTarget target;
+        float base;
+    };
+    struct Variant {
+        const char* name;
+        bool useMatrix;
+        std::array<Push, 2> pushes;
+        std::size_t count;
+    };
+    using T = Krate::DSP::VoragoMacroTarget;
+    constexpr std::array<Variant, 8> kVariants{{
+        {"default", false, {}, 0u},
+        {"noise level -96 dB", true, {{{T::NoiseLevelDb, -96.0f}, {T::NoiseLevelDb, -96.0f}}}, 1u},
+        {"ecology mix 0", true, {{{T::EcologyMix, 0.0f}, {T::EcologyMix, 0.0f}}}, 1u},
+        {"ecology loop gain 0", true, {{{T::EcologyLoopGain, 0.0f}, {T::EcologyLoopGain, 0.0f}}}, 1u},
+        {"resonance mix 0", true, {{{T::ResonanceMix, 0.0f}, {T::ResonanceMix, 0.0f}}}, 1u},
+        {"body mix 0", true, {{{T::BodyMix, 0.0f}, {T::BodyMix, 0.0f}}}, 1u},
+        {"cloud richness 0", true, {{{T::CloudRichness, 0.0f}, {T::CloudRichness, 0.0f}}}, 1u},
+        {"ecology mix 0 + resonance mix 0", true, {{{T::EcologyMix, 0.0f}, {T::ResonanceMix, 0.0f}}}, 2u},
+    }};
+    for (const Variant& v : kVariants) {
+        auto engine = std::make_unique<VoragoEngine>();
+        engine->setSeed(kSeed);
+        engine->setPolyphony(1u);
+        engine->prepare(kSampleRate8k, cfg);
+        applyFastAttack(*engine);
+        if (v.useMatrix) {
+            VoragoMacroMatrix matrix;
+            for (std::size_t k = 0; k < v.count; ++k) {
+                matrix.setTargetBase(v.pushes[k].target, v.pushes[k].base);
+            }
+            matrix.apply(*engine);
+        }
+        // prime, exactly as the test does
+        engine->noteOn(kNote, 100u);
+        engine->noteOff(kNote);
+        (*engine).reset();
+
+        std::vector<float> l;
+        std::vector<float> r;
+        engine->noteOn(kNote, 100u);
+        renderEngine(*engine, l, r, kWindow, 512u);
+        const std::vector<float> first = l;
+        (*engine).reset();
+        engine->noteOn(kNote, 100u);
+        renderEngine(*engine, l, r, kWindow, 512u);
+        compare(v.name, first, l);
+    }
+    REQUIRE(true);
+}
+
+// =============================================================================
+// Ghost level probe (Phase 14 re-author loop, 2026-09-30): Choir of Absence's
+// S9 ablation (ghost peak level 1.0 -> 0) read d = 0.22, Haunted Colony's E5
+// 0.42. Is the ghost tap audible at all against the drone? Renders the engine
+// at 8 kHz with the ghost at 0 / 0.5 / 1.0 (macro-matrix base pushes, same
+// seed; the ghost is a parallel wet path so the difference signal IS the
+// ghost) and prints the sustain RMS of each render and of its difference from
+// the ghost-0 render, over the last 120 s of a 340 s note. Hidden.
+// =============================================================================
+TEST_CASE("VoragoEngine_GhostLevelProbe", "[.probe][systems][vorago]") {
+    VoragoEngineConfig cfg{};
+    constexpr std::uint8_t kNote = 45u;
+    constexpr std::uint32_t kSeed = 0x51075Eu;
+    constexpr std::size_t kTotal = 340u * 8000u;
+    constexpr std::size_t kTailStart = 220u * 8000u;
+    std::setvbuf(stdout, nullptr, _IONBF, 0);
+    const auto rmsDb = [](const std::vector<float>& x, std::size_t from) {
+        double acc = 0.0;
+        for (std::size_t i = from; i < x.size(); ++i) {
+            acc += static_cast<double>(x[i]) * static_cast<double>(x[i]);
+        }
+        const double n = static_cast<double>(x.size() - from);
+        return 10.0 * std::log10(std::max(acc / n, 1e-30));
+    };
+    std::vector<float> ref;
+    struct Variant {
+        float ghost;
+        float makeupDb;
+    };
+    constexpr std::array<Variant, 6> kVariants{{{0.0f, 0.0f},
+                                               {0.5f, 0.0f},
+                                               {1.0f, 0.0f},
+                                               {1.0f, 6.0f},
+                                               {1.0f, 12.0f},
+                                               {1.0f, 18.0f}}};
+    for (const Variant& v : kVariants) {
+        const float ghost = v.ghost;
+        auto engine = std::make_unique<VoragoEngine>();
+        engine->setSeed(kSeed);
+        engine->setPolyphony(1u);
+        engine->prepare(kSampleRate8k, cfg);
+        engine->setGhostTapMakeupDb(v.makeupDb);
+        VoragoMacroMatrix matrix;
+        matrix.setTargetBase(Krate::DSP::VoragoMacroTarget::GhostPeakLevel, ghost);
+        matrix.apply(*engine);
+        std::vector<float> l;
+        std::vector<float> r;
+        engine->noteOn(kNote, 100u);
+        renderEngine(*engine, l, r, kTotal, 512u);
+        if (ghost == 0.0f) {
+            ref = l;
+        }
+        std::vector<float> diff(l.size(), 0.0f);
+        for (std::size_t i = 0; i < l.size(); ++i) {
+            diff[i] = l[i] - ref[i];
+        }
+        // Burst statistics over the sustain tail: the loudest 1 s window of the
+        // difference (the ghost alone) and the fraction of 1 s windows above
+        // -40 dBFS - "how loud when it sounds" and "how often it sounds".
+        double loudestDb = -300.0;
+        std::size_t windows = 0;
+        std::size_t audible = 0;
+        for (std::size_t w = kTailStart; w + 8000u <= diff.size(); w += 8000u) {
+            double acc = 0.0;
+            for (std::size_t i = w; i < w + 8000u; ++i) {
+                acc += static_cast<double>(diff[i]) * static_cast<double>(diff[i]);
+            }
+            const double db = 10.0 * std::log10(std::max(acc / 8000.0, 1e-30));
+            loudestDb = std::max(loudestDb, db);
+            ++windows;
+            if (db > -40.0) {
+                ++audible;
+            }
+        }
+        std::printf("  [ghost probe] ghost peak level %.1f, tap make-up %+.0f dB: RMS(220-340 s) %.2f "
+                    "dBFS, difference vs ghost 0: %.2f dBFS, loudest 1 s window %.2f dBFS, windows above "
+                    "-40 dBFS %zu of %zu\n",
+                    static_cast<double>(ghost), static_cast<double>(v.makeupDb), rmsDb(l, kTailStart),
+                    rmsDb(diff, kTailStart), loudestDb, audible, windows);
+    }
+    REQUIRE(true);
+}

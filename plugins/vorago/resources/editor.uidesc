@@ -109,6 +109,8 @@
     <control-tag name="SmearTilt" tag="702"/>
     <control-tag name="EventsRateScale" tag="800"/>
     <control-tag name="EcosystemDepth" tag="900"/>
+    <control-tag name="EcosystemSyncRate" tag="901"/>
+    <control-tag name="EcosystemSelfAffinity" tag="902"/>
     <control-tag name="BodyBlend" tag="1000"/>
     <control-tag name="BodyDamping" tag="1001"/>
     <control-tag name="BodyResonance" tag="1002"/>
@@ -386,6 +388,10 @@
         <view class="CTextLabel" title="Event Rate" origin="6, 52" size="68, 14" font="label-font" font-color="text-dim" transparent="true" text-alignment="center" mouse-enabled="false"/>
         <view class="ArcKnob" control-tag="EcosystemDepth" origin="86, 4" size="44, 44" arc-color="accent" guide-color="track" tooltip="How strongly the ecosystem agents shape the sound"/>
         <view class="CTextLabel" title="Eco Depth" origin="74, 52" size="68, 14" font="label-font" font-color="text-dim" transparent="true" text-alignment="center" mouse-enabled="false"/>
+        <view class="ArcKnob" control-tag="EcosystemSyncRate" origin="154, 4" size="44, 44" arc-color="accent" guide-color="track" tooltip="How strongly the colony's agents fall into step"/>
+        <view class="CTextLabel" title="Eco Sync" origin="142, 52" size="68, 14" font="label-font" font-color="text-dim" transparent="true" text-alignment="center" mouse-enabled="false"/>
+        <view class="ArcKnob" control-tag="EcosystemSelfAffinity" origin="222, 4" size="44, 44" arc-color="accent" guide-color="track" tooltip="How much each agent kind attracts its own kind"/>
+        <view class="CTextLabel" title="Self Affin" origin="210, 52" size="68, 14" font="label-font" font-color="text-dim" transparent="true" text-alignment="center" mouse-enabled="false"/>
         <view class="ArcKnob" control-tag="GhostPeakLevel" origin="18, 78" size="44, 44" arc-color="accent" guide-color="track" tooltip="Peak level of the ghost echoes"/>
         <view class="CTextLabel" title="Ghost Lvl" origin="6, 126" size="68, 14" font="label-font" font-color="text-dim" transparent="true" text-alignment="center" mouse-enabled="false"/>
         <view class="ArcKnob" control-tag="GhostBlur" origin="86, 78" size="44, 44" arc-color="accent" guide-color="track" tooltip="How blurred the ghost echoes are"/>

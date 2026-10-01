@@ -1,0 +1,1 @@
+build: 0 compiler warnings (the one 'warning' hit was CMake's FetchContent deprecation notice on reconfigure), vorago_tests + vorago_preset_generator built

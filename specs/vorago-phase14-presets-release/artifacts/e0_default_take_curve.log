@@ -1,0 +1,42 @@
+Filters: "Vorago_PresetPilot_DefaultSurfaceTakeCurve"
+Randomness seeded to: 997176011
+
+=== Vorago_PresetPilot_DefaultSurfaceTakeCurve (E0, FR-017a) ===
+default surface, 16 seed indices, 340 s each, 48 kHz, block 512, pool width 4
+timeline: A = 155 s  M1 = [160, 220]  M2 = [220, 280]  M3 = [280, 340]  H = 340 s
+[e0] rendering seeds 0..3 (340 s each)...
+[e0] rendering seeds 4..7 (340 s each)...
+[e0] rendering seeds 8..11 (340 s each)...
+[e0] rendering seeds 12..15 (340 s each)...
+[e0] rendering seed 0 serially (pool trust check)...
+
+seed   M1 RMS dBFS    peak       finite
+0      -26.47         0.2087     yes   
+1      -26.97         0.1901     yes   
+2      -26.30         0.1897     yes   
+3      -25.52         0.1941     yes   
+4      -27.07         0.1732     yes   
+5      -26.03         0.1952     yes   
+6      -26.82         0.2291     yes   
+7      -25.69         0.1980     yes   
+8      -25.38         0.2118     yes   
+9      -25.61         0.1801     yes   
+10     -25.64         0.2041     yes   
+11     -26.62         0.1870     yes   
+12     -26.19         0.2217     yes   
+13     -25.71         0.1811     yes   
+14     -26.74         0.2227     yes   
+15     -26.78         0.2011     yes   
+
+K    t_K        2*t_K      pass(2*t_K <= 4.0)
+1    5.9515     11.9031    no
+2    3.2013     6.4026     no
+4    0.7293     1.4587     yes
+8    0.8423     1.6846     yes
+
+t_1 = 5.9515  13b t0on = 5.9515  |diff| = 0.000044  tolerance = 0.0015
+E0: 2*t_8 = 1.6846 -> PROCEED
+pool trust (seed 0 M1, serial vs pooled): L metric 0.000e+00 sample 0.000e+00 ok | R metric 0.000e+00 sample 0.000e+00 ok
+===============================================================================
+All tests passed (53 assertions in 1 test case)
+

@@ -20,7 +20,8 @@ namespace Vorago {
 /// post-release). Shared by processor and controller; neither includes the
 /// other, so the constant lives here.
 /// Phase 12 (spec C-7, FR-040): version 2 - the v1 stream is a strict prefix.
-constexpr Steinberg::int32 kCurrentStateVersion = 2;
+/// Phase 14 FR-072: v3 = v2 + the ecosystem rule-knob extension.
+constexpr Steinberg::int32 kCurrentStateVersion = 3;
 
 /// Spec C-7 / plan 4.9: the v2 stream length. Version, the v1 block (global +
 /// macros), then the global v2 extension and the 14 packs in ascending ID band.
@@ -45,6 +46,12 @@ static_assert(kStateV2Bytes == 4    // int32 version
                                    + 16   // ghost      3F + 1I
                                    + 12,  // life       3F
               "kStateV2Bytes must equal the per-pack sum of spec C-7 / plan 4.9");
+
+/// Phase 14 FR-072: the v3 stream length. The v2 stream is a strict prefix;
+/// the ecosystem rule-knob extension (syncRate, selfAffinity) is appended.
+constexpr std::size_t kStateV3Bytes = kStateV2Bytes + 4 /* float syncRate */
+                                     + 4 /* float selfAffinity */;
+static_assert(kStateV3Bytes == 436, "spec FR-006: 428 + 4 * |R|, |R| = 2");
 
 /// FR-011. Freshly generated v4 GUIDs. NEVER reused, NEVER changed after release.
 /// Processor component ID - the audio processing component (runs on the audio
@@ -171,6 +178,8 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
 
     // --- Ecosystem (900-999) ---
     kEcosystemDepthId = 900,
+    kEcosystemSyncRateId = 901,  // Phase 14 FR-072, R ratified 2026-09-29
+    kEcosystemSelfAffinityId = 902,  // Phase 14 FR-072
 
     // --- Body (1000-1099) ---
     kBodyBlendId = 1000,

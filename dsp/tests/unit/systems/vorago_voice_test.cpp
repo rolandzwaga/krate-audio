@@ -3488,3 +3488,578 @@ TEST_CASE("VoragoVoice_SetterContract", "[systems][vorago]") {
         REQUIRE(voice->getEnvelopeStageLevel(kStages) == 0.0f);
     }
 }
+
+// =============================================================================
+// Noise-bus probe (Phase 14 sweep diagnosis, 2026-09-30): is the noise organism
+// audible at the VOICE level when its level and wake base are at their maxima?
+// Prints RMS over [20 s, 40 s] for the same voice with the noise at +12 dB /
+// wake 1.0 and with it at -96 dB, plus the RMS of their difference. Hidden.
+// =============================================================================
+TEST_CASE("VoragoVoice_NoiseBusProbe", "[.probe][systems][vorago]") {
+    constexpr std::size_t kBlock = 512u;
+    constexpr std::size_t kSkip = 20u * 48000u;
+    constexpr std::size_t kMeasure = 20u * 48000u;
+    const auto render = [&](float noiseDb, float wakeBase, float ecoDepth, std::vector<float>& outL,
+                            std::vector<float>& outR) {
+        auto voice = std::make_unique<VoragoVoice>();
+        voice->prepare(kSampleRate48, VoragoVoiceConfig{});
+        voice->setNoiseLevelDb(noiseDb);
+        voice->setNoiseWakeBase(wakeBase);
+        voice->setEcosystemDepth(ecoDepth);
+        voice->noteOn(55.0f, 1.0f);
+        std::vector<float> l(kBlock, 0.0f);
+        std::vector<float> r(kBlock, 0.0f);
+        outL.clear();
+        outR.clear();
+        for (std::size_t done = 0; done < kSkip + kMeasure; done += kBlock) {
+            voice->processStereoBlock(l.data(), r.data(), kBlock);
+            if (done >= kSkip) {
+                outL.insert(outL.end(), l.begin(), l.end());
+                outR.insert(outR.end(), r.begin(), r.end());
+            }
+        }
+        std::printf("  [noise probe] level %+.0f dB wake %.2f eco %.2f: organism level(0) %.1f dB, "
+                    "wake(0) %.2f, sources %zu\n",
+                    static_cast<double>(noiseDb), static_cast<double>(wakeBase),
+                    static_cast<double>(ecoDepth),
+                    static_cast<double>(voice->noise().getSourceLevel(0)),
+                    static_cast<double>(voice->noise().getSourceWakeAmount(0)),
+                    voice->noise().getNumSources());
+    };
+    const auto rmsDb = [](const std::vector<float>& l, const std::vector<float>& r) {
+        double acc = 0.0;
+        for (std::size_t i = 0; i < l.size(); ++i) {
+            acc += 0.5 * (static_cast<double>(l[i]) * l[i] + static_cast<double>(r[i]) * r[i]);
+        }
+        const double n = static_cast<double>(std::max<std::size_t>(l.size(), 1u));
+        return 10.0 * std::log10(std::max(acc / n, 1e-30));
+    };
+    std::vector<float> aL;
+    std::vector<float> aR;
+    std::vector<float> bL;
+    std::vector<float> bR;
+    std::vector<float> cL;
+    std::vector<float> cR;
+    render(12.0f, 1.0f, 0.85f, aL, aR);
+    render(-96.0f, 1.0f, 0.85f, bL, bR);
+    render(12.0f, 1.0f, 0.0f, cL, cR);
+    std::vector<float> dL(aL.size());
+    std::vector<float> dR(aR.size());
+    for (std::size_t i = 0; i < aL.size(); ++i) {
+        dL[i] = aL[i] - bL[i];
+        dR[i] = aR[i] - bR[i];
+    }
+    std::printf("  [noise probe] RMS [20 s, 40 s]: noise +12 dB %.2f dBFS | noise -96 dB %.2f dBFS | "
+                "difference %.2f dBFS | +12 dB eco 0 %.2f dBFS\n",
+                rmsDb(aL, aR), rmsDb(bL, bR), rmsDb(dL, dR), rmsDb(cL, cR));
+    REQUIRE(aL.size() == bL.size());
+}
+
+// =============================================================================
+// Reset-reproducibility probe (Phase 14 noise make-up, 2026-09-30): after the
+// make-up gain, VoragoEngine_SlotSeedReproducibility reads a worst metric of
+// 2.65e-4 against its 2.5e-4 bound. This prints, sample-exactly, how far a
+// voice's render after reset() + noteOn differs from its first render after
+// prepare() + noteOn, with the noise at +12 dB and at -96 dB and with the
+// ecosystem on and off, plus two controls (a fresh voice; a reset before any
+// note), so the non-reproducible state can be located. Hidden.
+// =============================================================================
+TEST_CASE("VoragoVoice_ResetReproProbe", "[.probe][systems][vorago]") {
+    constexpr std::size_t kBlock = 512u;
+    constexpr std::size_t kSeconds = 8u;
+    const auto makeVoice = [](float noiseDb, float eco) {
+        auto voice = std::make_unique<VoragoVoice>();
+        voice->prepare(kSampleRate48, VoragoVoiceConfig{});
+        voice->setNoiseLevelDb(noiseDb);
+        voice->setNoiseWakeBase(1.0f);
+        voice->setEcosystemDepth(eco);
+        return voice;
+    };
+    const auto renderOnce = [&](VoragoVoice& voice, std::vector<float>& outL,
+                                std::vector<float>& outR) {
+        std::vector<float> l(kBlock, 0.0f);
+        std::vector<float> r(kBlock, 0.0f);
+        outL.clear();
+        outR.clear();
+        voice.noteOn(55.0f, 1.0f);
+        for (std::size_t done = 0; done < kSeconds * 48000u; done += kBlock) {
+            voice.processStereoBlock(l.data(), r.data(), kBlock);
+            outL.insert(outL.end(), l.begin(), l.end());
+            outR.insert(outR.end(), r.begin(), r.end());
+        }
+    };
+    const auto maxDiff = [](const std::vector<float>& a, const std::vector<float>& b,
+                            std::size_t& firstIndex) {
+        float m = 0.0f;
+        firstIndex = a.size();
+        for (std::size_t i = 0; i < a.size(); ++i) {
+            const float d = std::fabs(a[i] - b[i]);
+            if (d > 0.0f && firstIndex == a.size()) {
+                firstIndex = i;
+            }
+            m = std::max(m, d);
+        }
+        return m;
+    };
+    for (const float noiseDb : {-96.0f, 12.0f}) {
+        for (const float eco : {0.0f, 0.85f}) {
+            auto voice = makeVoice(noiseDb, eco);
+            std::vector<float> aL;
+            std::vector<float> aR;
+            std::vector<float> bL;
+            std::vector<float> bR;
+            renderOnce(*voice, aL, aR);
+            (*voice).reset();
+            renderOnce(*voice, bL, bR);
+            std::size_t firstL = 0;
+            std::size_t firstR = 0;
+            const float dL = maxDiff(aL, bL, firstL);
+            const float dR = maxDiff(aR, bR, firstR);
+            std::printf("  [reset probe] noise %+.0f dB eco %.2f: max|first-again| L %.3e (first %zu) "
+                        "R %.3e (%zu); first samples a %.3e %.3e %.3e | b %.3e %.3e %.3e\n",
+                        static_cast<double>(noiseDb), static_cast<double>(eco),
+                        static_cast<double>(dL), firstL, static_cast<double>(dR), firstR,
+                        static_cast<double>(aL[0]), static_cast<double>(aL[1]),
+                        static_cast<double>(aL[2]), static_cast<double>(bL[0]),
+                        static_cast<double>(bL[1]), static_cast<double>(bL[2]));
+
+            // Control 1: a second fresh voice with the same configuration - must be exact.
+            auto fresh = makeVoice(noiseDb, eco);
+            std::vector<float> cL;
+            std::vector<float> cR;
+            renderOnce(*fresh, cL, cR);
+            std::size_t fi = 0;
+            const float dFresh = maxDiff(aL, cL, fi);
+            // Control 2: reset BEFORE any note (prepare -> reset -> noteOn).
+            auto early = makeVoice(noiseDb, eco);
+            (*early).reset();
+            std::vector<float> eL;
+            std::vector<float> eR;
+            renderOnce(*early, eL, eR);
+            std::size_t fe = 0;
+            const float dEarly = maxDiff(aL, eL, fe);
+            std::printf("  [reset probe]   controls: fresh voice max|a-c| %.3e (first %zu); reset before "
+                        "any note max|a-e| %.3e (first %zu)\n",
+                        static_cast<double>(dFresh), fi, static_cast<double>(dEarly), fe);
+        }
+    }
+    REQUIRE(true);
+}
+
+// =============================================================================
+// Organism-alone reset probe (Phase 14 noise make-up, 2026-09-30): does the
+// NoiseOrganism render sample-exactly the same block sequence after reset() as
+// after prepare()? The voice-level probe found the first output sample already
+// differing between the two paths, and the first version of this probe found a
+// bare reset() -> processBlock() CRASHING. Hidden. Progress lines are unbuffered
+// so a crash inside a step still leaves the step on record.
+// =============================================================================
+TEST_CASE("VoragoVoice_NoiseOrganismResetProbe", "[.probe][systems][vorago]") {
+    using Krate::DSP::NoiseOrganism;
+    std::setvbuf(stdout, nullptr, _IONBF, 0);
+    std::printf("  [organism probe] start\n");
+    constexpr std::size_t kN = 48000u;
+    const auto configure = [](NoiseOrganism& o) {
+        o.prepare(48000.0, NoiseOrganism::PrepareConfig{.numSources = 4});
+        o.setSeed(0x1234567u);
+        for (std::size_t s = 0; s < 4u; ++s) {
+            o.setSourceLevel(s, 12.0f);
+            o.setSourceWake(s, 1.0f);
+        }
+        std::printf("  [organism probe]   configured\n");
+    };
+    const auto render = [&](NoiseOrganism& o, std::vector<float>& out, const char* what) {
+        out.assign(kN, 0.0f);
+        std::printf("  [organism probe]   rendering: %s\n", what);
+        for (std::size_t done = 0; done < kN; done += 512u) {
+            o.processBlock(out.data() + done, std::min<std::size_t>(512u, kN - done));  // never past the end
+        }
+        std::printf("  [organism probe]   rendered\n");
+    };
+    const auto report = [&](const char* what, const std::vector<float>& x,
+                            const std::vector<float>& y) {
+        float m = 0.0f;
+        std::size_t first = x.size();
+        for (std::size_t i = 0; i < x.size(); ++i) {
+            const float d = std::fabs(x[i] - y[i]);
+            if (d > 0.0f && first == x.size()) {
+                first = i;
+            }
+            m = std::max(m, d);
+        }
+        float peak = 0.0f;
+        for (const float v : x) {
+            peak = std::max(peak, std::fabs(v));
+        }
+        std::printf("  [organism probe] %s: max diff %.3e (first %zu), peak %.4f, x[0..2] %.3e %.3e "
+                    "%.3e | y[0..2] %.3e %.3e %.3e\n",
+                    what, static_cast<double>(m), first, static_cast<double>(peak),
+                    static_cast<double>(x[0]), static_cast<double>(x[1]),
+                    static_cast<double>(x[2]), static_cast<double>(y[0]),
+                    static_cast<double>(y[1]), static_cast<double>(y[2]));
+    };
+
+    // Heap-allocated: the organism is far too large for the test thread's stack.
+    auto organism = std::make_unique<NoiseOrganism>();
+    configure(*organism);
+    std::vector<float> a;
+    render(*organism, a, "prepare -> render");
+
+    // Path 1 (the voice's own order): reset, then the wake and level re-writes
+    // installIdentityNeutral makes, then render.
+    auto viaVoiceOrder = std::make_unique<NoiseOrganism>();
+    configure(*viaVoiceOrder);
+    std::vector<float> scratch;
+    render(*viaVoiceOrder, scratch, "prepare -> render (path 1 warm-up)");
+    (*viaVoiceOrder).reset();
+    std::printf("  [organism probe] path 1: reset done\n");
+    for (std::size_t s = 0; s < 4u; ++s) {
+        viaVoiceOrder->setSourceWake(s, 1.0f);
+        viaVoiceOrder->setSourceLevel(s, 12.0f);
+    }
+    std::printf("  [organism probe] path 1: wake + level re-written\n");
+    std::vector<float> b;
+    render(*viaVoiceOrder, b, "path 1: reset -> re-write -> render");
+    report("prepare-render vs reset+rewrite-render", a, b);
+
+    // Path 2: a bare reset, then render (the crashing order from the first probe).
+    (*organism).reset();
+    std::printf("  [organism probe] path 2: bare reset done\n");
+    std::vector<float> d;
+    render(*organism, d, "path 2: bare reset -> render");
+    report("prepare-render vs bare-reset-render", a, d);
+
+    // Path 3 (the sentinel's own shape: BOTH arms after a reset). Render, reset,
+    // render A; render more, reset, render B. A != B means the organism carries
+    // state through reset(); A == B clears the organism and points upstream
+    // (its wake lanes) or downstream.
+    auto both = std::make_unique<NoiseOrganism>();
+    configure(*both);
+    render(*both, scratch, "path 3 warm-up");
+    (*both).reset();
+    std::vector<float> pA;
+    render(*both, pA, "path 3: after reset (A)");
+    render(*both, scratch, "path 3 second warm-up");
+    (*both).reset();
+    std::vector<float> pB;
+    render(*both, pB, "path 3: after reset (B)");
+    report("path 3: reset-render A vs reset-render B", pA, pB);
+
+    // Path 5: the same both-arms shape with every slot on MetallicHiss (the
+    // voice-level shape probe found that model, and only it, non-reproducible).
+    auto hiss = std::make_unique<NoiseOrganism>();
+    configure(*hiss);
+    for (std::size_t s = 0; s < 4u; ++s) {
+        hiss->setSourceModel(s, Krate::DSP::NoiseOrganismModel::MetallicHiss);
+    }
+    render(*hiss, scratch, "path 5 warm-up (MetallicHiss)");
+    (*hiss).reset();
+    std::vector<float> hA;
+    render(*hiss, hA, "path 5: after reset (A)");
+    render(*hiss, scratch, "path 5 second warm-up");
+    (*hiss).reset();
+    std::vector<float> hB;
+    render(*hiss, hB, "path 5: after reset (B)");
+    report("path 5 (MetallicHiss): reset-render A vs reset-render B", hA, hB);
+
+    // Path 6: MetallicHiss with the voice's kind of per-control-step writes -
+    // a slowly moving level and wake target every 64 samples - both arms after
+    // a reset. If this is exact, the organism reproduces under modulation and
+    // the voice must be writing something DIFFERENT in its two arms.
+    const auto renderMod = [&](NoiseOrganism& o, std::vector<float>& out, const char* what) {
+        out.assign(kN, 0.0f);
+        std::printf("  [organism probe]   rendering (modulated): %s\n", what);
+        for (std::size_t done = 0; done < kN; done += 64u) {
+            const auto t = static_cast<float>(done) / 48000.0f;
+            for (std::size_t s = 0; s < 4u; ++s) {
+                const float ph = t * (0.7f + 0.3f * static_cast<float>(s));
+                o.setSourceLevel(s, 6.0f - 6.0f * std::sin(ph));
+                o.setSourceWake(s, 0.6f + 0.4f * std::sin(ph * 1.3f));
+            }
+            o.processBlock(out.data() + done, std::min<std::size_t>(64u, kN - done));
+        }
+    };
+    auto mod = std::make_unique<NoiseOrganism>();
+    configure(*mod);
+    for (std::size_t s = 0; s < 4u; ++s) {
+        mod->setSourceModel(s, Krate::DSP::NoiseOrganismModel::MetallicHiss);
+    }
+    renderMod(*mod, scratch, "path 6 warm-up");
+    (*mod).reset();
+    for (std::size_t s = 0; s < 4u; ++s) {  // the voice's neutral re-write
+        mod->setSourceWake(s, 1.0f);
+        mod->setSourceLevel(s, 12.0f);
+    }
+    std::vector<float> mA;
+    renderMod(*mod, mA, "path 6: after reset (A)");
+    renderMod(*mod, scratch, "path 6 second warm-up");
+    (*mod).reset();
+    for (std::size_t s = 0; s < 4u; ++s) {
+        mod->setSourceWake(s, 1.0f);
+        mod->setSourceLevel(s, 12.0f);
+    }
+    std::vector<float> mB;
+    renderMod(*mod, mB, "path 6: after reset (B)");
+    report("path 6 (MetallicHiss, modulated): A vs B", mA, mB);
+
+    // Path 7: path 5 at the sentinel's 8 kHz (the voice-level divergence was
+    // measured at 8 kHz; everything above ran at 48 kHz).
+    for (const double sr : {8000.0, 16000.0, 44100.0}) {
+        auto low = std::make_unique<NoiseOrganism>();
+        low->prepare(sr, NoiseOrganism::PrepareConfig{.numSources = 4});
+        low->setSeed(0x1234567u);
+        for (std::size_t s = 0; s < 4u; ++s) {
+            low->setSourceLevel(s, 12.0f);
+            low->setSourceWake(s, 1.0f);
+            low->setSourceModel(s, Krate::DSP::NoiseOrganismModel::MetallicHiss);
+        }
+        const std::size_t n = static_cast<std::size_t>(sr) * 2u;
+        std::vector<float> buf(n, 0.0f);
+        const auto renderN = [&](std::vector<float>& out) {
+            out.assign(n, 0.0f);
+            for (std::size_t done = 0; done < n; done += 64u) {
+                low->processBlock(out.data() + done, std::min<std::size_t>(64u, n - done));
+            }
+        };
+        renderN(buf);
+        (*low).reset();
+        std::vector<float> lA;
+        renderN(lA);
+        renderN(buf);
+        (*low).reset();
+        std::vector<float> lB;
+        renderN(lB);
+        char label[64];
+        std::snprintf(label, sizeof(label), "path 7 (MetallicHiss @ %.0f Hz): A vs B", sr);
+        report(label, lA, lB);
+    }
+    REQUIRE(true);
+}
+
+// =============================================================================
+// Sentinel-shaped voice probe (Phase 14 reset hunt, 2026-09-30): the two arms
+// of VoragoEngine_SlotSeedReproducibility on ONE voice at 8 kHz - prime
+// (noteOn / noteOff / reset), render A; noteOff, 60 s of tail, reset, render B -
+// with the organism's per-slot observables dumped after each reset and after
+// the first 64-sample block, so the state the render leaves behind can be
+// read instead of guessed. Hidden.
+// =============================================================================
+TEST_CASE("VoragoVoice_SentinelShapeProbe", "[.probe][systems][vorago]") {
+    using Krate::DSP::NoiseOrganismModel;
+    constexpr double kSr8k = 8000.0;
+    constexpr std::size_t kBlock = 64u;
+    constexpr std::size_t kWindow = 16000u;
+    std::setvbuf(stdout, nullptr, _IONBF, 0);
+
+    const auto render = [&](VoragoVoice& v, std::vector<float>& outL, std::size_t n) {
+        std::vector<float> l(kBlock, 0.0f);
+        std::vector<float> r(kBlock, 0.0f);
+        outL.clear();
+        for (std::size_t done = 0; done < n; done += kBlock) {
+            v.processStereoBlock(l.data(), r.data(), kBlock);
+            outL.insert(outL.end(), l.begin(), l.end());
+        }
+    };
+    // The two arms of the sentinel on one voice: prime, render A; tail 60 s,
+    // reset, render B. `configure` runs right after prepare().
+    const auto runArms = [&](const char* name, const std::function<void(VoragoVoice&)>& configure) {
+        auto voice = std::make_unique<VoragoVoice>();
+        voice->prepare(kSr8k, VoragoVoiceConfig{});
+        configure(*voice);
+        voice->noteOn(110.0f, 1.0f);
+        voice->noteOff();
+        (*voice).reset();
+        std::vector<float> a;
+        voice->noteOn(110.0f, 1.0f);
+        render(*voice, a, kWindow);
+        voice->noteOff();
+        std::vector<float> tail;
+        render(*voice, tail, 60u * 8000u);
+        (*voice).reset();
+        std::vector<float> b;
+        voice->noteOn(110.0f, 1.0f);
+        render(*voice, b, kWindow);
+
+        std::size_t first = a.size();
+        float m = 0.0f;
+        float peak = 0.0f;
+        for (std::size_t i = 0; i < a.size(); ++i) {
+            const float d = std::fabs(a[i] - b[i]);
+            if (d > 0.0f && first == a.size()) {
+                first = i;
+            }
+            m = std::max(m, d);
+            peak = std::max(peak, std::fabs(a[i]));
+        }
+        std::printf("  [shape probe] %-40s max|diff| %.3e (peak %.3e), first differing sample %zu\n",
+                    name, static_cast<double>(m), static_cast<double>(peak), first);
+    };
+    const auto expose = [](VoragoVoice& v) {
+        v.setBodyMix(0.0f);
+        v.setNoiseLevelDb(12.0f);
+        v.setNoiseWakeBase(1.0f);
+    };
+    const auto allModel = [&](NoiseOrganismModel model) {
+        return [model, expose](VoragoVoice& v) {
+            expose(v);
+            for (std::size_t s = 0; s < 4u; ++s) {
+                v.setNoiseSourceModel(s, model);
+            }
+        };
+    };
+
+    runArms("default", [](VoragoVoice&) {});
+    runArms("body 0, noise -96 dB", [](VoragoVoice& v) {
+        v.setBodyMix(0.0f);
+        v.setNoiseLevelDb(-96.0f);
+    });
+    runArms("body 0, noise +12, wake 1", expose);
+    runArms("... eco depth 0", [expose](VoragoVoice& v) {
+        expose(v);
+        v.setEcosystemDepth(0.0f);
+    });
+    runArms("... all Direct", allModel(NoiseOrganismModel::Direct));
+    runArms("... all FilteredWind", allModel(NoiseOrganismModel::FilteredWind));
+    runArms("... all GranularDust", allModel(NoiseOrganismModel::GranularDust));
+    runArms("... all MetallicHiss", allModel(NoiseOrganismModel::MetallicHiss));
+    runArms("... hiss + wander rate 0", [allModel](VoragoVoice& v) {
+        allModel(NoiseOrganismModel::MetallicHiss)(v);
+        v.setNoiseWanderRate(0.0f);
+    });
+    runArms("... hiss + breathing depth 0", [allModel](VoragoVoice& v) {
+        allModel(NoiseOrganismModel::MetallicHiss)(v);
+        v.setBreathingDepth(0.0f);
+    });
+    runArms("... hiss + eco depth 0", [allModel](VoragoVoice& v) {
+        allModel(NoiseOrganismModel::MetallicHiss)(v);
+        v.setEcosystemDepth(0.0f);
+    });
+    runArms("... hiss + wander 0 + breathing 0 + eco 0", [allModel](VoragoVoice& v) {
+        allModel(NoiseOrganismModel::MetallicHiss)(v);
+        v.setNoiseWanderRate(0.0f);
+        v.setBreathingDepth(0.0f);
+        v.setEcosystemDepth(0.0f);
+    });
+    // Comb echoes (FR-015) on the plain MetallicHiss voice, both arms, after
+    // reset and after the first control step.
+    {
+        const auto dumpCombs = [](const char* when, const VoragoVoice& v) {
+            const Krate::DSP::NoiseOrganism& o = v.noise();
+            std::printf("  [shape probe] combs %s\n", when);
+            for (std::size_t s = 0; s < o.getNumSources(); ++s) {
+                std::printf("    slot %zu: fund %.4g spread %.4g fb %.4g delays", s,
+                            static_cast<double>(o.getCombFundamental(s)),
+                            static_cast<double>(o.getCombSpread(s)),
+                            static_cast<double>(o.getCombFeedback(s)));
+                for (std::size_t n = 0; n < o.getNumCombs(s); ++n) {
+                    std::printf(" %.6g", static_cast<double>(o.getCombCurrentDelayMs(s, n)));
+                }
+                std::printf("\n");
+            }
+        };
+        auto voice = std::make_unique<VoragoVoice>();
+        voice->prepare(kSr8k, VoragoVoiceConfig{});
+        allModel(NoiseOrganismModel::MetallicHiss)(*voice);
+        voice->noteOn(110.0f, 1.0f);
+        voice->noteOff();
+        (*voice).reset();
+        dumpCombs("arm A after prime reset", *voice);
+        std::vector<float> x;
+        voice->noteOn(110.0f, 1.0f);
+        render(*voice, x, kBlock);
+        dumpCombs("arm A after first block", *voice);
+        render(*voice, x, kWindow);
+        voice->noteOff();
+        render(*voice, x, 60u * 8000u);
+        dumpCombs("arm B end of tail", *voice);
+        (*voice).reset();
+        dumpCombs("arm B after reset", *voice);
+        voice->noteOn(110.0f, 1.0f);
+        render(*voice, x, kBlock);
+        dumpCombs("arm B after first block", *voice);
+    }
+    // Per-slot observables every 0.5 s of the 2 s window, both arms (plain
+    // MetallicHiss voice): any config that diverges between the arms shows here.
+    {
+        const auto dumpSlots = [](const char* when, const VoragoVoice& v) {
+            const Krate::DSP::NoiseOrganism& o = v.noise();
+            std::printf("  [shape probe] %s:", when);
+            for (std::size_t s = 0; s < o.getNumSources(); ++s) {
+                std::printf("  [%zu] gain %.7g wake %.5g lvl %.5g cut %.6g rms %.5g", s,
+                            static_cast<double>(o.getSourceGain(s)),
+                            static_cast<double>(o.getSourceWakeAmount(s)),
+                            static_cast<double>(o.getSourceLevel(s)),
+                            static_cast<double>(o.getFilterCurrentCutoff(s)),
+                            static_cast<double>(o.getSourceRms(s)));
+            }
+            std::printf("\n");
+        };
+        auto voice = std::make_unique<VoragoVoice>();
+        voice->prepare(kSr8k, VoragoVoiceConfig{});
+        allModel(NoiseOrganismModel::MetallicHiss)(*voice);
+        voice->noteOn(110.0f, 1.0f);
+        voice->noteOff();
+        (*voice).reset();
+        std::vector<float> x;
+        voice->noteOn(110.0f, 1.0f);
+        for (int q = 1; q <= 4; ++q) {
+            render(*voice, x, 4000u);
+            char label[32];
+            std::snprintf(label, sizeof(label), "arm A t=%.1f s", q * 0.5);
+            dumpSlots(label, *voice);
+        }
+        voice->noteOff();
+        render(*voice, x, 60u * 8000u);
+        (*voice).reset();
+        voice->noteOn(110.0f, 1.0f);
+        for (int q = 1; q <= 4; ++q) {
+            render(*voice, x, 4000u);
+            char label[32];
+            std::snprintf(label, sizeof(label), "arm B t=%.1f s", q * 0.5);
+            dumpSlots(label, *voice);
+        }
+    }
+    REQUIRE(true);
+}
+
+// =============================================================================
+// Bloom counts probe (Phase 14 re-author loop, 2026-09-30): Slow Bloom's S6
+// ablation read d = 0.0000 exactly over three sustain minutes at depth 1.0 and
+// 0.03 Hz. Renders a voice for 340 s at 8 kHz under a few richness / depth
+// settings and prints the BloomEngine's own counters, so "no bloom at all" can
+// be told from "blooms that do not move the descriptor". Hidden.
+// =============================================================================
+TEST_CASE("VoragoVoice_BloomCountsProbe", "[.probe][systems][vorago]") {
+    constexpr double kSr8k = 8000.0;
+    constexpr std::size_t kBlock = 64u;
+    constexpr std::size_t kSeconds = 340u;
+    std::setvbuf(stdout, nullptr, _IONBF, 0);
+    for (const float richness : {0.35f, 0.6f, 0.9f}) {
+        for (const float depth : {1.0f, 0.0f}) {
+            auto voice = std::make_unique<VoragoVoice>();
+            voice->prepare(kSr8k, VoragoVoiceConfig{});
+            voice->setRichness(richness);
+            voice->setBloomDepth(depth);
+            voice->setBloomSpawnRateHz(0.03f);
+            voice->noteOn(110.0f, 1.0f);
+            std::vector<float> l(kBlock, 0.0f);
+            std::vector<float> r(kBlock, 0.0f);
+            for (std::size_t done = 0; done < kSeconds * 8000u; done += kBlock) {
+                voice->processStereoBlock(l.data(), r.data(), kBlock);
+            }
+            const Krate::DSP::BloomEngine& b = voice->bloom();
+            std::printf("  [bloom probe] richness %.2f depth %.1f: active partials %zu, capacity %zu, "
+                        "child slots %zu, reserve base %zu | spawn events %llu, spawned %llu, "
+                        "rejected %llu, live %zu, depth now %.3f, rate %.4f\n",
+                        static_cast<double>(richness), static_cast<double>(depth),
+                        voice->cloud().getActivePartialCount(), b.capacity(), b.numChildSlots(),
+                        b.reserveBase(),
+                        static_cast<unsigned long long>(b.getSpawnEventCount()),
+                        static_cast<unsigned long long>(b.getSpawnedChildCount()),
+                        static_cast<unsigned long long>(b.getRejectedSpawnCount()),
+                        b.getLiveChildCount(), static_cast<double>(b.getDepth()),
+                        static_cast<double>(b.getSpawnRateHz()));
+        }
+    }
+    REQUIRE(true);
+}

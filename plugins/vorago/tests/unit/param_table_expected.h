@@ -3,7 +3,8 @@
 // ==============================================================================
 // Vorago Phase 12 - checked-in expected parameter table (SC-018, SC-011 column)
 // ==============================================================================
-// T033 (specs/vorago-phase12-parameters/tasks.md). One row per registered ID (108),
+// T033 (specs/vorago-phase12-parameters/tasks.md). One row per registered ID (110;
+// Phase 14 FR-074 / T017 added the ecosystem roster rows 901 and 902),
 // in registration (band) order, transcribed from plan section 3.2 (titles, units,
 // ranges, defaults, tapers), 3.3.1 (the n = 0.5 midpoints) and 6.4 (SC-011 class).
 //
@@ -60,7 +61,7 @@ inline constexpr Steinberg::int32 kHidden =
     Steinberg::Vst::ParameterInfo::kCanAutomate | Steinberg::Vst::ParameterInfo::kIsHidden;
 }  // namespace detail_expected
 
-inline constexpr std::size_t kNumExpectedParams = 108;
+inline constexpr std::size_t kNumExpectedParams = 110;
 
 // clang-format off
 inline constexpr std::array<ExpectedParamRow, kNumExpectedParams> kExpectedParams = {{
@@ -135,6 +136,8 @@ inline constexpr std::array<ExpectedParamRow, kNumExpectedParams> kExpectedParam
     {702, "Smear Tilt", "", 0, detail_expected::kAuto, 0.5, ::Vorago::Taper::Linear, -1.0, 1.0, 0.0, 0.0, Sc011::A},
     {800, "Event Rate", "x", 0, detail_expected::kAuto, 0.5, ::Vorago::Taper::Log, 0.1, 10.0, 0.0, 1.0, Sc011::A},
     {900, "Ecosystem Depth", "%", 0, detail_expected::kAuto, 0.85, ::Vorago::Taper::Linear, 0.0, 1.0, 0.0, 0.5, Sc011::A},
+    {901, "Ecosystem Sync", "", 0, detail_expected::kAuto, 0.0, ::Vorago::Taper::Linear, 0.0, 0.5, 0.0, 0.25, Sc011::A},
+    {902, "Ecosystem Self Affinity", "", 0, detail_expected::kAuto, 0.25, ::Vorago::Taper::Linear, -2.0, 2.0, 0.0, 0.0, Sc011::A},
     {1000, "Body Blend", "%", 0, detail_expected::kAuto, 0.35, ::Vorago::Taper::Linear, 0.0, 1.0, 0.0, 0.5, Sc011::A},
     {1001, "Body Damping", "%", 0, detail_expected::kAuto, 0.25, ::Vorago::Taper::Linear, 0.0, 1.0, 0.0, 0.5, Sc011::A},
     {1002, "Body Resonance", "%", 0, detail_expected::kAuto, 0.7, ::Vorago::Taper::Linear, 0.0, 1.0, 0.0, 0.5, Sc011::A},
@@ -290,9 +293,11 @@ inline constexpr std::array<Phase11Row, 14> kPhase11Rows = {{
 
 }  // namespace detail_expected
 
-static_assert(kExpectedParams.size() == 108, "plan section 3.2: 108 registered IDs");
+static_assert(kExpectedParams.size() == 110,
+              "plan section 3.2: 108 registered IDs + Phase 14 FR-074: 901, 902");
 static_assert(detail_expected::idsStrictlyAscending(), "rows are in ascending (band) order");
-static_assert(detail_expected::countClass(Sc011::A) == 85, "plan section 6.4: 85 group-A IDs");
+static_assert(detail_expected::countClass(Sc011::A) == 87,
+              "plan section 6.4: 85 group-A IDs + Phase 14 continuous 901, 902");
 static_assert(detail_expected::countClass(Sc011::B) == 12, "plan section 6.4: 12 group-B IDs");
 static_assert(detail_expected::countClass(Sc011::C) == 11, "plan section 6.4: 11 group-C IDs");
 static_assert(detail_expected::countClass(Sc011::A) + detail_expected::countClass(Sc011::B) +

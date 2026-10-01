@@ -50,7 +50,7 @@ and changes only what the post-13b surface forces:
    max) — above the secondary bar D_abl = 1.5 but below the primary bar F = 4.0 that plan ruling R-2
    (N == 38 + |E-ext|, every E-ext cell a primary) requires. **Resolved** (Clarifications session
    2026-09-29, Q5): primaries, as R-2 ruled — one pilot candidate per knob, FR-017 stops if the bar is
-   unreachable; N = 38 + |R| = 40.
+   unreachable; N = 38 + |R| = 40. *(Gate G2, 2026-09-29: both bars were unreachable — the cells are secondaries, N = 38.)*
 
 Everything else is carried forward unchanged, with every line citation re-verified against the post-13b
 tree (only `vorago_voice.h` and `vorago_engine.h` changed under `dsp/include` since the first pass:
@@ -391,7 +391,7 @@ section un-showcaseable. Default-state cells count toward coverage but are **ine
   category floor (FR-004) and SC-013's wall-clock budget (C-10) still bind within that band. *(Plan
   ruling R-2 superseded the band with N == 38 + |E-ext|; `R` is ratified as {`syncRate`, `selfAffinity`}
   (Clarifications Q1, 2026-09-29) and both counted extremes are showcase primaries (Clarifications Q5,
-  2026-09-29), so `|E-ext|` = 2 and **N = 40**.)*
+  2026-09-29), so `|E-ext|` = 2 and **N = 40**. Gate G2 (2026-09-29) then measured both cells under F and made them secondaries: **N = 38**.)*
 
 #### C-2.3 What "distinct ecosystem behaviour" means: routes, plus a ratified rule-knob roster (Clarification Q2)
 
@@ -463,7 +463,7 @@ axis: a curated roster of the ecosystem's own rule knobs becomes registered para
     addition to**, never in place of, the five kind→destination routes E1…E5. **Both cells are showcase
     primaries** (Clarifications Q5, session 2026-09-29 — option (a) of OQ-11, as plan ruling R-2 required):
     each is scored at the primary bar F with one pilot candidate per knob (FR-017a); FR-017 stops if
-    either bar is unreachable. This fixes N = 38 + |R| = **40** (SC-029).
+    either bar is unreachable. This fixed N = 38 + |R| = **40** (SC-029) — until gate G2 (2026-09-29): both bars unreachable, the cells are secondaries, **N = 38**.
 - This is the only Non-goal exception this phase authorises (see the updated Non-goals entry); every
   other new-parameter surface stays out of scope.
 
@@ -632,8 +632,8 @@ F = 4.0, the factor 2, the F/2 margins and the 0.05 level bound are **unchanged*
   halves of that one take.
 - **Measured take-to-take distance** `t_max`: the largest `t_K` observed across the control set in
   control (b) below (the K-fold generalisation of the first pass's single seed-twin `d`).
-- **Distinctness floor:** for every pair, `d(P, Q) ≥ max(F, 2 · max(s(P), s(Q)), 2 · t_max)` with
-  **F = 4.0**. The `2 · t_max` term ties the floor to measurement: if a new K-take mean of one preset
+- **Distinctness floor:** for every pair, `d(P, Q) ≥ max(F, 2 · t_max)` with **F = 4.0** (sweep ruling
+  S-2, 2026-09-30: the former `2 · max(s(P), s(Q))` term is recorded per preset, not gated). The `2 · t_max` term ties the floor to measurement: if a new K-take mean of one preset
   moves the descriptor by `t_K`, two presets must differ by at least twice that.
 - **Calibration of F with the `E_hi` normalisation.** A 1 dB/octave tilt across the eight `E_hi` bands
   moves them by 0…7 dB about the energy-weighted pivot: with the pivot mid-spectrum the deviations are
@@ -699,8 +699,10 @@ F = 4.0, the factor 2, the F/2 margins and the 0.05 level bound are **unchanged*
 #### C-7.4 Ablation (verifies Group S and M claims)
 
 A claimed S/M cell (and every D cell whose audibility conjunct is a reversion or depth ablation)
-verifies iff `d(P_Sus, P_ablated) ≥ max(D, 2 · s(P))`, where `P_ablated` is P with the C-2.1 override
-applied, rendered on P's own timeline to the end of `Sus` only, and `P_Sus` is P's `M1` descriptor. The
+verifies iff `d(P_Sus, P_ablated) ≥ D` (G2 ruling 2026-09-29: the former `2 · s(P)` term is recorded, not gated), where `P_ablated` is P with the C-2.1 override
+applied, rendered on P's own timeline to the end of M3, and `P_Sus` is the mean of P's `M1…M3`
+descriptors, the twin scored on the mean of its own three minute descriptors (sweep ruling S-3,
+2026-09-30; before it: `Sus` = `M1` only). The
 bar `D` depends on the claim's role:
 
 - **Primary:** `D = F = 4.0` — "foregrounded": removing the showcased capability must move the preset as
@@ -721,7 +723,7 @@ envelope IDs reset to their registered defaults; same seed and stimulus) are ren
 - `D_att(X)` = the C-7.2 descriptor of X over `[0, W_end]`, with every 1 s `blockRmsDb` value feeding
   the `e` component clamped below at RMS(`Sus`_P) − 60 dB, so the −240 dBFS silence floor
   (`vorago_fixtures.h:343`) cannot dominate;
-- the cell verifies iff `d(D_att(P), D_att(P_rev)) ≥ max(D, 2 · s(P))` **and**
+- the cell verifies iff `d(D_att(P), D_att(P_rev)) ≥ D` (G2 ruling: no `2 · s(P)` term) **and**
   `d(D_att(P), D_att(P_rev)) ≥ d_Sus(P, P_rev) + D_abl`, where `d_Sus` is the distance between the two
   renders' own `Sus` descriptors, each on its own C-6 timeline — the attributability conjunct, as
   `R_∅` is for Group E: the change must live in the swell, not in sustain divergence;
@@ -952,6 +954,27 @@ roster, and thread parallelism buys little on 2–3 vCPUs. So:
   the new IDs.
 - **FR-074** **Test coverage.** Processor, controller, uidesc, param-table and state-format tests MUST be
   updated for the new IDs and the v3 format (round-trip, v2→v3 default-load preconditioned per SC-027, bounds).
+- **FR-077** **Noise-bus make-up gain (sweep ruling S-1, 2026-09-30).** `VoragoVoice` MUST apply one
+  constant make-up gain (`kNoiseBusMakeupDb` = 30 dB, `kNoiseBusMakeupGain` = 10^(30/20)) on the noise
+  organism's bus, after the organism's own gain chain and before the excitation bus, sized so the bed
+  at +12 dB / wake 1.0 reads within 6 dB of the drone at the voice output (measured −25.1 dBFS against
+  −19.7). This is the phase's one DSP change beyond R-1; every Phase 2–13 suite, 13b's ghost
+  fingerprint and the Phase 10 [long] soaks MUST pass on the amended voice, and any fingerprint that
+  moves is re-harvested inside its consuming binary (SC-033).
+- **FR-077a** **Reset reproducibility after a type switch (sweep-2 ruling S-6, 2026-09-30).**
+  `NoiseGenerator` MUST expose `snapLevelSmoothers()` (every per-type level smoother and the master landed
+  on its target), and `NoiseOrganism::applySlotConfiguration` MUST call it after its level pushes, so that
+  after `reset()` the organism's stream is a function of configuration alone whether or not the instance
+  rendered between a noise-type switch and the reset. The phase's second DSP change beyond R-1; every
+  Phase 2–13 suite MUST pass on it and any fingerprint that moves is re-harvested inside its consuming
+  binary (SC-033).
+- **FR-077b** **Ghost-tap make-up (re-author ruling S-7, 2026-09-30).** `VoragoEngine` MUST apply one constant
+  make-up gain (`kGhostTapMakeupDb` = 12 dB, `kGhostTapMakeupGain` = 10^(12/20)) on the atmosphere's WET texture
+  at the bus sum, after the component's own [0, 2] trim, sized so the tap's loudest second at peak level 1.0
+  sits within 6 dB of the drone (measured −20.8 vs −19.2 dBFS); `setGhostTapMakeupDb` / `getGhostTapMakeupDb`
+  expose it for measurement (clamped [0, 24] dB, non-finite rejected). The phase's third DSP change beyond
+  R-1; every Phase 2–13 suite MUST pass on it and any fingerprint that moves is re-harvested inside its
+  consuming binary (SC-033).
 - **FR-075** **Coverage matrix extension.** For `syncRate` and `selfAffinity` (the ratified `R`), the two
   extreme cells that exist and were counted (`E6.hi` = `syncRate` high, `E7.hi` = `selfAffinity` high;
   no `.lo` cell for either knob) MUST be added to the `Capability` enum (FR-010) and to the coverage matrix
@@ -1157,10 +1180,10 @@ roster, and thread parallelism buys little on 2–3 vCPUs. So:
 | SC-005 | Stream shape + operating point | 100 %: version == `kCurrentStateVersion`, length == `kStateV3Bytes` (R-3), finite, polyphony ≤ 4, `A ≤ 180 s`, `Rel ≤ 60 s` | `Vorago_FactoryPresets_StreamShape` |
 | SC-006 | Committed tree == generator | 0 path/XML/int mismatches; floats within the pinned measured tolerance on MSVC, GCC and AppleClang legs | `Vorago_FactoryPresets_TreeMatchesGenerator` |
 | SC-007 | Generator determinism | two runs byte-identical; re-run over the tree changes 0 bytes | `node tools/check-preset-generator-determinism.js --plugin vorago` exit 0 |
-| SC-008 | Coverage + showcase | 100 % of C-2.1 cells verified; each E*k* (E1–E5) **and** each ratified roster-extension cell (`E6.hi`, `E7.hi`) the verified primary of a distinct preset (seven distinct primary presets in Group E); 0 claimed-but-failed; F = 4.0 (Clarifications Q2–Q4, Q6); unique primaries, none a default-state cell, D10.1 no preset's primary (FR-011b), each at the primary bar `d ≥ max(F, 2·s)` (`s` from the K-take-averaged descriptor; envelope primaries by the C-7.4 attack-window reversion); every ordered pair (P, Q) has a claimed witness of P that Q fails (FR-011a); D cells verified with their audibility conjuncts | `Vorago_PresetMatrix_CoverageComplete`, `Vorago_PresetMatrix_NoShowcaseSubset` ([long][vorago-sweep]; + printed matrix, default-state cells and witnesses) |
+| SC-008 | Coverage + showcase | 100 % of C-2.1 cells verified; each E*k* (E1–E5) the verified primary of a distinct preset, and each ratified roster-extension cell (`E6.hi`, `E7.hi`) verified as a **secondary** by ≥ 1 preset (G2 ruling 2026-09-29; before it: the verified primary of a distinct preset (seven distinct primary presets in Group E); 0 claimed-but-failed; F = 4.0 (Clarifications Q2–Q4, Q6); unique primaries, none a default-state cell, D10.1 no preset's primary (FR-011b), each at the primary bar `d ≥ max(F, 2·s)` (`s` from the K-take-averaged descriptor; envelope primaries by the C-7.4 attack-window reversion); every ordered pair (P, Q) has a claimed witness of P that Q fails (FR-011a); D cells verified with their audibility conjuncts | `Vorago_PresetMatrix_CoverageComplete`, `Vorago_PresetMatrix_NoShowcaseSubset` ([long][vorago-sweep]; + printed matrix, default-state cells and witnesses) |
 | SC-009 | Parameter-space distinctness | every pair and preset-vs-default: ≥ 8 IDs differ (≥ 0.10 normalized or index) | `Vorago_PresetMatrix_ParameterSpaceDistinct` |
 | SC-010 | Sound-space distinctness | Resolved (Clarifications Q2–Q4, Q6, session 2026-09-29): `D(P)` = mean of the `M1…M3` descriptors over K takes (stored seed + K − 1 fixed seed-index offsets, two disjoint sets of `(stored + j) mod 16`, K hard-capped at 8); `t_K` = `d` between two disjoint K-take means of the same preset, measured on every control-set preset; `t_max` = the largest `t_K`; K ruled at the pilot as the smallest with `2·t_K ≤ F` (FR-017a; FR-017 stop if K = 8 does not reach it). Bands relative to `E_hi`, −60 dB clamp. Every pair `d ≥ max(F, 2·max(s), 2·t_max)` with **F = 4.0**; on the control set `C` (≥ 3 named presets): post-render level twin `d < 0.05` (every preset), rendered gain twin on the highest-Pressure preset `d ≤ F/2`, seed twins (`t_K`) `d ≤ F/2` (gated), sub twins (±0.125 normalized, in-range side(s) only, C-7.3 (c)) `d < F` | `Vorago_PresetSweep_SoundSpaceDistinct` ([long][vorago-sweep]) |
-| SC-011 | Ablation | every claimed secondary S/M/ablation-D cell `d(P, P_abl) ≥ max(1.5, 2·s(P))`; every primary `≥ max(F, 2·s(P))` with **F = 4.0** (Clarifications Q2–Q4, Q6); D_abl = 1.5 is fixed; `s(P)` from the K-take-averaged descriptor for the preset's own full render, single-take for the ablation twin itself (Clarification Q4); envelope cells (D8.x/D9.x) scored by the C-7.4 attack-window reversion including its `d_Sus + 1.5` attributability conjunct; every claimed E cell (E1–E5 **and** the ratified `E6.hi`/`E7.hi`) passes the route-isolated or plain-ablation test at its role's bar and exceeds `d(R_∅, R_∅⁰) + 1.5` where applicable | `Vorago_PresetSweep_AblationVerifiesClaims` ([long][vorago-sweep]) |
+| SC-011 | Ablation | every claimed secondary S/M/ablation-D cell `d(P, P_abl) ≥ 1.5`; every primary `≥ F` with **F = 4.0** (G2 ruling 2026-09-29: the `2·s(P)` term is recorded, not gated) (Clarifications Q2–Q4, Q6); D_abl = 1.5 is fixed; `s(P)` from the K-take-averaged descriptor for the preset's own full render, single-take for the ablation twin itself (Clarification Q4); envelope cells (D8.x/D9.x) scored by the C-7.4 attack-window reversion including its `d_Sus + 1.5` attributability conjunct; every claimed E cell (E1–E5 **and** the ratified `E6.hi`/`E7.hi`) passes the route-isolated or plain-ablation test at its role's bar and exceeds `d(R_∅, R_∅⁰) + 1.5` where applicable | `Vorago_PresetSweep_AblationVerifiesClaims` ([long][vorago-sweep]) |
 | SC-012 | Long-render boundedness | 100 % presets: finite; peak ≤ 0.9661; every 10 s RMS ≤ −6 dBFS over `[0, Total]`; every 10 s RMS ≥ −60 dBFS over `[A, H]`; late/early ratio in [−18, +12] dB; tail arm per freeze with `Tail` placed on the **effective** RT60; Freeze-On tail loudest-10 s ≥ RMS(`Sus`) − 20 dB | `Vorago_PresetSweep_LongRender` ([long]) |
 | SC-013 | Wall clock (CI lane) | every Vorago sweep job, per OS, measured step time ≤ 60 % of its `timeout-minutes` (≤ 180); shared per-push "Run Tests" step ≤ 80 % of its 20 min on every OS; generic nightly `[long]` step unchanged by this phase (filter `[long]~[vorago-sweep]`); local alone-run durations recorded for reference; the K-fold (Clarification Q2) main-render cost is met by sharding, never by shortening | CI job/step durations from the run logs (URLs cited in compliance); `-d yes` local durations |
 | SC-014 | Short load-time guard | 100 % presets finite, peak ≤ 0.9661 at 44.1/48/96 kHz and chord (load-time guard only; no sustain claim) | `Vorago_PresetSweep_ShortBounded` |
@@ -1179,7 +1202,10 @@ roster, and thread parallelism buys little on 2–3 vCPUs. So:
 | SC-026a | Knob semantics | for each `k ∈ R`, a processor-level test reaches the engine through the existing public const `Processor::engineForTest()` (`processor.h:116-118`; plan-stage ruling P2-4, 2026-09-29 — no new friend), and iterates **all `kMaxVoices` = 6 voices** via `VoragoEngine::getVoice(i)` (`vorago_engine.h:1280`) after ≥ 1 `process()`, once with no note held and again with a note held; it sets the registered knob to its counted extreme and asserts every voice's `ecosystem()` getter (`getSyncRate()`, `ecosystem_engine.h:601`; `getAffinity(k, k)` for all five kinds, `:721`) equals the plain value, and at the registered default equals the component defaults (0.0, −1.0); the count of voices checked is asserted == 6 in each pass | `Vorago_EcosystemRosterReachesEngine` (FR-071a) |
 | SC-027 | Ecosystem parameters + state v3 | new IDs registered for `syncRate` and `selfAffinity`; `kCurrentStateVersion == 3`; `kStateV3Bytes == 436`; `static_assert(VoragoVoiceParams::kFieldCount == 33)` (= 31 + \|R\|) in a test TU (R-1 bound, FR-076); v2 load **from a non-default state**: every `k ∈ R` first driven to its counted extreme (by `IParameterChanges` or by loading a v3 stream with non-default values) and one `process()` run, then `setState(v2)` and one `process()`; both the persisted values (`getState` decode) and the engine getters on all 6 voices (`getSyncRate()`, `getAffinity(k, k)` for all five kinds, via the SC-026a probe) equal the hard-coded defaults | `Vorago_State_V2LoadsWithRosterDefaults`, `Vorago_VoiceParams_FieldCount`, param-table test (FR-072, FR-076) |
 | SC-028 | Ecosystem UI + coverage extension | one control per `k ∈ R` on the ecosystem page; page union/bound-ID/allowlist tests updated; `E6.hi` (`syncRate`) and `E7.hi` (`selfAffinity`) each verified by ≥ 1 preset at the **primary bar F** (Clarification Q5, resolving OQ-11 as primaries) | `Vorago_Ecosystem_PageBindsRosterIds`, subset of SC-008 (FR-073, FR-075) |
-| SC-029 | Library size + primaries | N == **38 + \|R\| = 40** (Clarifications Q1, Q5, session 2026-09-29 — `R` = {`syncRate`, `selfAffinity`}, both counted extremes are primaries; plan ruling R-2 / P-3; supersedes Q4's [35, 45] band — default-state cells are ineligible primaries under FR-011, so the floor of unique primaries is 10 S + 12 M + 5 E + 9 non-default materials + D8.2 + D9.1 = 38, plus one preset per roster-extension cell (`E6.hi`, `E7.hi`) = 40; D10.1 is excluded by FR-011b and D8.2/D9.1 are scored by the C-7.4 attack-window reversion); every S, M, E (incl. `E6.hi`, `E7.hi`) cell is some preset's primary; each **non-default-state** member of the 11 body materials, 4 noise models and D8/D9 envelope extremes is some preset's primary (R-3 / P-5; the default-state members are verified secondaries of factory presets, never primaries) | grep/count in compliance record + coverage matrix; `Vorago_FactoryPresets_LibraryShape` (SC-031) (FR-004, FR-011, FR-011b, FR-013) |
+| SC-033 | Noise bus audible (FR-077) | `VoragoVoice_NoiseBusProbe` (or its gated successor): output RMS with the noise at +12 dB / wake 1.0 vs at −96 dB, difference signal within 6 dB of the drone; the eight per-push suites, 13b's `VoragoEngine_GhostExtensionWiring` and the Phase 10 [long] soaks green on the amended voice | probe printout; regression logs |
+| SC-033a | Reset replays after a type switch (FR-077a) | `NoiseOrganism_TypeSwitchedAfterPrepareReplaysAfterReset`: max\|diff\| == 0 and no differing sample between an instance that never rendered since switching every slot to MetallicHiss and one that rendered first, both after `reset()`, 8 kHz, 2 s; `VoragoEngine_SlotSeedReproducibility` (a)/(b) green on the amended voice | test output; `artifacts/reset_fix_targeted.log` |
+| SC-033b | Ghost tap audible (FR-077b) | `VoragoEngine_GhostLevelProbe`: at peak level 1.0 the difference signal's loudest 1 s window within 6 dB of the drone's sustain RMS and above −40 dBFS in every 1 s window of 220–340 s; the eight per-push suites, 13b's `VoragoEngine_GhostExtensionWiring` (re-harvested) and the Phase 10 [long] soaks green on the amended engine | `artifacts/ghost_tap_makeup_probe.log`; regression logs |
+| SC-029 | Library size + primaries | N == **42** (T043 ruling 2026-09-29: the measured default-state set leaves the four noise models to showcase presets; G2 ruling: the two roster-extension cells are secondaries; before it 38 + \|R\| = 40 — Clarifications Q1, Q5, session 2026-09-29 — `R` = {`syncRate`, `selfAffinity`}; plan ruling R-2 / P-3; supersedes Q4's [35, 45] band — default-state cells are ineligible primaries under FR-011, so the floor of unique primaries is 10 S + 12 M + 5 E + 9 non-default materials + D8.2 + D9.1 = 38, plus one preset per roster-extension cell (`E6.hi`, `E7.hi`) = 40; D10.1 is excluded by FR-011b and D8.2/D9.1 are scored by the C-7.4 attack-window reversion); every S, M, E (incl. `E6.hi`, `E7.hi`) cell is some preset's primary; each **non-default-state** member of the 11 body materials, 4 noise models and D8/D9 envelope extremes is some preset's primary (R-3 / P-5; the default-state members are verified secondaries of factory presets, never primaries) | grep/count in compliance record + coverage matrix; `Vorago_FactoryPresets_LibraryShape` (SC-031) (FR-004, FR-011, FR-011b, FR-013) |
 | SC-030 | Tail samples | `getTailSamples()` == `llround((Rel + RT60_eff + G) · sampleRate)` within ±1 sample, `G` = `AtmosphereEngine::kMaxGrainSeconds` = 30 s (`atmosphere_engine.h:311`), from independently decoded state, for FR-060's named set (min decay; max decay with Depth = Age = 1; default surface; every factory preset); `kInfiniteTail` when Space Freeze is On | `Vorago_Processor_GetTailSamplesMatchesState` (FR-060) |
 | SC-031 | Library shape | every C-1 category holds ≥ 3 presets (FR-004); N == **40** (SC-029; the Q6 N floor of 21 is met a fortiori) (FR-001, FR-004, Clarification Q6) | `Vorago_FactoryPresets_LibraryShape` (per-push; its own test case per plan ruling R-7(ii)) |
 | SC-032 | Install path | `krate_plugin_install_presets(${PLUGIN_NAME})` (`plugins/vorago/CMakeLists.txt:123`) resolves to `%PROGRAMDATA%/Krate Audio/Vorago` = `Platform::getFactoryPresetDirectory("Vorago")` (`preset_paths.h:27`); `setup.iss:66-68` and `installers/linux/README.txt:29-44` name the same destinations (FR-026, FR-027) | grep/inspection in compliance record, citing each file:line |
@@ -1293,7 +1319,7 @@ and OQ-11 (opened by the second specify pass) in the Clarifications session of 2
   `E6.hi` and `E7.hi` are **primaries**, as plan ruling R-2 required: a showcase preset must author a
   surface on which the knob's reversion moves the preset by ≥ `max(F, 2·s(P))`; the pilot (FR-017a)
   includes one candidate per knob and FR-017 stops if either bar is unreachable. This fixes
-  **N = 38 + |R| = 40**. Carried by C-2.2, C-2.3, FR-011, FR-013, FR-017a, FR-075, SC-008, SC-028,
+  **N = 38 + |R| = 40** (superseded at gate G2, 2026-09-29: secondaries, **N = 38**). Carried by C-2.2, C-2.3, FR-011, FR-013, FR-017a, FR-075, SC-008, SC-028,
   SC-029.
 
 ---
@@ -1421,7 +1447,7 @@ Re-specified against the post-13b tree (HEAD `59fbd9e6`). Every ruling above sta
   tables measured the seed twin at 5.9515, are **now resolved** (Clarifications Q2–Q4, Q6, session
   2026-09-29): the seed-marginal K-take descriptor, F = 4.0 unchanged.
 - **Q4 / R-2** — N is 38 + |E-ext primaries|; **now resolved** (Clarifications Q1, Q5, session
-  2026-09-29): |E-ext| = 2, both cells primaries (OQ-11), so **N = 40**.
+  2026-09-29): |E-ext| = 2, both cells primaries (OQ-11), so **N = 40** — then gate G2 (2026-09-29) made them secondaries, **N = 38**.
 - **First-pass gate G1** — its "roster not ratified" ruling is superseded by OQ-9's resolution; its
   "E-route risk: keep E cells as primaries, FR-017 catches an unverifiable route" ruling stands and
   is now expected to be exercised with measurable effects (the ecosystem on/off distance is 5.6272 at the
@@ -1453,7 +1479,7 @@ posed them) is removed — its content is superseded by this log and by the FR/S
   [C-6, C-7.3, C-7.4, FR-011, FR-017a, SC-011, SC-012]
 - **Q5 — Must each rule-knob E cell (`E6.hi`, `E7.hi`) be the primary of its own showcase preset
   (OQ-11)?** Option (a): primaries, as plan ruling R-2 required — one pilot candidate per knob; FR-017
-  stops if the bar is unreachable. N = 38 + |R| = **40**. [C-2.2, C-2.3, FR-011, FR-013, FR-017a,
+  stops if the bar is unreachable. N = 38 + |R| = **40** (the stop happened at G2: secondaries, N = 38). [C-2.2, C-2.3, FR-011, FR-013, FR-017a,
   FR-075, SC-008, SC-028, SC-029, SC-031]
 - **Q6 — In the FR-017a pilot, what does the near-variant pair's `d` decide?** Option (a): a **floor
   check only** — the pair MUST score `d < F`; scoring `d ≥ F` is itself an FR-017 stop (the descriptor
@@ -1513,6 +1539,165 @@ confirmations. Every item took the plan's default unless stated.
 - **Push / CI-dispatch tasks** (T048 AppleClang tree tolerance, T057 runner measurements, T063 auval on
   the release commit) stay **pending** until the user grants a push at that point; nothing is pushed
   without an explicit ruling.
+
+### Gate G2 rulings (2026-09-29, after the first pilot run)
+
+The first pilot (T039, `artifacts/pilot_calibrate.log`, compliance "FR-017a pilot / G2") ruled **K = 4**
+and stopped on three fronts. Measured before ruling (compliance "Main-loop probes before the G2 ruling"):
+the colony-knob reversions score 0.85 (E6.hi on Locked Choir) and 0.15 (E7.hi on Clotting Colony) on the
+three-minute descriptor, 2.14 at best (the plain Life-max surface, reproducing 13b through the parameter
+path); the colony-forward surfaces cut the whole colony's on/off effect to 1.2-2.2 (default surface 5.6).
+
+- **G2-1 — E6.hi and E7.hi are secondaries; N = 38.** FR-017 is accepted for both cells as primaries: on
+  every measured surface the counted knob moves the preset by under F = 4.0. The knobs stay in the roster
+  and ship (state v3, the two controls, SC-025…SC-027 unchanged); each cell verifies as a **secondary**
+  (bar 1.5, ExtReversion, Q7 side margin) on an Organisms row that stores the knob at or above the Q7
+  margin on a Life-high surface (the surface that measured 2.14). The two colony-knob showcase rows leave
+  the library: **N = 38**; SC-029's derived count is 38; `requiredPrimaryCells()` excludes the two cells.
+  [C-2.2, C-2.3, FR-011, FR-013, FR-017, FR-017a, FR-075, SC-008, SC-028, SC-029, SC-031]
+- **G2-2 — Q6 near-variant: measure a nearer pair first.** The first pair (sub +6 dB, smear +0.05) scored
+  4.81 ≥ F on a preset whose own s(P) is 4.95. The pilot now authors the near-variant at **sub +2 dB
+  (600 stored + 1/24 normalized) and smear +0.02**; the floor rule stays `d(P3, P3′) < F`. If the nearer
+  pair still scores at or above F, the reading is trajectory divergence, not the +2 dB, and the case
+  returns to the user with the measurement. [C-7.3, FR-017a, SC-010]
+- **G2-3 — Twin bars are the fixed floors: primary F = 4.0, secondary 1.5.** The first-pass
+  `max(D, 2·s(P))` term is withdrawn from every same-seed, same-window twin comparison (S/M ablation,
+  reversion-D, ExtReversion, route arms and the attack window's D term): a twin shares P's seed and
+  window, so P's minute-to-minute evolution s(P) and its reseed distance t_1 are common to both sides
+  and are not that comparison's noise. Pilot evidence: real effects (S5 6.9, D1.1 3.5, the Growth attack
+  4.4) failed bars of 8.7-9.9 set by s(P) alone. `s(P)` and `t_1(P)` stay **recorded** per preset
+  (record field `selfDistance`, cell field `twoS`); the pairwise distinctness floor (C-7.3, D(P) vs
+  D(Q) across seeds) keeps its take and s terms unchanged. A ruled correction: the main loop first
+  recommended `max(F, 2·t_1(P))` and withdrew it in the same session, t_1 being the reseed distance a
+  same-seed twin does not suffer. [C-7.4, FR-011, FR-017a, SC-011]
+- **G2-4 — Proceed.** The pilot set is P0 plus Tectonic Floor (S5, near-variant host), Cathedral Void
+  (S8), Growth Ring (D8.2) and Glass Well (D1.1); the main loop re-runs the pilot under these rulings,
+  re-authors any pilot still under its bar (C-2.2 route: Growth Ring's attack conjunct, Glass Well's
+  D1.1 at 3.5), and continues into the library when every pilot primary verifies and the near-variant
+  floor holds; any new stop returns to the user. [FR-017a]
+
+### T043 ruling (2026-09-29): the measured default-state set, N = 42
+
+T043 measured the default surface's own verification vector (`artifacts/default_state_vector.log`,
+`Vorago_PresetSweep_AblationVerifiesClaims` on the pseudo-preset, shard 4/5, 474 s). The default surface
+verifies **9** D cells at the secondary bar (D1.6 StoneChamber, D1.7 SteelTank, D2, D5.3, D7.1, D8.1,
+D9.2, D10.2, D12.2). P2-6's prediction also listed D3.1–D3.4, D4.6 and D6.1: they fail because their
+conjuncts do not register there — the S1 noise-organism ablation moves the default surface by **0.0110**
+and the S4 noise filter by **0.0009** (bar 1.5): the noise bed is inaudible on the default surface (noise
+level −18 dB), consistent with 13b. The derivation of plan §6.12 therefore adds the four noise models to
+the required primaries: **N = 42** (27 S/M/E1–E5 + 9 non-default materials + D8.2 + D9.1 + D3.1–D3.4).
+**Ruled: accept N = 42** — one showcase preset per noise model (Direct, FilteredWind, GranularDust,
+MetallicHiss), each making the noise section audible (its S1 conjunct verified), which is the variety
+mandate applied to the noise section; D4.6 and D6.1 are then verified as secondaries by presets whose
+noise is audible. `kRecordedDefaultStateCells` is the measured 9-cell set. [C-2.1, C-2.2, FR-004,
+FR-011, FR-013, FR-016, SC-008, SC-029, SC-031]
+
+### Sweep rulings (2026-09-30, after the first full local sweep)
+
+The first full sweep (compliance "T048 — first full local sweep") verified 17 of 42 primaries and put
+313 of 861 pairs under the C-7.3 floor. Three findings were measured (main-loop probes,
+`artifacts/sweep_diag_*.log`, `VoragoVoice_NoiseBusProbe`) and ruled:
+
+- **S-1 — Noise-bus make-up gain (a DSP amendment beyond R-1's append-only setters).** The noise
+  organism calibrates every model to a −50.6 dBFS slot reference, so at its +12 dB maximum with the
+  wake base at 1.0 the bed sat ≈ 33 dB under the drone at the voice output (difference signal
+  −52.7 dBFS against a −19.7 dBFS drone; the plugin-level descriptor did not move). No preset could
+  showcase S1, D3.1–D3.4, D4.1–D4.12 or E3. Ruled: one constant make-up gain on the organism's bus in
+  `VoragoVoice` (`kNoiseBusMakeupDb`), **sized by measurement**: at +30 dB the +12 dB bed reads
+  −25.1 dBFS against the drone's −19.7 (output RMS −22.8 dBFS), i.e. a foreground bed at the maximum
+  and a faint one (≈ −55 dBFS) at the −18 dB default. Every Phase 2–13 suite and 13b's fingerprint are
+  re-run on the amended voice (FR-077). [FR-077, SC-033; C-2.1 S1/D3/D4/E3]
+- **S-2 — Cross-preset floor = max(F, 2·t_max).** The `2·max(s(P), s(Q))` term is recorded, not
+  gated: D(P) and D(Q) are K-take, three-minute means whose noise is the take term (t_max 1.49), not
+  either preset's own evolution — the reading gate G2 gave the twin bars. The first sweep read floors
+  up to 13.7 from that term; 216 of its 313 failing pairs were above 4.0. [C-7.3, FR-015, SC-010]
+- **S-3 — Twins are scored on the three sustain minutes.** `P_Sus` = the mean of the stored take's
+  M1…M3 descriptors and every twin (S/M ablation, reversion-D, ExtReversion, the route arms and the
+  attack window's sustain term) is captured over M1…M3 and scored on the mean of its three minute
+  descriptors; twin renders run to the end of M3 (340 s). The same twin read 2–5× larger over three
+  minutes (E6.hi 0.15 → 0.85; the Life macro's full travel 1.68), which is where the slow capabilities
+  (M2, M3, M4, M9, M10, the bloom and ghost routes, D14) sit. Cost ≈ +55 % per sweep. [C-7.4, FR-011,
+  FR-017a, SC-011]
+
+### Sweep 2 rulings (2026-09-30, after the second full local sweep)
+
+Sweep 2 (`artifacts/sweep2_shard_{0..3}.log`, `sweep2_aggregate.log`, `sweep2_wall.txt`: 08:05–12:56,
+4 h 38 min shards + 13 min aggregate) verified **14 of 42** primaries (sweep 1: 17 — S4, M5, M8 and M12
+dropped under the M1…M3 scoring, S1 gained) and put **99** of 861 pairs under the 4.0 floor (sweep 1: 313).
+Stone Gravity still sits at the limiter (peak 0.966, hi −5.94 dB, late-sustain +14.3 dB). Three items were
+measured and ruled:
+
+- **S-4 — D3 primary rule.** Plan §6.12 makes every non-D1 `StateWithS` cell **false at Primary** and
+  defers the noise-model cells to a ruling after the "Required primaries" stop; the T043 ruling added
+  D3.1–D3.4 as required primaries without that ruling, so no noise-model preset could verify in either
+  sweep ("state-only kind, pri NO"). Ruled: **a D3.m primary = the state predicate ∧ the preset's own S1
+  ablation d ≥ F (4.0)** — the showcase is the audible noise organism. The harness copies the S1 conjunct's
+  `rendered` / `d` into the D3 cell in pass 3, `verifiedAt` admits D3.x at Primary on those terms, and the
+  secondary verdict is unchanged (no d term). Measured before ruling with the pilot probe's new
+  `VORAGO_PILOT_OVERRIDE` (`artifacts/sweep2_noise_probe_*.log`, +30 dB make-up): S1 d as authored —
+  Wind Through Basalt 5.35, Steam Vent 3.66, Abyssal Wind 2.31, Spore Drift 3.98, Dead Air 0.12; at
+  +6 dB / wake 1.0 (the +24 dB maximum) — 6.39 / 5.67 / 4.59 / 2.98 / 0.46; Dead Air at +12 dB / wake
+  1.0 — 1.06 (3.10 with one FilteredWind slot: its Velvet / VinylCrackle / Blue types are near-silent as a
+  bed). [FR-011, FR-013, SC-029; plan §6.12]
+- **S-5 — The make-up stays at +30 dB.** S-1's condition for dropping to +24 dB ("clears the bar with
+  room") is not met: at the +24 dB maximum two of the four noise-model presets sit under 4.0 (Spore Drift
+  2.98, Dead Air 0.46) and Wind Through Basalt saturates at 6.4 either way. [FR-077]
+- **S-6 — The reset defect behind the slot-seed sentinel is fixed, not bounded.**
+  `VoragoEngine_SlotSeedReproducibility` read 2.65e-4 against 2.5e-4 on the amended voice. Bisected with
+  hidden probes (`artifacts/reset_*.log`): the divergence sits on the noise bus (noise at −96 dB: 4.07e-5
+  → 1.52e-6; the engine's 2048-sample smear latency is why it first shows at sample 2049), in the
+  **MetallicHiss** model alone (all-Direct / all-FilteredWind / all-GranularDust voices replay bit-exactly
+  after reset, all-MetallicHiss diverges from sample 0), while the organism alone replays bit-exactly at
+  8 / 16 / 44.1 / 48 kHz and under per-step level and wake modulation. The state is `NoiseGenerator`'s
+  **per-type level smoothers**, which its `reset()` leaves alone: `prepare()`'s warm-up settles only the
+  types active at prepare (Brown on every slot), so a type first enabled afterwards (MetallicHiss → Blue)
+  fades in over ~5 ms on an instance that has never rendered since the switch and starts settled on one
+  that has — the sentinel's prime arm is exactly the never-rendered case. Fix:
+  `NoiseGenerator::snapLevelSmoothers()`, called by `NoiseOrganism::applySlotConfiguration` after its
+  level pushes (click-free: a type change reaches it through the duck at gate 0; every other caller
+  re-pushes the same targets). Regression `NoiseOrganism_TypeSwitchedAfterPrepareReplaysAfterReset`
+  (bit-identity at 8 kHz; before the fix 0.0121 against a 1.28 peak from sample 0). After the fix every
+  engine-probe variant reads 0.000e+00 and the sentinel passes. This is the phase's second DSP change
+  beyond R-1 (FR-077a, SC-033a). [FR-077a, SC-033a, SC-033]
+
+### Re-author loop rulings (2026-09-30, after probe batches 1–6)
+
+Six probe batches (`artifacts/reauthor_probe_batch{1..6}.log`, compliance "Re-author loop after sweep 2")
+measured every failing primary on its own levers. Twenty-six of 42 primaries pass by probe after the adopted
+re-authoring; the rest split into cells still moving under levers and cells whose feature's audible range
+sits under F on any preset setting. Ruled:
+
+- **S-7 — Ghost tap: measure a make-up, then rule.** `VoragoEngine_GhostLevelProbe` read the ghost tap alone
+  at −33 dBFS in its loudest second against a −19 dBFS drone at peak level 1.0 (S9 Choir of Absence 0.22,
+  E5 Haunted Colony 0.42). The engine gains `setGhostTapMakeupDb` / `kGhostTapMakeupDb` (a constant gain on
+  the atmosphere's WET texture at the bus sum, the S-1 shape) so +6 / +12 / +18 dB are measured at the
+  engine and, for the candidate, through the pilot probe on both presets; the value is ruled on those
+  numbers. **Measured and ruled (17:25): +12 dB ships** (`kGhostTapMakeupDb` = 12, `kGhostTapMakeupGain` =
+  10^(12/20)): at the engine the tap's loudest second sits at the drone's level (−20.8 vs −19.2 dBFS) and it
+  sounds in every second of the sustain (0 dB: 14 dB under, half the seconds; +18 dB: above the drone, mix
+  +3 dB); at the preset level S9 Choir of Absence 0.22 → 1.83 and E5 Haunted Colony 0.42 → 1.19 — the
+  secondary bar for S9, not F; both recorded UNMET under S-8. The third DSP change beyond R-1; the seventh
+  fingerprint harvest and the Phase 10a / 13b suites re-run on it. [FR-077b, SC-033b]
+- **S-8 — Ecosystem- and bloom-limited primaries are recorded UNMET at their measured ceilings.** E1 partial
+  → bloom 0.06 (route arm; attribBase 0.06), E3 noise wake 0.65, E4 loop wake 1.22, M10 Life 0.63 (Life 1.0,
+  ecosystem base 0), S6 harmonic bloom 1.74 (richness 0.7; the bloom's six children scale with sounding
+  parents and the descriptor tops out there), and S7 ecosystem 3.90 (wake base 0.1, sync / affinity 1.0).
+  A single route cannot exceed the ecosystem's audibility as ruled in 13b (Gate 1 = half an off-reseed), and
+  the bloom's ceiling is its own. The presets keep their claims; the compliance table carries each cell's
+  best d and the lever it was measured with; **no bar changes and N stays 42**; S7 keeps authoring. The
+  13b Gate-2 precedent (UNMET by ruling, with the numbers). [FR-011, FR-013, SC-029]
+- **S-9 — The attack window is the AUDIBLE attack.** C-6's attack span `A` is the stage-time sum (155 s for
+  the registered envelope), but the registered envelope (stages 20 / 30 / 45 / 60 s, levels 1.0 / 0.8 /
+  0.92 / 0.85) is at full level after its 20 s stage 0: the [0, 160 s] attack window compared 150 s of
+  near-identical sustain (Sudden Chasm d_att 1.25 against an attributability floor of 4.83; P reaches
+  RMS(Sus) − 6 dB at 4 s, P_rev at 6 s). Ruled: plan 6.8's `A_P` / `A_rev` are the audible attack —
+  Standard: stage 0's time; Growth: the growth duration (`audibleAttackSeconds`) — so `W_end` =
+  max(A_P, A_rev) + 5 s and `Sus_rev` = [A_rev + 5, A_rev + 65] read from the audible attack. C-6's sum
+  stays the timeline's `A` (Sus placement, the D9 state predicate). D8.2 Growth Ring is re-probed on the
+  same rule. No bar changes. [C-7.4, FR-011, SC-011; plan 6.8]
+- **S-10 — One more probe round on the nine primaries still moving under levers** (D1.11 3.98, M3 3.46,
+  M12 3.46, M5 3.5, D1.8 2.18, M2 2.45, M4 2.38, S4 1.79, M9 1.70), adopt what passes, regenerate the 42
+  presets, then sweep 3 as the confirming run; whatever is still under F is recorded with its best reading.
 
 ## Review notes (spec challenge, second pass, 2026-09-29)
 

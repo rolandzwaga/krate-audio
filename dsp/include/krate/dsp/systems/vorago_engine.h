@@ -184,8 +184,14 @@ struct VoragoVoiceParams {
          FeedbackEcology::FilterMode::Lowpass, FeedbackEcology::FilterMode::Lowpass,
          FeedbackEcology::FilterMode::Lowpass, FeedbackEcology::FilterMode::Lowpass}};
 
-    /// 2 + 2 + 4 x 5 + 1 + 6 = 31 scalar values (FR-003).
-    static constexpr std::size_t kFieldCount = 31;
+    /// Phase 14 FR-071a (R-1). == EcosystemEngine::syncRate_ (ecosystem_engine.h:2386).
+    float ecosystemSyncRate = 0.0f;
+    /// Phase 14 FR-071a (R-1). The affinity DIAGONAL; == defaultAffinity()'s
+    /// diagonal (ecosystem_engine.h:2403-2411).
+    float ecosystemSelfAffinity = -1.0f;
+
+    /// 2 + 2 + 4 x 5 + 1 + 6 + 2 = 33 scalar values (FR-003; Phase 14 R-1 +2).
+    static constexpr std::size_t kFieldCount = 33;
 };
 static_assert(std::is_trivially_copyable_v<VoragoVoiceParams>);
 static_assert(VoragoVoiceParams::kNumNoiseSlots == 4 && VoragoVoiceParams::kNumLoops == 6);
@@ -873,6 +879,8 @@ public:
             for (std::size_t l = 0; l < VoragoVoiceParams::kNumLoops; ++l) {
                 voice.setEcologyLoopFilterMode(l, p.ecologyLoopFilterMode[l]);
             }
+            voice.setEcosystemSyncRate(p.ecosystemSyncRate);
+            voice.setEcosystemSelfAffinity(p.ecosystemSelfAffinity);
         }
     }
 
@@ -982,6 +990,25 @@ public:
         ghostPeak_ = std::clamp(v, 0.0f, 1.0f);
     }
     [[nodiscard]] float getGhostPeakLevel() const noexcept { return ghostPeak_; }
+
+    /// @brief Phase 14 ghost-tap make-up: a constant gain on the atmosphere's
+    ///        WET texture at the bus sum (render loop), after the component's
+    ///        own [0, 2] trim. Clamped to [0, kMaxGhostTapMakeupDb] dB; a
+    ///        non-finite value is rejected (FR-071). The shipped value is
+    ///        kGhostTapMakeupDb; the setter exists so the make-up can be
+    ///        MEASURED (VoragoEngine_GhostLevelProbe) before it is ruled, and
+    ///        so a test can render at unity for comparison.
+    static constexpr float kGhostTapMakeupDb = 12.0f;  // measured 2026-09-30 (S-7), see below
+    static constexpr float kGhostTapMakeupGain = 3.9810717f;  // 10^(kGhostTapMakeupDb / 20)
+    static constexpr float kMaxGhostTapMakeupDb = 24.0f;
+    void setGhostTapMakeupDb(float dB) noexcept {
+        if (!detail::isFinite(dB)) {
+            return;  // FR-071: rejected, the previous value stands
+        }
+        ghostTapMakeupDb_ = std::clamp(dB, 0.0f, kMaxGhostTapMakeupDb);
+        ghostTapMakeupGain_ = std::pow(10.0f, ghostTapMakeupDb_ * 0.05f);
+    }
+    [[nodiscard]] float getGhostTapMakeupDb() const noexcept { return ghostTapMakeupDb_; }
 
     /// Vorago Phase 12 FR-006: the ghost grain reverse probability. Survives a
     /// re-prepare - prepare() uses the config value only until this is called.
@@ -1164,9 +1191,18 @@ public:
             // atmosL_/atmosR_ exist as separate scratch.
             atmos_.processStereoBlock(busL_.data(), busR_.data(), atmosL_.data(), atmosR_.data(),
                                       slice);  // atmosphere_engine.h:674
+            // Phase 14 ghost-tap make-up (setGhostTapMakeupDb): one constant
+            // gain on the WET texture only, after the component's own trim -
+            // the same shape as VoragoVoice's noise-bus make-up (FR-077):
+            // kGhostTapMakeupDb at the shipped default, sized by measurement
+            // (VoragoEngine_GhostLevelProbe: at +12 dB the tap's loudest second
+            // sits at the drone's level, -20.8 vs -19.2 dBFS, and it sounds in
+            // every second of the sustain; at 0 dB it was 14 dB under and
+            // sounded in half of them).
+            const float tap = ghostTapMakeupGain_;
             for (std::size_t s = 0; s < slice; ++s) {
-                busL_[s] += atmosL_[s];
-                busR_[s] += atmosR_[s];
+                busL_[s] += atmosL_[s] * tap;
+                busR_[s] += atmosR_[s] * tap;
             }
 
             // --- 3. the Layer-3 half of roadmap line 461's chain --------------
@@ -1779,6 +1815,8 @@ private:
     float smearDecoherence_ = kDefaultSmearDecoherence;
     float smearTilt_ = 0.0f;
     float ghostPeak_ = kGhostBurstPeak;
+    float ghostTapMakeupDb_ = kGhostTapMakeupDb;      // setGhostTapMakeupDb
+    float ghostTapMakeupGain_ = kGhostTapMakeupGain;  // 10^(kGhostTapMakeupDb / 20) at the default
     bool ghostEventTriggers_ = false;  ///< FR-030's config shadow
     bool ghostTriggerHigh_ = false;    ///< FR-031's latch, the VoragoVoice::eventWasActive_
                                        ///< shape (vorago_voice.h:1775-1784)

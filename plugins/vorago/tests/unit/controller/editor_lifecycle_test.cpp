@@ -16,9 +16,10 @@
 // the PresetBrowserView overlay - then the controller's preset manager is non-null.
 //
 // SECTION "EditorBindsSurface" (SC-016 a, FR-041, FR-042, FR-071): the BUILT
-// view tree carries exactly the 106 bound controls (every registered ID except
-// the hidden 4 and 5), exactly one EcosystemView, and the preset browser
-// overlay; the controller's frame-owned pointers are dropped on close; unknown
+// view tree carries exactly the 106 + kNumEcosystemRosterParams bound controls
+// (every registered ID except the hidden 4 and 5), exactly one EcosystemView,
+// and the preset browser overlay; the controller's frame-owned pointers are
+// dropped on close; unknown
 // custom-view and sub-controller names return null.
 // The getTag() >= 0 filter is load-bearing: CTextLabel IS-A CControl and keeps
 // tag -1 when untagged, so an unfiltered walk would also count the labels.
@@ -41,6 +42,7 @@
 #include "ui/panel_sub_controller.h"
 #include "unit/param_table_expected.h"
 #include "update/vorago_update_config.h"
+#include "vorago_test_fixture.h"  // VoragoTest::kNumEcosystemRosterParams
 
 #include "ui/preset_browser_view.h"
 
@@ -114,9 +116,11 @@ TEST_CASE("Vorago_EditorLifecycle", "[vorago][controller][ui][lifecycle]") {
         const auto cfg = ::Vorago::makeVoragoPresetConfig();
         REQUIRE(cfg.pluginName == "Vorago");
         REQUIRE(cfg.pluginCategoryDesc == "Synth");
-        REQUIRE(cfg.subcategoryNames == std::vector<std::string>{"Drones"});
+        REQUIRE(cfg.subcategoryNames == std::vector<std::string>{"Drones", "Abyss", "Caverns", "Organisms",
+                                                              "Machines", "Textures", "Ghosts"});  // spec FR-001 / Q6
         REQUIRE(::Vorago::makeVoragoPresetTabLabels() ==
-                std::vector<std::string>{"All", "Drones"});  // plan D-4 (T012)
+                std::vector<std::string>{"All", "Drones", "Abyss", "Caverns", "Organisms",
+                                         "Machines", "Textures", "Ghosts"});  // plan D-4 (T012)
         const bool processorUidMatches = (cfg.processorUID == ::Vorago::kProcessorUID);
         REQUIRE(processorUidMatches);
 
@@ -207,7 +211,7 @@ TEST_CASE("Vorago_EditorLifecycle", "[vorago][controller][ui][lifecycle]") {
                 expected.insert(static_cast<std::int32_t>(row.id));
             }
         }
-        REQUIRE(expected.size() == 106u);
+        REQUIRE(expected.size() == 106u + VoragoTest::kNumEcosystemRosterParams);
 
         const std::size_t controlCount = controls.size();
         const bool tagsMatch = (tags == expected);
@@ -233,7 +237,7 @@ TEST_CASE("Vorago_EditorLifecycle", "[vorago][controller][ui][lifecycle]") {
         view->release();
         REQUIRE(controller->terminate() == Steinberg::kResultOk);
 
-        REQUIRE(controlCount == 106u);
+        REQUIRE(controlCount == 106u + VoragoTest::kNumEcosystemRosterParams);
         REQUIRE(tagsMatch);
         REQUIRE(ecosystemViewCount == 1u);
         REQUIRE(ecosystemViewWhileOpen);

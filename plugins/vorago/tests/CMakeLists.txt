@@ -50,6 +50,16 @@ add_executable(vorago_tests
     integration/preset_browser_test.cpp
     # Phase 14 (specs/vorago-phase14-presets-release)
     integration/ecosystem_rule_probe_test.cpp
+    unit/ecosystem_roster_test.cpp
+    unit/state_v3_test.cpp
+    unit/tail_samples_test.cpp
+    unit/ghost_triggers_additive_test.cpp
+    unit/preset/factory_preset_test.cpp
+    integration/preset_sweep_test.cpp
+    integration/preset_matrix_test.cpp
+    integration/preset_pilot_test.cpp
+    integration/preset_load_rt_test.cpp
+    integration/preset_cpu_test.cpp
 
     # SECOND compilation of every plugin .cpp (needed by the plugin-shell tests).
     # A new plugin .cpp must appear here AND in plugins/vorago/CMakeLists.txt.
@@ -87,6 +97,7 @@ target_include_directories(vorago_tests
         ${CMAKE_CURRENT_SOURCE_DIR}/../src
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}/tests
+        ${CMAKE_SOURCE_DIR}/tools    # vorago_preset_defs.h (Phase 14)
         ${vst3sdk_SOURCE_DIR}
         ${vst3sdk_SOURCE_DIR}/vstgui4
 )
@@ -135,10 +146,20 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/ecosystem_frame_builder_test.cpp
         # Phase 14 (specs/vorago-phase14-presets-release)
         integration/ecosystem_rule_probe_test.cpp # bit-pattern finiteness over renders
+        unit/ecosystem_roster_test.cpp            # bit-pattern finiteness
+        unit/state_v3_test.cpp                    # bit-pattern finiteness
+        unit/tail_samples_test.cpp                # bit-pattern finiteness
+        unit/preset/factory_preset_test.cpp       # bit-pattern finiteness
+        integration/preset_sweep_test.cpp         # bit-pattern finiteness
+        integration/preset_matrix_test.cpp        # bit-pattern finiteness
+        integration/preset_pilot_test.cpp         # bit-pattern finiteness
+        integration/preset_load_rt_test.cpp       # bit-pattern finiteness
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
     # integration/processor_cpu_test.cpp is DELIBERATELY ABSENT: the flag would
     # move the timed code away from what the Phase 10 budget measured.
+    # integration/preset_cpu_test.cpp is absent for the same reason, and
+    # unit/ghost_triggers_additive_test.cpp because it checks no finiteness.
 endif()
 
 # No /wd4459 here yet: FR-006 adds it to vorago_tests only if the first MSVC

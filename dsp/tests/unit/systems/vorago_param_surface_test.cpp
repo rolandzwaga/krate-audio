@@ -961,6 +961,14 @@ TEST_CASE("VoragoVoice_Phase12Forwarders", "[systems][vorago]") {
 using Krate::DSP::ContinuousBody;
 using Krate::DSP::VoragoVoiceParams;
 using Krate::DSP::TestUtils::Vorago::renderEngine;
+using Krate::DSP::EcosystemEngine;
+using EcoKind = Krate::DSP::EcosystemEngine::Kind;
+
+namespace {
+/// Every EcosystemEngine::Kind (ecosystem_engine.h:282-288).
+constexpr std::array<EcoKind, EcosystemEngine::kNumKinds> kAllEcoKinds = {
+    {EcoKind::Partial, EcoKind::Resonator, EcoKind::Noise, EcoKind::Feedback, EcoKind::Ghost}};
+}  // namespace
 
 namespace {
 
@@ -1085,7 +1093,16 @@ void runDefaultBroadcastNoOp(double seconds) {
 
 TEST_CASE("VoragoEngine_ApplyVoiceParamsDefaultIsNoOp_Short", "[systems][vorago]") {
     STATIC_REQUIRE(std::is_trivially_copyable_v<VoragoVoiceParams>);
-    STATIC_REQUIRE(VoragoVoiceParams::kFieldCount == 31u);
+    STATIC_REQUIRE(VoragoVoiceParams::kFieldCount == 33u);
+    // Phase 14 R-1 (FR-071a): the two ecosystem-rule fields default to the
+    // engine's own member defaults (ecosystem_engine.h:2386, :2403-2411), so a
+    // default broadcast writes what a prepared voice already holds.
+    {
+        auto eco = std::make_unique<EcosystemEngine>();  // heap: the engine is large
+        REQUIRE(VoragoVoiceParams{}.ecosystemSyncRate == eco->getSyncRate());
+        REQUIRE(VoragoVoiceParams{}.ecosystemSelfAffinity
+                == eco->getAffinity(EcoKind::Partial, EcoKind::Partial));
+    }
     runDefaultBroadcastNoOp(4.0);
 }
 
@@ -1100,7 +1117,9 @@ TEST_CASE("VoragoEngine_ApplyVoiceParamsReachesAllSlots", "[systems][vorago]") {
     engine->noteOn(36u, 100u);
     engine->noteOn(43u, 100u);
 
-    const VoragoVoiceParams p = vpNonDefaultParams();
+    VoragoVoiceParams p = vpNonDefaultParams();
+    p.ecosystemSyncRate = 0.25f;      // Phase 14 R-1 (FR-071a)
+    p.ecosystemSelfAffinity = 1.5f;
     engine->applyVoiceParams(p);
 
     std::vector<float> l;
@@ -1112,6 +1131,12 @@ TEST_CASE("VoragoEngine_ApplyVoiceParamsReachesAllSlots", "[systems][vorago]") {
     for (std::size_t i = 0; i < VoragoEngine::kMaxVoices; ++i) {
         INFO("slot " << i);
         requireVoiceMatchesParams(engine->getVoice(i), p, false);
+        const EcosystemEngine& eco = engine->getVoice(i).ecosystem();
+        REQUIRE(eco.getSyncRate() == 0.25f);
+        for (const EcoKind k : kAllEcoKinds) {
+            INFO("kind " << static_cast<int>(k));
+            REQUIRE(eco.getAffinity(k, k) == 1.5f);
+        }
     }
 
     // The ducked model / type change completes only on a RENDERING slot
@@ -1127,6 +1152,47 @@ TEST_CASE("VoragoEngine_ApplyVoiceParamsReachesAllSlots", "[systems][vorago]") {
     for (std::size_t i = 0; i < VoragoEngine::kMaxVoices; ++i) {
         INFO("slot " << i << " (after admission)");
         requireVoiceMatchesParams(engine->getVoice(i), p, true);
+    }
+}
+
+// =============================================================================
+// Phase 14 T009 (FR-071a, FR-076) - ecosystem-rule forwarders
+// setEcosystemSyncRate / setEcosystemSelfAffinity on VoragoVoice. SyncRate
+// clamps to [0, 0.5] and rejects non-finite (ecosystem_engine.h:595-600);
+// SelfAffinity writes the five DIAGONAL entries only, clamped to [-2, 2],
+// non-finite rejected (ecosystem_engine.h:707-720); off-diagonals keep 0.45.
+// =============================================================================
+
+TEST_CASE("VoragoVoice_EcosystemRuleForwarders", "[systems][vorago]") {
+    const float qnan = surfaceNonFinite(0x7FC00000u);
+
+    const auto requireAffinity = [](const EcosystemEngine& eco, float diag) {
+        for (const EcoKind a : kAllEcoKinds) {
+            for (const EcoKind b : kAllEcoKinds) {
+                INFO("from " << static_cast<int>(a) << " to " << static_cast<int>(b));
+                REQUIRE(eco.getAffinity(a, b) == ((a == b) ? diag : 0.45f));
+            }
+        }
+    };
+
+    SECTION("SyncRate") {
+        auto voice = makeForwarderVoice();
+        voice->setEcosystemSyncRate(0.25f);
+        REQUIRE(voice->ecosystem().getSyncRate() == 0.25f);
+        voice->setEcosystemSyncRate(0.9f);
+        REQUIRE(voice->ecosystem().getSyncRate() == 0.5f);  // clamp
+        voice->setEcosystemSyncRate(qnan);
+        REQUIRE(voice->ecosystem().getSyncRate() == 0.5f);  // rejected
+    }
+
+    SECTION("SelfAffinity") {
+        auto voice = makeForwarderVoice();
+        voice->setEcosystemSelfAffinity(1.5f);
+        requireAffinity(voice->ecosystem(), 1.5f);
+        voice->setEcosystemSelfAffinity(3.0f);
+        requireAffinity(voice->ecosystem(), 2.0f);  // clamp
+        voice->setEcosystemSelfAffinity(qnan);
+        requireAffinity(voice->ecosystem(), 2.0f);  // rejected
     }
 }
 
