@@ -1,0 +1,16 @@
+START 2026-10-06 09:45:34 Lightless VORAGO_PILOT_OVERRIDE=1400=0,1500=0,1300=0
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 1662177118
+[probe] override 1400 = 0.000000 (replaced)
+[probe] override 1500 = 0.000000 (replaced)
+[probe] override 1300 = 0.000000 (appended)
+[probe] lever: none
+[probe] Lightless - primary M1 Darkness (stored seed 13, 1 twin render(s))
+  take: peak 0.1614  arm1 hi -25.61 dB [yes]  arm2 lo -32.69 dB [yes]  arm3 late-sus -2.28 dB [yes]  arm4 tail -175.07 dB [yes]
+  arm1@44.1k: finite y peak 0.1735 hi -25.43 dB [PASS]
+  primary d 2.2638  bar 4.0000  attribBase -1.0000  state ok  -> FAIL  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (12 assertions in 1 test case)
+
+exit=0 END 2026-10-06 09:47:27

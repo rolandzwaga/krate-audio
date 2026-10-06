@@ -1,0 +1,23 @@
+START 2026-10-06 14:05:52 Erosion TAKES=4 OVERRIDE=300=0.9444,1400=0
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 1997599585
+[probe] override 300 = 0.944400 (replaced)
+[probe] override 1400 = 0.000000 (replaced)
+[probe] lever: none
+[probe] Erosion - primary M2 Age (stored seed 14, 1 twin render(s))
+  take: peak 0.2396  arm1 hi -24.32 dB [yes]  arm2 lo -36.43 dB [yes]  arm3 late-sus -0.99 dB [yes]  arm4 tail -192.70 dB [yes]
+  arm1@44.1k: finite y peak 0.2156 hi -26.20 dB [PASS]
+  primary d 3.2190  bar 4.0000  attribBase -1.0000  state ok  -> FAIL  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  take j=0 seed 14: peak 0.2396  arm1 hi -24.32 dB [yes]  arm2 lo -36.43 dB [yes]  arm3 late-sus -0.99 dB [yes]  arm4 tail -192.70 dB [yes]
+  take j=1 seed 15: peak 0.2688  arm1 hi -22.61 dB [yes]  arm2 lo -38.30 dB [yes]  arm3 late-sus +1.36 dB [yes]  arm4 tail -191.20 dB [yes]
+  take j=2 seed 0: peak 0.2347  arm1 hi -23.70 dB [yes]  arm2 lo -33.47 dB [yes]  arm3 late-sus +0.36 dB [yes]  arm4 tail -180.01 dB [yes]
+  take j=3 seed 1: peak 0.2499  arm1 hi -23.59 dB [yes]  arm2 lo -34.44 dB [yes]  arm3 late-sus -1.28 dB [yes]  arm4 tail -172.78 dB [yes]
+  take j=0 d 3.2190
+  take j=1 d 3.0306
+  take j=2 d 3.6955
+  take j=3 d 2.8797
+===============================================================================
+All tests passed (21 assertions in 1 test case)
+
+exit=0 END 2026-10-06 14:11:15

@@ -1,0 +1,20 @@
+START 2026-10-06 14:32:40 Spore Drift SECONDARY=1 OVERRIDE=1500=0,1300=0,200=0.30,500=0.50
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 3357916853
+[probe] override 1500 = 0.000000 (appended)
+[probe] override 1300 = 0.000000 (replaced)
+[probe] override 200 = 0.300000 (replaced)
+[probe] override 500 = 0.500000 (replaced)
+[probe] lever: none
+[probe] Spore Drift - primary D3.3 noise model GranularDust (stored seed 9, 2 twin render(s))
+  take: peak 0.1924  arm1 hi -27.71 dB [yes]  arm2 lo -30.57 dB [yes]  arm3 late-sus -0.70 dB [yes]  arm4 tail -159.23 dB [yes]
+  arm1@44.1k: finite y peak 0.1603 hi -27.67 dB [PASS]
+  conjunct S1 noise organism: d 4.1033, bar 1.5 -> ok
+  primary d 4.1033  bar 4.0000  attribBase -1.0000  state ok  -> PASS  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  secondary D11 ghost reverse >= 0.5: d 0.0000 bar 1.5 state ok conjunct FAIL attribBase -1.0000 skip "state-only kind" -> no
+  secondary D6.2 loop filter Bandpass: d 0.0000 bar 1.5 state ok conjunct FAIL attribBase -1.0000 skip "state-only kind" -> no
+===============================================================================
+All tests passed (15 assertions in 1 test case)
+
+exit=0 END 2026-10-06 14:38:39

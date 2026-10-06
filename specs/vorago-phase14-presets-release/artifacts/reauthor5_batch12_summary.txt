@@ -1,0 +1,8 @@
+=== T048 re-author batch 12 started 2026-10-06 14:23:12 ===
+SD_K takes (Spore Drift) [1500=0,1300=0,200=0.30,500=0.50]:  primary d 4.1033 -> PASS | levels: arms [y y y y] arm1@44.1k [y]| d: 0 d 4.1033 1 d 4.8185 2 d 5.0444 3 d 2.5047  arm1: -27.71 dB [yes] -27.71 dB [yes] -26.45 dB [yes] -26.07 dB [yes] -26.03 dB [yes] 
+SD_K -6 dB:  primary d 4.1042 -> PASS 
+SD_K secondaries: D11 ghost reverse >= 0.5 0.0000 no;D6.2 loop filter Bandpass 0.0000 no;
+FL_I takes (Feeding Loops) [1500=0,1300=0,500=1.0,800=0.5]:  primary d 3.7108 -> FAIL | levels: arms [y n y y] arm1@44.1k [y]| d: 0 d 3.7108 1 d 1.7582 2 d 10.8772 3 d 7.2687  arm1: -58.15 dB [yes] -58.15 dB [yes] -58.96 dB [yes] -64.53 dB [yes] -63.56 dB [yes] 
+FL_I -6 dB:  primary d 3.7108 -> FAIL 
+FL_I secondaries: 
+=== batch 12 finished 2026-10-06 14:57:19 ===

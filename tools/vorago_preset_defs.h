@@ -404,11 +404,11 @@ inline constexpr std::array<std::string_view, 7> kCategories{
             C::S2Resonance,
             {C::D5Keyed},
             {
-                {kResonanceMixId, 0.85},             // 401 (sweep 3: the shaft sat at the limiter once the cavern dropped; probe with mix 0.85 / richness 0.45 / cavern 0.3 / master gain 0.25: S2 4.19, hi -9.2 dB, all arms green)
+                {kResonanceMixId, 1.0},              // 401 full (sweep 5 re-author R_G: S2 7.29 vs 2.69 on the 13c tree)
                 {kResonanceAnchorModeId, 0.5},       // 403 index 1 -> Keyed
                 {kResonanceGravityId, 0.30},         // 400 -> -0.4
                 {kResonanceWanderRateId, 0.258977},  // 402 -> 0.01 Hz
-                {kCloudRichnessId, 0.45},            // 200
+                {kCloudRichnessId, 0.80},            // 200 more partials for the peaks to ring (a thinner cloud read LOWER: R_B 2.04)
                 {kBodyMixId, 0.40},                  // 1003 the body steps back
                 {kNoiseLevelId, 66.0 / 108.0},       // 300 -> -30 dB
                 {kSpaceSizeId, 0.85},                // 1100
@@ -417,11 +417,13 @@ inline constexpr std::array<std::string_view, 7> kCategories{
                 {kSpaceDarknessId, 0.55},            // 1101
                 {kSpaceEarlySizeId, 0.862061},       // 1110 -> 250 ms
                 {kSpaceEarlyLevelId, 0.60},          // 1111
-                {kBloomDepthId, 0.30},               // 1300
+                {kBloomDepthId, 0.0},                // 1300 off (13c child gain masked the peaks)
+                {kBloomSpawnRateId, 0.0},            // 1301
+                {kLifeBreathingDepthId, 0.0},        // 1500 off (13c breath lane)
                 {kGhostPeakLevelId, 0.30},           // 1400
                 {kMacroDepthId, 0.30},               // 110
                 {kSeedId, 3.0 / 15.0},               // 2 index 3 -> "Seed 4"
-                {kMasterGainId, 0.25},              // 0 -> gain 0.5: the peaks are the level, trim the whole shaft
+                {kMasterGainId, 0.20},               // 0 -> gain 0.4: take 1 read arm 1 hi -5.92 dB at 0.25 (R_D); all four takes green at 0.20 (R_G)
             }},
         // ---- 7 row 3: S3 + D8.1, D10.2 (T044) ----------------------------------
         // Smear at full with high decoherence (the default 0.2 / 0.2 measured S3
@@ -665,16 +667,17 @@ inline constexpr std::array<std::string_view, 7> kCategories{
             {C::D12TriggersOff},
             {
                 {kMacroDarknessId, 1.0},        // 100 (displaced 1.0 >= 0.5)
-                {kCloudTiltId, 14.0 / 24.0},    // 201 -> +2 dB, a bright base
-                {kCloudRichnessId, 0.90},       // 200
-                {kCloudStereoSpreadId, 0.65},   // 205
-                {kSpaceDarknessId, 0.40},       // 1101 a pale cavern
+                {kCloudTiltId, 1.0},            // 201 -> +8 dB, the brightest base (sweep 5 re-author: L_D 4.49 vs 1.78 on the 13c tree)
+                {kCloudRichnessId, 1.0},        // 200
+                {kCloudStereoSpreadId, 0.85},   // 205
+                {kSpaceDarknessId, 0.0},        // 1101 the palest cavern, Darkness darkens from here
                 {kSpaceDecayId, 0.625744},      // 1102 -> 10 s
                 {kSmearAmountId, 0.55},         // 700
-                {kSmearTiltId, 0.80},           // 702 -> +0.6
+                {kSmearTiltId, 1.0},            // 702 -> +1.0, Darkness tilts from here
                 {kResonanceMixId, 0.30},        // 401
-                {kGhostPeakLevelId, 0.30},      // 1400
-                {kLifeBreathingDepthId, 0.15},  // 1500
+                {kGhostPeakLevelId, 0.0},       // 1400 no ghost: under the 21 dB make-up it masked the darkening (13c)
+                {kLifeBreathingDepthId, 0.0},   // 1500 no breathing: the gain-3 lane masked it (13c)
+                {kBloomDepthId, 0.0},           // 1300 no bloom: the child gain 1.5 masked it (13c)
                 {kSeedId, 13.0 / 15.0},         // 2 index 13 -> "Seed 14"
             }},
         // ---- 7 row 12: M2 + D3.3, D4.4-D4.6 (T045) -----------------------------
@@ -691,7 +694,7 @@ inline constexpr std::array<std::string_view, 7> kCategories{
             {C::D3GranularDust, C::D4Type4, C::D4Type5, C::D4Type6},
             {
                 {kMacroAgeId, 1.0},               // 101 (displaced 1.0 >= 0.5)
-                {kNoiseLevelId, 90.0 / 108.0},    // 300 -> -6 dB
+                {kNoiseLevelId, 102.0 / 108.0},  // 300 -> +6 dB (sweep 5 re-author ER_S1_B: the S1 copy 1.44 -> D3.3 5.67, D4.4-D4.6 re-verify; M2 Age stays surfaced at 3.2)
                 {kNoiseSlot0ModelId, 0.0},        // 310 index 0 -> Direct
                 {kNoiseSlot0TypeId, 3.0 / 11.0},  // 320 index 3 -> VinylCrackle (D4.4)
                 {kNoiseSlot1ModelId, 0.0},        // 311 index 0 -> Direct
@@ -704,7 +707,7 @@ inline constexpr std::array<std::string_view, 7> kCategories{
                 {kBodyResonanceId, 0.90},         // 1002
                 {kCloudTiltId, 0.5},              // 201 -> 0 dB, Age darkens from here
                 {kSpaceDecayId, 0.855217},        // 1102 -> 30 s, Age shortens from here
-                {kGhostPeakLevelId, 0.20},        // 1400
+                {kGhostPeakLevelId, 0.0},         // 1400 no ghost (13c: the 21 dB make-up masked the noise bed)
                 {kSeedId, 14.0 / 15.0},           // 2 index 14 -> "Seed 15"
             }},
         // ---- 7 row 13: M3 (T045) -----------------------------------------------
@@ -877,7 +880,7 @@ inline constexpr std::array<std::string_view, 7> kCategories{
             {C::D4Type10, C::D4Type11, C::D4Type12, C::D4Type8, C::S1Noise},
             {
                 {kMacroFogId, 1.0},                // 108 (displaced 1.0 >= 0.5)
-                {kNoiseLevelId, 96.0 / 108.0},     // 300 -> 0 dB
+                {kNoiseLevelId, 102.0 / 108.0},   // 300 -> +6 dB (sweep 5 re-author FB_S1_D: the S1 conjunct 1.44 -> 1.57, D4.8 / D4.10-12 re-verify; M9 5.07)
                 {kNoiseSlot0ModelId, 0.0},         // 310 index 0 -> Direct
                 {kNoiseSlot0TypeId, 9.0 / 11.0},   // 320 index 9 -> Velvet (D4.10)
                 {kNoiseSlot1ModelId, 0.0},         // 311 index 0 -> Direct
@@ -887,7 +890,7 @@ inline constexpr std::array<std::string_view, 7> kCategories{
                 {kNoiseSlot3TypeId, 7.0 / 11.0},   // 323 index 7 -> Violet (D4.8)
                 {kNoiseSlot3ModelId, 0.0},         // 313 index 0 -> Direct (sweep 3: Violet moved here from Swarm Breath)
                 {kSmearAmountId, 0.0},             // 700 Fog smears from here
-                {kGhostPeakLevelId, 0.30},         // 1400 Fog raises it from here
+                {kGhostPeakLevelId, 0.0},          // 1400 no ghost at rest (13c: the 21 dB make-up masked the noise bed); Fog raises it from 0
                 {kGhostBlurId, 0.50},              // 1401
                 {kSpaceFogId, 0.0},                // 1103
                 {kLifeTidalDepthId, 0.10},         // 1502
@@ -1026,17 +1029,18 @@ inline constexpr std::array<std::string_view, 7> kCategories{
             {C::D5Free},
             {
                 {kEcosystemDepthId, 1.0},            // 900
-                {kResonanceMixId, 0.90},             // 401
+                {kResonanceMixId, 1.0},              // 401 (sweep 5 re-author SC_L: E2 4.27 attributable vs 3.79 on the 13c tree)
                 {kResonanceAnchorModeId, 0.0},       // 403 index 0 -> Free (D5.1)
                 {kResonanceGravityId, 0.65},         // 400 -> +0.3
-                {kResonanceWanderRateId, 0.147441},  // 402 -> 0.005 Hz
-                {kBloomDepthId, 0.10},               // 1300 quiet
+                {kResonanceWanderRateId, 0.0},       // 402 -> 0.002 Hz, the colony widens the wander from the slowest base
+                {kBloomDepthId, 0.0},                // 1300 off: the child gain 1.5 masked the peaks (13c)
                 {kNoiseLevelId, 54.0 / 108.0},       // 300 -> -42 dB, quiet
                 {kEcologyMixId, 0.03},               // 500 quiet
-                {kGhostPeakLevelId, 0.10},           // 1400 quiet
-                {kCloudRichnessId, 0.60},            // 200
+                {kGhostPeakLevelId, 0.0},            // 1400 off: the 21 dB make-up masked the peaks (13c)
+                {kCloudRichnessId, 0.80},            // 200 more partials for the peaks to ring
                 {kCloudSpectralGravityId, 0.75},     // 206 -> +0.5
-                {kBodyMixId, 0.55},                  // 1003
+                {kBodyMixId, 0.35},                  // 1003 the body back
+                {kMasterGainId, 0.40},               // 0 -> gain 0.8: take 1 sat on the limiter at unity (arm 1 hi -5.16 dB)
                 {kEventsRateScaleId, 0.389076},      // 800 -> 0.6x
                 {kSpaceSizeId, 0.75},                // 1100
                 {kSpaceDecayId, 0.817134},           // 1102 -> 25 s
@@ -1055,8 +1059,8 @@ inline constexpr std::array<std::string_view, 7> kCategories{
             {C::D3MetallicHiss, C::D4Type7, C::D4Type8, C::D4Type9},
             {
                 {kEcosystemDepthId, 1.0},         // 900
-                {kNoiseLevelId, 90.0 / 108.0},    // 300 -> -6 dB
-                {kNoiseWakeId, 0.15},             // 301 a sleeping wake
+                {kNoiseLevelId, 102.0 / 108.0},   // 300 -> +6 dB (sweep 5 re-author SB_J: E3 4.22 attributable vs 1.17 on the 13c tree)
+                {kNoiseWakeId, 0.0},              // 301 asleep: the colony wakes it from zero
                 {kNoiseSlot0ModelId, 0.0},        // 310 index 0 -> Direct
                 {kNoiseSlot0TypeId, 6.0 / 11.0},  // 320 index 6 -> Blue (D4.7)
                 {kNoiseSlot1ModelId, 0.0},        // 311 index 0 -> Direct
@@ -1064,14 +1068,16 @@ inline constexpr std::array<std::string_view, 7> kCategories{
                 {kNoiseSlot2ModelId, 0.0},        // 312 index 0 -> Direct (its default)
                 {kNoiseSlot2TypeId, 8.0 / 11.0},  // 322 index 8 -> Grey (D4.9)
                 {kNoiseSlot3ModelId, 1.0},        // 313 index 3 -> MetallicHiss (D3.4, its default)
-                {kBloomDepthId, 0.10},            // 1300 quiet
+                {kBloomDepthId, 0.0},             // 1300 off (13c child gain)
+                {kLifeBreathingDepthId, 0.0},     // 1500 off (13c breath lane)
                 {kResonanceMixId, 0.10},          // 401 quiet
                 {kEcologyMixId, 0.03},            // 500 quiet
                 {kGhostPeakLevelId, 0.10},        // 1400 quiet
-                {kCloudRichnessId, 0.35},         // 200 a thin tone under the swarm
-                {kEventsRateScaleId, 0.422549},   // 800 -> 0.7x
+                {kCloudRichnessId, 0.10},         // 200 the thinnest tone under the swarm
+                {kEventsRateScaleId, 0.650515},   // 800 -> 2.0x, more wakes
                 {kSpaceBreathId, 0.85},           // 1109
-                {kSpaceDecayId, 0.480958},        // 1102 -> 5 s
+                {kSpaceDecayId, 0.30},            // 1102 -> 2 s
+                {kSpaceMixId, 0.10},              // 1105 nearly dry so the wake, not the room, is heard
                 {kSeedId, 5.0 / 15.0},            // 2 index 5 -> "Seed 6"
             }},
         // ---- 7 row 26: E4 (T046) -------------------------------------------------
@@ -1127,10 +1133,10 @@ inline constexpr std::array<std::string_view, 7> kCategories{
                 {kEcologyMixId, 0.03},               // 500 quiet
                 {kCloudRichnessId, 0.55},            // 200
                 {kCloudStereoSpreadId, 0.25},        // 205
-                {kCloudTiltId, 6.0 / 24.0},          // 201 -> -6 dB
+                {kCloudTiltId, 0.40},              // 201 -> -2.4 dB (was -6): the ghosts read against a less muffled cloud
                 {kEventsRateScaleId, 0.349485},      // 800 -> 0.5x
-                {kSpaceDarknessId, 0.95},            // 1101
-                {kSpaceFogId, 0.65},                 // 1103
+                {kSpaceDarknessId, 0.50},          // 1101 a paler cavern (sweep 5 re-author HC_H: E5 6.41 attributable vs 3.91 on the 13c tree)
+                {kSpaceFogId, 0.30},               // 1103 less fog so the bursts are not smeared away
                 {kSpaceDecayId, 0.551247},           // 1102 -> 7 s
                 {kSeedId, 12.0 / 15.0},              // 2 index 12 -> "Seed 13"
             }},
@@ -1580,14 +1586,15 @@ inline constexpr std::array<std::string_view, 7> kCategories{
                 {kGhostPeakLevelId, 0.90},             // 1400 (S9, the D11 conjunct)
                 {kGhostReverseProbabilityId, 0.60},    // 1402 (D11 >= 0.5)
                 {kEventsRateScaleId, 0.650515},        // 800 -> 2.0x, more ghost requests (the schedulers)
-                {kEcologyMixId, 0.60},                 // 500 (S4, the D6.2 conjunct)
+                {kEcologyMixId, 0.50},                 // 500 (S4, the D6.2 conjunct; sweep 5 re-author 0.60 -> 0.50)
                 {kEcologyLoopGainId, 0.65},            // 501 -> 0.585
                 {kEcologyLoop1FilterModeId, 0.5},      // 511 index 1 -> Bandpass (D6.2)
                 {kEcologyLoop3FilterModeId, 0.5},      // 513 index 1 -> Bandpass
-                {kBloomDepthId, 0.75},                 // 1300
+                {kBloomDepthId, 0.0},                  // 1300 (sweep 5 re-author: the bloom masked the dust, 0.75 -> 0)
                 {kMacroLifeId, 0.35},                  // 109
                 {kCloudMutationId, 0.40},              // 202
-                {kCloudRichnessId, 0.45},              // 200
+                {kCloudRichnessId, 0.30},              // 200 (sweep 5 re-author 0.45 -> 0.30)
+                {kLifeBreathingDepthId, 0.0},          // 1500 (sweep 5 re-author: breathing off; D3.3 1.81 -> 4.10 with these four)
                 {kSpaceDecayId, 0.480959},             // 1102 -> 5 s
                 {kEcosystemDepthId, 0.0},              // 900 (E1-E5 skipped: no colony route to claim)
                 {kSeedId, 9.0 / 15.0},                 // 2 index 9 -> "Seed 10"

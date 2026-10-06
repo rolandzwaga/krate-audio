@@ -1,0 +1,23 @@
+=== T048 re-author batch 2 started 2026-10-06 09:45:55 tree=91a40879 exe=2026-10-06 08:59:48 ===
+ER_M2_A (Erosion) [1400=0]:  primary d 2.7729 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+ER_M2_B (Erosion) [1400=0,1500=0,201=0.75,1002=0.98]:  primary d 2.9985 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+ER_M2_C (Erosion) [1400=0,1500=0,201=0.75,1002=0.98,300=0.8889]:  primary d 3.1369 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+DS_A (Drifting Strata) [1400=0,1500=0]:  primary d 2.2577 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+DS_B (Drifting Strata) [1400=0,1500=0,401=0.90,200=0.70]:  primary d 3.4629 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+DS_C (Drifting Strata) [1400=0,1500=0,1105=0.10,1300=0]:  primary d 2.3835 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+SG_A (Stone Gravity) [1400=0,1500=0]:  primary d 2.4815 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+SG_B (Stone Gravity) [1400=0,1500=0,401=1.0,206=0.90]:  primary d 1.6401 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+SG_C (Stone Gravity) [1400=0,1500=0,401=1.0,206=0.90,1300=0]:  primary d 1.7803 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+T_A (Teeming) [900=0.30,1301=0.10]:  primary d 3.1324 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+T_B (Teeming) [900=0.0,1301=0.0]:  primary d 3.1075 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+T_C (Teeming) [900=0.0,1301=0.0,1500=0,1400=0]:  primary d 3.3571 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+BC_A (Bloom Colony) [1500=0,1300=0.20]:  route arms: d(R_k, R_k0) 1.4854, attribBase d(R_0, R_00) 1.1034 (attributable iff d >= 2.6034)| primary d 1.4854 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+BC_B (Bloom Colony) [1500=0,1300=0.0,1301=0.30]:  route arms: d(R_k, R_k0) 0.6601, attribBase d(R_0, R_00) 0.6601 (attributable iff d >= 2.1601)| primary d 0.6601 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+BC_C (Bloom Colony) [1500=0,1300=0.20,200=0.30,202=0.85]:  route arms: d(R_k, R_k0) 1.1750, attribBase d(R_0, R_00) 0.8467 (attributable iff d >= 2.3467)| primary d 1.1750 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+SB_A (Swarm Breath) [1500=0,1300=0]:  route arms: d(R_k, R_k0) 1.1652, attribBase d(R_0, R_00) 0.6422 (attributable iff d >= 2.1422)| primary d 1.1652 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+SB_B (Swarm Breath) [1500=0,1300=0,300=0.7778,301=0.0]:  route arms: d(R_k, R_k0) 0.8642, attribBase d(R_0, R_00) 0.6422 (attributable iff d >= 2.1422)| primary d 0.8642 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+SB_C (Swarm Breath) [1500=0,1300=0,300=0.8889,301=0.0]:  route arms: d(R_k, R_k0) 1.8554, attribBase d(R_0, R_00) 0.6422 (attributable iff d >= 2.1422)| primary d 1.8554 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+FL_A (Feeding Loops) [1500=0,1300=0]:  route arms: d(R_k, R_k0) 2.9187, attribBase d(R_0, R_00) 0.9851 (attributable iff d >= 2.4851)| primary d 2.9187 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+FL_B (Feeding Loops) [1500=0,1300=0,501=0.50,500=1.0]:  route arms: d(R_k, R_k0) 3.3441, attribBase d(R_0, R_00) 0.9851 (attributable iff d >= 2.4851)| primary d 3.3441 bar 4.0000 -> FAIL lever: none| levels: arms [y n y y] arm1@44.1k [y]|
+FL_C (Feeding Loops) [1500=0,1300=0,1105=0.20]:  route arms: d(R_k, R_k0) 2.9684, attribBase d(R_0, R_00) 0.9502 (attributable iff d >= 2.4502)| primary d 2.9684 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+=== batch 2 finished 2026-10-06 10:45:03 ===

@@ -1,0 +1,8 @@
+=== T048 re-author batch 11 started 2026-10-06 14:00:07 ===
+SD_J (Spore Drift) [1500=0,1300=0,200=0.30,1400=0.80]:  primary d 3.9779 -> FAIL |
+SD_K (Spore Drift) [1500=0,1300=0,200=0.30,500=0.50]:  primary d 4.1033 -> PASS |
+SD_M (Spore Drift) [1500=0,1300=0,200=0.30,300=1.0]:  primary d 2.5864 -> FAIL |
+DS_J (Drifting Strata) [1400=0,1500=0,401=0.90,200=0.70,1104=0.0,1109=1.0,206=0.50]:  primary d 3.9421 -> FAIL |
+DS_K (Drifting Strata) [1400=0,1500=0,401=0.95,200=0.75,1104=0.0,1109=0.90,206=0.50]:  primary d 3.7153 -> FAIL |
+DS_L (Drifting Strata) [1400=0,1500=0,401=0.90,200=0.70,1104=0.0,1109=0.90,206=0.50,1502=1.0]:  primary d 3.9707 -> FAIL |
+=== batch 11 finished 2026-10-06 14:22:38 ===

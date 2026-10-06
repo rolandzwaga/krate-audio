@@ -1,0 +1,18 @@
+=== T048 re-author batch 1 started 2026-10-06 09:45:34 tree=91a40879 (13c final) exe=2026-10-06 08:59:48 ===
+L_A (Lightless) [1400=0,1500=0,1300=0]:  primary d 2.2638 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+L_B (Lightless) [1400=0,1500=0,1300=0,201=0.8333,1101=0.20]:  primary d 3.7599 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+L_C (Lightless) [1400=0,1500=0,1300=0,201=0.8333,1101=0.20,200=1.0,702=1.0,205=0.85]:  primary d 3.9306 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+R_A (Resonant Shaft) [401=1.0,1300=0,1301=0,1500=0]:  primary d 2.8724 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+R_B (Resonant Shaft) [401=1.0,1300=0,1301=0,1500=0,200=0.30,1003=0.20,1105=0.20]:  primary d 2.0375 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+R_C (Resonant Shaft) [401=1.0,1300=0,1301=0,1500=0,200=0.30,1003=0.20,1105=0.20,1400=0]:  primary d 2.3083 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+SC_A (Singing Colony) [401=1.0,1300=0,1400=0,1003=0.35]:  route arms: d(R_k, R_k0) 3.5567, attribBase d(R_0, R_00) 1.7563 (attributable iff d >= 3.2563)| primary d 3.5567 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+SC_B (Singing Colony) [401=1.0,1300=0,1400=0,1003=0.35,200=0.45,300=0.4444]:  route arms: d(R_k, R_k0) 2.3075, attribBase d(R_0, R_00) 2.4738 (attributable iff d >= 3.9738)| primary d 2.3075 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+SC_C (Singing Colony) [401=1.0,1300=0,1400=0,1003=0.35,200=0.45,300=0.4444,800=0.650515]:  route arms: d(R_k, R_k0) 9.6445, attribBase d(R_0, R_00) 8.8837 (attributable iff d >= 10.3837)| primary d 9.6445 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+SD_A (Spore Drift) [1500=0,1300=0]:  primary d 3.9794 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+SD_B (Spore Drift) [1500=0,1300=0,301=1.0]:  primary d 3.8384 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+SD_C (Spore Drift) [1500=0,1300=0,301=1.0,1400=0.6]:  primary d 3.8012 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+HC_A (Haunted Colony) [1500=0,1300=0]:  route arms: d(R_k, R_k0) 3.9096, attribBase d(R_0, R_00) 0.8872 (attributable iff d >= 2.3872)| primary d 3.9096 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+HC_B (Haunted Colony) [1500=0]:  route arms: d(R_k, R_k0) 3.9096, attribBase d(R_0, R_00) 0.8872 (attributable iff d >= 2.3872)| primary d 3.9096 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+FB_A (Fogbound) [300=0.8889]:  primary d 4.4113 bar 4.0000 -> PASS lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+ER_A (Erosion) [300=0.8889]:  primary d 3.0097 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+=== batch 1 finished 2026-10-06 10:28:35 ===

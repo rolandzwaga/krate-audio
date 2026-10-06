@@ -1,0 +1,30 @@
+START 2026-10-06 12:23:30 Swarm Breath TAKES=4 OVERRIDE=1500=0,1300=0,300=0.9444,301=0.0,200=0.10,800=0.650515,1105=0.10,1102=0.3
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 73953078
+[probe] override 1500 = 0.000000 (appended)
+[probe] override 1300 = 0.000000 (replaced)
+[probe] override 300 = 0.944400 (replaced)
+[probe] override 301 = 0.000000 (replaced)
+[probe] override 200 = 0.100000 (replaced)
+[probe] override 800 = 0.650515 (replaced)
+[probe] override 1105 = 0.100000 (appended)
+[probe] override 1102 = 0.300000 (replaced)
+[probe] lever: none
+[probe] Swarm Breath - primary E3 noise -> noise wake (stored seed 5, 4 twin render(s))
+  take: peak 0.5478  arm1 hi -18.08 dB [yes]  arm2 lo -24.31 dB [yes]  arm3 late-sus +0.73 dB [yes]  arm4 tail -120.54 dB [yes]
+  arm1@44.1k: finite y peak 0.4882 hi -18.17 dB [PASS]
+  route arms: d(R_k, R_k0) 4.2218, attribBase d(R_0, R_00) 0.9760 (attributable iff d >= 2.4760)
+  primary d 4.2218  bar 4.0000  attribBase 0.9760  state ok  -> PASS  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  take j=0 seed 5: peak 0.5478  arm1 hi -18.08 dB [yes]  arm2 lo -24.31 dB [yes]  arm3 late-sus +0.73 dB [yes]  arm4 tail -120.54 dB [yes]
+  take j=1 seed 6: peak 0.4986  arm1 hi -18.85 dB [yes]  arm2 lo -24.56 dB [yes]  arm3 late-sus +1.33 dB [yes]  arm4 tail -118.76 dB [yes]
+  take j=2 seed 7: peak 0.4930  arm1 hi -17.62 dB [yes]  arm2 lo -24.16 dB [yes]  arm3 late-sus -2.78 dB [yes]  arm4 tail -135.19 dB [yes]
+  take j=3 seed 8: peak 0.5855  arm1 hi -17.78 dB [yes]  arm2 lo -24.25 dB [yes]  arm3 late-sus -0.14 dB [yes]  arm4 tail -118.85 dB [yes]
+  take j=0 d 4.2218
+  take j=1 d 6.8082
+  take j=2 d 2.5753
+  take j=3 d 6.6876
+===============================================================================
+All tests passed (55 assertions in 1 test case)
+
+exit=0 END 2026-10-06 12:33:11

@@ -1,0 +1,14 @@
+START 2026-10-06 10:21:11 Fogbound VORAGO_PILOT_OVERRIDE=300=0.8889
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 3938953529
+[probe] override 300 = 0.888900 (replaced)
+[probe] lever: none
+[probe] Fogbound - primary M9 Fog (stored seed 9, 1 twin render(s))
+  take: peak 0.2663  arm1 hi -24.67 dB [yes]  arm2 lo -30.49 dB [yes]  arm3 late-sus -0.69 dB [yes]  arm4 tail -157.56 dB [yes]
+  arm1@44.1k: finite y peak 0.2654 hi -22.94 dB [PASS]
+  primary d 4.4113  bar 4.0000  attribBase -1.0000  state ok  -> PASS  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (10 assertions in 1 test case)
+
+exit=0 END 2026-10-06 10:24:50

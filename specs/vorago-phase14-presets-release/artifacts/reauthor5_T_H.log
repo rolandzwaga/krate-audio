@@ -1,0 +1,22 @@
+START 2026-10-06 13:37:01 Teeming VORAGO_PILOT_OVERRIDE=900=0.0,1301=0.0,1500=0,1400=0,1300=1.0,301=0.90,800=0.0,401=0.0,202=0.0
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 2234658457
+[probe] override 900 = 0.000000 (replaced)
+[probe] override 1301 = 0.000000 (replaced)
+[probe] override 1500 = 0.000000 (appended)
+[probe] override 1400 = 0.000000 (replaced)
+[probe] override 1300 = 1.000000 (replaced)
+[probe] override 301 = 0.900000 (replaced)
+[probe] override 800 = 0.000000 (replaced)
+[probe] override 401 = 0.000000 (replaced)
+[probe] override 202 = 0.000000 (replaced)
+[probe] lever: none
+[probe] Teeming - primary M10 Life (stored seed 11, 1 twin render(s))
+  take: peak 0.1537  arm1 hi -25.68 dB [yes]  arm2 lo -28.56 dB [yes]  arm3 late-sus +0.05 dB [yes]  arm4 tail -188.32 dB [yes]
+  arm1@44.1k: finite y peak 0.1597 hi -25.92 dB [PASS]
+  primary d 2.2098  bar 4.0000  attribBase -1.0000  state ok  -> FAIL  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (18 assertions in 1 test case)
+
+exit=0 END 2026-10-06 13:40:31

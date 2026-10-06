@@ -1,0 +1,21 @@
+START 2026-10-06 11:58:36 Swarm Breath VORAGO_PILOT_OVERRIDE=1500=0,1300=0,300=1.0,301=0.0,200=0.10,800=0.650515,1105=0.20
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 2258069201
+[probe] override 1500 = 0.000000 (appended)
+[probe] override 1300 = 0.000000 (replaced)
+[probe] override 300 = 1.000000 (replaced)
+[probe] override 301 = 0.000000 (replaced)
+[probe] override 200 = 0.100000 (replaced)
+[probe] override 800 = 0.650515 (replaced)
+[probe] override 1105 = 0.200000 (appended)
+[probe] lever: none
+[probe] Swarm Breath - primary E3 noise -> noise wake (stored seed 5, 4 twin render(s))
+  take: peak 0.5217  arm1 hi -18.47 dB [yes]  arm2 lo -24.76 dB [yes]  arm3 late-sus +0.73 dB [yes]  arm4 tail -131.66 dB [yes]
+  arm1@44.1k: finite y peak 0.4664 hi -18.55 dB [PASS]
+  route arms: d(R_k, R_k0) 3.9904, attribBase d(R_0, R_00) 0.9647 (attributable iff d >= 2.4647)
+  primary d 3.9904  bar 4.0000  attribBase 0.9647  state ok  -> FAIL  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (23 assertions in 1 test case)
+
+exit=0 END 2026-10-06 12:03:58

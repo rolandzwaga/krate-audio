@@ -1,0 +1,9 @@
+=== T048 re-author confirm 2 started 2026-10-06 11:58:50 ===
+=== confirm 2 finished 2026-10-06 11:58:50 ===
+SC_F takes (Singing Colony) [401=1.0,1300=0,1400=0,1003=0.35,402=0.0,200=0.80]:  primary d 4.2964 -> PASS | levels: arms [y y y y] arm1@44.1k [y]| d: 0 d 4.2964 1 d 4.9463 2 d 7.8400 3 d 4.8614  arm1: -6.50 dB [yes] -6.50 dB [yes] -5.16 dB [NO] -6.48 dB [yes] -6.17 dB [yes] 
+SC_F -6 dB:  primary d 4.2875 -> PASS 
+SC_F secondaries: D5.1 anchor Free 0.0000 VERIFIED;
+SD_E takes (Spore Drift) [1500=0,1300=0,500=0.40,1400=0.60]:  primary d 4.0850 -> PASS | levels: arms [y y y y] arm1@44.1k [y]| d: 0 d 4.0850 1 d 5.0630 2 d 5.0412 3 d 2.5311  arm1: -27.67 dB [yes] -27.67 dB [yes] -26.55 dB [yes] -26.61 dB [yes] -26.56 dB [yes] 
+SD_E -6 dB:  primary d 4.0858 -> PASS 
+SD_E secondaries: D11 ghost reverse >= 0.5 0.0000 no;D6.2 loop filter Bandpass 0.0000 no;
+=== confirm 2 finished 2026-10-06 12:46:23 ===

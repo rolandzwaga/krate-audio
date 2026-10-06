@@ -594,3 +594,85 @@ Feedback Mire now sounds (peak 0.41). Every other preset's four arms green on al
 **Reading.** Every remaining failure is a cell whose feature's audible range sits under F (the 13c list above) or
 a direct consequence of one (the 51 pairs are all among those presets, plus the Gravity extreme's self-growth),
 except the Resonant Shaft seed-4 trim. The phase pauses here; Phase 13c takes the table.
+
+## G2 re-run on the sweep-5 defs (main loop, 2026-10-06 15:00–15:38)
+
+`VORAGO_SWEEP_THREADS=4 vorago_tests.exe "Vorago_PresetPilot_Calibrate"` on the sweep-5 binary (built 14:59, eight sweep
+shards and the preset lane sharing the box — a render case, not a timing case), `artifacts/sweep5_pilot_calibrate.log`:
+
+| preset | K = 1 | K = 2 | K = 4 | K = 8 | log line |
+|---|---|---|---|---|---|
+| P0 default surface | 1.1895 yes | 1.5869 yes | 1.1334 yes | 1.5285 yes | :15 |
+| P1 Tectonic Floor | 1.0118 yes | 1.4569 yes | 0.4789 yes | 0.4080 yes | :16 |
+| P2 Cathedral Void | 1.9119 yes | 0.7445 yes | 0.8057 yes | 0.4413 yes | :17 |
+| P3 Growth Ring | 1.2664 yes | 2.6160 no | 0.5831 yes | 0.3032 yes | :18 |
+| P4 Glass Well | 3.0451 no | 2.3836 no | 3.8071 no | 2.4264 no | :19 |
+
+`ruled K = NONE` (:21); `G2: STOP (no K <= 8 gives 2*t_K <= 4.0 for every P0-P6 (FR-017a))` (:24); wall 2274.3 s (:23).
+Identical to the 13c reading (`specs/vorago-phase13c-capability-audibility/artifacts/default_after_p0.log:15-24`).
+
+**Premise probes before the ruling** (`Vorago_PresetPilot_PrimaryProbe`, `VORAGO_PILOT_TAKES=4`, `gw_premise_summary.txt`):
+
+| Glass Well | primary d (4-take mean) | per-take d (seeds 12–15) | arms |
+|---|---|---|---|
+| stored | 6.2513 PASS (`gw_premise_GW_stored.log:9`) | 6.2513 / 10.2000 / 3.4914 / 5.0450 (:15-18) | all green |
+| tidal 0 (`1502=0`) | 6.2549 PASS | 6.2549 / 10.2016 / 3.4831 / 5.0434 | all green |
+| breathing 0 (`1500=0`) | 5.7456 PASS | 5.7456 / 9.1078 / 3.3099 / 5.3005 | all green |
+| both 0 | 5.7405 PASS | 5.7405 / 9.1068 / 3.3039 / 5.2984 | all green |
+
+The life lanes move the per-take d by ≤ 0.6; the seed-to-seed spread (3.5 → 10.2) is the cloud / glass body itself.
+
+**Ruled (user, 2026-10-06; spec Clarifications "Gate G2 re-run ruling"):** K = 4 stays; the STOP is recorded as a
+surfaced FR-017a exception for Glass Well; no re-author, F and K unchanged. Sweep 5 at K = 4 is the confirming run.
+
+## Sweep 5 (2026-10-06 14:59 → 18:57, the confirming run after the sweep-5 re-author loop) — `artifacts/sweep5_*.log`
+
+**Run.** `tools/vorago_preset_defs.h` re-authored for eight rows from the `VORAGO_PILOT_OVERRIDE` probe loop (tasks T048
+main-loop note 2026-10-06; `reauthor5_*.log`, `reauthor5_batch{1..12}_summary.txt`, `reauthor5_confirm{1..3}_summary.txt`);
+presets regenerated 14:59 (`wrote 42 presets`, 8 files changed); `vorago_tests` + `generate_vorago_presets` built with 0
+warnings (`f:/tmp/p14/build_sweep5.log`); `[preset]~[long]` "All tests passed (18135 assertions in 41 test cases)" and
+`Vorago_FactoryPresets_TreeMatchesGenerator` "All tests passed (246 assertions in 1 test case)"
+(`sweep5_vorago_preset_lane.log`). Eight shards `VORAGO_SWEEP_SHARD=i/8`, `VORAGO_SWEEP_THREADS=1` 14:59:49 → 18:42:43,
+aggregate → 18:57:51 (`sweep5_wall.txt`). The calibration (`sweep5_pilot_calibrate.log`), the preset lane and the Glass
+Well premise probes shared the box for the first 72 min — all render cases, none timing.
+
+**Headline** (`sweep5_aggregate.log:363`): "Required primaries from the measured set: 42; from the recorded constant: 42;
+verified primaries: **36**" (13c final sweep 30, sweep 4 27). Failure set (every shard `FAILED:` message, numbers stripped)
+is a strict subset of the 13c final sweep's: 35 → 16 lines, 19 cleared, none added.
+
+| preset (cell) | sweep 4 (`f:/tmp/p14/sweep-out` records) | 13c final | **sweep 5** | re-author (defs comment "sweep 5 re-author") |
+|---|---|---|---|---|
+| Lightless M1 | 4.6574 | 1.783 | **4.4888** | tilt 1.0, richness 1.0, spread 0.85, cavern darkness 0, smear tilt 1.0, ghost / breathing / bloom 0 |
+| Resonant Shaft S2 | 3.4732 | 2.685 | **7.2936** | mix 1.0, richness 0.80, bloom depth / spawn 0, breathing 0, master 0.20 |
+| Singing Colony E2 | 5.9804 | 3.791 | **4.2721** (attrib 1.28) | mix 1.0, wander 0, bloom / ghost 0, richness 0.80, body 0.35, master 0.40 |
+| Swarm Breath E3 | 0.0536 | 1.165 | **4.2219** (attrib 0.98) | bed +6 dB, wake 0, bloom / breathing 0, richness 0.10, 2× events, decay 0.30, space mix 0.10 |
+| Haunted Colony E5 | 1.5036 | 3.909 | **6.4119** (attrib 0.88) | cavern darkness 0.50, tilt 0.40, fog 0.30 |
+| Fogbound S1 conjunct (M9 host) | 0.0818 (M9 2.1456) | 1.440 | **1.573** (M9 5.0678) | bed +6 dB, ghost 0 — D4.8 / D4.10–12 re-verified |
+| Erosion S1 conjunct / D3.3 | 0.0296 (D3.3 not rendered) | 1.440 | **5.6676** | bed +6 dB, ghost 0 — D4.4–6 re-verified; M2 primary 3.2191 stays under F |
+| Spore Drift D3.3 | not rendered (S1 0.165) | 1.813 | **4.1033** | breathing / bloom 0, richness 0.30, ecology mix 0.50 |
+
+**Still under F — the engine-limited six (13d hand-over, no settings candidate reached 4.0):** E1 Bloom Colony 1.1823
+(2s 2.21, attrib 1.10), E4 Feeding Loops 2.9182 (2× events read 8.48 but silenced the loops on three takes, arms 2–3 red;
+1× 3.71 with arm 2 red on every take), M2 Erosion 3.2191, M4 Drifting Strata 0.8745, M5 Stone Gravity 3.1864, M10 Teeming
+0.9943 (shard messages, `sweep5_shard_*.log`). Cells with no factory verifier (`sweep5_aggregate.log:186-256`): those six
+plus D13.1 / D13.2 / D14.2 / E6.hi / E7.hi (the ruling B-20 secondaries, unchanged).
+
+**Secondaries still red** (10, all in the 13c set): Colony Pulse D13.2 0.1942 / E6.hi 1.3700 / E7.hi 1.3430; Drifting Strata
+D14.2 0.3131; Teeming D13.1 0.8560; Spore Drift D11 / D6.2 and Steam Vent D6.3 / D7.2 (state-only cells whose conjunct is a
+primary under F or a skipped twin, as in sweeps 4 and 13c).
+
+**Level arms.** Choir of Absence take 3 (seed 13) peak 0.966051, hi −5.5755 dB [NO] — ruling B-18 (trim measured and
+declined in 13c). Every other preset's four arms green on all four takes (`CHECK( t.armPass[0] )` appears once across the
+eight shard logs).
+
+**Distinctness and subsets (recorded, not gated — ruling 2026-09-30):** `sweep5_aggregate.log:4065-4066` "Pairs 861: min d
+0.9547 (Wind Through Basalt vs Swarm Breath, floor 5.7290) median d 8.6876 max d 29.6164", "t_max 2.8645 K 4 … pairs below
+floor: 159" (13c 149: Swarm Breath gained 14 below-floor partners once its cavern went to a tenth; Resonant Shaft and Lightless
+lost theirs). `:2612` "SUBSET pairs: 51" (13c 50; new: Smeared Horizon vs Fogbound, Fogbound's unclaimed S3 now 1.584).
+
+**G2.** Recorded above ("G2 re-run on the sweep-5 defs"): K = 4 stays, Glass Well's STOP surfaced; Glass Well's own D1.1 reads
+6.2513 at K = 4 (`record_28`).
+
+**Reading.** Every change the probe loop predicted landed within 0.01 of its probe reading in the sweep (the probe and the
+sweep render the same takes); nothing verified before is unverified now. The six remaining primaries are engine ceilings,
+not preset settings — the 13d hand-over. T048 closes here; T049 (preset CPU, alone, pinned) is next.

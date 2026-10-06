@@ -1,0 +1,34 @@
+=== T048 re-author batch 3 started 2026-10-06 10:30:03 tree=91a40879 exe=2026-10-06 08:59:48 ===
+FB_S1_A (Fogbound) [300=0.9444] secondaries: D4.10 noise type Velvet 0.0000 cj:FAIL no;D4.11 noise type VinylRumble 0.0000 cj:FAIL no;D4.12 noise type RadioStatic 0.0000 cj:FAIL no;D4.8 noise type Violet 0.0000 cj:FAIL no;S1 noise organism 1.4584 cj:ok no; primary:  primary d 4.3100 -> PASS lever: none
+FB_S1_B (Fogbound) [300=0.9444,1105=0.70] secondaries: D4.10 noise type Velvet 0.0000 cj:FAIL no;D4.11 noise type VinylRumble 0.0000 cj:FAIL no;D4.12 noise type RadioStatic 0.0000 cj:FAIL no;D4.8 noise type Violet 0.0000 cj:FAIL no;S1 noise organism 0.7957 cj:ok no; primary:  primary d 3.5612 -> FAIL lever: none
+ER_S1_A (Erosion) [300=0.8889] secondaries: D3.3 noise model GranularDust 3.3759 cj:ok VERIFIED;D4.4 noise type VinylCrackle 0.0000 cj:ok VERIFIED;D4.5 noise type Asperity 0.0000 cj:ok VERIFIED;D4.6 noise type Brown 0.0000 cj:ok VERIFIED; primary:  primary d 3.0097 -> FAIL lever: none
+ER_S1_B (Erosion) [300=0.9444,1400=0] secondaries: D3.3 noise model GranularDust 5.6671 cj:ok VERIFIED;D4.4 noise type VinylCrackle 0.0000 cj:ok VERIFIED;D4.5 noise type Asperity 0.0000 cj:ok VERIFIED;D4.6 noise type Brown 0.0000 cj:ok VERIFIED; primary:  primary d 3.2190 -> FAIL lever: none
+L_D (Lightless) [1400=0,1500=0,1300=0,201=1.0,1101=0.0,200=1.0,702=1.0,205=0.85]:  primary d 4.4888 bar 4.0000 -> PASS lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+L_E (Lightless) [1400=0,1500=0,1300=0,201=1.0,1101=0.0,200=1.0,702=1.0,205=0.85,700=0.80,401=0]:  primary d 5.5696 bar 4.0000 -> PASS lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+R_D (Resonant Shaft) [401=1.0,1300=0,1301=0,1500=0,200=0.80]:  primary d 7.2836 bar 4.0000 -> PASS lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+R_E (Resonant Shaft) [401=1.0,1300=0,1301=0,1500=0,200=0.80,400=0.0]:  primary d 7.2836 bar 4.0000 -> PASS lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+R_F (Resonant Shaft) [401=1.0,1300=0,1301=0,1500=0,200=0.80,0=0.5]:  primary d 7.4733 bar 4.0000 -> PASS lever: none| levels: arms [n y y y] arm1@44.1k [y]|
+SC_D (Singing Colony) [401=1.0,1300=0,1400=0,1003=0.35,800=0.5]:  route arms: d(R_k, R_k0) 4.6229, attribBase d(R_0, R_00) 3.6474 (attributable iff d >= 5.1474)| primary d 4.6229 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+SC_E (Singing Colony) [401=1.0,1300=0,1400=0,1003=0.35,400=0.90]:  route arms: d(R_k, R_k0) 3.5567, attribBase d(R_0, R_00) 1.7563 (attributable iff d >= 3.2563)| primary d 3.5567 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+SC_F (Singing Colony) [401=1.0,1300=0,1400=0,1003=0.35,402=0.0,200=0.80]:  route arms: d(R_k, R_k0) 4.2964, attribBase d(R_0, R_00) 1.2823 (attributable iff d >= 2.7823)| primary d 4.2964 bar 4.0000 -> PASS lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+SD_D (Spore Drift) [1500=0,1300=0,200=0.30]:  primary d 3.9892 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+SD_E (Spore Drift) [1500=0,1300=0,500=0.40,1400=0.60]:  primary d 4.0850 bar 4.0000 -> PASS lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+SD_F (Spore Drift) [1500=0,1300=0,300=0.9444]:  primary d 3.2090 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+HC_C (Haunted Colony) [1401=0.10]:  route arms: d(R_k, R_k0) 2.5351, attribBase d(R_0, R_00) 0.8873 (attributable iff d >= 2.3873)| primary d 2.5351 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+HC_D (Haunted Colony) [800=0.5]:  route arms: d(R_k, R_k0) 2.8077, attribBase d(R_0, R_00) 0.8873 (attributable iff d >= 2.3873)| primary d 2.8077 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+HC_E (Haunted Colony) [1101=0.50,201=0.40]:  route arms: d(R_k, R_k0) 3.9408, attribBase d(R_0, R_00) 0.9495 (attributable iff d >= 2.4495)| primary d 3.9408 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+HC_F (Haunted Colony) [200=0.40,1401=0.10,800=0.5]:  route arms: d(R_k, R_k0) 2.0887, attribBase d(R_0, R_00) 0.6824 (attributable iff d >= 2.1824)| primary d 2.0887 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+ER_M2_D (Erosion) [1400=0,1500=0,201=0.75,1002=0.98,300=0.8889,1003=1.0,1105=0.60]:  primary d 2.5545 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+ER_M2_E (Erosion) [1400=0,1500=0,201=0.75,1002=0.98,300=0.8889,1003=1.0,1105=0.60,1102=1.0]:  primary d 1.1596 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+DS_D (Drifting Strata) [1400=0,1500=0,401=0.90,200=0.70,1104=0.0,1109=0.90]:  primary d 3.6498 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+DS_E (Drifting Strata) [1400=0,1500=0,401=1.0,200=0.90]:  primary d 3.1194 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+DS_F (Drifting Strata) [1400=0,1500=0,401=0.90,200=0.70,1105=0.50]:  primary d 2.7267 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+SG_D (Stone Gravity) [1500=0.80]:  primary d 2.1184 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+SG_E (Stone Gravity) [1500=0.80,401=1.0]:  primary d 2.0038 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+SG_F (Stone Gravity) [206=0.95]:  primary d 1.2155 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+T_D (Teeming) [900=0.0,1301=0.0,1500=0,1400=0,800=0.0]:  primary d 3.3361 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+T_E (Teeming) [900=0.0,1301=0.0,1500=0,1400=0,1300=1.0,301=0.90]:  primary d 3.4204 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+T_F (Teeming) [900=0.0,1301=0.0,1500=0,1400=0,500=0.50,800=0.0]:  primary d 3.2227 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+BC_D (Bloom Colony) [1500=0,1300=0.20,1301=1.0]:  route arms: d(R_k, R_k0) 1.0800, attribBase d(R_0, R_00) 0.8279 (attributable iff d >= 2.3279)| primary d 1.0800 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+BC_E (Bloom Colony) [1500=0,1300=0.20,800=0.650515]:  route arms: d(R_k, R_k0) 3.1271, attribBase d(R_0, R_00) 2.3382 (attributable iff d >= 3.8382)| primary d 3.1271 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+=== batch 3 finished 2026-10-06 13:05:34 ===

@@ -1721,3 +1721,17 @@ All eighteen issues were applied; none was rejected. Where an issue offered alte
   remains how D1 *primaries* are scored.
 - **E-ext halfway margin (major).** Carried both ways: as FR-075's side predicate and as OQ-9
   sub-question (d), so the G1 ratification rules it explicitly.
+
+### Gate G2 re-run ruling (2026-10-06, before sweep 5)
+
+`Vorago_PresetPilot_Calibrate` re-run on the sweep-5 defs (T048 hand-over item, `artifacts/sweep5_pilot_calibrate.log`)
+reads `ruled K = NONE` / `G2: STOP` — byte-identical to the 13c reading, since Glass Well's def is unchanged:
+Glass Well (P4) t_K 3.0451 / 2.3836 / 3.8071 / 2.4264 at K = 1 / 2 / 4 / 8 against `2 · t_K ≤ 4.0`; P0–P3 pass at K = 4 (P3 Growth Ring fails
+only K = 2). Before 13c the same preset read 1.9786 / 2.7190 / 1.4267 / 1.0502 (run 3, K = 4 ruled). Measured before
+ruling (`artifacts/gw_premise_*.log`, summary `gw_premise_summary.txt`): the spread is not the life lanes — tidal 0
+reads per-take d 6.2549 / 10.2016 / 3.4831 / 5.0434, breathing 0 5.7456 / 9.1078 / 3.3099 / 5.3005, both 5.7405 / 9.1068 /
+3.3039 / 5.2984, against stored 6.2513 / 10.2000 / 3.4914 / 5.0450 — and the D1 Glass primary passes on every seed (worst
+take 3.49 ≥ 4.0 only as the 4-take mean 6.25; all four arms green on all takes). The spread sits in the seeded cloud / glass
+body itself, which 13c's engine changes widened. Ruled (user, 2026-10-06): **K = 4 stays the sweep contract; the STOP is
+recorded as a surfaced FR-017a exception for Glass Well, not cleared by re-authoring; F and K are not moved.** Sweep 5 at
+K = 4 stands as the confirming run. Glass Well's own verdicts in the sweep are read at K = 4 like every other preset.

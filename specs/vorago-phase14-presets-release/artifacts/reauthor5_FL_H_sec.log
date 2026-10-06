@@ -1,0 +1,19 @@
+START 2026-10-06 14:20:37 Feeding Loops SECONDARY=1 OVERRIDE=1500=0,1300=0,500=1.0,501=0.55,800=0.650515
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 871865754
+[probe] override 1500 = 0.000000 (appended)
+[probe] override 1300 = 0.000000 (replaced)
+[probe] override 500 = 1.000000 (replaced)
+[probe] override 501 = 0.550000 (replaced)
+[probe] override 800 = 0.650515 (replaced)
+[probe] lever: none
+[probe] Feeding Loops - primary E4 feedback -> loop wake (stored seed 8, 4 twin render(s))
+  take: peak 0.2039  arm1 hi -25.40 dB [yes]  arm2 lo -81.04 dB [NO]  arm3 late-sus +40.80 dB [NO]  arm4 tail -198.48 dB [yes]
+  arm1@44.1k: finite y peak 0.0052 hi -58.45 dB [PASS]
+  route arms: d(R_k, R_k0) 8.4792, attribBase d(R_0, R_00) 5.2032 (attributable iff d >= 6.7032)
+  primary d 8.4792  bar 4.0000  attribBase 5.2032  state ok  -> PASS  lever: none
+  levels: arms [y n n y] arm1@44.1k [y]
+===============================================================================
+All tests passed (21 assertions in 1 test case)
+
+exit=0 END 2026-10-06 14:32:38

@@ -1,0 +1,17 @@
+START 2026-10-06 10:18:08 Bloom Colony VORAGO_PILOT_OVERRIDE=1500=0,1300=0.0,1301=0.30
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 703864286
+[probe] override 1500 = 0.000000 (replaced)
+[probe] override 1300 = 0.000000 (replaced)
+[probe] override 1301 = 0.300000 (replaced)
+[probe] lever: none
+[probe] Bloom Colony - primary E1 partial -> bloom (stored seed 0, 4 twin render(s))
+  take: peak 0.3181  arm1 hi -20.44 dB [yes]  arm2 lo -23.97 dB [yes]  arm3 late-sus +0.07 dB [yes]  arm4 tail -218.99 dB [yes]
+  arm1@44.1k: finite y peak 0.3311 hi -20.11 dB [PASS]
+  route arms: d(R_k, R_k0) 0.6601, attribBase d(R_0, R_00) 0.6601 (attributable iff d >= 2.1601)
+  primary d 0.6601  bar 4.0000  attribBase 0.6601  state ok  -> FAIL  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (19 assertions in 1 test case)
+
+exit=0 END 2026-10-06 10:22:13

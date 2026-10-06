@@ -1,0 +1,19 @@
+START 2026-10-06 11:28:43 Resonant Shaft VORAGO_PILOT_OVERRIDE=401=1.0,1300=0,1301=0,1500=0,200=0.80,0=0.5
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 3984515891
+[probe] override 401 = 1.000000 (replaced)
+[probe] override 1300 = 0.000000 (replaced)
+[probe] override 1301 = 0.000000 (appended)
+[probe] override 1500 = 0.000000 (appended)
+[probe] override 200 = 0.800000 (replaced)
+[probe] override 0 = 0.500000 (replaced)
+[probe] lever: none
+[probe] Resonant Shaft - primary S2 resonance drift (stored seed 3, 1 twin render(s))
+  take: peak 0.9661  arm1 hi -5.86 dB [NO]  arm2 lo -18.01 dB [yes]  arm3 late-sus +6.14 dB [yes]  arm4 tail -199.47 dB [yes]
+  arm1@44.1k: finite y peak 0.9661 hi -7.43 dB [PASS]
+  primary d 7.4733  bar 4.0000  attribBase -1.0000  state ok  -> PASS  lever: none
+  levels: arms [n y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (15 assertions in 1 test case)
+
+exit=0 END 2026-10-06 11:31:51

@@ -1,0 +1,18 @@
+START 2026-10-06 13:43:24 Spore Drift VORAGO_PILOT_OVERRIDE=1500=0,1300=0,200=0.30,301=0.90
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 2813465600
+[probe] override 1500 = 0.000000 (appended)
+[probe] override 1300 = 0.000000 (replaced)
+[probe] override 200 = 0.300000 (replaced)
+[probe] override 301 = 0.900000 (replaced)
+[probe] lever: none
+[probe] Spore Drift - primary D3.3 noise model GranularDust (stored seed 9, 2 twin render(s))
+  take: peak 0.1926  arm1 hi -27.58 dB [yes]  arm2 lo -31.01 dB [yes]  arm3 late-sus -0.80 dB [yes]  arm4 tail -159.59 dB [yes]
+  arm1@44.1k: finite y peak 0.1605 hi -27.96 dB [PASS]
+  conjunct S1 noise organism: d 3.8753, bar 1.5 -> ok
+  primary d 3.8753  bar 4.0000  attribBase -1.0000  state ok  -> FAIL  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (15 assertions in 1 test case)
+
+exit=0 END 2026-10-06 13:47:53

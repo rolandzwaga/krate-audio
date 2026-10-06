@@ -1,0 +1,70 @@
+== Erosion (record_11.txt)
+    S1 noise organism                    s5: d 5.668 rend 1 skip[] attrib -1.00  ->  13c: d 1.440 rend 1 skip[] attrib -1.00
+    S5 subharmonic                       s5: d 1.568 rend 1 skip[] attrib -1.00  ->  13c: d 1.050 rend 1 skip[] attrib -1.00
+    S9 ghost / atmosphere                s5: d 0.000 rend 0 skip[override equals stored] attrib -1.00  ->  13c: d 0.761 rend 1 skip[] attrib -1.00
+    E3 noise -> noise wake               s5: d 2.711 rend 1 skip[] attrib 6.59  ->  13c: d 5.492 rend 1 skip[] attrib 6.59
+    D3.1 noise model Direct              s5: d 5.668 rend 1 skip[] attrib -1.00  ->  13c: d 1.440 rend 1 skip[] attrib -1.00
+    D3.2 noise model FilteredWind        s5: d 5.668 rend 1 skip[] attrib -1.00  ->  13c: d 1.440 rend 1 skip[] attrib -1.00
+    D3.3 noise model GranularDust        s5: d 5.668 rend 1 skip[] attrib -1.00  ->  13c: d 1.440 rend 1 skip[] attrib -1.00
+    D3.4 noise model MetallicHiss        s5: d 5.668 rend 1 skip[] attrib -1.00  ->  13c: d 1.440 rend 1 skip[] attrib -1.00
+== Fogbound (record_18.txt)
+    S1 noise organism                    s5: d 1.573 rend 1 skip[] attrib -1.00  ->  13c: d 1.440 rend 1 skip[] attrib -1.00
+    S3 spectral smear                    s5: d 1.584 rend 1 skip[] attrib -1.00  ->  13c: d 0.979 rend 1 skip[] attrib -1.00
+    S9 ghost / atmosphere                s5: d 0.000 rend 0 skip[override equals stored] attrib -1.00  ->  13c: d 0.397 rend 1 skip[] attrib -1.00
+    E5 ghost -> ghost bursts             s5: d 0.852 rend 1 skip[] attrib 0.85  ->  13c: d 2.013 rend 1 skip[] attrib 0.85
+    D3.1 noise model Direct              s5: d 1.573 rend 1 skip[] attrib -1.00  ->  13c: d 1.440 rend 1 skip[] attrib -1.00
+    D3.2 noise model FilteredWind        s5: d 1.573 rend 1 skip[] attrib -1.00  ->  13c: d 1.440 rend 1 skip[] attrib -1.00
+    D3.3 noise model GranularDust        s5: d 1.573 rend 1 skip[] attrib -1.00  ->  13c: d 1.440 rend 1 skip[] attrib -1.00
+    D3.4 noise model MetallicHiss        s5: d 1.573 rend 1 skip[] attrib -1.00  ->  13c: d 1.440 rend 1 skip[] attrib -1.00
+== Haunted Colony (record_26.txt)
+    S2 resonance drift                   s5: d 1.438 rend 1 skip[] attrib -1.00  ->  13c: d 1.883 rend 1 skip[] attrib -1.00
+    E5 ghost -> ghost bursts             s5: d 6.412 rend 1 skip[] attrib 0.88  ->  13c: d 3.909 rend 1 skip[] attrib 0.89
+== Lightless (record_10.txt)
+    S1 noise organism                    s5: d 9.796 rend 1 skip[] attrib -1.00  ->  13c: d 1.099 rend 1 skip[] attrib -1.00
+    S6 harmonic bloom                    s5: d 0.000 rend 0 skip[override equals stored] attrib -1.00  ->  13c: d 0.757 rend 1 skip[] attrib -1.00
+    S9 ghost / atmosphere                s5: d 0.000 rend 0 skip[override equals stored] attrib -1.00  ->  13c: d 3.367 rend 1 skip[] attrib -1.00
+    M1 Darkness                          s5: d 4.489 rend 1 skip[] attrib -1.00  ->  13c: d 1.783 rend 1 skip[] attrib -1.00
+    E1 partial -> bloom                  s5: d 0.344 rend 1 skip[] attrib 0.34  ->  13c: d 1.668 rend 1 skip[] attrib 2.65
+    E2 resonator -> resonance peaks      s5: d 3.712 rend 1 skip[] attrib 0.34  ->  13c: d 5.532 rend 1 skip[] attrib 2.65
+    E3 noise -> noise wake               s5: d 6.737 rend 1 skip[] attrib 0.34  ->  13c: d 2.524 rend 1 skip[] attrib 2.65
+    E4 feedback -> loop wake             s5: d 0.350 rend 1 skip[] attrib 0.34  ->  13c: d 2.655 rend 1 skip[] attrib 2.65
+    E5 ghost -> ghost bursts             s5: d 0.344 rend 1 skip[] attrib 0.34  ->  13c: d 3.277 rend 1 skip[] attrib 2.65
+    D3.1 noise model Direct              s5: d 9.796 rend 1 skip[] attrib -1.00  ->  13c: d 1.099 rend 1 skip[] attrib -1.00
+    D3.2 noise model FilteredWind        s5: d 9.796 rend 1 skip[] attrib -1.00  ->  13c: d 1.099 rend 1 skip[] attrib -1.00
+    D3.3 noise model GranularDust        s5: d 9.796 rend 1 skip[] attrib -1.00  ->  13c: d 1.099 rend 1 skip[] attrib -1.00
+    D3.4 noise model MetallicHiss        s5: d 9.796 rend 1 skip[] attrib -1.00  ->  13c: d 1.099 rend 1 skip[] attrib -1.00
+== Resonant Shaft (record_1.txt)
+    S2 resonance drift                   s5: d 7.294 rend 1 skip[] attrib -1.00  ->  13c: d 2.685 rend 1 skip[] attrib -1.00
+    S6 harmonic bloom                    s5: d 0.000 rend 0 skip[override equals stored] attrib -1.00  ->  13c: d 1.032 rend 1 skip[] attrib -1.00
+    S7 ecosystem                         s5: d 4.148 rend 1 skip[] attrib -1.00  ->  13c: d 3.677 rend 1 skip[] attrib -1.00
+    S8 cavern space                      s5: d 3.430 rend 1 skip[] attrib -1.00  ->  13c: d 4.894 rend 1 skip[] attrib -1.00
+    E1 partial -> bloom                  s5: d 6.096 rend 1 skip[] attrib 6.10  ->  13c: d 3.434 rend 1 skip[] attrib 5.59
+    E2 resonator -> resonance peaks      s5: d 3.790 rend 1 skip[] attrib 6.10  ->  13c: d 4.321 rend 1 skip[] attrib 5.59
+== Singing Colony (record_23.txt)
+    S6 harmonic bloom                    s5: d 0.000 rend 0 skip[override equals stored] attrib -1.00  ->  13c: d 0.122 rend 1 skip[] attrib -1.00
+    S7 ecosystem                         s5: d 4.265 rend 1 skip[] attrib -1.00  ->  13c: d 3.747 rend 1 skip[] attrib -1.00
+    S9 ghost / atmosphere                s5: d 0.000 rend 0 skip[override equals stored] attrib -1.00  ->  13c: d 0.136 rend 1 skip[] attrib -1.00
+    E1 partial -> bloom                  s5: d 1.282 rend 1 skip[] attrib 1.28  ->  13c: d 1.782 rend 1 skip[] attrib 1.62
+    E2 resonator -> resonance peaks      s5: d 4.272 rend 1 skip[] attrib 1.28  ->  13c: d 3.791 rend 1 skip[] attrib 1.62
+    E3 noise -> noise wake               s5: d 1.279 rend 1 skip[] attrib 1.28  ->  13c: d 1.613 rend 1 skip[] attrib 1.62
+    E4 feedback -> loop wake             s5: d 1.281 rend 1 skip[] attrib 1.28  ->  13c: d 1.618 rend 1 skip[] attrib 1.62
+== Spore Drift (record_40.txt)
+    S1 noise organism                    s5: d 4.103 rend 1 skip[] attrib -1.00  ->  13c: d 1.813 rend 1 skip[] attrib -1.00
+    S6 harmonic bloom                    s5: d 0.000 rend 0 skip[override equals stored] attrib -1.00  ->  13c: d 0.712 rend 1 skip[] attrib -1.00
+    D3.1 noise model Direct              s5: d 4.103 rend 1 skip[] attrib -1.00  ->  13c: d 1.813 rend 1 skip[] attrib -1.00
+    D3.2 noise model FilteredWind        s5: d 4.103 rend 1 skip[] attrib -1.00  ->  13c: d 1.813 rend 1 skip[] attrib -1.00
+    D3.3 noise model GranularDust        s5: d 4.103 rend 1 skip[] attrib -1.00  ->  13c: d 1.813 rend 1 skip[] attrib -1.00
+    D3.4 noise model MetallicHiss        s5: d 4.103 rend 1 skip[] attrib -1.00  ->  13c: d 1.813 rend 1 skip[] attrib -1.00
+== Swarm Breath (record_24.txt)
+    S1 noise organism                    s5: d 2.439 rend 1 skip[] attrib -1.00  ->  13c: d 0.467 rend 1 skip[] attrib -1.00
+    S2 resonance drift                   s5: d 3.116 rend 1 skip[] attrib -1.00  ->  13c: d 0.476 rend 1 skip[] attrib -1.00
+    S6 harmonic bloom                    s5: d 0.000 rend 0 skip[override equals stored] attrib -1.00  ->  13c: d 0.098 rend 1 skip[] attrib -1.00
+    S7 ecosystem                         s5: d 5.258 rend 1 skip[] attrib -1.00  ->  13c: d 1.779 rend 1 skip[] attrib -1.00
+    S8 cavern space                      s5: d 0.599 rend 1 skip[] attrib -1.00  ->  13c: d 13.740 rend 1 skip[] attrib -1.00
+    E2 resonator -> resonance peaks      s5: d 2.145 rend 1 skip[] attrib 0.98  ->  13c: d 0.887 rend 1 skip[] attrib 0.64
+    E3 noise -> noise wake               s5: d 4.222 rend 1 skip[] attrib 0.98  ->  13c: d 1.165 rend 1 skip[] attrib 0.64
+    E5 ghost -> ghost bursts             s5: d 2.157 rend 1 skip[] attrib 0.98  ->  13c: d 1.208 rend 1 skip[] attrib 0.64
+    D3.1 noise model Direct              s5: d 2.439 rend 1 skip[] attrib -1.00  ->  13c: d 0.467 rend 1 skip[] attrib -1.00
+    D3.2 noise model FilteredWind        s5: d 2.439 rend 1 skip[] attrib -1.00  ->  13c: d 0.467 rend 1 skip[] attrib -1.00
+    D3.3 noise model GranularDust        s5: d 2.439 rend 1 skip[] attrib -1.00  ->  13c: d 0.467 rend 1 skip[] attrib -1.00
+    D3.4 noise model MetallicHiss        s5: d 2.439 rend 1 skip[] attrib -1.00  ->  13c: d 0.467 rend 1 skip[] attrib -1.00
