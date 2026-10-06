@@ -367,7 +367,9 @@ inline constexpr std::array<std::string_view, 7> kCategories{
         VoragoPresetDef{
             "Wind Through Basalt",
             "Textures",
-            "Raw wind and hiss pouring through cracks in black stone over a thin, dark tone.",
+            "Raw wind and hiss pouring through cracks in black stone over a thin, dark tone. "
+            "Hold the note: the sound surfaces after a few seconds and keeps "
+            "swelling for about two and a half minutes.",
             C::S1Noise,
             {C::D3Direct, C::D4Type1, C::D4Type2, C::D4Type3, C::D4Type7},
             {
@@ -400,7 +402,9 @@ inline constexpr std::array<std::string_view, 7> kCategories{
         VoragoPresetDef{
             "Resonant Shaft",
             "Caverns",
-            "A deep vertical shaft whose walls sing back the played notes in slow, drifting peaks.",
+            "A deep vertical shaft whose walls sing back the played notes in slow, drifting peaks. "
+            "Hold the note: the sound surfaces after a few seconds and keeps "
+            "swelling for about two and a half minutes.",
             C::S2Resonance,
             {C::D5Keyed},
             {
@@ -432,7 +436,9 @@ inline constexpr std::array<std::string_view, 7> kCategories{
         VoragoPresetDef{
             "Smeared Horizon",
             "Textures",
-            "A drone dissolved into a wide, blurred haze where every partial bleeds into the next.",
+            "A drone dissolved into a wide, blurred haze where every partial bleeds into the next. "
+            "Hold the note: the sound surfaces after a few seconds and keeps "
+            "swelling for about two and a half minutes.",
             C::S3Smear,
             {C::D8Standard, C::D10FreezeOff},
             {
@@ -460,7 +466,9 @@ inline constexpr std::array<std::string_view, 7> kCategories{
         VoragoPresetDef{
             "Feedback Mire",
             "Machines",
-            "Choked feedback loops churning in a sump of rust, each filtered to its own grinding band.",
+            "Choked feedback loops churning in a sump of rust, each filtered to its own grinding band. "
+            "Hold the note: the sound surfaces after a few seconds and keeps "
+            "swelling for about two and a half minutes.",
             C::S4Ecology,
             {C::D6Lowpass, C::D6Bandpass, C::D6Highpass},
             {
@@ -492,7 +500,9 @@ inline constexpr std::array<std::string_view, 7> kCategories{
         VoragoPresetDef{
             "Tectonic Floor",
             "Abyss",
-            "A fifth below the floor: slow plates of sub grind under a dark, close cloud.",
+            "A fifth below the floor: slow plates of sub grind under a dark, close cloud. "
+            "Hold the note: the sound surfaces after a few seconds and keeps "
+            "swelling for about two and a half minutes.",
             C::S5Sub,
             {C::D7FifthBelow},
             {
@@ -521,7 +531,9 @@ inline constexpr std::array<std::string_view, 7> kCategories{
         VoragoPresetDef{
             "Slow Bloom",  // sweep 1: S6 twin d = 0 - at 0.01 Hz no bloom fell inside the window; spawn raised
             "Drones",
-            "A sparse drone that takes two minutes to open, budding new partials as it breathes.",
+            "A sparse drone that takes two minutes to open, budding new partials as it breathes. "
+            "Hold the note: it takes two minutes to open and keeps moving for "
+            "as long as the key is down.",
             C::S6Bloom,
             {C::D14Breathing, C::D9SlowAttack},
             {
@@ -549,7 +561,9 @@ inline constexpr std::array<std::string_view, 7> kCategories{
         VoragoPresetDef{
             "Colony Pulse",
             "Organisms",
-            "A restless colony of small voices, quickening and feeding on each other in the dark.",
+            "A restless colony of small voices, quickening and feeding on each other in the dark. "
+            "Hold the note: the sound surfaces after a few seconds and keeps "
+            "swelling for about two and a half minutes.",
             C::S7Ecosystem,
             {C::D13FastEvents, C::E6SyncRateHi, C::E7SelfAffinityHi},  // sweep 2: the knobs at 1.0 are what lets the colony through
             {
@@ -577,7 +591,9 @@ inline constexpr std::array<std::string_view, 7> kCategories{
             "Cathedral Void",
             "Caverns",
             "A vast, slow nave around a wide cloud. Engage Freeze once the drone has bloomed "
-            "to hold the space.",
+            "to hold the space. "
+            "Hold the note: the sound surfaces after a few seconds and keeps "
+            "swelling for about two and a half minutes.",
             C::S8Cavern,
             {C::D10FreezeHolds},
             {
@@ -607,7 +623,9 @@ inline constexpr std::array<std::string_view, 7> kCategories{
         VoragoPresetDef{
             "Choir of Absence",
             "Ghosts",
-            "Voices that are not there: reversed fragments of the drone surfacing and sinking away.",
+            "Voices that are not there: reversed fragments of the drone surfacing and sinking away. "
+            "Hold the note: the sound surfaces after a few seconds and keeps "
+            "swelling for about two and a half minutes.",
             C::S9Ghost,
             {C::D11GhostReverse, C::D12TriggersOn},
             {
@@ -635,7 +653,9 @@ inline constexpr std::array<std::string_view, 7> kCategories{
         VoragoPresetDef{
             "Hull Resonance",
             "Machines",
-            "The inside of a vast steel and stone hull, every plate ringing under the drone.",
+            "The inside of a vast steel and stone hull, every plate ringing under the drone. "
+            "Hold the note: the sound surfaces after a few seconds and keeps "
+            "swelling for about two and a half minutes.",
             C::S10Body,
             {C::D2BlendBoth, C::D1StoneChamber, C::D1SteelTank},
             {
@@ -662,7 +682,9 @@ inline constexpr std::array<std::string_view, 7> kCategories{
         VoragoPresetDef{
             "Lightless",
             "Abyss",
-            "A bright cloud pressed down into lightless black, every overtone smothered as it sinks.",
+            "A bright cloud pressed down into lightless black, every overtone smothered as it sinks. "
+            "Hold the note: the sound surfaces after a few seconds and keeps "
+            "swelling for about two and a half minutes.",
             C::M1Darkness,
             {C::D12TriggersOff},
             {
@@ -689,7 +711,9 @@ inline constexpr std::array<std::string_view, 7> kCategories{
             "Erosion",
             "Textures",
             "Weathered stone crumbling to dust: crackle and grit wearing a ringing drone down "
-            "to a dull husk.",
+            "to a dull husk. "
+            "Hold the note: the sound surfaces after a few seconds and keeps "
+            "swelling for about two and a half minutes.",
             C::M2Age,
             {C::D3GranularDust, C::D4Type4, C::D4Type5, C::D4Type6},
             {
@@ -718,7 +742,9 @@ inline constexpr std::array<std::string_view, 7> kCategories{
             "Crowded Dark",
             "Drones",
             "A thin drone that fills to bursting, partials and embers packing the dark shoulder "
-            "to shoulder.",
+            "to shoulder. "
+            "Hold the note: the sound surfaces after a few seconds and keeps "
+            "swelling for about two and a half minutes.",
             C::M3Density,
             {},
             {
@@ -744,7 +770,9 @@ inline constexpr std::array<std::string_view, 7> kCategories{
         VoragoPresetDef{
             "Drifting Strata",
             "Drones",
-            "Layers of drone sliding over one another like slow geological strata under a rolling tide.",
+            "Layers of drone sliding over one another like slow geological strata under a rolling tide. "
+            "Hold the note: the sound surfaces after a few seconds and keeps "
+            "swelling for about two and a half minutes.",
             C::M4Movement,
             {C::D14Tidal},
             {
@@ -771,7 +799,9 @@ inline constexpr std::array<std::string_view, 7> kCategories{
         VoragoPresetDef{
             "Stone Gravity",
             "Abyss",
-            "Resonant peaks dragged down and locked to octaves, heavy as stone settling in the deep.",
+            "Resonant peaks dragged down and locked to octaves, heavy as stone settling in the deep. "
+            "Hold the note: the sound surfaces after a few seconds and keeps "
+            "swelling for about two and a half minutes.",
             C::M5Gravity,
             {C::D5Hybrid},
             {
@@ -796,7 +826,9 @@ inline constexpr std::array<std::string_view, 7> kCategories{
         VoragoPresetDef{
             "Entropic Hum",
             "Machines",
-            "A clean machine hum slowly coming apart, its partials skewing and fraying into noise.",
+            "A clean machine hum slowly coming apart, its partials skewing and fraying into noise. "
+            "Hold the note: the sound surfaces after a few seconds and keeps "
+            "swelling for about two and a half minutes.",
             C::M6Entropy,
             {},
             {
@@ -825,7 +857,9 @@ inline constexpr std::array<std::string_view, 7> kCategories{
             "Pressure Front",
             "Machines",
             "A compressed wall of pressure: loops churning and the floor pulled tight into a "
-            "dense, saturated hum.",
+            "dense, saturated hum. "
+            "Hold the note: the sound surfaces after a few seconds and keeps "
+            "swelling for about two and a half minutes.",
             C::M7Pressure,
             {},
             {
@@ -849,7 +883,9 @@ inline constexpr std::array<std::string_view, 7> kCategories{
         VoragoPresetDef{
             "Weighted Deep",
             "Abyss",
-            "Two octaves under the drone a sub swells up, pulling the whole cavern down with it.",
+            "Two octaves under the drone a sub swells up, pulling the whole cavern down with it. "
+            "Hold the note: the sound surfaces after a few seconds and keeps "
+            "swelling for about two and a half minutes.",
             C::M8Weight,
             {C::D7Div4},
             {
@@ -875,7 +911,9 @@ inline constexpr std::array<std::string_view, 7> kCategories{
         VoragoPresetDef{
             "Fogbound",
             "Ghosts",
-            "Static and rumble drifting through a thick fog, the drone heard only as a ghost of itself.",
+            "Static and rumble drifting through a thick fog, the drone heard only as a ghost of itself. "
+            "Hold the note: the sound surfaces after a few seconds and keeps "
+            "swelling for about two and a half minutes.",
             C::M9Fog,
             {C::D4Type10, C::D4Type11, C::D4Type12, C::D4Type8, C::S1Noise},
             {
@@ -905,7 +943,9 @@ inline constexpr std::array<std::string_view, 7> kCategories{
         VoragoPresetDef{
             "Teeming",
             "Organisms",
-            "A dense colony teeming in the dark, many small lives waking slowly and feeding on the drone.",
+            "A dense colony teeming in the dark, many small lives waking slowly and feeding on the drone. "
+            "Hold the note: the sound surfaces after a few seconds and keeps "
+            "swelling for about two and a half minutes.",
             C::M10Life,
             {C::D13SlowEvents},
             {
@@ -929,7 +969,9 @@ inline constexpr std::array<std::string_view, 7> kCategories{
             "Endless Descent",
             "Caverns",
             "A drone falling into a cavern that keeps opening beneath it, each echo farther "
-            "down than the last.",
+            "down than the last. "
+            "Hold the note: the sound surfaces after a few seconds and keeps "
+            "swelling for about two and a half minutes.",
             C::M11Depth,
             {},
             {
@@ -956,7 +998,9 @@ inline constexpr std::array<std::string_view, 7> kCategories{
         VoragoPresetDef{
             "Monolith",
             "Drones",
-            "A single vast mass of sound, body and sub fused into one unmoving block of stone.",
+            "A single vast mass of sound, body and sub fused into one unmoving block of stone. "
+            "Hold the note: the sound surfaces after a few seconds and keeps "
+            "swelling for about two and a half minutes.",
             C::M12Mass,
             {C::D7Div2},
             {
@@ -995,7 +1039,9 @@ inline constexpr std::array<std::string_view, 7> kCategories{
         VoragoPresetDef{
             "Bloom Colony",
             "Organisms",
-            "A sparse drone where a hidden colony swells new partials into bloom and lets them wither.",
+            "A sparse drone where a hidden colony swells new partials into bloom and lets them wither. "
+            "Hold the note: the sound surfaces after a few seconds and keeps "
+            "swelling for about two and a half minutes.",
             C::E1PartialBloom,
             {},
             {
@@ -1024,7 +1070,9 @@ inline constexpr std::array<std::string_view, 7> kCategories{
         VoragoPresetDef{
             "Singing Colony",
             "Organisms",
-            "Free-floating resonant peaks that a colony wakes into song, one voice rising as another fades.",
+            "Free-floating resonant peaks that a colony wakes into song, one voice rising as another fades. "
+            "Hold the note: the sound surfaces after a few seconds and keeps "
+            "swelling for about two and a half minutes.",
             C::E2ResonatorPeaks,
             {C::D5Free},
             {
@@ -1054,7 +1102,9 @@ inline constexpr std::array<std::string_view, 7> kCategories{
         VoragoPresetDef{
             "Swarm Breath",
             "Textures",
-            "Hiss and glassy air stirred by a swarm, flaring and settling as the colony breathes.",
+            "Hiss and glassy air stirred by a swarm, flaring and settling as the colony breathes. "
+            "Hold the note: the sound surfaces after a few seconds and keeps "
+            "swelling for about two and a half minutes.",
             C::E3NoiseWake,
             {C::D3MetallicHiss, C::D4Type7, C::D4Type8, C::D4Type9},
             {
@@ -1089,7 +1139,9 @@ inline constexpr std::array<std::string_view, 7> kCategories{
             "Feeding Loops",
             "Machines",
             "Feedback loops that wake and feed on one another, flaring into a grinding chorus "
-            "and sinking back.",
+            "and sinking back. "
+            "Hold the note: the sound surfaces after a few seconds and keeps "
+            "swelling for about two and a half minutes.",
             C::E4FeedbackLoopWake,
             {},
             {
@@ -1119,7 +1171,9 @@ inline constexpr std::array<std::string_view, 7> kCategories{
         VoragoPresetDef{
             "Haunted Colony",
             "Ghosts",
-            "A dark room where a colony calls up ghosts of the drone in sudden, blurred bursts.",
+            "A dark room where a colony calls up ghosts of the drone in sudden, blurred bursts. "
+            "Hold the note: the sound surfaces after a few seconds and keeps "
+            "swelling for about two and a half minutes.",
             C::E5GhostBursts,
             {},
             {
@@ -1147,7 +1201,9 @@ inline constexpr std::array<std::string_view, 7> kCategories{
             "Growth Ring",
             "Organisms",
             "One slow organic growth, a minute long, that keeps budding new partials as it "
-            "breathes.",
+            "breathes. "
+            "Hold the note: the growth takes a full minute to open and keeps "
+            "budding for as long as the key is down.",
             C::D8Growth,
             {},
             // Re-authored at gate G2 (2026-09-29, C-2.2 route). v1 (Life 0.5, bloom
@@ -1190,7 +1246,9 @@ inline constexpr std::array<std::string_view, 7> kCategories{
         VoragoPresetDef{
             "Glass Well",
             "Caverns",
-            "A ringing glass shaft: a bright, barely damped body singing into a pale cavern.",
+            "A ringing glass shaft: a bright, barely damped body singing into a pale cavern. "
+            "Hold the note: the sound surfaces after a few seconds and keeps "
+            "swelling for about two and a half minutes.",
             C::D1Glass,
             {},
             // Re-authored at gate G2 (2026-09-29, C-2.2 route). v1 (blend 0.2, a 25 s
@@ -1234,7 +1292,9 @@ inline constexpr std::array<std::string_view, 7> kCategories{
         VoragoPresetDef{
             "Strung Abyss",
             "Drones",
-            "Vast slack strings stretched across a chasm, humming a low, dark, sustained chord.",
+            "Vast slack strings stretched across a chasm, humming a low, dark, sustained chord. "
+            "Hold the note: the sound surfaces after a few seconds and keeps "
+            "swelling for about two and a half minutes.",
             C::D1Strings,
             {},
             {
@@ -1264,7 +1324,9 @@ inline constexpr std::array<std::string_view, 7> kCategories{
         VoragoPresetDef{
             "Iron Plate",
             "Machines",
-            "A great iron plate struck by the drone, ringing with clanging, inharmonic overtones.",
+            "A great iron plate struck by the drone, ringing with clanging, inharmonic overtones. "
+            "Hold the note: the sound surfaces after a few seconds and keeps "
+            "swelling for about two and a half minutes.",
             C::D1MetalPlate,
             {},
             {
@@ -1294,7 +1356,9 @@ inline constexpr std::array<std::string_view, 7> kCategories{
         VoragoPresetDef{
             "Chamber Drone",
             "Drones",
-            "A warm, closed wooden chamber filled by one breathing, slowly blooming drone.",
+            "A warm, closed wooden chamber filled by one breathing, slowly blooming drone. "
+            "Hold the note: the sound surfaces after a few seconds and keeps "
+            "swelling for about two and a half minutes.",
             C::D1Chamber,
             {},
             {
@@ -1323,7 +1387,9 @@ inline constexpr std::array<std::string_view, 7> kCategories{
         VoragoPresetDef{
             "Ice Shelf",
             "Textures",
-            "A glittering shelf of ice, bright shards of tone cracking and shimmering in the cold.",
+            "A glittering shelf of ice, bright shards of tone cracking and shimmering in the cold. "
+            "Hold the note: the sound surfaces after a few seconds and keeps "
+            "swelling for about two and a half minutes.",
             C::D1Ice,
             {},
             {
@@ -1353,7 +1419,9 @@ inline constexpr std::array<std::string_view, 7> kCategories{
             "Hull Ark",
             "Drones",
             "The creaking wooden hull of an ark rolling on a dark sea, its timbers groaning with the "
-            "drone.",
+            "drone. "
+            "Hold the note: the sound surfaces after a few seconds and keeps "
+            "swelling for about two and a half minutes.",
             C::D1WoodenHull,
             {},
             {
@@ -1381,7 +1449,9 @@ inline constexpr std::array<std::string_view, 7> kCategories{
         VoragoPresetDef{
             "Column Hymn",
             "Caverns",
-            "Tall stone columns in a sunken cathedral, each one singing its own grave, sustained hymn.",
+            "Tall stone columns in a sunken cathedral, each one singing its own grave, sustained hymn. "
+            "Hold the note: the sound surfaces after a few seconds and keeps "
+            "swelling for about two and a half minutes.",
             C::D1CathedralColumn,
             {},
             {
@@ -1410,7 +1480,9 @@ inline constexpr std::array<std::string_view, 7> kCategories{
         VoragoPresetDef{
             "Cavern Wall",
             "Caverns",
-            "Rough, wet rock walls close around a heavy drone, thudding back a dull, massive resonance.",
+            "Rough, wet rock walls close around a heavy drone, thudding back a dull, massive resonance. "
+            "Hold the note: the sound surfaces after a few seconds and keeps "
+            "swelling for about two and a half minutes.",
             C::D1CavernWall,
             {},
             {
@@ -1439,7 +1511,9 @@ inline constexpr std::array<std::string_view, 7> kCategories{
         VoragoPresetDef{
             "Glass Sphere",
             "Ghosts",
-            "A hollow sphere of glass drifting in fog, ringing faintly with the ghost of a far-off drone.",
+            "A hollow sphere of glass drifting in fog, ringing faintly with the ghost of a far-off drone. "
+            "Hold the note: the sound surfaces after a few seconds and keeps "
+            "swelling for about two and a half minutes.",
             C::D1GlassSphere,
             {},
             {
@@ -1475,7 +1549,9 @@ inline constexpr std::array<std::string_view, 7> kCategories{
         VoragoPresetDef{
             "Sudden Chasm",
             "Abyss",
-            "The ground gives way at once: a dark, full drone that opens beneath you in seconds.",
+            "The ground gives way at once: a dark, full drone that opens beneath you in seconds. "
+            "Hold the note: this one opens within about ten seconds and keeps "
+            "moving for as long as the key is down.",
             C::D9FastAttack,
             {},
             {
@@ -1513,7 +1589,9 @@ inline constexpr std::array<std::string_view, 7> kCategories{
         VoragoPresetDef{
             "Dead Air",
             "Ghosts",
-            "A dead channel hissing in an empty room, tape hiss and static where a voice should be.",
+            "A dead channel hissing in an empty room, tape hiss and static where a voice should be. "
+            "Hold the note: the sound surfaces after a few seconds and keeps "
+            "swelling for about two and a half minutes.",
             C::D3Direct,
             {C::D4Type1, C::D4Type2, C::D4Type3, C::D4Type9},  // sweep 2: Velvet / VinylCrackle / Blue are near-silent as a bed
             {
@@ -1543,7 +1621,9 @@ inline constexpr std::array<std::string_view, 7> kCategories{
         VoragoPresetDef{
             "Abyssal Wind",
             "Abyss",
-            "Wind howling up out of a bottomless pit over a deep sub and slowly wandering peaks.",
+            "Wind howling up out of a bottomless pit over a deep sub and slowly wandering peaks. "
+            "Hold the note: the sound surfaces after a few seconds and keeps "
+            "swelling for about two and a half minutes.",
             C::D3FilteredWind,
             {C::D7Div4, C::D5Free},
             {
@@ -1573,7 +1653,9 @@ inline constexpr std::array<std::string_view, 7> kCategories{
             "Spore Drift",
             "Organisms",
             "Clouds of spores sifting through the dark, their grains drifting backwards into humming "
-            "loops.",
+            "loops. "
+            "Hold the note: the sound surfaces after a few seconds and keeps "
+            "swelling for about two and a half minutes.",
             C::D3GranularDust,
             {C::D11GhostReverse, C::D6Bandpass},
             {
@@ -1603,7 +1685,9 @@ inline constexpr std::array<std::string_view, 7> kCategories{
         VoragoPresetDef{
             "Steam Vent",
             "Machines",
-            "Metallic steam hissing from rusted vents over a grinding deep sub and whistling loops.",
+            "Metallic steam hissing from rusted vents over a grinding deep sub and whistling loops. "
+            "Hold the note: the sound surfaces after a few seconds and keeps "
+            "swelling for about two and a half minutes.",
             C::D3MetallicHiss,
             {C::D6Highpass, C::D7Div4},
             {

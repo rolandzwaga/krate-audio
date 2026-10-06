@@ -39,7 +39,7 @@ Auto-loads when working under `plugins/vorago/`. Root `CLAUDE.md` still applies.
   | 600–699 | Sub | 12 |
   | 700–799 | Smear | 12 |
   | 800–899 | Events | 12 |
-  | 900–999 | Ecosystem | 12 |
+  | 900–999 | Ecosystem: depth 900, **Ecosystem Sync 901, Self Affinity 902** (the Phase 14 rule knobs, FR-072) | 12; 901–902 in 14 |
   | 1000–1099 | Body | 12 |
   | 1100–1199 | Space | 12 |
   | 1200–1299 | Envelope | 12 (new band) |
@@ -48,7 +48,7 @@ Auto-loads when working under `plugins/vorago/`. Root `CLAUDE.md` still applies.
   | 1500–1599 | Life | 12 (new band) |
   | 1600+ | **Unassigned** — a later phase claims a whole band | — |
 
-  108 registered IDs, 106 persisted. Macro IDs obey `id - 100 == static_cast<int>(VoragoMacro::X)`.
+  **110 registered IDs, 108 persisted** (Phase 14 added 901, 902). Macro IDs obey `id - 100 == static_cast<int>(VoragoMacro::X)`.
   Registered types are **frozen**: `kMasterGainId` and the 12 macros are plain `Steinberg::Vst::Parameter`,
   `kPolyphonyId` is a `StringListParameter`, and every Phase 12 ID keeps the type it shipped with — never
   swap a type at the same ID. `kSustainPedalId` and `kChannelPressureId` are hidden, automatable
@@ -61,20 +61,21 @@ Auto-loads when working under `plugins/vorago/`. Root `CLAUDE.md` still applies.
   | Route | Count | Meaning |
   |---|---|---|
   | MB | 39 | a `VoragoMacroMatrix` target base via `setTargetBase` (ID → target in `kMbRoutes`) |
-  | VP | 31 | a per-voice `VoragoVoiceParams` field, broadcast by `applyVoiceParams` on a generation bump |
+  | VP | 33 | a per-voice `VoragoVoiceParams` field, broadcast by `applyVoiceParams` on a generation bump (901, 902 are VP) |
   | ENG | 14 | a direct `VoragoEngine` setter (polyphony, seed, sub tone levels, envelope, ghost reverse/triggers) |
   | CV | 9 | a direct `CavernVerb` setter outside the matrix (density … damper rate, freeze) |
   | MAC | 13 | a macro value: the 12 macros + channel pressure (summed into Pressure, clamped to [0, 1]) |
   | Local | 2 | consumed by the processor itself: master gain, sustain pedal |
 
   The totals are `static_assert`ed in `param_routes.h`; change the table and the asserts together.
-- **State:** `kCurrentStateVersion = 2` and `kStateV2Bytes = 428` live in `plugin_ids.h` (shared by
-  processor and controller with no cross-include; the byte count is itself a `static_assert`ed sum).
-  **The 60-byte v1 stream is a strict prefix of v2** — never reorder or remove a v1 field:
+- **State:** `kCurrentStateVersion = 3`, `kStateV2Bytes = 428` and `kStateV3Bytes = 436` live in `plugin_ids.h`
+  (shared by processor and controller with no cross-include; both byte counts are `static_assert`ed sums).
+  **The 60-byte v1 stream is a strict prefix of v2, and v2 is a strict prefix of v3** — never reorder or
+  remove a field of an earlier version:
 
   | Block | Fields | Bytes |
   |---|---|---|
-  | header | int32 version (= 2) | 4 |
+  | header | int32 version (= 3) | 4 |
   | v1 global | float masterGain, int32 polyphony | 8 |
   | v1 macros | 12 × float | 48 |
   | v2 global | int32 seedIndex, float outputSaturation | 8 |
@@ -82,15 +83,29 @@ Auto-loads when working under `plugins/vorago/`. Root `CLAUDE.md` still applies.
   | sub · smear · events · ecosystem | 5F · 3F · 1F · 1F | 20 · 12 · 4 · 4 |
   | body · space · envelope | 4F+2I · 15F+1I · 1I+6F | 24 · 64 · 28 |
   | bloom · ghost · life | 2F · 3F+1I · 3F | 8 · 16 · 12 |
-  | **total** | | **428** |
+  | **v2 total** | | **428** |
+  | v3 ecosystem rule knobs (Phase 14, FR-072) | float syncRate, float selfAffinity | 8 |
+  | **v3 total** | | **436** |
 
-  Packs are written in ascending ID band, fields in ID order. Load: version `> 2` → `kResultFalse`,
+  Packs are written in ascending ID band, fields in ID order. Load: version `> 3` → `kResultFalse`,
   nothing changed; `≤ 1` → v1 block only, every Phase 12 field keeps its current value; `== 2` → the
   pack chain, short-circuiting on EOF so a truncated stream restores its prefix and leaves the rest
-  unchanged. Sustain pedal and channel pressure are never written. The next format change appends after
-  byte 428 — it never rewrites v2.
-- **Tests:** `vorago_tests` (the timed CPU case is hidden behind `[.perf]`; run it only via
-  `node tools/run-cpu-tests.js vorago_tests`, alone).
+  unchanged; `== 3` → the same chain plus the 8-byte ecosystem rule-knob extension. Sustain pedal and
+  channel pressure are never written. The next format change appends after byte 436 — it never rewrites v3.
+- **Tests:** `vorago_tests` (the timed CPU cases — `Vorago_ProcessorCpu`, `Vorago_PresetCpu` — are hidden
+  behind `[.perf]`; run them only via `node tools/run-cpu-tests.js vorago_tests`, alone). The factory-preset
+  **sweep lane** is tagged `[long][vorago-sweep]` (`tests/integration/preset_sweep_test.cpp`): hours of
+  rendering, run as concurrent shards `VORAGO_SWEEP_SHARD=i/N VORAGO_SWEEP_OUT=<dir>` followed by
+  `VORAGO_SWEEP_IN=<dir> "[vorago-aggregate]"` (`tools/run-close-lanes.js` does this); CI excludes it from
+  the generic nightly (`[long]~[vorago-sweep]`) and runs it in its own nightly job. The CPU runner's filter
+  excludes it too, so the sweep never shares a timing run.
+- **Factory presets:** `resources/presets/{Category}/*.vstpreset` are **generated**, never hand-edited:
+  `tools/vorago_preset_defs.h` (the 42 defs, each a primary capability cell plus secondaries) → the
+  `vorago_preset_generator` tool → `cmake --build … --target generate_vorago_presets` rewrites the tree.
+  `Vorago_FactoryPresets_TreeMatchesGenerator` fails when the committed tree drifts from the defs;
+  `node tools/check-preset-generator-determinism.js --plugin vorago` is the release-gate determinism check.
+  Ghost density and Ghost Event Triggers are **additive** (Phase 14 FR-061, Clarification Q8 2026-09-29):
+  the 0.30 grains/s scheduler keeps running when triggers are On; triggered grains add on top of it.
   ```bash
   "C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target vorago_tests
   build/windows-x64-release/bin/Release/vorago_tests.exe 2>&1 | tail -5
@@ -148,7 +163,7 @@ flows back: the view never writes to the processor.
   the natural change trigger in place (used for cadence). Shipping logic never branches on either except at
   the gate. A seam-free `ConnectedFixture` in `tests/integration/ecosystem_frame_test.cpp` covers the real handler.
 
-**Binding — 106 IDs, `{4, 5}` is the complete reachability allowlist.** `resources/editor.uidesc` binds
+**Binding — 108 IDs, `{4, 5}` is the complete reachability allowlist.** `resources/editor.uidesc` binds
 every registered ID exactly once except `kSustainPedalId` (4) and `kChannelPressureId` (5), which are hidden
 and reached only through `IMidiMapping`. Adding a parameter means adding its control-tag and a bound view;
 never widen the allowlist.
@@ -166,7 +181,7 @@ never widen the allowlist.
 | 3 Body | r0: 1000–1003, menus 1004, 1005 · r1: menu 1200, knobs 1201–1206 |
 | 4 Sub / Smear | r0: 600, 601, 610, 611, 612 · r1: 700, 701, 702 |
 | 5 Space | r0: 1100–1107 · r1: 1108–1114, checkbox 1115 |
-| 6 Life | r0: 800, 900 · r1: 1400, 1401, 1402, checkbox 1403 · r2: 1500, 1501, 1502 |
+| 6 Life | r0: 800, 900, 901, 902 (four knobs; Eco Sync and Self Affinity since Phase 14) · r1: 1400, 1401, 1402, checkbox 1403 · r2: 1500, 1501, 1502 |
 
 **Session tags are `>= 9000` and never a ParamID** (`Vorago::UI::kSessionTagBase = 9000` in
 `ui/panel_sub_controller.h`; preset button 9000, page strip 9100; the highest registered ID is 1502).
@@ -228,7 +243,15 @@ cache the interface set they discovered for a class UID, and users do not clear 
 That window closes at the first release — after it, adding an interface is the accepted-hazard situation
 Seraphis documented, and `kControllerUID` is still never regenerated over it.
 
-### 2. Preset categories only grow — `Drones` is permanent
+**Closed at 1.0.0 (Phase 14, FR-064).** The controller interface set is **frozen** from version 1.0.0: it
+is exactly the set shipped at 1.0.0. Any further interface would carry the host-cache
+cost above; do not add one without the user ruling on it.
+
+### 2. Preset categories only grow — `Drones` is permanent; Phase 14 fixed the seven
+
+**Phase 14 (1.0.0):** the shipped list is **Drones, Abyss, Caverns, Organisms, Machines, Textures, Ghosts**
+(`subcategoryNames` in `src/preset/vorago_preset_config.h`; 42 presets, at least three per category, FR-004). These
+seven are now shipped and therefore permanent under the rule below.
 
 Phase 11 seeds exactly one category, **`Drones`** (`resources/presets/Drones/`, and the
 `subcategoryNames` list in `src/preset/vorago_preset_config.h`). It is a **seed, not a placeholder**.

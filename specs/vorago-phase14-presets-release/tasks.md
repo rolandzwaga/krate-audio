@@ -1209,6 +1209,11 @@ unclaimed at 1.584). T048 is done; T049 follows alone and pinned.
   whenever its next block would leave its own `Sus`); **gate** worst `min-trial(preset) / min-trial(default) ≤ 1.15`;
   printed, not gated: the absolute figure vs `kReferenceNs` (3 200 000 ns, through `VORAGO_PERF_BUDGET_HEADER`) and
   the stored-polyphony figure. No fast-math exemption for this TU (T003).
+**Main-loop note (2026-10-06):** test written into the T003 skeleton (it had no TEST_CASE), built 0 warnings, run once through
+the pinned runner after 15 min idle (`artifacts/t049_cpu_lane.log`, `t049_cpu_vorago_tests.log`): 42 / 42 presets ≤ 1.15, worst Ice
+Shelf 1.1267, default surface 0.8316 × kReferenceNs; no def stores a polyphony, so the stored-polyphony figure equals the forced
+one everywhere (compliance "T049 — preset CPU"). Done.
+
 - **Run:** `node tools/run-cpu-tests.js vorago_tests`, alone, machine idle. A breach → re-run once alone after
   idling; a repeat breach → re-author the preset; never relax (FR-041).
 - **Record** the per-preset table in `compliance.md`.
@@ -1216,6 +1221,10 @@ unclaimed at 1.584). T048 is done; T049 follows alone and pinned.
 ## Group 44 — listening checkpoint (STOP)
 
 ### T050 — FR-042 / SC-020: the user auditions every preset
+
+**Main-loop note (2026-10-06):** table prepared (compliance "T050 — audition table", 42 rows, two user columns); the user ruled
+"Defer: close with SC-020 pending" — the close commits with the audition outstanding; re-filing / re-authoring and the affected
+shards follow the notes when they arrive.
 
 - Prepare in `compliance.md` a table (preset, category, primary, "character note", "category fit", "reads as a
   variant of"). **STOP** and ask the user to audition the 42 presets (installed by the `Vorago` build's POST_BUILD
@@ -1229,6 +1238,11 @@ unclaimed at 1.584). T048 is done; T049 follows alone and pinned.
 ## Group 45 — docs page (new files)
 
 ### T051 — `plugins/vorago/docs/index.html` (+ `assets/`) (FR-062)
+
+**Main-loop note (2026-10-06, user, during the audition):** the docs and every description must say explicitly that the
+instrument is slow by design — hold the note, the first sound takes seconds and the swell minutes (39 of 42 presets store the
+155 s default attack; Sudden Chasm 9 s, Growth Ring 60 s, Slow Bloom 115 s, `f:/tmp/p14/sweep5-out` timelines). Added as a
+"Hold the note" section on the docs page and a paragraph in the `[1.0.0]` CHANGELOG entry.
 
 - **Create** on the structure of `plugins/seraphis/docs/index.html` and its `assets/`: what Vorago is; the twelve
   concept macros; the ecosystem view and the two rule knobs (Ecosystem Sync, Self Affinity); the seven categories,
@@ -1294,6 +1308,9 @@ unclaimed at 1.584). T048 is done; T049 follows alone and pinned.
 ## Group 51 — CI measurements (needs pushes; STOP for permission)
 
 ### T057 — SC-013 / SC-023 on the runners
+
+**Main-loop note (2026-10-06):** asked; the user ruled "No push tonight". SC-013, SC-023, SC-019 (auval) and FR-025 (the Linux
+generator build) are recorded pending in the T063 table with what each needs; nothing estimated.
 
 - **Ask the user** for permission to push and to dispatch `long-tests-nightly.yml`. Without it SC-013 and SC-023 are
   recorded as pending — never estimated.

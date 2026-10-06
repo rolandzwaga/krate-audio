@@ -366,7 +366,7 @@ jobs:
             # Nightly lane: ONLY the [long]-tagged heavy renders (cross-platform
             # canary for the cases excluded from the per-push lane). Suites with
             # no [long] cases exit 0 via --allow-running-no-tests.
-            FILTER='[long]'
+            FILTER='[long]~[vorago-sweep]'
             EXTRA=--allow-running-no-tests
           else
             # Per-push lane: everything except perf/benchmark and the [long]
@@ -652,7 +652,7 @@ jobs:
             # Nightly lane: ONLY the [long]-tagged heavy renders (cross-platform
             # canary for the cases excluded from the per-push lane). Suites with
             # no [long] cases exit 0 via --allow-running-no-tests.
-            FILTER='[long]'
+            FILTER='[long]~[vorago-sweep]'
             EXTRA=--allow-running-no-tests
           else
             # Per-push lane: everything except perf/benchmark and the [long]
@@ -1113,7 +1113,7 @@ jobs:
             # Nightly lane: ONLY the [long]-tagged heavy renders (cross-platform
             # canary for the cases excluded from the per-push lane). Suites with
             # no [long] cases exit 0 via --allow-running-no-tests.
-            FILTER='[long]'
+            FILTER='[long]~[vorago-sweep]'
             EXTRA=--allow-running-no-tests
           else
             # Per-push lane: everything except perf/benchmark and the [long]

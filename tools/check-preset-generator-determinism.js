@@ -16,7 +16,11 @@
 // generator non-deterministic (an unordered container, a directory iteration, an
 // embedded timestamp, an RNG draw) fails automatically instead of shipping.
 //
-//   node tools/check-preset-generator-determinism.js [--bin <path>]
+//   node tools/check-preset-generator-determinism.js [--plugin <name>] [--bin <path>]
+//
+// `--plugin` (default `seraphis`) selects the generator: `seraphis` ->
+// seraphis_preset_generator, `vorago` -> vorago_preset_generator (Vorago Phase 14
+// FR-024 / SC-007). The no-flag path is the Seraphis check, unchanged.
 //
 // Exit 0 with a one-line summary; exit 1 printing the first differing path.
 // Temp directories are removed on success and KEPT on failure, with their paths
@@ -46,20 +50,32 @@ const { spawnSync } = require('child_process');
 const REPO_ROOT = path.resolve(__dirname, '..');
 const TOOL = 'check-preset-generator-determinism';
 
+// One generator per plugin; the plugin name also prefixes the temp directories.
+const GENERATORS = {
+    seraphis: 'seraphis_preset_generator',
+    vorago: 'vorago_preset_generator',
+};
+const DEFAULT_PLUGIN = 'seraphis';
+
 // Default binary resolution order (plan §1.5): the Windows multi-config Release
 // output first, then the single-config `build/bin` layout `release.yml:170-174`
 // runs the generator from on the Linux leg.
-const DEFAULT_BINARIES = [
-    'build/windows-x64-release/bin/Release/seraphis_preset_generator.exe',
-    'build/bin/seraphis_preset_generator',
-    'build/bin/seraphis_preset_generator.exe',
-];
+function defaultBinaries(plugin) {
+    const g = GENERATORS[plugin];
+    return [
+        `build/windows-x64-release/bin/Release/${g}.exe`,
+        `build/bin/${g}`,
+        `build/bin/${g}.exe`,
+    ];
+}
 
-const USAGE = `usage: node tools/${TOOL}.js [--bin <path>]
+const USAGE = `usage: node tools/${TOOL}.js [--plugin <name>] [--bin <path>]
 
-  --bin <path>   Path to seraphis_preset_generator (absolute, or relative to the
-                 current working directory). Defaults, tried in order:
-${DEFAULT_BINARIES.map((b) => `                   ${b}`).join('\n')}
+  --plugin <name> Which generator to check: ${Object.keys(GENERATORS).join(' | ')}
+                 (default ${DEFAULT_PLUGIN}).
+  --bin <path>   Path to the generator (absolute, or relative to the current
+                 working directory). Defaults, tried in order (for --plugin seraphis):
+${defaultBinaries(DEFAULT_PLUGIN).map((b) => `                   ${b}`).join('\n')}
   -h, --help     Print this message.`;
 
 // ------------------------------------------------------------------------------
@@ -79,12 +95,18 @@ function fail(message, details) {
 }
 
 function parseArgs(argv) {
-    const opts = { bin: null };
+    const opts = { bin: null, plugin: DEFAULT_PLUGIN };
     for (let i = 0; i < argv.length; i++) {
         const a = argv[i];
         if (a === '-h' || a === '--help') {
             console.log(USAGE);
             process.exit(0);
+        } else if (a === '--plugin') {
+            if (i + 1 >= argv.length) fail('--plugin requires a name argument.\n\n' + USAGE);
+            opts.plugin = argv[++i];
+            if (!Object.prototype.hasOwnProperty.call(GENERATORS, opts.plugin)) {
+                fail(`unknown plugin '${opts.plugin}' (known: ${Object.keys(GENERATORS).join(', ')}).\n\n` + USAGE);
+            }
         } else if (a === '--bin') {
             if (i + 1 >= argv.length) fail('--bin requires a path argument.\n\n' + USAGE);
             opts.bin = argv[++i];
@@ -95,7 +117,7 @@ function parseArgs(argv) {
     return opts;
 }
 
-function resolveBinary(explicit) {
+function resolveBinary(explicit, plugin) {
     if (explicit) {
         const p = path.resolve(explicit);
         if (!fs.existsSync(p)) {
@@ -103,16 +125,18 @@ function resolveBinary(explicit) {
         }
         return p;
     }
-    for (const rel of DEFAULT_BINARIES) {
+    const candidates = defaultBinaries(plugin);
+    for (const rel of candidates) {
         const p = path.join(REPO_ROOT, rel);
         if (fs.existsSync(p)) return p;
     }
+    const g = GENERATORS[plugin];
     fail(
-        'seraphis_preset_generator not found. Build it first:\n' +
+        `${g} not found. Build it first:\n` +
         '  "C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release ' +
-        '--config Release --target seraphis_preset_generator\n' +
+        `--config Release --target ${g}\n` +
         'or pass --bin <path>. Searched, relative to the repo root:\n' +
-        DEFAULT_BINARIES.map((b) => `  ${b}`).join('\n')
+        candidates.map((b) => `  ${b}`).join('\n')
     );
     return null; // unreachable; fail() exits
 }
@@ -204,9 +228,9 @@ function firstDifference(bytesA, bytesB, labelA, labelB) {
 // ------------------------------------------------------------------------------
 function main() {
     const opts = parseArgs(process.argv.slice(2));
-    const bin = resolveBinary(opts.bin);
+    const bin = resolveBinary(opts.bin, opts.plugin);
 
-    const tmpBase = path.join(os.tmpdir(), 'seraphis-presets-');
+    const tmpBase = path.join(os.tmpdir(), `${opts.plugin}-presets-`);
     const dirA = fs.mkdtempSync(tmpBase);
     keepOnFailure.push(dirA);
     const dirB = fs.mkdtempSync(tmpBase);

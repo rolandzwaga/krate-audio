@@ -676,3 +676,352 @@ lost theirs). `:2612` "SUBSET pairs: 51" (13c 50; new: Smeared Horizon vs Fogbou
 **Reading.** Every change the probe loop predicted landed within 0.01 of its probe reading in the sweep (the probe and the
 sweep render the same takes); nothing verified before is unverified now. The six remaining primaries are engine ceilings,
 not preset settings — the 13d hand-over. T048 closes here; T049 (preset CPU, alone, pinned) is next.
+
+## T050 — FR-042 / SC-020 audition table (prepared 2026-10-06; the last two columns are the user's)
+
+Installed by the `Vorago` build's POST_BUILD step to `%PROGRAMDATA%\Krate Audio\Vorago\` (42 presets, 7 categories; the
+tree regenerated 2026-10-06 14:59 for sweep 5). Nothing automated substitutes for the audition: the sweep verifies that a
+preset's named feature is audible, not that the preset sounds right or sits in its category. Fill "category fit" (yes / move
+to <category>) and "reads as a variant of" (another preset's name, or blank); re-filing or re-authoring follows the notes,
+then T048's affected shards and the aggregate re-run.
+
+**Interim (2026-10-06 evening, in chat, audition under way, not complete):** the user reports the presets sound majestic and, so far,
+all very different from one another; no re-filing or variant note yet. SC-020 stays pending until every row is filled.
+
+| # | preset | category | primary | character note (the def's own line) | category fit | reads as a variant of |
+|---|---|---|---|---|---|---|
+| 1 | Wind Through Basalt | Textures | S1 Noise | Raw wind and hiss pouring through cracks in black stone over a thin, dark tone. |  |  |
+| 2 | Resonant Shaft | Caverns | S2 Resonance | A deep vertical shaft whose walls sing back the played notes in slow, drifting peaks. |  |  |
+| 3 | Smeared Horizon | Textures | S3 Smear | A drone dissolved into a wide, blurred haze where every partial bleeds into the next. |  |  |
+| 4 | Feedback Mire | Machines | S4 Ecology | Choked feedback loops churning in a sump of rust, each filtered to its own grinding band. |  |  |
+| 5 | Tectonic Floor | Abyss | S5 Sub | A fifth below the floor: slow plates of sub grind under a dark, close cloud. |  |  |
+| 6 | Slow Bloom | Drones | S6 Bloom | A sparse drone that takes two minutes to open, budding new partials as it breathes. |  |  |
+| 7 | Colony Pulse | Organisms | S7 Ecosystem | A restless colony of small voices, quickening and feeding on each other in the dark. |  |  |
+| 8 | Cathedral Void | Caverns | S8 Cavern | A vast, slow nave around a wide cloud. Engage Freeze once the drone has bloomed to hold the space. |  |  |
+| 9 | Choir of Absence | Ghosts | S9 Ghost | Voices that are not there: reversed fragments of the drone surfacing and sinking away. |  |  |
+| 10 | Hull Resonance | Machines | S10 Body | The inside of a vast steel and stone hull, every plate ringing under the drone. |  |  |
+| 11 | Lightless | Abyss | M1 Darkness | A bright cloud pressed down into lightless black, every overtone smothered as it sinks. |  |  |
+| 12 | Erosion | Textures | M2 Age | Weathered stone crumbling to dust: crackle and grit wearing a ringing drone down to a dull husk. |  |  |
+| 13 | Crowded Dark | Drones | M3 Density | A thin drone that fills to bursting, partials and embers packing the dark shoulder to shoulder. |  |  |
+| 14 | Drifting Strata | Drones | M4 Movement | Layers of drone sliding over one another like slow geological strata under a rolling tide. |  |  |
+| 15 | Stone Gravity | Abyss | M5 Gravity | Resonant peaks dragged down and locked to octaves, heavy as stone settling in the deep. |  |  |
+| 16 | Entropic Hum | Machines | M6 Entropy | A clean machine hum slowly coming apart, its partials skewing and fraying into noise. |  |  |
+| 17 | Pressure Front | Machines | M7 Pressure | A compressed wall of pressure: loops churning and the floor pulled tight into a dense, saturated hum. |  |  |
+| 18 | Weighted Deep | Abyss | M8 Weight | Two octaves under the drone a sub swells up, pulling the whole cavern down with it. |  |  |
+| 19 | Fogbound | Ghosts | M9 Fog | Static and rumble drifting through a thick fog, the drone heard only as a ghost of itself. |  |  |
+| 20 | Teeming | Organisms | M10 Life | A dense colony teeming in the dark, many small lives waking slowly and feeding on the drone. |  |  |
+| 21 | Endless Descent | Caverns | M11 Depth | A drone falling into a cavern that keeps opening beneath it, each echo farther down than the last. |  |  |
+| 22 | Monolith | Drones | M12 Mass | A single vast mass of sound, body and sub fused into one unmoving block of stone. |  |  |
+| 23 | Bloom Colony | Organisms | E1 PartialBloom | A sparse drone where a hidden colony swells new partials into bloom and lets them wither. |  |  |
+| 24 | Singing Colony | Organisms | E2 ResonatorPeaks | Free-floating resonant peaks that a colony wakes into song, one voice rising as another fades. |  |  |
+| 25 | Swarm Breath | Textures | E3 NoiseWake | Hiss and glassy air stirred by a swarm, flaring and settling as the colony breathes. |  |  |
+| 26 | Feeding Loops | Machines | E4 FeedbackLoopWake | Feedback loops that wake and feed on one another, flaring into a grinding chorus and sinking back. |  |  |
+| 27 | Haunted Colony | Ghosts | E5 GhostBursts | A dark room where a colony calls up ghosts of the drone in sudden, blurred bursts. |  |  |
+| 28 | Growth Ring | Organisms | D8 Growth | One slow organic growth, a minute long, that keeps budding new partials as it breathes. |  |  |
+| 29 | Glass Well | Caverns | D1 Glass | A ringing glass shaft: a bright, barely damped body singing into a pale cavern. |  |  |
+| 30 | Strung Abyss | Drones | D1 Strings | Vast slack strings stretched across a chasm, humming a low, dark, sustained chord. |  |  |
+| 31 | Iron Plate | Machines | D1 MetalPlate | A great iron plate struck by the drone, ringing with clanging, inharmonic overtones. |  |  |
+| 32 | Chamber Drone | Drones | D1 Chamber | A warm, closed wooden chamber filled by one breathing, slowly blooming drone. |  |  |
+| 33 | Ice Shelf | Textures | D1 Ice | A glittering shelf of ice, bright shards of tone cracking and shimmering in the cold. |  |  |
+| 34 | Hull Ark | Drones | D1 WoodenHull | The creaking wooden hull of an ark rolling on a dark sea, its timbers groaning with the drone. |  |  |
+| 35 | Column Hymn | Caverns | D1 CathedralColumn | Tall stone columns in a sunken cathedral, each one singing its own grave, sustained hymn. |  |  |
+| 36 | Cavern Wall | Caverns | D1 CavernWall | Rough, wet rock walls close around a heavy drone, thudding back a dull, massive resonance. |  |  |
+| 37 | Glass Sphere | Ghosts | D1 GlassSphere | A hollow sphere of glass drifting in fog, ringing faintly with the ghost of a far-off drone. |  |  |
+| 38 | Sudden Chasm | Abyss | D9 FastAttack | The ground gives way at once: a dark, full drone that opens beneath you in seconds. |  |  |
+| 39 | Dead Air | Ghosts | D3 Direct | A dead channel hissing in an empty room, tape hiss and static where a voice should be. |  |  |
+| 40 | Abyssal Wind | Abyss | D3 FilteredWind | Wind howling up out of a bottomless pit over a deep sub and slowly wandering peaks. |  |  |
+| 41 | Spore Drift | Organisms | D3 GranularDust | Clouds of spores sifting through the dark, their grains drifting backwards into humming loops. |  |  |
+| 42 | Steam Vent | Machines | D3 MetallicHiss | Metallic steam hissing from rusted vents over a grinding deep sub and whistling loops. |  |  |
+
+## Close records T051–T060 (main loop, 2026-10-06, during the T049 lane wait)
+
+**T051 — `plugins/vorago/docs/index.html` (FR-062).** Created on the Seraphis page's structure (`plugins/seraphis/docs/index.html`
+head / downloads / overview / features / presets / installation / footer; `assets/style.css` copied verbatim): what Vorago is,
+the twelve macros by name, the ecosystem view and the two rule knobs (Ecosystem Sync, Self Affinity), the seven categories one
+line each, the Freeze gesture, system requirements, `https://krateaudio.com/vorago/` and the `{{VERSION}}` placeholder that
+`docs.yml` fills from `version.json` (C-11, no `docs.yml` edit). `docs/.gitkeep` removed. Verify: the page has 2 relative
+`src`/`href` references (`assets/style.css`, `../`), both resolve (node walk, 0 missing).
+
+**T052 — `plugins/vorago/CLAUDE.md` (FR-064 note).** Edited: ecosystem band row (900 / 901 / 902), "110 registered IDs, 108
+persisted" (`tests/unit/param_table_expected.h:64` `kNumExpectedParams = 110`; 4 and 5 never written), VP 33
+(`src/parameters/param_routes.h:283` `countRoute(Route::VP) == 33`), the state table with the v3 row (`src/plugin_ids.h:24`
+`kCurrentStateVersion = 3`, `:52-54` `kStateV3Bytes = 436`), load rule `> 3`, binding 108 IDs (`resources/editor.uidesc`
+108 distinct `control-tag`s; 901 / 902 at `:112-113`), page 6 r0 four knobs (`:391`, `:393`), the seven fixed categories
+(`src/preset/vorago_preset_config.h:32-33`), the generator / `generate_vorago_presets` / tree test / determinism check, the
+sweep lane and `[vorago-sweep]`, FR-061 cited once, the 1.0.0 controller-interface freeze under decision 1.
+
+**T053 — `tools/check-preset-generator-determinism.js --plugin` (FR-024, SC-007).** Test first: before the edit
+`--plugin vorago` failed with "unrecognized argument '--plugin'" (the parser rejects unknown flags, `parseArgs`). Implemented:
+`GENERATORS = {seraphis, vorago}`, `DEFAULT_PLUGIN = 'seraphis'`, `defaultBinaries(plugin)` (the three resolution paths per
+generator), the not-found message names the generator and its CMake target, temp prefix `${plugin}-presets-`, USAGE updated,
+unknown name → "unknown plugin 'nope' (known: seraphis, vorago)". The no-flag path resolves the same three Seraphis binaries in
+the same order. SC-007's two runs are recorded under T061 (the generator may not share the T049 timing lane).
+
+**T054 — rosters (FR-063, SC-021).** `.claude/workflows/release-readiness.js` `PLUGIN_MAP` gained
+`vorago: { testTarget: 'vorago_tests', bundle: 'Vorago.vst3' }`; `.claude/skills/release/SKILL.md` gained `vorago` in the
+Inputs list and the target/bundle table. `node tools/lint-plugin-roster.js` → "OK — 8 plugins present in every roster
+(disrumpo, gradus, innexus, iterum, membrum, ruinae, seraphis, vorago)", exit 0.
+
+**T055 — `ci.yml` nightly filters (FR-066, SC-023).** `grep -n "FILTER=" .github/workflows/ci.yml`: `:369`, `:655`, `:1116`
+now `FILTER='[long]~[vorago-sweep]'`; `:374`, `:660`, `:1121` unchanged (`~[performance]~[perf]~[benchmark]~[!benchmark]~[long]`).
+`actionlint` is not on PATH (recorded, not run).
+
+**T056 — `long-tests-nightly.yml` (FR-066, §5.10).** Jobs `vorago-sweep` (matrix `os: [windows-2022, macos-latest,
+ubuntu-latest]` × `shard: [0..9]`, `fail-fast: false`, `timeout-minutes: 180`, `needs: check-activity`, gated on
+`should_run == 'true'`; checkout, Linux apt packages, FetchContent cache, the leg's configure line minus the AU / ccache options,
+`--target vorago_tests` only, `VORAGO_SWEEP_SHARD=<shard>/10 VORAGO_SWEEP_OUT=sweep-out vorago_tests "[vorago-sweep]~[vorago-aggregate]" -d yes`,
+upload `vorago-sweep-<os>-<shard>`) and `vorago-sweep-aggregate` (`needs: [check-activity, vorago-sweep]`,
+`if: ${{ !cancelled() && … should_run == 'true' }}`, per OS, download `vorago-sweep-<os>-*` merge-multiple into `sweep-in`,
+`VORAGO_SWEEP_IN=sweep-in vorago_tests "[vorago-aggregate]" -d yes`). Verify: job names unique (`check-activity`, `long-tests`,
+`vorago-sweep`, `vorago-sweep-aggregate`), both `timeout-minutes: 180`; `actionlint` and a YAML parser are not available on
+this machine, so well-formedness rests on the structural greps until the first dispatch (T057).
+
+**T057 — SC-013 / SC-023 on the runners.** Needs a push and a dispatch of `long-tests-nightly.yml`: **pending the user's
+permission** (asked at the close); nothing estimated.
+
+**T058 — 1.0.0 (FR-064).** `plugins/vorago/version.json` `"version": "1.0.0"`; `plugins/vorago/CHANGELOG.md` `## [1.0.0] -
+2026-10-06` above `[0.2.0]` (the library, the two rule knobs, state v3, the tail report, the Freeze note, the 13b / 13c engine
+retunes). `node tools/check-changelog-coverage.js vorago` → exit 0, 5 plugin commits + 2 shared-dsp commits surfaced and
+reconciled against the 8 bullets (the two shared-dsp commits are Seraphis perf-gate test fixes, not Vorago-visible).
+
+**T059 — install path, freeze load path, `dsp/` bound, roster evidence.**
+- SC-032: `plugins/vorago/CMakeLists.txt:123` `krate_plugin_install_presets(${PLUGIN_NAME})`; `plugins/shared/src/platform/preset_paths.h:25-27`
+  (macOS `/Library/Application Support/Krate Audio/{pluginName}`, Linux `/usr/share/krate-audio/{pluginName}`,
+  `getFactoryPresetDirectory`); `plugins/vorago/installers/windows/setup.iss:66-68` `Source: "presets\*"; DestDir:
+  "{commonappdata}\Krate Audio\Vorago"`; `plugins/vorago/installers/linux/README.txt:29-44` (user and system-wide copy).
+  The `%PROGRAMDATA%` listing is taken after T061's `Vorago` build (POST_BUILD copies the tree) and recorded there.
+- SC-024: `git diff 339cd501..HEAD -- dsp/include/krate/dsp/effects/cavern_verb.h dsp/include/krate/dsp/effects/aether_reverb.h
+  plugins/vorago/src/parameters/space_params.h` → 0 bytes. `git diff 339cd501..HEAD -- plugins/vorago/src/processor/processor.cpp`
+  hunks: `@@ -13` / `@@ -28` (includes), `@@ -561,8 +563,8` (the state comment: v3, FR-072), `@@ -591` / `@@ -623` /
+  `@@ -633` (`setState` v3 → FR-072), `@@ -657,9 +678,38` (`getState` v3 → FR-072 and `getTailSamples` at `:689` → FR-060),
+  `@@ -859,6 +909,9` (`pushVoiceParams`: `ecosystemSyncRate` / `ecosystemSelfAffinity` → FR-071a). No hunk in
+  `pushCavernParams` or at the `loadSpaceParams` call.
+- FR-076: `git diff --stat 339cd501..HEAD -- dsp/include` lists seven headers, attributed by `git log --name-only`:
+  Phase 14's own commit `64f57e1a` touched `vorago_engine.h` (+46/−2), `vorago_voice.h` (+33/−1) — the R-1 bound — **plus**
+  `noise_generator.h` (+19) and `noise_organism.h` (+10), the ruled FR-077 / FR-077a changes (sweep rulings S-1 / S-6,
+  2026-09-30: noise-bus make-up, `snapLevelSmoothers`); the 13c commit `91a40879` touched `bloom_engine.h`,
+  `feedback_ecology.h`, `vorago_engine.h`, `vorago_macro_matrix.h`, `vorago_voice.h` under its own rulings B-1..B-20.
+  So FR-076's "exactly two headers, added lines only" holds for the R-1 edit itself and is exceeded by the three ruled
+  widenings (FR-077, FR-077a, Phase 13c), each recorded where it was ruled — stated here, not re-attributed.
+- SC-025 / SC-026: `specs/vorago-phase13b-ecosystem-audibility/artifacts/final2_table_default.log:52` `syncRate [0, 0.5] … 2.1606
+  0.534 0.871 counted .hi`, `:75` `selfAffinity [-2, 2] … 0.0257 0.006 1.386 INAUDIBLE .lo,.hi`; `final2_table_lifemax.log:59`
+  `syncRate … 2.1446 0.528 0.965 counted .hi`, `:50` `selfAffinity … 0.0803 0.020 1.429 INAUDIBLE .lo,.hi`. The roster
+  `R` = {syncRate, selfAffinity} was ratified 2026-09-29 (spec Clarifications; docs commit `7a5198ed` 2026-09-29) before the
+  first commit adding 901 / 902 (`64f57e1a`, 2026-10-01).
+- FR-061: Clarification Q8 (2026-09-29); `Vorago_Ghost_TriggersAddToDensityScheduler` (`tests/unit/ghost_triggers_additive_test.cpp:78`)
+  runs in the per-push lane — its passing line is cited under T061.
+
+**T060 — CMake registration audit (FR-027a).** `plugins/vorago/tests/CMakeLists.txt:52-62`: the probe TU plus exactly the ten
+T003 TUs under the Phase 14 comment (`ecosystem_rule_probe_test`, `ecosystem_roster_test`, `state_v3_test`, `tail_samples_test`,
+`ghost_triggers_additive_test`, `preset/factory_preset_test`, `preset_sweep_test`, `preset_matrix_test`, `preset_pilot_test`,
+`preset_load_rt_test`, `preset_cpu_test`), every one on disk; `git ls-files plugins/vorago/tests` holds no unregistered `.cpp`
+(the only diff against the registered set is `vstgui_test_stubs.cpp`, registered at `:79` outside the `unit/`/`integration/`
+pattern); the fast-math list (`:147-157`) holds the probe + the eight T003 entries and not `preset_cpu_test.cpp` or
+`ghost_triggers_additive_test.cpp` (`:159-162` says why); `${CMAKE_SOURCE_DIR}/tools` on the include path (`:100`); root
+`CMakeLists.txt:672-688` `vorago_preset_generator` and `:730-731` `generate_vorago_presets`; `vorago_tests.exe --list-tests "[.perf]"` lists
+`Vorago_ProcessorCpu`, `Vorago_SelectStrongestLinks_WorstCase`, `Vorago_PresetCpu`. Nothing was missing.
+
+## T049 — preset CPU (FR-041, SC-017; main loop, 2026-10-06 19:22–20:17, alone, P-core pinned, after 15 min idle)
+
+**Test first.** `Vorago_PresetCpu` (`tests/integration/preset_cpu_test.cpp`, `[vorago][.perf][performance]`) was written this
+session into the T003 skeleton (no TEST_CASE before): per preset and the default surface, PresetHost at 48 kHz / 512, setState,
+block 0 carries the four `kCpuNotes` and `kPolyphonyId → 0.6` (list index 3, four voices; `REQUIRE(enginePolyphony() == 4)` is
+the non-vacuity check), untimed pre-roll to the patch's own `A + 5 s`, 16 trials × 100 blocks `steady_clock`, interleaved with a
+default host that is re-created and re-pre-rolled whenever its next trial would leave `[A + 5, A + 65] s`; gate worst
+`min-trial(preset) / min-trial(default) ≤ 1.15`; printed, not gated: the figure against `kReferenceNs` and the stored-polyphony
+figure (measured separately only when the stored polyphony ≠ 4; no def stores one, so every row's stored figure is the forced
+one). No fast-math exemption for the TU (`tests/CMakeLists.txt:159-162`). Built with 0 warnings (`f:/tmp/p14/build_t049.log`).
+
+**Run.** `node tools/run-cpu-tests.js vorago_tests` (`artifacts/t049_cpu_lane.log`: strays 0, START 19:22:26 after the 19:06 build
+and 15 min of idle, END 20:17:01, "1/1 suites passed"), full output `artifacts/t049_cpu_vorago_tests.log`: `:652` "All tests
+passed (1655398 assertions in 6 test cases)" — the three hidden perf cases plus the three `[long]~[vorago-sweep]` cases the runner's
+filter includes.
+
+**Verdict** (`:639`): "worst preset: Ice Shelf ratio 1.1267 (gate <= 1.15) default surface 2661251 ns/block = 0.8316 x
+kReferenceNs". 42 / 42 presets ≤ 1.15. Against the 3 200 000 ns reference the processor-level figures run 0.6866–1.1555×;
+above 1.0: Choir of Absence 1.1555, Growth Ring 1.0065 (recorded only, FR-041 does not claim the 30 % ceiling for presets).
+
+| preset | preset ns/block | default ns/block (interleaved) | ratio | vs kReferenceNs | stored polyphony | log line |
+|---|---|---|---|---|---|---|
+| Ice Shelf | 2998452 | 2661251 | 1.1267 ok | 0.9370 | 4 (= forced) | :629 |
+| Choir of Absence | 3697443 | 3330009 | 1.1103 ok | 1.1555 | 4 (= forced) | :605 |
+| Strung Abyss | 3011717 | 2828917 | 1.0646 ok | 0.9412 | 4 (= forced) | :626 |
+| Entropic Hum | 2942463 | 2772787 | 1.0612 ok | 0.9195 | 4 (= forced) | :612 |
+| Crowded Dark | 2933603 | 2771877 | 1.0583 ok | 0.9168 | 4 (= forced) | :609 |
+| Pressure Front | 2913292 | 2773949 | 1.0502 ok | 0.9104 | 4 (= forced) | :613 |
+| Cathedral Void | 2851587 | 2758583 | 1.0337 ok | 0.8911 | 4 (= forced) | :604 |
+| Erosion | 2838603 | 2749728 | 1.0323 ok | 0.8871 | 4 (= forced) | :608 |
+| Colony Pulse | 2948612 | 2899321 | 1.0170 ok | 0.9214 | 4 (= forced) | :603 |
+| Growth Ring | 3220915 | 3174127 | 1.0147 ok | 1.0065 | 4 (= forced) | :624 |
+| Smeared Horizon | 2818804 | 2877402 | 0.9796 ok | 0.8809 | 4 (= forced) | :599 |
+| Steam Vent | 2745524 | 2859572 | 0.9601 ok | 0.8580 | 4 (= forced) | :638 |
+| Teeming | 2747099 | 2899649 | 0.9474 ok | 0.8585 | 4 (= forced) | :616 |
+| Slow Bloom | 2922429 | 3217305 | 0.9083 ok | 0.9133 | 4 (= forced) | :602 |
+| Drifting Strata | 2564506 | 2832035 | 0.9055 ok | 0.8014 | 4 (= forced) | :610 |
+| Resonant Shaft | 2452489 | 2751758 | 0.8912 ok | 0.7664 | 4 (= forced) | :598 |
+| Hull Ark | 2382802 | 2687251 | 0.8867 ok | 0.7446 | 4 (= forced) | :630 |
+| Singing Colony | 2476238 | 2797505 | 0.8852 ok | 0.7738 | 4 (= forced) | :620 |
+| Bloom Colony | 2385475 | 2725232 | 0.8753 ok | 0.7455 | 4 (= forced) | :619 |
+| Feedback Mire | 2353197 | 2693546 | 0.8736 ok | 0.7354 | 4 (= forced) | :600 |
+| Cavern Wall | 2375574 | 2726744 | 0.8712 ok | 0.7424 | 4 (= forced) | :632 |
+| Wind Through Basalt | 2515791 | 2892755 | 0.8697 ok | 0.7862 | 4 (= forced) | :597 |
+| Tectonic Floor | 2424096 | 2792259 | 0.8681 ok | 0.7575 | 4 (= forced) | :601 |
+| Spore Drift | 2318420 | 2702042 | 0.8580 ok | 0.7245 | 4 (= forced) | :637 |
+| Glass Sphere | 2394404 | 2793952 | 0.8570 ok | 0.7483 | 4 (= forced) | :633 |
+| Fogbound | 2410490 | 2826062 | 0.8530 ok | 0.7533 | 4 (= forced) | :615 |
+| Column Hymn | 2213638 | 2599629 | 0.8515 ok | 0.6918 | 4 (= forced) | :631 |
+| Feeding Loops | 2422469 | 2881415 | 0.8407 ok | 0.7570 | 4 (= forced) | :622 |
+| Haunted Colony | 2367953 | 2823600 | 0.8386 ok | 0.7400 | 4 (= forced) | :623 |
+| Iron Plate | 2287062 | 2727114 | 0.8386 ok | 0.7147 | 4 (= forced) | :627 |
+| Glass Well | 2283570 | 2732316 | 0.8358 ok | 0.7136 | 4 (= forced) | :625 |
+| Dead Air | 2275052 | 2732242 | 0.8327 ok | 0.7110 | 4 (= forced) | :635 |
+| Monolith | 2292442 | 2762254 | 0.8299 ok | 0.7164 | 4 (= forced) | :618 |
+| Stone Gravity | 2280861 | 2750312 | 0.8293 ok | 0.7128 | 4 (= forced) | :611 |
+| Hull Resonance | 2405543 | 2925080 | 0.8224 ok | 0.7517 | 4 (= forced) | :606 |
+| Abyssal Wind | 2197089 | 2676341 | 0.8209 ok | 0.6866 | 4 (= forced) | :636 |
+| Weighted Deep | 2282461 | 2813171 | 0.8113 ok | 0.7133 | 4 (= forced) | :614 |
+| Chamber Drone | 2246883 | 2794025 | 0.8042 ok | 0.7022 | 4 (= forced) | :628 |
+| Swarm Breath | 2338336 | 2939145 | 0.7956 ok | 0.7307 | 4 (= forced) | :621 |
+| Lightless | 2369784 | 3003654 | 0.7890 ok | 0.7406 | 4 (= forced) | :607 |
+| Sudden Chasm | 2268358 | 2917457 | 0.7775 ok | 0.7089 | 4 (= forced) | :634 |
+| Endless Descent | 2370929 | 3179001 | 0.7458 ok | 0.7409 | 4 (= forced) | :617 |
+
+Same lane, `Vorago_ProcessorCpu`: `:16` "SC-014 arm P best ns/block (512 @ 48 kHz, poly 4): 3.35773e+06", `:19` "SC-014 arm D best ns/block (512 @ 48 kHz, poly 4): 3.36161e+06" (P/D 0.9988 ≤ 1.05), `:36` "SC-012 PF/D ratio (gate <= 1.05): 1.01294".
+
+## T061 / T062 — full suites, lanes in parallel (main loop, 2026-10-06 20:18 →), portability
+
+Clean build first: `dsp_systems_tests`, `vorago_preset_generator`, `Vorago` (`f:/tmp/p14/build_t061.log`, exit 0, 0 warnings;
+`vorago_tests` built 19:06 with the T049 TU, `build_t049.log`, 0 warnings). `node tools/run-close-lanes.js --skip-sweep --out
+f:/tmp/p14/close-lanes` ran the eight per-push suites and both `[long]` lanes concurrently (the MUST from the 13c close; the
+sweep lane is T048's sweep 5):
+
+- per-push `vorago_tests`: `close-lanes/suite_vorago_tests.log:250` "All tests passed (4059849 assertions in 119 test cases)"
+- per-push `dsp_systems_tests` in the concurrent lane: `close-lanes/suite_dsp_systems_tests.log:1514` "test cases: 1426 | 1425 passed | 1 failed" — the one red is `SeraphisEngine_VoiceStealIsClickless` (`seraphis_engine_test.cpp:4265`, `close-lanes/suite_dsp_systems_tests.log:403` "REQUIRE( bestWorstBlockUs <= kBlockBudgetUs )" 22336.0 vs 10666.7 µs): a **wall-clock** block budget inside an untagged per-push case, inflated by the 16-way lane load (13c ran the suite alone: `specs/vorago-phase13c-capability-audibility/artifacts/final_suite_dsp_systems_tests.log` 1426 / 1426). Re-run alone, idle: `t061_suite_dsp_systems_rerun.log:1480` "All tests passed (6061626 assertions in 1426 test cases)". Finding, not fixed here: that clause measures the machine and belongs behind `[perf]` (Seraphis area, surfaced to the user).
+- `[long]~[vorago-sweep]` `vorago_tests` (SeedTableSpread, ParameterStepsAreContinuous, RandomSurfaceSoak): `close-lanes/long_vorago_nonsweep.log:524` "All tests passed (1654356 assertions in 3 test cases)"; the same three
+  also ran inside the T049 lane (`t049_cpu_vorago_tests.log:652`)
+- `[long]` `dsp_systems_tests`: `close-lanes/long_dsp_systems_tests.log:1227` "test cases: 42 | 41 passed | 1 failed" — the one red is `vorago_macro_test.cpp(1318)` Movement per-band total-variation rho 0.8333 ≥ 0.9 (`:1140`), the base tree's own red recorded by 13c FR-031 (`specs/vorago-phase13c-capability-audibility/compliance.md:122`; every base-passing assertion passes). It is carried, not cleared: surfaced in the verdict below.
+- the other six per-push suites: see `f:/tmp/p14/close-lanes/summary.txt` (copied to `artifacts/t061_close_lanes_summary.txt`)
+- `node tools/check-seraphis-green.js`: `t061_check_seraphis_green.log:11` "check-seraphis-green: in scope"
+- determinism: `t061_determinism_vorago.log:5` "check-preset-generator-determinism: OK — 42 file(s); 0 differing between two fresh runs, 0 changed by a third run over an existing tree."; no-flag Seraphis `t061_determinism_seraphis.log:5`; regenerate
+  over the committed tree → "wrote 42 presets", `git status` 0 changed (`t061_determinism_tree.log`)
+- pluginval strictness 5: `t061_pluginval.log:117` "exit=0 END 2026-10-06 20:18:56" (117 lines, every test block "Completed")
+- clang-tidy: vorago `t061_tidy_vorago.log:34` "[OK]   Errors: 0", `:35` "[WARN]   Warnings: 1" (one finding in the new `preset_cpu_test.cpp:237`, a signed/unsigned comparison — fixed with an `int` constant, rebuilt, re-run: `t061_tidy_vorago_rerun.log:12` "[OK]   Warnings: 0"); dsp `t061_tidy_dsp.log:11` "[OK]   Errors: 0", `:12` "[OK]   Warnings: 0"
+- preset descriptions (user, during the audition): every def gained a "Hold the note" sentence (the Info Comment only; no
+  parameter changed, so sweep 5 stands); generator + `vorago_tests` rebuilt 0 warnings, tree regenerated (42 files), `[preset]~[long]`
+  re-run `t061_vorago_preset_lane_final.log:55` "All tests passed (246 assertions in 1 test case)", `Vorago_FactoryPresets_TreeMatchesGenerator` `:55`; clang-tidy vorago after the TU fix
+  `t061_tidy_vorago_rerun.log` 0 / 0
+- T062 portability: `t062_portability.log:11` "check-portability: all clear -- 1 compiled."; `wsl --shutdown` rc 0
+
+## T063 — FR / SC compliance table and release-gate verdict (2026-10-06)
+
+Legend: ✅ pass (verified now, cite) · ❌ red, surfaced (a measured shortfall with its ruling or hand-over) · ☑ recorded by ruling
+(a requirement the user re-scoped to "recorded, not gated") · ⏳ pending (needs the push / the user). Counts: 77 ✅, 9 ❌,
+5 ☑, 7 ⏳.
+
+| Requirement | Verdict | Evidence |
+|---|---|---|
+| FR-001 | ✅ pass | `src/preset/vorago_preset_config.h:32-33` the seven C-1 names in order; `Vorago_FactoryPresets_CategoriesMatchConfig` (`plugins/vorago/tests/unit/preset/factory_preset_test.cpp:253`): per-push lane `close-lanes/suite_vorago_tests.log:250` "All tests passed (4059849 assertions in 119 test cases)"; `[preset]~[long]` lane `sweep5_vorago_preset_lane.log:32` "All tests passed (18135 assertions in 41 test cases)"; after the T061 tidy fix `t061_vorago_preset_lane_rerun.log:55` "All tests passed (246 assertions in 1 test case)". |
+| FR-002 | ✅ pass | same case; `%PROGRAMDATA%\Krate Audio\Vorago\` holds Abyss Caverns Drones Ghosts Machines Organisms Textures, 42 `.vstpreset` (listed 2026-10-06 20:18 after the T061 `Vorago` build). |
+| FR-003 | ✅ pass | `Vorago_FactoryPresets_ContainerAndInfo` (`plugins/vorago/tests/unit/preset/factory_preset_test.cpp:1581`), `Vorago_FactoryPresets_InfoMatchesSavePreset` (`:1651`), `Vorago_PresetDefs_InfoXmlBytes` (`:591`): per-push lane `close-lanes/suite_vorago_tests.log:250` "All tests passed (4059849 assertions in 119 test cases)"; `[preset]~[long]` lane `sweep5_vorago_preset_lane.log:32` "All tests passed (18135 assertions in 41 test cases)"; after the T061 tidy fix `t061_vorago_preset_lane_rerun.log:55` "All tests passed (246 assertions in 1 test case)". |
+| FR-004 | ✅ pass | `Vorago_FactoryPresets_LibraryShape` (`plugins/vorago/tests/unit/preset/factory_preset_test.cpp:567`, ≥ 3 per category, N = 42): per-push lane `close-lanes/suite_vorago_tests.log:250` "All tests passed (4059849 assertions in 119 test cases)"; `[preset]~[long]` lane `sweep5_vorago_preset_lane.log:32` "All tests passed (18135 assertions in 41 test cases)"; after the T061 tidy fix `t061_vorago_preset_lane_rerun.log:55` "All tests passed (246 assertions in 1 test case)"; `sweep5_aggregate.log:363` "Required primaries from the measured set: 42; from the recorded constant: 42; verified primaries: 36". |
+| FR-005 | ✅ pass | `Vorago_FactoryPresets_BrowserScan` (`plugins/vorago/tests/unit/preset/factory_preset_test.cpp:1725`, count == N, 0 non-factory) and `Vorago_PresetDefs_ClaimsWellFormed` (`:500`): per-push lane `close-lanes/suite_vorago_tests.log:250` "All tests passed (4059849 assertions in 119 test cases)"; `[preset]~[long]` lane `sweep5_vorago_preset_lane.log:32` "All tests passed (18135 assertions in 41 test cases)"; after the T061 tidy fix `t061_vorago_preset_lane_rerun.log:55` "All tests passed (246 assertions in 1 test case)". |
+| FR-006 | ✅ pass | `Vorago_FactoryPresets_StreamShape` (`plugins/vorago/tests/unit/preset/factory_preset_test.cpp:1751`: version == `kCurrentStateVersion` = 3, length == `kStateV3Bytes` = 436, `src/plugin_ids.h:24,52-54`): per-push lane `close-lanes/suite_vorago_tests.log:250` "All tests passed (4059849 assertions in 119 test cases)"; `[preset]~[long]` lane `sweep5_vorago_preset_lane.log:32` "All tests passed (18135 assertions in 41 test cases)"; after the T061 tidy fix `t061_vorago_preset_lane_rerun.log:55` "All tests passed (246 assertions in 1 test case)"; generator "Wrote 436 state bytes" per preset (`f:/tmp/p14/build_sweep5.log`). |
+| FR-007 | ✅ pass | `Vorago_FactoryPresets_StreamShape` (polyphony ≤ 4): per-push lane `close-lanes/suite_vorago_tests.log:250` "All tests passed (4059849 assertions in 119 test cases)"; `[preset]~[long]` lane `sweep5_vorago_preset_lane.log:32` "All tests passed (18135 assertions in 41 test cases)"; after the T061 tidy fix `t061_vorago_preset_lane_rerun.log:55` "All tests passed (246 assertions in 1 test case)"; every T049 row "stored poly 4" (`t049_cpu_vorago_tests.log:597-638`). |
+| FR-008 | ✅ pass | `Vorago_FactoryPresets_StreamShape` (`A ≤ 180 s`, `Rel ≤ 60 s`): per-push lane `close-lanes/suite_vorago_tests.log:250` "All tests passed (4059849 assertions in 119 test cases)"; `[preset]~[long]` lane `sweep5_vorago_preset_lane.log:32` "All tests passed (18135 assertions in 41 test cases)"; after the T061 tidy fix `t061_vorago_preset_lane_rerun.log:55` "All tests passed (246 assertions in 1 test case)". |
+| FR-009 | ✅ pass | `Vorago_FactoryPresets_StreamShape` (bit-pattern finiteness; TU in the fast-math list `tests/CMakeLists.txt:152`): per-push lane `close-lanes/suite_vorago_tests.log:250` "All tests passed (4059849 assertions in 119 test cases)"; `[preset]~[long]` lane `sweep5_vorago_preset_lane.log:32` "All tests passed (18135 assertions in 41 test cases)"; after the T061 tidy fix `t061_vorago_preset_lane_rerun.log:55` "All tests passed (246 assertions in 1 test case)". |
+| FR-010 | ✅ pass | `Vorago_PresetDefs_CellSpecsMatchSpec` (`plugins/vorago/tests/unit/preset/factory_preset_test.cpp:368`, `Capability::Count == 79`): per-push lane `close-lanes/suite_vorago_tests.log:250` "All tests passed (4059849 assertions in 119 test cases)"; `[preset]~[long]` lane `sweep5_vorago_preset_lane.log:32` "All tests passed (18135 assertions in 41 test cases)"; after the T061 tidy fix `t061_vorago_preset_lane_rerun.log:55` "All tests passed (246 assertions in 1 test case)"; every sweep record "cells 79" (`f:/tmp/p14/sweep5-out/record_*.txt`). |
+| FR-011 | ✅ pass | `Vorago_PresetDefs_ClaimsWellFormed` (`plugins/vorago/tests/unit/preset/factory_preset_test.cpp:500`): per-push lane `close-lanes/suite_vorago_tests.log:250` "All tests passed (4059849 assertions in 119 test cases)"; `[preset]~[long]` lane `sweep5_vorago_preset_lane.log:32` "All tests passed (18135 assertions in 41 test cases)"; after the T061 tidy fix `t061_vorago_preset_lane_rerun.log:55` "All tests passed (246 assertions in 1 test case)". |
+| FR-011b | ✅ pass | D10.1 is claimed only as Cathedral Void's secondary (`tools/vorago_preset_defs.h`, S8 row); `Vorago_PresetDefs_ClaimsWellFormed`: per-push lane `close-lanes/suite_vorago_tests.log:250` "All tests passed (4059849 assertions in 119 test cases)"; `[preset]~[long]` lane `sweep5_vorago_preset_lane.log:32` "All tests passed (18135 assertions in 41 test cases)"; after the T061 tidy fix `t061_vorago_preset_lane_rerun.log:55` "All tests passed (246 assertions in 1 test case)"; matrix `:163` "D10.1 freeze holds a field .......S.................................. . (1 factory verifier)". |
+| FR-011a | ❌ red (surfaced) | `Vorago_PresetMatrix_NoShowcaseSubset`: `sweep5_aggregate.log:2612` "SUBSET pairs: 51" (13c final 50; every pair names Smeared Horizon, whose single S3 claim is verified by 51 others). Recorded since sweep 1; no ruling relaxes it — open. |
+| FR-012 | ✅ pass | `Vorago_PresetSweep_AblationVerifiesClaims` computes all 79 cells per preset (`integration/preset_sweep_test.cpp:1150`); records `f:/tmp/p14/sweep5-out/record_*.txt` "cells 79" + 79 cell lines each. |
+| FR-013 | ❌ red (surfaced) | `Vorago_PresetMatrix_CoverageComplete`: `sweep5_aggregate.log:363` "Required primaries from the measured set: 42; from the recorded constant: 42; verified primaries: 36"; `:317` "E1 partial -> bloom is no preset's verified primary", `:326` "E4 feedback -> loop wake is no preset's verified primary"; 11 cells without verifier (`:186-256`). The six engine-limited primaries are handed to a 13d pass (compliance "Sweep 5"). |
+| FR-014 | ✅ pass | `Vorago_PresetMatrix_ParameterSpaceDistinct` (`plugins/vorago/tests/unit/preset/factory_preset_test.cpp:1856`): per-push lane `close-lanes/suite_vorago_tests.log:250` "All tests passed (4059849 assertions in 119 test cases)"; `[preset]~[long]` lane `sweep5_vorago_preset_lane.log:32` "All tests passed (18135 assertions in 41 test cases)"; after the T061 tidy fix `t061_vorago_preset_lane_rerun.log:55` "All tests passed (246 assertions in 1 test case)". |
+| FR-015 | ☑ recorded by ruling | `Vorago_PresetSweep_SoundSpaceDistinct`: `sweep5_aggregate.log:4065` "Pairs 861: min d 0.9547 (Wind Through Basalt vs Swarm Breath, floor 5.7290)  median d 8.6876  max d 29.6164", `:4066` "t_max 2.8645  K 4  effective floor max(F, 2 t_max) = 5.7290 (s(P) recorded, not gated - ruling 2026-09-30)  pairs below floor: 159" — the floor is recorded, not gated (sweep ruling 2026-09-30, spec Clarifications "Sweep rulings"). |
+| FR-016 | ✅ pass | plan §7 derivation table (N = 40 → 38 → 42 by rulings); `Vorago_PresetDefs_RequiredPrimaries` (`plugins/vorago/tests/unit/preset/factory_preset_test.cpp:537`, 42): per-push lane `close-lanes/suite_vorago_tests.log:250` "All tests passed (4059849 assertions in 119 test cases)"; `[preset]~[long]` lane `sweep5_vorago_preset_lane.log:32` "All tests passed (18135 assertions in 41 test cases)"; after the T061 tidy fix `t061_vorago_preset_lane_rerun.log:55` "All tests passed (246 assertions in 1 test case)". |
+| FR-017 | ✅ pass | every stop surfaced and ruled: spec Clarifications "Gate G2 rulings", "T043 ruling", "Sweep rulings", "Sweep 2 rulings", "Re-author loop rulings", "Gate G2 re-run ruling"; 13c rulings B-1..B-20 (`specs/vorago-phase13c-capability-audibility/artifacts/rulings.md`). |
+| FR-017a | ☑ recorded by ruling | compliance "FR-017a pilot / G2" (run 3 PROCEED, K = 4) and "G2 re-run on the sweep-5 defs" (`sweep5_pilot_calibrate.log:19,21,24`, STOP on Glass Well, ruled K = 4 stays; `Vorago_PresetSupport_RuledTakes` `integration/preset_sweep_test.cpp:959`: per-push lane `close-lanes/suite_vorago_tests.log:250` "All tests passed (4059849 assertions in 119 test cases)"; `[preset]~[long]` lane `sweep5_vorago_preset_lane.log:32` "All tests passed (18135 assertions in 41 test cases)"; after the T061 tidy fix `t061_vorago_preset_lane_rerun.log:55` "All tests passed (246 assertions in 1 test case)"). |
+| FR-070 | ✅ pass | compliance T059: `specs/vorago-phase13b-ecosystem-audibility/artifacts/final2_table_default.log:52,75`, `final2_table_lifemax.log:50,59`. |
+| FR-071 | ✅ pass | spec Clarifications Q1 (2026-09-29) ratified `R` = {syncRate, selfAffinity}; docs commit `7a5198ed` (2026-09-29) precedes `64f57e1a` (2026-10-01), the first commit with IDs 901 / 902. |
+| FR-071a | ✅ pass | `dsp/include/krate/dsp/systems/vorago_voice.h:1547` `setEcosystemSyncRate → ecosystem_.setSyncRate`, `:1556` self affinity; `Vorago_EcosystemRosterReachesEngine` (`unit/ecosystem_roster_test.cpp:126`): `close-lanes/suite_vorago_tests.log:250` "All tests passed (4059849 assertions in 119 test cases)". |
+| FR-072 | ✅ pass | `src/plugin_ids.h:181-182` (901, 902), `:24` `kCurrentStateVersion = 3`, `:52-54` `kStateV3Bytes = 436`; `src/processor/processor.cpp:636,663,681` v3 load / save; `Vorago_StateRoundTripV3`, `Vorago_State_V2LoadsWithRosterDefaults`, `Vorago_State_V3TruncatedKeepsPrefix`, `Vorago_State_V3NonFiniteKnobRejected`, `Vorago_State_V4Rejected`, `Vorago_ControllerState_V3AndV2` (`unit/state_v3_test.cpp:148-318`): `close-lanes/suite_vorago_tests.log:250` "All tests passed (4059849 assertions in 119 test cases)". |
+| FR-073 | ✅ pass | `resources/editor.uidesc:112-113` control-tags, `:391` / `:393` ArcKnobs on page 6; `Vorago_Ecosystem_PageBindsRosterIds` (`unit/controller/editor_layout_test.cpp:1219`): `close-lanes/suite_vorago_tests.log:250` "All tests passed (4059849 assertions in 119 test cases)". |
+| FR-074 | ✅ pass | the FR-072 / FR-073 cases plus `Vorago_EcosystemParamsContract` (`unit/params/ecosystem_params_test.cpp:117`), `Vorago_VoiceParams_FieldCount` (`unit/ecosystem_roster_test.cpp:173`): `close-lanes/suite_vorago_tests.log:250` "All tests passed (4059849 assertions in 119 test cases)". |
+| FR-077 | ✅ pass | `vorago_voice.h:1711-1712` `kNoiseBusMakeupDb = 30`, `kNoiseBusMakeupGain = 31.6227766`; compliance "Noise make-up: regression on the amended voice" (the probe readings); sweep 5 S1 primaries verified (Wind Through Basalt et al., `sweep5_aggregate.log:381`). |
+| FR-077a | ✅ pass | `noise_generator.h:350` `snapLevelSmoothers()`, `noise_organism.h:1955` called from `applySlotConfiguration`; compliance "Sweep 2 … the reset defect"; `Vorago_PresetSweep_RendersAreReproducible` green in all 8 shards (8 shards, failures only in AblationVerifiesClaims / LongRender). |
+| FR-077b | ✅ pass | `vorago_engine.h:1018` `kGhostTapMakeupDb = 21.0f` (13c ruling B-6 moved S-7's 12 dB to 21); S9 Choir of Absence 4.3383 at K = 4 (`f:/tmp/p14/sweep5-out/record_8.txt`, compliance "Sweep 5"). |
+| FR-075 | ❌ red (surfaced) | E6.hi / E7.hi are cells (`Vorago_PresetDefs_CellSpecsMatchSpec`) claimed by Colony Pulse, but `sweep5_aggregate.log:341` "E6.hi ecosystem sync rate high is no preset's verified secondary claim", `:348` "E7.hi ecosystem self-affinity high is no preset's verified secondary claim" (1.3700 / 1.3430 < 1.5; 13c ruling B-20 surfaced them). |
+| FR-076 | ☑ recorded by ruling | compliance T059: the R-1 edit is `vorago_engine.h` (+ fields at `:188,191`, `kFieldCount = 33` at `:194`, `:899`) and `vorago_voice.h` forwarders; the three ruled widenings (FR-077, FR-077a in `64f57e1a`; 13c in `91a40879`) exceed the literal bound and are each recorded where ruled. |
+| FR-018 | ✅ pass | root `CMakeLists.txt:679` `add_executable(vorago_preset_generator tools/vorago_preset_generator.cpp …)`; built with 0 warnings (`f:/tmp/p14/build_sweep5.log`, `build_t061.log`). |
+| FR-019 | ✅ pass | `tools/vorago_preset_generator.cpp:131-134` `argv[1]` → output base; run output "wrote 42 presets" (`t061_determinism_tree.log`). |
+| FR-020 | ✅ pass | root `CMakeLists.txt:730-731` `generate_vorago_presets`; regenerating over the committed tree changes 0 files (`t061_determinism_tree.log` last line "0"). |
+| FR-021 | ✅ pass | `Vorago_PresetHost_DriveContract` (`plugins/vorago/tests/unit/preset/factory_preset_test.cpp:89`), `Vorago_PresetHost_BuildPresetComponentState` (`:1122`): per-push lane `close-lanes/suite_vorago_tests.log:250` "All tests passed (4059849 assertions in 119 test cases)"; `[preset]~[long]` lane `sweep5_vorago_preset_lane.log:32` "All tests passed (18135 assertions in 41 test cases)"; after the T061 tidy fix `t061_vorago_preset_lane_rerun.log:55` "All tests passed (246 assertions in 1 test case)". |
+| FR-022 | ✅ pass | `tools/vorago_preset_defs.h` namespace `Vorago::PresetDefs`, data only (`VoragoPresetDef` aggregates); `Vorago_PresetDefs_ClaimsWellFormed`: per-push lane `close-lanes/suite_vorago_tests.log:250` "All tests passed (4059849 assertions in 119 test cases)"; `[preset]~[long]` lane `sweep5_vorago_preset_lane.log:32` "All tests passed (18135 assertions in 41 test cases)"; after the T061 tidy fix `t061_vorago_preset_lane_rerun.log:55` "All tests passed (246 assertions in 1 test case)". |
+| FR-023 | ✅ pass | `t061_determinism_vorago.log:5` "check-preset-generator-determinism: OK — 42 file(s); 0 differing between two fresh runs, 0 changed by a third run over an existing tree.". |
+| FR-024 | ✅ pass | compliance T053; `t061_determinism_seraphis.log:5` "check-preset-generator-determinism: OK — 42 file(s); 0 differing between two fresh runs, 0 changed by a third run over an existing tree." (no-flag path), `t061_determinism_vorago.log:5` (`--plugin vorago`). |
+| FR-025 | ⏳ pending | needs the release runner (Linux/GCC/Ninja): `check-portability.js` compiles headers, not the generator target — recorded pending the push (T057). |
+| FR-026 | ✅ pass | `plugins/vorago/CMakeLists.txt:123` `krate_plugin_install_presets`; listing after the T061 build: 7 directories, 42 files under `%PROGRAMDATA%\Krate Audio\Vorago\`. |
+| FR-027 | ✅ pass | `installers/windows/setup.iss:66-68` and `installers/linux/README.txt:29-44` read and accurate (compliance T059). |
+| FR-027a | ✅ pass | compliance T060 (eleven Phase 14 TUs registered, fast-math list exact, nothing missing). |
+| FR-028 | ✅ pass | `Vorago_FactoryPresets_ContainerAndInfo` (`plugins/vorago/tests/unit/preset/factory_preset_test.cpp:1581`): per-push lane `close-lanes/suite_vorago_tests.log:250` "All tests passed (4059849 assertions in 119 test cases)"; `[preset]~[long]` lane `sweep5_vorago_preset_lane.log:32` "All tests passed (18135 assertions in 41 test cases)"; after the T061 tidy fix `t061_vorago_preset_lane_rerun.log:55` "All tests passed (246 assertions in 1 test case)". |
+| FR-029 | ✅ pass | `Vorago_FactoryPresets_RoundTrip` (`plugins/vorago/tests/unit/preset/factory_preset_test.cpp:1708`): per-push lane `close-lanes/suite_vorago_tests.log:250` "All tests passed (4059849 assertions in 119 test cases)"; `[preset]~[long]` lane `sweep5_vorago_preset_lane.log:32` "All tests passed (18135 assertions in 41 test cases)"; after the T061 tidy fix `t061_vorago_preset_lane_rerun.log:55` "All tests passed (246 assertions in 1 test case)". |
+| FR-030 | ✅ pass | `Vorago_FactoryPresets_BrowserScan` (`plugins/vorago/tests/unit/preset/factory_preset_test.cpp:1725`), `Vorago_FactoryPresets_CategoriesMatchConfig` (`:253`): per-push lane `close-lanes/suite_vorago_tests.log:250` "All tests passed (4059849 assertions in 119 test cases)"; `[preset]~[long]` lane `sweep5_vorago_preset_lane.log:32` "All tests passed (18135 assertions in 41 test cases)"; after the T061 tidy fix `t061_vorago_preset_lane_rerun.log:55` "All tests passed (246 assertions in 1 test case)". |
+| FR-031 | ✅ pass | `Vorago_PresetSupport_DecodeDefaultSurface` (`plugins/vorago/tests/unit/preset/factory_preset_test.cpp:659`), `Vorago_PresetSupport_TimelineDefault` (`:692`), `Vorago_PresetDefs_DStatePredicates` (`:998`): per-push lane `close-lanes/suite_vorago_tests.log:250` "All tests passed (4059849 assertions in 119 test cases)"; `[preset]~[long]` lane `sweep5_vorago_preset_lane.log:32` "All tests passed (18135 assertions in 41 test cases)"; after the T061 tidy fix `t061_vorago_preset_lane_rerun.log:55` "All tests passed (246 assertions in 1 test case)". |
+| FR-032 | ✅ pass | `Vorago_FactoryPresets_TreeMatchesGenerator` (`plugins/vorago/tests/unit/preset/factory_preset_test.cpp:1807`): `sweep5_vorago_preset_lane.log:55` "All tests passed (246 assertions in 1 test case)". |
+| FR-033 | ❌ red (surfaced) | `Vorago_PresetSweep_LongRender` over 8 shards (shard 0 `:630` "test cases: 5 | 3 passed | 2 failed"; shard 1 `:624` "test cases: 5 | 4 passed | 1 failed"; shard 2 `:579` "All tests passed (181 assertions in 5 test cases)"; shard 3 `:538` "test cases: 5 | 4 passed | 1 failed"; shard 4 `:495` "All tests passed (173 assertions in 5 test cases)"; shard 5 `:533` "test cases: 5 | 4 passed | 1 failed"; shard 6 `:554` "test cases: 5 | 4 passed | 1 failed"; shard 7 `:496` "All tests passed (180 assertions in 5 test cases)"): the one arm red is `sweep5_shard_0.log:36` "Choir of Absence take 3 (seed 13): peak 0.966051, hi -5.57553, lo -8.61327," — ruling B-18 (trim measured and declined). |
+| FR-033a | ✅ pass | `Vorago_PresetSweep_SustainAtAllRates` ran in every shard (5 cases per shard); every shard's failures are in AblationVerifiesClaims / LongRender only (shard logs' `FAILED:` lines). |
+| FR-034 | ✅ pass | `Vorago_PresetSweep_ShortBounded` (`integration/preset_sweep_test.cpp:78`): per-push lane `close-lanes/suite_vorago_tests.log:250` "All tests passed (4059849 assertions in 119 test cases)"; `[preset]~[long]` lane `sweep5_vorago_preset_lane.log:32` "All tests passed (18135 assertions in 41 test cases)"; after the T061 tidy fix `t061_vorago_preset_lane_rerun.log:55` "All tests passed (246 assertions in 1 test case)". |
+| FR-035 | ✅ pass | as FR-014. |
+| FR-036 | ☑ recorded by ruling | as FR-015 (`sweep5_aggregate.log:4065-4066`, t_max 2.8645, K 4). |
+| FR-037 | ❌ red (surfaced) | `Vorago_PresetSweep_AblationVerifiesClaims`: 16 red lines across the shards (6 primaries, 10 secondaries; compliance "Sweep 5"); 13c final 35 → 16, none added (`sweep5_record_diff_13c.txt`). |
+| FR-038 | ✅ pass | `Vorago_PresetSweep_RendersAreReproducible` (`integration/preset_sweep_test.cpp:1215`, tagged `[vorago-sweep]`) ran in every shard; no shard has a failure outside AblationVerifiesClaims / LongRender. |
+| FR-039 | ✅ pass | `Vorago_FactoryPresets_SequentialLoadNoAlloc` (`integration/preset_load_rt_test.cpp:105`): per-push lane `close-lanes/suite_vorago_tests.log:250` "All tests passed (4059849 assertions in 119 test cases)"; `[preset]~[long]` lane `sweep5_vorago_preset_lane.log:32` "All tests passed (18135 assertions in 41 test cases)"; after the T061 tidy fix `t061_vorago_preset_lane_rerun.log:55` "All tests passed (246 assertions in 1 test case)". |
+| FR-040 | ✅ pass | `Vorago_FactoryPresets_ConcurrentLoadIsRtSafe` (`integration/preset_load_rt_test.cpp:170`): per-push lane `close-lanes/suite_vorago_tests.log:250` "All tests passed (4059849 assertions in 119 test cases)"; `[preset]~[long]` lane `sweep5_vorago_preset_lane.log:32` "All tests passed (18135 assertions in 41 test cases)"; after the T061 tidy fix `t061_vorago_preset_lane_rerun.log:55` "All tests passed (246 assertions in 1 test case)". |
+| FR-041 | ✅ pass | `t049_cpu_vorago_tests.log:639` "worst preset: Ice Shelf  ratio 1.1267 (gate <= 1.15)  default surface 2661251 ns/block = 0.8316 x kReferenceNs (3200000 ns, recorded only)"; `:652` "All tests passed (1655398 assertions in 6 test cases)" (compliance "T049 — preset CPU"). |
+| FR-042 | ⏳ pending | the user's audition (T050 table in this file) — nothing automated substitutes. |
+| FR-060 | ✅ pass | `src/processor/processor.cpp:689` `getTailSamples()`; `Vorago_Processor_GetTailSamplesMatchesState` (`unit/tail_samples_test.cpp:103`): `close-lanes/suite_vorago_tests.log:250` "All tests passed (4059849 assertions in 119 test cases)". |
+| FR-061 | ✅ pass | `Vorago_Ghost_TriggersAddToDensityScheduler` (`unit/ghost_triggers_additive_test.cpp:78`): `close-lanes/suite_vorago_tests.log:250` "All tests passed (4059849 assertions in 119 test cases)"; Clarification Q8 (2026-09-29); cited in `plugins/vorago/CLAUDE.md` (T052). |
+| FR-062 | ✅ pass | `plugins/vorago/docs/index.html` + `assets/style.css` (compliance T051; 2 relative refs, 0 missing). |
+| FR-063 | ✅ pass | `.claude/workflows/release-readiness.js` `PLUGIN_MAP.vorago`; `.claude/skills/release/SKILL.md` list + table; `lint-plugin-roster` OK (compliance T054). |
+| FR-064 | ✅ pass | `plugins/vorago/version.json` "1.0.0"; `CHANGELOG.md` "## [1.0.0] - 2026-10-06"; `check-changelog-coverage.js vorago` exit 0; freeze recorded in `plugins/vorago/CLAUDE.md` decision 1 (compliance T058, T052). |
+| FR-065 | ⏳ pending | the parts ran here: build 0 warnings (`f:/tmp/p14/build_t061.log`), `vorago_tests` `close-lanes/suite_vorago_tests.log:250` "All tests passed (4059849 assertions in 119 test cases)", pluginval `t061_pluginval.log:117` "exit=0 END 2026-10-06 20:18:56" (strictness 5), version / CHANGELOG sync (FR-064), `t062_portability.log:11` "check-portability: all clear -- 1 compiled.", clang-tidy vorago `t061_tidy_vorago.log:34` "[OK]   Errors: 0" / `:35` "[WARN]   Warnings: 1" → after the fix `t061_tidy_vorago_rerun.log:12` "[OK]   Warnings: 0", dsp `t061_tidy_dsp.log:11` "[OK]   Errors: 0" / `:12` "[OK]   Warnings: 0"; the packaged `release-readiness` workflow itself and the AU validation need the push — pending (T057 / T063). |
+| FR-066 | ✅ pass | `.github/workflows/long-tests-nightly.yml` jobs `vorago-sweep` (3 OS × 10 shards) and `vorago-sweep-aggregate`, `timeout-minutes: 180`; `ci.yml:369,655,1116` `[long]~[vorago-sweep]` (compliance T055 / T056); the first green run needs the push (SC-023). |
+| SC-001 | ✅ pass | `Vorago_FactoryPresets_CategoriesMatchConfig`: per-push lane `close-lanes/suite_vorago_tests.log:250` "All tests passed (4059849 assertions in 119 test cases)"; `[preset]~[long]` lane `sweep5_vorago_preset_lane.log:32` "All tests passed (18135 assertions in 41 test cases)"; after the T061 tidy fix `t061_vorago_preset_lane_rerun.log:55` "All tests passed (246 assertions in 1 test case)". |
+| SC-002 | ✅ pass | `Vorago_FactoryPresets_ContainerAndInfo`: per-push lane `close-lanes/suite_vorago_tests.log:250` "All tests passed (4059849 assertions in 119 test cases)"; `[preset]~[long]` lane `sweep5_vorago_preset_lane.log:32` "All tests passed (18135 assertions in 41 test cases)"; after the T061 tidy fix `t061_vorago_preset_lane_rerun.log:55` "All tests passed (246 assertions in 1 test case)". |
+| SC-003 | ✅ pass | `Vorago_FactoryPresets_RoundTrip`: per-push lane `close-lanes/suite_vorago_tests.log:250` "All tests passed (4059849 assertions in 119 test cases)"; `[preset]~[long]` lane `sweep5_vorago_preset_lane.log:32` "All tests passed (18135 assertions in 41 test cases)"; after the T061 tidy fix `t061_vorago_preset_lane_rerun.log:55` "All tests passed (246 assertions in 1 test case)". |
+| SC-004 | ✅ pass | `Vorago_FactoryPresets_BrowserScan`: per-push lane `close-lanes/suite_vorago_tests.log:250` "All tests passed (4059849 assertions in 119 test cases)"; `[preset]~[long]` lane `sweep5_vorago_preset_lane.log:32` "All tests passed (18135 assertions in 41 test cases)"; after the T061 tidy fix `t061_vorago_preset_lane_rerun.log:55` "All tests passed (246 assertions in 1 test case)". |
+| SC-005 | ✅ pass | `Vorago_FactoryPresets_StreamShape`: per-push lane `close-lanes/suite_vorago_tests.log:250` "All tests passed (4059849 assertions in 119 test cases)"; `[preset]~[long]` lane `sweep5_vorago_preset_lane.log:32` "All tests passed (18135 assertions in 41 test cases)"; after the T061 tidy fix `t061_vorago_preset_lane_rerun.log:55` "All tests passed (246 assertions in 1 test case)". |
+| SC-006 | ✅ pass | `Vorago_FactoryPresets_TreeMatchesGenerator`: `sweep5_vorago_preset_lane.log:55` (MSVC leg; GCC / AppleClang legs need the push). |
+| SC-007 | ✅ pass | `t061_determinism_vorago.log:5` "check-preset-generator-determinism: OK — 42 file(s); 0 differing between two fresh runs, 0 changed by a third run over an existing tree.". |
+| SC-008 | ❌ red (surfaced) | `sweep5_aggregate.log:363` "Required primaries from the measured set: 42; from the recorded constant: 42; verified primaries: 36" — 36 of 42; E1 / E4 no verified primary (`:317`, `:326`); E6.hi / E7.hi no verified secondary (`:341`, `:348`); `SUBSET pairs: 51` (`:2612`). |
+| SC-009 | ✅ pass | `Vorago_PresetMatrix_ParameterSpaceDistinct`: per-push lane `close-lanes/suite_vorago_tests.log:250` "All tests passed (4059849 assertions in 119 test cases)"; `[preset]~[long]` lane `sweep5_vorago_preset_lane.log:32` "All tests passed (18135 assertions in 41 test cases)"; after the T061 tidy fix `t061_vorago_preset_lane_rerun.log:55` "All tests passed (246 assertions in 1 test case)". |
+| SC-010 | ☑ recorded by ruling | `sweep5_aggregate.log:4065` "Pairs 861: min d 0.9547 (Wind Through Basalt vs Swarm Breath, floor 5.7290)  median d 8.6876  max d 29.6164"; `:4066` "t_max 2.8645  K 4  effective floor max(F, 2 t_max) = 5.7290 (s(P) recorded, not gated - ruling 2026-09-30)  pairs below floor: 159" (recorded, not gated — ruling 2026-09-30). |
+| SC-011 | ❌ red (surfaced) | 16 claims under their bars (6 primaries < 4.0, 10 secondaries < 1.5; compliance "Sweep 5"); every other claimed cell verified (shard logs). |
+| SC-012 | ❌ red (surfaced) | `Vorago_PresetSweep_LongRender`: 41 presets all arms green on all four takes; `sweep5_shard_0.log:36` "Choir of Absence take 3 (seed 13): peak 0.966051, hi -5.57553, lo -8.61327," (ruling B-18). |
+| SC-013 | ⏳ pending | runner wall clocks — needs the push and a dispatch (T057). |
+| SC-014 | ✅ pass | `Vorago_PresetSweep_ShortBounded`: per-push lane `close-lanes/suite_vorago_tests.log:250` "All tests passed (4059849 assertions in 119 test cases)"; `[preset]~[long]` lane `sweep5_vorago_preset_lane.log:32` "All tests passed (18135 assertions in 41 test cases)"; after the T061 tidy fix `t061_vorago_preset_lane_rerun.log:55` "All tests passed (246 assertions in 1 test case)". |
+| SC-015 | ✅ pass | `Vorago_PresetSweep_RendersAreReproducible` green in all 8 shards (FR-038). |
+| SC-016 | ✅ pass | `Vorago_FactoryPresets_SequentialLoadNoAlloc`, `Vorago_FactoryPresets_ConcurrentLoadIsRtSafe`: per-push lane `close-lanes/suite_vorago_tests.log:250` "All tests passed (4059849 assertions in 119 test cases)"; `[preset]~[long]` lane `sweep5_vorago_preset_lane.log:32` "All tests passed (18135 assertions in 41 test cases)"; after the T061 tidy fix `t061_vorago_preset_lane_rerun.log:55` "All tests passed (246 assertions in 1 test case)". |
+| SC-017 | ✅ pass | `t049_cpu_vorago_tests.log:639` "worst preset: Ice Shelf  ratio 1.1267 (gate <= 1.15)  default surface 2661251 ns/block = 0.8316 x kReferenceNs (3200000 ns, recorded only)". |
+| SC-018 | ✅ pass | matrix rows `:165` "D11 ghost reverse >= 0.5 ........S...............................X. . (1 factory verifier)"; `:166` "D12.1 ghost event triggers o ........S................................. . (1 factory verifier)" (verified by ≥ 1 preset each). |
+| SC-019 | ⏳ pending | `version.json` 1.0.0 and the `[1.0.0]` entry are in; the release-readiness row and auval need the release commit pushed (T063) — pending. |
+| SC-020 | ⏳ pending | T050 audition table prepared; the user's notes are outstanding. |
+| SC-021 | ✅ pass | `grep -n vorago .claude/workflows/release-readiness.js .claude/skills/release/SKILL.md` — both entries (compliance T054); `lint-plugin-roster` 8 plugins. |
+| SC-022 | ✅ pass | `Vorago_PresetSweep_SustainAtAllRates` green in all 8 shards (FR-033a). |
+| SC-023 | ⏳ pending | the file side is in (FR-066; both jobs ≤ 180 min; `ci.yml` filters); one green nightly run needs the push. |
+| SC-024 | ✅ pass | `Vorago_PresetSweep_FreezeGesture` green in all 8 shards; matrix `:163` "D10.1 freeze holds a field .......S.................................. . (1 factory verifier)"; `git diff 339cd501..HEAD` on the cavern / aether / space-params headers is empty and `processor.cpp` has no freeze-path hunk (compliance T059). |
+| SC-025 | ✅ pass | compliance T059 (both 13b tables' rows for syncRate and selfAffinity). |
+| SC-026 | ✅ pass | compliance T059 (ratified 2026-09-29, first ID commit 2026-10-01). |
+| SC-027 | ✅ pass | `src/plugin_ids.h:181-182,24,52-54`; `Vorago_VoiceParams_FieldCount` (`kFieldCount == 33`, `vorago_engine.h:194`), the `unit/state_v3_test.cpp` cases: `close-lanes/suite_vorago_tests.log:250` "All tests passed (4059849 assertions in 119 test cases)". |
+| SC-028 | ❌ red (surfaced) | UI side ✅ (`Vorago_Ecosystem_PageBindsRosterIds`: `close-lanes/suite_vorago_tests.log:250` "All tests passed (4059849 assertions in 119 test cases)"); coverage side ❌ E6.hi / E7.hi not verified (`sweep5_aggregate.log:341,348`, ruling B-20). |
+| SC-033 | ✅ pass | `vorago_voice.h:1711-1712` and compliance "Noise make-up: regression on the amended voice" (probe readings); S1-primary presets verified in sweep 5 (`sweep5_aggregate.log:381`). |
+| SC-029 | ✅ pass | `sweep5_aggregate.log:363` "Required primaries from the measured set: 42; from the recorded constant: 42; verified primaries: 36" (N = 42, required = recorded). |
+| SC-030 | ✅ pass | `Vorago_Processor_GetTailSamplesMatchesState` (`unit/tail_samples_test.cpp:103`): `close-lanes/suite_vorago_tests.log:250` "All tests passed (4059849 assertions in 119 test cases)". |
+| SC-031 | ✅ pass | `Vorago_FactoryPresets_LibraryShape`: per-push lane `close-lanes/suite_vorago_tests.log:250` "All tests passed (4059849 assertions in 119 test cases)"; `[preset]~[long]` lane `sweep5_vorago_preset_lane.log:32` "All tests passed (18135 assertions in 41 test cases)"; after the T061 tidy fix `t061_vorago_preset_lane_rerun.log:55` "All tests passed (246 assertions in 1 test case)". |
+| SC-032 | ✅ pass | compliance T059 cites + the 7-directory / 42-file listing. |
+
+**Verdict: NOT RELEASE-GREEN.** The library ships 42 playable, level-safe presets (SC-012 all arms green except Choir of
+Absence's seed-13 take, ruling B-18) with 36 of 42 named features verified audible; the six engine-limited primaries (E1, E4,
+M2, M4, M5, M10), the four unverified roster / E cells and the 51 subset pairs stay red by measurement and are surfaced for the
+13d engine pass the user proposed. Pending the user: the T050 audition (SC-020) and permission to push (T057 wall clocks, SC-013
+/ SC-019 auval / SC-023 nightly, FR-025 Linux generator build). One carried red from 13c: the Movement rho assertion in the
+`dsp_systems_tests` `[long]` lane.

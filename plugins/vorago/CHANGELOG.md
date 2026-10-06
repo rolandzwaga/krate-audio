@@ -5,6 +5,36 @@ All notable changes to Vorago will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2026-10-06
+
+The first public release: the factory library. Every one of the 42 presets was
+authored against a measurement — a long render of the preset as stored against
+the same preset with its named feature switched off — so a preset that claims
+a feature makes that feature audible, and every preset holds its level over a
+seven-minute hold. The parameter surface and the editor are the 0.2.0 ones; what
+changed is the library, two ecosystem rule knobs, the state format that carries
+them, and the plugin telling the host how long its tail is.
+
+Be patient with it. Vorago is slow by design: hold the note. In most presets
+the first sound takes several seconds to surface and the drone keeps swelling
+for about two and a half minutes (the default attack runs 155 seconds); Sudden
+Chasm, Growth Ring and Slow Bloom are the faster ones. A note that starts in
+near silence is the instrument working, not a fault.
+
+### Added
+
+- **42 factory presets in seven categories** — Drones, Abyss, Caverns, Organisms, Machines, Textures and Ghosts, at least three per category. Each preset leads with one feature of the engine (a section, a concept macro, a colony route, a body material, a noise model, a growth envelope or an attack span) and carries the others as secondaries. The presets are generated from the plugin's own parameter surface and installed with the plugin.
+- **Ecosystem Sync and Self Affinity** — Two rule knobs on the Life page (IDs 901 and 902) that shape the colony itself: how strongly the agents fall into step with one another, and how much each agent keeps to its own kind. Both are saved with the project.
+- **Tail length** — The plugin reports its tail to the host (the cavern's decay plus the release), so offline renders and freeze-tail bounces are not cut short.
+- **Freeze as a gesture** — Freeze holds the cavern's current field for as long as it is on; play a note, let the drone bloom, engage Freeze and the space hangs while the voice keeps singing into it. Cathedral Void is built around it.
+
+### Changed
+
+- **State format v3** — 436 bytes: the 0.2.0 stream plus the two rule knobs. Projects saved with 0.2.0 and 0.1.0 load unchanged; the new knobs take their defaults.
+- **Default ghost level is 0** — The ghost layer is silent unless a preset or the user raises it; presets that depend on it set it explicitly.
+- **Engine levels retuned so every feature is audible** (Phases 13b and 13c, measured preset by preset): the ghost layer carries a 21 dB make-up, the feedback ecology a 30 dB wet make-up, the breathing and tidal life lanes a gain of 3 with a 0.8 tidal rate, the colony child gain is 1.5 and Fog now also decoheres the smear; the attack reshapes as a quartic rise so slow swells are heard growing; the ecosystem agent state exposes its sync rate and self affinity. Presets saved with 0.2.0 will sound louder in those layers.
+- **Ghost density and event triggers add** — With Ghost Event Triggers on, the triggered grains add on top of the density scheduler instead of replacing it.
+
 ## [0.2.0] - 2026-09-26
 
 The first release you can actually design sounds with. It covers two pieces of

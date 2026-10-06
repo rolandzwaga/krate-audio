@@ -1,0 +1,12 @@
+check-seraphis-green: SC-016 clauses 1-2, diffed against HEAD
+
+  [2] dsp/include/krate/dsp/systems/continuous_body.h: unmodified -- append not yet made, nothing to bound
+  [1] dsp/tests/unit/systems/: 0 modified TU(s), all in scope
+  [3] dsp/include/krate/dsp/systems/feedback_ecology.h: unmodified
+  [3] dsp/include/krate/dsp/processors/multi_stage_envelope.h: unmodified
+  [3] dsp/include/krate/dsp/processors/growth_envelope.h: unmodified
+  [3] dsp/include/krate/dsp/systems/atmosphere_engine.h: unmodified
+  [4] plugins/seraphis/: 0 modified file(s), all in scope
+
+check-seraphis-green: in scope
+exit=0

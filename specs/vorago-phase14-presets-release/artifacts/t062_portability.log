@@ -1,0 +1,13 @@
+START 2026-10-06 20:22:02 node tools/check-portability.js
+warning: in the working copy of 'plugins/vorago/CHANGELOG.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/vorago/CLAUDE.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/vorago/tests/integration/preset_cpu_test.cpp', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/vorago/version.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'specs/vorago-phase14-presets-release/compliance.md', LF will be replaced by CRLF the next time Git touches it
+check-portability: 1 translation unit(s) with g++
+
+  OK      plugins/vorago/tests/integration/preset_cpu_test.cpp
+
+check-portability: all clear -- 1 compiled.
+exit=0 END 2026-10-06 20:23:10
+wsl shutdown rc=0
