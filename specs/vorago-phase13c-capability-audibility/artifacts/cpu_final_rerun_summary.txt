@@ -1,0 +1,6 @@
+build exit=0 warnings=0
+slot accounting: All tests passed (8 assertions in 1 test case)
+cases: [] [] []
+ResonanceDriftNetwork_CpuBudget: All tests passed (25 assertions in 1 test case) | 
+FeedbackEcology_CpuBudget: assertions: 26 | 25 passed | 1 failed |   REQUIRE( nsRef * kRegressionFactor <= kAbsoluteCeilingNs )   165859.2 <= 160000.0 
+Vorago_ProcessorCpu: assertions: 15 | 14 passed | 1 failed |   REQUIRE( pBestNs <= kWrapperOverheadCeiling * dBestNs )   2816482.0 <= 2779525.3500000001 

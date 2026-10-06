@@ -1,0 +1,9 @@
+START 2026-10-02 14:34:44 attack tests as compiled (kAttackStageCurve = EnvCurve::Linear kAttackShapePower = 4 kDefaultStageTimesMs{20000.0f ) exe=2026-10-02 14:34:09
+Filters: "VoragoVoice_AttackCurveReach","VoragoVoice_AttackTracksStageTime"
+Randomness seeded to: 488056123
+VoragoVoice_AttackCurveReach: n = 4, 165.0 s rendered in 12.00 s wall
+VoragoVoice_AttackTracksStageTime: n = 4, RMS(Sus) -21.45 dB, reach 19.0 s (bound [15.0, 20.0] s), 180.0 s rendered in 2.38 s wall
+===============================================================================
+All tests passed (40 assertions in 2 test cases)
+
+exit=0 END 2026-10-02 14:34:59

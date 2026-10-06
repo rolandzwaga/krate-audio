@@ -257,7 +257,12 @@ public:
     /// FR-011. Matches HarmonicCloud::kTargetAmpEpsilon (harmonic_cloud.h:258):
     /// a partial the cloud cannot tell from silence has no harmonics to grow.
     static constexpr float kSilentParentAmplitude = 1.0e-5f;
-    static constexpr float kDefaultChildGain = 0.35f;  ///< FR-023, configurable [0, 1]
+    static constexpr float kDefaultChildGain = 0.35f;  ///< FR-023, configurable [0, kMaxChildGain]
+    /// Phase 13c ruling B-3 (2026-10-01, append-only per FR-019): the child-gain
+    /// ceiling. 1.0 (a child as loud as its parent) read Slow Bloom d 3.844 against
+    /// the 4.0 bar on the ladder, so the clamp was raised; the ruled value lives in
+    /// VoragoVoice::kBloomChildGain.
+    static constexpr float kMaxChildGain = 2.0f;
 
     /// FR-023 / Clarification Q1. Restated verbatim from harmonic_cloud.h:1433.
     static constexpr float kLog2TenOver20 = 3.32192809488736235f / 20.0f;
@@ -557,12 +562,12 @@ public:
         childrenPerEvent_ = std::clamp(n, std::size_t{1}, kMaxChildrenPerEvent);
     }
 
-    /// FR-023. Clamped [0, 1].
+    /// FR-023. Clamped [0, kMaxChildGain] (13c B-3; was [0, 1]).
     void setChildGain(float gain) noexcept {
         if (!detail::isFinite(gain)) {
             return;
         }
-        childGain_ = std::clamp(gain, 0.0f, 1.0f);
+        childGain_ = std::clamp(gain, 0.0f, kMaxChildGain);
     }
 
     /// FR-030. Clamped [kMinFadeInSeconds, kMaxFadeInSeconds]. Affects the NEXT

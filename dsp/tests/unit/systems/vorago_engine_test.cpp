@@ -68,6 +68,7 @@
 #include <cstdint>
 #include <cstring>
 #include <iomanip>
+#include <limits>
 #include <memory>
 #include <span>
 #include <sstream>
@@ -277,7 +278,9 @@ TEST_CASE("VoragoEngine_UnpreparedAndDegenerate", "[systems][vorago]") {
         REQUIRE(engine->getSubTrackingAmount() == 1.0f);  // ruled 2026-09-19: 0.60 -> 1.0
         REQUIRE(engine->getAtmosBlur() == 0.85f);
         REQUIRE(engine->getOutputSaturation() == VoragoEngine::kOutputSaturation);
-        REQUIRE(engine->getGhostPeakLevel() == VoragoEngine::kGhostBurstPeak);
+        // 13c B-14 (FR-034): the default level is kGhostDefaultPeakLevel (0); kGhostBurstPeak
+        // keeps only the SC-027 trigger thresholds.
+        REQUIRE(engine->getGhostPeakLevel() == VoragoEngine::kGhostDefaultPeakLevel);
 
         // Notes and clears on an unprepared engine are NO-OPS, not faults.
         engine->noteOn(60u, 100u);
@@ -2737,6 +2740,9 @@ constexpr float kGhostEventRateScale = 10.0f;
     engine->setSeed(0x6057u);
     engine->setPolyphony(1u);
     applyFastAttack(*engine);
+    // 13c B-14 (FR-034 entry 6): the default ghost peak is now 0, so this fixture opens the gate
+    // explicitly at the pre-B-14 level; the trigger thresholds still derive from kGhostBurstPeak.
+    engine->setGhostPeakLevel(VoragoEngine::kGhostBurstPeak);
     engine->noteOn(33u, 100u);
 
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
@@ -3232,12 +3238,17 @@ TEST_CASE("VoragoEngine_GhostLevelProbe", "[.probe][systems][vorago]") {
         float ghost;
         float makeupDb;
     };
-    constexpr std::array<Variant, 6> kVariants{{{0.0f, 0.0f},
+    // Phase 13c T035 (L3 ladder): the make-up rungs 15 / 21 / 24 dB added so one
+    // run prints every rung beside the shipped 12 dB (kGhostTapMakeupDb).
+    constexpr std::array<Variant, 9> kVariants{{{0.0f, 0.0f},
                                                {0.5f, 0.0f},
                                                {1.0f, 0.0f},
                                                {1.0f, 6.0f},
                                                {1.0f, 12.0f},
-                                               {1.0f, 18.0f}}};
+                                               {1.0f, 15.0f},
+                                               {1.0f, 18.0f},
+                                               {1.0f, 21.0f},
+                                               {1.0f, 24.0f}}};
     for (const Variant& v : kVariants) {
         const float ghost = v.ghost;
         auto engine = std::make_unique<VoragoEngine>();
@@ -3284,4 +3295,34 @@ TEST_CASE("VoragoEngine_GhostLevelProbe", "[.probe][systems][vorago]") {
                     rmsDb(diff, kTailStart), loudestDb, audible, windows);
     }
     REQUIRE(true);
+}
+
+// =============================================================================
+// Phase 13c T065 (plan s2.9, ruling P2): the three measurement seams set on the
+// engine fan-out read back from voice 0 (child gain, ecology wet make-up) and
+// from the atmosphere engine (ghost density); a non-finite density is rejected
+// and the previous value stands. Record only. Hidden.
+// =============================================================================
+TEST_CASE("VoragoEngine_SeamReadbackProbe", "[.probe][systems][vorago]") {
+    VoragoEngineConfig cfg{};
+    auto engine = std::make_unique<VoragoEngine>();
+    engine->setPolyphony(2u);
+    engine->prepare(kSampleRate8k, cfg);
+    std::printf("[seams] defaults: childGain %.3f ecologyWetDb %.3f ghostDensity %.3f ghostTapDb %.3f\n",
+                static_cast<double>(engine->getBloomChildGain()),
+                static_cast<double>(engine->getEcologyWetMakeupDb()),
+                static_cast<double>(engine->getGhostDensity()),
+                static_cast<double>(engine->getGhostTapMakeupDb()));
+    engine->setBloomChildGain(0.7f);
+    engine->setEcologyWetMakeupDb(12.0f);
+    engine->setGhostDensity(0.6f);
+    std::printf("[seams] set 0.7 / 12 / 0.6 -> read %.3f / %.3f / %.3f\n",
+                static_cast<double>(engine->getBloomChildGain()),
+                static_cast<double>(engine->getEcologyWetMakeupDb()),
+                static_cast<double>(engine->getGhostDensity()));
+    REQUIRE(engine->getBloomChildGain() == Catch::Approx(0.7f));
+    REQUIRE(engine->getEcologyWetMakeupDb() == Catch::Approx(12.0f));
+    REQUIRE(engine->getGhostDensity() == Catch::Approx(0.6f));
+    engine->setGhostDensity(std::numeric_limits<float>::quiet_NaN());
+    REQUIRE(engine->getGhostDensity() == Catch::Approx(0.6f));
 }

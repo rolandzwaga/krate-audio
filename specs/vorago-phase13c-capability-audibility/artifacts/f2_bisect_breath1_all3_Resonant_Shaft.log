@@ -1,0 +1,12 @@
+START 2026-10-04 22:00:48 Resonant Shaft arm breath1 lever=childGain=0.35,ghostTapDb=12,ecologyWetDb=0 exe=2026-10-04 21:38:13
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 2432055274
+[probe] lever: childGain=0.35,ghostTapDb=12,ecologyWetDb=0
+[probe] Resonant Shaft - primary S2 resonance drift (stored seed 3, 1 twin render(s))
+  take: peak 0.9212  arm1 hi -9.22 dB [yes]  arm2 lo -26.07 dB [yes]  arm3 late-sus +8.76 dB [yes]  arm4 tail -224.80 dB [yes]
+  arm1@44.1k: finite y peak 0.3719 hi -16.62 dB [PASS]
+  primary d 4.0438  bar 4.0000  attribBase -1.0000  state ok  -> PASS  lever: childGain=0.35,ghostTapDb=12,ecologyWetDb=0
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (10 assertions in 1 test case)
+

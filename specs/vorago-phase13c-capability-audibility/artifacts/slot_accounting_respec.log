@@ -1,0 +1,23 @@
+START 2026-10-05 12:58:09 VoragoVoice_BloomSlotAccounting after the FR-034 re-spec exe=2026-10-05 12:58:07
+Filters: "VoragoVoice_BloomSlotAccounting"
+Randomness seeded to: 2914677704
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+VoragoVoice_BloomSlotAccounting
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_longrun_test.cpp(518)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_longrun_test.cpp(613): warning:
+  SC-018 bloom accounting: A = 10, 30 equivalent minutes, 135000 control steps
+  (180 s of audio), wall clock 13.6814 s; capacity 14..64, min reserveBase 8,
+  max live children 10
+
+===============================================================================
+All tests passed (8 assertions in 1 test case)
+
+exit=0 END 2026-10-05 12:58:22

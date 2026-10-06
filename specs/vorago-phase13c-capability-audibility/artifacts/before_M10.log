@@ -1,0 +1,10 @@
+START 2026-10-01 08:42:24 before_M10 tree=ae149a1c as-compiled (no override) preset="Teeming"
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 2471424450
+[probe] Teeming - primary M10 Life (stored seed 11, 1 twin render(s))
+  take: peak 0.1892  arm1 hi -24.97 dB [yes]  arm2 lo -28.97 dB [yes]  arm3 late-sus +1.27 dB [yes]  arm4 tail -165.45 dB [yes]
+  primary d 0.3794  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+===============================================================================
+All tests passed (7 assertions in 1 test case)
+
+END 2026-10-01 08:45:24 exit=0 wall=180s

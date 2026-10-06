@@ -1,0 +1,14 @@
+START 2026-10-02 07:45:26 VORAGO_PILOT_PRESET=Haunted Colony VORAGO_PILOT_LEVER=ghostTapDb=21 exe=2026-10-02 07:19:18 (kGhostTapMakeupDb 12 compiled, kGhostDensity 0.30)
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 2501798886
+[probe] lever: ghostTapDb=21
+[probe] Haunted Colony - primary E5 ghost -> ghost bursts (stored seed 12, 4 twin render(s))
+  take: peak 0.5492  arm1 hi -17.93 dB [yes]  arm2 lo -22.98 dB [yes]  arm3 late-sus -0.22 dB [yes]  arm4 tail -163.49 dB [yes]
+  arm1@44.1k: finite y peak 0.4955 hi -16.92 dB [PASS]
+  route arms: d(R_k, R_k0) 2.2835, attribBase d(R_0, R_00) 0.8918 (attributable iff d >= 2.3918)
+  primary d 2.2835  bar 4.0000  attribBase 0.8918  state ok  -> FAIL  lever: ghostTapDb=21
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (17 assertions in 1 test case)
+
+exit=0 END 2026-10-02 07:48:28

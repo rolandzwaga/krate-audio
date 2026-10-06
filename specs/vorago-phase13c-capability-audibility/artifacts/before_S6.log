@@ -1,0 +1,10 @@
+START 2026-10-01 08:25:35 before_S6 tree=ae149a1c as-compiled (no override) preset="Slow Bloom"
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 697921949
+[probe] Slow Bloom - primary S6 harmonic bloom (stored seed 7, 1 twin render(s))
+  take: peak 0.2514  arm1 hi -22.40 dB [yes]  arm2 lo -26.64 dB [yes]  arm3 late-sus +0.78 dB [yes]  arm4 tail -196.83 dB [yes]
+  primary d 1.4453  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+===============================================================================
+All tests passed (7 assertions in 1 test case)
+
+END 2026-10-01 08:27:46 exit=0 wall=131s

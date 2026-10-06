@@ -637,8 +637,10 @@ inline constexpr std::size_t kBaseCommitLatencySamples = 1024u;
 //   Non-vacuous    rms = 0.090743041569614491 and peak = 0.29633152484893799 are
 //                  both NON-ZERO; checkpoint 0 is exactly 0 (silent engine at
 //                  sample 0), as before.
-// PROVENANCE (this constant, SEVENTH harvest - Phase 14 FR-077b re-pin, user
-// ruling S-7 2026-09-30 17:25, specs/vorago-phase14-presets-release):
+// PROVENANCE (SEVENTH harvest - Phase 14 FR-077b re-pin, user ruling S-7
+// 2026-09-30 17:25, specs/vorago-phase14-presets-release; SUPERSEDED 2026-10-04
+// by the eighth harvest below, kept for the record; its literal is in
+// specs/vorago-phase14-presets-release/artifacts/ghost_fingerprint_harvest7_run1.log):
 //   Why            Re-author ruling S-7 adds the +12 dB ghost-tap make-up in
 //                  VoragoEngine (FR-077b): the atmosphere's wet texture, which
 //                  the default surface already carries at ghost peak level
@@ -670,20 +672,63 @@ inline constexpr std::size_t kBaseCommitLatencySamples = 1024u;
 //   Non-vacuous    rms = 0.096512938463810455 and peak = 0.33458879590034485 are
 //                  both NON-ZERO; checkpoint 0 is exactly 0 (silent engine at
 //                  sample 0), as before.
+// PROVENANCE (this constant, EIGHTH harvest - Phase 13c FR-035 / SC-016 re-pin,
+// tasks T059, specs/vorago-phase13c-capability-audibility):
+//   Why            Phase 13c changes the default voicing BY RULING (the
+//                  capability-audibility levers: bloom child gain
+//                  kBloomChildGain = 1.5 (B-4), ecology wet make-up
+//                  kEcologyWetMakeupDb = 30 (B-9), and the other ruled 13c
+//                  ghost / route / attack / life / macro levers, all in
+//                  vorago_voice.h / vorago_engine.h / vorago_macro_matrix.h /
+//                  bloom_engine.h / feedback_ecology.h). The seventh-harvest
+//                  constant pinned the Phase 14 render; clause (a) read worst
+//                  metric error 0.186221 (bound 0.005; checkpoint[12] 0.143162
+//                  vs 0.258899) against it (FR-034 ledger entry 3,
+//                  artifacts/fr034_surfaced.md) and is re-pinned ONCE here on the
+//                  final 13c tree (E-14). The clause's meaning is unchanged: "the
+//                  ghost extension, default-inert, renders the default
+//                  identically" - now against the Phase 13c default.
+//   Tree           HEAD ae149a1c53307cb9bcc6227398f08926167379a2 (13c docs) + the
+//                  phase's uncommitted dsp/include edits (git diff HEAD --
+//                  dsp/include md5 e613c84f01125ecbe9e185872a0894d8: bloom_engine.h,
+//                  feedback_ecology.h, vorago_engine.h, vorago_macro_matrix.h,
+//                  vorago_voice.h); binary dsp_systems_tests.exe built
+//                  2026-10-04 09:53:50 +0200.
+//   Recipe         sounding recipe per B-2 (unchanged; the consuming clause's
+//                  own render, vorago_ghost_ext_test.cpp:458-510)
+//   Harvested      INSIDE `dsp_systems_tests` (B-3): the consuming clause's own
+//                  paste-ready printer, run as
+//                  `dsp_systems_tests.exe "VoragoEngine_GhostExtensionWiring"
+//                  -c "clause (a) - the 60 s default render is unchanged from the
+//                  base commit" -s`; logs
+//                  specs/vorago-phase13c-capability-audibility/artifacts/
+//                  reharvest_run1.log and reharvest_run2.log
+//   Machine        CodeBox, 13th Gen Intel(R) Core(TM) i9-13900HX,
+//                  Windows 11 Pro 10.0.26200
+//   Toolchain      MSVC 19.44.35228, Visual Studio 17 2022 generator, x64,
+//                  preset `windows-x64-release` (Release); `enableFTZDAZ()`
+//                  via `dsp_test_main.cpp` before the render
+//   Date           2026-10-04
+//   Reproducible   the case was run TWICE on the same binary; the two printed
+//                  literals are byte-identical (md5 32c7a7d17c12077e08316fa923ae05f8,
+//                  over the printed block from `inline constexpr` to `}};`)
+//   Non-vacuous    rms = 0.083921090720230143 and peak = 0.28364601731300354 are
+//                  both NON-ZERO; checkpoint 0 is exactly 0 (silent engine at
+//                  sample 0), as before.
 inline constexpr Krate::DSP::TestUtils::RenderFingerprint kBaseCommitVoragoFingerprint{
-    .rms = 0.096512938463810455,
-    .peak = 0.33458879590034485,
-    .meanAbs = 0.07429593256042348,
-    .totalVariation = 1360.6318547050969,
+    .rms = 0.083921090720230143,
+    .peak = 0.28364601731300354,
+    .meanAbs = 0.060460486382468627,
+    .totalVariation = 1144.5759229488212,
     .checkpoints = {
-        0.00000000f, 0.0155310892f, 0.0187097006f, 0.0274781603f,
-        -0.0228411946f, -0.00340456283f, -0.0663383454f, 0.0193302277f,
-        -0.118752718f, 0.0310297534f, 0.108154535f, 0.0823825076f,
-        0.258899033f, -0.0920445323f, 0.0534681156f, -0.134736657f,
-        -0.0789924040f, -0.0948311687f, -0.0457251072f, 0.170493796f,
-        -0.0386724509f, 0.165529475f, -0.137944981f, -0.0123875961f,
-        -0.0644778684f, -0.130238369f, -0.00648829388f, -0.0381648354f,
-        0.0639965832f, -0.0275731701f, 0.220924973f, 0.0335450284f,}};
+        0.00000000f, 6.51735581e-06f, 5.75574159e-05f, 0.000428832573f,
+        -0.000618209480f, 0.000510345097f, -0.00850169733f, 0.00323287258f,
+        -0.0420707837f, 0.00646594958f, 0.0696276426f, 0.0632918328f,
+        0.143161803f, -0.0523532741f, 0.0792985857f, -0.148858026f,
+        -0.0980994105f, -0.140016571f, -0.0737961084f, 0.185397238f,
+        -0.00387744745f, 0.147780731f, -0.137294084f, -0.0133171864f,
+        -0.0670235306f, -0.140023872f, -0.00506512448f, -0.0225401577f,
+        0.0692861080f, 0.00630343566f, 0.158507675f, 0.0313161425f,}};
 
 // -----------------------------------------------------------------------------
 // 6.3 Fixture C - SC-011 (c)'s forward arm at the SHORT (filling-ring) pre-roll

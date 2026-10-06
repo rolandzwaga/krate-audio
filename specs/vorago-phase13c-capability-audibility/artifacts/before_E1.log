@@ -1,0 +1,11 @@
+START 2026-10-01 08:48:24 before_E1 tree=ae149a1c as-compiled (no override) preset="Bloom Colony"
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 999896022
+[probe] Bloom Colony - primary E1 partial -> bloom (stored seed 0, 4 twin render(s))
+  take: peak 0.3004  arm1 hi -20.28 dB [yes]  arm2 lo -21.42 dB [yes]  arm3 late-sus +0.27 dB [yes]  arm4 tail -226.01 dB [yes]
+  route arms: d(R_k, R_k0) 0.0568, attribBase d(R_0, R_00) 0.0568 (attributable iff d >= 1.5568)
+  primary d 0.0568  bar 4.0000  attribBase 0.0568  state ok  -> FAIL
+===============================================================================
+All tests passed (11 assertions in 1 test case)
+
+END 2026-10-01 08:51:21 exit=0 wall=177s

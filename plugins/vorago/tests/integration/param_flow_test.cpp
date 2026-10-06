@@ -70,6 +70,7 @@ void paramBlock(VoragoTest::ProcessorFixture& fx, Steinberg::Vst::IParameterChan
 float renderGainScript(double gainNorm, float& snapValue) {
     VoragoTest::ProcessorFixture fx;
     prepareFixture(fx);
+    fx.shortenStage0();  // FR-034 A3: a 4 s script inside the ruled 20 s attack
 
     Krate::Test::ParameterChanges pc;
     pc.addChange(::Vorago::kMasterGainId, gainNorm);
@@ -177,6 +178,8 @@ TEST_CASE("Vorago_ParamFlowReachesEngine", "[vorago][integration]") {
         VoragoTest::ProcessorFixture m1;
         prepareFixture(m0);
         prepareFixture(m1);
+        m0.shortenStage0();  // FR-034 A4: both arms, inside the ruled 20 s attack
+        m1.shortenStage0();
 
         Krate::Test::EventList ev;
         ev.addNoteOn(48, kVelocity100, 0);
@@ -241,6 +244,9 @@ TEST_CASE("Vorago_ParamFlowReachesEngine", "[vorago][integration]") {
         prepareFixture(r0);
         prepareFixture(r1);
         prepareFixture(r2);
+        r0.shortenStage0();  // FR-034 A5: every arm, inside the ruled 20 s attack
+        r1.shortenStage0();
+        r2.shortenStage0();
         renderBlocks(r0, kBlocks, &ev, nullptr);
         renderBlocks(r1, kBlocks, &ev, &atOffset300, kChangeBlock);
         renderBlocks(r2, kBlocks, &ev, &atOffset0, kChangeBlock);

@@ -1,0 +1,22 @@
+START 2026-10-03 21:21:27 Stone Gravity (M5) rung r2: gravityRows=2 rows=kNumRows = 52 | VORAGO_PILOT_TAKES=4 | tree: attack n 4, breath 3.0, tide 0.8, ghost 21/1.2, ecology 30/36, child gain 1.5 | exe=2026-10-03 21:21:25
+macro tests exit=12 assertions: 167 | 155 passed | 12 failed
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 2526986758
+[probe] lever: none
+[probe] Stone Gravity - primary M5 Gravity (stored seed 1, 1 twin render(s))
+  take: peak 0.9661  arm1 hi -7.01 dB [yes]  arm2 lo -22.54 dB [yes]  arm3 late-sus +0.97 dB [yes]  arm4 tail -218.74 dB [yes]
+  arm1@44.1k: finite y peak 0.9661 hi -7.09 dB [PASS]
+  primary d 3.1864  bar 4.0000  attribBase -1.0000  state ok  -> FAIL  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  take j=0 seed 1: peak 0.9661  arm1 hi -7.01 dB [yes]  arm2 lo -22.54 dB [yes]  arm3 late-sus +0.97 dB [yes]  arm4 tail -218.74 dB [yes]
+  take j=1 seed 2: peak 0.9661  arm1 hi -6.10 dB [yes]  arm2 lo -26.58 dB [yes]  arm3 late-sus +2.14 dB [yes]  arm4 tail -225.56 dB [yes]
+  take j=2 seed 3: peak 0.9661  arm1 hi -9.72 dB [yes]  arm2 lo -24.86 dB [yes]  arm3 late-sus +4.03 dB [yes]  arm4 tail -221.34 dB [yes]
+  take j=3 seed 4: peak 0.9661  arm1 hi -6.73 dB [yes]  arm2 lo -16.16 dB [yes]  arm3 late-sus +1.84 dB [yes]  arm4 tail -223.09 dB [yes]
+  take j=0 d 3.1864
+  take j=1 d 2.2539
+  take j=2 d 2.3228
+  take j=3 d 1.1003
+===============================================================================
+All tests passed (19 assertions in 1 test case)
+
+exit=0 END 2026-10-03 21:57:00

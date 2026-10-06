@@ -266,6 +266,9 @@ constexpr std::size_t kGhostCaptureCapacity8k = 262144u;
     engine->setSeed(kGhostSeed);
     engine->setPolyphony(1u);
     applyFastAttack(*engine);
+    // 13c B-14 (FR-034 entry 6): the default ghost peak is now 0, so this fixture opens the gate
+    // explicitly at the pre-B-14 level; the trigger thresholds still derive from kGhostBurstPeak.
+    engine->setGhostPeakLevel(VoragoEngine::kGhostBurstPeak);
     engine->noteOn(33u, 100u);
 
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)

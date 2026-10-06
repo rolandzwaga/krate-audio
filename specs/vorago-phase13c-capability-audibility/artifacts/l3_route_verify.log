@@ -1,0 +1,36 @@
+START 2026-10-02 09:44:36 ghost route verify set at kGhostTapMakeupDb 21, kGhostDensitySpan 0 (no-change) exe=2026-10-02 09:43:52
+Filters: "VoragoEngine_GhostDensityRoute","VoragoEngine_GhostConfiguration","VoragoEngine_SeamReadbackProbe","VoragoVoice_WakeCombineRule","VoragoVoice_EcosystemLeverSchedulerBlind","VoragoVoice_EcosystemLeverNeutral"
+Randomness seeded to: 2692243443
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+VoragoEngine_GhostConfiguration
+  clause 2: the level is EVENT-GATED, not a continuous wash
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_engine_test.cpp(2780)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_engine_test.cpp(2810): warning:
+  SC-027 clause 2: 600.0 s at 8000.0 Hz, polyphony 1, ecosystem depth 0, FR-086
+  A = 10.0; rise >= 0.3000, fall <= 0.0300
+    gate OPEN  : 20 burst edges, max level 0.5956, max ghost request 0.9926
+    gate CLOSED: 0 burst edges, max level 0.0000, max ghost request 0.9926
+
+[seams] defaults: childGain 1.500 ecologyWetDb 0.000 ghostDensity 0.300 ghostTapDb 21.000
+[seams] set 0.7 / 12 / 0.6 -> read 0.700 / 12.000 / 0.600
+[LeverNeutral] fs=44100 seed=0x925863E5 chunks=413437 scheduler events seen=12
+[LeverNeutral] fs=48000 seed=0x925863E5 chunks=450000 scheduler events seen=12
+[LeverNeutral] fs=96000 seed=0x925863E5 chunks=900000 scheduler events seen=12
+[LeverSchedulerBlind] seed=0x925863E5 chunks=450000 rateScale=10
+[LeverSchedulerBlind]   BloomTrigger onsets=19 lastEventTarget changes=15
+[LeverSchedulerBlind]   NoiseWake    onsets=16 lastEventTarget changes=15
+[LeverSchedulerBlind]   PeakWake     onsets=25 lastEventTarget changes=17
+[LeverSchedulerBlind]   LoopWake     onsets=15 lastEventTarget changes=12
+[LeverSchedulerBlind]   GhostBurst   onsets=28 lastEventTarget changes=21
+===============================================================================
+All tests passed (1025 assertions in 6 test cases)
+
+exit=0 END 2026-10-02 09:45:05

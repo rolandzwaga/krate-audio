@@ -1,0 +1,15 @@
+START 2026-10-03 19:27:57 Teeming VORAGO_PILOT_SECONDARY=1 VORAGO_PILOT_CELLS="S7 ecosystem" | Life rung r2: rows=kNumRows = 51 markers=2 | .amount = 0.0458f,  // 13c T054 r1 (was 0.0208f): reaches kMaxSpawnRateHz 0.05;// 13c T054 r2: Life also deepens the breathing (base shared with Movement's row).; | tree: attack n 4, breath 3.0, tide 0.8, ghost 21/1.2, ecology 30/36, child gain 1.5 | exe=2026-10-03 19:27:49
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 2422672471
+[probe] lever: none
+[probe] Teeming - primary M10 Life (stored seed 11, 1 twin render(s))
+  take: peak 0.3476  arm1 hi -22.28 dB [yes]  arm2 lo -31.12 dB [yes]  arm3 late-sus +1.52 dB [yes]  arm4 tail -122.97 dB [yes]
+  arm1@44.1k: finite y peak 0.2984 hi -23.40 dB [PASS]
+  primary d 0.8226  bar 4.0000  attribBase -1.0000  state ok  -> FAIL  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  secondary D13.1 event rate scale <= 0.3: d 0.1976 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "" -> no
+  secondary S7 ecosystem: d 8.8314 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "" -> VERIFIED
+===============================================================================
+All tests passed (9 assertions in 1 test case)
+
+exit=0 END 2026-10-03 19:38:19

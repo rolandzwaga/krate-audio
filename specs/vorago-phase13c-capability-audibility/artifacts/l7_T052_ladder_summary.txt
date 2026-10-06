@@ -1,0 +1,42 @@
+=== T052 M3/M4/M9/M12 ladders started 2026-10-03 15:31:58 rows=kNumRows = 50 markers=0 ===
+2026-10-03 15:32:03 build M3_r0: exit=0 warnings=0 rows=kNumRows = 50 markers=0
+2026-10-03 15:35:32 M3 r0: macro tests exit=0 All tests passed (103 assertions in 1 test case)| primary d 4.1136 bar 4.0000 attribBase -1.0000 state ok -> PASS lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+EDIT FAILED:          .target = VoragoMacroTarget::NoiseLevelDb,
+         .base = -18.0f,  // S8.2 noise_.setSourceLevel(all)
+         .amount = 6.0f,
+=== T052 M3/M4/M9/M12 ladders started 2026-10-03 15:36:51 rows=kNumRows = 50 markers=0 ===
+2026-10-03 15:37:50 build M3_r0: exit=0 warnings=0 rows=kNumRows = 50 markers=0
+2026-10-03 15:41:17 M3 r0: macro tests exit=0 All tests passed (103 assertions in 1 test case)| primary d 4.1136 bar 4.0000 attribBase -1.0000 state ok -> PASS lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+2026-10-03 15:42:14 build M3_r1: exit=0 warnings=0 rows=kNumRows = 50 markers=1
+2026-10-03 15:45:36 M3 r1: macro tests exit=0 All tests passed (103 assertions in 1 test case)| primary d 3.7086 bar 4.0000 attribBase -1.0000 state ok -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+rows 50 -> 51
+2026-10-03 15:46:35 build M3_r2: exit=0 warnings=0 rows=kNumRows = 51 markers=2
+2026-10-03 15:50:03 M3 r2: macro tests exit=0 All tests passed (104 assertions in 1 test case)| primary d 3.7124 bar 4.0000 attribBase -1.0000 state ok -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+2026-10-03 15:50:04 restored: rows=kNumRows = 50 markers=0 diff lines 0
+2026-10-03 15:51:02 build M4_r1: exit=0 warnings=0 rows=kNumRows = 50 markers=1
+2026-10-03 16:26:00 M4 r1: macro tests exit=12 assertions: 165 | 153 passed | 12 failed| primary d 0.8741 bar 4.0000 attribBase -1.0000 state ok -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+rows 50 -> 51
+2026-10-03 16:26:57 build M4_r2: exit=0 warnings=0 rows=kNumRows = 51 markers=2
+2026-10-03 17:07:03 M4 r2: macro tests exit=12 assertions: 166 | 154 passed | 12 failed| primary d 0.8533 bar 4.0000 attribBase -1.0000 state ok -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+rows 51 -> 52
+2026-10-03 17:08:00 build M4_r3: exit=0 warnings=0 rows=kNumRows = 52 markers=3
+2026-10-03 17:43:13 M4 r3: macro tests exit=12 assertions: 167 | 155 passed | 12 failed| primary d 0.8599 bar 4.0000 attribBase -1.0000 state ok -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+2026-10-03 17:43:14 restored: rows=kNumRows = 50 markers=0 diff lines 0
+2026-10-03 17:44:11 build M9_r1: exit=0 warnings=0 rows=kNumRows = 50 markers=1
+2026-10-03 17:47:37 M9 r1: macro tests exit=0 All tests passed (103 assertions in 1 test case)| primary d 3.1581 bar 4.0000 attribBase -1.0000 state ok -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+rows 50 -> 51
+2026-10-03 17:48:33 build M9_r2: exit=0 warnings=0 rows=kNumRows = 51 markers=2
+2026-10-03 17:51:56 M9 r2: macro tests exit=0 All tests passed (104 assertions in 1 test case)| primary d 4.4115 bar 4.0000 attribBase -1.0000 state ok -> PASS lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+2026-10-03 17:52:53 build M9_r3: exit=0 warnings=0 rows=kNumRows = 51 markers=3
+2026-10-03 17:56:05 M9 r3: macro tests exit=0 All tests passed (104 assertions in 1 test case)| primary d 4.4498 bar 4.0000 attribBase -1.0000 state ok -> PASS lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+2026-10-03 17:56:05 restored: rows=kNumRows = 50 markers=0 diff lines 0
+2026-10-03 17:57:05 build M12_r1: exit=0 warnings=0 rows=kNumRows = 50 markers=1
+2026-10-03 18:00:26 M12 r1: macro tests exit=0 All tests passed (103 assertions in 1 test case)| primary d 5.7413 bar 4.0000 attribBase -1.0000 state ok -> PASS lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+rows 50 -> 51
+2026-10-03 18:01:26 build M12_r2: exit=0 warnings=0 rows=kNumRows = 51 markers=2
+2026-10-03 18:04:51 M12 r2: macro tests exit=0 All tests passed (104 assertions in 1 test case)| primary d 5.7430 bar 4.0000 attribBase -1.0000 state ok -> PASS lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+2026-10-03 18:05:50 build M12_r3: exit=0 warnings=0 rows=kNumRows = 51 markers=3
+2026-10-03 18:09:14 M12 r3: macro tests exit=0 All tests passed (104 assertions in 1 test case)| primary d 5.7774 bar 4.0000 attribBase -1.0000 state ok -> PASS lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+2026-10-03 18:09:14 restored: rows=kNumRows = 50 markers=0 diff lines 0
+2026-10-03 18:10:11 build restore: exit=0 warnings=0 rows=kNumRows = 50 markers=0
+=== T052 ladders finished 2026-10-03 18:10:11 rows=kNumRows = 50 markers=0 ===

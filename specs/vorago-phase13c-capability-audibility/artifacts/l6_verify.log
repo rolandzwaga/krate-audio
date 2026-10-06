@@ -1,0 +1,9 @@
+START 2026-10-02 18:10:18 Group 12 verify set (T048 test; A1 / A16 re-specs; attack tests) exe=2026-10-02 18:09:46
+Filters: "VoragoVoice_LifeLaneDepthZero","VoragoVoice_LifeModulatorLanes","VoragoVoice_SilenceClearsEcologyAudio","VoragoEngine_RepeatedBroadcastIsInert_Short","VoragoVoice_AttackCurveReach","VoragoVoice_AttackTracksStageTime"
+Randomness seeded to: 504622390
+VoragoVoice_AttackCurveReach: n = 4, 165.0 s rendered in 10.56 s wall
+VoragoVoice_AttackTracksStageTime: n = 4, RMS(Sus) -21.45 dB, reach 19.0 s (bound [15.0, 20.0] s), 180.0 s rendered in 1.97 s wall
+===============================================================================
+All tests passed (75 assertions in 6 test cases)
+
+exit=0 END 2026-10-02 18:10:33

@@ -1,0 +1,31 @@
+START 2026-10-02 13:28:03 VORAGO_PILOT_PRESET=Colony Pulse VORAGO_PILOT_SECONDARY=1 exe=2026-10-02 12:44:03 (T068: L4 tree - child gain 1.5, ghost 21 dB / span 1.2, ecology make-up 30 dB; no lever env)
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 1403499711
+[probe] lever: none
+[probe] Colony Pulse - primary S7 ecosystem (stored seed 8, 1 twin render(s))
+  take: peak 0.9661  arm1 hi -14.10 dB [yes]  arm2 lo -24.42 dB [yes]  arm3 late-sus -0.49 dB [yes]  arm4 tail -155.86 dB [yes]
+  arm1@44.1k: finite y peak 0.9661 hi -16.82 dB [PASS]
+  primary d 15.2961  bar 4.0000  attribBase -1.0000  state ok  -> PASS  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  secondary D13.2 event rate scale >= 3.0: d 0.2300 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "" -> no
+  secondary E6.hi ecosystem sync rate high: d 2.4305 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "" -> VERIFIED
+  secondary E7.hi ecosystem self-affinity high: d 1.2065 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "" -> no
+===============================================================================
+All tests passed (9 assertions in 1 test case)
+
+exit=0 END 2026-10-02 13:40:02
+START 2026-10-02 13:40:02 VORAGO_PILOT_PRESET=Teeming VORAGO_PILOT_SECONDARY=1 VORAGO_PILOT_CELLS=S7 ecosystem exe=2026-10-02 12:44:03 (T068: L4 tree - child gain 1.5, ghost 21 dB / span 1.2, ecology make-up 30 dB; no lever env)
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 2228542104
+[probe] lever: none
+[probe] Teeming - primary M10 Life (stored seed 11, 1 twin render(s))
+  take: peak 0.2917  arm1 hi -23.24 dB [yes]  arm2 lo -29.44 dB [yes]  arm3 late-sus +2.71 dB [yes]  arm4 tail -154.51 dB [yes]
+  arm1@44.1k: finite y peak 0.2703 hi -24.01 dB [PASS]
+  primary d 0.8272  bar 4.0000  attribBase -1.0000  state ok  -> FAIL  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  secondary D13.1 event rate scale <= 0.3: d 0.6605 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "" -> no
+  secondary S7 ecosystem: d 7.8712 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "" -> VERIFIED
+===============================================================================
+All tests passed (9 assertions in 1 test case)
+
+exit=0 END 2026-10-02 13:51:33

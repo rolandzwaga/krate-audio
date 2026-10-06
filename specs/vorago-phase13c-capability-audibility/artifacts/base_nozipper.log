@@ -1,0 +1,202 @@
+START 2026-10-01 09:37:40 base_nozipper tree=ae149a1c (production tree = 64f57e1a) binary=dsp_systems_tests.exe built 2026-09-30 18:05:56
+Filters: "VoragoMacro_NoZipper"
+Randomness seeded to: 4095755436
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+VoragoMacro_NoZipper
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1514)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1580): 
+warning:
+  SC-010 zipper statistic (20 ms window; reference 64 ms clear of the ramp)
+    macro 0  ramp=3.3457e-03  reference=3.2019e-03  ratio=1.0449e+00
+    macro 1  ramp=3.2761e-03  reference=3.1856e-03  ratio=1.0284e+00
+    macro 2  ramp=3.0123e-03  reference=2.3786e-03  ratio=1.2664e+00
+    macro 3  ramp=3.0101e-03  reference=2.9424e-03  ratio=1.0230e+00
+    macro 4  ramp=4.3544e-03  reference=3.5240e-03  ratio=1.2356e+00
+    macro 5  ramp=1.7808e-03  reference=1.6106e-03  ratio=1.1056e+00
+    macro 6  ramp=2.8006e-03  reference=2.8556e-03  ratio=9.8076e-01
+    macro 7  ramp=3.4085e-03  reference=3.5370e-03  ratio=9.6369e-01
+    macro 8  ramp=2.5115e-03  reference=2.9361e-03  ratio=8.5538e-01
+    macro 9  ramp=3.1956e-03  reference=3.0812e-03  ratio=1.0371e+00
+    macro 10  ramp=3.1625e-03  reference=3.0454e-03  ratio=1.0385e+00
+    macro 11  ramp=2.8926e-03  reference=2.3232e-03  ratio=1.2451e+00
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1586): PASSED:
+  REQUIRE( baselineStat[m] > 0.0 )
+with expansion:
+  0.0032019466 > 0.0
+with message:
+  macro index 0  ramp 0.00334571  reference 0.00320195
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1587): PASSED:
+  REQUIRE( rampStat[m] <= (kBound * baselineStat[m]) )
+with expansion:
+  0.0033457056 <= 0.0048029199
+with message:
+  macro index 0  ramp 0.00334571  reference 0.00320195
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1586): PASSED:
+  REQUIRE( baselineStat[m] > 0.0 )
+with expansion:
+  0.0031855516 > 0.0
+with message:
+  macro index 1  ramp 0.0032761  reference 0.00318555
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1587): PASSED:
+  REQUIRE( rampStat[m] <= (kBound * baselineStat[m]) )
+with expansion:
+  0.0032761022 <= 0.0047783274
+with message:
+  macro index 1  ramp 0.0032761  reference 0.00318555
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1586): PASSED:
+  REQUIRE( baselineStat[m] > 0.0 )
+with expansion:
+  0.0023786128 > 0.0
+with message:
+  macro index 2  ramp 0.0030123  reference 0.00237861
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1587): PASSED:
+  REQUIRE( rampStat[m] <= (kBound * baselineStat[m]) )
+with expansion:
+  0.0030122995 <= 0.0035679191
+with message:
+  macro index 2  ramp 0.0030123  reference 0.00237861
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1586): PASSED:
+  REQUIRE( baselineStat[m] > 0.0 )
+with expansion:
+  0.0029424094 > 0.0
+with message:
+  macro index 3  ramp 0.00301012  reference 0.00294241
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1587): PASSED:
+  REQUIRE( rampStat[m] <= (kBound * baselineStat[m]) )
+with expansion:
+  0.0030101165 <= 0.004413614
+with message:
+  macro index 3  ramp 0.00301012  reference 0.00294241
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1586): PASSED:
+  REQUIRE( baselineStat[m] > 0.0 )
+with expansion:
+  0.0035239793 > 0.0
+with message:
+  macro index 4  ramp 0.00435437  reference 0.00352398
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1587): PASSED:
+  REQUIRE( rampStat[m] <= (kBound * baselineStat[m]) )
+with expansion:
+  0.0043543726 <= 0.005285969
+with message:
+  macro index 4  ramp 0.00435437  reference 0.00352398
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1586): PASSED:
+  REQUIRE( baselineStat[m] > 0.0 )
+with expansion:
+  0.001610633 > 0.0
+with message:
+  macro index 5  ramp 0.00178075  reference 0.00161063
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1587): PASSED:
+  REQUIRE( rampStat[m] <= (kBound * baselineStat[m]) )
+with expansion:
+  0.0017807502 <= 0.0024159495
+with message:
+  macro index 5  ramp 0.00178075  reference 0.00161063
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1586): PASSED:
+  REQUIRE( baselineStat[m] > 0.0 )
+with expansion:
+  0.0028555803 > 0.0
+with message:
+  macro index 6  ramp 0.00280063  reference 0.00285558
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1587): PASSED:
+  REQUIRE( rampStat[m] <= (kBound * baselineStat[m]) )
+with expansion:
+  0.0028006285 <= 0.0042833705
+with message:
+  macro index 6  ramp 0.00280063  reference 0.00285558
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1586): PASSED:
+  REQUIRE( baselineStat[m] > 0.0 )
+with expansion:
+  0.0035369694 > 0.0
+with message:
+  macro index 7  ramp 0.00340854  reference 0.00353697
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1587): PASSED:
+  REQUIRE( rampStat[m] <= (kBound * baselineStat[m]) )
+with expansion:
+  0.0034085438 <= 0.0053054541
+with message:
+  macro index 7  ramp 0.00340854  reference 0.00353697
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1586): PASSED:
+  REQUIRE( baselineStat[m] > 0.0 )
+with expansion:
+  0.0029360838 > 0.0
+with message:
+  macro index 8  ramp 0.00251147  reference 0.00293608
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1587): PASSED:
+  REQUIRE( rampStat[m] <= (kBound * baselineStat[m]) )
+with expansion:
+  0.0025114715 <= 0.0044041257
+with message:
+  macro index 8  ramp 0.00251147  reference 0.00293608
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1586): PASSED:
+  REQUIRE( baselineStat[m] > 0.0 )
+with expansion:
+  0.0030811541 > 0.0
+with message:
+  macro index 9  ramp 0.00319561  reference 0.00308115
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1587): PASSED:
+  REQUIRE( rampStat[m] <= (kBound * baselineStat[m]) )
+with expansion:
+  0.0031956136 <= 0.0046217311
+with message:
+  macro index 9  ramp 0.00319561  reference 0.00308115
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1586): PASSED:
+  REQUIRE( baselineStat[m] > 0.0 )
+with expansion:
+  0.003045395 > 0.0
+with message:
+  macro index 10  ramp 0.0031625  reference 0.0030454
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1587): PASSED:
+  REQUIRE( rampStat[m] <= (kBound * baselineStat[m]) )
+with expansion:
+  0.0031624958 <= 0.0045680925
+with message:
+  macro index 10  ramp 0.0031625  reference 0.0030454
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1586): PASSED:
+  REQUIRE( baselineStat[m] > 0.0 )
+with expansion:
+  0.0023232214 > 0.0
+with message:
+  macro index 11  ramp 0.00289255  reference 0.00232322
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1587): PASSED:
+  REQUIRE( rampStat[m] <= (kBound * baselineStat[m]) )
+with expansion:
+  0.0028925538 <= 0.0034848321
+with message:
+  macro index 11  ramp 0.00289255  reference 0.00232322
+
+===============================================================================
+All tests passed (24 assertions in 1 test case)
+
+END 2026-10-01 09:38:01 exit=0 wall=21s

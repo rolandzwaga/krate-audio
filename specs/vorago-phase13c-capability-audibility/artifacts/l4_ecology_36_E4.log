@@ -1,0 +1,14 @@
+START 2026-10-02 12:23:05 VORAGO_PILOT_PRESET=Feeding Loops VORAGO_PILOT_LEVER=ecologyWetDb=36 exe=2026-10-02 12:05:19 (kEcologyWetMakeupDb 0 compiled, kMaxWetGainDb 36)
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 86820206
+[probe] lever: ecologyWetDb=36
+[probe] Feeding Loops - primary E4 feedback -> loop wake (stored seed 8, 4 twin render(s))
+  take: peak 0.2629  arm1 hi -23.15 dB [yes]  arm2 lo -38.08 dB [yes]  arm3 late-sus +3.11 dB [yes]  arm4 tail -190.99 dB [yes]
+  arm1@44.1k: finite y peak 0.2103 hi -26.00 dB [PASS]
+  route arms: d(R_k, R_k0) 2.6508, attribBase d(R_0, R_00) 0.9835 (attributable iff d >= 2.4835)
+  primary d 2.6508  bar 4.0000  attribBase 0.9835  state ok  -> FAIL  lever: ecologyWetDb=36
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (17 assertions in 1 test case)
+
+exit=0 END 2026-10-02 12:26:38

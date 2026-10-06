@@ -1,0 +1,13 @@
+START 2026-10-02 17:19:56 preset="Slow Bloom" env:  | consts: kPartialSpawnSpanHz = 0.04f kPartialChildGainSpan = 0.5f  (attack n 4, child gain 1.5, ghost 21/1.2, ecology 30/36) | exe=2026-10-02 16:51:24
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 3846226231
+[probe] lever: none
+[probe] Slow Bloom - primary S6 harmonic bloom (stored seed 7, 1 twin render(s))
+  take: peak 0.3631  arm1 hi -21.56 dB [yes]  arm2 lo -27.45 dB [yes]  arm3 late-sus +0.92 dB [yes]  arm4 tail -186.43 dB [yes]
+  arm1@44.1k: finite y peak 0.4246 hi -21.53 dB [PASS]
+  primary d 1.2668  bar 4.0000  attribBase -1.0000  state ok  -> FAIL  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (9 assertions in 1 test case)
+
+exit=0 END 2026-10-02 17:22:02

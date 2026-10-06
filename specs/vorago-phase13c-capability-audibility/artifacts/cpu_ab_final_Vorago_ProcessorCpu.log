@@ -1,0 +1,67 @@
+START 2026-10-05 13:51:37 final Vorago_ProcessorCpu alone pinned exe=build/windows-x64-release/bin/Release/vorago_tests.exe (2026-10-05 07:40:29)
+pin-perf-cores: performance-core mask 0xFFFF
+Filters: "Vorago_ProcessorCpu"
+Randomness seeded to: 3073399243
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+vorago_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+Vorago_ProcessorCpu
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\vorago\tests\integration\processor_cpu_test.cpp(188)
+...............................................................................
+
+F:\projects\iterum\plugins\vorago\tests\integration\processor_cpu_test.cpp(284): warning:
+  SC-014 arm P best ns/block (512 @ 48 kHz, poly 4): 2.92272e+06
+
+F:\projects\iterum\plugins\vorago\tests\integration\processor_cpu_test.cpp(285): warning:
+  SC-014 arm D best ns/block (512 @ 48 kHz, poly 4): 2.99557e+06
+
+F:\projects\iterum\plugins\vorago\tests\integration\processor_cpu_test.cpp(286): warning:
+  SC-014 P/D ratio (gate <= 1.05): 0.975682
+
+F:\projects\iterum\plugins\vorago\tests\integration\processor_cpu_test.cpp(288): warning:
+  SC-014 P / kReferenceNs (3.2e+06 ns, recorded only, FR-067): 0.913351
+
+F:\projects\iterum\plugins\vorago\tests\integration\processor_cpu_test.cpp(298): warning:
+  SC-012 arm PF best ns/block (forced ecosystem frame, every call a full fill):
+  3.04539e+06
+
+F:\projects\iterum\plugins\vorago\tests\integration\processor_cpu_test.cpp(299): warning:
+  SC-012 PF/D ratio (gate <= 1.05): 1.01663
+
+F:\projects\iterum\plugins\vorago\tests\integration\processor_cpu_test.cpp(301): warning:
+  SC-012 PF/P ratio (frame producer cost over quiescent, recorded): 1.04197
+
+F:\projects\iterum\plugins\vorago\tests\integration\processor_cpu_test.cpp(365): warning:
+  SC-016 arm A best ns/block (IDs 201 + 206 automated every block): 3.22505e+06
+
+F:\projects\iterum\plugins\vorago\tests\integration\processor_cpu_test.cpp(366): warning:
+  SC-016 arm A interleaved arm D best ns/block: 3.28039e+06
+
+F:\projects\iterum\plugins\vorago\tests\integration\processor_cpu_test.cpp(367): warning:
+  SC-016 arm A P_A/D ratio (recorded, not gated): 0.98313
+
+F:\projects\iterum\plugins\vorago\tests\integration\processor_cpu_test.cpp(368): warning:
+  SC-016 arm A / arm P (automation cost over quiescent): 1.10344
+
+F:\projects\iterum\plugins\vorago\tests\integration\processor_cpu_test.cpp(372): warning:
+  SC-016 remedy arm: no R-5 remedy — arm N/A
+
+F:\projects\iterum\plugins\vorago\tests\integration\processor_cpu_test.cpp(414): warning:
+  SC-014 arm E best ns for one 2048-sample block with 1024 reverse-ordered
+  events: 1.22279e+07
+
+F:\projects\iterum\plugins\vorago\tests\integration\processor_cpu_test.cpp(416): warning:
+  SC-014 arm E ratio to real time (2048 / 48000 s = 4.26667e+07 ns): 0.286591
+
+F:\projects\iterum\plugins\vorago\tests\integration\processor_cpu_test.cpp(419): warning:
+  SC-016 arm E vs Phase 11 recorded 1.79691e+07 ns (recorded, not gated): 1.
+  22279e+07 ns, ratio 0.680496
+
+===============================================================================
+All tests passed (93 assertions in 1 test case)
+
+exit=0 END 2026-10-05 13:52:09

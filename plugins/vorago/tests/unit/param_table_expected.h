@@ -169,7 +169,7 @@ inline constexpr std::array<ExpectedParamRow, kNumExpectedParams> kExpectedParam
     {1206, "Envelope Growth Duration", "s", 0, detail_expected::kAuto, 1.0, ::Vorago::Taper::Log, 1.0, 120.0, 0.0, 10.954451150103322, Sc011::A},
     {1300, "Bloom Depth", "%", 0, detail_expected::kAuto, 0.6, ::Vorago::Taper::Linear, 0.0, 1.0, 0.0, 0.5, Sc011::A},
     {1301, "Bloom Spawn Rate", "Hz", 0, detail_expected::kAuto, 0.6037728487568957, ::Vorago::Taper::OffsetLog, 0.0, 0.05, 0.0001, 0.0021383029285599394, Sc011::A},
-    {1400, "Ghost Peak Level", "%", 0, detail_expected::kAuto, 0.6, ::Vorago::Taper::Linear, 0.0, 1.0, 0.0, 0.5, Sc011::A},
+    {1400, "Ghost Peak Level", "%", 0, detail_expected::kAuto, 0.0 /* 13c B-14: was 0.6 */, ::Vorago::Taper::Linear, 0.0, 1.0, 0.0, 0.5, Sc011::A},
     {1401, "Ghost Blur", "%", 0, detail_expected::kAuto, 0.85, ::Vorago::Taper::Linear, 0.0, 1.0, 0.0, 0.5, Sc011::A},
     {1402, "Ghost Reverse Probability", "%", 0, detail_expected::kAuto, 0.0, ::Vorago::Taper::Linear, 0.0, 1.0, 0.0, 0.5, Sc011::A},
     {1403, "Ghost Event Triggers", "", 1, detail_expected::kList, 0.0, ::Vorago::Taper::Discrete, 0.0, 1.0, 0.0, 1.0, Sc011::C},

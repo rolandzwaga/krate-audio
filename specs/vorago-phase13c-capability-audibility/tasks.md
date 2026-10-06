@@ -162,12 +162,19 @@ Every run in this group uses the T001 binary. **No source edit happens before T0
 - **Stop-and-surface (FR-032):** on the base tree, syncRate does not count on the default surface, or
   selfAffinity or syncRate does not count at Life max (d/t0 ≥ 0.5, no KILL, not OFF-LIKE). That is a
   before-record item, not a 13c regression.
+- **RULED AND APPLIED (B-1, 2026-10-01) — verification only.** Surfaced: 0 of 14 counted on both surfaces
+  (`gate2_table_default_base.log:171`, `gate2_table_lifemax_base.log:169`); colony means identical to 13b's.
+  Ruled: SC-012b stays a hard final-tree target (T058); the base tables are the before. Nothing to re-run.
 
 ### T006 — CPU baseline (FR-033, SC-014)
 
 - Machine idle and cool: `node tools/run-cpu-tests.js dsp_systems_tests` → `artifacts/cpu_base_dsp.log`;
   then `node tools/run-cpu-tests.js vorago_tests` → `artifacts/cpu_base_vorago.log`.
 - Cite `VoragoEngine_CpuBudget` clause (i) and clause (ii), and `Vorago_ProcessorCpu` P/D, in ns.
+- **RULED AND APPLIED (B-2, 2026-10-01) — verification only.** Clause (i) RED on the base tree in the lane and
+  alone (`cpu_base_dsp.log:3419,3459`); alternating pinned A/B vs `05d04f66` red on both binaries
+  (`cpu_base_ab_*.log`; resolution in `artifacts/t006_cpu_resolution.md`): the machine, not the code. Ruled:
+  clause (i) stays absolute; the A/B is the before; T060 repeats the A/B on an idle box. Nothing to re-run.
 
 ---
 
@@ -345,6 +352,11 @@ as its default — the `setGhostTapMakeupDb` shape (`vorago_engine.h:998-1000`) 
 - **Run** `VORAGO_SWEEP_SHARD=42/43 vorago_tests.exe "Vorago_PresetSweep_AblationVerifiesClaims"` →
   `artifacts/before2_default_state.log`.
 - Record **D7.1 as unverified-before** in the header: surfaced, not charged to a 13c lever.
+- **RULED (2026-10-04) — the before runs never ran.** `before2_secondaries_030b.log` and `before2_default_state.log`
+  hold only the T017 header (the derived 24 + 8 set); no host or shard output was ever appended. The user ruled
+  that Phase 14's `sweep4_aggregate.log` matrix is the SC-007b before (the same production tree, 64f57e1a;
+  ae149a1c is docs only) and that the compliance row records the missing re-read. F2 (T057) reads the final
+  tree against that matrix.
 
 ---
 
@@ -455,11 +467,19 @@ exist) and, behaviourally, fails because children are silent below r ≈ 0.626 (
   the −6 dB re-read also `d ≥ 4.0` (plan §8). E1 is read here; its own lever is L2.
 - **Stop-and-surface:** 1.00 does not clear S6 (plan §2.1 (b) options: `setChildrenPerEvent`,
   `setParentCount`, or an append-only higher-ceiling setter in `bloom_engine.h`, each only on a ruling).
+- **RULED (B-3, 2026-10-01).** 1.00 read S6 d 3.8440 (< 4.0): ceiling raised to `BloomEngine::kMaxChildGain =
+  2.0f` (append-only; `bloom_engine_test.cpp` clamp case pins 2.0 and 1.5 read-back); rungs 1.2 / 1.5 / 2.0 added
+  to this ladder (`l1_bloom_<v>_*.log`). The 0.35–1.00 rungs were lever runs (`VORAGO_PILOT_LEVER`) with the
+  sentinel compiled per rung; T007/T008 base logs produced from the worktree `f:/tmp/p13b_ab` at 64f57e1a.
 
 ### T027 — RULING: bloom lever (FR-010b, step 1)
 
 - Table per rung: S6 d, E1 d and attribBase, arms, −6 dB d, parent drop (dB), CPU delta (T025). Record the
   ruling; rebuild at the ruled value; per-push `dsp_systems_tests` green.
+- **RULED AND APPLIED (B-4, 2026-10-01) — verification only.** `kBloomChildGain = 1.5f` (ladder table in spec
+  Clarifications B-3/B-4; T025: `bloom_mechanism_{base,l1}.log` — base "sounding 0" below r 0.6, L1 "sounding 6"
+  at every r; `cpu_floor_{base,l1}{,_run2}.log` — floor cost inside run-to-run noise). Re-read with no lever:
+  `l1_ruled_S6.log`, `l1_ruled_E1.log`, `l1_sentinel_ruled.log`, `l1_ruled_suite.log`.
 
 ---
 
@@ -516,6 +536,10 @@ exist) and, behaviourally, fails because children are silent below r ≈ 0.626 (
 - Table per cell: rung → d, attribBase, margin, arms; E7.hi, D13.1 (with S7), D13.2 beside each. Where several
   rungs clear the own cell, propose the one that moves the secondaries furthest (plan §2.10). Record the
   rulings; rebuild with every ruled value; per-push systems green.
+- **RULED AND APPLIED (B-5, 2026-10-02) — verification only.** No rung clears (`l2_ladder_summary.txt`,
+  `l2_<cell>_<rung>.log`, `l2_secondaries_<rung>.log`, `l2_S6_<rung>.log`); the swings (`l2_swing.log`) bound
+  every route under the bar. All five constants stay at the shipped values (restore build 05:24, per-push
+  `l2_ruled_suite.log`). T068 / T069 (Group 9b) carry the re-read and the E1 extension.
 
 ---
 
@@ -549,6 +573,27 @@ exist) and, behaviourally, fails because children are silent below r ≈ 0.626 (
 - Table, ruling, rebuild. If a density rung is ruled, apply T033's re-spec, then per-push systems green.
   Record the FR-013 sizing figures (ghost alone vs drone, loudest second, seconds sounding) from the ruled
   rung's `GhostLevelProbe` log in `rulings.md`.
+- **RULED AND APPLIED (B-6, 2026-10-02) — verification only.** The L3 ladder ran on the lever seams (no rebuild
+  per rung; `l3_ghost_*`, `l3_density_*`, `l3_ghost_level_probe.log`). `kGhostTapMakeupDb = 21`; `kGhostDensity`
+  unchanged (no T033 re-spec); density becomes the ghost route's destination — T070 below. Re-read with no
+  lever after T070: `l3_ruled_S9.log`, `l3_ruled_E5.log`, `l3_ruled_suite.log`.
+
+### T070 — Ghost density route: the Ghost eco lane drives density (ruling B-6; FR-013, FR-019)
+
+- **Failing test first** (`vorago_ecosystem_lever_test.cpp`): `VoragoEngine_GhostDensityRoute` — lane 0 →
+  applied density == `kGhostDensity` exactly and the seam reads the base; raw ∈ {0.1, 0.5, 1.0} → the voice's
+  `getGhostEcoLane()` == raw and the component reads `clamp(base + kGhostDensitySpan × raw)`; the seam's base
+  moves and the route rides it. Fails to compile before the implementation.
+- **Implement:** voice `ghostEcoLane_` (set in `applyIdentityLanes`, reset with `ghostRequest_`) +
+  `getGhostEcoLane()`; engine `kGhostDensitySpan` (no-change 0.0), `ghostDensityBase_` (the seam sets it),
+  the control-chunk write after `atmos_.setLevel`, only on change (E-7).
+- **Ladder** (rebuild per rung, main loop, at the compiled 21 dB): span 0.7 / 1.2 / 1.7 → Haunted Colony (E5)
+  and Choir of Absence (S9), each also at `VORAGO_PILOT_MASTER_TRIM=-6` → `l3_span_<v>_{E5,S9}{,_minus6}.log`;
+  the candidate also with `VORAGO_PILOT_TAKES=4`.
+- **RULING** (FR-010b): the user rules the span; rebuild; per-push systems green (`l3_ruled_suite.log`).
+- **RULED AND APPLIED (B-7, 2026-10-02) — verification only.** `kGhostDensitySpan = 1.2`; E5 clears on two of
+  four seeds (6.04, 4.62), Haunted Colony re-seeds at the Phase 14 re-author (noted in that task list at T048);
+  S9 clears on all four. Logs: `l3_span_*`, `l3_span_1.2_*_takes4.log`, `l3_ruled_*`.
 
 ---
 
@@ -573,6 +618,48 @@ exist) and, behaviourally, fails because children are silent below r ≈ 0.626 (
   `l4_ecology_<dB>.log` and `…_minus6.log`; R step on E4. A pass needs `d ≥ 4.0`, **arm 2 green** (no silent
   pass, E-3), all four arms green, −6 dB ≥ 4.0. `kLoopWakeBase` is **not** a candidate (13b Gate 1 rests on it).
 - **Stop-and-surface:** 24 dB is short. RULING: table, ruling, rebuild, per-push green.
+
+- **RULED AND APPLIED (B-8 / B-9, 2026-10-02) — verification only.** The ladder ran on the `ecologyWetDb` seam
+  (`l4_ecology_<dB>*.log`); 24 dB read 3.60 → ceiling raised to 36 (append-only, clamp tests pinned); 30 dB
+  read 4.66, 36 dB 5.72; ruled 30. `kEcologyWetMakeupDb = 30`; re-reads `l4_ruled_*.log`, suite
+  `l4_ruled_suite.log` (the SC-010 (a) fingerprint red is the T059 item, FR-034 ledger entry 3).
+
+---
+
+## Group 9b — E cells after the lifts (ruling B-5, 2026-10-02; sequential; main loop measurement)
+
+### T068 — Re-read E1 / E3 / E4 / E5 and the ecosystem-limited secondaries on the L4 tree (FR-012, FR-021, plan §2.10)
+
+- **Run** alone, after T043 (L4 ruled and compiled): Bloom Colony, Swarm Breath, Feeding Loops, Haunted Colony
+  → `l4_E1.log` … `l4_E5.log` (route arms); Colony Pulse `VORAGO_PILOT_SECONDARY=1` and Teeming
+  `VORAGO_PILOT_SECONDARY=1 VORAGO_PILOT_CELLS="S7 ecosystem"` → `l4_secondaries.log`.
+- **Stop-and-surface (FR-027):** any of the four still short with the ghost and ecology levers at their ruled
+  values is surfaced with its L2 ladder, its swing and this reading; never recorded UNMET.
+- **DONE (main loop, 2026-10-02 13:25–13:45, L4 tree: child gain 1.5, ghost 21 dB / span 1.2, ecology 30 dB).**
+  `l4_E1.log` 1.1989 (attribBase 1.1078), `l4_E3.log` 1.0942 (0.6065), `l4_E4.log` 2.9243 (0.9835), `l4_E5.log`
+  3.7997 (0.8918); `l4_secondaries.log`: E7.hi 1.2065, D13.2 0.2300, D13.1 0.6605, Teeming's S7 conjunct
+  **7.8712 VERIFIED** (was 1.9572). All four E cells still short → carried to T069 (E1) and the FR-027 surfacing
+  after the Life rows (plan §2.10), with the L2 ladder and the swings beside them.
+
+### T069 — E1 partial-lane destination extension (P3, adopted by B-5; FR-012, FR-010)
+
+- **Failing test first** (`vorago_ecosystem_lever_test.cpp`): with every lane at 0 the bloom's spawn rate and
+  child gain read the preset's bases exactly; for raw ∈ {0.1, 0.5, 1.0} they read
+  `base + kPartialSpawnSpan * raw` and `base + kPartialChildGainSpan * raw` (clamped at the components'
+  ceilings, `BloomEngine::kMaxSpawnRateHz` and `kMaxChildGain`), scheduler-blind (13b FR-019).
+- **Implement** in `applyIdentityLanes` (`vorago_voice.h`): two new private spans at the no-change value 0,
+  written through `bloom_.setSpawnRateHz` / `bloom_.setChildGain` only when the value changes (E-7).
+  `kLeverInputGain` untouched.
+- **Ladder** (rebuild per rung, main loop): spawn span {0.02, 0.04 Hz} × child-gain span {0.25, 0.5} (base 1.5 against the 2.0 ceiling, B-3) on Bloom
+  Colony (own cell) with the §2.10 secondaries and the S6 re-read beside each rung → `l2x_E1_<rung>.log`,
+  `l2x_secondaries_<rung>.log`, `l2x_S6_<rung>.log`.
+- **RULING** (FR-010b): the user rules both spans on the table; rebuild; per-push systems green.
+- **RULED AND REMOVED (B-11, 2026-10-02) — verification only.** Failing test first (compile error on the
+  three voice symbols, `/f/tmp/p13c/build_t069_fail.log`), implementation green at 0 / 0
+  (`t069_test_span0.log`), ladder `l2x_E1_<rung>.log`, `l2x_secondaries_<rung>.log`, `l2x_S6_<rung>.log`,
+  `l2x_ladder_summary.txt`: no rung moves E1, every rung puts S6 under its bar (FR-030). Declined: the spans,
+  bases and test are removed; the seams are bare forwards again. Per-push systems 1421 / 1424 (the same three ledgered reds: entry 3 fingerprint, A1, A16)
+  (`l2x_declined_suite.log`). E1 goes to the FR-027 surfacing with E3 / E4 / E5.
 
 ---
 
@@ -630,6 +717,13 @@ exist) and, behaviourally, fails because children are silent below r ≈ 0.626 (
   the `kStageCurve` doc (`:304`) to state the stage-0 exception, citing FR-016. The Growth loop is untouched.
   `kVoiceSizeBound` (`:437`) stays unless the `static_assert` fails (then surface).
 - **Verify:** T041 and T042 green; apply the T040 re-specs; per-push systems green.
+- **Main-loop fix (2026-10-02):** at n = 6 T041 clause 2 read a 0.076 gain step at the stage-0 -> stage-1 boundary
+  (`l5_attack_tests_n6.log`, first run): the envelope's Linear stage keeps a float phase accumulator that ends
+  about 1 % short of its target over 20 s at 48 kHz and snaps on completion (`multi_stage_envelope.h:301-337`);
+  u^n turns that into a 7 % step. `shapeAttack` now takes u from the voice's own stage-0 sample count
+  (`attackSamples_`, mirroring `enterStage()`'s total), so u reaches 1 on the sample the envelope completes.
+  The envelope component is untouched (shared; Layer 2). The n = 1 rung measured before the fix is kept as
+  `l5_attack_tests_n1_prefix.log` / `l5_attack_ladder_summary_prefix.txt`; the ladder was re-run on the fix.
 
 ### T045 — Measured-reach attack window in the harness and the probe (FR-016, the FR-002 exception, plan §3.3)
 
@@ -660,6 +754,12 @@ exist) and, behaviourally, fails because children are silent below r ≈ 0.626 (
 
 - Table (rung → reach, d_att, d_Sus, both W_end, D8.2) with option (a) beside it; the 0.75 tracking floor goes
   to the user with it (plan §10.5). Rebuild at the ruled n; R step on S6, E1, E3, E4, E5, S9, S4.
+- **RULED AND APPLIED (B-10, 2026-10-02) — verification only.** Ladder n ∈ {1, 2, 4, 5, 6, 7} on the
+  boundary-fixed curve (`l5_attack_ladder_summary.txt`), option (a) scratch measured and reverted
+  (`l5_attack_optionA.log`; the header read back Linear / n / 20000 ms after the revert), D8.2 `l5_d82.log`.
+  `kAttackShapePower = 4`; the 0.75 floor confirmed. R step: `l5_ruled_{attack_tests,D9.1,D8.2,S6,E1,E3,E4,E5,S9,S4}.log`,
+  `l5_ruled_suite.log` (reds: entry 3 fingerprint, A1 `VoragoVoice_SilenceClearsEcologyAudio`, A16
+  `VoragoEngine_RepeatedBroadcastIsInert_Short` — the T040 re-specs the fix agents apply).
 
 ---
 
@@ -688,6 +788,19 @@ exist) and, behaviourally, fails because children are silent below r ≈ 0.626 (
   `verifiedAt(Secondary)` true (`d ≥ 1.5`, state ok, conjunct ok).
 - **Stop-and-surface:** a ladder tops out; plan §2.6's swell fallback is measured only on a ruling.
 - RULING; apply the `LifeModulatorLanes` re-spec if the breath gain ≠ 1; per-push green.
+- **RULED AND APPLIED (B-12, 2026-10-02) — verification only.** `kBreathGravityLaneGain = 3.0`; FR-034 entry 5
+  applied (`VoragoVoice_LifeModulatorLanes` extremes gain × 0.30, gravity sum clamped). The tidal ladder topped
+  out by construction (fixed tide rate 0.25); scope extension ruled: `kTidalRate` lever, laddered 0.6 / 0.8 /
+  1.0 → ruled 0.8; `kTidalFogLaneGain` 1.0; D14.2 surfaced (FR-027). Logs: `l6_ladder_summary.txt`,
+  `l6_premise.log`, `l6_tidal_spacemix_override.log`, `l6_tide_ladder_summary.txt`,
+  `l6_tide_0.8_spacemix_override.log`, `l6_breath3_verify.log`; R step `l6_ruled_{verify,suite}.log`,
+  `l6_ruled_<cell>.log` (Drifting Strata as compiled: `l6_tide_0.8.log`). Per-push systems 1424 / 1425 (the ledgered entry 3 fingerprint the only red).
+- **Amendment (2026-10-03):** S4 fell to 3.9832 under the breath gain (bisect `l6_s4_bisect_summary.txt`); ruled:
+  Feedback Mire's def takes `{kLifeBreathingDepthId, 0.0}` (4.7751 by override, re-read as compiled in
+  `l6_ruled_S4_defs.log`); handed to Phase 14's preset files.
+  The factory tree was regenerated here (`generate_vorago_presets`; only `Machines/Feedback Mire.vstpreset` changed) so
+  `Vorago_FactoryPresets_TreeMatchesGenerator` is green (`l6_factory_tree_regen.log`); the five `[long]` Phase 14 sweep
+  cases in that log are Phase 14's open state (28 / 42), not 13c gate cases.
 
 ---
 
@@ -709,6 +822,8 @@ not ruled. After each macro's ruling, the R step re-reads every earlier ruled ce
   A3 `104=1,1500=0`; A4 `104=0.5,1500=0`. Table: arm 3 (late − Sus dB) and arm 1 per arm, per take, plus the
   44.1 kHz line.
 - **Stop-and-surface:** no single ablation brings arm 3 into [−18, +12] dB (surface with the lever proposal).
+- **DONE (2026-10-03, main loop) — verification only.** `m5_cause.log`: arm 3 inside the band on every arm
+  and take (A0 +1.12 dB as stored); no ablation needed, nothing to surface. Cause check `l7_gravity_cause_seams.log`.
 
 ### T052 — M2 Age, M3 Density, M4 Movement, M9 Fog, M12 Mass (FR-014)
 
@@ -723,6 +838,10 @@ not ruled. After each macro's ruling, the R step re-reads every earlier ruled ce
   - **M12** (Monolith): Mass→SubToneLevelOffsetDb +3 → +6; new Mass→BodyDamping (0.25, −0.15);
     Mass→BodyResonance +0.28 → +0.29.
 - A pass: `d ≥ 4.0`, arms green in the same printout.
+- **RULED AND APPLIED (B-13, 2026-10-03) — verification only.** M3 shipped rows (4.1136 as compiled); M9 rung 2
+  (4.4115); M12 rung 1 (5.7413); M2 and M4 shipped rows, surfaced (FR-027). Ladders `l7_<macro>_r<k>.log`,
+  `l7_T052_ladder_summary.txt`, `l7_M2_ladder_summary.txt`. The ruled rows compiled after the SC-011 bisect
+  (B-14); R step `l7_ruled_{M9,M12,suite}.log`.
 
 ### T053 — M5 Gravity lever (FR-014, FR-015, SC-005, E-6)
 
@@ -730,6 +849,14 @@ not ruled. After each macro's ruling, the R step re-reads every earlier ruled ce
   curve Linear → SCurve, or a smaller amount) **plus** new Gravity→CloudSpectralTiltDb (base −4, −3); then
   Gravity→ResonanceMix (0.45, +0.25). Pass: `d ≥ 4.0`; arm 3 within [−18, +12] dB **and** arm 1 green on all
   4 takes; `arm1@44.1k` PASS. NoZipper and SweepAxes per rung (Gravity is bipolar). One RULING, one row.
+- **RULED (B-13, 2026-10-03) — verification only.** Rungs `l7_gravity_r1.log` (3.1393), `l7_gravity_r2.log`
+  (3.1864); arm 3 and arm 1 green on all takes, 44.1 kHz PASS; d under the bar on every rung and take →
+  shipped rows, M5 surfaced (FR-027). NoZipper / SweepAxes reds at every rung equal the restored tree's 12
+  (`l7_macro_tests_restored.log`): the SC-011 regression, B-14.
+- **B-14 APPLIED (2026-10-04) — verification only.** Default ghost peak 0 (`kGhostDefaultPeakLevel`, the Fog row
+  base, the plugin default); six presets pinned at 0.60; re-specs in `vorago_engine_test.cpp` (:281) and
+  `ghost_params_test.cpp` (:138). Bisect `l7_sweepaxes_bisect_summary.txt`; as compiled `l7_sc011_ruled.log`
+  (61 / 62, the one red the base tree's own Movement rho; every T004-passing assertion green), `l7_b14_suite.log`, `l7_b14_vorago_lane.log`, `l7_b14_preset_lane.log`.
 
 ### T054 — M10 Life, last (FR-014, E-5, plan §2.10)
 
@@ -739,6 +866,9 @@ not ruled. After each macro's ruling, the R step re-reads every earlier ruled ce
   13b Gate 1 at Life max (`VORAGO_PROBE_SEEDS=6 VORAGO_PROBE_KNOBS=- VORAGO_PROBE_SURFACE=109=1`, ratio ≥ 0.5).
 - RULING. **Stop-and-surface:** E7.hi, D13.1 (or its S7 conjunct) or D13.2 still short with every named lever
   at its ladder top — surfaced with readings across all rungs, never UNMET.
+- **RULED (B-13, 2026-10-03) — verification only.** `l7_life_ladder_summary.txt`, `l7_life_r<k>_{teeming,colonypulse,gate1}.log`:
+  no rung lifts E7.hi / D13.1 / D13.2; S7 verified and Gate 1 PASS on every rung → shipped rows; the three
+  secondaries surfaced (FR-027).
 
 ---
 
@@ -756,6 +886,9 @@ not ruled. After each macro's ruling, the R step re-reads every earlier ruled ce
 - Print the wall clock. **If it exceeds 4 minutes measured alone, stop and surface** (do not shorten, split or
   tag it `[long]`).
 - This is a guard on the ruled tree, expected green; a red is a defect in a ruled lever.
+- **RULED (2026-10-04) — verification only.** Green, 72 / 72 assertions, wall clock 304.0 s alone
+  (`t055_bounded.log`), over the 240 s stop-and-surface line. The user ruled: accept it, keep it per-push (a
+  boundedness sentinel stays out of `[long]`), the limit for this case is 360 s.
 
 ---
 
@@ -800,7 +933,17 @@ not ruled. After each macro's ruling, the R step re-reads every earlier ruled ce
 - Machine idle and cool: `node tools/run-cpu-tests.js dsp_systems_tests` → `cpu_final_dsp.log`, then
   `node tools/run-cpu-tests.js vorago_tests` → `cpu_final_vorago.log`; `VoragoVoice_CloudFloorCpuProbe` →
   `cpu_floor_final.log`. Clause (i), clause (ii), P/D ≤ 1.05; the delta vs T006 in ns and %.
+- **(ruling B-2)** Then, on an idle machine (WSL, Docker and the VS Code remote session closed; reboot if the
+  base binary does not pass clause (i)), the alternating pinned A/B of `VoragoEngine_CpuBudget`: base binary
+  (`f:/tmp/p13c_ab`, built from the base tree) vs the final binary, two rounds, 60 s settles →
+  `cpu_final_ab_{base,final}_run{1,2}.log`. Clause (i) is judged there; the delta vs base in ns and %.
+  Main loop only (measurement task). Stop-and-surface if the base binary cannot be brought to pass.
 - A red is re-run alone after the machine idles before it is treated as a defect. Never relax a budget.
+- **RULED B-17 (2026-10-05).** `FeedbackEcology_CpuBudget` is red on both binaries in the base/final A/B
+  (`cpu_ab_rerun_summary.txt`: base x1.5 = 179093.4, final 167645.4, ceiling 160000). It is surfaced with no DSP change
+  and handed to Phase 14. `Vorago_ProcessorCpu` is green on the final binary (P/D 0.9757) and red on the base (1.0581),
+  so that red was the machine. `ResonanceDriftNetwork_CpuBudget` is green alone (`cpu_rerun_ResonanceDriftNetwork_CpuBudget.log`).
+  `VoragoVoice_BloomSlotAccounting` was re-specced (FR-034 entry 7) and is green.
 
 ---
 
@@ -837,11 +980,23 @@ not ruled. After each macro's ruling, the R step re-reads every earlier ruled ce
   `harmonic_cloud.h`, `atmosphere_engine.h`, `continuous_body.h`, `aether_reverb.h`, `entropy_processor.h`, life
   modulator or `seraphis_*.h`; and no `bloom_engine.h`, `feedback_ecology.h` or `multi_stage_envelope.h` unless a
   recorded ruling allowed it.
+- **RUN (2026-10-05/06).** Build 0 warnings (`final_build.log`; the 55 MSB3073 lines are the Seraphis preset copy into
+  `C:\ProgramData`, a permission failure of the post-build step, not a compile error); eight suites green
+  (`final_suite_*.log`); `dsp_systems_tests` `[long]` 41 / 42, the one red the base tree's own SweepAxes Movement rho
+  (`final_long_dsp_systems_tests.log:1140`, B-14); the `vorago_tests` `[long]` lane split per the Phase 14 sweep
+  contract — the three non-sweep cases green (`final_long_vorago_tests.log:524`) and the sweep as 8 concurrent shards
+  (`final_long_vorago_sweep_shard_{0..7}.log`, `final_long_vorago_sweep_wall.txt`: 2 h 56 min against the serial
+  lane's projected ~16 h, `final_long_vorago_tests_serial_stopped.log`); aggregate `final_long_vorago_sweep_aggregate.log`
+  (verified primaries 27 → 30; its three cases fail as at sweep 4). Sweep reds: `final_sweep_record_diff.txt`; rulings
+  B-18 (Choir of Absence arm 1), B-19 (E3 / E4 / E5), B-20 (five FR-030b secondaries). pluginval `final_pluginval.log`;
+  clang-tidy 1 + 7 findings fixed (`(*v).reset()`, the swing probe's optional accesses, a range-for, a redundant
+  init) and re-run (`final_tidy_{dsp,vorago}.log`).
 
 ### T063 — Portability check (FR-036, SC-021)
 
 - `node tools/check-portability.js` → `final_portability.log`: clean. Then `wsl --shutdown`.
 - **Stop-and-surface:** any finding. Fix it in source, rebuild, and re-run the affected T062 suite.
+- **RUN (2026-10-06).** `final_portability.log`: all clear, 42 compiled, 1 skipped; `wsl --shutdown` rc 0 (`final_g16_summary.txt`).
 
 ### T064 — Compliance, from the checked-in logs only (FR-040–FR-042, every SC)
 
@@ -853,6 +1008,7 @@ not ruled. After each macro's ruling, the R step re-reads every earlier ruled ce
   E0 / P0 default surface). The SC-007 and SC-007b before/after tables. One row per FR and SC, each citing a
   log file and line read at this step. An unresolved stop-and-surface item is written as such, never as UNMET
   or as met.
+- **RUN (2026-10-06).** `compliance.md` written from the checked-in logs: headline F1 table, the FR-040 lever table (one row per feature, every candidate), the FR-030 / FR-030b sections, one row per FR and SC with file:line cites, the FR-042 hand-off and FR-041 default-render note, and honesty notes (the sharded long lane, the MSB3073 copy failures, FeedbackEcology, the D10.1 pilot/sweep disagreement). Surfaced items are written as surfaced (B-11..B-20).
 
 ---
 

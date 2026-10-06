@@ -1,0 +1,14 @@
+START 2026-10-01 21:33:21 VORAGO_PILOT_PRESET=Bloom Colony exe=2026-10-01 21:30:23
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 2848425651
+[probe] lever: none
+[probe] Bloom Colony - primary E1 partial -> bloom (stored seed 0, 4 twin render(s))
+  take: peak 0.2951  arm1 hi -20.40 dB [yes]  arm2 lo -22.31 dB [yes]  arm3 late-sus +0.47 dB [yes]  arm4 tail -224.32 dB [yes]
+  arm1@44.1k: finite y peak 0.2967 hi -19.85 dB [PASS]
+  route arms: d(R_k, R_k0) 0.1567, attribBase d(R_0, R_00) 0.1204 (attributable iff d >= 1.6204)
+  primary d 0.1567  bar 4.0000  attribBase 0.1204  state ok  -> FAIL  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (16 assertions in 1 test case)
+
+exit=0 END 2026-10-01 21:36:22

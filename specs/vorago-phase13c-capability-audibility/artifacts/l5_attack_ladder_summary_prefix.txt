@@ -1,0 +1,6 @@
+=== kAttackShapePower ladder started 2026-10-02 13:59:48 ===
+2026-10-02 14:01:15 build n=1: exit=0 warnings=0 (kAttackShapePower = 1)
+2026-10-02 14:01:35 n=1 tests: VoragoVoice_AttackTracksStageTime: n = 1, RMS(Sus) -21.45 dB, reach 8.0 s (bound [15.0, 20.0] s), 180.0 s rendered in 2.95 s wall   REQUIRE( *reachSeconds >= kTrackingFloor * t0Seconds )   RMS(Sus) -2 | assertions: 22 | 20 passed | 2 failed
+2026-10-02 14:03:34 n=1 pilot:  attack window (W_end registered 25.0 s, measured 13.0 s): d_att 4.2413, d_Sus 4.3295 (attributable iff d_att >= 5.8295) P: first reaches RMS(Sus) - 6 dB at 4 s P_rev: first reaches RMS(Sus) - 6 dB at 8 s primary d 4.2413 bar 4.0000 attribBase 4.3295 state ok -> FAIL lever: none levels: arms [y y y y] arm1@44.1k [y] 
+2026-10-02 14:04:08 build n=2: exit=1 warnings=0 (kAttackShapePower = 2)
+BUILD FAILED at n=2

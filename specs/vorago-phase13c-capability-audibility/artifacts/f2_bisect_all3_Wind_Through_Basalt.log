@@ -1,0 +1,13 @@
+START 2026-10-04 20:17:43 Wind Through Basalt VORAGO_PILOT_LEVER=childGain=0.35,ghostTapDb=12,ecologyWetDb=0 (final tree) exe=2026-10-04 09:54:11
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 627354750
+[probe] lever: childGain=0.35,ghostTapDb=12,ecologyWetDb=0
+[probe] Wind Through Basalt - primary S1 noise organism (stored seed 2, 1 twin render(s))
+  take: peak 0.3152  arm1 hi -22.07 dB [yes]  arm2 lo -26.34 dB [yes]  arm3 late-sus +1.48 dB [yes]  arm4 tail -136.52 dB [yes]
+  arm1@44.1k: finite y peak 0.2906 hi -21.82 dB [PASS]
+  primary d 3.4352  bar 4.0000  attribBase -1.0000  state ok  -> FAIL  lever: childGain=0.35,ghostTapDb=12,ecologyWetDb=0
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (10 assertions in 1 test case)
+
+exit=0 END 2026-10-04 20:21:06

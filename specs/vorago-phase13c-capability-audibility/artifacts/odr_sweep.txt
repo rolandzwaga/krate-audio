@@ -1,0 +1,33 @@
+
+## T023 (2026-10-01) - grep -rn "kCloudRichnessFloor\|partialCountFor\|kBloomChildGain" dsp/ plugins/ tools/  (before the vorago_voice.h edit)
+dsp/tests/unit/systems/vorago_voice_test.cpp:4092:// VoragoVoice::kCloudRichnessFloor, so its ACTIVE partial count never falls
+dsp/tests/unit/systems/vorago_voice_test.cpp:4095:// user's value. Fails to compile until T023 adds kCloudRichnessFloor.
+dsp/tests/unit/systems/vorago_voice_test.cpp:4107:        cloud.setRichness(VoragoVoice::kCloudRichnessFloor);
+dsp/tests/unit/systems/vorago_voice_test.cpp:4112:        INFO("floor " << VoragoVoice::kCloudRichnessFloor << ", active "
+dsp/tests/unit/systems/vorago_voice_test.cpp:4165:// at kCloudRichnessFloor, a user richness BELOW the floor must still sound the
+dsp/tests/unit/systems/vorago_voice_test.cpp:4175:// Fails to compile until T023 adds kCloudRichnessFloor; behaviourally fails on
+dsp/tests/unit/systems/vorago_voice_test.cpp:4186:        REQUIRE(r < VoragoVoice::kCloudRichnessFloor);
+dsp/tests/unit/systems/vorago_voice_test.cpp:4296://       per-parent drop is printed for the FR-040 record at kBloomChildGain.
+dsp/tests/unit/systems/vorago_voice_test.cpp:4297:// Fails to compile until T023 adds kBloomChildGain; behaviourally fails on the
+dsp/tests/unit/systems/vorago_voice_test.cpp:4317:    REQUIRE(bOn.getChildGain() == VoragoVoice::kBloomChildGain);
+dsp/tests/unit/systems/vorago_voice_test.cpp:4416:                        "drop %.3f dB at kBloomChildGain %.3f\n",
+dsp/tests/unit/systems/vorago_voice_test.cpp:4419:                        static_cast<double>(VoragoVoice::kBloomChildGain));
+dsp/tests/unit/systems/vorago_voice_test.cpp:4437:// cloud keeps kCloudRichnessFloor's active count and the voice engages a
+dsp/tests/unit/systems/vorago_voice_test.cpp:4446:// Fails to compile until T023 adds kCloudRichnessFloor.
+dsp/tests/unit/systems/vorago_voice_test.cpp:4454:    static_assert(kBelow < VoragoVoice::kCloudRichnessFloor);
+dsp/tests/unit/systems/vorago_voice_test.cpp:4455:    static_assert(kAbove > VoragoVoice::kCloudRichnessFloor);
+Result: every hit is in dsp/tests/unit/systems/vorago_voice_test.cpp, this phase's new T018-T021 tests; 0 hits outside them. No existing class/constant/function of these names - no ODR collision.
+
+## T030 (2026-10-01) - grep -rn "kPartialLaneGain\|kGhostLaneGain" dsp/ plugins/ tools/  (before the vorago_voice.h edit)
+dsp/tests/unit/systems/vorago_ecosystem_lever_test.cpp:131:    static constexpr float partialLaneGain() { return VoragoVoice::kPartialLaneGain; }
+dsp/tests/unit/systems/vorago_ecosystem_lever_test.cpp:132:    static constexpr float ghostLaneGain() { return VoragoVoice::kGhostLaneGain; }
+dsp/tests/unit/systems/vorago_ecosystem_lever_test.cpp:1345:// The two L2 route sizes (kPartialLaneGain on mutation and bloom depth,
+dsp/tests/unit/systems/vorago_ecosystem_lever_test.cpp:1346:// kGhostLaneGain on the ghost request's eco term) are ZERO at a zero lane:
+dsp/tests/unit/systems/vorago_ecosystem_lever_test.cpp:1350://   mutation   == clamp(mutationBase   + kPartialLaneGain * raw, 0, 1)
+dsp/tests/unit/systems/vorago_ecosystem_lever_test.cpp:1351://   bloomDepth == clamp(bloomDepthBase + kPartialLaneGain * raw, 0, 1)
+dsp/tests/unit/systems/vorago_ecosystem_lever_test.cpp:1352://   ghost      == combineWake(0, min(1, kGhostLaneGain * raw), sched)
+Result: every hit is in dsp/tests/unit/systems/vorago_ecosystem_lever_test.cpp, this phase's T028 test and its probe accessors; 0 hits outside it. No existing class/constant/function of these names - no ODR collision.
+
+## T034 (2026-10-02) - grep -rn "kGhostDensity" dsp/ plugins/  (before the vorago_engine.h edit)
+(no output)
+Result: 0 hits anywhere in dsp/ or plugins/. No existing class/constant/function of this name - no ODR collision.

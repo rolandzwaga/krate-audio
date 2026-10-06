@@ -5,7 +5,7 @@
 // ==============================================================================
 // The six-function pack contract (plan section 3.4; shape of global_params.h).
 //
-//   1400 Ghost Peak Level          %  [0, 1]  0.60  lin   MB  GhostPeakLevel
+//   1400 Ghost Peak Level          %  [0, 1]  0.00  lin   MB  GhostPeakLevel
 //   1401 Ghost Blur                %  [0, 1]  0.85  lin   MB  AtmosBlur
 //   1402 Ghost Reverse Probability %  [0, 1]  0.0   lin   ENG setGhostReverseProbability
 //   1403 Ghost Event Triggers      L(2) Off, On   0       ENG setGhostEventTriggers
@@ -34,7 +34,7 @@ namespace Vorago {
 inline constexpr int kGhostEventTriggersCount = 2;  ///< Off, On
 
 struct GhostParams {
-    std::atomic<float> peakLevel{0.60f};          ///< [0, 1]
+    std::atomic<float> peakLevel{0.0f};           ///< [0, 1] (13c B-14: default off; was 0.60)
     std::atomic<float> blur{0.85f};               ///< [0, 1]
     std::atomic<float> reverseProbability{0.0f};  ///< [0, 1]
     std::atomic<int> eventTriggers{0};            ///< index: 0 Off, 1 On
@@ -77,7 +77,7 @@ inline void handleGhostParamChange(GhostParams& params, Steinberg::Vst::ParamID 
 inline void registerGhostParams(Steinberg::Vst::ParameterContainer& parameters) {
     using namespace Steinberg::Vst;
 
-    parameters.addParameter(STR16("Ghost Peak Level"), STR16("%"), 0, 0.60,
+    parameters.addParameter(STR16("Ghost Peak Level"), STR16("%"), 0, 0.0,  // 13c B-14 (was 0.60)
                             ParameterInfo::kCanAutomate, kGhostPeakLevelId);
     parameters.addParameter(STR16("Ghost Blur"), STR16("%"), 0, 0.85,
                             ParameterInfo::kCanAutomate, kGhostBlurId);

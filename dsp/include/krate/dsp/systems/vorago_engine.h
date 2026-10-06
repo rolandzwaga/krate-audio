@@ -269,6 +269,23 @@ public:
     /// FR-017's ghost gating: the level written when a burst is fully open. The
     /// BASE is 0.0 - a base of 0 is what makes a burst a burst.
     static constexpr float kGhostBurstPeak = 0.60f;
+    /// Phase 13c ruling B-14 (2026-10-04, SC-011): the DEFAULT ghost peak level the engine
+    /// prepares with and the Fog->GhostPeakLevel macro row sums onto. 0: the default surface
+    /// ships with the ghost layer off (the 21 dB make-up at the old 0.60 default swamped
+    /// every Phase 10 macro axis); presets switch it on (36 of 42 set it themselves; the six
+    /// that inherited the default now pin 0.60 in their defs). kGhostBurstPeak above keeps
+    /// the SC-027 trigger thresholds where Phase 10 measured them.
+    static constexpr float kGhostDefaultPeakLevel = 0.0f;
+
+    /// FR-013 (Phase 13c, plan s2.3): the ghost tap's grain density, named at its
+    /// shipped no-change value so the L3 ladder (T035) can step it.
+    static constexpr float kGhostDensity = 0.30f;
+    /// Phase 13c ruling B-6 (2026-10-02, FR-013): the ghost ROUTE's second
+    /// destination. The applied density is ghostDensityBase_ + kGhostDensitySpan *
+    /// max(getGhostEcoLane()) over the rendering voices, so a ghost stays an event
+    /// at rest and thickens only while the colony's Ghost lane is up (exactly the
+    /// base at lane 0, scheduler-blind). The span is laddered by rebuild (T070).
+    static constexpr float kGhostDensitySpan = 1.2f;  // 13c ruling B-7 (2026-10-02): E5 takes 3.80/6.04/3.00/4.62, S9 >= 4.14
 
     /// Phase 10a FR-031's edge predicate, on the GATED level `ghostPeak_ * ghost`.
     /// Defined FROM kGhostBurstPeak so they cannot drift from Phase 10's SC-027
@@ -372,7 +389,7 @@ public:
                                .blurFftSize = cfg.atmosBlurFftSize,
                                .freezeFftSize = cfg.atmosFreezeFftSize,
                                .maxBlockSamples = maxBlock});
-        atmos_.setDensity(0.30f);         // a ghost is an event, not a wash
+        atmos_.setDensity(ghostDensityBase_); // a ghost is an event, not a wash (B-6: the base)
         atmos_.setGrainSeconds(12.0f);    // a grain is a memory of the drone
         atmos_.setPitchSemitones(-12.0f); // ghosts sit an octave under
         atmos_.setPositionSpread(0.90f);  // read ages scatter across the capture
@@ -998,8 +1015,8 @@ public:
     ///        kGhostTapMakeupDb; the setter exists so the make-up can be
     ///        MEASURED (VoragoEngine_GhostLevelProbe) before it is ruled, and
     ///        so a test can render at unity for comparison.
-    static constexpr float kGhostTapMakeupDb = 12.0f;  // measured 2026-09-30 (S-7), see below
-    static constexpr float kGhostTapMakeupGain = 3.9810717f;  // 10^(kGhostTapMakeupDb / 20)
+    static constexpr float kGhostTapMakeupDb = 21.0f;  // 13c ruling B-6 (2026-10-02): S9 d 4.10 at 21 (12: 1.83, 18: 3.30, 24 clips)
+    static constexpr float kGhostTapMakeupGain = 11.220185f;  // 10^(kGhostTapMakeupDb / 20) = 10^1.05
     static constexpr float kMaxGhostTapMakeupDb = 24.0f;
     void setGhostTapMakeupDb(float dB) noexcept {
         if (!detail::isFinite(dB)) {
@@ -1009,6 +1026,44 @@ public:
         ghostTapMakeupGain_ = std::pow(10.0f, ghostTapMakeupDb_ * 0.05f);
     }
     [[nodiscard]] float getGhostTapMakeupDb() const noexcept { return ghostTapMakeupDb_; }
+
+    // -------------------------------------------------------------------------
+    // Phase 13c measurement seams (plan s2.9, ruling P2 2026-10-01). These
+    // exist so the lever can be MEASURED (VORAGO_PILOT_LEVER) without a
+    // rebuild; prepare() still installs the compiled values, so with no tweak
+    // applied nothing changes. The voice fan-outs follow the envelope fan-out
+    // pattern above: ALL kMaxVoices, and the getters read SLOT 0 (FR-071).
+    // Non-finite input is rejected by the owners (BloomEngine::setChildGain,
+    // FeedbackEcology::setWetGain); setGhostDensity rejects it itself so the
+    // AtmosphereEngine's 4.0 substitute is never reached.
+    // -------------------------------------------------------------------------
+    void setBloomChildGain(float g) noexcept {
+        for (std::size_t v = 0; v < kMaxVoices; ++v) {
+            voices_[v].setBloomChildGain(g);
+        }
+    }
+    [[nodiscard]] float getBloomChildGain() const noexcept { return voices_[0].getBloomChildGain(); }
+
+    void setEcologyWetMakeupDb(float dB) noexcept {
+        for (std::size_t v = 0; v < kMaxVoices; ++v) {
+            voices_[v].setEcologyWetMakeupDb(dB);
+        }
+    }
+    [[nodiscard]] float getEcologyWetMakeupDb() const noexcept {
+        return voices_[0].getEcologyWetMakeupDb();
+    }
+
+    void setGhostDensity(float grainsPerSecond) noexcept {
+        if (!detail::isFinite(grainsPerSecond)) {
+            return;  // FR-071: rejected, the previous value stands
+        }
+        // B-6: the seam sets the BASE; the route adds kGhostDensitySpan * lane on top
+        // every control chunk, so the getter reads the base back unchanged.
+        ghostDensityBase_ = std::clamp(grainsPerSecond, AtmosphereEngine::kMinDensity,
+                                       AtmosphereEngine::kMaxDensity);
+        atmos_.setDensity(ghostDensityBase_);
+    }
+    [[nodiscard]] float getGhostDensity() const noexcept { return ghostDensityBase_; }
 
     /// Vorago Phase 12 FR-006: the ghost grain reverse probability. Survives a
     /// re-prepare - prepare() uses the config value only until this is called.
@@ -1519,12 +1574,14 @@ private:
         // lowest (FR-051): the lowest SOUNDING voice's frequency, read from the
         //        allocator, over every slot it does not report Idle.
         float ghost = 0.0f;
+        float ghostLane = 0.0f;  // B-6: the raw Ghost eco lane, max over rendering voices
         float fog = 0.0f;
         float lowest = 0.0f;
         bool sounding = false;
         for (std::size_t v = 0; v < kMaxVoices; ++v) {
             if (isRendering(v)) {
                 ghost = std::max(ghost, voices_[v].getGhostRequest());    // vorago_voice.h:942
+                ghostLane = std::max(ghostLane, voices_[v].getGhostEcoLane());
                 fog = std::max(fog, voices_[v].getTidalFogDepth());       // :951
             }
             if (allocator_.getVoiceState(v) == VoiceState::Idle) {        // voice_allocator.h:424
@@ -1543,6 +1600,13 @@ private:
         // FR-017's gating. The BASE is 0.0 - a base of 0 is what makes a burst a
         // burst - and the burst peak is the engine-owned ghostPeak_.
         atmos_.setLevel(ghostPeak_ * ghost);  // atmosphere_engine.h:982
+        // B-6: the ghost density route (FR-013). Exactly the base at lane 0; written
+        // only on change (E-7).
+        const float density = std::clamp(ghostDensityBase_ + kGhostDensitySpan * ghostLane,
+                                         AtmosphereEngine::kMinDensity, AtmosphereEngine::kMaxDensity);
+        if (density != atmos_.getDensity()) {
+            atmos_.setDensity(density);
+        }
 
         // --- Phase 10a FR-031. The spawn path rides the SAME definition of "a
         //     ghost burst" Phase 10's SC-027 detector uses
@@ -1798,6 +1862,7 @@ private:
     VoiceAllocator allocator_;
 
     AtmosphereEngine atmos_;   ///< the GLOBAL ghost tap (FR-056, OQ-1(b))
+    float ghostDensityBase_ = kGhostDensity;  ///< 13c B-6: the density route's base (seam-settable)
     SubharmonicEngine sub_;    ///< the held-fundamental sub tail (FR-051)
     SpectralSmear smear_;      ///< the global fog (FR-052)
     TapeSaturator satL_;       ///< mono, in place (tape_saturator.h:335)
@@ -1814,7 +1879,7 @@ private:
     float smearBase_ = kDefaultSmearAmount;
     float smearDecoherence_ = kDefaultSmearDecoherence;
     float smearTilt_ = 0.0f;
-    float ghostPeak_ = kGhostBurstPeak;
+    float ghostPeak_ = kGhostDefaultPeakLevel;  // 13c B-14
     float ghostTapMakeupDb_ = kGhostTapMakeupDb;      // setGhostTapMakeupDb
     float ghostTapMakeupGain_ = kGhostTapMakeupGain;  // 10^(kGhostTapMakeupDb / 20) at the default
     bool ghostEventTriggers_ = false;  ///< FR-030's config shadow

@@ -1,0 +1,119 @@
+START 2026-10-01 21:30:09 T007 VoragoVoice_BloomCountsProbe on the BASE tree (worktree f:/tmp/p13b_ab at 64f57e1a + the T007/T008 test edits only; exe 2026-10-01 21:29:20)
+Filters: "VoragoVoice_BloomCountsProbe"
+Randomness seeded to: 3954920374
+  [bloom probe] richness 0.00 depth 1.0: active partials 1, capacity 14, child slots 6, reserve base 8 | spawn events 9, spawned 6, rejected 14, live 6, depth now 1.000, rate 0.0300
+    [bloom slot] child 0: slot 8 parent 1 childAmp 0.043606 active 1 slot<active no cloudAmp 0.000000
+    [bloom slot] child 1: slot 9 parent 3 childAmp 0.000996 active 1 slot<active no cloudAmp 0.000000
+    [bloom slot] child 2: slot 10 parent 0 childAmp 0.254107 active 1 slot<active no cloudAmp 0.000000
+    [bloom slot] child 3: slot 11 parent 2 childAmp 0.026160 active 1 slot<active no cloudAmp 0.000000
+    [bloom slot] child 4: slot 12 parent 0 childAmp 0.731133 active 1 slot<active no cloudAmp 0.000000
+    [bloom slot] child 5: slot 13 parent 2 childAmp 0.000174 active 1 slot<active no cloudAmp 0.000000
+  [bloom probe] richness 0.00 depth 1.0: children live 6, sounding 0
+  [bloom probe] richness 0.00 depth 0.0: active partials 1, capacity 14, child slots 6, reserve base 8 | spawn events 6, spawned 6, rejected 7, live 6, depth now 0.627, rate 0.0300
+    [bloom slot] child 0: slot 8 parent 1 childAmp 0.037065 active 1 slot<active no cloudAmp 0.000000
+    [bloom slot] child 1: slot 9 parent 3 childAmp 0.000846 active 1 slot<active no cloudAmp 0.000000
+    [bloom slot] child 2: slot 10 parent 0 childAmp 0.207197 active 1 slot<active no cloudAmp 0.000000
+    [bloom slot] child 3: slot 11 parent 2 childAmp 0.021331 active 1 slot<active no cloudAmp 0.000000
+    [bloom slot] child 4: slot 12 parent 3 childAmp 0.015552 active 1 slot<active no cloudAmp 0.000000
+    [bloom slot] child 5: slot 13 parent 0 childAmp 0.446197 active 1 slot<active no cloudAmp 0.000000
+  [bloom probe] richness 0.00 depth 0.0: children live 6, sounding 0
+  [bloom probe] richness 0.35 depth 1.0: active partials 4, capacity 14, child slots 6, reserve base 8 | spawn events 9, spawned 6, rejected 14, live 6, depth now 1.000, rate 0.0300
+    [bloom slot] child 0: slot 8 parent 1 childAmp 0.079974 active 4 slot<active no cloudAmp 0.000000
+    [bloom slot] child 1: slot 9 parent 3 childAmp 0.003349 active 4 slot<active no cloudAmp 0.000000
+    [bloom slot] child 2: slot 10 parent 0 childAmp 0.254107 active 4 slot<active no cloudAmp 0.000000
+    [bloom slot] child 3: slot 11 parent 2 childAmp 0.068410 active 4 slot<active no cloudAmp 0.000000
+    [bloom slot] child 4: slot 12 parent 0 childAmp 0.731133 active 4 slot<active no cloudAmp 0.000000
+    [bloom slot] child 5: slot 13 parent 2 childAmp 0.000456 active 4 slot<active no cloudAmp 0.000000
+  [bloom probe] richness 0.35 depth 1.0: children live 6, sounding 0
+  [bloom probe] richness 0.35 depth 0.0: active partials 4, capacity 14, child slots 6, reserve base 8 | spawn events 6, spawned 6, rejected 7, live 6, depth now 0.627, rate 0.0300
+    [bloom slot] child 0: slot 8 parent 1 childAmp 0.067978 active 4 slot<active no cloudAmp 0.000000
+    [bloom slot] child 1: slot 9 parent 3 childAmp 0.002847 active 4 slot<active no cloudAmp 0.000000
+    [bloom slot] child 2: slot 10 parent 0 childAmp 0.207197 active 4 slot<active no cloudAmp 0.000000
+    [bloom slot] child 3: slot 11 parent 2 childAmp 0.055781 active 4 slot<active no cloudAmp 0.000000
+    [bloom slot] child 4: slot 12 parent 3 childAmp 0.052312 active 4 slot<active no cloudAmp 0.000000
+    [bloom slot] child 5: slot 13 parent 0 childAmp 0.446197 active 4 slot<active no cloudAmp 0.000000
+  [bloom probe] richness 0.35 depth 0.0: children live 6, sounding 0
+  [bloom probe] richness 0.40 depth 1.0: active partials 5, capacity 14, child slots 6, reserve base 8 | spawn events 9, spawned 6, rejected 14, live 6, depth now 1.000, rate 0.0300
+    [bloom slot] child 0: slot 8 parent 1 childAmp 0.087212 active 5 slot<active no cloudAmp 0.000000
+    [bloom slot] child 1: slot 9 parent 3 childAmp 0.003983 active 5 slot<active no cloudAmp 0.000000
+    [bloom slot] child 2: slot 10 parent 0 childAmp 0.254107 active 5 slot<active no cloudAmp 0.000000
+    [bloom slot] child 3: slot 11 parent 2 childAmp 0.078480 active 5 slot<active no cloudAmp 0.000000
+    [bloom slot] child 4: slot 12 parent 0 childAmp 0.731133 active 5 slot<active no cloudAmp 0.000000
+    [bloom slot] child 5: slot 13 parent 2 childAmp 0.000523 active 5 slot<active no cloudAmp 0.000000
+  [bloom probe] richness 0.40 depth 1.0: children live 6, sounding 0
+  [bloom probe] richness 0.40 depth 0.0: active partials 5, capacity 14, child slots 6, reserve base 8 | spawn events 6, spawned 6, rejected 7, live 6, depth now 0.627, rate 0.0300
+    [bloom slot] child 0: slot 8 parent 1 childAmp 0.074131 active 5 slot<active no cloudAmp 0.000000
+    [bloom slot] child 1: slot 9 parent 3 childAmp 0.003386 active 5 slot<active no cloudAmp 0.000000
+    [bloom slot] child 2: slot 10 parent 0 childAmp 0.207197 active 5 slot<active no cloudAmp 0.000000
+    [bloom slot] child 3: slot 11 parent 2 childAmp 0.063992 active 5 slot<active no cloudAmp 0.000000
+    [bloom slot] child 4: slot 12 parent 3 childAmp 0.062210 active 5 slot<active no cloudAmp 0.000000
+    [bloom slot] child 5: slot 13 parent 0 childAmp 0.446197 active 5 slot<active no cloudAmp 0.000000
+  [bloom probe] richness 0.40 depth 0.0: children live 6, sounding 0
+  [bloom probe] richness 0.60 depth 1.0: active partials 12, capacity 14, child slots 6, reserve base 8 | spawn events 9, spawned 6, rejected 14, live 6, depth now 1.000, rate 0.0300
+    [bloom slot] child 0: slot 8 parent 1 childAmp 0.123337 active 12 slot<active yes cloudAmp 0.015190
+    [bloom slot] child 1: slot 9 parent 3 childAmp 0.007966 active 12 slot<active yes cloudAmp 0.001346
+    [bloom slot] child 2: slot 10 parent 0 childAmp 0.254107 active 12 slot<active yes cloudAmp 0.035888
+    [bloom slot] child 3: slot 11 parent 2 childAmp 0.135931 active 12 slot<active yes cloudAmp 0.016813
+    [bloom slot] child 4: slot 12 parent 0 childAmp 0.731133 active 12 slot<active no cloudAmp 0.000000
+    [bloom slot] child 5: slot 13 parent 2 childAmp 0.000906 active 12 slot<active no cloudAmp 0.000000
+  [bloom probe] richness 0.60 depth 1.0: children live 6, sounding 4
+  [bloom probe] richness 0.60 depth 0.0: active partials 12, capacity 14, child slots 6, reserve base 8 | spawn events 6, spawned 6, rejected 7, live 6, depth now 0.627, rate 0.0300
+    [bloom slot] child 0: slot 8 parent 1 childAmp 0.104836 active 12 slot<active yes cloudAmp 0.012920
+    [bloom slot] child 1: slot 9 parent 3 childAmp 0.006771 active 12 slot<active yes cloudAmp 0.001145
+    [bloom slot] child 2: slot 10 parent 0 childAmp 0.207197 active 12 slot<active yes cloudAmp 0.029281
+    [bloom slot] child 3: slot 11 parent 2 childAmp 0.110837 active 12 slot<active yes cloudAmp 0.013718
+    [bloom slot] child 4: slot 12 parent 3 childAmp 0.124419 active 12 slot<active no cloudAmp 0.000000
+    [bloom slot] child 5: slot 13 parent 0 childAmp 0.446197 active 12 slot<active no cloudAmp 0.000000
+  [bloom probe] richness 0.60 depth 0.0: children live 6, sounding 4
+  [bloom probe] richness 0.70 depth 1.0: active partials 18, capacity 18, child slots 6, reserve base 12 | spawn events 9, spawned 6, rejected 14, live 6, depth now 1.000, rate 0.0300
+    [bloom slot] child 0: slot 12 parent 1 childAmp 0.187264 active 18 slot<active yes cloudAmp 0.025029
+    [bloom slot] child 1: slot 13 parent 3 childAmp 0.014088 active 18 slot<active yes cloudAmp 0.001327
+    [bloom slot] child 2: slot 14 parent 0 childAmp 0.312254 active 18 slot<active yes cloudAmp 0.020484
+    [bloom slot] child 3: slot 15 parent 2 childAmp 0.216574 active 18 slot<active yes cloudAmp 0.020843
+    [bloom slot] child 4: slot 16 parent 0 childAmp 0.873778 active 18 slot<active yes cloudAmp 0.103972
+    [bloom slot] child 5: slot 17 parent 2 childAmp 0.001409 active 18 slot<active yes cloudAmp 0.000055
+  [bloom probe] richness 0.70 depth 1.0: children live 6, sounding 6
+  [bloom probe] richness 0.70 depth 0.0: active partials 18, capacity 18, child slots 6, reserve base 12 | spawn events 6, spawned 6, rejected 7, live 6, depth now 0.627, rate 0.0300
+    [bloom slot] child 0: slot 12 parent 1 childAmp 0.159174 active 18 slot<active yes cloudAmp 0.021395
+    [bloom slot] child 1: slot 13 parent 3 childAmp 0.011975 active 18 slot<active yes cloudAmp 0.001134
+    [bloom slot] child 2: slot 14 parent 0 childAmp 0.254610 active 18 slot<active yes cloudAmp 0.016797
+    [bloom slot] child 3: slot 15 parent 2 childAmp 0.176593 active 18 slot<active yes cloudAmp 0.017092
+    [bloom slot] child 4: slot 16 parent 3 childAmp 0.210285 active 18 slot<active yes cloudAmp 0.023269
+    [bloom slot] child 5: slot 17 parent 0 childAmp 0.527279 active 18 slot<active yes cloudAmp 0.021549
+  [bloom probe] richness 0.70 depth 0.0: children live 6, sounding 6
+  [bloom probe] richness 0.90 depth 1.0: active partials 42, capacity 42, child slots 6, reserve base 36 | spawn events 9, spawned 6, rejected 14, live 6, depth now 1.000, rate 0.0300
+    [bloom slot] child 0: slot 36 parent 1 childAmp 0.530605 active 42 slot<active yes cloudAmp 0.037450
+    [bloom slot] child 1: slot 37 parent 3 childAmp 0.054700 active 42 slot<active yes cloudAmp 0.002209
+    [bloom slot] child 2: slot 38 parent 0 childAmp 0.589129 active 42 slot<active yes cloudAmp 0.025752
+    [bloom slot] child 3: slot 39 parent 2 childAmp 0.689528 active 42 slot<active yes cloudAmp 0.043030
+    [bloom slot] child 4: slot 40 parent 0 childAmp 1.568263 active 42 slot<active yes cloudAmp 0.091926
+    [bloom slot] child 5: slot 41 parent 2 childAmp 0.004286 active 42 slot<active yes cloudAmp 0.000140
+  [bloom probe] richness 0.90 depth 1.0: children live 6, sounding 6
+  [bloom probe] richness 0.90 depth 0.0: active partials 42, capacity 42, child slots 6, reserve base 36 | spawn events 6, spawned 6, rejected 7, live 6, depth now 0.627, rate 0.0300
+    [bloom slot] child 0: slot 36 parent 1 childAmp 0.451015 active 42 slot<active yes cloudAmp 0.031963
+    [bloom slot] child 1: slot 37 parent 3 childAmp 0.046495 active 42 slot<active yes cloudAmp 0.001885
+    [bloom slot] child 2: slot 38 parent 0 childAmp 0.480372 active 42 slot<active yes cloudAmp 0.021084
+    [bloom slot] child 3: slot 39 parent 2 childAmp 0.562237 active 42 slot<active yes cloudAmp 0.035230
+    [bloom slot] child 4: slot 40 parent 3 childAmp 0.754840 active 42 slot<active yes cloudAmp 0.028332
+    [bloom slot] child 5: slot 41 parent 0 childAmp 0.925804 active 42 slot<active yes cloudAmp 0.038402
+  [bloom probe] richness 0.90 depth 0.0: children live 6, sounding 6
+  [bloom probe] richness 1.00 depth 1.0: active partials 64, capacity 64, child slots 6, reserve base 58 | spawn events 9, spawned 6, rejected 14, live 6, depth now 1.000, rate 0.0300
+    [bloom slot] child 0: slot 58 parent 1 childAmp 0.860334 active 64 slot<active yes cloudAmp 0.041961
+    [bloom slot] child 1: slot 59 parent 3 childAmp 0.104784 active 64 slot<active yes cloudAmp 0.000658
+    [bloom slot] child 2: slot 60 parent 0 childAmp 0.793008 active 64 slot<active yes cloudAmp 0.033910
+    [bloom slot] child 3: slot 61 parent 2 childAmp 1.214188 active 64 slot<active yes cloudAmp 0.029801
+    [bloom slot] child 4: slot 62 parent 0 childAmp 2.086241 active 64 slot<active yes cloudAmp 0.109540
+    [bloom slot] child 5: slot 63 parent 2 childAmp 0.007462 active 64 slot<active yes cloudAmp 0.000136
+  [bloom probe] richness 1.00 depth 1.0: children live 6, sounding 6
+  [bloom probe] richness 1.00 depth 0.0: active partials 64, capacity 64, child slots 6, reserve base 58 | spawn events 6, spawned 6, rejected 7, live 6, depth now 0.627, rate 0.0300
+    [bloom slot] child 0: slot 58 parent 1 childAmp 0.731284 active 64 slot<active yes cloudAmp 0.035758
+    [bloom slot] child 1: slot 59 parent 3 childAmp 0.089067 active 64 slot<active yes cloudAmp 0.000560
+    [bloom slot] child 2: slot 60 parent 0 childAmp 0.646614 active 64 slot<active yes cloudAmp 0.027720
+    [bloom slot] child 3: slot 61 parent 2 childAmp 0.990042 active 64 slot<active yes cloudAmp 0.024361
+    [bloom slot] child 4: slot 62 parent 3 childAmp 1.420090 active 64 slot<active yes cloudAmp 0.008461
+    [bloom slot] child 5: slot 63 parent 0 childAmp 1.224774 active 64 slot<active yes cloudAmp 0.041830
+  [bloom probe] richness 1.00 depth 0.0: children live 6, sounding 6
+===============================================================================
+All tests passed (1 assertion in 1 test case)
+
+exit=0 END 2026-10-01 21:31:28

@@ -1484,6 +1484,9 @@ void runRepeatedBroadcast(double seconds) {
     for (VoragoEngine* e : {a.get(), b.get(), c.get()}) {
         e->setPolyphony(6u);
         e->setSeed(1u);
+        // 13c FR-034 / T040 A16 (ruling B-10): the case compares broadcast arms, not the
+        // attack; stage 0 shortened on every arm (artifacts/fr034_surfaced.md section 4.1).
+        e->setEnvelopeStageTimeMs(0, 1000.0f);
         for (const std::uint8_t n : kNotes) {
             e->noteOn(n, 100u);
         }

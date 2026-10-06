@@ -1,0 +1,16 @@
+START 2026-10-01 20:06:20 before2_D9.1 tree=ae149a1c+working-copy reporting binary (vorago_tests.exe mtime 2026-10-01 19:14:53) as-compiled (no override, no lever) preset="Sudden Chasm"
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 1064528719
+[probe] lever: none
+[probe] Sudden Chasm - primary D9.1 attack span <= 10 s (stored seed 5, 1 twin render(s))
+  take: peak 0.2497  arm1 hi -20.71 dB [yes]  arm2 lo -22.05 dB [yes]  arm3 late-sus -0.22 dB [yes]  arm4 tail -240.00 dB [yes]
+  arm1@44.1k: finite y peak 0.2548 hi -20.65 dB [PASS]
+  attack window (W_end 25.0 s): d_att 2.7661, d_Sus 4.3038 (attributable iff d_att >= 5.8038)
+    P: first reaches RMS(Sus) - 6 dB at 4 s
+    P_rev: first reaches RMS(Sus) - 6 dB at 6 s
+  primary d 2.7661  bar 4.0000  attribBase 4.3038  state ok  -> FAIL  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (9 assertions in 1 test case)
+
+END 2026-10-01 20:08:17 exit=0 wall=117s

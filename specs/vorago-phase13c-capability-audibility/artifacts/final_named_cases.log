@@ -1,0 +1,12 @@
+START 2026-10-06 08:32:08 SC-015 / SC-019 named cases on the final binaries (vorago_tests exe=2026-10-06 08:29:31; dsp_systems_tests exe=2026-10-06 08:29:18)
+  Vg::kCurrentStateVersion == 3
+  kCurrentStateVersion == 3
+  Vg::kCurrentStateVersion == 3
+All tests passed (491065 assertions in 12 test cases)
+--- dsp_systems_tests VoragoEngine_SlotSeedReproducibility
+Filters: "VoragoEngine_SlotSeedReproducibility"
+Randomness seeded to: 2372309699
+===============================================================================
+All tests passed (11 assertions in 1 test case)
+
+END 2026-10-06 08:32:32

@@ -1,0 +1,14 @@
+START 2026-10-02 16:51:25 preset="Bloom Colony" env:  | consts: kPartialSpawnSpanHz = 0.04f kPartialChildGainSpan = 0.5f  (attack n 4, child gain 1.5, ghost 21/1.2, ecology 30/36) | exe=2026-10-02 16:51:24
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 401089078
+[probe] lever: none
+[probe] Bloom Colony - primary E1 partial -> bloom (stored seed 0, 4 twin render(s))
+  take: peak 0.3260  arm1 hi -20.39 dB [yes]  arm2 lo -26.83 dB [yes]  arm3 late-sus +2.34 dB [yes]  arm4 tail -218.73 dB [yes]
+  arm1@44.1k: finite y peak 0.3116 hi -20.22 dB [PASS]
+  route arms: d(R_k, R_k0) 1.1421, attribBase d(R_0, R_00) 1.1054 (attributable iff d >= 2.6054)
+  primary d 1.1421  bar 4.0000  attribBase 1.1054  state ok  -> FAIL  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (16 assertions in 1 test case)
+
+exit=0 END 2026-10-02 16:54:52

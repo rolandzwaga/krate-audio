@@ -1,0 +1,14 @@
+=== T054 Life ladder started 2026-10-03 18:10:12 rows=kNumRows = 50 markers=0 ===
+2026-10-03 18:10:16 build r0: exit=0 warnings=0 rows=kNumRows = 50 markers=0
+2026-10-03 18:10:24 r0 neutral exit=0
+2026-10-03 18:48:27 rung r0: Teeming  primary d 0.9943 bar 4.0000 -> FAIL lever: none|D13.1 event rate scale <= 0.3 d 0.8560 no|S7 ecosystem d 10.1021 VERIFIED| CP D13.2 event rate scale >= 3.0 d 0.1942 no|E7.hi ecosystem self-affinity high d 1.3429 no| gate1 ratio=1.196 verdict=PASS
+2026-10-03 18:49:23 build r1: exit=0 warnings=0 rows=kNumRows = 50 markers=1
+2026-10-03 18:49:31 r1 neutral exit=0
+2026-10-03 19:26:55 rung r1: Teeming  primary d 0.9054 bar 4.0000 -> FAIL lever: none|D13.1 event rate scale <= 0.3 d 0.0816 no|S7 ecosystem d 9.6161 VERIFIED| CP D13.2 event rate scale >= 3.0 d 0.2261 no|E7.hi ecosystem self-affinity high d 1.2428 no| gate1 ratio=1.809 verdict=PASS
+rows 50 -> 51
+2026-10-03 19:27:51 build r2: exit=0 warnings=0 rows=kNumRows = 51 markers=2
+2026-10-03 19:27:57 r2 neutral exit=0
+2026-10-03 20:03:29 rung r2: Teeming  primary d 0.8226 bar 4.0000 -> FAIL lever: none|D13.1 event rate scale <= 0.3 d 0.1976 no|S7 ecosystem d 8.8314 VERIFIED| CP D13.2 event rate scale >= 3.0 d 0.2168 no|E7.hi ecosystem self-affinity high d 0.8294 no| gate1 ratio=1.136 verdict=PASS
+2026-10-03 20:03:29 restored: rows=kNumRows = 50 markers=0 diff lines 0
+2026-10-03 20:04:27 build restore: exit=0 warnings=0 rows=kNumRows = 50 markers=0
+=== T054 Life ladder finished 2026-10-03 20:04:27 ===

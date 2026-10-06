@@ -1,0 +1,18 @@
+=== kGhostDensitySpan ladder started 2026-10-02 09:45:18 ===
+2026-10-02 09:46:03 build span 0.7: exit=0 warnings=0 (kGhostDensitySpan = 0.7f)
+l3_span_0.7_E5.log:  route arms: d(R_k, R_k0) 2.7928, attribBase d(R_0, R_00) 0.8918 (attributable iff d >= 2.3918) primary d 2.7928 bar 4.0000 attribBase 0.8918 state ok -> FAIL lever: none levels: arms [y y y y] arm1@44.1k [y] 
+l3_span_0.7_S9.log:  primary d 4.0743 bar 4.0000 attribBase -1.0000 state ok -> PASS lever: none levels: arms [y y y y] arm1@44.1k [n] 
+l3_span_0.7_E5_minus6.log:  route arms: d(R_k, R_k0) 2.7972, attribBase d(R_0, R_00) 0.8919 (attributable iff d >= 2.3919) primary d 2.7972 bar 4.0000 attribBase 0.8919 state ok -> FAIL lever: none levels: arms [y y y y] arm1@44.1k [y] 
+l3_span_0.7_S9_minus6.log:  primary d 4.0797 bar 4.0000 attribBase -1.0000 state ok -> PASS lever: none levels: arms [y y y y] arm1@44.1k [y] 
+2026-10-02 09:59:04 build span 1.2: exit=0 warnings=0 (kGhostDensitySpan = 1.2f)
+l3_span_1.2_E5.log:  route arms: d(R_k, R_k0) 3.7997, attribBase d(R_0, R_00) 0.8918 (attributable iff d >= 2.3918) primary d 3.7997 bar 4.0000 attribBase 0.8918 state ok -> FAIL lever: none levels: arms [y y y y] arm1@44.1k [y] 
+l3_span_1.2_S9.log:  primary d 4.1357 bar 4.0000 attribBase -1.0000 state ok -> PASS lever: none levels: arms [y y y y] arm1@44.1k [n] 
+l3_span_1.2_E5_minus6.log:  route arms: d(R_k, R_k0) 3.8031, attribBase d(R_0, R_00) 0.8919 (attributable iff d >= 2.3919) primary d 3.8031 bar 4.0000 attribBase 0.8919 state ok -> FAIL lever: none levels: arms [y y y y] arm1@44.1k [y] 
+l3_span_1.2_S9_minus6.log:  primary d 4.0551 bar 4.0000 attribBase -1.0000 state ok -> PASS lever: none levels: arms [y y y y] arm1@44.1k [y] 
+2026-10-02 10:12:24 build span 1.7: exit=0 warnings=0 (kGhostDensitySpan = 1.7f)
+l3_span_1.7_E5.log:  route arms: d(R_k, R_k0) 3.6205, attribBase d(R_0, R_00) 0.8918 (attributable iff d >= 2.3918) primary d 3.6205 bar 4.0000 attribBase 0.8918 state ok -> FAIL lever: none levels: arms [y y y y] arm1@44.1k [y] 
+l3_span_1.7_S9.log:  primary d 4.2435 bar 4.0000 attribBase -1.0000 state ok -> PASS lever: none levels: arms [y y y y] arm1@44.1k [n] 
+l3_span_1.7_E5_minus6.log:  route arms: d(R_k, R_k0) 3.6254, attribBase d(R_0, R_00) 0.8919 (attributable iff d >= 2.3919) primary d 3.6254 bar 4.0000 attribBase 0.8919 state ok -> FAIL lever: none levels: arms [y y y y] arm1@44.1k [y] 
+l3_span_1.7_S9_minus6.log:  primary d 4.1996 bar 4.0000 attribBase -1.0000 state ok -> PASS lever: none levels: arms [y y y y] arm1@44.1k [y] 
+2026-10-02 10:26:14 build span restore: exit=0 warnings=0 (kGhostDensitySpan = 0.0f)
+=== ladder finished 2026-10-02 10:26:14 (kGhostDensitySpan = 0.0f) ===

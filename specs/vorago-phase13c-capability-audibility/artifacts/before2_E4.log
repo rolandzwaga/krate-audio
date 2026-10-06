@@ -1,0 +1,14 @@
+START 2026-10-01 19:58:54 before2_E4 tree=ae149a1c+working-copy reporting binary (vorago_tests.exe mtime 2026-10-01 19:14:53) as-compiled (no override, no lever) preset="Feeding Loops"
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 699486212
+[probe] lever: none
+[probe] Feeding Loops - primary E4 feedback -> loop wake (stored seed 8, 4 twin render(s))
+  take: peak 0.2193  arm1 hi -25.20 dB [yes]  arm2 lo -41.55 dB [yes]  arm3 late-sus +1.44 dB [yes]  arm4 tail -210.98 dB [yes]
+  arm1@44.1k: finite y peak 0.1579 hi -26.47 dB [PASS]
+  route arms: d(R_k, R_k0) 1.2203, attribBase d(R_0, R_00) 0.4488 (attributable iff d >= 1.9488)
+  primary d 1.2203  bar 4.0000  attribBase 0.4488  state ok  -> FAIL  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (16 assertions in 1 test case)
+
+END 2026-10-01 20:02:37 exit=0 wall=223s

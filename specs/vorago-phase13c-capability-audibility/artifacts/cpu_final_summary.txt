@@ -1,0 +1,9 @@
+=== T060 CPU started 2026-10-05 07:56:43; settle 900 s first; procs: 0
+dsp lane: RUN  dsp_systems_tests ... FAIL  assertions: 442636 | 442631 passed | 5 failed|0/1 suites passed.|FAILED: dsp_systems_tests|
+vorago lane: RUN  vorago_tests ... FAIL  assertions: 1654378 | 1654377 passed | 1 failed|0/1 suites passed.|FAILED: vorago_tests|
+floor:   activePartials 14 : 62886.1 ns/block (64-sample blocks, 22500 timed after 750|  activePartials 18 : 79836.9 ns/block (64-sample blocks, 22500 timed after 750|assertions: - none -|
+A/B base run1:     clause (i)  ceiling  : 2.95245e+06 <= 3.2e+06  (92.2642 % of the reference)|    clause (ii) baseline : 2.82796e+06 <= 4.04172e+06  (baseline 2.69448e+06 x|    headroom available   : 1.14141x of the baseline before clause (i) trips|All tests passed (4 assertions in 1 test case)|
+A/B final run1:     clause (i)  ceiling  : 3.09089e+06 <= 3.2e+06  (96.5903 % of the reference)|    clause (ii) baseline : 2.96639e+06 <= 4.04172e+06  (baseline 2.69448e+06 x|    headroom available   : 1.14141x of the baseline before clause (i) trips|All tests passed (4 assertions in 1 test case)|
+A/B base run2:     clause (i)  ceiling  : 2.89776e+06 <= 3.2e+06  (90.5549 % of the reference)|    clause (ii) baseline : 2.77326e+06 <= 4.04172e+06  (baseline 2.69448e+06 x|    headroom available   : 1.14141x of the baseline before clause (i) trips|All tests passed (4 assertions in 1 test case)|
+A/B final run2:     clause (i)  ceiling  : 3.02242e+06 <= 3.2e+06  (94.4506 % of the reference)|    clause (ii) baseline : 2.89792e+06 <= 4.04172e+06  (baseline 2.69448e+06 x|    headroom available   : 1.14141x of the baseline before clause (i) trips|All tests passed (4 assertions in 1 test case)|
+=== T060 finished 2026-10-05 12:55:31 ===

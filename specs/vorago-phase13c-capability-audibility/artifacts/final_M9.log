@@ -1,0 +1,21 @@
+START 2026-10-04 10:57:50 Fogbound tree=ae149a1c+working-copy as-compiled (no override) env: VORAGO_PILOT_TAKES=4 | final tree: attack n 4; child gain 1.5; ghost 21 dB / span 1.2 / default peak 0; ecology 30 (ceiling 36); breath 3.0; tide 0.8; M9 rung 2; M12 rung 1; Feedback Mire breathing 0; six presets pin ghost 0.60 | exe=2026-10-04 09:54:11
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 3112532835
+[probe] lever: none
+[probe] Fogbound - primary M9 Fog (stored seed 9, 1 twin render(s))
+  take: peak 0.2660  arm1 hi -24.67 dB [yes]  arm2 lo -30.48 dB [yes]  arm3 late-sus -0.68 dB [yes]  arm4 tail -157.57 dB [yes]
+  arm1@44.1k: finite y peak 0.2654 hi -22.94 dB [PASS]
+  primary d 4.4115  bar 4.0000  attribBase -1.0000  state ok  -> PASS  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  take j=0 seed 9: peak 0.2660  arm1 hi -24.67 dB [yes]  arm2 lo -30.48 dB [yes]  arm3 late-sus -0.68 dB [yes]  arm4 tail -157.57 dB [yes]
+  take j=1 seed 10: peak 0.3236  arm1 hi -23.04 dB [yes]  arm2 lo -28.65 dB [yes]  arm3 late-sus -0.33 dB [yes]  arm4 tail -153.33 dB [yes]
+  take j=2 seed 11: peak 0.2778  arm1 hi -24.37 dB [yes]  arm2 lo -32.23 dB [yes]  arm3 late-sus +3.60 dB [yes]  arm4 tail -141.68 dB [yes]
+  take j=3 seed 12: peak 0.3376  arm1 hi -21.99 dB [yes]  arm2 lo -31.32 dB [yes]  arm3 late-sus -1.06 dB [yes]  arm4 tail -153.10 dB [yes]
+  take j=0 d 4.4115
+  take j=1 d 3.4311
+  take j=2 d 6.3694
+  take j=3 d 2.8222
+===============================================================================
+All tests passed (19 assertions in 1 test case)
+
+exit=0 END 2026-10-04 11:00:29

@@ -1,0 +1,12 @@
+START 2026-10-04 22:14:27 Resonant Shaft arm attack1 lever=none exe=2026-10-04 22:04:41
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 2114847229
+[probe] lever: none
+[probe] Resonant Shaft - primary S2 resonance drift (stored seed 3, 1 twin render(s))
+  take: peak 0.9661  arm1 hi -8.86 dB [yes]  arm2 lo -25.13 dB [yes]  arm3 late-sus +7.44 dB [yes]  arm4 tail -216.96 dB [yes]
+  arm1@44.1k: finite y peak 0.4965 hi -16.07 dB [PASS]
+  primary d 2.6851  bar 4.0000  attribBase -1.0000  state ok  -> FAIL  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (9 assertions in 1 test case)
+

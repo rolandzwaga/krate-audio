@@ -322,6 +322,7 @@ TEST_CASE("Vorago_ChannelPressure", "[vorago][midi]") {
 
         VoragoTest::ProcessorFixture fx;
         fx.prepare(kSr, static_cast<Steinberg::int32>(kBlk));
+        fx.shortenStage0();  // FR-034 A13: the hold below is a precondition inside the ruled 20 s attack
         fx.reserveCapture(kBlk);
         Krate::Test::EventList ev;
         VoragoTest::MultiParamChanges pc;

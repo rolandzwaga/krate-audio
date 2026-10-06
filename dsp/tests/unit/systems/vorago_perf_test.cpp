@@ -1778,3 +1778,58 @@ TEST_CASE("VoragoVoice_ClearingPathCost", "[systems][vorago][.perf]") {
     REQUIRE(at48.stealPair <= controlChunkNs(kSr48));
     REQUIRE(at192.stealPair <= controlChunkNs(kSr192));
 }
+
+// =============================================================================
+// VoragoVoice_CloudFloorCpuProbe (specs/vorago-phase13c-capability-audibility,
+// FR-011 CPU cost, clarification Q2, SC-014; tasks.md T008 / T025)
+// =============================================================================
+// RECORD ONLY - NO ASSERTION. One voice at 48 kHz, bloom depth 0, measured at
+// richness 0.40 (below the FR-011 floor, where the floor changes the cloud's
+// work) and 0.70 (the default surface, whose path the floor leaves unchanged and
+// whose figure is therefore the run-to-run noise reference). 1 s of warm-up,
+// then 30 s timed in kControlChunkSamples blocks; ns per 64-sample block is
+// printed per richness. Run once on the base tree (artifacts/cpu_floor_base.log)
+// and again after the floor lands (artifacts/cpu_floor_l1.log); the delta goes
+// into SC-014. A FRESH voice per richness so no state carries between arms.
+TEST_CASE("VoragoVoice_CloudFloorCpuProbe", "[systems][vorago][.perf]") {
+    constexpr int kWarmupChunks = static_cast<int>((1.0 * kSr48) / static_cast<double>(kChunk));
+    constexpr int kTimedChunks = static_cast<int>((30.0 * kSr48) / static_cast<double>(kChunk));
+    constexpr std::array<float, 2> kRichness{0.40f, 0.70f};
+
+    std::array<float, kChunk> outL{};
+    std::array<float, kChunk> outR{};
+
+    for (const float richness : kRichness) {
+        auto voice = buildVoice(kSr48, true);
+        voice->setBloomDepth(0.0f);
+        voice->setRichness(richness);
+
+        // Keeps the rendered output observable so the work is not elided.
+        float sink = 0.0f;
+        const auto runChunk = [&]() noexcept {
+            voice->processStereoBlock(outL.data(), outR.data(), kChunk);
+            sink += outL[0] + outR[kChunk - 1u];
+        };
+
+        for (int i = 0; i < kWarmupChunks; ++i) {
+            runChunk();
+        }
+        const auto start = std::chrono::steady_clock::now();
+        for (int i = 0; i < kTimedChunks; ++i) {
+            runChunk();
+        }
+        const auto end = std::chrono::steady_clock::now();
+        const double elapsedNs = std::chrono::duration<double, std::nano>(end - start).count();
+        const double nsPerBlock = elapsedNs / static_cast<double>(kTimedChunks);
+        const bool finite = isFiniteValue(sink);
+
+        std::ostringstream os;
+        os << "VoragoVoice_CloudFloorCpuProbe r " << richness << " bloomDepth 0"
+           << " richnessRead " << voice->getRichness() << " activePartials "
+           << voice->cloud().getActivePartialCount() << " : " << nsPerBlock << " ns/block ("
+           << kChunk << "-sample blocks, " << kTimedChunks << " timed after " << kWarmupChunks
+           << " warm-up; " << ((nsPerBlock / controlChunkNs(kSr48)) * 100.0)
+           << " % of one block's audio time; output finite " << (finite ? "y" : "n") << ")";
+        WARN(os.str());
+    }
+}

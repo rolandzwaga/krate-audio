@@ -1,0 +1,6 @@
+=== base-vs-final A/B, alone, P-core-pinned, 900 s idle, 120 s settles; base=64f57e1a final=ae149a1c+working-copy started 2026-10-05 13:27:53 ===
+base FeedbackEcology_CpuBudget: assertions: 26 | 25 passed | 1 failed |  nsRef := 119395.6   BOTH compile-time clauses (x1.5 <= 160000.0 and >= 3200.0); one that  REQUIRE( nsRef * kRegressionFactor <= kAbsoluteCeilingNs ) 
+final FeedbackEcology_CpuBudget: assertions: 26 | 25 passed | 1 failed |  nsRef := 111763.6   BOTH compile-time clauses (x1.5 <= 160000.0 and >= 3200.0); one that  REQUIRE( nsRef * kRegressionFactor <= kAbsoluteCeilingNs ) 
+base Vorago_ProcessorCpu: assertions: 15 | 14 passed | 1 failed |  SC-014 arm P best ns/block (512 @ 48 kHz, poly 4): 3.1768e+06  SC-014 arm D best ns/block (512 @ 48 kHz, poly 4): 3.0025e+06   REQUIRE( pBestNs <= kWrapperOverheadCeiling * dBestNs ) 
+final Vorago_ProcessorCpu: All tests passed (93 assertions in 1 test case) |  SC-014 arm P best ns/block (512 @ 48 kHz, poly 4): 2.92272e+06  SC-014 arm D best ns/block (512 @ 48 kHz, poly 4): 2.99557e+06  SC-012 arm PF best ns/block (forced ecosystem frame, every call a full fill):  SC-016 arm A best ns/block (IDs 201 + 206 automated every block): 3.22505e+06  SC-016 arm A interleaved arm D best ns/block: 3.28039e+06  
+=== finished 2026-10-05 13:52:09 ===

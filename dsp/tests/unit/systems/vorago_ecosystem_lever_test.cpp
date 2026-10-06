@@ -48,6 +48,10 @@
 #include "artifact_detection.h"  // tests/test_helpers (T022 ClickFree: ClickDetector)
 #include "render_fingerprint.h"  // tests/test_helpers (SC-012 post-clear render)
 
+// T055: the detector only - never allocation_operator_overrides.h (the overrides
+// are linked once per test executable).
+#include <allocation_detector.h>
+
 // The shared Phase 10 fixtures: applyFastAttack (FR-014a), reused, not re-invented.
 #include <vorago_fixtures.h>
 
@@ -65,6 +69,8 @@ struct VoragoEcosystemLeverProbe {
     static void advanceLifeOnly(VoragoVoice& v) { v.advanceOneChunkLifeOnly(); }
 
     static EcosystemEngine& ecosystem(VoragoVoice& v) { return v.ecosystem_; }
+    /// 13c B-6: voice slot i of the engine (the density route reads its lane).
+    static VoragoVoice& voice(VoragoEngine& e, std::size_t i) { return e.voices_[i]; }
 
     // --- FR-023 lane-injection seam (plan S2.5) ------------------------------
     /// Replaces the WHOLE eco lane set at every publish until clearInjection().
@@ -126,6 +132,10 @@ struct VoragoEcosystemLeverProbe {
     // --- The Partial pair's bases (FR-016 unshaped check, SC-021) -------------
     static float mutationBase(const VoragoVoice& v) { return v.mutationBase_; }
     static float bloomDepthBase(const VoragoVoice& v) { return v.bloomDepthBase_; }
+
+    // --- Phase 13c L2 route sizes (plan S2.2, T030): private, read through the friend ---
+    static constexpr float partialLaneGain() { return VoragoVoice::kPartialLaneGain; }
+    static constexpr float ghostLaneGain() { return VoragoVoice::kGhostLaneGain; }
 
     /// SC-021: the production shaping function itself (private static, plan S2.4).
     static float shapeLeverInput(float lane, float gain) {
@@ -1335,6 +1345,55 @@ TEST_CASE("VoragoVoice_EcosystemLaneShapingFidelity", "[systems][vorago]") {
 }
 
 // -----------------------------------------------------------------------------
+// VoragoVoice_RouteLeverZeroAtZeroLane (Phase 13c FR-012, SC-009; 13b FR-017 / FR-019)
+// -----------------------------------------------------------------------------
+// Owning spec: specs/vorago-phase13c-capability-audibility (tasks.md T028).
+// The two L2 route sizes (kPartialLaneGain on mutation and bloom depth,
+// kGhostLaneGain on the ghost request's eco term) are ZERO at a zero lane:
+// with every eco lane injected at 0, mutation and bloom depth read their bases
+// and the ghost request reads the scheduler term alone, exactly, at whatever
+// gains are compiled. At a nonzero raw lane the eco term is scaled by the gain:
+//   mutation   == clamp(mutationBase   + kPartialLaneGain * raw, 0, 1)
+//   bloomDepth == clamp(bloomDepthBase + kPartialLaneGain * raw, 0, 1)
+//   ghost      == combineWake(0, min(1, kGhostLaneGain * raw), sched)
+// The sched term is untouched (FR-019: scheduler-blind route sizes).
+TEST_CASE("VoragoVoice_RouteLeverZeroAtZeroLane", "[systems][vorago]") {
+    auto voice = makeLeverVoice(48000.0, leverSeed());
+    REQUIRE(voice->isPrepared());
+    voice->noteOn(65.406f, 100.0f / 127.0f);
+
+    const float partialGain = Probe::partialLaneGain();
+    const float ghostGain = Probe::ghostLaneGain();
+    CAPTURE(partialGain, ghostGain);
+
+    Probe::Lanes S{};
+
+    // --- 1. Zero lane: every route reads its base / the sched term exactly ---
+    Probe::injectEco(*voice, uniformLanes(0.0f));
+    Probe::advanceLifeOnly(*voice);
+    Probe::schedLanes(*voice, S);  // valid: immediately after advanceLifeOnly
+    REQUIRE(voice->cloud().getMutation() == Probe::mutationBase(*voice));
+    REQUIRE(voice->bloom().getDepth() == Probe::bloomDepthBase(*voice));
+    REQUIRE(voice->getGhostRequest() ==
+            VoragoVoice::combineWake(0.0f, 0.0f, S[kKindGhost][0]));
+
+    // --- 2. Nonzero raw lane: the eco term scales by the compiled gain -------
+    for (const float raw : {0.1f, 0.5f, 1.0f}) {
+        CAPTURE(raw);
+        Probe::injectEco(*voice, uniformLanes(raw));
+        Probe::advanceLifeOnly(*voice);
+        Probe::schedLanes(*voice, S);  // valid: immediately after advanceLifeOnly
+        REQUIRE(voice->cloud().getMutation() ==
+                std::clamp(Probe::mutationBase(*voice) + partialGain * raw, 0.0f, 1.0f));
+        REQUIRE(voice->bloom().getDepth() ==
+                std::clamp(Probe::bloomDepthBase(*voice) + partialGain * raw, 0.0f, 1.0f));
+        REQUIRE(voice->getGhostRequest() ==
+                VoragoVoice::combineWake(0.0f, std::min(1.0f, ghostGain * raw),
+                                         S[kKindGhost][0]));
+    }
+}
+
+// -----------------------------------------------------------------------------
 // VoragoVoice_EcosystemLeverAttribution (SC-008, SC-018; plan S3.3, S5.2)
 // -----------------------------------------------------------------------------
 // At depth 1, after a 155 s warm-up (life-only), for each lever kind K in
@@ -1891,6 +1950,135 @@ TEST_CASE("VoragoEngine_EcosystemLeverBounded", "[systems][vorago]") {
 }
 
 // -----------------------------------------------------------------------------
+// VoragoEngine_CapabilityLeverBounded (Phase 13c T055; SC-013, E-12, E-13)
+// -----------------------------------------------------------------------------
+// The VoragoEngine_EcosystemLeverBounded shape above, at the WORST CASE SC-013
+// names on the fully-ruled tree: six voices held; all twelve macros at 1 with
+// Gravity run at BOTH 0 and 1 (bipolar, E-6); bloom depth 1 and spawn rate
+// BloomEngine::kMaxSpawnRateHz (shipped child gain and placement); ghost peak
+// level 1 (shipped ghost-tap make-up and density); ecosystem depth 1 with the
+// eco lanes injected at 1 through the friend. The macro matrix is applied every
+// block (as the test above), so the bloom / ghost / eco extremes are re-written
+// AFTER each apply - otherwise the rows (Life -> BloomSpawnRateHz tops out
+// below kMaxSpawnRateHz) would pull them back. 60 s per arm at 44.1 / 48 /
+// 96 kHz.
+//
+// The render loop runs inside TestHelpers::AllocationScope and records into
+// plain locals only (Catch2's REQUIRE / INFO allocate); the live count is read
+// from the detector singleton while the scope is still open (the scope latches
+// its own count in its destructor). Every check runs after the scope closes:
+// zero allocations, getAllocatedBytes() unchanged from its after-prepare
+// value, every sample finite by bit pattern, |out| <= 0.9661. A guard on the
+// ruled tree, expected green; a red is a defect in a ruled lever. NOT [long].
+// The case's wall clock is printed (> 4 min measured alone -> stop and surface).
+TEST_CASE("VoragoEngine_CapabilityLeverBounded", "[systems][vorago]") {
+    using Krate::DSP::BloomEngine;
+    using Krate::DSP::VoragoEngineConfig;
+    using Krate::DSP::VoragoMacro;
+    using Krate::DSP::VoragoMacroMatrix;
+
+    const auto caseStart = std::chrono::steady_clock::now();
+
+    constexpr std::array<std::uint8_t, VoragoEngine::kMaxVoices> kNotes{36u, 43u, 48u,
+                                                                        55u, 60u, 67u};
+    constexpr std::uint8_t kVelocity = 100u;
+    constexpr float kCeiling = 0.9661f;  // kOutputCeilingDb = -0.3 dB (vorago_engine.h:255)
+    constexpr std::size_t kBlock = 512;
+    const Probe::Lanes kEcoAtOne = uniformLanes(1.0f);
+
+    for (const float gravity : {0.0f, 1.0f}) {
+        CAPTURE(gravity);
+        for (const double fs : {44100.0, 48000.0, 96000.0}) {
+            CAPTURE(fs);
+
+            auto engine = std::make_unique<VoragoEngine>();
+            engine->setSeed(1u);
+            engine->prepare(fs, VoragoEngineConfig{});
+            REQUIRE(engine->isPrepared());
+            const std::size_t bytesAfterPrepare = engine->getAllocatedBytes();
+            engine->setPolyphony(VoragoEngine::kMaxVoices);
+            for (const std::uint8_t note : kNotes) {
+                engine->noteOn(note, kVelocity);
+            }
+            for (std::size_t v = 0; v < VoragoEngine::kMaxVoices; ++v) {
+                CAPTURE(v);
+                REQUIRE(Probe::isRendering(*engine, v));
+            }
+
+            VoragoMacroMatrix matrix;
+            for (std::size_t m = 0; m < VoragoMacroMatrix::kNumMacros; ++m) {
+                matrix.setMacro(static_cast<VoragoMacro>(m), 1.0f);
+            }
+            matrix.setMacro(VoragoMacro::Gravity, gravity);
+
+            const auto total = static_cast<std::size_t>(fs * 60.0);
+            std::vector<float> l(kBlock, 0.0f);
+            std::vector<float> r(kBlock, 0.0f);
+
+            std::size_t allocations = 0;
+            std::size_t nonFinite = 0;
+            std::size_t overCeiling = 0;
+            float peak = 0.0f;
+
+            {
+                [[maybe_unused]] const TestHelpers::AllocationScope scope;
+
+                for (std::size_t done = 0; done < total; done += kBlock) {
+                    const std::size_t n = std::min(kBlock, total - done);
+                    matrix.apply(*engine);
+                    // The extremes the rows do not reach (or may not hold).
+                    engine->setGhostPeakLevel(1.0f);
+                    Probe::setEcosystemDepthAll(*engine, 1.0f);
+                    for (std::size_t v = 0; v < VoragoEngine::kMaxVoices; ++v) {
+                        VoragoVoice& voice = Probe::voice(*engine, v);
+                        voice.setBloomDepth(1.0f);
+                        voice.setBloomSpawnRateHz(BloomEngine::kMaxSpawnRateHz);
+                    }
+                    Probe::injectEcoAll(*engine, kEcoAtOne);
+
+                    engine->processStereoBlock(l.data(), r.data(), n);
+                    engine->processOutputStage(l.data(), r.data(), n);
+                    for (std::size_t i = 0; i < n; ++i) {
+                        if (!Krate::DSP::detail::isFinite(l[i]) ||
+                            !Krate::DSP::detail::isFinite(r[i])) {
+                            ++nonFinite;
+                            continue;
+                        }
+                        const float y = std::max(std::abs(l[i]), std::abs(r[i]));
+                        peak = std::max(peak, y);
+                        overCeiling += (y <= kCeiling) ? 0u : 1u;
+                    }
+                }
+
+                allocations = TestHelpers::AllocationDetector::instance().getAllocationCount();
+            }
+
+            const std::size_t bytesAfter = engine->getAllocatedBytes();
+            const std::uint32_t recoveries = engine->getNonFiniteRecoveryCount();
+            std::printf("[CapabilityBounded] gravity=%.0f fs=%.0f voices=%zu 60 s: peak=%.6f "
+                        "over-ceiling=%zu non-finite=%zu recoveries=%u allocations=%zu "
+                        "bytes after-prepare=%zu after=%zu\n",
+                        static_cast<double>(gravity), fs, VoragoEngine::kMaxVoices,
+                        static_cast<double>(peak), overCeiling, nonFinite,
+                        static_cast<unsigned>(recoveries), allocations, bytesAfterPrepare,
+                        bytesAfter);
+
+            REQUIRE(allocations == 0u);
+            REQUIRE(bytesAfter == bytesAfterPrepare);
+            REQUIRE(nonFinite == 0u);
+            REQUIRE(overCeiling == 0u);
+            REQUIRE(peak > 0.0f);  // non-vacuity: six voices really sounded
+        }
+    }
+
+    const double wallSeconds =
+        std::chrono::duration<double>(std::chrono::steady_clock::now() - caseStart).count();
+    std::printf("[CapabilityBounded] case wall clock = %.1f s (> 240 s measured alone -> stop "
+                "and surface)\n",
+                wallSeconds);
+}
+
+// -----------------------------------------------------------------------------
 // VoragoEngine_EcosystemLeverDeterminism (SC-013, FR-025)
 // -----------------------------------------------------------------------------
 // The VoragoEngine_DeterminismHarness shape (vorago_engine_test.cpp:1498-1560,
@@ -2012,4 +2200,62 @@ TEST_CASE("VoragoEngine_EcosystemLeverDeterminism", "[systems][vorago]") {
     REQUIRE(sameL.withinTolerance());
     REQUIRE(sameR.withinTolerance());
     REQUIRE(worstDiff > 100.0 * kMetricTolerance);
+}
+
+// =============================================================================
+// Phase 13c ruling B-6 (FR-013): the ghost density route. The engine's applied
+// ghost density is ghostDensityBase_ + kGhostDensitySpan * max(raw Ghost eco lane
+// over the rendering voices): exactly the base at lane 0 (13b FR-017), the raw
+// lane otherwise (scheduler-blind, 13b FR-019), and the measurement seam's base
+// reads back unchanged under the route. Fails to compile before T070 adds
+// getGhostEcoLane() / kGhostDensitySpan.
+// =============================================================================
+TEST_CASE("VoragoEngine_GhostDensityRoute", "[systems][vorago]") {
+    auto e = std::make_unique<VoragoEngine>();
+    e->setSeed(1u);
+    e->prepare(48000.0, Krate::DSP::VoragoEngineConfig{});
+    e->setPolyphony(1u);
+    e->noteOn(45u, 100u);
+    std::vector<float> l(VoragoVoice::kControlChunkSamples, 0.0f);
+    std::vector<float> r(VoragoVoice::kControlChunkSamples, 0.0f);
+    const auto chunks = [&](int n) {
+        for (int i = 0; i < n; ++i) {
+            e->processStereoBlock(l.data(), r.data(), l.size());
+        }
+    };
+    const auto expected = [](float base, float raw) {
+        return std::clamp(base + VoragoEngine::kGhostDensitySpan * raw,
+                          Krate::DSP::AtmosphereEngine::kMinDensity,
+                          Krate::DSP::AtmosphereEngine::kMaxDensity);
+    };
+
+    // (1) every lane 0: exactly the base, on the component and on the seam.
+    Probe::injectEcoAll(*e, uniformLanes(0.0f));
+    chunks(2);
+    REQUIRE(Probe::voice(*e, 0).getGhostEcoLane() == 0.0f);
+    REQUIRE(e->atmosphere().getDensity() == VoragoEngine::kGhostDensity);
+    REQUIRE(e->getGhostDensity() == VoragoEngine::kGhostDensity);
+
+    // (2) a raw lane: the voice reports it unshaped, the component reads
+    //     base + span * raw, the seam still reads the base.
+    constexpr std::array<float, 3> kRaw{0.1f, 0.5f, 1.0f};
+    for (const float raw : kRaw) {
+        CAPTURE(raw);
+        Probe::injectEcoAll(*e, uniformLanes(raw));
+        chunks(2);
+        REQUIRE(Probe::voice(*e, 0).getGhostEcoLane() == raw);
+        REQUIRE(e->atmosphere().getDensity() == expected(VoragoEngine::kGhostDensity, raw));
+        REQUIRE(e->getGhostDensity() == VoragoEngine::kGhostDensity);
+    }
+
+    // (3) the seam moves the base; the route rides the new base.
+    e->setGhostDensity(0.6f);
+    REQUIRE(e->getGhostDensity() == 0.6f);
+    Probe::injectEcoAll(*e, uniformLanes(1.0f));
+    chunks(2);
+    REQUIRE(e->getGhostDensity() == 0.6f);
+    REQUIRE(e->atmosphere().getDensity() == expected(0.6f, 1.0f));
+    Probe::injectEcoAll(*e, uniformLanes(0.0f));
+    chunks(2);
+    REQUIRE(e->atmosphere().getDensity() == 0.6f);
 }

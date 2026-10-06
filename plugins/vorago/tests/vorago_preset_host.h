@@ -171,6 +171,18 @@ public:
 
     [[nodiscard]] ::Vorago::Processor& processor() noexcept { return *proc_; }
 
+    /// Phase 13c measurement seam (plan 2.9, ruling P2; T066): the engine, mutable,
+    /// so a RenderSpec::engineTweak can set a lever after loadState. Tests only;
+    /// call between process() blocks on the test thread, never concurrently with
+    /// process(). nullptr before prepare().
+    [[nodiscard]] Krate::DSP::VoragoEngine* engineForTweak() noexcept {
+        // engineForTest() is the only accessor and returns const; the engine is a
+        // non-const heap object (Processor::engine_ is a non-const unique_ptr), so
+        // casting the constness away is well-defined.
+        return const_cast<Krate::DSP::VoragoEngine*>(  // NOLINT(cppcoreguidelines-pro-type-const-cast): plan 2.9 - engine_ is a non-const heap object; engineForTest() is the only accessor
+            proc_->engineForTest());
+    }
+
 private:
     std::unique_ptr<::Vorago::Processor> proc_;
     std::vector<float> outL_, outR_;

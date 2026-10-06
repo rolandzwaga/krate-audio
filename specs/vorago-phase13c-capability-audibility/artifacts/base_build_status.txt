@@ -1,0 +1,6 @@
+# T001 step 2: base build of dsp_systems_tests vorago_tests on the base tree (see base_tree.txt)
+# Command: "C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target dsp_systems_tests vorago_tests
+# PENDING: the implementing agent is barred by the workflow from building; the build agent runs this command
+# and records below the exit code and the warning count. Stop-and-surface if warnings > 0 or exit != 0.
+exit_code:
+warning_count:

@@ -1,0 +1,12 @@
+START 2026-10-02 05:29:50 Vorago_PresetPilot_SwingProbe: d(P, P_swing) with each route's destination at the lever maximum; exe=2026-10-02 05:29:30; route gains at shipped values, kBloomChildGain 1.5
+--- 05:29:50 preset="Bloom Colony" swing=1300=1.0,202=1.0 (E1 partial route max: bloom depth 0.50->1.0, mutation 0.85->1.0)
+[swing] Bloom Colony seed 0 swing "1300=1.0,202=1.0": d(P, P_swing) 0.0000  (peak P 0.3118, P_swing 0.3118)
+--- 05:31:47 preset="Feeding Loops" swing=501=0.9333 (E4 loop gain lever max: 0.54 -> 0.84)
+[swing] Feeding Loops seed 8 swing "501=0.9333": d(P, P_swing) 0.0004  (peak P 0.2193, P_swing 0.2193)
+--- 05:33:43 preset="Feeding Loops" swing=501=1.0 (E4 loop gain component max 0.90)
+[swing] Feeding Loops seed 8 swing "501=1.0": d(P, P_swing) 0.0006  (peak P 0.2193, P_swing 0.2193)
+--- 05:35:41 preset="Swarm Breath" swing=300=0.9444 (E3 noise level lever max: -6 -> +6 dB (clamp +12 dB))
+[swing] Swarm Breath seed 5 swing "300=0.9444": d(P, P_swing) 1.0906  (peak P 0.1841, P_swing 0.1906)
+--- 05:37:39 preset="Haunted Colony" swing=1400=0.0 (E5 ghost full range: ghost peak 1.0 -> 0)
+[swing] Haunted Colony seed 12 swing "1400=0.0": d(P, P_swing) 1.1010  (peak P 0.2314, P_swing 0.1713)
+END 2026-10-02 05:39:40

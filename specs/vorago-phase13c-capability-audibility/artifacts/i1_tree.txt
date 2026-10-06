@@ -1,0 +1,23 @@
+T014 reporting-only checkpoint - 2026-10-01 18:47 tree=ae149a1c dirty
+Command: git diff --name-only 64f57e1a
+.serena/project.yml
+dsp/tests/unit/systems/vorago_perf_test.cpp
+dsp/tests/unit/systems/vorago_voice_test.cpp
+plugins/vorago/tests/integration/preset_pilot_test.cpp
+specs/vorago-phase13c-capability-audibility/plan.md
+specs/vorago-phase13c-capability-audibility/spec.md
+specs/vorago-phase13c-capability-audibility/tasks.md
+
+Untracked (git status --porcelain --untracked-files=all, non-artifact):
+?? build_vorago_tests.log
+?? run_vorago_tests.log
+
+Code files touched: dsp/tests/unit/systems/vorago_perf_test.cpp dsp/tests/unit/systems/vorago_voice_test.cpp plugins/vorago/tests/integration/preset_pilot_test.cpp 
+dsp/include/** changed: 0
+preset_test_support.h changed: 0
+
+Non-code entries beyond the T014 allow-list:
+  .serena/project.yml - tooling config, modified before this phase's build started (present in the session-start git status), not a source file
+  specs/vorago-phase13c-capability-audibility/{plan,spec,tasks}.md - phase docs, committed in ae149a1c after the 64f57e1a base plus working-copy edits; documentation only
+
+Build: vorago_tests zero-warning build is deferred to the group build agent (this task agent is barred from building).

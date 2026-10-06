@@ -1,0 +1,10 @@
+=== B-14 verify started 2026-10-04 08:50:58 | kGhostBurstPeak = 0.60f kGhostDefaultPeakLevel = 0.0f  | pins: 6 ===
+2026-10-04 08:51:56 build: exit=0 warnings=0
+unit: assertions: 134 | 133 passed | 1 failed
+SC-011: assertions: 62 | 61 passed | 1 failed |  Movement per-band total variation rho=0.833333 endpoint=0.221348;
+dsp suite: test cases:    1425 |    1422 passed | 3 failed | F:\projects\iterum\dsp\tests\unit\systems\vorago_engine_test.cpp(2792): FAILED: F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(507): FAILED: F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(656): FAILED: 
+vorago lane: test cases:     119 |     117 passed | 2 failed | F:\projects\iterum\plugins\vorago\tests\unit\param_table_test.cpp(653): FAILED: F:\projects\iterum\plugins\vorago\tests\unit\params\ghost_params_test.cpp(181): FAILED: 
+2026-10-04 09:49:02 regen exit=0 | changed preset files: 1
+ M "plugins/vorago/resources/presets/Machines/Feedback Mire.vstpreset"
+preset lane: All tests passed (18075 assertions in 41 test cases) | 
+=== B-14 verify finished 2026-10-04 09:51:54 ===

@@ -135,7 +135,7 @@ struct Expected {
 };
 
 constexpr std::array<Expected, kN> kExpected = {{
-    {.id=::Vorago::kGhostPeakLevelId, .title="Ghost Peak Level", .units="%", .stepCount=0, .isList=false, .n0=0.60},
+    {.id=::Vorago::kGhostPeakLevelId, .title="Ghost Peak Level", .units="%", .stepCount=0, .isList=false, .n0=0.0},  // 13c B-14: default off (was 0.60)
     {.id=::Vorago::kGhostBlurId, .title="Ghost Blur", .units="%", .stepCount=0, .isList=false, .n0=0.85},
     {.id=::Vorago::kGhostReverseProbabilityId, .title="Ghost Reverse Probability", .units="%", .stepCount=0, .isList=false, .n0=0.0},
     {.id=::Vorago::kGhostEventTriggersId, .title="Ghost Event Triggers", .units="", .stepCount=1, .isList=true, .n0=0.0},
@@ -178,7 +178,7 @@ TEST_CASE("Vorago_GhostParamsContract", "[vorago][params]") {
 
     SECTION("DefaultsDenormalizeToPlain") {
         const GhostParams fresh;
-        REQUIRE(fresh.peakLevel.load() == Approx(0.60f).epsilon(1e-6));
+        REQUIRE(fresh.peakLevel.load() == Approx(0.0f).epsilon(1e-6));  // 13c B-14: default off (was 0.60)
         REQUIRE(fresh.blur.load() == Approx(0.85f).epsilon(1e-6));
         REQUIRE(fresh.reverseProbability.load() == 0.0f);
         REQUIRE(fresh.eventTriggers.load() == 0);

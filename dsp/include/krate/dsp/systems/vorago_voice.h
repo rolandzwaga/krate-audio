@@ -301,8 +301,23 @@ public:
     static constexpr float kQuiescentSeconds = 10.0f;
 
     // --- envelope (FR-014, Q5) ----------------------------------------------
-    /// The ONE curve every setStage() call uses.
+    /// The curve of every stage EXCEPT stage 0 (the attack). Stage 0 is the
+    /// one exception (FR-016 option (b)): it runs kAttackStageCurve and the
+    /// voice reshapes it with kAttackShapePower - see stageCurveFor().
     static constexpr EnvCurve kStageCurve = EnvCurve::Exponential;
+    /// FR-016 option (b): stage 0 runs Linear, and the voice raises its phase to
+    /// kAttackShapePower (shapeAttack, Standard loop only) so the audible attack
+    /// tracks the registered stage-0 time. Stages 1..5 keep kStageCurve.
+    static constexpr EnvCurve kAttackStageCurve = EnvCurve::Linear;
+    /// The stage-0 shaping power n: gain = e0 + span * u^n. Plan section 2.5's
+    /// proposal; the ladder (4, 5, 6, 7; n = 1 and 2 measured only) rebuilds it.
+    static constexpr int kAttackShapePower = 4;
+    static_assert(kAttackShapePower >= 1, "the attack power is a positive integer");
+    /// The curve every setStage() call passes: kAttackStageCurve for stage 0,
+    /// kStageCurve for every other stage (FR-016).
+    [[nodiscard]] static constexpr EnvCurve stageCurveFor(int st) noexcept {
+        return (st == 0) ? kAttackStageCurve : kStageCurve;
+    }
     /// Six stages; <= MultiStageEnvelope::kMaxStages (8).
     ///
     /// FR-014 says "the 4-stage MultiStageEnvelope" and this class ships six.
@@ -353,6 +368,30 @@ public:
     /// floor drives reserveBase() to 0 at activeCount <= 6 and DELETES the
     /// parents.
     static constexpr std::size_t kMinCloudCapacity = kBloomChildSlots + kMinParentSlots;
+    /// FR-011 / Q2. The cloud's richness floor: the smallest round richness at
+    /// which HarmonicCloud's N(r) = round(64^r) reaches kMinCloudCapacity (14).
+    /// 64^0.6346 = 14.002 (inside (13.5, 14.5) with margin); pinned by
+    /// VoragoVoice_CloudRichnessFloor against the component's own count. The
+    /// cloud's ACTIVE count is floored here unconditionally, so the bloom's child
+    /// slots [reserveBase, capacity) always sit below it and always sound; the
+    /// user's richness below the floor is restored through the spectral target
+    /// (updateSpectrumTarget()).
+    static constexpr float kCloudRichnessFloor = 0.6346f;
+    /// FR-011 child gain. Ruled value from the lever ladder (plan s7 step L1).
+    static constexpr float kBloomChildGain = 1.5f;  // 13c ruling B-4 (2026-10-01): ladder 0.35..2.0, S6 d 4.841 at 1.5
+    /// FR-017 L4 ecology wet make-up (dB) on FeedbackEcology's wet trim, installed
+    /// at prepare(); FeedbackEcology::reset() keeps it (feedback_ecology.h:878).
+    /// No-change value 0 dB until the L4 ladder is ruled (plan s2.4, T039).
+    static constexpr float kEcologyWetMakeupDb = 30.0f;  // 13c ruling B-9 (2026-10-02): S4 ladder 1.71 (0) .. 3.60 (24) .. 4.66 (30) .. 5.72 (36)
+    /// FR-017b L6 life-lane gains (plan s2.6). No-change value 1.0 until the L6
+    /// ladder (1.5, 2, 3) is ruled (T050). The breathing lane is published
+    /// UNCLAMPED, so its bound is kBreathGravityLaneGain; only the gravity sum is
+    /// clamped. The tidal lane is clamped to [0, 1].
+    static constexpr float kBreathGravityLaneGain = 3.0f;
+    static constexpr float kTidalFogLaneGain = 1.0f;
+    /// 13c T050 (ruling B-12): the tide rate (tidal_modulator.h rate01) is a lever; 0.25 is the
+    /// shipped-before value (layer periods 267 / 378 / 462 s), laddered 0.6 / 0.8 / 1.0 by rebuild.
+    static constexpr float kTidalRate = 0.8f;
 
     // --- noise decorrelation (FR-015, B-3) ----------------------------------
     /// Second-order all-pass coefficient for the left branch.
@@ -602,6 +641,7 @@ public:
         // Feedback ecology.
         ecology_.setNumLoops(numLoops);
         setEcologyMix(FeedbackEcology::kDefaultMix);            // (unchanged) 0.15
+        ecology_.setWetGain(kEcologyWetMakeupDb);              // FR-017 L4 make-up
         setEcologyLoopGain(FeedbackEcology::kDefaultLoopGain);  // (unchanged) 0.72
         // 3x the component's kDefaultCoupling (0.04) on the neighbour ring.
         // Phase 5 measured cross-loop interaction at about -84 dB at the default
@@ -615,6 +655,7 @@ public:
 
         // Bloom engine.
         setBloomDepth(0.60f);        // component 1.0; Density's row moves it up
+        bloom_.setChildGain(kBloomChildGain);  // FR-011 child gain (plan s2.1 (b))
         setBloomSpawnRateHz(BloomEngine::kDefaultSpawnRateHz);  // (unchanged) 1/240
         bloom_.setFadeInSeconds(45.0f);    // (unchanged) kDefaultFadeInSeconds
         bloom_.setHoldSeconds(120.0f);     // (unchanged) kDefaultHoldSeconds
@@ -671,7 +712,7 @@ public:
         breath_.setRate(0.017f);     // about one breath per minute
         setBreathingDepth(0.30f);    // the Gravity lane's swing
         setBreathingIrregularity(0.30f);
-        tide_.setRate(0.25f);        // a tide inside the 30 s - 10 min range
+        tide_.setRate(kTidalRate);   // 13c T050 lever (ruling B-12); inside the 30 s - 10 min range
         setTidalDepth(0.40f);
 
         // --- 5b. the FR-014 envelope, through the single write path -----------
@@ -941,6 +982,13 @@ public:
         bodies_[0].setNoteFrequencyHz(frequencyHz);  // continuous_body.h:1436
         bodies_[1].setNoteFrequencyHz(frequencyHz);
         resonance_.setNoteFrequency(frequencyHz);  // resonance_drift_network.h:624
+        // FR-016: latch the level enterStage(0) will take as its start level
+        // (multi_stage_envelope.h:370-373). The envelope is Legato, so Idle is
+        // the only way into stage 0 on this voice.
+        if (mse_.getState() == MultiStageEnvState::Idle) {
+            attackStartLevel_ = mse_.getOutput();
+            attackSamples_ = 0u;
+        }
         mse_.gate(true);                           // multi_stage_envelope.h:99
         if (envMode_ == EnvelopeMode::Growth) {
             growth_.trigger();  // growth_envelope.h:161 - no-op while Rising
@@ -1002,9 +1050,13 @@ public:
     /// fold into AtmosphereEngine::setLevel. Held between control steps.
     /// publishIdentity() (T013) is the only writer.
     [[nodiscard]] float getGhostRequest() const noexcept { return ghostRequest_; }
+    /// Phase 13c ruling B-6 (FR-013): the RAW Ghost eco lane of this voice as last
+    /// published (scheduler-blind, 13b FR-019), read by VoragoEngine for the ghost
+    /// density route; exactly 0 when the lane is 0 (13b FR-017).
+    [[nodiscard]] float getGhostEcoLane() const noexcept { return ghostEcoLane_; }
 
     /// FR-026 lane 2. The fog depth this voice publishes for the engine to fold
-    /// onto its own smear base. EXACTLY `max(0, tide_.getCurrentValue())` - a
+    /// onto its own smear base. EXACTLY `clamp(kTidalFogLaneGain * tide_.getCurrentValue(), 0, 1)` - a
     /// NET, not a fold, so a tide trough cannot pull fog BELOW the engine's base,
     /// and exactly 0.0f at tidal depth 0. There is NO second depth factor:
     /// TidalModulator already scales by its own depth inside the component
@@ -1012,7 +1064,8 @@ public:
     /// does not own one (FR-002, FR-052).
     [[nodiscard]] float getTidalFogDepth() const noexcept { return tidalFogDepth_; }
 
-    /// FR-026 lane 1. EXACTLY `breath_.getCurrentValue()`, the SIGNED term the
+    /// FR-026 lane 1. EXACTLY `kBreathGravityLaneGain * breath_.getCurrentValue()`
+    /// (unclamped; FR-017b), the SIGNED term the
     /// voice adds to gravityBase_ before writing
     /// ResonanceDriftNetwork::setGravity each control step. Again no second depth
     /// factor - BreathingModulator returns `clamp(depth_ * bipolar, -1, 1)`
@@ -1058,7 +1111,7 @@ public:
         for (int st = 0; st < sustain; ++st) {
             const auto i = static_cast<std::size_t>(st);
             const float ms = (mode == EnvelopeMode::Growth) ? 0.0f : stageTimeMs_[i];
-            mse_.setStage(st, stageLevel_[i], ms, kStageCurve);
+            mse_.setStage(st, stageLevel_[i], ms, stageCurveFor(st));
         }
     }
 
@@ -1137,12 +1190,22 @@ public:
 
     /// ALSO updates cloudRichness_, B-2's shadow and the ONE source of the
     /// amplitude exponent p(r) that updateSpectrumTarget() evaluates. The shadow
-    /// takes the COMPONENT's clamped value, never the caller's raw one.
+    /// holds the USER's richness, clamped to [0, 1] exactly as the component
+    /// clamps it; NaN/Inf are rejected exactly as harmonic_cloud.h:412-414 rejects
+    /// them, so the shadow and the component refuse the same inputs.
+    /// FR-011 / Q2: the CLOUD is written max(user, kCloudRichnessFloor), so its
+    /// active count never falls below kMinCloudCapacity (14) and the bloom's
+    /// child slots always sound; below the floor updateSpectrumTarget() restores
+    /// the user's own N(r) partials and rolloff through the spectral target.
+    /// getRichness() returns the USER value, never the floored cloud value.
     void setRichness(float r) noexcept {
-        cloud_.setRichness(r);
-        cloudRichness_ = cloud_.getRichness();
+        if (detail::isNaN(r) || detail::isInf(r)) {
+            return;  // rejected, the previous value stands
+        }
+        cloudRichness_ = std::clamp(r, 0.0f, 1.0f);
+        cloud_.setRichness(std::max(cloudRichness_, kCloudRichnessFloor));
     }
-    [[nodiscard]] float getRichness() const noexcept { return cloud_.getRichness(); }
+    [[nodiscard]] float getRichness() const noexcept { return cloudRichness_; }
 
     /// ALSO pushes BloomEngine::setConsumerTiltDb (FR-012) - the two must track
     /// on every step either changes.
@@ -1530,6 +1593,15 @@ public:
     void setBloomSpawnRateHz(float hz) noexcept { bloom_.setSpawnRateHz(hz); }
     [[nodiscard]] float getBloomSpawnRateHz() const noexcept { return bloom_.getSpawnRateHz(); }
 
+    /// @brief Phase 13c measurement seams (plan s2.9): BARE forwards so the
+    ///        lever can be MEASURED from the engine fan-out. The owners reject
+    ///        non-finite input (bloom_engine.h:562-564, feedback_ecology.h:1322);
+    ///        no voice member shadows either value.
+    void setBloomChildGain(float g) noexcept { bloom_.setChildGain(g); }
+    [[nodiscard]] float getBloomChildGain() const noexcept { return bloom_.getChildGain(); }
+    void setEcologyWetMakeupDb(float dB) noexcept { ecology_.setWetGain(dB); }
+    [[nodiscard]] float getEcologyWetMakeupDb() const noexcept { return ecology_.getWetGain(); }
+
     void setBreathingDepth(float d) noexcept {
         if (!detail::isFinite(d)) {
             return;  // FR-071: rejected, the previous value stands
@@ -1607,6 +1679,11 @@ private:
     static constexpr float kNoiseLevelLeverSpanDb = 12.0f;  // L2 9.0 -> L4 12.0
     static constexpr float kPeakLevelLeverSpanDb = 18.0f;   // L2 12.0 -> L4 18.0
     static constexpr float kLoopGainLeverSpan = 0.18f;      // L2 0.15 -> L4 0.18
+    // Phase 13c L2 route sizes (FR-012, plan S2.2): scale the RAW ecosystem lane on
+    // the Partial pair (mutation, bloom depth) and on the Ghost request's eco term.
+    // 1.0 is the no-change value (T030); ladder rungs are ruled at T032.
+    static constexpr float kPartialLaneGain = 1.0f;
+    static constexpr float kGhostLaneGain = 1.0f;
     // L4 step 2 (2026-09-28, plan S2.8): the ladder levers - motion and timbre
     // rather than level, because the level levers alone topped out at a six-seed
     // median of 1.66 (ladder record). Bases were the prepare() literals.
@@ -1795,6 +1872,8 @@ private:
             b.reset();
         }
         mse_.reset();
+        attackStartLevel_ = 0.0f;
+        attackSamples_ = 0u;
         growth_.reset();
         for (auto& s : sched_) {
             s.reset();
@@ -1828,6 +1907,7 @@ private:
 
         level_ = 0.0f;
         ghostRequest_ = 0.0f;
+        ghostEcoLane_ = 0.0f;
         breathGravityLane_ = 0.0f;
         tidalFogDepth_ = 0.0f;
         envOutput_ = 0.0f;
@@ -1877,10 +1957,37 @@ private:
         stageLevel_[i] = level;
         stageTimeMs_[i] = ms;
         if (envMode_ == EnvelopeMode::Standard || st >= mse_.getSustainPoint()) {
-            mse_.setStage(st, level, ms, kStageCurve);  // multi_stage_envelope.h:166
+            mse_.setStage(st, level, ms, stageCurveFor(st));  // multi_stage_envelope.h:166
         } else {
-            mse_.setStage(st, level, 0.0f, kStageCurve);  // Growth zeroes pre-sustain times
+            mse_.setStage(st, level, 0.0f, stageCurveFor(st));  // Growth zeroes pre-sustain times
         }
+    }
+
+    /// FR-016 option (b): reshape stage 0 to e0 + span * u^n, where u is the
+    /// stage's elapsed fraction from the voice's OWN sample count (mirroring
+    /// enterStage()'s total, multi_stage_envelope.h:378-379), span = stage-0
+    /// level - e0, n = kAttackShapePower. u is NOT taken from the envelope's
+    /// Linear output: its float phase accumulator ends about 1 % short of the
+    /// target over 20 s at 48 kHz and snaps on completion (:334-337), and u^n
+    /// turns that 1 % into a 7 % step at the stage-0 -> stage-1 boundary (T041
+    /// clause 2 at n = 6, 2026-10-02). With the count, u reaches 1 on the very
+    /// sample the envelope completes, so both ends are continuous: u = 0 gives
+    /// e0 and u = 1 gives the stage-0 level. Identity when the stage does not
+    /// rise (span <= 1e-6). u^n by repeated multiplication - no pow.
+    [[nodiscard]] float shapeAttack(float e, std::uint32_t samplesIntoStage) const noexcept {
+        const float e0 = attackStartLevel_;
+        const float span = stageLevel_[0] - e0;
+        if (span <= 1.0e-6f) {
+            return e;
+        }
+        const float total = std::max(
+            1.0f, std::round(stageTimeMs_[0] * 0.001f * static_cast<float>(sampleRate_)));
+        const float u = std::min(1.0f, static_cast<float>(samplesIntoStage) / total);
+        float un = u;
+        for (int k = 1; k < kAttackShapePower; ++k) {
+            un *= u;
+        }
+        return e0 + (span * un);
     }
 
     // =========================================================================
@@ -2122,10 +2229,12 @@ private:
         }
 
         const float partialEco = lanes.eco[kPartial][0];
-        cloud_.setMutation(std::clamp(mutationBase_ + partialEco, 0.0f, 1.0f));
-        bloom_.setDepth(std::clamp(bloomDepthBase_ + partialEco, 0.0f, 1.0f));
+        cloud_.setMutation(std::clamp(mutationBase_ + kPartialLaneGain * partialEco, 0.0f, 1.0f));
+        bloom_.setDepth(std::clamp(bloomDepthBase_ + kPartialLaneGain * partialEco, 0.0f, 1.0f));
 
-        ghostRequest_ = combineWake(0.0f, lanes.eco[kGhost][0], lanes.sched[kGhost][0]);
+        ghostRequest_ = combineWake(0.0f, std::min(1.0f, kGhostLaneGain * lanes.eco[kGhost][0]),
+                                    lanes.sched[kGhost][0]);
+        ghostEcoLane_ = lanes.eco[kGhost][0];  // B-6: the engine's density route reads it
 
         // Phase 13b levers (FR-015, FR-017, FR-019, FR-020). They read ONLY
         // lanes.eco (FR-019: scheduler-blind) and are appended here so both
@@ -2221,6 +2330,9 @@ private:
     /// rawOutput() (tidal_modulator.h:317), so a voice-side multiply by a shadow
     /// of the same depth would make the `Movement -> BreathingDepth` row
     /// QUADRATIC in its own parameter.
+    /// The FR-017b lane GAINS (kBreathGravityLaneGain, kTidalFogLaneGain) are
+    /// fixed voicing constants, not depth shadows, so they leave each lane
+    /// linear in its depth; at depth 0 both lanes are still exactly 0.
     ///
     /// `HarmonicCloud::setSpectralGravity` is driven by NEITHER lane and keeps
     /// its FR-090 value (Q4). The tidal lane is published as a NET,
@@ -2228,9 +2340,9 @@ private:
     /// own smear base; the engine folds it on at its own control step, because
     /// the voice never reaches SpectralSmear - it does not own one.
     void publishLifeLanes() noexcept {
-        breathGravityLane_ = breath_.getCurrentValue();  // breathing_modulator.h:222
+        breathGravityLane_ = kBreathGravityLaneGain * breath_.getCurrentValue();  // breathing_modulator.h:222
         resonance_.setGravity(std::clamp(gravityBase_ + breathGravityLane_, -1.0f, 1.0f));
-        tidalFogDepth_ = std::max(0.0f, tide_.getCurrentValue());  // tidal_modulator.h:263
+        tidalFogDepth_ = std::clamp(kTidalFogLaneGain * tide_.getCurrentValue(), 0.0f, 1.0f);  // tidal_modulator.h:263
     }
 
     /// FR-022's interval scale, applied where the voice owns the two ranges.
@@ -2356,6 +2468,9 @@ private:
         parentCount_ = bloom_.reserveBase();  // bloom_engine.h:710
 
         // FR-041(b)'s p(r), evaluated exactly as harmonic_cloud.h:1467-1468 does.
+        // FR-011 / Q2: the USER's N(r). The cloud itself runs at
+        // max(user, kCloudRichnessFloor), so active >= 14 > userCount below the floor.
+        const std::size_t userCount = partialCountFor(cloudRichness_);
         const float p = HarmonicCloud::kRichnessMinExponent
                         + (HarmonicCloud::kRichnessMaxExponent
                            - HarmonicCloud::kRichnessMinExponent)
@@ -2363,26 +2478,55 @@ private:
         for (std::size_t i = 0; i < parentCount_; ++i) {
             ratios_[i] = static_cast<float>(i + 1);  // FR-082 identity branch
             // NOT std::pow - see B-2 above. harmonic_cloud.h:57-62, :1492-1494.
-            amplitudes_[i] = std::exp2(-p * detail::kHarmonicCloudLog2N[i]);
+            // FR-011: parents at or above the user's N(r) are silent, so the
+            // bloom's strongest-K scan never attaches a child to them.
+            amplitudes_[i] = (i < userCount)
+                                 ? std::exp2(-p * detail::kHarmonicCloudLog2N[i])
+                                 : 0.0f;
         }
 
         // bloom_engine.h:494. parentCount_ is an ANALYSIS length; the arrays are
         // kMaxSlots (64) entries each, which is the normative precondition
         // (bloom_engine.h:466-481) and is what the two std::array declarations
         // below the state section guarantee.
-        const std::size_t count = bloom_.processChunk(ratios_.data(), amplitudes_.data(),
-                                                     parentCount_, kControlChunkSamples);
+        std::size_t count = bloom_.processChunk(ratios_.data(), amplitudes_.data(),
+                                               parentCount_, kControlChunkSamples);
+
+        // FR-011: with no live child, every slot in [count, userCount) belongs to
+        // the user's own spectrum (the pass-through return leaves them unwritten;
+        // the sticky engaged return pads them with zeros), so they get the
+        // natural law. While a child lives, [reserveBase, userCount) stays the
+        // bloom's - B-1's parent-region rule above, unchanged.
+        const std::size_t live = bloom_.getLiveChildCount();  // bloom_engine.h:712
+        if (live == 0u && count < userCount) {
+            for (std::size_t i = count; i < userCount; ++i) {
+                ratios_[i] = static_cast<float>(i + 1);
+                amplitudes_[i] = std::exp2(-p * detail::kHarmonicCloudLog2N[i]);
+            }
+            count = userCount;
+        }
 
         // FR-011's two edges. Both go through the cloud's own dirty-flag path and
         // its FR-014 amplitude smoother, which is what makes them click-free
         // (harmonic_cloud.h:861-866); SC-018a measures both.
-        const bool wantTarget = (bloom_.getLiveChildCount() > 0u);  // bloom_engine.h:712
+        // FR-011 / Q2: also engaged whenever the user's N(r) is below the cloud's
+        // floored active count, which restores the user's spectrum below the floor.
+        const bool wantTarget = (live > 0u) || (userCount < active);
         if (wantTarget) {
             cloud_.setSpectralTarget(ratios_.data(), amplitudes_.data(), count);  // :769
         } else if (targetActive_) {
             cloud_.clearSpectralTarget();  // harmonic_cloud.h:862
         }
         targetActive_ = wantTarget;
+    }
+
+    /// FR-011: HarmonicCloud's N(r), the cloud's own expression character for
+    /// character (harmonic_cloud.h:1462-1463), evaluated on the USER richness.
+    [[nodiscard]] static std::size_t partialCountFor(float r) noexcept {
+        const float rounded =
+            std::round(std::pow(static_cast<float>(HarmonicCloud::kMaxPartials), r));
+        return static_cast<std::size_t>(std::clamp(
+            static_cast<int>(rounded), 1, static_cast<int>(HarmonicCloud::kMaxPartials)));
     }
 
     // =========================================================================
@@ -2446,7 +2590,12 @@ private:
             }
         } else {
             for (std::size_t s = 0; s < n; ++s) {
-                const float g = velocity_ * mse_.process();  // multi_stage_envelope.h:223
+                float e = mse_.process();  // multi_stage_envelope.h:223
+                if (mse_.getCurrentStage() == 0 && mse_.getState() == MultiStageEnvState::Running) {
+                    ++attackSamples_;  // the envelope's own counter, mirrored (:331)
+                    e = shapeAttack(e, attackSamples_);  // FR-016 option (b)
+                }
+                const float g = velocity_ * e;
                 excL_[s] *= g;
                 excR_[s] *= g;
                 envOutput_ = g;
@@ -2608,6 +2757,7 @@ private:
     /// shipped 0.85 is installed by prepare() (:617), never by the member.
     std::array<float, EcosystemEngine::kNumKinds> ecosystemDepth_{};
     float ghostRequest_ = 0.0f;  // FR-020b, held between control steps
+    float ghostEcoLane_ = 0.0f;  // 13c B-6, the raw Ghost eco lane, held likewise
     // The FR-021/FR-026 bases the identity layer sums onto, and the two lanes it
     // PUBLISHES. publishIdentity() is the only writer of the last two.
     float gravityBase_ = 0.0f;
@@ -2658,6 +2808,8 @@ private:
     float releaseMs_ = kDefaultReleaseMs;
     float velocity_ = 1.0f;
     float envOutput_ = 0.0f;
+    float attackStartLevel_ = 0.0f;  // FR-016: the envelope's level at stage-0 entry
+    std::uint32_t attackSamples_ = 0u;  // FR-016: samples rendered inside stage 0
 
     // --- silence carry (the D3 anti-click tail) ------------------------------
     float fadeTailL_ = 0.0f;

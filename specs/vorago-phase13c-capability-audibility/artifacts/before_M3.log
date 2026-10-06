@@ -1,0 +1,10 @@
+START 2026-10-01 08:32:32 before_M3 tree=ae149a1c as-compiled (no override) preset="Crowded Dark"
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 2129825393
+[probe] Crowded Dark - primary M3 Density (stored seed 15, 1 twin render(s))
+  take: peak 0.5639  arm1 hi -16.71 dB [yes]  arm2 lo -29.40 dB [yes]  arm3 late-sus +1.79 dB [yes]  arm4 tail -187.44 dB [yes]
+  primary d 3.9226  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+===============================================================================
+All tests passed (7 assertions in 1 test case)
+
+END 2026-10-01 08:34:20 exit=0 wall=108s

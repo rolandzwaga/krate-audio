@@ -1,0 +1,14 @@
+START 2026-10-02 03:05:45 preset="Feeding Loops" env:  | consts: kNoiseLevelLeverSpanDb = 12.0f kLoopGainLeverSpan = 0.30f kPartialLaneGain = 1.0f kGhostLaneGain = 1.0f kCouplingLeverSpan = 0.30f  | exe=2026-10-02 03:05:43
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 1792079930
+[probe] lever: none
+[probe] Feeding Loops - primary E4 feedback -> loop wake (stored seed 8, 4 twin render(s))
+  take: peak 0.2193  arm1 hi -25.20 dB [yes]  arm2 lo -41.70 dB [yes]  arm3 late-sus +1.02 dB [yes]  arm4 tail -210.81 dB [yes]
+  arm1@44.1k: finite y peak 0.1579 hi -26.47 dB [PASS]
+  route arms: d(R_k, R_k0) 1.7686, attribBase d(R_0, R_00) 0.9835 (attributable iff d >= 2.4835)
+  primary d 1.7686  bar 4.0000  attribBase 0.9835  state ok  -> FAIL  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (16 assertions in 1 test case)
+
+exit=0 END 2026-10-02 03:08:55

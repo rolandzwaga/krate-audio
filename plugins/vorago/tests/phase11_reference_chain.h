@@ -47,6 +47,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <vector>
 
 namespace VoragoTest {
@@ -66,6 +67,10 @@ struct RefChainSpec {
     std::size_t totalSamples = 0;
     std::size_t blockSize = 512;  ///< host block size (the partition the plugin sees)
     std::size_t polyphony = Krate::DSP::VoragoEngine::kDefaultPolyphony;  // == 4
+    /// Stage-0 time set on the engine before block 0, the plain value a
+    /// kEnvelopeStage0TimeId change in block 0 pushes (vorago_test_fixture.h
+    /// shortStage0PlainMs()). Empty: the registered default, untouched.
+    std::optional<float> stage0TimeMs;
     std::vector<RefChainNote> notes;
 };
 
@@ -91,6 +96,9 @@ template <typename Hook>
     engine->prepare(spec.sampleRate, ::Vorago::makeVoragoEngineConfig(::Vorago::kMaxBlockSamples));
     cavern->prepare(spec.sampleRate, ::Vorago::makeVoragoCavernConfig(::Vorago::kMaxBlockSamples));
     engine->setPolyphony(spec.polyphony);
+    if (spec.stage0TimeMs.has_value()) {
+        engine->setEnvelopeStageTimeMs(0, *spec.stage0TimeMs);
+    }
 
     Krate::DSP::VoragoMacroMatrix matrix{};
 

@@ -1,0 +1,14 @@
+START 2026-10-03 17:48:33 Fogbound (M9) rung r2: rows=kNumRows = 51 markers=2 | .amount = 0.70f,  // 13c T052 M9 r1 (was 0.55f);// 13c T052 M9 r2: Fog also decoheres the smear (base shared with Entropy's row).; | tree: attack n 4, breath 3.0, tide 0.8, ghost 21/1.2, ecology 30/36, child gain 1.5 | exe=2026-10-03 17:48:32
+macro tests exit=0 All tests passed (104 assertions in 1 test case)
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 3340641500
+[probe] lever: none
+[probe] Fogbound - primary M9 Fog (stored seed 9, 1 twin render(s))
+  take: peak 0.2660  arm1 hi -24.67 dB [yes]  arm2 lo -30.48 dB [yes]  arm3 late-sus -0.68 dB [yes]  arm4 tail -157.57 dB [yes]
+  arm1@44.1k: finite y peak 0.2654 hi -22.94 dB [PASS]
+  primary d 4.4115  bar 4.0000  attribBase -1.0000  state ok  -> PASS  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (9 assertions in 1 test case)
+
+exit=0 END 2026-10-03 17:51:56

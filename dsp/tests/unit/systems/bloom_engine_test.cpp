@@ -239,11 +239,14 @@ TEST_CASE("BloomEngine_ArgumentContract", "[bloom_engine]") {
         REQUIRE(engine.getSpawnRateHz() == BloomEngine::kMaxSpawnRateHz);
         REQUIRE(BloomEngine::kMaxSpawnRateHz == 0.05f);
 
-        // ---- child gain: [0, 1] (FR-023) ------------------------------------
+        // ---- child gain: [0, kMaxChildGain] (FR-023; 13c B-3 raised it from 1) --
         engine.setChildGain(-0.5f);
         REQUIRE(engine.getChildGain() == 0.0f);
         engine.setChildGain(5.0f);
-        REQUIRE(engine.getChildGain() == 1.0f);
+        REQUIRE(engine.getChildGain() == BloomEngine::kMaxChildGain);
+        REQUIRE(BloomEngine::kMaxChildGain == 2.0f);
+        engine.setChildGain(1.5f);  // above the old ceiling, inside the new one
+        REQUIRE(engine.getChildGain() == 1.5f);
 
         // ---- fade in: [1, 300] s (FR-030) -----------------------------------
         engine.setFadeInSeconds(0.0f);

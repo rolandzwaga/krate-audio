@@ -1,0 +1,37 @@
+START 2026-10-06 08:30:01 VORAGO_SWEEP_SHARD=8/43 Vorago_PresetSweep_LongRender (Choir of Absence, index 8) exe=2026-10-06 08:29:31
+Filters: "Vorago_PresetSweep_LongRender"
+Randomness seeded to: 3323419731
+shard 8/43: 1 of 42 indices (N = 42)
+
+=== Vorago_PresetSweep_LongRender (FR-033, SC-012; K = 4) ===
+[sweep] index 8: computing / loading record...
+
+Choir of Absence (index 8): A 155.00 s  Rel 45.00 s  RT60 20.00 s  H 340.00 s  Tail [410.00, 420.00]  Total 420.00 s  freeze tail Off
+  take 0 seed 10: finite yes  peak 0.9661  arm1 hi -6.73 dB [yes]  arm2 lo -12.22 dB [yes]  arm3 late-sus -1.08 dB [yes]  arm4 tail -155.47 dB [yes]
+  take 1 seed 11: finite yes  peak 0.9661  arm1 hi -7.12 dB [yes]  arm2 lo -15.84 dB [yes]  arm3 late-sus +2.34 dB [yes]  arm4 tail -146.20 dB [yes]
+  take 2 seed 12: finite yes  peak 0.9661  arm1 hi -6.39 dB [yes]  arm2 lo -12.96 dB [yes]  arm3 late-sus -1.64 dB [yes]  arm4 tail -156.18 dB [yes]
+  take 3 seed 13: finite yes  peak 0.9661  arm1 hi -5.66 dB [NO]  arm2 lo -9.23 dB [yes]  arm3 late-sus -0.38 dB [yes]  arm4 tail -158.23 dB [yes]
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+vorago_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+Vorago_PresetSweep_LongRender
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\vorago\tests\integration\preset_sweep_test.cpp(1047)
+...............................................................................
+
+F:\projects\iterum\plugins\vorago\tests\integration\preset_sweep_test.cpp(1070): FAILED:
+  CHECK( t.armPass[0] )
+with expansion:
+  false
+with message:
+  Choir of Absence take 3 (seed 13): peak 0.966051, hi -5.65944, lo -9.23009,
+  late-sus -0.38198, tail -158.225
+
+===============================================================================
+test cases:  1 |  0 passed | 1 failed
+assertions: 22 | 21 passed | 1 failed
+
+exit=1 END 2026-10-06 08:37:13

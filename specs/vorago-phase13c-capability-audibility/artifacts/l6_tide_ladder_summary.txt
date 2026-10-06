@@ -1,0 +1,11 @@
+=== tide-rate ladder started 2026-10-02 21:24:06 ===
+2026-10-02 21:25:40 build init (dsp_systems_tests vorago_tests): exit=0 warnings=0 consts: kBreathGravityLaneGain = 3.0f kTidalFogLaneGain = 1.0f kTidalRate = 0.25f 
+2026-10-02 21:25:41 verify: All tests passed (28 assertions in 2 test cases)
+2026-10-02 21:26:45 build tide_0.6 (vorago_tests): exit=0 warnings=0 consts: kBreathGravityLaneGain = 3.0f kTidalFogLaneGain = 1.0f kTidalRate = 0.6f 
+2026-10-02 21:39:40 rung kTidalRate 0.6:  primary d 0.9037 bar 4.0000 -> FAIL lever: none|D14.2 d 0.2621 bar 1.5 state ok conjunct ok -> no|
+2026-10-02 21:40:48 build tide_0.8 (vorago_tests): exit=0 warnings=0 consts: kBreathGravityLaneGain = 3.0f kTidalFogLaneGain = 1.0f kTidalRate = 0.8f 
+2026-10-02 21:54:06 rung kTidalRate 0.8:  primary d 0.8745 bar 4.0000 -> FAIL lever: none|D14.2 d 0.3131 bar 1.5 state ok conjunct ok -> no|
+2026-10-02 21:55:09 build tide_1.0 (vorago_tests): exit=0 warnings=0 consts: kBreathGravityLaneGain = 3.0f kTidalFogLaneGain = 1.0f kTidalRate = 1.0f 
+2026-10-02 22:08:54 rung kTidalRate 1.0:  primary d 0.8517 bar 4.0000 -> FAIL lever: none|D14.2 d 0.2341 bar 1.5 state ok conjunct ok -> no|
+2026-10-02 22:10:10 build restore (vorago_tests): exit=0 warnings=0 consts: kBreathGravityLaneGain = 3.0f kTidalFogLaneGain = 1.0f kTidalRate = 0.25f 
+=== tide-rate ladder finished 2026-10-02 22:10:10 consts: kBreathGravityLaneGain = 3.0f kTidalFogLaneGain = 1.0f kTidalRate = 0.25f  ===

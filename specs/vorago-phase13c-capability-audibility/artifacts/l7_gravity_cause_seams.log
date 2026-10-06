@@ -1,0 +1,13 @@
+START 2026-10-03 20:40:41 Stone Gravity as stored with VORAGO_PILOT_LEVER=childGain=0.35,ghostTapDb=12,ecologyWetDb=0 (which 13c change removed the +15.67 dB late-sus self-growth?) exe=2026-10-03 20:04:25
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 1410119470
+[probe] lever: childGain=0.35,ghostTapDb=12,ecologyWetDb=0
+[probe] Stone Gravity - primary M5 Gravity (stored seed 1, 1 twin render(s))
+  take: peak 0.9661  arm1 hi -6.19 dB [yes]  arm2 lo -25.66 dB [yes]  arm3 late-sus +10.49 dB [yes]  arm4 tail -222.43 dB [yes]
+  arm1@44.1k: finite y peak 0.9661 hi -6.25 dB [PASS]
+  primary d 3.1176  bar 4.0000  attribBase -1.0000  state ok  -> FAIL  lever: childGain=0.35,ghostTapDb=12,ecologyWetDb=0
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (10 assertions in 1 test case)
+
+exit=0 END 2026-10-03 20:43:58

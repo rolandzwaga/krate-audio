@@ -582,7 +582,10 @@ public:
     static constexpr float kDefaultMix = 0.15f;
     static constexpr float kDefaultWetGainDb = 0.0f;
     static constexpr float kMinWetGainDb = -24.0f;
-    static constexpr float kMaxWetGainDb = 24.0f;
+    /// Phase 13c ruling B-8 (2026-10-02, append-only per FR-019): the ceiling was 24 dB; the
+    /// S4 ladder read Feedback Mire d 3.60 there against the 4.0 bar, so it was raised. The
+    /// output clamp (kOutputClamp, RUNG 4) bounds the wet whatever the trim.
+    static constexpr float kMaxWetGainDb = 36.0f;
 
     // =========================================================================
     // Nested types (S1.3)
@@ -2099,7 +2102,7 @@ private:
     /// `wet` CANNOT be NaN by construction, so the ordered clamp (which a NaN
     /// would walk straight through, every comparison against NaN being false) is
     /// sufficient: the FR-047 trap has already made every b_i finite, fastTanh
-    /// of a finite product is finite, every ramp is finite and wetTrim <= 15.85.
+    /// of a finite product is finite, every ramp is finite and wetTrim <= 63.1 (36 dB).
     void renderChunk(const float* inL, const float* inR, float* outL, float* outR,
                      float* const* loopTaps, std::size_t tapOffset, std::size_t n) noexcept {
         std::uint32_t engagements = 0;  // chunk-local; folded into the member once

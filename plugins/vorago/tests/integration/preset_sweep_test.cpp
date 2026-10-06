@@ -962,6 +962,32 @@ TEST_CASE("Vorago_PresetSupport_RuledTakes", "[vorago][preset]") {
     REQUIRE(VoragoTest::kRuledTakes == 4);
 }
 
+// Vorago Phase 13c T043 - FR-016 (b) measured attack window (plan 3.3; per-push,
+// arithmetic only). W_end = max(reach_P, reach_rev) + 5 s; nullopt when either
+// reach is absent or later than captureEnd - 5 (the boundary is inclusive).
+TEST_CASE("Vorago_PresetSweep_MeasuredAttackWindow", "[vorago][preset]") {
+    using VoragoTest::measuredAttackWindowEndSeconds;
+    constexpr double kTol = 1e-9;
+
+    SECTION("both reaches inside the capture -> max(reach) + 5 s") {
+        const std::optional<double> w = measuredAttackWindowEndSeconds(3.0, 7.0, 60.0);
+        REQUIRE(w.has_value());
+        CHECK(std::fabs(*w - 12.0) < kTol);
+    }
+    SECTION("a missing reach -> nullopt") {
+        CHECK_FALSE(measuredAttackWindowEndSeconds(std::nullopt, 7.0, 60.0).has_value());
+        CHECK_FALSE(measuredAttackWindowEndSeconds(3.0, std::nullopt, 60.0).has_value());
+    }
+    SECTION("a reach later than captureEnd - 5 -> nullopt") {
+        CHECK_FALSE(measuredAttackWindowEndSeconds(3.0, 56.0, 60.0).has_value());
+    }
+    SECTION("a reach exactly at captureEnd - 5 -> captureEnd (boundary inclusive)") {
+        const std::optional<double> w = measuredAttackWindowEndSeconds(55.0, 3.0, 60.0);
+        REQUIRE(w.has_value());
+        CHECK(std::fabs(*w - 60.0) < kTol);
+    }
+}
+
 // ==============================================================================
 // T041 - the [long][vorago-sweep] cases (FR-033, FR-033a, FR-037, FR-038;
 // SC-011, SC-012, SC-015, SC-022, SC-024). Never in the per-push filter.

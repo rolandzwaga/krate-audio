@@ -1,0 +1,44 @@
+START 2026-10-02 05:26:16 VoragoVoice_EcosystemLaneSurvey on the T030 tree (route gains 1.0, kBloomChildGain 1.5) exe=2026-10-01 23:44:38
+Filters: "VoragoVoice_EcosystemLaneSurvey"
+Randomness seeded to: 770889103
+
+=== VoragoVoice_EcosystemLaneSurvey (plan S3.4) ===
+fs=48000  seed=0x925863E5  depth=0.85  note=65.406 Hz vel=100/127
+window=[155 s, 340 s]  chunks=255000  simulation steps surveyed=17344
+
+[Resonator] addressed (step, slot) pairs=121408  non-finite=0
+[Resonator] addressed slots: 0(base=0.450) 1(base=0.450) 2(base=0.450) 3(base=0.450) 4(base=0.450) 5(base=0.450) 6(base=0.450)
+[Resonator] Q(0.10) = 0.212587
+[Resonator] Q(0.25) = 0.256706
+[Resonator] Q(0.50) = 0.402407
+[Resonator] Q(0.60) = 0.476750
+[Resonator] Q(0.75) = 0.577980
+[Resonator] Q(0.90) = 0.665321
+[Resonator] fraction of addressed pairs with lane > current base = 0.4366 (53007/121408)
+[Resonator] S3.4 rule: clamp(floor(Q(0.60)/0.05)*0.05, 0.05, 0.50) = 0.45
+
+[Feedback] addressed (step, slot) pairs=104064  non-finite=0
+[Feedback] addressed slots: 0(base=0.450) 1(base=0.450) 2(base=0.450) 3(base=0.450) 4(base=0.450) 5(base=0.450)
+[Feedback] Q(0.10) = 0.217125
+[Feedback] Q(0.25) = 0.271813
+[Feedback] Q(0.50) = 0.396276
+[Feedback] Q(0.60) = 0.453697
+[Feedback] Q(0.75) = 0.568067
+[Feedback] Q(0.90) = 0.669588
+[Feedback] fraction of addressed pairs with lane > current base = 0.4062 (42275/104064)
+[Feedback] S3.4 rule: clamp(floor(Q(0.60)/0.05)*0.05, 0.05, 0.50) = 0.45
+
+[Noise] addressed (step, slot) pairs=69376  non-finite=0
+[Noise] addressed slots: 0(base=0.350) 1(base=0.350) 2(base=0.350) 3(base=0.350)
+[Noise] Q(0.10) = 0.155820
+[Noise] Q(0.25) = 0.269876
+[Noise] Q(0.50) = 0.449486
+[Noise] Q(0.60) = 0.560557
+[Noise] Q(0.75) = 0.656217
+[Noise] Q(0.90) = 0.741925
+[Noise] fraction of addressed pairs with lane > current base = 0.6329 (43906/69376)
+=== end survey ===
+===============================================================================
+All tests passed (1 assertion in 1 test case)
+
+exit=0 END 2026-10-02 05:26:17

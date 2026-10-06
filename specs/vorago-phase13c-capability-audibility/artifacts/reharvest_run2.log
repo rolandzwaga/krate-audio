@@ -1,0 +1,75 @@
+Sun Oct  4 10:15:42 WEDT 2026
+ae149a1c53307cb9bcc6227398f08926167379a2
+-rwxr-xr-x 1 scab 197609 12955648 2026-10-04 09:53:50.673923200 +0200 build/windows-x64-release/bin/Release/dsp_systems_tests.exe
+Filters: "VoragoEngine_GhostExtensionWiring"
+Randomness seeded to: 641292969
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+VoragoEngine_GhostExtensionWiring
+  clause (a) - the 60 s default render is unchanged from the base commit
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(461)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(472): PASSED:
+  REQUIRE( left.size() == VoragoGhostFix::kReferenceRenderSamples )
+with expansion:
+  2880000 (0x2bf200) == 2880000 (0x2bf200)
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(478): PASSED:
+  REQUIRE( engine->atmosphere().getTotalTriggeredGrainsBorn() == std::uint64_t{0} )
+with expansion:
+  0 == 0
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(479): PASSED:
+  REQUIRE( engine->atmosphere().getGrainReverseProbability() == 0.0f )
+with expansion:
+  0.0f == 0.0f
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(486): PASSED:
+  REQUIRE( actual.rms > 0.0 )
+with expansion:
+  0.0839210907 > 0.0
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(507): warning:
+  checkpoint[12] actual=0.143162 reference=0.258899
+  worst metric relative error 0.186221 (bound 0.005), worst sample error 0.
+  115737 (bound 0.006)
+  SC-010 (a) reference - paste this over kBaseCommitVoragoFingerprint in
+  atmosphere_ghost_fixtures.h section 6.2 ONLY alongside a DELIBERATE change to
+  what Fixture B renders, refilling the PROVENANCE block in the SAME edit.
+  Never to make this clause green:
+  
+inline constexpr Krate::DSP::TestUtils::RenderFingerprint
+  kBaseCommitVoragoFingerprint{
+      .rms = 0.083921090720230143,
+      .peak = 0.28364601731300354,
+      .meanAbs = 0.060460486382468627,
+      .totalVariation = 1144.5759229488212,
+      .checkpoints = {
+          0.00000000f, 6.51735581e-06f, 5.75574159e-05f, 0.000428832573f,
+          -0.000618209480f, 0.000510345097f, -0.00850169733f, 0.00323287258f,
+          -0.0420707837f, 0.00646594958f, 0.0696276426f, 0.0632918328f,
+          0.143161803f, -0.0523532741f, 0.0792985857f, -0.148858026f,
+          -0.0980994105f, -0.140016571f, -0.0737961084f, 0.185397238f,
+          -0.00387744745f, 0.147780731f, -0.137294084f, -0.0133171864f,
+          -0.0670235306f, -0.140023872f, -0.00506512448f, -0.0225401577f,
+          0.0692861080f, 0.00630343566f, 0.158507675f, 0.0313161425f,}};
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(510): FAILED:
+  REQUIRE( cmp.withinTolerance() )
+with expansion:
+  false
+with messages:
+  checkpoint[12] actual=0.143162 reference=0.258899
+  worst metric relative error 0.186221 (bound 0.005), worst sample error 0.
+  115737 (bound 0.006)
+
+===============================================================================
+test cases: 1 | 1 failed
+assertions: 5 | 4 passed | 1 failed
+

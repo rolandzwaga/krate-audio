@@ -1,0 +1,28 @@
+# T004 - [long] base-tree baselines (FR-003 (iii), FR-031, SC-011)
+# Binary: build/windows-x64-release/bin/Release/dsp_systems_tests.exe, built 2026-09-30 18:05:56;
+#   find dsp -newer <exe> printed nothing, so the binary matches the base dsp/ tree (production tree = 64f57e1a, HEAD ae149a1c).
+# Each run alone, with -s (every assertion listed).
+
+## Summary lines
+base_sweepaxes.log : "test cases:  1 |  0 passed | 1 failed" / "assertions: 38 | 36 passed | 2 failed"  (exit=2, wall=1848 s)
+base_nozipper.log  : "All tests passed (24 assertions in 1 test case)"                                     (exit=0, wall=21 s)
+
+## Assertions that FAIL on the base tree (excluded from the SC-011 binding set)
+1. base_sweepaxes.log:65  vorago_macro_test.cpp(1319)  CHECK( result.endpoint >= row.threshold )
+   row Age  "HF energy > 4 kHz (dB) @C4"  rho=-1  endpoint=1.1371336057 >= 3.0  -> FAILED
+2. base_sweepaxes.log:86  vorago_macro_test.cpp(1318)  CHECK( (result.rho * expectedRhoSign(row.kind)) >= 0.9 )
+   row Movement  "per-band total variation"  rho=0.8333333333 >= 0.9  -> FAILED  (endpoint 0.2964 >= 0.2 passes, line 94)
+
+VoragoMacro_NoZipper: no failing assertion (24 PASSED, 0 FAILED).
+
+## SC-011 binding set
+- VoragoMacro_SweepAxes: the 36 assertions listed PASSED in base_sweepaxes.log (every CHECK at :1318/:1319 for the
+  rows other than the two above, plus :1330, :1331, :1343, :1345, :1346, :1354, :1367, :1368, :1380, :1381,
+  :1394, :1395, :1396, :1404, :1405, :1411).
+- VoragoMacro_NoZipper: all 24 assertions; the base ratios (base_nozipper.log:18-29) peak at macro 2 = 1.2664
+  against the <= 1.5x bound.
+
+## Note: these failures differ from the source comment
+vorago_macro_test.cpp:1306-1317 says Gravity and Pressure are "RECORDED AS FAILED" (2026-09-19 ruling). On this
+base tree both pass: Gravity rho=-0.90 endpoint 0.7511, Pressure rho=-1.00 endpoint 4.2597 (base_sweepaxes.log:28, :32; asserted PASSED at :102-:116 and the Pressure pair after). The
+two base failures are Age (endpoint) and Movement (rho) instead. This file only records them; it rules nothing.

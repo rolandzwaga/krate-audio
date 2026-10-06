@@ -450,7 +450,7 @@ PilotPrimaryPlan planPrimary(const PilotPreset& p, std::vector<VoragoTest::Rende
             // Sus_rev; its own H lies past the end (no release).
             const std::optional<double> wEnd = VoragoTest::attackWindowEndSeconds(p.def, comp);
             const std::optional<double> aRev = VoragoTest::revertedAttackSpanSeconds(c, comp);
-            if (p.takes.empty() || !p.takes.front().attack.has_value() || !wEnd.has_value() ||
+            if (p.takes.empty() || p.takes.front().attackCapL.empty() || !wEnd.has_value() ||
                 !aRev.has_value()) {
                 VoragoTest::markSkipped(o, std::string(VoragoTest::kSkipNoAttackCapture));
                 return -1;
@@ -531,25 +531,38 @@ void scoreTwin(const PilotPreset& p, const PilotPrimaryPlan& plan, int index, bo
     const std::optional<VoragoTest::PresetDescriptor> susRev =
         VoragoTest::detail::twinSusDescriptor(cap, 1u, kSr);
     if (!cap.finite || cap.capL.size() < 4u || cap.capL[0].empty() || !susRev.has_value() ||
-        !storedTake.attack.has_value()) {
+        storedTake.attackCapL.empty()) {
         VoragoTest::markSkipped(o, std::string(VoragoTest::kSkipRenderFailed));
         return;
     }
-    const double floorDb = storedTake.susDb - VoragoTest::kAttackFloorBelowSusDb;
-    const VoragoTest::PresetDescriptor attRev =
-        VoragoTest::describeWithEnergyFloor(cap.capL[0], cap.capR[0], kSr, floorDb);
-    o.rendered = true;
-    o.d = VoragoTest::descriptorDistance(*storedTake.attack, attRev);
-    o.attribBase = VoragoTest::descriptorDistance(pSus, *susRev);
-
     const double susRevDb = VoragoTest::detail::spanDb(cap, plan.susRev0, plan.susRev1, kSr);
-    std::printf("  attack window (W_end %.1f s): d_att %.4f, d_Sus %.4f (attributable iff "
-                "d_att >= %.4f)\n",
-                plan.wEnd, o.d, o.attribBase, o.attribBase + VoragoTest::kAttribMargin);
+    const std::optional<double> reachRev = VoragoTest::detail::firstSecondAtOrAbove(
+        cap.capL[0], cap.capR[0], kSr, susRevDb - VoragoTest::kAttackReachBelowSusDb);
+    // FR-016 (b), plan 3.3: the comparison window is the measured reach + 5 s, inside
+    // the registered-bound [0, W_end] capture.
+    const std::optional<double> wMeas = VoragoTest::measuredAttackWindowEndSeconds(
+        storedTake.attackReachSeconds, reachRev, plan.wEnd);
+    if (!wMeas.has_value()) {
+        VoragoTest::markSkipped(o, std::string(VoragoTest::kSkipReachOutsideCapture));
+        std::printf("  attack window: W_end registered %.1f s, measured none (reach outside "
+                    "capture)\n",
+                    plan.wEnd);
+    } else {
+        const double floorDb = storedTake.susDb - VoragoTest::kAttackFloorBelowSusDb;
+        const VoragoTest::PresetDescriptor attP = VoragoTest::detail::measuredAttackDescriptor(
+            storedTake.attackCapL, storedTake.attackCapR, *wMeas, kSr, floorDb);
+        const VoragoTest::PresetDescriptor attRev = VoragoTest::detail::measuredAttackDescriptor(
+            cap.capL[0], cap.capR[0], *wMeas, kSr, floorDb);
+        o.rendered = true;
+        o.d = VoragoTest::descriptorDistance(attP, attRev);
+        o.attribBase = VoragoTest::descriptorDistance(pSus, *susRev);
+        std::printf("  attack window (W_end registered %.1f s, measured %.1f s): d_att %.4f, "
+                    "d_Sus %.4f (attributable iff d_att >= %.4f)\n",
+                    plan.wEnd, *wMeas, o.d, o.attribBase,
+                    o.attribBase + VoragoTest::kAttribMargin);
+    }
     VoragoTest::detail::printReach("P", storedTake.attackReachSeconds);
-    VoragoTest::detail::printReach(
-        "P_rev", VoragoTest::detail::firstSecondAtOrAbove(
-                     cap.capL[0], cap.capR[0], kSr, susRevDb - VoragoTest::kAttackReachBelowSusDb));
+    VoragoTest::detail::printReach("P_rev", reachRev);
 }
 
 std::string cellLabel(PD::Capability c) {
@@ -830,6 +843,489 @@ TEST_CASE("Vorago_PresetPilot_Calibrate", "[.probe][vorago]") {
     }
 }
 
+// Phase 13c T013 (FR-030, SC-007): the 15 roster-primary cells (tasks.md
+// "Roster" table; spec "Cell roster"). VORAGO_PILOT_ITERATE=verified27 probes
+// requiredPrimaryCells() minus these - the 27 sweep-4-verified primaries.
+namespace {
+
+constexpr std::array<PD::Capability, 15> kRosterPrimaries{
+    PD::Capability::S4Ecology,     PD::Capability::S6Bloom,          PD::Capability::S9Ghost,
+    PD::Capability::M2Age,         PD::Capability::M3Density,        PD::Capability::M4Movement,
+    PD::Capability::M5Gravity,     PD::Capability::M9Fog,            PD::Capability::M10Life,
+    PD::Capability::M12Mass,       PD::Capability::E1PartialBloom,   PD::Capability::E3NoiseWake,
+    PD::Capability::E4FeedbackLoopWake, PD::Capability::E5GhostBursts, PD::Capability::D9FastAttack,
+};
+
+/// What one probe run reports back to its caller: the stored take's primary
+/// verdict and level arms 1-4 (the verdict and levels lines print it in full).
+struct PrimaryProbeResult {
+    double d = 0.0;
+    std::array<bool, 4> arms{};
+    bool verified = false;
+};
+
+/// Phase 13c T067 (plan 2.9, ruling P2): VORAGO_PILOT_LEVER parsed into an
+/// engineTweak. `text` is the env string as given ("none" when unset, and then
+/// `tweak` is empty and every render is the compiled engine).
+struct PilotLever {
+    std::string text = "none";
+    std::function<void(Krate::DSP::VoragoEngine&)> tweak;
+};
+
+/// VORAGO_PILOT_LEVER="childGain=0.7,ghostTapDb=18,ghostDensity=0.6,ecologyWetDb=12"
+/// (any subset; plan 2.9). Each key drives the VoragoEngine measurement seam of
+/// the same lever (vorago_engine.h setBloomChildGain, setGhostTapMakeupDb,
+/// setGhostDensity, setEcologyWetMakeupDb); an unknown key or an item without
+/// '=' fails the run. A lever run is never a gate reading (FR-026 reads the
+/// compiled constants), so the verdict line always prints "lever: <string>".
+PilotLever readPilotLever() {
+    PilotLever lever;
+    const std::optional<std::string> env = VoragoTest::sweepEnv("VORAGO_PILOT_LEVER");
+    if (!env.has_value()) {
+        return lever;
+    }
+    std::optional<float> childGain;
+    std::optional<float> ghostTapDb;
+    std::optional<float> ghostDensity;
+    std::optional<float> ecologyWetDb;
+    std::size_t pos = 0;
+    while (pos < env->size()) {
+        const std::size_t comma = env->find(',', pos);
+        const std::string item =
+            env->substr(pos, (comma == std::string::npos) ? std::string::npos : comma - pos);
+        const std::size_t eq = item.find('=');
+        if (eq == std::string::npos) {
+            FAIL("VORAGO_PILOT_LEVER item without '=': " << item);
+        }
+        const std::string key = item.substr(0, eq);
+        const auto value = static_cast<float>(std::stod(item.substr(eq + 1)));
+        if (key == "childGain") {
+            childGain = value;
+        } else if (key == "ghostTapDb") {
+            ghostTapDb = value;
+        } else if (key == "ghostDensity") {
+            ghostDensity = value;
+        } else if (key == "ecologyWetDb") {
+            ecologyWetDb = value;
+        } else {
+            FAIL("unknown VORAGO_PILOT_LEVER key " << key);
+        }
+        if (comma == std::string::npos) {
+            break;
+        }
+        pos = comma + 1u;
+    }
+    lever.text = *env;
+    lever.tweak = [childGain, ghostTapDb, ghostDensity,
+                   ecologyWetDb](Krate::DSP::VoragoEngine& e) {
+        if (childGain.has_value()) {
+            e.setBloomChildGain(*childGain);
+        }
+        if (ghostTapDb.has_value()) {
+            e.setGhostTapMakeupDb(*ghostTapDb);
+        }
+        if (ghostDensity.has_value()) {
+            e.setGhostDensity(*ghostDensity);
+        }
+        if (ecologyWetDb.has_value()) {
+            e.setEcologyWetMakeupDb(*ecologyWetDb);
+        }
+    };
+    return lever;
+}
+
+/// Phase 13c T067: computeTakes / renderTake (preset_test_support.h:2049-2116)
+/// with the lever's engineTweak on every take. A copy, not a call, only because
+/// renderTake builds its RenderSpec internally; with no lever the probe calls
+/// computeTakes itself, so no gate reading takes this path. `held[j]` is take
+/// j's SweepCapture::tweakHeld (jobs never touch Catch2; the caller REQUIREs it).
+std::vector<VoragoTest::TakeRecord> computeLeverTakes(
+    const std::vector<std::uint8_t>& comp, const VoragoTest::SweepTimeline& tl, int storedSeed,
+    int K, unsigned threads, std::optional<double> attackWindowEnd,
+    const std::function<void(Krate::DSP::VoragoEngine&)>& tweak, std::vector<char>& held) {
+    std::vector<VoragoTest::TakeRecord> takes(static_cast<std::size_t>(std::max(K, 0)));
+    held.assign(takes.size(), 0);
+    std::vector<std::function<void()>> jobs;
+    jobs.reserve(takes.size());
+    for (int j = 0; j < K; ++j) {
+        jobs.emplace_back([&comp, &tl, &takes, &held, &attackWindowEnd, &tweak, storedSeed, j, K] {
+            const auto jj = static_cast<std::size_t>(j);
+            const std::optional<double> window = (j == 0) ? attackWindowEnd : std::nullopt;
+            VoragoTest::RenderSpec spec;
+            spec.comp = std::span<const std::uint8_t>(comp);
+            spec.seedIndex = VoragoTest::takeSeedIndex(storedSeed, 0, j, K);
+            spec.sr = VoragoTest::kSweepSampleRate;
+            spec.noteOffAt = tl.H;
+            spec.end = tl.total;
+            spec.capture.reserve(4u);
+            for (const auto& w : tl.m) {
+                spec.capture.emplace_back(w[0], w[1]);
+            }
+            if (window.has_value()) {
+                spec.capture.emplace_back(0.0, *window);
+            }
+            spec.engineTweak = tweak;
+
+            const VoragoTest::SweepCapture cap = VoragoTest::renderPreset(spec);
+            held[jj] = cap.tweakHeld ? 1 : 0;
+            const VoragoTest::ArmResult arms = VoragoTest::evaluateArms(cap, tl, spec.sr);
+
+            VoragoTest::TakeRecord& t = takes[jj];
+            t.seedIndex = spec.seedIndex;
+            t.finite = arms.finite;
+            t.peak = arms.peak;
+            t.worstHiDb = arms.worstHiDb;
+            t.worstLoDb = arms.worstLoDb;
+            t.lateVsSusDb = arms.lateVsSusDb;
+            t.tailDb = arms.tailDb;
+            t.armPass = {arms.pass1, arms.pass2, arms.pass3, arms.pass4};
+            for (std::size_t k = 0; k < t.minutes.size(); ++k) {
+                if (k < cap.capL.size() && !cap.capL[k].empty()) {
+                    t.minutes[k] = VoragoTest::describe(cap.capL[k], cap.capR[k], spec.sr);
+                }
+            }
+            const std::size_t minuteCaps =
+                std::min<std::size_t>(t.minutes.size(), cap.capL.size());
+            t.levelTwinD = VoragoTest::levelTwinD(
+                std::span<const std::vector<float>>(cap.capL.data(), minuteCaps),
+                std::span<const std::vector<float>>(cap.capR.data(), minuteCaps), spec.sr);
+            t.susDb = arms.susDb;
+            if (window.has_value() && cap.capL.size() > 3u && !cap.capL[3].empty()) {
+                t.attackReachSeconds = VoragoTest::detail::firstSecondAtOrAbove(
+                    cap.capL[3], cap.capR[3], spec.sr,
+                    arms.susDb - VoragoTest::kAttackReachBelowSusDb);
+                t.attackCapL = cap.capL[3];
+                t.attackCapR = cap.capR[3];
+            }
+        });
+    }
+    VoragoTest::runJobs(jobs, threads);
+    return takes;
+}
+
+/// The single-preset probe body (Vorago_PresetPilot_PrimaryProbe below), on a
+/// def the caller has already patched (or not). Shared by the VORAGO_PILOT_PRESET
+/// path and the T013 verified27 iteration; the scoring is unchanged. `lever`
+/// (T067) rides on every render this body builds; the verdict line prints it.
+PrimaryProbeResult runPrimaryProbe(const PD::VoragoPresetDef& def, const std::string& label,
+                                   unsigned width, const PilotLever& lever) {
+    using C = PD::Capability;
+    // T067: the secondaries render inside computeVerificationVector, whose
+    // RenderSpecs cannot carry the lever, so the two never combine.
+    if (lever.tweak &&
+        VoragoTest::sweepEnv("VORAGO_PILOT_SECONDARY") == std::optional<std::string>("1")) {
+        FAIL("VORAGO_PILOT_LEVER cannot combine with VORAGO_PILOT_SECONDARY=1 "
+             "(computeVerificationVector renders untweaked)");
+    }
+    std::printf("[probe] lever: %s\n", lever.text.c_str());
+    PilotPreset p;
+    p.label = label;
+    p.def = &def;
+    REQUIRE(VoragoTest::buildPresetComponentState(*p.def, p.comp, p.why));
+    REQUIRE(pilotDecodeTimeline(std::span<const std::uint8_t>(p.comp), p.tl, p.storedSeed));
+    p.ready = true;
+    // Phase 13c T010 (FR-004, E-10): VORAGO_PILOT_TAKES=4 renders all K =
+    // kRuledTakes takes of A_K; take 0 is still the stored seed (takeSeedIndex(s,
+    // 0, 0, K) == s) and remains the gate. Absent: the stored take alone.
+    int takeCount = 1;
+    if (const std::optional<std::string> tk = VoragoTest::sweepEnv("VORAGO_PILOT_TAKES")) {
+        REQUIRE(*tk == "4");
+        takeCount = VoragoTest::kRuledTakes;
+    }
+    const std::optional<double> attackWindowEnd =
+        VoragoTest::attackWindowEndSeconds(p.def, std::span<const std::uint8_t>(p.comp));
+    if (lever.tweak) {
+        std::vector<char> takeHeld;
+        p.takes = computeLeverTakes(p.comp, p.tl, p.storedSeed, takeCount, width,
+                                    attackWindowEnd, lever.tweak, takeHeld);
+        for (const char held : takeHeld) {
+            REQUIRE(held != 0);
+        }
+    } else {
+        p.takes = VoragoTest::computeTakes(p.comp, p.tl, p.storedSeed, takeCount, width,
+                                           attackWindowEnd);
+    }
+    REQUIRE(p.takes.size() == static_cast<std::size_t>(takeCount));
+    for (const VoragoTest::TakeRecord& t : p.takes) {
+        REQUIRE(t.finite);
+    }
+
+    std::vector<VoragoTest::RenderSpec> specs;
+    PilotPrimaryPlan plan = planPrimary(p, specs);
+    // Route primaries (E1-E5, plan 6.9; sweep-2 re-author loop 2026-09-30): the
+    // pilot planner skips RouteIsolated, so the probe adds the four route arms
+    // itself - R_k (P + the other four destinations' S overrides), R_k0 (+ depth
+    // 0), R_0 and R_00 - and scores d = d(R_k, R_k0), attribBase = d(R_0, R_00)
+    // exactly as computeVerificationVector's pass 2 does. planRoute returns the
+    // four indices {R_k, R_k0, R_0, R_00} (-1: not a route primary, or skipped);
+    // scoreRoute fills plan.o from them. Both serve the stored take and, under
+    // VORAGO_PILOT_TAKES=4, every other take (T010).
+    const auto planRoute = [](const PilotPreset& pp, PilotPrimaryPlan& pl,
+                              std::vector<VoragoTest::RenderSpec>& sp) {
+        std::array<int, 4> arms{-1, -1, -1, -1};
+        if (PD::cellSpecs()[static_cast<std::size_t>(pl.cell)].verification !=
+            PD::Verification::RouteIsolated) {
+            return arms;
+        }
+        VoragoTest::DecodedPresetState st;
+        REQUIRE(VoragoTest::decodePresetState(std::span<const std::uint8_t>(pp.comp), st));
+        const std::map<Steinberg::Vst::ParamID, double> stored =
+            VoragoTest::storedNormalizedValues(std::span<const std::uint8_t>(pp.comp));
+        const std::string why = VoragoTest::skipReason(pl.cell, st, stored,
+                                                       VoragoTest::routeOverrides(pl.cell));
+        if (!why.empty()) {
+            VoragoTest::markSkipped(pl.o, why);
+            return arms;
+        }
+        const std::span<const std::uint8_t> comp(pp.comp);
+        const auto push = [&](VoragoTest::ParamOverrides ov) {
+            sp.push_back(
+                VoragoTest::detail::twinSusSpec(comp, pp.tl, pp.storedSeed, std::move(ov)));
+            return static_cast<int>(sp.size()) - 1;
+        };
+        arms[0] = push(VoragoTest::routeOverrides(pl.cell));
+        arms[1] = push(VoragoTest::routeOverrides(pl.cell, true));
+        arms[2] = push(VoragoTest::routeOverrides(C::Count));
+        arms[3] = push(VoragoTest::routeOverrides(C::Count, true));
+        pl.o.stateOk = true;
+        pl.o.conjunctOk = true;
+        pl.o.skip.clear();
+        return arms;
+    };
+    const auto scoreRoute = [](PilotPrimaryPlan& pl, const std::array<int, 4>& arms,
+                               const std::vector<VoragoTest::SweepCapture>& cs, bool print) {
+        if (arms[0] < 0) {
+            return;
+        }
+        const auto desc = [&](int index) {
+            return VoragoTest::detail::twinSusDescriptor(cs[static_cast<std::size_t>(index)], 0u,
+                                                         VoragoTest::kSweepSampleRate);
+        };
+        const auto dK = desc(arms[0]);
+        const auto dK0 = desc(arms[1]);
+        const auto dNull = desc(arms[2]);
+        const auto dNull0 = desc(arms[3]);
+        if (!dK || !dK0 || !dNull || !dNull0) {
+            VoragoTest::markSkipped(pl.o, std::string(VoragoTest::kSkipRenderFailed));
+            return;
+        }
+        pl.o.rendered = true;
+        pl.o.d = VoragoTest::descriptorDistance(*dK, *dK0);
+        pl.o.attribBase = VoragoTest::descriptorDistance(*dNull, *dNull0);
+        if (print) {
+            std::printf("  route arms: d(R_k, R_k0) %.4f, attribBase d(R_0, R_00) %.4f "
+                        "(attributable iff d >= %.4f)\n",
+                        pl.o.d, pl.o.attribBase, pl.o.attribBase + VoragoTest::kAttribMargin);
+        }
+    };
+    const std::array<int, 4> route = planRoute(p, plan, specs);
+    for (VoragoTest::RenderSpec& s : specs) {
+        s.engineTweak = lever.tweak;  // T067: twins and route arms
+    }
+    std::vector<VoragoTest::SweepCapture> caps(specs.size());
+    std::vector<std::function<void()>> jobs;
+    jobs.reserve(specs.size());
+    for (std::size_t j = 0; j < specs.size(); ++j) {
+        jobs.emplace_back([&specs, &caps, j] { caps[j] = VoragoTest::renderPreset(specs[j]); });
+    }
+    VoragoTest::runJobs(jobs, width);
+    for (const VoragoTest::SweepCapture& c : caps) {
+        REQUIRE(c.finite);
+        REQUIRE(c.tweakHeld);
+    }
+
+    const std::string primaryLabel = cellLabel(plan.cell);
+    std::printf("[probe] %s - primary %s (stored seed %d, %zu twin render(s))\n", p.label.c_str(),
+                primaryLabel.c_str(), p.storedSeed, specs.size());
+    // The stored take's level arms (plan 6.3), so a candidate that only "passes"
+    // by going silent or by sitting on the limiter is caught here, not in the
+    // next five-hour sweep (sweep 3 found both: Feedback Mire at -84 dBFS with
+    // ecology mix 1.0, Resonant Shaft at the limiter with the cavern at 0.2).
+    {
+        const VoragoTest::TakeRecord& t = p.takes.front();
+        std::printf("  take: peak %.4f  arm1 hi %.2f dB [%s]  arm2 lo %.2f dB [%s]  arm3 late-sus "
+                    "%+.2f dB [%s]  arm4 tail %.2f dB [%s]\n",
+                    static_cast<double>(t.peak), t.worstHiDb, t.armPass[0] ? "yes" : "NO",
+                    t.worstLoDb, t.armPass[1] ? "yes" : "NO", t.lateVsSusDb,
+                    t.armPass[2] ? "yes" : "NO", t.tailDb, t.armPass[3] ? "yes" : "NO");
+    }
+    // Phase 13c T011 (FR-004, FR-024b, SC-020): always on, a 44.1 kHz stored-take
+    // render of the PATCHED state over [0, A + 65], scored for arm 1 exactly as
+    // the sweep's 44.1 kHz arm is (Vorago_PresetSweep_SustainAtAllRates: finite,
+    // peak <= kSweepPeakCeiling, every 10 s window <= kRunawayDb). Reporting only.
+    bool arm1At441Pass = false;
+    {
+        VoragoTest::RenderSpec spec441 = VoragoTest::detail::sustainSpec(
+            std::span<const std::uint8_t>(p.comp), p.tl, p.storedSeed, VoragoTest::kRate441,
+            false);
+        spec441.engineTweak = lever.tweak;  // T067
+        const VoragoTest::SweepCapture cap441 = VoragoTest::renderPreset(spec441);
+        REQUIRE(cap441.tweakHeld);
+        bool finite441 = false;
+        float peak441 = 0.0f;
+        double hi441 = 0.0;
+        VoragoTest::detail::scoreRateArm1(cap441,
+                                          p.tl.A + VoragoTest::kGestureAfterAttackSeconds,
+                                          VoragoTest::kRate441, finite441, peak441, hi441);
+        arm1At441Pass = finite441 && peak441 <= VoragoTest::kSweepPeakCeiling &&
+                        hi441 <= VoragoTest::kRunawayDb;
+        std::printf("  arm1@44.1k: finite %s peak %.4f hi %.2f dB [%s]\n", finite441 ? "y" : "n",
+                    static_cast<double>(peak441), hi441, arm1At441Pass ? "PASS" : "NO");
+    }
+    scoreTwin(p, plan, plan.twin, plan.attack, caps, plan.o);
+    scoreRoute(plan, route, caps, true);
+    if (plan.conjCell != C::Count) {
+        scoreTwin(p, plan, plan.conjTwin, false, caps, plan.conj);
+        plan.o.conjunctOk = VoragoTest::verifiedAt(plan.conj, PD::Verification::Ablation,
+                                                   VoragoTest::ClaimRole::Secondary);
+        applyD3PrimaryRule(plan);
+        std::printf("  conjunct %s: d %.4f, bar %.1f -> %s\n", cellLabel(plan.conjCell).c_str(),
+                    plan.conj.d, VoragoTest::kSecondaryBar, plan.o.conjunctOk ? "ok" : "FAIL");
+    }
+    const bool verified = VoragoTest::verifiedAt(plan.o, plan.cell, VoragoTest::ClaimRole::Primary);
+    // T067: "lever: <string>" on the verdict line, so a lever run is never read
+    // as a gate figure ("lever: none" is the compiled engine).
+    std::printf("  primary d %.4f  bar %.4f  attribBase %.4f  state %s  -> %s%s%s  lever: %s\n",
+                plan.o.d, VoragoTest::kFloorF, plan.o.attribBase, plan.o.stateOk ? "ok" : "false",
+                verified ? "PASS" : "FAIL", plan.o.skip.empty() ? "" : "  skip: ",
+                plan.o.skip.c_str(), lever.text.c_str());
+    // Phase 13c T011 (FR-024, plan 3.2): one printout a compliance row can cite -
+    // the stored take's arms 1-4, then the 44.1 kHz arm-1 render above.
+    {
+        const VoragoTest::TakeRecord& t = p.takes.front();
+        std::printf("  levels: arms [%s %s %s %s] arm1@44.1k [%s]\n", t.armPass[0] ? "y" : "n",
+                    t.armPass[1] ? "y" : "n", t.armPass[2] ? "y" : "n", t.armPass[3] ? "y" : "n",
+                    arm1At441Pass ? "y" : "n");
+    }
+
+    // Phase 13c T009 (FR-004, plan 3.1): VORAGO_PILOT_SECONDARY=1 reads the
+    // def's claimed secondaries - plus any cell named in VORAGO_PILOT_CELLS=
+    // <label,...> (matched by cellLabel spelling) - from computeVerificationVector
+    // on the patched def with the stored take. Reporting only: the primary
+    // verdict above is unchanged and remains the gate.
+    if (VoragoTest::sweepEnv("VORAGO_PILOT_SECONDARY") == std::optional<std::string>("1")) {
+        std::vector<C> cells(p.def->secondaries.begin(), p.def->secondaries.end());
+        if (const std::optional<std::string> named = VoragoTest::sweepEnv("VORAGO_PILOT_CELLS")) {
+            std::size_t pos = 0;
+            while (pos < named->size()) {
+                const std::size_t comma = named->find(',', pos);
+                const std::string item = named->substr(
+                    pos, (comma == std::string::npos) ? std::string::npos : comma - pos);
+                C match = C::Count;
+                for (std::size_t i = 0; i < PD::kNumCapabilities; ++i) {
+                    if (cellLabel(static_cast<C>(i)) == item) {
+                        match = static_cast<C>(i);
+                        break;
+                    }
+                }
+                if (match == C::Count) {
+                    FAIL("unknown cell label " << item);
+                }
+                if (std::find(cells.begin(), cells.end(), match) == cells.end()) {
+                    cells.push_back(match);
+                }
+                if (comma == std::string::npos) {
+                    break;
+                }
+                pos = comma + 1u;
+            }
+        }
+        const VoragoTest::TakeRecord& storedTake = p.takes.front();
+        const VoragoTest::VerificationVector vec = VoragoTest::computeVerificationVector(
+            &def, p.comp, p.tl, 0.0,
+            VoragoTest::meanOf(std::span<const VoragoTest::PresetDescriptor>(storedTake.minutes)),
+            width, &storedTake);
+        for (const C c : cells) {
+            const VoragoTest::CellOutcome& o = vec.cells[static_cast<std::size_t>(c)];
+            const bool secVerified = VoragoTest::verifiedAt(o, c, VoragoTest::ClaimRole::Secondary);
+            std::printf("  secondary %s: d %.4f bar %.1f state %s conjunct %s attribBase %.4f skip "
+                        "\"%s\" -> %s\n",
+                        cellLabel(c).c_str(), o.d, VoragoTest::kSecondaryBar,
+                        o.stateOk ? "ok" : "false", o.conjunctOk ? "ok" : "FAIL", o.attribBase,
+                        o.skip.c_str(), secVerified ? "VERIFIED" : "no");
+        }
+    }
+
+    // Phase 13c T010 (FR-004, FR-015, E-10, SC-005): VORAGO_PILOT_TAKES=4 prints
+    // one arm line per take of A_K (the stored-take format above), then the
+    // primary's d on every take: its twin(s), conjunct and route arms rendered at
+    // that take's seed takeSeedIndex(stored, 0, j, 4) and scored against that
+    // take's P_Sus, as the stored take is. Take 0 is the stored take, so its d is
+    // the verdict line's. Reporting only: the "take:" and verdict lines above are
+    // unchanged and remain the gate. computeTakes captures the D8.2 / D9.1 attack
+    // window on take 0 only, so such a primary prints its skip on takes j > 0.
+    if (takeCount > 1) {
+        for (int j = 0; j < takeCount; ++j) {
+            const VoragoTest::TakeRecord& t = p.takes[static_cast<std::size_t>(j)];
+            std::printf("  take j=%d seed %d: peak %.4f  arm1 hi %.2f dB [%s]  arm2 lo %.2f dB [%s]  "
+                        "arm3 late-sus %+.2f dB [%s]  arm4 tail %.2f dB [%s]\n",
+                        j, t.seedIndex, static_cast<double>(t.peak), t.worstHiDb,
+                        t.armPass[0] ? "yes" : "NO", t.worstLoDb, t.armPass[1] ? "yes" : "NO",
+                        t.lateVsSusDb, t.armPass[2] ? "yes" : "NO", t.tailDb,
+                        t.armPass[3] ? "yes" : "NO");
+        }
+        const auto takeN = static_cast<std::size_t>(takeCount);
+        // Sized up front: every RenderSpec spans its take's comp, so no reallocation.
+        std::vector<PilotPreset> takeP(takeN);
+        std::vector<PilotPrimaryPlan> takePlans(takeN);
+        std::vector<std::array<int, 4>> takeRoutes(takeN);
+        std::vector<VoragoTest::RenderSpec> takeSpecs;
+        for (std::size_t j = 1; j < takeN; ++j) {
+            PilotPreset& pj = takeP[j];
+            pj.label = p.label;
+            pj.def = p.def;
+            pj.comp = p.comp;
+            pj.ready = true;
+            pj.tl = p.tl;
+            pj.storedSeed =
+                VoragoTest::takeSeedIndex(p.storedSeed, 0, static_cast<int>(j), takeCount);
+            pj.takes = {p.takes[j]};
+            pj.selfDistance = p.selfDistance;
+            takePlans[j] = planPrimary(pj, takeSpecs);
+            takeRoutes[j] = planRoute(pj, takePlans[j], takeSpecs);
+        }
+        for (VoragoTest::RenderSpec& s : takeSpecs) {
+            s.engineTweak = lever.tweak;  // T067: every other take's twins and route arms
+        }
+        std::vector<VoragoTest::SweepCapture> takeCaps(takeSpecs.size());
+        std::vector<std::function<void()>> takeJobs;
+        takeJobs.reserve(takeSpecs.size());
+        for (std::size_t k = 0; k < takeSpecs.size(); ++k) {
+            takeJobs.emplace_back(
+                [&takeSpecs, &takeCaps, k] { takeCaps[k] = VoragoTest::renderPreset(takeSpecs[k]); });
+        }
+        VoragoTest::runJobs(takeJobs, width);
+        for (const VoragoTest::SweepCapture& c : takeCaps) {
+            REQUIRE(c.finite);
+            REQUIRE(c.tweakHeld);
+        }
+        for (std::size_t j = 0; j < takeN; ++j) {
+            if (j > 0u) {
+                PilotPrimaryPlan& pl = takePlans[j];
+                scoreTwin(takeP[j], pl, pl.twin, pl.attack, takeCaps, pl.o);
+                scoreRoute(pl, takeRoutes[j], takeCaps, false);
+                if (pl.conjCell != C::Count) {
+                    scoreTwin(takeP[j], pl, pl.conjTwin, false, takeCaps, pl.conj);
+                    pl.o.conjunctOk = VoragoTest::verifiedAt(pl.conj, PD::Verification::Ablation,
+                                                             VoragoTest::ClaimRole::Secondary);
+                    applyD3PrimaryRule(pl);
+                }
+            }
+            const VoragoTest::CellOutcome& o = (j == 0u) ? plan.o : takePlans[j].o;
+            std::printf("  take j=%zu d %.4f%s%s\n", j, o.d, o.skip.empty() ? "" : "  skip: ",
+                        o.skip.c_str());
+        }
+    }
+    std::fflush(stdout);
+    PrimaryProbeResult result;
+    result.d = plan.o.d;
+    result.arms = p.takes.front().armPass;
+    result.verified = verified;
+    return result;
+}
+
+}  // namespace
+
 // =============================================================================
 // Single-preset primary probe (gate G2 re-author loop, 2026-09-29)
 // =============================================================================
@@ -842,14 +1338,52 @@ TEST_CASE("Vorago_PresetPilot_Calibrate", "[.probe][vorago]") {
 // patches the def first (a candidate is measured without a rebuild). A
 // RouteIsolated primary (E1-E5) renders its four route arms (plan 6.9) and is
 // scored on d(R_k, R_k0) against attribBase d(R_0, R_00). Hidden; never a gate.
+//
+// Phase 13c T013 (FR-030, SC-007): VORAGO_PILOT_ITERATE=verified27 (no
+// VORAGO_PILOT_PRESET needed) runs the same body, AS COMPILED (no override, no
+// master trim), on the def whose primary is each of requiredPrimaryCells() minus
+// kRosterPrimaries (27 cells), printing one verified27 line per cell; PASS iff
+// the primary verifies and the stored take's arms 1-4 are green.
 TEST_CASE("Vorago_PresetPilot_PrimaryProbe", "[.probe][vorago]") {
     using C = PD::Capability;
+    const unsigned width = e0PoolWidth();
+    if (const std::optional<std::string> iter = VoragoTest::sweepEnv("VORAGO_PILOT_ITERATE")) {
+        REQUIRE(*iter == "verified27");
+        REQUIRE(!VoragoTest::sweepEnv("VORAGO_PILOT_OVERRIDE").has_value());
+        REQUIRE(!VoragoTest::sweepEnv("VORAGO_PILOT_MASTER_TRIM").has_value());
+        REQUIRE(!VoragoTest::sweepEnv("VORAGO_PILOT_LEVER").has_value());  // T067: as compiled
+        std::vector<C> derived;
+        for (const C c : PD::requiredPrimaryCells()) {
+            if (std::find(kRosterPrimaries.begin(), kRosterPrimaries.end(), c) ==
+                kRosterPrimaries.end()) {
+                derived.push_back(c);
+            }
+        }
+        REQUIRE(derived.size() == 27u);
+        for (const C c : derived) {
+            const PD::VoragoPresetDef* host = nullptr;
+            for (const PD::VoragoPresetDef& d : PD::allPresets()) {
+                if (d.primary == c) {
+                    host = &d;
+                    break;
+                }
+            }
+            REQUIRE(host != nullptr);
+            const std::string presetName(host->name);
+            const PrimaryProbeResult r = runPrimaryProbe(*host, presetName, width, PilotLever{});
+            const bool armsGreen = r.arms[0] && r.arms[1] && r.arms[2] && r.arms[3];
+            std::printf("verified27 %s %s d %.4f bar %.4f arms [%s %s %s %s] -> %s\n",
+                        cellLabel(c).c_str(), presetName.c_str(), r.d, VoragoTest::kFloorF,
+                        r.arms[0] ? "y" : "n", r.arms[1] ? "y" : "n", r.arms[2] ? "y" : "n",
+                        r.arms[3] ? "y" : "n", (r.verified && armsGreen) ? "PASS" : "FAIL");
+            std::fflush(stdout);
+        }
+        return;
+    }
+
     const std::optional<std::string> name = VoragoTest::sweepEnv("VORAGO_PILOT_PRESET");
     REQUIRE(name.has_value());
-    const unsigned width = e0PoolWidth();
 
-    PilotPreset p;
-    p.label = *name;
     const PD::VoragoPresetDef* found = findPilotDef(*name);
     REQUIRE(found != nullptr);
     // VORAGO_PILOT_OVERRIDE="id=norm,id=norm,...": the named def with those
@@ -885,113 +1419,85 @@ TEST_CASE("Vorago_PresetPilot_PrimaryProbe", "[.probe][vorago]") {
             pos = comma + 1u;
         }
     }
-    p.def = &patched;
-    REQUIRE(VoragoTest::buildPresetComponentState(*p.def, p.comp, p.why));
-    REQUIRE(pilotDecodeTimeline(std::span<const std::uint8_t>(p.comp), p.tl, p.storedSeed));
-    p.ready = true;
-    p.takes = VoragoTest::computeTakes(
-        p.comp, p.tl, p.storedSeed, 1, width,
-        VoragoTest::attackWindowEndSeconds(p.def, std::span<const std::uint8_t>(p.comp)));
-    REQUIRE(p.takes.size() == 1u);
-    REQUIRE(p.takes.front().finite);
-
-    std::vector<VoragoTest::RenderSpec> specs;
-    PilotPrimaryPlan plan = planPrimary(p, specs);
-    // Route primaries (E1-E5, plan 6.9; sweep-2 re-author loop 2026-09-30): the
-    // pilot planner skips RouteIsolated, so the probe adds the four route arms
-    // itself - R_k (P + the other four destinations' S overrides), R_k0 (+ depth
-    // 0), R_0 and R_00 - and scores d = d(R_k, R_k0), attribBase = d(R_0, R_00)
-    // exactly as computeVerificationVector's pass 2 does.
-    int routeK = -1;
-    int routeK0 = -1;
-    int routeNull = -1;
-    int routeNull0 = -1;
-    if (PD::cellSpecs()[static_cast<std::size_t>(plan.cell)].verification ==
-        PD::Verification::RouteIsolated) {
-        VoragoTest::DecodedPresetState st;
-        REQUIRE(VoragoTest::decodePresetState(std::span<const std::uint8_t>(p.comp), st));
-        const std::map<Steinberg::Vst::ParamID, double> stored =
-            VoragoTest::storedNormalizedValues(std::span<const std::uint8_t>(p.comp));
-        const std::string why = VoragoTest::skipReason(plan.cell, st, stored,
-                                                       VoragoTest::routeOverrides(plan.cell));
-        if (!why.empty()) {
-            VoragoTest::markSkipped(plan.o, why);
-        } else {
-            const std::span<const std::uint8_t> comp(p.comp);
-            const auto push = [&](VoragoTest::ParamOverrides ov) {
-                specs.push_back(
-                    VoragoTest::detail::twinSusSpec(comp, p.tl, p.storedSeed, std::move(ov)));
-                return static_cast<int>(specs.size()) - 1;
-            };
-            routeK = push(VoragoTest::routeOverrides(plan.cell));
-            routeK0 = push(VoragoTest::routeOverrides(plan.cell, true));
-            routeNull = push(VoragoTest::routeOverrides(C::Count));
-            routeNull0 = push(VoragoTest::routeOverrides(C::Count, true));
-            plan.o.stateOk = true;
-            plan.o.conjunctOk = true;
-            plan.o.skip.clear();
+    // Phase 13c T012 (FR-024c, SC-023, E-2): VORAGO_PILOT_MASTER_TRIM=<dB> scales
+    // the patched def's kMasterGainId normalized value (stored, or 0.5 when the
+    // def leaves it at its default) by 10^(dB/20), after the override and before
+    // the state is built, so every render of the run (takes, twins, route arms,
+    // 44.1 kHz) carries it. Absent: the master gain as patched.
+    if (const std::optional<std::string> trim = VoragoTest::sweepEnv("VORAGO_PILOT_MASTER_TRIM")) {
+        const double trimDb = std::stod(*trim);
+        const double factor = std::pow(10.0, trimDb / 20.0);
+        double before = 0.5;
+        bool present = false;
+        for (PD::ParamSetting& s : patched.params) {
+            if (s.id == ::Vorago::kMasterGainId) {
+                before = s.normalized;
+                s.normalized = before * factor;
+                present = true;
+            }
         }
-    }
-    std::vector<VoragoTest::SweepCapture> caps(specs.size());
-    std::vector<std::function<void()>> jobs;
-    jobs.reserve(specs.size());
-    for (std::size_t j = 0; j < specs.size(); ++j) {
-        jobs.emplace_back([&specs, &caps, j] { caps[j] = VoragoTest::renderPreset(specs[j]); });
-    }
-    VoragoTest::runJobs(jobs, width);
-    for (const VoragoTest::SweepCapture& c : caps) {
-        REQUIRE(c.finite);
-    }
-
-    const std::string label = cellLabel(plan.cell);
-    std::printf("[probe] %s - primary %s (stored seed %d, %zu twin render(s))\n", p.label.c_str(),
-                label.c_str(), p.storedSeed, specs.size());
-    // The stored take's level arms (plan 6.3), so a candidate that only "passes"
-    // by going silent or by sitting on the limiter is caught here, not in the
-    // next five-hour sweep (sweep 3 found both: Feedback Mire at -84 dBFS with
-    // ecology mix 1.0, Resonant Shaft at the limiter with the cavern at 0.2).
-    {
-        const VoragoTest::TakeRecord& t = p.takes.front();
-        std::printf("  take: peak %.4f  arm1 hi %.2f dB [%s]  arm2 lo %.2f dB [%s]  arm3 late-sus "
-                    "%+.2f dB [%s]  arm4 tail %.2f dB [%s]\n",
-                    static_cast<double>(t.peak), t.worstHiDb, t.armPass[0] ? "yes" : "NO",
-                    t.worstLoDb, t.armPass[1] ? "yes" : "NO", t.lateVsSusDb,
-                    t.armPass[2] ? "yes" : "NO", t.tailDb, t.armPass[3] ? "yes" : "NO");
-    }
-    scoreTwin(p, plan, plan.twin, plan.attack, caps, plan.o);
-    if (routeK >= 0) {
-        constexpr double kSr = VoragoTest::kSweepSampleRate;
-        const auto desc = [&](int index) {
-            return VoragoTest::detail::twinSusDescriptor(caps[static_cast<std::size_t>(index)], 0u,
-                                                         kSr);
-        };
-        const auto dK = desc(routeK);
-        const auto dK0 = desc(routeK0);
-        const auto dNull = desc(routeNull);
-        const auto dNull0 = desc(routeNull0);
-        if (!dK || !dK0 || !dNull || !dNull0) {
-            VoragoTest::markSkipped(plan.o, std::string(VoragoTest::kSkipRenderFailed));
-        } else {
-            plan.o.rendered = true;
-            plan.o.d = VoragoTest::descriptorDistance(*dK, *dK0);
-            plan.o.attribBase = VoragoTest::descriptorDistance(*dNull, *dNull0);
-            std::printf("  route arms: d(R_k, R_k0) %.4f, attribBase d(R_0, R_00) %.4f (attributable "
-                        "iff d >= %.4f)\n",
-                        plan.o.d, plan.o.attribBase, plan.o.attribBase + VoragoTest::kAttribMargin);
+        if (!present) {
+            patched.params.push_back(
+                PD::ParamSetting{.id = ::Vorago::kMasterGainId, .normalized = before * factor});
         }
+        std::printf("[probe] master trim %g dB: kMasterGainId norm %.4f -> %.4f\n", trimDb, before,
+                    before * factor);
     }
-    if (plan.conjCell != C::Count) {
-        scoreTwin(p, plan, plan.conjTwin, false, caps, plan.conj);
-        plan.o.conjunctOk = VoragoTest::verifiedAt(plan.conj, PD::Verification::Ablation,
-                                                   VoragoTest::ClaimRole::Secondary);
-        applyD3PrimaryRule(plan);
-        std::printf("  conjunct %s: d %.4f, bar %.1f -> %s\n", cellLabel(plan.conjCell).c_str(),
-                    plan.conj.d, VoragoTest::kSecondaryBar, plan.o.conjunctOk ? "ok" : "FAIL");
+    runPrimaryProbe(patched, *name, width, readPilotLever());
+}
+
+// =============================================================================
+// Phase 13c T031 diagnostic (hidden, never a gate): the DESTINATION ceiling of a
+// route. Renders the named preset twice at its stored seed over the sustain twin
+// window - as stored, and with VORAGO_PILOT_SWING="id=norm,..." applied at
+// block 0 - and prints d(P, P_swing) on the C-7.2 descriptor. A route lever can
+// never move its cell's d(R_k, R_k0) further than the swing of the parameters it
+// writes, so this bounds a ladder before any rung is built.
+// =============================================================================
+TEST_CASE("Vorago_PresetPilot_SwingProbe", "[.probe][vorago]") {
+    const std::optional<std::string> nameEnv = VoragoTest::sweepEnv("VORAGO_PILOT_PRESET");
+    REQUIRE(nameEnv.has_value());
+    const std::string name = nameEnv.value_or("");
+    const std::optional<std::string> swingEnv = VoragoTest::sweepEnv("VORAGO_PILOT_SWING");
+    REQUIRE(swingEnv.has_value());
+    const std::string swing = swingEnv.value_or("");
+    const PD::VoragoPresetDef* def = findPilotDef(name);
+    REQUIRE(def != nullptr);
+    std::vector<std::uint8_t> comp;
+    std::string why;
+    REQUIRE(VoragoTest::buildPresetComponentState(*def, comp, why));
+    VoragoTest::SweepTimeline tl{};
+    int storedSeed = 0;
+    REQUIRE(pilotDecodeTimeline(std::span<const std::uint8_t>(comp), tl, storedSeed));
+    VoragoTest::ParamOverrides ov;
+    std::size_t pos = 0;
+    while (pos < swing.size()) {
+        const std::size_t comma = swing.find(',', pos);
+        const std::string item =
+            swing.substr(pos, (comma == std::string::npos) ? std::string::npos : comma - pos);
+        const std::size_t eq = item.find('=');
+        REQUIRE(eq != std::string::npos);
+        ov.emplace_back(static_cast<Steinberg::Vst::ParamID>(std::stoul(item.substr(0, eq))),
+                        std::stod(item.substr(eq + 1)));
+        if (comma == std::string::npos) {
+            break;
+        }
+        pos = comma + 1u;
     }
-    const bool verified = VoragoTest::verifiedAt(plan.o, plan.cell, VoragoTest::ClaimRole::Primary);
-    std::printf("  primary d %.4f  bar %.4f  attribBase %.4f  state %s  -> %s%s%s\n", plan.o.d,
-                VoragoTest::kFloorF, plan.o.attribBase, plan.o.stateOk ? "ok" : "false",
-                verified ? "PASS" : "FAIL", plan.o.skip.empty() ? "" : "  skip: ",
-                plan.o.skip.c_str());
-    std::fflush(stdout);
+    const std::span<const std::uint8_t> span(comp);
+    const VoragoTest::SweepCapture base =
+        VoragoTest::renderPreset(VoragoTest::detail::twinSusSpec(span, tl, storedSeed, {}));
+    const VoragoTest::SweepCapture swung =
+        VoragoTest::renderPreset(VoragoTest::detail::twinSusSpec(span, tl, storedSeed, ov));
+    const std::optional<VoragoTest::PresetDescriptor> dBase =
+        VoragoTest::detail::twinSusDescriptor(base, 0u, VoragoTest::kSweepSampleRate);
+    const std::optional<VoragoTest::PresetDescriptor> dSwing =
+        VoragoTest::detail::twinSusDescriptor(swung, 0u, VoragoTest::kSweepSampleRate);
+    REQUIRE(dBase.has_value());
+    REQUIRE(dSwing.has_value());
+    std::printf("[swing] %s seed %d swing \"%s\": d(P, P_swing) %.4f  (peak P %.4f, P_swing %.4f)\n",
+                name.c_str(), storedSeed, swing.c_str(),
+                VoragoTest::descriptorDistance(*dBase, *dSwing),
+                static_cast<double>(base.peak), static_cast<double>(swung.peak));
+    REQUIRE(true);
 }

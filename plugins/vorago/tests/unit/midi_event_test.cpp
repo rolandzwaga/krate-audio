@@ -143,12 +143,15 @@ void holdUntilAudible(VoragoTest::ProcessorFixture& fx, std::size_t slot) {
     return Stereo{.l = std::move(fx.capturedL), .r = std::move(fx.capturedR)};
 }
 
-// Fresh prepared processor (48k / 512); `firstEvents` rides on block 0 only;
-// `total` samples in 512 blocks (last one truncated).
+// Fresh prepared processor (48k / 512) with stage 0 shortened (FR-034,
+// fr034_surfaced.md A11: these windows end at ~1.57 s, inside the ruled 20 s
+// attack); `firstEvents` rides on block 0 only; `total` samples in 512 blocks
+// (last one truncated).
 [[nodiscard]] Stereo renderWithFirstBlockEvents(Steinberg::Vst::IEventList* firstEvents,
                                                 std::size_t total) {
     VoragoTest::ProcessorFixture fx;
     fx.prepare(kSampleRate, static_cast<Steinberg::int32>(kBlock));
+    fx.shortenStage0();
     fx.reserveCapture(total);
     std::size_t done = 0;
     bool first = true;
@@ -297,6 +300,7 @@ TEST_CASE("Vorago_MidiEventTranslation", "[vorago][processor][midi]") {
         {
             VoragoTest::ProcessorFixture fx;
             fx.prepare(kSampleRate, static_cast<Steinberg::int32>(kBlock));
+            fx.shortenStage0();  // every arm, as renderWithFirstBlockEvents (FR-034 A11)
             fx.reserveCapture(kTimingSamples);
             REQUIRE(fx.processBlock(300) == Steinberg::kResultOk);
             Krate::Test::EventList evB;
@@ -443,6 +447,7 @@ TEST_CASE("Vorago_MidiEventTranslation", "[vorago][processor][midi]") {
         const auto renderAt = [&script](std::size_t block, bool probeSlices) {
             VoragoTest::ProcessorFixture fx;
             fx.prepare(kSampleRate, static_cast<Steinberg::int32>(block));
+            fx.shortenStage0();  // FR-034 A12: a 4 s script inside the ruled 20 s attack
             const std::array<std::size_t, 1> pattern{block};
             fx.renderScript(std::span<const Scripted>(script), kInvarianceSamples,
                             std::span<const std::size_t>(pattern));

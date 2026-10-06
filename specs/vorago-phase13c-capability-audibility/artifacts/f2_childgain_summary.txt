@@ -1,0 +1,19 @@
+=== child gain vs verified cells, final tree, seam 2026-10-04 23:50:41 ===
+cg 1.2 | Slow Bloom:  primary d 3.9270 bar 4.0000 -> FAIL lever: childGain=1.2
+cg 1.2 | Resonant Shaft:  primary d 2.8317 bar 4.0000 -> FAIL lever: childGain=1.2
+cg 1.2 | Smeared Horizon:  primary d 3.4345 bar 4.0000 -> FAIL lever: childGain=1.2
+cg 1.2 | Lightless:  primary d 2.0106 bar 4.0000 -> FAIL lever: childGain=1.2
+cg 1.2 | Singing Colony:  primary d 3.9525 bar 4.0000 -> FAIL lever: childGain=1.2
+cg 1.2 | Spore Drift:  primary d 1.9819 bar 4.0000 -> FAIL lever: childGain=1.2
+cg 1.0 | Slow Bloom:  primary d 3.3516 bar 4.0000 -> FAIL lever: childGain=1.0
+cg 1.0 | Resonant Shaft:  primary d 3.0338 bar 4.0000 -> FAIL lever: childGain=1.0
+cg 1.0 | Smeared Horizon:  primary d 3.5786 bar 4.0000 -> FAIL lever: childGain=1.0
+cg 1.0 | Lightless:  primary d 2.2128 bar 4.0000 -> FAIL lever: childGain=1.0
+cg 1.0 | Singing Colony:  primary d 4.0742 bar 4.0000 -> PASS lever: childGain=1.0
+cg 1.0 | Spore Drift:  primary d 2.1932 bar 4.0000 -> FAIL lever: childGain=1.0
+cg 0.8 | Slow Bloom:  primary d 2.7374 bar 4.0000 -> FAIL lever: childGain=0.8
+cg 0.8 | Resonant Shaft:  primary d 3.2952 bar 4.0000 -> FAIL lever: childGain=0.8
+cg 0.8 | Smeared Horizon:  primary d 3.7800 bar 4.0000 -> FAIL lever: childGain=0.8
+cg 0.8 | Lightless:  primary d 2.5578 bar 4.0000 -> FAIL lever: childGain=0.8
+cg 0.8 | Singing Colony:  primary d 4.2062 bar 4.0000 -> PASS lever: childGain=0.8
+cg 0.8 | Spore Drift:  primary d 2.3429 bar 4.0000 -> FAIL lever: childGain=0.8

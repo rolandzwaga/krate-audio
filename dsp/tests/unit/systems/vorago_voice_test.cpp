@@ -51,12 +51,15 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
 #include <cstring>
 #include <iomanip>
 #include <memory>
+#include <optional>
 #include <random>
 #include <span>
 #include <sstream>
@@ -902,6 +905,10 @@ TEST_CASE("VoragoVoice_SilenceClearsEcologyAudio", "[systems][vorago]") {
     // ecosystem's routing, so the routing is held off for the drive
     // (MSVC: -47.2 dBFS driven).
     voice->setEcosystemDepth(0.0f);
+    // 13c FR-034 / T040 A1 (ruling B-10, kAttackShapePower 4): the case measures the
+    // ecology's stored energy, not the attack, so stage 0 is shortened for the drive
+    // (artifacts/fr034_surfaced.md section 4.1). The -50 dB control and the -80 dB claim stay.
+    voice->setEnvelopeStageTimeMs(0, 1000.0f);
     voice->noteOn(55.0f, 1.0f);
 
     constexpr std::size_t kBlock = 512u;
@@ -1366,7 +1373,15 @@ void makeBloomDeterministic(BloomEngine& b) {
 /// the cloud computes cannot diverge through FMA contraction - which they could
 /// at, say, r = 0.7, where the two TUs may or may not fuse the multiply-add and
 /// the bit-identity claim would become a toolchain lottery.
-constexpr std::array<float, 4> kNeutralityRichness{0.0f, 0.25f, 0.5f, 1.0f};
+/// FR-034 (Phase 13c, T024): narrowed to points AT OR ABOVE
+/// VoragoVoice::kCloudRichnessFloor (0.6346), where cloud richness == user
+/// richness still holds and plain-vs-forced bit identity is the right claim.
+/// The former below-floor points {0, 0.25, 0.5} moved to
+/// VoragoVoice_CloudRichnessFloorNeutral; see
+/// specs/vorago-phase13c-capability-audibility/artifacts/fr034_surfaced.md
+/// entry 1. Note 0.6346f is NOT exact in binary (0.75f and 1.0f are), the
+/// FMA risk recorded in that entry.
+constexpr std::array<float, 3> kNeutralityRichness{0.6346f, 0.75f, 1.0f};
 /// Spans the component's whole tilt domain (harmonic_cloud.h:194-195).
 constexpr std::array<float, 4> kNeutralityTiltDb{-12.0f, -4.0f, 0.0f, 12.0f};
 /// Includes BOTH the g == 0 identity branch and both endpoints (:478-488).
@@ -2969,8 +2984,8 @@ TEST_CASE("VoragoVoice_LifeModulatorLanes", "[systems][vorago]") {
         REQUIRE(hi - lo >= 0.20f);
         // ...and its extremes are the CONFIGURED depth, not its square: a second
         // voice-side depth multiply would put these at +/-0.09.
-        REQUIRE(std::abs(hi - 0.30f) <= 0.01f);
-        REQUIRE(std::abs(lo + 0.30f) <= 0.01f);
+        REQUIRE(std::abs(hi - VoragoVoice::kBreathGravityLaneGain * 0.30f) <= 0.01f);  // 13c B-12 re-spec (FR-034 entry 5)
+        REQUIRE(std::abs(lo + VoragoVoice::kBreathGravityLaneGain * 0.30f) <= 0.01f);
 
         // The sum holds against a NON-ZERO base too, which is what FR-016's two
         // lanes need and what a base-ignoring implementation would fail.
@@ -2978,9 +2993,11 @@ TEST_CASE("VoragoVoice_LifeModulatorLanes", "[systems][vorago]") {
         float worstOffsetError = 0.0f;
         for (int i = 0; i < 400; ++i) {
             advanceOneControlStep(*v);
+            // 13c B-12: at a lane gain above 1 the gravity SUM clamps (plan 2.6).
             worstOffsetError = std::max(
                 worstOffsetError,
-                std::abs(v->resonance().getGravity() - (0.25f + v->getBreathingGravityLane())));
+                std::abs(v->resonance().getGravity()
+                         - std::clamp(0.25f + v->getBreathingGravityLane(), -1.0f, 1.0f)));
         }
         REQUIRE(worstOffsetError == 0.0f);
     }
@@ -3024,6 +3041,86 @@ TEST_CASE("VoragoVoice_LifeModulatorLanes", "[systems][vorago]") {
                              << peak);
         REQUIRE_FALSE(everNegative);
         REQUIRE(peak >= 0.25f);
+    }
+}
+
+// -----------------------------------------------------------------------------
+// FR-017b (Phase 13c, T048): the life lanes behind their depth-to-destination
+// gains. Depth 0 must stay a TRUE "off" whatever gain is ruled (plan 2.6: at
+// depth 0 getCurrentValue() is 0, so gain x 0 is exactly 0), and at depth 1 the
+// published breathing lane is bounded by kBreathGravityLaneGain - it is NOT
+// clamped, only the gravity SUM is - while the applied gravity stays in
+// [-1, 1] and the tidal fog net stays in [0, 1].
+// -----------------------------------------------------------------------------
+
+TEST_CASE("VoragoVoice_LifeLaneDepthZero", "[systems][vorago]") {
+    // 60 s of control steps at the accelerated 8 kHz control clock.
+    const auto steps = static_cast<std::uint64_t>(
+        std::ceil(60.0 * kIdentitySampleRate8k
+                  / static_cast<double>(VoragoVoice::kControlChunkSamples)));
+
+    SECTION("at breathing and tidal depth 0 both lanes are EXACTLY 0 at every chunk") {
+        auto v = makeIdentityVoice(0x13C048u, kIdentitySampleRate8k);
+        v->setBreathingDepth(0.0f);
+        v->setTidalDepth(0.0f);
+        // Both modulators snap their output smoothers in initState(), which
+        // prepare() ran at the SHIPPED depths (0.30, 0.40) - reset so the case
+        // measures the lanes, not the smoothers' decay.
+        (*v).reset();
+
+        REQUIRE(v->getBreathingGravityLane() == 0.0f);
+        REQUIRE(v->getTidalFogDepth() == 0.0f);
+        std::uint64_t breathNonZero = 0;
+        std::uint64_t fogNonZero = 0;
+        for (std::uint64_t i = 0; i < steps; ++i) {
+            advanceOneControlStep(*v);
+            if (v->getBreathingGravityLane() != 0.0f) {
+                ++breathNonZero;
+            }
+            if (v->getTidalFogDepth() != 0.0f) {
+                ++fogNonZero;
+            }
+        }
+        INFO("gains: breath " << VoragoVoice::kBreathGravityLaneGain << ", tidal "
+                              << VoragoVoice::kTidalFogLaneGain << "; non-zero chunks over "
+                              << steps << ": breath " << breathNonZero << ", fog "
+                              << fogNonZero);
+        REQUIRE(breathNonZero == 0u);
+        REQUIRE(fogNonZero == 0u);
+    }
+
+    SECTION("at breathing and tidal depth 1 the lanes stay inside their bounds") {
+        auto v = makeIdentityVoice(kTidalArmSeed, kIdentitySampleRate8k);
+        v->setBreathingDepth(1.0f);
+        v->setTidalDepth(1.0f);
+        (*v).reset();
+        REQUIRE(v->getBreathingDepth() == 1.0f);
+        REQUIRE(v->getTidalDepth() == 1.0f);
+
+        float worstLane = 0.0f;
+        float gravityLo = 0.0f;
+        float gravityHi = 0.0f;
+        float fogLo = 0.0f;
+        float fogHi = 0.0f;
+        for (std::uint64_t i = 0; i < steps; ++i) {
+            advanceOneControlStep(*v);
+            worstLane = std::max(worstLane, std::abs(v->getBreathingGravityLane()));
+            const float g = v->resonance().getGravity();
+            gravityLo = std::min(gravityLo, g);
+            gravityHi = std::max(gravityHi, g);
+            const float fog = v->getTidalFogDepth();
+            fogLo = std::min(fogLo, fog);
+            fogHi = std::max(fogHi, fog);
+        }
+        INFO("gains: breath " << VoragoVoice::kBreathGravityLaneGain << ", tidal "
+                              << VoragoVoice::kTidalFogLaneGain << "; worst |lane| "
+                              << worstLane << ", gravity [" << gravityLo << ", " << gravityHi
+                              << "], fog [" << fogLo << ", " << fogHi << "]");
+        REQUIRE(worstLane <= VoragoVoice::kBreathGravityLaneGain);
+        REQUIRE(gravityLo >= -1.0f);
+        REQUIRE(gravityHi <= 1.0f);
+        REQUIRE(fogLo >= 0.0f);
+        REQUIRE(fogHi <= 1.0f);
     }
 }
 
@@ -4034,7 +4131,7 @@ TEST_CASE("VoragoVoice_BloomCountsProbe", "[.probe][systems][vorago]") {
     constexpr std::size_t kBlock = 64u;
     constexpr std::size_t kSeconds = 340u;
     std::setvbuf(stdout, nullptr, _IONBF, 0);
-    for (const float richness : {0.35f, 0.6f, 0.9f}) {
+    for (const float richness : {0.0f, 0.35f, 0.40f, 0.6f, 0.70f, 0.9f, 1.0f}) {
         for (const float depth : {1.0f, 0.0f}) {
             auto voice = std::make_unique<VoragoVoice>();
             voice->prepare(kSr8k, VoragoVoiceConfig{});
@@ -4059,7 +4156,744 @@ TEST_CASE("VoragoVoice_BloomCountsProbe", "[.probe][systems][vorago]") {
                         static_cast<unsigned long long>(b.getRejectedSpawnCount()),
                         b.getLiveChildCount(), static_cast<double>(b.getDepth()),
                         static_cast<double>(b.getSpawnRateHz()));
+            // Phase 13c T007 (FR-010, FR-011): is each live child's slot inside
+            // the cloud's active range, and does the cloud actually sound it?
+            const std::size_t active = voice->cloud().getActivePartialCount();
+            std::size_t live = 0u;
+            std::size_t sounding = 0u;
+            for (std::size_t i = 0; i < Krate::DSP::BloomEngine::kMaxChildren; ++i) {
+                const std::size_t slot = b.getChildSlotIndex(i);
+                if (slot == Krate::DSP::BloomEngine::kMaxSlots) {
+                    continue;
+                }
+                ++live;
+                const float amp = voice->cloud().getPartialCurrentAmplitude(slot);
+                if (amp > Krate::DSP::BloomEngine::kSilentParentAmplitude) {
+                    ++sounding;
+                }
+                std::printf("    [bloom slot] child %zu: slot %zu parent %zu childAmp %.6f "
+                            "active %zu slot<active %s cloudAmp %.6f\n",
+                            i, slot, b.getChildParentIndex(i),
+                            static_cast<double>(b.getChildAmplitude(i)), active,
+                            (slot < active) ? "yes" : "no", static_cast<double>(amp));
+            }
+            std::printf("  [bloom probe] richness %.2f depth %.1f: children live %zu, sounding %zu\n",
+                        static_cast<double>(richness), static_cast<double>(depth), live, sounding);
         }
     }
     REQUIRE(true);
+}
+
+// =============================================================================
+// Phase 13c T018 (FR-011 floor pin): the cloud's richness is floored at
+// VoragoVoice::kCloudRichnessFloor, so its ACTIVE partial count never falls
+// below kMinCloudCapacity (14) - the bloom's children always have slots the
+// cloud actually sounds - while the voice's getRichness() keeps reporting the
+// user's value. Fails to compile until T023 adds kCloudRichnessFloor.
+// =============================================================================
+TEST_CASE("VoragoVoice_CloudRichnessFloor", "[systems][vorago]") {
+    // 1. The constant itself: a standalone cloud at the floor richness runs
+    //    exactly kMinCloudCapacity partials after one control update
+    //    (N(r) = clamp(round(64^r), 1, 64), harmonic_cloud.h:1462-1463;
+    //    64^0.6346 = 14.002). noteOn() opens the gate so the chunk is not
+    //    taken by the quiescent early-out (harmonic_cloud.h:897-904), which
+    //    skips updateControl().
+    {
+        HarmonicCloud cloud;
+        cloud.prepare(kSampleRate48);
+        cloud.setRichness(VoragoVoice::kCloudRichnessFloor);
+        cloud.noteOn();
+        std::vector<float> l(HarmonicCloud::kControlChunkSamples, 0.0f);
+        std::vector<float> r(HarmonicCloud::kControlChunkSamples, 0.0f);
+        cloud.processStereoBlock(l.data(), r.data(), HarmonicCloud::kControlChunkSamples);
+        INFO("floor " << VoragoVoice::kCloudRichnessFloor << ", active "
+                      << cloud.getActivePartialCount());
+        REQUIRE(cloud.getActivePartialCount() == VoragoVoice::kMinCloudCapacity);
+        REQUIRE(VoragoVoice::kMinCloudCapacity == 14u);
+    }
+
+    auto v = makeFastAttackVoice(0xF100Bu);
+    v->noteOn(55.0f, 1.0f);
+    renderAndDiscard(*v, 8u * VoragoVoice::kControlChunkSamples);
+
+    // 2. The getter reports the USER value exactly; the cloud count is floored.
+    //    Two chunks per change: HarmonicCloud::setRichness only raises dirty
+    //    flags (harmonic_cloud.h:412-423); the count moves in the next control
+    //    update.
+    for (const float r : {0.0f, 0.35f, 0.6346f, 0.7f, 1.0f}) {
+        v->setRichness(r);
+        renderAndDiscard(*v, 2u * VoragoVoice::kControlChunkSamples);
+        INFO("richness " << r << ", getRichness " << v->getRichness() << ", active "
+                         << v->cloud().getActivePartialCount());
+        REQUIRE(v->getRichness() == r);
+        REQUIRE(v->cloud().getActivePartialCount() >= 14u);
+    }
+
+    // 3. The whole range on a 0.02 grid, 0.00 .. 1.00 inclusive.
+    for (int step = 0; step <= 50; ++step) {
+        const float r = static_cast<float>(step) * 0.02f;
+        v->setRichness(r);
+        renderAndDiscard(*v, 2u * VoragoVoice::kControlChunkSamples);
+        INFO("richness " << r << ", active " << v->cloud().getActivePartialCount());
+        REQUIRE(v->getRichness() == r);
+        REQUIRE(v->cloud().getActivePartialCount() >= 14u);
+    }
+
+    // 4. Non-finite input is rejected: the stored user value is unchanged.
+    //    Bit patterns through a volatile (makeNonFiniteFloat), never
+    //    std::numeric_limits, so -ffast-math cannot fold them away.
+    v->setRichness(0.35f);
+    renderAndDiscard(*v, 2u * VoragoVoice::kControlChunkSamples);
+    REQUIRE(v->getRichness() == 0.35f);
+
+    v->setRichness(makeNonFiniteFloat(kQuietNaNBits));
+    renderAndDiscard(*v, 2u * VoragoVoice::kControlChunkSamples);
+    REQUIRE(v->getRichness() == 0.35f);
+    REQUIRE(v->cloud().getActivePartialCount() >= 14u);
+
+    v->setRichness(makeNonFiniteFloat(kPosInfBits));
+    renderAndDiscard(*v, 2u * VoragoVoice::kControlChunkSamples);
+    REQUIRE(v->getRichness() == 0.35f);
+    REQUIRE(v->cloud().getActivePartialCount() >= 14u);
+}
+
+// =============================================================================
+// Phase 13c T019 (FR-011, SC-008 (b) below the floor): with the cloud floored
+// at kCloudRichnessFloor, a user richness BELOW the floor must still sound the
+// user's own law. For every slot i < N_user (N_user = the cloud's
+// clamp(round(64^r), 1, 64) at the USER richness, harmonic_cloud.h:1462-1463)
+// the amplitude relative to slot 0 matches a standalone, untargeted
+// HarmonicCloud configured at r_user within 0.5 dB; every floor-only slot in
+// [N_user, kMinCloudCapacity) stays below BloomEngine::kSilentParentAmplitude.
+// The bloom is inert (depth 0, wake 0, no clock) and mutation is 0, so the
+// per-chunk mutation weight is exactly 1 (harmonic_cloud.h:1730-1732) and the
+// ratio compares the rolloff x tilt law alone - the FR-017 normaliser is one
+// scalar for every slot, so it cancels in the ratio to slot 0.
+// Fails to compile until T023 adds kCloudRichnessFloor; behaviourally fails on
+// the base tree because the cloud's active count follows the user's N(r) < 14.
+// =============================================================================
+TEST_CASE("VoragoVoice_CloudRichnessFloorNeutral", "[systems][vorago]") {
+    constexpr std::uint32_t kSeed = 0xF100Cu;
+    constexpr float kFundamentalHz = 55.0f;
+    constexpr std::size_t kSettleSamples = 2u * VoragoVoice::kControlChunkSamples + kOneSecond48;
+    constexpr double kToleranceDb = 0.5;
+
+    for (const float r : {0.0f, 0.25f, 0.40f, 0.55f}) {
+        // Precondition: every richness here is below the floor.
+        REQUIRE(r < VoragoVoice::kCloudRichnessFloor);
+
+        // The user's N(r), the cloud's expression verbatim.
+        const float rounded =
+            std::round(std::pow(static_cast<float>(HarmonicCloud::kMaxPartials), r));
+        const auto userCount = static_cast<std::size_t>(std::clamp(
+            static_cast<int>(rounded), 1, static_cast<int>(HarmonicCloud::kMaxPartials)));
+        REQUIRE(userCount < VoragoVoice::kMinCloudCapacity);
+
+        // --- the voice: bloom off, mutation 0, ecosystem routed nowhere ---------
+        auto v = makeFastAttackVoice(kSeed);
+        v->setBloomDepth(0.0f);
+        BloomEngine& b = mutableBloom(*v);
+        makeBloomDeterministic(b);
+        b.setWake(0.0f);
+        v->setMutation(0.0f);
+        // The ecosystem's Partial lane sums onto mutation and bloom depth
+        // (vorago_voice.h:2133-2135); depth 0 keeps both at their bases.
+        v->setEcosystemDepth(0.0f);
+        v->setRichness(r);
+        v->noteOn(kFundamentalHz, 1.0f);
+        renderAndDiscard(*v, kSettleSamples);
+
+        const HarmonicCloud& vc = v->cloud();
+        INFO("richness " << r << ", N_user " << userCount << ", voice cloud active "
+                         << vc.getActivePartialCount() << ", voice cloud richness "
+                         << vc.getRichness() << ", target " << vc.hasSpectralTarget());
+        REQUIRE(v->getRichness() == r);
+        REQUIRE(vc.getMutation() == 0.0f);
+        REQUIRE(v->bloom().getLiveChildCount() == 0u);
+        // The floor is in force: this is what makes the case a floor test and
+        // not a restatement of the untargeted cloud.
+        REQUIRE(vc.getActivePartialCount() >= VoragoVoice::kMinCloudCapacity);
+
+        // --- the reference: a standalone cloud at r_user, same prepare and seed,
+        //     the voice's cloud configuration read back off its own getters, no
+        //     target --------------------------------------------------------------
+        HarmonicCloud ref;
+        ref.prepare(kSampleRate48);
+        ref.setSeed(Krate::DSP::deriveStreamSeed(kSeed, VoragoVoice::kCloudSalt));
+        REQUIRE(ref.getSeed() == vc.getSeed());
+        ref.setRichness(r);
+        ref.setSpectralTiltDb(vc.getSpectralTiltDb());
+        ref.setMutation(0.0f);
+        ref.setInharmonicity(vc.getInharmonicity());
+        ref.setSpectralGravity(vc.getSpectralGravity());
+        ref.setDriftDepthCents(vc.getDriftDepthCents());
+        ref.setDriftSmoothness(vc.getDriftSmoothness());
+        ref.setStereoSpread(vc.getStereoSpread());
+        ref.setAttackTimeSec(vc.getAttackTimeSec());
+        ref.setDecayTimeSec(vc.getDecayTimeSec());
+        ref.setEnvelopeOffsetSpread(vc.getEnvelopeOffsetSpread());
+        ref.setFundamentalHz(kFundamentalHz);
+        ref.noteOn();
+        {
+            std::vector<float> l(kSettleSamples, 0.0f);
+            std::vector<float> rr(kSettleSamples, 0.0f);
+            ref.processStereoBlock(l.data(), rr.data(), kSettleSamples);
+        }
+        REQUIRE_FALSE(ref.hasSpectralTarget());
+        REQUIRE(ref.getActivePartialCount() == userCount);
+
+        const float av0 = vc.getPartialCurrentAmplitude(0);
+        const float ar0 = ref.getPartialCurrentAmplitude(0);
+        INFO("slot 0: voice " << av0 << ", reference " << ar0);
+        REQUIRE(isFiniteBits(av0));
+        REQUIRE(isFiniteBits(ar0));
+        // Non-vacuity: the ratio's denominator is a sounding partial.
+        REQUIRE(av0 > BloomEngine::kSilentParentAmplitude);
+        REQUIRE(ar0 > BloomEngine::kSilentParentAmplitude);
+
+        // User slots: the ratio to slot 0 follows the unfloored user law.
+        for (std::size_t i = 0; i < userCount; ++i) {
+            const float av = vc.getPartialCurrentAmplitude(i);
+            const float ar = ref.getPartialCurrentAmplitude(i);
+            REQUIRE(isFiniteBits(av));
+            REQUIRE(isFiniteBits(ar));
+            REQUIRE(av > BloomEngine::kSilentParentAmplitude);
+            REQUIRE(ar > BloomEngine::kSilentParentAmplitude);
+            const double ratioV = static_cast<double>(av) / static_cast<double>(av0);
+            const double ratioR = static_cast<double>(ar) / static_cast<double>(ar0);
+            const double devDb = 20.0 * std::log10(ratioV / ratioR);
+            INFO("slot " << i << ": voice " << av << " (ratio " << ratioV << "), reference "
+                         << ar << " (ratio " << ratioR << "), deviation " << devDb << " dB");
+            REQUIRE(std::abs(devDb) <= kToleranceDb);
+        }
+
+        // Floor-only slots: present in the cloud's active range, never sounded.
+        for (std::size_t i = userCount; i < VoragoVoice::kMinCloudCapacity; ++i) {
+            const float av = vc.getPartialCurrentAmplitude(i);
+            INFO("floor-only slot " << i << ": voice amplitude " << av);
+            REQUIRE(isFiniteBits(av));
+            REQUIRE(std::abs(av) < BloomEngine::kSilentParentAmplitude);
+        }
+    }
+}
+
+// =============================================================================
+// Phase 13c T020 (FR-011, SC-008 (a)(b), per-push sentinel): bloom children are
+// AUDIBLE at every richness. Twin 48 kHz voices, identical but for the bloom:
+// the on-voice has a deterministic bloom (1 s fade-in, triggerBloom() the only
+// source) at the voice's prepared depth; the off-voice has bloom depth 0 and
+// wake 0. Mutation and ecosystem depth are 0 on both, so the per-chunk mutation
+// weight is exactly 1 and the Partial lane adds nothing onto either base
+// (vorago_voice.h:2133-2135).
+//   (a) every live, non-trivial child owns a slot inside the cloud's active
+//       range and the cloud actually sounds it (above kSilentParentAmplitude);
+//   (b) every non-latched parent slot below min(N_user, 8) keeps its ratio to
+//       slot 0 within 0.5 dB of the bloom-off twin - the FR-017 normaliser is
+//       one scalar for every slot, so only the ratio is asserted; the absolute
+//       per-parent drop is printed for the FR-040 record at kBloomChildGain.
+// Fails to compile until T023 adds kBloomChildGain; behaviourally fails on the
+// base tree because a child's slot lies at or above the cloud's active count
+// for r below ~0.626 (T007's log), so (a) reads a silent slot.
+// =============================================================================
+TEST_CASE("VoragoVoice_BloomChildrenAudible", "[systems][vorago]") {
+    constexpr std::uint32_t kSeed = 1u;
+    constexpr float kFundamentalHz = 55.0f;
+    constexpr std::size_t kAfterTriggerSamples = (kOneSecond48 * 16u) / 10u;  // 1.6 s
+    constexpr float kChildAudibleFloor = 1.0e-4f;
+    constexpr double kToleranceDb = 0.5;
+    constexpr std::size_t kNeutralSlotCap = 8u;
+    std::setvbuf(stdout, nullptr, _IONBF, 0);
+
+    // --- 1. the twins -------------------------------------------------------
+    auto on = makeFastAttackVoice(kSeed);
+    auto off = makeFastAttackVoice(kSeed);
+
+    BloomEngine& bOn = mutableBloom(*on);
+    makeBloomDeterministic(bOn);  // 1 s fade-in, 0 s hold, 1 s fade-out, no clock
+    REQUIRE(on->getBloomDepth() > 0.0f);
+    REQUIRE(bOn.getChildGain() == VoragoVoice::kBloomChildGain);
+
+    off->setBloomDepth(0.0f);
+    BloomEngine& bOff = mutableBloom(*off);
+    makeBloomDeterministic(bOff);
+    bOff.setWake(0.0f);
+
+    for (VoragoVoice* v : {on.get(), off.get()}) {
+        v->setMutation(0.0f);
+        v->setEcosystemDepth(0.0f);
+        v->noteOn(kFundamentalHz, 1.0f);
+    }
+    // Warm-up past the cloud's attack, so the bloom's parent scan
+    // (bloom_engine.h:1403-1418) sees sounding parents at the first trigger.
+    renderAndDiscard(*on, kOneSecond48);
+    renderAndDiscard(*off, kOneSecond48);
+
+    for (const float r : {0.0f, 0.35f, 0.40f, 0.70f, 1.0f}) {
+        // --- 2. richness change, 2 chunks, trigger, 1.6 s ----------------------
+        on->setRichness(r);
+        off->setRichness(r);
+        renderAndDiscard(*on, 2u * VoragoVoice::kControlChunkSamples);
+        renderAndDiscard(*off, 2u * VoragoVoice::kControlChunkSamples);
+        bOn.triggerBloom();
+        renderAndDiscard(*on, kAfterTriggerSamples);
+        renderAndDiscard(*off, kAfterTriggerSamples);
+
+        const HarmonicCloud& cOn = on->cloud();
+        const HarmonicCloud& cOff = off->cloud();
+        const std::size_t active = cOn.getActivePartialCount();
+
+        // The user's N(r), the cloud's expression verbatim (harmonic_cloud.h:1462-1463).
+        const float rounded =
+            std::round(std::pow(static_cast<float>(HarmonicCloud::kMaxPartials), r));
+        const auto userCount = static_cast<std::size_t>(std::clamp(
+            static_cast<int>(rounded), 1, static_cast<int>(HarmonicCloud::kMaxPartials)));
+
+        INFO("richness " << r << ", N_user " << userCount << ", on active " << active
+                         << ", off active " << cOff.getActivePartialCount() << ", on live "
+                         << on->bloom().getLiveChildCount() << ", off live "
+                         << off->bloom().getLiveChildCount() << ", reserveBase "
+                         << on->bloom().reserveBase());
+        REQUIRE(on->getRichness() == r);
+        REQUIRE(off->getRichness() == r);
+
+        // --- 3. (a) every live, non-trivial child sounds -----------------------
+        std::array<bool, HarmonicCloud::kMaxPartials> latchedParent{};
+        std::size_t passingFilterCount = 0u;
+        for (std::size_t i = 0; i < BloomEngine::kMaxChildren; ++i) {
+            const std::size_t slot = on->bloom().getChildSlotIndex(i);
+            if (slot == BloomEngine::kMaxSlots) {
+                continue;
+            }
+            const std::size_t parent = on->bloom().getChildParentIndex(i);
+            if (parent < latchedParent.size()) {
+                latchedParent[parent] = true;
+            }
+            const float childAmp = on->bloom().getChildAmplitude(i);
+            REQUIRE(Krate::DSP::detail::isFinite(childAmp));
+            if (!(childAmp > kChildAudibleFloor)) {
+                continue;
+            }
+            ++passingFilterCount;
+            INFO("child " << i << ": slot " << slot << ", parent " << parent << ", childAmp "
+                          << childAmp << ", active " << active);
+            REQUIRE(slot < active);
+            const float cloudAmp = cOn.getPartialCurrentAmplitude(slot);
+            REQUIRE(Krate::DSP::detail::isFinite(cloudAmp));
+            INFO("cloud amplitude at slot " << slot << ": " << cloudAmp);
+            REQUIRE(cloudAmp > BloomEngine::kSilentParentAmplitude);
+        }
+
+        // --- 5. non-vacuity -----------------------------------------------------
+        std::printf("  [bloom audible] richness %.2f: N_user %zu, active %zu, children passing "
+                    "the filter %zu\n",
+                    static_cast<double>(r), userCount, active, passingFilterCount);
+        REQUIRE(passingFilterCount >= 1u);
+
+        // --- 4. (b) non-latched parents keep their ratio to slot 0 -------------
+        const float aOn0 = cOn.getPartialCurrentAmplitude(0);
+        const float aOff0 = cOff.getPartialCurrentAmplitude(0);
+        REQUIRE(Krate::DSP::detail::isFinite(aOn0));
+        REQUIRE(Krate::DSP::detail::isFinite(aOff0));
+        REQUIRE(aOn0 > BloomEngine::kSilentParentAmplitude);
+        REQUIRE(aOff0 > BloomEngine::kSilentParentAmplitude);
+
+        const std::size_t neutralCount = std::min(userCount, kNeutralSlotCap);
+        for (std::size_t i = 0; i < neutralCount; ++i) {
+            const float aOn = cOn.getPartialCurrentAmplitude(i);
+            const float aOff = cOff.getPartialCurrentAmplitude(i);
+            REQUIRE(Krate::DSP::detail::isFinite(aOn));
+            REQUIRE(Krate::DSP::detail::isFinite(aOff));
+            REQUIRE(aOn > 0.0f);
+            REQUIRE(aOff > 0.0f);
+
+            // --- 6. the absolute per-parent drop, FR-040 record ---------------
+            const double dropDb =
+                20.0 * std::log10(static_cast<double>(aOn) / static_cast<double>(aOff));
+            std::printf("    [bloom audible] richness %.2f slot %zu%s: on %.6g off %.6g, "
+                        "drop %.3f dB at kBloomChildGain %.3f\n",
+                        static_cast<double>(r), i, latchedParent[i] ? " (latched parent)" : "",
+                        static_cast<double>(aOn), static_cast<double>(aOff), dropDb,
+                        static_cast<double>(VoragoVoice::kBloomChildGain));
+
+            if (latchedParent[i]) {
+                continue;
+            }
+            const double ratioOn = static_cast<double>(aOn) / static_cast<double>(aOn0);
+            const double ratioOff = static_cast<double>(aOff) / static_cast<double>(aOff0);
+            const double devDb = 20.0 * std::log10(ratioOn / ratioOff);
+            INFO("slot " << i << ": on " << aOn << " (ratio " << ratioOn << "), off " << aOff
+                         << " (ratio " << ratioOff << "), deviation " << devDb << " dB");
+            REQUIRE(std::abs(devDb) <= kToleranceDb);
+        }
+    }
+}
+
+// =============================================================================
+// Phase 13c T021 (FR-011 edges, plan section 2.1 one-chunk lag): crossing the
+// cloud richness floor is click-free in both directions. Below the floor the
+// cloud keeps kCloudRichnessFloor's active count and the voice engages a
+// spectral target to sound the user's law; above it the target clears through
+// the cloud's smoother. The cloud's count moves one chunk after setRichness, so
+// each edge is a target set/clear plus a count change. Default voice at 48 kHz,
+// bloom on at its prepared depth, sustained; richness 0.70 -> 0.40 -> 0.70,
+// each held 2 s. At each edge the largest sample-to-sample step over the 50 ms
+// after the change must stay within 1.5x the same statistic over the 50 ms
+// before it - VoragoVoice_SpectralTargetEdge's statistic (VF::maxDeltaInWindow)
+// and its renderLeft helper, reused rather than copied.
+// Fails to compile until T023 adds kCloudRichnessFloor.
+// =============================================================================
+TEST_CASE("VoragoVoice_CloudFloorEdge", "[systems][vorago]") {
+    constexpr std::size_t kWindow = 2400;  // 50 ms at 48 kHz
+    constexpr std::size_t kHold = 2u * kOneSecond48;
+    constexpr double kEdgeFactor = 1.5;
+    constexpr float kAbove = 0.70f;
+    constexpr float kBelow = 0.40f;
+    static_assert(kBelow < VoragoVoice::kCloudRichnessFloor);
+    static_assert(kAbove > VoragoVoice::kCloudRichnessFloor);
+
+    auto v = makeFastAttackVoice(0xF100EDu);
+    REQUIRE(v->getBloomDepth() > 0.0f);  // bloom on, the prepared default
+    v->setRichness(kAbove);
+    v->noteOn(55.0f, 1.0f);
+    renderAndDiscard(*v, kOneSecond48);  // settle past the cloud attack and the ecology fill
+
+    const auto edgeAt = [&](float r, const char* label) {
+        // The hold before the edge; its last 50 ms is the pre-edge window.
+        renderAndDiscard(*v, kHold - kWindow);
+        const std::vector<float> pre = renderLeft(*v, kWindow);
+        const double preMax = VF::maxDeltaInWindow(std::span<const float>(pre), kWindow);
+
+        v->setRichness(r);
+        const std::vector<float> post = renderLeft(*v, kWindow);
+        const double postMax = VF::maxDeltaInWindow(std::span<const float>(post), kWindow);
+
+        const std::size_t active = v->cloud().getActivePartialCount();
+        INFO(label << " edge to r " << r << ": pre " << preMax << ", edge " << postMax
+                   << ", active " << active << ", live children "
+                   << v->bloom().getLiveChildCount() << ", target "
+                   << v->cloud().hasSpectralTarget());
+        REQUIRE(Krate::DSP::detail::isFinite(preMax));
+        REQUIRE(Krate::DSP::detail::isFinite(postMax));
+        REQUIRE(preMax > 0.0);
+        REQUIRE(v->getRichness() == r);
+        REQUIRE(active >= VoragoVoice::kMinCloudCapacity);
+        REQUIRE(postMax <= kEdgeFactor * preMax);
+    };
+
+    edgeAt(kBelow, "down");
+    // Below the floor the cloud runs more partials than the user's law, so the
+    // voice must be shaping it with a target (plan section 2.1, wantTarget).
+    REQUIRE(v->cloud().hasSpectralTarget());
+    edgeAt(kAbove, "up");
+}
+
+// ==============================================================================
+// Phase 13c T037 (FR-017): the L4 ecology wet make-up is a voice-owned constant
+// installed on FeedbackEcology's wet trim at prepare(). FeedbackEcology::reset()
+// keeps the configured wet gain (feedback_ecology.h:878 re-snaps the ramp to
+// wetGainDb_), so the make-up must survive VoragoVoice::reset() too.
+// ==============================================================================
+TEST_CASE("VoragoVoice_EcologyWetMakeupInstalled", "[systems][vorago]") {
+    auto v = std::make_unique<VoragoVoice>();
+    v->prepare(kSampleRate48, VoragoVoiceConfig{});
+    INFO("wet gain after prepare " << v->ecology().getWetGain() << " dB, make-up "
+                                   << VoragoVoice::kEcologyWetMakeupDb << " dB");
+    REQUIRE(v->ecology().getWetGain()
+            == Catch::Approx(VoragoVoice::kEcologyWetMakeupDb).margin(1e-4));
+
+    (*v).reset();
+    INFO("wet gain after reset " << v->ecology().getWetGain() << " dB");
+    REQUIRE(v->ecology().getWetGain()
+            == Catch::Approx(VoragoVoice::kEcologyWetMakeupDb).margin(1e-4));
+}
+
+// ==============================================================================
+// Phase 13c T041 (FR-016 option (b), SC-004): the shaped stage-0 attack.
+//
+// Stage 0 runs Linear and the voice raises its phase to kAttackShapePower, so
+// the excitation gain is e0 + span * u^n with u the linear stage-0 phase. From
+// Idle e0 = 0 and the stage-0 level is 1.0, so the gain first reaches the
+// RMS(Sus) - 6 dB envelope figure 0.426 (= 0.85 * 0.501, plan section 2.5) at
+// t/T = 0.426^(1/n). The base Exponential curve reaches it at ~0.27 T and Linear
+// at 0.426 T, so both fail arm 1 for every ladder rung n >= 4.
+//
+// GRANULARITY. getEnvelopeOutput() is the LAST gain the chunk applied
+// (vorago_voice.h renderOneChunk step 5), so the voice is observable once per
+// 64-sample control chunk and every reading below is one chunk apart. A
+// per-CHUNK |delta| < 1e-3 is the stricter form of the per-sample bound on a
+// monotone segment, and a discontinuity at a stage boundary persists past the
+// chunk end, so it cannot hide inside one.
+//
+// The whole default walk (20 + 30 + 45 + 60 s) is rendered once and analysed
+// after the fact; the wall clock is printed. The four arms are plain scopes,
+// not SECTIONs: Catch2 re-runs the case body per SECTION, which would render
+// the 165 s walk four times.
+// ==============================================================================
+TEST_CASE("VoragoVoice_AttackCurveReach", "[systems][vorago]") {
+    constexpr float kVelocity = 0.8f;
+    constexpr float kNoteHz = 110.0f;
+    constexpr double kReachLevel = 0.426;
+    constexpr std::size_t kChunk = VoragoVoice::kControlChunkSamples;
+    constexpr double kChunksPerSecond = kSampleRate48 / static_cast<double>(kChunk);  // 750
+    const int n = VoragoVoice::kAttackShapePower;
+    REQUIRE(n >= 1);
+
+    auto voice = std::make_unique<VoragoVoice>();
+    voice->prepare(kSampleRate48, VoragoVoiceConfig{});
+    REQUIRE(voice->getEnvelopeMode() == VoragoVoice::EnvelopeMode::Standard);
+
+    const double stage0Seconds =
+        static_cast<double>(voice->getEnvelopeStageTimeMs(0)) * 0.001;  // T = 20 s
+    REQUIRE(stage0Seconds == Catch::Approx(20.0));
+    double walkSeconds = 0.0;
+    for (int st = 0; st < VoragoVoice::kEnvelopeSustainPoint; ++st) {
+        walkSeconds += static_cast<double>(voice->getEnvelopeStageTimeMs(st)) * 0.001;
+    }
+    REQUIRE(walkSeconds == Catch::Approx(155.0));
+
+    // Arm 4's two legato note-ons: one 5 s before stage 3 completes (Running,
+    // the gain settling onto the 0.85 stage level), one 5 s into the
+    // sustain hold. A note-on the voice turned into a stage-0 re-entry would drop
+    // the gain towards e0 and walk stage 0 again.
+    const auto runningNoteOnChunk =
+        static_cast<std::size_t>(std::llround((walkSeconds - 5.0) * kChunksPerSecond));
+    const auto sustainNoteOnChunk =
+        static_cast<std::size_t>(std::llround((walkSeconds + 5.0) * kChunksPerSecond));
+    const auto totalChunks =
+        static_cast<std::size_t>(std::llround((walkSeconds + 10.0) * kChunksPerSecond));
+
+    std::vector<float> gain;
+    std::vector<int> stage;
+    std::vector<MultiStageEnvState> state;
+    gain.reserve(totalChunks);
+    stage.reserve(totalChunks);
+    state.reserve(totalChunks);
+
+    std::array<float, kChunk> l{};
+    std::array<float, kChunk> r{};
+    MultiStageEnvState stateBeforeRunningNoteOn = MultiStageEnvState::Idle;
+    int stageBeforeRunningNoteOn = -1;
+    MultiStageEnvState stateBeforeSustainNoteOn = MultiStageEnvState::Idle;
+
+    const auto wallStart = std::chrono::steady_clock::now();
+    voice->noteOn(kNoteHz, kVelocity);
+    for (std::size_t c = 0; c < totalChunks; ++c) {
+        if (c == runningNoteOnChunk) {
+            stateBeforeRunningNoteOn = voice->envelope().getState();
+            stageBeforeRunningNoteOn = voice->envelope().getCurrentStage();
+            voice->noteOn(kNoteHz, kVelocity);
+        }
+        if (c == sustainNoteOnChunk) {
+            stateBeforeSustainNoteOn = voice->envelope().getState();
+            voice->noteOn(kNoteHz, kVelocity);
+        }
+        voice->processStereoBlock(l.data(), r.data(), kChunk);
+        gain.push_back(voice->getEnvelopeOutput() / kVelocity);
+        stage.push_back(voice->envelope().getCurrentStage());
+        state.push_back(voice->envelope().getState());
+    }
+    const double wallSeconds =
+        std::chrono::duration<double>(std::chrono::steady_clock::now() - wallStart).count();
+    std::printf("VoragoVoice_AttackCurveReach: n = %d, %.1f s rendered in %.2f s wall\n", n,
+                static_cast<double>(totalChunks) / kChunksPerSecond, wallSeconds);
+
+    REQUIRE(std::all_of(gain.begin(), gain.end(), [](float g) { return isFiniteBits(g); }));
+
+    // The first chunk whose reading lies past stage @p from (a later stage, or the
+    // sustain hold): the reading taken right after stage @p from completed and
+    // snapped to its level.
+    const auto firstChunkPast = [&](int from) -> std::size_t {
+        for (std::size_t c = 0; c < gain.size(); ++c) {
+            if (stage[c] > from || state[c] == MultiStageEnvState::Sustaining) {
+                return c;
+            }
+        }
+        return gain.size();
+    };
+    // The worst per-chunk |delta| over [centre - halfWidth, centre + halfWidth].
+    const auto maxDeltaAround = [&](std::size_t centre, std::size_t halfWidth) {
+        const std::size_t lo = std::max<std::size_t>(
+            (centre > halfWidth) ? centre - halfWidth : std::size_t{1}, std::size_t{1});
+        const std::size_t hi = std::min(gain.size() - 1u, centre + halfWidth);
+        float worst = 0.0f;
+        for (std::size_t c = lo; c <= hi; ++c) {
+            worst = std::max(worst, std::abs(gain[c] - gain[c - 1u]));
+        }
+        return worst;
+    };
+
+    {
+        INFO("1. the shaped gain first reaches 0.426 at t/T = 0.426^(1/n) +/- 0.02");
+        std::size_t reachChunk = gain.size();
+        for (std::size_t c = 0; c < gain.size(); ++c) {
+            if (static_cast<double>(gain[c]) >= kReachLevel) {
+                reachChunk = c;
+                break;
+            }
+        }
+        REQUIRE(reachChunk < gain.size());
+        // The reading of chunk c is the gain after (c + 1) * 64 envelope samples.
+        const double reachSeconds =
+            static_cast<double>((reachChunk + 1u) * kChunk) / kSampleRate48;
+        const double reachFraction = reachSeconds / stage0Seconds;
+        const double expected = std::pow(kReachLevel, 1.0 / static_cast<double>(n));
+        INFO("n = " << n << ": reach " << reachSeconds << " s = " << reachFraction
+                    << " T, expected " << expected << " T");
+        REQUIRE(stage[reachChunk] == 0);
+        REQUIRE(state[reachChunk] == MultiStageEnvState::Running);
+        REQUIRE(reachFraction == Catch::Approx(expected).margin(0.02));
+    }
+
+    {
+        INFO("2. continuous across the stage-0 -> stage-1 boundary");
+        const std::size_t boundary = firstChunkPast(0);
+        REQUIRE(boundary < gain.size());
+        REQUIRE(boundary > 0u);
+        REQUIRE(stage[boundary] == 1);
+        // One second of chunks either side of the snap.
+        const float worst =
+            maxDeltaAround(boundary, static_cast<std::size_t>(kChunksPerSecond));
+        INFO("stage 0 -> 1 at " << static_cast<double>(boundary) / kChunksPerSecond
+                                << " s: last stage-0 gain " << gain[boundary - 1u]
+                                << ", first stage-1 gain " << gain[boundary]
+                                << ", worst per-chunk |delta| " << worst);
+        REQUIRE(gain[boundary] == Catch::Approx(1.0).margin(1e-4));
+        REQUIRE(worst < 1.0e-3f);
+    }
+
+    {
+        INFO("3. stages 1-3 are unchanged: each boundary reads its stage level");
+        for (int st = 1; st <= 3; ++st) {
+            const std::size_t boundary = firstChunkPast(st);
+            const float level = voice->getEnvelopeStageLevel(st);
+            INFO("stage " << st << " -> " << st + 1 << " at "
+                          << static_cast<double>(boundary) / kChunksPerSecond << " s: gain "
+                          << (boundary < gain.size() ? gain[boundary] : -1.0f)
+                          << ", stage level " << level);
+            REQUIRE(boundary < gain.size());
+            REQUIRE(gain[boundary] == Catch::Approx(level).margin(1e-4));
+        }
+    }
+
+    {
+        INFO("4. a legato note-on never re-enters stage 0 and stays continuous");
+        // While Running (late stage 3, the gain settling onto 0.85).
+        INFO("running note-on gain " << gain[runningNoteOnChunk - 1u] << " -> "
+                                     << gain[runningNoteOnChunk]);
+        REQUIRE(stateBeforeRunningNoteOn == MultiStageEnvState::Running);
+        REQUIRE(stageBeforeRunningNoteOn == 3);
+        REQUIRE(gain[runningNoteOnChunk - 1u] == Catch::Approx(0.85).margin(0.02));
+        REQUIRE(state[runningNoteOnChunk] == MultiStageEnvState::Running);
+        REQUIRE(stage[runningNoteOnChunk] == 3);
+        REQUIRE(maxDeltaAround(runningNoteOnChunk, 2u) < 1.0e-3f);
+
+        // While Sustaining at 0.85.
+        INFO("sustain note-on gain " << gain[sustainNoteOnChunk - 1u] << " -> "
+                                     << gain[sustainNoteOnChunk]);
+        REQUIRE(stateBeforeSustainNoteOn == MultiStageEnvState::Sustaining);
+        REQUIRE(gain[sustainNoteOnChunk - 1u] == Catch::Approx(0.85).margin(1e-4));
+        REQUIRE(state[sustainNoteOnChunk] == MultiStageEnvState::Sustaining);
+        REQUIRE(maxDeltaAround(sustainNoteOnChunk, 2u) < 1.0e-3f);
+
+        // No reading from the running note-on onwards is back in stage 0.
+        REQUIRE(std::none_of(stage.begin() + static_cast<std::ptrdiff_t>(runningNoteOnChunk),
+                             stage.end(), [](int st) { return st == 0; }));
+    }
+}
+
+// ==============================================================================
+// Phase 13c T042 (FR-016 tracking, plan section 2.5): the audible attack of the
+// WHOLE default voice tracks the registered stage-0 time.
+//
+// T041 pins the shaped envelope; this case reads the OUTPUT, where the
+// resonance, ecology and body tails pull the reach earlier than the envelope's.
+// Every section sits at its prepare() value; no engine, no cavern. The control
+// clock runs at kIdentitySampleRate8k: the stage times are in seconds, so 8 kHz
+// covers the same 180 s walk in one sixth of the samples.
+//
+// The measure is the probe's P_rev reach line (preset_test_support.h
+// firstSecondAtOrAbove): one-second stereo windows from t = 0, each the mean of
+// the per-channel powers, and the reach is the START of the first window at or
+// above RMS(Sus) - 6 dB. RMS(Sus) is the same stereo power over the sustain
+// stage, which begins once stages 0-3 have walked (155 s on the default). The
+// tracking bound is [0.75 * T0, T0] with T0 the registered stage-0 time (20 s).
+// The base Exponential curve reaches at about 6 s, so this is red before T044.
+// ==============================================================================
+TEST_CASE("VoragoVoice_AttackTracksStageTime", "[systems][vorago]") {
+    constexpr float kVelocity = 0.8f;
+    constexpr float kNoteHz = 110.0f;
+    constexpr double kReachBelowSusDb = 6.0;
+    constexpr double kRenderSeconds = 180.0;
+    constexpr double kTrackingFloor = 0.75;
+    constexpr std::size_t kChunk = VoragoVoice::kControlChunkSamples;
+    const double sr = kIdentitySampleRate8k;
+    const auto oneSecond = static_cast<std::size_t>(sr);
+
+    auto voice = makeIdentityVoice(1u, sr);
+    REQUIRE(voice->getEnvelopeMode() == VoragoVoice::EnvelopeMode::Standard);
+
+    const double t0Seconds = static_cast<double>(voice->getEnvelopeStageTimeMs(0)) * 0.001;
+    REQUIRE(t0Seconds == Catch::Approx(20.0));
+    double walkSeconds = 0.0;
+    for (int st = 0; st < VoragoVoice::kEnvelopeSustainPoint; ++st) {
+        walkSeconds += static_cast<double>(voice->getEnvelopeStageTimeMs(st)) * 0.001;
+    }
+    // At least 10 s of sustain to take RMS(Sus) over.
+    REQUIRE(walkSeconds + 10.0 <= kRenderSeconds);
+
+    const auto totalSamples = static_cast<std::size_t>(std::llround(kRenderSeconds * sr));
+    std::vector<float> outL(totalSamples, 0.0f);
+    std::vector<float> outR(totalSamples, 0.0f);
+
+    const auto wallStart = std::chrono::steady_clock::now();
+    voice->noteOn(kNoteHz, kVelocity);
+    for (std::size_t pos = 0; pos < totalSamples; pos += kChunk) {
+        const std::size_t n = std::min(kChunk, totalSamples - pos);
+        voice->processStereoBlock(outL.data() + pos, outR.data() + pos, n);
+    }
+    const double wallSeconds =
+        std::chrono::duration<double>(std::chrono::steady_clock::now() - wallStart).count();
+
+    REQUIRE(std::all_of(outL.begin(), outL.end(), [](float s) { return isFiniteBits(s); }));
+    REQUIRE(std::all_of(outR.begin(), outR.end(), [](float s) { return isFiniteBits(s); }));
+
+    // Stereo dB of [begin, end): the mean of the two channels' mean-square powers.
+    const auto stereoDb = [&](std::size_t begin, std::size_t end) {
+        double sumL = 0.0;
+        double sumR = 0.0;
+        for (std::size_t i = begin; i < end; ++i) {
+            sumL += static_cast<double>(outL[i]) * static_cast<double>(outL[i]);
+            sumR += static_cast<double>(outR[i]) * static_cast<double>(outR[i]);
+        }
+        const double count = static_cast<double>(std::max<std::size_t>(end - begin, 1u));
+        const double p = ((sumL / count) + (sumR / count)) / 2.0;
+        return 10.0 * std::log10(std::max(p, 1e-30));
+    };
+
+    // The sustain stage, snapped inward to whole samples.
+    const auto susBegin = static_cast<std::size_t>(std::ceil(walkSeconds * sr));
+    const double susDb = stereoDb(susBegin, totalSamples);
+    const double targetDb = susDb - kReachBelowSusDb;
+
+    std::optional<double> reachSeconds;
+    for (std::size_t b = 0; (b + 1u) * oneSecond <= totalSamples; ++b) {
+        if (stereoDb(b * oneSecond, (b + 1u) * oneSecond) >= targetDb) {
+            reachSeconds = static_cast<double>(b);
+            break;
+        }
+    }
+
+    std::printf("VoragoVoice_AttackTracksStageTime: n = %d, RMS(Sus) %.2f dB, reach %s%.1f s "
+                "(bound [%.1f, %.1f] s), %.1f s rendered in %.2f s wall\n",
+                VoragoVoice::kAttackShapePower, susDb, reachSeconds.has_value() ? "" : "none ",
+                reachSeconds.value_or(-1.0), kTrackingFloor * t0Seconds, t0Seconds,
+                kRenderSeconds, wallSeconds);
+
+    INFO("RMS(Sus) " << susDb << " dB over [" << walkSeconds << ", " << kRenderSeconds
+                     << "] s; reach target " << targetDb << " dB; reach "
+                     << reachSeconds.value_or(-1.0) << " s; T0 " << t0Seconds << " s");
+    REQUIRE(susDb > -120.0);
+    REQUIRE(reachSeconds.has_value());
+    REQUIRE(*reachSeconds >= kTrackingFloor * t0Seconds);
+    REQUIRE(*reachSeconds <= t0Seconds);
 }

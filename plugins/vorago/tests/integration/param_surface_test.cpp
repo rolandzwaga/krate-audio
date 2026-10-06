@@ -222,7 +222,10 @@ struct MacroArm {
 }
 
 /// Note 36 velocity 100 at sample 0, `pc` in block 0, 4 s in 512-sample blocks.
+/// Stage 0 is shortened first (FR-034 A6 / A8: a 4 s script inside the ruled
+/// 20 s attack); fourSecondSpec() shortens the reference chain identically.
 void renderFourSeconds(VoragoTest::ProcessorFixture& fx, Steinberg::Vst::IParameterChanges* pc) {
+    fx.shortenStage0();
     Krate::Test::EventList ev;
     ev.addNoteOn(36, kVelocity100, 0);
     fx.reserveCapture(fx.capturedL.size() + kFourSeconds);
@@ -237,6 +240,7 @@ void renderFourSeconds(VoragoTest::ProcessorFixture& fx, Steinberg::Vst::IParame
     spec.sampleRate = kSampleRate;
     spec.totalSamples = kFourSeconds;
     spec.blockSize = kBlock;
+    spec.stage0TimeMs = VoragoTest::shortStage0PlainMs();  // == renderFourSeconds (FR-034)
     spec.notes.push_back(VoragoTest::RefChainNote{.at = 0, .note = 36, .velocity = 100, .on = true});
     return spec;
 }
@@ -465,6 +469,7 @@ struct InvarianceRun {
 
     VoragoTest::ProcessorFixture fx;
     fx.prepare(kSampleRate, static_cast<Steinberg::int32>(block));
+    fx.shortenStage0();  // FR-034 A7: a 4 s script inside the ruled 20 s attack
     fx.reserveCapture(kFourSeconds + block);
 
     VoragoTest::MultiParamChanges pc;

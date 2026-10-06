@@ -1,0 +1,9 @@
+START 2026-10-02 14:20:49 attack tests at kAttackShapePower 5 exe=2026-10-02 14:20:09
+Filters: "VoragoVoice_AttackCurveReach","VoragoVoice_AttackTracksStageTime"
+Randomness seeded to: 3941102946
+VoragoVoice_AttackCurveReach: n = 5, 165.0 s rendered in 12.72 s wall
+VoragoVoice_AttackTracksStageTime: n = 5, RMS(Sus) -21.45 dB, reach 19.0 s (bound [15.0, 20.0] s), 180.0 s rendered in 2.33 s wall
+===============================================================================
+All tests passed (40 assertions in 2 test cases)
+
+exit=0 END 2026-10-02 14:21:05

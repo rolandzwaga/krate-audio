@@ -227,6 +227,10 @@ class SustainRig {
 public:
     SustainRig() {
         fx_.prepare(kRigSampleRate, static_cast<Steinberg::int32>(kRigBlock));
+        // FR-034 A13 (fr034_surfaced.md rule 1): holdUntilAudible is a precondition, not
+        // an attack measurement; under the ruled 20 s shaped attack plus the B-12 breath
+        // gravity gain the default voice no longer clears -90 dBFS inside the 4 s cap.
+        fx_.shortenStage0();
         fx_.reserveCapture(kRigBlock);
         pc_.reserve(4);
     }

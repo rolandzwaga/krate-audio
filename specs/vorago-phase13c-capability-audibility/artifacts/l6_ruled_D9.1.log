@@ -1,0 +1,16 @@
+START 2026-10-02 23:01:34 Sudden Chasm as compiled (kAttackShapePower = 4 kBreathGravityLaneGain = 3.0f kTidalFogLaneGain = 1.0f kTidalRate = 0.8f ; child gain 1.5, ghost 21/1.2, ecology 30/36; no lever env) env:  exe=2026-10-02 22:11:55
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 2129455523
+[probe] lever: none
+[probe] Sudden Chasm - primary D9.1 attack span <= 10 s (stored seed 5, 1 twin render(s))
+  take: peak 0.2510  arm1 hi -20.68 dB [yes]  arm2 lo -22.19 dB [yes]  arm3 late-sus -0.37 dB [yes]  arm4 tail -234.28 dB [yes]
+  arm1@44.1k: finite y peak 0.2544 hi -20.62 dB [PASS]
+  attack window (W_end registered 25.0 s, measured 23.0 s): d_att 9.6066, d_Sus 4.3035 (attributable iff d_att >= 5.8035)
+    P: first reaches RMS(Sus) - 6 dB at 4 s
+    P_rev: first reaches RMS(Sus) - 6 dB at 18 s
+  primary d 9.6066  bar 4.0000  attribBase 4.3035  state ok  -> PASS  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (9 assertions in 1 test case)
+
+exit=0 END 2026-10-02 23:03:22

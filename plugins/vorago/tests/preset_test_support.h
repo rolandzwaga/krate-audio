@@ -292,6 +292,10 @@ struct RenderSpec {
     double freezeAt = -1;              ///< >= 0: kSpaceFreezeId -> 1.0, first block starting at/after
     double end = 0.0;                  ///< render length
     std::vector<std::pair<double, double>> capture;  ///< [start, end) windows copied out
+    /// Phase 13c measurement seam (plan 2.9, ruling P2; T066): when set, applied to
+    /// the engine after loadState and before block 0; empty (the default) changes
+    /// nothing. Never set for a gate reading (FR-026 reads the compiled constants).
+    std::function<void(Krate::DSP::VoragoEngine&)> engineTweak{};
 };
 
 struct SweepCapture {
@@ -299,6 +303,10 @@ struct SweepCapture {
     float peak = 0.0f;   ///< stereo absolute peak
     std::vector<double> blockPowerL, blockPowerR;  ///< one sum of squares per 512-sample block
     std::vector<std::vector<float>> capL, capR;    ///< one entry per capture window
+    /// false: an engineTweak was set and a lever getter read differently after
+    /// block 0 than right after the tweak (block 0's parameter changes overrode
+    /// it), or the engine was unavailable. Always true with no tweak (plan 2.9).
+    bool tweakHeld = true;
 };
 
 namespace detail {
@@ -306,6 +314,14 @@ namespace detail {
 inline constexpr Steinberg::int32 kRenderBlock = 512;
 inline constexpr float kRenderVelocity100 = 100.0f / 127.0f;  // quantises to 100
 inline constexpr int kPolyphonyChoices = 6;                   // kPolyphonyId: 1..6 voices
+
+/// The plan 2.9 lever getters (vorago_engine.h getBloomChildGain,
+/// getEcologyWetMakeupDb, getGhostDensity, getGhostTapMakeupDb), read to verify
+/// an engineTweak held across block 0.
+[[nodiscard]] inline std::array<float, 4> readTweakLevers(const Krate::DSP::VoragoEngine& e) noexcept {
+    return {e.getBloomChildGain(), e.getEcologyWetMakeupDb(), e.getGhostDensity(),
+            e.getGhostTapMakeupDb()};
+}
 
 }  // namespace detail
 
@@ -349,6 +365,21 @@ inline constexpr int kPolyphonyChoices = 6;                   // kPolyphonyId: 1
     if (!spec.comp.empty() && host.loadState(spec.comp) != Steinberg::kResultOk) {
         out.finite = false;
         return out;
+    }
+
+    // Plan 2.9 tweak: after loadState, before block 0; re-read after block 0.
+    const Krate::DSP::VoragoEngine* tweaked = nullptr;
+    std::array<float, 4> leversAfterTweak{};
+    if (spec.engineTweak) {
+        Krate::DSP::VoragoEngine* engine = host.engineForTweak();
+        if (engine == nullptr) {
+            out.finite = false;
+            out.tweakHeld = false;
+            return out;
+        }
+        spec.engineTweak(*engine);
+        tweaked = engine;
+        leversAfterTweak = detail::readTweakLevers(*engine);
     }
 
     const long long noteOffSample =
@@ -416,6 +447,11 @@ inline constexpr int kPolyphonyChoices = 6;                   // kPolyphonyId: 1
         }
         out.blockPowerL.push_back(powL);
         out.blockPowerR.push_back(powR);
+
+        if (start == 0 && tweaked != nullptr &&
+            detail::readTweakLevers(*tweaked) != leversAfterTweak) {
+            out.tweakHeld = false;
+        }
 
         for (std::size_t w = 0; w < windows.size(); ++w) {
             const long long a = std::max(windows[w].first, start);
@@ -1282,9 +1318,10 @@ namespace VoragoTest {
 /// One take of the K-take main render (plan 5.8, 6.3): its seed, arm figures, the
 /// arm 1-4 verdicts (T034; the Freeze-On arm 4 reads window figures the record
 /// does not keep, so the verdicts are recorded) and the three minute descriptors
-/// M1..M3. `attack` is the plan 6.8 D_att of [0, W_end], present only when the
-/// take was rendered with an attack window; it is consumed in-process (T035) and
-/// is NOT written to the record.
+/// M1..M3. `attackCapL` / `attackCapR` are the [0, W_end] capture (registered
+/// bound, plan 6.8), non-empty only when the take was rendered with an attack
+/// window; D_att is taken from them by the scorer over the measured-reach window
+/// (FR-016 (b), plan 3.3). They are consumed in-process and NOT written to the record.
 struct TakeRecord {
     int seedIndex = -1;
     bool finite = false;
@@ -1295,7 +1332,7 @@ struct TakeRecord {
     double tailDb = 0.0;
     std::array<bool, 4> armPass{};  ///< arms 1..4 (plan 6.3)
     std::array<PresetDescriptor, 3> minutes{};
-    std::optional<PresetDescriptor> attack;
+    std::vector<float> attackCapL, attackCapR;  ///< FR-016 (b): the [0, W_end] capture
     // In-process only (T035), NOT written to the record: RMS(Sus) of this take
     // (the plan 6.8 floorDb = susDb - 60 for P_rev too) and, with an attack
     // window, the printed time to first reach RMS(Sus) - 6 dB (plan 6.8).
@@ -1814,6 +1851,19 @@ inline constexpr double kWindowEpsilonSeconds = 1e-9;
     return std::nullopt;
 }
 
+/// FR-016 (b), plan 3.3: D_att (describeWithEnergyFloor at `floorDb`) of the
+/// first round(wMeas * sr) samples of a [0, W_end] capture, clamped to its length.
+[[nodiscard]] inline PresetDescriptor measuredAttackDescriptor(std::span<const float> L,
+                                                               std::span<const float> R,
+                                                               double wMeas, double sr,
+                                                               double floorDb) {
+    const double want = std::max(0.0, std::round(wMeas * sr));
+    const std::size_t have = std::min(L.size(), R.size());
+    const std::size_t n =
+        (want < static_cast<double>(have)) ? static_cast<std::size_t>(want) : have;
+    return describeWithEnergyFloor(L.first(n), R.first(n), sr, floorDb);
+}
+
 }  // namespace detail
 
 /// Plan 6.2: "every 10 s window over [a, b]" = k = floor((b - a) / 10) full
@@ -2008,8 +2058,9 @@ struct ArmResult {
 /// One ungestured take of `comp` on `tl` at 48 kHz: NoteOn 36 at 0 (seed index
 /// `seedIndex` at block 0), NoteOff at H, rendered to Total; captures M1..M3 and,
 /// when `attackWindowEnd` is set, [0, W_end] (plan 6.8). Fills the arm figures and
-/// verdicts, the three minute descriptors and, with an attack window, D_att with
-/// floorDb = RMS(Sus) - 60 dB of this take.
+/// verdicts, the three minute descriptors and, with an attack window, the
+/// [0, W_end] capture and its first reach of RMS(Sus) - 6 dB (FR-016 (b): D_att is
+/// taken by the scorer over the measured-reach window, plan 3.3).
 [[nodiscard]] inline TakeRecord renderTake(const std::vector<std::uint8_t>& comp,
                                            const SweepTimeline& tl, int seedIndex,
                                            std::optional<double> attackWindowEnd) {
@@ -2050,10 +2101,10 @@ struct ArmResult {
                               spec.sr);
     t.susDb = arms.susDb;
     if (attackWindowEnd.has_value() && cap.capL.size() > 3u && !cap.capL[3].empty()) {
-        t.attack = describeWithEnergyFloor(cap.capL[3], cap.capR[3], spec.sr,
-                                           arms.susDb - kAttackFloorBelowSusDb);
         t.attackReachSeconds = detail::firstSecondAtOrAbove(
             cap.capL[3], cap.capR[3], spec.sr, arms.susDb - kAttackReachBelowSusDb);
+        t.attackCapL = cap.capL[3];
+        t.attackCapR = cap.capR[3];
     }
     return t;
 }
@@ -2104,6 +2155,9 @@ inline constexpr std::string_view kSkipStateOnly = "state-only kind";
 inline constexpr std::string_view kSkipDecodeFailed = "decode failed";
 inline constexpr std::string_view kSkipRenderFailed = "render failed";
 inline constexpr std::string_view kSkipNoAttackCapture = "no attack-window capture";
+// FR-016 (b), plan 3.3: a P or P_rev reach absent from, or later than W_end - 5
+// inside, the registered-bound [0, W_end] capture.
+inline constexpr std::string_view kSkipReachOutsideCapture = "reach outside capture";
 
 /// Two normalized values are "equal" for the override-equals-stored skip when
 /// they differ by at most this: the stored side is a float plain value mapped
@@ -2404,6 +2458,22 @@ namespace detail {
     return std::max(audibleAttackSeconds(st), *aRev) + 5.0;  // ruling S-9
 }
 
+/// FR-016 (b): W_end = max(reach_P, reach_rev) + 5 s, each the first 1 s window at RMS(Sus) - 6 dB.
+/// std::nullopt when either reach is absent or later than `captureEnd` - 5 (the
+/// reach must lie inside the registered-bound [0, captureEnd] capture; the
+/// boundary is inclusive). The caller then skips with kSkipReachOutsideCapture.
+[[nodiscard]] inline std::optional<double> measuredAttackWindowEndSeconds(
+    std::optional<double> reachP, std::optional<double> reachRev, double captureEnd) {
+    if (!reachP.has_value() || !reachRev.has_value()) {
+        return std::nullopt;
+    }
+    const double reach = std::max(*reachP, *reachRev);
+    if (reach > captureEnd - 5.0) {
+        return std::nullopt;
+    }
+    return reach + 5.0;
+}
+
 // ---- Twin renders and descriptors ------------------------------------------------------------
 
 /// Plan 6.5 "Twin self-distance": d(describe(first half of the Sus capture),
@@ -2579,7 +2649,7 @@ inline void printReach(const char* what, std::optional<double> seconds) {
             // Sus_rev; its own timeline's H lies past the end (no release).
             const std::optional<double> wEnd = attackWindowEndSeconds(def, comp);
             const std::optional<double> aRev = revertedAttackSpanSeconds(c, comp);
-            if (storedTake == nullptr || !storedTake->attack.has_value() || !wEnd.has_value() ||
+            if (storedTake == nullptr || storedTake->attackCapL.empty() || !wEnd.has_value() ||
                 !aRev.has_value()) {
                 markSkipped(o, std::string(kSkipNoAttackCapture));
                 continue;
@@ -2689,23 +2759,37 @@ inline void printReach(const char* what, std::optional<double> seconds) {
         if (!rev.finite || rev.capL.size() < 4u || rev.capL[0].empty() || !susRev.has_value()) {
             markSkipped(o, std::string(kSkipRenderFailed));
         } else {
-            const double floorDb = storedTake->susDb - kAttackFloorBelowSusDb;
-            const PresetDescriptor attRev =
-                describeWithEnergyFloor(rev.capL[0], rev.capR[0], kSr, floorDb);
-            o.rendered = true;
-            o.d = descriptorDistance(*storedTake->attack, attRev);
-            o.attribBase = descriptorDistance(pSus, *susRev);
             const RenderSpec& revSpec = specs[static_cast<std::size_t>(attackIndex)];
             const double susRevDb = detail::spanDb(rev, revSpec.capture[1].first,
                                                    revSpec.capture[1].second, kSr);
+            const std::optional<double> reachRev = detail::firstSecondAtOrAbove(
+                rev.capL[0], rev.capR[0], kSr, susRevDb - kAttackReachBelowSusDb);
+            // FR-016 (b), plan 3.3: the comparison window is the measured reach + 5 s,
+            // inside the registered-bound [0, W_end] capture.
+            const std::optional<double> wMeas = measuredAttackWindowEndSeconds(
+                storedTake->attackReachSeconds, reachRev, attackWEnd);
             const std::string label(
                 ::Vorago::PresetDefs::cellSpecs()[static_cast<std::size_t>(primary)].label);
-            std::printf("  attack window (%s primary, W_end %.1f s): d_att %.4f, d_Sus %.4f\n",
-                        label.c_str(), attackWEnd, o.d, o.attribBase);
+            if (!wMeas.has_value()) {
+                markSkipped(o, std::string(kSkipReachOutsideCapture));
+                std::printf("  attack window (%s primary): W_end registered %.1f s, measured "
+                            "none (reach outside capture)\n",
+                            label.c_str(), attackWEnd);
+            } else {
+                const double floorDb = storedTake->susDb - kAttackFloorBelowSusDb;
+                const PresetDescriptor attP = detail::measuredAttackDescriptor(
+                    storedTake->attackCapL, storedTake->attackCapR, *wMeas, kSr, floorDb);
+                const PresetDescriptor attRev = detail::measuredAttackDescriptor(
+                    rev.capL[0], rev.capR[0], *wMeas, kSr, floorDb);
+                o.rendered = true;
+                o.d = descriptorDistance(attP, attRev);
+                o.attribBase = descriptorDistance(pSus, *susRev);
+                std::printf("  attack window (%s primary, W_end registered %.1f s, measured "
+                            "%.1f s): d_att %.4f, d_Sus %.4f\n",
+                            label.c_str(), attackWEnd, *wMeas, o.d, o.attribBase);
+            }
             detail::printReach("P", storedTake->attackReachSeconds);
-            detail::printReach("P_rev", detail::firstSecondAtOrAbove(
-                                            rev.capL[0], rev.capR[0], kSr,
-                                            susRevDb - kAttackReachBelowSusDb));
+            detail::printReach("P_rev", reachRev);
         }
     }
 

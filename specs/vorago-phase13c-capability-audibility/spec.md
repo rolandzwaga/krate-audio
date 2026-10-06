@@ -316,6 +316,13 @@ FR-038 requires the plan to re-run the sweep for every name it actually introduc
     - every lever offset is exactly zero when its lane is zero (13b FR-017);
     - the levers ignore the schedulers (13b FR-019);
     - the coupling lever drives only the shipped ring pair (13b FR-015, Q8).
+  - **(ruling B-5)** The L2 size ladder cleared no cell and the destination swings bound every route below
+    the bar; the sizes stay. E1's route gains a second destination after the L3 / L4 lifts (P3's extension,
+    adopted): the Partial lane drives the bloom's spawn rate and child gain between the preset's base and a
+    ruled ceiling, exactly zero at lane zero, scheduler-blind. E cells are re-read after L4 and again after
+    the extension.
+  - **(ruling B-11)** The extension was measured and declined (no rung moves E1; S6 falls under its bar);
+    the Partial lane's destinations stay mutation and bloom depth. E1 is an FR-027 surfacing item.
 
   [roadmap 641–642]
 - **FR-013 — Ghost (S9, E5).**
@@ -325,6 +332,10 @@ FR-038 requires the plan to re-run the sweep for every name it actually introduc
       gating (`:1545`).
   - For the shipped value, the `VoragoEngine_GhostLevelProbe` sizing figures are recorded as they were for S-7
     (`compliance.md:497`): ghost alone vs drone, loudest second, seconds sounding.
+
+  - **(ruling B-6)** Make-up 21 dB; density unchanged at rest and driven by the Ghost eco lane as the route's
+    second destination (`VoragoEngine::kGhostDensitySpan`, `VoragoVoice::getGhostEcoLane()`), zero at lane
+    zero, scheduler-blind; pinned by `VoragoEngine_GhostDensityRoute`.
 
   [roadmap 643–644]
 - **FR-014 — Macro rows (M2 Age, M4 Movement, M5 Gravity, M9 Fog, M10 Life, M12 Mass; M3 Density).**
@@ -342,6 +353,10 @@ FR-038 requires the plan to re-run the sweep for every name it actually introduc
   - Per FR-018/Q5, each macro here — M2, M3, M4, M5, M9, M10 and M12 — is its own feature: its row-widening or
     new-target choice is ruled and tabled separately, one lever-table row per macro, even though this FR groups
     them for exposition. M5's row change and FR-015's arm-3 fix are tabled together as the single M5 row.
+
+  - **(ruling B-13)** M9 ships rung 2 (Fog→CavernFog 0.70, new Fog→SmearDecoherence +0.40: 4.4115), M12
+    rung 1 (Mass→SubToneLevelOffsetDb +6: 5.7413), M3 the shipped rows (4.1136). M2, M4, M5 and M10 keep
+    their shipped rows and are surfaced under FR-027 with their ladders.
 
   [roadmap 642–643]
 - **FR-015 — Gravity's self-growth (M5, arm 3).**
@@ -361,6 +376,9 @@ FR-038 requires the plan to re-run the sweep for every name it actually introduc
     [−18, +12] dB. If no single ablation does, the table is surfaced with the lever proposal.
   - Per FR-018/Q5, this fix and FR-014's M5 row change are one coherent M5 lever: both land together and are
     tabled as the single M5 lever-table row, not a second feature.
+
+  - **(ruling B-13)** Met on the 13c tree without a row change: the cause table reads arm 3 in [−18, +12] dB
+    on every arm and every take (`m5_cause.log`); the row stays the shipped ResonanceGravity + OctaveLock pair.
 
   [roadmap 647–649: "with the preset's four level arms green"]
 - **FR-016 — Attack cell (D9.1).**
@@ -394,6 +412,11 @@ FR-038 requires the plan to re-run the sweep for every name it actually introduc
       verify under FR-030 on the window actually used. The plan records both window ends (registered and
       measured) in the D9.1 and D8.2 rows.
 
+  - **(ruling B-10)** Option (b) ships as `kAttackStageCurve = Linear` with `kAttackShapePower = 4`
+    (u⁴ from the voice's own stage-0 sample count); the registered defaults do not move. Measured reach 17 s
+    on the probe (19.0 s at voice level), inside the confirmed [0.75 · T0, T0] window; D9.1 8.1243, D8.2
+    7.6879. Option (a) measured and declined (`l5_attack_optionA.log`).
+
   [roadmap 644–645]
 - **FR-017 — Feedback ecology (S4).**
   - The roadmap's candidate list does not name S4.
@@ -402,6 +425,9 @@ FR-038 requires the plan to re-run the sweep for every name it actually introduc
   - FR-010 chooses the lever from the roadmap's two problem classes: a level make-up or a lever size.
   - The preset's arm 2 (non-silence) MUST be green in the same printout. This excludes the sweep-3 failure mode,
     a pass earned by a silent render (`compliance.md:544-548`).
+
+  - **(rulings B-8 / B-9)** The component ceiling was raised to 36 dB (append-only) after 24 dB read 3.60; the
+    make-up is ruled at 30 dB (d 4.66). Feedback Mire's dynamics are kept; 36 dB (5.72) was declined as a wash.
 
   [roadmap 634–639]
 - **FR-017b — Life modulators (D14.1 breathing, D14.2 tidal).**
@@ -419,6 +445,11 @@ FR-038 requires the plan to re-run the sweep for every name it actually introduc
   - Depth 0 still gives exactly zero lane contribution, so the reversion twin remains a true "off" state.
 
   [roadmap 637–639: "every capability cell … no cell recorded UNMET"; FR-001, FR-023]
+  - **(ruling B-12)** `kBreathGravityLaneGain = 3.0` (D14.1 2.6558 verified, S6 4.3820); the tidal lane's gain
+    stays 1.0 and the voice's tide rate becomes a lever, `VoragoVoice::kTidalRate = 0.8` (was the literal 0.25;
+    layer periods 93 / 132 / 161 s). D14.2 is an FR-027 surfaced item: its destination, the cavern fog, reads at
+    most 0.31 at any rate or gain, 0.19 with the space mix at 1.0.
+
 - **FR-018 — One lever per feature, recorded.**
   - Each feature gets one ruled lever. One lever may serve several cells of the same feature; for example, the
     bloom lever serves both S6 and E1.
@@ -541,6 +572,8 @@ FR-038 requires the plan to re-run the sweep for every name it actually introduc
 
   [roadmap 637–639, 654–656]
 - **FR-031 — Phase 10 bounds.** These stay green, with no threshold relaxed:
+  - **(ruling B-14)** The Phase 10 axes are restored by the default ghost peak 0 (`kGhostDefaultPeakLevel`),
+    not by a fixture change: `l7_sc011_ruled.log` 61 / 62, the one red the base tree's own Movement rho; every T004-passing assertion green.
   - `VoragoMacro_NoZipper` (zipper bound 1.5×);
   - `VoragoMacro_SweepAxes` (every assertion that passes on the base tree still passes);
   - the Phase 10 overnight and boundedness soaks;
@@ -560,6 +593,8 @@ FR-038 requires the plan to re-run the sweep for every name it actually introduc
   - The base-tree tables are re-run in FR-003 (iii), because Phase 14's noise-bus and ghost-tap make-ups landed
     after 13b closed. If a knob that counted at 13b no longer counts on the base tree, that is a before-record
     stop-and-surface item, not a 13c regression.
+    **(ruling B-1)** Surfaced and ruled on 2026-10-01: the knobs stay a hard final-tree target, restored through
+    FR-012 and FR-014; the base-tree tables are the before.
   - 13b's routing and lever tests stay green: `VoragoVoice_EcosystemLever*`, `VoragoVoice_WakeCombineRule` and
     `VoragoVoice_AgentReductionRule`.
 
@@ -570,6 +605,9 @@ FR-038 requires the plan to re-run the sweep for every name it actually introduc
   - `Vorago_ProcessorCpu` SC-014: P/D ≤ 1.05.
 
   The before figure (base tree) and the after figure are recorded in ns and %. [roadmap 651, 659: "CPU delta"]
+  **(ruling B-2)** Clause (i) is judged on an idle machine where the pre-13c base binary passes it, by an
+  alternating pinned A/B of `VoragoEngine_CpuBudget` (base binary vs final binary, two rounds, 60 s settles)
+  in addition to the lanes; the before is the 2026-10-01 A/B (`cpu_base_ab_*.log`). Nothing is relaxed.
 - **FR-034 — Suites.**
   - The Phase 2–14 per-push suites pass: `dsp_*_tests`, `vorago_tests`, `seraphis_tests`, `shared_tests`. The
     `[long]` soaks pass too.
@@ -640,7 +678,7 @@ FR-038 requires the plan to re-run the sweep for every name it actually introduc
 | **SC-012** | 13b Gate 1 | GATE1M ratio ≥ 0.5 at the default surface and at Life max (before: 0.656 / 0.638, roadmap 602–603) | `Vorago_EcosystemRuleProbe` with `VORAGO_PROBE_KNOBS=-` and the true-off reference, on both surfaces |
 | **SC-012b** | 13b Gate 2 knobs | on the final tree, syncRate counts on the default surface and selfAffinity and syncRate count at Life max: d/t0 ≥ 0.5, no kill, not off-like (before at 13b: 0.534; 0.650 and 0.528, `final2_table_{default,lifemax}.log`; base-tree values from FR-003 (iii) recorded alongside) | `Vorago_EcosystemRuleProbe` 14-knob table at both surfaces, `artifacts/gate2_table_{default,lifemax}.log` |
 | **SC-013** | boundedness | worst case named explicitly: six voices held, all twelve macros at 1 with Gravity run at **both** 0 and 1 (bipolar, E-6), bloom depth and spawn rate at max with the shipped child gain and placement, ghost peak level 1.0 with the shipped ghost-tap make-up and density, ecosystem depth 1 with the eco lanes injected at 1, at 44.1, 48 and 96 kHz: every sample finite by bit pattern, \|out\| ≤ 0.9661, allocation footprint unchanged after prepare; the Phase 10 soak and the plugin `soak_test.cpp` green | a new or extended bounded test for that state (the `VoragoEngine_EcosystemLeverBounded` pattern, `vorago_ecosystem_lever_test.cpp:1742-1790`, which today applies only Life = 1), plus that existing test and the soaks green |
-| **SC-014** | CPU | `VoragoEngine_CpuBudget` clauses (i) and (ii) pass; `Vorago_ProcessorCpu` P/D ≤ 1.05; the delta against the base tree recorded in ns and % | `node tools/run-cpu-tests.js dsp_systems_tests`, then `vorago_tests`, nothing else running, machine cooled; the WARN lines cited |
+| **SC-014** | CPU | `VoragoEngine_CpuBudget` clauses (i) and (ii) pass; `Vorago_ProcessorCpu` P/D ≤ 1.05; the delta against the base tree recorded in ns and % | `node tools/run-cpu-tests.js dsp_systems_tests`, then `vorago_tests`, nothing else running, machine cooled; the WARN lines cited; clause (i) by the alternating pinned A/B vs the base binary on an idle box (ruling B-2), `cpu_final_ab_{base,final}_run{1,2}.log` |
 | **SC-015** | determinism | the same seed twice matches within `render_fingerprint.h` tolerances; `VoragoEngine_SlotSeedReproducibility` green | per-push |
 | **SC-016** | fingerprint re-harvest | every moved fingerprint is re-harvested in its consuming binary: two byte-identical runs and a green verify run | the `VoragoEngine_GhostExtensionWiring` printer runs; md5 of the literals |
 | **SC-017** | regression suites | 100 % pass, `[long]` included; test files edited only under FR-034's surfaced list | full logs |
@@ -853,3 +891,265 @@ choice, this records which way it was resolved:
 - **Fallbacks and values.** The life-lane second destinations and the macro new-target rungs stay proposals,
   measured only when a first rung is short; every lever's value is ruled by the user on its logged readings
   (OQ-1). The M5 lever waits on the measured cause table.
+
+### Build stage (2026-10-01) — before-record rulings (Group 1, T005 / T006)
+
+- **B-1 — 13b's Gate-2 knobs on the base tree (FR-032 / SC-012b).** T005 found none of 13b's three Gate-2 knobs
+  counts on the base tree: syncRate on the default surface d 2.1606 → 1.0589 (d/t0 0.260), selfAffinity and
+  syncRate at Life max 0.650 / 0.528 → 0.286 / 0.121 (`gate2_table_default_base.log:97`,
+  `gate2_table_lifemax_base.log:99,140`). The per-knob colony means are IDENTICAL to 13b's `final2_table_*.log`
+  rows (e.g. syncRate M1 colony 0.478464 on both), so the simulation is unchanged: the +30 dB noise bed and
+  +12 dB ghost tap of Phase 14 dilute what the ecosystem knobs change in the descriptor. Gate 1 passes
+  (0.614 / 0.578). → **Ruled: SC-012b stays a hard final-tree target.** The base-tree 0-of-14 tables are the
+  recorded before; the route lever (FR-012, `kPartialLaneGain` / `kGhostLaneGain`) and the Life lever (FR-014)
+  are the levers that feed these knobs; T058's final tables must show all three counting, else that is a
+  stop-and-surface item at T058. No re-scope. [FR-032, SC-012b]
+- **B-2 — CPU clause (i) red on the unchanged base tree (FR-033 / SC-014).** T006's lane and two isolated
+  pinned re-runs read `VoragoEngine_CpuBudget` clause (i) RED (engine 3.37e6–3.49e6, + Cavern 3.50e6–3.61e6
+  against 3.2e6; `cpu_base_dsp.log:3419,3459`). The lane also ran under a runaway `node -e` process (95 % of a
+  core, killed 17:33) and the box carries a VS Code WSL session, Docker and Defender (8–13 % load). An
+  alternating pinned A/B against the pre-Phase-14 binary `05d04f66` (`cpu_base_ab_{05d04f66,base}_run{1,2}.log`):
+  05d04f66 + Cavern 3.219e6 / 3.487e6, base 3.360e6 / 3.401e6 — both red, overlapping; the same 05d04f66
+  binary read 2.909e6 on 2026-09-27 and Phase 14's T049 read arm D 2.920e6 on 2026-09-30. The machine, not the
+  code. → **Ruled: clause (i) stays absolute, nothing relaxed.** Today's A/B is the recorded before. T060's
+  final CPU lane repeats the alternating pinned A/B against the base binary on an idle machine (WSL, Docker and
+  the VS Code remote session closed, after a reboot if needed); clause (i) is judged on a box where the base
+  binary passes it, and 13c's delta vs base is reported in ns and % either way. If the base binary cannot be
+  brought to pass, that is a stop-and-surface item at T060. T002–T005 are deterministic renders (T003's repeat
+  spread 0.0000) and are not re-run. [FR-033, SC-014]
+- **B-3 — Bloom child-gain ceiling (FR-010, FR-011, T026 stop-and-surface).** The ladder on the L1 tree
+  (floor in; `l1_bloom_<v>_S6.log`, `_E1.log`, `_minus6.log`, `l1_sentinel_<v>.log`): Slow Bloom S6 primary d
+  1.4453 / 2.1524 / 2.9515 / 3.8440 at child gain 0.35 / 0.50 / 0.70 / 1.00 (bar 4.0; every level arm and the
+  44.1 kHz arm pass; the −6 dB re-reads match to 3 dp); Bloom Colony E1 0.1567 / 0.2636 / 0.4448 / 0.7528
+  (attribBase 0.1204 → 0.5982); the latched parent's drop ≤ 0.20 dB at 1.00; the cloud floor's CPU at r 0.40
+  is inside run-to-run noise (`cpu_floor_{base,l1}{,_run2}.log`). The component clamp at 1.00 does not clear
+  S6. Children per event cannot add level: the probe shows all six child slots full at every richness
+  (`bloom_mechanism_l1.log`: live 6, rejected 14). → **Ruled: raise the ceiling.** Append-only
+  `BloomEngine::kMaxChildGain = 2.0f` (FR-019), the clamp becomes [0, 2]; the ladder continues at 1.2 / 1.5 /
+  2.0 and the value is ruled on those readings (B-4). [FR-010, FR-011, FR-019]
+- **B-4 — Bloom child gain, the value (FR-010b step 1, T027).** With the ceiling at 2.0: S6 d 4.3091 at 1.20,
+  4.8405 at 1.50, 5.4501 at 2.00 (all arms pass, −6 dB re-reads match; `l1_bloom_{1.20,1.50,2.00}_S6*.log`);
+  E1 0.9469 / 1.1989 / 1.4978; latched-parent drop 0.29 / 0.44 / 0.75 dB (`l1_sentinel_*.log`). → **Ruled:
+  `VoragoVoice::kBloomChildGain = 1.5f`** (margin 0.84 over the bar for the sweep's seeded takes and twins; a
+  child 3.5 dB above its parent before tilt; parent drop 0.44 dB). Compiled in and re-read with no lever env
+  (`l1_ruled_S6.log`, `l1_ruled_E1.log`, `l1_sentinel_ruled.log`, `l1_ruled_suite.log`). [FR-010, FR-011]
+- **B-5 — Route levers (FR-012, T031 / T032; 2026-10-02).** The L2 ladder (`l2_ladder_summary.txt`, 13 rungs,
+  one rebuild each, 23:45–05:24) cleared nothing: E1 Bloom Colony d(R_k, R_k0) 1.1989 at `kPartialLaneGain`
+  1.0 / 1.5 / 2.0 / 3.0 (identical: the Partial lane already saturates bloom depth and mutation at 1.0; at
+  2.0 it pins Slow Bloom's ablation arm, S6 reads 0.0000); E3 Swarm Breath 0.6496 → 1.3495 → 1.7309 at
+  `kNoiseLevelLeverSpanDb` 12 / 15 / 18 (the +12 dB clamp; S6 falls to 3.8912 at 18); E4 Feeding Loops
+  1.7688 at `kLoopGainLeverSpan` 0.24 / 0.30 and `kCouplingLeverSpan` 0.38 / 0.44 (renders identical to 4 dp);
+  E5 Haunted Colony 1.5818 / 1.5882 at `kGhostLaneGain` 1.5 / 2.0. The swing probe
+  (`Vorago_PresetPilot_SwingProbe`, `l2_swing.log`: d(P, P_swing) with the destination at the lever maximum)
+  bounds every route: Bloom Colony bloom depth 0.5 → 1.0 + mutation 0.85 → 1.0 d 0.0000; Feeding Loops loop
+  gain 0.54 → 0.84 / 0.90 d 0.0004 / 0.0006; Swarm Breath noise −6 → +6 dB d 1.0906; Haunted Colony ghost
+  layer 1.0 → 0 d 1.1010. No lane size can clear 4.0 while the destinations move the preset that little.
+  → **Ruled: the five route constants stay at their shipped values** (`kPartialLaneGain` 1.0,
+  `kGhostLaneGain` 1.0, `kNoiseLevelLeverSpanDb` 12, `kLoopGainLeverSpan` 0.18, `kCouplingLeverSpan` 0.30;
+  the T029 re-spec is not applied). The destinations are lifted first — L3 ghost (E5's) and L4 feedback
+  ecology (E4's) — and E1 / E3 / E4 / E5 with E7.hi, D13.1 and D13.2 are re-read after L4 (T068). P3's
+  partial-lane destination extension (bloom spawn rate and child gain) is **adopted** for E1 and laddered
+  after that re-read (T069). An E cell still short of 4.0 while its destination's full swing scores ~1.1 is
+  surfaced as a bar question (FR-027), never relaxed silently. [FR-012, FR-021, FR-027]
+- **B-6 — Ghost lever (FR-013, T035 / T036; 2026-10-02).** Lever-seam ladder (`l3_ghost_<dB>_{S9,E5}{,_minus6}.log`,
+  `l3_density_<n>_*.log`, `l3_ghost_level_probe.log`). Make-up at density 0.30: Choir of Absence S9 d 1.8349
+  (12 dB) → 2.4284 → 3.2996 → 4.1022 (21 dB) → 4.6989 (24); Haunted Colony E5 1.1920 → 1.6729 → 2.2776 →
+  2.2835 → 2.3183 (saturates). At 21 dB the Choir's stored take sits on the limiter (hi −5.99 dB) and its −6 dB
+  re-read is 4.0381 with every arm green; at 24 dB it clips at 44.1 kHz even at −6 dB. Density at 21 dB: E5
+  2.0830 / 2.4587 / 3.6273 / 4.0218 / 5.6118 / 2.5635 / 4.1135 / 2.4543 at 0.45 / 0.60 / 1.0 / 1.25 / 1.5 / 1.75 /
+  2.0 / 3.0 (not monotonic); S9 4.06–4.24 throughout. At 21 dB + 1.5 the four takes read S9 4.2370 / 4.2970 /
+  5.0490 / 4.6607 and E5 5.6118 / 7.7136 / 3.5904 / 2.1762. Sizing at 21 dB (ghost 1.0, 340 s, `l3_ghost_level_probe.log`):
+  tap RMS −16.99 dBFS against the drone's −19.03, loudest second −12.31 dBFS, 120 of 120 seconds sounding.
+  → **Ruled: `kGhostTapMakeupDb = 21`** (`kGhostTapMakeupGain = 11.220185`); **`kGhostDensity` stays 0.30**, a
+  ghost stays an event at rest; the Choir takes a level trim at the Phase 14 re-author. **The ghost route gains
+  density as its second destination** (T070): the colony's raw Ghost eco lane drives the applied density
+  `ghostDensityBase_ + kGhostDensitySpan × max(lane)` over the rendering voices — exactly the base at lane 0
+  (13b FR-017), scheduler-blind (13b FR-019), the `setGhostDensity` seam now setting the base. The span is
+  laddered by rebuild (0.7 / 1.2 / 1.7, i.e. density 1.0 / 1.5 / 2.0 at lane 1) and ruled on E5 with S9 beside
+  it; T033's re-spec is not applied. [FR-013, FR-019]
+- **B-7 — Ghost density span, the value (T070; 2026-10-02).** Rebuild ladder at the compiled 21 dB
+  (`l3_span_ladder_summary.txt`, `l3_span_<v>_{E5,S9}{,_minus6}.log`): Haunted Colony E5 stored seed 2.7928 /
+  3.7997 / 3.6205 at span 0.7 / 1.2 / 1.7 (all attributable, arms green); Choir of Absence S9 4.0743 / 4.1357 /
+  4.2435. Four takes at 1.2 (`l3_span_1.2_{E5,S9}_takes4.log`): E5 3.7997 / 6.0424 / 3.0041 / 4.6243 (mean
+  4.37), S9 4.1357 / 4.3961 / 5.0019 / 4.7054. The spread is the ghost grains' own randomness, so no span clears
+  the stored seed with margin while another seed clears it by 2. → **Ruled: `kGhostDensitySpan = 1.2`**
+  (density 1.5 at full lane, 0.30 at rest); **Haunted Colony re-seeds at the Phase 14 re-author** (seed index
+  13 reads 6.04, 15 reads 4.62 at this span), recorded with the four-take spread. Choir of Absence takes a level
+  trim there (its stored take sits on the limiter at 21 dB). Re-read as compiled: `l3_ruled_S9.log`,
+  `l3_ruled_E5.log`, `l3_ruled_verify.log`, `l3_ruled_suite.log`. [FR-013, FR-021]
+- **B-8 — Feedback-ecology wet ceiling (FR-017, T039 stop-and-surface; 2026-10-02).** Lever-seam ladder on
+  Feedback Mire S4 (`l4_ecology_<dB>{,_minus6}.log`): d 1.7072 (0 dB) → 2.8171 (6) → 2.8372 (12) → 2.9627 (18)
+  → 3.6021 (24, the component ceiling), every arm green, −6 dB re-reads identical; Feeding Loops E4 1.65–1.77
+  throughout (`l4_ecology_<dB>_E4.log`). → **Ruled: raise the ceiling.** Append-only
+  `FeedbackEcology::kMaxWetGainDb` 24 → 36 (FR-019; `FeedbackEcology_ConstantsTable` and
+  `_ControlSurfaceClamps` pin the new value, `l4_ceiling_clamp_test.log`); the ladder continues at 30 / 36.
+  [FR-017, FR-019]
+- **B-9 — Ecology wet make-up, the value (FR-010b step 4; 2026-10-02).** With the ceiling at 36: S4 4.6618 (30 dB)
+  / 5.7175 (36 dB), −6 dB re-reads 4.6626 / 5.7183, arms green; E4 2.9243 / 2.6508. At 36 dB the ecology
+  dominates Feedback Mire (quiet section −40 → −28 dB, late sustain +4.6 → −0.4 dB). → **Ruled:
+  `VoragoVoice::kEcologyWetMakeupDb = 30`** (margin 0.66 on a deterministic layer; Feedback Mire keeps its
+  dynamics). Re-read as compiled with the R step: `l4_ruled_{S4,S6,S9,E5,E4,E1}.log`, `l4_ruled_suite.log`.
+  [FR-017, FR-024c]
+- **B-10 — Attack lever (FR-016, T046 / T047; 2026-10-02).** Rebuild-per-rung ladder of `kAttackShapePower`
+  on the boundary-fixed Linear stage 0 (`l5_attack_n<k>.log`, `l5_attack_tests_n<k>.log`,
+  `l5_attack_ladder_summary.txt`), Sudden Chasm D9.1 alone, no lever env; bar 4.0, attributable iff
+  d_att ≥ d_Sus + 1.5; the probe's P_rev reach against [15, 20] s. Before (Exponential): reach 6 s, d_att
+  2.7661. n = 1: reach 8 s, 4.2491 / 4.3288 (not attributable; T042 red at 8.0 s). n = 2: 13 s, 5.9340 /
+  4.3308 (clears by 0.10, reach short of the floor). **n = 4: 17 s, 8.1243 / 4.3329.** n = 5: 19 s,
+  10.1966 / 4.3338. n = 6: 20 s, 9.1264 / 4.3377 (on T0). n = 7: 21 s, past the capture (W_end 25 s), no
+  reading. Option (a) scratch (Exponential stage 0 at 40 s, prediction written first: reach 6 → ~11 s;
+  `l5_attack_optionA.log`): reach 13 s, d_att 4.5618 against d_Sus 5.3442 — FAIL, the comparator moves with
+  the lever as FR-016 predicted; reverted, never shipped. Growth Ring D8.2 host at n = 6: 7.3957
+  (`l5_d82.log`). → **Ruled: `VoragoVoice::kAttackShapePower = 4`** (plan §2.5's rule: the smallest rung
+  that clears both clauses, 2 s above the floor, 3 s under T0); **the 0.75 · T0 tracking floor is confirmed**
+  (plan §10.5 item 5). R step as compiled (`l5_ruled_*.log`): D9.1 8.1243 (W_end 25 / 22), D8.2 7.6879
+  (65 / 35), S6 4.1966, S9 4.1365, S4 4.6629, E1 1.1991, E3 1.0941, E4 2.9238, E5 3.7994; attack tests
+  green (reach 19.0 s at 8 kHz); per-push systems 1421 / 1424 (`l5_ruled_suite.log`), the three reds the
+  ledgered entry 3 fingerprint and the T040 A1 / A16 re-specs. [FR-016, SC-004, SC-019]
+- **B-11 — E1 partial-lane destination extension, declined (FR-012, T069; 2026-10-02).** P3's extension (the
+  raw Partial lane adds `kPartialSpawnSpanHz` to the bloom's spawn rate and `kPartialChildGainSpan` to its
+  child gain, clamped at the component ceilings, pinned by `VoragoVoice_PartialLaneBloomExtension`) was built
+  and laddered by rebuild on the B-10 tree (`l2x_ladder_summary.txt`, four rungs 15:22–17:23): Bloom Colony
+  E1 d(R_k, R_k0) 0.9312 / 1.1421 / 0.9312 / 1.1421 at spawn 0.02 / 0.02 / 0.04 / 0.04 Hz × child gain
+  0.25 / 0.5 / 0.25 / 0.5 (base 1.1991 at 0 / 0; the spawn axis moves nothing to 4 dp, the gain axis moves
+  it below the base); Slow Bloom S6 4.1966 → 2.4953 / 2.4982 / 1.2710 / 1.2668 (the lane-driven spawns crowd
+  the preset's own blooms out of the pool); E7.hi 1.05–1.26, D13.1 0.07, D13.2 0.24–0.36, Teeming S7
+  6.74–7.60 verified. → **Ruled: declined and removed** — the spans, the bloom bases and the test are reverted;
+  the voice seams are bare forwards again; the ladder stays on record. E1 joins E3, E4 and E5 on the
+  FR-027 surfacing list with its swing (B-5: full destination swing d 0.0000) and these readings. Per-push
+  systems on the reverted tree: 1421 / 1424 (the same three ledgered reds: entry 3 fingerprint, A1, A16) (`l2x_declined_suite.log`). [FR-012, FR-027, FR-030]
+- **B-12 — Life modulator lanes (FR-017b, T050; 2026-10-02).** Rebuild ladder (`l6_ladder_summary.txt`,
+  `l6_life_{breath,tidal}_<g>.log`, each host alone with the secondary readout). **Breathing**, Slow Bloom
+  D14.1 (bar 1.5) with S6 and Drifting Strata's M4 beside it: gain 1.0 → 0.6556 / S6 4.1966 / M4 1.9490 (the
+  base tree read 1.0687); 1.5 → 0.4820 / 3.7906 / 1.3462; 2.0 → 1.5908 verified / 3.5884 / 1.0393; 3.0 →
+  2.6558 verified / 4.3820 / 0.9090. → **Ruled: `kBreathGravityLaneGain = 3.0`**, the only rung that
+  verifies D14.1 and keeps Slow Bloom over its bar; the lane is published unclamped, so FR-034 entry 5
+  (`VoragoVoice_LifeModulatorLanes`) is applied: extremes gain × 0.30, the gravity sum clamps. **Tidal**,
+  Drifting Strata D14.2: 0.0052 / 0.0077 / 0.0101 / 0.0150 at gain 1.0 / 1.5 / 2.0 / 3.0 — a top-out by
+  construction: the voice's tide rate was a literal 0.25 (no preset parameter; layer periods 267 / 378 / 462 s)
+  and the lane is max(0, tide), so the fog hardly moves inside the 60 s window in either arm; 0.0028 even with
+  the space mix overridden to 1.0 (`l6_tidal_spacemix_override.log`); the fog's static full swing is d 0.0878
+  (`l6_premise.log`). The user ruled a **scope extension**: the tide rate becomes a lever
+  (`VoragoVoice::kTidalRate`, inside the modulator's ≥ 30 s period floor), laddered by rebuild
+  (`l6_tide_ladder_summary.txt`, `l6_tide_<r>.log`): 0.6 → 0.2621, 0.8 → 0.3131, 1.0 → 0.2341; 0.8 with
+  the space mix at 1.0 → 0.1904 (`l6_tide_0.8_spacemix_override.log`). → **Ruled: `kTidalRate = 0.8`,
+  `kTidalFogLaneGain` stays 1.0; D14.2 is surfaced under FR-027** with these readings — the cavern fog is
+  the ceiling, no bar is relaxed, nothing is recorded UNMET. Premise bisect (`l6_premise.log`): Drifting
+  Strata's M4 primary fell 3.0007 → 1.9490 across Groups 6–11 (3.0651 with the ghost make-up back at 12 dB,
+  2.2905 with child gain 0.35, 1.9557 with ecology make-up 0, 3.4226 with all three) — a Group 13 / Phase 14
+  item; the breath gain costs it a further point (0.9090). R step as compiled (`l6_ruled_*.log`): per-push
+  systems 1424 / 1425 (the ledgered entry 3 fingerprint the only red) (`l6_ruled_suite.log`). [FR-017b, FR-027, FR-030, FR-034]
+  - **S4 under the breath gain (2026-10-03).** The R step read Feedback Mire S4 3.9832 (from 4.6629). Bisect by
+    rebuild (`l6_s4_bisect_summary.txt`): 3.9445 at breath 3.0 / tide 0.25, 4.6719 at breath 1.0 / tide 0.8 — the
+    breath gain, not the tide. Feedback Mire sets no breathing depth and inherits the plugin default 0.30, so
+    the gain pumps its resonance gravity by ±0.9. Gain 2.5 (`l6_life_breath_2.5.log`, `l6_s4_breath25.log`):
+    D14.1 2.0911 verified but S6 3.9998 and S4 3.9729 — no help. With the preset's breathing depth at 0
+    (`l6_s4_breath3_depth0_override.log`) S4 reads 4.7751. → **Ruled: gain 3.0 stays; Feedback Mire's def sets
+    `kLifeBreathingDepthId` to 0** (`tools/vorago_preset_defs.h`, a Phase 14 preset edit pulled forward and
+    handed over for the preset files); S4 re-read as compiled, no override: `l6_ruled_S4_defs.log`. The swell
+    fallback stays unmeasured. [FR-017b, FR-030]
+- **B-13 — Macro rows (FR-014, FR-015, T051–T054; 2026-10-03).** Rebuild ladders, each showcase preset alone,
+  cumulative rungs from plan §2.7, `VoragoMacro_NeutralIsIdentity` green on every build
+  (`l7_<macro>_r<k>.log`, `l7_T052_ladder_summary.txt`, `l7_M2_ladder_summary.txt`,
+  `l7_gravity_ladder_summary.txt`, `l7_life_ladder_summary.txt`, `m5_cause.log`). **M3** Density, Crowded
+  Dark: 4.1136 at the shipped rows on the 13c tree (the bloom lift carried it; base tree 3.92); noise +12 dB
+  3.7086, + Density→EcologyMix 3.7124. → **Ruled: shipped rows.** **M9** Fog, Fogbound: cavern fog 0.70
+  3.1581; + new Fog→SmearDecoherence (base 0.20, +0.40) 4.4115; + smear 0.80 4.4498. → **Ruled: rung 2**
+  (`kNumRows` 51). **M12** Mass, Monolith: sub-tone offset +6 dB 5.7413; + Mass→BodyDamping 5.7430; + body
+  resonance 0.29 5.7774. → **Ruled: rung 1.** **M5** Gravity, Stone Gravity, 4 takes: the cause table (A0 as
+  stored, A1 OctaveLock off, A2 ResonanceGravity row off on a scratch rebuild, A3 breathing off, A4 neutral +
+  breathing off) reads arm 3 between +0.04 and +6.35 dB on every arm and take — the +15.67 dB self-growth of
+  the base tree is gone on the 13c tree as stored (A0 +1.12 dB; with the three lever seams back at their
+  pre-13c values +10.49 dB, `l7_gravity_cause_seams.log`, so the seams carry about 5 dB and the attack / life
+  changes the rest); FR-015's clause is met without a row change. Distance: 3.1864 as stored (takes 1.77 /
+  2.57 / 0.85), + Gravity→CloudSpectralTiltDb −3 3.1393, + Gravity→ResonanceMix +0.25 3.1864; A2 shows the
+  ResonanceGravity row carries most of it (0.8268 without it). → **Ruled: shipped rows; M5 surfaced (FR-027).**
+  **M2** Age, Erosion: 2.7945 as stored; tilt −7 2.7865; + damping 0.70 2.7900; + Age→CloudMutation 2.8273.
+  → **Ruled: shipped rows; surfaced.** **M4** Movement, Drifting Strata: 1.9490 at breath gain 1.0 and 0.9090
+  at the ruled 3.0 (its Movement→BreathingDepth row now swings the gravity lane three times harder; the
+  ghost make-up and child gain mask it, B-12 bisect 3.07 / 2.29); damper 0.60 0.8741, + Movement→TidalDepth
+  0.8533, + Movement→CloudMutation 0.8599. → **Ruled: shipped rows; surfaced; Drifting Strata handed to
+  Phase 14.** **M10** Life, Teeming, last: as compiled E7.hi 1.3429 / D13.1 0.8560 / D13.2 0.1942 / S7 10.1021
+  verified, Gate 1 at Life max ratio 1.196; spawn amount to the 0.05 ceiling 1.2428 / 0.0816 / 0.2261 / 9.6161
+  (1.809); + Life→BreathingDepth 0.8294 / 0.1976 / 0.2168 / 8.8314 (1.136). → **Ruled: shipped rows; E7.hi,
+  D13.1, D13.2 surfaced (FR-027).** **SC-011 finding:** `VoragoMacro_SweepAxes` reads 12 failed assertions on
+  the 13c tree at the shipped rows (`l7_macro_tests_restored.log`; the base tree failed 2): Darkness 6.70 →
+  0.73 dB, Entropy 22.36 → −0.14, Pressure 4.26 → 2.60, Age, Fog and Movement rho under 0.9. Bisect by rebuild
+  over the ghost make-up, breath gain, child gain and ecology make-up (`l7_sweepaxes_bisect_summary.txt`);
+  ruled separately (B-14). [FR-014, FR-015, FR-027, SC-011]
+- **B-14 — SC-011 regression: the default ghost peak (2026-10-04).** On the 13c tree at the shipped macro rows
+  `VoragoMacro_SweepAxes` lost 10 of its 36 T004-passing assertions (`l7_macro_tests_restored.log`: Darkness
+  6.70 → 0.73 dB, Entropy 22.36 → −0.14, Pressure 4.26 → 2.60, Age / Fog / Movement rho under 0.9). Four
+  bisect rounds by rebuild (`l7_sweepaxes_bisect_summary.txt`, `l7_sweepaxes_<arm>.log`): ghost make-up 12 dB
+  alone recovers 4; + density span 0 recovers 2 more; + tide 0.25 one more; + breath 1.0 / child gain 0.35 /
+  ecology 0 the last three (the all-reverted arm returns the base tree's two reds exactly); the breath gain,
+  child gain and ecology make-up alone change nothing. The cause is the default surface itself: the engine
+  (`kGhostBurstPeak`) and the plugin parameter both defaulted the ghost peak to 0.60, which under the 21 dB
+  make-up swamps every spectral axis the Phase 10 macros are measured on; 36 of 42 presets set their own peak
+  (31 at ≤ 0.30). Lowering only the default: 0.20 → 5 reds (3 binding), 0.10 → 1 (Movement endpoint 0.173),
+  **0.0 → 1 red, the base tree's own Movement rho; every T004-passing assertion green.** → **Ruled:
+  `VoragoEngine::kGhostDefaultPeakLevel = 0.0`** for the prepared level and the Fog→GhostPeakLevel row base,
+  the plugin default (`ghost_params.h`) 0.0; `kGhostBurstPeak` stays 0.60 so the SC-027 trigger thresholds
+  do not move; the six presets that inherited the default (Tectonic Floor, Drifting Strata, Entropic Hum,
+  Teeming, Endless Descent, Steam Vent) pin `kGhostPeakLevelId` 0.60 in their defs, so no preset render
+  moves (handed to Phase 14). Re-specs (FR-034): `VoragoEngine_GhostConfiguration` reads the default from
+  `kGhostDefaultPeakLevel`; `ghost_params_test` expects 0.0. As compiled: SC-011 61 / 62, the one red the base tree's own Movement rho; every T004-passing assertion green
+  (`l7_sc011_ruled.log`); per-push systems 1422 / 1425 before the fixture re-specs (reds: entry 3 fingerprint; the two gate-open fixtures, re-specced in l7_b14_respecs.log) (`l7_b14_suite.log`); per-push vorago lane 117 / 119 before the two default re-specs (param_table, ghost_params), green after (l7_b14_respecs.log)
+  (`l7_b14_vorago_lane.log`); factory tree regenerated, only Machines/Feedback Mire.vstpreset changed (B-12); preset lane 41 / 41 (l7_b14_preset_lane.log). Declined: re-specifying SweepAxes with the ghost off in
+  its fixture (the product default would keep a ghost 31 presets voice far lower) and re-opening B-6 (S9 4.10 →
+  1.83). [SC-011, FR-031, FR-034]
+- **B-15 — FR-030: verified cells masked by the 13c lifts (2026-10-05).** F2 (`final_verified27.log`) read 21 of 27
+  sweep-4 primaries PASS; six fell with arms green: S1 Wind Through Basalt 3.0600, S2 Resonant Shaft 2.6851, S3
+  Smeared Horizon 3.2882, M1 Lightless 1.7830, E2 Singing Colony 3.7914, D3.3 Spore Drift 1.8135, and with them the
+  FR-030b secondaries whose conjunct is one of those primaries, plus E6.hi 1.3700 and S1-as-secondary 1.4403
+  (`final_secondaries_030b.log`). Bisect (`f2_regress_bisect_summary.txt`): child gain 0.35 alone restores S3 4.56
+  and E2 4.50 and lifts M1 to 3.79; ghost 12 dB lifts S1 to 3.96; ecology 0 changes nothing; with breath gain 1.0
+  and all three seams reverted S1 / M1 / D3.3 / S2 read 4.97 / 4.06 / 4.10 / 4.04; the attack power is not a cause.
+  Per-preset overrides (`f2_preset_fix_summary.txt`): breathing 0 fixes S1 (4.9774); bloom off fixes S3 (4.0128);
+  nothing reaches S2 (best 3.29), M1 (2.56), E2 (3.79) or D3.3 (3.98). Child gain vs both sides
+  (`f2_childgain_summary.txt`): Slow Bloom S6 3.93 / 3.35 / 2.74 at 1.2 / 1.0 / 0.8 while the masked cells move
+  little; no value serves both. → **Ruled: the levers stay; Wind Through Basalt sets breathing depth 0 and Smeared
+  Horizon sets bloom depth and spawn rate 0 in their defs** (as compiled: `final_b15_S1.log` 4.9774,
+  `final_b15_S3.log` 4.0128, secondaries verified; tree regenerated, preset lane 41 / 41 `b15_preset_lane.log`);
+  **S2, M1, E2 and D3.3 are surfaced (FR-027) and handed to the Phase 14 re-author**, which re-voices them against
+  the 13c engine. Not adopted as is in the FR-030 sense: the cost is recorded, not hidden. [FR-030, FR-030b, FR-027]
+- **B-16 — SC-012b at Life max (2026-10-05).** `gate2_table_lifemax.log`: syncRate d 1.8915 (d/t0 0.413) and
+  selfAffinity 0.0163, both INAUDIBLE; the default surface passes (syncRate counted, d/t0 0.876,
+  `gate2_table_default.log`; GATE2 PASS). The Life-max t0 rose to 4.5842 (base 4.1311) because the lifted levers
+  louden the true-off twin. → **Ruled: surfaced under FR-027**; no further 13c ladder; handed to the next
+  ecosystem-audibility pass. [SC-012b, FR-032, FR-027]
+- **B-17 — `FeedbackEcology_CpuBudget` on the T060 lane (2026-10-05).** Red in the full CPU lane
+  (`cpu_final_dsp.log`: 180130 vs 160000) and again alone, pinned, after a 10-minute idle
+  (`cpu_rerun_FeedbackEcology_CpuBudget.log`: nsRef 110572.8, x1.5 = 165859.2). The interleaved A/B, alone, pinned,
+  after a 15-minute idle (`cpu_ab_rerun_summary.txt`): base `64f57e1a` nsRef 119395.6 (x1.5 = 179093.4, red) and
+  final 111763.6 (x1.5 = 167645.4, red). The base binary misses by more than the final. The 13c diff to
+  `feedback_ecology.h` is the `kMaxWetGainDb` constant only (B-8), so the timed path is unchanged. The test's
+  pre-authorised levers 1-3 are already in the tree; levers 4 (resonator → SVF bandpass) and 5 (numLoops 6 → 5)
+  are user decisions. → **Ruled: surfaced, no DSP change in 13c.** Re-run once in T062's CPU lane and handed to
+  Phase 14 as an open SC-004 (Phase 5) item. The same A/B cleared `Vorago_ProcessorCpu`: final P/D 0.9757
+  (green), base 1.0581 (red), so its earlier red was the machine. [SC-014, FR-033]
+- **B-18 — Choir of Absence arm 1 on the sweep (2026-10-06).** The T062 sweep on the 13c tree
+  (`final_long_vorago_sweep_shard_0.log`, `final_sweep_record_diff.txt`): `Vorago_PresetSweep_LongRender` take 3
+  arm 1 hi −5.58 dB against the −6.0 dB runaway bar (sweep 4: −7.85); the F1 all-take readout shows the same take
+  (`final_S9.log:13`); the stored take's arms are green and the S9 gate passes (4.3383). The preset's S9 went 0.34 →
+  4.34 under the ghost lift. First ruled "trim and re-measure": `kMasterGainId` 0.42 (−1.5 dB) moved take 3 only to
+  −5.66 dB (`b18_choir_longrender.log`; every take peaks at 0.9661, so the output limiter sets the hi RMS, not the
+  master gain) with S9 4.4473 (`b18_choir_s9.log`). The ghost-peak ladder at master unity (`b18_ghostpeak_{0.8,0.7,
+  0.6}.log`, `b18_ladder_summary.txt`): 0.8 → S9 3.8746 FAIL, take 3 −5.86; 0.7 → 3.5742, −6.02; 0.6 → 3.2135, −6.19 —
+  lowering the ghost loses the gate before it clears the arm. The one measured state passing both is master −6 dB
+  (`final_minus6_S9.log:9,14`: S9 4.4586, take 3 −6.16, 0.16 dB inside the bar). → **Ruled: the trim is reverted
+  (the def is the sweep-4 state) and the take-3 arm-1 red is surfaced to Phase 14** with these readings. [FR-024,
+  FR-027, SC-002, SC-020]
+- **B-19 — E3, E4, E5 under FR-027 (2026-10-06).** On the final tree, as compiled (F1): E3 Swarm Breath 1.1652
+  (attrib 0.6422; `final_E3.log:9`), E4 Feeding Loops 2.9182 (attrib 0.9851; `final_E4.log:9`), E5 Haunted Colony
+  3.9093 (attrib 0.8873; `final_E5.log:9`). The L2 size ladder (`l2_ladder_summary.txt`: noise span 15 / 18 dB
+  1.35 / 1.73; loop 0.24 / 0.30 and coupling 0.38 / 0.44 all 1.77; ghost lane 1.5 / 2.0 1.58 / 1.59), the L3 density
+  span (0.7 / 1.2 / 1.7: 2.79 / 3.80 / 3.62) and the L4 ecology lift (E4 2.92) brought none of them to 4.0.
+  → **Ruled: surfaced, all three, no further 13c ladder**; handed to Phase 14 with E1 (B-11). [FR-012, FR-021, FR-027]
+- **B-20 — FR-030b de-verified secondaries (2026-10-06).** `final_secondaries_030b.log`: E6.hi Colony Pulse 1.3700
+  (:12; at sweep 4 its side predicate was false, so it was never rendered — the restored Gate 2 exposed it), Spore
+  Drift D3.3 1.4396 conjunct FAIL (:63), Erosion D4.4–D4.6 conjunct FAIL (:64–66; S1 copy 1.44), Fogbound D4.8 /
+  D4.10–D4.12 via S1 1.4403 (:80–84), Cathedral Void D10.1 conjunct FAIL (:201; the sweep aggregate still marks it
+  S, `final_long_vorago_sweep_aggregate.log:164`). The B-15 bisect names the same three levers.
+  → **Ruled: the levers stay; the five are surfaced to Phase 14** with their sweep-4 and final values; no preset or
+  DSP change in 13c. [FR-030b, SC-007b, FR-027]

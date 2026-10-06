@@ -1,0 +1,68 @@
+HEADER T017 - FR-030b set, before (FR-030b, SC-007b). Derived 2026-10-01 from
+specs/vorago-phase14-presets-release/artifacts/sweep4_aggregate.log: the CoverageComplete matrix (column ruler :92,
+legend :91 "S verified secondary", rows :93-171) and the default-state lines :173-174. Rule (spec FR-030b): every
+cell that is NOT one of the 42 required primaries and shows an S on a host preset, plus the measured default-state set.
+Excluded because they are required-primary rows: S1 (S on 18 Fogbound :93), D3.1 (S on 0 Wind Through Basalt :134),
+D3.3 (S on 11 Erosion :136). X marks (claimed-failed secondaries) are not in the set.
+
+HOST-PRESET SECONDARIES (derived: 24; plan section 7 expected 22 - the log wins, difference surfaced below)
+  cell   matrix line  host(s) (matrix column)
+  E6.hi  :120  6 Colony Pulse
+  D4.1   :138  0 Wind Through Basalt; 38 Dead Air
+  D4.2   :139  0 Wind Through Basalt; 38 Dead Air
+  D4.3   :140  0 Wind Through Basalt; 38 Dead Air
+  D4.4   :141  11 Erosion
+  D4.5   :142  11 Erosion
+  D4.6   :143  11 Erosion                       <- NOT in plan section 7's list
+  D4.7   :144  0 Wind Through Basalt
+  D4.8   :145  18 Fogbound
+  D4.9   :146  38 Dead Air
+  D4.10  :147  18 Fogbound
+  D4.11  :148  18 Fogbound
+  D4.12  :149  18 Fogbound
+  D5.1   :150  23 Singing Colony; 39 Abyssal Wind
+  D5.2   :151  1 Resonant Shaft
+  D6.1   :153  3 Feedback Mire
+  D6.2   :154  3 Feedback Mire
+  D6.3   :155  3 Feedback Mire
+  D7.1   :156  21 Monolith                      <- NOT in plan section 7's list (see D7.1 note)
+  D7.2   :157  17 Weighted Deep; 39 Abyssal Wind
+  D7.3   :158  4 Tectonic Floor
+  D10.1  :163  7 Cathedral Void
+  D11    :165  8 Choir of Absence
+  D12.1  :166  8 Choir of Absence
+
+DEFAULT-STATE CELLS (derived: 8, matches plan) - measured set :173, read on the default pseudo-preset
+(VORAGO_SWEEP_SHARD=42/43, Vorago_PresetSweep_AblationVerifiesClaims -> before2_default_state.log):
+  D1.6, D1.7, D2, D5.3, D8.1, D9.2, D10.2, D12.2
+  (each also carries an S on a host at sweep 4: D1.6/D1.7/D2 on 9 Hull Resonance, D5.3 on 14 Stone Gravity,
+   D8.1/D10.2 on 2 Smeared Horizon, D9.2 on 5 Slow Bloom, D12.2 on 10 Lightless; they are gated on the default
+   surface per plan section 7, not on those hosts)
+
+DIFFERENCE SURFACED (derived 24 + 8 vs plan 22 + 8):
+  + D4.6 noise type Brown: S on 11 Erosion (:143). Omitted from plan section 7's enumeration; it meets FR-030b's rule.
+  + D7.1 loudest sub f/2: S on 21 Monolith (:156). It is verified at sweep 4 as a host-preset secondary.
+
+D7.1 UNVERIFIED-BEFORE (on the default surface; surfaced, not charged to a 13c lever): D7.1 is in
+kRecordedDefaultStateCells (:174, 9 cells) but absent from the measured default-state set (:173, 8 cells); its
+default-surface column reads '.' (:156). Its sweep-4 coverage comes from the Monolith secondary only, so it is read
+here on Monolith as a host-preset secondary, and reported on the default surface as unverified-before.
+
+RUN PLAN - each host once, alone, as compiled (no override, no lever), env VORAGO_PILOT_SECONDARY=1, appended below
+with its START line (the probe reads every claimed secondary of the def, preset_pilot_test.cpp:1189-1196):
+  Wind Through Basalt  (D4.1, D4.2, D4.3, D4.7)
+  Resonant Shaft       (D5.2)
+  Feedback Mire        (D6.1, D6.2, D6.3)
+  Tectonic Floor       (D7.3)
+  Colony Pulse         (E6.hi)
+  Cathedral Void       (D10.1)
+  Choir of Absence     (D11, D12.1)
+  Erosion              (D4.4, D4.5, D4.6)
+  Weighted Deep        (D7.2)
+  Fogbound             (D4.8, D4.10, D4.11, D4.12)
+  Monolith             (D7.1)
+  Singing Colony       (D5.1)
+  Dead Air             (D4.1, D4.2, D4.3, D4.9)
+  Abyssal Wind         (D5.1, D7.2)
+END HEADER
+

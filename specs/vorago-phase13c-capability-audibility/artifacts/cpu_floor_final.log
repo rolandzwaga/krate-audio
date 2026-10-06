@@ -1,0 +1,32 @@
+START 2026-10-05 12:48:33 VoragoVoice_CloudFloorCpuProbe pinned
+pin-perf-cores: performance-core mask 0xFFFF
+Filters: "VoragoVoice_CloudFloorCpuProbe"
+Randomness seeded to: 3795708345
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+VoragoVoice_CloudFloorCpuProbe
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_perf_test.cpp(1794)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_perf_test.cpp(1833): 
+warning:
+  VoragoVoice_CloudFloorCpuProbe r 0.4 bloomDepth 0 richnessRead 0.4
+  activePartials 14 : 62886.1 ns/block (64-sample blocks, 22500 timed after 750
+  warm-up; 4.71646 % of one block's audio time; output finite y)
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_perf_test.cpp(1833): 
+warning:
+  VoragoVoice_CloudFloorCpuProbe r 0.7 bloomDepth 0 richnessRead 0.7
+  activePartials 18 : 79836.9 ns/block (64-sample blocks, 22500 timed after 750
+  warm-up; 5.98777 % of one block's audio time; output finite y)
+
+===============================================================================
+test cases: 1 | 1 passed
+assertions: - none -
+
+exit=0 END 2026-10-05 12:48:38

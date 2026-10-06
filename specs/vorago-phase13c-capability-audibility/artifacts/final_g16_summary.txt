@@ -1,0 +1,33 @@
+=== Group 16 started 2026-10-05 14:09:10 tree=ae149a1c+working-copy ===
+2026-10-05 14:10:55 build all: exit=1 warnings/errors=1 |   Error copying directory from "F:/projects/iterum/plugins/seraphis/resources/presets" to "C:\ProgramData/Krate Audio/Seraphis".;C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: "C:\Program Files\CM;C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: "C:\Program Files\CM;C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: "C:\Program Files\CM;C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: "C:\Program Files\CM;
+T061: 0 cases unlisted | CMakeLists diff vs 64f57e1a: []
+dsp_core_tests: All tests passed (1588248 assertions in 565 test cases) | 
+dsp_primitives_tests: All tests passed (4561487 assertions in 1489 test cases) | 
+dsp_processors_tests: All tests passed (10697080 assertions in 3311 test cases) | 
+dsp_systems_tests: All tests passed (6061626 assertions in 1426 test cases) | 
+dsp_effects_tests: All tests passed (115009 assertions in 495 test cases) | 
+vorago_tests: All tests passed (4059807 assertions in 119 test cases) | 
+seraphis_tests: All tests passed (444660 assertions in 109 test cases) | 
+shared_tests: All tests passed (6420 assertions in 460 test cases) | 
+dsp_systems_tests [long]: test cases:   42 |   41 passed | 1 failed | F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1318): FAILED:;
+vorago_tests [long]:  | 
+pluginval:  exit=0 END 2026-10-05 21:41:32
+git_diff_names: 655 paths; forbidden: [dsp/include/krate/dsp/systems/bloom_engine.h dsp/include/krate/dsp/systems/feedback_ecology.h ]
+=== Group 16 T061/T062 finished 2026-10-05 21:41:33 ===
+vorago_tests [long] non-sweep: All tests passed (1654356 assertions in 3 test cases) | 
+sweep shard 0/8: test cases:   5 |   3 passed |  2 failed | 
+sweep shard 1/8: test cases:   5 |   4 passed | 1 failed | 
+sweep shard 2/8: test cases:   5 |   4 passed | 1 failed | 
+sweep shard 3/8: test cases:   5 |   4 passed | 1 failed | 
+sweep shard 4/8: All tests passed (173 assertions in 5 test cases) | 
+sweep shard 5/8: test cases:   5 |   4 passed | 1 failed | 
+sweep shard 6/8: test cases:   5 |   4 passed | 1 failed | 
+sweep shard 7/8: test cases:   5 |   4 passed | 1 failed | 
+sweep aggregate: test cases:    3 |    0 passed |   3 failed | F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(215): FAILED: F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(215): FAILED: F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(215): FAILED: 
+pluginval:  exit=0 END 2026-10-06 00:47:07
+git_diff_names: 665 paths; forbidden: [dsp/include/krate/dsp/systems/bloom_engine.h dsp/include/krate/dsp/systems/feedback_ecology.h ]
+=== Group 16 T062 (sharded sweep) finished 2026-10-06 00:47:08 ===
+tidy dsp: exit exit=0 | warnings: 1 errors: 0 | F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp:4604:5: warning: ambiguous call to 'reset()' on a pointee of a smart pointer, prefer m;
+tidy vorago: exit exit=0 | warnings: 7 errors: 0 | F:\projects\iterum\plugins\vorago\tests\integration\preset_pilot_test.cpp:872:57: warning: initializer for member 'tweak' is redundant [readability-re;F:\projects\iterum\plugins\vorago\tests\integration\preset_pilot_test.cpp:961:13: warning: use range-based for loop instead [modernize-loop-convert];F:\projects\iterum\plugins\vorago\tests\integration\preset_pilot_test.cpp:1472:18: warning: unchecked access to optional value [bugprone-unchecked-opt;
+portability: exit exit=0 | warning: in the working copy of 'specs/vorago-phase13c-capability-audibility/spec.md', LF will be replaced by CRLF the next time Git touches it;warning: in the working copy of 'specs/vorago-phase13c-capability-audibility/tasks.md', LF will be replaced by CRLF the next time Git touches it;warning: in the working copy of 'specs/vorago-phase14-presets-release/tasks.md', LF will be replaced by CRLF the next time Git touches it;warning: in the working copy of 'tools/vorago_preset_defs.h', LF will be replaced by CRLF the next time Git touches it;
+wsl --shutdown rc=0 2026-10-06 01:01:16

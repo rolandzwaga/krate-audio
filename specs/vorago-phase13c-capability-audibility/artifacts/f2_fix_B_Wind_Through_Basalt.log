@@ -1,0 +1,16 @@
+START 2026-10-04 22:35:03 Wind Through Basalt VORAGO_PILOT_OVERRIDE=1500=0,1300=0.2,1400=0.075 exe=2026-10-04 22:30:53
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 3474692802
+[probe] override 1500 = 0.000000 (appended)
+[probe] override 1300 = 0.200000 (appended)
+[probe] override 1400 = 0.075000 (replaced)
+[probe] lever: none
+[probe] Wind Through Basalt - primary S1 noise organism (stored seed 2, 1 twin render(s))
+  take: peak 0.3362  arm1 hi -22.03 dB [yes]  arm2 lo -27.89 dB [yes]  arm3 late-sus +0.45 dB [yes]  arm4 tail -135.44 dB [yes]
+  arm1@44.1k: finite y peak 0.3105 hi -21.47 dB [PASS]
+  primary d 5.5188  bar 4.0000  attribBase -1.0000  state ok  -> PASS  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (12 assertions in 1 test case)
+
+exit=0 END 2026-10-04 22:38:26

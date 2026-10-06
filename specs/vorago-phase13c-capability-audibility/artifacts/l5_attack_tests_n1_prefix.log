@@ -1,0 +1,44 @@
+START 2026-10-02 14:01:15 attack tests at kAttackShapePower 1 exe=2026-10-02 14:00:16
+Filters: "VoragoVoice_AttackCurveReach","VoragoVoice_AttackTracksStageTime"
+Randomness seeded to: 1239675515
+VoragoVoice_AttackCurveReach: n = 1, 165.0 s rendered in 16.78 s wall
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+VoragoVoice_AttackCurveReach
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4546)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4675): FAILED:
+  REQUIRE( worst < 1.0e-3f )
+with expansion:
+  0.01308f < 0.001f
+with messages:
+  2. continuous across the stage-0 -> stage-1 boundary
+  stage 0 -> 1 at 19.9987 s: last stage-0 gain 0.986918, first stage-1 gain 1,
+  worst per-chunk |delta| 0.0130823
+
+VoragoVoice_AttackTracksStageTime: n = 1, RMS(Sus) -21.45 dB, reach 8.0 s (bound [15.0, 20.0] s), 180.0 s rendered in 2.95 s wall
+-------------------------------------------------------------------------------
+VoragoVoice_AttackTracksStageTime
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4736)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4811): FAILED:
+  REQUIRE( *reachSeconds >= kTrackingFloor * t0Seconds )
+with expansion:
+  8.0 >= 15.0
+with message:
+  RMS(Sus) -21.4514 dB over [155, 180] s; reach target -27.4514 dB; reach 8 s;
+  T0 20 s
+
+===============================================================================
+test cases:  2 |  0 passed | 2 failed
+assertions: 22 | 20 passed | 2 failed
+
+exit=2 END 2026-10-02 14:01:35

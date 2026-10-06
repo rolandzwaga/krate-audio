@@ -202,7 +202,7 @@ TEST_CASE("FeedbackEcology_ConstantsTable", "[feedback_ecology]") {
         STATIC_REQUIRE(FeedbackEcology::kDefaultMix == 0.15f);
         STATIC_REQUIRE(FeedbackEcology::kDefaultWetGainDb == 0.0f);
         STATIC_REQUIRE(FeedbackEcology::kMinWetGainDb == -24.0f);
-        STATIC_REQUIRE(FeedbackEcology::kMaxWetGainDb == 24.0f);
+        STATIC_REQUIRE(FeedbackEcology::kMaxWetGainDb == 36.0f);  // 13c B-8 raised it from 24
     }
 
     SECTION("life cycle and the rate floor (FR-060, FR-083, FR-002)") {
@@ -307,7 +307,7 @@ TEST_CASE("FeedbackEcology_ControlSurfaceClamps", "[feedback_ecology]") {
 
         // --- the output stage ----------------------------------------------------
         fe.setWetGain(100.0f);
-        REQUIRE(fe.getWetGain() == 24.0f);
+        REQUIRE(fe.getWetGain() == 36.0f);  // 13c B-8: the ceiling moved from 24
         fe.setWetGain(-100.0f);
         REQUIRE(fe.getWetGain() == -24.0f);
 

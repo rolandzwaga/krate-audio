@@ -1,0 +1,15 @@
+START 2026-10-02 21:07:21 Drifting Strata with VORAGO_PILOT_OVERRIDE=1105=1.0 (space mix 0.2 -> 1.0) VORAGO_PILOT_SECONDARY=1, lane gains 1.0 / 1.0; premise for the D14.2 preset-side option exe=2026-10-02 20:42:41
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 4197332349
+[probe] override 1105 = 1.000000 (replaced)
+[probe] lever: none
+[probe] Drifting Strata - primary M4 Movement (stored seed 3, 1 twin render(s))
+  take: peak 0.3342  arm1 hi -23.35 dB [yes]  arm2 lo -30.91 dB [yes]  arm3 late-sus +0.12 dB [yes]  arm4 tail -182.07 dB [yes]
+  arm1@44.1k: finite y peak 0.2271 hi -24.18 dB [PASS]
+  primary d 2.4775  bar 4.0000  attribBase -1.0000  state ok  -> FAIL  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  secondary D14.2 tidal depth >= 0.7: d 0.0028 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "" -> no
+===============================================================================
+All tests passed (10 assertions in 1 test case)
+
+exit=0 END 2026-10-02 21:20:02

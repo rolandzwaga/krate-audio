@@ -391,6 +391,7 @@ inline constexpr std::array<std::string_view, 7> kCategories{
                 {kSpaceDecayId, 0.519041},        // 1102 -> 6 s
                 {kGhostPeakLevelId, 0.15},        // 1400
                 {kLifeTidalDepthId, 0.55},        // 1502
+                {kLifeBreathingDepthId, 0.0},      // 1500 -> 0: 13c ruling B-15 - breath gain 3.0 masked S1 at the inherited 0.30 (3.06; 4.98 at 0)
                 {kSeedId, 2.0 / 15.0},            // 2 index 2 -> "Seed 3"
             }},
         // ---- 7 row 2: S2 + D5.2 (T044) -----------------------------------------
@@ -446,6 +447,8 @@ inline constexpr std::array<std::string_view, 7> kCategories{
                 {kSpaceBreathId, 0.80},        // 1109
                 {kGhostPeakLevelId, 0.25},     // 1400
                 {kMacroAgeId, 0.25},           // 101
+                {kBloomDepthId, 0.0},              // 1300 -> 0: 13c ruling B-15 - child gain 1.5 masked S3 (3.29; 4.01 bloom off)
+                {kBloomSpawnRateId, 0.0},          // 1301 -> 0: 13c ruling B-15
                 {kSeedId, 4.0 / 15.0},         // 2 index 4 -> "Seed 5"
             }},
         // ---- 7 row 4: S4 + D6.1, D6.2, D6.3 (T044) -----------------------------
@@ -476,6 +479,8 @@ inline constexpr std::array<std::string_view, 7> kCategories{
                 {kSpaceDecayId, 0.374258},         // 1102 -> 3 s
                 {kGhostPeakLevelId, 0.20},         // 1400
                 {kMacroEntropyId, 0.30},           // 105
+                {kLifeBreathingDepthId, 0.0},      // 1500 -> 0: 13c ruling B-12 - the breath gravity lane gain 3.0
+                                                   // pumped S4 under its bar at the inherited 0.30 (3.98); 4.78 at 0
                 {kSeedId, 6.0 / 15.0},             // 2 index 6 -> "Seed 7"
             }},
         // ---- P3 (plan 6.16; 7 row 5): S5 + D7.3 --------------------------------
@@ -503,6 +508,7 @@ inline constexpr std::array<std::string_view, 7> kCategories{
                 {kSpaceDarknessId, 0.95},              // 1101
                 {kSpaceDecayId, 0.663824},             // 1102 -> 12 s
                 {kLifeTidalDepthId, 0.60},             // 1502
+                {kGhostPeakLevelId, 0.60},          // 1400: 13c B-14 pins the pre-B-14 default (the plugin default is now 0)
                 {kSeedId, 1.0 / 15.0},                 // 2 index 1 -> "Seed 2"
             }},
         // ---- 7 row 6: S6 + D14.1, D9.2 (T044) ----------------------------------
@@ -752,6 +758,7 @@ inline constexpr std::array<std::string_view, 7> kCategories{
                 {kSpaceMixId, 0.20},              // 1105
                 {kCloudTiltId, 1.0},              // 201 -> +8 dB (sweep 2 probe: M4 3.97 with tilt +8 / space mix 0.2 - best reading, under F)
                 {kCloudSpectralGravityId, 0.35},  // 206 -> -0.3
+                {kGhostPeakLevelId, 0.60},          // 1400: 13c B-14 pins the pre-B-14 default (the plugin default is now 0)
                 {kSeedId, 3.0 / 15.0},            // 2 index 3 -> "Seed 4"
             }},
         // ---- 7 row 15: M5 + D5.3 (T045) ----------------------------------------
@@ -803,6 +810,7 @@ inline constexpr std::array<std::string_view, 7> kCategories{
                 {kSpaceMixId, 0.50},                  // 1105
                 {kSpaceDecayId, 0.434349},            // 1102 -> 4 s
                 {kEcologyMixId, 0.30},                // 500
+                {kGhostPeakLevelId, 0.60},          // 1400: 13c B-14 pins the pre-B-14 default (the plugin default is now 0)
                 {kSeedId, 5.0 / 15.0},                // 2 index 5 -> "Seed 6"
             }},
         // ---- 7 row 17: M7 (T045) -----------------------------------------------
@@ -908,6 +916,7 @@ inline constexpr std::array<std::string_view, 7> kCategories{
                 {kEcologyMixId, 0.25},           // 500
                 {kCloudMutationId, 0.30},        // 202
                 {kSpaceDecayId, 0.519041},       // 1102 -> 6 s
+                {kGhostPeakLevelId, 0.60},          // 1400: 13c B-14 pins the pre-B-14 default (the plugin default is now 0)
                 {kSeedId, 11.0 / 15.0},          // 2 index 11 -> "Seed 12"
             }},
         // ---- 7 row 21: M11 (T045) ----------------------------------------------
@@ -933,6 +942,7 @@ inline constexpr std::array<std::string_view, 7> kCategories{
                 {kResonanceMixId, 0.30},         // 401
                 {kEnvelopeReleaseId, 0.883054},  // 1205 -> 40 s
                 {kBloomDepthId, 0.40},           // 1300
+                {kGhostPeakLevelId, 0.60},          // 1400: 13c B-14 pins the pre-B-14 default (the plugin default is now 0)
                 {kSeedId, 12.0 / 15.0},          // 2 index 12 -> "Seed 13"
             }},
         // ---- 7 row 22: M12 + D7.1 (T045) ---------------------------------------
@@ -1609,6 +1619,7 @@ inline constexpr std::array<std::string_view, 7> kCategories{
                 {kSpaceSizeId, 0.25},                  // 1100
                 {kSpaceMixId, 0.35},                   // 1105
                 {kEcosystemDepthId, 0.0},              // 900 (E1-E5 skipped: no colony route to claim)
+                {kGhostPeakLevelId, 0.60},          // 1400: 13c B-14 pins the pre-B-14 default (the plugin default is now 0)
                 {kSeedId, 11.0 / 15.0},                // 2 index 11 -> "Seed 12"
             }},
     };

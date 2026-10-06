@@ -1,0 +1,13 @@
+START 2026-10-02 07:42:35 VORAGO_PILOT_PRESET=Choir of Absence VORAGO_PILOT_LEVER=ghostTapDb=21 exe=2026-10-02 07:19:18 (kGhostTapMakeupDb 12 compiled, kGhostDensity 0.30)
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 1248693897
+[probe] lever: ghostTapDb=21
+[probe] Choir of Absence - primary S9 ghost / atmosphere (stored seed 10, 1 twin render(s))
+  take: peak 0.9661  arm1 hi -5.99 dB [NO]  arm2 lo -11.51 dB [yes]  arm3 late-sus -1.55 dB [yes]  arm4 tail -153.39 dB [yes]
+  arm1@44.1k: finite y peak 0.9661 hi -5.83 dB [NO]
+  primary d 4.1022  bar 4.0000  attribBase -1.0000  state ok  -> PASS  lever: ghostTapDb=21
+  levels: arms [n y y y] arm1@44.1k [n]
+===============================================================================
+All tests passed (10 assertions in 1 test case)
+
+exit=0 END 2026-10-02 07:45:26

@@ -1,0 +1,16 @@
+START 2026-10-02 14:36:02 Growth Ring as compiled (kAttackStageCurve = EnvCurve::Linear kAttackShapePower = 4 kDefaultStageTimesMs{20000.0f ; ecology 30/36, ghost 21/1.2, child gain 1.5; no lever env) exe=2026-10-02 14:34:43
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 4135077302
+[probe] lever: none
+[probe] Growth Ring - primary D8.2 envelope Growth (stored seed 9, 1 twin render(s))
+  take: peak 0.1748  arm1 hi -25.23 dB [yes]  arm2 lo -26.79 dB [yes]  arm3 late-sus -0.47 dB [yes]  arm4 tail -240.00 dB [yes]
+  arm1@44.1k: finite y peak 0.1664 hi -24.87 dB [PASS]
+  attack window (W_end registered 65.0 s, measured 35.0 s): d_att 7.6879, d_Sus 2.6363 (attributable iff d_att >= 4.1363)
+    P: first reaches RMS(Sus) - 6 dB at 30 s
+    P_rev: first reaches RMS(Sus) - 6 dB at 5 s
+  primary d 7.6879  bar 4.0000  attribBase 2.6363  state ok  -> PASS  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (9 assertions in 1 test case)
+
+exit=0 END 2026-10-02 14:37:27

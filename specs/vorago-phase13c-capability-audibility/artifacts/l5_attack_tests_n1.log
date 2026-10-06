@@ -1,0 +1,29 @@
+START 2026-10-02 14:10:32 attack tests at kAttackShapePower 1 exe=2026-10-02 14:09:28
+Filters: "VoragoVoice_AttackCurveReach","VoragoVoice_AttackTracksStageTime"
+Randomness seeded to: 3100309262
+VoragoVoice_AttackCurveReach: n = 1, 165.0 s rendered in 14.73 s wall
+VoragoVoice_AttackTracksStageTime: n = 1, RMS(Sus) -21.45 dB, reach 8.0 s (bound [15.0, 20.0] s), 180.0 s rendered in 3.11 s wall
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+VoragoVoice_AttackTracksStageTime
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4736)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4811): FAILED:
+  REQUIRE( *reachSeconds >= kTrackingFloor * t0Seconds )
+with expansion:
+  8.0 >= 15.0
+with message:
+  RMS(Sus) -21.4514 dB over [155, 180] s; reach target -27.4514 dB; reach 8 s;
+  T0 20 s
+
+===============================================================================
+test cases:  2 |  1 passed | 1 failed
+assertions: 39 | 38 passed | 1 failed
+
+exit=1 END 2026-10-02 14:10:50

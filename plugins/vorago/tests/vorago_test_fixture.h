@@ -166,6 +166,26 @@ private:
 };
 
 // -----------------------------------------------------------------------------
+// Short stage 0 (phase 13c FR-034; specs/vorago-phase13c-capability-audibility/
+// artifacts/fr034_surfaced.md section 4.1, T040 rule 1). The ruled L5 attack
+// (VoragoVoice::kAttackShapePower) leaves a default 20 s attack near silence for
+// its first seconds, so a case that measures something OTHER than the attack
+// shortens stage 0 on every arm instead of lowering its floor or its window.
+// The plugin arm writes kEnvelopeStage0TimeId (ProcessorFixture::shortenStage0());
+// a hand-built reference chain sets shortStage0PlainMs(), the exact plain value
+// the processor denormalizes that change to.
+// -----------------------------------------------------------------------------
+inline constexpr double kShortStage0Ms = 1000.0;
+
+[[nodiscard]] inline double shortStage0Normalized() noexcept {
+    return ::Vorago::detail::envelopeTimeToNormalized(kShortStage0Ms);
+}
+
+[[nodiscard]] inline float shortStage0PlainMs() noexcept {
+    return static_cast<float>(::Vorago::detail::envelopeTimeFromNormalized(shortStage0Normalized()));
+}
+
+// -----------------------------------------------------------------------------
 // ProcessorFixture (model: plugins/seraphis/tests/seraphis_test_fixture.h:158)
 // -----------------------------------------------------------------------------
 struct ProcessorFixture {
@@ -265,6 +285,15 @@ struct ProcessorFixture {
         data.outputEvents = nullptr;
         data.processContext = nullptr;
         return proc->process(data);
+    }
+
+    // Parameter-only call writing kEnvelopeStage0TimeId = shortStage0Normalized()
+    // (see kShortStage0Ms). Latched now; pushed to the engine by the next rendered
+    // block, before that block's events, so a note-on in it already uses it.
+    void shortenStage0() {
+        MultiParamChanges pc;
+        pc.addQueue(::Vorago::kEnvelopeStage0TimeId).addTestPoint(0, shortStage0Normalized());
+        REQUIRE(processNoOutputs(&pc) == Steinberg::kResultOk);
     }
 
     void reserveCapture(std::size_t totalSamples) {

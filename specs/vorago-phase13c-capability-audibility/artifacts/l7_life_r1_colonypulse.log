@@ -1,0 +1,16 @@
+START 2026-10-03 19:00:16 Colony Pulse VORAGO_PILOT_SECONDARY=1 | Life rung r1: rows=kNumRows = 50 markers=1 | .amount = 0.0458f,  // 13c T054 r1 (was 0.0208f): reaches kMaxSpawnRateHz 0.05; | tree: attack n 4, breath 3.0, tide 0.8, ghost 21/1.2, ecology 30/36, child gain 1.5 | exe=2026-10-03 18:49:22
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 3596973443
+[probe] lever: none
+[probe] Colony Pulse - primary S7 ecosystem (stored seed 8, 1 twin render(s))
+  take: peak 0.9661  arm1 hi -14.80 dB [yes]  arm2 lo -26.45 dB [yes]  arm3 late-sus -1.22 dB [yes]  arm4 tail -151.31 dB [yes]
+  arm1@44.1k: finite y peak 0.9661 hi -16.56 dB [PASS]
+  primary d 13.9040  bar 4.0000  attribBase -1.0000  state ok  -> PASS  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  secondary D13.2 event rate scale >= 3.0: d 0.2261 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "" -> no
+  secondary E6.hi ecosystem sync rate high: d 1.3475 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "" -> no
+  secondary E7.hi ecosystem self-affinity high: d 1.2428 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "" -> no
+===============================================================================
+All tests passed (9 assertions in 1 test case)
+
+exit=0 END 2026-10-03 19:12:09

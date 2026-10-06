@@ -1,0 +1,119 @@
+START 2026-10-03 14:51:12 T051 M5 cause table: Stone Gravity, VORAGO_PILOT_TAKES=4; norm(+1.0 gravity) = 1.0 (linear [-1, 1]); exe=2026-10-03 08:04:38
+--- 2026-10-03 14:51:12 A0 as stored VORAGO_PILOT_OVERRIDE="104=1" exe=2026-10-03 08:04:38
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 4209069507
+[probe] override 104 = 1.000000 (replaced)
+[probe] lever: none
+[probe] Stone Gravity - primary M5 Gravity (stored seed 1, 1 twin render(s))
+  take: peak 0.9661  arm1 hi -7.20 dB [yes]  arm2 lo -22.87 dB [yes]  arm3 late-sus +1.12 dB [yes]  arm4 tail -219.91 dB [yes]
+  arm1@44.1k: finite y peak 0.9661 hi -7.28 dB [PASS]
+  primary d 3.1864  bar 4.0000  attribBase -1.0000  state ok  -> FAIL  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  take j=0 seed 1: peak 0.9661  arm1 hi -7.20 dB [yes]  arm2 lo -22.87 dB [yes]  arm3 late-sus +1.12 dB [yes]  arm4 tail -219.91 dB [yes]
+  take j=1 seed 2: peak 0.9661  arm1 hi -6.20 dB [yes]  arm2 lo -26.67 dB [yes]  arm3 late-sus +2.26 dB [yes]  arm4 tail -226.43 dB [yes]
+  take j=2 seed 3: peak 0.9661  arm1 hi -10.42 dB [yes]  arm2 lo -25.16 dB [yes]  arm3 late-sus +3.90 dB [yes]  arm4 tail -222.18 dB [yes]
+  take j=3 seed 4: peak 0.9661  arm1 hi -6.95 dB [yes]  arm2 lo -16.90 dB [yes]  arm3 late-sus +2.14 dB [yes]  arm4 tail -223.98 dB [yes]
+  take j=0 d 3.1864
+  take j=1 d 1.7714
+  take j=2 d 2.5720
+  take j=3 d 0.8535
+===============================================================================
+All tests passed (20 assertions in 1 test case)
+
+exit=0 2026-10-03 14:55:19
+--- 2026-10-03 14:55:19 A1 OctaveLock row off (Gravity neutral, ResonanceGravity base +1.0) VORAGO_PILOT_OVERRIDE="104=0.5,400=1.0" exe=2026-10-03 08:04:38
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 517148349
+[probe] override 104 = 0.500000 (replaced)
+[probe] override 400 = 1.000000 (appended)
+[probe] lever: none
+[probe] Stone Gravity - primary M5 Gravity (stored seed 1, 0 twin render(s))
+  take: peak 0.9661  arm1 hi -7.22 dB [yes]  arm2 lo -23.29 dB [yes]  arm3 late-sus +2.00 dB [yes]  arm4 tail -222.72 dB [yes]
+  arm1@44.1k: finite y peak 0.9661 hi -7.37 dB [PASS]
+  primary d 0.0000  bar 4.0000  attribBase -1.0000  state false  -> FAIL  skip: M displacement  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  take j=0 seed 1: peak 0.9661  arm1 hi -7.22 dB [yes]  arm2 lo -23.29 dB [yes]  arm3 late-sus +2.00 dB [yes]  arm4 tail -222.72 dB [yes]
+  take j=1 seed 2: peak 0.9661  arm1 hi -6.09 dB [yes]  arm2 lo -26.77 dB [yes]  arm3 late-sus +1.70 dB [yes]  arm4 tail -227.81 dB [yes]
+  take j=2 seed 3: peak 0.9661  arm1 hi -10.67 dB [yes]  arm2 lo -27.21 dB [yes]  arm3 late-sus +5.07 dB [yes]  arm4 tail -222.75 dB [yes]
+  take j=3 seed 4: peak 0.9661  arm1 hi -6.73 dB [yes]  arm2 lo -18.11 dB [yes]  arm3 late-sus +1.77 dB [yes]  arm4 tail -229.54 dB [yes]
+  take j=0 d 0.0000  skip: M displacement
+  take j=1 d 0.0000  skip: M displacement
+  take j=2 d 0.0000  skip: M displacement
+  take j=3 d 0.0000  skip: M displacement
+===============================================================================
+All tests passed (13 assertions in 1 test case)
+
+exit=0 2026-10-03 14:57:13
+--- 2026-10-03 14:57:13 A3 breathing off VORAGO_PILOT_OVERRIDE="104=1,1500=0" exe=2026-10-03 08:04:38
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 2050767268
+[probe] override 104 = 1.000000 (replaced)
+[probe] override 1500 = 0.000000 (appended)
+[probe] lever: none
+[probe] Stone Gravity - primary M5 Gravity (stored seed 1, 1 twin render(s))
+  take: peak 0.9661  arm1 hi -7.20 dB [yes]  arm2 lo -20.54 dB [yes]  arm3 late-sus +1.71 dB [yes]  arm4 tail -216.21 dB [yes]
+  arm1@44.1k: finite y peak 0.9661 hi -6.82 dB [PASS]
+  primary d 2.4591  bar 4.0000  attribBase -1.0000  state ok  -> FAIL  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  take j=0 seed 1: peak 0.9661  arm1 hi -7.20 dB [yes]  arm2 lo -20.54 dB [yes]  arm3 late-sus +1.71 dB [yes]  arm4 tail -216.21 dB [yes]
+  take j=1 seed 2: peak 0.9661  arm1 hi -6.20 dB [yes]  arm2 lo -24.22 dB [yes]  arm3 late-sus +4.30 dB [yes]  arm4 tail -223.23 dB [yes]
+  take j=2 seed 3: peak 0.9661  arm1 hi -9.09 dB [yes]  arm2 lo -23.06 dB [yes]  arm3 late-sus +3.74 dB [yes]  arm4 tail -221.67 dB [yes]
+  take j=3 seed 4: peak 0.9661  arm1 hi -6.95 dB [yes]  arm2 lo -18.90 dB [yes]  arm3 late-sus +2.60 dB [yes]  arm4 tail -223.43 dB [yes]
+  take j=0 d 2.4591
+  take j=1 d 4.4098
+  take j=2 d 1.9459
+  take j=3 d 4.2649
+===============================================================================
+All tests passed (21 assertions in 1 test case)
+
+exit=0 2026-10-03 15:01:15
+--- 2026-10-03 15:01:15 A4 Gravity neutral + breathing off VORAGO_PILOT_OVERRIDE="104=0.5,1500=0" exe=2026-10-03 08:04:38
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 3600691136
+[probe] override 104 = 0.500000 (replaced)
+[probe] override 1500 = 0.000000 (appended)
+[probe] lever: none
+[probe] Stone Gravity - primary M5 Gravity (stored seed 1, 0 twin render(s))
+  take: peak 0.9661  arm1 hi -11.00 dB [yes]  arm2 lo -25.76 dB [yes]  arm3 late-sus +6.35 dB [yes]  arm4 tail -224.01 dB [yes]
+  arm1@44.1k: finite y peak 0.9661 hi -10.25 dB [PASS]
+  primary d 0.0000  bar 4.0000  attribBase -1.0000  state false  -> FAIL  skip: M displacement  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  take j=0 seed 1: peak 0.9661  arm1 hi -11.00 dB [yes]  arm2 lo -25.76 dB [yes]  arm3 late-sus +6.35 dB [yes]  arm4 tail -224.01 dB [yes]
+  take j=1 seed 2: peak 0.9661  arm1 hi -11.29 dB [yes]  arm2 lo -27.59 dB [yes]  arm3 late-sus +3.46 dB [yes]  arm4 tail -230.97 dB [yes]
+  take j=2 seed 3: peak 0.9661  arm1 hi -9.18 dB [yes]  arm2 lo -25.02 dB [yes]  arm3 late-sus +3.26 dB [yes]  arm4 tail -226.75 dB [yes]
+  take j=3 seed 4: peak 0.9661  arm1 hi -8.78 dB [yes]  arm2 lo -19.16 dB [yes]  arm3 late-sus -5.23 dB [yes]  arm4 tail -231.22 dB [yes]
+  take j=0 d 0.0000  skip: M displacement
+  take j=1 d 0.0000  skip: M displacement
+  take j=2 d 0.0000  skip: M displacement
+  take j=3 d 0.0000  skip: M displacement
+===============================================================================
+All tests passed (13 assertions in 1 test case)
+
+exit=0 2026-10-03 15:03:13
+A2 row amount 0
+A2 build exit=0 warnings=0
+--- 2026-10-03 15:03:55 A2 ResonanceGravity row off (scratch rebuild, amount 0) VORAGO_PILOT_OVERRIDE="104=1" exe=2026-10-03 15:03:53
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 4085208932
+[probe] override 104 = 1.000000 (replaced)
+[probe] lever: none
+[probe] Stone Gravity - primary M5 Gravity (stored seed 1, 1 twin render(s))
+  take: peak 0.9661  arm1 hi -6.86 dB [yes]  arm2 lo -24.23 dB [yes]  arm3 late-sus +0.88 dB [yes]  arm4 tail -219.67 dB [yes]
+  arm1@44.1k: finite y peak 0.9661 hi -7.38 dB [PASS]
+  primary d 0.8268  bar 4.0000  attribBase -1.0000  state ok  -> FAIL  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  take j=0 seed 1: peak 0.9661  arm1 hi -6.86 dB [yes]  arm2 lo -24.23 dB [yes]  arm3 late-sus +0.88 dB [yes]  arm4 tail -219.67 dB [yes]
+  take j=1 seed 2: peak 0.9661  arm1 hi -6.13 dB [yes]  arm2 lo -25.64 dB [yes]  arm3 late-sus +3.87 dB [yes]  arm4 tail -229.24 dB [yes]
+  take j=2 seed 3: peak 0.9661  arm1 hi -10.07 dB [yes]  arm2 lo -26.65 dB [yes]  arm3 late-sus +1.94 dB [yes]  arm4 tail -222.78 dB [yes]
+  take j=3 seed 4: peak 0.9661  arm1 hi -7.33 dB [yes]  arm2 lo -19.05 dB [yes]  arm3 late-sus +0.04 dB [yes]  arm4 tail -229.34 dB [yes]
+  take j=0 d 0.8268
+  take j=1 d 0.9213
+  take j=2 d 2.0358
+  take j=3 d 0.6764
+===============================================================================
+All tests passed (20 assertions in 1 test case)
+
+exit=0 2026-10-03 15:08:01
+A2 reverted: 0 scratch markers left
+revert build exit=0 warnings=0
+END 2026-10-03 15:08:43

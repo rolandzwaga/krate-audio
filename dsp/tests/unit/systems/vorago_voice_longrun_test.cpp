@@ -555,7 +555,15 @@ TEST_CASE("VoragoVoice_BloomSlotAccounting", "[systems][vorago][long]") {
         const std::size_t capacity = v->bloom().capacity();
         const std::size_t reserve = v->bloom().reserveBase();
         const std::size_t live = v->bloom().getLiveChildCount();
-        const bool wantTarget = (live > 0u);
+        // 13c FR-034 (T023 / ruling Q2, FR-011): the voice also engages the target whenever the
+        // USER richness N(r) is below the cloud's floored active count (it restores the user's
+        // spectrum below kCloudRichnessFloor). N(r) is HarmonicCloud's own expression, evaluated on
+        // the user richness exactly as VoragoVoice::partialCountFor does.
+        const auto userCount = static_cast<std::size_t>(std::clamp(
+            static_cast<int>(std::round(std::pow(static_cast<float>(HarmonicCloud::kMaxPartials),
+                                                 v->getRichness()))),
+            1, static_cast<int>(HarmonicCloud::kMaxPartials)));
+        const bool wantTarget = (live > 0u) || (userCount < v->cloud().getActivePartialCount());
         const bool hasTarget = v->cloud().hasSpectralTarget();
 
         minCapacity = std::min(minCapacity, capacity);

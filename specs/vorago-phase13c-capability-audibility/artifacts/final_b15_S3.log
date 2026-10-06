@@ -1,0 +1,15 @@
+START 2026-10-05 07:46:43 Smeared Horizon as compiled with the B-15 def edit, no override exe=2026-10-05 07:40:29
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 3607535717
+[probe] lever: none
+[probe] Smeared Horizon - primary S3 spectral smear (stored seed 4, 1 twin render(s))
+  take: peak 0.9661  arm1 hi -7.92 dB [yes]  arm2 lo -19.05 dB [yes]  arm3 late-sus +3.70 dB [yes]  arm4 tail -145.06 dB [yes]
+  arm1@44.1k: finite y peak 0.9661 hi -8.19 dB [PASS]
+  primary d 4.0128  bar 4.0000  attribBase -1.0000  state ok  -> PASS  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  secondary D8.1 envelope Standard: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+  secondary D10.2 freeze off: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+===============================================================================
+All tests passed (9 assertions in 1 test case)
+
+exit=0 END 2026-10-05 07:53:27

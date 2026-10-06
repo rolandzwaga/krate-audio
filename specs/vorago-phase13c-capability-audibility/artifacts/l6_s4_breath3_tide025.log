@@ -1,0 +1,13 @@
+START 2026-10-02 23:29:03 Feedback Mire at breath 3.0 / tide 0.25 (bisect of the B-12 S4 drop) exe=2026-10-02 23:29:02
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 2664668781
+[probe] lever: none
+[probe] Feedback Mire - primary S4 feedback ecology (stored seed 6, 1 twin render(s))
+  take: peak 0.6027  arm1 hi -17.29 dB [yes]  arm2 lo -38.37 dB [yes]  arm3 late-sus +5.77 dB [yes]  arm4 tail -138.94 dB [yes]
+  arm1@44.1k: finite y peak 0.5177 hi -20.91 dB [PASS]
+  primary d 3.9445  bar 4.0000  attribBase -1.0000  state ok  -> FAIL  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (9 assertions in 1 test case)
+
+exit=0 END 2026-10-02 23:32:30

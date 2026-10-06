@@ -1,0 +1,9 @@
+START 2026-10-02 15:21:20 T069 test at spans 0/0 exe=2026-10-02 15:21:18
+Filters: "VoragoVoice_PartialLaneBloomExtension","VoragoVoice_RouteLeverZeroAtZeroLane","VoragoEngine_SeamReadbackProbe","VoragoVoice_EcosystemLeverBaseReadBack"
+Randomness seeded to: 2204851725
+[seams] defaults: childGain 1.500 ecologyWetDb 30.000 ghostDensity 0.300 ghostTapDb 21.000
+[seams] set 0.7 / 12 / 0.6 -> read 0.700 / 12.000 / 0.600
+===============================================================================
+All tests passed (110 assertions in 4 test cases)
+
+exit=0 END 2026-10-02 15:21:22

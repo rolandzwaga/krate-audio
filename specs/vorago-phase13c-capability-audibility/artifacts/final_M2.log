@@ -1,0 +1,21 @@
+START 2026-10-04 10:42:19 Erosion tree=ae149a1c+working-copy as-compiled (no override) env: VORAGO_PILOT_TAKES=4 | final tree: attack n 4; child gain 1.5; ghost 21 dB / span 1.2 / default peak 0; ecology 30 (ceiling 36); breath 3.0; tide 0.8; M9 rung 2; M12 rung 1; Feedback Mire breathing 0; six presets pin ghost 0.60 | exe=2026-10-04 09:54:11
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 1161494089
+[probe] lever: none
+[probe] Erosion - primary M2 Age (stored seed 14, 1 twin render(s))
+  take: peak 0.2096  arm1 hi -26.12 dB [yes]  arm2 lo -34.30 dB [yes]  arm3 late-sus +0.02 dB [yes]  arm4 tail -191.38 dB [yes]
+  arm1@44.1k: finite y peak 0.2188 hi -25.61 dB [PASS]
+  primary d 2.7945  bar 4.0000  attribBase -1.0000  state ok  -> FAIL  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  take j=0 seed 14: peak 0.2096  arm1 hi -26.12 dB [yes]  arm2 lo -34.30 dB [yes]  arm3 late-sus +0.02 dB [yes]  arm4 tail -191.38 dB [yes]
+  take j=1 seed 15: peak 0.2246  arm1 hi -23.33 dB [yes]  arm2 lo -38.18 dB [yes]  arm3 late-sus +1.55 dB [yes]  arm4 tail -194.79 dB [yes]
+  take j=2 seed 0: peak 0.2495  arm1 hi -24.26 dB [yes]  arm2 lo -32.96 dB [yes]  arm3 late-sus +0.63 dB [yes]  arm4 tail -179.62 dB [yes]
+  take j=3 seed 1: peak 0.2487  arm1 hi -23.60 dB [yes]  arm2 lo -33.90 dB [yes]  arm3 late-sus -0.70 dB [yes]  arm4 tail -168.31 dB [yes]
+  take j=0 d 2.7945
+  take j=1 d 3.2601
+  take j=2 d 3.6277
+  take j=3 d 3.4325
+===============================================================================
+All tests passed (19 assertions in 1 test case)
+
+exit=0 END 2026-10-04 10:46:23

@@ -271,9 +271,9 @@ public:
     static constexpr std::size_t kNumTargets = static_cast<std::size_t>(VoragoMacroTarget::Count);
 
     /// FR-060's table length: 3 Darkness + 3 Age + 4 Density + 5 Movement
-    /// + 2 Gravity + 5 Entropy + 5 Pressure + 4 Weight + 7 Fog + 3 Life
-    /// + 4 Depth + 5 Mass = 50.
-    static constexpr std::size_t kNumRows = 50;
+    /// + 2 Gravity + 5 Entropy + 5 Pressure + 4 Weight + 8 Fog + 3 Life
+    /// + 4 Depth + 5 Mass = 51 (13c B-13: + Fog->SmearDecoherence).
+    static constexpr std::size_t kNumRows = 51;
 
     /// The first enumerator of each owner block. The block an enumerator sits in
     /// IS its owner (see VoragoMacroTarget), and these three constants are how
@@ -579,7 +579,7 @@ public:
         {.macro = VoragoMacro::Fog,
          .owner = VoragoMacroTargetOwner::Engine,
          .target = VoragoMacroTarget::GhostPeakLevel,
-         .base = 0.60f,  // S8.3 kGhostBurstPeak
+         .base = 0.0f,  // VoragoEngine::kGhostDefaultPeakLevel (13c B-14; was 0.60 == kGhostBurstPeak)
          .amount = 0.40f,  // 0.60 overshot setGhostPeakLevel's clamp of 1.0 from Fog 0.67 up
          .curve = ModCurve::Linear},  // roadmap 467: ghost mix up (-> 1.0, the ceiling)
         {.macro = VoragoMacro::Fog,
@@ -592,7 +592,7 @@ public:
          .owner = VoragoMacroTargetOwner::Cavern,
          .target = VoragoMacroTarget::CavernFog,
          .base = 0.30f,  // VoragoCavernTargets::fog
-         .amount = 0.55f,
+         .amount = 0.70f,  // 13c ruling B-13 (2026-10-03): M9 rung 2, was 0.55f (Fogbound 4.4115)
          .curve = ModCurve::SCurve},  // `Distance`: distance filtering up (Q1)
         {.macro = VoragoMacro::Fog,
          .owner = VoragoMacroTargetOwner::Cavern,
@@ -619,6 +619,14 @@ public:
          .base = 0.40f,  // S8.2 tide_.setDepth
          .amount = 0.40f,
          .curve = ModCurve::Linear},  // FR-026's fog lane rolls in harder
+        // 13c ruling B-13 (2026-10-03), M9 rung 2: Fog also decoheres the smear (base shared with
+        // Entropy's row); Fogbound 1.82 -> 4.4115 with the cavern-fog widening above.
+        {.macro = VoragoMacro::Fog,
+         .owner = VoragoMacroTargetOwner::Engine,
+         .target = VoragoMacroTarget::SmearDecoherence,
+         .base = 0.20f,  // S8.3 smear_.setDecoherence
+         .amount = 0.40f,
+         .curve = ModCurve::Linear},
 
         // ---------------------------------------------------------------------
         // LIFE - FR-068 normative (roadmap line 466): the ecosystem gets louder,
@@ -752,7 +760,7 @@ public:
          .owner = VoragoMacroTargetOwner::Engine,
          .target = VoragoMacroTarget::SubToneLevelOffsetDb,
          .base = 0.0f,  // == Weight's base (everyRowSharesOneBasePerTarget)
-         .amount = 3.0f,
+         .amount = 6.0f,  // 13c ruling B-13 (2026-10-03): M12 rung 1, was 3.0f (Monolith 5.7413)
          .curve = ModCurve::Linear},
     }};
 

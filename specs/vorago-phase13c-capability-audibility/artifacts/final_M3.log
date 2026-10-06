@@ -1,0 +1,21 @@
+START 2026-10-04 10:46:23 Crowded Dark tree=ae149a1c+working-copy as-compiled (no override) env: VORAGO_PILOT_TAKES=4 | final tree: attack n 4; child gain 1.5; ghost 21 dB / span 1.2 / default peak 0; ecology 30 (ceiling 36); breath 3.0; tide 0.8; M9 rung 2; M12 rung 1; Feedback Mire breathing 0; six presets pin ghost 0.60 | exe=2026-10-04 09:54:11
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 470681713
+[probe] lever: none
+[probe] Crowded Dark - primary M3 Density (stored seed 15, 1 twin render(s))
+  take: peak 0.8784  arm1 hi -15.31 dB [yes]  arm2 lo -29.12 dB [yes]  arm3 late-sus +1.31 dB [yes]  arm4 tail -179.19 dB [yes]
+  arm1@44.1k: finite y peak 0.8081 hi -16.27 dB [PASS]
+  primary d 4.1136  bar 4.0000  attribBase -1.0000  state ok  -> PASS  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  take j=0 seed 15: peak 0.8784  arm1 hi -15.31 dB [yes]  arm2 lo -29.12 dB [yes]  arm3 late-sus +1.31 dB [yes]  arm4 tail -179.19 dB [yes]
+  take j=1 seed 0: peak 0.7324  arm1 hi -15.59 dB [yes]  arm2 lo -23.44 dB [yes]  arm3 late-sus -0.68 dB [yes]  arm4 tail -180.21 dB [yes]
+  take j=2 seed 1: peak 0.6884  arm1 hi -17.05 dB [yes]  arm2 lo -23.17 dB [yes]  arm3 late-sus -0.66 dB [yes]  arm4 tail -161.93 dB [yes]
+  take j=3 seed 2: peak 0.7929  arm1 hi -15.56 dB [yes]  arm2 lo -24.17 dB [yes]  arm3 late-sus -0.64 dB [yes]  arm4 tail -186.68 dB [yes]
+  take j=0 d 4.1136
+  take j=1 d 5.8185
+  take j=2 d 4.8464
+  take j=3 d 6.9539
+===============================================================================
+All tests passed (19 assertions in 1 test case)
+
+exit=0 END 2026-10-04 10:50:22

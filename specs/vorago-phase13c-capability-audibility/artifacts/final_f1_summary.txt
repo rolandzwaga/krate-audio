@@ -1,0 +1,33 @@
+=== F1 started 2026-10-04 10:31:15 tree=ae149a1c+working-copy exe=2026-10-04 09:54:11 | final tree: attack n 4; child gain 1.5; ghost 21 dB / span 1.2 / default peak 0; ecology 30 (ceiling 36); breath 3.0; tide 0.8; M9 rung 2; M12 rung 1; Feedback Mire breathing 0; six presets pin ghost 0.60 ===
+S4 (Feedback Mire):  primary d 4.7751 bar 4.0000 -> PASS lever: none| levels: arms [y y y y] arm1@44.1k [y]| takes: 0 d 4.7751 1 d 3.7263 2 d 5.3202 3 d 5.6188 
+S6 (Slow Bloom):  primary d 4.3549 bar 4.0000 -> PASS lever: none| levels: arms [y y y y] arm1@44.1k [y]| takes: 0 d 4.3549 1 d 1.4006 2 d 0.7358 3 d 2.1846 
+S9 (Choir of Absence):  primary d 4.3383 bar 4.0000 -> PASS lever: none| levels: arms [y y y y] arm1@44.1k [y]| takes: 0 d 4.3383 1 d 4.8204 2 d 5.2072 3 d 4.6298 
+M2 (Erosion):  primary d 2.7945 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]| takes: 0 d 2.7945 1 d 3.2601 2 d 3.6277 3 d 3.4325 
+M3 (Crowded Dark):  primary d 4.1136 bar 4.0000 -> PASS lever: none| levels: arms [y y y y] arm1@44.1k [y]| takes: 0 d 4.1136 1 d 5.8185 2 d 4.8464 3 d 6.9539 
+M4 (Drifting Strata):  primary d 0.8745 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]| takes: 0 d 0.8745 1 d 7.5134 2 d 1.1654 3 d 2.1137 
+M5 (Stone Gravity):  primary d 3.1864 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]| takes: 0 d 3.1864 1 d 1.7714 2 d 2.5720 3 d 0.8535 
+M9 (Fogbound):  primary d 4.4115 bar 4.0000 -> PASS lever: none| levels: arms [y y y y] arm1@44.1k [y]| takes: 0 d 4.4115 1 d 3.4311 2 d 6.3694 3 d 2.8222 
+M10 (Teeming):  primary d 0.9943 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]| takes: 0 d 0.9943 1 d 0.9553 2 d 3.1460 3 d 0.3244 
+M12 (Monolith):  primary d 5.7413 bar 4.0000 -> PASS lever: none| levels: arms [y y y y] arm1@44.1k [y]| takes: 0 d 5.7413 1 d 3.9137 2 d 4.9330 3 d 4.2808 
+E1 (Bloom Colony):  route arms: d(R_k, R_k0) 1.1823, attribBase d(R_0, R_00) 1.1035 (attributable iff d >= 2.6035)| primary d 1.1823 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]| takes: 0 d 1.1823 1 d 2.6168 2 d 0.0737 3 d 1.8885 
+E3 (Swarm Breath):  route arms: d(R_k, R_k0) 1.1652, attribBase d(R_0, R_00) 0.6422 (attributable iff d >= 2.1422)| primary d 1.1652 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]| takes: 0 d 1.1652 1 d 1.3338 2 d 0.7251 3 d 0.5811 
+E4 (Feeding Loops):  route arms: d(R_k, R_k0) 2.9182, attribBase d(R_0, R_00) 0.9851 (attributable iff d >= 2.4851)| primary d 2.9182 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]| takes: 0 d 2.9182 1 d 1.2645 2 d 6.2367 3 d 4.8392 
+E5 (Haunted Colony):  route arms: d(R_k, R_k0) 3.9093, attribBase d(R_0, R_00) 0.8873 (attributable iff d >= 2.3873)| primary d 3.9093 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]| takes: 0 d 3.9093 1 d 5.9939 2 d 2.9817 3 d 4.6148 
+D9.1 (Sudden Chasm):  attack window (W_end registered 25.0 s, measured 23.0 s): d_att 9.6066, d_Sus 4.3035 (attributable iff d_att >= 5.8035)| primary d 9.6066 bar 4.0000 -> PASS lever: none| levels: arms [y y y y] arm1@44.1k [y]| takes: 0 d 9.6066 1 d 0.0000 2 d 0.0000 3 d 0.0000 
+S4 -6 dB (Feedback Mire):  primary d 4.7763 bar 4.0000 -> PASS lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+S6 -6 dB (Slow Bloom):  primary d 4.3552 bar 4.0000 -> PASS lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+S9 -6 dB (Choir of Absence):  primary d 4.4586 bar 4.0000 -> PASS lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+M2 -6 dB (Erosion):  primary d 2.7946 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+M3 -6 dB (Crowded Dark):  primary d 4.1133 bar 4.0000 -> PASS lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+M4 -6 dB (Drifting Strata):  primary d 0.8886 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+M5 -6 dB (Stone Gravity):  primary d 3.1954 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+M9 -6 dB (Fogbound):  primary d 4.4112 bar 4.0000 -> PASS lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+M10 -6 dB (Teeming):  primary d 0.9943 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+M12 -6 dB (Monolith):  primary d 6.1659 bar 4.0000 -> PASS lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+E1 -6 dB (Bloom Colony):  route arms: d(R_k, R_k0) 1.1829, attribBase d(R_0, R_00) 1.1047 (attributable iff d >= 2.6047)| primary d 1.1829 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+E3 -6 dB (Swarm Breath):  route arms: d(R_k, R_k0) 1.1648, attribBase d(R_0, R_00) 0.6418 (attributable iff d >= 2.1418)| primary d 1.1648 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+E4 -6 dB (Feeding Loops):  route arms: d(R_k, R_k0) 2.9184, attribBase d(R_0, R_00) 0.9852 (attributable iff d >= 2.4852)| primary d 2.9184 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+E5 -6 dB (Haunted Colony):  route arms: d(R_k, R_k0) 3.9128, attribBase d(R_0, R_00) 0.8875 (attributable iff d >= 2.3875)| primary d 3.9128 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+D9.1 -6 dB (Sudden Chasm):  attack window (W_end registered 25.0 s, measured 23.0 s): d_att 9.6051, d_Sus 4.3070 (attributable iff d_att >= 5.8070)| primary d 9.6051 bar 4.0000 -> PASS lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+secondaries: D13.2 event rate scale >= 3.0 d 0.1942 no;E7.hi ecosystem self-affinity high d 1.3429 no;D13.1 event rate scale <= 0.3 d 0.8560 no;S7 ecosystem d 10.1021 VERIFIED;D14.1 breathing depth >= 0.7 d 2.5610 VERIFIED;D14.2 tidal depth >= 0.7 d 0.3131 no;
+=== F1 finished 2026-10-04 13:29:40 ===

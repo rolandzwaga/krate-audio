@@ -142,6 +142,7 @@ TEST_CASE("Vorago_SeedParameter", "[vorago][integration]") {
 
         VoragoTest::ProcessorFixture fx;
         prepareAtSeed(fx, kFrom);
+        fx.shortenStage0();  // FR-034 A14: the 2 s warm-up sits inside the ruled 20 s attack
         REQUIRE(fx.proc->engineForTest()->getSeed() == wantFrom);
         fx.reserveCapture((kWarmBlocks + kAfterBlocks) * kBlock);
 
