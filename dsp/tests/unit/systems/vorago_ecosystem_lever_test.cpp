@@ -1394,6 +1394,98 @@ TEST_CASE("VoragoVoice_RouteLeverZeroAtZeroLane", "[systems][vorago]") {
 }
 
 // -----------------------------------------------------------------------------
+// VoragoVoice_CeilingLeverNeutral (Phase 13d T-M3; FR-012 (a), plan s4.1)
+// -----------------------------------------------------------------------------
+// Owning spec: specs/vorago-phase13d-engine-ceilings (tasks.md T009).
+// The five route seams install the compiled values at prepare() (so a voice
+// nobody tweaks renders exactly as before), a zero lane still reads every base
+// exactly, a set seam is what applyIdentityLanes reads, and every float seam
+// rejects non-finite input and clamps.
+TEST_CASE("VoragoVoice_CeilingLeverNeutral", "[systems][vorago]") {
+    auto voice = makeLeverVoice(48000.0, leverSeed());
+    REQUIRE(voice->isPrepared());
+    voice->noteOn(65.406f, 100.0f / 127.0f);
+
+    // --- 1. prepare() installs the compiled values -----------------------------
+    REQUIRE(voice->getPartialBloomLaneGain() == 1.0f);
+    REQUIRE(voice->getPartialMutationLaneGain() == 1.0f);
+    REQUIRE(voice->getLoopGainLeverSpan() == 0.18f);
+    REQUIRE(voice->getCouplingLeverSpan() == 0.30f);
+    REQUIRE(voice->getLoopWakeBase() == VoragoVoice::kLoopWakeBase);
+    REQUIRE(voice->getBloomParentCount() == 4u);
+    REQUIRE(voice->getBloomChildrenPerEvent() == 2u);
+
+    const std::size_t loops = voice->ecology().getNumLoops();
+    REQUIRE(loops > 0u);
+    Probe::Lanes S{};
+
+    // --- 2. Zero lane: every route reads its base exactly ----------------------
+    Probe::injectEco(*voice, uniformLanes(0.0f));
+    Probe::advanceLifeOnly(*voice);
+    REQUIRE(voice->cloud().getMutation() == Probe::mutationBase(*voice));
+    REQUIRE(voice->bloom().getDepth() == Probe::bloomDepthBase(*voice));
+    for (std::size_t l = 0; l < loops; ++l) {
+        CAPTURE(l);
+        REQUIRE(Probe::loopGainOffset(*voice, l) == 0.0f);
+        REQUIRE(Probe::ringCouplingApplied(*voice, l) == Probe::ringCouplingBase());
+    }
+
+    // --- 3. Set seams: applyIdentityLanes reads them ---------------------------
+    voice->setPartialBloomLaneGain(2.5f);
+    voice->setPartialMutationLaneGain(0.5f);
+    voice->setLoopGainLeverSpan(0.26f);
+    voice->setCouplingLeverSpan(0.40f);
+    voice->setLoopWakeBase(0.15f);
+    for (const float raw : {0.1f, 0.5f, 1.0f}) {
+        CAPTURE(raw);
+        Probe::injectEco(*voice, uniformLanes(raw));
+        Probe::advanceLifeOnly(*voice);
+        Probe::schedLanes(*voice, S);  // valid: immediately after advanceLifeOnly
+        const float x = std::clamp(Probe::leverInputGain(kKindFeedback) * raw, 0.0f, 1.0f);
+        REQUIRE(voice->cloud().getMutation() ==
+                std::clamp(Probe::mutationBase(*voice) + 0.5f * raw, 0.0f, 1.0f));
+        REQUIRE(voice->bloom().getDepth() ==
+                std::clamp(Probe::bloomDepthBase(*voice) + 2.5f * raw, 0.0f, 1.0f));
+        for (std::size_t l = 0; l < loops; ++l) {
+            CAPTURE(l);
+            REQUIRE(Probe::loopGainOffset(*voice, l) == 0.26f * x);
+            REQUIRE(Probe::ringCouplingApplied(*voice, l) ==
+                    std::clamp(Probe::ringCouplingBase() + 0.40f * x, 0.0f, 0.5f));
+            REQUIRE(voice->ecology().getLoopWakeAmount(l) ==
+                    VoragoVoice::combineWake(0.15f, raw, S[kKindFeedback][l]));
+        }
+    }
+
+    // --- 4. Clamps and non-finite rejection -------------------------------------
+    voice->setLoopWakeBase(0.0f);
+    REQUIRE(voice->getLoopWakeBase() == 0.05f);  // E-8: kMinRetunedWakeBase
+    voice->setLoopWakeBase(2.0f);
+    REQUIRE(voice->getLoopWakeBase() == 1.0f);
+    voice->setPartialBloomLaneGain(9.0f);
+    REQUIRE(voice->getPartialBloomLaneGain() == 8.0f);
+
+    voice->setPartialBloomLaneGain(2.5f);
+    voice->setPartialMutationLaneGain(0.5f);
+    voice->setLoopWakeBase(0.15f);
+    voice->setLoopGainLeverSpan(0.26f);
+    voice->setCouplingLeverSpan(0.40f);
+    for (const std::uint32_t bits : {0x7FC00000u, 0x7F800000u}) {
+        CAPTURE(bits);
+        const float bad = std::bit_cast<float>(bits);
+        voice->setPartialBloomLaneGain(bad);
+        voice->setPartialMutationLaneGain(bad);
+        voice->setLoopWakeBase(bad);
+        voice->setLoopGainLeverSpan(bad);
+        voice->setCouplingLeverSpan(bad);
+        REQUIRE(voice->getPartialBloomLaneGain() == 2.5f);
+        REQUIRE(voice->getPartialMutationLaneGain() == 0.5f);
+        REQUIRE(voice->getLoopWakeBase() == 0.15f);
+        REQUIRE(voice->getLoopGainLeverSpan() == 0.26f);
+        REQUIRE(voice->getCouplingLeverSpan() == 0.40f);
+    }
+}
+
+// -----------------------------------------------------------------------------
 // VoragoVoice_EcosystemLeverAttribution (SC-008, SC-018; plan S3.3, S5.2)
 // -----------------------------------------------------------------------------
 // At depth 1, after a 155 s warm-up (life-only), for each lever kind K in
@@ -2258,4 +2350,41 @@ TEST_CASE("VoragoEngine_GhostDensityRoute", "[systems][vorago]") {
     Probe::injectEcoAll(*e, uniformLanes(0.0f));
     chunks(2);
     REQUIRE(e->atmosphere().getDensity() == 0.6f);
+}
+
+// -----------------------------------------------------------------------------
+// VoragoVoice_EcoLaneMeanReadout (Phase 13d T-M4; FR-015, plan s2.3)
+// -----------------------------------------------------------------------------
+// Owning spec: specs/vorago-phase13d-engine-ceilings (tasks.md T012).
+// publishIdentity() publishes, per kind, the mean of that kind's eco lane over
+// its addressed slots. With every slot injected at x, every kind that addresses
+// at least one slot reads x exactly (0, 0.5 and 1 are exact under sum / count),
+// and an out-of-range kind reads 0.
+TEST_CASE("VoragoVoice_EcoLaneMeanReadout", "[systems][vorago]") {
+    auto voice = makeLeverVoice(48000.0, leverSeed());
+    REQUIRE(voice->isPrepared());
+    voice->noteOn(65.406f, 100.0f / 127.0f);
+
+    // Addressed slots per kind, read from the public owners (slotCountForKind's
+    // roster: Partial and Ghost are single-destination families).
+    std::array<std::size_t, EcosystemEngine::kNumKinds> slots{};
+    slots[kKindPartial] = 1u;
+    slots[kKindResonator] = voice->resonance().getNumPeaks();
+    slots[kKindNoise] = voice->noise().getNumSources();
+    slots[kKindFeedback] = voice->ecology().getNumLoops();
+    slots[kKindGhost] = 1u;
+
+    for (const float x : {0.0f, 0.5f, 1.0f}) {
+        CAPTURE(x);
+        Probe::injectEco(*voice, uniformLanes(x));
+        Probe::advanceLifeOnly(*voice);
+        for (std::size_t k = 0; k < 5u; ++k) {
+            CAPTURE(k);
+            if (slots[k] == 0u) {
+                continue;
+            }
+            REQUIRE(voice->getEcoLaneMean(static_cast<EcosystemEngine::Kind>(k)) == x);
+        }
+        REQUIRE(voice->getEcoLaneMean(static_cast<EcosystemEngine::Kind>(5)) == 0.0f);
+    }
 }

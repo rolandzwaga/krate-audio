@@ -72,6 +72,11 @@
 //       max(|uL|,|uR|) > 1e-6; (2) one linked gain, |yL/uL - yR/uR| <= 1e-5
 //       wherever min(|uL|,|uR|) > 1e-3. GR <= 1 dB is NOT asserted (read from
 //       the log, FR-006).
+//   VORAGO_PROBE_LANES   = "1" (Phase 13d FR-015, plan s2.3) samples voice 0's
+//       getEcoLaneMean(k) for all five kinds once per M1..M3 block and prints
+//       "LANES <label> <kind>=mean/p10/p90/dabs ..." after the default
+//       render's DESCRIPTOR line and after each knob's .lo / .hi table row.
+//       Off: nothing is sampled or printed.
 // ==============================================================================
 
 #include "plugin_ids.h"
@@ -324,6 +329,44 @@ const std::array<Candidate, 14> kCandidates{{
      .def = 0.45f, .apply = &applyAffinityOffDiagonal},
 }};
 
+// Phase 13d FR-015 (plan s2.3, VORAGO_PROBE_LANES=1): one kind's eco-lane mean
+// (VoragoVoice::getEcoLaneMean on voice 0), sampled once per block over M1..M3:
+// mean, 10th / 90th percentile, and the mean absolute block-to-block change.
+struct LaneStats {
+    double mean = 0.0;
+    double p10 = 0.0;
+    double p90 = 0.0;
+    double dabs = 0.0;
+};
+
+constexpr std::array<const char*, EcosystemEngine::kNumKinds> kKindNames{
+    "Partial", "Resonator", "Noise", "Feedback", "Ghost"};
+
+LaneStats laneStatsOf(std::vector<float> v) {
+    LaneStats s{};
+    if (v.empty()) {
+        return s;
+    }
+    double sum = 0.0;
+    double dsum = 0.0;
+    for (std::size_t i = 0; i < v.size(); ++i) {
+        sum += static_cast<double>(v[i]);
+        if (i > 0u) {
+            dsum += std::fabs(static_cast<double>(v[i]) - static_cast<double>(v[i - 1u]));
+        }
+    }
+    const std::size_t n = v.size();
+    s.mean = sum / static_cast<double>(n);
+    s.dabs = (n > 1u) ? dsum / static_cast<double>(n - 1u) : 0.0;
+    std::sort(v.begin(), v.end());
+    const auto at = [&v, n](double q) {
+        return static_cast<double>(v[static_cast<std::size_t>(q * static_cast<double>(n - 1u))]);
+    };
+    s.p10 = at(0.10);
+    s.p90 = at(0.90);
+    return s;
+}
+
 struct RenderResult {
     VoragoTest::PresetDescriptor d{};
     bool allFinite = true;
@@ -334,7 +377,18 @@ struct RenderResult {
     bool offValid = true;                      // FR-007: colony silent after every M1..M3 block
     std::vector<float> capL;                   // SC-005: M1..M3 capture, keepCapture only
     std::vector<float> capR;
+    std::array<LaneStats, EcosystemEngine::kNumKinds> lanes{};  // FR-015: VORAGO_PROBE_LANES only
 };
+
+// FR-015: "LANES <label> <kind>=mean/p10/p90/dabs ..." (VORAGO_PROBE_LANES=1 only).
+void printLanes(const std::string& label, const std::array<LaneStats, EcosystemEngine::kNumKinds>& lanes) {
+    std::printf("LANES %s", label.c_str());
+    for (std::size_t k = 0; k < EcosystemEngine::kNumKinds; ++k) {
+        std::printf(" %s=%.6f/%.6f/%.6f/%.6f", kKindNames[k], lanes[k].mean, lanes[k].p10,
+                    lanes[k].p90, lanes[k].dabs);
+    }
+    std::printf("\n");
+}
 
 // Stereo power of a span in dB (plan 5.2): (sum L^2 + sum R^2) / (2n).
 double stereoRmsDb(std::span<const float> l, std::span<const float> r) {
@@ -418,6 +472,15 @@ RenderResult renderOnce(KnobApply apply, float value, double seedNormalized,
     std::array<double, 3> colonySum{};
     std::array<std::size_t, 3> colonyCount{};
 
+    // FR-015 (plan s2.3): voice 0's per-kind eco-lane mean, once per M1..M3 block.
+    const bool sampleLanes = (readEnv("VORAGO_PROBE_LANES") == "1");
+    std::array<std::vector<float>, EcosystemEngine::kNumKinds> laneSamples{};
+    if (sampleLanes) {
+        for (std::vector<float>& s : laneSamples) {
+            s.reserve(kCaptureSamples / kBlock);
+        }
+    }
+
     RenderResult res;
     for (std::size_t start = 0; start < kTotalSamples; start += kBlock) {
         std::array<float*, 2> channels{outL.data(), outR.data()};
@@ -471,6 +534,17 @@ RenderResult renderOnce(KnobApply apply, float value, double seedNormalized,
                 colonySum[m] += colony;
                 ++colonyCount[m];
             }
+            if (sampleLanes) {
+                for (std::size_t k = 0; k < EcosystemEngine::kNumKinds; ++k) {
+                    laneSamples[k].push_back(colonyEngine.getVoice(0).getEcoLaneMean(
+                        static_cast<EcosystemEngine::Kind>(k)));
+                }
+            }
+        }
+    }
+    if (sampleLanes) {
+        for (std::size_t k = 0; k < EcosystemEngine::kNumKinds; ++k) {
+            res.lanes[k] = laneStatsOf(std::move(laneSamples[k]));
         }
     }
 
@@ -511,6 +585,7 @@ struct ExtremeRow {
     double dOff = -1.0;                  // d(extreme, true-off); -1 = no reference
     std::array<double, 3> rmsDb{};       // M1, M2, M3 stereo RMS
     std::array<double, 3> colony{};      // M1, M2, M3 mean colony output
+    std::array<LaneStats, EcosystemEngine::kNumKinds> lanes{};  // FR-015: VORAGO_PROBE_LANES only
     bool kill = false;                   // any minute |dRMS| > 6 dB or RMS < -60 dBFS
     bool offLike = false;                // dOff < kGateFactor/2 * t0
     bool inaudible = false;              // d < kGateFactor * t0
@@ -570,6 +645,8 @@ TEST_CASE("Vorago_EcosystemRuleProbe", "[.probe][vorago]") {
 
     // SC-005 (plan 4.4): limiter gain-reduction twin.
     const bool grOn = (readEnv("VORAGO_PROBE_GR") == "1");
+    // FR-015 (plan s2.3): LANES lines; renderOnce reads the same option to sample.
+    const bool lanesOn = (readEnv("VORAGO_PROBE_LANES") == "1");
 
     // Multi-seed Gate 1 (user ruling 2026-09-28, spec Clarifications "Build
     // stage"): VORAGO_PROBE_SEEDS=n renders, for seed indices 0..n-1 (0 = the
@@ -863,6 +940,7 @@ TEST_CASE("Vorago_EcosystemRuleProbe", "[.probe][vorago]") {
             x.d = VoragoTest::descriptorDistance(base.d, r.d);
             x.rmsDb = r.minuteRmsDb;
             x.colony = r.minuteColony;
+            x.lanes = r.lanes;
             // FR-004: KILL in ANY minute against the base render's same minute.
             for (std::size_t m = 0; m < 3u; ++m) {
                 if (std::fabs(r.minuteRmsDb[m] - base.minuteRmsDb[m]) > kKillDeltaDb ||
@@ -918,6 +996,9 @@ TEST_CASE("Vorago_EcosystemRuleProbe", "[.probe][vorago]") {
     }
     // FR-030 / SC-005: the full descriptor of the base and the true-off reference.
     printDescriptor("default", base.d);
+    if (lanesOn) {
+        printLanes("default", base.lanes);
+    }
     if (renderTrueOff) {
         printDescriptor("trueoff", offDesc);
     } else {
@@ -981,6 +1062,11 @@ TEST_CASE("Vorago_EcosystemRuleProbe", "[.probe][vorago]") {
                             "colony/base %.3f\n",
                             "", m + 1u, x.rmsDb[m], x.rmsDb[m] - base.minuteRmsDb[m], x.colony[m],
                             colonyRatio(x.colony[m], base.minuteColony[m]));
+            }
+            if (lanesOn) {
+                // FR-015: the extreme's cell label, ".lo" or ".hi".
+                printLanes(std::string(row.c->name) + ((x.value == row.c->lo) ? ".lo" : ".hi"),
+                           x.lanes);
             }
             firstLine = false;
         }

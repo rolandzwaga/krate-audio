@@ -652,10 +652,18 @@ public:
         }
         ringCouplingApplied_.fill(kRingCouplingBase);
         loopWakeBase_.fill(kLoopWakeBase);
+        // Phase 13d seams (FR-012): the compiled route sizes, re-installed.
+        partialBloomLaneGain_ = kPartialLaneGain;
+        partialMutationLaneGain_ = kPartialLaneGain;
+        loopGainLeverSpan_ = kLoopGainLeverSpan;
+        couplingLeverSpan_ = kCouplingLeverSpan;
+        loopBusMeter_ = false;  // Phase 13d loop-bus meter: off after every prepare
 
         // Bloom engine.
         setBloomDepth(0.60f);        // component 1.0; Density's row moves it up
         bloom_.setChildGain(kBloomChildGain);  // FR-011 child gain (plan s2.1 (b))
+        bloom_.setParentCount(kBloomParentCount);              // Phase 13d seam (FR-012)
+        bloom_.setChildrenPerEvent(kBloomChildrenPerEvent);    // Phase 13d seam (FR-012)
         setBloomSpawnRateHz(BloomEngine::kDefaultSpawnRateHz);  // (unchanged) 1/240
         bloom_.setFadeInSeconds(45.0f);    // (unchanged) kDefaultFadeInSeconds
         bloom_.setHoldSeconds(120.0f);     // (unchanged) kDefaultHoldSeconds
@@ -900,6 +908,16 @@ public:
     /// them, so a control step lands once per 64 ELAPSED SAMPLES rather than once
     /// per call and any partition of the same total is bit-identical (FR-007).
     void processStereoBlock(float* outL, float* outR, std::size_t n) noexcept {
+        processStereoBlock(outL, outR, nullptr, n);
+    }
+
+    /// @brief Phase 13d (FR-004, plan s2.1). Identical to
+    ///        processStereoBlock(outL, outR, n), and additionally serves the
+    ///        per-sample loop-bus sum (this voice's FeedbackEcology loop taps,
+    ///        summed) into `loopBusOut` on the SAME carry clock as the audio.
+    ///        `loopBusOut` may be null. With the meter off it writes zeros.
+    ///        Test-only instrument, observation only (T-M2).
+    void processStereoBlock(float* outL, float* outR, float* loopBusOut, std::size_t n) noexcept {
         if (outL == nullptr || outR == nullptr) {
             return;
         }
@@ -909,6 +927,9 @@ public:
         if (!prepared_) {
             std::fill_n(outL, n, 0.0f);
             std::fill_n(outR, n, 0.0f);
+            if (loopBusOut != nullptr) {
+                std::fill_n(loopBusOut, n, 0.0f);
+            }
             return;
         }
 
@@ -920,6 +941,13 @@ public:
             const std::size_t take = std::min(n - done, carryAvail_);
             std::copy_n(carryL_.data() + carryRead_, take, outL + done);
             std::copy_n(carryR_.data() + carryRead_, take, outR + done);
+            if (loopBusOut != nullptr) {
+                if (loopBusMeter_) {
+                    std::copy_n(carryLoopBus_.data() + carryRead_, take, loopBusOut + done);
+                } else {
+                    std::fill_n(loopBusOut + done, take, 0.0f);
+                }
+            }
             // D4: captured at SERVE time.
             lastOutL_ = outL[done + take - 1];
             lastOutR_ = outR[done + take - 1];
@@ -1054,6 +1082,13 @@ public:
     /// published (scheduler-blind, 13b FR-019), read by VoragoEngine for the ghost
     /// density route; exactly 0 when the lane is 0 (13b FR-017).
     [[nodiscard]] float getGhostEcoLane() const noexcept { return ghostEcoLane_; }
+    /// Phase 13d FR-015 (plan s2.3): the mean of kind `k`'s RAW eco lane over its
+    /// addressed slots (slotCountForKind) as last published by publishIdentity();
+    /// 0 for a kind with no addressed slot and for an out-of-range kind.
+    [[nodiscard]] float getEcoLaneMean(EcosystemEngine::Kind k) const noexcept {
+        const auto i = static_cast<std::size_t>(k);
+        return (i < EcosystemEngine::kNumKinds) ? ecoLaneMean_[i] : 0.0f;
+    }
 
     /// FR-026 lane 2. The fog depth this voice publishes for the engine to fold
     /// onto its own smear base. EXACTLY `clamp(kTidalFogLaneGain * tide_.getCurrentValue(), 0, 1)` - a
@@ -1602,6 +1637,73 @@ public:
     void setEcologyWetMakeupDb(float dB) noexcept { ecology_.setWetGain(dB); }
     [[nodiscard]] float getEcologyWetMakeupDb() const noexcept { return ecology_.getWetGain(); }
 
+    // --- Phase 13d measurement seams (FR-012, plan s4.1). prepare() installs the
+    //     compiled values; reset() keeps them (configuration). Each float seam
+    //     rejects non-finite input (the previous value stands) and clamps. ---
+    static constexpr std::size_t kBloomParentCount = BloomEngine::kDefaultParentCount;          // 4
+    static constexpr std::size_t kBloomChildrenPerEvent = BloomEngine::kDefaultChildrenPerEvent;  // 2
+
+    void setPartialBloomLaneGain(float g) noexcept {
+        if (!detail::isFinite(g)) {
+            return;
+        }
+        partialBloomLaneGain_ = std::clamp(g, 0.0f, kMaxPartialLaneSeamGain);
+    }
+    [[nodiscard]] float getPartialBloomLaneGain() const noexcept { return partialBloomLaneGain_; }
+
+    void setPartialMutationLaneGain(float g) noexcept {
+        if (!detail::isFinite(g)) {
+            return;
+        }
+        partialMutationLaneGain_ = std::clamp(g, 0.0f, kMaxPartialLaneSeamGain);
+    }
+    [[nodiscard]] float getPartialMutationLaneGain() const noexcept {
+        return partialMutationLaneGain_;
+    }
+
+    /// Writes every FeedbackEcology::kMaxLoops entry; the next control step's
+    /// combine picks it up.
+    void setLoopWakeBase(float b) noexcept {
+        if (!detail::isFinite(b)) {
+            return;
+        }
+        loopWakeBase_.fill(std::clamp(b, kMinRetunedWakeBase, 1.0f));
+    }
+    [[nodiscard]] float getLoopWakeBase() const noexcept { return loopWakeBase_[0]; }
+
+    void setLoopGainLeverSpan(float s) noexcept {
+        if (!detail::isFinite(s)) {
+            return;
+        }
+        loopGainLeverSpan_ = std::clamp(s, 0.0f, FeedbackEcology::kMaxLoopGain);
+    }
+    [[nodiscard]] float getLoopGainLeverSpan() const noexcept { return loopGainLeverSpan_; }
+
+    void setCouplingLeverSpan(float s) noexcept {
+        if (!detail::isFinite(s)) {
+            return;
+        }
+        couplingLeverSpan_ = std::clamp(s, 0.0f, FeedbackEcology::kMaxCouplingPerPair);
+    }
+    [[nodiscard]] float getCouplingLeverSpan() const noexcept { return couplingLeverSpan_; }
+
+    /// The owner clamps [1, BloomEngine::kMaxParents] (bloom_engine.h:556-557).
+    void setBloomParentCount(std::size_t k) noexcept { bloom_.setParentCount(k); }
+    [[nodiscard]] std::size_t getBloomParentCount() const noexcept {
+        return bloom_.getParentCount();
+    }
+    /// The owner clamps [1, BloomEngine::kMaxChildrenPerEvent] (bloom_engine.h:561-562).
+    void setBloomChildrenPerEvent(std::size_t n) noexcept { bloom_.setChildrenPerEvent(n); }
+    [[nodiscard]] std::size_t getBloomChildrenPerEvent() const noexcept {
+        return bloom_.getChildrenPerEvent();
+    }
+
+    /// Phase 13d loop-bus meter (FR-004, plan s2.1). Test-only and off by
+    /// default; prepare() turns it off, reset() keeps it. Observation only: the
+    /// audio is identical in both states (T-M2).
+    void setLoopBusMeterEnabled(bool on) noexcept { loopBusMeter_ = on; }
+    [[nodiscard]] bool isLoopBusMeterEnabled() const noexcept { return loopBusMeter_; }
+
     void setBreathingDepth(float d) noexcept {
         if (!detail::isFinite(d)) {
             return;  // FR-071: rejected, the previous value stands
@@ -1683,6 +1785,8 @@ private:
     // the Partial pair (mutation, bloom depth) and on the Ghost request's eco term.
     // 1.0 is the no-change value (T030); ladder rungs are ruled at T032.
     static constexpr float kPartialLaneGain = 1.0f;
+    // Phase 13d (plan s4.1): the Partial-pair seams' upper clamp.
+    static constexpr float kMaxPartialLaneSeamGain = 8.0f;
     static constexpr float kGhostLaneGain = 1.0f;
     // L4 step 2 (2026-09-28, plan S2.8): the ladder levers - motion and timbre
     // rather than level, because the level levers alone topped out at a six-seed
@@ -1890,6 +1994,7 @@ private:
         bodyBR_.fill(0.0f);
         carryL_.fill(0.0f);
         carryR_.fill(0.0f);
+        carryLoopBus_.fill(0.0f);  // Phase 13d loop-bus meter (plan s2.1)
         ratios_.fill(0.0f);
         amplitudes_.fill(0.0f);
         parentCount_ = 0;
@@ -1908,6 +2013,7 @@ private:
         level_ = 0.0f;
         ghostRequest_ = 0.0f;
         ghostEcoLane_ = 0.0f;
+        ecoLaneMean_.fill(0.0f);
         breathGravityLane_ = 0.0f;
         tidalFogDepth_ = 0.0f;
         envOutput_ = 0.0f;
@@ -2229,8 +2335,10 @@ private:
         }
 
         const float partialEco = lanes.eco[kPartial][0];
-        cloud_.setMutation(std::clamp(mutationBase_ + kPartialLaneGain * partialEco, 0.0f, 1.0f));
-        bloom_.setDepth(std::clamp(bloomDepthBase_ + kPartialLaneGain * partialEco, 0.0f, 1.0f));
+        cloud_.setMutation(
+            std::clamp(mutationBase_ + partialMutationLaneGain_ * partialEco, 0.0f, 1.0f));
+        bloom_.setDepth(
+            std::clamp(bloomDepthBase_ + partialBloomLaneGain_ * partialEco, 0.0f, 1.0f));
 
         ghostRequest_ = combineWake(0.0f, std::min(1.0f, kGhostLaneGain * lanes.eco[kGhost][0]),
                                     lanes.sched[kGhost][0]);
@@ -2272,10 +2380,10 @@ private:
         // Feedback: own gain up, and (L4 step 2) the shipped ring pair's coupling up.
         for (std::size_t l = 0; l < loops; ++l) {
             const float x = shapeLeverInput(lanes.eco[kFeedback][l], kLeverInputGain[kFeedback]);
-            loopGainOffset_[l] = kLoopGainLeverSpan * x;
+            loopGainOffset_[l] = loopGainLeverSpan_ * x;
             writeLoopGain(l);
             const std::size_t to = (l + 1u) % loops;  // the shipped ring pair only (Q8, E-4)
-            const float c = std::clamp(kRingCouplingBase + kCouplingLeverSpan * x, 0.0f,
+            const float c = std::clamp(kRingCouplingBase + couplingLeverSpan_ * x, 0.0f,
                                        FeedbackEcology::kMaxCouplingPerPair);
             if (to != l && c != ringCouplingApplied_[l]) {
                 ringCouplingApplied_[l] = c;
@@ -2372,6 +2480,15 @@ private:
             lanes.eco = injectedEco_;
         } else {
             gatherEcosystemLanes(lanes);
+        }
+        // Phase 13d FR-015 (plan s2.3): per-kind eco-lane mean, read-out only.
+        for (std::size_t k = 0; k < EcosystemEngine::kNumKinds; ++k) {
+            const std::size_t slots = std::min(slotCountForKind(k), kMaxSlotsPerKind);
+            float sum = 0.0f;
+            for (std::size_t s = 0; s < slots; ++s) {
+                sum += lanes.eco[k][s];
+            }
+            ecoLaneMean_[k] = (slots > 0u) ? sum / static_cast<float>(slots) : 0.0f;
         }
         gatherSchedulerLanes(lanes);  // unchanged: the schedulers keep running
         applyIdentityLanes(lanes);
@@ -2607,7 +2724,29 @@ private:
         resonance_.processBlock(excL_.data(), excR_.data(), excL_.data(), excR_.data(), n);
 
         // 7. ECOLOGY - IN PLACE, same documented licence (feedback_ecology.h:908).
-        ecology_.processBlock(excL_.data(), excR_.data(), excL_.data(), excR_.data(), n);
+        //    Phase 13d loop-bus meter (FR-004, plan s2.1): with the meter on the
+        //    SAME function runs with per-loop taps. processBlock IS
+        //    processBlockTapped(..., nullptr, ...) (feedback_ecology.h:949-952)
+        //    and the taps are write-only (FR-073), so the audio is identical in
+        //    both states (T-M2).
+        if (loopBusMeter_) {
+            std::array<float*, FeedbackEcology::kMaxLoops> tapPtrs{};
+            const std::size_t numLoops = ecology_.getNumLoops();
+            for (std::size_t l = 0; l < FeedbackEcology::kMaxLoops; ++l) {
+                tapPtrs[l] = (l < numLoops) ? loopTap_[l].data() : nullptr;
+            }
+            ecology_.processBlockTapped(excL_.data(), excR_.data(), excL_.data(), excR_.data(),
+                                        tapPtrs.data(), n);
+            for (std::size_t s = 0; s < n; ++s) {
+                float sum = 0.0f;
+                for (std::size_t l = 0; l < numLoops; ++l) {
+                    sum += loopTap_[l][s];
+                }
+                carryLoopBus_[s] = sum;
+            }
+        } else {
+            ecology_.processBlock(excL_.data(), excR_.data(), excL_.data(), excR_.data(), n);
+        }
 
         // 8. THE TWO-BODY BLEND (FR-036, FR-037). NOT in place - ContinuousBody
         //    forbids aliasing (continuous_body.h:1609-1610). BOTH bodies run at
@@ -2672,6 +2811,7 @@ private:
         updateLevel(0.0f);
         carryL_.fill(0.0f);
         carryR_.fill(0.0f);
+        carryLoopBus_.fill(0.0f);
         carryAvail_ = n;
         carryRead_ = 0;
         carryIsLifeOnly_ = true;
@@ -2719,6 +2859,14 @@ private:
     std::size_t carryRead_ = 0;
     bool carryIsLifeOnly_ = true;
 
+    // --- Phase 13d loop-bus meter (FR-004, plan s2.1). Test-only, off by
+    // default, fixed-size (no allocation): loopTap_ holds one chunk of each
+    // loop's FeedbackEcology tap, carryLoopBus_ their sum, served on the
+    // audio's carry clock.
+    bool loopBusMeter_ = false;
+    std::array<std::array<float, kControlChunkSamples>, FeedbackEcology::kMaxLoops> loopTap_{};
+    std::array<float, kControlChunkSamples> carryLoopBus_{};
+
     // --- the bloom/cloud spectrum handoff (FR-011) ---------------------------
     // EXACTLY BloomEngine::kMaxSlots entries each: processChunk requires at least
     // 64 writable floats whatever the configured capacity is, and says so as a
@@ -2752,12 +2900,19 @@ private:
     std::array<float, NoiseOrganism::kMaxSources> noiseWakeBase_{};
     std::array<float, ResonanceDriftNetwork::kMaxPeaks> peakWakeBase_{};
     std::array<float, FeedbackEcology::kMaxLoops> loopWakeBase_{};
+    // Phase 13d seams (FR-012, plan s4.1): installed by prepare(), kept by reset().
+    float partialBloomLaneGain_ = kPartialLaneGain;
+    float partialMutationLaneGain_ = kPartialLaneGain;
+    float loopGainLeverSpan_ = kLoopGainLeverSpan;
+    float couplingLeverSpan_ = kCouplingLeverSpan;
     /// FR-021: ONE routing depth PER DESTINATION FAMILY, indexed by
     /// `EcosystemEngine::Kind`. Zero-initialised, i.e. FR-021's neutral - the
     /// shipped 0.85 is installed by prepare() (:617), never by the member.
     std::array<float, EcosystemEngine::kNumKinds> ecosystemDepth_{};
     float ghostRequest_ = 0.0f;  // FR-020b, held between control steps
     float ghostEcoLane_ = 0.0f;  // 13c B-6, the raw Ghost eco lane, held likewise
+    // Phase 13d FR-015 (plan s2.3): per-kind raw eco-lane mean, publishIdentity() only.
+    std::array<float, EcosystemEngine::kNumKinds> ecoLaneMean_{};
     // The FR-021/FR-026 bases the identity layer sums onto, and the two lanes it
     // PUBLISHES. publishIdentity() is the only writer of the last two.
     float gravityBase_ = 0.0f;

@@ -1,0 +1,20 @@
+START 2026-10-07 19:56:42 t021_check tree=f376785f+G2 working copy (build_g2.log) env: VORAGO_ROWPROBE= VORAGO_ROWPROBE_ROWS=Movement case: VoragoMacro_Phase13dRowProbe
+Filters: "VoragoMacro_Phase13dRowProbe"
+Randomness seeded to: 1146650396
+Phase 13d row-emulation probe (SweepAxes fixture: seeds 101/202/303 x points 0/.25/.5/.75/1 x 60 s @ 48 kHz; window samples [480000, 2880000); polyphony 1; fast attack; macros after noteOn; Life 210 s, edges over [90 s, 210 s])
+Delta entries (0):
+  (none - the shipped kRows)
+ROW Movement  per-band total variation
+    seed 101 [0, .25, .5, .75, 1]: [1.3810, 1.4632, 1.6335, 1.7119, 1.7116]  rho=0.9000  endpoint=0.2394
+    seed 202 [0, .25, .5, .75, 1]: [1.3130, 1.3475, 1.3129, 1.6616, 1.5924]  rho=0.6000  endpoint=0.2128
+    seed 303 [0, .25, .5, .75, 1]: [1.1656, 1.2266, 1.2723, 1.3091, 1.4099]  rho=1.0000  endpoint=0.2096
+    mean metric [0, .25, .5, .75, 1]: [1.2865, 1.3458, 1.4062, 1.5608, 1.5713]
+    mean rho=0.8333 (need >= 0.9, MISS)  mean endpoint=0.2213 (need >= 0.2000, ok)  -> FAIL
+
+==== ROWPROBE SUMMARY (row | mean rho | mean endpoint | threshold | verdict) ====
+  Movement  per-band total variation                  rho=  0.8333  endpoint=   0.2213  threshold=0.2000  FAIL
+===============================================================================
+test cases: 1 | 1 passed
+assertions: - none -
+
+exit=0 END 2026-10-07 20:02:04

@@ -296,6 +296,26 @@ struct RenderSpec {
     /// the engine after loadState and before block 0; empty (the default) changes
     /// nothing. Never set for a gate reading (FR-026 reads the compiled constants).
     std::function<void(Krate::DSP::VoragoEngine&)> engineTweak{};
+    /// Phase 13d loop-bus meter (FR-004, FR-021b, plan 2.1): when set, the
+    /// engine's setLoopBusMeterEnabled(true) runs after loadState and every block
+    /// appends takeLoopBusSumSq() to SweepCapture::loopBusPower. Observation only.
+    bool loopBusMeter = false;
+    /// Phase 13d block observer (plan 2.2): when set, called after every
+    /// host.process with the engine (const, through Processor::engineForTest) and
+    /// the block's first sample. Empty (the default) changes nothing. Renders run
+    /// on worker threads, so an observer writes into caller-owned state, never
+    /// into Catch2.
+    std::function<void(const Krate::DSP::VoragoEngine&, long long startSample)> blockObserver{};
+};
+
+/// Phase 13d (plan 2.1): one FeedbackEcology loop of voice 0, read after the
+/// render's last block (feedback_ecology.h getLoopWakeAmount, getLoopGate,
+/// isLoopDormant, getLoopGain).
+struct LoopLifeReading {
+    float wake = 0.0f;
+    float gate = 0.0f;
+    bool dormant = false;
+    float gain = 0.0f;
 };
 
 struct SweepCapture {
@@ -306,7 +326,13 @@ struct SweepCapture {
     /// false: an engineTweak was set and a lever getter read differently after
     /// block 0 than right after the tweak (block 0's parameter changes overrode
     /// it), or the engine was unavailable. Always true with no tweak (plan 2.9).
+    /// Also false when RenderSpec::loopBusMeter was set and the meter read off
+    /// after block 0 (phase 13d, plan 2.1).
     bool tweakHeld = true;
+    /// Phase 13d (plan 2.1), RenderSpec::loopBusMeter only: one loopBus(t)^2 sum
+    /// per 512-sample block (mono), and voice 0's loops after the last block.
+    std::vector<double> loopBusPower;
+    std::vector<LoopLifeReading> loopLifeEnd;
 };
 
 namespace detail {
@@ -316,11 +342,17 @@ inline constexpr float kRenderVelocity100 = 100.0f / 127.0f;  // quantises to 10
 inline constexpr int kPolyphonyChoices = 6;                   // kPolyphonyId: 1..6 voices
 
 /// The plan 2.9 lever getters (vorago_engine.h getBloomChildGain,
-/// getEcologyWetMakeupDb, getGhostDensity, getGhostTapMakeupDb), read to verify
-/// an engineTweak held across block 0.
-[[nodiscard]] inline std::array<float, 4> readTweakLevers(const Krate::DSP::VoragoEngine& e) noexcept {
-    return {e.getBloomChildGain(), e.getEcologyWetMakeupDb(), e.getGhostDensity(),
-            e.getGhostTapMakeupDb()};
+/// getEcologyWetMakeupDb, getGhostDensity, getGhostTapMakeupDb) plus the phase
+/// 13d seven (plan 4.3: partial bloom / mutation lane gains, loop wake base, loop
+/// gain and coupling lever spans, bloom parent count, children per event), read
+/// to verify an engineTweak held across block 0.
+[[nodiscard]] inline std::array<float, 11> readTweakLevers(const Krate::DSP::VoragoEngine& e) noexcept {
+    return {e.getBloomChildGain(),         e.getEcologyWetMakeupDb(),
+            e.getGhostDensity(),           e.getGhostTapMakeupDb(),
+            e.getPartialBloomLaneGain(),   e.getPartialMutationLaneGain(),
+            e.getLoopWakeBase(),           e.getLoopGainLeverSpan(),
+            e.getCouplingLeverSpan(),      e.getBloomParentCount(),
+            e.getBloomChildrenPerEvent()};
 }
 
 }  // namespace detail
@@ -341,6 +373,9 @@ inline constexpr int kPolyphonyChoices = 6;                   // kPolyphonyId: 1
     const auto numBlocks = static_cast<std::size_t>((total + block - 1) / block);
     out.blockPowerL.reserve(numBlocks);
     out.blockPowerR.reserve(numBlocks);
+    if (spec.loopBusMeter) {
+        out.loopBusPower.reserve(numBlocks);
+    }
 
     // Capture windows in samples, clamped to [0, total].
     std::vector<std::pair<long long, long long>> windows;
@@ -369,7 +404,7 @@ inline constexpr int kPolyphonyChoices = 6;                   // kPolyphonyId: 1
 
     // Plan 2.9 tweak: after loadState, before block 0; re-read after block 0.
     const Krate::DSP::VoragoEngine* tweaked = nullptr;
-    std::array<float, 4> leversAfterTweak{};
+    std::array<float, 11> leversAfterTweak{};
     if (spec.engineTweak) {
         Krate::DSP::VoragoEngine* engine = host.engineForTweak();
         if (engine == nullptr) {
@@ -380,6 +415,26 @@ inline constexpr int kPolyphonyChoices = 6;                   // kPolyphonyId: 1
         spec.engineTweak(*engine);
         tweaked = engine;
         leversAfterTweak = detail::readTweakLevers(*engine);
+    }
+    // Phase 13d loop-bus meter (plan 2.1): after loadState, next to the tweak.
+    Krate::DSP::VoragoEngine* metered = nullptr;
+    if (spec.loopBusMeter) {
+        metered = host.engineForTweak();
+        if (metered == nullptr) {
+            out.finite = false;
+            out.tweakHeld = false;
+            return out;
+        }
+        metered->setLoopBusMeterEnabled(true);
+    }
+    // Phase 13d block observer (plan 2.2): read-only, after loadState.
+    const Krate::DSP::VoragoEngine* observed = nullptr;
+    if (spec.blockObserver) {
+        observed = host.processor().engineForTest();
+        if (observed == nullptr) {
+            out.finite = false;
+            return out;
+        }
     }
 
     const long long noteOffSample =
@@ -452,6 +507,15 @@ inline constexpr int kPolyphonyChoices = 6;                   // kPolyphonyId: 1
             detail::readTweakLevers(*tweaked) != leversAfterTweak) {
             out.tweakHeld = false;
         }
+        if (metered != nullptr) {
+            out.loopBusPower.push_back(metered->takeLoopBusSumSq());
+            if (start == 0 && !metered->isLoopBusMeterEnabled()) {
+                out.tweakHeld = false;
+            }
+        }
+        if (observed != nullptr) {
+            spec.blockObserver(*observed, start);
+        }
 
         for (std::size_t w = 0; w < windows.size(); ++w) {
             const long long a = std::max(windows[w].first, start);
@@ -465,6 +529,16 @@ inline constexpr int kPolyphonyChoices = 6;                   // kPolyphonyId: 1
             const std::span<const float> segR = R.subspan(first, count);
             out.capL[w].insert(out.capL[w].end(), segL.begin(), segL.end());
             out.capR[w].insert(out.capR[w].end(), segR.begin(), segR.end());
+        }
+    }
+    if (metered != nullptr) {
+        const auto& eco = metered->getVoice(0).ecology();
+        const std::size_t loops =
+            std::min(eco.getNumLoops(), Krate::DSP::FeedbackEcology::kMaxLoops);
+        out.loopLifeEnd.reserve(loops);
+        for (std::size_t l = 0; l < loops; ++l) {
+            out.loopLifeEnd.push_back(LoopLifeReading{eco.getLoopWakeAmount(l), eco.getLoopGate(l),
+                                                      eco.isLoopDormant(l), eco.getLoopGain(l)});
         }
     }
     return out;
@@ -1081,6 +1155,9 @@ namespace detail {
 /// One CellOutcome per Capability, indexed by the enum value.
 struct VerificationVector {
     std::array<CellOutcome, ::Vorago::PresetDefs::kNumCapabilities> cells{};
+    /// Phase 13d (plan 4.4): the AND of every render's SweepCapture::tweakHeld;
+    /// always true when computeVerificationVector got no engineTweak.
+    bool tweakHeld = true;
 };
 
 /// FR-011a witness search (plan 6.12): scan P's claims - the primary first, then
@@ -1342,6 +1419,15 @@ struct TakeRecord {
     // of this take's M1..M3 buffers (levelTwinD); the record keeps the stored-seed
     // take's value as SweepRecord::levelTwinD.
     double levelTwinD = 0.0;
+    // In-process only (phase 13d, plan 2.1), set when the take was rendered with
+    // the loop-bus meter: whether the meter held across block 0, the minimum
+    // loopBusWindowDb over tenSecondWindows(A, H), its window count, and voice 0's
+    // loops after the last block.
+    bool loopBusMetered = false;
+    bool loopBusHeld = false;
+    double loopBusWorstDb = 0.0;
+    std::size_t loopBusWindows = 0;
+    std::vector<LoopLifeReading> loopLifeEnd;
 };
 
 /// The freeze gesture G and its dry-residue twin G0 (plan 6.3, T036).
@@ -1892,6 +1978,39 @@ inline constexpr double kWindowEpsilonSeconds = 1e-9;
     return out;
 }
 
+/// Phase 13d (FR-004, FR-021b, plan 2.1): spanPowerDb's arithmetic over the mono
+/// loopBusPower, 10*log10(max(sum[first, end) / (n_blocks * 512), kPowerFloor));
+/// blocks past the capture count as silent.
+[[nodiscard]] inline double loopBusWindowDb(const SweepCapture& cap, const SweepWindow& w) {
+    const std::size_t stop = std::min(w.endBlock, cap.loopBusPower.size());
+    const std::size_t blocks = (w.endBlock > w.firstBlock) ? w.endBlock - w.firstBlock : 0u;
+    const double n = static_cast<double>(blocks) * static_cast<double>(detail::kRenderBlock);
+    double sum = 0.0;
+    for (std::size_t i = w.firstBlock; i < stop; ++i) {
+        sum += cap.loopBusPower[i];
+    }
+    const double p = (n > 0.0) ? sum / n : 0.0;
+    return 10.0 * std::log10(std::max(p, kPowerFloor));
+}
+
+/// Phase 13d (plan 2.1): fills a metered take's loop-bus fields from its capture -
+/// the minimum loopBusWindowDb over tenSecondWindows(tl.A, tl.H, sr) (arm 2's
+/// windows, read against kSilenceDb by the caller) and voice 0's end-of-take loops.
+inline void fillLoopBusFigures(TakeRecord& t, const SweepCapture& cap, const SweepTimeline& tl,
+                               double sr) {
+    t.loopBusMetered = true;
+    t.loopBusHeld = cap.tweakHeld && cap.finite;
+    const std::vector<SweepWindow> hold = tenSecondWindows(tl.A, tl.H, sr);
+    t.loopBusWindows = hold.size();
+    bool any = false;
+    for (const SweepWindow& w : hold) {
+        const double db = loopBusWindowDb(cap, w);
+        t.loopBusWorstDb = any ? std::min(t.loopBusWorstDb, db) : db;
+        any = true;
+    }
+    t.loopLifeEnd = cap.loopLifeEnd;
+}
+
 namespace detail {
 
 /// The Freeze-On tail figures over the 10 s windows of [tail0, tail1] (plan 6.3
@@ -2063,8 +2182,10 @@ struct ArmResult {
 /// taken by the scorer over the measured-reach window, plan 3.3).
 [[nodiscard]] inline TakeRecord renderTake(const std::vector<std::uint8_t>& comp,
                                            const SweepTimeline& tl, int seedIndex,
-                                           std::optional<double> attackWindowEnd) {
+                                           std::optional<double> attackWindowEnd,
+                                           bool loopBusMeter = false) {
     RenderSpec spec;
+    spec.loopBusMeter = loopBusMeter;
     spec.comp = std::span<const std::uint8_t>(comp);
     spec.seedIndex = seedIndex;
     spec.sr = kSweepSampleRate;
@@ -2106,24 +2227,29 @@ struct ArmResult {
         t.attackCapL = cap.capL[3];
         t.attackCapR = cap.capR[3];
     }
+    if (loopBusMeter) {
+        fillLoopBusFigures(t, cap, tl, spec.sr);
+    }
     return t;
 }
 
 /// The K takes of A_K (plan 6.5): take j at seed index takeSeedIndex(storedSeed,
 /// 0, j, K), rendered through runJobs on `threads`. Take 0 is the stored seed;
 /// `attackWindowEnd` (plan 6.8, D8.2 / D9.1 primaries only) is added to that
-/// take's capture alone. Jobs never touch Catch2.
+/// take's capture alone. Jobs never touch Catch2. `loopBusMeter` (phase 13d,
+/// plan 2.1) meters every take (TakeRecord loop-bus fields); off by default.
 [[nodiscard]] inline std::vector<TakeRecord> computeTakes(
     const std::vector<std::uint8_t>& comp, const SweepTimeline& tl, int storedSeed, int K,
-    unsigned threads, std::optional<double> attackWindowEnd = std::nullopt) {
+    unsigned threads, std::optional<double> attackWindowEnd = std::nullopt,
+    bool loopBusMeter = false) {
     std::vector<TakeRecord> takes(static_cast<std::size_t>(std::max(K, 0)));
     std::vector<std::function<void()>> jobs;
     jobs.reserve(takes.size());
     for (int j = 0; j < K; ++j) {
-        jobs.emplace_back([&comp, &tl, &takes, &attackWindowEnd, storedSeed, j, K] {
+        jobs.emplace_back([&comp, &tl, &takes, &attackWindowEnd, storedSeed, j, K, loopBusMeter] {
             const int seed = takeSeedIndex(storedSeed, 0, j, K);
-            takes[static_cast<std::size_t>(j)] =
-                renderTake(comp, tl, seed, (j == 0) ? attackWindowEnd : std::nullopt);
+            takes[static_cast<std::size_t>(j)] = renderTake(
+                comp, tl, seed, (j == 0) ? attackWindowEnd : std::nullopt, loopBusMeter);
         });
     }
     runJobs(jobs, threads);
@@ -2576,11 +2702,14 @@ inline void printReach(const char* what, std::optional<double> seconds) {
 /// D10.1's gesture conjunct is left false for T036 to fill. `selfDistance` is
 /// s(P) (the K-take figure), `pSus` = describe(M1) of the stored-seed take.
 /// Renders run through runJobs on `threads`; this function prints the plan 6.8
-/// time-to-level lines and asserts nothing.
+/// time-to-level lines and asserts nothing. `engineTweak` (phase 13d, plan 4.4)
+/// is copied into every RenderSpec built here; each capture's tweakHeld is ANDed
+/// into vec.tweakHeld. Empty (the default) changes nothing.
 [[nodiscard]] inline VerificationVector computeVerificationVector(
     const ::Vorago::PresetDefs::VoragoPresetDef* def, const std::vector<std::uint8_t>& comp,
     const SweepTimeline& tl, double selfDistance, const PresetDescriptor& pSus,
-    unsigned threads, const TakeRecord* storedTake = nullptr) {
+    unsigned threads, const TakeRecord* storedTake = nullptr,
+    const std::function<void(Krate::DSP::VoragoEngine&)>& engineTweak = {}) {
     using C = ::Vorago::PresetDefs::Capability;
     using V = ::Vorago::PresetDefs::Verification;
     constexpr std::size_t kCells = ::Vorago::PresetDefs::kNumCapabilities;
@@ -2703,6 +2832,9 @@ inline void printReach(const char* what, std::optional<double> seconds) {
     }
 
     // ---- Render ------------------------------------------------------------------------
+    for (RenderSpec& spec : specs) {
+        spec.engineTweak = engineTweak;
+    }
     std::vector<SweepCapture> caps(specs.size());
     std::vector<std::function<void()>> jobs;
     jobs.reserve(specs.size());
@@ -2710,6 +2842,9 @@ inline void printReach(const char* what, std::optional<double> seconds) {
         jobs.emplace_back([&specs, &caps, j] { caps[j] = renderPreset(specs[j]); });
     }
     runJobs(jobs, threads);
+    for (const SweepCapture& cap : caps) {
+        vec.tweakHeld = vec.tweakHeld && cap.tweakHeld;
+    }
 
     // ---- Pass 2: distances ---------------------------------------------------------------
     for (std::size_t i = 0; i < kCells; ++i) {

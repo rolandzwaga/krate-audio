@@ -1,0 +1,22 @@
+START 2026-10-07 20:26:29 ie67_lanes_default_table tree=f376785f+G2 rule probe table mode (the LANES sampler lives in the M1-M3 capture branch, so the gate-1 mode prints none) env: VORAGO_PROBE_KNOBS=- VORAGO_PROBE_LANES=1 VORAGO_PROBE_T0=2.2107
+Filters: "Vorago_EcosystemRuleProbe"
+Randomness seeded to: 69272559
+[probe] surface overrides: none; knob filter: -; reference: none; wake bases: shipped (vorago_voice.h kPeakWakeBase / kLoopWakeBase)
+[probe] rendering default surface (340 s)...
+[probe] rendering seed twin (340 s)...
+t0 pinned by VORAGO_PROBE_T0 = 2.2107 (six-seed median off-reseed); this run's own off pair = -1.0000
+
+=== Vorago_EcosystemRuleProbe (FR-070) ===
+renders: 2 (default + seed twin + 0 extremes), 340 s each, 48 kHz, block 512
+surface overrides: none; wake bases: shipped (vorago_voice.h kPeakWakeBase / kLoopWakeBase)
+default M1 stereo RMS: -26.97 dBFS
+default per-minute: M1 RMS -26.97 dBFS colony 0.483648 | M2 RMS -27.27 dBFS colony 0.481807 | M3 RMS -26.42 dBFS colony 0.482763
+t0on = d(default, seed twin) = 1.1895   (ecosystem on; informational since 2026-09-28)
+t0 = t0on = 2.2107   INAUDIBLE threshold f*t0 = 1.1054   (no true-off reference rendered: diagnostic mode, not a gate run)
+DESCRIPTOR default band=7.144374,-0.044199,-5.238351,-8.836301,-12.300794,-15.004278,-16.252174,-17.287389,-17.824422 motion=0.199844 flux=-2.244056 corr=-3.523538 energySpread=1.507444 crest=3.847790
+LANES default Partial=0.650199/0.466272/0.788113/0.000101 Resonator=0.244587/0.191309/0.296133/0.000019 Noise=0.459794/0.417843/0.503239/0.000029 Feedback=0.421769/0.380812/0.459921/0.000018 Ghost=0.640274/0.510516/0.777983/0.000102
+DESCRIPTOR trueoff n/a (true-off reference not rendered)
+===============================================================================
+All tests passed (63773 assertions in 1 test case)
+
+exit=0 END 2026-10-07 20:30:57

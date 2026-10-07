@@ -1,0 +1,8 @@
+START 2026-10-07 20:03:50 im4_member_swing_302 tree=f376785f+G2 Vorago_PresetPilot_SwingProbe Drifting Strata: d(P stored, P_swing) with VORAGO_PILOT_SWING=103=0,302=0.5 (Movement 103 at 0; member at its Movement-1 value; the PrimaryProbe M4 cell skips at Movement 0, see im4_member_override_*.log)
+Filters: "Vorago_PresetPilot_SwingProbe"
+Randomness seeded to: 120712835
+[swing] Drifting Strata seed 3 swing "103=0,302=0.5": d(P, P_swing) 1.0569  (peak P 0.9661, P_swing 0.7720)
+===============================================================================
+All tests passed (10 assertions in 1 test case)
+
+exit=0 END 2026-10-07 20:07:47

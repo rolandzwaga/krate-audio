@@ -243,6 +243,8 @@ With no tweak set and the meter off, nothing in this group changes a rendered sa
 
 ### T009 — Voice route seams (FR-012 (a), plan §4.1)
 
+**DONE (build stage T009–T021 by the implement agents, verify runs and T022 in the main loop, 2026-10-07):** `VoragoVoice_CeilingLeverNeutral` green and the Lever tests unedited green (`instr_newcases.log`: All tests passed (31518 assertions in 16 test cases), exit 0); build 0 warnings (`/f/tmp/p13d/build_g2.log`).
+
 - **Files:** `dsp/tests/unit/systems/vorago_ecosystem_lever_test.cpp` (test first), then `vorago_voice.h`.
 - **Failing test first** — append `TEST_CASE("VoragoVoice_CeilingLeverNeutral", "[systems][vorago]")` (T-M3) after
   `VoragoVoice_RouteLeverZeroAtZeroLane` (`:1360`), with that case's setup (`makeLeverVoice(48000.0, leverSeed())`,
@@ -288,6 +290,8 @@ With no tweak set and the meter off, nothing in this group changes a rendered sa
 
 ### T010 — Engine fan-out seams (FR-012 (a), plan §4.2)
 
+**DONE (build stage T009–T021 by the implement agents, verify runs and T022 in the main loop, 2026-10-07):** `VoragoEngine_CeilingSeamContract` green, `VoragoEngine_SetterContract` green unedited (`instr_newcases.log`: All tests passed (31518 assertions in 16 test cases), exit 0).
+
 - **Files:** `dsp/tests/unit/systems/vorago_engine_test.cpp` (test first), then `vorago_engine.h`.
 - **Failing test first** — append `TEST_CASE("VoragoEngine_CeilingSeamContract", "[systems][vorago]")` (T-M1) after
   `VoragoEngine_SetterContract` (`:3071`), with its fixture. Assertions:
@@ -311,6 +315,8 @@ With no tweak set and the meter off, nothing in this group changes a rendered sa
   green.
 
 ### T011 — Loop-bus meter, voice and engine (FR-004, FR-021b, plan §2.1)
+
+**DONE (build stage T009–T021 by the implement agents, verify runs and T022 in the main loop, 2026-10-07):** `VoragoEngine_LoopBusMeterIsObservationOnly` green: meter on / off bit-identical on MSVC (`instr_newcases.log`: All tests passed (31518 assertions in 16 test cases), exit 0); pre-ruling 3 not triggered.
 
 - **Files:** `vorago_engine_test.cpp` (test first), `vorago_voice.h`, `vorago_engine.h`.
 - **Failing test first** — append `TEST_CASE("VoragoEngine_LoopBusMeterIsObservationOnly", "[systems][vorago]")`
@@ -340,6 +346,8 @@ With no tweak set and the meter off, nothing in this group changes a rendered sa
 
 ### T012 — Per-kind eco-lane read-out (FR-015, plan §2.3 voice half)
 
+**DONE (build stage T009–T021 by the implement agents, verify runs and T022 in the main loop, 2026-10-07):** `VoragoVoice_EcoLaneMeanReadout` green (`instr_newcases.log`: All tests passed (31518 assertions in 16 test cases), exit 0).
+
 - **Files:** `vorago_ecosystem_lever_test.cpp` (test first), `vorago_voice.h`.
 - **Failing test first** — append `TEST_CASE("VoragoVoice_EcoLaneMeanReadout", "[systems][vorago]")` (T-M4), setup as
   T009: for `x ∈ {0.0f, 0.5f, 1.0f}`, `Probe::injectEco(*voice, uniformLanes(x)); Probe::advanceLifeOnly(*voice);`
@@ -352,6 +360,8 @@ With no tweak set and the meter off, nothing in this group changes a rendered sa
 - **Verify:** both targets, zero warnings; T-M4 green.
 
 ### T013 — Harness: eleven lever getters, secondaries under a lever (plan §4.3, §4.4)
+
+**DONE (build stage T009–T021 by the implement agents, verify runs and T022 in the main loop, 2026-10-07):** failing check first on the base binary: `t013_before.log:` "VORAGO_PILOT_LEVER cannot combine with VORAGO_PILOT_SECONDARY=1" (`preset_pilot_test.cpp(1018)` FAILED). Per-push `vorago_tests` on the G2 binary: All tests passed (4059849 assertions in 119 test cases), exit 0 (`instr_perpush_vorago.log`).
 
 - **File:** `plugins/vorago/tests/preset_test_support.h`.
 - **Failing check first:** `VORAGO_PILOT_PRESET="Colony Pulse" VORAGO_PILOT_LEVER="childGain=1.5"
@@ -368,6 +378,8 @@ With no tweak set and the meter off, nothing in this group changes a rendered sa
 
 ### T014 — Pilot: seven new lever keys; secondaries under a lever (FR-012, plan §4.3, §4.4)
 
+**DONE (build stage T009–T021 by the implement agents, verify runs and T022 in the main loop, 2026-10-07):** failing check first `t014_before.log`: "unknown VORAGO_PILOT_LEVER key partialBloomGain" (`:911`). `t014_identity.log`: Bloom Colony under all seven keys at their compiled values reads d 1.1823 / attrib 1.1035 = `before_E1.log` (delta 0.0000). `t014_secondary.log`: Colony Pulse `childGain=1.5` + `VORAGO_PILOT_SECONDARY=1` prints D13.2 0.1942, E6.hi 1.3700, E7.hi 1.3429, nothing FAILs.
+
 - **File:** `plugins/vorago/tests/integration/preset_pilot_test.cpp`.
 - **Failing check first:** `VORAGO_PILOT_PRESET="Bloom Colony" VORAGO_PILOT_LEVER="partialBloomGain=1"` →
   `t014_before.log` FAILs "unknown VORAGO_PILOT_LEVER key partialBloomGain" (`:917-918`).
@@ -383,6 +395,8 @@ With no tweak set and the meter off, nothing in this group changes a rendered sa
      `secondary E6.hi` / `E7.hi` / `D13.2` lines print and nothing FAILs.
 
 ### T015 — Harness + pilot: loop-bus readout (FR-004, FR-021b, plan §2.1)
+
+**DONE (build stage T009–T021 by the implement agents, verify runs and T022 in the main loop, 2026-10-07):** failing check first `t015_before.log`: no loopbus line (16 assertions, pass). `t015_check.log`: four `loopbus` lines (worst 10 s −62.56 / −62.06 / −58.85 / −54.07 dBFS, takes 0-1 below the −60 dBFS silence line) and d 2.9182 = `before_E4_stored.log`; `looplife` lines show no dormant loop and no gate below the 0.45 wake floor.
 
 - **Files:** `preset_test_support.h`, then `preset_pilot_test.cpp`.
 - **Failing check first:** Feeding Loops with `VORAGO_PILOT_LOOPBUS=1` prints no `loopbus` line → `t015_before.log`.
@@ -406,6 +420,8 @@ With no tweak set and the meter off, nothing in this group changes a rendered sa
 
 ### T016 — Harness + pilot: block observer and bloom readout (plan §2.2)
 
+**DONE (build stage T009–T021 by the implement agents, verify runs and T022 in the main loop, 2026-10-07):** failing check first `t016_before.log`: no bloom line. `t016_check.log`: two bloom lines — R_k spawn 1 discarded 0 spawned 0 refused 2 liveMean 5.984 depthMean 0.999; R_k0 spawn 0 refused 0 liveMean 4.984 depthMean 0.500 — and d 1.1823 unchanged.
+
 - **Files:** `preset_test_support.h`, `preset_pilot_test.cpp`.
 - **Failing check first:** Bloom Colony with `VORAGO_PILOT_BLOOM=1` prints no `bloom` line.
 - **Implement:** `RenderSpec` gains `std::function<void(const Krate::DSP::VoragoEngine&, long long startSample)>
@@ -418,6 +434,8 @@ With no tweak set and the meter off, nothing in this group changes a rendered sa
 
 ### T017 — Pilot: eco-lane ranking (FR-015, plan §2.3)
 
+**DONE (build stage T009–T021 by the implement agents, verify runs and T022 in the main loop, 2026-10-07):** failing check first `t017_before.log`: no lanes line. `t017_check.log`: two rank lines — E6.hi Partial 0.1862 > Ghost 0.1504 > Feedback 0.1021 > Noise 0.0647 > Resonator 0.0566; E7.hi Feedback 0.0692 > Ghost 0.0657 > Noise 0.0530 > Partial 0.0484 > Resonator 0.0029. `VORAGO_PILOT_CELLS` is not needed: Colony Pulse claims both cells as secondaries.
+
 - **File:** `preset_pilot_test.cpp`.
 - **Failing check first:** Colony Pulse with `VORAGO_PILOT_LANES=1` prints no `lanes` line.
 - **Implement:** `VORAGO_PILOT_LANES=1` renders, on the stored take, P and the ExtReversion twin of each named
@@ -428,6 +446,8 @@ With no tweak set and the meter off, nothing in this group changes a rendered sa
 - **Verify:** build, zero warnings; `t017_check.log` on Colony Pulse prints two rank lines.
 
 ### T018 — Pilot: Life-row read-back (FR-019, plan §2.4)
+
+**DONE (build stage T009–T021 by the implement agents, verify runs and T022 in the main loop, 2026-10-07):** failing check first `t018_before.log`: no readback line. `t018_check.log`: nine readback lines (Teeming: EcosystemDepth CLAMPED at Life 0.70 and 1.00, rowsum 1.105 / 1.150; EventRateScale 6.5 / 0.2 / 9.2 ok; BloomSpawnRateHz 0.0107 / 0.0005 / 0.0213 ok).
 
 - **File:** `preset_pilot_test.cpp`.
 - **Failing check first:** Teeming with `VORAGO_PILOT_READBACK=1` prints no `readback` line.
@@ -441,6 +461,8 @@ With no tweak set and the meter off, nothing in this group changes a rendered sa
 - **Verify:** build, zero warnings; `t018_check.log` on Teeming prints nine readback lines.
 
 ### T019 — Pilot: read-set iterators `roster`, `liveFor:<id>`, `verified36` (FR-010c, FR-030, plan §4.5)
+
+**DONE (build stage T009–T021 by the implement agents, verify runs and T022 in the main loop, 2026-10-07):** failing check first `t019_before.log`: `VORAGO_PILOT_ITERATE=roster` FAILs at `:1351` (verified27 REQUIRE). `t019_check.log`: `liveFor:e4` lists 42 live presets including Feeding Loops and Feedback Mire — every preset is live because Ecology Mix (500) defaults to 0.15 and no def zeroes it; `t019_check36.log`: verified36 = 36 cells, count REQUIRE passes. `VORAGO_PILOT_LIST` appended to `odr_sweep.txt`.
 
 - **File:** `preset_pilot_test.cpp`.
 - **Failing check first:** `VORAGO_PILOT_ITERATE=roster` → `t019_before.log` fails `REQUIRE(*iter == "verified27")`
@@ -464,6 +486,8 @@ With no tweak set and the meter off, nothing in this group changes a rendered sa
 
 ### T020 — Rule probe: `VORAGO_PROBE_LANES` (FR-015, plan §2.3)
 
+**DONE (build stage T009–T021 by the implement agents, verify runs and T022 in the main loop, 2026-10-07):** failing check first `t020_before.log`: no LANES line (191318 assertions, pass). `t020_check.log`: five LANES lines (default + syncRate.hi + selfAffinity.lo/.hi at Life max) and its syncRate / selfAffinity rows (1.8915 0.413 INAUDIBLE .hi; 0.0163 0.004 INAUDIBLE .lo,.hi) equal `gate2_table_lifemax_base.log` exactly. The sampler lives in the table mode (the gate-1 mode prints no LANES line).
+
 - **File:** `plugins/vorago/tests/integration/ecosystem_rule_probe_test.cpp`.
 - **Failing check first:** `VORAGO_PROBE_KNOBS=syncRate VORAGO_PROBE_LANES=1` prints no `LANES` line.
 - **Implement:** `struct LaneStats { double mean, p10, p90, dabs; };` in the anonymous namespace (`:176`);
@@ -476,6 +500,8 @@ With no tweak set and the meter off, nothing in this group changes a rendered sa
   `gate2_table_lifemax_base.log`'s.
 
 ### T021 — Row-emulation probe `VoragoMacro_Phase13dRowProbe` (plan §2.5)
+
+**DONE (build stage T009–T021 by the implement agents, verify runs and T022 in the main loop, 2026-10-07):** failing check first `t021_before.log`: "No test cases matched". `t021_check.log`: `VORAGO_ROWPROBE=` + `VORAGO_ROWPROBE_ROWS=Movement` reproduces `base_sweepaxes.log` — rho 0.8333, endpoint 0.2213, seeds 101 / 202 / 303 rho 0.9 / 0.6 / 1.0.
 
 - **File:** `dsp/tests/unit/systems/vorago_macro_retune_probe_test.cpp` (append; registered at
   `dsp/tests/CMakeLists.txt:552`).
@@ -490,6 +516,8 @@ With no tweak set and the meter off, nothing in this group changes a rendered sa
   reproduces `base_sweepaxes.log`'s Movement rho 0.8333.
 
 ### T022 — Step I: inertness, per-push green, premise instruments (FR-003, FR-004, FR-010)
+
+**DONE (build stage T009–T021 by the implement agents, verify runs and T022 in the main loop, 2026-10-07):** step 1 `instr_perpush.log`: dsp_systems All tests passed (6069572 assertions in 1430 test cases), exit 0; vorago All tests passed (4059849 assertions in 119 test cases), exit 0 (both suites run concurrently, G2 binary). Step 2 inertness: Bloom Colony 1.1823 = 1.1823, Erosion 3.2191 = 3.2191 (`instr_inert_E1.log`, `instr_inert_M2.log`; tolerance max(0.01, 0.005·d), deltas 0.0000). Step 3 `ie1_bloom.log` (= t016_check): R_k spawns 1 and refuses 2, R_k0 none. Step 4 `ie4_loopbus_1x.log` (800=0.5): d 4.4059 / attrib 3.6649, loopbus −63.01 / −62.06 / −58.85 / −54.16 dBFS, loopsAlive n; `ie4_loopbus_stored.log` (= t015_check): d 2.9182, loopbus −62.56 / −62.06 / −58.85 / −54.07; in both, every loop at end reads dormant n and gate ≥ 0.45 — no stop. Step 5 `ie67_lanes_L{045,070,090,100}.log`: E6.hi 1.3700 / 1.4016 / 1.4016 / 1.3863, E7.hi 1.3429 / 1.3045 / 1.3045 / 1.2573; the P and twin lane stats and both rank lines are identical at every Life value (override confirmed applied, `[probe] override 109`): Life's only lane path, EcosystemDepth, is CLAMPED at 1.0 from the stored 0.45 upward (`ie67_readback.log` rowsum 1.0675 CLAMPED at 0.45), so raising Life moves events, not lanes. Ranks not flat — no stop. `ie67_lanes_lifemax.log` (gate-1 mode) GATE1M 0.629 PASS = base; `ie67_lanes_lifemax_table.log` / `ie67_lanes_default_table.log`: LANES default at Life max Partial 0.765 Resonator 0.288 Noise 0.541 Feedback 0.496 Ghost 0.753 vs default surface 0.650 / 0.245 / 0.460 / 0.422 / 0.640 (every lane up by ~1.17×). `VORAGO_PILOT_CELLS=S7` was not passed (bare labels are unknown; Colony Pulse claims both cells). Step 6 `im4_member_cancel.log`: cancel CloudDrift rho 0.7333 / endpoint 0.1804; ResonanceWander 0.7333 / 0.2107; NoiseWander 0.9333 / 0.1819; Breathing 0.9333 / 0.1369; CavernDamper 0.8333 / 0.2213 (identical to the shipped row — inaudible on the metric); `im4_member_cancel_bothwander.log` (plan §3.6 (1)) 0.7000 / 0.1298. No single cancel restores rho ≥ 0.9 with endpoint ≥ 0.2. `im4_member_override_<id>.log`: the primary M4 cell skips at Movement 0 ("M displacement"), so the read ran through `Vorago_PresetPilot_SwingProbe` (`im4_member_swing_{ref,204,402,302,1500,1104}.log`): d(P, Movement 0) 0.8745; with one member restored to its Movement-1 value: drift 204 → 1.6901, breathing 1500 → 1.1571, noise wander 302 → 1.0569, resonance wander 402 → 0.9076, damper 1104 → 0.8868 — the descriptor hears drift, breathing and noise wander. Step 7 `im10_readback.log` (= t018_check): EcosystemDepth CLAMPED only; EventRateScale and BloomSpawnRateHz ok — no stop.
 
 - **Run** alone, in order, on the T021 binary:
   1. both per-push runs green → `instr_perpush.log`;

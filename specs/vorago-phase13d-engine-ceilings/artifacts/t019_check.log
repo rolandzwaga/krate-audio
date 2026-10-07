@@ -1,0 +1,51 @@
+START 2026-10-07 19:55:46 t019_check tree=f376785f+G2 working copy (build_g2.log) env: VORAGO_PILOT_ITERATE=liveFor:e4 VORAGO_PILOT_LIST=1 case: Vorago_PresetPilot_PrimaryProbe
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 1160122998
+liveFor:e4: lever: none
+liveFor:e4 list Wind Through Basalt primary S1 noise organism secondaries [D3.1 noise model Direct] [D4.1 noise type White] [D4.2 noise type Pink] [D4.3 noise type TapeHiss] [D4.7 noise type Blue]
+liveFor:e4 list Resonant Shaft primary S2 resonance drift secondaries [D5.2 anchor Keyed]
+liveFor:e4 list Smeared Horizon primary S3 spectral smear secondaries [D8.1 envelope Standard] [D10.2 freeze off]
+liveFor:e4 list Feedback Mire primary S4 feedback ecology secondaries [D6.1 loop filter Lowpass] [D6.2 loop filter Bandpass] [D6.3 loop filter Highpass]
+liveFor:e4 list Tectonic Floor primary S5 subharmonic secondaries [D7.3 loudest sub fifth below]
+liveFor:e4 list Slow Bloom primary S6 harmonic bloom secondaries [D14.1 breathing depth >= 0.7] [D9.2 attack span >= 90 s]
+liveFor:e4 list Colony Pulse primary S7 ecosystem secondaries
+liveFor:e4 list Cathedral Void primary S8 cavern space secondaries [D10.1 freeze holds a field]
+liveFor:e4 list Choir of Absence primary S9 ghost / atmosphere secondaries [D11 ghost reverse >= 0.5] [D12.1 ghost event triggers on]
+liveFor:e4 list Hull Resonance primary S10 acoustic body secondaries [D2 body blend both heard] [D1.6 material StoneChamber] [D1.7 material SteelTank]
+liveFor:e4 list Lightless primary M1 Darkness secondaries [D12.2 ghost event triggers off]
+liveFor:e4 list Erosion primary M2 Age (roster) secondaries [D3.3 noise model GranularDust] [D4.4 noise type VinylCrackle] [D4.5 noise type Asperity] [D4.6 noise type Brown]
+liveFor:e4 list Crowded Dark primary M3 Density secondaries
+liveFor:e4 list Drifting Strata primary M4 Movement (roster) secondaries
+liveFor:e4 list Stone Gravity primary M5 Gravity (roster) secondaries [D5.3 anchor Hybrid]
+liveFor:e4 list Entropic Hum primary M6 Entropy secondaries
+liveFor:e4 list Pressure Front primary M7 Pressure secondaries
+liveFor:e4 list Weighted Deep primary M8 Weight secondaries [D7.2 loudest sub f/4]
+liveFor:e4 list Fogbound primary M9 Fog secondaries [D4.10 noise type Velvet] [D4.11 noise type VinylRumble] [D4.12 noise type RadioStatic] [D4.8 noise type Violet] [S1 noise organism]
+liveFor:e4 list Teeming primary M10 Life (roster) secondaries
+liveFor:e4 list Endless Descent primary M11 Depth secondaries
+liveFor:e4 list Monolith primary M12 Mass secondaries [D7.1 loudest sub f/2]
+liveFor:e4 list Bloom Colony primary E1 partial -> bloom (roster) secondaries
+liveFor:e4 list Singing Colony primary E2 resonator -> resonance peaks secondaries [D5.1 anchor Free]
+liveFor:e4 list Swarm Breath primary E3 noise -> noise wake secondaries [D3.4 noise model MetallicHiss] [D4.7 noise type Blue] [D4.8 noise type Violet] [D4.9 noise type Grey]
+liveFor:e4 list Feeding Loops primary E4 feedback -> loop wake (roster) secondaries
+liveFor:e4 list Haunted Colony primary E5 ghost -> ghost bursts secondaries
+liveFor:e4 list Growth Ring primary D8.2 envelope Growth secondaries
+liveFor:e4 list Glass Well primary D1.1 material Glass secondaries
+liveFor:e4 list Strung Abyss primary D1.2 material Strings secondaries
+liveFor:e4 list Iron Plate primary D1.3 material MetalPlate secondaries
+liveFor:e4 list Chamber Drone primary D1.4 material Chamber secondaries
+liveFor:e4 list Ice Shelf primary D1.5 material Ice secondaries
+liveFor:e4 list Hull Ark primary D1.8 material WoodenHull secondaries
+liveFor:e4 list Column Hymn primary D1.9 material CathedralColumn secondaries
+liveFor:e4 list Cavern Wall primary D1.10 material CavernWall secondaries
+liveFor:e4 list Glass Sphere primary D1.11 material GlassSphere secondaries
+liveFor:e4 list Sudden Chasm primary D9.1 attack span <= 10 s secondaries
+liveFor:e4 list Dead Air primary D3.1 noise model Direct secondaries [D4.1 noise type White] [D4.2 noise type Pink] [D4.3 noise type TapeHiss] [D4.9 noise type Grey]
+liveFor:e4 list Abyssal Wind primary D3.2 noise model FilteredWind secondaries [D7.2 loudest sub f/4] [D5.1 anchor Free]
+liveFor:e4 list Spore Drift primary D3.3 noise model GranularDust secondaries
+liveFor:e4 list Steam Vent primary D3.4 noise model MetallicHiss secondaries
+liveFor:e4: 42 live preset(s)
+===============================================================================
+All tests passed (129 assertions in 1 test case)
+
+exit=0 END 2026-10-07 19:55:47

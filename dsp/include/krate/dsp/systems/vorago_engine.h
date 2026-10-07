@@ -471,6 +471,7 @@ public:
 
         sampleCounter_ = 0;
         nonFinitePending_ = 0u;
+        loopBusSumSq_ = 0.0;  // Phase 13d loop-bus meter (the voices turned it off)
         // The FR-051 change detector is rewound with the component it shadows:
         // sub_ has just been re-prepared, so a shadow left holding a pre-prepare
         // frequency would make the first control step SKIP the write that
@@ -1065,6 +1066,110 @@ public:
     }
     [[nodiscard]] float getGhostDensity() const noexcept { return ghostDensityBase_; }
 
+    // -------------------------------------------------------------------------
+    // Phase 13d measurement seams (FR-012 (a), plan s4.2). Seven fan-outs over
+    // ALL kMaxVoices, getters on SLOT 0, same pattern as the 13c seams above.
+    // The voice setters reject non-finite input and clamp (vorago_voice.h
+    // setPartialBloomLaneGain .. setCouplingLeverSpan). The two count seams
+    // take float here so the probe parser has one value type; they reject
+    // non-finite input, clamp IN FLOAT, and only then round: a negative float
+    // rounded first would wrap to a huge std::size_t that BloomEngine clamps to
+    // the MAXIMUM, and a float outside long's range has an unspecified lround.
+    // -------------------------------------------------------------------------
+    void setPartialBloomLaneGain(float g) noexcept {
+        for (std::size_t v = 0; v < kMaxVoices; ++v) {
+            voices_[v].setPartialBloomLaneGain(g);
+        }
+    }
+    [[nodiscard]] float getPartialBloomLaneGain() const noexcept {
+        return voices_[0].getPartialBloomLaneGain();
+    }
+
+    void setPartialMutationLaneGain(float g) noexcept {
+        for (std::size_t v = 0; v < kMaxVoices; ++v) {
+            voices_[v].setPartialMutationLaneGain(g);
+        }
+    }
+    [[nodiscard]] float getPartialMutationLaneGain() const noexcept {
+        return voices_[0].getPartialMutationLaneGain();
+    }
+
+    void setLoopWakeBase(float b) noexcept {
+        for (std::size_t v = 0; v < kMaxVoices; ++v) {
+            voices_[v].setLoopWakeBase(b);
+        }
+    }
+    [[nodiscard]] float getLoopWakeBase() const noexcept { return voices_[0].getLoopWakeBase(); }
+
+    void setLoopGainLeverSpan(float s) noexcept {
+        for (std::size_t v = 0; v < kMaxVoices; ++v) {
+            voices_[v].setLoopGainLeverSpan(s);
+        }
+    }
+    [[nodiscard]] float getLoopGainLeverSpan() const noexcept {
+        return voices_[0].getLoopGainLeverSpan();
+    }
+
+    void setCouplingLeverSpan(float s) noexcept {
+        for (std::size_t v = 0; v < kMaxVoices; ++v) {
+            voices_[v].setCouplingLeverSpan(s);
+        }
+    }
+    [[nodiscard]] float getCouplingLeverSpan() const noexcept {
+        return voices_[0].getCouplingLeverSpan();
+    }
+
+    void setBloomParentCount(float k) noexcept {
+        if (!detail::isFinite(k)) {
+            return;  // FR-071: rejected, the previous value stands
+        }
+        const float clamped =
+            std::clamp(k, 1.0f, static_cast<float>(BloomEngine::kMaxParents));
+        const auto count = static_cast<std::size_t>(std::lround(clamped));
+        for (std::size_t v = 0; v < kMaxVoices; ++v) {
+            voices_[v].setBloomParentCount(count);
+        }
+    }
+    [[nodiscard]] float getBloomParentCount() const noexcept {
+        return static_cast<float>(voices_[0].getBloomParentCount());
+    }
+
+    void setBloomChildrenPerEvent(float n) noexcept {
+        if (!detail::isFinite(n)) {
+            return;  // FR-071: rejected, the previous value stands
+        }
+        const float clamped =
+            std::clamp(n, 1.0f, static_cast<float>(BloomEngine::kMaxChildrenPerEvent));
+        const auto count = static_cast<std::size_t>(std::lround(clamped));
+        for (std::size_t v = 0; v < kMaxVoices; ++v) {
+            voices_[v].setBloomChildrenPerEvent(count);
+        }
+    }
+    [[nodiscard]] float getBloomChildrenPerEvent() const noexcept {
+        return static_cast<float>(voices_[0].getBloomChildrenPerEvent());
+    }
+
+    /// Phase 13d loop-bus meter (FR-004, FR-021b, plan s2.1). Test-only, off by
+    /// default, fans out to every slot; prepare() turns it off. Observation
+    /// only: the audio is identical in both states (T-M2).
+    void setLoopBusMeterEnabled(bool on) noexcept {
+        for (std::size_t v = 0; v < kMaxVoices; ++v) {
+            voices_[v].setLoopBusMeterEnabled(on);
+        }
+    }
+    [[nodiscard]] bool isLoopBusMeterEnabled() const noexcept {
+        return voices_[0].isLoopBusMeterEnabled();
+    }
+    /// Sum, over every sample processed since the last call, of loopBus(t)^2 -
+    /// loopBus(t) being the sum over rendering voices and their loops of the
+    /// FeedbackEcology tap. Returns it and resets it to 0. Always 0 with the
+    /// meter off.
+    [[nodiscard]] double takeLoopBusSumSq() noexcept {
+        const double out = loopBusSumSq_;
+        loopBusSumSq_ = 0.0;
+        return out;
+    }
+
     /// Vorago Phase 12 FR-006: the ghost grain reverse probability. Survives a
     /// re-prepare - prepare() uses the config value only until this is called.
     /// @param p Clamped [0, 1]; non-finite is rejected (the previous value stands).
@@ -1202,12 +1307,22 @@ public:
             // of them (seraphis_engine.h:523-527). This is also where B-6's L
             // term - the per-block cost of a non-rendering slot - comes from,
             // which is why kMaxVoices is a BUDGET number and not a free ceiling.
+            // Phase 13d loop-bus meter (plan s2.1): read once per slice. Off, the
+            // original three-argument call runs unchanged.
+            const bool loopBusMeter = isLoopBusMeterEnabled();
+            if (loopBusMeter) {
+                std::fill_n(loopBusAcc_.data(), slice, 0.0f);
+            }
             for (std::size_t v = 0; v < kMaxVoices; ++v) {
                 if (!isRendering(v)) {
                     voices_[v].advanceLifeOnly(slice);  // FR-046
                     continue;
                 }
-                voices_[v].processStereoBlock(vL_.data(), vR_.data(), slice);
+                if (loopBusMeter) {
+                    voices_[v].processStereoBlock(vL_.data(), vR_.data(), vLoopBus_.data(), slice);
+                } else {
+                    voices_[v].processStereoBlock(vL_.data(), vR_.data(), slice);
+                }
                 for (std::size_t s = 0; s < slice; ++s) {
                     const float a = vL_[s];
                     const float b = vR_[s];
@@ -1223,6 +1338,17 @@ public:
                     }
                     busL_[s] += a;
                     busR_[s] += b;
+                    // After the FR-072 check, so a poisoned slice is MIRRORED:
+                    // the meter covers exactly the prefix the audio bus kept.
+                    if (loopBusMeter) {
+                        loopBusAcc_[s] += vLoopBus_[s];
+                    }
+                }
+            }
+            if (loopBusMeter) {
+                for (std::size_t s = 0; s < slice; ++s) {
+                    const auto x = static_cast<double>(loopBusAcc_[s]);
+                    loopBusSumSq_ += x * x;
                 }
             }
             // READ ONCE per control chunk, so the value is identical under any
@@ -1693,6 +1819,11 @@ private:
     std::array<float, kControlChunkSamples> busR_{};
     std::array<float, kControlChunkSamples> vL_{};  ///< one voice's contribution
     std::array<float, kControlChunkSamples> vR_{};
+    /// Phase 13d loop-bus meter (plan s2.1): one voice's served loop-bus slice,
+    /// the voices' sum, and the running sum of squares takeLoopBusSumSq() reads.
+    std::array<float, kControlChunkSamples> vLoopBus_{};
+    std::array<float, kControlChunkSamples> loopBusAcc_{};
+    double loopBusSumSq_ = 0.0;
     /// The ghost's WET return. Separate from the bus because AtmosphereEngine
     /// explicitly does not support in-place (atmosphere_engine.h:671-672).
     std::array<float, kControlChunkSamples> atmosL_{};

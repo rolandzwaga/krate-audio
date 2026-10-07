@@ -63,6 +63,7 @@
 
 #include <algorithm>
 #include <array>
+#include <bit>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -3118,6 +3119,244 @@ TEST_CASE("VoragoEngine_SetterContract", "[systems][vorago]") {
         REQUIRE(engine->getEnvelopeStageTimeMs(-1) == 0.0f);
         REQUIRE(engine->getEnvelopeStageTimeMs(kStages) == 0.0f);
     }
+}
+
+// =============================================================================
+// Phase 13d T010 / T-M1 (FR-012 (a), plan s4.2): the seven engine fan-out
+// seams. Each setter reaches ALL kMaxVoices; each getter reads slot 0. The two
+// count seams take float at the engine and clamp IN FLOAT before the round, so
+// -1 lands on the minimum (not a wrapped size_t clamped to the maximum) and
+// 1e12 lands on the maximum (not an unspecified lround result).
+// kMinRetunedWakeBase is private to VoragoVoice, so its value 0.05 is spelled
+// here the way vorago_ecosystem_lever_test.cpp:1461 spells it (E-8).
+// =============================================================================
+namespace {
+
+struct CeilingSeamReadback {
+    float bloomLaneGain = 0.0f;
+    float mutationLaneGain = 0.0f;
+    float loopWakeBase = 0.0f;
+    float loopGainLeverSpan = 0.0f;
+    float couplingLeverSpan = 0.0f;
+    std::size_t parentCount = 0;
+    std::size_t childrenPerEvent = 0;
+};
+
+[[nodiscard]] CeilingSeamReadback readCeilingSeams(const VoragoVoice& voice) noexcept {
+    return CeilingSeamReadback{.bloomLaneGain = voice.getPartialBloomLaneGain(),
+                               .mutationLaneGain = voice.getPartialMutationLaneGain(),
+                               .loopWakeBase = voice.getLoopWakeBase(),
+                               .loopGainLeverSpan = voice.getLoopGainLeverSpan(),
+                               .couplingLeverSpan = voice.getCouplingLeverSpan(),
+                               .parentCount = voice.getBloomParentCount(),
+                               .childrenPerEvent = voice.getBloomChildrenPerEvent()};
+}
+
+void requireEveryVoiceReads(const VoragoEngine& engine, const CeilingSeamReadback& want) {
+    for (std::size_t i = 0; i < VoragoEngine::kMaxVoices; ++i) {
+        INFO("voice " << i);
+        const CeilingSeamReadback got = readCeilingSeams(engine.getVoice(i));
+        REQUIRE(got.bloomLaneGain == want.bloomLaneGain);
+        REQUIRE(got.mutationLaneGain == want.mutationLaneGain);
+        REQUIRE(got.loopWakeBase == want.loopWakeBase);
+        REQUIRE(got.loopGainLeverSpan == want.loopGainLeverSpan);
+        REQUIRE(got.couplingLeverSpan == want.couplingLeverSpan);
+        REQUIRE(got.parentCount == want.parentCount);
+        REQUIRE(got.childrenPerEvent == want.childrenPerEvent);
+    }
+    // The engine getters read slot 0, the counts as float.
+    REQUIRE(engine.getPartialBloomLaneGain() == want.bloomLaneGain);
+    REQUIRE(engine.getPartialMutationLaneGain() == want.mutationLaneGain);
+    REQUIRE(engine.getLoopWakeBase() == want.loopWakeBase);
+    REQUIRE(engine.getLoopGainLeverSpan() == want.loopGainLeverSpan);
+    REQUIRE(engine.getCouplingLeverSpan() == want.couplingLeverSpan);
+    REQUIRE(engine.getBloomParentCount() == static_cast<float>(want.parentCount));
+    REQUIRE(engine.getBloomChildrenPerEvent() == static_cast<float>(want.childrenPerEvent));
+}
+
+}  // namespace
+
+TEST_CASE("VoragoEngine_CeilingSeamContract", "[systems][vorago]") {
+    VoragoEngineConfig cfg{};
+    cfg.atmosCaptureSeconds = 1.0f;
+    auto engine = makeEngine(kSampleRate8k, cfg);
+
+    const CeilingSeamReadback compiled{.bloomLaneGain = 1.0f,
+                                       .mutationLaneGain = 1.0f,
+                                       .loopWakeBase = VoragoVoice::kLoopWakeBase,
+                                       .loopGainLeverSpan = 0.18f,
+                                       .couplingLeverSpan = 0.30f,
+                                       .parentCount = 4,
+                                       .childrenPerEvent = 2};
+
+    SECTION("clause 1: after prepare every voice and the engine read the compiled values") {
+        requireEveryVoiceReads(*engine, compiled);
+    }
+
+    SECTION("clause 2: each setter fans out to every voice") {
+        engine->setPartialBloomLaneGain(3.0f);
+        engine->setPartialMutationLaneGain(0.5f);
+        engine->setLoopWakeBase(0.30f);
+        engine->setLoopGainLeverSpan(0.22f);
+        engine->setCouplingLeverSpan(0.34f);
+        engine->setBloomParentCount(2.0f);
+        engine->setBloomChildrenPerEvent(3.0f);
+
+        requireEveryVoiceReads(*engine, CeilingSeamReadback{.bloomLaneGain = 3.0f,
+                                                            .mutationLaneGain = 0.5f,
+                                                            .loopWakeBase = 0.30f,
+                                                            .loopGainLeverSpan = 0.22f,
+                                                            .couplingLeverSpan = 0.34f,
+                                                            .parentCount = 2,
+                                                            .childrenPerEvent = 3});
+    }
+
+    SECTION("clause 3: NaN, +Inf and -Inf into each seam leave every voice unchanged") {
+        const std::array<float, 3> bad{makeNaNFloat(), makeNonFiniteFloat(kPosInfBits),
+                                       makeNonFiniteFloat(0xFF800000u)};
+        for (std::size_t b = 0; b < bad.size(); ++b) {
+            INFO("non-finite input " << b);
+            const float x = bad[b];
+            engine->setPartialBloomLaneGain(x);
+            engine->setPartialMutationLaneGain(x);
+            engine->setLoopWakeBase(x);
+            engine->setLoopGainLeverSpan(x);
+            engine->setCouplingLeverSpan(x);
+            engine->setBloomParentCount(x);
+            engine->setBloomChildrenPerEvent(x);
+            requireEveryVoiceReads(*engine, compiled);
+        }
+    }
+
+    SECTION("clause 4: clamps, the count seams clamp before the round") {
+        engine->setPartialBloomLaneGain(9.0f);
+        engine->setLoopWakeBase(0.0f);
+        engine->setBloomParentCount(-1.0f);
+        engine->setBloomChildrenPerEvent(-1.0f);
+        {
+            CeilingSeamReadback want = compiled;
+            want.bloomLaneGain = 8.0f;
+            want.loopWakeBase = 0.05f;  // VoragoVoice::kMinRetunedWakeBase (private)
+            want.parentCount = 1;
+            want.childrenPerEvent = 1;
+            requireEveryVoiceReads(*engine, want);
+        }
+
+        engine->setBloomParentCount(1e12f);
+        engine->setBloomChildrenPerEvent(1e12f);
+        REQUIRE(engine->getBloomParentCount() == 8.0f);       // BloomEngine::kMaxParents
+        REQUIRE(engine->getBloomChildrenPerEvent() == 4.0f);  // BloomEngine::kMaxChildrenPerEvent
+        for (std::size_t i = 0; i < VoragoEngine::kMaxVoices; ++i) {
+            INFO("voice " << i);
+            REQUIRE(engine->getVoice(i).getBloomParentCount() == 8u);
+            REQUIRE(engine->getVoice(i).getBloomChildrenPerEvent() == 4u);
+        }
+
+        engine->setBloomParentCount(2.6f);
+        engine->setBloomChildrenPerEvent(2.6f);
+        REQUIRE(engine->getBloomParentCount() == 3.0f);
+        REQUIRE(engine->getBloomChildrenPerEvent() == 3.0f);
+        for (std::size_t i = 0; i < VoragoEngine::kMaxVoices; ++i) {
+            INFO("voice " << i);
+            REQUIRE(engine->getVoice(i).getBloomParentCount() == 3u);
+            REQUIRE(engine->getVoice(i).getBloomChildrenPerEvent() == 3u);
+        }
+    }
+}
+
+// =============================================================================
+// Phase 13d T-M2 (FR-004, FR-021b, plan s2.1): the loop-bus meter is
+// OBSERVATION ONLY. Two engines, same seed, same note, same 20 s in 512-sample
+// blocks; B carries the meter. The audio must be the same samples (a
+// same-process A/B identity, not a stored golden), and the meter must read
+// something finite, bounded and non-zero on B and exactly nothing on A.
+// =============================================================================
+TEST_CASE("VoragoEngine_LoopBusMeterIsObservationOnly", "[systems][vorago]") {
+    VoragoEngineConfig cfg{};
+    cfg.atmosCaptureSeconds = 1.0f;
+    constexpr std::uint32_t kSeed = 0x100B05u;
+    constexpr std::size_t kBlock = 512u;
+    constexpr std::size_t kTotal = 960000u;  // 20 s x 48 kHz
+    // Each tap is a loop output bounded by 1; at most kMaxLoops x kMaxVoices
+    // taps are summed per sample.
+    constexpr double kTaps =
+        static_cast<double>(Krate::DSP::FeedbackEcology::kMaxLoops * VoragoEngine::kMaxVoices);
+    constexpr double kBlockCeiling = static_cast<double>(kBlock) * kTaps * kTaps;
+    static_assert(kTaps == 36.0);
+
+    auto a = makeEngine(kSampleRate48, cfg);
+    auto b = makeEngine(kSampleRate48, cfg);
+    a->setSeed(kSeed);
+    b->setSeed(kSeed);
+
+    const std::size_t bBytesAfterPrepare = b->getAllocatedBytes();
+    REQUIRE_FALSE(a->isLoopBusMeterEnabled());
+    REQUIRE_FALSE(b->isLoopBusMeterEnabled());
+    b->setLoopBusMeterEnabled(true);
+    // clause 4: enabling the meter allocates nothing.
+    REQUIRE(b->getAllocatedBytes() == bBytesAfterPrepare);
+    // clause 5 (first half).
+    REQUIRE(b->isLoopBusMeterEnabled());
+    REQUIRE_FALSE(a->isLoopBusMeterEnabled());
+
+    a->noteOn(36u, 100u);
+    b->noteOn(36u, 100u);
+
+    std::vector<float> aL(kBlock, 0.0f);
+    std::vector<float> aR(kBlock, 0.0f);
+    std::vector<float> bL(kBlock, 0.0f);
+    std::vector<float> bR(kBlock, 0.0f);
+
+    double bTotal = 0.0;
+    std::size_t done = 0u;
+    std::size_t block = 0u;
+    while (done < kTotal) {
+        const std::size_t n = std::min(kBlock, kTotal - done);
+        a->processStereoBlock(aL.data(), aR.data(), n);
+        b->processStereoBlock(bL.data(), bR.data(), n);
+
+        // clause 1: every output sample of A equals B's. One REQUIRE per
+        // differing sample would be ~2 M assertions, so the FIRST differing
+        // sample of the block is reported and asserted (pre-ruling 3).
+        for (std::size_t s = 0; s < n; ++s) {
+            if (aL[s] != bL[s] || aR[s] != bR[s]) {
+                INFO("first differing sample: block " << block << " sample " << s
+                                                      << " (absolute " << (done + s) << ")"
+                                                      << std::setprecision(9) << " A = (" << aL[s]
+                                                      << ", " << aR[s] << ") B = (" << bL[s]
+                                                      << ", " << bR[s] << ")");
+                REQUIRE(aL[s] == bL[s]);
+                REQUIRE(aR[s] == bR[s]);
+            }
+        }
+
+        // clause 2: A's meter reads exactly nothing; B's per-block value is
+        // finite by bit pattern.
+        const double aSumSq = a->takeLoopBusSumSq();
+        const double bSumSq = b->takeLoopBusSumSq();
+        INFO("block " << block);
+        REQUIRE(aSumSq == 0.0);
+        const auto bits = std::bit_cast<std::uint64_t>(bSumSq);
+        REQUIRE((bits & 0x7FF0000000000000ull) != 0x7FF0000000000000ull);
+        // clause 3: bounded by the tap count.
+        REQUIRE(bSumSq >= 0.0);
+        REQUIRE(bSumSq <= kBlockCeiling);
+        bTotal += bSumSq;
+
+        done += n;
+        ++block;
+    }
+    // clause 2: the meter saw the loops.
+    INFO("B 20 s loop-bus sum of squares " << bTotal);
+    REQUIRE(bTotal > 0.0);
+
+    // clause 4 again after the render: nothing grew.
+    REQUIRE(b->getAllocatedBytes() == bBytesAfterPrepare);
+
+    // clause 5: prepare() turns the meter off.
+    REQUIRE(b->isLoopBusMeterEnabled());
+    b->prepare(kSampleRate48, cfg);
+    REQUIRE_FALSE(b->isLoopBusMeterEnabled());
 }
 
 // =============================================================================

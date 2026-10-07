@@ -1161,7 +1161,7 @@
       "scope": "Krate::DSP::VoragoVoice",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/vorago_voice.h",
-      "line": 2049
+      "line": 2155
     },
     {
       "name": "IFeedbackProcessor",

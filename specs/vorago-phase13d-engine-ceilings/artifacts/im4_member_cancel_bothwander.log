@@ -1,0 +1,21 @@
+START 2026-10-07 20:02:45 im4_member_cancel_bothwander tree=f376785f+G2 (plan 3.6 (1): kWanderLeverRateCompExponent isolated by cancelling ResonanceWanderRate together with NoiseWanderRate) env: VORAGO_ROWPROBE=Movement:NoiseWanderRate:-0.97:Exponential;Movement:ResonanceWanderRate:-0.97:Exponential VORAGO_ROWPROBE_ROWS=Movement
+Filters: "VoragoMacro_Phase13dRowProbe"
+Randomness seeded to: 1186150856
+Phase 13d row-emulation probe (SweepAxes fixture: seeds 101/202/303 x points 0/.25/.5/.75/1 x 60 s @ 48 kHz; window samples [480000, 2880000); polyphony 1; fast attack; macros after noteOn; Life 210 s, edges over [90 s, 210 s])
+Delta entries (2):
+  Movement -> NoiseWanderRate  delta=-0.9700 Exponential  (shipped amount on this row=0.9700, target base=0.0300)
+  Movement -> ResonanceWanderRate  delta=-0.9700 Exponential  (shipped amount on this row=0.9700, target base=0.0300)
+ROW Movement  per-band total variation
+    seed 101 [0, .25, .5, .75, 1]: [1.3810, 1.4581, 1.4816, 1.4823, 1.4943]  rho=1.0000  endpoint=0.0821
+    seed 202 [0, .25, .5, .75, 1]: [1.3130, 1.6117, 1.6309, 1.5744, 1.6100]  rho=0.2000  endpoint=0.2262
+    seed 303 [0, .25, .5, .75, 1]: [1.1656, 1.2309, 1.2252, 1.2549, 1.2561]  rho=0.9000  endpoint=0.0776
+    mean metric [0, .25, .5, .75, 1]: [1.2865, 1.4335, 1.4459, 1.4372, 1.4535]
+    mean rho=0.7000 (need >= 0.9, MISS)  mean endpoint=0.1298 (need >= 0.2000, MISS)  -> FAIL
+
+==== ROWPROBE SUMMARY (row | mean rho | mean endpoint | threshold | verdict) ====
+  Movement  per-band total variation                  rho=  0.7000  endpoint=   0.1298  threshold=0.2000  FAIL
+===============================================================================
+test cases: 1 | 1 passed
+assertions: - none -
+
+exit=0 END 2026-10-07 20:05:35

@@ -1,0 +1,9 @@
+T022 step 1 per-push runs, G2 binary (build_g2.log), both suites concurrently:
+== instr_perpush_dsp_systems.log
+START 2026-10-07 19:55:52 per-push dsp_systems_tests tree=f376785f+G2 working copy filter ~[performance]~[perf]~[benchmark]~[!benchmark]~[long]
+All tests passed (6069572 assertions in 1430 test cases)
+exit=0 END 2026-10-07 20:45:17
+== instr_perpush_vorago.log
+START 2026-10-07 19:55:52 per-push vorago_tests tree=f376785f+G2 working copy filter ~[performance]~[perf]~[benchmark]~[!benchmark]~[long]
+All tests passed (4059849 assertions in 119 test cases)
+exit=0 END 2026-10-07 20:08:03

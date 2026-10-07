@@ -7,3 +7,6 @@ Tests: VoragoEngine_LoopBusMeterIsObservationOnly VoragoEngine_CeilingSeamContra
 Env options and values: VORAGO_PILOT_LANES VORAGO_PILOT_LOOPBUS VORAGO_PILOT_BLOOM VORAGO_PILOT_READBACK VORAGO_PROBE_LANES VORAGO_ROWPROBE liveFor verified36 e1route e1attach
 Near-names that exist and do not collide: SweepCapture::tweakHeld (a different struct); Probe::loopWakeBase / IdentityProbe::loopWakeBase (test accessors of the existing member loopWakeBase_).
 Late names the build must sweep before adding: VORAGO_PILOT_LIST (main-loop pre-ruling 5).
+T019 (2026-10-07, tree f376785f+dirty): grep -rn -- "<Name>" dsp/ plugins/ tools/ excluding plugins/vorago/tests/integration/preset_pilot_test.cpp (the TU that declares them, all TU-local in its anonymous namespace): 0 hits for every name below.
+Pilot TU names: VORAGO_PILOT_LIST (main-loop pre-ruling 5, swept as required) PilotSecondaryRow PilotProbeOptions RosterGate kRosterGateOverrides kRosterRuled kSweep5RecordDir applyPilotOverride applyPilotMasterTrim derivedVerifiedPrimaries presetLiveFor printProbeRows kLiveForPrefix
+Iterate values (string literals compared in the pilot TU only): verified36 roster liveFor: e1route e1attach e4 e67 m2 m4 m5 m10.
