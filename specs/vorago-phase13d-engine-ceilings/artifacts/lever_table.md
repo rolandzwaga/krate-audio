@@ -14,5 +14,5 @@
 
 | binary | VoragoEngine_CpuBudget (i) ns | (ii) ns | Vorago_ProcessorCpu P/D | Vorago_PresetCpu worst | log |
 |---|---|---|---|---|---|
-| base (T006) | | | | | |
+| base (T006) | 3.10765e6 (≤ 3.2e6; 97.114 % of the reference) | 2.98315e6 (≤ 4.04172e6; 110.713 % of the baseline) | 0.960344 (PF/D 0.991988) | Entropic Hum 1.1056 (default surface 3024934 ns/block) | `cpu_base_dsp_systems_tests_full.log:3168-3176`; `cpu_base_vorago_tests_full.log:22,32,635`; lane reds `cpu_base_dsp_reds.txt` |
 | final | | | | | |

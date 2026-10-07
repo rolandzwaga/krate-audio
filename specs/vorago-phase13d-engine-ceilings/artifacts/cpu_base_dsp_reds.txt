@@ -1,0 +1,40 @@
+T006 CPU base, dsp_systems_tests lane (node tools/run-cpu-tests.js dsp_systems_tests; alone, P-core pinned mask 0xFFFF,
+15 min idle before start; binary = base 5bda20c1 as compiled; started 12:27:58, ended 17:44:54, 5 h 17 min).
+Source: cpu_base_dsp_systems_tests_full.log. 97 cases, 89 passed, 8 failed.
+
+The Vorago gate (FR-033) is GREEN on the base:
+  VoragoEngine_CpuBudget  (full.log:3168-3176)
+    clause (i)  3.10765e6 <= 3.2e6 ns/block     (97.114 % of the reference)
+    clause (ii) 2.98315e6 <= 4.04172e6 ns/block (110.713 % of the 2.69448e6 baseline)
+
+The 8 reds, none in a file this phase touches (full.log line of the FAILED):
+  :16    CharacterProcessor CPU performance benchmark   Tape 127.595 us/block  > 116.0998   (+9.9 %)
+  :255   HarmonicCloud_CpuBudgetUnderAutomation         39357.2 ns   > 39000.0            (+0.9 %)
+  :283   SpectralMorph_CpuBudget                        14776.4 ns   > 13950.0            (+5.9 %)
+  :391   ContinuousBody_CpuBudget (steady, Strings)     54083.8 ns   > 53250.0            (+1.6 %)
+  :603   SeraphisEngine (SC-001 full poly)              2876698 ns   > 2584787.15         (+11.3 %)
+  :864   NoiseOrganism (a) 2 slots Direct               126300.6 ns  > 93798.0            (+34.7 %)
+  :1583  FeedbackEcology_CpuBudget  nsRef x 1.5         191966.7     > 160000.0 ceiling   (+20.0 %)
+  :2969  VoragoMacro_SweepAxes Movement rho             0.8333       < 0.9                (the carried red, T004)
+
+Precedent (Phase 13c compliance.md:124, 185 and section 7): the same lane on 2026-10-05 carried five reds; four were
+machine noise on re-run alone and FeedbackEcology_CpuBudget stayed red on both the base and the final binary
+(base nsRef 119395.6, final 111763.6 in the pinned A/B; surfaced as B-17, not fixed). Today's FeedbackEcology
+reading (191966.7 / 1.5 = 127977.8 ns ref) is 7 % above the 13c base reading on an unchanged file.
+The seven perf reds are re-run alone on the base binary after the vorago_tests lane and a fresh idle
+(cpu_base_rerun_alone.log); the Movement rho red is the T004 carried red and is a 13d target (M4 ladder), not a re-run.
+
+Re-run alone (cpu_base_rerun_alone.log; 15 min idle from 18:50, P-core pinned, 60 s settle between cases, base binary):
+  CharacterProcessor CPU performance benchmark   PASS  (:3-11 the first attempt split the spaced name into four specs, "No tests ran";
+                                                        re-run 19:14:19 with the name as one spec: All tests passed, 4 assertions)
+  HarmonicCloud_CpuBudgetUnderAutomation         PASS  32508.8 ns/block (:30, :44)
+  SpectralMorph_CpuBudget                        RED on a different clause: unchanged-target ratio 24061.4 > 23920.82 (+0.6 %, :92-95);
+                                                        the lane's red clause (morph 14776.4 > 13950) passed this time -> a flipping verdict,
+                                                        machine noise by the runner's own rule
+  ContinuousBody_CpuBudget                       PASS  (:224, 149 assertions)
+  SeraphisEngine_FullPolyCpuBudget               PASS  (:269, 52 assertions)
+  NoiseOrganism_CpuBudget                        PASS  (a) 88784.0 ns/block (:296, :340)
+  FeedbackEcology_CpuBudget                      RED   nsRef 119532.2 x 1.5 = 179298.3 > 160000 (:495-498, :513) - the same reading as the
+                                                        13c base (119395.6); stable on this machine, surfaced as in 13c B-17, not a 13d file
+Verdict for the before-record: the Vorago CPU gate is green; FeedbackEcology_CpuBudget is the one stable non-Vorago red on this
+machine (carried, surfaced); the other six were machine noise under the 5 h lane. The lane's own instruction was followed.

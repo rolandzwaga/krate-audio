@@ -1,0 +1,7 @@
+T006 launched 2026-10-07 12:12:57; idling 15 min
+strays at 12:27:57: 0
+dsp_systems_tests exit=1 17:44:54
+vorago_tests exit=0 18:50:29
+T006-DONE 2026-10-07 18:50:29
+rerun-alone launched 2026-10-07 18:50:39; idling 15 min
+RERUN-DONE 2026-10-07 19:12:50
