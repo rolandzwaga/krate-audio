@@ -634,6 +634,8 @@ term must add >= 1.5 over the reversion — with the loops-alive conjunct kept a
 
 ### T029 — E4 W1 rungs r1–r3 (loop-wake base)
 
+**DONE (main loop, 2026-10-07):** r1 / r2 / r3 loopWakeBase 0.30 / 0.15 / 0.05 (`e4_r1_gate.log` … `e4_r3_gate.log`): d 5.4871 / 7.0488 / 7.8321, attrib 3.6649 — every rung clears the route bar (d ≥ 4.0 and ≥ attrib + 1.5 = 5.1649), arms green; the loop-bus conjunct fails on all three (worst 10 s −64.47 / −63.01 / −60.38 / −57.13 dBFS at r1, −64.80 / −63.20 / −60.66 / −58.32 at r2 and r3; `loopsAlive n`, three takes below −60 dBFS vs two at the stored wake base). No `_roster` / `_readset` / `_minus6` yet: the Group 4 gate needs `loopsAlive y`, so the sustain companions decide.
+
 - **Run** alone: r1 `loopWakeBase=0.30`, r2 `0.15`, r3 `0.05` → `e4_r<n>_gate.log`; for clearing rungs
   `_roster.log`, `_readset.log`, `_minus6.log`.
 
@@ -667,6 +669,8 @@ VERIFIED`, `secondary E7.hi … -> VERIFIED`, S7 primary ≥ 4.0, `secondary D13
 set `liveFor:e67`.
 
 ### T032 — Choose L and name the carrying kinds (FR-015, FR-010d)
+
+**DONE (main loop, 2026-10-07):** From `ie67_lanes_L{045,070,090,100}.log`: no L verifies — E6.hi 1.3700 / 1.4016 / 1.4016 / 1.3863 and E7.hi 1.3429 / 1.3045 / 1.3045 / 1.2573 all < 1.5 (S7 ≥ 4.0 and D13.2 verified at every L, arms green). Best L by summed d: 0.45 (the stored Life; 2.7129, vs 2.7061 at 0.70 / 0.90 and 2.6436 at 1.00) — and the lane stats are identical at every L (EcosystemDepth clamped from 0.45 up), so raising Life is not a lever here. Carrying kinds (rank lines, identical at every L): E6.hi Partial 0.1862 > Ghost 0.1504; E7.hi Feedback 0.0692 > Ghost 0.0657. Rebuild rungs (T033): Ghost (both cells) `kGhostLaneGain` 1 → 1.25 / 1.5 / 2.0 and Feedback (E7) `kLeverInputGain[Feedback]` 2 → 2.25 / 2.5 / 2.75. Partial → "re-open E1 instead" is not taken: the E1 lane-gain ladder already measured the bloom lane saturating at gain 2.0 (a1–a6) and the user ruled E1 engine-limited with no re-open. Recorded in `rulings.md`.
 
 - From `ie67_lanes_L*.log`: if an L ∈ {0.70, 0.90, 1.00} already verifies E6.hi, E7.hi, S7 and D13.2 with arms green,
   take the smallest such L; run its `_roster.log`, `_readset.log` and `_minus6.log` with no lever and adopt it if all
@@ -705,6 +709,8 @@ Age → mutation amount from `l7_M2_ladder_summary.txt`) are never repeated.
 
 ### T035 — M2 clamp headroom and pre-screen
 
+**DONE (main loop, 2026-10-07):** `m2_headroom.txt`: unclamped sums per rung at the five SweepAxes Age points (S8.2 bases) and at Erosion (Age 1.0; stored damping 0.05, tilt 0 dB, decay 30 s): r1b / r1c damping past 1.0 at Age 1 on the S8.2 base (0.90 / 1.00 at Erosion), r2b / r2c tilt −13 / −14 dB at Age 1 (−9 / −10 at Erosion), r3 ≤ 1.00, r4 ≤ 0.85, r5c decay 0 s at Age 1 (CLAMPED, dropped per the task; r5a / r5b 4 / 2 s at Age 1, 14 / 12 s at Erosion). `m2_prescreen.log` = `m2m5_prescreen_summary.txt` + `m2_pre_*.log`: the Age SweepAxes row reads rho −1.0000 and endpoint 11.42 dB (damping, darkness, decay rungs), 14.87 dB (tilt rungs), 11.20 dB (mutation rungs) ≥ 3 dB at every rung — all 15 PASS; no rung is dropped by the pre-screen.
+
 - Log to `m2_headroom.txt` the unclamped sum of every row on each candidate target at the five SweepAxes Age points
   and at Erosion's stored macros, printing `CLAMPED` past the setter clamp (tilt ±12 dB/oct,
   `harmonic_cloud.h:194-195`; damping [0, 1], `continuous_body.h:146-147`; read the cavern decay clamp before r5).
@@ -738,6 +744,8 @@ Read set `liveFor:m5`.
 
 ### T038 — M5 headroom and pre-screen
 
+**DONE (main loop, 2026-10-07):** `m5_headroom.txt`: at Stone Gravity (Gravity 1.0, Darkness 0.40, Entropy 1.0; stored sub offset −6 dB) r1b / r1c tilt −12.4 / −14.4 dB CLAMPED (r1a −9.4), r3b / r3c darkness 1.02 / 1.07 CLAMPED (r3a 0.97), r2 sub offset −4 / −2 / 0 dB inside [−60, +6]. `m5_prescreen.log` = `m5_pre_*.log`: the Gravity SweepAxes row (octave lock) reads rho −1.0000 / endpoint 0.6465 at every rung — all 9 PASS (the three targets do not touch the row's metric).
+
 - `m5_headroom.txt`: unclamped sums at Gravity 0 and 1 and at Stone Gravity's stored macros for CloudSpectralTiltDb
   (Darkness's tilt row shares it), SubToneLevelOffsetDb and CavernDarkness, with `CLAMPED` flags.
 - `VoragoMacro_Phase13dRowProbe` per magnitude → `m5_prescreen.log` (the Gravity SweepAxes row must still pass).
@@ -760,6 +768,8 @@ An admissible rung reads Movement rho ≥ 0.9, endpoint ≥ +20 %, every `base_s
 passing, and NoZipper ≤ 1.5×. Read set `liveFor:m4`.
 
 ### T041 — M4 premise
+
+**DONE (main loop, 2026-10-07):** `rulings.md` M4 premise line: no single cancel restores rho ≥ 0.9 together with the endpoint — NoiseWanderRate or BreathingDepth cancelled gives rho 0.9333 with endpoint 0.1819 / 0.1369; CloudDrift and ResonanceWander cancels 0.7333; CavernDamper cancel identical to the shipped row (inaudible on the metric); both wander rates cancelled 0.7000 / 0.1298 (`im4_member_cancel.log`, `im4_member_cancel_bothwander.log`). Heard member by the swing probe (the M4 cell skips at Movement 0): CloudDrift d 1.6901 (reference 0.8745), Breathing 1.1571, NoiseWander 1.0569, ResonanceWander 0.9076, Damper 0.8868 (`im4_member_swing_*.log`). No stop (a cancel restores rho ≥ 0.9; drift moves d above 1.5). Inverting member for r1 / r3: BreathingDepth (its cancel restores rho with the larger endpoint loss, consistent with the plan's 13c `kBreathGravityLaneGain` suspect); NoiseWanderRate is the alternate.
 
 - From `im4_member_cancel.log` name the inverting member (the cancel that restores rho ≥ 0.9); from
   `im4_member_override_*.log` name the member the descriptor hears (largest `d`). Record both in `rulings.md`.
@@ -789,6 +799,8 @@ passing, and NoZipper ≤ 1.5×. Read set `liveFor:m4`.
 Read set `liveFor:m10`, plus E1, E4, E6.hi, E7.hi, S7, D13.1 and D13.2 through `roster`.
 
 ### T044 — M10 premise and companion alone
+
+**DONE (main loop, 2026-10-07):** From `im10_readback.log` (Teeming, Life 0.70 stored): EcosystemDepth dest 1.000 rowsum 1.105 CLAMPED at 0.70 and 1.150 CLAMPED at 1.00 (1.000 ok at 0); EventRateScale 6.5 / 0.2 / 9.2 ok; BloomSpawnRateHz 0.0107 / 0.0005 / 0.0213 ok — the EcosystemDepth row is excluded except as the companion. Companion alone `m10_companion_alone.log`: (appended below).
 
 - From `im10_readback.log` record each Life row's `dest` / `rowsum` / flag at Life 0, 0.7 and 1; a `CLAMPED` row is
   excluded except as the companion.

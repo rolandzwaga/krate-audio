@@ -1,0 +1,24 @@
+# T038 — M5 Gravity headroom (bipolar: amount · curve(|g|) · sign(g), g = (Gravity − 0.5) · 2; columns Gravity 0 = air, 1 = stone)
+
+## r1 Gravity → CloudSpectralTiltDb base −4 — target CloudSpectralTiltDb (setter clamp [-12, 12], S8.2 base -4, Stone Gravity stored plain base -4)
+| rung (Gravity row delta, Linear) | Gravity=0 | Gravity=1 | Stone Gravity stored macros |
+|---|---|---|---|
+| r1a −3 (new row) | -1.0000 | -7.0000 | -9.4000 |
+| r1b −6 (new row) | 2.0000 | -10.0000 | -12.4000 CLAMPED |
+| r1c −8 (new row) | 4.0000 | -12.0000 | -14.4000 CLAMPED |
+
+## r3 Gravity → CavernDarkness base 0.80 — target CavernDarkness (setter clamp [0, 1], S8.2 base 0.8, Stone Gravity stored plain base 0.8)
+| rung (Gravity row delta, Linear) | Gravity=0 | Gravity=1 | Stone Gravity stored macros |
+|---|---|---|---|
+| r3a +0.10 (new row) | 0.7000 | 0.9000 | 0.9704 |
+| r3b +0.15 (new row) | 0.6500 | 0.9500 | 1.0204 CLAMPED |
+| r3c +0.20 (new row) | 0.6000 | 1.0000 | 1.0704 CLAMPED |
+
+## r2 Gravity → SubToneLevelOffsetDb base 0 — target SubToneLevelOffsetDb (setter clamp [-60, 6], S8.2 base 0, Stone Gravity stored plain base -6)
+| rung (Gravity row delta, Linear) | Gravity=0 | Gravity=1 | Stone Gravity stored macros |
+|---|---|---|---|
+| r2a +2 (new row) | -2.0000 | 2.0000 | -4.0000 |
+| r2b +4 (new row) | -4.0000 | 4.0000 | -2.0000 |
+| r2c +6 (new row) | -6.0000 | 6.0000 | 0.0000 |
+
+Note: a negative tilt amount at stone (g = +1) darkens; at air (g = −1) the same row brightens by the same amount. Darkness 0.40 at Stone Gravity adds the Darkness rows (tilt −6 · 0.4 = −2.4 dB; darkness SCurve 0.20 · 0.352).

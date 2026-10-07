@@ -1,0 +1,38 @@
+# T035 — M2 Age headroom (unclamped sums; every shipped row on the target + the rung delta)
+
+## r1 BodyDamping amount 0.55 → 0.75 / 0.85 / 0.95 — target BodyDamping (setter clamp [0, 1], S8.2 base 0.25, Erosion stored plain base 0.05)
+| rung (Age row delta, Linear) | Age=0 | Age=0.25 | Age=0.5 | Age=0.75 | Age=1 | Erosion stored macros |
+|---|---|---|---|---|---|---|
+| r1a +0.20 | 0.2500 | 0.4375 | 0.6250 | 0.8125 | 1.0000 | 0.8000 |
+| r1b +0.30 | 0.2500 | 0.4625 | 0.6750 | 0.8875 | 1.1000 CLAMPED | 0.9000 |
+| r1c +0.40 | 0.2500 | 0.4875 | 0.7250 | 0.9625 | 1.2000 CLAMPED | 1.0000 |
+
+## r2 CloudSpectralTiltDb amount −4 → −8 / −9 / −10 — target CloudSpectralTiltDb (setter clamp [-12, 12], S8.2 base -4, Erosion stored plain base 0)
+| rung (Age row delta, Linear) | Age=0 | Age=0.25 | Age=0.5 | Age=0.75 | Age=1 | Erosion stored macros |
+|---|---|---|---|---|---|---|
+| r2a −4 | -4.0000 | -6.0000 | -8.0000 | -10.0000 | -12.0000 | -8.0000 |
+| r2b −5 | -4.0000 | -6.2500 | -8.5000 | -10.7500 | -13.0000 CLAMPED | -9.0000 |
+| r2c −6 | -4.0000 | -6.5000 | -9.0000 | -11.5000 | -14.0000 CLAMPED | -10.0000 |
+
+## r3 new row Age → CavernDarkness — target CavernDarkness (setter clamp [0, 1], S8.2 base 0.8, Erosion stored plain base 0.8)
+| rung (Age row delta, Linear) | Age=0 | Age=0.25 | Age=0.5 | Age=0.75 | Age=1 | Erosion stored macros |
+|---|---|---|---|---|---|---|
+| r3a +0.05 (new row) | 0.8000 | 0.8125 | 0.8250 | 0.8375 | 0.8500 | 0.8500 |
+| r3b +0.10 (new row) | 0.8000 | 0.8250 | 0.8500 | 0.8750 | 0.9000 | 0.9000 |
+| r3c +0.20 (new row) | 0.8000 | 0.8500 | 0.9000 | 0.9500 | 1.0000 | 1.0000 |
+
+## r4 new row Age → CloudMutation — target CloudMutation (setter clamp [0, 1], S8.2 base 0.15, Erosion stored plain base 0.15)
+| rung (Age row delta, Linear) | Age=0 | Age=0.25 | Age=0.5 | Age=0.75 | Age=1 | Erosion stored macros |
+|---|---|---|---|---|---|---|
+| r4a +0.30 (new row) | 0.1500 | 0.2250 | 0.3000 | 0.3750 | 0.4500 | 0.4500 |
+| r4b +0.50 (new row) | 0.1500 | 0.2750 | 0.4000 | 0.5250 | 0.6500 | 0.6500 |
+| r4c +0.70 (new row) | 0.1500 | 0.3250 | 0.5000 | 0.6750 | 0.8500 | 0.8500 |
+
+## r5 CavernDecaySeconds amount −14 → −16 / −18 / −20 — target CavernDecaySeconds (setter clamp [0.5, 60], S8.2 base 20, Erosion stored plain base 30)
+| rung (Age row delta, Linear) | Age=0 | Age=0.25 | Age=0.5 | Age=0.75 | Age=1 | Erosion stored macros |
+|---|---|---|---|---|---|---|
+| r5a −2 | 20.0000 | 16.0000 | 12.0000 | 8.0000 | 4.0000 | 14.0000 |
+| r5b −4 | 20.0000 | 15.5000 | 11.0000 | 6.5000 | 2.0000 | 12.0000 |
+| r5c −6 | 20.0000 | 15.0000 | 10.0000 | 5.0000 | 0.0000 CLAMPED | 10.0000 |
+
+Note: at Erosion the Age row on CavernDecaySeconds already sits at 30 − 14 = 16 s; every r5 rung stays inside [0.5, 60]. The SweepAxes Age point 1 with S8.2 bases: 20 − 14 = 6 s.

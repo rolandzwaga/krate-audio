@@ -1,0 +1,145 @@
+T035 M2 pre-screen (Age row) and T038 M5 pre-screen (Gravity row), VoragoMacro_Phase13dRowProbe, tree 9bcb71f6, 2026-10-07 22:05:00
+== m2_pre_r1_damp0.20
+Delta entries (1):
+ Age -> BodyDamping delta=0.2000 Linear (shipped amount on this row=0.5500, target base=0.2500)
+ mean rho=-1.0000 (need <= -0.9, ok) mean endpoint=11.4151 (need >= 3.0000, ok) -> PASS
+ Age HF energy > 4 kHz (dB) @C4 rho= -1.0000 endpoint= 11.4151 threshold=3.0000 PASS
+exit=0 END 2026-10-07 22:04:51
+== m2_pre_r1_damp0.30
+Delta entries (1):
+ Age -> BodyDamping delta=0.3000 Linear (shipped amount on this row=0.5500, target base=0.2500)
+ mean rho=-1.0000 (need <= -0.9, ok) mean endpoint=11.4151 (need >= 3.0000, ok) -> PASS
+ Age HF energy > 4 kHz (dB) @C4 rho= -1.0000 endpoint= 11.4151 threshold=3.0000 PASS
+exit=0 END 2026-10-07 22:04:55
+== m2_pre_r1_damp0.40
+Delta entries (1):
+ Age -> BodyDamping delta=0.4000 Linear (shipped amount on this row=0.5500, target base=0.2500)
+ mean rho=-1.0000 (need <= -0.9, ok) mean endpoint=11.4151 (need >= 3.0000, ok) -> PASS
+ Age HF energy > 4 kHz (dB) @C4 rho= -1.0000 endpoint= 11.4151 threshold=3.0000 PASS
+exit=0 END 2026-10-07 22:04:55
+== m2_pre_r2_tilt-4
+Delta entries (1):
+ Age -> CloudSpectralTiltDb delta=-4.0000 Linear (shipped amount on this row=-4.0000, target base=-4.0000)
+ mean rho=-1.0000 (need <= -0.9, ok) mean endpoint=14.8691 (need >= 3.0000, ok) -> PASS
+ Age HF energy > 4 kHz (dB) @C4 rho= -1.0000 endpoint= 14.8691 threshold=3.0000 PASS
+exit=0 END 2026-10-07 22:04:54
+== m2_pre_r2_tilt-5
+Delta entries (1):
+ Age -> CloudSpectralTiltDb delta=-5.0000 Linear (shipped amount on this row=-4.0000, target base=-4.0000)
+ mean rho=-1.0000 (need <= -0.9, ok) mean endpoint=14.8691 (need >= 3.0000, ok) -> PASS
+ Age HF energy > 4 kHz (dB) @C4 rho= -1.0000 endpoint= 14.8691 threshold=3.0000 PASS
+exit=0 END 2026-10-07 22:04:40
+== m2_pre_r2_tilt-6
+Delta entries (1):
+ Age -> CloudSpectralTiltDb delta=-6.0000 Linear (shipped amount on this row=-4.0000, target base=-4.0000)
+ mean rho=-1.0000 (need <= -0.9, ok) mean endpoint=14.8691 (need >= 3.0000, ok) -> PASS
+ Age HF energy > 4 kHz (dB) @C4 rho= -1.0000 endpoint= 14.8691 threshold=3.0000 PASS
+exit=0 END 2026-10-07 22:04:45
+== m2_pre_r3_dark0.05
+Delta entries (1):
+ Age -> CavernDarkness delta=0.0500 Linear (shipped amount on this row=0.0000, target base=0.8000)
+ mean rho=-1.0000 (need <= -0.9, ok) mean endpoint=11.4136 (need >= 3.0000, ok) -> PASS
+ Age HF energy > 4 kHz (dB) @C4 rho= -1.0000 endpoint= 11.4136 threshold=3.0000 PASS
+exit=0 END 2026-10-07 22:04:54
+== m2_pre_r3_dark0.10
+Delta entries (1):
+ Age -> CavernDarkness delta=0.1000 Linear (shipped amount on this row=0.0000, target base=0.8000)
+ mean rho=-1.0000 (need <= -0.9, ok) mean endpoint=11.4136 (need >= 3.0000, ok) -> PASS
+ Age HF energy > 4 kHz (dB) @C4 rho= -1.0000 endpoint= 11.4136 threshold=3.0000 PASS
+exit=0 END 2026-10-07 22:04:49
+== m2_pre_r3_dark0.20
+Delta entries (1):
+ Age -> CavernDarkness delta=0.2000 Linear (shipped amount on this row=0.0000, target base=0.8000)
+ mean rho=-1.0000 (need <= -0.9, ok) mean endpoint=11.4136 (need >= 3.0000, ok) -> PASS
+ Age HF energy > 4 kHz (dB) @C4 rho= -1.0000 endpoint= 11.4136 threshold=3.0000 PASS
+exit=0 END 2026-10-07 22:04:51
+== m2_pre_r4_mut0.30
+Delta entries (1):
+ Age -> CloudMutation delta=0.3000 Linear (shipped amount on this row=0.0000, target base=0.1500)
+ mean rho=-1.0000 (need <= -0.9, ok) mean endpoint=11.2041 (need >= 3.0000, ok) -> PASS
+ Age HF energy > 4 kHz (dB) @C4 rho= -1.0000 endpoint= 11.2041 threshold=3.0000 PASS
+exit=0 END 2026-10-07 22:04:46
+== m2_pre_r4_mut0.50
+Delta entries (1):
+ Age -> CloudMutation delta=0.5000 Linear (shipped amount on this row=0.0000, target base=0.1500)
+ mean rho=-1.0000 (need <= -0.9, ok) mean endpoint=11.2054 (need >= 3.0000, ok) -> PASS
+ Age HF energy > 4 kHz (dB) @C4 rho= -1.0000 endpoint= 11.2054 threshold=3.0000 PASS
+exit=0 END 2026-10-07 22:04:53
+== m2_pre_r4_mut0.70
+Delta entries (1):
+ Age -> CloudMutation delta=0.7000 Linear (shipped amount on this row=0.0000, target base=0.1500)
+ mean rho=-1.0000 (need <= -0.9, ok) mean endpoint=11.2053 (need >= 3.0000, ok) -> PASS
+ Age HF energy > 4 kHz (dB) @C4 rho= -1.0000 endpoint= 11.2053 threshold=3.0000 PASS
+exit=0 END 2026-10-07 22:04:51
+== m2_pre_r5_decay-2
+Delta entries (1):
+ Age -> CavernDecaySeconds delta=-2.0000 Linear (shipped amount on this row=-14.0000, target base=20.0000)
+ mean rho=-1.0000 (need <= -0.9, ok) mean endpoint=11.4136 (need >= 3.0000, ok) -> PASS
+ Age HF energy > 4 kHz (dB) @C4 rho= -1.0000 endpoint= 11.4136 threshold=3.0000 PASS
+exit=0 END 2026-10-07 22:04:42
+== m2_pre_r5_decay-4
+Delta entries (1):
+ Age -> CavernDecaySeconds delta=-4.0000 Linear (shipped amount on this row=-14.0000, target base=20.0000)
+ mean rho=-1.0000 (need <= -0.9, ok) mean endpoint=11.4136 (need >= 3.0000, ok) -> PASS
+ Age HF energy > 4 kHz (dB) @C4 rho= -1.0000 endpoint= 11.4136 threshold=3.0000 PASS
+exit=0 END 2026-10-07 22:04:41
+== m2_pre_r5_decay-6
+Delta entries (1):
+ Age -> CavernDecaySeconds delta=-6.0000 Linear (shipped amount on this row=-14.0000, target base=20.0000)
+ mean rho=-1.0000 (need <= -0.9, ok) mean endpoint=11.4136 (need >= 3.0000, ok) -> PASS
+ Age HF energy > 4 kHz (dB) @C4 rho= -1.0000 endpoint= 11.4136 threshold=3.0000 PASS
+exit=0 END 2026-10-07 22:04:53
+== m5_pre_r1_tilt-3
+Delta entries (1):
+ Gravity -> CloudSpectralTiltDb delta=-3.0000 Linear (shipped amount on this row=0.0000, target base=-4.0000)
+ mean rho=-1.0000 (need <= -0.9, ok) mean endpoint=0.6465 (need >= 0.3000, ok) -> PASS
+ Gravity mean |log2(ratio) - int| rho= -1.0000 endpoint= 0.6465 threshold=0.3000 PASS
+exit=0 END 2026-10-07 22:04:40
+== m5_pre_r1_tilt-6
+Delta entries (1):
+ Gravity -> CloudSpectralTiltDb delta=-6.0000 Linear (shipped amount on this row=0.0000, target base=-4.0000)
+ mean rho=-1.0000 (need <= -0.9, ok) mean endpoint=0.6465 (need >= 0.3000, ok) -> PASS
+ Gravity mean |log2(ratio) - int| rho= -1.0000 endpoint= 0.6465 threshold=0.3000 PASS
+exit=0 END 2026-10-07 22:04:46
+== m5_pre_r1_tilt-8
+Delta entries (1):
+ Gravity -> CloudSpectralTiltDb delta=-8.0000 Linear (shipped amount on this row=0.0000, target base=-4.0000)
+ mean rho=-1.0000 (need <= -0.9, ok) mean endpoint=0.6465 (need >= 0.3000, ok) -> PASS
+ Gravity mean |log2(ratio) - int| rho= -1.0000 endpoint= 0.6465 threshold=0.3000 PASS
+exit=0 END 2026-10-07 22:04:50
+== m5_pre_r2_sub2
+Delta entries (1):
+ Gravity -> SubToneLevelOffsetDb delta=2.0000 Linear (shipped amount on this row=0.0000, target base=0.0000)
+ mean rho=-1.0000 (need <= -0.9, ok) mean endpoint=0.6465 (need >= 0.3000, ok) -> PASS
+ Gravity mean |log2(ratio) - int| rho= -1.0000 endpoint= 0.6465 threshold=0.3000 PASS
+exit=0 END 2026-10-07 22:04:46
+== m5_pre_r2_sub4
+Delta entries (1):
+ Gravity -> SubToneLevelOffsetDb delta=4.0000 Linear (shipped amount on this row=0.0000, target base=0.0000)
+ mean rho=-1.0000 (need <= -0.9, ok) mean endpoint=0.6465 (need >= 0.3000, ok) -> PASS
+ Gravity mean |log2(ratio) - int| rho= -1.0000 endpoint= 0.6465 threshold=0.3000 PASS
+exit=0 END 2026-10-07 22:04:48
+== m5_pre_r2_sub6
+Delta entries (1):
+ Gravity -> SubToneLevelOffsetDb delta=6.0000 Linear (shipped amount on this row=0.0000, target base=0.0000)
+ mean rho=-1.0000 (need <= -0.9, ok) mean endpoint=0.6465 (need >= 0.3000, ok) -> PASS
+ Gravity mean |log2(ratio) - int| rho= -1.0000 endpoint= 0.6465 threshold=0.3000 PASS
+exit=0 END 2026-10-07 22:04:43
+== m5_pre_r3_dark0.10
+Delta entries (1):
+ Gravity -> CavernDarkness delta=0.1000 Linear (shipped amount on this row=0.0000, target base=0.8000)
+ mean rho=-1.0000 (need <= -0.9, ok) mean endpoint=0.6465 (need >= 0.3000, ok) -> PASS
+ Gravity mean |log2(ratio) - int| rho= -1.0000 endpoint= 0.6465 threshold=0.3000 PASS
+exit=0 END 2026-10-07 22:04:38
+== m5_pre_r3_dark0.15
+Delta entries (1):
+ Gravity -> CavernDarkness delta=0.1500 Linear (shipped amount on this row=0.0000, target base=0.8000)
+ mean rho=-1.0000 (need <= -0.9, ok) mean endpoint=0.6465 (need >= 0.3000, ok) -> PASS
+ Gravity mean |log2(ratio) - int| rho= -1.0000 endpoint= 0.6465 threshold=0.3000 PASS
+exit=0 END 2026-10-07 22:04:48
+== m5_pre_r3_dark0.20
+Delta entries (1):
+ Gravity -> CavernDarkness delta=0.2000 Linear (shipped amount on this row=0.0000, target base=0.8000)
+ mean rho=-1.0000 (need <= -0.9, ok) mean endpoint=0.6465 (need >= 0.3000, ok) -> PASS
+ Gravity mean |log2(ratio) - int| rho= -1.0000 endpoint= 0.6465 threshold=0.3000 PASS
+exit=0 END 2026-10-07 22:05:00
