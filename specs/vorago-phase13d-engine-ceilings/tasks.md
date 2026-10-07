@@ -545,6 +545,8 @@ Read-set ids: `e1route` (arms A and B), `e1attach` (arm C). Slow Bloom S6 is in 
 
 ### T023 — E1 premise reads (FR-010, FR-025b)
 
+**DONE (main loop, 2026-10-07):** `e1_premise_mut0.log` d 1.1476 / attrib 1.0454 (the mutation half carries 0.058 of attribBase); `e1_companion_00.log` d 1.1035 = attribBase (the route is inert at 1300 = 0); `e1_companion_02.log` d 1.4852 / attrib 1.1035 — no FR-025b stop. `rulings.md`: E1 is SPAWN-LIMITED (R_k spawn 1, spawned 0, refused 2 in every arm; Bloom Colony stores Life 0 where BloomSpawnRateHz reads 0.010 Hz, `e1_readback.log`), so arm C ran before b4.
+
 - **Run** alone on Bloom Colony, `VORAGO_PILOT_TAKES=4 VORAGO_PILOT_BLOOM=1`:
   1. `VORAGO_PILOT_LEVER="partialMutationGain=0"` → `e1_premise_mut0.log` (the mutation half's share of attribBase;
      diagnostic, never adopted);
@@ -556,6 +558,8 @@ Read-set ids: `e1route` (arms A and B), `e1attach` (arm C). Slow Bloom S6 is in 
 
 ### T024 — E1 arm A (single gain + companion), rungs a1–a6
 
+**DONE (main loop, 2026-10-07):** a1–a6 (`e1_a<n>_gate.log`): d 1.7056 at 1300 = 0.2 and 1.7712 = attribBase at 1300 = 0.0 for gains 2.0, 3.0 and 4.0 alike — the bloom depth lane reads depthMean 1.000 from gain 2.0 up (saturated clamp), so higher gains change nothing; no rung clears (d < 4.0, d < attrib + 1.5); arms green on all. No `_readset` / `_minus6` runs (no clearing rung). Recorded in `lever_table.md`.
+
 - **Run** each alone (seam rungs), `VORAGO_PILOT_TAKES=4 VORAGO_PILOT_BLOOM=1`:
   a1 `partialBloomGain=2.0,partialMutationGain=2.0` + `1300=0.2`; a2 the same + `1300=0.0`; a3 `3.0` / `3.0` +
   `0.2`; a4 `3.0` / `3.0` + `0.0`; a5 `4.0` / `4.0` + `0.2`; a6 `4.0` / `4.0` + `0.0` → `e1_a<n>_gate.log`. For each
@@ -566,11 +570,15 @@ Read-set ids: `e1route` (arms A and B), `e1attach` (arm C). Slow Bloom S6 is in 
 
 ### T025 — E1 arm B (split), rungs b1–b4 (always measured)
 
+**DONE (main loop, 2026-10-07):** b1–b3 (`e1_b<n>_gate.log`) d 1.7056 / attrib 1.7712 at every gain; b4 on b1 + 1300 = 0.2 with partialMutationGain 0.5 / 0.25 / 0: 1.7056 / 1.7053 / 1.6579 (attrib 1.7712 / 1.7707 / 1.7272) — no rung clears.
+
 - **Run** alone: b1 `partialBloomGain=2.0` + `1300=0.2`; b2 `3.0`; b3 `4.0`; b4 = the best of b1–b3 with the better of
   `1300=0.2` / `0.0`, plus `partialMutationGain=0.5`, then `0.25`, then `0` → `e1_b<n>_gate.log` (read set and −6 for
   clearing rungs).
 
 ### T026 — E1 attachment arm C (on the best gain rung)
+
+**DONE (main loop, 2026-10-07):** Base a1 (the smallest gain; a1 = b1 in d). c1 parentCount 3 / 2 / 1: d 1.2845 / 6.8712 / 4.8289, attrib 1.4150 / 6.8706 / 4.9939 (parentCount moves the whole render — attribBase moves with d — and only parentCount = 1 lets a child spawn: spawned 1 refused 1); c2 childrenPerEvent 3 / 4: d 2.0373 / 0.6813, attrib 2.1082 / 0.7727 (refused 3 / 4). No rung has d ≥ attrib + 1.5. Order logged: arm C before b4 (spawn-limited).
 
 - Base: arm A's best clearing rung, else arm B's best. If T023 recorded spawn-limited, run this task before b4 and
   log the order.
@@ -578,6 +586,8 @@ Read-set ids: `e1route` (arms A and B), `e1attach` (arm C). Slow Bloom S6 is in 
   `liveFor:e1attach` and `_minus6.log` for clearing rungs.
 
 ### T027 — E1 adoption or ruling, then ship (FR-010d, FR-013, FR-034)
+
+**DONE (main loop, 2026-10-07):** nothing clears → **STOP-AND-SURFACE (FR-027)** to the user with every rung's d, attribBase and arms (`lever_table.md` E1 row). Nothing shipped; `kRosterGateOverrides` / `kRosterRuled` untouched. USER RULING (AskUserQuestion, 2026-10-07): record E1 as engine-limited at this ladder and move on; no re-open spent (Q8 credit unused); E1 stays red in the roster as Phase 14 found; the ladder and every reading stay in lever_table.md.
 
 - **Decide:**
   - an arm-A rung clears every FR-010d clause → adopt the smallest (arm B logged as the measured alternative);
@@ -607,6 +617,8 @@ Gate: the route bar, arms 2 and 3 `y` on all four take lines, every `loopbus tak
 sets: `_roster.log` and `_readset.log` (`liveFor:e4`).
 
 ### T028 — E4 premise (FR-003, FR-014)
+
+**DONE (main loop, 2026-10-07):** `ie4_loopbus_1x.log` d 4.4059 / attrib 3.6649 (= `before_E4_1x.log`, delta 0.0000; the 3.71 premise does not apply, see the note above); arm 2 lo per take −40.6 / −36.6 / −38.0 / −35.6 dB green; loop-bus worst 10 s −63.01 / −62.06 / −58.85 / −54.16 dBFS (takes 0–1 below −60 → loopsAlive n); per-loop end lines: no dormant loop, every gate ≥ 0.45. No stop.
 
 **Main-loop note (2026-10-07, T002 before-record):** with `800=0.5` alone the premise does NOT reproduce — Feeding Loops reads
 d 4.4059, attribBase 3.6649 (attributable iff d >= 5.1649), arms all green and arm 2 lo -40.6 / -36.6 / -38.0 / -35.6 dB on the
