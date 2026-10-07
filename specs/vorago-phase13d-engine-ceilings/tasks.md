@@ -641,6 +641,8 @@ term must add >= 1.5 over the reversion — with the loops-alive conjunct kept a
 
 ### T030 — E4 companions r4–r5 (sustain)
 
+**DONE (main loop, 2026-10-07):** base r3 (0.05, best by d; none has `loopsAlive y`), and the same six companions on r1 (0.30) as extra reads (`e4_r4{a,b,c}_r{3,1}_gate.log`, `e4_r5{a,b,c}_r{3,1}_gate.log`): loopGainSpan 0.22 / 0.26 / 0.30 and couplingSpan 0.34 / 0.40 / 0.44 move d by < 0.006 (r3: 7.8270–7.8352; r1: 5.4804–5.4929) and the loop-bus worst 10 s by < 0.02 dB (r3: −64.80 / −63.2 / −60.67 / −58.32) — inert on the conjunct; `loopsAlive n` everywhere. Itemised in `lever_table.md`. T031 → USER RULING on W2.
+
 - Base: the best of r1–r3 by gate `d` with `loopsAlive`. **Run** alone: r4 + `loopGainSpan=0.22`, `0.26`, `0.30`;
   r5 = r-best (with r4's best if it helped) + `couplingSpan=0.34`, `0.40`, `0.44` → `e4_r4{a,b,c}_*.log`,
   `e4_r5{a,b,c}_*.log`. Itemise each companion in `lever_table.md`.
@@ -800,7 +802,7 @@ Read set `liveFor:m10`, plus E1, E4, E6.hi, E7.hi, S7, D13.1 and D13.2 through `
 
 ### T044 — M10 premise and companion alone
 
-**DONE (main loop, 2026-10-07):** From `im10_readback.log` (Teeming, Life 0.70 stored): EcosystemDepth dest 1.000 rowsum 1.105 CLAMPED at 0.70 and 1.150 CLAMPED at 1.00 (1.000 ok at 0); EventRateScale 6.5 / 0.2 / 9.2 ok; BloomSpawnRateHz 0.0107 / 0.0005 / 0.0213 ok — the EcosystemDepth row is excluded except as the companion. Companion alone `m10_companion_alone.log`: (appended below).
+**DONE (main loop, 2026-10-07):** From `im10_readback.log` (Teeming, Life 0.70 stored): EcosystemDepth dest 1.000 rowsum 1.105 CLAMPED at 0.70 and 1.150 CLAMPED at 1.00 (1.000 ok at 0); EventRateScale 6.5 / 0.2 / 9.2 ok; BloomSpawnRateHz 0.0107 / 0.0005 / 0.0213 ok — the EcosystemDepth row is excluded except as the companion. Companion alone `m10_companion_alone.log` (Teeming, `900=0.15`, no lever, 4 takes): d 2.2914 vs before 0.9943, arms green — below 4.0, no FR-025b stop; the companion carries 1.30 of d on its own.
 
 - From `im10_readback.log` record each Life row's `dest` / `rowsum` / flag at Life 0, 0.7 and 1; a `CLAMPED` row is
   excluded except as the companion.

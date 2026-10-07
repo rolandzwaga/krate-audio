@@ -1,0 +1,22 @@
+START 2026-10-07 21:51:47 m10_companion_alone tree=9bcb71f6 VORAGO_PILOT_PRESET="Teeming" VORAGO_PILOT_TAKES=4 VORAGO_PILOT_OVERRIDE=900=0.15 (T044 companion alone, no lever)
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 1564125459
+[probe] override 900 = 0.150000 (replaced)
+[probe] lever: none
+[probe] Teeming - primary M10 Life (stored seed 11, 1 twin render(s))
+  take: peak 0.2316  arm1 hi -24.70 dB [yes]  arm2 lo -28.47 dB [yes]  arm3 late-sus +0.91 dB [yes]  arm4 tail -173.97 dB [yes]
+  arm1@44.1k: finite y peak 0.2173 hi -24.65 dB [PASS]
+  primary d 2.2914  bar 4.0000  attribBase -1.0000  state ok  -> FAIL  loopsAlive -  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  take j=0 seed 11: peak 0.2316  arm1 hi -24.70 dB [yes]  arm2 lo -28.47 dB [yes]  arm3 late-sus +0.91 dB [yes]  arm4 tail -173.97 dB [yes]
+  take j=1 seed 12: peak 0.1804  arm1 hi -24.88 dB [yes]  arm2 lo -31.76 dB [yes]  arm3 late-sus +1.04 dB [yes]  arm4 tail -175.57 dB [yes]
+  take j=2 seed 13: peak 0.2164  arm1 hi -24.63 dB [yes]  arm2 lo -28.96 dB [yes]  arm3 late-sus -0.09 dB [yes]  arm4 tail -156.16 dB [yes]
+  take j=3 seed 14: peak 0.2106  arm1 hi -24.81 dB [yes]  arm2 lo -27.35 dB [yes]  arm3 late-sus +0.26 dB [yes]  arm4 tail -185.78 dB [yes]
+  take j=0 d 2.2914
+  take j=1 d 2.3319
+  take j=2 d 4.3383
+  take j=3 d 1.0364
+===============================================================================
+All tests passed (20 assertions in 1 test case)
+
+exit=0 END 2026-10-07 22:09:02
