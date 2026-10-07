@@ -1,0 +1,8 @@
+HEAD 5bda20c1 (the plan's 502e5243 plus the docs-only commit 5bda20c1: specs/ and .claude/workflows/ only)
+git status --short under dsp/ plugins/ tools/: none dirty (2026-10-07 09:22:02)
+ .claude/workflows/vorago-phase.js              |    3 +-
+ specs/Vorago-roadmap.md                        |   50 +-
+ specs/vorago-phase13d-engine-ceilings/plan.md  | 1179 +++++++++++++++++++++++
+ specs/vorago-phase13d-engine-ceilings/spec.md  | 1195 ++++++++++++++++++++++++
+ specs/vorago-phase13d-engine-ceilings/tasks.md |  877 +++++++++++++++++
+ 5 files changed, 3302 insertions(+), 2 deletions(-)

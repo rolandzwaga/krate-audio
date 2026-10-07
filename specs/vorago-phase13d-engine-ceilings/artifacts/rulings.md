@@ -1,0 +1,2 @@
+# Phase 13d rulings log — one line per FR-010d adoption or user ruling: date | cell | lever | rung | gate d | read set | levels | -6 dB d | clauses | cited log lines
+2026-10-07 | E4 | premise | before-record | 1x alone (800=0.5): d 4.4059, attrib 3.6649 (needs 5.1649), arms all green on four takes - the "loops fall silent at 1x" premise does not reproduce with the rate change alone (it reproduced under batch 12 FL_I's four-control override); E4's gap at 1x is attributability (before_E4_1x.log:9-15, before_tolerance.txt). Main-loop premise correction, no ruling needed.

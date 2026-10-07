@@ -134,6 +134,8 @@
 
 ### T001 — Confirm the starting tree, build it, create the evidence files
 
+**DONE (main loop, 2026-10-07):** HEAD `5bda20c1` = `502e5243` + the docs-only commit (`artifacts/base_tree.txt`); no production file dirty; build exit 0, 0 warnings (`base_build_status.txt`); binaries copied to `f:/tmp/p13d/base-bin/`; `rulings.md`, `odr_sweep.txt`, `fr034_surfaced.md`, `lever_table.md` created.
+
 - **Files:** create `specs/vorago-phase13d-engine-ceilings/artifacts/` with:
   - `rulings.md` (header line only);
   - `odr_sweep.txt` (plan §10's names, "0 hits, 502e5243, planning session");
@@ -158,6 +160,8 @@ Every run uses the T001 binary. **No source edit happens before T008 is done.**
 
 ### T002 — Probe every roster cell as compiled, four takes (FR-003 (i), SC-001)
 
+**DONE (main loop, 2026-10-07):** nine probes run concurrently (deterministic renders; the hours-off MUST): every roster cell within tolerance, all deltas 0.0000 except E7.hi 0.0001 (`artifacts/before_tolerance.txt`, `before_*.log`). The first Colony Pulse run used `VORAGO_PILOT_CELLS=S7`, an unknown label (labels are the full cell text) — `before_E67_badlabel.log`; re-run with `VORAGO_PILOT_SECONDARY=1` only. E4 at 1× (`800=0.5` alone): d 4.4059 / attrib 3.6649, arms green on all four takes — the "loops fall silent" premise does not reproduce with the rate change alone (see T028 note; `rulings.md`).
+
 - **Run** alone, one at a time, `VORAGO_PILOT_TAKES=4`, no override:
   - Bloom Colony → `before_E1.log`; Erosion → `before_M2.log`; Drifting Strata → `before_M4.log`; Stone Gravity →
     `before_M5.log`; Teeming → `before_M10.log`; Feeding Loops → `before_E4_stored.log`;
@@ -170,11 +174,15 @@ Every run uses the T001 binary. **No source edit happens before T008 is done.**
 
 ### T003 — Repeat spread (FR-003 (i))
 
+**DONE (main loop, 2026-10-07):** Bloom Colony repeat 1.1823 vs 1.1823, spread 0.0000 ≤ 0.01 (`before_E1_repeat.log:10`, `before_tolerance.txt`).
+
 - **Run** Bloom Colony again, same env → `before_E1_repeat.log`. Append `|d_1 − d_2|` and
   `max(0.01, 0.005·1.1823) = 0.01` to `before_tolerance.txt`.
 - **Stop-and-surface:** spread > 0.01.
 
 ### T004 — `[long]` macro baselines with every assertion listed (FR-003 (ii), FR-031, SC-001, SC-010)
+
+**DONE (main loop, 2026-10-07):** `base_sweepaxes.log` 37 / 38, the one red the Movement row rho 0.8333 (`:86-91`); `base_nozipper.log` 24 / 24; `artifacts/base_long_failures.txt`. No stop.
 
 - **Run** alone: `dsp_systems_tests.exe "VoragoMacro_SweepAxes" -s` → `base_sweepaxes.log`;
   `dsp_systems_tests.exe "VoragoMacro_NoZipper" -s` → `base_nozipper.log`.
@@ -183,6 +191,8 @@ Every run uses the T001 binary. **No source edit happens before T008 is done.**
 - **Stop-and-surface:** Movement rho ≠ 0.8333 (4 dp), or any red besides the Movement row.
 
 ### T005 — 13b tables and the default-surface record (FR-003 (iii), FR-005, FR-032, SC-011, SC-019)
+
+**DONE (main loop, 2026-10-07):** GATE1M PASS on both surfaces (default ratio 0.998, Life max 0.629: `gate1_base_default.log`, `gate1_base_lifemax.log`); Gate 2 tables with t0 2.2107 / 4.5842 (`gate2_table_default_base.log`, `gate2_table_lifemax_base.log`; counting knobs in `gate2_base_counting.txt` — syncRate counts on the default surface, reads INAUDIBLE .hi at Life max on this base, unlike the 13c 10-04 table); `default_before_13b.log` (M1 RMS −26.97 dBFS, t0 1.1895); `default_before_p0.log` (ruled K = NONE / G2 STOP, identical to Phase 14; K = 4 inherited). No stop.
 
 - **Run** alone, in order:
   1. `VORAGO_PROBE_SEEDS=6 VORAGO_PROBE_KNOBS=- vorago_tests.exe "Vorago_EcosystemRuleProbe"` →
@@ -205,12 +215,16 @@ Every run uses the T001 binary. **No source edit happens before T008 is done.**
 
 ### T007 — Freeze the sweep-5 records (FR-042, SC-021)
 
+**DONE (main loop, 2026-10-07):** 43 records copied to `artifacts/sweep5-records/`, `sweep5-records.sha256` written and checked: 43 OK.
+
 - Copy `f:/tmp/p14/sweep5-out/record_*.txt` (43 files) to `artifacts/sweep5-records/`; run
   `sha256sum artifacts/sweep5-records/record_*.txt > artifacts/sweep5-records.sha256`; then
   `sha256sum -c artifacts/sweep5-records.sha256` must report OK for all 43.
 - **Stop-and-surface:** a file is missing (count ≠ 43).
 
 ### T008 — FR-034 literal grep, base (FR-034, SC-018)
+
+**DONE (main loop, 2026-10-07):** `artifacts/fr034_grep_base.txt` + judgment: every constant hit reads by name through an accessor; no literal expectation; nothing joins `fr034_surfaced.md` beyond entry 1.
 
 - For every constant a planned rung touches (`kPartialLaneGain`, `kLoopWakeBase`, `kLoopGainLeverSpan`,
   `kCouplingLeverSpan`, `kLeverInputGain`, `kPeakLevelLeverSpanDb`, `kNoiseLevelLeverSpanDb`, `kGhostLaneGain`,
@@ -563,6 +577,13 @@ Gate: the route bar, arms 2 and 3 `y` on all four take lines, every `loopbus tak
 sets: `_roster.log` and `_readset.log` (`liveFor:e4`).
 
 ### T028 — E4 premise (FR-003, FR-014)
+
+**Main-loop note (2026-10-07, T002 before-record):** with `800=0.5` alone the premise does NOT reproduce — Feeding Loops reads
+d 4.4059, attribBase 3.6649 (attributable iff d >= 5.1649), arms all green and arm 2 lo -40.6 / -36.6 / -38.0 / -35.6 dB on the
+four takes (`artifacts/before_E4_1x.log:9-15`). The 3.71 / arm-2-red reading came from Phase 14 batch 12 FL_I, whose override
+also zeroed breathing and bloom and set ecology mix 1.0. So at 1x the loops stay alive and E4 clears the d bar; the gap is
+attributability (the route-independent change is 3.66 of the 4.41). The ladder therefore targets attributability — the route
+term must add >= 1.5 over the reversion — with the loops-alive conjunct kept as a guard, not as the problem.
 
 - From `ie4_loopbus_1x.log`: confirm `primary d` within `max(0.01, 0.005·3.71)` of 3.71; record arm 2 per take, each
   take's loop-bus worst 10 s and the per-loop line in `rulings.md`.

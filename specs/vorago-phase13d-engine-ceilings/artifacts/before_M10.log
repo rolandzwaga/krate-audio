@@ -1,0 +1,21 @@
+START 2026-10-07 09:22:57 before_M10 tree=5bda20c1 binary=base VORAGO_PILOT_TAKES=4 
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 2229825572
+[probe] lever: none
+[probe] Teeming - primary M10 Life (stored seed 11, 1 twin render(s))
+  take: peak 0.2801  arm1 hi -23.08 dB [yes]  arm2 lo -31.95 dB [yes]  arm3 late-sus +2.24 dB [yes]  arm4 tail -132.79 dB [yes]
+  arm1@44.1k: finite y peak 0.3005 hi -23.42 dB [PASS]
+  primary d 0.9943  bar 4.0000  attribBase -1.0000  state ok  -> FAIL  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  take j=0 seed 11: peak 0.2801  arm1 hi -23.08 dB [yes]  arm2 lo -31.95 dB [yes]  arm3 late-sus +2.24 dB [yes]  arm4 tail -132.79 dB [yes]
+  take j=1 seed 12: peak 0.3506  arm1 hi -21.67 dB [yes]  arm2 lo -30.46 dB [yes]  arm3 late-sus +1.06 dB [yes]  arm4 tail -130.80 dB [yes]
+  take j=2 seed 13: peak 0.3604  arm1 hi -21.82 dB [yes]  arm2 lo -28.68 dB [yes]  arm3 late-sus -0.25 dB [yes]  arm4 tail -118.45 dB [yes]
+  take j=3 seed 14: peak 0.3089  arm1 hi -22.42 dB [yes]  arm2 lo -27.88 dB [yes]  arm3 late-sus +1.21 dB [yes]  arm4 tail -157.36 dB [yes]
+  take j=0 d 0.9943
+  take j=1 d 0.9553
+  take j=2 d 3.1460
+  take j=3 d 0.3244
+===============================================================================
+All tests passed (19 assertions in 1 test case)
+
+exit=0 END 2026-10-07 09:33:36

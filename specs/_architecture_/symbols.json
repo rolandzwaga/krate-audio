@@ -361,7 +361,7 @@
       "scope": "Krate::DSP::BloomEngine",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/bloom_engine.h",
-      "line": 860
+      "line": 865
     },
     {
       "name": "ChordResult",
@@ -1161,7 +1161,7 @@
       "scope": "Krate::DSP::VoragoVoice",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/vorago_voice.h",
-      "line": 1754
+      "line": 2049
     },
     {
       "name": "IFeedbackProcessor",
@@ -1265,7 +1265,7 @@
       "scope": "Krate::DSP::FeedbackEcology",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/feedback_ecology.h",
-      "line": 1588
+      "line": 1591
     },
     {
       "name": "MacroConfig",
@@ -1961,7 +1961,7 @@
       "scope": "Krate::DSP::BloomEngine",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/bloom_engine.h",
-      "line": 338
+      "line": 343
     },
     {
       "name": "PrepareConfig",
@@ -1977,7 +1977,7 @@
       "scope": "Krate::DSP::FeedbackEcology",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/feedback_ecology.h",
-      "line": 604
+      "line": 607
     },
     {
       "name": "PrepareConfig",
@@ -2977,7 +2977,7 @@
       "scope": "Krate::DSP",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/vorago_engine.h",
-      "line": 213
+      "line": 219
     },
     {
       "name": "VoragoEngineConfig",
@@ -3017,7 +3017,7 @@
       "scope": "Krate::DSP",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/vorago_voice.h",
-      "line": 225
+      "line": 229
     },
     {
       "name": "VoragoVoiceConfig",
@@ -3025,7 +3025,7 @@
       "scope": "Krate::DSP",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/vorago_voice.h",
-      "line": 187
+      "line": 191
     },
     {
       "name": "VoragoVoiceParams",

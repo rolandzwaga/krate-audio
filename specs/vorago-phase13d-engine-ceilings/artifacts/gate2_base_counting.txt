@@ -1,0 +1,14 @@
+T005 - 13b Gate 2 tables on the base binary (FR-003 (iii), FR-005, FR-032, SC-011, SC-019), 2026-10-07. Counting knob = d/t0 >= 0.5, not KILL, not OFF-LIKE.
+
+default surface (gate2_table_default_base.log, t0 = median_t0off 2.2107 from gate1_base_default.log):
+  counted:   leakRate [0,1] d 3.0413 d/t0 1.376 (.lo,.hi) :52 | syncRate [0,0.5] d 1.9376 d/t0 0.876 (.hi) :79
+  OFF-LIKE:  grazeRate :93
+  INAUDIBLE: kernelSigma :61, moveRate :70, freqDrift :84, forageRate :102, exchangeRate :111, predation :120, selfAffinity d 0.0313 d/t0 0.014 :129, crossAffinity :138, maxSpeed :147, crowding :156, feedRate :165
+Life-max surface (gate2_table_lifemax_base.log, VORAGO_PROBE_SURFACE=109=1, t0 4.5842 from gate1_base_lifemax.log):
+  counted:   leakRate d 2.7773 d/t0 0.606 (.lo,.hi) :59
+  OFF-LIKE:  grazeRate :77
+  INAUDIBLE: syncRate d 1.8915 d/t0 0.413 (.hi) :86, selfAffinity d 0.0163 d/t0 0.004 :118, and the rest (:50-163)
+Note vs the 13c tables (specs/vorago-phase13c-capability-audibility/artifacts/gate2_table_lifemax.log): syncRate at Life max read 2.1446 / 0.528 counted there and reads 1.8915 / 0.413 INAUDIBLE here (same t0 4.5842); the default-surface row (1.9376 / 0.876) counts on both. The 13c run was a different tree state (its 10-04 tables preceded ruling B-14's default ghost peak 0); this is the base reading FR-032 binds for 13d. Not a stop (T005 stops only on GATE1M < 0.5).
+
+GATE1M (cited): gate1_base_default.log "GATE1M surface=default seeds=6 median_d(on,off)=2.2057 min_d(on,off)=1.4480 median_t0off=2.2107 ratio=0.998 verdict=PASS"; gate1_base_lifemax.log "GATE1M surface=109=1 seeds=6 median_d(on,off)=2.8849 min_d(on,off)=2.4239 median_t0off=4.5842 ratio=0.629 verdict=PASS".
+Default surface record: default_before_13b.log:12 "M1 RMS -26.97 dBFS colony 0.483648 | M2 RMS -27.27 | M3 RMS -26.42", :13-14 t0on = t0 = 1.1895. default_before_p0.log:15 P0 t_K 1.1895 / 1.5869 / 1.1334 / 1.5285 (all yes); :19 P4 Glass Well 3.0451 / 2.3836 / 3.8071 / 2.4264 (no); :21 ruled K = NONE; :24 G2: STOP - identical to Phase 14's G2 re-run (its ruling "K = 4 stays" is inherited; the sweep contract is K = 4).

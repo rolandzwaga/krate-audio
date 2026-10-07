@@ -1,0 +1,9 @@
+ODR sweep (FR-038) — grep -rn -- "<Name>" dsp/ plugins/ tools/ on the 502e5243 tree, planning session 2026-10-07: 0 hits for every name below.
+Voice and engine API: setLoopBusMeterEnabled isLoopBusMeterEnabled takeLoopBusSumSq setPartialBloomLaneGain getPartialBloomLaneGain setPartialMutationLaneGain getPartialMutationLaneGain setLoopWakeBase getLoopWakeBase setLoopGainLeverSpan getLoopGainLeverSpan setCouplingLeverSpan getCouplingLeverSpan setBloomParentCount getBloomParentCount setBloomChildrenPerEvent getBloomChildrenPerEvent getEcoLaneMean
+Members: loopBusMeter_ loopTap_ carryLoopBus_ loopBusAcc_ vLoopBus_ loopBusSumSq_ partialBloomLaneGain_ partialMutationLaneGain_ loopGainLeverSpan_ couplingLeverSpan_ ecoLaneMean_
+Constants: kBloomParentCount kBloomChildrenPerEvent kPartialMutationLaneGain kPartialBloomLaneGain kLoopWakeLaneGain
+Harness and probe names: loopBusPower loopBusMeter loopBusWindowDb blockObserver LaneStats kRosterGateOverrides
+Tests: VoragoEngine_LoopBusMeterIsObservationOnly VoragoEngine_CeilingSeamContract VoragoVoice_CeilingLeverNeutral VoragoVoice_EcoLaneMeanReadout VoragoMacro_Phase13dRowProbe
+Env options and values: VORAGO_PILOT_LANES VORAGO_PILOT_LOOPBUS VORAGO_PILOT_BLOOM VORAGO_PILOT_READBACK VORAGO_PROBE_LANES VORAGO_ROWPROBE liveFor verified36 e1route e1attach
+Near-names that exist and do not collide: SweepCapture::tweakHeld (a different struct); Probe::loopWakeBase / IdentityProbe::loopWakeBase (test accessors of the existing member loopWakeBase_).
+Late names the build must sweep before adding: VORAGO_PILOT_LIST (main-loop pre-ruling 5).

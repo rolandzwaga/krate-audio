@@ -1,0 +1,21 @@
+T002 / T003 before-record vs sweep 5 (FR-003 (i), SC-001) - base binary (T001, HEAD 5bda20c1 = 502e5243 + docs), VORAGO_PILOT_TAKES=4, no override unless stated.
+tolerance = max(0.01, 0.005 * d_sweep5)
+
+cell | preset | sweep 5 (record) | base d | |delta| | tolerance | ok | log line
+E1   | Bloom Colony    | 1.1823 (attrib 1.1035) | 1.1823 (attrib 1.1035) | 0.0000 / 0.0000 | 0.0100 | ok | before_E1.log:9 (route arms), :10 (primary)
+M2   | Erosion         | 3.2191 | 3.2191 | 0.0000 | 0.0161 | ok | before_M2.log:9
+M4   | Drifting Strata | 0.8745 | 0.8745 | 0.0000 | 0.0100 | ok | before_M4.log:9
+M5   | Stone Gravity   | 3.1864 | 3.1864 | 0.0000 | 0.0159 | ok | before_M5.log:9
+M10  | Teeming         | 0.9943 | 0.9943 | 0.0000 | 0.0100 | ok | before_M10.log:9
+E4   | Feeding Loops (stored, 2x events) | 2.9182 (attrib 0.9851) | 2.9182 (attrib 0.9851) | 0.0000 / 0.0000 | 0.0146 | ok | before_E4_stored.log:9-10
+E6.hi / E7.hi | Colony Pulse secondaries | 1.3700 / 1.3430 | (appended below after the re-run; the first run used VORAGO_PILOT_CELLS=S7, an unknown label - before_E67_badlabel.log:21) | | 0.0100 | |
+
+T003 repeat spread: Bloom Colony d_1 1.1823 (before_E1.log:10), d_2 1.1823 (before_E1_repeat.log:10): |d_1 - d_2| = 0.0000 <= 0.01. ok.
+
+E4 at 1x events (VORAGO_PILOT_OVERRIDE=800=0.5, before_E4_1x.log): primary d 4.4059, attribBase 3.6649 (attributable iff d >= 5.1649) -> FAIL on attributability only; arms [y y y y], arm1@44.1k [y]; per take arm 2 lo -40.62 / -36.64 / -37.96 / -35.60 dB [yes] on all four takes (:12-15).
+PREMISE CORRECTION: the spec premise "1x reads 3.71 with arm 2 red on every take" came from Phase 14 batch 12 FL_I, whose override was 1500=0,1300=0,500=1.0,800=0.5 (breathing 0, bloom 0, ecology mix 1.0 as well). With the rate change alone the loops stay alive and E4 clears the d bar; the E4 gap at 1x is attributability (3.66 of the 4.41 is the route-independent change), not loop silence. The loops-alive conjunct (FR-021b) still applies; the E4 ladder targets attributability. Recorded in rulings.md.
+
+E6.hi | Colony Pulse (secondary, SECONDARY=1) | 1.3700 | 1.3700 | 0.0000 | 0.0100 | ok | before_E67.log:11
+E7.hi | Colony Pulse (secondary, SECONDARY=1) | 1.3430 | 1.3429 | 0.0001 | 0.0100 | ok | before_E67.log:12
+(Colony Pulse S7 primary 13.9144 PASS, arms all green: before_E67.log:9-10.)
+T002 / T003 verdict: every roster cell within tolerance; no stop.

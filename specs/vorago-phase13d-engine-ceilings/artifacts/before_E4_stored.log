@@ -1,0 +1,22 @@
+START 2026-10-07 09:22:57 before_E4_stored tree=5bda20c1 binary=base VORAGO_PILOT_TAKES=4 
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 3773992817
+[probe] lever: none
+[probe] Feeding Loops - primary E4 feedback -> loop wake (stored seed 8, 4 twin render(s))
+  take: peak 0.1966  arm1 hi -25.65 dB [yes]  arm2 lo -40.62 dB [yes]  arm3 late-sus +4.63 dB [yes]  arm4 tail -206.86 dB [yes]
+  arm1@44.1k: finite y peak 0.1689 hi -26.29 dB [PASS]
+  route arms: d(R_k, R_k0) 2.9182, attribBase d(R_0, R_00) 0.9851 (attributable iff d >= 2.4851)
+  primary d 2.9182  bar 4.0000  attribBase 0.9851  state ok  -> FAIL  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  take j=0 seed 8: peak 0.1966  arm1 hi -25.65 dB [yes]  arm2 lo -40.62 dB [yes]  arm3 late-sus +4.63 dB [yes]  arm4 tail -206.86 dB [yes]
+  take j=1 seed 9: peak 0.1769  arm1 hi -26.08 dB [yes]  arm2 lo -36.77 dB [yes]  arm3 late-sus -4.30 dB [yes]  arm4 tail -201.80 dB [yes]
+  take j=2 seed 10: peak 0.1830  arm1 hi -26.35 dB [yes]  arm2 lo -37.93 dB [yes]  arm3 late-sus +2.02 dB [yes]  arm4 tail -187.17 dB [yes]
+  take j=3 seed 11: peak 0.2028  arm1 hi -25.15 dB [yes]  arm2 lo -35.57 dB [yes]  arm3 late-sus +0.30 dB [yes]  arm4 tail -188.51 dB [yes]
+  take j=0 d 2.9182
+  take j=1 d 1.2645
+  take j=2 d 6.2367
+  take j=3 d 4.8392
+===============================================================================
+All tests passed (47 assertions in 1 test case)
+
+exit=0 END 2026-10-07 09:37:46
