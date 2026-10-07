@@ -660,10 +660,58 @@ after); the default-render change documented; no regression in the earlier suite
 
 ---
 
+### Phase 13d: Engine Ceilings
+
+**Spec:** `vorago-phase13d-engine-ceilings`
+**Depends on:** Phase 13c (its levers and probe ladders), Phase 14's close (sweep 5 as the record of the tree,
+the T063 table, the `VORAGO_PILOT_OVERRIDE` / `VORAGO_PILOT_LEVER` probes, the sharded sweep and
+`tools/run-close-lanes.js`). Inserted 2026-10-07 after Phase 14 closed NOT release-green by measurement; the
+1.0.0 release waits on it.
+**Premise (measured 2026-10-06, `specs/vorago-phase14-presets-release/compliance.md` "Sweep 5" and the T063
+table; twelve probe batches `artifacts/reauthor5_*`):** eight capability cells do not reach their bar at any
+preset setting on the 13c tree, so no preset can showcase them. Primaries against F = 4.0 on the Phase 14
+descriptor: E1 partial → bloom 1.18 on Bloom Colony (attributable 1.10; 13c best 1.18); E4 feedback → loop
+wake 2.92 on Feeding Loops (2× events reads 8.48 but the loops fall silent on three of four takes, arms 2–3
+red; 1× reads 3.71 with arm 2 red on every take); M2 Age 3.22 on Erosion (13c ladder best 2.83); M4 Movement
+0.87 on Drifting Strata (13c ladder 0.85–0.87 with twelve macro-test reds per rung; the Movement row's own
+monotonicity reads rho 0.8333 against 0.9 in `VoragoMacro_SweepAxes`, the one red in the `dsp_systems_tests`
+`[long]` lane); M5 Gravity 3.19 on Stone Gravity (every candidate lowered it); M10 Life 0.99 on Teeming (13c
+ladder 0.82–0.99). Secondaries against 1.5 on Colony Pulse: E6.hi ecosystem sync rate 1.37, E7.hi self
+affinity 1.34. The other 36 primaries verify, every preset holds its level arms (one surfaced take, ruling
+B-18), and the probe predicts the sweep within 0.01, so a candidate confirmed by the probe needs no full sweep
+to trust — only the affected presets' shards and the aggregate (about half a day, not a week).
+**Goal:** every one of the eight cells is something a listener hears at its showcase preset — d ≥ 4.0 for the
+six primaries, ≥ 1.5 for E6.hi / E7.hi, on the Phase 14 pilot probe with the preset's four level arms green
+in the same printout (E4 on a preset whose loops stay alive) — and the Movement row is monotone (rho ≥ 0.9)
+without any threshold moving. One lever per feature, each measured before it is ruled, ladders by
+`VORAGO_PILOT_LEVER` or rebuild as in 13c: E1 the bloom route's gain and child attachment on a sounding
+parent; E4 the loop-wake route gain at 1× events with the loops' own sustain preserved (arm 2); M2 the Age
+row's targets (damping, tilt, mutation) widened or re-aimed; M4 the Movement row (drift depth, wander rates,
+breathing, damper) re-aimed so it both moves the descriptor and stays monotone; M5 the Gravity row (resonance
+gravity, octave lock) given a target the descriptor hears; M10 the Life row (ecosystem depth, event rate,
+bloom spawn); E6.hi / E7.hi the sync-rate and self-affinity lanes' audible range on a Life-high surface.
+- Gate per cell: the Phase 14 pilot probe on the cell's showcase preset (route cells on their route arms with
+  the attributability clause), re-measured on the final tree; the preset's level arms green in the same run.
+- The default render may change and every before/after descriptor is recorded; Phase 10's bounds, 13b's
+  and 13c's gates, the Phase 2–14 suites, pluginval, clang-tidy, portability and the `[long]` soaks stay green
+  (the `VoragoMacro_SweepAxes` Movement row included); fingerprints that move are re-harvested inside their
+  consuming binary.
+- Phase 14's T048 re-runs as the confirming run: the affected presets re-authored on the new levers by probe,
+  their shards and the aggregate re-run, the T063 table re-read; the showcase-subset pairs (Smeared Horizon's
+  single S3 claim, 51 pairs) are a preset-level re-author in that pass. Nothing ships inaudible; a cell that
+  still cannot reach the bar is a stop-and-surface ruling, never an UNMET row.
+
+**Success criteria:** every cell's gate with cited probe log; the lever table (feature, lever, before, after);
+the default-render change documented; no regression in the earlier suites (the parallel close lanes, the CPU
+lane alone); CPU delta; the Phase 14 sweep re-read with its primaries and secondaries verified or each
+remaining cell ruled by the user.
+
+---
+
 ### Phase 14: Factory Presets & Release Readiness
 
 **Spec:** `vorago-phase14-presets-release`
-**Status: ⏸ PAUSED at T048 (2026-09-30), second pause** — three full sweeps measured a third of the capability matrix as inaudible at any preset setting (28 of 42 primaries verify, 46 pairs under the floor, all among the presets built on those cells); the user ruled the instrument ships with no inaudible feature, so Phase 13c fixes the features first and this phase resumes at T048 with sweep 4 as the confirming run. First pause (2026-09-27, gate G1): the FR-070 audibility probe found 0 of 14 rule knobs
+**Status: CLOSED 2026-10-06 (T048–T063, commit `502e5243`): verdict NOT release-green by measurement — 36 of 42 primaries verified, the six engine-limited cells and E6.hi / E7.hi handed to Phase 13d, the audition (SC-020) and the push (SC-013 / SC-019 / SC-023, FR-025) deferred by the user; 1.0.0 is in `version.json` and the CHANGELOG.** Earlier: ⏸ PAUSED at T048 (2026-09-30), second pause — three full sweeps measured a third of the capability matrix as inaudible at any preset setting (28 of 42 primaries verify, 46 pairs under the floor, all among the presets built on those cells); the user ruled the instrument ships with no inaudible feature, so Phase 13c fixes the features first and this phase resumes at T048 with sweep 4 as the confirming run. First pause (2026-09-27, gate G1): the FR-070 audibility probe found 0 of 14 rule knobs
 audible and the ecosystem itself below one reseed (runs 1–4 in its compliance record); Phase 13b fixes
 the cause first, then this phase re-runs its specify stage. Kept from the first pass: spec, plan, tasks
 (rulings Q1–Q8, R-1–R-8), the probe TU, `preset_test_support.h` part 0 and the inert probe friend.
