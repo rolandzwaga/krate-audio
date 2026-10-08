@@ -682,6 +682,8 @@ set `liveFor:e67`.
 
 ### T033 — E6 / E7 rebuild rungs on the carrying kinds
 
+**DONE (main loop, 2026-10-07/08):** six rebuild rungs through the rung driver (patch → both targets 0 warnings → Colony Pulse gate with `VORAGO_PILOT_SECONDARY=1` + Life-max rule-probe table → revert): before (L 0.45) → E6.hi 1.3700 / E7.hi 1.3429; kGhostLaneGain 1.25 → E6.hi 1.2894 / E7.hi 1.3803; 1.5 → E6.hi 1.1953 / E7.hi 1.3440; 2.0 → E6.hi 1.1353 / E7.hi 1.3515; kLeverInputGain[Feedback] 2.25 → E6.hi 1.3700 / E7.hi 1.3430; 2.5 → E6.hi 1.3701 / E7.hi 1.3428; 2.75 → E6.hi 1.3701 / E7.hi 1.3428. No rung reaches 1.5 on either cell; S7 and D13.2 stay verified and arms green; the Life-max syncRate / selfAffinity rows and LANES lines are unchanged in every `e67_*_lifemax.log`. FR-034 grep of `kGhostLaneGain` / `kLeverInputGain` before the first rung: only the Partial / Ghost static_assert (`vorago_voice.h:1848`), untouched. No `_roster` / `_readset` / `_minus6` (no clearing rung).
+
 - Per carrying kind, three rebuild rungs in increasing distance (plan §3.3):
   - Resonator / Noise / Feedback: `kLeverInputGain[k]` 2 → 2.25 / 2.5 / 2.75 (Partial / Ghost `static_assert` stays);
   - Resonator: `kPeakLevelLeverSpanDb` 18 → 19 / 20 / 21;
@@ -694,6 +696,8 @@ set `liveFor:e67`.
   `rulings.md`); `_roster.log`, `_readset.log`, `_minus6.log`. Revert after each rung unless adopted.
 
 ### T034 — E6 / E7 adoption, ship (FR-010d)
+
+**DONE (main loop, 2026-10-08):** nothing clears → STOP-AND-SURFACE with the I-E67 table; USER RULING (AskUserQuestion): record E6.hi / E7.hi as engine-limited at this ladder and move on; no further kinds tried; the cells stay red at 1.3700 / 1.3429 as Phase 14 found; `kRosterGateOverrides` / `kRosterRuled` untouched.
 
 - Adopt the smallest-change clearing rung; set `kRosterGateOverrides` E6.hi / E7.hi → `"109=<L>"` and add them to
   `kRosterRuled`. Nothing clears, or flat rank lines → **stop-and-surface** with the I-E67 table.
@@ -719,6 +723,8 @@ Age → mutation amount from `l7_M2_ladder_summary.txt`) are never repeated.
 - `VoragoMacro_Phase13dRowProbe` per r1–r5 magnitude → `m2_prescreen.log`.
 
 ### T036 — M2 rungs r1–r6
+
+**DONE (main loop, detached rung queue 2026-10-07 22:35 → 2026-10-08 04:55):** 14 rebuild rungs through the detached queue (patch → both targets 0 warnings → Erosion gate 4 takes → revert; `m2_r*_gate.log`; SweepAxes / NoZipper on r1a only, identical to base but the Age endpoint 11.4151, and deferred to the adoption candidate for the rest): r1 BodyDamping 0.75 / 0.85 / 0.95 → 3.2323 / 3.2390 / 3.2446; r2 tilt −8 / −9 / −10 → 3.2137 / 3.2111 / 3.2080; r3 new Age → CavernDarkness +0.05 / +0.10 / +0.20 → 3.2378 / 3.2598 / 3.3225; r4 new Age → CloudMutation +0.30 / +0.50 / +0.70 → 3.2079 / 3.2077 / 3.2077; r5 CavernDecaySeconds −16 / −18 → 3.8430 / **4.4987 PASS** (r5c −20 dropped: 0 s at Age 1). Arms green on every rung. r6 (two best singles) not needed: r5b clears alone. Candidate: r5b (CavernDecaySeconds amount −18).
 
 - r1 Age → BodyDamping amount 0.55 → 0.75 / 0.85 / 0.95; r2 Age → CloudSpectralTiltDb −4 → −8 / −9 / −10 (−8 first);
   r3 new row Age → CavernDarkness base 0.80, +0.05 / +0.10 / +0.20, Linear; r4 new row Age → CloudMutation base 0.15,
@@ -754,11 +760,15 @@ Read set `liveFor:m5`.
 
 ### T039 — M5 rungs r1–r3
 
+**DONE (main loop, detached rung queue 2026-10-07 22:35 → 2026-10-08 04:55):** nine rebuild rungs (`m5_r*_gate.log`): r1 new Gravity → CloudSpectralTiltDb −3 / −6 / −8 → 3.1393 / 3.1273 / 3.1273; r3 new Gravity → CavernDarkness +0.10 / +0.15 / +0.20 → 3.0498 / 3.0035 / 3.0035; r2 new Gravity → SubToneLevelOffsetDb +2 / +4 / +6 → 3.1943 / 3.2059 / 3.2244. No rung reaches 4.0 (before 3.1864); arms green; pre-screen and headroom in T038.
+
 - r1 → CloudSpectralTiltDb base −4, amount −3 / −6 / −8; r3 → CavernDarkness base 0.80, +0.10 / +0.15 / +0.20; r2
   (last) → SubToneLevelOffsetDb base 0, +2 / +4 / +6. Per rung: rebuild; `m5_r<n>_gate.log`, `_roster.log`,
   `_readset.log`, `_minus6.log`, `_sweepaxes.log`, `_nozipper.log`.
 
 ### T040 — M5 adoption, ship
+
+**DONE (main loop, detached rung queue 2026-10-07 22:35 → 2026-10-08 04:55):** STOP-AND-SURFACE — nothing clears; USER RULING (AskUserQuestion, 2026-10-08): record M5 engine-limited at this ladder and move on; no re-open spent; M5 stays red at 3.1864.
 
 - Adopt by FR-010d; else **stop-and-surface**. Verify as T037; re-open check on every earlier ruled cell.
 
@@ -779,6 +789,8 @@ passing, and NoZipper ≤ 1.5×. Read set `liveFor:m4`.
 
 ### T042 — M4 rungs r1–r4
 
+**DONE (main loop, detached rung queue 2026-10-07 22:35 → 2026-10-08 04:55):** r1 BreathingDepth curve Exponential / SCurve → d 0.8745 / 0.8745 (the M4 cell reads Movement 1 vs 0, where every curve agrees), rho 0.8333 / 0.8667; r2 kWanderLeverRateCompExponent 0.80 / 0.90 → d 0.8781 / 0.8861, rho 0.8667 / **0.9333 endpoint 0.2180, SweepAxes 38 / 38 green** (0.85: the patch found no fragment during the previous revert — re-run pending); r3 Breathing ×2/3 + new Movement → BreathingIrregularity +0.20 / +0.35 / +0.50 → d 0.9602 / 1.0954 / 1.4940, rho 0.9000 endpoint 0.2719 on all three (the irregularity row does not touch the metric; the ×2/3 does), SweepAxes green; NoZipper 24 / 24 everywhere; r4 impossible: every heard member already sits at its clamp at Movement 1 (drift 8 + 42 = 50 cents, breathing 1.0, wander 1.0 Hz) — no headroom to widen (`m4_r*_gate.log`, `m4_r*_sweepaxes.log`, `m4_r*_nozipper.log`).
+
 - r1: the inverting member's curve → each of the two other admissible curves (Linear / Exponential / SCurve; never
   Stepped);
 - r2: `kWanderLeverRateCompExponent` (`vorago_voice.h:1725`) 0.75 → 0.80 / 0.85 / 0.90 (exempt from the pre-screen);
@@ -789,6 +801,8 @@ passing, and NoZipper ≤ 1.5×. Read set `liveFor:m4`.
   `_roster.log`, `_readset.log`, `_minus6.log`.
 
 ### T043 — M4 / rho adoption, ship
+
+**USER RULING (AskUserQuestion, 2026-10-08):** adopt kWanderLeverRateCompExponent 0.90 for FR-023 (the Movement rho: 0.9333 / endpoint 0.2180, SweepAxes 38 / 38, NoZipper 24 / 24) if its FR-010d reads clear; the M4 cell is recorded engine-limited (d 0.8861 at the rho rung; every rung d / rho / endpoint / zipper in `lever_table.md`); r4 impossible (no headroom on any heard member). Ship step pending the reads.
 
 - Adopt the smallest admissible rung clearing M4 ≥ 4.0 and FR-010d. A rung that fixes rho but not M4 is adopted for
   FR-023 only if it clears FR-010d's other clauses, and M4 then goes to **stop-and-surface** with every rung's (d,
@@ -810,6 +824,8 @@ Read set `liveFor:m10`, plus E1, E4, E6.hi, E7.hi, S7, D13.1 and D13.2 through `
 - **Stop-and-surface:** the companion alone gives `d ≥ 4.0` (FR-025b).
 
 ### T045 — M10 rungs r1–r4
+
+**DONE (main loop, detached rung queue 2026-10-07 22:35 → 2026-10-08 04:55):** nine rebuild rungs (`m10_r*_gate.log`): r1 BloomSpawnRateHz 0.029 / 0.037 / 0.0458 → 0.9054 ×3 (inert at Teeming); r2 EventRateScale 10 / 11.5 / 13 → 1.0434 / 2.6652 / 1.8195; r3 EcosystemDepth 0.45 / 0.65 / 0.85 with 900=0.15 → 3.4343 / **4.6245 PASS** / 6.9053 PASS. Arms green. r4 not needed: r3b clears alone. Candidate: r3b (EcosystemDepth amount 0.65) with the companion `900=0.15`.
 
 - r1 Life → BloomSpawnRateHz amount 0.0208 → 0.029 / 0.037 / 0.0458; r2 Life → EventRateScale 9 → 10 / 11.5 / 13
   (each Life-1 sum checked against the clamp 10); r3 Life → EcosystemDepth 0.15 → 0.45 / 0.65 / 0.85 with `900=0.15`

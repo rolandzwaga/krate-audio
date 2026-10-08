@@ -1,0 +1,250 @@
+=== e67_g150 2026-10-07 22:35:12
+build e67_g150 exit=0 warnings=0 errors=0
+e67_g150 gate: primary d 14.4065 bar 4.0000 attribBase -1.0000 state ok -> PASS loopsAlive - lever: none| levels: arms [y y y y] arm1@44.1k [y]| secondary E6.hi ecosystem sync rate high: d 1.1953 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "" -> no| secondary E7.hi ecosystem self-affinity high: d 1.3440 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "" -> no|exit=0 END 2026-10-07 22:49:52|
+e67_g150 lifemax: All tests passed (223205 assertions in 1 test case)|exit=0 END 2026-10-07 22:45:28|
+reverted dsp/include/krate/dsp/systems/vorago_voice.h
+=== e67_g200 2026-10-07 22:49:53
+build e67_g200 exit=0 warnings=0 errors=0
+e67_g200 gate: primary d 14.2866 bar 4.0000 attribBase -1.0000 state ok -> PASS loopsAlive - lever: none| levels: arms [y y y y] arm1@44.1k [y]| secondary E6.hi ecosystem sync rate high: d 1.1353 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "" -> no| secondary E7.hi ecosystem self-affinity high: d 1.3515 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "" -> no|exit=0 END 2026-10-07 23:01:46|
+e67_g200 lifemax: All tests passed (223205 assertions in 1 test case)|exit=0 END 2026-10-07 22:57:55|
+reverted dsp/include/krate/dsp/systems/vorago_voice.h
+=== e67_f225 2026-10-07 23:01:46
+build e67_f225 exit=0 warnings=0 errors=0
+e67_f225 gate: primary d 13.9142 bar 4.0000 attribBase -1.0000 state ok -> PASS loopsAlive - lever: none| levels: arms [y y y y] arm1@44.1k [y]| secondary E6.hi ecosystem sync rate high: d 1.3700 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "" -> no| secondary E7.hi ecosystem self-affinity high: d 1.3430 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "" -> no|exit=0 END 2026-10-07 23:12:59|
+e67_f225 lifemax: All tests passed (223205 assertions in 1 test case)|exit=0 END 2026-10-07 23:09:14|
+reverted dsp/include/krate/dsp/systems/vorago_voice.h
+=== e67_f250 2026-10-07 23:12:59
+build e67_f250 exit=0 warnings=0 errors=0
+e67_f250 gate: primary d 13.9144 bar 4.0000 attribBase -1.0000 state ok -> PASS loopsAlive - lever: none| levels: arms [y y y y] arm1@44.1k [y]| secondary E6.hi ecosystem sync rate high: d 1.3701 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "" -> no| secondary E7.hi ecosystem self-affinity high: d 1.3428 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "" -> no|exit=0 END 2026-10-07 23:24:11|
+e67_f250 lifemax: All tests passed (223205 assertions in 1 test case)|exit=0 END 2026-10-07 23:20:25|
+reverted dsp/include/krate/dsp/systems/vorago_voice.h
+=== e67_f275 2026-10-07 23:24:11
+build e67_f275 exit=0 warnings=0 errors=0
+e67_f275 gate: primary d 13.9143 bar 4.0000 attribBase -1.0000 state ok -> PASS loopsAlive - lever: none| levels: arms [y y y y] arm1@44.1k [y]| secondary E6.hi ecosystem sync rate high: d 1.3701 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "" -> no| secondary E7.hi ecosystem self-affinity high: d 1.3428 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "" -> no|exit=0 END 2026-10-07 23:35:14|
+e67_f275 lifemax: All tests passed (223205 assertions in 1 test case)|exit=0 END 2026-10-07 23:31:33|
+reverted dsp/include/krate/dsp/systems/vorago_voice.h
+=== e4_r6_g15 2026-10-07 23:35:15
+build e4_r6_g15 exit=0 warnings=0 errors=0
+e4_r6_g15 gate: lb0 -60.98 [NO]| lb1 -60.61 [NO]| lb2 -56.89 [PASS]| lb3 -53.61 [PASS]| primary d 5.1454 bar 4.0000 attribBase 3.6649 state ok -> FAIL loopsAlive n lever: none| levels: arms [y y y y] arm1@44.1k [y]|exit=0 END 2026-10-07 23:41:02|
+e4_r6_g15 contracts: F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(2656): FAILED:|test cases: 4 | 3 passed | 1 failed|exit=1 END 2026-10-07 23:41:08|
+reverted dsp/include/krate/dsp/systems/vorago_voice.h dsp/tests/unit/systems/vorago_ecosystem_lever_test.cpp
+=== e4_r6_g20 2026-10-07 23:41:09
+build e4_r6_g20 exit=0 warnings=0 errors=0
+e4_r6_g20 gate: lb0 -59.53 [PASS]| lb1 -60.13 [NO]| lb2 -55.31 [PASS]| lb3 -52.31 [PASS]| primary d 5.9062 bar 4.0000 attribBase 3.6649 state ok -> PASS loopsAlive n lever: none| levels: arms [y y y y] arm1@44.1k [y]|exit=0 END 2026-10-07 23:47:01|
+e4_r6_g20 contracts: F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(2656): FAILED:|test cases: 4 | 3 passed | 1 failed|exit=1 END 2026-10-07 23:47:08|
+reverted dsp/include/krate/dsp/systems/vorago_voice.h dsp/tests/unit/systems/vorago_ecosystem_lever_test.cpp
+=== e4_r6_g25 2026-10-07 23:47:08
+build e4_r6_g25 exit=0 warnings=0 errors=0
+e4_r6_g25 gate: lb0 -58.83 [PASS]| lb1 -59.38 [PASS]| lb2 -54.51 [PASS]| lb3 -50.57 [PASS]| primary d 5.9128 bar 4.0000 attribBase 3.6649 state ok -> PASS loopsAlive y lever: none| levels: arms [y y y y] arm1@44.1k [y]|exit=0 END 2026-10-07 23:52:50|
+e4_r6_g25 contracts: F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(2656): FAILED:|test cases: 4 | 3 passed | 1 failed|exit=1 END 2026-10-07 23:52:57|
+reverted dsp/include/krate/dsp/systems/vorago_voice.h dsp/tests/unit/systems/vorago_ecosystem_lever_test.cpp
+=== m2_r1a 2026-10-07 23:52:57
+build m2_r1a exit=0 warnings=0 errors=0
+m2_r1a gate: primary d 3.2323 bar 4.0000 attribBase -1.0000 state ok -> FAIL loopsAlive - lever: none| levels: arms [y y y y] arm1@44.1k [y]|exit=0 END 2026-10-07 23:57:22|
+m2_r1a sweepaxes: Darkness energy >4f0 rel. <4f0 (dB) rho=-1.0000 endpoint=9.4982 [-55.| Age HF energy > 4 kHz (dB) @C4 rho=-1.0000 endpoint=11.4151 [-111.| Density partials + awake sources rho=1.0000 endpoint=2.1578 [19.9507,| Movement per-band total variation rho=0.8333 endpoint=0.2213 [1.2865,| Gravity mean |log2(ratio) - int| rho=-1.0000 endpoint=0.6465 [0.2686,| Entropy spectral flatness [f0, 20 f0] rho=1.000
+m2_r1a nozipper: All tests passed (24 assertions in 1 test case)|exit=0 END 2026-10-07 23:54:11|
+reverted dsp/include/krate/dsp/systems/vorago_macro_matrix.h
+=== m2_r1b 2026-10-08 00:14:51
+build m2_r1b exit=0 warnings=0 errors=0
+m2_r1b gate: primary d 3.2390 bar 4.0000 attribBase -1.0000 state ok -> FAIL loopsAlive - lever: none| levels: arms [y y y y] arm1@44.1k [y]|exit=0 END 2026-10-08 00:19:01|
+m2_r1b sweepaxes: Darkness energy >4f0 rel. <4f0 (dB) rho=-1.0000 endpoint=9.4982 [-55.| Age HF energy > 4 kHz (dB) @C4 rho=-1.0000 endpoint=11.4151 [-111.| Density partials + awake sources rho=1.0000 endpoint=2.1578 [19.9507,| Movement per-band total variation rho=0.8333 endpoint=0.2213 [1.2865,| Gravity mean |log2(ratio) - int| rho=-1.0000 endpoint=0.6465 [0.2686,| Entropy spectral flatness [f0, 20 f0] rho=1.000
+m2_r1b nozipper: All tests passed (24 assertions in 1 test case)|exit=0 END 2026-10-08 00:15:58|
+reverted dsp/include/krate/dsp/systems/vorago_macro_matrix.h
+=== m2_r1c 2026-10-08 00:36:12
+build m2_r1c exit=1 warnings=0 errors=0
+BUILD RED m2_r1c
+=== m2_r2a 2026-10-08 00:36:54
+build m2_r2a exit=127 warnings=0 errors=0
+BUILD RED m2_r2a
+=== m2_r2b 2026-10-08 00:36:57
+build m2_r2b exit=127 warnings=0 errors=0
+BUILD RED m2_r2b
+=== m2_r2c 2026-10-08 00:37:12
+WARNING: tree not clean after m2_r2c
+=== m2_r3a 2026-10-08 00:37:42
+PATCH FAILED m2_r3a
+WARNING: tree not clean after m2_r3a
+=== m2_r3b 2026-10-08 00:37:42
+PATCH FAILED m2_r3b
+WARNING: tree not clean after m2_r3b
+=== m2_r3c 2026-10-08 00:37:43
+PATCH FAILED m2_r3c
+WARNING: tree not clean after m2_r3c
+=== m2_r4a 2026-10-08 00:37:44
+PATCH FAILED m2_r4a
+WARNING: tree not clean after m2_r4a
+=== m2_r4b 2026-10-08 00:37:44
+PATCH FAILED m2_r4b
+WARNING: tree not clean after m2_r4b
+=== m2_r4c 2026-10-08 00:37:45
+PATCH FAILED m2_r4c
+WARNING: tree not clean after m2_r4c
+=== m2_r5a 2026-10-08 00:37:46
+build m2_r5a exit=1 warnings=0 errors=0
+BUILD RED m2_r5a
+=== m2_r5b 2026-10-08 00:37:59
+=== m2_r1c 2026-10-08 00:39:19
+build m2_r1c exit=0 warnings=0 errors=0
+m2_r1c gate: primary d 3.2446 bar 4.0000 attribBase -1.0000 state ok -> FAIL loopsAlive - lever: none| levels: arms [y y y y] arm1@44.1k [y]|exit=0 END 2026-10-08 00:43:21|
+reverted dsp/include/krate/dsp/systems/vorago_macro_matrix.h
+=== m2_r2a 2026-10-08 00:43:21
+build m2_r2a exit=0 warnings=0 errors=0
+m2_r2a gate: primary d 3.2137 bar 4.0000 attribBase -1.0000 state ok -> FAIL loopsAlive - lever: none| levels: arms [y y y y] arm1@44.1k [y]|exit=0 END 2026-10-08 00:47:18|
+reverted dsp/include/krate/dsp/systems/vorago_macro_matrix.h
+=== m2_r2b 2026-10-08 00:47:18
+build m2_r2b exit=0 warnings=0 errors=0
+m2_r2b gate: primary d 3.2111 bar 4.0000 attribBase -1.0000 state ok -> FAIL loopsAlive - lever: none| levels: arms [y y y y] arm1@44.1k [y]|exit=0 END 2026-10-08 00:51:15|
+reverted dsp/include/krate/dsp/systems/vorago_macro_matrix.h
+=== m2_r2c 2026-10-08 00:51:16
+build m2_r2c exit=0 warnings=0 errors=0
+m2_r2c gate: primary d 3.2080 bar 4.0000 attribBase -1.0000 state ok -> FAIL loopsAlive - lever: none| levels: arms [y y y y] arm1@44.1k [y]|exit=0 END 2026-10-08 00:55:11|
+reverted dsp/include/krate/dsp/systems/vorago_macro_matrix.h
+=== m2_r3a 2026-10-08 00:55:11
+build m2_r3a exit=0 warnings=0 errors=0
+m2_r3a gate: primary d 3.2378 bar 4.0000 attribBase -1.0000 state ok -> FAIL loopsAlive - lever: none| levels: arms [y y y y] arm1@44.1k [y]|exit=0 END 2026-10-08 00:59:00|
+reverted dsp/include/krate/dsp/systems/vorago_macro_matrix.h
+=== m2_r3b 2026-10-08 00:59:00
+build m2_r3b exit=0 warnings=0 errors=0
+m2_r3b gate: primary d 3.2598 bar 4.0000 attribBase -1.0000 state ok -> FAIL loopsAlive - lever: none| levels: arms [y y y y] arm1@44.1k [y]|exit=0 END 2026-10-08 01:02:44|
+reverted dsp/include/krate/dsp/systems/vorago_macro_matrix.h
+=== m2_r3c 2026-10-08 01:02:45
+build m2_r3c exit=0 warnings=0 errors=0
+m2_r3c gate: primary d 3.3225 bar 4.0000 attribBase -1.0000 state ok -> FAIL loopsAlive - lever: none| levels: arms [y y y y] arm1@44.1k [y]|exit=0 END 2026-10-08 01:06:31|
+reverted dsp/include/krate/dsp/systems/vorago_macro_matrix.h
+=== m2_r4a 2026-10-08 01:06:32
+build m2_r4a exit=0 warnings=0 errors=0
+m2_r4a gate: primary d 3.2079 bar 4.0000 attribBase -1.0000 state ok -> FAIL loopsAlive - lever: none| levels: arms [y y y y] arm1@44.1k [y]|exit=0 END 2026-10-08 01:10:14|
+reverted dsp/include/krate/dsp/systems/vorago_macro_matrix.h
+=== m2_r4b 2026-10-08 01:10:14
+build m2_r4b exit=0 warnings=0 errors=0
+m2_r4b gate: primary d 3.2077 bar 4.0000 attribBase -1.0000 state ok -> FAIL loopsAlive - lever: none| levels: arms [y y y y] arm1@44.1k [y]|exit=0 END 2026-10-08 01:13:57|
+reverted dsp/include/krate/dsp/systems/vorago_macro_matrix.h
+=== m2_r4c 2026-10-08 01:13:57
+build m2_r4c exit=0 warnings=0 errors=0
+m2_r4c gate: primary d 3.2077 bar 4.0000 attribBase -1.0000 state ok -> FAIL loopsAlive - lever: none| levels: arms [y y y y] arm1@44.1k [y]|exit=0 END 2026-10-08 01:17:41|
+reverted dsp/include/krate/dsp/systems/vorago_macro_matrix.h
+=== m2_r5a 2026-10-08 01:17:41
+build m2_r5a exit=0 warnings=0 errors=0
+m2_r5a gate: primary d 3.8430 bar 4.0000 attribBase -1.0000 state ok -> FAIL loopsAlive - lever: none| levels: arms [y y y y] arm1@44.1k [y]|exit=0 END 2026-10-08 01:21:28|
+reverted dsp/include/krate/dsp/systems/vorago_macro_matrix.h
+=== m2_r5b 2026-10-08 01:21:28
+build m2_r5b exit=0 warnings=0 errors=0
+m2_r5b gate: primary d 4.4987 bar 4.0000 attribBase -1.0000 state ok -> PASS loopsAlive - lever: none| levels: arms [y y y y] arm1@44.1k [y]|exit=0 END 2026-10-08 01:25:10|
+reverted dsp/include/krate/dsp/systems/vorago_macro_matrix.h
+=== m5_r1a 2026-10-08 01:25:10
+build m5_r1a exit=0 warnings=0 errors=0
+m5_r1a gate: primary d 3.1393 bar 4.0000 attribBase -1.0000 state ok -> FAIL loopsAlive - lever: none| levels: arms [y y y y] arm1@44.1k [y]|exit=0 END 2026-10-08 01:28:37|
+reverted dsp/include/krate/dsp/systems/vorago_macro_matrix.h
+=== m5_r1b 2026-10-08 01:28:37
+build m5_r1b exit=0 warnings=0 errors=0
+m5_r1b gate: primary d 3.1273 bar 4.0000 attribBase -1.0000 state ok -> FAIL loopsAlive - lever: none| levels: arms [y y y y] arm1@44.1k [y]|exit=0 END 2026-10-08 01:32:04|
+reverted dsp/include/krate/dsp/systems/vorago_macro_matrix.h
+=== m5_r1c 2026-10-08 01:32:04
+build m5_r1c exit=0 warnings=0 errors=0
+m5_r1c gate: primary d 3.1273 bar 4.0000 attribBase -1.0000 state ok -> FAIL loopsAlive - lever: none| levels: arms [y y y y] arm1@44.1k [y]|exit=0 END 2026-10-08 01:35:29|
+reverted dsp/include/krate/dsp/systems/vorago_macro_matrix.h
+=== m5_r3a 2026-10-08 01:35:29
+build m5_r3a exit=0 warnings=0 errors=0
+m5_r3a gate: primary d 3.0498 bar 4.0000 attribBase -1.0000 state ok -> FAIL loopsAlive - lever: none| levels: arms [y y y y] arm1@44.1k [y]|exit=0 END 2026-10-08 01:38:58|
+reverted dsp/include/krate/dsp/systems/vorago_macro_matrix.h
+=== m5_r3b 2026-10-08 01:38:59
+build m5_r3b exit=0 warnings=0 errors=0
+m5_r3b gate: primary d 3.0035 bar 4.0000 attribBase -1.0000 state ok -> FAIL loopsAlive - lever: none| levels: arms [y y y y] arm1@44.1k [y]|exit=0 END 2026-10-08 01:42:24|
+reverted dsp/include/krate/dsp/systems/vorago_macro_matrix.h
+=== m5_r3c 2026-10-08 01:42:24
+build m5_r3c exit=0 warnings=0 errors=0
+m5_r3c gate: primary d 3.0035 bar 4.0000 attribBase -1.0000 state ok -> FAIL loopsAlive - lever: none| levels: arms [y y y y] arm1@44.1k [y]|exit=0 END 2026-10-08 01:45:50|
+reverted dsp/include/krate/dsp/systems/vorago_macro_matrix.h
+=== m5_r2a 2026-10-08 01:45:50
+build m5_r2a exit=0 warnings=0 errors=0
+m5_r2a gate: primary d 3.1943 bar 4.0000 attribBase -1.0000 state ok -> FAIL loopsAlive - lever: none| levels: arms [y y y y] arm1@44.1k [y]|exit=0 END 2026-10-08 01:49:19|
+reverted dsp/include/krate/dsp/systems/vorago_macro_matrix.h
+=== m5_r2b 2026-10-08 01:49:20
+build m5_r2b exit=0 warnings=0 errors=0
+m5_r2b gate: primary d 3.2059 bar 4.0000 attribBase -1.0000 state ok -> FAIL loopsAlive - lever: none| levels: arms [y y y y] arm1@44.1k [y]|exit=0 END 2026-10-08 01:52:47|
+reverted dsp/include/krate/dsp/systems/vorago_macro_matrix.h
+=== m5_r2c 2026-10-08 01:52:47
+build m5_r2c exit=0 warnings=0 errors=0
+m5_r2c gate: primary d 3.2244 bar 4.0000 attribBase -1.0000 state ok -> FAIL loopsAlive - lever: none| levels: arms [y y y y] arm1@44.1k [y]|exit=0 END 2026-10-08 01:56:14|
+reverted dsp/include/krate/dsp/systems/vorago_macro_matrix.h
+=== m4_r1_exp 2026-10-08 01:56:14
+build m4_r1_exp exit=0 warnings=0 errors=0
+m4_r1_exp gate: primary d 0.8745 bar 4.0000 attribBase -1.0000 state ok -> FAIL loopsAlive - lever: none| levels: arms [y y y y] arm1@44.1k [y]|exit=0 END 2026-10-08 01:59:58|
+m4_r1_exp sweepaxes: Darkness energy >4f0 rel. <4f0 (dB) rho=-1.0000 endpoint=9.4982 [-55.| Age HF energy > 4 kHz (dB) @C4 rho=-1.0000 endpoint=11.4136 [-111.| Density partials + awake sources rho=1.0000 endpoint=2.1578 [19.9507,| Movement per-band total variation rho=0.8333 endpoint=0.2213 [1.2865,| Gravity mean |log2(ratio) - int| rho=-1.0000 endpoint=0.6465 [0.2686,| Entropy spectral flatness [f0, 20 f0] rho=1.000
+m4_r1_exp nozipper: All tests passed (24 assertions in 1 test case)|exit=0 END 2026-10-08 01:57:19|
+reverted dsp/include/krate/dsp/systems/vorago_macro_matrix.h
+=== m4_r1_scurve 2026-10-08 02:16:58
+build m4_r1_scurve exit=0 warnings=0 errors=0
+m4_r1_scurve gate: primary d 0.8745 bar 4.0000 attribBase -1.0000 state ok -> FAIL loopsAlive - lever: none| levels: arms [y y y y] arm1@44.1k [y]|exit=0 END 2026-10-08 02:20:47|
+m4_r1_scurve sweepaxes: Darkness energy >4f0 rel. <4f0 (dB) rho=-1.0000 endpoint=9.4982 [-55.| Age HF energy > 4 kHz (dB) @C4 rho=-1.0000 endpoint=11.4136 [-111.| Density partials + awake sources rho=1.0000 endpoint=2.1578 [19.9507,| Movement per-band total variation rho=0.8667 endpoint=0.2213 [1.2865,| Gravity mean |log2(ratio) - int| rho=-1.0000 endpoint=0.6465 [0.2686,| Entropy spectral flatness [f0, 20 f0] rho=1.000
+m4_r1_scurve nozipper: All tests passed (24 assertions in 1 test case)|exit=0 END 2026-10-08 02:18:04|
+reverted dsp/include/krate/dsp/systems/vorago_macro_matrix.h
+=== m4_r2_080 2026-10-08 02:38:04
+build m4_r2_080 exit=0 warnings=0 errors=0
+m4_r2_080 gate: primary d 0.8781 bar 4.0000 attribBase -1.0000 state ok -> FAIL loopsAlive - lever: none| levels: arms [y y y y] arm1@44.1k [y]|exit=0 END 2026-10-08 02:41:58|
+m4_r2_080 sweepaxes: Darkness energy >4f0 rel. <4f0 (dB) rho=-1.0000 endpoint=9.4982 [-55.| Age HF energy > 4 kHz (dB) @C4 rho=-1.0000 endpoint=11.4136 [-111.| Density partials + awake sources rho=1.0000 endpoint=2.1578 [19.9507,| Movement per-band total variation rho=0.8667 endpoint=0.2213 [1.2865,| Gravity mean |log2(ratio) - int| rho=-1.0000 endpoint=0.6465 [0.2686,| Entropy spectral flatness [f0, 20 f0] rho=1.000
+m4_r2_080 nozipper: All tests passed (24 assertions in 1 test case)|exit=0 END 2026-10-08 02:39:15|
+reverted dsp/include/krate/dsp/systems/vorago_voice.h
+=== m4_r2_085 2026-10-08 02:59:27
+PATCH FAILED m4_r2_085
+=== m4_r2_090 2026-10-08 02:59:27
+build m4_r2_090 exit=0 warnings=0 errors=0
+m4_r2_090 gate: primary d 0.8861 bar 4.0000 attribBase -1.0000 state ok -> FAIL loopsAlive - lever: none| levels: arms [y y y y] arm1@44.1k [y]|exit=0 END 2026-10-08 03:03:27|
+m4_r2_090 sweepaxes: Darkness energy >4f0 rel. <4f0 (dB) rho=-1.0000 endpoint=9.4982 [-55.| Age HF energy > 4 kHz (dB) @C4 rho=-1.0000 endpoint=11.4136 [-111.| Density partials + awake sources rho=1.0000 endpoint=2.1578 [19.9507,| Movement per-band total variation rho=0.9333 endpoint=0.2180 [1.2865,| Gravity mean |log2(ratio) - int| rho=-1.0000 endpoint=0.6465 [0.2686,| Entropy spectral flatness [f0, 20 f0] rho=1.000
+m4_r2_090 nozipper: All tests passed (24 assertions in 1 test case)|exit=0 END 2026-10-08 03:00:44|
+reverted dsp/include/krate/dsp/systems/vorago_voice.h
+=== m4_r3a 2026-10-08 03:21:02
+build m4_r3a exit=0 warnings=0 errors=0
+m4_r3a gate: primary d 0.9602 bar 4.0000 attribBase -1.0000 state ok -> FAIL loopsAlive - lever: none| levels: arms [y y y y] arm1@44.1k [y]|exit=0 END 2026-10-08 03:25:02|
+m4_r3a sweepaxes: Darkness energy >4f0 rel. <4f0 (dB) rho=-1.0000 endpoint=9.4982 [-55.| Age HF energy > 4 kHz (dB) @C4 rho=-1.0000 endpoint=11.4136 [-111.| Density partials + awake sources rho=1.0000 endpoint=2.1578 [19.9507,| Movement per-band total variation rho=0.9000 endpoint=0.2719 [1.2865,| Gravity mean |log2(ratio) - int| rho=-1.0000 endpoint=0.6465 [0.2686,| Entropy spectral flatness [f0, 20 f0] rho=1.000
+m4_r3a nozipper: All tests passed (24 assertions in 1 test case)|exit=0 END 2026-10-08 03:22:18|
+reverted dsp/include/krate/dsp/systems/vorago_macro_matrix.h
+=== m4_r3b 2026-10-08 03:42:02
+build m4_r3b exit=0 warnings=0 errors=0
+m4_r3b gate: primary d 1.0954 bar 4.0000 attribBase -1.0000 state ok -> FAIL loopsAlive - lever: none| levels: arms [y y y y] arm1@44.1k [y]|exit=0 END 2026-10-08 03:45:37|
+m4_r3b sweepaxes: Darkness energy >4f0 rel. <4f0 (dB) rho=-1.0000 endpoint=9.4982 [-55.| Age HF energy > 4 kHz (dB) @C4 rho=-1.0000 endpoint=11.4136 [-111.| Density partials + awake sources rho=1.0000 endpoint=2.1578 [19.9507,| Movement per-band total variation rho=0.9000 endpoint=0.2719 [1.2865,| Gravity mean |log2(ratio) - int| rho=-1.0000 endpoint=0.6465 [0.2686,| Entropy spectral flatness [f0, 20 f0] rho=1.000
+m4_r3b nozipper: All tests passed (24 assertions in 1 test case)|exit=0 END 2026-10-08 03:43:03|
+reverted dsp/include/krate/dsp/systems/vorago_macro_matrix.h
+=== m4_r3c 2026-10-08 04:02:17
+build m4_r3c exit=0 warnings=0 errors=0
+m4_r3c gate: primary d 1.4940 bar 4.0000 attribBase -1.0000 state ok -> FAIL loopsAlive - lever: none| levels: arms [y y y y] arm1@44.1k [y]|exit=0 END 2026-10-08 04:05:49|
+m4_r3c sweepaxes: Darkness energy >4f0 rel. <4f0 (dB) rho=-1.0000 endpoint=9.4982 [-55.| Age HF energy > 4 kHz (dB) @C4 rho=-1.0000 endpoint=11.4136 [-111.| Density partials + awake sources rho=1.0000 endpoint=2.1578 [19.9507,| Movement per-band total variation rho=0.9000 endpoint=0.2719 [1.2865,| Gravity mean |log2(ratio) - int| rho=-1.0000 endpoint=0.6465 [0.2686,| Entropy spectral flatness [f0, 20 f0] rho=1.000
+m4_r3c nozipper: All tests passed (24 assertions in 1 test case)|exit=0 END 2026-10-08 04:03:17|
+reverted dsp/include/krate/dsp/systems/vorago_macro_matrix.h
+=== m10_r1a 2026-10-08 04:22:24
+build m10_r1a exit=0 warnings=0 errors=0
+m10_r1a gate: primary d 0.9054 bar 4.0000 attribBase -1.0000 state ok -> FAIL loopsAlive - lever: none| levels: arms [y y y y] arm1@44.1k [y]|exit=0 END 2026-10-08 04:25:57|
+reverted dsp/include/krate/dsp/systems/vorago_macro_matrix.h
+=== m10_r1b 2026-10-08 04:25:58
+build m10_r1b exit=0 warnings=0 errors=0
+m10_r1b gate: primary d 0.9054 bar 4.0000 attribBase -1.0000 state ok -> FAIL loopsAlive - lever: none| levels: arms [y y y y] arm1@44.1k [y]|exit=0 END 2026-10-08 04:29:33|
+reverted dsp/include/krate/dsp/systems/vorago_macro_matrix.h
+=== m10_r1c 2026-10-08 04:29:33
+build m10_r1c exit=0 warnings=0 errors=0
+m10_r1c gate: primary d 0.9054 bar 4.0000 attribBase -1.0000 state ok -> FAIL loopsAlive - lever: none| levels: arms [y y y y] arm1@44.1k [y]|exit=0 END 2026-10-08 04:33:15|
+reverted dsp/include/krate/dsp/systems/vorago_macro_matrix.h
+=== m10_r2a 2026-10-08 04:33:16
+build m10_r2a exit=0 warnings=0 errors=0
+m10_r2a gate: primary d 1.0434 bar 4.0000 attribBase -1.0000 state ok -> FAIL loopsAlive - lever: none| levels: arms [y y y y] arm1@44.1k [y]|exit=0 END 2026-10-08 04:36:54|
+reverted dsp/include/krate/dsp/systems/vorago_macro_matrix.h
+=== m10_r2b 2026-10-08 04:36:54
+build m10_r2b exit=0 warnings=0 errors=0
+m10_r2b gate: primary d 2.6652 bar 4.0000 attribBase -1.0000 state ok -> FAIL loopsAlive - lever: none| levels: arms [y y y y] arm1@44.1k [y]|exit=0 END 2026-10-08 04:40:33|
+reverted dsp/include/krate/dsp/systems/vorago_macro_matrix.h
+=== m10_r2c 2026-10-08 04:40:34
+build m10_r2c exit=0 warnings=0 errors=0
+m10_r2c gate: primary d 1.8195 bar 4.0000 attribBase -1.0000 state ok -> FAIL loopsAlive - lever: none| levels: arms [y y y y] arm1@44.1k [y]|exit=0 END 2026-10-08 04:44:14|
+reverted dsp/include/krate/dsp/systems/vorago_macro_matrix.h
+=== m10_r3a 2026-10-08 04:44:14
+build m10_r3a exit=0 warnings=0 errors=0
+m10_r3a gate: primary d 3.4343 bar 4.0000 attribBase -1.0000 state ok -> FAIL loopsAlive - lever: none| levels: arms [y y y y] arm1@44.1k [y]|exit=0 END 2026-10-08 04:47:48|
+reverted dsp/include/krate/dsp/systems/vorago_macro_matrix.h
+=== m10_r3b 2026-10-08 04:47:48
+build m10_r3b exit=0 warnings=0 errors=0
+m10_r3b gate: primary d 4.6245 bar 4.0000 attribBase -1.0000 state ok -> PASS loopsAlive - lever: none| levels: arms [y y y y] arm1@44.1k [y]|exit=0 END 2026-10-08 04:51:26|
+reverted dsp/include/krate/dsp/systems/vorago_macro_matrix.h
+=== m10_r3c 2026-10-08 04:51:26
+build m10_r3c exit=0 warnings=0 errors=0
+m10_r3c gate: primary d 6.9053 bar 4.0000 attribBase -1.0000 state ok -> PASS loopsAlive - lever: none| levels: arms [y y y y] arm1@44.1k [y]|exit=0 END 2026-10-08 04:54:58|
+reverted dsp/include/krate/dsp/systems/vorago_macro_matrix.h
+QUEUE-DONE 2026-10-08 04:54:58

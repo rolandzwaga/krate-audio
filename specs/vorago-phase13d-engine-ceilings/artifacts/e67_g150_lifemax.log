@@ -1,0 +1,51 @@
+START 2026-10-07 22:37:03 tree=3a220d05+e67_g150 rule probe table Life max VORAGO_PROBE_KNOBS=syncRate,selfAffinity VORAGO_PROBE_SURFACE=109=1 VORAGO_PROBE_LANES=1 VORAGO_PROBE_T0=4.5842
+Filters: "Vorago_EcosystemRuleProbe"
+Randomness seeded to: 2717030943
+[probe] surface overrides: 109=1; knob filter: syncRate,selfAffinity; reference: none + true-off; wake bases: shipped (vorago_voice.h kPeakWakeBase / kLoopWakeBase)
+[probe] rendering default surface (340 s)...
+[probe] rendering seed twin (340 s)...
+[probe] rendering true-off reference (340 s)...
+[probe] rendering true-off seed twin (340 s)...
+t0 pinned by VORAGO_PROBE_T0 = 4.5842 (six-seed median off-reseed); this run's own off pair = 4.5842
+[probe] rendering syncRate = 0.5 (340 s)...
+[probe] rendering selfAffinity = -2 (340 s)...
+[probe] rendering selfAffinity = 2 (340 s)...
+
+=== Vorago_EcosystemRuleProbe (FR-070) ===
+renders: 5 (default + seed twin + 3 extremes), 340 s each, 48 kHz, block 512
+surface overrides: 109=1; wake bases: shipped (vorago_voice.h kPeakWakeBase / kLoopWakeBase)
+default M1 stereo RMS: -27.04 dBFS
+default per-minute: M1 RMS -27.04 dBFS colony 0.483648 | M2 RMS -26.64 dBFS colony 0.481807 | M3 RMS -25.86 dBFS colony 0.482763
+t0on = d(default, seed twin) = 3.8242   (ecosystem on; informational since 2026-09-28)
+t0 = d(true-off, true-off seed twin) = 4.5842   INAUDIBLE threshold f*t0 = 2.2921   (f = 0.50; the yardstick: non-ecosystem randomness, rulings 2026-09-28)
+DESCRIPTOR default band=7.454268,-0.176038,-4.727607,-4.383020,-10.006136,-13.097335,-15.933588,-17.120991,-17.858808 motion=0.163099 flux=-2.222865 corr=-3.531840 energySpread=1.375500 crest=3.925752
+LANES default Partial=0.764940/0.548556/0.927192/0.000119 Resonator=0.287749/0.225070/0.348392/0.000023 Noise=0.540934/0.491580/0.592046/0.000035 Feedback=0.496199/0.448014/0.541083/0.000021 Ghost=0.753263/0.600607/0.915274/0.000120
+DESCRIPTOR trueoff band=7.625347,-0.031576,-5.742881,-8.913213,-12.072790,-13.735241,-14.830431,-15.798554,-16.515536 motion=0.185432 flux=-2.312226 corr=-3.528602 energySpread=0.621603 crest=3.161628
+true-off reference (FR-007, offValid): d(default, true-off) = 5.6756   d/t0 = 1.238   M1 RMS -26.18 dBFS
+GATE1 surface=109=1 t0=4.5842 t0on=3.8242 d(on,off)=5.6756 d/t0=1.238 verdict=PASS
+
+knob           range              default    extreme      d         d/t0      dOff/t0   flags / E cells (P-4)
+syncRate       [0, 0.5]           0          0.5          1.8915    0.413     1.180     INAUDIBLE .hi
+                 M1 rms -26.84 dBFS  dRMS +0.20 dB  colony 0.478464  colony/base 0.989
+                 M2 rms -26.49 dBFS  dRMS +0.15 dB  colony 0.483353  colony/base 1.003
+                 M3 rms -25.94 dBFS  dRMS -0.09 dB  colony 0.482871  colony/base 1.000
+LANES syncRate.hi Partial=0.730320/0.605739/1.000000/0.000066 Resonator=0.263587/0.228845/0.289864/0.000010 Noise=0.509110/0.426163/0.659788/0.000053 Feedback=0.515999/0.420830/0.570349/0.000030 Ghost=0.767511/0.657784/0.917136/0.000085
+               best counted d 0.0000 (d/t0 0.000) [none counted]   max d 1.8915 (d/t0 0.413)
+selfAffinity   [-2, 2]            -1         -2           0.0163    0.004     1.236     INAUDIBLE .lo,.hi
+                 M1 rms -27.02 dBFS  dRMS +0.01 dB  colony 0.483648  colony/base 1.000
+                 M2 rms -26.63 dBFS  dRMS +0.00 dB  colony 0.481804  colony/base 1.000
+                 M3 rms -25.84 dBFS  dRMS +0.02 dB  colony 0.482762  colony/base 1.000
+LANES selfAffinity.lo Partial=0.762530/0.551321/0.926963/0.000121 Resonator=0.287253/0.224396/0.349134/0.000023 Noise=0.539501/0.487628/0.592902/0.000034 Feedback=0.498629/0.445301/0.549173/0.000024 Ghost=0.756209/0.600813/0.916919/0.000117
+                                             2            0.8142    0.178     1.364     INAUDIBLE 
+                 M1 rms -27.20 dBFS  dRMS -0.16 dB  colony 0.483607  colony/base 1.000
+                 M2 rms -27.08 dBFS  dRMS -0.44 dB  colony 0.479787  colony/base 0.996
+                 M3 rms -25.86 dBFS  dRMS -0.00 dB  colony 0.481917  colony/base 0.998
+LANES selfAffinity.hi Partial=0.730380/0.516139/0.909343/0.000124 Resonator=0.277121/0.220504/0.337811/0.000025 Noise=0.545767/0.469209/0.612348/0.000031 Feedback=0.515789/0.468986/0.567156/0.000020 Ghost=0.748189/0.543199/0.924295/0.000123
+               best counted d 0.0000 (d/t0 0.000) [none counted]   max d 0.8142 (d/t0 0.178)
+
+audible non-kill knobs: 0 of 14 (filtered table: 2 rows)
+table for Phase 14 Q2 — no roster named here
+===============================================================================
+All tests passed (223205 assertions in 1 test case)
+
+exit=0 END 2026-10-07 22:45:28
