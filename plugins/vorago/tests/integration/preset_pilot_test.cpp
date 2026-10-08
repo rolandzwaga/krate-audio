@@ -900,13 +900,13 @@ struct RosterGate {
 };
 constexpr std::array<RosterGate, 8> kRosterGateOverrides{{
     {.cell = PD::Capability::E1PartialBloom, .host = "Bloom Colony", .overrides = ""},              // 1300=<ruled> once ruled
-    {.cell = PD::Capability::E4FeedbackLoopWake, .host = "Feeding Loops", .overrides = "800=0.5"},  // FR-014: 1.0x events
+    {.cell = PD::Capability::E4FeedbackLoopWake, .host = "Feeding Loops", .overrides = ""},  // FR-014: 1.0x events, transcribed (13d T054)
     {.cell = PD::Capability::E6SyncRateHi, .host = "Colony Pulse", .overrides = ""},                // 109=<ruled L> once ruled
     {.cell = PD::Capability::E7SelfAffinityHi, .host = "Colony Pulse", .overrides = ""},            // the same L as E6.hi
     {.cell = PD::Capability::M2Age, .host = "Erosion", .overrides = ""},
     {.cell = PD::Capability::M4Movement, .host = "Drifting Strata", .overrides = ""},
     {.cell = PD::Capability::M5Gravity, .host = "Stone Gravity", .overrides = ""},
-    {.cell = PD::Capability::M10Life, .host = "Teeming", .overrides = "900=0.15"},  // 13d T046: r3b adopted with the companion (rulings.md 2026-10-08)
+    {.cell = PD::Capability::M10Life, .host = "Teeming", .overrides = ""},  // 13d T046: r3b adopted; the companion 900=0.15 is transcribed (T054)
 }};
 
 /// Phase 13d T019 (FR-010c (a)): the roster cells ruled so far, in FR-010b

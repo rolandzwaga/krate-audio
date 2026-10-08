@@ -1,0 +1,15 @@
+T057 CMake registration check, 2026-10-08 17:27:18, tree 08d95072
+git diff --stat 502e5243 -- '*CMakeLists.txt':
+(empty above = no CMake list change; plan 7 holds)
+edited test TUs since 502e5243 (all pre-registered at the facts-table lines):
+warning: in the working copy of 'plugins/vorago/tests/integration/preset_pilot_test.cpp', LF will be replaced by CRLF the next time Git touches it
+dsp/tests/unit/systems/vorago_ecosystem_lever_test.cpp
+dsp/tests/unit/systems/vorago_engine_test.cpp
+dsp/tests/unit/systems/vorago_macro_retune_probe_test.cpp
+dsp/tests/unit/systems/vorago_voice_test.cpp
+plugins/vorago/tests/integration/ecosystem_rule_probe_test.cpp
+plugins/vorago/tests/integration/preset_pilot_test.cpp
+plugins/vorago/tests/preset_test_support.h
+new files under the test trees since 502e5243:
+warning: in the working copy of 'plugins/vorago/tests/integration/preset_pilot_test.cpp', LF will be replaced by CRLF the next time Git touches it
+(none expected)

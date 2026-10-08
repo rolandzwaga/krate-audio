@@ -440,19 +440,20 @@ inline constexpr std::array<std::string_view, 7> kCategories{
             "Hold the note: the sound surfaces after a few seconds and keeps "
             "swelling for about two and a half minutes.",
             C::S3Smear,
-            {C::D8Standard, C::D10FreezeOff},
+            {C::D8Standard, C::D10FreezeOff, C::D14Breathing},  // 13d FR-041: D14.1 is the witness against its 18 subset partners
             {
                 {kSmearAmountId, 1.0},         // 700
-                {kSmearDecoherenceId, 0.85},   // 701
+                {kSmearDecoherenceId, 1.0},    // 701: 13d FR-041 re-author keeps S3 over 4.0 with the breathing claim (reauthor_confirm_smeared_horizon.log)
                 {kSmearTiltId, 0.70},          // 702 -> +0.4
                 {kCloudStereoSpreadId, 0.90},  // 205
                 {kCloudDriftDepthId, 0.40},    // 204 -> 20 cents
                 {kCloudMutationId, 0.35},      // 202
                 {kResonanceMixId, 0.20},       // 401
                 {kBodyMixId, 0.55},            // 1003
-                {kSpaceMixId, 0.20},           // 1105 (sweep 2 probe: S3 4.30 at 0.20; 3.98 at 0.45 - the cavern smears the smear)
+                {kSpaceMixId, 0.10},           // 1105: 13d FR-041 re-author (was 0.20) (sweep 2 probe: S3 4.30 at 0.20; 3.98 at 0.45 - the cavern smears the smear)
                 {kSpaceFogId, 0.60},           // 1103
                 {kSpaceBreathId, 0.80},        // 1109
+                {kLifeBreathingDepthId, 0.70}, // 1500: D14.1 (>= 0.7), 13d FR-041 re-author
                 {kGhostPeakLevelId, 0.25},     // 1400
                 {kMacroAgeId, 0.25},           // 101
                 {kBloomDepthId, 0.0},              // 1300 -> 0: 13c ruling B-15 - child gain 1.5 masked S3 (3.29; 4.01 bloom off)
@@ -657,7 +658,7 @@ inline constexpr std::array<std::string_view, 7> kCategories{
             "Hold the note: the sound surfaces after a few seconds and keeps "
             "swelling for about two and a half minutes.",
             C::S10Body,
-            {C::D2BlendBoth, C::D1StoneChamber, C::D1SteelTank},
+            {C::D2BlendBoth, C::D1StoneChamber, C::D1SteelTank, C::M8Weight},  // 13d FR-041: M8 is the witness against its 25 subset partners
             {
                 {kBodyBlendId, 0.50},             // 1000 both materials heard
                 {kBodyDampingId, 0.12},           // 1001
@@ -673,6 +674,7 @@ inline constexpr std::array<std::string_view, 7> kCategories{
                 {kSpaceEarlyAbsorptionId, 0.25},  // 1112
                 {kGhostPeakLevelId, 0.15},        // 1400
                 {kMacroMassId, 0.35},             // 111
+                {kMacroWeightId, 1.0},            // 107: M8 Weight claimed, 13d FR-041 re-author (reauthor_confirm_hull_resonance.log)
                 {kSeedId, 11.0 / 15.0},           // 2 index 11 -> "Seed 12"
             }},
         // ---- 7 row 11: M1 + D12.2 (T045) ---------------------------------------
@@ -951,7 +953,7 @@ inline constexpr std::array<std::string_view, 7> kCategories{
             {
                 {kMacroLifeId, 0.70},            // 109 (displaced 0.7 >= 0.5)
                 {kEventsRateScaleId, 0.150515},  // 800 -> 0.2x (D13.1 <= 0.3)
-                {kEcosystemDepthId, 1.0},        // 900
+                {kEcosystemDepthId, 0.15},       // 900: 13d M10 companion - the Life row (+0.65) clamps at 1.0 from a full depth (combo_m10_gate.log d 4.6265)
                 {kBloomDepthId, 0.85},           // 1300
                 {kBloomSpawnRateId, 0.30},       // 1301 a slow base, Life raises it
                 {kResonanceMixId, 0.60},         // 401
@@ -1156,7 +1158,7 @@ inline constexpr std::array<std::string_view, 7> kCategories{
                 {kCloudRichnessId, 0.55},          // 200
                 {kCloudInharmonicityId, 0.45},     // 203 -> 0.045
                 {kBodyDampingId, 0.45},            // 1001
-                {kEventsRateScaleId, 0.389076},    // 800 -> 0.6x
+                {kEventsRateScaleId, 0.5},         // 800 -> 1.0x: 13d E4 W2 gate reads at 1x events (e4_shipped_gate.log d 5.9128, loops alive)
                 {kSpaceSizeId, 0.35},              // 1100
                 {kSpaceMixId, 0.45},               // 1105
                 {kSpaceDecayId, 0.434349},         // 1102 -> 4 s
@@ -1175,12 +1177,13 @@ inline constexpr std::array<std::string_view, 7> kCategories{
             "Hold the note: the sound surfaces after a few seconds and keeps "
             "swelling for about two and a half minutes.",
             C::E5GhostBursts,
-            {},
+            {C::D12TriggersOn},  // 13d FR-041: D12.1 is the witness against its 8 subset partners
             {
                 {kEcosystemDepthId, 1.0},            // 900
                 {kGhostPeakLevelId, 1.0},            // 1400
                 {kGhostBlurId, 0.35},                // 1401
                 {kGhostReverseProbabilityId, 0.25},  // 1402 (under D11's 0.5)
+                {kGhostEventTriggersId, 1.0},        // 1403: D12.1 claimed, 13d FR-041 re-author (reauthor_confirm_haunted_colony.log)
                 {kBloomDepthId, 0.10},               // 1300 quiet
                 {kResonanceMixId, 0.10},             // 401 quiet
                 {kNoiseLevelId, 54.0 / 108.0},       // 300 -> -42 dB, quiet

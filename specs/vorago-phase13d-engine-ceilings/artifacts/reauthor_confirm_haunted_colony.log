@@ -1,0 +1,24 @@
+START 2026-10-08 16:38:27 reauthor_confirm_haunted_colony tree=9f42b500 final binary VORAGO_PILOT_PRESET="Haunted Colony" VORAGO_PILOT_OVERRIDE=1403=1 VORAGO_PILOT_SECONDARY=1 VORAGO_PILOT_CELLS="D12.1 ghost event triggers on" 
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 1779594220
+[probe] override 1403 = 1.000000 (appended)
+[probe] lever: none
+[probe] Haunted Colony - primary E5 ghost -> ghost bursts (stored seed 12, 4 twin render(s))
+  take: peak 0.4174  arm1 hi -19.78 dB [yes]  arm2 lo -23.70 dB [yes]  arm3 late-sus -0.71 dB [yes]  arm4 tail -162.84 dB [yes]
+  arm1@44.1k: finite y peak 0.5292 hi -17.76 dB [PASS]
+  route arms: d(R_k, R_k0) 5.0759, attribBase d(R_0, R_00) 0.8836 (attributable iff d >= 2.3836)
+  primary d 5.0759  bar 4.0000  attribBase 0.8836  state ok  -> PASS  loopsAlive -  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  secondary D12.1 ghost event triggers on: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+  take j=0 seed 12: peak 0.4174  arm1 hi -19.78 dB [yes]  arm2 lo -23.70 dB [yes]  arm3 late-sus -0.71 dB [yes]  arm4 tail -162.84 dB [yes]
+  take j=1 seed 13: peak 0.5241  arm1 hi -18.27 dB [yes]  arm2 lo -23.15 dB [yes]  arm3 late-sus -0.74 dB [yes]  arm4 tail -163.02 dB [yes]
+  take j=2 seed 14: peak 0.4728  arm1 hi -18.34 dB [yes]  arm2 lo -23.91 dB [yes]  arm3 late-sus +2.07 dB [yes]  arm4 tail -171.58 dB [yes]
+  take j=3 seed 15: peak 0.3736  arm1 hi -20.23 dB [yes]  arm2 lo -24.73 dB [yes]  arm3 late-sus +0.30 dB [yes]  arm4 tail -168.92 dB [yes]
+  take j=0 d 5.0759
+  take j=1 d 6.8458
+  take j=2 d 3.4192
+  take j=3 d 2.5130
+===============================================================================
+All tests passed (49 assertions in 1 test case)
+
+exit=0 END 2026-10-08 17:11:14

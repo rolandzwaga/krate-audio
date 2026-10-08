@@ -909,6 +909,8 @@ Read set `liveFor:m10`, plus E1, E4, E6.hi, E7.hi, S7, D13.1 and D13.2 through `
 
 ### T052 — Affected set and full re-authors (FR-040, FR-041)
 
+**DONE (main loop, 2026-10-08):** affected set = all 42 presets (`affected_set.txt`: E4 is live everywhere, so every shard re-runs in T055). FR-041 re-authors by `VORAGO_PILOT_OVERRIDE` + `VORAGO_PILOT_CELLS` screens on the final binary (`reauthor_<preset>_<A..I>.log`), then four takes and −6 dB (`reauthor_confirm_*.log`, `reauthor_minus6_*.log`): **Haunted Colony** claims D12.1 (1403=1): E5 5.0759 attrib 0.8836 PASS, D12.1 verified, −6 dB 5.0781 — no subset partner verifies D12.1 at sweep 5 (Choir of Absence is not a partner). **Smeared Horizon** claims D14.1 (1500=0.70) with decoherence 1.0 and space mix 0.10: S3 4.3290 (stored take; takes 1–3 4.1425 / 3.5312 / 3.4684), D14.1 2.1320, −6 dB 4.3772 / 2.2648 — the breathing claim alone sank S3 to 3.875 (B), space mix 0.10 to 3.96 (C, D), body mix 0.30 to 3.89 (F); the ghost-off / resonance-0.10 companion (G) read 4.5285 but D14.1 only 1.5384; tidal (E) and a keyed anchor (I) were inert or sank S3. **Hull Resonance** claims M8 Weight (107=1.0): S10 9.8642, M8 1.9584, −6 dB 9.8615 / 1.9642 — breathing (0.3581), tidal 0.75 / 1.0 (0.1570 / 0.2168) and Weight 0.65 (1.0722) stayed under 1.5; a keyed anchor read "VERIFIED" only because the pilot does not render the S2 conjunct, so it was not used. Transcribed into `tools/vorago_preset_defs.h` with Feeding Loops 800=0.5 and Teeming 900=0.15 (`p13d_transcribe.js`); Bloom Colony, Stone Gravity, Drifting Strata and Colony Pulse keep their compiled state under their rulings.
+
 - Derive the affected set: every preset where an adopted lever's `liveFor` id is live, plus every preset whose
   claimed cell in T047 / T048 differs from its sweep-5 record by > 0.01 → `affected_set.txt` (cite a log line for
   each exclusion).
@@ -919,10 +921,14 @@ Read set `liveFor:m10`, plus E1, E4, E6.hi, E7.hi, S7, D13.1 and D13.2 through `
 
 ### T053 — Re-measure the other affected presets (FR-040)
 
+**DONE (main loop, 2026-10-08):** the other affected presets were re-measured as compiled on the final binary by the T048 per-preset reads (`final_v36_<preset>.log`, `final_M2.log`, `final_M5.log`, `final_E67.log`): 92 rows, 0 sunk, no verification lost (T048 note); no further re-author.
+
 - Probe each other affected preset's claimed cells as compiled → `remeasure_<preset>.log`; re-author only on a drop
   > 0.01 or a lost verification, citing the line.
 
 ### T054 — Transcribe, regenerate, tree check (FR-040)
+
+**DONE (main loop, 2026-10-08):** transcribed by p13d_transcribe.js into tools/vorago_preset_defs.h (Feeding Loops 800=0.5; Teeming 900=0.15; Smeared Horizon +D14.1 with 1500=0.70, 701=1.0, 1105=0.10; Hull Resonance +M8 with 107=1.0; Haunted Colony +D12.1 with 1403=1), each with a comment naming its log. Failing check first: vorago_tests rebuilt on the edited defs, Vorago_FactoryPresets_TreeMatchesGenerator RED (factory_preset_test.cpp:1847, t054_tree_red.log); generate_vorago_presets rebuilt the tree (5 .vstpreset files changed), the case GREEN (246 assertions, t054_tree_green.log). kRosterGateOverrides E4 and M10 emptied; vorago_tests rebuilt (0 warnings, /f/tmp/p13d/build_t054_*.log); the roster run on the transcribed tree with no overrides reproduces E4 5.9128, M2 4.5037, M10 4.6265 (t054_roster_transcribed.log).
 
 - **Failing check first:** after editing `tools/vorago_preset_defs.h` and before regenerating,
   `vorago_tests.exe "Vorago_FactoryPresets_TreeMatchesGenerator"` is red.
@@ -951,6 +957,8 @@ Read set `liveFor:m10`, plus E1, E4, E6.hi, E7.hi, S7, D13.1 and D13.2 through `
 ## Group 13 — Integration (sequential, last)
 
 ### T057 — CMake registration (single task)
+
+**DONE (main loop, 2026-10-08):** git diff --stat 502e5243 on every CMakeLists.txt is empty and no file was added under the test trees (cmake_check.txt); no registration change.
 
 - Plan §7: no CMake list changes. Confirm `git diff --stat 502e5243 -- '*CMakeLists.txt'` is empty and every edited TU
   sits at the registration lines in the facts table (`dsp/tests/CMakeLists.txt:511`, `:513`, `:515`, `:538`, `:552`,
