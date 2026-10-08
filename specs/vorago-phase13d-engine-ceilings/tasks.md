@@ -910,6 +910,7 @@ Read set `liveFor:m10`, plus E1, E4, E6.hi, E7.hi, S7, D13.1 and D13.2 through `
 ### T052 — Affected set and full re-authors (FR-040, FR-041)
 
 **DONE (main loop, 2026-10-08):** affected set = all 42 presets (`affected_set.txt`: E4 is live everywhere, so every shard re-runs in T055). FR-041 re-authors by `VORAGO_PILOT_OVERRIDE` + `VORAGO_PILOT_CELLS` screens on the final binary (`reauthor_<preset>_<A..I>.log`), then four takes and −6 dB (`reauthor_confirm_*.log`, `reauthor_minus6_*.log`): **Haunted Colony** claims D12.1 (1403=1): E5 5.0759 attrib 0.8836 PASS, D12.1 verified, −6 dB 5.0781 — no subset partner verifies D12.1 at sweep 5 (Choir of Absence is not a partner). **Smeared Horizon** claims D14.1 (1500=0.70) with decoherence 1.0 and space mix 0.10: S3 4.3290 (stored take; takes 1–3 4.1425 / 3.5312 / 3.4684), D14.1 2.1320, −6 dB 4.3772 / 2.2648 — the breathing claim alone sank S3 to 3.875 (B), space mix 0.10 to 3.96 (C, D), body mix 0.30 to 3.89 (F); the ghost-off / resonance-0.10 companion (G) read 4.5285 but D14.1 only 1.5384; tidal (E) and a keyed anchor (I) were inert or sank S3. **Hull Resonance** claims M8 Weight (107=1.0): S10 9.8642, M8 1.9584, −6 dB 9.8615 / 1.9642 — breathing (0.3581), tidal 0.75 / 1.0 (0.1570 / 0.2168) and Weight 0.65 (1.0722) stayed under 1.5; a keyed anchor read "VERIFIED" only because the pilot does not render the S2 conjunct, so it was not used. Transcribed into `tools/vorago_preset_defs.h` with Feeding Loops 800=0.5 and Teeming 900=0.15 (`p13d_transcribe.js`); Bloom Colony, Stone Gravity, Drifting Strata and Colony Pulse keep their compiled state under their rulings.
+**AMENDED (2026-10-08 20:20):** Hull Resonance ships at Weight 0.90, not 1.0 (T055 note: the 1.0 record failed the recorded distinctness clauses).
 
 - Derive the affected set: every preset where an adopted lever's `liveFor` id is live, plus every preset whose
   claimed cell in T047 / T048 differs from its sweep-5 record by > 0.01 → `affected_set.txt` (cite a log line for
@@ -938,6 +939,8 @@ Read set `liveFor:m10`, plus E1, E4, E6.hi, E7.hi, S7, D13.1 and D13.2 through `
 
 ### T055 — Shards and aggregate (FR-042, SC-021, SC-022)
 
+**DONE (main loop, 2026-10-08):** sweep-5 records verified first (`sweep6_records_check.log`: 43 OK). All 42 shards (every preset is affected) through `p13d_sweep6.sh` (nohup, xargs −P 8, 17:27 → 19:25; `sweep6_shard_<i>.log`, records in `/f/tmp/p13d/sweep6-out`), then the aggregate (`sweep6_aggregate.log`, 19:25 → 19:35): verified primaries 39 (:316), SUBSET pairs 0 (:2199). Shard vs probe: 98 claimed cells within 0.01, 0 gaps (`p13d_sweep6_vs_probe.js`; D10.1, D14.2 Drifting Strata and D13.1 Teeming have no probe row and are cited from the shards). The aggregate showed Hull Resonance at Weight 1.0 failing the recorded distinctness clauses (t_K 4.9080, sub twin 4.8355, :2327; only Monolith failed them at sweep 5): Weight re-laddered 0.80 / 0.85 / 0.90 → M8 1.3751 / 1.5060 / 1.6422 (`reauthor_hull_resonance_{J,K,L}.log`), 0.90 transcribed, regenerated, tree check green (`t054_tree_green_hull090.log`), confirmed with four takes and −6 dB (S10 9.9512 / M8 1.6422; 9.9489 / 1.6450), shard 9/42 re-run green (`sweep6b_shard_9.log`) and the aggregate re-read with that record (`sweep6b_aggregate.log`): verified primaries 39, SUBSET pairs 0, distinctness list identical to sweep 5 (Pressure Front / Weighted Deep seed twins, Monolith sub twin), t_max 2.8678, pairs below floor 161 (sweep 5: 159). The two failing aggregate cases are CoverageComplete (the three ruled primaries) and SoundSpaceDistinct (recorded, not gated).
+
 - `sha256sum -c artifacts/sweep5-records.sha256` passes first. Re-run every shard that contains an affected preset:
   `VORAGO_SWEEP_SHARD=i/N VORAGO_SWEEP_OUT=f:/tmp/p13d/sweep6-out vorago_tests.exe
   "Vorago_PresetSweep_AblationVerifiesClaims"` → `sweep6_shard_<i>.log`; copy the unaffected records from
@@ -946,6 +949,8 @@ Read set `liveFor:m10`, plus E1, E4, E6.hi, E7.hi, S7, D13.1 and D13.2 through `
   0.01 of its probe reading (else stop-and-surface).
 
 ### T056 — T063 re-read and preset CPU (FR-043, FR-044, SC-023)
+
+**DONE (main loop, 2026-10-08):** `t063_reread.md` re-reads the nine red and five ruled Phase 14 rows and the out-of-roster secondaries against `sweep6b_aggregate.log` with line numbers: FR-011a now green (SUBSET pairs 0); FR-013 / SC-008 39 of 42 with E1, M4, M5 ruled; FR-037 / SC-011 reduced to 3 primaries + 9 secondaries, all ruled or already unverified at sweep 5; FR-033 / SC-012 Choir of Absence take 3 unchanged (ruling B-18); FR-075 / SC-028 unchanged (ruled); FR-015 / FR-036 / SC-010 recorded (161 pairs below the floor vs 159). Preset CPU (`cpu_presets_final.log`) runs alone after the close lanes.
 
 - Re-read the nine red and five ruled T063 rows (spec FR-043) and the out-of-roster secondaries (D13.1, D13.2, D14.2,
   D11, D6.2, D6.3, D7.2) against `sweep6_aggregate.log`, citing lines → `t063_reread.md`; anything not verified is a
@@ -980,6 +985,8 @@ Read set `liveFor:m10`, plus E1, E4, E6.hi, E7.hi, S7, D13.1 and D13.2 through `
   `tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Vorago.vst3"` passes.
 
 ### T059 — Portability check (FR-036, SC-024)
+
+**DONE (main loop, 2026-10-08):** node tools/check-portability.js on tree 579eefa3 (portability.log): the first run at 17:28 printed "WSL with g++ not available -- skipping" because the WSL VM timed out starting under the eight sweep shards (not a pass; kept in the log); the re-run at 19:3x on the quiet box compiled all 6 changed translation units under g++ -std=c++20 -fsyntax-only, "all clear -- 6 compiled", exit 0; wsl --shutdown after each run. No finding, nothing waived.
 
 - `node tools/check-portability.js` → `portability.log` clean; then `wsl --shutdown`.
 - A finding (brace-init narrowing, `std::isnan`, missing include) is fixed in its file, rebuilt, and that target's

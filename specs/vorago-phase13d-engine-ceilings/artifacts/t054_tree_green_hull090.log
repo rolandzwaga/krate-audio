@@ -1,0 +1,24 @@
+START 2026-10-08 19:54:46 tree check after the Hull 0.90 regeneration
+Filters: "Vorago_FactoryPresets_TreeMatchesGenerator"
+Randomness seeded to: 196856654
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+vorago_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+Vorago_FactoryPresets_TreeMatchesGenerator
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\vorago\tests\unit\preset\factory_preset_test.cpp(1807)
+...............................................................................
+
+F:\projects\iterum\plugins\vorago\tests\unit\preset\factory_preset_test.cpp(1845): warning:
+  tree vs generator over 42 preset(s); per float field worst |c - r| / max(|c|,
+  1e-30) (tolerance 1.19e-07):
+    86 float field(s) bit-identical on every preset
+    overall worst 0
+
+===============================================================================
+All tests passed (246 assertions in 1 test case)
+
+exit=0 END 2026-10-08 19:54:47

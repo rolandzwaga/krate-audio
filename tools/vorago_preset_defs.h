@@ -674,7 +674,7 @@ inline constexpr std::array<std::string_view, 7> kCategories{
                 {kSpaceEarlyAbsorptionId, 0.25},  // 1112
                 {kGhostPeakLevelId, 0.15},        // 1400
                 {kMacroMassId, 0.35},             // 111
-                {kMacroWeightId, 1.0},            // 107: M8 Weight claimed, 13d FR-041 re-author (reauthor_confirm_hull_resonance.log)
+                {kMacroWeightId, 0.90},           // 107: M8 Weight claimed, 13d FR-041 re-author (1.0 verified M8 1.9584 but read seed twins t_K 4.9080 and a sub twin 4.8355 in sweep6_aggregate.log:2327; 0.90 reads M8 1.6422, reauthor_hull_resonance_L.log)
                 {kSeedId, 11.0 / 15.0},           // 2 index 11 -> "Seed 12"
             }},
         // ---- 7 row 11: M1 + D12.2 (T045) ---------------------------------------
