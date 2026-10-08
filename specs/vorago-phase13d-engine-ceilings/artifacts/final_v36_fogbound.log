@@ -1,0 +1,18 @@
+START 2026-10-08 16:07:35 final_v36_fogbound tree=c351fe0f+final (build_final.log) preset="Fogbound" env: VORAGO_PILOT_SECONDARY=1
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 446229768
+[probe] lever: none
+[probe] Fogbound - primary M9 Fog (stored seed 9, 1 twin render(s))
+  take: peak 0.2177  arm1 hi -26.28 dB [yes]  arm2 lo -32.46 dB [yes]  arm3 late-sus -0.91 dB [yes]  arm4 tail -160.91 dB [yes]
+  arm1@44.1k: finite y peak 0.2063 hi -24.99 dB [PASS]
+  primary d 5.0671  bar 4.0000  attribBase -1.0000  state ok  -> PASS  loopsAlive -  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  secondary D4.10 noise type Velvet: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+  secondary D4.11 noise type VinylRumble: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+  secondary D4.12 noise type RadioStatic: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+  secondary D4.8 noise type Violet: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+  secondary S1 noise organism: d 1.5588 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "" -> VERIFIED
+===============================================================================
+All tests passed (10 assertions in 1 test case)
+
+exit=0 END 2026-10-08 16:49:50

@@ -853,6 +853,8 @@ Read set `liveFor:m10`, plus E1, E4, E6.hi, E7.hi, S7, D13.1 and D13.2 through `
 
 ### T047 — Final binary and gate re-measure
 
+**DONE (main loop, 2026-10-08, final binary):** final build `/f/tmp/p13d/build_final.log` (0 warnings, 14:29:58 → 14:30:38; W2 2.5, Age row −18, Life row 0.65, exponent 0.75, pilot roster E4 / M2 / M10 with M10 `900=0.15`). Gates as 14 of the 60 concurrent final jobs (`p13d_final_gates.sh`, xargs −P 12, 14:32 → 16:57): E1 Bloom Colony d 1.1823 / attrib 1.1035 FAIL (ruled engine-limited), −6 dB 1.1829 (`final_E1.log`, `final_minus6_E1.log`); E4 Feeding Loops `800=0.5` d 5.9128 / attrib 3.6649 PASS, loop bus −58.83 / −59.38 / −54.51 / −50.57 dBFS, loopsAlive y, −6 dB 5.9129 (`final_E4.log`, `final_minus6_E4.log`); E6.hi / E7.hi Colony Pulse 1.3827 / 1.3034 no (ruled engine-limited), S7 11.0318 PASS, −6 dB 11.0426 (`final_E67.log`, `final_minus6_E67.log`); M2 Erosion 4.5037 PASS, −6 dB 4.5038 (`final_M2.log`); M5 Stone Gravity 3.1908 FAIL (ruled), −6 dB 3.2000 (`final_M5.log`); M4 Drifting Strata 0.8804 FAIL (ruled), −6 dB 0.8977 (`final_M4.log`); M10 Teeming `900=0.15` 4.6265 PASS, −6 dB 4.6259 (`final_M10.log`). Arms green and arm1@44.1k PASS on every gate (the `levels:` lines). The reds are the four user-ruled engine-limited cells; no new red.
+
 - Build `dsp_systems_tests vorago_tests` once, zero warnings; every `final_*` log comes from this binary.
 - **Run** alone each roster gate on its recorded surface with `VORAGO_PILOT_TAKES=4` (plus `VORAGO_PILOT_LOOPBUS=1`
   for E4 and `VORAGO_PILOT_SECONDARY=1 VORAGO_PILOT_CELLS=S7` for E6 / E7) → `final_E1.log`, `final_E4.log`,
@@ -862,6 +864,8 @@ Read set `liveFor:m10`, plus E1, E4, E6.hi, E7.hi, S7, D13.1 and D13.2 through `
   A red cell is stop-and-surface.
 
 ### T048 — Verified primaries and secondaries kept (SC-008, SC-009)
+
+**DONE (main loop, 2026-10-08, final binary):** 36 of 36 verified-36 primaries read PASS as per-preset probes with their claimed secondaries (`final_v36_<preset>.log`; the two that died with the 2 h background kill, Cavern Wall 9.8524 and Glass Sphere 4.0815, re-run). Against sweep 5 (`p13d_readset_vs_sweep5.js` over `final_v36_*.log`, `final_M2.log`, `final_M5.log`, `final_E67.log`): 92 rows, 82 verified, 0 sunk, 10 already unverified at sweep 5 (M5 Stone Gravity, D13.2 / E6.hi / E7.hi Colony Pulse, D6.2 Spore Drift, D6.3 / D7.2 Steam Vent), newly verified M2 Erosion 4.5037 and D11 Spore Drift. D10.1 Cathedral Void stays read by `e4_r6_g25_d101_gesture.log` (the pilot prints "not scored by the pilot" for it since c351fe0f).
 
 - `VORAGO_PILOT_ITERATE=verified36` → `final_verified36.log` (count 36; each d ≥ bar, arms green; a sunk preset is
   marked and re-read after Group 12).
@@ -874,6 +878,8 @@ Read set `liveFor:m10`, plus E1, E4, E6.hi, E7.hi, S7, D13.1 and D13.2 through `
 
 ### T049 — Phase 10 bounds, 13b gates, default render (FR-031, FR-032, FR-005, SC-010, SC-011, SC-019)
 
+**DONE (main loop, 2026-10-08, final binary):** SweepAxes on the final binary: the only FAILED assertion is the Movement rho (`vorago_macro_test.cpp:1318`, rho 0.8667 / endpoint 0.2186, `final_sweepaxes.log`), ruled engine-limited on this tree; every assertion that passed in `base_sweepaxes.log` passes. NoZipper 24 / 24 (`final_nozipper.log`). GATE1M default ratio 0.995 PASS, Life max 0.630 PASS (`final_gate1_default.log`, `final_gate1_lifemax.log`; base 0.998 / 0.629). Gate 2 tables (`final_gate2_table_default.log`, `final_gate2_table_lifemax.log`, LANES on): every `gate2_base_counting.txt` knob still counts — default leakRate d 3.0409 d/t0 1.376 (base 3.0413 / 1.376), syncRate 1.9385 / 0.877 (base 1.9376 / 0.876); Life max leakRate 2.7389 / 0.597 (base 2.7773 / 0.606); grazeRate OFF-LIKE and selfAffinity INAUDIBLE as at base. Default render (`default_after_13b.log`): M1 stereo RMS −26.97 dBFS (base −26.97), t0on 1.1783 (base 1.1895); `default_after_p0.log` P0 1.1783 finite (base 1.1895).
+
 - `VoragoMacro_SweepAxes -s` → `final_sweepaxes.log` (the Movement CHECKs at `vorago_macro_test.cpp:1318-1319` pass,
   every `base_sweepaxes.log`-passing assertion passes, the case is green); `VoragoMacro_NoZipper -s` →
   `final_nozipper.log`.
@@ -883,6 +889,8 @@ Read set `liveFor:m10`, plus E1, E4, E6.hi, E7.hi, S7, D13.1 and D13.2 through `
 - **Pass:** GATE1M ≥ 0.5 on both surfaces; every knob in `gate2_base_counting.txt` still counts.
 
 ### T050 — Fingerprint re-harvest (FR-035, SC-017)
+
+**DONE (main loop, 2026-10-08, final binary):** `VoragoEngine_GhostExtensionWiring` green twice on the final binary (`final_ghost_harvest_1.log`, `final_ghost_harvest_2.log`: 27 assertions each, fingerprint arm 10.60 s / 10.70 s): the stored fingerprint matches within tolerance, so no literal was emitted and no re-harvest is needed (FR-034 entry 4 stays unapplied). No per-push red named another fingerprint (`combo_perpush_dsp_systems.log`, `e4_shipped_perpush_dsp_systems2.log`).
 
 - Run the `VoragoEngine_GhostExtensionWiring` printer twice → `final_ghost_harvest_{1,2}.log`; md5 of the two literal
   blocks identical; paste the literals with a new PROVENANCE block into

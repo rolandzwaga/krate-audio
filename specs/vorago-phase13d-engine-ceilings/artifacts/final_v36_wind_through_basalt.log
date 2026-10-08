@@ -1,0 +1,18 @@
+START 2026-10-08 15:13:32 final_v36_wind_through_basalt tree=c351fe0f+final (build_final.log) preset="Wind Through Basalt" env: VORAGO_PILOT_SECONDARY=1
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 285726034
+[probe] lever: none
+[probe] Wind Through Basalt - primary S1 noise organism (stored seed 2, 1 twin render(s))
+  take: peak 0.3659  arm1 hi -21.70 dB [yes]  arm2 lo -27.55 dB [yes]  arm3 late-sus +0.45 dB [yes]  arm4 tail -131.06 dB [yes]
+  arm1@44.1k: finite y peak 0.3319 hi -21.32 dB [PASS]
+  primary d 4.9912  bar 4.0000  attribBase -1.0000  state ok  -> PASS  loopsAlive -  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  secondary D3.1 noise model Direct: d 4.9912 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "" -> VERIFIED
+  secondary D4.1 noise type White: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+  secondary D4.2 noise type Pink: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+  secondary D4.3 noise type TapeHiss: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+  secondary D4.7 noise type Blue: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+===============================================================================
+All tests passed (10 assertions in 1 test case)
+
+exit=0 END 2026-10-08 15:59:31

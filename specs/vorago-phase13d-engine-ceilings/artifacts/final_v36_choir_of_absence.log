@@ -1,0 +1,15 @@
+START 2026-10-08 15:48:06 final_v36_choir_of_absence tree=c351fe0f+final (build_final.log) preset="Choir of Absence" env: VORAGO_PILOT_SECONDARY=1
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 2641196097
+[probe] lever: none
+[probe] Choir of Absence - primary S9 ghost / atmosphere (stored seed 10, 1 twin render(s))
+  take: peak 0.9661  arm1 hi -6.56 dB [yes]  arm2 lo -10.86 dB [yes]  arm3 late-sus -0.86 dB [yes]  arm4 tail -153.91 dB [yes]
+  arm1@44.1k: finite y peak 0.9661 hi -6.40 dB [PASS]
+  primary d 4.3367  bar 4.0000  attribBase -1.0000  state ok  -> PASS  loopsAlive -  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  secondary D11 ghost reverse >= 0.5: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+  secondary D12.1 ghost event triggers on: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+===============================================================================
+All tests passed (10 assertions in 1 test case)
+
+exit=0 END 2026-10-08 16:32:54

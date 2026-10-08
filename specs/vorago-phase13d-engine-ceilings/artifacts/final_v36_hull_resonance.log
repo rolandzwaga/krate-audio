@@ -1,0 +1,16 @@
+START 2026-10-08 15:58:50 final_v36_hull_resonance tree=c351fe0f+final (build_final.log) preset="Hull Resonance" env: VORAGO_PILOT_SECONDARY=1
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 1964155540
+[probe] lever: none
+[probe] Hull Resonance - primary S10 acoustic body (stored seed 11, 1 twin render(s))
+  take: peak 0.3730  arm1 hi -21.00 dB [yes]  arm2 lo -27.18 dB [yes]  arm3 late-sus -0.37 dB [yes]  arm4 tail -151.26 dB [yes]
+  arm1@44.1k: finite y peak 0.3197 hi -23.97 dB [PASS]
+  primary d 10.6815  bar 4.0000  attribBase -1.0000  state ok  -> PASS  loopsAlive -  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  secondary D2 body blend both heard: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+  secondary D1.6 material StoneChamber: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+  secondary D1.7 material SteelTank: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+===============================================================================
+All tests passed (10 assertions in 1 test case)
+
+exit=0 END 2026-10-08 16:40:40

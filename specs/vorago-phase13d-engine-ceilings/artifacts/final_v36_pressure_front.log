@@ -1,0 +1,13 @@
+START 2026-10-08 16:04:13 final_v36_pressure_front tree=c351fe0f+final (build_final.log) preset="Pressure Front" env: VORAGO_PILOT_SECONDARY=1
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 4269863936
+[probe] lever: none
+[probe] Pressure Front - primary M7 Pressure (stored seed 6, 1 twin render(s))
+  take: peak 0.1622  arm1 hi -22.90 dB [yes]  arm2 lo -28.85 dB [yes]  arm3 late-sus +0.26 dB [yes]  arm4 tail -182.15 dB [yes]
+  arm1@44.1k: finite y peak 0.1633 hi -22.93 dB [PASS]
+  primary d 5.9260  bar 4.0000  attribBase -1.0000  state ok  -> PASS  loopsAlive -  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (9 assertions in 1 test case)
+
+exit=0 END 2026-10-08 16:13:14

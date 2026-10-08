@@ -1,0 +1,16 @@
+START 2026-10-08 15:22:06 final_v36_feedback_mire tree=c351fe0f+final (build_final.log) preset="Feedback Mire" env: VORAGO_PILOT_SECONDARY=1
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 3969570482
+[probe] lever: none
+[probe] Feedback Mire - primary S4 feedback ecology (stored seed 6, 1 twin render(s))
+  take: peak 0.5880  arm1 hi -19.37 dB [yes]  arm2 lo -29.89 dB [yes]  arm3 late-sus -0.06 dB [yes]  arm4 tail -129.05 dB [yes]
+  arm1@44.1k: finite y peak 0.6420 hi -19.52 dB [PASS]
+  primary d 5.3236  bar 4.0000  attribBase -1.0000  state ok  -> PASS  loopsAlive -  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  secondary D6.1 loop filter Lowpass: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+  secondary D6.2 loop filter Bandpass: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+  secondary D6.3 loop filter Highpass: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+===============================================================================
+All tests passed (10 assertions in 1 test case)
+
+exit=0 END 2026-10-08 16:04:12

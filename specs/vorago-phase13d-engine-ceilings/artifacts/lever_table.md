@@ -16,3 +16,9 @@
 |---|---|---|---|---|---|
 | base (T006) | 3.10765e6 (≤ 3.2e6; 97.114 % of the reference) | 2.98315e6 (≤ 4.04172e6; 110.713 % of the baseline) | 0.960344 (PF/D 0.991988) | Entropic Hum 1.1056 (default surface 3024934 ns/block) | `cpu_base_dsp_systems_tests_full.log:3168-3176`; `cpu_base_vorago_tests_full.log:22,32,635`; lane reds `cpu_base_dsp_reds.txt` |
 | final | | | | | |
+
+## Final-tree readings (T047, 2026-10-08; the "after" column of every row above)
+
+E1 Bloom Colony d 1.1823 / attrib 1.1035 FAIL (ruled engine-limited), −6 dB 1.1829 (`final_E1.log`, `final_minus6_E1.log`); E4 Feeding Loops `800=0.5` d 5.9128 / attrib 3.6649 PASS, loop bus −58.83 / −59.38 / −54.51 / −50.57 dBFS, loopsAlive y, −6 dB 5.9129 (`final_E4.log`, `final_minus6_E4.log`); E6.hi / E7.hi Colony Pulse 1.3827 / 1.3034 no (ruled engine-limited), S7 11.0318 PASS, −6 dB 11.0426 (`final_E67.log`, `final_minus6_E67.log`); M2 Erosion 4.5037 PASS, −6 dB 4.5038 (`final_M2.log`); M5 Stone Gravity 3.1908 FAIL (ruled), −6 dB 3.2000 (`final_M5.log`); M4 Drifting Strata 0.8804 FAIL (ruled), −6 dB 0.8977 (`final_M4.log`); M10 Teeming `900=0.15` 4.6265 PASS, −6 dB 4.6259 (`final_M10.log`). Arms green and arm1@44.1k PASS on every gate (the `levels:` lines).
+
+36 of 36 verified-36 primaries read PASS as per-preset probes with their claimed secondaries (`final_v36_<preset>.log`; the two that died with the 2 h background kill, Cavern Wall 9.8524 and Glass Sphere 4.0815, re-run). Against sweep 5 (`p13d_readset_vs_sweep5.js` over `final_v36_*.log`, `final_M2.log`, `final_M5.log`, `final_E67.log`): 92 rows, 82 verified, 0 sunk, 10 already unverified at sweep 5 (M5 Stone Gravity, D13.2 / E6.hi / E7.hi Colony Pulse, D6.2 Spore Drift, D6.3 / D7.2 Steam Vent), newly verified M2 Erosion 4.5037 and D11 Spore Drift. D10.1 Cathedral Void stays read by `e4_r6_g25_d101_gesture.log` (the pilot prints "not scored by the pilot" for it since c351fe0f).

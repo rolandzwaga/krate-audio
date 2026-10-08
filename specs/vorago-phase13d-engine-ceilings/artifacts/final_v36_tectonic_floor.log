@@ -1,0 +1,14 @@
+START 2026-10-08 15:24:20 final_v36_tectonic_floor tree=c351fe0f+final (build_final.log) preset="Tectonic Floor" env: VORAGO_PILOT_SECONDARY=1
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 1761632989
+[probe] lever: none
+[probe] Tectonic Floor - primary S5 subharmonic (stored seed 1, 1 twin render(s))
+  take: peak 0.5048  arm1 hi -16.47 dB [yes]  arm2 lo -20.25 dB [yes]  arm3 late-sus +0.89 dB [yes]  arm4 tail -192.96 dB [yes]
+  arm1@44.1k: finite y peak 0.5562 hi -16.70 dB [PASS]
+  primary d 4.8203  bar 4.0000  attribBase -1.0000  state ok  -> PASS  loopsAlive -  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  secondary D7.3 loudest sub fifth below: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+===============================================================================
+All tests passed (10 assertions in 1 test case)
+
+exit=0 END 2026-10-08 16:05:08

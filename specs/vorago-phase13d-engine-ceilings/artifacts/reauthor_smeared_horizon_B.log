@@ -1,0 +1,17 @@
+START 2026-10-08 14:38:22 reauthor_smeared_horizon_B tree=9f42b500 final binary VORAGO_PILOT_PRESET="Smeared Horizon" VORAGO_PILOT_OVERRIDE=1500=0.75 VORAGO_PILOT_SECONDARY=1 VORAGO_PILOT_CELLS="D14.1 breathing depth >= 0.7"
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 2110592245
+[probe] override 1500 = 0.750000 (appended)
+[probe] lever: none
+[probe] Smeared Horizon - primary S3 spectral smear (stored seed 4, 1 twin render(s))
+  take: peak 0.9661  arm1 hi -7.60 dB [yes]  arm2 lo -18.27 dB [yes]  arm3 late-sus +3.46 dB [yes]  arm4 tail -140.33 dB [yes]
+  arm1@44.1k: finite y peak 0.9661 hi -8.25 dB [PASS]
+  primary d 3.8750  bar 4.0000  attribBase -1.0000  state ok  -> FAIL  loopsAlive -  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  secondary D8.1 envelope Standard: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+  secondary D10.2 freeze off: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+  secondary D14.1 breathing depth >= 0.7: d 2.0831 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "" -> VERIFIED
+===============================================================================
+All tests passed (11 assertions in 1 test case)
+
+exit=0 END 2026-10-08 15:04:33

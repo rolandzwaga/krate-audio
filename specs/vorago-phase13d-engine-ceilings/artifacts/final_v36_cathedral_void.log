@@ -1,0 +1,14 @@
+START 2026-10-08 15:27:27 final_v36_cathedral_void tree=c351fe0f+final (build_final.log) preset="Cathedral Void" env: VORAGO_PILOT_SECONDARY=1
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 1965352362
+[probe] lever: none
+[probe] Cathedral Void - primary S8 cavern space (stored seed 5, 1 twin render(s))
+  take: peak 0.1191  arm1 hi -32.42 dB [yes]  arm2 lo -34.86 dB [yes]  arm3 late-sus -0.19 dB [yes]  arm4 tail -205.06 dB [yes]
+  arm1@44.1k: finite y peak 0.1122 hi -31.82 dB [PASS]
+  primary d 10.4652  bar 4.0000  attribBase -1.0000  state ok  -> PASS  loopsAlive -  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  secondary D10.1 freeze holds a field: not scored by the pilot (freeze gesture: Vorago_PresetSweep_FreezeGesture)
+===============================================================================
+All tests passed (10 assertions in 1 test case)
+
+exit=0 END 2026-10-08 16:09:43

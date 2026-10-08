@@ -1,0 +1,13 @@
+START 2026-10-08 16:01:08 final_v36_crowded_dark tree=c351fe0f+final (build_final.log) preset="Crowded Dark" env: VORAGO_PILOT_SECONDARY=1
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 4160901495
+[probe] lever: none
+[probe] Crowded Dark - primary M3 Density (stored seed 15, 1 twin render(s))
+  take: peak 0.8784  arm1 hi -15.31 dB [yes]  arm2 lo -29.10 dB [yes]  arm3 late-sus +1.28 dB [yes]  arm4 tail -179.09 dB [yes]
+  arm1@44.1k: finite y peak 0.8078 hi -16.28 dB [PASS]
+  primary d 4.1113  bar 4.0000  attribBase -1.0000  state ok  -> PASS  loopsAlive -  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (9 assertions in 1 test case)
+
+exit=0 END 2026-10-08 16:09:26

@@ -1,0 +1,13 @@
+START 2026-10-08 16:03:38 final_v36_entropic_hum tree=c351fe0f+final (build_final.log) preset="Entropic Hum" env: VORAGO_PILOT_SECONDARY=1
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 6065190
+[probe] lever: none
+[probe] Entropic Hum - primary M6 Entropy (stored seed 5, 1 twin render(s))
+  take: peak 0.4509  arm1 hi -20.05 dB [yes]  arm2 lo -26.00 dB [yes]  arm3 late-sus -0.19 dB [yes]  arm4 tail -118.73 dB [yes]
+  arm1@44.1k: finite y peak 0.3873 hi -22.23 dB [PASS]
+  primary d 6.0727  bar 4.0000  attribBase -1.0000  state ok  -> PASS  loopsAlive -  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (9 assertions in 1 test case)
+
+exit=0 END 2026-10-08 16:12:30
