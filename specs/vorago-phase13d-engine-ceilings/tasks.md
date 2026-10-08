@@ -972,6 +972,8 @@ Read set `liveFor:m10`, plus E1, E4, E6.hi, E7.hi, S7, D13.1 and D13.2 through `
 
 ### T058 — Full-suite run (FR-034, FR-036, FR-037, FR-039, SC-016, SC-018, SC-020, SC-024, SC-025)
 
+**DONE (main loop, 2026-10-08 20:22 → 2026-10-09 00:44):** every target built, 0 warnings (final_build.log, 30 s). node tools/run-close-lanes.js --skip-sweep (the sweep ran as T055): summary.txt — eight per-push suites green (dsp_core 565, primitives 1489, processors 3311, systems 1430, effects 495, vorago 119, seraphis 109, shared 460 cases; lane logs under /f/tmp/p13d/close-lanes/, lines cited in compliance.md), long_vorago_nonsweep 3 / 3 green (524 s), long_dsp_systems_tests 41 / 42 in 15703 s: the one red is VoragoMacro_SweepAxes at vorago_macro_test.cpp:1318 (the Movement rho 0.8667, ruled engine-limited; the 13c close had the same single red); the soaks (EcosystemEngine_OvernightSoak, VoragoEngine_OvernightSoak 2.7 h) and VoragoEngine_CapabilityLeverBounded green inside that lane. pluginval --strictness-level 5 on Vorago.vst3: exit 0, no FAILED (pluginval.log, 117 lines). git_diff_names.txt: 444 files, 0 Seraphis / consumed-header paths; FR-032 tests edited only under fr034_surfaced.md entries 2, 6, 7. clang-tidy dsp 372 / vorago 57 files 0 warnings (/f/tmp/p13d/tidy_final_vorago.log, tidy_combo_dsp.log).
+
 - Build every target (`dsp_core_tests dsp_primitives_tests dsp_processors_tests dsp_systems_tests dsp_effects_tests
   vorago_tests seraphis_tests shared_tests Vorago`), zero warnings → `final_build.log`.
 - `node tools/run-close-lanes.js` → `summary.txt`, 100 % including the `[long]` lanes; cite the lane lines for

@@ -1,0 +1,133 @@
+START 2026-10-08 20:22:12 T058 full build tree=579eefa3+Hull 0.90 transcribed
+MSBuild version 17.14.51+25f168cee for .NET Framework
+
+  Checking File Globs
+  Catch2.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\Catch2.lib
+  PFFFT.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\pffft.lib
+  hwy.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy.lib
+  hwy_contrib.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy_contrib.lib
+  KrateDSP.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\KrateDSP.lib
+  dsp_core_tests.vcxproj -> F:\projects\iterum\build\windows-x64-release\bin\Release\dsp_core_tests.exe
+MSBuild version 17.14.51+25f168cee for .NET Framework
+
+  Checking File Globs
+  Catch2.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\Catch2.lib
+  PFFFT.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\pffft.lib
+  hwy.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy.lib
+  hwy_contrib.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy_contrib.lib
+  KrateDSP.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\KrateDSP.lib
+  dsp_primitives_tests.vcxproj -> F:\projects\iterum\build\windows-x64-release\bin\Release\dsp_primitives_tests.exe
+MSBuild version 17.14.51+25f168cee for .NET Framework
+
+  Checking File Globs
+  Catch2.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\Catch2.lib
+  PFFFT.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\pffft.lib
+  hwy.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy.lib
+  hwy_contrib.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy_contrib.lib
+  KrateDSP.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\KrateDSP.lib
+  dsp_processors_tests.vcxproj -> F:\projects\iterum\build\windows-x64-release\bin\Release\dsp_processors_tests.exe
+MSBuild version 17.14.51+25f168cee for .NET Framework
+
+  Checking File Globs
+  Catch2.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\Catch2.lib
+  PFFFT.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\pffft.lib
+  hwy.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy.lib
+  hwy_contrib.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy_contrib.lib
+  KrateDSP.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\KrateDSP.lib
+  dsp_systems_tests.vcxproj -> F:\projects\iterum\build\windows-x64-release\bin\Release\dsp_systems_tests.exe
+MSBuild version 17.14.51+25f168cee for .NET Framework
+
+  Checking File Globs
+  Catch2.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\Catch2.lib
+  PFFFT.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\pffft.lib
+  hwy.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy.lib
+  hwy_contrib.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy_contrib.lib
+  KrateDSP.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\KrateDSP.lib
+  bbd_delay_test.cpp
+  digital_delay_age0_ramping_test.cpp
+  digital_delay_test.cpp
+  digital_width_processing_test.cpp
+  tape_delay_params_diagnostic_test.cpp
+  tape_delay_test.cpp
+  test_pattern_freeze_mode.cpp
+  vorago_composed_chain_test.cpp
+  dsp_effects_tests.vcxproj -> F:\projects\iterum\build\windows-x64-release\bin\Release\dsp_effects_tests.exe
+MSBuild version 17.14.51+25f168cee for .NET Framework
+
+  Checking File Globs
+  Catch2.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\Catch2.lib
+  PFFFT.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\pffft.lib
+  hwy.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy.lib
+  hwy_contrib.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy_contrib.lib
+  KrateDSP.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\KrateDSP.lib
+  base.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\base.lib
+  pluginterfaces.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\pluginterfaces.lib
+  sdk_common.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\sdk_common.lib
+  sdk.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\sdk.lib
+  vstgui.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\vstgui.lib
+  KratePluginsShared.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\KratePluginsShared.lib
+  vstgui_uidescription.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\vstgui_uidescription.lib
+  vstgui_support.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\vstgui_support.lib
+  vorago_tests.vcxproj -> F:\projects\iterum\build\windows-x64-release\bin\Release\vorago_tests.exe
+MSBuild version 17.14.51+25f168cee for .NET Framework
+
+  Checking File Globs
+  Catch2.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\Catch2.lib
+  PFFFT.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\pffft.lib
+  hwy.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy.lib
+  hwy_contrib.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy_contrib.lib
+  KrateDSP.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\KrateDSP.lib
+  base.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\base.lib
+  pluginterfaces.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\pluginterfaces.lib
+  sdk_common.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\sdk_common.lib
+  sdk.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\sdk.lib
+  vstgui.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\vstgui.lib
+  KratePluginsShared.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\KratePluginsShared.lib
+  vstgui_uidescription.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\vstgui_uidescription.lib
+  vstgui_support.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\vstgui_support.lib
+  seraphis_tests.vcxproj -> F:\projects\iterum\build\windows-x64-release\bin\Release\seraphis_tests.exe
+MSBuild version 17.14.51+25f168cee for .NET Framework
+
+  Checking File Globs
+  Catch2.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\Catch2.lib
+  PFFFT.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\pffft.lib
+  hwy.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy.lib
+  hwy_contrib.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy_contrib.lib
+  KrateDSP.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\KrateDSP.lib
+  base.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\base.lib
+  pluginterfaces.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\pluginterfaces.lib
+  sdk_common.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\sdk_common.lib
+  sdk.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\sdk.lib
+  vstgui.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\vstgui.lib
+  KratePluginsShared.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\KratePluginsShared.lib
+  vstgui_uidescription.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\vstgui_uidescription.lib
+  vstgui_support.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\vstgui_support.lib
+  shared_tests.vcxproj -> F:\projects\iterum\build\windows-x64-release\bin\Release\shared_tests.exe
+MSBuild version 17.14.51+25f168cee for .NET Framework
+
+  Checking File Globs
+  PFFFT.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\pffft.lib
+  hwy.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy.lib
+  hwy_contrib.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy_contrib.lib
+  KrateDSP.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\KrateDSP.lib
+  base.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\base.lib
+  pluginterfaces.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\pluginterfaces.lib
+  sdk_common.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\sdk_common.lib
+  sdk.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\sdk.lib
+  vstgui.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\vstgui.lib
+  KratePluginsShared.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\KratePluginsShared.lib
+  sdk_hosting.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\sdk_hosting.lib
+  moduleinfotool.vcxproj -> F:\projects\iterum\build\windows-x64-release\bin\Release\moduleinfotool.exe
+  vstgui_uidescription.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\vstgui_uidescription.lib
+  vstgui_support.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\vstgui_support.lib
+  controller.cpp
+  entry.cpp
+  processor.cpp
+     Creating library F:/projects/iterum/build/windows-x64-release/lib/Release/Vorago.lib and object F:/projects/iterum/build/windows-x64-release/lib/Release/Vorago.exp
+  Vorago.vcxproj -> F:\projects\iterum\build\windows-x64-release\VST3\Release\Vorago.vst3\Contents\x86_64-win\Vorago.vst3
+  [SMTG] Copy PlugIn.ico and desktop.ini and change their attributes.		Installing Vorago.vst3 to system VST3 folder	Installing Vorago factory presets to system directory
+  [VSTWORK] Copying plugin to C:\Users\scab\AppData\Local/Programs/Common/VST3...
+  [VSTWORK] Plugin installed to C:\Users\scab\AppData\Local/Programs/Common/VST3/Vorago.vst3
+  [VSTWORK] Installing Vorago factory presets...
+  [VSTWORK] Factory presets installed to C:\ProgramData/Krate Audio/Vorago
+exit=0 END 2026-10-08 20:22:42
