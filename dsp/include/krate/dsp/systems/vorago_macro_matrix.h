@@ -349,7 +349,7 @@ public:
          .owner = VoragoMacroTargetOwner::Cavern,
          .target = VoragoMacroTarget::CavernDecaySeconds,
          .base = 20.0f,  // VoragoCavernTargets::decaySeconds
-         .amount = -14.0f,
+         .amount = -18.0f,
          .curve = ModCurve::Linear},  // `Decay` shortening half (SC-008 fold clause)
         {.macro = VoragoMacro::Age,
          .owner = VoragoMacroTargetOwner::Voice,
@@ -639,7 +639,7 @@ public:
          .owner = VoragoMacroTargetOwner::Voice,
          .target = VoragoMacroTarget::EcosystemDepth,
          .base = 0.85f,  // S8.2 ecosystem_ depth (voice-side; was 0.50f)
-         .amount = 0.15f,  // was 0.50f
+         .amount = 0.65f,  // was 0.50f
          .curve = ModCurve::Linear},  // roadmap 466: ecosystem activity up (-> 1.0)
         // SIGN: POSITIVE. VoragoVoice::applyEventRateScale() DIVIDES both
         // interval ranges by the scale (vorago_voice.h:1831-1839), so a LARGER

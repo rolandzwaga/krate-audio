@@ -1,0 +1,7 @@
+START 2026-10-08 12:48:48 tree=c351fe0f+combo kept VoragoMacro_NeutralIsIdentity
+Filters: "VoragoMacro_NeutralIsIdentity"
+Randomness seeded to: 776721405
+===============================================================================
+All tests passed (104 assertions in 1 test case)
+
+exit=0 END 2026-10-08 12:48:59

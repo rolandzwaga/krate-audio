@@ -1,0 +1,16 @@
+START 2026-10-08 11:52:00 combo_m10_read_colony_pulse tree=c351fe0f+combo kept VORAGO_PILOT_PRESET="Colony Pulse" env: VORAGO_PILOT_SECONDARY=1
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 161178358
+[probe] lever: none
+[probe] Colony Pulse - primary S7 ecosystem (stored seed 8, 1 twin render(s))
+  take: peak 0.9661  arm1 hi -14.70 dB [yes]  arm2 lo -26.52 dB [yes]  arm3 late-sus -1.44 dB [yes]  arm4 tail -150.85 dB [yes]
+  arm1@44.1k: finite y peak 0.9661 hi -16.57 dB [PASS]
+  primary d 11.0318  bar 4.0000  attribBase -1.0000  state ok  -> PASS  loopsAlive -  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  secondary D13.2 event rate scale >= 3.0: d 0.1886 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "" -> no
+  secondary E6.hi ecosystem sync rate high: d 1.3827 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "" -> no
+  secondary E7.hi ecosystem self-affinity high: d 1.3034 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "" -> no
+===============================================================================
+All tests passed (10 assertions in 1 test case)
+
+exit=0 END 2026-10-08 12:24:12

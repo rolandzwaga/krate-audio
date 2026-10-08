@@ -1,0 +1,16 @@
+START 2026-10-08 11:52:17 combo re-open check E1 tree=c351fe0f+combo kept VORAGO_PILOT_PRESET="Bloom Colony" VORAGO_PILOT_BLOOM=1
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 1993257628
+[probe] lever: none
+[probe] Bloom Colony - primary E1 partial -> bloom (stored seed 0, 4 twin render(s))
+  take: peak 0.3346  arm1 hi -20.34 dB [yes]  arm2 lo -26.05 dB [yes]  arm3 late-sus +0.21 dB [yes]  arm4 tail -211.98 dB [yes]
+  arm1@44.1k: finite y peak 0.3565 hi -20.10 dB [PASS]
+  route arms: d(R_k, R_k0) 1.1823, attribBase d(R_0, R_00) 1.1035 (attributable iff d >= 2.6035)
+  bloom R_k: spawn 1 discarded 0 spawned 0 refused 2 liveMean 5.984 depthMean 0.999
+  bloom R_k0: spawn 0 discarded 0 spawned 0 refused 0 liveMean 4.984 depthMean 0.500
+  primary d 1.1823  bar 4.0000  attribBase 1.1035  state ok  -> FAIL  loopsAlive -  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (16 assertions in 1 test case)
+
+exit=0 END 2026-10-08 12:06:15

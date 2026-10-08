@@ -906,7 +906,7 @@ constexpr std::array<RosterGate, 8> kRosterGateOverrides{{
     {.cell = PD::Capability::M2Age, .host = "Erosion", .overrides = ""},
     {.cell = PD::Capability::M4Movement, .host = "Drifting Strata", .overrides = ""},
     {.cell = PD::Capability::M5Gravity, .host = "Stone Gravity", .overrides = ""},
-    {.cell = PD::Capability::M10Life, .host = "Teeming", .overrides = ""},  // 900=0.15 once r3 (or an r4 holding it) is adopted
+    {.cell = PD::Capability::M10Life, .host = "Teeming", .overrides = "900=0.15"},  // 13d T046: r3b adopted with the companion (rulings.md 2026-10-08)
 }};
 
 /// Phase 13d T019 (FR-010c (a)): the roster cells ruled so far, in FR-010b
@@ -915,6 +915,8 @@ constexpr std::array<RosterGate, 8> kRosterGateOverrides{{
 /// zero-size array, so the empty set compiles without an unreachable loop body.)
 const std::vector<PD::Capability> kRosterRuled{
     PD::Capability::E4FeedbackLoopWake,  // 13d T031: W2 kLoopWakeLaneGain 2.5 at 800=0.5 (rulings.md 2026-10-08)
+    PD::Capability::M2Age,               // 13d T037: Age -> CavernDecaySeconds amount -18 (rulings.md 2026-10-08)
+    PD::Capability::M10Life,             // 13d T046: Life -> EcosystemDepth amount 0.65 at 900=0.15 (rulings.md 2026-10-08)
 };
 
 /// Phase 13d T019 (FR-030b): the frozen sweep-5 records (commit 809d6b5f),

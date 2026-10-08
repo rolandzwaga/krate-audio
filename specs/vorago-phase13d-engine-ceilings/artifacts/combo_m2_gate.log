@@ -1,0 +1,25 @@
+START 2026-10-08 11:52:00 combo_m2_gate tree=c351fe0f+combo kept VORAGO_PILOT_PRESET="Erosion" env: VORAGO_PILOT_TAKES=4 VORAGO_PILOT_SECONDARY=1
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 247158881
+[probe] lever: none
+[probe] Erosion - primary M2 Age (stored seed 14, 1 twin render(s))
+  take: peak 0.2396  arm1 hi -24.32 dB [yes]  arm2 lo -36.45 dB [yes]  arm3 late-sus -0.99 dB [yes]  arm4 tail -180.42 dB [yes]
+  arm1@44.1k: finite y peak 0.2134 hi -26.23 dB [PASS]
+  primary d 4.5037  bar 4.0000  attribBase -1.0000  state ok  -> PASS  loopsAlive -  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  secondary D3.3 noise model GranularDust: d 6.0843 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "" -> VERIFIED
+  secondary D4.4 noise type VinylCrackle: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+  secondary D4.5 noise type Asperity: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+  secondary D4.6 noise type Brown: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+  take j=0 seed 14: peak 0.2396  arm1 hi -24.32 dB [yes]  arm2 lo -36.45 dB [yes]  arm3 late-sus -0.99 dB [yes]  arm4 tail -180.42 dB [yes]
+  take j=1 seed 15: peak 0.2662  arm1 hi -22.65 dB [yes]  arm2 lo -38.29 dB [yes]  arm3 late-sus +1.38 dB [yes]  arm4 tail -179.04 dB [yes]
+  take j=2 seed 0: peak 0.2346  arm1 hi -23.67 dB [yes]  arm2 lo -33.47 dB [yes]  arm3 late-sus +0.32 dB [yes]  arm4 tail -167.55 dB [yes]
+  take j=3 seed 1: peak 0.2489  arm1 hi -23.59 dB [yes]  arm2 lo -34.43 dB [yes]  arm3 late-sus -1.24 dB [yes]  arm4 tail -144.25 dB [yes]
+  take j=0 d 4.5037
+  take j=1 d 4.2429
+  take j=2 d 5.0528
+  take j=3 d 3.9057
+===============================================================================
+All tests passed (20 assertions in 1 test case)
+
+exit=0 END 2026-10-08 12:23:45
