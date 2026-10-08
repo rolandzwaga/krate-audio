@@ -1,0 +1,18 @@
+START 2026-10-08 10:48:09 e4_r6_g25_readset shard tree=4a31e9a3+e4_r6_g25 kept VORAGO_PILOT_PRESET="Dead Air" VORAGO_PILOT_SECONDARY=1 (per-preset read of the liveFor set, concurrent)
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 2814350790
+[probe] lever: none
+[probe] Dead Air - primary D3.1 noise model Direct (stored seed 4, 2 twin render(s))
+  take: peak 0.9661  arm1 hi -11.85 dB [yes]  arm2 lo -14.34 dB [yes]  arm3 late-sus +0.19 dB [yes]  arm4 tail -206.09 dB [yes]
+  arm1@44.1k: finite y peak 0.9661 hi -12.15 dB [PASS]
+  conjunct S1 noise organism: d 5.0994, bar 1.5 -> ok
+  primary d 5.0994  bar 4.0000  attribBase -1.0000  state ok  -> PASS  loopsAlive -  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  secondary D4.1 noise type White: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+  secondary D4.2 noise type Pink: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+  secondary D4.3 noise type TapeHiss: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+  secondary D4.9 noise type Grey: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+===============================================================================
+All tests passed (12 assertions in 1 test case)
+
+exit=0 END 2026-10-08 10:57:49

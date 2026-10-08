@@ -1,0 +1,259 @@
+START 2026-10-08 08:07:47 e4_r6_g25_readset tree=4a31e9a3+e4_r6_g25 kept VORAGO_PILOT_ITERATE=liveFor:e4
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 2125736520
+liveFor:e4: lever: none
+[probe] lever: none
+[probe] Wind Through Basalt - primary S1 noise organism (stored seed 2, 1 twin render(s))
+  take: peak 0.3659  arm1 hi -21.70 dB [yes]  arm2 lo -27.55 dB [yes]  arm3 late-sus +0.45 dB [yes]  arm4 tail -131.06 dB [yes]
+  arm1@44.1k: finite y peak 0.3319 hi -21.32 dB [PASS]
+  primary d 4.9912  bar 4.0000  attribBase -1.0000  state ok  -> PASS  loopsAlive -  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  secondary D3.1 noise model Direct: d 4.9912 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "" -> VERIFIED
+  secondary D4.1 noise type White: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+  secondary D4.2 noise type Pink: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+  secondary D4.3 noise type TapeHiss: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+  secondary D4.7 noise type Blue: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+liveFor:e4 S1 noise organism Wind Through Basalt primary overrides - d 4.9912 bar 4.0000 arms [y y y y] -> verified
+liveFor:e4 D3.1 noise model Direct Wind Through Basalt secondary overrides - d 4.9912 bar 1.5000 arms [y y y y] -> verified
+liveFor:e4 D4.1 noise type White Wind Through Basalt secondary overrides - d 0.0000 bar 1.5000 arms [y y y y] -> verified
+liveFor:e4 D4.2 noise type Pink Wind Through Basalt secondary overrides - d 0.0000 bar 1.5000 arms [y y y y] -> verified
+liveFor:e4 D4.3 noise type TapeHiss Wind Through Basalt secondary overrides - d 0.0000 bar 1.5000 arms [y y y y] -> verified
+liveFor:e4 D4.7 noise type Blue Wind Through Basalt secondary overrides - d 0.0000 bar 1.5000 arms [y y y y] -> verified
+[probe] lever: none
+[probe] Resonant Shaft - primary S2 resonance drift (stored seed 3, 1 twin render(s))
+  take: peak 0.9661  arm1 hi -10.21 dB [yes]  arm2 lo -25.95 dB [yes]  arm3 late-sus +7.39 dB [yes]  arm4 tail -207.41 dB [yes]
+  arm1@44.1k: finite y peak 0.7429 hi -14.04 dB [PASS]
+  primary d 7.2767  bar 4.0000  attribBase -1.0000  state ok  -> PASS  loopsAlive -  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  secondary D5.2 anchor Keyed: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+liveFor:e4 S2 resonance drift Resonant Shaft primary overrides - d 7.2767 bar 4.0000 arms [y y y y] -> verified
+liveFor:e4 D5.2 anchor Keyed Resonant Shaft secondary overrides - d 0.0000 bar 1.5000 arms [y y y y] -> verified
+[probe] lever: none
+[probe] Smeared Horizon - primary S3 spectral smear (stored seed 4, 1 twin render(s))
+  take: peak 0.9661  arm1 hi -7.92 dB [yes]  arm2 lo -19.05 dB [yes]  arm3 late-sus +3.70 dB [yes]  arm4 tail -145.00 dB [yes]
+  arm1@44.1k: finite y peak 0.9661 hi -8.19 dB [PASS]
+  primary d 4.0088  bar 4.0000  attribBase -1.0000  state ok  -> PASS  loopsAlive -  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  secondary D8.1 envelope Standard: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+  secondary D10.2 freeze off: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+liveFor:e4 S3 spectral smear Smeared Horizon primary overrides - d 4.0088 bar 4.0000 arms [y y y y] -> verified
+liveFor:e4 D8.1 envelope Standard Smeared Horizon secondary overrides - d 0.0000 bar 1.5000 arms [y y y y] -> verified
+liveFor:e4 D10.2 freeze off Smeared Horizon secondary overrides - d 0.0000 bar 1.5000 arms [y y y y] -> verified
+[probe] lever: none
+[probe] Feedback Mire - primary S4 feedback ecology (stored seed 6, 1 twin render(s))
+  take: peak 0.5880  arm1 hi -19.37 dB [yes]  arm2 lo -29.89 dB [yes]  arm3 late-sus -0.06 dB [yes]  arm4 tail -129.05 dB [yes]
+  arm1@44.1k: finite y peak 0.6420 hi -19.52 dB [PASS]
+  primary d 5.3236  bar 4.0000  attribBase -1.0000  state ok  -> PASS  loopsAlive -  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  secondary D6.1 loop filter Lowpass: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+  secondary D6.2 loop filter Bandpass: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+  secondary D6.3 loop filter Highpass: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+liveFor:e4 S4 feedback ecology Feedback Mire primary overrides - d 5.3236 bar 4.0000 arms [y y y y] -> verified
+liveFor:e4 D6.1 loop filter Lowpass Feedback Mire secondary overrides - d 0.0000 bar 1.5000 arms [y y y y] -> verified
+liveFor:e4 D6.2 loop filter Bandpass Feedback Mire secondary overrides - d 0.0000 bar 1.5000 arms [y y y y] -> verified
+liveFor:e4 D6.3 loop filter Highpass Feedback Mire secondary overrides - d 0.0000 bar 1.5000 arms [y y y y] -> verified
+[probe] lever: none
+[probe] Tectonic Floor - primary S5 subharmonic (stored seed 1, 1 twin render(s))
+  take: peak 0.5048  arm1 hi -16.47 dB [yes]  arm2 lo -20.25 dB [yes]  arm3 late-sus +0.89 dB [yes]  arm4 tail -192.96 dB [yes]
+  arm1@44.1k: finite y peak 0.5562 hi -16.70 dB [PASS]
+  primary d 4.8203  bar 4.0000  attribBase -1.0000  state ok  -> PASS  loopsAlive -  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  secondary D7.3 loudest sub fifth below: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+liveFor:e4 S5 subharmonic Tectonic Floor primary overrides - d 4.8203 bar 4.0000 arms [y y y y] -> verified
+liveFor:e4 D7.3 loudest sub fifth below Tectonic Floor secondary overrides - d 0.0000 bar 1.5000 arms [y y y y] -> verified
+[probe] lever: none
+[probe] Slow Bloom - primary S6 harmonic bloom (stored seed 7, 1 twin render(s))
+  take: peak 0.3485  arm1 hi -20.52 dB [yes]  arm2 lo -27.44 dB [yes]  arm3 late-sus +0.36 dB [yes]  arm4 tail -185.39 dB [yes]
+  arm1@44.1k: finite y peak 0.4339 hi -21.19 dB [PASS]
+  primary d 4.4040  bar 4.0000  attribBase -1.0000  state ok  -> PASS  loopsAlive -  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  secondary D14.1 breathing depth >= 0.7: d 2.5943 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "" -> VERIFIED
+  secondary D9.2 attack span >= 90 s: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+liveFor:e4 S6 harmonic bloom Slow Bloom primary overrides - d 4.4040 bar 4.0000 arms [y y y y] -> verified
+liveFor:e4 D14.1 breathing depth >= 0.7 Slow Bloom secondary overrides - d 2.5943 bar 1.5000 arms [y y y y] -> verified
+liveFor:e4 D9.2 attack span >= 90 s Slow Bloom secondary overrides - d 0.0000 bar 1.5000 arms [y y y y] -> verified
+[probe] lever: none
+[probe] Colony Pulse - primary S7 ecosystem (stored seed 8, 1 twin render(s))
+  take: peak 0.9661  arm1 hi -14.70 dB [yes]  arm2 lo -26.52 dB [yes]  arm3 late-sus -1.44 dB [yes]  arm4 tail -150.85 dB [yes]
+  arm1@44.1k: finite y peak 0.9661 hi -16.57 dB [PASS]
+  primary d 13.9273  bar 4.0000  attribBase -1.0000  state ok  -> PASS  loopsAlive -  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+liveFor:e4 S7 ecosystem Colony Pulse primary overrides - d 13.9273 bar 4.0000 arms [y y y y] -> verified
+[probe] lever: none
+[probe] Cathedral Void - primary S8 cavern space (stored seed 5, 1 twin render(s))
+  take: peak 0.1191  arm1 hi -32.42 dB [yes]  arm2 lo -34.86 dB [yes]  arm3 late-sus -0.19 dB [yes]  arm4 tail -205.06 dB [yes]
+  arm1@44.1k: finite y peak 0.1122 hi -31.82 dB [PASS]
+  primary d 10.4652  bar 4.0000  attribBase -1.0000  state ok  -> PASS  loopsAlive -  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  secondary D10.1 freeze holds a field: d 0.0000 bar 1.5 state ok conjunct FAIL attribBase -1.0000 skip "state-only kind" -> no
+liveFor:e4 S8 cavern space Cathedral Void primary overrides - d 10.4652 bar 4.0000 arms [y y y y] -> verified
+liveFor:e4 D10.1 freeze holds a field Cathedral Void secondary overrides - d 0.0000 bar 1.5000 arms [y y y y] -> no
+[probe] lever: none
+[probe] Choir of Absence - primary S9 ghost / atmosphere (stored seed 10, 1 twin render(s))
+  take: peak 0.9661  arm1 hi -6.56 dB [yes]  arm2 lo -10.86 dB [yes]  arm3 late-sus -0.86 dB [yes]  arm4 tail -153.91 dB [yes]
+  arm1@44.1k: finite y peak 0.9661 hi -6.40 dB [PASS]
+  primary d 4.3367  bar 4.0000  attribBase -1.0000  state ok  -> PASS  loopsAlive -  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  secondary D11 ghost reverse >= 0.5: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+  secondary D12.1 ghost event triggers on: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+liveFor:e4 S9 ghost / atmosphere Choir of Absence primary overrides - d 4.3367 bar 4.0000 arms [y y y y] -> verified
+liveFor:e4 D11 ghost reverse >= 0.5 Choir of Absence secondary overrides - d 0.0000 bar 1.5000 arms [y y y y] -> verified
+liveFor:e4 D12.1 ghost event triggers on Choir of Absence secondary overrides - d 0.0000 bar 1.5000 arms [y y y y] -> verified
+[probe] lever: none
+[probe] Hull Resonance - primary S10 acoustic body (stored seed 11, 1 twin render(s))
+  take: peak 0.3730  arm1 hi -21.00 dB [yes]  arm2 lo -27.18 dB [yes]  arm3 late-sus -0.37 dB [yes]  arm4 tail -151.26 dB [yes]
+  arm1@44.1k: finite y peak 0.3197 hi -23.97 dB [PASS]
+  primary d 10.6815  bar 4.0000  attribBase -1.0000  state ok  -> PASS  loopsAlive -  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  secondary D2 body blend both heard: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+  secondary D1.6 material StoneChamber: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+  secondary D1.7 material SteelTank: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+liveFor:e4 S10 acoustic body Hull Resonance primary overrides - d 10.6815 bar 4.0000 arms [y y y y] -> verified
+liveFor:e4 D2 body blend both heard Hull Resonance secondary overrides - d 0.0000 bar 1.5000 arms [y y y y] -> verified
+liveFor:e4 D1.6 material StoneChamber Hull Resonance secondary overrides - d 0.0000 bar 1.5000 arms [y y y y] -> verified
+liveFor:e4 D1.7 material SteelTank Hull Resonance secondary overrides - d 0.0000 bar 1.5000 arms [y y y y] -> verified
+[probe] lever: none
+[probe] Lightless - primary M1 Darkness (stored seed 13, 1 twin render(s))
+  take: peak 0.1747  arm1 hi -26.66 dB [yes]  arm2 lo -32.95 dB [yes]  arm3 late-sus -0.48 dB [yes]  arm4 tail -146.22 dB [yes]
+  arm1@44.1k: finite y peak 0.1929 hi -25.86 dB [PASS]
+  primary d 4.4805  bar 4.0000  attribBase -1.0000  state ok  -> PASS  loopsAlive -  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  secondary D12.2 ghost event triggers off: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+liveFor:e4 M1 Darkness Lightless primary overrides - d 4.4805 bar 4.0000 arms [y y y y] -> verified
+liveFor:e4 D12.2 ghost event triggers off Lightless secondary overrides - d 0.0000 bar 1.5000 arms [y y y y] -> verified
+[probe] lever: none
+[probe] Erosion - primary M2 Age (stored seed 14, 1 twin render(s))
+  take: peak 0.2399  arm1 hi -24.31 dB [yes]  arm2 lo -36.43 dB [yes]  arm3 late-sus -0.98 dB [yes]  arm4 tail -192.56 dB [yes]
+  arm1@44.1k: finite y peak 0.2149 hi -26.22 dB [PASS]
+  primary d 3.2225  bar 4.0000  attribBase -1.0000  state ok  -> FAIL  loopsAlive -  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  secondary D3.3 noise model GranularDust: d 5.6918 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "" -> VERIFIED
+  secondary D4.4 noise type VinylCrackle: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+  secondary D4.5 noise type Asperity: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+  secondary D4.6 noise type Brown: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+liveFor:e4 M2 Age Erosion roster overrides - d 3.2225 bar 4.0000 arms [y y y y] -> no
+liveFor:e4 D3.3 noise model GranularDust Erosion secondary overrides - d 5.6918 bar 1.5000 arms [y y y y] -> verified
+liveFor:e4 D4.4 noise type VinylCrackle Erosion secondary overrides - d 0.0000 bar 1.5000 arms [y y y y] -> verified
+liveFor:e4 D4.5 noise type Asperity Erosion secondary overrides - d 0.0000 bar 1.5000 arms [y y y y] -> verified
+liveFor:e4 D4.6 noise type Brown Erosion secondary overrides - d 0.0000 bar 1.5000 arms [y y y y] -> verified
+[probe] lever: none
+[probe] Crowded Dark - primary M3 Density (stored seed 15, 1 twin render(s))
+  take: peak 0.8784  arm1 hi -15.31 dB [yes]  arm2 lo -29.10 dB [yes]  arm3 late-sus +1.28 dB [yes]  arm4 tail -179.09 dB [yes]
+  arm1@44.1k: finite y peak 0.8078 hi -16.28 dB [PASS]
+  primary d 4.1113  bar 4.0000  attribBase -1.0000  state ok  -> PASS  loopsAlive -  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+liveFor:e4 M3 Density Crowded Dark primary overrides - d 4.1113 bar 4.0000 arms [y y y y] -> verified
+liveFor:e4 skip Drifting Strata: roster primary, no sweep-5-verified secondary
+[probe] lever: none
+[probe] Stone Gravity - primary M5 Gravity (stored seed 1, 1 twin render(s))
+  take: peak 0.9661  arm1 hi -7.20 dB [yes]  arm2 lo -22.86 dB [yes]  arm3 late-sus +1.12 dB [yes]  arm4 tail -219.24 dB [yes]
+  arm1@44.1k: finite y peak 0.9661 hi -7.28 dB [PASS]
+  primary d 3.1908  bar 4.0000  attribBase -1.0000  state ok  -> FAIL  loopsAlive -  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  secondary D5.3 anchor Hybrid: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+liveFor:e4 M5 Gravity Stone Gravity roster overrides - d 3.1908 bar 4.0000 arms [y y y y] -> no
+liveFor:e4 D5.3 anchor Hybrid Stone Gravity secondary overrides - d 0.0000 bar 1.5000 arms [y y y y] -> verified
+[probe] lever: none
+[probe] Entropic Hum - primary M6 Entropy (stored seed 5, 1 twin render(s))
+  take: peak 0.4509  arm1 hi -20.05 dB [yes]  arm2 lo -26.00 dB [yes]  arm3 late-sus -0.19 dB [yes]  arm4 tail -118.73 dB [yes]
+  arm1@44.1k: finite y peak 0.3873 hi -22.23 dB [PASS]
+  primary d 6.0727  bar 4.0000  attribBase -1.0000  state ok  -> PASS  loopsAlive -  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+liveFor:e4 M6 Entropy Entropic Hum primary overrides - d 6.0727 bar 4.0000 arms [y y y y] -> verified
+[probe] lever: none
+[probe] Pressure Front - primary M7 Pressure (stored seed 6, 1 twin render(s))
+  take: peak 0.1622  arm1 hi -22.90 dB [yes]  arm2 lo -28.85 dB [yes]  arm3 late-sus +0.26 dB [yes]  arm4 tail -182.15 dB [yes]
+  arm1@44.1k: finite y peak 0.1633 hi -22.93 dB [PASS]
+  primary d 5.9260  bar 4.0000  attribBase -1.0000  state ok  -> PASS  loopsAlive -  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+liveFor:e4 M7 Pressure Pressure Front primary overrides - d 5.9260 bar 4.0000 arms [y y y y] -> verified
+[probe] lever: none
+[probe] Weighted Deep - primary M8 Weight (stored seed 7, 1 twin render(s))
+  take: peak 0.8488  arm1 hi -11.41 dB [yes]  arm2 lo -14.33 dB [yes]  arm3 late-sus -0.05 dB [yes]  arm4 tail -193.49 dB [yes]
+  arm1@44.1k: finite y peak 0.8592 hi -11.06 dB [PASS]
+  primary d 4.6637  bar 4.0000  attribBase -1.0000  state ok  -> PASS  loopsAlive -  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  secondary D7.2 loudest sub f/4: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+liveFor:e4 M8 Weight Weighted Deep primary overrides - d 4.6637 bar 4.0000 arms [y y y y] -> verified
+liveFor:e4 D7.2 loudest sub f/4 Weighted Deep secondary overrides - d 0.0000 bar 1.5000 arms [y y y y] -> verified
+[probe] lever: none
+[probe] Fogbound - primary M9 Fog (stored seed 9, 1 twin render(s))
+  take: peak 0.2177  arm1 hi -26.28 dB [yes]  arm2 lo -32.46 dB [yes]  arm3 late-sus -0.91 dB [yes]  arm4 tail -160.91 dB [yes]
+  arm1@44.1k: finite y peak 0.2063 hi -24.99 dB [PASS]
+  primary d 5.0671  bar 4.0000  attribBase -1.0000  state ok  -> PASS  loopsAlive -  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  secondary D4.10 noise type Velvet: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+  secondary D4.11 noise type VinylRumble: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+  secondary D4.12 noise type RadioStatic: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+  secondary D4.8 noise type Violet: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+  secondary S1 noise organism: d 1.5588 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "" -> VERIFIED
+liveFor:e4 M9 Fog Fogbound primary overrides - d 5.0671 bar 4.0000 arms [y y y y] -> verified
+liveFor:e4 D4.10 noise type Velvet Fogbound secondary overrides - d 0.0000 bar 1.5000 arms [y y y y] -> verified
+liveFor:e4 D4.11 noise type VinylRumble Fogbound secondary overrides - d 0.0000 bar 1.5000 arms [y y y y] -> verified
+liveFor:e4 D4.12 noise type RadioStatic Fogbound secondary overrides - d 0.0000 bar 1.5000 arms [y y y y] -> verified
+liveFor:e4 D4.8 noise type Violet Fogbound secondary overrides - d 0.0000 bar 1.5000 arms [y y y y] -> verified
+liveFor:e4 S1 noise organism Fogbound secondary overrides - d 1.5588 bar 1.5000 arms [y y y y] -> verified
+liveFor:e4 skip Teeming: roster primary, no sweep-5-verified secondary
+[probe] lever: none
+[probe] Endless Descent - primary M11 Depth (stored seed 12, 1 twin render(s))
+  take: peak 0.1199  arm1 hi -31.50 dB [yes]  arm2 lo -36.55 dB [yes]  arm3 late-sus +0.23 dB [yes]  arm4 tail -215.14 dB [yes]
+  arm1@44.1k: finite y peak 0.1329 hi -30.64 dB [PASS]
+  primary d 8.9947  bar 4.0000  attribBase -1.0000  state ok  -> PASS  loopsAlive -  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+liveFor:e4 M11 Depth Endless Descent primary overrides - d 8.9947 bar 4.0000 arms [y y y y] -> verified
+[probe] lever: none
+[probe] Monolith - primary M12 Mass (stored seed 4, 1 twin render(s))
+  take: peak 0.9661  arm1 hi -7.44 dB [yes]  arm2 lo -12.35 dB [yes]  arm3 late-sus +1.80 dB [yes]  arm4 tail -210.52 dB [yes]
+  arm1@44.1k: finite y peak 0.9661 hi -7.66 dB [PASS]
+  primary d 5.7346  bar 4.0000  attribBase -1.0000  state ok  -> PASS  loopsAlive -  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  secondary D7.1 loudest sub f/2: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+liveFor:e4 M12 Mass Monolith primary overrides - d 5.7346 bar 4.0000 arms [y y y y] -> verified
+liveFor:e4 D7.1 loudest sub f/2 Monolith secondary overrides - d 0.0000 bar 1.5000 arms [y y y y] -> verified
+liveFor:e4 skip Bloom Colony: roster primary, no sweep-5-verified secondary
+[probe] lever: none
+[probe] Singing Colony - primary E2 resonator -> resonance peaks (stored seed 2, 4 twin render(s))
+  take: peak 0.9661  arm1 hi -8.11 dB [yes]  arm2 lo -20.96 dB [yes]  arm3 late-sus +1.22 dB [yes]  arm4 tail -240.00 dB [yes]
+  arm1@44.1k: finite y peak 0.9661 hi -10.37 dB [PASS]
+  route arms: d(R_k, R_k0) 4.2721, attribBase d(R_0, R_00) 1.2824 (attributable iff d >= 2.7824)
+  primary d 4.2721  bar 4.0000  attribBase 1.2824  state ok  -> PASS  loopsAlive -  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  secondary D5.1 anchor Free: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+liveFor:e4 E2 resonator -> resonance peaks Singing Colony primary overrides - d 4.2721 bar 4.0000 arms [y y y y] -> verified
+liveFor:e4 D5.1 anchor Free Singing Colony secondary overrides - d 0.0000 bar 1.5000 arms [y y y y] -> verified
+[probe] lever: none
+[probe] Swarm Breath - primary E3 noise -> noise wake (stored seed 5, 4 twin render(s))
+  take: peak 0.5478  arm1 hi -18.08 dB [yes]  arm2 lo -24.31 dB [yes]  arm3 late-sus +0.73 dB [yes]  arm4 tail -120.54 dB [yes]
+  arm1@44.1k: finite y peak 0.4882 hi -18.17 dB [PASS]
+  route arms: d(R_k, R_k0) 4.2219, attribBase d(R_0, R_00) 0.9760 (attributable iff d >= 2.4760)
+  primary d 4.2219  bar 4.0000  attribBase 0.9760  state ok  -> PASS  loopsAlive -  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  secondary D3.4 noise model MetallicHiss: d 2.4391 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "" -> VERIFIED
+  secondary D4.7 noise type Blue: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+  secondary D4.8 noise type Violet: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+  secondary D4.9 noise type Grey: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+liveFor:e4 E3 noise -> noise wake Swarm Breath primary overrides - d 4.2219 bar 4.0000 arms [y y y y] -> verified
+liveFor:e4 D3.4 noise model MetallicHiss Swarm Breath secondary overrides - d 2.4391 bar 1.5000 arms [y y y y] -> verified
+liveFor:e4 D4.7 noise type Blue Swarm Breath secondary overrides - d 0.0000 bar 1.5000 arms [y y y y] -> verified
+liveFor:e4 D4.8 noise type Violet Swarm Breath secondary overrides - d 0.0000 bar 1.5000 arms [y y y y] -> verified
+liveFor:e4 D4.9 noise type Grey Swarm Breath secondary overrides - d 0.0000 bar 1.5000 arms [y y y y] -> verified
+liveFor:e4 skip Feeding Loops: roster primary, no sweep-5-verified secondary
+[probe] lever: none
+[probe] Haunted Colony - primary E5 ghost -> ghost bursts (stored seed 12, 4 twin render(s))
+  take: peak 0.4233  arm1 hi -19.61 dB [yes]  arm2 lo -23.37 dB [yes]  arm3 late-sus -0.08 dB [yes]  arm4 tail -164.18 dB [yes]
+  arm1@44.1k: finite y peak 0.6111 hi -17.53 dB [PASS]
+  route arms: d(R_k, R_k0) 6.4119, attribBase d(R_0, R_00) 0.8836 (attributable iff d >= 2.3836)
+  primary d 6.4119  bar 4.0000  attribBase 0.8836  state ok  -> PASS  loopsAlive -  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+liveFor:e4 E5 ghost -> ghost bursts Haunted Colony primary overrides - d 6.4119 bar 4.0000 arms [y y y y] -> verified
+[probe] lever: none
+[probe] Growth Ring - primary D8.2 envelope Growth (stored seed 9, 1 twin render(s))
+  take: peak 0.1670  arm1 hi -25.17 dB [yes]  arm2 lo -26.85 dB [yes]  arm3 late-sus -0.53 dB [yes]  arm4 tail -240.00 dB [yes]
+  arm1@44.1k: finite y peak 0.1762 hi -24.88 dB [PASS]
+  attack window (W_end registered 65.0 s, measured 27.0 s): d_att 8.8756, d_Sus 2.8034 (attributable iff d_att >= 4.3034)
+    P: first reaches RMS(Sus) - 6 dB at 22 s
+    P_rev: first reaches RMS(Sus) - 6 dB at 6 s
+  primary d 8.8756  bar 4.0000  attribBase 2.8034  state ok  -> PASS  loopsAlive -  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+liveFor:e4 D8.2 envelope Growth Growth Ring primary overrides - d 8.8756 bar 4.0000 arms [y y y y] -> verified
+exit=1 END 2026-10-08 10:48:07

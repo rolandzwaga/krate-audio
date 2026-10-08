@@ -1,0 +1,16 @@
+START 2026-10-08 10:48:09 e4_r6_g25_readset shard tree=4a31e9a3+e4_r6_g25 kept VORAGO_PILOT_PRESET="Steam Vent" VORAGO_PILOT_SECONDARY=1 (per-preset read of the liveFor set, concurrent)
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 1049733051
+[probe] lever: none
+[probe] Steam Vent - primary D3.4 noise model MetallicHiss (stored seed 11, 2 twin render(s))
+  take: peak 0.5891  arm1 hi -18.10 dB [yes]  arm2 lo -23.14 dB [yes]  arm3 late-sus +1.45 dB [yes]  arm4 tail -193.99 dB [yes]
+  arm1@44.1k: finite y peak 0.7226 hi -16.77 dB [PASS]
+  conjunct S1 noise organism: d 5.8003, bar 1.5 -> ok
+  primary d 5.8003  bar 4.0000  attribBase -1.0000  state ok  -> PASS  loopsAlive -  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  secondary D6.3 loop filter Highpass: d 0.0000 bar 1.5 state ok conjunct FAIL attribBase -1.0000 skip "state-only kind" -> no
+  secondary D7.2 loudest sub f/4: d 0.0000 bar 1.5 state ok conjunct FAIL attribBase -1.0000 skip "state-only kind" -> no
+===============================================================================
+All tests passed (12 assertions in 1 test case)
+
+exit=0 END 2026-10-08 10:58:06

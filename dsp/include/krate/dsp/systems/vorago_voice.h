@@ -1123,6 +1123,8 @@ public:
     ///
     /// Public and static because SC-019a enumerates it over a (scheduler,
     /// ecosystem) table with no render at all.
+    /// 13d W2 rung (E4, FR-014): the loop wake lane is the eco lane scaled by this gain, clamped to 1 (plan 3.2 W2).
+    static constexpr float kLoopWakeLaneGain = 2.5f;
     [[nodiscard]] static constexpr float combineWake(float base, float eco,
                                                      float sched) noexcept {
         return std::max(base, std::max(eco, sched));
@@ -2330,7 +2332,7 @@ private:
         const std::size_t loops = std::min(ecology_.getNumLoops(), FeedbackEcology::kMaxLoops);
         for (std::size_t l = 0; l < loops; ++l) {
             ecology_.setLoopWake(  // feedback_ecology.h:1293
-                l, combineWake(loopWakeBase_[l], lanes.eco[kFeedback][l],
+                l, combineWake(loopWakeBase_[l], std::min(1.0f, kLoopWakeLaneGain * lanes.eco[kFeedback][l]),
                                lanes.sched[kFeedback][l]));
         }
 

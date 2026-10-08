@@ -2652,8 +2652,12 @@ TEST_CASE("VoragoVoice_WakeCombineRule", "[systems][vorago]") {
             }
             for (std::size_t l = 0; l < loops; ++l) {
                 const float base = IdentityProbe::loopWakeBase(*v, l);
+                // 13d W2 (E4, FR-014; FR-034 entry 6): the loop lane is the eco lane
+                // scaled by kLoopWakeLaneGain and clamped to 1 before the combine.
                 REQUIRE(v->ecology().getLoopWakeAmount(l)
-                        == VoragoVoice::combineWake(base, p.eco, p.sched));
+                        == VoragoVoice::combineWake(
+                               base, std::min(1.0f, VoragoVoice::kLoopWakeLaneGain * p.eco),
+                               p.sched));
             }
 
             // FR-020b. The ghost request has NO base of its own - it IS the

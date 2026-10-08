@@ -913,7 +913,9 @@ constexpr std::array<RosterGate, 8> kRosterGateOverrides{{
 /// order; VORAGO_PILOT_ITERATE=roster re-reads exactly these. Grown in the same
 /// edit that records the ruling in artifacts/rulings.md. (A vector, not a
 /// zero-size array, so the empty set compiles without an unreachable loop body.)
-const std::vector<PD::Capability> kRosterRuled{};
+const std::vector<PD::Capability> kRosterRuled{
+    PD::Capability::E4FeedbackLoopWake,  // 13d T031: W2 kLoopWakeLaneGain 2.5 at 800=0.5 (rulings.md 2026-10-08)
+};
 
 /// Phase 13d T019 (FR-030b): the frozen sweep-5 records (commit 809d6b5f),
 /// record_<allPresets() index>.txt, read relative to the repo root (the probe's
@@ -1582,6 +1584,17 @@ PrimaryProbeResult runPrimaryProbe(const PD::VoragoPresetDef& def, const std::st
             // Phase 13d (plan 4.4): the lever rides on every secondary render too.
             REQUIRE(vec.tweakHeld);
             for (const C c : cells) {
+                // 13d T031: a FreezeGesture secondary (D10.1) is scored on the
+                // sweep gesture render only (Vorago_PresetSweep_FreezeGesture);
+                // computeVerificationVector cannot verify it, so the pilot says
+                // so instead of printing a "no" a read set would take as sunk.
+                if (PD::cellSpecs()[static_cast<std::size_t>(c)].verification ==
+                    PD::Verification::FreezeGesture) {
+                    std::printf("  secondary %s: not scored by the pilot (freeze gesture: "
+                                "Vorago_PresetSweep_FreezeGesture)\n",
+                                cellLabel(c).c_str());
+                    continue;
+                }
                 const VoragoTest::CellOutcome& o = vec.cells[static_cast<std::size_t>(c)];
                 const bool secVerified =
                     VoragoTest::verifiedAt(o, c, VoragoTest::ClaimRole::Secondary);

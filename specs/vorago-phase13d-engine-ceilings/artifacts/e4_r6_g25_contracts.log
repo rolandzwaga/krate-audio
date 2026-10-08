@@ -1,6 +1,6 @@
-START 2026-10-07 23:52:50 e4_r6_g25 Lever contracts with the edited checkWakes
+START 2026-10-08 08:10:31 e4_r6_g25 Lever contracts with the edited checkWakes
 Filters: "VoragoVoice_EcosystemLeverMapping","VoragoVoice_EcosystemLaneShapingFidelity","VoragoVoice_EcosystemLeverNeutral","VoragoVoice_WakeCombineRule"
-Randomness seeded to: 2820267160
+Randomness seeded to: 2037939631
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
@@ -31,4 +31,4 @@ with message:
 test cases:   4 |   3 passed | 1 failed
 assertions: 658 | 657 passed | 1 failed
 
-exit=1 END 2026-10-07 23:52:57
+exit=1 END 2026-10-08 08:10:42

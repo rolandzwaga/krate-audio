@@ -1,6 +1,6 @@
-START 2026-10-08 08:05:40 e4_r6_g25_gate tree=3a220d05+e4_r6_g25 VORAGO_PILOT_PRESET="Feeding Loops" env: VORAGO_PILOT_TAKES=4 VORAGO_PILOT_OVERRIDE=800=0.5 VORAGO_PILOT_LOOPBUS=1
+START 2026-10-08 10:58:55 tree=4a31e9a3+E4 ship VORAGO_PILOT_PRESET="Feeding Loops" VORAGO_PILOT_TAKES=4 VORAGO_PILOT_LOOPBUS=1 VORAGO_PILOT_OVERRIDE=800=0.5 (no lever; must reproduce e4_r6_g25_gate within max(0.01, 0.005 d))
 Filters: "Vorago_PresetPilot_PrimaryProbe"
-Randomness seeded to: 2975341020
+Randomness seeded to: 3571710518
 [probe] override 800 = 0.500000 (replaced)
 [probe] lever: none
 [probe] Feeding Loops - primary E4 feedback -> loop wake (stored seed 8, 4 twin render(s))
@@ -28,4 +28,4 @@ Randomness seeded to: 2975341020
 ===============================================================================
 All tests passed (56 assertions in 1 test case)
 
-exit=0 END 2026-10-08 08:10:31
+exit=0 END 2026-10-08 11:13:49

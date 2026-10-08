@@ -383,7 +383,7 @@ void checkWakes(const VoragoVoice& v, const ActiveCounts& n, float eco, const Pr
     }
     for (std::size_t l = 0; l < n.loops; ++l) {
         m.check("ecology.getLoopWakeAmount", l, v.ecology().getLoopWakeAmount(l),
-                VoragoVoice::combineWake(Probe::loopWakeBase(v, l), eco, S[kKindFeedback][l]));
+                VoragoVoice::combineWake(Probe::loopWakeBase(v, l), std::min(1.0f, VoragoVoice::kLoopWakeLaneGain * eco), S[kKindFeedback][l]));
     }
 }
 
@@ -1451,8 +1451,12 @@ TEST_CASE("VoragoVoice_CeilingLeverNeutral", "[systems][vorago]") {
             REQUIRE(Probe::loopGainOffset(*voice, l) == 0.26f * x);
             REQUIRE(Probe::ringCouplingApplied(*voice, l) ==
                     std::clamp(Probe::ringCouplingBase() + 0.40f * x, 0.0f, 0.5f));
+            // 13d W2 (E4, FR-014; FR-034 entry 7): the loop lane is the eco lane
+            // scaled by kLoopWakeLaneGain and clamped to 1 before the combine.
             REQUIRE(voice->ecology().getLoopWakeAmount(l) ==
-                    VoragoVoice::combineWake(0.15f, raw, S[kKindFeedback][l]));
+                    VoragoVoice::combineWake(
+                        0.15f, std::min(1.0f, VoragoVoice::kLoopWakeLaneGain * raw),
+                        S[kKindFeedback][l]));
         }
     }
 

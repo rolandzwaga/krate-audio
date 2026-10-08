@@ -146,6 +146,20 @@ After ANY code changes:
 
 If tests don't appear/run, the FIRST action is to check build output for errors, not blame CMake cache.
 
+### Optimise Every Build and Test Run (ONGOING, NON-NEGOTIABLE)
+
+**Always design the build and test system to be as optimised as possible, and treat it as an ongoing effort: analyse
+every run for anything that can be optimised for time, memory or any other resource.**
+
+- Before launching a long run, measure what it will use (cores, wall clock from the previous log) and ask what else
+  could run at the same time. A single sequential process on a 32-core machine is a defect, not a default.
+- After every run, read its wall clock and resource use and record what to change next time (shard it, cache it,
+  batch independent rebuilds into one, skip renders the question does not need).
+- Only timing-sensitive suites (CPU budgets, benchmarks) need an idle, isolated machine. Everything else runs
+  concurrently: render probes, read sets, sweeps, clang-tidy, pluginval.
+- Independent code changes that each need a rebuild go into one rebuild when the readings stay attributable.
+- Never present a multi-hour serial plan without having looked for the parallel or cached version first.
+
 ## Real-Time Audio Thread Safety
 
 The audio thread has **hard real-time constraints**. No allocations, locks, exceptions, or I/O on audio thread. See `dsp-architecture` skill for details.

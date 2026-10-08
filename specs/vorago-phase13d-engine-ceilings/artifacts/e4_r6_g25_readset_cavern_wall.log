@@ -1,0 +1,14 @@
+START 2026-10-08 10:48:08 e4_r6_g25_readset shard tree=4a31e9a3+e4_r6_g25 kept VORAGO_PILOT_PRESET="Cavern Wall" VORAGO_PILOT_SECONDARY=1 (per-preset read of the liveFor set, concurrent)
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 560962092
+[probe] lever: none
+[probe] Cavern Wall - primary D1.10 material CavernWall (stored seed 7, 2 twin render(s))
+  take: peak 0.5870  arm1 hi -13.40 dB [yes]  arm2 lo -15.05 dB [yes]  arm3 late-sus +0.20 dB [yes]  arm4 tail -223.38 dB [yes]
+  arm1@44.1k: finite y peak 0.5985 hi -13.22 dB [PASS]
+  conjunct S10 acoustic body: d 14.0929, bar 1.5 -> ok
+  primary d 9.8524  bar 4.0000  attribBase -1.0000  state ok  -> PASS  loopsAlive -  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (11 assertions in 1 test case)
+
+exit=0 END 2026-10-08 10:53:00

@@ -1,0 +1,14 @@
+START 2026-10-08 10:58:47 tree=4a31e9a3+E4 ship contracts after the ruled edits
+Filters: "VoragoVoice_EcosystemLeverMapping","VoragoVoice_EcosystemLaneShapingFidelity","VoragoVoice_EcosystemLeverNeutral","VoragoVoice_WakeCombineRule"
+Randomness seeded to: 1911500473
+[LeverMapping] seed=0x925863E5 L=0.00 chunks=450000  sched-live=107966  sched>L=107966  sched-all-zero=296505
+[LeverMapping] seed=0x925863E5 L=0.25 chunks=450000  sched-live=107966  sched>L=78235  sched-all-zero=296505
+[LeverMapping] seed=0x925863E5 L=0.50 chunks=450000  sched-live=107966  sched>L=55621  sched-all-zero=296505
+[LeverMapping] seed=0x925863E5 L=1.00 chunks=450000  sched-live=107966  sched>L=0  sched-all-zero=296505
+[LeverNeutral] fs=44100 seed=0x925863E5 chunks=413437 scheduler events seen=12
+[LeverNeutral] fs=48000 seed=0x925863E5 chunks=450000 scheduler events seen=12
+[LeverNeutral] fs=96000 seed=0x925863E5 chunks=900000 scheduler events seen=12
+===============================================================================
+All tests passed (816 assertions in 4 test cases)
+
+exit=0 END 2026-10-08 10:58:55

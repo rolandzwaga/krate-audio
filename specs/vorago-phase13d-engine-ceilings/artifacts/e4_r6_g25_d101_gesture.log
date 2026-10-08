@@ -1,0 +1,12 @@
+START 2026-10-08 10:10:21 tree=4a31e9a3+e4_r6_g25 kept VORAGO_SWEEP_SHARD=7/42 (Cathedral Void, index 7) VORAGO_SWEEP_OUT=/f/tmp/p13d/e4_g25_sweep case: Vorago_PresetSweep_FreezeGesture (the pilot never renders the freeze gesture: computeVerificationVector leaves D10.1 conjunctOk false, preset_test_support.h:2754)
+Filters: "Vorago_PresetSweep_FreezeGesture"
+Randomness seeded to: 2284002681
+shard 7/42: 1 of 42 indices (N = 42)
+
+=== Vorago_PresetSweep_FreezeGesture (FR-033, SC-024) ===
+[sweep] index 7: computing / loading record...
+Cathedral Void (index 7): RMS(Sus) -33.33 dB  G loudest -40.93  G last -41.30  G floor -53.33  G0 loudest -124.45 (bound -73.33)  G - G0 83.52 dB  pass yes
+===============================================================================
+All tests passed (7 assertions in 1 test case)
+
+exit=0 END 2026-10-08 10:21:59
