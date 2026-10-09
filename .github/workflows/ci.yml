@@ -229,6 +229,14 @@ jobs:
       - name: Non-finite symbol lint (fast-math safety)
         run: node tools/lint-nonfinite-symbols.js
 
+      # Identifiers that compile on Windows and Linux but not on macOS: VSTGUI's
+      # platform macros (MAC / WINDOWS / LINUX) used as names, and names at
+      # global or anonymous-namespace scope that MacTypes.h also declares
+      # (Rect, Point, Style, Size, ...), which turn ambiguous in every TU that
+      # includes VSTGUI. Each cost a full macOS build round on 2026-10-09.
+      - name: macOS-only name collision lint
+        run: node tools/lint-apple-globals.js
+
   build-windows:
     name: Windows (MSVC)
     # Pinned to windows-2022 (Visual Studio 2022 / MSVC v143). GitHub migrated

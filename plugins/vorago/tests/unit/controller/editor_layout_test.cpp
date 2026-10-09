@@ -304,7 +304,7 @@ std::vector<std::set<int>> expectedPageIds() {
 // Stack-based uidesc element scan (SC-004, SC-005)
 // ==============================================================================
 
-struct Rect {
+struct LayoutRect {
     double left = 0.0;
     double top = 0.0;
     double right = 0.0;
@@ -312,10 +312,10 @@ struct Rect {
 
     [[nodiscard]] double width() const { return right - left; }
     [[nodiscard]] double height() const { return bottom - top; }
-    [[nodiscard]] bool contains(const Rect& o) const {
+    [[nodiscard]] bool contains(const LayoutRect& o) const {
         return o.left >= left && o.top >= top && o.right <= right && o.bottom <= bottom;
     }
-    [[nodiscard]] bool operator==(const Rect& o) const {
+    [[nodiscard]] bool operator==(const LayoutRect& o) const {
         return left == o.left && top == o.top && right == o.right && bottom == o.bottom;
     }
 };
@@ -326,7 +326,7 @@ struct XmlNode {
     std::map<std::string, std::string> attrs;
     int parent = -1;
     std::vector<int> children;
-    Rect window;  ///< resolved window coordinates
+    LayoutRect window;  ///< resolved window coordinates
 
     [[nodiscard]] bool has(const std::string& key) const { return attrs.contains(key); }
     [[nodiscard]] std::string get(const std::string& key) const {
@@ -525,11 +525,11 @@ XmlScan scanUidesc(const std::string& xml) {
         double oy = 0.0;
         if (node.parent >= 0) {
             (void)parsePoint(node.get("origin"), ox, oy);
-            const Rect& pr = scan.nodes[static_cast<std::size_t>(node.parent)].window;
+            const LayoutRect& pr = scan.nodes[static_cast<std::size_t>(node.parent)].window;
             ox += pr.left;
             oy += pr.top;
         }
-        node.window = Rect{.left = ox, .top = oy, .right = ox + w, .bottom = oy + h};
+        node.window = LayoutRect{.left = ox, .top = oy, .right = ox + w, .bottom = oy + h};
     }
     return scan;
 }
@@ -1044,14 +1044,14 @@ TEST_CASE("Vorago_UidescLayout", "[vorago][controller][ui]") {
     }
 
     // --- the seven labelled C-1 regions, in window coordinates ---------------
-    const std::array<std::pair<const char*, Rect>, 7> regions = {{
-        {"header", Rect{.left = 0, .top = 0, .right = 1100, .bottom = 36}},
-        {"concept-band", Rect{.left = 0, .top = 36, .right = 1100, .bottom = 436}},
-        {"macros-left", Rect{.left = 0, .top = 36, .right = 350, .bottom = 436}},
-        {"ecosystem", Rect{.left = 350, .top = 36, .right = 750, .bottom = 436}},
-        {"macros-right", Rect{.left = 750, .top = 36, .right = 1100, .bottom = 436}},
-        {"page-strip", Rect{.left = 0, .top = 436, .right = 1100, .bottom = 464}},
-        {"page-area", Rect{.left = 0, .top = 464, .right = 1100, .bottom = 760}},
+    const std::array<std::pair<const char*, LayoutRect>, 7> regions = {{
+        {"header", LayoutRect{.left = 0, .top = 0, .right = 1100, .bottom = 36}},
+        {"concept-band", LayoutRect{.left = 0, .top = 36, .right = 1100, .bottom = 436}},
+        {"macros-left", LayoutRect{.left = 0, .top = 36, .right = 350, .bottom = 436}},
+        {"ecosystem", LayoutRect{.left = 350, .top = 36, .right = 750, .bottom = 436}},
+        {"macros-right", LayoutRect{.left = 750, .top = 36, .right = 1100, .bottom = 436}},
+        {"page-strip", LayoutRect{.left = 0, .top = 436, .right = 1100, .bottom = 464}},
+        {"page-area", LayoutRect{.left = 0, .top = 464, .right = 1100, .bottom = 760}},
     }};
     std::map<std::string, int> regionNode;
     for (const auto& [label, rect] : regions) {
@@ -1067,13 +1067,13 @@ TEST_CASE("Vorago_UidescLayout", "[vorago][controller][ui]") {
     const int macrosLeft = regionNode["macros-left"];
     const int macrosRight = regionNode["macros-right"];
     const int pageArea = regionNode["page-area"];
-    const Rect pageAreaRect = scan.nodes[static_cast<std::size_t>(pageArea)].window;
+    const LayoutRect pageAreaRect = scan.nodes[static_cast<std::size_t>(pageArea)].window;
 
     const auto bound = boundNodes(scan, tagMap);
 
     // --- FR-003: macros >= 80 x 80, inside their block, in VoragoMacro order ---
     auto macroBlock = [&](int block, int firstId) {
-        const Rect blockRect = scan.nodes[static_cast<std::size_t>(block)].window;
+        const LayoutRect blockRect = scan.nodes[static_cast<std::size_t>(block)].window;
         std::vector<std::pair<int, int>> inBlock;  // (node, id)
         for (const auto& [index, id] : bound) {
             if (isDescendantOf(scan, index, block)) {
@@ -1091,7 +1091,7 @@ TEST_CASE("Vorago_UidescLayout", "[vorago][controller][ui]") {
         REQUIRE(inBlock.size() == 6u);
         REQUIRE(ids == expected);
         for (const auto& [index, id] : inBlock) {
-            const Rect r = scan.nodes[static_cast<std::size_t>(index)].window;
+            const LayoutRect r = scan.nodes[static_cast<std::size_t>(index)].window;
             CAPTURE(id, r.left, r.top, r.width(), r.height());
             REQUIRE(r.width() >= 80.0);
             REQUIRE(r.height() >= 80.0);
@@ -1099,8 +1099,8 @@ TEST_CASE("Vorago_UidescLayout", "[vorago][controller][ui]") {
         }
         // Row-major (top, left) order yields ascending IDs.
         std::sort(inBlock.begin(), inBlock.end(), [&](const auto& a, const auto& b) {
-            const Rect ra = scan.nodes[static_cast<std::size_t>(a.first)].window;
-            const Rect rb = scan.nodes[static_cast<std::size_t>(b.first)].window;
+            const LayoutRect ra = scan.nodes[static_cast<std::size_t>(a.first)].window;
+            const LayoutRect rb = scan.nodes[static_cast<std::size_t>(b.first)].window;
             if (ra.top != rb.top) {
                 return ra.top < rb.top;
             }
@@ -1225,7 +1225,7 @@ TEST_CASE("Vorago_Ecosystem_PageBindsRosterIds", "[vorago][ui]") {
     const auto page6 = findLabelled(scan, "page-6");
     REQUIRE(page6.size() == 1u);
     const int page = page6[0];
-    const Rect pageRect = scan.nodes[static_cast<std::size_t>(page)].window;
+    const LayoutRect pageRect = scan.nodes[static_cast<std::size_t>(page)].window;
     REQUIRE(pageRect.width() == 1100.0);
     REQUIRE(pageRect.height() == 296.0);
 
@@ -1262,7 +1262,7 @@ TEST_CASE("Vorago_Ecosystem_PageBindsRosterIds", "[vorago][ui]") {
         const auto& kn = scan.nodes[static_cast<std::size_t>(knob)];
         REQUIRE(kn.get("class") == "ArcKnob");
         REQUIRE(isDescendantOf(scan, knob, page));
-        const Rect r = kn.window;
+        const LayoutRect r = kn.window;
         CAPTURE(r.left, r.top, r.right, r.bottom);
         REQUIRE(r.width() > 0.0);
         REQUIRE(r.height() > 0.0);
@@ -1273,7 +1273,7 @@ TEST_CASE("Vorago_Ecosystem_PageBindsRosterIds", "[vorago][ui]") {
             if (other == knob || !isDescendantOf(scan, other, page)) {
                 continue;
             }
-            const Rect o = scan.nodes[i].window;
+            const LayoutRect o = scan.nodes[i].window;
             const bool overlaps =
                 r.left < o.right && o.left < r.right && r.top < o.bottom && o.top < r.bottom;
             CAPTURE(scan.nodes[i].get("class"), scan.nodes[i].get("control-tag"),
