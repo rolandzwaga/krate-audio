@@ -1,21 +1,21 @@
 {
-  "_comment": "Measured wall clock in seconds per test executable, used by tools/ci-test-shard.js to balance the CI shard matrix. per_push = the per-push filter (~[performance]~[perf]~[benchmark]~[!benchmark]~[long]); long = the [long]~[vorago-sweep] lane. Refresh from a Catch2 run with -d yes (or the summary of tools/run-close-lanes.js) whenever a suite grows; a stale entry only unbalances the shards, it never fails a run. Source: 2026-10-09, 15 suites run concurrently on a 32-core box (F:/tmp/p13d/ci_suites/summary.txt) and the Phase 13d close lanes.",
+  "_comment": "Measured wall clock in seconds per test executable, used by tools/ci-test-shard.js to balance the CI shard matrix. per_push = the per-push filter (~[performance]~[perf]~[benchmark]~[!benchmark]~[long]); long = the [long]~[vorago-sweep] lane. Refresh from the 'Running:' timestamps of a CI Windows log, or from a Catch2 run with -d yes, whenever a suite grows; a stale entry only unbalances the shards, it never fails a run. Source: per_push from the windows-2022 runner, run 37910949575 (2026-10-09), where the serial lane timed out inside vorago_tests at 134 s - its entry is the local 446 s halved, the ratio the other suites showed between that runner and a 32-core box running 15 suites at once; long from the Phase 13d close lanes on that box.",
   "per_push": {
-    "dsp_core_tests": 5,
-    "dsp_primitives_tests": 4,
-    "dsp_processors_tests": 166,
-    "dsp_systems_tests": 1231,
-    "dsp_effects_tests": 131,
+    "dsp_core_tests": 2,
+    "dsp_primitives_tests": 1,
+    "dsp_processors_tests": 72,
+    "dsp_systems_tests": 636,
+    "dsp_effects_tests": 45,
     "shared_tests": 1,
     "plugin_tests": 1,
     "approval_tests": 1,
-    "disrumpo_tests": 18,
-    "ruinae_tests": 147,
-    "innexus_tests": 13,
+    "disrumpo_tests": 7,
+    "ruinae_tests": 58,
+    "innexus_tests": 5,
     "gradus_tests": 1,
-    "membrum_tests": 81,
-    "seraphis_tests": 440,
-    "vorago_tests": 446
+    "membrum_tests": 31,
+    "seraphis_tests": 216,
+    "vorago_tests": 223
   },
   "long": {
     "dsp_systems_tests": 15703,
