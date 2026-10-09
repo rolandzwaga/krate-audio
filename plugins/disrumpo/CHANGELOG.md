@@ -5,6 +5,12 @@ All notable changes to Disrumpo will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.10] - 2026-10-09
+
+### Fixed
+
+- **The spectrum analyzer stayed empty on macOS in some hosts** — In the AU version, and in VST3 hosts that leave the processor-to-editor data transfer to the plugin, the editor never received a spectrum block: the transfer blocks were requested at a size macOS's aligned allocator rejects, so every block came back empty and every update was dropped without a message. The block size is now rounded up to the required alignment. Hosts that provide their own transfer handler, and Windows and Linux, were never affected; the sound was never affected anywhere.
+
 ## [0.9.9] - 2026-03-20
 
 ### Added
