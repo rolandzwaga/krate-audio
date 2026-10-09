@@ -240,6 +240,8 @@ jobs:
     # every numerical tolerance for v144.
     runs-on: windows-2022
     needs: detect-changes
+    outputs:
+      has-tests: ${{ steps.manifest.outputs.has_tests }}
 
     steps:
       - name: Checkout
@@ -312,35 +314,34 @@ jobs:
             echo "No targets to build"
           fi
 
-      # Run test executables sequentially on Windows — the 2-vCPU runner gets
-      # negligible benefit from parallelism, and concurrent heavy DSP tests
-      # (FFT, spectral processing) cause memory pressure leading to segfaults.
-      # Note: ctest -R "<exe name>" doesn't work with catch_discover_tests
-      # because CTest registers individual Catch2 case names, not executable names.
-      - name: Run Tests
+      # The tests run in the test-windows shard jobs at the end of this file (tools/ci-test-shard.js), not
+      # here: this job writes the manifest of suites that change detection selected and uploads the test
+      # binaries once; the shards download them and each runs its slice. Serial-in-one-job ran 45+ min once
+      # the Vorago suites landed (2026-10-09) against a 20-minute cap, and grew with every plugin added.
+      - name: Write test manifest
+        id: manifest
         shell: bash
-        timeout-minutes: ${{ inputs.long-tests && 40 || 20 }}
         run: |
           BIN="build/bin/${{ env.BUILD_TYPE }}"
           DSP="${{ needs.detect-changes.outputs.dsp }}"
           SHARED="${{ needs.detect-changes.outputs.shared }}"
           INFRA="${{ needs.detect-changes.outputs.infra }}"
-          EXES=()
+          SUITES=()
           if [ "$DSP" = "true" ] || [ "$INFRA" = "true" ]; then
-            EXES+=("$BIN/dsp_core_tests.exe" "$BIN/dsp_primitives_tests.exe" "$BIN/dsp_processors_tests.exe" "$BIN/dsp_systems_tests.exe" "$BIN/dsp_effects_tests.exe")
+            SUITES+=(dsp_core_tests dsp_primitives_tests dsp_processors_tests dsp_systems_tests dsp_effects_tests)
           fi
           if [ "$SHARED" = "true" ] || [ "$INFRA" = "true" ]; then
-            EXES+=("$BIN/shared_tests.exe")
+            SUITES+=(shared_tests)
           fi
           for plugin_info in \
-            "iterum:plugin_tests.exe approval_tests.exe" \
-            "disrumpo:disrumpo_tests.exe" \
-            "ruinae:ruinae_tests.exe" \
-            "innexus:innexus_tests.exe" \
-            "gradus:gradus_tests.exe" \
-            "membrum:membrum_tests.exe" \
-            "seraphis:seraphis_tests.exe" \
-            "vorago:vorago_tests.exe"; do
+            "iterum:plugin_tests approval_tests" \
+            "disrumpo:disrumpo_tests" \
+            "ruinae:ruinae_tests" \
+            "innexus:innexus_tests" \
+            "gradus:gradus_tests" \
+            "membrum:membrum_tests" \
+            "seraphis:seraphis_tests" \
+            "vorago:vorago_tests"; do
             IFS=: read -r key test_exes <<< "$plugin_info"
             case "$key" in
               iterum)   CHANGED="${{ needs.detect-changes.outputs.iterum }}" ;;
@@ -353,37 +354,27 @@ jobs:
               vorago)   CHANGED="${{ needs.detect-changes.outputs.vorago }}" ;;
             esac
             if [ "$CHANGED" = "true" ] || [ "$DSP" = "true" ] || [ "$SHARED" = "true" ] || [ "$INFRA" = "true" ]; then
-              for exe in $test_exes; do
-                EXES+=("$BIN/$exe")
-              done
+              for exe in $test_exes; do SUITES+=("$exe"); done
             fi
           done
-          if [ ${#EXES[@]} -eq 0 ]; then
-            echo "No tests to run"
-            exit 0
-          fi
-          if [ "${{ inputs.long-tests }}" = "true" ]; then
-            # Nightly lane: ONLY the [long]-tagged heavy renders (cross-platform
-            # canary for the cases excluded from the per-push lane). Suites with
-            # no [long] cases exit 0 via --allow-running-no-tests.
-            FILTER='[long]~[vorago-sweep]'
-            EXTRA=--allow-running-no-tests
-          else
-            # Per-push lane: everything except perf/benchmark and the [long]
-            # renders (those run nightly here, and always locally on Windows).
-            FILTER='~[performance]~[perf]~[benchmark]~[!benchmark]~[long]'
-            EXTRA=
-          fi
-          echo "Running ${#EXES[@]} test executables (filter: $FILTER)..."
-          FAILED=0
-          for exe in "${EXES[@]}"; do
-            echo "  Running: $(basename $exe)"
-            if ! "$exe" "$FILTER" --skip-benchmarks $EXTRA; then
-              echo "FAILED: $exe"
-              FAILED=1
-            fi
+          : > build/test-manifest.txt
+          for suite in "${SUITES[@]}"; do
+            test -f "$BIN/$suite.exe" || { echo "::error::$BIN/$suite.exe was selected but not built"; exit 1; }
+            echo "$suite" >> build/test-manifest.txt
           done
-          exit $FAILED
+          echo "Suites for the shard jobs: ${SUITES[*]:-none}"
+          echo "has_tests=$([ ${#SUITES[@]} -gt 0 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+      - name: Upload test binaries for the shard jobs
+        if: steps.manifest.outputs.has_tests == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-bin-windows
+          path: |
+            build/test-manifest.txt
+            build/bin/${{ env.BUILD_TYPE }}/*_tests.exe
+          retention-days: 3
+          if-no-files-found: error
 
       - name: Validate + resource-check built bundles
         shell: bash
@@ -501,6 +492,8 @@ jobs:
     name: macOS (Clang)
     runs-on: macos-latest
     needs: detect-changes
+    outputs:
+      has-tests: ${{ steps.manifest.outputs.has_tests }}
 
     steps:
       - name: Checkout
@@ -601,22 +594,24 @@ jobs:
             echo "No targets to build"
           fi
 
-      # Run test executables sequentially on macOS — the 3-vCPU / 7 GB ARM
-      # runner causes flaky segfaults when multiple heavy DSP test suites run
-      # concurrently (same issue as Windows CI).
-      - name: Run Tests
-        timeout-minutes: ${{ inputs.long-tests && 40 || 20 }}
+      # The tests run in the test-macos shard jobs at the end of this file (tools/ci-test-shard.js), not
+      # here: this job writes the manifest of suites that change detection selected and uploads the test
+      # binaries once; the shards download them and each runs its slice. Serial-in-one-job ran 45+ min once
+      # the Vorago suites landed (2026-10-09) against a 20-minute cap, and grew with every plugin added.
+      - name: Write test manifest
+        id: manifest
+        shell: bash
         run: |
           BIN="build/bin/${{ env.BUILD_TYPE }}"
           DSP="${{ needs.detect-changes.outputs.dsp }}"
           SHARED="${{ needs.detect-changes.outputs.shared }}"
           INFRA="${{ needs.detect-changes.outputs.infra }}"
-          EXES=()
+          SUITES=()
           if [ "$DSP" = "true" ] || [ "$INFRA" = "true" ]; then
-            EXES+=("$BIN/dsp_core_tests" "$BIN/dsp_primitives_tests" "$BIN/dsp_processors_tests" "$BIN/dsp_systems_tests" "$BIN/dsp_effects_tests")
+            SUITES+=(dsp_core_tests dsp_primitives_tests dsp_processors_tests dsp_systems_tests dsp_effects_tests)
           fi
           if [ "$SHARED" = "true" ] || [ "$INFRA" = "true" ]; then
-            EXES+=("$BIN/shared_tests")
+            SUITES+=(shared_tests)
           fi
           for plugin_info in \
             "iterum:plugin_tests approval_tests" \
@@ -639,37 +634,27 @@ jobs:
               vorago)   CHANGED="${{ needs.detect-changes.outputs.vorago }}" ;;
             esac
             if [ "$CHANGED" = "true" ] || [ "$DSP" = "true" ] || [ "$SHARED" = "true" ] || [ "$INFRA" = "true" ]; then
-              for exe in $test_exes; do
-                EXES+=("$BIN/$exe")
-              done
+              for exe in $test_exes; do SUITES+=("$exe"); done
             fi
           done
-          if [ ${#EXES[@]} -eq 0 ]; then
-            echo "No tests to run"
-            exit 0
-          fi
-          if [ "${{ inputs.long-tests }}" = "true" ]; then
-            # Nightly lane: ONLY the [long]-tagged heavy renders (cross-platform
-            # canary for the cases excluded from the per-push lane). Suites with
-            # no [long] cases exit 0 via --allow-running-no-tests.
-            FILTER='[long]~[vorago-sweep]'
-            EXTRA=--allow-running-no-tests
-          else
-            # Per-push lane: everything except perf/benchmark and the [long]
-            # renders (those run nightly here, and always locally on Windows).
-            FILTER='~[performance]~[perf]~[benchmark]~[!benchmark]~[long]'
-            EXTRA=
-          fi
-          echo "Running ${#EXES[@]} test executables (filter: $FILTER)..."
-          FAILED=0
-          for exe in "${EXES[@]}"; do
-            echo "  Running: $(basename $exe)"
-            if ! "$exe" "$FILTER" --skip-benchmarks $EXTRA; then
-              echo "FAILED: $exe"
-              FAILED=1
-            fi
+          : > build/test-manifest.txt
+          for suite in "${SUITES[@]}"; do
+            test -f "$BIN/$suite" || { echo "::error::$BIN/$suite was selected but not built"; exit 1; }
+            echo "$suite" >> build/test-manifest.txt
           done
-          exit $FAILED
+          echo "Suites for the shard jobs: ${SUITES[*]:-none}"
+          echo "has_tests=$([ ${#SUITES[@]} -gt 0 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+      - name: Upload test binaries for the shard jobs
+        if: steps.manifest.outputs.has_tests == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-bin-macos
+          path: |
+            build/test-manifest.txt
+            build/bin/${{ env.BUILD_TYPE }}/*_tests
+          retention-days: 3
+          if-no-files-found: error
 
       - name: Validate + resource-check built bundles
         shell: bash
@@ -970,6 +955,8 @@ jobs:
     name: Linux (GCC)
     runs-on: ubuntu-latest
     needs: detect-changes
+    outputs:
+      has-tests: ${{ steps.manifest.outputs.has_tests }}
 
     steps:
       - name: Checkout
@@ -977,16 +964,20 @@ jobs:
         with:
           submodules: recursive
 
-      # Cache apt packages
-      - name: Cache apt packages
-        uses: awalsh128/cache-apt-pkgs-action@v1
-        with:
-          packages: >-
-            ninja-build libx11-dev libxcb1-dev libxkbcommon-x11-dev libx11-xcb-dev
-            libxcb-util1 libxcb-util-dev libxcb-keysyms1-dev libxcb-cursor-dev
-            libxcb-xkb-dev libxkbcommon-dev libfontconfig1-dev libfreetype6-dev
+      # Installed directly, not through awalsh128/cache-apt-pkgs-action: that
+      # action reported success on 2026-10-09 (run 37910949575) while the
+      # configure step that followed could not find X11 at all (neither the
+      # header nor the library), so nothing it "restored" was on disk. A plain
+      # install costs under a minute and cannot silently restore nothing.
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends \
+            ninja-build libx11-dev libxcb1-dev libxkbcommon-x11-dev libx11-xcb-dev \
+            libxcb-util1 libxcb-util-dev libxcb-keysyms1-dev libxcb-cursor-dev \
+            libxcb-xkb-dev libxkbcommon-dev libfontconfig1-dev libfreetype6-dev \
             libcairo2-dev libgtkmm-3.0-dev libsqlite3-dev
-          version: 1.0
+          test -f /usr/include/X11/Xlib.h || { echo "libx11-dev did not install"; exit 1; }
 
       # Cache ccache data
       - name: Setup ccache
@@ -1062,22 +1053,24 @@ jobs:
             echo "No targets to build"
           fi
 
-      # Run test executables sequentially — parallel execution causes flaky
-      # segfaults on resource-constrained CI runners (2-4 vCPU / 7 GB RAM).
-      # Ninja single-config: SDK sets CMAKE_RUNTIME_OUTPUT_DIRECTORY to bin/${CMAKE_BUILD_TYPE}
-      - name: Run Tests
-        timeout-minutes: ${{ inputs.long-tests && 40 || 20 }}
+      # The tests run in the test-linux shard jobs at the end of this file (tools/ci-test-shard.js), not
+      # here: this job writes the manifest of suites that change detection selected and uploads the test
+      # binaries once; the shards download them and each runs its slice. Serial-in-one-job ran 45+ min once
+      # the Vorago suites landed (2026-10-09) against a 20-minute cap, and grew with every plugin added.
+      - name: Write test manifest
+        id: manifest
+        shell: bash
         run: |
           BIN="build/bin/${{ env.BUILD_TYPE }}"
           DSP="${{ needs.detect-changes.outputs.dsp }}"
           SHARED="${{ needs.detect-changes.outputs.shared }}"
           INFRA="${{ needs.detect-changes.outputs.infra }}"
-          EXES=()
+          SUITES=()
           if [ "$DSP" = "true" ] || [ "$INFRA" = "true" ]; then
-            EXES+=("$BIN/dsp_core_tests" "$BIN/dsp_primitives_tests" "$BIN/dsp_processors_tests" "$BIN/dsp_systems_tests" "$BIN/dsp_effects_tests")
+            SUITES+=(dsp_core_tests dsp_primitives_tests dsp_processors_tests dsp_systems_tests dsp_effects_tests)
           fi
           if [ "$SHARED" = "true" ] || [ "$INFRA" = "true" ]; then
-            EXES+=("$BIN/shared_tests")
+            SUITES+=(shared_tests)
           fi
           for plugin_info in \
             "iterum:plugin_tests approval_tests" \
@@ -1100,37 +1093,27 @@ jobs:
               vorago)   CHANGED="${{ needs.detect-changes.outputs.vorago }}" ;;
             esac
             if [ "$CHANGED" = "true" ] || [ "$DSP" = "true" ] || [ "$SHARED" = "true" ] || [ "$INFRA" = "true" ]; then
-              for exe in $test_exes; do
-                EXES+=("$BIN/$exe")
-              done
+              for exe in $test_exes; do SUITES+=("$exe"); done
             fi
           done
-          if [ ${#EXES[@]} -eq 0 ]; then
-            echo "No tests to run"
-            exit 0
-          fi
-          if [ "${{ inputs.long-tests }}" = "true" ]; then
-            # Nightly lane: ONLY the [long]-tagged heavy renders (cross-platform
-            # canary for the cases excluded from the per-push lane). Suites with
-            # no [long] cases exit 0 via --allow-running-no-tests.
-            FILTER='[long]~[vorago-sweep]'
-            EXTRA=--allow-running-no-tests
-          else
-            # Per-push lane: everything except perf/benchmark and the [long]
-            # renders (those run nightly here, and always locally on Windows).
-            FILTER='~[performance]~[perf]~[benchmark]~[!benchmark]~[long]'
-            EXTRA=
-          fi
-          echo "Running ${#EXES[@]} test executables (filter: $FILTER)..."
-          FAILED=0
-          for exe in "${EXES[@]}"; do
-            echo "  Running: $(basename $exe)"
-            if ! "$exe" "$FILTER" --skip-benchmarks $EXTRA; then
-              echo "FAILED: $exe"
-              FAILED=1
-            fi
+          : > build/test-manifest.txt
+          for suite in "${SUITES[@]}"; do
+            test -f "$BIN/$suite" || { echo "::error::$BIN/$suite was selected but not built"; exit 1; }
+            echo "$suite" >> build/test-manifest.txt
           done
-          exit $FAILED
+          echo "Suites for the shard jobs: ${SUITES[*]:-none}"
+          echo "has_tests=$([ ${#SUITES[@]} -gt 0 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+      - name: Upload test binaries for the shard jobs
+        if: steps.manifest.outputs.has_tests == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-bin-linux
+          path: |
+            build/test-manifest.txt
+            build/bin/${{ env.BUILD_TYPE }}/*_tests
+          retention-days: 3
+          if-no-files-found: error
 
       - name: Validate + resource-check built bundles
         shell: bash
@@ -1252,3 +1235,101 @@ jobs:
       - name: Show ccache stats
         if: always()
         run: ccache --show-stats
+
+  # ---------------------------------------------------------------------------------------------------------
+  # Test shards. Each build job uploads its test binaries once (test-bin-<os>); these matrices run them in
+  # parallel slices chosen by tools/ci-test-shard.js from tools/ci-test-times.json. Adding a plugin adds a
+  # slice, not minutes. The macOS matrix queues behind the account's 5-concurrent-macOS-job limit.
+  # ---------------------------------------------------------------------------------------------------------
+
+  test-windows:
+    name: Windows tests (shard ${{ matrix.shard }})
+    runs-on: windows-2022
+    needs: [detect-changes, build-windows]
+    if: needs.build-windows.outputs.has-tests == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7]
+    steps:
+      # The source tree is needed at run time: the editor-lifecycle tests read resources/editor.uidesc
+      # through <PLUGIN>_RESOURCES_DIR, the preset tests read resources/presets, and the DSP suites read
+      # their golden files from the tree. No submodules: nothing is compiled here.
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Download test binaries
+        uses: actions/download-artifact@v8
+        with:
+          name: test-bin-windows
+          path: build
+      # One executable at a time inside the shard (see tools/ci-test-shard.js); the parallelism is the matrix.
+      - name: Run shard
+        shell: bash
+        timeout-minutes: ${{ inputs.long-tests && 180 || 60 }}
+        run: node tools/ci-test-shard.js --os windows --bin "build/bin/${{ env.BUILD_TYPE }}" --manifest build/test-manifest.txt --shard ${{ matrix.shard }} --count 8 --long "${{ inputs.long-tests }}"
+
+  test-macos:
+    name: macOS tests (shard ${{ matrix.shard }})
+    runs-on: macos-latest
+    needs: [detect-changes, build-macos]
+    if: needs.build-macos.outputs.has-tests == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7]
+    steps:
+      # The source tree is needed at run time: the editor-lifecycle tests read resources/editor.uidesc
+      # through <PLUGIN>_RESOURCES_DIR, the preset tests read resources/presets, and the DSP suites read
+      # their golden files from the tree. No submodules: nothing is compiled here.
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Download test binaries
+        uses: actions/download-artifact@v8
+        with:
+          name: test-bin-macos
+          path: build
+      - name: Restore execute bits
+        run: chmod +x build/bin/${{ env.BUILD_TYPE }}/*_tests
+      # One executable at a time inside the shard (see tools/ci-test-shard.js); the parallelism is the matrix.
+      - name: Run shard
+        shell: bash
+        timeout-minutes: ${{ inputs.long-tests && 180 || 60 }}
+        run: node tools/ci-test-shard.js --os macos --bin "build/bin/${{ env.BUILD_TYPE }}" --manifest build/test-manifest.txt --shard ${{ matrix.shard }} --count 8 --long "${{ inputs.long-tests }}"
+
+  test-linux:
+    name: Linux tests (shard ${{ matrix.shard }})
+    runs-on: ubuntu-latest
+    needs: [detect-changes, build-linux]
+    if: needs.build-linux.outputs.has-tests == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7]
+    steps:
+      # The source tree is needed at run time: the editor-lifecycle tests read resources/editor.uidesc
+      # through <PLUGIN>_RESOURCES_DIR, the preset tests read resources/presets, and the DSP suites read
+      # their golden files from the tree. No submodules: nothing is compiled here.
+      - name: Checkout
+        uses: actions/checkout@v6
+      # The test binaries link VSTGUI, so the X11 / cairo / gtkmm runtime libraries must be present to load
+      # them; the -dev packages carry those runtime libraries (same list as the build job).
+      - name: Install Linux runtime dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends \
+            libx11-dev libxcb1-dev libxkbcommon-x11-dev libx11-xcb-dev \
+            libxcb-util1 libxcb-util-dev libxcb-keysyms1-dev libxcb-cursor-dev \
+            libxcb-xkb-dev libxkbcommon-dev libfontconfig1-dev libfreetype6-dev \
+            libcairo2-dev libgtkmm-3.0-dev libsqlite3-dev
+      - name: Download test binaries
+        uses: actions/download-artifact@v8
+        with:
+          name: test-bin-linux
+          path: build
+      - name: Restore execute bits
+        run: chmod +x build/bin/${{ env.BUILD_TYPE }}/*_tests
+      # One executable at a time inside the shard (see tools/ci-test-shard.js); the parallelism is the matrix.
+      - name: Run shard
+        shell: bash
+        timeout-minutes: ${{ inputs.long-tests && 180 || 60 }}
+        run: node tools/ci-test-shard.js --os linux --bin "build/bin/${{ env.BUILD_TYPE }}" --manifest build/test-manifest.txt --shard ${{ matrix.shard }} --count 8 --long "${{ inputs.long-tests }}"
