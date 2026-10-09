@@ -41,9 +41,19 @@ Steinberg::tresult PLUGIN_API Processor::connect(
     {
         auto configCallback = [] (Steinberg::Vst::DataExchangeHandler::Config& config,
                                   const Steinberg::Vst::ProcessSetup& /*setup*/) {
-            config.blockSize = static_cast<Steinberg::uint32>(sizeof(SpectrumBlock));
+            // sizeof(SpectrumBlock) rounded UP to the alignment: the SDK fallback
+            // allocates each block with std::aligned_alloc(alignment, blockSize),
+            // and macOS returns null for a size that is not a multiple of the
+            // alignment (16392 % 32 = 8), so every lockBlock() failed and no
+            // spectrum ever reached the controller there.
+            constexpr Steinberg::uint32 kAlignment = 32;
+            constexpr Steinberg::uint32 kBlockSize =
+                ((static_cast<Steinberg::uint32>(sizeof(SpectrumBlock)) + kAlignment - 1u) /
+                 kAlignment) * kAlignment;
+            static_assert(kBlockSize % kAlignment == 0 && kBlockSize >= sizeof(SpectrumBlock));
+            config.blockSize = kBlockSize;
             config.numBlocks = 8;  // More blocks for IMessage fallback headroom
-            config.alignment = 32;
+            config.alignment = kAlignment;
             config.userContextID = 0;
             return true;
         };

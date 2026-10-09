@@ -1140,9 +1140,19 @@ tresult PLUGIN_API Processor::connect(IConnectionPoint* other)
     {
         auto configCallback = [](Steinberg::Vst::DataExchangeHandler::Config& config,
                                  const Steinberg::Vst::ProcessSetup& /*setup*/) {
-            config.blockSize     = static_cast<Steinberg::uint32>(sizeof(MetersBlock));
+            // sizeof(MetersBlock) rounded UP to the alignment: the SDK fallback
+            // allocates each block with std::aligned_alloc(alignment, blockSize),
+            // and macOS returns null for a size that is not a multiple of the
+            // alignment (44 % 32 = 12), so every lockBlock() failed and no meter
+            // block ever reached the controller there.
+            constexpr Steinberg::uint32 kAlignment = 32;
+            constexpr Steinberg::uint32 kBlockSize =
+                ((static_cast<Steinberg::uint32>(sizeof(MetersBlock)) + kAlignment - 1u) /
+                 kAlignment) * kAlignment;
+            static_assert(kBlockSize % kAlignment == 0 && kBlockSize >= sizeof(MetersBlock));
+            config.blockSize     = kBlockSize;
             config.numBlocks     = 4;
-            config.alignment     = 32;
+            config.alignment     = kAlignment;
             config.userContextID = kMetersDataExchangeUserContextId;
             return true;
         };
