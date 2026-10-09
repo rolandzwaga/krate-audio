@@ -306,6 +306,12 @@ if(VSTWORK_BUILD_TESTS)
     list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
     include(Catch)
 
+    # krate_test_pch(): Catch2 + STL precompiled per test executable when
+    # KRATE_TEST_PCH is ON. Included here, before dsp/ and the plugins add
+    # their test directories.
+    list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
+    include(KrateTestPch)
+
     # Fetch ApprovalTests for approval testing
     FetchContent_Declare(
         ApprovalTests

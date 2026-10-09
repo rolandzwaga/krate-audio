@@ -1072,3 +1072,11 @@ catch_discover_tests(dsp_primitives_tests REPORTER console)
 catch_discover_tests(dsp_processors_tests REPORTER console)
 catch_discover_tests(dsp_systems_tests REPORTER console)
 catch_discover_tests(dsp_effects_tests REPORTER console)
+
+# ==============================================================================
+# Precompiled Catch2 + STL per executable when KRATE_TEST_PCH is ON
+# (cmake/KrateTestPch.cmake). After the set_source_files_properties() blocks
+# above, so the -fno-fast-math sources are excluded from the PCH.
+foreach(_t dsp_core_tests dsp_primitives_tests dsp_processors_tests dsp_systems_tests dsp_effects_tests)
+    krate_test_pch(${_t})
+endforeach()

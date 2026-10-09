@@ -167,3 +167,7 @@ catch_discover_tests(approval_tests
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/approval
     REPORTER console
 )
+
+# Precompiled Catch2 + STL when KRATE_TEST_PCH is ON (cmake/KrateTestPch.cmake); after the per-source flag blocks above.
+krate_test_pch(plugin_tests)
+krate_test_pch(approval_tests)

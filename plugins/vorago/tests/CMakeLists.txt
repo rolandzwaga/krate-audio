@@ -167,3 +167,6 @@ endif()
 
 # CTest Integration
 catch_discover_tests(vorago_tests REPORTER console)
+
+# Precompiled Catch2 + STL when KRATE_TEST_PCH is ON (cmake/KrateTestPch.cmake); after the per-source flag blocks above.
+krate_test_pch(vorago_tests)
