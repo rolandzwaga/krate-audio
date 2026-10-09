@@ -24,11 +24,59 @@
 //               change-detection selection the build used
 //   --list      print the assignment of every shard and exit (no tests run)
 //   --long      run the nightly [long]~[vorago-sweep] lane instead of the per-push lane
+//   --log-dir   also write everything this shard prints to <dir>/<os>-shard<i>.log (uploaded as an artifact)
 //   --skip-presets  do not mirror the Windows factory-preset install (local runs: the build already did it)
+//
+// FAILURES ARE ANNOTATED: every failed Catch2 assertion becomes a ::error annotation (file, line, test case,
+// expression and expansion) and the failed test-case names go into one ::notice. The annotations are readable
+// through the check-runs API with a token that cannot download job logs, so a red shard names its failing
+// tests without anyone opening the log.
 'use strict';
-const { spawnSync } = require('child_process');
+const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+
+// --- Catch2 console-reporter parsing ----------------------------------------------------------------------
+// The console reporter prints, for each test case with a failure:
+//   -------------------------------------------------------------------------------
+//   <test case name>            (continuation lines unindented; section names indented by two spaces)
+//   -------------------------------------------------------------------------------
+//   <file>:<line>
+//   ...............................................................................
+//
+//   <file>:<line>: FAILED:      (MSVC builds print <file>(<line>): FAILED:)
+//     REQUIRE( expr )
+//   with expansion:
+//     1 == 2
+// Returns [{ file, line, testCase, detail }] for every FAILED assertion in `text`.
+function parseCatch2Failures(text) {
+    const lines = text.split(/\r?\n/);
+    const dash = /^-{40,}$/;
+    const failed = /^(.+?)(?::(\d+)|\((\d+)\)): FAILED:$/;
+    const out = [];
+    let testCase = '(unknown test case)';
+    for (let i = 0; i < lines.length; ++i) {
+        if (dash.test(lines[i])) {
+            // Header: dash line, name (plus indented section names), dash line. Skip to the closing dash so
+            // it is not read as another opening one.
+            let j = i + 1;
+            const name = [];
+            for (; j < lines.length && !dash.test(lines[j]); ++j) {
+                if (lines[j] !== '' && !/^\s/.test(lines[j])) name.push(lines[j]);
+            }
+            if (j < lines.length && name.length > 0) { testCase = name.join(' '); i = j; }
+            continue;
+        }
+        const m = failed.exec(lines[i]);
+        if (!m) continue;
+        const detail = [];
+        for (let j = i + 1; j < lines.length && lines[j] !== '' && detail.length < 8; ++j) detail.push(lines[j].trim());
+        out.push({ file: m[1], line: Number(m[2] || m[3]), testCase, detail: detail.join(' ') });
+    }
+    return out;
+}
+module.exports = { parseCatch2Failures };
+if (require.main !== module) return;
 
 const args = process.argv.slice(2);
 const opt = (name, dflt) => { const i = args.indexOf(name); return i >= 0 && args[i + 1] !== undefined ? args[i + 1] : dflt; };
@@ -42,6 +90,16 @@ const shardCount = Number(opt('--count', '8'));
 const longLane = String(opt('--long', 'false')) === 'true';
 const listOnly = flag('--list');
 const dryRun = flag('--dry-run');
+const logDir = opt('--log-dir', '');
+
+// Everything printed goes to stdout and, with --log-dir, to the shard's log file as well.
+let logFile = null;
+if (logDir) {
+    fs.mkdirSync(logDir, { recursive: true });
+    logFile = fs.openSync(path.join(logDir, `${osName}-shard${shardIndex}.log`), 'w');
+}
+const emit = (s) => { process.stdout.write(s); if (logFile !== null) fs.writeSync(logFile, s); };
+const log = (line) => emit(`${line}\n`);
 
 // How many Catch2 shards each executable is cut into. Everything else runs whole. Keep a unit under about
 // ten minutes on a GitHub runner; when a suite grows past that, raise its count here and refresh the times.
@@ -64,12 +122,12 @@ const times = JSON.parse(fs.readFileSync(timesFile, 'utf8'));
 const laneTimes = (longLane ? times.long : times.per_push) || {};
 
 if (!fs.existsSync(manifestPath)) {
-    console.log(`ci-test-shard: no manifest at ${manifestPath} - nothing to run`);
+    log(`ci-test-shard: no manifest at ${manifestPath} - nothing to run`);
     process.exit(0);
 }
 const suites = fs.readFileSync(manifestPath, 'utf8').split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
 if (suites.length === 0) {
-    console.log('ci-test-shard: empty manifest - nothing to run');
+    log('ci-test-shard: empty manifest - nothing to run');
     process.exit(0);
 }
 
@@ -94,9 +152,9 @@ for (const u of units) {
 
 const describe = (u) => (u.k > 1 ? `${u.suite} [${u.idx + 1}/${u.k}]` : u.suite);
 if (listOnly) {
-    console.log(`lane: ${longLane ? 'long' : 'per-push'}  filter: ${kFilter}  shards: ${shardCount}`);
+    log(`lane: ${longLane ? 'long' : 'per-push'}  filter: ${kFilter}  shards: ${shardCount}`);
     shards.forEach((s, i) => {
-        console.log(`shard ${i}: est ${Math.round(s.load)} s  ${s.units.map(describe).join(', ') || '(empty)'}`);
+        log(`shard ${i}: est ${Math.round(s.load)} s  ${s.units.map(describe).join(', ') || '(empty)'}`);
     });
     process.exit(0);
 }
@@ -109,7 +167,7 @@ if (listOnly) {
 function installWindowsPresets() {
     if (osName !== 'windows' || flag('--skip-presets')) return;
     const programData = process.env.PROGRAMDATA;
-    if (!programData) { console.log('::warning::PROGRAMDATA is unset - factory presets not installed'); return; }
+    if (!programData) { log('::warning::PROGRAMDATA is unset - factory presets not installed'); return; }
     const plugins = [
         ['iterum', 'Iterum'], ['disrumpo', 'Disrumpo'], ['ruinae', 'Ruinae'], ['innexus', 'Innexus'],
         ['gradus', 'Gradus'], ['membrum', 'Membrum', 'Kit Presets', 'Kits'], ['seraphis', 'Seraphis'], ['vorago', 'Vorago'],
@@ -123,53 +181,102 @@ function installWindowsPresets() {
         try {
             fs.mkdirSync(dest, { recursive: true });
             fs.cpSync(src, dest, { recursive: true, force: true });
-            console.log(`installed ${target} factory presets -> ${dest}`);
+            log(`installed ${target} factory presets -> ${dest}`);
         } catch (e) {
             // A developer box may hold a protected ProgramData tree the build already filled; the CI runner
             // is elevated. Report and carry on: a missing tree fails the preset tests with a clear message.
-            console.log(`::warning::could not install ${target} factory presets to ${dest}: ${e.message}`);
+            log(`::warning::could not install ${target} factory presets to ${dest}: ${e.message}`);
         }
     }
 }
 
 // --- run this shard --------------------------------------------------------------------------------------
 const mine = shards[shardIndex].units;
-console.log(`ci-test-shard: ${osName} shard ${shardIndex}/${shardCount}, ${longLane ? 'long' : 'per-push'} lane, filter ${kFilter}`);
-console.log(`units (est ${Math.round(shards[shardIndex].load)} s): ${mine.map(describe).join(', ') || '(empty)'}`);
+log(`ci-test-shard: ${osName} shard ${shardIndex}/${shardCount}, ${longLane ? 'long' : 'per-push'} lane, filter ${kFilter}`);
+log(`units (est ${Math.round(shards[shardIndex].load)} s): ${mine.map(describe).join(', ') || '(empty)'}`);
 if (mine.length === 0) process.exit(0);
 
 installWindowsPresets();
 
-let failed = 0;
-const results = [];
-for (const u of mine) {
-    const exe = path.join(binDir, osName === 'windows' ? `${u.suite}.exe` : u.suite);
-    const argv = [kFilter, '--skip-benchmarks'];
-    // A Catch2 shard of a small [long] set can hold zero cases; so can a whole suite with no [long] cases.
-    if (longLane || u.k > 1) argv.push('--allow-running-no-tests');
-    if (u.k > 1) argv.push('--shard-count', String(u.k), '--shard-index', String(u.idx));
-    console.log(`::group::${describe(u)}`);
-    console.log(`$ ${exe} ${argv.join(' ')}`);
-    const t0 = Date.now();
-    let rc = 0;
-    if (!fs.existsSync(exe)) {
-        console.log(`::error::${exe} is not in the test artifact`);
-        rc = 127;
-    } else if (!dryRun) {
-        const r = spawnSync(exe, argv, { stdio: 'inherit' });
-        rc = r.status === null ? 128 : r.status;
-        if (r.error) { console.log(`::error::${describe(u)}: ${r.error.message}`); rc = 127; }
-    }
-    const wall = (Date.now() - t0) / 1000;
-    console.log('::endgroup::');
-    results.push({ name: describe(u), rc, wall });
-    if (rc !== 0) { failed += 1; console.log(`::error::FAILED ${describe(u)} (exit ${rc}, ${wall.toFixed(0)} s)`); }
-    if (wall > kWarnSeconds) {
-        console.log(`::warning::${describe(u)} took ${wall.toFixed(0)} s - raise its entry in kSuiteShards (tools/ci-test-shard.js) and refresh tools/ci-test-times.json`);
-    }
+// Streams the executable's output as it arrives (a hung test still shows how far it got when the step
+// timeout kills it) and returns it whole for the failure parse.
+function runExe(exe, argv) {
+    return new Promise((resolve) => {
+        const chunks = [];
+        const child = spawn(exe, argv, { stdio: ['ignore', 'pipe', 'pipe'] });
+        const onData = (d) => { const s = d.toString(); emit(s); chunks.push(s); };
+        child.stdout.on('data', onData);
+        child.stderr.on('data', onData);
+        child.on('error', (e) => resolve({ rc: 127, error: e.message, out: chunks.join('') }));
+        child.on('close', (code, signal) => resolve({ rc: code === null ? 128 : code, signal, out: chunks.join('') }));
+    });
 }
 
-console.log('--- shard summary ---');
-for (const r of results) console.log(`${r.rc === 0 ? 'ok  ' : 'FAIL'} ${r.wall.toFixed(0).padStart(6)} s  ${r.name}`);
-console.log(`total ${results.reduce((a, r) => a + r.wall, 0).toFixed(0)} s, ${failed} failed`);
-process.exit(failed === 0 ? 0 : 1);
+// Catch2 prints absolute __FILE__ paths; annotations want them relative to the checkout.
+const cwd = process.cwd();
+function repoRelative(file) {
+    const norm = (p) => p.replace(/\\/g, '/');
+    const f = norm(file), root = norm(cwd).replace(/\/$/, '') + '/';
+    const same = process.platform === 'win32' ? f.toLowerCase().startsWith(root.toLowerCase()) : f.startsWith(root);
+    return same ? f.slice(root.length) : f;
+}
+// GitHub keeps at most ten error annotations per step; the rest are in the log artifact and the ::notice.
+const kMaxErrorAnnotations = 10;
+const annotation = (s) => s.replace(/%/g, '%25').replace(/\r/g, '%0D').replace(/\n/g, '%0A');
+const property = (s) => annotation(s).replace(/:/g, '%3A').replace(/,/g, '%2C');
+
+(async () => {
+    let failed = 0;
+    let errorAnnotations = 0;
+    const results = [];
+    const failedCases = [];
+    for (const u of mine) {
+        const exe = path.join(binDir, osName === 'windows' ? `${u.suite}.exe` : u.suite);
+        const argv = [kFilter, '--skip-benchmarks'];
+        // A Catch2 shard of a small [long] set can hold zero cases; so can a whole suite with no [long] cases.
+        if (longLane || u.k > 1) argv.push('--allow-running-no-tests');
+        if (u.k > 1) argv.push('--shard-count', String(u.k), '--shard-index', String(u.idx));
+        log(`::group::${describe(u)}`);
+        log(`$ ${exe} ${argv.join(' ')}`);
+        const t0 = Date.now();
+        let rc = 0;
+        let out = '';
+        if (!fs.existsSync(exe)) {
+            log(`::error::${exe} is not in the test artifact`);
+            rc = 127;
+        } else if (!dryRun) {
+            const r = await runExe(exe, argv);
+            rc = r.rc;
+            out = r.out;
+            if (r.error) log(`::error::${describe(u)}: ${r.error}`);
+            if (r.signal) log(`::error::${describe(u)} was killed by ${r.signal}`);
+        }
+        const wall = (Date.now() - t0) / 1000;
+        log('::endgroup::');
+        results.push({ name: describe(u), rc, wall });
+        if (rc !== 0) {
+            failed += 1;
+            log(`::error::FAILED ${describe(u)} (exit ${rc}, ${wall.toFixed(0)} s)`);
+            for (const f of parseCatch2Failures(out)) {
+                const name = `${u.suite}: ${f.testCase}`;
+                if (!failedCases.includes(name)) failedCases.push(name);
+                if (errorAnnotations < kMaxErrorAnnotations) {
+                    errorAnnotations += 1;
+                    log(`::error file=${property(repoRelative(f.file))},line=${f.line},title=${property(name)}::${annotation(f.detail)}`);
+                }
+            }
+        }
+        if (wall > kWarnSeconds) {
+            log(`::warning::${describe(u)} took ${wall.toFixed(0)} s - raise its entry in kSuiteShards (tools/ci-test-shard.js) and refresh tools/ci-test-times.json`);
+        }
+    }
+
+    log('--- shard summary ---');
+    for (const r of results) log(`${r.rc === 0 ? 'ok  ' : 'FAIL'} ${r.wall.toFixed(0).padStart(6)} s  ${r.name}`);
+    log(`total ${results.reduce((a, r) => a + r.wall, 0).toFixed(0)} s, ${failed} failed`);
+    if (failedCases.length > 0) {
+        log(`::notice title=${failedCases.length} failed test case(s) on ${osName} shard ${shardIndex}::${annotation(failedCases.join('\n'))}`);
+    }
+    if (logFile !== null) fs.closeSync(logFile);
+    process.exit(failed === 0 ? 0 : 1);
+})();

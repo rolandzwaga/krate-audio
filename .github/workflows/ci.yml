@@ -1255,6 +1255,9 @@ jobs:
     runs-on: windows-2022
     needs: [detect-changes, build-windows]
     if: needs.build-windows.outputs.has-tests == 'true'
+    # Job-level cap: a step that hangs before "Run shard" (artifact download, package install) would
+    # otherwise hold the run for GitHub's 6-hour default.
+    timeout-minutes: ${{ inputs.long-tests && 200 || 75 }}
     strategy:
       fail-fast: false
       matrix:
@@ -1274,13 +1277,24 @@ jobs:
       - name: Run shard
         shell: bash
         timeout-minutes: ${{ inputs.long-tests && 180 || 60 }}
-        run: node tools/ci-test-shard.js --os windows --bin "build/bin/${{ env.BUILD_TYPE }}" --manifest build/test-manifest.txt --shard ${{ matrix.shard }} --count 8 --long "${{ inputs.long-tests }}"
+        run: node tools/ci-test-shard.js --os windows --bin "build/bin/${{ env.BUILD_TYPE }}" --manifest build/test-manifest.txt --shard ${{ matrix.shard }} --count 8 --long "${{ inputs.long-tests }}" --log-dir build/test-logs
+      # Failed assertions are also ::error annotations (file, line, test case, expansion); the full output is
+      # this artifact, for when the annotations' ten-per-step cap is hit.
+      - name: Upload shard log
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-log-windows-${{ matrix.shard }}
+          path: build/test-logs/
+          retention-days: 7
+          if-no-files-found: warn
 
   test-macos:
     name: macOS tests (shard ${{ matrix.shard }})
     runs-on: macos-latest
     needs: [detect-changes, build-macos]
     if: needs.build-macos.outputs.has-tests == 'true'
+    timeout-minutes: ${{ inputs.long-tests && 200 || 75 }}
     strategy:
       fail-fast: false
       matrix:
@@ -1302,13 +1316,22 @@ jobs:
       - name: Run shard
         shell: bash
         timeout-minutes: ${{ inputs.long-tests && 180 || 60 }}
-        run: node tools/ci-test-shard.js --os macos --bin "build/bin/${{ env.BUILD_TYPE }}" --manifest build/test-manifest.txt --shard ${{ matrix.shard }} --count 8 --long "${{ inputs.long-tests }}"
+        run: node tools/ci-test-shard.js --os macos --bin "build/bin/${{ env.BUILD_TYPE }}" --manifest build/test-manifest.txt --shard ${{ matrix.shard }} --count 8 --long "${{ inputs.long-tests }}" --log-dir build/test-logs
+      - name: Upload shard log
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-log-macos-${{ matrix.shard }}
+          path: build/test-logs/
+          retention-days: 7
+          if-no-files-found: warn
 
   test-linux:
     name: Linux tests (shard ${{ matrix.shard }})
     runs-on: ubuntu-latest
     needs: [detect-changes, build-linux]
     if: needs.build-linux.outputs.has-tests == 'true'
+    timeout-minutes: ${{ inputs.long-tests && 200 || 75 }}
     strategy:
       fail-fast: false
       matrix:
@@ -1321,14 +1344,23 @@ jobs:
         uses: actions/checkout@v6
       # The test binaries link VSTGUI, so the X11 / cairo / gtkmm runtime libraries must be present to load
       # them; the -dev packages carry those runtime libraries (same list as the build job).
+      # Capped and retried: one shard of run 37924744923 sat in this step for hours while the other seven
+      # finished it in seconds. The cap turns a hang into a red job that can be re-run; the lock timeout
+      # covers the dpkg lock being held by the image's own background apt.
       - name: Install Linux runtime dependencies
+        timeout-minutes: 10
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq --no-install-recommends \
-            libx11-dev libxcb1-dev libxkbcommon-x11-dev libx11-xcb-dev \
-            libxcb-util1 libxcb-util-dev libxcb-keysyms1-dev libxcb-cursor-dev \
-            libxcb-xkb-dev libxkbcommon-dev libfontconfig1-dev libfreetype6-dev \
-            libcairo2-dev libgtkmm-3.0-dev libsqlite3-dev
+          for attempt in 1 2 3; do
+            sudo apt-get update -qq -o DPkg::Lock::Timeout=120 && \
+            sudo apt-get install -y -qq --no-install-recommends -o DPkg::Lock::Timeout=120 \
+              libx11-dev libxcb1-dev libxkbcommon-x11-dev libx11-xcb-dev \
+              libxcb-util1 libxcb-util-dev libxcb-keysyms1-dev libxcb-cursor-dev \
+              libxcb-xkb-dev libxkbcommon-dev libfontconfig1-dev libfreetype6-dev \
+              libcairo2-dev libgtkmm-3.0-dev libsqlite3-dev && break
+            echo "::warning::apt attempt $attempt failed; retrying"
+            [ "$attempt" = 3 ] && exit 1
+            sleep 20
+          done
       - name: Download test binaries
         uses: actions/download-artifact@v8
         with:
@@ -1340,4 +1372,12 @@ jobs:
       - name: Run shard
         shell: bash
         timeout-minutes: ${{ inputs.long-tests && 180 || 60 }}
-        run: node tools/ci-test-shard.js --os linux --bin "build/bin/${{ env.BUILD_TYPE }}" --manifest build/test-manifest.txt --shard ${{ matrix.shard }} --count 8 --long "${{ inputs.long-tests }}"
+        run: node tools/ci-test-shard.js --os linux --bin "build/bin/${{ env.BUILD_TYPE }}" --manifest build/test-manifest.txt --shard ${{ matrix.shard }} --count 8 --long "${{ inputs.long-tests }}" --log-dir build/test-logs
+      - name: Upload shard log
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-log-linux-${{ matrix.shard }}
+          path: build/test-logs/
+          retention-days: 7
+          if-no-files-found: warn
