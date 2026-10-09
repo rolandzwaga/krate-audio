@@ -1191,9 +1191,17 @@ namespace {
 
 namespace fs = std::filesystem;
 
-/// SC-006 / plan 6.15: the committed-tree float tolerance, |c - r| / max(|c|, 1e-30).
+/// SC-006 / plan 6.15: the committed-tree float tolerance, |c - r| / max(|c|, |r|, 1).
 /// Initially the one-ULP floor; re-pinned by T048 to
 /// max(10 x worst over MSVC / GCC / AppleClang, 1.19e-7). Never widened silently.
+///
+/// The denominator floor is 1, not 1e-30: a field whose committed value is
+/// exactly 0 (Spore Drift's 0 dB noise level) regenerates as 5.3e-15 on arm64,
+/// where -ffp-contract=fast fuses the normalized-to-plain multiply-add and keeps
+/// the product's rounding residual that x86 rounds away (reproduced locally with
+/// clang-cl /arch:AVX2 -ffp-contract=fast). Against a 1e-30 floor that residual
+/// read 5.3e15; against 1 it is the absolute float-epsilon-scale difference it
+/// is. A stale preset moves a field by 1e-3 or more and still fails.
 constexpr double kTreeFloatRelTol = 1.19e-7;
 
 /// C-7.1 / plan 6.14.
@@ -1357,14 +1365,14 @@ struct StreamField {
     return std::bit_cast<std::int32_t>(slotBits(b, slot));
 }
 
-/// |c - r| / max(|c|, 1e-30), 0 when bit-identical. Both sides finite (checked).
+/// |c - r| / max(|c|, |r|, 1), 0 when bit-identical. Both sides finite (checked).
 [[nodiscard]] double relativeDifference(float c, float r) {
     if (std::bit_cast<std::uint32_t>(c) == std::bit_cast<std::uint32_t>(r)) {
         return 0.0;
     }
     const auto cd = static_cast<double>(c);
     const auto rd = static_cast<double>(r);
-    return std::fabs(cd - rd) / std::max(std::fabs(cd), 1e-30);
+    return std::fabs(cd - rd) / std::max({std::fabs(cd), std::fabs(rd), 1.0});
 }
 
 // ---- Committed tree vs in-process regeneration (C-9, plan 6.15) ---------------
@@ -1462,7 +1470,7 @@ struct TreeComparison {
     std::ostringstream os;
     os.precision(9);
     os << "tree vs generator over " << t.compared
-       << " preset(s); per float field worst |c - r| / max(|c|, 1e-30)"
+       << " preset(s); per float field worst |c - r| / max(|c|, |r|, 1)"
        << " (tolerance " << kTreeFloatRelTol << "):";
     double overall = 0.0;
     std::size_t identical = 0;
@@ -1796,7 +1804,7 @@ TEST_CASE("Vorago_FactoryPresets_StreamShape", "[vorago][preset]") {
 
 TEST_CASE("Vorago_FactoryPresets_TreeToleranceProbe", "[.measure][vorago]") {
     // Plan 6.15: regenerate each definition through buildPresetComponentState and
-    // print, per float field, the worst |c - r| / max(|c|, 1e-30).
+    // print, per float field, the worst |c - r| / max(|c|, |r|, 1).
     const std::vector<StreamField> fields = streamFields();
     const TreeComparison t = compareTreeWithGenerator(fields);
     WARN(treeWorstReport(t, fields));

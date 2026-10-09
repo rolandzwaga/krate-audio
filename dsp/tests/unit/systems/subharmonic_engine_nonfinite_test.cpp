@@ -639,7 +639,16 @@ TEST_CASE("SubharmonicEngine_NonFinite", "[subharmonic_engine]") {
         REQUIRE(referenceFp.rms > 1.0e-4);
 
         const auto injectedFp = fp::fingerprintRender(std::span<const float>(injected.tailTap));
-        const auto comparison = fp::compareFingerprints(injectedFp, referenceFp);
+        // Metric tolerance pinned for THIS comparison, not the codegen-spread
+        // default (2.5e-4): the injected instance went through recoverNonFinite()
+        // and re-converges on the reference over 10 s along a different rounding
+        // path. Measured peak actual vs reference: MSVC 14.44 0.034842 / 0.034834
+        // (2.3e-4), clang-cl 21 /fp:fast identical, Apple Clang (Xcode 26.6,
+        // arm64) 0.034794 / 0.034780 (4.0e-4). 1.5e-3 is ~3.7x the worst
+        // toolchain; a dead or clamped engine reads orders of magnitude away.
+        constexpr double kPostFaultMetricTolerance = 1.5e-3;
+        const auto comparison =
+            fp::compareFingerprints(injectedFp, referenceFp, kPostFaultMetricTolerance);
 
         INFO("the engine must render correct audio 10 s after the fault: " + comparison.detail);
         REQUIRE(comparison.withinTolerance());
