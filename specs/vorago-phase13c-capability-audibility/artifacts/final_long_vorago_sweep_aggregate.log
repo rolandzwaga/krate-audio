@@ -1,0 +1,4093 @@
+START 2026-10-06 00:37:51 [vorago-aggregate] VORAGO_SWEEP_IN=/f/tmp/p13c/sweep-out records=43
+Filters: [vorago-aggregate]
+Randomness seeded to: 2710789670
+[aggregate] index 0: computing / loading record...
+[aggregate] index 1: computing / loading record...
+[aggregate] index 2: computing / loading record...
+[aggregate] index 3: computing / loading record...
+[aggregate] index 4: computing / loading record...
+[aggregate] index 5: computing / loading record...
+[aggregate] index 6: computing / loading record...
+[aggregate] index 7: computing / loading record...
+[aggregate] index 8: computing / loading record...
+[aggregate] index 9: computing / loading record...
+[aggregate] index 10: computing / loading record...
+[aggregate] index 11: computing / loading record...
+[aggregate] index 12: computing / loading record...
+[aggregate] index 13: computing / loading record...
+[aggregate] index 14: computing / loading record...
+[aggregate] index 15: computing / loading record...
+[aggregate] index 16: computing / loading record...
+[aggregate] index 17: computing / loading record...
+[aggregate] index 18: computing / loading record...
+[aggregate] index 19: computing / loading record...
+[aggregate] index 20: computing / loading record...
+[aggregate] index 21: computing / loading record...
+[aggregate] index 22: computing / loading record...
+[aggregate] index 23: computing / loading record...
+[aggregate] index 24: computing / loading record...
+[aggregate] index 25: computing / loading record...
+[aggregate] index 26: computing / loading record...
+[aggregate] index 27: computing / loading record...
+[aggregate] index 28: computing / loading record...
+[aggregate] index 29: computing / loading record...
+[aggregate] index 30: computing / loading record...
+[aggregate] index 31: computing / loading record...
+[aggregate] index 32: computing / loading record...
+[aggregate] index 33: computing / loading record...
+[aggregate] index 34: computing / loading record...
+[aggregate] index 35: computing / loading record...
+[aggregate] index 36: computing / loading record...
+[aggregate] index 37: computing / loading record...
+[aggregate] index 38: computing / loading record...
+[aggregate] index 39: computing / loading record...
+[aggregate] index 40: computing / loading record...
+[aggregate] index 41: computing / loading record...
+[aggregate] index 42: computing / loading record...
+
+=== Vorago_PresetMatrix_CoverageComplete (FR-013, SC-008, SC-018, SC-029; N = 42, K = 4) ===
+Presets (matrix column = index mod 10; last column = default surface):
+   0  Wind Through Basalt           primary S1 noise organism
+   1  Resonant Shaft                primary S2 resonance drift
+   2  Smeared Horizon               primary S3 spectral smear
+   3  Feedback Mire                 primary S4 feedback ecology
+   4  Tectonic Floor                primary S5 subharmonic
+   5  Slow Bloom                    primary S6 harmonic bloom
+   6  Colony Pulse                  primary S7 ecosystem
+   7  Cathedral Void                primary S8 cavern space
+   8  Choir of Absence              primary S9 ghost / atmosphere
+   9  Hull Resonance                primary S10 acoustic body
+  10  Lightless                     primary M1 Darkness
+  11  Erosion                       primary M2 Age
+  12  Crowded Dark                  primary M3 Density
+  13  Drifting Strata               primary M4 Movement
+  14  Stone Gravity                 primary M5 Gravity
+  15  Entropic Hum                  primary M6 Entropy
+  16  Pressure Front                primary M7 Pressure
+  17  Weighted Deep                 primary M8 Weight
+  18  Fogbound                      primary M9 Fog
+  19  Teeming                       primary M10 Life
+  20  Endless Descent               primary M11 Depth
+  21  Monolith                      primary M12 Mass
+  22  Bloom Colony                  primary E1 partial -> bloom
+  23  Singing Colony                primary E2 resonator -> resonance peaks
+  24  Swarm Breath                  primary E3 noise -> noise wake
+  25  Feeding Loops                 primary E4 feedback -> loop wake
+  26  Haunted Colony                primary E5 ghost -> ghost bursts
+  27  Growth Ring                   primary D8.2 envelope Growth
+  28  Glass Well                    primary D1.1 material Glass
+  29  Strung Abyss                  primary D1.2 material Strings
+  30  Iron Plate                    primary D1.3 material MetalPlate
+  31  Chamber Drone                 primary D1.4 material Chamber
+  32  Ice Shelf                     primary D1.5 material Ice
+  33  Hull Ark                      primary D1.8 material WoodenHull
+  34  Column Hymn                   primary D1.9 material CathedralColumn
+  35  Cavern Wall                   primary D1.10 material CavernWall
+  36  Glass Sphere                  primary D1.11 material GlassSphere
+  37  Sudden Chasm                  primary D9.1 attack span <= 10 s
+  38  Dead Air                      primary D3.1 noise model Direct
+  39  Abyssal Wind                  primary D3.2 noise model FilteredWind
+  40  Spore Drift                   primary D3.3 noise model GranularDust
+  41  Steam Vent                    primary D3.4 noise model MetallicHiss
+Legend: P verified primary | S verified secondary | X claimed-failed | v unclaimed, verified | . unclaimed, not verified
+                                012345678901234567890123456789012345678901 d
+  S1 noise organism             P..v..v..v..v..v..X.............v.....vvvv .  (11 factory verifiers)
+  S2 resonance drift            .Xvv.vvvv.vvvvvvvvvv...v.vv.v..........v.. v  (21 factory verifiers)
+  S3 spectral smear             v.Pv.....v.......v....v.vv.vvvvvvvvvv....v .  (19 factory verifiers)
+  S4 feedback ecology           ...P.....................v................ .  (2 factory verifiers)
+  S5 subharmonic                v...P..v.v...v...v...vv.vv..vv....vv.v.v.. .  (16 factory verifiers)
+  S6 harmonic bloom             .....P.........v.............v.vvvv....... .  (7 factory verifiers)
+  S7 ecosystem                  vvvv.vPvvvvvvvvvvvvvvvvvvvvvv............. v  (28 factory verifiers)
+  S8 cavern space               .v..vv.P..vv..v.v.vvv.vvv.vv.........vvvv. v  (20 factory verifiers)
+  S9 ghost / atmosphere         ....vvvvPvv.vv.vvv.vv.....v............... .  (15 factory verifiers)
+  S10 acoustic body             v..vvvvv.Pvvvv.vvvvvvvv.vvvvvvvvvvvvvv.vvv v  (36 factory verifiers)
+  M1 Darkness                   ..........X............................... .  (0 factory verifiers)
+  M2 Age                        ...........X.............................. .  (0 factory verifiers)
+  M3 Density                    ............P............................. .  (1 factory verifier)
+  M4 Movement                   .............X............................ .  (0 factory verifiers)
+  M5 Gravity                    ..............X........................... .  (0 factory verifiers)
+  M6 Entropy                    ...............P.......................... .  (1 factory verifier)
+  M7 Pressure                   ................P......................... .  (1 factory verifier)
+  M8 Weight                     .................P........................ .  (1 factory verifier)
+  M9 Fog                        ..................P....................... .  (1 factory verifier)
+  M10 Life                      ...................X...................... .  (0 factory verifiers)
+  M11 Depth                     ....................P..................... .  (1 factory verifier)
+  M12 Mass                      .....................P.................... .  (1 factory verifier)
+  E1 partial -> bloom           ......................X................... .  (0 factory verifiers)
+  E2 resonator -> resonance pe  ....v.v.v.v.vv...v.....X...v.............. v  (8 factory verifiers)
+  E3 noise -> noise wake        v.....v.....v...........X................. .  (3 factory verifiers)
+  E4 feedback -> loop wake      .........................X................ .  (0 factory verifiers)
+  E5 ghost -> ghost bursts      v....vv.....vv...v.vv.....X............... .  (8 factory verifiers)
+  E6.hi ecosystem sync rate hi  ......X................................... .  (0 factory verifiers)
+  E7.hi ecosystem self-affinit  ......X................................... .  (0 factory verifiers)
+  D1.1 material Glass           ............................P............. .  (1 factory verifier)
+  D1.2 material Strings         .............................P............ .  (1 factory verifier)
+  D1.3 material MetalPlate      ..............................P........... .  (1 factory verifier)
+  D1.4 material Chamber         ...............................P.......... .  (1 factory verifier)
+  D1.5 material Ice             ................................P......... .  (1 factory verifier)
+  D1.6 material StoneChamber    v..vvvvv.Svvvv.vvvvvvvv.vvvv.........v.vvv v  (27 factory verifiers)
+  D1.7 material SteelTank       v..vvvvv.Svvvv.vv.vvvvv.vvvv.........v.vvv v  (26 factory verifiers)
+  D1.8 material WoodenHull      .................................P........ .  (1 factory verifier)
+  D1.9 material CathedralColum  ..................................P....... .  (1 factory verifier)
+  D1.10 material CavernWall     ...................................P...... .  (1 factory verifier)
+  D1.11 material GlassSphere    ....................................P..... .  (1 factory verifier)
+  D2 body blend both heard      v..vvvvv.Svvvv.vv.vvvvv.vvvv.........v.vvv v  (26 factory verifiers)
+  D3.1 noise model Direct       S..v..v..v..v..v................v.....P... .  (8 factory verifiers)
+  D3.2 noise model FilteredWin  ...v..v..v..v..v................v......P.. .  (7 factory verifiers)
+  D3.3 noise model GranularDus  ...v..v..v.Xv..v................v.......X. .  (6 factory verifiers)
+  D3.4 noise model MetallicHis  ...v..v..v..v..v........X.......v........P .  (7 factory verifiers)
+  D4.1 noise type White         S.....................................S... .  (2 factory verifiers)
+  D4.2 noise type Pink          S.....................................S... .  (2 factory verifiers)
+  D4.3 noise type TapeHiss      S.....................................S... .  (2 factory verifiers)
+  D4.4 noise type VinylCrackle  ...........X.............................. .  (0 factory verifiers)
+  D4.5 noise type Asperity      ...........X.............................. .  (0 factory verifiers)
+  D4.6 noise type Brown         ...v..v..v.Xv..v................v......... .  (6 factory verifiers)
+  D4.7 noise type Blue          S.......................X................. .  (1 factory verifier)
+  D4.8 noise type Violet        ..................X.....X................. .  (0 factory verifiers)
+  D4.9 noise type Grey          ........................X.............S... .  (1 factory verifier)
+  D4.10 noise type Velvet       ..................X....................... .  (0 factory verifiers)
+  D4.11 noise type VinylRumble  ..................X....................... .  (0 factory verifiers)
+  D4.12 noise type RadioStatic  ..................X....................... .  (0 factory verifiers)
+  D5.1 anchor Free              .......................S...............S.. .  (2 factory verifiers)
+  D5.2 anchor Keyed             .S........................................ .  (1 factory verifier)
+  D5.3 anchor Hybrid            ..vv.vvvv.vvvvSvvvvv.....vv.v............. v  (19 factory verifiers)
+  D6.1 loop filter Lowpass      ...S.....................v................ .  (2 factory verifiers)
+  D6.2 loop filter Bandpass     ...S.....................v..............X. .  (2 factory verifiers)
+  D6.3 loop filter Highpass     ...S.....................................X .  (1 factory verifier)
+  D7.1 loudest sub f/2          v......v.v...v.......Sv.vv..vv....vv.v.... .  (13 factory verifiers)
+  D7.2 loudest sub f/4          .................S.....................S.X .  (2 factory verifiers)
+  D7.3 loudest sub fifth below  ....S..................................... .  (1 factory verifier)
+  D8.1 envelope Standard        vvSvvvvvvvvvvvvvvvvvvvvvvvv.vvvvvvvvvvvvvv v  (41 factory verifiers)
+  D8.2 envelope Growth          ...........................P.............. .  (1 factory verifier)
+  D9.1 attack span <= 10 s      .....................................P.... .  (1 factory verifier)
+  D9.2 attack span >= 90 s      vvvvvSvvvvvvvvvvvvvvvvvvvvv.vvvvvvvvv.vvvv v  (40 factory verifiers)
+  D10.1 freeze holds a field    .......S.................................. .  (1 factory verifier)
+  D10.2 freeze off              vvSvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv v  (42 factory verifiers)
+  D11 ghost reverse >= 0.5      ........S...............................X. .  (1 factory verifier)
+  D12.1 ghost event triggers o  ........S................................. .  (1 factory verifier)
+  D12.2 ghost event triggers o  vvvvvvvv.vSvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv v  (41 factory verifiers)
+  D13.1 event rate scale <= 0.  ...................X...................... .  (0 factory verifiers)
+  D13.2 event rate scale >= 3.  ......X................................... .  (0 factory verifiers)
+  D14.1 breathing depth >= 0.7  .....S.................................... .  (1 factory verifier)
+  D14.2 tidal depth >= 0.7      .............X............................ .  (0 factory verifiers)
+
+Default-state cells (measured on the default surface, 8): D1.6 material StoneChamber, D1.7 material SteelTank, D2 body blend both heard, D5.3 anchor Hybrid, D8.1 envelope Standard, D9.2 attack span >= 90 s, D10.2 freeze off, D12.2 ghost event triggers off
+kRecordedDefaultStateCells (9): D1.6 material StoneChamber, D1.7 material SteelTank, D2 body blend both heard, D5.3 anchor Hybrid, D7.1 loudest sub f/2, D8.1 envelope Standard, D9.2 attack span >= 90 s, D10.2 freeze off, D12.2 ghost event triggers off
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+vorago_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+Vorago_PresetMatrix_CoverageComplete
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(149)
+...............................................................................
+
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(215): FAILED:
+  CHECK( verifierCount[i] >= 1u )
+with expansion:
+  0 >= 1
+with message:
+  cell M1 Darkness has no factory verifier
+
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(215): FAILED:
+  CHECK( verifierCount[i] >= 1u )
+with expansion:
+  0 >= 1
+with message:
+  cell M2 Age has no factory verifier
+
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(215): FAILED:
+  CHECK( verifierCount[i] >= 1u )
+with expansion:
+  0 >= 1
+with message:
+  cell M4 Movement has no factory verifier
+
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(215): FAILED:
+  CHECK( verifierCount[i] >= 1u )
+with expansion:
+  0 >= 1
+with message:
+  cell M5 Gravity has no factory verifier
+
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(215): FAILED:
+  CHECK( verifierCount[i] >= 1u )
+with expansion:
+  0 >= 1
+with message:
+  cell M10 Life has no factory verifier
+
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(215): FAILED:
+  CHECK( verifierCount[i] >= 1u )
+with expansion:
+  0 >= 1
+with message:
+  cell E1 partial -> bloom has no factory verifier
+
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(215): FAILED:
+  CHECK( verifierCount[i] >= 1u )
+with expansion:
+  0 >= 1
+with message:
+  cell E4 feedback -> loop wake has no factory verifier
+
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(215): FAILED:
+  CHECK( verifierCount[i] >= 1u )
+with expansion:
+  0 >= 1
+with message:
+  cell E6.hi ecosystem sync rate high has no factory verifier
+
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(215): FAILED:
+  CHECK( verifierCount[i] >= 1u )
+with expansion:
+  0 >= 1
+with message:
+  cell E7.hi ecosystem self-affinity high has no factory verifier
+
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(215): FAILED:
+  CHECK( verifierCount[i] >= 1u )
+with expansion:
+  0 >= 1
+with message:
+  cell D4.4 noise type VinylCrackle has no factory verifier
+
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(215): FAILED:
+  CHECK( verifierCount[i] >= 1u )
+with expansion:
+  0 >= 1
+with message:
+  cell D4.5 noise type Asperity has no factory verifier
+
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(215): FAILED:
+  CHECK( verifierCount[i] >= 1u )
+with expansion:
+  0 >= 1
+with message:
+  cell D4.8 noise type Violet has no factory verifier
+
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(215): FAILED:
+  CHECK( verifierCount[i] >= 1u )
+with expansion:
+  0 >= 1
+with message:
+  cell D4.10 noise type Velvet has no factory verifier
+
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(215): FAILED:
+  CHECK( verifierCount[i] >= 1u )
+with expansion:
+  0 >= 1
+with message:
+  cell D4.11 noise type VinylRumble has no factory verifier
+
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(215): FAILED:
+  CHECK( verifierCount[i] >= 1u )
+with expansion:
+  0 >= 1
+with message:
+  cell D4.12 noise type RadioStatic has no factory verifier
+
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(215): FAILED:
+  CHECK( verifierCount[i] >= 1u )
+with expansion:
+  0 >= 1
+with message:
+  cell D13.1 event rate scale <= 0.3 has no factory verifier
+
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(215): FAILED:
+  CHECK( verifierCount[i] >= 1u )
+with expansion:
+  0 >= 1
+with message:
+  cell D13.2 event rate scale >= 3.0 has no factory verifier
+
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(215): FAILED:
+  CHECK( verifierCount[i] >= 1u )
+with expansion:
+  0 >= 1
+with message:
+  cell D14.2 tidal depth >= 0.7 has no factory verifier
+
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(219): FAILED:
+  CHECK( claimedFailed == 0u )
+with expansion:
+  34 == 0
+with message:
+  claimed-but-failed entries in the matrix (X): 34
+
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(230): FAILED:
+  CHECK( atF )
+with expansion:
+  false
+with message:
+  Resonant Shaft primary S2 resonance drift: d 2.68506, skip []
+
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(230): FAILED:
+  CHECK( atF )
+with expansion:
+  false
+with message:
+  Lightless primary M1 Darkness: d 1.78303, skip []
+
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(230): FAILED:
+  CHECK( atF )
+with expansion:
+  false
+with message:
+  Erosion primary M2 Age: d 2.79451, skip []
+
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(230): FAILED:
+  CHECK( atF )
+with expansion:
+  false
+with message:
+  Drifting Strata primary M4 Movement: d 0.874524, skip []
+
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(230): FAILED:
+  CHECK( atF )
+with expansion:
+  false
+with message:
+  Stone Gravity primary M5 Gravity: d 3.18641, skip []
+
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(230): FAILED:
+  CHECK( atF )
+with expansion:
+  false
+with message:
+  Teeming primary M10 Life: d 0.994297, skip []
+
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(230): FAILED:
+  CHECK( atF )
+with expansion:
+  false
+with message:
+  Bloom Colony primary E1 partial -> bloom: d 1.18227, skip []
+
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(230): FAILED:
+  CHECK( atF )
+with expansion:
+  false
+with message:
+  Singing Colony primary E2 resonator -> resonance peaks: d 3.7914, skip []
+
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(230): FAILED:
+  CHECK( atF )
+with expansion:
+  false
+with message:
+  Swarm Breath primary E3 noise -> noise wake: d 1.1652, skip []
+
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(230): FAILED:
+  CHECK( atF )
+with expansion:
+  false
+with message:
+  Feeding Loops primary E4 feedback -> loop wake: d 2.91824, skip []
+
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(230): FAILED:
+  CHECK( atF )
+with expansion:
+  false
+with message:
+  Haunted Colony primary E5 ghost -> ghost bursts: d 3.90932, skip []
+
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(230): FAILED:
+  CHECK( atF )
+with expansion:
+  false
+with message:
+  Spore Drift primary D3.3 noise model GranularDust: d 1.81345, skip []
+
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(259): FAILED:
+  CHECK( host.has_value() )
+with expansion:
+  false
+with message:
+  E1 partial -> bloom is no preset's verified primary
+
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(259): FAILED:
+  CHECK( host.has_value() )
+with expansion:
+  false
+with message:
+  E2 resonator -> resonance peaks is no preset's verified primary
+
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(259): FAILED:
+  CHECK( host.has_value() )
+with expansion:
+  false
+with message:
+  E3 noise -> noise wake is no preset's verified primary
+
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(259): FAILED:
+  CHECK( host.has_value() )
+with expansion:
+  false
+with message:
+  E4 feedback -> loop wake is no preset's verified primary
+
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(259): FAILED:
+  CHECK( host.has_value() )
+with expansion:
+  false
+with message:
+  E5 ghost -> ghost bursts is no preset's verified primary
+
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(268): FAILED:
+  CHECK( eHosts.size() == 5u )
+with expansion:
+  0 == 5
+with message:
+  E1-E5 primaries must sit on five distinct presets
+
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(283): FAILED:
+  CHECK( hosts >= 1u )
+with expansion:
+  0 >= 1
+with message:
+  E6.hi ecosystem sync rate high is no preset's verified secondary claim
+
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(283): FAILED:
+  CHECK( hosts >= 1u )
+with expansion:
+  0 >= 1
+with message:
+  E7.hi ecosystem self-affinity high is no preset's verified secondary claim
+
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(298): FAILED:
+  CHECK( sameSet )
+with expansion:
+  false
+with message:
+  measured default-state set: D1.6 material StoneChamber, D1.7 material
+  SteelTank, D2 body blend both heard, D5.3 anchor Hybrid, D8.1 envelope
+  Standard, D9.2 attack span >= 90 s, D10.2 freeze off, D12.2 ghost event
+  triggers off; recorded: D1.6 material StoneChamber, D1.7 material SteelTank,
+  D2 body blend both heard, D5.3 anchor Hybrid, D7.1 loudest sub f/2, D8.1
+  envelope Standard, D9.2 attack span >= 90 s, D10.2 freeze off, D12.2 ghost
+  event triggers off
+
+Required primaries from the measured set: 42; from the recorded constant: 42; verified primaries: 30
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(312): FAILED:
+  CHECK( primariesMatch )
+with expansion:
+  false
+with messages:
+  required (measured): S1 noise organism, S2 resonance drift, S3 spectral
+  smear, S4 feedback ecology, S5 subharmonic, S6 harmonic bloom, S7 ecosystem,
+  S8 cavern space, S9 ghost / atmosphere, S10 acoustic body, M1 Darkness, M2
+  Age, M3 Density, M4 Movement, M5 Gravity, M6 Entropy, M7 Pressure, M8 Weight,
+  M9 Fog, M10 Life, M11 Depth, M12 Mass, E1 partial -> bloom, E2 resonator ->
+  resonance peaks, E3 noise -> noise wake, E4 feedback -> loop wake, E5 ghost -
+  > ghost bursts, D1.1 material Glass, D1.2 material Strings, D1.3 material
+  MetalPlate, D1.4 material Chamber, D1.5 material Ice, D1.8 material
+  WoodenHull, D1.9 material CathedralColumn, D1.10 material CavernWall, D1.11
+  material GlassSphere, D3.1 noise model Direct, D3.2 noise model FilteredWind,
+  D3.3 noise model GranularDust, D3.4 noise model MetallicHiss, D8.2 envelope
+  Growth, D9.1 attack span <= 10 s
+  verified primaries: S1 noise organism, S3 spectral smear, S4 feedback
+  ecology, S5 subharmonic, S6 harmonic bloom, S7 ecosystem, S8 cavern space, S9
+  ghost / atmosphere, S10 acoustic body, M3 Density, M6 Entropy, M7 Pressure,
+  M8 Weight, M9 Fog, M11 Depth, M12 Mass, D1.1 material Glass, D1.2 material
+  Strings, D1.3 material MetalPlate, D1.4 material Chamber, D1.5 material Ice,
+  D1.8 material WoodenHull, D1.9 material CathedralColumn, D1.10 material
+  CavernWall, D1.11 material GlassSphere, D3.1 noise model Direct, D3.2 noise
+  model FilteredWind, D3.4 noise model MetallicHiss, D8.2 envelope Growth, D9.1
+  attack span <= 10 s
+
+0.013 s: Vorago_PresetMatrix_CoverageComplete
+[aggregate] index 0: computing / loading record...
+[aggregate] index 1: computing / loading record...
+[aggregate] index 2: computing / loading record...
+[aggregate] index 3: computing / loading record...
+[aggregate] index 4: computing / loading record...
+[aggregate] index 5: computing / loading record...
+[aggregate] index 6: computing / loading record...
+[aggregate] index 7: computing / loading record...
+[aggregate] index 8: computing / loading record...
+[aggregate] index 9: computing / loading record...
+[aggregate] index 10: computing / loading record...
+[aggregate] index 11: computing / loading record...
+[aggregate] index 12: computing / loading record...
+[aggregate] index 13: computing / loading record...
+[aggregate] index 14: computing / loading record...
+[aggregate] index 15: computing / loading record...
+[aggregate] index 16: computing / loading record...
+[aggregate] index 17: computing / loading record...
+[aggregate] index 18: computing / loading record...
+[aggregate] index 19: computing / loading record...
+[aggregate] index 20: computing / loading record...
+[aggregate] index 21: computing / loading record...
+[aggregate] index 22: computing / loading record...
+[aggregate] index 23: computing / loading record...
+[aggregate] index 24: computing / loading record...
+[aggregate] index 25: computing / loading record...
+[aggregate] index 26: computing / loading record...
+[aggregate] index 27: computing / loading record...
+[aggregate] index 28: computing / loading record...
+[aggregate] index 29: computing / loading record...
+[aggregate] index 30: computing / loading record...
+[aggregate] index 31: computing / loading record...
+[aggregate] index 32: computing / loading record...
+[aggregate] index 33: computing / loading record...
+[aggregate] index 34: computing / loading record...
+[aggregate] index 35: computing / loading record...
+[aggregate] index 36: computing / loading record...
+[aggregate] index 37: computing / loading record...
+[aggregate] index 38: computing / loading record...
+[aggregate] index 39: computing / loading record...
+[aggregate] index 40: computing / loading record...
+[aggregate] index 41: computing / loading record...
+[aggregate] index 42: computing / loading record...
+
+=== Vorago_PresetMatrix_NoShowcaseSubset (FR-011a; 1722 ordered pairs) ===
+
+Wind Through Basalt (primary S1 noise organism):
+  Wind Through Basalt vs Resonant Shaft: witness S1 noise organism
+  Wind Through Basalt vs Smeared Horizon: witness S1 noise organism
+  Wind Through Basalt vs Feedback Mire: witness D4.1 noise type White
+  Wind Through Basalt vs Tectonic Floor: witness S1 noise organism
+  Wind Through Basalt vs Slow Bloom: witness S1 noise organism
+  Wind Through Basalt vs Colony Pulse: witness D4.1 noise type White
+  Wind Through Basalt vs Cathedral Void: witness S1 noise organism
+  Wind Through Basalt vs Choir of Absence: witness S1 noise organism
+  Wind Through Basalt vs Hull Resonance: witness D4.1 noise type White
+  Wind Through Basalt vs Lightless: witness S1 noise organism
+  Wind Through Basalt vs Erosion: witness S1 noise organism
+  Wind Through Basalt vs Crowded Dark: witness D4.1 noise type White
+  Wind Through Basalt vs Drifting Strata: witness S1 noise organism
+  Wind Through Basalt vs Stone Gravity: witness S1 noise organism
+  Wind Through Basalt vs Entropic Hum: witness D4.1 noise type White
+  Wind Through Basalt vs Pressure Front: witness S1 noise organism
+  Wind Through Basalt vs Weighted Deep: witness S1 noise organism
+  Wind Through Basalt vs Fogbound: witness S1 noise organism
+  Wind Through Basalt vs Teeming: witness S1 noise organism
+  Wind Through Basalt vs Endless Descent: witness S1 noise organism
+  Wind Through Basalt vs Monolith: witness S1 noise organism
+  Wind Through Basalt vs Bloom Colony: witness S1 noise organism
+  Wind Through Basalt vs Singing Colony: witness S1 noise organism
+  Wind Through Basalt vs Swarm Breath: witness S1 noise organism
+  Wind Through Basalt vs Feeding Loops: witness S1 noise organism
+  Wind Through Basalt vs Haunted Colony: witness S1 noise organism
+  Wind Through Basalt vs Growth Ring: witness S1 noise organism
+  Wind Through Basalt vs Glass Well: witness S1 noise organism
+  Wind Through Basalt vs Strung Abyss: witness S1 noise organism
+  Wind Through Basalt vs Iron Plate: witness S1 noise organism
+  Wind Through Basalt vs Chamber Drone: witness S1 noise organism
+  Wind Through Basalt vs Ice Shelf: witness D4.1 noise type White
+  Wind Through Basalt vs Hull Ark: witness S1 noise organism
+  Wind Through Basalt vs Column Hymn: witness S1 noise organism
+  Wind Through Basalt vs Cavern Wall: witness S1 noise organism
+  Wind Through Basalt vs Glass Sphere: witness S1 noise organism
+  Wind Through Basalt vs Sudden Chasm: witness S1 noise organism
+  Wind Through Basalt vs Dead Air: witness D4.7 noise type Blue
+  Wind Through Basalt vs Abyssal Wind: witness D3.1 noise model Direct
+  Wind Through Basalt vs Spore Drift: witness D3.1 noise model Direct
+  Wind Through Basalt vs Steam Vent: witness D3.1 noise model Direct
+
+Resonant Shaft (primary S2 resonance drift):
+  Resonant Shaft vs Wind Through Basalt: witness S2 resonance drift
+  Resonant Shaft vs Smeared Horizon: witness D5.2 anchor Keyed
+  Resonant Shaft vs Feedback Mire: witness D5.2 anchor Keyed
+  Resonant Shaft vs Tectonic Floor: witness S2 resonance drift
+  Resonant Shaft vs Slow Bloom: witness D5.2 anchor Keyed
+  Resonant Shaft vs Colony Pulse: witness D5.2 anchor Keyed
+  Resonant Shaft vs Cathedral Void: witness D5.2 anchor Keyed
+  Resonant Shaft vs Choir of Absence: witness D5.2 anchor Keyed
+  Resonant Shaft vs Hull Resonance: witness S2 resonance drift
+  Resonant Shaft vs Lightless: witness D5.2 anchor Keyed
+  Resonant Shaft vs Erosion: witness D5.2 anchor Keyed
+  Resonant Shaft vs Crowded Dark: witness D5.2 anchor Keyed
+  Resonant Shaft vs Drifting Strata: witness D5.2 anchor Keyed
+  Resonant Shaft vs Stone Gravity: witness D5.2 anchor Keyed
+  Resonant Shaft vs Entropic Hum: witness D5.2 anchor Keyed
+  Resonant Shaft vs Pressure Front: witness D5.2 anchor Keyed
+  Resonant Shaft vs Weighted Deep: witness D5.2 anchor Keyed
+  Resonant Shaft vs Fogbound: witness D5.2 anchor Keyed
+  Resonant Shaft vs Teeming: witness D5.2 anchor Keyed
+  Resonant Shaft vs Endless Descent: witness S2 resonance drift
+  Resonant Shaft vs Monolith: witness S2 resonance drift
+  Resonant Shaft vs Bloom Colony: witness S2 resonance drift
+  Resonant Shaft vs Singing Colony: witness D5.2 anchor Keyed
+  Resonant Shaft vs Swarm Breath: witness S2 resonance drift
+  Resonant Shaft vs Feeding Loops: witness D5.2 anchor Keyed
+  Resonant Shaft vs Haunted Colony: witness D5.2 anchor Keyed
+  Resonant Shaft vs Growth Ring: witness S2 resonance drift
+  Resonant Shaft vs Glass Well: witness D5.2 anchor Keyed
+  Resonant Shaft vs Strung Abyss: witness S2 resonance drift
+  Resonant Shaft vs Iron Plate: witness S2 resonance drift
+  Resonant Shaft vs Chamber Drone: witness S2 resonance drift
+  Resonant Shaft vs Ice Shelf: witness S2 resonance drift
+  Resonant Shaft vs Hull Ark: witness S2 resonance drift
+  Resonant Shaft vs Column Hymn: witness S2 resonance drift
+  Resonant Shaft vs Cavern Wall: witness S2 resonance drift
+  Resonant Shaft vs Glass Sphere: witness S2 resonance drift
+  Resonant Shaft vs Sudden Chasm: witness S2 resonance drift
+  Resonant Shaft vs Dead Air: witness S2 resonance drift
+  Resonant Shaft vs Abyssal Wind: witness D5.2 anchor Keyed
+  Resonant Shaft vs Spore Drift: witness S2 resonance drift
+  Resonant Shaft vs Steam Vent: witness S2 resonance drift
+
+Smeared Horizon (primary S3 spectral smear):
+  Smeared Horizon vs Wind Through Basalt: SUBSET
+-------------------------------------------------------------------------------
+Vorago_PresetMatrix_NoShowcaseSubset
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(322)
+...............................................................................
+
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(350): FAILED:
+  CHECK( w.has_value() )
+with expansion:
+  false
+with message:
+  Smeared Horizon vs Wind Through Basalt: every claim of P is verified by Q
+  (SUBSET)
+
+  Smeared Horizon vs Resonant Shaft: witness S3 spectral smear
+  Smeared Horizon vs Feedback Mire: SUBSET
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(350): FAILED:
+  CHECK( w.has_value() )
+with expansion:
+  false
+with message:
+  Smeared Horizon vs Feedback Mire: every claim of P is verified by Q (SUBSET)
+
+  Smeared Horizon vs Tectonic Floor: witness S3 spectral smear
+  Smeared Horizon vs Slow Bloom: witness S3 spectral smear
+  Smeared Horizon vs Colony Pulse: witness S3 spectral smear
+  Smeared Horizon vs Cathedral Void: witness S3 spectral smear
+  Smeared Horizon vs Choir of Absence: witness S3 spectral smear
+  Smeared Horizon vs Hull Resonance: SUBSET
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(350): FAILED:
+  CHECK( w.has_value() )
+with expansion:
+  false
+with message:
+  Smeared Horizon vs Hull Resonance: every claim of P is verified by Q (SUBSET)
+
+  Smeared Horizon vs Lightless: witness S3 spectral smear
+  Smeared Horizon vs Erosion: witness S3 spectral smear
+  Smeared Horizon vs Crowded Dark: witness S3 spectral smear
+  Smeared Horizon vs Drifting Strata: witness S3 spectral smear
+  Smeared Horizon vs Stone Gravity: witness S3 spectral smear
+  Smeared Horizon vs Entropic Hum: witness S3 spectral smear
+  Smeared Horizon vs Pressure Front: witness S3 spectral smear
+  Smeared Horizon vs Weighted Deep: SUBSET
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(350): FAILED:
+  CHECK( w.has_value() )
+with expansion:
+  false
+with message:
+  Smeared Horizon vs Weighted Deep: every claim of P is verified by Q (SUBSET)
+
+  Smeared Horizon vs Fogbound: witness S3 spectral smear
+  Smeared Horizon vs Teeming: witness S3 spectral smear
+  Smeared Horizon vs Endless Descent: witness S3 spectral smear
+  Smeared Horizon vs Monolith: witness S3 spectral smear
+  Smeared Horizon vs Bloom Colony: SUBSET
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(350): FAILED:
+  CHECK( w.has_value() )
+with expansion:
+  false
+with message:
+  Smeared Horizon vs Bloom Colony: every claim of P is verified by Q (SUBSET)
+
+  Smeared Horizon vs Singing Colony: witness S3 spectral smear
+  Smeared Horizon vs Swarm Breath: SUBSET
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(350): FAILED:
+  CHECK( w.has_value() )
+with expansion:
+  false
+with message:
+  Smeared Horizon vs Swarm Breath: every claim of P is verified by Q (SUBSET)
+
+  Smeared Horizon vs Feeding Loops: SUBSET
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(350): FAILED:
+  CHECK( w.has_value() )
+with expansion:
+  false
+with message:
+  Smeared Horizon vs Feeding Loops: every claim of P is verified by Q (SUBSET)
+
+  Smeared Horizon vs Haunted Colony: witness S3 spectral smear
+  Smeared Horizon vs Growth Ring: witness D8.1 envelope Standard
+  Smeared Horizon vs Glass Well: SUBSET
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(350): FAILED:
+  CHECK( w.has_value() )
+with expansion:
+  false
+with message:
+  Smeared Horizon vs Glass Well: every claim of P is verified by Q (SUBSET)
+
+  Smeared Horizon vs Strung Abyss: SUBSET
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(350): FAILED:
+  CHECK( w.has_value() )
+with expansion:
+  false
+with message:
+  Smeared Horizon vs Strung Abyss: every claim of P is verified by Q (SUBSET)
+
+  Smeared Horizon vs Iron Plate: SUBSET
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(350): FAILED:
+  CHECK( w.has_value() )
+with expansion:
+  false
+with message:
+  Smeared Horizon vs Iron Plate: every claim of P is verified by Q (SUBSET)
+
+  Smeared Horizon vs Chamber Drone: SUBSET
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(350): FAILED:
+  CHECK( w.has_value() )
+with expansion:
+  false
+with message:
+  Smeared Horizon vs Chamber Drone: every claim of P is verified by Q (SUBSET)
+
+  Smeared Horizon vs Ice Shelf: SUBSET
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(350): FAILED:
+  CHECK( w.has_value() )
+with expansion:
+  false
+with message:
+  Smeared Horizon vs Ice Shelf: every claim of P is verified by Q (SUBSET)
+
+  Smeared Horizon vs Hull Ark: SUBSET
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(350): FAILED:
+  CHECK( w.has_value() )
+with expansion:
+  false
+with message:
+  Smeared Horizon vs Hull Ark: every claim of P is verified by Q (SUBSET)
+
+  Smeared Horizon vs Column Hymn: SUBSET
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(350): FAILED:
+  CHECK( w.has_value() )
+with expansion:
+  false
+with message:
+  Smeared Horizon vs Column Hymn: every claim of P is verified by Q (SUBSET)
+
+  Smeared Horizon vs Cavern Wall: SUBSET
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(350): FAILED:
+  CHECK( w.has_value() )
+with expansion:
+  false
+with message:
+  Smeared Horizon vs Cavern Wall: every claim of P is verified by Q (SUBSET)
+
+  Smeared Horizon vs Glass Sphere: SUBSET
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(350): FAILED:
+  CHECK( w.has_value() )
+with expansion:
+  false
+with message:
+  Smeared Horizon vs Glass Sphere: every claim of P is verified by Q (SUBSET)
+
+  Smeared Horizon vs Sudden Chasm: witness S3 spectral smear
+  Smeared Horizon vs Dead Air: witness S3 spectral smear
+  Smeared Horizon vs Abyssal Wind: witness S3 spectral smear
+  Smeared Horizon vs Spore Drift: witness S3 spectral smear
+  Smeared Horizon vs Steam Vent: SUBSET
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(350): FAILED:
+  CHECK( w.has_value() )
+with expansion:
+  false
+with message:
+  Smeared Horizon vs Steam Vent: every claim of P is verified by Q (SUBSET)
+
+
+Feedback Mire (primary S4 feedback ecology):
+  Feedback Mire vs Wind Through Basalt: witness S4 feedback ecology
+  Feedback Mire vs Resonant Shaft: witness S4 feedback ecology
+  Feedback Mire vs Smeared Horizon: witness S4 feedback ecology
+  Feedback Mire vs Tectonic Floor: witness S4 feedback ecology
+  Feedback Mire vs Slow Bloom: witness S4 feedback ecology
+  Feedback Mire vs Colony Pulse: witness S4 feedback ecology
+  Feedback Mire vs Cathedral Void: witness S4 feedback ecology
+  Feedback Mire vs Choir of Absence: witness S4 feedback ecology
+  Feedback Mire vs Hull Resonance: witness S4 feedback ecology
+  Feedback Mire vs Lightless: witness S4 feedback ecology
+  Feedback Mire vs Erosion: witness S4 feedback ecology
+  Feedback Mire vs Crowded Dark: witness S4 feedback ecology
+  Feedback Mire vs Drifting Strata: witness S4 feedback ecology
+  Feedback Mire vs Stone Gravity: witness S4 feedback ecology
+  Feedback Mire vs Entropic Hum: witness S4 feedback ecology
+  Feedback Mire vs Pressure Front: witness S4 feedback ecology
+  Feedback Mire vs Weighted Deep: witness S4 feedback ecology
+  Feedback Mire vs Fogbound: witness S4 feedback ecology
+  Feedback Mire vs Teeming: witness S4 feedback ecology
+  Feedback Mire vs Endless Descent: witness S4 feedback ecology
+  Feedback Mire vs Monolith: witness S4 feedback ecology
+  Feedback Mire vs Bloom Colony: witness S4 feedback ecology
+  Feedback Mire vs Singing Colony: witness S4 feedback ecology
+  Feedback Mire vs Swarm Breath: witness S4 feedback ecology
+  Feedback Mire vs Feeding Loops: witness D6.3 loop filter Highpass
+  Feedback Mire vs Haunted Colony: witness S4 feedback ecology
+  Feedback Mire vs Growth Ring: witness S4 feedback ecology
+  Feedback Mire vs Glass Well: witness S4 feedback ecology
+  Feedback Mire vs Strung Abyss: witness S4 feedback ecology
+  Feedback Mire vs Iron Plate: witness S4 feedback ecology
+  Feedback Mire vs Chamber Drone: witness S4 feedback ecology
+  Feedback Mire vs Ice Shelf: witness S4 feedback ecology
+  Feedback Mire vs Hull Ark: witness S4 feedback ecology
+  Feedback Mire vs Column Hymn: witness S4 feedback ecology
+  Feedback Mire vs Cavern Wall: witness S4 feedback ecology
+  Feedback Mire vs Glass Sphere: witness S4 feedback ecology
+  Feedback Mire vs Sudden Chasm: witness S4 feedback ecology
+  Feedback Mire vs Dead Air: witness S4 feedback ecology
+  Feedback Mire vs Abyssal Wind: witness S4 feedback ecology
+  Feedback Mire vs Spore Drift: witness S4 feedback ecology
+  Feedback Mire vs Steam Vent: witness S4 feedback ecology
+
+Tectonic Floor (primary S5 subharmonic):
+  Tectonic Floor vs Wind Through Basalt: witness D7.3 loudest sub fifth below
+  Tectonic Floor vs Resonant Shaft: witness S5 subharmonic
+  Tectonic Floor vs Smeared Horizon: witness S5 subharmonic
+  Tectonic Floor vs Feedback Mire: witness S5 subharmonic
+  Tectonic Floor vs Slow Bloom: witness S5 subharmonic
+  Tectonic Floor vs Colony Pulse: witness S5 subharmonic
+  Tectonic Floor vs Cathedral Void: witness D7.3 loudest sub fifth below
+  Tectonic Floor vs Choir of Absence: witness S5 subharmonic
+  Tectonic Floor vs Hull Resonance: witness D7.3 loudest sub fifth below
+  Tectonic Floor vs Lightless: witness S5 subharmonic
+  Tectonic Floor vs Erosion: witness S5 subharmonic
+  Tectonic Floor vs Crowded Dark: witness S5 subharmonic
+  Tectonic Floor vs Drifting Strata: witness D7.3 loudest sub fifth below
+  Tectonic Floor vs Stone Gravity: witness S5 subharmonic
+  Tectonic Floor vs Entropic Hum: witness S5 subharmonic
+  Tectonic Floor vs Pressure Front: witness S5 subharmonic
+  Tectonic Floor vs Weighted Deep: witness D7.3 loudest sub fifth below
+  Tectonic Floor vs Fogbound: witness S5 subharmonic
+  Tectonic Floor vs Teeming: witness S5 subharmonic
+  Tectonic Floor vs Endless Descent: witness S5 subharmonic
+  Tectonic Floor vs Monolith: witness D7.3 loudest sub fifth below
+  Tectonic Floor vs Bloom Colony: witness D7.3 loudest sub fifth below
+  Tectonic Floor vs Singing Colony: witness S5 subharmonic
+  Tectonic Floor vs Swarm Breath: witness D7.3 loudest sub fifth below
+  Tectonic Floor vs Feeding Loops: witness D7.3 loudest sub fifth below
+  Tectonic Floor vs Haunted Colony: witness S5 subharmonic
+  Tectonic Floor vs Growth Ring: witness S5 subharmonic
+  Tectonic Floor vs Glass Well: witness D7.3 loudest sub fifth below
+  Tectonic Floor vs Strung Abyss: witness D7.3 loudest sub fifth below
+  Tectonic Floor vs Iron Plate: witness S5 subharmonic
+  Tectonic Floor vs Chamber Drone: witness S5 subharmonic
+  Tectonic Floor vs Ice Shelf: witness S5 subharmonic
+  Tectonic Floor vs Hull Ark: witness S5 subharmonic
+  Tectonic Floor vs Column Hymn: witness D7.3 loudest sub fifth below
+  Tectonic Floor vs Cavern Wall: witness D7.3 loudest sub fifth below
+  Tectonic Floor vs Glass Sphere: witness S5 subharmonic
+  Tectonic Floor vs Sudden Chasm: witness D7.3 loudest sub fifth below
+  Tectonic Floor vs Dead Air: witness S5 subharmonic
+  Tectonic Floor vs Abyssal Wind: witness D7.3 loudest sub fifth below
+  Tectonic Floor vs Spore Drift: witness S5 subharmonic
+  Tectonic Floor vs Steam Vent: witness S5 subharmonic
+
+Slow Bloom (primary S6 harmonic bloom):
+  Slow Bloom vs Wind Through Basalt: witness S6 harmonic bloom
+  Slow Bloom vs Resonant Shaft: witness S6 harmonic bloom
+  Slow Bloom vs Smeared Horizon: witness S6 harmonic bloom
+  Slow Bloom vs Feedback Mire: witness S6 harmonic bloom
+  Slow Bloom vs Tectonic Floor: witness S6 harmonic bloom
+  Slow Bloom vs Colony Pulse: witness S6 harmonic bloom
+  Slow Bloom vs Cathedral Void: witness S6 harmonic bloom
+  Slow Bloom vs Choir of Absence: witness S6 harmonic bloom
+  Slow Bloom vs Hull Resonance: witness S6 harmonic bloom
+  Slow Bloom vs Lightless: witness S6 harmonic bloom
+  Slow Bloom vs Erosion: witness S6 harmonic bloom
+  Slow Bloom vs Crowded Dark: witness S6 harmonic bloom
+  Slow Bloom vs Drifting Strata: witness S6 harmonic bloom
+  Slow Bloom vs Stone Gravity: witness S6 harmonic bloom
+  Slow Bloom vs Entropic Hum: witness D14.1 breathing depth >= 0.7
+  Slow Bloom vs Pressure Front: witness S6 harmonic bloom
+  Slow Bloom vs Weighted Deep: witness S6 harmonic bloom
+  Slow Bloom vs Fogbound: witness S6 harmonic bloom
+  Slow Bloom vs Teeming: witness S6 harmonic bloom
+  Slow Bloom vs Endless Descent: witness S6 harmonic bloom
+  Slow Bloom vs Monolith: witness S6 harmonic bloom
+  Slow Bloom vs Bloom Colony: witness S6 harmonic bloom
+  Slow Bloom vs Singing Colony: witness S6 harmonic bloom
+  Slow Bloom vs Swarm Breath: witness S6 harmonic bloom
+  Slow Bloom vs Feeding Loops: witness S6 harmonic bloom
+  Slow Bloom vs Haunted Colony: witness S6 harmonic bloom
+  Slow Bloom vs Growth Ring: witness S6 harmonic bloom
+  Slow Bloom vs Glass Well: witness S6 harmonic bloom
+  Slow Bloom vs Strung Abyss: witness D14.1 breathing depth >= 0.7
+  Slow Bloom vs Iron Plate: witness S6 harmonic bloom
+  Slow Bloom vs Chamber Drone: witness D14.1 breathing depth >= 0.7
+  Slow Bloom vs Ice Shelf: witness D14.1 breathing depth >= 0.7
+  Slow Bloom vs Hull Ark: witness D14.1 breathing depth >= 0.7
+  Slow Bloom vs Column Hymn: witness D14.1 breathing depth >= 0.7
+  Slow Bloom vs Cavern Wall: witness S6 harmonic bloom
+  Slow Bloom vs Glass Sphere: witness S6 harmonic bloom
+  Slow Bloom vs Sudden Chasm: witness S6 harmonic bloom
+  Slow Bloom vs Dead Air: witness S6 harmonic bloom
+  Slow Bloom vs Abyssal Wind: witness S6 harmonic bloom
+  Slow Bloom vs Spore Drift: witness S6 harmonic bloom
+  Slow Bloom vs Steam Vent: witness S6 harmonic bloom
+
+Colony Pulse (primary S7 ecosystem):
+  Colony Pulse vs Wind Through Basalt: witness D13.2 event rate scale >= 3.0
+  Colony Pulse vs Resonant Shaft: witness D13.2 event rate scale >= 3.0
+  Colony Pulse vs Smeared Horizon: witness D13.2 event rate scale >= 3.0
+  Colony Pulse vs Feedback Mire: witness D13.2 event rate scale >= 3.0
+  Colony Pulse vs Tectonic Floor: witness S7 ecosystem
+  Colony Pulse vs Slow Bloom: witness D13.2 event rate scale >= 3.0
+  Colony Pulse vs Cathedral Void: witness D13.2 event rate scale >= 3.0
+  Colony Pulse vs Choir of Absence: witness D13.2 event rate scale >= 3.0
+  Colony Pulse vs Hull Resonance: witness D13.2 event rate scale >= 3.0
+  Colony Pulse vs Lightless: witness D13.2 event rate scale >= 3.0
+  Colony Pulse vs Erosion: witness D13.2 event rate scale >= 3.0
+  Colony Pulse vs Crowded Dark: witness D13.2 event rate scale >= 3.0
+  Colony Pulse vs Drifting Strata: witness D13.2 event rate scale >= 3.0
+  Colony Pulse vs Stone Gravity: witness D13.2 event rate scale >= 3.0
+  Colony Pulse vs Entropic Hum: witness D13.2 event rate scale >= 3.0
+  Colony Pulse vs Pressure Front: witness D13.2 event rate scale >= 3.0
+  Colony Pulse vs Weighted Deep: witness D13.2 event rate scale >= 3.0
+  Colony Pulse vs Fogbound: witness D13.2 event rate scale >= 3.0
+  Colony Pulse vs Teeming: witness D13.2 event rate scale >= 3.0
+  Colony Pulse vs Endless Descent: witness D13.2 event rate scale >= 3.0
+  Colony Pulse vs Monolith: witness D13.2 event rate scale >= 3.0
+  Colony Pulse vs Bloom Colony: witness D13.2 event rate scale >= 3.0
+  Colony Pulse vs Singing Colony: witness D13.2 event rate scale >= 3.0
+  Colony Pulse vs Swarm Breath: witness D13.2 event rate scale >= 3.0
+  Colony Pulse vs Feeding Loops: witness D13.2 event rate scale >= 3.0
+  Colony Pulse vs Haunted Colony: witness D13.2 event rate scale >= 3.0
+  Colony Pulse vs Growth Ring: witness D13.2 event rate scale >= 3.0
+  Colony Pulse vs Glass Well: witness D13.2 event rate scale >= 3.0
+  Colony Pulse vs Strung Abyss: witness S7 ecosystem
+  Colony Pulse vs Iron Plate: witness S7 ecosystem
+  Colony Pulse vs Chamber Drone: witness S7 ecosystem
+  Colony Pulse vs Ice Shelf: witness S7 ecosystem
+  Colony Pulse vs Hull Ark: witness S7 ecosystem
+  Colony Pulse vs Column Hymn: witness S7 ecosystem
+  Colony Pulse vs Cavern Wall: witness S7 ecosystem
+  Colony Pulse vs Glass Sphere: witness S7 ecosystem
+  Colony Pulse vs Sudden Chasm: witness S7 ecosystem
+  Colony Pulse vs Dead Air: witness S7 ecosystem
+  Colony Pulse vs Abyssal Wind: witness S7 ecosystem
+  Colony Pulse vs Spore Drift: witness S7 ecosystem
+  Colony Pulse vs Steam Vent: witness S7 ecosystem
+
+Cathedral Void (primary S8 cavern space):
+  Cathedral Void vs Wind Through Basalt: witness S8 cavern space
+  Cathedral Void vs Resonant Shaft: witness D10.1 freeze holds a field
+  Cathedral Void vs Smeared Horizon: witness S8 cavern space
+  Cathedral Void vs Feedback Mire: witness S8 cavern space
+  Cathedral Void vs Tectonic Floor: witness D10.1 freeze holds a field
+  Cathedral Void vs Slow Bloom: witness D10.1 freeze holds a field
+  Cathedral Void vs Colony Pulse: witness S8 cavern space
+  Cathedral Void vs Choir of Absence: witness S8 cavern space
+  Cathedral Void vs Hull Resonance: witness S8 cavern space
+  Cathedral Void vs Lightless: witness D10.1 freeze holds a field
+  Cathedral Void vs Erosion: witness D10.1 freeze holds a field
+  Cathedral Void vs Crowded Dark: witness S8 cavern space
+  Cathedral Void vs Drifting Strata: witness S8 cavern space
+  Cathedral Void vs Stone Gravity: witness D10.1 freeze holds a field
+  Cathedral Void vs Entropic Hum: witness S8 cavern space
+  Cathedral Void vs Pressure Front: witness D10.1 freeze holds a field
+  Cathedral Void vs Weighted Deep: witness S8 cavern space
+  Cathedral Void vs Fogbound: witness D10.1 freeze holds a field
+  Cathedral Void vs Teeming: witness D10.1 freeze holds a field
+  Cathedral Void vs Endless Descent: witness D10.1 freeze holds a field
+  Cathedral Void vs Monolith: witness S8 cavern space
+  Cathedral Void vs Bloom Colony: witness D10.1 freeze holds a field
+  Cathedral Void vs Singing Colony: witness D10.1 freeze holds a field
+  Cathedral Void vs Swarm Breath: witness D10.1 freeze holds a field
+  Cathedral Void vs Feeding Loops: witness S8 cavern space
+  Cathedral Void vs Haunted Colony: witness D10.1 freeze holds a field
+  Cathedral Void vs Growth Ring: witness D10.1 freeze holds a field
+  Cathedral Void vs Glass Well: witness S8 cavern space
+  Cathedral Void vs Strung Abyss: witness S8 cavern space
+  Cathedral Void vs Iron Plate: witness S8 cavern space
+  Cathedral Void vs Chamber Drone: witness S8 cavern space
+  Cathedral Void vs Ice Shelf: witness S8 cavern space
+  Cathedral Void vs Hull Ark: witness S8 cavern space
+  Cathedral Void vs Column Hymn: witness S8 cavern space
+  Cathedral Void vs Cavern Wall: witness S8 cavern space
+  Cathedral Void vs Glass Sphere: witness S8 cavern space
+  Cathedral Void vs Sudden Chasm: witness D10.1 freeze holds a field
+  Cathedral Void vs Dead Air: witness D10.1 freeze holds a field
+  Cathedral Void vs Abyssal Wind: witness D10.1 freeze holds a field
+  Cathedral Void vs Spore Drift: witness D10.1 freeze holds a field
+  Cathedral Void vs Steam Vent: witness S8 cavern space
+
+Choir of Absence (primary S9 ghost / atmosphere):
+  Choir of Absence vs Wind Through Basalt: witness S9 ghost / atmosphere
+  Choir of Absence vs Resonant Shaft: witness S9 ghost / atmosphere
+  Choir of Absence vs Smeared Horizon: witness S9 ghost / atmosphere
+  Choir of Absence vs Feedback Mire: witness S9 ghost / atmosphere
+  Choir of Absence vs Tectonic Floor: witness D11 ghost reverse >= 0.5
+  Choir of Absence vs Slow Bloom: witness D11 ghost reverse >= 0.5
+  Choir of Absence vs Colony Pulse: witness D11 ghost reverse >= 0.5
+  Choir of Absence vs Cathedral Void: witness D11 ghost reverse >= 0.5
+  Choir of Absence vs Hull Resonance: witness D11 ghost reverse >= 0.5
+  Choir of Absence vs Lightless: witness D11 ghost reverse >= 0.5
+  Choir of Absence vs Erosion: witness S9 ghost / atmosphere
+  Choir of Absence vs Crowded Dark: witness D11 ghost reverse >= 0.5
+  Choir of Absence vs Drifting Strata: witness D11 ghost reverse >= 0.5
+  Choir of Absence vs Stone Gravity: witness S9 ghost / atmosphere
+  Choir of Absence vs Entropic Hum: witness D11 ghost reverse >= 0.5
+  Choir of Absence vs Pressure Front: witness D11 ghost reverse >= 0.5
+  Choir of Absence vs Weighted Deep: witness D11 ghost reverse >= 0.5
+  Choir of Absence vs Fogbound: witness S9 ghost / atmosphere
+  Choir of Absence vs Teeming: witness D11 ghost reverse >= 0.5
+  Choir of Absence vs Endless Descent: witness D11 ghost reverse >= 0.5
+  Choir of Absence vs Monolith: witness S9 ghost / atmosphere
+  Choir of Absence vs Bloom Colony: witness S9 ghost / atmosphere
+  Choir of Absence vs Singing Colony: witness S9 ghost / atmosphere
+  Choir of Absence vs Swarm Breath: witness S9 ghost / atmosphere
+  Choir of Absence vs Feeding Loops: witness S9 ghost / atmosphere
+  Choir of Absence vs Haunted Colony: witness D11 ghost reverse >= 0.5
+  Choir of Absence vs Growth Ring: witness S9 ghost / atmosphere
+  Choir of Absence vs Glass Well: witness S9 ghost / atmosphere
+  Choir of Absence vs Strung Abyss: witness S9 ghost / atmosphere
+  Choir of Absence vs Iron Plate: witness S9 ghost / atmosphere
+  Choir of Absence vs Chamber Drone: witness S9 ghost / atmosphere
+  Choir of Absence vs Ice Shelf: witness S9 ghost / atmosphere
+  Choir of Absence vs Hull Ark: witness S9 ghost / atmosphere
+  Choir of Absence vs Column Hymn: witness S9 ghost / atmosphere
+  Choir of Absence vs Cavern Wall: witness S9 ghost / atmosphere
+  Choir of Absence vs Glass Sphere: witness S9 ghost / atmosphere
+  Choir of Absence vs Sudden Chasm: witness S9 ghost / atmosphere
+  Choir of Absence vs Dead Air: witness S9 ghost / atmosphere
+  Choir of Absence vs Abyssal Wind: witness S9 ghost / atmosphere
+  Choir of Absence vs Spore Drift: witness S9 ghost / atmosphere
+  Choir of Absence vs Steam Vent: witness S9 ghost / atmosphere
+
+Hull Resonance (primary S10 acoustic body):
+  Hull Resonance vs Wind Through Basalt: SUBSET
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(350): FAILED:
+  CHECK( w.has_value() )
+with expansion:
+  false
+with message:
+  Hull Resonance vs Wind Through Basalt: every claim of P is verified by Q
+  (SUBSET)
+
+  Hull Resonance vs Resonant Shaft: witness S10 acoustic body
+  Hull Resonance vs Smeared Horizon: witness S10 acoustic body
+  Hull Resonance vs Feedback Mire: SUBSET
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(350): FAILED:
+  CHECK( w.has_value() )
+with expansion:
+  false
+with message:
+  Hull Resonance vs Feedback Mire: every claim of P is verified by Q (SUBSET)
+
+  Hull Resonance vs Tectonic Floor: SUBSET
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(350): FAILED:
+  CHECK( w.has_value() )
+with expansion:
+  false
+with message:
+  Hull Resonance vs Tectonic Floor: every claim of P is verified by Q (SUBSET)
+
+  Hull Resonance vs Slow Bloom: SUBSET
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(350): FAILED:
+  CHECK( w.has_value() )
+with expansion:
+  false
+with message:
+  Hull Resonance vs Slow Bloom: every claim of P is verified by Q (SUBSET)
+
+  Hull Resonance vs Colony Pulse: SUBSET
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(350): FAILED:
+  CHECK( w.has_value() )
+with expansion:
+  false
+with message:
+  Hull Resonance vs Colony Pulse: every claim of P is verified by Q (SUBSET)
+
+  Hull Resonance vs Cathedral Void: SUBSET
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(350): FAILED:
+  CHECK( w.has_value() )
+with expansion:
+  false
+with message:
+  Hull Resonance vs Cathedral Void: every claim of P is verified by Q (SUBSET)
+
+  Hull Resonance vs Choir of Absence: witness S10 acoustic body
+  Hull Resonance vs Lightless: SUBSET
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(350): FAILED:
+  CHECK( w.has_value() )
+with expansion:
+  false
+with message:
+  Hull Resonance vs Lightless: every claim of P is verified by Q (SUBSET)
+
+  Hull Resonance vs Erosion: SUBSET
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(350): FAILED:
+  CHECK( w.has_value() )
+with expansion:
+  false
+with message:
+  Hull Resonance vs Erosion: every claim of P is verified by Q (SUBSET)
+
+  Hull Resonance vs Crowded Dark: SUBSET
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(350): FAILED:
+  CHECK( w.has_value() )
+with expansion:
+  false
+with message:
+  Hull Resonance vs Crowded Dark: every claim of P is verified by Q (SUBSET)
+
+  Hull Resonance vs Drifting Strata: SUBSET
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(350): FAILED:
+  CHECK( w.has_value() )
+with expansion:
+  false
+with message:
+  Hull Resonance vs Drifting Strata: every claim of P is verified by Q (SUBSET)
+
+  Hull Resonance vs Stone Gravity: witness S10 acoustic body
+  Hull Resonance vs Entropic Hum: SUBSET
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(350): FAILED:
+  CHECK( w.has_value() )
+with expansion:
+  false
+with message:
+  Hull Resonance vs Entropic Hum: every claim of P is verified by Q (SUBSET)
+
+  Hull Resonance vs Pressure Front: SUBSET
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(350): FAILED:
+  CHECK( w.has_value() )
+with expansion:
+  false
+with message:
+  Hull Resonance vs Pressure Front: every claim of P is verified by Q (SUBSET)
+
+  Hull Resonance vs Weighted Deep: witness D2 body blend both heard
+  Hull Resonance vs Fogbound: SUBSET
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(350): FAILED:
+  CHECK( w.has_value() )
+with expansion:
+  false
+with message:
+  Hull Resonance vs Fogbound: every claim of P is verified by Q (SUBSET)
+
+  Hull Resonance vs Teeming: SUBSET
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(350): FAILED:
+  CHECK( w.has_value() )
+with expansion:
+  false
+with message:
+  Hull Resonance vs Teeming: every claim of P is verified by Q (SUBSET)
+
+  Hull Resonance vs Endless Descent: SUBSET
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(350): FAILED:
+  CHECK( w.has_value() )
+with expansion:
+  false
+with message:
+  Hull Resonance vs Endless Descent: every claim of P is verified by Q (SUBSET)
+
+  Hull Resonance vs Monolith: SUBSET
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(350): FAILED:
+  CHECK( w.has_value() )
+with expansion:
+  false
+with message:
+  Hull Resonance vs Monolith: every claim of P is verified by Q (SUBSET)
+
+  Hull Resonance vs Bloom Colony: SUBSET
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(350): FAILED:
+  CHECK( w.has_value() )
+with expansion:
+  false
+with message:
+  Hull Resonance vs Bloom Colony: every claim of P is verified by Q (SUBSET)
+
+  Hull Resonance vs Singing Colony: witness S10 acoustic body
+  Hull Resonance vs Swarm Breath: SUBSET
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(350): FAILED:
+  CHECK( w.has_value() )
+with expansion:
+  false
+with message:
+  Hull Resonance vs Swarm Breath: every claim of P is verified by Q (SUBSET)
+
+  Hull Resonance vs Feeding Loops: SUBSET
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(350): FAILED:
+  CHECK( w.has_value() )
+with expansion:
+  false
+with message:
+  Hull Resonance vs Feeding Loops: every claim of P is verified by Q (SUBSET)
+
+  Hull Resonance vs Haunted Colony: SUBSET
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(350): FAILED:
+  CHECK( w.has_value() )
+with expansion:
+  false
+with message:
+  Hull Resonance vs Haunted Colony: every claim of P is verified by Q (SUBSET)
+
+  Hull Resonance vs Growth Ring: SUBSET
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(350): FAILED:
+  CHECK( w.has_value() )
+with expansion:
+  false
+with message:
+  Hull Resonance vs Growth Ring: every claim of P is verified by Q (SUBSET)
+
+  Hull Resonance vs Glass Well: witness D2 body blend both heard
+  Hull Resonance vs Strung Abyss: witness D2 body blend both heard
+  Hull Resonance vs Iron Plate: witness D2 body blend both heard
+  Hull Resonance vs Chamber Drone: witness D2 body blend both heard
+  Hull Resonance vs Ice Shelf: witness D2 body blend both heard
+  Hull Resonance vs Hull Ark: witness D2 body blend both heard
+  Hull Resonance vs Column Hymn: witness D2 body blend both heard
+  Hull Resonance vs Cavern Wall: witness D2 body blend both heard
+  Hull Resonance vs Glass Sphere: witness D2 body blend both heard
+  Hull Resonance vs Sudden Chasm: SUBSET
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(350): FAILED:
+  CHECK( w.has_value() )
+with expansion:
+  false
+with message:
+  Hull Resonance vs Sudden Chasm: every claim of P is verified by Q (SUBSET)
+
+  Hull Resonance vs Dead Air: witness S10 acoustic body
+  Hull Resonance vs Abyssal Wind: SUBSET
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(350): FAILED:
+  CHECK( w.has_value() )
+with expansion:
+  false
+with message:
+  Hull Resonance vs Abyssal Wind: every claim of P is verified by Q (SUBSET)
+
+  Hull Resonance vs Spore Drift: SUBSET
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(350): FAILED:
+  CHECK( w.has_value() )
+with expansion:
+  false
+with message:
+  Hull Resonance vs Spore Drift: every claim of P is verified by Q (SUBSET)
+
+  Hull Resonance vs Steam Vent: SUBSET
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(350): FAILED:
+  CHECK( w.has_value() )
+with expansion:
+  false
+with message:
+  Hull Resonance vs Steam Vent: every claim of P is verified by Q (SUBSET)
+
+
+Lightless (primary M1 Darkness):
+  Lightless vs Wind Through Basalt: witness M1 Darkness
+  Lightless vs Resonant Shaft: witness M1 Darkness
+  Lightless vs Smeared Horizon: witness M1 Darkness
+  Lightless vs Feedback Mire: witness M1 Darkness
+  Lightless vs Tectonic Floor: witness M1 Darkness
+  Lightless vs Slow Bloom: witness M1 Darkness
+  Lightless vs Colony Pulse: witness M1 Darkness
+  Lightless vs Cathedral Void: witness M1 Darkness
+  Lightless vs Choir of Absence: witness M1 Darkness
+  Lightless vs Hull Resonance: witness M1 Darkness
+  Lightless vs Erosion: witness M1 Darkness
+  Lightless vs Crowded Dark: witness M1 Darkness
+  Lightless vs Drifting Strata: witness M1 Darkness
+  Lightless vs Stone Gravity: witness M1 Darkness
+  Lightless vs Entropic Hum: witness M1 Darkness
+  Lightless vs Pressure Front: witness M1 Darkness
+  Lightless vs Weighted Deep: witness M1 Darkness
+  Lightless vs Fogbound: witness M1 Darkness
+  Lightless vs Teeming: witness M1 Darkness
+  Lightless vs Endless Descent: witness M1 Darkness
+  Lightless vs Monolith: witness M1 Darkness
+  Lightless vs Bloom Colony: witness M1 Darkness
+  Lightless vs Singing Colony: witness M1 Darkness
+  Lightless vs Swarm Breath: witness M1 Darkness
+  Lightless vs Feeding Loops: witness M1 Darkness
+  Lightless vs Haunted Colony: witness M1 Darkness
+  Lightless vs Growth Ring: witness M1 Darkness
+  Lightless vs Glass Well: witness M1 Darkness
+  Lightless vs Strung Abyss: witness M1 Darkness
+  Lightless vs Iron Plate: witness M1 Darkness
+  Lightless vs Chamber Drone: witness M1 Darkness
+  Lightless vs Ice Shelf: witness M1 Darkness
+  Lightless vs Hull Ark: witness M1 Darkness
+  Lightless vs Column Hymn: witness M1 Darkness
+  Lightless vs Cavern Wall: witness M1 Darkness
+  Lightless vs Glass Sphere: witness M1 Darkness
+  Lightless vs Sudden Chasm: witness M1 Darkness
+  Lightless vs Dead Air: witness M1 Darkness
+  Lightless vs Abyssal Wind: witness M1 Darkness
+  Lightless vs Spore Drift: witness M1 Darkness
+  Lightless vs Steam Vent: witness M1 Darkness
+
+Erosion (primary M2 Age):
+  Erosion vs Wind Through Basalt: witness M2 Age
+  Erosion vs Resonant Shaft: witness M2 Age
+  Erosion vs Smeared Horizon: witness M2 Age
+  Erosion vs Feedback Mire: witness M2 Age
+  Erosion vs Tectonic Floor: witness M2 Age
+  Erosion vs Slow Bloom: witness M2 Age
+  Erosion vs Colony Pulse: witness M2 Age
+  Erosion vs Cathedral Void: witness M2 Age
+  Erosion vs Choir of Absence: witness M2 Age
+  Erosion vs Hull Resonance: witness M2 Age
+  Erosion vs Lightless: witness M2 Age
+  Erosion vs Crowded Dark: witness M2 Age
+  Erosion vs Drifting Strata: witness M2 Age
+  Erosion vs Stone Gravity: witness M2 Age
+  Erosion vs Entropic Hum: witness M2 Age
+  Erosion vs Pressure Front: witness M2 Age
+  Erosion vs Weighted Deep: witness M2 Age
+  Erosion vs Fogbound: witness M2 Age
+  Erosion vs Teeming: witness M2 Age
+  Erosion vs Endless Descent: witness M2 Age
+  Erosion vs Monolith: witness M2 Age
+  Erosion vs Bloom Colony: witness M2 Age
+  Erosion vs Singing Colony: witness M2 Age
+  Erosion vs Swarm Breath: witness M2 Age
+  Erosion vs Feeding Loops: witness M2 Age
+  Erosion vs Haunted Colony: witness M2 Age
+  Erosion vs Growth Ring: witness M2 Age
+  Erosion vs Glass Well: witness M2 Age
+  Erosion vs Strung Abyss: witness M2 Age
+  Erosion vs Iron Plate: witness M2 Age
+  Erosion vs Chamber Drone: witness M2 Age
+  Erosion vs Ice Shelf: witness M2 Age
+  Erosion vs Hull Ark: witness M2 Age
+  Erosion vs Column Hymn: witness M2 Age
+  Erosion vs Cavern Wall: witness M2 Age
+  Erosion vs Glass Sphere: witness M2 Age
+  Erosion vs Sudden Chasm: witness M2 Age
+  Erosion vs Dead Air: witness M2 Age
+  Erosion vs Abyssal Wind: witness M2 Age
+  Erosion vs Spore Drift: witness M2 Age
+  Erosion vs Steam Vent: witness M2 Age
+
+Crowded Dark (primary M3 Density):
+  Crowded Dark vs Wind Through Basalt: witness M3 Density
+  Crowded Dark vs Resonant Shaft: witness M3 Density
+  Crowded Dark vs Smeared Horizon: witness M3 Density
+  Crowded Dark vs Feedback Mire: witness M3 Density
+  Crowded Dark vs Tectonic Floor: witness M3 Density
+  Crowded Dark vs Slow Bloom: witness M3 Density
+  Crowded Dark vs Colony Pulse: witness M3 Density
+  Crowded Dark vs Cathedral Void: witness M3 Density
+  Crowded Dark vs Choir of Absence: witness M3 Density
+  Crowded Dark vs Hull Resonance: witness M3 Density
+  Crowded Dark vs Lightless: witness M3 Density
+  Crowded Dark vs Erosion: witness M3 Density
+  Crowded Dark vs Drifting Strata: witness M3 Density
+  Crowded Dark vs Stone Gravity: witness M3 Density
+  Crowded Dark vs Entropic Hum: witness M3 Density
+  Crowded Dark vs Pressure Front: witness M3 Density
+  Crowded Dark vs Weighted Deep: witness M3 Density
+  Crowded Dark vs Fogbound: witness M3 Density
+  Crowded Dark vs Teeming: witness M3 Density
+  Crowded Dark vs Endless Descent: witness M3 Density
+  Crowded Dark vs Monolith: witness M3 Density
+  Crowded Dark vs Bloom Colony: witness M3 Density
+  Crowded Dark vs Singing Colony: witness M3 Density
+  Crowded Dark vs Swarm Breath: witness M3 Density
+  Crowded Dark vs Feeding Loops: witness M3 Density
+  Crowded Dark vs Haunted Colony: witness M3 Density
+  Crowded Dark vs Growth Ring: witness M3 Density
+  Crowded Dark vs Glass Well: witness M3 Density
+  Crowded Dark vs Strung Abyss: witness M3 Density
+  Crowded Dark vs Iron Plate: witness M3 Density
+  Crowded Dark vs Chamber Drone: witness M3 Density
+  Crowded Dark vs Ice Shelf: witness M3 Density
+  Crowded Dark vs Hull Ark: witness M3 Density
+  Crowded Dark vs Column Hymn: witness M3 Density
+  Crowded Dark vs Cavern Wall: witness M3 Density
+  Crowded Dark vs Glass Sphere: witness M3 Density
+  Crowded Dark vs Sudden Chasm: witness M3 Density
+  Crowded Dark vs Dead Air: witness M3 Density
+  Crowded Dark vs Abyssal Wind: witness M3 Density
+  Crowded Dark vs Spore Drift: witness M3 Density
+  Crowded Dark vs Steam Vent: witness M3 Density
+
+Drifting Strata (primary M4 Movement):
+  Drifting Strata vs Wind Through Basalt: witness M4 Movement
+  Drifting Strata vs Resonant Shaft: witness M4 Movement
+  Drifting Strata vs Smeared Horizon: witness M4 Movement
+  Drifting Strata vs Feedback Mire: witness M4 Movement
+  Drifting Strata vs Tectonic Floor: witness M4 Movement
+  Drifting Strata vs Slow Bloom: witness M4 Movement
+  Drifting Strata vs Colony Pulse: witness M4 Movement
+  Drifting Strata vs Cathedral Void: witness M4 Movement
+  Drifting Strata vs Choir of Absence: witness M4 Movement
+  Drifting Strata vs Hull Resonance: witness M4 Movement
+  Drifting Strata vs Lightless: witness M4 Movement
+  Drifting Strata vs Erosion: witness M4 Movement
+  Drifting Strata vs Crowded Dark: witness M4 Movement
+  Drifting Strata vs Stone Gravity: witness M4 Movement
+  Drifting Strata vs Entropic Hum: witness M4 Movement
+  Drifting Strata vs Pressure Front: witness M4 Movement
+  Drifting Strata vs Weighted Deep: witness M4 Movement
+  Drifting Strata vs Fogbound: witness M4 Movement
+  Drifting Strata vs Teeming: witness M4 Movement
+  Drifting Strata vs Endless Descent: witness M4 Movement
+  Drifting Strata vs Monolith: witness M4 Movement
+  Drifting Strata vs Bloom Colony: witness M4 Movement
+  Drifting Strata vs Singing Colony: witness M4 Movement
+  Drifting Strata vs Swarm Breath: witness M4 Movement
+  Drifting Strata vs Feeding Loops: witness M4 Movement
+  Drifting Strata vs Haunted Colony: witness M4 Movement
+  Drifting Strata vs Growth Ring: witness M4 Movement
+  Drifting Strata vs Glass Well: witness M4 Movement
+  Drifting Strata vs Strung Abyss: witness M4 Movement
+  Drifting Strata vs Iron Plate: witness M4 Movement
+  Drifting Strata vs Chamber Drone: witness M4 Movement
+  Drifting Strata vs Ice Shelf: witness M4 Movement
+  Drifting Strata vs Hull Ark: witness M4 Movement
+  Drifting Strata vs Column Hymn: witness M4 Movement
+  Drifting Strata vs Cavern Wall: witness M4 Movement
+  Drifting Strata vs Glass Sphere: witness M4 Movement
+  Drifting Strata vs Sudden Chasm: witness M4 Movement
+  Drifting Strata vs Dead Air: witness M4 Movement
+  Drifting Strata vs Abyssal Wind: witness M4 Movement
+  Drifting Strata vs Spore Drift: witness M4 Movement
+  Drifting Strata vs Steam Vent: witness M4 Movement
+
+Stone Gravity (primary M5 Gravity):
+  Stone Gravity vs Wind Through Basalt: witness M5 Gravity
+  Stone Gravity vs Resonant Shaft: witness M5 Gravity
+  Stone Gravity vs Smeared Horizon: witness M5 Gravity
+  Stone Gravity vs Feedback Mire: witness M5 Gravity
+  Stone Gravity vs Tectonic Floor: witness M5 Gravity
+  Stone Gravity vs Slow Bloom: witness M5 Gravity
+  Stone Gravity vs Colony Pulse: witness M5 Gravity
+  Stone Gravity vs Cathedral Void: witness M5 Gravity
+  Stone Gravity vs Choir of Absence: witness M5 Gravity
+  Stone Gravity vs Hull Resonance: witness M5 Gravity
+  Stone Gravity vs Lightless: witness M5 Gravity
+  Stone Gravity vs Erosion: witness M5 Gravity
+  Stone Gravity vs Crowded Dark: witness M5 Gravity
+  Stone Gravity vs Drifting Strata: witness M5 Gravity
+  Stone Gravity vs Entropic Hum: witness M5 Gravity
+  Stone Gravity vs Pressure Front: witness M5 Gravity
+  Stone Gravity vs Weighted Deep: witness M5 Gravity
+  Stone Gravity vs Fogbound: witness M5 Gravity
+  Stone Gravity vs Teeming: witness M5 Gravity
+  Stone Gravity vs Endless Descent: witness M5 Gravity
+  Stone Gravity vs Monolith: witness M5 Gravity
+  Stone Gravity vs Bloom Colony: witness M5 Gravity
+  Stone Gravity vs Singing Colony: witness M5 Gravity
+  Stone Gravity vs Swarm Breath: witness M5 Gravity
+  Stone Gravity vs Feeding Loops: witness M5 Gravity
+  Stone Gravity vs Haunted Colony: witness M5 Gravity
+  Stone Gravity vs Growth Ring: witness M5 Gravity
+  Stone Gravity vs Glass Well: witness M5 Gravity
+  Stone Gravity vs Strung Abyss: witness M5 Gravity
+  Stone Gravity vs Iron Plate: witness M5 Gravity
+  Stone Gravity vs Chamber Drone: witness M5 Gravity
+  Stone Gravity vs Ice Shelf: witness M5 Gravity
+  Stone Gravity vs Hull Ark: witness M5 Gravity
+  Stone Gravity vs Column Hymn: witness M5 Gravity
+  Stone Gravity vs Cavern Wall: witness M5 Gravity
+  Stone Gravity vs Glass Sphere: witness M5 Gravity
+  Stone Gravity vs Sudden Chasm: witness M5 Gravity
+  Stone Gravity vs Dead Air: witness M5 Gravity
+  Stone Gravity vs Abyssal Wind: witness M5 Gravity
+  Stone Gravity vs Spore Drift: witness M5 Gravity
+  Stone Gravity vs Steam Vent: witness M5 Gravity
+
+Entropic Hum (primary M6 Entropy):
+  Entropic Hum vs Wind Through Basalt: witness M6 Entropy
+  Entropic Hum vs Resonant Shaft: witness M6 Entropy
+  Entropic Hum vs Smeared Horizon: witness M6 Entropy
+  Entropic Hum vs Feedback Mire: witness M6 Entropy
+  Entropic Hum vs Tectonic Floor: witness M6 Entropy
+  Entropic Hum vs Slow Bloom: witness M6 Entropy
+  Entropic Hum vs Colony Pulse: witness M6 Entropy
+  Entropic Hum vs Cathedral Void: witness M6 Entropy
+  Entropic Hum vs Choir of Absence: witness M6 Entropy
+  Entropic Hum vs Hull Resonance: witness M6 Entropy
+  Entropic Hum vs Lightless: witness M6 Entropy
+  Entropic Hum vs Erosion: witness M6 Entropy
+  Entropic Hum vs Crowded Dark: witness M6 Entropy
+  Entropic Hum vs Drifting Strata: witness M6 Entropy
+  Entropic Hum vs Stone Gravity: witness M6 Entropy
+  Entropic Hum vs Pressure Front: witness M6 Entropy
+  Entropic Hum vs Weighted Deep: witness M6 Entropy
+  Entropic Hum vs Fogbound: witness M6 Entropy
+  Entropic Hum vs Teeming: witness M6 Entropy
+  Entropic Hum vs Endless Descent: witness M6 Entropy
+  Entropic Hum vs Monolith: witness M6 Entropy
+  Entropic Hum vs Bloom Colony: witness M6 Entropy
+  Entropic Hum vs Singing Colony: witness M6 Entropy
+  Entropic Hum vs Swarm Breath: witness M6 Entropy
+  Entropic Hum vs Feeding Loops: witness M6 Entropy
+  Entropic Hum vs Haunted Colony: witness M6 Entropy
+  Entropic Hum vs Growth Ring: witness M6 Entropy
+  Entropic Hum vs Glass Well: witness M6 Entropy
+  Entropic Hum vs Strung Abyss: witness M6 Entropy
+  Entropic Hum vs Iron Plate: witness M6 Entropy
+  Entropic Hum vs Chamber Drone: witness M6 Entropy
+  Entropic Hum vs Ice Shelf: witness M6 Entropy
+  Entropic Hum vs Hull Ark: witness M6 Entropy
+  Entropic Hum vs Column Hymn: witness M6 Entropy
+  Entropic Hum vs Cavern Wall: witness M6 Entropy
+  Entropic Hum vs Glass Sphere: witness M6 Entropy
+  Entropic Hum vs Sudden Chasm: witness M6 Entropy
+  Entropic Hum vs Dead Air: witness M6 Entropy
+  Entropic Hum vs Abyssal Wind: witness M6 Entropy
+  Entropic Hum vs Spore Drift: witness M6 Entropy
+  Entropic Hum vs Steam Vent: witness M6 Entropy
+
+Pressure Front (primary M7 Pressure):
+  Pressure Front vs Wind Through Basalt: witness M7 Pressure
+  Pressure Front vs Resonant Shaft: witness M7 Pressure
+  Pressure Front vs Smeared Horizon: witness M7 Pressure
+  Pressure Front vs Feedback Mire: witness M7 Pressure
+  Pressure Front vs Tectonic Floor: witness M7 Pressure
+  Pressure Front vs Slow Bloom: witness M7 Pressure
+  Pressure Front vs Colony Pulse: witness M7 Pressure
+  Pressure Front vs Cathedral Void: witness M7 Pressure
+  Pressure Front vs Choir of Absence: witness M7 Pressure
+  Pressure Front vs Hull Resonance: witness M7 Pressure
+  Pressure Front vs Lightless: witness M7 Pressure
+  Pressure Front vs Erosion: witness M7 Pressure
+  Pressure Front vs Crowded Dark: witness M7 Pressure
+  Pressure Front vs Drifting Strata: witness M7 Pressure
+  Pressure Front vs Stone Gravity: witness M7 Pressure
+  Pressure Front vs Entropic Hum: witness M7 Pressure
+  Pressure Front vs Weighted Deep: witness M7 Pressure
+  Pressure Front vs Fogbound: witness M7 Pressure
+  Pressure Front vs Teeming: witness M7 Pressure
+  Pressure Front vs Endless Descent: witness M7 Pressure
+  Pressure Front vs Monolith: witness M7 Pressure
+  Pressure Front vs Bloom Colony: witness M7 Pressure
+  Pressure Front vs Singing Colony: witness M7 Pressure
+  Pressure Front vs Swarm Breath: witness M7 Pressure
+  Pressure Front vs Feeding Loops: witness M7 Pressure
+  Pressure Front vs Haunted Colony: witness M7 Pressure
+  Pressure Front vs Growth Ring: witness M7 Pressure
+  Pressure Front vs Glass Well: witness M7 Pressure
+  Pressure Front vs Strung Abyss: witness M7 Pressure
+  Pressure Front vs Iron Plate: witness M7 Pressure
+  Pressure Front vs Chamber Drone: witness M7 Pressure
+  Pressure Front vs Ice Shelf: witness M7 Pressure
+  Pressure Front vs Hull Ark: witness M7 Pressure
+  Pressure Front vs Column Hymn: witness M7 Pressure
+  Pressure Front vs Cavern Wall: witness M7 Pressure
+  Pressure Front vs Glass Sphere: witness M7 Pressure
+  Pressure Front vs Sudden Chasm: witness M7 Pressure
+  Pressure Front vs Dead Air: witness M7 Pressure
+  Pressure Front vs Abyssal Wind: witness M7 Pressure
+  Pressure Front vs Spore Drift: witness M7 Pressure
+  Pressure Front vs Steam Vent: witness M7 Pressure
+
+Weighted Deep (primary M8 Weight):
+  Weighted Deep vs Wind Through Basalt: witness M8 Weight
+  Weighted Deep vs Resonant Shaft: witness M8 Weight
+  Weighted Deep vs Smeared Horizon: witness M8 Weight
+  Weighted Deep vs Feedback Mire: witness M8 Weight
+  Weighted Deep vs Tectonic Floor: witness M8 Weight
+  Weighted Deep vs Slow Bloom: witness M8 Weight
+  Weighted Deep vs Colony Pulse: witness M8 Weight
+  Weighted Deep vs Cathedral Void: witness M8 Weight
+  Weighted Deep vs Choir of Absence: witness M8 Weight
+  Weighted Deep vs Hull Resonance: witness M8 Weight
+  Weighted Deep vs Lightless: witness M8 Weight
+  Weighted Deep vs Erosion: witness M8 Weight
+  Weighted Deep vs Crowded Dark: witness M8 Weight
+  Weighted Deep vs Drifting Strata: witness M8 Weight
+  Weighted Deep vs Stone Gravity: witness M8 Weight
+  Weighted Deep vs Entropic Hum: witness M8 Weight
+  Weighted Deep vs Pressure Front: witness M8 Weight
+  Weighted Deep vs Fogbound: witness M8 Weight
+  Weighted Deep vs Teeming: witness M8 Weight
+  Weighted Deep vs Endless Descent: witness M8 Weight
+  Weighted Deep vs Monolith: witness M8 Weight
+  Weighted Deep vs Bloom Colony: witness M8 Weight
+  Weighted Deep vs Singing Colony: witness M8 Weight
+  Weighted Deep vs Swarm Breath: witness M8 Weight
+  Weighted Deep vs Feeding Loops: witness M8 Weight
+  Weighted Deep vs Haunted Colony: witness M8 Weight
+  Weighted Deep vs Growth Ring: witness M8 Weight
+  Weighted Deep vs Glass Well: witness M8 Weight
+  Weighted Deep vs Strung Abyss: witness M8 Weight
+  Weighted Deep vs Iron Plate: witness M8 Weight
+  Weighted Deep vs Chamber Drone: witness M8 Weight
+  Weighted Deep vs Ice Shelf: witness M8 Weight
+  Weighted Deep vs Hull Ark: witness M8 Weight
+  Weighted Deep vs Column Hymn: witness M8 Weight
+  Weighted Deep vs Cavern Wall: witness M8 Weight
+  Weighted Deep vs Glass Sphere: witness M8 Weight
+  Weighted Deep vs Sudden Chasm: witness M8 Weight
+  Weighted Deep vs Dead Air: witness M8 Weight
+  Weighted Deep vs Abyssal Wind: witness M8 Weight
+  Weighted Deep vs Spore Drift: witness M8 Weight
+  Weighted Deep vs Steam Vent: witness M8 Weight
+
+Fogbound (primary M9 Fog):
+  Fogbound vs Wind Through Basalt: witness M9 Fog
+  Fogbound vs Resonant Shaft: witness M9 Fog
+  Fogbound vs Smeared Horizon: witness M9 Fog
+  Fogbound vs Feedback Mire: witness M9 Fog
+  Fogbound vs Tectonic Floor: witness M9 Fog
+  Fogbound vs Slow Bloom: witness M9 Fog
+  Fogbound vs Colony Pulse: witness M9 Fog
+  Fogbound vs Cathedral Void: witness M9 Fog
+  Fogbound vs Choir of Absence: witness M9 Fog
+  Fogbound vs Hull Resonance: witness M9 Fog
+  Fogbound vs Lightless: witness M9 Fog
+  Fogbound vs Erosion: witness M9 Fog
+  Fogbound vs Crowded Dark: witness M9 Fog
+  Fogbound vs Drifting Strata: witness M9 Fog
+  Fogbound vs Stone Gravity: witness M9 Fog
+  Fogbound vs Entropic Hum: witness M9 Fog
+  Fogbound vs Pressure Front: witness M9 Fog
+  Fogbound vs Weighted Deep: witness M9 Fog
+  Fogbound vs Teeming: witness M9 Fog
+  Fogbound vs Endless Descent: witness M9 Fog
+  Fogbound vs Monolith: witness M9 Fog
+  Fogbound vs Bloom Colony: witness M9 Fog
+  Fogbound vs Singing Colony: witness M9 Fog
+  Fogbound vs Swarm Breath: witness M9 Fog
+  Fogbound vs Feeding Loops: witness M9 Fog
+  Fogbound vs Haunted Colony: witness M9 Fog
+  Fogbound vs Growth Ring: witness M9 Fog
+  Fogbound vs Glass Well: witness M9 Fog
+  Fogbound vs Strung Abyss: witness M9 Fog
+  Fogbound vs Iron Plate: witness M9 Fog
+  Fogbound vs Chamber Drone: witness M9 Fog
+  Fogbound vs Ice Shelf: witness M9 Fog
+  Fogbound vs Hull Ark: witness M9 Fog
+  Fogbound vs Column Hymn: witness M9 Fog
+  Fogbound vs Cavern Wall: witness M9 Fog
+  Fogbound vs Glass Sphere: witness M9 Fog
+  Fogbound vs Sudden Chasm: witness M9 Fog
+  Fogbound vs Dead Air: witness M9 Fog
+  Fogbound vs Abyssal Wind: witness M9 Fog
+  Fogbound vs Spore Drift: witness M9 Fog
+  Fogbound vs Steam Vent: witness M9 Fog
+
+Teeming (primary M10 Life):
+  Teeming vs Wind Through Basalt: witness M10 Life
+  Teeming vs Resonant Shaft: witness M10 Life
+  Teeming vs Smeared Horizon: witness M10 Life
+  Teeming vs Feedback Mire: witness M10 Life
+  Teeming vs Tectonic Floor: witness M10 Life
+  Teeming vs Slow Bloom: witness M10 Life
+  Teeming vs Colony Pulse: witness M10 Life
+  Teeming vs Cathedral Void: witness M10 Life
+  Teeming vs Choir of Absence: witness M10 Life
+  Teeming vs Hull Resonance: witness M10 Life
+  Teeming vs Lightless: witness M10 Life
+  Teeming vs Erosion: witness M10 Life
+  Teeming vs Crowded Dark: witness M10 Life
+  Teeming vs Drifting Strata: witness M10 Life
+  Teeming vs Stone Gravity: witness M10 Life
+  Teeming vs Entropic Hum: witness M10 Life
+  Teeming vs Pressure Front: witness M10 Life
+  Teeming vs Weighted Deep: witness M10 Life
+  Teeming vs Fogbound: witness M10 Life
+  Teeming vs Endless Descent: witness M10 Life
+  Teeming vs Monolith: witness M10 Life
+  Teeming vs Bloom Colony: witness M10 Life
+  Teeming vs Singing Colony: witness M10 Life
+  Teeming vs Swarm Breath: witness M10 Life
+  Teeming vs Feeding Loops: witness M10 Life
+  Teeming vs Haunted Colony: witness M10 Life
+  Teeming vs Growth Ring: witness M10 Life
+  Teeming vs Glass Well: witness M10 Life
+  Teeming vs Strung Abyss: witness M10 Life
+  Teeming vs Iron Plate: witness M10 Life
+  Teeming vs Chamber Drone: witness M10 Life
+  Teeming vs Ice Shelf: witness M10 Life
+  Teeming vs Hull Ark: witness M10 Life
+  Teeming vs Column Hymn: witness M10 Life
+  Teeming vs Cavern Wall: witness M10 Life
+  Teeming vs Glass Sphere: witness M10 Life
+  Teeming vs Sudden Chasm: witness M10 Life
+  Teeming vs Dead Air: witness M10 Life
+  Teeming vs Abyssal Wind: witness M10 Life
+  Teeming vs Spore Drift: witness M10 Life
+  Teeming vs Steam Vent: witness M10 Life
+
+Endless Descent (primary M11 Depth):
+  Endless Descent vs Wind Through Basalt: witness M11 Depth
+  Endless Descent vs Resonant Shaft: witness M11 Depth
+  Endless Descent vs Smeared Horizon: witness M11 Depth
+  Endless Descent vs Feedback Mire: witness M11 Depth
+  Endless Descent vs Tectonic Floor: witness M11 Depth
+  Endless Descent vs Slow Bloom: witness M11 Depth
+  Endless Descent vs Colony Pulse: witness M11 Depth
+  Endless Descent vs Cathedral Void: witness M11 Depth
+  Endless Descent vs Choir of Absence: witness M11 Depth
+  Endless Descent vs Hull Resonance: witness M11 Depth
+  Endless Descent vs Lightless: witness M11 Depth
+  Endless Descent vs Erosion: witness M11 Depth
+  Endless Descent vs Crowded Dark: witness M11 Depth
+  Endless Descent vs Drifting Strata: witness M11 Depth
+  Endless Descent vs Stone Gravity: witness M11 Depth
+  Endless Descent vs Entropic Hum: witness M11 Depth
+  Endless Descent vs Pressure Front: witness M11 Depth
+  Endless Descent vs Weighted Deep: witness M11 Depth
+  Endless Descent vs Fogbound: witness M11 Depth
+  Endless Descent vs Teeming: witness M11 Depth
+  Endless Descent vs Monolith: witness M11 Depth
+  Endless Descent vs Bloom Colony: witness M11 Depth
+  Endless Descent vs Singing Colony: witness M11 Depth
+  Endless Descent vs Swarm Breath: witness M11 Depth
+  Endless Descent vs Feeding Loops: witness M11 Depth
+  Endless Descent vs Haunted Colony: witness M11 Depth
+  Endless Descent vs Growth Ring: witness M11 Depth
+  Endless Descent vs Glass Well: witness M11 Depth
+  Endless Descent vs Strung Abyss: witness M11 Depth
+  Endless Descent vs Iron Plate: witness M11 Depth
+  Endless Descent vs Chamber Drone: witness M11 Depth
+  Endless Descent vs Ice Shelf: witness M11 Depth
+  Endless Descent vs Hull Ark: witness M11 Depth
+  Endless Descent vs Column Hymn: witness M11 Depth
+  Endless Descent vs Cavern Wall: witness M11 Depth
+  Endless Descent vs Glass Sphere: witness M11 Depth
+  Endless Descent vs Sudden Chasm: witness M11 Depth
+  Endless Descent vs Dead Air: witness M11 Depth
+  Endless Descent vs Abyssal Wind: witness M11 Depth
+  Endless Descent vs Spore Drift: witness M11 Depth
+  Endless Descent vs Steam Vent: witness M11 Depth
+
+Monolith (primary M12 Mass):
+  Monolith vs Wind Through Basalt: witness M12 Mass
+  Monolith vs Resonant Shaft: witness M12 Mass
+  Monolith vs Smeared Horizon: witness M12 Mass
+  Monolith vs Feedback Mire: witness M12 Mass
+  Monolith vs Tectonic Floor: witness M12 Mass
+  Monolith vs Slow Bloom: witness M12 Mass
+  Monolith vs Colony Pulse: witness M12 Mass
+  Monolith vs Cathedral Void: witness M12 Mass
+  Monolith vs Choir of Absence: witness M12 Mass
+  Monolith vs Hull Resonance: witness M12 Mass
+  Monolith vs Lightless: witness M12 Mass
+  Monolith vs Erosion: witness M12 Mass
+  Monolith vs Crowded Dark: witness M12 Mass
+  Monolith vs Drifting Strata: witness M12 Mass
+  Monolith vs Stone Gravity: witness M12 Mass
+  Monolith vs Entropic Hum: witness M12 Mass
+  Monolith vs Pressure Front: witness M12 Mass
+  Monolith vs Weighted Deep: witness M12 Mass
+  Monolith vs Fogbound: witness M12 Mass
+  Monolith vs Teeming: witness M12 Mass
+  Monolith vs Endless Descent: witness M12 Mass
+  Monolith vs Bloom Colony: witness M12 Mass
+  Monolith vs Singing Colony: witness M12 Mass
+  Monolith vs Swarm Breath: witness M12 Mass
+  Monolith vs Feeding Loops: witness M12 Mass
+  Monolith vs Haunted Colony: witness M12 Mass
+  Monolith vs Growth Ring: witness M12 Mass
+  Monolith vs Glass Well: witness M12 Mass
+  Monolith vs Strung Abyss: witness M12 Mass
+  Monolith vs Iron Plate: witness M12 Mass
+  Monolith vs Chamber Drone: witness M12 Mass
+  Monolith vs Ice Shelf: witness M12 Mass
+  Monolith vs Hull Ark: witness M12 Mass
+  Monolith vs Column Hymn: witness M12 Mass
+  Monolith vs Cavern Wall: witness M12 Mass
+  Monolith vs Glass Sphere: witness M12 Mass
+  Monolith vs Sudden Chasm: witness M12 Mass
+  Monolith vs Dead Air: witness M12 Mass
+  Monolith vs Abyssal Wind: witness M12 Mass
+  Monolith vs Spore Drift: witness M12 Mass
+  Monolith vs Steam Vent: witness M12 Mass
+
+Bloom Colony (primary E1 partial -> bloom):
+  Bloom Colony vs Wind Through Basalt: witness E1 partial -> bloom
+  Bloom Colony vs Resonant Shaft: witness E1 partial -> bloom
+  Bloom Colony vs Smeared Horizon: witness E1 partial -> bloom
+  Bloom Colony vs Feedback Mire: witness E1 partial -> bloom
+  Bloom Colony vs Tectonic Floor: witness E1 partial -> bloom
+  Bloom Colony vs Slow Bloom: witness E1 partial -> bloom
+  Bloom Colony vs Colony Pulse: witness E1 partial -> bloom
+  Bloom Colony vs Cathedral Void: witness E1 partial -> bloom
+  Bloom Colony vs Choir of Absence: witness E1 partial -> bloom
+  Bloom Colony vs Hull Resonance: witness E1 partial -> bloom
+  Bloom Colony vs Lightless: witness E1 partial -> bloom
+  Bloom Colony vs Erosion: witness E1 partial -> bloom
+  Bloom Colony vs Crowded Dark: witness E1 partial -> bloom
+  Bloom Colony vs Drifting Strata: witness E1 partial -> bloom
+  Bloom Colony vs Stone Gravity: witness E1 partial -> bloom
+  Bloom Colony vs Entropic Hum: witness E1 partial -> bloom
+  Bloom Colony vs Pressure Front: witness E1 partial -> bloom
+  Bloom Colony vs Weighted Deep: witness E1 partial -> bloom
+  Bloom Colony vs Fogbound: witness E1 partial -> bloom
+  Bloom Colony vs Teeming: witness E1 partial -> bloom
+  Bloom Colony vs Endless Descent: witness E1 partial -> bloom
+  Bloom Colony vs Monolith: witness E1 partial -> bloom
+  Bloom Colony vs Singing Colony: witness E1 partial -> bloom
+  Bloom Colony vs Swarm Breath: witness E1 partial -> bloom
+  Bloom Colony vs Feeding Loops: witness E1 partial -> bloom
+  Bloom Colony vs Haunted Colony: witness E1 partial -> bloom
+  Bloom Colony vs Growth Ring: witness E1 partial -> bloom
+  Bloom Colony vs Glass Well: witness E1 partial -> bloom
+  Bloom Colony vs Strung Abyss: witness E1 partial -> bloom
+  Bloom Colony vs Iron Plate: witness E1 partial -> bloom
+  Bloom Colony vs Chamber Drone: witness E1 partial -> bloom
+  Bloom Colony vs Ice Shelf: witness E1 partial -> bloom
+  Bloom Colony vs Hull Ark: witness E1 partial -> bloom
+  Bloom Colony vs Column Hymn: witness E1 partial -> bloom
+  Bloom Colony vs Cavern Wall: witness E1 partial -> bloom
+  Bloom Colony vs Glass Sphere: witness E1 partial -> bloom
+  Bloom Colony vs Sudden Chasm: witness E1 partial -> bloom
+  Bloom Colony vs Dead Air: witness E1 partial -> bloom
+  Bloom Colony vs Abyssal Wind: witness E1 partial -> bloom
+  Bloom Colony vs Spore Drift: witness E1 partial -> bloom
+  Bloom Colony vs Steam Vent: witness E1 partial -> bloom
+
+Singing Colony (primary E2 resonator -> resonance peaks):
+  Singing Colony vs Wind Through Basalt: witness E2 resonator -> resonance peaks
+  Singing Colony vs Resonant Shaft: witness E2 resonator -> resonance peaks
+  Singing Colony vs Smeared Horizon: witness E2 resonator -> resonance peaks
+  Singing Colony vs Feedback Mire: witness E2 resonator -> resonance peaks
+  Singing Colony vs Tectonic Floor: witness D5.1 anchor Free
+  Singing Colony vs Slow Bloom: witness E2 resonator -> resonance peaks
+  Singing Colony vs Colony Pulse: witness D5.1 anchor Free
+  Singing Colony vs Cathedral Void: witness E2 resonator -> resonance peaks
+  Singing Colony vs Choir of Absence: witness D5.1 anchor Free
+  Singing Colony vs Hull Resonance: witness E2 resonator -> resonance peaks
+  Singing Colony vs Lightless: witness D5.1 anchor Free
+  Singing Colony vs Erosion: witness E2 resonator -> resonance peaks
+  Singing Colony vs Crowded Dark: witness D5.1 anchor Free
+  Singing Colony vs Drifting Strata: witness D5.1 anchor Free
+  Singing Colony vs Stone Gravity: witness E2 resonator -> resonance peaks
+  Singing Colony vs Entropic Hum: witness E2 resonator -> resonance peaks
+  Singing Colony vs Pressure Front: witness E2 resonator -> resonance peaks
+  Singing Colony vs Weighted Deep: witness D5.1 anchor Free
+  Singing Colony vs Fogbound: witness E2 resonator -> resonance peaks
+  Singing Colony vs Teeming: witness E2 resonator -> resonance peaks
+  Singing Colony vs Endless Descent: witness E2 resonator -> resonance peaks
+  Singing Colony vs Monolith: witness E2 resonator -> resonance peaks
+  Singing Colony vs Bloom Colony: witness E2 resonator -> resonance peaks
+  Singing Colony vs Swarm Breath: witness E2 resonator -> resonance peaks
+  Singing Colony vs Feeding Loops: witness E2 resonator -> resonance peaks
+  Singing Colony vs Haunted Colony: witness E2 resonator -> resonance peaks
+  Singing Colony vs Growth Ring: witness D5.1 anchor Free
+  Singing Colony vs Glass Well: witness E2 resonator -> resonance peaks
+  Singing Colony vs Strung Abyss: witness E2 resonator -> resonance peaks
+  Singing Colony vs Iron Plate: witness E2 resonator -> resonance peaks
+  Singing Colony vs Chamber Drone: witness E2 resonator -> resonance peaks
+  Singing Colony vs Ice Shelf: witness E2 resonator -> resonance peaks
+  Singing Colony vs Hull Ark: witness E2 resonator -> resonance peaks
+  Singing Colony vs Column Hymn: witness E2 resonator -> resonance peaks
+  Singing Colony vs Cavern Wall: witness E2 resonator -> resonance peaks
+  Singing Colony vs Glass Sphere: witness E2 resonator -> resonance peaks
+  Singing Colony vs Sudden Chasm: witness E2 resonator -> resonance peaks
+  Singing Colony vs Dead Air: witness E2 resonator -> resonance peaks
+  Singing Colony vs Abyssal Wind: witness E2 resonator -> resonance peaks
+  Singing Colony vs Spore Drift: witness E2 resonator -> resonance peaks
+  Singing Colony vs Steam Vent: witness E2 resonator -> resonance peaks
+
+Swarm Breath (primary E3 noise -> noise wake):
+  Swarm Breath vs Wind Through Basalt: witness D3.4 noise model MetallicHiss
+  Swarm Breath vs Resonant Shaft: witness E3 noise -> noise wake
+  Swarm Breath vs Smeared Horizon: witness E3 noise -> noise wake
+  Swarm Breath vs Feedback Mire: witness E3 noise -> noise wake
+  Swarm Breath vs Tectonic Floor: witness E3 noise -> noise wake
+  Swarm Breath vs Slow Bloom: witness E3 noise -> noise wake
+  Swarm Breath vs Colony Pulse: witness D4.7 noise type Blue
+  Swarm Breath vs Cathedral Void: witness E3 noise -> noise wake
+  Swarm Breath vs Choir of Absence: witness E3 noise -> noise wake
+  Swarm Breath vs Hull Resonance: witness E3 noise -> noise wake
+  Swarm Breath vs Lightless: witness E3 noise -> noise wake
+  Swarm Breath vs Erosion: witness E3 noise -> noise wake
+  Swarm Breath vs Crowded Dark: witness D4.7 noise type Blue
+  Swarm Breath vs Drifting Strata: witness E3 noise -> noise wake
+  Swarm Breath vs Stone Gravity: witness E3 noise -> noise wake
+  Swarm Breath vs Entropic Hum: witness E3 noise -> noise wake
+  Swarm Breath vs Pressure Front: witness E3 noise -> noise wake
+  Swarm Breath vs Weighted Deep: witness E3 noise -> noise wake
+  Swarm Breath vs Fogbound: witness E3 noise -> noise wake
+  Swarm Breath vs Teeming: witness E3 noise -> noise wake
+  Swarm Breath vs Endless Descent: witness E3 noise -> noise wake
+  Swarm Breath vs Monolith: witness E3 noise -> noise wake
+  Swarm Breath vs Bloom Colony: witness E3 noise -> noise wake
+  Swarm Breath vs Singing Colony: witness E3 noise -> noise wake
+  Swarm Breath vs Feeding Loops: witness E3 noise -> noise wake
+  Swarm Breath vs Haunted Colony: witness E3 noise -> noise wake
+  Swarm Breath vs Growth Ring: witness E3 noise -> noise wake
+  Swarm Breath vs Glass Well: witness E3 noise -> noise wake
+  Swarm Breath vs Strung Abyss: witness E3 noise -> noise wake
+  Swarm Breath vs Iron Plate: witness E3 noise -> noise wake
+  Swarm Breath vs Chamber Drone: witness E3 noise -> noise wake
+  Swarm Breath vs Ice Shelf: witness E3 noise -> noise wake
+  Swarm Breath vs Hull Ark: witness E3 noise -> noise wake
+  Swarm Breath vs Column Hymn: witness E3 noise -> noise wake
+  Swarm Breath vs Cavern Wall: witness E3 noise -> noise wake
+  Swarm Breath vs Glass Sphere: witness E3 noise -> noise wake
+  Swarm Breath vs Sudden Chasm: witness E3 noise -> noise wake
+  Swarm Breath vs Dead Air: witness E3 noise -> noise wake
+  Swarm Breath vs Abyssal Wind: witness E3 noise -> noise wake
+  Swarm Breath vs Spore Drift: witness E3 noise -> noise wake
+  Swarm Breath vs Steam Vent: witness E3 noise -> noise wake
+
+Feeding Loops (primary E4 feedback -> loop wake):
+  Feeding Loops vs Wind Through Basalt: witness E4 feedback -> loop wake
+  Feeding Loops vs Resonant Shaft: witness E4 feedback -> loop wake
+  Feeding Loops vs Smeared Horizon: witness E4 feedback -> loop wake
+  Feeding Loops vs Feedback Mire: witness E4 feedback -> loop wake
+  Feeding Loops vs Tectonic Floor: witness E4 feedback -> loop wake
+  Feeding Loops vs Slow Bloom: witness E4 feedback -> loop wake
+  Feeding Loops vs Colony Pulse: witness E4 feedback -> loop wake
+  Feeding Loops vs Cathedral Void: witness E4 feedback -> loop wake
+  Feeding Loops vs Choir of Absence: witness E4 feedback -> loop wake
+  Feeding Loops vs Hull Resonance: witness E4 feedback -> loop wake
+  Feeding Loops vs Lightless: witness E4 feedback -> loop wake
+  Feeding Loops vs Erosion: witness E4 feedback -> loop wake
+  Feeding Loops vs Crowded Dark: witness E4 feedback -> loop wake
+  Feeding Loops vs Drifting Strata: witness E4 feedback -> loop wake
+  Feeding Loops vs Stone Gravity: witness E4 feedback -> loop wake
+  Feeding Loops vs Entropic Hum: witness E4 feedback -> loop wake
+  Feeding Loops vs Pressure Front: witness E4 feedback -> loop wake
+  Feeding Loops vs Weighted Deep: witness E4 feedback -> loop wake
+  Feeding Loops vs Fogbound: witness E4 feedback -> loop wake
+  Feeding Loops vs Teeming: witness E4 feedback -> loop wake
+  Feeding Loops vs Endless Descent: witness E4 feedback -> loop wake
+  Feeding Loops vs Monolith: witness E4 feedback -> loop wake
+  Feeding Loops vs Bloom Colony: witness E4 feedback -> loop wake
+  Feeding Loops vs Singing Colony: witness E4 feedback -> loop wake
+  Feeding Loops vs Swarm Breath: witness E4 feedback -> loop wake
+  Feeding Loops vs Haunted Colony: witness E4 feedback -> loop wake
+  Feeding Loops vs Growth Ring: witness E4 feedback -> loop wake
+  Feeding Loops vs Glass Well: witness E4 feedback -> loop wake
+  Feeding Loops vs Strung Abyss: witness E4 feedback -> loop wake
+  Feeding Loops vs Iron Plate: witness E4 feedback -> loop wake
+  Feeding Loops vs Chamber Drone: witness E4 feedback -> loop wake
+  Feeding Loops vs Ice Shelf: witness E4 feedback -> loop wake
+  Feeding Loops vs Hull Ark: witness E4 feedback -> loop wake
+  Feeding Loops vs Column Hymn: witness E4 feedback -> loop wake
+  Feeding Loops vs Cavern Wall: witness E4 feedback -> loop wake
+  Feeding Loops vs Glass Sphere: witness E4 feedback -> loop wake
+  Feeding Loops vs Sudden Chasm: witness E4 feedback -> loop wake
+  Feeding Loops vs Dead Air: witness E4 feedback -> loop wake
+  Feeding Loops vs Abyssal Wind: witness E4 feedback -> loop wake
+  Feeding Loops vs Spore Drift: witness E4 feedback -> loop wake
+  Feeding Loops vs Steam Vent: witness E4 feedback -> loop wake
+
+Haunted Colony (primary E5 ghost -> ghost bursts):
+  Haunted Colony vs Wind Through Basalt: SUBSET
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(350): FAILED:
+  CHECK( w.has_value() )
+with expansion:
+  false
+with message:
+  Haunted Colony vs Wind Through Basalt: every claim of P is verified by Q
+  (SUBSET)
+
+  Haunted Colony vs Resonant Shaft: witness E5 ghost -> ghost bursts
+  Haunted Colony vs Smeared Horizon: witness E5 ghost -> ghost bursts
+  Haunted Colony vs Feedback Mire: witness E5 ghost -> ghost bursts
+  Haunted Colony vs Tectonic Floor: witness E5 ghost -> ghost bursts
+  Haunted Colony vs Slow Bloom: SUBSET
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(350): FAILED:
+  CHECK( w.has_value() )
+with expansion:
+  false
+with message:
+  Haunted Colony vs Slow Bloom: every claim of P is verified by Q (SUBSET)
+
+  Haunted Colony vs Colony Pulse: SUBSET
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(350): FAILED:
+  CHECK( w.has_value() )
+with expansion:
+  false
+with message:
+  Haunted Colony vs Colony Pulse: every claim of P is verified by Q (SUBSET)
+
+  Haunted Colony vs Cathedral Void: witness E5 ghost -> ghost bursts
+  Haunted Colony vs Choir of Absence: witness E5 ghost -> ghost bursts
+  Haunted Colony vs Hull Resonance: witness E5 ghost -> ghost bursts
+  Haunted Colony vs Lightless: witness E5 ghost -> ghost bursts
+  Haunted Colony vs Erosion: witness E5 ghost -> ghost bursts
+  Haunted Colony vs Crowded Dark: SUBSET
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(350): FAILED:
+  CHECK( w.has_value() )
+with expansion:
+  false
+with message:
+  Haunted Colony vs Crowded Dark: every claim of P is verified by Q (SUBSET)
+
+  Haunted Colony vs Drifting Strata: SUBSET
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(350): FAILED:
+  CHECK( w.has_value() )
+with expansion:
+  false
+with message:
+  Haunted Colony vs Drifting Strata: every claim of P is verified by Q (SUBSET)
+
+  Haunted Colony vs Stone Gravity: witness E5 ghost -> ghost bursts
+  Haunted Colony vs Entropic Hum: witness E5 ghost -> ghost bursts
+  Haunted Colony vs Pressure Front: witness E5 ghost -> ghost bursts
+  Haunted Colony vs Weighted Deep: SUBSET
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(350): FAILED:
+  CHECK( w.has_value() )
+with expansion:
+  false
+with message:
+  Haunted Colony vs Weighted Deep: every claim of P is verified by Q (SUBSET)
+
+  Haunted Colony vs Fogbound: witness E5 ghost -> ghost bursts
+  Haunted Colony vs Teeming: SUBSET
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(350): FAILED:
+  CHECK( w.has_value() )
+with expansion:
+  false
+with message:
+  Haunted Colony vs Teeming: every claim of P is verified by Q (SUBSET)
+
+  Haunted Colony vs Endless Descent: SUBSET
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(350): FAILED:
+  CHECK( w.has_value() )
+with expansion:
+  false
+with message:
+  Haunted Colony vs Endless Descent: every claim of P is verified by Q (SUBSET)
+
+  Haunted Colony vs Monolith: witness E5 ghost -> ghost bursts
+  Haunted Colony vs Bloom Colony: witness E5 ghost -> ghost bursts
+  Haunted Colony vs Singing Colony: witness E5 ghost -> ghost bursts
+  Haunted Colony vs Swarm Breath: witness E5 ghost -> ghost bursts
+  Haunted Colony vs Feeding Loops: witness E5 ghost -> ghost bursts
+  Haunted Colony vs Growth Ring: witness E5 ghost -> ghost bursts
+  Haunted Colony vs Glass Well: witness E5 ghost -> ghost bursts
+  Haunted Colony vs Strung Abyss: witness E5 ghost -> ghost bursts
+  Haunted Colony vs Iron Plate: witness E5 ghost -> ghost bursts
+  Haunted Colony vs Chamber Drone: witness E5 ghost -> ghost bursts
+  Haunted Colony vs Ice Shelf: witness E5 ghost -> ghost bursts
+  Haunted Colony vs Hull Ark: witness E5 ghost -> ghost bursts
+  Haunted Colony vs Column Hymn: witness E5 ghost -> ghost bursts
+  Haunted Colony vs Cavern Wall: witness E5 ghost -> ghost bursts
+  Haunted Colony vs Glass Sphere: witness E5 ghost -> ghost bursts
+  Haunted Colony vs Sudden Chasm: witness E5 ghost -> ghost bursts
+  Haunted Colony vs Dead Air: witness E5 ghost -> ghost bursts
+  Haunted Colony vs Abyssal Wind: witness E5 ghost -> ghost bursts
+  Haunted Colony vs Spore Drift: witness E5 ghost -> ghost bursts
+  Haunted Colony vs Steam Vent: witness E5 ghost -> ghost bursts
+
+Growth Ring (primary D8.2 envelope Growth):
+  Growth Ring vs Wind Through Basalt: witness D8.2 envelope Growth
+  Growth Ring vs Resonant Shaft: witness D8.2 envelope Growth
+  Growth Ring vs Smeared Horizon: witness D8.2 envelope Growth
+  Growth Ring vs Feedback Mire: witness D8.2 envelope Growth
+  Growth Ring vs Tectonic Floor: witness D8.2 envelope Growth
+  Growth Ring vs Slow Bloom: witness D8.2 envelope Growth
+  Growth Ring vs Colony Pulse: witness D8.2 envelope Growth
+  Growth Ring vs Cathedral Void: witness D8.2 envelope Growth
+  Growth Ring vs Choir of Absence: witness D8.2 envelope Growth
+  Growth Ring vs Hull Resonance: witness D8.2 envelope Growth
+  Growth Ring vs Lightless: witness D8.2 envelope Growth
+  Growth Ring vs Erosion: witness D8.2 envelope Growth
+  Growth Ring vs Crowded Dark: witness D8.2 envelope Growth
+  Growth Ring vs Drifting Strata: witness D8.2 envelope Growth
+  Growth Ring vs Stone Gravity: witness D8.2 envelope Growth
+  Growth Ring vs Entropic Hum: witness D8.2 envelope Growth
+  Growth Ring vs Pressure Front: witness D8.2 envelope Growth
+  Growth Ring vs Weighted Deep: witness D8.2 envelope Growth
+  Growth Ring vs Fogbound: witness D8.2 envelope Growth
+  Growth Ring vs Teeming: witness D8.2 envelope Growth
+  Growth Ring vs Endless Descent: witness D8.2 envelope Growth
+  Growth Ring vs Monolith: witness D8.2 envelope Growth
+  Growth Ring vs Bloom Colony: witness D8.2 envelope Growth
+  Growth Ring vs Singing Colony: witness D8.2 envelope Growth
+  Growth Ring vs Swarm Breath: witness D8.2 envelope Growth
+  Growth Ring vs Feeding Loops: witness D8.2 envelope Growth
+  Growth Ring vs Haunted Colony: witness D8.2 envelope Growth
+  Growth Ring vs Glass Well: witness D8.2 envelope Growth
+  Growth Ring vs Strung Abyss: witness D8.2 envelope Growth
+  Growth Ring vs Iron Plate: witness D8.2 envelope Growth
+  Growth Ring vs Chamber Drone: witness D8.2 envelope Growth
+  Growth Ring vs Ice Shelf: witness D8.2 envelope Growth
+  Growth Ring vs Hull Ark: witness D8.2 envelope Growth
+  Growth Ring vs Column Hymn: witness D8.2 envelope Growth
+  Growth Ring vs Cavern Wall: witness D8.2 envelope Growth
+  Growth Ring vs Glass Sphere: witness D8.2 envelope Growth
+  Growth Ring vs Sudden Chasm: witness D8.2 envelope Growth
+  Growth Ring vs Dead Air: witness D8.2 envelope Growth
+  Growth Ring vs Abyssal Wind: witness D8.2 envelope Growth
+  Growth Ring vs Spore Drift: witness D8.2 envelope Growth
+  Growth Ring vs Steam Vent: witness D8.2 envelope Growth
+
+Glass Well (primary D1.1 material Glass):
+  Glass Well vs Wind Through Basalt: witness D1.1 material Glass
+  Glass Well vs Resonant Shaft: witness D1.1 material Glass
+  Glass Well vs Smeared Horizon: witness D1.1 material Glass
+  Glass Well vs Feedback Mire: witness D1.1 material Glass
+  Glass Well vs Tectonic Floor: witness D1.1 material Glass
+  Glass Well vs Slow Bloom: witness D1.1 material Glass
+  Glass Well vs Colony Pulse: witness D1.1 material Glass
+  Glass Well vs Cathedral Void: witness D1.1 material Glass
+  Glass Well vs Choir of Absence: witness D1.1 material Glass
+  Glass Well vs Hull Resonance: witness D1.1 material Glass
+  Glass Well vs Lightless: witness D1.1 material Glass
+  Glass Well vs Erosion: witness D1.1 material Glass
+  Glass Well vs Crowded Dark: witness D1.1 material Glass
+  Glass Well vs Drifting Strata: witness D1.1 material Glass
+  Glass Well vs Stone Gravity: witness D1.1 material Glass
+  Glass Well vs Entropic Hum: witness D1.1 material Glass
+  Glass Well vs Pressure Front: witness D1.1 material Glass
+  Glass Well vs Weighted Deep: witness D1.1 material Glass
+  Glass Well vs Fogbound: witness D1.1 material Glass
+  Glass Well vs Teeming: witness D1.1 material Glass
+  Glass Well vs Endless Descent: witness D1.1 material Glass
+  Glass Well vs Monolith: witness D1.1 material Glass
+  Glass Well vs Bloom Colony: witness D1.1 material Glass
+  Glass Well vs Singing Colony: witness D1.1 material Glass
+  Glass Well vs Swarm Breath: witness D1.1 material Glass
+  Glass Well vs Feeding Loops: witness D1.1 material Glass
+  Glass Well vs Haunted Colony: witness D1.1 material Glass
+  Glass Well vs Growth Ring: witness D1.1 material Glass
+  Glass Well vs Strung Abyss: witness D1.1 material Glass
+  Glass Well vs Iron Plate: witness D1.1 material Glass
+  Glass Well vs Chamber Drone: witness D1.1 material Glass
+  Glass Well vs Ice Shelf: witness D1.1 material Glass
+  Glass Well vs Hull Ark: witness D1.1 material Glass
+  Glass Well vs Column Hymn: witness D1.1 material Glass
+  Glass Well vs Cavern Wall: witness D1.1 material Glass
+  Glass Well vs Glass Sphere: witness D1.1 material Glass
+  Glass Well vs Sudden Chasm: witness D1.1 material Glass
+  Glass Well vs Dead Air: witness D1.1 material Glass
+  Glass Well vs Abyssal Wind: witness D1.1 material Glass
+  Glass Well vs Spore Drift: witness D1.1 material Glass
+  Glass Well vs Steam Vent: witness D1.1 material Glass
+
+Strung Abyss (primary D1.2 material Strings):
+  Strung Abyss vs Wind Through Basalt: witness D1.2 material Strings
+  Strung Abyss vs Resonant Shaft: witness D1.2 material Strings
+  Strung Abyss vs Smeared Horizon: witness D1.2 material Strings
+  Strung Abyss vs Feedback Mire: witness D1.2 material Strings
+  Strung Abyss vs Tectonic Floor: witness D1.2 material Strings
+  Strung Abyss vs Slow Bloom: witness D1.2 material Strings
+  Strung Abyss vs Colony Pulse: witness D1.2 material Strings
+  Strung Abyss vs Cathedral Void: witness D1.2 material Strings
+  Strung Abyss vs Choir of Absence: witness D1.2 material Strings
+  Strung Abyss vs Hull Resonance: witness D1.2 material Strings
+  Strung Abyss vs Lightless: witness D1.2 material Strings
+  Strung Abyss vs Erosion: witness D1.2 material Strings
+  Strung Abyss vs Crowded Dark: witness D1.2 material Strings
+  Strung Abyss vs Drifting Strata: witness D1.2 material Strings
+  Strung Abyss vs Stone Gravity: witness D1.2 material Strings
+  Strung Abyss vs Entropic Hum: witness D1.2 material Strings
+  Strung Abyss vs Pressure Front: witness D1.2 material Strings
+  Strung Abyss vs Weighted Deep: witness D1.2 material Strings
+  Strung Abyss vs Fogbound: witness D1.2 material Strings
+  Strung Abyss vs Teeming: witness D1.2 material Strings
+  Strung Abyss vs Endless Descent: witness D1.2 material Strings
+  Strung Abyss vs Monolith: witness D1.2 material Strings
+  Strung Abyss vs Bloom Colony: witness D1.2 material Strings
+  Strung Abyss vs Singing Colony: witness D1.2 material Strings
+  Strung Abyss vs Swarm Breath: witness D1.2 material Strings
+  Strung Abyss vs Feeding Loops: witness D1.2 material Strings
+  Strung Abyss vs Haunted Colony: witness D1.2 material Strings
+  Strung Abyss vs Growth Ring: witness D1.2 material Strings
+  Strung Abyss vs Glass Well: witness D1.2 material Strings
+  Strung Abyss vs Iron Plate: witness D1.2 material Strings
+  Strung Abyss vs Chamber Drone: witness D1.2 material Strings
+  Strung Abyss vs Ice Shelf: witness D1.2 material Strings
+  Strung Abyss vs Hull Ark: witness D1.2 material Strings
+  Strung Abyss vs Column Hymn: witness D1.2 material Strings
+  Strung Abyss vs Cavern Wall: witness D1.2 material Strings
+  Strung Abyss vs Glass Sphere: witness D1.2 material Strings
+  Strung Abyss vs Sudden Chasm: witness D1.2 material Strings
+  Strung Abyss vs Dead Air: witness D1.2 material Strings
+  Strung Abyss vs Abyssal Wind: witness D1.2 material Strings
+  Strung Abyss vs Spore Drift: witness D1.2 material Strings
+  Strung Abyss vs Steam Vent: witness D1.2 material Strings
+
+Iron Plate (primary D1.3 material MetalPlate):
+  Iron Plate vs Wind Through Basalt: witness D1.3 material MetalPlate
+  Iron Plate vs Resonant Shaft: witness D1.3 material MetalPlate
+  Iron Plate vs Smeared Horizon: witness D1.3 material MetalPlate
+  Iron Plate vs Feedback Mire: witness D1.3 material MetalPlate
+  Iron Plate vs Tectonic Floor: witness D1.3 material MetalPlate
+  Iron Plate vs Slow Bloom: witness D1.3 material MetalPlate
+  Iron Plate vs Colony Pulse: witness D1.3 material MetalPlate
+  Iron Plate vs Cathedral Void: witness D1.3 material MetalPlate
+  Iron Plate vs Choir of Absence: witness D1.3 material MetalPlate
+  Iron Plate vs Hull Resonance: witness D1.3 material MetalPlate
+  Iron Plate vs Lightless: witness D1.3 material MetalPlate
+  Iron Plate vs Erosion: witness D1.3 material MetalPlate
+  Iron Plate vs Crowded Dark: witness D1.3 material MetalPlate
+  Iron Plate vs Drifting Strata: witness D1.3 material MetalPlate
+  Iron Plate vs Stone Gravity: witness D1.3 material MetalPlate
+  Iron Plate vs Entropic Hum: witness D1.3 material MetalPlate
+  Iron Plate vs Pressure Front: witness D1.3 material MetalPlate
+  Iron Plate vs Weighted Deep: witness D1.3 material MetalPlate
+  Iron Plate vs Fogbound: witness D1.3 material MetalPlate
+  Iron Plate vs Teeming: witness D1.3 material MetalPlate
+  Iron Plate vs Endless Descent: witness D1.3 material MetalPlate
+  Iron Plate vs Monolith: witness D1.3 material MetalPlate
+  Iron Plate vs Bloom Colony: witness D1.3 material MetalPlate
+  Iron Plate vs Singing Colony: witness D1.3 material MetalPlate
+  Iron Plate vs Swarm Breath: witness D1.3 material MetalPlate
+  Iron Plate vs Feeding Loops: witness D1.3 material MetalPlate
+  Iron Plate vs Haunted Colony: witness D1.3 material MetalPlate
+  Iron Plate vs Growth Ring: witness D1.3 material MetalPlate
+  Iron Plate vs Glass Well: witness D1.3 material MetalPlate
+  Iron Plate vs Strung Abyss: witness D1.3 material MetalPlate
+  Iron Plate vs Chamber Drone: witness D1.3 material MetalPlate
+  Iron Plate vs Ice Shelf: witness D1.3 material MetalPlate
+  Iron Plate vs Hull Ark: witness D1.3 material MetalPlate
+  Iron Plate vs Column Hymn: witness D1.3 material MetalPlate
+  Iron Plate vs Cavern Wall: witness D1.3 material MetalPlate
+  Iron Plate vs Glass Sphere: witness D1.3 material MetalPlate
+  Iron Plate vs Sudden Chasm: witness D1.3 material MetalPlate
+  Iron Plate vs Dead Air: witness D1.3 material MetalPlate
+  Iron Plate vs Abyssal Wind: witness D1.3 material MetalPlate
+  Iron Plate vs Spore Drift: witness D1.3 material MetalPlate
+  Iron Plate vs Steam Vent: witness D1.3 material MetalPlate
+
+Chamber Drone (primary D1.4 material Chamber):
+  Chamber Drone vs Wind Through Basalt: witness D1.4 material Chamber
+  Chamber Drone vs Resonant Shaft: witness D1.4 material Chamber
+  Chamber Drone vs Smeared Horizon: witness D1.4 material Chamber
+  Chamber Drone vs Feedback Mire: witness D1.4 material Chamber
+  Chamber Drone vs Tectonic Floor: witness D1.4 material Chamber
+  Chamber Drone vs Slow Bloom: witness D1.4 material Chamber
+  Chamber Drone vs Colony Pulse: witness D1.4 material Chamber
+  Chamber Drone vs Cathedral Void: witness D1.4 material Chamber
+  Chamber Drone vs Choir of Absence: witness D1.4 material Chamber
+  Chamber Drone vs Hull Resonance: witness D1.4 material Chamber
+  Chamber Drone vs Lightless: witness D1.4 material Chamber
+  Chamber Drone vs Erosion: witness D1.4 material Chamber
+  Chamber Drone vs Crowded Dark: witness D1.4 material Chamber
+  Chamber Drone vs Drifting Strata: witness D1.4 material Chamber
+  Chamber Drone vs Stone Gravity: witness D1.4 material Chamber
+  Chamber Drone vs Entropic Hum: witness D1.4 material Chamber
+  Chamber Drone vs Pressure Front: witness D1.4 material Chamber
+  Chamber Drone vs Weighted Deep: witness D1.4 material Chamber
+  Chamber Drone vs Fogbound: witness D1.4 material Chamber
+  Chamber Drone vs Teeming: witness D1.4 material Chamber
+  Chamber Drone vs Endless Descent: witness D1.4 material Chamber
+  Chamber Drone vs Monolith: witness D1.4 material Chamber
+  Chamber Drone vs Bloom Colony: witness D1.4 material Chamber
+  Chamber Drone vs Singing Colony: witness D1.4 material Chamber
+  Chamber Drone vs Swarm Breath: witness D1.4 material Chamber
+  Chamber Drone vs Feeding Loops: witness D1.4 material Chamber
+  Chamber Drone vs Haunted Colony: witness D1.4 material Chamber
+  Chamber Drone vs Growth Ring: witness D1.4 material Chamber
+  Chamber Drone vs Glass Well: witness D1.4 material Chamber
+  Chamber Drone vs Strung Abyss: witness D1.4 material Chamber
+  Chamber Drone vs Iron Plate: witness D1.4 material Chamber
+  Chamber Drone vs Ice Shelf: witness D1.4 material Chamber
+  Chamber Drone vs Hull Ark: witness D1.4 material Chamber
+  Chamber Drone vs Column Hymn: witness D1.4 material Chamber
+  Chamber Drone vs Cavern Wall: witness D1.4 material Chamber
+  Chamber Drone vs Glass Sphere: witness D1.4 material Chamber
+  Chamber Drone vs Sudden Chasm: witness D1.4 material Chamber
+  Chamber Drone vs Dead Air: witness D1.4 material Chamber
+  Chamber Drone vs Abyssal Wind: witness D1.4 material Chamber
+  Chamber Drone vs Spore Drift: witness D1.4 material Chamber
+  Chamber Drone vs Steam Vent: witness D1.4 material Chamber
+
+Ice Shelf (primary D1.5 material Ice):
+  Ice Shelf vs Wind Through Basalt: witness D1.5 material Ice
+  Ice Shelf vs Resonant Shaft: witness D1.5 material Ice
+  Ice Shelf vs Smeared Horizon: witness D1.5 material Ice
+  Ice Shelf vs Feedback Mire: witness D1.5 material Ice
+  Ice Shelf vs Tectonic Floor: witness D1.5 material Ice
+  Ice Shelf vs Slow Bloom: witness D1.5 material Ice
+  Ice Shelf vs Colony Pulse: witness D1.5 material Ice
+  Ice Shelf vs Cathedral Void: witness D1.5 material Ice
+  Ice Shelf vs Choir of Absence: witness D1.5 material Ice
+  Ice Shelf vs Hull Resonance: witness D1.5 material Ice
+  Ice Shelf vs Lightless: witness D1.5 material Ice
+  Ice Shelf vs Erosion: witness D1.5 material Ice
+  Ice Shelf vs Crowded Dark: witness D1.5 material Ice
+  Ice Shelf vs Drifting Strata: witness D1.5 material Ice
+  Ice Shelf vs Stone Gravity: witness D1.5 material Ice
+  Ice Shelf vs Entropic Hum: witness D1.5 material Ice
+  Ice Shelf vs Pressure Front: witness D1.5 material Ice
+  Ice Shelf vs Weighted Deep: witness D1.5 material Ice
+  Ice Shelf vs Fogbound: witness D1.5 material Ice
+  Ice Shelf vs Teeming: witness D1.5 material Ice
+  Ice Shelf vs Endless Descent: witness D1.5 material Ice
+  Ice Shelf vs Monolith: witness D1.5 material Ice
+  Ice Shelf vs Bloom Colony: witness D1.5 material Ice
+  Ice Shelf vs Singing Colony: witness D1.5 material Ice
+  Ice Shelf vs Swarm Breath: witness D1.5 material Ice
+  Ice Shelf vs Feeding Loops: witness D1.5 material Ice
+  Ice Shelf vs Haunted Colony: witness D1.5 material Ice
+  Ice Shelf vs Growth Ring: witness D1.5 material Ice
+  Ice Shelf vs Glass Well: witness D1.5 material Ice
+  Ice Shelf vs Strung Abyss: witness D1.5 material Ice
+  Ice Shelf vs Iron Plate: witness D1.5 material Ice
+  Ice Shelf vs Chamber Drone: witness D1.5 material Ice
+  Ice Shelf vs Hull Ark: witness D1.5 material Ice
+  Ice Shelf vs Column Hymn: witness D1.5 material Ice
+  Ice Shelf vs Cavern Wall: witness D1.5 material Ice
+  Ice Shelf vs Glass Sphere: witness D1.5 material Ice
+  Ice Shelf vs Sudden Chasm: witness D1.5 material Ice
+  Ice Shelf vs Dead Air: witness D1.5 material Ice
+  Ice Shelf vs Abyssal Wind: witness D1.5 material Ice
+  Ice Shelf vs Spore Drift: witness D1.5 material Ice
+  Ice Shelf vs Steam Vent: witness D1.5 material Ice
+
+Hull Ark (primary D1.8 material WoodenHull):
+  Hull Ark vs Wind Through Basalt: witness D1.8 material WoodenHull
+  Hull Ark vs Resonant Shaft: witness D1.8 material WoodenHull
+  Hull Ark vs Smeared Horizon: witness D1.8 material WoodenHull
+  Hull Ark vs Feedback Mire: witness D1.8 material WoodenHull
+  Hull Ark vs Tectonic Floor: witness D1.8 material WoodenHull
+  Hull Ark vs Slow Bloom: witness D1.8 material WoodenHull
+  Hull Ark vs Colony Pulse: witness D1.8 material WoodenHull
+  Hull Ark vs Cathedral Void: witness D1.8 material WoodenHull
+  Hull Ark vs Choir of Absence: witness D1.8 material WoodenHull
+  Hull Ark vs Hull Resonance: witness D1.8 material WoodenHull
+  Hull Ark vs Lightless: witness D1.8 material WoodenHull
+  Hull Ark vs Erosion: witness D1.8 material WoodenHull
+  Hull Ark vs Crowded Dark: witness D1.8 material WoodenHull
+  Hull Ark vs Drifting Strata: witness D1.8 material WoodenHull
+  Hull Ark vs Stone Gravity: witness D1.8 material WoodenHull
+  Hull Ark vs Entropic Hum: witness D1.8 material WoodenHull
+  Hull Ark vs Pressure Front: witness D1.8 material WoodenHull
+  Hull Ark vs Weighted Deep: witness D1.8 material WoodenHull
+  Hull Ark vs Fogbound: witness D1.8 material WoodenHull
+  Hull Ark vs Teeming: witness D1.8 material WoodenHull
+  Hull Ark vs Endless Descent: witness D1.8 material WoodenHull
+  Hull Ark vs Monolith: witness D1.8 material WoodenHull
+  Hull Ark vs Bloom Colony: witness D1.8 material WoodenHull
+  Hull Ark vs Singing Colony: witness D1.8 material WoodenHull
+  Hull Ark vs Swarm Breath: witness D1.8 material WoodenHull
+  Hull Ark vs Feeding Loops: witness D1.8 material WoodenHull
+  Hull Ark vs Haunted Colony: witness D1.8 material WoodenHull
+  Hull Ark vs Growth Ring: witness D1.8 material WoodenHull
+  Hull Ark vs Glass Well: witness D1.8 material WoodenHull
+  Hull Ark vs Strung Abyss: witness D1.8 material WoodenHull
+  Hull Ark vs Iron Plate: witness D1.8 material WoodenHull
+  Hull Ark vs Chamber Drone: witness D1.8 material WoodenHull
+  Hull Ark vs Ice Shelf: witness D1.8 material WoodenHull
+  Hull Ark vs Column Hymn: witness D1.8 material WoodenHull
+  Hull Ark vs Cavern Wall: witness D1.8 material WoodenHull
+  Hull Ark vs Glass Sphere: witness D1.8 material WoodenHull
+  Hull Ark vs Sudden Chasm: witness D1.8 material WoodenHull
+  Hull Ark vs Dead Air: witness D1.8 material WoodenHull
+  Hull Ark vs Abyssal Wind: witness D1.8 material WoodenHull
+  Hull Ark vs Spore Drift: witness D1.8 material WoodenHull
+  Hull Ark vs Steam Vent: witness D1.8 material WoodenHull
+
+Column Hymn (primary D1.9 material CathedralColumn):
+  Column Hymn vs Wind Through Basalt: witness D1.9 material CathedralColumn
+  Column Hymn vs Resonant Shaft: witness D1.9 material CathedralColumn
+  Column Hymn vs Smeared Horizon: witness D1.9 material CathedralColumn
+  Column Hymn vs Feedback Mire: witness D1.9 material CathedralColumn
+  Column Hymn vs Tectonic Floor: witness D1.9 material CathedralColumn
+  Column Hymn vs Slow Bloom: witness D1.9 material CathedralColumn
+  Column Hymn vs Colony Pulse: witness D1.9 material CathedralColumn
+  Column Hymn vs Cathedral Void: witness D1.9 material CathedralColumn
+  Column Hymn vs Choir of Absence: witness D1.9 material CathedralColumn
+  Column Hymn vs Hull Resonance: witness D1.9 material CathedralColumn
+  Column Hymn vs Lightless: witness D1.9 material CathedralColumn
+  Column Hymn vs Erosion: witness D1.9 material CathedralColumn
+  Column Hymn vs Crowded Dark: witness D1.9 material CathedralColumn
+  Column Hymn vs Drifting Strata: witness D1.9 material CathedralColumn
+  Column Hymn vs Stone Gravity: witness D1.9 material CathedralColumn
+  Column Hymn vs Entropic Hum: witness D1.9 material CathedralColumn
+  Column Hymn vs Pressure Front: witness D1.9 material CathedralColumn
+  Column Hymn vs Weighted Deep: witness D1.9 material CathedralColumn
+  Column Hymn vs Fogbound: witness D1.9 material CathedralColumn
+  Column Hymn vs Teeming: witness D1.9 material CathedralColumn
+  Column Hymn vs Endless Descent: witness D1.9 material CathedralColumn
+  Column Hymn vs Monolith: witness D1.9 material CathedralColumn
+  Column Hymn vs Bloom Colony: witness D1.9 material CathedralColumn
+  Column Hymn vs Singing Colony: witness D1.9 material CathedralColumn
+  Column Hymn vs Swarm Breath: witness D1.9 material CathedralColumn
+  Column Hymn vs Feeding Loops: witness D1.9 material CathedralColumn
+  Column Hymn vs Haunted Colony: witness D1.9 material CathedralColumn
+  Column Hymn vs Growth Ring: witness D1.9 material CathedralColumn
+  Column Hymn vs Glass Well: witness D1.9 material CathedralColumn
+  Column Hymn vs Strung Abyss: witness D1.9 material CathedralColumn
+  Column Hymn vs Iron Plate: witness D1.9 material CathedralColumn
+  Column Hymn vs Chamber Drone: witness D1.9 material CathedralColumn
+  Column Hymn vs Ice Shelf: witness D1.9 material CathedralColumn
+  Column Hymn vs Hull Ark: witness D1.9 material CathedralColumn
+  Column Hymn vs Cavern Wall: witness D1.9 material CathedralColumn
+  Column Hymn vs Glass Sphere: witness D1.9 material CathedralColumn
+  Column Hymn vs Sudden Chasm: witness D1.9 material CathedralColumn
+  Column Hymn vs Dead Air: witness D1.9 material CathedralColumn
+  Column Hymn vs Abyssal Wind: witness D1.9 material CathedralColumn
+  Column Hymn vs Spore Drift: witness D1.9 material CathedralColumn
+  Column Hymn vs Steam Vent: witness D1.9 material CathedralColumn
+
+Cavern Wall (primary D1.10 material CavernWall):
+  Cavern Wall vs Wind Through Basalt: witness D1.10 material CavernWall
+  Cavern Wall vs Resonant Shaft: witness D1.10 material CavernWall
+  Cavern Wall vs Smeared Horizon: witness D1.10 material CavernWall
+  Cavern Wall vs Feedback Mire: witness D1.10 material CavernWall
+  Cavern Wall vs Tectonic Floor: witness D1.10 material CavernWall
+  Cavern Wall vs Slow Bloom: witness D1.10 material CavernWall
+  Cavern Wall vs Colony Pulse: witness D1.10 material CavernWall
+  Cavern Wall vs Cathedral Void: witness D1.10 material CavernWall
+  Cavern Wall vs Choir of Absence: witness D1.10 material CavernWall
+  Cavern Wall vs Hull Resonance: witness D1.10 material CavernWall
+  Cavern Wall vs Lightless: witness D1.10 material CavernWall
+  Cavern Wall vs Erosion: witness D1.10 material CavernWall
+  Cavern Wall vs Crowded Dark: witness D1.10 material CavernWall
+  Cavern Wall vs Drifting Strata: witness D1.10 material CavernWall
+  Cavern Wall vs Stone Gravity: witness D1.10 material CavernWall
+  Cavern Wall vs Entropic Hum: witness D1.10 material CavernWall
+  Cavern Wall vs Pressure Front: witness D1.10 material CavernWall
+  Cavern Wall vs Weighted Deep: witness D1.10 material CavernWall
+  Cavern Wall vs Fogbound: witness D1.10 material CavernWall
+  Cavern Wall vs Teeming: witness D1.10 material CavernWall
+  Cavern Wall vs Endless Descent: witness D1.10 material CavernWall
+  Cavern Wall vs Monolith: witness D1.10 material CavernWall
+  Cavern Wall vs Bloom Colony: witness D1.10 material CavernWall
+  Cavern Wall vs Singing Colony: witness D1.10 material CavernWall
+  Cavern Wall vs Swarm Breath: witness D1.10 material CavernWall
+  Cavern Wall vs Feeding Loops: witness D1.10 material CavernWall
+  Cavern Wall vs Haunted Colony: witness D1.10 material CavernWall
+  Cavern Wall vs Growth Ring: witness D1.10 material CavernWall
+  Cavern Wall vs Glass Well: witness D1.10 material CavernWall
+  Cavern Wall vs Strung Abyss: witness D1.10 material CavernWall
+  Cavern Wall vs Iron Plate: witness D1.10 material CavernWall
+  Cavern Wall vs Chamber Drone: witness D1.10 material CavernWall
+  Cavern Wall vs Ice Shelf: witness D1.10 material CavernWall
+  Cavern Wall vs Hull Ark: witness D1.10 material CavernWall
+  Cavern Wall vs Column Hymn: witness D1.10 material CavernWall
+  Cavern Wall vs Glass Sphere: witness D1.10 material CavernWall
+  Cavern Wall vs Sudden Chasm: witness D1.10 material CavernWall
+  Cavern Wall vs Dead Air: witness D1.10 material CavernWall
+  Cavern Wall vs Abyssal Wind: witness D1.10 material CavernWall
+  Cavern Wall vs Spore Drift: witness D1.10 material CavernWall
+  Cavern Wall vs Steam Vent: witness D1.10 material CavernWall
+
+Glass Sphere (primary D1.11 material GlassSphere):
+  Glass Sphere vs Wind Through Basalt: witness D1.11 material GlassSphere
+  Glass Sphere vs Resonant Shaft: witness D1.11 material GlassSphere
+  Glass Sphere vs Smeared Horizon: witness D1.11 material GlassSphere
+  Glass Sphere vs Feedback Mire: witness D1.11 material GlassSphere
+  Glass Sphere vs Tectonic Floor: witness D1.11 material GlassSphere
+  Glass Sphere vs Slow Bloom: witness D1.11 material GlassSphere
+  Glass Sphere vs Colony Pulse: witness D1.11 material GlassSphere
+  Glass Sphere vs Cathedral Void: witness D1.11 material GlassSphere
+  Glass Sphere vs Choir of Absence: witness D1.11 material GlassSphere
+  Glass Sphere vs Hull Resonance: witness D1.11 material GlassSphere
+  Glass Sphere vs Lightless: witness D1.11 material GlassSphere
+  Glass Sphere vs Erosion: witness D1.11 material GlassSphere
+  Glass Sphere vs Crowded Dark: witness D1.11 material GlassSphere
+  Glass Sphere vs Drifting Strata: witness D1.11 material GlassSphere
+  Glass Sphere vs Stone Gravity: witness D1.11 material GlassSphere
+  Glass Sphere vs Entropic Hum: witness D1.11 material GlassSphere
+  Glass Sphere vs Pressure Front: witness D1.11 material GlassSphere
+  Glass Sphere vs Weighted Deep: witness D1.11 material GlassSphere
+  Glass Sphere vs Fogbound: witness D1.11 material GlassSphere
+  Glass Sphere vs Teeming: witness D1.11 material GlassSphere
+  Glass Sphere vs Endless Descent: witness D1.11 material GlassSphere
+  Glass Sphere vs Monolith: witness D1.11 material GlassSphere
+  Glass Sphere vs Bloom Colony: witness D1.11 material GlassSphere
+  Glass Sphere vs Singing Colony: witness D1.11 material GlassSphere
+  Glass Sphere vs Swarm Breath: witness D1.11 material GlassSphere
+  Glass Sphere vs Feeding Loops: witness D1.11 material GlassSphere
+  Glass Sphere vs Haunted Colony: witness D1.11 material GlassSphere
+  Glass Sphere vs Growth Ring: witness D1.11 material GlassSphere
+  Glass Sphere vs Glass Well: witness D1.11 material GlassSphere
+  Glass Sphere vs Strung Abyss: witness D1.11 material GlassSphere
+  Glass Sphere vs Iron Plate: witness D1.11 material GlassSphere
+  Glass Sphere vs Chamber Drone: witness D1.11 material GlassSphere
+  Glass Sphere vs Ice Shelf: witness D1.11 material GlassSphere
+  Glass Sphere vs Hull Ark: witness D1.11 material GlassSphere
+  Glass Sphere vs Column Hymn: witness D1.11 material GlassSphere
+  Glass Sphere vs Cavern Wall: witness D1.11 material GlassSphere
+  Glass Sphere vs Sudden Chasm: witness D1.11 material GlassSphere
+  Glass Sphere vs Dead Air: witness D1.11 material GlassSphere
+  Glass Sphere vs Abyssal Wind: witness D1.11 material GlassSphere
+  Glass Sphere vs Spore Drift: witness D1.11 material GlassSphere
+  Glass Sphere vs Steam Vent: witness D1.11 material GlassSphere
+
+Sudden Chasm (primary D9.1 attack span <= 10 s):
+  Sudden Chasm vs Wind Through Basalt: witness D9.1 attack span <= 10 s
+  Sudden Chasm vs Resonant Shaft: witness D9.1 attack span <= 10 s
+  Sudden Chasm vs Smeared Horizon: witness D9.1 attack span <= 10 s
+  Sudden Chasm vs Feedback Mire: witness D9.1 attack span <= 10 s
+  Sudden Chasm vs Tectonic Floor: witness D9.1 attack span <= 10 s
+  Sudden Chasm vs Slow Bloom: witness D9.1 attack span <= 10 s
+  Sudden Chasm vs Colony Pulse: witness D9.1 attack span <= 10 s
+  Sudden Chasm vs Cathedral Void: witness D9.1 attack span <= 10 s
+  Sudden Chasm vs Choir of Absence: witness D9.1 attack span <= 10 s
+  Sudden Chasm vs Hull Resonance: witness D9.1 attack span <= 10 s
+  Sudden Chasm vs Lightless: witness D9.1 attack span <= 10 s
+  Sudden Chasm vs Erosion: witness D9.1 attack span <= 10 s
+  Sudden Chasm vs Crowded Dark: witness D9.1 attack span <= 10 s
+  Sudden Chasm vs Drifting Strata: witness D9.1 attack span <= 10 s
+  Sudden Chasm vs Stone Gravity: witness D9.1 attack span <= 10 s
+  Sudden Chasm vs Entropic Hum: witness D9.1 attack span <= 10 s
+  Sudden Chasm vs Pressure Front: witness D9.1 attack span <= 10 s
+  Sudden Chasm vs Weighted Deep: witness D9.1 attack span <= 10 s
+  Sudden Chasm vs Fogbound: witness D9.1 attack span <= 10 s
+  Sudden Chasm vs Teeming: witness D9.1 attack span <= 10 s
+  Sudden Chasm vs Endless Descent: witness D9.1 attack span <= 10 s
+  Sudden Chasm vs Monolith: witness D9.1 attack span <= 10 s
+  Sudden Chasm vs Bloom Colony: witness D9.1 attack span <= 10 s
+  Sudden Chasm vs Singing Colony: witness D9.1 attack span <= 10 s
+  Sudden Chasm vs Swarm Breath: witness D9.1 attack span <= 10 s
+  Sudden Chasm vs Feeding Loops: witness D9.1 attack span <= 10 s
+  Sudden Chasm vs Haunted Colony: witness D9.1 attack span <= 10 s
+  Sudden Chasm vs Growth Ring: witness D9.1 attack span <= 10 s
+  Sudden Chasm vs Glass Well: witness D9.1 attack span <= 10 s
+  Sudden Chasm vs Strung Abyss: witness D9.1 attack span <= 10 s
+  Sudden Chasm vs Iron Plate: witness D9.1 attack span <= 10 s
+  Sudden Chasm vs Chamber Drone: witness D9.1 attack span <= 10 s
+  Sudden Chasm vs Ice Shelf: witness D9.1 attack span <= 10 s
+  Sudden Chasm vs Hull Ark: witness D9.1 attack span <= 10 s
+  Sudden Chasm vs Column Hymn: witness D9.1 attack span <= 10 s
+  Sudden Chasm vs Cavern Wall: witness D9.1 attack span <= 10 s
+  Sudden Chasm vs Glass Sphere: witness D9.1 attack span <= 10 s
+  Sudden Chasm vs Dead Air: witness D9.1 attack span <= 10 s
+  Sudden Chasm vs Abyssal Wind: witness D9.1 attack span <= 10 s
+  Sudden Chasm vs Spore Drift: witness D9.1 attack span <= 10 s
+  Sudden Chasm vs Steam Vent: witness D9.1 attack span <= 10 s
+
+Dead Air (primary D3.1 noise model Direct):
+  Dead Air vs Wind Through Basalt: witness D4.9 noise type Grey
+  Dead Air vs Resonant Shaft: witness D3.1 noise model Direct
+  Dead Air vs Smeared Horizon: witness D3.1 noise model Direct
+  Dead Air vs Feedback Mire: witness D4.1 noise type White
+  Dead Air vs Tectonic Floor: witness D3.1 noise model Direct
+  Dead Air vs Slow Bloom: witness D3.1 noise model Direct
+  Dead Air vs Colony Pulse: witness D4.1 noise type White
+  Dead Air vs Cathedral Void: witness D3.1 noise model Direct
+  Dead Air vs Choir of Absence: witness D3.1 noise model Direct
+  Dead Air vs Hull Resonance: witness D4.1 noise type White
+  Dead Air vs Lightless: witness D3.1 noise model Direct
+  Dead Air vs Erosion: witness D3.1 noise model Direct
+  Dead Air vs Crowded Dark: witness D4.1 noise type White
+  Dead Air vs Drifting Strata: witness D3.1 noise model Direct
+  Dead Air vs Stone Gravity: witness D3.1 noise model Direct
+  Dead Air vs Entropic Hum: witness D4.1 noise type White
+  Dead Air vs Pressure Front: witness D3.1 noise model Direct
+  Dead Air vs Weighted Deep: witness D3.1 noise model Direct
+  Dead Air vs Fogbound: witness D3.1 noise model Direct
+  Dead Air vs Teeming: witness D3.1 noise model Direct
+  Dead Air vs Endless Descent: witness D3.1 noise model Direct
+  Dead Air vs Monolith: witness D3.1 noise model Direct
+  Dead Air vs Bloom Colony: witness D3.1 noise model Direct
+  Dead Air vs Singing Colony: witness D3.1 noise model Direct
+  Dead Air vs Swarm Breath: witness D3.1 noise model Direct
+  Dead Air vs Feeding Loops: witness D3.1 noise model Direct
+  Dead Air vs Haunted Colony: witness D3.1 noise model Direct
+  Dead Air vs Growth Ring: witness D3.1 noise model Direct
+  Dead Air vs Glass Well: witness D3.1 noise model Direct
+  Dead Air vs Strung Abyss: witness D3.1 noise model Direct
+  Dead Air vs Iron Plate: witness D3.1 noise model Direct
+  Dead Air vs Chamber Drone: witness D3.1 noise model Direct
+  Dead Air vs Ice Shelf: witness D4.1 noise type White
+  Dead Air vs Hull Ark: witness D3.1 noise model Direct
+  Dead Air vs Column Hymn: witness D3.1 noise model Direct
+  Dead Air vs Cavern Wall: witness D3.1 noise model Direct
+  Dead Air vs Glass Sphere: witness D3.1 noise model Direct
+  Dead Air vs Sudden Chasm: witness D3.1 noise model Direct
+  Dead Air vs Abyssal Wind: witness D3.1 noise model Direct
+  Dead Air vs Spore Drift: witness D3.1 noise model Direct
+  Dead Air vs Steam Vent: witness D3.1 noise model Direct
+
+Abyssal Wind (primary D3.2 noise model FilteredWind):
+  Abyssal Wind vs Wind Through Basalt: witness D3.2 noise model FilteredWind
+  Abyssal Wind vs Resonant Shaft: witness D3.2 noise model FilteredWind
+  Abyssal Wind vs Smeared Horizon: witness D3.2 noise model FilteredWind
+  Abyssal Wind vs Feedback Mire: witness D7.2 loudest sub f/4
+  Abyssal Wind vs Tectonic Floor: witness D3.2 noise model FilteredWind
+  Abyssal Wind vs Slow Bloom: witness D3.2 noise model FilteredWind
+  Abyssal Wind vs Colony Pulse: witness D7.2 loudest sub f/4
+  Abyssal Wind vs Cathedral Void: witness D3.2 noise model FilteredWind
+  Abyssal Wind vs Choir of Absence: witness D3.2 noise model FilteredWind
+  Abyssal Wind vs Hull Resonance: witness D7.2 loudest sub f/4
+  Abyssal Wind vs Lightless: witness D3.2 noise model FilteredWind
+  Abyssal Wind vs Erosion: witness D3.2 noise model FilteredWind
+  Abyssal Wind vs Crowded Dark: witness D7.2 loudest sub f/4
+  Abyssal Wind vs Drifting Strata: witness D3.2 noise model FilteredWind
+  Abyssal Wind vs Stone Gravity: witness D3.2 noise model FilteredWind
+  Abyssal Wind vs Entropic Hum: witness D7.2 loudest sub f/4
+  Abyssal Wind vs Pressure Front: witness D3.2 noise model FilteredWind
+  Abyssal Wind vs Weighted Deep: witness D3.2 noise model FilteredWind
+  Abyssal Wind vs Fogbound: witness D3.2 noise model FilteredWind
+  Abyssal Wind vs Teeming: witness D3.2 noise model FilteredWind
+  Abyssal Wind vs Endless Descent: witness D3.2 noise model FilteredWind
+  Abyssal Wind vs Monolith: witness D3.2 noise model FilteredWind
+  Abyssal Wind vs Bloom Colony: witness D3.2 noise model FilteredWind
+  Abyssal Wind vs Singing Colony: witness D3.2 noise model FilteredWind
+  Abyssal Wind vs Swarm Breath: witness D3.2 noise model FilteredWind
+  Abyssal Wind vs Feeding Loops: witness D3.2 noise model FilteredWind
+  Abyssal Wind vs Haunted Colony: witness D3.2 noise model FilteredWind
+  Abyssal Wind vs Growth Ring: witness D3.2 noise model FilteredWind
+  Abyssal Wind vs Glass Well: witness D3.2 noise model FilteredWind
+  Abyssal Wind vs Strung Abyss: witness D3.2 noise model FilteredWind
+  Abyssal Wind vs Iron Plate: witness D3.2 noise model FilteredWind
+  Abyssal Wind vs Chamber Drone: witness D3.2 noise model FilteredWind
+  Abyssal Wind vs Ice Shelf: witness D7.2 loudest sub f/4
+  Abyssal Wind vs Hull Ark: witness D3.2 noise model FilteredWind
+  Abyssal Wind vs Column Hymn: witness D3.2 noise model FilteredWind
+  Abyssal Wind vs Cavern Wall: witness D3.2 noise model FilteredWind
+  Abyssal Wind vs Glass Sphere: witness D3.2 noise model FilteredWind
+  Abyssal Wind vs Sudden Chasm: witness D3.2 noise model FilteredWind
+  Abyssal Wind vs Dead Air: witness D3.2 noise model FilteredWind
+  Abyssal Wind vs Spore Drift: witness D3.2 noise model FilteredWind
+  Abyssal Wind vs Steam Vent: witness D3.2 noise model FilteredWind
+
+Spore Drift (primary D3.3 noise model GranularDust):
+  Spore Drift vs Wind Through Basalt: witness D3.3 noise model GranularDust
+  Spore Drift vs Resonant Shaft: witness D3.3 noise model GranularDust
+  Spore Drift vs Smeared Horizon: witness D3.3 noise model GranularDust
+  Spore Drift vs Feedback Mire: witness D11 ghost reverse >= 0.5
+  Spore Drift vs Tectonic Floor: witness D3.3 noise model GranularDust
+  Spore Drift vs Slow Bloom: witness D3.3 noise model GranularDust
+  Spore Drift vs Colony Pulse: witness D11 ghost reverse >= 0.5
+  Spore Drift vs Cathedral Void: witness D3.3 noise model GranularDust
+  Spore Drift vs Choir of Absence: witness D3.3 noise model GranularDust
+  Spore Drift vs Hull Resonance: witness D11 ghost reverse >= 0.5
+  Spore Drift vs Lightless: witness D3.3 noise model GranularDust
+  Spore Drift vs Erosion: witness D3.3 noise model GranularDust
+  Spore Drift vs Crowded Dark: witness D11 ghost reverse >= 0.5
+  Spore Drift vs Drifting Strata: witness D3.3 noise model GranularDust
+  Spore Drift vs Stone Gravity: witness D3.3 noise model GranularDust
+  Spore Drift vs Entropic Hum: witness D11 ghost reverse >= 0.5
+  Spore Drift vs Pressure Front: witness D3.3 noise model GranularDust
+  Spore Drift vs Weighted Deep: witness D3.3 noise model GranularDust
+  Spore Drift vs Fogbound: witness D3.3 noise model GranularDust
+  Spore Drift vs Teeming: witness D3.3 noise model GranularDust
+  Spore Drift vs Endless Descent: witness D3.3 noise model GranularDust
+  Spore Drift vs Monolith: witness D3.3 noise model GranularDust
+  Spore Drift vs Bloom Colony: witness D3.3 noise model GranularDust
+  Spore Drift vs Singing Colony: witness D3.3 noise model GranularDust
+  Spore Drift vs Swarm Breath: witness D3.3 noise model GranularDust
+  Spore Drift vs Feeding Loops: witness D3.3 noise model GranularDust
+  Spore Drift vs Haunted Colony: witness D3.3 noise model GranularDust
+  Spore Drift vs Growth Ring: witness D3.3 noise model GranularDust
+  Spore Drift vs Glass Well: witness D3.3 noise model GranularDust
+  Spore Drift vs Strung Abyss: witness D3.3 noise model GranularDust
+  Spore Drift vs Iron Plate: witness D3.3 noise model GranularDust
+  Spore Drift vs Chamber Drone: witness D3.3 noise model GranularDust
+  Spore Drift vs Ice Shelf: witness D11 ghost reverse >= 0.5
+  Spore Drift vs Hull Ark: witness D3.3 noise model GranularDust
+  Spore Drift vs Column Hymn: witness D3.3 noise model GranularDust
+  Spore Drift vs Cavern Wall: witness D3.3 noise model GranularDust
+  Spore Drift vs Glass Sphere: witness D3.3 noise model GranularDust
+  Spore Drift vs Sudden Chasm: witness D3.3 noise model GranularDust
+  Spore Drift vs Dead Air: witness D3.3 noise model GranularDust
+  Spore Drift vs Abyssal Wind: witness D3.3 noise model GranularDust
+  Spore Drift vs Steam Vent: witness D3.3 noise model GranularDust
+
+Steam Vent (primary D3.4 noise model MetallicHiss):
+  Steam Vent vs Wind Through Basalt: witness D3.4 noise model MetallicHiss
+  Steam Vent vs Resonant Shaft: witness D3.4 noise model MetallicHiss
+  Steam Vent vs Smeared Horizon: witness D3.4 noise model MetallicHiss
+  Steam Vent vs Feedback Mire: witness D7.2 loudest sub f/4
+  Steam Vent vs Tectonic Floor: witness D3.4 noise model MetallicHiss
+  Steam Vent vs Slow Bloom: witness D3.4 noise model MetallicHiss
+  Steam Vent vs Colony Pulse: witness D6.3 loop filter Highpass
+  Steam Vent vs Cathedral Void: witness D3.4 noise model MetallicHiss
+  Steam Vent vs Choir of Absence: witness D3.4 noise model MetallicHiss
+  Steam Vent vs Hull Resonance: witness D6.3 loop filter Highpass
+  Steam Vent vs Lightless: witness D3.4 noise model MetallicHiss
+  Steam Vent vs Erosion: witness D3.4 noise model MetallicHiss
+  Steam Vent vs Crowded Dark: witness D6.3 loop filter Highpass
+  Steam Vent vs Drifting Strata: witness D3.4 noise model MetallicHiss
+  Steam Vent vs Stone Gravity: witness D3.4 noise model MetallicHiss
+  Steam Vent vs Entropic Hum: witness D6.3 loop filter Highpass
+  Steam Vent vs Pressure Front: witness D3.4 noise model MetallicHiss
+  Steam Vent vs Weighted Deep: witness D3.4 noise model MetallicHiss
+  Steam Vent vs Fogbound: witness D3.4 noise model MetallicHiss
+  Steam Vent vs Teeming: witness D3.4 noise model MetallicHiss
+  Steam Vent vs Endless Descent: witness D3.4 noise model MetallicHiss
+  Steam Vent vs Monolith: witness D3.4 noise model MetallicHiss
+  Steam Vent vs Bloom Colony: witness D3.4 noise model MetallicHiss
+  Steam Vent vs Singing Colony: witness D3.4 noise model MetallicHiss
+  Steam Vent vs Swarm Breath: witness D3.4 noise model MetallicHiss
+  Steam Vent vs Feeding Loops: witness D3.4 noise model MetallicHiss
+  Steam Vent vs Haunted Colony: witness D3.4 noise model MetallicHiss
+  Steam Vent vs Growth Ring: witness D3.4 noise model MetallicHiss
+  Steam Vent vs Glass Well: witness D3.4 noise model MetallicHiss
+  Steam Vent vs Strung Abyss: witness D3.4 noise model MetallicHiss
+  Steam Vent vs Iron Plate: witness D3.4 noise model MetallicHiss
+  Steam Vent vs Chamber Drone: witness D3.4 noise model MetallicHiss
+  Steam Vent vs Ice Shelf: witness D6.3 loop filter Highpass
+  Steam Vent vs Hull Ark: witness D3.4 noise model MetallicHiss
+  Steam Vent vs Column Hymn: witness D3.4 noise model MetallicHiss
+  Steam Vent vs Cavern Wall: witness D3.4 noise model MetallicHiss
+  Steam Vent vs Glass Sphere: witness D3.4 noise model MetallicHiss
+  Steam Vent vs Sudden Chasm: witness D3.4 noise model MetallicHiss
+  Steam Vent vs Dead Air: witness D3.4 noise model MetallicHiss
+  Steam Vent vs Abyssal Wind: witness D3.4 noise model MetallicHiss
+  Steam Vent vs Spore Drift: witness D3.4 noise model MetallicHiss
+
+SUBSET pairs: 50
+0.002 s: Vorago_PresetMatrix_NoShowcaseSubset
+[aggregate] index 0: computing / loading record...
+[aggregate] index 1: computing / loading record...
+[aggregate] index 2: computing / loading record...
+[aggregate] index 3: computing / loading record...
+[aggregate] index 4: computing / loading record...
+[aggregate] index 5: computing / loading record...
+[aggregate] index 6: computing / loading record...
+[aggregate] index 7: computing / loading record...
+[aggregate] index 8: computing / loading record...
+[aggregate] index 9: computing / loading record...
+[aggregate] index 10: computing / loading record...
+[aggregate] index 11: computing / loading record...
+[aggregate] index 12: computing / loading record...
+[aggregate] index 13: computing / loading record...
+[aggregate] index 14: computing / loading record...
+[aggregate] index 15: computing / loading record...
+[aggregate] index 16: computing / loading record...
+[aggregate] index 17: computing / loading record...
+[aggregate] index 18: computing / loading record...
+[aggregate] index 19: computing / loading record...
+[aggregate] index 20: computing / loading record...
+[aggregate] index 21: computing / loading record...
+[aggregate] index 22: computing / loading record...
+[aggregate] index 23: computing / loading record...
+[aggregate] index 24: computing / loading record...
+[aggregate] index 25: computing / loading record...
+[aggregate] index 26: computing / loading record...
+[aggregate] index 27: computing / loading record...
+[aggregate] index 28: computing / loading record...
+[aggregate] index 29: computing / loading record...
+[aggregate] index 30: computing / loading record...
+[aggregate] index 31: computing / loading record...
+[aggregate] index 32: computing / loading record...
+[aggregate] index 33: computing / loading record...
+[aggregate] index 34: computing / loading record...
+[aggregate] index 35: computing / loading record...
+[aggregate] index 36: computing / loading record...
+[aggregate] index 37: computing / loading record...
+[aggregate] index 38: computing / loading record...
+[aggregate] index 39: computing / loading record...
+[aggregate] index 40: computing / loading record...
+[aggregate] index 41: computing / loading record...
+[aggregate] index 42: computing / loading record...
+
+=== Vorago_PresetSweep_SoundSpaceDistinct (FR-015, FR-036, SC-010; N = 42, K = 4) ===
+Control set C (5): [Monolith] [Dead Air] [Cathedral Void] [Pressure Front] [Weighted Deep]
+
+(a) level twin (bound < 0.05):
+  Wind Through Basalt          d 0.000008
+  Resonant Shaft               d 0.000006
+  Smeared Horizon              d 0.000004
+  Feedback Mire                d 0.000005
+  Tectonic Floor               d 0.000008
+  Slow Bloom                   d 0.000011
+  Colony Pulse                 d 0.000003
+  Cathedral Void               d 0.000005
+  Choir of Absence             d 0.000000
+  Hull Resonance               d 0.000040
+  Lightless                    d 0.000020
+  Erosion                      d 0.000028
+  Crowded Dark                 d 0.000011
+  Drifting Strata              d 0.000005
+  Stone Gravity                d 0.000005
+  Entropic Hum                 d 0.000004
+  Pressure Front               d 0.000017
+  Weighted Deep                d 0.000002
+  Fogbound                     d 0.000003
+  Teeming                      d 0.000010
+  Endless Descent              d 0.000001
+  Monolith                     d 0.000040
+  Bloom Colony                 d 0.000048
+  Singing Colony               d 0.000030
+  Swarm Breath                 d 0.000069
+  Feeding Loops                d 0.000004
+  Haunted Colony               d 0.000002
+  Growth Ring                  d 0.000027
+  Glass Well                   d 0.000008
+  Strung Abyss                 d 0.000002
+  Iron Plate                   d 0.000230
+  Chamber Drone                d 0.000005
+  Ice Shelf                    d 0.000000
+  Hull Ark                     d 0.000039
+  Column Hymn                  d 0.000001
+  Cavern Wall                  d 0.000224
+  Glass Sphere                 d 0.000650
+  Sudden Chasm                 d 0.000115
+  Dead Air                     d 0.000017
+  Abyssal Wind                 d 0.000097
+  Spore Drift                  d 0.000025
+  Steam Vent                   d 0.000108
+
+(a') gain twin on Pressure Front (Pressure 1.0000): d 2.3059 (bound <= 2.00)
+-------------------------------------------------------------------------------
+Vorago_PresetSweep_SoundSpaceDistinct
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(361)
+...............................................................................
+
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(437): FAILED:
+  CHECK( *d <= VoragoTest::kSeedTwinMargin )
+with expansion:
+  2.3059415937 <= 2.0
+with message:
+  Pressure Front: gain twin (FR-017 stop on failure)
+
+
+(b) seed twins (t_K <= 2.00) and (c) sub twins (d < 4.00):
+  Monolith                     t_K 1.3811  |  sub -0.125: d 3.9723  sub +0.125: d 4.0582  [FAIL]
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(478): FAILED:
+  CHECK( sub.ok )
+with expansion:
+  false
+with message:
+  Monolith: sub twin minus run 1 d 3.9723, plus run 1 d 4.05821 (FR-017 stop on
+  failure)
+
+  Dead Air                     t_K 0.2630  |  sub -0.125: d 0.0976  sub +0.125: d 0.2585  [ok]
+  Cathedral Void               t_K 0.8057  |  sub -0.125: d 1.1574  sub +0.125: d 2.0846  [ok]
+  Pressure Front               t_K 2.1656  |  sub -0.125: d 0.5763  sub +0.125: d 0.6900  [ok]
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(470): FAILED:
+  CHECK( *tK <= VoragoTest::kSeedTwinMargin )
+with expansion:
+  2.1655608126 <= 2.0
+with message:
+  Pressure Front: seed twin t_K (FR-017 stop on failure)
+
+  Weighted Deep                t_K 2.8645  |  sub -0.125: d 3.2601  sub +0.125: d 3.9172  [ok]
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(470): FAILED:
+  CHECK( *tK <= VoragoTest::kSeedTwinMargin )
+with expansion:
+  2.8645204228 <= 2.0
+with message:
+  Weighted Deep: seed twin t_K (FR-017 stop on failure)
+
+
+s(P) per preset:
+  Wind Through Basalt          s(P) 2.1464
+  Resonant Shaft               s(P) 4.9125
+  Smeared Horizon              s(P) 1.7890
+  Feedback Mire                s(P) 2.8348
+  Tectonic Floor               s(P) 4.3961
+  Slow Bloom                   s(P) 1.6698
+  Colony Pulse                 s(P) 2.8917
+  Cathedral Void               s(P) 1.3278
+  Choir of Absence             s(P) 3.4109
+  Hull Resonance               s(P) 4.7869
+  Lightless                    s(P) 3.5254
+  Erosion                      s(P) 2.3046
+  Crowded Dark                 s(P) 2.8337
+  Drifting Strata              s(P) 2.7531
+  Stone Gravity                s(P) 5.1749
+  Entropic Hum                 s(P) 3.6620
+  Pressure Front               s(P) 2.9982
+  Weighted Deep                s(P) 4.3234
+  Fogbound                     s(P) 1.1470
+  Teeming                      s(P) 1.7084
+  Endless Descent              s(P) 1.1382
+  Monolith                     s(P) 8.1459
+  Bloom Colony                 s(P) 3.6196
+  Singing Colony               s(P) 2.3278
+  Swarm Breath                 s(P) 3.9645
+  Feeding Loops                s(P) 2.2738
+  Haunted Colony               s(P) 3.9099
+  Growth Ring                  s(P) 3.7183
+  Glass Well                   s(P) 3.9119
+  Strung Abyss                 s(P) 3.9375
+  Iron Plate                   s(P) 5.5822
+  Chamber Drone                s(P) 1.8787
+  Ice Shelf                    s(P) 3.7012
+  Hull Ark                     s(P) 2.1445
+  Column Hymn                  s(P) 3.2388
+  Cavern Wall                  s(P) 2.9359
+  Glass Sphere                 s(P) 3.2833
+  Sudden Chasm                 s(P) 2.0921
+  Dead Air                     s(P) 0.7047
+  Abyssal Wind                 s(P) 3.9756
+  Spore Drift                  s(P) 3.2400
+  Steam Vent                   s(P) 1.9035
+  BELOW FLOOR: Wind Through Basalt vs Feedback Mire: d 4.9706 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  4.9706033405 >= 5.7290408456
+with message:
+  Wind Through Basalt vs Feedback Mire: d 4.9706, floor 5.72904
+
+  BELOW FLOOR: Wind Through Basalt vs Tectonic Floor: d 4.5372 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  4.5371852263 >= 5.7290408456
+with message:
+  Wind Through Basalt vs Tectonic Floor: d 4.53719, floor 5.72904
+
+  BELOW FLOOR: Wind Through Basalt vs Slow Bloom: d 3.8879 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  3.8878842712 >= 5.7290408456
+with message:
+  Wind Through Basalt vs Slow Bloom: d 3.88788, floor 5.72904
+
+  BELOW FLOOR: Wind Through Basalt vs Colony Pulse: d 4.6846 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  4.6845914955 >= 5.7290408456
+with message:
+  Wind Through Basalt vs Colony Pulse: d 4.68459, floor 5.72904
+
+  BELOW FLOOR: Wind Through Basalt vs Drifting Strata: d 4.0655 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  4.0654775771 >= 5.7290408456
+with message:
+  Wind Through Basalt vs Drifting Strata: d 4.06548, floor 5.72904
+
+  BELOW FLOOR: Wind Through Basalt vs Entropic Hum: d 4.5394 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  4.5394283218 >= 5.7290408456
+with message:
+  Wind Through Basalt vs Entropic Hum: d 4.53943, floor 5.72904
+
+  BELOW FLOOR: Wind Through Basalt vs Weighted Deep: d 4.8393 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  4.8393432542 >= 5.7290408456
+with message:
+  Wind Through Basalt vs Weighted Deep: d 4.83934, floor 5.72904
+
+  BELOW FLOOR: Wind Through Basalt vs Monolith: d 3.0882 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  3.0881712501 >= 5.7290408456
+with message:
+  Wind Through Basalt vs Monolith: d 3.08817, floor 5.72904
+
+  BELOW FLOOR: Wind Through Basalt vs Bloom Colony: d 1.6493 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  1.6493207645 >= 5.7290408456
+with message:
+  Wind Through Basalt vs Bloom Colony: d 1.64932, floor 5.72904
+
+  BELOW FLOOR: Wind Through Basalt vs Column Hymn: d 4.9627 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  4.9627133834 >= 5.7290408456
+with message:
+  Wind Through Basalt vs Column Hymn: d 4.96271, floor 5.72904
+
+  BELOW FLOOR: Resonant Shaft vs Smeared Horizon: d 3.2090 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  3.2089949189 >= 5.7290408456
+with message:
+  Resonant Shaft vs Smeared Horizon: d 3.20899, floor 5.72904
+
+  BELOW FLOOR: Resonant Shaft vs Endless Descent: d 3.8500 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  3.8500194327 >= 5.7290408456
+with message:
+  Resonant Shaft vs Endless Descent: d 3.85002, floor 5.72904
+
+  BELOW FLOOR: Resonant Shaft vs Iron Plate: d 4.8814 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  4.8814202465 >= 5.7290408456
+with message:
+  Resonant Shaft vs Iron Plate: d 4.88142, floor 5.72904
+
+  BELOW FLOOR: Resonant Shaft vs Dead Air: d 2.6476 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  2.647570444 >= 5.7290408456
+with message:
+  Resonant Shaft vs Dead Air: d 2.64757, floor 5.72904
+
+  BELOW FLOOR: Smeared Horizon vs Cathedral Void: d 5.0862 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  5.0861813796 >= 5.7290408456
+with message:
+  Smeared Horizon vs Cathedral Void: d 5.08618, floor 5.72904
+
+  BELOW FLOOR: Smeared Horizon vs Choir of Absence: d 4.7882 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  4.7881820909 >= 5.7290408456
+with message:
+  Smeared Horizon vs Choir of Absence: d 4.78818, floor 5.72904
+
+  BELOW FLOOR: Smeared Horizon vs Endless Descent: d 3.4907 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  3.4906583062 >= 5.7290408456
+with message:
+  Smeared Horizon vs Endless Descent: d 3.49066, floor 5.72904
+
+  BELOW FLOOR: Smeared Horizon vs Singing Colony: d 4.4736 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  4.4735595709 >= 5.7290408456
+with message:
+  Smeared Horizon vs Singing Colony: d 4.47356, floor 5.72904
+
+  BELOW FLOOR: Smeared Horizon vs Dead Air: d 3.1991 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  3.1991291724 >= 5.7290408456
+with message:
+  Smeared Horizon vs Dead Air: d 3.19913, floor 5.72904
+
+  BELOW FLOOR: Feedback Mire vs Tectonic Floor: d 4.6119 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  4.6118978026 >= 5.7290408456
+with message:
+  Feedback Mire vs Tectonic Floor: d 4.6119, floor 5.72904
+
+  BELOW FLOOR: Feedback Mire vs Slow Bloom: d 3.1664 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  3.1664081259 >= 5.7290408456
+with message:
+  Feedback Mire vs Slow Bloom: d 3.16641, floor 5.72904
+
+  BELOW FLOOR: Feedback Mire vs Colony Pulse: d 3.9246 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  3.9245638983 >= 5.7290408456
+with message:
+  Feedback Mire vs Colony Pulse: d 3.92456, floor 5.72904
+
+  BELOW FLOOR: Feedback Mire vs Crowded Dark: d 5.6147 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  5.6146630541 >= 5.7290408456
+with message:
+  Feedback Mire vs Crowded Dark: d 5.61466, floor 5.72904
+
+  BELOW FLOOR: Feedback Mire vs Drifting Strata: d 3.9766 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  3.9766241287 >= 5.7290408456
+with message:
+  Feedback Mire vs Drifting Strata: d 3.97662, floor 5.72904
+
+  BELOW FLOOR: Feedback Mire vs Entropic Hum: d 3.7519 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  3.7519108998 >= 5.7290408456
+with message:
+  Feedback Mire vs Entropic Hum: d 3.75191, floor 5.72904
+
+  BELOW FLOOR: Feedback Mire vs Pressure Front: d 5.0422 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  5.0422256954 >= 5.7290408456
+with message:
+  Feedback Mire vs Pressure Front: d 5.04223, floor 5.72904
+
+  BELOW FLOOR: Feedback Mire vs Fogbound: d 4.5538 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  4.553838102 >= 5.7290408456
+with message:
+  Feedback Mire vs Fogbound: d 4.55384, floor 5.72904
+
+  BELOW FLOOR: Feedback Mire vs Monolith: d 4.7481 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  4.7481437336 >= 5.7290408456
+with message:
+  Feedback Mire vs Monolith: d 4.74814, floor 5.72904
+
+  BELOW FLOOR: Feedback Mire vs Bloom Colony: d 5.5661 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  5.5660505253 >= 5.7290408456
+with message:
+  Feedback Mire vs Bloom Colony: d 5.56605, floor 5.72904
+
+  BELOW FLOOR: Tectonic Floor vs Slow Bloom: d 1.7474 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  1.7473544648 >= 5.7290408456
+with message:
+  Tectonic Floor vs Slow Bloom: d 1.74735, floor 5.72904
+
+  BELOW FLOOR: Tectonic Floor vs Colony Pulse: d 4.4444 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  4.4444257518 >= 5.7290408456
+with message:
+  Tectonic Floor vs Colony Pulse: d 4.44443, floor 5.72904
+
+  BELOW FLOOR: Tectonic Floor vs Erosion: d 5.0356 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  5.0356304173 >= 5.7290408456
+with message:
+  Tectonic Floor vs Erosion: d 5.03563, floor 5.72904
+
+  BELOW FLOOR: Tectonic Floor vs Drifting Strata: d 5.1399 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  5.1398853545 >= 5.7290408456
+with message:
+  Tectonic Floor vs Drifting Strata: d 5.13989, floor 5.72904
+
+  BELOW FLOOR: Tectonic Floor vs Entropic Hum: d 4.8870 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  4.8869689057 >= 5.7290408456
+with message:
+  Tectonic Floor vs Entropic Hum: d 4.88697, floor 5.72904
+
+  BELOW FLOOR: Tectonic Floor vs Pressure Front: d 4.1771 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  4.177081549 >= 5.7290408456
+with message:
+  Tectonic Floor vs Pressure Front: d 4.17708, floor 5.72904
+
+  BELOW FLOOR: Tectonic Floor vs Weighted Deep: d 4.7526 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  4.7526077876 >= 5.7290408456
+with message:
+  Tectonic Floor vs Weighted Deep: d 4.75261, floor 5.72904
+
+  BELOW FLOOR: Tectonic Floor vs Fogbound: d 3.7211 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  3.7211396412 >= 5.7290408456
+with message:
+  Tectonic Floor vs Fogbound: d 3.72114, floor 5.72904
+
+  BELOW FLOOR: Tectonic Floor vs Teeming: d 4.1096 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  4.1095726057 >= 5.7290408456
+with message:
+  Tectonic Floor vs Teeming: d 4.10957, floor 5.72904
+
+  BELOW FLOOR: Tectonic Floor vs Monolith: d 5.2987 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  5.2987389435 >= 5.7290408456
+with message:
+  Tectonic Floor vs Monolith: d 5.29874, floor 5.72904
+
+  BELOW FLOOR: Tectonic Floor vs Bloom Colony: d 3.7928 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  3.7927934883 >= 5.7290408456
+with message:
+  Tectonic Floor vs Bloom Colony: d 3.79279, floor 5.72904
+
+  BELOW FLOOR: Tectonic Floor vs Feeding Loops: d 4.9377 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  4.9376851897 >= 5.7290408456
+with message:
+  Tectonic Floor vs Feeding Loops: d 4.93769, floor 5.72904
+
+  BELOW FLOOR: Tectonic Floor vs Haunted Colony: d 4.4887 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  4.4886650703 >= 5.7290408456
+with message:
+  Tectonic Floor vs Haunted Colony: d 4.48867, floor 5.72904
+
+  BELOW FLOOR: Tectonic Floor vs Column Hymn: d 5.3709 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  5.3708926505 >= 5.7290408456
+with message:
+  Tectonic Floor vs Column Hymn: d 5.37089, floor 5.72904
+
+  BELOW FLOOR: Tectonic Floor vs Spore Drift: d 5.3444 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  5.3443921124 >= 5.7290408456
+with message:
+  Tectonic Floor vs Spore Drift: d 5.34439, floor 5.72904
+
+  BELOW FLOOR: Tectonic Floor vs Steam Vent: d 4.4127 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  4.4127087215 >= 5.7290408456
+with message:
+  Tectonic Floor vs Steam Vent: d 4.41271, floor 5.72904
+
+  BELOW FLOOR: Slow Bloom vs Colony Pulse: d 3.1043 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  3.1043361751 >= 5.7290408456
+with message:
+  Slow Bloom vs Colony Pulse: d 3.10434, floor 5.72904
+
+  BELOW FLOOR: Slow Bloom vs Crowded Dark: d 5.3634 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  5.3633529251 >= 5.7290408456
+with message:
+  Slow Bloom vs Crowded Dark: d 5.36335, floor 5.72904
+
+  BELOW FLOOR: Slow Bloom vs Drifting Strata: d 3.7572 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  3.7572474749 >= 5.7290408456
+with message:
+  Slow Bloom vs Drifting Strata: d 3.75725, floor 5.72904
+
+  BELOW FLOOR: Slow Bloom vs Entropic Hum: d 3.5573 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  3.5572659886 >= 5.7290408456
+with message:
+  Slow Bloom vs Entropic Hum: d 3.55727, floor 5.72904
+
+  BELOW FLOOR: Slow Bloom vs Pressure Front: d 4.0763 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  4.0763156938 >= 5.7290408456
+with message:
+  Slow Bloom vs Pressure Front: d 4.07632, floor 5.72904
+
+  BELOW FLOOR: Slow Bloom vs Weighted Deep: d 5.0381 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  5.038110144 >= 5.7290408456
+with message:
+  Slow Bloom vs Weighted Deep: d 5.03811, floor 5.72904
+
+  BELOW FLOOR: Slow Bloom vs Fogbound: d 3.2413 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  3.2413293434 >= 5.7290408456
+with message:
+  Slow Bloom vs Fogbound: d 3.24133, floor 5.72904
+
+  BELOW FLOOR: Slow Bloom vs Teeming: d 4.6272 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  4.6272221259 >= 5.7290408456
+with message:
+  Slow Bloom vs Teeming: d 4.62722, floor 5.72904
+
+  BELOW FLOOR: Slow Bloom vs Monolith: d 4.5639 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  4.563910982 >= 5.7290408456
+with message:
+  Slow Bloom vs Monolith: d 4.56391, floor 5.72904
+
+  BELOW FLOOR: Slow Bloom vs Bloom Colony: d 3.5852 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  3.5851935747 >= 5.7290408456
+with message:
+  Slow Bloom vs Bloom Colony: d 3.58519, floor 5.72904
+
+  BELOW FLOOR: Slow Bloom vs Feeding Loops: d 4.6985 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  4.6984990018 >= 5.7290408456
+with message:
+  Slow Bloom vs Feeding Loops: d 4.6985, floor 5.72904
+
+  BELOW FLOOR: Slow Bloom vs Haunted Colony: d 4.9253 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  4.9253427705 >= 5.7290408456
+with message:
+  Slow Bloom vs Haunted Colony: d 4.92534, floor 5.72904
+
+  BELOW FLOOR: Slow Bloom vs Column Hymn: d 5.6392 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  5.639198727 >= 5.7290408456
+with message:
+  Slow Bloom vs Column Hymn: d 5.6392, floor 5.72904
+
+  BELOW FLOOR: Slow Bloom vs Steam Vent: d 4.1574 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  4.1574133095 >= 5.7290408456
+with message:
+  Slow Bloom vs Steam Vent: d 4.15741, floor 5.72904
+
+  BELOW FLOOR: Colony Pulse vs Crowded Dark: d 3.5722 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  3.5721515259 >= 5.7290408456
+with message:
+  Colony Pulse vs Crowded Dark: d 3.57215, floor 5.72904
+
+  BELOW FLOOR: Colony Pulse vs Drifting Strata: d 1.9207 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  1.9207303556 >= 5.7290408456
+with message:
+  Colony Pulse vs Drifting Strata: d 1.92073, floor 5.72904
+
+  BELOW FLOOR: Colony Pulse vs Entropic Hum: d 2.1524 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  2.1524415887 >= 5.7290408456
+with message:
+  Colony Pulse vs Entropic Hum: d 2.15244, floor 5.72904
+
+  BELOW FLOOR: Colony Pulse vs Fogbound: d 3.1082 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  3.1081786468 >= 5.7290408456
+with message:
+  Colony Pulse vs Fogbound: d 3.10818, floor 5.72904
+
+  BELOW FLOOR: Colony Pulse vs Teeming: d 5.5732 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  5.5732154241 >= 5.7290408456
+with message:
+  Colony Pulse vs Teeming: d 5.57322, floor 5.72904
+
+  BELOW FLOOR: Colony Pulse vs Endless Descent: d 4.9073 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  4.907305545 >= 5.7290408456
+with message:
+  Colony Pulse vs Endless Descent: d 4.90731, floor 5.72904
+
+  BELOW FLOOR: Colony Pulse vs Monolith: d 5.7255 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  5.7254902822 >= 5.7290408456
+with message:
+  Colony Pulse vs Monolith: d 5.72549, floor 5.72904
+
+  BELOW FLOOR: Colony Pulse vs Bloom Colony: d 4.8414 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  4.8414426542 >= 5.7290408456
+with message:
+  Colony Pulse vs Bloom Colony: d 4.84144, floor 5.72904
+
+  BELOW FLOOR: Colony Pulse vs Dead Air: d 5.6051 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  5.605092684 >= 5.7290408456
+with message:
+  Colony Pulse vs Dead Air: d 5.60509, floor 5.72904
+
+  BELOW FLOOR: Colony Pulse vs Steam Vent: d 5.2628 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  5.2627592704 >= 5.7290408456
+with message:
+  Colony Pulse vs Steam Vent: d 5.26276, floor 5.72904
+
+  BELOW FLOOR: Cathedral Void vs Choir of Absence: d 4.6509 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  4.6509050844 >= 5.7290408456
+with message:
+  Cathedral Void vs Choir of Absence: d 4.65091, floor 5.72904
+
+  BELOW FLOOR: Cathedral Void vs Stone Gravity: d 4.9692 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  4.9692339664 >= 5.7290408456
+with message:
+  Cathedral Void vs Stone Gravity: d 4.96923, floor 5.72904
+
+  BELOW FLOOR: Cathedral Void vs Endless Descent: d 4.6471 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  4.6471013439 >= 5.7290408456
+with message:
+  Cathedral Void vs Endless Descent: d 4.6471, floor 5.72904
+
+  BELOW FLOOR: Cathedral Void vs Singing Colony: d 5.1845 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  5.1845030036 >= 5.7290408456
+with message:
+  Cathedral Void vs Singing Colony: d 5.1845, floor 5.72904
+
+  BELOW FLOOR: Cathedral Void vs Abyssal Wind: d 4.1423 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  4.1423126857 >= 5.7290408456
+with message:
+  Cathedral Void vs Abyssal Wind: d 4.14231, floor 5.72904
+
+  BELOW FLOOR: Choir of Absence vs Stone Gravity: d 3.6785 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  3.6785452626 >= 5.7290408456
+with message:
+  Choir of Absence vs Stone Gravity: d 3.67855, floor 5.72904
+
+  BELOW FLOOR: Choir of Absence vs Singing Colony: d 4.2895 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  4.2894680885 >= 5.7290408456
+with message:
+  Choir of Absence vs Singing Colony: d 4.28947, floor 5.72904
+
+  BELOW FLOOR: Hull Resonance vs Crowded Dark: d 5.3903 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  5.3903044574 >= 5.7290408456
+with message:
+  Hull Resonance vs Crowded Dark: d 5.3903, floor 5.72904
+
+  BELOW FLOOR: Hull Resonance vs Pressure Front: d 4.1134 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  4.1133940429 >= 5.7290408456
+with message:
+  Hull Resonance vs Pressure Front: d 4.11339, floor 5.72904
+
+  BELOW FLOOR: Hull Resonance vs Endless Descent: d 4.9225 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  4.9225362935 >= 5.7290408456
+with message:
+  Hull Resonance vs Endless Descent: d 4.92254, floor 5.72904
+
+  BELOW FLOOR: Hull Resonance vs Feeding Loops: d 2.1454 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  2.1453844187 >= 5.7290408456
+with message:
+  Hull Resonance vs Feeding Loops: d 2.14538, floor 5.72904
+
+  BELOW FLOOR: Hull Resonance vs Iron Plate: d 4.9469 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  4.9468670984 >= 5.7290408456
+with message:
+  Hull Resonance vs Iron Plate: d 4.94687, floor 5.72904
+
+  BELOW FLOOR: Hull Resonance vs Abyssal Wind: d 5.2981 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  5.298075365 >= 5.7290408456
+with message:
+  Hull Resonance vs Abyssal Wind: d 5.29808, floor 5.72904
+
+  BELOW FLOOR: Hull Resonance vs Steam Vent: d 3.9731 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  3.9731148739 >= 5.7290408456
+with message:
+  Hull Resonance vs Steam Vent: d 3.97311, floor 5.72904
+
+  BELOW FLOOR: Lightless vs Erosion: d 3.0531 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  3.0531021533 >= 5.7290408456
+with message:
+  Lightless vs Erosion: d 3.0531, floor 5.72904
+
+  BELOW FLOOR: Lightless vs Growth Ring: d 3.5680 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  3.5679540686 >= 5.7290408456
+with message:
+  Lightless vs Growth Ring: d 3.56795, floor 5.72904
+
+  BELOW FLOOR: Lightless vs Sudden Chasm: d 5.2084 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  5.2084453683 >= 5.7290408456
+with message:
+  Lightless vs Sudden Chasm: d 5.20845, floor 5.72904
+
+  BELOW FLOOR: Lightless vs Abyssal Wind: d 3.7576 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  3.7575740528 >= 5.7290408456
+with message:
+  Lightless vs Abyssal Wind: d 3.75757, floor 5.72904
+
+  BELOW FLOOR: Lightless vs Spore Drift: d 5.5152 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  5.5152267775 >= 5.7290408456
+with message:
+  Lightless vs Spore Drift: d 5.51523, floor 5.72904
+
+  BELOW FLOOR: Erosion vs Fogbound: d 5.1206 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  5.1206277447 >= 5.7290408456
+with message:
+  Erosion vs Fogbound: d 5.12063, floor 5.72904
+
+  BELOW FLOOR: Erosion vs Teeming: d 4.1979 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  4.1979116147 >= 5.7290408456
+with message:
+  Erosion vs Teeming: d 4.19791, floor 5.72904
+
+  BELOW FLOOR: Erosion vs Growth Ring: d 3.1806 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  3.1805584626 >= 5.7290408456
+with message:
+  Erosion vs Growth Ring: d 3.18056, floor 5.72904
+
+  BELOW FLOOR: Erosion vs Sudden Chasm: d 4.3257 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  4.3256535617 >= 5.7290408456
+with message:
+  Erosion vs Sudden Chasm: d 4.32565, floor 5.72904
+
+  BELOW FLOOR: Erosion vs Abyssal Wind: d 4.3207 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  4.3207313063 >= 5.7290408456
+with message:
+  Erosion vs Abyssal Wind: d 4.32073, floor 5.72904
+
+  BELOW FLOOR: Erosion vs Spore Drift: d 3.3076 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  3.3075529719 >= 5.7290408456
+with message:
+  Erosion vs Spore Drift: d 3.30755, floor 5.72904
+
+  BELOW FLOOR: Crowded Dark vs Drifting Strata: d 4.4746 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  4.4745756991 >= 5.7290408456
+with message:
+  Crowded Dark vs Drifting Strata: d 4.47458, floor 5.72904
+
+  BELOW FLOOR: Crowded Dark vs Entropic Hum: d 5.1073 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  5.107302278 >= 5.7290408456
+with message:
+  Crowded Dark vs Entropic Hum: d 5.1073, floor 5.72904
+
+  BELOW FLOOR: Crowded Dark vs Fogbound: d 5.2043 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  5.2043179272 >= 5.7290408456
+with message:
+  Crowded Dark vs Fogbound: d 5.20432, floor 5.72904
+
+  BELOW FLOOR: Crowded Dark vs Endless Descent: d 3.6409 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  3.6408795271 >= 5.7290408456
+with message:
+  Crowded Dark vs Endless Descent: d 3.64088, floor 5.72904
+
+  BELOW FLOOR: Crowded Dark vs Feeding Loops: d 5.1990 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  5.198993067 >= 5.7290408456
+with message:
+  Crowded Dark vs Feeding Loops: d 5.19899, floor 5.72904
+
+  BELOW FLOOR: Crowded Dark vs Dead Air: d 5.4669 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  5.4668503712 >= 5.7290408456
+with message:
+  Crowded Dark vs Dead Air: d 5.46685, floor 5.72904
+
+  BELOW FLOOR: Crowded Dark vs Steam Vent: d 5.6009 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  5.6008667688 >= 5.7290408456
+with message:
+  Crowded Dark vs Steam Vent: d 5.60087, floor 5.72904
+
+  BELOW FLOOR: Drifting Strata vs Entropic Hum: d 1.5435 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  1.5435056967 >= 5.7290408456
+with message:
+  Drifting Strata vs Entropic Hum: d 1.54351, floor 5.72904
+
+  BELOW FLOOR: Drifting Strata vs Fogbound: d 4.1896 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  4.1895997645 >= 5.7290408456
+with message:
+  Drifting Strata vs Fogbound: d 4.1896, floor 5.72904
+
+  BELOW FLOOR: Drifting Strata vs Monolith: d 4.7119 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  4.7118993242 >= 5.7290408456
+with message:
+  Drifting Strata vs Monolith: d 4.7119, floor 5.72904
+
+  BELOW FLOOR: Drifting Strata vs Bloom Colony: d 4.5239 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  4.5238576875 >= 5.7290408456
+with message:
+  Drifting Strata vs Bloom Colony: d 4.52386, floor 5.72904
+
+  BELOW FLOOR: Stone Gravity vs Singing Colony: d 3.6372 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  3.6371824869 >= 5.7290408456
+with message:
+  Stone Gravity vs Singing Colony: d 3.63718, floor 5.72904
+
+  BELOW FLOOR: Entropic Hum vs Fogbound: d 3.4093 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  3.4093115388 >= 5.7290408456
+with message:
+  Entropic Hum vs Fogbound: d 3.40931, floor 5.72904
+
+  BELOW FLOOR: Entropic Hum vs Teeming: d 5.4558 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  5.4558132011 >= 5.7290408456
+with message:
+  Entropic Hum vs Teeming: d 5.45581, floor 5.72904
+
+  BELOW FLOOR: Entropic Hum vs Monolith: d 4.7963 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  4.7963092087 >= 5.7290408456
+with message:
+  Entropic Hum vs Monolith: d 4.79631, floor 5.72904
+
+  BELOW FLOOR: Entropic Hum vs Bloom Colony: d 4.9460 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  4.9460220454 >= 5.7290408456
+with message:
+  Entropic Hum vs Bloom Colony: d 4.94602, floor 5.72904
+
+  BELOW FLOOR: Entropic Hum vs Haunted Colony: d 5.2779 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  5.2778720411 >= 5.7290408456
+with message:
+  Entropic Hum vs Haunted Colony: d 5.27787, floor 5.72904
+
+  BELOW FLOOR: Pressure Front vs Fogbound: d 5.5770 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  5.5770094072 >= 5.7290408456
+with message:
+  Pressure Front vs Fogbound: d 5.57701, floor 5.72904
+
+  BELOW FLOOR: Pressure Front vs Endless Descent: d 5.2144 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  5.2144129595 >= 5.7290408456
+with message:
+  Pressure Front vs Endless Descent: d 5.21441, floor 5.72904
+
+  BELOW FLOOR: Pressure Front vs Feeding Loops: d 3.8984 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  3.8983587988 >= 5.7290408456
+with message:
+  Pressure Front vs Feeding Loops: d 3.89836, floor 5.72904
+
+  BELOW FLOOR: Pressure Front vs Abyssal Wind: d 5.2469 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  5.2469091403 >= 5.7290408456
+with message:
+  Pressure Front vs Abyssal Wind: d 5.24691, floor 5.72904
+
+  BELOW FLOOR: Pressure Front vs Steam Vent: d 3.8899 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  3.8898959893 >= 5.7290408456
+with message:
+  Pressure Front vs Steam Vent: d 3.8899, floor 5.72904
+
+  BELOW FLOOR: Weighted Deep vs Bloom Colony: d 3.5702 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  3.5701522428 >= 5.7290408456
+with message:
+  Weighted Deep vs Bloom Colony: d 3.57015, floor 5.72904
+
+  BELOW FLOOR: Weighted Deep vs Column Hymn: d 2.7897 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  2.7897322992 >= 5.7290408456
+with message:
+  Weighted Deep vs Column Hymn: d 2.78973, floor 5.72904
+
+  BELOW FLOOR: Weighted Deep vs Steam Vent: d 4.3761 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  4.3761004979 >= 5.7290408456
+with message:
+  Weighted Deep vs Steam Vent: d 4.3761, floor 5.72904
+
+  BELOW FLOOR: Fogbound vs Teeming: d 3.1562 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  3.1562455106 >= 5.7290408456
+with message:
+  Fogbound vs Teeming: d 3.15625, floor 5.72904
+
+  BELOW FLOOR: Fogbound vs Endless Descent: d 5.0267 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  5.0266864794 >= 5.7290408456
+with message:
+  Fogbound vs Endless Descent: d 5.02669, floor 5.72904
+
+  BELOW FLOOR: Fogbound vs Haunted Colony: d 4.1459 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  4.1459129476 >= 5.7290408456
+with message:
+  Fogbound vs Haunted Colony: d 4.14591, floor 5.72904
+
+  BELOW FLOOR: Teeming vs Haunted Colony: d 2.1201 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  2.1201216331 >= 5.7290408456
+with message:
+  Teeming vs Haunted Colony: d 2.12012, floor 5.72904
+
+  BELOW FLOOR: Teeming vs Spore Drift: d 4.5066 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  4.5065858596 >= 5.7290408456
+with message:
+  Teeming vs Spore Drift: d 4.50659, floor 5.72904
+
+  BELOW FLOOR: Endless Descent vs Feeding Loops: d 5.5522 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  5.5522424464 >= 5.7290408456
+with message:
+  Endless Descent vs Feeding Loops: d 5.55224, floor 5.72904
+
+  BELOW FLOOR: Endless Descent vs Iron Plate: d 4.8287 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  4.8287033069 >= 5.7290408456
+with message:
+  Endless Descent vs Iron Plate: d 4.8287, floor 5.72904
+
+  BELOW FLOOR: Endless Descent vs Chamber Drone: d 5.6231 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  5.6231073174 >= 5.7290408456
+with message:
+  Endless Descent vs Chamber Drone: d 5.62311, floor 5.72904
+
+  BELOW FLOOR: Endless Descent vs Dead Air: d 3.1598 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  3.1598331337 >= 5.7290408456
+with message:
+  Endless Descent vs Dead Air: d 3.15983, floor 5.72904
+
+  BELOW FLOOR: Endless Descent vs Steam Vent: d 5.6126 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  5.6126070042 >= 5.7290408456
+with message:
+  Endless Descent vs Steam Vent: d 5.61261, floor 5.72904
+
+  BELOW FLOOR: Monolith vs Bloom Colony: d 3.5086 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  3.508611976 >= 5.7290408456
+with message:
+  Monolith vs Bloom Colony: d 3.50861, floor 5.72904
+
+  BELOW FLOOR: Bloom Colony vs Column Hymn: d 3.6091 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  3.6091342997 >= 5.7290408456
+with message:
+  Bloom Colony vs Column Hymn: d 3.60913, floor 5.72904
+
+  BELOW FLOOR: Bloom Colony vs Steam Vent: d 5.6673 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  5.6672969188 >= 5.7290408456
+with message:
+  Bloom Colony vs Steam Vent: d 5.6673, floor 5.72904
+
+  BELOW FLOOR: Feeding Loops vs Abyssal Wind: d 5.2169 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  5.2169045433 >= 5.7290408456
+with message:
+  Feeding Loops vs Abyssal Wind: d 5.2169, floor 5.72904
+
+  BELOW FLOOR: Feeding Loops vs Steam Vent: d 2.6353 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  2.6353090553 >= 5.7290408456
+with message:
+  Feeding Loops vs Steam Vent: d 2.63531, floor 5.72904
+
+  BELOW FLOOR: Haunted Colony vs Spore Drift: d 5.4783 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  5.4783283773 >= 5.7290408456
+with message:
+  Haunted Colony vs Spore Drift: d 5.47833, floor 5.72904
+
+  BELOW FLOOR: Growth Ring vs Sudden Chasm: d 1.8141 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  1.8140680124 >= 5.7290408456
+with message:
+  Growth Ring vs Sudden Chasm: d 1.81407, floor 5.72904
+
+  BELOW FLOOR: Growth Ring vs Abyssal Wind: d 5.1751 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  5.1751216258 >= 5.7290408456
+with message:
+  Growth Ring vs Abyssal Wind: d 5.17512, floor 5.72904
+
+  BELOW FLOOR: Growth Ring vs Spore Drift: d 3.0168 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  3.016800063 >= 5.7290408456
+with message:
+  Growth Ring vs Spore Drift: d 3.0168, floor 5.72904
+
+  BELOW FLOOR: Glass Well vs Cavern Wall: d 4.8372 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  4.8372446179 >= 5.7290408456
+with message:
+  Glass Well vs Cavern Wall: d 4.83724, floor 5.72904
+
+  BELOW FLOOR: Glass Well vs Glass Sphere: d 5.2915 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  5.2915222349 >= 5.7290408456
+with message:
+  Glass Well vs Glass Sphere: d 5.29152, floor 5.72904
+
+  BELOW FLOOR: Glass Well vs Abyssal Wind: d 4.8754 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  4.8754263247 >= 5.7290408456
+with message:
+  Glass Well vs Abyssal Wind: d 4.87543, floor 5.72904
+
+  BELOW FLOOR: Glass Well vs Steam Vent: d 5.0414 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  5.0414367788 >= 5.7290408456
+with message:
+  Glass Well vs Steam Vent: d 5.04144, floor 5.72904
+
+  BELOW FLOOR: Iron Plate vs Chamber Drone: d 3.7700 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  3.7700225681 >= 5.7290408456
+with message:
+  Iron Plate vs Chamber Drone: d 3.77002, floor 5.72904
+
+  BELOW FLOOR: Column Hymn vs Steam Vent: d 5.3615 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  5.3615447682 >= 5.7290408456
+with message:
+  Column Hymn vs Steam Vent: d 5.36154, floor 5.72904
+
+  BELOW FLOOR: Cavern Wall vs Glass Sphere: d 4.3173 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  4.3173165979 >= 5.7290408456
+with message:
+  Cavern Wall vs Glass Sphere: d 4.31732, floor 5.72904
+
+  BELOW FLOOR: Glass Sphere vs Abyssal Wind: d 5.6735 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  5.6734946318 >= 5.7290408456
+with message:
+  Glass Sphere vs Abyssal Wind: d 5.67349, floor 5.72904
+
+  BELOW FLOOR: Glass Sphere vs Steam Vent: d 5.0854 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  5.0854404918 >= 5.7290408456
+with message:
+  Glass Sphere vs Steam Vent: d 5.08544, floor 5.72904
+
+  BELOW FLOOR: Sudden Chasm vs Spore Drift: d 2.5702 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  2.5701733619 >= 5.7290408456
+with message:
+  Sudden Chasm vs Spore Drift: d 2.57017, floor 5.72904
+
+  BELOW FLOOR: Abyssal Wind vs Steam Vent: d 4.7773 < floor 5.7290
+F:\projects\iterum\plugins\vorago\tests\integration\preset_matrix_test.cpp(517): FAILED:
+  CHECK( d >= pf )
+with expansion:
+  4.7773328407 >= 5.7290408456
+with message:
+  Abyssal Wind vs Steam Vent: d 4.77733, floor 5.72904
+
+
+Pairs 861: min d 1.5435 (Drifting Strata vs Entropic Hum, floor 5.7290)  median d 8.5646  max d 29.6164
+t_max 2.8645  K 4  effective floor max(F, 2 t_max) = 5.7290 (s(P) recorded, not gated - ruling 2026-09-30)  pairs below floor: 149
+551.884 s: Vorago_PresetSweep_SoundSpaceDistinct
+===============================================================================
+test cases:    3 |    0 passed |   3 failed
+assertions: 3005 | 2761 passed | 244 failed
+
+exit=244 END 2026-10-06 00:47:04

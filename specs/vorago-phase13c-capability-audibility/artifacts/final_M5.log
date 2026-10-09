@@ -1,0 +1,21 @@
+START 2026-10-04 10:54:44 Stone Gravity tree=ae149a1c+working-copy as-compiled (no override) env: VORAGO_PILOT_TAKES=4 | final tree: attack n 4; child gain 1.5; ghost 21 dB / span 1.2 / default peak 0; ecology 30 (ceiling 36); breath 3.0; tide 0.8; M9 rung 2; M12 rung 1; Feedback Mire breathing 0; six presets pin ghost 0.60 | exe=2026-10-04 09:54:11
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 3324550082
+[probe] lever: none
+[probe] Stone Gravity - primary M5 Gravity (stored seed 1, 1 twin render(s))
+  take: peak 0.9661  arm1 hi -7.20 dB [yes]  arm2 lo -22.87 dB [yes]  arm3 late-sus +1.12 dB [yes]  arm4 tail -219.91 dB [yes]
+  arm1@44.1k: finite y peak 0.9661 hi -7.28 dB [PASS]
+  primary d 3.1864  bar 4.0000  attribBase -1.0000  state ok  -> FAIL  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  take j=0 seed 1: peak 0.9661  arm1 hi -7.20 dB [yes]  arm2 lo -22.87 dB [yes]  arm3 late-sus +1.12 dB [yes]  arm4 tail -219.91 dB [yes]
+  take j=1 seed 2: peak 0.9661  arm1 hi -6.20 dB [yes]  arm2 lo -26.67 dB [yes]  arm3 late-sus +2.26 dB [yes]  arm4 tail -226.43 dB [yes]
+  take j=2 seed 3: peak 0.9661  arm1 hi -10.42 dB [yes]  arm2 lo -25.16 dB [yes]  arm3 late-sus +3.90 dB [yes]  arm4 tail -222.18 dB [yes]
+  take j=3 seed 4: peak 0.9661  arm1 hi -6.95 dB [yes]  arm2 lo -16.90 dB [yes]  arm3 late-sus +2.14 dB [yes]  arm4 tail -223.98 dB [yes]
+  take j=0 d 3.1864
+  take j=1 d 1.7714
+  take j=2 d 2.5720
+  take j=3 d 0.8535
+===============================================================================
+All tests passed (19 assertions in 1 test case)
+
+exit=0 END 2026-10-04 10:57:50

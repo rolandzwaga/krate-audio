@@ -1,0 +1,31 @@
+START 2026-10-08 14:37:05 reauthor_haunted_colony_A tree=9f42b500 final binary VORAGO_PILOT_PRESET="Haunted Colony" env: VORAGO_PILOT_OVERRIDE=1403=1 VORAGO_PILOT_SECONDARY=1 VORAGO_PILOT_CELLS=D12.1_ghost_event_triggers_on
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 2764366729
+[probe] override 1403 = 1.000000 (appended)
+[probe] lever: none
+[probe] Haunted Colony - primary E5 ghost -> ghost bursts (stored seed 12, 4 twin render(s))
+  take: peak 0.4174  arm1 hi -19.78 dB [yes]  arm2 lo -23.70 dB [yes]  arm3 late-sus -0.71 dB [yes]  arm4 tail -162.84 dB [yes]
+  arm1@44.1k: finite y peak 0.5292 hi -17.76 dB [PASS]
+  route arms: d(R_k, R_k0) 5.0759, attribBase d(R_0, R_00) 0.8836 (attributable iff d >= 2.3836)
+  primary d 5.0759  bar 4.0000  attribBase 0.8836  state ok  -> PASS  loopsAlive -  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+vorago_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+Vorago_PresetPilot_PrimaryProbe
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\vorago\tests\integration\preset_pilot_test.cpp(2042)
+...............................................................................
+
+F:\projects\iterum\plugins\vorago\tests\integration\preset_pilot_test.cpp(1568): FAILED:
+explicitly with message:
+  unknown cell label D12.1_ghost_event_triggers_on
+
+===============================================================================
+test cases:  1 |  0 passed | 1 failed
+assertions: 18 | 17 passed | 1 failed
+
+exit=1 END 2026-10-08 14:44:57

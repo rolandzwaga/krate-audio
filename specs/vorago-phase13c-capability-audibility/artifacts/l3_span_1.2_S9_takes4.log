@@ -1,0 +1,21 @@
+START 2026-10-02 10:33:10 VORAGO_PILOT_PRESET=Choir of Absence VORAGO_PILOT_TAKES=4 kGhostDensitySpan 1.2 compiled, kGhostTapMakeupDb 21 | exe=2026-10-02 10:28:12
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 3680051060
+[probe] lever: none
+[probe] Choir of Absence - primary S9 ghost / atmosphere (stored seed 10, 1 twin render(s))
+  take: peak 0.9661  arm1 hi -6.17 dB [yes]  arm2 lo -10.90 dB [yes]  arm3 late-sus -1.37 dB [yes]  arm4 tail -153.65 dB [yes]
+  arm1@44.1k: finite y peak 0.9661 hi -5.92 dB [NO]
+  primary d 4.1357  bar 4.0000  attribBase -1.0000  state ok  -> PASS  lever: none
+  levels: arms [y y y y] arm1@44.1k [n]
+  take j=0 seed 10: peak 0.9661  arm1 hi -6.17 dB [yes]  arm2 lo -10.90 dB [yes]  arm3 late-sus -1.37 dB [yes]  arm4 tail -153.65 dB [yes]
+  take j=1 seed 11: peak 0.9661  arm1 hi -6.96 dB [yes]  arm2 lo -12.55 dB [yes]  arm3 late-sus +1.88 dB [yes]  arm4 tail -157.98 dB [yes]
+  take j=2 seed 12: peak 0.9661  arm1 hi -7.00 dB [yes]  arm2 lo -10.95 dB [yes]  arm3 late-sus -1.67 dB [yes]  arm4 tail -154.85 dB [yes]
+  take j=3 seed 13: peak 0.9661  arm1 hi -5.77 dB [NO]  arm2 lo -9.43 dB [yes]  arm3 late-sus -0.64 dB [yes]  arm4 tail -151.28 dB [yes]
+  take j=0 d 4.1357
+  take j=1 d 4.3961
+  take j=2 d 5.0019
+  take j=3 d 4.7054
+===============================================================================
+All tests passed (19 assertions in 1 test case)
+
+exit=0 END 2026-10-02 10:36:12

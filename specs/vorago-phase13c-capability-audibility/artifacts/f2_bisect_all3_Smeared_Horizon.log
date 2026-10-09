@@ -1,0 +1,13 @@
+START 2026-10-04 20:24:25 Smeared Horizon VORAGO_PILOT_LEVER=childGain=0.35,ghostTapDb=12,ecologyWetDb=0 (final tree) exe=2026-10-04 09:54:11
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 3164447915
+[probe] lever: childGain=0.35,ghostTapDb=12,ecologyWetDb=0
+[probe] Smeared Horizon - primary S3 spectral smear (stored seed 4, 1 twin render(s))
+  take: peak 0.9661  arm1 hi -8.52 dB [yes]  arm2 lo -18.87 dB [yes]  arm3 late-sus +3.51 dB [yes]  arm4 tail -150.94 dB [yes]
+  arm1@44.1k: finite y peak 0.9661 hi -8.77 dB [PASS]
+  primary d 5.3903  bar 4.0000  attribBase -1.0000  state ok  -> PASS  lever: childGain=0.35,ghostTapDb=12,ecologyWetDb=0
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (10 assertions in 1 test case)
+
+exit=0 END 2026-10-04 20:27:44

@@ -1,0 +1,13 @@
+START 2026-10-01 19:21:52 before2_S4 tree=ae149a1c+working-copy reporting binary (vorago_tests.exe mtime 2026-10-01 19:14:53) as-compiled (no override, no lever) preset="Feedback Mire"
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 1841694213
+[probe] lever: none
+[probe] Feedback Mire - primary S4 feedback ecology (stored seed 6, 1 twin render(s))
+  take: peak 0.4104  arm1 hi -23.37 dB [yes]  arm2 lo -42.71 dB [yes]  arm3 late-sus +2.58 dB [yes]  arm4 tail -160.70 dB [yes]
+  arm1@44.1k: finite y peak 0.2536 hi -28.43 dB [PASS]
+  primary d 1.7072  bar 4.0000  attribBase -1.0000  state ok  -> FAIL  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (9 assertions in 1 test case)
+
+END 2026-10-01 19:24:05 exit=0 wall=133s

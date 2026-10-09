@@ -1,0 +1,30 @@
+START 14:23:54
+MSBuild version 17.14.51+25f168cee for .NET Framework
+
+  Checking File Globs
+  Catch2.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\Catch2.lib
+  PFFFT.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\pffft.lib
+  hwy.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy.lib
+  hwy_contrib.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy_contrib.lib
+  KrateDSP.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\KrateDSP.lib
+  vorago_engine_test.cpp
+  vorago_voice_test.cpp
+  dsp_systems_tests.vcxproj -> F:\projects\iterum\build\windows-x64-release\bin\Release\dsp_systems_tests.exe
+build exit=0 warnings=0 14:24:10
+harvest run1 exit=1 14:24:34
+harvest run2 exit=1 14:24:59
+Filters: "VoragoVoice_BloomCountsProbe","VoragoEngine_GhostLevelProbe"
+Randomness seeded to: 284798438
+  [bloom probe] richness 0.35 depth 1.0: active partials 4, capacity 14, child slots 6, reserve base 8 | spawn events 9, spawned 6, rejected 14, live 6, depth now 1.000, rate 0.0300
+  [bloom probe] richness 0.35 depth 0.0: active partials 4, capacity 14, child slots 6, reserve base 8 | spawn events 6, spawned 6, rejected 7, live 6, depth now 0.627, rate 0.0300
+  [bloom probe] richness 0.60 depth 1.0: active partials 12, capacity 14, child slots 6, reserve base 8 | spawn events 9, spawned 6, rejected 14, live 6, depth now 1.000, rate 0.0300
+  [bloom probe] richness 0.60 depth 0.0: active partials 12, capacity 14, child slots 6, reserve base 8 | spawn events 6, spawned 6, rejected 7, live 6, depth now 0.627, rate 0.0300
+  [bloom probe] richness 0.90 depth 1.0: active partials 42, capacity 42, child slots 6, reserve base 36 | spawn events 9, spawned 6, rejected 14, live 6, depth now 1.000, rate 0.0300
+  [bloom probe] richness 0.90 depth 0.0: active partials 42, capacity 42, child slots 6, reserve base 36 | spawn events 6, spawned 6, rejected 7, live 6, depth now 0.627, rate 0.0300
+  [ghost probe] ghost peak level 0.0: RMS(220-340 s) -19.30 dBFS, difference vs ghost 0: -300.00 dBFS
+  [ghost probe] ghost peak level 0.5: RMS(220-340 s) -19.27 dBFS, difference vs ghost 0: -44.71 dBFS
+  [ghost probe] ghost peak level 1.0: RMS(220-340 s) -19.19 dBFS, difference vs ghost 0: -38.63 dBFS
+===============================================================================
+All tests passed (2 assertions in 2 test cases)
+
+probes exit=0 END 14:26:00

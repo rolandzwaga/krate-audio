@@ -34,6 +34,9 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  BUILD_TYPE: Release
+
 jobs:
   # Same idle-repo gate as valgrind-nightly.yml (see the comment there for the
   # pushed_at semantics and the stricter per-branch alternative).
@@ -81,3 +84,159 @@ jobs:
     uses: ./.github/workflows/ci.yml
     with:
       long-tests: true
+
+  # FR-066 / plan 5.10: the Vorago factory-preset sweep, sharded by preset index
+  # (VORAGO_SWEEP_SHARD=i/10) on every OS, then one aggregate per OS over the
+  # shards' records. [vorago-sweep] is excluded from the generic long-tests lane
+  # above (ci.yml nightly filter '[long]~[vorago-sweep]'); it only runs here.
+  vorago-sweep:
+    name: Vorago sweep (${{ matrix.os }}, shard ${{ matrix.shard }})
+    needs: check-activity
+    if: needs.check-activity.outputs.should_run == 'true'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, macos-latest, ubuntu-latest]
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        uses: awalsh128/cache-apt-pkgs-action@v1
+        with:
+          packages: >-
+            ninja-build libx11-dev libxcb1-dev libxkbcommon-x11-dev libx11-xcb-dev
+            libxcb-util1 libxcb-util-dev libxcb-keysyms1-dev libxcb-cursor-dev
+            libxcb-xkb-dev libxkbcommon-dev libfontconfig1-dev libfreetype6-dev
+            libcairo2-dev libgtkmm-3.0-dev libsqlite3-dev
+          version: 1.0
+
+      - name: Cache FetchContent
+        uses: actions/cache@v5
+        with:
+          path: build/_deps
+          key: fetchcontent-${{ github.repository }}-${{ runner.os }}-vorago-sweep-${{ hashFiles('CMakeLists.txt', 'dsp/CMakeLists.txt', 'plugins/shared/CMakeLists.txt', 'plugins/vorago/CMakeLists.txt') }}
+          restore-keys: |
+            fetchcontent-${{ github.repository }}-${{ runner.os }}-
+
+      # The ci.yml configure lines per leg, minus the AU and ccache options (plan 5.10).
+      - name: Configure CMake (Windows)
+        if: runner.os == 'Windows'
+        run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+
+      - name: Configure CMake (macOS)
+        if: runner.os == 'macOS'
+        run: cmake -S . -B build -G Xcode -DSMTG_CODE_SIGN_IDENTITY_MAC="-" -DSMTG_DISABLE_CODE_SIGNING=ON
+
+      - name: Configure CMake (Linux)
+        if: runner.os == 'Linux'
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+
+      - name: Build vorago_tests
+        shell: bash
+        run: |
+          if [ "${{ runner.os }}" = "Linux" ]; then
+            cmake --build build --parallel --target vorago_tests
+          else
+            cmake --build build --config ${{ env.BUILD_TYPE }} --parallel --target vorago_tests
+          fi
+
+      - name: Run sweep shard ${{ matrix.shard }}/10
+        shell: bash
+        env:
+          VORAGO_SWEEP_SHARD: ${{ matrix.shard }}/10
+          VORAGO_SWEEP_OUT: sweep-out
+        run: |
+          mkdir -p sweep-out
+          EXE="build/bin/${{ env.BUILD_TYPE }}/vorago_tests"
+          if [ -f "$EXE.exe" ]; then EXE="$EXE.exe"; fi
+          "$EXE" "[vorago-sweep]~[vorago-aggregate]" -d yes
+
+      - name: Upload shard records
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: vorago-sweep-${{ matrix.os }}-${{ matrix.shard }}
+          path: sweep-out
+          if-no-files-found: error
+          retention-days: 7
+
+  vorago-sweep-aggregate:
+    name: Vorago sweep aggregate (${{ matrix.os }})
+    needs: [check-activity, vorago-sweep]
+    if: ${{ !cancelled() && needs.check-activity.outputs.should_run == 'true' }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, macos-latest, ubuntu-latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        uses: awalsh128/cache-apt-pkgs-action@v1
+        with:
+          packages: >-
+            ninja-build libx11-dev libxcb1-dev libxkbcommon-x11-dev libx11-xcb-dev
+            libxcb-util1 libxcb-util-dev libxcb-keysyms1-dev libxcb-cursor-dev
+            libxcb-xkb-dev libxkbcommon-dev libfontconfig1-dev libfreetype6-dev
+            libcairo2-dev libgtkmm-3.0-dev libsqlite3-dev
+          version: 1.0
+
+      - name: Cache FetchContent
+        uses: actions/cache@v5
+        with:
+          path: build/_deps
+          key: fetchcontent-${{ github.repository }}-${{ runner.os }}-vorago-sweep-${{ hashFiles('CMakeLists.txt', 'dsp/CMakeLists.txt', 'plugins/shared/CMakeLists.txt', 'plugins/vorago/CMakeLists.txt') }}
+          restore-keys: |
+            fetchcontent-${{ github.repository }}-${{ runner.os }}-
+
+      # The ci.yml configure lines per leg, minus the AU and ccache options (plan 5.10).
+      - name: Configure CMake (Windows)
+        if: runner.os == 'Windows'
+        run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+
+      - name: Configure CMake (macOS)
+        if: runner.os == 'macOS'
+        run: cmake -S . -B build -G Xcode -DSMTG_CODE_SIGN_IDENTITY_MAC="-" -DSMTG_DISABLE_CODE_SIGNING=ON
+
+      - name: Configure CMake (Linux)
+        if: runner.os == 'Linux'
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+
+      - name: Build vorago_tests
+        shell: bash
+        run: |
+          if [ "${{ runner.os }}" = "Linux" ]; then
+            cmake --build build --parallel --target vorago_tests
+          else
+            cmake --build build --config ${{ env.BUILD_TYPE }} --parallel --target vorago_tests
+          fi
+
+      - name: Download this OS's shard records
+        uses: actions/download-artifact@v4
+        with:
+          pattern: vorago-sweep-${{ matrix.os }}-*
+          path: sweep-in
+          merge-multiple: true
+
+      - name: Run aggregate
+        shell: bash
+        env:
+          VORAGO_SWEEP_IN: sweep-in
+        run: |
+          ls sweep-in
+          EXE="build/bin/${{ env.BUILD_TYPE }}/vorago_tests"
+          if [ -f "$EXE.exe" ]; then EXE="$EXE.exe"; fi
+          "$EXE" "[vorago-aggregate]" -d yes

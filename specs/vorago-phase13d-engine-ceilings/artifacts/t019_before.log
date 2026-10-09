@@ -1,0 +1,24 @@
+START 2026-10-07 19:54:43 t019_before binary=base (f376785f, pre-instrument) env: VORAGO_PILOT_ITERATE=roster case: Vorago_PresetPilot_PrimaryProbe
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 2034928946
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+vorago_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+Vorago_PresetPilot_PrimaryProbe
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\vorago\tests\integration\preset_pilot_test.cpp(1347)
+...............................................................................
+
+F:\projects\iterum\plugins\vorago\tests\integration\preset_pilot_test.cpp(1351): FAILED:
+  REQUIRE( *iter == "verified27" )
+with expansion:
+  "roster" == "verified27"
+
+===============================================================================
+test cases: 1 | 1 failed
+assertions: 1 | 1 failed
+
+exit=1 END 2026-10-07 19:54:45

@@ -1,0 +1,32 @@
+START 2026-09-28 16:58:55 sc005-guard
+Filters: "Vorago_EcosystemRuleProbe"
+Randomness seeded to: 2571620129
+[probe] surface overrides: none; knob filter: -; reference: none + true-off; wake bases: shipped (vorago_voice.h kPeakWakeBase / kLoopWakeBase)
+[probe] rendering default surface (340 s)...
+[probe] rendering unlimited twin (340 s, limiter ceiling +60 dB)...
+GR max 0.0000 dB at 160.0000 s
+GR > 0.01 dB fraction (includes release tails): 0.000000 (0 of 8640000 samples)
+GR attack events (per-sample gain drop > 0.01 dB): 0
+GR first y != u: none
+[probe] rendering seed twin (340 s)...
+[probe] rendering true-off reference (340 s)...
+[probe] rendering true-off seed twin (340 s)...
+[probe] rendering 900=0 cross-check reference (340 s)...
+
+=== Vorago_EcosystemRuleProbe (FR-070) ===
+renders: 2 (default + seed twin + 0 extremes), 340 s each, 48 kHz, block 512
+surface overrides: none; wake bases: shipped (vorago_voice.h kPeakWakeBase / kLoopWakeBase)
+default M1 stereo RMS: -26.47 dBFS
+default per-minute: M1 RMS -26.47 dBFS colony 0.483648 | M2 RMS -25.92 dBFS colony 0.481807 | M3 RMS -25.39 dBFS colony 0.482763
+t0on = d(default, seed twin) = 5.9515   (ecosystem on; informational since 2026-09-28)
+t0 = d(true-off, true-off seed twin) = 3.5374   INAUDIBLE threshold f*t0 = 1.7687   (f = 0.50; the yardstick: non-ecosystem randomness, rulings 2026-09-28)
+DESCRIPTOR default band=7.381018,-0.034157,-5.618746,-9.110923,-13.838200,-16.447590,-17.764236,-18.443566,-18.939922 motion=0.213474 flux=-2.233201 corr=-3.530969 energySpread=0.901763 crest=3.586176
+DESCRIPTOR trueoff band=7.623264,-0.028996,-5.868170,-8.988201,-12.419940,-13.762674,-14.824545,-15.796531,-16.516064 motion=0.184112 flux=-2.306405 corr=-3.529162 energySpread=0.246692 crest=2.994459
+true-off reference (FR-007, offValid): d(default, true-off) = 5.6272   d/t0 = 1.591   M1 RMS -25.62 dBFS
+GATE1 surface=default t0=3.5374 t0on=5.9515 d(on,off)=5.6272 d/t0=1.591 verdict=PASS
+cross-check (FR-007): d(true-off, 900=0) = 0.0004   d/t0 = 0.000
+===============================================================================
+All tests passed (191323 assertions in 1 test case)
+
+EXIT 0
+END 2026-09-28 17:04:38

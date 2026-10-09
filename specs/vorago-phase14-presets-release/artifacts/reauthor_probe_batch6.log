@@ -1,0 +1,102 @@
+START 15:38:21
+== Bloom Colony | 
+[probe] Bloom Colony - primary E1 partial -> bloom (stored seed 0, 4 twin render(s))
+  route arms: d(R_k, R_k0) 0.0568, attribBase d(R_0, R_00) 0.0568 (attributable iff d >= 1.5568)
+  primary d 0.0568  bar 4.0000  attribBase 0.0568  state ok  -> FAIL
+   15:41:31
+== Swarm Breath | 
+[probe] Swarm Breath - primary E3 noise -> noise wake (stored seed 5, 4 twin render(s))
+  route arms: d(R_k, R_k0) 0.6496, attribBase d(R_0, R_00) 0.0760 (attributable iff d >= 1.5760)
+  primary d 0.6496  bar 4.0000  attribBase 0.0760  state ok  -> FAIL
+   15:44:20
+== Feeding Loops | 
+[probe] Feeding Loops - primary E4 feedback -> loop wake (stored seed 8, 4 twin render(s))
+  route arms: d(R_k, R_k0) 1.2203, attribBase d(R_0, R_00) 0.4488 (attributable iff d >= 1.9488)
+  primary d 1.2203  bar 4.0000  attribBase 0.4488  state ok  -> FAIL
+   15:47:00
+== Haunted Colony | 
+[probe] Haunted Colony - primary E5 ghost -> ghost bursts (stored seed 12, 4 twin render(s))
+  route arms: d(R_k, R_k0) 0.4160, attribBase d(R_0, R_00) 0.3296 (attributable iff d >= 1.8296)
+  primary d 0.4160  bar 4.0000  attribBase 0.3296  state ok  -> FAIL
+   15:49:45
+== Colony Pulse | 301=0.1,901=1.0,902=1.0
+[probe] override 301 = 0.100000 (replaced)
+[probe] override 901 = 1.000000 (appended)
+[probe] override 902 = 1.000000 (appended)
+[probe] Colony Pulse - primary S7 ecosystem (stored seed 8, 1 twin render(s))
+  primary d 3.8983  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+   15:51:52
+== Colony Pulse | 301=0.2,901=1.0,902=1.0,109=1.0
+[probe] override 301 = 0.200000 (replaced)
+[probe] override 901 = 1.000000 (appended)
+[probe] override 902 = 1.000000 (appended)
+[probe] override 109 = 1.000000 (replaced)
+[probe] Colony Pulse - primary S7 ecosystem (stored seed 8, 1 twin render(s))
+  primary d 3.0948  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+   15:54:52
+== Glass Sphere | 1002=0.995,1001=0.005,201=1.0,1105=0.0
+[probe] override 1002 = 0.995000 (replaced)
+[probe] override 1001 = 0.005000 (replaced)
+[probe] override 201 = 1.000000 (replaced)
+[probe] override 1105 = 0.000000 (replaced)
+[probe] Glass Sphere - primary D1.11 material GlassSphere (stored seed 2, 2 twin render(s))
+  conjunct S10 acoustic body: d 12.7885, bar 1.5 -> ok
+  primary d 3.9756  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+   15:58:26
+== Weighted Deep | 1105=0.2,200=0.8
+[probe] override 1105 = 0.200000 (appended)
+[probe] override 200 = 0.800000 (replaced)
+[probe] Weighted Deep - primary M8 Weight (stored seed 7, 1 twin render(s))
+  primary d 4.8480  bar 4.0000  attribBase -1.0000  state ok  -> PASS
+   16:01:29
+== Crowded Dark | 1105=0.2,200=0.5
+[probe] override 1105 = 0.200000 (appended)
+[probe] override 200 = 0.500000 (replaced)
+[probe] Crowded Dark - primary M3 Density (stored seed 15, 1 twin render(s))
+  primary d 3.1426  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+   16:04:38
+== Monolith | 1105=0.1
+[probe] override 1105 = 0.100000 (replaced)
+[probe] Monolith - primary M12 Mass (stored seed 4, 1 twin render(s))
+  primary d 3.4589  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+   16:07:40
+== Stone Gravity | 1105=0.1,401=1.0,600=0.375
+[probe] override 1105 = 0.100000 (appended)
+[probe] override 401 = 1.000000 (replaced)
+[probe] override 600 = 0.375000 (replaced)
+[probe] Stone Gravity - primary M5 Gravity (stored seed 1, 1 twin render(s))
+  primary d 2.9780  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+   16:10:45
+== Feedback Mire | 501=1.0,1105=0.2,200=0.3
+[probe] override 501 = 1.000000 (replaced)
+[probe] override 1105 = 0.200000 (replaced)
+[probe] override 200 = 0.300000 (replaced)
+[probe] Feedback Mire - primary S4 feedback ecology (stored seed 6, 1 twin render(s))
+  primary d 1.7926  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+   16:14:03
+== Cavern Wall | 1002=0.99,1001=0.01,201=1.0
+[probe] override 1002 = 0.990000 (replaced)
+[probe] override 1001 = 0.010000 (replaced)
+[probe] override 201 = 1.000000 (replaced)
+[probe] Cavern Wall - primary D1.10 material CavernWall (stored seed 7, 2 twin render(s))
+  conjunct S10 acoustic body: d 13.8506, bar 1.5 -> ok
+  primary d 10.0563  bar 4.0000  attribBase -1.0000  state ok  -> PASS
+   16:17:27
+== Strung Abyss | 1002=0.99,1001=0.02,201=1.0,1105=0.05
+[probe] override 1002 = 0.990000 (replaced)
+[probe] override 1001 = 0.020000 (replaced)
+[probe] override 201 = 1.000000 (replaced)
+[probe] override 1105 = 0.050000 (replaced)
+[probe] Strung Abyss - primary D1.2 material Strings (stored seed 3, 2 twin render(s))
+  conjunct S10 acoustic body: d 7.0595, bar 1.5 -> ok
+  primary d 15.8845  bar 4.0000  attribBase -1.0000  state ok  -> PASS
+   16:20:33
+== Hull Ark | 1002=0.99,1001=0.01,201=1.0
+[probe] override 1002 = 0.990000 (replaced)
+[probe] override 1001 = 0.010000 (replaced)
+[probe] override 201 = 1.000000 (replaced)
+[probe] Hull Ark - primary D1.8 material WoodenHull (stored seed 14, 2 twin render(s))
+  conjunct S10 acoustic body: d 12.9980, bar 1.5 -> ok
+  primary d 2.1773  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+   16:23:10
+END 16:23:10

@@ -1,0 +1,96 @@
+START 2026-10-01 20:09:20 before2_secondaries tree=ae149a1c+working-copy reporting binary (vorago_tests.exe mtime 2026-10-01 19:14:53) as-compiled (no override, no lever) preset="Colony Pulse" env: VORAGO_PILOT_SECONDARY=1
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 4156482328
+[probe] lever: none
+[probe] Colony Pulse - primary S7 ecosystem (stored seed 8, 1 twin render(s))
+  take: peak 0.4350  arm1 hi -19.72 dB [yes]  arm2 lo -28.16 dB [yes]  arm3 late-sus -0.61 dB [yes]  arm4 tail -162.87 dB [yes]
+  arm1@44.1k: finite y peak 0.4968 hi -19.58 dB [PASS]
+  primary d 13.3188  bar 4.0000  attribBase -1.0000  state ok  -> PASS  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  secondary D13.2 event rate scale >= 3.0: d 0.0996 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "" -> no
+  secondary E6.hi ecosystem sync rate high: d 2.3390 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "" -> VERIFIED
+  secondary E7.hi ecosystem self-affinity high: d 0.5136 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "" -> no
+===============================================================================
+All tests passed (9 assertions in 1 test case)
+
+END 2026-10-01 20:23:15 exit=0 wall=835s
+
+START 2026-10-01 20:23:20 before2_secondaries tree=ae149a1c+working-copy reporting binary (vorago_tests.exe mtime 2026-10-01 19:14:53) as-compiled (no override, no lever) preset="Teeming" env: VORAGO_PILOT_SECONDARY=1 VORAGO_PILOT_CELLS=S7
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 4243340540
+[probe] lever: none
+[probe] Teeming - primary M10 Life (stored seed 11, 1 twin render(s))
+  take: peak 0.1892  arm1 hi -24.97 dB [yes]  arm2 lo -28.97 dB [yes]  arm3 late-sus +1.27 dB [yes]  arm4 tail -165.45 dB [yes]
+  arm1@44.1k: finite y peak 0.2036 hi -24.57 dB [PASS]
+  primary d 0.3794  bar 4.0000  attribBase -1.0000  state ok  -> FAIL  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+vorago_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+Vorago_PresetPilot_PrimaryProbe
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\vorago\tests\integration\preset_pilot_test.cpp(1335)
+...............................................................................
+
+F:\projects\iterum\plugins\vorago\tests\integration\preset_pilot_test.cpp(1210): FAILED:
+explicitly with message:
+  unknown cell label S7
+
+===============================================================================
+test cases:  1 | 1 failed
+assertions: 10 | 9 passed | 1 failed
+
+END 2026-10-01 20:26:20 exit=1 wall=180s
+
+NOTE T016: the run above FAILED at the VORAGO_PILOT_CELLS parse - the probe matches cellLabel() exactly (PD::cellSpecs()[c].label, preset_pilot_test.cpp:555-560, :1204), whose spelling for S7 is "S7 ecosystem", not "S7". Re-run below with VORAGO_PILOT_CELLS="S7 ecosystem"; no code changed, same binary.
+
+START 2026-10-01 20:26:41 before2_secondaries tree=ae149a1c+working-copy reporting binary (vorago_tests.exe mtime 2026-10-01 19:14:53) as-compiled (no override, no lever) preset="Teeming" env: VORAGO_PILOT_SECONDARY=1 VORAGO_PILOT_CELLS=S7 ecosystem
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 3675043888
+[probe] lever: none
+[probe] Teeming - primary M10 Life (stored seed 11, 1 twin render(s))
+  take: peak 0.1892  arm1 hi -24.97 dB [yes]  arm2 lo -28.97 dB [yes]  arm3 late-sus +1.27 dB [yes]  arm4 tail -165.45 dB [yes]
+  arm1@44.1k: finite y peak 0.2036 hi -24.57 dB [PASS]
+  primary d 0.3794  bar 4.0000  attribBase -1.0000  state ok  -> FAIL  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  secondary D13.1 event rate scale <= 0.3: d 0.2679 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "" -> no
+  secondary S7 ecosystem: d 1.9572 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "" -> VERIFIED
+===============================================================================
+All tests passed (9 assertions in 1 test case)
+
+END 2026-10-01 20:37:49 exit=0 wall=668s
+
+START 2026-10-01 20:37:56 before2_secondaries tree=ae149a1c+working-copy reporting binary (vorago_tests.exe mtime 2026-10-01 19:14:53) as-compiled (no override, no lever) preset="Slow Bloom" env: VORAGO_PILOT_SECONDARY=1
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 2906116929
+[probe] lever: none
+[probe] Slow Bloom - primary S6 harmonic bloom (stored seed 7, 1 twin render(s))
+  take: peak 0.2514  arm1 hi -22.40 dB [yes]  arm2 lo -26.64 dB [yes]  arm3 late-sus +0.78 dB [yes]  arm4 tail -196.83 dB [yes]
+  arm1@44.1k: finite y peak 0.2575 hi -22.46 dB [PASS]
+  primary d 1.4453  bar 4.0000  attribBase -1.0000  state ok  -> FAIL  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  secondary D14.1 breathing depth >= 0.7: d 1.0687 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "" -> no
+  secondary D9.2 attack span >= 90 s: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+===============================================================================
+All tests passed (9 assertions in 1 test case)
+
+END 2026-10-01 20:47:28 exit=0 wall=572s
+
+START 2026-10-01 20:47:35 before2_secondaries tree=ae149a1c+working-copy reporting binary (vorago_tests.exe mtime 2026-10-01 19:14:53) as-compiled (no override, no lever) preset="Drifting Strata" env: VORAGO_PILOT_SECONDARY=1
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 215373074
+[probe] lever: none
+[probe] Drifting Strata - primary M4 Movement (stored seed 3, 1 twin render(s))
+  take: peak 0.6617  arm1 hi -17.15 dB [yes]  arm2 lo -23.33 dB [yes]  arm3 late-sus +0.62 dB [yes]  arm4 tail -180.56 dB [yes]
+  arm1@44.1k: finite y peak 0.5149 hi -17.48 dB [PASS]
+  primary d 3.0007  bar 4.0000  attribBase -1.0000  state ok  -> FAIL  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  secondary D14.2 tidal depth >= 0.7: d 0.0050 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "" -> no
+===============================================================================
+All tests passed (9 assertions in 1 test case)
+
+END 2026-10-01 20:58:01 exit=0 wall=626s
+

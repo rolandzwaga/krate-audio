@@ -1,0 +1,18 @@
+START 2026-10-08 15:05:32 reauthor_hull_resonance_C tree=9f42b500 final binary VORAGO_PILOT_PRESET="Hull Resonance" VORAGO_PILOT_OVERRIDE=1500=0.75 VORAGO_PILOT_SECONDARY=1 VORAGO_PILOT_CELLS="D14.1 breathing depth >= 0.7"
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 2147097275
+[probe] override 1500 = 0.750000 (appended)
+[probe] lever: none
+[probe] Hull Resonance - primary S10 acoustic body (stored seed 11, 1 twin render(s))
+  take: peak 0.3848  arm1 hi -20.88 dB [yes]  arm2 lo -26.97 dB [yes]  arm3 late-sus -0.27 dB [yes]  arm4 tail -139.94 dB [yes]
+  arm1@44.1k: finite y peak 0.2915 hi -23.84 dB [PASS]
+  primary d 10.5804  bar 4.0000  attribBase -1.0000  state ok  -> PASS  loopsAlive -  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  secondary D2 body blend both heard: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+  secondary D1.6 material StoneChamber: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+  secondary D1.7 material SteelTank: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+  secondary D14.1 breathing depth >= 0.7: d 0.3581 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "" -> no
+===============================================================================
+All tests passed (11 assertions in 1 test case)
+
+exit=0 END 2026-10-08 15:49:27

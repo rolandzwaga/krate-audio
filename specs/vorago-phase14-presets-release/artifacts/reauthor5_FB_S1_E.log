@@ -1,0 +1,21 @@
+START 2026-10-06 11:08:07 Fogbound VORAGO_PILOT_SECONDARY=1 VORAGO_PILOT_OVERRIDE=300=1.0,1400=0,1105=0.70
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 2196882843
+[probe] override 300 = 1.000000 (replaced)
+[probe] override 1400 = 0.000000 (replaced)
+[probe] override 1105 = 0.700000 (replaced)
+[probe] lever: none
+[probe] Fogbound - primary M9 Fog (stored seed 9, 1 twin render(s))
+  take: peak 0.3865  arm1 hi -22.63 dB [yes]  arm2 lo -28.65 dB [yes]  arm3 late-sus -0.72 dB [yes]  arm4 tail -156.10 dB [yes]
+  arm1@44.1k: finite y peak 0.3746 hi -21.15 dB [PASS]
+  primary d 5.7650  bar 4.0000  attribBase -1.0000  state ok  -> PASS  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  secondary D4.10 noise type Velvet: d 0.0000 bar 1.5 state ok conjunct FAIL attribBase -1.0000 skip "state-only kind" -> no
+  secondary D4.11 noise type VinylRumble: d 0.0000 bar 1.5 state ok conjunct FAIL attribBase -1.0000 skip "state-only kind" -> no
+  secondary D4.12 noise type RadioStatic: d 0.0000 bar 1.5 state ok conjunct FAIL attribBase -1.0000 skip "state-only kind" -> no
+  secondary D4.8 noise type Violet: d 0.0000 bar 1.5 state ok conjunct FAIL attribBase -1.0000 skip "state-only kind" -> no
+  secondary S1 noise organism: d 0.8261 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "" -> no
+===============================================================================
+All tests passed (12 assertions in 1 test case)
+
+exit=0 END 2026-10-06 11:20:05

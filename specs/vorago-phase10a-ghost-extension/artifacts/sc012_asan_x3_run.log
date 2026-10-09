@@ -1,0 +1,72 @@
+Filters: "AtmosphereGhost_PassAScratchBound"
+Randomness seeded to: 1337318610
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+AtmosphereGhost_PassAScratchBound
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\atmosphere_ghost_test.cpp(3598)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\atmosphere_ghost_test.cpp(3629): PASSED:
+  REQUIRE( engine->getCaptureCapacitySamples() == kExpectedCapacity )
+with expansion:
+  1024 (0x400) == 1024 (0x400)
+
+F:\projects\iterum\dsp\tests\unit\systems\atmosphere_ghost_test.cpp(3636): PASSED:
+  REQUIRE( VoragoGhostFix::preRollFullRing(*engine, 1u, kChunk) == kExpectedCapacity )
+with expansion:
+  1024 (0x400) == 1024 (0x400)
+
+F:\projects\iterum\dsp\tests\unit\systems\atmosphere_ghost_test.cpp(3639): PASSED:
+  REQUIRE( engine->getTotalGrainsBorn() == std::uint64_t{0} )
+with expansion:
+  0 == 0
+
+F:\projects\iterum\dsp\tests\unit\systems\atmosphere_ghost_test.cpp(3640): PASSED:
+  REQUIRE( engine->getActiveGrainCount() == std::size_t{0} )
+with expansion:
+  0 == 0
+
+F:\projects\iterum\dsp\tests\unit\systems\atmosphere_ghost_test.cpp(3685): PASSED:
+  REQUIRE( deltaRetiredChunk1 <= std::uint64_t{2} )
+with expansion:
+  2 <= 2
+with message:
+  chunk 1: active=62 deltaRetired=2 born=64 triggered=32 poolFull=64
+
+F:\projects\iterum\dsp\tests\unit\systems\atmosphere_ghost_test.cpp(3687): PASSED:
+  REQUIRE( static_cast<std::uint64_t>(activeAfterChunk1) + deltaRetiredChunk1 == static_cast<std::uint64_t>(AE::kMaxGrains) )
+with expansion:
+  64 == 64
+with message:
+  chunk 1: active=62 deltaRetired=2 born=64 triggered=32 poolFull=64
+
+F:\projects\iterum\dsp\tests\unit\systems\atmosphere_ghost_test.cpp(3718): PASSED:
+  REQUIRE( deltaRetired > static_cast<std::uint64_t>(AE::kMaxGrains * 2) )
+with expansion:
+  188 > 128
+with messages:
+  chunk 1: active=62 deltaRetired=2 born=64 triggered=32 poolFull=64
+  chunk 2: deltaRetired=188 active=2 born=192 triggered=96
+
+F:\projects\iterum\dsp\tests\unit\systems\atmosphere_ghost_test.cpp(3719): PASSED:
+  REQUIRE( deltaRetired <= static_cast<std::uint64_t>(AE::kMaxGrains * 3) )
+with expansion:
+  188 <= 192
+with messages:
+  chunk 1: active=62 deltaRetired=2 born=64 triggered=32 poolFull=64
+  chunk 2: deltaRetired=188 active=2 born=192 triggered=96
+
+F:\projects\iterum\dsp\tests\unit\systems\atmosphere_ghost_test.cpp(3732): warning:
+  chunk 1: active=62 deltaRetired=2 born=64 triggered=32 poolFull=64
+  chunk 2: deltaRetired=188 active=2 born=192 triggered=96
+  SC-012 measured: chunk 1 active=62 deltaRetired=2; chunk 2 deltaRetired=188
+  (teeth: > 128, FR-051 bound: <= 192)
+
+===============================================================================
+All tests passed (8 assertions in 1 test case)
+

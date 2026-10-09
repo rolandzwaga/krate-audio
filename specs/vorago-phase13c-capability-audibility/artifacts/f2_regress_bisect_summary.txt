@@ -1,0 +1,45 @@
+=== verified27 regression bisect by lever seam 2026-10-04 20:17:43 (as compiled: S1 3.0600 S2 2.6851 S3 3.2882 M1 1.7830 E2 3.7914 D3.3 1.8135) ===
+all3 | Wind Through Basalt:  primary d 3.4352 bar 4.0000 -> FAIL lever: childGain=0.35,ghostTapDb=12,ecology
+all3 | Resonant Shaft:  primary d 4.0438 bar 4.0000 -> PASS lever: childGain=0.35,ghostTapDb=12,ecology
+all3 | Smeared Horizon:  primary d 5.3903 bar 4.0000 -> PASS lever: childGain=0.35,ghostTapDb=12,ecology
+all3 | Lightless:  primary d 3.8727 bar 4.0000 -> FAIL lever: childGain=0.35,ghostTapDb=12,ecology
+all3 | Singing Colony:  primary d 4.5024 bar 4.0000 -> PASS lever: childGain=0.35,ghostTapDb=12,ecology
+all3 | Spore Drift:  primary d 2.9316 bar 4.0000 -> FAIL lever: childGain=0.35,ghostTapDb=12,ecology
+ghost12 | Wind Through Basalt:  primary d 3.9602 bar 4.0000 -> FAIL lever: ghostTapDb=12
+ghost12 | Resonant Shaft:  primary d 2.8809 bar 4.0000 -> FAIL lever: ghostTapDb=12
+ghost12 | Smeared Horizon:  primary d 3.8089 bar 4.0000 -> FAIL lever: ghostTapDb=12
+ghost12 | Lightless:  primary d 1.4474 bar 4.0000 -> FAIL lever: ghostTapDb=12
+ghost12 | Singing Colony:  primary d 3.7914 bar 4.0000 -> FAIL lever: ghostTapDb=12
+ghost12 | Spore Drift:  primary d 1.8993 bar 4.0000 -> FAIL lever: ghostTapDb=12
+child035 | Wind Through Basalt:  primary d 2.9231 bar 4.0000 -> FAIL lever: childGain=0.35
+child035 | Resonant Shaft:  primary d 3.9573 bar 4.0000 -> FAIL lever: childGain=0.35
+child035 | Smeared Horizon:  primary d 4.5564 bar 4.0000 -> PASS lever: childGain=0.35
+child035 | Lightless:  primary d 3.7905 bar 4.0000 -> FAIL lever: childGain=0.35
+child035 | Singing Colony:  primary d 4.5024 bar 4.0000 -> PASS lever: childGain=0.35
+child035 | Spore Drift:  primary d 2.5441 bar 4.0000 -> FAIL lever: childGain=0.35
+eco0 | Wind Through Basalt:  primary d 3.0548 bar 4.0000 -> FAIL lever: ecologyWetDb=0
+eco0 | Resonant Shaft:  primary d 2.6557 bar 4.0000 -> FAIL lever: ecologyWetDb=0
+eco0 | Smeared Horizon:  primary d 3.2934 bar 4.0000 -> FAIL lever: ecologyWetDb=0
+eco0 | Lightless:  primary d 1.7610 bar 4.0000 -> FAIL lever: ecologyWetDb=0
+eco0 | Singing Colony:  primary d 3.7914 bar 4.0000 -> FAIL lever: ecologyWetDb=0
+eco0 | Spore Drift:  primary d 2.0618 bar 4.0000 -> FAIL lever: ecologyWetDb=0
+=== done 2026-10-04 21:36:28 ===
+2026-10-04 21:38:14 build breath1 exit=0 warnings=0 kAttackShapePower = 4 kBreathGravityLaneGain = 1.0f kTidalRate = 0.8f 
+breath1 lever=none | Wind Through Basalt:  primary d 3.9601 bar 4.0000 -> FAIL lever: none
+breath1 lever=none | Lightless:  primary d 1.9439 bar 4.0000 -> FAIL lever: none
+breath1 lever=none | Spore Drift:  primary d 3.1716 bar 4.0000 -> FAIL lever: none
+breath1 lever=none | Resonant Shaft:  primary d 2.6851 bar 4.0000 -> FAIL lever: none
+breath1 lever=childGain=0.35,ghostTapDb=12,ecologyWetDb=0 | Wind Through Basalt:  primary d 4.9682 bar 4.0000 -> PASS lever: childGain=0.35,g
+breath1 lever=childGain=0.35,ghostTapDb=12,ecologyWetDb=0 | Lightless:  primary d 4.0551 bar 4.0000 -> PASS lever: childGain=0.35,g
+breath1 lever=childGain=0.35,ghostTapDb=12,ecologyWetDb=0 | Spore Drift:  primary d 4.0973 bar 4.0000 -> PASS lever: childGain=0.35,g
+breath1 lever=childGain=0.35,ghostTapDb=12,ecologyWetDb=0 | Resonant Shaft:  primary d 4.0438 bar 4.0000 -> PASS lever: childGain=0.35,g
+2026-10-04 22:04:42 build attack1 exit=0 warnings=0 kAttackShapePower = 1 kBreathGravityLaneGain = 3.0f kTidalRate = 0.8f 
+attack1 lever=none | Wind Through Basalt:  primary d 3.0400 bar 4.0000 -> FAIL lever: none
+attack1 lever=none | Lightless:  primary d 1.7827 bar 4.0000 -> FAIL lever: none
+attack1 lever=none | Spore Drift:  primary d 1.8144 bar 4.0000 -> FAIL lever: none
+attack1 lever=none | Resonant Shaft:  primary d 2.6851 bar 4.0000 -> FAIL lever: none
+attack1 lever=childGain=0.35,ghostTapDb=12,ecologyWetDb=0 | Wind Through Basalt:  primary d 3.4348 bar 4.0000 -> FAIL lever: childGain=0.35,g
+attack1 lever=childGain=0.35,ghostTapDb=12,ecologyWetDb=0 | Lightless:  primary d 3.8726 bar 4.0000 -> FAIL lever: childGain=0.35,g
+attack1 lever=childGain=0.35,ghostTapDb=12,ecologyWetDb=0 | Spore Drift:  primary d 2.9323 bar 4.0000 -> FAIL lever: childGain=0.35,g
+attack1 lever=childGain=0.35,ghostTapDb=12,ecologyWetDb=0 | Resonant Shaft:  primary d 4.0436 bar 4.0000 -> PASS lever: childGain=0.35,g
+2026-10-04 22:30:55 restore exit=0 kAttackShapePower = 4 kBreathGravityLaneGain = 3.0f 

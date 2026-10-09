@@ -1,0 +1,30 @@
+# T001 base tree record (2026-10-01 08:14:20)
+
+## git rev-parse --short HEAD
+ae149a1c
+
+## git status --short
+ M .serena/project.yml
+?? specs/vorago-phase13c-capability-audibility/artifacts/
+
+## git log --oneline -2
+ae149a1c docs(vorago): phase 13c capability-audibility spec, plan and tasks with the specify and plan-stage rulings
+64f57e1a feat(vorago): phase 14 paused at T048 - harness, 42-preset library, sweeps 1-4, three ruled DSP changes
+
+## git diff --stat 64f57e1a HEAD   (HEAD vs the tasks.md base)
+ .../vorago-phase13c-capability-audibility/plan.md  | 1098 ++++++++++++++++++++
+ .../vorago-phase13c-capability-audibility/spec.md  |  855 +++++++++++++++
+ .../vorago-phase13c-capability-audibility/tasks.md |  868 ++++++++++++++++
+ 3 files changed, 2821 insertions(+)
+
+## git diff --name-only 64f57e1a HEAD -- dsp plugins tools   (empty = production tree identical to 64f57e1a)
+(end; 0 files)
+
+## git status --short -- dsp plugins tools   (empty = clean)
+(end; 0 entries)
+
+## Reading
+HEAD is ae149a1c, not the literal 64f57e1a. ae149a1c is the single docs commit on top of 64f57e1a that adds
+this phase's spec.md, plan.md and tasks.md (the tasks.md that names 64f57e1a cannot predate its own commit).
+It changes no file under dsp/, plugins/ or tools/, and none is dirty: the production tree is exactly 64f57e1a.
+The only working-tree change is .serena/project.yml (tool config, outside dsp/plugins/tools).

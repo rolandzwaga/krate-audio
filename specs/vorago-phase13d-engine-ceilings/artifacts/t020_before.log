@@ -1,0 +1,37 @@
+START 2026-10-07 19:54:43 t020_before binary=base (f376785f, pre-instrument) env: VORAGO_PROBE_KNOBS=syncRate VORAGO_PROBE_LANES=1 case: Vorago_EcosystemRuleProbe
+Filters: "Vorago_EcosystemRuleProbe"
+Randomness seeded to: 1823871790
+[probe] surface overrides: none; knob filter: syncRate; reference: none + true-off; wake bases: shipped (vorago_voice.h kPeakWakeBase / kLoopWakeBase)
+[probe] rendering default surface (340 s)...
+[probe] rendering seed twin (340 s)...
+[probe] rendering true-off reference (340 s)...
+[probe] rendering true-off seed twin (340 s)...
+[probe] rendering 900=0 cross-check reference (340 s)...
+[probe] rendering syncRate = 0.5 (340 s)...
+
+=== Vorago_EcosystemRuleProbe (FR-070) ===
+renders: 3 (default + seed twin + 1 extremes), 340 s each, 48 kHz, block 512
+surface overrides: none; wake bases: shipped (vorago_voice.h kPeakWakeBase / kLoopWakeBase)
+default M1 stereo RMS: -26.97 dBFS
+default per-minute: M1 RMS -26.97 dBFS colony 0.483648 | M2 RMS -27.27 dBFS colony 0.481807 | M3 RMS -26.42 dBFS colony 0.482763
+t0on = d(default, seed twin) = 1.1895   (ecosystem on; informational since 2026-09-28)
+t0 = d(true-off, true-off seed twin) = 2.0376   INAUDIBLE threshold f*t0 = 1.0188   (f = 0.50; the yardstick: non-ecosystem randomness, rulings 2026-09-28)
+DESCRIPTOR default band=7.144374,-0.044199,-5.238351,-8.836301,-12.300794,-15.004278,-16.252174,-17.287389,-17.824422 motion=0.199844 flux=-2.244056 corr=-3.523538 energySpread=1.507444 crest=3.847790
+DESCRIPTOR trueoff band=7.580545,-0.028827,-5.880664,-9.087948,-12.422859,-13.856408,-14.955643,-15.951774,-16.681770 motion=0.184939 flux=-2.312412 corr=-3.520369 energySpread=0.479314 crest=3.060256
+true-off reference (FR-007, offValid): d(default, true-off) = 2.9072   d/t0 = 1.427   M1 RMS -26.32 dBFS
+GATE1 surface=default t0=2.0376 t0on=1.1895 d(on,off)=2.9072 d/t0=1.427 verdict=PASS
+cross-check (FR-007): d(true-off, 900=0) = 0.0005   d/t0 = 0.000
+
+knob           range              default    extreme      d         d/t0      dOff/t0   flags / E cells (P-4)
+syncRate       [0, 0.5]           0          0.5          1.9376    0.951     0.733     counted .hi
+                 M1 rms -26.85 dBFS  dRMS +0.12 dB  colony 0.478464  colony/base 0.989
+                 M2 rms -27.35 dBFS  dRMS -0.08 dB  colony 0.483353  colony/base 1.003
+                 M3 rms -26.38 dBFS  dRMS +0.03 dB  colony 0.482871  colony/base 1.000
+               best counted d 1.9376 (d/t0 0.951)   max d 1.9376 (d/t0 0.951)
+
+audible non-kill knobs: 1 of 14 (filtered table: 1 rows)
+table for Phase 14 Q2 — no roster named here
+===============================================================================
+All tests passed (191318 assertions in 1 test case)
+
+exit=0 END 2026-10-07 20:05:03

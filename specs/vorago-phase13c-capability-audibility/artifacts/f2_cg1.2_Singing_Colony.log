@@ -1,0 +1,14 @@
+START 2026-10-04 23:57:46 Singing Colony VORAGO_PILOT_LEVER=childGain=1.2 exe=2026-10-04 22:30:53
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 2325397930
+[probe] lever: childGain=1.2
+[probe] Singing Colony - primary E2 resonator -> resonance peaks (stored seed 2, 4 twin render(s))
+  take: peak 0.9661  arm1 hi -8.35 dB [yes]  arm2 lo -22.90 dB [yes]  arm3 late-sus +2.47 dB [yes]  arm4 tail -240.00 dB [yes]
+  arm1@44.1k: finite y peak 0.9661 hi -8.05 dB [PASS]
+  route arms: d(R_k, R_k0) 3.9525, attribBase d(R_0, R_00) 1.4799 (attributable iff d >= 2.9799)
+  primary d 3.9525  bar 4.0000  attribBase 1.4799  state ok  -> FAIL  lever: childGain=1.2
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (17 assertions in 1 test case)
+
+exit=0 END 2026-10-04 23:59:44

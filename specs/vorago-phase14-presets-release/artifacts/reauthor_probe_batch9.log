@@ -1,0 +1,58 @@
+START 22:47:10 (sweep-3 repairs; arms printed)
+== Resonant Shaft | 401=0.8,200=0.4
+[probe] override 401 = 0.800000 (replaced)
+[probe] override 200 = 0.400000 (replaced)
+[probe] Resonant Shaft - primary S2 resonance drift (stored seed 3, 1 twin render(s))
+  take: peak 0.9661  arm1 hi -5.11 dB [NO]  arm2 lo -19.64 dB [yes]  arm3 late-sus +8.27 dB [yes]  arm4 tail -233.77 dB [yes]
+  primary d 3.8228  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+   22:48:31
+== Resonant Shaft | 401=0.85,200=0.45,1105=0.3
+[probe] override 401 = 0.850000 (replaced)
+[probe] override 200 = 0.450000 (replaced)
+[probe] override 1105 = 0.300000 (replaced)
+[probe] Resonant Shaft - primary S2 resonance drift (stored seed 3, 1 twin render(s))
+  take: peak 0.9661  arm1 hi -5.22 dB [NO]  arm2 lo -19.94 dB [yes]  arm3 late-sus +8.32 dB [yes]  arm4 tail -228.75 dB [yes]
+  primary d 4.0491  bar 4.0000  attribBase -1.0000  state ok  -> PASS
+   22:49:51
+== Stone Gravity | 600=0.25,401=0.7
+[probe] override 600 = 0.250000 (replaced)
+[probe] override 401 = 0.700000 (replaced)
+[probe] Stone Gravity - primary M5 Gravity (stored seed 1, 1 twin render(s))
+  take: peak 0.9661  arm1 hi -6.42 dB [yes]  arm2 lo -29.18 dB [yes]  arm3 late-sus +15.40 dB [NO]  arm4 tail -223.69 dB [yes]
+  primary d 3.5032  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+   22:51:11
+== Stone Gravity | 600=0.25,401=0.7,200=0.4
+[probe] override 600 = 0.250000 (replaced)
+[probe] override 401 = 0.700000 (replaced)
+[probe] override 200 = 0.400000 (replaced)
+[probe] Stone Gravity - primary M5 Gravity (stored seed 1, 1 twin render(s))
+  take: peak 0.9661  arm1 hi -6.41 dB [yes]  arm2 lo -29.54 dB [yes]  arm3 late-sus +15.49 dB [NO]  arm4 tail -223.70 dB [yes]
+  primary d 3.1993  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+   22:52:32
+== Feedback Mire | 
+[probe] Feedback Mire - primary S4 feedback ecology (stored seed 6, 1 twin render(s))
+  take: peak 0.4104  arm1 hi -23.37 dB [yes]  arm2 lo -42.71 dB [yes]  arm3 late-sus +2.58 dB [yes]  arm4 tail -160.70 dB [yes]
+  primary d 1.7072  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+   22:53:51
+== Slow Bloom | 
+[probe] Slow Bloom - primary S6 harmonic bloom (stored seed 7, 1 twin render(s))
+  take: peak 0.2514  arm1 hi -22.40 dB [yes]  arm2 lo -26.64 dB [yes]  arm3 late-sus +0.78 dB [yes]  arm4 tail -196.83 dB [yes]
+  primary d 1.4453  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+   22:55:10
+== Wind Through Basalt | 
+[probe] Wind Through Basalt - primary S1 noise organism (stored seed 2, 1 twin render(s))
+  take: peak 0.3224  arm1 hi -22.04 dB [yes]  arm2 lo -28.54 dB [yes]  arm3 late-sus +0.92 dB [yes]  arm4 tail -131.44 dB [yes]
+  primary d 5.2031  bar 4.0000  attribBase -1.0000  state ok  -> PASS
+   22:56:36
+== Dead Air | 
+[probe] Dead Air - primary D3.1 noise model Direct (stored seed 4, 2 twin render(s))
+  take: peak 0.9661  arm1 hi -11.97 dB [yes]  arm2 lo -14.17 dB [yes]  arm3 late-sus +0.06 dB [yes]  arm4 tail -205.91 dB [yes]
+  conjunct S1 noise organism: d 8.6421, bar 1.5 -> ok
+  primary d 8.6421  bar 4.0000  attribBase -1.0000  state ok  -> PASS
+   22:58:09
+== Fogbound | 
+[probe] Fogbound - primary M9 Fog (stored seed 9, 1 twin render(s))
+  take: peak 0.1508  arm1 hi -25.99 dB [yes]  arm2 lo -33.50 dB [yes]  arm3 late-sus -1.14 dB [yes]  arm4 tail -187.86 dB [yes]
+  primary d 1.8229  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+   22:59:29
+END 22:59:29

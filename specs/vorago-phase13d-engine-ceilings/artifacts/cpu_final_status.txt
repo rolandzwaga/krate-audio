@@ -1,0 +1,6 @@
+CPU final launched 2026-10-09 00:45:33; idling 15 min
+strays at 01:00:33: 0
+dsp_systems_tests exit=1 04:51:38
+vorago_tests exit=0 05:43:40
+ab: == round 1 arm=base VoragoEngine_CpuBudget 05:45:40| engine measured : 2.56096e+06 ns/block (24.009 % of one core)| + Cavern (arithmetic): 2.68546e+06 ns/block (25.1762 % of one core)| clause (i) ceiling : 2.68546e+06 <= 3.2e+06 (83.9206 % of the reference)| clause (ii) baseline : 2.56096e+06 <= 4.04172e+06 (baseline 2.69448e+06 x| headroom available : 1.14141x of the baseline before clause (i) trips|== round 1 arm=base Vorago_ProcessorCpu 05:47:15| SC-014 arm P best ns/block (512 @ 48 kHz, poly 4): 2.45385e+06| SC-014 arm D best ns/block (512 @ 48 kHz, poly 4): 2.43832e+06| SC-014 P/D ratio (gate <= 1.05): 1.00637| SC-012 arm PF best ns/block (forced ecosystem frame, every call a full fill):| SC-016 arm A best ns/block (IDs 201 + 206 automated every block): 2.43359e+06| SC-016 arm A interleaved arm D best ns/block: 2.46756e+06|== round 1 arm=final VoragoEngine_CpuBudget 05:48:38| engine
+CPU-FINAL-DONE 2026-10-09 05:57:27

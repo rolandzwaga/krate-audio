@@ -1,0 +1,19 @@
+START 2026-10-06 11:31:51 Singing Colony VORAGO_PILOT_OVERRIDE=401=1.0,1300=0,1400=0,1003=0.35,800=0.5
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 719769463
+[probe] override 401 = 1.000000 (replaced)
+[probe] override 1300 = 0.000000 (replaced)
+[probe] override 1400 = 0.000000 (replaced)
+[probe] override 1003 = 0.350000 (replaced)
+[probe] override 800 = 0.500000 (replaced)
+[probe] lever: none
+[probe] Singing Colony - primary E2 resonator -> resonance peaks (stored seed 2, 4 twin render(s))
+  take: peak 0.9661  arm1 hi -6.93 dB [yes]  arm2 lo -20.82 dB [yes]  arm3 late-sus +3.33 dB [yes]  arm4 tail -240.00 dB [yes]
+  arm1@44.1k: finite y peak 0.9661 hi -6.71 dB [PASS]
+  route arms: d(R_k, R_k0) 4.6229, attribBase d(R_0, R_00) 3.6474 (attributable iff d >= 5.1474)
+  primary d 4.6229  bar 4.0000  attribBase 3.6474  state ok  -> FAIL  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (21 assertions in 1 test case)
+
+exit=0 END 2026-10-06 11:35:19

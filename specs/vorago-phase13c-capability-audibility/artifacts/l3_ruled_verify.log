@@ -1,0 +1,36 @@
+START 2026-10-02 10:44:29 ghost route verify set at the ruled tree exe=2026-10-02 10:38:14
+Filters: "VoragoEngine_GhostDensityRoute","VoragoEngine_GhostConfiguration","VoragoEngine_SeamReadbackProbe","VoragoEngine_GhostLevelProbe"
+Randomness seeded to: 893487490
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+VoragoEngine_GhostConfiguration
+  clause 2: the level is EVENT-GATED, not a continuous wash
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_engine_test.cpp(2780)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_engine_test.cpp(2810): warning:
+  SC-027 clause 2: 600.0 s at 8000.0 Hz, polyphony 1, ecosystem depth 0, FR-086
+  A = 10.0; rise >= 0.3000, fall <= 0.0300
+    gate OPEN  : 20 burst edges, max level 0.5956, max ghost request 0.9926
+    gate CLOSED: 0 burst edges, max level 0.0000, max ghost request 0.9926
+
+  [ghost probe] ghost peak level 0.0, tap make-up +0 dB: RMS(220-340 s) -19.03 dBFS, difference vs ghost 0: -300.00 dBFS, loudest 1 s window -300.00 dBFS, windows above -40 dBFS 0 of 120
+  [ghost probe] ghost peak level 0.5, tap make-up +0 dB: RMS(220-340 s) -19.00 dBFS, difference vs ghost 0: -43.98 dBFS, loudest 1 s window -38.76 dBFS, windows above -40 dBFS 8 of 120
+  [ghost probe] ghost peak level 1.0, tap make-up +0 dB: RMS(220-340 s) -18.91 dBFS, difference vs ghost 0: -37.89 dBFS, loudest 1 s window -32.66 dBFS, windows above -40 dBFS 72 of 120
+  [ghost probe] ghost peak level 1.0, tap make-up +6 dB: RMS(220-340 s) -18.63 dBFS, difference vs ghost 0: -31.77 dBFS, loudest 1 s window -26.82 dBFS, windows above -40 dBFS 119 of 120
+  [ghost probe] ghost peak level 1.0, tap make-up +12 dB: RMS(220-340 s) -17.79 dBFS, difference vs ghost 0: -25.61 dBFS, loudest 1 s window -21.05 dBFS, windows above -40 dBFS 120 of 120
+  [ghost probe] ghost peak level 1.0, tap make-up +15 dB: RMS(220-340 s) -16.99 dBFS, difference vs ghost 0: -22.58 dBFS, loudest 1 s window -18.08 dBFS, windows above -40 dBFS 120 of 120
+  [ghost probe] ghost peak level 1.0, tap make-up +18 dB: RMS(220-340 s) -15.86 dBFS, difference vs ghost 0: -19.61 dBFS, loudest 1 s window -15.21 dBFS, windows above -40 dBFS 120 of 120
+  [ghost probe] ghost peak level 1.0, tap make-up +21 dB: RMS(220-340 s) -14.33 dBFS, difference vs ghost 0: -16.66 dBFS, loudest 1 s window -12.13 dBFS, windows above -40 dBFS 120 of 120
+  [ghost probe] ghost peak level 1.0, tap make-up +24 dB: RMS(220-340 s) -12.35 dBFS, difference vs ghost 0: -13.71 dBFS, loudest 1 s window -9.16 dBFS, windows above -40 dBFS 120 of 120
+[seams] defaults: childGain 1.500 ecologyWetDb 0.000 ghostDensity 0.300 ghostTapDb 21.000
+[seams] set 0.7 / 12 / 0.6 -> read 0.700 / 12.000 / 0.600
+===============================================================================
+All tests passed (39 assertions in 4 test cases)
+
+exit=0 END 2026-10-02 10:45:48

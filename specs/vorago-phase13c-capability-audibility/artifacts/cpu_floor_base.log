@@ -1,0 +1,32 @@
+START 2026-10-01 22:21:04 T008 base tree (worktree f:/tmp/p13b_ab at 64f57e1a + T007/T008 test edits), pinned, alone load-before=10.3 exe=2026-10-01 21:29:20
+pin-perf-cores: performance-core mask 0xFFFF
+Filters: "VoragoVoice_CloudFloorCpuProbe"
+Randomness seeded to: 750775773
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+VoragoVoice_CloudFloorCpuProbe
+-------------------------------------------------------------------------------
+F:\tmp\p13b_ab\dsp\tests\unit\systems\vorago_perf_test.cpp(1794)
+...............................................................................
+
+F:\tmp\p13b_ab\dsp\tests\unit\systems\vorago_perf_test.cpp(1833): 
+warning:
+  VoragoVoice_CloudFloorCpuProbe r 0.4 bloomDepth 0 richnessRead 0.4
+  activePartials 5 : 69499.8 ns/block (64-sample blocks, 22500 timed after 750
+  warm-up; 5.21248 % of one block's audio time; output finite y)
+
+F:\tmp\p13b_ab\dsp\tests\unit\systems\vorago_perf_test.cpp(1833): 
+warning:
+  VoragoVoice_CloudFloorCpuProbe r 0.7 bloomDepth 0 richnessRead 0.7
+  activePartials 18 : 90519 ns/block (64-sample blocks, 22500 timed after 750
+  warm-up; 6.78893 % of one block's audio time; output finite y)
+
+===============================================================================
+test cases: 1 | 1 passed
+assertions: - none -
+
+exit=0 END 2026-10-01 22:21:13

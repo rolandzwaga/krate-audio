@@ -1,0 +1,23 @@
+START 2026-10-07 20:06:16 t014_before binary=base (f376785f, pre-instrument) VORAGO_PILOT_PRESET="Bloom Colony" env: VORAGO_PILOT_LEVER=partialBloomGain=1 case: Vorago_PresetPilot_PrimaryProbe
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 2036266669
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+vorago_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+Vorago_PresetPilot_PrimaryProbe
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\vorago\tests\integration\preset_pilot_test.cpp(1347)
+...............................................................................
+
+F:\projects\iterum\plugins\vorago\tests\integration\preset_pilot_test.cpp(911): FAILED:
+explicitly with message:
+  unknown VORAGO_PILOT_LEVER key partialBloomGain
+
+===============================================================================
+test cases: 1 | 1 failed
+assertions: 3 | 2 passed | 1 failed
+
+exit=1 END 2026-10-07 20:06:17

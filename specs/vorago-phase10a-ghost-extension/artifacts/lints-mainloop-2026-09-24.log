@@ -1,0 +1,37 @@
+== lint-layers
+lint-layers: OK — no layer-dependency violations in 5-layer DSP tree.
+exit 0
+== lint-odr
+lint-odr: OK — 771 definitions scanned, no cross-file name collisions.
+exit 0
+== lint-nonfinite-symbols
+lint-nonfinite-symbols: all clear (17 guarded files)
+exit 0
+== lint-float-bit-goldens
+lint-float-bit-goldens: clean (1549 files scanned)
+exit 0
+== lint-simd-aligned-loadstore
+lint-simd-aligned-loadstore: clean -- 1549 file(s) scanned.
+exit 0
+== lint-arch-guarded-includes
+lint-arch-guarded-includes: OK — no krate includes behind architecture guards.
+exit 0
+== lint-platform-type-literals
+lint-platform-type-literals: clean -- 1549 file(s) scanned.
+exit 0
+== lint-allocation-operator-overrides
+lint-allocation-operator-overrides: clean -- 1664 file(s) scanned.
+exit 0
+== lint-plugin-roster
+lint-plugin-roster: OK — 7 plugins present in every roster (disrumpo, gradus, innexus, iterum, membrum, ruinae, seraphis)
+exit 0
+== check-portability
+  OK      dsp/tests/unit/systems/vorago_perf_test.cpp
+
+check-portability: all clear -- 6 compiled.
+exit 0
+== check-seraphis-green
+  [4] plugins/seraphis/: 0 modified file(s), all in scope
+
+check-seraphis-green: in scope
+exit 0

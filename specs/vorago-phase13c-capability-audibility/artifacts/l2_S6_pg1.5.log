@@ -1,0 +1,13 @@
+START 2026-10-02 00:40:52 preset="Slow Bloom" env:  | consts: kNoiseLevelLeverSpanDb = 12.0f kLoopGainLeverSpan = 0.18f kPartialLaneGain = 1.5f kGhostLaneGain = 1.0f kCouplingLeverSpan = 0.30f  | exe=2026-10-02 00:16:01
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 268453112
+[probe] lever: none
+[probe] Slow Bloom - primary S6 harmonic bloom (stored seed 7, 1 twin render(s))
+  take: peak 0.2558  arm1 hi -22.27 dB [yes]  arm2 lo -29.20 dB [yes]  arm3 late-sus +0.60 dB [yes]  arm4 tail -194.37 dB [yes]
+  arm1@44.1k: finite y peak 0.2765 hi -22.31 dB [PASS]
+  primary d 4.8300  bar 4.0000  attribBase -1.0000  state ok  -> PASS  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (9 assertions in 1 test case)
+
+exit=0 END 2026-10-02 00:43:22

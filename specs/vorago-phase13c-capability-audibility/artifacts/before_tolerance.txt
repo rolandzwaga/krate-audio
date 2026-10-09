@@ -1,0 +1,83 @@
+# T002 (FR-003 (i), SC-001): 15 roster primaries probed AS COMPILED (no VORAGO_PILOT_OVERRIDE) on the unmodified binary
+# binary: build/windows-x64-release/bin/Release/vorago_tests.exe (mtime 2026-09-30 23:06:58; no file under dsp/include,
+#   plugins/vorago or plugins/shared/src is newer); tree ae149a1c = 64f57e1a production tree (see base_tree.txt).
+# Runs: one at a time, nothing else executing, 2026-10-01 08:23-09:02; each log's START/END lines carry wall time.
+# Tolerance: |d_base - d_sweep4| <= max(0.01, 0.005*d_sweep4)  (never widened). Values as printed (4 dp).
+#
+cell   preset            value      sweep4    base      |delta|  tol       ok  log line
+S4     Feedback Mire     primary d  1.7072    1.7072    0.0000   0.010000  yes before_S4.log:6:  primary d 1.7072  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+S6     Slow Bloom        primary d  1.4453    1.4453    0.0000   0.010000  yes before_S6.log:6:  primary d 1.4453  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+S9     Choir of Absence  primary d  1.8349    1.8349    0.0000   0.010000  yes before_S9.log:6:  primary d 1.8349  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+M2     Erosion           primary d  2.4545    2.4545    0.0000   0.012273  yes before_M2.log:6:  primary d 2.4545  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+M3     Crowded Dark      primary d  3.9226    3.9226    0.0000   0.019613  yes before_M3.log:6:  primary d 3.9226  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+M4     Drifting Strata   primary d  3.0007    3.0007    0.0000   0.015004  yes before_M4.log:6:  primary d 3.0007  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+M5     Stone Gravity     primary d  3.5289    3.5289    0.0000   0.017645  yes before_M5.log:6:  primary d 3.5289  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+M9     Fogbound          primary d  1.8229    1.8229    0.0000   0.010000  yes before_M9.log:6:  primary d 1.8229  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+M10    Teeming           primary d  0.3794    0.3794    0.0000   0.010000  yes before_M10.log:6:  primary d 0.3794  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+M12    Monolith          primary d  3.3670    3.3670    0.0000   0.016835  yes before_M12.log:6:  primary d 3.3670  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+E1     Bloom Colony      primary d  0.0568    0.0568    0.0000   0.010000  yes before_E1.log:7:  primary d 0.0568  bar 4.0000  attribBase 0.0568  state ok  -> FAIL
+E1     Bloom Colony      attribBase 0.0568    0.0568    0.0000   0.010000  yes before_E1.log:6:  route arms: d(R_k, R_k0) 0.0568, attribBase d(R_0, R_00) 0.0568 (attributable iff d >= 1.5568)
+E3     Swarm Breath      primary d  0.6496    0.6496    0.0000   0.010000  yes before_E3.log:7:  primary d 0.6496  bar 4.0000  attribBase 0.0760  state ok  -> FAIL
+E3     Swarm Breath      attribBase 0.0760    0.0760    0.0000   0.010000  yes before_E3.log:6:  route arms: d(R_k, R_k0) 0.6496, attribBase d(R_0, R_00) 0.0760 (attributable iff d >= 1.5760)
+E4     Feeding Loops     primary d  1.2203    1.2203    0.0000   0.010000  yes before_E4.log:7:  primary d 1.2203  bar 4.0000  attribBase 0.4488  state ok  -> FAIL
+E4     Feeding Loops     attribBase 0.4488    0.4488    0.0000   0.010000  yes before_E4.log:6:  route arms: d(R_k, R_k0) 1.2203, attribBase d(R_0, R_00) 0.4488 (attributable iff d >= 1.9488)
+E5     Haunted Colony    primary d  1.1920    1.1920    0.0000   0.010000  yes before_E5.log:7:  primary d 1.1920  bar 4.0000  attribBase 0.3296  state ok  -> FAIL
+E5     Haunted Colony    attribBase 0.3296    0.3296    0.0000   0.010000  yes before_E5.log:6:  route arms: d(R_k, R_k0) 1.1920, attribBase d(R_0, R_00) 0.3296 (attributable iff d >= 1.8296)
+D9.1   Sudden Chasm      d_att      2.7661    2.7661    0.0000   0.013830  yes before_D9.1.log:6:  attack window (W_end 25.0 s): d_att 2.7661, d_Sus 4.3038 (attributable iff d_att >= 5.8038)
+D9.1   Sudden Chasm      d_Sus      4.3038    4.3038    0.0000   0.021519  yes before_D9.1.log:6:  attack window (W_end 25.0 s): d_att 2.7661, d_Sus 4.3038 (attributable iff d_att >= 5.8038)
+#
+# Result: 15 presets, 20 verdict values, all |delta| = 0.0000 at the printed precision; every value within tolerance.
+# No stop-and-surface. Side note (not a T002 check): Stone Gravity's stored take shows arm3 late-sus +15.67 dB [NO]
+#   (before_M5.log:5), the known sweep-4 red that T010 reproduces.
+# Sweep-4 column source: tasks.md Roster table. The 15 primary-d values were cross-checked against
+#   specs/vorago-phase14-presets-release/artifacts/sweep4_aggregate.log:296-394 (e.g. :296 "Feedback Mire ... d 1.70719",
+#   :394 "Sudden Chasm ... d 2.76612"); all agree to 4 dp. The attribBase (E1/E3/E4/E5) and d_Sus (D9.1) columns are
+#   taken from the Roster table as given; those lines carry no attribBase/d_Sus figure.
+#
+# T003 (FR-003 (i)): repeat-run spread. Slow Bloom re-run alone on the SAME binary (vorago_tests.exe mtime
+#   2026-09-30 23:06:58, unchanged; tree ae149a1c, no change under dsp/ plugins/ tools/), no VORAGO_PILOT_OVERRIDE.
+# Tolerance: max(0.01, 0.005*1.4453) = 0.010000  (never widened). Values as printed (4 dp).
+cell   preset            value      run1      run2      |d_run1-d_run2|  tol       ok  log lines
+S6     Slow Bloom        primary d  1.4453    1.4453    0.0000           0.010000  yes before_S6.log:6 / before_repeat.log:6:  primary d 1.4453  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+# Take lines also identical (before_S6.log:5 == before_repeat.log:5: peak 0.2514, arms -22.40/-26.64/+0.78/-196.83 dB).
+# Result: spread 0.0000 <= 0.01. No stop-and-surface.
+#
+# T015 (FR-003 (ii), SC-001): the 15 roster primaries re-read on the REPORTING binary, as compiled (no
+#   VORAGO_PILOT_OVERRIDE, no VORAGO_PILOT_LEVER; every log prints "lever: none").
+# binary: build/windows-x64-release/bin/Release/vorago_tests.exe mtime 2026-10-01 19:14:53, zero-warning build
+#   (build_vorago_gate_run4.log, 0 "warning" lines). NOTE: this binary is later than the bare T014 checkpoint: it also
+#   carries the Group 3b seams (T065 engine/voice setters at their no-change defaults, T066 engineTweak/tweakHeld,
+#   T067 VORAGO_PILOT_LEVER parse), all inert with no lever env. The re-read therefore covers T009-T013 + T065-T067.
+# Runs: one at a time, nothing else executing, 2026-10-01 19:21-20:08; each before2_<cell>.log carries START/END wall time.
+# Tolerance: |d_before2 - d_T002| <= max(0.01, 0.005*d_T002)  (never widened). Values as printed (4 dp).
+cell   preset            value      T002      before2   |delta|  tol       ok  log line
+S4     Feedback Mire     primary d  1.7072    1.7072    0.0000   0.010000  yes before2_S4.log:8
+S6     Slow Bloom        primary d  1.4453    1.4453    0.0000   0.010000  yes before2_S6.log:8
+S9     Choir of Absence  primary d  1.8349    1.8349    0.0000   0.010000  yes before2_S9.log:8
+M2     Erosion           primary d  2.4545    2.4545    0.0000   0.012273  yes before2_M2.log:8
+M3     Crowded Dark      primary d  3.9226    3.9226    0.0000   0.019613  yes before2_M3.log:8
+M4     Drifting Strata   primary d  3.0007    3.0007    0.0000   0.015004  yes before2_M4.log:8
+M5     Stone Gravity     primary d  3.5289    3.5289    0.0000   0.017645  yes before2_M5.log:8
+M9     Fogbound          primary d  1.8229    1.8229    0.0000   0.010000  yes before2_M9.log:8
+M10    Teeming           primary d  0.3794    0.3794    0.0000   0.010000  yes before2_M10.log:8
+M12    Monolith          primary d  3.3670    3.3670    0.0000   0.016835  yes before2_M12.log:8
+E1     Bloom Colony      primary d  0.0568    0.0568    0.0000   0.010000  yes before2_E1.log:9
+E1     Bloom Colony      attribBase 0.0568    0.0568    0.0000   0.010000  yes before2_E1.log:8
+E3     Swarm Breath      primary d  0.6496    0.6496    0.0000   0.010000  yes before2_E3.log:9
+E3     Swarm Breath      attribBase 0.0760    0.0760    0.0000   0.010000  yes before2_E3.log:8
+E4     Feeding Loops     primary d  1.2203    1.2203    0.0000   0.010000  yes before2_E4.log:9
+E4     Feeding Loops     attribBase 0.4488    0.4488    0.0000   0.010000  yes before2_E4.log:8
+E5     Haunted Colony    primary d  1.1920    1.1920    0.0000   0.010000  yes before2_E5.log:9
+E5     Haunted Colony    attribBase 0.3296    0.3296    0.0000   0.010000  yes before2_E5.log:8
+D9.1   Sudden Chasm      d_att      2.7661    2.7661    0.0000   0.013830  yes before2_D9.1.log:8
+D9.1   Sudden Chasm      d_Sus      4.3038    4.3038    0.0000   0.021519  yes before2_D9.1.log:8
+#
+# Result: 15 presets, 20 verdict values, all |delta| = 0.0000 at the printed precision; every value within tolerance.
+#   Beyond the gate values, every take / route-arms / attack-window / primary line (lever suffix stripped) is
+#   character-identical to its before_<cell>.log counterpart (scripted diff, 15/15 identical).
+# No stop-and-surface: the reporting change moved no gate figure.
+# New reporting lines (informational, not T015 checks): Stone Gravity arm1@44.1k hi -5.97 dB [NO] and
+#   "levels: arms [y y n y] arm1@44.1k [n]" (before2_M5.log:7,9) - the known arm3 late-sus +15.67 dB red now also
+#   shows at 44.1 kHz. All other 14 presets: levels [y y y y] [y].
+# T066 identity side-check: before2_S6.log (Slow Bloom, no lever env, T066 code in the binary) reproduces the
+#   before_S6.log verdict line exactly.

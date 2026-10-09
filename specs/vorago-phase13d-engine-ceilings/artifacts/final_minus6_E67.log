@@ -1,0 +1,25 @@
+START 2026-10-08 14:36:42 final_minus6_E67 tree=c351fe0f+final (build_final.log) preset="Colony Pulse" env: VORAGO_PILOT_TAKES=4 VORAGO_PILOT_MASTER_TRIM=-6 VORAGO_PILOT_SECONDARY=1
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 653778343
+[probe] master trim -6 dB: kMasterGainId norm 0.5000 -> 0.2506
+[probe] lever: none
+[probe] Colony Pulse - primary S7 ecosystem (stored seed 8, 1 twin render(s))
+  take: peak 0.6719  arm1 hi -20.52 dB [yes]  arm2 lo -32.52 dB [yes]  arm3 late-sus -1.44 dB [yes]  arm4 tail -156.85 dB [yes]
+  arm1@44.1k: finite y peak 0.6238 hi -22.49 dB [PASS]
+  primary d 11.0426  bar 4.0000  attribBase -1.0000  state ok  -> PASS  loopsAlive -  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  secondary D13.2 event rate scale >= 3.0: d 0.1941 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "" -> no
+  secondary E6.hi ecosystem sync rate high: d 1.3869 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "" -> no
+  secondary E7.hi ecosystem self-affinity high: d 1.3059 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "" -> no
+  take j=0 seed 8: peak 0.6719  arm1 hi -20.52 dB [yes]  arm2 lo -32.52 dB [yes]  arm3 late-sus -1.44 dB [yes]  arm4 tail -156.85 dB [yes]
+  take j=1 seed 9: peak 0.5645  arm1 hi -22.66 dB [yes]  arm2 lo -32.73 dB [yes]  arm3 late-sus +2.01 dB [yes]  arm4 tail -146.86 dB [yes]
+  take j=2 seed 10: peak 0.3603  arm1 hi -24.18 dB [yes]  arm2 lo -30.18 dB [yes]  arm3 late-sus -1.76 dB [yes]  arm4 tail -150.12 dB [yes]
+  take j=3 seed 11: peak 0.3801  arm1 hi -24.50 dB [yes]  arm2 lo -30.63 dB [yes]  arm3 late-sus +0.92 dB [yes]  arm4 tail -136.46 dB [yes]
+  take j=0 d 11.0426
+  take j=1 d 11.0362
+  take j=2 d 12.9393
+  take j=3 d 13.1417
+===============================================================================
+All tests passed (20 assertions in 1 test case)
+
+exit=0 END 2026-10-08 15:08:30

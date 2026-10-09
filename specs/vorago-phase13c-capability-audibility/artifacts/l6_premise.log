@@ -1,0 +1,102 @@
+START 2026-10-02 20:44:23 T050 premise probes on the restored tree (lane gains 1.0 / 1.0; attack n 4; child gain 1.5; ghost 21/1.2; ecology 30/36) exe=2026-10-02 20:42:41
+--- 2026-10-02 20:44:24 swing fog 0->1 (Drifting Strata, as stored) env: VORAGO_PILOT_PRESET=Drifting Strata VORAGO_PILOT_SWING=1103=1.0
+Filters: "Vorago_PresetPilot_SwingProbe"
+Randomness seeded to: 2762683475
+[swing] Drifting Strata seed 3 swing "1103=1.0": d(P, P_swing) 0.0878  (peak P 0.9661, P_swing 0.9661)
+===============================================================================
+All tests passed (9 assertions in 1 test case)
+
+exit=0 2026-10-02 20:47:02
+--- 2026-10-02 20:47:02 swing fog 0->1 + space mix 1.0 (Drifting Strata) env: VORAGO_PILOT_PRESET=Drifting Strata VORAGO_PILOT_SWING=1103=1.0,1105=1.0
+Filters: "Vorago_PresetPilot_SwingProbe"
+Randomness seeded to: 1957807522
+[swing] Drifting Strata seed 3 swing "1103=1.0,1105=1.0": d(P, P_swing) 8.8777  (peak P 0.9661, P_swing 0.3609)
+===============================================================================
+All tests passed (10 assertions in 1 test case)
+
+exit=0 2026-10-02 20:49:39
+--- 2026-10-02 20:49:39 swing fog 1 -> 0 relative to space mix 1.0 (Drifting Strata) env: VORAGO_PILOT_PRESET=Drifting Strata VORAGO_PILOT_SWING=1103=0.0,1105=1.0
+Filters: "Vorago_PresetPilot_SwingProbe"
+Randomness seeded to: 1010453873
+[swing] Drifting Strata seed 3 swing "1103=0.0,1105=1.0": d(P, P_swing) 10.1511  (peak P 0.9661, P_swing 0.3174)
+===============================================================================
+All tests passed (10 assertions in 1 test case)
+
+exit=0 2026-10-02 20:52:14
+--- 2026-10-02 20:52:14 M4 bisect childGain=0.35 env: VORAGO_PILOT_PRESET=Drifting Strata VORAGO_PILOT_LEVER=childGain=0.35
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 997669694
+[probe] lever: childGain=0.35
+[probe] Drifting Strata - primary M4 Movement (stored seed 3, 1 twin render(s))
+  take: peak 0.9661  arm1 hi -13.62 dB [yes]  arm2 lo -20.63 dB [yes]  arm3 late-sus +0.13 dB [yes]  arm4 tail -171.01 dB [yes]
+  arm1@44.1k: finite y peak 0.8705 hi -14.33 dB [PASS]
+  primary d 2.2905  bar 4.0000  attribBase -1.0000  state ok  -> FAIL  lever: childGain=0.35
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (10 assertions in 1 test case)
+
+exit=0 2026-10-02 20:55:47
+--- 2026-10-02 20:55:47 M4 bisect ghostTapDb=12 env: VORAGO_PILOT_PRESET=Drifting Strata VORAGO_PILOT_LEVER=ghostTapDb=12
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 1967705583
+[probe] lever: ghostTapDb=12
+[probe] Drifting Strata - primary M4 Movement (stored seed 3, 1 twin render(s))
+  take: peak 0.6405  arm1 hi -16.86 dB [yes]  arm2 lo -24.14 dB [yes]  arm3 late-sus +0.19 dB [yes]  arm4 tail -178.68 dB [yes]
+  arm1@44.1k: finite y peak 0.5195 hi -17.15 dB [PASS]
+  primary d 3.0651  bar 4.0000  attribBase -1.0000  state ok  -> FAIL  lever: ghostTapDb=12
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (10 assertions in 1 test case)
+
+exit=0 2026-10-02 20:59:25
+--- 2026-10-02 20:59:25 M4 bisect ecologyWetDb=0 env: VORAGO_PILOT_PRESET=Drifting Strata VORAGO_PILOT_LEVER=ecologyWetDb=0
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 1013787003
+[probe] lever: ecologyWetDb=0
+[probe] Drifting Strata - primary M4 Movement (stored seed 3, 1 twin render(s))
+  take: peak 0.9661  arm1 hi -13.64 dB [yes]  arm2 lo -21.27 dB [yes]  arm3 late-sus -0.02 dB [yes]  arm4 tail -170.32 dB [yes]
+  arm1@44.1k: finite y peak 0.8704 hi -14.33 dB [PASS]
+  primary d 1.9557  bar 4.0000  attribBase -1.0000  state ok  -> FAIL  lever: ecologyWetDb=0
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (10 assertions in 1 test case)
+
+exit=0 2026-10-02 21:02:57
+--- 2026-10-02 21:02:57 M4 bisect all three env: VORAGO_PILOT_PRESET=Drifting Strata VORAGO_PILOT_LEVER=childGain=0.35,ghostTapDb=12,ecologyWetDb=0
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 2366097907
+[probe] lever: childGain=0.35,ghostTapDb=12,ecologyWetDb=0
+[probe] Drifting Strata - primary M4 Movement (stored seed 3, 1 twin render(s))
+  take: peak 0.6408  arm1 hi -16.87 dB [yes]  arm2 lo -23.08 dB [yes]  arm3 late-sus +0.42 dB [yes]  arm4 tail -179.37 dB [yes]
+  arm1@44.1k: finite y peak 0.5205 hi -17.14 dB [PASS]
+  primary d 3.4226  bar 4.0000  attribBase -1.0000  state ok  -> FAIL  lever: childGain=0.35,ghostTapDb=12,ecologyWetDb=0
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (10 assertions in 1 test case)
+
+exit=0 2026-10-02 21:06:30
+--- 2026-10-02 21:06:30 D14.1 bisect all three (Slow Bloom, secondaries) env: VORAGO_PILOT_PRESET=Slow Bloom VORAGO_PILOT_SECONDARY=1 VORAGO_PILOT_LEVER=childGain=0.35,ghostTapDb=12,ecologyWetDb=0
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 1320723452
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+vorago_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+Vorago_PresetPilot_PrimaryProbe
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\vorago\tests\integration\preset_pilot_test.cpp(1347)
+...............................................................................
+
+F:\projects\iterum\plugins\vorago\tests\integration\preset_pilot_test.cpp(1018): FAILED:
+explicitly with message:
+  VORAGO_PILOT_LEVER cannot combine with VORAGO_PILOT_SECONDARY=1
+  (computeVerificationVector renders untweaked)
+
+===============================================================================
+test cases: 1 | 1 failed
+assertions: 3 | 2 passed | 1 failed
+
+exit=1 2026-10-02 21:06:30
+END 2026-10-02 21:06:30

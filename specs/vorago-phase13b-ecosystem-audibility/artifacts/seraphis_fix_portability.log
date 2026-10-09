@@ -1,0 +1,12 @@
+START 2026-09-29 09:56:47 portability (seraphis perf fix)
+warning: in the working copy of 'dsp/tests/unit/systems/seraphis_perf_test.cpp', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'specs/seraphis-phase7-voice-engine/spec.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'specs/vorago-phase13b-ecosystem-audibility/artifacts/t014_cpu_resolution.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'specs/vorago-phase14-presets-release/spec.md', LF will be replaced by CRLF the next time Git touches it
+check-portability: 1 translation unit(s) with g++
+
+  OK      dsp/tests/unit/systems/seraphis_perf_test.cpp
+
+check-portability: all clear -- 1 compiled.
+exit=0
+wsl-shutdown=0 END 2026-09-29 09:57:26

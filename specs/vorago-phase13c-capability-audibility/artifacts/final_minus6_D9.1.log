@@ -1,0 +1,25 @@
+START 2026-10-04 12:45:11 Sudden Chasm tree=ae149a1c+working-copy as-compiled (no override) env: VORAGO_PILOT_TAKES=4 VORAGO_PILOT_MASTER_TRIM=-6 | final tree: attack n 4; child gain 1.5; ghost 21 dB / span 1.2 / default peak 0; ecology 30 (ceiling 36); breath 3.0; tide 0.8; M9 rung 2; M12 rung 1; Feedback Mire breathing 0; six presets pin ghost 0.60 | exe=2026-10-04 09:54:11
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 3169092267
+[probe] master trim -6 dB: kMasterGainId norm 0.5000 -> 0.2506
+[probe] lever: none
+[probe] Sudden Chasm - primary D9.1 attack span <= 10 s (stored seed 5, 1 twin render(s))
+  take: peak 0.1260  arm1 hi -26.68 dB [yes]  arm2 lo -28.19 dB [yes]  arm3 late-sus -0.38 dB [yes]  arm4 tail -240.00 dB [yes]
+  arm1@44.1k: finite y peak 0.1277 hi -26.61 dB [PASS]
+  attack window (W_end registered 25.0 s, measured 23.0 s): d_att 9.6051, d_Sus 4.3070 (attributable iff d_att >= 5.8070)
+    P: first reaches RMS(Sus) - 6 dB at 4 s
+    P_rev: first reaches RMS(Sus) - 6 dB at 18 s
+  primary d 9.6051  bar 4.0000  attribBase 4.3070  state ok  -> PASS  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  take j=0 seed 5: peak 0.1260  arm1 hi -26.68 dB [yes]  arm2 lo -28.19 dB [yes]  arm3 late-sus -0.38 dB [yes]  arm4 tail -240.00 dB [yes]
+  take j=1 seed 6: peak 0.1293  arm1 hi -26.78 dB [yes]  arm2 lo -28.64 dB [yes]  arm3 late-sus -0.44 dB [yes]  arm4 tail -240.00 dB [yes]
+  take j=2 seed 7: peak 0.1273  arm1 hi -26.74 dB [yes]  arm2 lo -28.10 dB [yes]  arm3 late-sus -0.10 dB [yes]  arm4 tail -240.00 dB [yes]
+  take j=3 seed 8: peak 0.1309  arm1 hi -26.75 dB [yes]  arm2 lo -28.03 dB [yes]  arm3 late-sus -0.07 dB [yes]  arm4 tail -240.00 dB [yes]
+  take j=0 d 9.6051
+  take j=1 d 0.0000  skip: no attack-window capture
+  take j=2 d 0.0000  skip: no attack-window capture
+  take j=3 d 0.0000  skip: no attack-window capture
+===============================================================================
+All tests passed (13 assertions in 1 test case)
+
+exit=0 END 2026-10-04 12:46:48

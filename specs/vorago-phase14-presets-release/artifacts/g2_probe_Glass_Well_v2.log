@@ -1,0 +1,10 @@
+START 2026-09-29 18:24:43 primary probe: Glass Well (re-author v2)
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 2208344685
+[probe] Glass Well - primary D1.1 material Glass (stored seed 12, 2 twin render(s))
+  conjunct S10 acoustic body: d 11.0870, bar 1.5 -> ok
+  primary d 3.5286  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+===============================================================================
+All tests passed (8 assertions in 1 test case)
+
+exit=0 END 2026-09-29 18:26:56

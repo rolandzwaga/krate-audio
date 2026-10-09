@@ -1,0 +1,6 @@
+START 2026-10-06 20:18:44 --plugin vorago
+check-preset-generator-determinism: binary  F:\projects\iterum\build\windows-x64-release\bin\Release\vorago_preset_generator.exe
+check-preset-generator-determinism: run A   C:\Users\scab\AppData\Local\Temp\vorago-presets-Hr0zBP
+check-preset-generator-determinism: run B   C:\Users\scab\AppData\Local\Temp\vorago-presets-lfwaNL
+check-preset-generator-determinism: OK — 42 file(s); 0 differing between two fresh runs, 0 changed by a third run over an existing tree.
+exit=0 END 2026-10-06 20:18:47

@@ -165,6 +165,14 @@ public:
     /// @return true if prepare() has been called successfully
     [[nodiscard]] bool isPrepared() const noexcept;
 
+    /// @brief Bytes of heap held - the combs' delay lines.
+    ///
+    /// EVERY slot is counted, not just the getNumCombs() active ones: prepare()
+    /// sizes them all, so this is the PREPARE-TIME figure and setNumCombs()
+    /// cannot move it. Every other per-comb member is an LFO, a smoother, an
+    /// RNG or a scalar.
+    [[nodiscard]] size_t getAllocatedBytes() const noexcept;
+
     // =========================================================================
     // Comb Configuration (FR-001, FR-002, FR-003, FR-004, FR-005)
     // =========================================================================
@@ -496,6 +504,14 @@ inline void TimeVaryingCombBank::reset() noexcept {
 
 inline bool TimeVaryingCombBank::isPrepared() const noexcept {
     return prepared_;
+}
+
+inline size_t TimeVaryingCombBank::getAllocatedBytes() const noexcept {
+    size_t total = 0;
+    for (size_t i = 0; i < kMaxCombs; ++i) {
+        total += channels_[i].comb.getAllocatedBytes();
+    }
+    return total;
 }
 
 inline void TimeVaryingCombBank::setNumCombs(size_t count) noexcept {
@@ -912,8 +928,6 @@ inline void TimeVaryingCombBank::recalculateTunedDelays() noexcept {
 }
 
 inline void TimeVaryingCombBank::recalculatePanPositions() noexcept {
-    constexpr float kPi = std::numbers::pi_v<float>;
-
     for (size_t i = 0; i < kMaxCombs; ++i) {
         // Calculate pan position: distribute combs from left (-1) to right (+1)
         // based on stereo spread. With spread=0, all centered (pan=0)
@@ -934,7 +948,7 @@ inline void TimeVaryingCombBank::recalculatePanPositions() noexcept {
 
         // Calculate equal-power pan gains
         // pan in [-1, 1] -> angle in [0, pi/2]
-        const float angle = (pan + 1.0f) * 0.25f * kPi;
+        const float angle = (pan + 1.0f) * 0.25f * std::numbers::pi_v<float>;
         channels_[i].panLeftGain = std::cos(angle);
         channels_[i].panRightGain = std::sin(angle);
     }

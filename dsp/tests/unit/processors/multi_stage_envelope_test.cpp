@@ -15,6 +15,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
+#include <cstring>
 #include <numeric>
 #include <vector>
 
@@ -1498,4 +1500,69 @@ TEST_CASE("MultiStageEnvelope: FR-015 default sustain point is numStages-2", "[m
     env.setNumStages(8);
     env.setSustainPoint(6);
     REQUIRE(env.getSustainPoint() == 6);
+}
+
+// =============================================================================
+// Per-instance stage-time ceiling (Vorago Phase 10 append; default-inert)
+// =============================================================================
+
+TEST_CASE("MultiStageEnvelope: per-instance stage-time ceiling is default-inert and raisable",
+          "[msenv][vorago]") {
+    MultiStageEnvelope env;
+    env.prepare(48000.0f);
+
+    SECTION("default ceiling is the shipped constant and still clamps") {
+        REQUIRE(env.getMaxStageTimeMs() == MultiStageEnvelope::kMaxStageTimeMs);
+        env.setStageTime(0, 20000.0f);
+        env.setReleaseTime(45000.0f);
+        REQUIRE(env.getStageTime(0) == MultiStageEnvelope::kMaxStageTimeMs);
+        REQUIRE(env.getReleaseTime() == MultiStageEnvelope::kMaxStageTimeMs);
+    }
+
+    SECTION("a raised ceiling lets later sets through unclamped") {
+        env.setMaxStageTimeMs(120000.0f);
+        REQUIRE(env.getMaxStageTimeMs() == 120000.0f);
+        env.setStage(0, 1.0f, 20000.0f, EnvCurve::Linear);
+        env.setStageTime(3, 60000.0f);
+        env.setReleaseTime(45000.0f);
+        REQUIRE(env.getStageTime(0) == 20000.0f);
+        REQUIRE(env.getStageTime(3) == 60000.0f);
+        REQUIRE(env.getReleaseTime() == 45000.0f);
+        env.setStageTime(1, 130000.0f);  // still clamped, now at the raised ceiling
+        REQUIRE(env.getStageTime(1) == 120000.0f);
+    }
+
+    SECTION("NaN is ignored and a negative ceiling floors at 0") {
+        env.setMaxStageTimeMs(30000.0f);
+        // Quiet-NaN bit pattern routed through a volatile read so -ffast-math
+        // cannot fold it away.
+        volatile std::uint32_t bits = 0x7FC00000u;
+        const std::uint32_t observed = bits;
+        float nanValue = 0.0f;
+        std::memcpy(&nanValue, &observed, sizeof(nanValue));
+        env.setMaxStageTimeMs(nanValue);
+        REQUIRE(env.getMaxStageTimeMs() == 30000.0f);
+        env.setMaxStageTimeMs(-5.0f);
+        REQUIRE(env.getMaxStageTimeMs() == 0.0f);
+    }
+
+    SECTION("the generator really walks a 20 s attack, not a 10 s one") {
+        env.setMaxStageTimeMs(120000.0f);
+        env.setNumStages(4);
+        env.setStage(0, 1.0f, 20000.0f, EnvCurve::Linear);
+        env.setStage(1, 1.0f, 10.0f, EnvCurve::Linear);
+        env.setStage(2, 1.0f, 10.0f, EnvCurve::Linear);
+        env.setStage(3, 0.0f, 10.0f, EnvCurve::Linear);
+        env.setSustainPoint(2);
+        env.gate(true);
+        // 10.5 s in: a 10 s-clamped attack would have completed (output 1.0,
+        // stage advanced); a 20 s attack is barely past its midpoint.
+        const std::size_t samples = static_cast<std::size_t>(10.5 * 48000.0);
+        float out = 0.0f;
+        for (std::size_t i = 0; i < samples; ++i) out = env.process();
+        REQUIRE(env.getState() == MultiStageEnvState::Running);
+        REQUIRE(env.getCurrentStage() == 0);
+        REQUIRE(out > 0.40f);
+        REQUIRE(out < 0.65f);
+    }
 }

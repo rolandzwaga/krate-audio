@@ -581,7 +581,10 @@ static_assert(kBlockSize % SeraphisEngine::kControlChunkSamples == 0,
 static_assert(kBlockSize / SeraphisEngine::kControlChunkSamples == 8,
               "plan sec. 7.8 arm 3 names EIGHT sub-slices");
 static_assert(AetherReverb::kMaxBloomResonators == 32, "RA-1 row (c) drives the bloom ceiling");
-static_assert(ContinuousBody::kNumMaterials == 5, "row 800 is chosen from all five materials");
+// Vorago Phase 10 widened kNumMaterials to 11 by appending; Seraphis measures its
+// own five (ContinuousBody::kNumSeraphisMaterials, ruled 2026-09-18).
+static_assert(ContinuousBody::kNumSeraphisMaterials == 5,
+              "row 800 is chosen from all five Seraphis materials");
 static_assert(SpectralMorphEngine::kMaxStates == 4, "the spectral fan-out writes four slots");
 // MOVED 27 -> 29 by Phase 11 T004 (specs/seraphis-phase11-ui/tasks.md), which
 // appends SeraphisMacroTarget::FxDelaySend and ::FxWanderDepth before `Count`
@@ -1881,11 +1884,12 @@ struct ChainSubject {
 /// mode count of every material, at the lowest note the scenario plays (220 Hz,
 /// where FR-043's Nyquist truncation removes the fewest modes).
 struct MaterialSurvey {
-    std::array<int, ContinuousBody::kNumMaterials> modeCount{};
+    std::array<int, ContinuousBody::kNumSeraphisMaterials> modeCount{};
     std::size_t worstIndex = 0;
 };
 
-constexpr std::array<ContinuousBody::BodyMaterial, ContinuousBody::kNumMaterials> kMaterials = {{
+constexpr std::array<ContinuousBody::BodyMaterial, ContinuousBody::kNumSeraphisMaterials>
+    kMaterials = {{
     ContinuousBody::BodyMaterial::Glass,
     ContinuousBody::BodyMaterial::Strings,
     ContinuousBody::BodyMaterial::MetalPlate,
@@ -1893,7 +1897,7 @@ constexpr std::array<ContinuousBody::BodyMaterial, ContinuousBody::kNumMaterials
     ContinuousBody::BodyMaterial::Ice,
 }};
 
-constexpr std::array<const char*, ContinuousBody::kNumMaterials> kMaterialNames = {{
+constexpr std::array<const char*, ContinuousBody::kNumSeraphisMaterials> kMaterialNames = {{
     "Glass", "Strings", "MetalPlate", "Chamber", "Ice",
 }};
 
@@ -1902,7 +1906,7 @@ constexpr float kSurveyNoteHz = 220.0f;  ///< MIDI 57, the lowest note the scena
 [[nodiscard]] MaterialSurvey surveyMaterialModeCounts() {
     MaterialSurvey out{};
     Buffers buf;
-    for (std::size_t i = 0; i < ContinuousBody::kNumMaterials; ++i) {
+    for (std::size_t i = 0; i < ContinuousBody::kNumSeraphisMaterials; ++i) {
         auto body = std::make_unique<ContinuousBody>();
         // setMaterial BEFORE prepare, so no crossfade is armed and the count is
         // the steady-state one (seraphis_perf_test.cpp:584-590).
@@ -2525,7 +2529,7 @@ TEST_CASE("Seraphis_FullPoly_CpuBudget_WithFullSurface", "[.perf]") {
         std::ostringstream os;
         os << "SC-009 row 800 justification - ContinuousBody::getActiveModeCount() at "
            << kSurveyNoteHz << " Hz:\n";
-        for (std::size_t i = 0; i < ContinuousBody::kNumMaterials; ++i) {
+        for (std::size_t i = 0; i < ContinuousBody::kNumSeraphisMaterials; ++i) {
             os << "  " << kMaterialNames[i] << " : " << survey.modeCount[i] << " modes\n";
         }
         os << "  largest mode set : " << kMaterialNames[survey.worstIndex];

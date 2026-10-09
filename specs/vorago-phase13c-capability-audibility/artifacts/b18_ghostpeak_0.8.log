@@ -1,0 +1,23 @@
+START 2026-10-06 08:39:06 Choir of Absence VORAGO_PILOT_OVERRIDE=0=0.5,1400=0.8 VORAGO_PILOT_TAKES=4 exe=2026-10-06 08:29:31
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 4071718355
+[probe] override 0 = 0.500000 (replaced)
+[probe] override 1400 = 0.800000 (replaced)
+[probe] lever: none
+[probe] Choir of Absence - primary S9 ghost / atmosphere (stored seed 10, 1 twin render(s))
+  take: peak 0.9661  arm1 hi -6.90 dB [yes]  arm2 lo -12.27 dB [yes]  arm3 late-sus -1.09 dB [yes]  arm4 tail -155.89 dB [yes]
+  arm1@44.1k: finite y peak 0.9661 hi -6.70 dB [PASS]
+  primary d 3.8746  bar 4.0000  attribBase -1.0000  state ok  -> FAIL  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  take j=0 seed 10: peak 0.9661  arm1 hi -6.90 dB [yes]  arm2 lo -12.27 dB [yes]  arm3 late-sus -1.09 dB [yes]  arm4 tail -155.89 dB [yes]
+  take j=1 seed 11: peak 0.9661  arm1 hi -7.23 dB [yes]  arm2 lo -15.15 dB [yes]  arm3 late-sus +2.17 dB [yes]  arm4 tail -146.62 dB [yes]
+  take j=2 seed 12: peak 0.9661  arm1 hi -6.58 dB [yes]  arm2 lo -13.01 dB [yes]  arm3 late-sus -1.64 dB [yes]  arm4 tail -156.61 dB [yes]
+  take j=3 seed 13: peak 0.9661  arm1 hi -5.86 dB [NO]  arm2 lo -9.26 dB [yes]  arm3 late-sus -0.36 dB [yes]  arm4 tail -158.65 dB [yes]
+  take j=0 d 3.8746
+  take j=1 d 4.2498
+  take j=2 d 4.6250
+  take j=3 d 4.1460
+===============================================================================
+All tests passed (21 assertions in 1 test case)
+
+exit=0 END 2026-10-06 08:43:48

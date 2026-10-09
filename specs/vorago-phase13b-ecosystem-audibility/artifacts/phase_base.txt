@@ -1,0 +1,3 @@
+branch: feat/vorago-phase1-events-modulation
+phase-base: 6cef994b
+note: plan named 9ecd6d10; HEAD moved by one docs-only commit (6cef994b adds specs/vorago-phase13b-ecosystem-audibility/{spec,plan,tasks}.md). SC-015 diffs use 6cef994b.

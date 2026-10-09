@@ -306,6 +306,12 @@ if(VSTWORK_BUILD_TESTS)
     list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
     include(Catch)
 
+    # krate_test_pch(): Catch2 + STL precompiled per test executable when
+    # KRATE_TEST_PCH is ON. Included here, before dsp/ and the plugins add
+    # their test directories.
+    list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
+    include(KrateTestPch)
+
     # Fetch ApprovalTests for approval testing
     FetchContent_Declare(
         ApprovalTests
@@ -492,6 +498,7 @@ add_subdirectory(plugins/innexus)
 add_subdirectory(plugins/gradus)
 add_subdirectory(plugins/membrum)
 add_subdirectory(plugins/seraphis)
+add_subdirectory(plugins/vorago)
 
 # ==============================================================================
 # Tools (Shared development tools)
@@ -664,6 +671,73 @@ add_custom_target(generate_seraphis_presets
     COMMAND seraphis_preset_generator "${CMAKE_SOURCE_DIR}/plugins/seraphis/resources/presets"
     DEPENDS seraphis_preset_generator
     COMMENT "Generating Seraphis factory presets (42 presets across 7 categories)"
+    VERBATIM
+)
+
+# ==============================================================================
+# vorago_preset_generator — Vorago Phase 14 factory-preset generator
+# ==============================================================================
+# The target NAME and the run-time output directory are FIXED by the release
+# workflow (.github/workflows/release.yml:150-182): every non-Iterum plugin maps
+# to `${PLUGIN}_preset_generator`, built and then run as
+# `./build/bin/${PLUGIN}_preset_generator generated-presets` with
+# `if-no-files-found: error`. Copied from the Seraphis block above.
+add_executable(vorago_preset_generator
+    tools/vorago_preset_generator.cpp
+    # Vorago's processor.cpp is compiled as an executable source, as for Seraphis.
+    plugins/vorago/src/processor/processor.cpp
+    ${vst3sdk_SOURCE_DIR}/public.sdk/source/common/memorystream.cpp
+    ${vst3sdk_SOURCE_DIR}/public.sdk/source/vst/hosting/hostclasses.cpp
+    ${vst3sdk_SOURCE_DIR}/public.sdk/source/vst/hosting/pluginterfacesupport.cpp
+    ${vst3sdk_SOURCE_DIR}/public.sdk/source/main/moduleinit.cpp
+    ${vst3sdk_SOURCE_DIR}/public.sdk/source/main/pluginfactory.cpp
+    # GetPluginFactory stub ONLY; moduleHandle is defined in tools/vorago_preset_generator.cpp.
+    plugins/vorago/tests/vstgui_test_stubs.cpp
+)
+
+# NO vstgui_support and NO Catch2: the generator must not pull either in.
+target_link_libraries(vorago_preset_generator PRIVATE KrateDSP KratePluginsShared sdk)
+
+target_include_directories(vorago_preset_generator PRIVATE
+    ${CMAKE_SOURCE_DIR}/plugins/vorago/src       # "plugin_ids.h", "processor/processor.h"
+    ${CMAKE_SOURCE_DIR}/plugins/vorago/tests     # vorago_preset_host.h
+    ${CMAKE_SOURCE_DIR}/tests/test_helpers       # <vst_event_list.h> - HEADER ONLY, not the
+                                                 # test_helpers target (it links Catch2 INTERFACE)
+    ${CMAKE_SOURCE_DIR}/tools                    # vorago_preset_defs.h
+    ${vst3sdk_SOURCE_DIR}
+)
+
+target_compile_features(vorago_preset_generator PRIVATE cxx_std_20)
+
+set_target_properties(vorago_preset_generator PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+)
+
+# Warning posture copies seraphis_preset_generator above, including MSVC /wd4459.
+if(MSVC)
+    target_compile_options(vorago_preset_generator PRIVATE
+        /W4
+        /permissive-
+        /Zc:__cplusplus
+        /wd4100
+        /wd4458
+        /wd4459
+    )
+else()
+    target_compile_options(vorago_preset_generator PRIVATE
+        -Wall
+        -Wextra
+        -Wpedantic
+        -Wno-unused-parameter
+    )
+endif()
+
+# Custom target to regenerate Vorago factory presets on demand
+# Usage: cmake --build build --target generate_vorago_presets
+add_custom_target(generate_vorago_presets
+    COMMAND vorago_preset_generator "${CMAKE_SOURCE_DIR}/plugins/vorago/resources/presets"
+    DEPENDS vorago_preset_generator
+    COMMENT "Generating Vorago factory presets (42 presets across 7 categories)"
     VERBATIM
 )
 

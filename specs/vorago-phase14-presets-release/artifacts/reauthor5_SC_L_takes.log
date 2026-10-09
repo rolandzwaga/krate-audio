@@ -1,0 +1,29 @@
+START 2026-10-06 12:47:08 Singing Colony TAKES=4 OVERRIDE=401=1.0,1300=0,1400=0,1003=0.35,402=0.0,200=0.80,0=0.40
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 1410743441
+[probe] override 401 = 1.000000 (replaced)
+[probe] override 1300 = 0.000000 (replaced)
+[probe] override 1400 = 0.000000 (replaced)
+[probe] override 1003 = 0.350000 (replaced)
+[probe] override 402 = 0.000000 (replaced)
+[probe] override 200 = 0.800000 (replaced)
+[probe] override 0 = 0.400000 (appended)
+[probe] lever: none
+[probe] Singing Colony - primary E2 resonator -> resonance peaks (stored seed 2, 4 twin render(s))
+  take: peak 0.9661  arm1 hi -8.11 dB [yes]  arm2 lo -20.96 dB [yes]  arm3 late-sus +1.22 dB [yes]  arm4 tail -240.00 dB [yes]
+  arm1@44.1k: finite y peak 0.9661 hi -10.37 dB [PASS]
+  route arms: d(R_k, R_k0) 4.2721, attribBase d(R_0, R_00) 1.2824 (attributable iff d >= 2.7824)
+  primary d 4.2721  bar 4.0000  attribBase 1.2824  state ok  -> PASS  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  take j=0 seed 2: peak 0.9661  arm1 hi -8.11 dB [yes]  arm2 lo -20.96 dB [yes]  arm3 late-sus +1.22 dB [yes]  arm4 tail -240.00 dB [yes]
+  take j=1 seed 3: peak 0.9661  arm1 hi -6.42 dB [yes]  arm2 lo -22.39 dB [yes]  arm3 late-sus -6.99 dB [yes]  arm4 tail -240.00 dB [yes]
+  take j=2 seed 4: peak 0.9661  arm1 hi -6.72 dB [yes]  arm2 lo -20.54 dB [yes]  arm3 late-sus -4.82 dB [yes]  arm4 tail -240.00 dB [yes]
+  take j=3 seed 5: peak 0.9661  arm1 hi -7.71 dB [yes]  arm2 lo -23.10 dB [yes]  arm3 late-sus -3.18 dB [yes]  arm4 tail -240.00 dB [yes]
+  take j=0 d 4.2721
+  take j=1 d 4.9645
+  take j=2 d 7.9036
+  take j=3 d 4.8967
+===============================================================================
+All tests passed (54 assertions in 1 test case)
+
+exit=0 END 2026-10-06 12:56:31

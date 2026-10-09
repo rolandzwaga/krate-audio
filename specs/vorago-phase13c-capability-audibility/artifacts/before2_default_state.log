@@ -1,0 +1,7 @@
+HEADER T017 - FR-030b default-state cells, before (FR-030b, SC-007b). Default pseudo-preset (index 42 of 43) via
+VORAGO_SWEEP_SHARD=42/43 vorago_tests.exe "Vorago_PresetSweep_AblationVerifiesClaims", as compiled, appended below
+with its START line. Expected measured set (sweep4_aggregate.log:173): D1.6, D1.7, D2, D5.3, D8.1, D9.2, D10.2, D12.2.
+D7.1 is unverified-before on the default surface (recorded constant :174 lists it; the sweep-4 measurement :173 does
+not): surfaced, not charged to a 13c lever. See before2_secondaries_030b.log header.
+END HEADER
+

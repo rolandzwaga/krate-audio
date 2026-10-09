@@ -1,0 +1,185 @@
+MSBuild version 17.14.51+25f168cee for .NET Framework
+
+  Checking File Globs
+  PFFFT.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\pffft.lib
+  hwy.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy.lib
+  hwy_contrib.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy_contrib.lib
+  KrateDSP.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\KrateDSP.lib
+  base.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\base.lib
+  pluginterfaces.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\pluginterfaces.lib
+  sdk_common.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\sdk_common.lib
+  sdk.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\sdk.lib
+  vstgui.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\vstgui.lib
+  KratePluginsShared.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\KratePluginsShared.lib
+  sdk_hosting.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\sdk_hosting.lib
+  moduleinfotool.vcxproj -> F:\projects\iterum\build\windows-x64-release\bin\Release\moduleinfotool.exe
+  vstgui_uidescription.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\vstgui_uidescription.lib
+  vstgui_support.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\vstgui_support.lib
+  controller.cpp
+  parameter_registration.cpp
+  visibility_controllers.cpp
+  distortion_adapter.cpp
+  morph_engine.cpp
+  entry.cpp
+  processor.cpp
+  processor_messaging.cpp
+  processor_params.cpp
+  processor_state.cpp
+     Creating library F:/projects/iterum/build/windows-x64-release/lib/Release/Disrumpo.lib and object F:/projects/iterum/build/windows-x64-release/lib/Release/Disrumpo.exp
+  Disrumpo.vcxproj -> F:\projects\iterum\build\windows-x64-release\VST3\Release\Disrumpo.vst3\Contents\x86_64-win\Disrumpo.vst3
+  [SMTG] Copy PlugIn.ico and desktop.ini and change their attributes.		Installing Disrumpo.vst3 to system VST3 folder	Installing Disrumpo factory presets to system directory
+  [VSTWORK] Copying plugin to C:\Users\scab\AppData\Local/Programs/Common/VST3...
+  [VSTWORK] Plugin installed to C:\Users\scab\AppData\Local/Programs/Common/VST3/Disrumpo.vst3
+  [VSTWORK] Installing Disrumpo factory presets...
+  [VSTWORK] Factory presets installed to C:\ProgramData/Krate Audio/Disrumpo
+  controller.cpp
+  entry.cpp
+     Creating library F:/projects/iterum/build/windows-x64-release/lib/Release/Gradus.lib and object F:/projects/iterum/build/windows-x64-release/lib/Release/Gradus.exp
+  Gradus.vcxproj -> F:\projects\iterum\build\windows-x64-release\VST3\Release\Gradus.vst3\Contents\x86_64-win\Gradus.vst3
+  [SMTG] Copy PlugIn.ico and desktop.ini and change their attributes.		Installing Gradus.vst3 to system VST3 folder	Installing Gradus factory presets to system directory
+  [VSTWORK] Copying plugin to C:\Users\scab\AppData\Local/Programs/Common/VST3...
+  [VSTWORK] Plugin installed to C:\Users\scab\AppData\Local/Programs/Common/VST3/Gradus.vst3
+  [VSTWORK] Installing Gradus factory presets...
+  [VSTWORK] Factory presets installed to C:\ProgramData/Krate Audio/Gradus
+  controller.cpp
+  controller_adsr.cpp
+  controller_state.cpp
+  controller_view_sync.cpp
+  entry.cpp
+  processor.cpp
+  processor_messages.cpp
+  processor_midi.cpp
+  processor_params.cpp
+  processor_state.cpp
+     Creating library F:/projects/iterum/build/windows-x64-release/lib/Release/Innexus.lib and object F:/projects/iterum/build/windows-x64-release/lib/Release/Innexus.exp
+  Innexus.vcxproj -> F:\projects\iterum\build\windows-x64-release\VST3\Release\Innexus.vst3\Contents\x86_64-win\Innexus.vst3
+  [SMTG] Copy PlugIn.ico and desktop.ini and change their attributes.		Installing Innexus.vst3 to system VST3 folder	Installing Innexus factory presets to system directory
+  [VSTWORK] Copying plugin to C:\Users\scab\AppData\Local/Programs/Common/VST3...
+  [VSTWORK] Plugin installed to C:\Users\scab\AppData\Local/Programs/Common/VST3/Innexus.vst3
+  [VSTWORK] Installing Innexus factory presets...
+  [VSTWORK] Factory presets installed to C:\ProgramData/Krate Audio/Innexus
+  controller.cpp
+  entry.cpp
+  processor.cpp
+     Creating library F:/projects/iterum/build/windows-x64-release/lib/Release/Iterum.lib and object F:/projects/iterum/build/windows-x64-release/lib/Release/Iterum.exp
+  Iterum.vcxproj -> F:\projects\iterum\build\windows-x64-release\VST3\Release\Iterum.vst3\Contents\x86_64-win\Iterum.vst3
+  [SMTG] Copy PlugIn.ico and desktop.ini and change their attributes.		Installing Iterum.vst3 to system VST3 folder	Installing Iterum factory presets to system directory
+  [VSTWORK] Copying plugin to C:\Users\scab\AppData\Local/Programs/Common/VST3...
+  [VSTWORK] Plugin installed to C:\Users\scab\AppData\Local/Programs/Common/VST3/Iterum.vst3
+  [VSTWORK] Installing Iterum factory presets...
+  [VSTWORK] Factory presets installed to C:\ProgramData/Krate Audio/Iterum
+  membrum_float_guard.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\membrum_float_guard.lib
+  membrum_preset_io.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\membrum_preset_io.lib
+  processor.cpp
+  voice_pool.cpp
+  membrum_core.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\membrum_core.lib
+  entry.cpp
+     Creating library F:/projects/iterum/build/windows-x64-release/lib/Release/Membrum.lib and object F:/projects/iterum/build/windows-x64-release/lib/Release/Membrum.exp
+  Membrum.vcxproj -> F:\projects\iterum\build\windows-x64-release\VST3\Release\Membrum.vst3\Contents\x86_64-win\Membrum.vst3
+  [SMTG] Copy PlugIn.ico and desktop.ini and change their attributes.		Installing Membrum.vst3 to system VST3 folder	Installing Membrum factory presets to system directory
+  [VSTWORK] Copying plugin to C:\Users\scab\AppData\Local/Programs/Common/VST3...
+  [VSTWORK] Plugin installed to C:\Users\scab\AppData\Local/Programs/Common/VST3/Membrum.vst3
+  [VSTWORK] Installing Membrum factory presets...
+  [VSTWORK] Factory presets installed to C:\ProgramData/Krate Audio/Membrum/Kits
+  controller.cpp
+  controller_adsr.cpp
+  controller_arp.cpp
+  controller_mod_matrix.cpp
+  controller_param_display.cpp
+  controller_presets.cpp
+  controller_settings.cpp
+  controller_verify_view.cpp
+  controller_view_sync.cpp
+  entry.cpp
+  processor.cpp
+  processor_messaging.cpp
+  processor_midi.cpp
+  processor_params.cpp
+  processor_state.cpp
+     Creating library F:/projects/iterum/build/windows-x64-release/lib/Release/Ruinae.lib and object F:/projects/iterum/build/windows-x64-release/lib/Release/Ruinae.exp
+  Ruinae.vcxproj -> F:\projects\iterum\build\windows-x64-release\VST3\Release\Ruinae.vst3\Contents\x86_64-win\Ruinae.vst3
+  [SMTG] Copy PlugIn.ico and desktop.ini and change their attributes.		Installing Ruinae.vst3 to system VST3 folder	Installing Ruinae factory presets to system directory
+  [VSTWORK] Copying plugin to C:\Users\scab\AppData\Local/Programs/Common/VST3...
+  [VSTWORK] Plugin installed to C:\Users\scab\AppData\Local/Programs/Common/VST3/Ruinae.vst3
+  [VSTWORK] Installing Ruinae factory presets...
+  [VSTWORK] Factory presets installed to C:\ProgramData/Krate Audio/Ruinae
+  Generating ../../VST3/Release/Seraphis.vst3/Contents/Resources/editor.uidesc
+  [SMTG] Copied F:/projects/iterum/plugins/seraphis/resources/editor.uidesc to F:/projects/iterum/build/windows-x64-release/VST3/Release/Seraphis.vst3/Contents/Resources/editor.uidesc
+  entry.cpp
+  processor.cpp
+     Creating library F:/projects/iterum/build/windows-x64-release/lib/Release/Seraphis.lib and object F:/projects/iterum/build/windows-x64-release/lib/Release/Seraphis.exp
+  Seraphis.vcxproj -> F:\projects\iterum\build\windows-x64-release\VST3\Release\Seraphis.vst3\Contents\x86_64-win\Seraphis.vst3
+  [SMTG] Copy PlugIn.ico and desktop.ini and change their attributes.		Installing Seraphis.vst3 to system VST3 folder	Installing Seraphis factory presets to system directory
+  [VSTWORK] Copying plugin to C:\Users\scab\AppData\Local/Programs/Common/VST3...
+  [VSTWORK] Plugin installed to C:\Users\scab\AppData\Local/Programs/Common/VST3/Seraphis.vst3
+  [VSTWORK] Installing Seraphis factory presets...
+  Error copying directory from "F:/projects/iterum/plugins/seraphis/resources/presets" to "C:\ProgramData/Krate Audio/Seraphis".
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: The command "setlocal [F:\projects\iterum\build\windows-x64-release\plugins\seraphis\Seraphis.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: "C:\Program Files\CMake\bin\cmake.exe" -E copy F:/projects/iterum/extern/vst3sdk/cmake/modules/../templates/VST_Logo_Steinberg.ico F:/projects/iterum/build/windows-x64-release/VST3/Release/Seraphis.vst3/PlugIn.ico [F:\projects\iterum\build\windows-x64-release\plugins\seraphis\Seraphis.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: if %errorlevel% neq 0 goto :cmEnd [F:\projects\iterum\build\windows-x64-release\plugins\seraphis\Seraphis.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: "C:\Program Files\CMake\bin\cmake.exe" -E copy F:/projects/iterum/extern/vst3sdk/cmake/modules/../templates/desktop.ini.in F:/projects/iterum/build/windows-x64-release/VST3/Release/Seraphis.vst3/desktop.ini [F:\projects\iterum\build\windows-x64-release\plugins\seraphis\Seraphis.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: if %errorlevel% neq 0 goto :cmEnd [F:\projects\iterum\build\windows-x64-release\plugins\seraphis\Seraphis.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: attrib +s F:/projects/iterum/build/windows-x64-release/VST3/Release/Seraphis.vst3/desktop.ini [F:\projects\iterum\build\windows-x64-release\plugins\seraphis\Seraphis.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: if %errorlevel% neq 0 goto :cmEnd [F:\projects\iterum\build\windows-x64-release\plugins\seraphis\Seraphis.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: attrib +s F:/projects/iterum/build/windows-x64-release/VST3/Release/Seraphis.vst3/PlugIn.ico [F:\projects\iterum\build\windows-x64-release\plugins\seraphis\Seraphis.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: if %errorlevel% neq 0 goto :cmEnd [F:\projects\iterum\build\windows-x64-release\plugins\seraphis\Seraphis.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: attrib +s F:/projects/iterum/build/windows-x64-release/VST3/Release/Seraphis.vst3 [F:\projects\iterum\build\windows-x64-release\plugins\seraphis\Seraphis.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: if %errorlevel% neq 0 goto :cmEnd [F:\projects\iterum\build\windows-x64-release\plugins\seraphis\Seraphis.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: :cmEnd [F:\projects\iterum\build\windows-x64-release\plugins\seraphis\Seraphis.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone [F:\projects\iterum\build\windows-x64-release\plugins\seraphis\Seraphis.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: :cmErrorLevel [F:\projects\iterum\build\windows-x64-release\plugins\seraphis\Seraphis.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: exit /b %1 [F:\projects\iterum\build\windows-x64-release\plugins\seraphis\Seraphis.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: :cmDone [F:\projects\iterum\build\windows-x64-release\plugins\seraphis\Seraphis.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: if %errorlevel% neq 0 goto :VCEnd [F:\projects\iterum\build\windows-x64-release\plugins\seraphis\Seraphis.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: setlocal [F:\projects\iterum\build\windows-x64-release\plugins\seraphis\Seraphis.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: cd F:\projects\iterum\build\windows-x64-release\bin [F:\projects\iterum\build\windows-x64-release\plugins\seraphis\Seraphis.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: if %errorlevel% neq 0 goto :cmEnd [F:\projects\iterum\build\windows-x64-release\plugins\seraphis\Seraphis.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: F: [F:\projects\iterum\build\windows-x64-release\plugins\seraphis\Seraphis.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: if %errorlevel% neq 0 goto :cmEnd [F:\projects\iterum\build\windows-x64-release\plugins\seraphis\Seraphis.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: F:\projects\iterum\build\windows-x64-release\bin\Release\moduleinfotool.exe -create -version 0.8.0 -path F:/projects/iterum/build/windows-x64-release/VST3/Release/Seraphis.vst3 -output F:/projects/iterum/build/windows-x64-release/VST3/Release/Seraphis.vst3/Contents/Resources/moduleinfo.json [F:\projects\iterum\build\windows-x64-release\plugins\seraphis\Seraphis.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: if %errorlevel% neq 0 goto :cmEnd [F:\projects\iterum\build\windows-x64-release\plugins\seraphis\Seraphis.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: :cmEnd [F:\projects\iterum\build\windows-x64-release\plugins\seraphis\Seraphis.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone [F:\projects\iterum\build\windows-x64-release\plugins\seraphis\Seraphis.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: :cmErrorLevel [F:\projects\iterum\build\windows-x64-release\plugins\seraphis\Seraphis.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: exit /b %1 [F:\projects\iterum\build\windows-x64-release\plugins\seraphis\Seraphis.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: :cmDone [F:\projects\iterum\build\windows-x64-release\plugins\seraphis\Seraphis.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: if %errorlevel% neq 0 goto :VCEnd [F:\projects\iterum\build\windows-x64-release\plugins\seraphis\Seraphis.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: setlocal [F:\projects\iterum\build\windows-x64-release\plugins\seraphis\Seraphis.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: "C:\Program Files\CMake\bin\cmake.exe" -E echo "[VSTWORK] Copying plugin to C:\Users\scab\AppData\Local/Programs/Common/VST3..." [F:\projects\iterum\build\windows-x64-release\plugins\seraphis\Seraphis.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: if %errorlevel% neq 0 goto :cmEnd [F:\projects\iterum\build\windows-x64-release\plugins\seraphis\Seraphis.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: "C:\Program Files\CMake\bin\cmake.exe" -E rm -rf C:\Users\scab\AppData\Local/Programs/Common/VST3/Seraphis.vst3 [F:\projects\iterum\build\windows-x64-release\plugins\seraphis\Seraphis.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: if %errorlevel% neq 0 goto :cmEnd [F:\projects\iterum\build\windows-x64-release\plugins\seraphis\Seraphis.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: "C:\Program Files\CMake\bin\cmake.exe" -E copy_directory F:/projects/iterum/build/windows-x64-release/VST3/Release/Seraphis.vst3 C:\Users\scab\AppData\Local/Programs/Common/VST3/Seraphis.vst3 [F:\projects\iterum\build\windows-x64-release\plugins\seraphis\Seraphis.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: if %errorlevel% neq 0 goto :cmEnd [F:\projects\iterum\build\windows-x64-release\plugins\seraphis\Seraphis.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: "C:\Program Files\CMake\bin\cmake.exe" -E echo "[VSTWORK] Plugin installed to C:\Users\scab\AppData\Local/Programs/Common/VST3/Seraphis.vst3" [F:\projects\iterum\build\windows-x64-release\plugins\seraphis\Seraphis.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: if %errorlevel% neq 0 goto :cmEnd [F:\projects\iterum\build\windows-x64-release\plugins\seraphis\Seraphis.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: :cmEnd [F:\projects\iterum\build\windows-x64-release\plugins\seraphis\Seraphis.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone [F:\projects\iterum\build\windows-x64-release\plugins\seraphis\Seraphis.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: :cmErrorLevel [F:\projects\iterum\build\windows-x64-release\plugins\seraphis\Seraphis.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: exit /b %1 [F:\projects\iterum\build\windows-x64-release\plugins\seraphis\Seraphis.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: :cmDone [F:\projects\iterum\build\windows-x64-release\plugins\seraphis\Seraphis.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: if %errorlevel% neq 0 goto :VCEnd [F:\projects\iterum\build\windows-x64-release\plugins\seraphis\Seraphis.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: setlocal [F:\projects\iterum\build\windows-x64-release\plugins\seraphis\Seraphis.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: "C:\Program Files\CMake\bin\cmake.exe" -E echo "[VSTWORK] Installing Seraphis factory presets..." [F:\projects\iterum\build\windows-x64-release\plugins\seraphis\Seraphis.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: if %errorlevel% neq 0 goto :cmEnd [F:\projects\iterum\build\windows-x64-release\plugins\seraphis\Seraphis.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: "C:\Program Files\CMake\bin\cmake.exe" -E copy_directory F:/projects/iterum/plugins/seraphis/resources/presets "C:\ProgramData/Krate Audio/Seraphis" [F:\projects\iterum\build\windows-x64-release\plugins\seraphis\Seraphis.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: if %errorlevel% neq 0 goto :cmEnd [F:\projects\iterum\build\windows-x64-release\plugins\seraphis\Seraphis.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: "C:\Program Files\CMake\bin\cmake.exe" -E echo "[VSTWORK] Factory presets installed to C:\ProgramData/Krate Audio/Seraphis" [F:\projects\iterum\build\windows-x64-release\plugins\seraphis\Seraphis.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: if %errorlevel% neq 0 goto :cmEnd [F:\projects\iterum\build\windows-x64-release\plugins\seraphis\Seraphis.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: :cmEnd [F:\projects\iterum\build\windows-x64-release\plugins\seraphis\Seraphis.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone [F:\projects\iterum\build\windows-x64-release\plugins\seraphis\Seraphis.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: :cmErrorLevel [F:\projects\iterum\build\windows-x64-release\plugins\seraphis\Seraphis.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: exit /b %1 [F:\projects\iterum\build\windows-x64-release\plugins\seraphis\Seraphis.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: :cmDone [F:\projects\iterum\build\windows-x64-release\plugins\seraphis\Seraphis.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: if %errorlevel% neq 0 goto :VCEnd [F:\projects\iterum\build\windows-x64-release\plugins\seraphis\Seraphis.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(166,5): error MSB3073: :VCEnd" exited with code 1. [F:\projects\iterum\build\windows-x64-release\plugins\seraphis\Seraphis.vcxproj]
+  controller.cpp
+  entry.cpp
+  processor.cpp
+     Creating library F:/projects/iterum/build/windows-x64-release/lib/Release/Vorago.lib and object F:/projects/iterum/build/windows-x64-release/lib/Release/Vorago.exp
+  Vorago.vcxproj -> F:\projects\iterum\build\windows-x64-release\VST3\Release\Vorago.vst3\Contents\x86_64-win\Vorago.vst3
+  [SMTG] Copy PlugIn.ico and desktop.ini and change their attributes.		Installing Vorago.vst3 to system VST3 folder	Installing Vorago factory presets to system directory
+  [VSTWORK] Copying plugin to C:\Users\scab\AppData\Local/Programs/Common/VST3...
+  [VSTWORK] Plugin installed to C:\Users\scab\AppData\Local/Programs/Common/VST3/Vorago.vst3
+  [VSTWORK] Installing Vorago factory presets...
+  [VSTWORK] Factory presets installed to C:\ProgramData/Krate Audio/Vorago

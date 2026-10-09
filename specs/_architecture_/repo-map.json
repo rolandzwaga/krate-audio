@@ -63,6 +63,14 @@
         "seraphis_tests"
       ],
       "pluginval_bundle": "build/windows-x64-release/VST3/Release/Seraphis.vst3"
+    },
+    {
+      "dir": "plugins/vorago",
+      "name": "Vorago",
+      "test_targets": [
+        "vorago_tests"
+      ],
+      "pluginval_bundle": "build/windows-x64-release/VST3/Release/Vorago.vst3"
     }
   ],
   "dsp_layers": {
@@ -79,17 +87,17 @@
     "processors": {
       "index": 2,
       "folder": "dsp/include/krate/dsp/processors",
-      "header_count": 105
+      "header_count": 108
     },
     "systems": {
       "index": 3,
       "folder": "dsp/include/krate/dsp/systems",
-      "header_count": 41
+      "header_count": 50
     },
     "effects": {
       "index": 4,
       "folder": "dsp/include/krate/dsp/effects",
-      "header_count": 15
+      "header_count": 16
     }
   },
   "dependencies": [

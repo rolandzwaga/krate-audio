@@ -1,0 +1,14 @@
+START 2026-10-08 16:05:08 final_v36_weighted_deep tree=c351fe0f+final (build_final.log) preset="Weighted Deep" env: VORAGO_PILOT_SECONDARY=1
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 2823896346
+[probe] lever: none
+[probe] Weighted Deep - primary M8 Weight (stored seed 7, 1 twin render(s))
+  take: peak 0.8488  arm1 hi -11.41 dB [yes]  arm2 lo -14.33 dB [yes]  arm3 late-sus -0.05 dB [yes]  arm4 tail -193.49 dB [yes]
+  arm1@44.1k: finite y peak 0.8592 hi -11.06 dB [PASS]
+  primary d 4.6637  bar 4.0000  attribBase -1.0000  state ok  -> PASS  loopsAlive -  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  secondary D7.2 loudest sub f/4: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+===============================================================================
+All tests passed (10 assertions in 1 test case)
+
+exit=0 END 2026-10-08 16:49:49

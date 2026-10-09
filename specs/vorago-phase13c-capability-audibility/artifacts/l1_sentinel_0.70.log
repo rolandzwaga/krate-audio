@@ -1,0 +1,1558 @@
+START 2026-10-01 21:48:46 sentinel VoragoVoice_BloomChildrenAudible -s at compiled kBloomChildGain 0.70 (exe 2026-10-01 21:48:44)
+Filters: "VoragoVoice_BloomChildrenAudible"
+Randomness seeded to: 3261139706
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+VoragoVoice_BloomChildrenAudible
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4309)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4324): PASSED:
+  REQUIRE( on->getBloomDepth() > 0.0f )
+with expansion:
+  0.6f > 0.0f
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4325): PASSED:
+  REQUIRE( bOn.getChildGain() == VoragoVoice::kBloomChildGain )
+with expansion:
+  0.7f == 0.7f
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4367): PASSED:
+  REQUIRE( on->getRichness() == r )
+with expansion:
+  0.0f == 0.0f
+with message:
+  richness 0, N_user 1, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4368): PASSED:
+  REQUIRE( off->getRichness() == r )
+with expansion:
+  0.0f == 0.0f
+with message:
+  richness 0, N_user 1, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4383): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(childAmp) )
+with expansion:
+  true
+with message:
+  richness 0, N_user 1, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4390): PASSED:
+  REQUIRE( slot < active )
+with expansion:
+  8 < 14
+with messages:
+  richness 0, N_user 1, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+  child 0: slot 8, parent 0, childAmp 0.639942, active 14
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4392): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(cloudAmp) )
+with expansion:
+  true
+with messages:
+  richness 0, N_user 1, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+  child 0: slot 8, parent 0, childAmp 0.639942, active 14
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4394): PASSED:
+  REQUIRE( cloudAmp > BloomEngine::kSilentParentAmplitude )
+with expansion:
+  0.1045f > 0.00001f
+with messages:
+  richness 0, N_user 1, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+  child 0: slot 8, parent 0, childAmp 0.639942, active 14
+  cloud amplitude at slot 8: 0.104505
+
+  [bloom audible] richness 0.00: N_user 1, active 14, children passing the filter 1
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4401): PASSED:
+  REQUIRE( passingFilterCount >= 1u )
+with expansion:
+  1 >= 1
+with message:
+  richness 0, N_user 1, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4406): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOn0) )
+with expansion:
+  true
+with message:
+  richness 0, N_user 1, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4407): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOff0) )
+with expansion:
+  true
+with message:
+  richness 0, N_user 1, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4408): PASSED:
+  REQUIRE( aOn0 > BloomEngine::kSilentParentAmplitude )
+with expansion:
+  0.69903f > 0.00001f
+with message:
+  richness 0, N_user 1, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4409): PASSED:
+  REQUIRE( aOff0 > BloomEngine::kSilentParentAmplitude )
+with expansion:
+  0.7071f > 0.00001f
+with message:
+  richness 0, N_user 1, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4415): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOn) )
+with expansion:
+  true
+with message:
+  richness 0, N_user 1, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4416): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOff) )
+with expansion:
+  true
+with message:
+  richness 0, N_user 1, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4417): PASSED:
+  REQUIRE( aOn > 0.0f )
+with expansion:
+  0.69903f > 0.0f
+with message:
+  richness 0, N_user 1, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4418): PASSED:
+  REQUIRE( aOff > 0.0f )
+with expansion:
+  0.7071f > 0.0f
+with message:
+  richness 0, N_user 1, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+    [bloom audible] richness 0.00 slot 0 (latched parent): on 0.699033 off 0.707099, drop -0.100 dB at kBloomChildGain 0.700
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4367): PASSED:
+  REQUIRE( on->getRichness() == r )
+with expansion:
+  0.35f == 0.35f
+with message:
+  richness 0.35, N_user 4, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4368): PASSED:
+  REQUIRE( off->getRichness() == r )
+with expansion:
+  0.35f == 0.35f
+with message:
+  richness 0.35, N_user 4, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4383): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(childAmp) )
+with expansion:
+  true
+with message:
+  richness 0.35, N_user 4, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4390): PASSED:
+  REQUIRE( slot < active )
+with expansion:
+  9 < 14
+with messages:
+  richness 0.35, N_user 4, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+  child 1: slot 9, parent 0, childAmp 0.686343, active 14
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4392): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(cloudAmp) )
+with expansion:
+  true
+with messages:
+  richness 0.35, N_user 4, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+  child 1: slot 9, parent 0, childAmp 0.686343, active 14
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4394): PASSED:
+  REQUIRE( cloudAmp > BloomEngine::kSilentParentAmplitude )
+with expansion:
+  0.10332f > 0.00001f
+with messages:
+  richness 0.35, N_user 4, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+  child 1: slot 9, parent 0, childAmp 0.686343, active 14
+  cloud amplitude at slot 9: 0.10332
+
+  [bloom audible] richness 0.35: N_user 4, active 14, children passing the filter 1
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4401): PASSED:
+  REQUIRE( passingFilterCount >= 1u )
+with expansion:
+  1 >= 1
+with message:
+  richness 0.35, N_user 4, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4406): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOn0) )
+with expansion:
+  true
+with message:
+  richness 0.35, N_user 4, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4407): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOff0) )
+with expansion:
+  true
+with message:
+  richness 0.35, N_user 4, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4408): PASSED:
+  REQUIRE( aOn0 > BloomEngine::kSilentParentAmplitude )
+with expansion:
+  0.69113f > 0.00001f
+with message:
+  richness 0.35, N_user 4, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4409): PASSED:
+  REQUIRE( aOff0 > BloomEngine::kSilentParentAmplitude )
+with expansion:
+  0.69893f > 0.00001f
+with message:
+  richness 0.35, N_user 4, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4415): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOn) )
+with expansion:
+  true
+with message:
+  richness 0.35, N_user 4, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4416): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOff) )
+with expansion:
+  true
+with message:
+  richness 0.35, N_user 4, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4417): PASSED:
+  REQUIRE( aOn > 0.0f )
+with expansion:
+  0.69113f > 0.0f
+with message:
+  richness 0.35, N_user 4, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4418): PASSED:
+  REQUIRE( aOff > 0.0f )
+with expansion:
+  0.69893f > 0.0f
+with message:
+  richness 0.35, N_user 4, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+    [bloom audible] richness 0.35 slot 0 (latched parent): on 0.691128 off 0.698927, drop -0.097 dB at kBloomChildGain 0.700
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4415): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOn) )
+with expansion:
+  true
+with message:
+  richness 0.35, N_user 4, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4416): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOff) )
+with expansion:
+  true
+with message:
+  richness 0.35, N_user 4, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4417): PASSED:
+  REQUIRE( aOn > 0.0f )
+with expansion:
+  0.09997f > 0.0f
+with message:
+  richness 0.35, N_user 4, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4418): PASSED:
+  REQUIRE( aOff > 0.0f )
+with expansion:
+  0.1011f > 0.0f
+with message:
+  richness 0.35, N_user 4, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+    [bloom audible] richness 0.35 slot 1: on 0.0999679 off 0.101096, drop -0.097 dB at kBloomChildGain 0.700
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4437): PASSED:
+  REQUIRE( std::abs(devDb) <= kToleranceDb )
+with expansion:
+  0.0000064295 <= 0.5
+with messages:
+  richness 0.35, N_user 4, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+  slot 1: on 0.0999679 (ratio 0.144645), off 0.101096 (ratio 0.144644),
+  deviation 6.42951e-06 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4415): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOn) )
+with expansion:
+  true
+with message:
+  richness 0.35, N_user 4, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4416): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOff) )
+with expansion:
+  true
+with message:
+  richness 0.35, N_user 4, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4417): PASSED:
+  REQUIRE( aOn > 0.0f )
+with expansion:
+  0.03226f > 0.0f
+with message:
+  richness 0.35, N_user 4, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4418): PASSED:
+  REQUIRE( aOff > 0.0f )
+with expansion:
+  0.03262f > 0.0f
+with message:
+  richness 0.35, N_user 4, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+    [bloom audible] richness 0.35 slot 2: on 0.0322594 off 0.0326235, drop -0.097 dB at kBloomChildGain 0.700
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4437): PASSED:
+  REQUIRE( std::abs(devDb) <= kToleranceDb )
+with expansion:
+  0.0000109221 <= 0.5
+with messages:
+  richness 0.35, N_user 4, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+  slot 2: on 0.0322594 (ratio 0.0466765), off 0.0326235 (ratio 0.0466766),
+  deviation -1.09221e-05 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4415): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOn) )
+with expansion:
+  true
+with message:
+  richness 0.35, N_user 4, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4416): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOff) )
+with expansion:
+  true
+with message:
+  richness 0.35, N_user 4, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4417): PASSED:
+  REQUIRE( aOn > 0.0f )
+with expansion:
+  0.01446f > 0.0f
+with message:
+  richness 0.35, N_user 4, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4418): PASSED:
+  REQUIRE( aOff > 0.0f )
+with expansion:
+  0.01462f > 0.0f
+with message:
+  richness 0.35, N_user 4, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+    [bloom audible] richness 0.35 slot 3: on 0.0144586 off 0.0146217, drop -0.097 dB at kBloomChildGain 0.700
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4437): PASSED:
+  REQUIRE( std::abs(devDb) <= kToleranceDb )
+with expansion:
+  0.0000104858 <= 0.5
+with messages:
+  richness 0.35, N_user 4, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+  slot 3: on 0.0144586 (ratio 0.0209203), off 0.0146217 (ratio 0.0209203),
+  deviation 1.04858e-05 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4367): PASSED:
+  REQUIRE( on->getRichness() == r )
+with expansion:
+  0.4f == 0.4f
+with message:
+  richness 0.4, N_user 5, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4368): PASSED:
+  REQUIRE( off->getRichness() == r )
+with expansion:
+  0.4f == 0.4f
+with message:
+  richness 0.4, N_user 5, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4383): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(childAmp) )
+with expansion:
+  true
+with message:
+  richness 0.4, N_user 5, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4390): PASSED:
+  REQUIRE( slot < active )
+with expansion:
+  10 < 14
+with messages:
+  richness 0.4, N_user 5, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+  child 0: slot 10, parent 2, childAmp 0.0812455, active 14
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4392): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(cloudAmp) )
+with expansion:
+  true
+with messages:
+  richness 0.4, N_user 5, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+  child 0: slot 10, parent 2, childAmp 0.0812455, active 14
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4394): PASSED:
+  REQUIRE( cloudAmp > BloomEngine::kSilentParentAmplitude )
+with expansion:
+  0.01158f > 0.00001f
+with messages:
+  richness 0.4, N_user 5, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+  child 0: slot 10, parent 2, childAmp 0.0812455, active 14
+  cloud amplitude at slot 10: 0.0115773
+
+  [bloom audible] richness 0.40: N_user 5, active 14, children passing the filter 1
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4401): PASSED:
+  REQUIRE( passingFilterCount >= 1u )
+with expansion:
+  1 >= 1
+with message:
+  richness 0.4, N_user 5, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4406): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOn0) )
+with expansion:
+  true
+with message:
+  richness 0.4, N_user 5, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4407): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOff0) )
+with expansion:
+  true
+with message:
+  richness 0.4, N_user 5, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4408): PASSED:
+  REQUIRE( aOn0 > BloomEngine::kSilentParentAmplitude )
+with expansion:
+  0.69707f > 0.00001f
+with message:
+  richness 0.4, N_user 5, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4409): PASSED:
+  REQUIRE( aOff0 > BloomEngine::kSilentParentAmplitude )
+with expansion:
+  0.69722f > 0.00001f
+with message:
+  richness 0.4, N_user 5, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4415): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOn) )
+with expansion:
+  true
+with message:
+  richness 0.4, N_user 5, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4416): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOff) )
+with expansion:
+  true
+with message:
+  richness 0.4, N_user 5, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4417): PASSED:
+  REQUIRE( aOn > 0.0f )
+with expansion:
+  0.69707f > 0.0f
+with message:
+  richness 0.4, N_user 5, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4418): PASSED:
+  REQUIRE( aOff > 0.0f )
+with expansion:
+  0.69722f > 0.0f
+with message:
+  richness 0.4, N_user 5, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+    [bloom audible] richness 0.40 slot 0: on 0.69707 off 0.69722, drop -0.002 dB at kBloomChildGain 0.700
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4437): PASSED:
+  REQUIRE( std::abs(devDb) <= kToleranceDb )
+with expansion:
+  0.0 <= 0.5
+with messages:
+  richness 0.4, N_user 5, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+  slot 0: on 0.69707 (ratio 1), off 0.69722 (ratio 1), deviation 0 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4415): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOn) )
+with expansion:
+  true
+with message:
+  richness 0.4, N_user 5, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4416): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOff) )
+with expansion:
+  true
+with message:
+  richness 0.4, N_user 5, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4417): PASSED:
+  REQUIRE( aOn > 0.0f )
+with expansion:
+  0.10995f > 0.0f
+with message:
+  richness 0.4, N_user 5, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4418): PASSED:
+  REQUIRE( aOff > 0.0f )
+with expansion:
+  0.10998f > 0.0f
+with message:
+  richness 0.4, N_user 5, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+    [bloom audible] richness 0.40 slot 1: on 0.109953 off 0.109977, drop -0.002 dB at kBloomChildGain 0.700
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4437): PASSED:
+  REQUIRE( std::abs(devDb) <= kToleranceDb )
+with expansion:
+  0.0000148136 <= 0.5
+with messages:
+  richness 0.4, N_user 5, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+  slot 1: on 0.109953 (ratio 0.157736), off 0.109977 (ratio 0.157736),
+  deviation 1.48136e-05 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4415): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOn) )
+with expansion:
+  true
+with message:
+  richness 0.4, N_user 5, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4416): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOff) )
+with expansion:
+  true
+with message:
+  richness 0.4, N_user 5, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4417): PASSED:
+  REQUIRE( aOn > 0.0f )
+with expansion:
+  0.03733f > 0.0f
+with message:
+  richness 0.4, N_user 5, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4418): PASSED:
+  REQUIRE( aOff > 0.0f )
+with expansion:
+  0.03733f > 0.0f
+with message:
+  richness 0.4, N_user 5, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+    [bloom audible] richness 0.40 slot 2 (latched parent): on 0.0373263 off 0.037334, drop -0.002 dB at kBloomChildGain 0.700
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4415): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOn) )
+with expansion:
+  true
+with message:
+  richness 0.4, N_user 5, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4416): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOff) )
+with expansion:
+  true
+with message:
+  richness 0.4, N_user 5, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4417): PASSED:
+  REQUIRE( aOn > 0.0f )
+with expansion:
+  0.01734f > 0.0f
+with message:
+  richness 0.4, N_user 5, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4418): PASSED:
+  REQUIRE( aOff > 0.0f )
+with expansion:
+  0.01735f > 0.0f
+with message:
+  richness 0.4, N_user 5, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+    [bloom audible] richness 0.40 slot 3: on 0.0173421 off 0.0173457, drop -0.002 dB at kBloomChildGain 0.700
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4437): PASSED:
+  REQUIRE( std::abs(devDb) <= kToleranceDb )
+with expansion:
+  0.0000716495 <= 0.5
+with messages:
+  richness 0.4, N_user 5, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+  slot 3: on 0.0173421 (ratio 0.0248785), off 0.0173457 (ratio 0.0248783),
+  deviation 7.16495e-05 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4415): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOn) )
+with expansion:
+  true
+with message:
+  richness 0.4, N_user 5, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4416): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOff) )
+with expansion:
+  true
+with message:
+  richness 0.4, N_user 5, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4417): PASSED:
+  REQUIRE( aOn > 0.0f )
+with expansion:
+  0.00957f > 0.0f
+with message:
+  richness 0.4, N_user 5, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4418): PASSED:
+  REQUIRE( aOff > 0.0f )
+with expansion:
+  0.00957f > 0.0f
+with message:
+  richness 0.4, N_user 5, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+
+    [bloom audible] richness 0.40 slot 4: on 0.00956871 off 0.00957069, drop -0.002 dB at kBloomChildGain 0.700
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4437): PASSED:
+  REQUIRE( std::abs(devDb) <= kToleranceDb )
+with expansion:
+  0.0000703752 <= 0.5
+with messages:
+  richness 0.4, N_user 5, on active 14, off active 14, on live 1, off live 0,
+  reserveBase 8
+  slot 4: on 0.00956871 (ratio 0.013727), off 0.00957069 (ratio 0.0137269),
+  deviation 7.03752e-05 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4367): PASSED:
+  REQUIRE( on->getRichness() == r )
+with expansion:
+  0.7f == 0.7f
+with message:
+  richness 0.7, N_user 18, on active 18, off active 18, on live 1, off live 0,
+  reserveBase 12
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4368): PASSED:
+  REQUIRE( off->getRichness() == r )
+with expansion:
+  0.7f == 0.7f
+with message:
+  richness 0.7, N_user 18, on active 18, off active 18, on live 1, off live 0,
+  reserveBase 12
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4383): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(childAmp) )
+with expansion:
+  true
+with message:
+  richness 0.7, N_user 18, on active 18, off active 18, on live 1, off live 0,
+  reserveBase 12
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4390): PASSED:
+  REQUIRE( slot < active )
+with expansion:
+  12 < 18
+with messages:
+  richness 0.7, N_user 18, on active 18, off active 18, on live 1, off live 0,
+  reserveBase 12
+  child 1: slot 12, parent 1, childAmp 0.343523, active 18
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4392): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(cloudAmp) )
+with expansion:
+  true
+with messages:
+  richness 0.7, N_user 18, on active 18, off active 18, on live 1, off live 0,
+  reserveBase 12
+  child 1: slot 12, parent 1, childAmp 0.343523, active 18
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4394): PASSED:
+  REQUIRE( cloudAmp > BloomEngine::kSilentParentAmplitude )
+with expansion:
+  0.04239f > 0.00001f
+with messages:
+  richness 0.7, N_user 18, on active 18, off active 18, on live 1, off live 0,
+  reserveBase 12
+  child 1: slot 12, parent 1, childAmp 0.343523, active 18
+  cloud amplitude at slot 12: 0.0423887
+
+  [bloom audible] richness 0.70: N_user 18, active 18, children passing the filter 1
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4401): PASSED:
+  REQUIRE( passingFilterCount >= 1u )
+with expansion:
+  1 >= 1
+with message:
+  richness 0.7, N_user 18, on active 18, off active 18, on live 1, off live 0,
+  reserveBase 12
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4406): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOn0) )
+with expansion:
+  true
+with message:
+  richness 0.7, N_user 18, on active 18, off active 18, on live 1, off live 0,
+  reserveBase 12
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4407): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOff0) )
+with expansion:
+  true
+with message:
+  richness 0.7, N_user 18, on active 18, off active 18, on live 1, off live 0,
+  reserveBase 12
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4408): PASSED:
+  REQUIRE( aOn0 > BloomEngine::kSilentParentAmplitude )
+with expansion:
+  0.6745f > 0.00001f
+with message:
+  richness 0.7, N_user 18, on active 18, off active 18, on live 1, off live 0,
+  reserveBase 12
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4409): PASSED:
+  REQUIRE( aOff0 > BloomEngine::kSilentParentAmplitude )
+with expansion:
+  0.67572f > 0.00001f
+with message:
+  richness 0.7, N_user 18, on active 18, off active 18, on live 1, off live 0,
+  reserveBase 12
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4415): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOn) )
+with expansion:
+  true
+with message:
+  richness 0.7, N_user 18, on active 18, off active 18, on live 1, off live 0,
+  reserveBase 12
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4416): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOff) )
+with expansion:
+  true
+with message:
+  richness 0.7, N_user 18, on active 18, off active 18, on live 1, off live 0,
+  reserveBase 12
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4417): PASSED:
+  REQUIRE( aOn > 0.0f )
+with expansion:
+  0.6745f > 0.0f
+with message:
+  richness 0.7, N_user 18, on active 18, off active 18, on live 1, off live 0,
+  reserveBase 12
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4418): PASSED:
+  REQUIRE( aOff > 0.0f )
+with expansion:
+  0.67572f > 0.0f
+with message:
+  richness 0.7, N_user 18, on active 18, off active 18, on live 1, off live 0,
+  reserveBase 12
+
+    [bloom audible] richness 0.70 slot 0: on 0.674503 off 0.675721, drop -0.016 dB at kBloomChildGain 0.700
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4437): PASSED:
+  REQUIRE( std::abs(devDb) <= kToleranceDb )
+with expansion:
+  0.0 <= 0.5
+with messages:
+  richness 0.7, N_user 18, on active 18, off active 18, on live 1, off live 0,
+  reserveBase 12
+  slot 0: on 0.674503 (ratio 1), off 0.675721 (ratio 1), deviation 0 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4415): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOn) )
+with expansion:
+  true
+with message:
+  richness 0.7, N_user 18, on active 18, off active 18, on live 1, off live 0,
+  reserveBase 12
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4416): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOff) )
+with expansion:
+  true
+with message:
+  richness 0.7, N_user 18, on active 18, off active 18, on live 1, off live 0,
+  reserveBase 12
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4417): PASSED:
+  REQUIRE( aOn > 0.0f )
+with expansion:
+  0.17893f > 0.0f
+with message:
+  richness 0.7, N_user 18, on active 18, off active 18, on live 1, off live 0,
+  reserveBase 12
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4418): PASSED:
+  REQUIRE( aOff > 0.0f )
+with expansion:
+  0.17925f > 0.0f
+with message:
+  richness 0.7, N_user 18, on active 18, off active 18, on live 1, off live 0,
+  reserveBase 12
+
+    [bloom audible] richness 0.70 slot 1 (latched parent): on 0.178932 off 0.179255, drop -0.016 dB at kBloomChildGain 0.700
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4415): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOn) )
+with expansion:
+  true
+with message:
+  richness 0.7, N_user 18, on active 18, off active 18, on live 1, off live 0,
+  reserveBase 12
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4416): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOff) )
+with expansion:
+  true
+with message:
+  richness 0.7, N_user 18, on active 18, off active 18, on live 1, off live 0,
+  reserveBase 12
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4417): PASSED:
+  REQUIRE( aOn > 0.0f )
+with expansion:
+  0.08233f > 0.0f
+with message:
+  richness 0.7, N_user 18, on active 18, off active 18, on live 1, off live 0,
+  reserveBase 12
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4418): PASSED:
+  REQUIRE( aOff > 0.0f )
+with expansion:
+  0.08248f > 0.0f
+with message:
+  richness 0.7, N_user 18, on active 18, off active 18, on live 1, off live 0,
+  reserveBase 12
+
+    [bloom audible] richness 0.70 slot 2: on 0.082331 off 0.0824796, drop -0.016 dB at kBloomChildGain 0.700
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4437): PASSED:
+  REQUIRE( std::abs(devDb) <= kToleranceDb )
+with expansion:
+  0.0000002376 <= 0.5
+with messages:
+  richness 0.7, N_user 18, on active 18, off active 18, on live 1, off live 0,
+  reserveBase 12
+  slot 2: on 0.082331 (ratio 0.122062), off 0.0824796 (ratio 0.122062),
+  deviation -2.37566e-07 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4415): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOn) )
+with expansion:
+  true
+with message:
+  richness 0.7, N_user 18, on active 18, off active 18, on live 1, off live 0,
+  reserveBase 12
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4416): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOff) )
+with expansion:
+  true
+with message:
+  richness 0.7, N_user 18, on active 18, off active 18, on live 1, off live 0,
+  reserveBase 12
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4417): PASSED:
+  REQUIRE( aOn > 0.0f )
+with expansion:
+  0.04746f > 0.0f
+with message:
+  richness 0.7, N_user 18, on active 18, off active 18, on live 1, off live 0,
+  reserveBase 12
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4418): PASSED:
+  REQUIRE( aOff > 0.0f )
+with expansion:
+  0.04755f > 0.0f
+with message:
+  richness 0.7, N_user 18, on active 18, off active 18, on live 1, off live 0,
+  reserveBase 12
+
+    [bloom audible] richness 0.70 slot 3: on 0.0474629 off 0.0475486, drop -0.016 dB at kBloomChildGain 0.700
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4437): PASSED:
+  REQUIRE( std::abs(devDb) <= kToleranceDb )
+with expansion:
+  0.0000020499 <= 0.5
+with messages:
+  richness 0.7, N_user 18, on active 18, off active 18, on live 1, off live 0,
+  reserveBase 12
+  slot 3: on 0.0474629 (ratio 0.0703672), off 0.0475486 (ratio 0.0703672),
+  deviation 2.04987e-06 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4415): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOn) )
+with expansion:
+  true
+with message:
+  richness 0.7, N_user 18, on active 18, off active 18, on live 1, off live 0,
+  reserveBase 12
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4416): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOff) )
+with expansion:
+  true
+with message:
+  richness 0.7, N_user 18, on active 18, off active 18, on live 1, off live 0,
+  reserveBase 12
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4417): PASSED:
+  REQUIRE( aOn > 0.0f )
+with expansion:
+  0.03096f > 0.0f
+with message:
+  richness 0.7, N_user 18, on active 18, off active 18, on live 1, off live 0,
+  reserveBase 12
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4418): PASSED:
+  REQUIRE( aOff > 0.0f )
+with expansion:
+  0.03101f > 0.0f
+with message:
+  richness 0.7, N_user 18, on active 18, off active 18, on live 1, off live 0,
+  reserveBase 12
+
+    [bloom audible] richness 0.70 slot 4: on 0.0309591 off 0.031015, drop -0.016 dB at kBloomChildGain 0.700
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4437): PASSED:
+  REQUIRE( std::abs(devDb) <= kToleranceDb )
+with expansion:
+  0.0000090995 <= 0.5
+with messages:
+  richness 0.7, N_user 18, on active 18, off active 18, on live 1, off live 0,
+  reserveBase 12
+  slot 4: on 0.0309591 (ratio 0.0458992), off 0.031015 (ratio 0.0458991),
+  deviation 9.09948e-06 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4415): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOn) )
+with expansion:
+  true
+with message:
+  richness 0.7, N_user 18, on active 18, off active 18, on live 1, off live 0,
+  reserveBase 12
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4416): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOff) )
+with expansion:
+  true
+with message:
+  richness 0.7, N_user 18, on active 18, off active 18, on live 1, off live 0,
+  reserveBase 12
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4417): PASSED:
+  REQUIRE( aOn > 0.0f )
+with expansion:
+  0.02183f > 0.0f
+with message:
+  richness 0.7, N_user 18, on active 18, off active 18, on live 1, off live 0,
+  reserveBase 12
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4418): PASSED:
+  REQUIRE( aOff > 0.0f )
+with expansion:
+  0.02187f > 0.0f
+with message:
+  richness 0.7, N_user 18, on active 18, off active 18, on live 1, off live 0,
+  reserveBase 12
+
+    [bloom audible] richness 0.70 slot 5: on 0.0218345 off 0.0218739, drop -0.016 dB at kBloomChildGain 0.700
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4437): PASSED:
+  REQUIRE( std::abs(devDb) <= kToleranceDb )
+with expansion:
+  0.0000008389 <= 0.5
+with messages:
+  richness 0.7, N_user 18, on active 18, off active 18, on live 1, off live 0,
+  reserveBase 12
+  slot 5: on 0.0218345 (ratio 0.0323712), off 0.0218739 (ratio 0.0323712),
+  deviation 8.38895e-07 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4415): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOn) )
+with expansion:
+  true
+with message:
+  richness 0.7, N_user 18, on active 18, off active 18, on live 1, off live 0,
+  reserveBase 12
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4416): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOff) )
+with expansion:
+  true
+with message:
+  richness 0.7, N_user 18, on active 18, off active 18, on live 1, off live 0,
+  reserveBase 12
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4417): PASSED:
+  REQUIRE( aOn > 0.0f )
+with expansion:
+  0.01625f > 0.0f
+with message:
+  richness 0.7, N_user 18, on active 18, off active 18, on live 1, off live 0,
+  reserveBase 12
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4418): PASSED:
+  REQUIRE( aOff > 0.0f )
+with expansion:
+  0.01628f > 0.0f
+with message:
+  richness 0.7, N_user 18, on active 18, off active 18, on live 1, off live 0,
+  reserveBase 12
+
+    [bloom audible] richness 0.70 slot 6: on 0.0162515 off 0.0162809, drop -0.016 dB at kBloomChildGain 0.700
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4437): PASSED:
+  REQUIRE( std::abs(devDb) <= kToleranceDb )
+with expansion:
+  0.0000048906 <= 0.5
+with messages:
+  richness 0.7, N_user 18, on active 18, off active 18, on live 1, off live 0,
+  reserveBase 12
+  slot 6: on 0.0162515 (ratio 0.0240941), off 0.0162809 (ratio 0.0240941),
+  deviation -4.8906e-06 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4415): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOn) )
+with expansion:
+  true
+with message:
+  richness 0.7, N_user 18, on active 18, off active 18, on live 1, off live 0,
+  reserveBase 12
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4416): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOff) )
+with expansion:
+  true
+with message:
+  richness 0.7, N_user 18, on active 18, off active 18, on live 1, off live 0,
+  reserveBase 12
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4417): PASSED:
+  REQUIRE( aOn > 0.0f )
+with expansion:
+  0.01258f > 0.0f
+with message:
+  richness 0.7, N_user 18, on active 18, off active 18, on live 1, off live 0,
+  reserveBase 12
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4418): PASSED:
+  REQUIRE( aOff > 0.0f )
+with expansion:
+  0.0126f > 0.0f
+with message:
+  richness 0.7, N_user 18, on active 18, off active 18, on live 1, off live 0,
+  reserveBase 12
+
+    [bloom audible] richness 0.70 slot 7: on 0.0125822 off 0.0126049, drop -0.016 dB at kBloomChildGain 0.700
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4437): PASSED:
+  REQUIRE( std::abs(devDb) <= kToleranceDb )
+with expansion:
+  0.000003891 <= 0.5
+with messages:
+  richness 0.7, N_user 18, on active 18, off active 18, on live 1, off live 0,
+  reserveBase 12
+  slot 7: on 0.0125822 (ratio 0.018654), off 0.0126049 (ratio 0.018654),
+  deviation 3.89096e-06 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4367): PASSED:
+  REQUIRE( on->getRichness() == r )
+with expansion:
+  1.0f == 1.0f
+with message:
+  richness 1, N_user 64, on active 64, off active 64, on live 1, off live 0,
+  reserveBase 58
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4368): PASSED:
+  REQUIRE( off->getRichness() == r )
+with expansion:
+  1.0f == 1.0f
+with message:
+  richness 1, N_user 64, on active 64, off active 64, on live 1, off live 0,
+  reserveBase 58
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4383): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(childAmp) )
+with expansion:
+  true
+with message:
+  richness 1, N_user 64, on active 64, off active 64, on live 1, off live 0,
+  reserveBase 58
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4390): PASSED:
+  REQUIRE( slot < active )
+with expansion:
+  58 < 64
+with messages:
+  richness 1, N_user 64, on active 64, off active 64, on live 1, off live 0,
+  reserveBase 58
+  child 0: slot 58, parent 2, childAmp 1.28862, active 64
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4392): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(cloudAmp) )
+with expansion:
+  true
+with messages:
+  richness 1, N_user 64, on active 64, off active 64, on live 1, off live 0,
+  reserveBase 58
+  child 0: slot 58, parent 2, childAmp 1.28862, active 64
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4394): PASSED:
+  REQUIRE( cloudAmp > BloomEngine::kSilentParentAmplitude )
+with expansion:
+  0.0508f > 0.00001f
+with messages:
+  richness 1, N_user 64, on active 64, off active 64, on live 1, off live 0,
+  reserveBase 58
+  child 0: slot 58, parent 2, childAmp 1.28862, active 64
+  cloud amplitude at slot 58: 0.0507982
+
+  [bloom audible] richness 1.00: N_user 64, active 64, children passing the filter 1
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4401): PASSED:
+  REQUIRE( passingFilterCount >= 1u )
+with expansion:
+  1 >= 1
+with message:
+  richness 1, N_user 64, on active 64, off active 64, on live 1, off live 0,
+  reserveBase 58
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4406): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOn0) )
+with expansion:
+  true
+with message:
+  richness 1, N_user 64, on active 64, off active 64, on live 1, off live 0,
+  reserveBase 58
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4407): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOff0) )
+with expansion:
+  true
+with message:
+  richness 1, N_user 64, on active 64, off active 64, on live 1, off live 0,
+  reserveBase 58
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4408): PASSED:
+  REQUIRE( aOn0 > BloomEngine::kSilentParentAmplitude )
+with expansion:
+  0.59302f > 0.00001f
+with message:
+  richness 1, N_user 64, on active 64, off active 64, on live 1, off live 0,
+  reserveBase 58
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4409): PASSED:
+  REQUIRE( aOff0 > BloomEngine::kSilentParentAmplitude )
+with expansion:
+  0.59454f > 0.00001f
+with message:
+  richness 1, N_user 64, on active 64, off active 64, on live 1, off live 0,
+  reserveBase 58
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4415): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOn) )
+with expansion:
+  true
+with message:
+  richness 1, N_user 64, on active 64, off active 64, on live 1, off live 0,
+  reserveBase 58
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4416): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOff) )
+with expansion:
+  true
+with message:
+  richness 1, N_user 64, on active 64, off active 64, on live 1, off live 0,
+  reserveBase 58
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4417): PASSED:
+  REQUIRE( aOn > 0.0f )
+with expansion:
+  0.59302f > 0.0f
+with message:
+  richness 1, N_user 64, on active 64, off active 64, on live 1, off live 0,
+  reserveBase 58
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4418): PASSED:
+  REQUIRE( aOff > 0.0f )
+with expansion:
+  0.59454f > 0.0f
+with message:
+  richness 1, N_user 64, on active 64, off active 64, on live 1, off live 0,
+  reserveBase 58
+
+    [bloom audible] richness 1.00 slot 0: on 0.593019 off 0.594543, drop -0.022 dB at kBloomChildGain 0.700
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4437): PASSED:
+  REQUIRE( std::abs(devDb) <= kToleranceDb )
+with expansion:
+  0.0 <= 0.5
+with messages:
+  richness 1, N_user 64, on active 64, off active 64, on live 1, off live 0,
+  reserveBase 58
+  slot 0: on 0.593019 (ratio 1), off 0.594543 (ratio 1), deviation 0 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4415): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOn) )
+with expansion:
+  true
+with message:
+  richness 1, N_user 64, on active 64, off active 64, on live 1, off live 0,
+  reserveBase 58
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4416): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOff) )
+with expansion:
+  true
+with message:
+  richness 1, N_user 64, on active 64, off active 64, on live 1, off live 0,
+  reserveBase 58
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4417): PASSED:
+  REQUIRE( aOn > 0.0f )
+with expansion:
+  0.26457f > 0.0f
+with message:
+  richness 1, N_user 64, on active 64, off active 64, on live 1, off live 0,
+  reserveBase 58
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4418): PASSED:
+  REQUIRE( aOff > 0.0f )
+with expansion:
+  0.26525f > 0.0f
+with message:
+  richness 1, N_user 64, on active 64, off active 64, on live 1, off live 0,
+  reserveBase 58
+
+    [bloom audible] richness 1.00 slot 1: on 0.264572 off 0.265252, drop -0.022 dB at kBloomChildGain 0.700
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4437): PASSED:
+  REQUIRE( std::abs(devDb) <= kToleranceDb )
+with expansion:
+  0.0000087367 <= 0.5
+with messages:
+  richness 1, N_user 64, on active 64, off active 64, on live 1, off live 0,
+  reserveBase 58
+  slot 1: on 0.264572 (ratio 0.446145), off 0.265252 (ratio 0.446145),
+  deviation -8.73671e-06 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4415): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOn) )
+with expansion:
+  true
+with message:
+  richness 1, N_user 64, on active 64, off active 64, on live 1, off live 0,
+  reserveBase 58
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4416): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOff) )
+with expansion:
+  true
+with message:
+  richness 1, N_user 64, on active 64, off active 64, on live 1, off live 0,
+  reserveBase 58
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4417): PASSED:
+  REQUIRE( aOn > 0.0f )
+with expansion:
+  0.165f > 0.0f
+with message:
+  richness 1, N_user 64, on active 64, off active 64, on live 1, off live 0,
+  reserveBase 58
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4418): PASSED:
+  REQUIRE( aOff > 0.0f )
+with expansion:
+  0.16543f > 0.0f
+with message:
+  richness 1, N_user 64, on active 64, off active 64, on live 1, off live 0,
+  reserveBase 58
+
+    [bloom audible] richness 1.00 slot 2 (latched parent): on 0.165002 off 0.165426, drop -0.022 dB at kBloomChildGain 0.700
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4415): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOn) )
+with expansion:
+  true
+with message:
+  richness 1, N_user 64, on active 64, off active 64, on live 1, off live 0,
+  reserveBase 58
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4416): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOff) )
+with expansion:
+  true
+with message:
+  richness 1, N_user 64, on active 64, off active 64, on live 1, off live 0,
+  reserveBase 58
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4417): PASSED:
+  REQUIRE( aOn > 0.0f )
+with expansion:
+  0.11803f > 0.0f
+with message:
+  richness 1, N_user 64, on active 64, off active 64, on live 1, off live 0,
+  reserveBase 58
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4418): PASSED:
+  REQUIRE( aOff > 0.0f )
+with expansion:
+  0.11833f > 0.0f
+with message:
+  richness 1, N_user 64, on active 64, off active 64, on live 1, off live 0,
+  reserveBase 58
+
+    [bloom audible] richness 1.00 slot 3: on 0.118028 off 0.118331, drop -0.022 dB at kBloomChildGain 0.700
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4437): PASSED:
+  REQUIRE( std::abs(devDb) <= kToleranceDb )
+with expansion:
+  0.0000153692 <= 0.5
+with messages:
+  richness 1, N_user 64, on active 64, off active 64, on live 1, off live 0,
+  reserveBase 58
+  slot 3: on 0.118028 (ratio 0.199029), off 0.118331 (ratio 0.199028),
+  deviation 1.53692e-05 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4415): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOn) )
+with expansion:
+  true
+with message:
+  richness 1, N_user 64, on active 64, off active 64, on live 1, off live 0,
+  reserveBase 58
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4416): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOff) )
+with expansion:
+  true
+with message:
+  richness 1, N_user 64, on active 64, off active 64, on live 1, off live 0,
+  reserveBase 58
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4417): PASSED:
+  REQUIRE( aOn > 0.0f )
+with expansion:
+  0.09101f > 0.0f
+with message:
+  richness 1, N_user 64, on active 64, off active 64, on live 1, off live 0,
+  reserveBase 58
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4418): PASSED:
+  REQUIRE( aOff > 0.0f )
+with expansion:
+  0.09125f > 0.0f
+with message:
+  richness 1, N_user 64, on active 64, off active 64, on live 1, off live 0,
+  reserveBase 58
+
+    [bloom audible] richness 1.00 slot 4: on 0.0910125 off 0.0912463, drop -0.022 dB at kBloomChildGain 0.700
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4437): PASSED:
+  REQUIRE( std::abs(devDb) <= kToleranceDb )
+with expansion:
+  0.0000070992 <= 0.5
+with messages:
+  richness 1, N_user 64, on active 64, off active 64, on live 1, off live 0,
+  reserveBase 58
+  slot 4: on 0.0910125 (ratio 0.153473), off 0.0912463 (ratio 0.153473),
+  deviation 7.09924e-06 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4415): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOn) )
+with expansion:
+  true
+with message:
+  richness 1, N_user 64, on active 64, off active 64, on live 1, off live 0,
+  reserveBase 58
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4416): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOff) )
+with expansion:
+  true
+with message:
+  richness 1, N_user 64, on active 64, off active 64, on live 1, off live 0,
+  reserveBase 58
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4417): PASSED:
+  REQUIRE( aOn > 0.0f )
+with expansion:
+  0.07359f > 0.0f
+with message:
+  richness 1, N_user 64, on active 64, off active 64, on live 1, off live 0,
+  reserveBase 58
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4418): PASSED:
+  REQUIRE( aOff > 0.0f )
+with expansion:
+  0.07378f > 0.0f
+with message:
+  richness 1, N_user 64, on active 64, off active 64, on live 1, off live 0,
+  reserveBase 58
+
+    [bloom audible] richness 1.00 slot 5: on 0.0735939 off 0.073783, drop -0.022 dB at kBloomChildGain 0.700
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4437): PASSED:
+  REQUIRE( std::abs(devDb) <= kToleranceDb )
+with expansion:
+  0.0000008623 <= 0.5
+with messages:
+  richness 1, N_user 64, on active 64, off active 64, on live 1, off live 0,
+  reserveBase 58
+  slot 5: on 0.0735939 (ratio 0.1241), off 0.073783 (ratio 0.1241), deviation
+  8.62261e-07 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4415): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOn) )
+with expansion:
+  true
+with message:
+  richness 1, N_user 64, on active 64, off active 64, on live 1, off live 0,
+  reserveBase 58
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4416): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOff) )
+with expansion:
+  true
+with message:
+  richness 1, N_user 64, on active 64, off active 64, on live 1, off live 0,
+  reserveBase 58
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4417): PASSED:
+  REQUIRE( aOn > 0.0f )
+with expansion:
+  0.06149f > 0.0f
+with message:
+  richness 1, N_user 64, on active 64, off active 64, on live 1, off live 0,
+  reserveBase 58
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4418): PASSED:
+  REQUIRE( aOff > 0.0f )
+with expansion:
+  0.06165f > 0.0f
+with message:
+  richness 1, N_user 64, on active 64, off active 64, on live 1, off live 0,
+  reserveBase 58
+
+    [bloom audible] richness 1.00 slot 6: on 0.0614897 off 0.0616476, drop -0.022 dB at kBloomChildGain 0.700
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4437): PASSED:
+  REQUIRE( std::abs(devDb) <= kToleranceDb )
+with expansion:
+  0.0000173567 <= 0.5
+with messages:
+  richness 1, N_user 64, on active 64, off active 64, on live 1, off live 0,
+  reserveBase 58
+  slot 6: on 0.0614897 (ratio 0.103689), off 0.0616476 (ratio 0.103689),
+  deviation 1.73567e-05 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4415): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOn) )
+with expansion:
+  true
+with message:
+  richness 1, N_user 64, on active 64, off active 64, on live 1, off live 0,
+  reserveBase 58
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4416): PASSED:
+  REQUIRE( Krate::DSP::detail::isFinite(aOff) )
+with expansion:
+  true
+with message:
+  richness 1, N_user 64, on active 64, off active 64, on live 1, off live 0,
+  reserveBase 58
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4417): PASSED:
+  REQUIRE( aOn > 0.0f )
+with expansion:
+  0.05262f > 0.0f
+with message:
+  richness 1, N_user 64, on active 64, off active 64, on live 1, off live 0,
+  reserveBase 58
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4418): PASSED:
+  REQUIRE( aOff > 0.0f )
+with expansion:
+  0.05276f > 0.0f
+with message:
+  richness 1, N_user 64, on active 64, off active 64, on live 1, off live 0,
+  reserveBase 58
+
+    [bloom audible] richness 1.00 slot 7: on 0.0526209 off 0.052756, drop -0.022 dB at kBloomChildGain 0.700
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(4437): PASSED:
+  REQUIRE( std::abs(devDb) <= kToleranceDb )
+with expansion:
+  0.0000147125 <= 0.5
+with messages:
+  richness 1, N_user 64, on active 64, off active 64, on live 1, off live 0,
+  reserveBase 58
+  slot 7: on 0.0526209 (ratio 0.0887339), off 0.052756 (ratio 0.0887338),
+  deviation 1.47125e-05 dB
+
+===============================================================================
+All tests passed (182 assertions in 1 test case)
+
+exit=0 END 2026-10-01 21:48:48

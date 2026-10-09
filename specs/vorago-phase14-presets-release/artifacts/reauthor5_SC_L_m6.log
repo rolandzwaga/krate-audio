@@ -1,0 +1,22 @@
+START 2026-10-06 12:56:32 Singing Colony MASTER_TRIM=-6 OVERRIDE=401=1.0,1300=0,1400=0,1003=0.35,402=0.0,200=0.80,0=0.40
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 3757171853
+[probe] override 401 = 1.000000 (replaced)
+[probe] override 1300 = 0.000000 (replaced)
+[probe] override 1400 = 0.000000 (replaced)
+[probe] override 1003 = 0.350000 (replaced)
+[probe] override 402 = 0.000000 (replaced)
+[probe] override 200 = 0.800000 (replaced)
+[probe] override 0 = 0.400000 (appended)
+[probe] master trim -6 dB: kMasterGainId norm 0.4000 -> 0.2005
+[probe] lever: none
+[probe] Singing Colony - primary E2 resonator -> resonance peaks (stored seed 2, 4 twin render(s))
+  take: peak 0.6418  arm1 hi -14.03 dB [yes]  arm2 lo -26.95 dB [yes]  arm3 late-sus +1.19 dB [yes]  arm4 tail -240.00 dB [yes]
+  arm1@44.1k: finite y peak 0.5585 hi -16.26 dB [PASS]
+  route arms: d(R_k, R_k0) 4.2884, attribBase d(R_0, R_00) 1.2824 (attributable iff d >= 2.7824)
+  primary d 4.2884  bar 4.0000  attribBase 1.2824  state ok  -> PASS  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (23 assertions in 1 test case)
+
+exit=0 END 2026-10-06 13:00:54

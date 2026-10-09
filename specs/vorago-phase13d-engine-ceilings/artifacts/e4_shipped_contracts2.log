@@ -1,0 +1,7 @@
+START 2026-10-08 11:29:03 tree=4a31e9a3+E4 ship VoragoVoice_CeilingLeverNeutral after FR-034 entry 7
+Filters: "VoragoVoice_CeilingLeverNeutral"
+Randomness seeded to: 259636986
+===============================================================================
+All tests passed (96 assertions in 1 test case)
+
+exit=0 END 2026-10-08 11:29:04

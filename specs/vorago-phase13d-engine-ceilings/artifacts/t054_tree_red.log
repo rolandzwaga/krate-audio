@@ -1,0 +1,39 @@
+START 2026-10-08 17:11:56 failing check first: defs edited, tree not regenerated
+Filters: "Vorago_FactoryPresets_TreeMatchesGenerator"
+Randomness seeded to: 1038063791
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+vorago_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+Vorago_FactoryPresets_TreeMatchesGenerator
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\vorago\tests\unit\preset\factory_preset_test.cpp(1807)
+...............................................................................
+
+F:\projects\iterum\plugins\vorago\tests\unit\preset\factory_preset_test.cpp(1845): warning:
+  tree vs generator over 42 preset(s); per float field worst |c - r| / max(|c|,
+  1e-30) (tolerance 1.19e-07):
+    macros[7] 1e+30 (Machines/Hull Resonance)
+    smear[1] 0.176470555 (Textures/Smeared Horizon)
+    events.eventRateScale 0.666663786 (Machines/Feeding Loops)
+    ecosystem.depth 0.849999994 (Organisms/Teeming)
+    space.float[5] 0.5 (Textures/Smeared Horizon)
+    life[0] 1.3333332 (Textures/Smeared Horizon)
+    80 float field(s) bit-identical on every preset
+    overall worst 1e+30
+
+F:\projects\iterum\plugins\vorago\tests\unit\preset\factory_preset_test.cpp(1847): FAILED:
+  REQUIRE( t.failures.empty() )
+with expansion:
+  false
+with message:
+  structural / int / non-finite failures:
+    Ghosts/Haunted Colony: int field ghost.triggers committed 0, regenerated 1
+
+===============================================================================
+test cases:   1 |   0 passed | 1 failed
+assertions: 160 | 159 passed | 1 failed
+
+exit=1 END 2026-10-08 17:11:57

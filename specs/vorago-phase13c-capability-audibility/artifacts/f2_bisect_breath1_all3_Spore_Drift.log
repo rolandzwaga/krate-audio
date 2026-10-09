@@ -1,0 +1,13 @@
+START 2026-10-04 21:57:46 Spore Drift arm breath1 lever=childGain=0.35,ghostTapDb=12,ecologyWetDb=0 exe=2026-10-04 21:38:13
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 2323469329
+[probe] lever: childGain=0.35,ghostTapDb=12,ecologyWetDb=0
+[probe] Spore Drift - primary D3.3 noise model GranularDust (stored seed 9, 2 twin render(s))
+  take: peak 0.1704  arm1 hi -27.02 dB [yes]  arm2 lo -30.97 dB [yes]  arm3 late-sus -1.24 dB [yes]  arm4 tail -170.47 dB [yes]
+  arm1@44.1k: finite y peak 0.1559 hi -28.08 dB [PASS]
+  conjunct S1 noise organism: d 4.0973, bar 1.5 -> ok
+  primary d 4.0973  bar 4.0000  attribBase -1.0000  state ok  -> PASS  lever: childGain=0.35,ghostTapDb=12,ecologyWetDb=0
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (12 assertions in 1 test case)
+

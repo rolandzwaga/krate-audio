@@ -1,0 +1,7 @@
+START 2026-10-02 12:05:21 ecology ceiling tests (kMaxWetGainDb 36) exe=2026-10-02 12:04:30
+Filters: "FeedbackEcology_ConstantsTable","FeedbackEcology_ControlSurfaceClamps","VoragoVoice_EcologyWetMakeupInstalled"
+Randomness seeded to: 3176358588
+===============================================================================
+All tests passed (302 assertions in 3 test cases)
+
+exit=0 END 2026-10-02 12:05:21

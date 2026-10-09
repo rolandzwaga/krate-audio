@@ -1,0 +1,66 @@
+START 2026-09-28 15:09:40
+Filters: "VoragoVoice_EcosystemRouting"
+Randomness seeded to: 684915304
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+VoragoVoice_EcosystemRouting
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_longrun_test.cpp(630)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_longrun_test.cpp(703): warning:
+  SC-019 (1) baseline: 11 scheduler onsets at depth 0, max agent output 1
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_longrun_test.cpp(794): warning:
+  SC-019 (3) Partial: 1945 ecosystem-attributable changes over 10 equivalent
+  minutes = 194.5 per minute; max (eco - scheduler) excess 0.85
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_longrun_test.cpp(794): warning:
+  SC-019 (3) Resonator: 5504 ecosystem-attributable changes over 10 equivalent
+  minutes = 550.4 per minute; max (eco - scheduler) excess 0.368166
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_longrun_test.cpp(794): warning:
+  SC-019 (3) Noise: 5423 ecosystem-attributable changes over 10 equivalent
+  minutes = 542.3 per minute; max (eco - scheduler) excess 0.65
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_longrun_test.cpp(794): warning:
+  SC-019 (3) Feedback: 5448 ecosystem-attributable changes over 10 equivalent
+  minutes = 544.8 per minute; max (eco - scheduler) excess 0.326551
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_longrun_test.cpp(794): warning:
+  SC-019 (3) Ghost: 5501 ecosystem-attributable changes over 10 equivalent
+  minutes = 550.1 per minute; max (eco - scheduler) excess 0.939933
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_longrun_test.cpp(886): warning:
+  SC-019 (3) dormancy Partial: 987 scheduler-arm changes across the measurement
+  window
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_longrun_test.cpp(886): warning:
+  SC-019 (3) dormancy Resonator: 208 scheduler-arm changes across the
+  measurement window
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_longrun_test.cpp(886): warning:
+  SC-019 (3) dormancy Noise: 1902 scheduler-arm changes across the measurement
+  window
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_longrun_test.cpp(886): warning:
+  SC-019 (3) dormancy Feedback: 709 scheduler-arm changes across the
+  measurement window
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_longrun_test.cpp(886): warning:
+  SC-019 (3) dormancy Ghost: 926 scheduler-arm changes across the measurement
+  window
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_longrun_test.cpp(904): warning:
+  SC-019 ecosystem routing: A = 10, 10 equivalent minutes per arm, wall clock
+  29.0289 s
+
+===============================================================================
+All tests passed (23 assertions in 1 test case)
+
+EXIT 0
+END 2026-09-28 15:10:09

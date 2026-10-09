@@ -1,0 +1,6 @@
+Filters: ~[performance] ~[perf] ~[benchmark] ~[!benchmark] ~[long]
+Randomness seeded to: 653579096
+===============================================================================
+All tests passed (1588248 assertions in 565 test cases)
+
+dsp_core_tests rc=0 wall=1s

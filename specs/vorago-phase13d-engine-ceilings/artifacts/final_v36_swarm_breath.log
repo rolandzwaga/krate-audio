@@ -1,0 +1,18 @@
+START 2026-10-08 16:11:23 final_v36_swarm_breath tree=c351fe0f+final (build_final.log) preset="Swarm Breath" env: VORAGO_PILOT_SECONDARY=1
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 2607499316
+[probe] lever: none
+[probe] Swarm Breath - primary E3 noise -> noise wake (stored seed 5, 4 twin render(s))
+  take: peak 0.5478  arm1 hi -18.08 dB [yes]  arm2 lo -24.31 dB [yes]  arm3 late-sus +0.73 dB [yes]  arm4 tail -120.54 dB [yes]
+  arm1@44.1k: finite y peak 0.4882 hi -18.17 dB [PASS]
+  route arms: d(R_k, R_k0) 4.2219, attribBase d(R_0, R_00) 0.9760 (attributable iff d >= 2.4760)
+  primary d 4.2219  bar 4.0000  attribBase 0.9760  state ok  -> PASS  loopsAlive -  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  secondary D3.4 noise model MetallicHiss: d 2.4391 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "" -> VERIFIED
+  secondary D4.7 noise type Blue: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+  secondary D4.8 noise type Violet: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+  secondary D4.9 noise type Grey: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+===============================================================================
+All tests passed (17 assertions in 1 test case)
+
+exit=0 END 2026-10-08 16:48:38

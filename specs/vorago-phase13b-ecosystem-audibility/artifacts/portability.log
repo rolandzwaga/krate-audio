@@ -1,0 +1,10 @@
+check-portability: 6 translation unit(s) with g++
+
+  OK      dsp/tests/unit/systems/vector_mixer_tests.cpp
+  OK      dsp/tests/unit/systems/vorago_ecosystem_lever_longrun_test.cpp
+  OK      dsp/tests/unit/systems/vorago_ecosystem_lever_test.cpp
+  OK      dsp/tests/unit/systems/vorago_perf_test.cpp
+  OK      dsp/tests/unit/systems/vorago_voice_longrun_test.cpp
+  OK      plugins/vorago/tests/integration/ecosystem_rule_probe_test.cpp
+
+check-portability: all clear -- 6 compiled.

@@ -1,0 +1,28 @@
+START 2026-10-07 09:23:56 calibrate-p0 tree=5bda20c1 binary=base as-compiled VORAGO_SWEEP_THREADS=4
+Filters: "Vorago_PresetPilot_Calibrate"
+Randomness seeded to: 2451432527
+
+=== Vorago_PresetPilot_Calibrate (FR-017a, plan 6.16 steps 2-5, G2) ===
+P0 default surface + P1..P4 (T037, G2 set), 16 seed indices each, 48 kHz, block 512, pool width 4
+timeline cross-check: makeTimeline(default) A = 155.000  M1 = [160.000, 220.000]  M2 = [220.000, 280.000]  M3 = [280.000, 340.000]  H = 340.000  (E0: 155 / 340)
+[pilot] P0 <default surface>: stored seed 0, A = 155.0 s, H = 340.0 s, total = 420.0 s, rendering 16 takes...
+[pilot] P1 Tectonic Floor: stored seed 1, A = 155.0 s, H = 340.0 s, total = 412.0 s, rendering 16 takes...
+[pilot] P2 Cathedral Void: stored seed 5, A = 155.0 s, H = 340.0 s, total = 440.0 s, rendering 16 takes...
+[pilot] P3 Growth Ring: stored seed 9, A = 60.0 s, H = 245.0 s, total = 325.0 s, rendering 16 takes...
+[pilot] P4 Glass Well: stored seed 12, A = 155.0 s, H = 340.0 s, total = 408.0 s, rendering 16 takes...
+
+t_K curve (2*t_K <= 4.0 ?)         K=1             K=2             K=4             K=8            
+P0 <default surface>               1.1895   yes    1.5869   yes    1.1334   yes    1.5285   yes   
+P1 Tectonic Floor                  1.0118   yes    1.4569   yes    0.4789   yes    0.4080   yes   
+P2 Cathedral Void                  1.9119   yes    0.7445   yes    0.8057   yes    0.4413   yes   
+P3 Growth Ring                     1.2664   yes    2.6160   no     0.5831   yes    0.3032   yes   
+P4 Glass Well                      3.0451   no     2.3836   no     3.8071   no     2.4264   no    
+
+ruled K = NONE
+
+wall clock: 2573.2 s (42.9 min)
+G2: STOP (no K <= 8 gives 2*t_K <= 4.0 for every P0-P6 (FR-017a))
+===============================================================================
+All tests passed (170 assertions in 1 test case)
+
+exit=0 END 2026-10-07 10:06:49

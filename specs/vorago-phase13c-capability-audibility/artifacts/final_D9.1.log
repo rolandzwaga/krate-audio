@@ -1,0 +1,24 @@
+START 2026-10-04 11:36:29 Sudden Chasm tree=ae149a1c+working-copy as-compiled (no override) env: VORAGO_PILOT_TAKES=4 | final tree: attack n 4; child gain 1.5; ghost 21 dB / span 1.2 / default peak 0; ecology 30 (ceiling 36); breath 3.0; tide 0.8; M9 rung 2; M12 rung 1; Feedback Mire breathing 0; six presets pin ghost 0.60 | exe=2026-10-04 09:54:11
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 4224073095
+[probe] lever: none
+[probe] Sudden Chasm - primary D9.1 attack span <= 10 s (stored seed 5, 1 twin render(s))
+  take: peak 0.2510  arm1 hi -20.68 dB [yes]  arm2 lo -22.19 dB [yes]  arm3 late-sus -0.37 dB [yes]  arm4 tail -234.28 dB [yes]
+  arm1@44.1k: finite y peak 0.2544 hi -20.62 dB [PASS]
+  attack window (W_end registered 25.0 s, measured 23.0 s): d_att 9.6066, d_Sus 4.3035 (attributable iff d_att >= 5.8035)
+    P: first reaches RMS(Sus) - 6 dB at 4 s
+    P_rev: first reaches RMS(Sus) - 6 dB at 18 s
+  primary d 9.6066  bar 4.0000  attribBase 4.3035  state ok  -> PASS  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  take j=0 seed 5: peak 0.2510  arm1 hi -20.68 dB [yes]  arm2 lo -22.19 dB [yes]  arm3 late-sus -0.37 dB [yes]  arm4 tail -234.28 dB [yes]
+  take j=1 seed 6: peak 0.2576  arm1 hi -20.79 dB [yes]  arm2 lo -22.64 dB [yes]  arm3 late-sus -0.44 dB [yes]  arm4 tail -240.00 dB [yes]
+  take j=2 seed 7: peak 0.2537  arm1 hi -20.74 dB [yes]  arm2 lo -22.10 dB [yes]  arm3 late-sus -0.10 dB [yes]  arm4 tail -240.00 dB [yes]
+  take j=3 seed 8: peak 0.2607  arm1 hi -20.76 dB [yes]  arm2 lo -22.04 dB [yes]  arm3 late-sus -0.07 dB [yes]  arm4 tail -240.00 dB [yes]
+  take j=0 d 9.6066
+  take j=1 d 0.0000  skip: no attack-window capture
+  take j=2 d 0.0000  skip: no attack-window capture
+  take j=3 d 0.0000  skip: no attack-window capture
+===============================================================================
+All tests passed (13 assertions in 1 test case)
+
+exit=0 END 2026-10-04 11:38:07

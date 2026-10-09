@@ -1,0 +1,21 @@
+START 2026-10-08 01:18:24 m2_r5a_gate tree=3a220d05+m2_r5a VORAGO_PILOT_PRESET="Erosion" env: VORAGO_PILOT_TAKES=4
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 2961738521
+[probe] lever: none
+[probe] Erosion - primary M2 Age (stored seed 14, 1 twin render(s))
+  take: peak 0.2395  arm1 hi -24.33 dB [yes]  arm2 lo -36.44 dB [yes]  arm3 late-sus -0.99 dB [yes]  arm4 tail -186.84 dB [yes]
+  arm1@44.1k: finite y peak 0.2150 hi -26.20 dB [PASS]
+  primary d 3.8430  bar 4.0000  attribBase -1.0000  state ok  -> FAIL  loopsAlive -  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  take j=0 seed 14: peak 0.2395  arm1 hi -24.33 dB [yes]  arm2 lo -36.44 dB [yes]  arm3 late-sus -0.99 dB [yes]  arm4 tail -186.84 dB [yes]
+  take j=1 seed 15: peak 0.2676  arm1 hi -22.63 dB [yes]  arm2 lo -38.29 dB [yes]  arm3 late-sus +1.36 dB [yes]  arm4 tail -185.02 dB [yes]
+  take j=2 seed 0: peak 0.2342  arm1 hi -23.68 dB [yes]  arm2 lo -33.48 dB [yes]  arm3 late-sus +0.34 dB [yes]  arm4 tail -173.76 dB [yes]
+  take j=3 seed 1: peak 0.2491  arm1 hi -23.59 dB [yes]  arm2 lo -34.44 dB [yes]  arm3 late-sus -1.26 dB [yes]  arm4 tail -159.50 dB [yes]
+  take j=0 d 3.8430
+  take j=1 d 3.6295
+  take j=2 d 4.3851
+  take j=3 d 3.3972
+===============================================================================
+All tests passed (19 assertions in 1 test case)
+
+exit=0 END 2026-10-08 01:21:28

@@ -1,0 +1,14 @@
+START 2026-10-01 19:55:24 before2_E3 tree=ae149a1c+working-copy reporting binary (vorago_tests.exe mtime 2026-10-01 19:14:53) as-compiled (no override, no lever) preset="Swarm Breath"
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 2865142472
+[probe] lever: none
+[probe] Swarm Breath - primary E3 noise -> noise wake (stored seed 5, 4 twin render(s))
+  take: peak 0.1678  arm1 hi -25.24 dB [yes]  arm2 lo -29.41 dB [yes]  arm3 late-sus -0.14 dB [yes]  arm4 tail -164.17 dB [yes]
+  arm1@44.1k: finite y peak 0.1709 hi -25.20 dB [PASS]
+  route arms: d(R_k, R_k0) 0.6496, attribBase d(R_0, R_00) 0.0760 (attributable iff d >= 1.5760)
+  primary d 0.6496  bar 4.0000  attribBase 0.0760  state ok  -> FAIL  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (16 assertions in 1 test case)
+
+END 2026-10-01 19:58:53 exit=0 wall=209s

@@ -1,0 +1,10 @@
+START 2026-10-01 08:39:34 before_M9 tree=ae149a1c as-compiled (no override) preset="Fogbound"
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 638405927
+[probe] Fogbound - primary M9 Fog (stored seed 9, 1 twin render(s))
+  take: peak 0.1508  arm1 hi -25.99 dB [yes]  arm2 lo -33.50 dB [yes]  arm3 late-sus -1.14 dB [yes]  arm4 tail -187.86 dB [yes]
+  primary d 1.8229  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+===============================================================================
+All tests passed (7 assertions in 1 test case)
+
+END 2026-10-01 08:42:24 exit=0 wall=170s

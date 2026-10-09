@@ -1,0 +1,26 @@
+START 2026-10-06 12:28:32 Spore Drift TAKES=4 OVERRIDE=1500=0,1300=0,500=0.40,1400=0.60
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 1496871479
+[probe] override 1500 = 0.000000 (appended)
+[probe] override 1300 = 0.000000 (replaced)
+[probe] override 500 = 0.400000 (replaced)
+[probe] override 1400 = 0.600000 (replaced)
+[probe] lever: none
+[probe] Spore Drift - primary D3.3 noise model GranularDust (stored seed 9, 2 twin render(s))
+  take: peak 0.1570  arm1 hi -27.67 dB [yes]  arm2 lo -30.54 dB [yes]  arm3 late-sus -0.99 dB [yes]  arm4 tail -159.44 dB [yes]
+  arm1@44.1k: finite y peak 0.1617 hi -27.88 dB [PASS]
+  conjunct S1 noise organism: d 4.0850, bar 1.5 -> ok
+  primary d 4.0850  bar 4.0000  attribBase -1.0000  state ok  -> PASS  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  take j=0 seed 9: peak 0.1570  arm1 hi -27.67 dB [yes]  arm2 lo -30.54 dB [yes]  arm3 late-sus -0.99 dB [yes]  arm4 tail -159.44 dB [yes]
+  take j=1 seed 10: peak 0.1941  arm1 hi -26.55 dB [yes]  arm2 lo -30.51 dB [yes]  arm3 late-sus +0.36 dB [yes]  arm4 tail -159.32 dB [yes]
+  take j=2 seed 11: peak 0.2009  arm1 hi -26.61 dB [yes]  arm2 lo -30.58 dB [yes]  arm3 late-sus -0.23 dB [yes]  arm4 tail -126.47 dB [yes]
+  take j=3 seed 12: peak 0.1950  arm1 hi -26.56 dB [yes]  arm2 lo -30.25 dB [yes]  arm3 late-sus -0.17 dB [yes]  arm4 tail -161.42 dB [yes]
+  take j=0 d 4.0850
+  take j=1 d 5.0630
+  take j=2 d 5.0412
+  take j=3 d 2.5311
+===============================================================================
+All tests passed (31 assertions in 1 test case)
+
+exit=0 END 2026-10-06 12:35:44

@@ -1,0 +1,21 @@
+START 2026-10-04 11:04:23 Monolith tree=ae149a1c+working-copy as-compiled (no override) env: VORAGO_PILOT_TAKES=4 | final tree: attack n 4; child gain 1.5; ghost 21 dB / span 1.2 / default peak 0; ecology 30 (ceiling 36); breath 3.0; tide 0.8; M9 rung 2; M12 rung 1; Feedback Mire breathing 0; six presets pin ghost 0.60 | exe=2026-10-04 09:54:11
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 3547660800
+[probe] lever: none
+[probe] Monolith - primary M12 Mass (stored seed 4, 1 twin render(s))
+  take: peak 0.9661  arm1 hi -7.44 dB [yes]  arm2 lo -12.35 dB [yes]  arm3 late-sus +1.80 dB [yes]  arm4 tail -210.55 dB [yes]
+  arm1@44.1k: finite y peak 0.9661 hi -7.66 dB [PASS]
+  primary d 5.7413  bar 4.0000  attribBase -1.0000  state ok  -> PASS  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  take j=0 seed 4: peak 0.9661  arm1 hi -7.44 dB [yes]  arm2 lo -12.35 dB [yes]  arm3 late-sus +1.80 dB [yes]  arm4 tail -210.55 dB [yes]
+  take j=1 seed 5: peak 0.9661  arm1 hi -7.38 dB [yes]  arm2 lo -9.03 dB [yes]  arm3 late-sus -0.08 dB [yes]  arm4 tail -209.88 dB [yes]
+  take j=2 seed 6: peak 0.9661  arm1 hi -7.59 dB [yes]  arm2 lo -14.12 dB [yes]  arm3 late-sus -0.39 dB [yes]  arm4 tail -181.82 dB [yes]
+  take j=3 seed 7: peak 0.9661  arm1 hi -7.51 dB [yes]  arm2 lo -10.17 dB [yes]  arm3 late-sus -0.47 dB [yes]  arm4 tail -195.40 dB [yes]
+  take j=0 d 5.7413
+  take j=1 d 3.9137
+  take j=2 d 4.9330
+  take j=3 d 4.2808
+===============================================================================
+All tests passed (19 assertions in 1 test case)
+
+exit=0 END 2026-10-04 11:08:56

@@ -1,0 +1,74 @@
+START 2026-10-05 13:24:49 ResonanceDriftNetwork_CpuBudget alone pinned after idle exe=2026-10-05 12:58:07
+pin-perf-cores: performance-core mask 0xFFFF
+Filters: "ResonanceDriftNetwork_CpuBudget"
+Randomness seeded to: 983454963
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+ResonanceDriftNetwork_CpuBudget
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\resonance_drift_network_perf_test.cpp(3189)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\resonance_drift_network_perf_test.cpp(3314): warning:
+  
+============================================================================
+  =====
+    ResonanceDriftNetwork SC-004 CPU BUDGET   (48 kHz, 512-sample blocks)
+    specs/vorago-phase3-resonance-drift, SC-004 / FR-060, tasks.md T020
+    best-of-25 x 500 blocks after 400 warm-up, 200 settle blocks before each
+    engine tier: FR-013 Tier 1 (one ResonatorBank, processIndividual)
+  =============================================================================
+  ====
+  (a) reference: 12 peaks, Hybrid g=0.5, wander on           59047.2 ns/block
+  0.5536 % of one core
+          baseline    45771.0   gate (x1.5)    68656.5   within baseline
+  (b) wander off: (a) + setWanderEnabled(false)              50016.8 ns/block
+  0.4689 % of one core
+          baseline    43562.4   gate (x1.5)    65343.6   within baseline
+  (c) all dormant: (a) + every peak dormant                  26228.0 ns/block
+  0.2459 % of one core
+          baseline    20501.2   gate (x1.5)    30751.8   within baseline
+  -----------------------------------------------------------------------------
+  ----
+  SC-004 BUDGET (0.75 % of one core)                         80000.0 ns/block
+  0.7500 % of one core
+    FR-015 change-detection saving, (a) - (b)           9030.4 ns/block   15.29
+  % of (a)   [SC-004 (b) needs >= 10 %]
+    FR-042 dormancy saving,        (a) - (c)          32819.2 ns/block   55.58
+  % of (a)   [SC-004 (c) needs >= 40 %]
+  -----------------------------------------------------------------------------
+  ----
+    audio preconditions, measured over 40 fully-scanned blocks per arm (both
+  channels):
+        (a) engine-active peaks 12 / 12   RMS -13.55 dBFS   finite yes
+        (b) engine-active peaks 12 / 12   RMS -13.98 dBFS   finite yes
+        (c) engine-active peaks 0 / 12   exactly 0.0f on both channels
+  throughout: yes
+  -----------------------------------------------------------------------------
+  ----
+    copy-pasteable baselines, MEASURED on this machine and this build:
+        constexpr double kBaselineReferenceNs     =    59047.2;
+        constexpr double kBaselineWanderOffNs     =    50016.8;
+        constexpr double kBaselineAllDormantNs    =    26228.0;
+    Transcribing a measured figure OVER a projection is always correct; take it
+    from the LOWEST of several isolated runs, never from one sample. RAISING
+  one
+    so a REQUIRE passes is forbidden. A transcribed baseline must still satisfy
+    BOTH compile-time clauses (x1.5 <= 80000.0 and >= 1600.0); one that cannot
+  is the
+    stop-and-surface case, not a licence to weaken a clause.
+  =============================================================================
+  ====
+    SC-004 (a) IS WITHIN BUDGET: 20952.8 ns of headroom (73.81 % of the
+  ceiling).
+  =============================================================================
+  ====
+
+===============================================================================
+All tests passed (25 assertions in 1 test case)
+
+exit=0 END 2026-10-05 13:24:51

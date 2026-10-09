@@ -1,0 +1,23 @@
+START 2026-10-07 19:57:23 im4_member_override_402 tree=f376785f+G2 Drifting Strata, Movement (103) at 0 and member 402=1.0 ResonanceWander=1Hz at its Movement-1 value; VORAGO_PILOT_TAKES=4 VORAGO_PILOT_OVERRIDE=103=0,402=1.0
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 2394773066
+[probe] override 103 = 0.000000 (replaced)
+[probe] override 402 = 1.000000 (replaced)
+[probe] lever: none
+[probe] Drifting Strata - primary M4 Movement (stored seed 3, 0 twin render(s))
+  take: peak 0.9661  arm1 hi -13.98 dB [yes]  arm2 lo -21.61 dB [yes]  arm3 late-sus +0.41 dB [yes]  arm4 tail -184.61 dB [yes]
+  arm1@44.1k: finite y peak 0.7861 hi -15.70 dB [PASS]
+  primary d 0.0000  bar 4.0000  attribBase -1.0000  state false  -> FAIL  skip: M displacement  loopsAlive -  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  take j=0 seed 3: peak 0.9661  arm1 hi -13.98 dB [yes]  arm2 lo -21.61 dB [yes]  arm3 late-sus +0.41 dB [yes]  arm4 tail -184.61 dB [yes]
+  take j=1 seed 4: peak 0.9296  arm1 hi -15.76 dB [yes]  arm2 lo -22.04 dB [yes]  arm3 late-sus +3.16 dB [yes]  arm4 tail -187.29 dB [yes]
+  take j=2 seed 5: peak 0.9661  arm1 hi -14.61 dB [yes]  arm2 lo -23.01 dB [yes]  arm3 late-sus -0.93 dB [yes]  arm4 tail -194.68 dB [yes]
+  take j=3 seed 6: peak 0.9661  arm1 hi -13.82 dB [yes]  arm2 lo -21.61 dB [yes]  arm3 late-sus +4.03 dB [yes]  arm4 tail -173.18 dB [yes]
+  take j=0 d 0.0000  skip: M displacement
+  take j=1 d 0.0000  skip: M displacement
+  take j=2 d 0.0000  skip: M displacement
+  take j=3 d 0.0000  skip: M displacement
+===============================================================================
+All tests passed (13 assertions in 1 test case)
+
+exit=0 END 2026-10-07 20:02:24

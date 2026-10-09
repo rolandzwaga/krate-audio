@@ -1,0 +1,14 @@
+START 2026-10-04 21:33:23 Spore Drift VORAGO_PILOT_LEVER=ecologyWetDb=0 (final tree) exe=2026-10-04 09:54:11
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 1473214495
+[probe] lever: ecologyWetDb=0
+[probe] Spore Drift - primary D3.3 noise model GranularDust (stored seed 9, 2 twin render(s))
+  take: peak 0.2042  arm1 hi -26.63 dB [yes]  arm2 lo -31.05 dB [yes]  arm3 late-sus -0.41 dB [yes]  arm4 tail -157.37 dB [yes]
+  arm1@44.1k: finite y peak 0.1665 hi -26.91 dB [PASS]
+  conjunct S1 noise organism: d 2.0618, bar 1.5 -> ok
+  primary d 2.0618  bar 4.0000  attribBase -1.0000  state ok  -> FAIL  lever: ecologyWetDb=0
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (12 assertions in 1 test case)
+
+exit=0 END 2026-10-04 21:36:28

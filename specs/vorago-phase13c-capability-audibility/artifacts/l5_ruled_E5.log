@@ -1,0 +1,14 @@
+START 2026-10-02 14:50:24 Haunted Colony as compiled (kAttackStageCurve = EnvCurve::Linear kAttackShapePower = 4 kDefaultStageTimesMs{20000.0f ; ecology 30/36, ghost 21/1.2, child gain 1.5; no lever env) exe=2026-10-02 14:34:43
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 3521762486
+[probe] lever: none
+[probe] Haunted Colony - primary E5 ghost -> ghost bursts (stored seed 12, 4 twin render(s))
+  take: peak 0.4087  arm1 hi -19.67 dB [yes]  arm2 lo -23.45 dB [yes]  arm3 late-sus +0.38 dB [yes]  arm4 tail -159.20 dB [yes]
+  arm1@44.1k: finite y peak 0.5289 hi -17.89 dB [PASS]
+  route arms: d(R_k, R_k0) 3.7994, attribBase d(R_0, R_00) 0.8919 (attributable iff d >= 2.3919)
+  primary d 3.7994  bar 4.0000  attribBase 0.8919  state ok  -> FAIL  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (16 assertions in 1 test case)
+
+exit=0 END 2026-10-02 14:53:53

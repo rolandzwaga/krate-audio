@@ -1,0 +1,14 @@
+=== B-12 ruled tree started 2026-10-02 22:26:17 (kAttackShapePower = 4 kBreathGravityLaneGain = 3.0f kTidalFogLaneGain = 1.0f kTidalRate = 0.8f ) ===
+2026-10-02 22:26:55 build: exit=0 warnings=0
+verify: All tests passed (75 assertions in 6 test cases)
+suite: test cases:    1425 |    1424 passed | 1 failed | F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(507): FAILED: 
+VORAGO_PILOT_SECONDARY=1 (Slow Bloom):  primary d 4.3549 bar 4.0000 -> PASS lever: none| levels: arms [y y y y] arm1@44.1k [y]| secondary D14.1 breathing depth >= 0.7: d 2.5610 bar 1.5 state ok conjunct ok -> VERIFIED|
+D9.1 (Sudden Chasm):  attack window (W_end registered 25.0 s, measured 23.0 s): d_att 9.6066, d_Sus 4.3035 (attributable iff d_att >= 5.8035)| primary d 9.6066 bar 4.0000 -> PASS lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+D8.2 (Growth Ring):  attack window (W_end registered 65.0 s, measured 27.0 s): d_att 8.8756, d_Sus 2.8034 (attributable iff d_att >= 4.3034)| primary d 8.8756 bar 4.0000 -> PASS lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+S9 (Choir of Absence):  primary d 4.3383 bar 4.0000 -> PASS lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+S4 (Feedback Mire):  primary d 3.9832 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+E1 (Bloom Colony):  primary d 1.1823 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+E3 (Swarm Breath):  primary d 1.1652 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+E4 (Feeding Loops):  primary d 2.9182 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+E5 (Haunted Colony):  primary d 3.9093 bar 4.0000 -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+=== B-12 ruled tree finished 2026-10-02 23:27:36 ===

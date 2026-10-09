@@ -1,0 +1,11 @@
+close lanes total wall=15703s parallel=16 shards=8
+suite_dsp_core_tests: rc=0 wall=3s | All tests passed (1588248 assertions in 565 test cases)
+suite_dsp_primitives_tests: rc=0 wall=3s | All tests passed (4561487 assertions in 1489 test cases)
+suite_dsp_processors_tests: rc=0 wall=140s | All tests passed (10697080 assertions in 3311 test cases)
+suite_dsp_systems_tests: rc=0 wall=1195s | All tests passed (6069572 assertions in 1430 test cases)
+suite_dsp_effects_tests: rc=0 wall=107s | All tests passed (115009 assertions in 495 test cases)
+suite_vorago_tests: rc=0 wall=420s | All tests passed (4060395 assertions in 119 test cases)
+suite_seraphis_tests: rc=0 wall=407s | All tests passed (444660 assertions in 109 test cases)
+suite_shared_tests: rc=0 wall=1s | All tests passed (6420 assertions in 460 test cases)
+long_dsp_systems_tests: rc=1 wall=15703s | test cases:   42 |   41 passed | 1 failed | F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1318): FAILED:
+long_vorago_nonsweep: rc=0 wall=524s | All tests passed (1654356 assertions in 3 test cases)

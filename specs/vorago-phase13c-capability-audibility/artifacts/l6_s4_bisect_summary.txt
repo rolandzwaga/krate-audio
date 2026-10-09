@@ -1,0 +1,11 @@
+=== S4 bisect started 2026-10-02 23:28:17 (S4 4.6629 at breath 1.0 / tide 0.25; 3.9832 at breath 3.0 / tide 0.8) ===
+2026-10-02 23:29:03 build breath3_tide025: exit=0 warnings=0 kBreathGravityLaneGain = 3.0f kTidalRate = 0.25f 
+breath3_tide025:  primary d 3.9445 bar 4.0000 attribBase -1.0000 state ok -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+2026-10-02 23:33:16 build breath1_tide08: exit=0 warnings=0 kBreathGravityLaneGain = 1.0f kTidalRate = 0.8f 
+breath1_tide08:  primary d 4.6719 bar 4.0000 attribBase -1.0000 state ok -> PASS lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+2026-10-02 23:37:32 restore build exit=0 warnings=0 kBreathGravityLaneGain = 3.0f kTidalRate = 0.8f 
+breath3 + override breathing depth 0:  primary d 4.7751 bar 4.0000 attribBase -1.0000 state ok -> PASS lever: none
+2026-10-02 23:42:24 build breath 2.5: exit=0 warnings=0 kBreathGravityLaneGain = 2.5f kTidalRate = 0.8f 
+breath 2.5 Slow Bloom:  primary d 3.9998 bar 4.0000 -> FAIL lever: none| secondary D14.1 breathing depth >= 0.7: d 2.0911 bar 1.5 state ok conjunct ok -> VERIFIED|
+breath 2.5 Feedback Mire:  primary d 3.9729 bar 4.0000 attribBase -1.0000 state ok -> FAIL lever: none
+2026-10-02 23:56:27 restore build exit=0 warnings=0 kBreathGravityLaneGain = 3.0f kTidalRate = 0.8f 

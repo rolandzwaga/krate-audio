@@ -1,0 +1,5 @@
+=== B-18 ghost-peak ladder on Choir of Absence 2026-10-06 08:39:06: VORAGO_PILOT_OVERRIDE 0=0.5 (master at unity, the 0.42 def trim neutralised) + 1400=<ghost peak>, VORAGO_PILOT_TAKES=4; reads S9 d and every take's arm 1 hi (the sweep's arm-1 measure, matched by final_S9_pre_b18.log:13 = shard take 3 -5.58) ===
+ghost peak 0.8:  primary d 3.8746 bar 4.0000 attribBase -1.0000 state ok -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]| takes: 
+ghost peak 0.7:  primary d 3.5742 bar 4.0000 attribBase -1.0000 state ok -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]| takes: 
+ghost peak 0.6:  primary d 3.2135 bar 4.0000 attribBase -1.0000 state ok -> FAIL lever: none| levels: arms [y y y y] arm1@44.1k [y]| takes: 
+=== ladder finished 2026-10-06 08:55:42 ===

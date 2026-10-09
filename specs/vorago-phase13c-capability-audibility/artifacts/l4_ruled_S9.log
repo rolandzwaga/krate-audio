@@ -1,0 +1,13 @@
+START 2026-10-02 12:49:55 Choir of Absence as compiled (kEcologyWetMakeupDb 30, ceiling 36; ghost 21/1.2; child gain 1.5; no lever env) exe=2026-10-02 12:44:03
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 3584557553
+[probe] lever: none
+[probe] Choir of Absence - primary S9 ghost / atmosphere (stored seed 10, 1 twin render(s))
+  take: peak 0.9661  arm1 hi -6.17 dB [yes]  arm2 lo -10.90 dB [yes]  arm3 late-sus -1.38 dB [yes]  arm4 tail -153.60 dB [yes]
+  arm1@44.1k: finite y peak 0.9661 hi -5.92 dB [NO]
+  primary d 4.1365  bar 4.0000  attribBase -1.0000  state ok  -> PASS  lever: none
+  levels: arms [y y y y] arm1@44.1k [n]
+===============================================================================
+All tests passed (9 assertions in 1 test case)
+
+exit=0 END 2026-10-02 12:53:14

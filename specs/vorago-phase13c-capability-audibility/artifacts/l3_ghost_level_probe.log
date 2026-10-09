@@ -1,0 +1,30 @@
+START 2026-10-02 07:26:56 VoragoEngine_GhostLevelProbe -s, variants 0/6/12/15/18/21/24 dB at ghost 1.0 (kGhostTapMakeupDb 12 compiled, kGhostDensity 0.30) exe=2026-10-02 07:26:55
+Filters: "VoragoEngine_GhostLevelProbe"
+Randomness seeded to: 3915168591
+  [ghost probe] ghost peak level 0.0, tap make-up +0 dB: RMS(220-340 s) -19.03 dBFS, difference vs ghost 0: -300.00 dBFS, loudest 1 s window -300.00 dBFS, windows above -40 dBFS 0 of 120
+  [ghost probe] ghost peak level 0.5, tap make-up +0 dB: RMS(220-340 s) -19.00 dBFS, difference vs ghost 0: -44.30 dBFS, loudest 1 s window -39.22 dBFS, windows above -40 dBFS 5 of 120
+  [ghost probe] ghost peak level 1.0, tap make-up +0 dB: RMS(220-340 s) -18.93 dBFS, difference vs ghost 0: -38.22 dBFS, loudest 1 s window -33.20 dBFS, windows above -40 dBFS 70 of 120
+  [ghost probe] ghost peak level 1.0, tap make-up +6 dB: RMS(220-340 s) -18.67 dBFS, difference vs ghost 0: -32.10 dBFS, loudest 1 s window -27.10 dBFS, windows above -40 dBFS 110 of 120
+  [ghost probe] ghost peak level 1.0, tap make-up +12 dB: RMS(220-340 s) -17.86 dBFS, difference vs ghost 0: -25.91 dBFS, loudest 1 s window -20.92 dBFS, windows above -40 dBFS 120 of 120
+  [ghost probe] ghost peak level 1.0, tap make-up +15 dB: RMS(220-340 s) -17.11 dBFS, difference vs ghost 0: -22.89 dBFS, loudest 1 s window -17.97 dBFS, windows above -40 dBFS 120 of 120
+  [ghost probe] ghost peak level 1.0, tap make-up +18 dB: RMS(220-340 s) -16.05 dBFS, difference vs ghost 0: -19.93 dBFS, loudest 1 s window -15.15 dBFS, windows above -40 dBFS 120 of 120
+  [ghost probe] ghost peak level 1.0, tap make-up +21 dB: RMS(220-340 s) -14.57 dBFS, difference vs ghost 0: -16.99 dBFS, loudest 1 s window -12.31 dBFS, windows above -40 dBFS 120 of 120
+  [ghost probe] ghost peak level 1.0, tap make-up +24 dB: RMS(220-340 s) -12.64 dBFS, difference vs ghost 0: -14.05 dBFS, loudest 1 s window -9.34 dBFS, windows above -40 dBFS 120 of 120
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+VoragoEngine_GhostLevelProbe
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_engine_test.cpp(3216)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_engine_test.cpp(3292): PASSED:
+  REQUIRE( true )
+
+===============================================================================
+All tests passed (1 assertion in 1 test case)
+
+exit=0 END 2026-10-02 07:27:56

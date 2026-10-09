@@ -1,0 +1,31 @@
+START 2026-09-27 23:46:41
+Filters: "Vorago_EcosystemRuleProbe"
+Randomness seeded to: 4047890423
+[probe] surface overrides: none; knob filter: -; reference: none + true-off; wake bases: shipped (0.50/0.50)
+[probe] rendering default surface (340 s)...
+[probe] rendering unlimited twin (340 s, limiter ceiling +60 dB)...
+GR max 0.0000 dB at 160.0000 s
+GR > 0.01 dB fraction (includes release tails): 0.000000 (0 of 8640000 samples)
+GR attack events (per-sample gain drop > 0.01 dB): 0
+GR first y != u: none
+[probe] rendering seed twin (340 s)...
+[probe] rendering true-off reference (340 s)...
+[probe] rendering 900=0 cross-check reference (340 s)...
+
+=== Vorago_EcosystemRuleProbe (FR-070) ===
+renders: 2 (default + seed twin + 0 extremes), 340 s each, 48 kHz, block 512
+surface overrides: none; wake bases: shipped (0.50/0.50)
+default M1 stereo RMS: -26.34 dBFS
+default per-minute: M1 RMS -26.34 dBFS colony 0.483648 | M2 RMS -25.91 dBFS colony 0.481807 | M3 RMS -25.43 dBFS colony 0.482763
+t0 = d(default, seed twin) = 1.1952   INAUDIBLE threshold 2*t0 = 2.3904
+DESCRIPTOR default band=7.487872,-0.030737,-5.748409,-9.161317,-13.097267,-15.048820,-16.256807,-17.336717,-17.814204 motion=0.177127 flux=-2.273166 corr=-3.524364 energySpread=0.429732 crest=3.109598
+DESCRIPTOR trueoff band=7.614967,-0.028883,-5.862933,-9.037076,-12.665256,-14.055162,-15.134797,-16.120637,-16.845958 motion=0.192852 flux=-2.304875 corr=-3.529170 energySpread=0.271181 crest=3.015964
+true-off reference (FR-007, offValid): d(default, true-off) = 2.2202   d/t0 = 1.858   M1 RMS -25.61 dBFS
+GATE1 surface=default t0=1.1952 d(on,off)=2.2202 d/t0=1.858 verdict=FAIL
+cross-check (FR-007): d(true-off, 900=0) = 0.0007   d/t0 = 0.001
+===============================================================================
+All tests passed (159436 assertions in 1 test case)
+
+
+EXIT 0
+END 2026-09-27 23:49:38

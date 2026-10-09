@@ -1,0 +1,26 @@
+START 2026-10-06 12:37:11 Swarm Breath SECONDARY=1 OVERRIDE=1500=0,1300=0,300=0.9444,301=0.0,200=0.10,800=0.650515,1105=0.10,1102=0.3
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 206833024
+[probe] override 1500 = 0.000000 (appended)
+[probe] override 1300 = 0.000000 (replaced)
+[probe] override 300 = 0.944400 (replaced)
+[probe] override 301 = 0.000000 (replaced)
+[probe] override 200 = 0.100000 (replaced)
+[probe] override 800 = 0.650515 (replaced)
+[probe] override 1105 = 0.100000 (appended)
+[probe] override 1102 = 0.300000 (replaced)
+[probe] lever: none
+[probe] Swarm Breath - primary E3 noise -> noise wake (stored seed 5, 4 twin render(s))
+  take: peak 0.5478  arm1 hi -18.08 dB [yes]  arm2 lo -24.31 dB [yes]  arm3 late-sus +0.73 dB [yes]  arm4 tail -120.54 dB [yes]
+  arm1@44.1k: finite y peak 0.4882 hi -18.17 dB [PASS]
+  route arms: d(R_k, R_k0) 4.2218, attribBase d(R_0, R_00) 0.9760 (attributable iff d >= 2.4760)
+  primary d 4.2218  bar 4.0000  attribBase 0.9760  state ok  -> PASS  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  secondary D3.4 noise model MetallicHiss: d 2.4388 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "" -> VERIFIED
+  secondary D4.7 noise type Blue: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+  secondary D4.8 noise type Violet: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+  secondary D4.9 noise type Grey: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+===============================================================================
+All tests passed (24 assertions in 1 test case)
+
+exit=0 END 2026-10-06 12:49:25

@@ -1,0 +1,61 @@
+Filters: "ZZ_HarvestFixtureB"
+Randomness seeded to: 644321912
+HARVEST_RMS 0.10584018809847234
+HARVEST_PEAK 0.28841844201087952
+HARVEST_BEGIN
+inline constexpr Krate::DSP::TestUtils::RenderFingerprint kBaseCommitVoragoFingerprint{
+    .rms = 0.10584018809847234,
+    .peak = 0.28841844201087952,
+    .meanAbs = 0.084950359182566965,
+    .totalVariation = 1595.9558681194799,
+    .checkpoints = {
+        0.00000000f, 0.0102007203f, 0.0254982039f, 0.0518970042f,
+        -0.0978992134f, -0.0179690085f, -0.163007259f, 0.0488205999f,
+        -0.0893889517f, 0.0580466166f, 0.158383504f, 0.0916293189f,
+        0.177875027f, -0.120974518f, 0.0338675305f, -0.174887195f,
+        -0.108078532f, -0.102700792f, -0.0340998136f, 0.207726911f,
+        0.0203725398f, 0.126996040f, -0.0808575451f, 0.0179890692f,
+        -0.102840424f, -0.160841048f, -0.0418781452f, -0.0654609054f,
+        0.143871486f, 0.0234865677f, 0.242045194f, 0.00852372590f,}};
+HARVEST_END
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+ZZ_HarvestFixtureB
+-------------------------------------------------------------------------------
+F:\projects\iterum-basecommit\dsp\tests\unit\systems\zz_harvest_fixture_b_test.cpp(46)
+...............................................................................
+
+F:\projects\iterum-basecommit\dsp\tests\unit\systems\zz_harvest_fixture_b_test.cpp(65): 
+warning:
+  HARVEST_RMS 0.10584018809847234
+  HARVEST_PEAK 0.28841844201087952
+  HARVEST_BEGIN
+  inline constexpr Krate::DSP::TestUtils::RenderFingerprint
+  kBaseCommitVoragoFingerprint{
+      .rms = 0.10584018809847234,
+      .peak = 0.28841844201087952,
+      .meanAbs = 0.084950359182566965,
+      .totalVariation = 1595.9558681194799,
+      .checkpoints = {
+          0.00000000f, 0.0102007203f, 0.0254982039f, 0.0518970042f,
+          -0.0978992134f, -0.0179690085f, -0.163007259f, 0.0488205999f,
+          -0.0893889517f, 0.0580466166f, 0.158383504f, 0.0916293189f,
+          0.177875027f, -0.120974518f, 0.0338675305f, -0.174887195f,
+          -0.108078532f, -0.102700792f, -0.0340998136f, 0.207726911f,
+          0.0203725398f, 0.126996040f, -0.0808575451f, 0.0179890692f,
+          -0.102840424f, -0.160841048f, -0.0418781452f, -0.0654609054f,
+          0.143871486f, 0.0234865677f, 0.242045194f, 0.00852372590f,}};
+  HARVEST_END
+
+F:\projects\iterum-basecommit\dsp\tests\unit\systems\zz_harvest_fixture_b_test.cpp(66): PASSED:
+  REQUIRE( fp.rms > 0.0 )
+with expansion:
+  0.1058401881 > 0.0
+
+===============================================================================
+All tests passed (1 assertion in 1 test case)
+

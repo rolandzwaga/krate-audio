@@ -1,0 +1,115 @@
+Mon Sep 21 23:33:07 WEDT 2026
+pin-perf-cores: performance-core mask 0xFFFF
+Filters: "SeraphisEngine_FullPolyCpuBudget","SeraphisVoice_CompositionOverhead","SeraphisEngine_PerfObservables"
+Randomness seeded to: 4256191443
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+SeraphisEngine_FullPolyCpuBudget
+-------------------------------------------------------------------------------
+C:\Users\scab\AppData\Local\Temp\claude\p10pre\dsp\tests\unit\systems\seraphis_perf_test.cpp(1184)
+...............................................................................
+
+C:\Users\scab\AppData\Local\Temp\claude\p10pre\dsp\tests\unit\systems\seraphis_perf_test.cpp(1201): warning:
+  SC-001 body-material survey (standalone ContinuousBody, the phase-4 perf
+  configuration):
+    Glass : 30494 ns/block
+    Strings : 37569 ns/block
+    MetalPlate : 31025.5 ns/block
+    Chamber : 41081.5 ns/block
+    Ice : 32486 ns/block
+    worst material  : Chamber  (the one SC-001 and SC-002 pin)
+
+C:\Users\scab\AppData\Local\Temp\claude\p10pre\dsp\tests\unit\systems\seraphis_perf_test.cpp(1310): warning:
+  SC-001 full-poly composed chain (polyphony 8, all sounding, atmosphere
+  FROZEN,
+          worst measured body material, 64 partials + drift, AetherReverb
+  config (c)):
+    block budget    : 1.06667e+07 ns  (512 samples @ 48 kHz)
+    reference (25 %): 2.66667e+06 ns/block  (roadmap line 311, KEPT by RQ-1)
+    measured        : 1.99602e+06 ns/block  (18.7127 % of one core)
+    RA-1 prediction : 20.36 % of one core (before the voice sum, the spatial
+  stage,
+                      the output stage and the macro matrix)
+    checked-in base : 2.24764e+06 ns/block  (MEASURED 2026-07-31; gate: x1.15 =
+  2.58479e+06 ns/block)
+    admissible base : 2.31884e+06 ns/block  (25 % / 1.15 = 21.74 %)
+    headroom vs ref : 74.8508 % of the reference
+
+-------------------------------------------------------------------------------
+SeraphisVoice_CompositionOverhead
+-------------------------------------------------------------------------------
+C:\Users\scab\AppData\Local\Temp\claude\p10pre\dsp\tests\unit\systems\seraphis_perf_test.cpp(1322)
+...............................................................................
+
+C:\Users\scab\AppData\Local\Temp\claude\p10pre\dsp\tests\unit\systems\seraphis_perf_test.cpp(1388): warning:
+  SC-002 per-voice composition overhead (512-sample blocks @ 48 kHz, best-of-16
+  x 200,
+          64 partials + drift, FR-019 defaults, worst body material (Chamber),
+  atmosphere UNFROZEN,
+          Standard envelope gated on, spatial depth 0.5):
+    HarmonicCloud       : 22669.5 ns/block
+    SpectralMorphEngine : 10719.5 ns/block
+    ContinuousBody      : 39702.5 ns/block
+    AtmosphereEngine    : 75427 ns/block
+    MultiStageEnvelope  : 1792 ns/block
+    GrowthEnvelope      : 19.5 ns/block  (in the denominator by FR-002's eight;
+  the
+                          Standard-mode voice never advances it, so this term
+  biases
+                          the ratio DOWNWARD - see the ratio excluding it
+  below)
+    OrbitModulator      : 732 ns/block
+    MidSideProcessor    : 2240.5 ns/block
+    --- sum of eight    : 153302 ns/block
+    SeraphisVoice       : 197186 ns/block
+    ratio (SC-002)      : 1.28625   (bound <= 1.1)
+    ratio excl. growth  : 1.28642   (reported for compliance.md, NOT the gate)
+
+C:\Users\scab\AppData\Local\Temp\claude\p10pre\dsp\tests\unit\systems\seraphis_perf_test.cpp(1394): FAILED:
+  REQUIRE( ratio <= kCompositionOverheadBound )
+with expansion:
+  1.2862543011 <= 1.1
+with message:
+  SC-002: the 10 % allowance covers the carry-FIFO copies, the per-sample
+  envelope multiply, the spatial stage's two multiplies and the morph->cloud
+  handoff, and nothing else
+
+-------------------------------------------------------------------------------
+SeraphisEngine_PerfObservables
+-------------------------------------------------------------------------------
+C:\Users\scab\AppData\Local\Temp\claude\p10pre\dsp\tests\unit\systems\seraphis_perf_test.cpp(1419)
+...............................................................................
+
+C:\Users\scab\AppData\Local\Temp\claude\p10pre\dsp\tests\unit\systems\seraphis_perf_test.cpp(1437): warning:
+  T005 sizes on THIS toolchain (plan §6.3's stack rule is derived from them):
+    sizeof(SeraphisVoice)  : 47040 B  (bound 50048 B)
+    sizeof(SeraphisEngine) : 765120 B  (bound 866304 B)
+    voices_ share          : 98.3689 % of the engine object
+    => every SeraphisEngine in every TU is heap-allocated; MSVC's default main-
+  thread stack is 1 MiB
+
+C:\Users\scab\AppData\Local\Temp\claude\p10pre\dsp\tests\unit\systems\seraphis_perf_test.cpp(1569): warning:
+  plan §9 R14 - freeze fan-out burst (engine only, polyphony 8, best-of-5 arm/
+  capture cycles):
+    worst single chunk : 425500 ns  (31.9125 % of the 64-sample deadline 1.
+  33333e+06 ns)
+    mean of the maxima : 435900 ns
+    quiet chunk (ref)  : 168296 ns
+    chunks to fan out  : 16  (kFreezeRetriesPerChunk = 1, so >= kMaxVoices
+  chunks by design)
+    chunks to release  : 9  (the one-hop unfreeze fade, untimed)
+    priced worst case  : 2 x FFT(freezeFftSize) - one per channel - in ONE
+  chunk;
+                         an un-staggered fan-out would be 16 x 2 = 32 in one
+  chunk
+
+===============================================================================
+test cases:  3 |  2 passed | 1 failed
+assertions: 74 | 73 passed | 1 failed
+
+exit=1
+Mon Sep 21 23:33:16 WEDT 2026

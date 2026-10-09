@@ -1,0 +1,2692 @@
+Filters: ~[.perf] ~[.perf] ~[performance] ~[.probe] ~[.probe]
+Randomness seeded to: 3143492790
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+HarmonizerEngine SC-008 CPU benchmark all modes
+  Simple mode < 1% CPU
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\harmonizer_engine_test.cpp(3228)
+...............................................................................
+
+benchmark name                       samples       iterations    estimated
+                                     mean          low mean      high mean
+                                     std dev       low std dev   high std dev
+-------------------------------------------------------------------------------
+HarmonizerEngine Simple 4 voices               100             1     4.1147 ms 
+                                         27.261 us     26.725 us     28.196 us 
+                                         3.5255 us     2.2117 us    5.12555 us 
+                                                                               
+
+-------------------------------------------------------------------------------
+HarmonizerEngine SC-008 CPU benchmark all modes
+  PitchSync mode benchmark
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\harmonizer_engine_test.cpp(3245)
+...............................................................................
+
+benchmark name                       samples       iterations    estimated
+                                     mean          low mean      high mean
+                                     std dev       low std dev   high std dev
+-------------------------------------------------------------------------------
+HarmonizerEngine PitchSync 4 voices            100             1     6.0301 ms 
+                                         55.372 us     53.934 us     58.183 us 
+                                        9.90449 us    5.92617 us    17.1548 us 
+                                                                               
+
+F:\projects\iterum\dsp\tests\unit\systems\harmonizer_engine_test.cpp(3266): warning:
+  PitchSync CPU 0.947909% exceeds 3% budget -- per-voice pitch detection
+  overhead. See research.md for analysis.
+
+-------------------------------------------------------------------------------
+HarmonizerEngine SC-008 CPU benchmark all modes
+  Granular mode < 5% CPU
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\harmonizer_engine_test.cpp(3269)
+...............................................................................
+
+benchmark name                       samples       iterations    estimated
+                                     mean          low mean      high mean
+                                     std dev       low std dev   high std dev
+-------------------------------------------------------------------------------
+HarmonizerEngine Granular 4 voices             100             1     4.1448 ms 
+                                         34.747 us     34.602 us     34.991 us 
+                                        929.341 ns    619.738 ns    1.38588 us 
+                                                                               
+
+-------------------------------------------------------------------------------
+HarmonizerEngine SC-008 CPU benchmark all modes
+  PhaseVocoder mode benchmark
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\harmonizer_engine_test.cpp(3286)
+...............................................................................
+
+benchmark name                       samples       iterations    estimated
+                                     mean          low mean      high mean
+                                     std dev       low std dev   high std dev
+-------------------------------------------------------------------------------
+HarmonizerEngine PhaseVocoder 4                                                
+voices                                         100             1    64.1451 ms 
+                                        684.478 us    471.586 us    930.263 us 
+                                        1.15933 ms    1.00976 ms    1.27212 ms 
+                                                                               
+
+F:\projects\iterum\dsp\tests\unit\systems\harmonizer_engine_test.cpp(3307): warning:
+  PhaseVocoder CPU 11.0027% exceeds 15% budget -- FR-020 shared-analysis
+  deferred. See research.md for analysis.
+
+-------------------------------------------------------------------------------
+HarmonizerEngine SC-008 orchestration overhead benchmark
+  Chromatic mode (pure orchestration, no PitchTracker)
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\harmonizer_engine_test.cpp(3335)
+...............................................................................
+
+benchmark name                       samples       iterations    estimated
+                                     mean          low mean      high mean
+                                     std dev       low std dev   high std dev
+-------------------------------------------------------------------------------
+HarmonizerEngine orchestration                                                 
+overhead (Chromatic, all muted)                100            39     3.2799 ms 
+                                        1.06197 us    915.538 ns    1.27779 us 
+                                        897.691 ns    669.707 ns     1.1805 us 
+                                                                               
+
+-------------------------------------------------------------------------------
+HarmonizerEngine SC-008 orchestration overhead benchmark
+  Scalic mode (orchestration + PitchTracker)
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\harmonizer_engine_test.cpp(3370)
+...............................................................................
+
+benchmark name                       samples       iterations    estimated
+                                     mean          low mean      high mean
+                                     std dev       low std dev   high std dev
+-------------------------------------------------------------------------------
+HarmonizerEngine orchestration                                                 
+overhead (Scalic, all muted)                   100             3     4.3257 ms 
+                                        11.4733 us    11.3593 us    11.7073 us 
+                                        798.533 ns    476.143 ns    1.44457 us 
+                                                                               
+
+F:\projects\iterum\dsp\tests\unit\systems\harmonizer_engine_test.cpp(3411): warning:
+  Scalic orchestration overhead: 0.235944%. PitchTracker contributes
+  significant overhead.
+
+-------------------------------------------------------------------------------
+T058: HarmonizerEngine PitchSync 4-voice re-benchmark (SC-008)
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\harmonizer_engine_test.cpp(4540)
+...............................................................................
+
+benchmark name                       samples       iterations    estimated
+                                     mean          low mean      high mean
+                                     std dev       low std dev   high std dev
+-------------------------------------------------------------------------------
+HarmonizerEngine PitchSync 4 voices                                            
+(post-refactor)                                100             1     5.7567 ms 
+                                         44.541 us     44.233 us     45.546 us 
+                                        2.53782 us    837.422 ns    5.63844 us 
+                                                                               
+
+F:\projects\iterum\dsp\tests\unit\systems\harmonizer_engine_test.cpp(4610): warning:
+  PitchSync 4 voices: CPU: 0.907407%, process(): 54.1255 us avg
+
+F:\projects\iterum\dsp\tests\unit\systems\harmonizer_engine_test.cpp(4616): warning:
+  PitchSync spec-064 baseline: ~26.4% CPU, 1460-1588 us/block
+
+F:\projects\iterum\dsp\tests\unit\systems\harmonizer_engine_test.cpp(4617): warning:
+  PitchSync post-refactor measurement is informational only (SC-008).
+
+-------------------------------------------------------------------------------
+SpectralMorph_EndpointsAreExact
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\spectral_morph_engine_test.cpp(489)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\spectral_morph_engine_test.cpp(590): warning:
+  SC-002 clause 2 at bloom = 1 (reported, not gated): worst repair engagement
+  over the 10 factory pairs = 642 chunks of 901
+
+-------------------------------------------------------------------------------
+SpectralMorph_SplineLimiterHasHeadroom
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\spectral_morph_engine_test.cpp(851)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\spectral_morph_engine_test.cpp(906): warning:
+  SC-002 clause 4 (reported): worst Spline limiter engagement over the eight
+  seeds = 0.00327991 of chunks, against the < 0.01 bound. Steady state is
+  analytically 0 -- the worst-case mapped Spline rate is 2.25 u/s against a 3.0
+  u/s cap -- so any nonzero figure is the position-0 start catching up to the
+  Spline's initial value.
+
+-------------------------------------------------------------------------------
+SpectralMorph_TravelIsContinuous
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\spectral_morph_engine_test.cpp(1147)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\spectral_morph_engine_test.cpp(1206): warning:
+  SC-001 clause 1 (reported): worst per-chunk amplitude delta over the 54
+  sweeps = 0.00382227 against 0.025; worst cent delta = 17.0635 against 125;
+  partial-chunks gated by L_i == 0 = 31194
+
+-------------------------------------------------------------------------------
+SpectralMorph_SampleRateInvariant
+  Arm 3: the entropy bank's stationary metric agrees across rates
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\spectral_morph_engine_test.cpp(1320)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\spectral_morph_engine_test.cpp(1406): warning:
+  SC-013 stationary metric (reported): 0.243654 +/- 0.0130248 at 44100 Hz, 0.
+  240351 +/- 0.0127263 at 48000 Hz, 0.228061 +/- 0.0122095 at 96000 Hz.
+  Expected ~0.249 (kInternalStd^2 = 0.25, attenuated by the 150 ms output
+  smoother).
+
+-------------------------------------------------------------------------------
+EntropyProcessor_DisorderIncreasesMonotonically
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\spectral_morph_engine_test.cpp(2159)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\spectral_morph_engine_test.cpp(2336): warning:
+  SC-004 metrics 1-2 (reported), 15 tau measured after 2 tau discarded, 8
+  seeds, tau = 8 s at 8000 Hz:
+    e      metric1(cents) +/- SE      metric2(rel) +/- SE
+    0.00   0 +/- 0   0 +/- 0
+    0.25   0 +/- 0   0.135318 +/- 0.000469825
+    0.35   0.442715 +/- 0.00310305   0.189445 +/- 0.000657754
+    0.50   1.10679 +/- 0.00775771   0.189445 +/- 0.000657754
+    0.60   1.81361 +/- 0.0124026   0.189445 +/- 0.000657754
+    0.75   2.87586 +/- 0.0405454   0.189445 +/- 0.000657754
+    0.85   3.78472 +/- 0.0567141   0.21456 +/- 0.00109194
+    1.00   3.72022 +/- 0.0667264   0.247764 +/- 0.000792158
+
+-------------------------------------------------------------------------------
+SpectralMorph_ExtremesStayFinite
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\spectral_morph_engine_test.cpp(2636)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\spectral_morph_engine_test.cpp(3010): warning:
+  SC-015 (reported): 192 extreme cells swept, largest published ratio = 348.9
+  against kMaxOutputRatio = 360.37. The setSpectralTarget rejection/acceptance
+  and mirror-image clauses landed with T018 at the end of this case.
+
+-------------------------------------------------------------------------------
+SpectralMorph_TravelIsContinuous_Rendered
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\spectral_morph_render_test.cpp(1846)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\spectral_morph_render_test.cpp(1891): warning:
+  SC-001 cl.2 seed 1, entropy 0: moving L 93 / R 93, frozen L 93 / R 93 (bound
+  L 111.95, bound R 111.95)
+
+F:\projects\iterum\dsp\tests\unit\systems\spectral_morph_render_test.cpp(1891): warning:
+  SC-001 cl.2 seed 7, entropy 0: moving L 93 / R 93, frozen L 93 / R 93 (bound
+  L 111.95, bound R 111.95)
+
+F:\projects\iterum\dsp\tests\unit\systems\spectral_morph_render_test.cpp(1891): warning:
+  SC-001 cl.2 seed 13, entropy 0: moving L 93 / R 93, frozen L 93 / R 93 (bound
+  L 111.95, bound R 111.95)
+
+F:\projects\iterum\dsp\tests\unit\systems\spectral_morph_render_test.cpp(1891): warning:
+  SC-001 cl.2 seed 29, entropy 0: moving L 93 / R 93, frozen L 93 / R 93 (bound
+  L 111.95, bound R 111.95)
+
+F:\projects\iterum\dsp\tests\unit\systems\spectral_morph_render_test.cpp(1924): warning:
+  SC-001 cl.2 MEDIANS over 4 seeds at entropy 0: moving L 93 / R 93, frozen L
+  93 / R 93, bounds L 111.95 / R 111.95
+
+F:\projects\iterum\dsp\tests\unit\systems\spectral_morph_render_test.cpp(1891): warning:
+  SC-001 cl.2 seed 1, entropy 1: moving L 85 / R 85, frozen L 80 / R 80 (bound
+  L 97, bound R 97)
+
+F:\projects\iterum\dsp\tests\unit\systems\spectral_morph_render_test.cpp(1891): warning:
+  SC-001 cl.2 seed 7, entropy 1: moving L 88 / R 88, frozen L 89 / R 89 (bound
+  L 107.35, bound R 107.35)
+
+F:\projects\iterum\dsp\tests\unit\systems\spectral_morph_render_test.cpp(1891): warning:
+  SC-001 cl.2 seed 13, entropy 1: moving L 74 / R 74, frozen L 117 / R 117
+  (bound L 139.55, bound R 139.55)
+
+F:\projects\iterum\dsp\tests\unit\systems\spectral_morph_render_test.cpp(1891): warning:
+  SC-001 cl.2 seed 29, entropy 1: moving L 83 / R 83, frozen L 110 / R 110
+  (bound L 131.5, bound R 131.5)
+
+F:\projects\iterum\dsp\tests\unit\systems\spectral_morph_render_test.cpp(1924): warning:
+  SC-001 cl.2 MEDIANS over 4 seeds at entropy 1: moving L 84 / R 84, frozen L
+  99.5 / R 99.5, bounds L 119.425 / R 119.425
+
+-------------------------------------------------------------------------------
+EntropyProcessor_FlatnessRisesWithEntropy
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\spectral_morph_render_test.cpp(2177)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\spectral_morph_render_test.cpp(2184): warning:
+  SC-004 m.3 entropy 0: flatness 3.01477e-05 (mean over 8 seeds)
+
+F:\projects\iterum\dsp\tests\unit\systems\spectral_morph_render_test.cpp(2184): warning:
+  SC-004 m.3 entropy 0.1: flatness 0.000193173 (mean over 8 seeds)
+
+F:\projects\iterum\dsp\tests\unit\systems\spectral_morph_render_test.cpp(2184): warning:
+  SC-004 m.3 entropy 0.15: flatness 0.000233193 (mean over 8 seeds)
+
+F:\projects\iterum\dsp\tests\unit\systems\spectral_morph_render_test.cpp(2184): warning:
+  SC-004 m.3 entropy 0.25: flatness 0.000308998 (mean over 8 seeds)
+
+F:\projects\iterum\dsp\tests\unit\systems\spectral_morph_render_test.cpp(2184): warning:
+  SC-004 m.3 entropy 0.35: flatness 0.000523654 (mean over 8 seeds)
+
+F:\projects\iterum\dsp\tests\unit\systems\spectral_morph_render_test.cpp(2184): warning:
+  SC-004 m.3 entropy 0.45: flatness 0.000606181 (mean over 8 seeds)
+
+F:\projects\iterum\dsp\tests\unit\systems\spectral_morph_render_test.cpp(2184): warning:
+  SC-004 m.3 entropy 0.5: flatness 0.000631422 (mean over 8 seeds)
+
+F:\projects\iterum\dsp\tests\unit\systems\spectral_morph_render_test.cpp(2184): warning:
+  SC-004 m.3 entropy 0.6: flatness 0.00068169 (mean over 8 seeds)
+
+F:\projects\iterum\dsp\tests\unit\systems\spectral_morph_render_test.cpp(2184): warning:
+  SC-004 m.3 entropy 0.75: flatness 0.000671925 (mean over 8 seeds)
+
+F:\projects\iterum\dsp\tests\unit\systems\spectral_morph_render_test.cpp(2184): warning:
+  SC-004 m.3 entropy 0.85: flatness 0.000691979 (mean over 8 seeds)
+
+F:\projects\iterum\dsp\tests\unit\systems\spectral_morph_render_test.cpp(2184): warning:
+  SC-004 m.3 entropy 1: flatness 0.000739681 (mean over 8 seeds)
+
+-------------------------------------------------------------------------------
+EntropyProcessor_IsLevelNeutral
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\spectral_morph_render_test.cpp(2220)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\spectral_morph_render_test.cpp(2229): warning:
+  SC-004 m.4 entropy 0: broadband stereo RMS -9.03104 dBFS (mean over 8 seeds,
+  first 0.5 s discarded)
+
+F:\projects\iterum\dsp\tests\unit\systems\spectral_morph_render_test.cpp(2229): warning:
+  SC-004 m.4 entropy 0.1: broadband stereo RMS -9.03021 dBFS (mean over 8
+  seeds, first 0.5 s discarded)
+
+F:\projects\iterum\dsp\tests\unit\systems\spectral_morph_render_test.cpp(2229): warning:
+  SC-004 m.4 entropy 0.15: broadband stereo RMS -9.02972 dBFS (mean over 8
+  seeds, first 0.5 s discarded)
+
+F:\projects\iterum\dsp\tests\unit\systems\spectral_morph_render_test.cpp(2229): warning:
+  SC-004 m.4 entropy 0.25: broadband stereo RMS -9.02856 dBFS (mean over 8
+  seeds, first 0.5 s discarded)
+
+F:\projects\iterum\dsp\tests\unit\systems\spectral_morph_render_test.cpp(2229): warning:
+  SC-004 m.4 entropy 0.35: broadband stereo RMS -9.02773 dBFS (mean over 8
+  seeds, first 0.5 s discarded)
+
+F:\projects\iterum\dsp\tests\unit\systems\spectral_morph_render_test.cpp(2229): warning:
+  SC-004 m.4 entropy 0.45: broadband stereo RMS -9.02765 dBFS (mean over 8
+  seeds, first 0.5 s discarded)
+
+F:\projects\iterum\dsp\tests\unit\systems\spectral_morph_render_test.cpp(2229): warning:
+  SC-004 m.4 entropy 0.5: broadband stereo RMS -9.02731 dBFS (mean over 8
+  seeds, first 0.5 s discarded)
+
+F:\projects\iterum\dsp\tests\unit\systems\spectral_morph_render_test.cpp(2229): warning:
+  SC-004 m.4 entropy 0.6: broadband stereo RMS -9.02766 dBFS (mean over 8
+  seeds, first 0.5 s discarded)
+
+F:\projects\iterum\dsp\tests\unit\systems\spectral_morph_render_test.cpp(2229): warning:
+  SC-004 m.4 entropy 0.75: broadband stereo RMS -9.02735 dBFS (mean over 8
+  seeds, first 0.5 s discarded)
+
+F:\projects\iterum\dsp\tests\unit\systems\spectral_morph_render_test.cpp(2229): warning:
+  SC-004 m.4 entropy 0.85: broadband stereo RMS -9.02823 dBFS (mean over 8
+  seeds, first 0.5 s discarded)
+
+F:\projects\iterum\dsp\tests\unit\systems\spectral_morph_render_test.cpp(2229): warning:
+  SC-004 m.4 entropy 1: broadband stereo RMS -9.02609 dBFS (mean over 8 seeds,
+  first 0.5 s discarded)
+
+F:\projects\iterum\dsp\tests\unit\systems\spectral_morph_render_test.cpp(2251): warning:
+  SC-004 m.4 SPREAD: 0.00495 dB (max -9.02609 dBFS at entropy 1, min -9.03104
+  dBFS at entropy 0, bound 3 dB)
+
+-------------------------------------------------------------------------------
+ContinuousBody_OutputStageEndpoints
+  (ii) setWidth moves the L/R correlation
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\continuous_body_test.cpp(4838)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\continuous_body_test.cpp(4909): warning:
+  FR-062 L/R correlation: width 0 = 1, width 1 = 0.0216486, delta = 0.978351
+
+-------------------------------------------------------------------------------
+ContinuousBody_CloudExcitationHitsTarget
+  the steady-state peak lands within +/-8 dB of kTargetPeak under multi-partial
+  excitation
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\continuous_body_test.cpp(6837)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\continuous_body_test.cpp(6855): warning:
+  SC-007a Glass: steady peak = 0.184138 (-14.6972 dBFS), -1.74081 dB relative
+  to kTargetPeak; G-hat = 10100.8, drive = 0.000212605, inputRms = 0.298026
+
+F:\projects\iterum\dsp\tests\unit\systems\continuous_body_test.cpp(6855): warning:
+  SC-007a Strings: steady peak = 0.185561 (-14.6303 dBFS), -1.67393 dB relative
+  to kTargetPeak; G-hat = 84.2382, drive = 0.00688957, inputRms = 0.304928
+
+F:\projects\iterum\dsp\tests\unit\systems\continuous_body_test.cpp(6855): warning:
+  SC-007a MetalPlate: steady peak = 0.183707 (-14.7175 dBFS), -1.76113 dB
+  relative to kTargetPeak; G-hat = 23804.1, drive = 0.000421461, inputRms = 0.
+  305188
+
+F:\projects\iterum\dsp\tests\unit\systems\continuous_body_test.cpp(6855): warning:
+  SC-007a Chamber: steady peak = 0.185099 (-14.6519 dBFS), -1.69557 dB relative
+  to kTargetPeak; G-hat = 229.209, drive = 0.0245485, inputRms = 0.294392
+
+F:\projects\iterum\dsp\tests\unit\systems\continuous_body_test.cpp(6855): warning:
+  SC-007a Ice: steady peak = 0.180597 (-14.8658 dBFS), -1.90945 dB relative to
+  kTargetPeak; G-hat = 9176.08, drive = 0.000368467, inputRms = 0.295456
+
+-------------------------------------------------------------------------------
+ContinuousBody_ColdStartReachesTargetQuickly
+  seconds 2-4 land within +/-6 dB of the settled level, from a fresh prepare()
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\continuous_body_test.cpp(7005)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\continuous_body_test.cpp(7022): warning:
+  SC-007b Glass: peak[2-4 s] = 0.128936 (-17.7925 dBFS), settled = 0.181933 (-
+  14.8018 dBFS), shortfall = -2.99073 dB; excitationComp = 11.3047
+
+F:\projects\iterum\dsp\tests\unit\systems\continuous_body_test.cpp(7022): warning:
+  SC-007b Strings: peak[2-4 s] = 0.142008 (-16.9537 dBFS), settled = 0.184723
+  (-14.6696 dBFS), shortfall = -2.28413 dB; excitationComp = 3.07511
+
+F:\projects\iterum\dsp\tests\unit\systems\continuous_body_test.cpp(7022): warning:
+  SC-007b MetalPlate: peak[2-4 s] = 0.0851557 (-21.3957 dBFS), settled = 0.
+  166431 (-15.5753 dBFS), shortfall = -5.8204 dB; excitationComp = 48.8031
+
+F:\projects\iterum\dsp\tests\unit\systems\continuous_body_test.cpp(7022): warning:
+  SC-007b Chamber: peak[2-4 s] = 0.167419 (-15.5239 dBFS), settled = 0.185097
+  (-14.652 dBFS), shortfall = -0.871882 dB; excitationComp = 29.7601
+
+F:\projects\iterum\dsp\tests\unit\systems\continuous_body_test.cpp(7022): warning:
+  SC-007b Ice: peak[2-4 s] = 0.114432 (-18.829 dBFS), settled = 0.18025 (-14.
+  8825 dBFS), shortfall = -3.94651 dB; excitationComp = 17.8836
+
+-------------------------------------------------------------------------------
+ContinuousBody_CloudDecayAccuracy
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\continuous_body_spectral_test.cpp(1639)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\continuous_body_spectral_test.cpp(1664): warning:
+  SC-008 cloudSize 0, requested 0.5 s -> measured 0.458079 s (-8.38426 %)
+
+F:\projects\iterum\dsp\tests\unit\systems\continuous_body_spectral_test.cpp(1664): warning:
+  SC-008 cloudSize 0, requested 2 s -> measured 1.7608 s (-11.9602 %)
+
+F:\projects\iterum\dsp\tests\unit\systems\continuous_body_spectral_test.cpp(1664): warning:
+  SC-008 cloudSize 0, requested 10 s -> measured 8.88078 s (-11.1922 %)
+
+F:\projects\iterum\dsp\tests\unit\systems\continuous_body_spectral_test.cpp(1664): warning:
+  SC-008 cloudSize 0, requested 30 s -> measured 27.0828 s (-9.72392 %)
+
+F:\projects\iterum\dsp\tests\unit\systems\continuous_body_spectral_test.cpp(1664): warning:
+  SC-008 cloudSize 1, requested 0.5 s -> measured 0.551547 s (10.3093 %)
+
+F:\projects\iterum\dsp\tests\unit\systems\continuous_body_spectral_test.cpp(1664): warning:
+  SC-008 cloudSize 1, requested 2 s -> measured 1.88879 s (-5.56054 %)
+
+F:\projects\iterum\dsp\tests\unit\systems\continuous_body_spectral_test.cpp(1664): warning:
+  SC-008 cloudSize 1, requested 10 s -> measured 8.92631 s (-10.7369 %)
+
+F:\projects\iterum\dsp\tests\unit\systems\continuous_body_spectral_test.cpp(1664): warning:
+  SC-008 cloudSize 1, requested 30 s -> measured 26.6714 s (-11.0955 %)
+
+-------------------------------------------------------------------------------
+SeraphisVoice_LayerAndOwnership
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\seraphis_voice_test.cpp(311)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\seraphis_voice_test.cpp(324): warning:
+  sizeof(SeraphisVoice) = 47072 B; kVoiceSizeBound = 50048
+
+-------------------------------------------------------------------------------
+SeraphisEngine_PolyphonyAndPreparation
+  the shipped default polyphony is 8, and sizeof is recorded
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\seraphis_engine_test.cpp(349)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\seraphis_engine_test.cpp(362): warning:
+  sizeof(SeraphisEngine) = 765632 B (747.688 KiB); sizeof(SeraphisVoice) =
+  47072 B; kEngineSizeBound = 866304
+
+-------------------------------------------------------------------------------
+SeraphisEngine_OutputStageIsSeparate
+  FR-054: processOutputStage bounds any buffer to the ceiling
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\seraphis_engine_test.cpp(586)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\seraphis_engine_test.cpp(628): warning:
+  16-voice voice-sum peak at the FR-019 neutral = 0.538625 (ceiling 0.891251)
+
+-------------------------------------------------------------------------------
+SeraphisEngine_OutputStageIsSeparate
+  FR-053: the shipped constants are low drive, not distortion
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\seraphis_engine_test.cpp(633)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\seraphis_engine_test.cpp(669): warning:
+  FR-053 THD @ -6 dBFS / 1 kHz: shipped (saturation 0.15, drive 0 dB) = 0.
+  186299 %, positive control (saturation 1.0) = 1.30853 %
+
+-------------------------------------------------------------------------------
+SeraphisEngine_ResetAndSilence
+  positive control: the resetForSteal() variant carries a tail
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\seraphis_engine_test.cpp(748)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\seraphis_engine_test.cpp(786): warning:
+  FR-055 positive control: peak of the first block after silence() +
+  resetForSteal() = 0.0262554; after silence() + reset() (what the engine does)
+  = 0
+
+-------------------------------------------------------------------------------
+SeraphisEngine_NoteDispatch
+  FR-047 / Q8: a note-on onto a post-shrink orphan tears that slot down
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\seraphis_engine_test.cpp(1038)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\seraphis_engine_test.cpp(1108): warning:
+  FR-047 orphan residue after the first control chunk = 0.000429224; pre-shrink
+  sounding level = 0.105641; tail level at the note-on = 0.00114052
+
+-------------------------------------------------------------------------------
+SeraphisEngine_VoiceReclaimIsCorrect
+  clause 2: everything is reclaimed once the tails are actually silent
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\seraphis_engine_test.cpp(1628)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\seraphis_engine_test.cpp(1650): warning:
+  SC-012 clause 2: reclaimed 39.6373 s after the note-off (bound 75 s), at
+  setCloudDecaySec(30)
+
+-------------------------------------------------------------------------------
+SeraphisEngine_VoiceStealIsClickless
+  positive control (b): the kSilenceRampMs = 0 hard cut FAILS clause 3
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\seraphis_engine_test.cpp(4367)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\seraphis_engine_test.cpp(4308): warning:
+  SC-003 positive control (b), kSilenceRampMs = 0 hard cut:
+    reference windows      = 8
+    reference (p95 delta)  = 0.00579686
+    worst event delta      = 0.0805431 (event #0)
+    reference MAX delta    = 0.00579686
+    bound (1.5 x refMax)   = 0.00869529
+    ratio worst/refMax     = 13.8943
+    event windows          = 8
+    event p95 delta        = 0.0805431
+    ratio eventP95/refP95  = 13.8943
+    ratio refMax/refP95    = 1
+    injected-step delta    = 0.0173906
+    worst teardown (us)    = 534.8
+    mean teardown (us)     = 360.075
+    worst block (us)       = 5402.7 of 10666.7
+    worst quiet block (us) = 5402.7
+    teardowns per block that would exhaust the budget K = 9.84287
+
+-------------------------------------------------------------------------------
+SeraphisEngine_OutputNeverExceedsCeiling
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\seraphis_engine_test.cpp(4945)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\seraphis_engine_test.cpp(4737): warning:
+  SC-015 @ 8 voices / 10 s: peak = 0.891251 (-1 dBFS), headroom to the ceiling
+  = -2.90868e-07 dB; RMS charged = 0.311486, frozen = 0.30339
+
+-------------------------------------------------------------------------------
+NoiseOrganism_LongRenderStationarity
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\noise_organism_spectral_test.cpp(1456)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\noise_organism_spectral_test.cpp(1613): warning:
+  SC-001 (10 min, SC-004 (c) reference): median -43.9151 dBFS, window range [-
+  46.9035, -41.2948] dBFS, worst deviation 2.98846 dB (limit 4.5), drift -0.
+  358725 dB / 10 min (limit +/-0.5), breathing factor [0.8875, 1.1125] (band
+  [0.8875, 1.1125])
+
+-------------------------------------------------------------------------------
+NoiseOrganism_SpectralMotion
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\noise_organism_spectral_test.cpp(1635)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\noise_organism_spectral_test.cpp(2001): warning:
+  SC-002 (b) strongest-band CV: wander-on 2.59597, control-arm 0.778912, ratio
+  = 3.33282 (needs >= 1.8); (c) spectral-over-level ratio = 18.2956 (needs >=
+  5.0), from strongest band-fraction CV 2.59597 (floor 0.10) over level CV 0.
+  141891 (cap 0.28); (d) realised comb excursion: comb 0 80.6282 %, comb 1 80.
+  6282 % of the configured span (floor 25 %)
+
+-------------------------------------------------------------------------------
+NoiseOrganism_BoundedSoak
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\noise_organism_spectral_test.cpp(2021)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\noise_organism_spectral_test.cpp(2110): warning:
+  SC-005 (b) 30 min soak: peak 0.0899707 (bound 4), quietest 1 s window -45.
+  9343 dBFS at t = 98 s (floor -60), first minute after settle -38.7467 dBFS,
+  final minute -38.8585 dBFS, creep -0.111767 dB (limit +/-6)
+
+-------------------------------------------------------------------------------
+NoiseOrganism_SampleRateInvariance
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\noise_organism_spectral_test.cpp(2129)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\noise_organism_spectral_test.cpp(2394): warning:
+  SC-008: overall RMS 44.1/48/96/192 kHz = -48.5186 / -48.8098 / -48.3311 / -
+  48.1889 dBFS (spread limit 1.0 dB vs 48 kHz); comb-lane r(0.5 s) = 0.867995 /
+  0.867996 / 0.868011 / 0.867982 (max deviation vs 48 kHz 0.005); wake ramp =
+  50 / 50 / 50.0104 / 50 ms (50 +/- 5)
+
+-------------------------------------------------------------------------------
+NoiseOrganism_NoZipperUnderDrift
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\noise_organism_spectral_test.cpp(2427)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\noise_organism_spectral_test.cpp(2489): warning:
+  SC-009 (b) 5 min, 25 ms frames: floor mean 1.16588 dB, sigma 0.969678 dB,
+  worst step 9.38898 dB; threshold 14.0835 dB (>= mean + 3 sigma = 4.07491);
+  wander-on worst step 10.9618 dB
+
+-------------------------------------------------------------------------------
+FeedbackEcology_ResonatorRing
+  (a) MEASURED ring at 210 Hz, the unclamped centre
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_test.cpp(791)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_test.cpp(803): warning:
+  SC-023 (a) loop 5: centre 210 Hz, SVF cutoff 23760 Hz, measured RT60 = 0.
+  996136 s (slope -60.2327 dB/s over 122 one-cycle windows, initial peak 0.
+  000287057 at 0.450844 s); getLoopResonanceRt60(5) = 1 s; the kMaxQ = 30
+  defect would measure 0.3141 s
+
+-------------------------------------------------------------------------------
+FeedbackEcology_ResonatorRing
+  (b) MEASURED ring at 1200 Hz, a Q-clamped centre
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_test.cpp(824)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_test.cpp(837): warning:
+  SC-023 (b) loop 0: centre 1200 Hz, SVF cutoff 23760 Hz, measured RT60 = 0.
+  183988 s (slope -326.108 dB/s over 129 one-cycle windows, initial peak 0.
+  00154173 at 0.04125 s); getLoopResonanceRt60(0) = 0.183234 s; the kMaxQ = 30
+  defect would measure 0.0550 s
+
+-------------------------------------------------------------------------------
+FeedbackEcology_SampleRate
+  (render) RMS, centroid, and no clamp or non-finite engagement at any rate
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_test.cpp(1105)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_test.cpp(1118): warning:
+  SC-011 44100 Hz: RMS = -56.6647 dBFS, centroid = 914.03 Hz, clamp engagements
+  = 0, non-finite resets = 0
+
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_test.cpp(1118): warning:
+  SC-011 48000 Hz: RMS = -56.6678 dBFS, centroid = 897.222 Hz, clamp
+  engagements = 0, non-finite resets = 0
+
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_test.cpp(1118): warning:
+  SC-011 96000 Hz: RMS = -56.9716 dBFS, centroid = 896.073 Hz, clamp
+  engagements = 0, non-finite resets = 0
+
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_test.cpp(1118): warning:
+  SC-011 192000 Hz: RMS = -57.3595 dBFS, centroid = 878.392 Hz, clamp
+  engagements = 0, non-finite resets = 0
+
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_test.cpp(1143): warning:
+  SC-011 across rates: RMS spread = 0.694776 dB against 1 dB, centroid 878.392
+  .. 914.03 Hz, ratio = 1.04057 against 1.10
+
+-------------------------------------------------------------------------------
+FeedbackEcology_SampleRate
+  (render) the staircase-aware realised delay bound, wander OFF
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_test.cpp(1161)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_test.cpp(1213): warning:
+  SC-011 44100 Hz: staircase term = 2.26757 ms, worst |realised - configured|
+  over the six loops = 3.05176e-05 ms
+
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_test.cpp(1213): warning:
+  SC-011 48000 Hz: staircase term = 2.08333 ms, worst |realised - configured|
+  over the six loops = 3.05176e-05 ms
+
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_test.cpp(1213): warning:
+  SC-011 96000 Hz: staircase term = 1.04167 ms, worst |realised - configured|
+  over the six loops = 3.05176e-05 ms
+
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_test.cpp(1213): warning:
+  SC-011 192000 Hz: staircase term = 0.520833 ms, worst |realised - configured|
+  over the six loops = 3.05176e-05 ms
+
+-------------------------------------------------------------------------------
+FeedbackEcology_OutputClamp
+  (b) the counter is wired: a hot drive at +24 dB trim engages the clamp
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_test.cpp(1807)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_test.cpp(1906): warning:
+  SC-013 (b) measured pre-clamp peak = 11.3316 (kOutputClamp = 4), output peak
+  = 4, clamp engagements = 61747
+
+-------------------------------------------------------------------------------
+FeedbackEcology_WanderRateMapping
+  (b) the behavioural arm a hard-wired decimation fails
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_test.cpp(2282)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_test.cpp(2342): warning:
+  SC-025 (b) mean target-delay range over 300 s: slow (0.002 Hz, decimation 17)
+  = 5.4518 ms; fast (0.0333 Hz, decimation 2) = 13.6797 ms; ratio slow/fast =
+  0.398532
+
+-------------------------------------------------------------------------------
+FeedbackEcology_DelayMotion
+  (a) 300 s at 44.1 kHz - the binding rate
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_test.cpp(2547)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_test.cpp(2523): warning:
+  SC-005 (a) 44.1 kHz loop 0 (base 41 ms): distinct settled = 21, distinct
+  settled in the first 120 s = 9, spread = 23.1047 ms (56.3528 % of base),
+  crossfade onsets = 26
+
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_test.cpp(2523): warning:
+  SC-005 (a) 44.1 kHz loop 1 (base 67 ms): distinct settled = 28, distinct
+  settled in the first 120 s = 15, spread = 30.339 ms (45.2821 % of base),
+  crossfade onsets = 30
+
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_test.cpp(2523): warning:
+  SC-005 (a) 44.1 kHz loop 2 (base 109 ms): distinct settled = 26, distinct
+  settled in the first 120 s = 10, spread = 45.3166 ms (41.5749 % of base),
+  crossfade onsets = 29
+
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_test.cpp(2523): warning:
+  SC-005 (a) 44.1 kHz loop 3 (base 173 ms): distinct settled = 34, distinct
+  settled in the first 120 s = 14, spread = 67.7292 ms (39.1498 % of base),
+  crossfade onsets = 37
+
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_test.cpp(2523): warning:
+  SC-005 (a) 44.1 kHz loop 4 (base 281 ms): distinct settled = 37, distinct
+  settled in the first 120 s = 14, spread = 106.771 ms (37.9966 % of base),
+  crossfade onsets = 43
+
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_test.cpp(2523): warning:
+  SC-005 (a) 44.1 kHz loop 5 (base 449 ms): distinct settled = 60, distinct
+  settled in the first 120 s = 26, spread = 161.828 ms (36.0418 % of base),
+  crossfade onsets = 62
+
+-------------------------------------------------------------------------------
+FeedbackEcology_DelayMotion
+  (b) an excursion below the crossfade threshold does not move the position
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_test.cpp(2551)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_test.cpp(2582): warning:
+  SC-005 (b) initial = 10 ms, worst deviation over 120 s = 0 ms, target range =
+  [10, 10.3929] ms, crossfade onsets = 0
+
+-------------------------------------------------------------------------------
+FeedbackEcology_DelayMotion
+  (c) 300 s at 192 kHz
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_test.cpp(2593)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_test.cpp(2523): warning:
+  SC-005 (c) 192 kHz loop 0 (base 41 ms): distinct settled = 388, distinct
+  settled in the first 120 s = 302, spread = 32.0796 ms (78.243 % of base),
+  crossfade onsets = 333
+
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_test.cpp(2523): warning:
+  SC-005 (c) 192 kHz loop 1 (base 67 ms): distinct settled = 510, distinct
+  settled in the first 120 s = 392, spread = 42.5568 ms (63.5176 % of base),
+  crossfade onsets = 397
+
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_test.cpp(2523): warning:
+  SC-005 (c) 192 kHz loop 2 (base 109 ms): distinct settled = 627, distinct
+  settled in the first 120 s = 465, spread = 59.9391 ms (54.99 % of base),
+  crossfade onsets = 395
+
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_test.cpp(2523): warning:
+  SC-005 (c) 192 kHz loop 3 (base 173 ms): distinct settled = 842, distinct
+  settled in the first 120 s = 580, spread = 85.9087 ms (49.6582 % of base),
+  crossfade onsets = 392
+
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_test.cpp(2523): warning:
+  SC-005 (c) 192 kHz loop 4 (base 281 ms): distinct settled = 1230, distinct
+  settled in the first 120 s = 731, spread = 135.348 ms (48.1666 % of base),
+  crossfade onsets = 529
+
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_test.cpp(2523): warning:
+  SC-005 (c) 192 kHz loop 5 (base 449 ms): distinct settled = 1369, distinct
+  settled in the first 120 s = 826, spread = 199.771 ms (44.4924 % of base),
+  crossfade onsets = 565
+
+-------------------------------------------------------------------------------
+FeedbackEcology_SeedDeterminism
+  (a) two instances, the same seed, the same render
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_test.cpp(2655)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_test.cpp(2672): warning:
+  SC-009 (a) worst metric relative error = 0, worst checkpoint error = 0
+
+-------------------------------------------------------------------------------
+FeedbackEcology_SeedDeterminism
+  (b) reset() replays the render on the SAME instance
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_test.cpp(2680)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_test.cpp(2715): warning:
+  SC-009 (b) worst metric relative error = 0, worst checkpoint error = 0
+
+-------------------------------------------------------------------------------
+FeedbackEcology_SeedDeterminism
+  (c) two different seeds produce a DIFFERENT render
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_test.cpp(2723)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_test.cpp(2798): warning:
+  SC-009 (c) mean |difference| = 0.00133061 = 1.1378 x the render's own meanAbs
+  (0.00116946) against the 0.5 floor and the 0.0005 absolute floor; worst
+  metric relative error = 0.00318497 against 0.00025, worst checkpoint error =
+  0.00627271 against 0.0005
+
+-------------------------------------------------------------------------------
+FeedbackEcology_SeedDeterminism
+  (d) the twelve lane streams are distinct and uncorrelated
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_test.cpp(2811)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_test.cpp(2940): warning:
+  SC-009 (d) worst |pearson| on INCREMENTS = 0.0715114 between lane 1 and lane
+  9 (0-5 = delay, 6-11 = cutoff), over 11249 increments; REPORTED ONLY, the
+  level figure this criterion used to assert on = 0.691647 between lanes 0 and
+  7
+
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_test.cpp(3005): warning:
+  SC-009 (d) positive control - two lanes on ONE stream report |pearson| = 0.
+  98553 on increments against the 0.25 bound the independent lanes clear at 0.
+  0715114
+
+-------------------------------------------------------------------------------
+FeedbackEcology_GainNormalisation
+  (a) the coefficients in force, over 1 000 random configurations
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_test.cpp(3088)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_test.cpp(3162): warning:
+  SC-015 (a): 1000 configurations, 2254 saturated rows / 3746 unsaturated;
+  worst settled excess over kMaxTotalLoopGain = 1.52737e-07, worst in-glide
+  excess = 1.86265e-07, worst total/row-sum disagreement = 1.86265e-07, worst
+  saturated error = 1.80677e-07
+
+-------------------------------------------------------------------------------
+FeedbackEcology_GainNormalisation
+  R-1: the coupling smoothers run on the CONTROL clock, not on fs
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_test.cpp(3276)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_test.cpp(3303): warning:
+  R-1: getLoopAppliedCoupling(0, 1) reached 0.299256 of its 0.3 target after
+  1152 samples (~24 ms); the fs-configured bug reaches ~0.028
+
+-------------------------------------------------------------------------------
+FeedbackEcology_Governor
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_test.cpp(3423)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_test.cpp(3469): warning:
+  SC-006 (a): threshold 0.00251189 (-52 dB); governor-off tracker RMS per step:
+  0.000304946, 0.00047209, 0.0014099, 0.00348746, 0.00552548, 0.00900505, 0.
+  0166841, 0.0282945
+
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_test.cpp(3490): warning:
+  SC-006 (a): governed gain per step: 1, 1, 1, 0.839573, 0.623703, 0.378534, 0.
+  197427, 0.137406
+
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_test.cpp(3516): warning:
+  SC-006 (b): output RMS rose 20.6462 dB across a 40 dB input rise
+
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_test.cpp(3535): warning:
+  SC-006 (f): crossing level at numLoops = 6 is -22 dBFS, at numLoops = 1 is -
+  22 dBFS
+
+-------------------------------------------------------------------------------
+FeedbackEcology_Dormancy
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_test.cpp(3763)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_test.cpp(3952): warning:
+  SC-014 (b2): 60 s asleep moved loop 5's delay by 119.664 ms (one FR-023 step
+  = 2.08333 ms) and its cutoff by 3.0795 % (522.092 -> 538.169 Hz)
+
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_test.cpp(4129): warning:
+  SC-014 (d): the woken loop's tap peaked at -240 dBFS over the first 500 ms
+  (linear 0)
+
+-------------------------------------------------------------------------------
+FeedbackEcology_LoopCount
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_test.cpp(4149)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_test.cpp(4248): warning:
+  SC-022 (b): wet RMS 5 loops = 0.00148023, 6 loops = 0.00146774, ratio = -0.
+  0735887 dB - REPORTED, NEVER GATED (the correct value lies anywhere in [0, +
+  0.79] dB)
+
+-------------------------------------------------------------------------------
+FeedbackEcology_FastTanhErrorBound
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_test.cpp(4684)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_test.cpp(4741): warning:
+  FR-042 / OQ-2 lever 1: fastTanh over [-64, 64] in 400000 steps
+    max |fastTanh| = 1 (bound 1)
+    max |fastTanh - std::tanh| = 0.00182152 at x = -3.50016 (ceiling 0.002)
+    max relative error for |x| <= 1 = 2.50925e-07 at x = -0.892483 (ceiling 1e-
+  06)
+
+-------------------------------------------------------------------------------
+FeedbackEcology_CrossLoopTransfer
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_spectral_test.cpp(591)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_spectral_test.cpp(645): warning:
+  
+SC-002 cross-loop transfer, 60 s per point at 48000 Hz, single-loop
+  excitation (loop 0 tap = 1, loops 1-5 tap = 0)
+  T(c) = 20*log10( pooled RMS of the taps of loops 1..5 / RMS of loop 0's tap )
+    [fb]  c = 0   driven RMS 0.00361102   undriven RMS 0   T(c) -inf (the
+  undriven taps are silent)   coherence 0   clamps 0   nonfinite resets 0
+    [fb]  c = 0.01   driven RMS 0.00360802   undriven RMS 2.21139e-05   T(c) -
+  44.2521 dB   coherence 0.035993   clamps 0   nonfinite resets 0
+    [fb]  c = 0.02   driven RMS 0.00360451   undriven RMS 4.43203e-05   T(c) -
+  38.2049 dB   coherence 0.0324793   clamps 0   nonfinite resets 0
+    [fb]  c = 0.04   driven RMS 0.00359612   undriven RMS 8.89888e-05   T(c) -
+  32.13 dB   coherence 0.0280635   clamps 0   nonfinite resets 0
+    [fb]  c = 0.08   driven RMS 0.00357254   undriven RMS 0.000179111   T(c) -
+  25.9971 dB   coherence 0.0259835   clamps 0   nonfinite resets 0
+    [ff]  c = 0   driven RMS 0.00354396   undriven RMS 0   T(c) -inf (the
+  undriven taps are silent)   coherence n/a   clamps 0   nonfinite resets 0
+    [ff]  c = 0.01   driven RMS 0.00354411   undriven RMS 1.92217e-05   T(c) -
+  45.3143 dB   coherence n/a   clamps 0   nonfinite resets 0
+    [ff]  c = 0.02   driven RMS 0.00354392   undriven RMS 3.84756e-05   T(c) -
+  39.286 dB   coherence n/a   clamps 0   nonfinite resets 0
+    [ff]  c = 0.04   driven RMS 0.00354245   undriven RMS 7.70749e-05   T(c) -
+  33.2478 dB   coherence n/a   clamps 0   nonfinite resets 0
+    [ff]  c = 0.08   driven RMS 0.00353393   undriven RMS 0.000154533   T(c) -
+  27.1848 dB   coherence n/a   clamps 0   nonfinite resets 0
+    T(0.01) - T_ff(0.01) = 1.06222 dB
+    T(0.02) - T_ff(0.02) = 1.0811 dB
+    T(0.04) - T_ff(0.04) = 1.11783 dB
+    T(0.08) - T_ff(0.08) = 1.18768 dB
+    kInteractionMarginDb (O-1) = 0.5 dB
+
+-------------------------------------------------------------------------------
+FeedbackEcology_DelayDriftClickFree
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_spectral_test.cpp(745)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_spectral_test.cpp(918): warning:
+  
+SC-003 delay-drift click freedom, 110 Hz sine at -12 dBFS, 300 s at 48000
+  Hz, max delay wander at max wander rate
+    peak |sample|             = 0.151326  (floor 0.05)
+    max |first difference|    = 0.00470351  (3.1082 % of peak, ceiling 5 %)
+    median of the largest 1000 = 0.00384436  (ratio 1.22348, ceiling 8)
+    click detections          = 0
+    crossfade onsets, 6 loops = 35505  (floor 200)
+    clamp engagements         = 0, nonfinite resets 0
+
+-------------------------------------------------------------------------------
+FeedbackEcology_BoundednessSoak
+  (a) worst-case corner, wander on, governor off - bounded, decaying
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_spectral_test.cpp(1464)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_spectral_test.cpp(1490): warning:
+  
+SC-001 (a) worst-case corner, 30 min at 48000 Hz, wander on at
+  kMaxWanderRateHz, governor ratio 1 (off)
+    60 s of drive, then 29 min of silence
+    RMS of the 60 s ending at cut-off = -50.9932 dB
+    RMS of the final 60 s             = -600 dB
+    measured decay across the tail    = 549.007 dB  (floor 60 dB)
+    peak |sample| 0.0149176, clamps 0, non-finite resets 0
+
+-------------------------------------------------------------------------------
+FeedbackEcology_BoundednessSoak
+  (a2) contraction arm - wander off at cut-off, 60 dB of decay
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_spectral_test.cpp(1537)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_spectral_test.cpp(1564): warning:
+  
+SC-001 (a2) contraction arm, 30 min at 48000 Hz, wander disabled at the
+  input cut-off, governor off
+    RMS of the 60 s ending at cut-off = -50.9932 dB
+    RMS of the final 60 s             = -600 dB
+    measured decay across the tail    = 549.007 dB  (floor 60 dB)
+    peak |sample| 0.0149176, clamps 0, non-finite resets 0
+
+-------------------------------------------------------------------------------
+FeedbackEcology_BoundednessSoak
+  (b) sustained drive, 30 min, governor on - bounded and stationary
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_spectral_test.cpp(1580)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_spectral_test.cpp(1621): warning:
+  
+SC-001 (b) sustained drive, 30 min at 48000 Hz, worst-case corner, governor
+  at defaults
+    median window RMS = -56.8217 dB
+    worst deviation   = 0.0629217 dB at window 2  (band +/-1.5 dB)
+    peak |sample| 0.00818386, clamps 0, non-finite resets 0
+    per-minute RMS (dB): -56.8661 -56.7728 -56.8846 -56.853 -56.8365 -56.7863 -
+  56.802 -56.8731 -56.811 -56.8221 -56.8327 -56.8247 -56.8151 -56.8205 -56.8188
+  -56.8249 -56.8061 -56.7852 -56.8437 -56.8456 -56.7832 -56.8114 -56.8454 -56.
+  8168 -56.8678 -56.8236 -56.8622 -56.8134 -56.8214 -56.8141
+
+-------------------------------------------------------------------------------
+FeedbackEcology_BoundednessSoak
+  (c) 256 randomised configurations, 60 s each - bounded
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_spectral_test.cpp(1640)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_spectral_test.cpp(1678): warning:
+  
+SC-001 (c) randomised sweep: 256 configurations x 60 s at 48000 Hz, drive on
+  for the first 10 s
+    worst peak |sample| = 0.43502 at configuration 136  (ceiling 4)
+
+-------------------------------------------------------------------------------
+FeedbackEcology_BoundednessSoak
+  (d) parameter jumps every 500 ms for 5 minutes - bounded and click-free
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_spectral_test.cpp(1690)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_spectral_test.cpp(1910): warning:
+  
+SC-001 (d) parameter-jump arm, broadband pass: 600 jumps, one every 0.5 s
+  over 300 s at 48000 Hz, every off-diagonal pair pre-seeded at 0.5
+    peak |sample| 0.435072 (ceiling 4), clamps 0, non-finite resets 0
+    click detections inside the 3360-sample jump window, non-exempt setters =
+  21
+    reported, NOT gated: later in the segment 42, inside the previous segment's
+  lead-in 3
+    jumps per setter:
+      setLoopCutoffHz  35   violations 0
+      setLoopFilterQ  27   violations 0
+      setLoopDelayMs  26   violations 2
+      setLoopGain  22   violations 0
+      setLoopInputGain  22   violations 0
+      setCoupling  31   violations 0
+      setCouplingMatrix  29   violations 0
+      setGovernorThresholdDb  24   violations 0
+      setGovernorRatio  34   violations 0
+      setLoopDelayWander  24   violations 0
+      setLoopCutoffWander  29   violations 3
+      setLoopWake  31   violations 0
+      setLoopDormant  20   violations 0
+      setNumLoops  37   violations 5
+      setMix  25   violations 11
+      setWetGain  29   violations 0
+      setWanderRate  25   violations 0
+      setLoopFilterMode  22   [click-exempt]   violations 0
+      setLoopResonanceHz  29   [click-exempt]   violations 0
+      setLoopResonanceRt60  24   [click-exempt]   violations 0
+      setSeed  24   [click-exempt]   violations 0
+      setWanderEnabled  31   [click-exempt]   violations 0
+        jump 67 setMix offset 782 amp 0.124092
+        jump 95 setMix offset 771 amp 0.140525
+        jump 95 setMix offset 779 amp -0.139908
+        jump 95 setMix offset 789 amp -0.13809
+        jump 127 setMix offset 783 amp -0.142507
+        jump 230 setLoopDelayMs offset 1027 amp -0.000632193
+        jump 230 setLoopDelayMs offset 2501 amp -0.000692958
+        jump 232 setLoopCutoffWander offset 1542 amp -0.0018215
+        jump 232 setLoopCutoffWander offset 1860 amp -0.00171755
+        jump 235 setLoopCutoffWander offset 1605 amp -0.00254181
+        jump 256 setNumLoops offset 1823 amp -0.00126687
+        jump 256 setNumLoops offset 2104 amp 0.000748409
+        jump 256 setNumLoops offset 2313 amp -0.000156471
+        jump 256 setNumLoops offset 2323 amp 0.00012686
+        jump 256 setNumLoops offset 2329 amp -0.000107409
+        jump 397 setMix offset 776 amp 0.148369
+        jump 555 setMix offset 775 amp -0.127265
+        jump 555 setMix offset 783 amp -0.129026
+        jump 555 setMix offset 803 amp 0.127415
+        jump 589 setMix offset 771 amp 0.123726
+        jump 589 setMix offset 788 amp 0.138852
+
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_spectral_test.cpp(1910): warning:
+  
+SC-001 (d) parameter-jump arm, 110 Hz sine pass: 600 jumps, one every 0.5 s
+  over 300 s at 48000 Hz, every off-diagonal pair pre-seeded at 0.5
+    peak |sample| 0.4325 (ceiling 4), clamps 0, non-finite resets 0
+    click detections inside the 3360-sample jump window, non-exempt setters = 0
+    reported, NOT gated: later in the segment 0, inside the previous segment's
+  lead-in 0
+    jumps per setter:
+      setLoopCutoffHz  35   violations 0
+      setLoopFilterQ  27   violations 0
+      setLoopDelayMs  26   violations 0
+      setLoopGain  22   violations 0
+      setLoopInputGain  22   violations 0
+      setCoupling  31   violations 0
+      setCouplingMatrix  29   violations 0
+      setGovernorThresholdDb  24   violations 0
+      setGovernorRatio  34   violations 0
+      setLoopDelayWander  24   violations 0
+      setLoopCutoffWander  29   violations 0
+      setLoopWake  31   violations 0
+      setLoopDormant  20   violations 0
+      setNumLoops  37   violations 0
+      setMix  25   violations 0
+      setWetGain  29   violations 0
+      setWanderRate  25   violations 0
+      setLoopFilterMode  22   [click-exempt]   violations 0
+      setLoopResonanceHz  29   [click-exempt]   violations 0
+      setLoopResonanceRt60  24   [click-exempt]   violations 0
+      setSeed  24   [click-exempt]   violations 0
+      setWanderEnabled  31   [click-exempt]   violations 0
+
+-------------------------------------------------------------------------------
+FeedbackEcology_LongEvolution
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_spectral_test.cpp(2117)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_spectral_test.cpp(2351): warning:
+  
+SC-021 long evolution, 30 min at 48000 Hz, reference patch, 60 s of flat
+  drive then a 0.05 Hz raised-cosine-modulated noise excitation
+    windows                       = 180 x 10 s
+    (a) centroid mean             = 790.047 Hz, sd 24.2804 Hz, cv 0.0307328
+  (floor 0.03)
+    (b) max cosine similarity     = 0.999995 between windows 20 and 134 over
+  3660 pairs at lags 90-150 windows  (REPORTED; gated clause: 0 repeating
+  cutoff-vector pair(s), tolerance 1e-06)
+    (c) centroid median           = 789.904 Hz, min 730.771 Hz, max 850.387 Hz
+  (band [394.952, 1579.81] Hz)
+    (d) window-RMS trend          = -0.000222105 dB/s x 1800 s = -0.399789 dB
+  (band +/-1 dB)
+    log-band-energy vector of window 20: -12.1491 -9.52181 -6.16339 -0.608656
+  0.074384 0.933244 -4.24919 -7.49888
+    log-band-energy vector of window 134: -12.025 -9.43188 -6.13689 -0.610582
+  0.10911 0.939605 -4.21322 -7.3968
+
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_spectral_test.cpp(2374): warning:
+  (b) REPORTED: max log-band cosine similarity 0.999995 between windows 20 and
+  134 over 3660 compared pairs (drive-dominated, not gated)
+
+-------------------------------------------------------------------------------
+SubharmonicEngine_TruePeakHeadroom
+  SC-006 (a)/(b): worst-case levels stay inside the FR-052 ladder
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_test.cpp(3994)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_test.cpp(4022): warning:
+  SC-006 (a): true peak = 6.62334 dBTP (ceiling 9.5), sample peak = 6.62334
+  dBFS, sub tap RMS = -15.2338 dBFS, clamp engagements = 0
+
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_test.cpp(4063): warning:
+  SC-006 (b): after a default TruePeakLimiter - true peak = -0.0691665 dBTP
+  (backstop 0.5), sample peak = -1 dBFS (the spec figure, -0.9), the same input
+  at the same level WITHOUT the engine = 0.0302308 dBTP
+
+-------------------------------------------------------------------------------
+SubharmonicEngine_TruePeakHeadroom
+  SC-006 (c): the shipped defaults do not force pathological limiting
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_test.cpp(4070)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_test.cpp(4108): warning:
+  SC-006 (c): minimum downstream limiter gain at the shipped defaults = -4.
+  01751 dB (floor -6), measured over 479999 L / 480000 R samples
+
+-------------------------------------------------------------------------------
+SubharmonicEngine_MonoCompatibility
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_test.cpp(4256)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_test.cpp(4321): warning:
+  SC-007 (a): side/mid energy of the sub contribution = -142.73 dB (ceiling -
+  100), mid RMS = 0.0755996
+
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_test.cpp(4341): warning:
+  SC-007 (a2): L/R correlation active = 0.384206, muted = 0.346176
+
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_test.cpp(4363): warning:
+  SC-007 (b): mono-sum retention of the < 200 Hz sub energy = 1 (floor 0.99)
+
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_test.cpp(4401): warning:
+  SC-007 (c): sub-contribution DC L = 2.87694e-05, R = 2.87694e-05 (ceiling 0.
+  0001); fixture input DC L = 0.00197888, R = 0.000761228; muted-render output
+  DC L = 0.00197986, R = 0.000762209
+
+-------------------------------------------------------------------------------
+SubharmonicEngine_Determinism
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_test.cpp(4516)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_test.cpp(4559): warning:
+  SC-011 (b): seed 1592592127 vs 1592591921 -> worstMetric=0.00023523
+  worstSample=0.00491777; breath separation at 60 s = 0.453099 / 0.0258774 / 0
+  (2 of 3 above 0.01)
+
+-------------------------------------------------------------------------------
+SubharmonicEngine_DefaultSubToBodyRatio
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_test.cpp(4665)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_test.cpp(4693): warning:
+  SC-021 (a): body RMS = -15.0103 dBFS, sub tap RMS = -21.8804 dBFS, ratio = -
+  6.87013 dB (window [-12, -6])
+
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_test.cpp(4713): warning:
+  SC-021 (b) mutation, pre-Q3 defaults -6 / -12 / -18 dB: ratio = 3.61704 dB
+  (must be above 0 dB, i.e. the sub louder than the body; predicted ~+4.5)
+
+-------------------------------------------------------------------------------
+SubharmonicEngine_DividerTHD
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_spectral_test.cpp(678)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_spectral_test.cpp(706): warning:
+  SC-004 Div2 @ f = 220.000000 Hz (tone 110.000000 Hz): THD = 0.0841637 %
+
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_spectral_test.cpp(727): warning:
+  SC-004 (b) Div2 @ f = 220.000000 Hz (tone 110.000000 Hz): raw = 0.0841637 %,
+  FR-042-corrected = 0.0832151 %
+
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_spectral_test.cpp(706): warning:
+  SC-004 Div2 @ f = 110.000000 Hz (tone 55.000000 Hz): THD = 0.0871336 %
+
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_spectral_test.cpp(727): warning:
+  SC-004 (b) Div2 @ f = 110.000000 Hz (tone 55.000000 Hz): raw = 0.0871336 %,
+  FR-042-corrected = 0.0830821 %
+
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_spectral_test.cpp(706): warning:
+  SC-004 Div2 @ f = 55.000000 Hz (tone 27.500000 Hz): THD = 0.102416 %
+
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_spectral_test.cpp(727): warning:
+  SC-004 (b) Div2 @ f = 55.000000 Hz (tone 27.500000 Hz): raw = 0.102416 %, FR-
+  042-corrected = 0.0829453 %
+
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_spectral_test.cpp(740): warning:
+  SC-004 (b) Div2: corrected spread = 0.324754 % of mean (ceiling 4 %), raw
+  spread = 20.0048 % (floor 5 %)
+
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_spectral_test.cpp(706): warning:
+  SC-004 Div4 @ f = 440.000000 Hz (tone 110.000000 Hz): THD = 0.0841772 %
+
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_spectral_test.cpp(727): warning:
+  SC-004 (b) Div4 @ f = 440.000000 Hz (tone 110.000000 Hz): raw = 0.0841772 %,
+  FR-042-corrected = 0.0832285 %
+
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_spectral_test.cpp(706): warning:
+  SC-004 Div4 @ f = 220.000000 Hz (tone 55.000000 Hz): THD = 0.0871205 %
+
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_spectral_test.cpp(727): warning:
+  SC-004 (b) Div4 @ f = 220.000000 Hz (tone 55.000000 Hz): raw = 0.0871205 %,
+  FR-042-corrected = 0.0830697 %
+
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_spectral_test.cpp(706): warning:
+  SC-004 Div4 @ f = 110.000000 Hz (tone 27.500000 Hz): THD = 0.102447 %
+
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_spectral_test.cpp(727): warning:
+  SC-004 (b) Div4 @ f = 110.000000 Hz (tone 27.500000 Hz): raw = 0.102447 %,
+  FR-042-corrected = 0.0829705 %
+
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_spectral_test.cpp(740): warning:
+  SC-004 (b) Div4: corrected spread = 0.310472 % of mean (ceiling 4 %), raw
+  spread = 20.0218 % (floor 5 %)
+
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_spectral_test.cpp(706): warning:
+  SC-004 FifthBelow @ f = 220.000000 Hz (tone 146.666667 Hz): THD = 0.083755 %
+
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_spectral_test.cpp(727): warning:
+  SC-004 (b) FifthBelow @ f = 220.000000 Hz (tone 146.666667 Hz): raw = 0.
+  083755 %, FR-042-corrected = 0.0832283 %
+
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_spectral_test.cpp(706): warning:
+  SC-004 FifthBelow @ f = 110.000000 Hz (tone 73.333333 Hz): THD = 0.0854655 %
+
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_spectral_test.cpp(727): warning:
+  SC-004 (b) FifthBelow @ f = 110.000000 Hz (tone 73.333333 Hz): raw = 0.
+  0854655 %, FR-042-corrected = 0.0832558 %
+
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_spectral_test.cpp(706): warning:
+  SC-004 FifthBelow @ f = 55.000000 Hz (tone 36.666667 Hz): THD = 0.0928611 %
+
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_spectral_test.cpp(727): warning:
+  SC-004 (b) FifthBelow @ f = 55.000000 Hz (tone 36.666667 Hz): raw = 0.0928611
+  %, FR-042-corrected = 0.0829696 %
+
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_spectral_test.cpp(740): warning:
+  SC-004 (b) FifthBelow: corrected spread = 0.34419 % of mean (ceiling 4 %),
+  raw spread = 10.4236 % (floor 5 %)
+
+-------------------------------------------------------------------------------
+SubharmonicEngine_TrackingLaw
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_spectral_test.cpp(1198)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_spectral_test.cpp(1079): warning:
+  SC-002 [tracking 1.0, ref -18] body -60 dBFS (rendered -60 dBFS) -> subTap -
+  62.6071 dBFS, trackGain 0.00986257, envNorm 0.00990717
+
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_spectral_test.cpp(1079): warning:
+  SC-002 [tracking 1.0, ref -18] body -48 dBFS (rendered -48 dBFS) -> subTap -
+  50.607 dBFS, trackGain 0.0392639, envNorm 0.0394411
+
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_spectral_test.cpp(1079): warning:
+  SC-002 [tracking 1.0, ref -18] body -36 dBFS (rendered -36 dBFS) -> subTap -
+  38.6069 dBFS, trackGain 0.156315, envNorm 0.157018
+
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_spectral_test.cpp(1079): warning:
+  SC-002 [tracking 1.0, ref -18] body -24 dBFS (rendered -24 dBFS) -> subTap -
+  26.6068 dBFS, trackGain 0.622296, envNorm 0.6251
+
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_spectral_test.cpp(1079): warning:
+  SC-002 [tracking 1.0, ref -18] body -18 dBFS (rendered -18 dBFS) -> subTap -
+  22.4859 dBFS, trackGain 0.999932, envNorm 1
+
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_spectral_test.cpp(1079): warning:
+  SC-002 [tracking 1.0, ref -18] body -12 dBFS (rendered -12 dBFS) -> subTap -
+  22.4858 dBFS, trackGain 0.999932, envNorm 1
+
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_spectral_test.cpp(1079): warning:
+  SC-002 [tracking 1.0, ref -18] body -6 dBFS (rendered -6 dBFS) -> subTap -22.
+  4858 dBFS, trackGain 0.999929, envNorm 1
+
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_spectral_test.cpp(1079): warning:
+  SC-002 [tracking 0.0, ref -18] body -60 dBFS (rendered -60 dBFS) -> subTap -
+  22.486 dBFS, trackGain 0.999931, envNorm 0.00990717
+
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_spectral_test.cpp(1079): warning:
+  SC-002 [tracking 0.0, ref -18] body -48 dBFS (rendered -48 dBFS) -> subTap -
+  22.486 dBFS, trackGain 0.999931, envNorm 0.0394411
+
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_spectral_test.cpp(1079): warning:
+  SC-002 [tracking 0.0, ref -18] body -36 dBFS (rendered -36 dBFS) -> subTap -
+  22.486 dBFS, trackGain 0.999931, envNorm 0.157018
+
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_spectral_test.cpp(1079): warning:
+  SC-002 [tracking 0.0, ref -18] body -24 dBFS (rendered -24 dBFS) -> subTap -
+  22.486 dBFS, trackGain 0.999931, envNorm 0.6251
+
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_spectral_test.cpp(1079): warning:
+  SC-002 [tracking 0.0, ref -18] body -18 dBFS (rendered -18 dBFS) -> subTap -
+  22.486 dBFS, trackGain 0.999931, envNorm 1
+
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_spectral_test.cpp(1079): warning:
+  SC-002 [tracking 0.0, ref -18] body -12 dBFS (rendered -12 dBFS) -> subTap -
+  22.486 dBFS, trackGain 0.999931, envNorm 1
+
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_spectral_test.cpp(1079): warning:
+  SC-002 [tracking 0.0, ref -18] body -6 dBFS (rendered -6 dBFS) -> subTap -22.
+  486 dBFS, trackGain 0.999931, envNorm 1
+
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_spectral_test.cpp(1079): warning:
+  SC-002 [tracking 1.0, ref -30] body -60 dBFS (rendered -60 dBFS) -> subTap -
+  50.6068 dBFS, trackGain 0.0392639, envNorm 0.0394412
+
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_spectral_test.cpp(1079): warning:
+  SC-002 [tracking 1.0, ref -30] body -48 dBFS (rendered -48 dBFS) -> subTap -
+  38.6069 dBFS, trackGain 0.156315, envNorm 0.157018
+
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_spectral_test.cpp(1079): warning:
+  SC-002 [tracking 1.0, ref -30] body -36 dBFS (rendered -36 dBFS) -> subTap -
+  26.6068 dBFS, trackGain 0.622295, envNorm 0.6251
+
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_spectral_test.cpp(1079): warning:
+  SC-002 [tracking 1.0, ref -30] body -24 dBFS (rendered -24 dBFS) -> subTap -
+  22.4859 dBFS, trackGain 0.999932, envNorm 1
+
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_spectral_test.cpp(1079): warning:
+  SC-002 [tracking 1.0, ref -30] body -18 dBFS (rendered -18 dBFS) -> subTap -
+  22.4857 dBFS, trackGain 0.999929, envNorm 1
+
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_spectral_test.cpp(1079): warning:
+  SC-002 [tracking 1.0, ref -30] body -12 dBFS (rendered -12 dBFS) -> subTap -
+  22.486 dBFS, trackGain 0.999929, envNorm 1
+
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_spectral_test.cpp(1079): warning:
+  SC-002 [tracking 1.0, ref -30] body -6 dBFS (rendered -6 dBFS) -> subTap -22.
+  4859 dBFS, trackGain 0.999931, envNorm 1
+
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_spectral_test.cpp(1218): warning:
+  SC-002 (a): body rose 36 dB, subTap rose 36.0003 dB across -60 -> -24 dBFS
+  (unity within +/-1 dB)
+
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_spectral_test.cpp(1228): warning:
+  SC-002 (a): mean subTap - body offset across the rising region = -2.60695 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_spectral_test.cpp(1253): warning:
+  SC-002 (a) falsification via (c): at tracking 0 the body rose 36 dB and
+  subTap rose 0 dB - arm (a)'s unity slope must FAIL here by more than 20 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_spectral_test.cpp(1277): warning:
+  SC-002 (e): knee at the default reference = -19.8788 dBFS (expected -19.88),
+  knee at setTrackReferenceDb(-30) = -31.8791 dBFS (expected -31.88), shift -
+  12.0003 dB (expected -12), tolerance +/-1 dB
+
+-------------------------------------------------------------------------------
+SubharmonicEngine_SquareSpectrum
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_spectral_test.cpp(1336)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_spectral_test.cpp(1364): warning:
+  SC-005 (b): Square-path subTap RMS = -20.4635 dBFS (floor -40 dBFS)
+
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_spectral_test.cpp(1407): warning:
+  SC-005 (a): 26 peaks above -40 dB relative, all within +/-1 bin of a multiple
+  of 55 Hz; worst = 0.453333 bins (0.0830078 Hz) at harmonic 47, bin width 0.
+  183105 Hz
+
+-------------------------------------------------------------------------------
+SubharmonicEngine_LongRenderStationarity
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_spectral_test.cpp(1799)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_spectral_test.cpp(1816): warning:
+  SC-017 (A) defaults, 10 min @ 48 kHz: per-minute sub-band RMS (dBFS) = [1:-
+  22.293962, 2:-22.284029, 3:-22.285217, 4:-22.392616, 5:-22.433977, 6:-22.
+  364693, 7:-22.300056, 8:-22.324381, 9:-22.250616, 10:-22.318829], peak-to-
+  peak = 0.183361 dB, trend = 0.000977221 dB/min, clamp engagements = 0
+
+F:\projects\iterum\dsp\tests\unit\systems\subharmonic_engine_spectral_test.cpp(1851): warning:
+  SC-017 (B) worst case, 10 min @ 48 kHz: per-minute sub-band RMS (dBFS) = [1:-
+  8.988070, 2:-9.147004, 3:-8.841772, 4:-9.353759, 5:-9.031337, 6:-9.025724, 7:
+  -8.943830, 8:-9.036258, 9:-8.984196, 10:-9.275541], peak-to-peak = 0.511987
+  dB, trend = -0.00717943 dB/min, clamp engagements (TRANSCRIBED, not gated) =
+  0
+
+-------------------------------------------------------------------------------
+BloomEngine_NoAllocationAfterPrepare
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\bloom_engine_test.cpp(1530)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\bloom_engine_test.cpp(1636): warning:
+  FR-074 footprint: sizeof(BloomEngine) = 1272 bytes (reported, not asserted;
+  plan S9 estimates ~1.2 KB and padding is toolchain-dependent)
+
+-------------------------------------------------------------------------------
+BloomEngine_SampleRateIndependence
+  SC-010 falsification: accumulated float seconds vs the integer step clock
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\bloom_engine_spectral_test.cpp(1887)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\bloom_engine_spectral_test.cpp(1946): warning:
+  SC-010 falsification @ 44100 Hz: 206719 steps, derived = 300 s (1.13305e-06
+  %), accumulated = 300.157 s (0.0521454 %)
+
+F:\projects\iterum\dsp\tests\unit\systems\bloom_engine_spectral_test.cpp(1946): warning:
+  SC-010 falsification @ 48000 Hz: 225000 steps, derived = 300 s (0 %),
+  accumulated = 299.875 s (0.0415141 %)
+
+F:\projects\iterum\dsp\tests\unit\systems\bloom_engine_spectral_test.cpp(1946): warning:
+  SC-010 falsification @ 88200 Hz: 413438 steps, derived = 300 s (1.13305e-06
+  %), accumulated = 301.484 s (0.494518 %)
+
+F:\projects\iterum\dsp\tests\unit\systems\bloom_engine_spectral_test.cpp(1946): warning:
+  SC-010 falsification @ 96000 Hz: 450000 steps, derived = 300 s (0 %),
+  accumulated = 301 s (0.333242 %)
+
+F:\projects\iterum\dsp\tests\unit\systems\bloom_engine_spectral_test.cpp(1946): warning:
+  SC-010 falsification @ 192000 Hz: 900000 steps, derived = 300 s (0 %),
+  accumulated = 301.562 s (0.52062 %)
+
+-------------------------------------------------------------------------------
+BloomEngine_ThirtyMinuteEvolutionTrajectory
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\bloom_engine_spectral_test.cpp(2044)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\bloom_engine_spectral_test.cpp(2302): warning:
+  SC-004 (a) differential: reference mean centroid = 170.735 Hz, 5 % threshold
+  = 8.53676 Hz, max |diff| after the first spawn = 10.6504 Hz, longest
+  sustained run = 235 s (from second 853), floor = 60 s; partial count max
+  bloom / reference = 39 / 31
+
+F:\projects\iterum\dsp\tests\unit\systems\bloom_engine_spectral_test.cpp(2327): warning:
+  SC-004 (b) boundedness: bloom RMS minutes 5-10 = -8.99151 dBFS, last 5
+  minutes = -9.05524 dBFS, drift = -0.0637318 dB (band +-1.5); reference -9.
+  05796 -> -9.05799 dBFS; peak bloom / reference = 1.02395 / 0.733417
+
+F:\projects\iterum\dsp\tests\unit\systems\bloom_engine_spectral_test.cpp(2371): warning:
+  SC-004 (c) seed 1543520257 (engine-only, 30 min): 11 spawn events
+
+F:\projects\iterum\dsp\tests\unit\systems\bloom_engine_spectral_test.cpp(2371): warning:
+  SC-004 (c) seed 1543520258 (engine-only, 30 min): 6 spawn events
+
+F:\projects\iterum\dsp\tests\unit\systems\bloom_engine_spectral_test.cpp(2371): warning:
+  SC-004 (c) seed 1543520259 (engine-only, 30 min): 8 spawn events
+
+F:\projects\iterum\dsp\tests\unit\systems\bloom_engine_spectral_test.cpp(2371): warning:
+  SC-004 (c) seed 1543520260 (engine-only, 30 min): 9 spawn events
+
+F:\projects\iterum\dsp\tests\unit\systems\bloom_engine_spectral_test.cpp(2371): warning:
+  SC-004 (c) seed 1543520261 (engine-only, 30 min): 5 spawn events
+
+F:\projects\iterum\dsp\tests\unit\systems\bloom_engine_spectral_test.cpp(2376): warning:
+  SC-004 (c) pooled over 5 seeds: 39 events against lambda_total = 37.5, floor
+  = 30
+
+-------------------------------------------------------------------------------
+BloomEngine_EightHourAcceleratedSoak
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\bloom_engine_spectral_test.cpp(2491)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\bloom_engine_spectral_test.cpp(2772): warning:
+  SC-015 seed 1543589889: events = 1445 (expected 1440 +-25 %), offered = 5780,
+  spawned = 1261, refused = 4519, completed = 1245 (expected 1335.65 +-25 %,
+  min branch = SLOT-LIMITED; slot branch = 1335.65, offer branch = 5780);
+  maxLive = 16/16, ratio span = [0.972454, 3.05781], worst target error = 0,
+  worst amp overshoot = 0, longest live hold = 4.52578 min, longest event gap =
+  3.20258 min (both bounded by 60 min)
+
+F:\projects\iterum\dsp\tests\unit\systems\bloom_engine_spectral_test.cpp(2772): warning:
+  SC-015 seed 1543589890: events = 1394 (expected 1440 +-25 %), offered = 5576,
+  spawned = 1258, refused = 4318, completed = 1245 (expected 1335.65 +-25 %,
+  min branch = SLOT-LIMITED; slot branch = 1335.65, offer branch = 5576);
+  maxLive = 16/16, ratio span = [0.972018, 3.11727], worst target error = 0,
+  worst amp overshoot = 0, longest live hold = 4.24911 min, longest event gap =
+  2.87951 min (both bounded by 60 min)
+
+F:\projects\iterum\dsp\tests\unit\systems\bloom_engine_spectral_test.cpp(2772): warning:
+  SC-015 seed 1543589891: events = 1415 (expected 1440 +-25 %), offered = 5660,
+  spawned = 1267, refused = 4393, completed = 1251 (expected 1335.65 +-25 %,
+  min branch = SLOT-LIMITED; slot branch = 1335.65, offer branch = 5660);
+  maxLive = 16/16, ratio span = [0.97204, 3.05781], worst target error = 0,
+  worst amp overshoot = 0, longest live hold = 4.90967 min, longest event gap =
+  2.30927 min (both bounded by 60 min)
+
+F:\projects\iterum\dsp\tests\unit\systems\bloom_engine_spectral_test.cpp(2772): warning:
+  SC-015 seed 1543589892: events = 1458 (expected 1440 +-25 %), offered = 5832,
+  spawned = 1267, refused = 4565, completed = 1251 (expected 1335.65 +-25 %,
+  min branch = SLOT-LIMITED; slot branch = 1335.65, offer branch = 5832);
+  maxLive = 16/16, ratio span = [0.971957, 3.12124], worst target error = 0,
+  worst amp overshoot = 0, longest live hold = 4.70524 min, longest event gap =
+  2.40976 min (both bounded by 60 min)
+
+F:\projects\iterum\dsp\tests\unit\systems\bloom_engine_spectral_test.cpp(2772): warning:
+  SC-015 seed 1543589893: events = 1427 (expected 1440 +-25 %), offered = 5708,
+  spawned = 1254, refused = 4454, completed = 1238 (expected 1335.65 +-25 %,
+  min branch = SLOT-LIMITED; slot branch = 1335.65, offer branch = 5708);
+  maxLive = 16/16, ratio span = [0.973261, 3.05781], worst target error = 0,
+  worst amp overshoot = 0, longest live hold = 2.32296 min, longest event gap =
+  2.59767 min (both bounded by 60 min)
+
+F:\projects\iterum\dsp\tests\unit\systems\bloom_engine_spectral_test.cpp(2772): warning:
+  SC-015 seed 286331153: events = 1474 (expected 1440 +-25 %), offered = 5896,
+  spawned = 1267, refused = 4629, completed = 1252 (expected 1335.65 +-25 %,
+  min branch = SLOT-LIMITED; slot branch = 1335.65, offer branch = 5896);
+  maxLive = 16/16, ratio span = [0.972057, 3.05781], worst target error = 0,
+  worst amp overshoot = 0, longest live hold = 2.49436 min, longest event gap =
+  2.58038 min (both bounded by 60 min)
+
+F:\projects\iterum\dsp\tests\unit\systems\bloom_engine_spectral_test.cpp(2772): warning:
+  SC-015 seed 572662306: events = 1387 (expected 1440 +-25 %), offered = 5548,
+  spawned = 1268, refused = 4280, completed = 1252 (expected 1335.65 +-25 %,
+  min branch = SLOT-LIMITED; slot branch = 1335.65, offer branch = 5548);
+  maxLive = 16/16, ratio span = [0.971954, 3.05781], worst target error = 0,
+  worst amp overshoot = 0, longest live hold = 2.86616 min, longest event gap =
+  3.04416 min (both bounded by 60 min)
+
+F:\projects\iterum\dsp\tests\unit\systems\bloom_engine_spectral_test.cpp(2772): warning:
+  SC-015 seed 858993459: events = 1441 (expected 1440 +-25 %), offered = 5764,
+  spawned = 1265, refused = 4499, completed = 1249 (expected 1335.65 +-25 %,
+  min branch = SLOT-LIMITED; slot branch = 1335.65, offer branch = 5764);
+  maxLive = 16/16, ratio span = [0.97309, 3.05781], worst target error = 0,
+  worst amp overshoot = 0, longest live hold = 4.47889 min, longest event gap =
+  2.80267 min (both bounded by 60 min)
+
+F:\projects\iterum\dsp\tests\unit\systems\bloom_engine_spectral_test.cpp(2772): warning:
+  SC-015 seed 1145324612: events = 1414 (expected 1440 +-25 %), offered = 5656,
+  spawned = 1266, refused = 4390, completed = 1251 (expected 1335.65 +-25 %,
+  min branch = SLOT-LIMITED; slot branch = 1335.65, offer branch = 5656);
+  maxLive = 16/16, ratio span = [0.971619, 3.10703], worst target error = 0,
+  worst amp overshoot = 0, longest live hold = 4.35298 min, longest event gap =
+  3.04587 min (both bounded by 60 min)
+
+F:\projects\iterum\dsp\tests\unit\systems\bloom_engine_spectral_test.cpp(2772): warning:
+  SC-015 seed 1431655765: events = 1453 (expected 1440 +-25 %), offered = 5812,
+  spawned = 1260, refused = 4552, completed = 1244 (expected 1335.65 +-25 %,
+  min branch = SLOT-LIMITED; slot branch = 1335.65, offer branch = 5812);
+  maxLive = 16/16, ratio span = [0.972361, 3.05781], worst target error = 0,
+  worst amp overshoot = 0, longest live hold = 4.40031 min, longest event gap =
+  2.82158 min (both bounded by 60 min)
+
+F:\projects\iterum\dsp\tests\unit\systems\bloom_engine_spectral_test.cpp(2772): warning:
+  SC-015 seed 1717986918: events = 1437 (expected 1440 +-25 %), offered = 5748,
+  spawned = 1266, refused = 4482, completed = 1251 (expected 1335.65 +-25 %,
+  min branch = SLOT-LIMITED; slot branch = 1335.65, offer branch = 5748);
+  maxLive = 16/16, ratio span = [0.971561, 3.11884], worst target error = 0,
+  worst amp overshoot = 0, longest live hold = 4.06436 min, longest event gap =
+  2.912 min (both bounded by 60 min)
+
+F:\projects\iterum\dsp\tests\unit\systems\bloom_engine_spectral_test.cpp(2772): warning:
+  SC-015 seed 2004318071: events = 1479 (expected 1440 +-25 %), offered = 5916,
+  spawned = 1267, refused = 4649, completed = 1251 (expected 1335.65 +-25 %,
+  min branch = SLOT-LIMITED; slot branch = 1335.65, offer branch = 5916);
+  maxLive = 16/16, ratio span = [0.971973, 3.05781], worst target error = 0,
+  worst amp overshoot = 0, longest live hold = 3.81893 min, longest event gap =
+  2.2268 min (both bounded by 60 min)
+
+F:\projects\iterum\dsp\tests\unit\systems\bloom_engine_spectral_test.cpp(2772): warning:
+  SC-015 seed 2290649224: events = 1394 (expected 1440 +-25 %), offered = 5576,
+  spawned = 1269, refused = 4307, completed = 1254 (expected 1335.65 +-25 %,
+  min branch = SLOT-LIMITED; slot branch = 1335.65, offer branch = 5576);
+  maxLive = 16/16, ratio span = [0.971913, 3.05781], worst target error = 0,
+  worst amp overshoot = 0, longest live hold = 4.767 min, longest event gap =
+  2.14264 min (both bounded by 60 min)
+
+F:\projects\iterum\dsp\tests\unit\systems\bloom_engine_spectral_test.cpp(2772): warning:
+  SC-015 seed 2576980377: events = 1445 (expected 1440 +-25 %), offered = 5780,
+  spawned = 1268, refused = 4512, completed = 1252 (expected 1335.65 +-25 %,
+  min branch = SLOT-LIMITED; slot branch = 1335.65, offer branch = 5780);
+  maxLive = 16/16, ratio span = [0.971765, 3.05781], worst target error = 0,
+  worst amp overshoot = 0, longest live hold = 3.59407 min, longest event gap =
+  2.27538 min (both bounded by 60 min)
+
+F:\projects\iterum\dsp\tests\unit\systems\bloom_engine_spectral_test.cpp(2772): warning:
+  SC-015 seed 2863311530: events = 1388 (expected 1440 +-25 %), offered = 5552,
+  spawned = 1263, refused = 4289, completed = 1250 (expected 1335.65 +-25 %,
+  min branch = SLOT-LIMITED; slot branch = 1335.65, offer branch = 5552);
+  maxLive = 16/16, ratio span = [0.971632, 3.05781], worst target error = 0,
+  worst amp overshoot = 0, longest live hold = 3.95887 min, longest event gap =
+  2.5072 min (both bounded by 60 min)
+
+F:\projects\iterum\dsp\tests\unit\systems\bloom_engine_spectral_test.cpp(2772): warning:
+  SC-015 seed 3149642683: events = 1416 (expected 1440 +-25 %), offered = 5664,
+  spawned = 1258, refused = 4406, completed = 1242 (expected 1335.65 +-25 %,
+  min branch = SLOT-LIMITED; slot branch = 1335.65, offer branch = 5664);
+  maxLive = 16/16, ratio span = [0.971604, 3.11222], worst target error = 0,
+  worst amp overshoot = 0, longest live hold = 4.36411 min, longest event gap =
+  2.788 min (both bounded by 60 min)
+
+F:\projects\iterum\dsp\tests\unit\systems\bloom_engine_spectral_test.cpp(2772): warning:
+  SC-015 seed 3435973836: events = 1450 (expected 1440 +-25 %), offered = 5800,
+  spawned = 1260, refused = 4540, completed = 1244 (expected 1335.65 +-25 %,
+  min branch = SLOT-LIMITED; slot branch = 1335.65, offer branch = 5800);
+  maxLive = 16/16, ratio span = [0.971789, 3.12043], worst target error = 0,
+  worst amp overshoot = 0, longest live hold = 4.04736 min, longest event gap =
+  2.51049 min (both bounded by 60 min)
+
+F:\projects\iterum\dsp\tests\unit\systems\bloom_engine_spectral_test.cpp(2772): warning:
+  SC-015 seed 3722304989: events = 1443 (expected 1440 +-25 %), offered = 5772,
+  spawned = 1271, refused = 4501, completed = 1255 (expected 1335.65 +-25 %,
+  min branch = SLOT-LIMITED; slot branch = 1335.65, offer branch = 5772);
+  maxLive = 16/16, ratio span = [0.973281, 3.12036], worst target error = 0,
+  worst amp overshoot = 0, longest live hold = 3.6716 min, longest event gap =
+  2.38544 min (both bounded by 60 min)
+
+F:\projects\iterum\dsp\tests\unit\systems\bloom_engine_spectral_test.cpp(2772): warning:
+  SC-015 seed 4008636142: events = 1495 (expected 1440 +-25 %), offered = 5980,
+  spawned = 1270, refused = 4710, completed = 1258 (expected 1335.65 +-25 %,
+  min branch = SLOT-LIMITED; slot branch = 1335.65, offer branch = 5980);
+  maxLive = 16/16, ratio span = [0.971956, 3.05781], worst target error = 0,
+  worst amp overshoot = 0, longest live hold = 3.87078 min, longest event gap =
+  2.17267 min (both bounded by 60 min)
+
+F:\projects\iterum\dsp\tests\unit\systems\bloom_engine_spectral_test.cpp(2772): warning:
+  SC-015 seed 4294967295: events = 1437 (expected 1440 +-25 %), offered = 5748,
+  spawned = 1262, refused = 4486, completed = 1246 (expected 1335.65 +-25 %,
+  min branch = SLOT-LIMITED; slot branch = 1335.65, offer branch = 5748);
+  maxLive = 16/16, ratio span = [0.971542, 3.05781], worst target error = 0,
+  worst amp overshoot = 0, longest live hold = 3.49109 min, longest event gap =
+  2.36867 min (both bounded by 60 min)
+
+F:\projects\iterum\dsp\tests\unit\systems\bloom_engine_spectral_test.cpp(2772): warning:
+  SC-015 seed 1: events = 1600 (expected 1440 +-25 %), offered = 6400, spawned
+  = 1272, refused = 5128, completed = 1257 (expected 1335.65 +-25 %, min branch
+  = SLOT-LIMITED; slot branch = 1335.65, offer branch = 6400); maxLive = 16/16,
+  ratio span = [0.971772, 3.10485], worst target error = 0, worst amp overshoot
+  = 0, longest live hold = 4.67958 min, longest event gap = 2.34867 min (both
+  bounded by 60 min)
+
+F:\projects\iterum\dsp\tests\unit\systems\bloom_engine_spectral_test.cpp(2772): warning:
+  SC-015 seed 65535: events = 1505 (expected 1440 +-25 %), offered = 6020,
+  spawned = 1266, refused = 4754, completed = 1250 (expected 1335.65 +-25 %,
+  min branch = SLOT-LIMITED; slot branch = 1335.65, offer branch = 6020);
+  maxLive = 16/16, ratio span = [0.971916, 3.11718], worst target error = 0,
+  worst amp overshoot = 0, longest live hold = 2.07913 min, longest event gap =
+  2.05004 min (both bounded by 60 min)
+
+F:\projects\iterum\dsp\tests\unit\systems\bloom_engine_spectral_test.cpp(2772): warning:
+  SC-015 seed 2147483647: events = 1438 (expected 1440 +-25 %), offered = 5752,
+  spawned = 1250, refused = 4502, completed = 1237 (expected 1335.65 +-25 %,
+  min branch = SLOT-LIMITED; slot branch = 1335.65, offer branch = 5752);
+  maxLive = 16/16, ratio span = [0.972013, 3.05781], worst target error = 0,
+  worst amp overshoot = 0, longest live hold = 4.42413 min, longest event gap =
+  2.51049 min (both bounded by 60 min)
+
+F:\projects\iterum\dsp\tests\unit\systems\bloom_engine_spectral_test.cpp(2772): warning:
+  SC-015 seed 2147483648: events = 1484 (expected 1440 +-25 %), offered = 5936,
+  spawned = 1269, refused = 4667, completed = 1253 (expected 1335.65 +-25 %,
+  min branch = SLOT-LIMITED; slot branch = 1335.65, offer branch = 5936);
+  maxLive = 16/16, ratio span = [0.971621, 3.11562], worst target error = 0,
+  worst amp overshoot = 0, longest live hold = 4.09207 min, longest event gap =
+  2.45807 min (both bounded by 60 min)
+
+F:\projects\iterum\dsp\tests\unit\systems\bloom_engine_spectral_test.cpp(2772): warning:
+  SC-015 seed 2969581037: events = 1415 (expected 1440 +-25 %), offered = 5660,
+  spawned = 1269, refused = 4391, completed = 1253 (expected 1335.65 +-25 %,
+  min branch = SLOT-LIMITED; slot branch = 1335.65, offer branch = 5660);
+  maxLive = 16/16, ratio span = [0.971618, 3.11802], worst target error = 0,
+  worst amp overshoot = 0, longest live hold = 4.14918 min, longest event gap =
+  2.45182 min (both bounded by 60 min)
+
+F:\projects\iterum\dsp\tests\unit\systems\bloom_engine_spectral_test.cpp(2821): warning:
+  SC-015 (e) min() branch over 25 seeds: 25 slot-limited, 0 offer-limited (slot
+  branch = 1335.65 completions in 28800 s at a 345 s lifetime)
+
+-------------------------------------------------------------------------------
+EcosystemEngine_OutputAnchorIsScaleInvariant
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\ecosystem_engine_test.cpp(2884)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\ecosystem_engine_test.cpp(2904): warning:
+  SC-019 cell B=0.1 n=24: mean output 0.477604, sum(e)/B 0.955237, p05 0.
+  182151, p25 0.31386, p50 0.471903, p75 0.629881, p95 0.801339, rail 0.
+  000766444
+
+F:\projects\iterum\dsp\tests\unit\systems\ecosystem_engine_test.cpp(2904): warning:
+  SC-019 cell B=0.1 n=32: mean output 0.482926, sum(e)/B 0.966307, p05 0.
+  189722, p25 0.312023, p50 0.47207, p75 0.633007, p95 0.823986, rail 0.
+  00388448
+
+F:\projects\iterum\dsp\tests\unit\systems\ecosystem_engine_test.cpp(2904): warning:
+  SC-019 cell B=0.1 n=48: mean output 0.487074, sum(e)/B 0.977571, p05 0.
+  188897, p25 0.298615, p50 0.465889, p75 0.648378, p95 0.87734, rail 0.0159908
+
+F:\projects\iterum\dsp\tests\unit\systems\ecosystem_engine_test.cpp(2904): warning:
+  SC-019 cell B=1 n=24: mean output 0.476969, sum(e)/B 0.953957, p05 0.182183,
+  p25 0.290619, p50 0.454018, p75 0.642811, p95 0.841307, rail 0.000348384
+
+F:\projects\iterum\dsp\tests\unit\systems\ecosystem_engine_test.cpp(2904): warning:
+  SC-019 cell B=1 n=32: mean output 0.480659, sum(e)/B 0.964909, p05 0.184448,
+  p25 0.261236, p50 0.43419, p75 0.661686, p95 0.919309, rail 0.0225927
+
+F:\projects\iterum\dsp\tests\unit\systems\ecosystem_engine_test.cpp(2904): warning:
+  SC-019 cell B=1 n=48: mean output 0.475482, sum(e)/B 0.976897, p05 0.179498,
+  p25 0.250203, p50 0.400226, p75 0.66307, p95 1, rail 0.0649967
+
+F:\projects\iterum\dsp\tests\unit\systems\ecosystem_engine_test.cpp(2904): warning:
+  SC-019 cell B=10 n=24: mean output 0.476417, sum(e)/B 0.952931, p05 0.183447,
+  p25 0.270317, p50 0.444975, p75 0.658615, p95 0.855614, rail 0.00169547
+
+F:\projects\iterum\dsp\tests\unit\systems\ecosystem_engine_test.cpp(2904): warning:
+  SC-019 cell B=10 n=32: mean output 0.479366, sum(e)/B 0.964849, p05 0.183616,
+  p25 0.250205, p50 0.407269, p75 0.680703, p95 0.983193, rail 0.0431647
+
+F:\projects\iterum\dsp\tests\unit\systems\ecosystem_engine_test.cpp(2904): warning:
+  SC-019 cell B=10 n=48: mean output 0.457628, sum(e)/B 0.97635, p05 0.170453,
+  p25 0.250096, p50 0.299382, p75 0.670014, p95 1, rail 0.114096
+
+-------------------------------------------------------------------------------
+EcosystemEngine_LateWindowLiveness
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\ecosystem_engine_test.cpp(3774)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\ecosystem_engine_test.cpp(3799): warning:
+  SC-002 (a)(b) seed 12648430: lateActivity 0.441884 (gate >= 0.30, prototype
+  0.44), lateFrozen 0 of 32 (gate == 0, prototype 0), latePairCorr 0.195255,
+  kinds P/R/N/F/G 7/7/6/6/6, grid 0.99734 Hz x 1795 samples
+
+F:\projects\iterum\dsp\tests\unit\systems\ecosystem_engine_test.cpp(3799): warning:
+  SC-002 (a)(b) seed 12648431: lateActivity 0.450069 (gate >= 0.30, prototype
+  0.44), lateFrozen 0 of 32 (gate == 0, prototype 0), latePairCorr 0.180581,
+  kinds P/R/N/F/G 7/6/6/7/6, grid 0.99734 Hz x 1795 samples
+
+F:\projects\iterum\dsp\tests\unit\systems\ecosystem_engine_test.cpp(3799): warning:
+  SC-002 (a)(b) seed 24301: lateActivity 0.45891 (gate >= 0.30, prototype 0.44)
+  , lateFrozen 0 of 32 (gate == 0, prototype 0), latePairCorr 0.193574, kinds
+  P/R/N/F/G 7/7/6/6/6, grid 0.99734 Hz x 1795 samples
+
+-------------------------------------------------------------------------------
+EcosystemEngine_AgentsDoNotCollapseSpatially
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\ecosystem_engine_test.cpp(3824)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\ecosystem_engine_test.cpp(3851): warning:
+  SC-002 (c): distinct positions (2 dp) after 1800 s - defaults 32 of 32 (gate
+  >= 25.6, prototype 31), crowding = 0 control 20 of 32 (must FAIL that gate,
+  prototype 6), kinds P/R/N/F/G 7/7/6/6/6
+
+-------------------------------------------------------------------------------
+EcosystemEngine_OutputsAreNotRailed
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\ecosystem_engine_test.cpp(3886)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\ecosystem_engine_test.cpp(3931): warning:
+  SC-002 (d): windowed clamp fraction over the last 600 s (56250 control steps
+  of 168750) - mean 0.018625 (gate <= 0.05), worst agent 9 at 0.19376 (gate <=
+  0.25), kinds P/R/N/F/G 7/7/6/6/6
+
+-------------------------------------------------------------------------------
+EcosystemEngine_AgentsDecorrelate
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\ecosystem_engine_test.cpp(3947)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\ecosystem_engine_test.cpp(3963): warning:
+  SC-004 (a): mean pairwise |corr(e_i, e_j)| over the last 600 s = 0.195255
+  (gate <= 0.35, prototype 0.18, failure regime 0.84-0.99), lateActivity 0.
+  441884, kinds P/R/N/F/G 7/7/6/6/6
+
+-------------------------------------------------------------------------------
+EcosystemEngine_SeedsProduceDifferentVoices
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\ecosystem_engine_test.cpp(3995)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\ecosystem_engine_test.cpp(4064): warning:
+  SC-004 (b): 8 seeds x 900 s (898 samples), cross-seed per-agent |corr| 0.
+  130652 vs within-run floor 0.136313 (gate <= 1.5x floor = 0.20447, reference
+  0.13 vs 0.12); worst run pair 0.185538, seed-0 kinds P/R/N/F/G 7/7/6/6/6
+
+-------------------------------------------------------------------------------
+EcosystemEngine_HostileFuzzStaysBounded
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\ecosystem_engine_longrun_test.cpp(888)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\ecosystem_engine_longrun_test.cpp(979): warning:
+  
+============================================================================
+  =
+  SC-001 (a)-(d) hostile fuzz - MEASURED
+  -----------------------------------------------------------------------------
+    main batch            : 1000 / 1000 configs x 900 s (84375 steps each)
+    sub-batch             : 50 / 50 configs x 1800 s (168750 steps each)
+    control steps run     : 92812500 of 92812500 scheduled
+    sampled steps         : 998750 (every 93 steps, ~1 Hz)
+    worst relative drift  : 2.815e-12  (bound 1.000e-09, prototype 2.4e-15 - 1.
+  9e-13)
+    conservation violations (max over configs): 0
+    non-finite containments (max over configs): 0
+    perturb schedule      : 998750 calls - 375290 in range, 623460 out of
+  range, 124016 non-finite amounts, 218793 above +1, 218624 below -1
+    wall clock            : 2130.5 s (35.51 min), budget 60.00 min
+  =============================================================================
+
+-------------------------------------------------------------------------------
+EcosystemEngine_LivenessIsDurationStable
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\ecosystem_engine_longrun_test.cpp(1217)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\ecosystem_engine_longrun_test.cpp(1322): warning:
+  
+============================================================================
+  =
+  SC-003 duration stability - MEASURED (defaults, 15 cells)
+  -----------------------------------------------------------------------------
+    seed             600 s      900 s     1200 s     1800 s     3600 s   (max-
+  min)/mean
+    0xc0ffee  act      0.4404     0.4243     0.4420     0.4419     0.4587
+  0.0779
+              frz           0          0          0          0          0
+              alv         yes        yes        yes        yes        yes
+              cor      0.1791     0.1690     0.1706     0.1953     0.1872
+    0xc0ffef  act      0.4447     0.4396     0.4402     0.4501     0.4756
+  0.0800
+              frz           0          0          0          0          0
+              alv         yes        yes        yes        yes        yes
+              cor      0.1618     0.1692     0.1797     0.1806     0.1910
+    0x5eed  act      0.4164     0.4410     0.4371     0.4589     0.4661
+  0.1121
+              frz           0          0          0          0          0
+              alv         yes        yes        yes        yes        yes
+              cor      0.1541     0.1685     0.1730     0.1936     0.1959
+    seed-mean        0.4338     0.4350     0.4398     0.4503     0.4668
+  0.0741  (reported, not gated)
+  -----------------------------------------------------------------------------
+    gate: verdictAlive true in all 15 cells; per-seed (max-min)/mean < 0.2000
+    prototype: 0.4300 0.4340 0.4330 0.4420 0.4590 -> 0.066, 0 frozen at every
+  length
+    wall clock: 20.6 s
+  =============================================================================
+
+-------------------------------------------------------------------------------
+EcosystemEngine_NoShortLimitCycle
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\ecosystem_engine_longrun_test.cpp(1387)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\ecosystem_engine_longrun_test.cpp(1482): warning:
+  
+============================================================================
+  =
+  SC-005 recurrence scan - MEASURED (defaults, 1800 s, seed 0xc0ffee)
+  -----------------------------------------------------------------------------
+    grid                  : 0.99734 Hz x 1795 samples (1.0027 s per lag)
+    THE GATE - population-mean output (ruling 2026-09-16):
+      cycled              : no (gate no)
+      late window constant: no (gate no - the guarded escape)
+      decorrLag           : 17 (17.0453 s)
+      post-decay peak     : 0.1878 at lag 17 (17.0453 s)
+    REPORTED - per agent (intrinsic-period recurrence is FR-050's design):
+      agents scanned      : 32
+      agents recurring    : 3 (not gated)
+      late window constant: 0 (gate 0)
+      never decorrelated  : 0 of 32 (one slow trend)
+      worst post-decay peak: 0.8484 at lag 109 (109.2907 s), agent 1, decorrLag
+  25 (25.0667 s)
+    bound                 : <= 0.8000  (prototype 0.175 at 557 s, population-
+  level on entropy)
+    wall clock            : 1.5 s
+  =============================================================================
+
+-------------------------------------------------------------------------------
+EcosystemEngine_SaneBoxLiveness
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\ecosystem_engine_longrun_test.cpp(1532)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\ecosystem_engine_longrun_test.cpp(1648): warning:
+  
+============================================================================
+  =
+  SC-013 sane-box liveness - MEASURED (500 configs x 900 s)
+  -----------------------------------------------------------------------------
+    alive                 : 391 / 500 = 78.2 %  (gate >= 70.0 %)
+    prototype baseline    : 83.0 % (415/500) - measured with the ENTROPY-based
+                            cycle clause, NOT the output-based verdict this
+  case
+                            uses (Clarification Q3). A divergence is a FINDING
+  to
+                            surface under FR-085, not a threshold to move.
+                            First C++ figure, clause on PER-AGENT output: 52.8
+  %
+                            (127 cycle deaths = FR-050's own oscillation); the
+                            2026-09-16 ruling moved it to the POPULATION MEAN.
+    deaths by clause      : 53 too quiet (activity < 0.10), 56 too frozen (>
+  25.00 %), 0 short cycle on the population-mean output
+    mean lateActivity     : 0.3024
+    unbounded             : 0 (gate 0)
+    worst relative drift  : 5.107e-14 (bound 1.000e-09)
+    wall clock            : 489.2 s (8.15 min)
+  =============================================================================
+
+F:\projects\iterum\dsp\tests\unit\systems\ecosystem_engine_longrun_test.cpp(1693): warning:
+  
+============================================================================
+  =
+  SC-013 alive fraction per tercile of each sane-box knob (REPORTED, NOT GATED)
+    Phase 10 inherits the death predictors from this table rather than
+    rediscovering them. The three knobs the sane box pins (energyBudget,
+    stepIntervalChunks, feedRate) are exempt there and are omitted here.
+  -----------------------------------------------------------------------------
+    agentCount            24.0000..32.0000    140/166  32.0000..40.0000    133/
+  167  40.0000..48.0000    118/167
+    resourceCells         32.0000..53.0000    134/166  53.0000..74.0000    139/
+  167  74.0000..96.0000    118/167
+    initialPoolFraction   0.3007..0.4318      128/166  0.4318..0.5589      126/
+  167  0.5599..0.6990      137/167
+    kernelSigma           0.0201..0.0332      142/166  0.0333..0.0460      130/
+  167  0.0460..0.0599      119/167
+    exchangeRate          0.0017..0.3296      131/166  0.3321..0.6505      129/
+  167  0.6519..0.9974      131/167
+    predation             0.0017..0.3296      134/166  0.3296..0.6505      136/
+  167  0.6519..0.9974      121/167
+    preyFloor             0.0650..0.2671      131/166  0.2712..0.4625      124/
+  167  0.4625..0.6385      136/167
+    capacity              1.6502..11.6180     132/166  11.6191..21.3549    129/
+  167  21.3752..31.9222    130/167
+    leakRate              0.0202..0.0628      119/166  0.0632..0.1054      131/
+  167  0.1061..0.1497      141/167
+    leakExponent          1.0005..1.0989      142/166  1.0989..1.1949      127/
+  167  1.1951..1.2992      122/167
+    moveRate              0.0008..0.1635      131/166  0.1648..0.3249      136/
+  167  0.3252..0.4987      124/167
+    maxSpeed              0.0101..0.0231      132/166  0.0232..0.0360      135/
+  167  0.0361..0.0499      124/167
+    forageRate            0.0000..0.0098      132/166  0.0099..0.0195      120/
+  167  0.0196..0.0299      139/167
+    crowding              0.0251..0.0506      122/166  0.0508..0.0740      135/
+  167  0.0743..0.0998      134/167
+    crowdingRadius        0.0100..0.0202      128/166  0.0202..0.0297      128/
+  167  0.0297..0.0399      135/167
+    syncRate              0.0002..0.0330      133/166  0.0330..0.0652      128/
+  167  0.0653..0.0997      130/167
+    cellCapacity          1.2885..2.9676      129/166  2.9804..4.6438      128/
+  167  4.6727..6.3869      134/167
+    regenRate             0.0203..0.0798      134/166  0.0803..0.1393      137/
+  167  0.1400..0.1995      120/167
+    grazeRate             0.5041..1.3303      144/166  1.3372..2.1425      129/
+  167  2.1566..2.9936      118/167
+    satiation             0.0000..0.0000      150/166  0.0000..0.0000      143/
+  167  0.0000..1.9167       98/167
+    appetiteDepth         0.6007..0.7353      119/166  0.7356..0.8630      132/
+  167  0.8651..0.9990      140/167
+    freqLo                0.0010..0.0017      130/166  0.0017..0.0023      135/
+  167  0.0023..0.0030      126/167
+    freqHi                0.0100..0.0167      134/166  0.0168..0.0233      136/
+  167  0.0233..0.0299      121/167
+    freqDrift             0.0000..0.0000      134/166  0.0000..0.0001      129/
+  167  0.0001..0.0001      128/167
+    affinity              1.0825..1.3942      130/166  1.3942..1.4484      137/
+  167  1.4518..1.4950      124/167
+  =============================================================================
+
+-------------------------------------------------------------------------------
+EcosystemEngine_RefugeFloorPreventsPredationCliff
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\ecosystem_engine_longrun_test.cpp(1741)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\ecosystem_engine_longrun_test.cpp(1876): warning:
+  
+============================================================================
+  =
+  SC-017 refuge floor vs the predation cliff - MEASURED (1800 s per cell)
+  -----------------------------------------------------------------------------
+    bound: lateFrozen == 0 AND no agent's late-window energy <= 1.0e-03 shares
+  -- defaults arm (preyFloor 0.5 shares) - every cell must PASS ---------------
+  -
+    predation 0.60  preyFloor 0.50  seed 0xc0ffee  activity   0.3851  frozen
+  0  min energy   2.133e-01 shares  atZero   0   PASSES
+    predation 0.60  preyFloor 0.50  seed 0xc0ffef  activity   0.4600  frozen
+  0  min energy   2.179e-01 shares  atZero   0   PASSES
+    predation 0.60  preyFloor 0.50  seed 0x5eed  activity   0.3286  frozen   0
+  min energy   1.641e-01 shares  atZero   0   PASSES
+    predation 0.70  preyFloor 0.50  seed 0xc0ffee  activity   0.2792  frozen
+  0  min energy   1.854e-01 shares  atZero   0   PASSES
+    predation 0.70  preyFloor 0.50  seed 0xc0ffef  activity   0.2777  frozen
+  0  min energy   1.833e-01 shares  atZero   0   PASSES
+    predation 0.70  preyFloor 0.50  seed 0x5eed  activity   0.2924  frozen   0
+  min energy   1.935e-01 shares  atZero   0   PASSES
+    predation 0.85  preyFloor 0.50  seed 0xc0ffee  activity   0.2596  frozen
+  0  min energy   1.700e-01 shares  atZero   0   PASSES
+    predation 0.85  preyFloor 0.50  seed 0xc0ffef  activity   0.3348  frozen
+  0  min energy   1.945e-01 shares  atZero   0   PASSES
+    predation 0.85  preyFloor 0.50  seed 0x5eed  activity   0.3767  frozen   0
+  min energy   1.775e-01 shares  atZero   0   PASSES
+  -- control arm (preyFloor 0, FR-022 REMOVED) - must FAIL --------------------
+  -
+    predation 0.70  preyFloor 0.00  seed 0xc0ffee  activity   0.3226  frozen
+  10  min energy   9.937e-05 shares  atZero  19   FAILS
+    predation 0.70  preyFloor 0.00  seed 0xc0ffef  activity   0.3405  frozen
+  10  min energy   8.447e-05 shares  atZero  23   FAILS
+    predation 0.70  preyFloor 0.00  seed 0x5eed  activity   0.2729  frozen  11
+  min energy   9.586e-05 shares  atZero  15   FAILS
+  -----------------------------------------------------------------------------
+    control arm failed the bound at 3 of 3 seeds (gate >= 1 - the metric must
+  be SHOWN to
+    discriminate FR-022; prototype: about a third of the agents parked at zero
+    permanently at predation 0.7, a cliff 0.05 away from the default)
+    wall clock            : 19.0 s
+  =============================================================================
+
+-------------------------------------------------------------------------------
+EcosystemEngine_OvernightSoak
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\ecosystem_engine_longrun_test.cpp(1931)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\ecosystem_engine_longrun_test.cpp(2112): warning:
+  
+============================================================================
+  =
+  SC-018 overnight soak - MEASURED (28800 s = 8 h x 3 seeds, defaults)
+  -----------------------------------------------------------------------------
+    seed 0xc0ffee: 2700000 / 2700000 control steps, 29033 sampled points, 606
+  tail samples
+        worst relative drift 1.066e-14 (bound 1.000e-09),
+  conservationViolations 0, nonFiniteContainments 0
+        final 600 s: lateActivity 0.5038 (gate >= 0.30), lateFrozen 0 (gate ==
+  0), latePairCorr 0.2187
+    seed 0xc0ffef: 2700000 / 2700000 control steps, 29033 sampled points, 606
+  tail samples
+        worst relative drift 2.931e-14 (bound 1.000e-09),
+  conservationViolations 0, nonFiniteContainments 0
+        final 600 s: lateActivity 0.5074 (gate >= 0.30), lateFrozen 0 (gate ==
+  0), latePairCorr 0.1937
+    seed 0x5eed: 2700000 / 2700000 control steps, 29033 sampled points, 606
+  tail samples
+        worst relative drift 2.287e-14 (bound 1.000e-09),
+  conservationViolations 0, nonFiniteContainments 0
+        final 600 s: lateActivity 0.5198 (gate >= 0.30), lateFrozen 0 (gate ==
+  0), latePairCorr 0.2001
+  -----------------------------------------------------------------------------
+    statistics are STREAMING: only the final 600 s is materialised
+    wall clock            : 77.8 s (1.30 min)
+  =============================================================================
+
+-------------------------------------------------------------------------------
+EcosystemEngine_SampleRateIndependent
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\ecosystem_engine_longrun_test.cpp(2185)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\ecosystem_engine_longrun_test.cpp(2318): warning:
+  
+============================================================================
+  =
+  SC-010 (a)+(c) cross-dt liveness - MEASURED (18 cells x 1800 s)
+    FIRST cross-dt measurement of this rule set. Clause (a) gates the verdict
+    column; the activity figures and the cross-seed spread are clause (c) and
+    are NOT gated - no band has ever been measured (spec SC-010 (c)).
+  -----------------------------------------------------------------------------
+    arm       rate  chunks   dt (ms)   grid (Hz)     steps   activity  frozen
+  corr  cycle  alive
+    rate     44100       8    11.610     1.00154    155058     0.4335       0
+  0.176     no    yes
+    rate     44100       8    11.610     1.00154    155058     0.4377       0
+  0.179     no    yes
+    rate     44100       8    11.610     1.00154    155058     0.4726       0
+  0.199     no    yes
+    rate     48000       8    10.667     0.99734    168730     0.4419       0
+  0.195     no    yes
+    rate     48000       8    10.667     0.99734    168730     0.4501       0
+  0.181     no    yes
+    rate     48000       8    10.667     0.99734    168730     0.4589       0
+  0.194     no    yes
+    rate     96000       8     5.333     0.99734    337460     0.4442       0
+  0.193     no    yes
+    rate     96000       8     5.333     0.99734    337460     0.4649       0
+  0.179     no    yes
+    rate     96000       8     5.333     0.99734    337460     0.4526       0
+  0.182     no    yes
+    chunks   48000       8    10.667     0.99734    168730     0.4419       0
+  0.195     no    yes
+    chunks   48000       8    10.667     0.99734    168730     0.4501       0
+  0.181     no    yes
+    chunks   48000       8    10.667     0.99734    168730     0.4589       0
+  0.194     no    yes
+    chunks   48000      16    21.333     0.99734     84365     0.4510       0
+  0.201     no    yes
+    chunks   48000      16    21.333     0.99734     84365     0.4773       0
+  0.177     no    yes
+    chunks   48000      16    21.333     0.99734     84365     0.4501       0
+  0.167     no    yes
+    chunks   48000      32    42.667     1.01902     42182     0.4462       0
+  0.196     no    yes
+    chunks   48000      32    42.667     1.01902     42182     0.4510       0
+  0.180     no    yes
+    chunks   48000      32    42.667     1.01902     42182     0.4314       0
+  0.166     no    yes
+  -----------------------------------------------------------------------------
+    per-cell cross-seed spread of lateActivity, (max - min) / mean
+    rate     44100       8   mean    0.4479   min    0.4335   max    0.4726
+  spread    0.0873
+    rate     48000       8   mean    0.4503   min    0.4419   max    0.4589
+  spread    0.0378
+    rate     96000       8   mean    0.4539   min    0.4442   max    0.4649
+  spread    0.0457
+    chunks   48000       8   mean    0.4503   min    0.4419   max    0.4589
+  spread    0.0378
+    chunks   48000      16   mean    0.4594   min    0.4501   max    0.4773
+  spread    0.0592
+    chunks   48000      32   mean    0.4429   min    0.4314   max    0.4510
+  spread    0.0441
+    worst cross-seed spread: 0.0873  (REPORTED - SC-010 (c) states no band; one
+  derived from this
+     table may be added by amendment, per the criterion's own last sentence)
+    wall clock             : 27.1 s (0.45 min)
+  =============================================================================
+
+-------------------------------------------------------------------------------
+VoragoVoice_NoiseDecorrelationMonoSum
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(1939)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(2056): warning:
+  B-3 measured over [20 Hz, 8 kHz] at 48 kHz: worst per-channel flatness 1.
+  4674e-07 dB; worst mono-fold deviation 3.65565 dB at 8000 Hz; one-sample-
+  delay pair 1.24939 dB at 8000 Hz; 48-sample (1 ms) delay pair 19.1932 dB at
+  465 Hz
+
+-------------------------------------------------------------------------------
+VoragoVoice_SetterContract
+  every public float setter: reject non-finite, clamp out-of-range
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(3439)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(3446): warning:
+  SC-028 (voice half) - VoragoVoice float setters
+    setter                               probe         NaN        +Inf        -
+  Inf        +1e9        -1e9
+    setEnvelopeReleaseMs              250.0000    250.0000    250.0000    250.
+  00001000000000.0000-1000000000.0000
+    setGrowthDurationSeconds           30.0000     30.0000     30.0000     30.
+  0000    120.0000      1.0000
+    setRichness                         0.6500      0.6500      0.6500      0.
+  6500      1.0000      0.0000
+    setSpectralTiltDb                  -3.0000     -3.0000     -3.0000     -3.
+  0000     12.0000    -12.0000
+    setMutation                         0.3000      0.3000      0.3000      0.
+  3000      1.0000      0.0000
+    setInharmonicity                    0.0010      0.0010      0.0010      0.
+  0010      0.1000      0.0000
+    setDriftDepthCents                  5.0000      5.0000      5.0000      5.
+  0000     50.0000      0.0000
+    setStereoSpread                     0.7000      0.7000      0.7000      0.
+  7000      1.0000      0.0000
+    setNoiseLevelDb                   -30.0000    -30.0000    -30.0000    -30.
+  0000     12.0000    -96.0000
+    setNoiseWakeBase                    0.4500      0.4500      0.4500      0.
+  4500      1.0000      0.0000
+    setNoiseWanderRate                  0.0500      0.0500      0.0500      0.
+  0500    100.0000      0.0100
+    setResonanceGravity                -0.3500     -0.3500     -0.3500     -0.
+  3500      1.0000     -1.0000
+    setResonanceMix                     0.5500      0.5500      0.5500      0.
+  5500      1.0000      0.0000
+    setResonanceWanderRate              0.0400      0.0400      0.0400      0.
+  0400      1.0000      0.0020
+    setEcologyMix                       0.2500      0.2500      0.2500      0.
+  2500      1.0000      0.0000
+    setEcologyLoopGain                  0.3000      0.3000      0.3000      0.
+  3000      0.9000      0.0000
+    setBodyBlend                        0.6500      0.6500      0.6500      0.
+  6500      1.0000      0.0000
+    setBodyDamping                      0.4000      0.4000      0.4000      0.
+  4000      1.0000      0.0000
+    setBodyResonance                    0.6000      0.6000      0.6000      0.
+  6000      1.0000      0.0000
+    setBodyMix                          0.3500      0.3500      0.3500      0.
+  3500      1.0000      0.0000
+    setEcosystemDepth                   0.5500      0.5500      0.5500      0.
+  5500      1.0000      0.0000
+    setEventRateScale                   2.0000      2.0000      2.0000      2.
+  0000     10.0000      0.1000
+    setBloomDepth                       0.4500      0.4500      0.4500      0.
+  4500      1.0000      0.0000
+    setBloomSpawnRateHz                 0.0100      0.0100      0.0100      0.
+  0100      0.0500      0.0000
+    setBreathingDepth                   0.3000      0.3000      0.3000      0.
+  3000      1.0000      0.0000
+    setBreathingIrregularity            0.2000      0.2000      0.2000      0.
+  2000      1.0000      0.0000
+    setTidalDepth                       0.5000      0.5000      0.5000      0.
+  5000      1.0000      0.0000
+
+-------------------------------------------------------------------------------
+VoragoVoice_BloomSlotAccounting
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_longrun_test.cpp(519)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_longrun_test.cpp(606): warning:
+  SC-018 bloom accounting: A = 10, 30 equivalent minutes, 135000 control steps
+  (180 s of audio), wall clock 11.2036 s; capacity 14..64, min reserveBase 8,
+  max live children 10
+
+-------------------------------------------------------------------------------
+VoragoVoice_EcosystemRouting
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_longrun_test.cpp(631)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_longrun_test.cpp(704): warning:
+  SC-019 (1) baseline: 11 scheduler onsets at depth 0, max agent output 1
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_longrun_test.cpp(795): warning:
+  SC-019 (3) Partial: 1945 ecosystem-attributable changes over 10 equivalent
+  minutes = 194.5 per minute; max (eco - scheduler) excess 0.85
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_longrun_test.cpp(795): warning:
+  SC-019 (3) Resonator: 5396 ecosystem-attributable changes over 10 equivalent
+  minutes = 539.6 per minute; max (eco - scheduler) excess 0.318166
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_longrun_test.cpp(795): warning:
+  SC-019 (3) Noise: 5423 ecosystem-attributable changes over 10 equivalent
+  minutes = 542.3 per minute; max (eco - scheduler) excess 0.65
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_longrun_test.cpp(795): warning:
+  SC-019 (3) Feedback: 5401 ecosystem-attributable changes over 10 equivalent
+  minutes = 540.1 per minute; max (eco - scheduler) excess 0.276551
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_longrun_test.cpp(795): warning:
+  SC-019 (3) Ghost: 5501 ecosystem-attributable changes over 10 equivalent
+  minutes = 550.1 per minute; max (eco - scheduler) excess 0.939933
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_longrun_test.cpp(887): warning:
+  SC-019 (3) dormancy Partial: 671 scheduler-arm changes across the measurement
+  window
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_longrun_test.cpp(887): warning:
+  SC-019 (3) dormancy Resonator: 208 scheduler-arm changes across the
+  measurement window
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_longrun_test.cpp(887): warning:
+  SC-019 (3) dormancy Noise: 1835 scheduler-arm changes across the measurement
+  window
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_longrun_test.cpp(887): warning:
+  SC-019 (3) dormancy Feedback: 622 scheduler-arm changes across the
+  measurement window
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_longrun_test.cpp(887): warning:
+  SC-019 (3) dormancy Ghost: 859 scheduler-arm changes across the measurement
+  window
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_longrun_test.cpp(905): warning:
+  SC-019 ecosystem routing: A = 10, 10 equivalent minutes per arm, wall clock
+  20.0959 s
+
+-------------------------------------------------------------------------------
+VoragoVoice_SlowEventRouting
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_longrun_test.cpp(932)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_longrun_test.cpp(1082): warning:
+  SC-020 slow events: A = 10, 30 equivalent minutes, 135000 control steps, wall
+  clock 11.2648 s; 35 events, draws per family {6, 4, 5, 11, 9}, observed
+  changes {0, 4, 5, 9, 7}, bloom triggers 6, silent-above-base 0, silent-below-
+  base 2, boundary 0, intervals 33 (worst 54.9987 s)
+
+-------------------------------------------------------------------------------
+VoragoEngine_SoakSentinel
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_engine_test.cpp(2236)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_engine_test.cpp(2263): warning:
+  SC-004a: 60.00 s at 48000.00 Hz, polyphony 6, one held note; peak |out| = 0.
+  13, RMS = -26.69 dBFS, recoveries = 0, getAllocatedBytes 10924056 -> 10924056
+
+-------------------------------------------------------------------------------
+VoragoEngine_ConfigurationFuzzSentinel
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_engine_test.cpp(2428)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_engine_test.cpp(2468): warning:
+  SC-013a: 32 configurations [0, 32) x 2.0 s UNACCELERATED at 48000.0 Hz; worst
+  |out| = 0.3458 at configuration 31
+
+-------------------------------------------------------------------------------
+VoragoEngine_SampleRateSentinel
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_engine_test.cpp(2523)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_engine_test.cpp(2535): warning:
+  SC-021a: 1.00 s full-polyphony renders, kFastAttackEnvelopeConfig (FR-014a);
+    48 kHz : RMS = -42.03 dBFS, peak 0.03
+    192 kHz: RMS = -41.93 dBFS, peak 0.03 (0.10 dB vs 48 kHz)
+
+-------------------------------------------------------------------------------
+VoragoEngine_GhostConfiguration
+  clause 2: the level is EVENT-GATED, not a continuous wash
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_engine_test.cpp(2779)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_engine_test.cpp(2809): warning:
+  SC-027 clause 2: 600.0 s at 8000.0 Hz, polyphony 1, ecosystem depth 0, FR-086
+  A = 10.0; rise >= 0.3000, fall <= 0.0300
+    gate OPEN  : 20 burst edges, max level 0.5956, max ghost request 0.9926
+    gate CLOSED: 0 burst edges, max level 0.0000, max ghost request 0.9926
+
+-------------------------------------------------------------------------------
+VoragoEngine_SetterContract
+  every public float setter: reject non-finite, clamp out-of-range
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_engine_test.cpp(3070)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_engine_test.cpp(3077): warning:
+  SC-028 (engine half) - VoragoEngine float setters
+    setter                               probe         NaN        +Inf        -
+  Inf        +1e9        -1e9
+    setSubToneLevelOffsetDb            -6.0000     -6.0000     -6.0000     -6.
+  00001000000000.0000-1000000000.0000
+    setSubTrackingAmount                0.2500      0.2500      0.2500      0.
+  2500      1.0000      0.0000
+    setSmearAmount                      0.7500      0.7500      0.7500      0.
+  7500      1.0000      0.0000
+    setSmearDecoherence                 0.3500      0.3500      0.3500      0.
+  3500      1.0000      0.0000
+    setSmearTilt                       -0.4000     -0.4000     -0.4000     -0.
+  4000      1.0000     -1.0000
+    setGhostPeakLevel                   0.2500      0.2500      0.2500      0.
+  2500      1.0000      0.0000
+    setAtmosBlur                        0.4000      0.4000      0.4000      0.
+  4000      1.0000      0.0000
+    setOutputSaturation                 0.3000      0.3000      0.3000      0.
+  3000      1.0000      0.0000
+    setEnvelopeReleaseMs              250.0000    250.0000    250.0000    250.
+  00001000000000.0000-1000000000.0000
+    setGrowthDurationSeconds           30.0000     30.0000     30.0000     30.
+  0000    120.0000      1.0000
+
+-------------------------------------------------------------------------------
+VoragoEngine_OvernightSoak
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_engine_longrun_test.cpp(797)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_engine_longrun_test.cpp(813): warning:
+  SC-004b / SC-005 shared render (R-9): 8.0 h of audio x 3 seeds, UNACCELERATED
+  (FR-086), T_settle = 120.0 s, block = 512, wall clock = 2.5 h
+    seed 1: 0.9 h, 2700000 blocks, 956 centroid samples, peak 0.4551
+    seed 20260917: 0.8 h, 2700000 blocks, 956 centroid samples, peak 0.4232
+    seed 4242: 0.8 h, 2700000 blocks, 956 centroid samples, peak 0.4150
+
+-------------------------------------------------------------------------------
+VoragoEngine_OvernightEvolution
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_engine_longrun_test.cpp(902)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_engine_longrun_test.cpp(973): warning:
+  SC-005 evolution over the shared 8 h render, per seed:
+    seed 1: CV = 0.1633, max autocorrelation = 0.2454 at lag 60 s
+    seed 20260917: CV = 0.1586, max autocorrelation = 0.1908 at lag 60 s
+    seed 4242: CV = 0.1768, max autocorrelation = 0.3179 at lag 60 s
+    mean CV = 0.1662 (bar 0.0500), worst mean autocorrelation = 0.2514 at lag
+  60 s (bar 0.9000)
+
+-------------------------------------------------------------------------------
+VoragoEngine_ConfigurationFuzz
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_engine_longrun_test.cpp(988)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_engine_longrun_test.cpp(996): warning:
+  SC-013b: configurations [32, 1000) = 968 renders x 10.0 s, accelerated per
+  FR-086 with A = 100.0 on the engine's envelope and growth clocks
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_engine_longrun_test.cpp(1040): warning:
+  SC-013b: 968 configurations rendered in 33.2 min; worst |out| = 0.9661 at
+  configuration 538
+
+-------------------------------------------------------------------------------
+VoragoEngine_SampleRateSweep
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_engine_longrun_test.cpp(1061)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_engine_longrun_test.cpp(1089): warning:
+  SC-021b: 10.00 s full-polyphony renders, kFastAttackEnvelopeConfig (FR-014a);
+  reference 48 kHz RMS = -19.37 dBFS, peak 0.52
+    44.1 kHz: RMS = -19.30 dBFS (0.08 dB vs reference), peak 0.53
+    88.2 kHz: RMS = -19.76 dBFS (-0.38 dB vs reference), peak 0.51
+    96.0 kHz: RMS = -19.64 dBFS (-0.27 dB vs reference), peak 0.46
+    176.4 kHz: RMS = -19.05 dBFS (0.32 dB vs reference), peak 0.52
+
+-------------------------------------------------------------------------------
+VoragoMacro_SweepAxes
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1211)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1289): warning:
+  SC-008 macro sweeps (3 seeds x 5 points x 60 s; window [10 s, 60 s] = samples
+  [480000, 2880000); C1 unless the row says @C3 / @C4; Life renders 210.0000 s
+  and counts edges over [90.0000 s, 210.0000 s])
+    Darkness  energy >4f0 rel. <4f0 (dB)  rho=-1.0000  endpoint=12.2274  [-51.
+  6996, -54.8682, -57.9981, -61.0464, -63.9270]
+    Age       HF energy > 4 kHz (dB) @C4  rho=-1.0000  endpoint=10.2542  [-105.
+  1411, -108.2497, -111.0945, -113.5180, -115.3953]
+    Density   partials + awake sources  rho=1.0000  endpoint=2.1578  [19.9507,
+  26.9507, 37.0000, 48.0000, 63.0000]
+    Movement  per-band total variation  rho=1.0000  endpoint=0.2173  [1.0300,
+  1.0701, 1.1236, 1.2031, 1.2538]
+    Gravity   mean |log2(ratio) - int|  rho=-0.9333  endpoint=0.8058  [0.2673,
+  0.2734, 0.2469, 0.1920, 0.0519]
+    Entropy   spectral flatness [f0, 20 f0]  rho=1.0000  endpoint=99.8451  [0.
+  0000, 0.0000, 0.0000, 0.0000, 0.0000]
+    Pressure  crest factor (dB)  rho=-1.0000  endpoint=3.5217  [7.5886, 6.9264,
+  6.0034, 4.9788, 4.0669]
+    Weight    energy < 80 Hz (dB) @C3  rho=1.0000  endpoint=8.3384  [-20.1560,
+  -17.9497, -15.8248, -13.7682, -11.8176]
+    Fog       spectral flatness [f0, 20 f0]  rho=1.0000  endpoint=0.3063  [0.
+  0000, 0.0000, 0.0000, 0.0000, 0.0000]
+    Life      wake/sleep edges per min [90 s, 210 s]  rho=1.0000  endpoint=14.
+  6667  [1.5000, 6.8333, 12.6667, 16.8333, 22.0000]
+    Mass      energy < 80 Hz (dB) @C3  rho=1.0000  endpoint=2.4343  [-20.1560,
+  -19.4823, -18.8173, -18.2093, -17.7217]
+    all-macros-at-zero broadband RMS = -14.0428 dBFS
+
+-------------------------------------------------------------------------------
+VoragoMacro_NoZipper
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1514)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1580): warning:
+  SC-010 zipper statistic (20 ms window; reference 64 ms clear of the ramp)
+    macro 0  ramp=3.3420e-03  reference=3.3415e-03  ratio=1.0001e+00
+    macro 1  ramp=3.2679e-03  reference=3.2965e-03  ratio=9.9131e-01
+    macro 2  ramp=2.9549e-03  reference=3.0295e-03  ratio=9.7538e-01
+    macro 3  ramp=3.1002e-03  reference=3.3217e-03  ratio=9.3330e-01
+    macro 4  ramp=3.5787e-03  reference=3.0388e-03  ratio=1.1776e+00
+    macro 5  ramp=2.2364e-03  reference=2.1222e-03  ratio=1.0538e+00
+    macro 6  ramp=2.5811e-03  reference=2.7396e-03  ratio=9.4215e-01
+    macro 7  ramp=3.5634e-03  reference=4.0067e-03  ratio=8.8935e-01
+    macro 8  ramp=2.6287e-03  reference=2.8685e-03  ratio=9.1638e-01
+    macro 9  ramp=3.1191e-03  reference=3.1928e-03  ratio=9.7692e-01
+    macro 10  ramp=3.1077e-03  reference=3.1832e-03  ratio=9.7627e-01
+    macro 11  ramp=2.6703e-03  reference=2.4036e-03  ratio=1.1110e+00
+
+-------------------------------------------------------------------------------
+ContinuousBody_DarkMaterialsSpectral
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_dark_materials_test.cpp(413)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_dark_materials_test.cpp(474): warning:
+  SC-015 steady-state spectral centroid, all eleven materials.
+    f_body = 110 Hz (keyTracking 1), resonance = 0.7, damping = 0, cloud off,
+  AGC off;
+    identical pink-noise excitation from seed 0x5eedda12, measured over the
+  last 20 s of a 50 s render.
+    [shipped] Glass : centroid 899.60 Hz  (alpha = 1.00, b1 = 0.50, modes = 32,
+  finite = yes)
+    [shipped] Strings : centroid 3411.63 Hz  (alpha = 0.00, b1 = 0.00, modes =
+  0, finite = yes)
+    [shipped] MetalPlate : centroid 1124.78 Hz  (alpha = 0.70, b1 = 0.30, modes
+  = 32, finite = yes)
+    [shipped] Chamber : centroid 3008.45 Hz  (alpha = 0.00, b1 = 0.00, modes =
+  0, finite = yes)
+    [shipped] Ice : centroid 1048.06 Hz  (alpha = 0.90, b1 = 0.60, modes = 32,
+  finite = yes)
+    [new]     StoneChamber : centroid 569.34 Hz  (alpha = 1.30, b1 = 0.90,
+  modes = 32, finite = yes)
+    [new]     SteelTank : centroid 625.66 Hz  (alpha = 1.20, b1 = 0.45, modes =
+  32, finite = yes)
+    [new]     WoodenHull : centroid 687.09 Hz  (alpha = 1.35, b1 = 1.40, modes
+  = 24, finite = yes)
+    [new]     CathedralColumn : centroid 757.74 Hz  (alpha = 1.20, b1 = 0.60,
+  modes = 32, finite = yes)
+    [new]     CavernWall : centroid 522.21 Hz  (alpha = 1.65, b1 = 1.10, modes
+  = 32, finite = yes)
+    [new]     GlassSphere : centroid 472.09 Hz  (alpha = 3.00, b1 = 1.60, modes
+  = 20, finite = yes)
+    shipped minimum = 899.60 Hz (Glass) - every [new] centroid must sit below
+  it.
+    pairwise separation of the six new materials, |a-b| / max(a,b) (required: >
+  = 0.05):
+      StoneChamber vs SteelTank : 0.09
+      StoneChamber vs WoodenHull : 0.17
+      StoneChamber vs CathedralColumn : 0.25
+      StoneChamber vs CavernWall : 0.08
+      StoneChamber vs GlassSphere : 0.17
+      SteelTank vs WoodenHull : 0.09
+      SteelTank vs CathedralColumn : 0.17
+      SteelTank vs CavernWall : 0.17
+      SteelTank vs GlassSphere : 0.25
+      WoodenHull vs CathedralColumn : 0.09
+      WoodenHull vs CavernWall : 0.24
+      WoodenHull vs GlassSphere : 0.31
+      CathedralColumn vs CavernWall : 0.31
+      CathedralColumn vs GlassSphere : 0.38
+      CavernWall vs GlassSphere : 0.10
+
+-------------------------------------------------------------------------------
+AtmosphereGhost_PassAScratchBound
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\atmosphere_ghost_test.cpp(3598)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\atmosphere_ghost_test.cpp(3732): warning:
+  SC-012 measured: chunk 1 active=62 deltaRetired=2; chunk 2 deltaRetired=188
+  (teeth: > 128, FR-051 bound: <= 192)
+
+-------------------------------------------------------------------------------
+AtmosphereGhost_ReverseLiveness
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\atmosphere_ghost_longrun_test.cpp(623)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\atmosphere_ghost_longrun_test.cpp(632): warning:
+  AtmosphereGhost_ReverseLiveness measured runtime: reverse arm 3.90509 s,
+  forward arm 3.52041 s, total 7.4255 s (2 x [1048576 pre-roll + 28800000 span]
+  samples at 48 kHz); reverse clicks 0, forward clicks 0
+
+-------------------------------------------------------------------------------
+AtmosphereGhost_Determinism_ReverseFraction
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\atmosphere_ghost_longrun_test.cpp(705)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\atmosphere_ghost_longrun_test.cpp(722): warning:
+  AtmosphereGhost_Determinism_ReverseFraction measured runtime: 0.485205 s (p=
+  0.25) + 0.46207 s (p=0.50) + 0.524528 s (p=0.75) = 1.4718 s total; spans
+  624832 / 624832 / 624832 samples at 8000 Hz; births 100000 / 100000 / 100000;
+  reverse fractions 0.25239 / 0.49982 / 0.74928
+
+-------------------------------------------------------------------------------
+VoragoEngine_GhostExtensionWiring
+  clause (a) - the 60 s default render is unchanged from the base commit
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(458)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(509): warning:
+  SC-010 (a) fingerprint arm ran in 5.01091 s
+
+-------------------------------------------------------------------------------
+VoragoEngine_GhostExtensionWiring
+  clause (c) - the closed gate spawns nothing while the events still fire
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(522)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(557): warning:
+  SC-010 (c) closed-gate arm: 600 s at 8000 Hz ran in 9.6112 s; max ghost
+  request 0.992646
+
+-------------------------------------------------------------------------------
+VoragoEngine_GhostExtensionWiring
+  clause (e) - atmosGhostReverseProbability reaches the component
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(577)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(609): warning:
+  SC-010 (e) reverse-wire arm: 25 grains born, all reverse; ran in 1.40421 s
+
+-------------------------------------------------------------------------------
+VoragoEngine_GhostExtensionWiring_Engaged
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(652)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(693): warning:
+  SC-010 (b)/(d): pre-roll 262144 samples (32.768 s), then 600.0 s at 8000.0 Hz
+  in 64-sample blocks, polyphony 1, ecosystem depth 0, event rate scale 10.0;
+  rise >= 0.3000, fall <= 0.0300
+    burst edges     : 20
+    d triggeredBorn : 20
+    d dropped       : 0
+    d skipPoolFull  : 0
+    d skipRingCold  : 0
+    max level       : 0.5956
+    max ghost req   : 0.9926
+    wall clock      : 9.66 s
+
+===============================================================================
+All tests passed (6030085 assertions in 1442 test cases)
+

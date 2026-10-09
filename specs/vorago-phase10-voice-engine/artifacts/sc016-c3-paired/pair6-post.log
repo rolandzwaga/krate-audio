@@ -1,0 +1,105 @@
+Mon Sep 21 23:40:11 WEDT 2026
+pin-perf-cores: performance-core mask 0xFFFF
+Filters: "SeraphisEngine_FullPolyCpuBudget","SeraphisVoice_CompositionOverhead","SeraphisEngine_PerfObservables"
+Randomness seeded to: 3722711027
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+SeraphisEngine_FullPolyCpuBudget
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\seraphis_perf_test.cpp(1192)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\seraphis_perf_test.cpp(1209): warning:
+  SC-001 body-material survey (standalone ContinuousBody, the phase-4 perf
+  configuration):
+    Glass : 34230.5 ns/block
+    Strings : 38074 ns/block
+    MetalPlate : 35500.5 ns/block
+    Chamber : 36666 ns/block
+    Ice : 39954 ns/block
+    worst material  : Ice  (the one SC-001 and SC-002 pin)
+
+F:\projects\iterum\dsp\tests\unit\systems\seraphis_perf_test.cpp(1318): warning:
+  SC-001 full-poly composed chain (polyphony 8, all sounding, atmosphere
+  FROZEN,
+          worst measured body material, 64 partials + drift, AetherReverb
+  config (c)):
+    block budget    : 1.06667e+07 ns  (512 samples @ 48 kHz)
+    reference (25 %): 2.66667e+06 ns/block  (roadmap line 311, KEPT by RQ-1)
+    measured        : 1.79366e+06 ns/block  (16.8156 % of one core)
+    RA-1 prediction : 20.36 % of one core (before the voice sum, the spatial
+  stage,
+                      the output stage and the macro matrix)
+    checked-in base : 2.24764e+06 ns/block  (MEASURED 2026-07-31; gate: x1.15 =
+  2.58479e+06 ns/block)
+    admissible base : 2.31884e+06 ns/block  (25 % / 1.15 = 21.74 %)
+    headroom vs ref : 67.2623 % of the reference
+
+-------------------------------------------------------------------------------
+SeraphisVoice_CompositionOverhead
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\seraphis_perf_test.cpp(1330)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\seraphis_perf_test.cpp(1396): warning:
+  SC-002 per-voice composition overhead (512-sample blocks @ 48 kHz, best-of-16
+  x 200,
+          64 partials + drift, FR-019 defaults, worst body material (Ice),
+  atmosphere UNFROZEN,
+          Standard envelope gated on, spatial depth 0.5):
+    HarmonicCloud       : 29672.5 ns/block
+    SpectralMorphEngine : 11488.5 ns/block
+    ContinuousBody      : 38669 ns/block
+    AtmosphereEngine    : 90206.5 ns/block
+    MultiStageEnvelope  : 1749.5 ns/block
+    GrowthEnvelope      : 20.5 ns/block  (in the denominator by FR-002's eight;
+  the
+                          Standard-mode voice never advances it, so this term
+  biases
+                          the ratio DOWNWARD - see the ratio excluding it
+  below)
+    OrbitModulator      : 732.5 ns/block
+    MidSideProcessor    : 2178 ns/block
+    --- sum of eight    : 174717 ns/block
+    SeraphisVoice       : 149040 ns/block
+    ratio (SC-002)      : 0.853039   (bound <= 1.1)
+    ratio excl. growth  : 0.85314   (reported for compliance.md, NOT the gate)
+
+-------------------------------------------------------------------------------
+SeraphisEngine_PerfObservables
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\seraphis_perf_test.cpp(1427)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\seraphis_perf_test.cpp(1445): warning:
+  T005 sizes on THIS toolchain (plan §6.3's stack rule is derived from them):
+    sizeof(SeraphisVoice)  : 47040 B  (bound 50048 B)
+    sizeof(SeraphisEngine) : 765120 B  (bound 866304 B)
+    voices_ share          : 98.3689 % of the engine object
+    => every SeraphisEngine in every TU is heap-allocated; MSVC's default main-
+  thread stack is 1 MiB
+
+F:\projects\iterum\dsp\tests\unit\systems\seraphis_perf_test.cpp(1577): warning:
+  plan §9 R14 - freeze fan-out burst (engine only, polyphony 8, best-of-5 arm/
+  capture cycles):
+    worst single chunk : 405800 ns  (30.435 % of the 64-sample deadline 1.
+  33333e+06 ns)
+    mean of the maxima : 416140 ns
+    quiet chunk (ref)  : 175002 ns
+    chunks to fan out  : 16  (kFreezeRetriesPerChunk = 1, so >= kMaxVoices
+  chunks by design)
+    chunks to release  : 9  (the one-hop unfreeze fade, untimed)
+    priced worst case  : 2 x FFT(freezeFftSize) - one per channel - in ONE
+  chunk;
+                         an un-staggered fan-out would be 16 x 2 = 32 in one
+  chunk
+
+===============================================================================
+All tests passed (74 assertions in 3 test cases)
+
+exit=0
+Mon Sep 21 23:40:20 WEDT 2026

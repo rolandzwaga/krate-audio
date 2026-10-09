@@ -1,0 +1,7 @@
+START 2026-10-05 14:10:57 dsp_core_tests per-push filter ~[performance]~[perf]~[benchmark]~[!benchmark]~[long] exe=2026-09-22 18:23:37
+Filters: ~[performance] ~[perf] ~[benchmark] ~[!benchmark] ~[long]
+Randomness seeded to: 1763145349
+===============================================================================
+All tests passed (1588248 assertions in 565 test cases)
+
+exit=0 END 2026-10-05 14:11:02

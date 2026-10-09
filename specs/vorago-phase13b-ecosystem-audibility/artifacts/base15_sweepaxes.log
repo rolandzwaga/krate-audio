@@ -1,0 +1,57 @@
+START 2026-09-28 22:13:08 base 1.5 st, span 3 st
+Filters: "VoragoMacro_SweepAxes"
+Randomness seeded to: 2018419504
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+VoragoMacro_SweepAxes
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1211)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1289): 
+warning:
+  SC-008 macro sweeps (3 seeds x 5 points x 60 s; window [10 s, 60 s] = samples
+  [480000, 2880000); C1 unless the row says @C3 / @C4; Life renders 210.0000 s
+  and counts edges over [90.0000 s, 210.0000 s])
+    Darkness  energy >4f0 rel. <4f0 (dB)  rho=-1.0000  endpoint=10.9608  [-53.
+  8036, -56.7825, -59.6395, -62.3074, -64.7645]
+    Age       HF energy > 4 kHz (dB) @C4  rho=-1.0000  endpoint=5.8129  [-110.
+  7857, -113.1648, -114.9039, -115.9985, -116.5985]
+    Density   partials + awake sources  rho=1.0000  endpoint=2.1578  [19.9507,
+  26.9507, 37.0000, 48.0000, 63.0000]
+    Movement  per-band total variation  rho=0.8667  endpoint=0.2990  [1.1172,
+  1.2557, 1.3875, 1.4313, 1.4513]
+    Gravity   mean |log2(ratio) - int|  rho=-0.9000  endpoint=0.6895  [0.2641,
+  0.2705, 0.2409, 0.1843, 0.0820]
+    Entropy   spectral flatness [f0, 20 f0]  rho=1.0000  endpoint=91.2738  [0.
+  0000, 0.0000, 0.0000, 0.0000, 0.0000]
+    Pressure  crest factor (dB)  rho=-1.0000  endpoint=4.3805  [8.5928, 7.9351,
+  6.8734, 5.5451, 4.2124]
+    Weight    energy < 80 Hz (dB) @C3  rho=1.0000  endpoint=8.2576  [-20.5432,
+  -18.3562, -16.2570, -14.2226, -12.2856]
+    Fog       spectral flatness [f0, 20 f0]  rho=1.0000  endpoint=0.3539  [0.
+  0000, 0.0000, 0.0000, 0.0000, 0.0000]
+    Life      wake/sleep edges per min [90 s, 210 s]  rho=1.0000  endpoint=14.
+  6667  [1.5000, 6.8333, 12.6667, 16.8333, 22.0000]
+    Mass      energy < 80 Hz (dB) @C3  rho=1.0000  endpoint=2.2595  [-20.5432,
+  -19.9366, -19.3078, -18.7316, -18.2836]
+    all-macros-at-zero broadband RMS = -14.0607 dBFS
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1318): FAILED:
+  CHECK( (result.rho * expectedRhoSign(row.kind)) >= 0.9 )
+with expansion:
+  0.8666666667 >= 0.9
+with message:
+  Movement  per-band total variation  rho=0.866667  endpoint=0.299016
+  threshold=0.2
+
+===============================================================================
+test cases:  1 |  0 passed | 1 failed
+assertions: 38 | 37 passed | 1 failed
+
+EXIT 1
+END 2026-09-28 22:38:41

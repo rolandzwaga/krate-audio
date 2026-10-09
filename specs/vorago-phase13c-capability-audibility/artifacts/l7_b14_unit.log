@@ -1,0 +1,27 @@
+START 2026-10-04 08:51:56 macro + ghost unit cases as compiled exe=2026-10-04 08:51:16
+Filters: "VoragoMacro_NeutralIsIdentity","VoragoEngine_GhostConfiguration","VoragoEngine_GhostDensityRoute","VoragoEngine_SeamReadbackProbe"
+Randomness seeded to: 2810957014
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+VoragoEngine_GhostConfiguration
+  clause 2: the level is EVENT-GATED, not a continuous wash
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_engine_test.cpp(2782)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_engine_test.cpp(2792): FAILED:
+  REQUIRE( live->getGhostPeakLevel() > 0.0f )
+with expansion:
+  0.0f > 0.0f
+
+[seams] defaults: childGain 1.500 ecologyWetDb 30.000 ghostDensity 0.300 ghostTapDb 21.000
+[seams] set 0.7 / 12 / 0.6 -> read 0.700 / 12.000 / 0.600
+===============================================================================
+test cases:   4 |   3 passed | 1 failed
+assertions: 134 | 133 passed | 1 failed
+
+exit=1 END 2026-10-04 08:52:04

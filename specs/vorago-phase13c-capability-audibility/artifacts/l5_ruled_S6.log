@@ -1,0 +1,13 @@
+START 2026-10-02 14:37:27 Slow Bloom as compiled (kAttackStageCurve = EnvCurve::Linear kAttackShapePower = 4 kDefaultStageTimesMs{20000.0f ; ecology 30/36, ghost 21/1.2, child gain 1.5; no lever env) exe=2026-10-02 14:34:43
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 4058165067
+[probe] lever: none
+[probe] Slow Bloom - primary S6 harmonic bloom (stored seed 7, 1 twin render(s))
+  take: peak 0.3799  arm1 hi -21.18 dB [yes]  arm2 lo -26.65 dB [yes]  arm3 late-sus +0.66 dB [yes]  arm4 tail -186.15 dB [yes]
+  arm1@44.1k: finite y peak 0.4121 hi -21.49 dB [PASS]
+  primary d 4.1966  bar 4.0000  attribBase -1.0000  state ok  -> PASS  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (9 assertions in 1 test case)
+
+exit=0 END 2026-10-02 14:39:40

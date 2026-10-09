@@ -1,0 +1,14 @@
+START 2026-10-04 10:18:26 VoragoEngine_CapabilityLeverBounded alone (T055, SC-013) exe=2026-10-04 10:18:20
+Filters: "VoragoEngine_CapabilityLeverBounded"
+Randomness seeded to: 2299549732
+[CapabilityBounded] gravity=0 fs=44100 voices=6 60 s: peak=0.190600 over-ceiling=0 non-finite=0 recoveries=0 allocations=0 bytes after-prepare=10924056 after=10924056
+[CapabilityBounded] gravity=0 fs=48000 voices=6 60 s: peak=0.184955 over-ceiling=0 non-finite=0 recoveries=0 allocations=0 bytes after-prepare=10924056 after=10924056
+[CapabilityBounded] gravity=0 fs=96000 voices=6 60 s: peak=0.202736 over-ceiling=0 non-finite=0 recoveries=0 allocations=0 bytes after-prepare=21737496 after=21737496
+[CapabilityBounded] gravity=1 fs=44100 voices=6 60 s: peak=0.205534 over-ceiling=0 non-finite=0 recoveries=0 allocations=0 bytes after-prepare=10924056 after=10924056
+[CapabilityBounded] gravity=1 fs=48000 voices=6 60 s: peak=0.197953 over-ceiling=0 non-finite=0 recoveries=0 allocations=0 bytes after-prepare=10924056 after=10924056
+[CapabilityBounded] gravity=1 fs=96000 voices=6 60 s: peak=0.205158 over-ceiling=0 non-finite=0 recoveries=0 allocations=0 bytes after-prepare=21737496 after=21737496
+[CapabilityBounded] case wall clock = 304.0 s (> 240 s measured alone -> stop and surface)
+===============================================================================
+All tests passed (72 assertions in 1 test case)
+
+exit=0 END 2026-10-04 10:23:30

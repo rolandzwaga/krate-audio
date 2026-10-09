@@ -1,0 +1,15 @@
+START 2026-10-03 15:11:42 Erosion (M2 Age) rung r1: tilt=-7.0f
+-4.0f damping=0.55f rows=kNumRows = 50 ageMut=0 | tree: attack n 4, breath 3.0, tide 0.8, ghost 21/1.2, ecology 30/36, child gain 1.5 | exe=2026-10-03 15:11:41
+neutral exit=0
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 2393665150
+[probe] lever: none
+[probe] Erosion - primary M2 Age (stored seed 14, 1 twin render(s))
+  take: peak 0.2078  arm1 hi -26.11 dB [yes]  arm2 lo -34.27 dB [yes]  arm3 late-sus -0.00 dB [yes]  arm4 tail -191.41 dB [yes]
+  arm1@44.1k: finite y peak 0.2157 hi -25.61 dB [PASS]
+  primary d 2.7865  bar 4.0000  attribBase -1.0000  state ok  -> FAIL  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (9 assertions in 1 test case)
+
+exit=0 END 2026-10-03 15:15:08

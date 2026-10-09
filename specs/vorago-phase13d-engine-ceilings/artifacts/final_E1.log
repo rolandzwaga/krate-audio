@@ -1,0 +1,24 @@
+START 2026-10-08 14:32:51 final_E1 tree=c351fe0f+final (build_final.log) preset="Bloom Colony" env: VORAGO_PILOT_TAKES=4 VORAGO_PILOT_BLOOM=1
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 502895568
+[probe] lever: none
+[probe] Bloom Colony - primary E1 partial -> bloom (stored seed 0, 4 twin render(s))
+  take: peak 0.3346  arm1 hi -20.34 dB [yes]  arm2 lo -26.05 dB [yes]  arm3 late-sus +0.21 dB [yes]  arm4 tail -211.98 dB [yes]
+  arm1@44.1k: finite y peak 0.3565 hi -20.10 dB [PASS]
+  route arms: d(R_k, R_k0) 1.1823, attribBase d(R_0, R_00) 1.1035 (attributable iff d >= 2.6035)
+  bloom R_k: spawn 1 discarded 0 spawned 0 refused 2 liveMean 5.984 depthMean 0.999
+  bloom R_k0: spawn 0 discarded 0 spawned 0 refused 0 liveMean 4.984 depthMean 0.500
+  primary d 1.1823  bar 4.0000  attribBase 1.1035  state ok  -> FAIL  loopsAlive -  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  take j=0 seed 0: peak 0.3346  arm1 hi -20.34 dB [yes]  arm2 lo -26.05 dB [yes]  arm3 late-sus +0.21 dB [yes]  arm4 tail -211.98 dB [yes]
+  take j=1 seed 1: peak 0.3180  arm1 hi -21.08 dB [yes]  arm2 lo -25.03 dB [yes]  arm3 late-sus -0.05 dB [yes]  arm4 tail -208.49 dB [yes]
+  take j=2 seed 2: peak 0.3665  arm1 hi -19.80 dB [yes]  arm2 lo -21.60 dB [yes]  arm3 late-sus +0.59 dB [yes]  arm4 tail -229.08 dB [yes]
+  take j=3 seed 3: peak 0.3573  arm1 hi -20.03 dB [yes]  arm2 lo -24.79 dB [yes]  arm3 late-sus -1.92 dB [yes]  arm4 tail -222.21 dB [yes]
+  take j=0 d 1.1823
+  take j=1 d 2.6168
+  take j=2 d 0.0737
+  take j=3 d 1.8885
+===============================================================================
+All tests passed (47 assertions in 1 test case)
+
+exit=0 END 2026-10-08 14:46:24

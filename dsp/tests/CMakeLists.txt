@@ -284,6 +284,31 @@ add_executable(dsp_processors_tests
     # Seraphis Phase 4 (specs/seraphis-phase4-continuous-body): shared Layer 2 amendments
     unit/processors/waveguide_string_retune_test.cpp
     unit/processors/diffusion_network_zeromod_test.cpp
+    # Vorago Phase 1 (specs/vorago-phase1-events-modulation)
+    unit/processors/perlin_noise_source_test.cpp
+    unit/processors/chaos_mod_source_aizawa_test.cpp
+    unit/processors/slow_event_scheduler_test.cpp
+    unit/processors/vorago_p1_perf_test.cpp
+    unit/processors/vorago_p1_longrun_test.cpp
+    unit/processors/vorago_p1_harness.cpp
+    # Vorago Phase 4 (specs/vorago-phase4-spectral-smear): SpectralSmear.
+    # This list is ENUMERATED, not globbed - an unregistered TU silently drops
+    # out of the build and its cases never run.
+    #   spectral_smear_test.cpp           SC-002, SC-003, SC-007, SC-008, SC-009,
+    #                                     SC-011, SC-012 (c), SC-017, SC-018 (a)
+    #                                     + geometry / clamps / boundaries /
+    #                                       pole-bounds / output-clamp cases
+    #   spectral_smear_spectral_test.cpp  SC-001, SC-004, SC-005, SC-006, SC-010,
+    #                                     SC-012 (a)(b), SpectralSmear_TimeConstantLaw,
+    #                                     SpectralSmear_DcNyquistSmear, the flux
+    #                                     helper sanity case  -- the [long] set
+    #   spectral_smear_perf_test.cpp      SC-013 (a)-(d), [.perf] only
+    #   spectral_smear_nonfinite_test.cpp SC-016, SC-018 (b), FR-009's non-finite
+    #                                     setter arm -- the ONE -fno-fast-math TU
+    unit/processors/spectral_smear_test.cpp
+    unit/processors/spectral_smear_spectral_test.cpp
+    unit/processors/spectral_smear_perf_test.cpp
+    unit/processors/spectral_smear_nonfinite_test.cpp
 )
 
 target_link_libraries(dsp_processors_tests
@@ -380,6 +405,160 @@ add_executable(dsp_systems_tests
     # there. SC-030 needs NO new TU - it is a re-run of the existing
     # spectral_morph_* cases in this same executable.
     unit/systems/spectral_state_authoring_test.cpp
+    # Vorago Phase 2 (specs/vorago-phase2-noise-organism): NoiseOrganism.
+    # This list is ENUMERATED, not globbed - an unregistered TU silently drops
+    # out of the build and its cases never run.
+    #   noise_organism_test.cpp          SC-003, SC-005(a), SC-006, SC-007, SC-010,
+    #                                    SC-013, SC-014, SC-016, SC-017, SC-018, SC-021
+    #   noise_organism_spectral_test.cpp SC-001, SC-002, SC-005(b), SC-008, SC-009,
+    #                                    SC-019, SC-020   (the [long] set)
+    #   noise_organism_perf_test.cpp     SC-004(a)-(e) + the T002 stage probe   [.perf]
+    #   noise_organism_nonfinite_test.cpp SC-015 only
+    unit/systems/noise_organism_test.cpp
+    unit/systems/noise_organism_spectral_test.cpp
+    unit/systems/noise_organism_perf_test.cpp
+    unit/systems/noise_organism_nonfinite_test.cpp
+    # Vorago Phase 3 (specs/vorago-phase3-resonance-drift): ResonanceDriftNetwork.
+    # This list is ENUMERATED, not globbed - an unregistered TU silently drops
+    # out of the build and its cases never run.
+    #   resonance_drift_network_test.cpp          SC-005, SC-006, SC-007, SC-008,
+    #                                             SC-010, SC-011, SC-014, SC-017,
+    #                                             SC-018, SC-019, SC-020, SC-021,
+    #                                             SC-022 + the clamps/clamp-engages cases
+    #   resonance_drift_network_spectral_test.cpp SC-001, SC-002, SC-003 [long],
+    #                                             SC-015 [long], SC-016 [long]
+    #   resonance_drift_network_perf_test.cpp     SC-004 + the FR-060 stage probe [.perf]
+    #   resonance_drift_network_nonfinite_test.cpp SC-009 only
+    unit/systems/resonance_drift_network_test.cpp
+    unit/systems/resonance_drift_network_spectral_test.cpp
+    unit/systems/resonance_drift_network_perf_test.cpp
+    unit/systems/resonance_drift_network_nonfinite_test.cpp
+    # Vorago Phase 5 (specs/vorago-phase5-feedback-ecology): FeedbackEcology.
+    # This list is ENUMERATED, not globbed - an unregistered TU silently drops
+    # out of the build and its cases never run.
+    #   feedback_ecology_test.cpp           SC-005, SC-006, SC-007, SC-008, SC-009,
+    #                                       SC-010, SC-011, SC-013, SC-014, SC-015,
+    #                                       SC-016, SC-017, SC-018, SC-022, SC-023,
+    #                                       SC-024, SC-025
+    #   feedback_ecology_spectral_test.cpp  SC-001, SC-002, SC-003, SC-021   (the [long] set)
+    #   feedback_ecology_perf_test.cpp      SC-004 (a)-(f) + the FR-080 stage probe   [.perf]
+    #   feedback_ecology_nonfinite_test.cpp SC-012 only
+    unit/systems/feedback_ecology_test.cpp
+    unit/systems/feedback_ecology_spectral_test.cpp
+    unit/systems/feedback_ecology_perf_test.cpp
+    unit/systems/feedback_ecology_nonfinite_test.cpp
+    # Vorago Phase 6 (specs/vorago-phase6-subharmonic): SubharmonicEngine.
+    # This list is ENUMERATED, not globbed - an unregistered TU silently drops
+    # out of the build and its cases never run.
+    #   subharmonic_engine_test.cpp           SC-001, SC-006, SC-007, SC-008, SC-010,
+    #                                         SC-011, SC-012, SC-014, SC-019, SC-020,
+    #                                         SC-021, SC-022
+    #   subharmonic_engine_spectral_test.cpp  SC-002, SC-003, SC-004, SC-005,
+    #                                         SC-017 (A)+(B)   (the [long] set)
+    #   subharmonic_engine_perf_test.cpp      SC-013 + the FR-071 stage/placement probe [.perf]
+    #   subharmonic_engine_nonfinite_test.cpp SC-009 only
+    unit/systems/subharmonic_engine_test.cpp
+    unit/systems/subharmonic_engine_spectral_test.cpp
+    unit/systems/subharmonic_engine_perf_test.cpp
+    unit/systems/subharmonic_engine_nonfinite_test.cpp
+    # Vorago Phase 7 (specs/vorago-phase7-harmonic-bloom): BloomEngine.
+    # This list is ENUMERATED, not globbed - an unregistered TU silently drops
+    # out of the build and its cases never run.
+    #   bloom_engine_test.cpp           SC-003, SC-005, SC-006, SC-007, SC-008,
+    #                                   SC-012, SC-014, SC-016, SC-017, SC-018
+    #   bloom_engine_spectral_test.cpp  SC-001, SC-002, SC-004, SC-010, SC-015
+    #                                   (the [long] set)
+    #   bloom_engine_perf_test.cpp      SC-011 + the FR-073 stage probe   [.perf]
+    #   bloom_engine_nonfinite_test.cpp SC-009 only
+    unit/systems/bloom_engine_test.cpp
+    unit/systems/bloom_engine_spectral_test.cpp
+    unit/systems/bloom_engine_perf_test.cpp
+    unit/systems/bloom_engine_nonfinite_test.cpp
+    # Vorago Phase 8 (specs/vorago-phase8-ecosystem): EcosystemEngine.
+    # This list is ENUMERATED, not globbed - an unregistered TU silently drops
+    # out of the build and its cases never run.
+    #   ecosystem_engine_test.cpp           SC-002, SC-004, SC-006, SC-007, SC-008,
+    #                                       SC-009 (d), SC-010 (b), SC-014, SC-015, SC-019,
+    #                                       SC-020, SC-021, plus the FR-011/FR-021/FR-064
+    #                                       and perturb-edge cases (S14 D-O, D-P)
+    #   ecosystem_engine_longrun_test.cpp   SC-001 (a)-(d), SC-003, SC-005, SC-010 (a)(c),
+    #                                       SC-012, SC-013, SC-017, SC-018  (the [long] set)
+    #   ecosystem_engine_perf_test.cpp      SC-011 + the stage probe   [.perf]
+    #   ecosystem_engine_nonfinite_test.cpp SC-009 only
+    unit/systems/ecosystem_engine_test.cpp
+    unit/systems/ecosystem_engine_longrun_test.cpp
+    unit/systems/ecosystem_engine_perf_test.cpp
+    unit/systems/ecosystem_engine_nonfinite_test.cpp
+    # Vorago Phase 13 (specs/vorago-phase13-ui): SC-019 pair accessors (strength/cooldown/partner).
+    unit/systems/ecosystem_engine_pair_accessors_test.cpp
+    # Vorago Phase 10 (specs/vorago-phase10-voice-engine): VoragoVoice, VoragoEngine,
+    # VoragoMacroMatrix + the six dark ContinuousBody materials.
+    # This list is ENUMERATED, not globbed - an unregistered TU silently drops out of
+    # the build and its cases never run.
+    #   vorago_voice_test.cpp           SC-007(voice), SC-017, SC-017a, SC-018a, SC-019a,
+    #                                   SC-019b, SC-020a, SC-023(voice), SC-028(voice)
+    #   vorago_voice_longrun_test.cpp   SC-018, SC-019, SC-020            (the [long] set)
+    #   vorago_engine_test.cpp          SC-004a, SC-006, SC-007(engine), SC-011, SC-012,
+    #                                   SC-013a, SC-014, SC-021a, SC-022, SC-023, SC-026,
+    #                                   SC-027, SC-028, SC-030, SC-031
+    #   vorago_engine_longrun_test.cpp  SC-004b, SC-005, SC-013b, SC-021b (the [long] set)
+    #   vorago_macro_test.cpp           SC-008 (eleven macros), SC-009, SC-010, SC-023(matrix),
+    #                                   SC-028, FR-067's VoragoMacro_ApplyIsIdempotent
+    #   vorago_dark_materials_test.cpp  SC-015, SC-016 (3)(4)
+    #   vorago_nonfinite_test.cpp       SC-029 only, + the probe definition
+    #   vorago_perf_test.cpp            SC-001a, SC-001b, SC-002 (+ the advanceLifeOnly/L arm),
+    #                                   SC-003, VoragoVoice_ClearingPathCost      [.perf]
+    unit/systems/vorago_voice_test.cpp
+    unit/systems/vorago_voice_longrun_test.cpp
+    unit/systems/vorago_engine_test.cpp
+    unit/systems/vorago_engine_longrun_test.cpp
+    unit/systems/vorago_macro_test.cpp
+    unit/systems/vorago_dark_materials_test.cpp
+    unit/systems/vorago_nonfinite_test.cpp
+    unit/systems/vorago_perf_test.cpp
+    # Vorago Phase 10a (specs/vorago-phase10a-ghost-extension): the AtmosphereEngine
+    # ghost extension (reverse grains + triggerGrain). ENUMERATED, not globbed -
+    # an unregistered TU silently drops out of the build and its cases never run.
+    #   atmosphere_ghost_test.cpp          SC-001, SC-002, SC-004 (short arm, never
+    #                                      [long]), SC-005, SC-006, SC-007 (a)-(c),
+    #                                      SC-008 (a)(c)(d)(e), SC-011, SC-012,
+    #                                      FR-049's short twin
+    #   atmosphere_ghost_longrun_test.cpp  SC-003, SC-007 (d), SC-004's sweep
+    #                                      sibling            (the [long] set)
+    #   atmosphere_ghost_nonfinite_test.cpp SC-008 (b) only - the ONE TU that
+    #                                      injects NaN/Inf bit patterns, and the
+    #                                      only Phase 10a entry in the
+    #                                      -fno-fast-math block below
+    #   atmosphere_ghost_perf_test.cpp     SC-009 only        [.perf]
+    #   vorago_ghost_ext_test.cpp          SC-010 only (the vorago_engine.h side)
+    unit/systems/atmosphere_ghost_test.cpp
+    unit/systems/atmosphere_ghost_longrun_test.cpp
+    unit/systems/atmosphere_ghost_nonfinite_test.cpp
+    unit/systems/atmosphere_ghost_perf_test.cpp
+    unit/systems/vorago_ghost_ext_test.cpp
+    # Vorago Phase 12 (specs/vorago-phase12-parameters): the DSP side of the full
+    # parameter surface (VoragoMacroMatrix base overrides, VoragoVoiceParams /
+    # applyVoiceParams, per-tone sub level, re-prepare-proof ghost setters, the
+    # seven VoragoVoice forwarders). ENUMERATED, not globbed - an unregistered TU
+    # silently drops out of the build and its cases never run.
+    #   vorago_param_surface_test.cpp       SC-006, SC-019 (+ its [long] arms and
+    #                                       their short twins), SC-022, SC-023 (1),
+    #                                       FR-004's forwarder unit case - the
+    #                                       only Phase 12 entry in the
+    #                                       -fno-fast-math block below
+    #   vorago_macro_retune_probe_test.cpp  FR-060 retune probe  [.probe] - prints
+    #                                       only, never in CI
+    unit/systems/vorago_param_surface_test.cpp
+    unit/systems/vorago_macro_retune_probe_test.cpp
+    # Vorago Phase 13b (specs/vorago-phase13b-ecosystem-audibility): ecosystem levers.
+    # ENUMERATED, not globbed - an unregistered TU silently drops out of the build.
+    #   vorago_ecosystem_lever_test.cpp          SC-006..SC-009, SC-010 (a), SC-011, SC-012,
+    #                                            SC-013, SC-018, SC-020, SC-021, the
+    #                                            LaneSurvey [.probe]; + the ONE definition of
+    #                                            detail::VoragoEcosystemLeverProbe
+    #   vorago_ecosystem_lever_longrun_test.cpp  SC-010 (b)            (the [long] set)
+    unit/systems/vorago_ecosystem_lever_test.cpp
+    unit/systems/vorago_ecosystem_lever_longrun_test.cpp
 )
 
 target_link_libraries(dsp_systems_tests
@@ -421,6 +600,17 @@ add_executable(dsp_effects_tests
     unit/effects/aether_reverb_spectral_test.cpp
     unit/effects/aether_reverb_perf_test.cpp
     unit/effects/aether_reverb_nonfinite_test.cpp
+    # Vorago Phase 9 (specs/vorago-phase9-cavern-space)
+    unit/effects/cavern_verb_test.cpp
+    unit/effects/cavern_verb_freeze_test.cpp
+    unit/effects/cavern_verb_soak_test.cpp
+    unit/effects/cavern_verb_perf_test.cpp
+    unit/effects/aether_reverb_damper_offset_test.cpp
+    # Vorago Phase 10 (specs/vorago-phase10-voice-engine): the composed
+    # engine -> CavernVerb -> processOutputStage chain. It lives HERE, not in
+    # dsp_systems_tests, so it compiles under this target's KRATE_DSP_AETHER_TEST_HOOKS
+    # consistently with every other TU in this executable (FR-084a / OQ3).
+    unit/effects/vorago_composed_chain_test.cpp
 )
 
 target_link_libraries(dsp_effects_tests
@@ -459,6 +649,12 @@ target_compile_definitions(dsp_processors_tests
     PRIVATE KRATE_DSP_TESTS_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 target_compile_definitions(dsp_systems_tests
     PRIVATE KRATE_DSP_TESTS_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
+
+# Vorago Phase 1 FR-081: the [.harness] trajectory writer resolves its output
+# directory from this macro, so CSVs land in the build tree regardless of the
+# launch working directory (same rationale as KRATE_DSP_TESTS_DIR above).
+target_compile_definitions(dsp_processors_tests
+    PRIVATE VORAGO_P1_HARNESS_DIR="${CMAKE_BINARY_DIR}/vorago_p1/")
 
 
 # ==============================================================================
@@ -743,6 +939,16 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         # disable the only check that has teeth. The perf TU must stay out too:
         # -fno-fast-math would change the figures the baselines are pinned to.
         unit/systems/atmosphere_engine_nonfinite_test.cpp
+        # Vorago Phase 10a: SC-008 (b) injects NaN/Inf via bit patterns in this TU.
+        # ONLY this one of the five Phase 10a TUs is listed - the perf TU in
+        # particular must stay out, or -fno-fast-math would move the figures it
+        # measures. Listed here, beside the Phase 5 AtmosphereEngine entry above,
+        # because it is the same component's non-finite TU. atmosphere_ghost_test.cpp
+        # stays out DELIBERATELY: SC-004's detection-only NaN/Inf check lives there
+        # on the fast-math path and uses the bit-pattern predicate
+        # VoragoGhostFix::isNonFiniteBits, so the ITERUM_NOINLINE isFinite guards are
+        # proved in the FP mode the header actually ships in.
+        unit/systems/atmosphere_ghost_nonfinite_test.cpp
         # Seraphis Phase 6: SC-014 injects NaN/Inf via bit patterns in this TU and
         # needs IEEE semantics to assert on them. ONLY this one of the five Phase 6
         # TUs is listed; the other four must NOT be. For aether_reverb_test.cpp and
@@ -761,6 +967,75 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         # -ffast-math mode the headers actually ship in. The perf TU must stay out
         # too: -fno-fast-math would change the figures its baselines are pinned to.
         unit/systems/seraphis_nonfinite_test.cpp
+        # Vorago Phase 2: SC-015 injects NaN/Inf via bit patterns in this TU and
+        # needs IEEE semantics to assert on them. ONLY this one of the four Phase 2
+        # TUs is listed; the other three must NOT be. noise_organism_test.cpp and
+        # noise_organism_spectral_test.cpp stay out so the FR-008 guards are proved
+        # in the /fp:fast + -ffast-math mode the header actually ships in. The perf
+        # TU must stay out too: -fno-fast-math would change the figures its
+        # baselines are pinned to.
+        unit/systems/noise_organism_nonfinite_test.cpp
+        # Vorago Phase 3: SC-009 injects NaN/Inf via bit patterns in this TU and
+        # needs IEEE semantics to assert on them. ONLY this one of the four Phase 3
+        # TUs is listed; the other three must NOT be. resonance_drift_network_test.cpp
+        # and resonance_drift_network_spectral_test.cpp stay out so the FR-008/FR-009
+        # guards are proved in the /fp:fast + -ffast-math mode the header actually
+        # ships in. The perf TU must stay out too: -fno-fast-math would change the
+        # figures its baselines are pinned to.
+        unit/systems/resonance_drift_network_nonfinite_test.cpp
+        # Vorago Phase 4: this TU owns EVERY non-finite value in the phase -
+        # SC-016's NaN/Inf audio injection, SC-018 (b)'s poison-then-reprime arm,
+        # and FR-009's non-finite setter arm - because all three build their values
+        # from bit patterns through a volatile sink and need IEEE semantics to
+        # assert on them. ONLY this one of the four Phase 4 TUs is listed; the
+        # other three must NOT be, and none of them may name a non-finite value:
+        # std::numeric_limits<float>::quiet_NaN()/infinity() fold to finite garbage
+        # on the -ffast-math legs, so such a test passes vacuously or reds at
+        # random. spectral_smear_test.cpp and spectral_smear_spectral_test.cpp stay
+        # out so the FR-008/FR-009 guards are proved in the /fp:fast + -ffast-math
+        # mode the header actually ships in (the
+        # resonance_drift_network_test.cpp:38-42 precedent). The perf TU stays out
+        # too: -fno-fast-math would change the figures its baselines are pinned to.
+        unit/processors/spectral_smear_nonfinite_test.cpp
+        # Vorago Phase 5: SC-012 injects NaN/Inf via bit patterns in this TU and
+        # needs IEEE semantics to assert on them; it is also the only definition
+        # of detail::FeedbackEcologyNonFiniteProbe. ONLY this one of the four
+        # Phase 5 TUs is listed; the other three must NOT be.
+        # feedback_ecology_test.cpp and feedback_ecology_spectral_test.cpp stay
+        # out so the FR-008/FR-009 guards are proved in the /fp:fast +
+        # -ffast-math mode the header actually ships in. The perf TU stays out
+        # too: -fno-fast-math would change the figures its baselines are pinned
+        # to.
+        unit/systems/feedback_ecology_nonfinite_test.cpp
+        # Vorago Phase 6: SC-009 injects NaN/Inf via bit patterns in this TU and
+        # needs IEEE semantics to assert on them; it is also the only definition
+        # of detail::SubharmonicEngineNonFiniteProbe. ONLY this one of the four
+        # Phase 6 TUs is listed. subharmonic_engine_test.cpp and
+        # subharmonic_engine_spectral_test.cpp stay out so the FR-008/FR-009
+        # guards are proved in the /fp:fast + -ffast-math mode the header
+        # actually ships in. The perf TU stays out too: -fno-fast-math would
+        # change the figures its baselines are pinned to.
+        unit/systems/subharmonic_engine_nonfinite_test.cpp
+        # Vorago Phase 7: SC-009 injects NaN/Inf via bit patterns in this TU and
+        # needs IEEE semantics to assert on them; it is also the only definition
+        # of detail::BloomEngineNonFiniteProbe. ONLY this one of the four Phase 7
+        # TUs is listed. bloom_engine_test.cpp and bloom_engine_spectral_test.cpp
+        # stay out so the FR-008/FR-009 guards are proved in the /fp:fast +
+        # -ffast-math mode the header actually ships in. The perf TU stays out
+        # too: -fno-fast-math would change the figures its baselines are pinned to.
+        unit/systems/bloom_engine_nonfinite_test.cpp
+        # Vorago Phase 8: SC-009 injects NaN/Inf via bit patterns in this TU and
+        # needs IEEE semantics to assert on them; it is also the only definition
+        # of detail::EcosystemEngineNonFiniteProbe. ONLY this one of the four
+        # Phase 8 TUs is listed - the other three stay out so the FR-064/FR-083
+        # guards are proved in the /fp:fast + -ffast-math mode the header actually
+        # ships in, and so the perf TU's figures are not changed by the flag.
+        unit/systems/ecosystem_engine_nonfinite_test.cpp
+        # Vorago Phase 13: SC-019 recomputes the reference exchange and must
+        # associate the arithmetic exactly as the engine does.
+        unit/systems/ecosystem_engine_pair_accessors_test.cpp
+        # Vorago Phase 12: injects NaN/Inf bit patterns into the Phase 12 setters.
+        unit/systems/vorago_param_surface_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 
@@ -797,3 +1072,11 @@ catch_discover_tests(dsp_primitives_tests REPORTER console)
 catch_discover_tests(dsp_processors_tests REPORTER console)
 catch_discover_tests(dsp_systems_tests REPORTER console)
 catch_discover_tests(dsp_effects_tests REPORTER console)
+
+# ==============================================================================
+# Precompiled Catch2 + STL per executable when KRATE_TEST_PCH is ON
+# (cmake/KrateTestPch.cmake). After the set_source_files_properties() blocks
+# above, so the -fno-fast-math sources are excluded from the PCH.
+foreach(_t dsp_core_tests dsp_primitives_tests dsp_processors_tests dsp_systems_tests dsp_effects_tests)
+    krate_test_pch(${_t})
+endforeach()

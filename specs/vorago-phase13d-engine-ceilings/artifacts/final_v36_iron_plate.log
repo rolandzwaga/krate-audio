@@ -1,0 +1,14 @@
+START 2026-10-08 16:18:39 final_v36_iron_plate tree=c351fe0f+final (build_final.log) preset="Iron Plate" env: VORAGO_PILOT_SECONDARY=1
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 263375244
+[probe] lever: none
+[probe] Iron Plate - primary D1.3 material MetalPlate (stored seed 10, 2 twin render(s))
+  take: peak 0.1357  arm1 hi -26.73 dB [yes]  arm2 lo -27.99 dB [yes]  arm3 late-sus +0.17 dB [yes]  arm4 tail -196.55 dB [yes]
+  arm1@44.1k: finite y peak 0.1288 hi -26.49 dB [PASS]
+  conjunct S10 acoustic body: d 10.5227, bar 1.5 -> ok
+  primary d 6.2633  bar 4.0000  attribBase -1.0000  state ok  -> PASS  loopsAlive -  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (11 assertions in 1 test case)
+
+exit=0 END 2026-10-08 16:28:08

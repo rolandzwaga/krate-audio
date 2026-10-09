@@ -1,0 +1,30 @@
+START 2026-10-08 14:37:05 reauthor_hull_resonance_A tree=9f42b500 final binary VORAGO_PILOT_PRESET="Hull Resonance" env: VORAGO_PILOT_OVERRIDE=1502=0.75 VORAGO_PILOT_SECONDARY=1 VORAGO_PILOT_CELLS=D14.2_tidal_depth_>=_0.7
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 2591810090
+[probe] override 1502 = 0.750000 (appended)
+[probe] lever: none
+[probe] Hull Resonance - primary S10 acoustic body (stored seed 11, 1 twin render(s))
+  take: peak 0.3514  arm1 hi -21.26 dB [yes]  arm2 lo -27.19 dB [yes]  arm3 late-sus -0.40 dB [yes]  arm4 tail -151.26 dB [yes]
+  arm1@44.1k: finite y peak 0.3010 hi -24.19 dB [PASS]
+  primary d 10.6530  bar 4.0000  attribBase -1.0000  state ok  -> PASS  loopsAlive -  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+vorago_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+Vorago_PresetPilot_PrimaryProbe
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\vorago\tests\integration\preset_pilot_test.cpp(2042)
+...............................................................................
+
+F:\projects\iterum\plugins\vorago\tests\integration\preset_pilot_test.cpp(1568): FAILED:
+explicitly with message:
+  unknown cell label D14.2_tidal_depth_>=_0.7
+
+===============================================================================
+test cases:  1 |  0 passed | 1 failed
+assertions: 11 | 10 passed | 1 failed
+
+exit=1 END 2026-10-08 14:43:30

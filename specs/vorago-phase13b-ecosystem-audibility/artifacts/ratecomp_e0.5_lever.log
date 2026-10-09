@@ -1,0 +1,8 @@
+START 2026-09-28 23:51:27 ratecomp exponent 0.5, base 0.75 span 3
+Filters: "VoragoVoice_EcosystemLeverRateCompensation"
+Randomness seeded to: 1212133117
+[LeverRateComp] settled wander: 0.03 Hz 3.7500  1 Hz 1.2696  0.3 Hz 1.6987  0.03 Hz 3.7500  0.01 Hz 3.7500  (base 0.75, span 3.00)
+===============================================================================
+All tests passed (19 assertions in 1 test case)
+
+END 2026-09-28 23:51:27

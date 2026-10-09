@@ -1,0 +1,22 @@
+START 2026-10-07 19:55:46 t018_check tree=f376785f+G2 working copy (build_g2.log) env: VORAGO_PILOT_PRESET=Teeming VORAGO_PILOT_READBACK=1 case: Vorago_PresetPilot_PrimaryProbe
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 726586956
+[probe] lever: none
+  readback life 0.70: EcosystemDepth dest 1.000000 rowsum 1.105000 [CLAMPED]
+  readback life 0.70: EventRateScale dest 6.500000 rowsum 6.500000 [ok]
+  readback life 0.70: BloomSpawnRateHz dest 0.010738 rowsum 0.010738 [ok]
+  readback life 0.00: EcosystemDepth dest 1.000000 rowsum 1.000000 [ok]
+  readback life 0.00: EventRateScale dest 0.200000 rowsum 0.200000 [ok]
+  readback life 0.00: BloomSpawnRateHz dest 0.000546 rowsum 0.000546 [ok]
+  readback life 1.00: EcosystemDepth dest 1.000000 rowsum 1.150000 [CLAMPED]
+  readback life 1.00: EventRateScale dest 9.200000 rowsum 9.200000 [ok]
+  readback life 1.00: BloomSpawnRateHz dest 0.021346 rowsum 0.021346 [ok]
+[probe] Teeming - primary M10 Life (stored seed 11, 1 twin render(s))
+  take: peak 0.2801  arm1 hi -23.08 dB [yes]  arm2 lo -31.95 dB [yes]  arm3 late-sus +2.24 dB [yes]  arm4 tail -132.79 dB [yes]
+  arm1@44.1k: finite y peak 0.3005 hi -23.42 dB [PASS]
+  primary d 0.9943  bar 4.0000  attribBase -1.0000  state ok  -> FAIL  loopsAlive -  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (22 assertions in 1 test case)
+
+exit=0 END 2026-10-07 20:02:18

@@ -1,0 +1,230 @@
+Filters: "VoragoEngine_GhostExtensionWiring"
+Randomness seeded to: 898831325
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+VoragoEngine_GhostExtensionWiring
+  clause (a) - VoragoEngineConfig ships both new fields inert
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(408)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(410): PASSED:
+  REQUIRE( defaults.atmosGhostReverseProbability == 0.0f )
+with expansion:
+  0.0f == 0.0f
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(411): PASSED:
+  REQUIRE_FALSE( defaults.atmosGhostEventTriggers )
+with expansion:
+  !false
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(417): PASSED:
+  REQUIRE( engine->atmosphere().getGrainReverseProbability() == 0.0f )
+with expansion:
+  0.0f == 0.0f
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(421): PASSED:
+  REQUIRE( engine->atmosphere().getTotalTriggeredGrainsBorn() == std::uint64_t{0} )
+with expansion:
+  0 == 0
+
+-------------------------------------------------------------------------------
+VoragoEngine_GhostExtensionWiring
+  clause (a) - the 60 s default render is unchanged from the base commit
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(441)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(463): PASSED:
+  REQUIRE( left.size() == VoragoGhostFix::kReferenceRenderSamples )
+with expansion:
+  2880000 (0x2bf200) == 2880000 (0x2bf200)
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(469): PASSED:
+  REQUIRE( engine->atmosphere().getTotalTriggeredGrainsBorn() == std::uint64_t{0} )
+with expansion:
+  0 == 0
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(470): PASSED:
+  REQUIRE( engine->atmosphere().getGrainReverseProbability() == 0.0f )
+with expansion:
+  0.0f == 0.0f
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(477): PASSED:
+  REQUIRE( actual.rms > 0.0 )
+with expansion:
+  0.1058401881 > 0.0
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(501): PASSED:
+  REQUIRE( cmp.withinTolerance() )
+with expansion:
+  true
+with messages:
+
+  worst metric relative error 0 (bound 0.01), worst sample error 0 (bound 0.
+  002)
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(503): warning:
+
+  worst metric relative error 0 (bound 0.01), worst sample error 0 (bound 0.
+  002)
+  SC-010 (a) fingerprint arm ran in 5.17249 s
+
+-------------------------------------------------------------------------------
+VoragoEngine_GhostExtensionWiring
+  clause (c) - the closed gate spawns nothing while the events still fire
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(516)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(257): PASSED:
+  REQUIRE( voice.getEventRateScale() == kGhostEventRateScale )
+with expansion:
+  10.0f == 10.0f
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(264): PASSED:
+  REQUIRE( voice.getEcosystemDepth() == 0.0f )
+with expansion:
+  0.0f == 0.0f
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(269): PASSED:
+  REQUIRE( engine->atmosphere().getCaptureCapacitySamples() == kGhostCaptureCapacity8k )
+with expansion:
+  262144 (0x40000) == 262144 (0x40000)
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(521): PASSED:
+  REQUIRE( engine->getGhostPeakLevel() == 0.0f )
+with expansion:
+  0.0f == 0.0f
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(525): PASSED:
+  REQUIRE( preRollVoragoFullRing(*engine, kGhostBlock) == kGhostCaptureCapacity8k )
+with expansion:
+  262144 (0x40000) == 262144 (0x40000)
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(538): PASSED:
+  REQUIRE( closed.maxLevel == 0.0f )
+with expansion:
+  0.0f == 0.0f
+with messages:
+  closed.burstEdges := 0
+  closed.maxLevel := 0.0f
+  closed.maxGhostRequest := 0.99265f
+  closed.carriedInBurst := false
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(539): PASSED:
+  REQUIRE( closed.burstEdges == 0u )
+with expansion:
+  0 == 0
+with messages:
+  closed.burstEdges := 0
+  closed.maxLevel := 0.0f
+  closed.maxGhostRequest := 0.99265f
+  closed.carriedInBurst := false
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(542): PASSED:
+  REQUIRE( engine->atmosphere().getTotalTriggeredGrainsBorn() == std::uint64_t{0} )
+with expansion:
+  0 == 0
+with messages:
+  closed.burstEdges := 0
+  closed.maxLevel := 0.0f
+  closed.maxGhostRequest := 0.99265f
+  closed.carriedInBurst := false
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(543): PASSED:
+  REQUIRE( engine->atmosphere().getTotalTriggeredGrainsBorn() == before.triggeredBorn )
+with expansion:
+  0 == 0
+with messages:
+  closed.burstEdges := 0
+  closed.maxLevel := 0.0f
+  closed.maxGhostRequest := 0.99265f
+  closed.carriedInBurst := false
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(547): PASSED:
+  REQUIRE( closed.maxGhostRequest >= kGhostRiseThreshold )
+with expansion:
+  0.99265f >= 0.3f
+with messages:
+  closed.burstEdges := 0
+  closed.maxLevel := 0.0f
+  closed.maxGhostRequest := 0.99265f
+  closed.carriedInBurst := false
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(551): warning:
+  closed.burstEdges := 0
+  closed.maxLevel := 0.0f
+  closed.maxGhostRequest := 0.99265f
+  closed.carriedInBurst := false
+  SC-010 (c) closed-gate arm: 600 s at 8000 Hz ran in 9.8626 s; max ghost
+  request 0.992646
+
+-------------------------------------------------------------------------------
+VoragoEngine_GhostExtensionWiring
+  clause (e) - atmosGhostReverseProbability reaches the component
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(571)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(257): PASSED:
+  REQUIRE( voice.getEventRateScale() == kGhostEventRateScale )
+with expansion:
+  10.0f == 10.0f
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(264): PASSED:
+  REQUIRE( voice.getEcosystemDepth() == 0.0f )
+with expansion:
+  0.0f == 0.0f
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(269): PASSED:
+  REQUIRE( engine->atmosphere().getCaptureCapacitySamples() == kGhostCaptureCapacity8k )
+with expansion:
+  262144 (0x40000) == 262144 (0x40000)
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(578): PASSED:
+  REQUIRE( engine->atmosphere().getGrainReverseProbability() == 1.0f )
+with expansion:
+  1.0f == 1.0f
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(582): PASSED:
+  REQUIRE( preRollVoragoFullRing(*engine, kGhostBlock) == kGhostCaptureCapacity8k )
+with expansion:
+  262144 (0x40000) == 262144 (0x40000)
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(597): PASSED:
+  REQUIRE( engine->atmosphere().getTotalTriggeredGrainsBorn() == std::uint64_t{0} )
+with expansion:
+  0 == 0
+with messages:
+  born := 25
+  reverseBorn := 25
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(599): PASSED:
+  REQUIRE( born > std::uint64_t{0} )
+with expansion:
+  25 > 0
+with messages:
+  born := 25
+  reverseBorn := 25
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(600): PASSED:
+  REQUIRE( reverseBorn == born )
+with expansion:
+  25 == 25
+with messages:
+  born := 25
+  reverseBorn := 25
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(603): warning:
+  born := 25
+  reverseBorn := 25
+  SC-010 (e) reverse-wire arm: 25 grains born, all reverse; ran in 1.57404 s
+
+===============================================================================
+All tests passed (27 assertions in 1 test case)
+

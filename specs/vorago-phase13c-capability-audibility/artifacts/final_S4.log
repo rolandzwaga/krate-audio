@@ -1,0 +1,21 @@
+START 2026-10-04 10:31:15 Feedback Mire tree=ae149a1c+working-copy as-compiled (no override) env: VORAGO_PILOT_TAKES=4 | final tree: attack n 4; child gain 1.5; ghost 21 dB / span 1.2 / default peak 0; ecology 30 (ceiling 36); breath 3.0; tide 0.8; M9 rung 2; M12 rung 1; Feedback Mire breathing 0; six presets pin ghost 0.60 | exe=2026-10-04 09:54:11
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 2163734870
+[probe] lever: none
+[probe] Feedback Mire - primary S4 feedback ecology (stored seed 6, 1 twin render(s))
+  take: peak 0.5543  arm1 hi -20.09 dB [yes]  arm2 lo -40.55 dB [yes]  arm3 late-sus +5.89 dB [yes]  arm4 tail -130.90 dB [yes]
+  arm1@44.1k: finite y peak 0.5956 hi -20.30 dB [PASS]
+  primary d 4.7751  bar 4.0000  attribBase -1.0000  state ok  -> PASS  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  take j=0 seed 6: peak 0.5543  arm1 hi -20.09 dB [yes]  arm2 lo -40.55 dB [yes]  arm3 late-sus +5.89 dB [yes]  arm4 tail -130.90 dB [yes]
+  take j=1 seed 7: peak 0.5291  arm1 hi -19.44 dB [yes]  arm2 lo -37.34 dB [yes]  arm3 late-sus -0.72 dB [yes]  arm4 tail -154.70 dB [yes]
+  take j=2 seed 8: peak 0.4329  arm1 hi -20.18 dB [yes]  arm2 lo -41.33 dB [yes]  arm3 late-sus +1.68 dB [yes]  arm4 tail -162.71 dB [yes]
+  take j=3 seed 9: peak 0.2915  arm1 hi -23.78 dB [yes]  arm2 lo -41.75 dB [yes]  arm3 late-sus -6.21 dB [yes]  arm4 tail -165.35 dB [yes]
+  take j=0 d 4.7751
+  take j=1 d 3.7263
+  take j=2 d 5.3202
+  take j=3 d 5.6188
+===============================================================================
+All tests passed (19 assertions in 1 test case)
+
+exit=0 END 2026-10-04 10:34:57

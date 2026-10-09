@@ -93,6 +93,14 @@ function pluginFlagsFor(file) {
         if (file.startsWith('dsp/tests/unit/effects/')) {
             flags.push('-DKRATE_DSP_AETHER_TEST_HOOKS');
         }
+        // dsp_processors_tests sets this TARGET-WIDE (dsp/tests/CMakeLists.txt:473-474)
+        // so the Vorago Phase 1 [.harness] trajectory writer knows where to put its
+        // CSVs. Without it, vorago_p1_harness.cpp hits its own #error guard and this
+        // script reports a portability failure that does not exist -- same class as
+        // the aether hook above. Trailing slash matches the CMake value's shape.
+        if (file.startsWith('dsp/tests/unit/processors/')) {
+            flags.push('-DVORAGO_P1_HARNESS_DIR=\\"/tmp/\\"');
+        }
         return flags;
     }
     const m = file.match(/plugins\/([a-z0-9-]+)\//);
@@ -110,6 +118,15 @@ function pluginFlagsFor(file) {
     // script only compiles, so the value need only exist as a token.
     flags.push(`-D${upper}_SRC_DIR=\\"/tmp\\"`);
     flags.push('-DKRATE_DSP_INCLUDE_DIR=\\"/tmp\\"');
+    // vorago_tests sets this TARGET-WIDE (plugins/vorago/tests/CMakeLists.txt) so
+    // processor_cpu_test.cpp can `#include VORAGO_PERF_BUDGET_HEADER` (the Phase 10
+    // budget constants) without putting dsp/tests/unit/systems on the include
+    // path. Unlike the string macros above this one IS opened by the
+    // preprocessor, so it must resolve from the repo root, where this script
+    // runs. Same class as the aether / harness cases above (Phase 11, B-4).
+    if (plugin === 'vorago') {
+        flags.push('-DVORAGO_PERF_BUDGET_HEADER=\\"dsp/tests/unit/systems/vorago_perf_budget.h\\"');
+    }
     return flags;
 }
 

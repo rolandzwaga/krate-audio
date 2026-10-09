@@ -1,0 +1,14 @@
+START 2026-10-06 12:41:33 Stone Gravity VORAGO_PILOT_OVERRIDE=206=0.95
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 4095176258
+[probe] override 206 = 0.950000 (replaced)
+[probe] lever: none
+[probe] Stone Gravity - primary M5 Gravity (stored seed 1, 1 twin render(s))
+  take: peak 0.9661  arm1 hi -7.51 dB [yes]  arm2 lo -25.50 dB [yes]  arm3 late-sus +5.22 dB [yes]  arm4 tail -220.03 dB [yes]
+  arm1@44.1k: finite y peak 0.9661 hi -7.83 dB [PASS]
+  primary d 1.2155  bar 4.0000  attribBase -1.0000  state ok  -> FAIL  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (10 assertions in 1 test case)
+
+exit=0 END 2026-10-06 12:45:37

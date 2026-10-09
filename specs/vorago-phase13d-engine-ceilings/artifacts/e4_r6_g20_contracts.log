@@ -1,0 +1,34 @@
+START 2026-10-07 23:47:01 e4_r6_g20 Lever contracts with the edited checkWakes
+Filters: "VoragoVoice_EcosystemLeverMapping","VoragoVoice_EcosystemLaneShapingFidelity","VoragoVoice_EcosystemLeverNeutral","VoragoVoice_WakeCombineRule"
+Randomness seeded to: 1852419533
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+VoragoVoice_WakeCombineRule
+  every shared destination reads the rule back, over the pair table
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(2630)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(2656): FAILED:
+  REQUIRE( v->ecology().getLoopWakeAmount(l) == VoragoVoice::combineWake(base, p.eco, p.sched) )
+with expansion:
+  1.0f == 0.5f
+with message:
+  eco 0.5, sched 0.5
+
+[LeverMapping] seed=0x925863E5 L=0.00 chunks=450000  sched-live=107966  sched>L=107966  sched-all-zero=296505
+[LeverMapping] seed=0x925863E5 L=0.25 chunks=450000  sched-live=107966  sched>L=78235  sched-all-zero=296505
+[LeverMapping] seed=0x925863E5 L=0.50 chunks=450000  sched-live=107966  sched>L=55621  sched-all-zero=296505
+[LeverMapping] seed=0x925863E5 L=1.00 chunks=450000  sched-live=107966  sched>L=0  sched-all-zero=296505
+[LeverNeutral] fs=44100 seed=0x925863E5 chunks=413437 scheduler events seen=12
+[LeverNeutral] fs=48000 seed=0x925863E5 chunks=450000 scheduler events seen=12
+[LeverNeutral] fs=96000 seed=0x925863E5 chunks=900000 scheduler events seen=12
+===============================================================================
+test cases:   4 |   3 passed | 1 failed
+assertions: 658 | 657 passed | 1 failed
+
+exit=1 END 2026-10-07 23:47:08

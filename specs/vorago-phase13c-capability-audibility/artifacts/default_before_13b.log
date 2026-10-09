@@ -1,0 +1,20 @@
+START 2026-10-01 11:35:06 default-surface-13b tree=ae149a1c as-compiled env: VORAGO_PROBE_KNOBS=- (single seed)
+Filters: "Vorago_EcosystemRuleProbe"
+Randomness seeded to: 1218416772
+[probe] surface overrides: none; knob filter: -; reference: none; wake bases: shipped (vorago_voice.h kPeakWakeBase / kLoopWakeBase)
+[probe] rendering default surface (340 s)...
+[probe] rendering seed twin (340 s)...
+
+=== Vorago_EcosystemRuleProbe (FR-070) ===
+renders: 2 (default + seed twin + 0 extremes), 340 s each, 48 kHz, block 512
+surface overrides: none; wake bases: shipped (vorago_voice.h kPeakWakeBase / kLoopWakeBase)
+default M1 stereo RMS: -26.89 dBFS
+default per-minute: M1 RMS -26.89 dBFS colony 0.483648 | M2 RMS -26.26 dBFS colony 0.481807 | M3 RMS -25.36 dBFS colony 0.482763
+t0on = d(default, seed twin) = 5.9161   (ecosystem on; informational since 2026-09-28)
+t0 = t0on = 5.9161   INAUDIBLE threshold f*t0 = 2.9580   (no true-off reference rendered: diagnostic mode, not a gate run)
+DESCRIPTOR default band=6.871092,-0.036894,-5.483475,-9.154448,-13.469402,-16.825508,-18.171839,-18.863328,-19.365769 motion=0.243057 flux=-1.934377 corr=-3.429317 energySpread=0.887262 crest=3.685155
+DESCRIPTOR trueoff n/a (true-off reference not rendered)
+===============================================================================
+All tests passed (63773 assertions in 1 test case)
+
+END 2026-10-01 11:37:05 exit=0 wall=119s

@@ -1,0 +1,43 @@
+Filters: "Vorago_EcosystemFrame_FocusVoice"
+Randomness seeded to: 3012179249
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+vorago_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+Vorago_EcosystemFrame_FocusVoice
+  release the later of two -> the earlier slot, rule (a)
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\vorago\tests\integration\ecosystem_frame_test.cpp(1045)
+...............................................................................
+
+F:\projects\iterum\plugins\vorago\tests\integration\ecosystem_frame_test.cpp(1069): warning:
+  SC-009 released later voice reached Idle after 12.32 s
+
+-------------------------------------------------------------------------------
+Vorago_EcosystemFrame_FocusVoice
+  all released -> (a) while Releasing, then (c) with agentCount 0, never (b)
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\vorago\tests\integration\ecosystem_frame_test.cpp(1072)
+...............................................................................
+
+F:\projects\iterum\plugins\vorago\tests\integration\ecosystem_frame_test.cpp(1093): warning:
+  SC-009 time-to-Idle after release: 12.352 s
+
+-------------------------------------------------------------------------------
+Vorago_EcosystemFrame_FocusVoice
+  orphan tail -> focus 3 by rule (b), then (c) with agentCount 0
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\vorago\tests\integration\ecosystem_frame_test.cpp(1121)
+...............................................................................
+
+F:\projects\iterum\plugins\vorago\tests\integration\ecosystem_frame_test.cpp(1154): warning:
+  SC-009 orphan row: slots 0-2 reached Idle after 12.8427 s
+
+F:\projects\iterum\plugins\vorago\tests\integration\ecosystem_frame_test.cpp(1181): warning:
+  SC-009 orphan tail fell below the silence level after 20.8533 s
+
+===============================================================================
+All tests passed (61150 assertions in 1 test case)
+

@@ -1,0 +1,42 @@
+## kPartialLaneGain
+dsp/tests/unit/systems/vorago_ecosystem_lever_test.cpp:137:    static constexpr float partialLaneGain() { return VoragoVoice::kPartialLaneGain; }
+dsp/tests/unit/systems/vorago_ecosystem_lever_test.cpp:1351:// The two L2 route sizes (kPartialLaneGain on mutation and bloom depth,
+dsp/tests/unit/systems/vorago_ecosystem_lever_test.cpp:1356://   mutation   == clamp(mutationBase   + kPartialLaneGain * raw, 0, 1)
+dsp/tests/unit/systems/vorago_ecosystem_lever_test.cpp:1357://   bloomDepth == clamp(bloomDepthBase + kPartialLaneGain * raw, 0, 1)
+## kLoopWakeBase
+dsp/tests/unit/systems/vorago_voice_longrun_test.cpp:175:// voice's PUBLIC constants VoragoVoice::kPeakWakeBase / kLoopWakeBase (Phase 13b
+dsp/tests/unit/systems/vorago_voice_longrun_test.cpp:181:constexpr float kShippedLoopWakeBase = VoragoVoice::kLoopWakeBase;
+plugins/vorago/tests/integration/ecosystem_rule_probe_test.cpp:569:                wakeBaseEnv.empty() ? "shipped (vorago_voice.h kPeakWakeBase / kLoopWakeBase)" : wakeBaseEnv.c_str());
+plugins/vorago/tests/integration/ecosystem_rule_probe_test.cpp:902:                wakeBaseEnv.empty() ? "shipped (vorago_voice.h kPeakWakeBase / kLoopWakeBase)" : wakeBaseEnv.c_str());
+## kLoopGainLeverSpan
+dsp/tests/unit/systems/vorago_ecosystem_lever_test.cpp:103:    static constexpr float loopGainLeverSpan() { return VoragoVoice::kLoopGainLeverSpan; }
+## kCouplingLeverSpan
+dsp/tests/unit/systems/vorago_ecosystem_lever_test.cpp:116:    static constexpr float couplingLeverSpan() { return VoragoVoice::kCouplingLeverSpan; }
+## kLeverInputGain
+dsp/tests/unit/systems/vorago_ecosystem_lever_test.cpp:105:        return VoragoVoice::kLeverInputGain[kind];
+## kPeakLevelLeverSpanDb
+dsp/tests/unit/systems/vorago_ecosystem_lever_test.cpp:108:    static constexpr float peakLevelLeverSpanDb() { return VoragoVoice::kPeakLevelLeverSpanDb; }
+## kNoiseLevelLeverSpanDb
+dsp/tests/unit/systems/vorago_ecosystem_lever_test.cpp:102:    static constexpr float noiseLevelLeverSpanDb() { return VoragoVoice::kNoiseLevelLeverSpanDb; }
+## kGhostLaneGain
+dsp/tests/unit/systems/vorago_ecosystem_lever_test.cpp:138:    static constexpr float ghostLaneGain() { return VoragoVoice::kGhostLaneGain; }
+dsp/tests/unit/systems/vorago_ecosystem_lever_test.cpp:1352:// kGhostLaneGain on the ghost request's eco term) are ZERO at a zero lane:
+dsp/tests/unit/systems/vorago_ecosystem_lever_test.cpp:1358://   ghost      == combineWake(0, min(1, kGhostLaneGain * raw), sched)
+## kWanderLeverRateCompExponent
+dsp/tests/unit/systems/vorago_ecosystem_lever_test.cpp:129:        return VoragoVoice::kWanderLeverRateCompExponent;
+## kNumRows
+dsp/tests/unit/systems/seraphis_macro_test.cpp:2841:        STATIC_REQUIRE(SeraphisMacroMatrix::kNumRows == std::size_t{32});
+## literal 0.0208 (row amount; only hits asserting it as an expectation count)
+## literal 0.55f (row amount; only hits asserting it as an expectation count)
+## literal 42.0f (row amount; only hits asserting it as an expectation count)
+## literal 0.97f (row amount; only hits asserting it as an expectation count)
+## literal 0.70f (row amount; only hits asserting it as an expectation count)
+## literal 0.45f (row amount; only hits asserting it as an expectation count)
+## literal -14.0f (row amount; only hits asserting it as an expectation count)
+## literal 0.15f (row amount; only hits asserting it as an expectation count)
+## literal 9.0f (row amount; only hits asserting it as an expectation count)
+## literal 0.85f (row amount; only hits asserting it as an expectation count)
+dsp/tests/unit/systems/vorago_macro_test.cpp:1614:    setFieldOf(macros, VoragoMacro::Gravity, 0.85f);
+
+## T008 judgment (main loop, 2026-10-07)
+Every hit on a constant reads it BY NAME through a friend accessor or `VoragoVoice::k…` (vorago_ecosystem_lever_test.cpp:102-138, vorago_voice_longrun_test.cpp:181) or is a comment / a printed label (ecosystem_rule_probe_test.cpp:569,902; lever_test.cpp:1351-1358) — none asserts the literal as an expectation. `kNumRows` hits only Seraphis's own matrix (seraphis_macro_test.cpp:2841, 32 rows). The one literal hit, `0.85f` at vorago_macro_test.cpp:1614, is a Gravity knob INPUT value, not the Life→EcosystemDepth row amount. Nothing new joins fr034_surfaced.md; entry 1 (LaneShapingFidelity hard-codes gain 1 by `+ raw`, :1356-1357 documents it) stands.

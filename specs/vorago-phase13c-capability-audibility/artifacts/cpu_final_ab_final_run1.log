@@ -1,0 +1,32 @@
+START 2026-10-05 12:51:22 arm=final run=1 exe=build/windows-x64-release/bin/Release/dsp_systems_tests.exe
+pin-perf-cores: performance-core mask 0xFFFF
+Filters: "VoragoEngine_CpuBudget"
+Randomness seeded to: 24179260
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+VoragoEngine_CpuBudget
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_perf_test.cpp(971)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_perf_test.cpp(1006): 
+warning:
+  SC-001b - VoragoEngine CPU gate, ns per 512-sample block @ 48 kHz
+    configuration        : polyphony 4 of kMaxVoices 6, FR-090 defaults, macros
+  neutral, no voicing levers (Q-H)
+    engine measured      : 2.96639e+06 ns/block  (27.8099 % of one core)
+    + Cavern (arithmetic): 3.09089e+06 ns/block  (28.9771 % of one core)
+    clause (i)  ceiling  : 3.09089e+06 <= 3.2e+06  (96.5903 % of the reference)
+    clause (ii) baseline : 2.96639e+06 <= 4.04172e+06  (baseline 2.69448e+06 x
+  1.5; 110.091 % of the baseline)
+    headroom available   : 1.14141x of the baseline before clause (i) trips
+  (the ceiling binds first; kMaxAdmissibleNs 2.13333e+06 is not met by ruling)
+
+===============================================================================
+All tests passed (4 assertions in 1 test case)
+
+exit=0 END 2026-10-05 12:52:04

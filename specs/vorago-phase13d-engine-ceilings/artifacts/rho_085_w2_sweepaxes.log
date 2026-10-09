@@ -1,0 +1,322 @@
+START 2026-10-08 13:29:04 tree=c351fe0f+rho ladder 2 (rho_085_w2) VoragoMacro_SweepAxes -s
+Filters: "VoragoMacro_SweepAxes"
+Randomness seeded to: 1054161643
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+VoragoMacro_SweepAxes
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1211)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1289): 
+warning:
+  SC-008 macro sweeps (3 seeds x 5 points x 60 s; window [10 s, 60 s] = samples
+  [480000, 2880000); C1 unless the row says @C3 / @C4; Life renders 210.0000 s
+  and counts edges over [90.0000 s, 210.0000 s])
+    Darkness  energy >4f0 rel. <4f0 (dB)  rho=-1.0000  endpoint=9.4867  [-55.
+  6930, -58.5135, -61.0792, -63.3648, -65.1797]
+    Age       HF energy > 4 kHz (dB) @C4  rho=-1.0000  endpoint=11.4132  [-111.
+  7748, -115.0551, -118.1556, -120.9271, -123.1880]
+    Density   partials + awake sources  rho=1.0000  endpoint=2.1578  [19.9507,
+  26.9507, 37.0000, 48.0000, 63.0000]
+    Movement  per-band total variation  rho=0.8333  endpoint=0.2153  [1.2893,
+  1.3388, 1.4018, 1.5620, 1.5669]
+    Gravity   mean |log2(ratio) - int|  rho=-1.0000  endpoint=0.6465  [0.2686,
+  0.2558, 0.2396, 0.1617, 0.0950]
+    Entropy   spectral flatness [f0, 20 f0]  rho=1.0000  endpoint=104.5722  [0.
+  0000, 0.0000, 0.0000, 0.0000, 0.0000]
+    Pressure  crest factor (dB)  rho=-1.0000  endpoint=4.7721  [9.3039, 8.6384,
+  7.5302, 6.1860, 4.5318]
+    Weight    energy < 80 Hz (dB) @C3  rho=1.0000  endpoint=7.9625  [-22.1258,
+  -19.9769, -17.9760, -16.0520, -14.1632]
+    Fog       spectral flatness [f0, 20 f0]  rho=1.0000  endpoint=39.3789  [0.
+  0000, 0.0000, 0.0000, 0.0000, 0.0000]
+    Life      wake/sleep edges per min [90 s, 210 s]  rho=1.0000  endpoint=14.
+  6667  [1.5000, 6.8333, 12.6667, 16.8333, 22.0000]
+    Mass      energy < 80 Hz (dB) @C3  rho=1.0000  endpoint=4.0404  [-22.1258,
+  -20.9713, -19.8073, -18.8133, -18.0853]
+    all-macros-at-zero broadband RMS = -15.7187 dBFS
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1318): PASSED:
+  CHECK( (result.rho * expectedRhoSign(row.kind)) >= 0.9 )
+with expansion:
+  1.0 >= 0.9
+with message:
+  Darkness  energy >4f0 rel. <4f0 (dB)  rho=-1  endpoint=9.48671  threshold=6
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1319): PASSED:
+  CHECK( result.endpoint >= row.threshold )
+with expansion:
+  9.4867050929 >= 6.0
+with message:
+  Darkness  energy >4f0 rel. <4f0 (dB)  rho=-1  endpoint=9.48671  threshold=6
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1318): PASSED:
+  CHECK( (result.rho * expectedRhoSign(row.kind)) >= 0.9 )
+with expansion:
+  1.0 >= 0.9
+with message:
+  Age       HF energy > 4 kHz (dB) @C4  rho=-1  endpoint=11.4132  threshold=3
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1319): PASSED:
+  CHECK( result.endpoint >= row.threshold )
+with expansion:
+  11.4132223684 >= 3.0
+with message:
+  Age       HF energy > 4 kHz (dB) @C4  rho=-1  endpoint=11.4132  threshold=3
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1318): PASSED:
+  CHECK( (result.rho * expectedRhoSign(row.kind)) >= 0.9 )
+with expansion:
+  1.0 >= 0.9
+with message:
+  Density   partials + awake sources  rho=1  endpoint=2.15778  threshold=0.5
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1319): PASSED:
+  CHECK( result.endpoint >= row.threshold )
+with expansion:
+  2.1577799399 >= 0.5
+with message:
+  Density   partials + awake sources  rho=1  endpoint=2.15778  threshold=0.5
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1318): FAILED:
+  CHECK( (result.rho * expectedRhoSign(row.kind)) >= 0.9 )
+with expansion:
+  0.8333333333 >= 0.9
+with message:
+  Movement  per-band total variation  rho=0.833333  endpoint=0.215344
+  threshold=0.2
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1319): PASSED:
+  CHECK( result.endpoint >= row.threshold )
+with expansion:
+  0.2153441931 >= 0.2
+with message:
+  Movement  per-band total variation  rho=0.833333  endpoint=0.215344
+  threshold=0.2
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1318): PASSED:
+  CHECK( (result.rho * expectedRhoSign(row.kind)) >= 0.9 )
+with expansion:
+  1.0 >= 0.9
+with message:
+  Gravity   mean |log2(ratio) - int|  rho=-1  endpoint=0.646496  threshold=0.3
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1319): PASSED:
+  CHECK( result.endpoint >= row.threshold )
+with expansion:
+  0.6464958667 >= 0.3
+with message:
+  Gravity   mean |log2(ratio) - int|  rho=-1  endpoint=0.646496  threshold=0.3
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1318): PASSED:
+  CHECK( (result.rho * expectedRhoSign(row.kind)) >= 0.9 )
+with expansion:
+  1.0 >= 0.9
+with message:
+  Entropy   spectral flatness [f0, 20 f0]  rho=1  endpoint=104.572  threshold=
+  0.25
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1319): PASSED:
+  CHECK( result.endpoint >= row.threshold )
+with expansion:
+  104.5722492902 >= 0.25
+with message:
+  Entropy   spectral flatness [f0, 20 f0]  rho=1  endpoint=104.572  threshold=
+  0.25
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1318): PASSED:
+  CHECK( (result.rho * expectedRhoSign(row.kind)) >= 0.9 )
+with expansion:
+  1.0 >= 0.9
+with message:
+  Pressure  crest factor (dB)  rho=-1  endpoint=4.77212  threshold=3
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1319): PASSED:
+  CHECK( result.endpoint >= row.threshold )
+with expansion:
+  4.7721207805 >= 3.0
+with message:
+  Pressure  crest factor (dB)  rho=-1  endpoint=4.77212  threshold=3
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1318): PASSED:
+  CHECK( (result.rho * expectedRhoSign(row.kind)) >= 0.9 )
+with expansion:
+  1.0 >= 0.9
+with message:
+  Weight    energy < 80 Hz (dB) @C3  rho=1  endpoint=7.96255  threshold=6
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1319): PASSED:
+  CHECK( result.endpoint >= row.threshold )
+with expansion:
+  7.962547188 >= 6.0
+with message:
+  Weight    energy < 80 Hz (dB) @C3  rho=1  endpoint=7.96255  threshold=6
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1318): PASSED:
+  CHECK( (result.rho * expectedRhoSign(row.kind)) >= 0.9 )
+with expansion:
+  1.0 >= 0.9
+with message:
+  Fog       spectral flatness [f0, 20 f0]  rho=1  endpoint=39.3789  threshold=
+  0.1
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1319): PASSED:
+  CHECK( result.endpoint >= row.threshold )
+with expansion:
+  39.3789216722 >= 0.1
+with message:
+  Fog       spectral flatness [f0, 20 f0]  rho=1  endpoint=39.3789  threshold=
+  0.1
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1318): PASSED:
+  CHECK( (result.rho * expectedRhoSign(row.kind)) >= 0.9 )
+with expansion:
+  1.0 >= 0.9
+with message:
+  Life      wake/sleep edges per min [90 s, 210 s]  rho=1  endpoint=14.6667
+  threshold=2
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1319): PASSED:
+  CHECK( result.endpoint >= row.threshold )
+with expansion:
+  14.6666666667 >= 2.0
+with message:
+  Life      wake/sleep edges per min [90 s, 210 s]  rho=1  endpoint=14.6667
+  threshold=2
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1318): PASSED:
+  CHECK( (result.rho * expectedRhoSign(row.kind)) >= 0.9 )
+with expansion:
+  1.0 >= 0.9
+with message:
+  Mass      energy < 80 Hz (dB) @C3  rho=1  endpoint=4.0404  threshold=0.25
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1319): PASSED:
+  CHECK( result.endpoint >= row.threshold )
+with expansion:
+  4.0404037204 >= 0.25
+with message:
+  Mass      energy < 80 Hz (dB) @C3  rho=1  endpoint=4.0404  threshold=0.25
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1330): PASSED:
+  CHECK( age.firstSeedAtOne.cavernDecaySeconds < age.firstSeedAtZero.cavernDecaySeconds )
+with expansion:
+  2.0f < 20.0f
+with message:
+  Age decaySeconds 20 -> 2, damping 0.25 -> 0.8
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1331): PASSED:
+  CHECK( age.firstSeedAtOne.bodyDamping > age.firstSeedAtZero.bodyDamping )
+with expansion:
+  0.8f > 0.25f
+with message:
+  Age decaySeconds 20 -> 2, damping 0.25 -> 0.8
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1343): PASSED:
+  CHECK( entropy.firstSeedAtOne.cloudMutation > entropy.firstSeedAtZero.cloudMutation )
+with expansion:
+  1.0f > 0.92413f
+with message:
+  Entropy mutation 0.924125 -> 1, irregularity 0.3 -> 0.9, drift 8 -> 20
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1345): PASSED:
+  CHECK( entropy.firstSeedAtOne.breathingIrregularity > entropy.firstSeedAtZero.breathingIrregularity )
+with expansion:
+  0.9f > 0.3f
+with message:
+  Entropy mutation 0.924125 -> 1, irregularity 0.3 -> 0.9, drift 8 -> 20
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1346): PASSED:
+  CHECK( entropy.firstSeedAtOne.driftDepthCents > entropy.firstSeedAtZero.driftDepthCents )
+with expansion:
+  20.0f > 8.0f
+with message:
+  Entropy mutation 0.924125 -> 1, irregularity 0.3 -> 0.9, drift 8 -> 20
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1354): PASSED:
+  CHECK( fog.firstSeedAtOne.cavernFog > fog.firstSeedAtZero.cavernFog )
+with expansion:
+  1.0f > 0.3f
+with message:
+  Fog cavern fog 0.3 -> 1
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1367): PASSED:
+  CHECK( depthHigh.decaySeconds > depthLow.decaySeconds )
+with expansion:
+  45.0f > 20.0f
+with message:
+  Depth decaySeconds 20 -> 45, size 0.5 -> 0.95
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1368): PASSED:
+  CHECK( depthHigh.size > depthLow.size )
+with expansion:
+  0.95f > 0.5f
+with message:
+  Depth decaySeconds 20 -> 45, size 0.5 -> 0.95
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1380): PASSED:
+  CHECK( dark.firstSeedAtOne.cloudTiltDb < dark.firstSeedAtZero.cloudTiltDb )
+with expansion:
+  -10.0f < -4.0f
+with message:
+  Darkness tilt -4 -> -10 dB/oct, cavern darkness 0.8 -> 1
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1381): PASSED:
+  CHECK( dark.firstSeedAtOne.cavernDarkness > dark.firstSeedAtZero.cavernDarkness )
+with expansion:
+  1.0f > 0.8f
+with message:
+  Darkness tilt -4 -> -10 dB/oct, cavern darkness 0.8 -> 1
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1394): PASSED:
+  CHECK( mass.firstSeedAtOne.bodyResonance > mass.firstSeedAtZero.bodyResonance )
+with expansion:
+  0.98f > 0.7f
+with message:
+  Mass body resonance 0.7 -> 0.98, sub tracking 1 -> 1
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1395): PASSED:
+  CHECK( mass.firstSeedAtOne.subTracking == mass.firstSeedAtZero.subTracking )
+with expansion:
+  1.0f == 1.0f
+with message:
+  Mass body resonance 0.7 -> 0.98, sub tracking 1 -> 1
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1396): PASSED:
+  CHECK( mass.firstSeedAtOne.subTracking == 1.0f )
+with expansion:
+  1.0f == 1.0f
+with message:
+  Mass body resonance 0.7 -> 0.98, sub tracking 1 -> 1
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1404): PASSED:
+  CHECK( fog.firstSeedAtOne.ghostPeak > fog.firstSeedAtZero.ghostPeak )
+with expansion:
+  0.4f > 0.0f
+with message:
+  Fog ghost 0 -> 0.4, smear 0.2 -> 0.9
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1405): PASSED:
+  CHECK( fog.firstSeedAtOne.smearAmount > fog.firstSeedAtZero.smearAmount )
+with expansion:
+  0.9f > 0.2f
+with message:
+  Fog ghost 0 -> 0.4, smear 0.2 -> 0.9
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1411): PASSED:
+  CHECK( zeros.rmsDb > -60.0 )
+with expansion:
+  -15.718652646 > -60.0
+with message:
+  broadband RMS over [10 s, 60 s] = -15.7187 dBFS
+
+===============================================================================
+test cases:  1 |  0 passed | 1 failed
+assertions: 38 | 37 passed | 1 failed
+
+exit=1 END 2026-10-08 13:58:45

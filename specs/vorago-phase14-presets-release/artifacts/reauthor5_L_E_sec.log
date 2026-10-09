@@ -1,0 +1,24 @@
+START 2026-10-06 12:16:10 Lightless SECONDARY=1 OVERRIDE=1400=0,1500=0,1300=0,201=1.0,1101=0.0,200=1.0,702=1.0,205=0.85,700=0.80,401=0
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 3543976096
+[probe] override 1400 = 0.000000 (replaced)
+[probe] override 1500 = 0.000000 (replaced)
+[probe] override 1300 = 0.000000 (appended)
+[probe] override 201 = 1.000000 (replaced)
+[probe] override 1101 = 0.000000 (replaced)
+[probe] override 200 = 1.000000 (replaced)
+[probe] override 702 = 1.000000 (replaced)
+[probe] override 205 = 0.850000 (replaced)
+[probe] override 700 = 0.800000 (replaced)
+[probe] override 401 = 0.000000 (replaced)
+[probe] lever: none
+[probe] Lightless - primary M1 Darkness (stored seed 13, 1 twin render(s))
+  take: peak 0.1873  arm1 hi -25.38 dB [yes]  arm2 lo -30.53 dB [yes]  arm3 late-sus +1.50 dB [yes]  arm4 tail -149.46 dB [yes]
+  arm1@44.1k: finite y peak 0.1578 hi -26.09 dB [PASS]
+  primary d 5.5696  bar 4.0000  attribBase -1.0000  state ok  -> PASS  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  secondary D12.2 ghost event triggers off: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+===============================================================================
+All tests passed (19 assertions in 1 test case)
+
+exit=0 END 2026-10-06 12:30:34

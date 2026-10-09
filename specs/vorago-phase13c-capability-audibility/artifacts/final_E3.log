@@ -1,0 +1,22 @@
+START 2026-10-04 11:15:37 Swarm Breath tree=ae149a1c+working-copy as-compiled (no override) env: VORAGO_PILOT_TAKES=4 | final tree: attack n 4; child gain 1.5; ghost 21 dB / span 1.2 / default peak 0; ecology 30 (ceiling 36); breath 3.0; tide 0.8; M9 rung 2; M12 rung 1; Feedback Mire breathing 0; six presets pin ghost 0.60 | exe=2026-10-04 09:54:11
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 3502017140
+[probe] lever: none
+[probe] Swarm Breath - primary E3 noise -> noise wake (stored seed 5, 4 twin render(s))
+  take: peak 0.1759  arm1 hi -25.84 dB [yes]  arm2 lo -30.53 dB [yes]  arm3 late-sus +0.60 dB [yes]  arm4 tail -159.02 dB [yes]
+  arm1@44.1k: finite y peak 0.1740 hi -25.35 dB [PASS]
+  route arms: d(R_k, R_k0) 1.1652, attribBase d(R_0, R_00) 0.6422 (attributable iff d >= 2.1422)
+  primary d 1.1652  bar 4.0000  attribBase 0.6422  state ok  -> FAIL  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  take j=0 seed 5: peak 0.1759  arm1 hi -25.84 dB [yes]  arm2 lo -30.53 dB [yes]  arm3 late-sus +0.60 dB [yes]  arm4 tail -159.02 dB [yes]
+  take j=1 seed 6: peak 0.1797  arm1 hi -25.59 dB [yes]  arm2 lo -31.23 dB [yes]  arm3 late-sus -1.03 dB [yes]  arm4 tail -149.15 dB [yes]
+  take j=2 seed 7: peak 0.1780  arm1 hi -25.22 dB [yes]  arm2 lo -28.16 dB [yes]  arm3 late-sus -0.70 dB [yes]  arm4 tail -187.99 dB [yes]
+  take j=3 seed 8: peak 0.1887  arm1 hi -24.85 dB [yes]  arm2 lo -28.49 dB [yes]  arm3 late-sus -0.10 dB [yes]  arm4 tail -173.78 dB [yes]
+  take j=0 d 1.1652
+  take j=1 d 1.3338
+  take j=2 d 0.7251
+  take j=3 d 0.5811
+===============================================================================
+All tests passed (47 assertions in 1 test case)
+
+exit=0 END 2026-10-04 11:23:00

@@ -1,0 +1,13 @@
+START 2026-10-01 19:42:51 before2_M9 tree=ae149a1c+working-copy reporting binary (vorago_tests.exe mtime 2026-10-01 19:14:53) as-compiled (no override, no lever) preset="Fogbound"
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 1872942800
+[probe] lever: none
+[probe] Fogbound - primary M9 Fog (stored seed 9, 1 twin render(s))
+  take: peak 0.1508  arm1 hi -25.99 dB [yes]  arm2 lo -33.50 dB [yes]  arm3 late-sus -1.14 dB [yes]  arm4 tail -187.86 dB [yes]
+  arm1@44.1k: finite y peak 0.1636 hi -26.07 dB [PASS]
+  primary d 1.8229  bar 4.0000  attribBase -1.0000  state ok  -> FAIL  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (9 assertions in 1 test case)
+
+END 2026-10-01 19:45:51 exit=0 wall=180s

@@ -1,0 +1,29 @@
+T066 tweak identity (plan 2.9, ruling P2) - IMPLEMENTATION RECORD; RUN PENDING
+=============================================================================
+Status: code written, NOT built and NOT run by the T066 implementer (the group's
+build agent builds and runs). This file is NOT evidence of the Check until the
+build agent appends the run below.
+
+Changes:
+- plugins/vorago/tests/vorago_preset_host.h: PresetHost::engineForTweak() ->
+  const_cast of Processor::engineForTest() (processor.h:118-119; engine_ is a
+  non-const unique_ptr, processor.h:230), NOLINT with reason (loadState precedent).
+- plugins/vorago/tests/preset_test_support.h:
+  RenderSpec::engineTweak (std::function<void(VoragoEngine&)>, default empty);
+  SweepCapture::tweakHeld (default true);
+  detail::readTweakLevers reads getBloomChildGain / getEcologyWetMakeupDb /
+  getGhostDensity / getGhostTapMakeupDb (vorago_engine.h:1011,1028,1035,1045);
+  renderPreset applies the tweak after loadState and before block 0, and sets
+  tweakHeld = false if any lever reads differently after block 0.
+
+No-tweak identity (static argument): with engineTweak empty the only added work
+is one std::function bool test and a `tweaked != nullptr` test per block; no
+engine call, no parameter, no render change. The run below must confirm it.
+
+Check to run (build agent), Slow Bloom, no VORAGO_PILOT_LEVER / no override:
+  vorago_tests.exe "Vorago_PresetPilot_PrimaryProbe" with the before_S6.log
+  environment (preset="Slow Bloom"); the verdict line must equal
+  artifacts/before_S6.log (tree ae149a1c, as-compiled) exactly - the T015
+  re-read of S6 where it exists.
+
+---- run output (to be appended by the build agent) ----

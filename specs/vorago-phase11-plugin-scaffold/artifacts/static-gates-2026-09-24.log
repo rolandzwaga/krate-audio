@@ -1,0 +1,143 @@
+== nine lints from tools/hooks/guard-ci-gates.js
+### node tools/lint-layers.js
+lint-layers: OK — no layer-dependency violations in 5-layer DSP tree.
+exit=0
+
+### node tools/lint-odr.js
+lint-odr: OK — 777 definitions scanned, no cross-file name collisions.
+exit=0
+
+### node tools/lint-arch-guarded-includes.js
+lint-arch-guarded-includes: OK — no krate includes behind architecture guards.
+exit=0
+
+### node tools/lint-float-bit-goldens.js
+lint-float-bit-goldens: clean (1574 files scanned)
+exit=0
+
+### node tools/lint-midi-timing-goldens.js
+lint-midi-timing-goldens: clean (1574 files scanned)
+exit=0
+
+### node tools/lint-platform-type-literals.js
+lint-platform-type-literals: clean -- 1574 file(s) scanned.
+exit=0
+
+### node tools/lint-allocation-operator-overrides.js
+lint-allocation-operator-overrides: clean -- 1689 file(s) scanned.
+exit=0
+
+### node tools/lint-simd-aligned-loadstore.js
+lint-simd-aligned-loadstore: clean -- 1574 file(s) scanned.
+exit=0
+
+### node tools/lint-plugin-roster.js
+lint-plugin-roster: OK — 8 plugins present in every roster (disrumpo, gradus, innexus, iterum, membrum, ruinae, seraphis, vorago)
+exit=0
+
+== generated indexes
+### node tools/gen-repo-map.js --check
+repo-map.json is up to date.
+exit=0
+
+### node tools/gen-specs-index.js --check
+specs/INDEX.md is up to date.
+exit=0
+
+### node tools/gen-symbols.js --check
+symbols.json is up to date.
+exit=0
+
+== SC-015 portability over every vorago file
+### node tools/check-portability.js plugins/vorago/src/controller/controller.cpp plugins/vorago/src/controller/controller.h plugins/vorago/src/engine/vorago_engine_config.h plugins/vorago/src/entry.cpp plugins/vorago/src/parameters/global_params.h plugins/vorago/src/parameters/macro_params.h plugins/vorago/src/plugin_ids.h plugins/vorago/src/preset/vorago_preset_config.h plugins/vorago/src/processor/processor.cpp plugins/vorago/src/processor/processor.h plugins/vorago/src/update/vorago_update_config.h plugins/vorago/tests/integration/param_flow_test.cpp plugins/vorago/tests/integration/processor_audio_test.cpp plugins/vorago/tests/integration/processor_cpu_test.cpp plugins/vorago/tests/unit/controller/editor_lifecycle_test.cpp plugins/vorago/tests/unit/lifecycle_test.cpp plugins/vorago/tests/unit/midi_event_test.cpp plugins/vorago/tests/unit/param_denorm_test.cpp plugins/vorago/tests/unit/processor_bus_test.cpp plugins/vorago/tests/unit/state_roundtrip_test.cpp plugins/vorago/tests/unit/test_main.cpp plugins/vorago/tests/vorago_test_fixture.h plugins/vorago/tests/vstgui_test_stubs.cpp
+check-portability: 14 translation unit(s) with g++
+
+  OK      plugins/vorago/src/controller/controller.cpp
+  OK      plugins/vorago/src/entry.cpp
+  OK      plugins/vorago/src/processor/processor.cpp
+  OK      plugins/vorago/tests/integration/param_flow_test.cpp
+  OK      plugins/vorago/tests/integration/processor_audio_test.cpp
+  OK      plugins/vorago/tests/integration/processor_cpu_test.cpp
+  OK      plugins/vorago/tests/unit/controller/editor_lifecycle_test.cpp
+  OK      plugins/vorago/tests/unit/lifecycle_test.cpp
+  OK      plugins/vorago/tests/unit/midi_event_test.cpp
+  OK      plugins/vorago/tests/unit/param_denorm_test.cpp
+  OK      plugins/vorago/tests/unit/processor_bus_test.cpp
+  OK      plugins/vorago/tests/unit/state_roundtrip_test.cpp
+  OK      plugins/vorago/tests/unit/test_main.cpp
+  OK      plugins/vorago/tests/vstgui_test_stubs.cpp
+
+check-portability: all clear -- 14 compiled.
+exit=0
+
+== SC-018 bundle guard
+### node tools/check-bundle.js build/windows-x64-release/VST3/Release/Vorago.vst3
+OK   Vorago.vst3: editor.uidesc + moduleinfo.json present
+
+check-bundle: all 1 bundle(s) OK
+exit=0
+
+== SC-025 roster + greps
+### node tools/lint-plugin-roster.js
+lint-plugin-roster: OK — 8 plugins present in every roster (disrumpo, gradus, innexus, iterum, membrum, ruinae, seraphis, vorago)
+exit=0
+
+### node tools/check-changelog-coverage.js vorago
+
+=== vorago (version.json: 0.1.0) ===
+First changelog entry — nothing earlier to diff against.
+exit=0
+
+auval line count: 1
+Vorago AUv3 count: 4
+artifact names count: 3
+gitignore count: 3
+gen-specs-index count: 1
+run-cpu-tests count: 1
+root CLAUDE.md vorago mentions: 11
+leaf exists: yes
+ci.yml vorago vs seraphis: 51 vs 51
+INDEX.md vorago slugs under Vorago heading:
+12
+== SC-002.1 test list
+### build/windows-x64-release/bin/Release/vorago_tests.exe --list-tests
+All available test cases:
+  Vorago_ProcessorBusSetup
+      [processor][vorago]
+  Vorago_ParamDenormRoundTrip
+      [params][vorago]
+  Vorago_StateRoundTrip
+      [state][vorago]
+  Vorago_MidiEventTranslation
+      [midi][processor][vorago]
+  Vorago_ProcessorLifecycle
+      [processor][vorago]
+  Vorago_EditorLifecycle
+      [controller][lifecycle][ui][vorago]
+  Vorago_ProcessorRendersHeldNote
+      [integration][vorago]
+  Vorago_ParamFlowReachesEngine
+      [integration][vorago]
+8 test cases
+
+exit=0
+
+### build/windows-x64-release/bin/Release/vorago_tests.exe [.perf] --list-tests
+Matching test cases:
+  Vorago_ProcessorCpu
+      [.][perf][performance][vorago]
+1 matching test case
+
+exit=0
+
+== SC-027 shared-code diff against phase base c7e2bbbb
+### git diff --stat c7e2bbbb -- dsp/ plugins/seraphis/ plugins/shared/
+warning: in the working copy of 'dsp/include/krate/dsp/processors/resonator_bank.h', LF will be replaced by CRLF the next time Git touches it
+ dsp/include/krate/dsp/processors/resonator_bank.h | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)
+exit=0
+
+### git status --porcelain dsp/ plugins/seraphis/ plugins/shared/
+ M dsp/include/krate/dsp/processors/resonator_bank.h
+exit=0
+

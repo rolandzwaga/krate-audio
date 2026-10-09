@@ -1,0 +1,6 @@
+T004 [long] macro baselines on the base binary (FR-003 (ii), FR-031, SC-001, SC-010) - 2026-10-07 10:11:18
+base_sweepaxes.log: test cases 1 | 0 passed | 1 failed; assertions 38 | 37 passed | 1 failed (log tail). The ONE failing assertion:
+  vorago_macro_test.cpp(1318) CHECK( (result.rho * expectedRhoSign(row.kind)) >= 0.9 ): 0.8333333333 >= 0.9 - Movement per-band total variation rho=0.833333 endpoint=0.221348 threshold=0.2 (base_sweepaxes.log:86-91; row table :26)
+  Movement rho = 0.8333 (4 dp) as expected; every other row rho = +/-1.0000 and every endpoint clears its threshold (:20-40, :49-85). FR-031 binds the 37 passing assertions plus the Movement row.
+base_nozipper.log: All tests passed (24 assertions in 1 test case) - no failing assertion.
+Verdict: no stop (the only red is the Movement row at exactly 0.8333).

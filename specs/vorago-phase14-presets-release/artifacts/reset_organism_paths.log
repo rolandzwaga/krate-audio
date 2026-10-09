@@ -1,0 +1,50 @@
+Filters: "VoragoVoice_NoiseOrganismResetProbe"
+Randomness seeded to: 619619819
+  [organism probe] start
+  [organism probe]   configured
+  [organism probe]   rendering: prepare -> render
+  [organism probe]   rendered
+  [organism probe]   configured
+  [organism probe]   rendering: prepare -> render (path 1 warm-up)
+  [organism probe]   rendered
+  [organism probe] path 1: reset done
+  [organism probe] path 1: wake + level re-written
+  [organism probe]   rendering: path 1: reset -> re-write -> render
+  [organism probe]   rendered
+  [organism probe] prepare-render vs reset+rewrite-render: max diff 2.134e-02 (first 0), peak 0.2513, x[0..2] 2.973e-09 1.793e-08 5.116e-08 | y[0..2] 4.683e-08 2.808e-07 7.960e-07
+  [organism probe] path 2: bare reset done
+  [organism probe]   rendering: path 2: bare reset -> render
+  [organism probe]   rendered
+  [organism probe] prepare-render vs bare-reset-render: max diff 2.134e-02 (first 0), peak 0.2513, x[0..2] 2.973e-09 1.793e-08 5.116e-08 | y[0..2] 4.683e-08 2.808e-07 7.960e-07
+  [organism probe]   configured
+  [organism probe]   rendering: path 3 warm-up
+  [organism probe]   rendered
+  [organism probe]   rendering: path 3: after reset (A)
+  [organism probe]   rendered
+  [organism probe]   rendering: path 3 second warm-up
+  [organism probe]   rendered
+  [organism probe]   rendering: path 3: after reset (B)
+  [organism probe]   rendered
+  [organism probe] path 3: reset-render A vs reset-render B: max diff 0.000e+00 (first 48000), peak 0.2513, x[0..2] 4.683e-08 2.808e-07 7.960e-07 | y[0..2] 4.683e-08 2.808e-07 7.960e-07
+  [organism probe]   configured
+  [organism probe]   rendering: path 5 warm-up (MetallicHiss)
+  [organism probe]   rendered
+  [organism probe]   rendering: path 5: after reset (A)
+  [organism probe]   rendered
+  [organism probe]   rendering: path 5 second warm-up
+  [organism probe]   rendered
+  [organism probe]   rendering: path 5: after reset (B)
+  [organism probe]   rendered
+  [organism probe] path 5 (MetallicHiss): reset-render A vs reset-render B: max diff 0.000e+00 (first 48000), peak 0.2004, x[0..2] 8.911e-06 4.104e-05 7.907e-05 | y[0..2] 8.911e-06 4.104e-05 7.907e-05
+  [organism probe]   configured
+  [organism probe]   rendering (modulated): path 6 warm-up
+  [organism probe]   rendering (modulated): path 6: after reset (A)
+  [organism probe]   rendering (modulated): path 6 second warm-up
+  [organism probe]   rendering (modulated): path 6: after reset (B)
+  [organism probe] path 6 (MetallicHiss, modulated): A vs B: max diff 0.000e+00 (first 48000), peak 0.0574, x[0..2] 2.420e-06 1.129e-05 2.247e-05 | y[0..2] 2.420e-06 1.129e-05 2.247e-05
+  [organism probe] path 7 (MetallicHiss @ 8000 Hz): A vs B: max diff 0.000e+00 (first 16000), peak 1.1959, x[0..2] 1.627e-03 6.130e-03 7.707e-03 | y[0..2] 1.627e-03 6.130e-03 7.707e-03
+  [organism probe] path 7 (MetallicHiss @ 16000 Hz): A vs B: max diff 0.000e+00 (first 32000), peak 0.6483, x[0..2] 2.328e-04 9.858e-04 1.619e-03 | y[0..2] 2.328e-04 9.858e-04 1.619e-03
+  [organism probe] path 7 (MetallicHiss @ 44100 Hz): A vs B: max diff 0.000e+00 (first 88200), peak 0.2396, x[0..2] 1.150e-05 5.277e-05 1.011e-04 | y[0..2] 1.150e-05 5.277e-05 1.011e-04
+===============================================================================
+All tests passed (1 assertion in 1 test case)
+

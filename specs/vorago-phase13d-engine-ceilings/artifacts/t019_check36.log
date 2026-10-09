@@ -1,0 +1,44 @@
+START 2026-10-07 19:55:46 t019_check36 tree=f376785f+G2 working copy (build_g2.log) env: VORAGO_PILOT_ITERATE=verified36 VORAGO_PILOT_LIST=1 case: Vorago_PresetPilot_PrimaryProbe
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 184003154
+verified36: 36 cells
+verified36 list S1 noise organism Wind Through Basalt
+verified36 list S2 resonance drift Resonant Shaft
+verified36 list S3 spectral smear Smeared Horizon
+verified36 list S4 feedback ecology Feedback Mire
+verified36 list S5 subharmonic Tectonic Floor
+verified36 list S6 harmonic bloom Slow Bloom
+verified36 list S7 ecosystem Colony Pulse
+verified36 list S8 cavern space Cathedral Void
+verified36 list S9 ghost / atmosphere Choir of Absence
+verified36 list S10 acoustic body Hull Resonance
+verified36 list M1 Darkness Lightless
+verified36 list M3 Density Crowded Dark
+verified36 list M6 Entropy Entropic Hum
+verified36 list M7 Pressure Pressure Front
+verified36 list M8 Weight Weighted Deep
+verified36 list M9 Fog Fogbound
+verified36 list M11 Depth Endless Descent
+verified36 list M12 Mass Monolith
+verified36 list E2 resonator -> resonance peaks Singing Colony
+verified36 list E3 noise -> noise wake Swarm Breath
+verified36 list E5 ghost -> ghost bursts Haunted Colony
+verified36 list D1.1 material Glass Glass Well
+verified36 list D1.2 material Strings Strung Abyss
+verified36 list D1.3 material MetalPlate Iron Plate
+verified36 list D1.4 material Chamber Chamber Drone
+verified36 list D1.5 material Ice Ice Shelf
+verified36 list D1.8 material WoodenHull Hull Ark
+verified36 list D1.9 material CathedralColumn Column Hymn
+verified36 list D1.10 material CavernWall Cavern Wall
+verified36 list D1.11 material GlassSphere Glass Sphere
+verified36 list D3.1 noise model Direct Dead Air
+verified36 list D3.2 noise model FilteredWind Abyssal Wind
+verified36 list D3.3 noise model GranularDust Spore Drift
+verified36 list D3.4 noise model MetallicHiss Steam Vent
+verified36 list D8.2 envelope Growth Growth Ring
+verified36 list D9.1 attack span <= 10 s Sudden Chasm
+===============================================================================
+All tests passed (41 assertions in 1 test case)
+
+exit=0 END 2026-10-07 19:55:46

@@ -1079,7 +1079,11 @@ TEST_CASE("ContinuousBody_MaterialTablesAreWellFormed")
     SECTION("the profile table reproduces FR-011a exactly")
     {
         REQUIRE(CB::kMaterialProfiles.size() == CB::kNumMaterials);
-        REQUIRE(CB::kNumMaterials == 5u);
+        // Five Seraphis Phase 4 materials + six Vorago Phase 10 dark materials
+        // (AR-4 / FR-031). The Seraphis five keep their enumerator values, so
+        // this section's expectations below are unchanged (FR-038a / FR-039).
+        REQUIRE(CB::kNumMaterials == 11u);
+        REQUIRE(CB::kNumSeraphisMaterials == 5u);
         REQUIRE(CB::kNumEngines == 3u);
 
         const CB::MaterialProfile& glass = CB::profileFor(BodyMaterial::Glass);

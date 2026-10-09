@@ -1,0 +1,77 @@
+START 2026-10-04 02:54:16 SweepAxes + NoZipper, arm ruled_defaultpeak000 (B-13 rows compiled) | kBloomChildGain = 1.5f kEcologyWetMakeupDb = 30.0f kBreathGravityLaneGain = 3.0f kTidalRate = 0.8f kGhostBurstPeak = 0.0f kGhostDensitySpan = 1.2f kGhostTapMakeupDb = 21.0f fogRowBase=0.0f exe=2026-10-04 02:54:14
+Filters: "VoragoMacro_NoZipper","VoragoMacro_SweepAxes"
+Randomness seeded to: 2856178821
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+VoragoMacro_SweepAxes
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1211)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1289): 
+warning:
+  SC-008 macro sweeps (3 seeds x 5 points x 60 s; window [10 s, 60 s] = samples
+  [480000, 2880000); C1 unless the row says @C3 / @C4; Life renders 210.0000 s
+  and counts edges over [90.0000 s, 210.0000 s])
+    Darkness  energy >4f0 rel. <4f0 (dB)  rho=-1.0000  endpoint=9.4982  [-55.
+  7307, -58.5604, -61.1309, -63.4158, -65.2289]
+    Age       HF energy > 4 kHz (dB) @C4  rho=-1.0000  endpoint=11.4136  [-111.
+  7709, -115.0457, -118.1529, -120.9241, -123.1844]
+    Density   partials + awake sources  rho=1.0000  endpoint=2.1578  [19.9507,
+  26.9507, 37.0000, 48.0000, 63.0000]
+    Movement  per-band total variation  rho=0.8333  endpoint=0.2213  [1.2865,
+  1.3458, 1.4062, 1.5608, 1.5713]
+    Gravity   mean |log2(ratio) - int|  rho=-1.0000  endpoint=0.6465  [0.2686,
+  0.2558, 0.2396, 0.1617, 0.0950]
+    Entropy   spectral flatness [f0, 20 f0]  rho=1.0000  endpoint=109.9720  [0.
+  0000, 0.0000, 0.0000, 0.0000, 0.0000]
+    Pressure  crest factor (dB)  rho=-1.0000  endpoint=4.7684  [9.3020, 8.6362,
+  7.5373, 6.1876, 4.5337]
+    Weight    energy < 80 Hz (dB) @C3  rho=1.0000  endpoint=7.9607  [-22.1254,
+  -19.9782, -17.9768, -16.0528, -14.1646]
+    Fog       spectral flatness [f0, 20 f0]  rho=1.0000  endpoint=39.1993  [0.
+  0000, 0.0000, 0.0000, 0.0000, 0.0000]
+    Life      wake/sleep edges per min [90 s, 210 s]  rho=1.0000  endpoint=14.
+  6667  [1.5000, 6.8333, 12.6667, 16.8333, 22.0000]
+    Mass      energy < 80 Hz (dB) @C3  rho=1.0000  endpoint=4.0358  [-22.1254,
+  -20.9675, -19.8133, -18.8146, -18.0896]
+    all-macros-at-zero broadband RMS = -15.7186 dBFS
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1318): FAILED:
+  CHECK( (result.rho * expectedRhoSign(row.kind)) >= 0.9 )
+with expansion:
+  0.8333333333 >= 0.9
+with message:
+  Movement  per-band total variation  rho=0.833333  endpoint=0.221348
+  threshold=0.2
+
+-------------------------------------------------------------------------------
+VoragoMacro_NoZipper
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1514)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1580): warning:
+  SC-010 zipper statistic (20 ms window; reference 64 ms clear of the ramp)
+    macro 0  ramp=3.1549e-03  reference=2.8798e-03  ratio=1.0955e+00
+    macro 1  ramp=3.0745e-03  reference=2.8849e-03  ratio=1.0657e+00
+    macro 2  ramp=2.6683e-03  reference=2.1751e-03  ratio=1.2267e+00
+    macro 3  ramp=2.5223e-03  reference=3.1839e-03  ratio=7.9222e-01
+    macro 4  ramp=3.7170e-03  reference=3.3962e-03  ratio=1.0945e+00
+    macro 5  ramp=2.3309e-03  reference=2.1162e-03  ratio=1.1015e+00
+    macro 6  ramp=2.4949e-03  reference=2.2981e-03  ratio=1.0856e+00
+    macro 7  ramp=3.3071e-03  reference=3.3914e-03  ratio=9.7514e-01
+    macro 8  ramp=3.3918e-03  reference=4.1577e-03  ratio=8.1578e-01
+    macro 9  ramp=2.9540e-03  reference=2.6821e-03  ratio=1.1014e+00
+    macro 10  ramp=2.9354e-03  reference=2.7740e-03  ratio=1.0582e+00
+    macro 11  ramp=2.7838e-03  reference=2.5177e-03  ratio=1.1057e+00
+
+===============================================================================
+test cases:  2 |  1 passed | 1 failed
+assertions: 62 | 61 passed | 1 failed
+
+exit=1 END 2026-10-04 03:24:27

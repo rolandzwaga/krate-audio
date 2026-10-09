@@ -1,0 +1,18 @@
+START 2026-10-06 09:49:54 Erosion VORAGO_PILOT_OVERRIDE=1400=0,1500=0,201=0.75,1002=0.98,300=0.8889
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 132879577
+[probe] override 1400 = 0.000000 (replaced)
+[probe] override 1500 = 0.000000 (appended)
+[probe] override 201 = 0.750000 (replaced)
+[probe] override 1002 = 0.980000 (replaced)
+[probe] override 300 = 0.888900 (replaced)
+[probe] lever: none
+[probe] Erosion - primary M2 Age (stored seed 14, 1 twin render(s))
+  take: peak 0.2032  arm1 hi -27.19 dB [yes]  arm2 lo -35.57 dB [yes]  arm3 late-sus +0.63 dB [yes]  arm4 tail -187.75 dB [yes]
+  arm1@44.1k: finite y peak 0.2823 hi -24.05 dB [PASS]
+  primary d 3.1369  bar 4.0000  attribBase -1.0000  state ok  -> FAIL  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (14 assertions in 1 test case)
+
+exit=0 END 2026-10-06 09:51:58

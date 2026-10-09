@@ -1503,8 +1503,12 @@ TEST_CASE("M4 Integration: all four features simultaneously active produce valid
 // =============================================================================
 // T102: SC-007 CPU proxy -- freeze/morph/filter logic < 1 microsecond per frame
 // =============================================================================
+// [perf]: this asserts wall-clock microseconds per block, so it belongs to the
+// isolated CPU lane (tools/run-cpu-tests.js), not the per-push lane. It read
+// 53 us against the 50 us budget with 22 suites running at once and 1 assertion
+// green alone.
 TEST_CASE("M4 Integration: SC-007 CPU proxy -- M4 logic adds negligible overhead",
-          "[innexus][m4][cpu][sc007]")
+          "[innexus][m4][cpu][sc007][perf]")
 {
     // Measure processing time with all features active vs defaults
     constexpr int kWarmupBlocks = 50;

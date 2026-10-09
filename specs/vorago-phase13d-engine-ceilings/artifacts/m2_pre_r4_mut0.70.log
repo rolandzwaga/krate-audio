@@ -1,0 +1,20 @@
+START 2026-10-07 21:52:32 m2_pre_r4_mut0.70 tree=9bcb71f6 VoragoMacro_Phase13dRowProbe env: VORAGO_ROWPROBE=Age:CloudMutation:0.70:Linear VORAGO_ROWPROBE_ROWS=Age
+Filters: "VoragoMacro_Phase13dRowProbe"
+Randomness seeded to: 3591434106
+Phase 13d row-emulation probe (SweepAxes fixture: seeds 101/202/303 x points 0/.25/.5/.75/1 x 60 s @ 48 kHz; window samples [480000, 2880000); polyphony 1; fast attack; macros after noteOn; Life 210 s, edges over [90 s, 210 s])
+Delta entries (1):
+  Age -> CloudMutation  delta=0.7000 Linear  (shipped amount on this row=0.0000, target base=0.1500)
+ROW Age       HF energy > 4 kHz (dB) @C4
+    seed 101 [0, .25, .5, .75, 1]: [-110.6757, -113.7083, -116.9492, -119.9869, -122.5982]  rho=-1.0000  endpoint=11.9226
+    seed 202 [0, .25, .5, .75, 1]: [-114.4834, -117.6833, -120.7704, -123.6467, -126.0413]  rho=-1.0000  endpoint=11.5579
+    seed 303 [0, .25, .5, .75, 1]: [-110.1536, -113.2230, -116.0993, -118.5068, -120.2889]  rho=-1.0000  endpoint=10.1353
+    mean metric [0, .25, .5, .75, 1]: [-111.7709, -114.8715, -117.9396, -120.7135, -122.9761]
+    mean rho=-1.0000 (need <= -0.9, ok)  mean endpoint=11.2053 (need >= 3.0000, ok)  -> PASS
+
+==== ROWPROBE SUMMARY (row | mean rho | mean endpoint | threshold | verdict) ====
+  Age       HF energy > 4 kHz (dB) @C4                rho= -1.0000  endpoint=  11.2053  threshold=3.0000  PASS
+===============================================================================
+test cases: 1 | 1 passed
+assertions: - none -
+
+exit=0 END 2026-10-07 22:04:51

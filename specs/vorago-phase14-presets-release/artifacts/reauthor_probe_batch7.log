@@ -1,0 +1,93 @@
+START 16:30:40
+== Glass Sphere | 1002=0.995,1001=0.005,201=1.0,1105=0.0,203=0.0
+[probe] override 1002 = 0.995000 (replaced)
+[probe] override 1001 = 0.005000 (replaced)
+[probe] override 201 = 1.000000 (replaced)
+[probe] override 1105 = 0.000000 (replaced)
+[probe] override 203 = 0.000000 (replaced)
+[probe] Glass Sphere - primary D1.11 material GlassSphere (stored seed 2, 2 twin render(s))
+  conjunct S10 acoustic body: d 15.5427, bar 1.5 -> ok
+  primary d 1.5154  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+   16:33:01
+== Glass Sphere | 1002=0.995,1001=0.005,201=1.0,1105=0.0,200=0.5
+[probe] override 1002 = 0.995000 (replaced)
+[probe] override 1001 = 0.005000 (replaced)
+[probe] override 201 = 1.000000 (replaced)
+[probe] override 1105 = 0.000000 (replaced)
+[probe] override 200 = 0.500000 (replaced)
+[probe] Glass Sphere - primary D1.11 material GlassSphere (stored seed 2, 2 twin render(s))
+  conjunct S10 acoustic body: d 15.0954, bar 1.5 -> ok
+  primary d 4.0349  bar 4.0000  attribBase -1.0000  state ok  -> PASS
+   16:35:07
+== Hull Ark | 1002=0.99,1001=0.01,201=1.0,1105=0.05,206=0.5
+[probe] override 1002 = 0.990000 (replaced)
+[probe] override 1001 = 0.010000 (replaced)
+[probe] override 201 = 1.000000 (replaced)
+[probe] override 1105 = 0.050000 (replaced)
+[probe] override 206 = 0.500000 (replaced)
+[probe] Hull Ark - primary D1.8 material WoodenHull (stored seed 14, 2 twin render(s))
+  conjunct S10 acoustic body: d 14.3225, bar 1.5 -> ok
+  primary d 3.4242  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+   16:36:54
+== Hull Ark | 1002=0.99,1001=0.01,201=1.0,1105=0.05,200=0.8
+[probe] override 1002 = 0.990000 (replaced)
+[probe] override 1001 = 0.010000 (replaced)
+[probe] override 201 = 1.000000 (replaced)
+[probe] override 1105 = 0.050000 (replaced)
+[probe] override 200 = 0.800000 (replaced)
+[probe] Hull Ark - primary D1.8 material WoodenHull (stored seed 14, 2 twin render(s))
+  conjunct S10 acoustic body: d 10.7501, bar 1.5 -> ok
+  primary d 6.7306  bar 4.0000  attribBase -1.0000  state ok  -> PASS
+   16:39:00
+== Crowded Dark | 1105=0.2,201=1.0
+[probe] override 1105 = 0.200000 (appended)
+[probe] override 201 = 1.000000 (appended)
+[probe] Crowded Dark - primary M3 Density (stored seed 15, 1 twin render(s))
+  primary d 4.1669  bar 4.0000  attribBase -1.0000  state ok  -> PASS
+   16:40:55
+== Monolith | 1105=0.1,201=1.0
+[probe] override 1105 = 0.100000 (replaced)
+[probe] override 201 = 1.000000 (replaced)
+[probe] Monolith - primary M12 Mass (stored seed 4, 1 twin render(s))
+  primary d 2.6082  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+   16:43:01
+== Stone Gravity | 1105=0.1,201=1.0,600=0.375
+[probe] override 1105 = 0.100000 (appended)
+[probe] override 201 = 1.000000 (appended)
+[probe] override 600 = 0.375000 (replaced)
+[probe] Stone Gravity - primary M5 Gravity (stored seed 1, 1 twin render(s))
+  primary d 3.1563  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+   16:45:50
+== Erosion | 201=1.0
+[probe] override 201 = 1.000000 (replaced)
+[probe] Erosion - primary M2 Age (stored seed 14, 1 twin render(s))
+  primary d 2.4958  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+   16:48:49
+== Drifting Strata | 1105=0.2,201=1.0
+[probe] override 1105 = 0.200000 (appended)
+[probe] override 201 = 1.000000 (appended)
+[probe] Drifting Strata - primary M4 Movement (stored seed 3, 1 twin render(s))
+  primary d 3.9656  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+   16:51:40
+== Feedback Mire | 1105=0.2,201=1.0,200=0.3
+[probe] override 1105 = 0.200000 (replaced)
+[probe] override 201 = 1.000000 (appended)
+[probe] override 200 = 0.300000 (replaced)
+[probe] Feedback Mire - primary S4 feedback ecology (stored seed 6, 1 twin render(s))
+  primary d 1.3184  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+   16:53:38
+== Fogbound | 1105=0.9,201=1.0
+[probe] override 1105 = 0.900000 (replaced)
+[probe] override 201 = 1.000000 (appended)
+[probe] Fogbound - primary M9 Fog (stored seed 9, 1 twin render(s))
+  primary d 0.9405  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+   16:55:39
+== Colony Pulse | 301=0.1,901=1.0,902=1.0,201=1.0
+[probe] override 301 = 0.100000 (replaced)
+[probe] override 901 = 1.000000 (appended)
+[probe] override 902 = 1.000000 (appended)
+[probe] override 201 = 1.000000 (appended)
+[probe] Colony Pulse - primary S7 ecosystem (stored seed 8, 1 twin render(s))
+  primary d 12.0247  bar 4.0000  attribBase -1.0000  state ok  -> PASS
+   16:58:22
+END 16:58:22

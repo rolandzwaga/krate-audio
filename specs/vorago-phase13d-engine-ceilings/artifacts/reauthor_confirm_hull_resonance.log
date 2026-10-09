@@ -1,0 +1,26 @@
+START 2026-10-08 16:38:26 reauthor_confirm_hull_resonance tree=9f42b500 final binary VORAGO_PILOT_PRESET="Hull Resonance" VORAGO_PILOT_OVERRIDE=107=1.0 VORAGO_PILOT_SECONDARY=1 VORAGO_PILOT_CELLS="M8 Weight" 
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 2101202050
+[probe] override 107 = 1.000000 (appended)
+[probe] lever: none
+[probe] Hull Resonance - primary S10 acoustic body (stored seed 11, 1 twin render(s))
+  take: peak 0.5410  arm1 hi -17.68 dB [yes]  arm2 lo -22.09 dB [yes]  arm3 late-sus -0.24 dB [yes]  arm4 tail -136.06 dB [yes]
+  arm1@44.1k: finite y peak 0.5323 hi -18.72 dB [PASS]
+  primary d 9.8642  bar 4.0000  attribBase -1.0000  state ok  -> PASS  loopsAlive -  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  secondary D2 body blend both heard: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+  secondary D1.6 material StoneChamber: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+  secondary D1.7 material SteelTank: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+  secondary M8 Weight: d 1.9584 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "" -> VERIFIED
+  take j=0 seed 11: peak 0.5410  arm1 hi -17.68 dB [yes]  arm2 lo -22.09 dB [yes]  arm3 late-sus -0.24 dB [yes]  arm4 tail -136.06 dB [yes]
+  take j=1 seed 12: peak 0.5996  arm1 hi -16.60 dB [yes]  arm2 lo -22.32 dB [yes]  arm3 late-sus +0.98 dB [yes]  arm4 tail -128.72 dB [yes]
+  take j=2 seed 13: peak 0.6239  arm1 hi -16.46 dB [yes]  arm2 lo -22.43 dB [yes]  arm3 late-sus +1.27 dB [yes]  arm4 tail -123.16 dB [yes]
+  take j=3 seed 14: peak 0.5588  arm1 hi -17.43 dB [yes]  arm2 lo -23.50 dB [yes]  arm3 late-sus +1.40 dB [yes]  arm4 tail -152.19 dB [yes]
+  take j=0 d 9.8642
+  take j=1 d 8.5327
+  take j=2 d 10.8734
+  take j=3 d 12.5993
+===============================================================================
+All tests passed (21 assertions in 1 test case)
+
+exit=0 END 2026-10-08 17:07:42

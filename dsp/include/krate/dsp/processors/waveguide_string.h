@@ -562,6 +562,14 @@ public:
     /// @return true if prepare() has been called
     [[nodiscard]] bool isPrepared() const noexcept { return prepared_; }
 
+    /// @brief Bytes of heap held - the two delay lines of the waveguide.
+    ///
+    /// Every other member is a filter, a smoother or a scalar, so this IS the
+    /// string's total.
+    [[nodiscard]] size_t getAllocatedBytes() const noexcept {
+        return nutSideDelay_.getAllocatedBytes() + bridgeSideDelay_.getAllocatedBytes();
+    }
+
     // Debug accessors (TEST ONLY -- will be removed after tuning calibration)
     size_t debugNutDelay_ = 0;
     size_t debugBridgeDelay_ = 0;

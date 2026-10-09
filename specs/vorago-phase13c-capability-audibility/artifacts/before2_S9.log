@@ -1,0 +1,13 @@
+START 2026-10-01 19:26:18 before2_S9 tree=ae149a1c+working-copy reporting binary (vorago_tests.exe mtime 2026-10-01 19:14:53) as-compiled (no override, no lever) preset="Choir of Absence"
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 409807109
+[probe] lever: none
+[probe] Choir of Absence - primary S9 ghost / atmosphere (stored seed 10, 1 twin render(s))
+  take: peak 0.9661  arm1 hi -6.88 dB [yes]  arm2 lo -16.91 dB [yes]  arm3 late-sus -1.08 dB [yes]  arm4 tail -166.87 dB [yes]
+  arm1@44.1k: finite y peak 0.9661 hi -6.50 dB [PASS]
+  primary d 1.8349  bar 4.0000  attribBase -1.0000  state ok  -> FAIL  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (9 assertions in 1 test case)
+
+END 2026-10-01 19:29:47 exit=0 wall=209s

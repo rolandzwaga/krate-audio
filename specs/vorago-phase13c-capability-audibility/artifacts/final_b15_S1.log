@@ -1,0 +1,18 @@
+START 2026-10-05 07:40:30 Wind Through Basalt as compiled with the B-15 def edit, no override exe=2026-10-05 07:40:29
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 1944709579
+[probe] lever: none
+[probe] Wind Through Basalt - primary S1 noise organism (stored seed 2, 1 twin render(s))
+  take: peak 0.3656  arm1 hi -21.70 dB [yes]  arm2 lo -27.54 dB [yes]  arm3 late-sus +0.46 dB [yes]  arm4 tail -131.05 dB [yes]
+  arm1@44.1k: finite y peak 0.3319 hi -21.32 dB [PASS]
+  primary d 4.9774  bar 4.0000  attribBase -1.0000  state ok  -> PASS  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  secondary D3.1 noise model Direct: d 4.9774 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "" -> VERIFIED
+  secondary D4.1 noise type White: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+  secondary D4.2 noise type Pink: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+  secondary D4.3 noise type TapeHiss: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+  secondary D4.7 noise type Blue: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+===============================================================================
+All tests passed (9 assertions in 1 test case)
+
+exit=0 END 2026-10-05 07:46:43

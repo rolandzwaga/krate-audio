@@ -1,0 +1,22 @@
+T061 2026-10-05 14:10:55
+CMakeLists diff vs 64f57e1a: []
+dsp/tests/CMakeLists.txt vorago_voice_test.cpp: 498:    #   vorago_voice_test.cpp           SC-007(voice), SC-017, SC-017a, SC-018a, SC-019a,
+dsp/tests/CMakeLists.txt vorago_engine_test.cpp: 501:    #   vorago_engine_test.cpp          SC-004a, SC-006, SC-007(engine), SC-011, SC-012,
+dsp/tests/CMakeLists.txt vorago_macro_test.cpp: 505:    #   vorago_macro_test.cpp           SC-008 (eleven macros), SC-009, SC-010, SC-023(matrix),
+dsp/tests/CMakeLists.txt vorago_perf_test.cpp: 509:    #   vorago_perf_test.cpp            SC-001a, SC-001b, SC-002 (+ the advanceLifeOnly/L arm),
+dsp/tests/CMakeLists.txt vorago_ghost_ext_test.cpp: 533:    #   vorago_ghost_ext_test.cpp          SC-010 only (the vorago_engine.h side)
+dsp/tests/CMakeLists.txt vorago_ecosystem_lever_test.cpp: 555:    #   vorago_ecosystem_lever_test.cpp          SC-006..SC-009, SC-010 (a), SC-011, SC-012,
+plugins/vorago/tests/CMakeLists.txt preset_pilot_test.cpp: 60:    integration/preset_pilot_test.cpp
+plugins/vorago/tests/CMakeLists.txt preset_sweep_test.cpp: 58:    integration/preset_sweep_test.cpp
+dsp_systems_tests VoragoVoice_CloudFloorCpuProbe: 1
+dsp_systems_tests VoragoVoice_CloudRichnessFloor: 1
+dsp_systems_tests VoragoVoice_CloudRichnessFloorNeutral: 1
+dsp_systems_tests VoragoVoice_BloomChildrenAudible: 1
+dsp_systems_tests VoragoVoice_CloudFloorEdge: 1
+dsp_systems_tests VoragoVoice_RouteLeverZeroAtZeroLane: 1
+dsp_systems_tests VoragoVoice_EcologyWetMakeupInstalled: 1
+dsp_systems_tests VoragoVoice_AttackCurveReach: 1
+dsp_systems_tests VoragoVoice_AttackTracksStageTime: 1
+dsp_systems_tests VoragoVoice_LifeLaneDepthZero: 1
+dsp_systems_tests VoragoEngine_CapabilityLeverBounded: 1
+vorago_tests Vorago_PresetSweep_MeasuredAttackWindow: 1

@@ -1,0 +1,14 @@
+START 2026-10-07 20:06:16 t015_before binary=base (f376785f, pre-instrument) VORAGO_PILOT_PRESET="Feeding Loops" env: VORAGO_PILOT_LOOPBUS=1 case: Vorago_PresetPilot_PrimaryProbe
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 15120617
+[probe] lever: none
+[probe] Feeding Loops - primary E4 feedback -> loop wake (stored seed 8, 4 twin render(s))
+  take: peak 0.1966  arm1 hi -25.65 dB [yes]  arm2 lo -40.62 dB [yes]  arm3 late-sus +4.63 dB [yes]  arm4 tail -206.86 dB [yes]
+  arm1@44.1k: finite y peak 0.1689 hi -26.29 dB [PASS]
+  route arms: d(R_k, R_k0) 2.9182, attribBase d(R_0, R_00) 0.9851 (attributable iff d >= 2.4851)
+  primary d 2.9182  bar 4.0000  attribBase 0.9851  state ok  -> FAIL  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (16 assertions in 1 test case)
+
+exit=0 END 2026-10-07 20:15:04

@@ -1,0 +1,118 @@
+===== SympatheticResonance SIMD performance benchmark
+pin-perf-cores: performance-core mask 0xFFFF
+Filters: "SympatheticResonance" "SIMD" "performance" "benchmark"
+Randomness seeded to: 1300338167
+No test cases matched '"SympatheticResonance" "SIMD" "performance" "benchmark"'
+===============================================================================
+No tests ran
+
+exit 2
+===== NoiseOrganism_CpuBudget
+pin-perf-cores: performance-core mask 0xFFFF
+Filters: "NoiseOrganism_CpuBudget"
+Randomness seeded to: 1526427369
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+NoiseOrganism_CpuBudget
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\noise_organism_perf_test.cpp(1803)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\noise_organism_perf_test.cpp(1901): warning:
+  
+============================================================================
+  =====
+    NoiseOrganism SC-004 CPU BUDGET   (48 kHz, 512-sample blocks)
+    specs/vorago-phase2-noise-organism, FR-095 / SC-004, tasks.md T020
+    best-of-25 x 500 blocks after 400 warm-up, 200 settle blocks before each
+  =============================================================================
+  ====
+  (a) 2 slots, Direct, 2 res + 2 combs               76552.2 ns/block      0.
+  7177 % of one core
+          baseline    62532.0   gate (x1.5)    93798.0   within baseline
+  (b) 4 slots, Direct, 3 res + 2 combs              120520.8 ns/block      1.
+  1299 % of one core
+          baseline   124444.0   gate (x1.5)   186666.0   within baseline
+  (c) ref: 4 slots, 4 models, 3 res + 2 combs       133124.8 ns/block      1.
+  2480 % of one core
+          baseline   124444.0   gate (x1.5)   186666.0   within baseline
+  (d) max caps: 4 slots dust, 4 res + 4 combs       270733.8 ns/block      2.
+  5381 % of one core
+          baseline   282950.0   gate (x1.5)   424425.0   within baseline
+  [out-of-region: own baseline only]
+  (e) all dormant: (c) with every slot dormant       48426.2 ns/block      0.
+  4540 % of one core
+          baseline    56138.0   gate (x1.5)    84207.0   within baseline
+  [out-of-region: own baseline only]
+  -----------------------------------------------------------------------------
+  ----
+  FR-095 BUDGET (1.75 % of one core)                186666.0 ns/block      1.
+  7500 % of one core
+    FR-071 dormancy saving, (c) - (e)                  84698.6 ns/block   63.62
+  % of (c)
+  -----------------------------------------------------------------------------
+  ----
+    copy-pasteable baselines, MEASURED on this machine and this build:
+        constexpr double kCpuBaselineNsA    =    76552.2;
+        constexpr double kCpuBaselineNsB    =   120520.8;
+        constexpr double kCpuBaselineNsC    =   133124.8;
+        constexpr double kCpuBaselineNsD    =   270733.8;
+        constexpr double kCpuBaselineNsE    =    48426.2;
+    Transcribing a measured figure OVER a projection is always correct.
+    RAISING one so a REQUIRE passes is forbidden (FR-095 / OQ-CPU-POLICY).
+    A transcribed (a)/(b)/(c) baseline must still satisfy BOTH compile-time
+    clauses; one that cannot is the stop-and-surface case, not a licence to
+    weaken the clause.
+  =============================================================================
+  ====
+    SC-004 (c) IS WITHIN BUDGET: 53541.2 ns of headroom (71.32 % of the FR-095
+  ceiling).
+  =============================================================================
+  ====
+
+===============================================================================
+All tests passed (112 assertions in 1 test case)
+
+exit 0
+===== VoragoVoice_CompositionOverhead
+pin-perf-cores: performance-core mask 0xFFFF
+Filters: "VoragoVoice_CompositionOverhead"
+Randomness seeded to: 2359337544
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+VoragoVoice_CompositionOverhead
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_perf_test.cpp(1420)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_perf_test.cpp(1605): 
+warning:
+  SC-003 - VoragoVoice composition overhead, ns per 512-sample block @ 48 kHz
+      cloud                 : 60977.4
+      noise + decorrelation : 129178
+      resonance             : 54441.8
+      ecology               : 99125.6
+      bloom (step 2)        : 244.2
+      body A                : 29388.6
+      body B                : 29478
+      envelope + blend      : 1820.4
+      L (step 1 in full)    : 9925.4
+      ------------------------------------------
+      sum of standalone     : 414579
+      measured VoragoVoice  : 472720
+      ratio whole / sum     : 1.14024   (bound 1.15)
+      bound in ns           : 476766   - if this is exceeded, fix the
+  COMPOSITION, never the 1.15 (FR-082)
+
+===============================================================================
+All tests passed (5 assertions in 1 test case)
+
+exit 0

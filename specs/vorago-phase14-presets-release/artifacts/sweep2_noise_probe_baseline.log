@@ -1,0 +1,18 @@
+START 13:01:40
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 2115101678
+[probe] Dead Air - primary D3.1 noise model Direct (stored seed 4, 2 twin render(s))
+  conjunct S1 noise organism: d 0.1168, bar 1.5 -> FAIL
+  primary d 0.0000  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+===============================================================================
+All tests passed (8 assertions in 1 test case)
+
+-- Dead Air exit=0 13:03:34
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 703240022
+[probe] Wind Through Basalt - primary S1 noise organism (stored seed 2, 1 twin render(s))
+  primary d 5.3512  bar 4.0000  attribBase -1.0000  state ok  -> PASS
+===============================================================================
+All tests passed (7 assertions in 1 test case)
+
+-- Wind Through Basalt exit=0 13:05:55

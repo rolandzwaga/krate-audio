@@ -1,0 +1,18 @@
+START 2026-10-08 17:28:49 tree=579eefa3 node tools/check-portability.js (T059)
+check-portability: WSL with g++ not available -- skipping.
+Install with: wsl --install, then `sudo apt install g++`
+exit=0 END 2026-10-08 17:30:07
+RETRY 2026-10-08 19:31:50 tree=579eefa3 (first attempt 17:28 skipped: WSL VM create timed out under 8 sweep shards)
+/usr/bin/g++
+g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+check-portability: 6 translation unit(s) with g++
+
+  OK      dsp/tests/unit/systems/vorago_ecosystem_lever_test.cpp
+  OK      dsp/tests/unit/systems/vorago_engine_test.cpp
+  OK      dsp/tests/unit/systems/vorago_macro_retune_probe_test.cpp
+  OK      dsp/tests/unit/systems/vorago_voice_test.cpp
+  OK      plugins/vorago/tests/integration/ecosystem_rule_probe_test.cpp
+  OK      plugins/vorago/tests/integration/preset_pilot_test.cpp
+
+check-portability: all clear -- 6 compiled.
+exit=0 END 2026-10-08 19:32:13

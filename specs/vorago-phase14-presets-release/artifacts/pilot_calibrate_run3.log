@@ -1,0 +1,47 @@
+START 2026-09-29 18:38:34 pilot run 3 under the G2 rulings (Growth Ring v3, Glass Well v4)
+Filters: "Vorago_PresetPilot_Calibrate"
+Randomness seeded to: 1629012047
+
+=== Vorago_PresetPilot_Calibrate (FR-017a, plan 6.16 steps 2-5, G2) ===
+P0 default surface + P1..P4 (T037, G2 set), 16 seed indices each, 48 kHz, block 512, pool width 4
+timeline cross-check: makeTimeline(default) A = 155.000  M1 = [160.000, 220.000]  M2 = [220.000, 280.000]  M3 = [280.000, 340.000]  H = 340.000  (E0: 155 / 340)
+[pilot] P0 <default surface>: stored seed 0, A = 155.0 s, H = 340.0 s, total = 420.0 s, rendering 16 takes...
+[pilot] P1 Tectonic Floor: stored seed 1, A = 155.0 s, H = 340.0 s, total = 412.0 s, rendering 16 takes...
+[pilot] P2 Cathedral Void: stored seed 5, A = 155.0 s, H = 340.0 s, total = 440.0 s, rendering 16 takes...
+[pilot] P3 Growth Ring: stored seed 9, A = 60.0 s, H = 245.0 s, total = 325.0 s, rendering 16 takes...
+[pilot] P4 Glass Well: stored seed 12, A = 155.0 s, H = 340.0 s, total = 408.0 s, rendering 16 takes...
+
+t_K curve (2*t_K <= 4.0 ?)         K=1             K=2             K=4             K=8            
+P0 <default surface>               5.9515   no     3.2013   no     0.7293   yes    0.8423   yes   
+P1 Tectonic Floor                  0.7428   yes    1.3691   yes    0.3344   yes    0.7175   yes   
+P2 Cathedral Void                  1.9224   yes    0.8153   yes    0.6223   yes    0.3963   yes   
+P3 Growth Ring                     3.9039   no     0.8781   yes    1.5096   yes    0.2406   yes   
+P4 Glass Well                      1.7807   yes    2.5604   no     1.4942   yes    1.1061   yes   
+
+ruled K = 4
+[pilot] P3' (600 +0.042, 700 +0.02 normalized): stored seed 1, rendering 4 takes...
+
+d(P3, P3') over A_4 = 1.6445 -> ok
+[pilot] rendering 5 primary twin(s)...
+
+preset                             s(P)    
+P0 <default surface>               1.9207   (no primary)
+P1 Tectonic Floor - primary S5 subharmonic
+  s(P) 4.9473  primary d 6.9068  bar 4.0000  state ok  -> PASS
+P2 Cathedral Void - primary S8 cavern space
+  s(P) 1.8587  primary d 9.4813  bar 4.0000  state ok  -> PASS
+P3 Growth Ring - primary D8.2 envelope Growth
+  attack window (W_end 65.0 s): d_att 8.1910, d_Sus 0.1817 (attributable iff d_att >= 1.6817)
+    P: first reaches RMS(Sus) - 6 dB at 30 s
+    P_rev: first reaches RMS(Sus) - 6 dB at 4 s
+  s(P) 2.4950  primary d 8.1910  bar 4.0000  state ok  -> PASS
+P4 Glass Well - primary D1.1 material Glass
+  conjunct S10 acoustic body: d 12.5115, bar max(1.5, 3.9197) -> ok
+  s(P) 1.9599  primary d 4.4031  bar 4.0000  state ok  -> PASS
+
+wall clock: 1469.8 s (24.5 min)
+G2: PROCEED with K = 4
+===============================================================================
+All tests passed (188 assertions in 1 test case)
+
+exit=0 END 2026-09-29 19:03:04

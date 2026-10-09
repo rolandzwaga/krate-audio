@@ -1,0 +1,106 @@
+Filters: "ZZDiag_CeilingProfile"
+Randomness seeded to: 303689748
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+vorago_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+ZZDiag_CeilingProfile
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\vorago\tests\integration\processor_audio_test.cpp(260)
+...............................................................................
+
+F:\projects\iterum\plugins\vorago\tests\integration\processor_audio_test.cpp(273): warning:
+  vel=0.787402 t=0s peakL=0.00572607 rmsL=0.00123484
+
+F:\projects\iterum\plugins\vorago\tests\integration\processor_audio_test.cpp(273): warning:
+  vel=0.787402 t=2s peakL=0.0193117 rmsL=0.00527684
+
+F:\projects\iterum\plugins\vorago\tests\integration\processor_audio_test.cpp(273): warning:
+  vel=0.787402 t=4s peakL=0.0571626 rmsL=0.0190872
+
+F:\projects\iterum\plugins\vorago\tests\integration\processor_audio_test.cpp(273): warning:
+  vel=0.787402 t=6s peakL=0.0940691 rmsL=0.0326655
+
+F:\projects\iterum\plugins\vorago\tests\integration\processor_audio_test.cpp(273): warning:
+  vel=0.787402 t=8s peakL=0.125891 rmsL=0.0435398
+
+F:\projects\iterum\plugins\vorago\tests\integration\processor_audio_test.cpp(273): warning:
+  vel=0.787402 t=10s peakL=0.131432 rmsL=0.049251
+
+F:\projects\iterum\plugins\vorago\tests\integration\processor_audio_test.cpp(273): warning:
+  vel=0.787402 t=12s peakL=0.140621 rmsL=0.0517415
+
+F:\projects\iterum\plugins\vorago\tests\integration\processor_audio_test.cpp(273): warning:
+  vel=0.787402 t=14s peakL=0.183013 rmsL=0.0577469
+
+F:\projects\iterum\plugins\vorago\tests\integration\processor_audio_test.cpp(273): warning:
+  vel=0.787402 t=16s peakL=0.233756 rmsL=0.0642581
+
+F:\projects\iterum\plugins\vorago\tests\integration\processor_audio_test.cpp(273): warning:
+  vel=0.787402 t=18s peakL=0.208719 rmsL=0.0657469
+
+F:\projects\iterum\plugins\vorago\tests\integration\processor_audio_test.cpp(273): warning:
+  vel=0.787402 t=20s peakL=0.195642 rmsL=0.0641515
+
+F:\projects\iterum\plugins\vorago\tests\integration\processor_audio_test.cpp(273): warning:
+  vel=0.787402 t=22s peakL=0.181706 rmsL=0.0630012
+
+F:\projects\iterum\plugins\vorago\tests\integration\processor_audio_test.cpp(273): warning:
+  vel=0.787402 t=24s peakL=0.19196 rmsL=0.057932
+
+F:\projects\iterum\plugins\vorago\tests\integration\processor_audio_test.cpp(273): warning:
+  vel=0.787402 t=26s peakL=0.177297 rmsL=0.0587137
+
+F:\projects\iterum\plugins\vorago\tests\integration\processor_audio_test.cpp(273): warning:
+  vel=0.787402 t=28s peakL=0.173976 rmsL=0.0559144
+
+F:\projects\iterum\plugins\vorago\tests\integration\processor_audio_test.cpp(273): warning:
+  vel=1 t=0s peakL=0.00727209 rmsL=0.00156819
+
+F:\projects\iterum\plugins\vorago\tests\integration\processor_audio_test.cpp(273): warning:
+  vel=1 t=2s peakL=0.0291393 rmsL=0.00705873
+
+F:\projects\iterum\plugins\vorago\tests\integration\processor_audio_test.cpp(273): warning:
+  vel=1 t=4s peakL=0.0703233 rmsL=0.0218457
+
+F:\projects\iterum\plugins\vorago\tests\integration\processor_audio_test.cpp(273): warning:
+  vel=1 t=6s peakL=0.0995879 rmsL=0.0349491
+
+F:\projects\iterum\plugins\vorago\tests\integration\processor_audio_test.cpp(273): warning:
+  vel=1 t=8s peakL=0.132818 rmsL=0.0447046
+
+F:\projects\iterum\plugins\vorago\tests\integration\processor_audio_test.cpp(273): warning:
+  vel=1 t=10s peakL=0.132828 rmsL=0.0498796
+
+F:\projects\iterum\plugins\vorago\tests\integration\processor_audio_test.cpp(273): warning:
+  vel=1 t=12s peakL=0.142418 rmsL=0.052122
+
+F:\projects\iterum\plugins\vorago\tests\integration\processor_audio_test.cpp(273): warning:
+  vel=1 t=14s peakL=0.184392 rmsL=0.0581665
+
+F:\projects\iterum\plugins\vorago\tests\integration\processor_audio_test.cpp(273): warning:
+  vel=1 t=16s peakL=0.236611 rmsL=0.0646715
+
+F:\projects\iterum\plugins\vorago\tests\integration\processor_audio_test.cpp(273): warning:
+  vel=1 t=18s peakL=0.210304 rmsL=0.0659919
+
+F:\projects\iterum\plugins\vorago\tests\integration\processor_audio_test.cpp(273): warning:
+  vel=1 t=20s peakL=0.196244 rmsL=0.0642466
+
+F:\projects\iterum\plugins\vorago\tests\integration\processor_audio_test.cpp(273): warning:
+  vel=1 t=22s peakL=0.181935 rmsL=0.0630429
+
+F:\projects\iterum\plugins\vorago\tests\integration\processor_audio_test.cpp(273): warning:
+  vel=1 t=24s peakL=0.192089 rmsL=0.0579463
+
+F:\projects\iterum\plugins\vorago\tests\integration\processor_audio_test.cpp(273): warning:
+  vel=1 t=26s peakL=0.177326 rmsL=0.0587134
+
+F:\projects\iterum\plugins\vorago\tests\integration\processor_audio_test.cpp(273): warning:
+  vel=1 t=28s peakL=0.173983 rmsL=0.0559173
+
+===============================================================================
+All tests passed (33764 assertions in 1 test case)
+

@@ -1,0 +1,201 @@
+START 2026-10-08 14:32:51 final_gate2_table_lifemax tree=c351fe0f+final (build_final.log) preset="" env: VORAGO_PROBE_SURFACE=109=1 VORAGO_PROBE_T0=4.5842 VORAGO_PROBE_LANES=1
+Filters: "Vorago_EcosystemRuleProbe"
+Randomness seeded to: 303514440
+[probe] surface overrides: 109=1; knob filter: all; reference: none + true-off; wake bases: shipped (vorago_voice.h kPeakWakeBase / kLoopWakeBase)
+[probe] rendering default surface (340 s)...
+[probe] rendering seed twin (340 s)...
+[probe] rendering true-off reference (340 s)...
+[probe] rendering true-off seed twin (340 s)...
+t0 pinned by VORAGO_PROBE_T0 = 4.5842 (six-seed median off-reseed); this run's own off pair = 4.5842
+[probe] rendering predation = 0 (340 s)...
+[probe] rendering predation = 1 (340 s)...
+[probe] rendering syncRate = 0.5 (340 s)...
+[probe] rendering exchangeRate = 0 (340 s)...
+[probe] rendering exchangeRate = 3 (340 s)...
+[probe] rendering crowding = 0 (340 s)...
+[probe] rendering crowding = 0.2 (340 s)...
+[probe] rendering forageRate = 0 (340 s)...
+[probe] rendering forageRate = 0.05 (340 s)...
+[probe] rendering feedRate = 1 (340 s)...
+[probe] rendering grazeRate = 0 (340 s)...
+[probe] rendering grazeRate = 3 (340 s)...
+[probe] rendering leakRate = 0 (340 s)...
+[probe] rendering leakRate = 1 (340 s)...
+[probe] rendering moveRate = 0 (340 s)...
+[probe] rendering moveRate = 0.5 (340 s)...
+[probe] rendering maxSpeed = 0.001 (340 s)...
+[probe] rendering maxSpeed = 0.05 (340 s)...
+[probe] rendering kernelSigma = 0.01 (340 s)...
+[probe] rendering kernelSigma = 0.35 (340 s)...
+[probe] rendering freqDrift = 0 (340 s)...
+[probe] rendering freqDrift = 0.0002 (340 s)...
+[probe] rendering selfAffinity = -2 (340 s)...
+[probe] rendering selfAffinity = 2 (340 s)...
+[probe] rendering crossAffinity = -2 (340 s)...
+[probe] rendering crossAffinity = 2 (340 s)...
+
+=== Vorago_EcosystemRuleProbe (FR-070) ===
+renders: 28 (default + seed twin + 26 extremes), 340 s each, 48 kHz, block 512
+surface overrides: 109=1; wake bases: shipped (vorago_voice.h kPeakWakeBase / kLoopWakeBase)
+default M1 stereo RMS: -27.02 dBFS
+default per-minute: M1 RMS -27.02 dBFS colony 0.483648 | M2 RMS -26.63 dBFS colony 0.481807 | M3 RMS -25.85 dBFS colony 0.482763
+t0on = d(default, seed twin) = 3.8391   (ecosystem on; informational since 2026-09-28)
+t0 = d(true-off, true-off seed twin) = 4.5842   INAUDIBLE threshold f*t0 = 2.2921   (f = 0.50; the yardstick: non-ecosystem randomness, rulings 2026-09-28)
+DESCRIPTOR default band=7.454471,-0.175879,-4.727442,-4.378801,-10.011215,-13.097734,-15.914131,-17.096912,-17.834020 motion=0.163136 flux=-2.222782 corr=-3.531866 energySpread=1.375192 crest=3.926753
+LANES default Partial=0.764940/0.548556/0.927192/0.000119 Resonator=0.287749/0.225070/0.348392/0.000023 Noise=0.540934/0.491580/0.592046/0.000035 Feedback=0.496199/0.448014/0.541083/0.000021 Ghost=0.753263/0.600607/0.915274/0.000120
+DESCRIPTOR trueoff band=7.625347,-0.031576,-5.742881,-8.913213,-12.072790,-13.735241,-14.830431,-15.798554,-16.515536 motion=0.185432 flux=-2.312226 corr=-3.528602 energySpread=0.621603 crest=3.161628
+true-off reference (FR-007, offValid): d(default, true-off) = 5.6621   d/t0 = 1.235   M1 RMS -26.18 dBFS
+GATE1 surface=109=1 t0=4.5842 t0on=3.8391 d(on,off)=5.6621 d/t0=1.235 verdict=PASS
+
+knob           range              default    extreme      d         d/t0      dOff/t0   flags / E cells (P-4)
+kernelSigma    [0.01, 0.35]       0.03       0.01         0.3803    0.083     1.200     INAUDIBLE .lo,.hi
+                 M1 rms -26.62 dBFS  dRMS +0.40 dB  colony 0.447559  colony/base 0.925
+                 M2 rms -26.51 dBFS  dRMS +0.12 dB  colony 0.443083  colony/base 0.920
+                 M3 rms -26.04 dBFS  dRMS -0.19 dB  colony 0.443810  colony/base 0.919
+LANES kernelSigma.lo Partial=0.622759/0.549648/0.686498/0.000091 Resonator=0.257299/0.203057/0.307279/0.000020 Noise=0.499215/0.445607/0.569555/0.000044 Feedback=0.445200/0.379154/0.501868/0.000036 Ghost=0.665340/0.571209/0.791161/0.000112
+                                             0.35         3.0760    0.671     0.622     counted 
+                 M1 rms -25.19 dBFS  dRMS +1.83 dB  colony 0.257574  colony/base 0.533
+                 M2 rms -25.28 dBFS  dRMS +1.35 dB  colony 0.251649  colony/base 0.522
+                 M3 rms -25.31 dBFS  dRMS +0.54 dB  colony 0.256891  colony/base 0.532
+LANES kernelSigma.hi Partial=0.250390/0.250303/0.250488/0.000000 Resonator=0.201622/0.190012/0.209174/0.000006 Noise=0.230351/0.200674/0.250255/0.000008 Feedback=0.232944/0.220121/0.244858/0.000012 Ghost=0.250394/0.250306/0.250497/0.000000
+               best counted d 3.0760 (d/t0 0.671)   max d 3.0760 (d/t0 0.671)
+leakRate       [0, 1]             0.06       0            2.7389    0.597     0.844     counted .lo,.hi
+                 M1 rms -25.90 dBFS  dRMS +1.13 dB  colony 0.481558  colony/base 0.996
+                 M2 rms -26.83 dBFS  dRMS -0.20 dB  colony 0.464615  colony/base 0.964
+                 M3 rms -26.56 dBFS  dRMS -0.71 dB  colony 0.455870  colony/base 0.944
+LANES leakRate.lo Partial=0.979052/0.892140/1.000000/0.000007 Resonator=0.281950/0.277918/0.290643/0.000001 Noise=0.606989/0.591069/0.625000/0.000002 Feedback=0.355472/0.322345/0.417655/0.000006 Ghost=0.724727/0.724727/0.724728/0.000000
+                                             1            5.6030    1.222     0.062     OFF-LIKE 
+                 M1 rms -26.33 dBFS  dRMS +0.69 dB  colony 0.077918  colony/base 0.161
+                 M2 rms -26.09 dBFS  dRMS +0.54 dB  colony 0.077459  colony/base 0.161
+                 M3 rms -25.77 dBFS  dRMS +0.08 dB  colony 0.077976  colony/base 0.162
+LANES leakRate.hi Partial=0.136138/0.116465/0.165124/0.000028 Resonator=0.046369/0.033679/0.060571/0.000006 Noise=0.086490/0.071665/0.101287/0.000007 Feedback=0.079698/0.062538/0.095841/0.000007 Ghost=0.141340/0.118073/0.167095/0.000022
+               best counted d 2.7389 (d/t0 0.597)   max d 5.6030 (d/t0 1.222)
+moveRate       [0, 0.5]           0.2        0            0.3689    0.080     1.214     INAUDIBLE .lo,.hi
+                 M1 rms -26.92 dBFS  dRMS +0.11 dB  colony 0.483756  colony/base 1.000
+                 M2 rms -26.76 dBFS  dRMS -0.13 dB  colony 0.481989  colony/base 1.000
+                 M3 rms -25.81 dBFS  dRMS +0.04 dB  colony 0.482784  colony/base 1.000
+LANES moveRate.lo Partial=0.744232/0.618567/0.909198/0.000120 Resonator=0.286288/0.213751/0.349419/0.000024 Noise=0.516899/0.449364/0.575676/0.000030 Feedback=0.483478/0.428859/0.550670/0.000021 Ghost=0.746894/0.610135/0.874170/0.000096
+                                             0.5          2.4560    0.536     1.065     counted 
+                 M1 rms -26.41 dBFS  dRMS +0.61 dB  colony 0.480482  colony/base 0.993
+                 M2 rms -26.79 dBFS  dRMS -0.16 dB  colony 0.480353  colony/base 0.997
+                 M3 rms -25.90 dBFS  dRMS -0.05 dB  colony 0.482240  colony/base 0.999
+LANES moveRate.hi Partial=0.768585/0.570485/0.952712/0.000124 Resonator=0.286222/0.227420/0.344616/0.000025 Noise=0.497697/0.455036/0.566894/0.000034 Feedback=0.510846/0.462236/0.561576/0.000031 Ghost=0.794233/0.577204/1.000000/0.000110
+               best counted d 2.4560 (d/t0 0.536)   max d 2.4560 (d/t0 0.536)
+grazeRate      [0, 3]             0.75       0            5.6573    1.234     0.002     OFF-LIKE .lo,.hi
+                 M1 rms -26.19 dBFS  dRMS +0.83 dB  colony 0.000004  colony/base 0.000
+                 M2 rms -25.94 dBFS  dRMS +0.69 dB  colony 0.000000  colony/base 0.000
+                 M3 rms -25.67 dBFS  dRMS +0.17 dB  colony 0.000000  colony/base 0.000
+LANES grazeRate.lo Partial=0.000003/0.000000/0.000010/0.000000 Resonator=0.000001/0.000000/0.000004/0.000000 Noise=0.000002/0.000000/0.000007/0.000000 Feedback=0.000001/0.000000/0.000003/0.000000 Ghost=0.000003/0.000000/0.000010/0.000000
+                                             3            0.3532    0.077     1.287     INAUDIBLE 
+                 M1 rms -27.11 dBFS  dRMS -0.09 dB  colony 0.495508  colony/base 1.025
+                 M2 rms -26.71 dBFS  dRMS -0.07 dB  colony 0.494287  colony/base 1.026
+                 M3 rms -25.79 dBFS  dRMS +0.06 dB  colony 0.494776  colony/base 1.025
+LANES grazeRate.hi Partial=0.745703/0.550016/0.917226/0.000128 Resonator=0.302204/0.236450/0.356528/0.000024 Noise=0.515795/0.459951/0.556750/0.000033 Feedback=0.522696/0.471735/0.585097/0.000017 Ghost=0.794411/0.590518/1.000000/0.000116
+               best counted d 0.0000 (d/t0 0.000) [none counted]   max d 5.6573 (d/t0 1.234)
+syncRate       [0, 0.5]           0          0.5          1.8549    0.405     1.182     INAUDIBLE .hi
+                 M1 rms -26.84 dBFS  dRMS +0.19 dB  colony 0.478464  colony/base 0.989
+                 M2 rms -26.49 dBFS  dRMS +0.15 dB  colony 0.483353  colony/base 1.003
+                 M3 rms -25.94 dBFS  dRMS -0.10 dB  colony 0.482871  colony/base 1.000
+LANES syncRate.hi Partial=0.730320/0.605739/1.000000/0.000066 Resonator=0.263587/0.228845/0.289864/0.000010 Noise=0.509110/0.426163/0.659788/0.000053 Feedback=0.515999/0.420830/0.570349/0.000030 Ghost=0.767511/0.657784/0.917136/0.000085
+               best counted d 0.0000 (d/t0 0.000) [none counted]   max d 1.8549 (d/t0 0.405)
+exchangeRate   [0, 3]             0.35       0            0.2530    0.055     1.191     INAUDIBLE .lo,.hi
+                 M1 rms -26.77 dBFS  dRMS +0.25 dB  colony 0.483680  colony/base 1.000
+                 M2 rms -26.63 dBFS  dRMS +0.00 dB  colony 0.481860  colony/base 1.000
+                 M3 rms -25.78 dBFS  dRMS +0.07 dB  colony 0.482674  colony/base 1.000
+LANES exchangeRate.lo Partial=0.741051/0.600157/0.876424/0.000110 Resonator=0.284619/0.218301/0.362402/0.000025 Noise=0.513932/0.443414/0.558788/0.000030 Feedback=0.481200/0.407792/0.554315/0.000023 Ghost=0.734245/0.594747/0.867443/0.000092
+                                             3            1.8447    0.402     1.017     INAUDIBLE 
+                 M1 rms -27.39 dBFS  dRMS -0.36 dB  colony 0.478820  colony/base 0.990
+                 M2 rms -26.31 dBFS  dRMS +0.32 dB  colony 0.471728  colony/base 0.979
+                 M3 rms -26.04 dBFS  dRMS -0.19 dB  colony 0.477065  colony/base 0.988
+LANES exchangeRate.hi Partial=0.730907/0.474121/0.914298/0.000143 Resonator=0.229645/0.196342/0.268654/0.000014 Noise=0.655025/0.557352/0.756106/0.000039 Feedback=0.476436/0.399900/0.559517/0.000028 Ghost=0.973477/0.897718/1.000000/0.000025
+               best counted d 0.0000 (d/t0 0.000) [none counted]   max d 1.8447 (d/t0 0.402)
+freqDrift      [0, 0.0002]        4e-05      0            0.3048    0.066     1.190     INAUDIBLE .lo,.hi
+                 M1 rms -27.05 dBFS  dRMS -0.02 dB  colony 0.483215  colony/base 0.999
+                 M2 rms -26.58 dBFS  dRMS +0.05 dB  colony 0.482106  colony/base 1.001
+                 M3 rms -25.74 dBFS  dRMS +0.11 dB  colony 0.483391  colony/base 1.001
+LANES freqDrift.lo Partial=0.763841/0.552706/0.912192/0.000104 Resonator=0.291567/0.222552/0.357503/0.000029 Noise=0.528073/0.487796/0.564289/0.000028 Feedback=0.483982/0.433064/0.533897/0.000024 Ghost=0.759290/0.586243/0.933456/0.000118
+                                             0.0002       1.7354    0.379     1.037     INAUDIBLE 
+                 M1 rms -26.66 dBFS  dRMS +0.37 dB  colony 0.484365  colony/base 1.001
+                 M2 rms -26.75 dBFS  dRMS -0.12 dB  colony 0.479770  colony/base 0.996
+                 M3 rms -26.22 dBFS  dRMS -0.38 dB  colony 0.482296  colony/base 0.999
+LANES freqDrift.hi Partial=0.824802/0.711048/0.952879/0.000082 Resonator=0.281104/0.226960/0.316627/0.000015 Noise=0.541312/0.436992/0.624536/0.000044 Feedback=0.497476/0.432114/0.553488/0.000033 Ghost=0.730105/0.595312/0.834407/0.000131
+               best counted d 0.0000 (d/t0 0.000) [none counted]   max d 1.7354 (d/t0 0.379)
+predation      [0, 1]             0.55       0            0.6020    0.131     1.265     INAUDIBLE .lo,.hi
+                 M1 rms -26.82 dBFS  dRMS +0.20 dB  colony 0.483628  colony/base 1.000
+                 M2 rms -26.36 dBFS  dRMS +0.27 dB  colony 0.481813  colony/base 1.000
+                 M3 rms -25.91 dBFS  dRMS -0.06 dB  colony 0.482589  colony/base 1.000
+LANES predation.lo Partial=0.663063/0.585467/0.768521/0.000077 Resonator=0.278752/0.223057/0.335696/0.000026 Noise=0.520849/0.449340/0.576575/0.000024 Feedback=0.481537/0.424434/0.551841/0.000023 Ghost=0.629203/0.484553/0.743547/0.000081
+                                             1            1.7133    0.374     0.981     INAUDIBLE 
+                 M1 rms -27.45 dBFS  dRMS -0.43 dB  colony 0.481935  colony/base 0.996
+                 M2 rms -26.28 dBFS  dRMS +0.35 dB  colony 0.477264  colony/base 0.991
+                 M3 rms -26.08 dBFS  dRMS -0.24 dB  colony 0.479259  colony/base 0.993
+LANES predation.hi Partial=0.822234/0.638891/0.967742/0.000136 Resonator=0.221925/0.183267/0.265879/0.000014 Noise=0.668029/0.637482/0.725075/0.000024 Feedback=0.432521/0.339845/0.511450/0.000029 Ghost=0.936570/0.741168/1.000000/0.000048
+               best counted d 0.0000 (d/t0 0.000) [none counted]   max d 1.7133 (d/t0 0.374)
+selfAffinity   [-2, 2]            -1         -2           0.0297    0.006     1.236     INAUDIBLE .lo,.hi
+                 M1 rms -27.03 dBFS  dRMS -0.00 dB  colony 0.483648  colony/base 1.000
+                 M2 rms -26.63 dBFS  dRMS +0.00 dB  colony 0.481804  colony/base 1.000
+                 M3 rms -25.84 dBFS  dRMS +0.01 dB  colony 0.482762  colony/base 1.000
+LANES selfAffinity.lo Partial=0.762530/0.551321/0.926963/0.000121 Resonator=0.287253/0.224396/0.349134/0.000023 Noise=0.539501/0.487628/0.592902/0.000034 Feedback=0.498629/0.445301/0.549173/0.000024 Ghost=0.756209/0.600813/0.916919/0.000117
+                                             2            0.8122    0.177     1.364     INAUDIBLE 
+                 M1 rms -27.20 dBFS  dRMS -0.18 dB  colony 0.483607  colony/base 1.000
+                 M2 rms -27.07 dBFS  dRMS -0.44 dB  colony 0.479787  colony/base 0.996
+                 M3 rms -25.86 dBFS  dRMS -0.01 dB  colony 0.481917  colony/base 0.998
+LANES selfAffinity.hi Partial=0.730380/0.516139/0.909343/0.000124 Resonator=0.277121/0.220504/0.337811/0.000025 Noise=0.545767/0.469209/0.612348/0.000031 Feedback=0.515789/0.468986/0.567156/0.000020 Ghost=0.748189/0.543199/0.924295/0.000123
+               best counted d 0.0000 (d/t0 0.000) [none counted]   max d 0.8122 (d/t0 0.177)
+forageRate     [0, 0.05]          0.01       0            0.7899    0.172     1.359     INAUDIBLE .lo,.hi
+                 M1 rms -27.28 dBFS  dRMS -0.26 dB  colony 0.477793  colony/base 0.988
+                 M2 rms -26.73 dBFS  dRMS -0.09 dB  colony 0.474865  colony/base 0.986
+                 M3 rms -25.92 dBFS  dRMS -0.07 dB  colony 0.479307  colony/base 0.993
+LANES forageRate.lo Partial=0.803215/0.652562/0.955224/0.000116 Resonator=0.297829/0.234213/0.350751/0.000024 Noise=0.451273/0.363022/0.539679/0.000037 Feedback=0.523656/0.475708/0.604356/0.000022 Ghost=0.799764/0.675584/0.932549/0.000101
+                                             0.05         0.4971    0.108     1.145     INAUDIBLE 
+                 M1 rms -26.68 dBFS  dRMS +0.34 dB  colony 0.483601  colony/base 1.000
+                 M2 rms -26.60 dBFS  dRMS +0.04 dB  colony 0.482452  colony/base 1.001
+                 M3 rms -25.88 dBFS  dRMS -0.03 dB  colony 0.483212  colony/base 1.001
+LANES forageRate.hi Partial=0.756728/0.593617/0.994972/0.000094 Resonator=0.278361/0.212481/0.349575/0.000023 Noise=0.525519/0.462873/0.575497/0.000035 Feedback=0.502232/0.423800/0.571258/0.000030 Ghost=0.792971/0.662599/0.956105/0.000090
+               best counted d 0.0000 (d/t0 0.000) [none counted]   max d 0.7899 (d/t0 0.172)
+crowding       [0, 0.2]           0.05       0            0.3496    0.076     1.193     INAUDIBLE .lo,.hi
+                 M1 rms -26.76 dBFS  dRMS +0.26 dB  colony 0.482656  colony/base 0.998
+                 M2 rms -26.57 dBFS  dRMS +0.06 dB  colony 0.481773  colony/base 1.000
+                 M3 rms -25.90 dBFS  dRMS -0.05 dB  colony 0.482547  colony/base 1.000
+LANES crowding.lo Partial=0.745737/0.529068/1.000000/0.000113 Resonator=0.285099/0.215695/0.352789/0.000028 Noise=0.521200/0.406235/0.579838/0.000041 Feedback=0.498599/0.458147/0.535574/0.000027 Ghost=0.806493/0.583908/1.000000/0.000098
+                                             0.2          0.1588    0.035     1.242     INAUDIBLE 
+                 M1 rms -26.97 dBFS  dRMS +0.05 dB  colony 0.483631  colony/base 1.000
+                 M2 rms -26.65 dBFS  dRMS -0.02 dB  colony 0.481823  colony/base 1.000
+                 M3 rms -25.84 dBFS  dRMS +0.01 dB  colony 0.482764  colony/base 1.000
+LANES crowding.hi Partial=0.752095/0.544215/0.885394/0.000114 Resonator=0.287936/0.227623/0.348735/0.000023 Noise=0.524753/0.476544/0.558711/0.000034 Feedback=0.494587/0.442942/0.542211/0.000021 Ghost=0.749528/0.602178/0.906530/0.000118
+               best counted d 0.0000 (d/t0 0.000) [none counted]   max d 0.3496 (d/t0 0.076)
+crossAffinity  [-2, 2]            0.45       -2           0.2846    0.062     1.187     INAUDIBLE .lo,.hi
+                 M1 rms -26.82 dBFS  dRMS +0.21 dB  colony 0.483851  colony/base 1.000
+                 M2 rms -26.79 dBFS  dRMS -0.16 dB  colony 0.482050  colony/base 1.001
+                 M3 rms -25.84 dBFS  dRMS +0.01 dB  colony 0.482839  colony/base 1.000
+LANES crossAffinity.lo Partial=0.726425/0.609568/0.887385/0.000119 Resonator=0.284347/0.210268/0.351744/0.000025 Noise=0.521742/0.446873/0.591070/0.000030 Feedback=0.486407/0.431701/0.561167/0.000020 Ghost=0.750979/0.623908/0.896174/0.000092
+                                             2            0.2561    0.056     1.230     INAUDIBLE 
+                 M1 rms -27.03 dBFS  dRMS -0.01 dB  colony 0.483315  colony/base 0.999
+                 M2 rms -26.59 dBFS  dRMS +0.04 dB  colony 0.481531  colony/base 0.999
+                 M3 rms -25.97 dBFS  dRMS -0.12 dB  colony 0.482449  colony/base 0.999
+LANES crossAffinity.hi Partial=0.749868/0.586842/0.960752/0.000099 Resonator=0.289333/0.227207/0.347116/0.000024 Noise=0.540385/0.500193/0.585457/0.000033 Feedback=0.518111/0.466046/0.590737/0.000033 Ghost=0.797717/0.576586/0.968891/0.000118
+               best counted d 0.0000 (d/t0 0.000) [none counted]   max d 0.2846 (d/t0 0.062)
+maxSpeed       [0.001, 0.05]      0.03       0.001        0.1627    0.036     1.259     INAUDIBLE .lo,.hi
+                 M1 rms -26.99 dBFS  dRMS +0.03 dB  colony 0.483064  colony/base 0.999
+                 M2 rms -26.60 dBFS  dRMS +0.03 dB  colony 0.481045  colony/base 0.998
+                 M3 rms -25.83 dBFS  dRMS +0.02 dB  colony 0.482379  colony/base 0.999
+LANES maxSpeed.lo Partial=0.748404/0.565962/0.900266/0.000101 Resonator=0.282020/0.214059/0.335049/0.000022 Noise=0.507956/0.404253/0.563340/0.000039 Feedback=0.498773/0.443420/0.560210/0.000023 Ghost=0.763786/0.583520/0.930529/0.000104
+                                             0.05         0.0005    0.000     1.235     INAUDIBLE 
+                 M1 rms -27.02 dBFS  dRMS +0.00 dB  colony 0.483648  colony/base 1.000
+                 M2 rms -26.63 dBFS  dRMS -0.00 dB  colony 0.481807  colony/base 1.000
+                 M3 rms -25.85 dBFS  dRMS -0.00 dB  colony 0.482763  colony/base 1.000
+LANES maxSpeed.hi Partial=0.764940/0.548556/0.927190/0.000119 Resonator=0.287749/0.225069/0.348392/0.000023 Noise=0.540935/0.491581/0.592043/0.000035 Feedback=0.496199/0.448015/0.541085/0.000021 Ghost=0.753257/0.600585/0.915273/0.000120
+               best counted d 0.0000 (d/t0 0.000) [none counted]   max d 0.1627 (d/t0 0.036)
+feedRate       [0, 1]             0          1            0.0437    0.010     1.233     INAUDIBLE .hi
+                 M1 rms -27.03 dBFS  dRMS -0.01 dB  colony 0.483637  colony/base 1.000
+                 M2 rms -26.63 dBFS  dRMS +0.00 dB  colony 0.481808  colony/base 1.000
+                 M3 rms -25.85 dBFS  dRMS -0.00 dB  colony 0.482763  colony/base 1.000
+LANES feedRate.hi Partial=0.766342/0.549163/0.930258/0.000119 Resonator=0.287539/0.224668/0.348022/0.000022 Noise=0.541510/0.491219/0.594811/0.000035 Feedback=0.495973/0.448009/0.540995/0.000021 Ghost=0.754738/0.600892/0.919338/0.000120
+               best counted d 0.0000 (d/t0 0.000) [none counted]   max d 0.0437 (d/t0 0.010)
+
+audible non-kill knobs: 3 of 14
+table for Phase 14 Q2 — no roster named here
+===============================================================================
+All tests passed (956583 assertions in 1 test case)
+
+exit=0 END 2026-10-08 16:09:25

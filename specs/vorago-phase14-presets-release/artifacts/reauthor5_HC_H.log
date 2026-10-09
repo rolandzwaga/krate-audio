@@ -1,0 +1,17 @@
+START 2026-10-06 12:54:03 Haunted Colony VORAGO_PILOT_OVERRIDE=1101=0.50,201=0.40,1103=0.30
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 451302737
+[probe] override 1101 = 0.500000 (replaced)
+[probe] override 201 = 0.400000 (replaced)
+[probe] override 1103 = 0.300000 (replaced)
+[probe] lever: none
+[probe] Haunted Colony - primary E5 ghost -> ghost bursts (stored seed 12, 4 twin render(s))
+  take: peak 0.4233  arm1 hi -19.61 dB [yes]  arm2 lo -23.37 dB [yes]  arm3 late-sus -0.08 dB [yes]  arm4 tail -164.19 dB [yes]
+  arm1@44.1k: finite y peak 0.6109 hi -17.53 dB [PASS]
+  route arms: d(R_k, R_k0) 6.4119, attribBase d(R_0, R_00) 0.8836 (attributable iff d >= 2.3836)
+  primary d 6.4119  bar 4.0000  attribBase 0.8836  state ok  -> PASS  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (19 assertions in 1 test case)
+
+exit=0 END 2026-10-06 12:58:39

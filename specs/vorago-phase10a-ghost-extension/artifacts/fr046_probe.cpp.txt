@@ -1,0 +1,103 @@
+// =============================================================================
+// FR-046 three-toolchain probe (ruling B-1).
+//
+// Renders Fixture A (atmosphere_ghost_fixtures.h section 6.1) and Fixture B
+// (section 6.2, the B-2 sounding recipe) and prints each fingerprint at full
+// precision, plus the deviation of each against the STORED base-commit
+// constants using render_fingerprint.h's own comparison arithmetic.
+//
+// Built standalone under g++ -O3, g++ -O3 -ffast-math, clang++ -O2 (WSL2
+// Ubuntu 24.04) and MSVC /O2 /fp:fast, exactly as B-1 names.
+// =============================================================================
+#include <enable_ftz_daz.h>
+#include <render_fingerprint.h>
+
+#include "atmosphere_ghost_fixtures.h"
+
+#include <vorago_fixtures.h>
+
+#include <cstdio>
+#include <memory>
+#include <vector>
+
+using Krate::DSP::AtmosphereEngine;
+using Krate::DSP::TestUtils::RenderFingerprint;
+using Krate::DSP::TestUtils::compareFingerprints;
+using Krate::DSP::TestUtils::fingerprintRender;
+
+namespace {
+
+// Byte-for-byte the loop of atmosphere_ghost_test.cpp's renderSpanCapturingLeft:
+// excitation over the WHOLE span, front-to-back in `block`-sample blocks, left
+// channel kept.
+std::vector<float> renderFixtureA() {
+    const std::size_t samples = VoragoGhostFix::kReferenceRenderSamples;
+    const std::size_t block = VoragoGhostFix::kReferenceRenderBlock;
+
+    VoragoGhostFix::GhostConfig config{};
+    auto engine = std::make_unique<AtmosphereEngine>();
+    VoragoGhostFix::applyVoragoGhost(*engine, config);
+
+    std::vector<float> inLeft(samples, 0.0f);
+    std::vector<float> inRight(samples, 0.0f);
+    VoragoGhostFix::excitePinkPlusTone(inLeft, inRight, config.seed);
+
+    std::vector<float> left(samples, 0.0f);
+    std::vector<float> right(block, 0.0f);
+
+    std::size_t rendered = 0;
+    while (rendered < samples) {
+        const std::size_t n = std::min(block, samples - rendered);
+        engine->processStereoBlock(inLeft.data() + rendered, inRight.data() + rendered,
+                                   left.data() + rendered, right.data(), n);
+        rendered += n;
+    }
+    std::printf("fixtureA.grainRngState %u\n", engine->getGrainRngState());
+    std::printf("fixtureA.totalBorn %llu\n",
+                static_cast<unsigned long long>(engine->getTotalGrainsBorn()));
+    return left;
+}
+
+std::vector<float> renderFixtureB() {
+    using Krate::DSP::VoragoEngineConfig;
+    auto engine = Krate::DSP::TestUtils::Vorago::makeEngine(48000.0, VoragoEngineConfig{});
+    engine->setSeed(0x6057u);
+    engine->setPolyphony(1u);
+    engine->noteOn(33u, 100u);
+    std::vector<float> left;
+    std::vector<float> right;
+    Krate::DSP::TestUtils::Vorago::renderEngine(*engine, left, right,
+                                                VoragoGhostFix::kReferenceRenderSamples,
+                                                VoragoGhostFix::kReferenceRenderBlock);
+    return left;
+}
+
+void report(const char* name, const RenderFingerprint& fp, const RenderFingerprint& ref) {
+    std::printf("%s.rms %.17g\n", name, fp.rms);
+    std::printf("%s.peak %.17g\n", name, fp.peak);
+    std::printf("%s.meanAbs %.17g\n", name, fp.meanAbs);
+    std::printf("%s.totalVariation %.17g\n", name, fp.totalVariation);
+    for (std::size_t k = 0; k < Krate::DSP::TestUtils::kRenderCheckpoints; ++k) {
+        std::printf("%s.cp%02zu %.9g\n", name, k, static_cast<double>(fp.checkpoints[k]));
+    }
+    // The measurement B-1 asks for: the deviation of THIS toolchain's render
+    // from the stored MSVC in-suite reference, in exactly the two quantities
+    // compareFingerprints() gates on.
+    const auto cmp = compareFingerprints(fp, ref, 1.0e30, 1.0e30f);
+    std::printf("%s.worstMetricRelativeError %.6g\n", name, cmp.worstMetricRelativeError);
+    std::printf("%s.worstSampleError %.6g\n", name, static_cast<double>(cmp.worstSampleError));
+    std::printf("%s.detail %s\n", name, cmp.detail.c_str());
+}
+
+}  // namespace
+
+int main() {
+    enableFTZDAZ();
+
+    const std::vector<float> a = renderFixtureA();
+    report("A", fingerprintRender(a), VoragoGhostFix::kBaseCommitFingerprint);
+
+    const std::vector<float> b = renderFixtureB();
+    report("B", fingerprintRender(b), VoragoGhostFix::kBaseCommitVoragoFingerprint);
+    return 0;
+}

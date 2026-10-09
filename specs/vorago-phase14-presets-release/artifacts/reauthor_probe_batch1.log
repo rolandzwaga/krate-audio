@@ -1,0 +1,48 @@
+START 14:12:26
+== Steam Vent | 300=0.944444,301=1.0
+[probe] override 300 = 0.944444 (replaced)
+[probe] override 301 = 1.000000 (replaced)
+[probe] Steam Vent - primary D3.4 noise model MetallicHiss (stored seed 11, 2 twin render(s))
+  conjunct S1 noise organism: d 5.6739, bar 1.5 -> ok
+  primary d 5.6739  bar 4.0000  attribBase -1.0000  state ok  -> PASS
+   14:15:52
+== Abyssal Wind | 300=0.944444,301=1.0
+[probe] override 300 = 0.944444 (replaced)
+[probe] override 301 = 1.000000 (replaced)
+[probe] Abyssal Wind - primary D3.2 noise model FilteredWind (stored seed 15, 2 twin render(s))
+  conjunct S1 noise organism: d 4.5922, bar 1.5 -> ok
+  primary d 4.5922  bar 4.0000  attribBase -1.0000  state ok  -> PASS
+   14:18:36
+== Spore Drift | 300=1.0,301=0.75
+[probe] override 300 = 1.000000 (replaced)
+[probe] override 301 = 0.750000 (replaced)
+[probe] Spore Drift - primary D3.3 noise model GranularDust (stored seed 9, 2 twin render(s))
+  conjunct S1 noise organism: d 2.7993, bar 1.5 -> ok
+  primary d 2.7993  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+   14:21:24
+== Spore Drift | 300=1.0,301=1.0
+[probe] override 300 = 1.000000 (replaced)
+[probe] override 301 = 1.000000 (replaced)
+[probe] Spore Drift - primary D3.3 noise model GranularDust (stored seed 9, 2 twin render(s))
+  conjunct S1 noise organism: d 3.2422, bar 1.5 -> ok
+  primary d 3.2422  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+   14:24:10
+== Dead Air | 300=1.0,301=1.0,322=0.181818,323=0.090909
+[probe] override 300 = 1.000000 (replaced)
+[probe] override 301 = 1.000000 (replaced)
+[probe] override 322 = 0.181818 (replaced)
+[probe] override 323 = 0.090909 (replaced)
+[probe] Dead Air - primary D3.1 noise model Direct (stored seed 4, 2 twin render(s))
+  conjunct S1 noise organism: d 3.4516, bar 1.5 -> ok
+  primary d 3.4516  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+   14:27:05
+== Dead Air | 300=1.0,301=0.6,322=0.181818,323=0.090909
+[probe] override 300 = 1.000000 (replaced)
+[probe] override 301 = 0.600000 (replaced)
+[probe] override 322 = 0.181818 (replaced)
+[probe] override 323 = 0.090909 (replaced)
+[probe] Dead Air - primary D3.1 noise model Direct (stored seed 4, 2 twin render(s))
+  conjunct S1 noise organism: d 2.5497, bar 1.5 -> ok
+  primary d 2.5497  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+   14:30:40
+END 14:30:40

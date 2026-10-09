@@ -1,0 +1,16 @@
+START 2026-10-02 11:55:43 T037 VoragoVoice_EcologyWetMakeupInstalled + ecology lever cases on the T038 tree (kEcologyWetMakeupDb 0) exe=2026-10-02 11:55:41
+Filters: "VoragoVoice_EcologyWetMakeupInstalled","VoragoVoice_EcosystemLeverMapping","VoragoVoice_EcosystemLeverNeutral","VoragoEngine_SeamReadbackProbe"
+Randomness seeded to: 108696037
+[seams] defaults: childGain 1.500 ecologyWetDb 0.000 ghostDensity 0.300 ghostTapDb 21.000
+[seams] set 0.7 / 12 / 0.6 -> read 0.700 / 12.000 / 0.600
+[LeverMapping] seed=0x925863E5 L=0.00 chunks=450000  sched-live=107966  sched>L=107966  sched-all-zero=296505
+[LeverMapping] seed=0x925863E5 L=0.25 chunks=450000  sched-live=107966  sched>L=78235  sched-all-zero=296505
+[LeverMapping] seed=0x925863E5 L=0.50 chunks=450000  sched-live=107966  sched>L=55621  sched-all-zero=296505
+[LeverMapping] seed=0x925863E5 L=1.00 chunks=450000  sched-live=107966  sched>L=0  sched-all-zero=296505
+[LeverNeutral] fs=44100 seed=0x925863E5 chunks=413437 scheduler events seen=12
+[LeverNeutral] fs=48000 seed=0x925863E5 chunks=450000 scheduler events seen=12
+[LeverNeutral] fs=96000 seed=0x925863E5 chunks=900000 scheduler events seen=12
+===============================================================================
+All tests passed (55 assertions in 4 test cases)
+
+exit=0 END 2026-10-02 11:55:53

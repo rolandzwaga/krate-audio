@@ -1,0 +1,13 @@
+START 2026-10-01 09:00:37 before_D9.1 tree=ae149a1c as-compiled (no override) preset="Sudden Chasm"
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 2323305794
+[probe] Sudden Chasm - primary D9.1 attack span <= 10 s (stored seed 5, 1 twin render(s))
+  take: peak 0.2497  arm1 hi -20.71 dB [yes]  arm2 lo -22.05 dB [yes]  arm3 late-sus -0.22 dB [yes]  arm4 tail -240.00 dB [yes]
+  attack window (W_end 25.0 s): d_att 2.7661, d_Sus 4.3038 (attributable iff d_att >= 5.8038)
+    P: first reaches RMS(Sus) - 6 dB at 4 s
+    P_rev: first reaches RMS(Sus) - 6 dB at 6 s
+  primary d 2.7661  bar 4.0000  attribBase 4.3038  state ok  -> FAIL
+===============================================================================
+All tests passed (7 assertions in 1 test case)
+
+END 2026-10-01 09:02:29 exit=0 wall=112s

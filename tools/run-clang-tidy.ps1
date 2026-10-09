@@ -57,7 +57,7 @@
 param(
     [string]$BuildDir = "build/windows-x64-release",
     [switch]$Fix,
-    [ValidateSet("all", "dsp", "dsp-lib", "dsp-tests", "iterum", "disrumpo", "ruinae", "innexus", "gradus", "membrum", "seraphis")]
+    [ValidateSet("all", "dsp", "dsp-lib", "dsp-tests", "iterum", "disrumpo", "ruinae", "innexus", "gradus", "membrum", "seraphis", "vorago")]
     [string]$Target = "all",
     [switch]$Quiet,
     [int]$Jobs = 0
@@ -208,6 +208,17 @@ switch ($Target) {
         $IncludeDirs += "tests"
         $IncludeDirs += "extern/vst3sdk"
     }
+    "vorago" {
+        # src and tests, matching run-clang-tidy.sh's `vorago)` case (same
+        # reason as the Seraphis case above: both scripts must analyze one file set).
+        $SourceDirs += "plugins/vorago/src"
+        $SourceDirs += "plugins/vorago/tests"
+        $IncludeDirs += "dsp/include"
+        $IncludeDirs += "plugins/vorago/src"
+        $IncludeDirs += "plugins/vorago/tests"
+        $IncludeDirs += "tests"
+        $IncludeDirs += "extern/vst3sdk"
+    }
     "all" {
         $SourceDirs += "dsp/include"
         $SourceDirs += "dsp/tests"
@@ -219,6 +230,8 @@ switch ($Target) {
         $SourceDirs += "plugins/gradus/src"
         $SourceDirs += "plugins/membrum/src"
         $SourceDirs += "plugins/seraphis/src"
+        $SourceDirs += "plugins/vorago/src"
+        $SourceDirs += "plugins/vorago/tests"
         $IncludeDirs += "dsp/include"
         $IncludeDirs += "plugins/iterum/src"
         $IncludeDirs += "plugins/disrumpo/src"
@@ -227,11 +240,16 @@ switch ($Target) {
         $IncludeDirs += "plugins/gradus/src"
         $IncludeDirs += "plugins/membrum/src"
         $IncludeDirs += "plugins/seraphis/src"
+        $IncludeDirs += "plugins/vorago/src"
+        $IncludeDirs += "plugins/vorago/tests"
+        $IncludeDirs += "tests"
         $IncludeDirs += "extern/vst3sdk"
     }
 }
 
 # Find all source files (only .cpp files for analysis, headers are checked via includes)
+# The exclusion matches whole directory segments (/extern/, /build/, /vst3sdk/), not
+# substrings: a plain "build" once silently skipped ecosystem_frame_builder_test.cpp.
 $SourceFiles = @()
 
 # Recursive search in subdirectories
@@ -239,7 +257,7 @@ foreach ($Dir in $SourceDirs) {
     $FullPath = Join-Path $ProjectRoot $Dir
     if (Test-Path $FullPath) {
         $Files = Get-ChildItem -Path $FullPath -Recurse -Include "*.cpp" |
-            Where-Object { $_.FullName -notmatch "extern|build|vst3sdk" }
+            Where-Object { $_.FullName -notmatch "[\/](extern|build|vst3sdk)[\/]" }
         $SourceFiles += $Files
     }
 }
@@ -249,7 +267,7 @@ foreach ($Dir in $RootSourceDirs) {
     $FullPath = Join-Path $ProjectRoot $Dir
     if (Test-Path $FullPath) {
         $Files = Get-ChildItem -Path $FullPath -Filter "*.cpp" |
-            Where-Object { $_.FullName -notmatch "extern|build|vst3sdk" }
+            Where-Object { $_.FullName -notmatch "[\/](extern|build|vst3sdk)[\/]" }
         $SourceFiles += $Files
     }
 }

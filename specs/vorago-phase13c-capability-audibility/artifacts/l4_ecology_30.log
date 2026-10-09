@@ -1,0 +1,13 @@
+START 2026-10-02 12:05:21 VORAGO_PILOT_PRESET=Feedback Mire VORAGO_PILOT_LEVER=ecologyWetDb=30 exe=2026-10-02 12:05:19 (kEcologyWetMakeupDb 0 compiled, kMaxWetGainDb 36)
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 2248121209
+[probe] lever: ecologyWetDb=30
+[probe] Feedback Mire - primary S4 feedback ecology (stored seed 6, 1 twin render(s))
+  take: peak 0.4865  arm1 hi -20.38 dB [yes]  arm2 lo -40.42 dB [yes]  arm3 late-sus +4.56 dB [yes]  arm4 tail -130.45 dB [yes]
+  arm1@44.1k: finite y peak 0.5726 hi -20.64 dB [PASS]
+  primary d 4.6618  bar 4.0000  attribBase -1.0000  state ok  -> PASS  lever: ecologyWetDb=30
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (10 assertions in 1 test case)
+
+exit=0 END 2026-10-02 12:08:41

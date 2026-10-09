@@ -1,0 +1,16 @@
+START 2026-10-08 11:52:01 combo_m10_read_spore_drift tree=c351fe0f+combo kept VORAGO_PILOT_PRESET="Spore Drift" env: VORAGO_PILOT_SECONDARY=1
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 1251021776
+[probe] lever: none
+[probe] Spore Drift - primary D3.3 noise model GranularDust (stored seed 9, 2 twin render(s))
+  take: peak 0.1937  arm1 hi -26.17 dB [yes]  arm2 lo -31.94 dB [yes]  arm3 late-sus -1.20 dB [yes]  arm4 tail -133.37 dB [yes]
+  arm1@44.1k: finite y peak 0.1819 hi -27.45 dB [PASS]
+  conjunct S1 noise organism: d 4.2809, bar 1.5 -> ok
+  primary d 4.2809  bar 4.0000  attribBase -1.0000  state ok  -> PASS  loopsAlive -  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  secondary D11 ghost reverse >= 0.5: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+  secondary D6.2 loop filter Bandpass: d 0.0000 bar 1.5 state ok conjunct FAIL attribBase -1.0000 skip "state-only kind" -> no
+===============================================================================
+All tests passed (12 assertions in 1 test case)
+
+exit=0 END 2026-10-08 12:14:26

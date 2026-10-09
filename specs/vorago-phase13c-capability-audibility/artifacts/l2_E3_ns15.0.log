@@ -1,0 +1,14 @@
+START 2026-10-02 01:39:44 preset="Swarm Breath" env:  | consts: kNoiseLevelLeverSpanDb = 15.0f kLoopGainLeverSpan = 0.18f kPartialLaneGain = 1.0f kGhostLaneGain = 1.0f kCouplingLeverSpan = 0.30f  | exe=2026-10-02 01:39:42
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 159489018
+[probe] lever: none
+[probe] Swarm Breath - primary E3 noise -> noise wake (stored seed 5, 4 twin render(s))
+  take: peak 0.1766  arm1 hi -25.93 dB [yes]  arm2 lo -31.44 dB [yes]  arm3 late-sus +0.41 dB [yes]  arm4 tail -155.12 dB [yes]
+  arm1@44.1k: finite y peak 0.1589 hi -26.14 dB [PASS]
+  route arms: d(R_k, R_k0) 1.3495, attribBase d(R_0, R_00) 0.6064 (attributable iff d >= 2.1064)
+  primary d 1.3495  bar 4.0000  attribBase 0.6064  state ok  -> FAIL  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (16 assertions in 1 test case)
+
+exit=0 END 2026-10-02 01:42:49

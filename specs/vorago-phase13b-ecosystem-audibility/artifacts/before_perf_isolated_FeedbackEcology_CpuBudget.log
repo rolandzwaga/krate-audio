@@ -1,0 +1,139 @@
+START 2026-09-27 20:33:45 case=FeedbackEcology_CpuBudget
+pin-perf-cores: performance-core mask 0xFFFF
+Filters: "FeedbackEcology_CpuBudget"
+Randomness seeded to: 3637161924
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+FeedbackEcology_CpuBudget
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_perf_test.cpp(1818)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_perf_test.cpp(2050): warning:
+  
+============================================================================
+  =====
+    FeedbackEcology SC-004 CPU BUDGET   (48 kHz, 512-sample blocks)
+    specs/vorago-phase5-feedback-ecology, SC-004 / FR-080, tasks.md T020
+    best-of-25 x 500 blocks after 400 warm-up, 200 settle blocks before each
+    reference patch: 6 loops, default tables, wander on, mix 1, wetGain 0 dB,
+    drive white noise at -12.0 dBFS RMS on both channels, seed 0x5EED
+  =============================================================================
+  ====
+  (a) reference: 6 loops awake, wander on, mix 1              103638.6 ns/block
+  0.9716 % of one core
+          baseline    94106.4   gate (x1.5)   141159.6   within baseline
+  (b) wander off: (a) + setWanderEnabled(false)                83933.2 ns/block
+  0.7869 % of one core
+          baseline    77370.6   gate (x1.5)   116055.9   within baseline
+  (c) all dormant: (a) + every loop dormant                    10003.2 ns/block
+  0.0938 % of one core
+          baseline     9873.0   gate (x1.5)    14809.5   within baseline
+  (d) numLoops = 1: the per-loop marginal cost                 21583.2 ns/block
+  0.2023 % of one core
+          reported only - SC-004 (d) sets the per-loop marginal cost
+  -----------------------------------------------------------------------------
+  ----
+    SC-004 GATED LINE (160 000 / 1.5)                         106666.7 ns/block
+  1.0000 % of one core
+    SC-004 ABSOLUTE CEILING (1.5 %/voice)                     160000.0 ns/block
+  1.5000 % of one core
+    (b) wander-off delta,       (b) - (a)         -19705.4 ns/block   -19.01 %
+  of (a)   [SC-004 (b) band: <= +2.00 %]
+    (c) dormancy saving,        (a) - (c)          93635.4 ns/block   90.35 %
+  of (a)   [SC-004 (c) needs >= 40.00 %]
+    (d) marginal cost per loop, ((a)-(d))/5        16411.1 ns/block
+  [reported]
+  -----------------------------------------------------------------------------
+  ----
+    audio preconditions, measured over 40 fully-scanned blocks per arm (both
+  channels):
+        (a) engine-active loops 6 / 6   RMS -56.06 dBFS   finite yes   clamps 0
+  non-finite resets 0
+        (b) engine-active loops 6 / 6   RMS -55.96 dBFS   finite yes
+        (c) engine-active loops 0 / 6   exactly 0.0f on both channels
+  throughout: yes
+        (d) engine-active loops 1 / 6   RMS -56.09 dBFS   finite yes
+        the measured reference level is expected near -56.7 dBFS: this patch is
+        quiet BY DESIGN (six Q ~ 100 resonators, 3.3-18.8 Hz of noise bandwidth
+        out of 24 kHz), so the precondition below is an ANTI-SILENCE floor at -
+  80.0 dBFS,
+        not a level assertion.
+  =============================================================================
+  ====
+    SC-004 (f) - THE TRANSITION BLOCKS, gated at each rate against (1) the
+  steady
+    block in the same state x 1.1 (the O(buffer) detector) and (2) the same
+  ABSOLUTE
+    per-block ceiling as 48 kHz (NOT against kBaseline). Best of 25 trials,
+    each re-established from 2.0 s of settled render. This is FR-019's O(1)
+  detector.
+  =============================================================================
+  ====
+    48 kHz  (f1) simultaneous 5-loop sleep edge, setNumLoops(6->1)
+        transition block                                       76100.0 ns/block
+  0.7134 % of one core   within ceiling
+        steady block, same rate and state                      93800.0 ns/block
+  0.8794 % of one core
+        transition OVERHEAD (transition - steady)       -17700.0 ns
+        ceiling 160000.0 ns   trials found 25 / 25   edge at block +4   active
+  6 -> 1   non-finite resets in the block [0, 0]   finite yes
+    48 kHz  (f2) rung-5 trap fire, FR-048 probe on loop 2
+        transition block                                      100500.0 ns/block
+  0.9422 % of one core   within ceiling
+        steady block, same rate and state                     104400.0 ns/block
+  0.9788 % of one core
+        transition OVERHEAD (transition - steady)        -3900.0 ns
+        ceiling 160000.0 ns   trials found 25 / 25   edge at block +0   active
+  6 -> 6   non-finite resets in the block [1, 1]   finite yes
+    192 kHz  (f1) simultaneous 5-loop sleep edge, setNumLoops(6->1)
+        transition block                                       64600.0 ns/block
+  2.4225 % of one core   within ceiling
+        steady block, same rate and state                      75500.0 ns/block
+  2.8313 % of one core
+        transition OVERHEAD (transition - steady)       -10900.0 ns
+        ceiling 160000.0 ns   trials found 25 / 25   edge at block +18   active
+  6 -> 1   non-finite resets in the block [0, 0]   finite yes
+    192 kHz  (f2) rung-5 trap fire, FR-048 probe on loop 2
+        transition block                                       75600.0 ns/block
+  2.8350 % of one core   within ceiling
+        steady block, same rate and state                      77800.0 ns/block
+  2.9175 % of one core
+        transition OVERHEAD (transition - steady)        -2200.0 ns
+        ceiling 160000.0 ns   trials found 25 / 25   edge at block +0   active
+  6 -> 6   non-finite resets in the block [1, 1]   finite yes
+  =============================================================================
+  ====
+    copy-pasteable baselines, MEASURED on this machine and this build:
+        constexpr double kBaselineReferenceNs     =   103638.6;
+        constexpr double kBaselineWanderOffNs     =    83933.2;
+        constexpr double kBaselineAllDormantNs    =    10003.2;
+    Transcribing a measured figure OVER a projection is always correct; take it
+    from the LOWEST of several isolated runs, never from one sample. RAISING
+  one
+    so a REQUIRE passes is forbidden. A transcribed baseline must still satisfy
+    BOTH compile-time clauses (x1.5 <= 160000.0 and >= 3200.0); one that
+    cannot is the stop-and-surface case, not a licence to weaken a clause.
+  =============================================================================
+  ====
+    SC-004 (a) IS WITHIN THE GATED LINE: 3028.1 ns of headroom (97.16 % of the
+  line, 64.77 % of the absolute ceiling).
+    *** NO AGENT MAY lower kMaxLoops, raise a budget, relax a threshold, or
+  shrink
+    *** a workload to make this fit. Reduce cost, never move the line
+    *** (resonance_drift_network_perf_test.cpp:59-65, inherited verbatim).
+    RUN IT ALONE: node tools/run-cpu-tests.js dsp_systems_tests. A verdict that
+    flips between runs is measuring the machine, not the code.
+    RECORD the whole table in the build transcript and in plan S14.2.
+  =============================================================================
+  ====
+
+===============================================================================
+All tests passed (75 assertions in 1 test case)
+
+EXIT 0
+END 2026-09-27 20:33:55

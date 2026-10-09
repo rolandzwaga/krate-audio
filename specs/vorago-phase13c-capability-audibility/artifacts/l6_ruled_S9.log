@@ -1,0 +1,13 @@
+START 2026-10-02 23:06:49 Choir of Absence as compiled (kAttackShapePower = 4 kBreathGravityLaneGain = 3.0f kTidalFogLaneGain = 1.0f kTidalRate = 0.8f ; child gain 1.5, ghost 21/1.2, ecology 30/36; no lever env) exe=2026-10-02 22:11:55
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 3726857219
+[probe] lever: none
+[probe] Choir of Absence - primary S9 ghost / atmosphere (stored seed 10, 1 twin render(s))
+  take: peak 0.9661  arm1 hi -6.56 dB [yes]  arm2 lo -10.86 dB [yes]  arm3 late-sus -0.86 dB [yes]  arm4 tail -153.95 dB [yes]
+  arm1@44.1k: finite y peak 0.9661 hi -6.40 dB [PASS]
+  primary d 4.3383  bar 4.0000  attribBase -1.0000  state ok  -> PASS  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (9 assertions in 1 test case)
+
+exit=0 END 2026-10-02 23:10:08

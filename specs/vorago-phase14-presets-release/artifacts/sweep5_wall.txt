@@ -1,0 +1,12 @@
+sweep 5 started 2026-10-06 14:59:49 tree=91a40879+defs exe=2026-10-06 14:59:03 shards=8 out=/f/tmp/p14/sweep5-out
+shard 5 exit=3 2026-10-06 17:53:12
+shard 7 exit=0 2026-10-06 18:00:04
+shard 6 exit=6 2026-10-06 18:01:37
+shard 3 exit=4 2026-10-06 18:05:12
+shard 4 exit=0 2026-10-06 18:12:48
+shard 1 exit=3 2026-10-06 18:28:31
+shard 0 exit=3 2026-10-06 18:29:35
+shard 2 exit=0 2026-10-06 18:42:43
+shards done 2026-10-06 18:42:43 records=43
+aggregate exit=239 2026-10-06 18:57:51
+sweep 5 finished 2026-10-06 18:57:51

@@ -409,6 +409,11 @@ public:
         }
     }
 
+    /// @brief Bytes of heap held - the comb's delay line and nothing else.
+    [[nodiscard]] size_t getAllocatedBytes() const noexcept {
+        return delay_.getAllocatedBytes();
+    }
+
 private:
     DelayLine delay_;
     float feedback_ = 0.5f;

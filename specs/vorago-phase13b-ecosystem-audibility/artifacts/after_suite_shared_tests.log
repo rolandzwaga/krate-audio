@@ -1,0 +1,6 @@
+Filters: ~[performance] ~[perf] ~[benchmark] ~[!benchmark] ~[long]
+Randomness seeded to: 1819633807
+===============================================================================
+All tests passed (6420 assertions in 460 test cases)
+
+shared_tests rc=0 wall=1s

@@ -1,0 +1,20 @@
+START 2026-10-06 13:47:53 Drifting Strata VORAGO_PILOT_OVERRIDE=1400=0,1500=0,401=0.90,200=0.70,1104=0.0,1109=0.90,1101=0.20
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 4182811091
+[probe] override 1400 = 0.000000 (replaced)
+[probe] override 1500 = 0.000000 (replaced)
+[probe] override 401 = 0.900000 (replaced)
+[probe] override 200 = 0.700000 (replaced)
+[probe] override 1104 = 0.000000 (replaced)
+[probe] override 1109 = 0.900000 (replaced)
+[probe] override 1101 = 0.200000 (appended)
+[probe] lever: none
+[probe] Drifting Strata - primary M4 Movement (stored seed 3, 1 twin render(s))
+  take: peak 0.6266  arm1 hi -17.99 dB [yes]  arm2 lo -30.11 dB [yes]  arm3 late-sus -1.14 dB [yes]  arm4 tail -177.91 dB [yes]
+  arm1@44.1k: finite y peak 0.4680 hi -18.63 dB [PASS]
+  primary d 3.6337  bar 4.0000  attribBase -1.0000  state ok  -> FAIL  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (16 assertions in 1 test case)
+
+exit=0 END 2026-10-06 13:52:10

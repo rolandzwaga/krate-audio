@@ -1,0 +1,104 @@
+pin-perf-cores: performance-core mask 0xFFFF
+Filters: "AtmosphereGhost_CpuDelta"
+Randomness seeded to: 103460481
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+AtmosphereGhost_CpuDelta
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\atmosphere_ghost_perf_test.cpp(393)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\atmosphere_ghost_perf_test.cpp(528): 
+warning:
+  SC-009 - AtmosphereEngine ghost CPU delta, ns per 512-sample block @ 48 kHz
+    SHAPE (pinned to the STAGE PROBE, vorago_perf_test.cpp:302-304, :1266-1279)
+  : 300 warm-up blocks, best-of-12 x 200 blocks, each block driven as 8 x 64-
+  sample processStereoBlock calls. 2700 blocks per arm = 28.8 s of audio.
+    REFERENCE (artifact log, WARN-only - perf.log:68): 28285.5 ns/block
+  
+  ARM 1 inert (probability 0, no triggers)
+      measured        : 33663.5 ns/block
+      ratio vs arm 1  : 1x
+      absolute bound  : 31114 ns/block (WARN ONLY, never a REQUIRE - Q6) :
+  ABOVE
+      grains born     : 8  (of which triggered: 0)
+      triggers dropped: 0   births skipped, pool full: 0   active at end: 3
+    ARM 2 reverse engaged (probability 1.0, no triggers)
+      measured        : 32367.5 ns/block
+      ratio vs arm 1  : 0.961501x
+      absolute bound  : 31114 ns/block (WARN ONLY, never a REQUIRE - Q6) :
+  ABOVE
+      grains born     : 6  (of which triggered: 0)
+      triggers dropped: 0   births skipped, pool full: 0   active at end: 3
+    ARM 3 triggers, realistic (one per 8.33 s)
+      measured        : 38427 ns/block
+      ratio vs arm 1  : 1.1415x
+      absolute bound  : 42428 ns/block (WARN ONLY, never a REQUIRE - Q6) :
+  within
+      grains born     : 11  (of which triggered: 3)
+      triggers dropped: 0   births skipped, pool full: 0   active at end: 4
+    ARM 4 triggers, stress (one per 0.833 s)
+      measured        : 58035.5 ns/block
+      ratio vs arm 1  : 1.72399x
+      absolute bound  : 70714 ns/block (WARN ONLY, never a REQUIRE - Q6) :
+  within
+      grains born     : 42  (of which triggered: 34)
+      triggers dropped: 0   births skipped, pool full: 0   active at end: 17
+    ARM 5 saturated drain (kMinGrainSeconds, queue at the FR-019 cap)
+      measured        : 313516 ns/block
+      ratio vs arm 1  : 9.31322x
+      absolute bound  : none - arm 5's recorded figure IS the measurement (and
+  'triggers dropped' is 0 BY ARITHMETIC: the cap is reached, never exceeded)
+      grains born     : 36689  (of which triggered: 36689)
+      triggers dropped: 0   births skipped, pool full: 1331661   active at end:
+  64
+  
+  IN-RUN GATES (the ONLY REQUIREs - Q6). Arm 1 carries NO REQUIRE: it IS the
+  reference.
+      arm2 <= arm1 x 1.1   -> 32367.5 vs 37029.9
+      arm3 <= arm1 x 1.5   -> 38427 vs 50495.2
+      arm4 <= arm1 x 2.5   -> 58035.5 vs 84158.8
+      arm5 <= arm1 x 30  -> 313516 vs 1.0099e+06
+      *** kSaturatedDrainFactor IS PROVISIONAL (30) AND MUST BE TRANSCRIBED
+  FROM THIS RUN, ONCE. ***
+        transcribe this value, then FREEZE it: 10.012   ( = ceil(arm5/arm1 x 1.
+  075 x 1000) / 1000 )
+        That is a TIGHTENING. Widening it to make a later run pass is
+  forbidden; a measurement above the frozen bar is a FINDING.
+  
+  CLAUSE 5 - COMPUTED AND PRINTED, NEVER REQUIREd (Q6). DOMINATED.
+      ceil((kEngineMeasuredNsAtPoly4 + delta) x 1.05) +
+  kCavernMeasuredNsPerBlock <= kReferenceNs
+      ceil((2.56617e+06 + delta) x 1.05) + 124497 <= 3.2e+06   <=>   delta <=
+  362880 ns/block
+      (checked-in baseline, read and NOT edited: kEngineBaselineNsAtPoly4 = 2.
+  69448e+06 = ceil(2.56617e+06 x 1.05))
+      delta(arm3 - arm1) = 4763.5  ->  lhs = 2.82398e+06  <= 3.2e+06 ? yes
+      delta(arm4 - arm1) = 24372  ->  lhs = 2.84457e+06  <= 3.2e+06 ? yes
+      DOMINATED: arm 4's own in-run bound caps delta at (2.5 - 1) x arm1 =
+  50495.2 ns/block, about 7.18642x tighter than clause 5. The binding clauses
+  are arms 2, 3, 4 and 5.
+  
+  NOTE - arm 3 reads LOW BY CONSTRUCTION, and that is the pinned shape, not
+  a defect. One event per 8.33 s over a 28.8 s arm is ~3.456 events, and best-
+  of-12 selects the MINIMUM trial - typically an early one, before the extra 12
+  s grains have accumulated. Arm 3's figure is therefore a LOWER bound on the
+  realistic cost; arm 4, at ten times the cadence, is the arm that actually
+  resolves the trigger delta. Both are reported.
+    NOTE - arm 5 bounds the SHARED COMPONENT'S PUBLIC CONTRACT, not Vorago's
+  operating point: VoragoEngine runs one pre-render control step per 64-sample
+  control chunk (vorago_engine.h:904-908), so it could issue at most one
+  trigger per chunk even if the wiring were on - and it is not, OQ-1 is closed
+  inert. Arm 5 issues 64 per chunk, the FR-019 cap, i.e. 48 000 birth attempts
+  per second.
+    NOTE - run ALONE (node tools/run-cpu-tests.js dsp_systems_tests), after a
+  cool-down, P-core-pinned. A case that flips verdicts between runs is
+  measuring the machine, not the code.
+
+===============================================================================
+All tests passed (12 assertions in 1 test case)
+

@@ -251,6 +251,15 @@ public:
     /// @note FR-033: Enables reading existing content for additive excitation.
     [[nodiscard]] float peekNext(size_t offset) const noexcept;
 
+    /// @brief Bytes of heap this delay line holds, i.e. its circular buffer.
+    ///
+    /// `capacity()`, not `size()`: the buffer IS the whole allocation, and a
+    /// consumer summing these figures is accounting for the heap it holds, not
+    /// for the part of it currently addressed. Zero before prepare().
+    [[nodiscard]] size_t getAllocatedBytes() const noexcept {
+        return buffer_.capacity() * sizeof(float);
+    }
+
 private:
     std::vector<float> buffer_;      ///< Circular buffer (power-of-2 size)
     size_t mask_ = 0;                ///< Bitmask for wraparound (bufferSize - 1)

@@ -1,0 +1,92 @@
+Filters: "VoragoVoice_SentinelShapeProbe","VoragoVoice_NoiseOrganismResetProbe"
+Randomness seeded to: 2118824535
+  [organism probe] start
+  [organism probe]   configured
+  [organism probe]   rendering: prepare -> render
+  [organism probe]   rendered
+  [organism probe]   configured
+  [organism probe]   rendering: prepare -> render (path 1 warm-up)
+  [organism probe]   rendered
+  [organism probe] path 1: reset done
+  [organism probe] path 1: wake + level re-written
+  [organism probe]   rendering: path 1: reset -> re-write -> render
+  [organism probe]   rendered
+  [organism probe] prepare-render vs reset+rewrite-render: max diff 2.134e-02 (first 0), peak 0.2513, x[0..2] 2.973e-09 1.793e-08 5.116e-08 | y[0..2] 4.683e-08 2.808e-07 7.960e-07
+  [organism probe] path 2: bare reset done
+  [organism probe]   rendering: path 2: bare reset -> render
+  [organism probe]   rendered
+  [organism probe] prepare-render vs bare-reset-render: max diff 2.134e-02 (first 0), peak 0.2513, x[0..2] 2.973e-09 1.793e-08 5.116e-08 | y[0..2] 4.683e-08 2.808e-07 7.960e-07
+  [organism probe]   configured
+  [organism probe]   rendering: path 3 warm-up
+  [organism probe]   rendered
+  [organism probe]   rendering: path 3: after reset (A)
+  [organism probe]   rendered
+  [organism probe]   rendering: path 3 second warm-up
+  [organism probe]   rendered
+  [organism probe]   rendering: path 3: after reset (B)
+  [organism probe]   rendered
+  [organism probe] path 3: reset-render A vs reset-render B: max diff 0.000e+00 (first 48000), peak 0.2513, x[0..2] 4.683e-08 2.808e-07 7.960e-07 | y[0..2] 4.683e-08 2.808e-07 7.960e-07
+  [organism probe]   configured
+  [organism probe]   rendering: path 5 warm-up (MetallicHiss)
+  [organism probe]   rendered
+  [organism probe]   rendering: path 5: after reset (A)
+  [organism probe]   rendered
+  [organism probe]   rendering: path 5 second warm-up
+  [organism probe]   rendered
+  [organism probe]   rendering: path 5: after reset (B)
+  [organism probe]   rendered
+  [organism probe] path 5 (MetallicHiss): reset-render A vs reset-render B: max diff 0.000e+00 (first 48000), peak 0.2004, x[0..2] 8.911e-06 4.104e-05 7.907e-05 | y[0..2] 8.911e-06 4.104e-05 7.907e-05
+  [organism probe]   configured
+  [organism probe]   rendering (modulated): path 6 warm-up
+  [organism probe]   rendering (modulated): path 6: after reset (A)
+  [organism probe]   rendering (modulated): path 6 second warm-up
+  [organism probe]   rendering (modulated): path 6: after reset (B)
+  [organism probe] path 6 (MetallicHiss, modulated): A vs B: max diff 0.000e+00 (first 48000), peak 0.0574, x[0..2] 2.420e-06 1.129e-05 2.247e-05 | y[0..2] 2.420e-06 1.129e-05 2.247e-05
+  [shape probe] default                                  max|diff| 8.130e-07 (peak 9.783e-03), first differing sample 0
+  [shape probe] body 0, noise -96 dB                     max|diff| 2.135e-06 (peak 2.022e-01), first differing sample 0
+  [shape probe] body 0, noise +12, wake 1                max|diff| 2.771e-03 (peak 3.400e+00), first differing sample 0
+  [shape probe] ... eco depth 0                          max|diff| 1.540e-03 (peak 1.670e+00), first differing sample 0
+  [shape probe] ... all Direct                           max|diff| 0.000e+00 (peak 1.429e+00), first differing sample 16000
+  [shape probe] ... all FilteredWind                     max|diff| 0.000e+00 (peak 1.549e+00), first differing sample 16000
+  [shape probe] ... all GranularDust                     max|diff| 0.000e+00 (peak 8.215e-01), first differing sample 16000
+  [shape probe] ... all MetallicHiss                     max|diff| 5.404e-03 (peak 3.400e+00), first differing sample 0
+  [shape probe] ... hiss + wander rate 0                 max|diff| 5.564e-03 (peak 3.400e+00), first differing sample 0
+  [shape probe] ... hiss + breathing depth 0             max|diff| 5.269e-03 (peak 3.400e+00), first differing sample 0
+  [shape probe] ... hiss + eco depth 0                   max|diff| 2.884e-03 (peak 2.911e+00), first differing sample 0
+  [shape probe] ... hiss + wander 0 + breathing 0 + eco 0 max|diff| 3.130e-03 (peak 3.400e+00), first differing sample 0
+  [shape probe] combs arm A after prime reset
+    slot 0: fund 60 spread 0.35 fb 0.75 delays 16.6667 14.3444
+    slot 1: fund 60 spread 0.35 fb 0.75 delays 16.6667 14.3444
+    slot 2: fund 60 spread 0.35 fb 0.75 delays 16.6667 14.3444
+    slot 3: fund 60 spread 0.35 fb 0.75 delays 16.6667 14.3444
+  [shape probe] combs arm A after first block
+    slot 0: fund 60 spread 0.35 fb 0.75 delays 16.6667 14.3444
+    slot 1: fund 60 spread 0.35 fb 0.75 delays 16.6654 14.3455
+    slot 2: fund 60 spread 0.35 fb 0.75 delays 16.6679 14.3444
+    slot 3: fund 60 spread 0.35 fb 0.75 delays 16.6667 14.3455
+  [shape probe] combs arm B end of tail
+    slot 0: fund 60 spread 0.35 fb 0.75 delays 16.062 15.005
+    slot 1: fund 60 spread 0.35 fb 0.75 delays 16.5423 14.1509
+    slot 2: fund 60 spread 0.35 fb 0.75 delays 16.1624 14.464
+    slot 3: fund 60 spread 0.35 fb 0.75 delays 16.4418 14.2374
+  [shape probe] combs arm B after reset
+    slot 0: fund 60 spread 0.35 fb 0.75 delays 16.6667 14.3444
+    slot 1: fund 60 spread 0.35 fb 0.75 delays 16.6667 14.3444
+    slot 2: fund 60 spread 0.35 fb 0.75 delays 16.6667 14.3444
+    slot 3: fund 60 spread 0.35 fb 0.75 delays 16.6667 14.3444
+  [shape probe] combs arm B after first block
+    slot 0: fund 60 spread 0.35 fb 0.75 delays 16.6667 14.3444
+    slot 1: fund 60 spread 0.35 fb 0.75 delays 16.6654 14.3455
+    slot 2: fund 60 spread 0.35 fb 0.75 delays 16.6679 14.3444
+    slot 3: fund 60 spread 0.35 fb 0.75 delays 16.6667 14.3455
+  [shape probe] arm A t=0.5 s:  [0] gain 3.544856 wake 1 lvl 12 cut 740.066 rms 0.069758  [1] gain 3.544856 wake 1 lvl 12 cut 759.736 rms 0.068532  [2] gain 3.544856 wake 1 lvl 12 cut 746 rms 0.067972  [3] gain 3.544856 wake 1 lvl 12 cut 856.622 rms 0.069962
+  [shape probe] arm A t=1.0 s:  [0] gain 3.568152 wake 1 lvl 12 cut 688.63 rms 0.064111  [1] gain 3.568152 wake 1 lvl 12 cut 698.944 rms 0.070216  [2] gain 3.568152 wake 1 lvl 12 cut 689.509 rms 0.068094  [3] gain 3.568152 wake 1 lvl 12 cut 884.371 rms 0.066674
+  [shape probe] arm A t=1.5 s:  [0] gain 3.599307 wake 1 lvl 12 cut 609.764 rms 0.067295  [1] gain 3.599307 wake 1 lvl 12 cut 619.199 rms 0.075095  [2] gain 3.599307 wake 1 lvl 12 cut 693.482 rms 0.069443  [3] gain 3.599307 wake 1 lvl 12 cut 705.272 rms 0.063775
+  [shape probe] arm A t=2.0 s:  [0] gain 3.636438 wake 1 lvl 12 cut 536.582 rms 0.068218  [1] gain 3.636438 wake 1 lvl 12 cut 494.057 rms 0.070682  [2] gain 3.636438 wake 1 lvl 12 cut 748.333 rms 0.068409  [3] gain 3.636438 wake 1 lvl 12 cut 695.852 rms 0.068941
+  [shape probe] arm B t=0.5 s:  [0] gain 3.544856 wake 1 lvl 12 cut 740.066 rms 0.069758  [1] gain 3.544856 wake 1 lvl 12 cut 759.736 rms 0.068532  [2] gain 3.544856 wake 1 lvl 12 cut 746 rms 0.067972  [3] gain 3.544856 wake 1 lvl 12 cut 856.622 rms 0.069962
+  [shape probe] arm B t=1.0 s:  [0] gain 3.568152 wake 1 lvl 12 cut 688.63 rms 0.064111  [1] gain 3.568152 wake 1 lvl 12 cut 698.944 rms 0.070216  [2] gain 3.568152 wake 1 lvl 12 cut 689.509 rms 0.068094  [3] gain 3.568152 wake 1 lvl 12 cut 884.371 rms 0.066674
+  [shape probe] arm B t=1.5 s:  [0] gain 3.599307 wake 1 lvl 12 cut 609.764 rms 0.067295  [1] gain 3.599307 wake 1 lvl 12 cut 619.199 rms 0.075095  [2] gain 3.599307 wake 1 lvl 12 cut 693.482 rms 0.069443  [3] gain 3.599307 wake 1 lvl 12 cut 705.272 rms 0.063775
+  [shape probe] arm B t=2.0 s:  [0] gain 3.636438 wake 1 lvl 12 cut 536.582 rms 0.068218  [1] gain 3.636438 wake 1 lvl 12 cut 494.057 rms 0.070682  [2] gain 3.636438 wake 1 lvl 12 cut 748.333 rms 0.068409  [3] gain 3.636438 wake 1 lvl 12 cut 695.852 rms 0.068941
+===============================================================================
+All tests passed (2 assertions in 2 test cases)
+

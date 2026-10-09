@@ -1,0 +1,34 @@
+T065 - Engine fan-outs and voice forwards (plan s2.9, Group 3b)
+Status: source edits landed; NOT built or run by the implementing agent (the build agent fills the Check below).
+
+ODR sweep (grep -rn "<Name>" dsp/ plugins/ tools/, before the edit): 0 hits each for
+  setBloomChildGain getBloomChildGain setEcologyWetMakeupDb getEcologyWetMakeupDb setGhostDensity getGhostDensity
+
+vorago_voice.h (after getBloomSpawnRateHz): bare forwards, no voice member added
+  setBloomChildGain(float)      -> bloom_.setChildGain      (owner rejects non-finite, bloom_engine.h:562-564; clamps [0,1])
+  getBloomChildGain()           -> bloom_.getChildGain      (bloom_engine.h:687)
+  setEcologyWetMakeupDb(float)  -> ecology_.setWetGain(dB)  (owner takes dB, rejects non-finite, feedback_ecology.h:1321-1322; clamps [-24,24])
+  getEcologyWetMakeupDb()       -> ecology_.getWetGain      (reports dB, feedback_ecology.h:1350)
+
+vorago_engine.h (after getGhostTapMakeupDb): fan-outs over ALL kMaxVoices, getters read slot 0
+  setBloomChildGain / getBloomChildGain
+  setEcologyWetMakeupDb / getEcologyWetMakeupDb
+  setGhostDensity / getGhostDensity -> atmos_.setDensity / getDensity; rejects non-finite itself (detail::isFinite)
+    so AtmosphereEngine's 4.0 substitute (atmosphere_engine.h:869) is never reached.
+
+No behaviour change: nothing calls the new setters in production; prepare() is untouched.
+
+Check (pending, build agent):
+  dsp_systems_tests build, zero warnings: <pending>
+  hidden [.probe] read-back case: <NOT ADDED - the test file is outside T065's file list; see notes>
+  per-push dsp_systems_tests run green: <pending>
+
+---- run output (main loop, 2026-10-01 21:49:44; dsp_systems_tests built at kBloomChildGain 1.00 rung, exit 0, 0 warnings - see l1_sentinel_1.00.log; per-push run: l1_suite.log 'All tests passed (6061469 assertions in 1419 test cases)') ----
+Filters: "VoragoEngine_SeamReadbackProbe"
+Randomness seeded to: 3165509757
+[seams] defaults: childGain 1.000 ecologyWetDb 0.000 ghostDensity 0.300 ghostTapDb 12.000
+[seams] set 0.7 / 12 / 0.6 -> read 0.700 / 12.000 / 0.600
+===============================================================================
+All tests passed (4 assertions in 1 test case)
+
+exit=0

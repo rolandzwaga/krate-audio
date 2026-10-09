@@ -1,0 +1,27 @@
+START 2026-10-06 13:13:44 Resonant Shaft TAKES=4 OVERRIDE=401=1.0,1300=0,1301=0,1500=0,200=0.80,0=0.20
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 1981176210
+[probe] override 401 = 1.000000 (replaced)
+[probe] override 1300 = 0.000000 (replaced)
+[probe] override 1301 = 0.000000 (appended)
+[probe] override 1500 = 0.000000 (appended)
+[probe] override 200 = 0.800000 (replaced)
+[probe] override 0 = 0.200000 (replaced)
+[probe] lever: none
+[probe] Resonant Shaft - primary S2 resonance drift (stored seed 3, 1 twin render(s))
+  take: peak 0.9661  arm1 hi -10.20 dB [yes]  arm2 lo -25.96 dB [yes]  arm3 late-sus +7.40 dB [yes]  arm4 tail -207.43 dB [yes]
+  arm1@44.1k: finite y peak 0.7428 hi -14.04 dB [PASS]
+  primary d 7.2936  bar 4.0000  attribBase -1.0000  state ok  -> PASS  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  take j=0 seed 3: peak 0.9661  arm1 hi -10.20 dB [yes]  arm2 lo -25.96 dB [yes]  arm3 late-sus +7.40 dB [yes]  arm4 tail -207.43 dB [yes]
+  take j=1 seed 4: peak 0.9661  arm1 hi -6.89 dB [yes]  arm2 lo -13.98 dB [yes]  arm3 late-sus -0.46 dB [yes]  arm4 tail -217.49 dB [yes]
+  take j=2 seed 5: peak 0.9661  arm1 hi -7.97 dB [yes]  arm2 lo -22.37 dB [yes]  arm3 late-sus -1.43 dB [yes]  arm4 tail -214.90 dB [yes]
+  take j=3 seed 6: peak 0.9661  arm1 hi -8.62 dB [yes]  arm2 lo -21.85 dB [yes]  arm3 late-sus -2.65 dB [yes]  arm4 tail -216.60 dB [yes]
+  take j=0 d 7.2936
+  take j=1 d 7.0695
+  take j=2 d 6.6254
+  take j=3 d 7.4805
+===============================================================================
+All tests passed (25 assertions in 1 test case)
+
+exit=0 END 2026-10-06 13:19:00

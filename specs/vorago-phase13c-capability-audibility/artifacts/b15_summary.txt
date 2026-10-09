@@ -1,0 +1,5 @@
+rebuild 2026-10-05 07:40:30 exit=0 warnings=0
+S1:  primary d 4.9774 bar 4.0000 -> PASS lever: none| levels: arms [y y y y] arm1@44.1k [y]| secondary D3.1 noise model Direct: d 4.9774 -> VERIFIED| secondary D4.1 noise type White: d 0.0000 -> VERIFIED| secondary D4.2 noise type Pink: d 0.0000 -> VERIFIED| secondary D4.3 noise type TapeHiss: d 0.0000 -> VERIFIED| secondary D4.7 noise type Blue: d 0.0000 -> VERIFIED|
+S3:  primary d 4.0128 bar 4.0000 -> PASS lever: none| levels: arms [y y y y] arm1@44.1k [y]| secondary D8.1 envelope Standard: d 0.0000 -> VERIFIED| secondary D10.2 freeze off: d 0.0000 -> VERIFIED|
+regen exit=0 changed:  M "plugins/vorago/resources/presets/Machines/Feedback Mire.vstpreset"  M "plugins/vorago/resources/presets/Textures/Smeared Horizon.vstpreset"  M "plugins/vorago/resources/presets/Textures/Wind Through Basalt.vstpreset" 
+preset lane: All tests passed (18093 assertions in 41 test cases)

@@ -1,0 +1,13 @@
+START 2026-10-04 23:55:52 Lightless VORAGO_PILOT_LEVER=childGain=1.2 exe=2026-10-04 22:30:53
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 4175158685
+[probe] lever: childGain=1.2
+[probe] Lightless - primary M1 Darkness (stored seed 13, 1 twin render(s))
+  take: peak 0.1905  arm1 hi -25.13 dB [yes]  arm2 lo -30.54 dB [yes]  arm3 late-sus -1.70 dB [yes]  arm4 tail -155.43 dB [yes]
+  arm1@44.1k: finite y peak 0.2114 hi -24.87 dB [PASS]
+  primary d 2.0106  bar 4.0000  attribBase -1.0000  state ok  -> FAIL  lever: childGain=1.2
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (10 assertions in 1 test case)
+
+exit=0 END 2026-10-04 23:57:46

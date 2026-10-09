@@ -1,0 +1,15 @@
+START 2026-10-02 22:50:03 Slow Bloom as compiled (kAttackShapePower = 4 kBreathGravityLaneGain = 3.0f kTidalFogLaneGain = 1.0f kTidalRate = 0.8f ; child gain 1.5, ghost 21/1.2, ecology 30/36; no lever env) env: VORAGO_PILOT_SECONDARY=1 exe=2026-10-02 22:11:55
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 2372941428
+[probe] lever: none
+[probe] Slow Bloom - primary S6 harmonic bloom (stored seed 7, 1 twin render(s))
+  take: peak 0.3488  arm1 hi -20.52 dB [yes]  arm2 lo -27.43 dB [yes]  arm3 late-sus +0.36 dB [yes]  arm4 tail -185.54 dB [yes]
+  arm1@44.1k: finite y peak 0.4332 hi -21.24 dB [PASS]
+  primary d 4.3549  bar 4.0000  attribBase -1.0000  state ok  -> PASS  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  secondary D14.1 breathing depth >= 0.7: d 2.5610 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "" -> VERIFIED
+  secondary D9.2 attack span >= 90 s: d 0.0000 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "state-only kind" -> VERIFIED
+===============================================================================
+All tests passed (9 assertions in 1 test case)
+
+exit=0 END 2026-10-02 23:01:34

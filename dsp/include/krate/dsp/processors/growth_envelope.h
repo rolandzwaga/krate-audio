@@ -71,6 +71,7 @@
 
 #pragma once
 
+#include <krate/dsp/core/db_utils.h>  // detail::isNaN (setMaxDuration)
 #include <krate/dsp/core/modulation_source.h>
 #include <krate/dsp/primitives/smoother.h>
 
@@ -139,11 +140,24 @@ public:
     /// non-virtual member - never `override` (modulation_source.h:37,41).
     void setSeed(std::uint32_t /*seedValue*/) noexcept {}
 
-    /// @brief Total rise duration in seconds (FR-061), clamped to [1, 60].
+    /// @brief Total rise duration in seconds (FR-061), clamped to
+    /// [kMinDuration, getMaxDuration()] - [1, 60] unless setMaxDuration raised it.
     /// @param seconds Requested duration
     void setDuration(float seconds) noexcept {
-        duration_ = static_cast<double>(std::clamp(seconds, kMinDuration, kMaxDuration));
+        duration_ = static_cast<double>(std::clamp(seconds, kMinDuration, maxDuration_));
     }
+
+    /// @brief Per-instance duration ceiling (Vorago Phase 10 append, default-inert).
+    /// Defaults to kMaxDuration, so an instance that never calls this behaves
+    /// exactly as before: Seraphis derives its parameter range from the constant
+    /// and is untouched. Applied at set time only - a duration already stored is
+    /// not re-clamped. Floored at kMinDuration; NaN is ignored.
+    void setMaxDuration(float seconds) noexcept {
+        if (detail::isNaN(seconds)) return;  // db_utils.h:99 - fast-math-immune
+        maxDuration_ = std::max(seconds, kMinDuration);
+    }
+
+    [[nodiscard]] float getMaxDuration() const noexcept { return maxDuration_; }
 
     /// @brief Effective (clamped) rise duration in seconds.
     [[nodiscard]] float getDuration() const noexcept {
@@ -254,6 +268,7 @@ private:
     double sampleDtSeconds_ = 1.0 / 44100.0;
     double elapsed_ = 0.0;
     double duration_ = static_cast<double>(kDefaultDuration);
+    float maxDuration_ = kMaxDuration;  // per-instance ceiling, see setMaxDuration
 
     double l0_ = 0.0;       ///< L(0), precomputed
     double invSpan_ = 1.0;  ///< 1/(L(1) - L(0)), precomputed

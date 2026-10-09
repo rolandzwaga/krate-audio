@@ -1,0 +1,45 @@
+START Sun Sep 27 18:55:51 WEDT 2026
+Filters: "VoragoVoice_EcosystemLaneSurvey"
+Randomness seeded to: 4075533148
+
+=== VoragoVoice_EcosystemLaneSurvey (plan S3.4) ===
+fs=48000  seed=0x925863E5  depth=0.85  note=65.406 Hz vel=100/127
+window=[155 s, 340 s]  chunks=255000  simulation steps surveyed=17344
+
+[Resonator] addressed (step, slot) pairs=121408  non-finite=0
+[Resonator] addressed slots: 0(base=0.500) 1(base=0.500) 2(base=0.500) 3(base=0.500) 4(base=0.500) 5(base=0.500) 6(base=0.500)
+[Resonator] Q(0.10) = 0.212587
+[Resonator] Q(0.25) = 0.256706
+[Resonator] Q(0.50) = 0.402407
+[Resonator] Q(0.60) = 0.476750
+[Resonator] Q(0.75) = 0.577980
+[Resonator] Q(0.90) = 0.665321
+[Resonator] fraction of addressed pairs with lane > current base = 0.3660 (44433/121408)
+[Resonator] S3.4 rule: clamp(floor(Q(0.60)/0.05)*0.05, 0.05, 0.50) = 0.45
+
+[Feedback] addressed (step, slot) pairs=104064  non-finite=0
+[Feedback] addressed slots: 0(base=0.500) 1(base=0.500) 2(base=0.500) 3(base=0.500) 4(base=0.500) 5(base=0.500)
+[Feedback] Q(0.10) = 0.217125
+[Feedback] Q(0.25) = 0.271813
+[Feedback] Q(0.50) = 0.396276
+[Feedback] Q(0.60) = 0.453697
+[Feedback] Q(0.75) = 0.568067
+[Feedback] Q(0.90) = 0.669588
+[Feedback] fraction of addressed pairs with lane > current base = 0.3280 (34130/104064)
+[Feedback] S3.4 rule: clamp(floor(Q(0.60)/0.05)*0.05, 0.05, 0.50) = 0.45
+
+[Noise] addressed (step, slot) pairs=69376  non-finite=0
+[Noise] addressed slots: 0(base=0.350) 1(base=0.350) 2(base=0.350) 3(base=0.350)
+[Noise] Q(0.10) = 0.155820
+[Noise] Q(0.25) = 0.269876
+[Noise] Q(0.50) = 0.449486
+[Noise] Q(0.60) = 0.560557
+[Noise] Q(0.75) = 0.656217
+[Noise] Q(0.90) = 0.741925
+[Noise] fraction of addressed pairs with lane > current base = 0.6329 (43906/69376)
+=== end survey ===
+===============================================================================
+All tests passed (1 assertion in 1 test case)
+
+EXIT 0
+END Sun Sep 27 18:55:52 WEDT 2026

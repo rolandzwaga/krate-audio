@@ -1,0 +1,14 @@
+START 2026-10-08 16:13:15 final_v36_glass_well tree=c351fe0f+final (build_final.log) preset="Glass Well" env: VORAGO_PILOT_SECONDARY=1
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 2754508644
+[probe] lever: none
+[probe] Glass Well - primary D1.1 material Glass (stored seed 12, 2 twin render(s))
+  take: peak 0.4034  arm1 hi -21.16 dB [yes]  arm2 lo -27.91 dB [yes]  arm3 late-sus -0.70 dB [yes]  arm4 tail -173.59 dB [yes]
+  arm1@44.1k: finite y peak 0.3054 hi -21.96 dB [PASS]
+  conjunct S10 acoustic body: d 12.7929, bar 1.5 -> ok
+  primary d 6.2503  bar 4.0000  attribBase -1.0000  state ok  -> PASS  loopsAlive -  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (11 assertions in 1 test case)
+
+exit=0 END 2026-10-08 16:23:37

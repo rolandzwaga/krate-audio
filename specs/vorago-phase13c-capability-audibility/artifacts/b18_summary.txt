@@ -1,0 +1,7 @@
+=== B-18 started 2026-10-06 08:30:01 exe=2026-10-06 08:29:31 | kMasterGainId, 0.42},               // 0 -> gain 0.84  ===
+longrender: test cases:  1 |  0 passed | 1 failed | take 0 seed 10: finite yes  peak 0.9661  arm1 hi -6.73 dB [yes];take 1 seed 11: finite yes  peak 0.9661  arm1 hi -7.12 dB [yes];take 2 seed 12: finite yes  peak 0.9661  arm1 hi -6.39 dB [yes];take 3 seed 13: finite yes  peak 0.9661  arm1 hi -5.66 dB [NO];
+S9:  primary d 4.4473 bar 4.0000 attribBase -1.0000 state ok -> PASS lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+preset lane: All tests passed (18099 assertions in 41 test cases) | 
+tidy dsp: exit=0 | findings: 0 | 
+tidy vorago: exit=0 | findings: 0 | 
+=== B-18 finished 2026-10-06 08:52:36 ===

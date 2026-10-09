@@ -1,0 +1,13 @@
+Filters: "NoiseOrganism_TypeSwitchedAfterPrepareReplaysAfterReset","VoragoEngine_SlotSeedReproducibility","VoragoEngine_ResetReproProbe"
+Randomness seeded to: 519111732
+  [engine probe] default                                        max|diff| 0.000e+00, first differing sample 16000
+  [engine probe] noise level -96 dB                             max|diff| 0.000e+00, first differing sample 16000
+  [engine probe] ecology mix 0                                  max|diff| 0.000e+00, first differing sample 16000
+  [engine probe] ecology loop gain 0                            max|diff| 0.000e+00, first differing sample 16000
+  [engine probe] resonance mix 0                                max|diff| 0.000e+00, first differing sample 16000
+  [engine probe] body mix 0                                     max|diff| 0.000e+00, first differing sample 16000
+  [engine probe] cloud richness 0                               max|diff| 0.000e+00, first differing sample 16000
+  [engine probe] ecology mix 0 + resonance mix 0                max|diff| 0.000e+00, first differing sample 16000
+===============================================================================
+All tests passed (15 assertions in 3 test cases)
+

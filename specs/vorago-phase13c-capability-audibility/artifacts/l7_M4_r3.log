@@ -1,0 +1,14 @@
+START 2026-10-03 17:08:00 Drifting Strata (M4) rung r3: rows=kNumRows = 52 markers=3 | .amount = 0.60f,  // 13c T052 M4 r1 (was 0.45f);// 13c T052 M4 r2: Movement also rolls the tide in (base shared with Fog's row).;// 13c T052 M4 r3: Movement also mutates the cloud (base shared with Entropy's row).; | tree: attack n 4, breath 3.0, tide 0.8, ghost 21/1.2, ecology 30/36, child gain 1.5 | exe=2026-10-03 17:07:59
+macro tests exit=12 assertions: 167 | 155 passed | 12 failed
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 1256671116
+[probe] lever: none
+[probe] Drifting Strata - primary M4 Movement (stored seed 3, 1 twin render(s))
+  take: peak 0.9661  arm1 hi -14.31 dB [yes]  arm2 lo -21.94 dB [yes]  arm3 late-sus -1.69 dB [yes]  arm4 tail -162.30 dB [yes]
+  arm1@44.1k: finite y peak 0.9115 hi -14.09 dB [PASS]
+  primary d 0.8599  bar 4.0000  attribBase -1.0000  state ok  -> FAIL  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (9 assertions in 1 test case)
+
+exit=0 END 2026-10-03 17:43:13

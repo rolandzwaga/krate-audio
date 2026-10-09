@@ -1,0 +1,29 @@
+START 2026-10-06 11:42:09 Lightless TAKES=4 OVERRIDE=1400=0,1500=0,1300=0,201=1.0,1101=0.0,200=1.0,702=1.0,205=0.85
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 447687065
+[probe] override 1400 = 0.000000 (replaced)
+[probe] override 1500 = 0.000000 (replaced)
+[probe] override 1300 = 0.000000 (appended)
+[probe] override 201 = 1.000000 (replaced)
+[probe] override 1101 = 0.000000 (replaced)
+[probe] override 200 = 1.000000 (replaced)
+[probe] override 702 = 1.000000 (replaced)
+[probe] override 205 = 0.850000 (replaced)
+[probe] lever: none
+[probe] Lightless - primary M1 Darkness (stored seed 13, 1 twin render(s))
+  take: peak 0.1747  arm1 hi -26.64 dB [yes]  arm2 lo -32.97 dB [yes]  arm3 late-sus -0.47 dB [yes]  arm4 tail -146.33 dB [yes]
+  arm1@44.1k: finite y peak 0.1931 hi -25.87 dB [PASS]
+  primary d 4.4888  bar 4.0000  attribBase -1.0000  state ok  -> PASS  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  take j=0 seed 13: peak 0.1747  arm1 hi -26.64 dB [yes]  arm2 lo -32.97 dB [yes]  arm3 late-sus -0.47 dB [yes]  arm4 tail -146.33 dB [yes]
+  take j=1 seed 14: peak 0.1617  arm1 hi -26.67 dB [yes]  arm2 lo -34.91 dB [yes]  arm3 late-sus +2.06 dB [yes]  arm4 tail -151.04 dB [yes]
+  take j=2 seed 15: peak 0.1521  arm1 hi -25.39 dB [yes]  arm2 lo -38.71 dB [yes]  arm3 late-sus +1.32 dB [yes]  arm4 tail -149.73 dB [yes]
+  take j=3 seed 0: peak 0.1897  arm1 hi -25.83 dB [yes]  arm2 lo -34.07 dB [yes]  arm3 late-sus +0.96 dB [yes]  arm4 tail -143.03 dB [yes]
+  take j=0 d 4.4888
+  take j=1 d 4.9056
+  take j=2 d 6.7189
+  take j=3 d 5.8921
+===============================================================================
+All tests passed (27 assertions in 1 test case)
+
+exit=0 END 2026-10-06 11:46:55

@@ -1,0 +1,12 @@
+START 2026-10-04 22:21:04 Lightless arm attack1 lever=childGain=0.35,ghostTapDb=12,ecologyWetDb=0 exe=2026-10-04 22:04:41
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 4149290119
+[probe] lever: childGain=0.35,ghostTapDb=12,ecologyWetDb=0
+[probe] Lightless - primary M1 Darkness (stored seed 13, 1 twin render(s))
+  take: peak 0.1685  arm1 hi -25.06 dB [yes]  arm2 lo -30.38 dB [yes]  arm3 late-sus -1.58 dB [yes]  arm4 tail -165.37 dB [yes]
+  arm1@44.1k: finite y peak 0.1915 hi -25.27 dB [PASS]
+  primary d 3.8726  bar 4.0000  attribBase -1.0000  state ok  -> FAIL  lever: childGain=0.35,ghostTapDb=12,ecologyWetDb=0
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (10 assertions in 1 test case)
+

@@ -1,0 +1,14 @@
+START 2026-10-01 22:33:39 VORAGO_PILOT_PRESET=Slow Bloom VORAGO_PILOT_MASTER_TRIM=-6 VORAGO_PILOT_LEVER=childGain=1.20 exe=2026-10-01 22:26:47 (kMaxChildGain 2.0 build)
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 2548684979
+[probe] master trim -6 dB: kMasterGainId norm 0.5000 -> 0.2506
+[probe] lever: childGain=1.20
+[probe] Slow Bloom - primary S6 harmonic bloom (stored seed 7, 1 twin render(s))
+  take: peak 0.1271  arm1 hi -28.23 dB [yes]  arm2 lo -34.31 dB [yes]  arm3 late-sus +0.64 dB [yes]  arm4 tail -201.31 dB [yes]
+  arm1@44.1k: finite y peak 0.1385 hi -28.61 dB [PASS]
+  primary d 4.3095  bar 4.0000  attribBase -1.0000  state ok  -> PASS  lever: childGain=1.20
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (10 assertions in 1 test case)
+
+exit=0 END 2026-10-01 22:36:14

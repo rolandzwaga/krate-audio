@@ -13,6 +13,7 @@
 
 #include <krate/dsp/processors/resonator_bank.h>
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <limits>
@@ -1026,5 +1027,517 @@ TEST_CASE("ResonatorBank setEnabled controls resonator activity", "[resonator_ba
 
     SECTION("invalid index returns false for isEnabled") {
         REQUIRE(bank.isEnabled(100) == false);
+    }
+}
+
+// ==============================================================================
+// Vorago Phase 2 (specs/vorago-phase2-noise-organism) - T005 / FR-099 / SC-011 (vi)
+// ==============================================================================
+// setFrequency() must re-derive Q from the CONFIGURED decay, exactly the way
+// setDecay() already does. Today it does not (resonator_bank.h:328-332 sets
+// frequencies_[] + updateFilterCoefficients() only, while setDecay at :345-352
+// also writes qValues_[index] = rt60ToQ(...)), so a resonator whose frequency is
+// wandered - which is precisely what the NoiseOrganism control step does - has
+// its effective RT60 silently scaled by the frequency ratio.
+
+namespace {
+
+// Least-squares RT60 fit. Deliberately distinct from measureRT60() above, which is a
+// threshold-crossing estimator: this one fits dB-vs-time across the -6 dB .. -40 dB
+// region of the 20 ms RMS envelope and extrapolates the slope to -60 dB, so it is
+// insensitive to where the tail meets the noise floor and to the constant log-domain
+// offset that window-averaging an exponential decay introduces.
+// Returns 0.0f if no usable decaying region is present.
+inline float fitRT60LeastSquares(const float* buffer, size_t size, float sampleRate) {
+    constexpr double kEnvelopeWindowSeconds = 0.020;
+    if (!(sampleRate > 0.0f)) return 0.0f;
+    // Rounded, not truncated: 0.020f * 48000.0f evaluates to 959.99998 in float, which
+    // would truncate to 959 and lose the exact one-period-per-window alignment at 50 Hz.
+    const size_t windowSize = static_cast<size_t>(
+        std::lround(kEnvelopeWindowSeconds * static_cast<double>(sampleRate)));
+    if (windowSize == 0 || size < windowSize * 4) return 0.0f;
+
+    const size_t numWindows = size / windowSize;
+    std::vector<float> envelopeDb(numWindows, -144.0f);
+    float peakDb = -144.0f;
+    size_t peakWindow = 0;
+    for (size_t w = 0; w < numWindows; ++w) {
+        envelopeDb[w] = linearToDb(calculateRMS(buffer + w * windowSize, windowSize));
+        if (envelopeDb[w] > peakDb) {
+            peakDb = envelopeDb[w];
+            peakWindow = w;
+        }
+    }
+    if (peakDb <= -143.0f) return 0.0f;
+
+    // Fit region starts at the first window at or below -6 dB, searched forward from
+    // the peak window so a pre-peak ramp can never be mistaken for the decay.
+    size_t firstWindow = numWindows;
+    for (size_t w = peakWindow; w < numWindows; ++w) {
+        if (envelopeDb[w] - peakDb <= -6.0f) {
+            firstWindow = w;
+            break;
+        }
+    }
+    if (firstWindow >= numWindows) return 0.0f;
+
+    double sumT = 0.0, sumY = 0.0, sumTT = 0.0, sumTY = 0.0;
+    size_t count = 0;
+    for (size_t w = firstWindow; w < numWindows; ++w) {
+        const double relDb = static_cast<double>(envelopeDb[w] - peakDb);
+        if (relDb < -40.0) break;
+        const double t = (static_cast<double>(w) + 0.5) * static_cast<double>(windowSize)
+                       / static_cast<double>(sampleRate);
+        sumT += t;
+        sumY += relDb;
+        sumTT += t * t;
+        sumTY += t * relDb;
+        ++count;
+    }
+    if (count < 3) return 0.0f;
+
+    const double n = static_cast<double>(count);
+    const double denominator = n * sumTT - sumT * sumT;
+    if (denominator <= 0.0) return 0.0f;
+    const double slopeDbPerSecond = (n * sumTY - sumT * sumY) / denominator;
+    if (slopeDbPerSecond >= 0.0) return 0.0f;  // not decaying - caller treats as a failure
+    return static_cast<float>(-60.0 / slopeDbPerSecond);
+}
+
+} // anonymous namespace
+
+TEST_CASE("ResonatorBank_SetFrequencyRederivesQ", "[resonator_bank][vorago-phase2]") {
+    // --------------------------------------------------------------------------
+    // Fixture note - DELIBERATE DEVIATION from the 200 Hz -> 800 Hz numbers in
+    // tasks.md T005, because those two are arithmetically incompatible with the
+    // shipped kMaxResonatorQ = 100 clamp (resonator_bank.h:50) inside rt60ToQ (:89):
+    //     rt60ToQ(800, 1.0) = pi*800/ln(1000) = 363.8 -> CLAMPED to 100
+    //     => the best achievable RT60 at 800 Hz is ln(1000)*100/(pi*800) = 0.275 s,
+    //        so "within +/-25 % of 1.0 s" at 800 Hz cannot hold even AFTER the fix.
+    // The constraint is f <= 100*ln(1000)/pi = 219.8 Hz at a 1.0 s decay, so the
+    // fixture keeps BOTH the 1.0 s decay and the 4x frequency step by anchoring at
+    // 50 Hz and moving to 200 Hz:
+    //     rt60ToQ(50,  1.0) =  22.74  (unclamped)
+    //     rt60ToQ(200, 1.0) =  90.96  (unclamped)
+    // The pre-fix failure mode is unchanged and is exactly the one T005 describes:
+    // the Q held from 50 Hz gives RT60 = 22.74*ln(1000)/(pi*200) = 0.25 s at 200 Hz,
+    // i.e. ~1/4 of the configured decay - a SHORT fit, not a NaN.
+    // A 1.0 s RT60 also keeps the fit statistically sound: the -6 dB .. -40 dB region
+    // spans ~28 envelope windows, against ~7 for the 0.25 s decay that keeping the
+    // 800 Hz endpoint would have forced.
+    // --------------------------------------------------------------------------
+    constexpr double kSampleRate = 48000.0;
+    constexpr float kSampleRateF = 48000.0f;
+    constexpr float kDecaySeconds = 1.0f;
+    constexpr float kAnchorHz = 50.0f;
+    constexpr float kMovedHz = 200.0f;  // 4x the anchor
+    constexpr size_t kRenderSamples = 144000;  // 3 s @ 48 kHz
+    constexpr float kRt60LowerBound = kDecaySeconds * 0.75f;   // -25 %
+    constexpr float kRt60UpperBound = kDecaySeconds * 1.25f;   // +25 %
+
+    ResonatorBank bank;
+    bank.prepare(kSampleRate);
+    bank.setEnabled(0, true);
+    bank.setFrequency(0, kAnchorHz);
+    bank.setDecay(0, kDecaySeconds);
+
+    std::vector<float> render(kRenderSamples, 0.0f);
+
+    // Single unit impulse, then free decay. Global defaults keep the measurement clean:
+    // exciterMix_ = 0 (wet only), damping_ = 0, spectralTilt_ = 0, gains_[0] = 1.0.
+    auto exciteAndRender = [&bank, &render]() {
+        render[0] = bank.process(1.0f);
+        for (size_t i = 1; i < render.size(); ++i) {
+            render[i] = bank.process(0.0f);
+        }
+    };
+
+    // --- Baseline at the anchor frequency: passes BEFORE and AFTER the fix. --------
+    exciteAndRender();
+    REQUIRE_FALSE(hasInvalidSamples(render.data(), render.size()));
+    const float baselineRt60 = fitRT60LeastSquares(render.data(), render.size(), kSampleRateF);
+    INFO("baseline RT60 at " << kAnchorHz << " Hz = " << baselineRt60 << " s (configured "
+         << kDecaySeconds << " s, Q = " << bank.getQ(0) << ")");
+    REQUIRE(baselineRt60 > 0.0f);
+    REQUIRE(baselineRt60 > kRt60LowerBound);
+    REQUIRE(baselineRt60 < kRt60UpperBound);
+
+    // --- Move the frequency WITHOUT touching setDecay. ----------------------------
+    bank.setFrequency(0, kMovedHz);
+    REQUIRE(bank.getFrequency(0) == Approx(kMovedHz).margin(0.5f));
+    // setFrequency must not disturb the configured decay itself.
+    REQUIRE(bank.getDecay(0) == Approx(kDecaySeconds).margin(1e-6f));
+
+    // Clear the residual ring by rendering silence - NOT by calling bank.reset().
+    // reset() is a CONFIGURATION wipe (resonator_bank.h:212-232: 440 Hz, default decay,
+    // default Q, enabled_[i] = false, documented at :211-212), so it would destroy the
+    // very state under test. After 3 s at a 1 s RT60 the previous ring is ~-180 dB;
+    // 0.5 s more silence puts it far below the next impulse own -60 dB point, and
+    // also flushes the transient caused by re-tuning the biquad under a live state.
+    for (size_t i = 0; i < 24000; ++i) {
+        static_cast<void>(bank.process(0.0f));
+    }
+
+    // --- Re-fit at the moved frequency. -------------------------------------------
+    exciteAndRender();
+    REQUIRE_FALSE(hasInvalidSamples(render.data(), render.size()));
+    const float movedRt60 = fitRT60LeastSquares(render.data(), render.size(), kSampleRateF);
+    INFO("post-setFrequency RT60 at " << kMovedHz << " Hz = " << movedRt60 << " s (configured "
+         << kDecaySeconds << " s, Q = " << bank.getQ(0) << ")");
+
+    // Right-reason guard: before the FR-099 fix this must be a real, finite, SHORT fit
+    // (~0.25 s), never 0.0f / NaN / a failed fit.
+    REQUIRE(movedRt60 > 0.0f);
+
+    // The requirement itself: the effective RT60 still tracks the configured decay.
+    REQUIRE(movedRt60 > kRt60LowerBound);
+    REQUIRE(movedRt60 < kRt60UpperBound);
+
+    // And the re-derived Q is the one rt60ToQ would produce for the NEW frequency.
+    REQUIRE(bank.getQ(0) == Approx(rt60ToQ(kMovedHz, kDecaySeconds)).margin(1e-3f));
+}
+
+// ==============================================================================
+// Vorago Phase 3 (specs/vorago-phase3-resonance-drift) - FR-013 Tier 1
+// ==============================================================================
+// ResonanceDriftNetwork needs a PER-RESONATOR, PER-SAMPLE gate (the roadmap's
+// Dormancy rule: a slept peak's contribution is multiplied by a 50 ms per-sample
+// linear ramp, spec FR-041/FR-044). process() (resonator_bank.h:470-517) returns
+// only the SUMMED wet output and the class exposes no per-resonator accessor, so
+// the network's Tier 0 composition is twelve single-resonator banks. When T002's
+// stage probe measures that composition above 48 000 ns/block, FR-013 Tier 1
+// substitutes ONE twelve-resonator bank plus a purely additive per-resonator
+// output method here.
+//
+// Two additive members are exercised below and neither exists yet - these cases
+// are written first and are expected to fail to compile until T004 adds them:
+//
+//   void processIndividual(float input, float* outPerResonator) noexcept;
+//   void resetResonatorState(std::size_t index) noexcept;   // OQ-1
+//
+// resetResonatorState is the state-only clear the class has never had: reset()
+// (:213-256) is a CONFIGURATION wipe (440 Hz, kDefaultDecayTime, unity gain,
+// kDefaultResonatorQ, enabled_[i] = false, documented at :212), so it cannot be
+// used on a sleep edge without a full re-apply.
+// ==============================================================================
+
+namespace {
+
+/// The Vorago Phase 3 engine runs at 48 kHz; the fixtures below are pinned there
+/// rather than to this file's 44.1 kHz default so the RT60 arithmetic in the
+/// resetResonatorState case matches the numbers quoted in tasks.md T003.
+constexpr double kP3SampleRate = 48000.0;
+constexpr float kP3SampleRateF = 48000.0f;
+
+/// Configure a bank exactly as tasks.md T003 (1) specifies: three enabled slots
+/// at 70/140/260 Hz, Q = 12, gains -6/-3/0 dB, slots [3, 16) left disabled.
+///
+/// The write order is load-bearing and is the same order FR-014 mandates for the
+/// network: setFrequency FIRST, then setQ. setFrequency re-derives
+/// qValues_[index] = rt60ToQ(frequencies_[index], decays_[index])
+/// (resonator_bank.h:333), so a frequency write after a Q write silently
+/// discards the Q.
+inline void configureP3ThreeSlotBank(ResonatorBank& bank) noexcept {
+    constexpr float kFreqs[3] = {70.0f, 140.0f, 260.0f};
+    constexpr float kGainsDb[3] = {-6.0f, -3.0f, 0.0f};
+    for (size_t i = 0; i < 3; ++i) {
+        bank.setEnabled(i, true);
+        bank.setFrequency(i, kFreqs[i]);
+        bank.setQ(i, 12.0f);
+        bank.setGain(i, kGainsDb[i]);
+    }
+    for (size_t i = 3; i < kMaxResonators; ++i) {
+        bank.setEnabled(i, false);
+    }
+}
+
+/// Deterministic white noise, fixed seed, so both arms of every comparison below
+/// see byte-identical excitation.
+inline std::vector<float> makeP3Noise(size_t numSamples, unsigned int seed) {
+    std::mt19937 rng(seed);
+    std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
+    std::vector<float> noise(numSamples, 0.0f);
+    for (auto& s : noise) {
+        s = dist(rng);
+    }
+    return noise;
+}
+
+} // anonymous namespace
+
+TEST_CASE("ResonatorBank_ProcessIndividual", "[resonator_bank]") {
+    // Margin for the sum-identity arms. The two paths run the same biquads over
+    // the same excitation, so the only difference admitted here is float
+    // summation order.
+    constexpr float kSumMargin = 1.0e-5f;
+
+    SECTION("sum identity: the per-resonator outputs sum to process()'s return") {
+        ResonatorBank summed;
+        ResonatorBank individual;
+        summed.prepare(kP3SampleRate);
+        individual.prepare(kP3SampleRate);
+        configureP3ThreeSlotBank(summed);
+        configureP3ThreeSlotBank(individual);
+
+        const std::vector<float> noise = makeP3Noise(4096, 0x5EED0003u);
+
+        std::array<float, Krate::DSP::kMaxResonators> out{};
+        float worstDiff = 0.0f;
+        float worstSum = 0.0f;
+        float worstRef = 0.0f;
+        size_t worstIndex = 0;
+
+        for (size_t n = 0; n < noise.size(); ++n) {
+            const float reference = summed.process(noise[n]);
+            individual.processIndividual(noise[n], out.data());
+            const float perResonatorSum = std::accumulate(out.begin(), out.end(), 0.0f);
+
+            const float diff = std::abs(perResonatorSum - reference);
+            if (diff > worstDiff) {
+                worstDiff = diff;
+                worstSum = perResonatorSum;
+                worstRef = reference;
+                worstIndex = n;
+            }
+        }
+
+        // exciterMix_ is 0 (resonator_bank.h:626), so process()'s mix stage (:514)
+        // is the identity on the wet sum and the two paths must agree exactly up
+        // to summation order - asserted here at the worst sample of all 4096,
+        // which is the same statement as "for every sample".
+        INFO("worst sample = " << worstIndex << ", |diff| = " << worstDiff);
+        REQUIRE(worstSum == Approx(worstRef).margin(kSumMargin));
+    }
+
+    SECTION("disabled slots write exact zeros on every sample") {
+        ResonatorBank bank;
+        bank.prepare(kP3SampleRate);
+        configureP3ThreeSlotBank(bank);
+
+        const std::vector<float> noise = makeP3Noise(4096, 0x5EED0013u);
+
+        std::array<float, Krate::DSP::kMaxResonators> out{};
+        bool allDisabledZero = true;
+        size_t firstBadSample = noise.size();
+        size_t firstBadSlot = Krate::DSP::kMaxResonators;
+
+        for (size_t n = 0; n < noise.size(); ++n) {
+            // Poison the whole array first: a slot that is merely "not written"
+            // must still read back as an exact zero, never as stale data.
+            out.fill(-12345.0f);
+            bank.processIndividual(noise[n], out.data());
+            for (size_t i = 3; i < Krate::DSP::kMaxResonators; ++i) {
+                if (out[i] != 0.0f) {
+                    allDisabledZero = false;
+                    if (firstBadSample == noise.size()) {
+                        firstBadSample = n;
+                        firstBadSlot = i;
+                    }
+                }
+            }
+        }
+
+        INFO("first non-zero disabled slot: sample " << firstBadSample
+             << ", slot " << firstBadSlot);
+        REQUIRE(allDisabledZero);
+    }
+
+    SECTION("a null output pointer is a total no-op") {
+        ResonatorBank live;
+        ResonatorBank twin;
+        live.prepare(kP3SampleRate);
+        twin.prepare(kP3SampleRate);
+        configureP3ThreeSlotBank(live);
+        configureP3ThreeSlotBank(twin);
+
+        // The only difference between the two banks.
+        live.processIndividual(1.0f, nullptr);
+
+        const std::vector<float> noise = makeP3Noise(512, 0x5EED0023u);
+        float maxDiff = 0.0f;
+        for (size_t n = 0; n < noise.size(); ++n) {
+            const float a = live.process(noise[n]);
+            const float b = twin.process(noise[n]);
+            maxDiff = std::max(maxDiff, std::abs(a - b));
+        }
+
+        // Bit-identical: the null call must not advance the global smoothers,
+        // must not consume the trigger, and must not touch any filter state.
+        INFO("max|diff| after the null call = " << maxDiff);
+        REQUIRE(maxDiff == 0.0f);
+    }
+
+    SECTION("an un-prepared bank writes kMaxResonators zeros and advances nothing") {
+        constexpr float kSentinel = -777.0f;
+
+        // Two guard cells past the end catch an over-write; the array is
+        // deliberately larger than the contract so "exactly kMaxResonators
+        // floats" is a testable claim rather than an assumption.
+        std::array<float, Krate::DSP::kMaxResonators + 2> guarded{};
+        guarded.fill(kSentinel);
+
+        ResonatorBank cold;  // default-constructed: prepare() was never called
+        cold.processIndividual(1.0f, guarded.data());
+
+        bool allZero = true;
+        for (size_t i = 0; i < Krate::DSP::kMaxResonators; ++i) {
+            if (guarded[i] != 0.0f) {
+                allZero = false;
+            }
+        }
+        REQUIRE(allZero);
+        REQUIRE(guarded[Krate::DSP::kMaxResonators] == kSentinel);
+        REQUIRE(guarded[Krate::DSP::kMaxResonators + 1] == kSentinel);
+
+        // ... and nothing was advanced: preparing now must leave the bank
+        // indistinguishable from one that never saw the un-prepared call.
+        ResonatorBank twin;
+        cold.prepare(kP3SampleRate);
+        twin.prepare(kP3SampleRate);
+        configureP3ThreeSlotBank(cold);
+        configureP3ThreeSlotBank(twin);
+
+        const std::vector<float> noise = makeP3Noise(512, 0x5EED0033u);
+        float maxDiff = 0.0f;
+        for (size_t n = 0; n < noise.size(); ++n) {
+            const float a = cold.process(noise[n]);
+            const float b = twin.process(noise[n]);
+            maxDiff = std::max(maxDiff, std::abs(a - b));
+        }
+        INFO("max|diff| after the un-prepared call = " << maxDiff);
+        REQUIRE(maxDiff == 0.0f);
+    }
+
+    SECTION("the three global smoothers advance exactly once per call") {
+        ResonatorBank individual;
+        ResonatorBank summed;
+        individual.prepare(kP3SampleRate);
+        summed.prepare(kP3SampleRate);
+        configureP3ThreeSlotBank(individual);
+        configureP3ThreeSlotBank(summed);
+
+        // Put a global smoother genuinely in flight: kResonatorSmoothingTimeMs is
+        // 20 ms (resonator_bank.h:69) = 960 samples at 48 kHz, so the damping
+        // smoother is still converging across the whole 512-sample window and its
+        // value at sample n depends on how many times it has been advanced. A
+        // build that advanced the smoothers twice per processIndividual() call
+        // reads a different dampingScale (:493) and diverges here; every other
+        // arm in this case would still pass on that build.
+        individual.setDamping(0.5f);
+        summed.setDamping(0.5f);
+
+        const std::vector<float> noise = makeP3Noise(512, 0x5EED0043u);
+
+        std::array<float, Krate::DSP::kMaxResonators> out{};
+        float finalIndividualSum = 0.0f;
+        float finalReference = 0.0f;
+        float maxDiff = 0.0f;
+
+        for (size_t n = 0; n < noise.size(); ++n) {
+            finalReference = summed.process(noise[n]);
+            individual.processIndividual(noise[n], out.data());
+            finalIndividualSum = std::accumulate(out.begin(), out.end(), 0.0f);
+            maxDiff = std::max(maxDiff, std::abs(finalIndividualSum - finalReference));
+        }
+
+        INFO("max|diff| across the 512-sample window = " << maxDiff);
+        REQUIRE(finalIndividualSum == Approx(finalReference).margin(kSumMargin));
+    }
+}
+
+TEST_CASE("ResonatorBank_ResetResonatorState", "[resonator_bank]") {
+    // OQ-1 (plan S17, ruled option (i) by the user on 2026-09-10): the sleep edge
+    // needs a per-resonator STATE clear that leaves the slot's configuration
+    // standing. reset() cannot serve: it wipes frequency, decay, gain, Q and the
+    // enabled flag (resonator_bank.h:226-231).
+
+    SECTION("the ring is cleared and the configuration survives") {
+        constexpr float kAnchorHz = 40.0f;
+        constexpr float kHighQ = 100.0f;
+
+        ResonatorBank bank;
+        bank.prepare(kP3SampleRate);
+        bank.setEnabled(0, true);
+        bank.setFrequency(0, kAnchorHz);  // FIRST - it re-derives Q (:333)
+        bank.setQ(0, kHighQ);             // ... so the Q write follows it
+
+        // RT60 = Q * ln(1000) / (pi * f) = 100 * 6.9078 / (pi * 40) ~= 5.50 s, so
+        // 100 ms of silence costs only ~1.1 dB and the ring is unmistakably alive.
+        const float expectedRt60 = kHighQ * 6.907755f / (kTestPi * kAnchorHz);
+        INFO("expected RT60 at " << kAnchorHz << " Hz, Q = " << kHighQ
+             << " is " << expectedRt60 << " s");
+        REQUIRE(expectedRt60 > 5.0f);
+
+        // 1 s of on-resonance drive. The bank is a constant-0 dB-peak bandpass
+        // (:560-591), so a 0.5-amplitude sine settles toward ~0.5 at the peak.
+        const float phaseIncrement = kTestTwoPi * kAnchorHz / kP3SampleRateF;
+        float phase = 0.0f;
+        for (size_t n = 0; n < 48000; ++n) {
+            static_cast<void>(bank.process(0.5f * std::sin(phase)));
+            phase += phaseIncrement;
+            if (phase > kTestTwoPi) {
+                phase -= kTestTwoPi;
+            }
+        }
+
+        // 100 ms of silence. Sample the ring over the final full 40 Hz cycle
+        // (1200 samples) so the measured peak is the ring's amplitude, not a
+        // zero crossing.
+        constexpr size_t kSilenceSamples = 4800;
+        constexpr size_t kCycleSamples = 1200;
+        float ringPeak = 0.0f;
+        for (size_t n = 0; n < kSilenceSamples; ++n) {
+            const float y = bank.process(0.0f);
+            if (n >= kSilenceSamples - kCycleSamples) {
+                ringPeak = std::max(ringPeak, std::abs(y));
+            }
+        }
+        // Positive control: without the clear there is a real ring to clear.
+        INFO("ring peak 100 ms after the drive stopped = " << ringPeak);
+        REQUIRE(ringPeak > 1.0e-3f);
+
+        // The requirement.
+        bank.resetResonatorState(0);
+
+        float postClearPeak = 0.0f;
+        for (size_t n = 0; n < 64; ++n) {
+            postClearPeak = std::max(postClearPeak, std::abs(bank.process(0.0f)));
+        }
+        INFO("peak over the 64 samples after resetResonatorState(0) = " << postClearPeak);
+        REQUIRE(postClearPeak < 1.0e-6f);
+
+        // It is a STATE clear, not reset()'s configuration wipe.
+        REQUIRE(bank.getFrequency(0) == Approx(kAnchorHz));
+        REQUIRE(bank.getQ(0) == Approx(kHighQ));
+        REQUIRE(bank.isEnabled(0) == true);
+    }
+
+    SECTION("an out-of-range index is a silent no-op") {
+        ResonatorBank live;
+        ResonatorBank twin;
+        live.prepare(kP3SampleRate);
+        twin.prepare(kP3SampleRate);
+        configureP3ThreeSlotBank(live);
+        configureP3ThreeSlotBank(twin);
+
+        // Build real filter state in both banks first, so a stray clear anywhere
+        // in the array would show up in the comparison below.
+        const std::vector<float> priming = makeP3Noise(256, 0x5EED0053u);
+        for (size_t n = 0; n < priming.size(); ++n) {
+            static_cast<void>(live.process(priming[n]));
+            static_cast<void>(twin.process(priming[n]));
+        }
+
+        live.resetResonatorState(Krate::DSP::kMaxResonators);
+
+        const std::vector<float> noise = makeP3Noise(512, 0x5EED0063u);
+        float maxDiff = 0.0f;
+        for (size_t n = 0; n < noise.size(); ++n) {
+            const float a = live.process(noise[n]);
+            const float b = twin.process(noise[n]);
+            maxDiff = std::max(maxDiff, std::abs(a - b));
+        }
+        INFO("max|diff| after resetResonatorState(kMaxResonators) = " << maxDiff);
+        REQUIRE(maxDiff == 0.0f);
     }
 }

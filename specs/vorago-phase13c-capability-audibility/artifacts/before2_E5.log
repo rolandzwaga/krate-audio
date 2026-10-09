@@ -1,0 +1,14 @@
+START 2026-10-01 20:02:38 before2_E5 tree=ae149a1c+working-copy reporting binary (vorago_tests.exe mtime 2026-10-01 19:14:53) as-compiled (no override, no lever) preset="Haunted Colony"
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 2795101625
+[probe] lever: none
+[probe] Haunted Colony - primary E5 ghost -> ghost bursts (stored seed 12, 4 twin render(s))
+  take: peak 0.2463  arm1 hi -23.30 dB [yes]  arm2 lo -25.17 dB [yes]  arm3 late-sus -0.03 dB [yes]  arm4 tail -172.30 dB [yes]
+  arm1@44.1k: finite y peak 0.2564 hi -22.71 dB [PASS]
+  route arms: d(R_k, R_k0) 1.1920, attribBase d(R_0, R_00) 0.3296 (attributable iff d >= 1.8296)
+  primary d 1.1920  bar 4.0000  attribBase 0.3296  state ok  -> FAIL  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (16 assertions in 1 test case)
+
+END 2026-10-01 20:06:19 exit=0 wall=221s

@@ -1,0 +1,13 @@
+START 2026-10-08 16:09:25 final_v36_endless_descent tree=c351fe0f+final (build_final.log) preset="Endless Descent" env: VORAGO_PILOT_SECONDARY=1
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 4280052660
+[probe] lever: none
+[probe] Endless Descent - primary M11 Depth (stored seed 12, 1 twin render(s))
+  take: peak 0.1199  arm1 hi -31.50 dB [yes]  arm2 lo -36.55 dB [yes]  arm3 late-sus +0.23 dB [yes]  arm4 tail -215.14 dB [yes]
+  arm1@44.1k: finite y peak 0.1329 hi -30.64 dB [PASS]
+  primary d 8.9947  bar 4.0000  attribBase -1.0000  state ok  -> PASS  loopsAlive -  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (9 assertions in 1 test case)
+
+exit=0 END 2026-10-08 16:18:38

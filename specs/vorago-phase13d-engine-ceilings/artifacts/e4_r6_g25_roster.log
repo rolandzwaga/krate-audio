@@ -1,0 +1,8 @@
+START 2026-10-08 08:07:47 e4_r6_g25_roster tree=4a31e9a3+e4_r6_g25 kept VORAGO_PILOT_ITERATE=roster
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 866650938
+roster: 0 ruled cell(s), lever: none
+===============================================================================
+All tests passed (2 assertions in 1 test case)
+
+exit=0 END 2026-10-08 08:07:47

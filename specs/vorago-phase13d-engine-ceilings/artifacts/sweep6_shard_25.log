@@ -1,0 +1,117 @@
+START 2026-10-08_18:41:23 shard 25/42 tree=08d95072+T054 transcribed VORAGO_SWEEP_OUT=/f/tmp/p13d/sweep6-out
+Filters: [vorago-sweep] ~[vorago-aggregate]
+Randomness seeded to: 3778275275
+shard 25/42: 1 of 42 indices (N = 42)
+
+=== Vorago_PresetSweep_LongRender (FR-033, SC-012; K = 4) ===
+[sweep] index 25: computing / loading record...
+
+Feeding Loops (index 25): A 155.00 s  Rel 45.00 s  RT60 4.00 s  H 340.00 s  Tail [394.00, 404.00]  Total 404.00 s  freeze tail Off
+  take 0 seed  8: finite yes  peak 0.1953  arm1 hi -25.33 dB [yes]  arm2 lo -36.50 dB [yes]  arm3 late-sus +5.06 dB [yes]  arm4 tail -197.94 dB [yes]
+  take 1 seed  9: finite yes  peak 0.2164  arm1 hi -25.98 dB [yes]  arm2 lo -35.29 dB [yes]  arm3 late-sus -4.16 dB [yes]  arm4 tail -197.61 dB [yes]
+  take 2 seed 10: finite yes  peak 0.2160  arm1 hi -24.91 dB [yes]  arm2 lo -34.91 dB [yes]  arm3 late-sus +0.83 dB [yes]  arm4 tail -186.71 dB [yes]
+  take 3 seed 11: finite yes  peak 0.1653  arm1 hi -25.83 dB [yes]  arm2 lo -30.73 dB [yes]  arm3 late-sus +0.70 dB [yes]  arm4 tail -182.39 dB [yes]
+shard 25/42: 1 of 42 indices (N = 42)
+
+=== Vorago_PresetSweep_FreezeGesture (FR-033, SC-024) ===
+Cathedral Void (index 7): not in this shard, skipped
+shard 25/42: 1 of 42 indices (N = 42)
+
+=== Vorago_PresetSweep_SustainAtAllRates (FR-033a, SC-022) ===
+[sweep] index 25: computing / loading record...
+Feeding Loops (index 25): [0, 220.00 s]  44.1 kHz finite yes peak 0.2352 hi -26.28 dB  |  96 kHz finite yes peak 0.1660 hi -26.83 dB
+shard 25/42: 1 of 43 indices (N = 42, index N = default surface)
+
+=== Vorago_PresetSweep_AblationVerifiesClaims (FR-012, FR-037, SC-011) ===
+[sweep] index 25: computing / loading record...
+
+Feeding Loops (index 25): primary E4 feedback -> loop wake, 0 secondaries, s(P) 4.5043
+  cell                         claim state conj rend           d      2s(P)     attrib  sec pri  skip
+  S1 noise organism                  yes   yes  yes       0.2461     9.0087    -1.0000  NO  NO   
+  S2 resonance drift                 yes   yes  yes       2.2139     9.0087    -1.0000  yes NO   
+  S3 spectral smear                  yes   yes  yes       2.5089     9.0087    -1.0000  yes NO   
+  S4 feedback ecology                yes   yes  yes       4.6427     9.0087    -1.0000  yes yes  
+  S5 subharmonic                     yes   yes  yes       3.0925     9.0087    -1.0000  yes NO   
+  S6 harmonic bloom                  yes   yes  yes       0.1194     9.0087    -1.0000  NO  NO   
+  S7 ecosystem                       yes   yes  yes       4.4910     9.0087    -1.0000  yes yes  
+  S8 cavern space                    yes   yes  yes       0.9473     9.0087    -1.0000  NO  NO   
+  S9 ghost / atmosphere              yes   yes  yes       0.5938     9.0087    -1.0000  NO  NO   
+  S10 acoustic body                  yes   yes  yes       9.4000     9.0087    -1.0000  yes yes  
+  M1 Darkness                        NO    yes  NO        0.0000     9.0087    -1.0000  NO  NO   M displacement
+  M2 Age                             NO    yes  NO        0.0000     9.0087    -1.0000  NO  NO   M displacement
+  M3 Density                         NO    yes  NO        0.0000     9.0087    -1.0000  NO  NO   M displacement
+  M4 Movement                        NO    yes  NO        0.0000     9.0087    -1.0000  NO  NO   M displacement
+  M5 Gravity                         NO    yes  NO        0.0000     9.0087    -1.0000  NO  NO   M displacement
+  M6 Entropy                         NO    yes  NO        0.0000     9.0087    -1.0000  NO  NO   M displacement
+  M7 Pressure                        NO    yes  NO        0.0000     9.0087    -1.0000  NO  NO   M displacement
+  M8 Weight                          NO    yes  NO        0.0000     9.0087    -1.0000  NO  NO   M displacement
+  M9 Fog                             NO    yes  NO        0.0000     9.0087    -1.0000  NO  NO   M displacement
+  M10 Life                           NO    yes  NO        0.0000     9.0087    -1.0000  NO  NO   M displacement
+  M11 Depth                          NO    yes  NO        0.0000     9.0087    -1.0000  NO  NO   M displacement
+  M12 Mass                           NO    yes  NO        0.0000     9.0087    -1.0000  NO  NO   M displacement
+  E1 partial -> bloom                yes   yes  yes       3.7179     4.1976     3.6649  NO  NO   
+  E2 resonator -> resonance peaks       yes   yes  yes       3.6554     2.1529     3.6649  NO  NO   
+  E3 noise -> noise wake             yes   yes  yes       3.6501     4.0446     3.6649  NO  NO   
+  E4 feedback -> loop wake     PRI   yes   yes  yes       5.9128     3.5307     3.6649  yes yes  
+  E5 ghost -> ghost bursts           yes   yes  yes       3.4898     1.1232     3.6649  NO  NO   
+  E6.hi ecosystem sync rate high       NO    yes  NO        0.0000     9.0087    -1.0000  NO  NO   side predicate
+  E7.hi ecosystem self-affinity high       NO    yes  NO        0.0000     9.0087    -1.0000  NO  NO   side predicate
+  D1.1 material Glass                NO    yes  NO        0.0000     0.0000    -1.0000  NO  NO   state-only kind
+  D1.2 material Strings              NO    yes  NO        0.0000     0.0000    -1.0000  NO  NO   state-only kind
+  D1.3 material MetalPlate           NO    yes  NO        0.0000     0.0000    -1.0000  NO  NO   state-only kind
+  D1.4 material Chamber              NO    yes  NO        0.0000     0.0000    -1.0000  NO  NO   state-only kind
+  D1.5 material Ice                  NO    yes  NO        0.0000     0.0000    -1.0000  NO  NO   state-only kind
+  D1.6 material StoneChamber         yes   yes  NO        0.0000     0.0000    -1.0000  yes NO   state-only kind
+  D1.7 material SteelTank            yes   yes  NO        0.0000     0.0000    -1.0000  yes NO   state-only kind
+  D1.8 material WoodenHull           NO    yes  NO        0.0000     0.0000    -1.0000  NO  NO   state-only kind
+  D1.9 material CathedralColumn       NO    yes  NO        0.0000     0.0000    -1.0000  NO  NO   state-only kind
+  D1.10 material CavernWall          NO    yes  NO        0.0000     0.0000    -1.0000  NO  NO   state-only kind
+  D1.11 material GlassSphere         NO    yes  NO        0.0000     0.0000    -1.0000  NO  NO   state-only kind
+  D2 body blend both heard           yes   yes  NO        0.0000     0.0000    -1.0000  yes NO   state-only kind
+  D3.1 noise model Direct            yes   NO   yes       0.2461     0.0000    -1.0000  NO  NO   
+  D3.2 noise model FilteredWind       yes   NO   yes       0.2461     0.0000    -1.0000  NO  NO   
+  D3.3 noise model GranularDust       yes   NO   yes       0.2461     0.0000    -1.0000  NO  NO   
+  D3.4 noise model MetallicHiss       yes   NO   yes       0.2461     0.0000    -1.0000  NO  NO   
+  D4.1 noise type White              NO    NO   NO        0.0000     0.0000    -1.0000  NO  NO   state-only kind
+  D4.2 noise type Pink               NO    NO   NO        0.0000     0.0000    -1.0000  NO  NO   state-only kind
+  D4.3 noise type TapeHiss           NO    NO   NO        0.0000     0.0000    -1.0000  NO  NO   state-only kind
+  D4.4 noise type VinylCrackle       NO    NO   NO        0.0000     0.0000    -1.0000  NO  NO   state-only kind
+  D4.5 noise type Asperity           NO    NO   NO        0.0000     0.0000    -1.0000  NO  NO   state-only kind
+  D4.6 noise type Brown              yes   NO   NO        0.0000     0.0000    -1.0000  NO  NO   state-only kind
+  D4.7 noise type Blue               NO    NO   NO        0.0000     0.0000    -1.0000  NO  NO   state-only kind
+  D4.8 noise type Violet             NO    NO   NO        0.0000     0.0000    -1.0000  NO  NO   state-only kind
+  D4.9 noise type Grey               NO    NO   NO        0.0000     0.0000    -1.0000  NO  NO   state-only kind
+  D4.10 noise type Velvet            NO    NO   NO        0.0000     0.0000    -1.0000  NO  NO   state-only kind
+  D4.11 noise type VinylRumble       NO    NO   NO        0.0000     0.0000    -1.0000  NO  NO   state-only kind
+  D4.12 noise type RadioStatic       NO    NO   NO        0.0000     0.0000    -1.0000  NO  NO   state-only kind
+  D5.1 anchor Free                   NO    yes  NO        0.0000     0.0000    -1.0000  NO  NO   state-only kind
+  D5.2 anchor Keyed                  NO    yes  NO        0.0000     0.0000    -1.0000  NO  NO   state-only kind
+  D5.3 anchor Hybrid                 yes   yes  NO        0.0000     0.0000    -1.0000  yes NO   state-only kind
+  D6.1 loop filter Lowpass           yes   yes  NO        0.0000     0.0000    -1.0000  yes NO   state-only kind
+  D6.2 loop filter Bandpass          yes   yes  NO        0.0000     0.0000    -1.0000  yes NO   state-only kind
+  D6.3 loop filter Highpass          NO    yes  NO        0.0000     0.0000    -1.0000  NO  NO   state-only kind
+  D7.1 loudest sub f/2               yes   yes  NO        0.0000     0.0000    -1.0000  yes NO   state-only kind
+  D7.2 loudest sub f/4               NO    yes  NO        0.0000     0.0000    -1.0000  NO  NO   state-only kind
+  D7.3 loudest sub fifth below       NO    yes  NO        0.0000     0.0000    -1.0000  NO  NO   state-only kind
+  D8.1 envelope Standard             yes   yes  NO        0.0000     0.0000    -1.0000  yes NO   state-only kind
+  D8.2 envelope Growth               NO    yes  NO        0.0000     0.0000    -1.0000  NO  NO   state-only kind
+  D9.1 attack span <= 10 s           NO    yes  NO        0.0000     0.0000    -1.0000  NO  NO   state-only kind
+  D9.2 attack span >= 90 s           yes   yes  NO        0.0000     0.0000    -1.0000  yes NO   state-only kind
+  D10.1 freeze holds a field         NO    NO   NO        0.0000     0.0000    -1.0000  NO  NO   state-only kind
+  D10.2 freeze off                   yes   yes  NO        0.0000     0.0000    -1.0000  yes NO   state-only kind
+  D11 ghost reverse >= 0.5           NO    NO   NO        0.0000     0.0000    -1.0000  NO  NO   state-only kind
+  D12.1 ghost event triggers on       NO    NO   NO        0.0000     0.0000    -1.0000  NO  NO   state-only kind
+  D12.2 ghost event triggers off       yes   yes  NO        0.0000     0.0000    -1.0000  yes NO   state-only kind
+  D13.1 event rate scale <= 0.3       NO    yes  NO        0.0000     9.0087    -1.0000  NO  NO   state false
+  D13.2 event rate scale >= 3.0       NO    yes  NO        0.0000     9.0087    -1.0000  NO  NO   state false
+  D14.1 breathing depth >= 0.7       NO    yes  NO        0.0000     9.0087    -1.0000  NO  NO   state false
+  D14.2 tidal depth >= 0.7           NO    yes  NO        0.0000     9.0087    -1.0000  NO  NO   state false
+shard 25/42: 1 of 42 indices (N = 42)
+
+=== Vorago_PresetSweep_RendersAreReproducible (FR-038, SC-015) ===
+[sweep] index 25: computing / loading record...
+Feeding Loops (index 25): two fresh hosts over [0, 220.00 s], withinTolerance per channel: yes
+===============================================================================
+All tests passed (40 assertions in 5 test cases)
+
+exit=0 END 2026-10-08_19:04:10

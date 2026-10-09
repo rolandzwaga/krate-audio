@@ -1,0 +1,18 @@
+=== L6 ladder started 2026-10-02 18:09:31 ===
+2026-10-02 18:10:18 build init (dsp_systems_tests vorago_tests): exit=0 warnings=0 consts: kBreathGravityLaneGain = 1.0f kTidalFogLaneGain = 1.0f 
+2026-10-02 18:10:33 verify: All tests passed (75 assertions in 6 test cases) 
+2026-10-02 18:24:52 rung g1.0: SlowBloom  primary d 4.1966 bar 4.0000 -> PASS lever: none|D14.1 d 0.6556 bar 1.5 state ok conjunct ok -> no| DriftingStrata  primary d 1.9490 bar 4.0000 -> FAIL lever: none|D14.2 d 0.0052 bar 1.5 state ok conjunct ok -> no|
+2026-10-02 18:25:22 build breath_1.5 (vorago_tests): exit=0 warnings=0 consts: kBreathGravityLaneGain = 1.5f kTidalFogLaneGain = 1.0f 
+2026-10-02 18:47:14 rung breath_1.5: SlowBloom  primary d 3.7906 bar 4.0000 -> FAIL lever: none|D14.1 d 0.4820 bar 1.5 state ok conjunct ok -> no| DriftingStrata  primary d 1.3462 bar 4.0000 -> FAIL lever: none|D14.2 d 0.0054 bar 1.5 state ok conjunct ok -> no|
+2026-10-02 18:48:19 build breath_2.0 (vorago_tests): exit=0 warnings=0 consts: kBreathGravityLaneGain = 2.0f kTidalFogLaneGain = 1.0f 
+2026-10-02 19:11:28 rung breath_2.0: SlowBloom  primary d 3.5884 bar 4.0000 -> FAIL lever: none|D14.1 d 1.5908 bar 1.5 state ok conjunct ok -> VERIFIED| DriftingStrata  primary d 1.0393 bar 4.0000 -> FAIL lever: none|D14.2 d 0.0058 bar 1.5 state ok conjunct ok -> no|
+2026-10-02 19:12:19 build breath_3.0 (vorago_tests): exit=0 warnings=0 consts: kBreathGravityLaneGain = 3.0f kTidalFogLaneGain = 1.0f 
+2026-10-02 19:33:54 rung breath_3.0: SlowBloom  primary d 4.3820 bar 4.0000 -> PASS lever: none|D14.1 d 2.6558 bar 1.5 state ok conjunct ok -> VERIFIED| DriftingStrata  primary d 0.9090 bar 4.0000 -> FAIL lever: none|D14.2 d 0.0050 bar 1.5 state ok conjunct ok -> no|
+2026-10-02 19:34:45 build tidal_1.5 (vorago_tests): exit=0 warnings=0 consts: kBreathGravityLaneGain = 1.0f kTidalFogLaneGain = 1.5f 
+2026-10-02 19:56:11 rung tidal_1.5: SlowBloom  primary d 4.1965 bar 4.0000 -> PASS lever: none|D14.1 d 0.6573 bar 1.5 state ok conjunct ok -> no| DriftingStrata  primary d 1.9488 bar 4.0000 -> FAIL lever: none|D14.2 d 0.0077 bar 1.5 state ok conjunct ok -> no|
+2026-10-02 19:57:00 build tidal_2.0 (vorago_tests): exit=0 warnings=0 consts: kBreathGravityLaneGain = 1.0f kTidalFogLaneGain = 2.0f 
+2026-10-02 20:17:59 rung tidal_2.0: SlowBloom  primary d 4.1963 bar 4.0000 -> PASS lever: none|D14.1 d 0.6592 bar 1.5 state ok conjunct ok -> no| DriftingStrata  primary d 1.9486 bar 4.0000 -> FAIL lever: none|D14.2 d 0.0101 bar 1.5 state ok conjunct ok -> no|
+2026-10-02 20:18:49 build tidal_3.0 (vorago_tests): exit=0 warnings=0 consts: kBreathGravityLaneGain = 1.0f kTidalFogLaneGain = 3.0f 
+2026-10-02 20:41:41 rung tidal_3.0: SlowBloom  primary d 4.1955 bar 4.0000 -> PASS lever: none|D14.1 d 0.6643 bar 1.5 state ok conjunct ok -> no| DriftingStrata  primary d 1.9483 bar 4.0000 -> FAIL lever: none|D14.2 d 0.0150 bar 1.5 state ok conjunct ok -> no|
+2026-10-02 20:42:42 build restore (vorago_tests): exit=0 warnings=0 consts: kBreathGravityLaneGain = 1.0f kTidalFogLaneGain = 1.0f 
+=== L6 ladder finished 2026-10-02 20:42:42 consts: kBreathGravityLaneGain = 1.0f kTidalFogLaneGain = 1.0f  ===

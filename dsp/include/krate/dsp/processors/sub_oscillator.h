@@ -339,6 +339,84 @@ public:
         return sanitize(output);
     }
 
+    /// @brief Advance the oscillator's state by one sample WITHOUT evaluating
+    ///        the waveform.
+    ///
+    /// Performs exactly the state transitions process() performs - the master
+    /// phase estimate, both flip-flops, the Sine/Triangle sub-phase accumulator
+    /// (including its rising-edge resync) and the minBLEP residual (a Square
+    /// toggle still queues its step, and one residual sample is consumed) - and
+    /// skips only the waveform arithmetic: the std::sin, the triangle fold, the
+    /// output sum and the sanitize. A caller that alternates advance() and
+    /// process() therefore sees the identical process() output sequence as a
+    /// caller that only ever calls process(); that equivalence is tested. Use it
+    /// when the output would be discarded (a dormant or muted tone) and the
+    /// phase must stay locked to the master for a click-free wake.
+    ///
+    /// @param masterPhaseWrapped   As for process().
+    /// @param masterPhaseIncrement As for process().
+    void advance(bool masterPhaseWrapped, float masterPhaseIncrement) noexcept {
+        if (!prepared_) {
+            return;
+        }
+
+        const double masterInc = static_cast<double>(masterPhaseIncrement);
+        masterPhaseEstimate_ += masterInc;
+
+        const bool prevFlipFlop1 = flipFlop1_;
+        bool outputFlipFlopChanged = false;
+        bool outputFlipFlopRisingEdge = false;
+        float subsampleOffset = 0.0f;
+
+        if (masterPhaseWrapped) {
+            masterPhaseEstimate_ = wrapPhase(masterPhaseEstimate_);
+            subsampleOffset = static_cast<float>(
+                subsamplePhaseWrapOffset(masterPhaseEstimate_, masterInc));
+            if (subsampleOffset < 0.0f) subsampleOffset = 0.0f;
+            if (subsampleOffset >= 1.0f) subsampleOffset = 1.0f - 1e-7f;
+
+            flipFlop1_ = !flipFlop1_;
+
+            if (octave_ == SubOctave::OneOctave) {
+                outputFlipFlopChanged = true;
+                outputFlipFlopRisingEdge = flipFlop1_;
+            } else if (flipFlop1_ && !prevFlipFlop1) {
+                const bool prevFlipFlop2 = flipFlop2_;
+                flipFlop2_ = !flipFlop2_;
+                outputFlipFlopChanged = true;
+                outputFlipFlopRisingEdge = flipFlop2_ && !prevFlipFlop2;
+            }
+        }
+
+        if (outputFlipFlopChanged && outputFlipFlopRisingEdge) {
+            subPhase_.phase = 0.0;
+        }
+
+        switch (waveform_) {
+            case SubWaveform::Square:
+                if (outputFlipFlopChanged) {
+                    const bool outputFlipFlop =
+                        (octave_ == SubOctave::OneOctave) ? flipFlop1_ : flipFlop2_;
+                    residual_.addBlep(subsampleOffset, outputFlipFlop ? 2.0f : -2.0f);
+                }
+                break;
+
+            case SubWaveform::Sine:
+            case SubWaveform::Triangle: {
+                const double octaveFactor = (octave_ == SubOctave::OneOctave) ? 2.0 : 4.0;
+                subPhase_.increment = masterInc / octaveFactor;
+                subPhase_.phase = wrapPhase(subPhase_.phase + subPhase_.increment);
+                break;
+            }
+
+            default:
+                break;
+        }
+
+        // process() consumes one residual sample on every path; so does this.
+        static_cast<void>(residual_.consume());
+    }
+
     /// @brief Generate one mixed sample (main + sub with equal-power crossfade).
     ///
     /// @param mainOutput The main oscillator's output for this sample

@@ -1,0 +1,9 @@
+START 2026-10-02 22:26:55 Group 12 verify set as compiled (kAttackShapePower = 4 kBreathGravityLaneGain = 3.0f kTidalFogLaneGain = 1.0f kTidalRate = 0.8f ) exe=2026-10-02 22:26:50
+Filters: "VoragoVoice_LifeModulatorLanes","VoragoVoice_LifeLaneDepthZero","VoragoVoice_SilenceClearsEcologyAudio","VoragoEngine_RepeatedBroadcastIsInert_Short","VoragoVoice_AttackCurveReach","VoragoVoice_AttackTracksStageTime"
+Randomness seeded to: 1340040453
+VoragoVoice_AttackCurveReach: n = 4, 165.0 s rendered in 16.49 s wall
+VoragoVoice_AttackTracksStageTime: n = 4, RMS(Sus) -22.36 dB, reach 18.0 s (bound [15.0, 20.0] s), 180.0 s rendered in 3.15 s wall
+===============================================================================
+All tests passed (75 assertions in 6 test cases)
+
+exit=0 END 2026-10-02 22:27:20

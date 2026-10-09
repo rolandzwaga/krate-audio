@@ -118,6 +118,7 @@
 #include <krate/dsp/processors/noise_generator.h>
 #include <krate/dsp/processors/note_selective_filter.h>
 #include <krate/dsp/processors/pattern_scheduler.h>
+#include <krate/dsp/processors/perlin_noise_source.h>
 #include <krate/dsp/processors/phaser.h>
 #include <krate/dsp/processors/pitch_follower_source.h>
 #include <krate/dsp/processors/pitch_shift_processor.h>
@@ -130,9 +131,11 @@
 #include <krate/dsp/processors/saturation_processor.h>
 #include <krate/dsp/processors/self_oscillating_filter.h>
 #include <krate/dsp/processors/sidechain_filter.h>
+#include <krate/dsp/processors/slow_event_scheduler.h>
 #include <krate/dsp/processors/spectral_distortion.h>
 #include <krate/dsp/processors/spectral_gate.h>
 #include <krate/dsp/processors/spectral_morph_filter.h>
+#include <krate/dsp/processors/spectral_smear.h>
 #include <krate/dsp/processors/spectral_tilt.h>
 #include <krate/dsp/processors/stochastic_filter.h>
 #include <krate/dsp/processors/tape_saturator.h>
@@ -172,8 +175,32 @@
 #include <krate/dsp/systems/seraphis_engine.h>
 #include <krate/dsp/systems/seraphis_macro_matrix.h>
 
+// Vorago Phase 2 (specs/vorago-phase2-noise-organism), FR-001
+#include <krate/dsp/systems/noise_organism.h>
+
+// Vorago Phase 3 (specs/vorago-phase3-resonance-drift), FR-001
+#include <krate/dsp/systems/resonance_drift_network.h>
+
+// Vorago Phase 5 (specs/vorago-phase5-feedback-ecology), FR-001
+#include <krate/dsp/systems/feedback_ecology.h>
+
+// Vorago Phase 6 (specs/vorago-phase6-subharmonic), FR-001
+#include <krate/dsp/systems/subharmonic_engine.h>
+
+// Vorago Phase 7 (specs/vorago-phase7-harmonic-bloom), FR-001
+#include <krate/dsp/systems/bloom_engine.h>
+
+// Vorago Phase 8 (specs/vorago-phase8-ecosystem), FR-001
+#include <krate/dsp/systems/ecosystem_engine.h>
+
+// Vorago Phase 10 (specs/vorago-phase10-voice-engine), FR-001
+#include <krate/dsp/systems/vorago_voice.h>
+#include <krate/dsp/systems/vorago_engine.h>
+#include <krate/dsp/systems/vorago_macro_matrix.h>
+
 // Layer 4: Effects
 #include <krate/dsp/effects/aether_reverb.h>
+#include <krate/dsp/effects/cavern_verb.h>  // Vorago Phase 9 (specs/vorago-phase9-cavern-space), FR-001
 #include <krate/dsp/effects/bbd_delay.h>
 #include <krate/dsp/effects/digital_delay.h>
 #include <krate/dsp/effects/ducking_delay.h>

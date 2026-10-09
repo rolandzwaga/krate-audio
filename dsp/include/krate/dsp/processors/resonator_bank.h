@@ -328,6 +328,9 @@ public:
     void setFrequency(size_t index, float hz) noexcept {
         if (index >= kMaxResonators) return;
         frequencies_[index] = clampFrequency(hz);
+        // Vorago Phase 2 (FR-099): match setDecay below so a drifting frequency no
+        // longer silently changes the effective RT60 - Q is frequency-dependent.
+        qValues_[index] = rt60ToQ(frequencies_[index], decays_[index]);
         updateFilterCoefficients(index);
     }
 
@@ -487,7 +490,6 @@ public:
             // Calculate effective Q based on damping
             // Damping=1 means very low Q (instant silence), damping=0 means full Q
             const float dampingScale = 1.0f - currentDamping * 0.99f;  // Keep some Q even at max damping
-            const float effectiveQ = qValues_[i] * dampingScale;
 
             // Update filter if Q changed significantly (via damping)
             // For real-time safety, we apply damping as a gain reduction instead
@@ -522,6 +524,95 @@ public:
         }
     }
 
+    /// @brief Process one sample, writing each resonator's INDIVIDUAL contribution.
+    /// @param input Input sample
+    /// @param outPerResonator Destination for exactly kMaxResonators floats
+    ///
+    /// Additive companion to process() (:470), added for Vorago Phase 3 FR-013
+    /// Tier 1: a caller that needs a per-resonator per-sample gate cannot get it
+    /// from process(), which returns only the summed wet output.
+    ///
+    /// Writes exactly kMaxResonators floats; a disabled slot writes 0.0f. The
+    /// exciter-mix stage (:514) is deliberately NOT applied. Advances the three
+    /// global smoothers exactly once, exactly as process() does - a caller must
+    /// use EITHER process() OR processIndividual() for a given sample, never
+    /// both. A pending trigger is consumed here exactly as process() consumes it.
+    ///
+    /// A null outPerResonator is a total no-op (no smoother advances, no trigger
+    /// consumed, no filter state touched). On an un-prepared bank this writes
+    /// kMaxResonators zeros and returns without advancing anything, mirroring
+    /// process()'s !prepared_ early-out (:471).
+    ///
+    /// The loop below intentionally DUPLICATES process()'s body instead of
+    /// sharing a helper with it: FR-013 requires every pre-existing method to
+    /// stay byte-for-byte unchanged, so process() is not refactored. The only
+    /// deliberate omission is the exciter-mix stage; every surviving term is
+    /// computed in the same order so the per-resonator values sum to process()'s
+    /// return up to float summation order.
+    void processIndividual(float input, float* outPerResonator) noexcept {
+        if (outPerResonator == nullptr) return;
+
+        if (!prepared_) {
+            for (size_t i = 0; i < kMaxResonators; ++i) {
+                outPerResonator[i] = 0.0f;
+            }
+            return;
+        }
+
+        // Get smoothed global parameters. The exciter-mix smoother is advanced
+        // and discarded: its stage is not applied here, but skipping the advance
+        // would desynchronise it from process()'s per-sample cadence.
+        const float currentDamping = dampingSmoother_.process();
+        static_cast<void>(exciterMixSmoother_.process());
+        const float currentTilt = spectralTiltSmoother_.process();
+
+        // Handle trigger
+        float excitation = input;
+        if (triggerPending_) {
+            excitation += triggerVelocity_;
+            triggerPending_ = false;
+        }
+
+        // Process through all enabled resonators, writing each contribution
+        for (size_t i = 0; i < kMaxResonators; ++i) {
+            if (!enabled_[i]) {
+                outPerResonator[i] = 0.0f;
+                continue;
+            }
+
+            // Damping is applied as an output reduction, exactly as in process()
+            const float dampingScale = 1.0f - currentDamping * 0.99f;
+
+            float filterOutput = filters_[i].process(excitation);
+
+            // Apply damping as output reduction (approximation for real-time safety)
+            filterOutput *= dampingScale;
+
+            // Apply per-resonator gain
+            filterOutput *= gains_[i];
+
+            // Apply spectral tilt
+            const float tiltGain = calculateTiltGain(frequencies_[i], currentTilt);
+            filterOutput *= tiltGain;
+
+            outPerResonator[i] = filterOutput;
+        }
+    }
+
+    /// @brief Clear one resonator's filter state, leaving its configuration alone.
+    /// @param index Resonator index (0-15); out of range is a silent no-op
+    ///
+    /// Added for Vorago Phase 3 (FR-013 Tier 1, plan OQ-1). reset() (:213) is a
+    /// CONFIGURATION wipe - it returns every slot to 440 Hz, kDefaultDecayTime,
+    /// unity gain, kDefaultResonatorQ and enabled_[i] = false (:225-231) - so it
+    /// cannot be used to silence a single ringing resonator on a sleep edge.
+    /// This clears the biquad's delay line and nothing else: frequency, decay,
+    /// gain, Q and the enabled flag all survive.
+    void resetResonatorState(std::size_t index) noexcept {
+        if (index >= kMaxResonators) return;
+        filters_[index].reset();
+    }
+
     // =========================================================================
     // State Query
     // =========================================================================
@@ -542,16 +633,50 @@ private:
     }
 
     /// Update filter coefficients for a specific resonator
+    /// @note Coefficients are computed here instead of via Biquad::configure() because
+    ///       BiquadCoefficients::calculate() clamps Q to biquad.h's kMaxQ = 30 (biquad.h:53,
+    ///       applied by detail::clampQ at :673). This bank documents kMaxResonatorQ = 100
+    ///       (:51, "higher than Biquad default for physical modeling") and derives Q from the
+    ///       configured RT60 via rt60ToQ (:92), so that clamp silently capped every decay
+    ///       longer than kLn1000 * kMaxQ / (pi * f) seconds - e.g. a resonator configured for
+    ///       1 s at 200 Hz (Q = 90.96) actually rang for 0.33 s, and setQ() above 30 did
+    ///       nothing at all. The math below is the same RBJ constant-0-dB-peak bandpass, in
+    ///       the same operation order, as the FilterType::Bandpass case of
+    ///       BiquadCoefficients::calculate (biquad.h:658-665, normalisation at :767-775);
+    ///       the only difference is the Q range it admits, so results are unchanged for the
+    ///       Q <= 30 configurations that were already realizable.
     void updateFilterCoefficients(size_t index) noexcept {
         if (index >= kMaxResonators) return;
 
-        filters_[index].configure(
-            FilterType::Bandpass,
-            frequencies_[index],
-            qValues_[index],
-            0.0f,  // Bandpass doesn't use gainDb
-            static_cast<float>(sampleRate_)
-        );
+        const float sampleRateF = static_cast<float>(sampleRate_);
+        if (!(sampleRateF > 0.0f)) {
+            // Match calculate()'s invalid-sample-rate behaviour: bypass coefficients.
+            filters_[index].setCoefficients(BiquadCoefficients{});
+            return;
+        }
+
+        // frequencies_[] is already clamped to [kMinResonatorFrequency, 0.45 * fs] by
+        // clampFrequency(), which is strictly inside the Biquad frequency range.
+        const float q = std::clamp(qValues_[index], kMinResonatorQ, kMaxResonatorQ);
+        const float omega = kTwoPi * frequencies_[index] / sampleRateF;
+        const float sinOmega = std::sin(omega);
+        const float cosOmega = std::cos(omega);
+        const float alpha = sinOmega / (2.0f * q);
+
+        const float b0 = alpha;
+        const float b2 = -alpha;
+        const float a0 = 1.0f + alpha;
+        const float a1 = -2.0f * cosOmega;
+        const float a2 = 1.0f - alpha;
+
+        BiquadCoefficients coeffs;
+        const float invA0 = 1.0f / a0;
+        coeffs.b0 = b0 * invA0;
+        coeffs.b1 = 0.0f;  // Bandpass has no b1 term
+        coeffs.b2 = b2 * invA0;
+        coeffs.a1 = a1 * invA0;
+        coeffs.a2 = a2 * invA0;
+        filters_[index].setCoefficients(coeffs);
     }
 
     /// Recalculate active resonator count

@@ -1,0 +1,11 @@
+START 2026-10-07 12:27:58 node tools/run-cpu-tests.js dsp_systems_tests (T006 CPU base, alone, pinned, idle >= 15 min, binary=base)
+RUN  dsp_systems_tests ... FAIL  assertions: 442574 | 442566 passed | 8 failed
+      full output: f:\tmp\cpu_dsp_systems_tests.log
+
+0/1 suites passed.
+FAILED: dsp_systems_tests
+Before treating any of these as a defect: confirm nothing else was
+running, then re-run that suite ALONE, after the machine has idled.
+A suite that flips verdicts between runs is measuring the machine,
+not the code -- raise SETTLE_MS. Never relax a budget to fit.
+exit=1 END 2026-10-07 17:44:54

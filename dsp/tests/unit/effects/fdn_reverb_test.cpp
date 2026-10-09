@@ -10,6 +10,8 @@
 #include <krate/dsp/effects/fdn_reverb.h>
 #include <krate/dsp/effects/reverb.h>  // ReverbParams
 
+#include <reverb_metrics.h>  // TestUtils::normalisedEchoDensity (lifted from this TU)
+
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
 #include <catch2/benchmark/catch_benchmark.hpp>
@@ -22,6 +24,7 @@
 #include <numeric>
 #include <random>
 #include <set>
+#include <span>
 #include <vector>
 
 using Catch::Approx;
@@ -335,39 +338,22 @@ TEST_CASE("FDNReverb: echo density NED >= 0.8 within 50ms (SC-005)", "[effects][
     // We use a practical NED: fraction of occupied bins (windows with energy
     // above noise floor) normalized against total bins. An FDN with 8 channels
     // and 4 diffuser steps should fill nearly all time bins within 50ms.
+    // The metric itself now lives in tests/test_helpers/reverb_metrics.h (FR-080,
+    // specs/vorago-phase9-cavern-space): per-window RMS, threshold at -40 dB below
+    // the loudest analysed window, result = occupied / windowCount. With
+    // startWindow = 0 and every window analysed this is the block that used to be
+    // inline here, unchanged in substance.
     constexpr size_t windowSize = 48;
-    size_t numWindows = irLength / windowSize;
+    const size_t numWindows = irLength / windowSize;
 
-    // Compute RMS amplitude per window
-    std::vector<double> amplitude(numWindows);
-    double peakAmp = 0.0;
-    for (size_t w = 0; w < numWindows; ++w) {
-        double sum = 0.0;
-        for (size_t i = 0; i < windowSize; ++i) {
-            double s = static_cast<double>(irMono[w * windowSize + i]);
-            sum += s * s;
-        }
-        amplitude[w] = std::sqrt(sum / windowSize);
-        peakAmp = std::max(peakAmp, amplitude[w]);
-    }
-
-    // Count windows with amplitude above -40dB relative to peak
-    // This measures echo density: how many time slots have meaningful energy
-    double threshold = peakAmp * 0.01;  // -40dB
-    size_t occupiedCount = 0;
-    for (size_t w = 0; w < numWindows; ++w) {
-        if (amplitude[w] > threshold) {
-            occupiedCount++;
-        }
-    }
-
-    // NED = fraction of occupied windows
-    double ned = static_cast<double>(occupiedCount) / static_cast<double>(numWindows);
+    const double ned = Krate::DSP::TestUtils::normalisedEchoDensity(
+        std::span<const float>(irMono), /*windowSamples*/ windowSize, /*startWindow*/ 0u,
+        /*windowCount*/ numWindows);
+    const size_t occupiedCount =
+        static_cast<size_t>(std::lround(ned * static_cast<double>(numWindows)));
 
     INFO("NED (occupied fraction) = " << ned);
     INFO("Occupied windows: " << occupiedCount << " / " << numWindows);
-    INFO("Peak amplitude: " << peakAmp);
-    INFO("Threshold (-40dB): " << threshold);
 
     // SC-005: NED >= 0.8 (80% of 1ms bins occupied within 50ms)
     REQUIRE(ned >= 0.8);

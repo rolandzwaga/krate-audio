@@ -1,0 +1,43 @@
+Filters: "VoragoEngine_RepeatedBroadcastIsInert"
+Randomness seeded to: 1436381216
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+VoragoEngine_RepeatedBroadcastIsInert
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1489)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1414): PASSED:
+  REQUIRE( p.noiseCombFundamentalHz[3] == 440.0f )
+with expansion:
+  440.0f == 440.0f
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1478): PASSED:
+  REQUIRE( maxL <= 1e-5f )
+with expansion:
+  0.0f <= 0.00001f
+with message:
+  A vs B max-abs diff L 0  R 0   A vs C rms diff 0.0476674
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1479): PASSED:
+  REQUIRE( maxR <= 1e-5f )
+with expansion:
+  0.0f <= 0.00001f
+with message:
+  A vs B max-abs diff L 0  R 0   A vs C rms diff 0.0476674
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1480): PASSED:
+  REQUIRE( rmsAC > 1e-3 )
+with expansion:
+  0.0476673832 > 0.001
+with message:
+  A vs B max-abs diff L 0  R 0   A vs C rms diff 0.0476674
+
+12.413 s: VoragoEngine_RepeatedBroadcastIsInert
+===============================================================================
+All tests passed (4 assertions in 1 test case)
+

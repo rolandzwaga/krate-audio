@@ -1,0 +1,73 @@
+START 2026-09-28 19:34:19 run1
+Filters: "VoragoEngine_GhostExtensionWiring"
+Randomness seeded to: 1494933977
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+VoragoEngine_GhostExtensionWiring
+  clause (a) - the 60 s default render is unchanged from the base commit
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(458)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(504): warning:
+  SC-010 (a) reference - paste this over kBaseCommitVoragoFingerprint in
+  atmosphere_ghost_fixtures.h section 6.2 ONLY alongside a DELIBERATE change to
+  what Fixture B renders, refilling the PROVENANCE block in the SAME edit.
+  Never to make this clause green:
+  
+inline constexpr Krate::DSP::TestUtils::RenderFingerprint
+  kBaseCommitVoragoFingerprint{
+      .rms = 0.098545025744880874,
+      .peak = 0.29962226748466492,
+      .meanAbs = 0.07696901013732621,
+      .totalVariation = 1449.3243352220029,
+      .checkpoints = {
+          0.00000000f, 0.0122139724f, 0.0198170003f, 0.0310098715f,
+          -0.0260050558f, -0.000627643138f, -0.0926316008f, 0.0137929553f,
+          -0.122988209f, 0.0285053961f, 0.111592554f, 0.0875841379f,
+          0.195237577f, -0.0759189799f, 0.0804813355f, -0.158811763f,
+          -0.100936487f, -0.132443830f, -0.0644180775f, 0.190877080f,
+          -0.0126119293f, 0.153386593f, -0.134734020f, -0.0129285371f,
+          -0.0707455799f, -0.148535773f, -0.000959891884f, -0.0285174381f,
+          0.0651586726f, -0.00597775169f, 0.230548337f, 0.0402021408f,}};
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(507): FAILED:
+  REQUIRE( cmp.withinTolerance() )
+with expansion:
+  false
+with messages:
+  checkpoint[6] actual=-0.092632 reference=-0.135651
+  worst metric relative error 0.0252357 (bound 0.005), worst sample error 0.
+  0430197 (bound 0.006)
+
+-------------------------------------------------------------------------------
+VoragoEngine_GhostExtensionWiring
+  clause (c) - the closed gate spawns nothing while the events still fire
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(522)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(557): warning:
+  SC-010 (c) closed-gate arm: 600 s at 8000 Hz ran in 11.081 s; max ghost
+  request 0.992646
+
+-------------------------------------------------------------------------------
+VoragoEngine_GhostExtensionWiring
+  clause (e) - atmosGhostReverseProbability reaches the component
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(577)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(609): warning:
+  SC-010 (e) reverse-wire arm: 25 grains born, all reverse; ran in 1.60695 s
+
+===============================================================================
+test cases:  1 |  0 passed | 1 failed
+assertions: 27 | 26 passed | 1 failed
+
+EXIT 1
+END 2026-09-28 19:34:38

@@ -1,0 +1,47 @@
+START 2026-09-28 23:51:42 sweepaxes, exponent 0.5
+Filters: "VoragoMacro_SweepAxes"
+Randomness seeded to: 1995202562
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+VoragoMacro_SweepAxes
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1211)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1289): 
+warning:
+  SC-008 macro sweeps (3 seeds x 5 points x 60 s; window [10 s, 60 s] = samples
+  [480000, 2880000); C1 unless the row says @C3 / @C4; Life renders 210.0000 s
+  and counts edges over [90.0000 s, 210.0000 s])
+    Darkness  energy >4f0 rel. <4f0 (dB)  rho=-1.0000  endpoint=11.1172  [-53.
+  5663, -56.5685, -59.4540, -62.1747, -64.6835]
+    Age       HF energy > 4 kHz (dB) @C4  rho=-1.0000  endpoint=5.9446  [-110.
+  5460, -112.9598, -114.7402, -115.8667, -116.4906]
+    Density   partials + awake sources  rho=1.0000  endpoint=2.1578  [19.9507,
+  26.9507, 37.0000, 48.0000, 63.0000]
+    Movement  per-band total variation  rho=0.9667  endpoint=0.2294  [1.0979,
+  1.1789, 1.2338, 1.3517, 1.3497]
+    Gravity   mean |log2(ratio) - int|  rho=-0.9000  endpoint=0.7511  [0.2641,
+  0.2707, 0.2436, 0.1858, 0.0657]
+    Entropy   spectral flatness [f0, 20 f0]  rho=1.0000  endpoint=82.7725  [0.
+  0000, 0.0000, 0.0000, 0.0000, 0.0000]
+    Pressure  crest factor (dB)  rho=-1.0000  endpoint=4.2779  [8.5218, 7.8611,
+  6.8042, 5.5126, 4.2439]
+    Weight    energy < 80 Hz (dB) @C3  rho=1.0000  endpoint=8.2618  [-20.4452,
+  -18.2605, -16.1562, -14.1216, -12.1834]
+    Fog       spectral flatness [f0, 20 f0]  rho=1.0000  endpoint=0.3269  [0.
+  0000, 0.0000, 0.0000, 0.0000, 0.0000]
+    Life      wake/sleep edges per min [90 s, 210 s]  rho=1.0000  endpoint=14.
+  6667  [1.5000, 6.8333, 12.6667, 16.8333, 22.0000]
+    Mass      energy < 80 Hz (dB) @C3  rho=1.0000  endpoint=2.2922  [-20.4452,
+  -19.8252, -19.1993, -18.6187, -18.1531]
+    all-macros-at-zero broadband RMS = -14.0924 dBFS
+
+===============================================================================
+All tests passed (38 assertions in 1 test case)
+
+END 2026-09-29 00:10:46

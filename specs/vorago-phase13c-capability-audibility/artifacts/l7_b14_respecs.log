@@ -1,0 +1,58 @@
+START 2026-10-04 09:54:13 B-14 re-specced cases as compiled
+Filters: "VoragoEngine_GhostConfiguration","VoragoEngine_GhostExtensionWiring_Engaged","VoragoMacro_NeutralIsIdentity"
+Randomness seeded to: 3009488987
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+VoragoEngine_GhostConfiguration
+  clause 2: the level is EVENT-GATED, not a continuous wash
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_engine_test.cpp(2785)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_engine_test.cpp(2815): warning:
+  SC-027 clause 2: 600.0 s at 8000.0 Hz, polyphony 1, ecosystem depth 0, FR-086
+  A = 10.0; rise >= 0.3000, fall <= 0.0300
+    gate OPEN  : 20 burst edges, max level 0.5956, max ghost request 0.9926
+    gate CLOSED: 0 burst edges, max level 0.0000, max ghost request 0.9926
+
+-------------------------------------------------------------------------------
+VoragoEngine_GhostExtensionWiring_Engaged
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(655)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(696): warning:
+  SC-010 (b)/(d): pre-roll 262144 samples (32.768 s), then 600.0 s at 8000.0 Hz
+  in 64-sample blocks, polyphony 1, ecosystem depth 0, event rate scale 10.0;
+  rise >= 0.3000, fall <= 0.0300
+    burst edges     : 20
+    d triggeredBorn : 20
+    d dropped       : 0
+    d skipPoolFull  : 0
+    d skipRingCold  : 0
+    max level       : 0.5956
+    max ghost req   : 0.9926
+    wall clock      : 13.86 s
+
+===============================================================================
+All tests passed (134 assertions in 3 test cases)
+
+dsp exit=0
+Filters: "Vorago_ParamTable*","Vorago_GhostParams*"
+Randomness seeded to: 348647538
+No test cases matched '"Vorago_ParamTable*"'
+===============================================================================
+All tests passed (279 assertions in 1 test case)
+
+vorago exit=0 END 2026-10-04 09:55:00
+--- 2026-10-04 09:55:20 param table cases: Vorago_ParamIdMap,Vorago_ParamMapping,Vorago_RouteTable,Vorago_ParameterInfoTable,Vorago_ParamInputHygiene
+Filters: "Vorago_ParamIdMap","Vorago_ParamMapping","Vorago_RouteTable","Vorago_ParameterInfoTable","Vorago_ParamInputHygiene"
+Randomness seeded to: 424849571
+===============================================================================
+All tests passed (372842 assertions in 5 test cases)
+
+param table exit=0 END 2026-10-04 09:55:21

@@ -1,0 +1,31 @@
+START 2026-10-02 04:31:40 preset="Colony Pulse" env: VORAGO_PILOT_SECONDARY=1 | consts: kNoiseLevelLeverSpanDb = 12.0f kLoopGainLeverSpan = 0.18f kPartialLaneGain = 1.0f kGhostLaneGain = 1.5f kCouplingLeverSpan = 0.30f  | exe=2026-10-02 04:28:35
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 1591358358
+[probe] lever: none
+[probe] Colony Pulse - primary S7 ecosystem (stored seed 8, 1 twin render(s))
+  take: peak 0.5025  arm1 hi -19.55 dB [yes]  arm2 lo -27.71 dB [yes]  arm3 late-sus -0.75 dB [yes]  arm4 tail -160.49 dB [yes]
+  arm1@44.1k: finite y peak 0.5689 hi -19.14 dB [PASS]
+  primary d 13.8839  bar 4.0000  attribBase -1.0000  state ok  -> PASS  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  secondary D13.2 event rate scale >= 3.0: d 0.0940 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "" -> no
+  secondary E6.hi ecosystem sync rate high: d 2.1616 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "" -> VERIFIED
+  secondary E7.hi ecosystem self-affinity high: d 0.5229 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "" -> no
+===============================================================================
+All tests passed (9 assertions in 1 test case)
+
+exit=0 END 2026-10-02 04:42:45
+START 2026-10-02 04:42:45 preset="Teeming" env: VORAGO_PILOT_SECONDARY=1 VORAGO_PILOT_CELLS=S7 ecosystem | consts: kNoiseLevelLeverSpanDb = 12.0f kLoopGainLeverSpan = 0.18f kPartialLaneGain = 1.0f kGhostLaneGain = 1.5f kCouplingLeverSpan = 0.30f  | exe=2026-10-02 04:28:35
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 3300453511
+[probe] lever: none
+[probe] Teeming - primary M10 Life (stored seed 11, 1 twin render(s))
+  take: peak 0.2085  arm1 hi -24.80 dB [yes]  arm2 lo -30.04 dB [yes]  arm3 late-sus +1.56 dB [yes]  arm4 tail -164.26 dB [yes]
+  arm1@44.1k: finite y peak 0.2398 hi -25.04 dB [PASS]
+  primary d 1.3833  bar 4.0000  attribBase -1.0000  state ok  -> FAIL  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  secondary D13.1 event rate scale <= 0.3: d 0.9561 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "" -> no
+  secondary S7 ecosystem: d 3.9151 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "" -> VERIFIED
+===============================================================================
+All tests passed (9 assertions in 1 test case)
+
+exit=0 END 2026-10-02 04:52:48

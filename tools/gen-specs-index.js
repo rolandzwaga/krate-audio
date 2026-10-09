@@ -21,6 +21,10 @@ const SUBSYSTEMS = [
   // 'spectral' / 'grain' / 'oscillat', which would otherwise win and file the
   // plugin's own specs under "DSP / …".
   ['seraphis', 'Seraphis'],
+  // 'vorago' MUST also precede the DSP keywords: its phase slugs contain
+  // 'spectral' (vorago-phase4-spectral-smear), which would otherwise file the
+  // plugin's own specs under "DSP / Spectral".
+  ['vorago', 'Vorago'],
   ['membrum', 'Membrum'],
   ['gradus', 'Gradus'],
   ['ruinae', 'Ruinae'],

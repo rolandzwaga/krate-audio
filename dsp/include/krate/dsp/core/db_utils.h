@@ -128,6 +128,17 @@ KRATE_DETAIL_FORCEINLINE constexpr bool isNaN(float x) noexcept {
     return (bits & 0x7FF0000000000000ULL) != 0x7FF0000000000000ULL;
 }
 
+/// Platform-independent infinity check using bit manipulation.
+/// Survives -ffast-math via the opaqueFloatBits barrier (see isNaN above).
+/// Declared here, before constexprLn, which uses it.
+/// @param x Value to check
+/// @return true if x is positive or negative infinity
+[[nodiscard]] KRATE_DETAIL_FORCEINLINE constexpr bool isInf(float x) noexcept {
+    const auto bits = std::is_constant_evaluated() ? std::bit_cast<std::uint32_t>(x)
+                                                   : opaqueFloatBits(x);
+    return (bits & 0x7FFFFFFFu) == 0x7F800000u;
+}
+
 #if defined(__clang__)
 #pragma clang diagnostic pop
 #elif defined(_MSC_VER)
@@ -156,7 +167,14 @@ constexpr float kLn2 = 0.693147181f;
 constexpr float constexprLn(float x) noexcept {
     if (isNaN(x)) return std::numeric_limits<float>::quiet_NaN();
     if (x <= 0.0f) return -std::numeric_limits<float>::infinity();
-    if (x == std::numeric_limits<float>::infinity()) return std::numeric_limits<float>::infinity();
+    // Never `x == std::numeric_limits<float>::infinity()` here: under
+    // -ffinite-math-only LLVM folds a comparison against an infinity literal to
+    // poison, and a branch on poison lets it drop the whole remainder of the
+    // function. Clang 21 and Apple Clang (Xcode 26.6) both did: at -O3 this
+    // function returned poison and gainToDb() returned kSilenceFloorDb for
+    // EVERY input, which silenced every level measurement on the macOS leg.
+    // The barrier-read isInf() has no FP provenance for the optimizer to use.
+    if (isInf(x)) return std::numeric_limits<float>::infinity();
     if (x == 1.0f) return 0.0f;
 
     // Reduce x to range [0.5, 2] for better convergence
@@ -245,28 +263,6 @@ constexpr float constexprPow10(float x) noexcept {
 [[nodiscard]] inline constexpr float flushDenormal(float x) noexcept {
     return (x > -kDenormalThreshold && x < kDenormalThreshold) ? 0.0f : x;
 }
-
-/// Platform-independent infinity check using bit manipulation.
-/// Survives -ffast-math via the opaqueFloatBits barrier (see isNaN above).
-/// @param x Value to check
-/// @return true if x is positive or negative infinity
-#if defined(__clang__)
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wconstant-evaluated"
-#elif defined(_MSC_VER)
-#pragma warning(push)
-#pragma warning(disable : 5063)
-#endif
-[[nodiscard]] KRATE_DETAIL_FORCEINLINE constexpr bool isInf(float x) noexcept {
-    const auto bits = std::is_constant_evaluated() ? std::bit_cast<std::uint32_t>(x)
-                                                   : opaqueFloatBits(x);
-    return (bits & 0x7FFFFFFFu) == 0x7F800000u;
-}
-#if defined(__clang__)
-#pragma clang diagnostic pop
-#elif defined(_MSC_VER)
-#pragma warning(pop)
-#endif
 
 } // namespace detail
 

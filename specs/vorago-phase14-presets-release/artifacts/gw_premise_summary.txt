@@ -1,0 +1,6 @@
+=== Glass Well G2 premise started 2026-10-06 15:40:03 exe=2026-10-06 14:59:03 ===
+GW_stored []:  primary d 6.2513 -> PASS lever: none| levels: arms [y y y y] arm1@44.1k [y]| take j=0 d 6.2513| take j=1 d 10.2000| take j=2 d 3.4914| take j=3 d 5.0450|
+GW_tide0 [1502=0]:  primary d 6.2549 -> PASS lever: none| levels: arms [y y y y] arm1@44.1k [y]| take j=0 d 6.2549| take j=1 d 10.2016| take j=2 d 3.4831| take j=3 d 5.0434|
+GW_breath0 [1500=0]:  primary d 5.7456 -> PASS lever: none| levels: arms [y y y y] arm1@44.1k [y]| take j=0 d 5.7456| take j=1 d 9.1078| take j=2 d 3.3099| take j=3 d 5.3005|
+GW_life0 [1502=0,1500=0]:  primary d 5.7405 -> PASS lever: none| levels: arms [y y y y] arm1@44.1k [y]| take j=0 d 5.7405| take j=1 d 9.1068| take j=2 d 3.3039| take j=3 d 5.2984|
+=== finished 2026-10-06 16:12:28 ===

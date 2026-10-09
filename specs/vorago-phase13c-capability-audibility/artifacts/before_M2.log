@@ -1,0 +1,10 @@
+START 2026-10-01 08:30:25 before_M2 tree=ae149a1c as-compiled (no override) preset="Erosion"
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 3363001037
+[probe] Erosion - primary M2 Age (stored seed 14, 1 twin render(s))
+  take: peak 0.1729  arm1 hi -26.49 dB [yes]  arm2 lo -32.47 dB [yes]  arm3 late-sus +0.91 dB [yes]  arm4 tail -194.49 dB [yes]
+  primary d 2.4545  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+===============================================================================
+All tests passed (7 assertions in 1 test case)
+
+END 2026-10-01 08:32:28 exit=0 wall=123s

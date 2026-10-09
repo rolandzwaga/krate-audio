@@ -1,0 +1,13 @@
+START 2026-10-04 20:47:35 Lightless VORAGO_PILOT_LEVER=ghostTapDb=12 (final tree) exe=2026-10-04 09:54:11
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 347741477
+[probe] lever: ghostTapDb=12
+[probe] Lightless - primary M1 Darkness (stored seed 13, 1 twin render(s))
+  take: peak 0.1753  arm1 hi -25.40 dB [yes]  arm2 lo -31.30 dB [yes]  arm3 late-sus -1.95 dB [yes]  arm4 tail -161.38 dB [yes]
+  arm1@44.1k: finite y peak 0.1985 hi -25.14 dB [PASS]
+  primary d 1.4474  bar 4.0000  attribBase -1.0000  state ok  -> FAIL  lever: ghostTapDb=12
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (10 assertions in 1 test case)
+
+exit=0 END 2026-10-04 20:50:56

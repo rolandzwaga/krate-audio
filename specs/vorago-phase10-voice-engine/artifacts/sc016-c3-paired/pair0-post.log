@@ -1,0 +1,342 @@
+Mon Sep 21 23:20:45 WEDT 2026
+pin-perf-cores: performance-core mask 0xFFFF
+Filters: "SeraphisEngine_FullPolyCpuBudget","SeraphisVoice_CompositionOverhead","SeraphisEngine_PerfObservables","FeedbackEcology_CpuBudget","ContinuousBody_CpuBudget"
+Randomness seeded to: 3535075948
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+ContinuousBody_CpuBudget
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\continuous_body_perf_test.cpp(790)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\continuous_body_perf_test.cpp(811): warning:
+  SC-005 (steady state - one material, cloud active, no crossfade, static
+  params) ContinuousBody, ns per 512-sample block @ 48 kHz
+    block budget    : 1.06667e+07 ns
+    reference       : 53333.3 ns/block  (0.5 % of one core)
+    checked-in base : 35500 ns/block  (gate: x1.5 = 53250 ns/block)
+    Glass : 30253.6 ns/block  (0.283628 % of one core)
+    Strings : 37758.8 ns/block  (0.353989 % of one core)
+    MetalPlate : 31801.2 ns/block  (0.298136 % of one core)
+    Chamber : 35810.2 ns/block  (0.335721 % of one core)
+    Ice : 30627.2 ns/block  (0.28713 % of one core)
+    StoneChamber : 32137.8 ns/block  (0.301292 % of one core)
+    SteelTank : 32237 ns/block  (0.302222 % of one core)
+    WoodenHull : 31780 ns/block  (0.297938 % of one core)
+    CathedralColumn : 30746.8 ns/block  (0.288251 % of one core)
+    CavernWall : 32011.4 ns/block  (0.300107 % of one core)
+    GlassSphere : 30191.4 ns/block  (0.283044 % of one core)
+    worst material  : Strings at 37758.8 ns/block (this is what the baseline
+  must be pinned to)
+
+F:\projects\iterum\dsp\tests\unit\systems\continuous_body_perf_test.cpp(826): warning:
+  SC-005 (operating point - every setter stepped per 64-sample chunk, note
+  gliding) ContinuousBody, ns per 512-sample block @ 48 kHz
+    block budget    : 1.06667e+07 ns
+    reference       : 53333.3 ns/block  (0.5 % of one core)
+    checked-in base : 35500 ns/block  (gate: x1.5 = 53250 ns/block)
+    Glass : 34202.6 ns/block  (0.320649 % of one core)
+    Strings : 42605.6 ns/block  (0.399428 % of one core)
+    MetalPlate : 38747.8 ns/block  (0.363261 % of one core)
+    Chamber : 38362.4 ns/block  (0.359648 % of one core)
+    Ice : 35932.2 ns/block  (0.336864 % of one core)
+    StoneChamber : 38307 ns/block  (0.359128 % of one core)
+    SteelTank : 38128.6 ns/block  (0.357456 % of one core)
+    WoodenHull : 38241.8 ns/block  (0.358517 % of one core)
+    CathedralColumn : 35058 ns/block  (0.328669 % of one core)
+    CavernWall : 38635.4 ns/block  (0.362207 % of one core)
+    GlassSphere : 35023 ns/block  (0.328341 % of one core)
+    worst material  : Strings at 42605.6 ns/block (this is what the baseline
+  must be pinned to)
+
+F:\projects\iterum\dsp\tests\unit\systems\continuous_body_perf_test.cpp(847): warning:
+  SC-005 (crossfade window - material change, two engines advanced)
+  ContinuousBody, ns per 512-sample block @ 48 kHz
+    block budget    : 1.06667e+07 ns
+    reference       : 106667 ns/block  (1 % of one core (the roadmap figure; no
+  transient exemption))
+    checked-in base : 54000 ns/block  (gate: x1.5 = 81000 ns/block)
+    Glass : 50008 ns/block  (0.468825 % of one core)
+    Strings : 51685.2 ns/block  (0.484549 % of one core)
+    MetalPlate : 46675.6 ns/block  (0.437584 % of one core)
+    Chamber : 44469.8 ns/block  (0.416904 % of one core)
+    Ice : 36516.4 ns/block  (0.342341 % of one core)
+    StoneChamber : 40211.8 ns/block  (0.376986 % of one core)
+    SteelTank : 40416 ns/block  (0.3789 % of one core)
+    WoodenHull : 40034.6 ns/block  (0.375324 % of one core)
+    CathedralColumn : 38195.4 ns/block  (0.358082 % of one core)
+    CavernWall : 38377.2 ns/block  (0.359786 % of one core)
+    GlassSphere : 37795.6 ns/block  (0.354334 % of one core)
+    worst material  : Strings at 51685.2 ns/block (this is what the baseline
+  must be pinned to)
+
+F:\projects\iterum\dsp\tests\unit\systems\continuous_body_perf_test.cpp(862): warning:
+  SC-005 (cloud only - setResonatorBypass(true), cloudMix 1.0) ContinuousBody,
+  ns per 512-sample block @ 48 kHz
+    block budget    : 1.06667e+07 ns
+    reference       : 53333.3 ns/block  (0.5 % of one core)
+    checked-in base : 26500 ns/block  (gate: x1.5 = 39750 ns/block)
+    Glass : 24680.8 ns/block  (0.231383 % of one core)
+    Strings : 31169.4 ns/block  (0.292213 % of one core)
+    MetalPlate : 24984.2 ns/block  (0.234227 % of one core)
+    Chamber : 25907.2 ns/block  (0.24288 % of one core)
+    Ice : 31128.6 ns/block  (0.291831 % of one core)
+    StoneChamber : 29620.8 ns/block  (0.277695 % of one core)
+    SteelTank : 24800.6 ns/block  (0.232506 % of one core)
+    WoodenHull : 25780.2 ns/block  (0.241689 % of one core)
+    CathedralColumn : 24896.6 ns/block  (0.233406 % of one core)
+    CavernWall : 24825.4 ns/block  (0.232738 % of one core)
+    GlassSphere : 30287.6 ns/block  (0.283946 % of one core)
+    worst material  : Strings at 31169.4 ns/block (this is what the baseline
+  must be pinned to)
+
+F:\projects\iterum\dsp\tests\unit\systems\continuous_body_perf_test.cpp(906): warning:
+  SC-005 per-material spread, engine-attributable (steady state minus that
+  material's own cloud-only figure):
+    Glass : 5572.8 ns/block  (30253.6 - 24680.8)
+    Strings : 6589.4 ns/block  (37758.8 - 31169.4)
+    MetalPlate : 6817 ns/block  (31801.2 - 24984.2)
+    Chamber : 9903 ns/block  (35810.2 - 25907.2)
+    Ice : -501.4 ns/block  (30627.2 - 31128.6)
+    StoneChamber : 2517 ns/block  (32137.8 - 29620.8)
+    SteelTank : 7436.4 ns/block  (32237 - 24800.6)
+    WoodenHull : 5999.8 ns/block  (31780 - 25780.2)
+    CathedralColumn : 5850.2 ns/block  (30746.8 - 24896.6)
+    CavernWall : 7186 ns/block  (32011.4 - 24825.4)
+    GlassSphere : -96.2 ns/block  (30191.4 - 30287.6)
+    cheapest -501.4, most expensive 9903, ratio -0.0506311 (required: <= 0.7)
+
+F:\projects\iterum\dsp\tests\unit\systems\continuous_body_perf_test.cpp(1027): warning:
+  SC-005 / risk R-6 (30 s tail, cloud only, material Strings, cloudDecay 30 s,
+  silent input):
+    early tail      : 31979 ns/block
+    after 30 s      : 31622 ns/block
+    ratio late/early: 0.988836  (a denormal stall is a 10-100x event; expected
+  ~1)
+    checked-in base : 26500 ns/block  (gate: x1.5 = 39750 ns/block)
+
+-------------------------------------------------------------------------------
+SeraphisEngine_FullPolyCpuBudget
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\seraphis_perf_test.cpp(1192)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\seraphis_perf_test.cpp(1209): warning:
+  SC-001 body-material survey (standalone ContinuousBody, the phase-4 perf
+  configuration):
+    Glass : 31634.5 ns/block
+    Strings : 40718 ns/block
+    MetalPlate : 37917.5 ns/block
+    Chamber : 41372 ns/block
+    Ice : 38684 ns/block
+    worst material  : Chamber  (the one SC-001 and SC-002 pin)
+
+F:\projects\iterum\dsp\tests\unit\systems\seraphis_perf_test.cpp(1318): warning:
+  SC-001 full-poly composed chain (polyphony 8, all sounding, atmosphere
+  FROZEN,
+          worst measured body material, 64 partials + drift, AetherReverb
+  config (c)):
+    block budget    : 1.06667e+07 ns  (512 samples @ 48 kHz)
+    reference (25 %): 2.66667e+06 ns/block  (roadmap line 311, KEPT by RQ-1)
+    measured        : 2.00613e+06 ns/block  (18.8075 % of one core)
+    RA-1 prediction : 20.36 % of one core (before the voice sum, the spatial
+  stage,
+                      the output stage and the macro matrix)
+    checked-in base : 2.24764e+06 ns/block  (MEASURED 2026-07-31; gate: x1.15 =
+  2.58479e+06 ns/block)
+    admissible base : 2.31884e+06 ns/block  (25 % / 1.15 = 21.74 %)
+    headroom vs ref : 75.2299 % of the reference
+
+-------------------------------------------------------------------------------
+SeraphisVoice_CompositionOverhead
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\seraphis_perf_test.cpp(1330)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\seraphis_perf_test.cpp(1396): warning:
+  SC-002 per-voice composition overhead (512-sample blocks @ 48 kHz, best-of-16
+  x 200,
+          64 partials + drift, FR-019 defaults, worst body material (Strings),
+  atmosphere UNFROZEN,
+          Standard envelope gated on, spatial depth 0.5):
+    HarmonicCloud       : 24089 ns/block
+    SpectralMorphEngine : 8696.5 ns/block
+    ContinuousBody      : 46487.5 ns/block
+    AtmosphereEngine    : 83625.5 ns/block
+    MultiStageEnvelope  : 1536 ns/block
+    GrowthEnvelope      : 19.5 ns/block  (in the denominator by FR-002's eight;
+  the
+                          Standard-mode voice never advances it, so this term
+  biases
+                          the ratio DOWNWARD - see the ratio excluding it
+  below)
+    OrbitModulator      : 646.5 ns/block
+    MidSideProcessor    : 1990.5 ns/block
+    --- sum of eight    : 167091 ns/block
+    SeraphisVoice       : 156286 ns/block
+    ratio (SC-002)      : 0.935338   (bound <= 1.1)
+    ratio excl. growth  : 0.935447   (reported for compliance.md, NOT the gate)
+
+-------------------------------------------------------------------------------
+SeraphisEngine_PerfObservables
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\seraphis_perf_test.cpp(1427)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\seraphis_perf_test.cpp(1445): warning:
+  T005 sizes on THIS toolchain (plan §6.3's stack rule is derived from them):
+    sizeof(SeraphisVoice)  : 47040 B  (bound 50048 B)
+    sizeof(SeraphisEngine) : 765120 B  (bound 866304 B)
+    voices_ share          : 98.3689 % of the engine object
+    => every SeraphisEngine in every TU is heap-allocated; MSVC's default main-
+  thread stack is 1 MiB
+
+F:\projects\iterum\dsp\tests\unit\systems\seraphis_perf_test.cpp(1577): warning:
+  plan §9 R14 - freeze fan-out burst (engine only, polyphony 8, best-of-5 arm/
+  capture cycles):
+    worst single chunk : 430200 ns  (32.265 % of the 64-sample deadline 1.
+  33333e+06 ns)
+    mean of the maxima : 448840 ns
+    quiet chunk (ref)  : 186552 ns
+    chunks to fan out  : 16  (kFreezeRetriesPerChunk = 1, so >= kMaxVoices
+  chunks by design)
+    chunks to release  : 9  (the one-hop unfreeze fade, untimed)
+    priced worst case  : 2 x FFT(freezeFftSize) - one per channel - in ONE
+  chunk;
+                         an un-staggered fan-out would be 16 x 2 = 32 in one
+  chunk
+
+-------------------------------------------------------------------------------
+FeedbackEcology_CpuBudget
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_perf_test.cpp(1818)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\feedback_ecology_perf_test.cpp(2050): warning:
+  
+============================================================================
+  =====
+    FeedbackEcology SC-004 CPU BUDGET   (48 kHz, 512-sample blocks)
+    specs/vorago-phase5-feedback-ecology, SC-004 / FR-080, tasks.md T020
+    best-of-25 x 500 blocks after 400 warm-up, 200 settle blocks before each
+    reference patch: 6 loops, default tables, wander on, mix 1, wetGain 0 dB,
+    drive white noise at -12.0 dBFS RMS on both channels, seed 0x5EED
+  =============================================================================
+  ====
+  (a) reference: 6 loops awake, wander on, mix 1              106543.8 ns/block
+  0.9988 % of one core
+          baseline    94106.4   gate (x1.5)   141159.6   within baseline
+  (b) wander off: (a) + setWanderEnabled(false)                89320.8 ns/block
+  0.8374 % of one core
+          baseline    77370.6   gate (x1.5)   116055.9   within baseline
+  (c) all dormant: (a) + every loop dormant                     9364.2 ns/block
+  0.0878 % of one core
+          baseline     9873.0   gate (x1.5)    14809.5   within baseline
+  (d) numLoops = 1: the per-loop marginal cost                 22925.2 ns/block
+  0.2149 % of one core
+          reported only - SC-004 (d) sets the per-loop marginal cost
+  -----------------------------------------------------------------------------
+  ----
+    SC-004 GATED LINE (160 000 / 1.5)                         106666.7 ns/block
+  1.0000 % of one core
+    SC-004 ABSOLUTE CEILING (1.5 %/voice)                     160000.0 ns/block
+  1.5000 % of one core
+    (b) wander-off delta,       (b) - (a)         -17223.0 ns/block   -16.17 %
+  of (a)   [SC-004 (b) band: <= +2.00 %]
+    (c) dormancy saving,        (a) - (c)          97179.6 ns/block   91.21 %
+  of (a)   [SC-004 (c) needs >= 40.00 %]
+    (d) marginal cost per loop, ((a)-(d))/5        16723.7 ns/block
+  [reported]
+  -----------------------------------------------------------------------------
+  ----
+    audio preconditions, measured over 40 fully-scanned blocks per arm (both
+  channels):
+        (a) engine-active loops 6 / 6   RMS -56.06 dBFS   finite yes   clamps 0
+  non-finite resets 0
+        (b) engine-active loops 6 / 6   RMS -55.96 dBFS   finite yes
+        (c) engine-active loops 0 / 6   exactly 0.0f on both channels
+  throughout: yes
+        (d) engine-active loops 1 / 6   RMS -56.09 dBFS   finite yes
+        the measured reference level is expected near -56.7 dBFS: this patch is
+        quiet BY DESIGN (six Q ~ 100 resonators, 3.3-18.8 Hz of noise bandwidth
+        out of 24 kHz), so the precondition below is an ANTI-SILENCE floor at -
+  80.0 dBFS,
+        not a level assertion.
+  =============================================================================
+  ====
+    SC-004 (f) - THE TRANSITION BLOCKS, gated at each rate against (1) the
+  steady
+    block in the same state x 1.1 (the O(buffer) detector) and (2) the same
+  ABSOLUTE
+    per-block ceiling as 48 kHz (NOT against kBaseline). Best of 25 trials,
+    each re-established from 2.0 s of settled render. This is FR-019's O(1)
+  detector.
+  =============================================================================
+  ====
+    48 kHz  (f1) simultaneous 5-loop sleep edge, setNumLoops(6->1)
+        transition block                                      102900.0 ns/block
+  0.9647 % of one core   within ceiling
+        steady block, same rate and state                     129700.0 ns/block
+  1.2159 % of one core
+        transition OVERHEAD (transition - steady)       -26800.0 ns
+        ceiling 160000.0 ns   trials found 25 / 25   edge at block +4   active
+  6 -> 1   non-finite resets in the block [0, 0]   finite yes
+    48 kHz  (f2) rung-5 trap fire, FR-048 probe on loop 2
+        transition block                                      111700.0 ns/block
+  1.0472 % of one core   within ceiling
+        steady block, same rate and state                     117200.0 ns/block
+  1.0988 % of one core
+        transition OVERHEAD (transition - steady)        -5500.0 ns
+        ceiling 160000.0 ns   trials found 25 / 25   edge at block +0   active
+  6 -> 6   non-finite resets in the block [1, 1]   finite yes
+    192 kHz  (f1) simultaneous 5-loop sleep edge, setNumLoops(6->1)
+        transition block                                       70100.0 ns/block
+  2.6288 % of one core   within ceiling
+        steady block, same rate and state                      88200.0 ns/block
+  3.3075 % of one core
+        transition OVERHEAD (transition - steady)       -18100.0 ns
+        ceiling 160000.0 ns   trials found 25 / 25   edge at block +18   active
+  6 -> 1   non-finite resets in the block [0, 0]   finite yes
+    192 kHz  (f2) rung-5 trap fire, FR-048 probe on loop 2
+        transition block                                       80700.0 ns/block
+  3.0263 % of one core   within ceiling
+        steady block, same rate and state                      85400.0 ns/block
+  3.2025 % of one core
+        transition OVERHEAD (transition - steady)        -4700.0 ns
+        ceiling 160000.0 ns   trials found 25 / 25   edge at block +0   active
+  6 -> 6   non-finite resets in the block [1, 1]   finite yes
+  =============================================================================
+  ====
+    copy-pasteable baselines, MEASURED on this machine and this build:
+        constexpr double kBaselineReferenceNs     =   106543.8;
+        constexpr double kBaselineWanderOffNs     =    89320.8;
+        constexpr double kBaselineAllDormantNs    =     9364.2;
+    Transcribing a measured figure OVER a projection is always correct; take it
+    from the LOWEST of several isolated runs, never from one sample. RAISING
+  one
+    so a REQUIRE passes is forbidden. A transcribed baseline must still satisfy
+    BOTH compile-time clauses (x1.5 <= 160000.0 and >= 3200.0); one that
+    cannot is the stop-and-surface case, not a licence to weaken a clause.
+  =============================================================================
+  ====
+    SC-004 (a) IS WITHIN THE GATED LINE: 122.9 ns of headroom (99.88 % of the
+  line, 66.59 % of the absolute ceiling).
+    *** NO AGENT MAY lower kMaxLoops, raise a budget, relax a threshold, or
+  shrink
+    *** a workload to make this fit. Reduce cost, never move the line
+    *** (resonance_drift_network_perf_test.cpp:59-65, inherited verbatim).
+    RUN IT ALONE: node tools/run-cpu-tests.js dsp_systems_tests. A verdict that
+    flips between runs is measuring the machine, not the code.
+    RECORD the whole table in the build transcript and in plan S14.2.
+  =============================================================================
+  ====
+
+===============================================================================
+All tests passed (298 assertions in 5 test cases)
+
+exit=0
+Mon Sep 21 23:21:24 WEDT 2026

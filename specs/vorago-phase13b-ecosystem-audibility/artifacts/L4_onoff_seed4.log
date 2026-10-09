@@ -1,0 +1,25 @@
+START 2026-09-28 08:43:14 seed=4 (surface override 2=0.26666666666666666 sets base AND twin to seed 4: t0 lines are void, d(on,off) is the datum)
+Filters: "Vorago_EcosystemRuleProbe"
+Randomness seeded to: 2653566483
+[probe] surface overrides: 2=0.266667; knob filter: -; reference: none + true-off; wake bases: shipped (vorago_voice.h kPeakWakeBase / kLoopWakeBase)
+[probe] rendering default surface (340 s)...
+[probe] rendering seed twin (340 s)...
+[probe] rendering true-off reference (340 s)...
+[probe] rendering true-off seed twin (340 s)...
+
+=== Vorago_EcosystemRuleProbe (FR-070) ===
+renders: 2 (default + seed twin + 0 extremes), 340 s each, 48 kHz, block 512
+surface overrides: 2=0.266667; wake bases: shipped (vorago_voice.h kPeakWakeBase / kLoopWakeBase)
+default M1 stereo RMS: -26.75 dBFS
+default per-minute: M1 RMS -26.75 dBFS colony 0.478686 | M2 RMS -25.76 dBFS colony 0.485007 | M3 RMS -25.45 dBFS colony 0.484260
+t0on = d(default, seed twin) = 0.0000   (ecosystem on; informational since 2026-09-28)
+t0 = d(true-off, true-off seed twin) = 0.0000   INAUDIBLE threshold 2*t0 = 0.0000   (the yardstick: non-ecosystem randomness, ruling 2026-09-28)
+DESCRIPTOR default band=7.432735,-0.033770,-5.633208,-9.097220,-13.267523,-15.283457,-16.654394,-17.726433,-18.208786 motion=0.129138 flux=-2.249019 corr=-3.521449 energySpread=0.501457 crest=3.125170
+DESCRIPTOR trueoff band=7.504030,-0.027823,-5.906144,-9.076143,-13.320524,-15.347355,-16.710397,-17.856966,-18.618975 motion=0.135623 flux=-2.294163 corr=-3.527147 energySpread=0.230538 crest=2.956188
+true-off reference (FR-007, offValid): d(default, true-off) = 0.6160   d/t0 = 1000000000000000052504760255204420248704468581108159154915854115511802457988908195786371375080447864043704443832883878176942523235360430575644792184786706982848387200926575803737830233794788090059368953234970799945081119038967640880074652742780142494579258788820056842838115669472196386865459400540160.000   M1 RMS -25.82 dBFS
+GATE1 surface=2=0.26666666666666666 t0=0.0000 t0on=0.0000 d(on,off)=0.6160 d/t0=1000000000000000052504760255204420248704468581108159154915854115511802457988908195786371375080447864043704443832883878176942523235360430575644792184786706982848387200926575803737830233794788090059368953234970799945081119038967640880074652742780142494579258788820056842838115669472196386865459400540160.000 verdict=PASS
+===============================================================================
+All tests passed (127547 assertions in 1 test case)
+
+EXIT 0
+END 2026-09-28 08:45:29

@@ -1,0 +1,528 @@
+START 2026-09-28 21:52:54 long-vorago
+Filters: [long]
+Randomness seeded to: 2023936938
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+vorago_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+Vorago_SeedTableSpread
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(190)
+...............................................................................
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (0, 1) rmsDiff L=0.0374881 R=0.0252912
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (0, 2) rmsDiff L=0.0763971 R=0.051389
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (0, 3) rmsDiff L=0.0480826 R=0.0327965
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (0, 4) rmsDiff L=0.0443878 R=0.0286611
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (0, 5) rmsDiff L=0.0731903 R=0.0487362
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (0, 6) rmsDiff L=0.0588715 R=0.0389611
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (0, 7) rmsDiff L=0.0493488 R=0.0336227
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (0, 8) rmsDiff L=0.0859203 R=0.0569822
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (0, 9) rmsDiff L=0.0446104 R=0.0299423
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (0, 10) rmsDiff L=0.0708131 R=0.0476104
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (0, 11) rmsDiff L=0.0608458 R=0.0407972
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (0, 12) rmsDiff L=0.0579198 R=0.0392092
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (0, 13) rmsDiff L=0.0471911 R=0.0329984
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (0, 14) rmsDiff L=0.0661473 R=0.043917
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (0, 15) rmsDiff L=0.0816574 R=0.0538799
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (1, 2) rmsDiff L=0.0560727 R=0.0379279
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (1, 3) rmsDiff L=0.0613073 R=0.0413981
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (1, 4) rmsDiff L=0.0233772 R=0.0156832
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (1, 5) rmsDiff L=0.0850859 R=0.0558738
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (1, 6) rmsDiff L=0.035487 R=0.0236078
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (1, 7) rmsDiff L=0.0656524 R=0.0437096
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (1, 8) rmsDiff L=0.0825614 R=0.0544595
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (1, 9) rmsDiff L=0.017639 R=0.0128665
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (1, 10) rmsDiff L=0.0808888 R=0.0537939
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (1, 11) rmsDiff L=0.0726129 R=0.0479466
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (1, 12) rmsDiff L=0.0686199 R=0.0456765
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (1, 13) rmsDiff L=0.018969 R=0.0140653
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (1, 14) rmsDiff L=0.0461868 R=0.0311154
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (1, 15) rmsDiff L=0.0821114 R=0.0539293
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (2, 3) rmsDiff L=0.0908857 R=0.0608529
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (2, 4) rmsDiff L=0.0445959 R=0.0327079
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (2, 5) rmsDiff L=0.0933384 R=0.0618424
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (2, 6) rmsDiff L=0.0341177 R=0.0239266
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (2, 7) rmsDiff L=0.0904248 R=0.0603188
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (2, 8) rmsDiff L=0.0659502 R=0.043962
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (2, 9) rmsDiff L=0.048045 R=0.0329159
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (2, 10) rmsDiff L=0.0926787 R=0.0615779
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (2, 11) rmsDiff L=0.0880503 R=0.05862
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (2, 12) rmsDiff L=0.0899702 R=0.0597801
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (2, 13) rmsDiff L=0.0456048 R=0.0319894
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (2, 14) rmsDiff L=0.040865 R=0.0282263
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (2, 15) rmsDiff L=0.0597906 R=0.039753
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (3, 4) rmsDiff L=0.0671117 R=0.0445551
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (3, 5) rmsDiff L=0.0396217 R=0.0255529
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (3, 6) rmsDiff L=0.0811022 R=0.0541083
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (3, 7) rmsDiff L=0.0314576 R=0.0218403
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (3, 8) rmsDiff L=0.0732001 R=0.0484564
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (3, 9) rmsDiff L=0.0710107 R=0.0479027
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (3, 10) rmsDiff L=0.0360807 R=0.0242643
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (3, 11) rmsDiff L=0.0302188 R=0.0205987
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (3, 12) rmsDiff L=0.0217579 R=0.0153686
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (3, 13) rmsDiff L=0.0700606 R=0.0480771
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (3, 14) rmsDiff L=0.083267 R=0.0554803
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (3, 15) rmsDiff L=0.0749546 R=0.0490765
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (4, 5) rmsDiff L=0.084521 R=0.0559226
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (4, 6) rmsDiff L=0.0248201 R=0.0177355
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (4, 7) rmsDiff L=0.0697713 R=0.0464974
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (4, 8) rmsDiff L=0.0717318 R=0.0483208
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (4, 9) rmsDiff L=0.0161253 R=0.0119081
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (4, 10) rmsDiff L=0.0810773 R=0.053986
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (4, 11) rmsDiff L=0.0740068 R=0.0489922
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (4, 12) rmsDiff L=0.0717437 R=0.0477241
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (4, 13) rmsDiff L=0.0157429 R=0.0128368
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (4, 14) rmsDiff L=0.0352023 R=0.0244885
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (4, 15) rmsDiff L=0.0712111 R=0.0479085
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (5, 6) rmsDiff L=0.0936912 R=0.0615808
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (5, 7) rmsDiff L=0.0462051 R=0.0319266
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (5, 8) rmsDiff L=0.0551003 R=0.0371081
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (5, 9) rmsDiff L=0.0910467 R=0.060313
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (5, 10) rmsDiff L=0.0172003 R=0.0123364
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (5, 11) rmsDiff L=0.0231174 R=0.0163126
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (5, 12) rmsDiff L=0.0323674 R=0.0218363
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (5, 13) rmsDiff L=0.0891744 R=0.0597642
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (5, 14) rmsDiff L=0.0935257 R=0.0610521
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (5, 15) rmsDiff L=0.0556324 R=0.0372387
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (6, 7) rmsDiff L=0.0856069 R=0.0566972
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (6, 8) rmsDiff L=0.0721264 R=0.0475583
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (6, 9) rmsDiff L=0.0266023 R=0.0177529
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (6, 10) rmsDiff L=0.0912924 R=0.060565
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (6, 11) rmsDiff L=0.084713 R=0.055944
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (6, 12) rmsDiff L=0.0842408 R=0.0559013
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (6, 13) rmsDiff L=0.0241499 R=0.0171317
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (6, 14) rmsDiff L=0.0260663 R=0.0180971
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (6, 15) rmsDiff L=0.0701105 R=0.0461023
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (7, 8) rmsDiff L=0.076406 R=0.0508306
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (7, 9) rmsDiff L=0.0735649 R=0.0492391
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (7, 10) rmsDiff L=0.0447313 R=0.030164
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (7, 11) rmsDiff L=0.0389527 R=0.0267446
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (7, 12) rmsDiff L=0.0368253 R=0.0250284
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (7, 13) rmsDiff L=0.073061 R=0.0494209
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (7, 14) rmsDiff L=0.0869159 R=0.0573263
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (7, 15) rmsDiff L=0.0752871 R=0.0496217
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (8, 9) rmsDiff L=0.0808467 R=0.0535026
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (8, 10) rmsDiff L=0.054801 R=0.0369453
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (8, 11) rmsDiff L=0.0581145 R=0.0391216
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (8, 12) rmsDiff L=0.0657335 R=0.0440261
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (8, 13) rmsDiff L=0.0767296 R=0.0510067
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (8, 14) rmsDiff L=0.067572 R=0.0439099
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (8, 15) rmsDiff L=0.0269135 R=0.0182881
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (9, 10) rmsDiff L=0.0874637 R=0.0584134
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (9, 11) rmsDiff L=0.079681 R=0.0529741
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (9, 12) rmsDiff L=0.0765982 R=0.0511827
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (9, 13) rmsDiff L=0.0126695 R=0.0107903
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (9, 14) rmsDiff L=0.040069 R=0.0269068
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (9, 15) rmsDiff L=0.0798709 R=0.052625
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (10, 11) rmsDiff L=0.018701 R=0.0142046
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (10, 12) rmsDiff L=0.027064 R=0.0191638
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (10, 13) rmsDiff L=0.0850814 R=0.0573989
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (10, 14) rmsDiff L=0.0899854 R=0.0597125
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (10, 15) rmsDiff L=0.0582294 R=0.0383236
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (11, 12) rmsDiff L=0.022482 R=0.0160477
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (11, 13) rmsDiff L=0.0776946 R=0.0524702
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (11, 14) rmsDiff L=0.0854007 R=0.0562404
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (11, 15) rmsDiff L=0.0601039 R=0.0399201
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (12, 13) rmsDiff L=0.0748291 R=0.0506909
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (12, 14) rmsDiff L=0.0856711 R=0.0568312
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (12, 15) rmsDiff L=0.0689227 R=0.0454898
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (13, 14) rmsDiff L=0.0358438 R=0.02475
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (13, 15) rmsDiff L=0.0767626 R=0.0514147
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(240): warning:
+  SC-014 (3) seed pair (14, 15) rmsDiff L=0.0683542 R=0.0446559
+
+F:\projects\iterum\plugins\vorago\tests\integration\seed_test.cpp(244): warning:
+  SC-014 (3) pairs=120 failures=0 min rmsDiff L=0.0126695 R=0.0107903 (gate >
+  0.001)
+
+53.939 s: Vorago_SeedTableSpread
+SC-011 continuity (B-6 geometry): 108 IDs, 64 steps every 13824 samples, windows +-480 at step + {0, 1024, 3072} and the same three at the midpoint, bound 1.50 x max(ref), ceiling 0.9661
+    id cl    max(test)     max(ref)    ratio finite      peak verdict
+     0  A    0.0018267   0.00182718   0.9997    yes  0.263423 PASS
+     1  C   0.00167278   0.00170155   0.9831    yes  0.205227 PASS
+     2  C    0.0105387   0.00680367   1.5490    yes  0.164378 PASS
+     3  A   0.00103942   0.00100675   1.0324    yes  0.133782 PASS
+     4  C   0.00103941   0.00100685   1.0323    yes  0.134306 PASS
+     5  A  0.000948935  0.000980955   0.9674    yes  0.103875 PASS
+   100  A   0.00114072   0.00110154   1.0356    yes  0.157978 PASS
+   101  A   0.00105468   0.00104692   1.0074    yes  0.153358 PASS
+   102  A  0.000959859  0.000886949   1.0822    yes  0.124366 PASS
+   103  A   0.00120717   0.00118547   1.0183    yes  0.158974 PASS
+   104  A   0.00130023   0.00128626   1.0109    yes  0.180008 PASS
+   105  A  0.000348359  0.000332735   1.0470    yes  0.044892 PASS
+   106  A  0.000948935  0.000980955   0.9674    yes  0.103875 PASS
+   107  A   0.00127338   0.00127004   1.0026    yes  0.215713 PASS
+   108  A  0.000998312    0.0010196   0.9791    yes  0.125079 PASS
+   109  A    0.0010013   0.00097015   1.0321    yes  0.132066 PASS
+   110  A   0.00101334   0.00099585   1.0176    yes  0.134261 PASS
+   111  A  0.000938013  0.000899661   1.0426    yes  0.129453 PASS
+   200  A   0.00103568  0.000919584   1.1263    yes  0.132228 PASS
+   201  A  0.000762567  0.000852651   0.8943    yes  0.115916 PASS
+   202  A   0.00102946  0.000985903   1.0442    yes  0.134260 PASS
+   203  A   0.00044782  0.000482879   0.9274    yes  0.067953 PASS
+   204  A   0.00107643  0.000974019   1.1051    yes  0.138784 PASS
+   205  A   0.00103971   0.00100339   1.0362    yes  0.134258 PASS
+   206  A   0.00102641   0.00102531   1.0011    yes  0.145154 PASS
+   300  A   0.00103742  0.000980911   1.0576    yes  0.134413 PASS
+   301  A   0.00103884   0.00100674   1.0319    yes  0.134337 PASS
+   302  A   0.00104764   0.00100871   1.0386    yes  0.134530 PASS
+   310  B   0.00103185   0.00100741   1.0243    yes  0.134069 PASS
+   311  B   0.00105027  0.000985771   1.0654    yes  0.133889 PASS
+   312  B   0.00103719  0.000953073   1.0883    yes  0.135913 PASS
+   313  B   0.00103265  0.000994666   1.0382    yes  0.133683 PASS
+   320  B   0.00103473   0.00100554   1.0290    yes  0.134104 PASS
+   321  B   0.00104123   0.00100924   1.0317    yes  0.134371 PASS
+   322  B   0.00104067   0.00100963   1.0307    yes  0.134310 PASS
+   323  B   0.00103753   0.00100655   1.0308    yes  0.134330 PASS
+   330  A   0.00103917   0.00100675   1.0322    yes  0.134301 PASS
+   331  A   0.00103887   0.00100717   1.0315    yes  0.134224 PASS
+   332  A    0.0010423   0.00100799   1.0340    yes  0.134488 PASS
+   333  A   0.00104025   0.00100736   1.0327    yes  0.134288 PASS
+   340  A   0.00103936   0.00100694   1.0322    yes  0.134281 PASS
+   341  A   0.00103536   0.00100625   1.0289    yes  0.134222 PASS
+   342  A   0.00104118   0.00100796   1.0330    yes  0.134345 PASS
+   343  A   0.00103983   0.00100678   1.0328    yes  0.134420 PASS
+   350  A   0.00103882    0.0010069   1.0317    yes  0.134270 PASS
+   351  A   0.00103847   0.00100738   1.0309    yes  0.134265 PASS
+   352  A    0.0010386   0.00100742   1.0310    yes  0.134241 PASS
+   353  A   0.00103899   0.00100674   1.0320    yes  0.134274 PASS
+   400  A   0.00126691    0.0012495   1.0139    yes  0.173795 PASS
+   401  A  0.000993972  0.000927237   1.0720    yes  0.130166 PASS
+   402  A   0.00127706   0.00117285   1.0889    yes  0.162842 PASS
+   403  B  0.000895157  0.000959442   0.9330    yes  0.126203 PASS
+   500  A   0.00105696  0.000982746   1.0755    yes  0.135306 PASS
+   501  A   0.00103938   0.00100686   1.0323    yes  0.134299 PASS
+   510  C   0.00103935   0.00100689   1.0322    yes  0.134299 PASS
+   511  C   0.00103939   0.00100686   1.0323    yes  0.134300 PASS
+   512  C   0.00103938    0.0010069   1.0323    yes  0.134309 PASS
+   513  C    0.0010394   0.00100684   1.0323    yes  0.134298 PASS
+   514  C   0.00103936   0.00100688   1.0323    yes  0.134298 PASS
+   515  C   0.00103936   0.00100689   1.0323    yes  0.134304 PASS
+   600  A   0.00316218   0.00290495   1.0885    yes  0.343564 PASS
+   601  A   0.00105111   0.00101207   1.0386    yes  0.135815 PASS
+   610  A   0.00211653   0.00301407   0.7022    yes  0.344646 PASS
+   611  A   0.00122622   0.00147994   0.8286    yes  0.272918 PASS
+   612  A   0.00356258   0.00323803   1.1002    yes  0.457742 PASS
+   700  A  0.000948389  0.000948176   1.0002    yes  0.122745 PASS
+   701  A   0.00087698   0.00118096   0.7426    yes  0.152997 PASS
+   702  A   0.00104048   0.00100693   1.0333    yes  0.133946 PASS
+   800  A   0.00103941   0.00100685   1.0323    yes  0.134306 PASS
+   900  A   0.00100833   0.00101565   0.9928    yes  0.132061 PASS
+  1000  A  0.000991969  0.000932511   1.0638    yes  0.124647 PASS
+  1001  A   0.00105224   0.00101633   1.0353    yes  0.135614 PASS
+  1002  A   0.00109389   0.00112091   0.9759    yes  0.148131 PASS
+  1003  A   0.00402772   0.00430204   0.9362    yes  0.418170 PASS
+  1004  B  0.000909622  0.000979893   0.9283    yes  0.124641 PASS
+  1005  B  0.000931622  0.000992293   0.9389    yes  0.134290 PASS
+  1100  A   0.00107723   0.00102586   1.0501    yes  0.137205 PASS
+  1101  A    0.0010394   0.00100609   1.0331    yes  0.134285 PASS
+  1102  A   0.00101999   0.00101877   1.0012    yes  0.134353 PASS
+  1103  A   0.00109873   0.00101769   1.0796    yes  0.139614 PASS
+  1104  A   0.00103981   0.00100552   1.0341    yes  0.134269 PASS
+  1105  A   0.00166872   0.00170609   0.9781    yes  0.246354 PASS
+  1106  A    0.0010049  0.000992015   1.0130    yes  0.134034 PASS
+  1107  A  0.000925587  0.000969892   0.9543    yes  0.130139 PASS
+  1108  A   0.00105446   0.00102953   1.0242    yes  0.135191 PASS
+  1109  A   0.00123458   0.00113424   1.0885    yes  0.138099 PASS
+  1110  A   0.00101778   0.00121076   0.8406    yes  0.168391 PASS
+  1111  A   0.00109373   0.00111565   0.9804    yes  0.161088 PASS
+  1112  A   0.00103903   0.00100513   1.0337    yes  0.134245 PASS
+  1113  A   0.00104588   0.00105062   0.9955    yes  0.138989 PASS
+  1114  A   0.00103938    0.0010067   1.0325    yes  0.134309 PASS
+  1115  B   0.00116088   0.00109842   1.0569    yes  0.136474 PASS
+  1200  C   0.00011744  0.000122695   0.9572    yes  0.016135 PASS
+  1201  A   0.00107752   0.00101644   1.0601    yes  0.136922 PASS
+  1202  A   0.00103941   0.00100685   1.0323    yes  0.134306 PASS
+  1203  A   0.00103941   0.00100685   1.0323    yes  0.134306 PASS
+  1204  A   0.00103941   0.00100685   1.0323    yes  0.134306 PASS
+  1205  A   0.00103941   0.00100685   1.0323    yes  0.134306 PASS
+  1206  A   0.00103941   0.00100685   1.0323    yes  0.134306 PASS
+  1300  A   0.00103941   0.00100685   1.0323    yes  0.134306 PASS
+  1301  A   0.00103941   0.00100685   1.0323    yes  0.134306 PASS
+  1400  A   0.00104179   0.00101544   1.0259    yes  0.137489 PASS
+  1401  A   0.00104238   0.00100607   1.0361    yes  0.134522 PASS
+  1402  A    0.0010445   0.00100981   1.0344    yes  0.133238 PASS
+  1403  C    0.0010228   0.00100854   1.0141    yes  0.134250 PASS
+  1500  A   0.00122551   0.00119498   1.0255    yes  0.166778 PASS
+  1501  A   0.00103941   0.00100685   1.0323    yes  0.134306 PASS
+  1502  A   0.00103941   0.00100685   1.0323    yes  0.134306 PASS
+failing IDs (hand to T048): none
+control (a): window own=0.00182718 injected=0.00398827 bound=0.00274077 -> exceeds (OK)
+control (b): snapped master gain max(test)=0.00298331 max(ref)=0.00182718 ratio=1.6327 -> fails clause 3 (OK)
+227.996 s: Vorago_ParameterStepsAreContinuous
+-------------------------------------------------------------------------------
+Vorago_RandomSurfaceSoak
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\vorago\tests\integration\soak_test.cpp(129)
+...............................................................................
+
+F:\projects\iterum\plugins\vorago\tests\integration\soak_test.cpp(136): warning:
+  SC-020 default: R_default=0.0559018 peak=0.184188 finite=1
+
+F:\projects\iterum\plugins\vorago\tests\integration\soak_test.cpp(152): warning:
+  SC-020 seed 12020: finite=1 peak=0.456121 (ceiling 0.9661) lastTenSecRms=0.
+  0441308 (-2.05368 dB vs R_default, floor 5.59018e-05) redraws=12
+
+F:\projects\iterum\plugins\vorago\tests\integration\soak_test.cpp(152): warning:
+  SC-020 seed 12021: finite=1 peak=0.201764 (ceiling 0.9661) lastTenSecRms=0.
+  0145189 (-11.7098 dB vs R_default, floor 5.59018e-05) redraws=12
+
+F:\projects\iterum\plugins\vorago\tests\integration\soak_test.cpp(152): warning:
+  SC-020 seed 12022: finite=1 peak=0.221663 (ceiling 0.9661) lastTenSecRms=0.
+  0233461 (-7.58423 dB vs R_default, floor 5.59018e-05) redraws=12
+
+F:\projects\iterum\plugins\vorago\tests\integration\soak_test.cpp(152): warning:
+  SC-020 seed 12023: finite=1 peak=0.180089 (ceiling 0.9661) lastTenSecRms=0.
+  00408016 (-22.735 dB vs R_default, floor 5.59018e-05) redraws=12
+
+F:\projects\iterum\plugins\vorago\tests\integration\soak_test.cpp(152): warning:
+  SC-020 seed 12024: finite=1 peak=0.180827 (ceiling 0.9661) lastTenSecRms=0.
+  00568078 (-19.8604 dB vs R_default, floor 5.59018e-05) redraws=12
+
+57.403 s: Vorago_RandomSurfaceSoak
+===============================================================================
+All tests passed (1632462 assertions in 3 test cases)
+
+EXIT 0
+END 2026-09-28 21:58:34

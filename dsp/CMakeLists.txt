@@ -174,11 +174,17 @@ set(KRATE_DSP_SYSTEMS_HEADERS
     include/krate/dsp/systems/seraphis_voice.h
     include/krate/dsp/systems/seraphis_engine.h
     include/krate/dsp/systems/seraphis_macro_matrix.h
+    # Vorago Phase 10 (specs/vorago-phase10-voice-engine), FR-001
+    include/krate/dsp/systems/vorago_voice.h
+    include/krate/dsp/systems/vorago_engine.h
+    include/krate/dsp/systems/vorago_macro_matrix.h
 )
 
 # Layer 4: Effects
 set(KRATE_DSP_EFFECTS_HEADERS
     include/krate/dsp/effects/aether_reverb.h
+    # Vorago Phase 9 (specs/vorago-phase9-cavern-space), FR-001
+    include/krate/dsp/effects/cavern_verb.h
     include/krate/dsp/effects/bbd_delay.h
     include/krate/dsp/effects/digital_delay.h
     include/krate/dsp/effects/ducking_delay.h

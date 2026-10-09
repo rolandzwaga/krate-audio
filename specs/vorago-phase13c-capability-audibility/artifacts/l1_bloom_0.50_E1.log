@@ -1,0 +1,14 @@
+START 2026-10-01 21:44:22 VORAGO_PILOT_PRESET=Bloom Colony VORAGO_PILOT_LEVER=childGain=0.50 exe=2026-10-01 21:30:23
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 451651813
+[probe] lever: childGain=0.50
+[probe] Bloom Colony - primary E1 partial -> bloom (stored seed 0, 4 twin render(s))
+  take: peak 0.2912  arm1 hi -20.42 dB [yes]  arm2 lo -23.02 dB [yes]  arm3 late-sus +0.51 dB [yes]  arm4 tail -223.57 dB [yes]
+  arm1@44.1k: finite y peak 0.2980 hi -19.85 dB [PASS]
+  route arms: d(R_k, R_k0) 0.2636, attribBase d(R_0, R_00) 0.1986 (attributable iff d >= 1.6986)
+  primary d 0.2636  bar 4.0000  attribBase 0.1986  state ok  -> FAIL  lever: childGain=0.50
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (17 assertions in 1 test case)
+
+exit=0 END 2026-10-01 21:47:24

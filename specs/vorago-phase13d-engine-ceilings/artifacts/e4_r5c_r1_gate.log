@@ -1,0 +1,31 @@
+START 2026-10-07 21:48:39 e4_r5c_r1_gate tree=72e87776 VORAGO_PILOT_PRESET="Feeding Loops" env: VORAGO_PILOT_TAKES=4 VORAGO_PILOT_LOOPBUS=1 VORAGO_PILOT_OVERRIDE=800=0.5 VORAGO_PILOT_LEVER=loopWakeBase=0.30,couplingSpan=0.44
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 1656430271
+[probe] override 800 = 0.500000 (replaced)
+[probe] lever: loopWakeBase=0.30,couplingSpan=0.44
+[probe] Feeding Loops - primary E4 feedback -> loop wake (stored seed 8, 4 twin render(s))
+  take: peak 0.2019  arm1 hi -25.72 dB [yes]  arm2 lo -40.84 dB [yes]  arm3 late-sus +4.80 dB [yes]  arm4 tail -207.30 dB [yes]
+  loopbus take 0 seed 8: worst10s -64.47 dBFS [NO] windows 19
+  looplife take 0:  [0] wake 0.6036 gate 0.4626 dormant n gain 0.7200  [1] wake 0.6494 gate 0.6067 dormant n gain 0.7200  [2] wake 0.3680 gate 0.3000 dormant n gain 0.6725  [3] wake 0.5320 gate 0.5107 dormant n gain 0.7200  [4] wake 0.5657 gate 0.3565 dormant n gain 0.7200  [5] wake 0.3000 gate 0.4619 dormant n gain 0.6461
+  loopbus take 1 seed 9: worst10s -63.04 dBFS [NO] windows 19
+  looplife take 1:  [0] wake 0.3432 gate 0.3637 dormant n gain 0.6635  [1] wake 0.6288 gate 0.9317 dormant n gain 0.7200  [2] wake 0.7540 gate 0.5446 dormant n gain 0.7200  [3] wake 0.3000 gate 0.4853 dormant n gain 0.6300  [4] wake 0.5230 gate 0.7026 dormant n gain 0.7200  [5] wake 0.3000 gate 0.3000 dormant n gain 0.6383
+  loopbus take 2 seed 10: worst10s -60.38 dBFS [NO] windows 19
+  looplife take 2:  [0] wake 0.5550 gate 0.6487 dormant n gain 0.7200  [1] wake 0.3000 gate 0.3000 dormant n gain 0.6389  [2] wake 0.6486 gate 0.3000 dormant n gain 0.7200  [3] wake 0.7065 gate 0.5703 dormant n gain 0.7200  [4] wake 0.4084 gate 0.3182 dormant n gain 0.6870  [5] wake 0.5628 gate 0.5698 dormant n gain 0.7200
+  loopbus take 3 seed 11: worst10s -57.14 dBFS [PASS] windows 19
+  looplife take 3:  [0] wake 0.5515 gate 0.4794 dormant n gain 0.7200  [1] wake 0.4185 gate 0.4064 dormant n gain 0.6907  [2] wake 0.6307 gate 0.7018 dormant n gain 0.7200  [3] wake 0.3741 gate 0.3000 dormant n gain 0.6747  [4] wake 0.3000 gate 0.3000 dormant n gain 0.6335  [5] wake 0.5220 gate 0.4258 dormant n gain 0.7200
+  arm1@44.1k: finite y peak 0.1743 hi -26.22 dB [PASS]
+  route arms: d(R_k, R_k0) 5.4929, attribBase d(R_0, R_00) 3.6649 (attributable iff d >= 5.1649)
+  primary d 5.4929  bar 4.0000  attribBase 3.6649  state ok  -> PASS  loopsAlive n  lever: loopWakeBase=0.30,couplingSpan=0.44
+  levels: arms [y y y y] arm1@44.1k [y]
+  take j=0 seed 8: peak 0.2019  arm1 hi -25.72 dB [yes]  arm2 lo -40.84 dB [yes]  arm3 late-sus +4.80 dB [yes]  arm4 tail -207.30 dB [yes]
+  take j=1 seed 9: peak 0.1750  arm1 hi -26.18 dB [yes]  arm2 lo -36.75 dB [yes]  arm3 late-sus -4.08 dB [yes]  arm4 tail -201.94 dB [yes]
+  take j=2 seed 10: peak 0.1749  arm1 hi -26.69 dB [yes]  arm2 lo -37.89 dB [yes]  arm3 late-sus +1.45 dB [yes]  arm4 tail -186.63 dB [yes]
+  take j=3 seed 11: peak 0.2038  arm1 hi -24.91 dB [yes]  arm2 lo -35.83 dB [yes]  arm3 late-sus +0.57 dB [yes]  arm4 tail -189.07 dB [yes]
+  take j=0 d 5.4929
+  take j=1 d 2.1484
+  take j=2 d 5.8255
+  take j=3 d 4.9845
+===============================================================================
+All tests passed (60 assertions in 1 test case)
+
+exit=0 END 2026-10-07 22:17:35

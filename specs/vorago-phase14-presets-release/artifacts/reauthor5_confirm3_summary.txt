@@ -1,0 +1,11 @@
+=== T048 re-author confirm 3 started 2026-10-06 12:23:30 ===
+SB_J takes (Swarm Breath) [1500=0,1300=0,300=0.9444,301=0.0,200=0.10,800=0.650515,1105=0.10,1102=0.3]:  primary d 4.2218 -> PASS | levels: arms [y y y y] arm1@44.1k [y]| d: 0 d 4.2218 1 d 6.8082 2 d 2.5753 3 d 6.6876  arm1: -18.08 dB [yes] -18.08 dB [yes] -18.85 dB [yes] -17.62 dB [yes] -17.78 dB [yes] 
+SB_J -6 dB:  primary d 4.2914 -> PASS 
+SB_J secondaries: D3.4 noise model MetallicHiss 2.4388 VERIFIED;D4.7 noise type Blue 0.0000 VERIFIED;D4.8 noise type Violet 0.0000 VERIFIED;D4.9 noise type Grey 0.0000 VERIFIED;
+HC_G (Haunted Colony) [1101=0.30,201=0.50]:  d(R_k, R_k0) 4.1081, attribBase d(R_0, R_00) 0.9495 (attributable iff d >= 2.4495)| primary d 4.1081 -> PASS |
+HC_H (Haunted Colony) [1101=0.50,201=0.40,1103=0.30]:  d(R_k, R_k0) 6.4119, attribBase d(R_0, R_00) 0.8836 (attributable iff d >= 2.3836)| primary d 6.4119 -> PASS |
+HC_I (Haunted Colony) [1101=0.30,201=0.50,1103=0.30,1500=0]:  d(R_k, R_k0) 6.5843, attribBase d(R_0, R_00) 0.8718 (attributable iff d >= 2.3718)| primary d 6.5843 -> PASS |
+ER_M2_F (Erosion) [1400=0,1500=0,201=1.0,300=0.8889]:  primary d 2.5550 -> FAIL |
+ER_M2_G (Erosion) [1400=0,1500=0,201=1.0,300=0.8889,1105=0.20]:  primary d 1.3935 -> FAIL |
+ER_M2_H (Erosion) [1400=0,1500=0,201=1.0,300=0.8889,1001=0.0,1102=0.95]:  primary d 1.1466 -> FAIL |
+=== confirm 3 / batch 7 finished 2026-10-06 13:15:15 ===

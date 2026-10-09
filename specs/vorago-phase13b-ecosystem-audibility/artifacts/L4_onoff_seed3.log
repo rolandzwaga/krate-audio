@@ -1,0 +1,25 @@
+START 2026-09-28 08:39:03 seed=3
+Filters: "Vorago_EcosystemRuleProbe"
+Randomness seeded to: 2726936356
+[probe] surface overrides: 2=0.2; knob filter: -; reference: none + true-off; wake bases: shipped (vorago_voice.h kPeakWakeBase / kLoopWakeBase)
+[probe] rendering default surface (340 s)...
+[probe] rendering seed twin (340 s)...
+[probe] rendering true-off reference (340 s)...
+[probe] rendering true-off seed twin (340 s)...
+
+=== Vorago_EcosystemRuleProbe (FR-070) ===
+renders: 2 (default + seed twin + 0 extremes), 340 s each, 48 kHz, block 512
+surface overrides: 2=0.2; wake bases: shipped (vorago_voice.h kPeakWakeBase / kLoopWakeBase)
+default M1 stereo RMS: -25.31 dBFS
+default per-minute: M1 RMS -25.31 dBFS colony 0.481389 | M2 RMS -25.58 dBFS colony 0.484019 | M3 RMS -25.96 dBFS colony 0.483192
+t0on = d(default, seed twin) = 0.0000   (ecosystem on; informational since 2026-09-28)
+t0 = d(true-off, true-off seed twin) = 0.0000   INAUDIBLE threshold 2*t0 = 0.0000   (the yardstick: non-ecosystem randomness, ruling 2026-09-28)
+DESCRIPTOR default band=7.493854,-0.043996,-5.400001,-8.622774,-11.527105,-12.918452,-14.007642,-14.954040,-15.665376 motion=0.158855 flux=-2.249384 corr=-3.508634 energySpread=0.428938 crest=3.134095
+DESCRIPTOR trueoff band=7.543259,-0.031612,-5.766665,-8.748777,-12.024018,-13.295756,-14.325038,-15.280673,-15.996997 motion=0.148608 flux=-2.289434 corr=-3.513488 energySpread=0.279284 crest=3.050842
+true-off reference (FR-007, offValid): d(default, true-off) = 0.9437   d/t0 = 1000000000000000052504760255204420248704468581108159154915854115511802457988908195786371375080447864043704443832883878176942523235360430575644792184786706982848387200926575803737830233794788090059368953234970799945081119038967640880074652742780142494579258788820056842838115669472196386865459400540160.000   M1 RMS -25.55 dBFS
+GATE1 surface=2=0.2 t0=0.0000 t0on=0.0000 d(on,off)=0.9437 d/t0=1000000000000000052504760255204420248704468581108159154915854115511802457988908195786371375080447864043704443832883878176942523235360430575644792184786706982848387200926575803737830233794788090059368953234970799945081119038967640880074652742780142494579258788820056842838115669472196386865459400540160.000 verdict=PASS
+===============================================================================
+All tests passed (127547 assertions in 1 test case)
+
+EXIT 0
+END 2026-09-28 08:41:22

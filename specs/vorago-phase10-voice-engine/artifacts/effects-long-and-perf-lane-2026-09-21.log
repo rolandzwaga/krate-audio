@@ -1,0 +1,388 @@
+pin-perf-cores: performance-core mask 0xFFFF
+Filters: [performance],[perf],[.perf] [.perf],[benchmark],[!benchmark],[long]
+Randomness seeded to: 336904872
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_effects_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+Reverb single instance performance at 44.1 kHz
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\reverb_test.cpp(1146)
+...............................................................................
+
+benchmark name                       samples       iterations    estimated
+                                     mean          low mean      high mean
+                                     std dev       low std dev   high std dev
+-------------------------------------------------------------------------------
+Reverb processBlock 512 samples @                                              
+44.1kHz                                        100             1     2.5222 ms 
+                                         22.488 us      22.39 us     22.632 us 
+                                        600.076 ns    440.541 ns    806.781 ns 
+                                                                               
+
+-------------------------------------------------------------------------------
+Reverb 4 instances performance at 44.1 kHz
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\reverb_test.cpp(1180)
+...............................................................................
+
+benchmark name                       samples       iterations    estimated
+                                     mean          low mean      high mean
+                                     std dev       low std dev   high std dev
+-------------------------------------------------------------------------------
+4x Reverb processBlock 512 samples                                             
+@ 44.1kHz                                      100             1     8.5452 ms 
+                                        124.958 us    110.906 us    168.007 us 
+                                        114.116 us    47.3657 us     252.39 us 
+                                                                               
+
+-------------------------------------------------------------------------------
+Reverb performance at 96 kHz
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\reverb_test.cpp(1222)
+...............................................................................
+
+benchmark name                       samples       iterations    estimated
+                                     mean          low mean      high mean
+                                     std dev       low std dev   high std dev
+-------------------------------------------------------------------------------
+Reverb processBlock 512 samples @                                              
+96kHz                                          100             1     2.8108 ms 
+                                          21.16 us     20.964 us     21.417 us 
+                                         1.1479 us     917.21 ns    1.40717 us 
+                                                                               
+
+-------------------------------------------------------------------------------
+Reverb Dattorro CPU benchmark at 44.1kHz with modulation
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\reverb_test.cpp(1910)
+...............................................................................
+
+benchmark name                       samples       iterations    estimated
+                                     mean          low mean      high mean
+                                     std dev       low std dev   high std dev
+-------------------------------------------------------------------------------
+Dattorro 10s @ 44.1kHz modRate=1.0                                             
+modDepth=0.5                                   100             1     1.94115 s 
+                                        21.3527 ms    20.9883 ms     21.661 ms 
+                                         1.7158 ms    1.48023 ms    1.94163 ms 
+                                                                               
+
+-------------------------------------------------------------------------------
+AetherReverb_CpuBudget
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_perf_test.cpp(1005)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_perf_test.cpp(1021): warning:
+  SC-008 (a) core - N=8, defaults, shimmer/bloom/spectral OFF - AetherReverb,
+  ns per 512-sample block @ 48 kHz
+    block budget    : 1.06667e+07 ns
+    reference (5 %) : 533333 ns/block  (roadmap line 282, GLOBAL - does not
+  multiply by polyphony)
+    measured        : 81968 ns/block  (0.76845 % of one core)
+    checked-in base : 69593 ns/block  (gate: x1.5 = 104390 ns/block)
+    headroom vs ref : 15.369 % of the reference
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_perf_test.cpp(1033): warning:
+  SC-008 (b) shipped default - N=8, Granular shimmer + bloom + spectral @1024 -
+  AetherReverb, ns per 512-sample block @ 48 kHz
+    block budget    : 1.06667e+07 ns
+    reference (5 %) : 533333 ns/block  (roadmap line 282, GLOBAL - does not
+  multiply by polyphony)
+    measured        : 110222 ns/block  (1.03334 % of one core)
+    checked-in base : 114595 ns/block  (gate: x1.5 = 171892 ns/block)
+    headroom vs ref : 20.6667 % of the reference
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_perf_test.cpp(1049): warning:
+  SC-008 (c) worst case - N=16, everything on, spectral @4096, size=density=1,
+  32 bloom resonators - AetherReverb, ns per 512-sample block @ 48 kHz
+    block budget    : 1.06667e+07 ns
+    reference (5 %) : 533333 ns/block  (roadmap line 282, GLOBAL - does not
+  multiply by polyphony)
+    measured        : 181114 ns/block  (1.69795 % of one core)
+    checked-in base : 200114 ns/block  (gate: x1.5 = 300171 ns/block)
+    headroom vs ref : 33.9589 % of the reference
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_perf_test.cpp(1064): warning:
+  SC-008 (d) frozen - (b) with setFreeze(true) settled - AetherReverb, ns per
+  512-sample block @ 48 kHz
+    block budget    : 1.06667e+07 ns
+    reference (5 %) : 533333 ns/block  (roadmap line 282, GLOBAL - does not
+  multiply by polyphony)
+    measured        : 92383.4 ns/block  (0.866094 % of one core)
+    checked-in base : 98443 ns/block  (gate: x1.5 = 147664 ns/block)
+    headroom vs ref : 17.3219 % of the reference
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_perf_test.cpp(1087): warning:
+  SC-008 (e) dimensionality sweep - (b) with setDimensionality per 64-sample
+  chunk, geodesic re-materialised every chunk - AetherReverb, ns per 512-sample
+  block @ 48 kHz
+    block budget    : 1.06667e+07 ns
+    reference (5 %) : 533333 ns/block  (roadmap line 282, GLOBAL - does not
+  multiply by polyphony)
+    measured        : 113861 ns/block  (1.06745 % of one core)
+    checked-in base : 118464 ns/block  (gate: x1.5 = 177696 ns/block)
+    headroom vs ref : 21.3489 % of the reference
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_perf_test.cpp(1123): warning:
+  SC-008 (f) state-clear burst - AetherReverb, WORST SINGLE 64-sample control
+  chunk during silence(), configuration (c) at maxBlockSamples = 64
+    chunk deadline  : 1.33333e+06 ns  (64 samples @ 48 kHz - the tightest
+  deadline PrepareConfig admits)
+    worst chunk     : 54600 ns  (4.095 % of that deadline)
+    mean of maxima  : 67280 ns over 25 clears  (a wide spread here means the
+  slab sizing is not the bound)
+    chunks / clear  : 48  (amortization: aether_reverb.h:1846-1856)
+    bloom at clear  : 32 driven resonators, fewest of the 25 clears
+  (configuration (c) is 32; the bank is re-driven after every clear because
+  silence() wipes it)
+    reference (5 %) : 533333 ns  (the same absolute constant the other five are
+  gated against)
+    checked-in base : 53760 ns  (gate: x1.5 = 80640 ns)
+
+F:\projects\iterum\dsp\tests\unit\effects\aether_reverb_perf_test.cpp(1148): warning:
+  SC-008 summary, ns/block @ 48 kHz (transcribe ALL SIX into compliance.md
+  verbatim - RA-3: Phase 7 tallies measurements, not ceilings):
+    (a) core            : 81968
+    (b) shipped default : 110222
+    (c) worst case      : 181114
+    (d) frozen          : 92383.4
+    (e) dim sweep       : 113861
+    (f) worst clear chunk (64 samples, NOT a block figure): 54600
+    stage cost (b) - (a): 28254.4  [shimmer + bloom + spectral @1024]
+    N=16 cost (c) - (b) : 70892  [N 8->16, spectral 1024->4096, 8->32
+  resonators, size/density 1]
+    morph cost (e) - (b): 3638.6  [one O(N^3) geodesic product per 64 samples]
+    freeze delta (d)-(b): -17839  [must be <= 0 in the mean; see the gate
+  below]
+
+-------------------------------------------------------------------------------
+CavernVerb_DamperDecorrelation
+  (a) gating arm, setDamperRate(1.0)
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(2800)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(2805): warning:
+  SC-004 (a) damperRate 1.0 (tau = 0.2 s, ~1500 effective samples over 600 s):
+  mean pairwise |r| = 0.0150171 (bound 0.3), max = 0.0598763 (bound 0.6)
+
+-------------------------------------------------------------------------------
+CavernVerb_DamperDecorrelation
+  (b) shipped default rate, against an in-test null distribution
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(2820)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(2844): warning:
+  SC-004 (b) kDefaultDamperRate = 0.15 (tau ~ 25.5 s): mean pairwise |r| = 0.
+  147608, max = 0.325476; null over 100 independently re-seeded banks: median
+  max |r| = 0.420819, P99 = 0.585075
+
+-------------------------------------------------------------------------------
+CavernVerb_DamperDecorrelation
+  negative control - the metric can discriminate
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(2848)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(2859): warning:
+  SC-004 negative control (one drift broadcast to all 8 lines): mean pairwise
+  |r| = 1, max = 1
+
+-------------------------------------------------------------------------------
+CavernVerb_DamperDecorrelation
+  salt separation, FR-034
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(2864)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(2903): warning:
+  FR-034 salt separation: closest damper/jitter trajectory pair differs by 3
+  octaves at its widest point (separation floor 0.001)
+
+-------------------------------------------------------------------------------
+CavernVerb_DamperSpectralMotion
+  (a) endpoint separation
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(3342)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(3349): warning:
+  SC-005 (a) paired statistic M(d) (s.d. over time of the tail's spectral
+  centroid against the seed-matched depth-0 render, 8 seeds, damperRate 1.0): M
+  (0.25) = 14.1701 Hz, M(1) = 62.6485 Hz, ratio 4.42117x (bound 3x)
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(3354): warning:
+  SC-005 reported, not gated - un-paired s.d. by depth: 331.742, 327.204, 314.
+  242, 301.643, 293.073 Hz; absolute centroid excursion depth 0 = 1200.02 Hz,
+  depth 1 = 1095.98 Hz (mean centroid 6196.79 -> 6268.63 Hz)
+
+-------------------------------------------------------------------------------
+CavernVerb_DamperSpectralMotion
+  (b) ordering, non-strict
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(3363)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(3375): warning:
+  SC-005 (b) paired statistic by depth {0, 0.25, 0.5, 0.75, 1}: 0, 14.1701, 34.
+  6169, 51.7552, 62.6485 Hz; Spearman rho = 1 (bound 0.9)
+
+-------------------------------------------------------------------------------
+CavernVerb_DamperSpectralMotion
+  (c) inertness at zero, as a number
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(3379)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(3422): warning:
+  SC-005 (c) bare-engine pair: offsets never set = 395.16 Hz, all-zero offsets
+  published = 395.16 Hz, ratio 1x (bound 1.05x); CavernVerb depth-0 statistic
+  331.742 Hz
+
+-------------------------------------------------------------------------------
+CavernVerb_DamperSpectralMotion
+  (d) direction, not merely monotonicity - FR-048's sign convention
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(3427)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(3450): warning:
+  SC-005 direction at setDarkness(0.0) (engine damping 0.5): 8 kHz T60 = 1.3465
+  s at offset +0.5, 2.3146 s at offset -0.5
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_test.cpp(3450): warning:
+  SC-005 direction at setDarkness(kDefault) (engine damping 0.9): 8 kHz T60 =
+  0.573697 s at offset +0.5, 0.601841 s at offset -0.5
+
+-------------------------------------------------------------------------------
+CavernVerb_Soak
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_soak_test.cpp(275)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_soak_test.cpp(278): warning:
+  G-2 calibration gain 1.52291
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_soak_test.cpp(338): warning:
+  SC-014 input peak 1
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_soak_test.cpp(342): warning:
+  SC-014 (a) measured peak 0.584594 against the bound 4
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_soak_test.cpp(355): warning:
+  SC-014 (b) longest strictly monotone run 5 of 30
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_soak_test.cpp(363): warning:
+  SC-014 (b) minute 30 vs minute 10: -0.0183751 dB
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_soak_test.cpp(440): warning:
+  SC-014 (d) worst frozen energy deviation 0.0113614 dB at +1326 s of 1739
+
+-------------------------------------------------------------------------------
+CavernVerb_CpuBudget
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_perf_test.cpp(670)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_perf_test.cpp(700): warning:
+  SC-009 (a) default - FR-066 table, N=8, spectral @1024, maxEarly 0.30 -
+  CavernVerb, ns per 512-sample block @ 48 kHz
+    block budget    : 1.06667e+07 ns
+    reference (5 %) : 533333 ns/block  (roadmap line 430, GLOBAL - does not
+  multiply by polyphony)
+    measured        : 125927 ns/block  (1.18056 % of one core)
+    checked-in base : 129150 ns/block  (ceil(measured x 1.05), BASELINE
+  PROVENANCE; gate: x1.5 = 193725 ns/block)
+    headroom vs ref : 23.6113 % of the reference
+    vs cap          : 35.4169 % of kMaxAdmissibleNs (355556 ns)
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_perf_test.cpp(718): warning:
+  SC-009 (c) frozen - arm (a) with setFreeze(true) settled - CavernVerb, ns per
+  512-sample block @ 48 kHz
+    block budget    : 1.06667e+07 ns
+    reference (5 %) : 533333 ns/block  (roadmap line 430, GLOBAL - does not
+  multiply by polyphony)
+    measured        : 119611 ns/block  (1.12135 % of one core)
+    checked-in base : 117604 ns/block  (ceil(measured x 1.05), BASELINE
+  PROVENANCE; gate: x1.5 = 176406 ns/block)
+    headroom vs ref : 22.4271 % of the reference
+    vs cap          : 33.6406 % of kMaxAdmissibleNs (355556 ns)
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_perf_test.cpp(733): warning:
+  SC-009 (d) damper off - arm (a) with setDamperDepth(0) - CavernVerb, ns per
+  512-sample block @ 48 kHz
+    block budget    : 1.06667e+07 ns
+    reference (5 %) : 533333 ns/block  (roadmap line 430, GLOBAL - does not
+  multiply by polyphony)
+    measured        : 127453 ns/block  (1.19487 % of one core)
+    checked-in base : 125485 ns/block  (ceil(measured x 1.05), BASELINE
+  PROVENANCE; gate: x1.5 = 188228 ns/block)
+    headroom vs ref : 23.8975 % of the reference
+    vs cap          : 35.8462 % of kMaxAdmissibleNs (355556 ns)
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_perf_test.cpp(753): warning:
+  SC-009 (b) worst case - N=16, all controls max, spectral @4096, maxEarly 0.60
+  - CavernVerb, ns per 512-sample block @ 48 kHz
+    block budget    : 1.06667e+07 ns
+    reference (5 %) : 533333 ns/block  (roadmap line 430, GLOBAL - does not
+  multiply by polyphony)
+    measured        : 233243 ns/block  (2.18666 % of one core)
+    checked-in base : 190343 ns/block  (ceil(measured x 1.05), BASELINE
+  PROVENANCE; gate: x1.5 = 285514 ns/block)
+    headroom vs ref : 43.7331 % of the reference
+    vs cap          : 65.5996 % of kMaxAdmissibleNs (355556 ns)
+
+F:\projects\iterum\dsp\tests\unit\effects\cavern_verb_perf_test.cpp(776): warning:
+  SC-009 summary, ns/block @ 48 kHz (transcribe ALL FOUR into the compliance
+  ledger verbatim - the ledger tallies measurements, not ceilings):
+    (a) default    : 125927
+    (b) worst case : 233243
+    (c) frozen     : 119611
+    (d) damper off : 127453
+    DAMPER DELTA (a) - (d) : -1526.4 ns/block  [the cost attributable to the
+  moving dampers: the engine's exp2 + pow pair per line per control chunk,
+  which levers L-1 and L-2 attack]
+    worst headroom (b) - (a): 107316  [N 8->16, spectral 1024->4096, ER size
+  220->600 ms, every control at max]
+    freeze delta (c) - (a) : -6315.8  [must be <= 0 in the mean; see the gate
+  below]
+    reference vs shipped AetherReverb: its default arm is 114 595 ns/block and
+  its worst arm 200 114 ns/block, BOTH shimmer/bloom-inclusive and the worst
+  one 4096-point (aether_reverb_perf_test.cpp:326, :330)
+
+-------------------------------------------------------------------------------
+VoragoComposed_DepthMacroAxis
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\vorago_composed_chain_test.cpp(623)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\vorago_composed_chain_test.cpp(698): warning:
+  SC-008 Depth (tail), seed 1: composed RT30 s at Depth {0, 0.25, 0.5, 0.75, 1}
+  = 8.85, 10.75, 12.65, 14.55, 15.85 (cap 120 s; quietest block rel. note-off
+  level dB = -271.347, -271.574, -271.665, -235.549, -208.871) | Spearman rho =
+  1 | endpoint = 7 s
+
+F:\projects\iterum\dsp\tests\unit\effects\vorago_composed_chain_test.cpp(698): warning:
+  SC-008 Depth (tail), seed 7: composed RT30 s at Depth {0, 0.25, 0.5, 0.75, 1}
+  = 8.45, 9.85, 11.75, 12.85, 14.45 (cap 120 s; quietest block rel. note-off
+  level dB = -269.593, -269.67, -269.697, -234.984, -209.572) | Spearman rho =
+  1 | endpoint = 6 s
+
+F:\projects\iterum\dsp\tests\unit\effects\vorago_composed_chain_test.cpp(698): warning:
+  SC-008 Depth (tail), seed 1337: composed RT30 s at Depth {0, 0.25, 0.5, 0.75,
+  1} = 8.55, 9.95, 11.25, 12.45, 14.25 (cap 120 s; quietest block rel. note-off
+  level dB = -271.334, -271.421, -271.443, -238.525, -210.616) | Spearman rho =
+  1 | endpoint = 5.7 s
+
+F:\projects\iterum\dsp\tests\unit\effects\vorago_composed_chain_test.cpp(713): warning:
+  SC-008 Depth (tail): mean Spearman rho = 1 (bound +0.9), mean endpoint = 6.
+  23333 s (bound 3 s)
+
+===============================================================================
+All tests passed (7814 assertions in 15 test cases)
+

@@ -1,0 +1,59 @@
+Phase 13d T052 affected set (FR-040), 2026-10-08
+
+Rule (a): every preset where an adopted lever is live. E4 W2 (kLoopWakeLaneGain) is a lane constant on the feedback route, live where the ecosystem depth feeding it is > 0: liveFor:e4 lists all 42 presets (t019_check.log; the e4_r6_g25 read set rendered every one of them). So the affected set is ALL 42 presets and T055 re-runs every shard.
+Rule (b) drifts > 0.01 against the sweep-5 record are therefore not exclusions; the largest measured: Colony Pulse S7 13.9273 -> 11.0318 (final_E67.log; the Life row 0.65 moves it), Smeared Horizon S3 4.0088 -> 4.3290 (re-authored), Haunted Colony E5 (re-authored), Hull Resonance S10 (re-authored).
+M2 live set (liveFor:m2): Smeared Horizon, Erosion. M10 live set (liveFor:m10): Colony Pulse, Teeming, Growth Ring, Spore Drift. M4 exponent: not adopted (0.75 kept).
+
+Full re-authors (FR-041, the three showcase-subset presets) and transcribed companions:
+  Feeding Loops: 800 = 0.5 (1x events; the E4 gate surface, e4_shipped_gate.log d 5.9128, loops alive)
+  Teeming: 900 = 0.15 (the M10 Life-row companion, combo_m10_gate.log d 4.6265)
+  Smeared Horizon: +claim D14.1 breathing depth >= 0.7; 1500 = 0.70, 701 = 1.0, 1105 = 0.10 (reauthor_confirm_smeared_horizon.log S3 4.3290 / D14.1 2.1320; -6 dB 4.3772 / 2.2648)
+  Hull Resonance: +claim M8 Weight; 107 = 1.0 (reauthor_confirm_hull_resonance.log S10 9.8642 / M8 1.9584; -6 dB 9.8615 / 1.9642)
+  Haunted Colony: +claim D12.1 ghost event triggers on; 1403 = 1 (reauthor_confirm_haunted_colony.log E5 5.0759 attrib 0.8836 / D12.1 verified; -6 dB 5.0781)
+  Bloom Colony, Stone Gravity, Drifting Strata: primaries ruled engine-limited (rulings.md); no preset-level change clears them (13d L1 / M5 / M4 ladders), left as compiled.
+  Colony Pulse: S7 verified (11.0318); E6.hi / E7.hi ruled engine-limited; no raised Life (the E6/E7 ladder cleared nothing).
+  Erosion: M2 verified (4.5037) by the adopted row alone.
+
+Members (42):
+  0  Wind Through Basalt
+  1  Resonant Shaft
+  2  Smeared Horizon
+  3  Feedback Mire
+  4  Tectonic Floor
+  5  Slow Bloom
+  6  Colony Pulse
+  7  Cathedral Void
+  8  Choir of Absence
+  9  Hull Resonance
+  10  Lightless
+  11  Erosion
+  12  Crowded Dark
+  13  Drifting Strata
+  14  Stone Gravity
+  15  Entropic Hum
+  16  Pressure Front
+  17  Weighted Deep
+  18  Fogbound
+  19  Teeming
+  20  Endless Descent
+  21  Monolith
+  22  Bloom Colony
+  23  Singing Colony
+  24  Swarm Breath
+  25  Feeding Loops
+  26  Haunted Colony
+  27  Growth Ring
+  28  Glass Well
+  29  Strung Abyss
+  30  Iron Plate
+  31  Chamber Drone
+  32  Ice Shelf
+  33  Hull Ark
+  34  Column Hymn
+  35  Cavern Wall
+  36  Glass Sphere
+  37  Sudden Chasm
+  38  Dead Air
+  39  Abyssal Wind
+  40  Spore Drift
+  41  Steam Vent

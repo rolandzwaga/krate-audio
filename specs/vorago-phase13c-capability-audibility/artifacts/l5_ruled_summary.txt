@@ -1,0 +1,14 @@
+=== ruled tree build started 2026-10-02 14:33:52 (kAttackStageCurve = EnvCurve::Linear kAttackShapePower = 4 kDefaultStageTimesMs{20000.0f ) ===
+2026-10-02 14:34:44 build: exit=0 warnings=0
+attack tests: VoragoVoice_AttackTracksStageTime: n = 4, RMS(Sus) -21.45 dB, reach 19.0 s (bound [15.0, 20.0] s), 180.0 s rendered in 2.38 s wall  | All tests passed (40 assertions in 2 test cases)
+D9.1 (Sudden Chasm):  attack window (W_end registered 25.0 s, measured 22.0 s): d_att 8.1243, d_Sus 4.3329 (attributable iff d_att >= 5.8329) P_rev: first reaches RMS(Sus) - 6 dB at 17 s primary d 8.1243 bar 4.0000 attribBase 4.3329 state ok -> PASS lever: none levels: arms [y y y y] arm1@44.1k [y] 
+D8.2 (Growth Ring):  attack window (W_end registered 65.0 s, measured 35.0 s): d_att 7.6879, d_Sus 2.6363 (attributable iff d_att >= 4.1363) P_rev: first reaches RMS(Sus) - 6 dB at 5 s primary d 7.6879 bar 4.0000 attribBase 2.6363 state ok -> PASS lever: none levels: arms [y y y y] arm1@44.1k [y] 
+S6 (Slow Bloom):  primary d 4.1966 bar 4.0000 attribBase -1.0000 state ok -> PASS lever: none levels: arms [y y y y] arm1@44.1k [y] 
+E1 (Bloom Colony):  primary d 1.1991 bar 4.0000 attribBase 1.1082 state ok -> FAIL lever: none levels: arms [y y y y] arm1@44.1k [y] 
+E3 (Swarm Breath):  primary d 1.0941 bar 4.0000 attribBase 0.6063 state ok -> FAIL lever: none levels: arms [y y y y] arm1@44.1k [y] 
+E4 (Feeding Loops):  primary d 2.9238 bar 4.0000 attribBase 0.9835 state ok -> FAIL lever: none levels: arms [y y y y] arm1@44.1k [y] 
+E5 (Haunted Colony):  primary d 3.7994 bar 4.0000 attribBase 0.8919 state ok -> FAIL lever: none levels: arms [y y y y] arm1@44.1k [y] 
+S9 (Choir of Absence):  primary d 4.1365 bar 4.0000 attribBase -1.0000 state ok -> PASS lever: none levels: arms [y y y y] arm1@44.1k [n] 
+S4 (Feedback Mire):  primary d 4.6629 bar 4.0000 attribBase -1.0000 state ok -> PASS lever: none levels: arms [y y y y] arm1@44.1k [y] 
+suite: test cases:    1424 |    1421 passed | 3 failed | F:\projects\iterum\dsp\tests\unit\systems\vorago_voice_test.cpp(926): FAILED: F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(507): FAILED: F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1546): FAILED: 
+=== ruled tree finished 2026-10-02 15:19:41 ===

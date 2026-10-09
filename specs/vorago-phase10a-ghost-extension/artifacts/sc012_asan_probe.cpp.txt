@@ -1,0 +1,75 @@
+// SC-012's sanitizer half, as a standalone ASan program.
+// Replicates AtmosphereGhost_PassAScratchBound's fixture exactly.
+#include <enable_ftz_daz.h>
+
+#include "atmosphere_ghost_fixtures.h"
+
+#include <krate/dsp/systems/atmosphere_engine.h>
+
+#include <algorithm>
+#include <cstdio>
+#include <memory>
+#include <vector>
+
+using Krate::DSP::AtmosphereEngine;
+using AE = AtmosphereEngine;
+
+int main() {
+    enableFTZDAZ();
+    constexpr double kScratchSampleRate = 20.0;
+    const std::size_t kChunk = AE::kControlChunkSamples;
+
+    auto engine = std::make_unique<AE>();
+    engine->prepare(kScratchSampleRate, AE::PrepareConfig{.captureSeconds = 30.0f,
+                                                          .blurEnabled = false,
+                                                          .freezeEnabled = false,
+                                                          .blurFftSize = std::size_t{1024},
+                                                          .freezeFftSize = std::size_t{2048},
+                                                          .maxBlockSamples = std::size_t{2048}});
+    engine->setSeed(1u);
+    engine->setDensity(AE::kMaxDensity);
+    engine->setJitter(0.0f);
+    engine->setGrainSeconds(AE::kMinGrainSeconds);
+    engine->setPitchSemitones(0.0f);
+    engine->setPitchSpread(0.0f);
+    engine->setDriftRangeSemitones(0.0f);
+    engine->setDriftDepth(0.0f);
+    engine->setPositionSeconds(0.0f);
+    engine->setPositionSpread(0.0f);
+    engine->setDecorrelation(0.0f);
+    engine->setPanSpread(0.0f);
+    engine->setLevel(1.0f);
+    engine->setGrainReverseProbability(0.0f);
+
+    std::printf("capacity = %zu (expect 1024)\n", engine->getCaptureCapacitySamples());
+    const std::size_t preRolled = VoragoGhostFix::preRollFullRing(*engine, 1u, kChunk);
+    std::printf("preRolled = %zu, born = %llu, active = %zu\n", preRolled,
+                static_cast<unsigned long long>(engine->getTotalGrainsBorn()),
+                engine->getActiveGrainCount());
+
+    std::vector<float> inLeft(kChunk, 0.0f);
+    std::vector<float> inRight(kChunk, 0.0f);
+    VoragoGhostFix::excitePinkPlusTone(inLeft, inRight, 1u);
+    std::vector<float> outLeft(kChunk, 0.0f);
+    std::vector<float> outRight(kChunk, 0.0f);
+
+    engine->setGrainSeconds(3.2f);
+    for (std::size_t k = 0; k < AE::kMaxGrains; ++k) engine->triggerGrain();
+    const std::uint64_t r0 = engine->getTotalGrainsRetired();
+    engine->processStereoBlock(inLeft.data(), inRight.data(), outLeft.data(), outRight.data(),
+                               kChunk);
+    std::printf("chunk 1: active = %zu, deltaRetired = %llu\n", engine->getActiveGrainCount(),
+                static_cast<unsigned long long>(engine->getTotalGrainsRetired() - r0));
+    std::fflush(stdout);
+
+    engine->setGrainSeconds(0.1f);
+    for (std::size_t k = 0; k < AE::kMaxGrains; ++k) engine->triggerGrain();
+    const std::uint64_t r1 = engine->getTotalGrainsRetired();
+    engine->processStereoBlock(inLeft.data(), inRight.data(), outLeft.data(), outRight.data(),
+                               kChunk);
+    std::printf("chunk 2: deltaRetired = %llu (teeth: > %zu, FR-051 bound: <= %zu)\n",
+                static_cast<unsigned long long>(engine->getTotalGrainsRetired() - r1),
+                AE::kMaxGrains * 2, AE::kMaxGrains * 3);
+    std::printf("NO SANITIZER ERROR\n");
+    return 0;
+}

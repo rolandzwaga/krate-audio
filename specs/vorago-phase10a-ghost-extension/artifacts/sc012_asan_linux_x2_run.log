@@ -1,0 +1,40 @@
+capacity = 1024 (expect 1024)
+preRolled = 1024, born = 0, active = 0
+chunk 1: active = 62, deltaRetired = 2
+=================================================================
+==867==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x519000000480 at pc 0x5a6a0875120d bp 0x7ffcea574860 sp 0x7ffcea574850
+WRITE of size 5 at 0x519000000480 thread T0
+    #0 0x5a6a0875120c in Krate::DSP::AtmosphereEngine::renderGrainChunk(float const*, float const*, unsigned long)::{lambda(unsigned long)#1}::operator()(unsigned long) const /mnt/f/projects/iterum/dsp/include/krate/dsp/systems/atmosphere_engine.h:2323
+    #1 0x5a6a0875120c in Krate::DSP::AtmosphereEngine::renderGrainChunk(float const*, float const*, unsigned long) /mnt/f/projects/iterum/dsp/include/krate/dsp/systems/atmosphere_engine.h:2392
+    #2 0x5a6a08759c30 in Krate::DSP::AtmosphereEngine::processStereoBlock(float const*, float const*, float*, float*, unsigned long) /mnt/f/projects/iterum/dsp/include/krate/dsp/systems/atmosphere_engine.h:768
+    #3 0x5a6a0873bdf2 in main /mnt/f/projects/iterum/.probe_scratch/sc012_asan_probe.cpp:68
+    #4 0x735da002a1c9 in __libc_start_call_main ../sysdeps/nptl/libc_start_call_main.h:58
+    #5 0x735da002a28a in __libc_start_main_impl ../csu/libc-start.c:360
+    #6 0x5a6a0873ab14 in _start (/mnt/f/projects/iterum/.probe_scratch/sc012_x2+0x3b14) (BuildId: a116407a046609ed8795dcfbc22769ca3da21f60)
+
+0x519000000480 is located 0 bytes after 1024-byte region [0x519000000080,0x519000000480)
+allocated by thread T0 here:
+    #0 0x735da08fe548 in operator new(unsigned long) ../../../../src/libsanitizer/asan/asan_new_delete.cpp:95
+    #1 0x5a6a087640e6 in std::__new_allocator<Krate::DSP::AtmosphereEngine::DueEntry>::allocate(unsigned long, void const*) /usr/include/c++/13/bits/new_allocator.h:151
+    #2 0x5a6a087640e6 in std::allocator<Krate::DSP::AtmosphereEngine::DueEntry>::allocate(unsigned long) /usr/include/c++/13/bits/allocator.h:198
+    #3 0x5a6a087640e6 in std::allocator_traits<std::allocator<Krate::DSP::AtmosphereEngine::DueEntry> >::allocate(std::allocator<Krate::DSP::AtmosphereEngine::DueEntry>&, unsigned long) /usr/include/c++/13/bits/alloc_traits.h:482
+    #4 0x5a6a087640e6 in std::_Vector_base<Krate::DSP::AtmosphereEngine::DueEntry, std::allocator<Krate::DSP::AtmosphereEngine::DueEntry> >::_M_allocate(unsigned long) /usr/include/c++/13/bits/stl_vector.h:381
+    #5 0x5a6a087640e6 in std::_Vector_base<Krate::DSP::AtmosphereEngine::DueEntry, std::allocator<Krate::DSP::AtmosphereEngine::DueEntry> >::_M_create_storage(unsigned long) /usr/include/c++/13/bits/stl_vector.h:398
+    #6 0x5a6a087640e6 in std::_Vector_base<Krate::DSP::AtmosphereEngine::DueEntry, std::allocator<Krate::DSP::AtmosphereEngine::DueEntry> >::_Vector_base(unsigned long, std::allocator<Krate::DSP::AtmosphereEngine::DueEntry> const&) /usr/include/c++/13/bits/stl_vector.h:335
+    #7 0x5a6a087640e6 in std::vector<Krate::DSP::AtmosphereEngine::DueEntry, std::allocator<Krate::DSP::AtmosphereEngine::DueEntry> >::vector(unsigned long, Krate::DSP::AtmosphereEngine::DueEntry const&, std::allocator<Krate::DSP::AtmosphereEngine::DueEntry> const&) /usr/include/c++/13/bits/stl_vector.h:571
+    #8 0x5a6a087640e6 in std::vector<Krate::DSP::AtmosphereEngine::DueEntry, std::allocator<Krate::DSP::AtmosphereEngine::DueEntry> >::_M_fill_assign(unsigned long, Krate::DSP::AtmosphereEngine::DueEntry const&) /usr/include/c++/13/bits/vector.tcc:275
+
+SUMMARY: AddressSanitizer: heap-buffer-overflow /mnt/f/projects/iterum/dsp/include/krate/dsp/systems/atmosphere_engine.h:2323 in Krate::DSP::AtmosphereEngine::renderGrainChunk(float const*, float const*, unsigned long)::{lambda(unsigned long)#1}::operator()(unsigned long) const
+Shadow bytes around the buggy address:
+  0x519000000200: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x519000000280: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x519000000300: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x519000000380: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x519000000400: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+=>0x519000000480:[fa]fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x519000000500: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x519000000580: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x519000000600: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x519000000680: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x519000000700: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+Shadow byte legend (one shadow byte represents 8 application bytes):

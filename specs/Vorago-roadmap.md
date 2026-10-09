@@ -88,7 +88,8 @@ authored, everything is grown.
 1. **Emergence over scripting.** The Ecosystem Engine (agents exchanging energy) and the Slow Event
    Engine (discrete scheduled happenings) are the identity layer — the analogue of Seraphis's
    spectral-morph layer. They ship as first-class DSP components, unit-tested for boundedness.
-2. **Few, enormous voices.** 4–8 voices. A drone instrument is played with one or two held notes;
+2. **Few, enormous voices.** 4–6 voices (Phase 10 ruling; 4–8 as first written). A drone instrument
+   is played with one or two held notes;
    per-voice CPU budget is correspondingly generous (~4–5% per voice vs Seraphis's ~3%).
 3. **All randomness bounded and slow.** Every stochastic process has hard bounds, mean-reversion,
    and slew limits. Feedback ecology has an energy governor. A drone left running overnight must
@@ -111,10 +112,10 @@ Legend: ✅ = exists and is largely sufficient · 🔶 = exists, needs extension
 | L3 Resonance Network | `resonator_bank`, `modal_resonator_bank_simd`, `iresonator`, `timevar_comb_bank`, `sympathetic_resonance_simd` | 🆕 `ResonanceDriftNetwork` (L3): 12 peaks whose freq/Q/gain each wander via life modulators — thin composition of `ResonatorBank` + `BrownianDrift`; the banks themselves need no new DSP. |
 | L4 Spectral Smear | `STFT`, `spectral_buffer`, `spectral_simd`, spectral-blur stage inside `atmosphere_engine` (Seraphis Phase 5) | 🔶 Blur math exists but is embedded per-grain in AtmosphereEngine. 🆕 Extract standalone `SpectralSmear` (L2): bin-magnitude smearing + phase decoherence on a continuous stream. |
 | L5 Feedback Ecology | `feedback_network`, `flexible_feedback_network`, `filter_feedback_matrix`, `i_feedback_processor`, `crossfading_delay_line`, `dc_blocker` | 🔶 Single-loop infrastructure is mature. 🆕 `FeedbackEcology` (L3): 5–6 micro-loops (osc→filter→delay→resonator→back), cross-coupling matrix, per-loop tiny gain/mod, **global energy governor**. |
-| L6 Granular Ghosts | `systems/atmosphere_engine.h` (Seraphis Phase 5: self-granulating capture, 50 ms–30 s grains, spectral blur, per-grain pitch drift), `rolling_capture_buffer`, `reverse_buffer`, `grain_pool/scheduler/processor`, `slice_pool` | ✅ **~90% built.** 🔶 Add ghost-flavoured config: reverse playback per grain, event-triggered (not continuous-density) scheduling, darker blur defaults. |
+| L6 Granular Ghosts | `systems/atmosphere_engine.h` (Seraphis Phase 5: self-granulating capture, 50 ms–30 s grains, spectral blur, per-grain pitch drift), `rolling_capture_buffer`, `reverse_buffer`, `grain_pool/scheduler/processor`, `slice_pool` | ✅ **~90% built.** 🔶 Ghost-flavoured config (darker blur defaults, event-gated level) is Phase 10 configuration; reverse playback per grain and event-triggered (not continuous-density) scheduling are source changes owned by **Phase 10a** (ruled 2026-09-17, Phase 10 spec Q-B). |
 | L7 Harmonic Bloom | `harmonic_snapshot`, `spectral_coring_estimator`, `fft_autocorrelation`, `sympathetic_resonance_simd`; Seraphis Phase 6 plans in-loop shimmer/bloom | 🆕 `BloomEngine` (L3): analyze strongest current peaks → spawn child partials into the cloud → 45 s fade-in / 3 min fade-out lifecycle. Peak analysis and partial banks exist; the lifecycle manager is new. |
 | L8 Dark Modulation | **Seraphis Phase 1 suite ✅**: `brownian_drift` (Ornstein–Uhlenbeck), `tidal_modulator` (30 s–10 min never-repeating = "seasonal cycles"), `spline_trajectory`, `orbit_modulator`, `breathing_modulator`, `growth_envelope`; `chaos_mod_source` (Lorenz/Rossler/Chua/Henon), `random_source`, `sample_hold_source`, `modulation_engine`, `voice_mod_router` | ✅ **Almost entirely built.** 🆕 Only gaps: `PerlinNoiseSource` (L2, small) and optionally the Aizawa attractor added to `ChaosModSource`. |
-| L9 Space Engine | `fdn_reverb`, `reverb`, `diffusion_network`, `pitch_shift_processor`; **Seraphis Phase 6 `AetherReverb`** (ER→diffusion→FDN→spectral damping, freeze, life-modulated internals) is the same topology | 🔶 **Strategic reuse point:** build `AetherReverb` (Seraphis Phase 6) as the shared L4 space core; Vorago's "cavern" is a dark configuration + `MovingDampers` extension (per-line damping filters that wander). Avoid building two big FDNs. |
+| L9 Space Engine | `fdn_reverb`, `reverb`, `diffusion_network`, `pitch_shift_processor`; **Seraphis Phase 6 `AetherReverb`** (ER→diffusion→FDN→spectral damping, freeze, life-modulated internals) is the same topology | 🔶 **Strategic reuse point:** `AetherReverb` is **already built** (`effects/aether_reverb.h`) and is the shared L4 space core; Vorago's "cavern" is a dark configuration + `MovingDampers` extension (per-line damping filters that wander). Avoid building two big FDNs. |
 | L10 Subharmonic Engine | `sub_oscillator`, `pitch_tracker`/`pitch_detector` (not needed — pitch is known from the note), `one_pole`, `saturation_processor`, `tape_saturator`, `dc_blocker` | 🆕 `SubharmonicEngine` (L3): synchronous dividers (÷2, ÷4) + fifth-below tracked oscillator + LP + saturation. Small: composes existing pieces, driven by known voice pitch (no detection needed). |
 | L11 Slow Event Engine | `pattern_scheduler` (rhythmic, wrong time scale), `multi_stage_envelope` | 🆕 `SlowEventScheduler` (L2): seeded stochastic scheduler, one event per 20–90 s, event = {target, envelope (rise/hold/fall over seconds–minutes), depth}. RT-safe, no allocation, deterministic under seed. **Identity component.** |
 | L12 Entropy | `processors/entropy_processor.h` ✅ (Seraphis Phase 3: amp jitter → phase decoherence → ratio scatter → partial death/rebirth), `modulation_engine` macro routing | ✅ Reuse directly; Vorago's global Entropy knob = EntropyProcessor + scaled drift/event depths via macro system. |
@@ -128,26 +129,32 @@ ODR note: before creating any class below, run `grep -r "class Name" dsp/ plugin
 hazard list here is long (`ResonatorBank`, `FeedbackNetwork`, `NoiseGenerator`, `GranularEngine`,
 `PatternScheduler`).
 
-## Relationship to Seraphis (sequencing constraint)
+## Relationship to Seraphis (sequencing constraint — RESOLVED 2026-08-31)
 
-Vorago's substrate is ~60% Seraphis components, four of which are **already complete** (life
-modulators, harmonic cloud, entropy, continuous body, atmosphere engine). Two Seraphis phases are
-still pending and matter here:
+Vorago's substrate is ~60% Seraphis components. **Seraphis shipped 1.0 on 2026-08-31; all twelve of
+its roadmap phases are complete**, so every Seraphis dependency this roadmap once deferred is now
+satisfied and **no Vorago phase is blocked**:
 
-- **Seraphis Phase 6 (AetherReverb)** — build it once as the shared space-engine core; Vorago's
-  Cavern engine extends it rather than duplicating an FDN. Vorago Phase 9 depends on it.
-- **Seraphis Phase 7 (voice/engine)** — establishes the voice-composition, macro-system, and
-  determinism-harness patterns Vorago Phase 10 copies.
+- **`AetherReverb`** (Seraphis Phase 6) ships at `dsp/include/krate/dsp/effects/aether_reverb.h` —
+  the shared space-engine core. Vorago Phase 9's Cavern engine extends/configures it rather than
+  duplicating an FDN.
+- **Voice/engine pattern** (Seraphis Phase 7) ships at `dsp/include/krate/dsp/systems/seraphis_voice.h`,
+  `seraphis_engine.h`, and `seraphis_macro_matrix.h` — the voice-composition, macro-system, and
+  determinism-harness template Vorago Phase 10 copies.
+- Also complete and consumed as-is: life modulators, harmonic cloud, entropy processor, continuous
+  body, atmosphere engine.
 
-**Recommendation:** start Vorago Part A phases 1–8 any time (they are independent of Seraphis's
-remaining work), but schedule Vorago phases 9–10 after Seraphis 6–7 land so the shared patterns are
-proven once, in one place.
+**Recommendation:** build Part A in dependency order — Phase 1 first (it unblocks 2–8), then phases
+2–8 in any order interleaved with listening checkpoints. Phase 8's offline prototype has no DSP
+dependency and can start at any time, in parallel.
 
 ---
 
 ## Part A — DSP Foundations (KrateDSP, unit-tested, no plugin yet)
 
 ### Phase 1: Modulation Gap-Fill + Slow Event Engine
+
+**Status: ✅ COMPLETE (2026-08-31)** — see specs/vorago-phase1-events-modulation/compliance.md
 
 **Spec:** `vorago-phase1-events-modulation`
 **Goal:** Complete the modulation vocabulary and build the first identity component.
@@ -170,6 +177,17 @@ clicks); 60 s CSV renders inspected for organic character (Phase 1 Seraphis eval
 ---
 
 ### Phase 2: Noise Organism
+
+**Status: ✅ COMPLETE (2026-09-01)** — see specs/vorago-phase2-noise-organism/compliance.md
+(87 of 89 items pass, 2 partial, 0 fail). **FR-073** (whether a slot at `wake == 0` with
+`dormant == false` still runs its chain) was closed 2026-09-09: it does not, the spec was
+amended to match the code, and the rule is now the "Dormancy" cross-cutting constraint below.
+Two gaps remain recorded rather than closed: **FR-067** and **FR-056** are implemented but
+unassertable without new public accessors on `StochasticFilter`. Five success criteria were
+rewritten during the build after
+measurement showed the originals could not discriminate (details in compliance.md), and
+FR-095's CPU ceiling moved 1 % → 1.75 % by explicit user decision under the spec's own
+stop-and-surface rule.
 
 **Spec:** `vorago-phase2-noise-organism`
 **Goal:** Living noise — the second sound source beside the harmonic cloud.
@@ -194,6 +212,17 @@ CPU ≤ 1% per voice.
 
 ### Phase 3: Resonance Drift Network
 
+**Status: ✅ COMPLETE (2026-09-11)** — see specs/vorago-phase3-resonance-drift/compliance.md
+(98 of 99 items pass, 1 partial, 0 fail after the SC-004 (b) amendment). The engine shipped as ONE
+twelve-resonator `ResonatorBank` via two additive methods (`processIndividual`, `resetResonatorState`),
+not twelve banks: the FR-060 probe put the twelve-bank shape over budget, exactly as plan S10.4
+projected. SC-004 (b)'s original "≥ 10 % saving with wander off" was structurally unreachable once the
+Dormancy rule fixed that lanes keep advancing (measured 4–5 %); amended by user decision to a
+directional clause with the saving transcribed. The new TUs were syntax-checked against libstdc++
+with MSYS2 g++ 14.2 in addition to the MSVC build. The build's fixer also caught and fixed a NaN
+path reachable through the public API
+(parametric pump under SC-002 (c)'s injection) and a real gain/pan zipper.
+
 **Spec:** `vorago-phase3-resonance-drift`
 **Goal:** Standing waves inside a cave — 12 independently wandering resonant peaks.
 
@@ -214,6 +243,8 @@ voice.
 
 ### Phase 4: Spectral Smear
 
+**Status: ✅ COMPLETE (2026-09-12)** — see specs/vorago-phase4-spectral-smear/compliance.md
+
 **Spec:** `vorago-phase4-spectral-smear`
 **Goal:** Fog, distance, age — spectral blur that is not reverb.
 
@@ -226,21 +257,34 @@ New component (L2, `processors/spectral_smear.h`):
   — no speculative unification).
 - Smear amount and tilt are modulation targets (fog rolls in via `TidalModulator`).
 
-**Success criteria:** spectral-flatness increase monotonic with smear amount, latency reported
-correctly, transparent at 0% (null test within tolerance), no time-domain smearing artifacts
-(pre-echo metric), CPU ≤ 0.5% global.
+**Success criteria:** spectral-flatness increase monotonic with decoherence amount; per-bin magnitude
+flux reduction monotonic with smear amount; latency reported correctly, transparent at 0% (null test
+within tolerance), no time-domain smearing artifacts (pre-echo metric), CPU ≤ 0.5% global.
 
 ---
 
 ### Phase 5: Feedback Ecology
+
+**Status: ✅ COMPLETE (2026-09-13)** — see specs/vorago-phase5-feedback-ecology/compliance.md
+(97 of 97 items pass after the main-loop resolution; the build stage stopped at 90/6/1). Six SVF →
+crossfading delay → RBJ-bandpass (ResonatorBank's Q ≤ 100 law) → DC blocker micro-loops, 6×6
+row-sum-normalised coupling, a governor tracking the normalised wet level, per-loop delay/cutoff
+wander, sleep/wake with the loop's audio cleared at the sleep edge. CPU budget amended 1 % → 1.5 %
+per voice by user decision after two engineering levers (live-tap-only delay read outside a
+crossfade, cutoff pushed to the SVF only on a real move) brought the reference arm to 0.88 %. Four
+criteria were re-fixtured or re-specified from measurement, shapes kept: SC-002 (regeneration is only
+visible where loops share a resonance and the row-sum cap is not engaged), SC-003 (wet path is ~30 dB
+down by voicing), SC-021 (the periodic excitation dominated the similarity metric), SC-001 (d). Note
+for Phase 10: on the default voicing cross-loop interaction is small by construction (T ≈ −84 dB);
+shared resonances or lower Q make it audible.
 
 **Spec:** `vorago-phase5-feedback-ecology`
 **Goal:** Five or six tiny interacting feedback loops that behave like coupled vibrating objects.
 
 New component (L3, `systems/feedback_ecology.h`):
 
-- Micro-loop = filter (`MultimodeFilter`) → delay (`CrossfadingDelayLine`, 10–500 ms) → resonator
-  (single `IResonator` mode) → gain (< 1) → back, with `DCBlocker` in-loop. 5–6 instances.
+- Micro-loop = filter (`SVF`) → delay (`CrossfadingDelayLine`, 10–500 ms) → resonator (one RBJ
+  bandpass, the `ResonatorBank` slot's Q range) → gain (< 1) → back, with `DCBlocker` in-loop. 5–6 instances.
 - Cross-coupling matrix (each loop bleeds a few % into its neighbours) — reuse
   `FilterFeedbackMatrix`/`FlexibleFeedbackNetwork` topology knowledge.
 - **Energy governor:** global RMS tracker with soft compression of total loop energy — interaction
@@ -249,11 +293,24 @@ New component (L3, `systems/feedback_ecology.h`):
 
 **Success criteria:** bounded output for ANY parameter combination over 30 min renders (this is the
 critical test — worst-case gain/coupling sweep), audible cross-loop interaction (coherence metric
-between loop outputs rises with coupling), no zipper on delay-time drift, CPU ≤ 1% per voice.
+between loop outputs rises with coupling), no zipper on delay-time drift, CPU ≤ 1.5% per voice
+(amended 2026-09-13 from 1% by user decision: measured 0.88% after the two engineering levers, over
+the 1%-derived regression gate; same call as Atmosphere 1→1.5% and Phase 2 1→1.75%, inside the 4–5%
+per-voice envelope above).
 
 ---
 
 ### Phase 6: Subharmonic Engine
+
+**Status: ✅ COMPLETE (2026-09-14)** — see specs/vorago-phase6-subharmonic/compliance.md
+(102 of 102 items pass after the main-loop resolution; the build stage stopped at 100/2, both the
+SC-013 (c) dormancy-saving clause). Three phase-locked `SubOscillator` dividers (f/2, f/4 and the
+fifth below as (4f/3)/2 off a second master, no divider change), RMS envelope tracking with a settable
+reference, three-factor per-tone gain with house breathing, 18 Hz Bessel high-pass instead of an
+infrasonic gate, low-pass → low-drive saturation → DC blocker, sub-only clamp, a supported sub tap with
+a sub-to-main enable, control-step dormancy. Measured: 0.18 % of one core at defaults against the
+0.5 % budget; dormant 66–75 % cheaper after `SubOscillator::advance()` (the phase's one shared-header
+change, append-only). Open Question 4 ruled: **global, post-voice-sum**.
 
 **Spec:** `vorago-phase6-subharmonic`
 **Goal:** Impossible low frequencies — cinematic weight.
@@ -278,6 +335,16 @@ check (`midside` correlation), CPU ≤ 0.5%.
 
 ### Phase 7: Harmonic Bloom
 
+**Status: ✅ COMPLETE (2026-09-15)** — see specs/vorago-phase7-harmonic-bloom/compliance.md
+(92 of 92 items pass after one main-loop ruling, SC-004 (b)'s peak bound). `BloomEngine` is an
+array-in/array-out control-rate transformer over `HarmonicCloud`'s spectral-target arrays (the cloud
+has no per-partial setter): strongest-K parents, octave / fifth / detuned-neighbour children with a
+bounded seeded retry and a detuned fallback on spacing collisions, a 45 s → hold (±50 % jitter) →
+180 s smoothstep lifecycle in a fixed 16-record table, round-robin reserved slots below the cloud's
+richness-derived active count with a live `setCapacity` (deferred shrink), a tilt-compensated latch,
+one RNG draw per control step. Measured 415 ns per 512-sample block (0.004 % of a core) against the
+0.1 % ceiling; no shared header touched.
+
 **Spec:** `vorago-phase7-harmonic-bloom`
 **Goal:** Every few minutes the drone grows new harmonics; later they die back.
 
@@ -300,6 +367,16 @@ render shows spectral centroid/partial-count trajectory, never static, never div
 ---
 
 ### Phase 8: Ecosystem Engine (flagship, highest risk)
+
+**Status: ✅ COMPLETE (2026-09-16)** — see specs/vorago-phase8-ecosystem/compliance.md
+(52 of 52 items pass after four main-loop rulings). `EcosystemEngine` is a header-only Layer 3
+agent simulation: up to 48 autonomous agents on a 96-cell resource strip, 13 fixed-order stages per
+control step (sense, exchange, forage, reproduce, die, sync, report), seeded and deterministic, with
+the FR-085 stop-and-surface rule applied. Rulings: the step-interval range is [8, 64] chunks with the
+tuned default 8 as the floor (29 074 ns per 512-sample block against the 53 333 ns ceiling, after
+three exact-arithmetic levers — cell-grid Gaussian recurrence, per-agent sin/cos table, invariant
+hoists — and no lookup tables); the short-cycle clause runs on the population-mean output (sane-box
+alive rate 78.2 %); the hostile-fuzz budget is 60 min (measured 32.9 min). Phase 10 wires the outputs.
 
 **Spec:** `vorago-phase8-ecosystem`
 **Goal:** The differentiator — agents, not modulation. Dozens of tiny autonomous entities (partial
@@ -333,8 +410,21 @@ fixed points, no limit cycles shorter than N minutes), determinism harness, CPU 
 
 ### Phase 9: Cavern Space Engine
 
+**Status: ✅ COMPLETE (2026-09-17)** — see specs/vorago-phase9-cavern-space/compliance.md
+(104 of 104 items pass after eighteen main-loop rulings). `CavernVerb` is a header-only Layer 4
+insert that owns an `AetherReverb` by value and adds what Vorago needs: a twelve-tap cavern
+early-reflection stage from a coprime generating law (60–220 ms at the default size, per-tap
+geometric stone absorption, mono-sum source placed by side) that alone excites the late field; one
+`BrownianDrift` per delay line wandering its damping cutoff up to 1.5 octaves through a new
+append-only, default-inert `AetherReverb` per-line damper-offset extension; dark tuning with shimmer
+and bloom absent; freeze retained; equal-power mix over an aligned dry path; controls sliced on an
+absolute 64-sample grid. Measured 181 279–205 107 ns per 512-sample block for the worst arm against
+the 355 556 ns admissible baseline (5 % ceiling 533 333); SC-009's three compared arms are timed
+interleaved by ruling. Phase 10 wires it after the spectral smear.
+
 **Spec:** `vorago-phase9-cavern-space`
-**Depends on:** Seraphis Phase 6 (`AetherReverb`) — build that first as the shared core.
+**Depends on:** `AetherReverb` — **already built** (`dsp/include/krate/dsp/effects/aether_reverb.h`,
+Seraphis Phase 6); reuse it as the shared core.
 **Goal:** An enormous underground bunker: ER → diffusion → FDN feedback matrix → moving dampers →
 late field → spectral damping.
 
@@ -356,8 +446,16 @@ metallic ringing via echo-density metric) + damper-motion smoothness test, CPU �
 
 ### Phase 10: Vorago Voice & Engine
 
+**Status: ✅ COMPLETE (2026-09-22)** — see specs/vorago-phase10-voice-engine/compliance.md
+(129 of 131 items pass after twenty main-loop rulings; the two remaining rows are SC-008’s Gravity,
+Pressure and Mass macro axes, recorded FAILED by ruling with thresholds untouched and the fix deferred
+to Phase 12 as a product decision, and SC-016 clause 3, closed by Q-S on the paired ContinuousBody
+tables). Shipped polyphony 4, `kMaxVoices` 6, SC-001b gate 2 864 890 ns/block with the Cavern term =
+89.5 % of the 30 % ceiling, measured alone.
+
 **Spec:** `vorago-phase10-voice-engine`
-**Depends on:** all above; pattern-template from Seraphis Phase 7.
+**Depends on:** all above; pattern-template from the shipped `seraphis_voice.h` / `seraphis_engine.h`
+/ `seraphis_macro_matrix.h` (Seraphis Phase 7).
 **Goal:** Compose everything into the playable instrument core.
 
 - `VoragoVoice` (L3) — cloud + noise organism → resonance drift network → feedback ecology tap →
@@ -367,7 +465,8 @@ metallic ringing via echo-density metric) + damper-motion smoothness test, CPU �
 - Dark material data: Stone Chamber, Steel Tank, Wooden Hull, Cathedral Column, Cavern Wall, Glass
   Sphere — mode-ratio tables + frequency-dependent damping laws (Aramaki-style, the Membrum/
   Seraphis material pattern; this is data authoring + listening, not new DSP).
-- `VoragoEngine` (L3) — 4–8 voices (`VoiceAllocator`, quietest-steal with long-release amnesty),
+- `VoragoEngine` (L3) — 4–6 voices (ruled 2026-09-19 in the Phase 10 spec, Q-H: shipped polyphony 4,
+  `kMaxVoices` 6; was 4–8) (`VoiceAllocator`, quietest-steal with long-release amnesty),
   per-voice unique seeds, voice-sum → subharmonic engine → spectral smear → cavern space → output
   (`TapeSaturator` low drive + `TruePeakLimiter`).
 - **Concept macro system** (via `ModulationEngine` presets): Darkness, Age, Density, Movement,
@@ -377,10 +476,43 @@ metallic ringing via echo-density metric) + damper-motion smoothness test, CPU �
   ghost mix ↑ + distance filtering). Trim the list in-spec if some macros prove redundant in
   listening — 15 concepts is a ceiling, not a target.
 
-**Success criteria:** full-poly CPU: 8 voices everything-on ≤ 30% of one core @ 48 kHz (sets
-per-voice budgets with headroom); overnight soak render (8 h) bounded and non-static; macro sweeps
+**Success criteria:** full-poly CPU: **full polyphony** everything-on ≤ 30% of one core @ 48 kHz
+(sets per-voice budgets with headroom) — **"8 voices" as originally written became unreachable when
+Q-H ruled shipped polyphony 4 / `kMaxVoices` 6 two bullets above, so this line is amended to the
+same ruling and the Phase 10 spec splits it into SC-001a (measure, all of {1, 2, 4, 6, 8}, gates
+nothing) and SC-001b (the gate, at the ruled polyphony 4). The 30 % ceiling itself is untouched:
+measured 2 690 670 ns/block with the Cavern term = 84.1 % of `kReferenceNs`, i.e. 25.2 % of one
+core**; overnight soak render (8 h) bounded and non-static; macro sweeps
 render-verified along documented axes; determinism harness (`render_fingerprint.h` tolerances — no
 bit-exact goldens, project rule).
+
+---
+
+### Phase 10a: AtmosphereEngine Ghost Extension
+
+**Status: ✅ COMPLETE (2026-09-24)** — see specs/vorago-phase10a-ghost-extension/compliance.md (61 of 61;
+default render bit-identical to `374580d7` at engine level; SC-009 arm 5 346 508 vs 439 535 ns/block;
+Phase 10's SC-001b unchanged at 2 657 690 ns/block with the Cavern term = 83.1 %; FR-046 bounds
+measured on MSVC / g++ 13.3 / clang++ 18.1; both features ship inert, Phase 14 presets engage them).
+
+**Spec:** `vorago-phase10a-ghost-extension`
+**Depends on:** Phase 10 (its polyphony ruling and global-stage CPU baseline); sequenced before
+Phase 14 so presets can use it.
+**Goal:** Deliver the two ghost-tap behaviours Phase 10 could not configure (ruled 2026-09-17, Phase 10
+spec Q-B): the shipped `AtmosphereEngine` has no reverse control and no event-trigger entry point.
+
+- Append-only extension of `systems/atmosphere_engine.h` on the `ContinuousBody` model: a per-grain
+  reverse flag read at grain birth (substrate: a backwards walk of the existing grain read index through the capture ring — `primitives/reverse_buffer.h` is mono, self-capturing and allocating, ruled out by the spec's ADR-1; the component already
+  snapshots pitch, position and drift at birth), and an event-trigger entry point beside the density
+  scheduler so a `SlowEventScheduler` event spawns a grain instead of only raising the level.
+- Default-inert: with neither feature engaged the render is unchanged; Seraphis's suites stay green
+  with no test edited (the Phase 10 SC-016 gate shape).
+- The added CPU sits in Phase 10's **global** stage (the ghost tap is global by Phase 10's OQ-1
+  ruling) and is measured against Phase 10's checked-in global baseline.
+
+**Success criteria:** reverse grains measurably time-reversed against the capture; one grain per
+trigger call, bounded by the pool; default-inert render identity under `render_fingerprint.h`
+tolerances; Seraphis green with git-diff evidence; global-stage CPU delta recorded, ceiling unchanged.
 
 ---
 
@@ -390,6 +522,12 @@ Follows the Seraphis Part B template nearly verbatim — those phases were speci
 repo infrastructure and their checklists apply directly.
 
 ### Phase 11: Plugin Scaffold
+
+**Status: ✅ COMPLETE (2026-09-24)** — see specs/vorago-phase11-plugin-scaffold/compliance.md (27 of 27 SC
+measured in the main loop, FR 79 of 79; Windows leg zero warnings, pluginval 5 clean, ASan lifecycle clean,
+clang-tidy 14 files 0/0; SC-014 wrapper overhead P/D = 0.835025 against 1.05, composed chain
+3.83259e+06 ns/block = 1.19769 × kReferenceNs, recorded; 14 parameters, 12 inert macros; MPE/sustain/seed/
+soft-limit deferred to Phase 12; Linux/macOS legs and auval run on push).
 
 **Spec:** `vorago-phase11-plugin-scaffold`
 
@@ -411,6 +549,8 @@ both scripts.
 
 ### Phase 12: Full Parameter Surface & State
 
+**Status: ✅ COMPLETE (2026-09-26)** — see specs/vorago-phase12-parameters/compliance.md
+
 **Spec:** `vorago-phase12-parameters`
 
 All engine parameters registered/denormalized/persisted with `kCurrentStateVersion`; concept-macro
@@ -419,6 +559,8 @@ system wired; per-section parameter packs (`cloud`, `noise`, `resonance`, `ecolo
 
 ### Phase 13: UI
 
+**Status: ✅ COMPLETE (2026-09-27)** — see specs/vorago-phase13-ui/compliance.md
+
 **Spec:** `vorago-phase13-ui`
 
 VSTGUI only. **Concept-first layout:** the macro concepts dominate; engine panels beneath. One
@@ -426,14 +568,177 @@ signature visualization: the **ecosystem view** — live agent habitat (agents a
 energy as brightness, interactions as fading links) via DataExchange piggyback (Membrum MetersBlock
 pattern — no new queues). No param-type swaps on registered IDs, ever.
 
+### Phase 13b: Ecosystem Audibility
+
+**Spec:** `vorago-phase13b-ecosystem-audibility`
+**Depends on:** Phase 10 (the wake-lane routing, FR-020…FR-023) and Phase 13 (the ecosystem view).
+Inserted 2026-09-27 and sequenced before Phase 14 resumes: Phase 14 is paused at its gate G1.
+**Premise (measured 2026-09-27, `specs/vorago-phase14-presets-release/compliance.md` FR-070 runs 1–4):**
+by Phase 14's C-7.2 sound-space descriptor, switching the ecosystem off moves the default surface by
+0.37 of a reseed (t0 = 1.71), the Life-max surface by 0.98 (t0 = 2.16), and 0.90 even with the
+peak/loop/noise wake bases forced to 0 so the colony owns every wake; the most audible rule-knob
+extreme anywhere is 0.99 of a reseed and it is a colony kill (grazeRate → 0, leakRate → 1). Cause:
+Phase 10 made the ecosystem a wake-only lane — `combineWake = max(base, eco, sched)` with bases
+0.50 / 0.50 / 0.35 and the slow-event schedulers waking the same slots — and the sections it wakes are
+mixed quietly at the default surface. The ecosystem never shapes level, timbre or motion directly.
+**Goal:** the ecosystem becomes something a listener hears. Agent state gets direct, depth-scaled
+sonic levers on the sections it drives (candidates: peak level and wander, noise-source level and
+colour, loop gain and coupling, bloom depth and cloud mutation — already additive — and ghost level),
+the wake bases are retuned so the colony's decisions carry, and the rule knobs are then audible enough
+to expose in Phase 14.
+
+- Gate on the same probe (`Vorago_EcosystemRuleProbe`, diagnostic options documented in the TU
+  header): ecosystem OFF vs on ≥ 2·t0 at the default surface AND at Life max; then at least four rule
+  knobs whose best extreme is ≥ 2·t0 and is not a colony kill (that render stays within ±6 dB of the
+  base RMS and above the −60 dBFS non-silence floor).
+- The default render may change — this is a voicing change — and the before/after descriptors are
+  recorded; Seraphis is untouched (Vorago-only voice and engine); Phase 10's SC-019 routing
+  observability, every boundedness soak and the Phase 2–13 suites stay green; CPU stays inside Phase
+  10's ceiling with the delta recorded.
+- Phase 14 then re-runs its specify stage against the new surface: Q2's roster comes from the 13b
+  probe table, and state v3 plus the ecosystem-page controls follow as already ruled.
+
+**Status: ✅ COMPLETE (2026-09-29)** — see specs/vorago-phase13b-ecosystem-audibility/compliance.md.
+Gate 1 PASS on both surfaces at the bar ruled on the measured ladder (f = 0.5 of the six-seed off-reseed
+median: 0.656 default / 0.638 Life max; before the phase 0.132 / 0.263 in the same unit). Gate 2 **recorded
+UNMET by ruling (2026-09-28)**: 2 of the 4 knobs (syncRate, selfAffinity) count on the shipped tree — the
+wander lever that made 4 count (6 st) broke Phase 10's zipper bound, and the shipped 3 st,
+rate-compensated lever keeps both Phase 10 bounds instead. Phase 14 Q2 counts its knobs from the two
+FR-013 tables. CPU after 89 % of before; every Phase 2-13 suite, pluginval, clang-tidy, portability and the
+[long] soaks green.
+
+**Success criteria:** both probe gates with cited logs; the full knob table recorded; the
+default-render change documented as intentional; no regression in the earlier suites; CPU delta.
+
+---
+
+### Phase 13c: Capability Audibility
+
+**Spec:** `vorago-phase13c-capability-audibility`
+**Depends on:** Phase 13b (the ecosystem levers), Phase 14's harness (the C-7.2 descriptor, the pilot
+probe with `VORAGO_PILOT_OVERRIDE`, the route arms, the sweep protocol).
+Inserted 2026-09-30 and sequenced before Phase 14 resumes: Phase 14 is paused at T048 after sweep 3.
+**Premise (measured 2026-09-30, `specs/vorago-phase14-presets-release/compliance.md` "Re-author loop after
+sweep 2" and "Sweep 3"):** three full library sweeps and eight probe batches measured every capability's
+audible range on its own showcase preset, by the phase's descriptor against the primary bar F = 4.0 (a
+reseed of the default surface is 4.0; half a reseed is 13b's Gate-1 bar). The strong half of the
+instrument reads far above the bar — resonance drift, spectral smear, the sub engine, the cavern, the
+acoustic body, all eleven materials and the four noise models move a preset by 5 to 16, and 28 presets
+verify. A third of the capability matrix does not reach the output at any preset setting: the ecosystem
+routes E1 partial → bloom 0.06, E3 noise wake 0.65, E4 loop wake 1.22, E5 ghost bursts 1.19 (after the
++12 dB ghost-tap make-up); the Life macro 0.63 at full travel; the harmonic bloom 1.74 at best (its six
+children scale with parents that are silent below richness 0.7); the Age, Fog, Movement, Gravity and
+Mass macros 2.3 to 3.9; the ghost alone 1.83 (14 dB under the drone before the make-up); the fast-attack
+cell 2.77 because the registered envelope is at full level in 20 s. Two level make-ups this phase measured
+and shipped (noise bus +30 dB, ghost tap +12 dB) each took a feature from inaudible to present within an
+hour: these are level and lever-size problems, not design problems. A preset built on an inaudible
+feature has nothing of its own to sound like, which is why 46 of 861 preset pairs sit under the
+distinctness floor — all of them among the presets whose primary is one of these cells.
+**Goal:** every capability cell in the matrix is something a listener hears at its showcase preset — the
+primary bar F = 4.0 on the Phase 14 descriptor, measured by the Phase 14 pilot probe on the phase's own
+showcase presets — with no cell recorded UNMET. Candidates, one lever per feature, each measured
+before it is ruled: the bloom's child gain and parent selection (children attach to sounding parents;
+richness independence); the ecosystem route lever strengths behind E1, E3, E4 and E5 (13b's levers scaled
+so one route alone clears the bar on a preset that exposes it); the macro-matrix row amounts of Life, Age,
+Fog, Movement, Gravity and Mass (rows that move less than the bar are widened or given targets that
+move); the ghost tap's level and burst density where the make-up alone is short; the registered
+envelope's audible attack (the D9.1 comparison window) as ruled in Phase 14 S-9.
+
+- Gate per cell: the Phase 14 pilot probe on the cell's showcase preset reads d ≥ 4.0 (route cells on
+  their route arms with the attributability clause; the attack cell on the audible window), with the
+  preset's four level arms green in the same printout. The gate is re-measured on the final tree.
+- The default render may change (voicing) and every before/after descriptor is recorded; Phase 10's
+  bounds (zipper, SweepAxes, CPU ceiling), 13b's gates, the Phase 2–13 suites, pluginval, clang-tidy,
+  portability and the [long] soaks stay green; fingerprints that move are re-harvested inside their
+  consuming binary.
+- Phase 14 then resumes at T048: the showcase presets are re-authored on the new levers, sweep 4 is the
+  confirming run, and the distinctness floor is met by every pair — no primary and no pair is recorded
+  UNMET in the release.
+
+**Success criteria:** every cell's gate with cited probe log; the lever table (feature, lever, before,
+after); the default-render change documented; no regression in the earlier suites; CPU delta.
+
+---
+
+### Phase 13d: Engine Ceilings
+
+**Spec:** `vorago-phase13d-engine-ceilings`
+**Depends on:** Phase 13c (its levers and probe ladders), Phase 14's close (sweep 5 as the record of the tree,
+the T063 table, the `VORAGO_PILOT_OVERRIDE` / `VORAGO_PILOT_LEVER` probes, the sharded sweep and
+`tools/run-close-lanes.js`). Inserted 2026-10-07 after Phase 14 closed NOT release-green by measurement; the
+1.0.0 release waits on it.
+**Premise (measured 2026-10-06, `specs/vorago-phase14-presets-release/compliance.md` "Sweep 5" and the T063
+table; twelve probe batches `artifacts/reauthor5_*`):** eight capability cells do not reach their bar at any
+preset setting on the 13c tree, so no preset can showcase them. Primaries against F = 4.0 on the Phase 14
+descriptor: E1 partial → bloom 1.18 on Bloom Colony (attributable 1.10; 13c best 1.18); E4 feedback → loop
+wake 2.92 on Feeding Loops (2× events reads 8.48 but the loops fall silent on three of four takes, arms 2–3
+red; 1× reads 3.71 with arm 2 red on every take); M2 Age 3.22 on Erosion (13c ladder best 2.83); M4 Movement
+0.87 on Drifting Strata (13c ladder 0.85–0.87 with twelve macro-test reds per rung; the Movement row's own
+monotonicity reads rho 0.8333 against 0.9 in `VoragoMacro_SweepAxes`, the one red in the `dsp_systems_tests`
+`[long]` lane); M5 Gravity 3.19 on Stone Gravity (every candidate lowered it); M10 Life 0.99 on Teeming (13c
+ladder 0.82–0.99). Secondaries against 1.5 on Colony Pulse: E6.hi ecosystem sync rate 1.37, E7.hi self
+affinity 1.34. The other 36 primaries verify, every preset holds its level arms (one surfaced take, ruling
+B-18), and the probe predicts the sweep within 0.01, so a candidate confirmed by the probe needs no full sweep
+to trust — only the affected presets' shards and the aggregate (about half a day, not a week).
+**Goal:** every one of the eight cells is something a listener hears at its showcase preset — d ≥ 4.0 for the
+six primaries, ≥ 1.5 for E6.hi / E7.hi, on the Phase 14 pilot probe with the preset's four level arms green
+in the same printout (E4 on a preset whose loops stay alive) — and the Movement row is monotone (rho ≥ 0.9)
+without any threshold moving. One lever per feature, each measured before it is ruled, ladders by
+`VORAGO_PILOT_LEVER` or rebuild as in 13c: E1 the bloom route's gain and child attachment on a sounding
+parent; E4 the loop-wake route gain at 1× events with the loops' own sustain preserved (arm 2); M2 the Age
+row's targets (damping, tilt, mutation) widened or re-aimed; M4 the Movement row (drift depth, wander rates,
+breathing, damper) re-aimed so it both moves the descriptor and stays monotone; M5 the Gravity row (resonance
+gravity, octave lock) given a target the descriptor hears; M10 the Life row (ecosystem depth, event rate,
+bloom spawn); E6.hi / E7.hi the sync-rate and self-affinity lanes' audible range on a Life-high surface.
+- Gate per cell: the Phase 14 pilot probe on the cell's showcase preset (route cells on their route arms with
+  the attributability clause), re-measured on the final tree; the preset's level arms green in the same run.
+- The default render may change and every before/after descriptor is recorded; Phase 10's bounds, 13b's
+  and 13c's gates, the Phase 2–14 suites, pluginval, clang-tidy, portability and the `[long]` soaks stay green
+  (the `VoragoMacro_SweepAxes` Movement row included); fingerprints that move are re-harvested inside their
+  consuming binary.
+- Phase 14's T048 re-runs as the confirming run: the affected presets re-authored on the new levers by probe,
+  their shards and the aggregate re-run, the T063 table re-read; the showcase-subset pairs (Smeared Horizon's
+  single S3 claim, 51 pairs) are a preset-level re-author in that pass. Nothing ships inaudible; a cell that
+  still cannot reach the bar is a stop-and-surface ruling, never an UNMET row.
+
+**Success criteria:** every cell's gate with cited probe log; the lever table (feature, lever, before, after);
+the default-render change documented; no regression in the earlier suites (the parallel close lanes, the CPU
+lane alone); CPU delta; the Phase 14 sweep re-read with its primaries and secondaries verified or each
+remaining cell ruled by the user.
+
+---
+
 ### Phase 14: Factory Presets & Release Readiness
 
 **Spec:** `vorago-phase14-presets-release`
+**Status: CLOSED 2026-10-06 (T048–T063, commit `502e5243`): verdict NOT release-green by measurement — 36 of 42 primaries verified, the six engine-limited cells and E6.hi / E7.hi handed to Phase 13d, the audition (SC-020) and the push (SC-013 / SC-019 / SC-023, FR-025) deferred by the user; 1.0.0 is in `version.json` and the CHANGELOG.** Earlier: ⏸ PAUSED at T048 (2026-09-30), second pause — three full sweeps measured a third of the capability matrix as inaudible at any preset setting (28 of 42 primaries verify, 46 pairs under the floor, all among the presets built on those cells); the user ruled the instrument ships with no inaudible feature, so Phase 13c fixes the features first and this phase resumes at T048 with sweep 4 as the confirming run. First pause (2026-09-27, gate G1): the FR-070 audibility probe found 0 of 14 rule knobs
+audible and the ecosystem itself below one reseed (runs 1–4 in its compliance record); Phase 13b fixes
+the cause first, then this phase re-runs its specify stage. Kept from the first pass: spec, plan, tasks
+(rulings Q1–Q8, R-1–R-8), the probe TU, `preset_test_support.h` part 0 and the inert probe friend.
 
 Fixed preset category set (filesystem dirs + XML metadata must match — Membrum lesson), installed to
 `C:\ProgramData\Krate Audio\Vorago\`. Validation harness: round-trip tests + all-presets NoteOn-only
 **long-render** sweep (drone presets need minutes-scale non-silence/non-runaway assertions, not the
 usual seconds). Release gate via `release-readiness` flow.
+
+**Variety is the governing requirement of this phase (added 2026-09-27).** The factory set exists to
+show off everything the instrument can do, so the presets must sound as different from one another as
+the synth allows. Every section (noise organism, resonance drift, spectral smear, feedback ecology,
+subharmonic, bloom, ecosystem, cavern space, ghost/atmosphere), every macro and every distinct
+ecosystem behaviour must be foregrounded by at least one preset, and no two presets may be
+near-variants of each other. This mindset governs the whole phase, not just the sound-design task:
+the spec must carry a preset × capability coverage matrix as an FR, the plan must derive the preset
+list from that matrix rather than from a per-category quota, and the validation harness must measure
+distinctness (pairwise measured-tolerance spectral/fingerprint distance over the long-render sweep)
+alongside boundedness, with the threshold ruled in the spec rather than assumed. A preset that
+showcases nothing another preset already shows is a defect.
+
+**Ruled 2026-09-27 (Phase 14 Q2): the ecosystem rule knobs become registered parameters inside this
+phase.** Only depth, seed and the Life macro reached the ecosystem before; the variety mandate needs
+colony temperaments that a player can set and a preset can store. Phase 14 therefore also registers a
+curated set of `EcosystemEngine` rule parameters (chosen by a hidden audibility probe, ratified at the
+plan step), bumps the state to v3 and adds their controls to the ecosystem page. The coverage matrix
+and the preset list are derived after that surface exists.
 
 ---
 
@@ -443,13 +748,13 @@ usual seconds). Release gate via `release-readiness` flow.
                   ┌─→ Phase 2 (noise organism) ──┐
                   ├─→ Phase 3 (resonance drift) ─┤
 Phase 1           ├─→ Phase 4 (spectral smear) ──┤
-(events + ────────┼─→ Phase 5 (feedback ecology)─┼─→ Phase 10 (voice/engine) ─→ Phase 11 (scaffold)
- Perlin/Aizawa)   ├─→ Phase 6 (subharmonic) ─────┤            ▲                        │
-                  ├─→ Phase 7 (bloom) ───────────┤            │                        ▼
-                  └─→ Phase 8 (ecosystem) ───────┘            │           Phase 12 → 13 → 14
+(events + ────────┼─→ Phase 5 (feedback ecology)─┼─→ Phase 10 (voice/engine) ─→ Phase 11 (scaffold) ✅
+ Perlin/Aizawa)   ├─→ Phase 6 (subharmonic) ─────┤            ▲         │              │
+                  ├─→ Phase 7 (bloom) ───────────┤            │         ▼              ▼
+                  └─→ Phase 8 (ecosystem) ───────┘            │   Phase 10a (ghost) ✅ → Phase 12 ✅ → 13 ✅ → 13b ✅ → 13c → 14
                                                               │
-Seraphis Phase 6 (AetherReverb) ──→ Phase 9 (cavern space) ───┘
-Seraphis Phase 7 (voice pattern) ─────────────────────────────┘  (pattern template, not code dep)
+AetherReverb ✅ (shipped) ─────────→ Phase 9 (cavern space) ───┘
+seraphis_voice/engine ✅ (shipped) ───────────────────────────┘  (pattern template, not code dep)
 ```
 
 Phases 2–8 are mutually independent once Phase 1 lands — build in any order, interleaved with
@@ -466,25 +771,39 @@ atmosphere engine) are consumed as-is from day one.
   can run away or die overnight is broken by definition.
 - **Layer discipline** + **ODR sweep** before every new class name.
 - **CPU budgets are FRs**, measured in tests (per-voice budgets phases 2–8, global 9–10).
+- **Dormancy (decided 2026-09-09, Phase 2 FR-073):** gain at zero means the component's
+  processing chain is skipped; its source/generator and modulation lanes keep running; re-entry is
+  a 50 ms per-sample linear fade. "Dormant" and "awake at zero gain" are behaviourally identical
+  and differ only on the read surface. Every sleep/wake life cycle (Phase 3 peaks, Phase 5 loops,
+  Phase 8 agents) inherits this; a spec that wants a silent slot to keep burning its chain must say
+  what the listener would hear that justifies it. **Stated exception (Phase 5 FR-063, 2026-09-12):**
+  a feedback loop has no generator behind it, so "skip the chain" would freeze a charged delay line
+  that replays as a stale burst on wake; the sleep edge therefore clears the loop's audio state, and
+  the wake starts from silence (SC-014 (d): ≤ −80 dBFS for 500 ms after a wake into silence).
 - **No bit-exact float goldens** — `render_fingerprint.h` / measured tolerances only.
 - **Portability:** `node tools/check-portability.js` before commits; WSL probe for Linux doubts;
   aligned-load lint on any new SIMD.
 - **Naming:** `k{Section}{Parameter}Id`; standard parameter names from the project table.
-- **Shared-component changes** (AtmosphereEngine ghost config, ContinuousBody materials,
+- **Shared-component changes** (AtmosphereEngine ghost extension in Phase 10a, ContinuousBody materials,
   SubOscillator extension, AetherReverb extensions) must keep Seraphis's tests green — they are
   consumers of the same components.
 
 ## Open Questions (resolve in the relevant spec, not before)
 
 1. Final name (Vorago is a placeholder) — before Phase 11 (FUIDs/subtype/bundle-id depend on it).
+   **Decided 2026-09-24: Vorago is final** — subtype `Vrgo`, `plugins/vorago/`, `vorago_tests`, bundle id derived from it; nothing renames.
 2. Ecosystem rule set: which agent kinds and interaction rules survive the offline prototype —
    Phase 8, after prototyping.
 3. Cavern space: configuration layer over shared `AetherReverb` vs separate L4 effect — Phase 9,
    after Seraphis Phase 6 exists.
 4. Subharmonic engine placement: global (track lowest voice) vs per-voice — Phase 6, after CPU
-   measurement.
+   measurement. **Decided in Phase 6: global, post-voice-sum** (one instance, 0.19 % of one core;
+   per-voice measured affordable at 0.19 % per voice but not taken — see
+   `vorago-phase6-subharmonic/spec.md` OQ-1 for the table and reasoning). Binds Phase 10's wiring.
 5. Voice count (4, 6, or 8) and whether ghost/atmosphere is per-voice or global — Phase 10, after
    budgets are real.
 6. Macro roster trim (which of the 15 concepts survive listening) — Phase 10/12.
 7. MPE / channel-pressure mapping (pressure → Weight/Pressure macros is a natural fit) — Phase
    11/12 scope call.
+   **Decided in Phase 11 (2026-09-24, Clarification Q3/Q4): Phase 12**, together with sustain/CC64 and the
+   single `IMidiMapping` addition, before any release (no host-cache cost). Phase 11 ships neither interface.

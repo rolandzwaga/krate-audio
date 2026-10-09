@@ -1,0 +1,38 @@
+START 2026-10-01 18:07:50 arm=05d04f66 run=1 load-before=7.9
+pin-perf-cores: performance-core mask 0xFFFF
+Filters: "VoragoEngine_CpuBudget"
+Randomness seeded to: 1806881377
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+VoragoEngine_CpuBudget
+-------------------------------------------------------------------------------
+F:\tmp\p13b_ab\dsp\tests\unit\systems\vorago_perf_test.cpp(971)
+...............................................................................
+
+F:\tmp\p13b_ab\dsp\tests\unit\systems\vorago_perf_test.cpp(1006): 
+warning:
+  SC-001b - VoragoEngine CPU gate, ns per 512-sample block @ 48 kHz
+    configuration        : polyphony 4 of kMaxVoices 6, FR-090 defaults, macros
+  neutral, no voicing levers (Q-H)
+    engine measured      : 3.0949e+06 ns/block  (29.0147 % of one core)
+    + Cavern (arithmetic): 3.21939e+06 ns/block  (30.1818 % of one core)
+    clause (i)  ceiling  : 3.21939e+06 <= 3.2e+06  (100.606 % of the reference)
+    clause (ii) baseline : 3.0949e+06 <= 4.04172e+06  (baseline 2.69448e+06 x
+  1.5; 114.861 % of the baseline)
+    headroom available   : 1.14141x of the baseline before clause (i) trips
+  (the ceiling binds first; kMaxAdmissibleNs 2.13333e+06 is not met by ruling)
+
+F:\tmp\p13b_ab\dsp\tests\unit\systems\vorago_perf_test.cpp(1011): FAILED:
+  REQUIRE( withCavern <= kReferenceNs )
+with expansion:
+  3219393.6000000001 <= 3199999.9999999995
+
+===============================================================================
+test cases: 1 | 1 failed
+assertions: 3 | 2 passed | 1 failed
+
+exit=1 END 2026-10-01 18:08:41

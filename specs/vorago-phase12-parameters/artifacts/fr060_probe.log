@@ -1,0 +1,131 @@
+Filters: "VoragoMacro_Phase12RetuneProbe"
+Randomness seeded to: 2026079179
+FR-060 retune probe (SC-008 fixture: seeds 101/202/303 x points 0/.25/.5/.75/1 x 60 s @ 48 kHz; window samples [480000, 2880000); polyphony 1; fast attack; macros after noteOn)
+kRows literal bases used by the emulation: BreathingDepth=0.3000 ResonanceWanderRate=0.0300 OutputSaturation=0.1200 SubToneLevelOffsetDb=0.0000 EcologyLoopGain=0.7200 CloudRichness=0.7000
+Phase 10 reference (specs/vorago-phase10-voice-engine/compliance.md:20): Gravity endpoint 0.18014; Pressure rho -0.566667 endpoint 0.0735783 dB; Mass rho -1 endpoint -0.446365 dB
+Thresholds (Phase 10, unchanged): Gravity rho<=-0.9 endpoint>=0.30; Pressure rho<=-0.9 endpoint>=3 dB; Mass rho>=0.9 endpoint>=0.25 dB
+Gravity  baseline  [mean |log2(ratio) - int| @C1]
+    mean rho=-0.9333  mean endpoint=0.1801  threshold=0.3000  -> FAIL
+    per-seed rho/endpoint:  101: -1.0000 / 0.1774  202: -0.9000 / 0.1760  303: -0.9000 / 0.1870
+    mean metric [0, .25, .5, .75, 1]: [0.2673, 0.2734, 0.2469, 0.2322, 0.2192]
+Pressure baseline  [crest factor (dB) @C1]
+    mean rho=-0.5667  mean endpoint=0.0736  threshold=3.0000  -> FAIL
+    per-seed rho/endpoint:  101: 0.3000 / -0.0862  202: -1.0000 / 0.1635  303: -1.0000 / 0.1434
+    mean metric [0, .25, .5, .75, 1]: [7.5886, 7.5461, 7.5054, 7.5032, 7.5150]
+Mass     baseline  [energy < 80 Hz (dB) @C3]
+    mean rho=-1.0000  mean endpoint=-0.4464  threshold=0.2500  -> FAIL
+    per-seed rho/endpoint:  101: -1.0000 / -0.5335  202: -1.0000 / -0.3685  303: -1.0000 / -0.4371
+    mean metric [0, .25, .5, .75, 1]: [-20.1560, -20.2087, -20.2663, -20.3767, -20.6023]
+Mass     SubToneLevelOffsetDb +3.0 dB  [energy < 80 Hz (dB) @C3]
+    mean rho=1.0000  mean endpoint=2.4343  threshold=0.2500  -> PASS
+    per-seed rho/endpoint:  101: 1.0000 / 2.3521  202: 1.0000 / 2.5084  303: 1.0000 / 2.4423
+    mean metric [0, .25, .5, .75, 1]: [-20.1560, -19.4823, -18.8173, -18.2093, -17.7217]
+Mass     SubToneLevelOffsetDb +4.5 dB  [energy < 80 Hz (dB) @C3]
+    mean rho=1.0000  mean endpoint=3.8398  threshold=0.2500  -> PASS
+    per-seed rho/endpoint:  101: 1.0000 / 3.7594  202: 1.0000 / 3.9125  303: 1.0000 / 3.8476
+    mean metric [0, .25, .5, .75, 1]: [-20.1560, -19.1205, -18.0993, -17.1427, -16.3162]
+Mass     SubToneLevelOffsetDb +6.0 dB  [energy < 80 Hz (dB) @C3]
+    mean rho=1.0000  mean endpoint=5.2107  threshold=0.2500  -> PASS
+    per-seed rho/endpoint:  101: 1.0000 / 5.1316  202: 1.0000 / 5.2821  303: 1.0000 / 5.2183
+    mean metric [0, .25, .5, .75, 1]: [-20.1560, -18.7598, -17.3868, -16.0917, -14.9453]
+Gravity  G-a  [mean |log2(ratio) - int| @C1]
+    mean rho=-0.9667  mean endpoint=0.1950  threshold=0.3000  -> FAIL
+    per-seed rho/endpoint:  101: -1.0000 / 0.1966  202: -0.9000 / 0.2015  303: -1.0000 / 0.1868
+    mean metric [0, .25, .5, .75, 1]: [0.2707, 0.2690, 0.2469, 0.2361, 0.2179]
+Gravity  G-b  [mean |log2(ratio) - int| @C1]
+    mean rho=-0.9333  mean endpoint=0.1775  threshold=0.3000  -> FAIL
+    per-seed rho/endpoint:  101: -1.0000 / 0.2156  202: -0.9000 / 0.1227  303: -0.9000 / 0.1891
+    mean metric [0, .25, .5, .75, 1]: [0.2677, 0.2702, 0.2469, 0.2326, 0.2201]
+Gravity  G-a+G-b  [mean |log2(ratio) - int| @C1]
+    mean rho=-0.9667  mean endpoint=0.2024  threshold=0.3000  -> FAIL
+    per-seed rho/endpoint:  101: -1.0000 / 0.2266  202: -0.9000 / 0.1568  303: -1.0000 / 0.2199
+    mean metric [0, .25, .5, .75, 1]: [0.2679, 0.2650, 0.2469, 0.2365, 0.2137]
+Pressure P-a  [crest factor (dB) @C1]
+    mean rho=-0.8667  mean endpoint=0.3541  threshold=3.0000  -> FAIL
+    per-seed rho/endpoint:  101: -0.6000 / 0.1526  202: -1.0000 / 0.4220  303: -1.0000 / 0.4877
+    mean metric [0, .25, .5, .75, 1]: [7.5886, 7.4796, 7.3706, 7.2967, 7.2345]
+Pressure P-b  [crest factor (dB) @C1]
+    mean rho=-1.0000  mean endpoint=1.2478  threshold=3.0000  -> FAIL
+    per-seed rho/endpoint:  101: -1.0000 / 1.1180  202: -1.0000 / 1.0349  303: -1.0000 / 1.5904
+    mean metric [0, .25, .5, .75, 1]: [7.5886, 7.1809, 6.8034, 6.5373, 6.3408]
+Pressure P-a+P-b  [crest factor (dB) @C1]
+    mean rho=-1.0000  mean endpoint=1.5030  threshold=3.0000  -> FAIL
+    per-seed rho/endpoint:  101: -1.0000 / 1.3135  202: -1.0000 / 1.3216  303: -1.0000 / 1.8739
+    mean metric [0, .25, .5, .75, 1]: [7.5886, 7.1123, 6.6714, 6.3433, 6.0856]
+Pressure P-c  [crest factor (dB) @C1]
+    mean rho=-0.5667  mean endpoint=0.0737  threshold=3.0000  -> FAIL
+    per-seed rho/endpoint:  101: 0.3000 / -0.0863  202: -1.0000 / 0.1636  303: -1.0000 / 0.1439
+    mean metric [0, .25, .5, .75, 1]: [7.5886, 7.5466, 7.5055, 7.5031, 7.5149]
+Pressure P-a+P-c  [crest factor (dB) @C1]
+    mean rho=-0.8667  mean endpoint=0.3542  threshold=3.0000  -> FAIL
+    per-seed rho/endpoint:  101: -0.6000 / 0.1525  202: -1.0000 / 0.4220  303: -1.0000 / 0.4882
+    mean metric [0, .25, .5, .75, 1]: [7.5886, 7.4801, 7.3707, 7.2967, 7.2344]
+Pressure P-b+P-c  [crest factor (dB) @C1]
+    mean rho=-1.0000  mean endpoint=1.2477  threshold=3.0000  -> FAIL
+    per-seed rho/endpoint:  101: -1.0000 / 1.1179  202: -1.0000 / 1.0349  303: -1.0000 / 1.5902
+    mean metric [0, .25, .5, .75, 1]: [7.5886, 7.1809, 6.8035, 6.5372, 6.3410]
+Pressure P-a+P-b+P-c  [crest factor (dB) @C1]
+    mean rho=-1.0000  mean endpoint=1.5029  threshold=3.0000  -> FAIL
+    per-seed rho/endpoint:  101: -1.0000 / 1.3133  202: -1.0000 / 1.3216  303: -1.0000 / 1.8737
+    mean metric [0, .25, .5, .75, 1]: [7.5886, 7.1123, 6.6715, 6.3433, 6.0858]
+Pressure P-d  [crest factor (dB) @C1]
+    mean rho=1.0000  mean endpoint=-0.1579  threshold=3.0000  -> FAIL
+    per-seed rho/endpoint:  101: 1.0000 / -0.1256  202: 1.0000 / -0.0881  303: 1.0000 / -0.2599
+    mean metric [0, .25, .5, .75, 1]: [7.5886, 7.6229, 7.6567, 7.6985, 7.7465]
+Pressure P-a+P-d  [crest factor (dB) @C1]
+    mean rho=-1.0000  mean endpoint=0.1367  threshold=3.0000  -> FAIL
+    per-seed rho/endpoint:  101: -1.0000 / 0.1312  202: -1.0000 / 0.1815  303: -1.0000 / 0.0972
+    mean metric [0, .25, .5, .75, 1]: [7.5886, 7.5560, 7.5204, 7.4865, 7.4520]
+Pressure P-b+P-d  [crest factor (dB) @C1]
+    mean rho=-1.0000  mean endpoint=0.9985  threshold=3.0000  -> FAIL
+    per-seed rho/endpoint:  101: -1.0000 / 0.9677  202: -1.0000 / 0.9062  303: -1.0000 / 1.1215
+    mean metric [0, .25, .5, .75, 1]: [7.5886, 7.2571, 6.9542, 6.7182, 6.5902]
+Pressure P-a+P-b+P-d  [crest factor (dB) @C1]
+    mean rho=-1.0000  mean endpoint=1.2667  threshold=3.0000  -> FAIL
+    per-seed rho/endpoint:  101: -1.0000 / 1.2032  202: -1.0000 / 1.1831  303: -1.0000 / 1.4139
+    mean metric [0, .25, .5, .75, 1]: [7.5886, 7.1883, 6.8217, 6.5254, 6.3219]
+Pressure P-c+P-d  [crest factor (dB) @C1]
+    mean rho=1.0000  mean endpoint=-0.1576  threshold=3.0000  -> FAIL
+    per-seed rho/endpoint:  101: 1.0000 / -0.1251  202: 1.0000 / -0.0878  303: 1.0000 / -0.2599
+    mean metric [0, .25, .5, .75, 1]: [7.5886, 7.6230, 7.6572, 7.6988, 7.7462]
+Pressure P-a+P-c+P-d  [crest factor (dB) @C1]
+    mean rho=-1.0000  mean endpoint=0.1369  threshold=3.0000  -> FAIL
+    per-seed rho/endpoint:  101: -1.0000 / 0.1317  202: -1.0000 / 0.1818  303: -1.0000 / 0.0972
+    mean metric [0, .25, .5, .75, 1]: [7.5886, 7.5561, 7.5209, 7.4870, 7.4517]
+Pressure P-b+P-c+P-d  [crest factor (dB) @C1]
+    mean rho=-1.0000  mean endpoint=0.9985  threshold=3.0000  -> FAIL
+    per-seed rho/endpoint:  101: -1.0000 / 0.9679  202: -1.0000 / 0.9060  303: -1.0000 / 1.1216
+    mean metric [0, .25, .5, .75, 1]: [7.5886, 7.2573, 6.9541, 6.7182, 6.5901]
+Pressure P-a+P-b+P-c+P-d  [crest factor (dB) @C1]
+    mean rho=-1.0000  mean endpoint=1.2668  threshold=3.0000  -> FAIL
+    per-seed rho/endpoint:  101: -1.0000 / 1.2034  202: -1.0000 / 1.1829  303: -1.0000 / 1.4140
+    mean metric [0, .25, .5, .75, 1]: [7.5886, 7.1885, 6.8215, 6.5253, 6.3219]
+
+==== SUMMARY (candidate | mean rho | mean endpoint | verdict) ====
+  Gravity  baseline                         rho= -0.9333  endpoint=   0.1801  FAIL
+  Pressure baseline                         rho= -0.5667  endpoint=   0.0736  FAIL
+  Mass     baseline                         rho= -1.0000  endpoint=  -0.4464  FAIL
+  Mass     SubToneLevelOffsetDb +3.0 dB     rho=  1.0000  endpoint=   2.4343  PASS
+  Mass     SubToneLevelOffsetDb +4.5 dB     rho=  1.0000  endpoint=   3.8398  PASS
+  Mass     SubToneLevelOffsetDb +6.0 dB     rho=  1.0000  endpoint=   5.2107  PASS
+  Gravity  G-a                              rho= -0.9667  endpoint=   0.1950  FAIL
+  Gravity  G-b                              rho= -0.9333  endpoint=   0.1775  FAIL
+  Gravity  G-a+G-b                          rho= -0.9667  endpoint=   0.2024  FAIL
+  Pressure P-a                              rho= -0.8667  endpoint=   0.3541  FAIL
+  Pressure P-b                              rho= -1.0000  endpoint=   1.2478  FAIL
+  Pressure P-a+P-b                          rho= -1.0000  endpoint=   1.5030  FAIL
+  Pressure P-c                              rho= -0.5667  endpoint=   0.0737  FAIL
+  Pressure P-a+P-c                          rho= -0.8667  endpoint=   0.3542  FAIL
+  Pressure P-b+P-c                          rho= -1.0000  endpoint=   1.2477  FAIL
+  Pressure P-a+P-b+P-c                      rho= -1.0000  endpoint=   1.5029  FAIL
+  Pressure P-d                              rho=  1.0000  endpoint=  -0.1579  FAIL
+  Pressure P-a+P-d                          rho= -1.0000  endpoint=   0.1367  FAIL
+  Pressure P-b+P-d                          rho= -1.0000  endpoint=   0.9985  FAIL
+  Pressure P-a+P-b+P-d                      rho= -1.0000  endpoint=   1.2667  FAIL
+  Pressure P-c+P-d                          rho=  1.0000  endpoint=  -0.1576  FAIL
+  Pressure P-a+P-c+P-d                      rho= -1.0000  endpoint=   0.1369  FAIL
+  Pressure P-b+P-c+P-d                      rho= -1.0000  endpoint=   0.9985  FAIL
+  Pressure P-a+P-b+P-c+P-d                  rho= -1.0000  endpoint=   1.2668  FAIL
+===============================================================================
+All tests passed (672 assertions in 1 test case)
+

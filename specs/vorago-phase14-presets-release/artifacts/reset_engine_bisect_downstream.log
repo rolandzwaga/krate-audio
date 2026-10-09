@@ -1,0 +1,13 @@
+Filters: "VoragoEngine_ResetReproProbe"
+Randomness seeded to: 215896769
+  [engine probe] default                                        max|diff| 4.065e-05, first differing sample 2049
+  [engine probe] noise level -96 dB                             max|diff| 1.521e-06, first differing sample 2049
+  [engine probe] ecology mix 0                                  max|diff| 5.337e-05, first differing sample 2049
+  [engine probe] ecology loop gain 0                            max|diff| 4.060e-05, first differing sample 2049
+  [engine probe] resonance mix 0                                max|diff| 6.214e-05, first differing sample 2049
+  [engine probe] body mix 0                                     max|diff| 4.066e-03, first differing sample 2049
+  [engine probe] cloud richness 0                               max|diff| 3.563e-05, first differing sample 2049
+  [engine probe] ecology mix 0 + resonance mix 0                max|diff| 6.346e-05, first differing sample 2049
+===============================================================================
+All tests passed (1 assertion in 1 test case)
+

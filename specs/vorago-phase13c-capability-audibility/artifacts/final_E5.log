@@ -1,0 +1,22 @@
+START 2026-10-04 11:29:40 Haunted Colony tree=ae149a1c+working-copy as-compiled (no override) env: VORAGO_PILOT_TAKES=4 | final tree: attack n 4; child gain 1.5; ghost 21 dB / span 1.2 / default peak 0; ecology 30 (ceiling 36); breath 3.0; tide 0.8; M9 rung 2; M12 rung 1; Feedback Mire breathing 0; six presets pin ghost 0.60 | exe=2026-10-04 09:54:11
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 3597962269
+[probe] lever: none
+[probe] Haunted Colony - primary E5 ghost -> ghost bursts (stored seed 12, 4 twin render(s))
+  take: peak 0.4291  arm1 hi -19.59 dB [yes]  arm2 lo -23.31 dB [yes]  arm3 late-sus -0.04 dB [yes]  arm4 tail -158.58 dB [yes]
+  arm1@44.1k: finite y peak 0.5758 hi -17.27 dB [PASS]
+  route arms: d(R_k, R_k0) 3.9093, attribBase d(R_0, R_00) 0.8873 (attributable iff d >= 2.3873)
+  primary d 3.9093  bar 4.0000  attribBase 0.8873  state ok  -> FAIL  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  take j=0 seed 12: peak 0.4291  arm1 hi -19.59 dB [yes]  arm2 lo -23.31 dB [yes]  arm3 late-sus -0.04 dB [yes]  arm4 tail -158.58 dB [yes]
+  take j=1 seed 13: peak 0.7090  arm1 hi -18.13 dB [yes]  arm2 lo -22.96 dB [yes]  arm3 late-sus -1.10 dB [yes]  arm4 tail -157.44 dB [yes]
+  take j=2 seed 14: peak 0.4982  arm1 hi -18.35 dB [yes]  arm2 lo -22.90 dB [yes]  arm3 late-sus +2.25 dB [yes]  arm4 tail -169.16 dB [yes]
+  take j=3 seed 15: peak 0.4185  arm1 hi -19.86 dB [yes]  arm2 lo -24.51 dB [yes]  arm3 late-sus +0.55 dB [yes]  arm4 tail -163.03 dB [yes]
+  take j=0 d 3.9093
+  take j=1 d 5.9939
+  take j=2 d 2.9817
+  take j=3 d 4.6148
+===============================================================================
+All tests passed (47 assertions in 1 test case)
+
+exit=0 END 2026-10-04 11:36:28

@@ -1,0 +1,14 @@
+=== T048 re-author batch 8 started 2026-10-06 12:47:08 ===
+SC_L takes (Singing Colony) [401=1.0,1300=0,1400=0,1003=0.35,402=0.0,200=0.80,0=0.40]:  primary d 4.2721 -> PASS | levels: arms [y y y y] arm1@44.1k [y]| d: 0 d 4.2721 1 d 4.9645 2 d 7.9036 3 d 4.8967  arm1: -8.11 dB [yes] -8.11 dB [yes] -6.42 dB [yes] -6.72 dB [yes] -7.71 dB [yes] 
+SC_L -6 dB:  primary d 4.2884 -> PASS 
+SC_L secondaries: D5.1 anchor Free 0.0000 VERIFIED;
+R_G takes (Resonant Shaft) [401=1.0,1300=0,1301=0,1500=0,200=0.80,0=0.20]:  primary d 7.2936 -> PASS | levels: arms [y y y y] arm1@44.1k [y]| d: 0 d 7.2936 1 d 7.0695 2 d 6.6254 3 d 7.4805  arm1: -10.20 dB [yes] -10.20 dB [yes] -6.89 dB [yes] -7.97 dB [yes] -8.62 dB [yes] 
+R_G -6 dB:  primary d 7.2974 -> PASS 
+R_G secondaries: D5.2 anchor Keyed 0.0000 VERIFIED;
+SD_G (Spore Drift) [1500=0,1300=0,200=0.30,202=0.20]:  primary d 3.9746 -> FAIL |
+SD_H (Spore Drift) [1500=0,1300=0,200=0.25,1102=0.30]:  primary d 3.7614 -> FAIL |
+SD_I (Spore Drift) [1500=0,1300=0,200=0.30,301=0.90]:  primary d 3.8753 -> FAIL |
+DS_G (Drifting Strata) [1400=0,1500=0,401=0.90,200=0.70,1104=0.0,1109=0.90,1101=0.20]:  primary d 3.6337 -> FAIL |
+DS_H (Drifting Strata) [1400=0,1500=0,401=0.90,200=0.70,1104=0.0,1109=0.90,206=0.50]:  primary d 3.9811 -> FAIL |
+DS_I (Drifting Strata) [1400=0,1500=0,401=0.90,200=0.70,1104=0.0,1109=0.90,1101=0.20,206=0.50,1105=0.10]:  primary d 3.9062 -> FAIL |
+=== batch 8 finished 2026-10-06 13:59:35 ===

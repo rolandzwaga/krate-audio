@@ -1,0 +1,90 @@
+START 2026-10-07 20:37:39 G2 new cases + the unedited contracts they must leave green, G2 binary (build_g2.log)
+Filters: "VoragoVoice_CeilingLeverNeutral","VoragoEngine_CeilingSeamContract","VoragoEngine_LoopBusMeterIsObservationOnly","VoragoVoice_EcoLaneMeanReadout","VoragoEngine_SetterContract","VoragoVoice_EcosystemLever*","VoragoVoice_RouteLeverZeroAtZeroLane"
+Randomness seeded to: 1195687855
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+VoragoEngine_SetterContract
+  every public float setter: reject non-finite, clamp out-of-range
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_engine_test.cpp(3077)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_engine_test.cpp(3084): 
+warning:
+  SC-028 (engine half) - VoragoEngine float setters
+    setter                               probe         NaN        +Inf        -
+  Inf        +1e9        -1e9
+    setSubToneLevelOffsetDb            -6.0000     -6.0000     -6.0000     -6.
+  00001000000000.0000-1000000000.0000
+    setSubTrackingAmount                0.2500      0.2500      0.2500      0.
+  2500      1.0000      0.0000
+    setSmearAmount                      0.7500      0.7500      0.7500      0.
+  7500      1.0000      0.0000
+    setSmearDecoherence                 0.3500      0.3500      0.3500      0.
+  3500      1.0000      0.0000
+    setSmearTilt                       -0.4000     -0.4000     -0.4000     -0.
+  4000      1.0000     -1.0000
+    setGhostPeakLevel                   0.2500      0.2500      0.2500      0.
+  2500      1.0000      0.0000
+    setAtmosBlur                        0.4000      0.4000      0.4000      0.
+  4000      1.0000      0.0000
+    setOutputSaturation                 0.3000      0.3000      0.3000      0.
+  3000      1.0000      0.0000
+    setEnvelopeReleaseMs              250.0000    250.0000    250.0000    250.
+  00001000000000.0000-1000000000.0000
+    setGrowthDurationSeconds           30.0000     30.0000     30.0000     30.
+  0000    120.0000      1.0000
+
+[LeverReset] reset()                            L metric=0.000e+00 sample=0.000e+00 | R metric=0.000e+00 sample=0.000e+00
+[LeverReset] silence() + resetForSteal()        L metric=0.000e+00 sample=0.000e+00 | R metric=0.000e+00 sample=0.000e+00
+[LeverReset] resetForRecovery()                 L metric=0.000e+00 sample=0.000e+00 | R metric=0.000e+00 sample=0.000e+00
+[LeverReset] prepare(96000) -> prepare(48000)   L metric=0.000e+00 sample=0.000e+00 | R metric=0.000e+00 sample=0.000e+00
+[LeverLifeOnlyParity] seed=0x925863E5 chunks checked=22500, chunks with a wake move=2813
+[LeverMapping] seed=0x925863E5 L=0.00 chunks=450000  sched-live=107966  sched>L=107966  sched-all-zero=296505
+[LeverMapping] seed=0x925863E5 L=0.25 chunks=450000  sched-live=107966  sched>L=78235  sched-all-zero=296505
+[LeverMapping] seed=0x925863E5 L=0.50 chunks=450000  sched-live=107966  sched>L=55621  sched-all-zero=296505
+[LeverMapping] seed=0x925863E5 L=1.00 chunks=450000  sched-live=107966  sched>L=0  sched-all-zero=296505
+[LeverRateComp] settled wander: 0.03 Hz 3.7500  1 Hz 0.9663  0.3 Hz 1.2835  0.03 Hz 3.7500  0.01 Hz 3.7500  (base 0.75, span 3.00)
+[LeverNeutral] fs=44100 seed=0x925863E5 chunks=413437 scheduler events seen=12
+[LeverNeutral] fs=48000 seed=0x925863E5 chunks=450000 scheduler events seen=12
+[LeverNeutral] fs=96000 seed=0x925863E5 chunks=900000 scheduler events seen=12
+[LeverSchedulerBlind] seed=0x925863E5 chunks=450000 rateScale=10
+[LeverSchedulerBlind]   BloomTrigger onsets=19 lastEventTarget changes=15
+[LeverSchedulerBlind]   NoiseWake    onsets=16 lastEventTarget changes=15
+[LeverSchedulerBlind]   PeakWake     onsets=25 lastEventTarget changes=17
+[LeverSchedulerBlind]   LoopWake     onsets=15 lastEventTarget changes=12
+[LeverSchedulerBlind]   GhostBurst   onsets=28 lastEventTarget changes=21
+[LeverAttribution] fs=44100 seed=0x925863E5 stepChunks=8 dt=11.6100 ms rampSteps=5 T_settle=69.6599 ms (48 chunks)
+[LeverAttribution] fs=44100 before Noise source level   changes/min: noise=55 peak=175 loop=63
+[LeverAttribution] fs=44100 Noise source level   dormant, changes/min: noise=5 peak=103 loop=69 (at base after 48 chunks)
+[LeverAttribution] fs=44100 before Resonator peak level changes/min: noise=41 peak=158 loop=49
+[LeverAttribution] fs=44100 Resonator peak level dormant, changes/min: noise=27 peak=5 loop=65 (at base after 48 chunks)
+[LeverAttribution] fs=44100 before Feedback loop gain   changes/min: noise=56 peak=114 loop=46
+[LeverAttribution] fs=44100 Feedback loop gain   dormant, changes/min: noise=20 peak=161 loop=5 (at base after 48 chunks)
+[LeverAttribution] fs=48000 seed=0x925863E5 stepChunks=8 dt=10.6667 ms rampSteps=5 T_settle=64.0000 ms (48 chunks)
+[LeverAttribution] fs=48000 before Noise source level   changes/min: noise=53 peak=175 loop=64
+[LeverAttribution] fs=48000 Noise source level   dormant, changes/min: noise=5 peak=104 loop=70 (at base after 48 chunks)
+[LeverAttribution] fs=48000 before Resonator peak level changes/min: noise=41 peak=159 loop=50
+[LeverAttribution] fs=48000 Resonator peak level dormant, changes/min: noise=28 peak=5 loop=65 (at base after 48 chunks)
+[LeverAttribution] fs=48000 before Feedback loop gain   changes/min: noise=51 peak=116 loop=45
+[LeverAttribution] fs=48000 Feedback loop gain   dormant, changes/min: noise=21 peak=156 loop=5 (at base after 48 chunks)
+[LeverAttribution] fs=96000 seed=0x925863E5 stepChunks=8 dt=5.3333 ms rampSteps=10 T_settle=58.6667 ms (88 chunks)
+[LeverAttribution] fs=96000 before Noise source level   changes/min: noise=51 peak=181 loop=63
+[LeverAttribution] fs=96000 Noise source level   dormant, changes/min: noise=10 peak=110 loop=67 (at base after 88 chunks)
+[LeverAttribution] fs=96000 before Resonator peak level changes/min: noise=46 peak=153 loop=53
+[LeverAttribution] fs=96000 Resonator peak level dormant, changes/min: noise=35 peak=10 loop=66 (at base after 88 chunks)
+[LeverAttribution] fs=96000 before Feedback loop gain   changes/min: noise=45 peak=117 loop=45
+[LeverAttribution] fs=96000 Feedback loop gain   dormant, changes/min: noise=18 peak=157 loop=10 (at base after 88 chunks)
+[LeverClickFree] fs=48000 seed=0x925863E5 schedule: Noise Resonator Feedback Partial Ghost All (each 1 s @0, 1 s @1, 1 s @0)
+[LeverClickFree] clicks stress L=0 R=0 | twin L=0 R=0 | stress peak=0.5940 max |stress - twin|=2.6765e-01 non-finite=0
+[LeverClickFreeNatural] fs=48000 seed=0x925863E5 render=28800000 samples (600 s) step boundaries=56250
+[LeverClickFreeNatural] depth1 clicks L=0 (on-boundary 0, off 0) R=0 (on-boundary 0, off 0) peak=1.2329 non-finite=0
+[LeverClickFreeNatural] depth0 twin clicks L=0 R=0 peak=0.6402 non-finite=0 (record only)
+===============================================================================
+All tests passed (31518 assertions in 16 test cases)
+
+exit=0 END 2026-10-07 20:42:08

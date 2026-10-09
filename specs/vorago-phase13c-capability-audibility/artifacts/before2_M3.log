@@ -1,0 +1,13 @@
+START 2026-10-01 19:33:14 before2_M3 tree=ae149a1c+working-copy reporting binary (vorago_tests.exe mtime 2026-10-01 19:14:53) as-compiled (no override, no lever) preset="Crowded Dark"
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 2971928351
+[probe] lever: none
+[probe] Crowded Dark - primary M3 Density (stored seed 15, 1 twin render(s))
+  take: peak 0.5639  arm1 hi -16.71 dB [yes]  arm2 lo -29.40 dB [yes]  arm3 late-sus +1.79 dB [yes]  arm4 tail -187.44 dB [yes]
+  arm1@44.1k: finite y peak 0.5233 hi -17.90 dB [PASS]
+  primary d 3.9226  bar 4.0000  attribBase -1.0000  state ok  -> FAIL  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (9 assertions in 1 test case)
+
+END 2026-10-01 19:36:33 exit=0 wall=199s

@@ -1,0 +1,37 @@
+pin-perf-cores: performance-core mask 0xFFFF
+Filters: [.perf] [.perf]
+Randomness seeded to: 2073121822
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+vorago_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+Vorago_ProcessorCpu
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\vorago\tests\integration\processor_cpu_test.cpp(144)
+...............................................................................
+
+F:\projects\iterum\plugins\vorago\tests\integration\processor_cpu_test.cpp(197): warning:
+  SC-014 arm P best ns/block (512 @ 48 kHz, poly 4): 3.83259e+06
+
+F:\projects\iterum\plugins\vorago\tests\integration\processor_cpu_test.cpp(198): warning:
+  SC-014 arm D best ns/block (512 @ 48 kHz, poly 4): 4.58979e+06
+
+F:\projects\iterum\plugins\vorago\tests\integration\processor_cpu_test.cpp(199): warning:
+  SC-014 P/D ratio (gate <= 1.05): 0.835025
+
+F:\projects\iterum\plugins\vorago\tests\integration\processor_cpu_test.cpp(201): warning:
+  SC-014 P / kReferenceNs (3.2e+06 ns, recorded only, FR-067): 1.19769
+
+F:\projects\iterum\plugins\vorago\tests\integration\processor_cpu_test.cpp(245): warning:
+  SC-014 arm E best ns for one 2048-sample block with 1024 reverse-ordered
+  events: 1.79691e+07
+
+F:\projects\iterum\plugins\vorago\tests\integration\processor_cpu_test.cpp(247): warning:
+  SC-014 arm E ratio to real time (2048 / 48000 s = 4.26667e+07 ns): 0.421151
+
+===============================================================================
+All tests passed (14 assertions in 1 test case)
+
+EXIT=0

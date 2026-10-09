@@ -1,0 +1,13 @@
+START 2026-10-04 21:26:40 Lightless VORAGO_PILOT_LEVER=ecologyWetDb=0 (final tree) exe=2026-10-04 09:54:11
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 1434202120
+[probe] lever: ecologyWetDb=0
+[probe] Lightless - primary M1 Darkness (stored seed 13, 1 twin render(s))
+  take: peak 0.1919  arm1 hi -25.13 dB [yes]  arm2 lo -30.69 dB [yes]  arm3 late-sus -1.76 dB [yes]  arm4 tail -154.47 dB [yes]
+  arm1@44.1k: finite y peak 0.2128 hi -24.89 dB [PASS]
+  primary d 1.7610  bar 4.0000  attribBase -1.0000  state ok  -> FAIL  lever: ecologyWetDb=0
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (10 assertions in 1 test case)
+
+exit=0 END 2026-10-04 21:29:59

@@ -1,0 +1,15 @@
+START 2026-10-02 22:11:56 Drifting Strata at kTidalRate 0.8 with VORAGO_PILOT_OVERRIDE=1105=1.0 (space mix 1.0) VORAGO_PILOT_SECONDARY=1; breath 3.0, tidal gain 1.0; premise for the Phase 14 preset-side option exe=2026-10-02 22:11:55
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 881122615
+[probe] override 1105 = 1.000000 (replaced)
+[probe] lever: none
+[probe] Drifting Strata - primary M4 Movement (stored seed 3, 1 twin render(s))
+  take: peak 0.2715  arm1 hi -23.86 dB [yes]  arm2 lo -31.80 dB [yes]  arm3 late-sus -1.72 dB [yes]  arm4 tail -173.87 dB [yes]
+  arm1@44.1k: finite y peak 0.2620 hi -23.79 dB [PASS]
+  primary d 1.4504  bar 4.0000  attribBase -1.0000  state ok  -> FAIL  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+  secondary D14.2 tidal depth >= 0.7: d 0.1904 bar 1.5 state ok conjunct ok attribBase -1.0000 skip "" -> no
+===============================================================================
+All tests passed (10 assertions in 1 test case)
+
+exit=0 END 2026-10-02 22:25:08

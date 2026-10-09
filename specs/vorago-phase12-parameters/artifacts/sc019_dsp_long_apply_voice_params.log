@@ -1,0 +1,1489 @@
+Filters: "VoragoEngine_ApplyVoiceParamsDefaultIsNoOp"
+Randomness seeded to: 3497873432
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+VoragoEngine_ApplyVoiceParamsDefaultIsNoOp
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1092)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(992): PASSED:
+  REQUIRE( v.getStereoSpread() == p.stereoSpread )
+with expansion:
+  0.45f == 0.45f
+with message:
+  slot 0
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(993): PASSED:
+  REQUIRE( v.cloud().getSpectralGravity() == p.cloudSpectralGravity )
+with expansion:
+  0.1f == 0.1f
+with message:
+  slot 0
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(994): PASSED:
+  REQUIRE( v.getBodyMaterialA() == p.bodyMaterialA )
+with expansion:
+  5 == 5
+with message:
+  slot 0
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(995): PASSED:
+  REQUIRE( v.getBodyMaterialB() == p.bodyMaterialB )
+with expansion:
+  6 == 6
+with message:
+  slot 0
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(999): PASSED:
+  REQUIRE( v.noise().getSourceModel(s) == p.noiseModel[s] )
+with expansion:
+  1 == 1
+with messages:
+  slot 0
+  noise slot 0
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1001): PASSED:
+  REQUIRE( v.noise().getSourceNoiseType(s) == vpEffectiveType(p.noiseModel[s], p.noiseType[s]) )
+with expansion:
+  5 == 5
+with messages:
+  slot 0
+  noise slot 0
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1003): PASSED:
+  REQUIRE( v.noise().getCombFundamental(s) == p.noiseCombFundamentalHz[s] )
+with expansion:
+  60.0f == 60.0f
+with messages:
+  slot 0
+  noise slot 0
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1004): PASSED:
+  REQUIRE( v.noise().getCombSpread(s) == p.noiseCombSpread[s] )
+with expansion:
+  0.35f == 0.35f
+with messages:
+  slot 0
+  noise slot 0
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1005): PASSED:
+  REQUIRE( v.noise().getCombFeedback(s) == p.noiseCombFeedback[s] )
+with expansion:
+  0.55f == 0.55f
+with messages:
+  slot 0
+  noise slot 0
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(999): PASSED:
+  REQUIRE( v.noise().getSourceModel(s) == p.noiseModel[s] )
+with expansion:
+  2 == 2
+with messages:
+  slot 0
+  noise slot 1
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1001): PASSED:
+  REQUIRE( v.noise().getSourceNoiseType(s) == vpEffectiveType(p.noiseModel[s], p.noiseType[s]) )
+with expansion:
+  '\t' == '\t'
+with messages:
+  slot 0
+  noise slot 1
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1003): PASSED:
+  REQUIRE( v.noise().getCombFundamental(s) == p.noiseCombFundamentalHz[s] )
+with expansion:
+  60.0f == 60.0f
+with messages:
+  slot 0
+  noise slot 1
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1004): PASSED:
+  REQUIRE( v.noise().getCombSpread(s) == p.noiseCombSpread[s] )
+with expansion:
+  0.35f == 0.35f
+with messages:
+  slot 0
+  noise slot 1
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1005): PASSED:
+  REQUIRE( v.noise().getCombFeedback(s) == p.noiseCombFeedback[s] )
+with expansion:
+  0.55f == 0.55f
+with messages:
+  slot 0
+  noise slot 1
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(999): PASSED:
+  REQUIRE( v.noise().getSourceModel(s) == p.noiseModel[s] )
+with expansion:
+  0 == 0
+with messages:
+  slot 0
+  noise slot 2
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1001): PASSED:
+  REQUIRE( v.noise().getSourceNoiseType(s) == vpEffectiveType(p.noiseModel[s], p.noiseType[s]) )
+with expansion:
+  5 == 5
+with messages:
+  slot 0
+  noise slot 2
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1003): PASSED:
+  REQUIRE( v.noise().getCombFundamental(s) == p.noiseCombFundamentalHz[s] )
+with expansion:
+  60.0f == 60.0f
+with messages:
+  slot 0
+  noise slot 2
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1004): PASSED:
+  REQUIRE( v.noise().getCombSpread(s) == p.noiseCombSpread[s] )
+with expansion:
+  0.35f == 0.35f
+with messages:
+  slot 0
+  noise slot 2
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1005): PASSED:
+  REQUIRE( v.noise().getCombFeedback(s) == p.noiseCombFeedback[s] )
+with expansion:
+  0.55f == 0.55f
+with messages:
+  slot 0
+  noise slot 2
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(999): PASSED:
+  REQUIRE( v.noise().getSourceModel(s) == p.noiseModel[s] )
+with expansion:
+  3 == 3
+with messages:
+  slot 0
+  noise slot 3
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1001): PASSED:
+  REQUIRE( v.noise().getSourceNoiseType(s) == vpEffectiveType(p.noiseModel[s], p.noiseType[s]) )
+with expansion:
+  6 == 6
+with messages:
+  slot 0
+  noise slot 3
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1003): PASSED:
+  REQUIRE( v.noise().getCombFundamental(s) == p.noiseCombFundamentalHz[s] )
+with expansion:
+  60.0f == 60.0f
+with messages:
+  slot 0
+  noise slot 3
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1004): PASSED:
+  REQUIRE( v.noise().getCombSpread(s) == p.noiseCombSpread[s] )
+with expansion:
+  0.35f == 0.35f
+with messages:
+  slot 0
+  noise slot 3
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1005): PASSED:
+  REQUIRE( v.noise().getCombFeedback(s) == p.noiseCombFeedback[s] )
+with expansion:
+  0.75f == 0.75f
+with messages:
+  slot 0
+  noise slot 3
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1007): PASSED:
+  REQUIRE( v.resonance().getAnchorMode() == p.resonanceAnchorMode )
+with expansion:
+  2 == 2
+with message:
+  slot 0
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1010): PASSED:
+  REQUIRE( v.ecology().getLoopFilterMode(l) == p.ecologyLoopFilterMode[l] )
+with expansion:
+  0 == 0
+with messages:
+  slot 0
+  loop 0
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1010): PASSED:
+  REQUIRE( v.ecology().getLoopFilterMode(l) == p.ecologyLoopFilterMode[l] )
+with expansion:
+  0 == 0
+with messages:
+  slot 0
+  loop 1
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1010): PASSED:
+  REQUIRE( v.ecology().getLoopFilterMode(l) == p.ecologyLoopFilterMode[l] )
+with expansion:
+  0 == 0
+with messages:
+  slot 0
+  loop 2
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1010): PASSED:
+  REQUIRE( v.ecology().getLoopFilterMode(l) == p.ecologyLoopFilterMode[l] )
+with expansion:
+  0 == 0
+with messages:
+  slot 0
+  loop 3
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1010): PASSED:
+  REQUIRE( v.ecology().getLoopFilterMode(l) == p.ecologyLoopFilterMode[l] )
+with expansion:
+  0 == 0
+with messages:
+  slot 0
+  loop 4
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1010): PASSED:
+  REQUIRE( v.ecology().getLoopFilterMode(l) == p.ecologyLoopFilterMode[l] )
+with expansion:
+  0 == 0
+with messages:
+  slot 0
+  loop 5
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(992): PASSED:
+  REQUIRE( v.getStereoSpread() == p.stereoSpread )
+with expansion:
+  0.45f == 0.45f
+with message:
+  slot 1
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(993): PASSED:
+  REQUIRE( v.cloud().getSpectralGravity() == p.cloudSpectralGravity )
+with expansion:
+  0.1f == 0.1f
+with message:
+  slot 1
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(994): PASSED:
+  REQUIRE( v.getBodyMaterialA() == p.bodyMaterialA )
+with expansion:
+  5 == 5
+with message:
+  slot 1
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(995): PASSED:
+  REQUIRE( v.getBodyMaterialB() == p.bodyMaterialB )
+with expansion:
+  6 == 6
+with message:
+  slot 1
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(999): PASSED:
+  REQUIRE( v.noise().getSourceModel(s) == p.noiseModel[s] )
+with expansion:
+  1 == 1
+with messages:
+  slot 1
+  noise slot 0
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1001): PASSED:
+  REQUIRE( v.noise().getSourceNoiseType(s) == vpEffectiveType(p.noiseModel[s], p.noiseType[s]) )
+with expansion:
+  5 == 5
+with messages:
+  slot 1
+  noise slot 0
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1003): PASSED:
+  REQUIRE( v.noise().getCombFundamental(s) == p.noiseCombFundamentalHz[s] )
+with expansion:
+  60.0f == 60.0f
+with messages:
+  slot 1
+  noise slot 0
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1004): PASSED:
+  REQUIRE( v.noise().getCombSpread(s) == p.noiseCombSpread[s] )
+with expansion:
+  0.35f == 0.35f
+with messages:
+  slot 1
+  noise slot 0
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1005): PASSED:
+  REQUIRE( v.noise().getCombFeedback(s) == p.noiseCombFeedback[s] )
+with expansion:
+  0.55f == 0.55f
+with messages:
+  slot 1
+  noise slot 0
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(999): PASSED:
+  REQUIRE( v.noise().getSourceModel(s) == p.noiseModel[s] )
+with expansion:
+  2 == 2
+with messages:
+  slot 1
+  noise slot 1
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1001): PASSED:
+  REQUIRE( v.noise().getSourceNoiseType(s) == vpEffectiveType(p.noiseModel[s], p.noiseType[s]) )
+with expansion:
+  '\t' == '\t'
+with messages:
+  slot 1
+  noise slot 1
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1003): PASSED:
+  REQUIRE( v.noise().getCombFundamental(s) == p.noiseCombFundamentalHz[s] )
+with expansion:
+  60.0f == 60.0f
+with messages:
+  slot 1
+  noise slot 1
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1004): PASSED:
+  REQUIRE( v.noise().getCombSpread(s) == p.noiseCombSpread[s] )
+with expansion:
+  0.35f == 0.35f
+with messages:
+  slot 1
+  noise slot 1
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1005): PASSED:
+  REQUIRE( v.noise().getCombFeedback(s) == p.noiseCombFeedback[s] )
+with expansion:
+  0.55f == 0.55f
+with messages:
+  slot 1
+  noise slot 1
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(999): PASSED:
+  REQUIRE( v.noise().getSourceModel(s) == p.noiseModel[s] )
+with expansion:
+  0 == 0
+with messages:
+  slot 1
+  noise slot 2
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1001): PASSED:
+  REQUIRE( v.noise().getSourceNoiseType(s) == vpEffectiveType(p.noiseModel[s], p.noiseType[s]) )
+with expansion:
+  5 == 5
+with messages:
+  slot 1
+  noise slot 2
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1003): PASSED:
+  REQUIRE( v.noise().getCombFundamental(s) == p.noiseCombFundamentalHz[s] )
+with expansion:
+  60.0f == 60.0f
+with messages:
+  slot 1
+  noise slot 2
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1004): PASSED:
+  REQUIRE( v.noise().getCombSpread(s) == p.noiseCombSpread[s] )
+with expansion:
+  0.35f == 0.35f
+with messages:
+  slot 1
+  noise slot 2
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1005): PASSED:
+  REQUIRE( v.noise().getCombFeedback(s) == p.noiseCombFeedback[s] )
+with expansion:
+  0.55f == 0.55f
+with messages:
+  slot 1
+  noise slot 2
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(999): PASSED:
+  REQUIRE( v.noise().getSourceModel(s) == p.noiseModel[s] )
+with expansion:
+  3 == 3
+with messages:
+  slot 1
+  noise slot 3
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1001): PASSED:
+  REQUIRE( v.noise().getSourceNoiseType(s) == vpEffectiveType(p.noiseModel[s], p.noiseType[s]) )
+with expansion:
+  6 == 6
+with messages:
+  slot 1
+  noise slot 3
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1003): PASSED:
+  REQUIRE( v.noise().getCombFundamental(s) == p.noiseCombFundamentalHz[s] )
+with expansion:
+  60.0f == 60.0f
+with messages:
+  slot 1
+  noise slot 3
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1004): PASSED:
+  REQUIRE( v.noise().getCombSpread(s) == p.noiseCombSpread[s] )
+with expansion:
+  0.35f == 0.35f
+with messages:
+  slot 1
+  noise slot 3
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1005): PASSED:
+  REQUIRE( v.noise().getCombFeedback(s) == p.noiseCombFeedback[s] )
+with expansion:
+  0.75f == 0.75f
+with messages:
+  slot 1
+  noise slot 3
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1007): PASSED:
+  REQUIRE( v.resonance().getAnchorMode() == p.resonanceAnchorMode )
+with expansion:
+  2 == 2
+with message:
+  slot 1
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1010): PASSED:
+  REQUIRE( v.ecology().getLoopFilterMode(l) == p.ecologyLoopFilterMode[l] )
+with expansion:
+  0 == 0
+with messages:
+  slot 1
+  loop 0
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1010): PASSED:
+  REQUIRE( v.ecology().getLoopFilterMode(l) == p.ecologyLoopFilterMode[l] )
+with expansion:
+  0 == 0
+with messages:
+  slot 1
+  loop 1
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1010): PASSED:
+  REQUIRE( v.ecology().getLoopFilterMode(l) == p.ecologyLoopFilterMode[l] )
+with expansion:
+  0 == 0
+with messages:
+  slot 1
+  loop 2
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1010): PASSED:
+  REQUIRE( v.ecology().getLoopFilterMode(l) == p.ecologyLoopFilterMode[l] )
+with expansion:
+  0 == 0
+with messages:
+  slot 1
+  loop 3
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1010): PASSED:
+  REQUIRE( v.ecology().getLoopFilterMode(l) == p.ecologyLoopFilterMode[l] )
+with expansion:
+  0 == 0
+with messages:
+  slot 1
+  loop 4
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1010): PASSED:
+  REQUIRE( v.ecology().getLoopFilterMode(l) == p.ecologyLoopFilterMode[l] )
+with expansion:
+  0 == 0
+with messages:
+  slot 1
+  loop 5
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(992): PASSED:
+  REQUIRE( v.getStereoSpread() == p.stereoSpread )
+with expansion:
+  0.45f == 0.45f
+with message:
+  slot 2
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(993): PASSED:
+  REQUIRE( v.cloud().getSpectralGravity() == p.cloudSpectralGravity )
+with expansion:
+  0.1f == 0.1f
+with message:
+  slot 2
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(994): PASSED:
+  REQUIRE( v.getBodyMaterialA() == p.bodyMaterialA )
+with expansion:
+  5 == 5
+with message:
+  slot 2
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(995): PASSED:
+  REQUIRE( v.getBodyMaterialB() == p.bodyMaterialB )
+with expansion:
+  6 == 6
+with message:
+  slot 2
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(999): PASSED:
+  REQUIRE( v.noise().getSourceModel(s) == p.noiseModel[s] )
+with expansion:
+  1 == 1
+with messages:
+  slot 2
+  noise slot 0
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1001): PASSED:
+  REQUIRE( v.noise().getSourceNoiseType(s) == vpEffectiveType(p.noiseModel[s], p.noiseType[s]) )
+with expansion:
+  5 == 5
+with messages:
+  slot 2
+  noise slot 0
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1003): PASSED:
+  REQUIRE( v.noise().getCombFundamental(s) == p.noiseCombFundamentalHz[s] )
+with expansion:
+  60.0f == 60.0f
+with messages:
+  slot 2
+  noise slot 0
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1004): PASSED:
+  REQUIRE( v.noise().getCombSpread(s) == p.noiseCombSpread[s] )
+with expansion:
+  0.35f == 0.35f
+with messages:
+  slot 2
+  noise slot 0
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1005): PASSED:
+  REQUIRE( v.noise().getCombFeedback(s) == p.noiseCombFeedback[s] )
+with expansion:
+  0.55f == 0.55f
+with messages:
+  slot 2
+  noise slot 0
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(999): PASSED:
+  REQUIRE( v.noise().getSourceModel(s) == p.noiseModel[s] )
+with expansion:
+  2 == 2
+with messages:
+  slot 2
+  noise slot 1
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1001): PASSED:
+  REQUIRE( v.noise().getSourceNoiseType(s) == vpEffectiveType(p.noiseModel[s], p.noiseType[s]) )
+with expansion:
+  '\t' == '\t'
+with messages:
+  slot 2
+  noise slot 1
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1003): PASSED:
+  REQUIRE( v.noise().getCombFundamental(s) == p.noiseCombFundamentalHz[s] )
+with expansion:
+  60.0f == 60.0f
+with messages:
+  slot 2
+  noise slot 1
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1004): PASSED:
+  REQUIRE( v.noise().getCombSpread(s) == p.noiseCombSpread[s] )
+with expansion:
+  0.35f == 0.35f
+with messages:
+  slot 2
+  noise slot 1
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1005): PASSED:
+  REQUIRE( v.noise().getCombFeedback(s) == p.noiseCombFeedback[s] )
+with expansion:
+  0.55f == 0.55f
+with messages:
+  slot 2
+  noise slot 1
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(999): PASSED:
+  REQUIRE( v.noise().getSourceModel(s) == p.noiseModel[s] )
+with expansion:
+  0 == 0
+with messages:
+  slot 2
+  noise slot 2
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1001): PASSED:
+  REQUIRE( v.noise().getSourceNoiseType(s) == vpEffectiveType(p.noiseModel[s], p.noiseType[s]) )
+with expansion:
+  5 == 5
+with messages:
+  slot 2
+  noise slot 2
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1003): PASSED:
+  REQUIRE( v.noise().getCombFundamental(s) == p.noiseCombFundamentalHz[s] )
+with expansion:
+  60.0f == 60.0f
+with messages:
+  slot 2
+  noise slot 2
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1004): PASSED:
+  REQUIRE( v.noise().getCombSpread(s) == p.noiseCombSpread[s] )
+with expansion:
+  0.35f == 0.35f
+with messages:
+  slot 2
+  noise slot 2
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1005): PASSED:
+  REQUIRE( v.noise().getCombFeedback(s) == p.noiseCombFeedback[s] )
+with expansion:
+  0.55f == 0.55f
+with messages:
+  slot 2
+  noise slot 2
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(999): PASSED:
+  REQUIRE( v.noise().getSourceModel(s) == p.noiseModel[s] )
+with expansion:
+  3 == 3
+with messages:
+  slot 2
+  noise slot 3
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1001): PASSED:
+  REQUIRE( v.noise().getSourceNoiseType(s) == vpEffectiveType(p.noiseModel[s], p.noiseType[s]) )
+with expansion:
+  6 == 6
+with messages:
+  slot 2
+  noise slot 3
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1003): PASSED:
+  REQUIRE( v.noise().getCombFundamental(s) == p.noiseCombFundamentalHz[s] )
+with expansion:
+  60.0f == 60.0f
+with messages:
+  slot 2
+  noise slot 3
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1004): PASSED:
+  REQUIRE( v.noise().getCombSpread(s) == p.noiseCombSpread[s] )
+with expansion:
+  0.35f == 0.35f
+with messages:
+  slot 2
+  noise slot 3
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1005): PASSED:
+  REQUIRE( v.noise().getCombFeedback(s) == p.noiseCombFeedback[s] )
+with expansion:
+  0.75f == 0.75f
+with messages:
+  slot 2
+  noise slot 3
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1007): PASSED:
+  REQUIRE( v.resonance().getAnchorMode() == p.resonanceAnchorMode )
+with expansion:
+  2 == 2
+with message:
+  slot 2
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1010): PASSED:
+  REQUIRE( v.ecology().getLoopFilterMode(l) == p.ecologyLoopFilterMode[l] )
+with expansion:
+  0 == 0
+with messages:
+  slot 2
+  loop 0
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1010): PASSED:
+  REQUIRE( v.ecology().getLoopFilterMode(l) == p.ecologyLoopFilterMode[l] )
+with expansion:
+  0 == 0
+with messages:
+  slot 2
+  loop 1
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1010): PASSED:
+  REQUIRE( v.ecology().getLoopFilterMode(l) == p.ecologyLoopFilterMode[l] )
+with expansion:
+  0 == 0
+with messages:
+  slot 2
+  loop 2
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1010): PASSED:
+  REQUIRE( v.ecology().getLoopFilterMode(l) == p.ecologyLoopFilterMode[l] )
+with expansion:
+  0 == 0
+with messages:
+  slot 2
+  loop 3
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1010): PASSED:
+  REQUIRE( v.ecology().getLoopFilterMode(l) == p.ecologyLoopFilterMode[l] )
+with expansion:
+  0 == 0
+with messages:
+  slot 2
+  loop 4
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1010): PASSED:
+  REQUIRE( v.ecology().getLoopFilterMode(l) == p.ecologyLoopFilterMode[l] )
+with expansion:
+  0 == 0
+with messages:
+  slot 2
+  loop 5
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(992): PASSED:
+  REQUIRE( v.getStereoSpread() == p.stereoSpread )
+with expansion:
+  0.45f == 0.45f
+with message:
+  slot 3
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(993): PASSED:
+  REQUIRE( v.cloud().getSpectralGravity() == p.cloudSpectralGravity )
+with expansion:
+  0.1f == 0.1f
+with message:
+  slot 3
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(994): PASSED:
+  REQUIRE( v.getBodyMaterialA() == p.bodyMaterialA )
+with expansion:
+  5 == 5
+with message:
+  slot 3
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(995): PASSED:
+  REQUIRE( v.getBodyMaterialB() == p.bodyMaterialB )
+with expansion:
+  6 == 6
+with message:
+  slot 3
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(999): PASSED:
+  REQUIRE( v.noise().getSourceModel(s) == p.noiseModel[s] )
+with expansion:
+  1 == 1
+with messages:
+  slot 3
+  noise slot 0
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1001): PASSED:
+  REQUIRE( v.noise().getSourceNoiseType(s) == vpEffectiveType(p.noiseModel[s], p.noiseType[s]) )
+with expansion:
+  5 == 5
+with messages:
+  slot 3
+  noise slot 0
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1003): PASSED:
+  REQUIRE( v.noise().getCombFundamental(s) == p.noiseCombFundamentalHz[s] )
+with expansion:
+  60.0f == 60.0f
+with messages:
+  slot 3
+  noise slot 0
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1004): PASSED:
+  REQUIRE( v.noise().getCombSpread(s) == p.noiseCombSpread[s] )
+with expansion:
+  0.35f == 0.35f
+with messages:
+  slot 3
+  noise slot 0
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1005): PASSED:
+  REQUIRE( v.noise().getCombFeedback(s) == p.noiseCombFeedback[s] )
+with expansion:
+  0.55f == 0.55f
+with messages:
+  slot 3
+  noise slot 0
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(999): PASSED:
+  REQUIRE( v.noise().getSourceModel(s) == p.noiseModel[s] )
+with expansion:
+  2 == 2
+with messages:
+  slot 3
+  noise slot 1
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1001): PASSED:
+  REQUIRE( v.noise().getSourceNoiseType(s) == vpEffectiveType(p.noiseModel[s], p.noiseType[s]) )
+with expansion:
+  '\t' == '\t'
+with messages:
+  slot 3
+  noise slot 1
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1003): PASSED:
+  REQUIRE( v.noise().getCombFundamental(s) == p.noiseCombFundamentalHz[s] )
+with expansion:
+  60.0f == 60.0f
+with messages:
+  slot 3
+  noise slot 1
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1004): PASSED:
+  REQUIRE( v.noise().getCombSpread(s) == p.noiseCombSpread[s] )
+with expansion:
+  0.35f == 0.35f
+with messages:
+  slot 3
+  noise slot 1
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1005): PASSED:
+  REQUIRE( v.noise().getCombFeedback(s) == p.noiseCombFeedback[s] )
+with expansion:
+  0.55f == 0.55f
+with messages:
+  slot 3
+  noise slot 1
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(999): PASSED:
+  REQUIRE( v.noise().getSourceModel(s) == p.noiseModel[s] )
+with expansion:
+  0 == 0
+with messages:
+  slot 3
+  noise slot 2
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1001): PASSED:
+  REQUIRE( v.noise().getSourceNoiseType(s) == vpEffectiveType(p.noiseModel[s], p.noiseType[s]) )
+with expansion:
+  5 == 5
+with messages:
+  slot 3
+  noise slot 2
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1003): PASSED:
+  REQUIRE( v.noise().getCombFundamental(s) == p.noiseCombFundamentalHz[s] )
+with expansion:
+  60.0f == 60.0f
+with messages:
+  slot 3
+  noise slot 2
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1004): PASSED:
+  REQUIRE( v.noise().getCombSpread(s) == p.noiseCombSpread[s] )
+with expansion:
+  0.35f == 0.35f
+with messages:
+  slot 3
+  noise slot 2
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1005): PASSED:
+  REQUIRE( v.noise().getCombFeedback(s) == p.noiseCombFeedback[s] )
+with expansion:
+  0.55f == 0.55f
+with messages:
+  slot 3
+  noise slot 2
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(999): PASSED:
+  REQUIRE( v.noise().getSourceModel(s) == p.noiseModel[s] )
+with expansion:
+  3 == 3
+with messages:
+  slot 3
+  noise slot 3
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1001): PASSED:
+  REQUIRE( v.noise().getSourceNoiseType(s) == vpEffectiveType(p.noiseModel[s], p.noiseType[s]) )
+with expansion:
+  6 == 6
+with messages:
+  slot 3
+  noise slot 3
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1003): PASSED:
+  REQUIRE( v.noise().getCombFundamental(s) == p.noiseCombFundamentalHz[s] )
+with expansion:
+  60.0f == 60.0f
+with messages:
+  slot 3
+  noise slot 3
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1004): PASSED:
+  REQUIRE( v.noise().getCombSpread(s) == p.noiseCombSpread[s] )
+with expansion:
+  0.35f == 0.35f
+with messages:
+  slot 3
+  noise slot 3
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1005): PASSED:
+  REQUIRE( v.noise().getCombFeedback(s) == p.noiseCombFeedback[s] )
+with expansion:
+  0.75f == 0.75f
+with messages:
+  slot 3
+  noise slot 3
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1007): PASSED:
+  REQUIRE( v.resonance().getAnchorMode() == p.resonanceAnchorMode )
+with expansion:
+  2 == 2
+with message:
+  slot 3
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1010): PASSED:
+  REQUIRE( v.ecology().getLoopFilterMode(l) == p.ecologyLoopFilterMode[l] )
+with expansion:
+  0 == 0
+with messages:
+  slot 3
+  loop 0
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1010): PASSED:
+  REQUIRE( v.ecology().getLoopFilterMode(l) == p.ecologyLoopFilterMode[l] )
+with expansion:
+  0 == 0
+with messages:
+  slot 3
+  loop 1
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1010): PASSED:
+  REQUIRE( v.ecology().getLoopFilterMode(l) == p.ecologyLoopFilterMode[l] )
+with expansion:
+  0 == 0
+with messages:
+  slot 3
+  loop 2
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1010): PASSED:
+  REQUIRE( v.ecology().getLoopFilterMode(l) == p.ecologyLoopFilterMode[l] )
+with expansion:
+  0 == 0
+with messages:
+  slot 3
+  loop 3
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1010): PASSED:
+  REQUIRE( v.ecology().getLoopFilterMode(l) == p.ecologyLoopFilterMode[l] )
+with expansion:
+  0 == 0
+with messages:
+  slot 3
+  loop 4
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1010): PASSED:
+  REQUIRE( v.ecology().getLoopFilterMode(l) == p.ecologyLoopFilterMode[l] )
+with expansion:
+  0 == 0
+with messages:
+  slot 3
+  loop 5
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(992): PASSED:
+  REQUIRE( v.getStereoSpread() == p.stereoSpread )
+with expansion:
+  0.45f == 0.45f
+with message:
+  slot 4
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(993): PASSED:
+  REQUIRE( v.cloud().getSpectralGravity() == p.cloudSpectralGravity )
+with expansion:
+  0.1f == 0.1f
+with message:
+  slot 4
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(994): PASSED:
+  REQUIRE( v.getBodyMaterialA() == p.bodyMaterialA )
+with expansion:
+  5 == 5
+with message:
+  slot 4
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(995): PASSED:
+  REQUIRE( v.getBodyMaterialB() == p.bodyMaterialB )
+with expansion:
+  6 == 6
+with message:
+  slot 4
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(999): PASSED:
+  REQUIRE( v.noise().getSourceModel(s) == p.noiseModel[s] )
+with expansion:
+  1 == 1
+with messages:
+  slot 4
+  noise slot 0
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1001): PASSED:
+  REQUIRE( v.noise().getSourceNoiseType(s) == vpEffectiveType(p.noiseModel[s], p.noiseType[s]) )
+with expansion:
+  5 == 5
+with messages:
+  slot 4
+  noise slot 0
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1003): PASSED:
+  REQUIRE( v.noise().getCombFundamental(s) == p.noiseCombFundamentalHz[s] )
+with expansion:
+  60.0f == 60.0f
+with messages:
+  slot 4
+  noise slot 0
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1004): PASSED:
+  REQUIRE( v.noise().getCombSpread(s) == p.noiseCombSpread[s] )
+with expansion:
+  0.35f == 0.35f
+with messages:
+  slot 4
+  noise slot 0
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1005): PASSED:
+  REQUIRE( v.noise().getCombFeedback(s) == p.noiseCombFeedback[s] )
+with expansion:
+  0.55f == 0.55f
+with messages:
+  slot 4
+  noise slot 0
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(999): PASSED:
+  REQUIRE( v.noise().getSourceModel(s) == p.noiseModel[s] )
+with expansion:
+  2 == 2
+with messages:
+  slot 4
+  noise slot 1
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1001): PASSED:
+  REQUIRE( v.noise().getSourceNoiseType(s) == vpEffectiveType(p.noiseModel[s], p.noiseType[s]) )
+with expansion:
+  '\t' == '\t'
+with messages:
+  slot 4
+  noise slot 1
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1003): PASSED:
+  REQUIRE( v.noise().getCombFundamental(s) == p.noiseCombFundamentalHz[s] )
+with expansion:
+  60.0f == 60.0f
+with messages:
+  slot 4
+  noise slot 1
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1004): PASSED:
+  REQUIRE( v.noise().getCombSpread(s) == p.noiseCombSpread[s] )
+with expansion:
+  0.35f == 0.35f
+with messages:
+  slot 4
+  noise slot 1
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1005): PASSED:
+  REQUIRE( v.noise().getCombFeedback(s) == p.noiseCombFeedback[s] )
+with expansion:
+  0.55f == 0.55f
+with messages:
+  slot 4
+  noise slot 1
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(999): PASSED:
+  REQUIRE( v.noise().getSourceModel(s) == p.noiseModel[s] )
+with expansion:
+  0 == 0
+with messages:
+  slot 4
+  noise slot 2
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1001): PASSED:
+  REQUIRE( v.noise().getSourceNoiseType(s) == vpEffectiveType(p.noiseModel[s], p.noiseType[s]) )
+with expansion:
+  5 == 5
+with messages:
+  slot 4
+  noise slot 2
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1003): PASSED:
+  REQUIRE( v.noise().getCombFundamental(s) == p.noiseCombFundamentalHz[s] )
+with expansion:
+  60.0f == 60.0f
+with messages:
+  slot 4
+  noise slot 2
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1004): PASSED:
+  REQUIRE( v.noise().getCombSpread(s) == p.noiseCombSpread[s] )
+with expansion:
+  0.35f == 0.35f
+with messages:
+  slot 4
+  noise slot 2
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1005): PASSED:
+  REQUIRE( v.noise().getCombFeedback(s) == p.noiseCombFeedback[s] )
+with expansion:
+  0.55f == 0.55f
+with messages:
+  slot 4
+  noise slot 2
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(999): PASSED:
+  REQUIRE( v.noise().getSourceModel(s) == p.noiseModel[s] )
+with expansion:
+  3 == 3
+with messages:
+  slot 4
+  noise slot 3
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1001): PASSED:
+  REQUIRE( v.noise().getSourceNoiseType(s) == vpEffectiveType(p.noiseModel[s], p.noiseType[s]) )
+with expansion:
+  6 == 6
+with messages:
+  slot 4
+  noise slot 3
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1003): PASSED:
+  REQUIRE( v.noise().getCombFundamental(s) == p.noiseCombFundamentalHz[s] )
+with expansion:
+  60.0f == 60.0f
+with messages:
+  slot 4
+  noise slot 3
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1004): PASSED:
+  REQUIRE( v.noise().getCombSpread(s) == p.noiseCombSpread[s] )
+with expansion:
+  0.35f == 0.35f
+with messages:
+  slot 4
+  noise slot 3
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1005): PASSED:
+  REQUIRE( v.noise().getCombFeedback(s) == p.noiseCombFeedback[s] )
+with expansion:
+  0.75f == 0.75f
+with messages:
+  slot 4
+  noise slot 3
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1007): PASSED:
+  REQUIRE( v.resonance().getAnchorMode() == p.resonanceAnchorMode )
+with expansion:
+  2 == 2
+with message:
+  slot 4
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1010): PASSED:
+  REQUIRE( v.ecology().getLoopFilterMode(l) == p.ecologyLoopFilterMode[l] )
+with expansion:
+  0 == 0
+with messages:
+  slot 4
+  loop 0
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1010): PASSED:
+  REQUIRE( v.ecology().getLoopFilterMode(l) == p.ecologyLoopFilterMode[l] )
+with expansion:
+  0 == 0
+with messages:
+  slot 4
+  loop 1
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1010): PASSED:
+  REQUIRE( v.ecology().getLoopFilterMode(l) == p.ecologyLoopFilterMode[l] )
+with expansion:
+  0 == 0
+with messages:
+  slot 4
+  loop 2
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1010): PASSED:
+  REQUIRE( v.ecology().getLoopFilterMode(l) == p.ecologyLoopFilterMode[l] )
+with expansion:
+  0 == 0
+with messages:
+  slot 4
+  loop 3
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1010): PASSED:
+  REQUIRE( v.ecology().getLoopFilterMode(l) == p.ecologyLoopFilterMode[l] )
+with expansion:
+  0 == 0
+with messages:
+  slot 4
+  loop 4
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1010): PASSED:
+  REQUIRE( v.ecology().getLoopFilterMode(l) == p.ecologyLoopFilterMode[l] )
+with expansion:
+  0 == 0
+with messages:
+  slot 4
+  loop 5
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(992): PASSED:
+  REQUIRE( v.getStereoSpread() == p.stereoSpread )
+with expansion:
+  0.45f == 0.45f
+with message:
+  slot 5
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(993): PASSED:
+  REQUIRE( v.cloud().getSpectralGravity() == p.cloudSpectralGravity )
+with expansion:
+  0.1f == 0.1f
+with message:
+  slot 5
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(994): PASSED:
+  REQUIRE( v.getBodyMaterialA() == p.bodyMaterialA )
+with expansion:
+  5 == 5
+with message:
+  slot 5
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(995): PASSED:
+  REQUIRE( v.getBodyMaterialB() == p.bodyMaterialB )
+with expansion:
+  6 == 6
+with message:
+  slot 5
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(999): PASSED:
+  REQUIRE( v.noise().getSourceModel(s) == p.noiseModel[s] )
+with expansion:
+  1 == 1
+with messages:
+  slot 5
+  noise slot 0
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1001): PASSED:
+  REQUIRE( v.noise().getSourceNoiseType(s) == vpEffectiveType(p.noiseModel[s], p.noiseType[s]) )
+with expansion:
+  5 == 5
+with messages:
+  slot 5
+  noise slot 0
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1003): PASSED:
+  REQUIRE( v.noise().getCombFundamental(s) == p.noiseCombFundamentalHz[s] )
+with expansion:
+  60.0f == 60.0f
+with messages:
+  slot 5
+  noise slot 0
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1004): PASSED:
+  REQUIRE( v.noise().getCombSpread(s) == p.noiseCombSpread[s] )
+with expansion:
+  0.35f == 0.35f
+with messages:
+  slot 5
+  noise slot 0
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1005): PASSED:
+  REQUIRE( v.noise().getCombFeedback(s) == p.noiseCombFeedback[s] )
+with expansion:
+  0.55f == 0.55f
+with messages:
+  slot 5
+  noise slot 0
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(999): PASSED:
+  REQUIRE( v.noise().getSourceModel(s) == p.noiseModel[s] )
+with expansion:
+  2 == 2
+with messages:
+  slot 5
+  noise slot 1
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1001): PASSED:
+  REQUIRE( v.noise().getSourceNoiseType(s) == vpEffectiveType(p.noiseModel[s], p.noiseType[s]) )
+with expansion:
+  '\t' == '\t'
+with messages:
+  slot 5
+  noise slot 1
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1003): PASSED:
+  REQUIRE( v.noise().getCombFundamental(s) == p.noiseCombFundamentalHz[s] )
+with expansion:
+  60.0f == 60.0f
+with messages:
+  slot 5
+  noise slot 1
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1004): PASSED:
+  REQUIRE( v.noise().getCombSpread(s) == p.noiseCombSpread[s] )
+with expansion:
+  0.35f == 0.35f
+with messages:
+  slot 5
+  noise slot 1
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1005): PASSED:
+  REQUIRE( v.noise().getCombFeedback(s) == p.noiseCombFeedback[s] )
+with expansion:
+  0.55f == 0.55f
+with messages:
+  slot 5
+  noise slot 1
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(999): PASSED:
+  REQUIRE( v.noise().getSourceModel(s) == p.noiseModel[s] )
+with expansion:
+  0 == 0
+with messages:
+  slot 5
+  noise slot 2
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1001): PASSED:
+  REQUIRE( v.noise().getSourceNoiseType(s) == vpEffectiveType(p.noiseModel[s], p.noiseType[s]) )
+with expansion:
+  5 == 5
+with messages:
+  slot 5
+  noise slot 2
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1003): PASSED:
+  REQUIRE( v.noise().getCombFundamental(s) == p.noiseCombFundamentalHz[s] )
+with expansion:
+  60.0f == 60.0f
+with messages:
+  slot 5
+  noise slot 2
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1004): PASSED:
+  REQUIRE( v.noise().getCombSpread(s) == p.noiseCombSpread[s] )
+with expansion:
+  0.35f == 0.35f
+with messages:
+  slot 5
+  noise slot 2
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1005): PASSED:
+  REQUIRE( v.noise().getCombFeedback(s) == p.noiseCombFeedback[s] )
+with expansion:
+  0.55f == 0.55f
+with messages:
+  slot 5
+  noise slot 2
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(999): PASSED:
+  REQUIRE( v.noise().getSourceModel(s) == p.noiseModel[s] )
+with expansion:
+  3 == 3
+with messages:
+  slot 5
+  noise slot 3
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1001): PASSED:
+  REQUIRE( v.noise().getSourceNoiseType(s) == vpEffectiveType(p.noiseModel[s], p.noiseType[s]) )
+with expansion:
+  6 == 6
+with messages:
+  slot 5
+  noise slot 3
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1003): PASSED:
+  REQUIRE( v.noise().getCombFundamental(s) == p.noiseCombFundamentalHz[s] )
+with expansion:
+  60.0f == 60.0f
+with messages:
+  slot 5
+  noise slot 3
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1004): PASSED:
+  REQUIRE( v.noise().getCombSpread(s) == p.noiseCombSpread[s] )
+with expansion:
+  0.35f == 0.35f
+with messages:
+  slot 5
+  noise slot 3
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1005): PASSED:
+  REQUIRE( v.noise().getCombFeedback(s) == p.noiseCombFeedback[s] )
+with expansion:
+  0.75f == 0.75f
+with messages:
+  slot 5
+  noise slot 3
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1007): PASSED:
+  REQUIRE( v.resonance().getAnchorMode() == p.resonanceAnchorMode )
+with expansion:
+  2 == 2
+with message:
+  slot 5
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1010): PASSED:
+  REQUIRE( v.ecology().getLoopFilterMode(l) == p.ecologyLoopFilterMode[l] )
+with expansion:
+  0 == 0
+with messages:
+  slot 5
+  loop 0
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1010): PASSED:
+  REQUIRE( v.ecology().getLoopFilterMode(l) == p.ecologyLoopFilterMode[l] )
+with expansion:
+  0 == 0
+with messages:
+  slot 5
+  loop 1
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1010): PASSED:
+  REQUIRE( v.ecology().getLoopFilterMode(l) == p.ecologyLoopFilterMode[l] )
+with expansion:
+  0 == 0
+with messages:
+  slot 5
+  loop 2
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1010): PASSED:
+  REQUIRE( v.ecology().getLoopFilterMode(l) == p.ecologyLoopFilterMode[l] )
+with expansion:
+  0 == 0
+with messages:
+  slot 5
+  loop 3
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1010): PASSED:
+  REQUIRE( v.ecology().getLoopFilterMode(l) == p.ecologyLoopFilterMode[l] )
+with expansion:
+  0 == 0
+with messages:
+  slot 5
+  loop 4
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1010): PASSED:
+  REQUIRE( v.ecology().getLoopFilterMode(l) == p.ecologyLoopFilterMode[l] )
+with expansion:
+  0 == 0
+with messages:
+  slot 5
+  loop 5
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1080): PASSED:
+  REQUIRE( maxL <= 1e-6f )
+with expansion:
+  0.0f <= 0.0f
+with message:
+  max-abs diff L 0  R 0
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_param_surface_test.cpp(1081): PASSED:
+  REQUIRE( maxR <= 1e-6f )
+with expansion:
+  0.0f <= 0.0f
+with message:
+  max-abs diff L 0  R 0
+
+10.246 s: VoragoEngine_ApplyVoiceParamsDefaultIsNoOp
+===============================================================================
+All tests passed (188 assertions in 1 test case)
+

@@ -1,0 +1,106 @@
+START 2026-10-04 01:13:45 SweepAxes + NoZipper, arm ghost12_span0_tide025 (B-13 rows compiled) | kBloomChildGain = 1.5f kEcologyWetMakeupDb = 30.0f kBreathGravityLaneGain = 3.0f kTidalRate = 0.25f kGhostBurstPeak = 0.60f kGhostDensitySpan = 0.0f kGhostTapMakeupDb = 12.0f fogRowBase=0.60f exe=2026-10-04 01:13:42
+Filters: "VoragoMacro_NoZipper","VoragoMacro_SweepAxes"
+Randomness seeded to: 93457230
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+VoragoMacro_SweepAxes
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1211)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1289): 
+warning:
+  SC-008 macro sweeps (3 seeds x 5 points x 60 s; window [10 s, 60 s] = samples
+  [480000, 2880000); C1 unless the row says @C3 / @C4; Life renders 210.0000 s
+  and counts edges over [90.0000 s, 210.0000 s])
+    Darkness  energy >4f0 rel. <4f0 (dB)  rho=-0.9667  endpoint=5.4950  [-53.
+  9110, -55.7457, -57.2871, -58.5330, -59.4061]
+    Age       HF energy > 4 kHz (dB) @C4  rho=-1.0000  endpoint=2.4201  [-107.
+  5083, -108.6462, -109.3466, -109.7330, -109.9285]
+    Density   partials + awake sources  rho=1.0000  endpoint=2.1578  [19.9507,
+  26.9507, 37.0000, 48.0000, 63.0000]
+    Movement  per-band total variation  rho=0.5000  endpoint=0.0877  [1.6888,
+  1.7364, 1.8391, 1.8944, 1.8368]
+    Gravity   mean |log2(ratio) - int|  rho=-1.0000  endpoint=0.6465  [0.2686,
+  0.2558, 0.2396, 0.1617, 0.0950]
+    Entropy   spectral flatness [f0, 20 f0]  rho=0.8667  endpoint=13.6478  [0.
+  0000, 0.0000, 0.0000, 0.0000, 0.0000]
+    Pressure  crest factor (dB)  rho=-1.0000  endpoint=4.4493  [9.8302, 9.3192,
+  8.2653, 6.8516, 5.3808]
+    Weight    energy < 80 Hz (dB) @C3  rho=1.0000  endpoint=7.8275  [-21.4534,
+  -19.3633, -17.4006, -15.5011, -13.6260]
+    Fog       spectral flatness [f0, 20 f0]  rho=0.9667  endpoint=3.5852  [0.
+  0000, 0.0000, 0.0000, 0.0000, 0.0000]
+    Life      wake/sleep edges per min [90 s, 210 s]  rho=1.0000  endpoint=14.
+  6667  [1.5000, 6.8333, 12.6667, 16.8333, 22.0000]
+    Mass      energy < 80 Hz (dB) @C3  rho=1.0000  endpoint=3.9501  [-21.4534,
+  -20.3384, -19.2104, -18.2238, -17.5033]
+    all-macros-at-zero broadband RMS = -15.5188 dBFS
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1319): FAILED:
+  CHECK( result.endpoint >= row.threshold )
+with expansion:
+  5.4950339673 >= 6.0
+with message:
+  Darkness  energy >4f0 rel. <4f0 (dB)  rho=-0.966667  endpoint=5.49503
+  threshold=6
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1319): FAILED:
+  CHECK( result.endpoint >= row.threshold )
+with expansion:
+  2.420126516 >= 3.0
+with message:
+  Age       HF energy > 4 kHz (dB) @C4  rho=-1  endpoint=2.42013  threshold=3
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1318): FAILED:
+  CHECK( (result.rho * expectedRhoSign(row.kind)) >= 0.9 )
+with expansion:
+  0.5 >= 0.9
+with message:
+  Movement  per-band total variation  rho=0.5  endpoint=0.087676  threshold=0.2
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1319): FAILED:
+  CHECK( result.endpoint >= row.threshold )
+with expansion:
+  0.0876760224 >= 0.2
+with message:
+  Movement  per-band total variation  rho=0.5  endpoint=0.087676  threshold=0.2
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1318): FAILED:
+  CHECK( (result.rho * expectedRhoSign(row.kind)) >= 0.9 )
+with expansion:
+  0.8666666667 >= 0.9
+with message:
+  Entropy   spectral flatness [f0, 20 f0]  rho=0.866667  endpoint=13.6478
+  threshold=0.25
+
+-------------------------------------------------------------------------------
+VoragoMacro_NoZipper
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1514)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_macro_test.cpp(1580): warning:
+  SC-010 zipper statistic (20 ms window; reference 64 ms clear of the ramp)
+    macro 0  ramp=3.2135e-03  reference=3.2903e-03  ratio=9.7665e-01
+    macro 1  ramp=3.1248e-03  reference=3.2861e-03  ratio=9.5093e-01
+    macro 2  ramp=2.8515e-03  reference=2.1651e-03  ratio=1.3170e+00
+    macro 3  ramp=3.0628e-03  reference=3.5806e-03  ratio=8.5539e-01
+    macro 4  ramp=4.0186e-03  reference=3.4960e-03  ratio=1.1495e+00
+    macro 5  ramp=2.2480e-03  reference=2.1248e-03  ratio=1.0580e+00
+    macro 6  ramp=2.7798e-03  reference=2.9316e-03  ratio=9.4822e-01
+    macro 7  ramp=3.4309e-03  reference=3.6097e-03  ratio=9.5047e-01
+    macro 8  ramp=3.1338e-03  reference=3.9179e-03  ratio=7.9986e-01
+    macro 9  ramp=3.0406e-03  reference=3.1836e-03  ratio=9.5508e-01
+    macro 10  ramp=3.0455e-03  reference=3.1400e-03  ratio=9.6992e-01
+    macro 11  ramp=3.0570e-03  reference=2.6576e-03  ratio=1.1503e+00
+
+===============================================================================
+test cases:  2 |  1 passed | 1 failed
+assertions: 62 | 57 passed | 5 failed
+
+exit=5 END 2026-10-04 01:45:22

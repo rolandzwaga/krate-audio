@@ -1,0 +1,8 @@
+=== T048 re-author batch 10 started 2026-10-06 13:41:13 ===
+FL_G takes (Feeding Loops) [1500=0,1300=0,500=1.0,800=0.650515]:  primary d 8.4786 -> PASS | levels: arms [y n n y] arm1@44.1k [y]| d: 0 d 8.4786 1 d 11.7628 2 d 10.7136 3 d 8.6454  arm1: -25.36 dB [yes] -25.36 dB [yes] -50.05 dB [yes] -64.53 dB [yes] -63.56 dB [yes] 
+FL_G -6 dB:  primary d 8.4786 -> PASS 
+FL_G secondaries: 
+FL_H takes (Feeding Loops) [1500=0,1300=0,500=1.0,501=0.55,800=0.650515]:  primary d 8.4792 -> PASS | levels: arms [y n n y] arm1@44.1k [y]| d: 0 d 8.4792 1 d 11.7599 2 d 10.7111 3 d 8.6467  arm1: -25.40 dB [yes] -25.40 dB [yes] -49.24 dB [yes] -64.53 dB [yes] -63.56 dB [yes] 
+FL_H -6 dB:  primary d 8.4792 -> PASS 
+FL_H secondaries: 
+=== batch 10 finished 2026-10-06 14:32:38 ===

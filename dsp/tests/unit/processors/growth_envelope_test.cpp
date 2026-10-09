@@ -561,3 +561,53 @@ TEST_CASE("GrowthEnvelope_EdgeCases", "[processors][growth_envelope][seraphis]")
         REQUIRE(env.getCurrentValue() <= 1.0f);
     }
 }
+
+// =============================================================================
+// Per-instance duration ceiling (Vorago Phase 10 append; default-inert)
+// =============================================================================
+
+TEST_CASE("GrowthEnvelope: per-instance duration ceiling is default-inert and raisable",
+          "[growth][vorago]") {
+    GrowthEnvelope env;
+    env.prepare(48000.0);
+
+    SECTION("default ceiling is the shipped constant and still clamps") {
+        REQUIRE(env.getMaxDuration() == GrowthEnvelope::kMaxDuration);
+        env.setDuration(120.0f);
+        REQUIRE(env.getDuration() == GrowthEnvelope::kMaxDuration);
+    }
+
+    SECTION("a raised ceiling lets a later setDuration through") {
+        env.setMaxDuration(120.0f);
+        REQUIRE(env.getMaxDuration() == 120.0f);
+        env.setDuration(120.0f);
+        REQUIRE(env.getDuration() == 120.0f);
+        env.setDuration(500.0f);  // still clamped, at the raised ceiling
+        REQUIRE(env.getDuration() == 120.0f);
+    }
+
+    SECTION("NaN is ignored and the ceiling floors at kMinDuration") {
+        env.setMaxDuration(90.0f);
+        // Quiet-NaN bit pattern routed through a volatile read so -ffast-math
+        // cannot fold it away (see isFiniteValue above).
+        volatile std::uint32_t bits = 0x7FC00000u;
+        const std::uint32_t observed = bits;
+        float nanValue = 0.0f;
+        std::memcpy(&nanValue, &observed, sizeof(nanValue));
+        env.setMaxDuration(nanValue);
+        REQUIRE(env.getMaxDuration() == 90.0f);
+        env.setMaxDuration(0.1f);
+        REQUIRE(env.getMaxDuration() == GrowthEnvelope::kMinDuration);
+    }
+
+    SECTION("a 120 s rise is at its logistic midpoint after 60 s") {
+        env.setMaxDuration(120.0f);
+        env.setDuration(120.0f);
+        env.trigger();
+        const size_t blocks = static_cast<size_t>(60.0 * 48000.0) / kBlock;
+        for (size_t b = 0; b < blocks; ++b) env.processBlock(kBlock);
+        // A 60 s-clamped rise would be complete (>= 0.9999) here.
+        REQUIRE(env.getCurrentValue() > 0.35f);
+        REQUIRE(env.getCurrentValue() < 0.65f);
+    }
+}

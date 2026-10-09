@@ -1,0 +1,7 @@
+START 2026-10-02 21:25:41 breath gain 3.0 verify set (LifeModulatorLanes re-spec, LifeLaneDepthZero) exe=2026-10-02 21:24:38
+Filters: "VoragoVoice_LifeModulatorLanes","VoragoVoice_LifeLaneDepthZero"
+Randomness seeded to: 2640712921
+===============================================================================
+All tests passed (28 assertions in 2 test cases)
+
+exit=0 END 2026-10-02 21:25:41

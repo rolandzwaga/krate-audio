@@ -1,0 +1,7 @@
+=== B-13 ruled rows started 2026-10-04 00:43:19 rows=kNumRows = 50 diff=0 ===
+2026-10-04 00:44:24 build: exit=0 warnings=0 rows=kNumRows = 51
+neutral exit=0 All tests passed (104 assertions in 1 test case)
+M9 (Fogbound):  primary d 4.4115 bar 4.0000 attribBase -1.0000 state ok -> PASS lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+M12 (Monolith):  primary d 5.7413 bar 4.0000 attribBase -1.0000 state ok -> PASS lever: none| levels: arms [y y y y] arm1@44.1k [y]|
+suite: test cases:    1425 |    1424 passed | 1 failed | F:\projects\iterum\dsp\tests\unit\systems\vorago_ghost_ext_test.cpp(507): FAILED: 
+=== B-13 ruled rows finished 2026-10-04 01:11:12 ===

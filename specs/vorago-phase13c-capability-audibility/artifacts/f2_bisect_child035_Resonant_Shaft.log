@@ -1,0 +1,13 @@
+START 2026-10-04 21:00:42 Resonant Shaft VORAGO_PILOT_LEVER=childGain=0.35 (final tree) exe=2026-10-04 09:54:11
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 3724753741
+[probe] lever: childGain=0.35
+[probe] Resonant Shaft - primary S2 resonance drift (stored seed 3, 1 twin render(s))
+  take: peak 0.9661  arm1 hi -8.73 dB [yes]  arm2 lo -25.13 dB [yes]  arm3 late-sus +8.87 dB [yes]  arm4 tail -223.85 dB [yes]
+  arm1@44.1k: finite y peak 0.4965 hi -16.20 dB [PASS]
+  primary d 3.9573  bar 4.0000  attribBase -1.0000  state ok  -> FAIL  lever: childGain=0.35
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (10 assertions in 1 test case)
+
+exit=0 END 2026-10-04 21:04:02

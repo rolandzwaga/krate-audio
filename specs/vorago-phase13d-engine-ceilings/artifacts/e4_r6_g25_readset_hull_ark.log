@@ -1,0 +1,14 @@
+START 2026-10-08 10:48:08 e4_r6_g25_readset shard tree=4a31e9a3+e4_r6_g25 kept VORAGO_PILOT_PRESET="Hull Ark" VORAGO_PILOT_SECONDARY=1 (per-preset read of the liveFor set, concurrent)
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 815703729
+[probe] lever: none
+[probe] Hull Ark - primary D1.8 material WoodenHull (stored seed 14, 2 twin render(s))
+  take: peak 0.4611  arm1 hi -18.18 dB [yes]  arm2 lo -20.29 dB [yes]  arm3 late-sus -0.02 dB [yes]  arm4 tail -189.20 dB [yes]
+  arm1@44.1k: finite y peak 0.4816 hi -17.76 dB [PASS]
+  conjunct S10 acoustic body: d 11.0353, bar 1.5 -> ok
+  primary d 6.5711  bar 4.0000  attribBase -1.0000  state ok  -> PASS  loopsAlive -  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (11 assertions in 1 test case)
+
+exit=0 END 2026-10-08 10:53:09

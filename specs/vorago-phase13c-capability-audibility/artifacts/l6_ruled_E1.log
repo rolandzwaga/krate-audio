@@ -1,0 +1,14 @@
+START 2026-10-02 23:13:16 Bloom Colony as compiled (kAttackShapePower = 4 kBreathGravityLaneGain = 3.0f kTidalFogLaneGain = 1.0f kTidalRate = 0.8f ; child gain 1.5, ghost 21/1.2, ecology 30/36; no lever env) exe=2026-10-02 22:11:55
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 4231322714
+[probe] lever: none
+[probe] Bloom Colony - primary E1 partial -> bloom (stored seed 0, 4 twin render(s))
+  take: peak 0.3345  arm1 hi -20.34 dB [yes]  arm2 lo -26.05 dB [yes]  arm3 late-sus +0.22 dB [yes]  arm4 tail -211.98 dB [yes]
+  arm1@44.1k: finite y peak 0.3565 hi -20.10 dB [PASS]
+  route arms: d(R_k, R_k0) 1.1823, attribBase d(R_0, R_00) 1.1035 (attributable iff d >= 2.6035)
+  primary d 1.1823  bar 4.0000  attribBase 1.1035  state ok  -> FAIL  lever: none
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (16 assertions in 1 test case)
+
+exit=0 END 2026-10-02 23:16:52

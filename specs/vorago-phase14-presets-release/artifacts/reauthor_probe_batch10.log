@@ -1,0 +1,52 @@
+master gain id 
+START 23:00:09
+== Resonant Shaft | 401=0.85,200=0.45,1105=0.3,=0.25
+[probe] override 401 = 0.850000 (replaced)
+[probe] override 200 = 0.450000 (replaced)
+[probe] override 1105 = 0.300000 (replaced)
+   23:00:09
+== Resonant Shaft | 401=0.85,200=0.45,1105=0.3,=0.3
+[probe] override 401 = 0.850000 (replaced)
+[probe] override 200 = 0.450000 (replaced)
+[probe] override 1105 = 0.300000 (replaced)
+   23:00:09
+== Stone Gravity | 600=0.25,401=0.5
+[probe] override 600 = 0.250000 (replaced)
+[probe] override 401 = 0.500000 (replaced)
+[probe] Stone Gravity - primary M5 Gravity (stored seed 1, 1 twin render(s))
+  take: peak 0.9661  arm1 hi -7.21 dB [yes]  arm2 lo -29.43 dB [yes]  arm3 late-sus +14.29 dB [NO]  arm4 tail -226.72 dB [yes]
+  primary d 3.2766  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+   23:01:29
+== Stone Gravity | 600=0.25,401=0.5,=0.25
+[probe] override 600 = 0.250000 (replaced)
+[probe] override 401 = 0.500000 (replaced)
+   23:01:30
+END 23:01:30
+START 23:02:02 (master gain id 0)
+== Resonant Shaft | 401=0.85,200=0.45,1105=0.3,0=0.25
+[probe] override 401 = 0.850000 (replaced)
+[probe] override 200 = 0.450000 (replaced)
+[probe] override 1105 = 0.300000 (replaced)
+[probe] override 0 = 0.250000 (appended)
+[probe] Resonant Shaft - primary S2 resonance drift (stored seed 3, 1 twin render(s))
+  take: peak 0.9661  arm1 hi -9.20 dB [yes]  arm2 lo -25.96 dB [yes]  arm3 late-sus +8.94 dB [yes]  arm4 tail -234.77 dB [yes]
+  primary d 4.1859  bar 4.0000  attribBase -1.0000  state ok  -> PASS
+   23:03:21
+== Resonant Shaft | 401=0.85,200=0.45,1105=0.3,0=0.3
+[probe] override 401 = 0.850000 (replaced)
+[probe] override 200 = 0.450000 (replaced)
+[probe] override 1105 = 0.300000 (replaced)
+[probe] override 0 = 0.300000 (appended)
+[probe] Resonant Shaft - primary S2 resonance drift (stored seed 3, 1 twin render(s))
+  take: peak 0.9661  arm1 hi -7.69 dB [yes]  arm2 lo -24.37 dB [yes]  arm3 late-sus +8.92 dB [yes]  arm4 tail -233.19 dB [yes]
+  primary d 4.1686  bar 4.0000  attribBase -1.0000  state ok  -> PASS
+   23:04:41
+== Stone Gravity | 600=0.25,401=0.5,0=0.25
+[probe] override 600 = 0.250000 (replaced)
+[probe] override 401 = 0.500000 (replaced)
+[probe] override 0 = 0.250000 (appended)
+[probe] Stone Gravity - primary M5 Gravity (stored seed 1, 1 twin render(s))
+  take: peak 0.6054  arm1 hi -13.14 dB [yes]  arm2 lo -35.45 dB [yes]  arm3 late-sus +14.38 dB [NO]  arm4 tail -232.74 dB [yes]
+  primary d 3.3463  bar 4.0000  attribBase -1.0000  state ok  -> FAIL
+   23:06:01
+END 23:06:01

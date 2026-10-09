@@ -1,0 +1,13 @@
+START 2026-10-04 20:37:48 Wind Through Basalt VORAGO_PILOT_LEVER=ghostTapDb=12 (final tree) exe=2026-10-04 09:54:11
+Filters: "Vorago_PresetPilot_PrimaryProbe"
+Randomness seeded to: 2991902219
+[probe] lever: ghostTapDb=12
+[probe] Wind Through Basalt - primary S1 noise organism (stored seed 2, 1 twin render(s))
+  take: peak 0.3154  arm1 hi -22.12 dB [yes]  arm2 lo -26.36 dB [yes]  arm3 late-sus +0.81 dB [yes]  arm4 tail -136.21 dB [yes]
+  arm1@44.1k: finite y peak 0.2898 hi -21.81 dB [PASS]
+  primary d 3.9602  bar 4.0000  attribBase -1.0000  state ok  -> FAIL  lever: ghostTapDb=12
+  levels: arms [y y y y] arm1@44.1k [y]
+===============================================================================
+All tests passed (10 assertions in 1 test case)
+
+exit=0 END 2026-10-04 20:40:59

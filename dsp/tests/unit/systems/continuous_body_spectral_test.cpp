@@ -195,11 +195,22 @@ constexpr std::array<float, 4> kResonanceGrid = {{0.2f, 0.5f, 0.8f, 1.0f}};
 // implementations cannot disagree").
 // =============================================================================
 
-/// All five materials, in BodyMaterial's own enumerator order, so an index into
-/// these arrays IS the enumerator value (`Glass = 0, Strings, MetalPlate,
-/// Chamber, Ice`, continuous_body.h:81) and a per-material result array can be
-/// indexed by `static_cast<std::size_t>(BodyMaterial::X)`.
-constexpr std::array<CB::BodyMaterial, CB::kNumMaterials> kAllMaterials = {{
+/// The five SERAPHIS materials, in BodyMaterial's own enumerator order, so an
+/// index into these arrays IS the enumerator value (`Glass = 0, Strings,
+/// MetalPlate, Chamber, Ice`, continuous_body.h:81) and a per-material result
+/// array can be indexed by `static_cast<std::size_t>(BodyMaterial::X)`.
+///
+/// Sized by `kNumSeraphisMaterials`, NOT by `kNumMaterials`. Vorago Phase 10
+/// appended six dark materials to `BodyMaterial` (`kNumMaterials == 11`), and
+/// FR-038a's rule is that Seraphis does not measure Vorago's materials: every
+/// threshold in this TU (SC-003's 0.02 driven floor, the 4x within-material
+/// ratio, the derived T60 table below) was measured over these five. The six
+/// appended materials are characterised by SC-015's own case
+/// (`ContinuousBody_DarkMaterialsSpectral`), not here. A `kNumMaterials`-sized
+/// array with five initialisers keeps COMPILING and zero-fills - six extra
+/// `Glass` entries and six null `const char*` - which is exactly the silent
+/// rot FR-038 describes.
+constexpr std::array<CB::BodyMaterial, CB::kNumSeraphisMaterials> kAllMaterials = {{
     CB::BodyMaterial::Glass,
     CB::BodyMaterial::Strings,
     CB::BodyMaterial::MetalPlate,
@@ -207,11 +218,17 @@ constexpr std::array<CB::BodyMaterial, CB::kNumMaterials> kAllMaterials = {{
     CB::BodyMaterial::Ice,
 }};
 
-constexpr std::array<const char*, CB::kNumMaterials> kAllNames = {
+constexpr std::array<const char*, CB::kNumSeraphisMaterials> kAllNames = {
     {"Glass", "Strings", "MetalPlate", "Chamber", "Ice"}};
 
 static_assert(static_cast<std::size_t>(CB::BodyMaterial::Glass) == 0, "index == enumerator");
 static_assert(static_cast<std::size_t>(CB::BodyMaterial::Ice) == 4, "index == enumerator");
+
+// The count itself is pinned, so appending a material can never again resize
+// these arrays under five initialisers without a build break (FR-038).
+static_assert(CB::kNumSeraphisMaterials == 5,
+              "SC-003 is measured over the five Seraphis materials");
+static_assert(kAllMaterials.size() == kAllNames.size(), "one name per material");
 
 // --- SC-003's excitation and windows -----------------------------------------
 
@@ -1173,8 +1190,8 @@ TEST_CASE("ContinuousBody_MaterialsDistinct")
 {
     using Krate::DSP::TestUtils::SignalMetrics::calculateSpectralFlatness;
 
-    std::array<std::vector<float>, CB::kNumMaterials> renderA{};
-    std::array<std::vector<float>, CB::kNumMaterials> profileA{};
+    std::array<std::vector<float>, CB::kNumSeraphisMaterials> renderA{};
+    std::array<std::vector<float>, CB::kNumSeraphisMaterials> profileA{};
 
     for (std::size_t m = 0; m < kAllMaterials.size(); ++m) {
         INFO("material = " << kAllNames[m]);
@@ -1226,9 +1243,9 @@ TEST_CASE("ContinuousBody_MaterialsDistinct")
     // MetalPlate/Chamber 6.96, Chamber/Ice 6.97, Glass/Strings 7.07,
     // Strings/Ice 7.29, Glass/MetalPlate 7.66, MetalPlate/Ice 7.80,
     // Strings/MetalPlate 8.59, Glass/Ice 11.82.
-    std::array<std::vector<float>, CB::kNumMaterials> ringA{};
-    std::array<std::vector<float>, CB::kNumMaterials> ringB{};
-    std::array<double, CB::kNumMaterials> within{};
+    std::array<std::vector<float>, CB::kNumSeraphisMaterials> ringA{};
+    std::array<std::vector<float>, CB::kNumSeraphisMaterials> ringB{};
+    std::array<double, CB::kNumSeraphisMaterials> within{};
 
     for (std::size_t m = 0; m < kAllMaterials.size(); ++m) {
         ringA[m] = averagedRingProfile(kAllMaterials[m], kSc003a1SeedsA);
@@ -1454,11 +1471,11 @@ TEST_CASE("ContinuousBody_MaterialCharacterOrdering")
         //   Chamber    2.50 /         2.09128  =  1.196 s
         //   Ice        6.91 / (0.60 * 2.09128) =  5.507 s
         constexpr float kOrderingResonance = 0.8f;
-        constexpr std::array<double, CB::kNumMaterials> kExpectedT60 = {
+        constexpr std::array<double, CB::kNumSeraphisMaterials> kExpectedT60 = {
             {6.61, 3.83, 11.0, 1.20, 5.51}};
         constexpr double kT60Tolerance = 0.15;
 
-        std::array<double, CB::kNumMaterials> measured{};
+        std::array<double, CB::kNumSeraphisMaterials> measured{};
         for (std::size_t m = 0; m < kAllMaterials.size(); ++m) {
             measured[m] = measureMaterialT60(kAllMaterials[m], kOrderingResonance, kSc003NoteHz);
             const double relative =
