@@ -1,0 +1,5 @@
+START 2026-10-09 04:56:38 node tools/run-cpu-tests.js vorago_tests (T051 / T056 final, alone, pinned, idle >= 15 min, tree 61fdc8fd)
+RUN  vorago_tests ... PASS  All tests passed (1655398 assertions in 6 test cases)
+
+1/1 suites passed.
+exit=0 END 2026-10-09 05:43:40

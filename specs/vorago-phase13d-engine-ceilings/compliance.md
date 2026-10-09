@@ -1,6 +1,6 @@
 # Phase 13d — Engine Ceilings: compliance
 
-Tree: `502e5243` base → final `25207073` (+ the T058 lane logs). Every row cites a log under `artifacts/` (line numbers where the log is long); figures are copied from the logs, not paraphrased. Verdicts: ✅ met · ☑ recorded by user ruling (`artifacts/rulings.md`) · ❌ not met · ⏳ pending the named lane.
+Tree: `502e5243` base → final `25207073` for every measurement (the later commits add records and the benchmark alignment `dcbe7b83`, no Vorago code). Every row cites a log under `artifacts/` (line numbers where the log is long); figures are copied from the logs, not paraphrased. Verdicts: ✅ met · ☑ recorded by user ruling (`artifacts/rulings.md`) · ❌ not met (no row is pending).
 
 ## 1. Outcome in one paragraph
 
@@ -43,10 +43,10 @@ Four engine levers were measured on the roster: E4 (feedback → loop wake) ship
 | FR-030b secondaries / default-state | ✅ | Same comparison: every sweep-5 S / v cell on a live preset verified (0 sunk); D10.1 Cathedral Void by the gesture case (`e4_r6_g25_d101_gesture.log` pass yes); default pseudo-preset verified in the aggregate (`sweep6b_aggregate.log`, record_42). |
 | FR-031 Phase 10 bounds | ✅ / ☑ | `final_nozipper.log` 24 / 24; `final_sweepaxes.log` every base-passing assertion passes (the one FAILED is the Movement rho, red at base); soaks green in `close-lanes/long_dsp_systems_tests.log` (41 / 42; the single red at :1140 is the ruled Movement rho). |
 | FR-032 13b / 13c gates | ✅ | GATE1M 0.995 / 0.630 (`final_gate1_*.log`); counting knobs still count (`final_gate2_table_*.log`: leakRate 1.376 / 0.597, syncRate 0.877 at default); 13c tests unedited except FR-034 entries (`git_diff_names.txt`, `fr034_surfaced.md`). |
-| FR-033 CPU | ⏳ | T051: `cpu_final_dsp.log`, `cpu_final_vorago.log`, `cpu_ab_final.log` — runs alone after the close lanes. |
+| FR-033 CPU | ✅ | Vorago gate on the final binary (`cpu_final_dsp_systems_tests_full.log:3044-3050`): `VoragoEngine_CpuBudget` clause (i) 2.64795e+06 ≤ 3.2e+06 ns/block (82.7486 % of the reference; base lane 3.10765e6 = 97.114 %), clause (ii) 2.52346e+06 ≤ 4.04172e+06 (93.6529 % of the baseline; base 2.98315e6 = 110.713 %), headroom 1.14141×. `cpu_final_vorago_tests_full.log`: `Vorago_ProcessorCpu` P/D 0.937663 ≤ 1.05 (:22; base 0.960344), PF/D 0.980122 (:32); `Vorago_PresetCpu` worst preset Crowded Dark 1.12642 ≤ 1.15 (:635, :643; base worst Entropic Hum 1.1056), default surface 2584102 ns/block = 0.8075 × kReferenceNs; the vorago lane green (6 cases). Alternating pinned A/B (`cpu_ab_final.log`, two rounds, 60 s settle): clause (i) base 2.68546e6 / 2.48095e6 vs final 2.52367e6 / 2.53631e6 ns/block (final −6.0 % / +2.2 %; the spread between the two base runs is 8.2 %, so the delta is inside the machine's own noise); ProcessorCpu P/D base 1.00637 / 1.02897 vs final 1.00562 / 0.959427. No budget changed. |
 | FR-034 suites | ✅ / ☑ | `summary.txt`: eight per-push suites rc=0, long_vorago_nonsweep rc=0, long_dsp_systems_tests 41 / 42 with the ruled Movement rho the only red (`close-lanes/long_dsp_systems_tests.log:1140`); edited tests only under `fr034_surfaced.md` entries 2, 6, 7. |
 | FR-035 fingerprints | ✅ | `final_ghost_harvest_1.log`, `_2.log`: `VoragoEngine_GhostExtensionWiring` green twice (27 assertions), no literal emitted → unchanged fingerprint, no re-harvest. |
-| FR-036 cross-cutting | ✅ / ⏳ | `portability.log` "all clear -- 6 compiled"; clang-tidy dsp 372 / vorago 57 files 0 warnings (T058 note); `pluginval.log` strictness 5 exit 0, no FAILED. |
+| FR-036 cross-cutting | ✅ | `portability.log` "all clear -- 6 compiled"; clang-tidy dsp 372 / vorago 57 files 0 warnings (T058 note); `pluginval.log` strictness 5 exit 0, no FAILED. |
 | FR-037 Seraphis untouched | ✅ | `git_diff_names.txt`: 0 forbidden paths (444 files, none under `plugins/seraphis/` or the named headers); `close-lanes/suite_seraphis_tests.log:331` "All tests passed (444660 assertions in 109 test cases)". |
 | FR-038 ODR | ✅ | `odr_sweep.txt` (T001) and no new class added (T057 `cmake_check.txt`: no new files). |
 | FR-039 surface unchanged | ✅ | `param_table_test.cpp` (5 cases, e.g. Vorago_ParamIdMap, Vorago_ParamMapping), `state_v2_test.cpp` (Vorago_StateRoundTripV2) and `state_v3_test.cpp` (6 cases, e.g. Vorago_StateRoundTripV3) ran unedited in the per-push lane: `close-lanes/suite_vorago_tests.log:250` "All tests passed (4060395 assertions in 119 test cases)"; no `plugin_ids.h` / parameter file in `git_diff_names.txt`. |
@@ -54,10 +54,10 @@ Four engine levers were measured on the roster: E4 (feedback → loop wake) ship
 | FR-041 showcase subsets | ✅ | `sweep6b_aggregate.log:2199` "SUBSET pairs: 0" (before 51). |
 | FR-042 shards + aggregate | ✅ | `sweep6_records_check.log` 43 OK; 42 shards `sweep6_shard_<i>.log` + `sweep6b_shard_9.log`; `sweep6b_aggregate.log` reads back the records; shard vs probe 98 cells, 0 gaps > 0.01 (T055 note). |
 | FR-043 T063 re-read | ✅ | `t063_reread.md` (14 rows + out-of-roster secondaries, each with its aggregate / shard line). |
-| FR-044 preset CPU | ⏳ | `cpu_presets_final.log` (T056, alone). |
+| FR-044 preset CPU | ✅ | `cpu_presets_final.log:635` "worst preset: Crowded Dark  ratio 1.1264 (gate <= 1.15)". |
 | FR-050 lever table | ✅ | `artifacts/lever_table.md`: every row with mechanisms, before, every rung → reading → log, ruled value, after (final-tree section), override string, re-open count. |
 | FR-051 default-render change | ✅ | §5 below. |
-| FR-052 CPU delta | ⏳ | §6 below, from `cpu_ab_final.log`. |
+| FR-052 CPU delta | ✅ | §6 below and the CPU section of `lever_table.md`. |
 | FR-053 rulings log | ✅ | `artifacts/rulings.md`: one line per ladder, adoption and user ruling (E1, W2, E6/E7, M5, M4 / rho, combine, Hull 0.90, FR-041 re-authors). |
 
 ## 3. Success criteria
@@ -78,7 +78,7 @@ Four engine levers were measured on the roster: E4 (feedback → loop wake) ship
 | SC-012 macro neutrality | ✅ | `combo_neutral.log` `VoragoMacro_NeutralIsIdentity` 104 assertions green; every build 0 warnings (`build_final.log`). |
 | SC-013 lever neutrality | ✅ | `VoragoVoice_EcosystemLeverNeutral` and `VoragoVoice_RouteLeverZeroAtZeroLane` green unedited (`e4_shipped_contracts.log`, `combo_perpush_dsp_systems.log`; `fr034_surfaced.md` entry 3 unapplied). |
 | SC-014 boundedness | ✅ | `VoragoEngine_CapabilityLeverBounded` (listed by `dsp_systems_tests --list-tests`) in the per-push lane: `close-lanes/suite_dsp_systems_tests.log:1480` "All tests passed (6069572 assertions in 1430 test cases)" on the final binary (W2 2.5 and the macro rows in place). |
-| SC-015 CPU | ⏳ | T051 / T056 logs. |
+| SC-015 CPU | ✅ | CpuBudget (i) 2.64795e6 ≤ 3.2e6, (ii) 2.52346e6 ≤ 4.04172e6 (`cpu_final_dsp_systems_tests_full.log:3047-3048`); ProcessorCpu P/D 0.937663 ≤ 1.05; PresetCpu worst 1.12642 ≤ 1.15; delta in §6. The lane's non-Vorago red: on the final binary the benchmark read SIMD/scalar 0.599 / 0.632 / 0.605 / 0.632 (four runs, stable red) against 1.072 / 0.979 / 0.932 on the base binary, alternating, with identical kernel object code (`sympathetic_resonance_simd.cpp` untouched since 502e5243; `git_diff_names.txt`). The kernel loads its state with `LoadU` from 4-byte-aligned stack arrays (`sympathetic_resonance_simd.cpp:71-80`), so the benchmark measured the frame layout, not the kernel. User ruling 2026-10-09 ("investigate now"): the nine benchmark arrays are `alignas(64)` (`sympathetic_resonance_test.cpp:2465-2538`, a test-only edit outside the Vorago tree, committed separately); rebuilt, the final binary reads 0.617 / 1.008 / 1.000 / 1.021 / 1.003 / 0.850 and the base 1.019 / 0.956 — the systematic 0.6 is gone and the remaining ±15 % flips on both binaries are the machine (the runner rule: a verdict that flips between runs measures the machine). Not a 13d regression; the Vorago gate is unaffected. |
 | SC-016 determinism | ✅ | `Vorago_PresetSweep_RendersAreReproducible` in every `sweep6_shard_<i>.log` (34 shards "All tests passed"; the 8 non-zero shards fail only the ablation / long-render CHECKs named in T055); `VoragoEngine_SlotSeedReproducibility` in `close-lanes/suite_dsp_systems_tests.log:1480` (all 1430 cases passed). |
 | SC-017 fingerprint re-harvest | ✅ | No fingerprint moved (`final_ghost_harvest_{1,2}.log` green). |
 | SC-018 regression suites | ✅ / ☑ | `summary.txt`: 9 of 10 lanes rc=0; long_dsp_systems_tests 41 / 42 (ruled Movement rho). |
@@ -107,4 +107,11 @@ See `artifacts/lever_table.md` (FR-050), including the "Final-tree readings" sec
 
 ## 6. CPU delta (FR-052)
 
-⏳ filled from `cpu_final_dsp.log`, `cpu_final_vorago.log` and `cpu_ab_final.log` (T051 / T056).
+| clause | base | final | A/B base → final | delta |
+|---|---|---|---|---|
+| CpuBudget (i) ns/block | 3.10765e6 | 2.64795e6 | 2.68546e6 / 2.48095e6 → 2.52367e6 / 2.53631e6 | −6.0 % / +2.2 % (base-to-base spread 8.2 %) |
+| CpuBudget (ii) ns/block | 2.98315e6 | 2.52346e6 | — | −15.4 % lane to lane |
+| ProcessorCpu P/D | 0.960344 | 0.937663 | 1.00637 / 1.02897 → 1.00562 / 0.959427 | within noise |
+| PresetCpu worst | 1.1056 (Entropic Hum) | 1.12642 (Crowded Dark) | — | +1.9 % |
+
+Logs: `cpu_final_dsp.log` (+ `_full`), `cpu_final_vorago.log` (+ `_full`), `cpu_ab_final.log`, `cpu_final_rerun_alone.log`. on the final binary the benchmark read SIMD/scalar 0.599 / 0.632 / 0.605 / 0.632 (four runs, stable red) against 1.072 / 0.979 / 0.932 on the base binary, alternating, with identical kernel object code (`sympathetic_resonance_simd.cpp` untouched since 502e5243; `git_diff_names.txt`). The kernel loads its state with `LoadU` from 4-byte-aligned stack arrays (`sympathetic_resonance_simd.cpp:71-80`), so the benchmark measured the frame layout, not the kernel. User ruling 2026-10-09 ("investigate now"): the nine benchmark arrays are `alignas(64)` (`sympathetic_resonance_test.cpp:2465-2538`, a test-only edit outside the Vorago tree, committed separately); rebuilt, the final binary reads 0.617 / 1.008 / 1.000 / 1.021 / 1.003 / 0.850 and the base 1.019 / 0.956 — the systematic 0.6 is gone and the remaining ±15 % flips on both binaries are the machine (the runner rule: a verdict that flips between runs measures the machine). Not a 13d regression; the Vorago gate is unaffected.
