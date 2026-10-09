@@ -143,15 +143,19 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Cache apt packages
-        uses: awalsh128/cache-apt-pkgs-action@v1
-        with:
-          packages: >-
-            valgrind ninja-build libx11-dev libxcb1-dev libxkbcommon-x11-dev libx11-xcb-dev
-            libxcb-util1 libxcb-util-dev libxcb-keysyms1-dev libxcb-cursor-dev
-            libxcb-xkb-dev libxkbcommon-dev libfontconfig1-dev libfreetype6-dev
+      # Direct apt install, not awalsh128/cache-apt-pkgs-action: the action
+      # restored its cache and reported success while /usr/include/X11 was
+      # absent (CI build-linux and the Vorago 1.0.0 release both died on
+      # "Could NOT find X11").
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends \
+            valgrind ninja-build libx11-dev libxcb1-dev libxkbcommon-x11-dev libx11-xcb-dev \
+            libxcb-util1 libxcb-util-dev libxcb-keysyms1-dev libxcb-cursor-dev \
+            libxcb-xkb-dev libxkbcommon-dev libfontconfig1-dev libfreetype6-dev \
             libcairo2-dev libgtkmm-3.0-dev libsqlite3-dev
-          version: 1.0
+          test -f /usr/include/X11/Xlib.h || { echo "libx11-dev did not install"; exit 1; }
 
       - name: Setup ccache
         uses: hendrikmuhs/ccache-action@v1.2.20
@@ -239,15 +243,19 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Cache apt packages
-        uses: awalsh128/cache-apt-pkgs-action@v1
-        with:
-          packages: >-
-            valgrind ninja-build xvfb libx11-dev libxcb1-dev libxkbcommon-x11-dev libx11-xcb-dev
-            libxcb-util1 libxcb-util-dev libxcb-keysyms1-dev libxcb-cursor-dev
-            libxcb-xkb-dev libxkbcommon-dev libfontconfig1-dev libfreetype6-dev
+      # Direct apt install, not awalsh128/cache-apt-pkgs-action: the action
+      # restored its cache and reported success while /usr/include/X11 was
+      # absent (CI build-linux and the Vorago 1.0.0 release both died on
+      # "Could NOT find X11").
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends \
+            valgrind ninja-build xvfb libx11-dev libxcb1-dev libxkbcommon-x11-dev libx11-xcb-dev \
+            libxcb-util1 libxcb-util-dev libxcb-keysyms1-dev libxcb-cursor-dev \
+            libxcb-xkb-dev libxkbcommon-dev libfontconfig1-dev libfreetype6-dev \
             libcairo2-dev libgtkmm-3.0-dev libsqlite3-dev
-          version: 1.0
+          test -f /usr/include/X11/Xlib.h || { echo "libx11-dev did not install"; exit 1; }
 
       - name: Setup ccache
         uses: hendrikmuhs/ccache-action@v1.2.20

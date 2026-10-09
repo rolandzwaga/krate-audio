@@ -113,16 +113,20 @@ jobs:
         with:
           submodules: recursive
 
-      # Cache apt packages (same as CI Linux build)
-      - name: Cache apt packages
-        uses: awalsh128/cache-apt-pkgs-action@v1
-        with:
-          packages: >-
-            ninja-build libx11-dev libxcb1-dev libxkbcommon-x11-dev libx11-xcb-dev
-            libxcb-util1 libxcb-util-dev libxcb-keysyms1-dev libxcb-cursor-dev
-            libxcb-xkb-dev libxkbcommon-dev libfontconfig1-dev libfreetype6-dev
+      # Installed directly, not through awalsh128/cache-apt-pkgs-action: that
+      # action restored its cache and reported success while /usr/include/X11
+      # was absent, and the configure died on "Could NOT find X11" (same failure
+      # as the CI Linux build, fixed there in 2a0e594c; the Vorago 1.0.0
+      # release hit it here). Same package list as ci.yml's build-linux.
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends \
+            ninja-build libx11-dev libxcb1-dev libxkbcommon-x11-dev libx11-xcb-dev \
+            libxcb-util1 libxcb-util-dev libxcb-keysyms1-dev libxcb-cursor-dev \
+            libxcb-xkb-dev libxkbcommon-dev libfontconfig1-dev libfreetype6-dev \
             libcairo2-dev libgtkmm-3.0-dev libsqlite3-dev
-          version: 1.0
+          test -f /usr/include/X11/Xlib.h || { echo "libx11-dev did not install"; exit 1; }
 
       # Cache ccache data
       - name: Setup ccache
