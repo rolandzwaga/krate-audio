@@ -1,0 +1,2187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vorago User Manual - Dark-Ambient Drone Instrument | Krate Audio</title>
+    <meta name="description" content="Complete user manual for Vorago, a free open-source dark-ambient drone instrument VST3 plugin. Covers the twelve concept macros, the ecosystem and slow events, the harmonic cloud, noise organism, resonance network, feedback ecology, bodies, subharmonics, spectral smear, the cavern, and presets.">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://krateaudio.com/vorago/manual.html">
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="Vorago User Manual - Dark-Ambient Drone Instrument">
+    <meta property="og:description" content="Complete user manual for Vorago, a free open-source dark-ambient drone instrument VST3 plugin.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://krateaudio.com/vorago/manual.html">
+    <meta property="og:site_name" content="Krate Audio">
+    <meta property="og:locale" content="en_US">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Vorago User Manual">
+    <meta name="twitter:description" content="Complete user manual for Vorago, a free open-source dark-ambient drone instrument VST3 plugin.">
+
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Base — matches Vorago landing page */
+        :root {
+            --color-bg: #0a0a0f;
+            --color-surface: #12121a;
+            --color-border: #2a2a3a;
+            --color-text: #e8e8f0;
+            --color-text-muted: #8888a0;
+            --color-accent: #e0b458;
+            --color-accent-hover: #f0cc78;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--color-bg);
+            color: var(--color-text);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+
+        /* Layout */
+        .manual-container {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 3rem 2rem 4rem;
+        }
+
+        /* Header */
+        .manual-header {
+            text-align: center;
+            margin-bottom: 3rem;
+            padding-bottom: 2rem;
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        .manual-header .breadcrumb {
+            font-size: 0.875rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .manual-header .breadcrumb a {
+            color: var(--color-text-muted);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .manual-header .breadcrumb a:hover {
+            color: var(--color-accent);
+        }
+
+        .manual-header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--color-text) 0%, var(--color-accent) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .manual-header .subtitle {
+            color: var(--color-text-muted);
+            font-size: 1.1rem;
+        }
+
+        /* Table of contents */
+        #TOC {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: 12px;
+            padding: 1.5rem 2rem;
+            margin-bottom: 3rem;
+        }
+
+        #TOC > ul { list-style: none; }
+        #TOC ul { list-style: none; padding-left: 1.25rem; }
+        #TOC > ul > li { margin-bottom: 0.5rem; }
+        #TOC li { margin-bottom: 0.25rem; }
+
+        #TOC a {
+            color: var(--color-text);
+            text-decoration: none;
+            transition: color 0.2s;
+            font-size: 0.95rem;
+        }
+
+        #TOC a:hover { color: var(--color-accent); }
+        #TOC > ul > li > a { font-weight: 600; }
+
+        /* Headings */
+        h1 { font-size: 2rem; font-weight: 700; margin: 3rem 0 1rem; }
+        h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin: 3rem 0 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--color-border);
+            color: var(--color-text);
+        }
+        h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin: 2rem 0 0.75rem;
+            color: var(--color-accent-hover);
+        }
+        h4 { font-size: 1.05rem; font-weight: 600; margin: 1.5rem 0 0.5rem; }
+        h5 { font-size: 1rem; font-weight: 600; margin: 1.25rem 0 0.5rem; color: var(--color-text-muted); }
+
+        /* Paragraphs & text */
+        p { margin-bottom: 1rem; }
+        strong { font-weight: 600; }
+
+        a {
+            color: var(--color-accent);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+        a:hover { color: var(--color-accent-hover); }
+
+        /* Lists */
+        ul, ol {
+            margin-bottom: 1rem;
+            padding-left: 1.5rem;
+        }
+        li { margin-bottom: 0.35rem; }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 1.5rem;
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        thead {
+            background: rgba(224, 180, 88, 0.08);
+        }
+
+        th {
+            text-align: left;
+            padding: 0.75rem 1rem;
+            font-weight: 600;
+            font-size: 0.875rem;
+            color: var(--color-accent-hover);
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        td {
+            padding: 0.6rem 1rem;
+            font-size: 0.9rem;
+            border-bottom: 1px solid var(--color-border);
+            vertical-align: top;
+        }
+
+        tr:last-child td { border-bottom: none; }
+
+        /* Code */
+        code {
+            font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+            font-size: 0.85em;
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            padding: 0.125rem 0.375rem;
+            border-radius: 4px;
+        }
+
+        pre {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            padding: 1rem 1.25rem;
+            overflow-x: auto;
+            margin-bottom: 1.5rem;
+        }
+
+        pre code {
+            background: none;
+            border: none;
+            padding: 0;
+            font-size: 0.85rem;
+            line-height: 1.6;
+        }
+
+        /* Images */
+        img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            border: 1px solid var(--color-border);
+            margin: 1rem 0 1.5rem;
+            display: block;
+        }
+
+        /* Horizontal rules */
+        hr {
+            border: none;
+            border-top: 1px solid var(--color-border);
+            margin: 2.5rem 0;
+        }
+
+        /* Blockquotes (tips) */
+        blockquote {
+            border-left: 3px solid var(--color-accent);
+            padding: 0.75rem 1rem;
+            margin: 1rem 0 1.5rem;
+            background: rgba(224, 180, 88, 0.05);
+            border-radius: 0 8px 8px 0;
+        }
+
+        blockquote p { margin-bottom: 0; }
+
+        /* Footer */
+        .manual-footer {
+            text-align: center;
+            padding-top: 2rem;
+            margin-top: 3rem;
+            border-top: 1px solid var(--color-border);
+            color: var(--color-text-muted);
+            font-size: 0.875rem;
+        }
+
+        .manual-footer a {
+            color: var(--color-text);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .manual-footer a:hover { color: var(--color-accent); }
+
+        /* Responsive */
+        @media (max-width: 640px) {
+            .manual-container { padding: 2rem 1rem; }
+            .manual-header h1 { font-size: 2rem; }
+            h2 { font-size: 1.25rem; }
+            table { font-size: 0.85rem; }
+            th, td { padding: 0.5rem 0.75rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="manual-container">
+        <div class="manual-header">
+            <p class="breadcrumb">
+                <a href="../">Krate Audio</a> / <a href="./">Vorago</a>
+            </p>
+            <h1>Vorago — User Manual</h1>
+            <p class="subtitle">Dark-Ambient Drone Instrument</p>
+        </div>
+
+        <ul>
+        <li><a href="#introduction"
+        id="toc-introduction">Introduction</a></li>
+        <li><a href="#signal-flow" id="toc-signal-flow">Signal
+        Flow</a></li>
+        <li><a href="#interface-overview"
+        id="toc-interface-overview">Interface Overview</a></li>
+        <li><a href="#macros" id="toc-macros">Macros</a>
+        <ul>
+        <li><a
+        href="#darkness-darkens-the-cloud-tilt-the-smear-and-the-cavern"
+        id="toc-darkness-darkens-the-cloud-tilt-the-smear-and-the-cavern">Darkness
+        — <em>“Darkens the cloud tilt, the smear and the
+        cavern”</em></a></li>
+        <li><a
+        href="#age-wear-duller-cloud-more-body-damping-a-shorter-cavern-decay"
+        id="toc-age-wear-duller-cloud-more-body-damping-a-shorter-cavern-decay">Age
+        — <em>“Wear: duller cloud, more body damping, a shorter cavern
+        decay”</em></a></li>
+        <li><a
+        href="#density-richer-cloud-louder-and-more-reactive-noise-deeper-bloom"
+        id="toc-density-richer-cloud-louder-and-more-reactive-noise-deeper-bloom">Density
+        — <em>“Richer cloud, louder and more reactive noise, deeper
+        bloom”</em></a></li>
+        <li><a href="#movement-drift-wander-breathing-and-damper-motion"
+        id="toc-movement-drift-wander-breathing-and-damper-motion">Movement
+        — <em>“Drift, wander, breathing and damper motion”</em></a></li>
+        <li><a
+        href="#gravity-pulls-the-resonances-toward-the-harmonic-grid-bipolar"
+        id="toc-gravity-pulls-the-resonances-toward-the-harmonic-grid-bipolar">Gravity
+        — <em>“Pulls the resonances toward the harmonic grid”</em>
+        (bipolar)</a></li>
+        <li><a
+        href="#entropy-mutation-inharmonicity-decoherence-and-irregular-breathing"
+        id="toc-entropy-mutation-inharmonicity-decoherence-and-irregular-breathing">Entropy
+        — <em>“Mutation, inharmonicity, decoherence and irregular
+        breathing”</em></a></li>
+        <li><a
+        href="#pressure-ecology-feedback-output-drive-and-saturation"
+        id="toc-pressure-ecology-feedback-output-drive-and-saturation">Pressure
+        — <em>“Ecology feedback, output drive and
+        saturation”</em></a></li>
+        <li><a
+        href="#weight-sub-level-body-blend-and-damping-a-heavier-spectral-tilt"
+        id="toc-weight-sub-level-body-blend-and-damping-a-heavier-spectral-tilt">Weight
+        — <em>“Sub level, body blend and damping, a heavier spectral
+        tilt”</em></a></li>
+        <li><a
+        href="#fog-smear-ghosts-blur-tides-and-a-foggier-darker-cavern"
+        id="toc-fog-smear-ghosts-blur-tides-and-a-foggier-darker-cavern">Fog
+        — <em>“Smear, ghosts, blur, tides and a foggier, darker
+        cavern”</em></a></li>
+        <li><a
+        href="#life-ecosystem-depth-event-rate-and-bloom-spawning"
+        id="toc-life-ecosystem-depth-event-rate-and-bloom-spawning">Life
+        — <em>“Ecosystem depth, event rate and bloom
+        spawning”</em></a></li>
+        <li><a href="#depth-cavern-mix-size-decay-and-width"
+        id="toc-depth-cavern-mix-size-decay-and-width">Depth —
+        <em>“Cavern mix, size, decay and width”</em></a></li>
+        <li><a
+        href="#mass-body-and-resonator-level-body-resonance-and-sub-tracking"
+        id="toc-mass-body-and-resonator-level-body-resonance-and-sub-tracking">Mass
+        — <em>“Body and resonator level, body resonance and sub
+        tracking”</em></a></li>
+        </ul></li>
+        <li><a href="#header-controls" id="toc-header-controls">Header
+        Controls</a></li>
+        <li><a href="#the-cloud-page" id="toc-the-cloud-page">The Cloud
+        Page</a></li>
+        <li><a href="#the-noise-page" id="toc-the-noise-page">The Noise
+        Page</a></li>
+        <li><a href="#the-resonance-page"
+        id="toc-the-resonance-page">The Resonance Page</a></li>
+        <li><a href="#the-body-page" id="toc-the-body-page">The Body
+        Page</a></li>
+        <li><a href="#the-sub-smear-page"
+        id="toc-the-sub-smear-page">The Sub / Smear Page</a></li>
+        <li><a href="#the-space-page" id="toc-the-space-page">The Space
+        Page</a></li>
+        <li><a href="#the-life-page" id="toc-the-life-page">The Life
+        Page</a></li>
+        <li><a href="#presets" id="toc-presets">Presets</a>
+        <ul>
+        <li><a href="#factory-library" id="toc-factory-library">Factory
+        Library</a></li>
+        </ul></li>
+        <li><a href="#performance-notes"
+        id="toc-performance-notes">Performance Notes</a></li>
+        <li><a href="#cross-platform"
+        id="toc-cross-platform">Cross-Platform</a></li>
+        <li><a href="#tips-tricks" id="toc-tips-tricks">Tips &amp;
+        Tricks</a></li>
+        </ul>
+        <h2 id="introduction">Introduction</h2>
+        <p>Vorago is a <strong>dark-ambient drone instrument</strong>.
+        Each voice is not an oscillator but a small environment: a
+        64-partial harmonic cloud and a living noise organism, coloured
+        by a network of wandering resonant peaks, sustained by six
+        coupled feedback loops, and spoken through two blended acoustic
+        bodies. Underneath every voice runs an
+        <strong>ecosystem</strong> of agents exchanging energy and a
+        scheduler of <strong>slow events</strong> that fire every 20 to
+        90 seconds. Nothing in it is scripted or looped: every movement
+        comes from bounded stochastic processes and from the agents
+        feeding on each other. The instrument sinks rather than floats:
+        a subharmonic engine, a spectral fog stage and a cavern-scale
+        space are part of the signal path, not effects appended to
+        it.</p>
+        <p>Vorago is the dark sibling of Seraphis. Where Seraphis is
+        weightless, upper partials and shimmer, Vorago is subterranean:
+        subharmonics, stone and steel bodies, pressure, and geological
+        time scales.</p>
+        <p><strong>Vorago is slow by design. Hold the note.</strong>
+        With the default envelope the first sound surfaces a few seconds
+        after the key goes down and the drone keeps swelling for about
+        two and a half minutes (the four envelope stages add up to 155
+        seconds). A newcomer who taps a key and hears nothing for two
+        seconds has not found a fault; they have found the instrument.
+        Thirty-nine of the forty-two factory presets carry that default;
+        <em>Sudden Chasm</em> opens within about ten seconds, <em>Growth
+        Ring</em> in a minute, <em>Slow Bloom</em> in two.</p>
+        <p><strong>Formats:</strong> VST3 (Windows, macOS, Linux) and
+        Audio Unit (macOS). One MIDI input, one stereo output.</p>
+        <h2 id="signal-flow">Signal Flow</h2>
+        <pre><code>MIDI in ──────────── notes, CC64 sustain, channel aftertouch
+  │
+  ▼
+Identity layer ───── per voice, control-rate: the ecosystem (up to 48 agents),
+  │                  two slow-event schedulers, breathing and tide
+  ▼
+Harmonic Cloud ───── 64 additive partials + bloom children spawned from the strongest peaks
+  + Noise Organism ─ four noise sources, each through resonator → comb → wandering filter
+  │
+  ▼
+Voice Envelope ───── gates the cloud + noise only; nothing downstream is gated
+  │
+  ▼
+Resonance Network ── 12 resonant peaks wandering in frequency, Q, gain and pan
+  │
+  ▼
+Feedback Ecology ─── 6 coupled micro-loops (filter → delay → resonator → DC blocker)
+  │
+  ▼
+Acoustic Bodies ──── two continuous bodies (stone, steel, hull, …) blended per sample
+  │
+  ▼
+Voice sum ────────── + ghost tap: granular memories of the drone, an octave down
+  │
+  ▼
+Subharmonic Engine ─ ÷2, ÷4 and fifth-below, tracking the lowest sounding voice
+  │
+  ▼
+Spectral Smear ───── STFT fog: per-bin magnitude memory + phase decoherence
+  │
+  ▼
+Cavern ───────────── stone early reflections → diffusion → FDN → spectral damping
+  │                  → moving dampers → mix (the space is in the path)
+  ▼
+Output ───────────── master gain → tape saturator → true-peak limiter (always on)</code></pre>
+        <p>The twelve <strong>macros</strong> reach across every stage
+        of this chain at once, and the <strong>identity layer</strong>
+        runs underneath it for as long as the plugin is alive. Both have
+        their own sections below. The interactive diagram on the landing
+        page shows every connection.</p>
+        <h2 id="interface-overview">Interface Overview</h2>
+        <p>The editor is a fixed 1100 × 760 window built around the life
+        of the sound.</p>
+        <ul>
+        <li><strong>The header bar</strong> — the master
+        <strong>Gain</strong> slider, the <strong>Voices</strong>
+        selector, the <strong>Seed</strong> selector, the
+        <strong>Saturation</strong> slider and the preset browser
+        button.</li>
+        <li><strong>The concept band</strong> — twelve large macro
+        rings, six on each side of the centre: Darkness, Age, Density,
+        Movement, Gravity and Entropy on the left; Pressure, Weight,
+        Fog, Life, Depth and Mass on the right. These are the intended
+        playing surface.</li>
+        <li><strong>The ecosystem view</strong> — the centre of the band
+        is a live view of the focus voice’s habitat: each agent is a
+        glowing point on the torus, energy exchange draws fading links
+        between them, and a small readout shows the active voices. With
+        no voice sounding the view shows a dim grid. The view only
+        reads; nothing you do in it changes the sound.</li>
+        <li><strong>The page strip</strong> — below the band, seven
+        pages hold every deep parameter: <strong>Cloud, Noise,
+        Resonance, Body, Sub / Smear, Space, Life</strong>. Every
+        parameter stays automatable from the host whichever page is
+        showing.</li>
+        </ul>
+        <p>Every control carries a tooltip — hover over anything for a
+        one-line description.</p>
+        <h2 id="macros">Macros</h2>
+        <p>The twelve macros are the performance surface of Vorago. Each
+        sweeps a curated set of targets across the whole engine — voice,
+        global chain and cavern at once. Two things are worth
+        knowing:</p>
+        <ol type="1">
+        <li><strong>The deep parameters set the origin the macros travel
+        from.</strong> Moving a page parameter moves the <em>base</em> a
+        macro’s sweep starts at; the macro adds its travel on top, and
+        each target setter clamps the sum. The two never fight over a
+        value.</li>
+        <li><strong>All macros default to neutral</strong> (0 for all,
+        centre for Gravity). At neutral a macro contributes exactly
+        nothing — the page parameters alone describe the sound.</li>
+        </ol>
+        <p>Channel aftertouch is added to <strong>Pressure</strong>, so
+        a pressure-sensitive keyboard leans into the instrument without
+        touching the knob.</p>
+        <p>The travel columns below start from the factory defaults; a
+        different base travels the same distance from wherever you set
+        it.</p>
+        <h3
+        id="darkness-darkens-the-cloud-tilt-the-smear-and-the-cavern">Darkness
+        — <em>“Darkens the cloud tilt, the smear and the
+        cavern”</em></h3>
+        <table>
+        <thead>
+        <tr class="header">
+        <th>Target</th>
+        <th>Travel at full Darkness</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td>Cloud Tilt</td>
+        <td>−4 → −10 dB/oct</td>
+        </tr>
+        <tr class="even">
+        <td>Space Darkness</td>
+        <td>80 % → 100 %</td>
+        </tr>
+        <tr class="odd">
+        <td>Smear Tilt</td>
+        <td>0 → −0.5 (the fog leans low)</td>
+        </tr>
+        </tbody>
+        </table>
+        <h3
+        id="age-wear-duller-cloud-more-body-damping-a-shorter-cavern-decay">Age
+        — <em>“Wear: duller cloud, more body damping, a shorter cavern
+        decay”</em></h3>
+        <table>
+        <thead>
+        <tr class="header">
+        <th>Target</th>
+        <th>Travel at full Age</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td>Body Damping</td>
+        <td>25 % → 80 %</td>
+        </tr>
+        <tr class="even">
+        <td>Space Decay</td>
+        <td>20 s → 2 s</td>
+        </tr>
+        <tr class="odd">
+        <td>Cloud Tilt</td>
+        <td>−4 → −8 dB/oct</td>
+        </tr>
+        </tbody>
+        </table>
+        <h3
+        id="density-richer-cloud-louder-and-more-reactive-noise-deeper-bloom">Density
+        — <em>“Richer cloud, louder and more reactive noise, deeper
+        bloom”</em></h3>
+        <table>
+        <thead>
+        <tr class="header">
+        <th>Target</th>
+        <th>Travel at full Density</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td>Cloud Richness</td>
+        <td>70 % → 98 %</td>
+        </tr>
+        <tr class="even">
+        <td>Noise Wake</td>
+        <td>35 % → 100 %</td>
+        </tr>
+        <tr class="odd">
+        <td>Noise Level</td>
+        <td>−18 → −12 dB</td>
+        </tr>
+        <tr class="even">
+        <td>Bloom Depth</td>
+        <td>60 % → 100 %</td>
+        </tr>
+        </tbody>
+        </table>
+        <h3
+        id="movement-drift-wander-breathing-and-damper-motion">Movement
+        — <em>“Drift, wander, breathing and damper motion”</em></h3>
+        <table>
+        <thead>
+        <tr class="header">
+        <th>Target</th>
+        <th>Travel at full Movement</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td>Cloud Drift</td>
+        <td>8 → 50 cents</td>
+        </tr>
+        <tr class="even">
+        <td>Resonance Wander Rate</td>
+        <td>0.03 → 1 Hz</td>
+        </tr>
+        <tr class="odd">
+        <td>Noise Wander Rate</td>
+        <td>0.03 → 1 Hz</td>
+        </tr>
+        <tr class="even">
+        <td>Breathing Depth</td>
+        <td>30 % → 100 %</td>
+        </tr>
+        <tr class="odd">
+        <td>Space Damper Depth</td>
+        <td>35 % → 80 %</td>
+        </tr>
+        </tbody>
+        </table>
+        <h3
+        id="gravity-pulls-the-resonances-toward-the-harmonic-grid-bipolar">Gravity
+        — <em>“Pulls the resonances toward the harmonic grid”</em>
+        (bipolar)</h3>
+        <p>Gravity is the one <strong>bipolar</strong> macro: its centre
+        is neutral. Turning it <em>up</em> is <strong>stone</strong> —
+        the twelve resonant peaks are pulled onto the played note’s
+        harmonic grid and locked to octaves, heavy and settled. Turning
+        it <em>down</em> is <strong>air</strong> — the peaks are
+        released to float free of the note.</p>
+        <table>
+        <thead>
+        <tr class="header">
+        <th>Target</th>
+        <th>Air (full down)</th>
+        <th>Stone (full up)</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td>Resonance Gravity</td>
+        <td>−1</td>
+        <td>+1</td>
+        </tr>
+        <tr class="even">
+        <td>Resonance Octave Lock</td>
+        <td>off</td>
+        <td>on</td>
+        </tr>
+        </tbody>
+        </table>
+        <h3
+        id="entropy-mutation-inharmonicity-decoherence-and-irregular-breathing">Entropy
+        — <em>“Mutation, inharmonicity, decoherence and irregular
+        breathing”</em></h3>
+        <table>
+        <thead>
+        <tr class="header">
+        <th>Target</th>
+        <th>Travel at full Entropy</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td>Cloud Mutation</td>
+        <td>15 % → 70 %</td>
+        </tr>
+        <tr class="even">
+        <td>Cloud Inharmonicity</td>
+        <td>0.015 → 0.07</td>
+        </tr>
+        <tr class="odd">
+        <td>Smear Decoherence</td>
+        <td>20 % → 80 %</td>
+        </tr>
+        <tr class="even">
+        <td>Breathing Irregularity</td>
+        <td>30 % → 90 %</td>
+        </tr>
+        <tr class="odd">
+        <td>Cloud Drift</td>
+        <td>8 → 20 cents</td>
+        </tr>
+        </tbody>
+        </table>
+        <h3
+        id="pressure-ecology-feedback-output-drive-and-saturation">Pressure
+        — <em>“Ecology feedback, output drive and saturation”</em></h3>
+        <table>
+        <thead>
+        <tr class="header">
+        <th>Target</th>
+        <th>Travel at full Pressure</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td>Ecology Mix</td>
+        <td>15 % → 50 %</td>
+        </tr>
+        <tr class="even">
+        <td>Ecology Loop Gain</td>
+        <td>80 % → 98 %</td>
+        </tr>
+        <tr class="odd">
+        <td>Output Saturation</td>
+        <td>12 % → 100 %</td>
+        </tr>
+        <tr class="even">
+        <td>Output Drive</td>
+        <td>0 → +18 dB</td>
+        </tr>
+        <tr class="odd">
+        <td>Sub Level</td>
+        <td>0 → −12 dB (the floor pulls tight)</td>
+        </tr>
+        </tbody>
+        </table>
+        <h3
+        id="weight-sub-level-body-blend-and-damping-a-heavier-spectral-tilt">Weight
+        — <em>“Sub level, body blend and damping, a heavier spectral
+        tilt”</em></h3>
+        <table>
+        <thead>
+        <tr class="header">
+        <th>Target</th>
+        <th>Travel at full Weight</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td>Sub Level</td>
+        <td>0 → +9 dB</td>
+        </tr>
+        <tr class="even">
+        <td>Body Blend</td>
+        <td>35 % → 80 % (toward material B)</td>
+        </tr>
+        <tr class="odd">
+        <td>Body Damping</td>
+        <td>25 % → 50 %</td>
+        </tr>
+        <tr class="even">
+        <td>Cloud Tilt</td>
+        <td>−4 → −8 dB/oct</td>
+        </tr>
+        </tbody>
+        </table>
+        <h3
+        id="fog-smear-ghosts-blur-tides-and-a-foggier-darker-cavern">Fog
+        — <em>“Smear, ghosts, blur, tides and a foggier, darker
+        cavern”</em></h3>
+        <table>
+        <thead>
+        <tr class="header">
+        <th>Target</th>
+        <th>Travel at full Fog</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td>Smear</td>
+        <td>20 % → 90 %</td>
+        </tr>
+        <tr class="even">
+        <td>Smear Decoherence</td>
+        <td>20 % → 60 %</td>
+        </tr>
+        <tr class="odd">
+        <td>Ghost Level</td>
+        <td>+40 % on the base</td>
+        </tr>
+        <tr class="even">
+        <td>Ghost Blur</td>
+        <td>85 % → 100 %</td>
+        </tr>
+        <tr class="odd">
+        <td>Space Fog</td>
+        <td>30 % → 100 %</td>
+        </tr>
+        <tr class="even">
+        <td>Space Darkness</td>
+        <td>80 % → 95 %</td>
+        </tr>
+        <tr class="odd">
+        <td>Tidal Depth</td>
+        <td>40 % → 80 %</td>
+        </tr>
+        </tbody>
+        </table>
+        <h3 id="life-ecosystem-depth-event-rate-and-bloom-spawning">Life
+        — <em>“Ecosystem depth, event rate and bloom spawning”</em></h3>
+        <table>
+        <thead>
+        <tr class="header">
+        <th>Target</th>
+        <th>Travel at full Life</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td>Eco Depth</td>
+        <td>85 % → 100 %</td>
+        </tr>
+        <tr class="even">
+        <td>Event Rate</td>
+        <td>1× → 10× (fast events every 2–9 s)</td>
+        </tr>
+        <tr class="odd">
+        <td>Bloom Rate</td>
+        <td>one every 4 minutes → one every 40 s</td>
+        </tr>
+        </tbody>
+        </table>
+        <h3 id="depth-cavern-mix-size-decay-and-width">Depth —
+        <em>“Cavern mix, size, decay and width”</em></h3>
+        <table>
+        <colgroup>
+        <col style="width: 50%" />
+        <col style="width: 50%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Target</th>
+        <th>Travel at full Depth</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td>Space Size</td>
+        <td>50 % → 95 %</td>
+        </tr>
+        <tr class="even">
+        <td>Space Decay</td>
+        <td>20 s → 45 s</td>
+        </tr>
+        <tr class="odd">
+        <td>Space Mix, Width</td>
+        <td>already at maximum by default; travel from a lower base</td>
+        </tr>
+        </tbody>
+        </table>
+        <h3
+        id="mass-body-and-resonator-level-body-resonance-and-sub-tracking">Mass
+        — <em>“Body and resonator level, body resonance and sub
+        tracking”</em></h3>
+        <table>
+        <colgroup>
+        <col style="width: 50%" />
+        <col style="width: 50%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Target</th>
+        <th>Travel at full Mass</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td>Body Resonance</td>
+        <td>70 % → 98 %</td>
+        </tr>
+        <tr class="even">
+        <td>Resonance Mix</td>
+        <td>45 % → 15 % (the network recedes into the body)</td>
+        </tr>
+        <tr class="odd">
+        <td>Sub Level</td>
+        <td>0 → +6 dB</td>
+        </tr>
+        <tr class="even">
+        <td>Body Mix, Sub Tracking</td>
+        <td>already at maximum by default; travel from a lower base</td>
+        </tr>
+        </tbody>
+        </table>
+        <p>Age and Depth share the cavern decay: Age shortens it, Depth
+        lengthens it. Weight, Pressure and Mass all touch the sub level,
+        and their offsets sum.</p>
+        <h2 id="header-controls">Header Controls</h2>
+        <table>
+        <colgroup>
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Range</th>
+        <th>Default</th>
+        <th>Notes</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Gain</strong></td>
+        <td>0 – 200 %</td>
+        <td>unity (centre)</td>
+        <td>Master output level of the whole instrument, smoothed</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Voices</strong></td>
+        <td>1 – 6</td>
+        <td>4</td>
+        <td>Maximum simultaneous voices. 5 and 6 are offered
+        deliberately as an opt-in cost: a Vorago voice is deep and
+        expensive (see <em>Performance Notes</em>)</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Seed</strong></td>
+        <td>Seed 1 – Seed 16</td>
+        <td>Seed 1</td>
+        <td>Reseeds every stochastic process — the cloud, noise,
+        resonance, ecology, ecosystem and events of every voice, the
+        ghost tap and the cavern. Changing it re-rolls the texture
+        without moving a parameter</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Saturation</strong></td>
+        <td>0 – 100 %</td>
+        <td>12 %</td>
+        <td>Soft tape saturation in front of the final limiter. The
+        Pressure macro rides on top of this base. <strong>The true-peak
+        limiter always stays on</strong></td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Presets</strong></td>
+        <td>—</td>
+        <td>—</td>
+        <td>Opens the preset browser</td>
+        </tr>
+        </tbody>
+        </table>
+        <h2 id="the-cloud-page">The Cloud Page</h2>
+        <p>The harmonic cloud is the additive core — 64 partials per
+        voice — and the bloom engine that grows new partials into
+        it.</p>
+        <table>
+        <colgroup>
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Parameter</th>
+        <th>Range</th>
+        <th>Default</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Richness</strong></td>
+        <td>0 – 100 %</td>
+        <td>70 %</td>
+        <td>Number of active partials and how fast they roll off</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Tilt</strong></td>
+        <td>−12 – +12 dB/oct</td>
+        <td>−4</td>
+        <td>Spectral slope: dark below zero, bright above</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Mutation</strong></td>
+        <td>0 – 100 %</td>
+        <td>15 %</td>
+        <td>How quickly the partial amplitudes slowly mutate</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Inharm</strong></td>
+        <td>0 – 0.1</td>
+        <td>0.015</td>
+        <td>Stretches partials off the harmonic grid, toward bell and
+        metal</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Drift</strong></td>
+        <td>0 – 50 ct</td>
+        <td>8 ct</td>
+        <td>Depth of the slow per-partial pitch drift</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Spread</strong></td>
+        <td>0 – 100 %</td>
+        <td>45 %</td>
+        <td>Stereo spread of the partial cloud</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Gravity</strong></td>
+        <td>−1 – +1</td>
+        <td>+0.1</td>
+        <td>Pulls partial energy toward the low (negative) or high
+        (positive) end</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Bloom</strong></td>
+        <td>0 – 100 %</td>
+        <td>60 %</td>
+        <td>Depth of the bloom partials</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Bloom Rate</strong></td>
+        <td>0 – 0.05 Hz</td>
+        <td>1/240 Hz</td>
+        <td>How often new bloom partials spawn (default: one every four
+        minutes)</td>
+        </tr>
+        </tbody>
+        </table>
+        <p><strong>Bloom</strong> is the minutes-scale partial
+        generator: it reads the strongest current peaks, spawns child
+        partials next to them, fades each in over tens of seconds, holds
+        it, and lets it wither. Up to sixteen children live at once. At
+        the default rate a new one buds every four minutes; the Life
+        macro and the <em>Bloom Rate</em> knob bring that down to one
+        every 20 seconds. The ecosystem’s <em>partial</em> agent drives
+        bloom depth, and a scheduled event can trigger a bloom
+        outright.</p>
+        <blockquote>
+        <p><strong>Tip:</strong> Bloom needs sounding parents — with
+        Richness below about 50 % there are few peaks to bud from.
+        <em>Slow Bloom</em> keeps Richness at 70 % for exactly that
+        reason.</p>
+        </blockquote>
+        <h2 id="the-noise-page">The Noise Page</h2>
+        <p>The noise organism is the second sound source: four
+        semi-independent noise sources, each feeding its own resonator →
+        comb → wandering-filter chain. It is summed into the cloud
+        <em>before</em> the envelope, so it is gated with the tone and
+        coloured by everything downstream.</p>
+        <table>
+        <colgroup>
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Parameter</th>
+        <th>Range</th>
+        <th>Default</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Noise Lvl</strong></td>
+        <td>−96 – +12 dB</td>
+        <td>−18 dB</td>
+        <td>Level of the noise layer</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Wake</strong></td>
+        <td>0 – 100 %</td>
+        <td>35 %</td>
+        <td>How strongly the noise follows the energy of the drone (the
+        resting wake of every source)</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Wander</strong></td>
+        <td>0.01 – 100 Hz (log)</td>
+        <td>0.03 Hz</td>
+        <td>Rate of the slow wandering of the noise colour</td>
+        </tr>
+        </tbody>
+        </table>
+        <p>Each of the four slots then has its own column:</p>
+        <table>
+        <colgroup>
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Parameter</th>
+        <th>Range</th>
+        <th>Default</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Model</strong></td>
+        <td>Direct / Filtered Wind / Granular Dust / Metallic Hiss</td>
+        <td>Wind, Dust, Direct, Hiss</td>
+        <td>The organism the slot grows: raw colour, a wind through a
+        wandering filter, grains of dust, or a shifted metallic
+        hiss</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Type</strong></td>
+        <td>White / Pink / Tape Hiss / Vinyl Crackle / Asperity / Brown
+        / Blue / Violet / Grey / Velvet / Vinyl Rumble / Radio
+        Static</td>
+        <td>Brown</td>
+        <td>The noise colour feeding the slot</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Freq</strong></td>
+        <td>20 – 19845 Hz (log)</td>
+        <td>60 Hz</td>
+        <td>Comb fundamental</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Spread</strong></td>
+        <td>0 – 100 %</td>
+        <td>35 %</td>
+        <td>Comb tooth spread</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Fdbk</strong></td>
+        <td>0 – 90 %</td>
+        <td>55 % (75 % for Metallic Hiss)</td>
+        <td>Comb feedback</td>
+        </tr>
+        </tbody>
+        </table>
+        <p>The ecosystem’s four <em>noise</em> agents wake and sleep the
+        four sources individually, and the Density macro raises both the
+        resting wake and the level. Four factory presets show one model
+        each: <em>Dead Air</em> (Direct), <em>Abyssal Wind</em>
+        (Filtered Wind), <em>Spore Drift</em> (Granular Dust) and
+        <em>Steam Vent</em> (Metallic Hiss).</p>
+        <h2 id="the-resonance-page">The Resonance Page</h2>
+        <p>Two stages share this page: the resonance drift network that
+        colours the excitation, and the feedback ecology that sustains
+        it.</p>
+        <p><strong>Resonance Drift Network</strong> — twelve resonant
+        peaks whose frequency, Q, gain and stereo position wander on
+        slow, bounded, individually seeded lanes.</p>
+        <table>
+        <colgroup>
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Parameter</th>
+        <th>Range</th>
+        <th>Default</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Res Grav</strong></td>
+        <td>−1 – +1</td>
+        <td>0</td>
+        <td>In Hybrid mode, pulls each peak from its free anchor onto
+        the played note’s grid (positive) or mirrors it away from the
+        note (negative)</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Res Mix</strong></td>
+        <td>0 – 100 %</td>
+        <td>45 %</td>
+        <td>Level of the resonator bank in the mix</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Res Wander</strong></td>
+        <td>0.002 – 1 Hz (log)</td>
+        <td>0.03 Hz</td>
+        <td>Rate at which the resonators wander in pitch</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Anchor</strong></td>
+        <td>Free / Keyed / Hybrid</td>
+        <td>Hybrid</td>
+        <td>Free peaks ignore the note; Keyed peaks are retuned to the
+        played pitch; Hybrid sits between the two, where Res Grav
+        decides how far</td>
+        </tr>
+        </tbody>
+        </table>
+        <p><strong>Feedback Ecology</strong> — six coupled micro-loops.
+        Each is a filter → delay → resonator → DC-blocker chain fed back
+        into itself and, far more faintly, into its neighbours. An RMS
+        governor holds the population below self-oscillation at every
+        setting, so the loops sustain without ever running away.</p>
+        <table>
+        <colgroup>
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Parameter</th>
+        <th>Range</th>
+        <th>Default</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Eco Mix</strong></td>
+        <td>0 – 100 %</td>
+        <td>15 %</td>
+        <td>Level of the ecology feedback loops</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Loop Gain</strong></td>
+        <td>0 – 90 %</td>
+        <td>72 %</td>
+        <td>Feedback gain of the loops</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Loop 1–6 Filter</strong></td>
+        <td>Lowpass / Bandpass / Highpass</td>
+        <td>Lowpass</td>
+        <td>The filter in each loop</td>
+        </tr>
+        </tbody>
+        </table>
+        <p>The ecosystem’s <em>resonator</em> agents wake individual
+        peaks (and lift their level and wander), its <em>feedback</em>
+        agents wake individual loops, and the slow events do the same in
+        sudden swells. The Pressure macro pushes the ecology forward and
+        tightens the loop gain.</p>
+        <blockquote>
+        <p><strong>Tip:</strong> Different filters in different loops
+        are what turn the ecology from a hum into a population.
+        <em>Feedback Mire</em> runs Lowpass, Bandpass and Highpass twice
+        each.</p>
+        </blockquote>
+        <h2 id="the-body-page">The Body Page</h2>
+        <p>Every voice speaks through <strong>two continuous bodies at
+        once</strong> — physical resonators driven by a sustained stream
+        rather than struck — blended per sample. Both bodies run at
+        every blend value, so there is never a switch or a click, only a
+        weighting.</p>
+        <table>
+        <colgroup>
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Parameter</th>
+        <th>Range</th>
+        <th>Default</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Material A</strong></td>
+        <td>Glass / Strings / Metal Plate / Chamber / Ice / Stone
+        Chamber / Steel Tank / Wooden Hull / Cathedral Column / Cavern
+        Wall / Glass Sphere</td>
+        <td>Stone Chamber</td>
+        <td>First body material</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Material B</strong></td>
+        <td>same list</td>
+        <td>Steel Tank</td>
+        <td>Second body material</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Blend</strong></td>
+        <td>0 – 100 %</td>
+        <td>35 %</td>
+        <td>Blend between material A (0) and B (100)</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Damping</strong></td>
+        <td>0 – 100 %</td>
+        <td>25 %</td>
+        <td>Damps the bodies’ high modes, darker and shorter</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Resonance</strong></td>
+        <td>0 – 100 %</td>
+        <td>70 %</td>
+        <td>How sharply and how long the bodies ring</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Body Mix</strong></td>
+        <td>0 – 100 %</td>
+        <td>100 %</td>
+        <td>Level of the bodies in the mix (down for the raw
+        network)</td>
+        </tr>
+        </tbody>
+        </table>
+        <p>The six darker materials — Stone Chamber, Steel Tank, Wooden
+        Hull, Cathedral Column, Cavern Wall and Glass Sphere — exist for
+        Vorago; the first five are shared with Seraphis. The Weight
+        macro pulls the blend toward the heavier material B; Mass
+        sharpens the resonance of both.</p>
+        <p>The voice envelope also lives on this page. It gates
+        <strong>only the excitation</strong> (cloud + noise): resonance,
+        ecology, bodies, ghosts and the cavern all ring past note-off,
+        and the voice retires on its own level detector once it has
+        fallen silent.</p>
+        <table>
+        <colgroup>
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Parameter</th>
+        <th>Range</th>
+        <th>Default</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Env Mode</strong></td>
+        <td>Standard / Growth</td>
+        <td>Standard</td>
+        <td>Four timed stages, or one slow logistic swell</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Stage 1 – 4</strong></td>
+        <td>0 – 120 s each (log)</td>
+        <td>20 s, 30 s, 45 s, 60 s</td>
+        <td>The four standard stages: the attack, then three plateaus
+        the sound climbs through. 155 s to full by default</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Release</strong></td>
+        <td>0 – 120 s (log)</td>
+        <td>45 s</td>
+        <td>Release after note-off</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Growth</strong></td>
+        <td>1 – 120 s (log)</td>
+        <td>120 s</td>
+        <td>Length of the Growth-mode rise</td>
+        </tr>
+        </tbody>
+        </table>
+        <p><strong>Growth mode</strong> replaces the staged attack with
+        a single logistic swell — the note <em>arrives</em>. It is the
+        engine behind <em>Growth Ring</em>. Velocity scales the whole
+        envelope.</p>
+        <h2 id="the-sub-smear-page">The Sub / Smear Page</h2>
+        <p>Two global stages, after the voices are summed.</p>
+        <p><strong>Subharmonic Engine</strong> — three synchronous
+        dividers tracking the lowest sounding voice (÷2 one octave down,
+        ÷4 two octaves down, and a fifth below the fundamental),
+        filtered, saturated and DC-blocked, then <em>added</em> to the
+        untouched dry path. When no voice sounds the last pitch is held,
+        so the floor never jumps.</p>
+        <table>
+        <colgroup>
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Parameter</th>
+        <th>Range</th>
+        <th>Default</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Sub Level</strong></td>
+        <td>−24 – +24 dB</td>
+        <td>0 dB</td>
+        <td>Level offset of the whole sub layer (where Weight, Mass and
+        Pressure act)</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Tracking</strong></td>
+        <td>0 – 100 %</td>
+        <td>100 %</td>
+        <td>How closely the sub follows the played pitch</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Oct Down</strong></td>
+        <td>−60 – +6 dB</td>
+        <td>−18 dB</td>
+        <td>Level of the sub one octave below</td>
+        </tr>
+        <tr class="even">
+        <td><strong>2 Oct Down</strong></td>
+        <td>−60 – +6 dB</td>
+        <td>−24 dB</td>
+        <td>Level of the sub two octaves below</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Fifth Down</strong></td>
+        <td>−60 – +6 dB</td>
+        <td>−30 dB</td>
+        <td>Level of the sub a fifth below</td>
+        </tr>
+        </tbody>
+        </table>
+        <p><strong>Spectral Smear</strong> — the fog stage: an STFT in
+        which each frequency bin remembers its recent magnitude (lows
+        for longer than highs) and has its phase decorrelated.</p>
+        <table>
+        <colgroup>
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Parameter</th>
+        <th>Range</th>
+        <th>Default</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Smear</strong></td>
+        <td>0 – 100 %</td>
+        <td>20 %</td>
+        <td>Amount of spectral smearing</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Decohere</strong></td>
+        <td>0 – 100 %</td>
+        <td>20 %</td>
+        <td>Phase decoherence of the smeared spectrum</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Smear Tilt</strong></td>
+        <td>−1 – +1</td>
+        <td>0</td>
+        <td>Weights the smear toward low (negative) or high (positive)
+        bands</td>
+        </tr>
+        </tbody>
+        </table>
+        <p>The tide of every voice folds into the smear amount, so the
+        fog thickens and thins on a minutes-long cycle even with the
+        knob still. The Fog macro is mostly this stage plus the cavern’s
+        own fog.</p>
+        <h2 id="the-space-page">The Space Page</h2>
+        <p>The cavern: an enormous underground bunker, in the signal
+        path. Sparse stone-flavoured early reflections feed a diffusion
+        network and an FDN reverb with spectral damping, whose damping
+        filters wander under Brownian drift — the “moving dampers” that
+        keep a sixty-second tail from ever sounding like a static
+        room.</p>
+        <table>
+        <colgroup>
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Parameter</th>
+        <th>Range</th>
+        <th>Default</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Size</strong></td>
+        <td>0 – 100 %</td>
+        <td>50 %</td>
+        <td>Size of the reverb space</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Darkness</strong></td>
+        <td>0 – 100 %</td>
+        <td>80 %</td>
+        <td>High-frequency damping of the space</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Decay</strong></td>
+        <td>0.5 – 60 s (log)</td>
+        <td>20 s</td>
+        <td>Reverb decay time</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Fog</strong></td>
+        <td>0 – 100 %</td>
+        <td>30 %</td>
+        <td>Diffusion haze inside the reverb</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Damp Depth</strong></td>
+        <td>0 – 100 %</td>
+        <td>35 %</td>
+        <td>Depth of the moving dampers</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Damp Rate</strong></td>
+        <td>0 – 100 %</td>
+        <td>15 %</td>
+        <td>Rate of the moving dampers</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Mix</strong></td>
+        <td>0 – 100 %</td>
+        <td>100 %</td>
+        <td>Wet level of the space (equal-power against the dry)</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Width</strong></td>
+        <td>0 – 100 %</td>
+        <td>100 %</td>
+        <td>Stereo width of the late field</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Density</strong></td>
+        <td>0 – 100 %</td>
+        <td>75 %</td>
+        <td>Echo density of the reverb</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Dimension</strong></td>
+        <td>0 – 100 %</td>
+        <td>50 %</td>
+        <td>Dimensionality of the reverb network</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Breath</strong></td>
+        <td>0 – 100 %</td>
+        <td>50 %</td>
+        <td>Slow breathing of the reverb size</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Early Size</strong></td>
+        <td>80 – 300 ms (log)</td>
+        <td>220 ms</td>
+        <td>Spread of the twelve early reflections</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Early Lvl</strong></td>
+        <td>0 – 100 %</td>
+        <td>80 %</td>
+        <td>Level of the early reflections</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Absorb</strong></td>
+        <td>0 – 100 %</td>
+        <td>60 %</td>
+        <td>Stone absorption of the early reflections (each tap has its
+        own)</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Early Send</strong></td>
+        <td>0 – 100 %</td>
+        <td>70 %</td>
+        <td>How much of the early reflections feeds the tail</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Freeze</strong></td>
+        <td>on/off</td>
+        <td>off</td>
+        <td>Hold the reverb tail indefinitely, conserving its
+        energy</td>
+        </tr>
+        </tbody>
+        </table>
+        <p>Note that <strong>Mix defaults to 100 %</strong> — by default
+        you hear the instrument <em>through</em> the cavern. The space
+        is excited by the early reflections only, so there is a
+        deliberate short gap before the late field blooms. Freeze is not
+        saved into presets as <em>on</em>; it is a gesture you make once
+        the drone has bloomed (<em>Cathedral Void</em> is written for
+        it).</p>
+        <h2 id="the-life-page">The Life Page</h2>
+        <p>The identity layer: the ecosystem, the slow events, the
+        ghosts and the life modulators.</p>
+        <p><strong>Ecosystem</strong> — up to 48 agents of five kinds
+        (partial, resonator, noise, feedback, ghost) live on a toroidal
+        habitat, holding energy and exchanging it with each other, with
+        a resource field and with a pool; nothing is ever created or
+        destroyed. Each agent publishes one <em>wake</em> value that the
+        voice routes into its own destination: a bloom slot, a resonant
+        peak, a noise source, a feedback loop or the ghost tap. The
+        ecosystem view in the concept band shows this colony live.</p>
+        <table>
+        <colgroup>
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Parameter</th>
+        <th>Range</th>
+        <th>Default</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Event Rate</strong></td>
+        <td>0.1 – 10× (log)</td>
+        <td>1×</td>
+        <td>Rate multiplier for the slow events: the fast scheduler
+        fires every 20–90 s and the slow one every 3–10 minutes at
+        1×</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Eco Depth</strong></td>
+        <td>0 – 100 %</td>
+        <td>85 %</td>
+        <td>How strongly the ecosystem agents shape the sound</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Eco Sync</strong></td>
+        <td>0 – 0.5</td>
+        <td>0</td>
+        <td>How strongly the colony’s agents fall into step</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Self Affin</strong></td>
+        <td>−2 – +2</td>
+        <td>−1</td>
+        <td>How much each agent kind attracts (positive) or repels
+        (negative) its own kind</td>
+        </tr>
+        </tbody>
+        </table>
+        <p><strong>Slow events</strong> are the “something happens”
+        clock: a seeded scheduler draws a wait of tens of seconds to
+        minutes, then plays one smooth attack / hold / release swell
+        into one destination — a bloom trigger, a noise wake, a peak
+        wake, a loop wake or a ghost burst. Two run per voice, a fast
+        one and a slow one. Raise <em>Event Rate</em> or the Life macro
+        and the drone visibly moves more often.</p>
+        <p><strong>Ghosts</strong> — a global granular tap that records
+        the raw voice sum and plays back twelve-second memories of it an
+        octave below, blurred and wide. A ghost is an event, not a wash:
+        its level is driven by the ecosystem’s ghost agent and by
+        ghost-burst events, so with the knob up you hear them surface
+        and sink rather than sit there.</p>
+        <table>
+        <colgroup>
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Parameter</th>
+        <th>Range</th>
+        <th>Default</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Ghost Lvl</strong></td>
+        <td>0 – 100 %</td>
+        <td>0 %</td>
+        <td>Peak level of the ghost echoes (off by default; the Fog
+        macro raises it)</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Ghost Blur</strong></td>
+        <td>0 – 100 %</td>
+        <td>85 %</td>
+        <td>How blurred the ghost echoes are</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Reverse</strong></td>
+        <td>0 – 100 %</td>
+        <td>0 %</td>
+        <td>Probability that a ghost plays reversed</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Ghost Events</strong></td>
+        <td>on/off</td>
+        <td>off</td>
+        <td>Let spontaneous events trigger ghosts on top of the base
+        density</td>
+        </tr>
+        </tbody>
+        </table>
+        <p><strong>Life modulators</strong> — the slow autonomous
+        processes that animate the voice.</p>
+        <table>
+        <colgroup>
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Parameter</th>
+        <th>Range</th>
+        <th>Default</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Breathing</strong></td>
+        <td>0 – 100 %</td>
+        <td>30 %</td>
+        <td>Depth of the breathing modulation (it also breathes the sub
+        layer)</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Irregular</strong></td>
+        <td>0 – 100 %</td>
+        <td>30 %</td>
+        <td>Irregularity of the breathing</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Tidal</strong></td>
+        <td>0 – 100 %</td>
+        <td>40 %</td>
+        <td>Depth of the slow tidal modulation (it folds into the
+        smear)</td>
+        </tr>
+        </tbody>
+        </table>
+        <h2 id="presets">Presets</h2>
+        <p>Click <strong>Presets</strong> in the header to open the
+        browser. Categories appear as tabs; double-click a preset to
+        load it. Loading restores every parameter; <strong>Save</strong>
+        writes the complete current state into your user preset
+        folder:</p>
+        <ul>
+        <li><strong>Windows:</strong>
+        <code>C:\ProgramData\Krate Audio\Vorago\{Category}\</code></li>
+        <li><strong>macOS:</strong>
+        <code>/Library/Application Support/Krate Audio/Vorago/{Category}/</code></li>
+        <li><strong>Linux:</strong>
+        <code>~/.local/share/Krate Audio/Vorago/{Category}/</code></li>
+        </ul>
+        <p>Loading a preset never reseeds an unchanged seed, so the
+        drone you are holding is not re-rolled under you.</p>
+        <h3 id="factory-library">Factory Library</h3>
+        <p>42 presets ship with the plugin across seven categories.
+        Every one is rendered and verified during the build: each is
+        proven to make sound, stay bounded, be measurably distinct from
+        the others, and to make its headline feature audible. Each loads
+        with its own note in the browser; all but three need the same
+        patience — <strong>hold the note; the sound surfaces after a few
+        seconds and keeps swelling for about two and a half
+        minutes.</strong></p>
+        <h4 id="drones">Drones</h4>
+        <table>
+        <colgroup>
+        <col style="width: 50%" />
+        <col style="width: 50%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Preset</th>
+        <th>Character</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td>Crowded Dark</td>
+        <td>A thin drone that fills to bursting, partials and embers
+        packing the dark shoulder to shoulder</td>
+        </tr>
+        <tr class="even">
+        <td>Drifting Strata</td>
+        <td>Layers of drone sliding over one another like slow
+        geological strata under a rolling tide</td>
+        </tr>
+        <tr class="odd">
+        <td>Monolith</td>
+        <td>A single vast mass of sound, body and sub fused into one
+        unmoving block of stone</td>
+        </tr>
+        <tr class="even">
+        <td>Slow Bloom</td>
+        <td>A sparse drone that takes two minutes to open, budding new
+        partials as it breathes</td>
+        </tr>
+        <tr class="odd">
+        <td>Strung Abyss</td>
+        <td>Vast slack strings stretched across a chasm, humming a low,
+        dark, sustained chord</td>
+        </tr>
+        <tr class="even">
+        <td>Chamber Drone</td>
+        <td>A warm, closed wooden chamber filled by one breathing,
+        slowly blooming drone</td>
+        </tr>
+        <tr class="odd">
+        <td>Hull Ark</td>
+        <td>The creaking wooden hull of an ark rolling on a dark sea,
+        its timbers groaning with the drone</td>
+        </tr>
+        </tbody>
+        </table>
+        <h4 id="abyss">Abyss</h4>
+        <table>
+        <colgroup>
+        <col style="width: 50%" />
+        <col style="width: 50%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Preset</th>
+        <th>Character</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td>Tectonic Floor</td>
+        <td>A fifth below the floor: slow plates of sub grind under a
+        dark, close cloud</td>
+        </tr>
+        <tr class="even">
+        <td>Lightless</td>
+        <td>A bright cloud pressed down into lightless black, every
+        overtone smothered as it sinks</td>
+        </tr>
+        <tr class="odd">
+        <td>Stone Gravity</td>
+        <td>Resonant peaks dragged down and locked to octaves, heavy as
+        stone settling in the deep</td>
+        </tr>
+        <tr class="even">
+        <td>Weighted Deep</td>
+        <td>Two octaves under the drone a sub swells up, pulling the
+        whole cavern down with it</td>
+        </tr>
+        <tr class="odd">
+        <td>Sudden Chasm</td>
+        <td>The ground gives way at once: a dark, full drone that opens
+        beneath you within about ten seconds</td>
+        </tr>
+        <tr class="even">
+        <td>Abyssal Wind</td>
+        <td>Wind howling up out of a bottomless pit over a deep sub and
+        slowly wandering peaks</td>
+        </tr>
+        </tbody>
+        </table>
+        <h4 id="caverns">Caverns</h4>
+        <table>
+        <colgroup>
+        <col style="width: 50%" />
+        <col style="width: 50%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Preset</th>
+        <th>Character</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td>Resonant Shaft</td>
+        <td>A deep vertical shaft whose walls sing back the played notes
+        in slow, drifting peaks</td>
+        </tr>
+        <tr class="even">
+        <td>Cathedral Void</td>
+        <td>A vast, slow nave around a wide cloud. Engage Freeze once
+        the drone has bloomed to hold the space</td>
+        </tr>
+        <tr class="odd">
+        <td>Endless Descent</td>
+        <td>A drone falling into a cavern that keeps opening beneath it,
+        each echo farther down than the last</td>
+        </tr>
+        <tr class="even">
+        <td>Glass Well</td>
+        <td>A ringing glass shaft: a bright, barely damped body singing
+        into a pale cavern</td>
+        </tr>
+        <tr class="odd">
+        <td>Column Hymn</td>
+        <td>Tall stone columns in a sunken cathedral, each one singing
+        its own grave, sustained hymn</td>
+        </tr>
+        <tr class="even">
+        <td>Cavern Wall</td>
+        <td>Rough, wet rock walls close around a heavy drone, thudding
+        back a dull, massive resonance</td>
+        </tr>
+        </tbody>
+        </table>
+        <h4 id="organisms">Organisms</h4>
+        <table>
+        <colgroup>
+        <col style="width: 50%" />
+        <col style="width: 50%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Preset</th>
+        <th>Character</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td>Colony Pulse</td>
+        <td>A restless colony of small voices, quickening and feeding on
+        each other in the dark</td>
+        </tr>
+        <tr class="even">
+        <td>Teeming</td>
+        <td>A dense colony teeming in the dark, many small lives waking
+        slowly and feeding on the drone</td>
+        </tr>
+        <tr class="odd">
+        <td>Bloom Colony</td>
+        <td>A sparse drone where a hidden colony swells new partials
+        into bloom and lets them wither</td>
+        </tr>
+        <tr class="even">
+        <td>Singing Colony</td>
+        <td>Free-floating resonant peaks that a colony wakes into song,
+        one voice rising as another fades</td>
+        </tr>
+        <tr class="odd">
+        <td>Growth Ring</td>
+        <td>One slow organic growth, a minute long, that keeps budding
+        new partials as it breathes</td>
+        </tr>
+        <tr class="even">
+        <td>Spore Drift</td>
+        <td>Clouds of spores sifting through the dark, their grains
+        drifting backwards into humming loops</td>
+        </tr>
+        </tbody>
+        </table>
+        <h4 id="machines">Machines</h4>
+        <table>
+        <colgroup>
+        <col style="width: 50%" />
+        <col style="width: 50%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Preset</th>
+        <th>Character</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td>Feedback Mire</td>
+        <td>Choked feedback loops churning in a sump of rust, each
+        filtered to its own grinding band</td>
+        </tr>
+        <tr class="even">
+        <td>Hull Resonance</td>
+        <td>The inside of a vast steel and stone hull, every plate
+        ringing under the drone</td>
+        </tr>
+        <tr class="odd">
+        <td>Entropic Hum</td>
+        <td>A clean machine hum slowly coming apart, its partials
+        skewing and fraying into noise</td>
+        </tr>
+        <tr class="even">
+        <td>Pressure Front</td>
+        <td>A compressed wall of pressure: loops churning and the floor
+        pulled tight into a dense, saturated hum</td>
+        </tr>
+        <tr class="odd">
+        <td>Feeding Loops</td>
+        <td>Feedback loops that wake and feed on one another, flaring
+        into a grinding chorus and sinking back</td>
+        </tr>
+        <tr class="even">
+        <td>Iron Plate</td>
+        <td>A great iron plate struck by the drone, ringing with
+        clanging, inharmonic overtones</td>
+        </tr>
+        <tr class="odd">
+        <td>Steam Vent</td>
+        <td>Metallic steam hissing from rusted vents over a grinding
+        deep sub and whistling loops</td>
+        </tr>
+        </tbody>
+        </table>
+        <h4 id="textures">Textures</h4>
+        <table>
+        <colgroup>
+        <col style="width: 50%" />
+        <col style="width: 50%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Preset</th>
+        <th>Character</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td>Wind Through Basalt</td>
+        <td>Raw wind and hiss pouring through cracks in black stone over
+        a thin, dark tone</td>
+        </tr>
+        <tr class="even">
+        <td>Smeared Horizon</td>
+        <td>A drone dissolved into a wide, blurred haze where every
+        partial bleeds into the next</td>
+        </tr>
+        <tr class="odd">
+        <td>Erosion</td>
+        <td>Weathered stone crumbling to dust: crackle and grit wearing
+        a ringing drone down to a dull husk</td>
+        </tr>
+        <tr class="even">
+        <td>Swarm Breath</td>
+        <td>Hiss and glassy air stirred by a swarm, flaring and settling
+        as the colony breathes</td>
+        </tr>
+        <tr class="odd">
+        <td>Ice Shelf</td>
+        <td>A glittering shelf of ice, bright shards of tone cracking
+        and shimmering in the cold</td>
+        </tr>
+        </tbody>
+        </table>
+        <h4 id="ghosts">Ghosts</h4>
+        <table>
+        <colgroup>
+        <col style="width: 50%" />
+        <col style="width: 50%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Preset</th>
+        <th>Character</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td>Choir of Absence</td>
+        <td>Voices that are not there: reversed fragments of the drone
+        surfacing and sinking away</td>
+        </tr>
+        <tr class="even">
+        <td>Fogbound</td>
+        <td>Static and rumble drifting through a thick fog, the drone
+        heard only as a ghost of itself</td>
+        </tr>
+        <tr class="odd">
+        <td>Haunted Colony</td>
+        <td>A dark room where a colony calls up ghosts of the drone in
+        sudden, blurred bursts</td>
+        </tr>
+        <tr class="even">
+        <td>Glass Sphere</td>
+        <td>A hollow sphere of glass drifting in fog, ringing faintly
+        with the ghost of a far-off drone</td>
+        </tr>
+        <tr class="odd">
+        <td>Dead Air</td>
+        <td>A dead channel hissing in an empty room, tape hiss and
+        static where a voice should be</td>
+        </tr>
+        </tbody>
+        </table>
+        <h2 id="performance-notes">Performance Notes</h2>
+        <ul>
+        <li><strong>Be patient.</strong> Hold the note. With the default
+        envelope the sound surfaces after a few seconds and reaches full
+        after about two and a half minutes; the release is 45 seconds,
+        and the cavern, the ecology and the ghosts ring on past it.
+        Judge a patch over minutes, not bars.</li>
+        <li><strong>Latency:</strong> Vorago reports a constant latency
+        in every state — the spectral smear’s 2048-sample STFT plus the
+        cavern’s 1024-sample spectral stage, 3072 samples in all. It
+        never changes with settings, so the host compensates once and
+        stays correct.</li>
+        <li><strong>Voices are the CPU lever.</strong> A Vorago voice is
+        deliberately deep (a 64-partial cloud, four noise organisms,
+        twelve resonators, six feedback loops, two bodies and an
+        ecosystem each). The default of 4 voices is budgeted at under 30
+        % of one core; 5 and 6 voices are offered as an opt-in cost. A
+        drone instrument is played with one or two held notes — reduce
+        <strong>Voices</strong> before stacking instances.</li>
+        <li>The audio path allocates no memory, takes no locks and
+        performs no I/O while running; everything is sized up-front when
+        the host prepares the plugin.</li>
+        <li><strong>Everything is bounded.</strong> Every stochastic
+        process is mean-reverting and slew-limited, the feedback ecology
+        has an energy governor, the sub engine a backstop gate, and the
+        output always ends in a true-peak limiter at −0.3 dB. A drone
+        left running overnight neither dies nor explodes.</li>
+        <li>With the editor closed the ecosystem view costs nothing; the
+        processor publishes a frame only while a view is attached and
+        only when the habitat has changed.</li>
+        </ul>
+        <h2 id="cross-platform">Cross-Platform</h2>
+        <table>
+        <thead>
+        <tr class="header">
+        <th>Platform</th>
+        <th>Formats</th>
+        <th>Notes</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td>Windows 10+</td>
+        <td>VST3</td>
+        <td>64-bit</td>
+        </tr>
+        <tr class="even">
+        <td>macOS 12+</td>
+        <td>VST3, Audio Unit</td>
+        <td>Universal (Intel + Apple Silicon)</td>
+        </tr>
+        <tr class="odd">
+        <td>Linux</td>
+        <td>VST3</td>
+        <td>x86-64</td>
+        </tr>
+        </tbody>
+        </table>
+        <p>State saved on any platform loads identically on the
+        others.</p>
+        <h2 id="tips-tricks">Tips &amp; Tricks</h2>
+        <ul>
+        <li><strong>Start from neutral.</strong> With all twelve macros
+        at rest the pages describe the sound. Design the patch there,
+        then use the macros as the performance surface on top — they
+        always travel <em>from</em> what you set.</li>
+        <li><strong>Seed is a free variation knob.</strong> Same patch,
+        different seed — a genuinely different colony, a different set
+        of wanderings, a different cavern — without moving a single
+        parameter.</li>
+        <li><strong>Freeze is a gesture, not a setting.</strong> Hold a
+        chord, wait for the cavern to bloom, engage
+        <strong>Freeze</strong>, release — the space holds the chord
+        while you play something new over it.</li>
+        <li><strong>Play Pressure with your hands.</strong> Channel
+        aftertouch is added to the Pressure macro: lean into a held note
+        and the loops churn, the drive rises and the floor tightens;
+        ease off and it opens again.</li>
+        <li><strong>Let the events work.</strong> If a patch feels
+        static, do not reach for a modulation knob — raise <em>Event
+        Rate</em> (or Life) and let the schedulers wake peaks, loops and
+        blooms on their own clock. One event every 20–90 s is the
+        default; 10× is a different animal.</li>
+        <li><strong>The two bodies are a crossfade, not a
+        switch.</strong> Set Material A and B to two different worlds
+        (Glass Sphere against Cavern Wall) and ride <em>Blend</em>, or
+        let Weight pull it for you.</li>
+        <li><strong>Ghosts are off by default.</strong> Turn <em>Ghost
+        Lvl</em> up on the Life page, or raise Fog, and the drone starts
+        remembering itself — an octave down, blurred, and reversed if
+        you let it.</li>
+        <li><strong>Bipolar knobs rest at centre:</strong> the Gravity
+        macro, Cloud Gravity, Res Grav, Smear Tilt and Self Affinity are
+        all neutral in the middle — automation that “does nothing” is
+        usually sitting on one of these centres.</li>
+        <li><strong>Long tails stack.</strong> The envelope release (45
+        s), the cavern (up to 60 s), the ecology and the ghosts all
+        overlap; when a patch turns to mud, shorten the cavern decay
+        first, then Age the body.</li>
+        </ul>
+        <hr />
+        <p><em>Vorago is free and open-source software from Krate Audio,
+        released under the MIT license.</em></p>
+
+        <div class="manual-footer">
+            <p>
+                <a href="./">Back to Vorago</a> |
+                <a href="../">Krate Audio</a>
+            </p>
+        </div>
+    </div>
+</body>
+</html>
