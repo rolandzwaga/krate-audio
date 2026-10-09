@@ -3,37 +3,42 @@
   "plugins": {
     "Disrumpo": {
       "version": "0.9.9",
-      "download_url": "https://rolandzwaga.github.io/krate-audio/disrumpo/",
+      "download_url": "https://krateaudio.com/disrumpo/",
       "release_notes": ""
     },
     "Gradus": {
       "version": "1.10.0",
-      "download_url": "https://rolandzwaga.github.io/krate-audio/gradus/",
+      "download_url": "https://krateaudio.com/gradus/",
       "release_notes": ""
     },
     "Innexus": {
       "version": "1.0.2",
-      "download_url": "https://rolandzwaga.github.io/krate-audio/innexus/",
+      "download_url": "https://krateaudio.com/innexus/",
       "release_notes": ""
     },
     "Iterum": {
       "version": "0.15.2",
-      "download_url": "https://rolandzwaga.github.io/krate-audio/iterum/",
+      "download_url": "https://krateaudio.com/iterum/",
       "release_notes": ""
     },
     "Membrum": {
       "version": "0.12.0",
-      "download_url": "https://rolandzwaga.github.io/krate-audio/membrum/",
+      "download_url": "https://krateaudio.com/membrum/",
       "release_notes": ""
     },
     "Ruinae": {
       "version": "0.12.2",
-      "download_url": "https://rolandzwaga.github.io/krate-audio/ruinae/",
+      "download_url": "https://krateaudio.com/ruinae/",
       "release_notes": ""
     },
     "Seraphis": {
       "version": "1.0.0",
-      "download_url": "https://rolandzwaga.github.io/krate-audio/seraphis/",
+      "download_url": "https://krateaudio.com/seraphis/",
+      "release_notes": ""
+    },
+    "Vorago": {
+      "version": "1.0.0",
+      "download_url": "https://krateaudio.com/vorago/",
       "release_notes": ""
     }
   }
