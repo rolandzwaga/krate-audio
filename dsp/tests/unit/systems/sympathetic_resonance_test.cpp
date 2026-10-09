@@ -2462,9 +2462,14 @@ TEST_CASE("SympatheticResonance SIMD performance benchmark",
     constexpr int benchmarkSamples = 441000; // 10 seconds worth
 
     // Set up coefficient arrays -- ALL slots are active with real coefficients
-    std::array<float, numResonators> coeffs{};
-    std::array<float, numResonators> rSquareds{};
-    std::array<float, numResonators> gains{};
+    // The kernel uses LoadU on these arrays (sympathetic_resonance_simd.cpp:71-80); a
+    // 4-byte-aligned stack array whose start straddles cache lines read SIMD/scalar
+    // 0.60 on one binary and 0.98 on another with identical kernel code (Vorago 13d
+    // close, cpu_final_rerun_alone.log). Cache-line alignment keeps the benchmark
+    // measuring the kernel, not the frame layout.
+    alignas(64) std::array<float, numResonators> coeffs{};
+    alignas(64) std::array<float, numResonators> rSquareds{};
+    alignas(64) std::array<float, numResonators> gains{};
 
     for (int i = 0; i < numResonators; ++i) {
         float freq = 100.0f + static_cast<float>(i) * 25.0f; // 100-1675 Hz spread
@@ -2485,9 +2490,9 @@ TEST_CASE("SympatheticResonance SIMD performance benchmark",
 
     // --- Scalar benchmark ---
     {
-        std::array<float, numResonators> y1s{};
-        std::array<float, numResonators> y2s{};
-        std::array<float, numResonators> envelopes{};
+        alignas(64) std::array<float, numResonators> y1s{};
+        alignas(64) std::array<float, numResonators> y2s{};
+        alignas(64) std::array<float, numResonators> envelopes{};
 
         auto start = std::chrono::high_resolution_clock::now();
 
@@ -2528,9 +2533,9 @@ TEST_CASE("SympatheticResonance SIMD performance benchmark",
 
     // --- SIMD benchmark ---
     {
-        std::array<float, numResonators> y1s{};
-        std::array<float, numResonators> y2s{};
-        std::array<float, numResonators> envelopes{};
+        alignas(64) std::array<float, numResonators> y1s{};
+        alignas(64) std::array<float, numResonators> y2s{};
+        alignas(64) std::array<float, numResonators> envelopes{};
 
         auto start = std::chrono::high_resolution_clock::now();
 
