@@ -78,12 +78,13 @@ constexpr std::uint32_t kNegInfBits = 0xFF800000u;
     return out;
 }
 
-/// @brief Finiteness by exponent field, never std::isfinite.
-///        (aether_reverb_perf_test.cpp:453 uses the same test.)
+/// @brief Finiteness through the barrier-read detail::isFinite, never a local
+///        memcpy/mask clone: Apple Clang folds the clone to "finite" for a value
+///        that came back from makeNonFinite(), because under -ffinite-math-only
+///        every float return is assumed finite (observed on the macOS leg: the
+///        REQUIRE_FALSE below read `!true` for the NaN).
 [[nodiscard]] bool isFiniteBits(float v) noexcept {
-    std::uint32_t bits = 0u;
-    std::memcpy(&bits, &v, sizeof(bits));
-    return (bits & 0x7F800000u) != 0x7F800000u;
+    return Krate::DSP::detail::isFinite(v);
 }
 
 // ------------------------------------------------------------------------------

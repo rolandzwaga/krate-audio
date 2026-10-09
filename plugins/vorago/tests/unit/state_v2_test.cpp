@@ -539,21 +539,31 @@ TEST_CASE("Vorago_StateRoundTripV2", "[vorago][state]") {
         putLeWord(v1, 0, 1u);                                       // version 1
         putLeWord(v1, 4, std::bit_cast<std::uint32_t>(0.8f));       // master gain
         putLeWord(v1, 8, 2u);                                       // polyphony
+        // One table for the writer and the reader below. Evaluated at compile
+        // time, so it is the same twelve bit patterns on every toolchain; the
+        // expression inline in both loops was contracted to a fused multiply-add
+        // in one of them on the macOS leg (-ffp-contract=fast) and the bit-exact
+        // compare read 0x3e851eb9 against 0x3e851eb8 for macro 3.
+        constexpr std::array<float, 12> kV1Macros = [] {
+            std::array<float, 12> m{};
+            for (std::size_t i = 0; i < m.size(); ++i) {
+                m[i] = 0.05f + 0.07f * static_cast<float>(i);
+            }
+            return m;
+        }();
         for (std::size_t i = 0; i < 12; ++i) {
-            const float m = 0.05f + 0.07f * static_cast<float>(i);
-            putLeWord(v1, 12u + 4u * i, std::bit_cast<std::uint32_t>(m));
+            putLeWord(v1, 12u + 4u * i, std::bit_cast<std::uint32_t>(kV1Macros[i]));
         }
 
-        const auto requireV1Fields = [](const Vg::Processor& proc) {
+        const auto requireV1Fields = [&kV1Macros](const Vg::Processor& proc) {
             REQUIRE(std::bit_cast<std::uint32_t>(proc.globalParamsForTest().masterGain.load()) ==
                     std::bit_cast<std::uint32_t>(0.8f));
             REQUIRE(proc.globalParamsForTest().polyphony.load() == 2);
             for (int i = 0; i < 12; ++i) {
-                const float m = 0.05f + 0.07f * static_cast<float>(i);
                 INFO("macro " << i);
                 REQUIRE(std::bit_cast<std::uint32_t>(
                             Vg::macroField(proc.macroParamsForTest(), i).load()) ==
-                        std::bit_cast<std::uint32_t>(m));
+                        std::bit_cast<std::uint32_t>(kV1Macros[static_cast<std::size_t>(i)]));
             }
         };
         const auto isV1Id = [](ParamID id) {
@@ -608,7 +618,7 @@ TEST_CASE("Vorago_StateRoundTripV2", "[vorago][state]") {
         REQUIRE(std::fabs(controller->getParamNormalized(Vg::kPolyphonyId) - 0.2) <= 1.0e-9);
         for (int i = 0; i < 12; ++i) {
             const auto id = static_cast<ParamID>(Vg::kMacroDarknessId + i);
-            const double want = static_cast<double>(0.05f + 0.07f * static_cast<float>(i));
+            const double want = static_cast<double>(kV1Macros[static_cast<std::size_t>(i)]);
             INFO("macro " << i);
             REQUIRE(std::fabs(controller->getParamNormalized(id) - want) <= 1.0e-9);
         }

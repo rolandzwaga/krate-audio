@@ -41,6 +41,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
+#include <limits>
 #include <memory>
 #include <span>
 #include <vector>
@@ -271,8 +272,18 @@ struct FirstMismatch {
     float got = 0.0f;
     float want = 0.0f;
 
+    // Equal to within 4 ulp of the larger magnitude (at least 4 ulp of 1.0f):
+    // the engine and expectedLevers() evaluate the same `base + span * x` in
+    // different TUs, and with -ffp-contract=fast (the macOS leg) one side is a
+    // fused multiply-add and the other is not, which is a last-bit difference,
+    // not a lane-shaping defect (observed: 0.828f vs 0.828f, one ulp apart).
+    [[nodiscard]] static bool same(float g, float x) noexcept {
+        const float scale = std::max({1.0f, std::fabs(g), std::fabs(x)});
+        return std::fabs(g - x) <= 4.0f * std::numeric_limits<float>::epsilon() * scale;
+    }
+
     void check(const char* w, std::size_t i, float g, float x) {
-        if (what == nullptr && !(g == x)) {
+        if (what == nullptr && !same(g, x)) {
             what = w;
             index = i;
             got = g;

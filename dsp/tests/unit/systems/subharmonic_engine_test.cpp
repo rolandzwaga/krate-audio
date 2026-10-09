@@ -382,13 +382,14 @@ private:
                                 const std::vector<float>& actualR,
                                 const std::vector<float>& referenceL,
                                 const std::vector<float>& referenceR,
-                                std::string& detail) {
+                                std::string& detail,
+                                double metricTolerance = Krate::DSP::TestUtils::kMetricTolerance) {
     const auto cmpL = Krate::DSP::TestUtils::compareFingerprints(
         Krate::DSP::TestUtils::fingerprintRender(actualL),
-        Krate::DSP::TestUtils::fingerprintRender(referenceL));
+        Krate::DSP::TestUtils::fingerprintRender(referenceL), metricTolerance);
     const auto cmpR = Krate::DSP::TestUtils::compareFingerprints(
         Krate::DSP::TestUtils::fingerprintRender(actualR),
-        Krate::DSP::TestUtils::fingerprintRender(referenceR));
+        Krate::DSP::TestUtils::fingerprintRender(referenceR), metricTolerance);
     detail = "L: worstMetric=" + std::to_string(cmpL.worstMetricRelativeError) +
              " worstSample=" + std::to_string(cmpL.worstSampleError) + " (" + cmpL.detail +
              "); R: worstMetric=" + std::to_string(cmpR.worstMetricRelativeError) +
@@ -2323,8 +2324,18 @@ TEST_CASE("SubharmonicEngine_Dormancy", "[subharmonic_engine]") {
         INFO("post-wake RMS: slept " << bufferRms(sleptL) << ", never " << bufferRms(neverL));
         REQUIRE(bufferRms(neverL) > 1.0e-3f);
 
+        // Metric tolerance pinned for THIS comparison, not the codegen-spread
+        // default (2.5e-4): the two instances took different code paths for
+        // 37 s (the dormant chunk advance vs the awake per-sample path), so the
+        // post-wake renders differ by the accumulated rounding of those paths.
+        // Measured worstMetric: MSVC 14.44 2.42e-4, clang-cl 21 /fp:fast
+        // 2.72e-4, Apple Clang (Xcode 26.6, arm64) 3.04e-4; worstSample 9.2e-5
+        // on all three. 1.0e-3 is ~3x the worst toolchain. A frozen generator
+        // (the defect this arm exists for) is caught by (d1) above directly.
+        constexpr double kPostWakeMetricTolerance = 1.0e-3;
         std::string detail;
-        const bool agree = rendersAgree(sleptL, sleptR, neverL, neverR, detail);
+        const bool agree =
+            rendersAgree(sleptL, sleptR, neverL, neverR, detail, kPostWakeMetricTolerance);
         INFO("37 s dormant vs never dormant: " << detail);
         REQUIRE(agree);
     }

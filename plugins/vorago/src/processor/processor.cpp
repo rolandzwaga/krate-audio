@@ -268,9 +268,20 @@ tresult PLUGIN_API Processor::connect(IConnectionPoint* other) {
     if (result == kResultTrue) {
         auto configCallback = [](DataExchangeHandler::Config& config,
                                  const ProcessSetup& /*setup*/) {
-            config.blockSize = static_cast<uint32>(sizeof(EcosystemFrame));
+            // The block size is sizeof(EcosystemFrame) rounded UP to the alignment:
+            // the SDK's fallback handler allocates each block with
+            // std::aligned_alloc(alignment, blockSize), and macOS returns null for
+            // a size that is not a multiple of the alignment (1072 % 32 = 16). Every
+            // block was null, every lockBlock() failed, and the macOS CI leg counted
+            // one skipped fill per block (ecosystem_frame_test HandlerLifecycle).
+            constexpr uint32 kAlignment = 32;
+            constexpr uint32 kBlockSize =
+                ((static_cast<uint32>(sizeof(EcosystemFrame)) + kAlignment - 1u) / kAlignment) *
+                kAlignment;
+            static_assert(kBlockSize % kAlignment == 0 && kBlockSize >= sizeof(EcosystemFrame));
+            config.blockSize = kBlockSize;
             config.numBlocks = 4;
-            config.alignment = 32;
+            config.alignment = kAlignment;
             config.userContextID = kEcosystemFrameUserContextId;
             return true;
         };

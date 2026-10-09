@@ -1422,8 +1422,11 @@ TEST_CASE("Vorago_EcosystemFrame_HandlerLifecycle", "[vorago][integration][ecosy
             REQUIRE(r->hasUserContextId);
             CHECK(std::cmp_equal(r->userContextId, kVeco));
             REQUIRE(r->hasBlockSize);
-            CHECK(std::cmp_equal(r->blockSize, sizeof(EcosystemFrame)));
-            CHECK(r->blockSize == 1072);
+            // sizeof(EcosystemFrame) = 1072, rounded up to the 32-byte alignment the
+            // processor requests (processor.cpp connect(): macOS's aligned_alloc
+            // returns null for 1072 bytes at alignment 32).
+            CHECK(std::cmp_greater_equal(r->blockSize, sizeof(EcosystemFrame)));
+            CHECK(r->blockSize == 1088);
         }
     }
 
