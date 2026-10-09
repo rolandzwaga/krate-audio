@@ -1,0 +1,310 @@
+digraph VoragoSignalFlow {
+    rankdir=TB;
+    fontname="Helvetica";
+    fontsize=11;
+    node [fontname="Helvetica", fontsize=10, style=filled];
+    edge [fontname="Helvetica", fontsize=8];
+    compound=true;
+    newrank=true;
+
+    // =========================================================================
+    // COLOR LEGEND
+    // =========================================================================
+    subgraph cluster_legend {
+        label="Legend";
+        style=rounded;
+        color="#888888";
+        fontsize=12;
+        fontcolor="#444444";
+        bgcolor="#FAFAFA";
+
+        node [shape=plaintext, fillcolor="#FAFAFA"];
+        leg [label=<
+            <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="4">
+            <TR><TD BGCOLOR="#4A90D9" WIDTH="20"> </TD><TD ALIGN="LEFT">Audio signal path</TD></TR>
+            <TR><TD BGCOLOR="#E8A838" WIDTH="20"> </TD><TD ALIGN="LEFT">Identity layer &amp; life modulators (control-rate, never repeating)</TD></TR>
+            <TR><TD BGCOLOR="#6BBF6B" WIDTH="20"> </TD><TD ALIGN="LEFT">Macro matrix routing</TD></TR>
+            <TR><TD BGCOLOR="#9B6BBF" WIDTH="20"> </TD><TD ALIGN="LEFT">Cavern space (in the signal path)</TD></TR>
+            <TR><TD BGCOLOR="#AAAAAA" WIDTH="20"> </TD><TD ALIGN="LEFT">Host / seed / wrapper (control)</TD></TR>
+            <TR><TD>───▶</TD><TD ALIGN="LEFT">Audio flow</TD></TR>
+            <TR><TD>- - ▶</TD><TD ALIGN="LEFT">Modulation / control</TD></TR>
+            </TABLE>
+        >];
+    }
+
+    // =========================================================================
+    // INPUT SOURCES
+    // =========================================================================
+    subgraph cluster_input {
+        label="Input";
+        style=rounded;
+        color="#666666";
+        bgcolor="#F0F0F0";
+
+        midi_in [label="MIDI\n(Notes, Velocity)", shape=house, fillcolor="#CCDDEE"];
+        midi_cc [label="MIDI controllers\nCC64 sustain\nchannel aftertouch", shape=house, fillcolor="#CCDDEE"];
+        seed [label="Seed (1-16)\nreseeds every RNG:\nvoices (cloud, noise, resonance,\necology, ecosystem, events),\nghost tap, cavern", shape=house, fillcolor="#CCDDEE"];
+    }
+
+    // =========================================================================
+    // WRAPPER + VOICE MANAGEMENT
+    // =========================================================================
+    sustain_latch [label="Sustain Latch\n(wrapper-side CC64:\nnote-offs held while\nthe pedal is down)", shape=box, fillcolor="#CCCCCC"];
+    voice_alloc [label="Voice Allocation\n(1-6 voices, default 4)\namnesty-aware stealing;\nsilent slots keep their\nidentity layer running", shape=octagon, fillcolor="#7BAFD4"];
+
+    midi_in -> sustain_latch [penwidth=2, label="note on/off"];
+    midi_cc -> sustain_latch [style=dashed, color="#888888", label="CC64"];
+    sustain_latch -> voice_alloc [penwidth=2, label="note on/off"];
+
+    // =========================================================================
+    // PER-VOICE PROCESSING (x6)
+    // =========================================================================
+    subgraph cluster_voice {
+        label="VoragoVoice (x6)  —  64-Sample Control Chunks";
+        style=rounded;
+        color="#4A90D9";
+        bgcolor="#EDF4FC";
+        fontsize=13;
+        fontcolor="#2A5080";
+        penwidth=2;
+
+        // --- Identity layer (control-rate, no audio) ---
+        subgraph cluster_identity {
+            label="Identity Layer (control-rate — processes no audio)";
+            style=dashed;
+            color="#E8A838";
+            bgcolor="#FDF3E0";
+
+            ecosystem [label="Ecosystem Engine\nup to 48 agents on a toroidal habitat\nexchanging energy (nothing created\nor destroyed): partial, resonator,\nnoise, feedback and ghost kinds\npublish one wake value (0-1) each\ndepth, eco sync, self affinity", shape=box, fillcolor="#F5C878"];
+            events [label="Slow Event Schedulers (x2)\nfast: one event every 20-90 s\nslow: one every 180-600 s\n(÷ event rate scale)\nattack / hold / release swells to:\nbloom trigger, noise wake, peak wake,\nloop wake, ghost burst", shape=box, fillcolor="#F5C878"];
+            breath [label="Breathing Modulator\ndepth, irregularity", shape=ellipse, fillcolor="#F5C878"];
+            tide [label="Tidal Modulator\n(minutes-long cycles)\ndepth", shape=ellipse, fillcolor="#F5C878"];
+        }
+
+        bloom [label="Bloom Engine\n(control-rate bookkeeping)\n16 child partials spawned from the\nstrongest current peaks, each on a\nminutes-scale fade-in / hold / fade-out\nspawn rate, depth", shape=box, fillcolor="#F5C878"];
+
+        // --- Excitation ---
+        cloud [label="Harmonic Cloud\n64 additive partials, stereo\nrichness, spectral tilt, inharmonicity,\nmutation, spectral gravity, drift (cents),\nstereo spread", shape=box, fillcolor="#6AABEA"];
+        noise [label="Noise Organism\n4 sources x 12 noise types\n(white … velvet, vinyl rumble, radio static)\nmodel: direct / filtered wind /\ngranular dust / metallic hiss\neach: resonator → comb → wandering filter\nlevel, wake, wander rate", shape=box, fillcolor="#6AABEA"];
+        noise_decorr [label="Decorrelation Pair\n(mono noise → stereo:\nallpass L / R + 1-sample branch)", shape=box, fillcolor="#6AABEA"];
+        exc_sum [label="Excitation Bus\ncloud + noise", shape=box, fillcolor="#6AABEA"];
+
+        voice_env [label="Voice Envelope\n(gain on the excitation bus only —\nnothing downstream is gated)\nStandard: six stages, minutes long\n(20 s attack … 45 s release)\nGrowth: logistic swell up to 120 s", shape=box, fillcolor="#6AABEA"];
+
+        // --- Colouring / sustaining stages, all in place ---
+        resonance [label="Resonance Drift Network\n12 resonant peaks whose frequency, Q,\ngain and pan wander on Brownian lanes\nanchor: free / keyed / hybrid\ngravity, octave lock, mix, wander rate", shape=box, fillcolor="#6AABEA"];
+        ecology [label="Feedback Ecology\n6 coupled micro-loops:\nfilter (LP / BP / HP) → delay →\nresonator → DC blocker, each fed\nback into itself and, faintly, its\nneighbours; RMS governor keeps the\npopulation below self-oscillation\nloop gain, mix", shape=box, fillcolor="#6AABEA"];
+
+        // --- Two-body blend ---
+        subgraph cluster_body {
+            label="Acoustic Body (two Continuous Bodies, both always running)";
+            style=dashed;
+            color="#4A90D9";
+            bgcolor="#DDE8F5";
+
+            body_a [label="Body A\n(default Stone Chamber)", shape=box, fillcolor="#6AABEA"];
+            body_b [label="Body B\n(default Steel Tank)", shape=box, fillcolor="#6AABEA"];
+            body_blend [label="Per-Sample Blend A ↔ B\n11 materials: glass, strings, metal plate,\nchamber, ice, stone chamber, steel tank,\nwooden hull, cathedral column,\ncavern wall, glass sphere\ndamping, resonance, body mix", shape=box, fillcolor="#6AABEA"];
+
+            body_a -> body_blend [penwidth=2, color="#2A5080"];
+            body_b -> body_blend [penwidth=2, color="#2A5080"];
+        }
+
+        level_det [label="Level Detector\n(retires the voice after\n10 s below -90 dBFS)", shape=box, fillcolor="#6AABEA"];
+
+        // --- Control connections inside the voice ---
+        ecosystem -> noise [style=dashed, color="#C88820", label="source wakes\n+ level"];
+        ecosystem -> resonance [style=dashed, color="#C88820", label="peak wakes\n+ level, wander"];
+        ecosystem -> ecology [style=dashed, color="#C88820", label="loop wakes"];
+        ecosystem -> cloud [style=dashed, color="#C88820", label="mutation"];
+        ecosystem -> bloom [style=dashed, color="#C88820", label="depth"];
+        events -> bloom [style=dashed, color="#C88820", label="trigger"];
+        events -> noise [style=dashed, color="#C88820"];
+        events -> resonance [style=dashed, color="#C88820"];
+        events -> ecology [style=dashed, color="#C88820"];
+        bloom -> cloud [style=dashed, color="#C88820", penwidth=2, label="spectrum target\n(ratios + amplitudes)"];
+
+        // --- Audio flow within the voice ---
+        cloud -> exc_sum [penwidth=2, color="#2A5080"];
+        noise -> noise_decorr [penwidth=2, color="#2A5080", label="mono"];
+        noise_decorr -> exc_sum [penwidth=2, color="#2A5080"];
+        exc_sum -> voice_env [penwidth=2, color="#2A5080"];
+        voice_env -> resonance [penwidth=2, color="#2A5080"];
+        resonance -> ecology [penwidth=2, color="#2A5080"];
+        ecology -> body_a [penwidth=2, color="#2A5080"];
+        ecology -> body_b [penwidth=2, color="#2A5080"];
+        body_blend -> level_det [penwidth=2, color="#2A5080"];
+    }
+
+    voice_alloc -> ecosystem [lhead=cluster_voice, penwidth=2, label="note on/off\nper voice"];
+
+    // =========================================================================
+    // ENGINE SUMMING + GLOBAL LAYER-3 CHAIN
+    // =========================================================================
+    engine_sum [label="Voice Summation\n6 slots → Stereo L/R\n× 1/√polyphony gain\n+ per-voice non-finite guard\n(a poisoned voice contributes 0\nand is recovered next chunk)", shape=box, fillcolor="#4A90D9", fontcolor="white"];
+
+    level_det -> engine_sum [penwidth=2, color="#2A5080"];
+
+    subgraph cluster_ghost {
+        label="Granular Ghosts (global tap, parallel, wet only)";
+        style=dashed;
+        color="#4A90D9";
+        bgcolor="#DDE8F5";
+
+        ghost_capture [label="Capture Ring\n(records the raw voice sum —\nbefore sub and smear)", shape=box, fillcolor="#6AABEA"];
+        ghost_grains [label="Ghost Grain Engine\n12 s grains an octave below,\nscattered across the capture,\nblur, wide decorrelation,\nreverse probability\nlevel = ghost peak × ghost lane\n(an event, not a wash)", shape=box, fillcolor="#6AABEA"];
+        ghost_sched [label="Ghost Scheduling\n0.30 grains/s base density\n+ Event Triggers: a scheduled\nghost burst adds grains on top", shape=ellipse, fillcolor="#F5C878"];
+
+        ghost_capture -> ghost_grains [penwidth=2, color="#2A5080"];
+        ghost_sched -> ghost_grains [style=dashed, color="#C88820"];
+    }
+
+    sub_engine [label="Subharmonic Engine\n÷2, ÷4 and fifth-below dividers\ntracking the lowest sounding voice\n(held when none sounds)\nlevel ramp × breath × backstop gate\n→ 2-pole LP → saturation → DC blocker\nadded to the untouched dry path\nlevel offset, fifth-below level, tracking", shape=box, fillcolor="#6AABEA"];
+    smear [label="Spectral Smear  (fog)\nSTFT 2048, Hann 75 % overlap\nper-bin magnitude memory (lows\nsmear longer than highs) + tilt\nper-bin phase decoherence\nsmear amount, decoherence, tilt", shape=box, fillcolor="#6AABEA"];
+
+    engine_sum -> ghost_capture [penwidth=2, color="#2A5080", label="tap"];
+    ghost_grains -> sub_engine [penwidth=2, color="#2A5080", label="wet texture\nsummed into\nthe same bus"];
+    engine_sum -> sub_engine [penwidth=2, color="#2A5080"];
+    sub_engine -> smear [penwidth=2, color="#2A5080"];
+
+    tide -> smear [style=dashed, color="#C88820", label="tidal fog fold\n(adds to smear amount)", constraint=false];
+    breath -> sub_engine [style=dashed, color="#C88820", label="breath gain", constraint=false];
+
+    // =========================================================================
+    // CAVERN — THE SPACE ENGINE (in the path, outside the voice engine)
+    // =========================================================================
+    subgraph cluster_cavern {
+        label="Cavern Space  —  an enormous underground bunker (in the signal path)";
+        style=rounded;
+        color="#9B6BBF";
+        bgcolor="#F3ECF9";
+        fontsize=13;
+        fontcolor="#6B3B9F";
+        penwidth=2;
+
+        cavern_er [label="Stone Early Reflections\n12 fixed taps (no RNG), each with\nits own absorption one-pole\nearly size, level, absorption, send", shape=box, fillcolor="#C49EE0"];
+        cavern_diffuser [label="Input Diffuser\n(density)", shape=box, fillcolor="#C49EE0"];
+        cavern_fdn [label="FDN Reverb Core\n(the owned Aether engine:\nshimmer and bloom not built)\nsize, decay, dimensionality,\nfreeze (latched)", shape=box, fillcolor="#C49EE0"];
+        cavern_specdamp [label="Spectral Damping\ndarkness, fog", shape=box, fillcolor="#C49EE0"];
+        cavern_dampers [label="Moving Dampers\nper-line cutoffs wandering\nunder Brownian drift\ndamper depth, rate", shape=box, fillcolor="#C49EE0"];
+        cavern_mix [label="M/S Width + Dry / Wet Mix\n(equal-power)", shape=box, fillcolor="#C49EE0"];
+
+        cavern_breath [label="Breathing Modulator\nsize breath", shape=ellipse, fillcolor="#F5C878"];
+
+        cavern_er -> cavern_diffuser [penwidth=2, color="#6B3B9F"];
+        cavern_diffuser -> cavern_fdn [penwidth=2, color="#6B3B9F"];
+        cavern_fdn -> cavern_specdamp [penwidth=2, color="#6B3B9F"];
+        cavern_specdamp -> cavern_dampers [penwidth=2, color="#6B3B9F"];
+        cavern_dampers -> cavern_mix [penwidth=2, color="#6B3B9F"];
+
+        cavern_breath -> cavern_fdn [style=dashed, color="#C88820", label="size"];
+    }
+
+    smear -> cavern_er [penwidth=2, color="#2A5080", label="dry (also fed\nforward to mix)"];
+
+    master_gain [label="Master Gain\n(smoothed, on the cavern\nreturn, before the output stage)", shape=box, fillcolor="#888888", fontcolor="white"];
+
+    cavern_mix -> master_gain [penwidth=2, color="#2A5080"];
+
+    // =========================================================================
+    // OUTPUT STAGE
+    // =========================================================================
+    subgraph cluster_output {
+        label="Output Stage (always last)";
+        style=rounded;
+        color="#666666";
+        bgcolor="#F0F0F0";
+
+        saturator [label="Tape Saturator L / R\n(drive + saturation —\nthe Pressure macro rides\non the user's saturation base)", shape=box, fillcolor="#888888", fontcolor="white"];
+        limiter [label="True-Peak Limiter\n(ALWAYS on, ceiling -0.3 dB —\nno bypass path)", shape=box, fillcolor="#888888", fontcolor="white"];
+        output [label="Audio Output\nL / R", shape=invhouse, fillcolor="#CCDDEE"];
+
+        saturator -> limiter [penwidth=2];
+        limiter -> output [penwidth=2];
+    }
+
+    master_gain -> saturator [penwidth=2, color="#2A5080"];
+
+    // =========================================================================
+    // MACRO MATRIX
+    // =========================================================================
+    subgraph cluster_macros {
+        label="Macro Matrix  —  12 Concept Macros, 41 Targets";
+        style=rounded;
+        color="#6BBF6B";
+        bgcolor="#E5F5E5";
+        fontsize=13;
+        fontcolor="#3A8F3A";
+        penwidth=2;
+
+        m_darkness [label="DARKNESS\ncloud tilt, cavern darkness,\nsmear tilt", shape=ellipse, fillcolor="#8ED08E"];
+        m_age [label="AGE\nbody damping, cavern decay\ndown, cloud tilt", shape=ellipse, fillcolor="#8ED08E"];
+        m_density [label="DENSITY\ncloud richness, noise wake\n+ level, bloom depth", shape=ellipse, fillcolor="#8ED08E"];
+        m_movement [label="MOVEMENT\ncloud drift, resonance +\nnoise wander, breathing,\ncavern dampers", shape=ellipse, fillcolor="#8ED08E"];
+        m_gravity [label="GRAVITY\nresonance gravity,\noctave lock", shape=ellipse, fillcolor="#8ED08E"];
+        m_entropy [label="ENTROPY\ncloud mutation, inharmonicity\n+ drift, smear decoherence,\nbreathing irregularity", shape=ellipse, fillcolor="#8ED08E"];
+        m_pressure [label="PRESSURE\necology mix + loop gain,\noutput saturation + drive,\nsub level down\n(+ channel aftertouch)", shape=ellipse, fillcolor="#8ED08E"];
+        m_weight [label="WEIGHT\nsub level, body blend\n+ damping, cloud tilt", shape=ellipse, fillcolor="#8ED08E"];
+        m_fog [label="FOG\nsmear amount + decoherence,\nghost level, ghost blur,\ncavern fog + darkness,\ntidal depth", shape=ellipse, fillcolor="#8ED08E"];
+        m_life [label="LIFE\necosystem depth, event\nrate, bloom spawn rate", shape=ellipse, fillcolor="#8ED08E"];
+        m_depth [label="DEPTH\ncavern size, decay up,\nmix, width", shape=ellipse, fillcolor="#8ED08E"];
+        m_mass [label="MASS\nbody resonance + mix,\nresonance mix, sub level\n+ tracking", shape=ellipse, fillcolor="#8ED08E"];
+
+        macro_matrix [label="VoragoMacroMatrix\n\ndeep parameters set the base,\nmacros add travel on top\n(clamped by each target setter)\n\n34 voice / engine targets\n7 cavern targets\npushed once per block", shape=diamond, fillcolor="#8ED08E"];
+
+        m_darkness -> macro_matrix [style=dashed, color="#3A8F3A"];
+        m_age -> macro_matrix [style=dashed, color="#3A8F3A"];
+        m_density -> macro_matrix [style=dashed, color="#3A8F3A"];
+        m_movement -> macro_matrix [style=dashed, color="#3A8F3A"];
+        m_gravity -> macro_matrix [style=dashed, color="#3A8F3A"];
+        m_entropy -> macro_matrix [style=dashed, color="#3A8F3A"];
+        m_pressure -> macro_matrix [style=dashed, color="#3A8F3A"];
+        m_weight -> macro_matrix [style=dashed, color="#3A8F3A"];
+        m_fog -> macro_matrix [style=dashed, color="#3A8F3A"];
+        m_life -> macro_matrix [style=dashed, color="#3A8F3A"];
+        m_depth -> macro_matrix [style=dashed, color="#3A8F3A"];
+        m_mass -> macro_matrix [style=dashed, color="#3A8F3A"];
+    }
+
+    macro_matrix -> cloud [style=bold, color="#3A8F3A", label="→ all voices:\ncloud, noise, resonance,\necology, bodies, ecosystem,\nevents, bloom, breath, tide", constraint=false, lhead=cluster_voice];
+    macro_matrix -> sub_engine [style=bold, color="#3A8F3A", label="sub level,\ntracking", constraint=false];
+    macro_matrix -> smear [style=bold, color="#3A8F3A", label="smear amount,\ndecoherence, tilt", constraint=false];
+    macro_matrix -> ghost_grains [style=bold, color="#3A8F3A", label="ghost level,\nblur", constraint=false];
+    macro_matrix -> cavern_fdn [style=bold, color="#3A8F3A", label="size, darkness, decay,\nfog, dampers, mix, width", constraint=false, lhead=cluster_cavern];
+    macro_matrix -> saturator [style=bold, color="#3A8F3A", label="saturation,\ndrive (Pressure)", constraint=false];
+
+    // =========================================================================
+    // CROSS-SYSTEM CONNECTIONS
+    // =========================================================================
+    midi_cc -> m_pressure [style=dashed, color="#888888", label="aftertouch\n(summed, clamped)"];
+    seed -> ecosystem [style=dashed, color="#888888", lhead=cluster_voice];
+    seed -> ghost_grains [style=dashed, color="#888888"];
+    seed -> cavern_dampers [style=dashed, color="#888888"];
+
+    eco_view [label="Ecosystem View (UI)\nlive habitat display, fed one-way\nby a change-triggered frame\nfrom the processor", shape=note, fillcolor="#CCCCCC"];
+    ecosystem -> eco_view [style=dashed, color="#888888", label="frame", constraint=false];
+
+    // =========================================================================
+    // PROCESSING NOTES
+    // =========================================================================
+    subgraph cluster_rates {
+        label="Processing Notes";
+        style=rounded;
+        color="#888888";
+        bgcolor="#FAFAFA";
+        node [shape=plaintext, fillcolor="#FAFAFA"];
+
+        rates [label=<
+            <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="4">
+            <TR><TD ALIGN="LEFT"><B>Control rate:</B></TD><TD ALIGN="LEFT">64-sample chunks everywhere (voice, ecosystem, bloom, bodies, cavern); a voice never renders a partial chunk, so the sound does not depend on the host's block size</TD></TR>
+            <TR><TD ALIGN="LEFT"><B>Identity layer:</B></TD><TD ALIGN="LEFT">the ecosystem and the event schedulers are the authored-nothing core — every wake, bloom and ghost burst is grown, not scripted; they advance even for silent voices</TD></TR>
+            <TR><TD ALIGN="LEFT"><B>Voice envelope:</B></TD><TD ALIGN="LEFT">gates the excitation bus (cloud + noise) only — resonance, ecology, bodies, ghosts and the cavern all ring past note-off; the voice retires on a level detector</TD></TR>
+            <TR><TD ALIGN="LEFT"><B>Macro matrix:</B></TD><TD ALIGN="LEFT">pushed once per block on the audio thread; neutral macros contribute exactly zero; channel aftertouch is added to Pressure</TD></TR>
+            <TR><TD ALIGN="LEFT"><B>Boundedness:</B></TD><TD ALIGN="LEFT">every stochastic process is bounded, mean-reverting and slew-limited; the ecology has an RMS governor; the sub engine a backstop gate; the output a true-peak limiter — a drone left running overnight neither dies nor explodes</TD></TR>
+            <TR><TD ALIGN="LEFT"><B>Latency:</B></TD><TD ALIGN="LEFT">constant — the spectral smear STFT (2048 samples) plus the cavern's spectral damping; reported once, never re-announced</TD></TR>
+            <TR><TD ALIGN="LEFT"><B>Chain order:</B></TD><TD ALIGN="LEFT">voices → sum → ghost tap → subharmonic → smear → cavern → master gain → saturator → true-peak limiter</TD></TR>
+            <TR><TD ALIGN="LEFT"><B>Seed:</B></TD><TD ALIGN="LEFT">one dropdown reseeds every stochastic process (per-voice salts for every source and the identity layer, plus the ghost tap and the cavern); a preset load never reseeds an unchanged seed</TD></TR>
+            </TABLE>
+        >];
+    }
+}
