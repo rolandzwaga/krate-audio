@@ -341,14 +341,14 @@ TEST_CASE("Vorago_RouteTable", "[vorago][params]") {
         REQUIRE(counts[static_cast<std::size_t>(Route::VP)] == 33);
         REQUIRE(counts[static_cast<std::size_t>(Route::ENG)] == 14);
         REQUIRE(counts[static_cast<std::size_t>(Route::CV)] == 9);
-        REQUIRE(counts[static_cast<std::size_t>(Route::MAC)] == 13);
+        REQUIRE(counts[static_cast<std::size_t>(Route::Macro)] == 13);
         REQUIRE(counts[static_cast<std::size_t>(Route::Local)] == 2);
     }
 
     SECTION("routeOf spot checks") {
         REQUIRE(routeOf(kMasterGainId) == Route::Local);
         REQUIRE(routeOf(kSustainPedalId) == Route::Local);
-        REQUIRE(routeOf(kChannelPressureId) == Route::MAC);
+        REQUIRE(routeOf(kChannelPressureId) == Route::Macro);
         REQUIRE(routeOf(kOutputSaturationId) == Route::MB);
         REQUIRE(routeOf(kSeedId) == Route::ENG);
         REQUIRE(routeOf(kPolyphonyId) == Route::ENG);
@@ -362,7 +362,7 @@ TEST_CASE("Vorago_RouteTable", "[vorago][params]") {
         REQUIRE_FALSE(routeOf(903).has_value());
         for (Steinberg::Vst::ParamID id = 100; id <= 111; ++id) {
             INFO("id = " << id);
-            REQUIRE(routeOf(id) == Route::MAC);
+            REQUIRE(routeOf(id) == Route::Macro);
         }
         REQUIRE_FALSE(routeOf(207).has_value());
         REQUIRE_FALSE(routeOf(1600).has_value());

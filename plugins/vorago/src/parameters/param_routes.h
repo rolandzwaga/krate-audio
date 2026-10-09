@@ -25,7 +25,9 @@
 
 namespace Vorago {
 
-enum class Route : std::uint8_t { MB, VP, ENG, CV, MAC, Local };
+// `Macro`, not `MAC`: VSTGUI defines the macro MAC on macOS (vstgui/lib/vstguibase.h), and a TU that
+// includes both the controller (VSTGUI) and this header would otherwise fail to parse the enumerator.
+enum class Route : std::uint8_t { MB, VP, ENG, CV, Macro, Local };
 
 struct ParamRouteEntry {
     Steinberg::Vst::ParamID id;
@@ -40,20 +42,20 @@ inline constexpr std::array<ParamRouteEntry, 110> kParamRoutes = {{
     {kSeedId, Route::ENG},
     {kOutputSaturationId, Route::MB},
     {kSustainPedalId, Route::Local},
-    {kChannelPressureId, Route::MAC},
+    {kChannelPressureId, Route::Macro},
     // --- Macros (100-111) ---
-    {kMacroDarknessId, Route::MAC},
-    {kMacroAgeId, Route::MAC},
-    {kMacroDensityId, Route::MAC},
-    {kMacroMovementId, Route::MAC},
-    {kMacroGravityId, Route::MAC},
-    {kMacroEntropyId, Route::MAC},
-    {kMacroPressureId, Route::MAC},
-    {kMacroWeightId, Route::MAC},
-    {kMacroFogId, Route::MAC},
-    {kMacroLifeId, Route::MAC},
-    {kMacroDepthId, Route::MAC},
-    {kMacroMassId, Route::MAC},
+    {kMacroDarknessId, Route::Macro},
+    {kMacroAgeId, Route::Macro},
+    {kMacroDensityId, Route::Macro},
+    {kMacroMovementId, Route::Macro},
+    {kMacroGravityId, Route::Macro},
+    {kMacroEntropyId, Route::Macro},
+    {kMacroPressureId, Route::Macro},
+    {kMacroWeightId, Route::Macro},
+    {kMacroFogId, Route::Macro},
+    {kMacroLifeId, Route::Macro},
+    {kMacroDepthId, Route::Macro},
+    {kMacroMassId, Route::Macro},
     // --- Cloud (200-206) ---
     {kCloudRichnessId, Route::MB},
     {kCloudTiltId, Route::MB},
@@ -284,7 +286,7 @@ static_assert(RouteTableDetail::countRoute(Route::VP) == 33,
               "VP route count (plan 3.2 + Phase 14 FR-074: 901, 902)");
 static_assert(RouteTableDetail::countRoute(Route::ENG) == 14, "ENG route count (plan 3.2)");
 static_assert(RouteTableDetail::countRoute(Route::CV) == 9, "CV route count (plan 3.2)");
-static_assert(RouteTableDetail::countRoute(Route::MAC) == 13, "MAC route count (plan 3.2)");
+static_assert(RouteTableDetail::countRoute(Route::Macro) == 13, "MAC route count (plan 3.2)");
 static_assert(RouteTableDetail::countRoute(Route::Local) == 2, "Local route count (plan 3.2)");
 static_assert(RouteTableDetail::countRoute(Route::MB) == kMbRoutes.size(),
               "kMbRoutes must cover every MB-routed ID");

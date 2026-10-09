@@ -64,7 +64,7 @@ Auto-loads when working under `plugins/vorago/`. Root `CLAUDE.md` still applies.
   | VP | 33 | a per-voice `VoragoVoiceParams` field, broadcast by `applyVoiceParams` on a generation bump (901, 902 are VP) |
   | ENG | 14 | a direct `VoragoEngine` setter (polyphony, seed, sub tone levels, envelope, ghost reverse/triggers) |
   | CV | 9 | a direct `CavernVerb` setter outside the matrix (density … damper rate, freeze) |
-  | MAC | 13 | a macro value: the 12 macros + channel pressure (summed into Pressure, clamped to [0, 1]) |
+  | Macro | 13 | a macro value: the 12 macros + channel pressure (summed into Pressure, clamped to [0, 1]). The enumerator is `Macro`, never `MAC`: VSTGUI `#define`s `MAC` on macOS |
   | Local | 2 | consumed by the processor itself: master gain, sustain pedal |
 
   The totals are `static_assert`ed in `param_routes.h`; change the table and the asserts together.

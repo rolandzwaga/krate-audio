@@ -1936,7 +1936,7 @@ TEST_CASE("Vorago_RegisteredDefaultsMatchEngine", "[vorago][integration]") {
                     REQUIRE_FALSE(refCavern->isFrozen());
                     break;
                 }
-                case Vg::Route::MAC: {  // ---- MAC (12) ----
+                case Vg::Route::Macro: {  // ---- MAC (12) ----
                     if (id < Vg::kMacroDarknessId || id > Vg::kMacroMassId) {
                         break;  // channel pressure: not a knob default
                     }
@@ -2054,7 +2054,7 @@ TEST_CASE("Vorago_RegisteredDefaultsMatchEngine", "[vorago][integration]") {
                 const Krate::DSP::CavernVerb* cavern = fx.proc->cavernForTest();
                 REQUIRE(cavern != nullptr);
                 REQUIRE(cavern->isFrozen() == refCavern->isFrozen());
-            } else if (entry.route == Vg::Route::MAC && id >= Vg::kMacroDarknessId &&
+            } else if (entry.route == Vg::Route::Macro && id >= Vg::kMacroDarknessId &&
                        id <= Vg::kMacroMassId) {  // ---- MAC (12) ----
                 ++rows;
                 const int k = static_cast<int>(id - Vg::kMacroDarknessId);
