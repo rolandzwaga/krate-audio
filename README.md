@@ -104,6 +104,12 @@ A dark ambient drone instrument, Seraphis's subterranean sibling: sound masses g
 
 [**Roadmap**](specs/Vorago-roadmap.md)
 
+### Profundum (in development)
+
+A bass instrument built around mass rather than layers: one additive harmonic core whose spectrum is regenerated from four controls (Depth, Body, Edge, Spectral Shift), a per-voice Sub Anchor that sits outside every nonlinear stage so the fundamental never disappears, a Mass macro, a frequency-dependent stereo field that keeps the weight centred, and a Bass Morph between two complete sound states. The DSP layer is being built first, phase by phase, as `Krate::DSP` systems; the plugin follows once the engine is complete.
+
+[**Roadmap**](specs/Profundum-roadmap.md)
+
 ## KrateDSP Library
 
 The KrateDSP library provides reusable DSP components organized in a 5-layer architecture where each layer can only depend on layers below it:
