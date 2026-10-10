@@ -98,11 +98,11 @@ A spectral organism synthesizer: each voice is a 64-partial harmonic cloud drive
 
 [**Website & Documentation**](https://krateaudio.com/seraphis/) | [**Plugin README**](plugins/seraphis/README.md)
 
-### Vorago (in development)
+### [Vorago](plugins/vorago/README.md)
 
-A dark ambient drone instrument, Seraphis's subterranean sibling: sound masses grown from emergent agent interaction and slow discrete events rather than authored states. The DSP layer is being built first, phase by phase, as `Krate::DSP` systems (slow event engine, noise organism, resonance drift network, spectral smear, feedback ecology, subharmonic engine); the plugin itself follows once the engine is complete.
+A dark-ambient drone instrument, Seraphis's subterranean sibling: deep harmonic clouds, sub tones, spectral smear and a cavernous space engine, grown from slow discrete events and emergent agent interaction rather than authored states. Twelve concept macros steer the ecosystem, a live ecosystem view shows what it is doing, and 42 factory presets across seven categories ship with it. Drones take seconds to surface and minutes to swell; that is the instrument, not a fault.
 
-[**Roadmap**](specs/Vorago-roadmap.md)
+[**Website & Documentation**](https://krateaudio.com/vorago/) | [**Plugin README**](plugins/vorago/README.md) | [**Changelog**](plugins/vorago/CHANGELOG.md)
 
 ### Profundum (in development)
 
@@ -166,7 +166,7 @@ cmake --build build/windows-x64-release --config Release --target dsp_core_tests
 
 | Target | Location |
 |--------|----------|
-| Plugins | `build/<preset>/VST3/Release/<Plugin>.vst3` (Iterum, Disrumpo, Ruinae, Innexus, Gradus, Membrum, Seraphis) |
+| Plugins | `build/<preset>/VST3/Release/<Plugin>.vst3` (Iterum, Disrumpo, Ruinae, Innexus, Gradus, Membrum, Seraphis, Vorago) |
 | DSP tests | `build/<preset>/bin/Release/dsp_{core,primitives,processors,systems,effects}_tests` |
 | Plugin tests | `build/<preset>/bin/Release/<plugin>_tests` (Iterum: `plugin_tests` and `approval_tests`) |
 | Shared infrastructure tests | `build/<preset>/bin/Release/shared_tests` |
