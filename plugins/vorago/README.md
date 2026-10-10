@@ -5,9 +5,9 @@
 Vorago is a Krate Audio instrument for slow, heavy, evolving drones: deep harmonic clouds, sub tones,
 spectral smear and a cavernous space engine, animated by autonomous life modulators and steered by twelve
 macros. It is a thin plugin wrapper around the `VoragoEngine` / `VoragoMacroMatrix` / `CavernVerb` DSP in
-the [KrateDSP library](../../dsp/); no DSP lives in this plugin. Status: `0.1.0` scaffold (event input,
-stereo output, master gain, polyphony and twelve registered, not-yet-wired macros). See
-[CHANGELOG.md](CHANGELOG.md) and `specs/Vorago-roadmap.md`.
+the [KrateDSP library](../../dsp/); no DSP lives in this plugin. Released as `1.0.0` with 42 factory
+presets in seven categories; see [CHANGELOG.md](CHANGELOG.md), the
+[website](https://krateaudio.com/vorago/) and `specs/Vorago-roadmap.md`.
 
 ## Build
 
