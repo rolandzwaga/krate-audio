@@ -103,6 +103,9 @@ public:
     /// Fundamental partial spread reduction factor (FR-009)
     static constexpr float kFundamentalSpreadScale = 0.25f;
 
+    /// Centre pan gain written by reset() and restoreCenterPan() (sqrt(2)/2)
+    static constexpr float kCenterPanGain = 0.7071067811865476f;
+
     // =========================================================================
     // Lifecycle
     // =========================================================================
@@ -222,9 +225,8 @@ public:
         // Reset stereo/detune arrays to center (mono)
         panPosition_.fill(0.0f);
         // At center pan (angle = pi/4): cos(pi/4) = sin(pi/4) = sqrt(2)/2
-        constexpr float kCenterGain = 0.7071067811865476f; // sqrt(2)/2
-        panLeft_.fill(kCenterGain);
-        panRight_.fill(kCenterGain);
+        panLeft_.fill(kCenterPanGain);
+        panRight_.fill(kCenterPanGain);
         detuneMultiplier_.fill(1.0f);
         tailScanEnd_ = 0;
         // Cached pan/detune bases no longer describe this state (WI-20).
@@ -667,6 +669,15 @@ public:
         {
             detuneMultiplier_[i] *= multipliers[i];
         }
+    }
+
+    /// @brief Restore the exact centre pan tables that reset() writes (Profundum FR-064).
+    /// Refills panLeft_/panRight_ with kCenterPanGain; touches no phase, amplitude, detune,
+    /// panPosition_ or cache state. For callers that never use setStereoSpread().
+    /// @note Real-time safe
+    void restoreCenterPan() noexcept {
+        panLeft_.fill(kCenterPanGain);
+        panRight_.fill(kCenterPanGain);
     }
 
     /// @brief Generate a single stereo output sample (FR-007, FR-050).

@@ -16,6 +16,7 @@
 #include <catch2/benchmark/catch_benchmark.hpp>
 
 #include <array>
+#include <bit>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
@@ -1119,4 +1120,150 @@ TEST_CASE("Mixed valid/non-finite bandwidth stays finite",
     // would satisfy the finiteness check while destroying the output.
     REQUIRE(energy > 0.0f);
     REQUIRE(bank.stateFinite());
+}
+
+// =============================================================================
+// restoreCenterPan() (Profundum FR-064, SC-014(d))
+// =============================================================================
+
+namespace {
+
+// Per-element bit compare (float has no unique object representation, so not memcmp).
+bool samplesBitEqual(const float* a, const float* b, std::size_t n) {
+    for (std::size_t i = 0; i < n; ++i) {
+        if (std::bit_cast<std::uint32_t>(a[i]) != std::bit_cast<std::uint32_t>(b[i]))
+            return false;
+    }
+    return true;
+}
+
+HarmonicFrame makeRestoreCenterPanFrame() {
+    HarmonicFrame frame;
+    frame.numPartials = 16;
+    for (int n = 1; n <= 16; ++n) {
+        auto& p = frame.partials[static_cast<size_t>(n - 1)];
+        p.harmonicIndex = n;
+        p.relativeFrequency = static_cast<float>(n);
+        p.amplitude = 1.0f / static_cast<float>(n);
+        p.phase = 0.0f;
+        p.bandwidth = 0.0f;
+    }
+    return frame;
+}
+
+void prepareRestoreCenterPanBank(HarmonicOscillatorBank& bank,
+                                 const HarmonicFrame& frame) {
+    bank.prepare(48000.0);
+    bank.loadFrame(frame, 110.0f, true);
+}
+
+std::array<float, kMaxPartials> makeAlternatingPanOffsets() {
+    std::array<float, kMaxPartials> o{};
+    for (size_t i = 0; i < kMaxPartials; ++i) {
+        o[i] = (i % 2 ? 0.6f : -0.6f);
+    }
+    return o;
+}
+
+} // namespace
+
+TEST_CASE("HarmonicOscillatorBank_RestoreCenterPan",
+          "[processors][harmonic_oscillator_bank]") {
+    constexpr size_t kShort = 256;
+    constexpr size_t kLong = 4096;
+
+    // (1) The hoisted constant is the exact literal reset() always used.
+    STATIC_REQUIRE(HarmonicOscillatorBank::kCenterPanGain == 0.7071067811865476f);
+
+    // (6) Real-time safe contract.
+    STATIC_REQUIRE(noexcept(std::declval<HarmonicOscillatorBank&>().restoreCenterPan()));
+
+    const HarmonicFrame frame = makeRestoreCenterPanFrame();
+    const auto offsets = makeAlternatingPanOffsets();
+
+    SECTION("teeth: offsets split L/R, restoreCenterPan makes them identical") {
+        HarmonicOscillatorBank a;
+        prepareRestoreCenterPanBank(a, frame);
+
+        std::vector<float> l(kShort), r(kShort);
+        a.applyPanOffsets(offsets);
+        a.processStereoBlock(l.data(), r.data(), kShort);
+        bool anyDiffers = false;
+        for (size_t i = 0; i < kShort; ++i) {
+            if (l[i] != r[i]) {
+                anyDiffers = true;
+                break;
+            }
+        }
+        REQUIRE(anyDiffers);
+
+        a.restoreCenterPan();
+        std::vector<float> l2(kLong), r2(kLong);
+        a.processStereoBlock(l2.data(), r2.data(), kLong);
+        REQUIRE(samplesBitEqual(l2.data(), r2.data(), kLong));
+    }
+
+    SECTION("twin: restoreCenterPan touches only the pan tables") {
+        HarmonicOscillatorBank a;
+        HarmonicOscillatorBank b;
+        prepareRestoreCenterPanBank(a, frame);
+        prepareRestoreCenterPanBank(b, frame);
+
+        std::vector<float> aL(kShort), aR(kShort), bL(kShort), bR(kShort);
+        a.processStereoBlock(aL.data(), aR.data(), kShort);
+        b.processStereoBlock(bL.data(), bR.data(), kShort);
+
+        a.applyPanOffsets(offsets);
+        a.processStereoBlock(aL.data(), aR.data(), kShort);
+        b.processStereoBlock(bL.data(), bR.data(), kShort);
+
+        a.restoreCenterPan();
+        std::vector<float> aL2(kLong), aR2(kLong), bL2(kLong), bR2(kLong);
+        a.processStereoBlock(aL2.data(), aR2.data(), kLong);
+        b.processStereoBlock(bL2.data(), bR2.data(), kLong);
+
+        REQUIRE(samplesBitEqual(aL2.data(), bL2.data(), kLong));
+        REQUIRE(samplesBitEqual(aR2.data(), bR2.data(), kLong));
+    }
+
+    SECTION("already centred: restoreCenterPan mid-render changes nothing") {
+        HarmonicOscillatorBank a;
+        HarmonicOscillatorBank b;
+        prepareRestoreCenterPanBank(a, frame);
+        prepareRestoreCenterPanBank(b, frame);
+
+        std::vector<float> aL(kShort), aR(kShort), bL(kShort), bR(kShort);
+        a.processStereoBlock(aL.data(), aR.data(), kShort);
+        b.processStereoBlock(bL.data(), bR.data(), kShort);
+
+        a.restoreCenterPan();
+        std::vector<float> aL2(kLong), aR2(kLong), bL2(kLong), bR2(kLong);
+        a.processStereoBlock(aL2.data(), aR2.data(), kLong);
+        b.processStereoBlock(bL2.data(), bR2.data(), kLong);
+
+        REQUIRE(samplesBitEqual(aL2.data(), bL2.data(), kLong));
+        REQUIRE(samplesBitEqual(aR2.data(), bR2.data(), kLong));
+    }
+
+    SECTION("reset() behaviour is unchanged by the hoist") {
+        // In-process identity, not a golden: a reset-and-reloaded bank must
+        // match a freshly prepared one sample for sample.
+        HarmonicOscillatorBank resetBank;
+        prepareRestoreCenterPanBank(resetBank, frame);
+        std::vector<float> scratchL(kShort), scratchR(kShort);
+        resetBank.applyPanOffsets(offsets);
+        resetBank.processStereoBlock(scratchL.data(), scratchR.data(), kShort);
+        resetBank.reset();
+        resetBank.loadFrame(frame, 110.0f, true);
+
+        HarmonicOscillatorBank fresh;
+        prepareRestoreCenterPanBank(fresh, frame);
+
+        std::vector<float> rL(kLong), rR(kLong), fL(kLong), fR(kLong);
+        resetBank.processStereoBlock(rL.data(), rR.data(), kLong);
+        fresh.processStereoBlock(fL.data(), fR.data(), kLong);
+
+        REQUIRE(samplesBitEqual(rL.data(), fL.data(), kLong));
+        REQUIRE(samplesBitEqual(rR.data(), fR.data(), kLong));
+    }
 }

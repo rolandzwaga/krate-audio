@@ -193,6 +193,18 @@ components with no dependency on the core and can run in parallel with it; Phase
 
 ### Phase 1: Harmonic Core
 
+**Status: ✅ COMPLETE (2026-10-10)** — see specs/profundum-phase1-harmonic-core/compliance.md (75 of 75 after
+two main-loop closures). Shipped: `SpectralShapeRecipe` (L2) and `ProfundumCore` (L3) over the existing
+`HarmonicOscillatorBank` with one append-only bank method (`restoreCenterPan`). Rulings during the build: Depth is
+the base-law tilt (1/n → 1/n² at depth 0.5 → sine); Body emphasis is a whole-vector odd-harmonic bias; per-sample
+f0 input; unweighted power normalisation; Low Note Guard onset C1; dB-linear cap taper; SC-010 zipper measured
+on the residual against a per-sample ideal that includes the mandated smoothing, which exposed real stair zipper
+at a 64-sample control interval — **`kControlInterval` = 32** shipped (D-4). Measured: partial accuracy
+≤ 0.00036 cent; Depth loudness flat ±0.5 dB; Body/Edge/Shift spans 8.65 dB / 8.89 dB / 1.43 oct; anchors and
+Heavy/Hollow/Growl within tolerance (margins 7.5 / 25.7 / 12.8 dB); aliasing ≤ −122 dB; sidebands worst −67.3 dB
+(bar −60); CPU 0.602 % of one core at 64 partials (bar 1 %). **64 partials ship** (96 measured 0.943 %, listening
+verdict "more presence in some states, no difference in others"); 96 remains reachable at `prepare`.
+
 **Spec:** `profundum-phase1-harmonic-core`
 **Goal:** The sound source. A continuously variable harmonic spectrum under four controls that stay
 musically useful across the whole bass range. Linear only — get this sounding excellent before any

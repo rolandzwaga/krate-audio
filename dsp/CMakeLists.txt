@@ -153,6 +153,8 @@ set(KRATE_DSP_PROCESSORS_HEADERS
     include/krate/dsp/processors/harmonic_oscillator_bank_simd.h
     include/krate/dsp/processors/modal_resonator_bank.h
     include/krate/dsp/processors/modal_resonator_bank_simd.h
+    # Profundum Phase 1 (specs/profundum-phase1-harmonic-core)
+    include/krate/dsp/processors/spectral_shape_recipe.h
 )
 
 # Layer 3: Systems
@@ -178,6 +180,8 @@ set(KRATE_DSP_SYSTEMS_HEADERS
     include/krate/dsp/systems/vorago_voice.h
     include/krate/dsp/systems/vorago_engine.h
     include/krate/dsp/systems/vorago_macro_matrix.h
+    # Profundum Phase 1 (specs/profundum-phase1-harmonic-core)
+    include/krate/dsp/systems/profundum_core.h
 )
 
 # Layer 4: Effects
