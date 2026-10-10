@@ -250,6 +250,8 @@ add_executable(dsp_processors_tests
     unit/processors/dual_stft_tests.cpp
     unit/processors/partial_tracker_tests.cpp
     unit/processors/harmonic_oscillator_bank_tests.cpp
+    # Profundum Phase 1 (specs/profundum-phase1-harmonic-core): recipe-only SCs
+    unit/processors/spectral_shape_recipe_test.cpp
     unit/processors/residual_types_tests.cpp
     unit/processors/residual_analyzer_tests.cpp
     unit/processors/residual_synthesizer_tests.cpp
@@ -559,6 +561,40 @@ add_executable(dsp_systems_tests
     #   vorago_ecosystem_lever_longrun_test.cpp  SC-010 (b)            (the [long] set)
     unit/systems/vorago_ecosystem_lever_test.cpp
     unit/systems/vorago_ecosystem_lever_longrun_test.cpp
+    # Profundum Phase 1 (specs/profundum-phase1-harmonic-core): ProfundumCore.
+    # ENUMERATED, not globbed - an unregistered TU silently drops out of the build.
+    #   profundum_core_test.cpp           SC-003 (render), SC-010 (a)(d), SC-012,
+    #                                     SC-014 (a)-(c), SC-015, SC-016 (partial
+    #                                     count), SC-017 (determinism), SC-018,
+    #                                     SC-020 (a)-(c), SC-021 (b)-(e), SC-023,
+    #                                     FR-041/E-6, FR-043, FR-061/E-2, E-7, E-11,
+    #                                     plan-internal DetuneShadowNoDrift and
+    #                                     FirstNoteSeedsPhases
+    #   profundum_core_spectral_test.cpp  SC-001, SC-002/004/006/007/019/022 render
+    #                                     arms, SC-005, SC-008, SC-009, SC-010 (b),
+    #                                     SC-011 (a), SC-017 (rate change)
+    #                                     ([long] grids + per-push smoke siblings)
+    #                                     + ListeningRenders [.listen] (not a gate)
+    #   profundum_core_nonfinite_test.cpp SC-016 (non-finite), SC-020 (d), FR-002 -
+    #                                     the ONE Phase 1 entry in the
+    #                                     -fno-fast-math block below
+    #   profundum_core_perf_test.cpp      SC-013, OQ-3 figures  [.perf]
+    # Renames against plan S8.3 (the recipe TU in dsp_processors_tests holds the
+    # recipe-vector arms):
+    #   SC-004 recipe arm  -> SpectralShapeRecipe_AudibilityGate_BodyEdgeShift
+    #                         (recipe TU); render arm keeps
+    #                         ProfundumCore_AudibilityGate_BodyEdgeShift
+    #   SC-010 (b)         -> ProfundumCore_NoZipperControlSweepsSidebands
+    #   SC-019 render arm  -> ProfundumCore_BodyColoursDistinctRendered; the
+    #                         recipe arm keeps ProfundumCore_BodyColoursDistinct
+    #                         (recipe TU)
+    #   [long] cases gain per-push siblings: ...Smoke (SC-001/002/003/004/008/
+    #   009/022, DetuneShadowNoDrift); SC-021 (b) keeps MaskNeverSlewedBend
+    #   per-push with a MaskNeverSlewedBendLong sibling
+    unit/systems/profundum_core_test.cpp
+    unit/systems/profundum_core_spectral_test.cpp
+    unit/systems/profundum_core_nonfinite_test.cpp
+    unit/systems/profundum_core_perf_test.cpp
 )
 
 target_link_libraries(dsp_systems_tests
@@ -1036,6 +1072,8 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/systems/ecosystem_engine_pair_accessors_test.cpp
         # Vorago Phase 12: injects NaN/Inf bit patterns into the Phase 12 setters.
         unit/systems/vorago_param_surface_test.cpp
+        # Profundum Phase 1: injects NaN/Inf bit patterns (SC-016, SC-020(d), FR-002). The perf TU stays out so its figures reflect the shipping FP mode.
+        unit/systems/profundum_core_nonfinite_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 
