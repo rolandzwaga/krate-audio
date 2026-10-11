@@ -5,6 +5,12 @@ All notable changes to Vorago will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2026-10-11
+
+### Added
+
+- **"- Init -" preset** — A factory preset that returns every parameter to its default. It lives in a new Init category that leads the preset browser, and its name sorts first in the All tab. The seven showcase categories and their 42 presets are unchanged.
+
 ## [1.0.0] - 2026-10-06
 
 The first public release: the factory library. Every one of the 42 presets was
