@@ -228,6 +228,7 @@
          createCustomView("PresetButton") as an OutlineBrowserButton - a
          CControl, so verifyView() still assigns session tag 9000 + listener.
          One valueChanged per click. -->
+    <view class="CView" custom-view-name="VersionLabel" origin="854, 9" size="42, 14" mouse-enabled="false"/>
     <view class="CView" custom-view-name="PresetButton" session-tag="preset"
           origin="898, 7" size="90, 18"/>
 
