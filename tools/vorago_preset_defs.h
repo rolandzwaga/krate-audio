@@ -332,10 +332,48 @@ struct VoragoPresetDef {
     std::vector<ParamSetting> params;      // normalized; untouched IDs keep registered defaults (C-4)
 };
 
-/// MUST equal `makeVoragoPresetConfig().subcategoryNames` element-wise and in
-/// order (plugins/vorago/src/preset/vorago_preset_config.h).
+/// The seven showcase categories. MUST equal
+/// `makeVoragoPresetConfig().subcategoryNames` from its second element on, element-wise
+/// and in order (plugins/vorago/src/preset/vorago_preset_config.h); the first element
+/// there is `kInitCategory`.
 inline constexpr std::array<std::string_view, 7> kCategories{
     "Drones", "Abyss", "Caverns", "Organisms", "Machines", "Textures", "Ghosts"};
+
+/// The category of the one non-showcase factory preset. First in the browser's tab
+/// list so it leads; never a member of `kCategories` (each of those holds >= 3
+/// showcase presets, LibraryShape).
+inline constexpr std::string_view kInitCategory = "Init";
+
+/// The Init preset: every parameter at its registered default - no points, no
+/// capability claim. It is NOT in allPresets(): it is the default surface by
+/// construction, so it has nothing to showcase and would fail the C-7.1
+/// distinctness floor (>= 8 IDs away from the default) by definition. The leading
+/// "- " makes it sort before every showcase name (the browser sorts by name,
+/// preset_manager.cpp:53), so it leads the "All" tab as well as its own.
+[[nodiscard]] inline const VoragoPresetDef& initPreset() {
+    static const VoragoPresetDef kInit{
+        "- Init -",
+        kInitCategory,
+        "Every parameter at its default: the blank starting point for a new sound.",
+        Capability::Count,
+        {},
+        {}};
+    return kInit;
+}
+
+[[nodiscard]] inline const std::vector<VoragoPresetDef>& allPresets();
+
+/// The committed tree in file order: the Init preset, then allPresets() in
+/// definition order. The generator and the tree-match test both walk this.
+[[nodiscard]] inline std::vector<const VoragoPresetDef*> committedPresets() {
+    std::vector<const VoragoPresetDef*> out;
+    out.reserve(allPresets().size() + 1u);
+    out.push_back(&initPreset());
+    for (const VoragoPresetDef& d : allPresets()) {
+        out.push_back(&d);
+    }
+    return out;
+}
 
 /// Definition order == file order. Library order is finalised in T044-T047
 /// (they insert rows around the six T037 pilot presets, plan 6.16 P1-P6).

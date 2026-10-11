@@ -251,22 +251,31 @@ namespace {
 }  // namespace
 
 TEST_CASE("Vorago_FactoryPresets_CategoriesMatchConfig", "[vorago][preset]") {
+    // The seven showcase categories (FR-001 / Q6) sit behind the "Init" category,
+    // which holds only the Init preset and is first so it leads the browser.
     const std::vector<std::string> kSeven{"Drones",   "Abyss",    "Caverns", "Organisms",
                                           "Machines", "Textures", "Ghosts"};
+    std::vector<std::string> kEight{"Init"};
+    kEight.insert(kEight.end(), kSeven.begin(), kSeven.end());
 
     const auto cfg = ::Vorago::makeVoragoPresetConfig();
-    REQUIRE(cfg.subcategoryNames == kSeven);  // order and bytes
+    REQUIRE(cfg.subcategoryNames == kEight);  // order and bytes
     REQUIRE(cfg.pluginName == "Vorago");
     REQUIRE(cfg.pluginCategoryDesc == "Synth");
     const bool processorUidMatches = (cfg.processorUID == ::Vorago::kProcessorUID);
     REQUIRE(processorUidMatches);
 
     std::vector<std::string> expectedTabs{"All"};
-    expectedTabs.insert(expectedTabs.end(), kSeven.begin(), kSeven.end());
+    expectedTabs.insert(expectedTabs.end(), kEight.begin(), kEight.end());
     REQUIRE(::Vorago::makeVoragoPresetTabLabels() == expectedTabs);
 
+    // The defs header agrees: kCategories is the seven, kInitCategory the first.
+    REQUIRE(std::vector<std::string>(::Vorago::PresetDefs::kCategories.begin(),
+                                     ::Vorago::PresetDefs::kCategories.end()) == kSeven);
+    REQUIRE(std::string(::Vorago::PresetDefs::kInitCategory) == "Init");
+
     // ---- Directory half (T029, FR-002) ------------------------------------------
-    // The directory set under resources/presets == the seven names, both ways;
+    // The directory set under resources/presets == the eight names, both ways;
     // every regular file is a .vstpreset directly inside a category directory, or
     // a .gitkeep in a category directory holding no preset.
     namespace fs = std::filesystem;
@@ -275,7 +284,7 @@ TEST_CASE("Vorago_FactoryPresets_CategoriesMatchConfig", "[vorago][preset]") {
     std::error_code ec;
     REQUIRE(fs::is_directory(root, ec));
 
-    const std::set<std::string> sevenSet(kSeven.begin(), kSeven.end());
+    const std::set<std::string> sevenSet(kEight.begin(), kEight.end());
     std::set<std::string> dirs;
     std::vector<std::string> strays;
     for (const fs::directory_entry& entry : fs::directory_iterator(root, ec)) {
@@ -1244,9 +1253,9 @@ constexpr std::size_t kMinDifferingIds = 8;
 
 /// The definition a committed file belongs to (category + stem); null = none.
 [[nodiscard]] const PD::VoragoPresetDef* findDef(std::string_view category, std::string_view name) {
-    for (const PD::VoragoPresetDef& d : PD::allPresets()) {
-        if (d.category == category && d.name == name) {
-            return &d;
+    for (const PD::VoragoPresetDef* d : PD::committedPresets()) {
+        if (d->category == category && d->name == name) {
+            return d;
         }
     }
     return nullptr;
@@ -1395,8 +1404,8 @@ struct TreeComparison {
         onDisk.insert(presetKey(categoryOf(f), stemOf(f)));
     }
     std::set<std::string> defined;
-    for (const PD::VoragoPresetDef& d : PD::allPresets()) {
-        defined.insert(presetKey(d.category, d.name));
+    for (const PD::VoragoPresetDef* d : PD::committedPresets()) {
+        defined.insert(presetKey(d->category, d->name));
     }
     for (const std::string& k : onDisk) {
         if (!defined.contains(k)) {
@@ -1409,7 +1418,8 @@ struct TreeComparison {
         }
     }
 
-    for (const PD::VoragoPresetDef& d : PD::allPresets()) {
+    for (const PD::VoragoPresetDef* dp : PD::committedPresets()) {
+        const PD::VoragoPresetDef& d = *dp;
         const std::string key = presetKey(d.category, d.name);
         const VoragoTest::PresetFile pf = VoragoTest::parseVstPreset(defPath(d));
         if (!pf.ok) {
@@ -1592,15 +1602,15 @@ TEST_CASE("Vorago_FactoryPresets_ContainerAndInfo", "[vorago][preset]") {
     const auto& defs = PD::allPresets();
     INFO("presets root: " << factoryPresetRoot().string());
 
-    // The on-disk set == allPresets() (count and names).
-    REQUIRE(files.size() == defs.size());
+    // The on-disk set == the Init preset + allPresets() (count and names).
+    REQUIRE(files.size() == defs.size() + 1u);
     std::set<std::string> onDisk;
     for (const fs::path& f : files) {
         onDisk.insert(presetKey(categoryOf(f), stemOf(f)));
     }
     std::set<std::string> defined;
-    for (const PD::VoragoPresetDef& d : defs) {
-        defined.insert(presetKey(d.category, d.name));
+    for (const PD::VoragoPresetDef* d : PD::committedPresets()) {
+        defined.insert(presetKey(d->category, d->name));
     }
     REQUIRE(onDisk == defined);
 
@@ -1742,18 +1752,58 @@ TEST_CASE("Vorago_FactoryPresets_BrowserScan", "[vorago][preset]") {
     const Krate::Plugins::PresetManager::PresetList scanned = manager.scanPresets();
 
     const auto& defs = PD::allPresets();
-    REQUIRE(scanned.size() == defs.size());
+    REQUIRE(scanned.size() == defs.size() + 1u);  // + the Init preset
     for (const Krate::Plugins::PresetInfo& p : scanned) {
         INFO("scanned " << p.path.string());
         REQUIRE(p.isFactory);
         REQUIRE(!p.subcategory.empty());
     }
+    REQUIRE(manager.getPresetsForSubcategory(std::string(PD::kInitCategory)).size() == 1u);
+    // The scan is sorted by name (preset_manager.cpp:53): the Init preset leads the "All" list.
+    REQUIRE(scanned.front().name == std::string(PD::initPreset().name));
+    REQUIRE(scanned.front().subcategory == std::string(PD::kInitCategory));
     for (const std::string_view c : PD::kCategories) {
         const auto expected = static_cast<std::size_t>(std::ranges::count_if(
             defs, [c](const PD::VoragoPresetDef& d) { return d.category == c; }));
         INFO("category " << std::string(c));
         REQUIRE(manager.getPresetsForSubcategory(std::string(c)).size() == expected);
     }
+}
+
+TEST_CASE("Vorago_FactoryPresets_InitPreset", "[vorago][preset]") {
+    // The Init preset is the registered default surface: no points, no capability
+    // claim, outside allPresets() (it would fail the C-7.1 distinctness floor by
+    // construction), in its own category that leads the browser's tab list, with a
+    // name that sorts before every showcase preset so it also leads the "All" tab.
+    const PD::VoragoPresetDef& init = PD::initPreset();
+    REQUIRE(init.params.empty());
+    REQUIRE(init.primary == Capability::Count);
+    REQUIRE(init.secondaries.empty());
+    REQUIRE(init.category == PD::kInitCategory);
+    REQUIRE(std::ranges::find(PD::kCategories, init.category) == PD::kCategories.end());
+    REQUIRE(Krate::Plugins::PresetManager::isValidPresetName(std::string(init.name)));
+    REQUIRE(!containsForbiddenXmlChar(init.description));
+    for (const PD::VoragoPresetDef& d : PD::allPresets()) {
+        INFO("preset " << std::string(d.name));
+        REQUIRE(std::string(init.name) < std::string(d.name));
+        REQUIRE(d.category != PD::kInitCategory);
+    }
+    REQUIRE(::Vorago::makeVoragoPresetConfig().subcategoryNames.front() == std::string(PD::kInitCategory));
+
+    // committedPresets(): the Init preset first, then allPresets() in order.
+    const std::vector<const PD::VoragoPresetDef*> committed = PD::committedPresets();
+    REQUIRE(committed.size() == PD::allPresets().size() + 1u);
+    REQUIRE(committed.front() == &init);
+    for (std::size_t i = 0; i < PD::allPresets().size(); ++i) {
+        REQUIRE(committed[i + 1] == &PD::allPresets()[i]);
+    }
+
+    // The committed file decodes to the default surface, byte for byte.
+    const VoragoTest::PresetFile pf = VoragoTest::parseVstPreset(defPath(init));
+    INFO("parse: " << pf.why);
+    REQUIRE(pf.ok);
+    REQUIRE(pf.comp == defaultComponentState());
+    REQUIRE(pf.info == PD::buildVoragoInfoXml(init.name, init.category, init.description));
 }
 
 TEST_CASE("Vorago_FactoryPresets_StreamShape", "[vorago][preset]") {

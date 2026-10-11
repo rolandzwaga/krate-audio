@@ -116,8 +116,11 @@ void writeLE64(std::ofstream& f, std::int64_t v) {
     return f.good();
 }
 
-// A preset may only land in one of the seven category directories the browser scans.
+// A preset may only land in one of the eight category directories the browser scans.
 [[nodiscard]] bool isKnownCategory(std::string_view category) {
+    if (category == Vorago::PresetDefs::kInitCategory) {
+        return true;
+    }
     for (const std::string_view c : Vorago::PresetDefs::kCategories) {
         if (c == category) {
             return true;
@@ -141,8 +144,11 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    // All seven category directories exist, whether or not a preset lands in each.
-    for (const std::string_view category : Vorago::PresetDefs::kCategories) {
+    // All eight category directories exist, whether or not a preset lands in each.
+    std::vector<std::string_view> categories{Vorago::PresetDefs::kInitCategory};
+    categories.insert(categories.end(), Vorago::PresetDefs::kCategories.begin(),
+                      Vorago::PresetDefs::kCategories.end());
+    for (const std::string_view category : categories) {
         const std::filesystem::path dir = outputBase / std::string(category);
         std::error_code ec;
         std::filesystem::create_directories(dir, ec);
@@ -153,19 +159,21 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    const std::vector<VoragoPresetDef>& presets = Vorago::PresetDefs::allPresets();
+    // The Init preset first, then the library (FR-023: definition order, always).
+    const std::vector<const VoragoPresetDef*> presets = Vorago::PresetDefs::committedPresets();
 
     std::size_t written = 0;
     std::size_t failures = 0;
 
-    // FR-023: definition order, always.
-    for (const VoragoPresetDef& def : presets) {
+    for (const VoragoPresetDef* defPtr : presets) {
+        const VoragoPresetDef& def = *defPtr;
         const std::string stem(def.name);
         const std::string category(def.category);
 
         if (!isKnownCategory(def.category)) {
             std::cerr << "ERROR: preset \"" << stem << "\" declares category \"" << category
-                      << "\", which is not one of the seven in PresetDefs::kCategories\n";
+                      << "\", which is neither kInitCategory nor one of the seven in "
+                         "PresetDefs::kCategories\n";
             ++failures;
             continue;
         }

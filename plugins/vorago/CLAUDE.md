@@ -100,7 +100,8 @@ Auto-loads when working under `plugins/vorago/`. Root `CLAUDE.md` still applies.
   the generic nightly (`[long]~[vorago-sweep]`) and runs it in its own nightly job. The CPU runner's filter
   excludes it too, so the sweep never shares a timing run.
 - **Factory presets:** `resources/presets/{Category}/*.vstpreset` are **generated**, never hand-edited:
-  `tools/vorago_preset_defs.h` (the 42 defs, each a primary capability cell plus secondaries) → the
+  `tools/vorago_preset_defs.h` (the 42 defs, each a primary capability cell plus secondaries, plus
+  `initPreset()` — `Init/- Init -`, the default surface, outside `allPresets()` and the matrix) → the
   `vorago_preset_generator` tool → `cmake --build … --target generate_vorago_presets` rewrites the tree.
   `Vorago_FactoryPresets_TreeMatchesGenerator` fails when the committed tree drifts from the defs;
   `node tools/check-preset-generator-determinism.js --plugin vorago` is the release-gate determinism check.
