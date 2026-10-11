@@ -370,6 +370,9 @@ VSTGUI::CView* Controller::createCustomView(VSTGUI::UTF8StringPtr name,
     if (std::strcmp(name, "CheckForUpdatesButton") == 0) {
         return new Krate::Plugins::CheckForUpdatesButton(viewRect, updateChecker_.get());
     }
+    if (std::strcmp(name, "VersionLabel") == 0) {
+        return new Krate::Plugins::VersionLabel(viewRect, VERSION_STR);
+    }
     if (std::strcmp(name, "PresetBrowserButton") == 0) {
         // Plan D-1: the shared outline button; VoragoPanelSubController gives it
         // its session tag and listener in verifyView.

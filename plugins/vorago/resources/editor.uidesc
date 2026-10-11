@@ -165,7 +165,8 @@
       <view class="COptionMenu" control-tag="Seed" origin="604, 9" size="80, 18" font="label-font" font-color="text" frame-color="accent" back-color="track" fill-color="track" frame-width="1" transparent="false" style-3D-in="false" style-3D-out="false" tooltip="Random seed for every stochastic process; re-rolls the texture"/>
       <view class="CTextLabel" title="Saturation" origin="702, 11" size="70, 14" font="label-font" font-color="text-dim" transparent="true" text-alignment="right" mouse-enabled="false"/>
       <view class="CSlider" control-tag="OutputSaturation" origin="776, 10" size="120, 16" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="accent" back-color="track" value-color="accent" tooltip="Soft output saturation before the final limiter"/>
-      <view class="CView" custom-view-name="CheckForUpdatesButton" origin="976, 7" size="110, 22"/>
+      <view class="CView" custom-view-name="CheckForUpdatesButton" origin="904, 7" size="110, 22"/>
+      <view class="CView" custom-view-name="VersionLabel" origin="1024, 10" size="66, 16" mouse-enabled="false"/>
     </view>
     <!-- CONCEPT BAND (0, 36, 1100, 436): macros 100-105 | ecosystem | macros 106-111 -->
     <view class="CViewContainer" uidesc-label="concept-band" origin="0, 36" size="1100, 400" transparent="true">
