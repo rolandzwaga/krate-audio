@@ -1062,3 +1062,56 @@ TEST_CASE("ProfundumCore_ExcitationZeroLatency", "[systems][profundum][edge-fold
         }
     }
 }
+
+// =============================================================================
+// SC-022(j) (user request 2026-10-11): the excitation's 400-700 Hz hump on the real core,
+// recorded per harmonic. |T(n)| (excited over mix-0 twin) for h1 and every harmonic in
+// 300-900 Hz; mid grid and kSawAnchor; E1 and C2; 48 and 96 kHz; mix {0.5, 1};
+// drive {-12, 0, +12} dB. evidence/splithump.js attributes the linear part to the split's
+// recombination LP·(1 − Dos) + Dos; the per-harmonic deviations from it are the nonlinear
+// path's generated harmonics. Recorded, not gated: no EQ, no split change (Phase 9 listens).
+// =============================================================================
+TEST_CASE("ProfundumCore_ExcitationRecordedSplitHump", "[systems][profundum][edge-fold]") {
+    const std::array<NamedState, 2> inputs{{
+        {"mid grid", PT::midGrid()},
+        {"kSawAnchor", SpectralShapeRecipe::kSawAnchor},
+    }};
+    for (const double fs : {48000.0, 96000.0})
+        for (const NamedState& in : inputs)
+            for (const float f0 : {kE1, kC2})
+                for (const float mix : {0.5f, 1.0f})
+                    for (const float drive : {0.0f, 0.5f, 1.0f}) {
+                        const Excitation ex{.mix = mix, .drive = drive, .asymmetry = 0.0f};
+                        auto core = std::make_unique<ProfundumCore>();
+                        core->prepare(fs);
+                        const double seconds = settleSeconds() + 0.5;
+                        const PT::Render out =
+                            PT::renderExcited(*core, in.controls, ex, f0, seconds, Policy::Reset, kLatchGrid);
+                        const PT::Render ref =
+                            PT::renderMixZeroTwin(fs, in.controls, ex, f0, seconds, Policy::Reset, kLatchGrid);
+                        REQUIRE(out.L.size() == ref.L.size());
+                        const auto from = static_cast<std::size_t>(settleSeconds() * fs);
+                        REQUIRE(from < out.L.size());
+                        const double period = fs / static_cast<double>(f0);
+                        const auto len = static_cast<std::size_t>(
+                            std::llround(std::floor(static_cast<double>(out.L.size() - from) / period) * period));
+                        REQUIRE(len > 0);
+                        const double driveDb = ProfundumCore::kExcitationDriveMinDb
+                                               + (ProfundumCore::kExcitationDriveMaxDb - ProfundumCore::kExcitationDriveMinDb)
+                                                     * static_cast<double>(drive);
+                        std::printf("SC-022(j) ProfundumCore_ExcitationRecordedSplitHump %s f0 %.1f fs %.0f mix %.2f "
+                                    "drive %+.0f dB:",
+                                    in.name, static_cast<double>(f0), fs, static_cast<double>(mix), driveDb);
+                        for (int n = 1; static_cast<double>(n) * f0 <= 900.0; ++n) {
+                            const double hz = static_cast<double>(n) * f0;
+                            if (n > 1 && hz < 300.0)
+                                continue;
+                            const std::complex<double> t =
+                                PT::t1Transfer(out.L.data() + from, ref.L.data() + from, len, fs, hz);
+                            const double db = 20.0 * std::log10(std::abs(t));
+                            REQUIRE(std::isfinite(db));
+                            std::printf(" h%d %.0f Hz %+.2f dB", n, hz, db);
+                        }
+                        std::printf("\n");
+                    }
+}

@@ -45,6 +45,7 @@
 #include <cstdio>
 #include <cstdint>
 #include <cstring>
+#include <deque>
 #include <map>
 #include <set>
 #include <tuple>
@@ -1757,4 +1758,266 @@ TEST_CASE("HarmonicFold_FoldRegimeLevelNormalised", "[processors][profundum][edg
         INFO("MIDI " << note);
         CHECK(spreadOf(thd) <= 3.0);
     }
+}
+
+// =============================================================================
+// D-4 ratification (user, 2026-10-11): detector stability across pitch, sample rate, start
+// phase and amount (steady grid), and under rapid amplitude changes (tracked against the
+// detector's own law applied to the analytic amplitude). No bar relaxed; the C-3 ripple bar
+// (1e-4), the C-4 guarantee (G·|x| <= P, i.e. |x| <= env) and D-4's settle clause are reused.
+// =============================================================================
+namespace {
+
+/// Band-limited saw at unit true peak: at(n) = saw(f0·n/fs + phase) / crest.
+struct UnitSaw {
+    double f0;
+    double fs;
+    double phase;
+    int partials;
+    double crest = 1.0;
+    UnitSaw(double f0_, double fs_, double phase_, int partials_)
+        : f0(f0_), fs(fs_), phase(phase_), partials(partials_) {
+        double mx = 0.0;
+        constexpr int kSteps = 16384;
+        for (int i = 0; i < kSteps; ++i)
+            mx = std::max(mx, std::abs(raw(static_cast<double>(i) / kSteps)));
+        crest = mx;
+    }
+    [[nodiscard]] double raw(double cycles) const {
+        double s = 0.0;
+        for (int h = 1; h <= partials; ++h)
+            s += std::sin(hft::kTwoPi * h * cycles) / h;
+        return s;
+    }
+    [[nodiscard]] double at(std::size_t n) const {
+        return raw(f0 * static_cast<double>(n) / fs + phase) / crest;
+    }
+};
+
+double dbToAmp(double db) { return std::pow(10.0, db / 20.0); }
+
+/// Ripple of the detector over the last second of a steady unit-saw render at 0.3 peak.
+double detectorGridRipple(double fs, double f0, double phase, float amount) {
+    const UnitSaw saw(f0, fs, phase, 64);
+    const std::size_t settle = settleSamples(fs);
+    const auto window = static_cast<std::size_t>(1.0 * fs);
+    std::vector<float> y(settle + window, 0.0f);
+    for (std::size_t n = 0; n < y.size(); ++n)
+        y[n] = static_cast<float>(0.3 * saw.at(n));
+    HarmonicFold fold = makeFold(fs, amount, f0);
+    std::vector<double> env(y.size(), 0.0);
+    for (std::size_t k = 0; k < y.size(); k += 64) {
+        const std::size_t n = std::min<std::size_t>(64, y.size() - k);
+        fold.processBlock(y.data() + k, y.data() + k, n);
+        env[k] = static_cast<double>(fold.detectorLevel());
+        for (std::size_t j = k + 1; j < k + n; ++j)
+            env[j] = env[k];
+    }
+    return rippleOf(env.data() + settle, env.data() + y.size());
+}
+
+void runDetectorGrid(const std::vector<double>& rates, const std::vector<double>& f0s, const std::vector<double>& phases,
+                     const std::vector<float>& amounts, const char* tag) {
+    double worst = 0.0;
+    char worstCell[96] = "";
+    for (const double fs : rates)
+        for (const double f0 : f0s)
+            for (const double phase : phases)
+                for (const float amount : amounts) {
+                    const double ripple = detectorGridRipple(fs, f0, phase, amount);
+                    INFO(tag << ": fs " << fs << " f0 " << f0 << " phase " << phase << " amount " << amount
+                             << ": ripple " << ripple);
+                    CHECK(ripple <= 1.0e-4);
+                    if (ripple > worst) {
+                        worst = ripple;
+                        std::snprintf(worstCell, sizeof(worstCell), "fs %.0f f0 %.3f phase %.2f amount %.1f", fs, f0,
+                                      phase, static_cast<double>(amount));
+                    }
+                }
+    std::printf("HarmonicFold_DetectorStabilityGrid%s: %zu cells, worst ripple %.3g (bar 1e-4) at %s\n", tag,
+                rates.size() * f0s.size() * phases.size() * amounts.size(), worst, worstCell);
+}
+
+}  // namespace
+
+// Smoke: 48 kHz, three pitches with non-integer periods, two start phases, amount 100.
+TEST_CASE("HarmonicFold_DetectorStabilityGridSmoke", "[processors][profundum][edge-fold]") {
+    runDetectorGrid({48000.0}, {41.203445, 65.406391, 146.832384}, {0.0, 0.37}, {100.0f}, "Smoke");
+}
+
+// Full grid: 10 pitches E0..G3 x 44.1/48/96 kHz x 3 start phases x amounts {47.5, 100}.
+TEST_CASE("HarmonicFold_DetectorStabilityGrid", "[processors][profundum][edge-fold][long]") {
+    runDetectorGrid({44100.0, 48000.0, 96000.0},
+                    {20.601722, 27.5, 32.703196, 41.203445, 55.0, 65.406391, 82.406889, 110.0, 146.832384, 196.0},
+                    {0.0, 0.37, 0.71}, {47.5f, 100.0f}, "");
+}
+
+// Rapid amplitude changes: holds, 12 / 18 dB steps, AM the release can follow (1 Hz, +-3 dB) and
+// cannot (4 Hz, +-6 dB), then a 30 dB drop. The C++ env must (i) never read below the current
+// sample (C-4 guarantee), (ii) lie between the detector's own law applied to the analytic peak
+// amplitude with the shortest window and a one-period detection lag (lower bound) and with the
+// longest window (upper bound), within 0.5 % below / 2 % above (true-peak interpolation on a
+// 64-partial saw), and (iii) settle within h of the final level (D-4) plus the estimator's own
+// overshoot, bounded at 0.5 % (the 4x parabolic estimate reads 0.04-0.15 % above the sampled
+// true peak of this saw; it is exact on a sine, which is what the D-4 test uses). The AM
+// following is recorded, not gated: it is the ratified 4/f0 release.
+TEST_CASE("HarmonicFold_DetectorUnderAmplitudeChanges", "[processors][profundum][edge-fold]") {
+    const double fs = kFs;
+    const auto h = static_cast<double>(HarmonicFold::kDetectorReleaseHysteresis);
+    const auto sec = [&](double s) { return static_cast<std::size_t>(s * fs); };
+    struct Seg {
+        std::size_t len;
+        double a0;        // true peak amplitude (AM centre)
+        double amRate;    // Hz, 0 = hold
+        double amDepthDb;
+    };
+    const std::array<Seg, 6> segs{{{sec(1.0), dbToAmp(-24.0), 0.0, 0.0},
+                                   {sec(1.0), dbToAmp(-6.0), 0.0, 0.0},
+                                   {sec(1.0), dbToAmp(-18.0), 0.0, 0.0},
+                                   {sec(3.0), dbToAmp(-12.0), 1.0, 3.0},
+                                   {sec(2.0), dbToAmp(-12.0), 4.0, 6.0},
+                                   {sec(1.0), dbToAmp(-30.0), 0.0, 0.0}}};
+    std::size_t total = 0;
+    for (const Seg& s : segs)
+        total += s.len;
+    std::vector<double> A(total, 0.0);
+    std::array<std::size_t, 7> segStart{};
+    {
+        std::size_t n = 0;
+        for (std::size_t i = 0; i < segs.size(); ++i) {
+            segStart[i] = n;
+            for (std::size_t k = 0; k < segs[i].len; ++k, ++n) {
+                const double t = static_cast<double>(k) / fs;
+                A[n] = segs[i].amRate > 0.0
+                           ? segs[i].a0 * dbToAmp(segs[i].amDepthDb * std::sin(hft::kTwoPi * segs[i].amRate * t))
+                           : segs[i].a0;
+            }
+        }
+        segStart[6] = n;
+    }
+
+    for (const int note : {kNoteE1, kNoteC2})
+        for (const float amount : {47.5f, 82.5f}) {
+            const double f0 = midiHz(note);
+            const UnitSaw saw(f0, fs, 0.0, 64);
+            std::vector<float> x(total, 0.0f);
+            for (std::size_t n = 0; n < total; ++n)
+                x[n] = static_cast<float>(A[n] * saw.at(n));
+
+            HarmonicFold fold = makeFold(fs, amount, f0);
+            std::vector<float> y = x;
+            std::vector<double> env(total, 0.0);
+            for (std::size_t n = 0; n < total; ++n) {
+                fold.processBlock(y.data() + n, y.data() + n, 1);
+                env[n] = static_cast<double>(fold.detectorLevel());
+            }
+
+            // (i) guarantee.
+            double worstGuarantee = 0.0;
+            for (std::size_t n = 0; n < total; ++n)
+                worstGuarantee = std::max(worstGuarantee, std::abs(static_cast<double>(x[n])) / env[n]);
+
+            // (ii) the law on the analytic peak amplitude: sliding max over a window, then
+            // instant attack / hysteretic one-pole release with the fold's own coefficient.
+            const double holdSamples = std::round(static_cast<double>(HarmonicFold::kDetectorHoldMs) * 1.0e-3 * fs);
+            const auto segLen = static_cast<std::size_t>(
+                std::ceil(holdSamples / static_cast<double>(HarmonicFold::kDetectorSegments)));
+            const auto period = static_cast<std::size_t>(std::ceil(fs / f0));
+            const double alpha = 1.0 - std::exp(-1.0 / (static_cast<double>(fold.releaseSeconds()) * fs));
+            const auto ideal = [&](const std::vector<double>& src, std::size_t window, std::size_t lag) {
+                std::vector<double> out(total, 0.0);
+                std::deque<std::size_t> dq;  // indices with decreasing src
+                double e = 0.0;
+                for (std::size_t n = 0; n < total; ++n) {
+                    if (n >= lag) {
+                        const std::size_t m = n - lag;
+                        while (!dq.empty() && src[dq.back()] <= src[m])
+                            dq.pop_back();
+                        dq.push_back(m);
+                        while (!dq.empty() && dq.front() + window < m)
+                            dq.pop_front();
+                    }
+                    const double raw = dq.empty() ? src[0] : src[dq.front()];
+                    if (raw > e)
+                        e = raw;
+                    else if (raw < e * (1.0 - h))
+                        e += alpha * (raw - e);
+                    out[n] = e;
+                }
+                return out;
+            };
+            // Lower bound: the saw peaks once per period, so inside any interval of length P the
+            // detector sees a peak whose amplitude is at least the minimum of A over that
+            // interval (Amin); the ring forgets a peak 8 segments after it completed, so the
+            // bound keeps a value for at most 8·segLen samples; and a rise is seen only at the
+            // next peak (lag P). Upper bound: the longest window (8 completed segments plus a
+            // full partial one, plus P of slack) on A itself, no lag.
+            REQUIRE(8 * segLen > period);
+            std::vector<double> Amin(total, 0.0);
+            {
+                std::deque<std::size_t> dq;  // indices with increasing A over [t, t + P]
+                for (std::size_t t = total; t-- > 0;) {
+                    while (!dq.empty() && A[dq.back()] >= A[t])
+                        dq.pop_back();
+                    dq.push_back(t);
+                    while (!dq.empty() && dq.front() > t + period)
+                        dq.pop_front();
+                    Amin[t] = A[dq.front()];
+                }
+            }
+            const std::vector<double> lo = ideal(Amin, 8 * segLen - period, period);
+            const std::vector<double> hi = ideal(A, 9 * segLen + period, 0);
+            const std::size_t warm = 9 * segLen + 2 * period;
+            double worstLo = 10.0;
+            double worstHi = 0.0;
+            std::size_t worstLoAt = 0;
+            std::size_t worstHiAt = 0;
+            for (std::size_t n = warm; n < total; ++n) {
+                const double rl = env[n] / lo[n];
+                const double rh = env[n] / hi[n];
+                if (rl < worstLo) {
+                    worstLo = rl;
+                    worstLoAt = n;
+                }
+                if (rh > worstHi) {
+                    worstHi = rh;
+                    worstHiAt = n;
+                }
+            }
+
+            // (iii) AM following, recorded: env / A over the last cycle of each AM segment.
+            double am1Max = 0.0;
+            double am1Min = 10.0;
+            double am4Max = 0.0;
+            double am4Min = 10.0;
+            for (std::size_t n = segStart[3] + sec(2.0); n < segStart[4]; ++n) {
+                am1Max = std::max(am1Max, env[n] / A[n]);
+                am1Min = std::min(am1Min, env[n] / A[n]);
+            }
+            for (std::size_t n = segStart[4] + sec(1.75); n < segStart[5]; ++n) {
+                am4Max = std::max(am4Max, env[n] / A[n]);
+                am4Min = std::min(am4Min, env[n] / A[n]);
+            }
+
+            // (iv) settled after the final 18 dB drop (window + 6 release time constants).
+            const auto settleAt = segStart[5] + 9 * segLen + period
+                                  + static_cast<std::size_t>(6.0 * static_cast<double>(fold.releaseSeconds()) * fs);
+            REQUIRE(settleAt < total);
+            const double finalRatio = env[total - 1] / segs[5].a0;
+
+            std::printf("HarmonicFold_DetectorUnderAmplitudeChanges MIDI %d amount %.1f: guarantee max |x|/env %.6f "
+                        "(bar <= 1), env/ideal-lo min %.4f @ %.3f s (bar >= 0.995), env/ideal-hi max %.4f @ %.3f s "
+                        "(bar <= 1.02), AM 1 Hz +-3 dB env/A %.3f..%.3f, AM 4 Hz +-6 dB %.3f..%.3f (recorded), "
+                        "final env/A %.5f (bar [1, %.5f])\n",
+                        note, static_cast<double>(amount), worstGuarantee, worstLo,
+                        static_cast<double>(worstLoAt) / fs, worstHi, static_cast<double>(worstHiAt) / fs, am1Min,
+                        am1Max, am4Min, am4Max, finalRatio, 1.005 / (1.0 - h));
+            INFO("MIDI " << note << " amount " << amount);
+            CHECK(worstGuarantee <= 1.0 + 1.0e-6);
+            CHECK(worstLo >= 0.995);
+            CHECK(worstHi <= 1.02);
+            CHECK(finalRatio >= 1.0 - 1.0e-3);
+            CHECK(finalRatio <= 1.005 / (1.0 - h));
+            REQUIRE(fold.stateFinite());
+        }
 }
