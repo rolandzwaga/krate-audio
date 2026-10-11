@@ -257,6 +257,20 @@ rendered and inspected.
 
 ### Phase 2: Edge Excitation & Harmonic Fold
 
+**Status: ✅ COMPLETE (2026-10-11)** — see specs/profundum-phase2-edge-fold/compliance.md (78 of 79; the one red row is
+`VoragoMacro_SweepAxes`, a Vorago `[long]` case failing identically on `main` before Phase 1, ruled not a Phase 2 gate).
+Shipped: `PolyphaseHalfbandOversampler` (L1, polyphase allpass halfband 2×/4×, inline allpass, heap-free),
+`HarmonicFold` (L2: soft saturation → envelope-normalised harmonic compression with per-channel windowed true-peak
+detectors → sine fold, `kFoldIndexMax` 3.0 with the ease-out index law p = 1.5) and the edge excitation inside
+`ProfundumCore` (`Sigmoid::recipSqrt` with closed-form first-order AA, drive −12…+12 dB dB-linear in Edge, static makeup
+±1.5 dB, 500 Hz split bypass so h1 stays on a zero-delay path, 4× oversampled residual with 2fs notches and a 2 Hz DC
+blocker). Rulings during the build: D-1 ease-out fold-index law; D-2/D-3 SC-026 measured on h1 (0.07°) and the 125 Hz
+band, high-band delay recorded (≈ 5 samples); D-4 true-peak detector with 0.5 % release hysteresis (the windowed peak of a
+non-integer-period signal is not constant). Measured: aliasing ≤ −83 dBFS at E0–E2 across 44.1/48/96 kHz (bar −80);
+DC ≤ −109 dBFS; excitation THD span +31 dB; Fold THD strictly monotonic, harmonic count 1 → 17; regime continuity ratio
+1.010 (bar 1.1); mix 0 bit-identical to Phase 1; CPU alone: core 0.689 %, stage cost 1.019 % (bar 1.5), chain 1.708 %
+(bar 2.5). Noted for Phase 9 listening: the split's linear path has a +1.5 dB hump at 400–700 Hz at mix 1.
+
 **Spec:** `profundum-phase2-edge-fold`
 **Goal:** The two nonlinear generators the core needs: new harmonics from nonlinearity (inside the
 oscillator) and the signature "filthy midrange, pristine sub" saturator.
