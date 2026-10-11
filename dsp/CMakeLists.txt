@@ -122,6 +122,8 @@ set(KRATE_DSP_PRIMITIVES_HEADERS
     include/krate/dsp/primitives/stft.h
     include/krate/dsp/primitives/wavetable_generator.h
     include/krate/dsp/primitives/wavetable_oscillator.h
+    # Profundum Phase 2 (specs/profundum-phase2-edge-fold)
+    include/krate/dsp/primitives/polyphase_halfband_oversampler.h
 )
 
 # Layer 2: Processors
@@ -155,6 +157,8 @@ set(KRATE_DSP_PROCESSORS_HEADERS
     include/krate/dsp/processors/modal_resonator_bank_simd.h
     # Profundum Phase 1 (specs/profundum-phase1-harmonic-core)
     include/krate/dsp/processors/spectral_shape_recipe.h
+    # Profundum Phase 2 (specs/profundum-phase2-edge-fold)
+    include/krate/dsp/processors/harmonic_fold.h
 )
 
 # Layer 3: Systems

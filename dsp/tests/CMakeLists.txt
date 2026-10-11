@@ -97,6 +97,8 @@ add_executable(dsp_primitives_tests
     unit/primitives/smoother_test.cpp
     unit/primitives/dc_blocker_test.cpp
     unit/primitives/oversampler_test.cpp
+    # Profundum Phase 2 (specs/profundum-phase2-edge-fold): PolyphaseHalfbandOversampler (L1) - plan S3
+    unit/primitives/polyphase_halfband_oversampler_test.cpp
     unit/primitives/fft_test.cpp
     unit/primitives/spectral_buffer_test.cpp
     unit/primitives/spectral_utils_tests.cpp
@@ -252,6 +254,9 @@ add_executable(dsp_processors_tests
     unit/processors/harmonic_oscillator_bank_tests.cpp
     # Profundum Phase 1 (specs/profundum-phase1-harmonic-core): recipe-only SCs
     unit/processors/spectral_shape_recipe_test.cpp
+    # Profundum Phase 2 (specs/profundum-phase2-edge-fold): HarmonicFold (L2) - SC-006/007/008/010/011/012(d)/013(a)(c)/015/016/017/019/024/025/026
+    unit/processors/harmonic_fold_test.cpp
+    unit/processors/harmonic_fold_nonfinite_test.cpp
     unit/processors/residual_types_tests.cpp
     unit/processors/residual_analyzer_tests.cpp
     unit/processors/residual_synthesizer_tests.cpp
@@ -595,6 +600,35 @@ add_executable(dsp_systems_tests
     unit/systems/profundum_core_spectral_test.cpp
     unit/systems/profundum_core_nonfinite_test.cpp
     unit/systems/profundum_core_perf_test.cpp
+    # Profundum Phase 2 (specs/profundum-phase2-edge-fold): ProfundumCore
+    # excitation + the HarmonicFold chain. ENUMERATED, not globbed - an
+    # unregistered TU silently drops out of the build and its cases never run.
+    #   profundum_core_excitation_test.cpp           SC-002 (EdgeDriveLaw),
+    #                                                SC-004 (a), SC-009, SC-013
+    #                                                (excitation arms), SC-014,
+    #                                                SC-015, SC-017, SC-026
+    #                                                (excitation)
+    #   profundum_core_excitation_spectral_test.cpp  SC-001, SC-002 (rendered
+    #                                                arms), SC-003, SC-011
+    #                                                (ExcitationDcFree), SC-012
+    #                                                (excitation), SC-020
+    #   profundum_edge_fold_chain_test.cpp           SC-005 grid + positive
+    #                                                control, core-input arms of
+    #                                                SC-010/011/012/013, SC-017
+    #                                                (SampleRateChange), SC-019
+    #                                                (excitation), SC-022,
+    #                                                HelperParity, [.listen]
+    #   profundum_core_excitation_nonfinite_test.cpp SC-016 (excitation),
+    #                                                ExcitationTableLookupAtCorners
+    #                                                - the ONE Phase 2 systems
+    #                                                entry in the -fno-fast-math
+    #                                                block below
+    #   profundum_edge_fold_perf_test.cpp            SC-018  [.perf]
+    unit/systems/profundum_core_excitation_test.cpp
+    unit/systems/profundum_core_excitation_spectral_test.cpp
+    unit/systems/profundum_edge_fold_chain_test.cpp
+    unit/systems/profundum_core_excitation_nonfinite_test.cpp
+    unit/systems/profundum_edge_fold_perf_test.cpp
 )
 
 target_link_libraries(dsp_systems_tests
@@ -1074,6 +1108,9 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/systems/vorago_param_surface_test.cpp
         # Profundum Phase 1: injects NaN/Inf bit patterns (SC-016, SC-020(d), FR-002). The perf TU stays out so its figures reflect the shipping FP mode.
         unit/systems/profundum_core_nonfinite_test.cpp
+        # Profundum Phase 2: injects NaN/Inf bit patterns and NaN table sentinels (SC-016, S4.3/S5.3 lookups). The perf TU stays out.
+        unit/processors/harmonic_fold_nonfinite_test.cpp
+        unit/systems/profundum_core_excitation_nonfinite_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 
