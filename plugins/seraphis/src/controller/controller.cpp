@@ -41,17 +41,13 @@
 #include <cstdint>
 #include <cstring>
 #include <string>
-#include <type_traits>
 #include <utility>
 #include <vector>
 
-// FR-052: the update config ships COMPILED BUT UNUSED in Phase 8 (no
-// UpdateChecker instance -- it spawns a thread and a network fetch). This
-// static_assert is the ONLY thing that compiles the header; a CMake source-list
-// entry would NOT (CMake sets HEADER_FILE_ONLY on .h entries).
+// The live update check (2026-10-11): the Phase 8 FR-052 "compiled but unused"
+// ruling is superseded; the controller now owns an UpdateChecker like Iterum.
+#include "ui/update_banner_view.h"
 #include "update/seraphis_update_config.h"
-static_assert(std::is_same_v<decltype(Seraphis::makeSeraphisUpdateConfig()),
-                             Krate::Plugins::UpdateCheckerConfig>);
 
 namespace Seraphis {
 
@@ -154,7 +150,7 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context) {
             Krate::DSP::makeFactoryState(static_cast<Krate::DSP::SpectralStateId>(index));
     }
 
-    // FR-050. NO UpdateChecker (FR-052).
+    // FR-050.
     presetManager_ = std::make_unique<Krate::Plugins::PresetManager>(
         makeSeraphisPresetConfig(), nullptr, this);
     // Phase 12 hotfix (2026-08-05): the two provider callbacks WITHOUT WHICH the
@@ -169,6 +165,8 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context) {
             return loadComponentStateWithNotify(stream);
         });
 
+    updateChecker_ = std::make_unique<Krate::Plugins::UpdateChecker>(makeSeraphisUpdateConfig());
+
     return kResultOk;
 }
 
@@ -180,6 +178,7 @@ tresult PLUGIN_API Controller::terminate() {
     // producer's gate would never be re-opened.
     editorOpenCount_ = 0;
 
+    updateChecker_.reset();
     presetManager_.reset();
     return EditControllerEx1::terminate();
 }
@@ -474,6 +473,16 @@ VSTGUI::CView* Controller::createCustomView(VSTGUI::UTF8StringPtr name,
     // plugin's Presets button uses (Krate::Plugins::drawOutlineButton). It is a
     // CControl, so verifyView() gives it its session tag (9000) and this
     // listener from the session-tag attribute - one valueChanged per click.
+    // Update banner (hidden until a newer version is found) and the manual check
+    // button: the shared views every plugin with a live update check uses.
+    if (std::strcmp(name, "UpdateBanner") == 0) {
+        auto* banner = new Krate::Plugins::UpdateBannerView(viewRect, updateChecker_.get());
+        updateBannerView_ = banner;
+        return banner;
+    }
+    if (std::strcmp(name, "CheckForUpdatesButton") == 0) {
+        return new Krate::Plugins::CheckForUpdatesButton(viewRect, updateChecker_.get());
+    }
     if (std::strcmp(name, "PresetButton") == 0) {
         return new Krate::Plugins::OutlineBrowserButton(viewRect, nullptr, -1, "PRESETS");
     }
@@ -500,6 +509,14 @@ VSTGUI::IController* Controller::createSubController(
 
 void Controller::didOpen(VSTGUI::VST3Editor* editor) {
     activeEditor_ = editor;
+
+    // Start the (24 h cooldown) update check and the banner's result polling.
+    if (updateChecker_) {
+        updateChecker_->checkForUpdate(false);
+    }
+    if (updateBannerView_ != nullptr) {
+        updateBannerView_->startPolling();
+    }
 
     // The seven drawer pages arrive from the uidesc AFTER DrawerContainer's
     // constructor runs, so "exactly one page visible" is established here, once
@@ -531,6 +548,10 @@ void Controller::willClose(VSTGUI::VST3Editor* /*editor*/) {
         // Unregisters the frame's keyboard hook while the frame is still alive.
         presetBrowserView_->close();
         presetBrowserView_ = nullptr;  // the frame owns and destroys it
+    }
+    if (updateBannerView_ != nullptr) {
+        updateBannerView_->stopPolling();
+        updateBannerView_ = nullptr;  // the frame owns and destroys it
     }
     cloudView_ = nullptr;
     drawer_ = nullptr;

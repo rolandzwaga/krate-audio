@@ -26,6 +26,7 @@
 // ==============================================================================
 
 #include "preset/preset_manager.h"
+#include "update/update_checker.h"
 #include "processor/cloud_frame.h"
 #include "ui/edit_message.h"
 
@@ -50,6 +51,7 @@ class IBStreamer;
 
 namespace Krate::Plugins {
 class PresetBrowserView;
+class UpdateBannerView;
 }  // namespace Krate::Plugins
 
 namespace Seraphis::UI {
@@ -373,6 +375,7 @@ private:
     void applyEditToMirror(const UI::EditMessage& m) noexcept;
 
     std::unique_ptr<Krate::Plugins::PresetManager> presetManager_;
+    std::unique_ptr<Krate::Plugins::UpdateChecker> updateChecker_;
 
     // SDK helper that routes host DataExchange deliveries (and the IMessage
     // fallback in notify()) into this controller's IDataExchangeReceiver entry
@@ -418,6 +421,7 @@ private:
     UI::DrawerContainer* drawer_ = nullptr;
     std::array<UI::MacroRingKnob*, 5> macroRings_{};
     Krate::Plugins::PresetBrowserView* presetBrowserView_ = nullptr;
+    Krate::Plugins::UpdateBannerView* updateBannerView_ = nullptr;
 
     /// Counted up in createSubController and RESET TO 0 in willClose() - the
     /// documented trap: the count is per open editor, not per plugin instance.
