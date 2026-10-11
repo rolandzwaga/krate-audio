@@ -578,5 +578,10 @@
         <view class="ArcKnob" control-tag="EnvReleaseMs" origin="30, 146" size="56, 56" arc-color="accent" guide-color="track" tooltip="Release time after note off, in milliseconds"/>
       </view>
     </view>
+
+    <!-- Manual update check, under the BLOOM macro. -->
+    <view class="CView" custom-view-name="CheckForUpdatesButton" origin="880, 176" size="96, 18"/>
+    <!-- Update banner (last child = paints on top of everything); hidden until a newer version is found. -->
+    <view class="CView" custom-view-name="UpdateBanner" origin="0, 0" size="1000, 60" autosize="left right"/>
   </template>
 </vstgui-ui-description>
