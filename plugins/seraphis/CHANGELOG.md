@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Update check** — The editor now checks for a newer version when it opens, at most once a day, and shows a banner with a download link when one is available. A Check for Updates button under the BLOOM macro runs the check on demand. The same check Iterum, Disrumpo, Innexus and Ruinae already run; the sound is unchanged.
+- **Version shown in the editor** — The plugin version is drawn in the header, left of the Presets button, so the installed build can be read off the window.
 
 ## [1.0.1] - 2026-10-09
 
