@@ -54,17 +54,13 @@
 #include <cstring>
 #include <memory>
 #include <string>
-#include <type_traits>
 #include <utility>
 #include <vector>
 
-// Compile touch point for the update config (FR-052, plan section 2.6): the
-// header is included by nothing else, and a .h in a CMake source list is
-// HEADER_FILE_ONLY, so this static_assert is the ONLY thing that compiles it.
-// No UpdateChecker is ever instantiated (FR-052).
+// The live update check (2026-10-11): the FR-052 "compiled but unused" ruling
+// is superseded; the controller now owns an UpdateChecker like Iterum.
+#include "ui/update_banner_view.h"
 #include "update/vorago_update_config.h"
-static_assert(std::is_same_v<decltype(Vorago::makeVoragoUpdateConfig()),
-                             Krate::Plugins::UpdateCheckerConfig>);
 
 namespace Vorago {
 
@@ -108,7 +104,7 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context) {
     registerGhostParams(parameters);      // 1400-1403
     registerLifeParams(parameters);       // 1500-1502
 
-    // FR-050. No UpdateChecker (FR-052). Phase 13 (FR-072, FR-073): the browser
+    // FR-050. Phase 13 (FR-072, FR-073): the browser
     // saves the processor's own getState bytes and loads with host edits.
     presetManager_ = std::make_unique<Krate::Plugins::PresetManager>(makeVoragoPresetConfig(),
                                                                      nullptr, this);
@@ -118,6 +114,8 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context) {
         [this](IBStream* stream, const Krate::Plugins::PresetInfo& /*info*/) {
             return loadComponentStateWithEdits(stream);
         });
+
+    updateChecker_ = std::make_unique<Krate::Plugins::UpdateChecker>(makeVoragoUpdateConfig());
     return kResultOk;
 }
 
@@ -128,6 +126,7 @@ tresult PLUGIN_API Controller::terminate() {
         anchorParamObserved_->removeDependent(this);
         anchorParamObserved_ = nullptr;
     }
+    updateChecker_.reset();
     presetManager_ = nullptr;
     return EditControllerEx1::terminate();
 }
@@ -361,6 +360,16 @@ VSTGUI::CView* Controller::createCustomView(VSTGUI::UTF8StringPtr name,
         ecosystemView_ = new UI::EcosystemView(viewRect, &cachedFrame_);
         return ecosystemView_;
     }
+    // Update banner (hidden until a newer version is found) and the manual check
+    // button: the shared views every plugin with a live update check uses.
+    if (std::strcmp(name, "UpdateBanner") == 0) {
+        auto* banner = new Krate::Plugins::UpdateBannerView(viewRect, updateChecker_.get());
+        updateBannerView_ = banner;
+        return banner;
+    }
+    if (std::strcmp(name, "CheckForUpdatesButton") == 0) {
+        return new Krate::Plugins::CheckForUpdatesButton(viewRect, updateChecker_.get());
+    }
     if (std::strcmp(name, "PresetBrowserButton") == 0) {
         // Plan D-1: the shared outline button; VoragoPanelSubController gives it
         // its session tag and listener in verifyView.
@@ -399,6 +408,14 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
         }
     }
     refreshGravityDisplay();
+
+    // Start the (24 h cooldown) update check and the banner's result polling.
+    if (updateChecker_) {
+        updateChecker_->checkForUpdate(false);
+    }
+    if (updateBannerView_ != nullptr) {
+        updateBannerView_->startPolling();
+    }
 }
 
 void Controller::willClose(VSTGUI::VST3Editor* /*editor*/) {
@@ -415,6 +432,10 @@ void Controller::willClose(VSTGUI::VST3Editor* /*editor*/) {
             presetBrowserView_->close();
         }
         presetBrowserView_ = nullptr;  // the frame owns and destroys it
+    }
+    if (updateBannerView_ != nullptr) {
+        updateBannerView_->stopPolling();
+        updateBannerView_ = nullptr;  // the frame owns and destroys it
     }
     ecosystemView_ = nullptr;
     gravityKnob_ = nullptr;

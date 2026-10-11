@@ -28,6 +28,7 @@
 // ==============================================================================
 
 #include "preset/preset_manager.h"
+#include "update/update_checker.h"
 #include "processor/ecosystem_frame.h"  // POD only (FR-020)
 
 #include "pluginterfaces/vst/ivstdataexchange.h"
@@ -41,6 +42,7 @@
 namespace Krate::Plugins {
 class PresetBrowserView;
 class ArcKnob;
+class UpdateBannerView;
 }  // namespace Krate::Plugins
 
 namespace VSTGUI {
@@ -142,6 +144,7 @@ private:
     Steinberg::tresult applyStateStream(Steinberg::IBStream* state, const SetParam& setParam);
 
     std::unique_ptr<Krate::Plugins::PresetManager> presetManager_;
+    std::unique_ptr<Krate::Plugins::UpdateChecker> updateChecker_;
 
     EcosystemFrame cachedFrame_{};  // UI thread only (queueOpened asks for UI dispatch)
     Steinberg::Vst::DataExchangeReceiverHandler dataExchangeReceiver_{this};
@@ -149,6 +152,7 @@ private:
     // Frame-owned views; every pointer is zeroed in willClose.
     UI::EcosystemView* ecosystemView_ = nullptr;
     Krate::Plugins::PresetBrowserView* presetBrowserView_ = nullptr;
+    Krate::Plugins::UpdateBannerView* updateBannerView_ = nullptr;
     VSTGUI::VST3Editor* activeEditor_ = nullptr;
     Krate::Plugins::ArcKnob* gravityKnob_ = nullptr;
     VSTGUI::CTextLabel* gravityLabel_ = nullptr;
