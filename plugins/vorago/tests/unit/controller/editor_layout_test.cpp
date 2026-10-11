@@ -1191,7 +1191,8 @@ TEST_CASE("Vorago_UidescLayout", "[vorago][controller][ui]") {
     const std::set<std::string> allowedClasses = {"CViewContainer", "CTextLabel", "CSlider",
                                                   "COptionMenu",    "CCheckBox",  "CSegmentButton",
                                                   "CView",          "ArcKnob"};
-    const std::set<std::string> allowedCustom = {"EcosystemView", "PresetBrowserButton"};
+    const std::set<std::string> allowedCustom = {"EcosystemView", "PresetBrowserButton",
+                                                 "UpdateBanner", "CheckForUpdatesButton"};
     std::map<std::string, int> customCounts;
     for (const auto& n : scan.nodes) {
         const std::string cls = n.get("class");
@@ -1204,9 +1205,12 @@ TEST_CASE("Vorago_UidescLayout", "[vorago][controller][ui]") {
             ++customCounts[custom];
         }
     }
-    // C-1: one ecosystem view, one header preset button (FR-070).
+    // C-1: one ecosystem view, one header preset button (FR-070); one update
+    // banner and one manual check button (the shared update check, 2026-10-11).
     REQUIRE(customCounts["EcosystemView"] == 1);
     REQUIRE(customCounts["PresetBrowserButton"] == 1);
+    REQUIRE(customCounts["UpdateBanner"] == 1);
+    REQUIRE(customCounts["CheckForUpdatesButton"] == 1);
     for (const int ecosystem : findLabelled(scan, "ecosystem")) {
         REQUIRE(scan.nodes[static_cast<std::size_t>(ecosystem)].get("custom-view-name") ==
                 "EcosystemView");
