@@ -553,26 +553,91 @@ editing model** settled (Open Question 2: the registered sound parameters addres
 endpoint via an Edit A / Edit B target, the engine runs the resolved state, both snapshots live in state);
 per-section parameter packs; `IMidiMapping` (mod wheel and channel pressure → Mass by default,
 pitch-bend range, sustain); pluginval + full round-trip tests including both morph states.
+**Amended 2026-10-11 (UI design conversation):** Copy A → B / B → A and A / A·B / B compare are controller-side
+operations on the two snapshots, not parameters (the compare must not write state); the Morph position ramp time
+is registered if Phase 8 exposes it; the Motion target set registered in 900–999 covers Mass and the core spectral
+controls first (no general matrix).
 
 ### Phase 12: UI
 
-**Spec:** `profundum-phase12-ui`
+**Spec:** `profundum-phase12-ui` — one spec in two stages: **12a UI design** (deliverables ratified by the
+user) and **12b implementation**; 12b does not start until 12a is ratified. *(Amended 2026-10-11 from the
+user's design conversation; the concept §14 screen remains the reference the amendment is measured against.)*
 
-VSTGUI only. **Concept §14 main screen:** one signature visualisation — the live **spectrum / energy
-view** (the concept's SPECTRUM panel: Sub / Body / Presence energy as bars with the Anchor drawn
-separately, and the concept §3 interaction — *one draggable point* whose position sets where the energy
-lives; whether that point is 1-D along SHIFT or 2-D with Depth is decided in spec) via DataExchange
-piggyback (Membrum MetersBlock pattern — no new queues); two rows of large knobs exactly as the concept
-draws them — **Weight · Body · Edge · Mass** and **Anchor · Shift · Fold · Drop** — where Weight is the
-Personality macro (Depth lives on the Advanced page), Anchor is anchor level, Fold is Harmonic Fold
-amount and Drop is Drop amount; the **MORPH** slider spanning A and B, its ends labelled with the
-endpoints' names (the concept's default reads CLEAN ─ MORPH ─ VIOLENT) plus the edit target; the four
-Personality macros as large knobs (the concept's cross: Weight above, Dark ↔ Bright across, Clean ↔
-Violent below, Tight ↔ Loose beside — exact placement decided in spec); image-mode selector; the
-**SPREAD** mini-spectrum (20 Hz – 10 kHz, MONO ↔ WIDE across frequency, concept §8) on the stereo panel.
-An **Advanced** page exposes the synthesis architecture by section. Spectrum view: promote Disrumpo's
-`SpectrumDisplay` to `plugins/shared` or build a harmonic-bar view — decided in spec. No param-type
-swaps on registered IDs, ever.
+**Design principle:** the UI follows the engine — a small number of powerful controls on the surface, the
+mechanisms on an Advanced page. It must not read as a conventional subtractive synth (a row of oscillators,
+filters and envelopes). What it shows is the relationship between a stable, centred low end and a
+transformable harmonic voice. Two levels: one **Main** performance page a user can operate without
+understanding the DSP, one **Advanced** sound-design page (whether MODULATION and SETTINGS are tabs of
+Advanced or separate pages is decided in 12a).
+
+**12a — design deliverables:**
+1. Main-page wireframe. Working basis: the conversation's Concept A (functional, macro-first, Bass Morph as
+   the visual centrepiece) with Concept B's terminology and visual split — **THE ANCHOR** (weight) and
+   **THE MASS** (character) as two distinct regions. The page has three jobs: *shape the mass* (Depth, Body,
+   Edge, Fold), *control the weight* (Anchor level, Anchor character, Anchor behaviour), *transform the
+   sound* (Bass Morph, voice mode + glide, Motion mode).
+2. Advanced-page wireframe, by section: **Core spectrum** (Depth, Body, Edge, Spectral Shift, Fold, the
+   harmonic spectrum display); **Sub Anchor** (level, character/waveform, mode, morph behaviour);
+   **Excitation & Fold** (edge drive, excitation mix, asymmetry, fold amount); **Pitch & Envelopes** (Drop
+   amount / time / shape / rebound, amp envelope, note behaviour: retrigger, glide mode, note memory);
+   **Stereo & Output** (image mode, Spread, Gravity / crossover, field Motion, output); **Morph behaviour**;
+   **Motion** detail.
+3. Macro-to-parameter mapping table — Phase 9's `ProfundumMacroMatrix` table reproduced and ratified as the
+   UI contract. The main page must make a good sound with its visible controls alone.
+4. Bass Morph interpolation specification — Phase 8's per-parameter laws restated as what the user sees
+   while morphing.
+5. Voice-mode and note-handling — a cross-reference to Phases 4 and 9 (deterministic, documented stealing
+   and retrigger); 12a adds no behaviour.
+6. UI interaction and automation specification: which controls are host parameters and which are UI-only
+   state (A / B compare, copy state), automation and MIDI-learn behaviour of the macros and Morph.
+7. Accessibility, scaling and host-resizing requirements.
+
+**Main-page questions carried into 12a** (concept §14 vs the conversation; decided in spec, recommendation
+first):
+- **Knob set.** Concept: Weight · Body · Edge · Mass / Anchor · Shift · Fold · Drop. Conversation: Depth ·
+  Body · Edge · Fold, the macros Weight · Dark ↔ Bright · Clean ↔ Violent, Anchor level / character /
+  behaviour, voice mode + glide, Motion mode. Recommendation: the conversation's set **plus Mass and Drop**
+  (both one-knob, both proprietary-feeling); Shift and Tight ↔ Loose move to Advanced.
+- **Spectrum view.** Concept: main-page centrepiece with the draggable energy point. Conversation: optional,
+  on Advanced. Recommendation: keep it on the main page — it is the instrument's signature visual and the
+  Anchor / Mass split can be drawn in it (Anchor separately, Sub / Body / Presence energy as bars). Wherever
+  it lives it shows the **actual harmonic structure** (DataExchange piggyback), never decoration.
+- **Image-mode selector and the SPREAD mini-spectrum** (20 Hz – 10 kHz, MONO ↔ WIDE across frequency,
+  concept §8): main page (concept) or Stereo & Output (conversation).
+
+**Components the amendment adds:**
+- **Morph component.** Endpoints carry a name and a three-word descriptor (e.g. *A — DEEP PRESSURE · Round
+  · Clean · Heavy*, *B — IRON FOLD · Dense · Bright · Aggressive*), a position readout in %, **A / A·B / B
+  compare** (UI state, not a parameter) and **Copy A → B / B → A** (variation workflow). Advanced "Morph
+  behaviour": Anchor morph mode (Lock / Blend / Punch) and **Morph smoothing** (Phase 8's position ramp
+  time, if Phase 11 registers it). *Not adopted:* a user-selectable global "parameter curve" — the
+  per-parameter laws are fixed by Phase 8's ruling.
+- **Motion.** Main page: source mode only (OFF / ENV / CYCLE / DRIFT). Advanced: source, target (Mass and
+  the core spectral controls first), amount, rate, shape, sync + division; phase, retrigger, fade-in and
+  polarity as advanced detail. No general modulation matrix in 1.0.
+- **Macro discoverability.** Hovering or moving a macro highlights the parameters it drives; no permanent
+  matrix on screen.
+- **Anchor naming.** The Anchor's own modes (LOCK / FOLLOW / PUNCH / GHOST, Phase 3) and its morph behaviour
+  (Lock / Blend / Punch, Phase 8) are two controls and never share one widget or one label set; 12a names
+  them apart (the conversation's main-page "ANCHOR MODE LOCK / BLEND / PUNCH" is the morph behaviour).
+
+**Interaction principles (binding on 12b):** main-page controls give musical results without DSP knowledge;
+macros drive several parameters through intentional, documented mappings; Morph uses parameter-appropriate
+curves; the Anchor's morph behaviour is explicit; per-voice envelopes and note state stay independent in
+POLY; voice stealing and retrigger are deterministic and documented; **no Advanced control may silently
+invalidate the stable, centred low end** — a control that affects mono compatibility says so and its
+guarantee is the one Phase 7 measures; there is no "low-end protection" switch implying safety at every
+setting; the spectrum display represents the actual signal.
+
+**Not adopted from the conversation (conflicts with ratified design):** user-facing **Oversampling /
+Quality** settings — the excitation and the Fold ship with fixed zero-latency anti-aliasing (Phase 2
+SC-026 / SC-005), and a quality switch would ship either an inert path or one that adds latency; a
+**Low-End Protection [ENABLED]** toggle — Low Note Guard is a documented continuous taper and Gravity is the
+measured stereo-field law, neither is a safety switch.
+
+VSTGUI only. Spectrum view implementation: promote Disrumpo's `SpectrumDisplay` to `plugins/shared` or
+build a harmonic-bar view — decided in 12a. No param-type swaps on registered IDs, ever.
 
 ### Phase 13: Factory Presets & Release Readiness
 
@@ -645,6 +710,8 @@ Phases 4, 5 and 6 have no dependency on the core and can be built in parallel wi
    affordable per voice — Phase 9, after CPU measurement.
 8. **Polyphony ceiling** beyond 4 — Phase 9 / 11 (`kMaxVoices` vs the registered polyphony range; a
    range change at a shipped ID is forbidden later, so the registered maximum is chosen once).
+9. **Main-page knob set and spectrum placement** — concept §14 vs the 2026-10-11 design conversation — Phase
+   12a, before any UI code.
 9. **Control-name collisions** inherited from the concept — Shape **BITE** vs Character **Bite**,
    Character **Fold** vs **Harmonic Fold**, Anchor modes **LOCK / PUNCH** vs anchor-morph modes
    **Lock / Punch** — resolved once in the Phase 11 parameter names (and the Phase 12 labels), never
