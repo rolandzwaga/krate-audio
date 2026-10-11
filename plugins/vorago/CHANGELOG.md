@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Update check** — The editor now checks for a newer version when it opens, at most once a day, and shows a banner with a download link when one is available. A Check for Updates button at the right of the header runs the check on demand. The same check Iterum, Disrumpo, Innexus and Ruinae already run; the sound is unchanged.
 - **"- Init -" preset** — A factory preset that returns every parameter to its default. It lives in a new Init category that leads the preset browser, and its name sorts first in the All tab. The seven showcase categories and their 42 presets are unchanged.
 
 ## [1.0.0] - 2026-10-06
