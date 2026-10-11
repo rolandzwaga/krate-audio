@@ -639,6 +639,117 @@ measured stereo-field law, neither is a safety switch.
 VSTGUI only. Spectrum view implementation: promote Disrumpo's `SpectrumDisplay` to `plugins/shared` or
 build a harmonic-bar view — decided in 12a. No param-type swaps on registered IDs, ever.
 
+**Reference wireframes from the design conversation (2026-10-11).** Inputs to 12a, not decisions: the main-page
+questions above are still open, and the concept §14 screen (spectrum centrepiece, eight knobs, CLEAN ─ MORPH ─
+VIOLENT) is the other reference. The "Oversampling" and "Quality" cells and the "Low-End Protection" toggle drawn
+on the Advanced page are the items **not adopted** above.
+
+Concept A — macro-first, Bass Morph as the visual centrepiece (the recommended functional layout):
+
+```text
+┌──────────────────────────────────────────────────────────────────────────┐
+│ PROFUNDUM                                      PRESET: Deep Pressure  ▾  │
+│                                                                          │
+│  VOICE     MONO  ●  POLY     4 VOICES       GLIDE  ─────●────            │
+├──────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│   CORE VOICE                          BASS MORPH                         │
+│                                                                          │
+│       DEPTH                               A ◉━━━━━━━━●━━━━━━━━○ B        │
+│        ◉                                  DEEP         MORPH         RAW  │
+│                                                                          │
+│   BODY              EDGE               FOLD                              │
+│    ◉                 ◉                  ◉                                │
+│                                                                          │
+│   [ WEIGHT ]        [ DARK ↔ BRIGHT ]    [ CLEAN ↔ VIOLENT ]              │
+│       ◉                   ◉                   ◉                          │
+│                                                                          │
+├──────────────────────────────────────────────────────────────────────────┤
+│  SUB ANCHOR       LEVEL ─────●────      CHARACTER ────●────               │
+│  ANCHOR MODE      LOCK  /  BLEND  /  PUNCH                              │
+├──────────────────────────────────────────────────────────────────────────┤
+│  MOTION           OFF  /  ENV  /  CYCLE  /  DRIFT        [ ADVANCED  › ]  │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+Concept B — "the Anchor and the Mass" (the terminology and visual split 12a borrows):
+
+```text
+┌──────────────────────────────────────────────────────────────────────────┐
+│ PROFUNDUM                                           PRESET ▾    ⚙ SETUP │
+├──────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  THE ANCHOR                          THE MASS                            │
+│                                                                          │
+│  SUB LEVEL  ──────●─────             DEPTH     BODY      EDGE     FOLD    │
+│                                          ◉       ◉         ◉       ◉     │
+│  SUB CHARACTER ────●────                                                │
+│                                                                          │
+│  ANCHOR BEHAVIOUR                    HARMONIC CHARACTER                  │
+│  [ LOCK ] [ BLEND ] [ PUNCH ]        [ WEIGHT ] [ DARKNESS ] [ VIOLENCE ]│
+│                                                                          │
+├──────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  SOUND A  ◉━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━○  SOUND B     │
+│                            BASS MORPH                                    │
+│                                                                          │
+│  MOTION:  OFF  /  ENV  /  CYCLE  /  DRIFT       ADVANCED  ›              │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+Advanced page:
+
+```text
+┌──────────────────────────────────────────────────────────────────────────┐
+│ PROFUNDUM    MAIN    ADVANCED    MODULATION    SETTINGS                  │
+├──────────────────────────────────────────────────────────────────────────┤
+│ CORE SPECTRUM                                                            │
+│                                                                          │
+│ Depth       Body        Edge       Spectral Shift       Fold              │
+│ ──●─────    ────●───    ──●─────    ─────●──────       ────●────          │
+│                                                                          │
+│ [Optional spectrum display: harmonic amplitudes across partials]          │
+├──────────────────────────────────────────────────────────────────────────┤
+│ SUB ANCHOR                                                               │
+│                                                                          │
+│ Level       Character       Morph Behaviour       Low-End Protection      │
+│ ──●─────    ───●─────       [ LOCK ▾ ]            [ ENABLED ]             │
+├──────────────────────────────────────────────────────────────────────────┤
+│ EXCITATION & FOLD                                                        │
+│                                                                          │
+│ Edge Drive  ────●────    Excitation Mix ─────●────    Oversampling [4×]   │
+│ Fold Amount ──────●──    Fold Character ─────●────    Quality [HIGH ▾]   │
+├──────────────────────────────────────────────────────────────────────────┤
+│ PITCH & ENVELOPES                                                        │
+│                                                                          │
+│ Pitch Drop  ───●─────    Time ─────●─────    Shape ─────●─────            │
+│ Amp Attack  ──●──────    Decay ─────●─────    Release ──●──────           │
+├──────────────────────────────────────────────────────────────────────────┤
+│ STEREO & OUTPUT                                                          │
+│                                                                          │
+│ Mode [SPREAD ▾]   Width ─────●────   Crossover ────●────   Output ──●──   │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+Morph behaviour and Motion blocks (Advanced):
+
+```text
+MORPH BEHAVIOUR                               MOTION
+────────────────────────────────────────      ────────────────────────────────────────
+Sub Anchor      [ LOCK ▾ ]                    Source       [ CYCLE ▾ ]
+Parameter Curve [ PERCEPTUAL ▾ ]  (not adopted) Target       [ MASS ▾ ]
+Morph Smoothing ─────────●──────              Amount       ─────────●──────
+A/B Compare     [ A ] [ B ] [ MORPH ]         Rate         ────●───────────
+Copy State      [ A → B ] [ B → A ]           Shape        [ SINE ▾ ]
+                                              Sync         [ ON ]   Division [ 1/8 ▾ ]
+                                              Advanced: phase, retrigger, fade-in,
+                                                        bipolar/unipolar, target routing
+```
+
+Morph control concept: *A — DEEP PRESSURE (Round · Clean · Heavy)* ◉━━━━●━━━━○ *B — IRON FOLD (Dense · Bright ·
+Aggressive)*, buttons A / A·B / B, position readout "42 %".
+
+
 ### Phase 13: Factory Presets & Release Readiness
 
 **Spec:** `profundum-phase13-presets-release`
