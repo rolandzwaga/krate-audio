@@ -116,10 +116,11 @@ TEST_CASE("Vorago_EditorLifecycle", "[vorago][controller][ui][lifecycle]") {
         const auto cfg = ::Vorago::makeVoragoPresetConfig();
         REQUIRE(cfg.pluginName == "Vorago");
         REQUIRE(cfg.pluginCategoryDesc == "Synth");
-        REQUIRE(cfg.subcategoryNames == std::vector<std::string>{"Drones", "Abyss", "Caverns", "Organisms",
-                                                              "Machines", "Textures", "Ghosts"});  // spec FR-001 / Q6
+        REQUIRE(cfg.subcategoryNames == std::vector<std::string>{"Init", "Drones", "Abyss", "Caverns",
+                                                              "Organisms", "Machines", "Textures",
+                                                              "Ghosts"});  // spec FR-001 / Q6 + Init
         REQUIRE(::Vorago::makeVoragoPresetTabLabels() ==
-                std::vector<std::string>{"All", "Drones", "Abyss", "Caverns", "Organisms",
+                std::vector<std::string>{"All", "Init", "Drones", "Abyss", "Caverns", "Organisms",
                                          "Machines", "Textures", "Ghosts"});  // plan D-4 (T012)
         const bool processorUidMatches = (cfg.processorUID == ::Vorago::kProcessorUID);
         REQUIRE(processorUidMatches);

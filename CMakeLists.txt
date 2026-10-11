@@ -737,7 +737,7 @@ endif()
 add_custom_target(generate_vorago_presets
     COMMAND vorago_preset_generator "${CMAKE_SOURCE_DIR}/plugins/vorago/resources/presets"
     DEPENDS vorago_preset_generator
-    COMMENT "Generating Vorago factory presets (42 presets across 7 categories)"
+    COMMENT "Generating Vorago factory presets (the Init preset + 42 across 7 categories)"
     VERBATIM
 )
 
