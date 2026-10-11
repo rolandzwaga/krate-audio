@@ -823,7 +823,7 @@ Phases 4, 5 and 6 have no dependency on the core and can be built in parallel wi
    range change at a shipped ID is forbidden later, so the registered maximum is chosen once).
 9. **Main-page knob set and spectrum placement** — concept §14 vs the 2026-10-11 design conversation — Phase
    12a, before any UI code.
-9. **Control-name collisions** inherited from the concept — Shape **BITE** vs Character **Bite**,
+10. **Control-name collisions** inherited from the concept — Shape **BITE** vs Character **Bite**,
    Character **Fold** vs **Harmonic Fold**, Anchor modes **LOCK / PUNCH** vs anchor-morph modes
    **Lock / Punch** — resolved once in the Phase 11 parameter names (and the Phase 12 labels), never
    by renaming a registered ID later.
