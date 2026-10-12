@@ -304,6 +304,25 @@ within tolerance); CPU ≤ 1.5 % per voice both stages on.
 
 ### Phase 3: Sub Anchor
 
+**Status: ✅ COMPLETE (2026-10-12)** — see specs/profundum-phase3-anchor/compliance.md (87 pass, 1 partial, 0 fail; the partial is
+SC-003's ISA clause: every bar is green on every ISA measurable here — AVX2/SSE2 under MSVC, AVX2/SSE4/SSSE3/SSE2 under WSL GCC —
+and macOS / ARM NEON wait for the nightly `[long]` lane after push). Shipped: `AnchorOscillator` (L3, `systems/anchor_oscillator.h`,
+header-only, includes L0–L2 only): sine / triangle (16 odd terms n ≤ 31, cap-tapered, Clenshaw, THD −18.335 dB) / rounded sine (h3
+−12 dB) / asymmetric sine (h2 −12 dB, one-period onset ramp) / octave-down; modes LOCK / FOLLOW / PUNCH / GHOST with raised-cosine
+and Hermite-bridge C¹ envelopes (124 renders, 0 clicks); a bit-faithful mirror of the core's float h1 coefficient chain (drift
+≤ 0.123° over 60 s on MSVC, 0.005° on GCC, bar 0.5°; FR-032's observer fallback not invoked); FOLLOW = engine-derived ratio r with a
+16-sample glide (±0.0001 cent, latency ≤ 30 samples); `level` 0–1 relative to the core's delivered h1 (k = 1, default 0.5, RMS rise
+≤ 3.52 dB); re-arm as its own event; strictly mono (200 renders, 0 L ≠ R); aliasing −148 dBFS, DC −112 dBFS; CPU alone and pinned
+0.141 % worst cell (bar 0.3 %). The pre-Fold feed passed its audibility gate (THD −4.5 … −8.5 dB, centroid −0.38 … −0.86 oct) and ships
+as Phase 9's `anchorFoldFeed` (default 0); the FR-066 handoff clauses are written into Phases 4, 5, 6, 8, 9 and 11 below.
+Rulings during the build (all user-ratified, spec Clarifications 2026-10-11/12): the 14 plan S1 items (C-1 … C-14); SC-009's 1 dB
+coherent-sum bar re-derived from Phase 2's ratified −12 dB Fold-h1 clause (coherence within 0.1 dB of the prediction plus a 4.1 dB
+bound; measured −2.3 … +1.3 dB on the sum against −5.3 … +2.5 dB core-only, the Anchor's own sub energy identical in both chains);
+SC-022(2) one-sided (floor −1 dB, ceiling +6.27 dB; feed 1 raises the summed fundamental +3.95 / +4.41 dB because the Anchor's h1 passes
+the Fold and adds to its direct copy); SC-003(e)(ii) recorded, not gated (0.59° at C3 over 60 s is Phase 1's inter-partial float
+phase walk seen through the Fold — `evidence/drift-probe.cpp`: the Fold on a periodic input drifts 0.0001°, the core's partials up to
+8.35° / 60 s — the user notes the slow "breathing" may be musically welcome; Phase 9's soak records it, listening decides).
+
 **Spec:** `profundum-phase3-anchor`
 **Goal:** The fundamental that cannot be destroyed. A per-voice, always-mono anchor oscillator with
 behaviours Pure SUB's sub-regen does not have.
@@ -347,7 +366,10 @@ New / extended components:
 - `MonoHandler` extension (append-only, `processors/mono_handler.h`) — glide as constant-time,
   constant-rate, or **quantized** (semitone-stepped); existing Ruinae behaviour unchanged.
 - **Note Memory** policy — always retrigger / legato / envelope-retrigger-only / oscillator-continuous,
-  driving the core's retrigger phase policy (Phase 1 input) and the amp/drop envelopes.
+  driving the core's retrigger phase policy (Phase 1 input) and the amp/drop envelopes. Note Memory
+  decides when the Anchor's re-arm event is issued (legato, retrigger, overlapping notes, voice reuse);
+  the core and the Anchor share a common phase reference at the resolved note pitch before Drop
+  (Phase 3 FR-036, FR-048).
 - **Retrigger** — oscillator and anchor phase behaviour on new notes (reset / continue), click-free by
   construction.
 
@@ -376,7 +398,9 @@ New components:
   half/full-wave blend, DC-blocked, anti-aliased), Bite (tilt + asymmetric clip), Crush
   (`BitcrusherProcessor`), Fracture (defined in spec — Open Question 5; candidates: `FeedbackDistortion`,
   rate-reduced fold). Algorithm switches are click-free (crossfade); the stage is L/R-capable so Phase 7's
-  WIDE mode can offset drive/tone per channel. The Anchor bypasses it by default.
+  WIDE mode can offset drive/tone per channel. The Anchor bypasses it by default. Rectify, Crush and
+  Fracture each ship an r-law deliverable: the perceived-pitch ratio r = f_perceived / f0 as a function
+  of the stage's controls with a measured reference, or r ≡ 1 recorded with evidence (Phase 3 FR-047).
 
 **Success criteria:** each algorithm's harmonic signature measured and pairwise distinct (descriptor
 separation ≥ the bar ruled in spec — audibility gate); Tone monotonic in spectral centroid for every
@@ -402,6 +426,9 @@ New components:
   density (Body bias), transient duration (shaper), saturation (Fold amount), compression amount, and
   the sub/body relationship (anchor level). Mass 0 = pure, sine-like; 50 = thick analogue; 100 =
   enormous distorted. Continuous and predictable by construction: every target monotonic, bounded slew.
+  The voice supplies the core's h1 amplitude per control block (`deliveredGains()[0] · kCenterPanGain`,
+  Phase 3 FR-023), and the summed core + Anchor signal is validated through Mass dynamics and the output
+  safety stages, not by compensation in the Anchor (FR-025).
 
 **Success criteria:** every Mass target monotonic over the sweep; perceived level slope bounded (Mass is
 not a volume knob — ruled dB range in spec); sub-band gain modulation depth under compression ≤ a ruled
@@ -452,7 +479,7 @@ New components (L3):
 - `MorphState` (`systems/morph_state.h`, plain data) — every sound-shaping control: core Depth / Body /
   Edge / Shift, edge excitation, Fold, Shape, Character algorithm + Amount + Tone, Drop, amp envelope,
   image mode / Spread / Gravity / Motion, Motion-section configuration, Mass, Anchor waveform / mode /
-  level. Excluded: note behaviour, output level, polyphony. Serialisable, validated (`isValidMorphState`).
+  level / `anchorFoldFeed`. Excluded: note behaviour, output level, polyphony. Serialisable, validated (`isValidMorphState`).
 - `BassMorphEngine` (`systems/bass_morph_engine.h`) — holds A and B, resolves one state per control
   block from a smoothed, automatable morph position:
   - per-parameter interpolation laws: linear; logarithmic (frequencies, times); equal-power (mixes);
@@ -491,7 +518,9 @@ before a plugin exists.
   §13 order: spectral shaper → saturator → character, confirmed 2026-10-09); Anchor in
   parallel joining after Character; Drop on pitch; amp envelope (`ADSREnvelope` or `MultiStageEnvelope`,
   ruled in spec). Per-voice vs post-sum placement of Fold / Shape / Character in POLY confirmed by CPU
-  measurement (Open Question 7; default per-voice so chords do not intermodulate).
+  measurement (Open Question 7; default per-voice so chords do not intermodulate). Voice-level send
+  `anchorFoldFeed` ∈ [0, 1], default 0, feeding the Anchor into Fold with the direct path always
+  present (Phase 3 SC-022).
 - `ProfundumEngine` (L3) — **MONO** (default) via `MonoHandler` with the Phase 4 note behaviour; **POLY**
   via `VoiceAllocator`, 4 voices (`kMaxVoices` raisable), steal oldest-released then oldest-active;
   voice sum → Mass dynamics → stereo field safety stage → DC safety → `TruePeakLimiter`.
@@ -513,6 +542,19 @@ before a plugin exists.
 voice steal and MONO note replacement clickless; macro sweeps monotone along their documented axes;
 Motion → Mass swell measured; the audibility table complete with no cell below the bar; determinism
 harness; 30 min soak bounded with no DC build-up; mono-sum check on the full engine in every image mode.
+Anchor sub energy (w1) within 1 dB through maximum Fold + every Character algorithm at maximum Amount, at
+E0–E2 (Phase 3 D-7): the Anchor's own sub energy is the quantity within 1 dB; the voice's summed
+fundamental is gated by the coherent-sum bound derived from Phase 2's −12 dB h1 clause (≤ 4.1 dB at
+Anchor level 1, coherence within 0.1 dB of the prediction from the recorded core-only h1 change — Phase 3
+SC-009 re-ruling 2026-10-12). FOLLOW tracks the perceived fundamental of a voice through a real
+pitch-moving stage (accuracy ±5 cents, latency measured), and the capability audibility table carries a
+FOLLOW row driven by that stage, or FOLLOW is flagged inert (Phase 3 Q1). The Anchor joins after
+Character by default, the direct Anchor path is always present, and Drop is routed to the core only: the
+Anchor receives the resolved note pitch before Drop in LOCK / PUNCH / GHOST and the core's post-Drop f0
+in FOLLOW (Phase 3 Q3, Q4). The Anchor–h1 lock is measured in the 30 min soak with Motion modulating the
+core spectral controls (Phase 3 C-5 residual). Inside the voice, the core's output is bit-identical with
+the Anchor attached and detached, and the core + Anchor sum is a plain add with no compensation or
+normalisation stage (Phase 3 FR-025, SC-024(d)).
 
 ---
 
@@ -556,7 +598,8 @@ pitch-bend range, sustain); pluginval + full round-trip tests including both mor
 **Amended 2026-10-11 (UI design conversation):** Copy A → B / B → A and A / A·B / B compare are controller-side
 operations on the two snapshots, not parameters (the compare must not write state); the Morph position ramp time
 is registered if Phase 8 exposes it; the Motion target set registered in 900–999 covers Mass and the core spectral
-controls first (no general matrix).
+controls first (no general matrix). **Amended 2026-10-12 (Phase 3 SC-022 PASS):** `anchorFoldFeed` is
+registered in the 300–399 anchor block.
 
 ### Phase 12: UI
 

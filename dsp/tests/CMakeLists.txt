@@ -629,6 +629,26 @@ add_executable(dsp_systems_tests
     unit/systems/profundum_edge_fold_chain_test.cpp
     unit/systems/profundum_core_excitation_nonfinite_test.cpp
     unit/systems/profundum_edge_fold_perf_test.cpp
+    # Profundum Phase 3 (specs/profundum-phase3-anchor): AnchorOscillator + the
+    # core/Fold chain. ENUMERATED, not globbed - an unregistered TU silently
+    # drops out of the build and its cases never run.
+    #   anchor_oscillator_test.cpp           SC-004, SC-005, SC-006, SC-007
+    #                                        (helper), SC-013, SC-014, SC-016,
+    #                                        SC-017, SC-026, SC-027; enum
+    #                                        static_asserts; MirrorTracksCore
+    #   anchor_oscillator_spectral_test.cpp  SC-001, SC-002, SC-008 (a)(b)(c),
+    #                                        SC-010, SC-011, SC-012, SC-025
+    #   anchor_oscillator_nonfinite_test.cpp SC-015 - the ONE Phase 3 entry in
+    #                                        the -fno-fast-math block below
+    #   profundum_anchor_chain_test.cpp      SC-003 (all arms), SC-008 (r),
+    #                                        SC-009, SC-022, SC-024
+    #                                        [anchor-chain]; 60 s cases [long]
+    #   anchor_oscillator_perf_test.cpp      SC-018  [.perf]
+    unit/systems/anchor_oscillator_test.cpp
+    unit/systems/anchor_oscillator_spectral_test.cpp
+    unit/systems/anchor_oscillator_nonfinite_test.cpp
+    unit/systems/profundum_anchor_chain_test.cpp
+    unit/systems/anchor_oscillator_perf_test.cpp
 )
 
 target_link_libraries(dsp_systems_tests
@@ -636,6 +656,9 @@ target_link_libraries(dsp_systems_tests
         KrateDSP
         Catch2::Catch2
         test_helpers
+        # Profundum Phase 3 SC-003 ISA arm: hwy::SetSupportedTargetsForTest pins the bank's
+        # dispatch to each supported target in turn (profundum_anchor_chain_test.cpp).
+        hwy
 )
 
 target_compile_features(dsp_systems_tests PRIVATE cxx_std_20)
@@ -1111,6 +1134,8 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         # Profundum Phase 2: injects NaN/Inf bit patterns and NaN table sentinels (SC-016, S4.3/S5.3 lookups). The perf TU stays out.
         unit/processors/harmonic_fold_nonfinite_test.cpp
         unit/systems/profundum_core_excitation_nonfinite_test.cpp
+        # Profundum Phase 3: injects NaN/Inf bit patterns (SC-015). The perf and chain TUs stay out (shipping FP mode, plan S7).
+        unit/systems/anchor_oscillator_nonfinite_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 

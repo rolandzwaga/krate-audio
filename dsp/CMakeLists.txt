@@ -186,6 +186,8 @@ set(KRATE_DSP_SYSTEMS_HEADERS
     include/krate/dsp/systems/vorago_macro_matrix.h
     # Profundum Phase 1 (specs/profundum-phase1-harmonic-core)
     include/krate/dsp/systems/profundum_core.h
+    # Profundum Phase 3 (specs/profundum-phase3-anchor)
+    include/krate/dsp/systems/anchor_oscillator.h
 )
 
 # Layer 4: Effects
