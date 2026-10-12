@@ -3,15 +3,18 @@
 **Spec:** `specs/profundum-phase3-anchor/spec.md` (Clarified 2026-10-11) · **Plan:** `specs/profundum-phase3-anchor/plan.md`
 (S0–S13 + review notes) · **Model:** `specs/profundum-phase3-anchor/anchor-model.js`, `bench/anchor-kernel-bench.cpp` ·
 **Phase base:** commit `9b1a4cf5` on `synth/profundum`
-**Status:** Task list (2026-10-11). The build stage has not started. **Blocked on plan S1 ratification (below).**
+**Status:** Task list (2026-10-11). The build stage has not started. **Plan S1 ratified 2026-10-11 (below); build may start.**
 
 ## Read this first (every executor)
 
 ### Precondition: ratification of plan S1 (BLOCKING)
 
 Plan S1 says its fourteen items (C-1 … C-14) must be ratified **before** tasks run (`plan.md:6`, heading `:57`). On 2026-10-11
-the spec's Clarifications log (`spec.md` "## Clarifications", Session 2026-10-11) holds Q1–Q7 and D7 only: **no S1 item is
-ratified yet.** The tasks below encode the plan's **recommended** resolution of each. The main loop must ratify them with
+the spec's Clarifications log (`spec.md` "## Clarifications", Session 2026-10-11) held Q1–Q7 and D7 only. **UPDATE (later the
+same day): ALL FOURTEEN WERE RATIFIED by the user at the recommended resolution** — see spec Clarifications "Session
+2026-10-11 — plan S1 ratification" and plan S1's RATIFIED line; the SC-024(c) bound (≤ 3.6 dB), the SC-012(b) allowance,
+the FR-041 / SC-004(b) / SC-012(a) / SC-015 / D-2 wordings are already in the spec rows. The precondition is met; T004 may
+baseline the bars. Original note: no S1 item was ratified at writing time. The tasks below encode the plan's **recommended** resolution of each. The main loop must ratify them with
 the user and write each ruling into the spec's Clarifications log **before T004 baselines the bars**, including the
 SC-024(c) bound in the SC-024 row (the spec requires "the ratified bound is written into this row before build starts").
 Every test that relies on a C-item cites it in a comment (`// plan S1 C-9`). If the user rules differently, change the
@@ -308,6 +311,9 @@ re-ruling of SC-012(b) and the ratified SC-024(c) bound in the SC-024 row.**
 ## Group 1 — CPU slow-path estimate (alone; nothing else running)
 
 ### T005 Bench the real taper loop before the header is written (plan S9.8 coverage gap)
+
+**RE-EXECUTION 2026-10-11 (epoch 2):** T005 returned blocked because the machine was loaded (another session's seraphis/vorago suites and clang-tidy). The main loop ran the bench itself once the load was gone and recorded the figures and the decision in plan S9.8 and under "Run log" below. Do NOT re-run the bench; mark T005 done, quoting plan S9.8's re-run line.
+
 
 - Precondition: Group 0 finished; no build, suite, model or agent running.
 - **Edit** `specs/profundum-phase3-anchor/bench/anchor-kernel-bench.cpp`: add a third timed configuration `K = 16, taper band`
@@ -834,16 +840,24 @@ render asserts `requireLREqual`.
   and `kSawAnchor`. **Gated:** sine, triangle, rounded, asymmetric at E0, E1, E2: |10·log₁₀(w₁(S)/w₁(R))| ≤ **1 dB** at f₀.
   Printed per row: the core-only w₁ change (dB) and the `goertzelPhase` of core h1 relative to the Anchor in both chains.
   Octave-down rows printed only.
+  **RE-EXECUTION 2026-10-12 (epoch 2, user re-ruling — spec Clarifications "Session 2026-10-12"):** the 1 dB gate is replaced by
+  two gates per gated row: (i) `CHECK(std::abs(dDb - pred) <= 0.1)` where `pred = 20·log₁₀(|1 + ρ·e^{jθ}| / 2)` with
+  ρ = sqrt(w₁(folded core)/w₁(reference core)) (the core-only amplitude ratio) and θ = the S-chain core-h1 phase re the Anchor in
+  radians (`thFold − thA`); (ii) `CHECK(std::abs(dDb) <= 4.1)`. Print `pred` on the row. The T018 run read dDb −1.6058 … −2.3112
+  and +1.2556 … +1.3184 dB with core-only −3.5758 … −5.3130 and +2.5274 / +2.5355 dB, so both gates pass on every row.
 - `ProfundumAnchor_FoldFeedAudible`, `ProfundumAnchor_FoldFeedSubPreserved`, `ProfundumAnchor_FoldFeedMono` (SC-022, FR-067):
   the Anchor (sine, LOCK, level 1) rendered **once** into A; core (mid grid) + g·A → `HarmonicFold` {65, 100} → + A, g ∈ {0, 1}, E1
   and C2, 48 kHz. **(1)** `CHECK` (not `REQUIRE`) that |THD(feed 1) − THD(feed 0)| ≥ **3 dB** or |centroidOct(feed 1) −
   centroidOct(feed 0)| ≥ **0.25 oct** (`describeRendered`) at **both** Fold settings; print `SC-022 VERDICT: PASS|FAIL` with the
-  figures. **(2)** `REQUIRE` |10·log₁₀(w₁(feed 1)/w₁(feed 0))| ≤ **1 dB** at f₀. **(3)** `REQUIRE` L == R bitwise. Record the verdict
+  figures. **(2)** `REQUIRE` 10·log₁₀(w₁(feed 1)/w₁(feed 0)) ≥ **−1 dB** and ≤ **+6.27 dB** at f₀ (**RE-EXECUTION 2026-10-12, epoch 2:**
+  re-ruled from ±1 dB; the T018 run read +3.9509 / +4.4141 dB at E1 and +3.9560 / +4.4144 dB at C2 for Fold 65 / 100, so the
+  re-ruled gate passes; print the bar as "floor −1 dB, ceiling +6.27 dB"). **(3)** `REQUIRE` L == R bitwise. Record the verdict
   under "Run log": it decides T021's branch.
 - `ProfundumAnchor_LevelCalibration` gains SC-024(c): for each state at E1 and C2, the summed-signal RMS rise at `kDefaultLevel`
   over the core alone (whole periods, ≥ 1 s) is printed and gated at the **ratified** bound (plan C-2 proposes **≤ 3.6 dB**; model
   0.00 … 3.52 dB). If the spec row still has no ratified bound, stop: that is the T004 precondition.
-- **Verify:** build; `"[anchor-chain]~[long]"` green except SC-022(1), which is a recorded outcome.
+- **Verify:** build; `"[anchor-chain]~[long]"` green (SC-022(1) is a recorded outcome; the T018 run recorded it PASS on all four
+  cells, so T021 takes the PASS branch).
 
 ---
 
@@ -912,7 +926,8 @@ running task) and re-run the whole per-push lane.
 - Precondition: T018 recorded the SC-022 verdict.
 - Paste plan S13's sentences, adjusted only to fit the prose, at these anchors (re-locate by heading text, not line number):
   - Phase 9 success-criteria paragraph (`:511–515`): append the three spec sentences (Anchor sub energy within 1 dB through
-    maximum Fold + every Character algorithm at maximum Amount, at E0–E2; FOLLOW through a real pitch-moving stage with the
+    maximum Fold + every Character algorithm at maximum Amount, at E0–E2 — **use plan S13's amended sentence (2026-10-12) with the
+    coherent-sum derivation**, keeping the literal strings "within 1 dB", "every Character algorithm" and "E0–E2"; FOLLOW through a real pitch-moving stage with the
     capability-table row or inert flag; the Anchor joins after Character, direct path always present, Drop routed to the core
     only) plus the two plan additions (C-5 residual soak with Motion; C-13 bit-identity attached/detached and plain add). Keep it
     one paragraph (no blank line inside), so T003's P9-SC scope sees it.
@@ -952,6 +967,17 @@ running task) and re-run the whole per-push lane.
   `anchor_oscillator.h`. If T010 ran, `ruinae_tests seraphis_tests vorago_tests innexus_tests` are built in the same build call and
   run concurrently (FR-063). No pluginval: no plugin code changes.
 - Record every lane's wall clock and the machine's core use; note what to shard or skip next time.
+- **RE-EXECUTION 2026-10-12 (epoch 2, user ruling — spec Clarifications "Session 2026-10-12", SC-003(e)(ii)):** files for this
+  epoch: `dsp/tests/unit/systems/profundum_anchor_chain_test.cpp` (edit) plus the logs. (1) In `runProcessedVoice`, keep
+  `CHECK(std::abs(cDrift) <= kDriftBarDeg)` and REPLACE `CHECK(std::abs(fDrift) <= kDriftBarDeg)` by a recorded figure: change the
+  printf's "(ii) after Fold 100: … drift %+.6f deg (bar %.1f)" to "(ii) after Fold 100: … drift %+.6f deg (recorded, not gated:
+  Phase 1 inter-partial walk through the Fold, spec SC-003(e)(ii) 2026-10-12, evidence/drift-probe.cpp)" and drop the bar
+  argument; add a two-line comment above it citing the ruling. No other change to the TU. (2) Rebuild (T024's clang-tidy edits to
+  `anchor_oscillator_test.cpp` / `anchor_oscillator_spectral_test.cpp` are not in the current exe — the build is required, not
+  optional) and run every lane again as listed; shard `dsp_systems_tests "~[.perf]~[long]"` into 4 concurrent filter shards by
+  tag (e.g. `"[anchor]~[long]"`, `"[anchor-chain]~[long]"`, `"[profundum]~[anchor]~[anchor-chain]~[long]"`, `"~[profundum]~[long]"`,
+  checking the four case counts sum to the unsharded count 1593) so the critical path drops below the 605 s Phase 1 long lane.
+  (3) The epoch-1 figures are already under "Run log"; append this epoch's. Expected: every lane green.
 
 ### T024 Footprint, bars, portability and static analysis (concurrent)
 
@@ -977,6 +1003,11 @@ Quote every output under "Run log" for comply.
 - If a perf case fails: confirm nothing else ran, idle the machine, re-run that suite alone once; only then treat it as a defect
   (T020 → main loop). Never relax a budget.
 - Record figures and wall clock under "Run log" for comply.
+- **RE-EXECUTION 2026-10-12 (epoch 2):** the workflow's executors may not run suites and this lane must run alone and last, after
+  the workflow's own comply stage has finished using the machine. **The main loop runs it** (`node tools/run-cpu-tests.js
+  dsp_systems_tests`, detached with a timestamped status file, machine idle) and appends the figures under "Run log" and to
+  compliance.md's SC-018 row at close. Executor: return done with notes "deferred to the main loop at close; T017's alone-and-
+  pinned figure 0.1377 % (sine PUNCH 494 Hz) stands as the current SC-018 evidence, header unchanged since T017". Nothing to build.
 
 ---
 
@@ -984,6 +1015,146 @@ Quote every output under "Run log" for comply.
 
 *(Executors append dated entries here: task id, command, wall clock, key figures, outcome.)*
 
+**T001 (2026-10-11) — ODR sweep + evidence reproduction. Outcome: PASS, no mismatch, no renames.**
+- `grep -rnE "(class|struct|enum class|enum|using) (AnchorOscillator|AnchorRender|AnchorSegmentSpec|C1Report|MirrorState)\b" dsp plugins tests tools`
+  → empty (exit 1). All four roots exist.
+- `grep -rn "renderAnchor\|anchorRaisedCosine\|anchorHermite\|anchorCheckC1\|anchorInstFreqHz\|anchorWindowEnergy\|anchorShsF0\|anchorFindMutableStatics\|anchorWaveformsSeparated\|kAnchorToH1\|anchorFoldFeed\|AnchorTest" dsp plugins tests tools`
+  → empty (exit 1).
+- Hazards: no new name is `CharacterProcessor`/`SubOscillator`/`StereoField`/`MorphEngine`/`MorphNode`/`TransientDetector`/
+  `HarmonicCloud`/`SpectralState`/`MacroMapper`. The waveform enum is the nested `AnchorOscillator::Waveform` (plan :325), not
+  `SubWaveform` (`processors/sub_oscillator.h:60`). Note: a nested `ResonanceDriftNetwork`-scope `enum class AnchorMode` exists at
+  `systems/resonance_drift_network.h:293`; the plan uses the nested `AnchorOscillator::Mode` (plan :326), so no collision.
+- Evidence: `node specs/profundum-phase3-anchor/anchor-model.js <mode>` for the seven modes, launched concurrently, each to its own
+  scratchpad log, then `wait`: total wall clock 0.71 s, every mode exit 0.
+  - `eps`: double-law worst per note E0 0.0254° (192 k), E1 0.0557°, E2 0.1114°, C2 0.0483°, C3 0.1684° (48 k); mirror 0.0000°
+    everywhere; ±1 ulp mirror E0 0.0384°, E1 0.0768°, E2/C2 0.1537°, C3 0.3074°; summary "worst double-law drift 0.168 deg; worst
+    1-ulp mirror drift 0.307 deg (bar 0.5 deg)" = S9.1.
+  - `mcf`: max |Δθ(60 s) − Δθ(1 s)| 2.57e-3° (C3 48 k FMA); all rows ≤ 2.57e-3° = S9.2.
+  - `cal`: a₁ / ρ / RMS rise @0.5/0.7/1 — Sine 0.35523/1.000/3.52/4.61/6.02, Saw 0.27829/0.614/2.47/3.34/4.53, Heavy
+    0.32749/0.850/3.14/4.16/5.50, Hollow 0.01835/0.003/0.01/0.02/0.03, Growl 0.00444/0.000/0.00/0.00/0.00, Default
+    0.19008/0.286/1.33/1.88/2.69, h1 rise 6.02 dB all; `kMaxCoreH1Amplitude = 0.3552343859` = `kCalibrationPeak` = C-2 / S9.3.
+  - `tri`: untruncated −18.333 dB; K = 32 −18.334 / −62.0 / n = 65 at −72.5 / crest 1.7211; K = 16 −18.335 / −52.9 / n = 33 at
+    −60.7 / crest 1.7101 = C-1 / S9.4.
+  - `onset`: worst 1.0000 (P 0.25), 1.0062 (P 0.5), 1.0000 (P 1); first sample 0 = S9.5.
+  - `bridge`: PUNCH N_b 1 / 0 / 0.9972 / 1.142; GHOST 95 / 0 / 0.9843 / 0.793; mode switch 240 / 0 / 0.9999 / 1.197 = C-3 / S9.6
+    (rounded 0.997 / 1.14, 0.984 / 0.79, 1.000 / 1.20).
+  - `alias`: C4 0 dB −74.6, C4 +12 dB −62.6, E2 +12 dB −77.7, E0 +12 dB −95.7 dBFS = S9.7.
+
+**T017 (2026-10-11) — SC-018 CPU budget, alone, pinned. Outcome: PASS on the first run; header unchanged.**
+- Precondition: exe built 23:12 (newer than the header 22:29 and perf TU 22:51); no cl/link/cmake/msbuild/ninja/clang/node/test
+  process running; CPU load 4 %.
+- `pwsh -NoProfile -File tools/pin-perf-cores.ps1 -Exe build/windows-x64-release/bin/Release/dsp_systems_tests.exe -ExeArgs "AnchorOscillator_CpuBudget"`
+  → P-core mask 0xFFFF; wall clock 4 s; exit 0; "All tests passed (42 assertions in 1 test case)". Log F:/tmp/p3_t017_cpu.log.
+- 40 cells (median of 5, % of audio time), E1 / 494 Hz:
+  sine LOCK 0.0999 / 0.1262, FOLLOW 0.1025 / 0.1344, PUNCH 0.1169 / 0.1377, GHOST 0.1110 / 0.1309;
+  triangle LOCK 0.1142 / 0.1328, FOLLOW 0.1083 / 0.1300, PUNCH 0.1163 / 0.1104, GHOST 0.0910 / 0.1091;
+  rounded LOCK 0.0755 / 0.0954, FOLLOW 0.0745 / 0.0983, PUNCH 0.0784 / 0.0990, GHOST 0.0767 / 0.0973;
+  asymmetric LOCK 0.0839 / 0.0965, FOLLOW 0.0831 / 0.1092, PUNCH 0.0891 / 0.1094, GHOST 0.0668 / 0.0876;
+  octave-down LOCK 0.0653 / 0.0979, FOLLOW 0.0818 / 0.1059, PUNCH 0.0841 / 0.1111, GHOST 0.0832 / 0.1051.
+- **Worst cell: sine PUNCH 494 Hz = 0.1377 % (budget 0.3 %).** The remedy was not needed: the cents-domain weight cache was
+  already implemented by T011 (`anchor_oscillator.h:133-138`, members `:1127-1128`). Recorded in plan S9.8.
+
+**T018 (main loop, 2026-10-12) — chain gates, first run (epoch 1): 2 red, re-ruled by the user, T018 re-executes (epoch 2).**
+- Build `dsp_systems_tests` ok; filter `~[performance]~[perf]~[benchmark]~[!benchmark]~[long]`: 1570 cases, 1568 passed, 2 failed
+  (logs F:/tmp/build_sys.log, F:/tmp/run_sys.log).
+- SC-008(r), SC-024(c), SC-022(1), SC-022(3): green. SC-022(1) all four cells audible — E1 Fold 65 ΔTHD −4.474 dB / Δcentroid
+  −0.3794 oct; E1 Fold 100 −8.405 dB / −0.8579 oct; C2 Fold 65 −4.467 dB / −0.3835 oct; C2 Fold 100 −8.471 dB / −0.8598 oct.
+  `SC-022 VERDICT: PASS (feed ships as anchorFoldFeed; decides T021's branch)`. SC-022(3): L == R bitwise yes on all 8 renders.
+- SC-009 red, 24 CHECKs: sum −1.6058 / −1.6122 / −1.6325 / −1.6325 dB (mid grid E0 sine / triangle / rounded / asymmetric, core-only
+  −3.5758 dB, phase S +1.389°), −2.0199 … −2.0544 dB (mid E1, core-only −4.6555 dB, −1.096°), −2.2720 … −2.3112 dB (mid E2, core-only
+  −5.3130 dB, −7.178°), −2.2182 … −2.2561 dB (saw E0, core-only −5.0735 dB, −12.395°), +1.2990 … +1.3184 dB (saw E1, core-only
+  +2.5355 dB, −13.699°), +1.2556 … +1.2750 dB (saw E2, core-only +2.5274 dB, −17.523°); octave-down rows 0.0000 dB everywhere.
+  Every sum equals the coherent-sum arithmetic of the core-only change to ≤ 0.03 dB: the Anchor path is intact.
+- SC-022(2) red at the first cell (REQUIRE aborted the rest). Main loop re-ran the case with the REQUIRE temporarily a CHECK
+  (reverted): +3.9509 / +4.4141 dB (E1 Fold 65 / 100), +3.9560 / +4.4144 dB (C2 Fold 65 / 100).
+- Rulings (spec Clarifications "Session 2026-10-12 — chain-gate re-rulings"): SC-009 → coherence within 0.1 dB of the prediction
+  + \|ΔE_sub\| ≤ 4.1 dB derived from Phase 2 Q4; SC-022(2) → floor −1 dB, ceiling +6.27 dB. Neither is a code change; T018's
+  re-execution notes carry the new assertions.
+
+**T020 (2026-10-12) — resolve "Defects found". Outcome: one entry (T005 cache decision), RESOLVED without a header edit.**
+- The entry was already implemented by T011 and gated green by T017 (0.1377 % worst cell ≤ 0.3 %); `anchor_oscillator.h` untouched, so no rebuild, no per-push or `[long]` re-run, no SC-018 re-measurement was required.
+- T018 epoch 1 reds (SC-009, SC-022(2)) are not header defects: the Anchor path was proven intact (sums match the coherent-sum prediction to ≤ 0.03 dB) and the user re-ruled both bars (spec Clarifications, Session 2026-10-12); they are carried by T018 epoch 2, not by T020. No bar relaxed here.
+
+**T024 (2026-10-12) — footprint, bars, handoff, portability, apple lint, clang-tidy. Outcome: all PASS after fixing 22 clang-tidy findings in two Phase 3 test TUs; rebuild + per-push lane re-run still owed (build agent).**
+- Lane 1 (concurrent, 6 s wall): ninja preset regenerated (`cmake --preset windows-ninja` → "Configuring done (5.6s) … Build files have been written to: F:/projects/iterum/build/windows-ninja"; 15 compile-db entries name the Phase 3 TUs) alongside:
+  - `node specs/profundum-phase3-anchor/check-footprint.js` (no `--fallback`: T010 did not run) → 1(a) PASS (0 changed paths outside the new header), 1(b) PASS (untracked = `anchor_oscillator.h` only), 18/18 Phase 1/2 test files `+0 -0`, layer grep PASS (11 includes, all L0-L2 or std), 4(a) PASS (no `ProfundumCore` token), 4(b) PASS (only `processBlock` takes `const float*`, 2 of them), `git diff --stat 9b1a4cf5 -- dsp/include` empty → `OVERALL: PASS`, exit 0.
+  - `node specs/profundum-phase3-anchor/check-bars.js check` → SC-001…SC-027 `SAME` except SC-009 and SC-022 `CHANGED+RULED` (the Session 2026-10-12 re-rulings); no `CHANGED-UNRULED`; `PASS`, exit 0.
+  - `node specs/profundum-phase3-anchor/check-handoff.js pass` (T018's recorded `SC-022 VERDICT: PASS`) → 14/14 PASS (P9-SC ×8, P5-BCS, P4-NM, P6-MASS, P9/P8-MS/P11 `anchorFoldFeed`) → `RESULT: PASS`, exit 0.
+  - `node tools/lint-apple-globals.js` → `OK — 973 files, no macOS-only name collisions`, exit 0.
+- Lane 2 (concurrent, 401 s wall): `node tools/check-portability.js` (74 s) → 6 TUs with g++ (the five Phase 3 TUs + `bench/anchor-kernel-bench.cpp`) all `OK`, "all clear -- 6 compiled", exit 0; `wsl --shutdown` after. `./tools/run-clang-tidy.ps1 -Target dsp -BuildDir build/windows-ninja` (401 s, 390 files) → Errors 0, **Warnings 22, all in Phase 3 files**: `anchor_oscillator_test.cpp` 18 (10 `bugprone-suspicious-memory-comparison`, 3 `readability-simplify-boolean-expr` :1840/:1956/:1965, 2 `performance-enum-size` :962/:1453, 1 `readability-avoid-nested-conditional-operator` :2976, 1 `modernize-use-integer-sign-comparison` :882, 1 `misc-confusable-identifiers` `yl`/`y1` :2260), `anchor_oscillator_spectral_test.cpp` 4 (`bugprone-suspicious-memory-comparison` :687-690).
+- Fixes (test TUs only; no header, no assertion semantics changed): the intentional bitwise `memcmp` checks carry the repo idiom `// NOLINTNEXTLINE(bugprone-suspicious-memory-comparison) - intentional bit-exact check` (as `processors/spectral_state_test.cpp:90`); `REQUIRE(std::cmp_equal(flagged, positives.size()))`; `enum class Kind : std::uint8_t` ×2; De Morgan rewrites `t <= 0.0 || t >= 1.0` (a NaN root yields NaN `v`, which fails both `v` comparisons, so the result is unchanged), `g0 != b || gp != 0.0`, `g0 != 0.0 || gp != 0.0` (exact under NaN); the nested ternary became an if/else-if on `at`; `yl` renamed `yLock` (T013 trace loop) and, after the re-run exposed the second occurrence, `yRef` (the energy-ratio helper).
+- Re-checks: `clang-tidy -p build/windows-ninja` on both edited TUs → zero warnings (13 s concurrent, then 1 file alone after the `yRef` rename); `node tools/check-portability.js` on both → "all clear -- 2 compiled" (`wsl --shutdown` after); `lint-apple-globals` OK; `check-footprint.js` `OVERALL: PASS`.
+- Owed: rebuild `dsp_systems_tests` and re-run its per-push lane (`"~[performance]~[perf]~[benchmark]~[!benchmark]~[long]"`) — the task forbids this executor from building.
+- Next time: clang-tidy `-Target dsp` (401 s, 390 files) dominates the wall clock; the five Phase 3 TUs alone take ~15 s, so run them first as their own lane and the full dsp sweep alongside, to surface Phase 3 findings 6 min earlier.
+
+**T024 re-run (2026-10-12 11:06, after T023 epoch 2 edited `profundum_anchor_chain_test.cpp` at 11:06:10). Outcome: all PASS, no edits.**
+- One concurrent lane, 22 s wall: `check-footprint.js` (no `--fallback`) → layer grep PASS (11 includes), 4(a)/4(b) PASS, `git diff --stat 9b1a4cf5 -- dsp/include` empty, untracked = `anchor_oscillator.h` only → `OVERALL: PASS`, exit 0. `check-bars.js check` → SC-009 / SC-022 `CHANGED+RULED`, all others `SAME`, `PASS`, exit 0. `check-handoff.js pass` → 14/14, `RESULT: PASS`, exit 0. `lint-apple-globals.js` → `OK — 973 files, no macOS-only name collisions`, exit 0. `check-portability.js` → 7 TUs with g++ (five Phase 3 TUs, `evidence/drift-probe.cpp`, `bench/anchor-kernel-bench.cpp`) all `OK`, "all clear -- 7 compiled", exit 0; `wsl --shutdown` after. `clang-tidy -p build/windows-ninja --quiet` on each of the five Phase 3 TUs concurrently (11-16 s each) → zero warnings in user code, exit 0 each.
+- The full `-Target dsp` sweep (401 s) was not repeated: since that run the only changed sources are the Phase 3 test TUs checked above (header unchanged since 2026-10-11 22:29), and its only findings were in those TUs.
+- Rebuild of `dsp_systems_tests` still owed to T023 epoch 2 (build agent).
+
+**T023 (main loop record, 2026-10-12) — full-suite run, epoch 1: one `[long]` red, ruled by the user, T023 re-executes (epoch 2).**
+- Build of the five DSP exes: exit 0, 9 s, nothing to recompile, 0 warnings (scratchpad t023_build.log). Shared-header proof:
+  `git diff --stat 9b1a4cf5 -- dsp/include` empty; only `systems/anchor_oscillator.h` untracked; T010 did not run.
+- 9 lanes concurrent, total wall clock 1047 s (critical path: `dsp_systems_tests "~[.perf]~[long]"`, 1593 cases / 10,521,608
+  assertions, 1047 s; core 573 cases 4 s; primitives 1513 cases 3 s; processors 3396 cases 196 s; effects 499 cases 87 s;
+  `AnchorOscillator_PhaseLock*` 5 cases 32 s green; Phase 1 `[profundum][long]~[anchor]~[anchor-chain]` 28 cases 605 s green;
+  Phase 2 `[edge-fold][long]` 5 cases 468 s green). Core use 11.1 % mean / 37 % peak of 32 threads — the systems lane ran alone
+  for its final ~440 s: shard it next time (epoch-2 note above).
+- RED: `ProfundumAnchor_PhaseLock*` lane, `ProfundumAnchor_PhaseLockProcessedVoice` C3 cell, `profundum_anchor_chain_test.cpp:327`
+  `CHECK(std::abs(fDrift) <= kDriftBarDeg)` 0.593484 ≤ 0.5, identical at host blocks 37 and 512. SC-003(e) table (48 kHz, drift =
+  Δθ(T) − Δθ(1 s)): vs core h1 — E1 10 s −0.0026°, E0 −0.0095°, E1 −0.0135°, E2 −0.0168°, C3 −0.0303° (all green); vs Fold-100 h1 —
+  E1 10 s −0.0022°, E0 −0.0075°, E1 −0.0064°, E2 −0.0435°, **C3 −0.5935°**. Static offsets Δθ(1 s): vs core +6.3 … +10.4°, vs Fold
+  −1.4 … +13.4°.
+- Attribution (main loop, `evidence/drift-probe.cpp`, output in `evidence/drift-probe.md`): Fold 100 on a perfectly periodic input
+  drifts ≤ 0.0001° at C3 / E2 / E0; the core's partials walk relative to h1 by −0.53 / −0.54 / +8.35 / −2.46° (h3 … h6, C3, 60 s);
+  the folded h1 follows them: +0.5628° (C3), +0.0266° (E2), −0.0022° (E0). Phase 1 property within its 0.1 cent bar; not the Anchor.
+- Ruling (user, 2026-10-12): SC-003(e)(ii) recorded, (e)(i) gated; FR-032 not invoked. T023 epoch 2 edits the CHECK into a recorded
+  print, rebuilds (T024's clang-tidy edits owed a rebuild) and re-runs every lane. T025 moves to the main loop at close.
+
+**T023 (2026-10-12, epoch 2) — full-suite run after the SC-003(e)(ii) edit and T024's clang-tidy edits. Outcome: every lane green.**
+- Executor edited `profundum_anchor_chain_test.cpp` only (`runProcessedVoice`: the Fold-100 drift CHECK became a recorded print citing
+  the ruling; the core-h1 drift CHECK stays). Shared-header proof unchanged: `git diff --stat 9b1a4cf5 -- dsp/include` empty.
+- Workflow gate (rebuild of the five DSP exes, exit 0, zero errors; per-push filter `~[performance]~[perf]~[benchmark]~[!benchmark]~[long]`):
+  core 'All tests passed (1588248 assertions in 565 test cases)'; primitives '(4561555 assertions in 1498 test cases)'; processors
+  '(10738654 assertions in 3368 test cases)'; systems '(10133474 assertions in 1576 test cases)'; effects '(115009 assertions in 495 test
+  cases)'.
+- Comply ran the Phase 3 `[long]` set on the rebuilt exe as 6 concurrent `[profundum]` shards, every shard 'All tests passed' (e.g. sysP_4
+  '3786492 assertions in 30 test cases'); `ProfundumAnchor_PhaseLockProcessedVoice` green with (e)(ii) printed as recorded (C3 −0.593484°),
+  (e)(i) worst 0.030343°; SC-003 ISA arm AVX2 / SSE2 on MSVC and AVX2 / SSE4 / SSSE3 / SSE2 under WSL GCC 13.3 (EveryIsa60s 154 s).
+- Not re-run in epoch 2: the Phase 1 `[profundum][long]~[anchor]~[anchor-chain]` (605 s) and Phase 2 `[edge-fold][long]` (468 s) lanes —
+  green in epoch 1 on a tree whose only later edits were Phase 3 test TUs (no header, no Phase 1/2 file changed). Not run: the
+  non-Profundum `[long]` cases of `dsp_systems_tests` (multi-hour Vorago sweeps; comply stopped an unsharded attempt after 1 h 29 min
+  of CPU time); shared-header diff zero, so they are not a Phase 3 gate.
+- Next time: the systems per-push lane sharded by tag (epoch-2 note above) is still the right shape; epoch 1's 1047 s critical path was
+  the unsharded systems lane.
+
+**T025 (main loop, 2026-10-12 13:46–13:48) — CPU lane alone, pinned. Outcome: PASS, every Profundum budget within bar.**
+- After the close's static gates finished (clang-tidy, check-portability, lint-apple-globals) and nothing else ran: rebuild of
+  `dsp_systems_tests` (5 s, the `forEachIsa` const-ref edit below), `AnchorOscillator_PhaseLockEveryIsa*` 'All tests passed (5022
+  assertions in 2 test cases)' (AVX2 hash 685823b4cb9e67ea, SSE2 861536d7eb003071), 20 s settle, then
+  `pwsh tools/pin-perf-cores.ps1 -Exe dsp_systems_tests.exe -ExeArgs "[profundum][.perf]"` (performance-core mask 0xFFFF; the three
+  Profundum budget cases — Phase 2 close precedent, memory: the full `run-cpu-tests.js dsp_systems_tests` lane is a 5 h nightly-scale run
+  and no shared header changed). Log F:/tmp/p3_close_perf.log.
+- SC-018: 'ANCHOR_PERF worst cell: triangle PUNCH 494Hz = 0.1406 % (budget 0.3 %)'; E1 column worst sine PUNCH 0.1163 %; 'All tests passed
+  (72 assertions in 3 test cases)'. Earlier alone-and-pinned readings: T017 0.1377 %, comply 0.1547 %.
+- Phase 1 and 2 budgets unchanged: PROFUNDUM_PERF 64 sweep 0.584 % / 96 sweep 0.721 % / 64 static 0.356 % (bar 1 %); PROFUNDUM_EDGEFOLD_PERF
+  core 0.664 %, excitation 1.172 %, fold 1.066 %, chain 1.455 % (bar 2.5), stereo-forced 2.006 %, stage cost 0.791 % (bar 1.5).
+
+**Close gates (main loop, 2026-10-12 12:10–13:46).**
+- `node tools/check-portability.js`: 'all clear -- 7 compiled.' (exit 0), then `wsl --shutdown`; `node tools/lint-apple-globals.js`: 'OK — 973 files,
+  no macOS-only name collisions'.
+- `run-clang-tidy.ps1 -Target dsp -BuildDir build/windows-ninja`: 390 files, 'Errors: 0', 'Warnings: 2' — both in
+  `profundum_anchor_chain_test.cpp` and both caused by a STALE compile database: `build/windows-ninja/compile_commands.json` (10:49) predated
+  T024's 11:33 edit of `dsp/tests/CMakeLists.txt` that links `hwy` to `dsp_systems_tests`, so clang-tidy could not find `hwy/targets.h`
+  and read `~HwyTargetMock()` as trivial. Fix: `cmake --preset windows-ninja` reconfigured (13:46, the Highway include now present) and
+  `forEachIsa(Body&&)` became `forEachIsa(const Body&)` (the body is called once per target, never forwarded —
+  cppcoreguidelines-missing-std-forward). Re-run on that TU with the refreshed database: 0 warnings, 0 errors. Lesson: reconfigure the
+  Ninja tree after any test-CMake change before trusting a clang-tidy sweep.
+- `check-bars.js check`: SC-003 / SC-009 / SC-022 CHANGED+RULED, all others SAME, PASS. `check-footprint.js` and `check-handoff.js pass`: PASS.
+
 ## Defects found
 
 *(Entries from `[P]` tasks per rule 12: case name, output, diagnosis, owning file. T020 resolves them.)*
+
+- **T005 (main loop, 2026-10-11):** (per-run medians of 5 reps; total CPU load sampled before each run: 12 / 11 / 13 / 2 / 16 %, with no process above 0.07 cores in a 4 s window; a first attempt while another session's seraphis/vorago suites and clang-tidy were finishing read 0.68 → 0.26 % for K = 16 across its five runs and was discarded, log F:/tmp/p3_t005_bench.log): K = 16: 0.257 / 0.231 / 0.237 / 0.224 / 0.241 % (median 0.237 %); K = 32: 0.440 / 0.424 / 0.404 / 0.377 / 0.426 % (median 0.424 %); **K = 16 taper band (494 Hz, vibrato, r = 1.25, 523 200 log2+pow pairs per run): 0.293 / 0.275 / 0.278 / 0.263 / 0.285 % (median 0.278 %)**. The unchanged E1 configurations read about 1.5× the plan-stage figures above on this day's machine state, so the taper-band figure is compared with the 0.20 % threshold as measured, not rescaled. **Decision: median above 0.20 % → T011 implements the cents-domain weight cache (per-term weights recomputed only when a term's band membership or cents value changes); the 0.3 % budget is unchanged and SC-018's taper-band cells remain the gate.** Log F:/tmp/p3_t005_bench2.log.
+  **RESOLVED (T020, 2026-10-12):** not a header defect but a design decision; its remedy shipped in T011 — the cents-domain weight cache at `dsp/include/krate/dsp/systems/anchor_oscillator.h:133-138` (refresh: `centsOfN_[i] = 1200·log2(i+1)`, `taperFactorOfN_[i] = 2^(−s·cents)`), consumed at `:681-717`, members `:1127-1128`. Gate re-run: T017 `AnchorOscillator_CpuBudget` (alone, P-core pinned, log F:/tmp/p3_t017_cpu.log) PASS, 42 assertions, worst cell sine PUNCH 494 Hz 0.1377 % ≤ 0.3 % (taper-band cells 0.0876–0.1377 %). No change to `anchor_oscillator.h` in T020; budget unchanged.
