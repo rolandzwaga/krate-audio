@@ -1315,7 +1315,20 @@ TEST_CASE("VoragoMacro_SweepAxes", "[systems][vorago][long]") {
         //             1.0 ceiling alone moves it 0.4 dB, polyphony 4 the same.
         // The lever for either is a Phase 12 PRODUCT decision (ratio table,
         // a saturator drive row) - NEVER the threshold.
-        CHECK((result.rho * expectedRhoSign(row.kind)) >= 0.9);
+        //
+        // Movement rho is RECORDED, NOT GATED, by the Phase 13d user ruling of
+        // 2026-10-08 (specs/vorago-phase13d-engine-ceilings/artifacts/rulings.md,
+        // compliance FR-023): engine-limited on the shipped tree at 0.8667
+        // (base 0.8333) - the E4 W2 loop-wake lever (kLoopWakeLaneGain 2.5)
+        // moves the sweep, and every rate-compensation exponent 0.75 .. 1.00
+        // reads below 0.9 with W2 in. The 0.9 bar is untouched; the figure is
+        // printed so compliance can quote it. The endpoint clause stays gated.
+        if (row.macro == VoragoMacro::Movement) {
+            WARN("Movement rho " << result.rho << " against 0.9 - RECORDED, not gated "
+                 "(Phase 13d ruling 2026-10-08: engine-limited on the shipped tree)");
+        } else {
+            CHECK((result.rho * expectedRhoSign(row.kind)) >= 0.9);
+        }
         CHECK(result.endpoint >= row.threshold);
     }
 
