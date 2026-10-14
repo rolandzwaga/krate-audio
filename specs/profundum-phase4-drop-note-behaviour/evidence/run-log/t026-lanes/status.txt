@@ -1,0 +1,27 @@
+push_dsp_primitives_tests exit 0 wall 4 s
+push_dsp_core_tests exit 0 wall 6 s
+push_innexus_tests exit 0 wall 19 s
+long_GlideLock60s exit 0 wall 27 s
+push_dsp_effects_tests exit 0 wall 206 s
+push_ruinae_tests exit 0 wall 248 s
+long_TrajectoryNyquist exit 0 wall 256 s
+push_systems_nb exit 0 wall 305 s
+long_GlideClickFree_C3 exit 0 wall 763 s
+long_FollowAfterDrop exit 0 wall 770 s
+long_GlideClickFree_E2 exit 0 wall 780 s
+long_GlideClickFree_E1 exit 0 wall 782 s
+long_GlideClickFree_E0 exit 0 wall 786 s
+long_PostDropLanding_C3 exit 0 wall 818 s
+long_PostDropLanding_E2 exit 0 wall 819 s
+long_PostDropLanding_E1 exit 0 wall 828 s
+long_PostDropLanding_E0 exit 0 wall 839 s
+push_vorago_tests exit 0 wall 917 s
+push_dsp_processors_tests exit 0 wall 940 s
+push_seraphis_tests exit 0 wall 1093 s
+long_PostDropLanding_PunchGhostE1 exit 0 wall 1197 s
+long_RetriggerClickFree_E1 exit 0 wall 1493 s
+long_RetriggerClickFree_C3 exit 0 wall 1493 s
+long_RetriggerClickFree_E2 exit 0 wall 1494 s
+long_RetriggerClickFree_E0 exit 0 wall 1495 s
+push_systems_rest exit 1 wall 2534 s
+ALLDONE

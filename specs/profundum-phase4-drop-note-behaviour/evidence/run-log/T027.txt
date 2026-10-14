@@ -1,0 +1,22 @@
+T027 - Portability, Apple globals, clang-tidy (SC-022; plan S12)
+
+=== EPOCH 3 COMPLETION (main loop, 2026-10-14 08:56–09:20) ===
+1. check-portability (executor, 2026-10-13): 'check-portability: all clear -- 12 compiled.' exit 0 (F:/tmp/t027_port.log). wsl --shutdown run.
+2. lint-apple-globals (executor, 2026-10-13): 'lint-apple-globals: OK — 24 files, no macOS-only name collisions' exit 0 (F:/tmp/t027_apple.log).
+3. clang-tidy: the executor's full './tools/run-clang-tidy.ps1 -Target dsp' sweep (compile database reconfigured first, 2026-10-13 17:19)
+   hung for 15.5 h on dsp/tests/unit/systems/filter_step_sequencer_tests.cpp (not a Phase 4 file; the runner's log stays 0 bytes
+   until the end). Killed 2026-10-14 08:56. The Phase 4 surface was tidied by file list against the fresh compile database:
+   clang-tidy -p build/windows-ninja <12 Phase 4 TUs> (the 8 new/changed headers and 4 test helpers are checked through them).
+   Run 1 (F:/tmp/p4close_tidy.log, 95 s): 3 warnings, all readability-avoid-nested-conditional-operator on one line,
+   profundum_note_behaviour_spectral_test.cpp:1633 (the click-distance histogram bin). Fixed: if-chain.
+   Run 2 on that TU (F:/tmp/p4close_tidy2.log): 0 warnings, exit 0. MSVC rebuild of dsp_systems_tests after the fix: exit 0,
+   0 warnings (F:/tmp/p4close_build_tidyfix.log).
+   The filter_step_sequencer_tests.cpp hang is recorded for its own diagnosis (memory); it is not a Phase 4 gate.
+VERDICT: SC-022 GREEN — portability 0 findings, Apple globals 0 findings, clang-tidy 0 warnings on every Phase 4 TU and header.
+
+=== COMPLY REMEDIATION (2026-10-14) - CC-warnings: shared-header consumers ===
+touch mono_handler.h, harmonic_oscillator_bank.h, profundum_core.h; one rebuild, --parallel 32, targets dsp_core/primitives/
+processors/systems/effects_tests ruinae_tests seraphis_tests vorago_tests innexus_tests membrum_tests (membrum includes
+mono_handler.h too). exit 0, wall 122 s, 218 TUs recompiled, every test exe relinked (no LNK1104: no test process was
+running), grep -ciE 'warning C|warning:' -> 0, errors 0 (raw log: session scratchpad cc_warn_build.log).
+No source changed in this remediation, so the suites were not re-run; the Group 14-16 gates ran this source.

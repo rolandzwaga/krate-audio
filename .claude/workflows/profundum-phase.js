@@ -1,3 +1,15 @@
+// EDITING THIS SCRIPT WHILE A RUN CAN STILL BE RESUMED (rule, 2026-10-13):
+// Resume (resumeFromRunId) replays agent() calls by a hash CHAINED over every call in spawn
+// order. Changing the TEXT of any prompt that an earlier call in the run already used — a gate's
+// target list, a fixer's rules, a label, CONTEXT — re-runs that call AND every call after it
+// (implementers included; they rewrite code). Skipping a call breaks the chain the same way.
+// So, for a phase whose build is in flight or may be resumed:
+//   1. never change a prompt's text; add an ARGUMENT that defaults to the old behaviour
+//      (see args.legacy_gates) and switch the default only before the next phase's fresh run;
+//   2. after every resume, read the newest agent-*.meta.json label once; if it is not the call
+//      you meant to resume from, TaskStop immediately;
+//   3. a task named in args.retry_tasks needs its rewritten tasks.md section ON DISK first.
+// Pure comments and new, unused arguments are safe to add at any time.
 export const meta = {
   name: 'profundum-phase',
   description: 'Three-stage speckit-style pipeline for one Profundum roadmap phase: specify (spec→challenge→clarify-scan), plan (encode grill answers→plan→challenge→tasks), build (implement→build/test→comply) — adversarial agents check every artifact, the user is grilled between specify and plan',
@@ -59,6 +71,15 @@ const retryTasks = Array.isArray(A.retry_tasks) ? A.retry_tasks.map(String) : []
 // every other group's cached gate (each gate re-run costs minutes).
 const groupKey = (name) => String(name).split(/\s+[—-]\s+/)[0]
 const retryEpoch = (name) => (A.retry_epochs && A.retry_epochs[groupKey(name)]) || 4
+// args.legacy_gates: ["Group 0", ...] group keys whose gate targets are computed with the
+// PRE-2026-10-13 rule so the gate prompt is byte-identical to the earlier run's and its
+// cached green replays. Resume replays agent() calls by a hash CHAINED over every call in
+// spawn order: a gate whose prompt changed (or a skipped gate) re-runs AND invalidates
+// every call spawned after it — 2026-10-13 the gate-target fix made a resume replay all
+// 17 gates from Group 0, dispatch a context-free fixer at Group 1 for Group 14's triaged
+// reds, and on the next resume re-execute the implementers from T004. Name only groups an
+// earlier run measured green; the groups after the first changed gate re-run anyway.
+const legacyGates = Array.isArray(A.legacy_gates) ? A.legacy_gates.map(String) : []
 
 const SLUG = SLUGS[phaseNum]
 const DIR = `specs/${SLUG}`
@@ -586,10 +607,25 @@ for (const group of dispatch.groups) {
       || p.includes('plugins/shared') || p.includes('tests/test_helpers')
       || p.includes('CMakeLists.txt') || p.includes('lint_all_headers')
   }))
-  const primaryTargets = dispatch.test_targets.filter(t => /profundum/i.test(t))
-  const gateTargets = (isLastGroup || touchesWide)
-    ? dispatch.test_targets
-    : (primaryTargets.length ? primaryTargets : dispatch.test_targets.slice(0, 1))
+  // 2026-10-13 (Phase 4 Groups 10-15): a DSP-library phase has no "profundum" target, and
+  // the old fallback `test_targets.slice(0, 1)` gated six groups of new systems TUs on
+  // dsp_primitives_tests only — every composition test first ran at T026. The narrowed
+  // gate now derives its targets from the test TUs the group touches
+  // (dsp/tests/unit/<layer>/ -> dsp_<layer>_tests); a group that touches no test TU
+  // (or an unmapped one) runs the full set rather than guessing.
+  const layerTargets = new Set()
+  let unmappedTestFile = false
+  for (const t of group.tasks) for (const f of (t.files || [])) {
+    const p = String(f).replace(/\\/g, '/')
+    const m = /dsp\/tests\/unit\/(core|primitives|processors|systems|effects)\//.exec(p)
+    if (m) layerTargets.add(`dsp_${m[1]}_tests`)
+    else if (/tests\/.*\.(cpp|h)$/.test(p)) unmappedTestFile = true
+  }
+  const primaryTargets = dispatch.test_targets.filter(t => /profundum/i.test(t) || layerTargets.has(t))
+  const legacyTargets = dispatch.test_targets.filter(t => /profundum/i.test(t))
+  const gateTargets = legacyGates.includes(groupKey(group.name))
+    ? ((isLastGroup || touchesWide) ? dispatch.test_targets : (legacyTargets.length ? legacyTargets : dispatch.test_targets.slice(0, 1)))
+    : ((isLastGroup || touchesWide || unmappedTestFile || !primaryTargets.length) ? dispatch.test_targets : primaryTargets)
   if (gateTargets.length < dispatch.test_targets.length) log(`Gate for "${group.name}" narrowed to: ${gateTargets.join(', ')}`)
   let attempt = 0
   while (attempt < 4) {
@@ -662,7 +698,7 @@ let finalItems = complyItems
 if (failures.length > 0) {
   log('Dispatching remediation for failing compliance items...')
   await run(
-    `${CONTEXT}\n\nFix these compliance failures against ${SPEC}. Same rules as always: failing test first where a behaviour is wrong, no threshold relaxing, no test deletion, zero warnings, tree must stay green.${BUILD_CMDS(dispatch.test_targets)}\n\nFAILING ITEMS:\n${JSON.stringify(failures, null, 2)}`,
+    `${CONTEXT}\n\nFix these compliance failures against ${SPEC}. Same rules as always: failing test first where a behaviour is wrong, no threshold relaxing, no test deletion, zero warnings, tree must stay green.${BUILD_CMDS(dispatch.test_targets)}\n\nTRIAGE FIRST (encoded 2026-10-14 after a remediation round spent 2 h polling another instrument's overnight soaks): sort every item into one of three classes before touching anything.\n- WORDING: the spec's FR/SC row still says what a recorded Clarifications ruling superseded (the verifier quotes the ruling itself). Fix = amend the row to the ruling, citing the session, in ${SPEC}; never change code or tests to meet superseded wording.\n- EVIDENCE: the behaviour is met but the verifier lacked a number or a log. Fix = gather it from existing logs, the gate results in this run, the run-log files under specs/<slug>/evidence/run-log/ and the earlier phases' compliance.md (an inherited red of another instrument is proven inherited by its prior record, e.g. a Phase 2/3 compliance line naming the same case on the base commit — do not re-run it). Only re-run a case when no record exists, and then only that case.\n- BEHAVIOUR: a real gap. Fix in code with a failing test first.\nNever launch [long] / soak / overnight cases of other instruments (Vorago, Seraphis, Ruinae, Innexus): they are not this phase's gate and take hours; cite their inherited record. Never start work you cannot finish inside this turn; a measurement that would take longer than ~20 minutes is reported as "needs the main loop", not started.\n\nFAILING ITEMS:\n${JSON.stringify(failures, null, 2)}`,
     { label: 'remediate', phase: 'Comply' },
   )
   const reverify = await run(

@@ -26,6 +26,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstdint>
 
 namespace Krate {  // NOLINT(modernize-concat-nested-namespaces) -- project convention
@@ -63,6 +64,17 @@ enum class MonoMode : uint8_t {
 enum class PortaMode : uint8_t {
     Always = 0,       ///< Portamento on every note transition (default)
     LegatoOnly = 1    ///< Portamento only on overlapping notes
+};
+
+// =============================================================================
+// GlideMode (Profundum Phase 4, FR-020/FR-028)
+// =============================================================================
+
+/// Portamento glide law selection.
+enum class GlideMode : uint8_t {
+    ConstantTime = 0,  ///< Glide lasts the portamento time whatever the interval (default, today's law)
+    ConstantRate = 1,  ///< Portamento time read as ms per octave: duration scales with the interval
+    Quantized = 2      ///< Constant-time ramp over T, output stepped per semitone toward the target
 };
 
 // =============================================================================
@@ -122,6 +134,7 @@ public:
         sampleRate_ = static_cast<float>(sampleRate);
         portamentoRamp_.configure(portamentoTimeMs_, sampleRate_);
         portamentoRamp_.setSampleRate(sampleRate_);
+        if (glideMode_ != GlideMode::ConstantTime) preciseRetime();  // position kept (E-8)
     }
 
     // =========================================================================
@@ -283,12 +296,15 @@ public:
         }
         portamentoTimeMs_ = std::clamp(ms, kMinPortamentoTimeMs, kMaxPortamentoTimeMs);
         portamentoRamp_.configure(portamentoTimeMs_, sampleRate_);
+        if (glideMode_ != GlideMode::ConstantTime) preciseRetime();
     }
 
     /// Advance portamento by one sample and return current gliding frequency.
     /// Must be called once per audio sample.
     /// @return Current frequency in Hz
     [[nodiscard]] float processPortamento() noexcept {
+        if (glideMode_ == GlideMode::Quantized) return processQuantizedGlide();
+        if (glideMode_ != GlideMode::ConstantTime) return processPreciseGlide();
         const float currentSemitones = portamentoRamp_.process();
         currentFrequency_ = semitoneToFrequency(currentSemitones);
         return currentFrequency_;
@@ -332,6 +348,33 @@ public:
         portaMode_ = mode;
     }
 
+    /// Select the glide law (Profundum Phase 4, FR-020/FR-028).
+    /// Out-of-enum values are ignored (E-14); setting the current mode is a no-op.
+    /// ConstantTime (the default) is today's behaviour, bit-identical (FR-021).
+    /// A switch mid-glide continues from the current pitch under the new law and
+    /// moves the output by less than 1 semitone (FR-024, plan S4.3).
+    /// @param mode ConstantTime, ConstantRate or Quantized
+    void setGlideMode(GlideMode mode) noexcept {
+        if (static_cast<uint8_t>(mode) > static_cast<uint8_t>(GlideMode::Quantized)) {
+            return;  // Out-of-enum value (E-14)
+        }
+        if (mode == glideMode_) {
+            return;
+        }
+        // Current pitch and target, read under the law being left.
+        const bool fromRamp = (glideMode_ == GlideMode::ConstantTime);
+        const double pitchNow = fromRamp ? static_cast<double>(portamentoRamp_.getCurrentValue())
+                                         : currentPreciseSemitones();
+        const double target = fromRamp ? static_cast<double>(portamentoRamp_.getTarget()) : gpTarget_;
+        glideMode_ = mode;
+        enterGlideMode(pitchNow, target);
+    }
+
+    /// Current glide law.
+    [[nodiscard]] GlideMode glideMode() const noexcept {
+        return glideMode_;
+    }
+
     // =========================================================================
     // State Queries (FR-026)
     // =========================================================================
@@ -353,6 +396,9 @@ public:
         hadPreviousNote_ = false;
         currentFrequency_ = 0.0f;
         portamentoRamp_.snapTo(portamentoRamp_.getCurrentValue());
+        gpActive_ = false;
+        gpStart_ = gpTarget_ = currentPreciseSemitones();
+        gpN_ = 0;
     }
 
 private:
@@ -448,6 +494,10 @@ private:
     /// @param enableGlide If true and portamento > 0, use setTarget for glide;
     ///                    otherwise snapTo for instant pitch change
     void updatePortamentoTarget(float targetSemitones, bool enableGlide) noexcept {
+        if (glideMode_ != GlideMode::ConstantTime) {
+            preciseRetarget(targetSemitones, enableGlide && portamentoTimeMs_ > 0.0f);
+            return;
+        }
         if (enableGlide && portamentoTimeMs_ > 0.0f) {
             portamentoRamp_.setTarget(targetSemitones);
         } else {
@@ -469,6 +519,181 @@ private:
             .velocity = 0,
             .retrigger = false,
             .isNoteOn = false};
+    }
+
+    // =========================================================================
+    // Glide-mode helpers (Profundum Phase 4, plan S4.2; D-13 double precision)
+    // =========================================================================
+    // ConstantRate: r = 12000 / (T * fs) semitones per sample with T read as ms
+    // per octave (FR-022, FR-026); p(n) = start + sign(delta) * min(r * n, |delta|)
+    // from the integer counter, never a float accumulator. No upward-rate floor
+    // (2026-10-12 O-1 ruling). Never reached under ConstantTime.
+    // Quantized (FR-023, D-5, C-11): a constant-time ramp over N = T * fs / 1000
+    // samples from the integer output note q0 to the target; the output note
+    // steps one semitone at sample ceil(k * N / |delta|), k = 1..|delta|, i.e.
+    // it is rounded toward the start note. Only the next step's sample index is
+    // held (computed once per step), so there is no per-sample division and no
+    // pow per sample: qFreq_ is recomputed only when the note changes. No
+    // upward-rate floor (O-1 ruling).
+
+    /// Current double-precision glide position in semitones (Quantized: the
+    /// integer output note, which is where a retarget restarts, C-11).
+    [[nodiscard]] double currentPreciseSemitones() const noexcept {
+        if (glideMode_ == GlideMode::Quantized) {
+            return static_cast<double>(qOut_);
+        }
+        if (!gpActive_) {
+            return gpTarget_;
+        }
+        const double distance = gpTarget_ >= gpStart_ ? gpTarget_ - gpStart_ : gpStart_ - gpTarget_;
+        const double moved = std::min(gpRate_ * static_cast<double>(gpN_), distance);
+        return gpTarget_ >= gpStart_ ? gpStart_ + moved : gpStart_ - moved;
+    }
+
+    /// Advance the glide by one sample and return its frequency.
+    [[nodiscard]] float processPreciseGlide() noexcept {
+        if (glideMode_ == GlideMode::Quantized) {
+            return processQuantizedGlide();
+        }
+        if (gpActive_) {
+            ++gpN_;
+            const double distance = gpTarget_ >= gpStart_ ? gpTarget_ - gpStart_ : gpStart_ - gpTarget_;
+            if (gpRate_ * static_cast<double>(gpN_) >= distance) {
+                gpStart_ = gpTarget_;  // clamped at the target
+                gpN_ = 0;
+                gpActive_ = false;
+            }
+        }
+        currentFrequency_ = semitoneToFrequency(static_cast<float>(currentPreciseSemitones()));
+        return currentFrequency_;
+    }
+
+    /// Start a glide from the current position to targetSemitones, or snap (E-7).
+    void preciseRetarget(float targetSemitones, bool glide) noexcept {
+        const auto target = static_cast<double>(targetSemitones);
+        if (glide) {
+            gpStart_ = currentPreciseSemitones();
+            gpTarget_ = target;
+            gpN_ = 0;
+            gpActive_ = (gpStart_ != gpTarget_);
+            preciseRetime();
+            return;
+        }
+        gpStart_ = target;
+        gpTarget_ = target;
+        gpN_ = 0;
+        gpActive_ = false;
+        currentFrequency_ = semitoneToFrequency(targetSemitones);
+        qOut_ = static_cast<int>(std::lround(target));
+        qFreq_ = currentFrequency_;
+    }
+
+    /// Re-derive the rate after T or fs changed: the remainder restarts from the
+    /// current position at the new rate (mirrors LinearRamp::configure).
+    /// Quantized restarts from the current output note over the new T (E-8).
+    void preciseRetime() noexcept {
+        gpStart_ = currentPreciseSemitones();
+        gpN_ = 0;
+        if (!(portamentoTimeMs_ > 0.0f) || !(sampleRate_ > 0.0f)) {
+            gpStart_ = gpTarget_;  // T = 0: the glide completes (E-7)
+            gpActive_ = false;
+            if (glideMode_ == GlideMode::Quantized) {
+                setQuantizedNote(static_cast<int>(std::lround(gpTarget_)));
+            }
+            return;
+        }
+        if (glideMode_ == GlideMode::Quantized) {
+            gpLen_ = static_cast<double>(portamentoTimeMs_) * static_cast<double>(sampleRate_) / 1000.0;
+            gpActive_ = gpActive_ && (gpStart_ != gpTarget_);
+            if (gpActive_) {
+                qNextStep_ = quantizedStepSample(1);
+            }
+            return;
+        }
+        gpRate_ = 12000.0 / (static_cast<double>(portamentoTimeMs_) * static_cast<double>(sampleRate_));
+        const double distance = gpTarget_ >= gpStart_ ? gpTarget_ - gpStart_ : gpStart_ - gpTarget_;
+        gpLen_ = distance / gpRate_;
+    }
+
+    /// Set the Quantized output note and its cached frequency.
+    void setQuantizedNote(int note) noexcept {
+        qOut_ = note;
+        qFreq_ = semitoneToFrequency(static_cast<float>(note));
+    }
+
+    /// Sample index (from the glide start, 1-based) of Quantized step k:
+    /// ceil(k * N / |delta|). Called once per step, never per sample.
+    [[nodiscard]] std::uint64_t quantizedStepSample(int k) const noexcept {
+        const double total = std::abs(gpTarget_ - gpStart_);
+        return static_cast<std::uint64_t>(std::ceil(static_cast<double>(k) * gpLen_ / total));
+    }
+
+    /// Advance the Quantized glide by one sample and return its frequency. The per-sample
+    /// path is the counter and one compare (SC-019); a step runs out of line.
+    [[nodiscard]] float processQuantizedGlide() noexcept {
+        if (gpActive_ && ++gpN_ >= qNextStep_) {
+            quantizedStep();
+        }
+        currentFrequency_ = qFreq_;
+        return qFreq_;
+    }
+
+    /// The Quantized step at gpN_ >= qNextStep_ (called once per step, never per sample).
+    ITERUM_NOINLINE void quantizedStep() noexcept {  // smoother.h macro
+        const int start = static_cast<int>(std::lround(gpStart_));
+        const int target = static_cast<int>(std::lround(gpTarget_));
+        const int total = target > start ? target - start : start - target;
+        int done = qOut_ > start ? qOut_ - start : start - qOut_;
+        while (done < total && gpN_ >= qNextStep_) {
+            ++done;
+            if (done < total) {
+                qNextStep_ = quantizedStepSample(done + 1);
+            }
+        }
+        setQuantizedNote(target > start ? start + done : start - done);
+        if (done >= total) {
+            gpStart_ = gpTarget_;  // landed on the target
+            gpN_ = 0;
+            gpActive_ = false;
+        }
+    }
+
+    /// Seed the newly selected law from the pitch and target read under the
+    /// previous one (FR-024, plan S4.3). glideMode_ already holds the new mode.
+    void enterGlideMode(double pitchNow, double target) noexcept {
+        if (glideMode_ == GlideMode::ConstantTime) {
+            // Snap + retarget: the remainder runs the unchanged ramp over T.
+            portamentoRamp_.snapTo(static_cast<float>(pitchNow));
+            if (pitchNow != target) {
+                portamentoRamp_.setTarget(static_cast<float>(target));
+            }
+            gpActive_ = false;
+            return;
+        }
+        gpN_ = 0;
+        if (glideMode_ == GlideMode::ConstantRate) {
+            gpStart_ = pitchNow;
+            gpTarget_ = target;
+            gpActive_ = (pitchNow != target);
+            preciseRetime();
+            return;
+        }
+        // Quantized: join the integer grid rounding toward the start of the
+        // glide (floor gliding up, ceil gliding down), then a new ramp over T.
+        int startNote = 0;
+        if (target > pitchNow) {
+            startNote = static_cast<int>(std::floor(pitchNow));
+        } else if (target < pitchNow) {
+            startNote = static_cast<int>(std::ceil(pitchNow));
+        } else {
+            startNote = static_cast<int>(std::lround(pitchNow));
+            target = static_cast<double>(startNote);  // not gliding: settle on the grid
+        }
+        setQuantizedNote(startNote);
+        gpStart_ = static_cast<double>(startNote);
+        gpTarget_ = target;
+        gpActive_ = (gpStart_ != gpTarget_);
+        preciseRetime();
     }
 
     // =========================================================================
@@ -494,6 +719,20 @@ private:
     LinearRamp portamentoRamp_;
     float portamentoTimeMs_{0.0f};
     float sampleRate_{kDefaultSampleRate};
+
+    // Glide modes (Profundum Phase 4, specs/profundum-phase4-drop-note-behaviour, plan S4.1).
+    // ConstantTime runs on portamentoRamp_ above and never reads this state (FR-021);
+    // ConstantRate / Quantized run on a double-precision counter (D-13).
+    GlideMode glideMode_{GlideMode::ConstantTime};
+    double gpStart_{0.0};          ///< Glide start position (semitones)
+    double gpTarget_{0.0};         ///< Glide target position (semitones)
+    double gpLen_{0.0};            ///< Glide length (samples)
+    std::uint64_t gpN_{0};         ///< Samples elapsed since the glide (re)start
+    bool gpActive_{false};         ///< True while a ConstantRate/Quantized glide runs
+    int qOut_{0};                  ///< Quantized: current integer output note
+    float qFreq_{0.0f};            ///< Quantized: cached frequency of qOut_
+    double gpRate_{0.0};           ///< ConstantRate: semitones per sample
+    std::uint64_t qNextStep_{0};   ///< Quantized: sample index (gpN_) of the next step
 };
 
 }  // namespace DSP

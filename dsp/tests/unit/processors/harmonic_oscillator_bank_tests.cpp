@@ -18,6 +18,7 @@
 #include <array>
 #include <bit>
 #include <cmath>
+#include <cstdio>
 #include <cstdint>
 #include <cstring>
 #include <numeric>
@@ -1266,4 +1267,133 @@ TEST_CASE("HarmonicOscillatorBank_RestoreCenterPan",
         REQUIRE(samplesBitEqual(rL.data(), fL.data(), kLong));
         REQUIRE(samplesBitEqual(rR.data(), fR.data(), kLong));
     }
+}
+
+// =============================================================================
+// Profundum Phase 4 (2026-10-13, user ruling): opt-in amplitude- and phase-continuous
+// external frequency updates. The MCF keeps (s, c) across a coefficient change by
+// default, which re-rolls the partial's amplitude by up to 1/sqrt(1 - eps^2/4) and
+// shifts its phase; with the opt-in, applyExternalFrequencyMultipliers rewrites c so
+// amplitude and phase stay exact. Default off: existing consumers are bit-identical.
+// =============================================================================
+
+namespace {
+
+double bankPartialAmplitude(const std::vector<float>& x, std::size_t from, std::size_t len, double fs, double hz) {
+    double re = 0.0;
+    double im = 0.0;
+    for (std::size_t k = 0; k < len; ++k) {
+        const double a = 2.0 * 3.141592653589793 * hz * static_cast<double>(k) / fs;
+        re += static_cast<double>(x[from + k]) * std::cos(a);
+        im -= static_cast<double>(x[from + k]) * std::sin(a);
+    }
+    return 2.0 * std::hypot(re, im) / static_cast<double>(len);
+}
+
+/// Eight harmonics of 110 Hz at equal amplitude, rendered with a +53 / −53 semitone
+/// staircase (one semitone every 16 samples, the Profundum pitch cadence) applied through
+/// applyExternalFrequencyMultipliers. Returns the per-partial amplitude ratio after/before.
+std::array<double, 8> bankExcursionRatios(bool continuous, std::vector<float>* firstStepSine) {
+    constexpr double fs = 48000.0;
+    constexpr float f0 = 110.0f;
+    HarmonicOscillatorBank bank;
+    bank.prepare(fs);
+    bank.setContinuousFrequencyUpdates(continuous);
+    HarmonicFrame frame;
+    frame.f0 = f0;
+    frame.numPartials = 8;
+    for (int i = 0; i < 8; ++i) {
+        frame.partials[static_cast<std::size_t>(i)].harmonicIndex = i + 1;
+        frame.partials[static_cast<std::size_t>(i)].frequency = f0 * static_cast<float>(i + 1);
+        frame.partials[static_cast<std::size_t>(i)].amplitude = 0.1f;
+        frame.partials[static_cast<std::size_t>(i)].relativeFrequency = static_cast<float>(i + 1);
+        frame.partials[static_cast<std::size_t>(i)].stability = 1.0f;
+    }
+    bank.loadFrame(frame, f0, /*skipNormalization=*/true);
+    // processStereo: the detune/multiplier path the core uses (the mono process() ignores detuneMultiplier_).
+    const auto render = [&bank]() { float l = 0.0f; float r = 0.0f; bank.processStereo(l, r); return l; };
+    const std::size_t settle = 48000;
+    const std::size_t win = static_cast<std::size_t>(std::llround(fs / 110.0 * 99.0));   // 99 periods, 0.9 s
+    std::vector<float> out;
+    out.reserve(settle + 110 * 16 + 4096 + win);
+    for (std::size_t n = 0; n < settle; ++n)
+        out.push_back(render());
+    std::array<double, 8> before{};
+    for (int k = 1; k <= 8; ++k)
+        before[static_cast<std::size_t>(k - 1)] = bankPartialAmplitude(out, settle - win, win, fs, 110.0 * k);
+
+    std::array<float, kMaxPartials> up{};
+    std::array<float, kMaxPartials> down{};
+    up.fill(static_cast<float>(std::exp2(1.0 / 12.0)));
+    down.fill(static_cast<float>(std::exp2(-1.0 / 12.0)));
+    for (int step = 0; step < 53; ++step) {   // 880 Hz × 2^(53/12) ≈ 18.7 kHz: eps reaches the 1.99 clamp
+        bank.applyExternalFrequencyMultipliers(up);
+        if (step == 0 && firstStepSine != nullptr) {
+            firstStepSine->clear();
+            firstStepSine->push_back(render());   // the first rendered sample after the first change
+            for (std::size_t n = 1; n < 16; ++n)
+                firstStepSine->push_back(render());
+            for (float v : *firstStepSine)
+                out.push_back(v);
+            continue;
+        }
+        for (std::size_t n = 0; n < 16; ++n)
+            out.push_back(render());
+    }
+    for (int step = 0; step < 53; ++step) {
+        bank.applyExternalFrequencyMultipliers(down);
+        for (std::size_t n = 0; n < 16; ++n)
+            out.push_back(render());
+    }
+    const std::size_t afterStart = out.size() + 4096;
+    for (std::size_t n = 0; n < 4096 + win; ++n)
+        out.push_back(render());
+    REQUIRE(bank.stateFinite());
+    std::array<double, 8> ratio{};
+    for (int k = 1; k <= 8; ++k) {
+        const std::size_t i = static_cast<std::size_t>(k - 1);
+        REQUIRE(before[i] > 1e-3);
+        ratio[i] = bankPartialAmplitude(out, afterStart, win, fs, 110.0 * k) / before[i];
+    }
+    return ratio;
+}
+
+}  // namespace
+
+TEST_CASE("HarmonicOscillatorBank_ContinuousFrequencyUpdates", "[processors][profundum][note-behaviour]") {
+    HarmonicOscillatorBank fresh;
+    REQUIRE_FALSE(fresh.continuousFrequencyUpdates());   // default off: every other consumer unchanged
+    fresh.prepare(48000.0);
+    fresh.setContinuousFrequencyUpdates(true);
+    fresh.reset();
+    REQUIRE(fresh.continuousFrequencyUpdates());   // reset() keeps the setting (ProfundumCore resets per noteOn)
+
+    std::vector<float> sineOn;
+    std::vector<float> sineOff;
+    const std::array<double, 8> on = bankExcursionRatios(true, &sineOn);
+    const std::array<double, 8> off = bankExcursionRatios(false, &sineOff);
+
+    double worstOnDb = 0.0;
+    double worstOffDb = 0.0;
+    for (std::size_t i = 0; i < 8; ++i) {
+        const double onDb = 20.0 * std::log10(on[i]);
+        const double offDb = 20.0 * std::log10(off[i]);
+        INFO("partial " << i + 1 << ": continuous " << onDb << " dB, default " << offDb << " dB");
+        CHECK(std::abs(onDb) <= 0.05);   // amplitude preserved across 106 coefficient changes
+        if (std::abs(onDb) > std::abs(worstOnDb))
+            worstOnDb = onDb;
+        if (std::abs(offDb) > std::abs(worstOffDb))
+            worstOffDb = offDb;
+    }
+    // Positive control: the default path re-rolls at least one partial by more than 1 dB.
+    CHECK(std::abs(worstOffDb) > 1.0);
+    // Phase continuity: the rewrite keeps the phase and scales the sine state by r = cos(w1/2)/cos(w2/2)
+    // (the bank's 1/cos(w/2) amplitude convention), so the first rendered sample after a +1 semitone
+    // change at 110..880 Hz equals the default path within |r - 1| (< 1e-4 here); the later samples
+    // then differ by the default path's own keep-state error.
+    REQUIRE(sineOn.size() == 16);
+    REQUIRE(sineOff.size() == 16);
+    CHECK(std::abs(sineOn[0] - sineOff[0]) <= 1e-4f * std::abs(sineOff[0]) + 1e-7f);
+    std::printf("HarmonicOscillatorBank continuous updates: worst partial %+.4f dB (bar 0.05); default path worst %+.2f dB (control > 1)\n",
+                worstOnDb, worstOffDb);
 }

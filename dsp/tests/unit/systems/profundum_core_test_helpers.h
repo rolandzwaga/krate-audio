@@ -633,7 +633,19 @@ inline std::vector<double> renderReference(double fs, std::size_t total, const C
         if (!haveEps || std::bit_cast<std::uint64_t>(f) != epsBits) {
             for (std::size_t k = 0; k < n; ++k) {
                 const double halfOmega = 0.5 * kTwoPi * static_cast<double>(k + 1) * f / fs;
-                eps[k] = 2.0 * std::sin(halfOmega);
+                const double epsNew = 2.0 * std::sin(halfOmega);
+                // Phase 4 FR-070 (2026-10-13): the core's pitch law is phase-exact across a coefficient change
+                // with the state amplitude following 1/cos(w/2) (the bank's seed/antiAliasGain convention):
+                //   r = cos(w1/2)/cos(w2/2),  s' = r s,  c' = c + s eps1/2 - r s eps2/2.
+                // The reference applies the same law in double so the residual stays the quantisation only.
+                if (haveEps && eps[k] != epsNew) {
+                    const double epsOld = eps[k];
+                    const double r = std::sqrt(1.0 - 0.25 * epsOld * epsOld) / std::sqrt(1.0 - 0.25 * epsNew * epsNew);
+                    const double s = mcfSin[k];
+                    mcfCos[k] = mcfCos[k] + s * (0.5 * epsOld) - r * s * (0.5 * epsNew);
+                    mcfSin[k] = r * s;
+                }
+                eps[k] = epsNew;
                 mcfCorr[k] = std::cos(halfOmega);
             }
             epsBits = std::bit_cast<std::uint64_t>(f);

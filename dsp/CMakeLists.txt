@@ -98,6 +98,8 @@ set(KRATE_DSP_CORE_HEADERS
     include/krate/dsp/core/wavetable_data.h
     include/krate/dsp/core/window_functions.h
     include/krate/dsp/core/hungarian_algorithm.h
+    # Profundum Phase 4 (specs/profundum-phase4-drop-note-behaviour)
+    include/krate/dsp/core/drop_curve.h
 )
 
 # Layer 1: Primitives
@@ -124,6 +126,8 @@ set(KRATE_DSP_PRIMITIVES_HEADERS
     include/krate/dsp/primitives/wavetable_oscillator.h
     # Profundum Phase 2 (specs/profundum-phase2-edge-fold)
     include/krate/dsp/primitives/polyphase_halfband_oversampler.h
+    # Profundum Phase 4 (specs/profundum-phase4-drop-note-behaviour)
+    include/krate/dsp/primitives/retrigger_declick.h
 )
 
 # Layer 2: Processors
@@ -159,6 +163,10 @@ set(KRATE_DSP_PROCESSORS_HEADERS
     include/krate/dsp/processors/spectral_shape_recipe.h
     # Profundum Phase 2 (specs/profundum-phase2-edge-fold)
     include/krate/dsp/processors/harmonic_fold.h
+    # Profundum Phase 4 (specs/profundum-phase4-drop-note-behaviour)
+    include/krate/dsp/processors/drop_envelope.h
+    include/krate/dsp/processors/drop_phase_lock.h
+    include/krate/dsp/processors/note_memory.h
 )
 
 # Layer 3: Systems

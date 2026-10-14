@@ -143,6 +143,9 @@ add_executable(dsp_primitives_tests
     unit/primitives/spectral_transient_detector_test.cpp
     unit/primitives/held_note_buffer_test.cpp
     unit/primitives/arp_lane_test.cpp
+    # Profundum Phase 4 (specs/profundum-phase4-drop-note-behaviour) - ENUMERATED, not globbed:
+    #   retrigger_declick_test.cpp  RetriggerDeclick_* (SC-011)
+    unit/primitives/retrigger_declick_test.cpp
 )
 
 target_link_libraries(dsp_primitives_tests
@@ -257,6 +260,20 @@ add_executable(dsp_processors_tests
     # Profundum Phase 2 (specs/profundum-phase2-edge-fold): HarmonicFold (L2) - SC-006/007/008/010/011/012(d)/013(a)(c)/015/016/017/019/024/025/026
     unit/processors/harmonic_fold_test.cpp
     unit/processors/harmonic_fold_nonfinite_test.cpp
+    # Profundum Phase 4 (specs/profundum-phase4-drop-note-behaviour) - ENUMERATED, not globbed:
+    #   drop_envelope_test.cpp                SC-001-SC-005, SC-024(a), DropEnvelope_Lifecycle
+    #   drop_phase_lock_test.cpp              SC-024(b), SC-025 allocation, SC-026 bypass
+    #   note_memory_test.cpp                  SC-009(a)
+    #   mono_handler_glide_test.cpp           SC-006-SC-008 (MonoHandler glide modes)
+    #   drop_note_behaviour_nonfinite_test.cpp SC-017 - the ONE Phase 4 entry in
+    #                                         the -fno-fast-math block below
+    #   drop_note_behaviour_perf_test.cpp     SC-019, SC-025 cost  [.perf]
+    unit/processors/drop_envelope_test.cpp
+    unit/processors/drop_phase_lock_test.cpp
+    unit/processors/note_memory_test.cpp
+    unit/processors/mono_handler_glide_test.cpp
+    unit/processors/drop_note_behaviour_nonfinite_test.cpp
+    unit/processors/drop_note_behaviour_perf_test.cpp
     unit/processors/residual_types_tests.cpp
     unit/processors/residual_analyzer_tests.cpp
     unit/processors/residual_synthesizer_tests.cpp
@@ -649,6 +666,15 @@ add_executable(dsp_systems_tests
     unit/systems/anchor_oscillator_nonfinite_test.cpp
     unit/systems/profundum_anchor_chain_test.cpp
     unit/systems/anchor_oscillator_perf_test.cpp
+    # Profundum Phase 4 (specs/profundum-phase4-drop-note-behaviour) - ENUMERATED, not globbed:
+    #   profundum_note_behaviour_test.cpp          SC-009(b)(c), SC-011, SC-012,
+    #                                              SC-016, SC-018, SC-023, SC-026
+    #   profundum_note_behaviour_spectral_test.cpp SC-010, SC-013, SC-014, SC-015,
+    #                                              SC-021; full grids [long]
+    unit/systems/profundum_note_behaviour_test.cpp
+    unit/systems/profundum_note_behaviour_spectral_test.cpp
+    #   profundum_core_pitch_continuity_test.cpp   SC-028 (2026-10-13 ruling): spectrum preserved across a Drop
+    unit/systems/profundum_core_pitch_continuity_test.cpp
 )
 
 target_link_libraries(dsp_systems_tests
@@ -1136,6 +1162,8 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/systems/profundum_core_excitation_nonfinite_test.cpp
         # Profundum Phase 3: injects NaN/Inf bit patterns (SC-015). The perf and chain TUs stay out (shipping FP mode, plan S7).
         unit/systems/anchor_oscillator_nonfinite_test.cpp
+        # Profundum Phase 4: injects NaN/Inf/subnormal bit patterns (SC-017). The perf TU stays out (shipping FP mode).
+        unit/processors/drop_note_behaviour_nonfinite_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 
