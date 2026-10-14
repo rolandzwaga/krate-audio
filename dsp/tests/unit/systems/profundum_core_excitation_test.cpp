@@ -396,11 +396,21 @@ TEST_CASE("ProfundumCore_ExcitationZeroMixBitIdentical", "[systems][profundum][e
     const auto noTick = [](auto&, std::size_t) {};
 
     // Renders the live core once per kZeroMix entry and the reference once with `render`, then
-    // compares both channels bit for bit.
-    const auto compare = [&](const auto& render) {
-        auto ref = std::make_unique<PT::Phase1Ref::ProfundumCore>();
-        ref->prepare(kFs);
-        const PT::Render b = render(*ref);
+    // compares both channels bit for bit. Phase 4 FR-070 (2026-10-13 ruling): the live core's pitch
+    // law changed (phase-exact coefficient changes); the frozen Phase 1 core keeps the old law, so it
+    // is the reference on static-pitch fixtures only. On pitch-motion fixtures (`pitchMotion`) the
+    // reference is a live core with the default (no-excitation) settings: mix 0 is transparent.
+    const auto compare = [&](const auto& render, bool pitchMotion = false) {
+        PT::Render b;
+        if (pitchMotion) {
+            auto refLive = std::make_unique<ProfundumCore>();
+            refLive->prepare(kFs);
+            b = render(*refLive);
+        } else {
+            auto ref = std::make_unique<PT::Phase1Ref::ProfundumCore>();
+            ref->prepare(kFs);
+            b = render(*ref);
+        }
         REQUIRE(!b.L.empty());
         PT::requireLREqual(b.L.data(), b.R.data(), b.L.size());
         std::vector<float> firstL;
@@ -459,7 +469,7 @@ TEST_CASE("ProfundumCore_ExcitationZeroMixBitIdentical", "[systems][profundum][e
                 };
                 compare([&](auto& core) {
                     return driveCore(core, PT::midGrid(), kC2, total, block, traj.data(), Policy::Reset, tick);
-                });
+                }, /*pitchMotion=*/true);   // vibrato: FR-070 law differs from the frozen Phase 1 core
             }
         }
     }
@@ -480,7 +490,7 @@ TEST_CASE("ProfundumCore_ExcitationZeroMixBitIdentical", "[systems][profundum][e
                 };
                 compare([&](auto& core) {
                     return driveCore(core, SpectralShapeRecipe::kSawAnchor, kC2, total, block, nullptr, policy, tick);
-                });
+                }, /*pitchMotion=*/policy == Policy::FreeRunning);   // FreeRunning moves pitch without a reseed
             }
         }
     }

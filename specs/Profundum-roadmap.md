@@ -204,6 +204,12 @@ at a 64-sample control interval — **`kControlInterval` = 32** shipped (D-4). M
 Heavy/Hollow/Growl within tolerance (margins 7.5 / 25.7 / 12.8 dB); aliasing ≤ −122 dB; sidebands worst −67.3 dB
 (bar −60); CPU 0.602 % of one core at 64 partials (bar 1 %). **64 partials ship** (96 measured 0.943 %, listening
 verdict "more presence in some states, no difference in others"); 96 remains reachable at `prepare`.
+**Amended 2026-10-13 (found by Phase 4, FR-070 / SC-028):** the bank re-rolled each partial's amplitude by up to ±11 dB after a
+large pitch motion (the magic-circle state kept across a coefficient change; a Phase 1 latent defect, invisible on static
+notes and ±12 st bends). Ruled as an opt-in, append-only bank fix (`setContinuousFrequencyUpdates`, default off, other
+consumers bit-identical) that `ProfundumCore::prepare` enables: the spectrum is preserved across a 48 st Drop within
+0.1 dB, Phase 1's bend residual improved from −60 to −67.6 dB against its reference re-expressed in the same law
+(Phase 1 Clarifications 2026-10-13); no Phase 1 bar changed.
 
 **Spec:** `profundum-phase1-harmonic-core`
 **Goal:** The sound source. A continuously variable harmonic spectrum under four controls that stay
@@ -351,6 +357,26 @@ voice.
 ---
 
 ### Phase 4: Drop & Note Behaviour
+
+**Status: ✅ COMPLETE (2026-10-14)** — see specs/profundum-phase4-drop-note-behaviour/compliance.md (84 pass, 2 partial, 0 fail; the
+partials are SC-020's inherited `VoragoMacro_SweepAxes` red — rho 0.8667 vs 0.9, identical on main at 89b512d1 before Phase 1, no
+Vorago file touched, carried since the Phase 2 close — and SC-021's listening verdict on `evidence/usecase-*.wav`, which only the
+user can record). Shipped: `DropCurve` (L0), `RetriggerDeclick` (L1, 1.5 ms raised-cosine dip, deferred Reset), `DropEnvelope` (L2,
+Amount 0–48 st, Time 1–4000 ms, Shape exp / lin / log / elastic damped oscillation, Rebound), `DropPhaseLock` (L2 corrector inside
+the Drop, γ ≤ 48 st, neighbour-integer target, GL8 quadrature with Illinois continuation when a solve is unconverged, staircase-aware
+predictor, per-hold mirror), `NoteMemory` (L2, four modes × Retrigger, Continue collapse accepted), `MonoHandler` GlideMode
+{ConstantTime, ConstantRate ms/octave, Quantized} append-only (Ruinae / Seraphis / Vorago / Innexus bit-identical). Rulings during
+the build: SC-015 re-ruled to the rendered aliased-power measurement (O-1), no correction ceiling below 48 st (O-4); FR-070 / SC-028
+— the bank re-rolled partial amplitudes by up to ±11 dB after large pitch motion (Phase 1 latent defect), fixed opt-in and enabled by
+the core; SC-026 scoped to the Anchor's pitch / phase / mode gain with the waveform gated after dividing out the level feed (the raw
+level swing on hard snaps, worst −8.6 dB at E0 A 48 T 10 ms, is a Phase 9 listening item); SC-010(a) recorded, the analytic
+sample-delta bound (b) is the click gate; SC-014's dip reference is the Continue one-period RMS; SC-019 levers within the existing
+bars, verdict the median of three isolated lanes. Measured: SC-013 landing |θ| ≤ 0.534° (bar 1°), drift ≤ 0.047° (bar 0.5°); FOLLOW
+0.010°; SC-015 worst −123.65 dBFS (bar −96); SC-010(b) worst ratio 0.85 (bar 1), positive controls 1.99 / 1.99 / 2.11; SC-028 spectrum
+across a 48 st Drop within 0.1 dB; SC-019 **0.0286 %** alone at close (median of three lanes 0.0357 %, bar 0.05 %), trigger-cost
+ratios 1.06 / 1.17 (bars 2 / 1.5); use-case renders pairwise distinct (start pitch ≥ 12 st or t_s ratio ≥ 3.2 against bars 6 / 2).
+Workflow lessons encoded: resume keys are chain-hashed (prompt edits mid-run re-run the tail), gate targets derive from the test TUs,
+remediation triages wording / evidence / behaviour.
 
 **Spec:** `profundum-phase4-drop-note-behaviour`
 **Goal:** The pitch exciter and the recurring bass-instrument problems made explicit. DROP exists for
@@ -555,6 +581,8 @@ in FOLLOW (Phase 3 Q3, Q4). The Anchor–h1 lock is measured in the 30 min soak 
 core spectral controls (Phase 3 C-5 residual). Inside the voice, the core's output is bit-identical with
 the Anchor attached and detached, and the core + Anchor sum is a plain add with no compensation or
 normalisation stage (Phase 3 FR-025, SC-024(d)).
+**Phase 4 handoff (C-9, C-10, O-2; O-1 ruled 2026-10-12):** no slope bound is needed under the rendered gate; the
+tail upswing figure 0.418 st/sample is recorded for Phase 9's own aliasing measurement.
 
 ---
 
@@ -599,7 +627,9 @@ pitch-bend range, sustain); pluginval + full round-trip tests including both mor
 operations on the two snapshots, not parameters (the compare must not write state); the Morph position ramp time
 is registered if Phase 8 exposes it; the Motion target set registered in 900–999 covers Mass and the core spectral
 controls first (no general matrix). **Amended 2026-10-12 (Phase 3 SC-022 PASS):** `anchorFoldFeed` is
-registered in the 300–399 anchor block.
+registered in the 300–399 anchor block. **Amended 2026-10-13 (Phase 4 FR-027, SC-027):** "The single portamento knob is labelled per Glide
+Mode: milliseconds for ConstantTime (the whole glide), milliseconds per octave for ConstantRate, milliseconds for Quantized
+(the whole underlying ramp). `MonoHandler` has no second glide setter (Phase 4 FR-026)."
 
 ### Phase 12: UI
 

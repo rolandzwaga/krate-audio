@@ -1,0 +1,33 @@
+T018 - SC-019 / SC-025 cost cases and the isolated CPU run (FR-066, D-9, C-16)
+Date: 2026-10-12   Branch: synth/profundum
+
+STATUS: cases WRITTEN; build and isolated CPU run NOT YET EXECUTED (the implementing agent was barred from
+building or running; the build agent / CPU lane runs them). No figure below is measured yet. Do not mark
+T018 done until section 2 holds real output.
+
+=== 1. Cases (dsp/tests/unit/processors/drop_note_behaviour_perf_test.cpp, tag [processors][profundum][drop][.perf]) ===
+- ProfundumNoteBehaviour_CpuBudget (SC-019, gate <= 0.05 %): per voice, 48 kHz, host block 64, 60 s of audio,
+  one warm-up + 5 timed runs, median. Load: DropEnvelope A 24, T 200 ms, s 1 (elastic), R 1, retriggered every
+  100 ms (4800 samples = 75 blocks) alternating snap / bridged; DropPhaseLock trigger (SnapReset / Bridged,
+  f_res = the held note, minF0 8 Hz, cap 0.4 fs, gridPhase on the 16-sample grid) + the solving process();
+  a NoteMemory::resolve per event; RetriggerDeclick armed per event; MonoHandler Quantized glide E1 <-> E3
+  (24 st, 500 ms) restarted every 1 s. Prints pct, ns/sample, worst single solve (us, the first lock sample
+  after each event timed alone) and, recorded only, E-4 every-sample bridged retrigger us/sample (100 ms render,
+  median of 5).
+- DropPhaseLock_TriggerCost (SC-025, gate T4000 <= 2 x T1): trigger + solving process(), A 48, s 1, R 1, bridged
+  from mid-fall (480 samples) of a running SnapReset T = 20 ms plan (carry live), f_res E1; 500 solves per batch,
+  each timed alone after restoring the primed lock (copy outside the interval), median of 5 batches. The T = 1 ms
+  arm is the S5.4 worst-case solve (recorded in us).
+- DropPhaseLock_TriggerBurst (S5.4, gate burst <= 1.5 x single): the same worst-case trigger, 64 triggers at one
+  offset + one process() against one trigger + process(), same batching.
+
+=== 2. Run (TO BE FILLED by the isolated run) ===
+Build:   "C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target dsp_processors_tests
+Run:     node tools/run-cpu-tests.js dsp_processors_tests   (nothing else running; log to scratchpad)
+Quote the PROFUNDUM_DROP_PERF lines here:
+  SC-019 pct / ns_per_sample / worst_solve_us / e4_us_per_sample : NOT MEASURED
+  SC-025 T1_us / T4000_us / ratio                                : NOT MEASURED
+  S5.4 burst single_us / burst64_us / ratio                      : NOT MEASURED
+R-1 levers applied by T018: none (drop_phase_lock.h / drop_envelope.h untouched). A red gate: re-run alone after
+the machine idles; if still red, apply the next unused R-1 lever, re-run T011-T017's cases, re-measure. Never
+relax the bar.

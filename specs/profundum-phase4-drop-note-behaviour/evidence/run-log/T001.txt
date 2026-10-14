@@ -1,0 +1,140 @@
+T001 - ODR re-sweep and model evidence reproduction (read-only; plan R-8, S10)
+Date: 2026-10-12   Branch: synth/profundum   HEAD: 3d8ca19f   Machine: 32 logical cores
+
+=== 1. ODR sweep (Phase 4 new names) ===
+Command (repo root, Git Bash):
+  grep -rnE "(class|struct|enum class|enum|using) (DropCurve|DropEnvelope|DropPhaseLock|NoteMemory|RetriggerDeclick|GlideMode|NoteBehaviourHarness|MonoRefPrePhase4|DropC1Segment|PieceKind|TriggerKind|PhasePolicy)\b" dsp plugins tests tools
+Output: (none)   grep exit status 1 (no match)
+Verdict: PASS. Zero hits of any kind - no namespace-scope hit for the first nine names and no nested
+hits for DropC1Segment / PieceKind / TriggerKind / PhasePolicy either. Nothing to record as nested.
+
+=== 2. Hazard-name census (must not be reused by Phase 4) ===
+Command:
+  grep -rnE "(class|struct|enum class|enum|using) (CharacterProcessor|SubOscillator|StereoField|MorphEngine|MorphNode|TransientDetector|HarmonicCloud|SpectralState|MacroMapper|RetriggerMode|PortaMode)\b" dsp plugins
+Output (existing owners; Phase 4 names above are all distinct from these):
+  dsp/include/krate/dsp/primitives/envelope_utils.h:64:enum class RetriggerMode : uint8_t {
+  dsp/include/krate/dsp/processors/mono_handler.h:63:enum class PortaMode : uint8_t {
+  dsp/include/krate/dsp/processors/spectral_state.h:44:struct SpectralState {
+  dsp/include/krate/dsp/processors/sub_oscillator.h:111:class SubOscillator {
+  dsp/include/krate/dsp/processors/transient_detector.h:34:class TransientDetector : public ModulationSource {
+  dsp/include/krate/dsp/systems/character_processor.h:85:class CharacterProcessor {
+  dsp/include/krate/dsp/systems/harmonic_cloud.h:127:class HarmonicCloud {
+  dsp/include/krate/dsp/systems/stereo_field.h:73:class StereoField {
+  plugins/disrumpo/src/dsp/morph_engine.h:45:class MorphEngine {
+  plugins/disrumpo/src/dsp/morph_node.h:26:struct MorphNode {
+  plugins/membrum/src/processor/macro_mapper.h:29:class MacroMapper
+Verdict: PASS. None of the Phase 4 planned names equals a hazard name, RetriggerMode or PortaMode.
+
+=== 3. Model evidence: drop-model.js, nine sections run concurrently ===
+Launch: each section as a background job writing its own scratchpad log, then `wait`.
+  node specs/profundum-phase4-drop-note-behaviour/drop-model.js shape
+  node ... integral
+  node ... lock2all
+  GLN=8 GLS=2 GLS_LONG=4 node ... lock3 4
+  node ... perSample
+  node ... slope
+  node ... nyquist
+  node ... glide
+  node ... bound
+All nine exited rc=0. Total wall clock (launch -> wait returns): 57 s (9 of 32 cores busy).
+Per-section wall clock (log mtime minus common launch time, +/- ~0.5 s; the in-script
+timer failed because `bc` is absent in Git Bash, so these are derived from file mtimes):
+  nyquist 0.2 s | glide 0.3 s | shape 1.1 s | integral 3.7 s | lock3 10.6 s | perSample 11.5 s
+  slope 36.7 s | lock2all 37.0 s | bound 57.0 s   (bound is the critical path; serial sum ~158 s)
+Next-time note: bound alone sets the wall clock; sharding it by rate/T would cut the run to ~37 s.
+
+--- Full section output ---
+== shape (SC-001/SC-003 feasibility) ==
+  exp: alpha=0.12495 min p on [0,1]=0.000e+0 monotone=true p'(0)=-8.0000 p'(1)=0.0000
+  lin: alpha=0.49979 min p on [0,1]=0.000e+0 monotone=true p'(0)=-1.0000 p'(1)=0.0000
+  log: alpha=0.87338 min p on [0,1]=0.000e+0 monotone=true p'(0)=0.0000 p'(1)=0.0000
+  el: alpha=0.87370 min p on [0,1]=0.000e+0 monotone=true p'(0)=0.0000 p'(1)=-1.5000
+  exp ln p R^2=1.000000000 fitted rate=8.0000
+  log ln(1-p) R^2=1.000000000
+  lin max|p-(1-u)| on [0.05,0.95]=0.000e+0
+  s=0.000 R=0: rho=0.000000 law=0.000000 first d<=0 at u=1.0000 zero-crossings after=0 peaks=0.0000 end=1.000
+  s=0.333 R=0: rho=0.000000 law=0.000000 first d<=0 at u=1.0000 zero-crossings after=0 peaks=0.0000 end=1.000
+  s=0.667 R=0: rho=0.000000 law=0.000000 first d<=0 at u=1.0000 zero-crossings after=0 peaks=0.0000 end=1.000
+  s=0.833 R=0: rho=0.075000 law=0.075000 first d<=0 at u=1.0000 zero-crossings after=2 peaks=-0.0750,0.0337,-0.0152 end=1.750
+  s=1.000 R=0: rho=0.150000 law=0.150000 first d<=0 at u=1.0000 zero-crossings after=2 peaks=-0.1500,0.0675,-0.0304 end=2.000
+  s=0.000 R=0.5: rho=0.125000 law=0.125000 first d<=0 at u=0.2747 zero-crossings after=0 peaks=-0.1250 end=1.500
+  s=0.333 R=0.5: rho=0.125000 law=0.125000 first d<=0 at u=0.8889 zero-crossings after=0 peaks=-0.1250 end=1.500
+  s=0.667 R=0.5: rho=0.125000 law=0.125000 first d<=0 at u=0.9774 zero-crossings after=0 peaks=-0.1250 end=1.500
+  s=0.833 R=0.5: rho=0.200000 law=0.200000 first d<=0 at u=0.9780 zero-crossings after=2 peaks=-0.2000,0.0337,-0.0152 end=1.750
+  s=1.000 R=0.5: rho=0.275000 law=0.275000 first d<=0 at u=0.9787 zero-crossings after=2 peaks=-0.2750,0.0675,-0.0304 end=2.000
+  s=0.000 R=1: rho=0.250000 law=0.250000 first d<=0 at u=0.2012 zero-crossings after=0 peaks=-0.2500 end=1.500
+  s=0.333 R=1: rho=0.250000 law=0.250000 first d<=0 at u=0.8000 zero-crossings after=0 peaks=-0.2500 end=1.500
+  s=0.667 R=1: rho=0.250000 law=0.250000 first d<=0 at u=0.9672 zero-crossings after=0 peaks=-0.2500 end=1.500
+  s=0.833 R=1: rho=0.325000 law=0.325000 first d<=0 at u=0.9675 zero-crossings after=2 peaks=-0.3250,0.0337,-0.0152 end=1.750
+  s=1.000 R=1: rho=0.400000 law=0.400000 first d<=0 at u=0.9679 zero-crossings after=2 peaks=-0.4000,0.0675,-0.0304 end=2.000
+  shape continuity 192 steps: max|dp|=0.00961 (bar 0.025)
+
+== integral (SC-024: GL vs brute force, relative) ==
+  GL8 (x1 on [DF,1-DF]): worst rel err 1.119e-3 at A=48 s=0.0000 R=1 bridged=false
+  GL8 (x4 on [DF,1-DF]): worst rel err 8.694e-9 at A=48 s=0.0000 R=1 bridged=false
+  GL16 (x4 on [DF,1-DF]): worst rel err 5.833e-14 at A=12 s=0.0000 R=0.5 bridged=true
+  GL24 (x4 on [DF,1-DF]): worst rel err 5.713e-14 at A=12 s=0.0000 R=0.5 bridged=true
+
+== lock2: clamp-aware single-stage, nearest-feasible target, rates 44100/48000/96000 ==
+  clamp-aware open-loop prediction error (uncorrected): worst 0.6986 deg at C3 A=48 T=0.01 s=0.00 R=1
+  required |gamma| census by T (counts): {"10ms":{"le3":169,"le12":140,"le24":62,"le48":13,"inf":0,"n":384,"maxG":47.9},"60ms":{"le3":339,"le12":45,"le24":0,"le48":0,"inf":0,"n":384,"maxG":9.78},"200ms":{"le3":377,"le12":7,"le24":0,"le48":0,"inf":0,"n":384,"maxG":4.47},"1000ms":{"le3":384,"le12":0,"le24":0,"le48":0,"inf":0,"n":384,"maxG":0.48}}
+  corrected landing worst |theta| (|gamma| le12) = 0.7116 deg at C3 fs=44100 A=48 T=0.01 s=0.00 R=1 g=10.38
+  corrected landing worst |theta| (|gamma| gt12) = 0.4554 deg at E2 fs=44100 A=48 T=0.01 s=0.00 R=1 g=19.33
+
+== lock3 hybrid M0=4, rates 44100/48000/96000: prediction error worst 0.2183 deg at C3 fs=48000 A=48 T=0.01 s=0.67 R=0; corrected |theta| worst 0.2186 deg at C3 fs=48000 A=48 T=0.01 s=0.67 R=0 g=0.49
+
+== perSample (U=1, GL8, M0=4): worst |sum - predicted| = 1.413e-5 cycles at C3 fs=44100 A=48 T=0.001 s=0.67 R=0.5 Phi=1.5225
+
+== slope (sigma_up = 0.15) rates 44100/48000/96000: uncorrected curve worst upward step 0.4178 st/sample at E0 fs=44100 A=48 T=0.01 s=1.00 R=1
+  cells where no landing target meets the slope cap: {"10ms":{"n":384,"capBinds":23,"cells":["E0/44100/A24/s1.00/R1/g15.2","E0/44100/A48/s0.00/R0/g38.1","E0/44100/A48/s0.00/R1/g47.8","E0/44100/A48/s1.00/R1/g-6.2"]},"60ms":{"n":384,"capBinds":0,"cells":[]},"200ms":{"n":384,"capBinds":0,"cells":[]},"1000ms":{"n":384,"capBinds":0,"cells":[]}}
+
+== nyquist (SC-015: slope bound per pitch-update interval) ==
+  max rise between mask build and next pitch update: 12*log2(1/0.8) = 3.8631 st over 16 samples -> 0.24145 st/sample
+  sigma_up = 0.15: continuous laws rise <= 2.40 st/16 samples; quantized output <= floor(2.40)+1 = 3 st
+  bridge rise from 0 to A=12 at fs=44100: 120 samples = 2.72 ms
+  bridge rise from 0 to A=48 at fs=44100: 480 samples = 10.88 ms
+  bridge rise from 0 to A=12 at fs=48000: 120 samples = 2.50 ms
+  bridge rise from 0 to A=48 at fs=48000: 480 samples = 10.00 ms
+  bridge rise from 0 to A=12 at fs=96000: 120 samples = 1.25 ms
+  bridge rise from 0 to A=48 at fs=96000: 480 samples = 5.00 ms
+
+== glide (SC-007/SC-008 double-counter laws) ==
+  constant-rate duration error worst 0.000 samples (bar 1); quantized step-time error worst 1 samples (bar 1)
+
+== bound (solver-independent gamma_an), rates 44100/48000/96000: 1536 cells, 5 unbounded, 0 with |gamma| > 1.05 gamma_an
+  worst |gamma|/gamma_an = 1.0192 at C3 fs=44100 A=48 T=0.01 s=1.00 R=1 g=-0.047 gan=0.046
+  ratio range by T: {"10ms":{"maxRatio":1.0192,"minRatio":0.6025,"minCell":"E1/48000/A48/s0.00/R1/g-24.80/gan41.15","lt05":0,"lt09":106},"60ms":{"maxRatio":1,"minRatio":0.8487,"minCell":"E0/96000/A6/s0.67/R0/g8.63/gan10.17","lt05":0,"lt09":12},"200ms":{"maxRatio":1,"minRatio":0.9162,"minCell":"E0/48000/A48/s0.00/R1/g4.47/gan4.88","lt05":0,"lt09":0},"1000ms":{"maxRatio":1.0002,"minRatio":0.9905,"minCell":"E0/96000/A24/s0.00/R1/g0.45/gan0.45","lt05":0,"lt09":0}}
+
+=== 4. Comparison against plan S10 (plan.md:942-962), to the plan's printed precision ===
+| Item | Plan S10 | Measured | Match |
+|---|---|---|---|
+| shape alpha exp/lin/log/el | 0.12495 / 0.49979 / 0.87338 / 0.87370 | 0.12495 / 0.49979 / 0.87338 / 0.87370 | yes |
+| shape R^2 exp, log | 1.000000000 | 1.000000000, 1.000000000 | yes |
+| shape linear deviation | 0 | 0.000e+0 | yes |
+| shape rho = law (6 dp) cells | 15 | 15 of 15 equal | yes |
+| shape elastic peaks per unit A | -0.15, +0.0675, -0.0304 | -0.1500, 0.0675, -0.0304 (s=1,R=0) | yes |
+| shape zero crossings | 2 | 2 | yes |
+| shape continuity max |dp| | 0.00961 | 0.00961 | yes |
+| integral GL8x1 / GL8x4 / GL16x4 | 1.1e-3 / 8.7e-9 / 5.8e-14 | 1.119e-3 / 8.694e-9 / 5.833e-14 | yes |
+| lock2all predictor worst | 0.70 deg | 0.6986 deg | yes |
+| lock2all corrected theta | <= 0.71 deg | 0.7116 (|g|<=12), 0.4554 (|g|>12) | yes at 2 dp (0.7116 -> 0.71) |
+| lock3 4 prediction / corrected | 0.218 / 0.2186 deg | 0.2183 / 0.2186 deg | yes |
+| perSample worst | 1.41e-5 cycles | 1.413e-5 cycles | yes |
+| slope uncorrected upswing | 0.418 st/sample | 0.4178 st/sample | yes |
+| slope infeasible cells at T=10 ms | 23 of 384 | capBinds 23, n 384 (60/200/1000 ms: 0) | yes |
+| nyquist bound | 3.8631 st / 16 samples | 3.8631 st | yes |
+| nyquist sigma_up 0.15 | 2.40 st (3 st quantized) | 2.40 st, 3 st | yes |
+| nyquist bridge rise A=48 | 480 samples | 480 samples (all rates) | yes |
+| glide | 0 samples / <= 1 sample | 0.000 / 1 sample | yes |
+| bound cells, over 1.05 gamma_an | 1536, 0 | 1536, 0 | yes |
+| bound worst ratio | 1.0192 | 1.0192 | yes |
+| bound min ratio T=10/60/200/1000 | 0.60 / 0.85 / 0.92 / 0.99 | 0.6025 / 0.8487 / 0.9162 / 0.9905 | yes |
+| bound unbounded cells | 5 | 5 | yes |
+
+Verdict: NO MISMATCH. Every S10 figure reproduces to the plan's printed precision.
+Remark: the lock2all corrected worst is 0.7116 deg; the plan states "<= 0.71 deg", which holds at the
+plan's 2-dp precision but not strictly (0.7116 > 0.7100). Downstream bars should use the measured 0.7116.
+
+Not in T001's scope: S10.7 CPU estimate (header says "to be measured by T001") - T001 is read-only with no
+build; the measurement belongs to the CPU lane once the components exist. GL8x1 lock3 variant (0.66 deg)
+was not run (not in the T001 command list).

@@ -1,0 +1,24 @@
+T003 - SC-020 append-only + public-surface checker (check-append-only.js)
+Date: 2026-10-12  Tree: synth/profundum @ 3d8ca19f (mono_handler.h unmodified vs 3d8ca19f)
+
+$ node specs/profundum-phase4-drop-note-behaviour/check-append-only.js --self-test
+ok   (i) removed line -> check 1 FAIL
+ok   (i-control) pure addition -> check 1 PASS
+ok   (ii) extra public preciseRetime -> check 2 FAIL
+ok   (iii) only setGlideMode -> check 2 FAIL (missing glideMode)
+ok   (iv) exactly the two public + private processPreciseGlide -> check 2 PASS
+ok   (iv-info) GlideMode listed as namespace-scope addition
+self-test: PASS
+exit=0
+
+$ node specs/profundum-phase4-drop-note-behaviour/check-append-only.js
+check-append-only: dsp/include/krate/dsp/processors/mono_handler.h vs 3d8ca19f
+check 1 (no removed line): PASS
+check 2 (public surface): FAIL (missing setGlideMode, glideMode; added public: (none))
+INFO: no namespace-scope additions
+exit=1
+
+Sanity: public names the walker extracts from today's MonoHandler (base == working):
+  kMaxStackSize, kDefaultSampleRate, kMinPortamentoTimeMs, kMaxPortamentoTimeMs, MonoHandler, prepare, noteOn, noteOff, setPortamentoTime, processPortamento, getCurrentFrequency, setMode, setLegato, setPortamentoMode, hasActiveNote, reset
+
+Verdict: self-test exits 0 (all four synthetic cases behave as stated, plus controls); plain run prints check 1 PASS and check 2 FAIL (missing setGlideMode, glideMode) - expected before T007.

@@ -134,6 +134,10 @@ public:
 
         // Step 2: bank_.prepare resets the bank.
         bank_.prepare(sr);
+        // Phase 4 (2026-10-13, user ruling): pitch updates keep every partial's amplitude and
+        // phase exact across the MCF coefficient change (bank opt-in; default off elsewhere).
+        // Without it a 48-semitone Drop re-rolled partial levels by up to ±11 dB.
+        bank_.setContinuousFrequencyUpdates(true);
 
         // Step 4: cap and the shape-step ceiling, Δmax = 375·√P0·kControlInterval/fs (0.125594 at 48 kHz).
         capHz_ = SpectralShapeRecipe::capFrequency(sr);

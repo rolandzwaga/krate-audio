@@ -191,6 +191,18 @@ The user ratified every plan S1 amendment after reading its proof; the amended w
 
 ---
 
+### Session 2026-10-13 — SC-010 reference law under Phase 4 FR-070 (main loop, consequence of a user ruling)
+
+- Phase 4 found that the bank re-rolled each partial's amplitude by up to ±11 dB after a large pitch motion (MCF state kept
+  across a coefficient change; `specs/profundum-phase4-drop-note-behaviour/evidence/growl-probe.md`) and the user ruled an
+  opt-in, append-only bank fix that `ProfundumCore::prepare` enables (Phase 4 FR-070). The core's pitch law is therefore
+  phase-exact at every pitch update with the state amplitude following the bank's 1/cos(ω/2) convention. SC-010's reference
+  synthesis ("the same frequency law") applies the same rewrite in double at every coefficient change
+  (`profundum_core_test_helpers.h` renderReference), so the residual stays the pitch-update quantisation only. Re-measured:
+  SC-010(a) ±12 semitone bend residual **−67.6 dB re core RMS, 0 clicks** (was −60 dB / 0 with the keep-state law and its
+  keep-state reference); every other Phase 1 case unchanged (static notes are bit-identical: the first render after a seed adopts
+  the coefficient without a rewrite). No bar changed. [SC-010, FR-043]
+
 ## Existing components (verified this session)
 
 Every row was opened and read on 2026-10-09; the signature column quotes the header.

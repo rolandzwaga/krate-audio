@@ -1,0 +1,405 @@
+T023 - Resolve "Defects found" (epoch 5, 2026-10-13)   Branch: synth/profundum
+Raw logs: F:/tmp/p4fix/e5/ (r2 = after the bit-identical CPU changes, r4 = after the solve fix, r5 = after the SC-010(b)
+bound fix; cpu1/2/3 = official CPU lanes). Not in the repo.
+
+VERDICT: BLOCKED. Fixed in the tree: SC-013 E0 landing (component), SC-010(b) steady-bound pitch range (harness), the
+SC-019 per-sample paths (bit-identical) and the perf harness's float-sum dependency. Four items need a ruling from the
+user, because each one contradicts a ratified bar or design:
+  (A) Anchor output memcmp (SC-026 / SC-013(b) in the test) is impossible while a1 comes from the core;
+  (B) SC-010(a) / SC-021 ClickDetector with defaults flags the steady, transition-free core;
+  (C) SC-014 Retrigger "Reset min RMS <= Continue min RMS - 20 dB" over [arm, eff + 1 period];
+  (D) SC-019 0.05 % is marginal: 0.0470 / 0.0530 / 0.0514 % on three official runs.
+In addition, SC-010(b) breaches remain at C3 / E2 (see item 2b). These come from core transients, not from Phase 4.
+
+=== 0. Re-measure (12:05-12:10, tree = FR-070 + item 8; 17 processes concurrent, wall 290 s) ===
+per-push "[note-behaviour]~[performance]~[perf]~[benchmark]~[!benchmark]~[long]": 22 cases | 16 passed | 6 failed,
+  167 failed assertions: AnchorUntouched (:1439/:1440 x3 modes), PostDropLandingSmoke (spectral :502/:503 x50),
+  RetriggerClickFreeSmoke (:1389 x32), GlideClickFree (:1569 x20), UseCaseRenders (:2589 x8), Audibility (:2395 x1).
+[long]: TrajectoryNyquist PASS (4440 assertions), FollowAfterDrop PASS (9908), NoAllocation PASS (7);
+  PostDropLanding_E0/E1/E2/C3/PunchGhostE1: theta and drift green except 2 E0 cells (:467); every other red is :502/:503;
+  RetriggerClickFree_* and GlideClickFree_*: ClickDetector (:1389 / :1569) everywhere, the SC-010(b) bound (:1413 / :1583)
+  at C3 and E2.
+
+=== 1. Item 1 (SC-015 TrajectoryNyquist): RESOLVED by FR-070 + item 8, no further change ===
+"SC-015 grid: 384 cells, worst aliased -123.65 dBFS (sc015-96000-E1-kSawAnchor.csv drop-A48-T1-s0.333-R1-bypass; bar -96)".
+The triage cell: "kGrowl E1 fs 44100 bridge-midfall-up5-A48-T1-R1-lock: aliased -135.68 dBFS" (was -29.98), bypass -135.57.
+
+=== 2. Item 2 (SC-010 clicks) ===
+2a. The event list is correct, so this is not a bookkeeping defect: every detection really is nearest to event 0. The detector
+  flags the waveform itself. Probe (temporary case, removed): core + LOCK Anchor, steady, no transition, 0.5 s after 0.5 s
+  settle, ClickDetector documented defaults (artifact_detection.h:38-44):
+    note fs     kSawAnchor (core+anchor / core only)   kGrowl
+    E0  44100   12 / 17                                 15 / 15
+    E1  44100   27 / 30                                 41 / 41
+    E2  44100   42 / 42                                 84 / 84
+    C3  44100   65 / 65                                 65 / 65
+    E1  48000   27 / 30                                 39 / 39
+    C3  96000   81 / 92                                 115 / 115   (full table: all 24 cells > 0)
+  The 5-sigma derivative-outlier detector (512-sample frames) fires on the band-limited saw / growl edge of every
+  period. SC-010(a)'s "zero clicks with documented defaults", and SC-021's "zero clicks (SC-010 method)" with it, cannot be
+  met by any Phase 4 component. -> DECISION (B).
+2b. SC-010(b) at C3 / E2. t22DeltaBound took the steady D, P at the window's f_top key only ("a higher f only raises D").
+  That assumption is false once the partials reach the cap. FIXED (harness): the per-term maximum over every 1/8-semitone key
+  that the window's trajectories cover. Effect (r4 -> r5): retrigger C3 1011 -> 543 windows over the bound (worst ratio 2.2586
+  -> 1.5459), E2 351 -> 324 (1.9718 -> 1.6710); glide C3 1068 -> 744 (2.0466 -> 1.5736), E2 576 -> 336 (1.4038 -> 1.2307);
+  E0 and E1 stay at 0. The positive controls still fail as required: (a)(b) 1.98, (b) 1.98, (c) 2.10.
+  Remaining: e.g. "E2 fs 44100 kGrowl FOLLOW ... EnvelopeRetriggerOnly/Reset matrix: Tail at 339570: max|dy| 2.148706 at
+  339618 > bound 1.285856". These sit 48-150 samples after a Drop snap of +12 st, and come from the core's shape slew
+  (Phase 1 S4.5). After a pitch jump, the delivered shape still carries partials that the steady mask at the new pitch
+  tapers, so the transient |dy| exceeds every steady reference in the window. Not a Phase 4 defect. Before item 8(c)
+  made G per-sample, the bound was loose enough to hide it.
+  -> DECISION (B'): SC-010(b)'s D model (steady references) vs the core's slew after a Drop snap.
+
+=== 3. Item 3 (SC-013 / SC-026) ===
+3a. theta / drift: green on every shard after FR-070 and item 8(b), except 2 cells:
+  "LOCK E0 fs 44100 A 48 T 10 ms s 0 R 1": theta 3.830 deg, residual 9.751e-03 cycles
+  "LOCK E0 fs 48000 A 48 T 10 ms s 0 R 1": theta -23.517 deg, residual 6.630e-02 cycles
+  Diagnosis: the S5.4 solve stopped at its Newton budget unconverged (gamma 47.98 / 46.50 st, gamma_an unbounded).
+  FIXED (drop_phase_lock.h): a candidate still above kContinuationThresholdCycles = 1e-6 after the Newton budget continues
+  by Illinois false position on the kept bracket (<= 24 evaluations, best point kept). Below 1e-6 the residual is the float
+  floor of the exact lead updates (~1e-8), and those solves are unchanged. A first version with a 1e-9 entry ran the
+  continuation on that floor, which moved SC-025's T1 solve from 7.6 to 27.4 us; the threshold version is back at 7.357 us.
+  After the fix: theta 0.328296 / 0.329096 deg, residual 7.556e-10 / 8.071e-14.
+  Shards (r4): E0 worst |theta| 0.354723 deg, drift 0.010450; E1 0.448655 / 0.013953; E2 0.534086 / 0.024330;
+  C3 0.500401 / 0.046686; PunchGhostE1 0.448655 / 0.013953 (bar 1.0 / 0.5); bypass worst > 179 deg everywhere.
+  Readings vs r2: only the cells whose residual was > 1e-6 changed (the 2 E0 cells, and 5 T = 1 ms SC-015 trajectories by
+  <= 2 dB, all < -131 dBFS).
+  |gamma| per Time (O-4): E0 47.9027 / 9.7773 / 4.4691 / 0.4771; E1 30.1953 / 6.3026 / 1.5748 / 0.2885;
+  E2 19.8292 / 2.8773 / 0.8124 / 0.2287; C3 11.1185 / 1.6051 / 0.3546 / 0.1428 st at T 10 / 60 / 200 / 1000 ms.
+3b. FOLLOW (SC-026): "128 cells, worst |dTheta(t_s + 1 s)| 0.010176 deg (bar 1.0), worst 60 s drift 0.080788 deg".
+  Green. The triage's "constant -1.6 deg offset" is gone (item 8(b) estimator).
+3c. R-2 probe (recorded, not gated, plan R-2): the rendered theta sits about +0.33 deg from the staircase prediction in most
+  cells. Gap > 0.3 deg: E0 192 / 384 cells (worst 0.3538), E1 240 / 384 (0.4466), E2 157 / 384 (0.4436),
+  C3 320 / 384 (0.4687), PunchGhostE1 456 / 768 (0.4466). Every gated theta stays <= 0.534 deg.
+3d. Anchor memcmp (spectral :502/:503 every shard; AnchorUntouched :1439/:1440). The Anchor's phase() trace IS
+  bit-identical (:501 green), but its output is not. Probe: the harness fed a1 = 0.5f constant instead of
+  core.deliveredGains()[0] * kCenterPanGain (deviation 6). AnchorUntouched then reads "All tests passed (45 assertions)"
+  and the output difference is 0 in LOCK, PUNCH and GHOST. With the real feed the difference starts at sample 1:
+  max |diff| 8.01e-05 against a peak 0.2518 (LOCK / GHOST) and 1.23e-04 against 0.3775 (PUNCH), about -70 dB.
+  Cause: SpectralShapeRecipe::applyMask renormalises to P0 (spectral_shape_recipe.h:190-206), and the cap and low-guard
+  mask depends on f (:149-188). So h1's delivered gain moves with the corrected core pitch, and the Anchor's level follows
+  it (Phase 3 design: Anchor level relative to core h1). SC-026 asks for "output bit-identical" with the lock enabled vs
+  bypassed. That cannot hold while a1 comes from the core. -> DECISION (A).
+
+=== 4. Item 4 (NoAllocation): RESOLVED by item 8(a): "All tests passed (7 assertions in 1 test case)" ===
+
+=== 5. Item 5 ===
+DeclickPositiveControl: PASS (ratios 1.98 / 1.98 / 2.10, after item 8(c)). Audibility t_s: PASS (item 8(d)).
+Audibility Retrigger, onset 2 (ReturnToHeld at 115200, effective 115271): D 5.73 dB (bar >= -10, green), min 0.25 ms RMS
+  Reset -51.74 dB vs Continue -53.71 dB (bar: Reset <= Continue - 20). Sample dump around the effective sample: the declick is
+  correct (g exactly 0 at 115271, y_Reset 0.0f there). But the dip falls where the saw is near its peak (core -0.44 x env 0.3),
+  so the 12-sample window around the zero reads -52 dB. The window [arm, eff + 1 period] always contains a full period of
+  the Continue render, and therefore a zero crossing; its minimum 0.25 ms RMS there is -53.7 dB. At onset 1 the same
+  measurement passes (-69.98 vs -47.98) only because the Continue window missed a slow crossing. Whether the bar passes depends
+  on the waveform phase, not on the declick. -> DECISION (C).
+
+=== 6. Item 6 (SC-019) ===
+(a) Profile (temporary [.p4diag] case in the perf TU, removed; pinned 0xFFFF, the SC-019 load, 60 s at 48 kHz, block 64).
+  Values are ns/sample: one row per stage.
+  stage                                   env   lock/sample  solve  glide  declick  memory  full
+  before (medians of 5, 2 passes)         3.4-5 7-8          2.8-3.3 1.9-2.6 0.6-1.0 0.05   16-22
+  after bit-identical (b), min of 15      2.4   ~3.3         ~2.3   1.8    0.5      0.05   10.1-10.5
+  T005 bench (clang, 2026-10-12)          2.93  1.91         2.57   1.16   0.07     -      ~8.3
+  Bar 0.05 % = 10.42 ns/sample. The full figure includes the solve, at about 10-14 us per event at the 100 ms cadence.
+  Residual over the load: 0 of 9600 solves above 1e-9 cycles (max 7.86e-10), so the solve is not stuck at its cap.
+  Harness bookkeeping in the timed region: the per-sample `fSum +=` (a loop-carried float add) -> FIXED, now stored per
+  block. The 2 clock reads per event for the worst-solve figure stay (about 0.01 ns/sample).
+(b) Changes, bit-identical. Readings were diffed per log: r2 vs pre-change, 0 changed lines in every shard and per-push
+  run except the source-size line of the S9 scan.
+  - drop_phase_lock.h: one shared run() loop for process()/processBlock(), with the hot state in locals (MSVC: out[] stores no
+    longer force reloads), and an int64 counter conversion. correct()/mirror() folded into it. The bracket ends
+    Phi(-48) / Phi(+48) are evaluated once per solve and shared by both candidates.
+  - drop_envelope.h: one run() loop for process()/processBlock(), with the state and the current piece in locals.
+  - drop_note_behaviour_perf_test.cpp: no float sum in the timed loop.
+  Not done, because these change readings: per-hold mirror accumulation (T005 ruling (ii) asks for it; "SC-024 is the judge");
+  lazy bracket ends (lever (4)-like).
+Official lane `node tools/run-cpu-tests.js dsp_processors_tests` (nothing else running; the rule's median of 5 is inside the case):
+  cpu1 12:32-12:40 (after the bit-identical changes): PASS  "SC-019 pct=0.0470 ns_per_sample=9.801 worst_solve_us=78.800",
+       SC-025 ratio 1.076 (T1 7.599 us), burst 1.031
+  cpu2 12:51-13:00 (continuation, 1e-9 entry):  FAIL  "SC-019 pct=0.0530 ns_per_sample=11.050", SC-025 T1 27.437 us
+  cpu3 13:09-13:18 (final code):                FAIL  "SC-019 pct=0.0514 ns_per_sample=10.703 worst_solve_us=24.100",
+       SC-025 T1 7.357 / T4000 7.762 us ratio 1.055, burst 1.137; also spectral_smear_perf_test.cpp(632) 28174.2 <= 25500
+       (green in cpu1 and cpu2, untouched code: back-to-back thermal state)
+  Direct pinned single-case runs of the same code: 0.0521 / 0.0553 / 0.0694 %.
+  T028 before: 0.0843 / 0.0709 %. The per-sample cost dropped by about 30 %. The verdict flips around the bar.
+  -> DECISION (D).
+
+=== 7. Item 7: T026's epoch-2 filter "~[performance]~[perf]~[benchmark]~[!benchmark]~[long]~[.perf]" includes
+~[performance] (tasks.md T026 RE-EXECUTION). Verified, no change. ===
+
+=== 8. Final per-push run (r5, final tree, wall 89 s) ===
+22 cases | 16 passed | 6 failed, 167 assertions. The same six cases, all in DECISIONS A/B/C:
+  :502/:503 x50 (A), AnchorUntouched :1439/:1440 x3 (A), :1407 x32 / :1587 x20 / :2607 x8 (B), :2413 x1 (C).
+dsp_processors_tests per-push (r4): "All tests passed (10802834 assertions in 3409 test cases)".
+check-append-only.js: check 1 PASS, check 2 PASS (mono_handler.h untouched by T023).
+Build: zero warnings on every rebuild.
+
+=== Decisions needed (user) ===
+(A) SC-026 / SC-013(b) Anchor "output bit-identical". Options: (1) scope it to the Anchor's pitch, phase() and mode gain, and
+    record the output difference (measured ~-70 dB); (2) feed a1 from a correction-independent h1 (e.g. the mask at f_res),
+    which changes the composition design for Phase 9; (3) keep the bar, which needs a core change (out of scope).
+(B) SC-010(a) / SC-021 ClickDetector. Options: (1) differential: count detections absent from the uninterrupted /
+    steady reference render (or outside +-N samples of the reference's own detections); (2) calibrate the detector threshold
+    on the steady reference (cavern_verb calibratedClickConfig precedent); (3) drop (a) and rely on (b) + the positive controls.
+(B') SC-010(b) at C3 / E2 after a Drop snap: the bound should take D from the core's delivered gains over the window
+    (transient), or (b) should exclude the core's own slew.
+(C) SC-014 Retrigger min-RMS bar: measure the Continue render at the same 0.25 ms window as the Reset dip (centred on the
+    effective sample) instead of its own minimum, or define the bar on the ratio at that window.
+(D) SC-019: further levers change readings: the per-hold mirror (T005 ruling (ii)), lazy bracket ends, or float in the
+    envelope / correction path. A ruling is needed on whether readings may move within the SC-024 / SC-013 tolerances.
+
+==========================================================================================================
+T023 epoch 6 (2026-10-13): rulings (A), (B), (B'), (C) and (D) applied on top of the epoch-5 tree.
+Raw logs are in F:/tmp/p4fix/e6/ (push2 = final per-push run, long/ = [long] shards run concurrently, cpu1 =
+official lane, prof1 = per-component profile). They are not in the repo.
+
+VERDICT: BLOCKED. (B') is green. (A), (B), (C) and (D) each read red under the ruled method and number, so
+each needs a user decision. No bar was changed.
+
+=== Changes ===
+(D)  drop_phase_lock.h: the S5.6 mirror accumulates per hold. run() first walks only the hold starts (the
+     trigger sample and every 16th), and recomputes d_c at each start exactly as the loop does. It adds
+     count * (f_h - f_res)/fs in double when the next hold starts. accumulatedExcessCycles() returns
+     accumulated_ + holdCount * increment. The per-sample loop no longer touches the mirror.
+     Lazy bracket ends: not added (ruled off).
+(A)  spectral spRunLandingCell and AnchorUntouched: memcmp is kept on fAnchor (pitch), anchorInc, phase()
+     and modeGain. The output memcmp is replaced by noteBehaviourAnchorOutputDiff (helpers): max |diff| re
+     the bypassed Anchor's peak, recorded per cell (CSV anchor_diff_db) and gated at <= -60 dB.
+(B)  t22CountClicks (spectral) is the differential count; its method is in the comment block above it.
+     - Segment = applied transition to next applied transition.
+     - Reference = the segment's note held from silence, read from 0.5 s on, Drop Amount 0. When the
+       segment's transition triggered the Drop, DropEnvelope alone is triggered at the lead sample.
+     - Phase alignment = h1 phase sum (coreFreq / fs), restarted at Reset-branch samples. A detection maps
+       to the reference sample with the same phase within half a period of the time-aligned position.
+     - N = floor(fs / (8 f_max)) per cell.
+     Used by RetriggerClickFree, GlideClickFree, UseCaseRenders, and by all three DeclickPositiveControl
+     sections (new (a) checks on the late-declick and Quantized-reset controls).
+(B') The harness records coreDeltaBound per sample: an analytic bound from deliveredGains(). It models the
+     bank's one-pole amplitude chase (kAmpSmoothTimeSec), the MCF radius 1/cos(w/2) and the AA fade, at the
+     chunk's held f0. At a Reset-branch noteOn it carries no slew term. t22DeltaBound takes Dc = its maximum
+     over the window. Pc, Da, Pa and the 1.1 factor are unchanged.
+(C)  Audibility Retrigger: Continue RMS is read in the Reset render's minimum window (t22MinRmsStart).
+     Continue's own minimum is recorded.
+
+=== Readings ===
+Build: dsp_systems_tests + dsp_processors_tests, zero warnings (build1-3). check-append-only: check 1 PASS,
+check 2 PASS (mono_handler.h untouched).
+dsp_processors_tests per-push: "All tests passed (10802834 assertions in 3409 test cases)". DropPhaseLock_Mirror
+  (1e-12 relative per sample), TriggerKinds (1e-14), PredictedExcessPhase (SC-024) and nonfinite all pass with
+  the per-hold mirror.
+SC-013 shards ([long], 16 processes concurrent, wall 1052 s): theta / drift readings are identical to epoch 5.
+  Worst |theta|: E0 0.354723, E1 0.448655, E2 0.534086, C3 0.500401, PunchGhostE1 0.448655 deg (bar 1.0).
+  Drift: 0.010450 / 0.013953 / 0.024330 / 0.046686 / 0.013953 deg (bar 0.5).
+  So the per-hold mirror moves no gated reading.
+SC-015 TrajectoryNyquist PASS (worst -123.65 dBFS). FollowAfterDrop PASS (0.010176 / 0.080788 deg).
+  NoAllocation PASS.
+
+(A) SC-026 Anchor output diff. AnchorUntouched (bridged, A 48, T 60, R 1): LOCK / GHOST -69.95 dB, PUNCH -69.74 dB.
+    PASS. pitch / inc / phase / modeGain memcmp PASS.
+    The SC-013 landing cells (snap from silence, LOCK) are RED:
+      shard   cells  > -60 dB   median    worst
+      E0      384    335        -33.5     -8.63
+      E1      384    137        -108.3    -9.58
+      E2      384    15         -110.5    -12.91
+      C3      384    23         -93.0     -38.77
+      PunchGhostE1  768 cells, worst -9.54 dB
+    The cells over -60 dB are mostly R = 1 and short T. Example (smoke): "LOCK E1 fs 48000 A 48 T 60 ms s 0 R 1:
+    max |diff| 0.0342 re peak 0.2430 = -17.03 dB" (|gamma| 6.11 st). The -70 dB expectation came from the
+    bridged AnchorUntouched case alone. On a snap cell, the correction moves the core pitch by up to |gamma|
+    st, and applyMask's renormalisation of h1 moves a1 by tens of percent. pitch, phase() and modeGain stay
+    bit-identical in every cell.
+    -> DECISION (A2): the bar (-60 dB re peak) cannot be met on the SC-013 grid.
+(B) Differential count.
+    Positive controls, now checked by (a): NOT flagged. Each control's detection maps 0.36 / 0.36 / 0.50
+    samples from a reference detection. A Reset re-seeds at phase 0, which is exactly where the
+    band-limited saw has its edge. So the undeclicked restart's step coincides in position with a natural
+    edge of the phase-aligned reference. Any N >= 1 lets it through, and position alone cannot separate it
+    (it is distinguishable by amplitude: 1.99x / 2.11x the edge's |dy|, which is what (b) flags).
+    The late-declick control's gain-return detection (ev + 72) sits 71.64 samples from a reference
+    detection, so it is flagged only for N < 72 (N = 109 at E1 + 5).
+    Residual counted detections:
+      smoke retrigger: 34 of 9234 raw
+      glides: 5 of 1421 raw
+      UseCase kick-bass-hybrid: 11 (E1) / 10 (C2); every other preset 0
+      [long] retrigger grids: E0 22727 / 142989, E1 28041 / 390972, E2 27189 / 688029, C3 22626 / 939555
+      [long] glide grids: E0 3804 / 54468, E1 4176 / 122736, E2 7164 / 214164, C3 9216 / 283452
+    Matched-distance histogram (smoke retrigger): <= 1: 7250, <= 2: 10, <= 4: 8, <= 8: 134, > 8: 1798. The
+    match is tight only where the reference is the same waveform. Elsewhere it relies on N up to 1/8 period.
+    -> DECISION (B2): under a position-only differential count, the ruled guard (controls flagged by (a)) and
+       the zero bar cannot both hold.
+(B') SC-010(b) with Dc from the delivered gains: GREEN everywhere. Smoke retrigger worst ratio 0.7187; glides
+    0.6748. Grids: retrigger E0 0.7133, E1 0.8243, E2 0.8536, C3 0.8518; glide E0 0.6892, E1 0.7759, E2 0.8200,
+    C3 0.8254. 0 windows over the bound (epoch 5: C3 543 / E2 324 retrigger, C3 744 / E2 336 glide). The
+    positive controls are still flagged by (b): 1.99 / 1.99 / 2.11.
+(C) Retrigger, same window:
+      onset 1: Reset -69.98 vs Continue -36.07 dB    PASS
+      onset 2: Reset -51.74 vs Continue -32.81 dB    gap 18.93 dB < 20, RED by 1.07 dB
+      onset 4: Reset -84.48 vs Continue -6.43 dB     PASS
+    -> DECISION (C2): onset 2 misses the unchanged 20 dB bar under the ruled window.
+(D) Official lane `node tools/run-cpu-tests.js dsp_processors_tests`, run alone once, after >= 3 min idle
+    following the shards:
+      "PROFUNDUM_DROP_PERF SC-019 pct=0.0598 ns_per_sample=12.465 worst_solve_us=121.200" FAIL (bar 0.05 %)
+      SC-025 T1 9.396 / T4000 10.019 us, ratio 1.066; burst 1.219
+    Per-component profile (temporary [.p4diag] case, pinned 0xFFFF, min of 15, two passes; source restored,
+    exe rebuilt clean), in ns/sample:
+      stage        pass 0   pass 1   epoch 5
+      env          3.19     2.46     2.4
+      env+lock     7.31     7.31     8.2   (lock + solve ~4.8, was ~5.8)
+      declick      0.70     0.48     0.5
+      glide        2.20     2.15     1.8
+      memory       0.06     0.06     0.05
+      full         9.61     11.23    10.1-10.5
+    Bar 10.42 ns/sample. The verdict still flips around the bar; the official lane read 12.47.
+    -> STOP AND SURFACE (D): no further lever is ruled.
+
+Final per-push run (push2): 22 cases | 16 passed | 6 failed, 41 assertions.
+  (A)  spectral :513 x12 (smoke landing cells)
+  (B)  :1685 x18, :1867 x5, :2931 x2; the controls :2494 / :2538 / :2571
+  (C)  :2735 x1
+
+==========================================================================================================
+T023 epoch 7 (2026-10-13): the spec Clarifications "Session 2026-10-13 - T023 epoch 6 readings" rulings
+(A), (B), (C) and (D) applied on top of the epoch-6 tree. (B') is unchanged.
+Raw logs are in F:/tmp/p4fix/e7/ and are not in the repo:
+  push1       final per-push Phase 4 run
+  proc1       processors per-push run
+  long/       the 16 [long] shards, run concurrently
+  reg_*       Ruinae / Seraphis / Vorago / Innexus suites
+  prof_*      per-component profiles
+  cpu1-3      the official lanes
+
+VERDICT: DONE. Every gate is green under the ruled methods and numbers, and no bar number was changed.
+
+=== Changes ===
+(A) The helpers add a new trace, NoteBehaviourTraces::anchorA1. It is the Anchor's smoothed a1 at each
+    sample, taken from a harness replica of the Anchor's a1 path:
+      - the same clamp to [0, kMaxCoreH1Amplitude] and the same OnePoleSmoother(kLevelSmoothMs, fs);
+      - setTarget at every setCoreH1Amplitude, snapToTarget on a Reset-branch Anchor noteOn (policy Reset,
+        or the Anchor not sounding);
+      - one process() per sounding sample.
+    noteBehaviourAnchorOutputDiff now returns two figures:
+      - gated: the per-sample max |on - off * a1_on / a1_off| re the bypassed Anchor's peak, bar
+        kNoteBehaviourAnchorScaledBarDb = -120 dB;
+      - recorded only: the raw max |on - off|.
+    The -60 dB constant is removed. Both the spectral spRunLandingCell (CSV column anchor_scaled_diff_db
+    added) and AnchorUntouched gate the scaled figure. The memcmp on fAnchor, anchorInc, phase() and
+    modeGain is kept.
+(B) The differential count (t22CountClicks) is kept. It is printed per cell (tag SC010-A) and summed per
+    shard, and it is no longer gated: the zero CHECKs at the retrigger cell, the glide cell and
+    UseCaseRenders are removed. The positive controls' (a) readings are printed and labelled "recorded,
+    not gated". Each control is gated by its (b) or (c) bound only.
+    SC-021 "zero clicks (SC-010 method)" now means (b): UseCaseRenders evaluates t22DeltaBound at every
+    transition window. It uses the new T22Recipe::Default (the harness's kDefaultControls) for the
+    steady references, gates "0 windows over the bound", and records (a) in the CSV.
+    The method notes and the counting block comments say which detector gates what.
+(C) Audibility Retrigger:
+      - reference = the Continue render's RMS over one period of the new note, centred on its effective
+        sample;
+      - gate = the Reset render's minimum 0.25 ms RMS in [event, eff + 1 period], which must be >= 20 dB
+        below the reference;
+      - the same-window Continue RMS is recorded.
+    t22MinRmsDb is removed, because this change left it unused.
+(D) SC-019 levers. None of the three changes the arithmetic of any sample, so every SC-013 / SC-024 /
+    Mirror reading is unchanged:
+    1. drop_envelope.h run(): processes spans that stay inside one piece. The end, piece and exp-term
+       tests run once per span; the span length is ceil(end - t), and end - t is exact.
+    2. drop_phase_lock.h run(): the correction loop is split into three loops: the carry window
+       [0, carryLen), the bump alone up to D_s (the polynomial without the range branch: on [0, 1) it is
+       the same value), and the pass-through. The new helper correctedOffset() holds the deviation-7 and
+       "bitwise when c == 0" rules.
+    3. mono_handler.h: the Quantized path runs first in processPortamento, and processQuantizedGlide
+       keeps only the counter and compare. The step moves to the private ITERUM_NOINLINE quantizedStep().
+       Only Phase 4 lines changed. check-append-only: check 1 PASS, check 2 PASS.
+    Tried and reverted, because neither gave a measurable gain:
+      - std::exp instead of std::exp2 on the quadrature nodes (solve 7.2-9.5 us both ways);
+      - a branch-free, two-loop quadrature (solve unchanged);
+      - an exit-free bump loop with a pre-located landing sample.
+    Solve census (budgetRun): 600 solves per 60 s, 8.75 evaluations per solve, 160 nodes per evaluation,
+    7.1 lead updates per evaluation. predictExcess (buildCache + 1 evaluate, T 200 bridged) = 1.99 us.
+
+=== Per-component profile ===
+Temporary [.p4diag] case in drop_note_behaviour_perf_test.cpp, now removed: the perf TU is byte-identical
+to its pre-task state. Pinned to 0xFFFF; min of 7 runs per stage; 2 passes x 3 invocations; ns/sample.
+  stage           epoch-6 tree (min / med)   epoch-7 tree (min / med)
+  env              2.25 / 2.63                1.44 / 1.64
+  env+lock         6.74 / 7.04                5.09 / 5.36   (the solve inside: ~1.35-1.8)
+  declick          0.39 / 0.64                0.42 / 0.55
+  glide            1.48 / 1.80                0.71 / 0.90
+  memory           0.05 / 0.06                0.04 / 0.06
+  full(budgetRun)  8.46 / 8.59                6.55-6.65 / 7.09-7.19
+  solve T1 / T200  6.06 / 8.13 us             5.30-5.66 / 7.26-7.57 us  (unchanged code; noise)
+The target was <= 9.5 ns/sample with margin. Met: 7.1 median.
+
+=== SC-019 official protocol ===
+Three runs of `node tools/run-cpu-tests.js dsp_processors_tests`. Each ran alone after 200 s idle with
+nothing else running; wall 8-9.5 min per run.
+  lane 1: pct=0.0376  (7.832 ns/sample, worst solve 69.5 us)
+  lane 2: pct=0.0382  (7.953 ns/sample, worst solve 17.7 us)
+  lane 3: pct=0.0526  (10.955 ns/sample, worst solve 228.5 us)
+  MEDIAN 0.0382 % <= 0.05 %  PASS   (epoch 6: 0.0598 %; T028: 0.0843 / 0.0709 %)
+Other perf cases, recorded:
+  SC-025: ratio 1.094 / 1.199 / 1.111 (bar 2).
+  S5.4 burst: ratio 1.705 / 1.392 / 1.075 (bar 1.5). Median 1.392.
+    - In lane 1 the single solve read an unusually fast 5.46 us; lanes 2 and 3 read 7.4 and 9.6 us.
+    - The trigger and solve code is unchanged from epoch 6 (which read 1.219).
+    - Re-run alone after 200 s idle: 0.698 PASS.
+Each lane's suite verdict was red on one different case, so the reds move between cases from run to run
+(machine state):
+  lane 1: TriggerBurst (above).
+  lane 2: SpectralSmear_CpuBudget 31497 vs 25500 ns. Not Phase 4. Re-run alone after idle: PASS.
+  lane 3: SC-019 itself (0.0526). The median is the ruled verdict.
+
+=== Readings (push1 = final per-push, Phase 4 TUs) ===
+"All tests passed (36365 assertions in 22 test cases)". Build: dsp_processors_tests + dsp_systems_tests
+with zero warnings.
+Processors per-push: "All tests passed (10802834 assertions in 3409 test cases)". This includes
+DropPhaseLock_Mirror, PredictedExcessPhase (SC-024), TriggerKinds, the DropEnvelope suites and the
+glide tests.
+(A) AnchorUntouched:
+      LOCK / GHOST: a1-scaled -139.68 dB, raw -69.95 dB
+      PUNCH:        a1-scaled -142.24 dB, raw -69.74 dB
+      unchecked 0 (bar -120).
+    Smoke landing cells (64): worst a1-scaled -139.68 dB; worst raw -17.03 dB (recorded).
+    [long] shards:
+      shard         worst a1-scaled   worst raw (recorded)
+      E0            -138.19           -8.63
+      E1            -139.60           -9.58
+      E2            -141.82           -12.91
+      C3            -142.12           -38.77
+      PunchGhostE1  -139.60           -9.54
+    All pass. The raw worst, -8.63 dB at E0 A 48 T 10 ms R 1, matches the ruling's figure and is the
+    Phase 9 listening item.
+(B) SC-010(b) is the click gate. 0 windows over the bound everywhere:
+      - smoke retrigger 0.7187; smoke glide 0.6748;
+      - retrigger grids E0 0.7133 / E1 0.8243 / E2 0.8536 / C3 0.8518;
+      - glide grids E0 0.6892 / E1 0.7759 / E2 0.8200 / C3 0.8254.
+    Positive controls, flagged by (b) / (c): 1.99 / 1.99 / 2.11.
+    SC-021 (b), 1 window per preset, 0 over the bound:
+      - cinematic-impact 0.7495 (E1) / 0.7454 (C2);
+      - techno-pluck 0.2450 / 0.4625;
+      - kick-bass-hybrid 0.7170 / 0.7024.
+    SC-010(a) differential count, recorded:
+      - smoke 34 of 9234; glides 5 of 1421; kick-bass-hybrid 11 (E1) / 10 (C2); other presets 0;
+      - retrigger grids E0 22727 / 142989, E1 28041 / 390972, E2 27189 / 688029, C3 22626 / 939555;
+      - glide grids E0 3804 / 54468, E1 4176 / 122736, E2 7164 / 214164, C3 9216 / 283452;
+      - the controls' (a): 0 / 0 / 0.
+(C) Retrigger onsets (Reset minimum 0.25 ms RMS vs Continue one-period RMS around its effective sample):
+      onset 1  -69.98 vs -12.22 dB   gap 57.75 dB  PASS   (same-window Continue -36.07, recorded)
+      onset 2  -51.74 vs -12.79 dB   gap 38.95 dB  PASS   (same-window Continue -32.81, recorded)
+      onset 4  -84.48 vs -11.63 dB   gap 72.85 dB  PASS   (same-window Continue -6.43, recorded)
+[long] shards: 16 processes concurrent, wall 1234 s, all PASS.
+  SC-013 theta / drift are identical to epochs 5 and 6, confirming the levers are reading-neutral:
+    shard         worst |theta| (bar 1.0)   drift (bar 0.5)
+    E0            0.354723                  0.010450
+    E1            0.448655                  0.013953
+    E2            0.534086                  0.024330
+    C3            0.500401                  0.046686
+    PunchGhostE1  0.448655                  0.013953
+  FollowAfterDrop: 0.010176 deg; 60 s drift 0.080788 deg.
+  TrajectoryNyquist: worst -123.65 dBFS. GlideLock60s PASS.
+MonoHandler consumers (per-push filter, concurrent):
+  ruinae    29205 assertions / 732 cases
+  seraphis  444660 / 109
+  vorago    4060395 / 119
+  innexus   1111861 / 565
+  All passed.
