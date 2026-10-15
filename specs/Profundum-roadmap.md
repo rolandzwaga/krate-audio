@@ -358,10 +358,10 @@ voice.
 
 ### Phase 4: Drop & Note Behaviour
 
-**Status: ✅ COMPLETE (2026-10-14)** — see specs/profundum-phase4-drop-note-behaviour/compliance.md (84 pass, 2 partial, 0 fail; the
-partials are SC-020's inherited `VoragoMacro_SweepAxes` red — rho 0.8667 vs 0.9, identical on main at 89b512d1 before Phase 1, no
-Vorago file touched, carried since the Phase 2 close — and SC-021's listening verdict on `evidence/usecase-*.wav`, which only the
-user can record). Shipped: `DropCurve` (L0), `RetriggerDeclick` (L1, 1.5 ms raised-cosine dip, deferred Reset), `DropEnvelope` (L2,
+**Status: ✅ COMPLETE (2026-10-14)** — see specs/profundum-phase4-drop-note-behaviour/compliance.md (86 pass, 0 partial, 0 fail after the
+2026-10-14/15 closures: SC-020's inherited `VoragoMacro_SweepAxes` red — Vorago's own engine-limited Movement rho, ruled 2026-10-08 —
+is now recorded by Vorago's test instead of failing, so the long lane is green; SC-021's listening verdict is 4 of 4 after the
+kick-bass hybrid preset was re-authored from A 48 to A 24 st, the user having heard the four-octave snap as a squeak). Shipped: `DropCurve` (L0), `RetriggerDeclick` (L1, 1.5 ms raised-cosine dip, deferred Reset), `DropEnvelope` (L2,
 Amount 0–48 st, Time 1–4000 ms, Shape exp / lin / log / elastic damped oscillation, Rebound), `DropPhaseLock` (L2 corrector inside
 the Drop, γ ≤ 48 st, neighbour-integer target, GL8 quadrature with Illinois continuation when a solve is unconverged, staircase-aware
 predictor, per-hold mirror), `NoteMemory` (L2, four modes × Retrigger, Continue collapse accepted), `MonoHandler` GlideMode

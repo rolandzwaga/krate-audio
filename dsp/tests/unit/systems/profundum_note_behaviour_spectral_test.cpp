@@ -2359,11 +2359,14 @@ struct T22Preset {
 };
 
 // plan S11.4 (FR-068).
+// plan S11.4 (FR-068). Kick/bass hybrid re-authored 2026-10-15 under the SC-021 listening verdict
+// (spec Clarifications 2026-10-14/15): A 48 from E1 started the fall at 659 Hz and read as a squeak;
+// A 24 keeps the elastic snap and lands as a thump.
 constexpr std::array<T22Preset, 4> kT22Presets{{
     {"808-attack", 12.0f, 120.0f, 0.0, 0.0f, AnchorOscillator::Mode::Lock},
     {"cinematic-impact", 36.0f, 900.0f, 2.0 / 3.0, 0.3f, AnchorOscillator::Mode::Ghost},
     {"techno-pluck", 7.0f, 25.0f, 1.0 / 3.0, 0.5f, AnchorOscillator::Mode::Punch},
-    {"kick-bass-hybrid", 48.0f, 45.0f, 1.0, 1.0f, AnchorOscillator::Mode::Lock},
+    {"kick-bass-hybrid", 24.0f, 45.0f, 1.0, 1.0f, AnchorOscillator::Mode::Lock},
 }};
 
 }  // namespace

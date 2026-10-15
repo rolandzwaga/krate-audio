@@ -1026,3 +1026,23 @@ measurement could not show; the user ruled each at the recommended option:
   `innexus_tests`, the 16 Phase 4 `[long]` shards, and the `node` append-only check. The full `[long]` lane of
   `dsp_systems_tests` carries this inherited red exactly as Phase 2 recorded it; the row is reported with that
   classification, not softened to a pass. [SC-020]
+### Session 2026-10-14 — SC-021 listening verdict (user)
+
+- The user listened to the eight `evidence/usecase-*.wav` renders against the five listening questions (each sounds like its
+  name; the four are distinct; no click at onset or landing and no post-landing wobble; the Anchor behaves per mode; the C2 file is
+  the E1 gesture transposed). Verdict: **808 attack, cinematic impact and techno pluck pass; kick-bass hybrid FAILS — "the thump is
+  more like a squeak."** Cause (main loop): the plan S11.4 preset starts the fall 48 semitones above the note (659 Hz at E1,
+  1047 Hz at C2) and covers four octaves in 45 ms, which is a chirp; a kick's pitch envelope starts one to two octaves above the
+  note. The measured descriptors were never the question: every bar of SC-021 passed; the preset values are what fail. FR-068's
+  hybrid preset is re-authored under the listening verdict (candidates A 24 / T 45 / elastic / R 1.0, A 24 / T 60 / exp / R 0.3,
+  A 19 / T 50 / elastic / R 0.6, all LOCK, each still clearing the pairwise bars against the three passing presets by start pitch
+  ≥ 12 st or t_s ≥ 2×); the user re-listens and the adopted values replace the S11.4 row. Until then SC-021 is PARTIAL (3 of 4).
+  [SC-021, FR-068]
+### Session 2026-10-15 — SC-021 re-listen and the hybrid preset adopted (user)
+
+- Six candidate renders (`kick-bass-hybrid-c1/c2/c3` at E1 and C2) were rendered beside the four presets (the pairwise bars held
+  with seven presets in the table). The user's second listen: the shipped hybrid (both notes) and c3 at C2 still read too high
+  ("lower"); c1 and c2 pass. Adopted: **c1 — A 24 st, T 45 ms, elastic (s = 1), R 1.0, Anchor LOCK** (main-loop choice between the
+  two passing candidates: c1 keeps the elastic snap that distinguishes the hybrid from the exponential 808 attack; the user may
+  swap to c2). Plan S11.4 and the test table carry the new values; the eight renders were regenerated and the candidate files
+  removed. SC-021 listening verdict: **4 of 4 pass.** [SC-021, FR-068]
