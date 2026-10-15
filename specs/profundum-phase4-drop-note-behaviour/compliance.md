@@ -1,11 +1,11 @@
 # Compliance: Profundum Phase 4 (profundum-phase4-drop-note-behaviour)
 
-**Overall status: INCOMPLETE** (2 partial items, 0 fail)
+**Overall status: COMPLETE** (0 partial, 0 fail — the two partials of the 2026-10-14 report were closed by the main loop and the user on 2026-10-14/15, see the amended rows and the gap list)
 
 ## Honest gap list (first)
 
-1. **SC-020 PARTIAL.** `VoragoMacro_SweepAxes` fails: "Movement per-band total variation rho=0.8667" against 0.9 (vorago_macro_test.cpp:1318), 1 failed, 2002 s. This is the same figure as the inherited record in profundum-phase2-edge-fold/compliance.md:14, measured on main 89b512d1 before Profundum. No Vorago file is modified and no Vorago source includes the changed headers. spec.md:1012-1028 classifies it INHERITED. The SC text says all of dsp_systems_tests must pass and its [long] lane does not, so this cannot be a pass.
-2. **SC-021 PARTIAL.** The row needs a user listening verdict, which an agent cannot supply. No verdict is recorded (grep of the phase dir finds only the requirement text, spec.md:649). Renders, WAV/CSV files and the (b) bound are in place.
+1. **SC-020 — closed 2026-10-14 (was PARTIAL).** The one red in dsp_systems_tests' [long] lane, `VoragoMacro_SweepAxes` Movement rho 0.8667 vs 0.9, is Vorago's own engine-limited red (user ruling 2026-10-08, Vorago Phase 13d rulings.md / compliance FR-023; identical on main 89b512d1 before Phase 1; no Vorago file touched by Phases 1–4). On the user's instruction the test now records the Movement rho with that ruling cited and keeps the endpoint clause gated (commit a7e5de5f here, 6ace4b04 on main). Measured alone after the change: "All tests passed (37 assertions in 1 test case)", 1386 s (F:/tmp/vorago_sweep_recorded.log). With it, every dsp_systems_tests case is green: per-push "All tests passed (10170902 assertions in 1599 test cases)" (Group 16 gate), all 16 Phase 4 [long] shards (T026.txt EPOCH 3), and the sweep.
+2. **SC-021 — closed 2026-10-15 (was PARTIAL).** The user listened to the eight `evidence/usecase-*.wav` renders (spec Clarifications 2026-10-14): 808 attack, cinematic impact and techno pluck pass; the kick-bass hybrid "thump is more like a squeak" (A 48 from E1 starts at 659 Hz). Re-authored under FR-068 after a candidate re-listen (Clarifications 2026-10-15): A 24 st, T 45 ms, elastic, R 1.0, LOCK; renders regenerated, "All tests passed (2610 assertions in 1 test case)", hybrid E1 start 24.000 st, t_s 89.31 ms, SC-010(b) 0 windows over the bound (worst 0.7219), every pair distinct (808 vs hybrid |d start| 12 st, pluck vs hybrid 17 st, cinematic vs hybrid t_s ratio 14.9). Listening verdict 4 of 4.
 3. Caveats on passing rows: the full `-Target dsp` clang-tidy sweep was not re-run (T027.txt:6-8 records it hanging on a non-Phase-4 TU); clang-tidy was run on the 12 Phase 4 TUs only. Task notes for T026 and T027 report "blocked" for their first executions; the evidence below comes from later epochs and re-runs, and the T028 CPU lane was deferred by the executor and measured by the main loop (T028.txt epoch 3). SC-013 prints "SC013-R2-DEFECT" diagnostics (up to 0.4495 deg against a 0.3 investigate threshold) that are not gated.
 
 ## Compliance table
@@ -84,8 +84,8 @@
 | SC-017 | pass | All five non-finite cases passed in the 3409-case run; TU built with -fno-fast-math -fno-finite-math-only. |
 | SC-018 | pass | ProfundumNoteBehaviour_NoAllocation "7 assertions in 1 test case"; "0 allocation(s) over 5 waveforms x 4 modes". |
 | SC-019 | pass | Three isolated run-cpu-tests lanes: pct=0.0365 / 0.0334 / 0.0357, median 0.0357% (bar 0.05%). |
-| SC-020 | **partial** | See gap 1. All other per-push lanes exit 0 (processors 3409 cases, systems 36365/22 plus 10134537/1577, ruinae 29205/732, seraphis 444660/109, vorago 4060395/119, innexus 1111856/565, membrum 119419/630, core 1588248/565, primitives 4562191/1501); all 16 Phase 4 [long] shards pass; diff is 308 insertions, no deletions. Still red: VoragoMacro_SweepAxes rho=0.8667 vs 0.9 (inherited). |
-| SC-021 | **partial** | See gap 2. UseCaseRenders passed (36365 assertions); worst (b) ratio 0.7495; pairs distinct (e.g. "cinematic-impact vs kick-bass-hybrid: d start 12.000 st, t_s ratio 14.881"). No user listening verdict recorded. |
+| SC-020 | **pass** (closed 2026-10-14) | See gap 1: the only [long] red was Vorago's ruled Movement rho, now recorded by its own test; sweep alone "All tests passed (37 assertions in 1 test case)". Earlier evidence: All other per-push lanes exit 0 (processors 3409 cases, systems 36365/22 plus 10134537/1577, ruinae 29205/732, seraphis 444660/109, vorago 4060395/119, innexus 1111856/565, membrum 119419/630, core 1588248/565, primitives 4562191/1501); all 16 Phase 4 [long] shards pass; diff is 308 insertions, no deletions. Still red: VoragoMacro_SweepAxes rho=0.8667 vs 0.9 (inherited). |
+| SC-021 | **pass** (closed 2026-10-15) | See gap 2: user listening verdict 4 of 4 after the hybrid re-author (A 24); regenerated renders "All tests passed (2610 assertions in 1 test case)". Earlier evidence: UseCaseRenders passed (36365 assertions); worst (b) ratio 0.7495; pairs distinct (e.g. "cinematic-impact vs kick-bass-hybrid: d start 12.000 st, t_s ratio 14.881"). No user listening verdict recorded. |
 | SC-022 | pass | check-portability: "all clear -- 12 compiled." rc=0; lint-apple-globals "OK — 24 files". |
 | SC-023 | pass | profundum_note_behaviour_test.cpp:373-380 static_asserts; "All tests passed (1 assertion in 1 test case)". |
 | SC-024 | pass | PhaseIntegral (rel<=1e-6, cells==7020) and PredictedExcessPhase passed. Tests print no per-cell figures. |
@@ -116,8 +116,7 @@
 
 ## Remaining gates for the human loop
 
-- Resolve SC-020 (inherited VoragoMacro_SweepAxes rho=0.8667 vs 0.9: accept as inherited by ruling, or fix in a Vorago task).
-- SC-021: user listening verdict on evidence/usecase-*.wav.
+- SC-020 and SC-021: closed (see the gap list).
 - clang-tidy: full `./tools/run-clang-tidy.ps1 -Target dsp` sweep (run detached) if wanted beyond the 12 Phase 4 TUs.
-- Commit on `synth/profundum` (no push without permission).
+- Committed on `synth/profundum` as ae32733a (phase) + a7e5de5f (Vorago test record) + the SC-020/SC-021 closure commit; not pushed.
 - pluginval: not required (no plugin code changed; phases 11+).

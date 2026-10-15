@@ -1090,7 +1090,7 @@ That is a distinct namespace, so there is no ODR clash.
 | 808 attack | 12 | 120 | 0 | 0 | LOCK |
 | Cinematic impact | 36 | 900 | 2/3 | 0.3 | GHOST |
 | Techno pluck | 7 | 25 | 1/3 | 0.5 | PUNCH |
-| Kick/bass hybrid | 48 | 45 | 1 | 1.0 | LOCK |
+| Kick/bass hybrid | 24 (was 48; re-authored 2026-10-15 under the SC-021 listening verdict, spec Clarifications 2026-10-14/15) | 45 | 1 | 1.0 | LOCK |
 
 Pairwise, these clear at least one SC-021 bar (start pitch ≥ 6 st, t_s ≥ 2×, α ≥ 0.1, ρ ≥ 0.05·A). The test asserts
 it.

@@ -1245,3 +1245,9 @@ Full readings are in `evidence/run-log/T023.txt` (epoch 7). No bar number change
    - 16 [long] shards green.
    - Ruinae, Seraphis, Vorago and Innexus green.
    - Zero warnings; check-append-only PASS.
+- SC-021 listening (user, 2026-10-14): 3 of 4 presets pass; kick-bass hybrid "thump is more like a squeak" (A 48 from E1 = 659 Hz
+  start, four octaves in 45 ms). Re-authoring under FR-068: three candidates rendered for a re-listen (spec Clarifications
+  2026-10-14); the adopted values replace plan S11.4's hybrid row and the test table, then the eight renders are regenerated.
+- SC-021 re-listen (user, 2026-10-15): shipped hybrid and c3-C2 "lower"; c1 and c2 pass; c1 adopted (A 24 / 45 ms / elastic / R 1.0 /
+  LOCK), plan S11.4 and the test table updated, renders regenerated ("All tests passed (2610 assertions in 1 test case)"), candidate
+  files removed; SC-021 4 of 4. SC-020 closed by the Vorago test record (a7e5de5f / main 6ace4b04). Compliance 86 / 0 / 0.
