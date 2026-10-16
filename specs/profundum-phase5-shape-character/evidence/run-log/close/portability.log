@@ -1,0 +1,27 @@
+== lint-apple-globals ==
+lint-apple-globals: OK — 25 files, no macOS-only name collisions
+lint exit=0 wall=0s
+
+== check-portability ==
+check-portability: 14 translation unit(s) with g++
+
+  OK      dsp/tests/unit/core/closed_form_adaa2_test.cpp
+  OK      dsp/tests/unit/processors/keytracked_tilt_test.cpp
+  OK      dsp/tests/unit/processors/oversampled_residual_path_test.cpp
+  OK      dsp/tests/unit/processors/rectifier_nonfinite_test.cpp
+  OK      dsp/tests/unit/processors/rectifier_test.cpp
+  OK      dsp/tests/unit/processors/shape_character_metric_helpers_test.cpp
+  OK      dsp/tests/unit/systems/bass_character_rlaw_test.cpp
+  OK      dsp/tests/unit/systems/bass_character_spectral_test.cpp
+  OK      dsp/tests/unit/systems/bass_character_stage_test.cpp
+  OK      dsp/tests/unit/systems/shape_character_chain_test.cpp
+  OK      dsp/tests/unit/systems/shape_character_nonfinite_test.cpp
+  OK      dsp/tests/unit/systems/shape_character_perf_test.cpp
+  OK      dsp/tests/unit/systems/shape_morph_spectral_test.cpp
+  OK      dsp/tests/unit/systems/shape_morph_test.cpp
+
+check-portability: all clear -- 14 compiled.
+port exit=0 wall=23s
+
+wsl --shutdown done
+PORTABILITY GREEN

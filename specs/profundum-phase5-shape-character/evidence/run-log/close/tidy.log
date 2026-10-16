@@ -1,0 +1,95 @@
+=== T025 tidy 2026-10-16T21:03:48Z commit 40205b86
+--- vcvars: C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat
+--- reconfigure (cmake --preset windows-ninja in vcvars64) exit=0 wall=12s
+-- [SMTG] Setup running moduleinfotool for Vorago
+-- [KRATE] Copied compile_commands.json to project root
+-- Configuring done (9.2s)
+-- Generating done (0.9s)
+-- Build files have been written to: F:/projects/iterum/build/windows-ninja
+--- compile database: all 14 TUs present
+=== dsp/tests/unit/core/closed_form_adaa2_test.cpp
+55968 warnings generated.
+Suppressed 55968 warnings (55967 in non-user code, 1 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 17 s
+=== dsp/tests/unit/processors/keytracked_tilt_test.cpp
+56097 warnings generated.
+Suppressed 56097 warnings (56096 in non-user code, 1 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 17 s
+=== dsp/tests/unit/processors/oversampled_residual_path_test.cpp
+56206 warnings generated.
+Suppressed 56206 warnings (56205 in non-user code, 1 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 17 s
+=== dsp/tests/unit/processors/shape_character_metric_helpers_test.cpp
+59753 warnings generated.
+Suppressed 59753 warnings (59751 in non-user code, 2 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 20 s
+=== dsp/tests/unit/processors/rectifier_test.cpp
+61506 warnings generated.
+Suppressed 61506 warnings (61504 in non-user code, 2 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 22 s
+=== dsp/tests/unit/processors/rectifier_nonfinite_test.cpp
+59750 warnings generated.
+Suppressed 59750 warnings (59748 in non-user code, 2 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 20 s
+=== dsp/tests/unit/systems/shape_morph_test.cpp
+59868 warnings generated.
+Suppressed 59868 warnings (59866 in non-user code, 2 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 22 s
+=== dsp/tests/unit/systems/shape_morph_spectral_test.cpp
+61592 warnings generated.
+Suppressed 61592 warnings (61590 in non-user code, 2 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 24 s
+=== dsp/tests/unit/systems/bass_character_stage_test.cpp
+64495 warnings generated.
+Suppressed 64495 warnings (64493 in non-user code, 2 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 27 s
+=== dsp/tests/unit/systems/bass_character_spectral_test.cpp
+61629 warnings generated.
+Suppressed 61629 warnings (61627 in non-user code, 2 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 25 s
+=== dsp/tests/unit/systems/bass_character_rlaw_test.cpp
+62847 warnings generated.
+Suppressed 62847 warnings (62845 in non-user code, 2 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 25 s
+=== dsp/tests/unit/systems/shape_character_chain_test.cpp
+61740 warnings generated.
+Suppressed 61740 warnings (61738 in non-user code, 2 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 25 s
+=== dsp/tests/unit/systems/shape_character_nonfinite_test.cpp
+59849 warnings generated.
+Suppressed 59849 warnings (59847 in non-user code, 2 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 23 s
+=== dsp/tests/unit/systems/shape_character_perf_test.cpp
+61553 warnings generated.
+Suppressed 61553 warnings (61551 in non-user code, 2 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 23 s
+=== summary
+dsp/tests/unit/core/closed_form_adaa2_test.cpp exit=0 warnings=0 errors=0
+dsp/tests/unit/processors/keytracked_tilt_test.cpp exit=0 warnings=0 errors=0
+dsp/tests/unit/processors/oversampled_residual_path_test.cpp exit=0 warnings=0 errors=0
+dsp/tests/unit/processors/shape_character_metric_helpers_test.cpp exit=0 warnings=0 errors=0
+dsp/tests/unit/processors/rectifier_test.cpp exit=0 warnings=0 errors=0
+dsp/tests/unit/processors/rectifier_nonfinite_test.cpp exit=0 warnings=0 errors=0
+dsp/tests/unit/systems/shape_morph_test.cpp exit=0 warnings=0 errors=0
+dsp/tests/unit/systems/shape_morph_spectral_test.cpp exit=0 warnings=0 errors=0
+dsp/tests/unit/systems/bass_character_stage_test.cpp exit=0 warnings=0 errors=0
+dsp/tests/unit/systems/bass_character_spectral_test.cpp exit=0 warnings=0 errors=0
+dsp/tests/unit/systems/bass_character_rlaw_test.cpp exit=0 warnings=0 errors=0
+dsp/tests/unit/systems/shape_character_chain_test.cpp exit=0 warnings=0 errors=0
+dsp/tests/unit/systems/shape_character_nonfinite_test.cpp exit=0 warnings=0 errors=0
+dsp/tests/unit/systems/shape_character_perf_test.cpp exit=0 warnings=0 errors=0
+TIDY GREEN tus=14 warnings=0 errors=0 timeouts=[] failed=[] tidy_wall=27s total_wall=45s

@@ -1,0 +1,60 @@
+T004 run log — KeytrackedTilt (plan C-1, C-13, S6.1; tasks T004 epoch 2, deviation 11)
+Executor: workflow implementer, 2026-10-15 (epoch 2: BLOCKED on the symmetry bar; epoch 3: DONE after the Group 2 gate ruling,
+symmetry bar 0.06 dB, plan C-25, spec Clarifications "Group 2 task-level tolerances").
+
+Files written
+- dsp/include/krate/dsp/processors/keytracked_tilt.h   (plan S6.1 verbatim: OnePoleLP, a = exp(-2 pi fc / fs);
+  + pivotHz(), tone() accessors; setTone bit-compare; defaults k 2, maxDb 0, tone 0.5)
+- dsp/tests/unit/processors/keytracked_tilt_test.cpp   (5 cases, [processors][profundum][shape-character-parts])
+- specs/profundum-phase5-shape-character/evidence/run-log/T004.txt (this file)
+Not built or run (workflow rule; the group gate builds dsp_processors_tests).
+
+Model
+Node float emulation of the header (Math.fround on every float op, gains computed in double then rounded, as the header
+does) driven exactly as the tests measure: 1 s sine, RMS ratio over whole periods of the last 0.5 s. A second script
+evaluates the exact digital transfer function H(e^jw) = gL·LP + gH·(1 − LP), LP = (1 − a)/(1 − a e^−jw), to separate
+design from measurement. On the symmetry cell both read 0.0524 dB (the only cell compared between the two).
+
+Model table (192 kHz, configure(2, 12))
+UnityAtPivot (192 kHz, k 2, +-12 dB): gain at 2 f0, dB
+  C2: t0=0.0011 t0.25=0.0033 t0.5=-0.0000 t0.75=-0.0131 t1=-0.0174
+  C3: t0=0.0022 t0.25=0.0066 t0.5=-0.0000 t0.75=-0.0262 t1=-0.0347
+Keytracked: max over n=1..16 of |H_C1(n) - H_C3(n)| dB, per Tone
+  t0: worst 0.0835 dB at n=16
+  t0.25: worst 0.0657 dB at n=16
+  t0.75: worst 0.0209 dB at n=16
+  t1: worst 0.0261 dB at n=14
+ToneDirection C2: H(n) n=1..16, min step (signed toward expected direction) dB
+  t0: H1=2.029 H16=-14.094 min step 0.43775
+  t0.25: H1=1.844 H16=-8.318 min step 0.10680
+  t0.75: H1=-3.279 H16=2.668 min step 0.00860
+  t1: H1=-3.945 H16=2.909 min step 0.00916
+  H(16 f0) vs Tone: -14.0945 -8.3177 0.0000 2.6676 2.9086
+Symmetry x in [1/8, 8]: span(t1)=17.0728 span(t0)=-17.0205 |span1+span0|=0.0524 dB
+
+Exact digital response, |span(Tone 1) + span(Tone 0)| over x = f/(2 f0) in [lo, hi] at C2 (and x in [1/8, 8] per note):
+0.125 8 17.0728 -17.0205 0.0524
+0.25 4 11.7731 -11.7576 0.0155
+0.5 2 5.9561 -5.9522 0.0038
+0.125 8 17.0728 -17.0205 0.0524
+f0 32.703196 0.0262
+f0 65.406391 0.0524
+
+Verdict per case (model vs the epoch-2 bars)
+- KeytrackedTilt_UnityAtPivot: worst |gain| 0.0174 dB at C2 Tone 1 (bar 0.05). PASS by model. Tone 0.5 reads 0.0000.
+- KeytrackedTilt_FlatAtNeutral: gL = gH = 1 exactly at Tone 0.5 (pow(10, ±0) and sqrt(1) are exact), y = lp + (x − lp),
+  error ≤ 1 ulp of |x − lp| ≤ ~2.4e-7·max|x| (bar 1e-6·max|x|). PASS by analysis.
+- KeytrackedTilt_Keytracked: worst 0.0835 dB at n = 16, Tone 0 (bar 0.1). PASS by model (margin 0.0165 dB).
+- KeytrackedTilt_ToneDirection, monotonic parts: smallest step 0.0086 dB (Tone 0.75, n 15 -> 16), measurement error of
+  the RMS window is ~1e-5 dB. PASS by model. H(16 f0) over Tone {0, .25, .5, .75, 1}: −14.09, −8.32, 0.00, 2.67, 2.91.
+- KeytrackedTilt_ToneDirection, symmetry: |span(1) + span(0)| = 0.0524 dB at C2 / 192 kHz over x in [1/8, 8].
+  Epoch 2 bar 0.05 dB failed by 0.0024 dB (design, not harness: the exact digital response gives the same 0.0524; the analog
+  prototype is exactly symmetric; the residue is the matched-pole one-pole at x = 8 and grows as x*pivot/fs; C1 0.0262,
+  [1/4, 4] 0.0155, [1/2, 2] 0.0038). Ruled (option A, Group 2 gate, plan C-25): bar 0.06 dB at the same cell. PASS by model
+  (margin 0.0076 dB). The test carries the 0.06 bar with the ruling cited.
+- KeytrackedTilt_ClampAndReset: task cell f0 = 20 kHz at 88.2 kHz gives pivot 40 kHz, BELOW the clamp
+  (0.495 · 88200 = 43659 Hz), so it does not exercise the clamp; a second cell f0 = 22 kHz (pivot 44 kHz) was added so the
+  clamp runs. reset() then process(0) == 0 holds by construction (lp state 0, gL·0 + gH·0).
+
+Epoch 3 (2026-10-15): header and TU re-read against the rewritten T004 section; no code change needed (the test already
+carries the ruled 0.06 dB symmetry bar). No spec bar involved: SC-028(a)/(b) pass with margin. Not built or run (workflow rule).

@@ -409,6 +409,30 @@ use-case renders (808 attack, cinematic impact, techno pluck, kick/bass hybrid) 
 
 ### Phase 5: Shape & Character
 
+**Status: ✅ COMPLETE (2026-10-17)** — see specs/profundum-phase5-shape-character/compliance.md (89 pass, 0 partial, 0 fail after the
+2026-10-16/17 close: eight user rulings recorded in their FR/SC rows first — Crush m_min 3, one-period pre-roll with DC prime at every
+branch start and bypass exit, SC-012(f) and SC-003(a) scope under the C-3 / Crush precedents, the Rectify descriptor rule at −20 dB h2,
+Fracture observer edges from the Fold-100 sine ∩ triangle bands, a restartable 10 ms raised-cosine SHAPE ramp, and FR-064's
+append-only fallback used once for `DCBlocker::setState`; two root fixes in ShapeMorph's regime handover; the harvested loudness and
+flip-edge tables pasted; SC-015 pinned at 1.85 % of one core against 2.0 %). Shipped: `ClosedFormAdaa2` (L0), `KeytrackedTilt` and
+`OversampledResidualPath` (L2; 4× halfband, three 2fs notches and a 2 Hz blocker on the residual only), `Rectifier` (L2, half/full-wave
+blend in double ADAA2, sine makeup), `ShapeMorph` (L3: ROUND / HOLLOW / BITE behind one SHAPE, linear weights after the filters, HOLLOW's
+linear chain warm from prepare, equal-loudness table harvested, BITE's emphasis inverse on HOLLOW's tap), `BassCharacterStage` (L3: Tube,
+Fold, Rectify, Bite, Crush, Fracture with Amount + Tone each; keytracked tilts; pitch-synchronous noiseless Crush hold with a per-slot
+hysteresis quantiser; Fracture = polarity alternation + bias-flip clip on the f₀/2 lattice; `perceivedPitchRatio()` with hysteresis for
+Rectify and Fracture; `syncPhase(coreCycles)`; 10 ms algorithm crossfade preceded by a one-period pre-roll; L/R-capable offsets).
+
+**Phase 9 handoff (plan S13; compliance "Remaining gates"):** (1) a note that has been through a Drop keeps partial phases unlike a
+fresh note's, so every waveform-dependent stage sounds different after a Drop — a listening item and a possible Phase 4 amendment;
+(2) the voice calls `syncPhase` at note-on, retrigger and bypass exit, and an algorithm switch takes 1/f₀ + 10 ms, a bypass exit
+1/f₀ + 5 ms; (3) kGrowl reads 2·f₀ to the estimator and every nonlinear stage (and most SHAPE positions) restores f₀ — FOLLOW takes r
+from the engine, never from processed audio; (4) Rectify's descriptor: `setInputHalfWaveSymmetric(true)` when the Rectify input's h2 is
+below −20 dB re h1 (−24 … −16 dB is the documented uncertainty band); (5) Fracture's observer is stated for Fold-100 sine / triangle
+inputs and lags the audio by up to 0.17 Amount on saw-like voices at Tone ≥ 0.75; (6) the FR-040 h1 transfer table, the C-15 group
+delays, the ShapeMorph growl level swing (C-6) and the crossfade CPU cell (2.65 %). **Phase 7 handoff:** the SC-013(b) offset ceilings
+(Rectify and Fracture at 0.10; evidence/sc013-offset-ceilings.txt) and the ±0.15 readings. **Phase 8:** SHAPE, Amount, Tone and the
+algorithm are the morphable fields; transitions only through `setAlgorithm`.
+
 **Spec:** `profundum-phase5-shape-character`
 **Goal:** The replacement for a filter section and for an FX rack.
 

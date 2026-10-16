@@ -1,0 +1,9 @@
+# SC-013(b) per-algorithm offset ceilings (user ruling 2026-10-16; Phase 7 handoff).
+# Tube, Fold, Bite and Crush are gated at the full +-0.15 (D-12) and carry no ceiling line.
+# algorithm,note,ceiling_offset,b_at_ceiling_db,b_at_0.15_db (ceiling 0 = none on {0.05, 0.10})
+Rectify,E0,0.1,-0.609117,-1.45729
+Fracture,E0,0.1,-0.591022,-1.1541
+Rectify,E1,0.1,-0.596596,-1.44725
+Fracture,E1,0.1,-0.557137,-1.09807
+Rectify,E2,0.1,-0.582507,-1.40954
+Fracture,E2,0.1,-0.556489,-1.09658

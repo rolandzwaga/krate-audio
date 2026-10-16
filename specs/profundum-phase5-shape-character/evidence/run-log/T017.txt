@@ -1,0 +1,121 @@
+T017 run log — Character behaviour gates (SC-008, SC-009, SC-013, SC-021, SC-026(b)(c)(d), SC-027, SC-029; C-14, C-16, C-17, C-21)
+
+Files written:
+- dsp/tests/unit/systems/bass_character_stage_test.cpp (T017 block appended after BassCharacter_CrushHoldRing; header
+  comment and includes extended: <complex>, <filesystem>, <fstream>, <sstream>, <string>, <type_traits>, <utility>,
+  core/math_constants.h).
+- this run log.
+Not built or run (workflow rule: the group gate builds and runs). Every helper is in an anonymous namespace with a t17 /
+T17 prefix (no ODR exposure).
+
+Cases (tags [systems][profundum][shape-character][bass-character]; [long] only where the task says so):
+- BassCharacter_AmountZeroBitIdentical (SC-008): six algorithms, kSawAnchor E1, distinct L / R (R = L rotated by 397
+  samples, so the stage unlinks), Amount 0.8 for 0.3 s then setAmount(0) mid block; both channels bit-identical from
+  settle = max(100 ms, 5 x max(kParamSmoothMs, kSwitchCrossfadeMs, kBypassCrossfadeMs)) = 100 ms after the call (INFO).
+- BassCharacter_ClickCountPositiveControl: (i) hard switch Tube -> Fracture (seamHardSwitch_), (ii) unsmoothed Amount
+  0 -> 1 (Rectify); E1 and C2 x kSawAnchor, kGrowl; gated per note (>= 1 fixture flags each control), every cell WARNed.
+- BassCharacter_SwitchClickFreeSmoke (Tube -> Bite, Rectify -> Fracture, E1) / BassCharacter_SwitchClickFree [long] (30
+  pairs x {E1, C2}): kSawAnchor, Amount 1, Tone 0.5, switch at 512·m + 200 (mid block). d11Ratio <= 1 over
+  [switch, switch + crossfade] with g_out / g_in mirrored from the stage (pos = min(1, count·inc), inc =
+  crossfadeIncrement(10, fs), alpha 1.493, REQUIREd equal to kSwitchCrossfadeExponent); D_a, D_b, max|x| from the held
+  renders over [0.25 s, end); two-reference differential count == 0; L_tr one-period sliding RMS over [switch - T,
+  switch + crossfade + T] within [min - 1, max + 1] dB of the held renders' sliding RMS over the same window.
+- BassCharacter_MonoSum (SC-013): (a) six algorithms x Amount {0.5, 1}, Tone 0.3, L == R -> L == R bit-identical, not
+  inert, linked; (b)(c) offsets (0.15, 0.15), Amount 0.5, Tone 0.5, E0/E1/E2 kSawAnchor, render 1 s + max(262144,
+  aliasFftLength): mid vs L/R-mean energy over BH7 bins 9 .. floor(2·f0/bin) - 8 on the aliasFftLength frame
+  (ProfundumTest::bh7PowerSpectrum) within 1 dB; |dTHD| >= 1 dB (OQ-S floor via floorCounts / floorClamp) or |dC| >=
+  0.05 oct, gated per (algorithm, note) cell. CSV: evidence/sc013.csv.
+- ShapeCharacter_ParameterStepsClickFreeSmoke: Bite, kSawAnchor E1: Amount 0.2 -> 1, 0 -> 0.1, 0.1 -> 0 steps counted 0
+  (both channels); hard-bypass control 0 -> 0.1 (seamHardBypass_) counted >= 1.
+- ShapeCharacter_ParameterStepsClickFree [long] (SC-021): six algorithms x {Amount 0<->1, Tone 0<->1 (Amount 0.5),
+  amount offset -0.15<->+0.15, tone offset -0.15<->+0.15 (centre 0.5 / 0.5), bypass edge 0<->0.05} x {step, 20 ms ramp}
+  x both directions x {E1, C2} x {kSawAnchor, kGrowl}; host block 64, ramps set every block, linear, reaching the end
+  setting exactly; counted == 0 on L and R. Controls (i), (ii) gated per note; hard-bypass control (Amount 0 -> 0.05)
+  gated per (note, algorithm).
+- BassCharacter_RLawHysteresis (SC-026 (b)(c)(d) + crossfade): Rectify, descriptor true, Tone {0, 0.5, 1} (table rows 0, 2,
+  4); (b) 1000 xorshift-dithered steps of +-band/4 around lo and hi, approached from Amount 0 and from 1: 0 changes from
+  the side the edge holds, exactly 1 (the first crossing, never back) from the other; audio processed between steps;
+  (c) reset() inside the band -> r == 1; (d) static_assert float return, r unchanged by four offset pairs at four
+  Amounts; crossfade Rectify -> Fracture at Amount 1: r == 0.5 from the call, a queued Rectify leaves r at 0.5 until it
+  starts at the crossfade end (sample len - 1), then 2.
+- BassCharacter_DryShareNoComb (SC-027): seamIdentityLaw_, Rectify, Tone 0.5, white noise (seed 0x2545F491, -12 dBFS
+  RMS), 16·16384 + 4096 samples; reference = standalone OversampledResidualPath with lin = u[n-1] at F·fs, res = 0;
+  residual <= -100 dBFS; Welch 2^14 Hann 50 % (31 segments), H = S_yx/S_xx, ripple (max - min of 20 log10|H|) over
+  20 Hz .. 0.45·fs <= 0.1 dB; control seamRawDry_ ripple > 0.1 dB.
+- BassCharacter_AlgorithmQueue (SC-029): 32 xorshift32-sampled (A, B, C, D) (A != B, C not in {A, B}, D not in {B, C}),
+  printed with WARN; switch at 2·512 + 200, C and D at distinct sample offsets inside the crossfade; transition rendered
+  sample by sample (runningBranchCount checked after every sample, <= 2 and == 2), references in 512 blocks: C-then-D ==
+  "A -> B, B -> D at the crossfade end"; C-then-B == "A -> B" (pending cleared at the request, C-21); C-then-A == "A -> B,
+  B -> A at the end"; a steady request equal to the current algorithm is bit-identical to no request. API review:
+  concept T17HasAlgorithmBlend (requires(T s) { s.setAlgorithmBlend(0.5f); }) static_asserted false and WARNed.
+
+Decisions / deviations:
+1. Phase-aligned references. Crush's and Fracture's phasors are reset to 0 by start() and by leaving bypass
+   (bass_character_stage.h:1060-1067, 1192-1209, 1224-1233), while a held render starts them at sample 0. Every event
+   that can start a branch is placed at the sample S on the cell's grid (512·m + 200 for SC-009, 64·m for SC-021) in
+   [0.5 s, 1.0 s) whose S·f0/fs is nearest an even integer, so the end-setting reference is phase-aligned as the spec's
+   method requires. Recorded per cell (INFO).
+2. Positive control (ii) "unsmoothed Amount 0 -> 1": Amount 0 is the FR-054 bypass, whose 5 ms linear ramp
+   (kBypassCrossfadeMs, bass_character_stage.h:82, :335-342) would itself smooth an unsmoothed parameter step, so the
+   control snaps both the smoothers (seamUnsmoothed_) and the bypass ramp (seamHardBypass_). Control events are chosen
+   >= 2·N from every reference detection with the largest |a| + |b - a| proxy (the ShapeMorph T013 pattern).
+3. SC-009 level: "the two steady one-period levels" are taken as the span of the held renders' one-period sliding RMS
+   over the same window (a one-period RMS of a stationary render still moves with the window position, notably for
+   Fracture's f0/2 period). Bounds [min - 1, max + 1] dB unchanged.
+4. SC-021 cells run in both directions (stricter than "full-range step"); offsets' full range = the gated +-0.15 (D-12).
+   The TubeStage bypass-threshold crossing has no cell: the stage pins saturation at 1 and bias 0
+   (bass_character_stage.h:616-617), so the threshold is never crossed (T011).
+5. SC-026(b): with dither crossing the edge both ways, "never toggles" is gated as 0 changes when approached from the
+   side the edge holds and exactly 1 change (no return) when approached from the other side.
+6. SC-013(c) is gated per (algorithm, note) at E0, E1, E2 (stricter than one note per algorithm).
+7. SC-029(e): a requires-expression with an invalid requirement on a non-dependent type is ill-formed outside a template
+   ([expr.prim.req]), so the assertion uses a concept on T = BassCharacterStage.
+8. SC-027 at Amount 0.5 + 0.2: see DEFECT below.
+
+DEFECT: BassCharacter_DryShareNoComb — spec SC-027 names Amount 0.5, but under S5.4 / the shipped mapping
+  wet = min(1, A / kRectHalfEnd), kRectHalfEnd = 0.4 (bass_character_stage.h:98, :759; dryShare() = 1 - wet, :779),
+  Rectify's dry share at Amount 0.5 is 0, so the raw-dry positive control cannot comb at Amount 0.5 by construction
+  (the identity-law gate is then vacuous with respect to the dry share). The test gates the identity-law residual and
+  flatness at BOTH Amount 0.5 (the spec cell) and Amount 0.2 (dry share 0.5, b = 0, premise REQUIREd through
+  rectifyMix), gates the raw-dry control at Amount 0.2 and records it at 0.5 (WARN). Needs a spec-row amendment
+  (SC-027 "at Amount 0.5" -> an Amount with a nonzero dry share, e.g. 0.2). Owning file: spec.md SC-027 row (main loop).
+
+
+EPOCH 2 (Group 8 rulings)
+=========================
+Rulings applied (user, 2026-10-16, spec Clarifications "Group 8 gate rulings"; tasks.md "RULED 2026-10-16"):
+1. SC-009 level window -> [min - 2.5 dB, max + 1.5 dB] of the two steady levels (was +-1 dB), in t17CheckSwitch, which
+   BassCharacter_SwitchClickFreeSmoke and the [long] BassCharacter_SwitchClickFree share. The midpoint excursion is
+   recorded per pair (WARN): L_tr at switch + crossfade/2 against the span of the two steady one-period levels at the
+   same position, signed distance outside that span (0 inside); over = trMax - steadyMax and under = trMin - steadyMin
+   are printed with it. Supersedes note 3's "[min - 1, max + 1] dB unchanged".
+2. SC-013(b): Tube, Fold, Bite, Crush gated at +-0.15. Rectify and Fracture measured at +-0.15 (recorded, WARN), +-0.10
+   and +-0.05 (Amount and Tone offsets equal); gate = a largest offset on {0.05, 0.10} meeting 1 dB exists (CHECK);
+   (c) measured at each algorithm's gated offset. Ceilings written to evidence/sc013-offset-ceilings.txt (overwritten
+   each run); sc013.csv gains offset and gated columns.
+3. BassCharacter_CrushHoldRing premises re-derived for m(A) = 64*32^-A: (a) f0 20 kHz / 44.1 kHz, Amount 1 ->
+   m_eff = min(2, 2.205) = 2, m_lo = 2, m_hi = 3, frac = 0. Both engines run whatever frac is, so the m_hi = 3 engine
+   still steps 2.94 F-samples apart, and with m_hi <= 3 everywhere this cell is still the worst spacing; occupancy
+   expectations (<= 2, >= 2, 0 retirements) unchanged. (b) mStart = 64*32^-0.05 = 53.8, mEnd = 2: floor difference 51
+   (REQUIRE >= 3 holds).
+
+Build: 0 warnings, 0 errors (F:/tmp/p5g8/build.log).
+
+Runs (logs under F:/tmp/p5g8):
+- BassCharacter_SwitchClickFreeSmoke: All tests passed (93 assertions in 1 test case).
+  E1 Tube -> Bite: over +1.17322 dB, under +8.7e-07 dB; midpoint L_tr -11.7235 vs steady [-12.4989, -11.7406] dBFS,
+  midpoint excursion +0.0170 dB.
+  E1 Rectify -> Fracture: over +0.000996 dB, under -0.132696 dB; midpoint L_tr -13.5184 vs steady [-18.3361,
+  -10.7638] dBFS, midpoint excursion 0 dB.
+  Worst: over +1.173 dB (bar +1.5), under -0.133 dB (bar -2.5).
+- BassCharacter_MonoSum: All tests passed (2218 assertions in 1 test case).
+  Ceilings (algorithm, note, ceiling, (b) at ceiling, (b) at +-0.15):
+    Rectify  E0 0.10 -0.609117 -1.45729 | E1 0.10 -0.596596 -1.44725 | E2 0.10 -0.582507 -1.40954
+    Fracture E0 0.10 -0.591022 -1.1541  | E1 0.10 -0.557137 -1.09807 | E2 0.10 -0.556489 -1.09658
+- BassCharacter_CrushHoldRing: All tests passed (114 assertions in 1 test case).
+  (a) f0 20 kHz / 44.1 kHz, Amount 1: max occupancy 2, retirements 0. (b) E1 ramp 0.05 -> 1: max occupancy 1,
+  retirements 0; ramp max |dy| 0.445598 vs steady grid max 0.460262 (Amount 0.05), ratio 0.968 (bar 1.1);
+  differential clicks recorded: counted 32 (transition 194, reference 197, N 145).
+- ShapeCharacter_SampleRates: All tests passed (562 assertions in 1 test case).
+- ShapeCharacter_DropTracksHarmonicNumbersSmoke: All tests passed (86 assertions in 1 test case).
+- Not run (per instruction): BassCharacter_SwitchClickFree ([long]).

@@ -1,0 +1,127 @@
+stage,setting,tone,fixture,note,f0_hz,h1_db,h1_deg,group_delay_samples,phase_delay_samples,status
+BassCharacterStage,Tube,0.000000,kSawAnchor,E0,20.6017,0.945918,-17.9921,116.616,116.444,recorded
+BassCharacterStage,Tube,0.500000,kSawAnchor,E0,20.6017,-0.734247,32.3453,120.602,-209.337,recorded
+BassCharacterStage,Tube,1.000000,kSawAnchor,E0,20.6017,-4.42151,89.8844,161.173,-581.727,recorded
+BassCharacterStage,Fold,0.000000,kSawAnchor,E0,20.6017,2.08471,1.14519,145.359,-7.4116,recorded
+BassCharacterStage,Fold,0.500000,kSawAnchor,E0,20.6017,0.0560887,25.8309,145.826,-167.177,recorded
+BassCharacterStage,Fold,1.000000,kSawAnchor,E0,20.6017,-3.89359,82.0557,145.936,-531.06,recorded
+BassCharacterStage,Rectify,0.000000,kSawAnchor,E0,20.6017,2.1646,70.0838,40.0016,-453.579,recorded
+BassCharacterStage,Rectify,0.500000,kSawAnchor,E0,20.6017,0.135981,94.7695,40.4643,-613.344,recorded
+BassCharacterStage,Rectify,1.000000,kSawAnchor,E0,20.6017,-3.8137,150.994,40.5852,-977.227,recorded
+BassCharacterStage,Bite,0.000000,kSawAnchor,E0,20.6017,2.64405,-57.3165,-0.424253,370.95,recorded
+BassCharacterStage,Bite,0.500000,kSawAnchor,E0,20.6017,0.93121,-5.55251,22.104,35.9356,recorded
+BassCharacterStage,Bite,1.000000,kSawAnchor,E0,20.6017,-3.18468,62.6427,67.143,-405.421,recorded
+BassCharacterStage,Crush,0.000000,kSawAnchor,E0,20.6017,1.64987,-79.5225,37.7043,514.666,recorded
+BassCharacterStage,Crush,0.500000,kSawAnchor,E0,20.6017,-0.37875,-54.8367,38.1643,354.901,recorded
+BassCharacterStage,Crush,1.000000,kSawAnchor,E0,20.6017,-4.32843,1.38798,38.2713,-8.98296,recorded
+BassCharacterStage,Fracture,0.000000,kSawAnchor,E0,20.6017,,,,,h1 absent
+BassCharacterStage,Fracture,0.500000,kSawAnchor,E0,20.6017,,,,,h1 absent
+BassCharacterStage,Fracture,1.000000,kSawAnchor,E0,20.6017,,,,,h1 absent
+ShapeMorph,0.000000,,kSawAnchor,E0,20.6017,0.24544,-9.53559,-0.555144,61.7139,recorded
+ShapeMorph,0.500000,,kSawAnchor,E0,20.6017,0.121315,-19.0633,4.5584,123.377,recorded
+ShapeMorph,1.000000,,kSawAnchor,E0,20.6017,-1.49295,53.1339,112.638,-343.88,recorded
+BassCharacterStage,Tube,0.000000,kSawAnchor,E1,41.2034,2.47311,-28.4128,48.0505,91.943,recorded
+BassCharacterStage,Tube,0.500000,kSawAnchor,E1,41.2034,0.780254,21.6104,49.0066,-69.9308,recorded
+BassCharacterStage,Tube,1.000000,kSawAnchor,E1,41.2034,-3.23086,76.9513,47.8084,-249.013,recorded
+BassCharacterStage,Fold,0.000000,kSawAnchor,E1,41.2034,3.90473,-11.7302,48.1474,37.9585,recorded
+BassCharacterStage,Fold,0.500000,kSawAnchor,E1,41.2034,1.87577,12.8836,48.6014,-41.6909,recorded
+BassCharacterStage,Fold,1.000000,kSawAnchor,E1,41.2034,-2.09551,69.09,48.7233,-223.573,recorded
+BassCharacterStage,Rectify,0.000000,kSawAnchor,E1,41.2034,5.18804,66.614,13.4988,-215.561,recorded
+BassCharacterStage,Rectify,0.500000,kSawAnchor,E1,41.2034,3.15908,91.2277,13.9536,-295.211,recorded
+BassCharacterStage,Rectify,1.000000,kSawAnchor,E1,41.2034,-0.812194,147.434,14.0763,-477.093,recorded
+BassCharacterStage,Bite,0.000000,kSawAnchor,E1,41.2034,3.42371,-57.6262,5.32551,186.477,recorded
+BassCharacterStage,Bite,0.500000,kSawAnchor,E1,41.2034,1.68828,-7.66636,6.33675,24.8082,recorded
+BassCharacterStage,Bite,1.000000,kSawAnchor,E1,41.2034,-2.96012,59.3515,5.66848,-192.06,recorded
+BassCharacterStage,Crush,0.000000,kSawAnchor,E1,41.2034,1.97278,-79.594,11.1546,257.564,recorded
+BassCharacterStage,Crush,0.500000,kSawAnchor,E1,41.2034,-0.056183,-54.9803,11.611,177.915,recorded
+BassCharacterStage,Crush,1.000000,kSawAnchor,E1,41.2034,-4.02746,1.22607,11.7334,-3.96755,recorded
+BassCharacterStage,Fracture,0.000000,kSawAnchor,E1,41.2034,,,,,h1 absent
+BassCharacterStage,Fracture,0.500000,kSawAnchor,E1,41.2034,,,,,h1 absent
+BassCharacterStage,Fracture,1.000000,kSawAnchor,E1,41.2034,,,,,h1 absent
+ShapeMorph,0.000000,,kSawAnchor,E1,41.2034,0.338263,-9.82255,3.49568,31.7855,recorded
+ShapeMorph,0.500000,,kSawAnchor,E1,41.2034,0.121358,-19.7731,4.59338,63.9854,recorded
+ShapeMorph,1.000000,,kSawAnchor,E1,41.2034,-3.70327,40.8767,7.26142,-132.276,recorded
+BassCharacterStage,Tube,0.000000,kSawAnchor,E2,82.4069,2.76455,-36.6925,15.7214,59.3681,recorded
+BassCharacterStage,Tube,0.500000,kSawAnchor,E2,82.4069,1.06666,13.0425,16.6319,-21.1026,recorded
+BassCharacterStage,Tube,1.000000,kSawAnchor,E2,82.4069,-3.01579,68.486,16.6874,-110.81,recorded
+BassCharacterStage,Fold,0.000000,kSawAnchor,E2,82.4069,4.15301,-19.9945,15.5786,32.3508,recorded
+BassCharacterStage,Fold,0.500000,kSawAnchor,E2,82.4069,2.12333,4.47545,16.0422,-7.24123,recorded
+BassCharacterStage,Fold,1.000000,kSawAnchor,E2,82.4069,-1.8912,60.6448,16.1641,-98.1225,recorded
+BassCharacterStage,Rectify,0.000000,kSawAnchor,E2,82.4069,5.1956,63.8173,6.79632,-103.256,recorded
+BassCharacterStage,Rectify,0.500000,kSawAnchor,E2,82.4069,3.16592,88.2872,7.25987,-142.848,recorded
+BassCharacterStage,Rectify,1.000000,kSawAnchor,E2,82.4069,-0.848611,144.457,7.38098,-233.729,recorded
+BassCharacterStage,Bite,0.000000,kSawAnchor,E2,82.4069,3.42908,-59.0415,4.21276,95.5285,recorded
+BassCharacterStage,Bite,0.500000,kSawAnchor,E2,82.4069,1.66859,-9.3688,5.09727,15.1586,recorded
+BassCharacterStage,Bite,1.000000,kSawAnchor,E2,82.4069,-3.04388,57.7092,5.15032,-93.3728,recorded
+BassCharacterStage,Crush,0.000000,kSawAnchor,E2,82.4069,1.98112,-81.603,4.44963,132.033,recorded
+BassCharacterStage,Crush,0.500000,kSawAnchor,E2,82.4069,-0.0485499,-57.133,4.91345,92.4406,recorded
+BassCharacterStage,Crush,1.000000,kSawAnchor,E2,82.4069,-4.06308,-0.96374,5.03483,1.55932,recorded
+BassCharacterStage,Fracture,0.000000,kSawAnchor,E2,82.4069,,,,,h1 absent
+BassCharacterStage,Fracture,0.500000,kSawAnchor,E2,82.4069,,,,,h1 absent
+BassCharacterStage,Fracture,1.000000,kSawAnchor,E2,82.4069,,,,,h1 absent
+ShapeMorph,0.000000,,kSawAnchor,E2,82.4069,0.336412,-11.0206,4.05597,17.8312,recorded
+ShapeMorph,0.500000,,kSawAnchor,E2,82.4069,0.121496,-21.1928,4.59101,34.2896,recorded
+ShapeMorph,1.000000,,kSawAnchor,E2,82.4069,-3.7802,38.9517,5.72726,-63.0233,recorded
+BassCharacterStage,Tube,0.000000,kGrowl,E0,20.6017,3.64233,39.5525,-403.253,-255.982,recorded
+BassCharacterStage,Tube,0.500000,kGrowl,E0,20.6017,6.58855,108.168,-103.694,-700.056,recorded
+BassCharacterStage,Tube,1.000000,kGrowl,E0,20.6017,5.68739,160.442,14.7024,-1038.37,recorded
+BassCharacterStage,Fold,0.000000,kGrowl,E0,20.6017,-16.9763,-43.4938,3149.48,281.49,recorded
+BassCharacterStage,Fold,0.500000,kGrowl,E0,20.6017,-19.0049,-18.8081,3150.05,121.725,recorded
+BassCharacterStage,Fold,1.000000,kGrowl,E0,20.6017,-22.9546,37.4165,3150.19,-242.158,recorded
+BassCharacterStage,Rectify,0.000000,kGrowl,E0,20.6017,29.982,70.0838,40.0622,-453.579,recorded
+BassCharacterStage,Rectify,0.500000,kGrowl,E0,20.6017,27.9534,94.7695,40.5272,-613.344,recorded
+BassCharacterStage,Rectify,1.000000,kGrowl,E0,20.6017,24.0037,150.994,40.6367,-977.227,recorded
+BassCharacterStage,Bite,0.000000,kGrowl,E0,20.6017,12.4781,-38.566,-206.824,249.597,recorded
+BassCharacterStage,Bite,0.500000,kGrowl,E0,20.6017,7.81174,-34.0636,481.881,220.458,recorded
+BassCharacterStage,Bite,1.000000,kGrowl,E0,20.6017,-0.422442,-7.03517,1474.69,45.5313,recorded
+BassCharacterStage,Crush,0.000000,kGrowl,E0,20.6017,13.7503,100.478,37.7468,-650.286,recorded
+BassCharacterStage,Crush,0.500000,kGrowl,E0,20.6017,11.7217,125.163,38.2082,-810.051,recorded
+BassCharacterStage,Crush,1.000000,kGrowl,E0,20.6017,7.772,-178.612,38.3163,1155.97,recorded
+BassCharacterStage,Fracture,0.000000,kGrowl,E0,20.6017,,,,,h1 absent
+BassCharacterStage,Fracture,0.500000,kGrowl,E0,20.6017,,,,,h1 absent
+BassCharacterStage,Fracture,1.000000,kGrowl,E0,20.6017,,,,,h1 absent
+ShapeMorph,0.000000,,kGrowl,E0,20.6017,-2.08663,-11.4621,22.9549,74.1824,recorded
+ShapeMorph,0.500000,,kGrowl,E0,20.6017,0.121317,-19.0633,4.57598,123.377,recorded
+ShapeMorph,1.000000,,kGrowl,E0,20.6017,9.22892,-97.3149,241.202,629.817,recorded
+BassCharacterStage,Tube,0.000000,kGrowl,E1,41.2034,10.5926,62.4999,57.939,-202.248,recorded
+BassCharacterStage,Tube,0.500000,kGrowl,E1,41.2034,14.8006,106.105,57.7447,-343.354,recorded
+BassCharacterStage,Tube,1.000000,kGrowl,E1,41.2034,13.2466,151.496,57.2826,-490.236,recorded
+BassCharacterStage,Fold,0.000000,kGrowl,E1,41.2034,-1.4484,174.593,64.4818,-564.98,recorded
+BassCharacterStage,Fold,0.500000,kGrowl,E1,41.2034,-3.47736,-160.793,64.9042,520.322,recorded
+BassCharacterStage,Fold,1.000000,kGrowl,E1,41.2034,-7.44865,-104.587,64.9564,338.44,recorded
+BassCharacterStage,Rectify,0.000000,kGrowl,E1,41.2034,37.9666,66.6116,13.5202,-215.554,recorded
+BassCharacterStage,Rectify,0.500000,kGrowl,E1,41.2034,35.9377,91.2253,13.9724,-295.203,recorded
+BassCharacterStage,Rectify,1.000000,kGrowl,E1,41.2034,31.9664,147.432,14.0896,-477.085,recorded
+BassCharacterStage,Bite,0.000000,kGrowl,E1,41.2034,11.7337,-8.34296,12.3238,26.9976,recorded
+BassCharacterStage,Bite,0.500000,kGrowl,E1,41.2034,10.5703,-92.0867,14.1585,297.99,recorded
+BassCharacterStage,Bite,1.000000,kGrowl,E1,41.2034,10.4186,-74.8208,15.4623,242.118,recorded
+BassCharacterStage,Crush,0.000000,kGrowl,E1,41.2034,18.3274,67.4015,11.1589,-218.109,recorded
+BassCharacterStage,Crush,0.500000,kGrowl,E1,41.2034,16.2984,92.0152,11.6147,-297.759,recorded
+BassCharacterStage,Crush,1.000000,kGrowl,E1,41.2034,12.3271,148.222,11.7473,-479.641,recorded
+BassCharacterStage,Fracture,0.000000,kGrowl,E1,41.2034,,,,,h1 absent
+BassCharacterStage,Fracture,0.500000,kGrowl,E1,41.2034,,,,,h1 absent
+BassCharacterStage,Fracture,1.000000,kGrowl,E1,41.2034,,,,,h1 absent
+ShapeMorph,0.000000,,kGrowl,E1,41.2034,-6.44379,-13.8441,-7.25684,44.7991,recorded
+ShapeMorph,0.500000,,kGrowl,E1,41.2034,0.121356,-19.7731,4.58528,63.9854,recorded
+ShapeMorph,1.000000,,kGrowl,E1,41.2034,19.0996,-108.578,14.3649,351.356,recorded
+BassCharacterStage,Tube,0.000000,kGrowl,E2,82.4069,10.8735,52.6016,18.9332,-85.1088,recorded
+BassCharacterStage,Tube,0.500000,kGrowl,E2,82.4069,14.9724,96.1691,18.9435,-155.6,recorded
+BassCharacterStage,Tube,1.000000,kGrowl,E2,82.4069,13.3682,141.61,18.8311,-229.124,recorded
+BassCharacterStage,Fold,0.000000,kGrowl,E2,82.4069,-1.3529,166.15,3.75911,-268.829,recorded
+BassCharacterStage,Fold,0.500000,kGrowl,E2,82.4069,-3.38257,-169.38,4.22704,274.054,recorded
+BassCharacterStage,Fold,1.000000,kGrowl,E2,82.4069,-7.3971,-113.21,4.36537,183.173,recorded
+BassCharacterStage,Rectify,0.000000,kGrowl,E2,82.4069,37.9674,63.7981,6.89356,-103.224,recorded
+BassCharacterStage,Rectify,0.500000,kGrowl,E2,82.4069,35.9377,88.268,7.35673,-142.817,recorded
+BassCharacterStage,Rectify,1.000000,kGrowl,E2,82.4069,31.9232,144.437,7.47992,-233.698,recorded
+BassCharacterStage,Bite,0.000000,kGrowl,E2,82.4069,11.7483,-11.2814,8.61837,18.2531,recorded
+BassCharacterStage,Bite,0.500000,kGrowl,E2,82.4069,10.7313,-94.9997,6.95246,153.708,recorded
+BassCharacterStage,Bite,1.000000,kGrowl,E2,82.4069,10.5152,-77.722,5.63261,125.753,recorded
+BassCharacterStage,Crush,0.000000,kGrowl,E2,82.4069,18.3357,65.3925,4.44824,-105.804,recorded
+BassCharacterStage,Crush,0.500000,kGrowl,E2,82.4069,16.306,89.8625,4.91242,-145.396,recorded
+BassCharacterStage,Crush,1.000000,kGrowl,E2,82.4069,12.2915,146.032,5.03382,-236.278,recorded
+BassCharacterStage,Fracture,0.000000,kGrowl,E2,82.4069,,,,,h1 absent
+BassCharacterStage,Fracture,0.500000,kGrowl,E2,82.4069,,,,,h1 absent
+BassCharacterStage,Fracture,1.000000,kGrowl,E2,82.4069,,,,,h1 absent
+ShapeMorph,0.000000,,kGrowl,E2,82.4069,-6.43833,-16.4648,21.9767,26.6399,recorded
+ShapeMorph,0.500000,,kGrowl,E2,82.4069,0.121498,-21.1927,4.58802,34.2896,recorded
+ShapeMorph,1.000000,,kGrowl,E2,82.4069,19.1016,-111.486,6.65337,180.383,recorded

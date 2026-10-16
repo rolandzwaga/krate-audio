@@ -1,0 +1,95 @@
+T019 run log - Chain gates (SC-012(e), SC-016, SC-018, SC-019, SC-020, SC-022 Shape arm, SC-025; C-15).
+Executor: workflow implementer, 2026-10-16. Test-only; no header and no probe edited. Not built or run here
+(the Group 8 gate builds dsp_systems_tests and runs the non-[long] cases).
+
+Files written
+- dsp/tests/unit/systems/shape_character_chain_test.cpp (T002 stub replaced)
+- specs/profundum-phase5-shape-character/evidence/run-log/T019.txt (this file)
+
+Cases (tags [systems][profundum][shape-character] plus [bass-character] / [shape-morph] where single-stage)
+- BassCharacter_RLawUpstreamChainSmoke: kSawAnchor E1, Rectify Amount {0, 1}, Tone 0.5.
+- BassCharacter_RLawUpstreamChain [long] (SC-012(e)): ProfundumCore (prepare 48 kHz, setControls, noteOn(f0),
+  host block 512) -> ShapeMorph SHAPE 1 -> HarmonicFold 100 -> BassCharacterStage Rectify (descriptor false);
+  {kSawAnchor, kGrowl, kTriangleAnchor} x {E0, E1, E2, C3} x Amount 0..1 step 0.1 x Tone {0, 0.5, 1}; 7 s
+  renders, SHS on the last 262144 samples. Rows to evidence/sc012e-upstream-chain.csv.
+- ShapeCharacter_NoAllocation (SC-016): every algorithm x SHAPE {0, 0.5, 1}; processBlock with and without the
+  pointer, every setter of both stages, an algorithm switch (through its crossfade), a ShapeMorph engage,
+  Amount-0 bypass entry and exit, unlink via offsets, reset(); live count read inside the scope (the scope
+  latches only in its destructor); positive control (one new/delete inside an identical scope) >= 1.
+- ShapeCharacter_PartitionInvariant (SC-018).
+- ShapeCharacter_SampleRates (SC-019).
+- ShapeCharacter_OutputBoundedShape (SC-022 Shape arm).
+- ShapeCharacter_H1TransferRecord (SC-020; FR-040, FR-041, C-15): writes evidence/sc020-h1-transfer.csv.
+- ShapeCharacter_DropTracksHarmonicNumbersSmoke: SHAPE 0.5 and Crush (A 1, T 0.5), block 64, kSawAnchor,
+  clause (a) at the 24 st and 6 st instants, clause (e).
+- ShapeCharacter_DropTracksHarmonicNumbers [long] (SC-025 (a)-(e)): writes evidence/sc025-drop.csv.
+
+Decisions / interpretations (none relaxes a bar; each is a measurement definition the task text leaves open)
+1. SC-012(e) input gating (C-3) is per (fixture, note): the Rectify input does not depend on Amount / Tone.
+   Matching rule (C-2): unambiguous output -> perceivedPitchRatio()*f0 within 1 cent of f_hat; ambiguous ->
+   within 1 cent of one of the two best of {f_hat/2, f_hat, 2 f_hat}. Caps (<= 20 % ambiguous, >= 8
+   unambiguous over the 33 Amount x Tone cells) apply to gated (fixture, note) in the [long] case only (the
+   smoke has 2 cells). Ungated inputs are WARN-recorded with their counts. The premise "w2 within 40 dB of
+   w1" is read as 10*log10(w2/w1) >= -40 at the Rectify input (even harmonics present; w2 above w1 also
+   satisfies it). The smoke additionally CHECKs that the kSawAnchor E1 chain input is gated (otherwise the
+   smoke would assert nothing).
+2. SC-018: setter events at absolute samples {3001, 7013, 9000, 12345, 15000, 18000, 20000} (Character:
+   Amount 0.6, Tone 0.2, switch to the next algorithm, offsets (0.1, 0.05) = unlink, setFundamentalHz(E2),
+   Amount 0 (bypass entry), Amount 1) and {3001, 9000, 12000, 15000, 18000} (ShapeMorph: SHAPE move,
+   disable, enable, setFundamentalHz(E2), SHAPE back); host blocks split at the events. Every partition is
+   compared with block 1; a non-identical partition WARN-records its peak residual and must be <= -120 dBFS.
+   The Drop-shaped pointer array: DropEnvelope 48 st / 60 ms / shape 0 / rebound 0 onto E2, triggered at
+   sample 4096. "Two renders from reset()" = renders 2 and 3 after re-applying the initial setters and
+   reset(), gated bit-identical; render 1 (after prepare) vs render 2 is INFO-recorded. 48k -> 96k -> 48k vs
+   fresh 48k: bit-identical, both with the pointer, block 512.
+3. SC-019: input kSawAnchor E1 at each rate; Character Amount 1, Tone 0.5. 48 and 96 kHz renders are
+   1 s + aliasFftLength(fs, E1)/fs + 50 ms (C and L on their spec frames); the other rates 1 s (finite and
+   bounded only).
+4. SC-022 Shape arm inputs: Fold-100 kGrowl normalised to peak 1 and a peak-1 sine, each at E0 and C3,
+   1.5 s, ShapeMorph keyed to the note.
+5. SC-020: h1 transfer = goertzelPhasor(out)/goertzelPhasor(in) over the integer-period frame (>= 0.5 s) after
+   the 1 s settle (1.55 s renders). Group delay at h1 = -d(arg H)/d(omega) by a forward difference over
+   f0 -> f0*(1 + 0.005), input and key moving together (the stage as a voice uses it), in base samples; the
+   phase delay -arg(H)/(2 pi f0)*fs is recorded alongside. "h1 absent" when |h1_out|^2 < 1e-6 |h1_in|^2.
+   Cells: every algorithm at Amount 1 x Tone {0, 0.5, 1}, SHAPE {0, 0.5, 1}; fixtures kSawAnchor, kGrowl;
+   notes E0, E1, E2. Recorded, not gated (finiteness and the row count are checked).
+6. SC-025 Drop: f[n] = E2*2^(d[n]/12) from the task's DropEnvelope settings, preceded by a 24576-sample
+   (0.512 s, 48 x 512, 1536 x 16) pre-roll held at d = 48 st so every stage starts the Drop settled; the core
+   receives f as f0PerSample from note on; the stages receive the staircase stair[n] = f[n - n % 16].
+7. SC-025(a) frame: a BH7 frame of 8 cycles of the core's instantaneous phase (Phi = cumulative stair/fs),
+   window as a function of Phi, samples weighted by dPhi (see the TU banner). A time-domain 8-period frame
+   spans most of the 48-semitone chirp and smears every harmonic across its neighbours' bins, so a correct
+   stage would fail it; the phase-domain frame is the BH7 analysis of harmonic n of the instantaneous f0 and
+   reduces exactly to the time-domain BH7 frame on the steady render. Instants: the first samples after the
+   pre-roll where d <= {24, 12, 6, 3, 1.5} st (frame starts); the instant's f0 = the staircase f at the
+   frame's phase midpoint; the steady render is the core noteOn(f0) + the stage keyed to f0, frame after
+   1 s. Harmonics n <= 16 with n*f0 < 0.45 fs; a harmonic whose input is more than 60 dB below the frame's
+   strongest input harmonic is not compared, and output levels are floored at -60 dB re the strongest output
+   harmonic (OQ-S floor convention); at least 8 harmonics must be compared (non-vacuity guard).
+8. SC-025(b): the stage fed setFundamentalHz(stair[block start]) per 512 block, no pointer; ShapeMorph cells
+   and Crush at Tone 0.5; gated as "largest |dH| over every such cell, fixture and instant > 1.5 dB" (the row
+   asks for at least one harmonic of at least one of ShapeMorph and Crush); every reading is in the CSV.
+9. SC-025(c): 16-cycle phase frames (half-harmonics k + 1/2 are then 8 bins from the harmonics, outside the
+   BH7 main lobe). Crush: I = power not on harmonics nu = 0 .. floor(fs / (2 f_min)) of the instantaneous f0,
+   re the frame power, floored at -60 dB (spec descriptor floor) on both sides; gate I_drop <= I_steady + 3 dB;
+   the input's I during the Drop is INFO'd. Fracture: "the SC-024(b) sidebands stay on the instantaneous f0/2
+   lattice" is gated as the odd-f0/2 lattice power re total during the Drop >= -40 dB (the SC-024(b)
+   Amount-1 bar) at every instant; the steady value is recorded.
+10. SC-025(d): the transition render is the Drop with the pointer; the two references hold the stage's f0 at
+    the Drop's start value and at E2 (same input, so phase-aligned sample for sample); N = floor(fs / E2 / 8).
+    Positive controls (Drop with the pointer, step 1024 samples into the Drop): Character (i) seamHardSwitch
+    Fold -> Crush (references Fold, Crush), (ii) seamUnsmoothed + seamHardBypass Fold Amount 1 -> 0
+    (references Fold, the input); ShapeMorph (i) seamHardRegime with SHAPE 0 -> 1 (references SHAPE 0, 1),
+    (ii) seamUnsmoothed SHAPE 0 -> 1. Gated per arm at the one note (E2): >= 1 flagged fixture x block cell
+    per control; every cell is WARN-recorded.
+11. SC-025(e) is tested in its strict form: render A sets f0 = E2 by setFundamentalHz before prepare and passes
+    a null pointer; render B leaves the constructor default f0 and passes a constant E2 array. Bit-identical,
+    both channels, at host blocks 64 and 512 (smoke: 64).
+
+Runtime notes (estimates, to be replaced by the gate's measured wall clocks)
+- Non-[long] cases: ShapeCharacter_H1TransferRecord renders 252 x 1.55 s stage cells and is the heaviest
+  (estimate ~8-12 s); the others are a few seconds each. If the gate log shows any untagged case above 15 s,
+  T022 tags it [long] and adds a smoke (deviation 8).
+
+DEFECT lines
+- none found while writing (nothing was run).

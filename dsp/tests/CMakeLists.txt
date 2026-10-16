@@ -60,6 +60,9 @@ add_executable(dsp_core_tests
     unit/core/chord_generator_test.cpp
     unit/core/hungarian_algorithm_test.cpp
     unit/core/xorshift32_test.cpp
+    # Profundum Phase 5 (specs/profundum-phase5-shape-character) - ENUMERATED, not globbed:
+    #   closed_form_adaa2_test.cpp  ClosedFormAdaa2 / DiodeAdaaLaw / diodeH1Coefficient (C-1, C-11)
+    unit/core/closed_form_adaa2_test.cpp
 
     # Test Helpers tests
     ${CMAKE_SOURCE_DIR}/tests/test_helpers/spectral_analysis_test.cpp
@@ -274,6 +277,17 @@ add_executable(dsp_processors_tests
     unit/processors/mono_handler_glide_test.cpp
     unit/processors/drop_note_behaviour_nonfinite_test.cpp
     unit/processors/drop_note_behaviour_perf_test.cpp
+    # Profundum Phase 5 (specs/profundum-phase5-shape-character) - ENUMERATED, not globbed:
+    #   keytracked_tilt_test.cpp                 SC-028(a)(b) parts (KeytrackedTilt)
+    #   oversampled_residual_path_test.cpp       C-1 constants, round trip
+    #   shape_character_metric_helpers_test.cpp  metric helper self-tests (tasks deviation 3)
+    #   rectifier_test.cpp                       SC-014; Rectifier arms of SC-010/011/016/018/019/021
+    #   rectifier_nonfinite_test.cpp             SC-017 Rectifier arm - in the -fno-fast-math block below
+    unit/processors/keytracked_tilt_test.cpp
+    unit/processors/oversampled_residual_path_test.cpp
+    unit/processors/shape_character_metric_helpers_test.cpp
+    unit/processors/rectifier_test.cpp
+    unit/processors/rectifier_nonfinite_test.cpp
     unit/processors/residual_types_tests.cpp
     unit/processors/residual_analyzer_tests.cpp
     unit/processors/residual_synthesizer_tests.cpp
@@ -675,6 +689,23 @@ add_executable(dsp_systems_tests
     unit/systems/profundum_note_behaviour_spectral_test.cpp
     #   profundum_core_pitch_continuity_test.cpp   SC-028 (2026-10-13 ruling): spectrum preserved across a Drop
     unit/systems/profundum_core_pitch_continuity_test.cpp
+    # Profundum Phase 5 (specs/profundum-phase5-shape-character) - ENUMERATED, not globbed:
+    #   shape_morph_test.cpp                 SC-003, SC-008/SC-013(a) (Shape), lifecycle
+    #   shape_morph_spectral_test.cpp        SC-001, SC-002, SC-004, SC-010/SC-011 (Shape)
+    #   bass_character_stage_test.cpp        SC-008, SC-009, SC-013, SC-021, SC-026, SC-027, SC-029
+    #   bass_character_spectral_test.cpp     SC-005, SC-006, SC-007, SC-010, SC-011, SC-022, SC-028
+    #   bass_character_rlaw_test.cpp         SC-012(a)(b)(c)(d)(f)(g), SC-024; grids [long]
+    #   shape_character_chain_test.cpp       SC-012(e), SC-016, SC-018, SC-019, SC-020, SC-025
+    #   shape_character_nonfinite_test.cpp   SC-017 - in the -fno-fast-math block below
+    #   shape_character_perf_test.cpp        SC-015  [.perf]
+    unit/systems/shape_morph_test.cpp
+    unit/systems/shape_morph_spectral_test.cpp
+    unit/systems/bass_character_stage_test.cpp
+    unit/systems/bass_character_spectral_test.cpp
+    unit/systems/bass_character_rlaw_test.cpp
+    unit/systems/shape_character_chain_test.cpp
+    unit/systems/shape_character_nonfinite_test.cpp
+    unit/systems/shape_character_perf_test.cpp
 )
 
 target_link_libraries(dsp_systems_tests
@@ -1164,6 +1195,9 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/systems/anchor_oscillator_nonfinite_test.cpp
         # Profundum Phase 4: injects NaN/Inf/subnormal bit patterns (SC-017). The perf TU stays out (shipping FP mode).
         unit/processors/drop_note_behaviour_nonfinite_test.cpp
+        # Profundum Phase 5: injects NaN/Inf bit patterns (SC-017, FR-066). The perf TU stays out (shipping FP mode).
+        unit/processors/rectifier_nonfinite_test.cpp
+        unit/systems/shape_character_nonfinite_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 

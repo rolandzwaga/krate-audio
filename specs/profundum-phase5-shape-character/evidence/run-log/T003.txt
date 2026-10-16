@@ -1,0 +1,45 @@
+T003 run log — ClosedFormAdaa2<Law>, DiodeAdaaLaw, diodeH1Coefficient (plan C-1, C-11, S4.1; C-25 epoch 2)
+Executor: workflow implementer, epoch 2, 2026-10-15. Status returned: done (not built or run; the Group 2 gate builds
+dsp_core_tests and runs it).
+
+Files
+- dsp/include/krate/dsp/core/closed_form_adaa2.h — unchanged in epoch 2 (the header was done in epoch 1; plan S4.1 as written).
+- dsp/tests/unit/core/closed_form_adaa2_test.cpp — epoch-2 changes only:
+  1. ClosedFormAdaa2_DiodeMatchesSigmoid: ulp-step count replaced by the absolute bar
+     |float(f(x)) - Asymmetric::diode(float(x))| <= 2 * 2^-24 * max(1, |f(x)|); the nextafter helper (floatUlpSteps) removed
+     because nothing else uses it.
+  2. ClosedFormAdaa2_SlowRampEqualsLaw: non-straddling bar 1e-6 -> 5e-6 (all three laws share checkSlowRamp); straddling bar
+     0.5 * 1e-4 * |f'(0+) - f'(0-)| + 1e-6 unchanged.
+  3. ClosedFormAdaa2_FallbackBranches, alternating section: reference f(0.3) -> f(0.3 + 2.5e-6), bar 1e-6 -> 1e-9.
+     Constant-input section unchanged (1e-12 vs f(0.3)).
+- specs/profundum-phase5-shape-character/evidence/run-log/T003.txt (this file).
+
+Model table (IEEE-double model of the header's exact recurrence, kEpsilon = 1e-5; float reference via Math.fround)
+Epoch-1 figures are those recorded in tasks.md T003 epoch 2 / plan C-25. The epoch-2 executor re-ran the model in Node
+(a throwaway script, not kept; same loops and laws as the TU) and reports its own reading next to them. Node's Math.exp / Math.log
+are not the MSVC CRT's, so last-bit differences are expected; the C++ gate reading is the authoritative one.
+
+| Case                                        | Bar (epoch 2)                 | Epoch-1 model            | Epoch-2 re-model                  |
+|---------------------------------------------|-------------------------------|--------------------------|-----------------------------------|
+| DiodeMatchesSigmoid, 10001 pts in [-8, 8]   | ratio diff / (2*2^-24*max(1,|f|)) <= 1 | 0.9988 of the bar | 0.9988 at x = -2.0048             |
+|   (old metric: nextafter steps <= 2)        | (retired)                     | fails near 0 (cancel.)   | ~42 ulp at x = 0.0032             |
+| SlowRamp TestCubicLaw, non-straddling       | 5e-6                          | 2.01e-6 at x = 3.84      | 3.18e-6 at x = -3.65              |
+| SlowRamp DiodeAdaaLaw, non-straddling       | 5e-6                          | 1.86e-6 at x = -3.79     | 1.86e-6 at x = -3.79              |
+| SlowRamp TestAbsLaw, non-straddling         | 5e-6                          | (below cubic/diode)      | 5.21e-7 at x = 3.72               |
+| SlowRamp DiodeAdaaLaw, straddling           | 0.5*1e-4*0.5 + 1e-6 = 2.6e-5  | —                        | 8.30e-6                           |
+| SlowRamp TestAbsLaw, straddling             | 0.5*1e-4*2 + 1e-6 = 1.01e-4   | —                        | 3.33e-5                           |
+| Fallback constant 0.3 (n >= 2) vs f(0.3)    | 1e-12                         | —                        | 0                                 |
+| Fallback alternating vs f(0.3 + 2.5e-6)     | 1e-9                          | 1.1e-16                  | 1.11e-16                          |
+|   (old reference f(0.3), bar 1e-6)          | (retired)                     | —                        | 2.39e-6 (would fail)              |
+
+Notes
+- Slow-ramp floor: F2 ~ 51 at |x| ~ 4 and the second difference quotient divides by h^2 = 1e-8, so double rounding of F2
+  (~51 * 1.1e-16 / 1e-8 ~ 6e-7 per term, a few terms) sets a ~1e-6..3e-6 floor; the algorithm's own bias there is ~2e-8.
+- Surface: the epoch-2 re-model reads the cubic law at 3.18e-6 (64 % of the 5e-6 bar) where epoch 1 recorded 2.01e-6; both
+  under the bar. The C++ build's reading decides.
+- No spec FR/SC bar is touched; SC-010 / SC-011 / SC-021 gate the law through the stages.
+
+Epoch 3 (2026-10-15, workflow retry): re-read the T003 section of tasks.md (still headed EPOCH 2; no epoch-3 text for T003
+in tasks.md, spec.md Clarifications or plan C-25). Header and TU re-read against it: all three epoch-2 changes are present
+(test TU :93 5e-6 bar, :108-129 absolute 2*2^-24*max(1,|f|) bar, :153/:166 f(0.3 + 2.5e-6) within 1e-9); header matches plan
+S4.1 line for line. No code changed in epoch 3. Not built or run here; the Group 2 gate decides.

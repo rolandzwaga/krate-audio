@@ -1,0 +1,48 @@
+T010 run log — ShapeMorph complete + probe + lifecycle tests (FR-010..FR-016, FR-018, FR-019, FR-052, FR-056;
+plan S6.2-S6.4, C-6, C-22, C-23). Executor: workflow implementer, 2026-10-16. Not built or run here (the group gate
+builds dsp_systems_tests and runs the non-[long] cases).
+
+Files written
+- dsp/include/krate/dsp/systems/shape_morph.h        (T002 stub replaced)
+- dsp/tests/unit/systems/shape_morph_probe.h          (new; read-only after T010)
+- dsp/tests/unit/systems/shape_morph_test.cpp         (T002 stub replaced; T013 appends SC-003 cases)
+- specs/profundum-phase5-shape-character/evidence/run-log/T010.txt (this file)
+
+Tests (tags [systems][profundum][shape-character][shape-morph]):
+  ShapeMorph_Lifecycle, ShapeMorph_RegimeWeights, ShapeMorph_DisabledBitIdentical, ShapeMorph_LREqual,
+  ShapeMorph_NullPointerEqualsConstantFeed.
+
+C-23 DESIGN GAP (task section): HOLLOW's base-rate input while BITE is on
+- CHOICE: the exact first-order inverse shelf of BITE's emphasis tilt, at the base rate, on HOLLOW's tap
+  (the form the T001 bench costed: one one-pole at fs). The second upsample was NOT used.
+- Law: the tilt is H(z) = gH + (gL - gH)(1 - a)/(1 - a z^-1) (keytracked_tilt.h process(), one_pole.h
+  y = (1 - a)x + a y[n-1]). Hence 1/H = (1 - a z^-1)/(b0 - gH a z^-1), b0 = gL(1 - a) + gH a; minimum phase
+  (pole gH a / b0 < 1 for gL, gH > 0). a, gL, gH are recomputed with the tilt's own formulas (updateGains in
+  double; OnePoleLP clamp at 0.495 fs and a = exp(-2 pi fc / fs) in float), so the inverse tracks the tilt
+  coefficient for coefficient. Active only while BITE and HOLLOW both run (s in (0.5, 1)); reset on either's entry.
+  Private nested struct ShapeMorph::InverseEmphasis (no namespace-scope name; no ODR exposure).
+
+DEVIATION (surface): HOLLOW's decimated tap needs a second decimator
+- The bench (T001 epoch 2) used BenchResidualPath::downsampleSplit(), returning the decimated linear path lb and the
+  residual rb separately. The real OversampledResidualPath (T005, processors/oversampled_residual_path.h) has only
+  downsample(lin, res) -> lb + rb; it is outside T010's file list, so it was not edited.
+- Implemented: the path decimates lin = w_NL * l and res = w_NL * (y_NL - l), so its output is exactly
+  nl = w_NL * lb + rb (what the bench formed from the split). HOLLOW's lb comes from a per-channel
+  PolyphaseHalfbandOversampler `hollowDown` (downsampler only, same factor) fed the same tap l: same filter and
+  input, so lb equals the path's linear decimation exactly. It runs only while HOLLOW is on (reset on entry).
+- Cost vs the benched design: +1 halfband decimation per processed channel while HOLLOW runs (s in (0, 1)); none at
+  SHAPE 0 or 1. The gated worst Shape cell in the epoch-2 lane was shape_0.00 (ROUND only, 0.782 % linked), which this
+  change does not touch; shape_0.25 (0.773 %) and shape_0.75 (0.618 %) gain the extra decimation. SC-015 (T021 / T027)
+  measures it on the real header. Cheaper alternative for the main loop: append a `downsampleSplit(lin, res, lb, rb)`
+  to OversampledResidualPath (an append to a Phase 5 header owned by T005) and drop `hollowDown`.
+
+Other interpretations (none changes a bar)
+- Residual attribution at the ROUND / BITE boundary: z = (ROUND on ? SVF_LP(nl) : nl) + w_H * HOLLOW; when neither
+  nonlinear regime runs (s == 0.5) the residual tail rb still passes (the bench dropped it there).
+- Hard-regime seam (probe only): nearest anchor, s < 0.25 ROUND, s <= 0.75 HOLLOW, else BITE.
+- f0 feed: entry n is sanitised (clamp [8, 20000], non-finite keeps the previous f0) and becomes the stage's f0;
+  every keyed value is recomputed when the smoothed s or f0 changes bit-wise, per sample, so the null-pointer and
+  constant-feed paths share one code path (SC-025(e)).
+- Calibration peak P = HarmonicFold::kCalibrationPeak (L2 include); defaults SHAPE 0, enabled, f0 C2 (deviation 13).
+- Lever: T001 epoch 2 made C-23 / C-24 REQUIRED; C-23 is implemented here (BITE emphasis before the upsample, ROUND's
+  low-pass and HOLLOW's filters after the downsample at fs). C-24 concerns Fracture only.

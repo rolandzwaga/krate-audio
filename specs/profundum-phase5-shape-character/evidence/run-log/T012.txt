@@ -1,0 +1,53 @@
+T012 run log - ShapeMorph spectral gates (SC-001, SC-002, SC-004, SC-010/011 Shape, SC-012(f) Shape;
+plan S9.3, C-3, C-6, S6.5). Executor: workflow implementer, 2026-10-16 (resumed after an interrupted
+session; the TU was still the T002 stub). Test-only; no header edited. Not built or run here (the group
+gate builds dsp_systems_tests and runs the non-[long] cases).
+
+Files written
+- dsp/tests/unit/systems/shape_morph_spectral_test.cpp (T002 stub replaced)
+- specs/profundum-phase5-shape-character/evidence/run-log/T012.txt (this file)
+
+Cases (tags [systems][profundum][shape-character][shape-morph]):
+- ShapeMorph_RegimesPairwiseDistinct (SC-001): SHAPE {0, 0.5, 1} x {kSawAnchor, kGrowl} x {E1, C2}, 48 kHz,
+  7 s renders; post-settle tail level-matched (SCT::levelMatch) to the input's post-settle L; all 3 pairs
+  SCT::separate(...).distinct.
+- ShapeMorph_SweepContinuitySmoke: kSawAnchor E1, SHAPE 0..1 step 0.1, 2.2 s renders: every sample finite
+  (detail::isFinite), |y| <= 6, probe maxRunningRegimeCount <= 2, stateFinite; level per position INFO'd.
+- ShapeMorph_SweepContinuity [long] (SC-002, C-6): 101 positions x {E1, C2, C3} x four fixtures, 48 kHz, 7 s;
+  kSawAnchor adjacent |dL| <= 0.5, |dC| <= 0.1 oct, |dElow|, |dEhigh| <= 1 dB; saw/triangle/sine L within
+  +-2.5 dB of that (fixture, note)'s sweep mean; kGrowl rows + swing to evidence/sc002-growl.csv (recorded);
+  regime count <= 2 over every sample of every render (maxRunningRegimeCount is the max since prepare).
+- ShapeMorph_HarmonicResponseTracksKeyboard (SC-004): kSawAnchor C1 / C3, SHAPE grid of 5, 48 kHz; |H(n)| =
+  w_n(out)/w_n(in) (HarmonicFoldTest::renderedHarmonicPowers on the last 262144 samples), n <= 16 with
+  n*f0 < 0.45 fs at both notes; |dH| <= 1.5 dB.
+- ShapeMorph_AliasingSmoke: SHAPE 1 and 0, Fold-100 kGrowl, E2 / 44.1 kHz: A <= -80 dBFS; A_in, G, A_added INFO'd.
+- ShapeMorph_AliasingE0E2 [long] (SC-010 Shape): SHAPE grid x {E0, E1, E2} x {44.1, 48, 96} kHz x {saw, growl}
+  x {raw, Fold-100}; per cell A_out, A_in, G, A_added to evidence/sc010-shape.csv; a Fold-100 failure with
+  A_added <= -80 fails with "FR-070 candidate: input residual".
+- ShapeMorph_DcBound (SC-011 Shape): 48 kHz, SHAPE grid x {E0, E1, E2} x {saw, growl} x {raw, Fold-100},
+  2.2 s renders; mean over integer periods (>= 1 s) after the 1 s settle <= -80 dBFS.
+- ShapeMorph_RIsOneSmoke: SHAPE 0.5, raw kSawAnchor, E1: both SHS readings unambiguous (C-2 rule via
+  SCT::shsCandidates), |centsBetween(f_out, f_in)| <= 1.
+- ShapeMorph_RIsOne [long] (SC-012(f) Shape, C-3): SHAPE grid x four fixtures x {raw, Fold-100} x {E0, E1, E2, C3},
+  48 kHz; both readings unambiguous and |r_ref| <= 1 cent in every cell; per-cell rows to
+  evidence/sc012f-shape.csv; each failing cell's message starts "S6.5 CONTINGENCY".
+- ShapeMorph_LoudnessTableHarvest [.calibration] (C-6, run by T024): seamLoudnessBypassed_ via the probe after
+  prepare; 101 positions x {E1, C2, C3} x {saw, triangle, sine}, 7 s renders (same render length as SC-002);
+  table(s) = -mean over the nine of (L_out(s) - L_in); prints one line
+  "HARVEST kLoudnessTableDb {v0, ..., v100}" (%.4f) and writes it to evidence/harvest-loudness.txt.
+
+Decisions / interpretations (none changes a bar)
+- SHAPE is set before prepare(), so prepare's reset() snaps the smoother to it (static positions, no ramp);
+  each render REQUIREs the probe's smoothedShape == the requested SHAPE.
+- L everywhere is the spec L (SCT::levelDb) on the post-settle tail (rule 9); SC-002 descriptors are
+  SCT::describe on the post-settle tail of the 7 s render (tail 288000 >= 262144 samples).
+- Alias attribution (A_in, G, A_added) uses the same formula as Rectifier_AliasingE0E2 (rectifier_test.cpp,
+  TU-local helper there); re-implemented TU-locally with the smsp prefix (rule 5).
+- Render lengths: aliasing 1 s + aliasFftLength/fs + 0.05 s (Rectifier precedent); DC / smoke 2.2 s;
+  descriptor / SHS / harvest 7 s.
+
+Note: tools/check-portability.js was invoked once by mistake (meant as --help); it stopped at
+"wsl: Failed to translate 'F:\projects\iterum'" on closed_form_adaa2_test.cpp before reaching this TU.
+Portability of this TU is left to the gate.
+
+DEFECT lines: none.
