@@ -1,0 +1,12 @@
+FR-064 / SC-023 fallback arm: consumer suites after the append-only dc_blocker.h change (DCBlocker::setState)
+Source: the comply verifier's run in this remediation round (2026-10-16), on the tree whose headers are unchanged
+by the round-9 remediation (round 9 edited test TUs only: clang-tidy fixes, no header change).
+Release build, 0 warnings, filter ~[long]~[performance]~[perf]~[benchmark]:
+  ruinae_tests    All tests passed (29205 assertions in 732 test cases)
+  seraphis_tests  All tests passed (444660 assertions in 109 test cases)
+  vorago_tests    All tests passed (4060395 assertions in 119 test cases)
+  innexus_tests   All tests passed (1111860 assertions in 565 test cases)
+  disrumpo_tests  All tests passed (595525 assertions in 505 test cases)
+git diff 40205b86 -- dsp/include/krate/dsp/primitives/dc_blocker.h: +10 lines, setState(float, float) only (append-only).
+These readings were quoted by the verifier; no log file of that run is on disk. suites.sh (T025) remains the
+canonical close lane and writes evidence/run-log/close/suites.log when the main loop runs it.

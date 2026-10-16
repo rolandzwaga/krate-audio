@@ -1,0 +1,63 @@
+T015 run log (2026-10-16) - Character Fracture
+
+Files written
+- dsp/include/krate/dsp/systems/bass_character_stage.h (FractureBranch law; public constants kFractureDriveLo 0.5,
+  kFractureDriveHi 2.0, kFractureBias 0.5, kFractureSquareSharpness 4; private kPiD, kFractureInvTanhSharpness,
+  fractureDrive(), makeFractureTable() (c_frac[65]), fractureTanh() (C-24 rational tanh); header comment updated)
+- dsp/tests/unit/systems/bass_character_spectral_test.cpp (BassCharacter_FractureSmoke, BassCharacter_FracturePhasor,
+  BassCharacter_FractureObserver; helpers bcsOddHalfLatticeDb, bcsLnCosh, bcsFractureReference,
+  bcsFractureLinearCoefficient; added <bit>, <cstdint>)
+- specs/profundum-phase5-shape-character/evidence/run-log/T015.txt (this file, rule 12)
+
+Not built or run (rule 8: the Group 7 gate builds and runs). Both source files re-read for compile errors.
+
+Implementation (plan S5.4 Fracture, C-5 combined law, C-24)
+- phi in [0, 2) in periods of f0, 0 at reset; each F-sample uses phi, then phi += f0/(F*fs) (so phi[0] = 0 literally).
+- s = sin(pi*phi) from a DOUBLE rotor (cos, sin)(pi*phi), advanced by (cos, sin)(pi*dphi) and re-normalised every
+  F-sample (1.5 - 0.5|r|^2). s_mid = sin(pi*(phi - dphi/2)) = rotation of the rotor by -dphi/2 (no transcendental).
+  std::sin / std::cos run only in setFundamentalHz (the re-key), which stores the increment and re-seeds the rotor
+  from the double phi: f0 moves the rate, never the phase. The bench prototyped the rotor in float; double was chosen
+  because a float rotor's rounded step angle drifts the rotor against phi systematically (~6e-8 rad/step, i.e.
+  ~1e-4 relative frequency error at E1 / 192 kHz) and the cost difference is a few scalar multiplies.
+- sigma = fractureTanh(4 s) / tanh 4 and the bias term fractureTanh(g*beta*s_mid): Pade (7,6) clamped to [-4, 4],
+  max |err| 1.50e-5 on the 10001-point grid (node re-check this session: 1.495e-5 at x = -4; T001 bench float
+  1.499e-5). FastMath::fastTanh (core/fast_math.h:65, Pade (5,4), returns +-1 from |x| >= 3.5) misses the 1e-4 bar
+  (error 1.8e-3 at 3.5), so it is not reused; core/fast_math.h is untouchable (FR-064), hence a private static.
+- v = g*(u*((1 - a) + a*sigma)/P + beta*s), a = A, g = 0.5 + 1.5A, beta = 0.5A;
+  y = (P/g)*(TanhADAA[drive 1](v) - tanh(g*beta*s_mid)); post tilt (k = 2, +-12 dB) at base rate (C-23).
+- lin = (1 - a)*c_frac(A)*(u + u_prev)/2; c_frac[65] = h1 of tanh(g sin phi)/g over 256 midpoint points, prepare only.
+- Observer: unchanged from T009 (updateObserver tracks flippedFrac_ with kFractureFlipEdges; r = 0.5 while flipped).
+
+Tests (spectral TU)
+- BassCharacter_FractureSmoke: (i) odd-f0/2 power re total on Fold-100 saw E1 48 kHz, Amount 1, Tone 0.5, >= -40 dB;
+  (ii) aliasedPower on the n*f0/2 lattice (C-9), Fold-100 growl E2 44.1 kHz, Amount 1, Tone {0, 1}, <= -80 dBFS, the
+  n*f0-mask value INFO'd; (iii) DC <= -80 dBFS on raw saw E1 (mean over whole f0/2 periods, since the output period
+  is 2/f0); (iv) bcsAmountSmoke (SC-007).
+- BassCharacter_FracturePhasor: see DEFECT below. The branch output (probe runBranch) is compared with the S5.4 law in
+  double (std::sin / std::tanh, exact double ADAA1) whose phasor starts at 0 and is continuous across an E1 -> C3 step
+  at F-sample 3000; negative control = the same law with a phasor reset to 0 at the step. Amounts {0.25, 0.75, 1}
+  (table grid points, so c_lin is exact). lin checked against an independent 4096-point c_frac within 1e-6. Two
+  renders from reset() compared bit for bit.
+  Tolerances from a float-rounded Node model of the branch (scratchpad sim, Math.fround per op, same TanhADAA
+  algorithm): RMS err all / post-step = 4.4e-5 / 2.9e-5 (A 0.25), 4.1e-5 / 1.9e-5 (A 0.75), 2.7e-5 / 2.3e-5 (A 1);
+  max single-sample err 1.7e-3 (TanhADAA float cancellation when |dv| is just above 1e-5); phase-jump control RMS
+  0.054 / 0.118 / 0.101. Bars: RMS <= 5e-4, control >= 1e-2.
+- BassCharacter_FractureObserver: Amount 0 -> 1 -> 0 in 0.005 steps at Tone 0.5: exactly one flip each way, at the
+  first Amount >= kFractureFlipEdges[2].hi (0.345) and the first <= .lo (0.325); r == 1 at Amount 0; flipped, then
+  an Amount inside the band, reset() -> r == 1 (SC-026(c) reading, same as T009's Rectify case).
+
+Decisions / deviations (surface them)
+1. The phasor test verifies phi through the law rather than reading phi (DEFECT below). The equivalence is stronger
+   than the task's increment bound: any phase jump or non-zero start fails the RMS bar by >= 100x (negative control).
+2. SC-011 for Fracture averages over whole f0/2 periods (bcsDcDbfs(y, fs, f0/2)); the shared bcsDcSmoke averages over
+   whole f0 periods, which for an odd count would leave the f0/2 subharmonic's partial-period mean in the "DC".
+3. Risk for the gate (not a change): TanhADAA (primitives/tanh_adaa.h:224-270) evaluates ADAA1 in float, so
+   (F1(v) - F1(v1))/dv loses ~ulp(F1)/dv when |dv| is just above its 1e-5 fallback. The Node model puts that noise
+   at RMS ~4e-5 (pre-decimation), below the -80 dBFS bar, but the C++ smoke (ii) is the measurement. If (ii) fails,
+   the fix needs a ruling (C-24 says "The ADAA stage stays TanhADAA"); a double-precision ADAA1 (as Bite / Rectify
+   use via ClosedFormAdaa2) is the candidate.
+
+DEFECT: dsp/tests/unit/systems/bass_character_stage_probe.h has no accessor for the Fracture phasor (phi / rotor), so
+  T015's "phi starts at 0 / |phi[n] - phi[n-1]| <= C3/(F*fs) + 1e-6" cannot be read directly; tested through the law
+  instead (decision 1). A static `double fracturePhase(const Stage&, int ch)` returning ch_[ch].frac.phase would allow
+  the literal check.

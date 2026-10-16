@@ -157,6 +157,16 @@ public:
         y1_ = 0.0f;
     }
 
+    /// @brief Set the recurrent state directly (x[n-1], y[n-1]).
+    ///
+    /// Lets a caller that knows the signal's mean prime the blocker so that it starts settled:
+    /// setState(x1, x1 - mean) makes the next output x - mean up to (1 - R)·(x1 - mean).
+    /// Does not change R_ or prepared_ state.
+    void setState(float x1, float y1) noexcept {
+        x1_ = x1;
+        y1_ = y1;
+    }
+
     /// @brief Change cutoff frequency without full re-preparation.
     ///
     /// Recalculates R coefficient using stored sample rate.

@@ -1,0 +1,45 @@
+T011 run log (2026-10-16) - Character Bite and Tube
+
+Files written
+- dsp/include/krate/dsp/systems/bass_character_stage.h (TubeBranch and BiteBranch laws; c_tube / c_bite tables)
+- dsp/tests/unit/systems/bass_character_spectral_test.cpp (T011 helpers + three cases)
+- specs/profundum-phase5-shape-character/evidence/run-log/T011.txt (this file, rule 12)
+
+Not built or run (rule 8: the Group 5 gate builds and runs). Both files re-read for compile errors.
+
+Tests (tags [systems][profundum][shape-character][bass-character])
+- BassCharacter_BiteSmoke: (i) h1 transfer |20log10(h1_out/h1_in)| <= 0.25 dB on calibrationSine(48k, C2) at Amount
+  {0.25, 1}, Tone 0.5 (goertzelPhasor over integerPeriodLength after a 1 s settle); (ii) A <= -80 dBFS on Fold-100
+  kSawAnchor E0 and Fold-100 kGrowl E2 at 44.1 kHz, Amount 1, Tone {0, 1} (aliasedPower over aliasFftLength; A_in
+  printed); (iii) DC <= -80 dBFS on raw kSawAnchor E1, Amount 1, Tone 0.5 (mean over integer periods after 1 s);
+  (iv) amountMoved(describe(A0), describe(A1)) >= 3 dB or dC >= 0.25 oct on kSawAnchor E1, Tone 0.5.
+- BassCharacter_TubeSmoke: the same four cells for Tube, plus tubeSaturationAmount == 1.0f on both channels after
+  prepare and after reset() (following an unlinked render).
+- BassCharacter_ToneTiltsCoupled (C-8): Tube and Bite at Tone {0, 1}: pre pivotHz == f0, post pivotHz == 2*f0, both
+  tone() == the channel's smoothed Tone; plus a running setFundamentalHz(C3) re-keys both tilts.
+
+Implementation (plan S5.4, C-8, C-10, C-11, deviation 9; C-23 structure kept from T009)
+- Bite: pre tilt (k=1, +-6 dB) at base rate (C-23); at F*fs v = g*u/P with g = 10^((-12 + 30A)/20); y = (P/c_bite(A)) *
+  ClosedFormAdaa2<DiodeAdaaLaw>(v) in double; lin = u[n-1]; post tilt (k=2, +-6 dB) at base rate. c_bite[65] =
+  diodeH1Coefficient(g(A_i)), filled in BiteBranch::prepare, interpolated linearly in A. configure recomputes g/P and
+  P/c only on a changed Amount bit pattern.
+- Bite naive (seamNaiveBaseRate_): y = (P/c_bite) * Asymmetric::diode(g*pre(x)/P) at the base rate, no path, no ADAA.
+- Tube: pre tilt at base rate; at F*fs a branch-local PolyphaseHalfbandOversampler (factor 2) up -> TubeStage::process(buf,
+  2) -> down; lin = u[n-2]; post tilt at base rate. Input gain -6 + 18A dB; output gain -20log10 c_tube(A) clamped +-24 dB.
+  c_tube[65] = h1 coefficient of Asymmetric::tube(g*P*sin)/P over 256 midpoint phase points (same quadrature as
+  diodeH1Coefficient), filled in TubeBranch::prepare. setSaturationAmount(1), setBias(0) at prepare (T009).
+
+Decisions / deviations (surface them)
+1. Tables live inside each channel's branch struct (one copy per channel, ~260 B each), not as stage-global members as
+   plan S5.2 lists them. Reason: the branch structs are the units the probe drives (deviation 10) and the mono link copies
+   ch 0 -> ch 1 wholesale; a pointer to a stage-owned table would dangle on a stage copy. Filled only in prepare.
+2. Tube gain smoothing: TubeStage has its own 5 ms gain smoothers. After a branch reset (start(), leaving bypass, reset(),
+   prepare()), the first configure sets the gains for the current Amount and calls TubeStage::reset() (snaps its smoothers;
+   its DC blocker is already zero), so a starting Tube branch never glides from a stale Amount's gains. Outside that,
+   gains follow the stage's 10 ms Amount smoother through TubeStage's 5 ms smoother.
+3. P is HarmonicFold::kCalibrationPeak (the stage now includes processors/harmonic_fold.h, L2, as shape_morph.h does) and
+   core/sigmoid.h for Asymmetric::tube / Asymmetric::diode.
+4. The model values printed by the smoke INFO lines are plan S10.3 / S10.4: Bite worst A -83.3 dBFS, SC-007 6.27 dB (no
+   octave figure in the plan; printed as 0); Tube worst A -85.3 dBFS, SC-007 4.89 dB / 0.40 oct.
+
+DEFECT lines: none.

@@ -1,0 +1,10 @@
+T027 SC-015 CPU lane (main loop, pinned and isolated, 2026-10-17; evidence/close/cpu-lane.sh, nothing else running):
+SC015 GATED max_linked pct=1.8463 argmax algo=Fracture shape=0.00 shape_alone=0.6325 char_alone=0.8350 bar=2.0
+SC015 RECORD worst_crossfade algo=Tube<->Bite shape=0.00 pct=2.6501 (not gated)
+SC015 RECORD drop 48st/60ms every 250 ms via f0PerSample (16-sample grid) algo=Fracture shape=0.00 pct=1.5738 (not gated)
+SC015 RECORD ramp amount 1<->0.8 tone 0.5<->0.3 shape +-0.25 every 50 ms algo=Fracture shape=0.00 pct=1.7426 (not gated)
+SC015 RECORD shape_disabled_warm (C-22) algo=Fracture shape=0.00 pct=1.8847 (not gated)
+SC015 RECORD max_unlinked pct=3.8755 argmax algo=Tube shape=0.25; unlinked at linked argmax pct=3.7938 (not gated)
+SC015 VERDICT PASS max_linked=1.8463 bar=2.0
+Full cell table: evidence/sc015-cpu.txt; lane log: evidence/run-log/close/cpu-lane.log; verdict line appended to run-log/T021.txt.
+Earlier readings (1.6373 % pinned, 1.9389 % unpinned) predate C-32 (HOLLOW's linear chain now runs warm at SHAPE 0 and 1) and are superseded.

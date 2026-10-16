@@ -1,0 +1,47 @@
+T007 run log — Rectifier (FR-001..FR-005; SC-010/011/014/016/017/018/019/021 Rectifier arms; plan S4.2, S4.3, S5.5, C-1)
+Executor: workflow implementer, 2026-10-15.
+
+Files written
+- dsp/include/krate/dsp/processors/rectifier.h          (L2; includes L0/L1 only: core/closed_form_adaa2.h, core/db_utils.h,
+  primitives/biquad.h, dc_blocker.h, polyphase_halfband_oversampler.h, smoother.h)
+- dsp/tests/unit/processors/rectifier_test.cpp           (12 cases, [processors][profundum][rectifier]; one [long])
+- dsp/tests/unit/processors/rectifier_nonfinite_test.cpp (2 cases, [processors][profundum][rectifier][nonfinite], -fno-fast-math TU)
+- specs/profundum-phase5-shape-character/evidence/run-log/T007.txt (this file)
+Not built or run (workflow rule; the group gate builds dsp_processors_tests).
+
+Implementation (plan S4.2 API + S4.3 contract)
+- Public: RampLaw, AbsLaw (plan S4.2 verbatim), kBlendSmoothMs 10, kOutputCeiling 6, kNotchRatios {0.50,0.52,0.55},
+  kNotchQs {1.5,2.0,1.5}, kResidualDcHz 2, kFourTimesLimitHz 1e5 (C-1, equal to OversampledResidualPath's, static_assert'ed
+  in Rectifier_Constants); prepare, reset, setBlend, processBlock, stateFinite, latencySamples() == 0, preCeilingPeak,
+  transfer, linearCoefficient, sineMakeup. Added read-only blend() (sanitised target) and oversamplingFactor()
+  (HarmonicFold has the same observer) for the tests.
+- Per base sample: sanitise (non-finite -> 0) -> mono-link check (HarmonicFold mechanism) -> b = blend_.process() ->
+  per active channel: up.upsample -> per F-sample y = (1-b)*ramp.process(u) + b*abs.process(u) (ClosedFormAdaa2, double),
+  lin = c(b)*uPrev, res = y - lin -> downLin + DC(downRes with the three 2fs notches) -> peak -> clamp +-6.
+- setBlend: HarmonicFold::sanitizeControl rule implemented locally (non-finite keeps previous, denormal -> 0, clamp [0,1]).
+- reset(): zeroes every section and ADAA state, snaps the blend smoother to the pending blend, clears the peak, relinks.
+  prepare(): factor (4x <= 100 kHz, else 2x), notches at 2fs, DC 2 Hz, smoother 10 ms, then reset().
+
+Decisions / deviations
+- D1 transfer(x, b) is evaluated in double and rounded once (plan S4.2 prints a float expression). Reason: the task's
+  second TransferLaw check (|transfer - (c(b)x + (1+b)/2|x|)| <= 1e-7) is not met by float arithmetic near |x| = 2
+  (two roundings, up to ~1.8e-7); a single rounding is <= 6e-8 on [-2, 2]. Signature and law unchanged; the processing
+  path uses RampLaw/AbsLaw as before.
+- D2 Constructor default blend = 0 (half-wave). Not ruled by spec or plan (deviation 13 covers the L3 stages only).
+- D3 RectifierProbe (defined only in rectifier_test.cpp) has snapBlend as specified plus a read-only linked() accessor, used
+  by Rectifier_Lifecycle to observe "reset() relinks" (otherwise unobservable: both channels compute identical output).
+- D4 BlendStepClickFree positive control: the snap is applied at the most negative input sample at least 2*N away
+  (N = floor(fs/f0/8)) from every waveform edge (|dx| >= half the max |dx|), not at the literal minimum. The literal
+  minimum of a band-limited saw sits beside its edge, where the reference render has its own ClickDetector detection
+  within +-N, so the differential count would mask the control by construction. If kGrowl has no qualifying sample the
+  REQUIRE in rtNegativePeakAwayFromEdges fails loudly (not silently).
+- D5 SC-010 attribution G = h1 power gain measured with the BH7 single-bin DFT (HarmonicFoldTest::goertzelPhasor) on the
+  same aliasFftLength frame as A, rather than renderedHarmonicPowers' 262144-sample frame (keeps the [long] render at
+  1 s + alias frame). Recorded in evidence/sc010-rectifier.csv per cell (A_out, A_in, G, A_added, pass).
+- D6 ProcessedHarmonics: INFO records the first-order 2 Hz high-pass magnitude at n*f0 (approximation
+  10*log10(1 + (fc/f)^2)), < 0.001 dB at C3 per plan S4.3; no gain stage.
+- [long] Rectifier_AliasingE0E2 (108 cells) has its non-long sibling Rectifier_AliasingSmoke. It writes
+  evidence/sc010-rectifier.csv; a failing Fold-100 cell with A_added <= -80 fails with "FR-070 candidate: input residual".
+  Deferred to the main loop at close (lane rule 2026-10-14).
+
+DEFECT lines: none.

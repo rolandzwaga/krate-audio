@@ -1,0 +1,35 @@
+T023 CMake registration audit (2026-10-16) -- read-only audit, no CMake edits needed
+
+dsp/tests/CMakeLists.txt  (grep -c <path>; expected 1, nonfinite TUs 2)
+1 unit/core/closed_form_adaa2_test.cpp                 line 65   in add_executable(dsp_core_tests        :22-78)
+1 unit/processors/keytracked_tilt_test.cpp             line 286  in add_executable(dsp_processors_tests  :164-350)
+1 unit/processors/oversampled_residual_path_test.cpp   line 287  dsp_processors_tests
+1 unit/processors/shape_character_metric_helpers_test.cpp line 288 dsp_processors_tests
+1 unit/processors/rectifier_test.cpp                   line 289  dsp_processors_tests
+2 unit/processors/rectifier_nonfinite_test.cpp         lines 290 (list) + 1199 (-fno-fast-math block)
+1 unit/systems/shape_morph_test.cpp                    line 701  in add_executable(dsp_systems_tests     :362-709)
+1 unit/systems/shape_morph_spectral_test.cpp           line 702
+1 unit/systems/bass_character_stage_test.cpp           line 703
+1 unit/systems/bass_character_spectral_test.cpp        line 704
+1 unit/systems/bass_character_rlaw_test.cpp            line 705
+1 unit/systems/shape_character_chain_test.cpp          line 706
+2 unit/systems/shape_character_nonfinite_test.cpp      lines 707 (list) + 1200 (-fno-fast-math block)
+1 unit/systems/shape_character_perf_test.cpp           line 708 only -> in NO set_source_files_properties block (calls at :816, :1207, :1222)
+-fno-fast-math block: set_source_files_properties( :816 ... :1201 PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
+All 14 TU files exist on disk.
+
+dsp/CMakeLists.txt  (grep -c <header>; expected 1 each, in its layer's list)
+1 core/closed_form_adaa2.h            line 104  KRATE_DSP_CORE_HEADERS       (:82)
+1 processors/keytracked_tilt.h        line 173  KRATE_DSP_PROCESSORS_HEADERS (:136)
+1 processors/oversampled_residual_path.h line 174 KRATE_DSP_PROCESSORS_HEADERS
+1 processors/rectifier.h              line 175  KRATE_DSP_PROCESSORS_HEADERS
+1 systems/shape_morph.h               line 206  KRATE_DSP_SYSTEMS_HEADERS    (:179)
+1 systems/bass_character_stage.h      line 207  KRATE_DSP_SYSTEMS_HEADERS
+
+git diff --stat 40205b86 -- dsp/CMakeLists.txt dsp/tests/CMakeLists.txt
+ dsp/CMakeLists.txt       |  9 +++++++++
+ dsp/tests/CMakeLists.txt | 34 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 43 insertions(+)
+Removed lines (grep "^-[^-]"): none -> diff is additions only.
+
+VERDICT: PASS

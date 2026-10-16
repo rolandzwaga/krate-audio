@@ -1,0 +1,42 @@
+Phase 5 close, final-tree lanes (main loop, 2026-10-16/17). Tree: harvested tables pasted (exact k/128 edges), C-29..C-33 applied,
+SC-003 single-step ruling in the test. Each block: filter, then the suite's last lines; every lane ran on the same dsp_systems_tests build
+(rebuilt after the last source change; the cosmetic loudness-table re-format was rebuilt before the CPU lane).
+
+=== fin2-sm-long: Filters: "ShapeMorph_AutomationClickFree","ShapeMorph_SweepContinuity"
+All tests passed (37511 assertions in 2 test cases)
+FAILED lines: 0
+=== fin2-rlaw1: Filters: "BassCharacter_RectifyFlipPoint","BassCharacter_RLawHysteresisBandWidth"
+All tests passed (16671 assertions in 2 test cases)
+FAILED lines: 0
+=== fin2-rlaw2: Filters: "BassCharacter_FractureRLawAndSidebands","BassCharacter_CrushFractureRLaw","BassCharacter_RLawUpstreamChain"
+All tests passed (34653 assertions in 3 test cases)
+FAILED lines: 0
+=== fin2-fast: Filters: [profundum] ~[long] ~[performance] ~[perf] ~[benchmark] ~[!benchmark]
+All tests passed (4185425 assertions in 237 test cases)
+FAILED lines: 0
+=== final-rlaw3: Filters: "BassCharacter_RIsOne","ShapeMorph_RIsOne","BassCharacter_RLawMatchesReference_*"
+All tests passed (12666 assertions in 6 test cases)
+FAILED lines: 0
+=== final-long4: Filters: "ShapeMorph_AliasingE0E2","BassCharacter_AliasingE0E2","BassCharacter_AmountTrajectory","BassCharacter_ToneMonotonicCentroid","Rectifier_AliasingE0E2"
+All tests passed (140758 assertions in 4 test cases)
+FAILED lines: 0
+=== ramp-chain-long: Filters: "ShapeCharacter_DropTracksHarmonicNumbers","ShapeCharacter_ParameterStepsClickFree"
+All tests passed (24481 assertions in 2 test cases)
+FAILED lines: 0
+=== final-chain-long: Filters: "ShapeCharacter_DropTracksHarmonicNumbers","ShapeCharacter_ParameterStepsClickFree","BassCharacter_SwitchClickFree"
+All tests passed (26912 assertions in 3 test cases)
+FAILED lines: 0
+
+=== SC-003 recorded cells (SC-003(a) single-step ruling 2026-10-16):
+E0, saw, SHAPE 1 -> 0, single step, block 512
+E0, saw, SHAPE 1 -> 0, single step, block 64
+worst SC-003(b) ratio: 0.241383
+
+=== SC-012(f) recorded (C-3 extended to (f), C-29):
+SC-012(f) ShapeMorph: 160 cells, 40 recorded (input does not read f0; C-3), 0
+SC-012(f) Character: 288 cells, 72 recorded (input does not read f0; C-3), 0
+
+=== SC-009 long (BassCharacter_SwitchClickFree, 60 cells) on the pre-roll build (g9d-switch.log): All tests passed (2431 assertions in 1 test case); worst level over +1.1267 dB (bar +1.5), under -2.1495 dB (bar -2.5)
+=== processors suite after primeDc: OversampledResidualPath_* All tests passed (31 assertions in 7 test cases)
+=== tidy: TIDY GREEN tus=14 warnings=0 errors=0 timeouts=[] failed=[] tidy_wall=27s total_wall=45s
+=== portability: PORTABILITY GREEN

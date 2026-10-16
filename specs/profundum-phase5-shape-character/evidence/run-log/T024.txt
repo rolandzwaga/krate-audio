@@ -1,0 +1,25 @@
+T024 2026-10-16T16:53:46Z: bash -n harvest.sh -> ok
+node specs/profundum-phase5-shape-character/evidence/close/paste-harvest.js --self-test:
+PASS good files: exit 0 (expected 0) | paste-harvest: done; rebuild dsp_systems_tests next
+PASS good files, CRLF headers: exit 0 (expected 0) | paste-harvest: done; rebuild dsp_systems_tests next
+PASS missing HARVEST-END marker: exit 1 (expected 1) | paste-harvest: dsp/include/krate/dsp/systems/bass_character_stage.h: "// HARVEST-END kFractureFlipEdges" occurs 0 times, expected exactly 1
+PASS missing HARVEST-BEGIN marker: exit 1 (expected 1) | paste-harvest: dsp/include/krate/dsp/systems/shape_morph.h: "// HARVEST-BEGIN kLoudnessTableDb" occurs 0 times, expected exactly 1
+PASS duplicate marker pair: exit 1 (expected 1) | paste-harvest: dsp/include/krate/dsp/systems/bass_character_stage.h: "// HARVEST-BEGIN kRectifyFlipEdges" occurs 2 times, expected exactly 1
+PASS missing HARVEST line: exit 1 (expected 1) | paste-harvest: C:\Users\scab\AppData\Local\Temp\paste-harvest-YrlTkM\case5\specs\profundum-phase5-shape-character\evidence\harvest-loudness.txt: "HARVEST kLoudnessTableDb" occurs 0 times, expected exactly 1
+PASS malformed loudness value: exit 1 (expected 1) | paste-harvest: kLoudnessTableDb[50]: malformed value "1.5O00"
+PASS malformed edge value: exit 1 (expected 1) | paste-harvest: kRectifyFlipEdges[2].lo: malformed value "nan"
+PASS wrong loudness count: exit 1 (expected 1) | paste-harvest: kLoudnessTableDb: 100 values, expected 101
+PASS empty edge band (lo > hi): exit 1 (expected 1) | paste-harvest: kFractureFlipEdges[3]: empty band, lo 0.4492 > hi 0.4023
+PASS STOP AND SURFACE in harvest: exit 1 (expected 1) | paste-harvest: C:\Users\scab\AppData\Local\Temp\paste-harvest-YrlTkM\case10\specs\profundum-phase5-shape-character\evidence\harvest-rlaw.txt: contains a STOP AND SURFACE line; return to the user, do not paste
+self-test: 11/11 passed
+exit 0
+Real-tree run against the current evidence (read-only refusal expected, headers untouched):
+paste-harvest: F:\projects\iterum\specs\profundum-phase5-shape-character\evidence\harvest-rlaw.txt: contains a STOP AND SURFACE line; return to the user, do not paste
+exit 1
+
+Close 2026-10-16/17 (main loop): R-6 ruled (Fracture edges = Fold-100 sine ∩ triangle, saw recorded; FR-033 / FR-036). Harvest
+re-run twice: once under the ruling (HARVEST lines at 4 decimals), once after the precision fix (exact k/128 values, %.8f; a
+4-decimal edge sat 0.00004 outside its measured band and failed SC-012(b) / SC-026(a) by rounding). paste-harvest.js now writes
+edges with 8 decimals and the loudness table with 4 (self-test 11/11). Pasted: kLoudnessTableDb (101 values, max |delta| vs
+seed 1.2283 dB at index 89), kRectifyFlipEdges, kFractureFlipEdges (see the headers between the HARVEST markers). harvest-rlaw.txt
+carries "RECORDED (C-4 note spread, Fracture)" (sine / triangle bands differ by up to two bisection steps across notes), no STOP.
