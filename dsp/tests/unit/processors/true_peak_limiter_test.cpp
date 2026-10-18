@@ -180,3 +180,39 @@ TEST_CASE("TruePeakLimiter handles blocks larger than maxBlockSize",
     }
 }
 
+
+// The header's sample-level guarantee is exact: |out| <= ceiling with no margin. A gain of
+// ceiling / tp applied to a sample with |sample| == tp can round one ulp ABOVE the ceiling in
+// float (found by the Profundum Phase 6 chain gates, SC-014(c) / SC-021), so this sweeps many
+// settled DC levels above the ceiling, where tp == |sample| and the rounding is exposed.
+TEST_CASE("TruePeakLimiter sample-level ceiling is exact (no float overshoot)",
+          "[true_peak_limiter][gain_staging]")
+{
+    constexpr int kLevels = 2000;
+    constexpr int n = 256;
+    int over = 0;
+    float worst = 0.0f;
+    float ceil = 0.0f;
+    for (int k = 0; k < kLevels; ++k)
+    {
+        TruePeakLimiter lim;
+        lim.prepare(kSr, n);
+        lim.setCeilingDb(-1.0f);
+        ceil = lim.getCeilingLinear();
+        const float level = 0.9f + 3.1f * static_cast<float>(k) / static_cast<float>(kLevels);
+        std::vector<float> L(n, level), R(n, -level);
+        lim.processBlock(L.data(), R.data(), n);
+        for (int i = 0; i < n; ++i)
+        {
+            for (const float v : {L[i], R[i]})
+            {
+                const float a = std::fabs(v);
+                worst = std::max(worst, a);
+                if (a > ceil)
+                    ++over;
+            }
+        }
+    }
+    INFO("samples above the ceiling: " << over << ", worst |out| - ceiling = " << (worst - ceil));
+    CHECK(over == 0);
+}

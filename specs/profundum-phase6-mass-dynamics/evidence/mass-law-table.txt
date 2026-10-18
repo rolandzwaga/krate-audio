@@ -1,0 +1,345 @@
+BEGIN-INITIALIZER mass-law-rows
+        {.target = Target::Depth, .lo = 0.0f, .hi = 1.0f, .amountDown = -0.5f, .amountUp = -0.5f, .curve = ModCurve::Linear},
+        {.target = Target::Body, .lo = 0.0f, .hi = 1.0f, .amountDown = 0.5f, .amountUp = 0.400000006f, .curve = ModCurve::Linear},
+        {.target = Target::TransientDuration, .lo = 5.0f, .hi = 250.0f, .amountDown = 30.0f, .amountUp = 110.0f, .curve = ModCurve::Linear},
+        {.target = Target::FoldAmount, .lo = 0.0f, .hi = 100.0f, .amountDown = 50.0f, .amountUp = 61.328125f, .curve = ModCurve::SCurve},
+        {.target = Target::CompressionAmount, .lo = 0.0f, .hi = 1.0f, .amountDown = 0.5f, .amountUp = 1.0f, .curve = ModCurve::Linear},
+        {.target = Target::AnchorLevel, .lo = 0.0f, .hi = 1.0f, .amountDown = 0.5f, .amountUp = 0.5f, .curve = ModCurve::Linear},
+        {.target = Target::OutputTrim, .lo = -12.0f, .hi = 12.0f, .amountDown = -2.0493834f, .amountUp = -0.0f, .curve = ModCurve::Linear},
+END-INITIALIZER mass-law-rows
+
+MassLaw_TableHarvest (plan S8.2; tasks.md T014): rounds 1, renders 1422, wall clock 55.3939 s, hardware_concurrency 32
+best K-weighted span(P) reached (FR-048 measurement, recorded per C-1 (a)): E0 8.56692 dB, E1 3.58829 dB
+
+seed: Depth down -0.5 up -0.5 ModCurve::Linear; Body down 0.5 up 0.4 ModCurve::Linear; Duration down 30 up 110 ModCurve::Linear; Fold down 50 up 61.3281 ModCurve::Linear; Compression down 0.5 up 1 ModCurve::Linear; AnchorLevel down 0.5 up 0.5 ModCurve::Linear; OutputTrim down -2.04938 up -0 ModCurve::Linear; 
+round 0 (0) Anchor travel 0.5: worst span(L) 2.82486 dB
+round 0 (1) Depth amountDown -0.5: worst fall from Mass 0 -1.9097 dB at Ref E1 Mass 50
+round 0 (1) Depth amountUp -0.5: worst fall from Mass 0 -4.73623 dB at Ref E1 Mass 80
+round 0 (2) Fold amountUp 100: Ref E1 THD(100) - THD(50) 11.2541 dB
+round 0 (2) Fold amountUp 100: Ref C3 THD(100) - THD(50) 11.4894 dB
+round 0 (2) Fold amountUp 0: Ref E1 THD(100) - THD(50) 4.01969 dB
+round 0 (2) Fold amountUp 0: Ref C3 THD(100) - THD(50) 4.01831 dB
+round 0 (2) Fold amountUp 50: Ref E1 THD(100) - THD(50) 5.72155 dB
+round 0 (2) Fold amountUp 50: Ref C3 THD(100) - THD(50) 6.53471 dB
+round 0 (2) Fold amountUp 75: Ref E1 THD(100) - THD(50) 8.96461 dB
+round 0 (2) Fold amountUp 75: Ref C3 THD(100) - THD(50) 9.64569 dB
+round 0 (2) Fold amountUp 62.5: Ref E1 THD(100) - THD(50) 6.59533 dB
+round 0 (2) Fold amountUp 62.5: Ref C3 THD(100) - THD(50) 7.37476 dB
+round 0 (2) Fold amountUp 56.25: Ref E1 THD(100) - THD(50) 6.11941 dB
+round 0 (2) Fold amountUp 56.25: Ref C3 THD(100) - THD(50) 6.9175 dB
+round 0 (2) Fold amountUp 59.375: Ref E1 THD(100) - THD(50) 6.34789 dB
+round 0 (2) Fold amountUp 59.375: Ref C3 THD(100) - THD(50) 7.1371 dB
+round 0 (2) Fold amountUp 60.9375: Ref E1 THD(100) - THD(50) 6.4693 dB
+round 0 (2) Fold amountUp 60.9375: Ref C3 THD(100) - THD(50) 7.25373 dB
+round 0 (2) Fold amountUp 61.7188: Ref E1 THD(100) - THD(50) 6.53175 dB
+round 0 (2) Fold amountUp 61.7188: Ref C3 THD(100) - THD(50) 7.3137 dB
+round 0 (2) Fold amountUp 61.3281: Ref E1 THD(100) - THD(50) 6.50039 dB
+round 0 (2) Fold amountUp 61.3281: Ref C3 THD(100) - THD(50) 7.28359 dB
+round 0 (2) Fold amountUp 61.1328: Ref E1 THD(100) - THD(50) 6.48481 dB
+round 0 (2) Fold amountUp 61.1328: Ref C3 THD(100) - THD(50) 7.26863 dB
+round 0 (2) Fold amountUp 61.2305: Ref E1 THD(100) - THD(50) 6.49257 dB
+round 0 (2) Fold amountUp 61.2305: Ref C3 THD(100) - THD(50) 7.27608 dB
+round 0 (2) Fold amountUp 61.2793: Ref E1 THD(100) - THD(50) 6.49647 dB
+round 0 (2) Fold amountUp 61.2793: Ref C3 THD(100) - THD(50) 7.27983 dB
+round 0 (2) Fold amountUp 61.3037: Ref E1 THD(100) - THD(50) 6.49843 dB
+round 0 (2) Fold amountUp 61.3037: Ref C3 THD(100) - THD(50) 7.28171 dB
+after round 0: Depth down -0.5 up -0.5 ModCurve::Linear; Body down 0.5 up 0.4 ModCurve::Linear; Duration down 30 up 110 ModCurve::Linear; Fold down 50 up 61.3281 ModCurve::Linear; Compression down 0.5 up 1 ModCurve::Linear; AnchorLevel down 0.5 up 0.5 ModCurve::Linear; OutputTrim down -2.04938 up -0 ModCurve::Linear; (stable)
+(2c) output trim (G8-5): Ref K-weighted P(50) - P(0) 2.04938 dB, P(100) - P(50) -1.02271 dB (mean over the gated notes) -> amountDown -2.04938, amountUp -0
+bend Fold SCurve: adopted
+
+== full lattice: harvested (Linear) (Depth down -0.5 up -0.5 ModCurve::Linear; Body down 0.5 up 0.4 ModCurve::Linear; Duration down 30 up 110 ModCurve::Linear; Fold down 50 up 61.3281 ModCurve::Linear; Compression down 0.5 up 1 ModCurve::Linear; AnchorLevel down 0.5 up 0.5 ModCurve::Linear; OutputTrim down -2.04938 up -0 ModCurve::Linear; )
+cell Ref E0 Mass 0: w1 89.0986 dB, THD -79.4697 dB, E_low -79.5403 dB, P -23.7619 LKFS, L -10.1964 dBFS
+cell Ref E0 Mass 10: w1 89.6732 dB, THD -37.773 dB, E_low -37.9006 dB, P -23.5922 LKFS, L -10.0309 dBFS
+cell Ref E0 Mass 20: w1 90.1966 dB, THD -24.4469 dB, E_low -24.6255 dB, P -23.3578 LKFS, L -9.90252 dBFS
+cell Ref E0 Mass 30: w1 90.5645 dB, THD -14.9438 dB, E_low -15.2325 dB, P -22.3738 LKFS, L -9.8232 dBFS
+cell Ref E0 Mass 40: w1 90.3628 dB, THD -7.60666 dB, E_low -8.42966 dB, P -19.71 LKFS, L -9.87693 dBFS
+cell Ref E0 Mass 50: w1 89.332 dB, THD -2.76196 dB, E_low -4.72064 dB, P -17.3856 LKFS, L -10.1682 dBFS
+cell Ref E0 Mass 60: w1 88.2598 dB, THD -0.191302 dB, E_low -3.26548 dB, P -15.9379 LKFS, L -10.0274 dBFS
+cell Ref E0 Mass 70: w1 87.2941 dB, THD 1.43332 dB, E_low -2.54309 dB, P -15.4054 LKFS, L -10.2046 dBFS
+cell Ref E0 Mass 80: w1 86.8824 dB, THD 2.62482 dB, E_low -2.12173 dB, P -15.2059 LKFS, L -10.4628 dBFS
+cell Ref E0 Mass 90: w1 86.7983 dB, THD 3.37704 dB, E_low -1.9252 dB, P -15.3257 LKFS, L -10.8682 dBFS
+cell Ref E0 Mass 100: w1 86.932 dB, THD 3.86414 dB, E_low -1.8352 dB, P -15.5422 LKFS, L -11.2724 dBFS
+check Ref E0: SC-001(c) worst fall from Mass 0 (sum tap) -2.30025 dB (pass; worst step -1.07224 dB recorded), SC-003 span(L) 1.44915 dB (pass), span(P) 8.55595 dB, |dP| 0.266381 dB/unit on the lattice, 0.266381 dB/unit per Mass unit (recorded, FAIL)
+cell Ref E1 Mass 0: w1 89.1008 dB, THD -77.3257 dB, E_low -77.5518 dB, P -16.0283 LKFS, L -10.0113 dBFS
+cell Ref E1 Mass 10: w1 89.5522 dB, THD -35.2731 dB, E_low -35.6697 dB, P -15.9835 LKFS, L -9.96843 dBFS
+cell Ref E1 Mass 20: w1 89.95 dB, THD -21.4572 dB, E_low -21.9632 dB, P -15.9154 LKFS, L -9.95081 dBFS
+cell Ref E1 Mass 30: w1 90.0603 dB, THD -11.5822 dB, E_low -12.2925 dB, P -15.517 LKFS, L -9.98969 dBFS
+cell Ref E1 Mass 40: w1 89.1117 dB, THD -4.1537 dB, E_low -5.91316 dB, P -14.4057 LKFS, L -10.2285 dBFS
+cell Ref E1 Mass 50: w1 87.1911 dB, THD 0.501374 dB, E_low -3.07586 dB, P -13.6637 LKFS, L -10.703 dBFS
+cell Ref E1 Mass 60: w1 85.7332 dB, THD 3.10226 dB, E_low -2.17844 dB, P -13.1095 LKFS, L -10.7599 dBFS
+cell Ref E1 Mass 70: w1 84.6716 dB, THD 4.47474 dB, E_low -1.81897 dB, P -13.4267 LKFS, L -11.3482 dBFS
+cell Ref E1 Mass 80: w1 84.3645 dB, THD 5.46575 dB, E_low -1.66489 dB, P -13.6419 LKFS, L -11.7514 dBFS
+cell Ref E1 Mass 90: w1 84.465 dB, THD 6.24154 dB, E_low -1.6237 dB, P -14.0018 LKFS, L -12.2691 dBFS
+cell Ref E1 Mass 100: w1 84.7678 dB, THD 7.00176 dB, E_low -1.59645 dB, P -14.3597 LKFS, L -12.7757 dBFS
+check Ref E1: SC-001(c) worst fall from Mass 0 (sum tap) -4.73623 dB (pass; worst step -1.92061 dB recorded), SC-003 span(L) 2.82486 dB (pass), span(P) 2.91883 dB, |dP| 0.111123 dB/unit on the lattice, 0.111123 dB/unit per Mass unit (recorded, pass)
+check SC-002 margins Ref E1: THD(100) - THD(50) 6.50039 dB (>= 6.5 pass), THD(50) - THD(0) 77.8271 dB (>= 6.5 pass), E_low(50) - E_low(0) 74.476 dB (>= 3.5 pass), THD(0) -77.3257 dB (SC-002 bar <= -30, recorded)
+cell Ref E2 Mass 0: w1 89.1007 dB, THD -77.3618 dB, E_low -77.5873 dB, P -12.2939 LKFS, L -9.96383 dBFS
+cell Ref E2 Mass 10: w1 89.5521 dB, THD -35.3108 dB, E_low -35.7065 dB, P -12.2516 LKFS, L -9.92199 dBFS
+cell Ref E2 Mass 20: w1 89.9499 dB, THD -21.497 dB, E_low -22.0019 dB, P -12.2209 LKFS, L -9.90364 dBFS
+cell Ref E2 Mass 30: w1 90.0602 dB, THD -11.6236 dB, E_low -12.3307 dB, P -12.1536 LKFS, L -9.94491 dBFS
+cell Ref E2 Mass 40: w1 89.1116 dB, THD -4.19591 dB, E_low -5.9433 dB, P -12.0187 LKFS, L -10.1927 dBFS
+cell Ref E2 Mass 50: w1 87.191 dB, THD 0.458779 dB, E_low -3.09566 dB, P -12.0832 LKFS, L -10.6779 dBFS
+cell Ref E2 Mass 60: w1 85.7745 dB, THD 3.56081 dB, E_low -1.9239 dB, P -11.473 LKFS, L -10.3494 dBFS
+cell Ref E2 Mass 70: w1 84.7021 dB, THD 4.94898 dB, E_low -1.57601 dB, P -11.8875 LKFS, L -10.8885 dBFS
+cell Ref E2 Mass 80: w1 84.3858 dB, THD 5.90997 dB, E_low -1.43065 dB, P -12.1736 LKFS, L -11.2815 dBFS
+cell Ref E2 Mass 90: w1 84.4794 dB, THD 6.63358 dB, E_low -1.39213 dB, P -12.5853 LKFS, L -11.8043 dBFS
+cell Ref E2 Mass 100: w1 84.7773 dB, THD 7.33098 dB, E_low -1.37125 dB, P -13.0127 LKFS, L -12.3407 dBFS
+check Ref E2: SC-001(c) worst fall from Mass 0 (sum tap) -4.71486 dB (pass; worst step -1.9206 dB recorded), SC-003 span(L) 2.43704 dB (pass), span(P) 1.53967 dB, |dP| 0.0610184 dB/unit on the lattice, 0.141552 dB/unit per Mass unit (gated, M-1, pass)
+cell Ref C3 Mass 0: w1 89.0991 dB, THD -77.3681 dB, E_low -77.5935 dB, P -11.3085 LKFS, L -9.95412 dBFS
+cell Ref C3 Mass 10: w1 89.5505 dB, THD -35.3171 dB, E_low -35.7127 dB, P -11.2653 LKFS, L -9.9113 dBFS
+cell Ref C3 Mass 20: w1 89.9483 dB, THD -21.5037 dB, E_low -22.0084 dB, P -11.2406 LKFS, L -9.894 dBFS
+cell Ref C3 Mass 30: w1 90.0585 dB, THD -11.6306 dB, E_low -12.3372 dB, P -11.2214 LKFS, L -9.93576 dBFS
+cell Ref C3 Mass 40: w1 89.11 dB, THD -4.20312 dB, E_low -5.94847 dB, P -11.2626 LKFS, L -10.1854 dBFS
+cell Ref C3 Mass 50: w1 87.1894 dB, THD 0.451486 dB, E_low -3.09908 dB, P -11.5193 LKFS, L -10.6727 dBFS
+cell Ref C3 Mass 60: w1 85.8552 dB, THD 4.0517 dB, E_low -1.71085 dB, P -10.626 LKFS, L -9.93541 dBFS
+cell Ref C3 Mass 70: w1 84.7616 dB, THD 5.46065 dB, E_low -1.3816 dB, P -11.0981 LKFS, L -10.4853 dBFS
+cell Ref C3 Mass 80: w1 84.4276 dB, THD 6.40379 dB, E_low -1.24941 dB, P -11.4612 LKFS, L -10.9354 dBFS
+cell Ref C3 Mass 90: w1 84.5075 dB, THD 7.08852 dB, E_low -1.21842 dB, P -11.9937 LKFS, L -11.5717 dBFS
+cell Ref C3 Mass 100: w1 84.7958 dB, THD 7.73507 dB, E_low -1.20728 dB, P -12.6352 LKFS, L -12.315 dBFS
+check Ref C3: SC-001(c) worst fall from Mass 0 (sum tap) -4.67142 dB (pass; worst step -1.92061 dB recorded), SC-003 span(L) 2.42105 dB (pass), span(P) 2.00918 dB, |dP| 0.0893245 dB/unit on the lattice, 0.21777 dB/unit per Mass unit (gated, M-1, FAIL)
+check SC-002 margins Ref C3: THD(100) - THD(50) 7.28359 dB (>= 6.5 pass), THD(50) - THD(0) 77.8196 dB (>= 6.5 pass), E_low(50) - E_low(0) 74.4944 dB (>= 3.5 pass), THD(0) -77.3681 dB (SC-002 bar <= -30, recorded)
+cell Saw E0 Mass 0: w1 88.8953 dB, THD -13.0003 dB, E_low -13.2224 dB, P -22.7002 LKFS, L -10.1874 dBFS
+cell Saw E0 Mass 10: w1 89.5783 dB, THD -12.3627 dB, E_low -12.6263 dB, P -22.2103 LKFS, L -9.88159 dBFS
+cell Saw E0 Mass 20: w1 90.1864 dB, THD -11.629 dB, E_low -11.9535 dB, P -21.7198 LKFS, L -9.63978 dBFS
+cell Saw E0 Mass 30: w1 90.7203 dB, THD -10.7961 dB, E_low -11.2127 dB, P -21.2 LKFS, L -9.45713 dBFS
+cell Saw E0 Mass 40: w1 91.1748 dB, THD -9.8544 dB, E_low -10.4159 dB, P -20.6149 LKFS, L -9.33242 dBFS
+cell Saw E0 Mass 50: w1 91.536 dB, THD -8.78665 dB, E_low -9.58606 dB, P -19.9195 LKFS, L -9.26919 dBFS
+cell Saw E0 Mass 60: w1 91.9901 dB, THD -8.62791 dB, E_low -9.46422 dB, P -19.0594 LKFS, L -8.59794 dBFS
+cell Saw E0 Mass 70: w1 92.2121 dB, THD -7.52571 dB, E_low -8.42522 dB, P -17.6721 LKFS, L -7.88613 dBFS
+cell Saw E0 Mass 80: w1 92.1989 dB, THD -5.56762 dB, E_low -6.74166 dB, P -16.1783 LKFS, L -7.51924 dBFS
+cell Saw E0 Mass 90: w1 92.0171 dB, THD -3.64137 dB, E_low -5.27237 dB, P -14.9979 LKFS, L -7.42933 dBFS
+cell Saw E0 Mass 100: w1 91.8174 dB, THD -2.12258 dB, E_low -4.26498 dB, P -14.1332 LKFS, L -7.37862 dBFS
+check Saw E0: SC-001(c) worst fall from Mass 0 (sum tap) 0 dB (pass; worst step -0.199702 dB recorded), SC-003 span(L) 2.80878 dB (pass), span(P) 8.56692 dB, |dP| 0.149379 dB/unit on the lattice, 0.149379 dB/unit per Mass unit (recorded, FAIL)
+cell Saw E1 Mass 0: w1 88.7572 dB, THD -10.7949 dB, E_low -11.1709 dB, P -15.5518 LKFS, L -10.0074 dBFS
+cell Saw E1 Mass 10: w1 89.3148 dB, THD -9.99627 dB, E_low -10.4657 dB, P -15.2421 LKFS, L -9.79278 dBFS
+cell Saw E1 Mass 20: w1 89.7892 dB, THD -9.08682 dB, E_low -9.69888 dB, P -14.9563 LKFS, L -9.63726 dBFS
+cell Saw E1 Mass 30: w1 90.1671 dB, THD -8.04979 dB, E_low -8.88889 dB, P -14.6784 LKFS, L -9.54235 dBFS
+cell Saw E1 Mass 40: w1 90.4216 dB, THD -6.85806 dB, E_low -8.07287 dB, P -14.387 LKFS, L -9.51687 dBFS
+cell Saw E1 Mass 50: w1 90.5023 dB, THD -5.47753 dB, E_low -7.3301 dB, P -14.0471 LKFS, L -9.5767 dBFS
+cell Saw E1 Mass 60: w1 90.8972 dB, THD -5.07197 dB, E_low -7.0532 dB, P -13.627 LKFS, L -9.28007 dBFS
+cell Saw E1 Mass 70: w1 90.8905 dB, THD -4.27125 dB, E_low -6.16128 dB, P -13.5179 LKFS, L -9.36059 dBFS
+cell Saw E1 Mass 80: w1 90.6056 dB, THD -2.55141 dB, E_low -4.74147 dB, P -13.0752 LKFS, L -9.35773 dBFS
+cell Saw E1 Mass 90: w1 90.2659 dB, THD -0.969822 dB, E_low -3.67541 dB, P -12.5079 LKFS, L -9.20126 dBFS
+cell Saw E1 Mass 100: w1 90.0402 dB, THD 0.223443 dB, E_low -3.01575 dB, P -11.9635 LKFS, L -8.9566 dBFS
+check Saw E1: SC-001(c) worst fall from Mass 0 (sum tap) 0 dB (pass; worst step -0.339682 dB recorded), SC-003 span(L) 1.05083 dB (pass), span(P) 3.58829 dB, |dP| 0.0567289 dB/unit on the lattice, 0.0567289 dB/unit per Mass unit (recorded, FAIL)
+cell Saw E2 Mass 0: w1 88.7571 dB, THD -10.8323 dB, E_low -11.2053 dB, P -12.1776 LKFS, L -9.96284 dBFS
+cell Saw E2 Mass 10: w1 89.3148 dB, THD -10.0341 dB, E_low -10.4999 dB, P -11.9395 LKFS, L -9.74875 dBFS
+cell Saw E2 Mass 20: w1 89.7891 dB, THD -9.12521 dB, E_low -9.73284 dB, P -11.7512 LKFS, L -9.59498 dBFS
+cell Saw E2 Mass 30: w1 90.167 dB, THD -8.08894 dB, E_low -8.92236 dB, P -11.6045 LKFS, L -9.50115 dBFS
+cell Saw E2 Mass 40: w1 90.4215 dB, THD -6.89819 dB, E_low -8.10547 dB, P -11.4906 LKFS, L -9.47621 dBFS
+cell Saw E2 Mass 50: w1 90.5022 dB, THD -5.51888 dB, E_low -7.36121 dB, P -11.3883 LKFS, L -9.53831 dBFS
+cell Saw E2 Mass 60: w1 90.9451 dB, THD -4.74488 dB, E_low -6.64383 dB, P -10.8801 LKFS, L -9.07409 dBFS
+cell Saw E2 Mass 70: w1 90.9334 dB, THD -3.81579 dB, E_low -5.7225 dB, P -10.8812 LKFS, L -9.1182 dBFS
+cell Saw E2 Mass 80: w1 90.6414 dB, THD -2.01992 dB, E_low -4.34777 dB, P -10.7454 LKFS, L -9.10672 dBFS
+cell Saw E2 Mass 90: w1 90.2943 dB, THD -0.417522 dB, E_low -3.34542 dB, P -10.4903 LKFS, L -8.97396 dBFS
+cell Saw E2 Mass 100: w1 90.0624 dB, THD 0.769802 dB, E_low -2.73663 dB, P -10.1975 LKFS, L -8.77549 dBFS
+check Saw E2: SC-001(c) worst fall from Mass 0 (sum tap) 0 dB (pass; worst step -0.347093 dB recorded), SC-003 span(L) 1.18735 dB (pass), span(P) 1.9801 dB, |dP| 0.0508212 dB/unit on the lattice, 0.111272 dB/unit per Mass unit (gated, M-1, pass)
+cell Saw C3 Mass 0: w1 88.7555 dB, THD -10.8385 dB, E_low -11.211 dB, P -11.259 LKFS, L -9.95372 dBFS
+cell Saw C3 Mass 10: w1 89.3131 dB, THD -10.0404 dB, E_low -10.5056 dB, P -11.0329 LKFS, L -9.73974 dBFS
+cell Saw C3 Mass 20: w1 89.7874 dB, THD -9.13164 dB, E_low -9.73855 dB, P -10.8598 LKFS, L -9.58614 dBFS
+cell Saw C3 Mass 30: w1 90.1654 dB, THD -8.09548 dB, E_low -8.92798 dB, P -10.7317 LKFS, L -9.49253 dBFS
+cell Saw C3 Mass 40: w1 90.4199 dB, THD -6.90487 dB, E_low -8.11094 dB, P -10.6396 LKFS, L -9.46791 dBFS
+cell Saw C3 Mass 50: w1 90.5005 dB, THD -5.52574 dB, E_low -7.36642 dB, P -10.5615 LKFS, L -9.53051 dBFS
+cell Saw C3 Mass 60: w1 91.0388 dB, THD -4.52358 dB, E_low -6.37659 dB, P -9.9375 LKFS, L -8.90904 dBFS
+cell Saw C3 Mass 70: w1 91.0169 dB, THD -3.45154 dB, E_low -5.39558 dB, P -9.96542 LKFS, L -8.93349 dBFS
+cell Saw C3 Mass 80: w1 90.7107 dB, THD -1.55656 dB, E_low -4.02882 dB, P -9.88408 LKFS, L -8.88811 dBFS
+cell Saw C3 Mass 90: w1 90.3487 dB, THD 0.0895417 dB, E_low -3.06449 dB, P -9.69707 LKFS, L -8.74063 dBFS
+cell Saw C3 Mass 100: w1 90.1045 dB, THD 1.29209 dB, E_low -2.48998 dB, P -9.47252 LKFS, L -8.55122 dBFS
+check Saw C3: SC-001(c) worst fall from Mass 0 (sum tap) 0 dB (pass; worst step -0.361932 dB recorded), SC-003 span(L) 1.40249 dB (pass), span(P) 1.78648 dB, |dP| 0.0624002 dB/unit on the lattice, 0.143097 dB/unit per Mass unit (gated, M-1, pass)
+cell Sine E0 Mass 0: w1 89.0986 dB, THD -79.5431 dB, E_low -79.5435 dB, P -23.7619 LKFS, L -10.1964 dBFS
+cell Sine E0 Mass 10: w1 89.9264 dB, THD -80.3703 dB, E_low -80.3707 dB, P -23.3439 LKFS, L -9.77841 dBFS
+cell Sine E0 Mass 20: w1 90.6822 dB, THD -81.1272 dB, E_low -81.1276 dB, P -22.998 LKFS, L -9.4325 dBFS
+cell Sine E0 Mass 30: w1 91.3775 dB, THD -81.8238 dB, E_low -81.8242 dB, P -22.7136 LKFS, L -9.14812 dBFS
+cell Sine E0 Mass 40: w1 92.0212 dB, THD -82.4695 dB, E_low -82.4699 dB, P -22.4798 LKFS, L -8.91429 dBFS
+cell Sine E0 Mass 50: w1 92.6204 dB, THD -83.0657 dB, E_low -83.0661 dB, P -22.2903 LKFS, L -8.72483 dBFS
+cell Sine E0 Mass 60: w1 93.1741 dB, THD -40.5748 dB, E_low -40.5758 dB, P -21.5346 LKFS, L -7.97151 dBFS
+cell Sine E0 Mass 70: w1 93.7519 dB, THD -28.0464 dB, E_low -28.0542 dB, P -20.2329 LKFS, L -6.71542 dBFS
+cell Sine E0 Mass 80: w1 94.2294 dB, THD -19.986 dB, E_low -20.0317 dB, P -18.2123 LKFS, L -4.98631 dBFS
+cell Sine E0 Mass 90: w1 94.7424 dB, THD -14.0241 dB, E_low -14.1994 dB, P -15.9415 LKFS, L -3.65918 dBFS
+cell Sine E0 Mass 100: w1 95.1022 dB, THD -9.9496 dB, E_low -10.3921 dB, P -15.0242 LKFS, L -4.18586 dBFS
+check Sine E0: SC-001(c) worst fall from Mass 0 (sum tap) 0 dB (pass; worst step 0.359837 dB recorded), SC-003 span(L) 6.53723 dB (recorded, G8-2), span(P) 8.73766 dB, |dP| 0.22708 dB/unit on the lattice, 0.22708 dB/unit per Mass unit (recorded, FAIL)
+cell Sine E1 Mass 0: w1 89.1008 dB, THD -77.5609 dB, E_low -77.562 dB, P -16.0283 LKFS, L -10.0113 dBFS
+cell Sine E1 Mass 10: w1 89.9286 dB, THD -78.3877 dB, E_low -78.3888 dB, P -15.6103 LKFS, L -9.59328 dBFS
+cell Sine E1 Mass 20: w1 90.6844 dB, THD -79.1437 dB, E_low -79.1448 dB, P -15.2654 LKFS, L -9.24837 dBFS
+cell Sine E1 Mass 30: w1 91.3796 dB, THD -79.8396 dB, E_low -79.8407 dB, P -14.98 LKFS, L -8.963 dBFS
+cell Sine E1 Mass 40: w1 92.0233 dB, THD -80.483 dB, E_low -80.4841 dB, P -14.7462 LKFS, L -8.72917 dBFS
+cell Sine E1 Mass 50: w1 92.6226 dB, THD -81.0833 dB, E_low -81.0844 dB, P -14.5567 LKFS, L -8.53971 dBFS
+cell Sine E1 Mass 60: w1 93.1881 dB, THD -38.6306 dB, E_low -38.6335 dB, P -13.7905 LKFS, L -7.77434 dBFS
+cell Sine E1 Mass 70: w1 93.7612 dB, THD -25.8742 dB, E_low -25.889 dB, P -12.5176 LKFS, L -6.51876 dBFS
+cell Sine E1 Mass 80: w1 94.209 dB, THD -17.6367 dB, E_low -17.7178 dB, P -10.6827 LKFS, L -4.79292 dBFS
+cell Sine E1 Mass 90: w1 94.6031 dB, THD -11.6223 dB, E_low -11.9258 dB, P -9.19273 LKFS, L -3.66054 dBFS
+cell Sine E1 Mass 100: w1 94.4902 dB, THD -7.32737 dB, E_low -8.093 dB, P -9.43025 LKFS, L -4.53367 dBFS
+check Sine E1: SC-001(c) worst fall from Mass 0 (sum tap) 0 dB (pass; worst step -0.112929 dB recorded), SC-003 span(L) 6.35074 dB (recorded, G8-2), span(P) 6.83558 dB, |dP| 0.183488 dB/unit on the lattice, 0.183488 dB/unit per Mass unit (recorded, FAIL)
+cell Sine E2 Mass 0: w1 89.1007 dB, THD -77.5961 dB, E_low -77.5972 dB, P -12.2939 LKFS, L -9.96383 dBFS
+cell Sine E2 Mass 10: w1 89.9285 dB, THD -78.4239 dB, E_low -78.425 dB, P -11.8769 LKFS, L -9.54683 dBFS
+cell Sine E2 Mass 20: w1 90.6843 dB, THD -79.1797 dB, E_low -79.1808 dB, P -11.531 LKFS, L -9.20091 dBFS
+cell Sine E2 Mass 30: w1 91.3796 dB, THD -79.875 dB, E_low -79.8761 dB, P -11.2456 LKFS, L -8.91553 dBFS
+cell Sine E2 Mass 40: w1 92.0233 dB, THD -80.5188 dB, E_low -80.5199 dB, P -11.0118 LKFS, L -8.6817 dBFS
+cell Sine E2 Mass 50: w1 92.6225 dB, THD -81.1179 dB, E_low -81.119 dB, P -10.8224 LKFS, L -8.49224 dBFS
+cell Sine E2 Mass 60: w1 93.2367 dB, THD -38.3762 dB, E_low -38.3788 dB, P -10.0081 LKFS, L -7.67817 dBFS
+cell Sine E2 Mass 70: w1 93.8071 dB, THD -25.5445 dB, E_low -25.5597 dB, P -8.75006 LKFS, L -6.42443 dBFS
+cell Sine E2 Mass 80: w1 94.2523 dB, THD -17.1904 dB, E_low -17.2783 dB, P -6.99266 LKFS, L -4.6942 dBFS
+cell Sine E2 Mass 90: w1 94.6415 dB, THD -11.1294 dB, E_low -11.4645 dB, P -5.78991 LKFS, L -3.58293 dBFS
+cell Sine E2 Mass 100: w1 94.5219 dB, THD -6.78828 dB, E_low -7.63842 dB, P -6.59216 LKFS, L -4.55959 dBFS
+check Sine E2: SC-001(c) worst fall from Mass 0 (sum tap) 0 dB (pass; worst step -0.11956 dB recorded), SC-003 span(L) 6.3809 dB (recorded, G8-2), span(P) 6.50404 dB, |dP| 0.17574 dB/unit on the lattice, 0.17574 dB/unit per Mass unit (recorded, FAIL)
+cell Sine C3 Mass 0: w1 89.0991 dB, THD -77.6022 dB, E_low -77.6033 dB, P -11.3085 LKFS, L -9.95412 dBFS
+cell Sine C3 Mass 10: w1 89.9269 dB, THD -78.4301 dB, E_low -78.4312 dB, P -10.8915 LKFS, L -9.53713 dBFS
+cell Sine C3 Mass 20: w1 90.6827 dB, THD -79.1858 dB, E_low -79.1869 dB, P -10.5456 LKFS, L -9.19122 dBFS
+cell Sine C3 Mass 30: w1 91.3779 dB, THD -79.8808 dB, E_low -79.8819 dB, P -10.2602 LKFS, L -8.90585 dBFS
+cell Sine C3 Mass 40: w1 92.0216 dB, THD -80.5244 dB, E_low -80.5255 dB, P -10.0264 LKFS, L -8.67202 dBFS
+cell Sine C3 Mass 50: w1 92.6209 dB, THD -81.124 dB, E_low -81.1252 dB, P -9.83696 LKFS, L -8.48257 dBFS
+cell Sine C3 Mass 60: w1 93.3318 dB, THD -37.9866 dB, E_low -37.9889 dB, P -8.92598 LKFS, L -7.57173 dBFS
+cell Sine C3 Mass 70: w1 93.8967 dB, THD -25.1137 dB, E_low -25.1295 dB, P -7.67448 LKFS, L -6.32226 dBFS
+cell Sine C3 Mass 80: w1 94.3368 dB, THD -16.6866 dB, E_low -16.7835 dB, P -5.92805 LKFS, L -4.58835 dBFS
+cell Sine C3 Mass 90: w1 94.7155 dB, THD -10.5528 dB, E_low -10.9295 dB, P -5.21853 LKFS, L -3.92144 dBFS
+cell Sine C3 Mass 100: w1 94.582 dB, THD -6.20223 dB, E_low -7.15559 dB, P -6.14498 LKFS, L -4.92883 dBFS
+check Sine C3: SC-001(c) worst fall from Mass 0 (sum tap) 0 dB (pass; worst step -0.133466 dB recorded), SC-003 span(L) 6.03268 dB (recorded, G8-2), span(P) 6.08999 dB, |dP| 0.174643 dB/unit on the lattice, 0.174643 dB/unit per Mass unit (recorded, FAIL)
+verdict harvested (Linear): SC-001(c) pass (worst fall from Mass 0 -4.73623 dB; worst step -1.92061 dB), SC-003 L pass (worst 2.82486 dB), SC-003 P gated FAIL (span 2.00918 dB, |dP| 0.21777 dB/unit), SC-002 margins pass; span(P) E0 8.56692 dB, E1 3.58829 dB (recorded, C-1 (a))
+== full lattice: Fold SCurve (Depth down -0.5 up -0.5 ModCurve::Linear; Body down 0.5 up 0.4 ModCurve::Linear; Duration down 30 up 110 ModCurve::Linear; Fold down 50 up 61.3281 ModCurve::SCurve; Compression down 0.5 up 1 ModCurve::Linear; AnchorLevel down 0.5 up 0.5 ModCurve::Linear; OutputTrim down -2.04938 up -0 ModCurve::Linear; )
+cell Ref E0 Mass 0: w1 89.0986 dB, THD -79.4697 dB, E_low -79.5403 dB, P -23.7619 LKFS, L -10.1964 dBFS
+cell Ref E0 Mass 10: w1 89.6732 dB, THD -37.773 dB, E_low -37.9006 dB, P -23.5922 LKFS, L -10.0309 dBFS
+cell Ref E0 Mass 20: w1 90.1966 dB, THD -24.4469 dB, E_low -24.6255 dB, P -23.3578 LKFS, L -9.90252 dBFS
+cell Ref E0 Mass 30: w1 90.5645 dB, THD -14.9438 dB, E_low -15.2325 dB, P -22.3738 LKFS, L -9.8232 dBFS
+cell Ref E0 Mass 40: w1 90.3628 dB, THD -7.60666 dB, E_low -8.42966 dB, P -19.71 LKFS, L -9.87693 dBFS
+cell Ref E0 Mass 50: w1 89.332 dB, THD -2.76196 dB, E_low -4.72064 dB, P -17.3856 LKFS, L -10.1682 dBFS
+cell Ref E0 Mass 60: w1 88.2694 dB, THD -0.180625 dB, E_low -3.24717 dB, P -15.9182 LKFS, L -10.0002 dBFS
+cell Ref E0 Mass 70: w1 87.3055 dB, THD 1.44012 dB, E_low -2.53823 dB, P -15.393 LKFS, L -10.1923 dBFS
+cell Ref E0 Mass 80: w1 86.9477 dB, THD 2.7666 dB, E_low -2.07086 dB, P -15.0941 LKFS, L -10.3931 dBFS
+cell Ref E0 Mass 90: w1 86.808 dB, THD 3.62393 dB, E_low -1.84727 dB, P -15.1697 LKFS, L -10.775 dBFS
+cell Ref E0 Mass 100: w1 86.932 dB, THD 3.86414 dB, E_low -1.8352 dB, P -15.5422 LKFS, L -11.2724 dBFS
+check Ref E0: SC-001(c) worst fall from Mass 0 (sum tap) -2.29062 dB (pass; worst step -1.06265 dB recorded), SC-003 span(L) 1.44915 dB (pass), span(P) 8.66782 dB, |dP| 0.266381 dB/unit on the lattice, 0.266381 dB/unit per Mass unit (recorded, FAIL)
+cell Ref E1 Mass 0: w1 89.1008 dB, THD -77.3257 dB, E_low -77.5518 dB, P -16.0283 LKFS, L -10.0113 dBFS
+cell Ref E1 Mass 10: w1 89.5522 dB, THD -35.2731 dB, E_low -35.6697 dB, P -15.9835 LKFS, L -9.96843 dBFS
+cell Ref E1 Mass 20: w1 89.95 dB, THD -21.4572 dB, E_low -21.9632 dB, P -15.9154 LKFS, L -9.95081 dBFS
+cell Ref E1 Mass 30: w1 90.0603 dB, THD -11.5822 dB, E_low -12.2925 dB, P -15.517 LKFS, L -9.98969 dBFS
+cell Ref E1 Mass 40: w1 89.1117 dB, THD -4.1537 dB, E_low -5.91316 dB, P -14.4057 LKFS, L -10.2285 dBFS
+cell Ref E1 Mass 50: w1 87.1911 dB, THD 0.501374 dB, E_low -3.07586 dB, P -13.6637 LKFS, L -10.703 dBFS
+cell Ref E1 Mass 60: w1 85.7499 dB, THD 3.00149 dB, E_low -2.16376 dB, P -13.1325 LKFS, L -10.7498 dBFS
+cell Ref E1 Mass 70: w1 84.6901 dB, THD 4.47434 dB, E_low -1.82562 dB, P -13.4304 LKFS, L -11.3527 dBFS
+cell Ref E1 Mass 80: w1 84.442 dB, THD 5.63369 dB, E_low -1.63271 dB, P -13.5377 LKFS, L -11.6709 dBFS
+cell Ref E1 Mass 90: w1 84.4984 dB, THD 6.55589 dB, E_low -1.52489 dB, P -13.7586 LKFS, L -12.051 dBFS
+cell Ref E1 Mass 100: w1 84.7678 dB, THD 7.00176 dB, E_low -1.59645 dB, P -14.3597 LKFS, L -12.7757 dBFS
+check Ref E1: SC-001(c) worst fall from Mass 0 (sum tap) -4.65877 dB (pass; worst step -1.92061 dB recorded), SC-003 span(L) 2.82486 dB (pass), span(P) 2.89579 dB, |dP| 0.111123 dB/unit on the lattice, 0.111123 dB/unit per Mass unit (recorded, pass)
+check SC-002 margins Ref E1: THD(100) - THD(50) 6.50039 dB (>= 6.5 pass), THD(50) - THD(0) 77.8271 dB (>= 6.5 pass), E_low(50) - E_low(0) 74.476 dB (>= 3.5 pass), THD(0) -77.3257 dB (SC-002 bar <= -30, recorded)
+cell Ref E2 Mass 0: w1 89.1007 dB, THD -77.3618 dB, E_low -77.5873 dB, P -12.2939 LKFS, L -9.96383 dBFS
+cell Ref E2 Mass 10: w1 89.5521 dB, THD -35.3108 dB, E_low -35.7065 dB, P -12.2516 LKFS, L -9.92199 dBFS
+cell Ref E2 Mass 20: w1 89.9499 dB, THD -21.497 dB, E_low -22.0019 dB, P -12.2209 LKFS, L -9.90364 dBFS
+cell Ref E2 Mass 30: w1 90.0602 dB, THD -11.6236 dB, E_low -12.3307 dB, P -12.1536 LKFS, L -9.94491 dBFS
+cell Ref E2 Mass 40: w1 89.1116 dB, THD -4.19591 dB, E_low -5.9433 dB, P -12.0187 LKFS, L -10.1927 dBFS
+cell Ref E2 Mass 50: w1 87.191 dB, THD 0.458779 dB, E_low -3.09566 dB, P -12.0832 LKFS, L -10.6779 dBFS
+cell Ref E2 Mass 60: w1 85.7788 dB, THD 3.27647 dB, E_low -1.96156 dB, P -11.621 LKFS, L -10.448 dBFS
+cell Ref E2 Mass 70: w1 84.7204 dB, THD 4.94508 dB, E_low -1.58254 dB, P -11.8932 LKFS, L -10.8963 dBFS
+cell Ref E2 Mass 80: w1 84.4635 dB, THD 6.06546 dB, E_low -1.40577 dB, P -12.09 LKFS, L -11.2102 dBFS
+cell Ref E2 Mass 90: w1 84.5132 dB, THD 6.94045 dB, E_low -1.30976 dB, P -12.369 LKFS, L -11.5869 dBFS
+cell Ref E2 Mass 100: w1 84.7773 dB, THD 7.33098 dB, E_low -1.37125 dB, P -13.0127 LKFS, L -12.3407 dBFS
+check Ref E2: SC-001(c) worst fall from Mass 0 (sum tap) -4.63718 dB (pass; worst step -1.9206 dB recorded), SC-003 span(L) 2.43704 dB (pass), span(P) 1.39166 dB, |dP| 0.0643735 dB/unit on the lattice, 0.120408 dB/unit per Mass unit (gated, M-1, pass)
+cell Ref C3 Mass 0: w1 89.0991 dB, THD -77.3681 dB, E_low -77.5935 dB, P -11.3085 LKFS, L -9.95412 dBFS
+cell Ref C3 Mass 10: w1 89.5505 dB, THD -35.3171 dB, E_low -35.7127 dB, P -11.2653 LKFS, L -9.9113 dBFS
+cell Ref C3 Mass 20: w1 89.9483 dB, THD -21.5037 dB, E_low -22.0084 dB, P -11.2406 LKFS, L -9.894 dBFS
+cell Ref C3 Mass 30: w1 90.0585 dB, THD -11.6306 dB, E_low -12.3372 dB, P -11.2214 LKFS, L -9.93576 dBFS
+cell Ref C3 Mass 40: w1 89.11 dB, THD -4.20312 dB, E_low -5.94847 dB, P -11.2626 LKFS, L -10.1854 dBFS
+cell Ref C3 Mass 50: w1 87.1894 dB, THD 0.451486 dB, E_low -3.09908 dB, P -11.5193 LKFS, L -10.6727 dBFS
+cell Ref C3 Mass 60: w1 85.8347 dB, THD 3.56505 dB, E_low -1.78434 dB, P -10.9351 LKFS, L -10.1705 dBFS
+cell Ref C3 Mass 70: w1 84.7796 dB, THD 5.45375 dB, E_low -1.38811 dB, P -11.1001 LKFS, L -10.4912 dBFS
+cell Ref C3 Mass 80: w1 84.5059 dB, THD 6.54849 dB, E_low -1.23004 dB, P -11.3784 LKFS, L -10.8635 dBFS
+cell Ref C3 Mass 90: w1 84.5424 dB, THD 7.38814 dB, E_low -1.14802 dB, P -11.8334 LKFS, L -11.3998 dBFS
+cell Ref C3 Mass 100: w1 84.7958 dB, THD 7.73507 dB, E_low -1.20728 dB, P -12.6352 LKFS, L -12.315 dBFS
+check Ref C3: SC-001(c) worst fall from Mass 0 (sum tap) -4.59313 dB (pass; worst step -1.92061 dB recorded), SC-003 span(L) 2.42105 dB (pass), span(P) 1.70011 dB, |dP| 0.0801784 dB/unit on the lattice, 0.130348 dB/unit per Mass unit (gated, M-1, pass)
+check SC-002 margins Ref C3: THD(100) - THD(50) 7.28359 dB (>= 6.5 pass), THD(50) - THD(0) 77.8196 dB (>= 6.5 pass), E_low(50) - E_low(0) 74.4944 dB (>= 3.5 pass), THD(0) -77.3681 dB (SC-002 bar <= -30, recorded)
+cell Saw E0 Mass 0: w1 88.8953 dB, THD -13.0003 dB, E_low -13.2224 dB, P -22.7002 LKFS, L -10.1874 dBFS
+cell Saw E0 Mass 10: w1 89.5783 dB, THD -12.3627 dB, E_low -12.6263 dB, P -22.2103 LKFS, L -9.88159 dBFS
+cell Saw E0 Mass 20: w1 90.1864 dB, THD -11.629 dB, E_low -11.9535 dB, P -21.7198 LKFS, L -9.63978 dBFS
+cell Saw E0 Mass 30: w1 90.7203 dB, THD -10.7961 dB, E_low -11.2127 dB, P -21.2 LKFS, L -9.45713 dBFS
+cell Saw E0 Mass 40: w1 91.1748 dB, THD -9.8544 dB, E_low -10.4159 dB, P -20.6149 LKFS, L -9.33242 dBFS
+cell Saw E0 Mass 50: w1 91.536 dB, THD -8.78665 dB, E_low -9.58606 dB, P -19.9195 LKFS, L -9.26919 dBFS
+cell Saw E0 Mass 60: w1 91.9764 dB, THD -8.61912 dB, E_low -9.43189 dB, P -19.0911 LKFS, L -8.61058 dBFS
+cell Saw E0 Mass 70: w1 92.189 dB, THD -7.45352 dB, E_low -8.35679 dB, P -17.6544 LKFS, L -7.89646 dBFS
+cell Saw E0 Mass 80: w1 92.2916 dB, THD -5.46675 dB, E_low -6.66186 dB, P -16.0883 LKFS, L -7.48162 dBFS
+cell Saw E0 Mass 90: w1 92.1586 dB, THD -3.62962 dB, E_low -5.27625 dB, P -14.9693 LKFS, L -7.42067 dBFS
+cell Saw E0 Mass 100: w1 91.8174 dB, THD -2.12258 dB, E_low -4.26498 dB, P -14.1332 LKFS, L -7.37862 dBFS
+check Saw E0: SC-001(c) worst fall from Mass 0 (sum tap) 0 dB (pass; worst step -0.341233 dB recorded), SC-003 span(L) 2.80878 dB (pass), span(P) 8.56692 dB, |dP| 0.15661 dB/unit on the lattice, 0.15661 dB/unit per Mass unit (recorded, FAIL)
+cell Saw E1 Mass 0: w1 88.7572 dB, THD -10.7949 dB, E_low -11.1709 dB, P -15.5518 LKFS, L -10.0074 dBFS
+cell Saw E1 Mass 10: w1 89.3148 dB, THD -9.99627 dB, E_low -10.4657 dB, P -15.2421 LKFS, L -9.79278 dBFS
+cell Saw E1 Mass 20: w1 89.7892 dB, THD -9.08682 dB, E_low -9.69888 dB, P -14.9563 LKFS, L -9.63726 dBFS
+cell Saw E1 Mass 30: w1 90.1671 dB, THD -8.04979 dB, E_low -8.88889 dB, P -14.6784 LKFS, L -9.54235 dBFS
+cell Saw E1 Mass 40: w1 90.4216 dB, THD -6.85806 dB, E_low -8.07287 dB, P -14.387 LKFS, L -9.51687 dBFS
+cell Saw E1 Mass 50: w1 90.5023 dB, THD -5.47753 dB, E_low -7.3301 dB, P -14.0471 LKFS, L -9.5767 dBFS
+cell Saw E1 Mass 60: w1 90.8775 dB, THD -5.18231 dB, E_low -7.04172 dB, P -13.6452 LKFS, L -9.24566 dBFS
+cell Saw E1 Mass 70: w1 90.8688 dB, THD -4.18546 dB, E_low -6.09165 dB, P -13.5127 LKFS, L -9.37613 dBFS
+cell Saw E1 Mass 80: w1 90.7009 dB, THD -2.42939 dB, E_low -4.66025 dB, P -12.9939 LKFS, L -9.30794 dBFS
+cell Saw E1 Mass 90: w1 90.3716 dB, THD -0.887295 dB, E_low -3.64391 dB, P -12.4581 LKFS, L -9.17659 dBFS
+cell Saw E1 Mass 100: w1 90.0402 dB, THD 0.223443 dB, E_low -3.01575 dB, P -11.9635 LKFS, L -8.9566 dBFS
+check Saw E1: SC-001(c) worst fall from Mass 0 (sum tap) 0 dB (pass; worst step -0.331347 dB recorded), SC-003 span(L) 1.05083 dB (pass), span(P) 3.58829 dB, |dP| 0.0535823 dB/unit on the lattice, 0.0535823 dB/unit per Mass unit (recorded, FAIL)
+cell Saw E2 Mass 0: w1 88.7571 dB, THD -10.8323 dB, E_low -11.2053 dB, P -12.1776 LKFS, L -9.96284 dBFS
+cell Saw E2 Mass 10: w1 89.3148 dB, THD -10.0341 dB, E_low -10.4999 dB, P -11.9395 LKFS, L -9.74875 dBFS
+cell Saw E2 Mass 20: w1 89.7891 dB, THD -9.12521 dB, E_low -9.73284 dB, P -11.7512 LKFS, L -9.59498 dBFS
+cell Saw E2 Mass 30: w1 90.167 dB, THD -8.08894 dB, E_low -8.92236 dB, P -11.6045 LKFS, L -9.50115 dBFS
+cell Saw E2 Mass 40: w1 90.4215 dB, THD -6.89819 dB, E_low -8.10547 dB, P -11.4906 LKFS, L -9.47621 dBFS
+cell Saw E2 Mass 50: w1 90.5022 dB, THD -5.51888 dB, E_low -7.36121 dB, P -11.3883 LKFS, L -9.53831 dBFS
+cell Saw E2 Mass 60: w1 90.9111 dB, THD -5.05801 dB, E_low -6.75219 dB, P -10.9298 LKFS, L -9.05933 dBFS
+cell Saw E2 Mass 70: w1 90.9117 dB, THD -3.73464 dB, E_low -5.66022 dB, P -10.8902 LKFS, L -9.13351 dBFS
+cell Saw E2 Mass 80: w1 90.7366 dB, THD -1.90982 dB, E_low -4.27891 dB, P -10.687 LKFS, L -9.0579 dBFS
+cell Saw E2 Mass 90: w1 90.4001 dB, THD -0.342527 dB, E_low -3.31837 dB, P -10.4563 LKFS, L -8.94937 dBFS
+cell Saw E2 Mass 100: w1 90.0624 dB, THD 0.769802 dB, E_low -2.73663 dB, P -10.1975 LKFS, L -8.77549 dBFS
+check Saw E2: SC-001(c) worst fall from Mass 0 (sum tap) 0 dB (pass; worst step -0.33772 dB recorded), SC-003 span(L) 1.18735 dB (pass), span(P) 1.9801 dB, |dP| 0.0458524 dB/unit on the lattice, 0.0745531 dB/unit per Mass unit (gated, M-1, pass)
+cell Saw C3 Mass 0: w1 88.7555 dB, THD -10.8385 dB, E_low -11.211 dB, P -11.259 LKFS, L -9.95372 dBFS
+cell Saw C3 Mass 10: w1 89.3131 dB, THD -10.0404 dB, E_low -10.5056 dB, P -11.0329 LKFS, L -9.73974 dBFS
+cell Saw C3 Mass 20: w1 89.7874 dB, THD -9.13164 dB, E_low -9.73855 dB, P -10.8598 LKFS, L -9.58614 dBFS
+cell Saw C3 Mass 30: w1 90.1654 dB, THD -8.09548 dB, E_low -8.92798 dB, P -10.7317 LKFS, L -9.49253 dBFS
+cell Saw C3 Mass 40: w1 90.4199 dB, THD -6.90487 dB, E_low -8.11094 dB, P -10.6396 LKFS, L -9.46791 dBFS
+cell Saw C3 Mass 50: w1 90.5005 dB, THD -5.52574 dB, E_low -7.36642 dB, P -10.5615 LKFS, L -9.53051 dBFS
+cell Saw C3 Mass 60: w1 90.9765 dB, THD -5.00511 dB, E_low -6.57734 dB, P -10.0621 LKFS, L -8.9594 dBFS
+cell Saw C3 Mass 70: w1 90.9951 dB, THD -3.3744 dB, E_low -5.33888 dB, P -9.97344 LKFS, L -8.94439 dBFS
+cell Saw C3 Mass 80: w1 90.8053 dB, THD -1.45554 dB, E_low -3.96897 dB, P -9.8313 LKFS, L -8.83988 dBFS
+cell Saw C3 Mass 90: w1 90.4546 dB, THD 0.161111 dB, E_low -3.03949 dB, P -9.67362 LKFS, L -8.72416 dBFS
+cell Saw C3 Mass 100: w1 90.1045 dB, THD 1.29209 dB, E_low -2.48998 dB, P -9.47252 LKFS, L -8.55122 dBFS
+check Saw C3: SC-001(c) worst fall from Mass 0 (sum tap) 0 dB (pass; worst step -0.350743 dB recorded), SC-003 span(L) 1.40249 dB (pass), span(P) 1.78648 dB, |dP| 0.0499379 dB/unit on the lattice, 0.0710849 dB/unit per Mass unit (gated, M-1, pass)
+cell Sine E0 Mass 0: w1 89.0986 dB, THD -79.5431 dB, E_low -79.5435 dB, P -23.7619 LKFS, L -10.1964 dBFS
+cell Sine E0 Mass 10: w1 89.9264 dB, THD -80.3703 dB, E_low -80.3707 dB, P -23.3439 LKFS, L -9.77841 dBFS
+cell Sine E0 Mass 20: w1 90.6822 dB, THD -81.1272 dB, E_low -81.1276 dB, P -22.998 LKFS, L -9.4325 dBFS
+cell Sine E0 Mass 30: w1 91.3775 dB, THD -81.8238 dB, E_low -81.8242 dB, P -22.7136 LKFS, L -9.14812 dBFS
+cell Sine E0 Mass 40: w1 92.0212 dB, THD -82.4695 dB, E_low -82.4699 dB, P -22.4798 LKFS, L -8.91429 dBFS
+cell Sine E0 Mass 50: w1 92.6204 dB, THD -83.0657 dB, E_low -83.0661 dB, P -22.2903 LKFS, L -8.72483 dBFS
+cell Sine E0 Mass 60: w1 93.1672 dB, THD -41.3677 dB, E_low -41.3687 dB, P -21.5422 LKFS, L -7.97848 dBFS
+cell Sine E0 Mass 70: w1 93.7353 dB, THD -28.2784 dB, E_low -28.2859 dB, P -20.2534 LKFS, L -6.73241 dBFS
+cell Sine E0 Mass 80: w1 94.2235 dB, THD -19.8684 dB, E_low -19.9157 dB, P -18.203 LKFS, L -4.99096 dBFS
+cell Sine E0 Mass 90: w1 94.8518 dB, THD -14.0918 dB, E_low -14.2685 dB, P -15.8632 LKFS, L -3.58166 dBFS
+cell Sine E0 Mass 100: w1 95.1022 dB, THD -9.9496 dB, E_low -10.3921 dB, P -15.0242 LKFS, L -4.18586 dBFS
+check Sine E0: SC-001(c) worst fall from Mass 0 (sum tap) 0 dB (pass; worst step 0.25048 dB recorded), SC-003 span(L) 6.61474 dB (recorded, G8-2), span(P) 8.73766 dB, |dP| 0.23398 dB/unit on the lattice, 0.23398 dB/unit per Mass unit (recorded, FAIL)
+cell Sine E1 Mass 0: w1 89.1008 dB, THD -77.5609 dB, E_low -77.562 dB, P -16.0283 LKFS, L -10.0113 dBFS
+cell Sine E1 Mass 10: w1 89.9286 dB, THD -78.3877 dB, E_low -78.3888 dB, P -15.6103 LKFS, L -9.59328 dBFS
+cell Sine E1 Mass 20: w1 90.6844 dB, THD -79.1437 dB, E_low -79.1448 dB, P -15.2654 LKFS, L -9.24837 dBFS
+cell Sine E1 Mass 30: w1 91.3796 dB, THD -79.8396 dB, E_low -79.8407 dB, P -14.98 LKFS, L -8.963 dBFS
+cell Sine E1 Mass 40: w1 92.0233 dB, THD -80.483 dB, E_low -80.4841 dB, P -14.7462 LKFS, L -8.72917 dBFS
+cell Sine E1 Mass 50: w1 92.6226 dB, THD -81.0833 dB, E_low -81.0844 dB, P -14.5567 LKFS, L -8.53971 dBFS
+cell Sine E1 Mass 60: w1 93.1775 dB, THD -39.2754 dB, E_low -39.2782 dB, P -13.8013 LKFS, L -7.78502 dBFS
+cell Sine E1 Mass 70: w1 93.7441 dB, THD -26.0447 dB, E_low -26.0591 dB, P -12.536 LKFS, L -6.53635 dBFS
+cell Sine E1 Mass 80: w1 94.2104 dB, THD -17.6 dB, E_low -17.6826 dB, P -10.6789 LKFS, L -4.79089 dBFS
+cell Sine E1 Mass 90: w1 94.7514 dB, THD -11.7717 dB, E_low -12.072 dB, P -9.09798 LKFS, L -3.55343 dBFS
+cell Sine E1 Mass 100: w1 94.4902 dB, THD -7.32737 dB, E_low -8.093 dB, P -9.43025 LKFS, L -4.53367 dBFS
+check Sine E1: SC-001(c) worst fall from Mass 0 (sum tap) 0 dB (pass; worst step -0.261182 dB recorded), SC-003 span(L) 6.45785 dB (recorded, G8-2), span(P) 6.93033 dB, |dP| 0.185709 dB/unit on the lattice, 0.185709 dB/unit per Mass unit (recorded, FAIL)
+cell Sine E2 Mass 0: w1 89.1007 dB, THD -77.5961 dB, E_low -77.5972 dB, P -12.2939 LKFS, L -9.96383 dBFS
+cell Sine E2 Mass 10: w1 89.9285 dB, THD -78.4239 dB, E_low -78.425 dB, P -11.8769 LKFS, L -9.54683 dBFS
+cell Sine E2 Mass 20: w1 90.6843 dB, THD -79.1797 dB, E_low -79.1808 dB, P -11.531 LKFS, L -9.20091 dBFS
+cell Sine E2 Mass 30: w1 91.3796 dB, THD -79.875 dB, E_low -79.8761 dB, P -11.2456 LKFS, L -8.91553 dBFS
+cell Sine E2 Mass 40: w1 92.0233 dB, THD -80.5188 dB, E_low -80.5199 dB, P -11.0118 LKFS, L -8.6817 dBFS
+cell Sine E2 Mass 50: w1 92.6225 dB, THD -81.1179 dB, E_low -81.119 dB, P -10.8224 LKFS, L -8.49224 dBFS
+cell Sine E2 Mass 60: w1 93.2116 dB, THD -39.0944 dB, E_low -39.0969 dB, P -10.0334 LKFS, L -7.70344 dBFS
+cell Sine E2 Mass 70: w1 93.7899 dB, THD -25.7091 dB, E_low -25.7238 dB, P -8.7679 LKFS, L -6.44209 dBFS
+cell Sine E2 Mass 80: w1 94.2539 dB, THD -17.1525 dB, E_low -17.242 dB, P -6.98998 LKFS, L -4.6919 dBFS
+cell Sine E2 Mass 90: w1 94.7897 dB, THD -11.2685 dB, E_low -11.5992 dB, P -5.67479 LKFS, L -3.46469 dBFS
+cell Sine E2 Mass 100: w1 94.5219 dB, THD -6.78828 dB, E_low -7.63842 dB, P -6.59216 LKFS, L -4.55959 dBFS
+check Sine E2: SC-001(c) worst fall from Mass 0 (sum tap) 0 dB (pass; worst step -0.267777 dB recorded), SC-003 span(L) 6.49914 dB (recorded, G8-2), span(P) 6.61915 dB, |dP| 0.177792 dB/unit on the lattice, 0.177792 dB/unit per Mass unit (recorded, FAIL)
+cell Sine C3 Mass 0: w1 89.0991 dB, THD -77.6022 dB, E_low -77.6033 dB, P -11.3085 LKFS, L -9.95412 dBFS
+cell Sine C3 Mass 10: w1 89.9269 dB, THD -78.4301 dB, E_low -78.4312 dB, P -10.8915 LKFS, L -9.53713 dBFS
+cell Sine C3 Mass 20: w1 90.6827 dB, THD -79.1858 dB, E_low -79.1869 dB, P -10.5456 LKFS, L -9.19122 dBFS
+cell Sine C3 Mass 30: w1 91.3779 dB, THD -79.8808 dB, E_low -79.8819 dB, P -10.2602 LKFS, L -8.90585 dBFS
+cell Sine C3 Mass 40: w1 92.0216 dB, THD -80.5244 dB, E_low -80.5255 dB, P -10.0264 LKFS, L -8.67202 dBFS
+cell Sine C3 Mass 50: w1 92.6209 dB, THD -81.124 dB, E_low -81.1252 dB, P -9.83696 LKFS, L -8.48257 dBFS
+cell Sine C3 Mass 60: w1 93.2779 dB, THD -38.8011 dB, E_low -38.8031 dB, P -8.98002 LKFS, L -7.62575 dBFS
+cell Sine C3 Mass 70: w1 93.8794 dB, THD -25.2696 dB, E_low -25.285 dB, P -7.69233 LKFS, L -6.34003 dBFS
+cell Sine C3 Mass 80: w1 94.3388 dB, THD -16.6497 dB, E_low -16.748 dB, P -5.92508 LKFS, L -4.58555 dBFS
+cell Sine C3 Mass 90: w1 94.8634 dB, THD -10.6829 dB, E_low -11.0536 dB, P -5.10376 LKFS, L -3.80561 dBFS
+cell Sine C3 Mass 100: w1 94.582 dB, THD -6.20223 dB, E_low -7.15559 dB, P -6.14498 LKFS, L -4.92883 dBFS
+check Sine C3: SC-001(c) worst fall from Mass 0 (sum tap) 0 dB (pass; worst step -0.281354 dB recorded), SC-003 span(L) 6.14851 dB (recorded, G8-2), span(P) 6.20475 dB, |dP| 0.176725 dB/unit on the lattice, 0.176725 dB/unit per Mass unit (recorded, FAIL)
+verdict Fold SCurve: SC-001(c) pass (worst fall from Mass 0 -4.65877 dB; worst step -1.92061 dB), SC-003 L pass (worst 2.82486 dB), SC-003 P gated pass (span 1.9801 dB, |dP| 0.130348 dB/unit), SC-002 margins pass; span(P) E0 8.66782 dB, E1 3.58829 dB (recorded, C-1 (a))

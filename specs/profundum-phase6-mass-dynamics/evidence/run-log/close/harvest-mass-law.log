@@ -1,0 +1,15 @@
+Filters: "MassLaw_TableHarvest"
+Randomness seeded to: 2544982047
+BEGIN-INITIALIZER mass-law-rows
+        {.target = Target::Depth, .lo = 0.0f, .hi = 1.0f, .amountDown = -0.5f, .amountUp = -0.5f, .curve = ModCurve::Linear},
+        {.target = Target::Body, .lo = 0.0f, .hi = 1.0f, .amountDown = 0.5f, .amountUp = 0.400000006f, .curve = ModCurve::Linear},
+        {.target = Target::TransientDuration, .lo = 5.0f, .hi = 250.0f, .amountDown = 30.0f, .amountUp = 110.0f, .curve = ModCurve::Linear},
+        {.target = Target::FoldAmount, .lo = 0.0f, .hi = 100.0f, .amountDown = 50.0f, .amountUp = 61.328125f, .curve = ModCurve::SCurve},
+        {.target = Target::CompressionAmount, .lo = 0.0f, .hi = 1.0f, .amountDown = 0.5f, .amountUp = 1.0f, .curve = ModCurve::Linear},
+        {.target = Target::AnchorLevel, .lo = 0.0f, .hi = 1.0f, .amountDown = 0.5f, .amountUp = 0.5f, .curve = ModCurve::Linear},
+        {.target = Target::OutputTrim, .lo = -12.0f, .hi = 12.0f, .amountDown = -2.0493834f, .amountUp = -0.0f, .curve = ModCurve::Linear},
+END-INITIALIZER mass-law-rows
+===============================================================================
+All tests passed (22144 assertions in 1 test case)
+
+exit: 0 wall: 55 s

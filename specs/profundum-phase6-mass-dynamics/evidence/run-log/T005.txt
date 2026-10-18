@@ -1,0 +1,47 @@
+T005 run-log — Processors-level transient test helpers (tasks deviation 3)
+Date: 2026-10-17. Executor stage only: nothing built or run (the group gate builds dsp_processors_tests and runs
+"TransientShaperHelpers_*").
+
+== Files written ==
+- dsp/tests/unit/processors/transient_shaper_test_helpers.h (new; namespace Krate::DSP::TransientShaperTest, all inline)
+- dsp/tests/unit/processors/transient_shaper_helpers_test.cpp (T002 stub filled; 5 TEST_CASEs,
+  tags [processors][profundum][transient-shaper])
+- specs/profundum-phase6-mass-dynamics/evidence/run-log/T005.txt (this file)
+
+== Tests (written first) ==
+1. TransientShaperHelpers_BurstFixture — {sine, saw} x {E1, C3} x preRoll {0, 2 s}, 48 kHz, hold 1 s, tail 0.25 s.
+2. TransientShaperHelpers_TwoLevelStep — twoLevelStep(Saw, E1, 48k, 2, 2): [0.5, 2] s = -24 +/- 0.1, [2.5, 4] s = -12 +/- 0.1 dBFS.
+3. TransientShaperHelpers_TransientTime — 12*exp(-t/20 ms) trace -> 20*ln(12/9) = 5.7536 ms within 1/fs; a 10 + 2*exp(-t/20 ms)
+   trace (never 3 dB below its 12 dB peak) returns +inf (checked with ProfundumTest::isPosInf, bit pattern).
+4. TransientShaperHelpers_DTr — E1 sine 1.5 s, y = 2x over [0, 100 ms), W = 18000, steady window from 1.0 s:
+   expected 2.553 +/- 0.05 dB; dTrWindow(48000, 250) == 18000, dTrWindow(48000, 20) == 2400.
+5. TransientShaperHelpers_SideMidAndBits — sideMidRatioDb(L, 0.5L) = -9.542 +/- 1e-3; isFiniteBits on NaN/+-Inf bit patterns
+   false, on 0, +-1e-30, +-3e38 true.
+
+== Decisions ==
+- D-1 DTr fixture placement: the task fixes x (E1 sine 1.5 s), the boost (100 ms) and W (375 ms) but not onset / steadyStart.
+  Chosen onset = 0, steadyStart = 1.0 s (48000; 48000 + 18000 <= 72000). Sizing check in a scratch Node model
+  (float32 sine, same arithmetic): onset 0 / steady 1.0 s -> 2.5308 dB vs 2.5527 expected (|err| 0.022 < 0.05); other
+  placements checked: (0, 1.125 s) 2.5297, (2400, 1.0 s) 2.5646, (0, 0.75 s) 2.5219, (1200, 50000) 2.5349 — all inside the bar.
+  The residual is the non-integer-period energy of the 100 ms / 375 ms windows, not a helper error. No bar relaxed.
+- D-2 Infinity: transientTimeMs returns ProfundumTest::posInf() (bit pattern through a volatile sink), never
+  std::numeric_limits<double>::infinity(): the TU is compiled under -ffast-math on clang (-Wnan-infinity-disabled would break
+  the zero-warning rule), per the precedent in spectral_shape_recipe_test_helpers.h:12-18.
+- D-3 Extra helpers beyond the task's list (all used by the self-test or by burst/twoLevelStep): kRampMs, secondsToSamples,
+  rampSamples(fs) (= round(0.5 ms * fs)), rampWeight(k, R) (= 0.5*(1 - cos(pi*k/R))). The ramp is 0 at k = 0 and < 1 at
+  k = R - 1; full gain from k = R. The self-test checks rampSamples(48000) == 24, b[onset+k] == tone[k]*w(k) within 1e-7 for
+  k < 24, |b[onset+23]| < |tone[23]|, and b[onset+k] == tone[k] exactly for k >= 24 (same build, same process: rule 7).
+- D-4 Signatures: gain traces are std::span<const float> (transientTimeMs, rippleDb, meanOf); audio is const float* + n
+  (dTrDb, levelDbPeriods, sideMidRatioDb). levelDbPeriods measures from y[0] over integerPeriodLength(n, fs, f0, 0.0)
+  samples (callers pass y + start). transientTimeMs searches the peak over [onset, onset + round(searchMs*fs/1000)]
+  inclusive and the -3 dB crossing to the end of the trace.
+- D-5 twoLevelStep renders the tone once for low + high seconds (one continuous waveform) and applies the gain
+  envelope; total = round(low*fs) + round(high*fs).
+- D-6 The T002 stub's #include <krate/dsp/processors/transient_shaper.h> was replaced by the helper header (the
+  self-tests do not use TransientShaper).
+
+== Deviations ==
+None from the T005 section.
+
+== DEFECT lines ==
+None.

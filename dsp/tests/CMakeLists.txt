@@ -288,6 +288,15 @@ add_executable(dsp_processors_tests
     unit/processors/shape_character_metric_helpers_test.cpp
     unit/processors/rectifier_test.cpp
     unit/processors/rectifier_nonfinite_test.cpp
+    # Profundum Phase 6 (specs/profundum-phase6-mass-dynamics) - ENUMERATED, not globbed:
+    #   period_peak_detector_test.cpp         PeriodPeakDetector (plan C-4, S3)
+    #   transient_shaper_helpers_test.cpp     transient helper self-tests (tasks deviation 3)
+    #   transient_shaper_test.cpp             SC-008, SC-009, SC-011, SC-025; shaper arms of SC-012/013/016/018/021
+    #   transient_shaper_nonfinite_test.cpp   SC-019 shaper arm - in the -fno-fast-math block below
+    unit/processors/period_peak_detector_test.cpp
+    unit/processors/transient_shaper_helpers_test.cpp
+    unit/processors/transient_shaper_test.cpp
+    unit/processors/transient_shaper_nonfinite_test.cpp
     unit/processors/residual_types_tests.cpp
     unit/processors/residual_analyzer_tests.cpp
     unit/processors/residual_synthesizer_tests.cpp
@@ -706,6 +715,31 @@ add_executable(dsp_systems_tests
     unit/systems/shape_character_chain_test.cpp
     unit/systems/shape_character_nonfinite_test.cpp
     unit/systems/shape_character_perf_test.cpp
+    # Profundum Phase 6 (specs/profundum-phase6-mass-dynamics) - ENUMERATED, not globbed:
+    #   k_weighting_helper_test.cpp          SC-026 (BS.1770 K-weighting reference)
+    #   mass_compressor_test.cpp             SC-007, SC-024(a)(b)(c)(e); compressor arms of SC-012/013/016/018/021
+    #   mass_law_test.cpp                    SC-001(a), SC-004, SC-016 law, SC-023 law, SC-025 law
+    #   mass_dynamics_test.cpp               SC-012, SC-013, SC-016, SC-018 (MassDynamics)
+    #   mass_dynamics_helpers_test.cpp       chain helper self-tests (tasks deviation 5)
+    #   mass_chain_test.cpp                  SC-014, SC-015, SC-018, SC-021, FR-035
+    #   mass_compressor_chain_test.cpp       SC-006, SC-011 compressor, SC-022, SC-024(d)
+    #   mass_law_spectral_test.cpp           SC-001(b)(c), SC-003; grids [long]
+    #   mass_law_automation_test.cpp         SC-002, SC-005, SC-011 Mass, SC-023 rendered; grids [long]
+    #   mass_dynamics_aliasing_test.cpp      SC-010; grids [long]
+    #   mass_dynamics_nonfinite_test.cpp     SC-019 - in the -fno-fast-math block below
+    #   mass_dynamics_perf_test.cpp          SC-017  [.perf]
+    unit/systems/k_weighting_helper_test.cpp
+    unit/systems/mass_compressor_test.cpp
+    unit/systems/mass_law_test.cpp
+    unit/systems/mass_dynamics_test.cpp
+    unit/systems/mass_dynamics_helpers_test.cpp
+    unit/systems/mass_chain_test.cpp
+    unit/systems/mass_compressor_chain_test.cpp
+    unit/systems/mass_law_spectral_test.cpp
+    unit/systems/mass_law_automation_test.cpp
+    unit/systems/mass_dynamics_aliasing_test.cpp
+    unit/systems/mass_dynamics_nonfinite_test.cpp
+    unit/systems/mass_dynamics_perf_test.cpp
 )
 
 target_link_libraries(dsp_systems_tests
@@ -1198,6 +1232,9 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         # Profundum Phase 5: injects NaN/Inf bit patterns (SC-017, FR-066). The perf TU stays out (shipping FP mode).
         unit/processors/rectifier_nonfinite_test.cpp
         unit/systems/shape_character_nonfinite_test.cpp
+        # Profundum Phase 6: injects NaN/Inf bit patterns (SC-019). The perf TU stays out (shipping FP mode).
+        unit/processors/transient_shaper_nonfinite_test.cpp
+        unit/systems/mass_dynamics_nonfinite_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 

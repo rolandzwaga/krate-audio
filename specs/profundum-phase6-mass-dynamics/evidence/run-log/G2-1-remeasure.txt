@@ -1,0 +1,19 @@
+Filters: [period-peak]
+Randomness seeded to: 1667943707
+PeriodPeakDetector_HeldBoundsInput kSawAnchor E1 (hold 50.0 ms): one channel 0 violations (min held - |x| = 0), two channels 0 violations (min held - max|x| = 0)
+PeriodPeakDetector_HeldBoundsInput sine E0 (hold 50.0 ms): one channel 0 violations (min held - |x| = 0), two channels 0 violations (min held - max|x| = 0)
+PeriodPeakDetector_SteadyOnNonIntegerPeriod 64 partials, fs 44100, f0 41.2034 Hz, hold 50.0 ms: ripple 1.25e-05 (bar 1.0e-04)
+PeriodPeakDetector_SteadyOnNonIntegerPeriod 64 partials, fs 48000, f0 41.2034 Hz, hold 50.0 ms: ripple 1.08e-05 (bar 1.0e-04)
+PeriodPeakDetector_SteadyOnNonIntegerPeriod 64 partials, fs 96000, f0 41.2034 Hz, hold 50.0 ms: ripple 1.55e-06 (bar 1.0e-04)
+PeriodPeakDetector_SteadyOnNonIntegerPeriod 481 partials, fs 44100, f0 41.2034 Hz, hold 50.0 ms: ripple 0.00143 (bar 2.3e-03)
+PeriodPeakDetector_SteadyOnNonIntegerPeriod 524 partials, fs 48000, f0 41.2034 Hz, hold 50.0 ms: ripple 0.00144 (bar 2.3e-03)
+PeriodPeakDetector_SteadyOnNonIntegerPeriod 1048 partials, fs 96000, f0 41.2034 Hz, hold 50.0 ms: ripple 0.000739 (bar 2.3e-03)
+PeriodPeakDetector_SteadyOnNonIntegerPeriod [record] kSawAnchor note 16 (20.6017 Hz), fs 48000, hold one period 48.540 ms: ripple 4.18e-07
+PeriodPeakDetector_SteadyOnNonIntegerPeriod [record] kSawAnchor note 28 (41.2034 Hz), fs 48000, hold one period 24.270 ms: ripple 1.19e-05
+PeriodPeakDetector_SteadyOnNonIntegerPeriod [record] kSawAnchor note 40 (82.4069 Hz), fs 48000, hold one period 12.135 ms: ripple 7.86e-05
+PeriodPeakDetector_SteadyOnNonIntegerPeriod [record] kSawAnchor note 48 (130.8128 Hz), fs 48000, hold one period 7.645 ms: ripple 0.000288
+PeriodPeakDetector_HoldLengthAndBoundary: hold 10 ms held 539 samples (bar [480, 540]), tail max 0.00621; hold 20 ms held 1079 samples (bar [960, 1080]), tail max 0.000167; holdMs() after call 20.000
+PeriodPeakDetector_SettersAndLifecycle: NaN -> 50.000, +Inf -> 50.000, -Inf -> 50.000, 0.1 -> 1.000, 500 -> 125.000; held before reset 0.635090, after 0.000000; allocations 0
+===============================================================================
+All tests passed (113 assertions in 5 test cases)
+

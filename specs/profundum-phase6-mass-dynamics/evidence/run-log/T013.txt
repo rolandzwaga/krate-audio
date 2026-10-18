@@ -1,0 +1,92 @@
+T013 run-log - Compressor on the chain and the amount-table harvest (SC-006, SC-011 compressor, SC-022, SC-024(d);
+FR-011, FR-016, FR-018, FR-019; plan S8.3, R-4)
+Date: 2026-10-17. Executor stage only: nothing was built or run (the group's build agent runs
+dsp_systems_tests "MassCompressor_*"). Test-only task: no header was touched.
+
+== Files ==
+dsp/tests/unit/systems/mass_compressor_chain_test.cpp  (T002 stub filled; 5 per-push TEST_CASEs + 1 hidden harvest)
+specs/profundum-phase6-mass-dynamics/evidence/run-log/T013.txt (this file)
+Written by the harvest at run time (T019, main loop): specs/profundum-phase6-mass-dynamics/evidence/amount-table.txt
+
+== TEST_CASEs ==
+MassCompressor_NoSubPumping                 [systems][profundum][mass-dynamics]  SC-006 (a)(b)(c)(d)
+MassCompressor_RectifiedFeedNegativeControl [systems][profundum][mass-dynamics]  SC-006 (e)
+MassCompressor_MakeupMatchesGr              [systems][profundum][mass-dynamics]  SC-022, FR-016
+MassCompressor_Audibility                   [systems][profundum][mass-dynamics]  SC-011 compressor
+MassCompressor_KeytrackedCornerPoly         [systems][profundum][mass-dynamics]  SC-024(d), FR-018
+MassCompressor_AmountTableHarvest           [mass-dynamics-harvest][.calibration] plan S8.3 (T019 only)
+Name sweep: grep of the six names over dsp/tests -> only this TU. TU-local names carry mcc / kMcc / Mcc.
+No name collides with mass_compressor_test.cpp (T007: AmountMapping, TransparentAtAmountZero, ReleaseRuleLaw,
+ProgramDependentRelease, FixedReleasePositiveControl, KeytrackedCorner, MonoSum, NoAllocation, PartitionInvariant,
+SampleRates, Lifecycle).
+
+== Reused APIs (read this session) ==
+dsp/tests/unit/systems/mass_dynamics_test_helpers.h (T011): ChainConfig {base, f0, fs, seconds, massAt, targetOverride,
+  configureDynamics, preDynamicsGainDb, perSampleDynamicsTaps}, ChainTaps {outL, compGrDb, cornerHzPerInterval},
+  TargetOverride, renderChain, renderPoly(span<const double>, ChainConfig), subBand (dftDb, lpRmsDb,
+  lpGroupDelayPeriods), mSubSamples(sb, trace, beginSample, endSample), deltaLStepDb(span, fs, f0, lo0, lo1, hi0, hi1), kGrid.
+dsp/tests/unit/systems/mass_dynamics_probe.h:27 setHpBypass, :31 setRectifiedFeed, :34 overrideAmountTable
+  (const std::array<BassCompressor::AmountRow, 5>*), :50 compressor(MassDynamics&).
+dsp/include/krate/dsp/systems/mass_dynamics.h:75-81 AmountRow {amount, thresholdDb, slope, kneeDb, makeupDb}; :85-93
+  kAmountTable (HARVEST-BEGIN/END amount-table, 8-space rows); :270 currentGainReductionDb (0 none, negative = reduction);
+  :276 detectorCornerHz; :425-441 static_assert invariants (threshold non-increasing, makeup non-decreasing).
+dsp/include/krate/dsp/systems/mass_law.h: evaluate(mass, Targets) static; kNeutralMass 50, kMaxMass 100; kRows
+  CompressionAmount amountUp = 1.0 (C-7 (i)) -> evaluate(100, Targets{}).compressionAmount = 1 (computed in the test,
+  not hard-coded).
+dsp/tests/unit/processors/transient_shaper_test_helpers.h:46-49 kE0Hz..kC3Hz, :61 secondsToSamples.
+transient_shaper_test.cpp:186-198 evidenceDir / floatLiteral pattern (copied TU-locally as mccEvidenceDir / mccFloatLiteral).
+
+== Decisions ==
+1. "Steady GR" is the positive dB of reduction: -mean(ChainTaps::compGrDb) (BassCompressor::currentGainReductionDb,
+   no makeup) over the window. GR is independent of the makeup (detection is pre-gain), so the harvest's makeup choice
+   does not feed back into its own GR readings.
+2. The Mass reference voice / S8.3 calibration voice = ChainConfig defaults (kDefaultControls base, Anchor attached,
+   law base depth/body from base and Targets{} for the rest, shaper +6 / 0) with massAt = 50 and
+   targetOverride[CompressionAmount] = amount; 48 kHz, host block 512, perSampleDynamicsTaps = true.
+3. SC-006: Render A 3 s, Render B 4 s with targetOverride[AnchorLevel] = 0.25 below sample 96000, 1.0 from it. (a) is
+   both subBand readings of outL over samples [48000, 144000); the LP group delay is printed. (c) runs at E0 only
+   (task text); (e) runs at all four notes and counts (b) at E2 and (d) at E0 / E1; FAIL("fixture lacks teeth") if none.
+   The E0 R-4 shortfall prints a "DEFECT: ..." line to stdout (the gate log); this run-log cannot carry it because the
+   executor does not run the test.
+4. SC-022 amount 0: row makeup == 0.0f, and every sample of compGrDb over the whole 3 s render == 0.0f (count printed).
+5. SC-011: kSawAnchor base, preDynamicsGainDb -12 dB below sample 96000, 0 dB from it, dL_step on outL with low
+   [1 s, 2 s) and high [3 s, 4 s); amount-1 steady GR on both segments printed (recorded only).
+6. SC-024(d): renderPoly 0.5 s, both orders; every cornerHzPerInterval entry whose interval ends at or after 200 ms
+   (sample 9600, entry 299 on) is within 1 % of 2*E1; the discrimination CHECKs both the analytic separation of the
+   two rules (> 1 %) and that no settled measured corner falls inside the 1 % window of 2*C3.
+7. Harvest, plan S8.3, in this order:
+   (1) bisect the row-4 (amount 1) threshold over [-60, 0] dB on min over {E0, E1, E2, C3} of the calibration GR to
+       4.0 +/- 0.05 dB (40-iteration cap; not reaching 3.95 dB at -60 dB, or no convergence -> STOP AND SURFACE target1).
+   (2) a100 = MassLaw::evaluate(100, Targets{}).compressionAmount; r = the first row with amount >= a100. If
+       min(GR100 E1, GR100 C3) < 3.5 dB, bisect row r's threshold over [-60, current] (to 0.01 dB, keeping the highest
+       threshold that meets 3.5), rows above r clamped to <= row r (monotone). Unreachable at -60 -> STOP target2.
+   (3) "Intermediate thresholds linear in amount between harvested rows": the harvested rows are row 0 (amount 0, its
+       seed threshold 0 dB; slope 0 so it never compresses), row 4 and row r. Every other row's threshold is the linear
+       interpolation in amount between its nearest harvested neighbours. NOTE for the main loop: with r = 4 (C-7 (i)) the
+       rows 1-3 interpolate from 0 dB at amount 0, so the low rows sit well above the seed's -12 / -16 / -19 dB and may
+       read ~0 dB GR at amount 0.25. That satisfies monotone GR and SC-022, but it is a literal reading of the task
+       text, recorded here so it can be ruled on if a different lower anchor is wanted (one change in the interpolate
+       lambda's harvested[] mask). GR per row is CHECKed monotone non-decreasing in amount at every note (1e-6 dB float
+       allowance for rows reading ~0 on both sides).
+   (4) makeupDb (rows 1-4) = mean of the E1 and C3 steady GR; row 0 makeup 0; spread |E1 - C3| > 0.8 dB -> STOP target3.
+       The header's static_assert invariants (threshold non-increasing, makeup non-decreasing) are checked on the result;
+       a violation -> STOP. Target 2 is re-measured on the final table (STOP if < 3.5 dB at E1 or C3).
+   The file holds BEGIN-INITIALIZER amount-table, exactly five 8-space-indented rows in the header's designated-
+   initializer form (setprecision(9), always an 'f' literal), END-INITIALIZER amount-table, then '#' records: threshold
+   (1) and its GR, a100 / row r / final Mass 100 GR at E1 and C3, the harvested rows, the seed thresholds, steady GR per
+   row at E0, E1, E2, C3, the makeup residual per row and note, and every STOP line. The test CHECKs zero unmet targets.
+   The final summary line deliberately avoids the stop phrase (harvest.sh greps for it).
+8. Harvest renders are sequential: renderChain REQUIREs inside, and Catch2 assertions are not thread-safe, so the four
+   notes cannot be fanned out on threads inside one process. Size: (1) 4 renders x <= ~15 iterations, (2) up to
+   2 x ~13, (3) 20, final 2: on the order of 110 renders of 3 s audio.
+
+== Notes for the gate ==
+- A Catch2 name pattern that matches a hidden case RUNS it: "MassCompressor_*" also selects the hidden
+  MassCompressor_AmountTableHarvest (minutes, and it rewrites evidence/amount-table.txt from the current table). Run the
+  per-push lane as "[mass-dynamics]~[long]" (the harvest is not tagged [mass-dynamics]) or as the one AND term
+  "MassCompressor_*~[.calibration]".
+- Expected red until T019 (seed thresholds, makeup 0): MassCompressor_MakeupMatchesGr, MassCompressor_NoSubPumping,
+  MassCompressor_RectifiedFeedNegativeControl.
+
+== DEFECT lines ==
+none at executor stage (the E0 R-4 DEFECT line, if any, appears in the gate log of MassCompressor_NoSubPumping).

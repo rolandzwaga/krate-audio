@@ -1,0 +1,76 @@
+T010 run-log - MassDynamics (L3, appended to systems/mass_dynamics.h), probe accessors, MassDynamics tests
+Date: 2026-10-17. Executor stage only: nothing built or run here (the group's build agent runs
+dsp_systems_tests "MassDynamics_*" and "MassCompressor_*" / "[mass-dynamics]~[long]" after this group).
+
+== Files ==
+dsp/include/krate/dsp/systems/mass_dynamics.h      (appended class MassDynamics after BassCompressor; one include
+                                                    added: processors/transient_shaper.h, peer-lower L2. BassCompressor
+                                                    and its static_asserts are byte-for-byte unchanged)
+dsp/tests/unit/systems/mass_dynamics_probe.h        (appended MassDynamicsProbe::shaper(MassDynamics&) and
+                                                    ::compressor(MassDynamics&), non-const)
+dsp/tests/unit/systems/mass_dynamics_test.cpp       (T002 stub filled)
+specs/profundum-phase6-mass-dynamics/evidence/run-log/T010.txt (this file)
+
+== ODR ==
+grep -rn "class MassDynamics\b|struct MassDynamics\b" dsp plugins tests -> 0 hits before this task.
+TU-local names carry md / kMd / Md prefixes (MdEvent, MdNote, mdRender, mdConfigure, ...); aliases mdt / MdProbe,
+so the TU cannot collide with mass_compressor_test.cpp's anonymous-namespace names under a unity build.
+
+== Reused APIs (read this session) ==
+processors/transient_shaper.h (T006): prepare(double, size_t) :118, reset() :143 (no-op before prepare),
+  setAttackGainDb :167, setSustainGainDb :174, setTransientDurationMs :184 (clamp [5, 250], non-finite kept),
+  processBlock :196 (mono when right == left), latencySamples :254, currentGainDb :260, attackGainDb :266,
+  stateFinite :271, kMinDurationMs / kMaxDurationMs / kDefaultDurationMs :70-74.
+systems/mass_dynamics.h BassCompressor (T007): kControlInterval :58, prepare :101, reset :143, setAmount :183,
+  setDetectorKeyHz :191, processBlock :202, latencySamples :260, taps :267-279, stateFinite :282.
+systems/mass_law.h (T009): Targets :77, prepare :145, reset :152, setMass :155, setBase :162, advanceInterval :171,
+  currentTargets :177, evaluate :134.
+primitives/smoother.h SlewLimiter::process :545 (snaps to target within one rate step -> exact 100).
+
+== MassDynamics (plan S6) ==
+kControlInterval 32; prepare -> shaper_.prepare, comp_.prepare, reset(), prepared_ = true (plan order);
+reset -> shaper_.setTransientDurationMs(pending), shaper_.reset(), comp_.reset(), intervalPhase_ = 0;
+setTransientDurationMs: non-finite keeps the previous value, clamp to TransientShaper [5, 250];
+setCompressionAmount -> comp_.setAmount; setDetectorKeyHz -> comp_.setDetectorKeyHz;
+setTransientAttackDb / setTransientSustainDb -> shaper_.setAttackGainDb / setSustainGainDb (immediate);
+processBlock: no-op before prepare / null channel / 0 samples; runs end on the 32-sample grid; at each run start
+with intervalPhase_ == 0 the pending duration is latched into the shaper; shaper_.processBlock(run) then
+comp_.processBlock(run) (FR-015). Mono when right == left (right + pos == left + pos passes through).
+shaper(), compressor(), stateFinite(), latencySamples() == 0; friend detail::MassDynamicsProbe (deviation 4).
+static_asserts: MassDynamics::kControlInterval == BassCompressor::kControlInterval; all three latencies 0.
+
+== Tests (written first; tag [systems][profundum][mass-dynamics]; no [long] case) ==
+1 MassDynamics_MonoSum                        SC-012, FR-041: (a) 25 A/S grid points x amounts {0, .5, 1}, L == R burst
+                                              -> L == R bit-equal; (b) 1 : 0.5 pair, per-sample 4 eps gain check,
+                                              side/mid delta <= 0.01 dB; REQUIREs the compressor (GR < -1 dB) and the
+                                              shaper (gain > 1 dB) engaged.
+2 MassDynamics_TransparentAtNeutral           SC-013: A = S = 0, amount 0; kSawAnchor and the reference voice
+                                              (recipeAdditive(kDefaultControls)) at E0 / C3, 2 s; memcmp from 0.1 s.
+3 MassDynamics_ShaperThenCompressor           FR-015: == a separately prepared TransientShaper -> BassCompressor pair
+                                              (memcmp); negative control CHECK_FALSE: the reversed order differs.
+4 MassDynamics_LatchesOnGrid                  FR-049, C-11: duration 250 + amount 0.5 at 8690 == at 8704; at 8705 differs.
+5 MassDynamics_PartitionInvariantDynamicsOnly SC-018 dynamics arm: blocks {1, 17, 32, 64, 512}, events at 8704 (duration
+                                              100, amount 1, key E2, probe fixed release 275); two renders from reset()
+                                              memcmp-equal; extra CHECK (not a spec bar): the reset render equals a
+                                              fresh render.
+6 MassDynamics_NoAllocation                   SC-016: shaper, compressor, MassDynamics processBlock (stereo and mono),
+                                              every setter finite and non-finite, reset of each, probe release toggle,
+                                              MassLaw setMass/setBase/reset/advanceInterval/evaluate/currentTargets and a
+                                              Mass 0 -> 100 step; positive control first; count captured, asserted after.
+7 MassDynamics_Lifecycle                      FR-047 (1)-(4), mirroring MassCompressor_Lifecycle (T007 D-7).
+8 MassDynamics_LatencyZero                    FR-014: STATIC_REQUIRE on the three latencies.
+
+== Decisions / deviations (none relaxes a bar) ==
+D-1 The shaper duration is latched at every grid boundary (plan S6 literal), i.e. one EnvelopeFollower::setAttackTime
+    per 32 samples even when unchanged; it is inside the SC-017 measurement. A bitwise-unchanged skip would be
+    output-identical and cheaper if T018 needs it.
+D-2 Stereo fixtures are L == R copies (tasks.md rule 9) except MonoSum (b) (the case specifies 1 : 0.5).
+D-3 PartitionInvariantDynamicsOnly re-issues the starting controls (incl. probe fixed release 0) and runs one silent
+    interval before each reset(), because BassCompressor::reset snaps to the LATCHED targets (T007 run-log D-5).
+D-4 Events are applied by splitting the host block at the event sample (T007 run-log D-6).
+D-5 MassDynamics::reset() is unguarded before prepare (plan S6 order: reset() then prepared_ = true); every callee is
+    safe before prepare (TransientShaper::reset is a no-op; BassCompressor::reset and PeriodPeakDetector use their
+    default 48 kHz members).
+
+== DEFECT lines ==
+none.

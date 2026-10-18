@@ -1,0 +1,121 @@
+Filters: "MassDynamics_AliasingE0E2_44k1"
+Randomness seeded to: 1816081896
+[T016 SC-010] positive control fs 44100: hard 0 -> +12 dB step on a Fold-100 C3 kSawAnchor, residual -64.2425 dBFS (must read > -80)
+[T016 SC-010] fs 44100 E0 (20.6017 Hz) kSawAnchor A 12 dB, method Residual gates
+    residual steady: frame 262144, bin 0.168228 Hz, A_in -160.933 dBFS, A_out -98.1436 dBFS pass
+    residual moving: FFT 131072 (8x domain), bin 2.69165 Hz; burst -126.009 dBFS (gain -0.979719 .. 17.8421 dB), step -119.804 dBFS (bar -80)
+    spec steady [1 s, 2 s]: frame 32768, bin 1.34583 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+    spec burst [0, 100 ms]: frame 4096, bin 10.7666 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+    spec step [step, step + 100 ms]: frame 4096, bin 10.7666 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 44100 E0 (20.6017 Hz) kSawAnchor A -12 dB, method Residual gates
+    residual steady: frame 262144, bin 0.168228 Hz, A_in -160.933 dBFS, A_out -97.1923 dBFS pass
+    residual moving: FFT 131072 (8x domain), bin 2.69165 Hz; burst -139.633 dBFS (gain -6.1579 .. 5.8421 dB), step -136.095 dBFS (bar -80)
+    spec steady [1 s, 2 s]: frame 32768, bin 1.34583 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+    spec burst [0, 100 ms]: frame 4096, bin 10.7666 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+    spec step [step, step + 100 ms]: frame 4096, bin 10.7666 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 44100 E1 (41.2034 Hz) kSawAnchor A 12 dB, method Residual gates
+    residual steady: frame 131072, bin 0.336456 Hz, A_in -161.431 dBFS, A_out -117.697 dBFS pass
+    residual moving: FFT 131072 (8x domain), bin 2.69165 Hz; burst -123.494 dBFS (gain -2.9363 .. 17.8421 dB), step -107.042 dBFS (bar -80)
+    spec steady [1 s, 2 s]: frame 32768, bin 1.34583 Hz, A_in -163.703 dBFS, A_out -129.957 dBFS pass
+    spec burst [0, 100 ms]: frame 4096, bin 10.7666 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+    spec step [step, step + 100 ms]: frame 4096, bin 10.7666 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 44100 E1 (41.2034 Hz) kSawAnchor A -12 dB, method Residual gates
+    residual steady: frame 131072, bin 0.336456 Hz, A_in -161.431 dBFS, A_out -117.666 dBFS pass
+    residual moving: FFT 131072 (8x domain), bin 2.69165 Hz; burst -116.527 dBFS (gain -6.1579 .. 5.8421 dB), step -118.335 dBFS (bar -80)
+    spec steady [1 s, 2 s]: frame 32768, bin 1.34583 Hz, A_in -163.703 dBFS, A_out -124.606 dBFS pass
+    spec burst [0, 100 ms]: frame 4096, bin 10.7666 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+    spec step [step, step + 100 ms]: frame 4096, bin 10.7666 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 44100 E2 (82.4069 Hz) kSawAnchor A 12 dB, method Residual gates
+    residual steady: frame 65536, bin 0.672913 Hz, A_in -161.377 dBFS, A_out -114.248 dBFS pass
+    residual moving: FFT 131072 (8x domain), bin 2.69165 Hz; burst -106.789 dBFS (gain -2.26036 .. 17.8421 dB), step -97.3188 dBFS (bar -80)
+    spec steady [1 s, 2 s]: frame 32768, bin 1.34583 Hz, A_in -162.233 dBFS, A_out -113.291 dBFS pass
+    spec burst [0, 100 ms]: frame 4096, bin 10.7666 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+    spec step [step, step + 100 ms]: frame 4096, bin 10.7666 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 44100 E2 (82.4069 Hz) kSawAnchor A -12 dB, method Residual gates
+    residual steady: frame 65536, bin 0.672913 Hz, A_in -161.377 dBFS, A_out -115.614 dBFS pass
+    residual moving: FFT 131072 (8x domain), bin 2.69165 Hz; burst -105.323 dBFS (gain -6.1579 .. 5.8421 dB), step -112.385 dBFS (bar -80)
+    spec steady [1 s, 2 s]: frame 32768, bin 1.34583 Hz, A_in -162.233 dBFS, A_out -112.593 dBFS pass
+    spec burst [0, 100 ms]: frame 4096, bin 10.7666 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+    spec step [step, step + 100 ms]: frame 4096, bin 10.7666 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 44100 E0 (20.6017 Hz) fold100(kSawAnchor) A 12 dB, method Residual gates
+    residual steady: frame 262144, bin 0.168228 Hz, A_in -112.284 dBFS, A_out -94.1634 dBFS pass
+    residual moving: FFT 131072 (8x domain), bin 2.69165 Hz; burst -77.2596 dBFS (gain 0.4626 .. 17.8421 dB), step -97.8278 dBFS (bar -80)
+    spec steady [1 s, 2 s]: frame 32768, bin 1.34583 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+    spec burst [0, 100 ms]: frame 4096, bin 10.7666 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+    spec step [step, step + 100 ms]: frame 4096, bin 10.7666 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+MassDynamics_AliasingE0E2_44k1
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\mass_dynamics_aliasing_test.cpp(306)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\mass_dynamics_aliasing_test.cpp(262): warning:
+  SC-010 fs 44100 E0 fold100(kSawAnchor) A 12 dB RECORDED (G9-1, FR-048
+  measurement): steady A_out -94.1634 dBFS (A_in -112.284), burst -77.2596
+  dBFS, step -97.8278 dBFS (bar -80, not gated)
+
+[T016 SC-010] fs 44100 E0 (20.6017 Hz) fold100(kSawAnchor) A -12 dB, method Residual gates
+    residual steady: frame 262144, bin 0.168228 Hz, A_in -112.284 dBFS, A_out -94.033 dBFS pass
+    residual moving: FFT 131072 (8x domain), bin 2.69165 Hz; burst -89.1702 dBFS (gain -6.1579 .. 5.8421 dB), step -95.7521 dBFS (bar -80)
+    spec steady [1 s, 2 s]: frame 32768, bin 1.34583 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+    spec burst [0, 100 ms]: frame 4096, bin 10.7666 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+    spec step [step, step + 100 ms]: frame 4096, bin 10.7666 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+F:\projects\iterum\dsp\tests\unit\systems\mass_dynamics_aliasing_test.cpp(262): warning:
+  SC-010 fs 44100 E0 fold100(kSawAnchor) A -12 dB RECORDED (G9-1, FR-048
+  measurement): steady A_out -94.033 dBFS (A_in -112.284), burst -89.1702 dBFS,
+  step -95.7521 dBFS (bar -80, not gated)
+
+[T016 SC-010] fs 44100 E1 (41.2034 Hz) fold100(kSawAnchor) A 12 dB, method Residual gates
+    residual steady: frame 131072, bin 0.336456 Hz, A_in -110.393 dBFS, A_out -92.6459 dBFS pass
+    residual moving: FFT 131072 (8x domain), bin 2.69165 Hz; burst -70.6022 dBFS (gain 0.187359 .. 17.8421 dB), step -63.1663 dBFS (bar -80)
+    spec steady [1 s, 2 s]: frame 32768, bin 1.34583 Hz, A_in -112.247 dBFS, A_out -103.856 dBFS pass
+    spec burst [0, 100 ms]: frame 4096, bin 10.7666 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+    spec step [step, step + 100 ms]: frame 4096, bin 10.7666 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+F:\projects\iterum\dsp\tests\unit\systems\mass_dynamics_aliasing_test.cpp(262): warning:
+  SC-010 fs 44100 E1 fold100(kSawAnchor) A 12 dB RECORDED (G9-1, FR-048
+  measurement): steady A_out -92.6459 dBFS (A_in -110.393), burst -70.6022
+  dBFS, step -63.1663 dBFS (bar -80, not gated)
+
+[T016 SC-010] fs 44100 E1 (41.2034 Hz) fold100(kSawAnchor) A -12 dB, method Residual gates
+    residual steady: frame 131072, bin 0.336456 Hz, A_in -110.393 dBFS, A_out -90.5857 dBFS pass
+    residual moving: FFT 131072 (8x domain), bin 2.69165 Hz; burst -79.9736 dBFS (gain -6.1579 .. 5.8421 dB), step -74.7628 dBFS (bar -80)
+    spec steady [1 s, 2 s]: frame 32768, bin 1.34583 Hz, A_in -112.247 dBFS, A_out -100.143 dBFS pass
+    spec burst [0, 100 ms]: frame 4096, bin 10.7666 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+    spec step [step, step + 100 ms]: frame 4096, bin 10.7666 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+F:\projects\iterum\dsp\tests\unit\systems\mass_dynamics_aliasing_test.cpp(262): warning:
+  SC-010 fs 44100 E1 fold100(kSawAnchor) A -12 dB RECORDED (G9-1, FR-048
+  measurement): steady A_out -90.5857 dBFS (A_in -110.393), burst -79.9736
+  dBFS, step -74.7628 dBFS (bar -80, not gated)
+
+[T016 SC-010] fs 44100 E2 (82.4069 Hz) fold100(kSawAnchor) A 12 dB, method Residual gates
+    residual steady: frame 65536, bin 0.672913 Hz, A_in -106.415 dBFS, A_out -45.8339 dBFS FAIL
+    residual moving: FFT 131072 (8x domain), bin 2.69165 Hz; burst -110.168 dBFS (gain -0.784847 .. 17.8421 dB), step -64.3656 dBFS (bar -80)
+    spec steady [1 s, 2 s]: frame 32768, bin 1.34583 Hz, A_in -107.256 dBFS, A_out -46.4683 dBFS FAIL
+    spec burst [0, 100 ms]: frame 4096, bin 10.7666 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+    spec step [step, step + 100 ms]: frame 4096, bin 10.7666 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+F:\projects\iterum\dsp\tests\unit\systems\mass_dynamics_aliasing_test.cpp(262): warning:
+  SC-010 fs 44100 E2 fold100(kSawAnchor) A 12 dB RECORDED (G9-1, FR-048
+  measurement): steady A_out -45.8339 dBFS (A_in -106.415), burst -110.168
+  dBFS, step -64.3656 dBFS (bar -80, not gated)
+
+[T016 SC-010] fs 44100 E2 (82.4069 Hz) fold100(kSawAnchor) A -12 dB, method Residual gates
+    residual steady: frame 65536, bin 0.672913 Hz, A_in -106.415 dBFS, A_out -45.833 dBFS FAIL
+    residual moving: FFT 131072 (8x domain), bin 2.69165 Hz; burst -128.484 dBFS (gain -6.1579 .. 5.8421 dB), step -70.0395 dBFS (bar -80)
+    spec steady [1 s, 2 s]: frame 32768, bin 1.34583 Hz, A_in -107.256 dBFS, A_out -46.4686 dBFS FAIL
+    spec burst [0, 100 ms]: frame 4096, bin 10.7666 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+    spec step [step, step + 100 ms]: frame 4096, bin 10.7666 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+F:\projects\iterum\dsp\tests\unit\systems\mass_dynamics_aliasing_test.cpp(262): warning:
+  SC-010 fs 44100 E2 fold100(kSawAnchor) A -12 dB RECORDED (G9-1, FR-048
+  measurement): steady A_out -45.833 dBFS (A_in -106.415), burst -128.484 dBFS,
+  step -70.0395 dBFS (bar -80, not gated)
+
+17.792 s: MassDynamics_AliasingE0E2_44k1
+===============================================================================
+All tests passed (1585 assertions in 1 test case)
+
+exit: 0 wall: 18 s

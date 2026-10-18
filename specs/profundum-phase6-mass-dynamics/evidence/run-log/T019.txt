@@ -1,0 +1,45 @@
+T019 harvest lane and paste script (2026-10-17T17:51:23Z, commit 02fecee1)
+
+Files: evidence/close/harvest.sh, evidence/close/paste-harvest.js
+
+$ bash -n specs/profundum-phase6-mass-dynamics/evidence/close/harvest.sh
+exit 0
+
+$ node specs/profundum-phase6-mass-dynamics/evidence/close/paste-harvest.js --self-test
+PASS good files -> exit 0, rows pasted, wrapper, CRLF and indentation kept -- exit 0
+PASS re-paste -> exit 0, harvested comment replaced not stacked -- exit 0, comments 1
+PASS missing HARVEST-END marker -> exit 1, nothing written -- exit 1: paste-harvest: dsp/include/krate/dsp/systems/mass_dynamics.h: "// HARVEST-END amount-table" occurs 0 times, expected exactly 1
+PASS duplicated HARVEST-BEGIN marker -> exit 1, nothing written -- exit 1: paste-harvest: dsp/include/krate/dsp/systems/mass_law.h: "// HARVEST-BEGIN mass-law-rows" occurs 2 times, expected exactly 1
+PASS wrong initializer line count (10 of 11) -> exit 1, nothing written -- exit 1: paste-harvest: C:\Users\scab\AppData\Local\Temp\paste-harvest-p6-ynj9oZ\case3\specs\profundum-phase6-mass-dynamics\evidence\duration-table.txt: 10 initializer lines for duration-table, expected 11
+PASS malformed value (missing f suffix) -> exit 1, nothing written -- exit 1: paste-harvest: amount-table[1]: malformed value "-9.000000" (expected a float literal with an f suffix)
+PASS malformed value (nan) -> exit 1, nothing written -- exit 1: paste-harvest: amount-table[1]: non-finite value in "{.amount = 0.25f, .thresholdDb = nanf, .slope = 0.25f, .kneeDb = 6.0f, .makeupDb = 0.800000f},"
+PASS malformed value (garbage) -> exit 1, nothing written -- exit 1: paste-harvest: amount-table[1]: malformed value "-9.0x" (expected a float literal with an f suffix)
+PASS STOP AND SURFACE in evidence -> exit 1, nothing written -- exit 1: paste-harvest: C:\Users\scab\AppData\Local\Temp\paste-harvest-p6-ynj9oZ\case7\specs\profundum-phase6-mass-dynamics\evidence\mass-law-table.txt: contains a STOP AND SURFACE line; return to the user, do not paste
+PASS unknown table name -> exit 1 -- exit 1: paste-harvest: unknown table "kRows"; expected one of: duration-table, amount-table, mass-law-rows
+self-test: 10/10 passed
+exit 0
+
+Extra check (scratchpad copies of the real headers, seed rows re-fed as evidence with one duration value changed): exit 0; diff showed only the changed row plus the '// harvested <date> from evidence/<file> (plan S8)' comment line; the kRows {{ / }}; wrapper stayed intact in mass_law.h.
+
+STATUS: BLOCKED (STOP AND SURFACE, by design, tasks.md T019). The main loop runs:
+  bash specs/profundum-phase6-mass-dynamics/evidence/close/harvest.sh
+Estimate: duration + amount harvests a few minutes concurrently; law harvest 10-30 min (12-cell fan-out). Record the measured wall clocks (harvest-status.txt) and the step 6 summary lines here, then resume with unblock: [T019].
+Exit 3 = STOP AND SURFACE line -> user (S8.2 R-6 / FR-021 ruling, S8.3 harvest targets).
+
+MAIN-LOOP READINGS: (to be filled after harvest.sh runs)
+
+MAIN-LOOP READINGS (2026-10-17, final harvest lane run; evidence/run-log/close/harvest-status.txt)
+  Lane wall clock 75 s: step1 build 4 s (0 warnings) | step2 duration + amount harvests concurrently 9 s | step3 paste + build 4 s
+  | step4 MassLaw_TableHarvest 33 s (826 renders, 32 threads) | step5 paste + build 15 s | step6 ten cases concurrently 10 s, red 0.
+  Earlier lane runs today: 54 s, 263 s (226 s law harvest, 6456 renders), 56 s, 60 s, 60 s — each stopped at step 4 with a
+  STOP AND SURFACE that became user rulings G8-1 … G8-6 and the G8-7 refinements (spec Clarifications "Group 8 harvest ruling").
+  Harvested mass-law rows (pasted into mass_law.h):
+        Depth -0.5 / -0.5 | Body +0.5 / +0.4 | Duration +30 / +110 | Fold +50 / +61.328125 | Compression +0.5 / +1
+        | AnchorLevel +0.5 / +0.5 | OutputTrim -2.0493834 dB / -0 (G8-5: Ref K-weighted P(50) - P(0) 2.049 dB, P(100) - P(50) -1.023 dB)
+  Verdict (full 11-point lattice, 12 cells): SC-001(c) pass (worst fall from Mass 0 -4.736 dB on Ref E1, bar 5.5 harvest / 6 spec;
+  worst adjacent step -1.921 dB recorded), SC-003 span(L) pass (worst 2.825 dB on Ref E1; Sine recorded 6.03-6.54 dB, G8-2),
+  SC-003 K-weighted gated at E2 / C3 pass (worst span(P) 2.009 dB Ref C3, |dP| 0.089 dB/unit; Saw 1.98 / 1.79),
+  SC-002 margins pass (Ref E1 THD(100)-THD(50) 6.500, C3 7.284; THD(50)-THD(0) 77.8; E_low 74.5; THD(0) -77.3 dB).
+  FR-048 recorded: best K-weighted span(P) E0 8.567 dB, E1 3.588 dB.
+  Amount table: amount-1 threshold -11.0156 dB, min GR over E0..C3 4.039 dB; Mass 100 GR E1 10.03 / C3 10.25 dB; makeup 5.842 dB.
+  Step 6: all ten harvest-dependent cases green (see harvest-step6-cases.log).

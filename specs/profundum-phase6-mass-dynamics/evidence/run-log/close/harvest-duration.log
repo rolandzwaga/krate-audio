@@ -1,0 +1,18 @@
+Filters: "TransientShaper_DurationTableHarvest"
+Randomness seeded to: 1338935463
+TransientShaper_DurationTableHarvest d 5.0 ms: argument 7.308078 ms (seed 7.308), mean log error -0.000522
+TransientShaper_DurationTableHarvest d 7.5 ms: argument 11.771502 ms (seed 11.772), mean log error +0.000609
+TransientShaper_DurationTableHarvest d 10.0 ms: argument 15.319164 ms (seed 15.319), mean log error +0.000005
+TransientShaper_DurationTableHarvest d 15.0 ms: argument 24.318113 ms (seed 24.318), mean log error +0.000358
+TransientShaper_DurationTableHarvest d 20.0 ms: argument 33.288097 ms (seed 33.288), mean log error -0.000156
+TransientShaper_DurationTableHarvest d 30.0 ms: argument 49.675579 ms (seed 49.676), mean log error +0.000061
+TransientShaper_DurationTableHarvest d 40.0 ms: argument 67.663864 ms (seed 67.664), mean log error -0.000193
+TransientShaper_DurationTableHarvest d 60.0 ms: argument 103.588699 ms (seed 103.589), mean log error -0.000043
+TransientShaper_DurationTableHarvest d 100.0 ms: argument 175.304916 ms (seed 175.305), mean log error -0.000096
+TransientShaper_DurationTableHarvest d 150.0 ms: argument 264.961334 ms (seed 264.961), mean log error -0.000019
+TransientShaper_DurationTableHarvest d 250.0 ms: argument 444.156616 ms (seed 444.157), mean log error +0.000056
+TransientShaper_DurationTableHarvest: wrote F:/projects/iterum/dsp/tests/../../specs/profundum-phase6-mass-dynamics/evidence/duration-table.txt
+===============================================================================
+All tests passed (5454 assertions in 1 test case)
+
+exit: 0 wall: 9 s

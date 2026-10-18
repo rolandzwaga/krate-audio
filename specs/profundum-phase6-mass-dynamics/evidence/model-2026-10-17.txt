@@ -1,0 +1,28 @@
+K-weighting: K-weighted mean square relative to unweighted, steady tone (dB)
+  997 Hz full-scale sine: -3.010 LKFS (BS.1770: -3.01)
+  E0 (20.60 Hz): sine -12.88  saw -5.94  saw-sine 6.95
+  E1 (41.20 Hz): sine -5.32  saw -2.90  saw-sine 2.42
+  E2 (82.41 Hz): sine -1.64  saw -0.82  saw-sine 0.81
+  C3 (130.81 Hz): sine -0.66  saw -0.11  saw-sine 0.55
+TransientShaper: attack +12 dB, sustain 0 dB; transient time = onset to 3 dB below the onset gain peak
+  design: hold 50 ms (8 segments), fast EF 0.5/40 ms, slow EF ticked /8, slow release 60 ms real, K = 12 dB
+  d=  5 ms: arg 7.308 ms (step closed form 8.962)  t3dB [sine E1, saw E1, sine C3, saw C3] = 6.50, 4.44, 4.92, 4.42 ms  err % = 30.0, -11.3, -1.7, -11.7  peak dB = 12.00, 12.00, 12.00, 12.00
+  d= 10 ms: arg 15.351 ms (step closed form 17.923)  t3dB [sine E1, saw E1, sine C3, saw C3] = 10.94, 8.92, 9.40, 10.92 ms  err % = 9.4, -10.8, -6.0, 9.2  peak dB = 12.00, 12.00, 12.00, 12.00
+  d= 20 ms: arg 33.314 ms (step closed form 35.847)  t3dB [sine E1, saw E1, sine C3, saw C3] = 20.92, 18.94, 19.42, 20.79 ms  err % = 4.6, -5.3, -2.9, 4.0  peak dB = 12.00, 12.00, 12.00, 12.00
+  d= 40 ms: arg 67.690 ms (step closed form 71.693)  t3dB [sine E1, saw E1, sine C3, saw C3] = 40.08, 41.44, 38.58, 39.94 ms  err % = 0.2, 3.6, -3.5, -0.2  peak dB = 12.00, 12.00, 12.00, 12.00
+  d=100 ms: arg 175.324 ms (step closed form 179.233)  t3dB [sine E1, saw E1, sine C3, saw C3] = 100.15, 101.25, 98.65, 99.98 ms  err % = 0.1, 1.3, -1.4, -0.0  peak dB = 12.00, 12.00, 12.00, 12.00
+  d=250 ms: arg 444.323 ms (step closed form 448.082)  t3dB [sine E1, saw E1, sine C3, saw C3] = 250.23, 250.98, 248.73, 250.08 ms  err % = 0.1, 0.4, -0.5, 0.0  peak dB = 12.00, 12.00, 12.00, 12.00
+Bass compressor SC-007: base at threshold, +12 dB events of 20 ms and 1 s (kSawAnchor), amount-1 seed
+  E1 hold=none    release=D-5 rule: short 5.4 ms (peak GR 1.34 dB), long 30.3 ms (peak 4.77 dB), ratio 0.178 (bar <= 0.5)
+  E1 hold=none    release=fixed 275: short 8.9 ms (peak GR 2.03 dB), long 13.8 ms (peak 3.74 dB), ratio 0.646 (bar <= 0.5)
+  E1 hold=1 period release=D-5 rule: short 19.4 ms (peak GR 9.02 dB), long 85.6 ms (peak 9.02 dB), ratio 0.227 (bar <= 0.5)
+  E1 hold=1 period release=fixed 275: short 48.2 ms (peak GR 9.02 dB), long 47.2 ms (peak 9.02 dB), ratio 1.022 (bar <= 0.5)
+  C3 hold=none    release=D-5 rule: short 0.0 ms (peak GR 0.18 dB), long 0.0 ms (peak 0.16 dB), ratio NaN (bar <= 0.5)
+  C3 hold=none    release=fixed 275: short 7.4 ms (peak GR 1.55 dB), long 11.2 ms (peak 3.16 dB), ratio 0.655 (bar <= 0.5)
+  C3 hold=1 period release=D-5 rule: short 17.2 ms (peak GR 9.02 dB), long 85.6 ms (peak 9.03 dB), ratio 0.201 (bar <= 0.5)
+  C3 hold=1 period release=fixed 275: short 47.1 ms (peak GR 9.02 dB), long 47.1 ms (peak 9.03 dB), ratio 0.999 (bar <= 0.5)
+Bass compressor steady GR ripple, kSawAnchor at -12 dBFS RMS, amount-1 seed (peak-to-peak dB, window 2-3 s)
+  E0: none 3.204 (mean GR 11.59)   hold 0.002 (mean GR 16.91)
+  E1: none 1.473 (mean GR 11.92)   hold 0.008 (mean GR 16.90)
+  E2: none 0.644 (mean GR 12.06)   hold 0.010 (mean GR 16.90)
+  C3: none 0.358 (mean GR 12.11)   hold 0.041 (mean GR 16.89)

@@ -1,0 +1,52 @@
+Filters: "EcosystemEngine_HostileFuzzStaysBounded"
+Randomness seeded to: 4106620414
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+EcosystemEngine_HostileFuzzStaysBounded
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\ecosystem_engine_longrun_test.cpp(888)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\ecosystem_engine_longrun_test.cpp(979): warning:
+  
+============================================================================
+  =
+  SC-001 (a)-(d) hostile fuzz - MEASURED
+  -----------------------------------------------------------------------------
+    main batch            : 1000 / 1000 configs x 900 s (84375 steps each)
+    sub-batch             : 50 / 50 configs x 1800 s (168750 steps each)
+    control steps run     : 92812500 of 92812500 scheduled
+    sampled steps         : 998750 (every 93 steps, ~1 Hz)
+    worst relative drift  : 2.815e-12  (bound 1.000e-09, prototype 2.4e-15 - 1.
+  9e-13)
+    conservation violations (max over configs): 0
+    non-finite containments (max over configs): 0
+    perturb schedule      : 998750 calls - 375290 in range, 623460 out of
+  range, 124016 non-finite amounts, 218793 above +1, 218624 below -1
+    wall clock            : 4432.8 s (73.88 min), budget 60.00 min
+  -----------------------------------------------------------------------------
+    *** FR-085 STOP-AND-SURFACE APPLIES: the batch is 1.23x over its 60-minute
+  budget.
+    *** HALT and put THIS TABLE to the USER. NO AGENT MAY shrink the config
+    *** count (the roadmap's own 1000), the duration (900 s - what the
+    *** prototype's 500/500 reference was measured at), the 50 x 1800 s
+    *** sub-batch, or the perturb schedule's coverage. Reduce per-step cost,
+    *** or surface the measured table. Confirm first that this was a RELEASE
+    *** build run alone (a Debug build is 10-50x slower and never fits).
+  =============================================================================
+
+F:\projects\iterum\dsp\tests\unit\systems\ecosystem_engine_longrun_test.cpp(1015): FAILED:
+  CHECK( wallSeconds <= kWallClockBudgetSeconds )
+with expansion:
+  4432.807697 <= 3600.0
+
+4432.818 s: EcosystemEngine_HostileFuzzStaysBounded
+===============================================================================
+test cases:  1 |  0 passed | 1 failed
+assertions: 16 | 15 passed | 1 failed
+
+exit: 1 wall: 4433 s

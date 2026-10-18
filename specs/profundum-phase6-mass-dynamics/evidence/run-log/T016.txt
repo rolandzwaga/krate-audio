@@ -1,0 +1,58 @@
+T016 run-log - Anti-aliasing at E0-E2 (SC-010; FR-042; plan S1 C-3, RULED Residual)
+Date: 2026-10-17. Executor stage only: nothing was built or run (the group's build agent runs
+dsp_systems_tests "MassDynamics_AliasingE0E2Smoke"; the three [long] shards are main-loop work at close).
+
+== Files ==
+dsp/tests/unit/systems/mass_dynamics_aliasing_test.cpp  (T002 stub filled)
+specs/profundum-phase6-mass-dynamics/evidence/run-log/T016.txt (this file)
+
+== TEST_CASEs ==
+MassDynamics_AliasingE0E2Smoke   [systems][profundum][mass-dynamics]        48 kHz, E1, kSawAnchor, A = +12, both methods,
+                                                                           plus the positive control at 48 kHz
+MassDynamics_AliasingE0E2_44k1   [systems][profundum][mass-dynamics][long]  positive control + 12 cells
+MassDynamics_AliasingE0E2_48k    [systems][profundum][mass-dynamics][long]  (kSawAnchor, fold100) x (E0, E1, E2) x A (+12, -12)
+MassDynamics_AliasingE0E2_96k    [systems][profundum][mass-dynamics][long]
+Shard commands (main loop, concurrent OK - not timing tests):
+  build/windows-x64-release/bin/Release/dsp_systems_tests.exe "MassDynamics_AliasingE0E2_44k1"
+  build/windows-x64-release/bin/Release/dsp_systems_tests.exe "MassDynamics_AliasingE0E2_48k"
+  build/windows-x64-release/bin/Release/dsp_systems_tests.exe "MassDynamics_AliasingE0E2_96k"
+
+== Reused APIs (read this session) ==
+MassDynamicsTest (mass_dynamics_test_helpers.h): aliasResidualDb(x, gainDb, y, n, fs, t0) :850 (needs t0 >= 50 ms and
+  t0 + 150 ms <= n), aliasResidualFftLength :805 (bin Hz = 8 fs / length).
+ProfundumTest (profundum_core_test_helpers.h): aliasFftLength(fs, f0) :257, aliasedPower(x, fftLen, fs, f0).aliasedDbfs :273.
+TransientShaperTest (transient_shaper_test_helpers.h): burst(tone, f0, fs, hold, preRoll, tail), onsetIndex, twoLevelStep(tone,
+  f0, fs, lowSeconds, highSeconds) (step at round(lowSeconds fs)), secondsToSamples, kE0Hz..kC3Hz.
+ShapeCharacterTest::fold100(in, fs, f0) (shape_character_test_helpers.h:80); HarmonicFoldTest::recipeAdditive.
+MassDynamics (systems/mass_dynamics.h): setters before prepare are applied by prepare (comp latchControls; shaper duration via
+  reset()); processBlock; shaper().currentGainDb() (gain applied to the last sample, transient_shaper.h:260);
+  compressor().currentGainDb() (GR + makeup applied to the last sample). y = x * 10^(gs/20) * 10^(gc/20), so the gain trace is
+  gs + gc dB, as the task says.
+detail::MassDynamicsProbe::setFixedReleaseMs(BassCompressor&, float), compressor(MassDynamics&) (mass_dynamics_probe.h:25, :50).
+
+== Decisions ==
+1. kSc010Method = Sc010Method::Residual (enum + constant in the TU's anonymous namespace; no other Sc010Method exists in dsp/
+   tests). The gate branch uses `if constexpr` (no MSVC C4127). Under Residual the Spec readings (incl. VACUOUS flags) are
+   printed only; flipping the constant to Spec gates them and a vacuous frame fails its CHECK (FR-048).
+2. Release pinned at its 50 ms floor (BassCompressor::kMinReleaseMs) via MassDynamicsProbe::setFixedReleaseMs, so every cell
+   runs the fastest release the product can produce (the D-5 rule releases at 50..500 ms; under sustained compression it would
+   sit near 500 ms and under-test the worst case). Attack = the table's 10 ms (amount 1). Shaper 5 ms = kMinDurationMs.
+3. Burst pre-roll 250 ms (the residual needs 50 ms of pre-taper before t0 = onset), hold 500 ms, tail 0. Window [onset,
+   onset + 100 ms] = "burst onset [0, 100 ms]" relative to the onset.
+4. Fold-100 input: the fixture itself (steady, burst, step) is passed through fold100. The residual's ideal is built from that
+   folded input, so only the aliasing the dynamics adds is read.
+5. Positive control: kSawAnchor at C3 (plan C-3 text), hard 0 -> +12 dB step at 0.5 s, y = x * 10^(g/20); residual must read
+   > -80 dBFS. Run once per [long] shard (at that rate) and in the Smoke. Same construction as T011's
+   MassDynamicsHelpers_AliasResidual step arm, so it is expected green. Back-of-envelope: the folded step energy is ~2e-3
+   sample-energy over the 100 ms window -> about -60 dBFS (20 dB above the bar).
+6. MassDynamics processed one sample at a time (per-sample taps), L == R copies, L measured. Spec frames: largest power of two
+   <= window (48 kHz: 32768 for [1 s, 2 s], 4096 for 100 ms; the 100 ms frames are VACUOUS at every note, f0 / 11.7 Hz <= 17,
+   as plan C-3 Finding 2 predicts). Residual steady frame: aliasFftLength at 1 s (E0 48 kHz 262144 = 5.46 s; render 1 s +
+   frame). FFT length and bin Hz printed per cell for both methods; the burst-window gain range is printed.
+7. No CSV evidence file (the section asks for none); all figures go to stdout at setprecision(6) for the shard logs.
+
+== Expectations / predicted reds ==
+None predicted under Residual. The Spec 100 ms readings are VACUOUS by construction (printed only).
+No DEFECT lines.
+
+Deferred to the main loop at close: the three [long] shards above.

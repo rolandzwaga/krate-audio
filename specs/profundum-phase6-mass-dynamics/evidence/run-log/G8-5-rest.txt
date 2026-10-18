@@ -1,0 +1,77 @@
+Filters: [mass-dynamics] ~[long] ~[perf] ~[performance] "~MassDynamics_*" "~MassChain_*" "~MassDynamicsHelpers_*"
+Randomness seeded to: 923405914
+MassCompressor_AmountMapping amount 0.6: threshold -6.60938 (exp -6.60938) ratio 1.85185 (exp 1.85185) knee 6 (exp 6) makeup 2.08328 (exp 2.08328)
+MassCompressor_TransparentAtAmountZero E0 kSawAnchor: L bit-equal, R bit-equal, nonzero-gain intervals 0
+MassCompressor_TransparentAtAmountZero E0 sine: L bit-equal, R bit-equal, nonzero-gain intervals 0
+MassCompressor_TransparentAtAmountZero C3 kSawAnchor: L bit-equal, R bit-equal, nonzero-gain intervals 0
+MassCompressor_TransparentAtAmountZero C3 sine: L bit-equal, R bit-equal, nonzero-gain intervals 0
+MassCompressor_ReleaseRuleLaw: detector -1.45637 dB at unit scale, threshold -11.0156 dB, scale 0.332688
+MassCompressor_ReleaseRuleLaw: after 1 s at +12 dB f = 1, release 500 ms, GR -8.04034 dB
+MassCompressor_ReleaseRuleLaw: f reached 0 after 432 ms at -30 dB
+MassCompressor_ReleaseRuleLaw: ramp end f = 1, release 500 ms; law failures 0, dynamics mismatches 0, monotonicity breaks 0
+MassCompressor_ProgramDependentRelease E1: threshold -11.0156 dB, 1 s plateau detector 0.984368 dB (expected 0.984375 +/- 0.5)
+  short (20 ms): peak GR -8.04575 dB, recovery from Peak 26.9375 ms, from PlateauEnd 18.5833 ms
+  long (1 s):    peak GR -8.04575 dB, recovery from Peak 1065.81 ms, from PlateauEnd 85.5 ms
+  short/long: Peak 0.0252741, PlateauEnd 0.217349 (gated: PlateauEnd, bar <= 0.5)
+MassCompressor_ProgramDependentRelease C3: threshold -11.0156 dB, 1 s plateau detector 0.984373 dB (expected 0.984375 +/- 0.5)
+  short (20 ms): peak GR -8.05046 dB, recovery from Peak 29.9375 ms, from PlateauEnd 17.0833 ms
+  long (1 s):    peak GR -8.05046 dB, recovery from Peak 1078.62 ms, from PlateauEnd 85.625 ms
+  short/long: Peak 0.0277552, PlateauEnd 0.199513 (gated: PlateauEnd, bar <= 0.5)
+MassCompressor_FixedReleasePositiveControl E1 (fixed 275 ms): short Peak 57 / PlateauEnd 47.6667 ms, long Peak 1026.54 / PlateauEnd 47.1042 ms; ratio Peak 0.0555262, PlateauEnd 1.01194 (must be > 0.5)
+MassCompressor_FixedReleasePositiveControl C3 (fixed 275 ms): short Peak 59.9583 / PlateauEnd 47.2292 ms, long Peak 1038.31 / PlateauEnd 47.25 ms; ratio Peak 0.0577459, PlateauEnd 0.999559 (must be > 0.5)
+MassCompressor_KeytrackedCorner (a): corner 82.4069 Hz (2*E1 = 82.4069)
+MassCompressor_KeytrackedCorner (b) ramp end: key 8.1758 Hz, corner 20 Hz
+MassCompressor_KeytrackedCorner (b) continuity: 2101 steps, 0 over the smoother bound, max excess 0 log2 units
+MassCompressor_KeytrackedCorner (c) key 0: corner 80 Hz
+MassCompressor_KeytrackedCorner (c) key -1: corner 80 Hz
+MassCompressor_KeytrackedCorner (c) key NaN: corner 80 Hz
+MassCompressor_KeytrackedCorner (c) key +Inf: corner 80 Hz
+MassCompressor_KeytrackedCorner (e) block 17 vs 1: bit-equal
+MassCompressor_KeytrackedCorner (e) block 512 vs 1: bit-equal
+MassCompressor_MonoSum (a) amount 0: L == R bit-equal, final GR 0 dB
+MassCompressor_MonoSum (a) amount 0.5: L == R bit-equal, final GR -1.6207 dB
+MassCompressor_MonoSum (a) amount 1: L == R bit-equal, final GR -6.40497 dB
+MassCompressor_MonoSum (b): min GR -6.40516 dB, per-sample gain mismatches 0, side/mid in -9.54243 dB, out -9.54243 dB (|delta| 1.77636e-14)
+MassCompressor_NoAllocation: 0 allocation(s) (positive control 1)
+MassCompressor_PartitionInvariant block 17 vs 1: bit-equal
+MassCompressor_PartitionInvariant block 32 vs 1: bit-equal
+MassCompressor_PartitionInvariant block 64 vs 1: bit-equal
+MassCompressor_PartitionInvariant block 512 vs 1: bit-equal
+MassCompressor_SampleRates fs 44100: scale 0.332671, f = 1, release 500 ms, GR -8.04018 dB, non-finite 0, over bound 0
+MassCompressor_SampleRates fs 48000: scale 0.332688, f = 1, release 500 ms, GR -8.04034 dB, non-finite 0, over bound 0
+MassCompressor_SampleRates fs 88200: scale 0.332737, f = 1, release 500 ms, GR -8.04044 dB, non-finite 0, over bound 0
+MassCompressor_SampleRates fs 96000: scale 0.332737, f = 1, release 500 ms, GR -8.04053 dB, non-finite 0, over bound 0
+MassCompressor_SampleRates fs 192000: scale 0.332742, f = 1, release 500 ms, GR -8.04122 dB, non-finite 0, over bound 0
+MassCompressor_Lifecycle: f before reset 1, f at 96 kHz 1, f after prepare(48k) 0, release 50 ms; allocations 0 + 0
+MassCompressor_NoSubPumping E0: (a) M_sub dft 0.000774 dB, lp 0.003751 dB (LP group delay 0.358491 periods); (d) GR 4.039383 dB; (b) GR[1.5,2] 3.941755 dB, GR[3,3.5] 4.230617 dB, |diff| 0.288862 dB
+MassCompressor_NoSubPumping E1: (a) M_sub dft 0.000120 dB, lp 0.002787 dB (LP group delay 0.361465 periods); (d) GR 5.833694 dB; (b) GR[1.5,2] 5.777093 dB, GR[3,3.5] 5.945331 dB, |diff| 0.168238 dB
+MassCompressor_NoSubPumping E2: (a) M_sub dft 0.000368 dB, lp 0.001051 dB (LP group delay 0.361306 periods); (d) GR 5.837495 dB; (b) GR[1.5,2] 5.780823 dB, GR[3,3.5] 5.949153 dB, |diff| 0.168331 dB
+MassCompressor_NoSubPumping C3: (a) M_sub dft 0.000779 dB, lp 0.001039 dB (LP group delay 0.361173 periods); (d) GR 5.850556 dB; (b) GR[1.5,2] 5.794075 dB, GR[3,3.5] 5.961659 dB, |diff| 0.167583 dB
+MassCompressor_NoSubPumping (c) HP bypassed E0: (a) M_sub dft 0.000061 dB, lp 0.003860 dB (LP group delay 0.358491 periods); (d) GR 4.140724 dB; (b) GR[1.5,2] 3.790014 dB, GR[3,3.5] 4.801153 dB, |diff| 1.011139 dB
+MassCompressor_NoSubPumping (c) E0 positive control: (a) within, (b) EXCEEDS -> control has teeth (with HP: |dGR| 0.288862 dB)
+MassCompressor_RectifiedFeedNegativeControl E0: (a) M_sub dft 0.000056 dB, lp 0.004427 dB (LP group delay 0.358491 periods); (d) GR 0.000021 dB; (b) GR[1.5,2] 0.000000 dB, GR[3,3.5] 0.000647 dB, |diff| 0.000647 dB
+MassCompressor_RectifiedFeedNegativeControl E0 verdict: (b) passes, (d) FAILS -> counted failure
+MassCompressor_RectifiedFeedNegativeControl E1: (a) M_sub dft 0.000154 dB, lp 0.002020 dB (LP group delay 0.361465 periods); (d) GR -0.000000 dB; (b) GR[1.5,2] -0.000000 dB, GR[3,3.5] -0.000000 dB, |diff| 0.000000 dB
+MassCompressor_RectifiedFeedNegativeControl E1 verdict: (b) passes, (d) FAILS -> counted failure
+MassCompressor_RectifiedFeedNegativeControl E2: (a) M_sub dft 0.000555 dB, lp 0.001260 dB (LP group delay 0.361306 periods); (d) GR -0.000000 dB; (b) GR[1.5,2] -0.000000 dB, GR[3,3.5] -0.000000 dB, |diff| 0.000000 dB
+MassCompressor_RectifiedFeedNegativeControl E2 verdict: (b) passes, (d) FAILS
+MassCompressor_RectifiedFeedNegativeControl C3: (a) M_sub dft 0.001274 dB, lp 0.001463 dB (LP group delay 0.361173 periods); (d) GR -0.000000 dB; (b) GR[1.5,2] -0.000000 dB, GR[3,3.5] -0.000000 dB, |diff| 0.000000 dB
+MassCompressor_RectifiedFeedNegativeControl C3 verdict: (b) passes, (d) FAILS
+MassCompressor_MakeupMatchesGr amount 0.000000 E1: steady GR -0.000000 dB, makeup 0.000000 dB, residual +0.000000 dB
+MassCompressor_MakeupMatchesGr amount 0 E1: 0 samples with GR != 0.0f
+MassCompressor_MakeupMatchesGr amount 0.000000 C3: steady GR -0.000000 dB, makeup 0.000000 dB, residual +0.000000 dB
+MassCompressor_MakeupMatchesGr amount 0 C3: 0 samples with GR != 0.0f
+MassCompressor_MakeupMatchesGr amount 0.250000 E1: steady GR 0.247145 dB, makeup 0.248969 dB, residual +0.001823 dB
+MassCompressor_MakeupMatchesGr amount 0.250000 C3: steady GR 0.250792 dB, makeup 0.248969 dB, residual -0.001823 dB
+MassCompressor_MakeupMatchesGr amount 0.500000 E1: steady GR 1.279677 dB, makeup 1.284711 dB, residual +0.005033 dB
+MassCompressor_MakeupMatchesGr amount 0.500000 C3: steady GR 1.289744 dB, makeup 1.284711 dB, residual -0.005033 dB
+MassCompressor_MakeupMatchesGr amount 0.750000 E1: steady GR 3.274205 dB, makeup 3.281126 dB, residual +0.006921 dB
+MassCompressor_MakeupMatchesGr amount 0.750000 C3: steady GR 3.288046 dB, makeup 3.281126 dB, residual -0.006921 dB
+MassCompressor_MakeupMatchesGr amount 1.000000 E1: steady GR 5.833694 dB, makeup 5.842125 dB, residual +0.008431 dB
+MassCompressor_MakeupMatchesGr amount 1.000000 C3: steady GR 5.850556 dB, makeup 5.842125 dB, residual -0.008431 dB
+MassCompressor_Audibility E1 kSawAnchor: dL_step(0) 11.999011 dB, dL_step(1) 5.477971 dB, difference 6.521040 dB (bar >= 3); amount-1 steady GR (recorded) low 0.034238 dB, high 6.555278 dB
+MassCompressor_KeytrackedCornerPoly order {41.20344, 130.81278}: 451 intervals from 200 ms, worst |corner/2E1 - 1| 0.000000 (bar 0.01); closest |corner/2C3 - 1| 0.685020 (must exceed 0.01)
+MassCompressor_KeytrackedCornerPoly order {130.81278, 41.20344}: 451 intervals from 200 ms, worst |corner/2E1 - 1| 0.000000 (bar 0.01); closest |corner/2C3 - 1| 0.685020 (must exceed 0.01)
+===============================================================================
+All tests passed (6141 assertions in 16 test cases)
+

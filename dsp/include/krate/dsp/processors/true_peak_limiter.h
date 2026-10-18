@@ -11,7 +11,8 @@
 //
 // Guarantee: because the detected peak tp >= |sample| and the gain applied to
 // the sample is min(1, ceiling/tp), every output sample satisfies
-// |out| <= ceiling exactly. Inter-sample (true) peaks are bounded to within the
+// |out| <= ceiling exactly (the product is clamped to +/-ceiling so float
+// rounding of ceiling/tp cannot push it one ulp over). Inter-sample (true) peaks are bounded to within the
 // detector's accuracy; the -1 dBTP default ceiling leaves headroom for the
 // residual inter-sample error. The trade-off vs a look-ahead limiter is a
 // harder (instantaneous) attack, which for percussive material is acceptable.
@@ -156,8 +157,11 @@ private:
             else
                 currentGain_ += (required - currentGain_) * releaseCoeff_;
 
-            left[i]  = inL * currentGain_;
-            right[i] = inR * currentGain_;
+            // Clamp: ceilingLin_ / tp * |sample| can round one ulp above the ceiling in
+            // float; the clamp keeps the |out| <= ceiling guarantee exact. It is a no-op
+            // whenever the gain is 1 (then |sample| <= tp <= ceiling).
+            left[i]  = std::clamp(inL * currentGain_, -ceilingLin_, ceilingLin_);
+            right[i] = std::clamp(inR * currentGain_, -ceilingLin_, ceilingLin_);
         }
     }
 

@@ -1,0 +1,56 @@
+T001 run-log — Profundum Phase 6 Mass dynamics CPU microbench (plan R-1, S12.4, S16 step 1)
+Date: 2026-10-17. Executor stage only: model run, bench + lane script written, base binary compiled once, --quick smoke.
+NO TIMING DECISION IS TAKEN FROM THIS LOG (unpinned, 0.2 s per cell, smoke only).
+
+== Model evidence ==
+Command: node specs/profundum-phase6-mass-dynamics/mass-dynamics-model.js all
+Wall clock: 22.3 s, exit 0. Full stdout: specs/profundum-phase6-mass-dynamics/evidence/model-2026-10-17.txt (28 lines).
+Sizing evidence, not compliance evidence (plan S8.4).
+
+== Precondition ==
+tasklist | grep -ciE "cl.exe|dsp_.*_tests.exe|clang-tidy" -> 0 before the model, before the compile and before the run.
+
+== Compile (base binary, once) ==
+"/c/Program Files/LLVM/bin/clang++.exe" -std=c++20 -O2 -ffast-math -march=x86-64-v2 -DNDEBUG -Wall -Wextra -Idsp/include specs/profundum-phase6-mass-dynamics/bench/mass-dynamics-bench.cpp -o <scratchpad>/p6-bench.exe
+Result: 0 errors, 0 warnings (11.6 s). (-Wall -Wextra added for this check only; run-bench.sh uses the task's exact flag set.)
+Variant syntax checks (-fsyntax-only, same flags): -DP6_DYN_TICK4 ok; -DP6_DYN_TICK4 -DP6_TP2X ok, 0 warnings.
+
+== --quick output (unpinned, 0.2 s per cell; smoke only) ==
+P6BENCH fs=48000 block=64 interval=32 tp_factor=4 dyn_tick=1 seconds_per_cell=0.20
+cell shaper ns_per_sample 190.06 pct_core 0.9123
+cell compressor ns_per_sample 137.41 pct_core 0.6596
+cell total ns_per_sample 321.82 pct_core 1.5448
+cell dc_limiter ns_per_sample 523.42 pct_core 2.5124
+cell linked ns_per_sample 326.92 pct_core 1.5692
+cell silence ns_per_sample 206.47 pct_core 0.9910
+sink 175.756
+
+All six cells print. Wall clock of the quick run: 2.1 s.
+
+== Notes for the main loop ==
+- Cell 5 (linked, L == R, one channel processed and copied) is RECORDED ONLY. R-1 fallback (1), a mono-link fast path,
+  cannot lower the gated SC-017 figure: the SC-017 cell is a distinct L / R pair (plan S13.3), so the gated reading is
+  cell 3. In the smoke the linked cell reads about the same as the distinct cell, which points at per-sample costs
+  that do not scale with the channel count (the scalar constexprExp / constexprLog10 series in gainToDb / dbToGain,
+  db_utils.h:218-252, 289-320: one gainToDb + one dbToGain in the shaper, one gainToDb + two discarded dbToGain inside
+  DynamicsProcessor::processSample (dynamics_processor.h:183-211), our dbToGain in the compressor).
+- The Total cell includes, per 32-sample interval: one BenchMassLaw::advanceInterval + six-row evaluate, the
+  MassDynamics latch shaper.setTransientDurationMs(40) (log-log table interpolation: 4 std::log + 1 std::exp + one
+  EnvelopeFollower::setAttackTime -> constexprExp), and the compressor controlStep (latch + corner smoother + D-5
+  ring; setReleaseTime only on a bitwise change).
+- Mass is held at 75 in the Total cell (the evaluation has no fast path, so its cost is independent of the value).
+- Cell 4 (DCBlocker x2 + TruePeakLimiter) is recorded for Phase 9, not part of the SC-017 Total.
+- The smoke Total (1.54 %) is above the 1.0 % bar, but it is unpinned and 0.2 s per cell: the decision belongs to the
+  pinned 3-run median from run-bench.sh.
+
+== STOP AND SURFACE ==
+Main loop runs `bash specs/profundum-phase6-mass-dynamics/bench/run-bench.sh` alone (about 4 min: 3 compiles ~35 s,
+3 runs x ~20 s, 2 x 60 s settle), applies the decision rule, records it here and as a 'Measured' paragraph in plan
+S12.4, then resumes the build with `unblock: [T001]`.
+Decision rule: median Total <= 1.0 % -> proceed; else `run-bench.sh tick4`, then `run-bench.sh tick4-tp2x`; the first
+variant <= 1.0 % becomes REQUIRED in T006 / T007 (and plan S4 / S5; tp2x re-checked against SC-009 / SC-010); still
+> 1.0 % -> return to the user with the table. FR-045's bar is never relaxed.
+
+T001 pinned run (main loop, 2026-10-17, nothing else running; bash bench/run-bench.sh, 3 runs 60 s apart through tools/pin-perf-cores.ps1; full output appended to evidence/run-log/T001-bench.txt):
+  medians (% of one core, 48 kHz, variant base): shaper 0.3575, compressor 0.3921, total 0.7694 (gated, SC-017), dc_limiter 1.3156 (recorded for Phase 9), linked 0.6469, silence 0.5217
+  DECISION: median_total 0.7694 <= 1.0 % -> PROCEED with the plan's design (variant base; TICK4 / TP2X not needed). Margin 0.23 %.

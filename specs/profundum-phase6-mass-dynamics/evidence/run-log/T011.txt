@@ -1,0 +1,96 @@
+T011 run-log - mass_dynamics_test_helpers.h (plan S9) and its self-tests (FR-031 - FR-034; deviations 5, 8)
+Date: 2026-10-17. Executor stage only: nothing in the tree was built or run (the group's build agent runs
+dsp_systems_tests "MassDynamicsHelpers_*"). Two Node models of the new estimators were run from the session
+scratchpad (not repo files) to check the self-test bars before handing over; their output is quoted below.
+
+== Files ==
+dsp/tests/unit/systems/mass_dynamics_test_helpers.h   (new; namespace Krate::DSP::MassDynamicsTest, all inline)
+dsp/tests/unit/systems/mass_dynamics_helpers_test.cpp  (T002 stub filled; 7 TEST_CASEs, [systems][profundum][mass-dynamics])
+specs/profundum-phase6-mass-dynamics/evidence/run-log/T011.txt (this file)
+
+== ODR ==
+grep -rn "MassDynamicsTest|struct ChainConfig|struct ChainTaps|struct PolyVoice|struct SubBand|struct PeriodDescriptors"
+dsp plugins tests -> 0 hits before this task. TU-local names carry the mdh / kMdh prefix (anonymous namespace).
+
+== Reused APIs (read this session) ==
+systems/mass_law.h: Target, kNumTargets, kNeutralMass, kControlInterval, Targets, Row, kRows, evaluateRow (static,
+  public), evaluate, prepare, reset, setMass, setBase, advanceInterval, currentTargets, smoothedMass, base(); fieldOf is
+  PRIVATE, so the helper has its own targetField accessors.
+systems/mass_dynamics.h: MassDynamics prepare/reset/setTransientDurationMs/setCompressionAmount/setDetectorKeyHz/
+  setTransientAttackDb/setTransientSustainDb/processBlock/shaper()/compressor() (:476-546); BassCompressor taps
+  currentGainDb (GR + makeup) :268, currentGainReductionDb :270, detectorCornerHz :276.
+processors/transient_shaper.h: setAttackGainDb/setSustainGainDb store a target; prepare applies it and reset() snaps (:118-160).
+systems/profundum_core.h: prepare(double, int) :129, setControls :173, setRetriggerPhase :201, noteOn :208,
+  processBlock :237, deliveredGains :298.
+systems/anchor_oscillator.h: Controls :99-106, prepare :123, setControls :224 (updates pending_), setCoreH1Amplitude :262,
+  setRetriggerPhase :269, noteOn(f0, rearm) :276, processBlock :285, pendingControls :361.
+processors/harmonic_fold.h: kCalibrationPeak :83, prepare :121, setAmount :168, setFundamentalHz :178, processBlock :188.
+primitives/dc_blocker.h: prepare(double, float) :135, processBlock(float*, size_t) :228.
+processors/true_peak_limiter.h: prepare(double, size_t) :59, getCeilingLinear :98, processBlock(float*, float*, int) :104.
+primitives/biquad.h: FilterType :68, BiquadCascade<N>::setButterworth(type, float, float) :427, process :462.
+Test helpers: ProfundumTest::{kTwoPi, safeDb10, goertzelPhase, fftDouble} (profundum_core_test_helpers.h:49-206);
+  HarmonicFoldTest::{recipeAdditive, calibrationSine}; TransientShaperTest::{kE0Hz.., steadyTone, twoLevelStep,
+  levelDbPeriods, secondsToSamples}; ShapeCharacterTest::{describe, floorClamp}; profundum_anchor_chain_test.cpp:577-582
+  (the Phase 3 core -> a1 -> Anchor order).
+
+== Decisions ==
+1. noteOnSample is REQUIREd on the 32 grid; core, Anchor and Fold are not processed before it (taps 0); MassDynamics,
+   DC blockers and limiter run on the silent sum from sample 0. a1PerInterval records 0 before the note-on.
+2. Shaper gains are set on MassDynamics BEFORE prepare (prepare applies them; reset snaps the 10 ms smoothers) instead
+   of after, so a render does not open with a 10 ms glide from the +6 / 0 dB defaults. configureDynamics runs after
+   prepare as specified.
+3. Additions the task text does not list, each needed by a named downstream use: SubBand::{hop, period, windowSamples}
+   and mSubSamples(sb, trace, beginSample, endSample) (time range -> trace entries); ChainTaps::cornerHzPerInterval
+   (SC-024(d) on renderPoly); helpers renderLength, targetField, chainTargets, processChainTail, makeChainDynamics,
+   prepareChainLaw, periodBin, subBandLowpass, subBandHop, lpGroupDelayPeriods, aliasResidualSegment,
+   aliasResidualFftLength (the test prints FFT length and bin Hz), upsample8, inverseFftDouble, kGrid.
+4. lpGroupDelayPeriods: plan C-10 quotes the analog GROUP delay (3.4046 / (2 pi 1.5 f0) = 0.361 periods). One tone's
+   Goertzel phase difference gives the PHASE delay (analog 0.301 periods), so the helper measures the in -> out
+   phase difference at f0 (1 +/- 1 %) and differentiates. Printed only.
+5. aliasResidualDb upsamples the LINEAR gain 10^(gainDb/20) (the processor applies a linear per-sample gain); both x
+   and g carry the 50 ms Hann tapers; the brick wall zeroes every bin with |f| >= fs/2; the base FFT length is
+   aliasResidualFftLength / 8 (>= the 200 ms segment).
+6. periodDescriptors: w1Frac is a LINEAR fraction; C counts harmonics with 20 Hz <= n f0 <= min(fs/2, 20 kHz) as
+   describe()'s centroidOct does; y must hold start + floor(P) + 1 samples (signature as specified, no n).
+7. renderPoly: voices with a non-positive or non-finite f0 are silent and never processed; core / fold / anchor taps
+   are voice sums; a1PerInterval and anchorControlsPerInterval are not recorded (per-voice quantities).
+8. RenderChainContract renders the law and massLawDetached cases with perSampleDynamicsTaps = true, so the per-sample
+   gain taps are covered by the N-sample and the SC-023 tap-for-tap memcmp checks.
+
+== Model check of the self-test bars (Node, scratchpad; same estimator formulas as the header) ==
+subBand, AM E1 sine 1.0 dB p-p:   M_sub = 0.99976 dB          (bar 1.0 +/- 0.05)  -> expected green
+subBand, steady 1/n saw E0:       M_sub = 4.07e-6 dB          (bar <= 0.01)       -> expected green
+periodDescriptors (fractional-period rectangular single-bin DFT), window starts 10000 / 10123 / 20077 / 30311:
+  E1 sine: E_low -115.87 / -110.91 / -110.32 / -123.52 dB;  THD -60.25 / -54.89 / -54.28 / -72.97 dB
+  C3 sine: E_low  -88.07 /  -93.47 /  -88.30 /  -92.19 dB;  THD -47.07 / -52.86 / -47.31 / -51.43 dB
+  E1 saw:  E_low -4.899 (all starts); THD -2.011 / -2.011 / -2.011 / -2.010 dB
+  C3 saw:  E_low -4.899 (all starts); THD -2.010 / -2.011 / -2.010 / -2.011 dB
+Diagnosis: a one-period rectangular window over a non-integer period leaks the window-boundary sample into every bin
+(summation by parts: |X_n| ~ |x(start)| * O(1) for bins far from f0), so a pure sine's one-period THD floors near
+-47 dB (C3) / -55 dB (E1), while describe() (262144-sample Hann main-lobe sums) reads the float floor (~ -100 dB or
+lower). The saw arm is unaffected (leakage ~1e-4 of the harmonic power).
+
+== STOP AND SURFACE (tasks.md rule 12) ==
+MassDynamicsHelpers_PeriodDescriptors, sine arm: "E_low, THD agree with describe within 0.1 dB" is unreachable for
+the specified estimator on a pure sine (THD: -47 vs ~-100 dB at C3); even after the OQ-S -60 dB floor clamp the C3
+THD reads -47 vs -60. E_low clamps to -60 on both sides (model -88 dB worst). The bar is written as specified and
+gated by kMdhGateSineHarmonicDescriptors = true (mass_dynamics_helpers_test.cpp), so it is predicted RED at the gate.
+Decision needed (one constant changes):
+  (a) gate the sine arm on L and C only; print E_low / THD (a sine has no harmonic content for either reading to
+      describe; describe's value there is float noise) -> kMdhGateSineHarmonicDescriptors = false;
+  (b) gate the sine arm's E_low / THD after the OQ-S -60 dB floor clamp (E_low passes; C3 THD still fails, -47 vs -60);
+  (c) change the periodDescriptors estimator (e.g. a windowed multi-period DFT) - conflicts with SC-005(c)'s
+      one-period windows and with subBand's specified formula.
+Consequence for T015 (SC-005(c)): one-period THD / E_high trajectories carry a window-boundary floor near -50 dB on
+sine-like voices; a per-window change bar built on them should be read against that floor.
+No DEFECT lines (no file owned by another task misbehaved in this task's reading).
+
+--- Group 6 gate ruling (user, 2026-10-17; spec SC-005(c) row, Clarifications "Group 6 gate ruling") ---
+periodDescriptors now resamples the one fractional period onto floor(P) points (Kaiser-windowed sinc,
+half-width 32, beta 10) before an exact periodic DFT; periodBin removed. Self-test bar kept on every
+arm after the -60 dB floor clamp, plus raw sine THD <= -70 dB. Main-loop re-measure
+(G6-1-remeasure.txt, dsp_systems_tests "MassDynamicsHelpers_*"): All tests passed (415 assertions in 7 test cases).
+  saw  E1: E_low -4.89878 / -4.89877, THD -2.01052 / -2.01079, C 0.759183 / 0.75914 (period / describe)
+  sine E1: THD -122.673 raw (describe -152.842), E_low -122.711
+  saw  C3: E_low -4.89877 / -4.89809, THD -2.01051 / -2.00946, C 0.759183 / 0.759116
+  sine C3: THD -121.956 raw (describe -150.438), E_low -121.998

@@ -1,0 +1,68 @@
+T007 run-log - BassCompressor (L3, systems/mass_dynamics.h), its probe and standalone tests
+Date: 2026-10-17. Executor stage only: nothing built or run here (the group's build agent runs
+dsp_systems_tests "MassCompressor_*" / "[mass-dynamics]~[long]" after this group).
+
+== Files ==
+dsp/include/krate/dsp/systems/mass_dynamics.h          (T002 stub filled: BassCompressor only; T010 adds MassDynamics)
+dsp/tests/unit/systems/mass_dynamics_probe.h            (new: detail::MassDynamicsProbe, BassCompressor half)
+dsp/tests/unit/systems/mass_compressor_test.cpp         (T002 stub filled)
+specs/profundum-phase6-mass-dynamics/evidence/run-log/T007.txt (this file)
+
+== ODR ==
+grep -r "class BassCompressor|struct MassDynamicsProbe|struct AmountRow|class MassDynamics" dsp/ plugins/
+  -> 0 hits before this task (only the new header / probe after it).
+
+== Reused APIs (read this session) ==
+processors/dynamics_processor.h: prepare :121, reset :150, processSample :166 (output discarded),
+  setThreshold :243, setRatio :251, setKneeWidth :258, setAttackTime :265, setReleaseTime :272,
+  setMakeupGain :279, setAutoMakeup :285, setDetectionMode :291, setLookahead :299,
+  setSidechainEnabled :306, setSidechainCutoff :312, getters :327-337, getCurrentGainReduction :343,
+  kMin/MaxSidechainHz :97-98, kDefaultAttackMs :83, computeGainReduction ratio<=1 -> 0 :369-371.
+primitives/biquad.h: Biquad::configure :330, process :352, reset :385, getZ1/getZ2 :391-394, kButterworthQ :56.
+primitives/smoother.h: OnePoleSmoother configure :160, setTarget :170, process :197 (completion snap at
+  kCompletionThreshold = 1e-4, :55 / :199-201), snapTo :263, coefficient exp(-5000/(ms*fs)) :91.
+processors/period_peak_detector.h (T004): prepare(fs, holdMs), reset, setHoldMs (pending, applied at
+  segment completion or reset), process(x), process(xL, xR), held, stateFinite.
+
+== Tests (written first; tag [systems][profundum][mass-dynamics]) ==
+1  MassCompressor_AmountMapping                  FR-016, FR-014
+2  MassCompressor_TransparentAtAmountZero        SC-013 compressor arm
+3  MassCompressor_ReleaseRuleLaw                 SC-007 law tap (D-5)
+4  MassCompressor_ProgramDependentRelease        SC-007, kRecoveryFrom = PlateauEnd (C-13 RULED 2026-10-17)
+5  MassCompressor_FixedReleasePositiveControl    SC-007 positive control (fixed 275 ms, ratio > 0.5, CHECK)
+6  MassCompressor_KeytrackedCorner               SC-024 (a)(b)(c)(e), FR-018
+7  MassCompressor_MonoSum                        SC-012 compressor arm, FR-013
+8  MassCompressor_NoAllocation                   SC-016 compressor arm (positive control first)
+9  MassCompressor_PartitionInvariant             SC-018 compressor arm (8704 / 8704 + 32*64)
+10 MassCompressor_SampleRates                    SC-021 compressor arm
+11 MassCompressor_Lifecycle                      FR-047 (1)-(4), inside the allocation detector window
+No [long] case in this TU.
+
+== Decisions / deviations (surface; none relaxes a bar) ==
+D-1 SC-024(b) step bound: the task's bound (1 - exp(-5000/(20*fs/32)))*|T - prev| + 1e-6 cannot hold on the
+    OnePoleSmoother's final completion snap (smoother.h:199-201: within 1e-4 of the target it lands on it in
+    one step). The test admits that landing step (jump < kCompletionThreshold + 1e-6 -> allowed = jump + 1e-6),
+    which is "what the smoother allows" in the spec's SC-024(b) wording; every other step is gated at the
+    task's formula. Violations and the max excess are printed.
+D-2 reset() order: the smoothers snap to the latched targets (S5.2 step 6) first, so the HP biquads and the
+    detector hold (steps 2-3) are configured at that corner; det_.setHoldMs() is called before det_.reset() so
+    the hold takes effect at once (T004's reset applies the pending segment length). Same end state as the
+    plan's listed order, deterministic across re-prepare.
+D-3 Members beyond the S5.1 list: fraction_ (programFraction tap), detectorLevel_ (detectorLevel tap, also
+    the rectified-feed value), kMinSampleRate / kMaxSampleRate (S5.2 clamp, AnchorOscillator values),
+    probeTableOverride_ (task text). Extra std includes <algorithm>, <bit> (std::clamp, std::bit_cast).
+D-4 The amount mapping is evaluated every control step (a handful of flops) and each DynamicsProcessor setter
+    is called only when its value differs bitwise from the processor's getter; this also makes the probe
+    table override take effect at the next interval.
+D-5 MassCompressor_PartitionInvariant "two renders after reset()": reset() snaps to the LATCHED targets
+    (S5.2 step 6), and the previous render's events latched amount 1 / key E2, so the test re-latches the
+    starting controls (one silent interval) before each reset().
+D-6 Event placement (C-11): the render driver splits a host block at an event sample (sample-accurate host
+    automation); 10752 is not a multiple of 17, so this is needed for block 17. The setters latch at the
+    next 32-sample boundary, so the result equals any call position within the preceding interval.
+D-7 MassCompressor_Lifecycle: every instance's first prepare runs outside the tracked window; (1) runs in a
+    window before the subject's first prepare; (2)-(4) (incl. prepare(96k) -> prepare(48k)) in a second window.
+    Results are captured into locals and asserted after the windows (no Catch2 macro inside a window).
+
+== Predictions (plan S12.3 model, not evidence) ==
+SC-007 short/long (PlateauEnd): E1 0.227, C3 0.201 (bar <= 0.5); fixed 275 ms: E1 1.022, C3 0.999 (> 0.5).

@@ -1,0 +1,30 @@
+Filters: "MassLaw_AutomationDescriptorTrajectorySmoke"
+Randomness seeded to: 3965598368
+[T015 lattice E2 trajectory smoke] Mass 0: w1/Sum -0.344524 dB, E_low -11.2053, E_high -33.0238, THD -10.8323 dB, C 0.0920496 oct, L -9.93823 dBFS, w1(sum) 88.7571 dB, GR -0 dB
+[T015 lattice E2 trajectory smoke] Mass 5: w1/Sum -0.375196 dB, E_low -10.8611, E_high -31.2469, THD -10.4463 dB, C 0.102217 oct, L -9.81275 dBFS, w1(sum) 89.0459 dB, GR -0 dB
+[T015 lattice E2 trajectory smoke] Mass 10: w1/Sum -0.410841 dB, E_low -10.4999, E_high -29.4475, THD -10.0341 dB, C 0.114458 oct, L -9.70296 dBFS, w1(sum) 89.3148 dB, GR -0 dB
+[T015 lattice E2 trajectory smoke] Mass 15: w1/Sum -0.452416 dB, E_low -10.1232, E_high -27.6263, THD -9.5943 dB, C 0.129333 oct, L -9.61098 dBFS, w1(sum) 89.5629 dB, GR -0 dB
+[T015 lattice E2 trajectory smoke] Mass 20: w1/Sum -0.501147 dB, E_low -9.73284, E_high -25.7845, THD -9.12521 dB, C 0.147605 oct, L -9.53273 dBFS, w1(sum) 89.7891 dB, GR -0 dB
+[T015 lattice E2 trajectory smoke] Mass 25: w1/Sum -0.558612 dB, E_low -9.33135, E_high -23.9235, THD -8.62444 dB, C 0.170338 oct, L -9.46948 dBFS, w1(sum) 89.9914 dB, GR -0 dB
+[T015 lattice E2 trajectory smoke] Mass 30: w1/Sum -0.626859 dB, E_low -8.92236, E_high -22.0461, THD -8.08894 dB, C 0.199023 oct, L -9.42123 dBFS, w1(sum) 90.167 dB, GR -0 dB
+[T015 lattice E2 trajectory smoke] Mass 35: w1/Sum -0.708562 dB, E_low -8.51115, E_high -20.1562, THD -7.51497 dB, C 0.235778 oct, L -9.38955 dBFS, w1(sum) 90.3122 dB, GR -0 dB
+[T015 lattice E2 trajectory smoke] Mass 40: w1/Sum -0.807199 dB, E_low -8.10547, E_high -18.2602, THD -6.89819 dB, C 0.283599 oct, L -9.37616 dBFS, w1(sum) 90.4215 dB, GR -0 dB
+[T015 lattice E2 trajectory smoke] Mass 45: w1/Sum -0.927235 dB, E_low -7.71667, E_high -16.3682, THD -6.23408 dB, C 0.346683 oct, L -9.38742 dBFS, w1(sum) 90.4878 dB, GR -0 dB
+[T015 lattice E2 trajectory smoke] Mass 50: w1/Sum -1.07419 dB, E_low -7.36121, E_high -14.4949, THD -5.51888 dB, C 0.43072 oct, L -9.45773 dBFS, w1(sum) 90.5022 dB, GR -0 dB
+[T015 lattice E2 trajectory smoke] Mass 55: w1/Sum -1.04593 dB, E_low -7.37456, E_high -15.0879, THD -5.64934 dB, C 0.411266 oct, L -9.1172 dBFS, w1(sum) 90.7453 dB, GR 0.0107315 dB
+[T015 lattice E2 trajectory smoke] Mass 60: w1/Sum -1.17944 dB, E_low -6.75219, E_high -15.7543, THD -5.05801 dB, C 0.444846 oct, L -8.96796 dBFS, w1(sum) 90.9111 dB, GR 0.234416 dB
+[T015 lattice E2 trajectory smoke] Mass 65: w1/Sum -1.38084 dB, E_low -6.16252, E_high -15.1714, THD -4.26771 dB, C 0.523325 oct, L -9.06003 dBFS, w1(sum) 90.9683 dB, GR 0.821062 dB
+[T015 lattice E2 trajectory smoke] Mass 70: w1/Sum -1.53263 dB, E_low -5.66022, E_high -15.8968, THD -3.73464 dB, C 0.557653 oct, L -9.06865 dBFS, w1(sum) 90.9117 dB, GR 1.33431 dB
+[T015 lattice E2 trajectory smoke] Mass 75: w1/Sum -1.71566 dB, E_low -5.16474, E_high -16.5967, THD -3.14749 dB, C 0.600897 oct, L -9.22354 dBFS, w1(sum) 90.7493 dB, GR 1.92134 dB
+[T015 lattice E2 trajectory smoke] Mass 80: w1/Sum -2.15954 dB, E_low -4.27891, E_high -17.3387, THD -1.90982 dB, C 0.705842 oct, L -9.01354 dBFS, w1(sum) 90.7366 dB, GR 2.92555 dB
+[T015 lattice E2 trajectory smoke] Mass 85: w1/Sum -2.49397 dB, E_low -3.75935, E_high -17.9349, THD -1.10242 dB, C 0.778501 oct, L -8.99183 dBFS, w1(sum) 90.5728 dB, GR 3.86389 dB
+[T015 lattice E2 trajectory smoke] Mass 90: w1/Sum -2.84241 dB, E_low -3.31837, E_high -18.3768, THD -0.342527 dB, C 0.849366 oct, L -8.92787 dBFS, w1(sum) 90.4001 dB, GR 4.87785 dB
+[T015 lattice E2 trajectory smoke] Mass 95: w1/Sum -3.16992 dB, E_low -2.96896, E_high -18.7742, THD 0.313583 dB, C 0.91046 oct, L -8.80352 dBFS, w1(sum) 90.2235 dB, GR 5.92204 dB
+[T015 lattice E2 trajectory smoke] Mass 100: w1/Sum -3.41223 dB, E_low -2.73663, E_high -19.3269, THD 0.769802 dB, C 0.950855 oct, L -8.77462 dBFS, w1(sum) 90.0624 dB, GR 6.99191 dB
+[T015 SC-005(b)] E2 trajectory smoke largest adjacent step: w1/Sum(w) 0.443875 dB (0.088775 /unit) E_low 0.885839 dB (0.177168 /unit) E_high 1.89594 dB (0.379189 /unit) THD 1.23767 dB (0.247535 /unit) C 0.104945 oct (0.020989 /unit) L 0.340524 dB (0.0681048 /unit) w1(sum) 0.288801 dB (0.0577601 /unit) GR 1.06988 dB (0.213975 /unit)
+[T015 SC-005(c)] E2 smoke 0->100 host step: traversal [96000, 97920) samples, 5 windows; per descriptor worst |change| / worst change-to-bound ratio / violations: w1/Sum(w) 1.52844 / 0.436319 / 0 E_low 3.56342 / 0.334692 / 0 E_high 10.7187 / 0.46906 / 0 THD 4.92813 / 0.363695 / 0 C 0.452046 / 0.357535 / 0 L 1.81561 / 0.433703 / 0 w1(sum) 1.02539 / 0.349354 / 0 GR 5.88044 / 0.708284 / 0
+[T015 SC-005(c)] E2 smoke 0->100 20 ms host ramp: traversal [96032, 97952) samples, 5 windows; per descriptor worst |change| / worst change-to-bound ratio / violations: w1/Sum(w) 1.79492 / 0.512388 / 0 E_low 3.42557 / 0.385423 / 0 E_high 10.3673 / 0.453686 / 0 THD 4.6993 / 0.429826 / 0 C 0.419322 / 0.431739 / 0 L 1.64916 / 0.393943 / 0 w1(sum) 0.963878 / 0.380903 / 0 GR 5.87819 / 0.708013 / 0
+===============================================================================
+All tests passed (1150 assertions in 1 test case)
+
+exit: 0 wall: 10 s

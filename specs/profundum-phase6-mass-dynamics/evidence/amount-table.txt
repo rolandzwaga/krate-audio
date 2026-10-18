@@ -1,0 +1,26 @@
+BEGIN-INITIALIZER amount-table
+        {.amount = 0.0f, .thresholdDb = 0.0f, .slope = 0.0f, .kneeDb = 0.0f, .makeupDb = 0.0f},
+        {.amount = 0.25f, .thresholdDb = -2.75390625f, .slope = 0.25f, .kneeDb = 6.0f, .makeupDb = 0.248968944f},
+        {.amount = 0.5f, .thresholdDb = -5.5078125f, .slope = 0.400000006f, .kneeDb = 6.0f, .makeupDb = 1.28469789f},
+        {.amount = 0.75f, .thresholdDb = -8.26171875f, .slope = 0.550000012f, .kneeDb = 6.0f, .makeupDb = 3.28110814f},
+        {.amount = 1.0f, .thresholdDb = -11.015625f, .slope = 0.670000017f, .kneeDb = 6.0f, .makeupDb = 5.84210396f},
+END-INITIALIZER amount-table
+# MassCompressor_AmountTableHarvest (plan S8.3): 48 kHz, host block 512; calibration voice = the Mass reference
+# voice at Mass 50 with targetOverride[CompressionAmount]; steady GR = -mean(currentGainReductionDb) over [1 s, 3 s]
+# of a 3 s render. Slope and knee keep the seed.
+# (1) amount-1 threshold -11.0156 dB (seed -11.0156): min GR over E0..C3 4.03951 dB (target 4.0 +/- 0.05)
+# (2) law Mass 100 compression amount 1 -> row 4; Mass 100 GR E1 10.0527 dB, C3 10.2961 dB (target >= 3.5)
+# (3) harvested rows: 0 4; the other thresholds are linear in amount between them
+# Seed thresholds: 0 -2.75391 -5.50781 -8.26172 -11.0156
+# Steady GR per row (dB): amount, E0, E1, E2, C3
+row 0 amount 0: E0 -0 E1 -0 E2 -0 C3 -0
+row 1 amount 0.25: E0 0.012242 E1 0.247146 E2 0.247946 C3 0.250792
+row 2 amount 0.5: E0 0.413123 E1 1.27965 E2 1.28195 C3 1.28974
+row 3 amount 0.75: E0 1.80136 E1 3.27417 E2 3.27732 C3 3.28805
+row 4 amount 1: E0 4.03951 E1 5.83365 E2 5.83749 C3 5.85056
+# Makeup residual per row and note (makeup - GR, dB; gated at E1 and C3 by SC-022, E0 / E2 recorded)
+row 0 makeup 0: E0 +0 E1 +0 E2 +0 C3 +0
+row 1 makeup 0.248969: E0 +0.236727 E1 +0.00182318 E2 +0.00102303 C3 -0.00182316
+row 2 makeup 1.2847: E0 +0.871575 E1 +0.00504611 E2 +0.00275152 C3 -0.00504599
+row 3 makeup 3.28111: E0 +1.47974 E1 +0.0069382 E2 +0.00378323 C3 -0.00693829
+row 4 makeup 5.8421: E0 +1.8026 E1 +0.00845203 E2 +0.00460918 C3 -0.00845169
