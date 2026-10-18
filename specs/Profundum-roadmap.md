@@ -462,6 +462,37 @@ CPU ≤ 2 % per voice with Shape + Character on.
 
 ### Phase 6: Mass & Dynamics
 
+**Status: ✅ COMPLETE (2026-10-18)** — see specs/profundum-phase6-mass-dynamics/compliance.md (77 pass, 0 partial, 0 fail after the
+2026-10-17/18 close: twelve user rulings recorded in their FR/SC rows first — the wide-arm detector bar, resampled period descriptors, the
+SC-019 chain recovery point, Depth and Anchor travel as harvest levers, w₁ measured at the fold + anchor sum tap, the Anchor keyed to the
+recipe's **unbiased** h1, SC-001(c) as a bounded fall (≥ Mass 0 − 6 dB), the **output trim as the law's seventh calibrated target**, the
+sine fixture recorded for SC-003 / SC-015, the Fold-100 fixture recorded for SC-010, the 7.5 ms E1-sine duration cell recorded, the
+TruePeakLimiter clamp ratified, and the SC-020 gate scoped to the change set; main-loop refinements: harvest |ΔP| at every Mass unit
+(Fold row bent to SCurve), positive control on Fold-100, run-time `std::log2` / `std::exp2` dB forms (SC-017 1.27 % → 0.991 % alone and
+pinned), the SC-005(c) smoke lattice). Shipped: `PeriodPeakDetector` (L2; HarmonicFold's held true-peak as a public component),
+`TransientShaper` (L2; held true-peak → fast / slow Amplitude followers, c = clamp(20·log10(f/s) / 12), gain = A·c + S·(1 − c), duration
+through a harvested slow-attack table 5…250 ms, slow follower ticked /8), `BassCompressor` (L3, in `systems/mass_dynamics.h`; keytracked
+2·f₀ high-pass → true-peak → max(L, R) → one-period hold → one `DynamicsProcessor` gain computer, five-row harvested amount table
+(threshold −11.0 dB, makeup +5.84 dB at amount 1), D-5 program-dependent release 50 + 450·f ms from a 300 ms rule ring, no look-ahead),
+`MassDynamics` (L3; shaper → compressor → output trim, 32-sample control grid), `MassLaw` (L3; seven monotone rows Depth, Body,
+TransientDuration, FoldAmount (SCurve), CompressionAmount, AnchorLevel, OutputTrim; 40 ms traversal slew; pure `evaluate`), and the
+validation chain fixture (core → fold → + anchor keyed to the unbiased h1 → MassDynamics → DC → limiter) with the BS.1770 K-weighting helper.
+
+**Phase 9 handoff (compliance "Remaining gates"; evidence/phase9-handoff.txt):** (1) the voice feeds the Anchor the recipe's h1 for its
+own controls **before** the Mass biases (`unbiasedH1Amplitude`); (2) the output trim is a dB gain after the compressor inside
+`MassDynamics` (`setOutputTrimDb`, 0 dB at Mass 50, −2.05 dB at Mass 0 harvested), one of the seven law targets; (3) a sub-only voice is
+invisible to the 2·f₀ sidechain: it receives the full +5.84 dB makeup unopposed and sits on the limiter at Mass 100 (steady GR −0.18 dB
+at E1), while the reference and saw voices hit the limiter 5.8–7.9 dB for about 0.5 s at the note attack — listening items; (4) Fold-100
+input through the dynamics folds gain-modulation sidebands at −63 … −78 dBFS and the 4× true-peak estimate wobbles with sub-sample phase
+at E2 (steady −46 / −55 dBFS at 44.1 / 48 kHz) — recorded; Phase 9's chain budget decides 2× oversampled gain application plus 8×
+detectors (≈ +0.5 % of a core); (5) `setDetectorKeyHz(lowestSoundingF0)` once per 32-sample interval, 0 = no voice → 80 Hz; (6) the
+Mass dynamics cost 0.991 % of a core alone (margin 0.009 %), `DCBlocker` ×2 + `TruePeakLimiter` 1.23 % recorded for the engine budget —
+a run-time fast path in `db_utils.h` (its constexpr series cost ≈ 24 ns per call under MSVC) is the lever if Phase 9 needs it;
+(7) attack / sustain gains are user-facing (Phase 11, 700–799; defaults +6 / 0 dB), duration is Mass-driven; (8) 4 detuned voices at
+Mass 100 read −10.1 dB sub-band GR on the shared compressor (recorded). **Phase 7:** nothing in the dynamics is stereo-aware beyond
+max(L, R) detection and one shared gain; SPREAD's side content passes the compressor unchanged. **Close-lane rule (G9-4):** the long
+lane lists the phase's own TUs plus the suites of consumers of a modified shared header, never every `[long]` case of the executables.
+
 **Spec:** `profundum-phase6-mass-dynamics`
 **Goal:** The macro that lets a user think "20 % more mass" instead of "which of 47 parameters".
 
@@ -892,6 +923,9 @@ Phases 4, 5 and 6 have no dependency on the core and can be built in parallel wi
 - **Layer discipline** + **ODR sweep** before every new class name (hazard list above).
 - **CPU budgets are FRs**, measured in tests (per-voice budgets Phases 1–5, global 6–7, whole engine 9
   at both MONO and 4-voice operating points). Relaxing a ceiling is never the lever.
+- **Close lanes are scoped to the change set** (ruled 2026-10-18, Phase 6 G9-4): per-push lanes of the phase's executables, the
+  `[long]` cases of the phase's own TUs, and the full suites of every consumer of a shared header the phase modified; `[long]` cases
+  of untouched code are not re-run, and a timing-budget assertion of such a case failing under a concurrent lane is recorded as load.
 - **No bit-exact float goldens** — `render_fingerprint.h` / measured tolerances only; goldens harvested
   inside the consuming test binary.
 - **Portability:** `node tools/check-portability.js` before commits; WSL probe for Linux doubts;

@@ -1,0 +1,65 @@
+dsp/include/krate/dsp/processors/transient_shaper.h [duration-table]:
+  0: before {.durationMs = 5.0f, .slowAttackArgMs = 7.30807829f},
+  0: after  {.durationMs = 5.0f, .slowAttackArgMs = 7.30807829f},   (max |delta| 0.00000)
+  1: before {.durationMs = 7.5f, .slowAttackArgMs = 11.7715015f},
+  1: after  {.durationMs = 7.5f, .slowAttackArgMs = 11.7715015f},   (max |delta| 0.00000)
+  2: before {.durationMs = 10.0f, .slowAttackArgMs = 15.3191643f},
+  2: after  {.durationMs = 10.0f, .slowAttackArgMs = 15.3191643f},   (max |delta| 0.00000)
+  3: before {.durationMs = 15.0f, .slowAttackArgMs = 24.3181133f},
+  3: after  {.durationMs = 15.0f, .slowAttackArgMs = 24.3181133f},   (max |delta| 0.00000)
+  4: before {.durationMs = 20.0f, .slowAttackArgMs = 33.2880974f},
+  4: after  {.durationMs = 20.0f, .slowAttackArgMs = 33.2880974f},   (max |delta| 0.00000)
+  5: before {.durationMs = 30.0f, .slowAttackArgMs = 49.6755791f},
+  5: after  {.durationMs = 30.0f, .slowAttackArgMs = 49.6755791f},   (max |delta| 0.00000)
+  6: before {.durationMs = 40.0f, .slowAttackArgMs = 67.6638641f},
+  6: after  {.durationMs = 40.0f, .slowAttackArgMs = 67.6638641f},   (max |delta| 0.00000)
+  7: before {.durationMs = 60.0f, .slowAttackArgMs = 103.588699f},
+  7: after  {.durationMs = 60.0f, .slowAttackArgMs = 103.588699f},   (max |delta| 0.00000)
+  8: before {.durationMs = 100.0f, .slowAttackArgMs = 175.304916f},
+  8: after  {.durationMs = 100.0f, .slowAttackArgMs = 175.304916f},   (max |delta| 0.00000)
+  9: before {.durationMs = 150.0f, .slowAttackArgMs = 264.961334f},
+  9: after  {.durationMs = 150.0f, .slowAttackArgMs = 264.961334f},   (max |delta| 0.00000)
+  10: before {.durationMs = 250.0f, .slowAttackArgMs = 444.156616f},
+  10: after  {.durationMs = 250.0f, .slowAttackArgMs = 444.156616f},   (max |delta| 0.00000)
+dsp/include/krate/dsp/systems/mass_dynamics.h [amount-table]:
+  0: before {.amount = 0.0f, .thresholdDb = 0.0f, .slope = 0.0f, .kneeDb = 0.0f, .makeupDb = 0.0f},
+  0: after  {.amount = 0.0f, .thresholdDb = 0.0f, .slope = 0.0f, .kneeDb = 0.0f, .makeupDb = 0.0f},   (max |delta| 0.00000)
+  1: before {.amount = 0.25f, .thresholdDb = -2.75390625f, .slope = 0.25f, .kneeDb = 6.0f, .makeupDb = 0.248968646f},
+  1: after  {.amount = 0.25f, .thresholdDb = -2.75390625f, .slope = 0.25f, .kneeDb = 6.0f, .makeupDb = 0.248968944f},   (max |delta| 2.98000e-7)
+  2: before {.amount = 0.5f, .thresholdDb = -5.5078125f, .slope = 0.400000006f, .kneeDb = 6.0f, .makeupDb = 1.28471053f},
+  2: after  {.amount = 0.5f, .thresholdDb = -5.5078125f, .slope = 0.400000006f, .kneeDb = 6.0f, .makeupDb = 1.28469789f},   (max |delta| 0.0000126400)
+  3: before {.amount = 0.75f, .thresholdDb = -8.26171875f, .slope = 0.550000012f, .kneeDb = 6.0f, .makeupDb = 3.28112578f},
+  3: after  {.amount = 0.75f, .thresholdDb = -8.26171875f, .slope = 0.550000012f, .kneeDb = 6.0f, .makeupDb = 3.28110814f},   (max |delta| 0.0000176400)
+  4: before {.amount = 1.0f, .thresholdDb = -11.015625f, .slope = 0.670000017f, .kneeDb = 6.0f, .makeupDb = 5.84212494f},
+  4: after  {.amount = 1.0f, .thresholdDb = -11.015625f, .slope = 0.670000017f, .kneeDb = 6.0f, .makeupDb = 5.84210396f},   (max |delta| 0.0000209800)
+paste-harvest: pasted duration-table, amount-table
+exit: 0 wall: 0 s
+dsp/include/krate/dsp/systems/mass_law.h [mass-law-rows]:
+  0: before {.target = Target::Depth, .lo = 0.0f, .hi = 1.0f, .amountDown = -0.5f, .amountUp = -0.5f, .curve = ModCurve::Linear},
+  0: after  {.target = Target::Depth, .lo = 0.0f, .hi = 1.0f, .amountDown = -0.5f, .amountUp = -0.5f, .curve = ModCurve::Linear},   (max |delta| 0.00000)
+  1: before {.target = Target::Body, .lo = 0.0f, .hi = 1.0f, .amountDown = 0.5f, .amountUp = 0.400000006f, .curve = ModCurve::Linear},
+  1: after  {.target = Target::Body, .lo = 0.0f, .hi = 1.0f, .amountDown = 0.5f, .amountUp = 0.400000006f, .curve = ModCurve::Linear},   (max |delta| 0.00000)
+  2: before {.target = Target::TransientDuration, .lo = 5.0f, .hi = 250.0f, .amountDown = 30.0f, .amountUp = 110.0f, .curve = ModCurve::Linear},
+  2: after  {.target = Target::TransientDuration, .lo = 5.0f, .hi = 250.0f, .amountDown = 30.0f, .amountUp = 110.0f, .curve = ModCurve::Linear},   (max |delta| 0.00000)
+  3: before {.target = Target::FoldAmount, .lo = 0.0f, .hi = 100.0f, .amountDown = 50.0f, .amountUp = 61.328125f, .curve = ModCurve::Linear},
+  3: after  {.target = Target::FoldAmount, .lo = 0.0f, .hi = 100.0f, .amountDown = 50.0f, .amountUp = 61.328125f, .curve = ModCurve::SCurve},   (max |delta| 0.00000)
+  4: before {.target = Target::CompressionAmount, .lo = 0.0f, .hi = 1.0f, .amountDown = 0.5f, .amountUp = 1.0f, .curve = ModCurve::Linear},
+  4: after  {.target = Target::CompressionAmount, .lo = 0.0f, .hi = 1.0f, .amountDown = 0.5f, .amountUp = 1.0f, .curve = ModCurve::Linear},   (max |delta| 0.00000)
+  5: before {.target = Target::AnchorLevel, .lo = 0.0f, .hi = 1.0f, .amountDown = 0.5f, .amountUp = 0.5f, .curve = ModCurve::Linear},
+  5: after  {.target = Target::AnchorLevel, .lo = 0.0f, .hi = 1.0f, .amountDown = 0.5f, .amountUp = 0.5f, .curve = ModCurve::Linear},   (max |delta| 0.00000)
+  6: before {.target = Target::OutputTrim, .lo = -12.0f, .hi = 12.0f, .amountDown = -2.0493834f, .amountUp = -0.0f, .curve = ModCurve::Linear},
+  6: after  {.target = Target::OutputTrim, .lo = -12.0f, .hi = 12.0f, .amountDown = -2.0493834f, .amountUp = -0.0f, .curve = ModCurve::Linear},   (max |delta| 0.00000)
+paste-harvest: pasted mass-law-rows
+exit: 0 wall: 0 s
+harvest: step 6 summaries
+step6 green MassCompressor_MakeupMatchesGr exit=0 | All tests passed (99 assertions in 1 test case)
+step6 green MassCompressor_NoSubPumping exit=0 | All tests passed (182 assertions in 1 test case)
+step6 green MassCompressor_RectifiedFeedNegativeControl exit=0 | All tests passed (133 assertions in 1 test case)
+step6 green MassChain_LimiterIdleSteadyState exit=0 | All tests passed (601 assertions in 1 test case)
+step6 green MassLaw_AnchorPoints exit=0 | All tests passed (228 assertions in 1 test case)
+step6 green MassLaw_Audibility exit=0 | All tests passed (499 assertions in 1 test case)
+step6 green MassLaw_FundamentalStrengthJointSweepSmoke exit=0 | All tests passed (52 assertions in 1 test case)
+step6 green MassLaw_LevelSlopeBoundedSmoke exit=0 | All tests passed (140 assertions in 1 test case)
+step6 green TransientShaper_DurationMatches exit=0 | All tests passed (104 assertions in 1 test case)
+step6 green TransientShaper_DurationShortestCell exit=0 | All tests passed (54 assertions in 1 test case)
+harvest: green: three tables harvested and pasted, step 6 green (exit 0; status specs/profundum-phase6-mass-dynamics/evidence/run-log/close/harvest-status.txt)

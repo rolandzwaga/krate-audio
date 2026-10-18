@@ -1,0 +1,261 @@
+Filters: "MassChain_CoreAnchorValidated","MassDynamics_NonFinite","MassDynamicsHelpers_*","MassDynamics_SampleRates","MassChain_LimiterIdleSteadyState","MassCompressor_Audibility","MassDynamics_*" ~[long] ~[perf] ~[performance]
+Randomness seeded to: 1035069963
+MassDynamics_MonoSum (a): 75 renders, 0 with L != R
+MassDynamics_MonoSum (b): min GR -14.4451 dB, max shaper gain 12 dB, per-sample gain mismatches 0, side/mid in -9.54243 dB, out -9.54243 dB (|delta| 2.30926e-14)
+MassDynamics_TransparentAtNeutral E0 kSawAnchor: L bit-equal, R bit-equal, shaper gain 0 dB, compressor gain 0 dB
+MassDynamics_TransparentAtNeutral E0 reference: L bit-equal, R bit-equal, shaper gain 0 dB, compressor gain 0 dB
+MassDynamics_TransparentAtNeutral C3 kSawAnchor: L bit-equal, R bit-equal, shaper gain 0 dB, compressor gain 0 dB
+MassDynamics_TransparentAtNeutral C3 reference: L bit-equal, R bit-equal, shaper gain 0 dB, compressor gain 0 dB
+MassDynamics_ShaperThenCompressor: vs shaper->compressor pair bit-equal; vs reversed order differs
+MassDynamics_LatchesOnGrid: call at 8690 vs 8704 bit-equal; call at 8705 vs 8704 differs
+MassDynamics_PartitionInvariantDynamicsOnly block 17 vs 1: bit-equal
+MassDynamics_PartitionInvariantDynamicsOnly block 32 vs 1: bit-equal
+MassDynamics_PartitionInvariantDynamicsOnly block 64 vs 1: bit-equal
+MassDynamics_PartitionInvariantDynamicsOnly block 512 vs 1: bit-equal
+MassDynamics_PartitionInvariantDynamicsOnly: two renders from reset() bit-equal; vs a fresh render bit-equal
+MassDynamics_NoAllocation: 0 allocation(s) (positive control 1); Mass after the step 100, depth at 0 / 100 1 / 0, current depth 0
+MassDynamics_Lifecycle: f before reset 1, f at 96 kHz 1, f after prepare(48k) 0, release 50 ms; allocations 0 + 0
+[T011 SubBand] AM E1: M_sub(dft) = 0.999758 dB, M_sub(LP) = 0.99776 dB, hop = 145, P = 1164.95, LP group delay = 0.361465 periods (analog 0.361)
+[T011 SubBand] steady saw E0: M_sub(dft) = 2.51453e-06 dB, M_sub(LP) = 0.00453523 dB, LP group delay = 0.358491 periods (analog 0.361)
+[T011 AliasResidual] C3 saw: FFT length 131072, bin 2.92969 Hz; constant +6 dB -151.625 dBFS, 1 dB / 100 ms ramp -160.801 dBFS, 0 -> +12 dB step (positive control) -76.4921 dBFS
+[T011 PeriodDescriptors] saw f0 = 41.2034: L -12 / -12, E_low -4.89878 / -4.89877, E_high -12.034 / -12.035, THD -2.01052 / -2.01079, C 0.759183 / 0.75914 oct, w1Frac 0.613711 (period / describe)
+[T011 PeriodDescriptors] sine f0 = 41.2034: L -12 / -12, E_low -122.711 / -162.51, E_high -143.268 / -153.338, THD -122.673 / -152.842, C 5.96648e-13 / -6.17541e-05 oct, w1Frac 1 (period / describe)
+[T011 PeriodDescriptors] saw f0 = 130.813: L -12 / -12, E_low -4.89877 / -4.89809, E_high -12.034 / -12.0335, THD -2.01051 / -2.00946, C 0.759183 / 0.759116 oct, w1Frac 0.613711 (period / describe)
+[T011 PeriodDescriptors] sine f0 = 130.813: L -12 / -12, E_low -121.998 / -170.705, E_high -142.076 / -150.479, THD -121.956 / -150.438, C 6.99243e-13 / -9.80357e-05 oct, w1Frac 1 (period / describe)
+[T011 DeltaLStep] unprocessed saw E1: 12 dB
+[T011 RenderChainContract] E1 a1 (last interval) = 0.190081, anchor level = 0.5
+MassChain_CoreAnchorValidated E0 Mass 0: (a) other-field diffs 0, level diffs 0, a1 recorded 0.243273 measured 0.35523 (|err| 3.2883 dB, recorded, G8-3); (b) core attached == detached bit-equal; (c) non-finite 0, over ceiling 0 (max |out| 0.577001, ceiling 0.891251); (d) DC L -166.465 R -166.465 dBFS (bar -80); (e) anchor level target 0, RMS / (a1/sqrt2) 0, sum == fold + anchor bit-equal; w1(outL) 1 (recorded)
+MassChain_CoreAnchorValidated E0 Mass 25: (a) other-field diffs 0, level diffs 0, a1 recorded 0.243273 measured 0.352598 (|err| 3.22371 dB, recorded, G8-3); (b) core attached == detached bit-equal; (c) non-finite 0, over ceiling 0 (max |out| 0.668604, ceiling 0.891251); (d) DC L -152.328 R -152.328 dBFS (bar -80); (e) anchor level target 0.25, RMS / (a1/sqrt2) 0.249821, sum == fold + anchor bit-equal; w1(outL) 0.988693 (recorded)
+MassChain_CoreAnchorValidated E0 Mass 50: (a) other-field diffs 0, level diffs 0, a1 recorded 0.243273 measured 0.243271 (|err| 9.08345e-05 dB, bar 0.05 at Mass 50); (b) core attached == detached bit-equal; (c) non-finite 0, over ceiling 0 (max |out| 0.891251, ceiling 0.891251); (d) DC L -139.066 R -139.066 dBFS (bar -80); (e) anchor level target 0.5, RMS / (a1/sqrt2) 0.499641, sum == fold + anchor bit-equal; w1(outL) 0.653874 (recorded)
+MassChain_CoreAnchorValidated E0 Mass 75: (a) other-field diffs 0, level diffs 0, a1 recorded 0.243273 measured 0.0986349 (|err| 7.84128 dB, recorded, G8-3); (b) core attached == detached bit-equal; (c) non-finite 0, over ceiling 0 (max |out| 0.891251, ceiling 0.891251); (d) DC L -154.323 R -154.323 dBFS (bar -80); (e) anchor level target 0.75, RMS / (a1/sqrt2) 0.749462, sum == fold + anchor bit-equal; w1(outL) 0.38855 (recorded)
+MassChain_CoreAnchorValidated E0 Mass 100: (a) other-field diffs 0, level diffs 0, a1 recorded 0.243273 measured 0.0348916 (|err| 16.8675 dB, recorded, G8-3); (b) core attached == detached bit-equal; (c) non-finite 0, over ceiling 0 (max |out| 0.891251, ceiling 0.891251); (d) DC L -152.613 R -152.613 dBFS (bar -80); (e) anchor level target 1, RMS / (a1/sqrt2) 0.999283, sum == fold + anchor bit-equal; w1(outL) 0.294599 (recorded)
+MassChain_CoreAnchorValidated E1 Mass 0: (a) other-field diffs 0, level diffs 0, a1 recorded 0.190081 measured 0.355232 (|err| 5.43149 dB, recorded, G8-3); (b) core attached == detached bit-equal; (c) non-finite 0, over ceiling 0 (max |out| 0.609622, ceiling 0.891251); (d) DC L -144.873 R -144.873 dBFS (bar -80); (e) anchor level target 0, RMS / (a1/sqrt2) 0, sum == fold + anchor bit-equal; w1(outL) 1 (recorded)
+MassChain_CoreAnchorValidated E1 Mass 25: (a) other-field diffs 0, level diffs 0, a1 recorded 0.190081 measured 0.349939 (|err| 5.3011 dB, recorded, G8-3); (b) core attached == detached bit-equal; (c) non-finite 0, over ceiling 0 (max |out| 0.762735, ceiling 0.891251); (d) DC L -146.225 R -146.225 dBFS (bar -80); (e) anchor level target 0.25, RMS / (a1/sqrt2) 0.250093, sum == fold + anchor bit-equal; w1(outL) 0.976629 (recorded)
+MassChain_CoreAnchorValidated E1 Mass 50: (a) other-field diffs 0, level diffs 0, a1 recorded 0.190081 measured 0.19008 (|err| 3.71915e-05 dB, bar 0.05 at Mass 50); (b) core attached == detached bit-equal; (c) non-finite 0, over ceiling 0 (max |out| 0.891251, ceiling 0.891251); (d) DC L -136.992 R -136.992 dBFS (bar -80); (e) anchor level target 0.5, RMS / (a1/sqrt2) 0.500186, sum == fold + anchor bit-equal; w1(outL) 0.47116 (recorded)
+MassChain_CoreAnchorValidated E1 Mass 75: (a) other-field diffs 0, level diffs 0, a1 recorded 0.190081 measured 0.0664644 (|err| 9.12697 dB, recorded, G8-3); (b) core attached == detached bit-equal; (c) non-finite 0, over ceiling 0 (max |out| 0.891251, ceiling 0.891251); (d) DC L -141.913 R -141.913 dBFS (bar -80); (e) anchor level target 0.75, RMS / (a1/sqrt2) 0.75028, sum == fold + anchor bit-equal; w1(outL) 0.245523 (recorded)
+MassChain_CoreAnchorValidated E1 Mass 100: (a) other-field diffs 0, level diffs 0, a1 recorded 0.190081 measured 0.0220126 (|err| 18.7253 dB, recorded, G8-3); (b) core attached == detached bit-equal; (c) non-finite 0, over ceiling 0 (max |out| 0.891251, ceiling 0.891251); (d) DC L -152.304 R -152.304 dBFS (bar -80); (e) anchor level target 1, RMS / (a1/sqrt2) 1.00037, sum == fold + anchor bit-equal; w1(outL) 0.169628 (recorded)
+MassChain_CoreAnchorValidated E2 Mass 0: (a) other-field diffs 0, level diffs 0, a1 recorded 0.190081 measured 0.355233 (|err| 5.43151 dB, recorded, G8-3); (b) core attached == detached bit-equal; (c) non-finite 0, over ceiling 0 (max |out| 0.703685, ceiling 0.891251); (d) DC L -151.894 R -151.894 dBFS (bar -80); (e) anchor level target 0, RMS / (a1/sqrt2) 0, sum == fold + anchor bit-equal; w1(outL) 1 (recorded)
+MassChain_CoreAnchorValidated E2 Mass 25: (a) other-field diffs 0, level diffs 0, a1 recorded 0.190081 measured 0.349939 (|err| 5.3011 dB, recorded, G8-3); (b) core attached == detached bit-equal; (c) non-finite 0, over ceiling 0 (max |out| 0.729617, ceiling 0.891251); (d) DC L -151.811 R -151.811 dBFS (bar -80); (e) anchor level target 0.25, RMS / (a1/sqrt2) 0.249998, sum == fold + anchor bit-equal; w1(outL) 0.976842 (recorded)
+MassChain_CoreAnchorValidated E2 Mass 50: (a) other-field diffs 0, level diffs 0, a1 recorded 0.190081 measured 0.190078 (|err| 9.97272e-05 dB, bar 0.05 at Mass 50); (b) core attached == detached bit-equal; (c) non-finite 0, over ceiling 0 (max |out| 0.891251, ceiling 0.891251); (d) DC L -146.325 R -146.325 dBFS (bar -80); (e) anchor level target 0.5, RMS / (a1/sqrt2) 0.499995, sum == fold + anchor bit-equal; w1(outL) 0.473596 (recorded)
+MassChain_CoreAnchorValidated E2 Mass 75: (a) other-field diffs 0, level diffs 0, a1 recorded 0.190081 measured 0.0664627 (|err| 9.12719 dB, recorded, G8-3); (b) core attached == detached bit-equal; (c) non-finite 0, over ceiling 0 (max |out| 0.891251, ceiling 0.891251); (d) DC L -138.97 R -138.97 dBFS (bar -80); (e) anchor level target 0.75, RMS / (a1/sqrt2) 0.749993, sum == fold + anchor bit-equal; w1(outL) 0.225671 (recorded)
+MassChain_CoreAnchorValidated E2 Mass 100: (a) other-field diffs 0, level diffs 0, a1 recorded 0.190081 measured 0.0220111 (|err| 18.7259 dB, recorded, G8-3); (b) core attached == detached bit-equal; (c) non-finite 0, over ceiling 0 (max |out| 0.891251, ceiling 0.891251); (d) DC L -146.521 R -146.521 dBFS (bar -80); (e) anchor level target 1, RMS / (a1/sqrt2) 0.99999, sum == fold + anchor bit-equal; w1(outL) 0.159162 (recorded)
+MassChain_CoreAnchorValidated C3 Mass 0: (a) other-field diffs 0, level diffs 0, a1 recorded 0.190081 measured 0.355231 (|err| 5.43146 dB, recorded, G8-3); (b) core attached == detached bit-equal; (c) non-finite 0, over ceiling 0 (max |out| 0.673089, ceiling 0.891251); (d) DC L -123.469 R -123.469 dBFS (bar -80); (e) anchor level target 0, RMS / (a1/sqrt2) 0, sum == fold + anchor bit-equal; w1(outL) 1 (recorded)
+MassChain_CoreAnchorValidated C3 Mass 25: (a) other-field diffs 0, level diffs 0, a1 recorded 0.190081 measured 0.349938 (|err| 5.30107 dB, recorded, G8-3); (b) core attached == detached bit-equal; (c) non-finite 0, over ceiling 0 (max |out| 0.723988, ceiling 0.891251); (d) DC L -119.469 R -119.469 dBFS (bar -80); (e) anchor level target 0.25, RMS / (a1/sqrt2) 0.249946, sum == fold + anchor bit-equal; w1(outL) 0.976885 (recorded)
+MassChain_CoreAnchorValidated C3 Mass 50: (a) other-field diffs 0, level diffs 0, a1 recorded 0.190081 measured 0.19008 (|err| 4.92211e-05 dB, bar 0.05 at Mass 50); (b) core attached == detached bit-equal; (c) non-finite 0, over ceiling 0 (max |out| 0.891251, ceiling 0.891251); (d) DC L -112.887 R -112.887 dBFS (bar -80); (e) anchor level target 0.5, RMS / (a1/sqrt2) 0.499892, sum == fold + anchor bit-equal; w1(outL) 0.474087 (recorded)
+MassChain_CoreAnchorValidated C3 Mass 75: (a) other-field diffs 0, level diffs 0, a1 recorded 0.190081 measured 0.0664647 (|err| 9.12694 dB, recorded, G8-3); (b) core attached == detached bit-equal; (c) non-finite 0, over ceiling 0 (max |out| 0.891251, ceiling 0.891251); (d) DC L -113.276 R -113.276 dBFS (bar -80); (e) anchor level target 0.75, RMS / (a1/sqrt2) 0.749838, sum == fold + anchor bit-equal; w1(outL) 0.205507 (recorded)
+MassChain_CoreAnchorValidated C3 Mass 100: (a) other-field diffs 0, level diffs 0, a1 recorded 0.190081 measured 0.022013 (|err| 18.7252 dB, recorded, G8-3); (b) core attached == detached bit-equal; (c) non-finite 0, over ceiling 0 (max |out| 0.891251, ceiling 0.891251); (d) DC L -115.624 R -115.624 dBFS (bar -80); (e) anchor level target 1, RMS / (a1/sqrt2) 0.999784, sum == fold + anchor bit-equal; w1(outL) 0.147072 (recorded)
+MassChain_LimiterIdleSteadyState reference E0 Mass 0: engaged no, attack GR peak 0 dB, attack duration 0 ms, steady min GR from 1 s 0 dB (bar -0.01), samples counted 287938
+MassChain_LimiterIdleSteadyState reference E0 Mass 25: engaged no, attack GR peak 0 dB, attack duration 0 ms, steady min GR from 1 s 0 dB (bar -0.01), samples counted 287962
+MassChain_LimiterIdleSteadyState reference E0 Mass 50: engaged yes, attack GR peak -0.703357 dB, attack duration 356.458 ms, steady min GR from 1 s -0.000994595 dB (bar -0.01), samples counted 287980
+MassChain_LimiterIdleSteadyState reference E0 Mass 75: engaged yes, attack GR peak -2.51128 dB, attack duration 469.833 ms, steady min GR from 1 s -0.000994593 dB (bar -0.01), samples counted 287916
+MassChain_LimiterIdleSteadyState reference E0 Mass 100: engaged yes, attack GR peak -7.20889 dB, attack duration 504.208 ms, steady min GR from 1 s -0.000994592 dB (bar -0.01), samples counted 287926
+MassChain_LimiterIdleSteadyState reference E1 Mass 0: engaged no, attack GR peak 0 dB, attack duration 0 ms, steady min GR from 1 s 0 dB (bar -0.01), samples counted 287948
+MassChain_LimiterIdleSteadyState reference E1 Mass 25: engaged no, attack GR peak 0 dB, attack duration 0 ms, steady min GR from 1 s 0 dB (bar -0.01), samples counted 287964
+MassChain_LimiterIdleSteadyState reference E1 Mass 50: engaged yes, attack GR peak -2.50113 dB, attack duration 437 ms, steady min GR from 1 s -0.000994594 dB (bar -0.01), samples counted 287978
+MassChain_LimiterIdleSteadyState reference E1 Mass 75: engaged yes, attack GR peak -4.10462 dB, attack duration 486.708 ms, steady min GR from 1 s -0.000994594 dB (bar -0.01), samples counted 287928
+MassChain_LimiterIdleSteadyState reference E1 Mass 100: engaged yes, attack GR peak -7.88329 dB, attack duration 523.875 ms, steady min GR from 1 s -0.000994592 dB (bar -0.01), samples counted 287890
+MassChain_LimiterIdleSteadyState reference E2 Mass 0: engaged no, attack GR peak 0 dB, attack duration 0 ms, steady min GR from 1 s 0 dB (bar -0.01), samples counted 287946
+MassChain_LimiterIdleSteadyState reference E2 Mass 25: engaged no, attack GR peak 0 dB, attack duration 0 ms, steady min GR from 1 s 0 dB (bar -0.01), samples counted 287972
+MassChain_LimiterIdleSteadyState reference E2 Mass 50: engaged yes, attack GR peak -2.47389 dB, attack duration 446.083 ms, steady min GR from 1 s -0.000994593 dB (bar -0.01), samples counted 287974
+MassChain_LimiterIdleSteadyState reference E2 Mass 75: engaged yes, attack GR peak -3.94044 dB, attack duration 463.417 ms, steady min GR from 1 s -0.000994593 dB (bar -0.01), samples counted 287928
+MassChain_LimiterIdleSteadyState reference E2 Mass 100: engaged yes, attack GR peak -8.29518 dB, attack duration 514.771 ms, steady min GR from 1 s -0.000994593 dB (bar -0.01), samples counted 287926
+MassChain_LimiterIdleSteadyState reference C3 Mass 0: engaged no, attack GR peak 0 dB, attack duration 0 ms, steady min GR from 1 s 0 dB (bar -0.01), samples counted 287948
+MassChain_LimiterIdleSteadyState reference C3 Mass 25: engaged no, attack GR peak 0 dB, attack duration 0 ms, steady min GR from 1 s 0 dB (bar -0.01), samples counted 287970
+MassChain_LimiterIdleSteadyState reference C3 Mass 50: engaged yes, attack GR peak -2.44626 dB, attack duration 447.729 ms, steady min GR from 1 s -0.000994595 dB (bar -0.01), samples counted 287986
+MassChain_LimiterIdleSteadyState reference C3 Mass 75: engaged yes, attack GR peak -4.09704 dB, attack duration 464.833 ms, steady min GR from 1 s -0.000994592 dB (bar -0.01), samples counted 287932
+MassChain_LimiterIdleSteadyState reference C3 Mass 100: engaged yes, attack GR peak -9.51518 dB, attack duration 514.938 ms, steady min GR from 1 s -0.000994594 dB (bar -0.01), samples counted 287916
+MassChain_LimiterIdleSteadyState kSawAnchor E0 Mass 0: engaged no, attack GR peak 0 dB, attack duration 0 ms, steady min GR from 1 s 0 dB (bar -0.01), samples counted 287942
+MassChain_LimiterIdleSteadyState kSawAnchor E0 Mass 25: engaged no, attack GR peak 0 dB, attack duration 0 ms, steady min GR from 1 s 0 dB (bar -0.01), samples counted 287962
+MassChain_LimiterIdleSteadyState kSawAnchor E0 Mass 50: engaged no, attack GR peak 0 dB, attack duration 0 ms, steady min GR from 1 s 0 dB (bar -0.01), samples counted 287960
+MassChain_LimiterIdleSteadyState kSawAnchor E0 Mass 75: engaged yes, attack GR peak -2.29025 dB, attack duration 476.229 ms, steady min GR from 1 s -0.000994595 dB (bar -0.01), samples counted 287982
+MassChain_LimiterIdleSteadyState kSawAnchor E0 Mass 100: engaged yes, attack GR peak -7.0901 dB, attack duration 511.729 ms, steady min GR from 1 s -0.000994592 dB (bar -0.01), samples counted 287982
+MassChain_LimiterIdleSteadyState kSawAnchor E1 Mass 0: engaged no, attack GR peak 0 dB, attack duration 0 ms, steady min GR from 1 s 0 dB (bar -0.01), samples counted 287954
+MassChain_LimiterIdleSteadyState kSawAnchor E1 Mass 25: engaged no, attack GR peak 0 dB, attack duration 0 ms, steady min GR from 1 s 0 dB (bar -0.01), samples counted 287968
+MassChain_LimiterIdleSteadyState kSawAnchor E1 Mass 50: engaged yes, attack GR peak -1.99954 dB, attack duration 416.25 ms, steady min GR from 1 s -0.000994592 dB (bar -0.01), samples counted 287972
+MassChain_LimiterIdleSteadyState kSawAnchor E1 Mass 75: engaged yes, attack GR peak -3.66409 dB, attack duration 480.646 ms, steady min GR from 1 s -0.000994593 dB (bar -0.01), samples counted 287980
+MassChain_LimiterIdleSteadyState kSawAnchor E1 Mass 100: engaged yes, attack GR peak -5.81148 dB, attack duration 503.312 ms, steady min GR from 1 s -0.000994593 dB (bar -0.01), samples counted 287882
+MassChain_LimiterIdleSteadyState kSawAnchor E2 Mass 0: engaged no, attack GR peak 0 dB, attack duration 0 ms, steady min GR from 1 s 0 dB (bar -0.01), samples counted 287952
+MassChain_LimiterIdleSteadyState kSawAnchor E2 Mass 25: engaged no, attack GR peak 0 dB, attack duration 0 ms, steady min GR from 1 s 0 dB (bar -0.01), samples counted 287960
+MassChain_LimiterIdleSteadyState kSawAnchor E2 Mass 50: engaged yes, attack GR peak -1.7093 dB, attack duration 416.625 ms, steady min GR from 1 s -0.000994587 dB (bar -0.01), samples counted 287966
+MassChain_LimiterIdleSteadyState kSawAnchor E2 Mass 75: engaged yes, attack GR peak -4.35803 dB, attack duration 470.729 ms, steady min GR from 1 s -0.00099459 dB (bar -0.01), samples counted 287974
+MassChain_LimiterIdleSteadyState kSawAnchor E2 Mass 100: engaged yes, attack GR peak -6.278 dB, attack duration 500.688 ms, steady min GR from 1 s -0.000994592 dB (bar -0.01), samples counted 287872
+MassChain_LimiterIdleSteadyState kSawAnchor C3 Mass 0: engaged no, attack GR peak 0 dB, attack duration 0 ms, steady min GR from 1 s 0 dB (bar -0.01), samples counted 287960
+MassChain_LimiterIdleSteadyState kSawAnchor C3 Mass 25: engaged no, attack GR peak 0 dB, attack duration 0 ms, steady min GR from 1 s 0 dB (bar -0.01), samples counted 287966
+MassChain_LimiterIdleSteadyState kSawAnchor C3 Mass 50: engaged yes, attack GR peak -1.63838 dB, attack duration 416.583 ms, steady min GR from 1 s -0.000994589 dB (bar -0.01), samples counted 287978
+MassChain_LimiterIdleSteadyState kSawAnchor C3 Mass 75: engaged yes, attack GR peak -4.91826 dB, attack duration 477.833 ms, steady min GR from 1 s -0.000994595 dB (bar -0.01), samples counted 287976
+MassChain_LimiterIdleSteadyState kSawAnchor C3 Mass 100: engaged yes, attack GR peak -6.85223 dB, attack duration 501.229 ms, steady min GR from 1 s -0.000994594 dB (bar -0.01), samples counted 287920
+MassChain_LimiterIdleSteadyState kSineAnchor E0 Mass 0: engaged no, attack GR peak 0 dB, attack duration 0 ms, steady min GR from 1 s 0 dB (bar -0.01), samples counted 287938
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+MassChain_LimiterIdleSteadyState
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\mass_chain_test.cpp(463)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\mass_chain_test.cpp(492): warning:
+  kSineAnchor E0 Mass 0: SC-015 steady min GR 0 dB recorded (G8-6: sub-only
+  voice, makeup unopposed by the 2 f0 sidechain)
+
+MassChain_LimiterIdleSteadyState kSineAnchor E0 Mass 25: engaged no, attack GR peak 0 dB, attack duration 0 ms, steady min GR from 1 s 0 dB (bar -0.01), samples counted 287948
+F:\projects\iterum\dsp\tests\unit\systems\mass_chain_test.cpp(492): warning:
+  kSineAnchor E0 Mass 25: SC-015 steady min GR 0 dB recorded (G8-6: sub-only
+  voice, makeup unopposed by the 2 f0 sidechain)
+
+MassChain_LimiterIdleSteadyState kSineAnchor E0 Mass 50: engaged yes, attack GR peak -1.42759 dB, attack duration 398.25 ms, steady min GR from 1 s -0.000994594 dB (bar -0.01), samples counted 287960
+F:\projects\iterum\dsp\tests\unit\systems\mass_chain_test.cpp(492): warning:
+  kSineAnchor E0 Mass 50: SC-015 steady min GR -0.000994594 dB recorded (G8-6:
+  sub-only voice, makeup unopposed by the 2 f0 sidechain)
+
+MassChain_LimiterIdleSteadyState kSineAnchor E0 Mass 75: engaged yes, attack GR peak -4.31536 dB, attack duration 539.479 ms, steady min GR from 1 s -0.000994595 dB (bar -0.01), samples counted 287978
+F:\projects\iterum\dsp\tests\unit\systems\mass_chain_test.cpp(492): warning:
+  kSineAnchor E0 Mass 75: SC-015 steady min GR -0.000994595 dB recorded (G8-6:
+  sub-only voice, makeup unopposed by the 2 f0 sidechain)
+
+MassChain_LimiterIdleSteadyState kSineAnchor E0 Mass 100: engaged yes, attack GR peak -7.77936 dB, attack duration 998.25 ms, steady min GR from 1 s -1.4322 dB (bar -0.01), samples counted 287988
+F:\projects\iterum\dsp\tests\unit\systems\mass_chain_test.cpp(492): warning:
+  kSineAnchor E0 Mass 100: SC-015 steady min GR -1.4322 dB recorded (G8-6: sub-
+  only voice, makeup unopposed by the 2 f0 sidechain)
+
+MassChain_LimiterIdleSteadyState kSineAnchor E1 Mass 0: engaged no, attack GR peak 0 dB, attack duration 0 ms, steady min GR from 1 s 0 dB (bar -0.01), samples counted 287946
+F:\projects\iterum\dsp\tests\unit\systems\mass_chain_test.cpp(492): warning:
+  kSineAnchor E1 Mass 0: SC-015 steady min GR 0 dB recorded (G8-6: sub-only
+  voice, makeup unopposed by the 2 f0 sidechain)
+
+MassChain_LimiterIdleSteadyState kSineAnchor E1 Mass 25: engaged yes, attack GR peak -0.360371 dB, attack duration 287.375 ms, steady min GR from 1 s -0.000994591 dB (bar -0.01), samples counted 287958
+F:\projects\iterum\dsp\tests\unit\systems\mass_chain_test.cpp(492): warning:
+  kSineAnchor E1 Mass 25: SC-015 steady min GR -0.000994591 dB recorded (G8-6:
+  sub-only voice, makeup unopposed by the 2 f0 sidechain)
+
+MassChain_LimiterIdleSteadyState kSineAnchor E1 Mass 50: engaged yes, attack GR peak -1.96199 dB, attack duration 429.854 ms, steady min GR from 1 s -0.000994594 dB (bar -0.01), samples counted 287966
+F:\projects\iterum\dsp\tests\unit\systems\mass_chain_test.cpp(492): warning:
+  kSineAnchor E1 Mass 50: SC-015 steady min GR -0.000994594 dB recorded (G8-6:
+  sub-only voice, makeup unopposed by the 2 f0 sidechain)
+
+MassChain_LimiterIdleSteadyState kSineAnchor E1 Mass 75: engaged yes, attack GR peak -4.23799 dB, attack duration 544.688 ms, steady min GR from 1 s -0.000994592 dB (bar -0.01), samples counted 287978
+F:\projects\iterum\dsp\tests\unit\systems\mass_chain_test.cpp(492): warning:
+  kSineAnchor E1 Mass 75: SC-015 steady min GR -0.000994592 dB recorded (G8-6:
+  sub-only voice, makeup unopposed by the 2 f0 sidechain)
+
+MassChain_LimiterIdleSteadyState kSineAnchor E1 Mass 100: engaged yes, attack GR peak -6.70631 dB, attack duration 998.854 ms, steady min GR from 1 s -0.218475 dB (bar -0.01), samples counted 287986
+F:\projects\iterum\dsp\tests\unit\systems\mass_chain_test.cpp(492): warning:
+  kSineAnchor E1 Mass 100: SC-015 steady min GR -0.218475 dB recorded (G8-6:
+  sub-only voice, makeup unopposed by the 2 f0 sidechain)
+
+MassChain_LimiterIdleSteadyState kSineAnchor E2 Mass 0: engaged no, attack GR peak 0 dB, attack duration 0 ms, steady min GR from 1 s 0 dB (bar -0.01), samples counted 287950
+F:\projects\iterum\dsp\tests\unit\systems\mass_chain_test.cpp(492): warning:
+  kSineAnchor E2 Mass 0: SC-015 steady min GR 0 dB recorded (G8-6: sub-only
+  voice, makeup unopposed by the 2 f0 sidechain)
+
+MassChain_LimiterIdleSteadyState kSineAnchor E2 Mass 25: engaged yes, attack GR peak -0.0780643 dB, attack duration 164.833 ms, steady min GR from 1 s -0.000994592 dB (bar -0.01), samples counted 287952
+F:\projects\iterum\dsp\tests\unit\systems\mass_chain_test.cpp(492): warning:
+  kSineAnchor E2 Mass 25: SC-015 steady min GR -0.000994592 dB recorded (G8-6:
+  sub-only voice, makeup unopposed by the 2 f0 sidechain)
+
+MassChain_LimiterIdleSteadyState kSineAnchor E2 Mass 50: engaged yes, attack GR peak -1.70299 dB, attack duration 419.333 ms, steady min GR from 1 s -0.000994594 dB (bar -0.01), samples counted 287962
+F:\projects\iterum\dsp\tests\unit\systems\mass_chain_test.cpp(492): warning:
+  kSineAnchor E2 Mass 50: SC-015 steady min GR -0.000994594 dB recorded (G8-6:
+  sub-only voice, makeup unopposed by the 2 f0 sidechain)
+
+MassChain_LimiterIdleSteadyState kSineAnchor E2 Mass 75: engaged yes, attack GR peak -4.0051 dB, attack duration 546.188 ms, steady min GR from 1 s -0.000994593 dB (bar -0.01), samples counted 287984
+F:\projects\iterum\dsp\tests\unit\systems\mass_chain_test.cpp(492): warning:
+  kSineAnchor E2 Mass 75: SC-015 steady min GR -0.000994593 dB recorded (G8-6:
+  sub-only voice, makeup unopposed by the 2 f0 sidechain)
+
+MassChain_LimiterIdleSteadyState kSineAnchor E2 Mass 100: engaged yes, attack GR peak -6.23817 dB, attack duration 999.188 ms, steady min GR from 1 s -0.117963 dB (bar -0.01), samples counted 287984
+F:\projects\iterum\dsp\tests\unit\systems\mass_chain_test.cpp(492): warning:
+  kSineAnchor E2 Mass 100: SC-015 steady min GR -0.117963 dB recorded (G8-6:
+  sub-only voice, makeup unopposed by the 2 f0 sidechain)
+
+MassChain_LimiterIdleSteadyState kSineAnchor C3 Mass 0: engaged no, attack GR peak 0 dB, attack duration 0 ms, steady min GR from 1 s 0 dB (bar -0.01), samples counted 287946
+F:\projects\iterum\dsp\tests\unit\systems\mass_chain_test.cpp(492): warning:
+  kSineAnchor C3 Mass 0: SC-015 steady min GR 0 dB recorded (G8-6: sub-only
+  voice, makeup unopposed by the 2 f0 sidechain)
+
+MassChain_LimiterIdleSteadyState kSineAnchor C3 Mass 25: engaged yes, attack GR peak -0.0231235 dB, attack duration 67.4583 ms, steady min GR from 1 s -0.000994592 dB (bar -0.01), samples counted 287958
+F:\projects\iterum\dsp\tests\unit\systems\mass_chain_test.cpp(492): warning:
+  kSineAnchor C3 Mass 25: SC-015 steady min GR -0.000994592 dB recorded (G8-6:
+  sub-only voice, makeup unopposed by the 2 f0 sidechain)
+
+MassChain_LimiterIdleSteadyState kSineAnchor C3 Mass 50: engaged yes, attack GR peak -1.62981 dB, attack duration 418.708 ms, steady min GR from 1 s -0.000994594 dB (bar -0.01), samples counted 287966
+F:\projects\iterum\dsp\tests\unit\systems\mass_chain_test.cpp(492): warning:
+  kSineAnchor C3 Mass 50: SC-015 steady min GR -0.000994594 dB recorded (G8-6:
+  sub-only voice, makeup unopposed by the 2 f0 sidechain)
+
+MassChain_LimiterIdleSteadyState kSineAnchor C3 Mass 75: engaged yes, attack GR peak -3.92337 dB, attack duration 549.958 ms, steady min GR from 1 s -0.000994593 dB (bar -0.01), samples counted 287976
+F:\projects\iterum\dsp\tests\unit\systems\mass_chain_test.cpp(492): warning:
+  kSineAnchor C3 Mass 75: SC-015 steady min GR -0.000994593 dB recorded (G8-6:
+  sub-only voice, makeup unopposed by the 2 f0 sidechain)
+
+MassChain_LimiterIdleSteadyState kSineAnchor C3 Mass 100: engaged yes, attack GR peak -5.77363 dB, attack duration 999.333 ms, steady min GR from 1 s -0.497131 dB (bar -0.01), samples counted 287986
+F:\projects\iterum\dsp\tests\unit\systems\mass_chain_test.cpp(492): warning:
+  kSineAnchor C3 Mass 100: SC-015 steady min GR -0.497131 dB recorded (G8-6:
+  sub-only voice, makeup unopposed by the 2 f0 sidechain)
+
+MassChain_LimiterIdleSteadyState: 60 cells, 38 engaged at some sample
+MassDynamics_PartitionInvariant block 17 vs 1: bit-equal
+MassDynamics_PartitionInvariant block 32 vs 1: bit-equal
+MassDynamics_PartitionInvariant block 64 vs 1: bit-equal
+MassDynamics_PartitionInvariant block 512 vs 1: bit-equal
+MassDynamics_PartitionInvariant: two renders from fresh fixtures bit-equal
+MassDynamics_SampleRates fs 44100 Mass 0: non-finite 0, over ceiling 0, max |out| 0.609659 (ceiling 0.891251)
+MassDynamics_SampleRates fs 44100 Mass 50: non-finite 0, over ceiling 0, max |out| 0.891251 (ceiling 0.891251)
+MassDynamics_SampleRates fs 44100 Mass 100: non-finite 0, over ceiling 0, max |out| 0.891251 (ceiling 0.891251)
+MassDynamics_SampleRates fs 48000 Mass 0: non-finite 0, over ceiling 0, max |out| 0.609622 (ceiling 0.891251)
+MassDynamics_SampleRates fs 48000 Mass 50: non-finite 0, over ceiling 0, max |out| 0.891251 (ceiling 0.891251)
+MassDynamics_SampleRates fs 48000 Mass 100: non-finite 0, over ceiling 0, max |out| 0.891251 (ceiling 0.891251)
+MassDynamics_SampleRates fs 88200 Mass 0: non-finite 0, over ceiling 0, max |out| 0.609433 (ceiling 0.891251)
+MassDynamics_SampleRates fs 88200 Mass 50: non-finite 0, over ceiling 0, max |out| 0.891251 (ceiling 0.891251)
+MassDynamics_SampleRates fs 88200 Mass 100: non-finite 0, over ceiling 0, max |out| 0.891251 (ceiling 0.891251)
+MassDynamics_SampleRates fs 96000 Mass 0: non-finite 0, over ceiling 0, max |out| 0.609422 (ceiling 0.891251)
+MassDynamics_SampleRates fs 96000 Mass 50: non-finite 0, over ceiling 0, max |out| 0.891251 (ceiling 0.891251)
+MassDynamics_SampleRates fs 96000 Mass 100: non-finite 0, over ceiling 0, max |out| 0.891251 (ceiling 0.891251)
+MassDynamics_SampleRates fs 192000 Mass 0: non-finite 0, over ceiling 0, max |out| 0.609316 (ceiling 0.891251)
+MassDynamics_SampleRates fs 192000 Mass 50: non-finite 0, over ceiling 0, max |out| 0.891251 (ceiling 0.891251)
+MassDynamics_SampleRates fs 192000 Mass 100: non-finite 0, over ceiling 0, max |out| 0.891251 (ceiling 0.891251)
+MassDynamics_SampleRates fs 44100: saw steady -5.99954 dB (48k -5.99951), onset peak 12 dB (48k 12); sine steady -5.99963 dB (48k -5.99962), onset peak 12 dB (48k 12); chain M_sub 0.000214567 dB (48k 0.000120126)
+MassDynamics_SampleRates fs 48000: saw steady -5.99951 dB (48k -5.99951), onset peak 12 dB (48k 12); sine steady -5.99962 dB (48k -5.99962), onset peak 12 dB (48k 12); chain M_sub 0.000120126 dB (48k 0.000120126)
+MassDynamics_SampleRates fs 88200: saw steady -5.99928 dB (48k -5.99951), onset peak 12 dB (48k 12); sine steady -5.99947 dB (48k -5.99962), onset peak 12 dB (48k 12); chain M_sub 0.000176939 dB (48k 0.000120126)
+MassDynamics_SampleRates fs 96000: saw steady -5.99921 dB (48k -5.99951), onset peak 12 dB (48k 12); sine steady -5.99944 dB (48k -5.99962), onset peak 12 dB (48k 12); chain M_sub 0.000580409 dB (48k 0.000120126)
+MassDynamics_SampleRates fs 192000: saw steady -5.99843 dB (48k -5.99951), onset peak 12 dB (48k 12); sine steady -5.99888 dB (48k -5.99962), onset peak 12 dB (48k 12); chain M_sub 0.000347287 dB (48k 0.000120126)
+MassDynamics_SampleRates: prepare(48k) -> prepare(96k) -> prepare(48k) render vs fresh 48 kHz: bit-equal
+MassCompressor_Audibility E1 kSawAnchor: dL_step(0) 11.999011 dB, dL_step(1) 5.477971 dB, difference 6.521040 dB (bar >= 3); amount-1 steady GR (recorded) low 0.034238 dB, high 6.555278 dB
+[T016 SC-010] positive control fs 48000: hard 0 -> +12 dB step on a C3 kSawAnchor, residual -76.4921 dBFS (must read > -80)
+[T016 SC-010] fs 48000 E1 (41.2034 Hz) kSawAnchor A 12 dB, method Residual gates
+    residual steady: frame 131072, bin 0.366211 Hz, A_in -161.428 dBFS, A_out -118.632 dBFS pass
+    residual moving: FFT 131072 (8x domain), bin 2.92969 Hz; burst -122.428 dBFS (gain -2.93815 .. 17.8421 dB), step -112.228 dBFS (bar -80)
+    spec steady [1 s, 2 s]: frame 32768, bin 1.46484 Hz, A_in -164.612 dBFS, A_out -119.323 dBFS pass
+    spec burst [0, 100 ms]: frame 4096, bin 11.7188 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+    spec step [step, step + 100 ms]: frame 4096, bin 11.7188 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+MassDynamics_NonFinite [BassCompressor]: non-finite outputs 0, sanitised input samples 144, of which non-zero at the output 0
+MassDynamics_NonFinite [BassCompressor]: burst 0 NaN L pre -12.562284 dB post(100 ms) -12.562752 dB delta -0.000468 dB (at 100 ms -0.000468 dB, recorded) stateFinite 1
+MassDynamics_NonFinite [BassCompressor]: burst 1 +Inf L pre -12.562284 dB post(100 ms) -12.562752 dB delta -0.000468 dB (at 100 ms -0.000468 dB, recorded) stateFinite 1
+MassDynamics_NonFinite [BassCompressor]: burst 2 -Inf L pre -12.562284 dB post(100 ms) -12.562752 dB delta -0.000468 dB (at 100 ms -0.000468 dB, recorded) stateFinite 1
+MassDynamics_NonFinite [BassCompressor]: burst 3 NaN L+R pre -12.562284 dB post(100 ms) -12.562560 dB delta -0.000277 dB (at 100 ms -0.000277 dB, recorded) stateFinite 1
+MassDynamics_NonFinite [BassCompressor]: burst 4 +Inf L+R pre -12.562092 dB post(100 ms) -12.562596 dB delta -0.000503 dB (at 100 ms -0.000503 dB, recorded) stateFinite 1
+MassDynamics_NonFinite [BassCompressor]: burst 5 -Inf L+R pre -12.562127 dB post(100 ms) -12.562502 dB delta -0.000375 dB (at 100 ms -0.000375 dB, recorded) stateFinite 1
+MassDynamics_NonFinite [MassDynamics]: non-finite outputs 0, sanitised input samples 144, of which non-zero at the output 0
+MassDynamics_NonFinite [MassDynamics]: burst 0 NaN L pre -14.542500 dB post(600 ms) -14.543444 dB delta -0.000944 dB (at 100 ms -0.415942 dB, recorded) stateFinite 1
+MassDynamics_NonFinite [MassDynamics]: burst 1 +Inf L pre -14.542610 dB post(600 ms) -14.543447 dB delta -0.000837 dB (at 100 ms -0.413476 dB, recorded) stateFinite 1
+MassDynamics_NonFinite [MassDynamics]: burst 2 -Inf L pre -14.542637 dB post(600 ms) -14.543405 dB delta -0.000769 dB (at 100 ms -0.412007 dB, recorded) stateFinite 1
+MassDynamics_NonFinite [MassDynamics]: burst 3 NaN L+R pre -14.542616 dB post(600 ms) -14.543395 dB delta -0.000779 dB (at 100 ms -0.409516 dB, recorded) stateFinite 1
+MassDynamics_NonFinite [MassDynamics]: burst 4 +Inf L+R pre -14.542556 dB post(600 ms) -14.543467 dB delta -0.000911 dB (at 100 ms -0.409331 dB, recorded) stateFinite 1
+MassDynamics_NonFinite [MassDynamics]: burst 5 -Inf L+R pre -14.542664 dB post(600 ms) -14.543400 dB delta -0.000736 dB (at 100 ms -0.406419 dB, recorded) stateFinite 1
+MassDynamics_NonFinite [BassCompressor setters] before prepare NaN: amount 0.500000 corner 79.999992 Hz
+MassDynamics_NonFinite [BassCompressor setters] before prepare +Inf: amount 0.500000 corner 79.999992 Hz
+MassDynamics_NonFinite [BassCompressor setters] before prepare -Inf: amount 0.500000 corner 79.999992 Hz
+MassDynamics_NonFinite [BassCompressor setters] after prepare NaN: amount 0.500000 corner 79.999992 Hz
+MassDynamics_NonFinite [BassCompressor setters] after prepare +Inf: amount 0.500000 corner 79.999992 Hz
+MassDynamics_NonFinite [BassCompressor setters] after prepare -Inf: amount 0.500000 corner 79.999992 Hz
+MassDynamics_NonFinite [MassDynamics setters] before prepare NaN: duration 100.000000 ms attack 12.000000 dB sustain -6.000000 dB amount 0.500000 corner 79.999992 Hz
+MassDynamics_NonFinite [MassDynamics setters] before prepare +Inf: duration 100.000000 ms attack 12.000000 dB sustain -6.000000 dB amount 0.500000 corner 79.999992 Hz
+MassDynamics_NonFinite [MassDynamics setters] before prepare -Inf: duration 100.000000 ms attack 12.000000 dB sustain -6.000000 dB amount 0.500000 corner 79.999992 Hz
+MassDynamics_NonFinite [MassDynamics setters] after prepare NaN: duration 100.000000 ms attack 12.000000 dB sustain -6.000000 dB amount 0.500000 corner 79.999992 Hz
+MassDynamics_NonFinite [MassDynamics setters] after prepare +Inf: duration 100.000000 ms attack 12.000000 dB sustain -6.000000 dB amount 0.500000 corner 79.999992 Hz
+MassDynamics_NonFinite [MassDynamics setters] after prepare -Inf: duration 100.000000 ms attack 12.000000 dB sustain -6.000000 dB amount 0.500000 corner 79.999992 Hz
+===============================================================================
+All tests passed (4037 assertions in 22 test cases)
+

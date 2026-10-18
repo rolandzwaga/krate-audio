@@ -1,0 +1,14 @@
+Filters: "MassDynamicsHelpers_*"
+Randomness seeded to: 1341407507
+[T011 SubBand] AM E1: M_sub(dft) = 0.999758 dB, M_sub(LP) = 0.99776 dB, hop = 145, P = 1164.95, LP group delay = 0.361465 periods (analog 0.361)
+[T011 SubBand] steady saw E0: M_sub(dft) = 2.51453e-06 dB, M_sub(LP) = 0.00453523 dB, LP group delay = 0.358491 periods (analog 0.361)
+[T011 AliasResidual] C3 saw: FFT length 131072, bin 2.92969 Hz; constant +6 dB -151.625 dBFS, 1 dB / 100 ms ramp -160.801 dBFS, 0 -> +12 dB step (positive control) -76.4921 dBFS
+[T011 PeriodDescriptors] saw f0 = 41.2034: L -12 / -12, E_low -4.89878 / -4.89877, E_high -12.034 / -12.035, THD -2.01052 / -2.01079, C 0.759183 / 0.75914 oct, w1Frac 0.613711 (period / describe)
+[T011 PeriodDescriptors] sine f0 = 41.2034: L -12 / -12, E_low -122.711 / -162.51, E_high -143.268 / -153.338, THD -122.673 / -152.842, C 5.96648e-13 / -6.17541e-05 oct, w1Frac 1 (period / describe)
+[T011 PeriodDescriptors] saw f0 = 130.813: L -12 / -12, E_low -4.89877 / -4.89809, E_high -12.034 / -12.0335, THD -2.01051 / -2.00946, C 0.759183 / 0.759116 oct, w1Frac 0.613711 (period / describe)
+[T011 PeriodDescriptors] sine f0 = 130.813: L -12 / -12, E_low -121.998 / -170.705, E_high -142.076 / -150.479, THD -121.956 / -150.438, C 6.99243e-13 / -9.80357e-05 oct, w1Frac 1 (period / describe)
+[T011 DeltaLStep] unprocessed saw E1: 12 dB
+[T011 RenderChainContract] E1 a1 (last interval) = 0.190081, anchor level = 0.5
+===============================================================================
+All tests passed (415 assertions in 7 test cases)
+

@@ -1,0 +1,338 @@
+=== T019 step 6 harvest-dependent per-push cases 2026-10-18T06:36:52Z commit 02fecee1
+
+=== MassCompressor_MakeupMatchesGr
+Filters: "MassCompressor_MakeupMatchesGr"
+Randomness seeded to: 3952334225
+MassCompressor_MakeupMatchesGr amount 0.000000 E1: steady GR -0.000000 dB, makeup 0.000000 dB, residual +0.000000 dB
+MassCompressor_MakeupMatchesGr amount 0 E1: 0 samples with GR != 0.0f
+MassCompressor_MakeupMatchesGr amount 0.000000 C3: steady GR -0.000000 dB, makeup 0.000000 dB, residual +0.000000 dB
+MassCompressor_MakeupMatchesGr amount 0 C3: 0 samples with GR != 0.0f
+MassCompressor_MakeupMatchesGr amount 0.250000 E1: steady GR 0.247146 dB, makeup 0.248969 dB, residual +0.001823 dB
+MassCompressor_MakeupMatchesGr amount 0.250000 C3: steady GR 0.250792 dB, makeup 0.248969 dB, residual -0.001823 dB
+MassCompressor_MakeupMatchesGr amount 0.500000 E1: steady GR 1.279652 dB, makeup 1.284698 dB, residual +0.005046 dB
+MassCompressor_MakeupMatchesGr amount 0.500000 C3: steady GR 1.289744 dB, makeup 1.284698 dB, residual -0.005046 dB
+MassCompressor_MakeupMatchesGr amount 0.750000 E1: steady GR 3.274170 dB, makeup 3.281108 dB, residual +0.006938 dB
+MassCompressor_MakeupMatchesGr amount 0.750000 C3: steady GR 3.288046 dB, makeup 3.281108 dB, residual -0.006938 dB
+MassCompressor_MakeupMatchesGr amount 1.000000 E1: steady GR 5.833652 dB, makeup 5.842104 dB, residual +0.008452 dB
+MassCompressor_MakeupMatchesGr amount 1.000000 C3: steady GR 5.850556 dB, makeup 5.842104 dB, residual -0.008452 dB
+===============================================================================
+All tests passed (99 assertions in 1 test case)
+
+exit: 0 wall: 2 s
+
+=== MassCompressor_NoSubPumping
+Filters: "MassCompressor_NoSubPumping"
+Randomness seeded to: 64560183
+MassCompressor_NoSubPumping E0: (a) M_sub dft 0.000861 dB, lp 0.004201 dB (LP group delay 0.358491 periods); (d) GR 4.039507 dB; (b) GR[1.5,2] 3.941658 dB, GR[3,3.5] 4.230521 dB, |diff| 0.288863 dB
+MassCompressor_NoSubPumping E1: (a) M_sub dft 0.000075 dB, lp 0.003282 dB (LP group delay 0.361465 periods); (d) GR 5.833652 dB; (b) GR[1.5,2] 5.777013 dB, GR[3,3.5] 5.945211 dB, |diff| 0.168197 dB
+MassCompressor_NoSubPumping E2: (a) M_sub dft 0.000368 dB, lp 0.001387 dB (LP group delay 0.361306 periods); (d) GR 5.837495 dB; (b) GR[1.5,2] 5.780823 dB, GR[3,3.5] 5.949153 dB, |diff| 0.168331 dB
+MassCompressor_NoSubPumping C3: (a) M_sub dft 0.000779 dB, lp 0.001018 dB (LP group delay 0.361173 periods); (d) GR 5.850556 dB; (b) GR[1.5,2] 5.794075 dB, GR[3,3.5] 5.961659 dB, |diff| 0.167583 dB
+MassCompressor_NoSubPumping (c) HP bypassed E0: (a) M_sub dft 0.000065 dB, lp 0.006400 dB (LP group delay 0.358491 periods); (d) GR 4.140724 dB; (b) GR[1.5,2] 3.790014 dB, GR[3,3.5] 4.801153 dB, |diff| 1.011139 dB
+MassCompressor_NoSubPumping (c) E0 positive control: (a) within, (b) EXCEEDS -> control has teeth (with HP: |dGR| 0.288863 dB)
+===============================================================================
+All tests passed (182 assertions in 1 test case)
+
+exit: 0 wall: 2 s
+
+=== MassCompressor_RectifiedFeedNegativeControl
+Filters: "MassCompressor_RectifiedFeedNegativeControl"
+Randomness seeded to: 980281163
+MassCompressor_RectifiedFeedNegativeControl E0: (a) M_sub dft 0.000052 dB, lp 0.005226 dB (LP group delay 0.358491 periods); (d) GR 0.000021 dB; (b) GR[1.5,2] 0.000000 dB, GR[3,3.5] 0.000646 dB, |diff| 0.000646 dB
+MassCompressor_RectifiedFeedNegativeControl E0 verdict: (b) passes, (d) FAILS -> counted failure
+MassCompressor_RectifiedFeedNegativeControl E1: (a) M_sub dft 0.000158 dB, lp 0.002134 dB (LP group delay 0.361465 periods); (d) GR -0.000000 dB; (b) GR[1.5,2] -0.000000 dB, GR[3,3.5] -0.000000 dB, |diff| 0.000000 dB
+MassCompressor_RectifiedFeedNegativeControl E1 verdict: (b) passes, (d) FAILS -> counted failure
+MassCompressor_RectifiedFeedNegativeControl E2: (a) M_sub dft 0.000554 dB, lp 0.001202 dB (LP group delay 0.361306 periods); (d) GR -0.000000 dB; (b) GR[1.5,2] -0.000000 dB, GR[3,3.5] -0.000000 dB, |diff| 0.000000 dB
+MassCompressor_RectifiedFeedNegativeControl E2 verdict: (b) passes, (d) FAILS
+MassCompressor_RectifiedFeedNegativeControl C3: (a) M_sub dft 0.001273 dB, lp 0.001472 dB (LP group delay 0.361173 periods); (d) GR -0.000000 dB; (b) GR[1.5,2] -0.000000 dB, GR[3,3.5] -0.000000 dB, |diff| 0.000000 dB
+MassCompressor_RectifiedFeedNegativeControl C3 verdict: (b) passes, (d) FAILS
+===============================================================================
+All tests passed (133 assertions in 1 test case)
+
+exit: 0 wall: 2 s
+
+=== MassChain_LimiterIdleSteadyState
+Filters: "MassChain_LimiterIdleSteadyState"
+Randomness seeded to: 2916122013
+MassChain_LimiterIdleSteadyState reference E0 Mass 0: engaged no, attack GR peak 0 dB, attack duration 0 ms, steady min GR from 1 s 0 dB (bar -0.01), samples counted 287950
+MassChain_LimiterIdleSteadyState reference E0 Mass 25: engaged no, attack GR peak 0 dB, attack duration 0 ms, steady min GR from 1 s 0 dB (bar -0.01), samples counted 287966
+MassChain_LimiterIdleSteadyState reference E0 Mass 50: engaged yes, attack GR peak -0.703356 dB, attack duration 356.458 ms, steady min GR from 1 s -0.000994595 dB (bar -0.01), samples counted 287980
+MassChain_LimiterIdleSteadyState reference E0 Mass 75: engaged yes, attack GR peak -2.49834 dB, attack duration 469.5 ms, steady min GR from 1 s -0.000994594 dB (bar -0.01), samples counted 287906
+MassChain_LimiterIdleSteadyState reference E0 Mass 100: engaged yes, attack GR peak -7.20602 dB, attack duration 503.396 ms, steady min GR from 1 s -0.000994594 dB (bar -0.01), samples counted 287942
+MassChain_LimiterIdleSteadyState reference E1 Mass 0: engaged no, attack GR peak 0 dB, attack duration 0 ms, steady min GR from 1 s 0 dB (bar -0.01), samples counted 287958
+MassChain_LimiterIdleSteadyState reference E1 Mass 25: engaged no, attack GR peak 0 dB, attack duration 0 ms, steady min GR from 1 s 0 dB (bar -0.01), samples counted 287968
+MassChain_LimiterIdleSteadyState reference E1 Mass 50: engaged yes, attack GR peak -2.50113 dB, attack duration 437 ms, steady min GR from 1 s -0.000994594 dB (bar -0.01), samples counted 287978
+MassChain_LimiterIdleSteadyState reference E1 Mass 75: engaged yes, attack GR peak -4.09268 dB, attack duration 486.521 ms, steady min GR from 1 s -0.000994594 dB (bar -0.01), samples counted 287926
+MassChain_LimiterIdleSteadyState reference E1 Mass 100: engaged yes, attack GR peak -7.8662 dB, attack duration 523.792 ms, steady min GR from 1 s -0.000994595 dB (bar -0.01), samples counted 287892
+MassChain_LimiterIdleSteadyState reference E2 Mass 0: engaged no, attack GR peak 0 dB, attack duration 0 ms, steady min GR from 1 s 0 dB (bar -0.01), samples counted 287956
+MassChain_LimiterIdleSteadyState reference E2 Mass 25: engaged no, attack GR peak 0 dB, attack duration 0 ms, steady min GR from 1 s 0 dB (bar -0.01), samples counted 287974
+MassChain_LimiterIdleSteadyState reference E2 Mass 50: engaged yes, attack GR peak -2.47389 dB, attack duration 446.083 ms, steady min GR from 1 s -0.000994593 dB (bar -0.01), samples counted 287974
+MassChain_LimiterIdleSteadyState reference E2 Mass 75: engaged yes, attack GR peak -3.92479 dB, attack duration 463.188 ms, steady min GR from 1 s -0.000994594 dB (bar -0.01), samples counted 287934
+MassChain_LimiterIdleSteadyState reference E2 Mass 100: engaged yes, attack GR peak -8.28241 dB, attack duration 514.729 ms, steady min GR from 1 s -0.000994594 dB (bar -0.01), samples counted 287926
+MassChain_LimiterIdleSteadyState reference C3 Mass 0: engaged no, attack GR peak 0 dB, attack duration 0 ms, steady min GR from 1 s 0 dB (bar -0.01), samples counted 287956
+MassChain_LimiterIdleSteadyState reference C3 Mass 25: engaged no, attack GR peak 0 dB, attack duration 0 ms, steady min GR from 1 s 0 dB (bar -0.01), samples counted 287972
+MassChain_LimiterIdleSteadyState reference C3 Mass 50: engaged yes, attack GR peak -2.44626 dB, attack duration 447.729 ms, steady min GR from 1 s -0.000994595 dB (bar -0.01), samples counted 287986
+MassChain_LimiterIdleSteadyState reference C3 Mass 75: engaged yes, attack GR peak -4.0793 dB, attack duration 464.562 ms, steady min GR from 1 s -0.000994593 dB (bar -0.01), samples counted 287934
+MassChain_LimiterIdleSteadyState reference C3 Mass 100: engaged yes, attack GR peak -9.53234 dB, attack duration 515.021 ms, steady min GR from 1 s -0.000994594 dB (bar -0.01), samples counted 287920
+MassChain_LimiterIdleSteadyState kSawAnchor E0 Mass 0: engaged no, attack GR peak 0 dB, attack duration 0 ms, steady min GR from 1 s 0 dB (bar -0.01), samples counted 287954
+MassChain_LimiterIdleSteadyState kSawAnchor E0 Mass 25: engaged no, attack GR peak 0 dB, attack duration 0 ms, steady min GR from 1 s 0 dB (bar -0.01), samples counted 287966
+MassChain_LimiterIdleSteadyState kSawAnchor E0 Mass 50: engaged no, attack GR peak 0 dB, attack duration 0 ms, steady min GR from 1 s 0 dB (bar -0.01), samples counted 287960
+MassChain_LimiterIdleSteadyState kSawAnchor E0 Mass 75: engaged yes, attack GR peak -2.28504 dB, attack duration 476.062 ms, steady min GR from 1 s -0.000994594 dB (bar -0.01), samples counted 287984
+MassChain_LimiterIdleSteadyState kSawAnchor E0 Mass 100: engaged yes, attack GR peak -7.09118 dB, attack duration 511.646 ms, steady min GR from 1 s -0.000994593 dB (bar -0.01), samples counted 287980
+MassChain_LimiterIdleSteadyState kSawAnchor E1 Mass 0: engaged no, attack GR peak 0 dB, attack duration 0 ms, steady min GR from 1 s 0 dB (bar -0.01), samples counted 287966
+MassChain_LimiterIdleSteadyState kSawAnchor E1 Mass 25: engaged no, attack GR peak 0 dB, attack duration 0 ms, steady min GR from 1 s 0 dB (bar -0.01), samples counted 287972
+MassChain_LimiterIdleSteadyState kSawAnchor E1 Mass 50: engaged yes, attack GR peak -1.99954 dB, attack duration 416.25 ms, steady min GR from 1 s -0.000994592 dB (bar -0.01), samples counted 287972
+MassChain_LimiterIdleSteadyState kSawAnchor E1 Mass 75: engaged yes, attack GR peak -3.66297 dB, attack duration 480.625 ms, steady min GR from 1 s -0.000994592 dB (bar -0.01), samples counted 287982
+MassChain_LimiterIdleSteadyState kSawAnchor E1 Mass 100: engaged yes, attack GR peak -5.81168 dB, attack duration 502.688 ms, steady min GR from 1 s -0.000994593 dB (bar -0.01), samples counted 286870
+MassChain_LimiterIdleSteadyState kSawAnchor E2 Mass 0: engaged no, attack GR peak 0 dB, attack duration 0 ms, steady min GR from 1 s 0 dB (bar -0.01), samples counted 287960
+MassChain_LimiterIdleSteadyState kSawAnchor E2 Mass 25: engaged yes, attack GR peak -0.156081 dB, attack duration 220.125 ms, steady min GR from 1 s -0.000994593 dB (bar -0.01), samples counted 287966
+MassChain_LimiterIdleSteadyState kSawAnchor E2 Mass 50: engaged yes, attack GR peak -1.7093 dB, attack duration 416.625 ms, steady min GR from 1 s -0.000994587 dB (bar -0.01), samples counted 287966
+MassChain_LimiterIdleSteadyState kSawAnchor E2 Mass 75: engaged yes, attack GR peak -4.35171 dB, attack duration 470.625 ms, steady min GR from 1 s -0.00099459 dB (bar -0.01), samples counted 287976
+MassChain_LimiterIdleSteadyState kSawAnchor E2 Mass 100: engaged yes, attack GR peak -6.25398 dB, attack duration 500.479 ms, steady min GR from 1 s -0.000994594 dB (bar -0.01), samples counted 287890
+MassChain_LimiterIdleSteadyState kSawAnchor C3 Mass 0: engaged no, attack GR peak 0 dB, attack duration 0 ms, steady min GR from 1 s 0 dB (bar -0.01), samples counted 287968
+MassChain_LimiterIdleSteadyState kSawAnchor C3 Mass 25: engaged yes, attack GR peak -0.180335 dB, attack duration 238.917 ms, steady min GR from 1 s -0.000994592 dB (bar -0.01), samples counted 287970
+MassChain_LimiterIdleSteadyState kSawAnchor C3 Mass 50: engaged yes, attack GR peak -1.63838 dB, attack duration 416.583 ms, steady min GR from 1 s -0.000994589 dB (bar -0.01), samples counted 287978
+MassChain_LimiterIdleSteadyState kSawAnchor C3 Mass 75: engaged yes, attack GR peak -4.90402 dB, attack duration 477.667 ms, steady min GR from 1 s -0.000994594 dB (bar -0.01), samples counted 287976
+MassChain_LimiterIdleSteadyState kSawAnchor C3 Mass 100: engaged yes, attack GR peak -6.84858 dB, attack duration 501.146 ms, steady min GR from 1 s -0.000994595 dB (bar -0.01), samples counted 287924
+MassChain_LimiterIdleSteadyState kSineAnchor E0 Mass 0: engaged no, attack GR peak 0 dB, attack duration 0 ms, steady min GR from 1 s 0 dB (bar -0.01), samples counted 287950
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+MassChain_LimiterIdleSteadyState
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\mass_chain_test.cpp(463)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\mass_chain_test.cpp(492): warning:
+  kSineAnchor E0 Mass 0: SC-015 steady min GR 0 dB recorded (G8-6: sub-only
+  voice, makeup unopposed by the 2 f0 sidechain)
+
+MassChain_LimiterIdleSteadyState kSineAnchor E0 Mass 25: engaged no, attack GR peak 0 dB, attack duration 0 ms, steady min GR from 1 s 0 dB (bar -0.01), samples counted 287956
+F:\projects\iterum\dsp\tests\unit\systems\mass_chain_test.cpp(492): warning:
+  kSineAnchor E0 Mass 25: SC-015 steady min GR 0 dB recorded (G8-6: sub-only
+  voice, makeup unopposed by the 2 f0 sidechain)
+
+MassChain_LimiterIdleSteadyState kSineAnchor E0 Mass 50: engaged yes, attack GR peak -1.42758 dB, attack duration 398.25 ms, steady min GR from 1 s -0.000994594 dB (bar -0.01), samples counted 287960
+F:\projects\iterum\dsp\tests\unit\systems\mass_chain_test.cpp(492): warning:
+  kSineAnchor E0 Mass 50: SC-015 steady min GR -0.000994594 dB recorded (G8-6:
+  sub-only voice, makeup unopposed by the 2 f0 sidechain)
+
+MassChain_LimiterIdleSteadyState kSineAnchor E0 Mass 75: engaged yes, attack GR peak -4.3174 dB, attack duration 539.562 ms, steady min GR from 1 s -0.000994595 dB (bar -0.01), samples counted 287974
+F:\projects\iterum\dsp\tests\unit\systems\mass_chain_test.cpp(492): warning:
+  kSineAnchor E0 Mass 75: SC-015 steady min GR -0.000994595 dB recorded (G8-6:
+  sub-only voice, makeup unopposed by the 2 f0 sidechain)
+
+MassChain_LimiterIdleSteadyState kSineAnchor E0 Mass 100: engaged yes, attack GR peak -7.82835 dB, attack duration 998.229 ms, steady min GR from 1 s -1.39531 dB (bar -0.01), samples counted 287984
+F:\projects\iterum\dsp\tests\unit\systems\mass_chain_test.cpp(492): warning:
+  kSineAnchor E0 Mass 100: SC-015 steady min GR -1.39531 dB recorded (G8-6:
+  sub-only voice, makeup unopposed by the 2 f0 sidechain)
+
+MassChain_LimiterIdleSteadyState kSineAnchor E1 Mass 0: engaged no, attack GR peak 0 dB, attack duration 0 ms, steady min GR from 1 s 0 dB (bar -0.01), samples counted 287960
+F:\projects\iterum\dsp\tests\unit\systems\mass_chain_test.cpp(492): warning:
+  kSineAnchor E1 Mass 0: SC-015 steady min GR 0 dB recorded (G8-6: sub-only
+  voice, makeup unopposed by the 2 f0 sidechain)
+
+MassChain_LimiterIdleSteadyState kSineAnchor E1 Mass 25: engaged yes, attack GR peak -1.3824 dB, attack duration 392 ms, steady min GR from 1 s -0.000994592 dB (bar -0.01), samples counted 287962
+F:\projects\iterum\dsp\tests\unit\systems\mass_chain_test.cpp(492): warning:
+  kSineAnchor E1 Mass 25: SC-015 steady min GR -0.000994592 dB recorded (G8-6:
+  sub-only voice, makeup unopposed by the 2 f0 sidechain)
+
+MassChain_LimiterIdleSteadyState kSineAnchor E1 Mass 50: engaged yes, attack GR peak -1.96199 dB, attack duration 429.854 ms, steady min GR from 1 s -0.000994594 dB (bar -0.01), samples counted 287966
+F:\projects\iterum\dsp\tests\unit\systems\mass_chain_test.cpp(492): warning:
+  kSineAnchor E1 Mass 50: SC-015 steady min GR -0.000994594 dB recorded (G8-6:
+  sub-only voice, makeup unopposed by the 2 f0 sidechain)
+
+MassChain_LimiterIdleSteadyState kSineAnchor E1 Mass 75: engaged yes, attack GR peak -4.23992 dB, attack duration 544.75 ms, steady min GR from 1 s -0.000994595 dB (bar -0.01), samples counted 287978
+F:\projects\iterum\dsp\tests\unit\systems\mass_chain_test.cpp(492): warning:
+  kSineAnchor E1 Mass 75: SC-015 steady min GR -0.000994595 dB recorded (G8-6:
+  sub-only voice, makeup unopposed by the 2 f0 sidechain)
+
+MassChain_LimiterIdleSteadyState kSineAnchor E1 Mass 100: engaged yes, attack GR peak -6.70965 dB, attack duration 998.875 ms, steady min GR from 1 s -0.178879 dB (bar -0.01), samples counted 287990
+F:\projects\iterum\dsp\tests\unit\systems\mass_chain_test.cpp(492): warning:
+  kSineAnchor E1 Mass 100: SC-015 steady min GR -0.178879 dB recorded (G8-6:
+  sub-only voice, makeup unopposed by the 2 f0 sidechain)
+
+MassChain_LimiterIdleSteadyState kSineAnchor E2 Mass 0: engaged no, attack GR peak 0 dB, attack duration 0 ms, steady min GR from 1 s 0 dB (bar -0.01), samples counted 287954
+F:\projects\iterum\dsp\tests\unit\systems\mass_chain_test.cpp(492): warning:
+  kSineAnchor E2 Mass 0: SC-015 steady min GR 0 dB recorded (G8-6: sub-only
+  voice, makeup unopposed by the 2 f0 sidechain)
+
+MassChain_LimiterIdleSteadyState kSineAnchor E2 Mass 25: engaged yes, attack GR peak -1.097 dB, attack duration 374.188 ms, steady min GR from 1 s -0.000994594 dB (bar -0.01), samples counted 287960
+F:\projects\iterum\dsp\tests\unit\systems\mass_chain_test.cpp(492): warning:
+  kSineAnchor E2 Mass 25: SC-015 steady min GR -0.000994594 dB recorded (G8-6:
+  sub-only voice, makeup unopposed by the 2 f0 sidechain)
+
+MassChain_LimiterIdleSteadyState kSineAnchor E2 Mass 50: engaged yes, attack GR peak -1.70299 dB, attack duration 419.333 ms, steady min GR from 1 s -0.000994594 dB (bar -0.01), samples counted 287962
+F:\projects\iterum\dsp\tests\unit\systems\mass_chain_test.cpp(492): warning:
+  kSineAnchor E2 Mass 50: SC-015 steady min GR -0.000994594 dB recorded (G8-6:
+  sub-only voice, makeup unopposed by the 2 f0 sidechain)
+
+MassChain_LimiterIdleSteadyState kSineAnchor E2 Mass 75: engaged yes, attack GR peak -4.00768 dB, attack duration 546.25 ms, steady min GR from 1 s -0.000994593 dB (bar -0.01), samples counted 287976
+F:\projects\iterum\dsp\tests\unit\systems\mass_chain_test.cpp(492): warning:
+  kSineAnchor E2 Mass 75: SC-015 steady min GR -0.000994593 dB recorded (G8-6:
+  sub-only voice, makeup unopposed by the 2 f0 sidechain)
+
+MassChain_LimiterIdleSteadyState kSineAnchor E2 Mass 100: engaged yes, attack GR peak -6.23563 dB, attack duration 999.188 ms, steady min GR from 1 s -0.0780748 dB (bar -0.01), samples counted 287988
+F:\projects\iterum\dsp\tests\unit\systems\mass_chain_test.cpp(492): warning:
+  kSineAnchor E2 Mass 100: SC-015 steady min GR -0.0780748 dB recorded (G8-6:
+  sub-only voice, makeup unopposed by the 2 f0 sidechain)
+
+MassChain_LimiterIdleSteadyState kSineAnchor C3 Mass 0: engaged no, attack GR peak 0 dB, attack duration 0 ms, steady min GR from 1 s 0 dB (bar -0.01), samples counted 287958
+F:\projects\iterum\dsp\tests\unit\systems\mass_chain_test.cpp(492): warning:
+  kSineAnchor C3 Mass 0: SC-015 steady min GR 0 dB recorded (G8-6: sub-only
+  voice, makeup unopposed by the 2 f0 sidechain)
+
+MassChain_LimiterIdleSteadyState kSineAnchor C3 Mass 25: engaged yes, attack GR peak -1.04239 dB, attack duration 376.792 ms, steady min GR from 1 s -0.000994592 dB (bar -0.01), samples counted 287964
+F:\projects\iterum\dsp\tests\unit\systems\mass_chain_test.cpp(492): warning:
+  kSineAnchor C3 Mass 25: SC-015 steady min GR -0.000994592 dB recorded (G8-6:
+  sub-only voice, makeup unopposed by the 2 f0 sidechain)
+
+MassChain_LimiterIdleSteadyState kSineAnchor C3 Mass 50: engaged yes, attack GR peak -1.62981 dB, attack duration 418.708 ms, steady min GR from 1 s -0.000994594 dB (bar -0.01), samples counted 287966
+F:\projects\iterum\dsp\tests\unit\systems\mass_chain_test.cpp(492): warning:
+  kSineAnchor C3 Mass 50: SC-015 steady min GR -0.000994594 dB recorded (G8-6:
+  sub-only voice, makeup unopposed by the 2 f0 sidechain)
+
+MassChain_LimiterIdleSteadyState kSineAnchor C3 Mass 75: engaged yes, attack GR peak -3.9244 dB, attack duration 550.042 ms, steady min GR from 1 s -0.000994588 dB (bar -0.01), samples counted 287980
+F:\projects\iterum\dsp\tests\unit\systems\mass_chain_test.cpp(492): warning:
+  kSineAnchor C3 Mass 75: SC-015 steady min GR -0.000994588 dB recorded (G8-6:
+  sub-only voice, makeup unopposed by the 2 f0 sidechain)
+
+MassChain_LimiterIdleSteadyState kSineAnchor C3 Mass 100: engaged yes, attack GR peak -5.75905 dB, attack duration 999.333 ms, steady min GR from 1 s -0.459849 dB (bar -0.01), samples counted 287992
+F:\projects\iterum\dsp\tests\unit\systems\mass_chain_test.cpp(492): warning:
+  kSineAnchor C3 Mass 100: SC-015 steady min GR -0.459849 dB recorded (G8-6:
+  sub-only voice, makeup unopposed by the 2 f0 sidechain)
+
+MassChain_LimiterIdleSteadyState: 60 cells, 40 engaged at some sample
+===============================================================================
+All tests passed (601 assertions in 1 test case)
+
+exit: 0 wall: 10 s
+
+=== MassLaw_AnchorPoints
+Filters: "MassLaw_AnchorPoints"
+Randomness seeded to: 933469450
+[T015 SC-002] f0 41.2034 Mass 0: THD -77.3257 dB, E_low -77.5518 dB, E_high -90.2737 dB, L -9.98586 dBFS, mean GR [1 s, end] -0 dB
+[T015 SC-002] f0 41.2034 Mass 50: THD 0.501374 dB, E_low -3.07586 dB, E_high -14.3985 dB, L -10.6368 dBFS, mean GR [1 s, end] -0 dB
+[T015 SC-002] f0 41.2034 Mass 100: THD 7.00176 dB, E_low -1.59645 dB, E_high -8.49792 dB, L -12.7648 dBFS, mean GR [1 s, end] 10.0298 dB
+[T015 SC-002] f0 41.2034 Mass 0: samples with GR != 0: 0
+[T015 SC-002] f0 130.813 Mass 0: THD -77.3681 dB, E_low -77.5935 dB, E_high -90.3285 dB, L -9.92681 dBFS, mean GR [1 s, end] -0 dB
+[T015 SC-002] f0 130.813 Mass 50: THD 0.451486 dB, E_low -3.09908 dB, E_high -14.427 dB, L -10.6112 dBFS, mean GR [1 s, end] -0 dB
+[T015 SC-002] f0 130.813 Mass 100: THD 7.73507 dB, E_low -1.20728 dB, E_high -10.0647 dB, L -12.3137 dBFS, mean GR [1 s, end] 10.2742 dB
+[T015 SC-002] f0 130.813 Mass 0: samples with GR != 0: 0
+===============================================================================
+All tests passed (228 assertions in 1 test case)
+
+exit: 0 wall: 2 s
+
+=== MassLaw_Audibility
+Filters: "MassLaw_Audibility"
+Randomness seeded to: 1093728089
+[T015 SC-011] Mass 0 vs 100 (E1): E_low -77.5518 / -1.59645, E_high -90.2737 / -8.49792, THD -77.3257 / 7.00176, I -119.92 / -94.5042 dB, C -6.16253e-05 / 1.77721 oct; separation 67.0018 dB (THD), dC 1.77728 oct, distinct 1
+[T015 SC-011] Depth -> w1/Sum(w) (dB): target 1 -> 0, descriptor -8.03915e-08 -> -16.4969 (raw -8.03915e-08 -> -16.4969), moved 16.4969 dB (bar 3)
+[T015 SC-011] Body -> E_low (dB, floored): target 0 -> 0.9, descriptor -60 -> -56.5759 (raw -77.5518 -> -56.5759), moved 3.42411 dB (bar 3)
+[T015 SC-011] Duration -> D_tr (dB, shaper +6 / 0): target 10 -> 150, descriptor 0.513554 -> 4.13664 (raw 0.513554 -> 4.13664), moved 3.62309 dB (bar 3)
+[T015 SC-011] Fold -> THD (dB, floored): target 0 -> 61.3281, descriptor -60 -> -20.6879 (raw -77.3257 -> -20.6879), moved 39.3121 dB (bar 3)
+[T015 SC-011] Compression steady GR (recorded) over the high segment: amount 0 -0 dB, amount 1 6.5553 dB
+[T015 SC-011] Compression -> DeltaL_step (dB; moved = DeltaL(0) - DeltaL(100)): target 0 -> 1, descriptor 11.999 -> 5.47792 (raw 11.999 -> 5.47792), moved 6.52106 dB (bar 3)
+[T015 SC-011] AnchorLevel -> w1 of the sum (dB): target 0 -> 1, descriptor 89.1008 -> 92.8234 (raw 89.1008 -> 92.8234), moved 3.72266 dB (bar 3)
+[T015 SC-011] OutputTrim -> L of outL (dB, recorded): target 2.04938 -> 0, descriptor -9.98586 -> -12.0352 (raw -9.98586 -> -12.0352), moved 2.04937 dB (bar 3)
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+MassLaw_Audibility
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\mass_law_automation_test.cpp(740)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\mass_law_automation_test.cpp(859): warning:
+  OutputTrim -> L of outL (dB, recorded): moved 2.04937 dB (recorded, G8-5)
+
+===============================================================================
+All tests passed (499 assertions in 1 test case)
+
+exit: 0 wall: 6 s
+
+=== MassLaw_FundamentalStrengthJointSweepSmoke
+Filters: "MassLaw_FundamentalStrengthJointSweepSmoke"
+Randomness seeded to: 4024271911
+SC-001(c) Ref E1 Mass 0: w1(outL) = 89.1008 dB
+SC-001(c) Ref E1 Mass 25: w1(outL) = 90.0764 dB
+SC-001(c) Ref E1 Mass 50: w1(outL) = 87.1911 dB
+SC-001(c) Ref E1 Mass 75: w1(outL) = 84.3443 dB
+SC-001(c) Ref E1 Mass 100: w1(outL) = 84.7678 dB
+SC-001(c) Ref E1: epsilon 0.1 dB (measured at Mass 50 -1, cap 0.1), worst fall from Mass 0 -4.75648 dB at Mass 75 (bar -6 - eps), worst step -2.88531 dB at Mass 50 (recorded, G8-4; non-decreasing violations 2)
+===============================================================================
+All tests passed (52 assertions in 1 test case)
+
+exit: 0 wall: 2 s
+
+=== MassLaw_LevelSlopeBoundedSmoke
+Filters: "MassLaw_LevelSlopeBoundedSmoke"
+Randomness seeded to: 1492835308
+SC-003 Ref E2 Mass 0: P = -12.2939 LKFS, L = -9.96383 dBFS
+SC-003 Ref E2 Mass 25: P = -12.1978 LKFS, L = -9.91112 dBFS
+SC-003 Ref E2 Mass 50: P = -12.0832 LKFS, L = -10.6779 dBFS
+SC-003 Ref E2 Mass 75: P = -12.2091 LKFS, L = -11.2503 dBFS
+SC-003 Ref E2 Mass 100: P = -13.0127 LKFS, L = -12.3407 dBFS
+SC-003 Ref E2: span(P) 0.929481 dB (bar 3), max |dP| 0.032142 dB/unit (bar 0.2), K-weighted GATED; span(L) 2.42955 dB (bar 6, gated)
+SC-003 Ref C3 Mass 0: P = -11.3085 LKFS, L = -9.95412 dBFS
+SC-003 Ref C3 Mass 25: P = -11.2307 LKFS, L = -9.90162 dBFS
+SC-003 Ref C3 Mass 50: P = -11.5193 LKFS, L = -10.6727 dBFS
+SC-003 Ref C3 Mass 75: P = -11.4641 LKFS, L = -10.8776 dBFS
+SC-003 Ref C3 Mass 100: P = -12.6352 LKFS, L = -12.315 dBFS
+SC-003 Ref C3: span(P) 1.40447 dB (bar 3), max |dP| 0.0468443 dB/unit (bar 0.2), K-weighted GATED; span(L) 2.41343 dB (bar 6, gated)
+===============================================================================
+All tests passed (140 assertions in 1 test case)
+
+exit: 0 wall: 4 s
+
+=== TransientShaper_DurationMatches
+Filters: "TransientShaper_DurationMatches"
+Randomness seeded to: 1251257804
+TransientShaper_DurationMatches sine E1 d 20 ms: transient time 20.896 ms, error +4.48 % (bar 15 %)
+TransientShaper_DurationMatches sine E1 d 40 ms: transient time 40.083 ms, error +0.21 % (bar 15 %)
+TransientShaper_DurationMatches sine E1 d 100 ms: transient time 100.125 ms, error +0.12 % (bar 15 %)
+TransientShaper_DurationMatches sine E1 d 250 ms: transient time 250.125 ms, error +0.05 % (bar 15 %)
+TransientShaper_DurationMatches saw E1 d 20 ms: transient time 18.938 ms, error -5.31 % (bar 15 %)
+TransientShaper_DurationMatches saw E1 d 40 ms: transient time 41.438 ms, error +3.59 % (bar 15 %)
+TransientShaper_DurationMatches saw E1 d 100 ms: transient time 101.250 ms, error +1.25 % (bar 15 %)
+TransientShaper_DurationMatches saw E1 d 250 ms: transient time 251.167 ms, error +0.47 % (bar 15 %)
+TransientShaper_DurationMatches sine C3 d 20 ms: transient time 19.396 ms, error -3.02 % (bar 15 %)
+TransientShaper_DurationMatches sine C3 d 40 ms: transient time 38.583 ms, error -3.54 % (bar 15 %)
+TransientShaper_DurationMatches sine C3 d 100 ms: transient time 98.625 ms, error -1.38 % (bar 15 %)
+TransientShaper_DurationMatches sine C3 d 250 ms: transient time 248.625 ms, error -0.55 % (bar 15 %)
+TransientShaper_DurationMatches saw C3 d 20 ms: transient time 20.833 ms, error +4.17 % (bar 15 %)
+TransientShaper_DurationMatches saw C3 d 40 ms: transient time 39.958 ms, error -0.10 % (bar 15 %)
+TransientShaper_DurationMatches saw C3 d 100 ms: transient time 99.979 ms, error -0.02 % (bar 15 %)
+TransientShaper_DurationMatches saw C3 d 250 ms: transient time 249.958 ms, error -0.02 % (bar 15 %)
+===============================================================================
+All tests passed (104 assertions in 1 test case)
+
+exit: 0 wall: 0 s
+
+=== TransientShaper_DurationShortestCell
+Filters: "TransientShaper_DurationShortestCell"
+Randomness seeded to: 1597548105
+TransientShaper_DurationShortestCell sine E1 d 5 ms: transient time 6.500 ms, error +30.00 % (bar 15 %, recorded)
+TransientShaper_DurationShortestCell saw E1 d 5 ms: transient time 4.438 ms, error -11.25 % (bar 15 %, recorded)
+TransientShaper_DurationShortestCell sine C3 d 5 ms: transient time 4.896 ms, error -2.08 % (bar 15 %, gated)
+TransientShaper_DurationShortestCell saw C3 d 5 ms: transient time 4.417 ms, error -11.67 % (bar 15 %, gated)
+===============================================================================
+All tests passed (54 assertions in 1 test case)
+
+exit: 0 wall: 0 s
+step6 green MassCompressor_MakeupMatchesGr exit=0 | All tests passed (99 assertions in 1 test case)
+step6 green MassCompressor_NoSubPumping exit=0 | All tests passed (182 assertions in 1 test case)
+step6 green MassCompressor_RectifiedFeedNegativeControl exit=0 | All tests passed (133 assertions in 1 test case)
+step6 green MassChain_LimiterIdleSteadyState exit=0 | All tests passed (601 assertions in 1 test case)
+step6 green MassLaw_AnchorPoints exit=0 | All tests passed (228 assertions in 1 test case)
+step6 green MassLaw_Audibility exit=0 | All tests passed (499 assertions in 1 test case)
+step6 green MassLaw_FundamentalStrengthJointSweepSmoke exit=0 | All tests passed (52 assertions in 1 test case)
+step6 green MassLaw_LevelSlopeBoundedSmoke exit=0 | All tests passed (140 assertions in 1 test case)
+step6 green TransientShaper_DurationMatches exit=0 | All tests passed (104 assertions in 1 test case)
+step6 green TransientShaper_DurationShortestCell exit=0 | All tests passed (54 assertions in 1 test case)

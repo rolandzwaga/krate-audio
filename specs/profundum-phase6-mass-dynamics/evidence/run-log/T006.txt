@@ -1,0 +1,57 @@
+T006 run-log - TransientShaper complete, its probe and its tests
+Date: 2026-10-17. Executor stage only: nothing built or run (the group gate builds dsp_processors_tests and runs
+"[transient-shaper]~[long]").
+
+== Files written ==
+- dsp/include/krate/dsp/processors/transient_shaper.h (T002 stub filled; plan S4.1-S4.3; L2: includes core/db_utils.h,
+  primitives/smoother.h, peer L2 processors/envelope_follower.h and processors/period_peak_detector.h)
+- dsp/tests/unit/processors/transient_shaper_probe.h (new; detail::TransientShaperProbe: setHoldBypass,
+  setGainSmootherBypass, setSlowAttackArgMs)
+- dsp/tests/unit/processors/transient_shaper_test.cpp (T002 stub filled; 13 gated TEST_CASEs + the hidden harvest)
+- specs/profundum-phase6-mass-dynamics/evidence/run-log/T006.txt (this file)
+
+== APIs relied on (read this session) ==
+- PeriodPeakDetector (processors/period_peak_detector.h): prepare(double, float holdMs) :48, reset() :59,
+  process(float) :88, process(float, float) :91, stateFinite() :103.
+- EnvelopeFollower (processors/envelope_follower.h): kMinAttackMs / kMaxAttackMs :88-89, kMinReleaseMs = 1 :90,
+  prepare(double, size_t) :106, reset() :128, processSample(float) :164 (no input validation), getCurrentValue() :192,
+  setMode :202, setAttackTime (std::clamp) :220, setReleaseTime :227; DetectionMode::Amplitude :41.
+- OnePoleSmoother (primitives/smoother.h): OnePoleSmoother(float) :148, configure(float, float) :160, setTarget :170,
+  getCurrentValue :191, process() :197 (snaps within kCompletionThreshold 1e-4, :55), snapToTarget :257.
+- db_utils.h: detail::isFinite(float) :118, dbToGain :289 (constexprExp(0) == 1.0f exactly, :221), gainToDb :313.
+
+== Header (plan S4) ==
+- Constants exactly as tasks.md T006; kDurationTable has 11 seed entries between HARVEST-BEGIN/END duration-table
+  markers, one initializer per line (5 -> 7.308, 7.5 -> 11.281, 10 -> 15.351, 15 -> 24.153, 20 -> 33.314,
+  30 -> 50.435, 40 -> 67.690, 60 -> 103.140, 100 -> 175.324, 150 -> 264.574, 250 -> 444.323).
+- static_asserts (namespace scope, after the class): both columns strictly increasing; first == kMinDurationMs,
+  last == kMaxDurationMs; every argument in [EnvelopeFollower::kMinAttackMs, kMaxAttackMs]; kSlowTickSamples a power
+  of two (in class, for the & 7 wrap).
+- Per-sample contract S4.3 steps 1-7, probe branches for hold bypass and gain-smoother bypass.
+- Setters store the sanitised value and push it to the smoother target / slow EF attack at once, before and after
+  prepare (prepare re-applies them and reset() snaps the smoothers). reset() is a no-op before prepare (FR-047).
+
+== Decisions / deviations (surface) ==
+- D-1 Harvest tags: TransientShaper_DurationTableHarvest is tagged "[transient-shaper-harvest][.calibration]",
+  NOT [processors][profundum][transient-shaper]. Reason: Catch2's Filter::matches
+  (build/windows-x64-release/_deps/catch2-src/src/catch2/catch_test_spec.cpp:62-74) sets should_use = true for a hidden
+  case whenever a required pattern matches, so the gate filter "[transient-shaper]~[long]" would run the multi-minute
+  harvest and overwrite evidence/duration-table.txt. T019 selects it by name: dsp_processors_tests.exe
+  "TransientShaper_DurationTableHarvest". (The same hazard may apply to the Phase 5 [.calibration] cases that carry
+  their area tag - recorded, not touched.)
+- D-2 SC-021 restart: a 0.5 s render at 96 kHz is inserted between prepare(96k) and prepare(48k) so the restart arm
+  has teeth (dirty state); the assertion is unchanged.
+- D-3 SC-012 (b) cross-product computed in double; R = 0.5f * x (exact), so the check is exact by construction.
+- D-4 tsRender: with taps requested, samples before `tapFrom` run in 512-sample host blocks, then one sample at a time
+  (partition invariance, SC-018, makes this the same signal). SC-009 uses tapFrom = 3 s to keep 300 4 s renders cheap.
+- D-5 cellTransientTimeMs maps a +inf transientTimeMs (ProfundumTest::isPosInf, bit pattern) to 1e9 ms so no
+  infinity reaches arithmetic under -ffast-math.
+- D-6 Order: the header was written before the test TU within this task (both in one executor pass, nothing built).
+
+== Expected-red until T019 (harvest-dependent) ==
+- TransientShaper_DurationMatches and TransientShaper_DurationShortestCell read the seed table (model S12.2 predicts
+  all gated cells within 15 %; the E1-sine 5 ms cell is recorded only, kGate5msAt = {false, true}).
+
+== Verify ==
+dsp_processors_tests "[transient-shaper]~[long]"   (gate; not run by this executor)
+dsp_processors_tests "TransientShaper_DurationTableHarvest"   (T019 main loop only)

@@ -1,0 +1,17 @@
+dsp/include/krate/dsp/systems/mass_law.h [mass-law-rows]:
+  0: before {.target = Target::Depth, .lo = 0.0f, .hi = 1.0f, .amountDown = -0.5f, .amountUp = -0.5f, .curve = ModCurve::Linear},
+  0: after  {.target = Target::Depth, .lo = 0.0f, .hi = 1.0f, .amountDown = -0.5f, .amountUp = -0.5f, .curve = ModCurve::Linear},   (max |delta| 0.00000)
+  1: before {.target = Target::Body, .lo = 0.0f, .hi = 1.0f, .amountDown = 0.5f, .amountUp = 0.400000006f, .curve = ModCurve::Linear},
+  1: after  {.target = Target::Body, .lo = 0.0f, .hi = 1.0f, .amountDown = 0.5f, .amountUp = 0.400000006f, .curve = ModCurve::Linear},   (max |delta| 0.00000)
+  2: before {.target = Target::TransientDuration, .lo = 5.0f, .hi = 250.0f, .amountDown = 30.0f, .amountUp = 110.0f, .curve = ModCurve::Linear},
+  2: after  {.target = Target::TransientDuration, .lo = 5.0f, .hi = 250.0f, .amountDown = 30.0f, .amountUp = 110.0f, .curve = ModCurve::Linear},   (max |delta| 0.00000)
+  3: before {.target = Target::FoldAmount, .lo = 0.0f, .hi = 100.0f, .amountDown = 50.0f, .amountUp = 61.328125f, .curve = ModCurve::Linear},
+  3: after  {.target = Target::FoldAmount, .lo = 0.0f, .hi = 100.0f, .amountDown = 50.0f, .amountUp = 61.328125f, .curve = ModCurve::SCurve},   (max |delta| 0.00000)
+  4: before {.target = Target::CompressionAmount, .lo = 0.0f, .hi = 1.0f, .amountDown = 0.5f, .amountUp = 1.0f, .curve = ModCurve::Linear},
+  4: after  {.target = Target::CompressionAmount, .lo = 0.0f, .hi = 1.0f, .amountDown = 0.5f, .amountUp = 1.0f, .curve = ModCurve::Linear},   (max |delta| 0.00000)
+  5: before {.target = Target::AnchorLevel, .lo = 0.0f, .hi = 1.0f, .amountDown = 0.5f, .amountUp = 0.5f, .curve = ModCurve::Linear},
+  5: after  {.target = Target::AnchorLevel, .lo = 0.0f, .hi = 1.0f, .amountDown = 0.5f, .amountUp = 0.5f, .curve = ModCurve::Linear},   (max |delta| 0.00000)
+  6: before {.target = Target::OutputTrim, .lo = -12.0f, .hi = 12.0f, .amountDown = -2.0493834f, .amountUp = -0.0f, .curve = ModCurve::Linear},
+  6: after  {.target = Target::OutputTrim, .lo = -12.0f, .hi = 12.0f, .amountDown = -2.0493834f, .amountUp = -0.0f, .curve = ModCurve::Linear},   (max |delta| 0.00000)
+paste-harvest: pasted mass-law-rows
+exit: 0 wall: 0 s

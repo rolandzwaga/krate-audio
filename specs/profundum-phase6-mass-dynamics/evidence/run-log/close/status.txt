@@ -1,0 +1,292 @@
+START 2026-10-18T06:37:22Z commit 02fecee1
+build exit=0 wall=6s warnings=0 log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/build.log
+long-list cases=175 jobs=24 list=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/long-cases.tsv
+long:dsp_processors_tests:SpectralSmear_DcNyquistSmear exit=0 wall=1s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_processors_tests__SpectralSmear_DcNyquistSmear.log
+long:dsp_processors_tests:SpectralSmear_SampleRateIndependence exit=0 wall=2s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_processors_tests__SpectralSmear_SampleRateIndependence.log
+long:dsp_processors_tests:SpectralSmear_TimeConstantLaw exit=0 wall=3s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_processors_tests__SpectralSmear_TimeConstantLaw.log
+long:dsp_processors_tests:SpectralSmear_PreEcho exit=0 wall=2s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_processors_tests__SpectralSmear_PreEcho.log
+long:dsp_processors_tests:SpectralSmear_FlatnessVsDecoherence exit=0 wall=2s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_processors_tests__SpectralSmear_FlatnessVsDecoherence.log
+long:dsp_processors_tests:SpectralSmear_MagnitudeMemory exit=0 wall=6s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_processors_tests__SpectralSmear_MagnitudeMemory.log
+long:dsp_systems_tests:ResonanceDriftNetwork_PeakLifeCycle exit=0 wall=13s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__ResonanceDriftNetwork_PeakLifeCycle.log
+long:dsp_systems_tests:BloomEngine_LifecycleTimingAndC1Shape exit=0 wall=0s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__BloomEngine_LifecycleTimingAndC1Shape.log
+long:dsp_systems_tests:SubharmonicEngine_LongRenderStationarity_GateFalsification exit=0 wall=8s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__SubharmonicEngine_LongRenderStationarity_GateFalsification.log
+long:dsp_systems_tests:FeedbackEcology_DelayDriftClickFree exit=0 wall=14s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__FeedbackEcology_DelayDriftClickFree.log
+long:dsp_systems_tests:SubharmonicEngine_LongRenderStationarity exit=0 wall=17s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__SubharmonicEngine_LongRenderStationarity.log
+long:dsp_systems_tests:EcosystemEngine_FuzzCoverageIsComplete exit=0 wall=0s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__EcosystemEngine_FuzzCoverageIsComplete.log
+long:dsp_processors_tests:SpectralSmear_BoundednessSoak exit=0 wall=24s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_processors_tests__SpectralSmear_BoundednessSoak.log
+long:dsp_systems_tests:FeedbackEcology_CrossLoopTransfer exit=0 wall=24s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__FeedbackEcology_CrossLoopTransfer.log
+long:dsp_processors_tests:VoragoPhase1_LongRunResolution exit=0 wall=28s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_processors_tests__VoragoPhase1_LongRunResolution.log
+long:dsp_systems_tests:BloomEngine_SampleRateIndependence exit=0 wall=22s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__BloomEngine_SampleRateIndependence.log
+long:dsp_systems_tests:EcosystemEngine_NoShortLimitCycle exit=0 wall=12s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__EcosystemEngine_NoShortLimitCycle.log
+long:dsp_systems_tests:ResonanceDriftNetwork_WanderRateSpectral exit=0 wall=42s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__ResonanceDriftNetwork_WanderRateSpectral.log
+long:dsp_processors_tests:HarmonicFold_DetectorStabilityGrid exit=0 wall=44s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_processors_tests__HarmonicFold_DetectorStabilityGrid.log
+long:dsp_systems_tests:NoiseOrganism_NoZipperUnderDrift exit=0 wall=43s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__NoiseOrganism_NoZipperUnderDrift.log
+long:dsp_systems_tests:NoiseOrganism_ModelRosterAndDustLevel exit=0 wall=43s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__NoiseOrganism_ModelRosterAndDustLevel.log
+long:dsp_systems_tests:NoiseOrganism_SampleRateInvariance exit=0 wall=43s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__NoiseOrganism_SampleRateInvariance.log
+long:dsp_systems_tests:NoiseOrganism_LongRenderStationarity exit=0 wall=43s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__NoiseOrganism_LongRenderStationarity.log
+long:dsp_systems_tests:FeedbackEcology_LongEvolution exit=0 wall=93s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__FeedbackEcology_LongEvolution.log
+long:dsp_systems_tests:EcosystemEngine_LivenessIsDurationStable exit=0 wall=71s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__EcosystemEngine_LivenessIsDurationStable.log
+long:dsp_processors_tests:Rectifier_AliasingE0E2 exit=0 wall=97s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_processors_tests__Rectifier_AliasingE0E2.log
+long:dsp_systems_tests:VoragoVoice_BloomSlotAccounting exit=0 wall=52s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__VoragoVoice_BloomSlotAccounting.log
+long:dsp_systems_tests:VoragoVoice_SlowEventRouting exit=0 wall=52s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__VoragoVoice_SlowEventRouting.log
+long:dsp_systems_tests:VoragoVoice_EcosystemRouting exit=0 wall=53s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__VoragoVoice_EcosystemRouting.log
+long:dsp_systems_tests:NoiseOrganism_SpectralMotion exit=0 wall=96s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__NoiseOrganism_SpectralMotion.log
+long:dsp_systems_tests:BloomEngine_ThirtyMinuteEvolutionTrajectory exit=0 wall=81s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__BloomEngine_ThirtyMinuteEvolutionTrajectory.log
+long:dsp_systems_tests:EcosystemEngine_RefugeFloorPreventsPredationCliff exit=0 wall=62s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__EcosystemEngine_RefugeFloorPreventsPredationCliff.log
+long:dsp_systems_tests:ContinuousBody_DarkMaterialsSpectral exit=0 wall=9s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__ContinuousBody_DarkMaterialsSpectral.log
+long:dsp_systems_tests:NoiseOrganism_BoundedSoak exit=0 wall=118s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__NoiseOrganism_BoundedSoak.log
+long:dsp_systems_tests:EcosystemEngine_SampleRateIndependent exit=0 wall=82s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__EcosystemEngine_SampleRateIndependent.log
+long:dsp_systems_tests:ProfundumCore_MaskNeverSlewedBendLong exit=0 wall=2s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__ProfundumCore_MaskNeverSlewedBendLong.log
+long:dsp_systems_tests:ProfundumCore_DetuneShadowNoDrift exit=0 wall=17s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__ProfundumCore_DetuneShadowNoDrift.log
+long:dsp_systems_tests:VoragoEngine_ApplyVoiceParamsDefaultIsNoOp exit=0 wall=43s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__VoragoEngine_ApplyVoiceParamsDefaultIsNoOp.log
+long:dsp_systems_tests:VoragoEngine_NewSettersDefaultInert exit=0 wall=45s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__VoragoEngine_NewSettersDefaultInert.log
+long:dsp_systems_tests:VoragoEngine_RepeatedBroadcastIsInert exit=0 wall=63s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__VoragoEngine_RepeatedBroadcastIsInert.log
+long:dsp_systems_tests:VoragoMacro_NoZipper exit=0 wall=74s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__VoragoMacro_NoZipper.log
+long:dsp_systems_tests:ProfundumCore_PartialFrequencyAccuracy exit=0 wall=69s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__ProfundumCore_PartialFrequencyAccuracy.log
+long:dsp_systems_tests:ProfundumCore_NoAliasingDuringBend exit=0 wall=12s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__ProfundumCore_NoAliasingDuringBend.log
+long:dsp_processors_tests:HarmonicFold_RegimeContinuityStatic exit=0 wall=224s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_processors_tests__HarmonicFold_RegimeContinuityStatic.log
+long:dsp_systems_tests:ProfundumCore_SpectrumInvariantC1toC3 exit=0 wall=71s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__ProfundumCore_SpectrumInvariantC1toC3.log
+long:dsp_systems_tests:ProfundumCore_NoAliasingAllNotes exit=0 wall=47s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__ProfundumCore_NoAliasingAllNotes.log
+long:dsp_systems_tests:ProfundumCore_DepthLoudnessFlat exit=0 wall=124s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__ProfundumCore_DepthLoudnessFlat.log
+long:dsp_systems_tests:AtmosphereEngine_NoGrainBoundaryClicks exit=0 wall=246s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__AtmosphereEngine_NoGrainBoundaryClicks.log
+long:dsp_systems_tests:ProfundumCore_SpectrumInvariantC1toC3N96 exit=0 wall=80s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__ProfundumCore_SpectrumInvariantC1toC3N96.log
+long:dsp_systems_tests:VoragoEngine_SampleRateSweep exit=0 wall=151s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__VoragoEngine_SampleRateSweep.log
+long:dsp_processors_tests:HarmonicFold_ContinuousInAmountLong exit=0 wall=261s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_processors_tests__HarmonicFold_ContinuousInAmountLong.log
+long:dsp_systems_tests:ProfundumCore_ExcitationNoAliasingE0 exit=0 wall=20s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__ProfundumCore_ExcitationNoAliasingE0.log
+long:dsp_systems_tests:ProfundumCore_ExcitationNoAliasingE1 exit=0 wall=20s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__ProfundumCore_ExcitationNoAliasingE1.log
+long:dsp_systems_tests:ProfundumCore_ExcitationNoAliasingE2 exit=0 wall=13s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__ProfundumCore_ExcitationNoAliasingE2.log
+long:dsp_systems_tests:ProfundumCore_ExcitationFundamentalPreserved exit=0 wall=57s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__ProfundumCore_ExcitationFundamentalPreserved.log
+long:dsp_systems_tests:HarmonicFold_NoAliasingE0 exit=0 wall=23s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__HarmonicFold_NoAliasingE0.log
+long:dsp_systems_tests:BloomEngine_EightHourAcceleratedSoak exit=0 wall=291s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__BloomEngine_EightHourAcceleratedSoak.log
+long:dsp_systems_tests:HarmonicFold_NoAliasingE1 exit=0 wall=23s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__HarmonicFold_NoAliasingE1.log
+long:dsp_systems_tests:HarmonicFold_NoAliasingE2 exit=0 wall=15s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__HarmonicFold_NoAliasingE2.log
+long:dsp_systems_tests:ProfundumEdgeFold_ChainNoAliasingE0 exit=0 wall=15s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__ProfundumEdgeFold_ChainNoAliasingE0.log
+long:dsp_systems_tests:ProfundumEdgeFold_ChainNoAliasingE1 exit=0 wall=14s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__ProfundumEdgeFold_ChainNoAliasingE1.log
+long:dsp_systems_tests:ProfundumEdgeFold_ChainNoAliasingE2 exit=0 wall=10s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__ProfundumEdgeFold_ChainNoAliasingE2.log
+long:dsp_systems_tests:ProfundumCore_ExcitationOutputBounded exit=0 wall=8s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__ProfundumCore_ExcitationOutputBounded.log
+long:dsp_systems_tests:ProfundumCore_EdgeDrivesExcitationRendered exit=0 wall=104s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__ProfundumCore_EdgeDrivesExcitationRendered.log
+long:dsp_systems_tests:ProfundumEdgeFold_RecordedAliasingByOctave exit=0 wall=22s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__ProfundumEdgeFold_RecordedAliasingByOctave.log
+long:dsp_systems_tests:ProfundumCore_ExcitationMixMonotonic exit=0 wall=124s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__ProfundumCore_ExcitationMixMonotonic.log
+long:dsp_systems_tests:EcosystemEngine_OvernightSoak exit=0 wall=309s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__EcosystemEngine_OvernightSoak.log
+long:dsp_systems_tests:ResonanceDriftNetwork_LongRenderBoundedness exit=0 wall=354s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__ResonanceDriftNetwork_LongRenderBoundedness.log
+long:dsp_systems_tests:AnchorOscillator_PhaseLockTrajectory exit=0 wall=28s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__AnchorOscillator_PhaseLockTrajectory.log
+long:dsp_systems_tests:ProfundumAnchor_PhaseLockProcessedVoice exit=0 wall=50s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__ProfundumAnchor_PhaseLockProcessedVoice.log
+long:dsp_systems_tests:ProfundumNoteBehaviour_GlideLock60s exit=0 wall=35s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__ProfundumNoteBehaviour_GlideLock60s.log
+long:dsp_systems_tests:VoragoVoice_EcosystemLeverClickFreeNatural exit=0 wall=273s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__VoragoVoice_EcosystemLeverClickFreeNatural.log
+long:dsp_systems_tests:ProfundumCore_ExcitationLevelLaw exit=0 wall=194s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__ProfundumCore_ExcitationLevelLaw.log
+long:dsp_systems_tests:AnchorOscillator_PhaseLockStatic60s exit=0 wall=135s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__AnchorOscillator_PhaseLockStatic60s.log
+long:dsp_systems_tests:ProfundumCore_ExcitationDriveMonotonic exit=0 wall=241s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__ProfundumCore_ExcitationDriveMonotonic.log
+long:dsp_systems_tests:FeedbackEcology_BoundednessSoak exit=0 wall=524s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__FeedbackEcology_BoundednessSoak.log
+long:dsp_systems_tests:ProfundumCore_DepthRenderMonotonic exit=0 wall=482s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__ProfundumCore_DepthRenderMonotonic.log
+long:dsp_systems_tests:ProfundumCore_ExcitationEvenHarmonicsMonotonic exit=0 wall=463s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__ProfundumCore_ExcitationEvenHarmonicsMonotonic.log
+long:dsp_systems_tests:ProfundumCore_EmphasisOddOnlyRendered exit=0 wall=509s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__ProfundumCore_EmphasisOddOnlyRendered.log
+long:dsp_systems_tests:AnchorOscillator_PhaseLockEveryIsa60s exit=0 wall=388s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__AnchorOscillator_PhaseLockEveryIsa60s.log
+perpush:dsp_processors_tests exit=0 wall=838s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/perpush-dsp_processors_tests.log
+long:dsp_processors_tests:HarmonicFold_FundamentalPreservedLong exit=0 wall=846s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_processors_tests__HarmonicFold_FundamentalPreservedLong.log
+long:dsp_processors_tests:HarmonicFold_ThdAndCountMonotonic exit=0 wall=895s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_processors_tests__HarmonicFold_ThdAndCountMonotonic.log
+long:dsp_systems_tests:ShapeMorph_AutomationClickFree exit=0 wall=74s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__ShapeMorph_AutomationClickFree.log
+long:dsp_systems_tests:ProfundumNoteBehaviour_PostDropLanding_E2 exit=0 wall=631s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__ProfundumNoteBehaviour_PostDropLanding_E2.log
+long:dsp_systems_tests:ProfundumNoteBehaviour_PostDropLanding_E1 exit=0 wall=635s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__ProfundumNoteBehaviour_PostDropLanding_E1.log
+long:dsp_systems_tests:ProfundumNoteBehaviour_FollowAfterDrop exit=0 wall=609s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__ProfundumNoteBehaviour_FollowAfterDrop.log
+long:dsp_systems_tests:BassCharacter_SwitchClickFree exit=0 wall=11s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__BassCharacter_SwitchClickFree.log
+long:dsp_systems_tests:ProfundumNoteBehaviour_PostDropLanding_E0 exit=0 wall=651s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__ProfundumNoteBehaviour_PostDropLanding_E0.log
+long:dsp_systems_tests:ProfundumNoteBehaviour_PostDropLanding_C3 exit=0 wall=630s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__ProfundumNoteBehaviour_PostDropLanding_C3.log
+long:dsp_systems_tests:ShapeMorph_AliasingE0E2 exit=0 wall=90s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__ShapeMorph_AliasingE0E2.log
+long:dsp_systems_tests:BassCharacter_AmountTrajectory exit=0 wall=55s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__BassCharacter_AmountTrajectory.log
+long:dsp_systems_tests:ShapeCharacter_ParameterStepsClickFree exit=0 wall=91s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__ShapeCharacter_ParameterStepsClickFree.log
+long:dsp_systems_tests:ProfundumNoteBehaviour_GlideClickFree_E0 exit=0 wall=611s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__ProfundumNoteBehaviour_GlideClickFree_E0.log
+long:dsp_systems_tests:ProfundumNoteBehaviour_GlideClickFree_E1 exit=0 wall=598s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__ProfundumNoteBehaviour_GlideClickFree_E1.log
+long:dsp_systems_tests:ProfundumNoteBehaviour_TrajectoryNyquist exit=0 wall=491s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__ProfundumNoteBehaviour_TrajectoryNyquist.log
+long:dsp_systems_tests:BassCharacter_AliasingE0E2 exit=0 wall=269s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__BassCharacter_AliasingE0E2.log
+long:dsp_systems_tests:ShapeMorph_SweepContinuity exit=0 wall=384s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__ShapeMorph_SweepContinuity.log
+long:dsp_systems_tests:ProfundumCore_AudibilityGate_BodyEdgeShift exit=0 wall=1140s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__ProfundumCore_AudibilityGate_BodyEdgeShift.log
+long:dsp_systems_tests:ProfundumNoteBehaviour_GlideClickFree_E2 exit=0 wall=819s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__ProfundumNoteBehaviour_GlideClickFree_E2.log
+long:dsp_systems_tests:ProfundumNoteBehaviour_GlideClickFree_C3 exit=0 wall=808s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__ProfundumNoteBehaviour_GlideClickFree_C3.log
+long:dsp_systems_tests:BassCharacter_RLawMatchesReference_Sine exit=0 wall=542s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__BassCharacter_RLawMatchesReference_Sine.log
+long:dsp_systems_tests:BassCharacter_RLawMatchesReference_Triangle exit=0 wall=539s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__BassCharacter_RLawMatchesReference_Triangle.log
+long:dsp_systems_tests:ShapeCharacter_DropTracksHarmonicNumbers exit=0 wall=64s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__ShapeCharacter_DropTracksHarmonicNumbers.log
+long:dsp_systems_tests:ShapeMorph_RIsOne exit=0 wall=631s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__ShapeMorph_RIsOne.log
+long:dsp_systems_tests:BassCharacter_ToneMonotonicCentroid exit=0 wall=610s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__BassCharacter_ToneMonotonicCentroid.log
+long:dsp_systems_tests:BassCharacter_RLawMatchesReference_Saw exit=0 wall=542s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__BassCharacter_RLawMatchesReference_Saw.log
+long:dsp_systems_tests:ProfundumNoteBehaviour_PostDropLanding_PunchGhostE1 exit=0 wall=1281s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__ProfundumNoteBehaviour_PostDropLanding_PunchGhostE1.log
+long:dsp_systems_tests:Rectifier_RLawEvidence exit=0 wall=390s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__Rectifier_RLawEvidence.log
+long:dsp_systems_tests:BassCharacter_RLawMatchesReference_Growl exit=0 wall=542s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__BassCharacter_RLawMatchesReference_Growl.log
+long:dsp_systems_tests:MassLaw_RenderedTargetsMonotonic_Depth_E1 exit=0 wall=103s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__MassLaw_RenderedTargetsMonotonic_Depth_E1.log
+long:dsp_systems_tests:MassLaw_RenderedTargetsMonotonic_Depth_C3 exit=0 wall=109s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__MassLaw_RenderedTargetsMonotonic_Depth_C3.log
+long:dsp_systems_tests:MassLaw_RenderedTargetsMonotonic_Body_C3 exit=0 wall=107s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__MassLaw_RenderedTargetsMonotonic_Body_C3.log
+long:dsp_systems_tests:MassLaw_RenderedTargetsMonotonic_Duration_E1 exit=0 wall=101s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__MassLaw_RenderedTargetsMonotonic_Duration_E1.log
+long:dsp_systems_tests:MassLaw_RenderedTargetsMonotonic_Body_E1 exit=0 wall=112s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__MassLaw_RenderedTargetsMonotonic_Body_E1.log
+long:dsp_systems_tests:BassCharacter_RLawHysteresisBandWidth exit=0 wall=509s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__BassCharacter_RLawHysteresisBandWidth.log
+long:dsp_systems_tests:MassLaw_RenderedTargetsMonotonic_Duration_C3 exit=0 wall=102s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__MassLaw_RenderedTargetsMonotonic_Duration_C3.log
+long:dsp_systems_tests:MassLaw_RenderedTargetsMonotonic_Fold_E1 exit=0 wall=108s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__MassLaw_RenderedTargetsMonotonic_Fold_E1.log
+long:dsp_systems_tests:MassLaw_RenderedTargetsMonotonic_Fold_C3 exit=0 wall=106s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__MassLaw_RenderedTargetsMonotonic_Fold_C3.log
+long:dsp_systems_tests:MassLaw_RenderedTargetsMonotonic_Compression_E1 exit=0 wall=106s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__MassLaw_RenderedTargetsMonotonic_Compression_E1.log
+long:dsp_systems_tests:MassLaw_RenderedTargetsMonotonic_AnchorLevel_E1 exit=0 wall=103s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__MassLaw_RenderedTargetsMonotonic_AnchorLevel_E1.log
+long:dsp_systems_tests:MassLaw_RenderedTargetsMonotonic_OutputTrim_E1 exit=0 wall=102s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__MassLaw_RenderedTargetsMonotonic_OutputTrim_E1.log
+long:dsp_systems_tests:MassLaw_RenderedTargetsMonotonic_AnchorLevel_C3 exit=0 wall=105s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__MassLaw_RenderedTargetsMonotonic_AnchorLevel_C3.log
+long:dsp_systems_tests:MassLaw_RenderedTargetsMonotonic_OutputTrim_C3 exit=0 wall=105s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__MassLaw_RenderedTargetsMonotonic_OutputTrim_C3.log
+long:dsp_systems_tests:MassLaw_RenderedTargetsMonotonic_Compression_C3 exit=0 wall=110s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__MassLaw_RenderedTargetsMonotonic_Compression_C3.log
+long:dsp_systems_tests:MassLaw_FundamentalStrengthJointSweep_Ref_E0 exit=0 wall=96s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__MassLaw_FundamentalStrengthJointSweep_Ref_E0.log
+long:dsp_systems_tests:MassLaw_FundamentalStrengthJointSweep_Ref_E1 exit=0 wall=97s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__MassLaw_FundamentalStrengthJointSweep_Ref_E1.log
+long:dsp_systems_tests:MassLaw_FundamentalStrengthJointSweep_Ref_E2 exit=0 wall=96s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__MassLaw_FundamentalStrengthJointSweep_Ref_E2.log
+long:dsp_systems_tests:MassLaw_FundamentalStrengthJointSweep_Ref_C3 exit=0 wall=99s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__MassLaw_FundamentalStrengthJointSweep_Ref_C3.log
+long:dsp_systems_tests:MassLaw_FundamentalStrengthJointSweep_Saw_E0 exit=0 wall=95s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__MassLaw_FundamentalStrengthJointSweep_Saw_E0.log
+long:dsp_systems_tests:MassLaw_FundamentalStrengthJointSweep_Saw_E1 exit=0 wall=97s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__MassLaw_FundamentalStrengthJointSweep_Saw_E1.log
+long:dsp_systems_tests:MassLaw_FundamentalStrengthJointSweep_Saw_E2 exit=0 wall=96s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__MassLaw_FundamentalStrengthJointSweep_Saw_E2.log
+long:dsp_systems_tests:MassLaw_FundamentalStrengthJointSweep_Sine_E0 exit=0 wall=96s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__MassLaw_FundamentalStrengthJointSweep_Sine_E0.log
+long:dsp_systems_tests:MassLaw_FundamentalStrengthJointSweep_Saw_C3 exit=0 wall=100s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__MassLaw_FundamentalStrengthJointSweep_Saw_C3.log
+long:dsp_systems_tests:MassLaw_FundamentalStrengthJointSweep_Sine_E1 exit=0 wall=96s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__MassLaw_FundamentalStrengthJointSweep_Sine_E1.log
+long:dsp_systems_tests:MassLaw_FundamentalStrengthJointSweep_Sine_E2 exit=0 wall=96s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__MassLaw_FundamentalStrengthJointSweep_Sine_E2.log
+long:dsp_systems_tests:MassLaw_FundamentalStrengthJointSweep_Sine_C3 exit=0 wall=96s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__MassLaw_FundamentalStrengthJointSweep_Sine_C3.log
+long:dsp_systems_tests:MassLaw_LevelSlopeBounded_Ref_E0 exit=0 wall=84s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__MassLaw_LevelSlopeBounded_Ref_E0.log
+long:dsp_systems_tests:MassLaw_LevelSlopeBounded_Ref_E1 exit=0 wall=83s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__MassLaw_LevelSlopeBounded_Ref_E1.log
+long:dsp_systems_tests:MassLaw_LevelSlopeBounded_Ref_C3 exit=0 wall=82s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__MassLaw_LevelSlopeBounded_Ref_C3.log
+long:dsp_systems_tests:MassLaw_LevelSlopeBounded_Ref_E2 exit=0 wall=85s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__MassLaw_LevelSlopeBounded_Ref_E2.log
+long:dsp_systems_tests:MassLaw_LevelSlopeBounded_Saw_E0 exit=0 wall=83s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__MassLaw_LevelSlopeBounded_Saw_E0.log
+long:dsp_systems_tests:MassLaw_LevelSlopeBounded_Saw_E1 exit=0 wall=85s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__MassLaw_LevelSlopeBounded_Saw_E1.log
+long:dsp_systems_tests:MassLaw_AutomationContinuous_E0 exit=0 wall=8s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__MassLaw_AutomationContinuous_E0.log
+long:dsp_systems_tests:MassLaw_AutomationContinuous_E2 exit=0 wall=9s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__MassLaw_AutomationContinuous_E2.log
+long:dsp_systems_tests:MassLaw_AutomationContinuous_C3 exit=0 wall=9s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__MassLaw_AutomationContinuous_C3.log
+long:dsp_systems_tests:MassLaw_LevelSlopeBounded_Saw_E2 exit=0 wall=84s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__MassLaw_LevelSlopeBounded_Saw_E2.log
+long:dsp_systems_tests:MassLaw_LevelSlopeBounded_Saw_C3 exit=0 wall=84s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__MassLaw_LevelSlopeBounded_Saw_C3.log
+long:dsp_systems_tests:MassLaw_LevelSlopeBounded_Sine_E0 exit=0 wall=84s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__MassLaw_LevelSlopeBounded_Sine_E0.log
+long:dsp_systems_tests:MassLaw_LevelSlopeBounded_Sine_E1 exit=0 wall=85s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__MassLaw_LevelSlopeBounded_Sine_E1.log
+long:dsp_systems_tests:MassLaw_LevelSlopeBounded_Sine_E2 exit=0 wall=83s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__MassLaw_LevelSlopeBounded_Sine_E2.log
+long:dsp_systems_tests:MassLaw_LevelSlopeBounded_Sine_C3 exit=0 wall=85s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__MassLaw_LevelSlopeBounded_Sine_C3.log
+long:dsp_systems_tests:MassDynamics_AliasingE0E2_44k1 exit=0 wall=18s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__MassDynamics_AliasingE0E2_44k1.log
+long:dsp_systems_tests:MassDynamics_AliasingE0E2_48k exit=0 wall=19s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__MassDynamics_AliasingE0E2_48k.log
+long:dsp_systems_tests:MassLaw_StaticLattice_E2 exit=0 wall=91s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__MassLaw_StaticLattice_E2.log
+long:dsp_systems_tests:MassLaw_StaticLattice_C3 exit=0 wall=89s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__MassLaw_StaticLattice_C3.log
+long:dsp_systems_tests:MassLaw_StaticLattice_E0 exit=0 wall=103s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__MassLaw_StaticLattice_E0.log
+long:dsp_systems_tests:MassDynamics_AliasingE0E2_96k exit=0 wall=33s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__MassDynamics_AliasingE0E2_96k.log
+long:dsp_systems_tests:EcosystemEngine_SaneBoxLiveness exit=0 wall=2117s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__EcosystemEngine_SaneBoxLiveness.log
+long:dsp_systems_tests:MassLaw_AutomationDescriptorTrajectory_E2 exit=0 wall=117s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__MassLaw_AutomationDescriptorTrajectory_E2.log
+long:dsp_systems_tests:MassLaw_AutomationDescriptorTrajectory_E0 exit=0 wall=132s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__MassLaw_AutomationDescriptorTrajectory_E0.log
+long:dsp_systems_tests:MassLaw_AutomationDescriptorTrajectory_C3 exit=0 wall=109s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__MassLaw_AutomationDescriptorTrajectory_C3.log
+long:dsp_systems_tests:ProfundumNoteBehaviour_RetriggerClickFree_E0 exit=0 wall=1906s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__ProfundumNoteBehaviour_RetriggerClickFree_E0.log
+long:dsp_systems_tests:ProfundumNoteBehaviour_RetriggerClickFree_E1 exit=0 wall=1857s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__ProfundumNoteBehaviour_RetriggerClickFree_E1.log
+long:dsp_systems_tests:ProfundumNoteBehaviour_RetriggerClickFree_E2 exit=0 wall=1858s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__ProfundumNoteBehaviour_RetriggerClickFree_E2.log
+long:dsp_systems_tests:ProfundumNoteBehaviour_RetriggerClickFree_C3 exit=0 wall=1853s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__ProfundumNoteBehaviour_RetriggerClickFree_C3.log
+long:dsp_systems_tests:BassCharacter_RIsOne exit=0 wall=888s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__BassCharacter_RIsOne.log
+long:dsp_systems_tests:BassCharacter_RLawUpstreamChain exit=0 wall=1024s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__BassCharacter_RLawUpstreamChain.log
+long:dsp_systems_tests:BassCharacter_CrushFractureRLaw exit=0 wall=1788s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__BassCharacter_CrushFractureRLaw.log
+long:dsp_systems_tests:VoragoMacro_SweepAxes exit=0 wall=3299s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__VoragoMacro_SweepAxes.log
+perpush:dsp_systems_tests exit=1 wall=3556s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/perpush-dsp_systems_tests.log
+long:dsp_systems_tests:BassCharacter_RectifyFlipPoint exit=0 wall=2435s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__BassCharacter_RectifyFlipPoint.log
+long:dsp_systems_tests:BassCharacter_FractureRLawAndSidebands exit=0 wall=2425s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__BassCharacter_FractureRLawAndSidebands.log
+long:dsp_systems_tests:VoragoEngine_ConfigurationFuzz exit=0 wall=4221s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__VoragoEngine_ConfigurationFuzz.log
+long:dsp_systems_tests:EcosystemEngine_HostileFuzzStaysBounded exit=1 wall=4433s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__EcosystemEngine_HostileFuzzStaysBounded.log
+long:dsp_systems_tests:VoragoEngine_OvernightSoak exit=0 wall=14600s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__VoragoEngine_OvernightSoak.log
+long:dsp_systems_tests:VoragoEngine_OvernightEvolution exit=0 wall=14605s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/long/dsp_systems_tests__VoragoEngine_OvernightEvolution.log
+long-lane shards=175 wall=14651s
+lanes wall=14651s
+sc020 GREEN unexpected=[] missing=[] log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/sc020-diff.log
+=== git diff --stat 02fecee1 -- dsp/include
+ dsp/include/krate/dsp/processors/true_peak_limiter.h | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)
+=== untracked under dsp/include
+dsp/include/krate/dsp/processors/period_peak_detector.h
+dsp/include/krate/dsp/processors/transient_shaper.h
+dsp/include/krate/dsp/systems/mass_dynamics.h
+dsp/include/krate/dsp/systems/mass_law.h
+=== FR-048 summary: SC-003 E0 / E1 K-weighted spans (plan S1 C-1, recorded)
+SC-003 Ref E0: span(P) 8.67779 dB (bar 3), max |dP| 0.30356 dB/unit (bar 0.2), K-weighted RECORDED (C-1 (a)); span(L) 1.45383 dB (bar 6, gated)
+SC-003 Ref E1: span(P) 2.89897 dB (bar 3), max |dP| 0.124197 dB/unit (bar 0.2), K-weighted RECORDED (C-1 (a)); span(L) 2.82486 dB (bar 6, gated)
+SC-003 Saw E0: span(P) 8.56692 dB (bar 3), max |dP| 0.234238 dB/unit (bar 0.2), K-weighted RECORDED (C-1 (a)); span(L) 2.83018 dB (bar 6, gated)
+SC-003 Saw E1: span(P) 3.58829 dB (bar 3), max |dP| 0.127403 dB/unit (bar 0.2), K-weighted RECORDED (C-1 (a)); span(L) 1.05083 dB (bar 6, gated)
+SC-003 Sine E0: span(P) 8.73766 dB (bar 3), max |dP| 0.317243 dB/unit (bar 0.2), K-weighted RECORDED (G8-2, sub-only fixture); span(L) 6.62042 dB (bar 6, recorded)
+SC-003 Sine E1: span(P) 6.96632 dB (bar 3), max |dP| 0.267265 dB/unit (bar 0.2), K-weighted RECORDED (G8-2, sub-only fixture); span(L) 6.63402 dB (bar 6, recorded)
+=== FR-048 summary: SC-010 vacuous spec-method cells (plan S1 C-3, recorded; the residual method gates)
+[T016 SC-010] fs 44100 E0 (20.6017 Hz) kSawAnchor A 12 dB, method Residual gates |    spec steady [1 s, 2 s]: frame 32768, bin 1.34583 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 44100 E0 (20.6017 Hz) kSawAnchor A 12 dB, method Residual gates |    spec burst [0, 100 ms]: frame 4096, bin 10.7666 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 44100 E0 (20.6017 Hz) kSawAnchor A 12 dB, method Residual gates |    spec step [step, step + 100 ms]: frame 4096, bin 10.7666 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 44100 E0 (20.6017 Hz) kSawAnchor A -12 dB, method Residual gates |    spec steady [1 s, 2 s]: frame 32768, bin 1.34583 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 44100 E0 (20.6017 Hz) kSawAnchor A -12 dB, method Residual gates |    spec burst [0, 100 ms]: frame 4096, bin 10.7666 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 44100 E0 (20.6017 Hz) kSawAnchor A -12 dB, method Residual gates |    spec step [step, step + 100 ms]: frame 4096, bin 10.7666 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 44100 E1 (41.2034 Hz) kSawAnchor A 12 dB, method Residual gates |    spec burst [0, 100 ms]: frame 4096, bin 10.7666 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 44100 E1 (41.2034 Hz) kSawAnchor A 12 dB, method Residual gates |    spec step [step, step + 100 ms]: frame 4096, bin 10.7666 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 44100 E1 (41.2034 Hz) kSawAnchor A -12 dB, method Residual gates |    spec burst [0, 100 ms]: frame 4096, bin 10.7666 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 44100 E1 (41.2034 Hz) kSawAnchor A -12 dB, method Residual gates |    spec step [step, step + 100 ms]: frame 4096, bin 10.7666 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 44100 E2 (82.4069 Hz) kSawAnchor A 12 dB, method Residual gates |    spec burst [0, 100 ms]: frame 4096, bin 10.7666 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 44100 E2 (82.4069 Hz) kSawAnchor A 12 dB, method Residual gates |    spec step [step, step + 100 ms]: frame 4096, bin 10.7666 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 44100 E2 (82.4069 Hz) kSawAnchor A -12 dB, method Residual gates |    spec burst [0, 100 ms]: frame 4096, bin 10.7666 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 44100 E2 (82.4069 Hz) kSawAnchor A -12 dB, method Residual gates |    spec step [step, step + 100 ms]: frame 4096, bin 10.7666 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 44100 E0 (20.6017 Hz) fold100(kSawAnchor) A 12 dB, method Residual gates |    spec steady [1 s, 2 s]: frame 32768, bin 1.34583 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 44100 E0 (20.6017 Hz) fold100(kSawAnchor) A 12 dB, method Residual gates |    spec burst [0, 100 ms]: frame 4096, bin 10.7666 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 44100 E0 (20.6017 Hz) fold100(kSawAnchor) A 12 dB, method Residual gates |    spec step [step, step + 100 ms]: frame 4096, bin 10.7666 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 44100 E0 (20.6017 Hz) fold100(kSawAnchor) A -12 dB, method Residual gates |    spec steady [1 s, 2 s]: frame 32768, bin 1.34583 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 44100 E0 (20.6017 Hz) fold100(kSawAnchor) A -12 dB, method Residual gates |    spec burst [0, 100 ms]: frame 4096, bin 10.7666 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 44100 E0 (20.6017 Hz) fold100(kSawAnchor) A -12 dB, method Residual gates |    spec step [step, step + 100 ms]: frame 4096, bin 10.7666 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 44100 E1 (41.2034 Hz) fold100(kSawAnchor) A 12 dB, method Residual gates |    spec burst [0, 100 ms]: frame 4096, bin 10.7666 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 44100 E1 (41.2034 Hz) fold100(kSawAnchor) A 12 dB, method Residual gates |    spec step [step, step + 100 ms]: frame 4096, bin 10.7666 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 44100 E1 (41.2034 Hz) fold100(kSawAnchor) A -12 dB, method Residual gates |    spec burst [0, 100 ms]: frame 4096, bin 10.7666 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 44100 E1 (41.2034 Hz) fold100(kSawAnchor) A -12 dB, method Residual gates |    spec step [step, step + 100 ms]: frame 4096, bin 10.7666 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 44100 E2 (82.4069 Hz) fold100(kSawAnchor) A 12 dB, method Residual gates |    spec burst [0, 100 ms]: frame 4096, bin 10.7666 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 44100 E2 (82.4069 Hz) fold100(kSawAnchor) A 12 dB, method Residual gates |    spec step [step, step + 100 ms]: frame 4096, bin 10.7666 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 44100 E2 (82.4069 Hz) fold100(kSawAnchor) A -12 dB, method Residual gates |    spec burst [0, 100 ms]: frame 4096, bin 10.7666 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 44100 E2 (82.4069 Hz) fold100(kSawAnchor) A -12 dB, method Residual gates |    spec step [step, step + 100 ms]: frame 4096, bin 10.7666 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 48000 E0 (20.6017 Hz) kSawAnchor A 12 dB, method Residual gates |    spec steady [1 s, 2 s]: frame 32768, bin 1.46484 Hz, A_in -201.666 dBFS, A_out -187.326 dBFS VACUOUS FAIL
+[T016 SC-010] fs 48000 E0 (20.6017 Hz) kSawAnchor A 12 dB, method Residual gates |    spec burst [0, 100 ms]: frame 4096, bin 11.7188 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 48000 E0 (20.6017 Hz) kSawAnchor A 12 dB, method Residual gates |    spec step [step, step + 100 ms]: frame 4096, bin 11.7188 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 48000 E0 (20.6017 Hz) kSawAnchor A -12 dB, method Residual gates |    spec steady [1 s, 2 s]: frame 32768, bin 1.46484 Hz, A_in -201.666 dBFS, A_out -190.542 dBFS VACUOUS FAIL
+[T016 SC-010] fs 48000 E0 (20.6017 Hz) kSawAnchor A -12 dB, method Residual gates |    spec burst [0, 100 ms]: frame 4096, bin 11.7188 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 48000 E0 (20.6017 Hz) kSawAnchor A -12 dB, method Residual gates |    spec step [step, step + 100 ms]: frame 4096, bin 11.7188 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 48000 E1 (41.2034 Hz) kSawAnchor A 12 dB, method Residual gates |    spec burst [0, 100 ms]: frame 4096, bin 11.7188 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 48000 E1 (41.2034 Hz) kSawAnchor A 12 dB, method Residual gates |    spec step [step, step + 100 ms]: frame 4096, bin 11.7188 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 48000 E1 (41.2034 Hz) kSawAnchor A -12 dB, method Residual gates |    spec burst [0, 100 ms]: frame 4096, bin 11.7188 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 48000 E1 (41.2034 Hz) kSawAnchor A -12 dB, method Residual gates |    spec step [step, step + 100 ms]: frame 4096, bin 11.7188 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 48000 E2 (82.4069 Hz) kSawAnchor A 12 dB, method Residual gates |    spec burst [0, 100 ms]: frame 4096, bin 11.7188 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 48000 E2 (82.4069 Hz) kSawAnchor A 12 dB, method Residual gates |    spec step [step, step + 100 ms]: frame 4096, bin 11.7188 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 48000 E2 (82.4069 Hz) kSawAnchor A -12 dB, method Residual gates |    spec burst [0, 100 ms]: frame 4096, bin 11.7188 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 48000 E2 (82.4069 Hz) kSawAnchor A -12 dB, method Residual gates |    spec step [step, step + 100 ms]: frame 4096, bin 11.7188 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 48000 E0 (20.6017 Hz) fold100(kSawAnchor) A 12 dB, method Residual gates |    spec steady [1 s, 2 s]: frame 32768, bin 1.46484 Hz, A_in -183.472 dBFS, A_out -173.739 dBFS VACUOUS FAIL
+[T016 SC-010] fs 48000 E0 (20.6017 Hz) fold100(kSawAnchor) A 12 dB, method Residual gates |    spec burst [0, 100 ms]: frame 4096, bin 11.7188 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 48000 E0 (20.6017 Hz) fold100(kSawAnchor) A 12 dB, method Residual gates |    spec step [step, step + 100 ms]: frame 4096, bin 11.7188 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 48000 E0 (20.6017 Hz) fold100(kSawAnchor) A -12 dB, method Residual gates |    spec steady [1 s, 2 s]: frame 32768, bin 1.46484 Hz, A_in -183.472 dBFS, A_out -177.29 dBFS VACUOUS FAIL
+[T016 SC-010] fs 48000 E0 (20.6017 Hz) fold100(kSawAnchor) A -12 dB, method Residual gates |    spec burst [0, 100 ms]: frame 4096, bin 11.7188 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 48000 E0 (20.6017 Hz) fold100(kSawAnchor) A -12 dB, method Residual gates |    spec step [step, step + 100 ms]: frame 4096, bin 11.7188 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 48000 E1 (41.2034 Hz) fold100(kSawAnchor) A 12 dB, method Residual gates |    spec burst [0, 100 ms]: frame 4096, bin 11.7188 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 48000 E1 (41.2034 Hz) fold100(kSawAnchor) A 12 dB, method Residual gates |    spec step [step, step + 100 ms]: frame 4096, bin 11.7188 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 48000 E1 (41.2034 Hz) fold100(kSawAnchor) A -12 dB, method Residual gates |    spec burst [0, 100 ms]: frame 4096, bin 11.7188 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 48000 E1 (41.2034 Hz) fold100(kSawAnchor) A -12 dB, method Residual gates |    spec step [step, step + 100 ms]: frame 4096, bin 11.7188 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 48000 E2 (82.4069 Hz) fold100(kSawAnchor) A 12 dB, method Residual gates |    spec burst [0, 100 ms]: frame 4096, bin 11.7188 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 48000 E2 (82.4069 Hz) fold100(kSawAnchor) A 12 dB, method Residual gates |    spec step [step, step + 100 ms]: frame 4096, bin 11.7188 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 48000 E2 (82.4069 Hz) fold100(kSawAnchor) A -12 dB, method Residual gates |    spec burst [0, 100 ms]: frame 4096, bin 11.7188 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 48000 E2 (82.4069 Hz) fold100(kSawAnchor) A -12 dB, method Residual gates |    spec step [step, step + 100 ms]: frame 4096, bin 11.7188 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 96000 E0 (20.6017 Hz) kSawAnchor A 12 dB, method Residual gates |    spec steady [1 s, 2 s]: frame 65536, bin 1.46484 Hz, A_in -202.265 dBFS, A_out -196.837 dBFS VACUOUS FAIL
+[T016 SC-010] fs 96000 E0 (20.6017 Hz) kSawAnchor A 12 dB, method Residual gates |    spec burst [0, 100 ms]: frame 8192, bin 11.7188 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 96000 E0 (20.6017 Hz) kSawAnchor A 12 dB, method Residual gates |    spec step [step, step + 100 ms]: frame 8192, bin 11.7188 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 96000 E0 (20.6017 Hz) kSawAnchor A -12 dB, method Residual gates |    spec steady [1 s, 2 s]: frame 65536, bin 1.46484 Hz, A_in -202.265 dBFS, A_out -189.529 dBFS VACUOUS FAIL
+[T016 SC-010] fs 96000 E0 (20.6017 Hz) kSawAnchor A -12 dB, method Residual gates |    spec burst [0, 100 ms]: frame 8192, bin 11.7188 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 96000 E0 (20.6017 Hz) kSawAnchor A -12 dB, method Residual gates |    spec step [step, step + 100 ms]: frame 8192, bin 11.7188 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 96000 E1 (41.2034 Hz) kSawAnchor A 12 dB, method Residual gates |    spec burst [0, 100 ms]: frame 8192, bin 11.7188 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 96000 E1 (41.2034 Hz) kSawAnchor A 12 dB, method Residual gates |    spec step [step, step + 100 ms]: frame 8192, bin 11.7188 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 96000 E1 (41.2034 Hz) kSawAnchor A -12 dB, method Residual gates |    spec burst [0, 100 ms]: frame 8192, bin 11.7188 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 96000 E1 (41.2034 Hz) kSawAnchor A -12 dB, method Residual gates |    spec step [step, step + 100 ms]: frame 8192, bin 11.7188 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 96000 E2 (82.4069 Hz) kSawAnchor A 12 dB, method Residual gates |    spec burst [0, 100 ms]: frame 8192, bin 11.7188 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 96000 E2 (82.4069 Hz) kSawAnchor A 12 dB, method Residual gates |    spec step [step, step + 100 ms]: frame 8192, bin 11.7188 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 96000 E2 (82.4069 Hz) kSawAnchor A -12 dB, method Residual gates |    spec burst [0, 100 ms]: frame 8192, bin 11.7188 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 96000 E2 (82.4069 Hz) kSawAnchor A -12 dB, method Residual gates |    spec step [step, step + 100 ms]: frame 8192, bin 11.7188 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 96000 E0 (20.6017 Hz) fold100(kSawAnchor) A 12 dB, method Residual gates |    spec steady [1 s, 2 s]: frame 65536, bin 1.46484 Hz, A_in -178.467 dBFS, A_out -174.663 dBFS VACUOUS FAIL
+[T016 SC-010] fs 96000 E0 (20.6017 Hz) fold100(kSawAnchor) A 12 dB, method Residual gates |    spec burst [0, 100 ms]: frame 8192, bin 11.7188 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 96000 E0 (20.6017 Hz) fold100(kSawAnchor) A 12 dB, method Residual gates |    spec step [step, step + 100 ms]: frame 8192, bin 11.7188 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 96000 E0 (20.6017 Hz) fold100(kSawAnchor) A -12 dB, method Residual gates |    spec steady [1 s, 2 s]: frame 65536, bin 1.46484 Hz, A_in -178.467 dBFS, A_out -175.173 dBFS VACUOUS FAIL
+[T016 SC-010] fs 96000 E0 (20.6017 Hz) fold100(kSawAnchor) A -12 dB, method Residual gates |    spec burst [0, 100 ms]: frame 8192, bin 11.7188 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 96000 E0 (20.6017 Hz) fold100(kSawAnchor) A -12 dB, method Residual gates |    spec step [step, step + 100 ms]: frame 8192, bin 11.7188 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 96000 E1 (41.2034 Hz) fold100(kSawAnchor) A 12 dB, method Residual gates |    spec burst [0, 100 ms]: frame 8192, bin 11.7188 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 96000 E1 (41.2034 Hz) fold100(kSawAnchor) A 12 dB, method Residual gates |    spec step [step, step + 100 ms]: frame 8192, bin 11.7188 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 96000 E1 (41.2034 Hz) fold100(kSawAnchor) A -12 dB, method Residual gates |    spec burst [0, 100 ms]: frame 8192, bin 11.7188 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 96000 E1 (41.2034 Hz) fold100(kSawAnchor) A -12 dB, method Residual gates |    spec step [step, step + 100 ms]: frame 8192, bin 11.7188 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 96000 E2 (82.4069 Hz) fold100(kSawAnchor) A 12 dB, method Residual gates |    spec burst [0, 100 ms]: frame 8192, bin 11.7188 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 96000 E2 (82.4069 Hz) fold100(kSawAnchor) A 12 dB, method Residual gates |    spec step [step, step + 100 ms]: frame 8192, bin 11.7188 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 96000 E2 (82.4069 Hz) fold100(kSawAnchor) A -12 dB, method Residual gates |    spec burst [0, 100 ms]: frame 8192, bin 11.7188 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+[T016 SC-010] fs 96000 E2 (82.4069 Hz) fold100(kSawAnchor) A -12 dB, method Residual gates |    spec step [step, step + 100 ms]: frame 8192, bin 11.7188 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+--- perpush-dsp_processors_tests tail
+All tests passed (10807233 assertions in 3465 test cases)
+
+exit: 0 wall: 838 s
+--- perpush-dsp_systems_tests tail
+assertions: 10241165 | 10241164 passed | 1 failed
+
+exit: 1 wall: 3556 s
+DONE 2026-10-18T10:41:42Z RED warnings=0 perpush_red=1 long_red=1/175 sc020_red=0 total_wall=14660s

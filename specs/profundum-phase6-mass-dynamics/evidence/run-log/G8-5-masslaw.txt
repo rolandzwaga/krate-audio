@@ -1,0 +1,237 @@
+Filters: [mass-law] ~[long] ~[.calibration] ~[.calibration]
+Randomness seeded to: 3377375831
+MassLaw_TableInvariants: depth                lo 0 hi 1 down -0.5 up -0.5  max|a|*slope 0.5 <= cap 1
+MassLaw_TableInvariants: body                 lo 0 hi 1 down 0.5 up 0.4  max|a|*slope 0.5 <= cap 1
+MassLaw_TableInvariants: transientDurationMs  lo 5 hi 250 down 30 up 110  max|a|*slope 110 <= cap 245
+MassLaw_TableInvariants: foldAmount           lo 0 hi 100 down 50 up 60  max|a|*slope 60 <= cap 100
+MassLaw_TableInvariants: compressionAmount    lo 0 hi 1 down 0.5 up 1  max|a|*slope 1 <= cap 1
+MassLaw_TableInvariants: anchorLevel          lo 0 hi 1 down 0.5 up 0.5  max|a|*slope 0.5 <= cap 1
+MassLaw_TableInvariants: outputTrimDb         lo -12 hi 12 down 0 up 0  max|a|*slope 0 <= cap 24
+MassLaw_TargetsMonotonic: reference   depth                Mass0 1 Mass50 0.5 Mass100 0  clamped runs 0
+MassLaw_TargetsMonotonic: reference   body                 Mass0 0 Mass50 0.5 Mass100 0.9  clamped runs 0
+MassLaw_TargetsMonotonic: reference   transientDurationMs  Mass0 10 Mass50 40 Mass100 150  clamped runs 0
+MassLaw_TargetsMonotonic: reference   foldAmount           Mass0 0 Mass50 0 Mass100 60  clamped runs 1
+MassLaw_TargetsMonotonic: reference   compressionAmount    Mass0 0 Mass50 0 Mass100 1  clamped runs 1
+MassLaw_TargetsMonotonic: reference   anchorLevel          Mass0 0 Mass50 0.5 Mass100 1  clamped runs 0
+MassLaw_TargetsMonotonic: reference   outputTrimDb         Mass0 0 Mass50 0 Mass100 0  clamped runs 0
+MassLaw_TargetsMonotonic: kSawAnchor  depth                Mass0 0.5 Mass50 0 Mass100 0  clamped runs 1
+MassLaw_TargetsMonotonic: kSawAnchor  body                 Mass0 0 Mass50 0 Mass100 0.4  clamped runs 1
+MassLaw_TargetsMonotonic: kSawAnchor  transientDurationMs  Mass0 10 Mass50 40 Mass100 150  clamped runs 0
+MassLaw_TargetsMonotonic: kSawAnchor  foldAmount           Mass0 0 Mass50 0 Mass100 60  clamped runs 1
+MassLaw_TargetsMonotonic: kSawAnchor  compressionAmount    Mass0 0 Mass50 0 Mass100 1  clamped runs 1
+MassLaw_TargetsMonotonic: kSawAnchor  anchorLevel          Mass0 0 Mass50 0.5 Mass100 1  clamped runs 0
+MassLaw_TargetsMonotonic: kSawAnchor  outputTrimDb         Mass0 0 Mass50 0 Mass100 0  clamped runs 0
+MassLaw_TargetsMonotonic: kSineAnchor depth                Mass0 1 Mass50 1 Mass100 0.5  clamped runs 1
+MassLaw_TargetsMonotonic: kSineAnchor body                 Mass0 0 Mass50 0 Mass100 0.4  clamped runs 1
+MassLaw_TargetsMonotonic: kSineAnchor transientDurationMs  Mass0 10 Mass50 40 Mass100 150  clamped runs 0
+MassLaw_TargetsMonotonic: kSineAnchor foldAmount           Mass0 0 Mass50 0 Mass100 60  clamped runs 1
+MassLaw_TargetsMonotonic: kSineAnchor compressionAmount    Mass0 0 Mass50 0 Mass100 1  clamped runs 1
+MassLaw_TargetsMonotonic: kSineAnchor anchorLevel          Mass0 0 Mass50 0.5 Mass100 1  clamped runs 0
+MassLaw_TargetsMonotonic: kSineAnchor outputTrimDb         Mass0 0 Mass50 0 Mass100 0  clamped runs 0
+MassLaw_NeutralAtFifty: seeded bases mismatching at Mass 50: 0 / 100
+MassLaw_NeutralAtFifty: edge all-lo          depth                base 0  Mass0 0.5  Mass100 0
+MassLaw_NeutralAtFifty: edge all-lo          body                 base 0  Mass0 0  Mass100 0.4
+MassLaw_NeutralAtFifty: edge all-lo          transientDurationMs  base 5  Mass0 5  Mass100 115
+MassLaw_NeutralAtFifty: edge all-lo          foldAmount           base 0  Mass0 0  Mass100 60
+MassLaw_NeutralAtFifty: edge all-lo          compressionAmount    base 0  Mass0 0  Mass100 1
+MassLaw_NeutralAtFifty: edge all-lo          anchorLevel          base 0  Mass0 0  Mass100 0.5
+MassLaw_NeutralAtFifty: edge all-lo          outputTrimDb         base -12  Mass0 -12  Mass100 -12
+MassLaw_NeutralAtFifty: edge all-hi          depth                base 1  Mass0 1  Mass100 0.5
+MassLaw_NeutralAtFifty: edge all-hi          body                 base 1  Mass0 0.5  Mass100 1
+MassLaw_NeutralAtFifty: edge all-hi          transientDurationMs  base 250  Mass0 220  Mass100 250
+MassLaw_NeutralAtFifty: edge all-hi          foldAmount           base 100  Mass0 50  Mass100 100
+MassLaw_NeutralAtFifty: edge all-hi          compressionAmount    base 1  Mass0 0.5  Mass100 1
+MassLaw_NeutralAtFifty: edge all-hi          anchorLevel          base 1  Mass0 0.5  Mass100 1
+MassLaw_NeutralAtFifty: edge all-hi          outputTrimDb         base 12  Mass0 12  Mass100 12
+MassLaw_NeutralAtFifty: edge depth1-fold100  depth                base 1  Mass0 1  Mass100 0.5
+MassLaw_NeutralAtFifty: edge depth1-fold100  body                 base 0.5  Mass0 0  Mass100 0.9
+MassLaw_NeutralAtFifty: edge depth1-fold100  transientDurationMs  base 40  Mass0 10  Mass100 150
+MassLaw_NeutralAtFifty: edge depth1-fold100  foldAmount           base 100  Mass0 50  Mass100 100
+MassLaw_NeutralAtFifty: edge depth1-fold100  compressionAmount    base 0  Mass0 0  Mass100 1
+MassLaw_NeutralAtFifty: edge depth1-fold100  anchorLevel          base 0.5  Mass0 0  Mass100 1
+MassLaw_NeutralAtFifty: edge depth1-fold100  outputTrimDb         base 0  Mass0 0  Mass100 0
+MassLaw_SlewBounded: fs 48000 reference   depth                max step 0.0166667104 bar 0.0333333333 excess -0.0167 (allowance 1e-06) steps 61 (expected 60)
+MassLaw_SlewBounded: fs 48000 reference   body                 max step 0.0166667104 bar 0.0333333333 excess -0.0167 (allowance 1e-06) steps 61 (expected 60)
+MassLaw_SlewBounded: fs 48000 reference   transientDurationMs  max step 3.66667175 bar 8.16666667 excess -4.5 (allowance 0.000245) steps 61 (expected 60)
+MassLaw_SlewBounded: fs 48000 reference   foldAmount           max step 2.00000191 bar 3.33333333 excess -1.33 (allowance 0.0001) steps 61 (expected 60)
+MassLaw_SlewBounded: fs 48000 reference   compressionAmount    max step 0.0333333611 bar 0.0333333333 excess 2.78e-08 (allowance 1e-06) steps 61 (expected 60)
+MassLaw_SlewBounded: fs 48000 reference   anchorLevel          max step 0.0166667104 bar 0.0333333333 excess -0.0167 (allowance 1e-06) steps 61 (expected 60)
+MassLaw_SlewBounded: fs 48000 reference   outputTrimDb         max step 0 bar 0.8 excess -0.8 (allowance 2.4e-05) steps 61 (expected 60)
+MassLaw_SlewBounded: fs 48000 kSawAnchor  depth                max step 0.016666688 bar 0.0333333333 excess -0.0167 (allowance 1e-06) steps 61 (expected 60)
+MassLaw_SlewBounded: fs 48000 kSawAnchor  body                 max step 0.0133333504 bar 0.0333333333 excess -0.02 (allowance 1e-06) steps 61 (expected 60)
+MassLaw_SlewBounded: fs 48000 kSawAnchor  transientDurationMs  max step 3.66667175 bar 8.16666667 excess -4.5 (allowance 0.000245) steps 61 (expected 60)
+MassLaw_SlewBounded: fs 48000 kSawAnchor  foldAmount           max step 2.00000191 bar 3.33333333 excess -1.33 (allowance 0.0001) steps 61 (expected 60)
+MassLaw_SlewBounded: fs 48000 kSawAnchor  compressionAmount    max step 0.0333333611 bar 0.0333333333 excess 2.78e-08 (allowance 1e-06) steps 61 (expected 60)
+MassLaw_SlewBounded: fs 48000 kSawAnchor  anchorLevel          max step 0.0166667104 bar 0.0333333333 excess -0.0167 (allowance 1e-06) steps 61 (expected 60)
+MassLaw_SlewBounded: fs 48000 kSawAnchor  outputTrimDb         max step 0 bar 0.8 excess -0.8 (allowance 2.4e-05) steps 61 (expected 60)
+MassLaw_SlewBounded: fs 48000 kSineAnchor depth                max step 0.0166667104 bar 0.0333333333 excess -0.0167 (allowance 1e-06) steps 61 (expected 60)
+MassLaw_SlewBounded: fs 48000 kSineAnchor body                 max step 0.0133333504 bar 0.0333333333 excess -0.02 (allowance 1e-06) steps 61 (expected 60)
+MassLaw_SlewBounded: fs 48000 kSineAnchor transientDurationMs  max step 3.66667175 bar 8.16666667 excess -4.5 (allowance 0.000245) steps 61 (expected 60)
+MassLaw_SlewBounded: fs 48000 kSineAnchor foldAmount           max step 2.00000191 bar 3.33333333 excess -1.33 (allowance 0.0001) steps 61 (expected 60)
+MassLaw_SlewBounded: fs 48000 kSineAnchor compressionAmount    max step 0.0333333611 bar 0.0333333333 excess 2.78e-08 (allowance 1e-06) steps 61 (expected 60)
+MassLaw_SlewBounded: fs 48000 kSineAnchor anchorLevel          max step 0.0166667104 bar 0.0333333333 excess -0.0167 (allowance 1e-06) steps 61 (expected 60)
+MassLaw_SlewBounded: fs 48000 kSineAnchor outputTrimDb         max step 0 bar 0.8 excess -0.8 (allowance 2.4e-05) steps 61 (expected 60)
+MassLaw_SlewBounded: fs 44100 reference   depth                max step 0.0181406438 bar 0.0362811791 excess -0.0181 (allowance 1e-06) steps 56 (expected 56)
+MassLaw_SlewBounded: fs 44100 reference   body                 max step 0.018140614 bar 0.0362811791 excess -0.0181 (allowance 1e-06) steps 56 (expected 56)
+MassLaw_SlewBounded: fs 44100 reference   transientDurationMs  max step 3.99093628 bar 8.88888889 excess -4.9 (allowance 0.000245) steps 56 (expected 56)
+MassLaw_SlewBounded: fs 44100 reference   foldAmount           max step 2.17687273 bar 3.62811791 excess -1.45 (allowance 0.0001) steps 56 (expected 56)
+MassLaw_SlewBounded: fs 44100 reference   compressionAmount    max step 0.0362812057 bar 0.0362811791 excess 2.66e-08 (allowance 1e-06) steps 56 (expected 56)
+MassLaw_SlewBounded: fs 44100 reference   anchorLevel          max step 0.018140614 bar 0.0362811791 excess -0.0181 (allowance 1e-06) steps 56 (expected 56)
+MassLaw_SlewBounded: fs 44100 reference   outputTrimDb         max step 0 bar 0.870748299 excess -0.871 (allowance 2.4e-05) steps 56 (expected 56)
+MassLaw_SlewBounded: fs 44100 kSawAnchor  depth                max step 0.018140614 bar 0.0362811791 excess -0.0181 (allowance 1e-06) steps 56 (expected 56)
+MassLaw_SlewBounded: fs 44100 kSawAnchor  body                 max step 0.0145124868 bar 0.0362811791 excess -0.0218 (allowance 1e-06) steps 56 (expected 56)
+MassLaw_SlewBounded: fs 44100 kSawAnchor  transientDurationMs  max step 3.99093628 bar 8.88888889 excess -4.9 (allowance 0.000245) steps 56 (expected 56)
+MassLaw_SlewBounded: fs 44100 kSawAnchor  foldAmount           max step 2.17687273 bar 3.62811791 excess -1.45 (allowance 0.0001) steps 56 (expected 56)
+MassLaw_SlewBounded: fs 44100 kSawAnchor  compressionAmount    max step 0.0362812057 bar 0.0362811791 excess 2.66e-08 (allowance 1e-06) steps 56 (expected 56)
+MassLaw_SlewBounded: fs 44100 kSawAnchor  anchorLevel          max step 0.018140614 bar 0.0362811791 excess -0.0181 (allowance 1e-06) steps 56 (expected 56)
+MassLaw_SlewBounded: fs 44100 kSawAnchor  outputTrimDb         max step 0 bar 0.870748299 excess -0.871 (allowance 2.4e-05) steps 56 (expected 56)
+MassLaw_SlewBounded: fs 44100 kSineAnchor depth                max step 0.018140614 bar 0.0362811791 excess -0.0181 (allowance 1e-06) steps 56 (expected 56)
+MassLaw_SlewBounded: fs 44100 kSineAnchor body                 max step 0.0145124868 bar 0.0362811791 excess -0.0218 (allowance 1e-06) steps 56 (expected 56)
+MassLaw_SlewBounded: fs 44100 kSineAnchor transientDurationMs  max step 3.99093628 bar 8.88888889 excess -4.9 (allowance 0.000245) steps 56 (expected 56)
+MassLaw_SlewBounded: fs 44100 kSineAnchor foldAmount           max step 2.17687273 bar 3.62811791 excess -1.45 (allowance 0.0001) steps 56 (expected 56)
+MassLaw_SlewBounded: fs 44100 kSineAnchor compressionAmount    max step 0.0362812057 bar 0.0362811791 excess 2.66e-08 (allowance 1e-06) steps 56 (expected 56)
+MassLaw_SlewBounded: fs 44100 kSineAnchor anchorLevel          max step 0.018140614 bar 0.0362811791 excess -0.0181 (allowance 1e-06) steps 56 (expected 56)
+MassLaw_SlewBounded: fs 44100 kSineAnchor outputTrimDb         max step 0 bar 0.870748299 excess -0.871 (allowance 2.4e-05) steps 56 (expected 56)
+MassLaw_SlewBounded: fs 96000 reference   depth                max step 0.00833338499 bar 0.0166666667 excess -0.00833 (allowance 1e-06) steps 120 (expected 120)
+MassLaw_SlewBounded: fs 96000 reference   body                 max step 0.00833335519 bar 0.0166666667 excess -0.00833 (allowance 1e-06) steps 120 (expected 120)
+MassLaw_SlewBounded: fs 96000 reference   transientDurationMs  max step 1.83334351 bar 4.08333333 excess -2.25 (allowance 0.000245) steps 120 (expected 120)
+MassLaw_SlewBounded: fs 96000 reference   foldAmount           max step 1.00000763 bar 1.66666667 excess -0.667 (allowance 0.0001) steps 120 (expected 120)
+MassLaw_SlewBounded: fs 96000 reference   compressionAmount    max step 0.01666677 bar 0.0166666667 excess 1.03e-07 (allowance 1e-06) steps 120 (expected 120)
+MassLaw_SlewBounded: fs 96000 reference   anchorLevel          max step 0.00833338499 bar 0.0166666667 excess -0.00833 (allowance 1e-06) steps 120 (expected 120)
+MassLaw_SlewBounded: fs 96000 reference   outputTrimDb         max step 0 bar 0.4 excess -0.4 (allowance 2.4e-05) steps 120 (expected 120)
+MassLaw_SlewBounded: fs 96000 kSawAnchor  depth                max step 0.00833335519 bar 0.0166666667 excess -0.00833 (allowance 1e-06) steps 120 (expected 120)
+MassLaw_SlewBounded: fs 96000 kSawAnchor  body                 max step 0.00666671991 bar 0.0166666667 excess -0.01 (allowance 1e-06) steps 120 (expected 120)
+MassLaw_SlewBounded: fs 96000 kSawAnchor  transientDurationMs  max step 1.83334351 bar 4.08333333 excess -2.25 (allowance 0.000245) steps 120 (expected 120)
+MassLaw_SlewBounded: fs 96000 kSawAnchor  foldAmount           max step 1.00000763 bar 1.66666667 excess -0.667 (allowance 0.0001) steps 120 (expected 120)
+MassLaw_SlewBounded: fs 96000 kSawAnchor  compressionAmount    max step 0.01666677 bar 0.0166666667 excess 1.03e-07 (allowance 1e-06) steps 120 (expected 120)
+MassLaw_SlewBounded: fs 96000 kSawAnchor  anchorLevel          max step 0.00833338499 bar 0.0166666667 excess -0.00833 (allowance 1e-06) steps 120 (expected 120)
+MassLaw_SlewBounded: fs 96000 kSawAnchor  outputTrimDb         max step 0 bar 0.4 excess -0.4 (allowance 2.4e-05) steps 120 (expected 120)
+MassLaw_SlewBounded: fs 96000 kSineAnchor depth                max step 0.00833338499 bar 0.0166666667 excess -0.00833 (allowance 1e-06) steps 120 (expected 120)
+MassLaw_SlewBounded: fs 96000 kSineAnchor body                 max step 0.00666671991 bar 0.0166666667 excess -0.01 (allowance 1e-06) steps 120 (expected 120)
+MassLaw_SlewBounded: fs 96000 kSineAnchor transientDurationMs  max step 1.83334351 bar 4.08333333 excess -2.25 (allowance 0.000245) steps 120 (expected 120)
+MassLaw_SlewBounded: fs 96000 kSineAnchor foldAmount           max step 1.00000763 bar 1.66666667 excess -0.667 (allowance 0.0001) steps 120 (expected 120)
+MassLaw_SlewBounded: fs 96000 kSineAnchor compressionAmount    max step 0.01666677 bar 0.0166666667 excess 1.03e-07 (allowance 1e-06) steps 120 (expected 120)
+MassLaw_SlewBounded: fs 96000 kSineAnchor anchorLevel          max step 0.00833338499 bar 0.0166666667 excess -0.00833 (allowance 1e-06) steps 120 (expected 120)
+MassLaw_SlewBounded: fs 96000 kSineAnchor outputTrimDb         max step 0 bar 0.4 excess -0.4 (allowance 2.4e-05) steps 120 (expected 120)
+MassLaw_Lifecycle: 96 kHz full sweep 120 intervals (expected 120)
+MassLaw_NoAllocation: 0 allocation(s) (positive control 1), sink 4050.75
+SC-001(b) Depth E1 Mass 0: w1/sum(w) dB of outL = -8.03823e-08 (target 1)
+SC-001(b) Depth E1 Mass 50: w1/sum(w) dB of outL = -0.99847 (target 0.5)
+SC-001(b) Depth E1 Mass 100: w1/sum(w) dB of outL = -16.7969 (target 0)
+SC-001(b) Depth E1: epsilon 0.1 dB (measured -1, cap 0.1), direction non-increasing, worst step 0.99847 dB at Mass 50, violations 0
+SC-001(b) Body E1 Mass 0: E_low dB of outL = -77.5523 (target 0)
+SC-001(b) Body E1 Mass 50: E_low dB of outL = -65.8173 (target 0.5)
+SC-001(b) Body E1 Mass 100: E_low dB of outL = -56.5759 (target 0.9)
+SC-001(b) Body E1: epsilon 0.1 dB (measured -1, cap 0.1), direction non-decreasing, worst step 9.24141 dB at Mass 100, violations 0
+SC-001(b) Duration E1 Mass 0: D_tr dB of outL (375 ms window, shaper +6 / 0 dB) = 0.515005 (target 10)
+SC-001(b) Duration E1 Mass 50: D_tr dB of outL (375 ms window, shaper +6 / 0 dB) = 1.82925 (target 40)
+SC-001(b) Duration E1 Mass 100: D_tr dB of outL (375 ms window, shaper +6 / 0 dB) = 4.26392 (target 150)
+SC-001(b) Duration E1: epsilon 0.1 dB (measured -1, cap 0.1), direction non-decreasing, worst step 1.31425 dB at Mass 50, violations 0
+SC-001(b) Fold E1 Mass 0: THD dB of outL = -77.3262 (target 0)
+SC-001(b) Fold E1 Mass 50: THD dB of outL = -77.3262 (target 0)
+SC-001(b) Fold E1 Mass 100: THD dB of outL = -21.1384 (target 60)
+SC-001(b) Fold E1: epsilon 0.1 dB (measured -1, cap 0.1), direction non-decreasing, worst step 0 dB at Mass 50, violations 0
+SC-001(b) Compression E1 Mass 0: Delta L_step dB of outL (kSawAnchor step) = 11.999 (target 0), steady GR low 0 dB / high 0 dB (recorded)
+SC-001(b) Compression E1 Mass 50: Delta L_step dB of outL (kSawAnchor step) = 11.999 (target 0), steady GR low 0 dB / high 0 dB (recorded)
+SC-001(b) Compression E1 Mass 100: Delta L_step dB of outL (kSawAnchor step) = 5.47798 (target 1), steady GR low -0.0342406 dB / high -6.55524 dB (recorded)
+SC-001(b) Compression E1: epsilon 0.1 dB (measured -1, cap 0.1), direction non-increasing, worst step 0 dB at Mass 50, violations 0
+SC-001(b) AnchorLevel E1 Mass 0: w1 dB of sumL = 89.1008 (target 0)
+SC-001(b) AnchorLevel E1 Mass 50: w1 dB of sumL = 91.16 (target 0.5)
+SC-001(b) AnchorLevel E1 Mass 100: w1 dB of sumL = 92.8234 (target 1)
+SC-001(b) AnchorLevel E1: epsilon 0.1 dB (measured -1, cap 0.1), direction non-decreasing, worst step 1.6634 dB at Mass 100, violations 0
+SC-001(b) OutputTrim E1 Mass 0: L dBFS of outL = -12.0607 (target 0)
+SC-001(b) OutputTrim E1 Mass 50: L dBFS of outL = -12.0607 (target 0)
+SC-001(b) OutputTrim E1 Mass 100: L dBFS of outL = -12.0607 (target 0)
+SC-001(b) OutputTrim E1: epsilon 0.1 dB (measured -1, cap 0.1), direction non-increasing, worst step 0 dB at Mass 50, violations 0
+SC-001(c) Ref E1 Mass 0: w1(outL) = 89.1008 dB
+SC-001(c) Ref E1 Mass 25: w1(outL) = 90.0764 dB
+SC-001(c) Ref E1 Mass 50: w1(outL) = 87.1911 dB
+SC-001(c) Ref E1 Mass 75: w1(outL) = 84.3454 dB
+SC-001(c) Ref E1 Mass 100: w1(outL) = 84.7618 dB
+SC-001(c) Ref E1: epsilon 0.1 dB (measured at Mass 50 -1, cap 0.1), worst fall from Mass 0 -4.75538 dB at Mass 75 (bar -6 - eps), worst step -2.88531 dB at Mass 50 (recorded, G8-4; non-decreasing violations 2)
+SC-003 Ref E2 Mass 0: P = -14.3433 LKFS, L = -12.0132 dBFS
+SC-003 Ref E2 Mass 25: P = -13.2225 LKFS, L = -10.9358 dBFS
+SC-003 Ref E2 Mass 50: P = -12.0832 LKFS, L = -10.6779 dBFS
+SC-003 Ref E2 Mass 75: P = -12.2152 LKFS, L = -11.2565 dBFS
+SC-003 Ref E2 Mass 100: P = -13.0718 LKFS, L = -12.4019 dBFS
+SC-003 Ref E2: span(P) 2.26012 dB (bar 3), max |dP| 0.0455732 dB/unit (bar 0.2), K-weighted GATED; span(L) 1.72402 dB (bar 6, gated)
+SC-003 Ref C3 Mass 0: P = -13.3579 LKFS, L = -12.0035 dBFS
+SC-003 Ref C3 Mass 25: P = -12.2554 LKFS, L = -10.9263 dBFS
+SC-003 Ref C3 Mass 50: P = -11.5193 LKFS, L = -10.6727 dBFS
+SC-003 Ref C3 Mass 75: P = -11.4684 LKFS, L = -10.8826 dBFS
+SC-003 Ref C3 Mass 100: P = -12.6801 LKFS, L = -12.3651 dBFS
+SC-003 Ref C3: span(P) 1.88948 dB (bar 3), max |dP| 0.0484678 dB/unit (bar 0.2), K-weighted GATED; span(L) 1.69239 dB (bar 6, gated)
+[T015 SC-002] f0 41.2034 Mass 0: THD -77.3262 dB, E_low -77.5523 dB, E_high -90.2737 dB, L -12.0352 dBFS, mean GR [1 s, end] -0 dB
+[T015 SC-002] f0 41.2034 Mass 50: THD 0.501374 dB, E_low -3.07586 dB, E_high -14.3985 dB, L -10.6368 dBFS, mean GR [1 s, end] -0 dB
+[T015 SC-002] f0 41.2034 Mass 100: THD 6.89724 dB, E_low -1.6296 dB, E_high -8.43985 dB, L -12.8318 dBFS, mean GR [1 s, end] 10.0042 dB
+[T015 SC-002] f0 41.2034 Mass 0: samples with GR != 0: 0
+[T015 SC-002] f0 130.813 Mass 0: THD -77.3683 dB, E_low -77.5937 dB, E_high -90.3285 dB, L -11.9761 dBFS, mean GR [1 s, end] -0 dB
+[T015 SC-002] f0 130.813 Mass 50: THD 0.451486 dB, E_low -3.09908 dB, E_high -14.427 dB, L -10.6112 dBFS, mean GR [1 s, end] -0 dB
+[T015 SC-002] f0 130.813 Mass 100: THD 7.63467 dB, E_low -1.23109 dB, E_high -10.0093 dB, L -12.3635 dBFS, mean GR [1 s, end] 10.2322 dB
+[T015 SC-002] f0 130.813 Mass 0: samples with GR != 0: 0
+[T015 SC-005(a)] E2 step 0->100 (smoke), block 512: counted 0 (transition 338, reference 677, N 72, guarded out 0)
+[T015 SC-005(a)] E2 hard +12 dB switch control (smoke), block 512: counted 1 (transition 339, reference 677, N 72, guarded out 0)
+[T015 SC-005(a)] E2 unsmoothedMass 0->100 control (smoke), block 512: counted 0 (transition 338, reference 677, N 72, guarded out 0)
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+MassLaw_AutomationContinuousSmoke
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\mass_law_automation_test.cpp(573)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\mass_law_automation_test.cpp(595): warning:
+  E2 unsmoothedMass control (smoke): counted 0 (recorded, G8-7)
+
+[T015 lattice E2 smoke] Mass 0: w1/Sum -0.344524 dB, E_low -11.2053, E_high -33.0238, THD -10.8323 dB, C 0.0920496 oct, L -11.9876 dBFS, w1(sum) 88.7571 dB, GR -0 dB
+[T015 lattice E2 smoke] Mass 1: w1/Sum -0.3503 dB, E_low -11.1378, E_high -32.6703, THD -10.7571 dB, C 0.0939387 oct, L -11.9201 dBFS, w1(sum) 88.8165 dB, GR -0 dB
+[T015 lattice E2 smoke] Mass 2: w1/Sum -0.356249 dB, E_low -11.0697, E_high -32.3158, THD -10.681 dB, C 0.0958968 oct, L -11.8532 dBFS, w1(sum) 88.875 dB, GR -0 dB
+[T015 lattice E2 smoke] Mass 49: w1/Sum -1.04235 dB, E_low -7.42864, E_high -14.8671, THD -5.66613 dB, C 0.411909 oct, L -9.48122 dBFS, w1(sum) 90.504 dB, GR -0 dB
+[T015 lattice E2 smoke] Mass 50: w1/Sum -1.07419 dB, E_low -7.36121, E_high -14.4949, THD -5.51888 dB, C 0.43072 oct, L -9.45773 dBFS, w1(sum) 90.5022 dB, GR -0 dB
+[T015 lattice E2 smoke] Mass 51: w1/Sum -1.06236 dB, E_low -7.37187, E_high -14.7052, THD -5.57311 dB, C 0.422467 oct, L -9.37672 dBFS, w1(sum) 90.5598 dB, GR -0 dB
+[T015 lattice E2 smoke] Mass 98: w1/Sum -3.2735 dB, E_low -2.85606, E_high -19.4595, THD 0.511355 dB, C 0.925659 oct, L -8.77697 dBFS, w1(sum) 90.0757 dB, GR 6.46146 dB
+[T015 lattice E2 smoke] Mass 99: w1/Sum -3.33048 dB, E_low -2.80451, E_high -19.4795, THD 0.618366 dB, C 0.935751 oct, L -8.77309 dBFS, w1(sum) 90.0597 dB, GR 6.70217 dB
+[T015 lattice E2 smoke] Mass 100: w1/Sum -3.38711 dB, E_low -2.75477, E_high -19.4879, THD 0.723528 dB, C 0.945669 oct, L -8.77364 dBFS, w1(sum) 90.0457 dB, GR 6.94899 dB
+[T015 SC-005(b)] E2 smoke largest adjacent step: w1/Sum(w) 0.05698 dB (0.05698 /unit) E_low 0.0681432 dB (0.0681432 /unit) E_high 0.372224 dB (0.372224 /unit) THD 0.147247 dB (0.147247 /unit) C 0.0188108 oct (0.0188108 /unit) L 0.0810068 dB (0.0810068 /unit) w1(sum) 0.0593385 dB (0.0593385 /unit) GR 0.246827 dB (0.246827 /unit)
+[T015 lattice E2 trajectory smoke] Mass 0: w1/Sum -0.344524 dB, E_low -11.2053, E_high -33.0238, THD -10.8323 dB, C 0.0920496 oct, L -11.9876 dBFS, w1(sum) 88.7571 dB, GR -0 dB
+[T015 lattice E2 trajectory smoke] Mass 12.5: w1/Sum -0.430817 dB, E_low -10.3134, E_high -28.5396, THD -9.81772 dB, C 0.121524 oct, L -11.1907 dBFS, w1(sum) 89.4415 dB, GR -0 dB
+[T015 lattice E2 trajectory smoke] Mass 25: w1/Sum -0.558612 dB, E_low -9.33135, E_high -23.9235, THD -8.62444 dB, C 0.170338 oct, L -10.4899 dBFS, w1(sum) 89.9914 dB, GR -0 dB
+[T015 lattice E2 trajectory smoke] Mass 37.5: w1/Sum -0.75551 dB, E_low -8.30701, E_high -19.2085, THD -7.21221 dB, C 0.258075 oct, L -9.88832 dBFS, w1(sum) 90.3717 dB, GR -0 dB
+[T015 lattice E2 trajectory smoke] Mass 50: w1/Sum -1.07419 dB, E_low -7.36121, E_high -14.4949, THD -5.51888 dB, C 0.43072 oct, L -9.45773 dBFS, w1(sum) 90.5022 dB, GR -0 dB
+[T015 lattice E2 trajectory smoke] Mass 62.5: w1/Sum -1.29824 dB, E_low -6.45884, E_high -14.8964, THD -4.57901 dB, C 0.502973 oct, L -9.09739 dBFS, w1(sum) 90.985 dB, GR 0.589205 dB
+[T015 lattice E2 trajectory smoke] Mass 75: w1/Sum -1.71948 dB, E_low -5.15581, E_high -16.6035, THD -3.13579 dB, C 0.601815 oct, L -9.22714 dBFS, w1(sum) 90.7432 dB, GR 1.92256 dB
+[T015 lattice E2 trajectory smoke] Mass 87.5: w1/Sum -2.64587 dB, E_low -3.54179, E_high -18.5927, THD -0.762267 dB, C 0.807038 oct, L -9.06013 dBFS, w1(sum) 90.3661 dB, GR 4.27138 dB
+[T015 lattice E2 trajectory smoke] Mass 100: w1/Sum -3.38711 dB, E_low -2.75477, E_high -19.4879, THD 0.723528 dB, C 0.945669 oct, L -8.77364 dBFS, w1(sum) 90.0457 dB, GR 6.94899 dB
+[T015 SC-005(b)] E2 trajectory smoke largest adjacent step: w1/Sum(w) 0.926384 dB (0.0741107 /unit) E_low 1.61402 dB (0.129121 /unit) E_high 4.71507 dB (0.377206 /unit) THD 2.37352 dB (0.189882 /unit) C 0.205223 oct (0.0164178 /unit) L 0.796883 dB (0.0637506 /unit) w1(sum) 0.684348 dB (0.0547478 /unit) GR 2.67761 dB (0.214209 /unit)
+[T015 SC-005(c)] E2 smoke 0->100 host step: traversal [96000, 97920) samples, 5 windows; per descriptor worst |change| / worst change-to-bound ratio / violations: w1/Sum(w) 1.47045 / 0.499998 / 0 E_low 4.09003 / 0.521203 / 0 E_high 8.40517 / 0.369745 / 0 THD 5.50439 / 0.478938 / 0 C 0.467888 / 0.472581 / 0 L 2.21606 / 0.564596 / 0 w1(sum) 1.02471 / 0.367528 / 0 GR 5.79649 / 0.697419 / 0
+[T015 SC-005(c)] E2 smoke 0->100 20 ms host ramp: traversal [96032, 97952) samples, 5 windows; per descriptor worst |change| / worst change-to-bound ratio / violations: w1/Sum(w) 1.59773 / 0.543278 / 0 E_low 4.05179 / 0.51633 / 0 E_high 7.78015 / 0.34225 / 0 THD 5.51342 / 0.498754 / 0 C 0.471369 / 0.476097 / 0 L 2.00834 / 0.511674 / 0 w1(sum) 0.960417 / 0.400718 / 0 GR 5.75598 / 0.692546 / 0
+[T015 SC-011] Mass 0 vs 100 (E1): E_low -77.5523 / -1.6296, E_high -90.2737 / -8.43985, THD -77.3262 / 6.89724, I -120.464 / -94.3852 dB, C -6.16248e-05 / 1.77702 oct; separation 66.8972 dB (THD), dC 1.77708 oct, distinct 1
+[T015 SC-011] Depth -> w1/Sum(w) (dB): target 1 -> 0, descriptor -8.03823e-08 -> -16.7969 (raw -8.03823e-08 -> -16.7969), moved 16.7969 dB (bar 3)
+[T015 SC-011] Body -> E_low (dB, floored): target 0 -> 0.9, descriptor -60 -> -56.5759 (raw -77.5523 -> -56.5759), moved 3.4241 dB (bar 3)
+[T015 SC-011] Duration -> D_tr (dB, shaper +6 / 0): target 10 -> 150, descriptor 0.515005 -> 4.26392 (raw 0.515005 -> 4.26392), moved 3.74892 dB (bar 3)
+[T015 SC-011] Fold -> THD (dB, floored): target 0 -> 60, descriptor -60 -> -21.1384 (raw -77.3262 -> -21.1384), moved 38.8616 dB (bar 3)
+[T015 SC-011] Compression steady GR (recorded) over the high segment: amount 0 -0 dB, amount 1 6.55532 dB
+[T015 SC-011] Compression -> DeltaL_step (dB; moved = DeltaL(0) - DeltaL(100)): target 0 -> 1, descriptor 11.999 -> 5.4779 (raw 11.999 -> 5.4779), moved 6.52108 dB (bar 3)
+[T015 SC-011] AnchorLevel -> w1 of the sum (dB): target 0 -> 1, descriptor 89.1008 -> 92.8234 (raw 89.1008 -> 92.8234), moved 3.72266 dB (bar 3)
+[T015 SC-011] OutputTrim -> L of outL (dB, recorded): target 0 -> 0, descriptor -12.0352 -> -12.0352 (raw -12.0352 -> -12.0352), moved 0 dB (bar 3)
+-------------------------------------------------------------------------------
+MassLaw_Audibility
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\mass_law_automation_test.cpp(669)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\mass_law_automation_test.cpp(788): warning:
+  OutputTrim -> L of outL (dB, recorded): moved 0 dB (recorded, G8-5)
+
+[T015 SC-023] reference voice E1 Mass 50 vs detached: 17 / 17 taps memcmp-equal, targets neutral 1
+[T015 SC-023] kSawAnchor E1 Mass 50 vs detached: 17 / 17 taps memcmp-equal, targets neutral 1
+[T015 SC-023 edge] depth 1 base, Mass 100: depth 0.5, body 0.9, duration 150 ms, fold 60, compression 1, anchor level 1
+[T015 SC-023 edge] fold 100 base, Mass 0: depth 1, body 0, duration 10 ms, fold 50, compression 0, anchor level 0
+[T015 SC-023 edge] depth 1 base, Mass 0 (clamps): depth 1, body 0, duration 10 ms, fold 0, compression 0, anchor level 0
+[T015 SC-023 edge] fold 100 base, Mass 100 (clamps): depth 0, body 0.9, duration 150 ms, fold 100, compression 1, anchor level 1
+===============================================================================
+All tests passed (3659 assertions in 17 test cases)
+

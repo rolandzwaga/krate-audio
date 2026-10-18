@@ -173,6 +173,9 @@ set(KRATE_DSP_PROCESSORS_HEADERS
     include/krate/dsp/processors/keytracked_tilt.h
     include/krate/dsp/processors/oversampled_residual_path.h
     include/krate/dsp/processors/rectifier.h
+    # Profundum Phase 6 (specs/profundum-phase6-mass-dynamics)
+    include/krate/dsp/processors/period_peak_detector.h
+    include/krate/dsp/processors/transient_shaper.h
 )
 
 # Layer 3: Systems
@@ -205,6 +208,9 @@ set(KRATE_DSP_SYSTEMS_HEADERS
     # Profundum Phase 5 (specs/profundum-phase5-shape-character)
     include/krate/dsp/systems/shape_morph.h
     include/krate/dsp/systems/bass_character_stage.h
+    # Profundum Phase 6 (specs/profundum-phase6-mass-dynamics)
+    include/krate/dsp/systems/mass_dynamics.h
+    include/krate/dsp/systems/mass_law.h
 )
 
 # Layer 4: Effects

@@ -1,0 +1,22 @@
+START 2026-10-18T06:34:42Z commit 02fecee1 nproc 32
+step1-build exit=0 wall=12s warnings=0 log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/harvest-step1-build.log
+step2-amount-harvest exit=0 wall=9s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/harvest-amount.log
+step2-duration-harvest exit=0 wall=9s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/harvest-duration.log
+step2 wall=9s duration=0 amount=0
+step3-paste exit=0 wall=0s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/harvest-step3-paste.log
+step3-build exit=0 wall=24s warnings=0 log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/harvest-step3-build.log
+step4-mass-law-harvest exit=0 wall=55s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/harvest-mass-law.log
+step5-paste exit=0 wall=0s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/harvest-step5-paste.log
+step5-build exit=0 wall=18s warnings=0 log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/harvest-step5-build.log
+step6-TransientShaper_DurationShortestCell exit=0 wall=0s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/harvest-step6/TransientShaper_DurationShortestCell.log
+step6-TransientShaper_DurationMatches exit=0 wall=0s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/harvest-step6/TransientShaper_DurationMatches.log
+step6-MassCompressor_RectifiedFeedNegativeControl exit=0 wall=2s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/harvest-step6/MassCompressor_RectifiedFeedNegativeControl.log
+step6-MassCompressor_MakeupMatchesGr exit=0 wall=2s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/harvest-step6/MassCompressor_MakeupMatchesGr.log
+step6-MassLaw_FundamentalStrengthJointSweepSmoke exit=0 wall=2s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/harvest-step6/MassLaw_FundamentalStrengthJointSweepSmoke.log
+step6-MassCompressor_NoSubPumping exit=0 wall=2s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/harvest-step6/MassCompressor_NoSubPumping.log
+step6-MassLaw_AnchorPoints exit=0 wall=2s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/harvest-step6/MassLaw_AnchorPoints.log
+step6-MassLaw_LevelSlopeBoundedSmoke exit=0 wall=4s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/harvest-step6/MassLaw_LevelSlopeBoundedSmoke.log
+step6-MassLaw_Audibility exit=0 wall=6s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/harvest-step6/MassLaw_Audibility.log
+step6-MassChain_LimiterIdleSteadyState exit=0 wall=10s log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/harvest-step6/MassChain_LimiterIdleSteadyState.log
+step6 wall=13s red=0 log=specs/profundum-phase6-mass-dynamics/evidence/run-log/close/harvest-step6-cases.log
+DONE 2026-10-18T06:36:55Z exit=0 wall=133s green: three tables harvested and pasted, step 6 green
