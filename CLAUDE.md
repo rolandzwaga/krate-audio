@@ -159,6 +159,12 @@ every run for anything that can be optimised for time, memory or any other resou
   concurrently: render probes, read sets, sweeps, clang-tidy, pluginval.
 - Independent code changes that each need a rebuild go into one rebuild when the readings stay attributable.
 - Never present a multi-hour serial plan without having looked for the parallel or cached version first.
+- **Run only the tests the change set can reach** (user, 2026-10-18). A gate or a close lane runs the cases of the
+  files that changed: the phase's own TUs (by their tag, e.g. `[profundum]`), plus the full suites of every consumer of a
+  shared header or source file that was MODIFIED (`git status` / `git diff --name-only` decides; new files do not count).
+  "All tests must be run" is not a reason: a whole executable costs 15–35 min per run, a phase has ~20 gates, and an
+  untouched test cannot change its verdict. Timing-budget cases of untouched code that go red under a concurrent lane
+  are recorded as load, not re-run.
 
 ## Real-Time Audio Thread Safety
 
