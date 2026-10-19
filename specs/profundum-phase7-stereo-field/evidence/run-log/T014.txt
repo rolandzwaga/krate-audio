@@ -1,0 +1,38 @@
+T014 run log (executor, 2026-10-18) -- SC-013 CPU budget TU and lane script (FR-079; tasks.md deviation 9)
+
+Files written:
+  dsp/tests/unit/systems/bass_stereo_field_perf_test.cpp  (fills the T002 stub; TU already registered in
+    dsp/tests/CMakeLists.txt dsp_systems_tests, NOT in the -fno-fast-math block)
+  specs/profundum-phase7-stereo-field/evidence/close/cpu-lane.sh  (copied from the Phase 6 cpu-lane.sh)
+
+TEST_CASE BassStereoField_Cpu [systems][profundum][stereo-field][sc-013][performance][.perf]
+  48 kHz, host block 64 split on the 32-sample grid (advanceControl before each interval's queries and
+  processBlock, C-7), steady_clock, 1 s untimed warm-up, best of 5, % = wall / audio x 100.
+  (a)       stage SPREAD, Spread 1, Gravity 1, MOTION depth 1 rate 1, crossover 120 Hz, distinct kSawAnchor E1
+            pair (ProfundumCore render, R = L delayed by round(0.37 P), 103-period loop), 60 s audio / rep.
+            Source = the dearer of Drift / Cycle by a first 10 s single-pass timing of each. Gated <= 0.5 %.
+  (a-sweep) (a) with the crossover a triangle 60 <-> 250 Hz, 100 ms legs (setControls each interval). Gated
+            <= 0.5 % at 48 kHz; 192 kHz printed; step train 60 <-> 250 Hz every 50 ms printed.
+  (b)       1 core (E1) and 4 cores (E1, E2, C3, A1), kSawAnchor, 64 partials; field advance + computePanVector
+            + setPartialPanOffsets per voice per interval at Spread 1 (depth 1, rate 1, each source) minus the
+            same at Spread 0. Gated: worse source <= 0.25 % (1 voice), <= 1.0 % (4 voices).
+            Also printed (not gated): the inclusive increment over a no-field baseline (all-zero vector, no
+            query) and handoffs / queries of the Spread 1 cell.
+  (c)       handoffs per second, static E1, MOTION off, after 2 s settling: printed (expected 0).
+  Output lines: SC013 setup / PICK / A / A_SWEEP / RECORD / B / VERDICT PASS|FAIL <a> <a-sweep> <b1> <b4> /
+  GATED ...; the same lines go to evidence/sc013-cpu.txt.
+
+Interpretation recorded (surface): tasks.md T014 says "minus the same at Spread 0", so the gated baseline runs
+  the field query at Spread 0 (it hands a constant zero vector). spec SC-013(b) defines the cost as "the law
+  query plus the core's pan forwarding", which the Spread-0 baseline partly cancels (the Spread-0 query still
+  evaluates the curve per partial). The literal spec reading is printed as inclusive_increment beside the
+  gated figure; T001's bench measured that inclusive form at 0.1979 % / 0.6920 % (under both bars).
+
+Checks run by the executor:
+  bash -n specs/profundum-phase7-stereo-field/evidence/close/cpu-lane.sh -> syntax ok
+  No build or test run (the group's build agent builds; the lane is deferred to the main loop, T021).
+
+DEFERRED to the main loop at close: run `bash specs/profundum-phase7-stereo-field/evidence/close/cpu-lane.sh`
+  after everything else (T021), alone, after the machine has idled. The lane appends its verdict line below.
+2026-10-18T21:49:43Z cpu-lane exit=0 wall=14s | SC013 VERDICT PASS 0.0823 0.1232 0.0879 0.0961 | SC013 GATED a=0.0823<=0.50(PASS) a_sweep=0.1232<=0.50(PASS) b1=0.0879<=0.25(PASS) b4=0.0961<=1.00(PASS)
+2026-10-19T07:32:10Z cpu-lane exit=0 wall=15s | SC013 VERDICT PASS 0.0627 0.1152 0.0942 0.1389 | SC013 GATED a=0.0627<=0.50(PASS) a_sweep=0.1152<=0.50(PASS) b1=0.0942<=0.25(PASS) b4=0.1389<=1.00(PASS)

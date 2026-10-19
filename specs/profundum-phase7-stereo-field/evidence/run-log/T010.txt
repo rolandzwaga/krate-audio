@@ -1,0 +1,105 @@
+T010 run-log (2026-10-18) - the spectral TU: SC-003, SC-005 record, SC-006, SC-010, SC-016
+(FR-012, FR-021 - FR-024, FR-075, FR-076)
+
+## Files written
+- dsp/tests/unit/systems/bass_stereo_field_spectral_test.cpp (T002 stub filled; test-only task, no product code).
+  Tags [systems][profundum][stereo-field] + the SC tag on every case:
+    BassStereoField_WidthMonotonic              [sc-003][long]
+    BassStereoField_WidthMonotonicSmoke         [sc-003]
+    BassStereoField_SafetyStagePhase            [sc-005][long]
+    BassStereoField_SafetyStagePhaseSmoke       [sc-005]          (added, see Deviations 1)
+    BassStereoField_SafetyStageAttenuation      [sc-006][long]
+    BassStereoField_SafetyStageAttenuationSmoke [sc-006]
+    BassStereoField_LeversAudible               [sc-010][long]
+    BassStereoField_LeversAudibleSmoke          [sc-010]          (harvest-dependent: WIDE vs SPREAD)
+    BassStereoField_SampleRates                 [sc-016][long]
+    BassStereoField_SampleRatesSmoke            [sc-016]
+    BassStereoField_SampleRatesReprepare        [sc-016]          (per-push, deviation 10)
+  Evidence written by the cases (KRATE_DSP_TESTS_DIR "/../../specs/profundum-phase7-stereo-field/evidence/"):
+    sc003-width.csv, sc005-phase.csv, sc006-attenuation.csv, sc010-levers.csv, sc016-rates.csv,
+    sc016-rates-attenuation.csv; the Smoke siblings write *-smoke.csv so a gate never clobbers the [long] record.
+- This run-log.
+- Nothing else touched (no header, no helper, no CMake: T002 registered the TU).
+
+## Not built or run (executor rule)
+The Group 7 gate builds dsp_systems_tests and runs the per-push cases. The [long] cases are main-loop work
+(T019's lane). Deferred to the main loop at close: run the five [long] cases by name
+(BassStereoField_WidthMonotonic, _SafetyStagePhase, _SafetyStageAttenuation, _LeversAudible, _SampleRates),
+concurrently, each to its own log.
+
+## Helpers used (read this session; every call qualified, no using namespace)
+- StereoFieldTest (bass_stereo_field_test_helpers.h, T007): FieldChainConfig / FieldChainTaps :113-144,
+  makeField :159, advanceFieldAt :176, renderFieldChain :266, bitEqual :101, Band :618, nearestPow2 :632,
+  bandSpectra :655, BandEnergies / bandEnergiesFromSpectra :677-704, BandReading :710, bandReadings :740,
+  octaveBands :763, thirdOctaves :773, widthDb :788 (reads kLowFrequencyFftSize samples from the pointer),
+  wrapPhase :818, LeverMove / staticLeverMove :1111-1135, kFloorDb :90, kValidMeanEnergy :91.
+- MassDynamicsTest (mass_dynamics_test_helpers.h): kSettleSeconds :87, renderLength :95 (seconds <= 0 ->
+  descriptorSeconds), gridDriver :103, ChainConfig :173 (field order base, f0, fs, seconds, hostBlock,
+  attachAnchor: the designated-initialiser order used here).
+- ProfundumTest (profundum_core_test_helpers.h): safeDb10 :58, requireLREqual :61, bh7Window :142,
+  fftDouble :173 (power-of-two only).
+- ShapeCharacterTest::noteHz (shape_character_test_helpers.h:48).
+- BassStereoField (bass_stereo_field.h): prepare(double, size_t) :162, reset :195, setControls :230,
+  advanceControl :289, computePanVector(VoiceState&, float, array&, int = kDefaultPartials) :337,
+  wideOffsets :400, wideCeiling :409, processBlock :424, latencySamples :470, currentSideGain :486,
+  kWideOffsetScale :86, kStageCrossoverMultiple :73, kMinCrossoverHz :70.
+- ProfundumCore::ExcitationControls {mix, drive, asymmetry} (profundum_core.h:334-338).
+- Krate::DSP::TestUtils::kLowFrequencyFftSize (tests/test_helpers/low_frequency_metrics.h:52, :64).
+
+## Decisions (each a reading of the task text; surface, do not silently revert)
+1. SC-003 band set: one set per crossover, bsfOctaves(f_c) = the octaves below f_c down to 20 Hz
+   ([f_c/2^(i+1), f_c/2^i), the lowest clipped at 20 Hz) followed by StereoFieldTest::octaveBands(f_c).
+   SC-003(c) says "below or above f_c", so the below-f_c octaves are needed there; the same set serves (a), (b)
+   and the dirty arm so every check reads one band list. Invalid bands (< -100 dBFS) are skipped.
+2. SC-003 W_n: N = min(64, floor(fs/2 / f0)) (the core's partial count, "up to Nyquist"), read by
+   StereoFieldTest::widthDb from 1 s (kSettleSeconds) over kLowFrequencyFftSize samples; renders are
+   descriptorSeconds(fs) long. (a) is applied to every render (all Spread steps), not only Spread 1.
+3. SC-003 WIDE dirty arm workload: the task text gives no Gravity / crossover / curve grid for it, so it runs at
+   Controls{} (Gravity 0.5, crossover 120, curve 0.5) x every algorithm x 11 Spread steps x E1 and C2 (132 dirty
+   renders). The full clean grid on the dirty arm would be 2376 dirty renders (about 1 h). Widening it is a loop
+   change in bsfRunWideDirty only. The case also CHECKs that the handed offset equals
+   wideCeiling * Spread * kWideOffsetScale within 1e-6 ("offsets at the ceilings").
+4. SC-003 WIDE clean: every clean cell is rendered in WIDE too and its W_n compared with SPREAD's at both taps
+   (|delta| <= 1e-6 dB); (a)-(d) then follow for WIDE.
+5. SC-005: the analytic column is the S7.4 prototype (g LP4 + HP4)(s = j f / f_s) at the field's actual g_side
+   (currentSideGain() after reset: kSideFloorGain at Gravity 0, 0 at Gravity 1; plan C-11); the g = 1 all-pass
+   group delay 2 sqrt(2)/(2 pi f_s) is printed beside the measured one. Group delay = centred phase difference at
+   f_s +- 0.1 %. |M_out/M_in| within 1e-6 of 1 at every 1/12-octave point is CHECKed; latencySamples() == 0 is a
+   static_assert in the cell (T006 owns the per-mode runtime check). Q_band noise: uniform from the top 24 bits of
+   mt19937{0x5EED} (portable), 2^18-sample window from 1 s, octaves StereoFieldTest::octaveBands(20).
+6. SC-006 A(B): side mean square ((L - R)/2)^2 of the masked bins (StereoFieldTest::bandEnergiesFromSpectra, one
+   Hann window of 2^18 from 1 s) at dynL/R and at stageOutL/R of the same render; validity = D_side >= 1e-10 (the
+   helper's -100 dBFS kValidMeanEnergy). Expected content = f0 < f_c (a harmonic in [20 Hz, f_c)); every cell
+   prints its validity beside the expectation and "MISMATCH" on a mismatch (not gated; Fracture's f0/2 lattice
+   can make an "empty" cell valid, which is then gated like any valid cell).
+7. SC-006 Gravity monotone: the stage is re-run field-only on copies of the recorded dynL/R at Gravity i/10
+   (StereoFieldTest::makeField / advanceFieldAt, the render's host partition). This equals a full render at that
+   Gravity because the input is fixed by generatorGravity = 1 and wideOffsets() does not read Gravity (plan S6).
+   Self-check: the restage at Gravity 1 is REQUIREd bit-equal to the render's stageOutL/R.
+8. SC-006 (iii): field-only tones (amplitude 0.25, 2 s), A read on B over the 32768-sample window from 1 s.
+   R-3: any A within 0.1 dB of 24 prints the per-bin side table (bins within 60 dB of the band's peak).
+9. SC-010 static levers: StereoFieldTest::staticLeverMove at stageOutL/R with its octave bands from
+   kMinCrossoverHz (60 Hz) for every lever, so the crossover lever (60 vs 250) and the others read one band set.
+10. SC-010 MOTION: W_oct(t) on stageOutL/R; the band is the valid octave of octaveBands(Controls{}.crossoverHz =
+    120) with the largest static side-to-mid on the depth-0 render (Cycle rate 0.5, Spread 1), used for every
+    MOTION render of that note; renders 61 s, series over [1 s, 61 s). Window nearestPow2(4096 fs / 48000) BH7,
+    hop window / 4. Depth: population std of W_oct, depth 1 minus depth 0 >= 1 dB. Cycle rate: dominant frequency
+    of the de-meaned series, RECTANGULAR window zero-padded to >= 16x, peak in [0.01 Hz, rate / 2) (a BH7 main
+    lobe over 60 s is +-0.067 Hz wide, wider than the 0.05 Hz rate-0 line). Drift rate: first lag where the biased
+    autocorrelation of the de-meaned series falls below 1/e (linear interpolation), censored at half the record
+    (printed as a lower bound; a censored rate-0 value only understates the ratio).
+11. SC-016: finiteness and |y| <= 4 are REQUIREd on stageOutL/R and outL/R of both renders per rate; W_n is
+    compared per harmonic at coreL/R and stageOutL/R; A(B) of fixture (i) at each rate vs 48 kHz within 1 dB (the
+    24 dB bar itself is not re-gated off 48 kHz: SC-016 asks only the 1 dB agreement).
+12. SC-016 re-prepare: the reused field renders 0.5 s of other noise at 48 kHz and 0.5 s at 96 kHz with other
+    controls (WIDE, Gravity 1, crossover 250, the other MOTION source) before setControls(c0) -> prepare(48k) ->
+    reset(); then both fields render 2 s of the same seeded noise with MOTION depth 1 rate 1 (each source) and a
+    crossover step 60 -> 250 at 1 s, with a law query at E1 every interval. Outputs and emitted vectors are
+    memcmp-equal; non-vacuity: the vector moves and the output differs from the input.
+
+## Deviations
+1. BassStereoField_SafetyStagePhaseSmoke [sc-005] added: tasks.md T010 lists no Smoke for the [long] SC-005 record,
+   but deviation 6 says every [long] case has a non-long Smoke sibling. One cell (f_c 120, Gravity 0, no noise arm).
+
+## DEFECT lines
+- none (nothing was built or run by this task).

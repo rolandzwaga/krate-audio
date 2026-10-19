@@ -211,6 +211,8 @@ set(KRATE_DSP_SYSTEMS_HEADERS
     # Profundum Phase 6 (specs/profundum-phase6-mass-dynamics)
     include/krate/dsp/systems/mass_dynamics.h
     include/krate/dsp/systems/mass_law.h
+    # Profundum Phase 7 (specs/profundum-phase7-stereo-field)
+    include/krate/dsp/systems/bass_stereo_field.h
 )
 
 # Layer 4: Effects

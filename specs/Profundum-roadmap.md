@@ -520,6 +520,27 @@ descriptor across 0–100 at automation speed; CPU ≤ 1 % global.
 
 ### Phase 7: Bass Stereo Field
 
+**Status: ✅ COMPLETE (2026-10-19)** — see specs/profundum-phase7-stereo-field/compliance.md (80 pass, 0 partial, 0 fail after the
+Group 10 close rulings). Built on branch `synth/profundum`. `BassStereoField` (L3, `systems/bass_stereo_field.h`): pan-only width
+law (raised cosine in log f, `curve` warps the ramp, Gravity sets the lower knee), parity panning with h1 centred, FR-015 slew
+(0.003 per interval, exact landing within 334 intervals), MOTION Drift + Cycle (inward depth, octave-folded sync), WIDE offsets
+{+K, −K} engaging over the slew length, and the post-sum safety stage (M/S, side-only min-phase LR4 at 2·f_c, zero latency,
+side gain g_floor·(1 − Gravity) → 0). Harvested: g_floor = 0.035 (−29 dB), K_wide = 1.0. Rulings: C-1/C-2/C-17 (float
+bit-identity read as bounds), C-9 (sync fold), C-10, C-15, C-18, G7-1 (long-ramp click form), G7-2 (offset engagement ramp),
+G8-1 (deep floor; octave Q recorded on nonlinear arms; anti-phase cells recorded), G10-1 (SC-003 dirty-arm octaves recorded)
+and the G8/G10 measurement readings, all in the spec's Clarifications.
+
+**Phase 8 / 9 / 11 / 12 handoff (evidence/phase-handoffs.txt; FR-080):** (1) `Controls` is the morphable set; mode is stepped
+through the 10 ms side crossfade plus the vector slew (measured 9.98 ms); (2) engine call order per interval: advanceControl, then
+per voice note-on → computePanVector → setPartialPanOffsets, wideOffsets → setChannelOffsets; the stage sits after the Mass
+dynamics; setTempoBpm from the process context; (3) per-voice CPU line "law + pan forwarding" 0.198 % (four voices 0.692 %),
+stage 0.07–0.10 %; (4) the chain converges to L == R after a SOLID switch (DC and limiter states; re-sync is Phase 9's call);
+(5) the sub band of a nonlinear arm is protected by the floor, not by coherence: Fold / Rectify at offset ceilings invert the
+fundamental between channels (9 cells per arm recorded) and the Anchor restores the sub — a listening item; (6) synced Cycle
+folds note values above 1 Hz onto one rate (Phase 11 / 12 state the aliasing); (7) Gravity acts only where harmonics lie below
+2·f_c (inert at C3 with the default crossover, by design); (8) the Phase 6 limiter leaves a −45 … −55 dBFS anti-phase residue
+above the partial range (recorded, Phase 9 output chain item).
+
 **Spec:** `profundum-phase7-stereo-field`
 **Goal:** Reese-like width and motion without the sub ever becoming unstable — in the generation
 architecture, not as an end effect.

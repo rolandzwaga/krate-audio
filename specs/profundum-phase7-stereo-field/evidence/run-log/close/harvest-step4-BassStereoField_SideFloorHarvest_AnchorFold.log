@@ -1,0 +1,246 @@
+Filters: "BassStereoField_SideFloorHarvest_AnchorFold"
+Randomness seeded to: 3237815535
+HARVEST side-floor-config AnchorFold K_wide 1 committed_floor 0.5
+HARVEST-CELL side-floor AnchorFold_Solid_E0_s0_fc60_c0 render_ms 814.351 restage_ms 6048.16 total_ms 6862.52
+HARVEST-CELL side-floor AnchorFold_Solid_E0_s0_fc60_c1 render_ms 840.145 restage_ms 5940.76 total_ms 6780.91
+HARVEST-CELL side-floor AnchorFold_Solid_E0_s0_fc120_c0 render_ms 837.9 restage_ms 5721.9 total_ms 6559.8
+HARVEST-CELL side-floor AnchorFold_Solid_E0_s0_fc120_c1 render_ms 839.426 restage_ms 5717.46 total_ms 6556.89
+HARVEST-CELL side-floor AnchorFold_Solid_E0_s0_fc250_c0 render_ms 856.178 restage_ms 5728.19 total_ms 6584.37
+HARVEST-CELL side-floor AnchorFold_Solid_E0_s0_fc250_c1 render_ms 852.693 restage_ms 5627.39 total_ms 6480.08
+HARVEST-CELL side-floor AnchorFold_Solid_E0_s0.5_fc60_c0 render_ms 869.947 restage_ms 5805.46 total_ms 6675.41
+HARVEST-CELL side-floor AnchorFold_Solid_E0_s0.5_fc60_c1 render_ms 886.204 restage_ms 5833.5 total_ms 6719.71
+HARVEST-CELL side-floor AnchorFold_Solid_E0_s0.5_fc120_c0 render_ms 885.235 restage_ms 5852.37 total_ms 6737.6
+HARVEST-CELL side-floor AnchorFold_Solid_E0_s0.5_fc120_c1 render_ms 904.672 restage_ms 5891.14 total_ms 6795.81
+HARVEST-CELL side-floor AnchorFold_Solid_E0_s0.5_fc250_c0 render_ms 901.18 restage_ms 5886.33 total_ms 6787.51
+HARVEST-CELL side-floor AnchorFold_Solid_E0_s0.5_fc250_c1 render_ms 940.791 restage_ms 6163.19 total_ms 7103.98
+HARVEST-CELL side-floor AnchorFold_Solid_E0_s1_fc60_c0 render_ms 874.449 restage_ms 6012.21 total_ms 6886.66
+HARVEST-CELL side-floor AnchorFold_Solid_E0_s1_fc60_c1 render_ms 934.624 restage_ms 5919.17 total_ms 6853.8
+HARVEST-CELL side-floor AnchorFold_Solid_E0_s1_fc120_c0 render_ms 932.595 restage_ms 6050.31 total_ms 6982.9
+HARVEST-CELL side-floor AnchorFold_Solid_E0_s1_fc120_c1 render_ms 909.752 restage_ms 5974.77 total_ms 6884.52
+HARVEST-CELL side-floor AnchorFold_Solid_E0_s1_fc250_c0 render_ms 924.166 restage_ms 5956.48 total_ms 6880.64
+HARVEST-CELL side-floor AnchorFold_Solid_E0_s1_fc250_c1 render_ms 942.467 restage_ms 6251.63 total_ms 7194.09
+HARVEST-CELL side-floor AnchorFold_Solid_E1_s0_fc60_c0 render_ms 919.063 restage_ms 6113.53 total_ms 7032.6
+HARVEST-CELL side-floor AnchorFold_Solid_E1_s0_fc60_c1 render_ms 913.84 restage_ms 6189.8 total_ms 7103.64
+HARVEST-CELL side-floor AnchorFold_Solid_E1_s0_fc120_c0 render_ms 975.421 restage_ms 6071.84 total_ms 7047.26
+HARVEST-CELL side-floor AnchorFold_Solid_E1_s0_fc120_c1 render_ms 939.591 restage_ms 6302.56 total_ms 7242.15
+HARVEST-CELL side-floor AnchorFold_Solid_E1_s0_fc250_c0 render_ms 938.665 restage_ms 6005.35 total_ms 6944.01
+HARVEST-CELL side-floor AnchorFold_Solid_E1_s0_fc250_c1 render_ms 938.084 restage_ms 6173.36 total_ms 7111.45
+HARVEST-CELL side-floor AnchorFold_Solid_E1_s0.5_fc60_c0 render_ms 931.051 restage_ms 6207.89 total_ms 7138.94
+HARVEST-CELL side-floor AnchorFold_Solid_E1_s0.5_fc60_c1 render_ms 924.111 restage_ms 6406.25 total_ms 7330.36
+HARVEST-CELL side-floor AnchorFold_Solid_E1_s0.5_fc120_c0 render_ms 906.57 restage_ms 6211.55 total_ms 7118.12
+HARVEST-CELL side-floor AnchorFold_Solid_E1_s0.5_fc120_c1 render_ms 1035.64 restage_ms 6162.38 total_ms 7198.02
+HARVEST-CELL side-floor AnchorFold_Solid_E1_s0.5_fc250_c0 render_ms 949.488 restage_ms 6236.25 total_ms 7185.74
+HARVEST-CELL side-floor AnchorFold_Solid_E1_s0.5_fc250_c1 render_ms 977.26 restage_ms 6643.04 total_ms 7620.3
+HARVEST-CELL side-floor AnchorFold_Solid_E1_s1_fc60_c0 render_ms 1012.29 restage_ms 6335.44 total_ms 7347.72
+HARVEST-CELL side-floor AnchorFold_Solid_E1_s1_fc60_c1 render_ms 991.608 restage_ms 6342.82 total_ms 7334.43
+HARVEST-CELL side-floor AnchorFold_Solid_E1_s1_fc120_c0 render_ms 962.266 restage_ms 6281.46 total_ms 7243.72
+HARVEST-CELL side-floor AnchorFold_Solid_E1_s1_fc120_c1 render_ms 946.266 restage_ms 6395.91 total_ms 7342.17
+HARVEST-CELL side-floor AnchorFold_Solid_E1_s1_fc250_c0 render_ms 933.512 restage_ms 6389.26 total_ms 7322.77
+HARVEST-CELL side-floor AnchorFold_Solid_E1_s1_fc250_c1 render_ms 928.081 restage_ms 6158.57 total_ms 7086.65
+HARVEST-CELL side-floor AnchorFold_Solid_E2_s0_fc60_c0 render_ms 964.78 restage_ms 6465.39 total_ms 7430.17
+HARVEST-CELL side-floor AnchorFold_Solid_E2_s0_fc60_c1 render_ms 949.319 restage_ms 6303.26 total_ms 7252.58
+HARVEST-CELL side-floor AnchorFold_Solid_E2_s0_fc120_c0 render_ms 975.144 restage_ms 6254.23 total_ms 7229.38
+HARVEST-CELL side-floor AnchorFold_Solid_E2_s0_fc120_c1 render_ms 949.274 restage_ms 6315.44 total_ms 7264.71
+HARVEST-CELL side-floor AnchorFold_Solid_E2_s0_fc250_c0 render_ms 962.457 restage_ms 6212.52 total_ms 7174.98
+HARVEST-CELL side-floor AnchorFold_Solid_E2_s0_fc250_c1 render_ms 967.387 restage_ms 5904.89 total_ms 6872.27
+HARVEST-CELL side-floor AnchorFold_Solid_E2_s0.5_fc60_c0 render_ms 906.544 restage_ms 6008.16 total_ms 6914.7
+HARVEST-CELL side-floor AnchorFold_Solid_E2_s0.5_fc60_c1 render_ms 938.254 restage_ms 6107.51 total_ms 7045.77
+HARVEST-CELL side-floor AnchorFold_Solid_E2_s0.5_fc120_c0 render_ms 901.815 restage_ms 5964.43 total_ms 6866.25
+HARVEST-CELL side-floor AnchorFold_Solid_E2_s0.5_fc120_c1 render_ms 942.378 restage_ms 6025.22 total_ms 6967.6
+HARVEST-CELL side-floor AnchorFold_Solid_E2_s0.5_fc250_c0 render_ms 877.031 restage_ms 6072.54 total_ms 6949.57
+HARVEST-CELL side-floor AnchorFold_Solid_E2_s0.5_fc250_c1 render_ms 903.725 restage_ms 6028.57 total_ms 6932.3
+HARVEST-CELL side-floor AnchorFold_Solid_E2_s1_fc60_c0 render_ms 900.533 restage_ms 6056.72 total_ms 6957.25
+HARVEST-CELL side-floor AnchorFold_Solid_E2_s1_fc60_c1 render_ms 933.803 restage_ms 6087.93 total_ms 7021.73
+HARVEST-CELL side-floor AnchorFold_Solid_E2_s1_fc120_c0 render_ms 885.845 restage_ms 5950.75 total_ms 6836.59
+HARVEST-CELL side-floor AnchorFold_Solid_E2_s1_fc120_c1 render_ms 923.575 restage_ms 5902.88 total_ms 6826.46
+HARVEST-CELL side-floor AnchorFold_Solid_E2_s1_fc250_c0 render_ms 889.203 restage_ms 5978.15 total_ms 6867.35
+HARVEST-CELL side-floor AnchorFold_Solid_E2_s1_fc250_c1 render_ms 909.399 restage_ms 6097.59 total_ms 7006.99
+HARVEST-CELL side-floor AnchorFold_Solid_C3_s0_fc60_c0 render_ms 918.018 restage_ms 6166.88 total_ms 7084.9
+HARVEST-CELL side-floor AnchorFold_Solid_C3_s0_fc60_c1 render_ms 945.342 restage_ms 6142.82 total_ms 7088.16
+HARVEST-CELL side-floor AnchorFold_Solid_C3_s0_fc120_c0 render_ms 941.107 restage_ms 6161.21 total_ms 7102.32
+HARVEST-CELL side-floor AnchorFold_Solid_C3_s0_fc120_c1 render_ms 923.897 restage_ms 6443.96 total_ms 7367.86
+HARVEST-CELL side-floor AnchorFold_Solid_C3_s0_fc250_c0 render_ms 977.435 restage_ms 6311.41 total_ms 7288.85
+HARVEST-CELL side-floor AnchorFold_Solid_C3_s0_fc250_c1 render_ms 1016.11 restage_ms 6261.43 total_ms 7277.54
+HARVEST-CELL side-floor AnchorFold_Solid_C3_s0.5_fc60_c0 render_ms 1013.92 restage_ms 6325.23 total_ms 7339.14
+HARVEST-CELL side-floor AnchorFold_Solid_C3_s0.5_fc60_c1 render_ms 1062.11 restage_ms 6218.38 total_ms 7280.49
+HARVEST-CELL side-floor AnchorFold_Solid_C3_s0.5_fc120_c0 render_ms 973.61 restage_ms 6130.49 total_ms 7104.1
+HARVEST-CELL side-floor AnchorFold_Solid_C3_s0.5_fc120_c1 render_ms 1000.72 restage_ms 6287.97 total_ms 7288.69
+HARVEST-CELL side-floor AnchorFold_Solid_C3_s0.5_fc250_c0 render_ms 1025.58 restage_ms 6099.53 total_ms 7125.11
+HARVEST-CELL side-floor AnchorFold_Solid_C3_s0.5_fc250_c1 render_ms 976.709 restage_ms 6381.1 total_ms 7357.8
+HARVEST-CELL side-floor AnchorFold_Solid_C3_s1_fc60_c0 render_ms 978.408 restage_ms 6526.75 total_ms 7505.15
+HARVEST-CELL side-floor AnchorFold_Solid_C3_s1_fc60_c1 render_ms 960.25 restage_ms 6447.64 total_ms 7407.89
+HARVEST-CELL side-floor AnchorFold_Solid_C3_s1_fc120_c0 render_ms 937.654 restage_ms 6366.07 total_ms 7303.72
+HARVEST-CELL side-floor AnchorFold_Solid_C3_s1_fc120_c1 render_ms 1065.44 restage_ms 6274.72 total_ms 7340.16
+HARVEST-CELL side-floor AnchorFold_Solid_C3_s1_fc250_c0 render_ms 1103.08 restage_ms 6302.4 total_ms 7405.48
+HARVEST-CELL side-floor AnchorFold_Solid_C3_s1_fc250_c1 render_ms 1036.7 restage_ms 6435.72 total_ms 7472.42
+HARVEST-CELL side-floor AnchorFold_Spread_E0_s0_fc60_c0 render_ms 969.123 restage_ms 6284.1 total_ms 7253.23
+HARVEST-CELL side-floor AnchorFold_Spread_E0_s0_fc60_c1 render_ms 1018.08 restage_ms 6384.11 total_ms 7402.19
+HARVEST-CELL side-floor AnchorFold_Spread_E0_s0_fc120_c0 render_ms 940.662 restage_ms 6291.55 total_ms 7232.21
+HARVEST-CELL side-floor AnchorFold_Spread_E0_s0_fc120_c1 render_ms 981.021 restage_ms 6252.24 total_ms 7233.26
+HARVEST-CELL side-floor AnchorFold_Spread_E0_s0_fc250_c0 render_ms 978.747 restage_ms 6437.26 total_ms 7416.01
+HARVEST-CELL side-floor AnchorFold_Spread_E0_s0_fc250_c1 render_ms 939.343 restage_ms 6410.12 total_ms 7349.47
+HARVEST-CELL side-floor AnchorFold_Spread_E0_s0.5_fc60_c0 render_ms 1323.7 restage_ms 6720.1 total_ms 8043.8
+HARVEST-CELL side-floor AnchorFold_Spread_E0_s0.5_fc60_c1 render_ms 1413.37 restage_ms 6743.66 total_ms 8157.03
+HARVEST-CELL side-floor AnchorFold_Spread_E0_s0.5_fc120_c0 render_ms 1474.99 restage_ms 6812.98 total_ms 8287.96
+HARVEST-CELL side-floor AnchorFold_Spread_E0_s0.5_fc120_c1 render_ms 1400.12 restage_ms 6779.83 total_ms 8179.94
+HARVEST-CELL side-floor AnchorFold_Spread_E0_s0.5_fc250_c0 render_ms 1417.71 restage_ms 6705.68 total_ms 8123.39
+HARVEST-CELL side-floor AnchorFold_Spread_E0_s0.5_fc250_c1 render_ms 1461.63 restage_ms 6836.39 total_ms 8298.02
+HARVEST-CELL side-floor AnchorFold_Spread_E0_s1_fc60_c0 render_ms 1424.31 restage_ms 6906.78 total_ms 8331.1
+HARVEST-CELL side-floor AnchorFold_Spread_E0_s1_fc60_c1 render_ms 1406.54 restage_ms 6619.42 total_ms 8025.96
+HARVEST-CELL side-floor AnchorFold_Spread_E0_s1_fc120_c0 render_ms 1429.93 restage_ms 6662.05 total_ms 8091.98
+HARVEST-CELL side-floor AnchorFold_Spread_E0_s1_fc120_c1 render_ms 1383.79 restage_ms 6695.28 total_ms 8079.07
+HARVEST-CELL side-floor AnchorFold_Spread_E0_s1_fc250_c0 render_ms 1530.61 restage_ms 7201.91 total_ms 8732.52
+HARVEST-CELL side-floor AnchorFold_Spread_E0_s1_fc250_c1 render_ms 1433.07 restage_ms 6718.06 total_ms 8151.13
+HARVEST-CELL side-floor AnchorFold_Spread_E1_s0_fc60_c0 render_ms 1017.62 restage_ms 7098.07 total_ms 8115.69
+HARVEST-CELL side-floor AnchorFold_Spread_E1_s0_fc60_c1 render_ms 1022.01 restage_ms 7082.64 total_ms 8104.66
+HARVEST-CELL side-floor AnchorFold_Spread_E1_s0_fc120_c0 render_ms 1052.09 restage_ms 7218.58 total_ms 8270.67
+HARVEST-CELL side-floor AnchorFold_Spread_E1_s0_fc120_c1 render_ms 1053 restage_ms 7129.84 total_ms 8182.84
+HARVEST-CELL side-floor AnchorFold_Spread_E1_s0_fc250_c0 render_ms 1007.18 restage_ms 6850.23 total_ms 7857.41
+HARVEST-CELL side-floor AnchorFold_Spread_E1_s0_fc250_c1 render_ms 1013.89 restage_ms 6728.69 total_ms 7742.58
+HARVEST-CELL side-floor AnchorFold_Spread_E1_s0.5_fc60_c0 render_ms 1439.67 restage_ms 6807.14 total_ms 8246.81
+HARVEST-CELL side-floor AnchorFold_Spread_E1_s0.5_fc60_c1 render_ms 1432.8 restage_ms 7015.35 total_ms 8448.14
+HARVEST-CELL side-floor AnchorFold_Spread_E1_s0.5_fc120_c0 render_ms 1542.49 restage_ms 6982.17 total_ms 8524.66
+HARVEST-CELL side-floor AnchorFold_Spread_E1_s0.5_fc120_c1 render_ms 1430.53 restage_ms 6770.51 total_ms 8201.04
+HARVEST-CELL side-floor AnchorFold_Spread_E1_s0.5_fc250_c0 render_ms 1502.56 restage_ms 6756.49 total_ms 8259.05
+HARVEST-CELL side-floor AnchorFold_Spread_E1_s0.5_fc250_c1 render_ms 1500.82 restage_ms 6765.8 total_ms 8266.62
+HARVEST-CELL side-floor AnchorFold_Spread_E1_s1_fc60_c0 render_ms 1546.9 restage_ms 6702.13 total_ms 8249.03
+HARVEST-CELL side-floor AnchorFold_Spread_E1_s1_fc60_c1 render_ms 1452.13 restage_ms 6782.79 total_ms 8234.92
+HARVEST-CELL side-floor AnchorFold_Spread_E1_s1_fc120_c0 render_ms 1432.77 restage_ms 6789.17 total_ms 8221.93
+HARVEST-CELL side-floor AnchorFold_Spread_E1_s1_fc120_c1 render_ms 1386.98 restage_ms 6944.7 total_ms 8331.68
+HARVEST-CELL side-floor AnchorFold_Spread_E1_s1_fc250_c0 render_ms 1433.52 restage_ms 6773.67 total_ms 8207.19
+HARVEST-CELL side-floor AnchorFold_Spread_E1_s1_fc250_c1 render_ms 1423.19 restage_ms 6758.86 total_ms 8182.04
+HARVEST-CELL side-floor AnchorFold_Spread_E2_s0_fc60_c0 render_ms 1019.5 restage_ms 6676.14 total_ms 7695.64
+HARVEST-CELL side-floor AnchorFold_Spread_E2_s0_fc60_c1 render_ms 1011.27 restage_ms 6908.85 total_ms 7920.12
+HARVEST-CELL side-floor AnchorFold_Spread_E2_s0_fc120_c0 render_ms 1029.17 restage_ms 6801.33 total_ms 7830.5
+HARVEST-CELL side-floor AnchorFold_Spread_E2_s0_fc120_c1 render_ms 1051.12 restage_ms 7084.06 total_ms 8135.18
+HARVEST-CELL side-floor AnchorFold_Spread_E2_s0_fc250_c0 render_ms 1049.46 restage_ms 6975.39 total_ms 8024.85
+HARVEST-CELL side-floor AnchorFold_Spread_E2_s0_fc250_c1 render_ms 1051.08 restage_ms 6898.74 total_ms 7949.82
+HARVEST-CELL side-floor AnchorFold_Spread_E2_s0.5_fc60_c0 render_ms 1482.71 restage_ms 7035.17 total_ms 8517.88
+HARVEST-CELL side-floor AnchorFold_Spread_E2_s0.5_fc60_c1 render_ms 1454.42 restage_ms 7031.04 total_ms 8485.46
+HARVEST-CELL side-floor AnchorFold_Spread_E2_s0.5_fc120_c0 render_ms 1488.62 restage_ms 6883.33 total_ms 8371.95
+HARVEST-CELL side-floor AnchorFold_Spread_E2_s0.5_fc120_c1 render_ms 1441.63 restage_ms 6997.88 total_ms 8439.51
+HARVEST-CELL side-floor AnchorFold_Spread_E2_s0.5_fc250_c0 render_ms 1439.27 restage_ms 7189 total_ms 8628.27
+HARVEST-CELL side-floor AnchorFold_Spread_E2_s0.5_fc250_c1 render_ms 1463.97 restage_ms 7020.78 total_ms 8484.75
+HARVEST-CELL side-floor AnchorFold_Spread_E2_s1_fc60_c0 render_ms 1529.76 restage_ms 6950.11 total_ms 8479.87
+HARVEST-CELL side-floor AnchorFold_Spread_E2_s1_fc60_c1 render_ms 1383.14 restage_ms 6764.61 total_ms 8147.75
+HARVEST-CELL side-floor AnchorFold_Spread_E2_s1_fc120_c0 render_ms 1442.86 restage_ms 6677.99 total_ms 8120.85
+HARVEST-CELL side-floor AnchorFold_Spread_E2_s1_fc120_c1 render_ms 1523.69 restage_ms 6589.35 total_ms 8113.04
+HARVEST-CELL side-floor AnchorFold_Spread_E2_s1_fc250_c0 render_ms 1445.07 restage_ms 6878.34 total_ms 8323.41
+HARVEST-CELL side-floor AnchorFold_Spread_E2_s1_fc250_c1 render_ms 1544.08 restage_ms 6855.44 total_ms 8399.52
+HARVEST-CELL side-floor AnchorFold_Spread_C3_s0_fc60_c0 render_ms 997.55 restage_ms 7033.87 total_ms 8031.42
+HARVEST-CELL side-floor AnchorFold_Spread_C3_s0_fc60_c1 render_ms 1001.01 restage_ms 6940.48 total_ms 7941.49
+HARVEST-CELL side-floor AnchorFold_Spread_C3_s0_fc120_c0 render_ms 1131.45 restage_ms 6958.09 total_ms 8089.54
+HARVEST-CELL side-floor AnchorFold_Spread_C3_s0_fc120_c1 render_ms 1062.94 restage_ms 6556.04 total_ms 7618.98
+HARVEST-CELL side-floor AnchorFold_Spread_C3_s0_fc250_c0 render_ms 1038.64 restage_ms 6862.91 total_ms 7901.55
+HARVEST-CELL side-floor AnchorFold_Spread_C3_s0_fc250_c1 render_ms 1025.02 restage_ms 6347.16 total_ms 7372.18
+HARVEST-CELL side-floor AnchorFold_Spread_C3_s0.5_fc60_c0 render_ms 1326.85 restage_ms 6268.89 total_ms 7595.75
+HARVEST-CELL side-floor AnchorFold_Spread_C3_s0.5_fc60_c1 render_ms 1351.83 restage_ms 6191.78 total_ms 7543.62
+HARVEST-CELL side-floor AnchorFold_Spread_C3_s0.5_fc120_c0 render_ms 1331.94 restage_ms 6399.3 total_ms 7731.24
+HARVEST-CELL side-floor AnchorFold_Spread_C3_s0.5_fc120_c1 render_ms 1387.83 restage_ms 6363.23 total_ms 7751.06
+HARVEST-CELL side-floor AnchorFold_Spread_C3_s0.5_fc250_c0 render_ms 1380.01 restage_ms 6137.91 total_ms 7517.92
+HARVEST-CELL side-floor AnchorFold_Spread_C3_s0.5_fc250_c1 render_ms 1345.65 restage_ms 6191.04 total_ms 7536.69
+HARVEST-CELL side-floor AnchorFold_Spread_C3_s1_fc60_c0 render_ms 1373.5 restage_ms 6032.15 total_ms 7405.65
+HARVEST-CELL side-floor AnchorFold_Spread_C3_s1_fc60_c1 render_ms 1409.3 restage_ms 6011.39 total_ms 7420.68
+HARVEST-CELL side-floor AnchorFold_Spread_C3_s1_fc120_c0 render_ms 1409.31 restage_ms 6266.1 total_ms 7675.41
+HARVEST-CELL side-floor AnchorFold_Spread_C3_s1_fc120_c1 render_ms 1422.48 restage_ms 6159.27 total_ms 7581.76
+HARVEST-CELL side-floor AnchorFold_Spread_C3_s1_fc250_c0 render_ms 1413.05 restage_ms 6298.35 total_ms 7711.4
+HARVEST-CELL side-floor AnchorFold_Spread_C3_s1_fc250_c1 render_ms 1393.95 restage_ms 6529.87 total_ms 7923.82
+HARVEST-CELL side-floor AnchorFold_Wide_E0_s0_fc60_c0 render_ms 902.932 restage_ms 6193.65 total_ms 7096.58
+HARVEST-CELL side-floor AnchorFold_Wide_E0_s0_fc60_c1 render_ms 945.988 restage_ms 6121.45 total_ms 7067.44
+HARVEST-CELL side-floor AnchorFold_Wide_E0_s0_fc120_c0 render_ms 934.313 restage_ms 6183.84 total_ms 7118.15
+HARVEST-CELL side-floor AnchorFold_Wide_E0_s0_fc120_c1 render_ms 882.803 restage_ms 6197.85 total_ms 7080.65
+HARVEST-CELL side-floor AnchorFold_Wide_E0_s0_fc250_c0 render_ms 979.268 restage_ms 6470.3 total_ms 7449.56
+HARVEST-CELL side-floor AnchorFold_Wide_E0_s0_fc250_c1 render_ms 977.673 restage_ms 6390.01 total_ms 7367.69
+HARVEST-CELL side-floor AnchorFold_Wide_E0_s0.5_fc60_c0 render_ms 1328.65 restage_ms 6306.86 total_ms 7635.51
+HARVEST-CELL side-floor AnchorFold_Wide_E0_s0.5_fc60_c1 render_ms 1299.92 restage_ms 6523.38 total_ms 7823.31
+HARVEST-CELL side-floor AnchorFold_Wide_E0_s0.5_fc120_c0 render_ms 1285.73 restage_ms 6437.21 total_ms 7722.94
+HARVEST-CELL side-floor AnchorFold_Wide_E0_s0.5_fc120_c1 render_ms 1297.93 restage_ms 6505.41 total_ms 7803.34
+HARVEST-CELL side-floor AnchorFold_Wide_E0_s0.5_fc250_c0 render_ms 1354.71 restage_ms 6330.68 total_ms 7685.39
+HARVEST-CELL side-floor AnchorFold_Wide_E0_s0.5_fc250_c1 render_ms 1351.12 restage_ms 6452.62 total_ms 7803.75
+HARVEST-CELL side-floor AnchorFold_Wide_E0_s1_fc60_c0 render_ms 1361.45 restage_ms 6415.85 total_ms 7777.3
+HARVEST-CELL side-floor AnchorFold_Wide_E0_s1_fc60_c1 render_ms 1334.77 restage_ms 6669.69 total_ms 8004.46
+HARVEST-CELL side-floor AnchorFold_Wide_E0_s1_fc120_c0 render_ms 1338.52 restage_ms 6589.63 total_ms 7928.15
+HARVEST-CELL side-floor AnchorFold_Wide_E0_s1_fc120_c1 render_ms 1360.86 restage_ms 6471.87 total_ms 7832.73
+HARVEST-CELL side-floor AnchorFold_Wide_E0_s1_fc250_c0 render_ms 1380.78 restage_ms 6338.12 total_ms 7718.91
+HARVEST-CELL side-floor AnchorFold_Wide_E0_s1_fc250_c1 render_ms 1370 restage_ms 6446.87 total_ms 7816.87
+HARVEST-CELL side-floor AnchorFold_Wide_E1_s0_fc60_c0 render_ms 1022.37 restage_ms 6290.13 total_ms 7312.5
+HARVEST-CELL side-floor AnchorFold_Wide_E1_s0_fc60_c1 render_ms 1087.63 restage_ms 6447.92 total_ms 7535.56
+HARVEST-CELL side-floor AnchorFold_Wide_E1_s0_fc120_c0 render_ms 959.696 restage_ms 6317.38 total_ms 7277.07
+HARVEST-CELL side-floor AnchorFold_Wide_E1_s0_fc120_c1 render_ms 945.497 restage_ms 6292.13 total_ms 7237.63
+HARVEST-CELL side-floor AnchorFold_Wide_E1_s0_fc250_c0 render_ms 976.821 restage_ms 6266.12 total_ms 7242.94
+HARVEST-CELL side-floor AnchorFold_Wide_E1_s0_fc250_c1 render_ms 961.573 restage_ms 6329.1 total_ms 7290.67
+HARVEST-CELL side-floor AnchorFold_Wide_E1_s0.5_fc60_c0 render_ms 1321.61 restage_ms 6272.8 total_ms 7594.41
+HARVEST-CELL side-floor AnchorFold_Wide_E1_s0.5_fc60_c1 render_ms 1332.97 restage_ms 6237.58 total_ms 7570.55
+HARVEST-CELL side-floor AnchorFold_Wide_E1_s0.5_fc120_c0 render_ms 1325.67 restage_ms 6160.76 total_ms 7486.43
+HARVEST-CELL side-floor AnchorFold_Wide_E1_s0.5_fc120_c1 render_ms 1309.74 restage_ms 6218.52 total_ms 7528.26
+HARVEST-CELL side-floor AnchorFold_Wide_E1_s0.5_fc250_c0 render_ms 1341.7 restage_ms 6262.76 total_ms 7604.46
+HARVEST-CELL side-floor AnchorFold_Wide_E1_s0.5_fc250_c1 render_ms 1329.9 restage_ms 6154.61 total_ms 7484.5
+HARVEST-CELL side-floor AnchorFold_Wide_E1_s1_fc60_c0 render_ms 1338.64 restage_ms 6385.13 total_ms 7723.76
+HARVEST-CELL side-floor AnchorFold_Wide_E1_s1_fc60_c1 render_ms 1367.78 restage_ms 6197.16 total_ms 7564.94
+HARVEST-CELL side-floor AnchorFold_Wide_E1_s1_fc120_c0 render_ms 1344.57 restage_ms 6066.44 total_ms 7411.01
+HARVEST-CELL side-floor AnchorFold_Wide_E1_s1_fc120_c1 render_ms 1311.86 restage_ms 6286.54 total_ms 7598.4
+HARVEST-CELL side-floor AnchorFold_Wide_E1_s1_fc250_c0 render_ms 1299.57 restage_ms 6050.91 total_ms 7350.48
+HARVEST-CELL side-floor AnchorFold_Wide_E1_s1_fc250_c1 render_ms 1330.41 restage_ms 6281.2 total_ms 7611.61
+HARVEST-CELL side-floor AnchorFold_Wide_E2_s0_fc60_c0 render_ms 945.1 restage_ms 6078.47 total_ms 7023.57
+HARVEST-CELL side-floor AnchorFold_Wide_E2_s0_fc60_c1 render_ms 941.888 restage_ms 6113.43 total_ms 7055.32
+HARVEST-CELL side-floor AnchorFold_Wide_E2_s0_fc120_c0 render_ms 971.719 restage_ms 6253.13 total_ms 7224.85
+HARVEST-CELL side-floor AnchorFold_Wide_E2_s0_fc120_c1 render_ms 933.59 restage_ms 6130.15 total_ms 7063.74
+HARVEST-CELL side-floor AnchorFold_Wide_E2_s0_fc250_c0 render_ms 945.62 restage_ms 6263.96 total_ms 7209.58
+HARVEST-CELL side-floor AnchorFold_Wide_E2_s0_fc250_c1 render_ms 961.354 restage_ms 6303.63 total_ms 7264.99
+HARVEST-CELL side-floor AnchorFold_Wide_E2_s0.5_fc60_c0 render_ms 1331.65 restage_ms 6352.42 total_ms 7684.06
+HARVEST-CELL side-floor AnchorFold_Wide_E2_s0.5_fc60_c1 render_ms 1357.96 restage_ms 6193.11 total_ms 7551.07
+HARVEST-CELL side-floor AnchorFold_Wide_E2_s0.5_fc120_c0 render_ms 1371.5 restage_ms 6260.76 total_ms 7632.26
+HARVEST-CELL side-floor AnchorFold_Wide_E2_s0.5_fc120_c1 render_ms 1307.48 restage_ms 6286.24 total_ms 7593.72
+HARVEST-CELL side-floor AnchorFold_Wide_E2_s0.5_fc250_c0 render_ms 1309.75 restage_ms 6220.85 total_ms 7530.6
+HARVEST-CELL side-floor AnchorFold_Wide_E2_s0.5_fc250_c1 render_ms 1377.54 restage_ms 6217.92 total_ms 7595.46
+HARVEST-CELL side-floor AnchorFold_Wide_E2_s1_fc60_c0 render_ms 1357.4 restage_ms 6436.62 total_ms 7794.02
+HARVEST-CELL side-floor AnchorFold_Wide_E2_s1_fc60_c1 render_ms 1325.74 restage_ms 5947.95 total_ms 7273.69
+HARVEST-CELL side-floor AnchorFold_Wide_E2_s1_fc120_c0 render_ms 1352.39 restage_ms 6013.03 total_ms 7365.41
+HARVEST-CELL side-floor AnchorFold_Wide_E2_s1_fc120_c1 render_ms 1364.24 restage_ms 6083.05 total_ms 7447.28
+HARVEST-CELL side-floor AnchorFold_Wide_E2_s1_fc250_c0 render_ms 1324.49 restage_ms 6372.3 total_ms 7696.8
+HARVEST-CELL side-floor AnchorFold_Wide_E2_s1_fc250_c1 render_ms 1347.31 restage_ms 6261.29 total_ms 7608.6
+HARVEST-CELL side-floor AnchorFold_Wide_C3_s0_fc60_c0 render_ms 982.515 restage_ms 5929.79 total_ms 6912.3
+HARVEST-CELL side-floor AnchorFold_Wide_C3_s0_fc60_c1 render_ms 948.767 restage_ms 5996.01 total_ms 6944.78
+HARVEST-CELL side-floor AnchorFold_Wide_C3_s0_fc120_c0 render_ms 967.643 restage_ms 5947.27 total_ms 6914.91
+HARVEST-CELL side-floor AnchorFold_Wide_C3_s0_fc120_c1 render_ms 950.258 restage_ms 6102.32 total_ms 7052.58
+HARVEST-CELL side-floor AnchorFold_Wide_C3_s0_fc250_c0 render_ms 961.266 restage_ms 6179.39 total_ms 7140.66
+HARVEST-CELL side-floor AnchorFold_Wide_C3_s0_fc250_c1 render_ms 989.689 restage_ms 6158.82 total_ms 7148.51
+HARVEST-CELL side-floor AnchorFold_Wide_C3_s0.5_fc60_c0 render_ms 1411.12 restage_ms 6092.95 total_ms 7504.07
+HARVEST-CELL side-floor AnchorFold_Wide_C3_s0.5_fc60_c1 render_ms 1424.56 restage_ms 6106.77 total_ms 7531.34
+HARVEST-CELL side-floor AnchorFold_Wide_C3_s0.5_fc120_c0 render_ms 1366.88 restage_ms 6174.67 total_ms 7541.55
+HARVEST-CELL side-floor AnchorFold_Wide_C3_s0.5_fc120_c1 render_ms 1374.4 restage_ms 6429.25 total_ms 7803.64
+HARVEST-CELL side-floor AnchorFold_Wide_C3_s0.5_fc250_c0 render_ms 1451.4 restage_ms 6300.98 total_ms 7752.38
+HARVEST-CELL side-floor AnchorFold_Wide_C3_s0.5_fc250_c1 render_ms 1404.05 restage_ms 6178.1 total_ms 7582.15
+HARVEST-CELL side-floor AnchorFold_Wide_C3_s1_fc60_c0 render_ms 1333.69 restage_ms 6036.77 total_ms 7370.46
+HARVEST-CELL side-floor AnchorFold_Wide_C3_s1_fc60_c1 render_ms 1328.84 restage_ms 6266.99 total_ms 7595.83
+HARVEST-CELL side-floor AnchorFold_Wide_C3_s1_fc120_c0 render_ms 1379.55 restage_ms 6082.19 total_ms 7461.75
+HARVEST-CELL side-floor AnchorFold_Wide_C3_s1_fc120_c1 render_ms 1360.73 restage_ms 6361.1 total_ms 7721.83
+HARVEST-CELL side-floor AnchorFold_Wide_C3_s1_fc250_c0 render_ms 1397.08 restage_ms 5551.14 total_ms 6948.22
+HARVEST-CELL side-floor AnchorFold_Wide_C3_s1_fc250_c1 render_ms 1260.31 restage_ms 5435.43 total_ms 6695.74
+BSF_HARVEST_FLOOR_SHARD,AnchorFold,cells,216,mean_cell_ms,7511.5,shard_ms,1.6232e+06
+BSF_HARVEST_FLOOR_ROW,AnchorFold,g,0.71,pass,174,cells,216,worst_sub_q_db,-3.05802,worst_rho_sub,-0.0114651,worst_oct_q_db,-9.26847,valid_sub_readings,486,exempt,4
+HARVEST side-floor AnchorFold 0.71 FAIL -3.05802 -0.0114651
+BSF_HARVEST_FLOOR_ROW,AnchorFold,g,0.5,pass,181,cells,216,worst_sub_q_db,-1.78886,worst_rho_sub,0.338943,worst_oct_q_db,-9.22617,valid_sub_readings,486,exempt,4
+HARVEST side-floor AnchorFold 0.5 FAIL -1.78886 0.338943
+BSF_HARVEST_FLOOR_ROW,AnchorFold,g,0.35,pass,192,cells,216,worst_sub_q_db,-0.975119,worst_rho_sub,0.616169,worst_oct_q_db,-9.22373,valid_sub_readings,486,exempt,4
+HARVEST side-floor AnchorFold 0.35 FAIL -0.975119 0.616169
+BSF_HARVEST_FLOOR_ROW,AnchorFold,g,0.25,pass,199,cells,216,worst_sub_q_db,-0.529994,worst_rho_sub,0.784975,worst_oct_q_db,-9.22209,valid_sub_readings,486,exempt,4
+HARVEST side-floor AnchorFold 0.25 FAIL -0.529994 0.784975
+BSF_HARVEST_FLOOR_ROW,AnchorFold,g,0.18,pass,212,cells,216,worst_sub_q_db,-0.28673,worst_rho_sub,0.881923,worst_oct_q_db,-9.22095,valid_sub_readings,486,exempt,4
+HARVEST side-floor AnchorFold 0.18 FAIL -0.28673 0.881923
+BSF_HARVEST_FLOOR_ROW,AnchorFold,g,0.125,pass,212,cells,216,worst_sub_q_db,-0.143742,worst_rho_sub,0.940322,worst_oct_q_db,-9.22005,valid_sub_readings,486,exempt,4
+HARVEST side-floor AnchorFold 0.125 FAIL -0.143742 0.940322
+BSF_HARVEST_FLOOR_ROW,AnchorFold,g,0.1,pass,212,cells,216,worst_sub_q_db,-0.0942004,worst_rho_sub,0.960784,worst_oct_q_db,-9.21965,valid_sub_readings,486,exempt,4
+HARVEST side-floor AnchorFold 0.1 FAIL -0.0942004 0.960784
+BSF_HARVEST_FLOOR_ROW,AnchorFold,g,0.071,pass,214,cells,216,worst_sub_q_db,-0.0494908,worst_rho_sub,0.979347,worst_oct_q_db,-9.21917,valid_sub_readings,486,exempt,4
+HARVEST side-floor AnchorFold 0.071 FAIL -0.0494908 0.979347
+BSF_HARVEST_FLOOR_ROW,AnchorFold,g,0.05,pass,215,cells,216,worst_sub_q_db,-0.0259056,worst_rho_sub,0.989176,worst_oct_q_db,-9.21883,valid_sub_readings,486,exempt,4
+HARVEST side-floor AnchorFold 0.05 FAIL -0.0259056 0.989176
+BSF_HARVEST_FLOOR_ROW,AnchorFold,g,0.035,pass,216,cells,216,worst_sub_q_db,-0.0136611,worst_rho_sub,0.994288,worst_oct_q_db,-9.21858,valid_sub_readings,486,exempt,4
+HARVEST side-floor AnchorFold 0.035 PASS -0.0136611 0.994288
+BSF_HARVEST_FLOOR_ROW,AnchorFold,g,0.03,pass,216,cells,216,worst_sub_q_db,-0.0104389,worst_rho_sub,0.995635,worst_oct_q_db,-9.2185,valid_sub_readings,486,exempt,4
+HARVEST side-floor AnchorFold 0.03 PASS -0.0104389 0.995635
+===============================================================================
+All tests passed (124850 assertions in 1 test case)
+
+exit: 0 wall: 1623 s

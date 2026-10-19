@@ -1,0 +1,32 @@
+g_floor  shards_pass  lever  worst_Q_sub_dB  worst_rho_sub  failing
+0.71     2/14         PASS   -18.8598        -0.960072      AnchorBite AnchorCrush AnchorFold AnchorFracture AnchorRectify AnchorTube DirtyBite DirtyCrush DirtyFold DirtyFracture DirtyRectify DirtyTube
+0.5      2/14         PASS   -15.919         -0.920444      AnchorBite AnchorCrush AnchorFold AnchorFracture AnchorRectify AnchorTube DirtyBite DirtyCrush DirtyFold DirtyFracture DirtyRectify DirtyTube
+0.35     2/14         PASS   -13.0277        -0.840593      AnchorBite AnchorCrush AnchorFold AnchorFracture AnchorRectify AnchorTube DirtyBite DirtyCrush DirtyFold DirtyFracture DirtyRectify DirtyTube
+0.25     2/14         PASS   -10.4276        -0.697659      AnchorBite AnchorCrush AnchorFold AnchorFracture AnchorRectify AnchorTube DirtyBite DirtyCrush DirtyFold DirtyFracture DirtyRectify DirtyTube
+0.18     4/14         PASS   -8.07538        -0.458004      AnchorCrush AnchorFold AnchorFracture AnchorRectify DirtyBite DirtyCrush DirtyFold DirtyFracture DirtyRectify DirtyTube
+0.125    8/14         PASS   -5.78045        -0.128155      AnchorCrush AnchorFold AnchorRectify DirtyCrush DirtyFold DirtyRectify
+0.1      9/14         PASS   -4.58598        0.0694749      AnchorCrush AnchorFold DirtyCrush DirtyFold DirtyRectify
+0.071    9/14         PASS   -3.10518        0.348262       AnchorCrush AnchorFold DirtyCrush DirtyFold DirtyRectify
+0.05     12/14        PASS   -2.02383        0.570091       AnchorFold DirtyCrush
+0.035    14/14        PASS   -1.30117        0.723641       -
+0.03     14/14        PASS   -1.29783        0.771139       -
+
+arm               0.71   0.5    0.35   0.25   0.18   0.125  0.1    0.071  0.05   0.035  0.03  
+AnchorBite        FAIL   FAIL   FAIL   FAIL   PASS   PASS   PASS   PASS   PASS   PASS   PASS  
+AnchorCrush       FAIL   FAIL   FAIL   FAIL   FAIL   FAIL   FAIL   FAIL   PASS   PASS   PASS  
+AnchorFold        FAIL   FAIL   FAIL   FAIL   FAIL   FAIL   FAIL   FAIL   FAIL   PASS   PASS  
+AnchorFracture    FAIL   FAIL   FAIL   FAIL   FAIL   PASS   PASS   PASS   PASS   PASS   PASS  
+AnchorRectify     FAIL   FAIL   FAIL   FAIL   FAIL   FAIL   PASS   PASS   PASS   PASS   PASS  
+AnchorTube        FAIL   FAIL   FAIL   FAIL   PASS   PASS   PASS   PASS   PASS   PASS   PASS  
+CleanGrowl        PASS   PASS   PASS   PASS   PASS   PASS   PASS   PASS   PASS   PASS   PASS  
+CleanSaw          PASS   PASS   PASS   PASS   PASS   PASS   PASS   PASS   PASS   PASS   PASS  
+DirtyBite         FAIL   FAIL   FAIL   FAIL   FAIL   PASS   PASS   PASS   PASS   PASS   PASS  
+DirtyCrush        FAIL   FAIL   FAIL   FAIL   FAIL   FAIL   FAIL   FAIL   FAIL   PASS   PASS  
+DirtyFold         FAIL   FAIL   FAIL   FAIL   FAIL   FAIL   FAIL   FAIL   PASS   PASS   PASS  
+DirtyFracture     FAIL   FAIL   FAIL   FAIL   FAIL   PASS   PASS   PASS   PASS   PASS   PASS  
+DirtyRectify      FAIL   FAIL   FAIL   FAIL   FAIL   FAIL   FAIL   FAIL   PASS   PASS   PASS  
+DirtyTube         FAIL   FAIL   FAIL   FAIL   FAIL   PASS   PASS   PASS   PASS   PASS   PASS  
+lever             PASS   PASS   PASS   PASS   PASS   PASS   PASS   PASS   PASS   PASS   PASS  
+chosen g_floor 0.035, K_wide 1.0f
+aggregate-harvest: side-floor wrote specs/profundum-phase7-stereo-field/evidence/harvest-wide-floor.txt
+exit: 0 wall: 0 s

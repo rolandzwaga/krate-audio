@@ -1,0 +1,94 @@
+T006 run-log (2026-10-18) - processBlock, the stage gates, determinism and RT safety
+
+## Files written
+- dsp/tests/unit/systems/bass_stereo_field_test.cpp (appended; banner gains a T006 line; includes added:
+  "mass_dynamics_test_helpers.h" (read-only, for MassDynamicsTest::gridDriver / anchorControlsFor and, through it,
+  ProfundumTest::requireLREqual and ShapeCharacterTest::noteHz), <allocation_detector.h>, <cstdlib>, <limits>, <memory>).
+  13 TEST_CASEs, all [systems][profundum][stereo-field] + the task's tags, none [long]:
+    BassStereoField_SafetyStageGates [sc-005][fr-001][fr-022]       static_assert + runtime latencySamples() == 0; noise 1 s,
+        mode x Gravity {0,0.5,1} x crossover {60,120,250}, blocks 512: per sample, in double,
+        |(Lo+Ro)/2 - (Li+Ri)/2| <= 2^-23 (|M_in| + |S'_out|) (C-1 bound, always gated); non-vacuity: side non-zero in
+        SPREAD / WIDE; prints the largest error / bound.
+    BassStereoField_SafetyStageMidBitExact [sc-005][fr-025]         kGateMidBitExact = false (C-1 ruled); per-sample probe;
+        counts fl((Lo+Ro)*0.5f) vs fl((Li+Ri)*0.5f) bit differences + largest |delta| (printed); SOLID REQUIREd bit-exact
+        from the sample after modeFade() first reads 0.
+    BassStereoField_StageLrInLrOut [sc-004][fr-025]                 162-cell settings grid, L == R sines 41.2/123.6/400 Hz
+        (0.2 each), 1 s from reset, blocks 512: requireLREqual + memcmp == input.
+    BassStereoField_StageLrInLrOutDirtyState [sc-004][fr-025]       kGateLrBitExactAnyState = false (C-2 ruled); SPREAD,
+        Gravity 0, crossover {60,120,250}: 0.5 s noise then 1 s L == R; writes evidence/side-decay-record.csv
+        (crossover_hz, samples, ms, decayed_within_1s) and prints it; always-gated arm: switch to SOLID at the first L == R
+        sample, L == R bit-identical from (first modeFade() == 0) + 1.
+    BassStereoField_AnchorBitIdentical [sc-004][fr-062]             anchor E0/E1/E2/C3 (AnchorOscillator, Reset, Sine/LOCK at
+        kDefaultLevel, a1 0.25, rendered in 32-sample blocks, requireLREqual + non-silence REQUIRE) x the settings grid
+        from reset: L == R and memcmp == input; after-SOLID arm: 0.5 s noise SPREAD, switch to SOLID, the anchor fed from
+        the crossfade's last sample + 1 (per-sample, input written on the fly): L == R and == input from there.
+    BassStereoField_AnchorBitIdenticalDirtyState [sc-004][fr-062]   0.5 s noise SPREAD (defaults) then the anchor, no switch;
+        decay length printed per note; gated only if kGateLrBitExactAnyState.
+    BassStereoField_SolidForcesZeroSide [fr-051][fr-052][sc-004]    44.1 / 48 / 96 kHz; switch to SOLID at the grid point
+        nearest below 0.5 s: modeFade() reaches bit 0; crossfade length (switch sample .. first 0, inclusive) within
+        round(0.010 fs) +- 1; from that sample + 1 L == R == fl((l+r)*0.5f) bit for bit; sideIdle() true from the
+        crossfade end; prints whether the pair is equal at the crossfade's last sample. Leaving SOLID 0.1 s later
+        (grid-aligned): modeFade() reaches bit 1.0f within round(0.010 fs) +- 1, sideIdle() false.
+    BassStereoField_GravityAttenuation [sc-020][sc-006][fr-021]     side-only tones (L = x, R = -x, 0.25) at 0.95 f_c and
+        sqrt(20 f_c), crossover {60,120,250}, 2 s, last 1 s: Gravity 1 <= -24 dB, Gravity 0 < 0 dB, Gravity i/10
+        non-increasing gain (0.01 dB tolerance); analytic LR4 printed beside (g/(1+r^4) + r^4/(1+r^4), r = f / (2 f_c));
+        Gravity 0 -> 1 step: currentSideGain() bit 0 within 4800 samples at 48 kHz.
+    BassStereoField_ContinuousControlsNoCrossfade [fr-053]          SPREAD and WIDE, noise 2 s, per-sample probe; Spread,
+        Gravity, crossover, curve, motionDepth, motionRate, motionSource stepped alone (cumulatively) at 0.2 s spacing, then
+        all at once back to base: modeFade() bit 1.0f on every sample.
+    BassStereoField_CrossoverAgreement [sc-009][fr-024]             (a) 60 -> 250 -> 60 Hz steps (intervals 100 / 500 of
+        1000, audio processed): from interval 101 stageCrossoverHz() within 0.1 Hz of 2 * smoothedCrossoverHz() and
+        VoiceState::lastCrossoverHz bit-equal to smoothedCrossoverHz(); (b) at 44.1/48/88.2/96/192 kHz on the full-range
+        step and the 10 s slow sweep (law +2.5e-5 Hz / interval): a real OnePoleSmoother (kStageCrossoverSmoothMs, fs)
+        snapped to the first handed value, Efficient rule per sample (CrossoverLR4::kHysteresisThreshold):
+        |smoothed - handed| <= 0.1 and |lastCoeff - handed| <= residual + 0.1 + 1e-4 at every interval end; the
+        HighAccuracy rule's drift printed beside.
+    BassStereoField_Deterministic [sc-012][fr-074]                  4 s noise, SPREAD -> WIDE -> SOLID -> SPREAD at 1/2/3 s,
+        Spread ramp 0 -> 1 over 0-1 s, depth 1 per source, E1 query every interval: host blocks 1/17/32/64 memcmp-equal
+        to 512 (audio + vectors); after a render moving the crossover 60 -> 250, setControls(start) + reset() twice:
+        both runs equal each other and the fresh 512 run (C-4); seeds 0xB17E vs 0x1234 give different vectors.
+    BassStereoField_NoAllocation [sc-011][fr-071]                   warmed field, one AllocationScope over setControls,
+        advanceControl, computePanVector, wideOffsets, processBlock 1/32/4096, reset, every mode, a source switch,
+        setTempoBpm, setDriftSeed; count read before the scope closes. Fresh-field arm: unprepared field, scope over
+        reset/advanceControl/computePanVector/processBlock(64): 0 allocations, outputs finite and bit-equal to
+        fl((l+r)*0.5f); then prepare + reset render memcmp-equal to a field that never saw the early calls.
+    BassStereoField_ProcessEdgeCases [fr-001][fr-072]               null left / null right / 0 samples leave both buffers
+        untouched; right == left finite returns the input; NaN / +Inf / -Inf samples become bit 0, others unchanged.
+- dsp/include/krate/dsp/systems/bass_stereo_field.h: the T006 stub replaced by processBlock (plan S7.3) + private
+  helper updateSideIdle(k) (the S7.3 idle transition, shared by the stereo and right == left loops); banner line
+  "Temporary body ... processBlock (T006)" replaced by the T006 line.
+- this run-log.
+
+## Facts read this session (file:line)
+- tasks.md T006 (:509-584), rules (:207-238); plan C-1 (:89-104), C-2 (:106-119), C-3 (:121-130), C-4 (:132-141),
+  C-18 (:346-368), S7 (:679-751), S8 (:753-766), S11 (:890-922).
+- midside_processor.h:200-201 encode `mid = (L + R) * 0.5f`, `side = (L - R) * 0.5f`; :225-226 decode.
+- crossover_filter.h: CrossoverLR4Outputs {low, high} :51-54; kHysteresisThreshold = 0.1f :106; prepare :169-192;
+  reset :200-205; setCrossoverFrequency :218; process (unprepared {0,0}; HighAccuracy / Efficient rules) :289-323.
+- smoother.h: kCompletionThreshold 1e-4 :55; OnePoleSmoother process snaps inside the threshold; LinearRamp
+  setTarget recomputes the increment, process clamps onto the target (exact 0 / 1).
+- allocation_detector.h (tests/test_helpers): namespace TestHelpers; AllocationScope latches in the destructor.
+- anchor_oscillator.h: RetriggerPhase :59, kDefaultLevel :72, prepare :123, setControls :224, setCoreH1Amplitude :262,
+  setRetriggerPhase :269, noteOn :276, processBlock :285.
+- mass_dynamics_test_helpers.h: gridDriver :103-114, anchorControlsFor :294; profundum_core_test_helpers.h
+  requireLREqual :61; shape_character_test_helpers.h noteHz :48.
+
+## Decisions / deviations
+1. DEVIATION (surface, do not silently revert): the S7.3 decode `outL = M + Sp, outR = M - Sp` is taken only when
+   Sp != 0 (compares true for both zeros); a zero Sp writes M to both channels. Reason: with M == -0 (an input pair
+   of -0) and Sp == +/-0 the verbatim decode gives -0 + +0 = +0 on one side and -0 on the other, breaking the
+   L == R and output == input bit gates (SC-004(b)(c), FR-051) and C-1 (iii); under -ffast-math the compiler may also
+   fold M + 0 differently per platform. The numeric behaviour is otherwise identical (M + 0 == M for every non-zero
+   M). One compare per sample.
+2. The idle transition also runs in the right == left loop, so a mono call leaves sideIdle_ / the crossover in the
+   state a stereo call would (S7.3 says both smoothers run there "so their state matches a stereo call").
+3. "Seeds 0xB17E and 0x1234 give different outputs": MOTION feeds only the per-voice law (the stage never reads m),
+   so the difference is asserted on the emitted vectors of the E1 query.
+4. ContinuousControlsNoCrossfade steps the controls cumulatively (each step changes exactly one control), then all
+   seven back at once.
+5. The Anchor dirty-state record runs at the default controls (SPREAD, 120 Hz, Gravity 0.5) for each of E0/E1/E2/C3.
+6. The tasks.md Verify line lists MidBitExact / both DirtyState cases as "expected red until ruled"; with the ruled
+   switches (false) they record and are expected green.
+
+## Build / run
+Not built or run (task instruction: the group's build agent does that).

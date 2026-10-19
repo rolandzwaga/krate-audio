@@ -1,0 +1,53 @@
+=== T001 bench 2026-10-18T13:19:10Z runs=3 settle=60s quick=0
+compile: "/c/Program Files/LLVM/bin/clang++.exe" -std=c++20 -O2 -ffast-math -march=x86-64-v2 -DNDEBUG -fms-runtime-lib=dll -Idsp/include -Ibuild/windows-x64-release/_deps/highway-src specs/profundum-phase7-stereo-field/bench/stereo-field-bench.cpp dsp/include/krate/dsp/processors/harmonic_oscillator_bank_simd.cpp build/windows-x64-release/lib/Release/hwy.lib -Xlinker /NODEFAULTLIB:libcmt -o C:/Users/scab/AppData/Local/Temp/claude/f--projects-iterum/c0bd5a99-98f3-43db-b5f9-0b91ddca3913/scratchpad/p7-bench/p7-bench.exe
+commit: 4599d180
+--- run 1
+pin-perf-cores: performance-core mask 0xFFFF
+P7BENCH fs=48000 block=64 interval=32 partials=64 seconds_per_cell=3.00
+cell base_1v ns_per_sample 152.09 pct_core 0.7301
+cell law_1v ns_per_sample 203.35 pct_core 0.9761
+info law_1v handoffs 462556 queries 462556
+cell base_4v ns_per_sample 641.20 pct_core 3.0777
+cell law_4v ns_per_sample 788.51 pct_core 3.7849
+info law_4v handoffs 481648 queries 481648
+cell stage_static ns_per_sample 15.77 pct_core 0.0757
+cell stage_sweep ns_per_sample 20.45 pct_core 0.0981
+cell stage_sweep_192k ns_per_sample 22.19 pct_core 0.4261
+sink 288.71
+--- run 2
+pin-perf-cores: performance-core mask 0xFFFF
+P7BENCH fs=48000 block=64 interval=32 partials=64 seconds_per_cell=3.00
+cell base_1v ns_per_sample 161.33 pct_core 0.7744
+cell law_1v ns_per_sample 191.35 pct_core 0.9185
+info law_1v handoffs 491484 queries 491484
+cell base_4v ns_per_sample 597.27 pct_core 2.8669
+cell law_4v ns_per_sample 741.43 pct_core 3.5589
+info law_4v handoffs 511856 queries 511856
+cell stage_static ns_per_sample 15.26 pct_core 0.0732
+cell stage_sweep ns_per_sample 19.72 pct_core 0.0946
+cell stage_sweep_192k ns_per_sample 19.99 pct_core 0.3838
+sink 496.624
+--- run 3
+pin-perf-cores: performance-core mask 0xFFFF
+P7BENCH fs=48000 block=64 interval=32 partials=64 seconds_per_cell=3.00
+cell base_1v ns_per_sample 150.53 pct_core 0.7225
+cell law_1v ns_per_sample 193.33 pct_core 0.9280
+info law_1v handoffs 486492 queries 486492
+cell base_4v ns_per_sample 590.94 pct_core 2.8365
+cell law_4v ns_per_sample 727.44 pct_core 3.4917
+info law_4v handoffs 521584 queries 521584
+cell stage_static ns_per_sample 13.93 pct_core 0.0668
+cell stage_sweep ns_per_sample 19.01 pct_core 0.0912
+cell stage_sweep_192k ns_per_sample 20.59 pct_core 0.3954
+sink 410.446
+--- medians over 3 run(s) (% of one core; stage_sweep_192k at 192 kHz)
+median base_1v            0.7301
+median law_1v             0.9280
+median base_4v            2.8669
+median law_4v             3.5589
+median stage_static       0.0732
+median stage_sweep        0.0946
+median stage_sweep_192k   0.3954
+per_voice 0.1979 (<= 0.25) four_voice 0.6920 (<= 1.0) stage_static 0.0732 (<= 0.5) stage_sweep 0.0946 (<= 0.5)
+DECISION: PROCEED with the plan design
+RECORD: stage_sweep_192k 0.3954 (recorded, not gated)

@@ -1,0 +1,7 @@
+long:BassStereoField_SampleRates exit=0 wall=7s (rerun 2026-10-19 after G10)
+long:BassStereoField_LeversAudible exit=0 wall=59s (rerun 2026-10-19 after G10)
+long:BassStereoField_SafetyStageAttenuation exit=0 wall=96s (rerun 2026-10-19 after G10)
+long:BassStereoField_WidthMonotonic exit=2 wall=403s (rerun 2026-10-19 after G10)
+long:BassStereoField_MonoSumPerBand_Wide_DirtyFracture_C3 exit=0 wall=1836s (rerun 2026-10-19 after G10)
+long:BassStereoField_MonoSumPerBand_Wide_AnchorFracture_C3 exit=0 wall=1858s (rerun 2026-10-19 after G10)
+long:BassStereoField_WidthMonotonic exit=0 wall=592s (rerun 2026-10-19 after G10-1 test edit)

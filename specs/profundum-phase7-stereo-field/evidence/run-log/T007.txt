@@ -1,0 +1,75 @@
+T007 run-log (2026-10-18) - bass_stereo_field_test_helpers.h and its self-tests (plan S10, C-12, C-16; deviations 7, 8)
+
+## Files written
+- dsp/tests/unit/systems/bass_stereo_field_helpers_test.cpp (stub filled; tests written first). 3 TEST_CASEs,
+  tags [systems][profundum][stereo-field][helpers], none [long]:
+    BassStereoField_HelpersSelfTest     bandReading: hard pan Q = -3.0103 (+-0.001); anti-phase Q <= -100 (floored at
+        -120) and rho = -1 (+-1e-9); L == R Q = 0 (+-1e-9), rho = 1 (+-1e-12); R = 0.5 L rho = 1 (+-1e-9), Q = -0.4576
+        (+-0.001). Mask equivalence (deviation 8): two-tone fixture (60 Hz L-only + 300 Hz both, R +0.3 rad), band
+        [0, 120): Parseval ll / rr / lr and meanEnergy vs the time-domain energies of the Hann-tapered, FFT-masked
+        (ProfundumTest::fftDouble), inverse-FFT'd (MassDynamicsTest::inverseFftDouble) signals within 1e-9 relative,
+        rho within 1e-9. Band mask: 100 Hz in [50, 200) within 0.01 dB, 1 kHz removed by >= 120 dB. widthDb of a
+        constant-power pan p = 0.5 (8 harmonics of 100 Hz): every W_n = -7.6555 (+-0.01). renderPanReference with a
+        constant vector: held == interpolated (max |delta| <= 1e-12) + non-vacuity |L - R| > 1e-3. goertzelComplex:
+        0.3 / 0.7 rad of a 41.2 Hz tone (+-1e-6) over the whole-period count in [400, 1200] whose length is closest
+        to an integer (the rectangular DFT's image term is then negligible). restage (deviation 7) at
+        kSideFloorGain reproduces stageOutL/R and outL/R bit for bit (dirty Tube + Anchor, SPREAD, E1, 1 s), and a
+        0.1 floor changes stageOutL (the restaged field really uses floorGain).
+    BassStereoField_ChainMatchesPhase6  (C-12) bypassField, shapeOn false, no algorithm, no foldAmount, default
+        excitation, chain {kSawAnchor, E1, 48 kHz, 2 s}: outL/R, coreL/R, foldL/R, dynL/R memcmp-equal to
+        MassDynamicsTest::renderChain(cfg.chain); non-vacuity peak > 1e-3.
+    BassStereoField_FieldChainSmoke     dirty arm (Tube) + Anchor, SPREAD at Controls{}, E1, 2 s: every tap finite;
+        stageOutL/R differ from dynL/R; vectorPerInterval / offsets / crossover / h1 taps have one entry per grid
+        point; coreL != coreR (non-vacuity); SOLID from reset: stageOutL == stageOutR bit for bit.
+  Every reading is printed as a "BSF_HELPERS,..." line (setprecision(6)).
+- dsp/tests/unit/systems/bass_stereo_field_test_helpers.h (new; namespace Krate::DSP::StereoFieldTest; includes the
+  Phase 5 / Phase 6 helpers read-only, the probe, bass_stereo_field.h, shape_morph.h, bass_character_stage.h; every
+  call into MassDynamicsTest / ProfundumTest / HarmonicFoldTest qualified, no using namespace):
+    FieldChainConfig / FieldChainTaps (plan S10 + tasks.md T007 extras: f0At, characterTone, sideFloorOverride,
+    wideScaleOverride, perSampleStage -> modeFadePerSample, h1DeliveredPerInterval), makeField, advanceFieldAt,
+    processStageAndOutput, processFieldTail (processChainTail's statements, mass_dynamics_test_helpers.h:302-340,
+    with sum = character + anchor and the stage after MassDynamics), renderFieldChain, restage, renderFieldPoly
+    (+ PolyFieldVoice), Band, largestPow2AtMost, nearestPow2, hannWindow, BandSpectra, BandEnergies, bandEnergies,
+    BandReading, bandReading, bandReadings, windows, octaveBands, thirdOctaves, widthDb, ToneFit, wrapPhase,
+    goertzelComplex, PanReferenceMode, FittedHarmonic, fitHarmonics, PanReference, renderPanReference,
+    MonoSumTap, TapReading, MonoSumCell, mergeWorst, evaluateMonoSumCell, monoSumCellPasses, monoSumCsvHeader,
+    monoSumCsvLine, wideAliasedDbfs, LeverMove, staticLeverMove, bitEqual, sameExcitation.
+- ODR sweep (this session): grep -rnE "(struct|class|enum class|enum) (FieldChainConfig|FieldChainTaps|BandReading|
+  BandEnergies|BandSpectra|Band|MonoSumCell|TapReading|LeverMove|PanReferenceMode|PanReference|FittedHarmonic|
+  ToneFit|PolyFieldVoice)\b" dsp plugins tests tools -> 0 hits; "StereoFieldTest" -> 0 hits before this task.
+
+## Decisions
+- bypassField: plan S10 says "stage not run, vector not handed" and the C-12 self-test needs exactly that (a handed
+  Spread 0.5 vector would change coreL/R). tasks.md T011 (BassStereoField_NoZipper) uses bypassField "so only the
+  vector is handed". Both are served by a second flag, `bypassHandsVector` (default false): T011 must set
+  bypassField = true AND bypassHandsVector = true. The law is advanced, queried and recorded either way; the
+  WIDE offsets are always handed (S10 names only the vector).
+- Note-on: S10 step 3's "retrigger from perInterval" has no channel in perInterval's signature
+  (void(sample, BassStereoField&)); the only note-on is chain.noteOnSample. perInterval runs on the main field only
+  (not on the generatorGravity field) and must be a pure function of (sample, field), because restage replays it.
+- vectorPerInterval records the vector handed (after forceSubCentre; from the generator field when
+  generatorGravity is set). offsetsPerInterval records the offsets handed ({+0, +0} without a character stage).
+- f0At: the per-sample f0 (rounded to float once) feeds the core, the Anchor, ShapeMorph and the character stage
+  through their f0PerSample arguments; HarmonicFold (setFundamentalHz), the MassDynamics detector key and the
+  Anchor's a1 (unbiasedH1Amplitude) take f0At at each grid point; the note-on uses f0At(noteOnSample). Without
+  f0At none of those extra calls happen (C-12 bit-exactness).
+- core.setExcitation is called only when cfg.excitation differs bitwise from ProfundumCore::kDefaultExcitation.
+- The probe overrides are applied before prepare(), so prepare's reset() snaps the side-gain smoother to the
+  instance floor; restage's field takes floorGain the same way, so a restage at g equals a full render with
+  sideFloorOverride = g (deviation 7), not a 10 ms glide from the old floor.
+- bandReading: window = the first largestPow2AtMost(n) (<= 2^18) samples from the pointers passed; meanEnergy is
+  taper-compensated ((ll + rr) / 2 / sum w^2), so valid = mean-square >= 1e-10 of the untapered band. A silent band
+  reads Q = 0, rho = 0, side-to-mid at the floor, valid = false. rho = 0 when one channel is silent.
+- MonoSumCell "worst over windows": among valid windows, min Q (Q <= 0 dB always, so also max |Q|), min rho, max
+  side-to-mid, min mean energy; a band valid in no window stays invalid. monoSumCellPasses skips invalid readings
+  (e.g. the [0, 60) sub band at E2 / C3 holds no harmonic), as SC-001(b) skips invalid octaves.
+- evaluateMonoSumCell reads f_c and MOTION depth from the controls of sample 0 (fieldAt(0) or `field`).
+- renderPanReference: a_n carries the bank's centre gain (fitted on one channel of a Spread 0 render), so the
+  channel gains are sqrt(2) cos / sin(pi/4 + p pi/4); cyc integrates f0At(j) / fs from sample 0 (the core's Reset
+  phase 0 at note-on). fitHarmonics (new, small) rotates each fitted phase back to sample 0 for a static f0.
+- No build or run (executor rule); both files re-read for compile hazards (qualified TestUtils, designated
+  initialisers in declaration order, no narrowing, explicit casts).
+
+## Deviations
+- `bypassHandsVector` and `fitHarmonics` are additions beyond the S10 list (reasons above).
+- No DEFECT lines.

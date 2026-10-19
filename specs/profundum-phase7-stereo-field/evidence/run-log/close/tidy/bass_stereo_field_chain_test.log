@@ -1,0 +1,4 @@
+62035 warnings generated.
+Suppressed 62035 warnings (62029 in non-user code, 6 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 31 s

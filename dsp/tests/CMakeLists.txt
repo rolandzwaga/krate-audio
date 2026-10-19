@@ -740,6 +740,26 @@ add_executable(dsp_systems_tests
     unit/systems/mass_dynamics_aliasing_test.cpp
     unit/systems/mass_dynamics_nonfinite_test.cpp
     unit/systems/mass_dynamics_perf_test.cpp
+    # Profundum Phase 7 (specs/profundum-phase7-stereo-field) - ENUMERATED, not globbed:
+    #   bass_stereo_field_test.cpp           FR-011, FR-034, FR-053, SC-004(b)(c), SC-005 gates, SC-009(a')(c), SC-011, SC-012,
+    #                                        SC-013(c), SC-017, SC-018/019/020/021 law
+    #   bass_stereo_field_helpers_test.cpp   helper self-tests, C-12 chain equality
+    #   bass_stereo_field_nonfinite_test.cpp SC-014 - in the -fno-fast-math block below
+    #   bass_stereo_field_monosum_test.cpp   SC-001, SC-002, SC-020 rendered; shards [long]
+    #   bass_stereo_field_spectral_test.cpp  SC-003, SC-005 record, SC-006, SC-010, SC-016; grids [long]
+    #   bass_stereo_field_motion_test.cpp    SC-008, SC-009(a); [long]
+    #   bass_stereo_field_chain_test.cpp     SC-004(a), SC-007 [long], SC-009(b), SC-018/019 rendered
+    #   bass_stereo_field_harvest_test.cpp   S9.1 harvest, hidden
+    #   bass_stereo_field_perf_test.cpp      SC-013  [.perf]
+    unit/systems/bass_stereo_field_test.cpp
+    unit/systems/bass_stereo_field_helpers_test.cpp
+    unit/systems/bass_stereo_field_nonfinite_test.cpp
+    unit/systems/bass_stereo_field_monosum_test.cpp
+    unit/systems/bass_stereo_field_spectral_test.cpp
+    unit/systems/bass_stereo_field_motion_test.cpp
+    unit/systems/bass_stereo_field_chain_test.cpp
+    unit/systems/bass_stereo_field_harvest_test.cpp
+    unit/systems/bass_stereo_field_perf_test.cpp
 )
 
 target_link_libraries(dsp_systems_tests
@@ -1235,6 +1255,8 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         # Profundum Phase 6: injects NaN/Inf bit patterns (SC-019). The perf TU stays out (shipping FP mode).
         unit/processors/transient_shaper_nonfinite_test.cpp
         unit/systems/mass_dynamics_nonfinite_test.cpp
+        # Profundum Phase 7: injects NaN/Inf bit patterns (SC-014, FR-072). The perf TU stays out (shipping FP mode).
+        unit/systems/bass_stereo_field_nonfinite_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 

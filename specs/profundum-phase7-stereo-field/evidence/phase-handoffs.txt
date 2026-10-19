@@ -1,0 +1,105 @@
+Profundum Phase 7 (Stereo Field) -- Phase 8 / 9 / 11 / 12 handoff record (FR-080; tasks.md T017)
+Written 2026-10-18 from plan.md "Handoffs (FR-080)" (plan.md:1169-1210) with the measured values filled in.
+Every number cites its evidence file and line (paths relative to specs/profundum-phase7-stereo-field/ unless
+they start with dsp/ or specs/). The comply stage moves this record into the roadmap's Phase 8 / 9 / 11 / 12 notes.
+
+==================================================================================================================
+0. Harvested constants (plan S9.1 / S9.2, C-13; T015)
+==================================================================================================================
+- kSideFloorGain   = 0.035f  (20*log10(0.035) = -29.1 dB)
+    evidence/harvest-wide-floor.txt:5 (initializer), :49 ("chosen g_floor 0.035"), :30 (0.035 row: 14/14 shards,
+    lever PASS, worst Q_sub -1.30117 dB, worst rho_sub 0.723641); the next candidate up, 0.05, failed 2 shards
+    (AnchorFold, DirtyCrush) at :29. Gravity lever at 0.035: E1 side-to-mid 6.04839 dB, C3 0.613132 dB (:229).
+- kWideOffsetScale = 1.0f
+    evidence/harvest-wide-floor.txt:6 (initializer), :13 ("chosen K_wide 1"); both candidates {1, 0.75} PASS (:11-12);
+    K=1 record: worst alias -81.5774 dBFS, lever E1/C3 pass (:16).
+- Harvest commit: harvested on base commit 4599d180 (evidence/harvest-wide-floor.txt:3). The pair is pasted into
+  dsp/include/krate/dsp/systems/bass_stereo_field.h:84-88 (HARVEST-BEGIN/END wide-floor block; constants at :86-87),
+  which is not yet committed: the phase commit that carries it is made at close. Lane record:
+  evidence/run-log/T015.txt:98-109 (run 3 green through step 5; whole lane 2374 s, :108).
+- Rulings behind the harvest: G8-1 (deep floor, octaves recorded) and the run-2 refinements,
+  evidence/run-log/T015.txt:83-97.
+
+==================================================================================================================
+1. Phase 8 (morph)
+==================================================================================================================
+- BassStereoField::Controls is the morphable set (bass_stereo_field.h:99, plain aggregate, FR-002).
+- spread, gravity, crossoverHz (60-250), curve ([0, 1], one family), motionDepth and motionRate interpolate linearly.
+- mode is stepped-with-crossfade through FR-052: the field's 10 ms side crossfade plus the vector slew.
+  Measured crossfade length: 9.97917 ms (479 samples at 48 kHz) in every SC-004(a3) render
+  (evidence/sc004-a3-convergence.csv:2-97, column crossfade_ms).
+- motionSource, cycleSync, the note value and the modifier are stepped.
+- isValidControls is static (bass_stereo_field.h:263), for isValidMorphState to call.
+
+==================================================================================================================
+2. Phase 9 (engine)
+==================================================================================================================
+Call order, per control interval:
+  1. field.advanceControl() once (bass_stereo_field.h:293);
+  2. then, per voice, any note-on at this grid point: the core's noteOn and, under the Reset policy,
+     VoiceState::reset() (bass_stereo_field.h:113, :119);
+  3. computePanVector(voiceState, resolvedF0, pan, N) (bass_stereo_field.h:349)
+       -> core.setPartialPanOffsets(pan) (dsp/include/krate/dsp/systems/profundum_core.h:218);
+  4. wideOffsets(alg) (bass_stereo_field.h:413)
+       -> character.setChannelOffsets(amount, tone) (dsp/include/krate/dsp/systems/bass_character_stage.h:273).
+- The note-on (with VoiceState::reset()) comes BEFORE that voice's law query at the same grid point (S10). The other
+  order forwards the old slewed vector at the note-on and lands unslewed one interval later, mid-note (SC-009(a-prime)).
+- Stage position: voice sum -> Mass dynamics (MassDynamics) -> stereo field safety stage -> DC safety (x2) ->
+  TruePeakLimiter (specs/Profundum-roadmap.md:607).
+- setTempoBpm (bass_stereo_field.h:274) is fed from the process context.
+- The full-engine mono-sum check reuses SC-001's helpers (dsp/tests/unit/systems/bass_stereo_field_test_helpers.h).
+- motionSource() (bass_stereo_field.h:497) is a ModulationSource, if the Motion bus wants it.
+
+Per-voice CPU line "stereo-field law + pan forwarding" (charged to the headroom, FR-079):
+- T001 feasibility bench (clang -O2 -ffast-math, pinned, 3 runs x 3 s, medians; % of one core at 48 kHz):
+    per voice 0.1979 % (bar <= 0.25)     evidence/run-log/T001-bench.txt:51  (law_1v 0.9280 - base_1v 0.7301, :44-45)
+    four voices 0.6920 % (bar <= 1.0)    evidence/run-log/T001-bench.txt:51  (law_4v 3.5589 - base_4v 2.8669, :46-47)
+    stage static 0.0732 %, stage sweep 0.0946 % (each <= 0.5)        evidence/run-log/T001-bench.txt:48-49
+    stage sweep at 192 kHz 0.3954 % (recorded, not gated)             evidence/run-log/T001-bench.txt:50, :53
+    measured at the worst cadence: handoffs == queries in both law cells, one changed vector per interval per voice
+    (evidence/run-log/T001-bench.txt:35, :38; evidence/run-log/T001.txt:53-54).
+- SC-013(b) (the in-tree BassStereoField_Cpu case, MSVC build): PENDING T021. The CPU lane
+  (evidence/close/cpu-lane.sh) has not run; evidence/sc013-cpu.txt does not exist yet. Phase 9 charges the SC-013(b)
+  figure once T021 records it (evidence/run-log/T021.txt); until then the T001 figure above is the sizing value.
+
+Re-synchronisation decision (DC and limiter states at the end of a SOLID crossfade):
+- SC-004(a3): after a switch into SOLID, the full-chain |L - R| at the limiter output falls below -120 dBFS and stays
+  there within at most 242.708 ms of the crossfade's end, worst of 96 renders (start mode SPREAD / WIDE x Gravity {0, 1}
+  x crossover {60, 250} Hz x six algorithms x blocks {64, 512}); worst cell WIDE, Gravity 0, 60 Hz, Tube
+  (evidence/sc004-a3-convergence.csv:50, column settled_below_ms). Every render passes the 500 ms bar: max |L - R|
+  from +500 ms reads -600 dBFS in all 96 rows (the floor of bsfDb20's 1e-30 clamp, i.e. |L - R| = 0;
+  dsp/tests/unit/systems/bass_stereo_field_chain_test.cpp:122), a3_pass = 1 in all rows (csv:2-97).
+- The safety-stage output itself is L == R bit-identical from the crossfade's last sample + 1 (SC-004(a2)); only the
+  downstream DC and limiter states carry the old L != R history, for up to ~243 ms.
+- Related record, not gated: after L != R content without a mode switch, the side crossover's biquads ring down to
+  bit-equality in 625.021 ms at 60 Hz, 17.8125 ms at 120 Hz, 8.375 ms at 250 Hz (evidence/side-decay-record.csv:2-4).
+- Phase 9 decides: re-synchronise the DC and limiter states at the crossfade end (bit-identical full chain at once), or
+  accept the measured <= 243 ms convergence.
+
+==================================================================================================================
+3. Phase 11 (parameters) -- IDs 800-899, defaults from S3
+==================================================================================================================
+- Image Mode (stepped, 3 values);
+- Spread, Gravity, Crossover (60-250 Hz, default 120), Curve (continuous [0, 1]);
+- Motion Depth, and Motion Rate ([0, 1], displayed as Hz for Cycle and seconds for Drift through C-9's maps);
+- Motion Source (Drift / Cycle), Cycle Sync (on / off), and Cycle Note Value (the kNoteValueDropdownMapping list).
+- Synced aliasing (C-9, ratified as option A, octave fold: spec.md:898-900; kCycleSyncFold = true,
+  bass_stereo_field.h:97): note values whose rate exceeds 1 Hz are octave-folded into (0.5, 1] Hz, so several give
+  the same rate. At 120 BPM the straight 1/2, 1/4, 1/8, 1/16, 1/32 and 1/64 all give 1 Hz
+  (evidence/sc008-sync-fold.csv:14, :17, :20, :23, :26, :29), every dotted value from 1/2 down gives 0.666667 Hz
+  (:15, :18, :21, :24, :27, :30), and every triplet from 1/1 down gives 0.75 Hz (:13, :16, :19, :22, :25, :28, :31).
+  At 200 BPM the same collapse lands on 0.833333 / 0.555556 / 0.625 Hz (csv:32-61). Phase 11 shows the effective
+  rate beside the note value (C-9's alternative B, exposing only the note values at or below 1 Hz at the top tempo,
+  was not ruled).
+
+==================================================================================================================
+4. Phase 12 (docs / labels) -- mono-guarantee labels
+==================================================================================================================
+- Spread, curve, crossover and MOTION can never cancel the mono sum: the vector is pan only and constant-power, and
+  the generator's sub band is at rho >= 0.9989 by construction (cos(pi * 0.015), plan.md:160-161).
+- Gravity's minimum (Gravity 0) still attenuates side content below 2*f_c by the harvested floor: x0.035 = -29.1 dB
+  (g_side(G) = kSideFloorGain * (1 - G), bass_stereo_field.h:485-487; value evidence/harvest-wide-floor.txt:5).
+- WIDE's offsets are the one control whose sub-band correlation depends on the harvested pair (S9.1):
+  K_wide = 1.0 (evidence/harvest-wide-floor.txt:6, :13), floor 0.035 (:5, :49).
+- Synced MOTION rates above 1 Hz are folded into (0.5, 1] Hz (C-9; evidence/sc008-sync-fold.csv); the label must not
+  promise a distinct rate per note value.

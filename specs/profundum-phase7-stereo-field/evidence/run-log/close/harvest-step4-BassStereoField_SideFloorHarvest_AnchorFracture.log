@@ -1,0 +1,246 @@
+Filters: "BassStereoField_SideFloorHarvest_AnchorFracture"
+Randomness seeded to: 2449947050
+HARVEST side-floor-config AnchorFracture K_wide 1 committed_floor 0.5
+HARVEST-CELL side-floor AnchorFracture_Solid_E0_s0_fc60_c0 render_ms 929.879 restage_ms 6051.13 total_ms 6981.01
+HARVEST-CELL side-floor AnchorFracture_Solid_E0_s0_fc60_c1 render_ms 949.42 restage_ms 5927.24 total_ms 6876.66
+HARVEST-CELL side-floor AnchorFracture_Solid_E0_s0_fc120_c0 render_ms 920.066 restage_ms 5731.53 total_ms 6651.6
+HARVEST-CELL side-floor AnchorFracture_Solid_E0_s0_fc120_c1 render_ms 935.451 restage_ms 5737.44 total_ms 6672.89
+HARVEST-CELL side-floor AnchorFracture_Solid_E0_s0_fc250_c0 render_ms 921.549 restage_ms 5723.11 total_ms 6644.66
+HARVEST-CELL side-floor AnchorFracture_Solid_E0_s0_fc250_c1 render_ms 950.224 restage_ms 5702.49 total_ms 6652.71
+HARVEST-CELL side-floor AnchorFracture_Solid_E0_s0.5_fc60_c0 render_ms 956.837 restage_ms 5781.85 total_ms 6738.68
+HARVEST-CELL side-floor AnchorFracture_Solid_E0_s0.5_fc60_c1 render_ms 969.16 restage_ms 5787.38 total_ms 6756.54
+HARVEST-CELL side-floor AnchorFracture_Solid_E0_s0.5_fc120_c0 render_ms 979.684 restage_ms 5931.81 total_ms 6911.49
+HARVEST-CELL side-floor AnchorFracture_Solid_E0_s0.5_fc120_c1 render_ms 976.333 restage_ms 5860.15 total_ms 6836.48
+HARVEST-CELL side-floor AnchorFracture_Solid_E0_s0.5_fc250_c0 render_ms 1010.81 restage_ms 5850.58 total_ms 6861.38
+HARVEST-CELL side-floor AnchorFracture_Solid_E0_s0.5_fc250_c1 render_ms 1056.05 restage_ms 5952.64 total_ms 7008.68
+HARVEST-CELL side-floor AnchorFracture_Solid_E0_s1_fc60_c0 render_ms 1066.8 restage_ms 6066.56 total_ms 7133.37
+HARVEST-CELL side-floor AnchorFracture_Solid_E0_s1_fc60_c1 render_ms 968.939 restage_ms 6083.66 total_ms 7052.6
+HARVEST-CELL side-floor AnchorFracture_Solid_E0_s1_fc120_c0 render_ms 1031.19 restage_ms 5869.84 total_ms 6901.03
+HARVEST-CELL side-floor AnchorFracture_Solid_E0_s1_fc120_c1 render_ms 1019.09 restage_ms 6015.96 total_ms 7035.05
+HARVEST-CELL side-floor AnchorFracture_Solid_E0_s1_fc250_c0 render_ms 1057.47 restage_ms 5916.2 total_ms 6973.67
+HARVEST-CELL side-floor AnchorFracture_Solid_E0_s1_fc250_c1 render_ms 1063.96 restage_ms 6127.6 total_ms 7191.56
+HARVEST-CELL side-floor AnchorFracture_Solid_E1_s0_fc60_c0 render_ms 1036.04 restage_ms 6041.26 total_ms 7077.3
+HARVEST-CELL side-floor AnchorFracture_Solid_E1_s0_fc60_c1 render_ms 1046.37 restage_ms 6215.35 total_ms 7261.73
+HARVEST-CELL side-floor AnchorFracture_Solid_E1_s0_fc120_c0 render_ms 1032.55 restage_ms 6011.07 total_ms 7043.63
+HARVEST-CELL side-floor AnchorFracture_Solid_E1_s0_fc120_c1 render_ms 1037.57 restage_ms 6041.83 total_ms 7079.4
+HARVEST-CELL side-floor AnchorFracture_Solid_E1_s0_fc250_c0 render_ms 1043.93 restage_ms 6014.33 total_ms 7058.27
+HARVEST-CELL side-floor AnchorFracture_Solid_E1_s0_fc250_c1 render_ms 1013.87 restage_ms 6085.53 total_ms 7099.4
+HARVEST-CELL side-floor AnchorFracture_Solid_E1_s0.5_fc60_c0 render_ms 1125.05 restage_ms 6064.29 total_ms 7189.35
+HARVEST-CELL side-floor AnchorFracture_Solid_E1_s0.5_fc60_c1 render_ms 1053.13 restage_ms 6116.67 total_ms 7169.8
+HARVEST-CELL side-floor AnchorFracture_Solid_E1_s0.5_fc120_c0 render_ms 1047.46 restage_ms 6392.08 total_ms 7439.54
+HARVEST-CELL side-floor AnchorFracture_Solid_E1_s0.5_fc120_c1 render_ms 1078.11 restage_ms 6128.18 total_ms 7206.29
+HARVEST-CELL side-floor AnchorFracture_Solid_E1_s0.5_fc250_c0 render_ms 1033.14 restage_ms 6355.08 total_ms 7388.22
+HARVEST-CELL side-floor AnchorFracture_Solid_E1_s0.5_fc250_c1 render_ms 1135.5 restage_ms 6601.12 total_ms 7736.62
+HARVEST-CELL side-floor AnchorFracture_Solid_E1_s1_fc60_c0 render_ms 1105.81 restage_ms 6221.01 total_ms 7326.82
+HARVEST-CELL side-floor AnchorFracture_Solid_E1_s1_fc60_c1 render_ms 1078.79 restage_ms 6170.96 total_ms 7249.75
+HARVEST-CELL side-floor AnchorFracture_Solid_E1_s1_fc120_c0 render_ms 1057.64 restage_ms 6289.07 total_ms 7346.7
+HARVEST-CELL side-floor AnchorFracture_Solid_E1_s1_fc120_c1 render_ms 1083.98 restage_ms 6260.73 total_ms 7344.72
+HARVEST-CELL side-floor AnchorFracture_Solid_E1_s1_fc250_c0 render_ms 1061.89 restage_ms 6114.31 total_ms 7176.2
+HARVEST-CELL side-floor AnchorFracture_Solid_E1_s1_fc250_c1 render_ms 1032.17 restage_ms 6128.55 total_ms 7160.72
+HARVEST-CELL side-floor AnchorFracture_Solid_E2_s0_fc60_c0 render_ms 1055.47 restage_ms 6145.44 total_ms 7200.91
+HARVEST-CELL side-floor AnchorFracture_Solid_E2_s0_fc60_c1 render_ms 1074.61 restage_ms 6136.83 total_ms 7211.44
+HARVEST-CELL side-floor AnchorFracture_Solid_E2_s0_fc120_c0 render_ms 1034.83 restage_ms 6303.23 total_ms 7338.06
+HARVEST-CELL side-floor AnchorFracture_Solid_E2_s0_fc120_c1 render_ms 1080.94 restage_ms 6318.07 total_ms 7399
+HARVEST-CELL side-floor AnchorFracture_Solid_E2_s0_fc250_c0 render_ms 1048.35 restage_ms 6133.06 total_ms 7181.41
+HARVEST-CELL side-floor AnchorFracture_Solid_E2_s0_fc250_c1 render_ms 1026.25 restage_ms 5982.6 total_ms 7008.85
+HARVEST-CELL side-floor AnchorFracture_Solid_E2_s0.5_fc60_c0 render_ms 1032.13 restage_ms 6111.4 total_ms 7143.53
+HARVEST-CELL side-floor AnchorFracture_Solid_E2_s0.5_fc60_c1 render_ms 1003.35 restage_ms 5869.67 total_ms 6873.03
+HARVEST-CELL side-floor AnchorFracture_Solid_E2_s0.5_fc120_c0 render_ms 1021.42 restage_ms 5927.39 total_ms 6948.81
+HARVEST-CELL side-floor AnchorFracture_Solid_E2_s0.5_fc120_c1 render_ms 990.78 restage_ms 6114.63 total_ms 7105.41
+HARVEST-CELL side-floor AnchorFracture_Solid_E2_s0.5_fc250_c0 render_ms 1059.55 restage_ms 5823.38 total_ms 6882.93
+HARVEST-CELL side-floor AnchorFracture_Solid_E2_s0.5_fc250_c1 render_ms 1014.08 restage_ms 5945.93 total_ms 6960.01
+HARVEST-CELL side-floor AnchorFracture_Solid_E2_s1_fc60_c0 render_ms 1022.71 restage_ms 6081.8 total_ms 7104.51
+HARVEST-CELL side-floor AnchorFracture_Solid_E2_s1_fc60_c1 render_ms 1024.66 restage_ms 5807.01 total_ms 6831.67
+HARVEST-CELL side-floor AnchorFracture_Solid_E2_s1_fc120_c0 render_ms 998.069 restage_ms 5926.77 total_ms 6924.84
+HARVEST-CELL side-floor AnchorFracture_Solid_E2_s1_fc120_c1 render_ms 1008.25 restage_ms 5843.56 total_ms 6851.81
+HARVEST-CELL side-floor AnchorFracture_Solid_E2_s1_fc250_c0 render_ms 1024.64 restage_ms 5853.68 total_ms 6878.32
+HARVEST-CELL side-floor AnchorFracture_Solid_E2_s1_fc250_c1 render_ms 988.354 restage_ms 5848.11 total_ms 6836.47
+HARVEST-CELL side-floor AnchorFracture_Solid_C3_s0_fc60_c0 render_ms 994.792 restage_ms 6024.76 total_ms 7019.56
+HARVEST-CELL side-floor AnchorFracture_Solid_C3_s0_fc60_c1 render_ms 1015.45 restage_ms 6072.75 total_ms 7088.2
+HARVEST-CELL side-floor AnchorFracture_Solid_C3_s0_fc120_c0 render_ms 1019.98 restage_ms 5906.07 total_ms 6926.05
+HARVEST-CELL side-floor AnchorFracture_Solid_C3_s0_fc120_c1 render_ms 1031.3 restage_ms 6346.14 total_ms 7377.44
+HARVEST-CELL side-floor AnchorFracture_Solid_C3_s0_fc250_c0 render_ms 1038.42 restage_ms 5999.32 total_ms 7037.74
+HARVEST-CELL side-floor AnchorFracture_Solid_C3_s0_fc250_c1 render_ms 1113.83 restage_ms 6124.58 total_ms 7238.4
+HARVEST-CELL side-floor AnchorFracture_Solid_C3_s0.5_fc60_c0 render_ms 1040.92 restage_ms 6218.47 total_ms 7259.39
+HARVEST-CELL side-floor AnchorFracture_Solid_C3_s0.5_fc60_c1 render_ms 1085.66 restage_ms 6033.35 total_ms 7119.01
+HARVEST-CELL side-floor AnchorFracture_Solid_C3_s0.5_fc120_c0 render_ms 1063.68 restage_ms 6247.31 total_ms 7310.99
+HARVEST-CELL side-floor AnchorFracture_Solid_C3_s0.5_fc120_c1 render_ms 1051.89 restage_ms 6265.79 total_ms 7317.68
+HARVEST-CELL side-floor AnchorFracture_Solid_C3_s0.5_fc250_c0 render_ms 1094.61 restage_ms 6247.72 total_ms 7342.33
+HARVEST-CELL side-floor AnchorFracture_Solid_C3_s0.5_fc250_c1 render_ms 1040.05 restage_ms 6076.21 total_ms 7116.26
+HARVEST-CELL side-floor AnchorFracture_Solid_C3_s1_fc60_c0 render_ms 1076.4 restage_ms 6190.7 total_ms 7267.1
+HARVEST-CELL side-floor AnchorFracture_Solid_C3_s1_fc60_c1 render_ms 1052.78 restage_ms 6205.72 total_ms 7258.5
+HARVEST-CELL side-floor AnchorFracture_Solid_C3_s1_fc120_c0 render_ms 1023.64 restage_ms 6373.22 total_ms 7396.87
+HARVEST-CELL side-floor AnchorFracture_Solid_C3_s1_fc120_c1 render_ms 1079.34 restage_ms 6260.65 total_ms 7339.99
+HARVEST-CELL side-floor AnchorFracture_Solid_C3_s1_fc250_c0 render_ms 1041.8 restage_ms 6337.74 total_ms 7379.54
+HARVEST-CELL side-floor AnchorFracture_Solid_C3_s1_fc250_c1 render_ms 1111.39 restage_ms 6171.49 total_ms 7282.88
+HARVEST-CELL side-floor AnchorFracture_Spread_E0_s0_fc60_c0 render_ms 1042.11 restage_ms 6314.16 total_ms 7356.28
+HARVEST-CELL side-floor AnchorFracture_Spread_E0_s0_fc60_c1 render_ms 1094.8 restage_ms 6335.66 total_ms 7430.45
+HARVEST-CELL side-floor AnchorFracture_Spread_E0_s0_fc120_c0 render_ms 1070.11 restage_ms 6367.52 total_ms 7437.62
+HARVEST-CELL side-floor AnchorFracture_Spread_E0_s0_fc120_c1 render_ms 1096.92 restage_ms 6115.98 total_ms 7212.9
+HARVEST-CELL side-floor AnchorFracture_Spread_E0_s0_fc250_c0 render_ms 1087.66 restage_ms 6264.7 total_ms 7352.35
+HARVEST-CELL side-floor AnchorFracture_Spread_E0_s0_fc250_c1 render_ms 1062.43 restage_ms 6291.53 total_ms 7353.96
+HARVEST-CELL side-floor AnchorFracture_Spread_E0_s0.5_fc60_c0 render_ms 1584.58 restage_ms 6729.98 total_ms 8314.55
+HARVEST-CELL side-floor AnchorFracture_Spread_E0_s0.5_fc60_c1 render_ms 1626.72 restage_ms 6801.13 total_ms 8427.86
+HARVEST-CELL side-floor AnchorFracture_Spread_E0_s0.5_fc120_c0 render_ms 1685.18 restage_ms 6740.31 total_ms 8425.49
+HARVEST-CELL side-floor AnchorFracture_Spread_E0_s0.5_fc120_c1 render_ms 1647.6 restage_ms 6681 total_ms 8328.6
+HARVEST-CELL side-floor AnchorFracture_Spread_E0_s0.5_fc250_c0 render_ms 1690.1 restage_ms 6750.53 total_ms 8440.64
+HARVEST-CELL side-floor AnchorFracture_Spread_E0_s0.5_fc250_c1 render_ms 1684.91 restage_ms 6937.74 total_ms 8622.65
+HARVEST-CELL side-floor AnchorFracture_Spread_E0_s1_fc60_c0 render_ms 1631.25 restage_ms 6920.26 total_ms 8551.51
+HARVEST-CELL side-floor AnchorFracture_Spread_E0_s1_fc60_c1 render_ms 1602.87 restage_ms 6817.55 total_ms 8420.41
+HARVEST-CELL side-floor AnchorFracture_Spread_E0_s1_fc120_c0 render_ms 1664.07 restage_ms 6598.47 total_ms 8262.55
+HARVEST-CELL side-floor AnchorFracture_Spread_E0_s1_fc120_c1 render_ms 1691.37 restage_ms 7187.24 total_ms 8878.61
+HARVEST-CELL side-floor AnchorFracture_Spread_E0_s1_fc250_c0 render_ms 1776.06 restage_ms 7000.7 total_ms 8776.76
+HARVEST-CELL side-floor AnchorFracture_Spread_E0_s1_fc250_c1 render_ms 1626.52 restage_ms 6850.8 total_ms 8477.32
+HARVEST-CELL side-floor AnchorFracture_Spread_E1_s0_fc60_c0 render_ms 1128.99 restage_ms 6986.13 total_ms 8115.12
+HARVEST-CELL side-floor AnchorFracture_Spread_E1_s0_fc60_c1 render_ms 1162.51 restage_ms 7003.65 total_ms 8166.16
+HARVEST-CELL side-floor AnchorFracture_Spread_E1_s0_fc120_c0 render_ms 1154.87 restage_ms 6993 total_ms 8147.87
+HARVEST-CELL side-floor AnchorFracture_Spread_E1_s0_fc120_c1 render_ms 1144.08 restage_ms 7046.35 total_ms 8190.43
+HARVEST-CELL side-floor AnchorFracture_Spread_E1_s0_fc250_c0 render_ms 1137.14 restage_ms 6740.38 total_ms 7877.52
+HARVEST-CELL side-floor AnchorFracture_Spread_E1_s0_fc250_c1 render_ms 1119.26 restage_ms 6612.72 total_ms 7731.98
+HARVEST-CELL side-floor AnchorFracture_Spread_E1_s0.5_fc60_c0 render_ms 1765.85 restage_ms 6648.8 total_ms 8414.65
+HARVEST-CELL side-floor AnchorFracture_Spread_E1_s0.5_fc60_c1 render_ms 1686.17 restage_ms 6924.69 total_ms 8610.86
+HARVEST-CELL side-floor AnchorFracture_Spread_E1_s0.5_fc120_c0 render_ms 1704.89 restage_ms 6729.51 total_ms 8434.4
+HARVEST-CELL side-floor AnchorFracture_Spread_E1_s0.5_fc120_c1 render_ms 1676.56 restage_ms 6705 total_ms 8381.56
+HARVEST-CELL side-floor AnchorFracture_Spread_E1_s0.5_fc250_c0 render_ms 1680.54 restage_ms 6848.66 total_ms 8529.21
+HARVEST-CELL side-floor AnchorFracture_Spread_E1_s0.5_fc250_c1 render_ms 1694.41 restage_ms 7051.98 total_ms 8746.38
+HARVEST-CELL side-floor AnchorFracture_Spread_E1_s1_fc60_c0 render_ms 1646.01 restage_ms 6831.84 total_ms 8477.85
+HARVEST-CELL side-floor AnchorFracture_Spread_E1_s1_fc60_c1 render_ms 1634.56 restage_ms 6997.41 total_ms 8631.97
+HARVEST-CELL side-floor AnchorFracture_Spread_E1_s1_fc120_c0 render_ms 1613.53 restage_ms 6898.9 total_ms 8512.43
+HARVEST-CELL side-floor AnchorFracture_Spread_E1_s1_fc120_c1 render_ms 1603.72 restage_ms 6772.7 total_ms 8376.42
+HARVEST-CELL side-floor AnchorFracture_Spread_E1_s1_fc250_c0 render_ms 1641.18 restage_ms 6773.56 total_ms 8414.75
+HARVEST-CELL side-floor AnchorFracture_Spread_E1_s1_fc250_c1 render_ms 1616.36 restage_ms 6605.14 total_ms 8221.5
+HARVEST-CELL side-floor AnchorFracture_Spread_E2_s0_fc60_c0 render_ms 1100.23 restage_ms 6583.81 total_ms 7684.03
+HARVEST-CELL side-floor AnchorFracture_Spread_E2_s0_fc60_c1 render_ms 1126.45 restage_ms 6984.69 total_ms 8111.14
+HARVEST-CELL side-floor AnchorFracture_Spread_E2_s0_fc120_c0 render_ms 1149.52 restage_ms 6858.49 total_ms 8008.01
+HARVEST-CELL side-floor AnchorFracture_Spread_E2_s0_fc120_c1 render_ms 1110.66 restage_ms 7052.67 total_ms 8163.33
+HARVEST-CELL side-floor AnchorFracture_Spread_E2_s0_fc250_c0 render_ms 1166.27 restage_ms 6771.86 total_ms 7938.13
+HARVEST-CELL side-floor AnchorFracture_Spread_E2_s0_fc250_c1 render_ms 1168.79 restage_ms 6703.48 total_ms 7872.28
+HARVEST-CELL side-floor AnchorFracture_Spread_E2_s0.5_fc60_c0 render_ms 1655.61 restage_ms 6869.44 total_ms 8525.05
+HARVEST-CELL side-floor AnchorFracture_Spread_E2_s0.5_fc60_c1 render_ms 1592.65 restage_ms 6658.62 total_ms 8251.27
+HARVEST-CELL side-floor AnchorFracture_Spread_E2_s0.5_fc120_c0 render_ms 1648.8 restage_ms 6991.44 total_ms 8640.24
+HARVEST-CELL side-floor AnchorFracture_Spread_E2_s0.5_fc120_c1 render_ms 1630.23 restage_ms 6822.18 total_ms 8452.42
+HARVEST-CELL side-floor AnchorFracture_Spread_E2_s0.5_fc250_c0 render_ms 1673.09 restage_ms 7067.3 total_ms 8740.4
+HARVEST-CELL side-floor AnchorFracture_Spread_E2_s0.5_fc250_c1 render_ms 1748.81 restage_ms 6859.31 total_ms 8608.12
+HARVEST-CELL side-floor AnchorFracture_Spread_E2_s1_fc60_c0 render_ms 1547.22 restage_ms 6718.32 total_ms 8265.53
+HARVEST-CELL side-floor AnchorFracture_Spread_E2_s1_fc60_c1 render_ms 1557.9 restage_ms 6571.18 total_ms 8129.07
+HARVEST-CELL side-floor AnchorFracture_Spread_E2_s1_fc120_c0 render_ms 1693.14 restage_ms 6556.77 total_ms 8249.9
+HARVEST-CELL side-floor AnchorFracture_Spread_E2_s1_fc120_c1 render_ms 1614.94 restage_ms 6612.78 total_ms 8227.72
+HARVEST-CELL side-floor AnchorFracture_Spread_E2_s1_fc250_c0 render_ms 1687.43 restage_ms 6560.54 total_ms 8247.97
+HARVEST-CELL side-floor AnchorFracture_Spread_E2_s1_fc250_c1 render_ms 1561.86 restage_ms 6735.9 total_ms 8297.75
+HARVEST-CELL side-floor AnchorFracture_Spread_C3_s0_fc60_c0 render_ms 1098.06 restage_ms 6786.38 total_ms 7884.44
+HARVEST-CELL side-floor AnchorFracture_Spread_C3_s0_fc60_c1 render_ms 1099.41 restage_ms 6823.4 total_ms 7922.8
+HARVEST-CELL side-floor AnchorFracture_Spread_C3_s0_fc120_c0 render_ms 1117.85 restage_ms 6803.74 total_ms 7921.59
+HARVEST-CELL side-floor AnchorFracture_Spread_C3_s0_fc120_c1 render_ms 1106.35 restage_ms 6600.76 total_ms 7707.12
+HARVEST-CELL side-floor AnchorFracture_Spread_C3_s0_fc250_c0 render_ms 1106.21 restage_ms 6092.21 total_ms 7198.42
+HARVEST-CELL side-floor AnchorFracture_Spread_C3_s0_fc250_c1 render_ms 1058.17 restage_ms 6064.19 total_ms 7122.36
+HARVEST-CELL side-floor AnchorFracture_Spread_C3_s0.5_fc60_c0 render_ms 1483.43 restage_ms 6060.61 total_ms 7544.03
+HARVEST-CELL side-floor AnchorFracture_Spread_C3_s0.5_fc60_c1 render_ms 1501.98 restage_ms 6082.51 total_ms 7584.48
+HARVEST-CELL side-floor AnchorFracture_Spread_C3_s0.5_fc120_c0 render_ms 1609.54 restage_ms 6164.57 total_ms 7774.11
+HARVEST-CELL side-floor AnchorFracture_Spread_C3_s0.5_fc120_c1 render_ms 1513.71 restage_ms 5839.39 total_ms 7353.11
+HARVEST-CELL side-floor AnchorFracture_Spread_C3_s0.5_fc250_c0 render_ms 1487.03 restage_ms 5928.55 total_ms 7415.58
+HARVEST-CELL side-floor AnchorFracture_Spread_C3_s0.5_fc250_c1 render_ms 1471.44 restage_ms 5950.11 total_ms 7421.55
+HARVEST-CELL side-floor AnchorFracture_Spread_C3_s1_fc60_c0 render_ms 1514.49 restage_ms 5935.44 total_ms 7449.93
+HARVEST-CELL side-floor AnchorFracture_Spread_C3_s1_fc60_c1 render_ms 1528.76 restage_ms 6011.35 total_ms 7540.12
+HARVEST-CELL side-floor AnchorFracture_Spread_C3_s1_fc120_c0 render_ms 1579.53 restage_ms 6111.66 total_ms 7691.19
+HARVEST-CELL side-floor AnchorFracture_Spread_C3_s1_fc120_c1 render_ms 1549.16 restage_ms 6201.65 total_ms 7750.82
+HARVEST-CELL side-floor AnchorFracture_Spread_C3_s1_fc250_c0 render_ms 1562.25 restage_ms 6247.26 total_ms 7809.51
+HARVEST-CELL side-floor AnchorFracture_Spread_C3_s1_fc250_c1 render_ms 1534.02 restage_ms 6225.81 total_ms 7759.83
+HARVEST-CELL side-floor AnchorFracture_Wide_E0_s0_fc60_c0 render_ms 1038.11 restage_ms 6218.02 total_ms 7256.14
+HARVEST-CELL side-floor AnchorFracture_Wide_E0_s0_fc60_c1 render_ms 1024.65 restage_ms 6021.6 total_ms 7046.25
+HARVEST-CELL side-floor AnchorFracture_Wide_E0_s0_fc120_c0 render_ms 1080.37 restage_ms 6222.69 total_ms 7303.06
+HARVEST-CELL side-floor AnchorFracture_Wide_E0_s0_fc120_c1 render_ms 1119.21 restage_ms 6410.94 total_ms 7530.15
+HARVEST-CELL side-floor AnchorFracture_Wide_E0_s0_fc250_c0 render_ms 1115.76 restage_ms 6366.07 total_ms 7481.83
+HARVEST-CELL side-floor AnchorFracture_Wide_E0_s0_fc250_c1 render_ms 1124.7 restage_ms 6315.53 total_ms 7440.23
+HARVEST-CELL side-floor AnchorFracture_Wide_E0_s0.5_fc60_c0 render_ms 1558.23 restage_ms 6403.72 total_ms 7961.95
+HARVEST-CELL side-floor AnchorFracture_Wide_E0_s0.5_fc60_c1 render_ms 1563.23 restage_ms 6406.2 total_ms 7969.42
+HARVEST-CELL side-floor AnchorFracture_Wide_E0_s0.5_fc120_c0 render_ms 1537.28 restage_ms 6635.55 total_ms 8172.84
+HARVEST-CELL side-floor AnchorFracture_Wide_E0_s0.5_fc120_c1 render_ms 1578 restage_ms 6386.06 total_ms 7964.06
+HARVEST-CELL side-floor AnchorFracture_Wide_E0_s0.5_fc250_c0 render_ms 1613.6 restage_ms 6274.94 total_ms 7888.54
+HARVEST-CELL side-floor AnchorFracture_Wide_E0_s0.5_fc250_c1 render_ms 1578.88 restage_ms 6541.15 total_ms 8120.02
+HARVEST-CELL side-floor AnchorFracture_Wide_E0_s1_fc60_c0 render_ms 1553.27 restage_ms 6540.83 total_ms 8094.1
+HARVEST-CELL side-floor AnchorFracture_Wide_E0_s1_fc60_c1 render_ms 1579.65 restage_ms 6618.78 total_ms 8198.43
+HARVEST-CELL side-floor AnchorFracture_Wide_E0_s1_fc120_c0 render_ms 1548.24 restage_ms 6233.57 total_ms 7781.81
+HARVEST-CELL side-floor AnchorFracture_Wide_E0_s1_fc120_c1 render_ms 1557.17 restage_ms 6466.82 total_ms 8023.99
+HARVEST-CELL side-floor AnchorFracture_Wide_E0_s1_fc250_c0 render_ms 1574.46 restage_ms 6605 total_ms 8179.46
+HARVEST-CELL side-floor AnchorFracture_Wide_E0_s1_fc250_c1 render_ms 1626.09 restage_ms 6524.26 total_ms 8150.34
+HARVEST-CELL side-floor AnchorFracture_Wide_E1_s0_fc60_c0 render_ms 1059.51 restage_ms 6280.68 total_ms 7340.19
+HARVEST-CELL side-floor AnchorFracture_Wide_E1_s0_fc60_c1 render_ms 1085.11 restage_ms 6277.13 total_ms 7362.24
+HARVEST-CELL side-floor AnchorFracture_Wide_E1_s0_fc120_c0 render_ms 1057.18 restage_ms 6374.37 total_ms 7431.55
+HARVEST-CELL side-floor AnchorFracture_Wide_E1_s0_fc120_c1 render_ms 1063.69 restage_ms 6371.3 total_ms 7434.99
+HARVEST-CELL side-floor AnchorFracture_Wide_E1_s0_fc250_c0 render_ms 1048.27 restage_ms 6019.75 total_ms 7068.01
+HARVEST-CELL side-floor AnchorFracture_Wide_E1_s0_fc250_c1 render_ms 1041.47 restage_ms 6207.08 total_ms 7248.54
+HARVEST-CELL side-floor AnchorFracture_Wide_E1_s0.5_fc60_c0 render_ms 1524.14 restage_ms 6152.97 total_ms 7677.11
+HARVEST-CELL side-floor AnchorFracture_Wide_E1_s0.5_fc60_c1 render_ms 1509.65 restage_ms 6207.36 total_ms 7717.01
+HARVEST-CELL side-floor AnchorFracture_Wide_E1_s0.5_fc120_c0 render_ms 1585.73 restage_ms 6390.27 total_ms 7975.99
+HARVEST-CELL side-floor AnchorFracture_Wide_E1_s0.5_fc120_c1 render_ms 1520.37 restage_ms 6324.64 total_ms 7845.01
+HARVEST-CELL side-floor AnchorFracture_Wide_E1_s0.5_fc250_c0 render_ms 1486.47 restage_ms 6217.22 total_ms 7703.69
+HARVEST-CELL side-floor AnchorFracture_Wide_E1_s0.5_fc250_c1 render_ms 1551.14 restage_ms 6379.99 total_ms 7931.12
+HARVEST-CELL side-floor AnchorFracture_Wide_E1_s1_fc60_c0 render_ms 1508.92 restage_ms 6212.54 total_ms 7721.47
+HARVEST-CELL side-floor AnchorFracture_Wide_E1_s1_fc60_c1 render_ms 1467.79 restage_ms 6167.58 total_ms 7635.37
+HARVEST-CELL side-floor AnchorFracture_Wide_E1_s1_fc120_c0 render_ms 1510.07 restage_ms 6257.42 total_ms 7767.49
+HARVEST-CELL side-floor AnchorFracture_Wide_E1_s1_fc120_c1 render_ms 1521.47 restage_ms 6248.17 total_ms 7769.64
+HARVEST-CELL side-floor AnchorFracture_Wide_E1_s1_fc250_c0 render_ms 1503.68 restage_ms 6086.73 total_ms 7590.42
+HARVEST-CELL side-floor AnchorFracture_Wide_E1_s1_fc250_c1 render_ms 1493.18 restage_ms 6295.33 total_ms 7788.52
+HARVEST-CELL side-floor AnchorFracture_Wide_E2_s0_fc60_c0 render_ms 1009.11 restage_ms 6188.93 total_ms 7198.04
+HARVEST-CELL side-floor AnchorFracture_Wide_E2_s0_fc60_c1 render_ms 1050.18 restage_ms 6190 total_ms 7240.18
+HARVEST-CELL side-floor AnchorFracture_Wide_E2_s0_fc120_c0 render_ms 1039.99 restage_ms 6149.65 total_ms 7189.64
+HARVEST-CELL side-floor AnchorFracture_Wide_E2_s0_fc120_c1 render_ms 1056.62 restage_ms 6346.24 total_ms 7402.86
+HARVEST-CELL side-floor AnchorFracture_Wide_E2_s0_fc250_c0 render_ms 1034.19 restage_ms 6244.78 total_ms 7278.97
+HARVEST-CELL side-floor AnchorFracture_Wide_E2_s0_fc250_c1 render_ms 1048.83 restage_ms 6087.56 total_ms 7136.39
+HARVEST-CELL side-floor AnchorFracture_Wide_E2_s0.5_fc60_c0 render_ms 1508.3 restage_ms 6095.77 total_ms 7604.07
+HARVEST-CELL side-floor AnchorFracture_Wide_E2_s0.5_fc60_c1 render_ms 1488.26 restage_ms 6097.43 total_ms 7585.68
+HARVEST-CELL side-floor AnchorFracture_Wide_E2_s0.5_fc120_c0 render_ms 1441.81 restage_ms 6129.25 total_ms 7571.06
+HARVEST-CELL side-floor AnchorFracture_Wide_E2_s0.5_fc120_c1 render_ms 1512.6 restage_ms 6097.03 total_ms 7609.62
+HARVEST-CELL side-floor AnchorFracture_Wide_E2_s0.5_fc250_c0 render_ms 1525.82 restage_ms 6100.39 total_ms 7626.21
+HARVEST-CELL side-floor AnchorFracture_Wide_E2_s0.5_fc250_c1 render_ms 1580.47 restage_ms 5830.26 total_ms 7410.73
+HARVEST-CELL side-floor AnchorFracture_Wide_E2_s1_fc60_c0 render_ms 1547.74 restage_ms 5801.83 total_ms 7349.57
+HARVEST-CELL side-floor AnchorFracture_Wide_E2_s1_fc60_c1 render_ms 1533.47 restage_ms 5791.97 total_ms 7325.45
+HARVEST-CELL side-floor AnchorFracture_Wide_E2_s1_fc120_c0 render_ms 1529.84 restage_ms 6121.58 total_ms 7651.42
+HARVEST-CELL side-floor AnchorFracture_Wide_E2_s1_fc120_c1 render_ms 1574.79 restage_ms 6031.39 total_ms 7606.18
+HARVEST-CELL side-floor AnchorFracture_Wide_E2_s1_fc250_c0 render_ms 1490.63 restage_ms 5870.3 total_ms 7360.93
+HARVEST-CELL side-floor AnchorFracture_Wide_E2_s1_fc250_c1 render_ms 1506.55 restage_ms 5738.9 total_ms 7245.45
+HARVEST-CELL side-floor AnchorFracture_Wide_C3_s0_fc60_c0 render_ms 1042.54 restage_ms 6011.26 total_ms 7053.8
+HARVEST-CELL side-floor AnchorFracture_Wide_C3_s0_fc60_c1 render_ms 1050.62 restage_ms 6091.37 total_ms 7141.99
+HARVEST-CELL side-floor AnchorFracture_Wide_C3_s0_fc120_c0 render_ms 1045.3 restage_ms 6067.83 total_ms 7113.13
+HARVEST-CELL side-floor AnchorFracture_Wide_C3_s0_fc120_c1 render_ms 1029.84 restage_ms 6040.42 total_ms 7070.26
+HARVEST-CELL side-floor AnchorFracture_Wide_C3_s0_fc250_c0 render_ms 1060.98 restage_ms 5816.42 total_ms 6877.41
+HARVEST-CELL side-floor AnchorFracture_Wide_C3_s0_fc250_c1 render_ms 1010.96 restage_ms 5707.47 total_ms 6718.43
+HARVEST-CELL side-floor AnchorFracture_Wide_C3_s0.5_fc60_c0 render_ms 1548.39 restage_ms 5952 total_ms 7500.39
+HARVEST-CELL side-floor AnchorFracture_Wide_C3_s0.5_fc60_c1 render_ms 1551.95 restage_ms 6067.41 total_ms 7619.36
+HARVEST-CELL side-floor AnchorFracture_Wide_C3_s0.5_fc120_c0 render_ms 1602.52 restage_ms 5976.48 total_ms 7579
+HARVEST-CELL side-floor AnchorFracture_Wide_C3_s0.5_fc120_c1 render_ms 1509.14 restage_ms 5751.71 total_ms 7260.86
+HARVEST-CELL side-floor AnchorFracture_Wide_C3_s0.5_fc250_c0 render_ms 1547.62 restage_ms 5892.86 total_ms 7440.48
+HARVEST-CELL side-floor AnchorFracture_Wide_C3_s0.5_fc250_c1 render_ms 1519.31 restage_ms 5932.25 total_ms 7451.56
+HARVEST-CELL side-floor AnchorFracture_Wide_C3_s1_fc60_c0 render_ms 1538.45 restage_ms 5895.56 total_ms 7434.01
+HARVEST-CELL side-floor AnchorFracture_Wide_C3_s1_fc60_c1 render_ms 1571.36 restage_ms 6037.05 total_ms 7608.41
+HARVEST-CELL side-floor AnchorFracture_Wide_C3_s1_fc120_c0 render_ms 1592.19 restage_ms 5884.42 total_ms 7476.61
+HARVEST-CELL side-floor AnchorFracture_Wide_C3_s1_fc120_c1 render_ms 1365.17 restage_ms 5115.91 total_ms 6481.08
+HARVEST-CELL side-floor AnchorFracture_Wide_C3_s1_fc250_c0 render_ms 1409.21 restage_ms 5035.7 total_ms 6444.91
+HARVEST-CELL side-floor AnchorFracture_Wide_C3_s1_fc250_c1 render_ms 1303.31 restage_ms 4615.09 total_ms 5918.4
+BSF_HARVEST_FLOOR_SHARD,AnchorFracture,cells,216,mean_cell_ms,7553.06,shard_ms,1.63221e+06
+BSF_HARVEST_FLOOR_ROW,AnchorFracture,g,0.71,pass,165,cells,216,worst_sub_q_db,-0.404785,worst_rho_sub,0.827669,worst_oct_q_db,-11.8765,valid_sub_readings,558,exempt,0
+HARVEST side-floor AnchorFracture 0.71 FAIL -0.404785 0.827669
+BSF_HARVEST_FLOOR_ROW,AnchorFracture,g,0.5,pass,184,cells,216,worst_sub_q_db,-0.208709,worst_rho_sub,0.909582,worst_oct_q_db,-11.8765,valid_sub_readings,558,exempt,0
+HARVEST side-floor AnchorFracture 0.5 FAIL -0.208709 0.909582
+BSF_HARVEST_FLOOR_ROW,AnchorFracture,g,0.35,pass,202,cells,216,worst_sub_q_db,-0.105905,worst_rho_sub,0.953704,worst_oct_q_db,-11.8765,valid_sub_readings,558,exempt,0
+HARVEST side-floor AnchorFracture 0.35 FAIL -0.105905 0.953704
+BSF_HARVEST_FLOOR_ROW,AnchorFracture,g,0.25,pass,211,cells,216,worst_sub_q_db,-0.0560183,worst_rho_sub,0.975405,worst_oct_q_db,-11.8765,valid_sub_readings,558,exempt,0
+HARVEST side-floor AnchorFracture 0.25 FAIL -0.0560183 0.975405
+BSF_HARVEST_FLOOR_ROW,AnchorFracture,g,0.18,pass,215,cells,216,worst_sub_q_db,-0.0303311,worst_rho_sub,0.986654,worst_oct_q_db,-11.8765,valid_sub_readings,558,exempt,0
+HARVEST side-floor AnchorFracture 0.18 FAIL -0.0303311 0.986654
+BSF_HARVEST_FLOOR_ROW,AnchorFracture,g,0.125,pass,216,cells,216,worst_sub_q_db,-0.0155908,worst_rho_sub,0.993131,worst_oct_q_db,-11.8765,valid_sub_readings,558,exempt,0
+HARVEST side-floor AnchorFracture 0.125 PASS -0.0155908 0.993131
+BSF_HARVEST_FLOOR_ROW,AnchorFracture,g,0.1,pass,216,cells,216,worst_sub_q_db,-0.0104896,worst_rho_sub,0.995376,worst_oct_q_db,-11.8765,valid_sub_readings,558,exempt,0
+HARVEST side-floor AnchorFracture 0.1 PASS -0.0104896 0.995376
+BSF_HARVEST_FLOOR_ROW,AnchorFracture,g,0.071,pass,216,cells,216,worst_sub_q_db,-0.00583111,worst_rho_sub,0.997429,worst_oct_q_db,-11.8765,valid_sub_readings,558,exempt,0
+HARVEST side-floor AnchorFracture 0.071 PASS -0.00583111 0.997429
+BSF_HARVEST_FLOOR_ROW,AnchorFracture,g,0.05,pass,216,cells,216,worst_sub_q_db,-0.00330408,worst_rho_sub,0.998543,worst_oct_q_db,-11.8765,valid_sub_readings,558,exempt,0
+HARVEST side-floor AnchorFracture 0.05 PASS -0.00330408 0.998543
+BSF_HARVEST_FLOOR_ROW,AnchorFracture,g,0.035,pass,216,cells,216,worst_sub_q_db,-0.00193517,worst_rho_sub,0.999146,worst_oct_q_db,-11.8765,valid_sub_readings,558,exempt,0
+HARVEST side-floor AnchorFracture 0.035 PASS -0.00193517 0.999146
+BSF_HARVEST_FLOOR_ROW,AnchorFracture,g,0.03,pass,216,cells,216,worst_sub_q_db,-0.0015597,worst_rho_sub,0.999312,worst_oct_q_db,-11.8765,valid_sub_readings,558,exempt,0
+HARVEST side-floor AnchorFracture 0.03 PASS -0.0015597 0.999312
+===============================================================================
+All tests passed (124850 assertions in 1 test case)
+
+exit: 0 wall: 1632 s

@@ -1,0 +1,61 @@
+T001 run log (executor, 2026-10-18) -- Profundum Phase 7 CPU feasibility bench (plan R-1, S12.6, S16 step 1)
+
+1. Model evidence
+   node specs/profundum-phase7-stereo-field/stereo-field-model.js > specs/profundum-phase7-stereo-field/evidence/model-2026-10-18.txt
+   exit 0, under 1 s; output matches plan S12.1-S12.5 (sizing evidence, not compliance evidence).
+
+2. Compile (once, executor smoke; precondition: tasklist | grep -ciE "cl.exe|dsp_.*_tests.exe|clang-tidy" -> 0)
+   "/c/Program Files/LLVM/bin/clang++.exe" -std=c++20 -O2 -ffast-math -march=x86-64-v2 -DNDEBUG -fms-runtime-lib=dll
+     -Idsp/include -Ibuild/windows-x64-release/_deps/highway-src
+     specs/profundum-phase7-stereo-field/bench/stereo-field-bench.cpp
+     dsp/include/krate/dsp/processors/harmonic_oscillator_bank_simd.cpp
+     build/windows-x64-release/lib/Release/hwy.lib -Xlinker /NODEFAULTLIB:libcmt -o <scratch>/p7-bench.exe
+   Result: links; 2 warnings, both in the reused header crossover_filter.h:434-435 (Crossover3Way defaulted move
+   ctor/assign implicitly deleted by std::atomic members, -Wdefaulted-function-deleted); none in the bench source.
+   DEVIATION from the tasks.md compile line: the line as written ("-Idsp/include <bench.cpp>") fails to link with
+     error LNK2019: unresolved external symbol Krate::DSP::processMcfBatchSIMD(...) referenced in
+     HarmonicOscillatorBank::processStereo
+   because ProfundumCore's bank calls the Highway TU harmonic_oscillator_bank_simd.cpp (not header-only). The bench
+   therefore compiles that TU with the same flags and links build/windows-x64-release/lib/Release/hwy.lib. hwy.lib is
+   /MD (static CRT gave LNK2038 RuntimeLibrary MD_DynamicRelease vs MT_StaticRelease), hence -fms-runtime-lib=dll and
+   /NODEFAULTLIB:libcmt. The SIMD render is identical in base and law cells, so it cancels in the per-voice deltas.
+   run-bench.sh carries the same line and refuses to start (exit 4) if the hwy source or lib is missing.
+
+3. --quick smoke (0.2 s per cell; every cell prints; NO timing decision may be taken from this run)
+   P7BENCH fs=48000 block=64 interval=32 partials=64 seconds_per_cell=0.20
+   cell base_1v ns_per_sample 240.58 pct_core 1.1548
+   cell law_1v ns_per_sample 306.01 pct_core 1.4689
+   info law_1v handoffs 21980 queries 21980
+   cell base_4v ns_per_sample 1021.10 pct_core 4.9013
+   cell law_4v ns_per_sample 1170.13 pct_core 5.6166
+   info law_4v handoffs 27504 queries 27504
+   cell stage_static ns_per_sample 23.30 pct_core 0.1118
+   cell stage_sweep ns_per_sample 30.04 pct_core 0.1442
+   cell stage_sweep_192k ns_per_sample 31.22 pct_core 0.5994
+   sink 409.579
+   info lines: handoffs == queries in both law cells -> one changed vector per interval per voice, i.e. the SC-013(b)
+   worst cadence is what the law cells measure.
+   bash -n run-bench.sh: syntax ok. The median / decision awk was dry-run on three copies of this quick output to
+   prove it parses every cell (parser check only, not a reading).
+
+4. STOP AND SURFACE: the main loop runs `bash specs/profundum-phase7-stereo-field/bench/run-bench.sh` ALONE
+   (~4 min: 3 runs x ~25 s + 2 x 60 s settle), applies the decision rule (per voice <= 0.25 %, four voices <= 1.0 %,
+   stage_static and stage_sweep each <= 0.5 %), records it here and as a 'Measured' paragraph in plan S12.6, then
+   resumes the build with unblock: [T001].
+
+5. MAIN LOOP RUN (2026-10-18): bash specs/profundum-phase7-stereo-field/bench/run-bench.sh, alone, pinned
+   (tools/pin-perf-cores.ps1, P-core mask 0xFFFF), 3 runs x 3.0 s per cell, 60 s settle between runs. No compiler,
+   test suite or clang-tidy running (the script's tasklist guard passed). Full output: evidence/run-log/T001-bench.txt.
+   Medians over 3 runs (% of one core at 48 kHz; stage_sweep_192k at 192 kHz):
+     base_1v 0.7301   law_1v 0.9280   -> per_voice 0.1979   (<= 0.25)
+     base_4v 2.8669   law_4v 3.5589   -> four_voice 0.6920  (<= 1.0)
+     stage_static 0.0732 (<= 0.5)   stage_sweep 0.0946 (<= 0.5)   stage_sweep_192k 0.3954 (recorded, not gated)
+   handoffs == queries in both law cells (486492..521584 per 3 s), so the per-voice figure is the SC-013(b) worst
+   cadence: one changed vector per interval per voice. Plan S12.6's estimate (0.29 % at ~10 ns per libm call) was
+   pessimistic: clang's -ffast-math libm averages ~6.5 ns per cos/sin here.
+   DECISION: PROCEED with the plan design (FR-016 cadence stays one handoff per interval; R-1 not triggered; no
+   ruling needed). Build resumed with unblock: [T001].
+   Note: the bench compile (clang, not the project's MSVC build) printed 2 -Wdefaulted-function-deleted warnings at
+   dsp/include/krate/dsp/processors/crossover_filter.h:434-435 (Crossover3Way's defaulted move operations are deleted
+   by its std::atomic members). The header is untouchable in this phase (FR-073); the project's MSVC and clang-tidy
+   lanes do not report it. Logged here, not acted on.

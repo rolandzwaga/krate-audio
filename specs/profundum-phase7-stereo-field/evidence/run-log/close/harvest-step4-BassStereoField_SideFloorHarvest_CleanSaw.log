@@ -1,0 +1,246 @@
+Filters: "BassStereoField_SideFloorHarvest_CleanSaw"
+Randomness seeded to: 2215689741
+HARVEST side-floor-config CleanSaw K_wide 1 committed_floor 0.5
+HARVEST-CELL side-floor CleanSaw_Solid_E0_s0_fc60_c0 render_ms 513.134 restage_ms 6004.27 total_ms 6517.4
+HARVEST-CELL side-floor CleanSaw_Solid_E0_s0_fc60_c1 render_ms 515.459 restage_ms 5776.24 total_ms 6291.7
+HARVEST-CELL side-floor CleanSaw_Solid_E0_s0_fc120_c0 render_ms 521.179 restage_ms 5619.6 total_ms 6140.78
+HARVEST-CELL side-floor CleanSaw_Solid_E0_s0_fc120_c1 render_ms 514.143 restage_ms 5657.92 total_ms 6172.07
+HARVEST-CELL side-floor CleanSaw_Solid_E0_s0_fc250_c0 render_ms 525.108 restage_ms 5665.97 total_ms 6191.08
+HARVEST-CELL side-floor CleanSaw_Solid_E0_s0_fc250_c1 render_ms 534.851 restage_ms 5537.58 total_ms 6072.43
+HARVEST-CELL side-floor CleanSaw_Solid_E0_s0.5_fc60_c0 render_ms 529.994 restage_ms 5687.18 total_ms 6217.17
+HARVEST-CELL side-floor CleanSaw_Solid_E0_s0.5_fc60_c1 render_ms 524.266 restage_ms 5708.08 total_ms 6232.34
+HARVEST-CELL side-floor CleanSaw_Solid_E0_s0.5_fc120_c0 render_ms 518.204 restage_ms 5775.16 total_ms 6293.37
+HARVEST-CELL side-floor CleanSaw_Solid_E0_s0.5_fc120_c1 render_ms 519.319 restage_ms 5664.11 total_ms 6183.43
+HARVEST-CELL side-floor CleanSaw_Solid_E0_s0.5_fc250_c0 render_ms 563.679 restage_ms 5900.11 total_ms 6463.79
+HARVEST-CELL side-floor CleanSaw_Solid_E0_s0.5_fc250_c1 render_ms 542.502 restage_ms 5887.95 total_ms 6430.45
+HARVEST-CELL side-floor CleanSaw_Solid_E0_s1_fc60_c0 render_ms 514.803 restage_ms 5857.07 total_ms 6371.87
+HARVEST-CELL side-floor CleanSaw_Solid_E0_s1_fc60_c1 render_ms 518.951 restage_ms 6303 total_ms 6821.95
+HARVEST-CELL side-floor CleanSaw_Solid_E0_s1_fc120_c0 render_ms 538.67 restage_ms 6151.95 total_ms 6690.62
+HARVEST-CELL side-floor CleanSaw_Solid_E0_s1_fc120_c1 render_ms 538.589 restage_ms 6057.01 total_ms 6595.6
+HARVEST-CELL side-floor CleanSaw_Solid_E0_s1_fc250_c0 render_ms 570.014 restage_ms 5941.94 total_ms 6511.96
+HARVEST-CELL side-floor CleanSaw_Solid_E0_s1_fc250_c1 render_ms 547.419 restage_ms 5998.9 total_ms 6546.32
+HARVEST-CELL side-floor CleanSaw_Solid_E1_s0_fc60_c0 render_ms 557.009 restage_ms 6186.25 total_ms 6743.26
+HARVEST-CELL side-floor CleanSaw_Solid_E1_s0_fc60_c1 render_ms 556.087 restage_ms 5919.46 total_ms 6475.55
+HARVEST-CELL side-floor CleanSaw_Solid_E1_s0_fc120_c0 render_ms 563.852 restage_ms 6082.57 total_ms 6646.42
+HARVEST-CELL side-floor CleanSaw_Solid_E1_s0_fc120_c1 render_ms 587.587 restage_ms 5965.69 total_ms 6553.27
+HARVEST-CELL side-floor CleanSaw_Solid_E1_s0_fc250_c0 render_ms 559.066 restage_ms 6064.42 total_ms 6623.49
+HARVEST-CELL side-floor CleanSaw_Solid_E1_s0_fc250_c1 render_ms 561.955 restage_ms 5982.9 total_ms 6544.85
+HARVEST-CELL side-floor CleanSaw_Solid_E1_s0.5_fc60_c0 render_ms 563.917 restage_ms 5991.96 total_ms 6555.88
+HARVEST-CELL side-floor CleanSaw_Solid_E1_s0.5_fc60_c1 render_ms 553.387 restage_ms 6097.6 total_ms 6650.99
+HARVEST-CELL side-floor CleanSaw_Solid_E1_s0.5_fc120_c0 render_ms 556.733 restage_ms 6202.94 total_ms 6759.67
+HARVEST-CELL side-floor CleanSaw_Solid_E1_s0.5_fc120_c1 render_ms 570.885 restage_ms 5950.84 total_ms 6521.72
+HARVEST-CELL side-floor CleanSaw_Solid_E1_s0.5_fc250_c0 render_ms 570.128 restage_ms 6294.83 total_ms 6864.95
+HARVEST-CELL side-floor CleanSaw_Solid_E1_s0.5_fc250_c1 render_ms 589.667 restage_ms 6156.51 total_ms 6746.17
+HARVEST-CELL side-floor CleanSaw_Solid_E1_s1_fc60_c0 render_ms 565.848 restage_ms 6295 total_ms 6860.84
+HARVEST-CELL side-floor CleanSaw_Solid_E1_s1_fc60_c1 render_ms 577.149 restage_ms 6607.72 total_ms 7184.87
+HARVEST-CELL side-floor CleanSaw_Solid_E1_s1_fc120_c0 render_ms 597.757 restage_ms 6467.34 total_ms 7065.1
+HARVEST-CELL side-floor CleanSaw_Solid_E1_s1_fc120_c1 render_ms 600.164 restage_ms 6197.76 total_ms 6797.92
+HARVEST-CELL side-floor CleanSaw_Solid_E1_s1_fc250_c0 render_ms 571.996 restage_ms 6248.23 total_ms 6820.23
+HARVEST-CELL side-floor CleanSaw_Solid_E1_s1_fc250_c1 render_ms 579.533 restage_ms 6168.97 total_ms 6748.5
+HARVEST-CELL side-floor CleanSaw_Solid_E2_s0_fc60_c0 render_ms 566.246 restage_ms 6219.09 total_ms 6785.33
+HARVEST-CELL side-floor CleanSaw_Solid_E2_s0_fc60_c1 render_ms 555.318 restage_ms 6191.08 total_ms 6746.4
+HARVEST-CELL side-floor CleanSaw_Solid_E2_s0_fc120_c0 render_ms 571.279 restage_ms 6140.57 total_ms 6711.85
+HARVEST-CELL side-floor CleanSaw_Solid_E2_s0_fc120_c1 render_ms 570.045 restage_ms 6282.95 total_ms 6853
+HARVEST-CELL side-floor CleanSaw_Solid_E2_s0_fc250_c0 render_ms 592.749 restage_ms 6124.44 total_ms 6717.19
+HARVEST-CELL side-floor CleanSaw_Solid_E2_s0_fc250_c1 render_ms 565.723 restage_ms 6185.49 total_ms 6751.21
+HARVEST-CELL side-floor CleanSaw_Solid_E2_s0.5_fc60_c0 render_ms 565.227 restage_ms 6273.68 total_ms 6838.9
+HARVEST-CELL side-floor CleanSaw_Solid_E2_s0.5_fc60_c1 render_ms 551.304 restage_ms 6143.89 total_ms 6695.2
+HARVEST-CELL side-floor CleanSaw_Solid_E2_s0.5_fc120_c0 render_ms 571.001 restage_ms 5852.75 total_ms 6423.75
+HARVEST-CELL side-floor CleanSaw_Solid_E2_s0.5_fc120_c1 render_ms 564.392 restage_ms 5968.61 total_ms 6533.01
+HARVEST-CELL side-floor CleanSaw_Solid_E2_s0.5_fc250_c0 render_ms 532.67 restage_ms 5910.43 total_ms 6443.09
+HARVEST-CELL side-floor CleanSaw_Solid_E2_s0.5_fc250_c1 render_ms 540.512 restage_ms 5873.49 total_ms 6414
+HARVEST-CELL side-floor CleanSaw_Solid_E2_s1_fc60_c0 render_ms 551.863 restage_ms 6029.72 total_ms 6581.58
+HARVEST-CELL side-floor CleanSaw_Solid_E2_s1_fc60_c1 render_ms 526.678 restage_ms 6086.89 total_ms 6613.57
+HARVEST-CELL side-floor CleanSaw_Solid_E2_s1_fc120_c0 render_ms 545.443 restage_ms 6035.51 total_ms 6580.96
+HARVEST-CELL side-floor CleanSaw_Solid_E2_s1_fc120_c1 render_ms 526.406 restage_ms 5934.33 total_ms 6460.74
+HARVEST-CELL side-floor CleanSaw_Solid_E2_s1_fc250_c0 render_ms 575.564 restage_ms 5961.86 total_ms 6537.43
+HARVEST-CELL side-floor CleanSaw_Solid_E2_s1_fc250_c1 render_ms 520.192 restage_ms 5842.39 total_ms 6362.58
+HARVEST-CELL side-floor CleanSaw_Solid_C3_s0_fc60_c0 render_ms 545.757 restage_ms 6030.29 total_ms 6576.04
+HARVEST-CELL side-floor CleanSaw_Solid_C3_s0_fc60_c1 render_ms 550.364 restage_ms 5732.31 total_ms 6282.67
+HARVEST-CELL side-floor CleanSaw_Solid_C3_s0_fc120_c0 render_ms 532.336 restage_ms 5827.83 total_ms 6360.16
+HARVEST-CELL side-floor CleanSaw_Solid_C3_s0_fc120_c1 render_ms 527.85 restage_ms 5844.58 total_ms 6372.43
+HARVEST-CELL side-floor CleanSaw_Solid_C3_s0_fc250_c0 render_ms 560.453 restage_ms 6084.42 total_ms 6644.88
+HARVEST-CELL side-floor CleanSaw_Solid_C3_s0_fc250_c1 render_ms 565.573 restage_ms 6012.39 total_ms 6577.97
+HARVEST-CELL side-floor CleanSaw_Solid_C3_s0.5_fc60_c0 render_ms 518.269 restage_ms 6020.19 total_ms 6538.46
+HARVEST-CELL side-floor CleanSaw_Solid_C3_s0.5_fc60_c1 render_ms 529.411 restage_ms 6164.17 total_ms 6693.58
+HARVEST-CELL side-floor CleanSaw_Solid_C3_s0.5_fc120_c0 render_ms 558.317 restage_ms 6036.42 total_ms 6594.73
+HARVEST-CELL side-floor CleanSaw_Solid_C3_s0.5_fc120_c1 render_ms 540.956 restage_ms 6199.2 total_ms 6740.16
+HARVEST-CELL side-floor CleanSaw_Solid_C3_s0.5_fc250_c0 render_ms 566.744 restage_ms 6038.36 total_ms 6605.1
+HARVEST-CELL side-floor CleanSaw_Solid_C3_s0.5_fc250_c1 render_ms 544.292 restage_ms 6173.7 total_ms 6717.99
+HARVEST-CELL side-floor CleanSaw_Solid_C3_s1_fc60_c0 render_ms 596.856 restage_ms 6157.06 total_ms 6753.92
+HARVEST-CELL side-floor CleanSaw_Solid_C3_s1_fc60_c1 render_ms 541.125 restage_ms 6292.33 total_ms 6833.46
+HARVEST-CELL side-floor CleanSaw_Solid_C3_s1_fc120_c0 render_ms 562.93 restage_ms 6249.3 total_ms 6812.23
+HARVEST-CELL side-floor CleanSaw_Solid_C3_s1_fc120_c1 render_ms 552.803 restage_ms 6245.62 total_ms 6798.42
+HARVEST-CELL side-floor CleanSaw_Solid_C3_s1_fc250_c0 render_ms 573.947 restage_ms 6145.52 total_ms 6719.47
+HARVEST-CELL side-floor CleanSaw_Solid_C3_s1_fc250_c1 render_ms 555.234 restage_ms 6138.12 total_ms 6693.36
+HARVEST-CELL side-floor CleanSaw_Spread_E0_s0_fc60_c0 render_ms 551.918 restage_ms 6398.17 total_ms 6950.09
+HARVEST-CELL side-floor CleanSaw_Spread_E0_s0_fc60_c1 render_ms 555.966 restage_ms 6435.78 total_ms 6991.74
+HARVEST-CELL side-floor CleanSaw_Spread_E0_s0_fc120_c0 render_ms 587.422 restage_ms 6199.64 total_ms 6787.06
+HARVEST-CELL side-floor CleanSaw_Spread_E0_s0_fc120_c1 render_ms 680.976 restage_ms 6470.33 total_ms 7151.3
+HARVEST-CELL side-floor CleanSaw_Spread_E0_s0_fc250_c0 render_ms 608.139 restage_ms 6494.15 total_ms 7102.29
+HARVEST-CELL side-floor CleanSaw_Spread_E0_s0_fc250_c1 render_ms 595.58 restage_ms 6259.27 total_ms 6854.85
+HARVEST-CELL side-floor CleanSaw_Spread_E0_s0.5_fc60_c0 render_ms 597.331 restage_ms 6245.47 total_ms 6842.8
+HARVEST-CELL side-floor CleanSaw_Spread_E0_s0.5_fc60_c1 render_ms 614.018 restage_ms 6201.18 total_ms 6815.19
+HARVEST-CELL side-floor CleanSaw_Spread_E0_s0.5_fc120_c0 render_ms 630.055 restage_ms 6033.68 total_ms 6663.74
+HARVEST-CELL side-floor CleanSaw_Spread_E0_s0.5_fc120_c1 render_ms 595.095 restage_ms 6215.97 total_ms 6811.07
+HARVEST-CELL side-floor CleanSaw_Spread_E0_s0.5_fc250_c0 render_ms 622.708 restage_ms 6303.04 total_ms 6925.75
+HARVEST-CELL side-floor CleanSaw_Spread_E0_s0.5_fc250_c1 render_ms 577.666 restage_ms 6359.71 total_ms 6937.38
+HARVEST-CELL side-floor CleanSaw_Spread_E0_s1_fc60_c0 render_ms 622.175 restage_ms 7496.16 total_ms 8118.33
+HARVEST-CELL side-floor CleanSaw_Spread_E0_s1_fc60_c1 render_ms 688.381 restage_ms 6812.81 total_ms 7501.19
+HARVEST-CELL side-floor CleanSaw_Spread_E0_s1_fc120_c0 render_ms 649.51 restage_ms 6735.3 total_ms 7384.81
+HARVEST-CELL side-floor CleanSaw_Spread_E0_s1_fc120_c1 render_ms 668.58 restage_ms 6827.71 total_ms 7496.29
+HARVEST-CELL side-floor CleanSaw_Spread_E0_s1_fc250_c0 render_ms 682.835 restage_ms 6724.59 total_ms 7407.43
+HARVEST-CELL side-floor CleanSaw_Spread_E0_s1_fc250_c1 render_ms 689.877 restage_ms 6814.77 total_ms 7504.65
+HARVEST-CELL side-floor CleanSaw_Spread_E1_s0_fc60_c0 render_ms 622.956 restage_ms 6868.73 total_ms 7491.68
+HARVEST-CELL side-floor CleanSaw_Spread_E1_s0_fc60_c1 render_ms 619.224 restage_ms 6902.47 total_ms 7521.7
+HARVEST-CELL side-floor CleanSaw_Spread_E1_s0_fc120_c0 render_ms 599.062 restage_ms 6807.39 total_ms 7406.45
+HARVEST-CELL side-floor CleanSaw_Spread_E1_s0_fc120_c1 render_ms 604.035 restage_ms 6757.42 total_ms 7361.46
+HARVEST-CELL side-floor CleanSaw_Spread_E1_s0_fc250_c0 render_ms 568.703 restage_ms 7011.39 total_ms 7580.09
+HARVEST-CELL side-floor CleanSaw_Spread_E1_s0_fc250_c1 render_ms 700.301 restage_ms 6896.33 total_ms 7596.63
+HARVEST-CELL side-floor CleanSaw_Spread_E1_s0.5_fc60_c0 render_ms 632.531 restage_ms 6832.95 total_ms 7465.48
+HARVEST-CELL side-floor CleanSaw_Spread_E1_s0.5_fc60_c1 render_ms 622.51 restage_ms 7029.72 total_ms 7652.23
+HARVEST-CELL side-floor CleanSaw_Spread_E1_s0.5_fc120_c0 render_ms 624.79 restage_ms 6808.98 total_ms 7433.77
+HARVEST-CELL side-floor CleanSaw_Spread_E1_s0.5_fc120_c1 render_ms 608.454 restage_ms 7227.89 total_ms 7836.34
+HARVEST-CELL side-floor CleanSaw_Spread_E1_s0.5_fc250_c0 render_ms 653.906 restage_ms 6989.23 total_ms 7643.14
+HARVEST-CELL side-floor CleanSaw_Spread_E1_s0.5_fc250_c1 render_ms 640.952 restage_ms 6909.95 total_ms 7550.9
+HARVEST-CELL side-floor CleanSaw_Spread_E1_s1_fc60_c0 render_ms 622.713 restage_ms 6746.8 total_ms 7369.51
+HARVEST-CELL side-floor CleanSaw_Spread_E1_s1_fc60_c1 render_ms 631.423 restage_ms 6747.56 total_ms 7378.98
+HARVEST-CELL side-floor CleanSaw_Spread_E1_s1_fc120_c0 render_ms 649.243 restage_ms 6635.05 total_ms 7284.29
+HARVEST-CELL side-floor CleanSaw_Spread_E1_s1_fc120_c1 render_ms 647.683 restage_ms 6747.35 total_ms 7395.04
+HARVEST-CELL side-floor CleanSaw_Spread_E1_s1_fc250_c0 render_ms 643.031 restage_ms 6871.48 total_ms 7514.52
+HARVEST-CELL side-floor CleanSaw_Spread_E1_s1_fc250_c1 render_ms 629.503 restage_ms 6841.5 total_ms 7471
+HARVEST-CELL side-floor CleanSaw_Spread_E2_s0_fc60_c0 render_ms 616.757 restage_ms 6801.54 total_ms 7418.3
+HARVEST-CELL side-floor CleanSaw_Spread_E2_s0_fc60_c1 render_ms 610.314 restage_ms 6948.98 total_ms 7559.29
+HARVEST-CELL side-floor CleanSaw_Spread_E2_s0_fc120_c0 render_ms 617.236 restage_ms 6698.26 total_ms 7315.49
+HARVEST-CELL side-floor CleanSaw_Spread_E2_s0_fc120_c1 render_ms 623.167 restage_ms 6513.75 total_ms 7136.92
+HARVEST-CELL side-floor CleanSaw_Spread_E2_s0_fc250_c0 render_ms 620.072 restage_ms 6825.49 total_ms 7445.56
+HARVEST-CELL side-floor CleanSaw_Spread_E2_s0_fc250_c1 render_ms 602.548 restage_ms 7002.05 total_ms 7604.6
+HARVEST-CELL side-floor CleanSaw_Spread_E2_s0.5_fc60_c0 render_ms 622.378 restage_ms 6586.3 total_ms 7208.68
+HARVEST-CELL side-floor CleanSaw_Spread_E2_s0.5_fc60_c1 render_ms 623.755 restage_ms 7013.21 total_ms 7636.97
+HARVEST-CELL side-floor CleanSaw_Spread_E2_s0.5_fc120_c0 render_ms 606.462 restage_ms 6773.46 total_ms 7379.92
+HARVEST-CELL side-floor CleanSaw_Spread_E2_s0.5_fc120_c1 render_ms 609.779 restage_ms 6690.94 total_ms 7300.72
+HARVEST-CELL side-floor CleanSaw_Spread_E2_s0.5_fc250_c0 render_ms 639.496 restage_ms 6794.75 total_ms 7434.25
+HARVEST-CELL side-floor CleanSaw_Spread_E2_s0.5_fc250_c1 render_ms 654.117 restage_ms 7004.58 total_ms 7658.7
+HARVEST-CELL side-floor CleanSaw_Spread_E2_s1_fc60_c0 render_ms 666.047 restage_ms 6973.39 total_ms 7639.44
+HARVEST-CELL side-floor CleanSaw_Spread_E2_s1_fc60_c1 render_ms 676.837 restage_ms 6829.63 total_ms 7506.47
+HARVEST-CELL side-floor CleanSaw_Spread_E2_s1_fc120_c0 render_ms 669.924 restage_ms 6911.49 total_ms 7581.42
+HARVEST-CELL side-floor CleanSaw_Spread_E2_s1_fc120_c1 render_ms 677.871 restage_ms 6688.1 total_ms 7365.97
+HARVEST-CELL side-floor CleanSaw_Spread_E2_s1_fc250_c0 render_ms 631.426 restage_ms 6629.5 total_ms 7260.92
+HARVEST-CELL side-floor CleanSaw_Spread_E2_s1_fc250_c1 render_ms 635.796 restage_ms 6834.79 total_ms 7470.59
+HARVEST-CELL side-floor CleanSaw_Spread_C3_s0_fc60_c0 render_ms 598.493 restage_ms 6728.07 total_ms 7326.56
+HARVEST-CELL side-floor CleanSaw_Spread_C3_s0_fc60_c1 render_ms 602.394 restage_ms 6888.72 total_ms 7491.12
+HARVEST-CELL side-floor CleanSaw_Spread_C3_s0_fc120_c0 render_ms 599.53 restage_ms 6824.25 total_ms 7423.78
+HARVEST-CELL side-floor CleanSaw_Spread_C3_s0_fc120_c1 render_ms 581.938 restage_ms 6896.7 total_ms 7478.64
+HARVEST-CELL side-floor CleanSaw_Spread_C3_s0_fc250_c0 render_ms 632.095 restage_ms 6898.26 total_ms 7530.36
+HARVEST-CELL side-floor CleanSaw_Spread_C3_s0_fc250_c1 render_ms 586.604 restage_ms 6561.93 total_ms 7148.53
+HARVEST-CELL side-floor CleanSaw_Spread_C3_s0.5_fc60_c0 render_ms 608.446 restage_ms 6421.78 total_ms 7030.22
+HARVEST-CELL side-floor CleanSaw_Spread_C3_s0.5_fc60_c1 render_ms 648.849 restage_ms 6534.01 total_ms 7182.86
+HARVEST-CELL side-floor CleanSaw_Spread_C3_s0.5_fc120_c0 render_ms 619.284 restage_ms 6422.28 total_ms 7041.57
+HARVEST-CELL side-floor CleanSaw_Spread_C3_s0.5_fc120_c1 render_ms 654.482 restage_ms 6768.71 total_ms 7423.19
+HARVEST-CELL side-floor CleanSaw_Spread_C3_s0.5_fc250_c0 render_ms 639.189 restage_ms 6553.04 total_ms 7192.23
+HARVEST-CELL side-floor CleanSaw_Spread_C3_s0.5_fc250_c1 render_ms 633.148 restage_ms 6707.68 total_ms 7340.83
+HARVEST-CELL side-floor CleanSaw_Spread_C3_s1_fc60_c0 render_ms 659.067 restage_ms 6779.4 total_ms 7438.46
+HARVEST-CELL side-floor CleanSaw_Spread_C3_s1_fc60_c1 render_ms 680.503 restage_ms 6836.29 total_ms 7516.79
+HARVEST-CELL side-floor CleanSaw_Spread_C3_s1_fc120_c0 render_ms 634.135 restage_ms 6791 total_ms 7425.14
+HARVEST-CELL side-floor CleanSaw_Spread_C3_s1_fc120_c1 render_ms 627.295 restage_ms 6753.32 total_ms 7380.62
+HARVEST-CELL side-floor CleanSaw_Spread_C3_s1_fc250_c0 render_ms 615.138 restage_ms 6092.78 total_ms 6707.92
+HARVEST-CELL side-floor CleanSaw_Spread_C3_s1_fc250_c1 render_ms 584.654 restage_ms 6107.45 total_ms 6692.1
+HARVEST-CELL side-floor CleanSaw_Wide_E0_s0_fc60_c0 render_ms 543.219 restage_ms 6165.71 total_ms 6708.92
+HARVEST-CELL side-floor CleanSaw_Wide_E0_s0_fc60_c1 render_ms 535.458 restage_ms 5900.46 total_ms 6435.92
+HARVEST-CELL side-floor CleanSaw_Wide_E0_s0_fc120_c0 render_ms 538.311 restage_ms 6277.69 total_ms 6816
+HARVEST-CELL side-floor CleanSaw_Wide_E0_s0_fc120_c1 render_ms 564.317 restage_ms 5838.59 total_ms 6402.9
+HARVEST-CELL side-floor CleanSaw_Wide_E0_s0_fc250_c0 render_ms 561.078 restage_ms 5793.1 total_ms 6354.17
+HARVEST-CELL side-floor CleanSaw_Wide_E0_s0_fc250_c1 render_ms 555.118 restage_ms 5863.56 total_ms 6418.68
+HARVEST-CELL side-floor CleanSaw_Wide_E0_s0.5_fc60_c0 render_ms 566.248 restage_ms 5850.1 total_ms 6416.35
+HARVEST-CELL side-floor CleanSaw_Wide_E0_s0.5_fc60_c1 render_ms 595.121 restage_ms 5912.65 total_ms 6507.77
+HARVEST-CELL side-floor CleanSaw_Wide_E0_s0.5_fc120_c0 render_ms 587.386 restage_ms 5816.98 total_ms 6404.36
+HARVEST-CELL side-floor CleanSaw_Wide_E0_s0.5_fc120_c1 render_ms 591.617 restage_ms 5945.01 total_ms 6536.62
+HARVEST-CELL side-floor CleanSaw_Wide_E0_s0.5_fc250_c0 render_ms 621.901 restage_ms 6061.71 total_ms 6683.61
+HARVEST-CELL side-floor CleanSaw_Wide_E0_s0.5_fc250_c1 render_ms 590.34 restage_ms 6102.42 total_ms 6692.77
+HARVEST-CELL side-floor CleanSaw_Wide_E0_s1_fc60_c0 render_ms 580.707 restage_ms 6127.27 total_ms 6707.97
+HARVEST-CELL side-floor CleanSaw_Wide_E0_s1_fc60_c1 render_ms 604.109 restage_ms 6215.35 total_ms 6819.46
+HARVEST-CELL side-floor CleanSaw_Wide_E0_s1_fc120_c0 render_ms 606.895 restage_ms 6028.43 total_ms 6635.32
+HARVEST-CELL side-floor CleanSaw_Wide_E0_s1_fc120_c1 render_ms 597.971 restage_ms 6058.3 total_ms 6656.27
+HARVEST-CELL side-floor CleanSaw_Wide_E0_s1_fc250_c0 render_ms 577.856 restage_ms 6175.95 total_ms 6753.81
+HARVEST-CELL side-floor CleanSaw_Wide_E0_s1_fc250_c1 render_ms 614.161 restage_ms 6523.65 total_ms 7137.81
+HARVEST-CELL side-floor CleanSaw_Wide_E1_s0_fc60_c0 render_ms 599.009 restage_ms 6455.04 total_ms 7054.05
+HARVEST-CELL side-floor CleanSaw_Wide_E1_s0_fc60_c1 render_ms 585.582 restage_ms 6292.85 total_ms 6878.44
+HARVEST-CELL side-floor CleanSaw_Wide_E1_s0_fc120_c0 render_ms 589.425 restage_ms 6384.22 total_ms 6973.65
+HARVEST-CELL side-floor CleanSaw_Wide_E1_s0_fc120_c1 render_ms 589.386 restage_ms 6212.61 total_ms 6802
+HARVEST-CELL side-floor CleanSaw_Wide_E1_s0_fc250_c0 render_ms 610.063 restage_ms 6511.15 total_ms 7121.22
+HARVEST-CELL side-floor CleanSaw_Wide_E1_s0_fc250_c1 render_ms 601.364 restage_ms 6393.29 total_ms 6994.66
+HARVEST-CELL side-floor CleanSaw_Wide_E1_s0.5_fc60_c0 render_ms 625.065 restage_ms 6349.1 total_ms 6974.16
+HARVEST-CELL side-floor CleanSaw_Wide_E1_s0.5_fc60_c1 render_ms 611.204 restage_ms 6514.12 total_ms 7125.33
+HARVEST-CELL side-floor CleanSaw_Wide_E1_s0.5_fc120_c0 render_ms 621.715 restage_ms 6637.41 total_ms 7259.13
+HARVEST-CELL side-floor CleanSaw_Wide_E1_s0.5_fc120_c1 render_ms 596.282 restage_ms 6589.3 total_ms 7185.58
+HARVEST-CELL side-floor CleanSaw_Wide_E1_s0.5_fc250_c0 render_ms 608.884 restage_ms 6578.54 total_ms 7187.42
+HARVEST-CELL side-floor CleanSaw_Wide_E1_s0.5_fc250_c1 render_ms 614.857 restage_ms 6533.24 total_ms 7148.1
+HARVEST-CELL side-floor CleanSaw_Wide_E1_s1_fc60_c0 render_ms 640.933 restage_ms 6429.54 total_ms 7070.48
+HARVEST-CELL side-floor CleanSaw_Wide_E1_s1_fc60_c1 render_ms 627.693 restage_ms 6453.66 total_ms 7081.35
+HARVEST-CELL side-floor CleanSaw_Wide_E1_s1_fc120_c0 render_ms 644.868 restage_ms 6505.78 total_ms 7150.65
+HARVEST-CELL side-floor CleanSaw_Wide_E1_s1_fc120_c1 render_ms 632.12 restage_ms 6533.19 total_ms 7165.31
+HARVEST-CELL side-floor CleanSaw_Wide_E1_s1_fc250_c0 render_ms 602.547 restage_ms 6432.86 total_ms 7035.41
+HARVEST-CELL side-floor CleanSaw_Wide_E1_s1_fc250_c1 render_ms 590.505 restage_ms 6375.32 total_ms 6965.83
+HARVEST-CELL side-floor CleanSaw_Wide_E2_s0_fc60_c0 render_ms 559.241 restage_ms 6424.16 total_ms 6983.4
+HARVEST-CELL side-floor CleanSaw_Wide_E2_s0_fc60_c1 render_ms 573.583 restage_ms 6514.24 total_ms 7087.83
+HARVEST-CELL side-floor CleanSaw_Wide_E2_s0_fc120_c0 render_ms 549.076 restage_ms 6238.73 total_ms 6787.81
+HARVEST-CELL side-floor CleanSaw_Wide_E2_s0_fc120_c1 render_ms 566.004 restage_ms 6412.7 total_ms 6978.71
+HARVEST-CELL side-floor CleanSaw_Wide_E2_s0_fc250_c0 render_ms 567.881 restage_ms 6109.7 total_ms 6677.58
+HARVEST-CELL side-floor CleanSaw_Wide_E2_s0_fc250_c1 render_ms 572.687 restage_ms 6092.33 total_ms 6665.01
+HARVEST-CELL side-floor CleanSaw_Wide_E2_s0.5_fc60_c0 render_ms 575.984 restage_ms 6343.9 total_ms 6919.88
+HARVEST-CELL side-floor CleanSaw_Wide_E2_s0.5_fc60_c1 render_ms 590.89 restage_ms 6283.65 total_ms 6874.55
+HARVEST-CELL side-floor CleanSaw_Wide_E2_s0.5_fc120_c0 render_ms 595.925 restage_ms 6174.11 total_ms 6770.04
+HARVEST-CELL side-floor CleanSaw_Wide_E2_s0.5_fc120_c1 render_ms 581.375 restage_ms 6188.02 total_ms 6769.4
+HARVEST-CELL side-floor CleanSaw_Wide_E2_s0.5_fc250_c0 render_ms 614.783 restage_ms 6327.58 total_ms 6942.36
+HARVEST-CELL side-floor CleanSaw_Wide_E2_s0.5_fc250_c1 render_ms 575.28 restage_ms 6291.94 total_ms 6867.22
+HARVEST-CELL side-floor CleanSaw_Wide_E2_s1_fc60_c0 render_ms 582.675 restage_ms 6083.21 total_ms 6665.89
+HARVEST-CELL side-floor CleanSaw_Wide_E2_s1_fc60_c1 render_ms 566.323 restage_ms 6096.82 total_ms 6663.14
+HARVEST-CELL side-floor CleanSaw_Wide_E2_s1_fc120_c0 render_ms 634.141 restage_ms 6268.98 total_ms 6903.12
+HARVEST-CELL side-floor CleanSaw_Wide_E2_s1_fc120_c1 render_ms 595.666 restage_ms 6225.1 total_ms 6820.77
+HARVEST-CELL side-floor CleanSaw_Wide_E2_s1_fc250_c0 render_ms 572.121 restage_ms 6062.17 total_ms 6634.29
+HARVEST-CELL side-floor CleanSaw_Wide_E2_s1_fc250_c1 render_ms 610.321 restage_ms 6372.94 total_ms 6983.26
+HARVEST-CELL side-floor CleanSaw_Wide_C3_s0_fc60_c0 render_ms 557.856 restage_ms 6304.76 total_ms 6862.62
+HARVEST-CELL side-floor CleanSaw_Wide_C3_s0_fc60_c1 render_ms 570.963 restage_ms 6129.17 total_ms 6700.13
+HARVEST-CELL side-floor CleanSaw_Wide_C3_s0_fc120_c0 render_ms 555.553 restage_ms 6188.84 total_ms 6744.39
+HARVEST-CELL side-floor CleanSaw_Wide_C3_s0_fc120_c1 render_ms 563.844 restage_ms 6267.96 total_ms 6831.8
+HARVEST-CELL side-floor CleanSaw_Wide_C3_s0_fc250_c0 render_ms 573.851 restage_ms 6029.46 total_ms 6603.31
+HARVEST-CELL side-floor CleanSaw_Wide_C3_s0_fc250_c1 render_ms 548.528 restage_ms 6086.11 total_ms 6634.64
+HARVEST-CELL side-floor CleanSaw_Wide_C3_s0.5_fc60_c0 render_ms 573.926 restage_ms 6119.9 total_ms 6693.83
+HARVEST-CELL side-floor CleanSaw_Wide_C3_s0.5_fc60_c1 render_ms 575.4 restage_ms 6031.03 total_ms 6606.43
+HARVEST-CELL side-floor CleanSaw_Wide_C3_s0.5_fc120_c0 render_ms 591.53 restage_ms 5942.51 total_ms 6534.04
+HARVEST-CELL side-floor CleanSaw_Wide_C3_s0.5_fc120_c1 render_ms 574.32 restage_ms 6207.3 total_ms 6781.62
+HARVEST-CELL side-floor CleanSaw_Wide_C3_s0.5_fc250_c0 render_ms 607.05 restage_ms 6018.41 total_ms 6625.46
+HARVEST-CELL side-floor CleanSaw_Wide_C3_s0.5_fc250_c1 render_ms 583.532 restage_ms 6158.76 total_ms 6742.3
+HARVEST-CELL side-floor CleanSaw_Wide_C3_s1_fc60_c0 render_ms 588.252 restage_ms 5754.72 total_ms 6342.97
+HARVEST-CELL side-floor CleanSaw_Wide_C3_s1_fc60_c1 render_ms 596.835 restage_ms 5784.32 total_ms 6381.16
+HARVEST-CELL side-floor CleanSaw_Wide_C3_s1_fc120_c0 render_ms 590.681 restage_ms 5897.84 total_ms 6488.52
+HARVEST-CELL side-floor CleanSaw_Wide_C3_s1_fc120_c1 render_ms 604.21 restage_ms 5933.44 total_ms 6537.65
+HARVEST-CELL side-floor CleanSaw_Wide_C3_s1_fc250_c0 render_ms 630.776 restage_ms 6102.75 total_ms 6733.53
+HARVEST-CELL side-floor CleanSaw_Wide_C3_s1_fc250_c1 render_ms 588.326 restage_ms 6117.22 total_ms 6705.55
+BSF_HARVEST_FLOOR_SHARD,CleanSaw,cells,216,mean_cell_ms,6902.65,shard_ms,1.4917e+06
+BSF_HARVEST_FLOOR_ROW,CleanSaw,g,0.71,pass,216,cells,216,worst_sub_q_db,-0.000152652,worst_rho_sub,0.999935,worst_oct_q_db,-3.0103,valid_sub_readings,486,exempt,0
+HARVEST side-floor CleanSaw 0.71 PASS -0.000152652 0.999935
+BSF_HARVEST_FLOOR_ROW,CleanSaw,g,0.5,pass,216,cells,216,worst_sub_q_db,-0.000152652,worst_rho_sub,0.999935,worst_oct_q_db,-3.0103,valid_sub_readings,486,exempt,0
+HARVEST side-floor CleanSaw 0.5 PASS -0.000152652 0.999935
+BSF_HARVEST_FLOOR_ROW,CleanSaw,g,0.35,pass,216,cells,216,worst_sub_q_db,-0.000152652,worst_rho_sub,0.999935,worst_oct_q_db,-3.0103,valid_sub_readings,486,exempt,0
+HARVEST side-floor CleanSaw 0.35 PASS -0.000152652 0.999935
+BSF_HARVEST_FLOOR_ROW,CleanSaw,g,0.25,pass,216,cells,216,worst_sub_q_db,-0.000152652,worst_rho_sub,0.999935,worst_oct_q_db,-3.0103,valid_sub_readings,486,exempt,0
+HARVEST side-floor CleanSaw 0.25 PASS -0.000152652 0.999935
+BSF_HARVEST_FLOOR_ROW,CleanSaw,g,0.18,pass,216,cells,216,worst_sub_q_db,-0.000152652,worst_rho_sub,0.999935,worst_oct_q_db,-3.0103,valid_sub_readings,486,exempt,0
+HARVEST side-floor CleanSaw 0.18 PASS -0.000152652 0.999935
+BSF_HARVEST_FLOOR_ROW,CleanSaw,g,0.125,pass,216,cells,216,worst_sub_q_db,-0.000152652,worst_rho_sub,0.999935,worst_oct_q_db,-3.0103,valid_sub_readings,486,exempt,0
+HARVEST side-floor CleanSaw 0.125 PASS -0.000152652 0.999935
+BSF_HARVEST_FLOOR_ROW,CleanSaw,g,0.1,pass,216,cells,216,worst_sub_q_db,-0.000152652,worst_rho_sub,0.999935,worst_oct_q_db,-3.0103,valid_sub_readings,486,exempt,0
+HARVEST side-floor CleanSaw 0.1 PASS -0.000152652 0.999935
+BSF_HARVEST_FLOOR_ROW,CleanSaw,g,0.071,pass,216,cells,216,worst_sub_q_db,-0.000152652,worst_rho_sub,0.999935,worst_oct_q_db,-3.0103,valid_sub_readings,486,exempt,0
+HARVEST side-floor CleanSaw 0.071 PASS -0.000152652 0.999935
+BSF_HARVEST_FLOOR_ROW,CleanSaw,g,0.05,pass,216,cells,216,worst_sub_q_db,-0.000152652,worst_rho_sub,0.999935,worst_oct_q_db,-3.0103,valid_sub_readings,486,exempt,0
+HARVEST side-floor CleanSaw 0.05 PASS -0.000152652 0.999935
+BSF_HARVEST_FLOOR_ROW,CleanSaw,g,0.035,pass,216,cells,216,worst_sub_q_db,-0.000152652,worst_rho_sub,0.999935,worst_oct_q_db,-3.0103,valid_sub_readings,486,exempt,0
+HARVEST side-floor CleanSaw 0.035 PASS -0.000152652 0.999935
+BSF_HARVEST_FLOOR_ROW,CleanSaw,g,0.03,pass,216,cells,216,worst_sub_q_db,-0.000152652,worst_rho_sub,0.999935,worst_oct_q_db,-3.0103,valid_sub_readings,486,exempt,0
+HARVEST side-floor CleanSaw 0.03 PASS -0.000152652 0.999935
+===============================================================================
+All tests passed (124850 assertions in 1 test case)
+
+exit: 0 wall: 1492 s

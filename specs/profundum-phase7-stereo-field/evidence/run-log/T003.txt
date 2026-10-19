@@ -1,0 +1,77 @@
+T003 run-log (2026-10-18) - BassStereoField skeleton, probe, control / lifecycle / MOTION tests
+
+## Files written
+- dsp/tests/unit/systems/bass_stereo_field_test.cpp (stub filled; written FIRST): 11 TEST_CASEs, all
+  [systems][profundum][stereo-field] + SC/FR tag:
+  BassStereoField_ConstantsMatchPlan [fr-001], _ControlsDefaults [fr-002], _SetControlsClampsAndKeeps
+  [fr-001][fr-002], _IsValidControls [fr-003][sc-021], _MotionRateMaps [fr-031][sc-008], _TempoSyncFold
+  [fr-036][sc-008] (writes evidence/sc008-sync-fold.csv), _DriftSeedDeterminism [fr-033][sc-012],
+  _MotionOutputConformance [fr-034], _SideGainLaw [sc-020][fr-021], _CrossoverLawSmoothing [fr-024],
+  _LifecycleBeforePrepare [fr-001][sc-011].
+- dsp/include/krate/dsp/systems/bass_stereo_field.h (stub replaced): full plan S3 public API, prepare (S3 steps
+  1-7), reset (S3 steps 1-6, C-4), setControls / isValidControls / setTempoBpm / setDriftSeed, advanceControl
+  (S4.1 law cache, S5 MOTION with change caches, S7.1 stage targets), observers. Temporary bodies, each marked:
+  computePanVector (+0 vector) and widthCurve (0) "// T004"; wideOffsets ({0,0}) and wideCeiling (0) "// T005";
+  processBlock (no-op) "// T006".
+- dsp/tests/unit/systems/bass_stereo_field_probe.h (new): detail::BassStereoFieldProbe with setSideFloorGain,
+  setWideOffsetScale, sideFloorGain, wideOffsetScale (inline statics).
+- this run-log.
+
+## Facts read this session (file:line)
+- lfo.h: class LFO :63, copy deleted :69-76, prepare :83, reset :95, process :114, setWaveform :189,
+  setFrequency clamps [kMinFrequency 0.01, kMaxFrequency 20] :218-219, setTempoSync :237, setTempo clamps [1, 999]
+  :246-247, setNoteValue :255, updateTempoSyncFrequency (bpm/60)/beats :488-498.
+- brownian_drift.h: kTauMin 0.2 :97, kTauMax 30 :99, kDefaultDriftSeed 0xB17E :109, prepare :121, reset -> initState
+  re-seeds from configuredSeed_ :133, setSeed :145, setSmoothness :152, setDepth :159, setMean :165, processBlock :194,
+  getCurrentValue clamps to [-1, 1] :212, tau = lerp(kTauMin, kTauMax, s) in updateCoefficients.
+- crossover_filter.h: TrackingMode :41, prepare snaps the smoother :169-192, reset biquads only :200, setCrossoverFrequency
+  stores the clamped target :218, setSmoothingTime :231, getCrossoverFrequency returns the stored target :255.
+- smoother.h: kMinSmoothingTimeMs 0.1 :58; OnePoleSmoother configure(float, float) :160, process snaps within 1e-4;
+  LinearRamp setTarget recomputes the increment from the remaining distance.
+- note_value.h: NoteValue :38-49, NoteModifier :54-58, getBeatsForNote :95, kMin/MaxTempoSyncBPM 20 / 300 :200-203.
+- db_utils.h: detail::isFinite(float) :118. modulation_source.h: ModulationSource :31-41. harmonic_types.h:
+  kMaxPartials = 96 :21. bass_character_stage.h: Algorithm :78, kMaxChannelOffset :85, probe precedent :71/:513.
+- profundum_core.h: kDefaultPartials 64 :96, kControlInterval 32 :97. mass_dynamics.h: kControlInterval 32 :60.
+- dsp_test_main.cpp:10-13 enables FTZ/DAZ for every test exe (drives the DAZ decision below).
+
+## Decisions
+1. DAZ-immune range handling (not in the plan text; forced by dsp_test_main's FTZ/DAZ): the IsValidControls
+   case asks that nextafter(0, -1) (a negative DENORMAL) be invalid. Under DAZ it compares equal to 0, so
+   isValidControls rejects any negative non-zero bit pattern before the range compare (every range has lo >= 0),
+   and setControls clamps with `v <= lo -> lo` / `v >= hi -> hi`, which also maps -0 and negative denormals to +0
+   (rule 4: zero is +0).
+2. m_ = isFinite(raw) ? clamp(raw, -1, 1) : 0. The sources are finite and in range by construction (Drift clamps,
+   LFO Sine table); the guard makes FR-034's [-1, 1] hold by construction and never hands a non-finite to clamp.
+3. The tempo is latched like the controls: setTempoBpm stores it, advanceControl (via the change cache) passes
+   bpm_eff to the LFO. cycleFrequencyHz() is computed with the LFO's own float expression (bpm_eff / 60) / beats,
+   so it equals the rate the LFO is set to. The fold loop is under `if constexpr (kCycleSyncFold)` (no
+   unreachable-code path when the switch is flipped).
+4. The free Cycle frequency is always forwarded to lfo_.setFrequency on a rate change, even while synced
+   (LFO::setFrequency does not touch the increment while synced), so a sync -> free switch resumes at the right rate.
+5. reset() re-runs applyMotionConfig() before drift_.reset() / lfo_.reset(), because reset latches pending_
+   (S3 step 1) and the rate / sync may have changed since the last interval.
+6. reset() calls crossover_.setCrossoverFrequency(2 f_c) always and crossover_.prepare(sampleRate_) only if
+   prepared_ (C-4 as tasks.md words it).
+7. The constructor sets the stage crossover's smoothing / tracking / target, snaps the side gain and mode ramp,
+   applies the MOTION config and fills the law cache, so every observer is defined before prepare()
+   (LifecycleBeforePrepare).
+8. Controls members are declared without `{}` (default-initialised through the NSDMIs) to avoid clang's
+   "default member initializer needed within definition of enclosing class" hazard.
+9. SideGainLaw additionally checks deviation 5 through the probe: the members start at the constants and reset()
+   leaves probe-set values alone. Small addition, in scope (deviation 5 is part of T003).
+
+## Static check (not a build; the Group 2 gate builds)
+clang++ -std=c++20 -fsyntax-only -Wall -Wextra -Wconversion -Wshadow on bass_stereo_field_test.cpp (includes the
+header and the probe): exit 0; zero diagnostics in any Phase 7 file. The 70 warnings reported are all in
+pre-existing headers under the extra -Wconversion / -Wshadow flags (harmonic_oscillator_bank.h, stereo_field.h,
+crossover_filter.h, closed_form_adaa2.h), not under the project's flags.
+node tools/lint-layers.js: OK.
+
+## ODR sweep (this task's new names)
+grep -rn "BassStereoFieldProbe" dsp plugins tests tools -> only bass_stereo_field.h and bass_stereo_field_probe.h
+(+ the test TU). Nested names only (ImageMode, MotionSource, Controls, VoiceState, ChannelOffsets, MotionOutput).
+Name hazards referenced, never redefined: Waveform (lfo.h:47; AnchorOscillator::Waveform is nested), TrackingMode
+(crossover_filter.h:41).
+
+## Deviations
+None from the task section. No DEFECT lines.

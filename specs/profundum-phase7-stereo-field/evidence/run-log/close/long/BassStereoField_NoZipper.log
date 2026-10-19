@@ -1,0 +1,13 @@
+Filters: "BassStereoField_NoZipper"
+Randomness seeded to: 16429513
+BSF_ZIPPER,fit,f0,41.2034,start,48000,length,47763,a1,0.278289,a2,0.139143,a64,0.00434824
+BSF_ZIPPER,validity,E1,spread1,product_minus_held_db_L,-79.155,R,-79.5752,L_minus_R_re_L_db,-8.74622
+BSF_ZIPPER,spread_sweep,frame_start,36000,total,168000,max_step,0.00300002,max_abs_p,1,sideband_db_L,-128.311,remaining_L,0.961098,sideband_db_R,-128.041,remaining_R,0.961897
+BSF_ZIPPER,motion_cycle,frame_start,48000,total,182400,max_step,0.00209439,max_abs_p,1,sideband_db_L,-82.1356,remaining_L,0.941526,sideband_db_R,-82.1358,remaining_R,0.941526
+BSF_ZIPPER,fit,f0,130.813,start,48000,length,28988,a1,0.27829,a2,0.139145,a64,0.00434828
+BSF_ZIPPER,drop48,max_step,0.00290948,max_abs_p,1,broadband_db_L,-80.7974,broadband_db_R,-80.1896,clicks_L,0,raw_L,158,ref_L,167,clicks_R,0,raw_R,157,ref_R,166
+7.171 s: BassStereoField_NoZipper
+===============================================================================
+All tests passed (422 assertions in 1 test case)
+
+exit: 0 wall: 7 s
