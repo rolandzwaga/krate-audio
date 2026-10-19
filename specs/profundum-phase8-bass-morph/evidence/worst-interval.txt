@@ -1,0 +1,12 @@
+FR-083 worst simultaneous-transition interval record (tasks.md T014; spec FR-083). Not gated: Phase 9's
+CPU budget rules on it. Run alone, pinned (evidence/close/cpu-lane.sh).
+chain: renderMorphPoly, 4 voices E1=41.2034Hz A1=55Hz E2=82.4069Hz C3=130.813Hz; fs 48000 Hz; 1.5 s; steady (ampEnvelope off); host block 512; anchor morph Blend; ramp 40 ms; position 0 -> 1 at sample 24000
+pair: showcasePair() with Character Tube/0.5 -> Fracture/0.8, ImageMode Solid/0.5 -> Wide/1, FieldMotion Drift/unsynced/0.5 -> Cycle/synced/1, Anchor Sine/Lock/1 -> Triangle/Punch/0.5 (every governing amount non-zero: rule 3)
+timing: steady_clock at the fixture's per-interval hook (tail.perInterval); one delta = one whole interval cycle; includes fixture overhead (linear twin core per voice, tap writes), so an upper bound; 3 renders, per-interval median
+discrete setter issues (sample leaf value): (24992 11 5) (24992 55 1) (24992 56 2) (24992 25 2) (24992 32 1) (24992 33 1)
+all groups at one interval yes; switch sample 24992 (interval 781), position there 0.533333
+intervals 2249; median interval 249100 ns = 37.365 % of one core
+switch window worst (interval 784, sample 25088) 544300 ns = 81.645 % of one core
+render worst (interval 784, sample 25088) 544300 ns = 81.645 % of one core
+around the switch (interval: median ns): 779:229800 780:236400 781:441900 782:479400 783:444600 784:544300 785:446200 786:463300 787:428400 788:459700 789:426800 790:516700 791:444500 792:439900 793:433300 794:447900 795:464000 796:472500 797:439900
+FR083 RECORD worst_interval_pct 81.645 switch_window_pct 81.645 median_pct 37.365 vs Phase 5 crossfade cell 2.65 % (ratio 30.8094)

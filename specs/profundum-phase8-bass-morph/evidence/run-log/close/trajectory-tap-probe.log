@@ -1,0 +1,13 @@
+Filters: "BassMorph_TrajectoryTapProbe"
+Randomness seeded to: 2758515679
+SC008 TAP C3 p 0.85 mode 2 spread 0.85 fc 120 | s2m sum 0.2357 dyn 0.2357 dc 0.17161 stage 0.1715 out 0.19332 | out rms L -7.8815 R -7.6544 | sum rms L -6.069 R -6.9961 | comp GR min 0 | offsets amt 0.1275 tone -0.1275
+SC008 TAP C3 p 0.9 mode 2 spread 0.9 fc 120 | s2m sum 0.75504 dyn 0.75504 dc 0.69602 stage 0.69595 out 0.72333 | out rms L -8.7159 R -8.4097 | sum rms L -6.0576 R -6.5011 | comp GR min 0 | offsets amt 0.135 tone -0.135
+SC008 TAP C3 p 0.95 mode 2 spread 0.95 fc 120 | s2m sum 0.66276 dyn 0.66276 dc 0.6046 stage 0.60456 out 0.62986 | out rms L -9.4866 R -9.0594 | sum rms L -6.0726 R -5.9468 | comp GR min 0 | offsets amt 0.1425 tone -0.1425
+SC008 TAP C3 p 1 mode 2 spread 1 fc 120 | s2m sum 0.059542 dyn 0.059542 dc 0.0022979 stage 0.0022831 out 0.028009 | out rms L -10.181 R -9.6255 | sum rms L -6.1788 R -5.6316 | comp GR min 0 | offsets amt 0.15 tone -0.15
+SC008 TAP E1 p 0.85 mode 2 spread 0.85 fc 120 | s2m sum -1.1012 dyn -1.1012 dc -2.2273 stage -2.2275 out -2.1856 | out rms L -7.36 R -7.4319 | sum rms L -6.264 R -7.5483 | comp GR min 0 | offsets amt 0.1275 tone -0.1275
+SC008 TAP E1 p 0.9 mode 2 spread 0.9 fc 120 | s2m sum -0.39168 dyn -0.39169 dc -1.5232 stage -1.5234 out -1.4178 | out rms L -7.6053 R -7.7197 | sum rms L -6.1364 R -7.3094 | comp GR min 0 | offsets amt 0.135 tone -0.135
+SC008 TAP E1 p 0.95 mode 2 spread 0.95 fc 120 | s2m sum -0.28688 dyn -0.28695 dc -1.4132 stage -1.4134 out -1.1735 | out rms L -8.2585 R -8.4666 | sum rms L -6.0636 R -6.6788 | comp GR min 0 | offsets amt 0.1425 tone -0.1425
+SC008 TAP E1 p 1 mode 2 spread 1 fc 120 | s2m sum -0.57615 dyn -0.57621 dc -1.6873 stage -1.6875 out -1.3041 | out rms L -9.1503 R -9.4473 | sum rms L -6.1411 R -6.0821 | comp GR min 0 | offsets amt 0.15 tone -0.15
+===============================================================================
+All tests passed (411 assertions in 1 test case)
+

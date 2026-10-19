@@ -1,0 +1,7 @@
+SC-018 advanceInterval CPU (tasks.md T014; plan C-15 D-10). Run alone, pinned (evidence/close/cpu-lane.sh).
+workload: seed 0x8018, randomValidPair(rng, 0) redrawn until every leaf differs and no governing amount is 0; draws 1061; fs 48000 Hz; ramp 2000 ms; anchor morph mode Blend (default); target re-set 0 <-> 1 on landing
+calls per repetition 1000000, repetitions 3, warm-up 200000 calls (static intervals 0), re-targets over the run 1066
+repetitions_ns_per_interval 239.124 255.545 189.175
+ns_per_interval 239.124
+% of one core 0.0358686 (bar 0.05 %)
+SC018 VERDICT GREEN 239.124

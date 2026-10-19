@@ -1,0 +1,82 @@
+T009 - Chain criteria (SC-005(a)(d)(e) rendered, SC-006(b), SC-009, SC-010, SC-015, SC-023, SC-024 render, FR-039)
+Date: 2026-10-19. Executor did not build or run (tasks.md rule 1); the Group 8 gate builds dsp_systems_tests and runs
+the per-push cases. The two [long] cases run in the main loop's long lane.
+
+Files written
+  dsp/tests/unit/systems/bass_morph_chain_test.cpp   (T001 stub filled)
+  specs/profundum-phase8-bass-morph/evidence/run-log/T009.txt (this file)
+Evidence files the cases write when run: evidence/sc015-audibility.csv, evidence/amp-envelope-immediate.txt,
+  evidence/sc005-rendered.csv ([long]), evidence/sc005-rendered-smoke.csv (smoke).
+
+Cases (all [systems][profundum][bass-morph] + criterion tag; FTZ / DAZ per case, tasks.md Group 8 header)
+  BassMorph_RecipeDomain [sc-009]                       per-push
+  BassMorph_Global [sc-010]                             per-push
+  BassMorph_Audibility [sc-015]                         per-push
+  BassMorph_DropLatched [sc-023][fr-039]                per-push
+  BassMorph_AmpEnvelopeImmediateApply [fr-039]          per-push
+  BassMorph_EndpointEditMidMorphRender [sc-024]         per-push
+  BassMorph_AnchorCurvesRendered [sc-005][long]         + BassMorph_AnchorCurvesRenderedSmoke [sc-005] (E1, p {0, 1}, 3 modes)
+  BassMorph_IdempotentRender [sc-006][long]             + BassMorph_IdempotentRenderSmoke [sc-006] (pair 0 of seed 0x8066, Blend)
+
+Gate filter for this TU's per-push cases:
+  dsp_systems_tests.exe "[bass-morph]~[performance]~[perf]~[benchmark]~[!benchmark]~[long]~[.]"
+Long lane (main loop): dsp_systems_tests.exe "BassMorph_AnchorCurvesRendered" and "BassMorph_IdempotentRender"
+  (estimated from the T008 probe wall clock, 18 steady renders in 11 s: about 65 renders / ~45 s and 32 renders of
+  7.4 s / ~30 s; both under the ~5 min lane-rule threshold, so no close/ script was written for them).
+
+Decisions
+  1. SC-009(a): the three "no audio member" checks are variable templates over a requires-expression
+     (bmcHasStereoBlock / bmcHasScalarProcess / bmcHasMonoBlock). A requires-expression on a NON-dependent operand
+     is ill-formed (a hard error on GCC / Clang) instead of false, so the literal
+     static_assert(!requires(BassMorphEngine& e, ...) { ... }) of tasks.md would not compile portably. Each
+     detector has a positive control on a real audio member (ProfundumCore::processBlock(L, R, n),
+     DCBlocker::process(float), DropEnvelope::processBlock(x, n)), so a detector that always reads false is caught.
+  2. SC-009(b): convergence = shapeGains() bitwise unchanged for 8 consecutive 32-sample intervals, cap 4 000
+     (REQUIRE). Also CHECKs that shapeOf(resolved recipe) differs from each endpoint's (the p is truly interior).
+     Positive control: crossfade and p = 0.5 read on the core-tap mid over the descriptor read window (settle 1 s,
+     one kLowFrequencyFftSize frame), harmonics 1-16, max |dB difference| >= 1.
+  3. SC-010: showcasePair(), 0 -> 1 Position event at sample 4800, default ramp and amp envelope (the fixture
+     default; the criterion reads only the call grid and the per-voice Resolved). Also CHECKs advanceSamples
+     strictly increasing and that p went 0 -> 1 (the voices are compared across a moving state).
+  4. SC-015: "moves by >= bar" read as signed travel D(1) - D(0) (SC-008(b)'s net-travel definition); D_t as the
+     ratio D_t(1) / D_t(0). D_st reads f_c from each render's resolved field.crossoverHz. Every clause is a CHECK so
+     the CSV and all rows are produced on a red.
+  5. SC-023: the harness applies the four resolved Drop leaves at every grid point (before the trigger at sample 0
+     and at 2.5 s). Teeth: CHECK that the setters were fed values different from A's while the first Drop was
+     active, and that A's and B's trajectories differ. The 2.5 s grid point REQUIREs p == 1 and the four resolved
+     leaves == B's bitwise before the second trigger.
+  6. FR-039 harness: `step` at a grid sample = output of the envelope with that interval's setters minus a copy
+     taken BEFORE them (the twin), processing the same sample; the expected value uses a test-side replication of
+     the decay table phase (adsr_envelope.h:313 increment; :471-474 enterDecay latches phase 0 and the increment)
+     and the same generatePowerCurveTable / lookupCurveTable (core/curve_table.h:65, :177) the envelope uses.
+     logStartLevel = peak = 1 (attack ends at peakLevel_, then enterDecay). Range in (iii) = 1 - sustain (0.5).
+  7. FR-039 cases run in sequence in one TEST_CASE body (not SECTIONs), so amp-envelope-immediate.txt collects
+     the (i)-(iii) rows in one run (with SECTIONs every re-entry would overwrite the file with one row).
+  8. SC-024: maxDeltaAround centre = g_sw + len/2, half-width = ceil(len/2), len = window end - g_sw, so the read
+     covers W = [g_sw, g_sw + transitionEndSamples(CharacterAlgorithm) + ceil(fs/f0)] on transition and reference
+     alike. Differential clicks over [g_sw - 2400, window end] inclusive, refStart = A static (A = B = base),
+     refEnd = A' static (A = B = A'), both at p 0.3. Also CHECKs the resolved algorithm == Fold at the g_sw interval.
+  9. SC-005 rendered: level(p) = the render's resolved anchor.level (last interval); the handed (Mass-biased)
+     level is recorded beside it (Mass 50 -> equal). w1 = Bmt::readWindowHarmonicPowers of the Anchor-tap mid,
+     relative to the p = 0 Lock render. (e) is signed: D_nl(Mass 100) - D_nl(Mass 0) >= 3 dB in Lock.
+ 10. SC-006(b): constrained pairs = randomValidPair(seed 0x8066) then, per side, motionDepth 0, anchor.mode
+     Lock / Follow from one raw mt19937 word (bit 0), dropAmountSt 0. The "A alone" reference is rendered once per
+     pair with A = B = A (at p = 0 the resolved state is A bitwise in every mode, SC-001), reused for the three
+     modes (optimisation: 32 renders instead of 48). t_land = advanceSamples of the first interval at or after the
+     0.75 s event whose resolved position is +0; CHECKs p reached 1 first. Harmonics compared: those within 60 dB of
+     the strongest on EITHER render (the stricter union).
+
+Deviation
+  D1. FR-039 case (iv) (decayMs 50 -> 2000) morphs at 32 ms instead of the harness's 200 ms. A's 50 ms decay runs
+      from ~10 ms to ~60 ms (attack 10 ms default), so a 200 ms morph lands after the Sustain entry and the
+      "bitwise equal until the Sustain entry" clause would assert nothing. At 32 ms the 5 ms ramp (8 intervals)
+      lies inside Decay; the case REQUIREs that the decayMs setter fired more than once and at least once while
+      the stage was Decay. No bar changed.
+
+Failing-first (reasoning; executors do not build)
+  The cases target engine/fixture behaviour already built by T003-T007, so they are expected green against the
+  current tree except where a bar is genuinely unmet; each carries a positive control or a teeth CHECK (decisions
+  1, 2, 3, 5, 8, 10) so a vacuous pass is a red. Known expectation: SC-015's Lock - Blend clause had a +0.68 dB
+  margin in the T008 probe (evidence/coherence-probe.txt, C3/p=1/meas-sc015 0.68183).
+
+No DEFECT lines.

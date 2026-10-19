@@ -1,0 +1,74 @@
+T012 Mono compatibility along the morph (SC-016; FR-085) - 2026-10-19
+
+STATUS: done (test TU written; not built, not run by the executor - the group gate builds dsp_systems_tests and runs
+the Smoke; the four [long] shards are main-loop / close-lane work).
+
+Files written:
+  dsp/tests/unit/systems/bass_morph_monosum_test.cpp (filled the T001 stub)
+  specs/profundum-phase8-bass-morph/evidence/run-log/T012.txt (this file)
+
+Failing-first (reasoning): against the T001 stub no SC-016 case exists, so the gate's [bass-morph] filter runs none
+of them; the cases are pure reads of the T007 fixture (no implementation code belongs to T012).
+
+Compile sanity (not a build of the tree): clang++ -std=c++20 -fsyntax-only -Wall -Wextra -Wshadow -Wconversion
+-Wsign-conversion with dsp/include, tests/test_helpers, dsp/tests, the fetched pffft (include/) and Catch2 include
+dirs: 0 diagnostics in bass_morph_monosum_test.cpp or any Phase 8 header. Warnings only in untouched headers
+(closed_form_adaa2.h:124 -Wshadow, crossover_filter.h:434-435, curve_table.h / harmonic_oscillator_bank.h
+-Wsign-conversion), the set T004 / T007 / T008 recorded.
+
+Cases (all [systems][profundum][bass-morph][sc-016]):
+  BassMorph_MonoSum_E1, BassMorph_MonoSum_C3                                [long]
+  BassMorph_MonoSum_AnchorThroughTail_E1, BassMorph_MonoSum_AnchorThroughTail_C3   [long]
+  BassMorph_MonoSumSmoke (E1, p in {0, 0.5, 1}: both reads + positive control; deviation 5)
+
+Render (every case): BassMorphTest::renderMorphChain, showcasePair() (bass_morph_state_helpers.h:167), mode Blend,
+48 kHz, host block 512, seconds default (descriptorSeconds = 1 s settle + 2^18), default ramp
+(kDefaultPositionRampMs 40, bass_morph_engine.h:69). Static p: initialPosition = p (snapped by prepare's reset()).
+Ramp: initialPosition 0 and a MorphEvent{Position, 1.0} at sample llround(0.25 * 48000) = 12000.
+E1 = ProfundumTest::anchorMidiHz(28), C3 = anchorMidiHz(48). 21 static p = i / 20, i = 0..20.
+
+Decisions:
+  1. ampEnvelope = false (steady render) for every render. showcasePair()'s A has ampEnv sustain 0
+     (bass_morph_state_helpers.h ampEnv.sustain = 0.0f), so an enveloped p = 0 render is silent in the read window;
+     evaluateMonoSumCell would mark its sub band invalid (< -60 dBFS, bass_stereo_field_test_helpers.h kValidMeanEnergy)
+     and monoSumCellPasses would pass vacuously. The C-9 probe uses the same steady render.
+  2. The FieldChainConfig handed to StereoFieldTest::evaluateMonoSumCell: chain.f0 = note f0, chain.fs = 48000,
+     field = resolvedPerInterval.back().state.field (the resolved field at that p; the landed state for the ramp),
+     algorithm = resolvedPerInterval.back().state.characterAlgorithm. The morph chain always runs the character stage
+     (bass_morph_test_helpers.h step 5 / S5.5), so the cell is a nonlinear arm in Phase 7's G8-1 sense
+     (evaluateMonoSumCell sets nonlinearArm = cfg.algorithm.has_value(); octave Q recorded, the anti-phase exemption
+     possible). Per Phase 7 G10-2, subHarmonicInBand = f0 < f_c: at C3 (130.8 Hz) against the default 120 Hz crossover
+     the sub-band gates are recorded, not gated (the helper's semantics, not a T012 choice). Every cell prints and the
+     CSV records pass / antiPhaseExempt / subHarmonicInBand / nonlinearArm so the main loop sees which cells actually
+     gated. SC-016 names only Q_sub and rho, which is what monoSumCellPasses gates.
+  3. Ramp span (the "record which span it covers" clause): evaluateMonoSumCell with field motionDepth 0 (showcase
+     Motion Off on both sides) reads ONE window [kSettleSeconds * fs, end) = [48000, 310144) at 48 kHz
+     (bass_stereo_field_test_helpers.h:1000-1015). The test locates the landing interval (position == 1 and
+     anchorPosition == curve(Blend, 1)), g_sw (first field.mode issue in discreteSetterCalls) and the transition end
+     g_sw + transitionEndSamples(FieldMode) = g_sw + one period + 334 intervals (deviation 10), prints all four, and
+     REQUIREs transitionEnd <= window start, so the landed-field cell reads only the landed WIDE state. Expected:
+     event 12000, ramp 1920 samples, g_sw near 12000 + 0.52 * 1920 ~ 13000, transition end ~ 13000 + 1165 (E1 period)
+     + 10688 ~ 24900 << 48000. The SOLID -> WIDE transition itself is covered by the Anchor tap's bit identity
+     (every sample) and, in AnchorThroughTail, by the whole-render outL == outR print; the ramp row of the CSV carries
+     a "# ramp span" line with the measured samples.
+  4. Assertion style: the Anchor tap bitEqual is a REQUIRE per render (structural). The per-cell monoSumCellPasses and
+     the per-position side-to-mid bar are CHECKs with the readings in INFO, then REQUIRE(failures == 0) after the CSV
+     is written, so a red writes the full 22-row table instead of stopping at the first cell. Same verdict as a REQUIRE.
+  5. AnchorThroughTail: muteCharacter = true; out side-to-mid = StereoFieldTest::bandReading(outL + w.start,
+     outR + w.start, w.length, 48000, 20, 24000).sideToMidDb over BassMorphTest::readWindow (2^18 from 1 s); bar
+     <= StereoFieldTest::kFloorDb (-120). bitEqual(outL, outR) and bitEqual(anchorL, anchorR) printed and in the CSV.
+     Positive control: an unmuted p = 1 render (REQUIRE landed field mode Wide), side-to-mid >= -60 dB (CHECK, counted
+     as a failure). In the Smoke the p = 1 unmuted mono-sum render is reused as the control (no extra render).
+  6. FTZ / DAZ: Krate::DSP::ScopedDenormalMode (core/scoped_denormal_mode.h) per case - set for the scope and restored
+     on exit (rule 9), instead of the bare enableFTZDAZ() of the T007 / T008 TUs.
+  7. Evidence files (deviation from the single name "sc016-monosum-<note>.csv", because the [long] cases run as
+     separate shards and would overwrite one file): BassMorph_MonoSum_<note> writes evidence/sc016-monosum-<note>.csv
+     (note,p,pass,anti_phase_exempt,sub_in_band,nonlinear_arm + StereoFieldTest::monoSumCsvLine's columns, 5 tap rows
+     per render); AnchorThroughTail writes evidence/sc016-monosum-<note>-anchor-tail.csv
+     (note,p,kind,out_side_to_mid_db,out_bit_equal,anchor_bit_equal,pass); the Smoke writes
+     evidence/sc016-monosum-E1-smoke.csv (both tables).
+
+Cost (for the lane planner): each render is 6.46 s of audio, one voice. Smoke = 6 renders. MonoSum_<note> = 22
+renders; AnchorThroughTail_<note> = 23 renders. No toolchain-specific assertion; all four are [long] as tasks.md names.
+
+No DEFECT lines. No file outside the task's list touched.

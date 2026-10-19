@@ -1,0 +1,86 @@
+Filters: "BassMorph_IdempotentRender"
+Randomness seeded to: 3687831298
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+BassMorph_IdempotentRender
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\bass_morph_chain_test.cpp(1059)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_morph_chain_test.cpp(432): FAILED:
+  CHECK( worst <= 0.1 )
+with expansion:
+  0.125715967 <= 0.1
+with message:
+  SC-006(b) pair 2 Lock: worst harmonic delta 0.125716 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_morph_chain_test.cpp(432): FAILED:
+  CHECK( worst <= 0.1 )
+with expansion:
+  0.1257040742 <= 0.1
+with message:
+  SC-006(b) pair 2 Blend: worst harmonic delta 0.125704 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_morph_chain_test.cpp(432): FAILED:
+  CHECK( worst <= 0.1 )
+with expansion:
+  0.1257040812 <= 0.1
+with message:
+  SC-006(b) pair 2 Punch: worst harmonic delta 0.125704 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_morph_chain_test.cpp(432): FAILED:
+  CHECK( worst <= 0.1 )
+with expansion:
+  0.1298330449 <= 0.1
+with message:
+  SC-006(b) pair 6 Lock: worst harmonic delta 0.129833 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_morph_chain_test.cpp(432): FAILED:
+  CHECK( worst <= 0.1 )
+with expansion:
+  0.1288486143 <= 0.1
+with message:
+  SC-006(b) pair 6 Blend: worst harmonic delta 0.128849 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_morph_chain_test.cpp(432): FAILED:
+  CHECK( worst <= 0.1 )
+with expansion:
+  0.1288486143 <= 0.1
+with message:
+  SC-006(b) pair 6 Punch: worst harmonic delta 0.128849 dB
+
+pair,mode,t_land,harmonics_compared,worst_harmonic,worst_delta_dB
+0,Lock,37920,16,3,0.00164172
+0,Blend,37920,16,3,0.00164172
+0,Punch,37920,16,3,0.00164172
+1,Lock,37920,13,7,0.00150366
+1,Blend,37920,13,7,0.00150487
+1,Punch,37920,13,7,0.00150487
+2,Lock,37920,16,16,0.125716
+2,Blend,37920,16,16,0.125704
+2,Punch,37920,16,16,0.125704
+3,Lock,37920,16,4,0.000692744
+3,Blend,37920,16,4,0.000686129
+3,Punch,37920,16,4,0.000686129
+4,Lock,37920,16,11,0.000590781
+4,Blend,37920,16,11,0.000603025
+4,Punch,37920,16,11,0.000602958
+5,Lock,37920,11,5,0.00240963
+5,Blend,37920,11,5,0.00358379
+5,Punch,37920,11,5,0.00358379
+6,Lock,37920,16,11,0.129833
+6,Blend,37920,16,11,0.128849
+6,Punch,37920,16,11,0.128849
+7,Lock,37920,16,1,0.0871108
+7,Blend,37920,16,1,0.0880531
+7,Punch,37920,16,1,0.0880328
+59.181 s: BassMorph_IdempotentRender
+===============================================================================
+test cases:   1 |   0 passed | 1 failed
+assertions: 816 | 810 passed | 6 failed
+
+exit: 6 wall: 59 s

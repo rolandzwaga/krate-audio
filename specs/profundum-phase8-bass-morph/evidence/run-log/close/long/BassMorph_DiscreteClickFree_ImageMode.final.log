@@ -1,0 +1,41 @@
+Filters: "BassMorph_DiscreteClickFree_ImageMode"
+Randomness seeded to: 2996118060
+SC004 image-mode,Solid->Spread,E1,5,12096,1,1,0,0,0,0
+SC004 image-mode,Solid->Spread,E1,40,12992,1,1,0,0,0,0
+SC004 image-mode,Solid->Spread,E1,2000,61888,1,1,0,0,0,0
+SC004 image-mode,Solid->Wide,E1,5,12096,1,1,0,0,0,0
+SC004 image-mode,Solid->Wide,E1,40,12992,1,1,0,0,0,0
+SC004 image-mode,Solid->Wide,E1,2000,61888,1,1,0,0,0,0
+SC004 image-mode,Spread->Solid,E1,5,12096,1,1,0,0,0,0
+SC004 image-mode,Spread->Solid,E1,40,12992,1,1,0,0,0,0
+SC004 image-mode,Spread->Solid,E1,2000,61888,1,1,0,0,0,0
+SC004 image-mode,Spread->Wide,E1,5,12096,1,1,0,0,0,0
+SC004 image-mode,Spread->Wide,E1,40,12992,1,1,0,0,0,0
+SC004 image-mode,Spread->Wide,E1,2000,61888,1,1,0,0,0,0
+SC004 image-mode,Wide->Solid,E1,5,12096,1,1,0,0,0,0
+SC004 image-mode,Wide->Solid,E1,40,12992,1,1,0,0,0,0
+SC004 image-mode,Wide->Solid,E1,2000,61888,1,1,0,0,0,0
+SC004 image-mode,Wide->Spread,E1,5,12096,1,1,0,0,0,0
+SC004 image-mode,Wide->Spread,E1,40,12992,1,1,0,0,0,0
+SC004 image-mode,Wide->Spread,E1,2000,61888,1,1,0,0,0,0
+SC004 image-mode,Solid->Spread,C3,5,12096,1,1,0,0,0,0
+SC004 image-mode,Solid->Spread,C3,40,12992,1,1,0,0,0,0
+SC004 image-mode,Solid->Spread,C3,2000,61888,1,1,0,0,0,0
+SC004 image-mode,Solid->Wide,C3,5,12096,1,1,0,0,0,0
+SC004 image-mode,Solid->Wide,C3,40,12992,1,1,0,0,0,0
+SC004 image-mode,Solid->Wide,C3,2000,61888,1,1,0,0,0,0
+SC004 image-mode,Spread->Solid,C3,5,12096,1,1,0,0,0,0
+SC004 image-mode,Spread->Solid,C3,40,12992,1,1,0,0,0,0
+SC004 image-mode,Spread->Solid,C3,2000,61888,1,1,0,0,0,0
+SC004 image-mode,Spread->Wide,C3,5,12096,1,1,0,0,0,0
+SC004 image-mode,Spread->Wide,C3,40,12992,1,1,0,0,0,0
+SC004 image-mode,Spread->Wide,C3,2000,61888,1,1,0,0,0,0
+SC004 image-mode,Wide->Solid,C3,5,12096,1,1,0,0,0,0
+SC004 image-mode,Wide->Solid,C3,40,12992,1,1,0,0,0,0
+SC004 image-mode,Wide->Solid,C3,2000,61888,1,1,0,0,0,0
+SC004 image-mode,Wide->Spread,C3,5,12096,1,1,0,0,0,0
+SC004 image-mode,Wide->Spread,C3,40,12992,1,1,0,0,0,0
+SC004 image-mode,Wide->Spread,C3,2000,61888,1,1,0,0,0,0
+===============================================================================
+All tests passed (3059 assertions in 1 test case)
+

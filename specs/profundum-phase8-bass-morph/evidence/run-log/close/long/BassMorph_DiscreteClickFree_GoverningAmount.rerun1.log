@@ -1,0 +1,73 @@
+Filters: "BassMorph_DiscreteClickFree_GoverningAmount"
+Randomness seeded to: 3829738378
+SC004 governing-amount,Character Tube/0->Fold/0.8 zeroA rise,E1,40,12000,0.999976,0.999976,0,0,0,0
+SC004 governing-amount,Character Tube/0->Fold/0.8 zeroA fall,E1,40,23488,1,1,0,0,0,0
+SC004 governing-amount,Character Tube/0->Fold/0.8 zeroA rise,C3,40,12000,1.04308,1.04469,0,0,0,0
+SC004 governing-amount,Character Tube/0->Fold/0.8 zeroA fall,C3,40,21888,0.999989,0.999988,0,0,0,0
+SC004 governing-amount,Character Tube/0->Fold/0.8 zeroB rise,E1,40,13920,1,1,0,0,0,0
+SC004 governing-amount,Character Tube/0->Fold/0.8 zeroB fall,E1,40,21568,0.705508,0.705495,0,0,0,0
+SC004 governing-amount,Character Tube/0->Fold/0.8 zeroB rise,C3,40,13920,1,1,0,0,0,0
+SC004 governing-amount,Character Tube/0->Fold/0.8 zeroB fall,C3,40,19968,1.05863,1.05823,0,0,0,0
+SC004 governing-amount,ImageMode Solid/0->Wide/1 zeroA rise,E1,40,12000,0.925513,1.06803,0,0,0,0
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+BassMorph_DiscreteClickFree_GoverningAmount
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\bass_morph_click_test.cpp(767)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_morph_click_test.cpp(486): FAILED:
+  CHECK( c.ratioR <= bmcStepBar() )
+with expansion:
+  1.0680299094 <= 1.0592537252
+with messages:
+  row ImageMode Solid/0->Wide/1 zeroA, note E1, up 12000, down 31776, total
+  49146
+  setter calls 2, expected rise at 12000, fall at 33696
+  family governing-amount, pair ImageMode Solid/0->Wide/1 zeroA rise, note E1,
+  ramp 40 ms, g_sw 12000, ratio L 0.925513, ratio R 1.06803 (bar 1.05925),
+  clicks L 0, clicks R 0 (reference's own 0 / 0)
+
+SC004 governing-amount,ImageMode Solid/0->Wide/1 zeroA fall,E1,40,33696,1,0.999999,0,0,0,0
+SC004 governing-amount,ImageMode Solid/0->Wide/1 zeroA rise,C3,40,12000,1.0065,0.95796,0,0,0,0
+SC004 governing-amount,ImageMode Solid/0->Wide/1 zeroA fall,C3,40,32096,1,0.999999,0,0,0,0
+SC004 governing-amount,ImageMode Solid/0->Wide/1 zeroB rise,E1,40,13920,0.999999,0.999999,0,0,0,0
+SC004 governing-amount,ImageMode Solid/0->Wide/1 zeroB fall,E1,40,31776,0.928901,1.07088,0,0,0,0
+F:\projects\iterum\dsp\tests\unit\systems\bass_morph_click_test.cpp(486): FAILED:
+  CHECK( c.ratioR <= bmcStepBar() )
+with expansion:
+  1.0708755003 <= 1.0592537252
+with messages:
+  row ImageMode Solid/0->Wide/1 zeroB, note E1, up 12000, down 31776, total
+  49146
+  setter calls 2, expected rise at 13920, fall at 31776
+  family governing-amount, pair ImageMode Solid/0->Wide/1 zeroB fall, note E1,
+  ramp 40 ms, g_sw 31776, ratio L 0.928901, ratio R 1.07088 (bar 1.05925),
+  clicks L 0, clicks R 0 (reference's own 0 / 0)
+
+SC004 governing-amount,ImageMode Solid/0->Wide/1 zeroB rise,C3,40,13920,0.999999,1,0,0,0,0
+SC004 governing-amount,ImageMode Solid/0->Wide/1 zeroB fall,C3,40,30176,1.00362,0.952266,0,0,0,0
+SC004 governing-amount,AnchorWaveform Sine/0->Triangle/0.7 zeroA rise,E1,40,12000,1,1,0,0,0,0
+SC004 governing-amount,AnchorWaveform Sine/0->Triangle/0.7 zeroA fall,E1,40,22080,1,1,0,0,0,0
+SC004 governing-amount,AnchorWaveform Sine/0->Triangle/0.7 zeroA rise,C3,40,12000,1.00025,1.00025,0,0,0,0
+SC004 governing-amount,AnchorWaveform Sine/0->Triangle/0.7 zeroA fall,C3,40,21280,1,1,0,0,0,0
+SC004 governing-amount,AnchorWaveform Sine/0->Triangle/0.7 zeroB rise,E1,40,13920,1,1.00001,0,0,0,0
+SC004 governing-amount,AnchorWaveform Sine/0->Triangle/0.7 zeroB fall,E1,40,20160,1,1,0,0,0,0
+SC004 governing-amount,AnchorWaveform Sine/0->Triangle/0.7 zeroB rise,C3,40,13920,1,1,0,0,0,0
+SC004 governing-amount,AnchorWaveform Sine/0->Triangle/0.7 zeroB fall,C3,40,19360,1.00031,1.00031,0,0,0,0
+SC004 governing-amount,AnchorMode Lock/0->Punch/0.7 zeroA rise,E1,40,12000,1,1,0,0,0,0
+SC004 governing-amount,AnchorMode Lock/0->Punch/0.7 zeroA fall,E1,40,22080,1,1,0,0,0,0
+SC004 governing-amount,AnchorMode Lock/0->Punch/0.7 zeroA rise,C3,40,12000,1,1,0,0,0,0
+SC004 governing-amount,AnchorMode Lock/0->Punch/0.7 zeroA fall,C3,40,21280,1,1,0,0,0,0
+SC004 governing-amount,AnchorMode Lock/0->Punch/0.7 zeroB rise,E1,40,13920,1,1,0,0,0,0
+SC004 governing-amount,AnchorMode Lock/0->Punch/0.7 zeroB fall,E1,40,20160,1,1,0,0,0,0
+SC004 governing-amount,AnchorMode Lock/0->Punch/0.7 zeroB rise,C3,40,13920,1,1,0,0,0,0
+SC004 governing-amount,AnchorMode Lock/0->Punch/0.7 zeroB fall,C3,40,19360,1,1,0,0,0,0
+===============================================================================
+test cases:    1 |    0 passed | 1 failed
+assertions: 2378 | 2376 passed | 2 failed
+

@@ -1,0 +1,5 @@
+FR-039 amp envelope immediate apply (tasks.md T009 case 5; plan S4.10). 48 kHz, ramp 5 ms, gate on at 0. Ratio = max|dg| / (10^(0.5/20) * static-A max|dg|) over the same window: recorded for Phase 9, not gated.
+case,window_start,window_end,max_abs_dg,static_ref_max_abs_dg,ratio
+(i) sustain 0->0.8 in Decay,9600,10112,0.0618928,1.46627e-05,3984.97
+(ii) sustain 0->0.8 in Sustain,144000,153600,0.00447726,0,n/a (static reference flat)
+(iii) decayCurve 0.7->-0.7 in Decay,9600,10112,0.0698223,5.96046e-08,1.10589e+06

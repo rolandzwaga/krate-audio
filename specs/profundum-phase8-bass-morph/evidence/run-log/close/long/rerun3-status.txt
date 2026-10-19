@@ -1,0 +1,6 @@
+BassMorph_ShowcaseTrajectory_Lock_C3 exit=0 wall=39s
+BassMorph_ShowcaseTrajectory_Lock_E1 exit=0 wall=41s
+BassMorph_ShowcaseTrajectory_Blend_C3 exit=0 wall=61s
+BassMorph_ShowcaseTrajectory_Blend_E1 exit=0 wall=63s
+BassMorph_ShowcaseTrajectory_Punch_C3 exit=0 wall=81s
+BassMorph_ShowcaseTrajectory_Punch_E1 exit=0 wall=84s

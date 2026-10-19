@@ -1,0 +1,36 @@
+=== SC-018 / FR-083 cpu lane 2026-10-19T18:35:20Z commit 964045a4
+--- cmd: pwsh -NoProfile -File tools/pin-perf-cores.ps1 -Exe build/windows-x64-release/bin/Release/dsp_systems_tests.exe -ExeArgs "BassMorph_Cpu"
+pin-perf-cores: performance-core mask 0xFFFF
+Filters: "BassMorph_Cpu"
+Randomness seeded to: 1230683530
+SC-018 advanceInterval CPU (tasks.md T014; plan C-15 D-10). Run alone, pinned (evidence/close/cpu-lane.sh).
+workload: seed 0x8018, randomValidPair(rng, 0) redrawn until every leaf differs and no governing amount is 0; draws 1061; fs 48000 Hz; ramp 2000 ms; anchor morph mode Blend (default); target re-set 0 <-> 1 on landing
+calls per repetition 1000000, repetitions 3, warm-up 200000 calls (static intervals 0), re-targets over the run 1066
+repetitions_ns_per_interval 239.124 255.545 189.175
+ns_per_interval 239.124
+% of one core 0.0358686 (bar 0.05 %)
+SC018 VERDICT GREEN 239.124
+===============================================================================
+All tests passed (2126 assertions in 1 test case)
+
+--- BassMorph_Cpu exit: 0 wall: 2 s
+--- cmd: pwsh -NoProfile -File tools/pin-perf-cores.ps1 -Exe build/windows-x64-release/bin/Release/dsp_systems_tests.exe -ExeArgs "BassMorph_WorstTransitionIntervalRecord"
+pin-perf-cores: performance-core mask 0xFFFF
+Filters: "BassMorph_WorstTransitionIntervalRecord"
+Randomness seeded to: 826504782
+FR-083 worst simultaneous-transition interval record (tasks.md T014; spec FR-083). Not gated: Phase 9's
+CPU budget rules on it. Run alone, pinned (evidence/close/cpu-lane.sh).
+chain: renderMorphPoly, 4 voices E1=41.2034Hz A1=55Hz E2=82.4069Hz C3=130.813Hz; fs 48000 Hz; 1.5 s; steady (ampEnvelope off); host block 512; anchor morph Blend; ramp 40 ms; position 0 -> 1 at sample 24000
+pair: showcasePair() with Character Tube/0.5 -> Fracture/0.8, ImageMode Solid/0.5 -> Wide/1, FieldMotion Drift/unsynced/0.5 -> Cycle/synced/1, Anchor Sine/Lock/1 -> Triangle/Punch/0.5 (every governing amount non-zero: rule 3)
+timing: steady_clock at the fixture's per-interval hook (tail.perInterval); one delta = one whole interval cycle; includes fixture overhead (linear twin core per voice, tap writes), so an upper bound; 3 renders, per-interval median
+discrete setter issues (sample leaf value): (24992 11 5) (24992 55 1) (24992 56 2) (24992 25 2) (24992 32 1) (24992 33 1)
+all groups at one interval yes; switch sample 24992 (interval 781), position there 0.533333
+intervals 2249; median interval 249100 ns = 37.365 % of one core
+switch window worst (interval 784, sample 25088) 544300 ns = 81.645 % of one core
+render worst (interval 784, sample 25088) 544300 ns = 81.645 % of one core
+around the switch (interval: median ns): 779:229800 780:236400 781:441900 782:479400 783:444600 784:544300 785:446200 786:463300 787:428400 788:459700 789:426800 790:516700 791:444500 792:439900 793:433300 794:447900 795:464000 796:472500 797:439900
+FR083 RECORD worst_interval_pct 81.645 switch_window_pct 81.645 median_pct 37.365 vs Phase 5 crossfade cell 2.65 % (ratio 30.8094)
+===============================================================================
+All tests passed (75 assertions in 1 test case)
+
+--- BassMorph_WorstTransitionIntervalRecord exit: 0 wall: 3 s

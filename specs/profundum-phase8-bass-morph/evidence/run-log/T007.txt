@@ -1,0 +1,129 @@
+T007 The render fixture bass_morph_test_helpers.h and its self-tests (FR-070, FR-071; plan S5, S7.3, C-11;
+deviations 9, 10) - 2026-10-19
+
+STATUS: done (not built, not run: the group's build agent builds dsp_systems_tests and runs the gate filter).
+
+Order: bass_morph_helpers_test.cpp (the five self-tests) written against the fixture's API first, then
+bass_morph_test_helpers.h. Both files re-read. Extra compile sanity (not a build of the tree): clang++ -std=c++20
+-fsyntax-only -Wall -Wextra on bass_morph_helpers_test.cpp with dsp/include, tests/test_helpers, the fetched pffft
+and Catch2 include dirs: no diagnostic in any Phase 8 file; the only two warnings are crossover_filter.h:434-435
+-Wdefaulted-function-deleted (untouched header, the pair T004 / T005 recorded). One -Wmissing-designated-field-
+initializers on a ChainConfig designated initialiser in the new TU was removed (plain member assignments).
+
+Failing-first evidence (reasoning, executors do not build): against the T001 stub every new case fails to COMPILE:
+bass_morph_test_helpers.h did not exist, so renderMorphChain, MorphChainConfig, the readers and
+transitionEndSamples were undeclared.
+
+Files written:
+  dsp/tests/unit/systems/bass_morph_test_helpers.h (new; namespace Krate::DSP::BassMorphTest; includes
+      bass_morph_state_helpers.h, bass_stereo_field_test_helpers.h, profundum_core_test_helpers.h,
+      anchor_oscillator_test_helpers.h, ../processors/shape_character_metric_helpers.h, <allocation_detector.h>,
+      <k_weighting.h>, adsr_envelope.h, drop_envelope.h; every Phase 6 / 7 helper header read-only, untouched)
+    - constants: kGrid (static_assert == BassMorphEngine::kControlInterval == StereoFieldTest::kGrid);
+      kPanSlewIntervals = 334 (static_assert: 334 * kMaxPanStepPerInterval >= 1 > 333 * it, bass_stereo_field.h:77);
+      kAnchorLevelRowIndex found by row.target == AnchorLevel (never a literal index); leafIndex(name) over
+      kFieldTable and kLeaf* constants for the recorded discrete leaves (static_assert each exists); AmpEnvLeaf.
+    - MorphEvent, MorphChainConfig exactly as plan S5.2 (muteCharacter, drop included); MorphChainTaps as S5.2 plus
+      std::array<std::size_t, 7> ampEnvSetterCalls{} (deviation 9).
+    - baseFor(const MorphState&) (S5.3), anchorLevelFor(Resolved) = evaluateRow(kRows[AnchorLevel], anchorMass,
+      anchor.level) (FR-054).
+    - renderMorphChain(cfg) / renderMorphPoly(f0s, common): one shared implementation renderMorphVoices.
+      Construction S5.3: engine setEndpoint x2, setPositionRampMs, setAnchorMorphMode, setPosition, prepare,
+      r0 = resolved(); per voice ShapeMorph (setShape, setFundamentalHz) and BassCharacterStage (setAlgorithm,
+      setAmount, setTone, setFundamentalHz) configured BEFORE prepare(fs, 512); HarmonicFold prepared then keyed;
+      core / Anchor / Drop prepared then given r0; ADSR prepared (its seven leaves applied and counted at the first
+      interval); the field through a FieldChainConfig copy of cfg.tail with field = r0.state.field, fieldAt cleared,
+      passed to StereoFieldTest::makeField; MassLaw prepare / setBase(baseFor(r0)) / setMass / reset;
+      MassDynamicsTest::makeChainDynamics with shaperAttackDb / SustainDb from r0.
+      Per grid point, steps 1-11 of plan S5.4 in order (events + exactly one advanceInterval; Mass split; core
+      controls + excitation; Fold + SHAPE; setAlgorithm only on change, recorded; Anchor setControls with the
+      Mass-biased level, waveform / mode changes recorded; feed target; Drop setters; ADSR change-only by bit
+      compare, counted; field setControls (+ cfg.tail.perInterval hook) + advanceControl, mode and the four motion
+      selectors recorded on change, pan vector -> setPartialPanOffsets, wideOffsets(resolved algorithm) ->
+      setChannelOffsets; MassDynamics setters and a1Next = unbiasedH1Amplitude(resolved recipe, fNow, fs); note-on /
+      note-off). Per block S5.5: Drop f0 track when cfg.drop (else f0p = nullptr); core -> ShapeMorph -> + feed
+      ramped linearly across the interval from the previous value (C-11) -> Fold -> character; ADSR gain on
+      character AND anchor only with ampEnvelope; muteCharacter after the tap; StereoFieldTest::processFieldTail.
+      REQUIRE(noteOnSample % 32 == 0). Records resolvedPerInterval, anchorLevelHanded, advanceSamples,
+      discreteSetterCalls, ampEnvSetterCalls, and the FieldChainTaps per-interval records (vector, offsets,
+      crossovers, Anchor controls, Mass, targets, a1, delivered h1) of the lowest voice. renderMorphPoly fills
+      perVoiceResolved[v] from engine.resolved() at every grid point; one shared tail keyed by the lowest voice.
+    - readers (S5.7): readWindow, midOf, dCxDb (taps and channel-pair overloads), dNlDb, dStDb, dBrOct, lKDb,
+      eSubDb(L, R, f0, fs), dTMs (taps and channel-pair overloads; REQUIREs the 80 dB fall-off), periodEnergies,
+      fallOff, gateRender(cfg) (note-on 0, note-off floor(fs)/32*32, length note-off + 2 s extended by 1 s up to
+      12 s, FAIL with the reading printed).
+    - TransitionKind + transitionEndSamples(kind, f0, fs) (deviation 10): CharacterAlgorithm -> ceil(fs/f0) +
+      round(0.010 fs); AnchorWaveform / AnchorMode -> round(0.005 fs); FieldMode / FieldMotion -> ceil(fs/f0) +
+      334 * 32 samples, all measured from the switch grid sample g_sw.
+  dsp/tests/unit/systems/bass_morph_helpers_test.cpp (stub filled; [systems][profundum][bass-morph][fr-070];
+      enableFTZDAZ() per render case)
+    1 BassMorphHelpers_StaticEqualsFieldChain
+    2 BassMorphHelpers_GridCalls [sc-010]
+    3 BassMorphHelpers_ChangeOnlyEnvelopeSetters
+    4 BassMorphHelpers_DescriptorsOnSines
+    5 BassMorphHelpers_MuteCharacterKeepsTail [sc-016]
+
+Case 1 mapping (showcase B -> FieldChainConfig, bass_stereo_field_test_helpers.h:114-135):
+    recipe kGrowl, edge 1       -> chain.base = B.recipe
+    excitation 1 / 1 / 0.5      -> excitation = B.excitation
+    Fold 80                     -> foldAmount = nullopt; chain.lawBase = baseFor(B) (depth, body, foldAmount 80,
+                                   anchorLevel 0.7; the rest Targets{}); at Mass 50 the law returns the base
+    SHAPE 1                     -> shapeOn = true, shape = 1
+    character Fold / 0.8 / 0.8  -> algorithm = Fold, characterAmount = 0.8, characterTone = 0.8
+    field WIDE, Spread 1        -> field = B.field (the rest Controls{})
+    Mass 50                     -> chain.massAt empty (50)
+    transient shaper            -> chain.shaperAttackDb / SustainDb = B's (the defaults)
+    Anchor Sine / Lock / 0.7    -> what renderFieldChain hard-codes: anchorControlsFor(t.anchorLevel) = Sine, Lock,
+                                   Controls{} punch / ghost; B's anchor equals it (REQUIREd leaf by leaf)
+    Drop 0, feed 0, no ADSR     -> what renderFieldChain hard-codes (no Drop, no feed, no envelope): B has Drop 0 and
+                                   feed 0 (REQUIREd); the morph render runs with ampEnvelope = false
+    E1 (anchorMidiHz(28)), 48 kHz, 1.5 s, host block 512, note-on 0 on both.
+    Bar: max |delta| <= TestUtils::kSampleTolerance (5e-4, render_fingerprint.h:58) on characterL/R, sumL/R, outL/R.
+
+Decisions recorded (also in the header banner):
+  D1 Field voice-state reset at the note-on interval runs in step 9 immediately before that voice's pan query (the
+     Phase 7 Reset-exemption order, bass_stereo_field_test_helpers.h:363-376); the other step-11 note-on calls stay
+     in step 11. ProfundumCore::noteOn (profundum_core.h:208-213) and AnchorOscillator::noteOn are deferred to the
+     next block, so their place inside the grid point does not change the render.
+  D2 With cfg.drop, fNow at a grid point (Fold f0, detector key, a1) is the voice's previous-sample f0,
+     f0 * 2^(DropEnvelope::currentOffset() / 12) (drop_envelope.h:148; idle -> f0). The block's per-sample track is
+     produced after step 11's trigger, so the core, Anchor, ShapeMorph and character see it sample-exact.
+  D3 ADSR setters run every interval (change-only) whatever ampEnvelope is; with ampEnvelope off the envelope is
+     never processed and nothing is multiplied (unity, bitwise). The first interval applies all seven; the
+     construction step does not call them, so case 3's unchanged leaves count exactly 1.
+  D4 muteCharacter overwrites the block's character tap with -0.0f (the IEEE additive identity) around the
+     processFieldTail call and restores it afterwards, so sum == anchor bitwise including signed zeros.
+  D5 The fold-feed add is skipped in an interval whose previous and current feed are both zero (a no-op add), so a
+     feed-0 render's Fold input is bitwise the Phase 7 chain's.
+  D6 Harmonic-power readers (dCxDb, dNlDb, dBrOct) and dStDb read the full kLowFrequencyFftSize frame from the
+     settle point (ProfundumTest::renderedHarmonicPowers takes exactly one frame; bandReading a power-of-two
+     window). eSubDb trims the read window to whole periods and averages the subBand trace entries whose window
+     lies inside it; subBand runs from sample 0 so the low-pass has settled by the read window.
+  D7 renderMorphChain / renderMorphPoly REQUIRE cfg.tail.f0At, generatorGravity and forceSubCentre unset (the
+     fixture owns the f0 track); cfg.tail.perInterval, bypassField / bypassHandsVector, the probe overrides,
+     perSampleStage, chain.attachAnchor, chain.preDynamicsGainDb, chain.configureDynamics and
+     chain.perSampleDynamicsTaps are honoured as in renderFieldChain.
+  D8 discreteSetterCalls also records changes of the four field.motion* selectors (cycleSync as 0 / 1), with the
+     kFieldTable leaf index; a mode-only pair records nothing extra.
+
+DEVIATION (case 4, eSubDb expected value - surface it):
+  tasks.md T007 case 4 says eSubDb of a sine of amplitude a "equals 20*log10(a/sqrt2) within 0.05 dB". The reader
+  is the spec's (mean of MassDynamicsTest::subBand(...).lpRmsDb, spec descriptor block E_sub; plan S5.7), and
+  subBand's level is the RMS of a 4th-order Butterworth low-pass at 1.5*f0 (mass_dynamics_test_helpers.h:604-608,
+  biquad.h:427-436 setButterworth, RBJ bilinear with prewarp). That filter passes f0 at |H| = 1/sqrt(1 + (2/3)^8)
+  = -0.166 dB, so the reader as specified reads 20*log10(a/sqrt2) - 0.166 dB on a pure sine: the bar as written
+  cannot hold (0.166 > 0.05) for any correct implementation of the specified reader. The test keeps the reader
+  exactly as specified and the 0.05 dB tolerance, and puts the filter's analytic gain into the expected value:
+  expected = 20*log10(a/sqrt2) + 20*log10|H(f0)|, |H| the prewarped analog Butterworth magnitude
+  1/sqrt(1 + Omega^8), Omega = tan(pi f0/fs) / tan(pi fc/fs), fc = float(1.5 f0). No tolerance is relaxed and no
+  gate reads absolute E_sub (SC-005(a), SC-008(d), SC-015 compare E_sub against E_sub, where the constant cancels).
+  If the main loop prefers the reader to compensate |H(f0)| instead, that is a one-line change in eSubDb and the
+  test's expected value returns to 20*log10(a/sqrt2).
+
+Not run (by instruction). Predicted risks for the build agent:
+  - case 1: any setter-order effect beyond kSampleTolerance would show here first (the morph fixture re-issues
+    setExcitation / setAmount / setTone / setShape / setTransient*Db with unchanged values every interval; each is a
+    re-target to the same value per the read sources: profundum_core.h:356-366 + latchExcitation :964-975,
+    bass_character_stage.h:258-270, shape_morph.h:194-199).
+  - case 4 dCxDb: renderedHarmonicPowers uses the float FFT (low_frequency_metrics.h:118); the -100 dB bar on a
+    pure sine has an estimated ~6 dB margin over the float round-off summed across ~580 harmonic main lobes.

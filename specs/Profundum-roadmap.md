@@ -572,6 +572,42 @@ safety stage; MOTION rate and depth bounded; CPU ≤ 0.5 % global.
 
 ### Phase 8: Bass Morph
 
+**Status: ✅ COMPLETE (2026-10-19)** — see specs/profundum-phase8-bass-morph/compliance.md (80 pass, 0 partial, 0 fail after the
+build rulings). Built on branch `synth/profundum`. `MorphState` (L3, `systems/morph_state.h`): 19 members, 62 leaf fields
+(the four earlier `Controls` structs by value plus Fold, SHAPE, Character, Drop, `AmpEnvelopeFields`, `MotionConfig`, Mass and
+transient gains, Anchor and `anchorFoldFeed`), a 62-row field-descriptor table (law, axis, group, range, byte offset) that the
+serializer and the resolver both read, 201-byte versioned little-endian serialisation, `isValidMorphState`.
+`BassMorphEngine` (L3, `systems/bass_morph_engine.h`): A / B by value through whole-endpoint `setEndpoint` (Q8), a
+rate-limited position (user ramp 5–2000 ms, default 40 ms, Q3; 0.5·ulp(p) term in the step bar, B3-1), laws evaluated in
+double and rounded once (C-4): linear / logarithmic (frequencies and times, incl. the stereo crossover) / equal-power /
+stepped; stepped fields select per governing-amount group (Q1 amount-aware selection, C-2: Character, ImageMode, FieldMotion,
+Motion at p, Anchor at p_a) with 0.52 / 0.48 hysteresis and identity by selection at 0 / 1; Anchor morph modes Lock (whole
+Anchor block held at A, Q5) / Blend / Punch (p³ fixed, Q6) on p_a with `anchorMass` (FR-054); a 20-byte runtime blob
+(target, ramped p and p_a, mode, ramp time, group-mask and Anchor selections) restored without reset; no audio path.
+Showcase pair B harvested (B7-2, 96 candidates × 3 runs): kHeavy edge 1, Fold 80, SHAPE 0.5, Tone 0.8, Character Amount
+0.5, Anchor level 0.5. Rulings beyond the eight at specify: C-2, C-4, C-16, deviation 10, B3-1, B7-1 (floor at the resolved
+Anchor level), B7-2, B9-1 (Mass morph gated on Phase 6's SC-011 bar), B10-1 (clicks ≤ the direct-setter reference's own),
+B10-2, B10-3 (SC-006(b) pairs constrain A's Fold to the soft regime), B10-4 (D_st on the core tap, D_t on the sum tap); reader
+refinements (E_sub on f₀, D_nl against a linear twin core, −60 dB relative descriptor floors, Phase 7 band validity on the
+core-tap D_st, 8-period SC-017(b) window), all in the spec's Clarifications. CPU: `advanceInterval` 239 ns per interval
+(0.036 % of a core, bar 0.05 %).
+
+**Phase 9 / 11 / 12 handoff (evidence/phase-handoffs.txt; FR-083):** (1) `advanceInterval` once per 32-sample grid point,
+before `BassStereoField::advanceControl` and every voice's setters; (2) the FR-054 Mass split: `MassLaw`'s AnchorLevel row at
+`anchorMass`, every other row at `mass`; (3) change-only setters for the amp-envelope curves (`ADSREnvelope::setAttackCurve`
+rebuilds a table); (4) `AmpEnvelopeFields` / `MotionConfig` are final for version 1 — Phase 9 appends under a version bump
+and records any field it cannot realise; (5) the worst transition interval with all four groups switching at 4 voices measured
+81.6 % of a core (fixture overhead included, 30.8× Phase 5's 2.65 % crossfade cell) — Phase 9 rules against its 8 % / 25 %
+ceilings; (6) MotionConfig selectors' click-free gate is Phase 9's once the Motion component exists; (7) Drop morphs act on
+the next note; (8) join-point finding: the nonlinear chain regenerates a fundamental whose phase against the Anchor rotates
+with settings and note (θ −149° … +179°, 0.27–8.3× the Anchor), Phase 3's "add coherently" holds at the core tap only; (9)
+component switch clicks the morph does not add (Fracture → Crush / Rectify at C3; OctaveDownSine → X at E1, 5 ms ramp); (10)
+HarmonicFold's detector hysteresis latches a path-dependent envelope above kSoftEnd (0.13 dB on upper harmonics, non-decaying);
+(11) the true-peak limiter engages from p ≈ 0.8 on the showcase at Mass 50 and the WIDE output's side already equals its mid —
+engine-level monotone claims read the sum / core taps; (12) Phase 11: 422 bytes of state per instance, restore order
+`setEndpoint` × 2 then `restoreRuntime`, Edit A / Edit B routing, IDs 100–199 and 1000–1099; (13) Phase 12: the law table and
+the Anchor curves are "what the user sees while morphing"; while Lock is active B's Anchor edits are stored but inaudible.
+
 **Spec:** `profundum-phase8-bass-morph`
 **Goal:** The killer feature — travel between two complete bass identities while the fundamental
 never disappears.
