@@ -1,0 +1,4 @@
+crossover_hz,samples,ms,decayed_within_1s
+60,30001,625.021,yes
+120,855,17.8125,yes
+250,402,8.375,yes

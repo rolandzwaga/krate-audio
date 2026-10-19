@@ -1,0 +1,110 @@
+T015 run-log (2026-10-18) - harvest lane and paste script (plan S9.1 / S9.2, C-13; deviations 4, 7)
+
+## Files written
+- specs/profundum-phase7-stereo-field/evidence/close/harvest.sh (Git Bash; structure of the Phase 6 harvest.sh)
+- specs/profundum-phase7-stereo-field/evidence/close/paste-harvest.js (CommonJS, no deps; Phase 6 paste-harvest.js structure)
+- specs/profundum-phase7-stereo-field/evidence/close/aggregate-harvest.js (CommonJS, no deps)
+- bass_stereo_field.h NOT edited by this task: the HARVEST-BEGIN/END wide-floor block (:84-87) still holds the seeds
+  (kSideFloorGain 0.5f, kWideOffsetScale 1.0f); harvest.sh steps 3 and 5 paste into it through paste-harvest.js.
+
+## Decisions
+- Step 4 names come from `dsp_systems_tests.exe --list-tests "[stereo-field-harvest]"` (sed over the indented name
+  lines). Checked on the current exe: 14 BassStereoField_SideFloorHarvest_<Arm> + BassStereoField_SideFloorLeverHarvest.
+  The shard count is passed to the aggregator as --expect-shards (not hand-kept).
+- aggregate-harvest.js wide-scale writes harvest-wide-floor.txt with the chosen K_wide and the committed
+  kSideFloorGain token read from the header; side-floor rewrites it with the chosen g_floor and the committed
+  kWideOffsetScale token, and refuses (exit 1) when any shard's side-floor-config K_wide differs from the committed
+  constant (step 3 paste + rebuild not taken), a shard lacks a candidate, the shard count is off or the lever is absent.
+- The C-13 escalation check: STOP AND SURFACE (exit 3, table printed, nothing written) when no K in {1, 0.75, 0.5}
+  passes, or no g in {0.71 .. 0.1} passes in every shard AND the lever. harvest.sh exits 3 on either.
+- paste-harvest.js validates both the evidence block and the existing header block (exactly the two constants, in
+  order kSideFloorGain, kWideOffsetScale; finite f-suffixed literals; 0 < g < 1, 0 < K <= 1), all-or-nothing write,
+  keeps EOL style and indentation, replaces the seed trailing comments with one
+  "// harvested <date> from evidence/harvest-wide-floor.txt (plan S9.1)" line after the BEGIN marker (not stacked).
+  Checked on a scratch copy of the real header: only lines 85-86 change (paste-harvest summary: kSideFloorGain 0.5f -> 0.35f, kWideOffsetScale 1.0f -> 0.75f on the synthetic evidence; scratch copy deleted).
+- Step 6 runs the six named cases and the per-push filter concurrently (7 processes), collected into
+  evidence/run-log/close/harvest-step6-cases.log, one summary line each (Phase 6 pattern).
+- Lane estimate: T013 notes the step-4 shard is 216 depth-0 chain renders (Gravity 0 only, deviation 7) plus 7
+  restages each, not 648; estimate from the HARVEST-CELL wall clocks the harvest prints.
+
+## bash -n harvest.sh
+exit: 0
+
+## node paste-harvest.js --self-test
+PASS good file -> exit 0, pair pasted, markers, indentation and neighbours kept -- exit 0
+PASS re-paste -> exit 0, harvested comment replaced not stacked -- exit 0, comments 1
+PASS CRLF header -> exit 0, CRLF kept -- exit 0
+PASS missing HARVEST-END marker -> exit 1, nothing written -- exit 1: paste-harvest: dsp/include/krate/dsp/systems/bass_stereo_field.h: "// HARVEST-END wide-floor" occurs 0 times, expected exactly 1
+PASS duplicated HARVEST-BEGIN marker -> exit 1, nothing written -- exit 1: paste-harvest: dsp/include/krate/dsp/systems/bass_stereo_field.h: "// HARVEST-BEGIN wide-floor" occurs 2 times, expected exactly 1
+PASS duplicated BEGIN-INITIALIZER in evidence -> exit 1, nothing written -- exit 1: paste-harvest: <tmp>/case4\specs\profundum-phase7-stereo-field\evidence\harvest-wide-floor.txt: BEGIN/END-INITIALIZER wide-floor occur 2/1 times, expected exactly 1 each
+PASS evidence block with 1 line -> exit 1, nothing written -- exit 1: paste-harvest: <tmp>/case5\specs\profundum-phase7-stereo-field\evidence\harvest-wide-floor.txt: 1 lines for wide-floor, expected 2
+PASS evidence block with 3 lines -> exit 1, nothing written -- exit 1: paste-harvest: <tmp>/case6\specs\profundum-phase7-stereo-field\evidence\harvest-wide-floor.txt: 3 lines for wide-floor, expected 2
+PASS header block with 3 lines -> exit 1, nothing written -- exit 1: paste-harvest: dsp/include/krate/dsp/systems/bass_stereo_field.h: 3 lines between the wide-floor markers (besides the harvested comment), expected 2
+PASS malformed value (missing f suffix) -> exit 1, nothing written -- exit 1: paste-harvest: <tmp>/case8\specs\profundum-phase7-stereo-field\evidence\harvest-wide-floor.txt wide-floor[0]: malformed value "0.25" (expected a finite float literal with an f suffix)
+PASS malformed value (nan) -> exit 1, nothing written -- exit 1: paste-harvest: <tmp>/case9\specs\profundum-phase7-stereo-field\evidence\harvest-wide-floor.txt wide-floor[0]: malformed value "nanf" (expected a finite float literal with an f suffix)
+PASS malformed value (garbage) -> exit 1, nothing written -- exit 1: paste-harvest: <tmp>/case10\specs\profundum-phase7-stereo-field\evidence\harvest-wide-floor.txt wide-floor[0]: malformed value "0.2x5f" (expected a finite float literal with an f suffix)
+PASS malformed value (kSideFloorGain = 1, must be < 1) -> exit 1, nothing written -- exit 1: paste-harvest: <tmp>/case11\specs\profundum-phase7-stereo-field\evidence\harvest-wide-floor.txt wide-floor[0]: kSideFloorGain = 1.0f outside 0 < v < 1
+PASS malformed value (kSideFloorGain = 0) -> exit 1, nothing written -- exit 1: paste-harvest: <tmp>/case12\specs\profundum-phase7-stereo-field\evidence\harvest-wide-floor.txt wide-floor[0]: kSideFloorGain = 0.0f outside 0 < v < 1
+PASS malformed value (kWideOffsetScale > 1) -> exit 1, nothing written -- exit 1: paste-harvest: <tmp>/case13\specs\profundum-phase7-stereo-field\evidence\harvest-wide-floor.txt wide-floor[1]: kWideOffsetScale = 1.25f outside 0 < v <= 1
+PASS malformed value (kWideOffsetScale negative) -> exit 1, nothing written -- exit 1: paste-harvest: <tmp>/case14\specs\profundum-phase7-stereo-field\evidence\harvest-wide-floor.txt wide-floor[1]: kWideOffsetScale = -0.5f outside 0 < v <= 1
+PASS constants in the wrong order -> exit 1, nothing written -- exit 1: paste-harvest: <tmp>/case15\specs\profundum-phase7-stereo-field\evidence\harvest-wide-floor.txt wide-floor[0]: expected kSideFloorGain, found kWideOffsetScale
+PASS STOP AND SURFACE in evidence -> exit 1, nothing written -- exit 1: paste-harvest: <tmp>/case16\specs\profundum-phase7-stereo-field\evidence\harvest-wide-floor.txt: contains a STOP AND SURFACE line; return to the user, do not paste
+PASS missing evidence file -> exit 1, nothing written -- exit 1: paste-harvest: <tmp>/case17\specs\profundum-phase7-stereo-field\evidence\harvest-wide-floor.txt: not found (run the harvest first)
+PASS unknown block name -> exit 1, nothing written -- exit 1: paste-harvest: unknown block "kSideFloorGain"; expected one of: wide-floor
+self-test: 20/20 passed
+exit: 0
+
+## node aggregate-harvest.js --self-test
+PASS wide-scale all pass -> exit 0, K_wide 1.0f, committed floor 0.5f kept -- exit 0
+PASS wide-scale top candidate failing -> exit 0, K_wide 0.75f -- exit 0
+PASS wide-scale no candidate passing -> exit 3, STOP AND SURFACE printed, nothing written -- exit 3
+PASS wide-scale candidate missing -> exit 1, nothing written -- exit 1: aggregate-harvest: <tmp>/case3\logs\wide.log: wide-scale candidates missing: 0.5 (did the case run to the end?)
+PASS side-floor all pass -> exit 0, g_floor 0.71f, K_wide kept, both tables, commit and date -- exit 0
+PASS side-floor evidence -> paste-harvest.js exit 0, header carries the pair -- paste exit 0
+PASS side-floor one shard failing the top candidate -> exit 0, g_floor 0.5f, failing arm named -- exit 0
+PASS side-floor lever failing the top two candidates -> exit 0, g_floor 0.35f -- exit 0
+PASS side-floor no candidate passing -> exit 3, STOP AND SURFACE + table printed, nothing written -- exit 3
+PASS side-floor 13 of 14 shards -> exit 1, nothing written -- exit 1: aggregate-harvest: side-floor: 13 shard arms reported (AnchorBite, AnchorCrush, AnchorFold, AnchorFracture, AnchorRectify, AnchorTube, CleanGrowl, DirtyBite, DirtyCrush, DirtyFold, DirtyFracture, DirtyRectify, DirtyTube), expected 14
+PASS side-floor shards ran at K_wide 1 but 0.75f committed -> exit 1, nothing written -- exit 1: aggregate-harvest: side-floor: CleanSaw ran at K_wide 1, but the committed kWideOffsetScale is 0.75f (paste step 1 and rebuild first)
+PASS side-floor without the lever log -> exit 1, nothing written -- exit 1: aggregate-harvest: side-floor: no side-floor-lever lines (BassStereoField_SideFloorLeverHarvest log not given?)
+PASS side-floor shard missing a candidate (truncated log) -> exit 1, nothing written -- exit 1: aggregate-harvest: side-floor: CleanSaw (<tmp>/case11\logs\shard-CleanSaw.log) is missing candidates 0.1 (did the shard run to the end?)
+self-test: 13/13 passed
+exit: 0
+
+## Harvest (main loop)
+- NOT RUN by the executor. Main loop: bash specs/profundum-phase7-stereo-field/evidence/close/harvest.sh
+  then record the readings here.
+
+## DEFECT lines
+- none
+
+MAIN LOOP (2026-10-18), three runs of evidence/close/harvest.sh; status lines in evidence/run-log/close/harvest-status.txt.
+
+Run 1 (seed floor 0.5, K_wide search {1, 0.75, 0.5} gated on the mono sum): exit 3 at step 2,
+  "K_wide < 0.5 needed". Per-cell analysis (evidence/harvest/wide-scale*.csv): the floor, not K_wide, was the lever
+  (64 loud WIDE cells needed -7 ... -24 dB, three anti-phase-fundamental cells -30 ... -41 dB); SC-001(b)'s -3.11 dB
+  octave bar failed 78 cells in the harmonic range and the SPREAD dirty arm too (random-phase cross products of a
+  per-channel nonlinearity after the parity pan); bands at -80 ... -100 dBFS were being read. -> user ruling G8-1
+  (spec Clarifications "Session 2026-10-18 (build rulings)"): deep floor + record the octaves.
+Run 2 (G8-1 encoded: K in {1, 0.75} on SC-007 + the SC-010 lever, floor candidates to 0.03, exemption rho_pre < 0,
+  validity -60 dBFS): K_wide 1 chosen (alias -81.58 dBFS, lever E1/C3 pass); exit 3 at step 5, "no g_floor >= 0.03".
+  Three floor-independent harness readings (evidence/run-log/close/harvest-step5-aggregate.log of that run):
+  36 CleanGrowl cells failed the octave bar only at the chain-output tap (limiter oversampling residue above the
+  partial range, -45 ... -55 dBFS, rho -1.00); the rho_pre < 0 exemption caught 31 cells (Crush noise); the Gravity
+  lever failed at C3 at every floor (no harmonic of C3 below f_s = 240 Hz except the centred h1). -> refinements:
+  gates read the generator and safety-stage outputs (the SC rows' taps), chain output recorded; exemption
+  rho_pre <= -0.5 (9 Fold/Rectify cells per nonlinear arm, pre-stage side-to-mid +3 ... +18 dB); Gravity lever gated
+  at E1, recorded at C3.
+Run 3: GREEN through step 5. K_wide 1.0 (both candidates pass; chosen largest). Floor table (shards passing / 14,
+  lever PASS at every candidate, E1 13 -> 6 dB): 0.71 2, 0.5 2, 0.35 2, 0.25 2, 0.18 4, 0.125 8, 0.1 9, 0.071 9,
+  0.05 12 (AnchorFold, DirtyCrush fail), 0.035 14, 0.03 14. -> g_floor = 0.035 (-29.1 dB), pasted
+  (bass_stereo_field.h HARVEST block), rebuilt with 0 warnings. Step 6: the six named cases green; the
+  [stereo-field] per-push filter had ONE red, BassStereoField_WidthMonotonicSmoke / sc003c_gravity_never_raises_octave_s2m:
+  the [60, 120) band's side-to-mid on the clean core at stageOut read -115.70 dB at Gravity 0 and -115.55 dB at 0.5
+  (float residue of the M/S arithmetic at the deep floor) against the 0.01 dB tolerance. Refinement: the ratio is read
+  only where >= -100 dB (spec SC-003(c)). Re-run after that edit: the smoke green (530 assertions) and the per-push
+  filter green: "All tests passed (60810 assertions in 58 test cases)"
+  (evidence/run-log/close/harvest-step6-perpush-rerun.log). Step-4 wall clocks: 14 shards 15-wide, 1376-1524 s each,
+  1641 s for the step; step 2 295 s; whole lane 2374 s.
+Harvested: kSideFloorGain = 0.035f, kWideOffsetScale = 1.0f (evidence/harvest-wide-floor.txt, both tables).
+Build resumed with unblock: [T015].

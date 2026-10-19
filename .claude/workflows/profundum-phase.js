@@ -548,7 +548,7 @@ const PERF_FILTER = "'~[performance]~[perf]~[benchmark]~[!benchmark]~[long]'"
 // (an existing header under dsp/include or dsp/src, plugins/shared, tests/test_helpers) — a new header or a new test
 // TU cannot change another test's outcome beyond what the build already proves.
 const PHASE_TAG = '[profundum]'
-const PHASE_FILTER = `'${PHASE_TAG}~[performance]~[perf]~[benchmark]~[!benchmark]~[long]'`
+const PHASE_FILTER = `'${PHASE_TAG}~[performance]~[perf]~[benchmark]~[!benchmark]~[long]~[.]'`
 
 const BUILD_CMDS = (targets) => `
 Build: "C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target ${targets.join(' ')}

@@ -1,0 +1,28 @@
+Filters: "BassStereoField_SideFloorLeverHarvest"
+Randomness seeded to: 727775970
+BSF_HARVEST_FLOOR_LEVER,g,0.71,E1_s2m_db,12.9646,E1_rho,0.030199,C3_s2m_db,1.78783,C3_rho,0.0229291
+HARVEST side-floor-lever 0.71 PASS
+BSF_HARVEST_FLOOR_LEVER,g,0.5,E1_s2m_db,11.3313,E1_rho,0.0233631,C3_s2m_db,1.42925,C3_rho,0.0177541
+HARVEST side-floor-lever 0.5 PASS
+BSF_HARVEST_FLOOR_LEVER,g,0.35,E1_s2m_db,9.94509,E1_rho,0.0186726,C3_s2m_db,1.169,C3_rho,0.0141921
+HARVEST side-floor-lever 0.35 PASS
+BSF_HARVEST_FLOOR_LEVER,g,0.25,E1_s2m_db,8.88272,E1_rho,0.0156361,C3_s2m_db,0.993784,C3_rho,0.0118798
+HARVEST side-floor-lever 0.25 PASS
+BSF_HARVEST_FLOOR_LEVER,g,0.18,E1_s2m_db,8.05504,E1_rho,0.013554,C3_s2m_db,0.870399,C3_rho,0.0102909
+HARVEST side-floor-lever 0.18 PASS
+BSF_HARVEST_FLOOR_LEVER,g,0.125,E1_s2m_db,7.3459,E1_rho,0.0119434,C3_s2m_db,0.773065,C3_rho,0.0090597
+HARVEST side-floor-lever 0.125 PASS
+BSF_HARVEST_FLOOR_LEVER,g,0.1,E1_s2m_db,7.00392,E1_rho,0.0112187,C3_s2m_db,0.728718,C3_rho,0.00850508
+HARVEST side-floor-lever 0.1 PASS
+BSF_HARVEST_FLOOR_LEVER,g,0.071,E1_s2m_db,6.59012,E1_rho,0.0103839,C3_s2m_db,0.677197,C3_rho,0.00786563
+HARVEST side-floor-lever 0.071 PASS
+BSF_HARVEST_FLOOR_LEVER,g,0.05,E1_s2m_db,6.27809,E1_rho,0.00978324,C3_s2m_db,0.63984,C3_rho,0.00740522
+HARVEST side-floor-lever 0.05 PASS
+BSF_HARVEST_FLOOR_LEVER,g,0.035,E1_s2m_db,6.04839,E1_rho,0.00935623,C3_s2m_db,0.613132,C3_rho,0.00707771
+HARVEST side-floor-lever 0.035 PASS
+BSF_HARVEST_FLOOR_LEVER,g,0.03,E1_s2m_db,5.9705,E1_rho,0.00921427,C3_s2m_db,0.604225,C3_rho,0.00696879
+HARVEST side-floor-lever 0.03 PASS
+===============================================================================
+All tests passed (575 assertions in 1 test case)
+
+exit: 0 wall: 14 s

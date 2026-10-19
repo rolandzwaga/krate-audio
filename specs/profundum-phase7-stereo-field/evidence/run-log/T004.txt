@@ -1,0 +1,69 @@
+T004 run-log (2026-10-18) - computePanVector, widthCurve, slew and handoff count
+
+## Files written
+- dsp/tests/unit/systems/bass_stereo_field_test.cpp (appended; + `#include <iostream>` for the printed
+  readings): 12 TEST_CASEs, all [systems][profundum][stereo-field] + the task's tags:
+  BassStereoField_WidthCurveValues [fr-012][sc-021], _PanVectorShape [fr-010][fr-013][fr-014][fr-017][fr-018],
+  _PanVectorMonotone [fr-012][sc-003], _SolidZeroVector [fr-011][fr-015][fr-051] (C-15),
+  _SlewBound [fr-015][fr-035] (C-6), _HandoffCount [fr-016][sc-013], _ResetRetriggerOrder [sc-009],
+  _MotionInwardLaw [fr-030][fr-014], _H1CentredLaw [sc-018][fr-013][fr-061],
+  _PanOnlyDirectionLaw [sc-019][fr-014], _CurveContinuous [sc-021],
+  _CurveInterpolationMixedPairs [sc-021] (C-17, `kGateMixedInterpolationPairs = false`, ruled 2026-10-18).
+- dsp/include/krate/dsp/systems/bass_stereo_field.h: the two "// T004" stubs replaced (computePanVector,
+  widthCurve); private `kUpperKneeFactor = 4` (static_assert against kUpperKneeOctaves == 2) and private
+  `lawCurve(f, log2 f)`; `#include <krate/dsp/core/math_constants.h>` (L0, for kPi); header comment updated.
+- this run-log.
+
+## Facts read this session (file:line)
+- tasks.md T004 section (:412-447); plan C-5 (:143-168), C-6 (:170-184), C-8 (:197-203), C-15 (:299-315),
+  C-17 (:330-344), S3 (:405-572), S4.1-S4.3 (:576-629); spec FR-010-FR-019 (:346-424).
+- bass_stereo_field.h (T003 state): updateLawCache computes uLow_, invSpan_, gamma_ = pow(4, curve),
+  magnitudeScale_ (0 in SOLID); VoiceState { previous, lastF0Hz = 55, lastCrossoverHz, handoffCount, primed },
+  reset() leaves handoffCount.
+- harmonic_types.h:21 kMaxPartials = 96. math_constants.h:28 kPi (namespace Krate::DSP).
+  db_utils.h:118 detail::isFinite(float). smoother.h OnePoleSmoother::process snaps within the completion
+  threshold (so a snapped f_c,s stays bit-constant at constant controls; HandoffCount depends on it).
+
+## Expected values checked in node (double) before writing the tests
+E1 = 41.2034454 Hz (float). Controls{} at E1, k 2..12: -0.0000479 +0.0069476 -0.0394532 +0.1043212 -0.1939069
++0.2928267 -0.3841664 +0.4538269 -0.4928371 +0.5 -0.5 (matches the tasks table). widthCurve: c(120; G0 u0)
+0.0301537, c(240) 0.5868241, c(240; G1 u0) 0.5, c(240; G0 u.5) 0.2171966, c(240; G.5 u.5) 0.1816232,
+c(240; G0 u1) 0.0222237, c(60 @ 60) = c(250 @ 250) = 0.0301537.
+Float slew simulation (Math.fround, delta 0.003f): 1 -> 0 has 0.000997 left at query 333 and lands at 334;
+0 -> 1 lands at 334 (C-15 / SlewBound (a) bars).
+
+## Decisions
+1. Upper knee tested in Hz (f >= 4 f_c,s; the product by 4 is exact), in addition to x >= 1. Reason: the
+   tests demand widthCurve(480) == 1.0f exactly at f_c 120 and c == 1 for every f >= 4 f_c, and
+   fl(log2(480)) - uLow_ times invSpan_ can round to just below 1. Same law (C-5), exact at the knee.
+2. Zero is +0 (rule 4): target = mag > 0 ? (k even ? -mag : mag) : +0, so SOLID / Spread 0 / c = 0 never
+   emit -0 (the C-15 gate uses bit_cast, so -0 would fail).
+3. Slew: `if (!(|d| <= delta)) v = prev + copysign(delta, d)`; else v = target (lands exactly). Entries 0 and
+   k >= N are written +0 without slew (FR-010 / FR-013). numPartials clamps to [0, 96] (negative -> 0).
+4. Handoff count compares all 96 entries by bit pattern against state.previous (plan S11), then stores
+   previous, primed = true, lastCrossoverHz = fcS_. The method is const: no field member is written.
+5. Printed readings (landing query, Cycle handoffs, positive-control step, curve-step W change, C-17 W paths
+   and excursions) go to std::cout with a "[T004 ...]" prefix (Phase 6 precedent:
+   mass_dynamics_aliasing_test.cpp:165, 243).
+6. Small non-vacuity additions, in scope: MotionInwardLaw requires the smallest |p| / P over the wide
+   partials < 0.9 (MOTION actually moved the vector); PanVectorShape also checks numPartials -3 and an Inf f0.
+
+## Process note
+The header edit was written before the test block in this session (both before any build); the tests were
+not observed red against the stubs, because this task does not build. The Group 3 gate builds and runs them.
+
+## Static check (not a build; the Group 3 gate builds)
+clang++ -std=c++20 -fsyntax-only -Wall -Wextra -Wconversion -Wshadow on bass_stereo_field_test.cpp: exit 0;
+zero diagnostics in any Phase 7 file. The 70 warnings reported are the same pre-existing ones T003 recorded
+(harmonic_oscillator_bank.h 66 sign-conversion, crossover_filter.h 2, closed_form_adaa2.h 1, stereo_field.h 1)
+under the extra flags. node tools/lint-layers.js: OK.
+
+## ODR sweep (this task's new names)
+lawCurve, kUpperKneeFactor: private members of BassStereoField (no namespace-scope names). Test helpers are in
+the TU's anonymous namespace with the bsf / Bsf prefix (BsfVec, BsfVoice, BsfPair, bsfRefCurve, bsfWidthDb,
+...); grep of dsp/ plugins/ for "BsfPair\|bsfRefCurve\|bsfWidthDb" hits only this TU.
+
+## Expected gate result
+All T003 and T004 cases green. BassStereoField_CurveInterpolationMixedPairs is green by the C-17 ruling
+(kGateMixedInterpolationPairs = false: recorded, not bounded); tasks.md's "Expected red until ruled (P-3)"
+line predates the ruling. No DEFECT lines.

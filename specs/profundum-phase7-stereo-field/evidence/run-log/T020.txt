@@ -1,0 +1,28 @@
+T020 Portability and Apple globals (FR-073 portability clause; SC-015) -- 2026-10-18
+Command: bash specs/profundum-phase7-stereo-field/evidence/close/portability.sh (one run; total wall 29.9 s; lint 0 s, check-portability 24 s, concurrent)
+Log: specs/profundum-phase7-stereo-field/evidence/run-log/close/portability.log, quoted verbatim:
+
+== lint-apple-globals ==
+lint-apple-globals: OK — 12 files, no macOS-only name collisions
+lint exit=0 wall=0s
+
+== check-portability ==
+check-portability: 9 translation unit(s) with g++
+
+  OK      dsp/tests/unit/systems/bass_stereo_field_test.cpp
+  OK      dsp/tests/unit/systems/bass_stereo_field_helpers_test.cpp
+  OK      dsp/tests/unit/systems/bass_stereo_field_monosum_test.cpp
+  OK      dsp/tests/unit/systems/bass_stereo_field_motion_test.cpp
+  OK      dsp/tests/unit/systems/bass_stereo_field_spectral_test.cpp
+  OK      dsp/tests/unit/systems/bass_stereo_field_chain_test.cpp
+  OK      dsp/tests/unit/systems/bass_stereo_field_nonfinite_test.cpp
+  OK      dsp/tests/unit/systems/bass_stereo_field_harvest_test.cpp
+  OK      dsp/tests/unit/systems/bass_stereo_field_perf_test.cpp
+
+check-portability: all clear -- 9 compiled.
+port exit=0 wall=24s
+
+wsl --shutdown done
+PORTABILITY GREEN
+
+Verdict: 0 findings in both lanes (12 files linted, 9 TUs compiled with g++ via WSL); no fixes needed; wsl --shutdown run.

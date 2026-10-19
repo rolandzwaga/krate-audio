@@ -1,0 +1,9 @@
+note,block,sequence,step,from,to,tap,channel,gated,counted,tr_det,ref_det,guarded,N,counted_positions_ms_after_step
+E2,512,G0>G1>G0,1,G0,G1,out,L,0,0,424,839,0,72,
+E2,512,G0>G1>G0,1,G0,G1,core,L,1,0,247,494,0,72,
+E2,512,G0>G1>G0,1,G0,G1,out,R,0,0,408,811,0,72,
+E2,512,G0>G1>G0,1,G0,G1,core,R,1,0,247,494,0,72,
+E2,512,G0>G1>G0,2,G1,G0,out,L,0,0,432,871,0,72,
+E2,512,G0>G1>G0,2,G1,G0,core,L,1,0,247,494,0,72,
+E2,512,G0>G1>G0,2,G1,G0,out,R,0,0,416,833,0,72,
+E2,512,G0>G1>G0,2,G1,G0,core,R,1,0,247,494,0,72,

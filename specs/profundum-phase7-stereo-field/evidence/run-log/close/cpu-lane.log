@@ -1,0 +1,27 @@
+=== SC-013 cpu lane 2026-10-19T07:31:55Z commit 4599d180
+cmd: pwsh -NoProfile -File tools/pin-perf-cores.ps1 -Exe build/windows-x64-release/bin/Release/dsp_systems_tests.exe -ExeArgs "BassStereoField_Cpu"
+pin-perf-cores: performance-core mask 0xFFFF
+Filters: "BassStereoField_Cpu"
+Randomness seeded to: 2155506108
+SC013 setup fs=48000 block=64 interval=32 partials=64 fixture=kSawAnchor stage_input=E1 (41.20345 Hz) loop=119990 samples R_delay=431 samples (0.37 P) reps=best of 5 warmup=1 s stage_audio=60 s voice_audio=10 s
+SC013 PICK source=drift pct=0.0728 (one pass of 10 s)
+SC013 PICK source=cycle pct=0.0678 (one pass of 10 s)
+SC013 PICK dearer=drift
+SC013 A stage SPREAD spread=1 gravity=1 crossover=static 120 Hz motion=drift depth=1 rate=1 fs=48000 pct=0.0627 bar=0.50
+SC013 A_SWEEP stage crossover=triangle 60<->250 Hz legs=100 ms motion=drift fs=48000 pct=0.1152 bar=0.50
+SC013 RECORD step_train crossover=60<->250 Hz every 50 ms motion=drift fs=48000 pct=0.1075 (not gated)
+SC013 RECORD a_sweep_192k crossover=triangle 60<->250 Hz legs=100 ms motion=drift fs=192000 pct=0.4766 (not gated)
+SC013 B voices=1 cell=no_field pct=0.5612
+SC013 B voices=1 source=drift spread0_pct=0.6553 spread1_pct=0.6733 increment=0.0180 inclusive_increment=0.1121 (not gated) handoffs=76280 queries=76500
+SC013 B voices=1 source=cycle spread0_pct=0.7130 spread1_pct=0.8071 increment=0.0942 inclusive_increment=0.2460 (not gated) handoffs=76500 queries=76500
+SC013 B voices=4 cell=no_field pct=2.7305
+SC013 B voices=4 source=drift spread0_pct=2.5513 spread1_pct=2.6902 increment=0.1389 inclusive_increment=-0.0403 (not gated) handoffs=305120 queries=306000
+SC013 B voices=4 source=cycle spread0_pct=2.6385 spread1_pct=2.6729 increment=0.0344 inclusive_increment=-0.0576 (not gated) handoffs=306000 queries=306000
+SC013 B worst one_voice=0.0942 bar=0.25 four_voices=0.1389 bar=1.00
+SC013 RECORD c handoffs_per_second=0.000 static E1, MOTION off, after 2 s settling (expected 0; not gated)
+SC013 VERDICT PASS 0.0627 0.1152 0.0942 0.1389
+SC013 GATED a=0.0627<=0.50(PASS) a_sweep=0.1152<=0.50(PASS) b1=0.0942<=0.25(PASS) b4=0.1389<=1.00(PASS)
+===============================================================================
+All tests passed (6 assertions in 1 test case)
+
+exit: 0 wall: 15 s

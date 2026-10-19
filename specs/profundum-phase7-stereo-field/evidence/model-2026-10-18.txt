@@ -1,0 +1,29 @@
+r 0.5 HP dB -24.61 LP dB -0.53
+r 0.475 HP dB -26.30 LP dB -0.43
+r 0.25 HP dB -48.20 LP dB -0.03
+r 2.5 HP dB -0.22 LP dB -32.05
+r 1 HP dB -6.02 LP dB -6.02
+r 0.75 HP dB -12.38 LP dB -2.39
+g 0.5 dW at 2.5fs 0.110
+g 0.25 dW at 2.5fs 0.055
+g 0.18 dW at 2.5fs 0.040
+dp 0.003 residual dB -63.35
+dp 0.0039 residual dB -61.07
+dp 0.0044 residual dB -60.02
+fs 44100 cycle step/interval 2.280e-3
+fs 48000 cycle step/interval 2.094e-3
+fs 96000 cycle step/interval 1.047e-3
+fs 192000 cycle step/interval 5.236e-4
+fs 44100 residual Hz 6.654e-14
+fs 48000 residual Hz 1.269e-12
+fs 96000 residual Hz 2.196e-5
+fs 192000 residual Hz 9.134e-2
+gamma 1 c(fc) G0 0.0302 rho floor 0.99888 c(2fc) 0.587 c(2fc)G1 0.500
+gamma 2 c(fc) G0 0.0004 rho floor 1.00000 c(2fc) 0.217 c(2fc)G1 0.146
+gamma 4 c(fc) G0 0.0000 rho floor 1.00000 c(2fc) 0.022 c(2fc)G1 0.010
+fs_stage 120 gd ms 3.751
+fs_stage 240 gd ms 1.876
+fs_stage 500 gd ms 0.900
+p 0.03 Q dB -0.0024
+p 0.09 Q dB -0.0217
+p 1 Q dB -3.0103

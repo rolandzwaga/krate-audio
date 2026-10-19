@@ -1,0 +1,22 @@
+== lint-apple-globals ==
+lint-apple-globals: OK — 12 files, no macOS-only name collisions
+lint exit=0 wall=0s
+
+== check-portability ==
+check-portability: 9 translation unit(s) with g++
+
+  OK      dsp/tests/unit/systems/bass_stereo_field_test.cpp
+  OK      dsp/tests/unit/systems/bass_stereo_field_helpers_test.cpp
+  OK      dsp/tests/unit/systems/bass_stereo_field_monosum_test.cpp
+  OK      dsp/tests/unit/systems/bass_stereo_field_motion_test.cpp
+  OK      dsp/tests/unit/systems/bass_stereo_field_spectral_test.cpp
+  OK      dsp/tests/unit/systems/bass_stereo_field_chain_test.cpp
+  OK      dsp/tests/unit/systems/bass_stereo_field_nonfinite_test.cpp
+  OK      dsp/tests/unit/systems/bass_stereo_field_harvest_test.cpp
+  OK      dsp/tests/unit/systems/bass_stereo_field_perf_test.cpp
+
+check-portability: all clear -- 9 compiled.
+port exit=0 wall=24s
+
+wsl --shutdown done
+PORTABILITY GREEN

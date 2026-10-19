@@ -1,0 +1,84 @@
+T013 run-log (2026-10-18) - the calibration harvest cases (plan S9.1, C-13; deviations 4, 7)
+
+## Files written
+- dsp/tests/unit/systems/bass_stereo_field_harvest_test.cpp (T002 stub filled). 16 hidden TEST_CASEs, every one
+  tagged [stereo-field-harvest][.calibration] only (deviation 4: no [profundum], so no gate filter selects them):
+    BassStereoField_WideScaleHarvest           step 1 (K_wide)
+    BassStereoField_SideFloorHarvest_<Arm>     step 2, 14 shards via the BSF_SIDE_FLOOR_SHARD(Arm) macro over one
+                                               body (bsfSideFloorShard): CleanSaw, CleanGrowl, Dirty{Tube, Fold,
+                                               Rectify, Bite, Crush, Fracture}, Anchor{same six}
+    BassStereoField_SideFloorLeverHarvest      step 2, SC-010 Gravity lever per candidate
+  Not built or run here (executor rule); the Group 7 gate builds it, the main loop runs it (T015 harvest.sh).
+
+## Printed lines for aggregate-harvest.js (T015)
+  HARVEST wide-scale <K> PASS|FAIL                         one per K in {1, 0.75, 0.5}
+  HARVEST wide-scale-chosen <K>                            the first (largest) PASS; absent if none passes
+  STOP AND SURFACE: K_wide < 0.5 needed (plan C-13)        printed when no candidate passes
+  HARVEST side-floor-config <arm> K_wide <k> committed_floor <g>
+  HARVEST side-floor <arm> <g> PASS|FAIL <worst Q_sub dB> <worst rho_sub>     one per g per shard
+  HARVEST side-floor-lever <g> PASS|FAIL
+  HARVEST-CELL side-floor <label> render_ms <> restage_ms <> total_ms <>     wall clock per cell (step 2)
+  HARVEST-CELL wide-scale <label> pass <0|1> ms <>                            wall clock per cell (step 1)
+  Records: BSF_HARVEST_WIDE_ROW (pass/cells, worst Q_sub, worst rho_sub, worst octave Q, worst alias, alias cell
+  count, lever E1/C3 side-to-mid and rho, candidate wall clock), BSF_HARVEST_FLOOR_ROW, BSF_HARVEST_FLOOR_SHARD
+  (cells, mean cell ms, shard ms), BSF_HARVEST_FLOOR_LEVER. All setprecision(6). Floats print as 1, 0.75, 0.5,
+  0.71, 0.35, 0.25, 0.18, 0.125, 0.1.
+  CSVs (per case, so concurrent shards never share a file): evidence/harvest/wide-scale.csv, wide-scale-cells.csv,
+  side-floor-<Arm>.csv, side-floor-<Arm>-cells.csv, side-floor-lever.csv (the *-cells files hold
+  StereoFieldTest::monoSumCsvLine per tap, prefixed with the candidate). Directory made with the error_code
+  overload of create_directories (no throw on a creation race between shards).
+
+## Decisions
+- Pass criterion per mono cell = StereoFieldTest::monoSumCellPasses (the helper the task names), which gates
+  |Q_sub| <= 1 dB and every valid octave Q >= -3.11 dB at core / stageOut / out and rho_sub >= 0.99 at core and
+  stageOut. The task's parenthesis "(sub-band rows and rho)" is read as describing that helper; it is the
+  stricter reading (octave rows included). The worst octave Q is printed beside it so the aggregator / main
+  loop can see whether an octave row, not the sub band, decided a FAIL.
+- "worst Q" in the side-floor line = the minimum Q_sub over the gated taps (Q <= 0 dB always, so the largest
+  |Q_sub|, the SC-001(a) quantity g_floor drives); the worst octave Q is in BSF_HARVEST_FLOOR_ROW.
+- Step 1 curve: the task lists no curve axis, so the cells run at Controls{}.curve (0.5). Gravity 0, depth 0,
+  g_floor 0.5 via sideFloorOverride, K via wideScaleOverride, dirty arm without the Anchor (rule 10).
+- Step 1 SC-007: measured on every Spread 1 cell at E0, E1, E2 (all three crossovers), characterL and characterR,
+  wideAliasedDbfs <= -80 dBFS. Those cells render max(descriptorSeconds, 1 s + aliasFftLength(fs, f)/fs)
+  because aliasFftLength at E0 is 2^18 (2^19 for Fracture, f = f0/2), more than descriptorSeconds holds after
+  the settle (wideAliasedDbfs REQUIREs it). The longer render does not change the mono-sum reading (one window
+  of <= 2^18 samples from the settle).
+- Step 1 SC-010 lever: dirty Tube arm, no Anchor, Controls{} with mode SPREAD vs WIDE, g_floor 0.5, E1 and C3,
+  staticLeverMove at f_c 120 >= 3 dB or >= 0.1 at both notes. The SPREAD reference renders once per note
+  (wideOffsets is {+0, +0} outside WIDE, bass_stereo_field.h:400-406).
+- Candidate PASS (step 1) = every mono cell passes AND worst alias <= -80 AND the lever passes at E1 and C3.
+  The chosen K is the first PASS in the order {1, 0.75, 0.5}; STOP AND SURFACE only when none passes (plan S9.1
+  step 3 "if step 1 fails at 0.5").
+- Step 2: the render runs at the committed kSideFloorGain / kWideOffsetScale (no overrides; T015 pastes K_wide
+  before step 2), then StereoFieldTest::restage(taps, cfg, g) per candidate and evaluateMonoSumCell on the
+  restaged taps (stageOut / out replaced, core original). Grid per shard = 3 modes x 4 notes x Spread {0, 0.5, 1}
+  x crossover {60, 120, 250} x curve {0, 1} = 216 cells at Gravity 0, depth 0 (deviation 7); CHECKed.
+- Lever (step 2): showcase = SPREAD, kSawAnchor clean core, Controls{} at Gravity 0 and 1, E1 and C3; both renders
+  restaged at each g (the Gravity 1 render is g-independent, restaged anyway for symmetry).
+- Nothing REQUIREs a candidate to pass (the harvest measures; the aggregator decides). The only asserts are the
+  cell-count CHECKs and the arm-name REQUIRE.
+
+## Deviation / note for T015
+- T015's estimate text says "648 depth-0 chain renders each" per step-4 shard. T013's authoritative grid (Gravity 0
+  only, deviation 7) gives 216 chain renders per shard, each followed by 7 restages + 7 five-tap mono-sum
+  evaluations. 648 = 216 x 3 matches the full Gravity {0, 0.5, 1} grid, which deviation 7 excludes. Estimate the
+  lane from the printed HARVEST-CELL wall clocks, not from 648.
+
+## DEFECT lines
+- none
+
+## Re-dispatch check (2026-10-18, later the same day)
+- The TU from the first dispatch was already in place. It was re-read in full and checked against the live APIs
+  it calls, with nothing changed:
+  bass_stereo_field_test_helpers.h FieldChainConfig :113-133 (sideFloorOverride / wideScaleOverride :130-131),
+  restage :428, MonoSumTap :946, TapReading / MonoSumCell :978-989, evaluateMonoSumCell :994,
+  monoSumCellPasses :1038, monoSumCsvHeader / monoSumCsvLine :1054 / :1060, wideAliasedDbfs :1104,
+  LeverMove / staticLeverMove :1111 / :1118; mass_dynamics_test_helpers.h ChainConfig :173-179 (field order
+  base, f0, fs, seconds matches the designated initialiser), kSettleSeconds :87, descriptorSeconds :90;
+  harmonic_fold_test_helpers.h aliasFftLength :168; shape_character_test_helpers.h kE0Hz..kC3Hz :50-55;
+  spectral_shape_recipe.h kSawAnchor / kGrowl :83-84; bass_character_stage.h Algorithm :78;
+  bass_stereo_field.h ImageMode :64, kSideFloorGain / kWideOffsetScale :85-86 (public), Controls :97-103.
+- The TU is registered in dsp/tests/CMakeLists.txt:761. No other TU defines these case names. Tags are still
+  [stereo-field-harvest][.calibration] only.
+- Not built or run here (executor rule).
+- DEFECT lines: none.

@@ -1,0 +1,67 @@
+T009 run-log (2026-10-18) - mono sum and sub-band correlation (SC-001, SC-002, SC-020 rendered; FR-021, FR-077)
+
+## Files written
+- dsp/tests/unit/systems/bass_stereo_field_monosum_test.cpp (T002 stub filled; already registered in dsp_systems_tests by
+  T002). No header edited; bass_stereo_field_test_helpers.h (T007) used read-only. TU-local names prefixed bsfMs / kBsfMs /
+  BsfMs (anonymous namespace); ODR sweep `grep -rn "BsfMs\|bsfMs\|BSF_MONOSUM_SHARD\|BSF_GRAVITY_FLOOR_SHARD" dsp plugins`
+  -> 0 hits before this task. Every TEST_CASE carries [systems][profundum][stereo-field].
+  TEST_CASEs (186):
+    BassStereoField_MonoSumPerBand_<Mode>_<Arm>_<Note>  [long][sc-001][sc-002]  168 = {Solid, Spread, Wide} x {CleanSaw,
+        CleanGrowl, Dirty<Tube|Fold|Rectify|Bite|Crush|Fracture>, Anchor<same six>} x {E0, E1, E2, C3}; one
+        BSF_MONOSUM_SHARD(Mode, Arm, Note) line each over bsfMsRunShard (no SECTIONs, no copied bodies). 162 cells per shard:
+        Spread {0, .5, 1} x Gravity {0, .5, 1} x crossover {60, 120, 250} x curve {0, 1} x MOTION {depth 0, depth 1 Drift,
+        depth 1 Cycle}, motionRate 1. Depth 0 renders MassDynamicsTest::descriptorSeconds(48 kHz), depth 1 renders 61 s.
+        Gate per cell: StereoFieldTest::monoSumCellPasses (|Q_sub| <= 1 dB and every valid octave f_c..10 kHz Q >= -3.11 dB at
+        core / stageOut / out; rho_sub >= 0.99 at core / stageOut), CHECK per cell with INFO (every cell evaluated), then
+        REQUIRE failingCells == 0. Non-vacuity: 162 cells, >= 1 cell with a valid sub band and >= 1 with a valid octave at
+        stageOut. Recorded (FR-077): monoSumCsvLine at all five taps (core, character, dyn, stageOut, out: Q_sub, rho_sub,
+        sub side-to-mid, octave Q list) -> evidence/sc001-grid/<case>.csv + stdout ("BSF_SC001,<case>" then the lines). WIDE
+        shards with a character stage (Dirty* and Anchor*) re-render each cell in SPREAD and record the characterL/R reading
+        WIDE minus SPREAD (d Q_sub, d rho_sub, d side-to-mid, d worst octave Q) -> <case>-wide-vs-spread.csv +
+        "BSF_SC001_WIDE_VS_SPREAD" lines. Worst |Q_sub|, worst octave Q and worst rho_sub cell (with tap) per shard:
+        "BSF_SC001_WORST" line.
+    BassStereoField_MonoSumPerBandSmoke  [sc-001][sc-002] per-push: SPREAD DirtyRectify E1 Spread 1 Gravity 0 fc 120 curve 0
+        depth 0; WIDE AnchorFracture E0 Spread 1 Gravity 0 fc 60 curve 1 depth 0; gated as above; REQUIRE both cells have a
+        valid sub band and a valid octave at stageOut. Harvest-dependent (committed seeds kSideFloorGain 0.5 / kWideOffsetScale
+        1.0 until T015).
+    BassStereoField_GravityFloor_<Arm>  [long][sc-020] 14 (BSF_GRAVITY_FLOOR_SHARD): SPREAD and WIDE x {E0, E1, E2, C3} x
+        fc {60, 120, 250}, Spread 1, Gravity 0, depth 0 (24 cells). Gate: SC-001(a) + SC-002 (bsfMsSubPasses: the sub-band
+        parts of monoSumCellPasses) and A(B) > 0 dB where A(B) = side mean energy in [20 Hz, f_c) at dynL/R minus at
+        stageOutL/R (Parseval, one Hann window over [kSettleSeconds, end)), on cells whose input side band >= -100 dBFS
+        (kValidMeanEnergy). Non-vacuity: >= 1 valid A(B) cell on Dirty / Anchor arms (clean arms: recorded only).
+        Prints committed kSideFloorGain, kWideOffsetScale, sideGainForGravity(0) and the "commit" / "chosen" lines of
+        evidence/harvest-wide-floor.txt (or "absent"). CSV evidence/sc020-floor/<case>.csv (one line per cell and tap +
+        A(B) columns).
+    BassStereoField_GravityFloorSmoke  [sc-020] per-push: DirtyRectify E1 fc 120 WIDE, the same asserts (harvest-dependent).
+    BassStereoField_PolyMonoSumRecord  [long][sc-001] record only: renderFieldPoly at {E1, E2, C3, A2 = noteHz(45)} x
+        {SPREAD, WIDE} x {DirtyTube, AnchorTube} x {Controls{} defaults, Spread 1 / Gravity 0}; REQUIRE finite stageOut /
+        out only; "BSF_SC001_POLY" stageOut readings + evidence/sc001-poly.csv.
+
+## Helper / header API relied on (read this session)
+- bass_stereo_field_test_helpers.h: FieldChainConfig :113-133, FieldChainTaps :135-144, renderFieldChain :266,
+  renderFieldPoly(span<const double>, cfg) :462, BandEnergies :677-683, bandEnergies :706, BandReading :710-716,
+  kValidMeanEnergy :91, kSubBandQBarDb / kOctaveQBarDb / kSubBandRhoBar :95-97, MonoSumTap / kMonoSumTapNames :946-949,
+  TapReading :978, MonoSumCell :983-989, evaluateMonoSumCell :994 (depth > 0: 2^17-sample windows from 1 s, worst window),
+  monoSumCellPasses :1038, monoSumCsvHeader :1054, monoSumCsvLine :1060. renderFieldChain hands field->wideOffsets(algorithm)
+  to the character stage every interval (:390-394), so WIDE offsets are the field's own law.
+- mass_dynamics_test_helpers.h: ChainConfig :173-193 (.base, .f0, .fs, .seconds order; attachAnchor default true),
+  kSettleSeconds :87, descriptorSeconds :90.
+- shape_character_test_helpers.h: noteHz, kE0Hz / kE1Hz / kE2Hz / kC3Hz :48-55.
+- bass_stereo_field.h: ImageMode / MotionSource :64-65, kSideFloorGain / kWideOffsetScale :85-86 (seeds), Controls :97-109
+  (curve default 0.5), sideGainForGravity :473. SpectralShapeRecipe::kGrowl / kSawAnchor (spectral_shape_recipe.h:83-84).
+  detail::isFinite core/db_utils.h:118.
+
+## Decisions (surface)
+- Arm definitions: CleanSaw = kSawAnchor, CleanGrowl = kGrowl (spec descriptor block "Clean core"); Dirty / Anchor arms on
+  kSawAnchor (T007 helpers_test precedent). Clean arms keep HarmonicFold at the law's amount (renderFieldChain always runs
+  Fold; tasks.md lists only shapeOn / algorithm / Anchor / excitation for the clean arm).
+- "WIDE dirty shards" read as every WIDE shard with a character stage (Dirty* and Anchor*: the Anchor arm is the dirty arm
+  plus the Anchor). The SPREAD re-render is held only while it is evaluated (memory: a 61 s FieldChainTaps is ~0.25 GB).
+- GravityFloor curve and MOTION are not named by tasks.md: curve = Controls{} default (0.5), depth 0.
+- GravityFloor A(B) "input band valid" read as the side energy in B at dynL/R >= -100 dBFS (kValidMeanEnergy).
+- Poly record: Tube on both the dirty and Anchor arm, at Controls{} and at Spread 1 / Gravity 0 (8 renders, cheap).
+- No build or run (executor rule). The file was re-read for compile hazards (designated initialisers in declaration order,
+  explicit casts, every helper call qualified, span conversions from std::array).
+
+## Deviations
+- None from tasks.md T009. No DEFECT lines.
