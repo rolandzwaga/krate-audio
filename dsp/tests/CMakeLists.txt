@@ -760,6 +760,30 @@ add_executable(dsp_systems_tests
     unit/systems/bass_stereo_field_chain_test.cpp
     unit/systems/bass_stereo_field_harvest_test.cpp
     unit/systems/bass_stereo_field_perf_test.cpp
+    # Profundum Phase 8 (specs/profundum-phase8-bass-morph) - ENUMERATED, not globbed:
+    #   morph_state_test.cpp              FR-001 - FR-007, SC-007(a)(b), SC-019(a)(c)
+    #   bass_morph_engine_test.cpp        SC-001 - SC-003, SC-004(c)(d) engine, SC-005 engine, SC-006(a), SC-007(c)(d),
+    #                                     SC-011, SC-013, SC-014, SC-019(b), SC-020 - SC-022, SC-024 engine
+    #   bass_morph_nonfinite_test.cpp     SC-012 - in the -fno-fast-math block below
+    #   bass_morph_helpers_test.cpp       fixture self-tests
+    #   bass_morph_probe_test.cpp         C-9 / R-2 probes, hidden
+    #   bass_morph_chain_test.cpp         SC-005/006 rendered [long], SC-009, SC-010, SC-015, SC-023, SC-024 render, FR-039
+    #   bass_morph_click_test.cpp         SC-004(a)(b)(d) [long]
+    #   bass_morph_trajectory_test.cpp    SC-008 [long]
+    #   bass_morph_monosum_test.cpp       SC-016 [long]
+    #   bass_morph_aliasing_test.cpp      SC-017 [long]
+    #   bass_morph_perf_test.cpp          SC-018, FR-083 record [.perf]
+    unit/systems/morph_state_test.cpp
+    unit/systems/bass_morph_engine_test.cpp
+    unit/systems/bass_morph_nonfinite_test.cpp
+    unit/systems/bass_morph_helpers_test.cpp
+    unit/systems/bass_morph_probe_test.cpp
+    unit/systems/bass_morph_chain_test.cpp
+    unit/systems/bass_morph_click_test.cpp
+    unit/systems/bass_morph_trajectory_test.cpp
+    unit/systems/bass_morph_monosum_test.cpp
+    unit/systems/bass_morph_aliasing_test.cpp
+    unit/systems/bass_morph_perf_test.cpp
 )
 
 target_link_libraries(dsp_systems_tests
@@ -1257,6 +1281,8 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/systems/mass_dynamics_nonfinite_test.cpp
         # Profundum Phase 7: injects NaN/Inf bit patterns (SC-014, FR-072). The perf TU stays out (shipping FP mode).
         unit/systems/bass_stereo_field_nonfinite_test.cpp
+        # Profundum Phase 8: injects NaN/Inf bit patterns (SC-012, FR-081). The perf TU stays out (shipping FP mode).
+        unit/systems/bass_morph_nonfinite_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 

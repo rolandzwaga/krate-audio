@@ -1,0 +1,96 @@
+T005 serializeRuntime / restoreRuntime, RT safety, idempotence and the S4.10 Anchor row (FR-062, FR-080, FR-081
+restore side; SC-006(a), SC-007(c)(d), SC-011; plan S4.8, S4.9, S4.10, C-2, C-7; deviation 12) - 2026-10-19
+
+STATUS: done (not built, not run: the Group 5 gate builds dsp_systems_tests and runs the gate filter).
+
+Order: the four TEST_CASEs appended to bass_morph_engine_test.cpp first, then bass_morph_engine.h edited, then the
+S4.10 row (anchor_oscillator.h read, evidence/receiver-inventory.txt written, the plan cell replaced). Every written
+file re-read. Extra compile sanity (not a build of the tree): clang++ -std=c++20 -fsyntax-only -Wall -Wextra on
+bass_morph_engine_test.cpp with dsp/include, tests/test_helpers and the fetched Catch2 include dirs: no diagnostic in
+any Phase 8 file; the only two warnings are crossover_filter.h:434-435 -Wdefaulted-function-deleted (untouched
+header, the same pair T004 recorded).
+
+Failing-first evidence (reasoning, executors do not build): against T004's header every new case fails to COMPILE:
+BassMorph_RuntimeRoundTrip / _RuntimeRejects / _Idempotent call serializeRuntime / restoreRuntime, and
+BassMorph_RealTimeSafety static_asserts noexcept on both; neither member existed (T004 header banner:
+"serializeRuntime / restoreRuntime arrive with T005").
+
+Files written:
+  dsp/include/krate/dsp/systems/bass_morph_engine.h (edit)
+      - Banner: T005 Serves line; C-7 note extended; the "arrive with T005" line removed; #include <cstring>.
+      - public serializeRuntime(dest, capacity) const noexcept: null or capacity < 20 -> 0, nothing written; else the
+        plan S4.8 layout via std::memcpy at private static constexpr offsets (0 version, 1 target, 5 p, 9 p_a,
+        13 mode, 14 ramp ms, 18 main mask with bit groupIndex(g) for Character / ImageMode / FieldMotion / Motion,
+        19 Anchor selection); static_assert(19 + 1 == kMorphRuntimeBytes) and groupIndex(Anchor) == 4 /
+        groupIndex(Motion) == 3.
+      - public restoreRuntime(src, size) noexcept: decodes into locals; rejects (returns false, no member written)
+        null / short, version != 1, any of target / p / p_a not +0 and not in [kDenormalThreshold, 1] (private
+        static isRuntimePosition: detail::isFinite first, +0 by bit pattern, so -0, negatives, > 1 and
+        0 < |x| < 1e-15 are rejected, C-7), ramp non-finite or outside [5, 2000], mode byte > Punch, main mask >
+        0x0F, Anchor byte > 1, and any group whose stored side s fails ruleSelection(q, gov(A), gov(B), s) == s at
+        q = p (main) / p_a (Anchor) for the CURRENT endpoints (plan S4.5 incl. rule 2). On success exactly the S4.8
+        install: rampMs_, configureRate() if prepared, mode_, target_, posSlew_.snapTo(p), posSlew_.setTarget(target_),
+        anchorSlew_.snapTo(pa), selections_, dirty_ = true, resolve(); no advanceInterval, no reset.
+      - private static ruleSelection(q, gA, gB, kept): the S4.5 rule of one group (rule 1, rule 2, rule 3, else
+        kept). updateSelections now calls it per group (same branch order and comparisons as T004, so behaviour is
+        unchanged); restoreRuntime uses the same function as its consistency check, so live and restore can never
+        disagree on the rule.
+  dsp/tests/unit/systems/bass_morph_engine_test.cpp (append; banner T005 line; #include <allocation_detector.h>,
+      <cstring>). TU-local helpers (anonymous namespace, bm prefix): BmRuntimeBlob / BmStateBlob, bmRt* offsets
+      (mirroring S4.8), bmRuntimeBytes, bmPutBits / bmPutByte / bmGetByte, bmResolvedBitsEqual (no Catch macro, for
+      hot loops), BmAutomation (seeded position automation, allocation-free), BmRoundTripStats / bmRoundTripStop,
+      BmEngineSnapshot / bmSnapshot, bmExpectRejected / bmExpectAccepted, bmBlobLandedAt.
+      Cases, all [systems][profundum][bass-morph]; none [long], none hidden:
+        1 BassMorph_RuntimeRoundTrip [sc-007] (SC-007(c)): 48 kHz, ramp 333 ms, each mode, seed 0x8070. Per mode:
+          200 random stops (a random pair, a gap of 1-600 intervals of automation before each stop), band point from
+          below (rule-3 pair, land 0.5 from 0, selection(Character) == A asserted) and from above (from 1, == B),
+          mid-ramp (0 -> 1, stop after 7 intervals, p != target asserted), showcase at 0.3 (selection(Character) == B
+          asserted); once: in-flight Blend -> Punch at a landed 0.6, stop 3 intervals later (p_a != c(p) asserted).
+          Each stop: serializeMorphState(A), (B), serializeRuntime == 20; fresh engine prepare(48000), setEndpoint x 2
+          from the deserialised bytes, restoreRuntime == true; resolved() bitwise, positionRampMs() == 333 bitwise,
+          mode, target, all five selections and the re-serialised runtime bytes equal; then 4 096 intervals with the
+          same automation applied to both, every Resolved bitwise. Gates: stops == 613, restore failures 0, stop
+          mismatches 0, interval mismatches 0; non-vacuity interior stops > 0 and in-flight stops > 0 (printed).
+        2 BassMorph_RuntimeRejects [sc-007] (SC-007(d) finite rows): each rejection on a copy of a receiving engine
+          (rule-3 pair, Punch, ramp 100, mid-ramp 0.7 -> 0.1), asserting false and resolved() + runtime bytes
+          unchanged: nullptr; sizes 0-19; version 0 / 2; target, p, p_a each = 1.5f, -0.25f, -0 (bits 0x80000000);
+          ramp 4.9f / 2001.0f; mode 3 / 255; mask 0x10 / 0xFF; Anchor byte 2; S4.5 contradictions built from real
+          engine blobs with one bit flipped: rule-3 B at 0.40, A at 0.60, p = 0 with Character B and with Anchor B,
+          p = 1 with Character A and with Anchor A, showcase at 0.3 with Character A (rule 2), and the valid showcase
+          blob into rule-3 endpoints (current-endpoint check). Each contradiction row has a positive control (the
+          unflipped blob is accepted), so the rejection is attributable to the flipped bit. serializeRuntime(nullptr,
+          20) == 0; capacity 19 == 0 with the destination bytes untouched.
+        3 BassMorph_Idempotent [sc-006] (SC-006(a), deviation 12): seed 0x8006, 200 pairs x 3 modes, 48 kHz, default
+          ramp: initial resolved() + runtime bytes after reset() at 0; (i) 0 -> 1 -> 0 landed; (ii) 2 s of automation
+          (a new target every 30 - 300 ms, no mode change) then 0 landed: bitEqual + bytes equal, every selection A.
+          Non-vacuity: intervals away from A > 0 (printed).
+        4 BassMorph_RealTimeSafety [sc-011]: static_assert nothrow default / copy / move construction and assignment
+          and noexcept on every public member (prepare, reset, setEndpoint, endpoint, setPosition, position,
+          targetPosition, anchorPosition, setPositionRampMs, positionRampMs, setAnchorMorphMode, anchorMorphMode,
+          selection, curve, advanceInterval, resolved, serializeRuntime, restoreRuntime) and on isValidMorphState,
+          serializeMorphState, deserializeMorphState. Inside one TestHelpers::AllocationScope: 15 000 intervals
+          (seed 0x8011, 16 pre-built states, 64 pre-drawn words), setEndpoint every 100, serializeRuntime /
+          restoreRuntime every 500, serializeMorphState / deserializeMorphState every 500, reset() every 1 000,
+          setPositionRampMs / setAnchorMorphMode every 250; AllocationDetector::instance().getAllocationCount() read
+          inside the scope == 0; restores 30 / 30 true, state round trips all true, setEndpoint all true.
+  specs/profundum-phase8-bass-morph/plan.md: ONLY the S4.10 Anchor punch / ghost row's class and citation cells
+      replaced (the "consumer not read in this session" cell). Nothing else changed.
+  specs/profundum-phase8-bass-morph/evidence/receiver-inventory.txt (new): the file:line quotes.
+
+S4.10 reading (anchor_oscillator.h, read this session):
+  setControls :224-245 writes pending_ only (controlsDirty_ = true at :244). latchControls :437-446 is the only
+  assignment active_ = pending_ (:439); it reads no punch / ghost field. latchControls callers: reset() :213,
+  processBlock :296-297 (offset 0 of the next block when controlsDirty_), applyNoteOn :482. punchTimeMs /
+  ghostTimeMs are read only in snapArm :1011-1027 and bridgedArm :1030-1058, both called only from applyNoteOn when
+  rearm (:505, :514). punchBoostDb is read through boostGain() :861-863 in those arms and in bridgeLength :994-995,
+  which bridgeToRest :1062-1069 uses (called from latchControls on a sounding mode change :445-446, and from
+  bridgedArm Lock / Follow :1035). Class written to the plan: latched at the control latch, consumed when a program
+  is built (next re-arming note-on; punchBoostDb also caps the FR-044 mode-bridge fit); none immediate.
+
+Deviations: none from the task text. One structural choice, recorded: the S4.5 rule is factored into a private
+static ruleSelection() shared by updateSelections (behaviour unchanged) and restoreRuntime's check, instead of a
+second hand-written copy of the rule in restoreRuntime.
+
+Expected run cost (sizing for the gate): RuntimeRoundTrip ~5.3 M advanceInterval calls (613 stops x 4 096 x 2
+engines + gaps), Idempotent ~ 600 x (2 traversals + 3 000) ~ 1.9 M, RealTimeSafety 15 000. Seconds, not minutes, in
+Release.

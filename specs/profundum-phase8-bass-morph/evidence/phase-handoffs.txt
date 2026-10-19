@@ -1,0 +1,226 @@
+Profundum Phase 8 (Bass Morph) -- Phase 9 / 11 / 12 handoff record (FR-083; tasks.md T016; plan S12)
+Written 2026-10-19 from plan.md S12 (lines 1166-1195) and spec.md FR-083 (lines 767-795).
+Every value below is cited as <file>:<line>. Paths are relative to specs/profundum-phase8-bass-morph/ unless they start
+with dsp/ or specs/. "evidence/..." files are this phase's measured output.
+
+OPEN ITEM (honest gap): the worst-interval record (section 9.7) is produced by the T020 CPU lane, which runs last,
+alone, in the main loop at close. At the time of writing evidence/worst-interval.txt and evidence/sc018-cpu.txt do not
+exist. Section 9.7 names the exact lines to quote; the main loop fills them after T020 (tasks.md T020: "quote the
+figures in evidence/run-log/T020.txt and in evidence/phase-handoffs.txt (T016)").
+
+=====================================================================================================================
+PHASE 9 (voice / engine)
+=====================================================================================================================
+
+9.1 advanceInterval call order (FR-015, FR-083 bullet 1)
+  - Contract: call BassMorphEngine::advanceInterval() exactly once per 32-sample grid point, BEFORE
+    BassStereoField::advanceControl() and before every voice's component setters in that interval; every voice reads
+    the same resolved().  spec.md:769-770; plan.md:1169-1170.
+  - API: `const Resolved& advanceInterval() noexcept` dsp/include/krate/dsp/systems/bass_morph_engine.h:205;
+    `const Resolved& resolved() const noexcept` bass_morph_engine.h:227. kControlInterval = 32, static_assert equal to
+    ProfundumCore / MassLaw / BassStereoField kControlInterval: bass_morph_engine.h:62-64.
+  - Before prepare() advanceInterval performs the reset() snap and resolves (no ramp): bass_morph_engine.h:205-209.
+  - Resolution is cached (C-6): re-resolves only when an endpoint, p, p_a (bitwise) or a selection changed:
+    bass_morph_engine.h:210-224.
+  - Fixture order that realises it (Phase 9 voice template): spec.md:724-735 (step 1 advanceInterval, step 2 Mass split,
+    3 core, 4 fold / shape, 5 character, 6 Anchor ...). Gated by BassMorph_Global [sc-010] and
+    BassMorphHelpers_GridCalls [sc-010] (evidence/run-log/T009.txt:13, :38-40; evidence/run-log/T007.txt:61).
+
+9.2 FR-054 Mass split
+  - Contract: MassLaw base = resolved recipe depth / body, resolved foldAmount, resolved anchor.level (Mass-driven
+    bases at Targets{} defaults); setMass(resolved.state.mass); the Anchor's level =
+    MassLaw::evaluateRow(AnchorLevel row, resolved.anchorMass, resolved.state.anchor.level).
+    spec.md:658-661, :727-730; plan.md:1171-1172.
+  - Resolved::anchorMass = Mass resolved linearly at p_a, with the identity branches (p_a == 0 or equal endpoints ->
+    A's, p_a == 1 -> B's): bass_morph_engine.h:59, :491-503.
+  - MassLaw::evaluateRow: dsp/include/krate/dsp/systems/mass_law.h:132; AnchorLevel row mass_law.h:110 (spec.md:658).
+  - Measured: SC-005(e) Mass-only pair rendered (evidence/sc005e-mass-only.csv); SC-005 rendered smoke
+    (evidence/sc005-rendered-smoke.csv). Effect: in Lock the Anchor's Mass bias stays at A's while Mass still moves the
+    main voice (spec.md:659-661).
+
+9.3 Change-only ADSR curve setters and the C-8 neutral-curve decision
+  - Each of setAttackCurve / setDecayCurve / setReleaseCurve regenerates a 256-entry table (generatePowerCurveTable)
+    and switches the envelope to table processing: dsp/include/krate/dsp/primitives/adsr_envelope.h:160-178.
+    Phase 9 MUST call them only when the resolved value changed (bitwise), never every interval.  plan.md:1173-1174.
+  - C-8 (plan.md:197-202): AmpEnvelopeFields defaults are ADSREnvelope's member defaults -- attack 10 ms, decay 50 ms,
+    sustain 0.5, release 100 ms, curve amounts 0.7 (adsr_envelope.h:521-533; dsp/include/krate/dsp/systems/
+    morph_state.h:71-79). The class's default state runs EnvCurve::Exponential WITHOUT the table
+    (adsr_envelope.h:526-528, "Default matches EnvCurve::Exponential" at :531), while setAttackCurve(0.7f) switches to
+    table processing (adsr_envelope.h:163). DECISION FOR PHASE 9: state which of the two it treats as the neutral
+    value (the two are not the same code path).
+
+9.4 FR-039 immediate-apply set and the completed S4.10 inventory
+  - Immediate-apply set (plan.md:817-822): ampEnv.sustain while the envelope is in Decay, and each ampEnv curve amount
+    while its stage runs. Everything else is smoothed, slewed, crossfaded or latched (plan.md:787-815).
+  - Measured by BassMorph_AmpEnvelopeImmediateApply (48 kHz, ramp 5 ms, gate on at 0; ratio = max|dg| /
+    (10^(0.5/20) x static-A max|dg|), recorded, not gated) -- evidence/amp-envelope-immediate.txt:1-5:
+      (i)   sustain 0 -> 0.8 in Decay      window 9600-10112      max|dg| 0.0618928  ref 1.46627e-05  ratio 3984.97  (:3)
+      (ii)  sustain 0 -> 0.8 in Sustain    window 144000-153600   max|dg| 0.00447726 ref 0           ratio n/a      (:4)
+            (smoothed in Sustain: one-pole kSustainSmoothTimeMs = 5 ms, envelope_utils.h:53)
+      (iii) decayCurve 0.7 -> -0.7 in Decay window 9600-10112     max|dg| 0.0698223  ref 5.96046e-08  ratio 1.10589e+06 (:5)
+  - ampEnv times (attack / decay / release) are latched at stage entry in table mode: plan.md:802; case (iv) runs the
+    decayMs morph at 32 ms so it lies inside Decay (evidence/run-log/T009.txt:69-74, deviation D1).
+  - Anchor punch / ghost row completed (T005): none of anchor.punchBoostDb / punchTimeMs / ghostTimeMs is immediate;
+    they latch at the control latch and are consumed when an arm program is built at the next re-arming note-on;
+    punchBoostDb also caps the Hermite bridge fit of the FR-044 mode bridge. evidence/receiver-inventory.txt:57-67
+    (quotes anchor_oscillator.h:224-245, :437-446, :505, :514, :861-863, :994-995, :1011-1069 at :15-55).
+  - Phase 9 decision (plan.md:1180-1181): its envelope class choice decides whether the immediate receivers get a
+    smoother or are accepted with the recorded step. FR-039 adds no engine-side smoother.
+
+9.5 Anchor fold-feed smoother (C-11)
+  - No Anchor-feed smoother exists in the shipped components; the Phase 3 fixture applied a static g
+    (plan.md:233-238). The FR-070 fixture ramps anchorFoldFeed per sample linearly across each 32-sample interval (test
+    code). HANDOFF: the Phase 9 voice owns a fold-feed smoother. plan.md:1177; S4.10 row plan.md:814.
+  - anchorFoldFeed is EqualPower at p_a (table row 61, plan.md:491).
+
+9.6 AmpEnvelopeFields / MotionConfig final for version 1 (FR-007, Q4)
+  - AmpEnvelopeFields (7 floats): morph_state.h:71-79. MotionConfig (16 leaves, exact member order): morph_state.h:81-101.
+  - kMorphStateFormatVersion = 1 (morph_state.h:131); 62 leaves (morph_state.h:133); kMorphStateBytes = 201
+    (morph_state.h:135, static_asserts :441-442).
+  - Phase 9 appends only, under a version bump, and records any field its envelope class or Motion component cannot
+    realise as a spec deviation -- never silently ignored. spec.md:773-775; plan.md:1175-1176.
+
+9.7 Worst-interval record (recorded handoff measurement, moved from SC-018(b))
+  - Case: BassMorph_WorstTransitionIntervalRecord [fr-083] (evidence/run-log/T014.txt:14-20): renderMorphPoly at
+    E1, A1, E2, C3, 48 kHz, 1.5 s, Blend, 40 ms ramp, 0 -> 1 at sample 24000, all four groups switching at one grid
+    point (4 voices); per-interval median of 3 renders, worst of the medians; includes fixture overhead, so an upper
+    bound on the shipping chain (T014.txt:26-31). Compared against Phase 5's crossfade cell 2.65 %
+    (specs/Profundum-roadmap.md:432; spec.md:776-778).
+  - MEASURED (T020, 2026-10-19, alone and pinned; evidence/worst-interval.txt:12, run-log/close/cpu-lane.log:32):
+    "FR083 RECORD worst_interval_pct 81.645 switch_window_pct 81.645 median_pct 37.365 vs Phase 5 crossfade cell
+    2.65 % (ratio 30.8094)" -- all four groups switching at interval 781 (sample 24992), 4 voices E1 / A1 / E2 / C3,
+    fixture overhead included (an upper bound on the shipping chain). Not gated; Phase 9 rules on it against its
+    8 % MONO / 25 % 4-voice ceilings.
+  - Interim engine-only sizing (NOT the SC-018 gate, NOT the worst-interval record): R-2 early probe 178.981 ns per
+    advanceInterval with every leaf differing = 0.0268472 % of one core at 48 kHz, vs the 333.3 ns (0.05 %) bar --
+    evidence/cpu-early.txt:5-7; evidence/run-log/T008.txt:87. SC-018 itself (BassMorph_Cpu, 1e6 x 3, T020, alone and
+    pinned): "ns_per_interval 239.124", "% of one core 0.0358686 (bar 0.05 %)", "SC018 VERDICT GREEN 239.124"
+    (evidence/sc018-cpu.txt:5-7).
+
+9.8 MotionConfig selectors click-free -- handoff gate
+  - Once the Motion component exists, Phase 9 renders every ordered pair of motion.source, target, cycleShape,
+    polarity, cycleSync, cycleRetrigger, and the SC-004 representative cycleNote x cycleModifier subset ({SixtyFourth,
+    Quarter, QuadrupleWhole} at modifier None; all modifiers at Quarter), through the morph, amount 1, depth 1, against
+    SC-004(a) max|y[n]-y[n-1]| <= 10^(0.5/20) x the direct-setter reference over the transition window and SC-004(b)
+    differential click count 0. spec.md:779-783, SC-004 at spec.md:829; plan.md:1183-1185.
+  - Phase 8 gated only the engine side of these fields: SC-019's selection switch at theta_up (kThetaUp = 0.52,
+    kThetaDown = 0.48, bass_morph_engine.h:70-71) and SC-004(c)'s hysteresis. The motion.* leaves have no Phase 8
+    receiver (plan.md:815). Note: selection group Motion is groupIndex 3 (morph_state.h:47-52, :126-128).
+
+9.9 Drop morphs act on the next note (FR-039)
+  - drop* (4 leaves) are latched at trigger by DropEnvelope (plan.md:801, drop_envelope.h:80-81); gated by
+    BassMorph_DropLatched [sc-023] (evidence/run-log/T009.txt:15, :43-47). spec.md:784; plan.md:1186.
+
+9.10 Join-point finding (probe, 2026-10-19; spec.md:785-789)
+  - The nonlinear chain regenerates a fundamental whose phase against the Anchor rotates with settings and note.
+    Harvest examples (evidence/showcase-harvest.txt): baseline E1 p=1 c 0.27352 theta -148.68 deg (:6); shape0 E1 p=1
+    c 8.3505 (:31); fold50_shape0.5 C3 p=1 theta 179.2 deg, floor margin -9.8826 dB (full cancellation, :73).
+  - Shipped showcase pair (harvest cand 59: heavy, fold 80, shape 0.5, tone 0.8, amount 0.5, B anchor.level 0.5;
+    evidence/run-log/T008.txt:82-85, evidence/showcase-harvest-aggregate.txt:4): c 0.872 / theta +27.9 deg at E1 p=1,
+    c 0.881 / theta +9.85 deg at C3 p=1 (evidence/coherence-probe.txt:13, :22); C9 VERDICT GREEN
+    (evidence/coherence-probe.txt:65; run-log/T008.txt:86).
+  - Phase 9 decides the Anchor join point / phase reference with this in hand. Phase 3's "add coherently" holds at the
+    core tap only.
+
+9.11 Component switch clicks (SC-004(b) record, ruling B10-1, 2026-10-19)
+  - The direct-setter reference carries differential clicks of its own in these cells, and the morph transition has
+    exactly the same count with a slope ratio of exactly 1 (evidence/sc004-algorithm.csv, sc004-anchor-waveform.csv,
+    ref_clicks_L/R columns; run-log/close/long/BassMorph_DiscreteClickFree_{Algorithm,AnchorWaveform}.rerun1.log):
+      Phase 5  Fracture -> Crush    C3, 5 ms ramp:  clicks L 2 R 1 = reference 2 / 1
+      Phase 5  Fracture -> Crush    C3, 40 ms ramp: clicks L 0 R 1 = reference 0 / 1
+      Phase 5  Fracture -> Rectify  C3, 40 ms ramp: clicks L 1 R 0 = reference 1 / 0
+      Phase 3  OctaveDownSine -> Sine / RoundedSine / AsymmetricSine  E1, 5 ms ramp: clicks L 1 R 0 = reference 1 / 0
+  - The morph adds no click (SC-004(b) as ruled). The clicks belong to the components' own switches as measured by
+    Phase 5's differentialClicks against the static ends; Phase 9 decides whether Phase 5 / Phase 3 re-measure them
+    with their own detectors.
+
+9.12 HarmonicFold path dependence above kSoftEnd (SC-006(b) record, ruling B10-3, 2026-10-19)
+  - A -> B -> A returns the controls bitwise (SC-006(a)) but the render 0.126 / 0.130 dB off on one harmonic (h16 /
+    h11) when A's Fold is 86.6 / 98.5, unchanged from 1 s to 8 s after landing; 0.003 / 0.0004 dB with A's Fold at
+    20; the Anchor mode (Follow vs Lock) changes nothing (evidence/run-log/close/sc006-settle-probe.log).
+  - Cause: HarmonicFold's windowed-peak detector releases only when the raw peak falls kDetectorReleaseHysteresis
+    (0.5 %) below its envelope (harmonic_fold.h:99, Phase 2 D-4), so above the soft regime it latches a
+    path-dependent envelope. By Phase 2 design, not a Phase 8 defect; SC-006(b) gates pairs with A's Fold <= 30 and
+    records the rest (run-log/close/long/BassMorph_IdempotentRender.final.log, "SC006 recorded(b)" lines).
+  - Phase 9's determinism harness and any A/B-compare feature inherit this: two paths to the same Fold >= 30 state
+    can differ by ~0.13 dB on upper harmonics.
+
+9.13 Output-stage interaction with the morph (SC-008 taps, ruling B10-4, 2026-10-19)
+  - On the showcase pair the true-peak limiter engages from p ~ 0.8 at Mass 50 (output 2.6 dB below the sum tap at
+    p = 1; compressor GR 0 dB) and the WIDE output's side-to-mid above 2 f_c sits around 0 dB (side = mid) and wobbles
+    +/-0.7 dB with position through the nonlinear cross products (evidence/run-log/close/trajectory-tap-probe.log).
+    Phase 9's engine-level mono-sum and audibility reads should use the pre-dynamics sum (D_t, E_sub) and the clean
+    core tap (width law) for monotone claims, and record the output.
+
+=====================================================================================================================
+PHASE 11 (state / parameters)
+=====================================================================================================================
+
+11.1 Byte budget per instance: kMorphStateBytes x 2 + kMorphRuntimeBytes = 201 x 2 + 20 = 422 bytes.
+  - kMorphStateBytes = 201 = 1 + 46 x 4 + 16 x 1: morph_state.h:133-135, static_assert :442.
+  - kMorphRuntimeBytes = 20: bass_morph_engine.h:76, static_assert(kRtAnchorSelectionOffset + 1 == kMorphRuntimeBytes)
+    bass_morph_engine.h:348. kMorphRuntimeFormatVersion = 1: bass_morph_engine.h:75.
+  - Runtime blob layout (FR-062): 0 version, 1 target, 5 ramped p, 9 ramped p_a (float bit patterns), 13 Anchor morph
+    mode, 14 ramp ms, 18 main-group selection mask (bit groupIndex: Character 0, ImageMode 1, FieldMotion 2,
+    Motion 3), 19 Anchor selection. bass_morph_engine.h:231-235; evidence/run-log/T005.txt:21-25.
+
+11.2 Restore order: setEndpoint(A), setEndpoint(B), THEN restoreRuntime -- never reset().
+  - restoreRuntime checks every stored selection against the CURRENT endpoints (ruleSelection at q = p / p_a), so the
+    endpoints must be installed first: bass_morph_engine.h:266-274; evidence/run-log/T005.txt:26-37.
+  - reset() would snap p to its target and re-derive p_a and selections (bass_morph_engine.h:97-104), losing an
+    in-flight ramp. Gated by BassMorph_RuntimeRoundTrip [sc-007] (613 stops, 0 mismatches; run-log/T005.txt:44-53)
+    and BassMorph_RuntimeRejects (run-log/T005.txt:54-62).
+  - setEndpoint is a no-op returning true for a bitwise-identical state; rejects invalid states:
+    bass_morph_engine.h:109-127.
+
+11.3 Edit A / Edit B routing and thread hand-off
+  - Keep a MorphState copy per endpoint on the controller side, edit one field, then setEndpoint(e, copy); the change
+    appears at the next advanceInterval, never ramped by the engine (FR-061; bass_morph_engine.h:109-113).
+  - Endpoint edits are handed from the UI / host thread to the audio thread by Phase 11 (plan.md:1188-1191). The engine
+    itself is single-threaded, noexcept and allocation-free (BassMorph_RealTimeSafety [sc-011],
+    run-log/T005.txt:67-75).
+
+11.4 Parameter IDs (specs/Profundum-roadmap.md:679-682)
+  - 100-199: Personality macros + Mass + Morph position.
+  - 1000-1099: morph control -- Anchor morph mode (Lock / Blend / Punch, default Blend; bass_morph_engine.h:49, :73),
+    ramp "Morph smoothing" 5-2000 ms (default 40 ms; bass_morph_engine.h:67-69), edit target (A / B).
+
+=====================================================================================================================
+PHASE 12 (UI)
+=====================================================================================================================
+
+12.1 Law / axis table -- "what the user sees while morphing" (roadmap line 737; spec.md:793)
+  - Authoritative table: plan.md:428-491 (S3.2, 62 rows); shipped as detail::morph_state_io::kFieldTable,
+    morph_state.h:142-317 (static_assert size == 62, :439).
+  - Summary by axis (plan.md S3.2 rows):
+      SineComplex    recipe.depth / body / bodyCurvature / bodyEmphasis                 Linear
+      DarkBright     recipe.edge / shift, shape, characterTone                          Linear
+      CleanNonlinear excitation.mix (EqualPower), excitation.drive / asymmetry, foldAmount, characterAmount, mass
+                     (Linear), characterAlgorithm (Stepped, group Character)
+      ShortLong      drop* (dropTimeMs Logarithmic), ampEnv times (Logarithmic), ampEnv sustain / curves,
+                     transientAttackDb / SustainDb (Linear)
+      MonoStereo     field.mode (Stepped, ImageMode), spread / gravity / curve / motionDepth / motionRate (Linear),
+                     crossoverHz (Logarithmic), motionSource / cycleSync / cycleNote / cycleModifier (Stepped,
+                     FieldMotion)
+      Motion         motion.* (selectors Stepped group Motion; cycleRateHz, cycleFadeInMs (o = 1 ms), env times
+                     Logarithmic; the rest Linear)
+      Anchor         anchor.waveform / mode (Stepped at p_a), level / punchBoostDb (Linear at p_a), punchTimeMs /
+                     ghostTimeMs (Logarithmic at p_a), anchorFoldFeed (EqualPower at p_a)
+  - Stepped fields switch at theta_up 0.52 rising / theta_down 0.48 falling (bass_morph_engine.h:70-71); a side whose
+    governing amount is 0 yields immediately (FR-034 rule 2).
+  - Audibility (SC-015, evidence/sc015-audibility.csv:2-13): every axis moves past its bar at E1 and C3, e.g.
+    D_cx travel 51.88 / 52.17 dB (:2, :8), D_nl 14.35 / 13.87 dB (:3, :9), D_br 1.003 / 0.898 oct (:5, :11),
+    Lock - Blend E_sub at p=1 2.680 / 2.682 dB vs bar 2 (:7, :13).
+
+12.2 Anchor curves (FR-051): Lock c(p) = 0; Blend c(p) = p; Punch c(p) = p^3 (kPunchExponent = 3, fixed, no user
+  control; c(0.5) = 0.125). spec.md:640-648; bass_morph_engine.h:72, :183-197. p_a follows its target through the same
+  rate limit as p, so a mode change never steps the Anchor (spec.md:647-648).
+
+12.3 Lock dimming UX (Q5, FR-052): while the Anchor morph mode is Lock, B's Anchor fields (the whole Anchor block and
+  anchorFoldFeed) are stored and serialised but inaudible; the UI shows it (e.g. dims B's Anchor controls); the engine
+  does not mirror them. spec.md:649-655, :794-795; plan.md:1193-1195.
+
+12.4 Two distinct Anchor controls: the Anchor MORPH mode (BassMorphEngine::AnchorMorphMode { Lock, Blend, Punch },
+  bass_morph_engine.h:49) and the Anchor oscillator mode (AnchorOscillator::Mode { Lock, Follow, Punch, Ghost },
+  dsp/include/krate/dsp/systems/anchor_oscillator.h:58) share the words "Lock" and "Punch" and must carry distinct
+  labels. plan.md:1194-1195.

@@ -1,0 +1,44 @@
+Filters: "BassMorph_IdempotentRender"
+Randomness seeded to: 1714820982
+SC006 recorded(b) pair 0 unclamped A fold 62.1268: worst harmonic delta 0.00164172 dB (B10-3: fold regime, recorded)
+SC006 recorded(b) pair 1 unclamped A fold 41.6796: worst harmonic delta 0.00150366 dB (B10-3: fold regime, recorded)
+SC006 recorded(b) pair 2 unclamped A fold 86.6486: worst harmonic delta 0.125716 dB (B10-3: fold regime, recorded)
+SC006 recorded(b) pair 3 unclamped A fold 83.1308: worst harmonic delta 0.000692744 dB (B10-3: fold regime, recorded)
+SC006 recorded(b) pair 5 unclamped A fold 86.6165: worst harmonic delta 0.00240963 dB (B10-3: fold regime, recorded)
+SC006 recorded(b) pair 6 unclamped A fold 98.4769: worst harmonic delta 0.129833 dB (B10-3: fold regime, recorded)
+SC006 recorded(b) pair 7 unclamped A fold 100: worst harmonic delta 0.0871108 dB (B10-3: fold regime, recorded)
+pair,mode,t_land,harmonics_compared,worst_harmonic,worst_delta_dB
+0,Lock,37920,16,3,0.00164172
+0,Lock,37920,16,3,0.00174995
+0,Blend,37920,16,3,0.00174995
+0,Punch,37920,16,3,0.00174995
+1,Lock,37920,13,7,0.00150366
+1,Lock,37920,13,7,0.0014541
+1,Blend,37920,13,7,0.00145372
+1,Punch,37920,13,7,0.00145372
+2,Lock,37920,16,16,0.125716
+2,Lock,37920,16,2,0.0222313
+2,Blend,37920,16,2,0.0222209
+2,Punch,37920,16,2,0.0222209
+3,Lock,37920,16,4,0.000692744
+3,Lock,37920,16,4,0.00077076
+3,Blend,37920,16,4,0.000770759
+3,Punch,37920,16,4,0.000770759
+4,Lock,37920,16,11,0.000590781
+4,Blend,37920,16,11,0.000603025
+4,Punch,37920,16,11,0.000602958
+5,Lock,37920,11,5,0.00240963
+5,Lock,37920,12,10,0.000559484
+5,Blend,37920,12,10,0.000559779
+5,Punch,37920,12,10,0.000559779
+6,Lock,37920,16,11,0.129833
+6,Lock,37920,16,6,0.000444007
+6,Blend,37920,16,9,0.0012793
+6,Punch,37920,16,9,0.0012793
+7,Lock,37920,16,1,0.0871108
+7,Lock,37920,16,16,0.0109466
+7,Blend,37920,16,16,0.0118654
+7,Punch,37920,16,16,0.0118608
+===============================================================================
+All tests passed (1103 assertions in 1 test case)
+

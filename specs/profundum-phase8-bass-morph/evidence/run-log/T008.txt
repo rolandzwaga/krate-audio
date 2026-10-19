@@ -1,0 +1,87 @@
+T008 The hidden probes: C-9 sum-tap coherence and R-2 early CPU timing (plan C-9, R-1, R-2; deviations 6, 7) - 2026-10-19
+
+STATUS: blocked (STOP AND SURFACE checkpoint by design, tasks.md T008). Not built, not run by the executor.
+Main loop: build dsp_systems_tests (the Group 7 gate), run
+    bash specs/profundum-phase8-bass-morph/evidence/close/probe.sh
+alone, apply the decision rule below, and resume with unblock: [T008].
+
+Files written:
+  dsp/tests/unit/systems/bass_morph_probe_test.cpp (filled the T001 stub; two hidden cases, both
+      [systems][profundum][bass-morph][.] - deviation 6: never inside a gate, the filter ends in ~[.])
+  specs/profundum-phase8-bass-morph/evidence/close/probe.sh (new; Phase 7 cpu-lane.sh structure; bash -n clean)
+  specs/profundum-phase8-bass-morph/evidence/run-log/T008.txt (this file)
+
+Failing-first (reasoning): against the T001 stub the two names match no TEST_CASE, so probe.sh's verdict grep finds
+no "C9 VERDICT" / "R2 EARLY" line and writes the MISSING verdicts.
+
+Compile sanity (not a build of the tree): clang++ -std=c++20 -fsyntax-only -Wall -Wextra -Wshadow, and separately
+-Wconversion -Wsign-conversion, with dsp/include, tests/test_helpers, dsp/tests, the fetched pffft and Catch2 include
+dirs: 0 diagnostics in bass_morph_probe_test.cpp. Only warnings are in untouched headers (closed_form_adaa2.h:124
+-Wshadow, crossover_filter.h:434-435 -Wdefaulted-function-deleted, the pair T004 / T005 / T007 recorded).
+
+BassMorph_SumTapCoherenceProbe (plan C-9):
+  - showcasePair() (bass_morph_state_helpers.h), 48 kHz, BassMorphTest::renderMorphChain with ampEnvelope = false,
+    initialPosition = p (snapped by prepare's reset, the steady render), host block 512, default ramp, seconds
+    default (descriptorSeconds). Notes E1 = ProfundumTest::anchorMidiHz(28), C3 = anchorMidiHz(48) (rule 8).
+    p in {0, 0.5, 1}; modes Lock, Blend, Punch: 18 renders.
+  - H_c, H_a: single-bin DFT at f0 of the mid (L + R) / 2 of the character and Anchor taps over
+    BassMorphTest::readWindow(n, fs, f0) [start, start + wholePeriods), phase referenced to absolute sample 0 (both
+    taps share it). L = anchorLevelHanded.back(). c*e^{i theta} = (H_c / H_a) * L, so c = |H_c| / (|H_a| / L) and
+    theta = arg(H_c * conj(H_a)) in degrees, wrapped to (-180, 180].
+  - Predicted margins: SC-015 20log10(|L_A + cz| / |L_B + cz|) - 2 at p = 1, cz from the Blend render; SC-008(d)
+    20log10(|L_mode(p) + cz|) - 20log10(L_A) + 1 at p in {0.5, 1} for Blend and Punch, cz from that cell.
+    DECISION: L_A, L_B are read from showcasePair()'s anchor.level (1.0, 0.7 today) and L_mode(p) = L_A + (L_B -
+    L_A) * BassMorphEngine::curve(mode, p), which is exactly 1 - 0.3p (Blend) and 1 - 0.3p^3 (Punch) for the
+    current pair; the probe stays correct if the main loop rules a change to B's anchor.level (the Q7 remediation).
+  - Measured margins: E_sub(sum, Lock, 1) - E_sub(sum, Blend, 1) - 2 per note; E_sub(sum, mode, p) - F_lock(p) + 1
+    for every mode and p, F_lock(p) = BassMorphTest::eSubDb of the Lock render's anchorL/R; E_sub(Punch, p) -
+    E_sub(Blend, p) + 0.1 for every p. E_sub = BassMorphTest::eSubDb(sumL, sumR, f0, fs).
+  - Output: one row per cell (note, p, mode, L, |H_c|, |H_a|, c, theta, E_sub sum, E_sub Anchor), then every margin
+    labelled <note>/p=<p>[/<mode>]/<pred|meas>-<clause>; printed and written to evidence/coherence-probe.txt; last
+    line "C9 VERDICT GREEN" or "C9 VERDICT RED <labels>". No REQUIRE on a margin; REQUIRE that characterL/R,
+    anchorL/R, sumL/R are finite (detail::isFinite) and L > 0, |H_a| > 0.
+  - FTZ / DAZ: enableFTZDAZ() at the case's start (the T007 precedent; enable_ftz_daz.h has no restore helper, and
+    every case in this binary runs under the same mode).
+
+BassMorph_CpuEarlyProbe (plan R-2, deviation 7):
+  - Workload (T014's BassMorph_Cpu must copy it verbatim): std::mt19937 rng(0x8018u); repeat
+    BassMorphTest::randomValidPair(rng, 0.0f) until differingLeaves(a, b).size() == kMorphLeafFieldCount and none
+    of characterAmount, field.spread, field.motionDepth, motion.amount, anchor.level is 0 on either side (cap 10^7
+    draws -> REQUIRE; the expected count is a few thousand: ~2e-3 for every discrete leaf to differ x ~0.2 for no
+    governing zero). DECISION: pEqual = 0 (no leaf is copied B <- A; with the default 0.1 the redraw would also
+    need ~0.9^60 more luck, for the same population of accepted pairs). The draw count is printed.
+  - Engine: both endpoints set, ramp 2000 ms, setPosition(0), prepare(48 kHz), setPosition(1); default mode Blend.
+    Each step: advanceInterval(), then when landed (rule 17: position == target and anchorPosition ==
+    curve(mode, position), bitwise) the target flips 0 <-> 1.
+  - An untimed warm-up of 2*10^5 steps counts intervals whose ramped p did not move (printed, not gated); then 3
+    timed repetitions of 2*10^5 steps with std::chrono::steady_clock; median ns per interval; % of one core =
+    ns / 666 667 * 100. A volatile sink keeps the loop. Printed and written to evidence/cpu-early.txt; last line
+    "R2 EARLY <GREEN|RED> <ns> vs 333.3". No REQUIRE on the timing (R-2: escalate, never a budget change).
+  - No FTZ / DAZ (engine-only; rule 9, plan R-7).
+
+probe.sh: refuses to start while tasklist shows cl.exe / dsp_*_tests.exe / clang-tidy (exit 3); exe missing ->
+  exit 2. Runs the coherence case to evidence/run-log/close/probe-coherence.log, then
+  pwsh -NoProfile -File tools/pin-perf-cores.ps1 -Exe <exe> -ExeArgs "BassMorph_CpuEarlyProbe" to
+  evidence/run-log/close/probe-cpu.log (sequential, never concurrent), and appends both verdict lines with exit codes
+  and wall clocks to this file. A case that does not complete writes a "... MISSING" verdict. Exit code: the
+  coherence run's if non-zero, else the CPU run's.
+
+Decision rule (main loop, tasks.md T008): C9 VERDICT GREEN and R2 EARLY GREEN -> Group 8. C9 VERDICT RED -> STOP AND
+ASK the user with the probe table and the Q7 remediation space (showcase pair's B: anchor.level, Fold amount or
+SHAPE; or the laws); no bar relaxed; SC-005's pair unchanged. R2 EARLY RED -> STOP AND SURFACE (R-2).
+
+No DEFECT lines.
+
+--- probe.sh appends verdict lines below ---
+2026-10-19T15:31:20Z probe C9 exit=0 wall=9s | C9 VERDICT RED E1/p=1/Blend/pred-sc008d E1/p=1/Punch/pred-sc008d C3/p=1/pred-sc015 E1/p=1/meas-sc015 C3/p=1/meas-sc015
+2026-10-19T15:31:20Z probe R2 exit=0 wall=2s | R2 EARLY GREEN 185.493 vs 333.3
+harvest-showcase: shards=12 fail=0 wall=490s
+harvest-showcase: shards=12 fail=0 wall=539s
+harvest-showcase: shards=12 fail=0 wall=544s
+
+RULINGS B7-1 / B7-2 (user, 2026-10-19) + readings (main loop): see spec Clarifications, build session. Harvest runs:
+  run1 (LP E_sub, core-tap D_nl, -120 floor): 0/96 OK; run2 (f0 E_sub, linear-core D_nl): 0/96 OK (floor artefact);
+  run3 (relative -60 dB floors): 19/96 OK, pick cand 59 (heavy e1, fold 80, shape 0.5, tone 0.8, amount 0.5, level 0.5).
+  Pasted into showcasePair(); probe.sh re-run below.
+2026-10-19T16:19:31Z probe C9 exit=0 wall=11s | C9 VERDICT GREEN
+2026-10-19T16:19:31Z probe R2 exit=0 wall=1s | R2 EARLY GREEN 178.981 vs 333.3

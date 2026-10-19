@@ -1,0 +1,362 @@
+Filters: [bass-morph] ~[long] ~[performance] ~[perf] ~[benchmark] ~[!benchmark] ~[.]
+Randomness seeded to: 866505842
+BassMorph_BoundedStep (a) fs 44100 ramp 5 ms mode Lock: intervals 41361 worst |delta|/dpmax 1 (worst - 1)/FLT_EPSILON 0.976562 at p 0.580499 violations 0
+BassMorph_BoundedStep (a) fs 44100 ramp 5 ms mode Blend: intervals 41361 worst |delta|/dpmax 1 (worst - 1)/FLT_EPSILON 0.976562 at p 0.580499 violations 0
+BassMorph_BoundedStep (a) fs 44100 ramp 5 ms mode Punch: intervals 41364 worst |delta|/dpmax 1 (worst - 1)/FLT_EPSILON 0.976562 at p 0.580499 violations 0
+BassMorph_BoundedStep (a) fs 44100 ramp 40 ms mode Lock: intervals 41479 worst |delta|/dpmax 1 (worst - 1)/FLT_EPSILON 11.3125 at p 0.526077 violations 0
+BassMorph_BoundedStep (a) fs 44100 ramp 40 ms mode Blend: intervals 41479 worst |delta|/dpmax 1 (worst - 1)/FLT_EPSILON 11.3125 at p 0.526077 violations 0
+BassMorph_BoundedStep (a) fs 44100 ramp 40 ms mode Punch: intervals 41501 worst |delta|/dpmax 1 (worst - 1)/FLT_EPSILON 11.3125 at p 0.526077 violations 0
+BassMorph_BoundedStep (a) fs 44100 ramp 2000 ms mode Lock: intervals 47961 worst |delta|/dpmax 1 (worst - 1)/FLT_EPSILON 38.875 at p 0.0315646 violations 0
+BassMorph_BoundedStep (a) fs 44100 ramp 2000 ms mode Blend: intervals 47961 worst |delta|/dpmax 1 (worst - 1)/FLT_EPSILON 38.875 at p 0.0315646 violations 0
+BassMorph_BoundedStep (a) fs 44100 ramp 2000 ms mode Punch: intervals 49099 worst |delta|/dpmax 1 (worst - 1)/FLT_EPSILON 38.875 at p 0.0315646 violations 0
+BassMorph_BoundedStep (a) fs 48000 ramp 5 ms mode Lock: intervals 45019 worst |delta|/dpmax 1 (worst - 1)/FLT_EPSILON 1.375 at p 0.901835 violations 0
+BassMorph_BoundedStep (a) fs 48000 ramp 5 ms mode Blend: intervals 45019 worst |delta|/dpmax 1 (worst - 1)/FLT_EPSILON 1.375 at p 0.861254 violations 0
+BassMorph_BoundedStep (a) fs 48000 ramp 5 ms mode Punch: intervals 45023 worst |delta|/dpmax 1 (worst - 1)/FLT_EPSILON 1.375 at p 0.933333 violations 0
+BassMorph_BoundedStep (a) fs 48000 ramp 40 ms mode Lock: intervals 45147 worst |delta|/dpmax 1 (worst - 1)/FLT_EPSILON 7 at p 0.276202 violations 0
+BassMorph_BoundedStep (a) fs 48000 ramp 40 ms mode Blend: intervals 45147 worst |delta|/dpmax 1 (worst - 1)/FLT_EPSILON 7 at p 0.643852 violations 0
+BassMorph_BoundedStep (a) fs 48000 ramp 40 ms mode Punch: intervals 45171 worst |delta|/dpmax 1 (worst - 1)/FLT_EPSILON 7 at p 0.276202 violations 0
+BassMorph_BoundedStep (a) fs 48000 ramp 2000 ms mode Lock: intervals 52203 worst |delta|/dpmax 1.00002 (worst - 1)/FLT_EPSILON 142 at p 0.125333 violations 0
+BassMorph_BoundedStep (a) fs 48000 ramp 2000 ms mode Blend: intervals 52203 worst |delta|/dpmax 1.00002 (worst - 1)/FLT_EPSILON 142 at p 0.125333 violations 0
+BassMorph_BoundedStep (a) fs 48000 ramp 2000 ms mode Punch: intervals 53440 worst |delta|/dpmax 1.00002 (worst - 1)/FLT_EPSILON 142 at p 0.125333 violations 0
+BassMorph_BoundedStep (a) fs 96000 ramp 5 ms mode Lock: intervals 90038 worst |delta|/dpmax 1 (worst - 1)/FLT_EPSILON 3.25 at p 0.937766 violations 0
+BassMorph_BoundedStep (a) fs 96000 ramp 5 ms mode Blend: intervals 90038 worst |delta|/dpmax 1 (worst - 1)/FLT_EPSILON 3.25 at p 0.861254 violations 0
+BassMorph_BoundedStep (a) fs 96000 ramp 5 ms mode Punch: intervals 90044 worst |delta|/dpmax 1 (worst - 1)/FLT_EPSILON 1.375 at p 0.652169 violations 0
+BassMorph_BoundedStep (a) fs 96000 ramp 40 ms mode Lock: intervals 90291 worst |delta|/dpmax 1 (worst - 1)/FLT_EPSILON 22 at p 0.887766 violations 0
+BassMorph_BoundedStep (a) fs 96000 ramp 40 ms mode Blend: intervals 90291 worst |delta|/dpmax 1 (worst - 1)/FLT_EPSILON 22 at p 0.861254 violations 0
+BassMorph_BoundedStep (a) fs 96000 ramp 40 ms mode Punch: intervals 90340 worst |delta|/dpmax 1 (worst - 1)/FLT_EPSILON 22 at p 0.843304 violations 0
+BassMorph_BoundedStep (a) fs 96000 ramp 2000 ms mode Lock: intervals 104403 worst |delta|/dpmax 1.00002 (worst - 1)/FLT_EPSILON 142 at p 0.0626664 violations 0
+BassMorph_BoundedStep (a) fs 96000 ramp 2000 ms mode Blend: intervals 104403 worst |delta|/dpmax 1.00002 (worst - 1)/FLT_EPSILON 142 at p 0.0626664 violations 0
+BassMorph_BoundedStep (a) fs 96000 ramp 2000 ms mode Punch: intervals 106879 worst |delta|/dpmax 1.00002 (worst - 1)/FLT_EPSILON 142 at p 0.0626664 violations 0
+BassMorph_BoundedStep (a) fs 192000 ramp 5 ms mode Lock: intervals 180075 worst |delta|/dpmax 1 (worst - 1)/FLT_EPSILON 7 at p 0.51318 violations 0
+BassMorph_BoundedStep (a) fs 192000 ramp 5 ms mode Blend: intervals 180075 worst |delta|/dpmax 1 (worst - 1)/FLT_EPSILON 7 at p 0.51318 violations 0
+BassMorph_BoundedStep (a) fs 192000 ramp 5 ms mode Punch: intervals 180086 worst |delta|/dpmax 1 (worst - 1)/FLT_EPSILON 7 at p 0.51318 violations 0
+BassMorph_BoundedStep (a) fs 192000 ramp 40 ms mode Lock: intervals 180579 worst |delta|/dpmax 1.00001 (worst - 1)/FLT_EPSILON 52 at p 0.887766 violations 0
+BassMorph_BoundedStep (a) fs 192000 ramp 40 ms mode Blend: intervals 180579 worst |delta|/dpmax 1.00001 (worst - 1)/FLT_EPSILON 52 at p 0.861254 violations 0
+BassMorph_BoundedStep (a) fs 192000 ramp 40 ms mode Punch: intervals 180677 worst |delta|/dpmax 1.00001 (worst - 1)/FLT_EPSILON 52 at p 0.887499 violations 0
+BassMorph_BoundedStep (a) fs 192000 ramp 2000 ms mode Lock: intervals 208803 worst |delta|/dpmax 1.00029 (worst - 1)/FLT_EPSILON 2392 at p 0.500058 violations 0
+BassMorph_BoundedStep (a) fs 192000 ramp 2000 ms mode Blend: intervals 208803 worst |delta|/dpmax 1.00029 (worst - 1)/FLT_EPSILON 2392 at p 0.500058 violations 0
+BassMorph_BoundedStep (a) fs 192000 ramp 2000 ms mode Punch: intervals 213757 worst |delta|/dpmax 1.00029 (worst - 1)/FLT_EPSILON 2392 at p 0.500058 violations 0
+BassMorph_BoundedStep (c) fs 44100 ramp 5 ms mode Lock: traversal 7 intervals, expected 7 +/- 1
+BassMorph_BoundedStep (c) fs 44100 ramp 5 ms mode Blend: traversal 7 intervals, expected 7 +/- 1
+BassMorph_BoundedStep (c) fs 44100 ramp 5 ms mode Punch: traversal 7 intervals, expected 7 +/- 1
+BassMorph_BoundedStep (c) fs 44100 ramp 40 ms mode Lock: traversal 56 intervals, expected 56 +/- 1
+BassMorph_BoundedStep (c) fs 44100 ramp 40 ms mode Blend: traversal 56 intervals, expected 56 +/- 1
+BassMorph_BoundedStep (c) fs 44100 ramp 40 ms mode Punch: traversal 56 intervals, expected 56 +/- 1
+BassMorph_BoundedStep (c) fs 44100 ramp 2000 ms mode Lock: traversal 2757 intervals, expected 2757 +/- 1
+BassMorph_BoundedStep (c) fs 44100 ramp 2000 ms mode Blend: traversal 2757 intervals, expected 2757 +/- 1
+BassMorph_BoundedStep (c) fs 44100 ramp 2000 ms mode Punch: traversal 2757 intervals, expected 2757 +/- 1
+BassMorph_BoundedStep (c) fs 48000 ramp 5 ms mode Lock: traversal 8 intervals, expected 8 +/- 1
+BassMorph_BoundedStep (c) fs 48000 ramp 5 ms mode Blend: traversal 8 intervals, expected 8 +/- 1
+BassMorph_BoundedStep (c) fs 48000 ramp 5 ms mode Punch: traversal 8 intervals, expected 8 +/- 1
+BassMorph_BoundedStep (c) fs 48000 ramp 40 ms mode Lock: traversal 61 intervals, expected 60 +/- 1
+BassMorph_BoundedStep (c) fs 48000 ramp 40 ms mode Blend: traversal 61 intervals, expected 60 +/- 1
+BassMorph_BoundedStep (c) fs 48000 ramp 40 ms mode Punch: traversal 61 intervals, expected 60 +/- 1
+BassMorph_BoundedStep (c) fs 48000 ramp 2000 ms mode Lock: traversal 3001 intervals, expected 3000 +/- 1
+BassMorph_BoundedStep (c) fs 48000 ramp 2000 ms mode Blend: traversal 3001 intervals, expected 3000 +/- 1
+BassMorph_BoundedStep (c) fs 48000 ramp 2000 ms mode Punch: traversal 3001 intervals, expected 3000 +/- 1
+BassMorph_BoundedStep (c) fs 96000 ramp 5 ms mode Lock: traversal 16 intervals, expected 15 +/- 1
+BassMorph_BoundedStep (c) fs 96000 ramp 5 ms mode Blend: traversal 16 intervals, expected 15 +/- 1
+BassMorph_BoundedStep (c) fs 96000 ramp 5 ms mode Punch: traversal 16 intervals, expected 15 +/- 1
+BassMorph_BoundedStep (c) fs 96000 ramp 40 ms mode Lock: traversal 121 intervals, expected 120 +/- 1
+BassMorph_BoundedStep (c) fs 96000 ramp 40 ms mode Blend: traversal 121 intervals, expected 120 +/- 1
+BassMorph_BoundedStep (c) fs 96000 ramp 40 ms mode Punch: traversal 121 intervals, expected 120 +/- 1
+BassMorph_BoundedStep (c) fs 96000 ramp 2000 ms mode Lock: traversal 6001 intervals, expected 6000 +/- 1
+BassMorph_BoundedStep (c) fs 96000 ramp 2000 ms mode Blend: traversal 6001 intervals, expected 6000 +/- 1
+BassMorph_BoundedStep (c) fs 96000 ramp 2000 ms mode Punch: traversal 6001 intervals, expected 6000 +/- 1
+BassMorph_BoundedStep (c) fs 192000 ramp 5 ms mode Lock: traversal 31 intervals, expected 30 +/- 1
+BassMorph_BoundedStep (c) fs 192000 ramp 5 ms mode Blend: traversal 31 intervals, expected 30 +/- 1
+BassMorph_BoundedStep (c) fs 192000 ramp 5 ms mode Punch: traversal 31 intervals, expected 30 +/- 1
+BassMorph_BoundedStep (c) fs 192000 ramp 40 ms mode Lock: traversal 241 intervals, expected 240 +/- 1
+BassMorph_BoundedStep (c) fs 192000 ramp 40 ms mode Blend: traversal 241 intervals, expected 240 +/- 1
+BassMorph_BoundedStep (c) fs 192000 ramp 40 ms mode Punch: traversal 241 intervals, expected 240 +/- 1
+BassMorph_BoundedStep (c) fs 192000 ramp 2000 ms mode Lock: traversal 12001 intervals, expected 12000 +/- 1
+BassMorph_BoundedStep (c) fs 192000 ramp 2000 ms mode Blend: traversal 12001 intervals, expected 12000 +/- 1
+BassMorph_BoundedStep (c) fs 192000 ramp 2000 ms mode Punch: traversal 12001 intervals, expected 12000 +/- 1
+BassMorph_BoundedStep (b) fs 44100 ramp 5 ms mode Lock: intervals 41361 leaf checks 1902606 worst |dx|/allowed 0.999999 (excitation.mix) violations 0
+BassMorph_BoundedStep (b) fs 44100 ramp 5 ms mode Blend: intervals 41361 leaf checks 1902606 worst |dx|/allowed 0.999999 (excitation.mix) violations 0
+BassMorph_BoundedStep (b) fs 44100 ramp 5 ms mode Punch: intervals 41364 leaf checks 1902744 worst |dx|/allowed 0.999999 (excitation.mix) violations 0
+BassMorph_BoundedStep (b) fs 44100 ramp 40 ms mode Lock: intervals 41479 leaf checks 1908034 worst |dx|/allowed 0.999998 (excitation.mix) violations 0
+BassMorph_BoundedStep (b) fs 44100 ramp 40 ms mode Blend: intervals 41479 leaf checks 1908034 worst |dx|/allowed 0.999998 (excitation.mix) violations 0
+BassMorph_BoundedStep (b) fs 44100 ramp 40 ms mode Punch: intervals 41501 leaf checks 1909046 worst |dx|/allowed 0.999998 (excitation.mix) violations 0
+BassMorph_BoundedStep (b) fs 44100 ramp 2000 ms mode Lock: intervals 47961 leaf checks 2206206 worst |dx|/allowed 0.999987 (excitation.mix) violations 0
+BassMorph_BoundedStep (b) fs 44100 ramp 2000 ms mode Blend: intervals 47961 leaf checks 2206206 worst |dx|/allowed 0.999987 (excitation.mix) violations 0
+BassMorph_BoundedStep (b) fs 44100 ramp 2000 ms mode Punch: intervals 49099 leaf checks 2258554 worst |dx|/allowed 0.999987 (excitation.mix) violations 0
+BassMorph_BoundedStep (b) fs 48000 ramp 5 ms mode Lock: intervals 45019 leaf checks 2070874 worst |dx|/allowed 0.999999 (excitation.mix) violations 0
+BassMorph_BoundedStep (b) fs 48000 ramp 5 ms mode Blend: intervals 45019 leaf checks 2070874 worst |dx|/allowed 0.999999 (excitation.mix) violations 0
+BassMorph_BoundedStep (b) fs 48000 ramp 5 ms mode Punch: intervals 45023 leaf checks 2071058 worst |dx|/allowed 0.999999 (excitation.mix) violations 0
+BassMorph_BoundedStep (b) fs 48000 ramp 40 ms mode Lock: intervals 45147 leaf checks 2076762 worst |dx|/allowed 0.999998 (excitation.mix) violations 0
+BassMorph_BoundedStep (b) fs 48000 ramp 40 ms mode Blend: intervals 45147 leaf checks 2076762 worst |dx|/allowed 0.999998 (excitation.mix) violations 0
+BassMorph_BoundedStep (b) fs 48000 ramp 40 ms mode Punch: intervals 45171 leaf checks 2077866 worst |dx|/allowed 0.999998 (excitation.mix) violations 0
+BassMorph_BoundedStep (b) fs 48000 ramp 2000 ms mode Lock: intervals 52203 leaf checks 2401338 worst |dx|/allowed 0.999986 (excitation.mix) violations 0
+BassMorph_BoundedStep (b) fs 48000 ramp 2000 ms mode Blend: intervals 52203 leaf checks 2401338 worst |dx|/allowed 0.999986 (excitation.mix) violations 0
+BassMorph_BoundedStep (b) fs 48000 ramp 2000 ms mode Punch: intervals 53440 leaf checks 2458240 worst |dx|/allowed 0.999986 (excitation.mix) violations 0
+BassMorph_BoundedStep (b) fs 96000 ramp 5 ms mode Lock: intervals 90038 leaf checks 4141748 worst |dx|/allowed 0.999999 (excitation.mix) violations 0
+BassMorph_BoundedStep (b) fs 96000 ramp 5 ms mode Blend: intervals 90038 leaf checks 4141748 worst |dx|/allowed 0.999999 (excitation.mix) violations 0
+BassMorph_BoundedStep (b) fs 96000 ramp 5 ms mode Punch: intervals 90044 leaf checks 4142024 worst |dx|/allowed 0.999999 (excitation.mix) violations 0
+BassMorph_BoundedStep (b) fs 96000 ramp 40 ms mode Lock: intervals 90291 leaf checks 4153386 worst |dx|/allowed 0.999997 (excitation.mix) violations 0
+BassMorph_BoundedStep (b) fs 96000 ramp 40 ms mode Blend: intervals 90291 leaf checks 4153386 worst |dx|/allowed 0.999997 (excitation.mix) violations 0
+BassMorph_BoundedStep (b) fs 96000 ramp 40 ms mode Punch: intervals 90340 leaf checks 4155640 worst |dx|/allowed 0.999997 (excitation.mix) violations 0
+BassMorph_BoundedStep (b) fs 96000 ramp 2000 ms mode Lock: intervals 104403 leaf checks 4802538 worst |dx|/allowed 0.999981 (excitation.mix) violations 0
+BassMorph_BoundedStep (b) fs 96000 ramp 2000 ms mode Blend: intervals 104403 leaf checks 4802538 worst |dx|/allowed 0.999981 (excitation.mix) violations 0
+BassMorph_BoundedStep (b) fs 96000 ramp 2000 ms mode Punch: intervals 106879 leaf checks 4916434 worst |dx|/allowed 0.999981 (excitation.mix) violations 0
+BassMorph_BoundedStep (b) fs 192000 ramp 5 ms mode Lock: intervals 180075 leaf checks 8283450 worst |dx|/allowed 0.999998 (excitation.mix) violations 0
+BassMorph_BoundedStep (b) fs 192000 ramp 5 ms mode Blend: intervals 180075 leaf checks 8283450 worst |dx|/allowed 0.999998 (excitation.mix) violations 0
+BassMorph_BoundedStep (b) fs 192000 ramp 5 ms mode Punch: intervals 180086 leaf checks 8283956 worst |dx|/allowed 0.999998 (excitation.mix) violations 0
+BassMorph_BoundedStep (b) fs 192000 ramp 40 ms mode Lock: intervals 180579 leaf checks 8306634 worst |dx|/allowed 0.999996 (excitation.mix) violations 0
+BassMorph_BoundedStep (b) fs 192000 ramp 40 ms mode Blend: intervals 180579 leaf checks 8306634 worst |dx|/allowed 0.999996 (excitation.mix) violations 0
+BassMorph_BoundedStep (b) fs 192000 ramp 40 ms mode Punch: intervals 180677 leaf checks 8311142 worst |dx|/allowed 0.999996 (excitation.mix) violations 0
+BassMorph_BoundedStep (b) fs 192000 ramp 2000 ms mode Lock: intervals 208803 leaf checks 9604938 worst |dx|/allowed 0.999973 (excitation.mix) violations 0
+BassMorph_BoundedStep (b) fs 192000 ramp 2000 ms mode Blend: intervals 208803 leaf checks 9604938 worst |dx|/allowed 0.999973 (excitation.mix) violations 0
+BassMorph_BoundedStep (b) fs 192000 ramp 2000 ms mode Punch: intervals 213757 leaf checks 9832822 worst |dx|/allowed 0.999973 (excitation.mix) violations 0
+BassMorph_RampTimeChange: new ramp 5 ms, worst | |dp|/dpmax - 1 | / FLT_EPSILON 2.375, off-step intervals 0
+BassMorph_RampTimeChange: new ramp 40 ms, worst | |dp|/dpmax - 1 | / FLT_EPSILON 8, off-step intervals 0
+BassMorph_RampTimeChange: new ramp 2000 ms, worst | |dp|/dpmax - 1 | / FLT_EPSILON 608, off-step intervals 0
+BassMorph_RampTimeChange: fresh traversal at 5 ms: 8 intervals, expected 8 +/- 1
+BassMorph_RampTimeChange: fresh traversal at 40 ms: 61 intervals, expected 61 +/- 1
+BassMorph_RampTimeChange: fresh traversal at 2000 ms: 3001 intervals, expected 3001 +/- 1
+BassMorph_SampleRates: fs 22050 ramp 5 ms traversal 4 intervals, expected 4 +/- 1
+BassMorph_SampleRates: fs 22050 ramp 40 ms traversal 28 intervals, expected 28 +/- 1
+BassMorph_SampleRates: fs 22050 ramp 2000 ms traversal 1379 intervals, expected 1379 +/- 1
+BassMorph_SampleRates: fs 44100 ramp 5 ms traversal 7 intervals, expected 7 +/- 1
+BassMorph_SampleRates: fs 44100 ramp 40 ms traversal 56 intervals, expected 56 +/- 1
+BassMorph_SampleRates: fs 44100 ramp 2000 ms traversal 2757 intervals, expected 2757 +/- 1
+BassMorph_SampleRates: fs 48000 ramp 5 ms traversal 8 intervals, expected 8 +/- 1
+BassMorph_SampleRates: fs 48000 ramp 40 ms traversal 61 intervals, expected 60 +/- 1
+BassMorph_SampleRates: fs 48000 ramp 2000 ms traversal 3001 intervals, expected 3000 +/- 1
+BassMorph_SampleRates: fs 96000 ramp 5 ms traversal 16 intervals, expected 15 +/- 1
+BassMorph_SampleRates: fs 96000 ramp 40 ms traversal 121 intervals, expected 120 +/- 1
+BassMorph_SampleRates: fs 96000 ramp 2000 ms traversal 6001 intervals, expected 6000 +/- 1
+BassMorph_SampleRates: fs 192000 ramp 5 ms traversal 31 intervals, expected 30 +/- 1
+BassMorph_SampleRates: fs 192000 ramp 40 ms traversal 241 intervals, expected 240 +/- 1
+BassMorph_SampleRates: fs 192000 ramp 2000 ms traversal 12001 intervals, expected 12000 +/- 1
+BassMorph_EndpointIdentity: mode Lock pairs 10043 mismatches 0
+BassMorph_EndpointIdentity: mode Blend pairs 10043 mismatches 0
+BassMorph_EndpointIdentity: mode Punch pairs 10043 mismatches 0
+BassMorph_LawTable leaf 0 recipe.depth: x_A 0.5 x_B 0.876258969 resolved(0.25) 0.594064713 closed form 0.594064742 |err|/ulp 0.5 differing leaves 1
+BassMorph_LawTable leaf 1 recipe.body: x_A 0.5 x_B 0.584334791 resolved(0.25) 0.521083713 closed form 0.521083698 |err|/ulp 0.25 differing leaves 1
+BassMorph_LawTable leaf 2 recipe.bodyCurvature: x_A 0.5 x_B 0.429069638 resolved(0.25) 0.48226741 closed form 0.48226741 |err|/ulp 0 differing leaves 1
+BassMorph_LawTable leaf 3 recipe.bodyEmphasis: x_A 0 x_B -0.247515559 resolved(0.25) -0.0618788898 closed form -0.0618788898 |err|/ulp 0 differing leaves 1
+BassMorph_LawTable leaf 4 recipe.edge: x_A 0.5 x_B 0.887065232 resolved(0.25) 0.596766293 closed form 0.596766308 |err|/ulp 0.25 differing leaves 1
+BassMorph_LawTable leaf 5 recipe.shift: x_A 0 x_B 0.67784369 resolved(0.25) 0.169460922 closed form 0.169460922 |err|/ulp 0 differing leaves 1
+BassMorph_LawTable leaf 6 excitation.mix: x_A 0 x_B 0.672191739 resolved(0.25) 0.33609587 closed form 0.33609587 |err|/ulp 0 differing leaves 1
+BassMorph_LawTable leaf 7 excitation.drive: x_A 0.5 x_B 0.010010004 resolved(0.25) 0.377502501 closed form 0.377502501 |err|/ulp 0 differing leaves 1
+BassMorph_LawTable leaf 8 excitation.asymmetry: x_A 0 x_B 0.802548885 resolved(0.25) 0.200637221 closed form 0.200637221 |err|/ulp 0 differing leaves 1
+BassMorph_LawTable leaf 9 foldAmount: x_A 0 x_B 10.3992224 resolved(0.25) 2.59980559 closed form 2.59980559 |err|/ulp 0 differing leaves 1
+BassMorph_LawTable leaf 10 shape: x_A 0 x_B 0.637182534 resolved(0.25) 0.159295633 closed form 0.159295633 |err|/ulp 0 differing leaves 1
+BassMorph_LawTable leaf 11 characterAlgorithm (Stepped, Character): theta_up - 0.005 -> A, theta_up -> B
+BassMorph_LawTable leaf 12 characterAmount: x_A 0 x_B 0.962567031 resolved(0.25) 0.240641758 closed form 0.240641758 |err|/ulp 0 differing leaves 1
+BassMorph_LawTable leaf 13 characterTone: x_A 0.5 x_B 0.5243541 resolved(0.25) 0.506088495 closed form 0.506088525 |err|/ulp 0.5 differing leaves 1
+BassMorph_LawTable leaf 14 dropAmountSt: x_A 0 x_B 32.2850189 resolved(0.25) 8.07125473 closed form 8.07125473 |err|/ulp 0 differing leaves 1
+BassMorph_LawTable leaf 15 dropTimeMs: x_A 100 x_B 2957.73682 resolved(0.25) 233.206085 closed form 233.206087 |err|/ulp 0.00711490109 differing leaves 1
+BassMorph_LawTable leaf 16 dropShape: x_A 0 x_B 0.778508902 resolved(0.25) 0.194627225 closed form 0.194627225 |err|/ulp 0 differing leaves 1
+BassMorph_LawTable leaf 17 dropRebound: x_A 0 x_B 0.692851245 resolved(0.25) 0.173212811 closed form 0.173212811 |err|/ulp 0 differing leaves 1
+BassMorph_LawTable leaf 18 ampEnv.attackMs: x_A 10 x_B 7270.43604 resolved(0.25) 51.9266281 closed form 51.9266272 |err|/ulp 0.00192449038 differing leaves 1
+BassMorph_LawTable leaf 19 ampEnv.decayMs: x_A 50 x_B 630.252808 resolved(0.25) 94.211998 closed form 94.211995 |err|/ulp 0.0483871943 differing leaves 1
+BassMorph_LawTable leaf 20 ampEnv.sustain: x_A 0.5 x_B 0.771453559 resolved(0.25) 0.567863405 closed form 0.56786339 |err|/ulp 0.25 differing leaves 1
+BassMorph_LawTable leaf 21 ampEnv.releaseMs: x_A 100 x_B 5415.62158 resolved(0.25) 271.276428 closed form 271.27644 |err|/ulp 0.0242175383 differing leaves 1
+BassMorph_LawTable leaf 22 ampEnv.attackCurve: x_A 0.699999988 x_B 0.440015554 resolved(0.25) 0.635003865 closed form 0.63500388 |err|/ulp 0.25 differing leaves 1
+BassMorph_LawTable leaf 23 ampEnv.decayCurve: x_A 0.699999988 x_B -0.418051362 resolved(0.25) 0.420487165 closed form 0.420487151 |err|/ulp 0.25 differing leaves 1
+BassMorph_LawTable leaf 24 ampEnv.releaseCurve: x_A 0.699999988 x_B 0.0791118145 resolved(0.25) 0.54477793 closed form 0.544777945 |err|/ulp 0.25 differing leaves 1
+BassMorph_LawTable leaf 25 field.mode (Stepped, ImageMode): theta_up - 0.005 -> A, theta_up -> B
+BassMorph_LawTable leaf 26 field.spread: x_A 0.5 x_B 0.788043857 resolved(0.25) 0.572010994 closed form 0.572010964 |err|/ulp 0.5 differing leaves 1
+BassMorph_LawTable leaf 27 field.gravity: x_A 0.5 x_B 0.681803823 resolved(0.25) 0.545450926 closed form 0.545450956 |err|/ulp 0.5 differing leaves 1
+BassMorph_LawTable leaf 28 field.crossoverHz: x_A 120 x_B 99.3955154 resolved(0.25) 114.479477 closed form 114.479476 |err|/ulp 0.149351548 differing leaves 1
+BassMorph_LawTable leaf 29 field.curve: x_A 0.5 x_B 0.727741063 resolved(0.25) 0.556935251 closed form 0.556935266 |err|/ulp 0.25 differing leaves 1
+BassMorph_LawTable leaf 30 field.motionDepth: x_A 0 x_B 0.124689877 resolved(0.25) 0.0311724693 closed form 0.0311724693 |err|/ulp 0 differing leaves 1
+BassMorph_LawTable leaf 31 field.motionRate: x_A 0.300000012 x_B 0.0114228725 resolved(0.25) 0.227855727 closed form 0.227855727 |err|/ulp 0 differing leaves 1
+BassMorph_LawTable leaf 32 field.motionSource (Stepped, FieldMotion): theta_up - 0.005 -> A, theta_up -> B
+BassMorph_LawTable leaf 33 field.cycleSync (Stepped, FieldMotion): theta_up - 0.005 -> A, theta_up -> B
+BassMorph_LawTable leaf 34 field.cycleNote (Stepped, FieldMotion): theta_up - 0.005 -> A, theta_up -> B
+BassMorph_LawTable leaf 35 field.cycleModifier (Stepped, FieldMotion): theta_up - 0.005 -> A, theta_up -> B
+BassMorph_LawTable leaf 36 motion.source (Stepped, Motion): theta_up - 0.005 -> A, theta_up -> B
+BassMorph_LawTable leaf 37 motion.target (Stepped, Motion): theta_up - 0.005 -> A, theta_up -> B
+BassMorph_LawTable leaf 38 motion.amount: x_A 0 x_B -0.202725887 resolved(0.25) -0.0506814718 closed form -0.0506814718 |err|/ulp 0 differing leaves 1
+BassMorph_LawTable leaf 39 motion.depth: x_A 1 x_B 0.900782108 resolved(0.25) 0.975195527 closed form 0.975195527 |err|/ulp 0 differing leaves 1
+BassMorph_LawTable leaf 40 motion.cycleRateHz: x_A 1 x_B 4.1238842 resolved(0.25) 1.42503858 closed form 1.42503856 |err|/ulp 0.0379534364 differing leaves 1
+BassMorph_LawTable leaf 41 motion.cycleShape (Stepped, Motion): theta_up - 0.005 -> A, theta_up -> B
+BassMorph_LawTable leaf 42 motion.cycleSync (Stepped, Motion): theta_up - 0.005 -> A, theta_up -> B
+BassMorph_LawTable leaf 43 motion.cycleNote (Stepped, Motion): theta_up - 0.005 -> A, theta_up -> B
+BassMorph_LawTable leaf 44 motion.cycleModifier (Stepped, Motion): theta_up - 0.005 -> A, theta_up -> B
+BassMorph_LawTable leaf 45 motion.cyclePhaseDeg: x_A 0 x_B 323.519897 resolved(0.25) 80.8799744 closed form 80.8799744 |err|/ulp 0 differing leaves 1
+BassMorph_LawTable leaf 46 motion.cycleRetrigger (Stepped, Motion): theta_up - 0.005 -> A, theta_up -> B
+BassMorph_LawTable leaf 47 motion.cycleFadeInMs: x_A 0 x_B 107.192764 resolved(0.25) 2.22514725 closed form 2.2251473 |err|/ulp 0.00649726443 differing leaves 1
+BassMorph_LawTable leaf 48 motion.polarity (Stepped, Motion): theta_up - 0.005 -> A, theta_up -> B
+BassMorph_LawTable leaf 49 motion.driftSmoothness: x_A 0.5 x_B 0.615067959 resolved(0.25) 0.52876699 closed form 0.52876699 |err|/ulp 0 differing leaves 1
+BassMorph_LawTable leaf 50 motion.envAttackMs: x_A 10 x_B 2340.02466 resolved(0.25) 39.111557 closed form 39.1115573 |err|/ulp 0.0011699711 differing leaves 1
+BassMorph_LawTable leaf 51 motion.envDecayMs: x_A 300 x_B 0.220842525 resolved(0.25) 49.4153214 closed form 49.4153206 |err|/ulp 0.0250912504 differing leaves 1
+BassMorph_LawTable leaf 52 mass: x_A 50 x_B 58.7815933 resolved(0.25) 52.1953964 closed form 52.1953983 |err|/ulp 0.5 differing leaves 1
+BassMorph_LawTable leaf 53 transientAttackDb: x_A 6 x_B 7.53034258 resolved(0.25) 6.38258553 closed form 6.38258564 |err|/ulp 0.25 differing leaves 1
+BassMorph_LawTable leaf 54 transientSustainDb: x_A 0 x_B 7.32939863 resolved(0.25) 1.83234966 closed form 1.83234966 |err|/ulp 0 differing leaves 1
+BassMorph_LawTable leaf 55 anchor.waveform (Stepped, Anchor): theta_up - 0.005 -> A, theta_up -> B
+BassMorph_LawTable leaf 56 anchor.mode (Stepped, Anchor): theta_up - 0.005 -> A, theta_up -> B
+BassMorph_LawTable leaf 57 anchor.level: x_A 0.5 x_B 0.0388686657 resolved(0.25) 0.384717166 closed form 0.384717166 |err|/ulp 0 differing leaves 1
+BassMorph_LawTable leaf 58 anchor.punchBoostDb: x_A 6 x_B 7.10411072 resolved(0.25) 6.27602768 closed form 6.27602768 |err|/ulp 0 differing leaves 1
+BassMorph_LawTable leaf 59 anchor.punchTimeMs: x_A 40 x_B 28.8231602 resolved(0.25) 36.8536415 closed form 36.8536403 |err|/ulp 0.32683319 differing leaves 1
+BassMorph_LawTable leaf 60 anchor.ghostTimeMs: x_A 15 x_B 39.5675278 resolved(0.25) 19.1162701 closed form 19.1162708 |err|/ulp 0.18302255 differing leaves 1
+BassMorph_LawTable leaf 61 anchorFoldFeed: x_A 0 x_B 0.993768275 resolved(0.25) 0.496884137 closed form 0.496884137 |err|/ulp 0 differing leaves 1
+BassMorph_LawTable_GoverningAmount: group Character case zero on A (govA 0, govB 0.800000012): 0 failing visits
+BassMorph_LawTable_GoverningAmount: group Character case zero on B (govA 0.800000012, govB 0): 0 failing visits
+BassMorph_LawTable_GoverningAmount: group Character case both non-zero (govA 0.800000012, govB 0.800000012): 0 failing visits
+BassMorph_LawTable_GoverningAmount: group Character case both zero (govA 0, govB 0): 0 failing visits
+BassMorph_LawTable_GoverningAmount: group ImageMode case zero on A (govA 0, govB 0.800000012): 0 failing visits
+BassMorph_LawTable_GoverningAmount: group ImageMode case zero on B (govA 0.800000012, govB 0): 0 failing visits
+BassMorph_LawTable_GoverningAmount: group ImageMode case both non-zero (govA 0.800000012, govB 0.800000012): 0 failing visits
+BassMorph_LawTable_GoverningAmount: group ImageMode case both zero (govA 0, govB 0): 0 failing visits
+BassMorph_LawTable_GoverningAmount: group FieldMotion case zero on A (govA 0, govB 0.800000012): 0 failing visits
+BassMorph_LawTable_GoverningAmount: group FieldMotion case zero on B (govA 0.800000012, govB 0): 0 failing visits
+BassMorph_LawTable_GoverningAmount: group FieldMotion case both non-zero (govA 0.800000012, govB 0.800000012): 0 failing visits
+BassMorph_LawTable_GoverningAmount: group FieldMotion case both zero (govA 0, govB 0): 0 failing visits
+BassMorph_LawTable_GoverningAmount: group Motion case zero on A (govA 0, govB 0.5): 0 failing visits
+BassMorph_LawTable_GoverningAmount: group Motion case zero on B (govA 0.5, govB 0): 0 failing visits
+BassMorph_LawTable_GoverningAmount: group Motion case both non-zero (govA 0.5, govB -0.5): 0 failing visits
+BassMorph_LawTable_GoverningAmount: group Motion case both zero (govA 0, govB 0): 0 failing visits
+BassMorph_LawTable_GoverningAmount: group Motion case zero on A (govA 0, govB -0.5): 0 failing visits
+BassMorph_LawTable_GoverningAmount: group Motion case zero on B (govA -0.5, govB 0): 0 failing visits
+BassMorph_LawTable_GoverningAmount: group Motion case both non-zero (govA -0.5, govB 0.5): 0 failing visits
+BassMorph_LawTable_GoverningAmount: group Motion case both zero (govA 0, govB 0): 0 failing visits
+BassMorph_LawTable_GoverningAmount: group Motion case zero on A (govA -0, govB 0.5): 0 failing visits
+BassMorph_LawTable_GoverningAmount: group Motion case zero on B (govA 0.5, govB -0): 0 failing visits
+BassMorph_LawTable_GoverningAmount: group Motion case both non-zero (govA 0.5, govB -0.5): 0 failing visits
+BassMorph_LawTable_GoverningAmount: group Motion case both zero (govA -0, govB -0): 0 failing visits
+BassMorph_LawTable_GoverningAmount: group Anchor case zero on A (govA 0, govB 0.800000012): 0 failing visits
+BassMorph_LawTable_GoverningAmount: group Anchor case zero on B (govA 0.800000012, govB 0): 0 failing visits
+BassMorph_LawTable_GoverningAmount: group Anchor case both non-zero (govA 0.800000012, govB 0.800000012): 0 failing visits
+BassMorph_LawTable_GoverningAmount: group Anchor case both zero (govA 0, govB 0): 0 failing visits
+BassMorph_MonotoneLaws: checks 188737900 reversals 0 position reversals 0 interior values 154424778
+BassMorph_ValidityClosure: 100000 pairs, invalid 0 out-of-box leaves 0 interior leaves 3775326
+BassMorph_Hysteresis theta_up: hysteresis switches 1, single-threshold switches 20
+BassMorph_Hysteresis theta_down: hysteresis switches 1, single-threshold switches 19
+BassMorph_GoverningAmountRule Character zero on A: rising changes 1 at 1 (expected 1, q 0.0166667), falling changes 1 at 122 (expected 122, q 0), wrong values 0
+BassMorph_GoverningAmountRule Character zero on B: rising changes 1 at 61 (expected 61, q 1), falling changes 1 at 62 (expected 62, q 0.983333), wrong values 0
+BassMorph_GoverningAmountRule Character both non-zero: rising changes 1 at 32 (expected 32, q 0.533333), falling changes 1 at 93 (expected 93, q 0.466667), wrong values 0
+BassMorph_GoverningAmountRule ImageMode zero on A: rising changes 1 at 1 (expected 1, q 0.0166667), falling changes 1 at 122 (expected 122, q 0), wrong values 0
+BassMorph_GoverningAmountRule ImageMode zero on B: rising changes 1 at 61 (expected 61, q 1), falling changes 1 at 62 (expected 62, q 0.983333), wrong values 0
+BassMorph_GoverningAmountRule ImageMode both non-zero: rising changes 1 at 32 (expected 32, q 0.533333), falling changes 1 at 93 (expected 93, q 0.466667), wrong values 0
+BassMorph_GoverningAmountRule Anchor waveform zero on A: rising changes 1 at 1 (expected 1, q 0.0166667), falling changes 1 at 122 (expected 122, q 0), wrong values 0
+BassMorph_GoverningAmountRule Anchor waveform zero on B: rising changes 1 at 61 (expected 61, q 1), falling changes 1 at 62 (expected 62, q 0.983333), wrong values 0
+BassMorph_GoverningAmountRule Anchor waveform both non-zero: rising changes 1 at 32 (expected 32, q 0.533333), falling changes 1 at 93 (expected 93, q 0.466667), wrong values 0
+BassMorph_GoverningAmountRule Anchor mode zero on A: rising changes 1 at 1 (expected 1, q 0.0166667), falling changes 1 at 122 (expected 122, q 0), wrong values 0
+BassMorph_GoverningAmountRule Anchor mode zero on B: rising changes 1 at 61 (expected 61, q 1), falling changes 1 at 62 (expected 62, q 0.983333), wrong values 0
+BassMorph_GoverningAmountRule Anchor mode both non-zero: rising changes 1 at 32 (expected 32, q 0.533333), falling changes 1 at 93 (expected 93, q 0.466667), wrong values 0
+BassMorph_AnchorCurves p 0: Lock 1 Blend 1 (1 - 0.3p 1) Punch 1 (1 - 0.3p^3 1)
+BassMorph_AnchorCurves p 0.05: Lock 1 Blend 0.985 (1 - 0.3p 0.985) Punch 0.999963 (1 - 0.3p^3 0.999962)
+BassMorph_AnchorCurves p 0.1: Lock 1 Blend 0.97 (1 - 0.3p 0.97) Punch 0.9997 (1 - 0.3p^3 0.9997)
+BassMorph_AnchorCurves p 0.15: Lock 1 Blend 0.955 (1 - 0.3p 0.955) Punch 0.998987 (1 - 0.3p^3 0.998987)
+BassMorph_AnchorCurves p 0.2: Lock 1 Blend 0.94 (1 - 0.3p 0.94) Punch 0.9976 (1 - 0.3p^3 0.9976)
+BassMorph_AnchorCurves p 0.25: Lock 1 Blend 0.925 (1 - 0.3p 0.925) Punch 0.995313 (1 - 0.3p^3 0.995313)
+BassMorph_AnchorCurves p 0.3: Lock 1 Blend 0.91 (1 - 0.3p 0.91) Punch 0.9919 (1 - 0.3p^3 0.9919)
+BassMorph_AnchorCurves p 0.35: Lock 1 Blend 0.895 (1 - 0.3p 0.895) Punch 0.987137 (1 - 0.3p^3 0.987138)
+BassMorph_AnchorCurves p 0.4: Lock 1 Blend 0.88 (1 - 0.3p 0.88) Punch 0.9808 (1 - 0.3p^3 0.9808)
+BassMorph_AnchorCurves p 0.45: Lock 1 Blend 0.865 (1 - 0.3p 0.865) Punch 0.972663 (1 - 0.3p^3 0.972662)
+BassMorph_AnchorCurves p 0.5: Lock 1 Blend 0.85 (1 - 0.3p 0.85) Punch 0.9625 (1 - 0.3p^3 0.9625)
+BassMorph_AnchorCurves p 0.55: Lock 1 Blend 0.835 (1 - 0.3p 0.835) Punch 0.950087 (1 - 0.3p^3 0.950087)
+BassMorph_AnchorCurves p 0.6: Lock 1 Blend 0.82 (1 - 0.3p 0.82) Punch 0.9352 (1 - 0.3p^3 0.9352)
+BassMorph_AnchorCurves p 0.65: Lock 1 Blend 0.805 (1 - 0.3p 0.805) Punch 0.917612 (1 - 0.3p^3 0.917612)
+BassMorph_AnchorCurves p 0.7: Lock 1 Blend 0.79 (1 - 0.3p 0.79) Punch 0.8971 (1 - 0.3p^3 0.8971)
+BassMorph_AnchorCurves p 0.75: Lock 1 Blend 0.775 (1 - 0.3p 0.775) Punch 0.873438 (1 - 0.3p^3 0.873437)
+BassMorph_AnchorCurves p 0.8: Lock 1 Blend 0.76 (1 - 0.3p 0.76) Punch 0.8464 (1 - 0.3p^3 0.8464)
+BassMorph_AnchorCurves p 0.85: Lock 1 Blend 0.745 (1 - 0.3p 0.745) Punch 0.815763 (1 - 0.3p^3 0.815762)
+BassMorph_AnchorCurves p 0.9: Lock 1 Blend 0.73 (1 - 0.3p 0.73) Punch 0.7813 (1 - 0.3p^3 0.7813)
+BassMorph_AnchorCurves p 0.95: Lock 1 Blend 0.715 (1 - 0.3p 0.715) Punch 0.742787 (1 - 0.3p^3 0.742788)
+BassMorph_AnchorCurves p 1: Lock 1 Blend 0.7 (1 - 0.3p 0.7) Punch 0.7 (1 - 0.3p^3 0.7)
+BassMorph_AnchorCurves (e): Lock drift 0, Blend falls 0, Blend effective level at p = 0 0, at p = 1 1
+BassMorph_EndpointEditMidMorph: continuous leaves checked 46, off 0
+BassMorph_Partition: 256 events, 30000 intervals, interior intervals 29758
+BassMorph_Partition: block 1 engine 1 mismatches 0
+BassMorph_Partition: block 7 engine 0 mismatches 0
+BassMorph_Partition: block 7 engine 1 mismatches 0
+BassMorph_Partition: block 32 engine 0 mismatches 0
+BassMorph_Partition: block 32 engine 1 mismatches 0
+BassMorph_Partition: block 64 engine 0 mismatches 0
+BassMorph_Partition: block 64 engine 1 mismatches 0
+BassMorph_Partition: block 511 engine 0 mismatches 0
+BassMorph_Partition: block 511 engine 1 mismatches 0
+BassMorph_Partition: block 4096 engine 0 mismatches 0
+BassMorph_Partition: block 4096 engine 1 mismatches 0
+BassMorph_RuntimeRoundTrip: stops 613 (interior 588, in flight 291), restore failures 0, stop mismatches 0, interval mismatches 0
+BassMorph_Idempotent: 1200 returns, 0 mismatches, 1721048 intervals away from A
+BassMorph_RealTimeSafety: 15000 intervals, restores 30/30, state round trips 30/30, setEndpoint 150/150, allocations 0
+BMH_STATIC_EQUALS_FIELD_CHAIN,maxAbsDiff,characterL,0,characterR,0,sumL,0,sumR,0,outL,0,outR,0,tolerance,0.000500000024
+BMH_GRID_CALLS,hostBlock,1,calls,1500,wrong,0
+BMH_GRID_CALLS,hostBlock,7,calls,1500,wrong,0
+BMH_GRID_CALLS,hostBlock,512,calls,1500,wrong,0
+BMH_ENV_SETTERS,decayCurveChanges,61,leaf0,1,leaf1,1,leaf2,1,leaf3,1,leaf4,1,leaf5,62,leaf6,1
+BMH_DESCRIPTORS,dCxDb_pure_sine,-60
+BMH_DESCRIPTORS,eSubDb,amp,0.1,read,-23.0103,expected,-23.0103,lpRead,-23.1617017,lpGainDb,-0.166228609,diff,-2.4924276e-09
+BMH_DESCRIPTORS,eSubDb,amp,0.5,read,-9.03089987,expected,-9.03089987,lpRead,-9.18089931,lpGainDb,-0.166228609,diff,1.75804082e-09
+BMH_DESCRIPTORS,eSubDb,amp,1,read,-3.01029995,expected,-3.01029996,lpRead,-3.1602994,lpGainDb,-0.166228609,diff,1.7580426e-09
+BMH_DESCRIPTORS,dTMs,T,0.5,read,498.135105,expected,500,periodMs,24.2718447
+BMH_DESCRIPTORS,dTMs,T,1,read,998.804243,expected,1000,periodMs,24.2718447
+BMH_MUTE_CHARACTER,characterPeak,1.27976847,anchorPeak,0.159264192,outPeak,0.337348819
+SC-009 control h1: crossfade 88.7325 dB, p=0.5 render 89.0267 dB
+SC-009 control h2: crossfade 65.6583 dB, p=0.5 render 68.6663 dB
+SC-009 control h3: crossfade 69.0021 dB, p=0.5 render 68.249 dB
+SC-009 control h4: crossfade 64.5618 dB, p=0.5 render 58.6469 dB
+SC-009 control h5: crossfade 62.5104 dB, p=0.5 render 56.2861 dB
+SC-009 control h6: crossfade 62.9294 dB, p=0.5 render 52.9236 dB
+SC-009 control h7: crossfade 61.0128 dB, p=0.5 render 53.3691 dB
+SC-009 control h8: crossfade 61.334 dB, p=0.5 render 54.2486 dB
+SC-009 control h9: crossfade 59.0347 dB, p=0.5 render 54.6966 dB
+SC-009 control h10: crossfade 59.0383 dB, p=0.5 render 54.1595 dB
+SC-009 control h11: crossfade 56.5784 dB, p=0.5 render 52.7723 dB
+SC-009 control h12: crossfade 57.3549 dB, p=0.5 render 51.2544 dB
+SC-009 control h13: crossfade 53.8977 dB, p=0.5 render 49.6945 dB
+SC-009 control h14: crossfade 56.2962 dB, p=0.5 render 48.1735 dB
+SC-009 control h15: crossfade 51.3397 dB, p=0.5 render 46.6535 dB
+SC-009 control h16: crossfade 55.1771 dB, p=0.5 render 45.2342 dB
+note,descriptor,at_p0,at_p1,travel,bar,pass
+E1,D_cx_dB,-60,-8.12122,51.8788,3,PASS
+E1,D_nl_dB,0,14.3524,14.3524,3,PASS
+E1,D_st_dB,-120,-1.29258,118.707,3,PASS
+E1,D_br_oct,0.000862163,1.00358,1.00272,0.25,PASS
+E1,D_t_ratio,78.505,1161.66,14.7973,2,PASS
+E1,E_sub_Lock_minus_Blend_p1_dB,-10.4393,-7.7591,2.68021,2,PASS
+C3,D_cx_dB,-60,-7.8256,52.1744,3,PASS
+C3,D_nl_dB,0,13.8675,13.8675,3,PASS
+C3,D_st_dB,-120,0.0420748,120.042,3,PASS
+C3,D_br_oct,0.000856647,0.898973,0.898116,0.25,PASS
+C3,D_t_ratio,80.7292,961,11.904,2,PASS
+C3,E_sub_Lock_minus_Blend_p1_dB,-10.1741,-7.49225,2.68183,2,PASS
+FR-039 (i): worst |step - ds(1 - table(phase))| 3.55686e-08, 8 moving intervals
+FR-039 (ii): max per-sample |dg| 0.00447726, max per-interval ds 0.106667, final 0.799999
+FR-039 (iii): worst |step - range * dtable(phase)| 2.98023e-08, 7 moving intervals
+FR-039 amp envelope immediate apply (tasks.md T009 case 5; plan S4.10). 48 kHz, ramp 5 ms, gate on at 0. Ratio = max|dg| / (10^(0.5/20) * static-A max|dg|) over the same window: recorded for Phase 9, not gated.
+case,window_start,window_end,max_abs_dg,static_ref_max_abs_dg,ratio
+(i) sustain 0->0.8 in Decay,9600,10112,0.0618928,1.46627e-05,3984.97
+(ii) sustain 0->0.8 in Sustain,144000,153600,0.00447726,0,n/a (static reference flat)
+(iii) decayCurve 0.7->-0.7 in Decay,9600,10112,0.0698223,5.96046e-08,1.10589e+06
+FR-039 (iv): Sustain entry 2879 (morphed 2879), 0 mismatching samples before it
+SC-024 E1: g_sw 48000, window end 50810, max|dy| L 0.0344708 (ref 0.0344708, ratio 1), R 0.0344757 (ref 0.0344757, ratio 1)
+SC-024 E1: clicks L 0 (raw 2, guarded 0), R 0 (raw 2, guarded 0)
+SC-024 C3: g_sw 48000, window end 49214, max|dy| L 0.111977 (ref 0.111977, ratio 1), R 0.108447 (ref 0.108447, ratio 1)
+SC-024 C3: clicks L 0 (raw 9, guarded 0), R 0 (raw 9, guarded 0)
+p,mode,level,handedLevel,anchorW1RelDb,expectedDb,deltaDb,eSubAnchorDb
+0,Lock,1,1,0,0,0,-17.4315
+1,Lock,1,1,0,0,0,-17.4315
+0,Blend,1,1,0,0,0,-17.4315
+1,Blend,0.7,0.7,-3.09804,-3.09804,3.47575e-07,-20.5296
+0,Punch,1,1,0,0,0,-17.4315
+1,Punch,0.7,0.7,-3.09804,-3.09804,3.47575e-07,-20.5296
+# (a) Lock E_sub(Anchor tap) range dB,0,bar,0.05
+# (d) worst |w1 - 20log10(level)| dB,3.47575e-07,bar,0.1
+# (e) massOnlyPair Lock Phase-6 audibility: E_low,-26.7093,-0.198618,E_high,-93.213,-13.6749,THD,-26.7,27.443,I,-104.519,-90.7958,C_oct,0.0033247,1.75702,separation_dB,54.143,which,THD,dC_oct,1.7537,distinct,1,bar,3dB_or_0.25oct
+# (e) massOnlyPair Lock D_nl p0,0,p1,-6.44339,travel,-6.44339 (recorded, B9-1)
+SC006 recorded(b) pair 0 unclamped A fold 62.1268: worst harmonic delta 0.00164172 dB (B10-3: fold regime, recorded)
+pair,mode,t_land,harmonics_compared,worst_harmonic,worst_delta_dB
+0,Lock,37920,16,3,0.00164172
+0,Blend,37920,16,3,0.00174995
+SC004 algorithm,Tube->Fold,E1,40,12992,1,1,0,0,0,0
+SC-008 showcase trajectory Blend E1 (f0 41.2034 Hz, fs 48000)
+p	D_cx	D_nl	D_st	D_br	D_t	L_K	E_sub	E_sub_out	dyn_gain	F_lock	L_m	floor	E_sub_anchor	E_sub_blend	gate_s	D_st_out	D_t_out	D_st_valid
+0	-60	0	-120	0.000862163	109.269	-12.0435	-5.97173	-6.03329	-0.0615656	-12	1	-13	-12	0	3	-120	78.505	0
+0.5	-16.6963	8.14475	-9.82491	0.0273984	535.893	-14.2334	-8.33383	-8.39538	-0.0615459	-12.0626	0.75	-15.5614	-14.5614	0	3	-10.9949	252.944	1
+1	-8.12122	14.3524	0.845799	1.00358	1552.21	-13.5874	-10.4393	-13.1128	-2.67346	-12.9473	0.5	-19.9679	-18.9679	0	3	-1.29258	1161.66	1
+SC-008(a) D_st at p 0: core band above 2 f_c below -60 dBFS, recorded -120 dB, skipped
+SC017,grid,E1,fs,48000,p,0,Tube,aliased_L_dbfs,-100.687,aliased_R_dbfs,-102.12
+SC017,grid,E1,fs,48000,p,0.5,Fracture,aliased_L_dbfs,-95.3373,aliased_R_dbfs,-95.3976
+SC017,grid,E1,fs,48000,p,1,Fracture,aliased_L_dbfs,-96.7465,aliased_R_dbfs,-96.1787
+SC017,armA,E1,fs,48000,p,0.515,Tube,aliased_L_dbfs,-95.6185,aliased_R_dbfs,-94.6312
+SC017,armB,E1,fs,48000,p,0.52,Fracture,aliased_L_dbfs,-96.7465,aliased_R_dbfs,-96.1787
+===============================================================================
+All tests passed (5856278 assertions in 51 test cases)
+

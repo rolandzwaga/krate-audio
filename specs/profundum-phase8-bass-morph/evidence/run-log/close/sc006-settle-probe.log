@@ -1,0 +1,27 @@
+Filters: "BassMorph_IdempotentSettleProbe"
+Randomness seeded to: 3009968952
+SC006 PROBE pair 2: A mass 64.1289 fold 86.6486 char 4/0 anchorMode 1 level 0.338038 exc 0.422792 | B mass 97.3526 fold 3.31314 char 1/0 anchorMode 0 level 0.545597 exc 0.219923
+SC006 PROBE pair 2 settle 1 s: worst harmonic delta 0.125716 dB
+SC006 PROBE pair 2 settle 8 s: worst harmonic delta 0.124094 dB
+SC006 PROBE pair 2 variant A anchor Lock: worst harmonic delta 0.125716 dB
+SC006 PROBE pair 2 variant A fold 20: worst harmonic delta 0.00268976 dB
+SC006 PROBE pair 2 variant both: worst harmonic delta 0.00268976 dB
+SC006 PROBE pair 6: A mass 16.0671 fold 98.4769 char 3/0.692154 anchorMode 1 level 0.540466 exc 0.796665 | B mass 59.6181 fold 22.2211 char 1/0.697615 anchorMode 0 level 0.989914 exc 0.858887
+SC006 PROBE pair 6 settle 1 s: worst harmonic delta 0.129833 dB
+SC006 PROBE pair 6 settle 8 s: worst harmonic delta 0.12929 dB
+SC006 PROBE pair 6 variant A anchor Lock: worst harmonic delta 0.129833 dB
+SC006 PROBE pair 6 variant A fold 20: worst harmonic delta 0.000444007 dB
+SC006 PROBE pair 6 variant both: worst harmonic delta 0.000444007 dB
+2,Lock,37920,16,16,0.125716
+2,Lock,37920,16,16,0.124094
+2,Lock,37920,16,16,0.125716
+2,Lock,37920,16,2,0.00268976
+2,Lock,37920,16,2,0.00268976
+6,Lock,37920,16,11,0.129833
+6,Lock,37920,16,11,0.12929
+6,Lock,37920,16,11,0.129833
+6,Lock,37920,16,6,0.000444007
+6,Lock,37920,16,6,0.000444007
+===============================================================================
+All tests passed (439 assertions in 1 test case)
+

@@ -1,0 +1,31 @@
+T019 Portability and Apple globals (FR-087) -- run 2026-10-19 by the T019 executor
+Command: bash specs/profundum-phase8-bass-morph/evidence/close/portability.sh (exit 0)
+Script: specs/profundum-phase8-bass-morph/evidence/close/portability.sh (copied from Phase 7, 4 headers + 11 TUs, 300 s ceiling per lane)
+Wall clock: lint 0 s, check-portability 31 s (concurrent); then wsl --shutdown
+Verdict: both lanes 0 findings -> PORTABILITY GREEN
+
+--- evidence/run-log/close/portability.log (verbatim) ---
+== lint-apple-globals ==
+lint-apple-globals: OK — 15 files, no macOS-only name collisions
+lint exit=0 wall=0s
+
+== check-portability ==
+check-portability: 11 translation unit(s) with g++
+
+  OK      dsp/tests/unit/systems/morph_state_test.cpp
+  OK      dsp/tests/unit/systems/bass_morph_engine_test.cpp
+  OK      dsp/tests/unit/systems/bass_morph_helpers_test.cpp
+  OK      dsp/tests/unit/systems/bass_morph_trajectory_test.cpp
+  OK      dsp/tests/unit/systems/bass_morph_click_test.cpp
+  OK      dsp/tests/unit/systems/bass_morph_aliasing_test.cpp
+  OK      dsp/tests/unit/systems/bass_morph_monosum_test.cpp
+  OK      dsp/tests/unit/systems/bass_morph_chain_test.cpp
+  OK      dsp/tests/unit/systems/bass_morph_nonfinite_test.cpp
+  OK      dsp/tests/unit/systems/bass_morph_probe_test.cpp
+  OK      dsp/tests/unit/systems/bass_morph_perf_test.cpp
+
+check-portability: all clear -- 11 compiled.
+port exit=0 wall=31s
+
+wsl --shutdown done
+PORTABILITY GREEN

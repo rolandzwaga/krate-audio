@@ -1,0 +1,87 @@
+T010 Discrete transitions click-free (SC-004(a)(b)(d) render; FR-034, FR-055; plan C-10, R-12, R-14; deviation 10)
+- 2026-10-19
+
+STATUS: done (not built, not run: the group's build agent builds dsp_systems_tests and runs the gate filter; the
+[long] shards are main-loop work, lane rule 15).
+
+Files written:
+  dsp/tests/unit/systems/bass_morph_click_test.cpp (the T001 stub filled)
+  specs/profundum-phase8-bass-morph/evidence/run-log/T010.txt (this file)
+No other file touched (the fixture bass_morph_test_helpers.h and the state helpers are read-only after T007 / T003).
+
+Failing-first evidence (reasoning, executors do not build): against the T001 stub the TU had no TEST_CASE, so the
+gate ran zero SC-004 cases; every case below is new. The smoke case exercises the full path (transition render, switch
+lookup from discreteSetterCalls, direct-setter reference, (a), (b)).
+
+Compile sanity (not a tree build): clang++ -std=c++20 -fsyntax-only -Wall -Wextra on the TU with dsp/include,
+tests/test_helpers, dsp/tests/unit/systems, Catch2 and pffft include dirs: no diagnostic in any Phase 8 file; the only
+two warnings are crossover_filter.h:434-435 -Wdefaulted-function-deleted (untouched header, as T004 / T005 / T007
+recorded). MorphEvent is built through a TU-local bmcEvent() with plain member writes (no partial designated
+initialiser, -Wmissing-designated-field-initializers).
+
+Cases (all [systems][profundum][bass-morph][sc-004]):
+  [long] BassMorph_DiscreteClickFree_Algorithm          30 ordered pairs (Tube, Fold, Rectify, Bite, Crush, Fracture)
+  [long] BassMorph_DiscreteClickFree_ImageMode           6 (Solid, Spread, Wide)
+  [long] BassMorph_DiscreteClickFree_AnchorWaveform     20 (Sine, Triangle, RoundedSine, AsymmetricSine, OctaveDownSine)
+  [long] BassMorph_DiscreteClickFree_AnchorMode         12 (Lock, Follow, Punch, Ghost)
+  [long] BassMorph_DiscreteClickFree_FieldMotionSource   2 (Drift, Cycle; motionDepth 1)
+  [long] BassMorph_DiscreteClickFree_FieldCycleSync      2 (off, on; Cycle, motionDepth 1)
+  [long] BassMorph_DiscreteClickFree_FieldCycleModifier  6 (None, Dotted, Triplet at Quarter; Cycle, sync on, depth 1)
+  [long] BassMorph_DiscreteClickFree_FieldCycleNote      6 (SixtyFourth, Quarter, QuadrupleWhole at None; Cycle, sync, depth 1)
+  [long] BassMorph_DiscreteClickFree_GoverningAmount     8 rows (4 x zero on A / zero on B) x E1, C3, 0 -> 1 -> 0
+         BassMorph_DiscreteClickFreeSmoke                Tube -> Fold, E1, 40 ms (deviation 5)
+  Shards: E1 (MIDI 28) and C3 (MIDI 48), 48 kHz, ramps {5, 40, 2000} ms, Blend, steady render (ampEnvelope false),
+  note-on at 0, the 0 -> 1 position event at 0.25 s (12 000 samples, a grid sample). Render length 0.25 s + rampMs +
+  transitionEndSamples(kind) + one period + 50 ms (the spec formula).
+
+Decisions:
+  1. Base state (plan C-10): MorphState{} with characterAmount 0.8 and anchor.level 1.0 on both sides. Motion-source
+     pairs add motionDepth 1; the cycle cases (sync, modifier, note) add motionSource Cycle, cycleSync true, motionDepth 1
+     (the cycleSync pairs override cycleSync per side). Modifier pairs at cycleNote Quarter, note pairs at modifier None.
+  2. g_sw = the sample of the single discreteSetterCalls entry for the family's leaf in the transition render
+     (REQUIRE exactly one per 0 -> 1 traversal). The fixture records the field.motion* selectors there too, at the
+     interval whose resolved leaf changed (bass_morph_test_helpers.h:516-531), so one lookup serves every family.
+     Cross-check (CHECK): the q of that interval >= kThetaUp and the previous interval's q < kThetaUp (rule 3; q = p_a
+     for the Anchor families, p otherwise).
+  3. Direct-setter reference (plan C-10): a = b = A, p held at 0, EndpointA and EndpointB events = A' at g_sw; the test
+     REQUIREs the reference's own setter call for the leaf lands at g_sw with the same value (same setter path, same
+     grid point).
+  4. (a): bmcMaxDeltaOver(x, s, len) = maxDeltaAround(x, n, s + h, h), h = ceil(len / 2), len = transitionEndSamples
+     + one period (ceil(fs / f0), the fixture's period); it covers W = [g_sw, g_sw + len] (at most one extra sample at
+     the far end, read identically on both renders). ratio = transition / reference per channel, CHECK <= 10^(0.5/20).
+  5. (b): differentialClicks(tr + cs, Astatic + cs, Bstatic + cs, len, fs, f0).counted == 0 per channel over
+     [g_sw - 50 ms, end of W] (pointers offset to cs = g_sw - 50 ms; all three signals cut identically).
+  6. Statics (plan R-12): BmcStaticCache keyed by (serializedBytes(state), MIDI note), rendered at the longest ramp's
+     length; the fixture is causal (gridDriver walks [0, total) in order; total only bounds the loop and the last
+     corner record, bass_stereo_field_test_helpers.h:262), so a shorter render's first `total` samples are bitwise the
+     longer render's. differentialClicks reads only the first `len` samples from each pointer.
+  7. (a) and (b) are CHECKs (not REQUIREs) so a shard writes the complete table; structural expectations (one switch,
+     reference setter at g_sw, window inside the render) are REQUIREs.
+  8. GoverningAmount (SC-004(d) render): rows of T004 test 7 on the C-10 base — Character Tube/0 -> Fold/0.8,
+     ImageMode Solid/spread 0 -> Wide/spread 1, Anchor waveform Sine/level 0 -> Triangle/0.7, Anchor mode
+     Lock/level 0 -> Punch/0.7 — each with its reverse (zero on B). Default ramp, events 1 at 0.25 s and 0 at
+     `down` = gridUp(0.25 s + gridUp(ramp) + 1 interval + W + 100 ms) (the falling switch's 50 ms lead-in is clear of the
+     rising window). Expected switch intervals (T004 test 7): zero on A -> first q > 0 rising, landing on 0 falling;
+     zero on B -> landing on 1 rising, first q < 1 falling. REQUIRE exactly two setter calls for the leaf; CHECK each
+     at its named interval. Reference: p held at 0, both endpoints = A' at g1, back to A at g2 (the setter receives the
+     new value directly at each switch). Statics A, B rendered at the row's length.
+  9. FTZ / DAZ: enableFTZDAZ() at the top of every case (the T007 TU precedent; tests/test_helpers/enable_ftz_daz.h
+     offers no restore).
+ 10. Evidence: each shard truncates and rewrites evidence/sc004-<family>.csv (header
+     family,pair,note,ramp_ms,g_sw,ratio_L,ratio_R,clicks_L,clicks_R), one row per cell, flushed per row, also printed
+     as "SC004 <row>". Families: algorithm, image-mode, anchor-waveform, anchor-mode, field-motion-source,
+     field-cycle-sync, field-cycle-modifier, field-cycle-note, governing-amount (pair label carries "rise" / "fall").
+     The smoke case prints only.
+
+RISK for the main loop (no bar changed, reported for the gate reading):
+  - GoverningAmount (a): the C-10 reference holds A's governing amount (A' = A with only the discrete field at B's
+    value), while the transition render ramps that amount (e.g. Character Amount 0 -> 0.8 over 40 ms). In the
+    zero-on-A rising and zero-on-B falling switches the transition's max |dy| over W includes the amount ramp and the
+    newly audible stage, the reference's does not (Fold at Amount 0 / level 0 is silent or bypassed). (a) may read
+    red there for a reason that is not a click. If so it is a definition question for the user (spec SC-004(d) /
+    plan C-10), never a relaxed bar.
+  - Render cost (R-12): Algorithm shard = 2 notes x (12 statics + 30 pairs x 3 ramps x 2 renders) = 384 renders of
+    0.3-2.6 s; the field-mode / motion families have W = one period + 10 688 samples. Run the nine shards
+    concurrently from the main loop.
+
+No DEFECT lines.

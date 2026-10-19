@@ -1,0 +1,40 @@
+T014 CPU (SC-018) and the FR-083 worst-interval record; CPU lane script - 2026-10-19
+
+STATUS: done (executor). Lane deferred to the main loop at close: run
+    bash specs/profundum-phase8-bass-morph/evidence/close/cpu-lane.sh
+last, alone, after the machine has idled (T020). Not built, not run by the executor.
+
+Files written:
+  dsp/tests/unit/systems/bass_morph_perf_test.cpp (filled the T001 stub; two hidden cases, both
+      [systems][profundum][bass-morph][performance][.perf], never inside a gate; shipping FP mode)
+    - BassMorph_Cpu [sc-018]: the T008 workload (seed 0x8018, randomValidPair(rng, 0) redrawn until every leaf
+      differs and no governing amount is 0; 48 kHz; 2000 ms ramp re-targeted 0 <-> 1 on landing); 2e5 untimed
+      warm-up calls, then 1e6 advanceInterval() calls x 3, median; CHECK ns_per_interval <= 333.3; prints
+      "SC018 VERDICT <GREEN|RED> <ns>", writes evidence/sc018-cpu.txt.
+    - BassMorph_WorstTransitionIntervalRecord [fr-083]: renderMorphPoly at E1, A1, E2, C3 (anchorMidiHz 28/33/40/48),
+      48 kHz, 1.5 s steady, Blend, default 40 ms ramp, position 0 -> 1 at sample 24000. Pair = showcasePair() with
+      Character Tube/0.5 -> Fracture/0.8, ImageMode Solid/0.5 -> Wide/1, FieldMotion Drift/unsynced/0.5 ->
+      Cycle/synced/1, Anchor Sine/Lock/1 -> Triangle/Punch/0.5 (all governing amounts non-zero: rule 3, REQUIREd).
+      CHECKs that every rendered group issued its setter, all at one grid point, after the ramp start (kThetaUp).
+      Not gated otherwise; prints "FR083 RECORD worst_interval_pct ... vs Phase 5 crossfade cell 2.65 %",
+      writes evidence/worst-interval.txt.
+  specs/profundum-phase8-bass-morph/evidence/close/cpu-lane.sh (new; Phase 7 cpu-lane.sh structure: busy-check
+      refusal, pin-perf-cores.ps1 for BassMorph_Cpu then BassMorph_WorstTransitionIntervalRecord, log
+      evidence/run-log/close/cpu-lane.log, one verdict line appended to evidence/run-log/T020.txt). bash -n: clean.
+  specs/profundum-phase8-bass-morph/evidence/run-log/T014.txt (this file)
+
+Recorded decision (per-interval timing): bass_morph_test_helpers.h is read-only after T007, so the clock is read in
+the fixture's one per-interval hook (cfg.tail.perInterval, called once per grid point at step 9). One delta = one
+whole interval cycle of the 4-voice chain, including fixture overhead (the linear twin core per voice that only D_nl
+reads, tap writes): the record is an upper bound on the shipping chain. Three renders, per-interval median, worst of
+the medians (a single preemption spike in one render cannot set it). Both the render-wide worst and the worst inside
+the switch window (setter interval - 1 .. + 10 ms) are printed.
+
+Failing-first (reasoning): against the T001 stub neither name matches a TEST_CASE, so cpu-lane.sh's grep finds no
+"SC018 VERDICT" / "FR083 RECORD" line and appends the MISSING verdicts.
+
+Compile sanity (not a build of the tree): clang++ -std=c++20 -fsyntax-only -Wall -Wextra -Wshadow -Wconversion
+-Wsign-conversion with dsp/include, tests/test_helpers, dsp/tests, dsp/tests/unit/systems, pffft-src/include and the
+Catch2 include dirs: 0 diagnostics in bass_morph_perf_test.cpp. Remaining warnings are in untouched headers only
+(closed_form_adaa2.h, crossover_filter.h, and under -Wconversion curve_table.h, harmonic_oscillator_bank.h,
+artifact_detection.h), the set earlier tasks recorded.
