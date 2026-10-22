@@ -988,18 +988,18 @@ private:
         }
         // T032: the a1 recipe (FR-005: state_.recipe, before the Mass biases) evaluated once for all voices.
         {
-            const SpectralShapeRecipe::Controls& r = state_.recipe;
+            const SpectralShapeRecipe::Controls& rc = state_.recipe;   // rc: the Resolved r above stays visible (C4456, Phase 10 D-3)
             const bool changed = !sharedA1Valid_
-                                 || std::bit_cast<std::uint32_t>(r.depth) != std::bit_cast<std::uint32_t>(sharedA1Controls_.depth)
-                                 || std::bit_cast<std::uint32_t>(r.body) != std::bit_cast<std::uint32_t>(sharedA1Controls_.body)
-                                 || std::bit_cast<std::uint32_t>(r.bodyCurvature) != std::bit_cast<std::uint32_t>(sharedA1Controls_.bodyCurvature)
-                                 || std::bit_cast<std::uint32_t>(r.bodyEmphasis) != std::bit_cast<std::uint32_t>(sharedA1Controls_.bodyEmphasis)
-                                 || std::bit_cast<std::uint32_t>(r.edge) != std::bit_cast<std::uint32_t>(sharedA1Controls_.edge)
-                                 || std::bit_cast<std::uint32_t>(r.shift) != std::bit_cast<std::uint32_t>(sharedA1Controls_.shift);
+                                 || std::bit_cast<std::uint32_t>(rc.depth) != std::bit_cast<std::uint32_t>(sharedA1Controls_.depth)
+                                 || std::bit_cast<std::uint32_t>(rc.body) != std::bit_cast<std::uint32_t>(sharedA1Controls_.body)
+                                 || std::bit_cast<std::uint32_t>(rc.bodyCurvature) != std::bit_cast<std::uint32_t>(sharedA1Controls_.bodyCurvature)
+                                 || std::bit_cast<std::uint32_t>(rc.bodyEmphasis) != std::bit_cast<std::uint32_t>(sharedA1Controls_.bodyEmphasis)
+                                 || std::bit_cast<std::uint32_t>(rc.edge) != std::bit_cast<std::uint32_t>(sharedA1Controls_.edge)
+                                 || std::bit_cast<std::uint32_t>(rc.shift) != std::bit_cast<std::uint32_t>(sharedA1Controls_.shift);
             if (changed) {
                 SpectralShapeRecipe::evaluateShape(
-                    r, std::span<float>(sharedA1Shape_.data(), static_cast<std::size_t>(ProfundumVoice::kNumPartials)));
-                sharedA1Controls_ = r;
+                    rc, std::span<float>(sharedA1Shape_.data(), static_cast<std::size_t>(ProfundumVoice::kNumPartials)));
+                sharedA1Controls_ = rc;
                 sharedA1Valid_ = true;
             }
         }

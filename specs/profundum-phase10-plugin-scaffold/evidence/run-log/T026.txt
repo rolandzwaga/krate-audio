@@ -1,0 +1,83 @@
+# T026 - CMake registration audit (2026-10-22). Audit only; no CMake list edited (no gap found).
+
+## plugins/profundum/CMakeLists.txt - FR-008 src paths (expected 1 each)
+$ grep -c 'src/entry.cpp' plugins/profundum/CMakeLists.txt -> 1
+$ grep -c 'src/plugin_ids.h' plugins/profundum/CMakeLists.txt -> 1
+$ grep -c 'src/version.h' plugins/profundum/CMakeLists.txt -> 1
+$ grep -c 'src/processor/processor.h' plugins/profundum/CMakeLists.txt -> 1
+$ grep -c 'src/processor/processor.cpp' plugins/profundum/CMakeLists.txt -> 1
+$ grep -c 'src/controller/controller.h' plugins/profundum/CMakeLists.txt -> 1
+$ grep -c 'src/controller/controller.cpp' plugins/profundum/CMakeLists.txt -> 1
+$ grep -c 'src/parameters/global_params.h' plugins/profundum/CMakeLists.txt -> 1
+$ grep -c 'src/parameters/macro_params.h' plugins/profundum/CMakeLists.txt -> 1
+$ grep -c 'src/engine/profundum_engine_config.h' plugins/profundum/CMakeLists.txt -> 1
+$ grep -c 'src/preset/profundum_preset_config.h' plugins/profundum/CMakeLists.txt -> 1
+$ grep -c 'src/update/profundum_update_config.h' plugins/profundum/CMakeLists.txt -> 1
+$ find plugins/profundum/src -type f ! -name .gitkeep | wc -l -> 12  (12 files on disk, 12 listed)
+
+## Warning suppression (expected 0)
+$ grep -c -- '/wd' plugins/profundum/CMakeLists.txt -> 0
+$ grep -c -- '-Wno-' plugins/profundum/CMakeLists.txt -> 0
+$ grep -c -- 'pragma warning' plugins/profundum/CMakeLists.txt -> 0
+
+## Required calls (expected 1 each)
+$ grep -c 'krate_plugin_read_version(' plugins/profundum/CMakeLists.txt -> 1
+$ grep -c 'krate_plugin_configure_generated_files(' plugins/profundum/CMakeLists.txt -> 1
+$ grep -c 'smtg_add_vst3plugin(' plugins/profundum/CMakeLists.txt -> 1
+$ grep -c 'smtg_target_configure_version_file(' plugins/profundum/CMakeLists.txt -> 1
+$ grep -c 'krate_plugin_platform_setup(' plugins/profundum/CMakeLists.txt -> 1
+$ grep -c 'smtg_target_add_plugin_resources(' plugins/profundum/CMakeLists.txt -> 1
+$ grep -c 'krate_plugin_install_to_system(' plugins/profundum/CMakeLists.txt -> 1
+$ grep -c 'krate_plugin_install_presets(' plugins/profundum/CMakeLists.txt -> 1
+$ grep -c 'krate_plugin_set_warnings(' plugins/profundum/CMakeLists.txt -> 1
+
+## plugins/profundum/tests/CMakeLists.txt - test TUs (expected 1 each)
+$ grep -c '^    unit/test_main.cpp$' plugins/profundum/tests/CMakeLists.txt -> 1
+$ grep -c '^    unit/processor_bus_test.cpp$' plugins/profundum/tests/CMakeLists.txt -> 1
+$ grep -c '^    unit/param_denorm_test.cpp$' plugins/profundum/tests/CMakeLists.txt -> 1
+$ grep -c '^    unit/state_roundtrip_test.cpp$' plugins/profundum/tests/CMakeLists.txt -> 1
+$ grep -c '^    unit/midi_event_test.cpp$' plugins/profundum/tests/CMakeLists.txt -> 1
+$ grep -c '^    unit/lifecycle_test.cpp$' plugins/profundum/tests/CMakeLists.txt -> 1
+$ grep -c '^    unit/controller/editor_lifecycle_test.cpp$' plugins/profundum/tests/CMakeLists.txt -> 1
+$ grep -c '^    integration/processor_audio_test.cpp$' plugins/profundum/tests/CMakeLists.txt -> 1
+$ grep -c '^    integration/param_flow_test.cpp$' plugins/profundum/tests/CMakeLists.txt -> 1
+$ grep -c '^    integration/processor_cpu_test.cpp$' plugins/profundum/tests/CMakeLists.txt -> 1  (add_executable entry; the only other mention is the comment '# integration/processor_cpu_test.cpp is DELIBERATELY ABSENT')
+$ grep -c 'src/processor/processor.cpp' plugins/profundum/tests/CMakeLists.txt -> 1
+$ grep -c 'src/controller/controller.cpp' plugins/profundum/tests/CMakeLists.txt -> 1
+
+## -fno-fast-math block (lines 67-74)
+$ sed -n 67,74p | grep -c 'unit/param_denorm_test.cpp' -> 1
+$ sed -n 67,74p | grep -c 'unit/state_roundtrip_test.cpp' -> 1
+$ sed -n 67,74p | grep -c 'unit/lifecycle_test.cpp' -> 1
+$ sed -n 67,74p | grep -c 'unit/midi_event_test.cpp' -> 1
+$ sed -n 67,74p | grep -c 'integration/processor_audio_test.cpp' -> 1
+$ sed -n 67,74p | grep -c 'integration/param_flow_test.cpp' -> 1
+$ sed -n 67,74p | grep -c 'processor_cpu_test.cpp' -> 0  (expected 0)
+$ grep -c 'set_source_files_properties' plugins/profundum/tests/CMakeLists.txt -> 1  (one flag block)
+
+## Link order / discovery / PCH
+$ grep -n 'vstgui_support\|^        sdk$' plugins/profundum/tests/CMakeLists.txt
+44:        vstgui_support
+45:        sdk
+$ grep -c 'catch_discover_tests(profundum_tests REPORTER console)' plugins/profundum/tests/CMakeLists.txt -> 1
+$ grep -v '^\s*$' plugins/profundum/tests/CMakeLists.txt | tail -1 -> krate_test_pch(profundum_tests)  (krate_test_pch last)
+
+## Root CMakeLists.txt
+$ grep -c 'add_subdirectory(plugins/profundum)' CMakeLists.txt -> 1  (expected 1)
+$ git diff 285613c5 -- CMakeLists.txt
+warning: in the working copy of 'CMakeLists.txt', LF will be replaced by CRLF the next time Git touches it
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 2e16b9e1..162d213d 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -499,6 +499,7 @@ add_subdirectory(plugins/gradus)
+ add_subdirectory(plugins/membrum)
+ add_subdirectory(plugins/seraphis)
+ add_subdirectory(plugins/vorago)
++add_subdirectory(plugins/profundum)
+ 
+ # ==============================================================================
+ # Tools (Shared development tools)
+warning: in the working copy of 'CMakeLists.txt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'CMakeLists.txt', LF will be replaced by CRLF the next time Git touches it
+$ git diff 285613c5 -- CMakeLists.txt | grep -c '^+[^+]' -> 1; removed: 0

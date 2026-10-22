@@ -1,0 +1,64 @@
+# T027 run-log (2026-10-22T10:06:31+02:00)
+
+$ node tools/gen-repo-map.js
+Wrote specs/_architecture_/repo-map.json (9 plugins, 12 deps).
+exit=0
+
+$ node tools/gen-specs-index.js
+Wrote specs/INDEX.md (263 specs).
+exit=0
+
+$ node tools/gen-repo-map.js --check
+repo-map.json is up to date.
+exit=0
+
+$ node tools/gen-symbols.js --check
+symbols.json is up to date.
+exit=0
+
+$ node tools/gen-specs-index.js --check
+specs/INDEX.md is up to date.
+exit=0
+
+$ node tools/lint-layers.js
+lint-layers: OK — no layer-dependency violations in 5-layer DSP tree.
+exit=0
+
+$ node tools/lint-odr.js
+lint-odr: OK — 911 definitions scanned, no cross-file name collisions.
+exit=0
+
+$ node tools/lint-arch-guarded-includes.js
+lint-arch-guarded-includes: OK — no krate includes behind architecture guards.
+exit=0
+
+$ node tools/lint-float-bit-goldens.js
+lint-float-bit-goldens: clean (1817 files scanned)
+exit=0
+
+$ node tools/lint-midi-timing-goldens.js
+lint-midi-timing-goldens: clean (1817 files scanned)
+exit=0
+
+$ node tools/lint-platform-type-literals.js
+lint-platform-type-literals: clean -- 1817 file(s) scanned.
+exit=0
+
+$ node tools/lint-allocation-operator-overrides.js
+lint-allocation-operator-overrides: clean -- 1934 file(s) scanned.
+exit=0
+
+$ node tools/lint-simd-aligned-loadstore.js
+lint-simd-aligned-loadstore: clean -- 1817 file(s) scanned.
+exit=0
+
+$ node tools/lint-plugin-roster.js
+lint-plugin-roster: OK — 9 plugins present in every roster (disrumpo, gradus, innexus, iterum, membrum, profundum, ruinae, seraphis, vorago)
+exit=0
+
+$ grep -n '^## Profundum' specs/INDEX.md
+47:## Profundum
+exit=0
+$ awk '/^## Profundum/,/^## [^P]/' specs/INDEX.md | grep -c profundum-phase10-plugin-scaffold
+1
+exit=0

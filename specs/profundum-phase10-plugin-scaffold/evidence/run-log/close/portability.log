@@ -1,0 +1,32 @@
+=== T030 portability 2026-10-22T08:14:14Z commit 285613c5
+
+== check-portability ==
+check-portability: 14 translation unit(s) with g++
+
+  OK      plugins/profundum/src/entry.cpp
+  OK      plugins/profundum/src/processor/processor.cpp
+  OK      plugins/profundum/src/controller/controller.cpp
+  OK      plugins/profundum/tests/vstgui_test_stubs.cpp
+  OK      plugins/profundum/tests/unit/test_main.cpp
+  OK      plugins/profundum/tests/unit/lifecycle_test.cpp
+  OK      plugins/profundum/tests/unit/midi_event_test.cpp
+  OK      plugins/profundum/tests/unit/param_denorm_test.cpp
+  OK      plugins/profundum/tests/unit/processor_bus_test.cpp
+  OK      plugins/profundum/tests/unit/state_roundtrip_test.cpp
+  OK      plugins/profundum/tests/unit/controller/editor_lifecycle_test.cpp
+  OK      plugins/profundum/tests/integration/param_flow_test.cpp
+  OK      plugins/profundum/tests/integration/processor_audio_test.cpp
+  OK      plugins/profundum/tests/integration/processor_cpu_test.cpp
+
+check-portability: all clear -- 14 compiled.
+check-portability exit=0 wall=47s
+
+== lint-apple-globals ==
+lint-apple-globals: OK — 23 files, no macOS-only name collisions
+lint-apple-globals exit=0 wall=0s
+
+== cross-check ==
+git status .cpp count under plugins/profundum: 14 (expected 14)
+
+wsl --shutdown done; total wall 52s
+PORTABILITY GREEN

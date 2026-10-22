@@ -1,0 +1,62 @@
+# T028 run-log (2026-10-22T10:07:43+02:00)
+
+$ bash specs/profundum-phase10-plugin-scaffold/evidence/close/registration-greps.sh
+== SC-018.2 ==
+ci.yml:regex'for area in .*profundum' 1 >=1 PASS
+ci.yml:'auval -v aumu Prfd KrAt' 1 >=1 PASS
+ci.yml:'Profundum-Windows-x64' 1 >=1 PASS
+ci.yml:'Profundum-macOS' 1 >=1 PASS
+ci.yml:'Profundum-Linux-x64' 1 >=1 PASS
+ci.yml:'Profundum AUv3.app' 2 >=1 PASS
+.gitignore:'/plugins/profundum/src/version.h' 1 1 PASS
+.gitignore:'/plugins/profundum/resources/win32resource.rc' 1 1 PASS
+.gitignore:'/plugins/profundum/resources/auv3/audiounitconfig.h' 1 1 PASS
+run-cpu-tests.js:"'profundum_tests'" 1 >=1 PASS
+run-close-lanes.js:"'profundum_tests'" 1 >=1 PASS
+ci-test-shard.js:"['profundum', 'Profundum']" 1 1 PASS
+CLAUDE.md:'Profundum.vst3' 2 >=2 PASS
+CLAUDE.md:'--target profundum_tests' 1 >=1 PASS
+CLAUDE.md:'plugins/profundum/CLAUDE.md' 1 >=1 PASS
+CLAUDE.md:'|profundum' 1 >=1 PASS
+CLAUDE.md:'Add Profundum parameter' 1 1 PASS
+CLAUDE.md:'Add Profundum test' 1 1 PASS
+CLAUDE.md:'Change Profundum UI' 1 1 PASS
+CLAUDE.md:'**Profundum**' 1 >=1 PASS
+== SC-018 extra greps ==
+CLAUDE.md:'Plugins today:.*profundum' 1 >=1 PASS
+run-clang-tidy.ps1:all-block:plugins/profundum/(src|tests) 4 >=2 PASS
+run-clang-tidy.sh:all-block:plugins/profundum/(src|tests) 2 >=2 PASS
+INDEX.md:'^## Profundum' 1 1 PASS
+INDEX.md:Profundum-section:profundum-phase10-plugin-scaffold 1 >=1 PASS
+== FR inspection checklist ==
+FR-002:version.json '6 false' '6 false' PASS
+FR-006:warning-suppressions 0 0 PASS
+FR-008:skeleton-missing(of 38) 0 0 PASS
+FR-009:CLAUDE.md:'64 samples' 1 >=1 PASS
+FR-009:CLAUDE.md:'after the limiter' 1 >=1 PASS
+FR-009:CLAUDE.md:'Polyphony' 2 >=1 PASS
+FR-009:CLAUDE.md:'Sub' 1 >=1 PASS
+FR-009:CLAUDE.md:'IMidiMapping' 1 >=1 PASS
+FR-009:CLAUDE.md:'Mass and Morph' 2 >=1 PASS
+FR-009:CLAUDE.md:'ProfundumPluginTest' 2 >=1 PASS
+FR-009:CLAUDE.md:'22050' 1 >=1 PASS
+FR-009:CLAUDE.md:'120 BPM' 1 >=1 PASS
+39:static const char* const kSubCategories = "Instrument|Synth";
+FR-014:kSubCategories 1 1 PASS
+FR-018:DEF_CLASS2 2 2 PASS
+FR-018:'"ui/' 0 0 PASS
+FR-053:'return Krate::DSP::ProfundumEngineConfig{}' 1 1 PASS
+FR-056:ls-A-src/ui '.gitkeep' '.gitkeep' PASS
+failures=0
+REGISTRATION GREEN
+exit=0
+
+$ node specs/profundum-phase10-plugin-scaffold/evidence/close/scope-fence.js
+warning: in the working copy of '.gitignore', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'CMakeLists.txt', LF will be replaced by CRLF the next time Git touches it
+scope-fence: 74 path(s) checked against 285613c5, 0 offending
+SCOPE GREEN
+exit=0
+
+FR-053 header read: plugins/profundum/src/engine/profundum_engine_config.h defines exactly one function, makeProfundumEngineConfig() (returns Krate::DSP::ProfundumEngineConfig{}), plus the constant kOutputGainSmoothMs; no other function defined.
+Note: the two 'LF will be replaced by CRLF' lines in the scope-fence output are git stderr warnings, not offending paths.

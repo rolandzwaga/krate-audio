@@ -79,6 +79,9 @@ tools/*.txt
 /plugins/vorago/resources/win32resource.rc
 /plugins/vorago/src/version.h
 /plugins/vorago/resources/auv3/audiounitconfig.h
+/plugins/profundum/resources/win32resource.rc
+/plugins/profundum/src/version.h
+/plugins/profundum/resources/auv3/audiounitconfig.h
 tmpclaude-*
 /compile_commands.json
 .cache/

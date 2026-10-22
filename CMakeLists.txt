@@ -499,6 +499,7 @@ add_subdirectory(plugins/gradus)
 add_subdirectory(plugins/membrum)
 add_subdirectory(plugins/seraphis)
 add_subdirectory(plugins/vorago)
+add_subdirectory(plugins/profundum)
 
 # ==============================================================================
 # Tools (Shared development tools)

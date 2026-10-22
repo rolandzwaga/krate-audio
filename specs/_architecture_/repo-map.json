@@ -49,6 +49,14 @@
       "pluginval_bundle": "build/windows-x64-release/VST3/Release/Membrum.vst3"
     },
     {
+      "dir": "plugins/profundum",
+      "name": "Profundum",
+      "test_targets": [
+        "profundum_tests"
+      ],
+      "pluginval_bundle": "build/windows-x64-release/VST3/Release/Profundum.vst3"
+    },
+    {
       "dir": "plugins/ruinae",
       "name": "Ruinae",
       "test_targets": [
