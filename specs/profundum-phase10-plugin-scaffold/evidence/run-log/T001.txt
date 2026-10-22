@@ -1,0 +1,141 @@
+T001 — Branch, base, sweeps, GUID collision check (no code)
+Date: 2026-10-22   cwd: f:/projects/iterum
+
+== Step 1: branch / base / tree ==
+$ git branch --show-current
+synth/profundum
+$ git merge-base --is-ancestor 285613c5 HEAD; echo exit=$?
+exit=0
+$ git rev-parse --short HEAD
+285613c5
+$ git status --porcelain
+ M .serena/project.yml
+?? specs/profundum-phase10-plugin-scaffold/
+
+== Step 2: ODR re-sweep (each must print 0 lines) ==
+$ grep -rnw "namespace Profundum" dsp/ plugins/ tests/ | wc -l
+0
+$ grep -rn "makeProfundumEngineConfig\|kOutputGainSmoothMs\|makeProfundumPresetConfig\|makeProfundumUpdateConfig\|ProfundumPluginTest" dsp/ plugins/ tests/ | wc -l
+0
+
+== Step 3: AU subtype Prfd (must print 0 lines) ==
+$ grep -rn "Prfd" plugins/ tools/ .github/ CMakeLists.txt cmake/ dsp/ | wc -l
+0
+
+== Step 4: GUID collisions over plugins/*/src/plugin_ids.h and plugins/*/installers/windows/setup.iss ==
+$ ls plugins/*/src/plugin_ids.h plugins/*/installers/windows/setup.iss
+plugins/disrumpo/installers/windows/setup.iss
+plugins/disrumpo/src/plugin_ids.h
+plugins/gradus/installers/windows/setup.iss
+plugins/gradus/src/plugin_ids.h
+plugins/innexus/installers/windows/setup.iss
+plugins/innexus/src/plugin_ids.h
+plugins/iterum/installers/windows/setup.iss
+plugins/iterum/src/plugin_ids.h
+plugins/membrum/installers/windows/setup.iss
+plugins/membrum/src/plugin_ids.h
+plugins/ruinae/installers/windows/setup.iss
+plugins/ruinae/src/plugin_ids.h
+plugins/seraphis/installers/windows/setup.iss
+plugins/seraphis/src/plugin_ids.h
+plugins/vorago/installers/windows/setup.iss
+plugins/vorago/src/plugin_ids.h
+$ grep -rni "94C64960" plugins/*/src/plugin_ids.h plugins/*/installers/windows/setup.iss | wc -l
+0
+$ grep -rni "F7E844BE" plugins/*/src/plugin_ids.h plugins/*/installers/windows/setup.iss | wc -l
+0
+$ grep -rni "B439A0F3" plugins/*/src/plugin_ids.h plugins/*/installers/windows/setup.iss | wc -l
+0
+$ grep -rni "95AF84C9" plugins/*/src/plugin_ids.h plugins/*/installers/windows/setup.iss | wc -l
+0
+$ grep -rni "449C9192" plugins/*/src/plugin_ids.h plugins/*/installers/windows/setup.iss | wc -l
+0
+$ grep -rni "E39F4DA0" plugins/*/src/plugin_ids.h plugins/*/installers/windows/setup.iss | wc -l
+0
+$ grep -rni "AD6E7BCA" plugins/*/src/plugin_ids.h plugins/*/installers/windows/setup.iss | wc -l
+0
+$ grep -rni "260F4CA0" plugins/*/src/plugin_ids.h plugins/*/installers/windows/setup.iss | wc -l
+0
+$ grep -rni "4DDA5FC2-4CD6-44E2-BF11-18887F0F6CD9" plugins/*/src/plugin_ids.h plugins/*/installers/windows/setup.iss | wc -l
+0
+$ grep -rni "4DDA5FC2" plugins/*/src/plugin_ids.h plugins/*/installers/windows/setup.iss | wc -l
+0
+$ grep -rni "4CD6" plugins/*/src/plugin_ids.h plugins/*/installers/windows/setup.iss | wc -l
+0
+$ grep -rni "44E2" plugins/*/src/plugin_ids.h plugins/*/installers/windows/setup.iss | wc -l
+0
+$ grep -rni "BF11" plugins/*/src/plugin_ids.h plugins/*/installers/windows/setup.iss | wc -l
+0
+$ grep -rni "18887F0F6CD9" plugins/*/src/plugin_ids.h plugins/*/installers/windows/setup.iss | wc -l
+0
+Supplementary (wider net): whole-repo grep of the eight FUID words + AppId outside specs/
+94C64960: 0
+F7E844BE: 0
+B439A0F3: 0
+95AF84C9: 0
+449C9192: 0
+E39F4DA0: 0
+AD6E7BCA: 0
+260F4CA0: 0
+4DDA5FC2-4CD6-44E2-BF11-18887F0F6CD9: 0
+
+== Step 5: engine API rows of 'Verified API surface' (tasks.md:104-108), re-read at HEAD 285613c5 ==
+$ sed -n '97,100p;107p;110p;118,119p' dsp/include/krate/dsp/systems/profundum_engine.h
+    enum class VoiceMode : std::uint8_t { Mono = 0, Poly = 1 };
+
+    static constexpr std::size_t kMaxVoices = 8;                 // FR-022, Q8
+    static constexpr std::size_t kDefaultPolyphony = 4;
+    static constexpr std::size_t kLimiterLookaheadSamples = 64;
+    static constexpr float kDefaultCeilingDb = TruePeakLimiter::kDefaultCeilingDb;   // -1 dBTP
+    static constexpr double kMinSampleRate = 22050.0;            // FR-064
+    static constexpr double kMaxSampleRate = 192000.0;
+$ sed -n '147,152p' dsp/include/krate/dsp/systems/profundum_engine.h
+    void prepare(double sampleRate, const ProfundumEngineConfig& cfg = {}) noexcept {
+        // 1.
+        cfg_ = cfg;
+        seams_ = cfg.seams;
+        double fs = detail::isFinite(sampleRate) ? sampleRate : kMinSampleRate;
+        fs = std::clamp(fs, kMinSampleRate, kMaxSampleRate);
+$ sed -n '201p' dsp/include/krate/dsp/systems/profundum_engine.h
+    void reset() noexcept {
+$ for n in 264 280 299 326 330 364 371 380 398 422 444 446 448; do sed -n ${n}p dsp/include/krate/dsp/systems/profundum_engine.h; done
+264:     void noteOn(std::uint8_t note, std::uint8_t velocity) noexcept {
+280:     void noteOff(std::uint8_t note) noexcept {
+299:     void setTempoBpm(float bpm) noexcept {
+326:     void setVoiceMode(VoiceMode m) noexcept {
+330:     void setPolyphony(std::size_t n) noexcept { pending_.polyphony = std::clamp<std::size_t>(n, 1, kMaxVoices); }
+364:     void setOutputCeilingDb(float db) noexcept {
+371:     void setMacros(const ProfundumMacroValues& v) noexcept { macros_.setMacros(v); }
+380:     [[nodiscard]] float tempoBpm() const noexcept { return pending_.tempoBpm; }
+398:     [[nodiscard]] ProfundumMacroValues macros() const noexcept { return macros_.macros(); }
+422:     void processBlock(float* left, float* right, std::size_t numSamples) noexcept {
+444:     [[nodiscard]] std::size_t latencySamples() const noexcept { return limiter_.lookaheadSamples(); }
+446:     [[nodiscard]] std::uint64_t droppedEvents() const noexcept { return dropped_; }
+448:     [[nodiscard]] bool stateFinite() const noexcept {
+latencySamples() '0 before prepare' check:
+$ grep -n 'lookaheadSamples() const\|std::size_t lookahead_ = 0' dsp/include/krate/dsp/processors/true_peak_limiter.h
+131:    [[nodiscard]] std::size_t lookaheadSamples() const noexcept { return lookahead_; }
+280:    std::size_t lookahead_ = 0;
+$ sed -n '186,187p' dsp/include/krate/dsp/systems/profundum_engine.h
+        limiter_.setLookaheadSamples(kLimiterLookaheadSamples);   // G14-1 (configuration-time, before prepare)
+        limiter_.prepare(fs, kControlInterval);
+Macro-matrix row (tasks.md:109), same check:
+38: enum class ProfundumMacro : std::uint8_t { Weight = 0, DarkBright, TightLoose, CleanViolent, Count };
+58: struct ProfundumMacroValues {
+59:     float weight = 0.5f;
+60:     float darkBright = 0.5f;
+61:     float tightLoose = 0.5f;
+62:     float cleanViolent = 0.5f;
+67:     static constexpr float kNeutral = 0.5f;   // FR-051 / D-7, all four
+68:     static constexpr std::size_t kNumMacros = static_cast<std::size_t>(ProfundumMacro::Count);
+
+Row verdicts:
+  VoiceMode{Mono=0,Poly=1} :97, kMaxVoices=8 :99, kDefaultPolyphony=4 :100 ............ MATCH
+  kLimiterLookaheadSamples=64 :107, kDefaultCeilingDb (-1 dBTP) :110, kMinSampleRate=22050.0 :118, kMaxSampleRate=192000.0 :119 ... MATCH
+  prepare(double, const ProfundumEngineConfig& = {}) :147, fs clamp :151-152; reset() :201 ... MATCH
+  noteOn :264, noteOff :280, setTempoBpm :299, setVoiceMode :326, setPolyphony clamp [1,kMaxVoices] :330, setOutputCeilingDb :364, setMacros :371 ... MATCH
+  tempoBpm :380, macros :398, processBlock(float*,float*,size_t) :422, latencySamples (limiter look-ahead; lookahead_=0 until prepare) :444, droppedEvents :446, stateFinite :448 ... MATCH
+  ProfundumMacro :38, ProfundumMacroValues 4x0.5f :58-62, kNeutral=0.5f :67, kNumMacros :68 ... MATCH (row cites :57-62; :57 is the doc comment, struct opens :58)
+
+RESULT: T001 PASS. Branch synth/profundum at 285613c5, tree clean apart from the two allowed paths;
+ODR, Prfd and GUID/AppId sweeps all 0 hits; every engine row of the Verified API surface matches. No source file changed.

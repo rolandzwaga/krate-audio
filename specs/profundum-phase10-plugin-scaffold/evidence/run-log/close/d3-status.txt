@@ -1,0 +1,10 @@
+START 2026-10-22T08:38:07Z commit 285613c5
+build exit=0 wall=97s warnings=0 log=specs/profundum-phase10-plugin-scaffold/evidence/run-log/close/build-d3.log
+pluginval exit=0 wall=12s log=specs/profundum-phase10-plugin-scaffold/evidence/run-log/close/pluginval-d3.log
+check-bundle exit=0 wall=0s log=specs/profundum-phase10-plugin-scaffold/evidence/run-log/close/check-bundle-d3.log
+suite:profundum_tests exit=0 wall=41s log=specs/profundum-phase10-plugin-scaffold/evidence/run-log/close/consumer-profundum_tests.log
+check-portability exit=0 wall=60s log=specs/profundum-phase10-plugin-scaffold/evidence/run-log/close/check-portability-d3.log
+suite:dsp_effects_tests exit=0 wall=112s log=specs/profundum-phase10-plugin-scaffold/evidence/run-log/close/consumer-dsp_effects_tests.log
+suite:dsp_processors_tests exit=0 wall=258s log=specs/profundum-phase10-plugin-scaffold/evidence/run-log/close/consumer-dsp_processors_tests.log
+suite:dsp_systems_tests exit=0 wall=1573s log=specs/profundum-phase10-plugin-scaffold/evidence/run-log/close/consumer-dsp_systems_tests.log
+DONE 2026-10-22T09:05:57Z GREEN red=0 total_wall=1670s

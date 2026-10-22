@@ -78,6 +78,7 @@ This is a **monorepo** for Krate Audio plugins, featuring:
 - **Membrum**: Physically-modelled drum synthesizer at `plugins/membrum/` (AU type: `aumu`)
 - **Seraphis**: Spectral-organism synthesizer at `plugins/seraphis/` (AU type: `aumu`, subtype `Srph`) — the current active-development plugin
 - **Vorago**: Dark-ambient drone instrument at `plugins/vorago/` (AU type: `aumu`, subtype `Vrgo`)
+- **Profundum**: Mass bass instrument at `plugins/profundum/` (AU type: `aumu`, subtype `Prfd`)
 - **Shared plugin infrastructure** at `plugins/shared/` (presets, UI components, MIDI, platform)
 - **Steinberg VST3 SDK** (not JUCE or other frameworks)
 - **VSTGUI** for user interface
@@ -88,7 +89,7 @@ This is a **monorepo** for Krate Audio plugins, featuring:
 
 The current roster is whatever lives under `plugins/` — **trust the filesystem, not a hand-maintained
 tree here** (that is exactly where staleness accrues). Plugins today: `iterum`, `disrumpo`, `ruinae`,
-`innexus`, `gradus`, `membrum`, `seraphis`, `vorago`, plus `shared`. The shared DSP library is `dsp/` (`Krate::DSP`, 5 layers
+`innexus`, `gradus`, `membrum`, `seraphis`, `vorago`, `profundum`, plus `shared`. The shared DSP library is `dsp/` (`Krate::DSP`, 5 layers
 under `dsp/include/krate/dsp/{core,primitives,processors,systems,effects}/`).
 
 - **Per-area detail** (skeleton, param-ID base, test target, pluginval path): the area `CLAUDE.md` leaf
@@ -103,7 +104,7 @@ This file holds cross-cutting rules. **Area-specific `CLAUDE.md` leaf files auto
 their subtree** — read them for the concrete facts (skeleton, param-ID scheme, test target, pluginval path):
 
 - [`dsp/CLAUDE.md`](dsp/CLAUDE.md) — layer architecture, ODR procedure, header-only/SIMD conventions
-- [`plugins/iterum/CLAUDE.md`](plugins/iterum/CLAUDE.md) · [`disrumpo`](plugins/disrumpo/CLAUDE.md) · [`ruinae`](plugins/ruinae/CLAUDE.md) · [`innexus`](plugins/innexus/CLAUDE.md) · [`gradus`](plugins/gradus/CLAUDE.md) · [`membrum`](plugins/membrum/CLAUDE.md) · [`seraphis`](plugins/seraphis/CLAUDE.md) · [`vorago`](plugins/vorago/CLAUDE.md)
+- [`plugins/iterum/CLAUDE.md`](plugins/iterum/CLAUDE.md) · [`disrumpo`](plugins/disrumpo/CLAUDE.md) · [`ruinae`](plugins/ruinae/CLAUDE.md) · [`innexus`](plugins/innexus/CLAUDE.md) · [`gradus`](plugins/gradus/CLAUDE.md) · [`membrum`](plugins/membrum/CLAUDE.md) · [`seraphis`](plugins/seraphis/CLAUDE.md) · [`vorago`](plugins/vorago/CLAUDE.md) · [`profundum`](plugins/profundum/CLAUDE.md)
 
 ## Critical Rules (Non-Negotiable)
 
@@ -337,6 +338,9 @@ tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/V
 
 # Vorago
 tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Vorago.vst3"
+
+# Profundum
+tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Profundum.vst3"
 ```
 
 Skip for docs-only, CI config, or test-only changes.
@@ -403,6 +407,7 @@ for t in dsp_core_tests dsp_primitives_tests dsp_processors_tests dsp_systems_te
 "$CMAKE" --build build/windows-x64-release --config Release --target membrum_tests   # Membrum
 "$CMAKE" --build build/windows-x64-release --config Release --target seraphis_tests  # Seraphis
 "$CMAKE" --build build/windows-x64-release --config Release --target vorago_tests    # Vorago
+"$CMAKE" --build build/windows-x64-release --config Release --target profundum_tests # Profundum
 "$CMAKE" --build build/windows-x64-release --config Release --target shared_tests    # Shared infra
 
 # Iterum has a SECOND, generically-named test target: `approval_tests` holds the
@@ -457,6 +462,7 @@ node tools/run-cpu-tests.js dsp_systems_tests   # or just the ones you touched
 - `build/windows-x64-release/VST3/Release/Membrum.vst3/`
 - `build/windows-x64-release/VST3/Release/Seraphis.vst3/`
 - `build/windows-x64-release/VST3/Release/Vorago.vst3/`
+- `build/windows-x64-release/VST3/Release/Profundum.vst3/`
 
 ### AddressSanitizer (ASan)
 
@@ -485,7 +491,7 @@ ctest --test-dir build-asan -C Debug --output-on-failure
 Run before every commit (canonical todo list step 6) and after significant refactoring:
 
 ```powershell
-./tools/run-clang-tidy.ps1 -Target <all|dsp|shared|iterum|disrumpo|ruinae|innexus|gradus|membrum|seraphis|vorago> -BuildDir build/windows-ninja
+./tools/run-clang-tidy.ps1 -Target <all|dsp|shared|iterum|disrumpo|ruinae|innexus|gradus|membrum|seraphis|vorago|profundum> -BuildDir build/windows-ninja
 # Linux/macOS: ./tools/run-clang-tidy.sh --target <same roster>
 ```
 
@@ -505,6 +511,7 @@ compile_commands.json generation) and the full flag reference: `clang-tidy-setup
 | Add Membrum parameter | plugins/membrum/src/plugin_ids.h → processor → controller → uidesc (no `parameters/` dir) |
 | Add Seraphis parameter | plugins/seraphis/src/plugin_ids.h → parameters/ → processor → controller → uidesc |
 | Add Vorago parameter | plugins/vorago/src/plugin_ids.h → parameters/ → processor → controller → uidesc |
+| Add Profundum parameter | plugins/profundum/src/plugin_ids.h → parameters/ → processor → controller → uidesc |
 | Add DSP component | dsp/include/krate/dsp/{layer}/ → dsp/tests/unit/{layer}/ |
 | Add Iterum test | plugins/iterum/tests/unit/{section}/ |
 | Add Disrumpo test | plugins/disrumpo/tests/ |
@@ -515,6 +522,7 @@ compile_commands.json generation) and the full flag reference: `clang-tidy-setup
 | Add Membrum test | plugins/membrum/tests/ |
 | Add Seraphis test | plugins/seraphis/tests/unit/ (or tests/integration/) |
 | Add Vorago test | plugins/vorago/tests/unit/ (or tests/integration/) |
+| Add Profundum test | plugins/profundum/tests/unit/ (or tests/integration/) |
 | Add shared component | plugins/shared/src/{section}/ → plugins/shared/tests/ |
 | Change Iterum UI | plugins/iterum/resources/editor.uidesc |
 | Change Disrumpo UI | plugins/disrumpo/resources/editor.uidesc |
@@ -522,6 +530,7 @@ compile_commands.json generation) and the full flag reference: `clang-tidy-setup
 | Change Membrum UI | plugins/membrum/resources/editor.uidesc |
 | Change Seraphis UI | plugins/seraphis/resources/editor.uidesc |
 | Change Vorago UI | plugins/vorago/resources/editor.uidesc |
+| Change Profundum UI | plugins/profundum/resources/editor.uidesc |
 
 | Your Layer | Location | Can Include |
 |------------|----------|-------------|

@@ -752,6 +752,24 @@ infrastructure and their checklists apply directly.
 
 ### Phase 10: Plugin Scaffold
 
+**Status: ✅ COMPLETE (2026-10-22; SC-004 auval and the macOS / Linux CI legs PENDING-CI until the push)** — see
+specs/profundum-phase10-plugin-scaffold/compliance.md. Built on branch `synth/profundum`. `plugins/profundum/`: the Vorago-shaped
+scaffold around one unchanged `ProfundumEngine` (AU `aumu` / `Prfd` / `KrAt`, bundle `com.krateaudio.profundum`, fresh FUIDs, event-in +
+stereo-out, no DSP in the plugin). Eight shipped parameters: output gain (ID 0, dB-tapered attenuation after the limiter, −60 … 0 dB,
+Q1), voice mode (1), polyphony "1".."8" default 4 (2, Q2), output ceiling −12 … 0 dBTP (3), and the four Personality macros 100–103
+live through `setMacros` (Q3); Mass and Morph position wait for Phase 11. 36-byte versioned state; latency reported as the constant 64
+(Q5); host sample rates outside [22050, 192000] refused with silence (Q6); host tempo forwarded when valid (Q7); seed preset category
+`Sub` (Q4). Sample-accurate event order with a 1024-entry sort and overflow queue; block-size invariance 0 mismatches; wrapper
+transparency 0 mismatches against the engine driven directly. CPU alone and pinned: MONO 3.05307 %, 4 voices 8.48054 %, macros-max
+5.97993 / 21.3513 % (bars 8 / 25, gated per Q-A), wrapper ratio ≤ 1.05×. Registered at every roster site (ci.yml, release.yml,
+valgrind-nightly.yml, both clang-tidy scripts, the tool lists, release-readiness.js per Q-B, root CLAUDE.md, the generated maps);
+pluginval strictness 5, check-bundle, check-portability, clang-tidy and ASan green; `profundum_tests` 8 cases + the hidden CPU case.
+Close rulings: D-1 (the post-release exact-zero bar reads the 5 Hz DC blocker's documented settle — Sum tap silent by 0.125 s, output
+≤ 1e-6 by 0.5 s, exact zero by 1.25 s), D-2 (Clean ↔ Violent at 0 inert by construction on the default patch, recorded; the 1 arm gated),
+D-3 (two bit-identical identifier renames in `dsp/` to end MSVC shadowing warnings C4459 / C4456, an FR-090 exception gated by the
+consumers' per-push suites). Phase 11 handoff: every setter's range / default / unit (spec 11.1 table), Edit A / Edit B morph surface,
+IDs 100–199 and 1000–1099, the 36-byte state layout grows only under a version bump.
+
 **Spec:** `profundum-phase10-plugin-scaffold`
 
 - **Template: Vorago shape** (Ruinae-style instrument with `parameters/` packs, engine-config layer,

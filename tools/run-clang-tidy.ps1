@@ -63,7 +63,7 @@
 param(
     [string]$BuildDir = "build/windows-x64-release",
     [switch]$Fix,
-    [ValidateSet("all", "dsp", "dsp-lib", "dsp-tests", "iterum", "disrumpo", "ruinae", "innexus", "gradus", "membrum", "seraphis", "vorago")]
+    [ValidateSet("all", "dsp", "dsp-lib", "dsp-tests", "iterum", "disrumpo", "ruinae", "innexus", "gradus", "membrum", "seraphis", "vorago", "profundum")]
     [string]$Target = "all",
     [switch]$Quiet,
     [int]$Jobs = 0,
@@ -226,6 +226,17 @@ switch ($Target) {
         $IncludeDirs += "tests"
         $IncludeDirs += "extern/vst3sdk"
     }
+    "profundum" {
+        # src and tests, matching run-clang-tidy.sh's `profundum)` case (same
+        # reason as the Seraphis case above: both scripts must analyze one file set).
+        $SourceDirs += "plugins/profundum/src"
+        $SourceDirs += "plugins/profundum/tests"
+        $IncludeDirs += "dsp/include"
+        $IncludeDirs += "plugins/profundum/src"
+        $IncludeDirs += "plugins/profundum/tests"
+        $IncludeDirs += "tests"
+        $IncludeDirs += "extern/vst3sdk"
+    }
     "all" {
         $SourceDirs += "dsp/include"
         $SourceDirs += "dsp/tests"
@@ -239,6 +250,8 @@ switch ($Target) {
         $SourceDirs += "plugins/seraphis/src"
         $SourceDirs += "plugins/vorago/src"
         $SourceDirs += "plugins/vorago/tests"
+        $SourceDirs += "plugins/profundum/src"
+        $SourceDirs += "plugins/profundum/tests"
         $IncludeDirs += "dsp/include"
         $IncludeDirs += "plugins/iterum/src"
         $IncludeDirs += "plugins/disrumpo/src"
@@ -249,6 +262,8 @@ switch ($Target) {
         $IncludeDirs += "plugins/seraphis/src"
         $IncludeDirs += "plugins/vorago/src"
         $IncludeDirs += "plugins/vorago/tests"
+        $IncludeDirs += "plugins/profundum/src"
+        $IncludeDirs += "plugins/profundum/tests"
         $IncludeDirs += "tests"
         $IncludeDirs += "extern/vst3sdk"
     }

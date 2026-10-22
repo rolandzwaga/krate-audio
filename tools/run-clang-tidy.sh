@@ -64,7 +64,8 @@ while [[ $# -gt 0 ]]; do
             echo "  --build-dir DIR   Build directory with compile_commands.json"
             echo "                    (auto-detected if not specified)"
             echo "  --target TARGET   Target to analyze: all, dsp, shared, iterum, disrumpo,"
-            echo "                    ruinae, innexus, gradus, membrum, seraphis, vorago"
+            echo "                    ruinae, innexus, gradus, membrum, seraphis, vorago,"
+            echo "                    profundum"
             echo "                    ('all' covers dsp + every plugin). Default: all"
             echo "  --fix             Apply automatic fixes (use with caution)"
             echo "  --quiet           Suppress progress output"
@@ -160,6 +161,9 @@ case $TARGET in
     vorago)
         SOURCE_DIRS=("plugins/vorago/src" "plugins/vorago/tests")
         ;;
+    profundum)
+        SOURCE_DIRS=("plugins/profundum/src" "plugins/profundum/tests")
+        ;;
     all)
         # MUST cover dsp + shared + EVERY plugin, or Linux/macOS pre-commit lint
         # silently skips code the .ps1 (and CI) would analyze. Keep in sync with
@@ -176,6 +180,8 @@ case $TARGET in
             "plugins/seraphis/src"
             "plugins/vorago/src"
             "plugins/vorago/tests"
+            "plugins/profundum/src"
+            "plugins/profundum/tests"
         )
         ;;
     *)

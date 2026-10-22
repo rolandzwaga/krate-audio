@@ -1,0 +1,37 @@
+T002 run log (2026-10-22) - packaging, AU identity, installers, leaf CLAUDE.md
+
+$ node -e "const j=require('./plugins/profundum/version.json');console.log(Object.keys(j).length, 'preset_subdir' in j)"
+6 false
+
+$ diff <(sed 's/Vorago/Profundum/g;s/Vrgo/Prfd/g' plugins/vorago/resources/auv3/audiounitconfig.h.in) plugins/profundum/resources/auv3/audiounitconfig.h.in
+(exit 0; empty output above)
+
+$ cmp plugins/vorago/resources/auv3/macOS/Vorago.entitlements plugins/profundum/resources/auv3/macOS/Profundum.entitlements
+(exit 0)
+
+$ grep -c "<key>AudioComponents</key>\|<key>AudioUnit SupportedNumChannels</key>\|<string>Prfd</string>" plugins/profundum/resources/au-info.plist
+3
+
+$ grep -n "AppId" plugins/profundum/installers/windows/setup.iss; grep -ci vorago (setup.iss, linux README)
+18:AppId={{4DDA5FC2-4CD6-44E2-BF11-18887F0F6CD9}
+plugins/profundum/installers/windows/setup.iss:0
+plugins/profundum/installers/linux/README.txt:0
+
+$ for a in <nine anchors>; do grep -c "$a" plugins/profundum/CLAUDE.md; done
+64 samples: 1
+after the limiter: 1
+Polyphony: 2
+Sub: 1
+IMidiMapping: 1
+Mass and Morph: 2
+ProfundumPluginTest: 2
+22050: 1
+120 BPM: 1
+
+$ diff (spec.md FR-009 items 1-9) (CLAUDE.md "Decisions that outlive Phase 10" items)
+(exit 0; verbatim)
+
+$ ls -la plugins/profundum/docs/.gitkeep plugins/profundum/src/ui/.gitkeep plugins/profundum/resources/presets/Sub/.gitkeep
+0 plugins/profundum/docs/.gitkeep
+0 plugins/profundum/resources/presets/Sub/.gitkeep
+0 plugins/profundum/src/ui/.gitkeep

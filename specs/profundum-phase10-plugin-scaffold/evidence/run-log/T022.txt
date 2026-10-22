@@ -1,0 +1,14 @@
+T022 — release.yml and valgrind-nightly.yml (FR-072, FR-073)
+$ grep -n profundum .github/workflows/release.yml .github/workflows/valgrind-nightly.yml
+.github/workflows/release.yml:43:          - profundum
+.github/workflows/release.yml:144:          key: fetchcontent-${{ github.repository }}-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'dsp/CMakeLists.txt', 'plugins/iterum/CMakeLists.txt', 'plugins/disrumpo/CMakeLists.txt', 'plugins/ruinae/CMakeLists.txt', 'plugins/innexus/CMakeLists.txt', 'plugins/gradus/CMakeLists.txt', 'plugins/membrum/CMakeLists.txt', 'plugins/seraphis/CMakeLists.txt', 'plugins/vorago/CMakeLists.txt', 'plugins/profundum/CMakeLists.txt', 'tests/CMakeLists.txt') }}
+.github/workflows/valgrind-nightly.yml:284:            gradus_tests plugin_tests disrumpo_tests ruinae_tests innexus_tests membrum_tests seraphis_tests vorago_tests profundum_tests
+.github/workflows/valgrind-nightly.yml:291:          for bin in gradus_tests plugin_tests disrumpo_tests ruinae_tests innexus_tests membrum_tests seraphis_tests vorago_tests profundum_tests; do
+
+$ git diff --stat .github/workflows/release.yml .github/workflows/valgrind-nightly.yml
+ .github/workflows/release.yml          | 3 ++-
+ .github/workflows/valgrind-nightly.yml | 4 ++--
+ 2 files changed, 4 insertions(+), 3 deletions(-)
+
+Run filter unchanged:
+301:              "$BINDIR/$bin" '[lifecycle]'

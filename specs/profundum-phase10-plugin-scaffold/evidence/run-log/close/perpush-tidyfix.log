@@ -1,0 +1,305 @@
+Filters: ~[performance] ~[perf] ~[benchmark] ~[!benchmark] ~[long]
+Randomness seeded to: 2179161856
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+profundum_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+Profundum_StateRoundTrip
+  HostileGainKeepsCeiling
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\unit\state_roundtrip_test.cpp(557)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\unit\state_roundtrip_test.cpp(591): warning:
+  SC-011.5 HostileGainKeepsCeiling: peak L = 0.891251, R = 0.891251 (bar 0.
+  891251); stored gain = 1
+
+-------------------------------------------------------------------------------
+Profundum_MidiEventTranslation
+  PartitionInvariance
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\unit\midi_event_test.cpp(211)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\unit\midi_event_test.cpp(236): warning:
+  PartitionInvariance: 512 render rmsDb[24000, 96000) L = -16.6547 dB, R = -16.
+  5547 dB
+
+-------------------------------------------------------------------------------
+Profundum_MidiEventTranslation
+  EventOrder
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\unit\midi_event_test.cpp(248)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\unit\midi_event_test.cpp(263): warning:
+  EventOrder: reference peak over the last 0.25 s = 0.25127
+
+-------------------------------------------------------------------------------
+Profundum_MidiEventTranslation
+  Overflow
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\unit\midi_event_test.cpp(270)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\unit\midi_event_test.cpp(275): warning:
+  Overflow: droppedEvents() = 0 (control 0); slices in block B = 2
+
+F:\projects\iterum\plugins\profundum\tests\unit\midi_event_test.cpp(283): warning:
+  Overflow (a): peak over [B_end + 1 s, + 0.5 s) = 0
+
+F:\projects\iterum\plugins\profundum\tests\unit\midi_event_test.cpp(291): warning:
+  Overflow (b): control rmsDb L = -8.69245 dB, R = -9.23594 dB
+
+F:\projects\iterum\plugins\profundum\tests\unit\midi_event_test.cpp(336): warning:
+  Overflow (c): reference peak over block B + 100 ms = 0.890734; mismatches L =
+  0, R = 0
+
+-------------------------------------------------------------------------------
+Profundum_MidiEventTranslation
+  Translation
+  TinyVelocitySounds
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\unit\midi_event_test.cpp(390)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\unit\midi_event_test.cpp(400): warning:
+  Translation: velocity 0.003 rmsDb[24000, 48000) L = -17.2438 dB, R = -17.2433
+  dB
+
+-------------------------------------------------------------------------------
+Profundum_MidiEventTranslation
+  Translation
+  VelocityZeroNoteOnReleases
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\unit\midi_event_test.cpp(405)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\unit\midi_event_test.cpp(420): warning:
+  Translation: velocity-0 note-on, held peak = 0.89125, peak over [72000,
+  96000) = 1.41108e-15
+
+-------------------------------------------------------------------------------
+Profundum_ProcessorLifecycle
+  IdleIsExactZero
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\unit\lifecycle_test.cpp(347)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\unit\lifecycle_test.cpp(359): warning:
+  P-5 idle: non-zero samples L = 0, R = 0 of 4096
+
+F:\projects\iterum\plugins\profundum\tests\unit\lifecycle_test.cpp(395): warning:
+  P-5 held E1 RMS (L, 0 .. 0.5 s) = -14.3377 dBFS
+
+F:\projects\iterum\plugins\profundum\tests\unit\lifecycle_test.cpp(404): warning:
+  P-5 release: last non-zero Sum-tap sample = 28798 (bar < 30000); samples
+  above 1e-6 from 48000: L 0, R 0; last non-zero output sample L = 72527, R =
+  72527 (exact-zero tail starts at 84000)
+
+-------------------------------------------------------------------------------
+Profundum_ProcessorLifecycle
+  LatencyIsReal
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\unit\lifecycle_test.cpp(532)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\unit\lifecycle_test.cpp(548): warning:
+  SC-014 LatencyIsReal: first non-zero sample index = 65 (bar [64, 68])
+
+-------------------------------------------------------------------------------
+Profundum_ProcessorLifecycle
+  Guards
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\unit\lifecycle_test.cpp(553)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\unit\lifecycle_test.cpp(576): warning:
+  SC-017.1 Guards control: peak of the block after a valid NoteOn = 0.661112
+
+-------------------------------------------------------------------------------
+Profundum_ProcessorLifecycle
+  Reset
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\unit\lifecycle_test.cpp(580)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\unit\lifecycle_test.cpp(605): warning:
+  SC-017.4 Reset: non-zero samples after reset L = 0, R = 0; control block peak
+  = 0.219873
+
+-------------------------------------------------------------------------------
+Profundum_ProcessorLifecycle
+  ActivateNoAlloc
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\unit\lifecycle_test.cpp(631)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\unit\lifecycle_test.cpp(644): warning:
+  SC-017.7 ActivateNoAlloc: allocations in setActive(true) = 0
+
+-------------------------------------------------------------------------------
+Profundum_ProcessorLifecycle
+  ProcessNoAlloc
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\unit\lifecycle_test.cpp(649)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\unit\lifecycle_test.cpp(771): warning:
+  SC-007 ProcessNoAlloc: allocations over 188 x 512 samples = 0 (probe 1);
+  output peak = 0.999967
+
+-------------------------------------------------------------------------------
+Profundum_ProcessorRendersHeldNote
+  HeldNote
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\integration\processor_audio_test.cpp(74)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_audio_test.cpp(89): warning:
+  SC-005 HeldNote: peak = 0.89125, RMS [0.5 s, 2 s) L = -17.2766 dBFS, R = -17.
+  2767 dBFS
+
+-------------------------------------------------------------------------------
+Profundum_ProcessorRendersHeldNote
+  Ceiling
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\integration\processor_audio_test.cpp(96)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_audio_test.cpp(138): warning:
+  SC-006 Ceiling: 4 s peak L = 0.891251, R = 0.891251 (bar 0.891251, non-
+  vacuity >= 0.445625); after the -12 dBTP switch (from sample 192064) peak L =
+  0.251183, R = 0.251189 (bar 0.251189)
+
+-------------------------------------------------------------------------------
+Profundum_ProcessorRendersHeldNote
+  WrapperTransparency
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\integration\processor_audio_test.cpp(150)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_audio_test.cpp(224): warning:
+  SC-008 WrapperTransparency: arm (a) RMS L [0, 3 s) = -13.3673 dBFS;
+  mismatches L = 0, R = 0; max |a - b| L = 0, R = 0
+
+-------------------------------------------------------------------------------
+Profundum_ParamFlowReachesEngine
+  ReadBack
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(157)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(191): warning:
+  ReadBack: voiceMode 1, polyphony 5, ceiling -7.2 dBTP, macros {0.2, 0.7, 0.9,
+  0.1}
+
+-------------------------------------------------------------------------------
+Profundum_ParamFlowReachesEngine
+  Audibility
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(203)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(214): warning:
+  gain 0.9: rms ratio over [2400, 96000) L = 0.501187, R = 0.501187 (bar [0.
+  491, 0.511])
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(227): warning:
+  gain 0.0: non-zero samples from index 960 = 0, peak = 0
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(233): warning:
+  gain 1.0: mismatches vs default L = 0, R = 0
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(244): warning:
+  voice mode Mono vs Poly: maxAbsDiff = 1.27478 (bar > 1e-3)
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(257): warning:
+  polyphony 1 vs 4 (kChord4): rmsDb L -16.6464 vs -10.9182, R -16.0418 vs -10.
+  7484 (bar |diff| > 1 dB)
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(271): warning:
+  ceiling (kChord8): default peak = 0.891251, -12 dBTP peak = 0.251189 (bar 0.
+  251189)
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(289): warning:
+  macro 100 = 0: rmsDb(x - default) = -17.3485 dBFS (bar > -60)
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(289): warning:
+  macro 100 = 1: rmsDb(x - default) = -14.7945 dBFS (bar > -60)
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(289): warning:
+  macro 101 = 0: rmsDb(x - default) = -21.1065 dBFS (bar > -60)
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(289): warning:
+  macro 101 = 1: rmsDb(x - default) = -19.6822 dBFS (bar > -60)
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(289): warning:
+  macro 102 = 0: rmsDb(x - default) = -18.1675 dBFS (bar > -60)
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(289): warning:
+  macro 102 = 1: rmsDb(x - default) = -19.1082 dBFS (bar > -60)
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(289): warning:
+  macro 103 = 0: rmsDb(x - default) = -200 dBFS (recorded: inert by
+  construction on the default patch, D-2)
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(289): warning:
+  macro 103 = 1: rmsDb(x - default) = -27.8486 dBFS (bar > -60)
+
+-------------------------------------------------------------------------------
+Profundum_ParamFlowReachesEngine
+  Tempo
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(298)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(323): warning:
+  Tempo: after kTempoValid 90 = 90, after state 0 / 140 = 90, after null
+  context = 90
+
+-------------------------------------------------------------------------------
+Profundum_ParamFlowReachesEngine
+  MacrosLive
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(330)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(342): warning:
+  MacrosLive: tightLoose after a 0.8 point = 0.8
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(367): warning:
+  MacrosLive all-0.5 vs DirectEngine: mismatches L = 0, R = 0
+
+-------------------------------------------------------------------------------
+Profundum_ParamFlowReachesEngine
+  StateWhileRunning
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(373)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(406): warning:
+  StateWhileRunning: voiceMode 1, polyphony 2, ceiling -6, macros {0.1, 0.2, 0.
+  3, 0.4}
+
+-------------------------------------------------------------------------------
+Profundum_ParamFlowReachesEngine
+  GainRamp
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(417)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(490): warning:
+  GainRamp: block 0 mismatches L = 0, R = 0; gain after block 1 = 0.535848,
+  predicted = 0.535848 (|diff| 0)
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(493): warning:
+  GainRamp ratio L: count 512, increases 0, first 0.997409, last 0.535848; R:
+  count 512, increases 0, first 0.997409, last 0.535848
+
+===============================================================================
+All tests passed (732163 assertions in 8 test cases)
+
+exit: 0

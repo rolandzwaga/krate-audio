@@ -1,0 +1,24 @@
+T021 — .github/workflows/ci.yml Profundum entries (FR-071)
+
+Pre-edit (red, checker written first):
+$ node specs/profundum-phase10-plugin-scaffold/evidence/close/ci-twins.js | tail -1
+CI-TWINS missing=50
+
+Edits (one patch pass, CRLF preserved), site counts:
+  detect-changes output 1, paths-filter 1, $GITHUB_OUTPUT echo 1, for-area/for-p lists 2,
+  hashFiles keys 3, plugin_info blocks 9 (macOS: "profundum:Profundum:Profundum_AU:Profundum_AUV3 profundum_tests"),
+  case arms 9, step blocks 5 (Windows upload, macOS AU validation, AUv3 bundle verify, macOS upload, Linux upload).
+$ git diff --stat .github/workflows/ci.yml
+ .github/workflows/ci.yml | 96 +++++++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 82 insertions(+), 14 deletions(-)
+
+Post-edit:
+$ node specs/profundum-phase10-plugin-scaffold/evidence/close/ci-twins.js; echo "exit=$?"
+CI-TWINS missing=0
+exit=0
+$ grep -c 'auval -v aumu Prfd KrAt' .github/workflows/ci.yml
+1
+
+Note: ci-twins.js also collapses runs of internal whitespace when normalising, so the case arm
+`profundum) CHANGED=` (one space, as tasks.md specifies) matches the twin of `vorago)   CHANGED=`.
+lint-plugin-roster.js stays red until T024 (deviation 2); not run here.

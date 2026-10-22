@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<vstgui-ui-description version="1">
+  <!-- Phase 10 PLACEHOLDER — Phase 12 replaces this file wholesale; stock views only.
+       (specs/profundum-phase10-plugin-scaffold, tasks T005 and T019; FR-054.)
+       No bitmaps, no custom classes: a custom class name here would be dropped
+       silently on a leg where the ViewCreator TU was not linked.
+       Eight bound controls: six CSliders for the plain Vst::Parameters (gain,
+       ceiling, four macros) and two COptionMenus for the StringListParameters
+       (voice mode, polyphony), each beside an untagged CTextLabel. -->
+  <colors>
+    <color name="bg"     rgba="#101014ff"/>
+    <color name="text"   rgba="#D8D8E0ff"/>
+    <color name="track"  rgba="#22222Aff"/>
+    <color name="accent" rgba="#7A8CA8ff"/>
+  </colors>
+  <fonts>
+    <font name="label-font" font-name="Arial" size="11"/>
+    <font name="title-font" font-name="Arial" size="16"/>
+  </fonts>
+  <control-tags>
+    <control-tag name="OutputGain"        tag="0"/>
+    <control-tag name="VoiceMode"         tag="1"/>
+    <control-tag name="Polyphony"         tag="2"/>
+    <control-tag name="OutputCeiling"     tag="3"/>
+    <control-tag name="MacroWeight"       tag="100"/>
+    <control-tag name="MacroDarkBright"   tag="101"/>
+    <control-tag name="MacroTightLoose"   tag="102"/>
+    <control-tag name="MacroCleanViolent" tag="103"/>
+  </control-tags>
+  <template name="editor" class="CViewContainer" origin="0, 0" size="420, 360"
+            minSize="420, 360" maxSize="420, 360"
+            background-color="bg" background-color-draw-style="filled">
+    <view class="CTextLabel" title="Profundum" origin="16, 8" size="200, 24"
+          font="title-font" font-color="text" transparent="true"
+          text-alignment="left" mouse-enabled="false"/>
+
+    <!-- StringListParameters -> COptionMenu (type MUST match the registration) -->
+    <view class="CTextLabel" title="Voice Mode" origin="16, 48" size="120, 16" font="label-font" font-color="text" transparent="true"/>
+    <view class="COptionMenu" control-tag="VoiceMode" origin="150, 46" size="120, 20"
+          font="label-font" font-color="text" frame-color="accent" back-color="track"
+          fill-color="track" frame-width="1" transparent="false"
+          style-3D-in="false" style-3D-out="false"/>
+
+    <view class="CTextLabel" title="Polyphony" origin="16, 84" size="120, 16" font="label-font" font-color="text" transparent="true"/>
+    <view class="COptionMenu" control-tag="Polyphony" origin="150, 82" size="120, 20"
+          font="label-font" font-color="text" frame-color="accent" back-color="track"
+          fill-color="track" frame-width="1" transparent="false"
+          style-3D-in="false" style-3D-out="false"/>
+
+    <!-- Plain Vst::Parameters -> CSlider -->
+    <view class="CTextLabel" title="Output Gain" origin="16, 120" size="120, 16" font="label-font" font-color="text" transparent="true"/>
+    <view class="CSlider" control-tag="OutputGain" origin="150, 118" size="240, 20"
+          orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true"
+          frame-color="accent" back-color="track" value-color="accent"/>
+
+    <view class="CTextLabel" title="Output Ceiling" origin="16, 156" size="120, 16" font="label-font" font-color="text" transparent="true"/>
+    <view class="CSlider" control-tag="OutputCeiling" origin="150, 154" size="240, 20"
+          orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true"
+          frame-color="accent" back-color="track" value-color="accent"/>
+
+    <view class="CTextLabel" title="Weight" origin="16, 192" size="120, 16" font="label-font" font-color="text" transparent="true"/>
+    <view class="CSlider" control-tag="MacroWeight" origin="150, 190" size="240, 20"
+          orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true"
+          frame-color="accent" back-color="track" value-color="accent"/>
+
+    <view class="CTextLabel" title="Dark / Bright" origin="16, 228" size="120, 16" font="label-font" font-color="text" transparent="true"/>
+    <view class="CSlider" control-tag="MacroDarkBright" origin="150, 226" size="240, 20"
+          orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true"
+          frame-color="accent" back-color="track" value-color="accent"/>
+
+    <view class="CTextLabel" title="Tight / Loose" origin="16, 264" size="120, 16" font="label-font" font-color="text" transparent="true"/>
+    <view class="CSlider" control-tag="MacroTightLoose" origin="150, 262" size="240, 20"
+          orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true"
+          frame-color="accent" back-color="track" value-color="accent"/>
+
+    <view class="CTextLabel" title="Clean / Violent" origin="16, 300" size="120, 16" font="label-font" font-color="text" transparent="true"/>
+    <view class="CSlider" control-tag="MacroCleanViolent" origin="150, 298" size="240, 20"
+          orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true"
+          frame-color="accent" back-color="track" value-color="accent"/>
+  </template>
+</vstgui-ui-description>

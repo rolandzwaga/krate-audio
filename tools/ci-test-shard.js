@@ -171,6 +171,7 @@ function installWindowsPresets() {
     const plugins = [
         ['iterum', 'Iterum'], ['disrumpo', 'Disrumpo'], ['ruinae', 'Ruinae'], ['innexus', 'Innexus'],
         ['gradus', 'Gradus'], ['membrum', 'Membrum', 'Kit Presets', 'Kits'], ['seraphis', 'Seraphis'], ['vorago', 'Vorago'],
+        ['profundum', 'Profundum'],
     ];
     for (const [dir, target, srcSub, destSub] of plugins) {
         let src = path.join('plugins', dir, 'resources', 'presets');

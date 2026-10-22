@@ -121,10 +121,10 @@ struct DiodeAdaaLaw {
 /// class includes the other.
 [[nodiscard]] inline double diodeH1Coefficient(double gain) noexcept {
     constexpr std::size_t kPoints = 256;
-    constexpr double kTwoPi = 6.283185307179586476925286766559;
+    constexpr double kTwoPiD = 6.283185307179586476925286766559;   // double; the Layer-0 kTwoPi is float (C4459, Phase 10 D-3)
     double sum = 0.0;
     for (std::size_t k = 0; k < kPoints; ++k) {
-        const double phi = kTwoPi * (static_cast<double>(k) + 0.5) / static_cast<double>(kPoints);
+        const double phi = kTwoPiD * (static_cast<double>(k) + 0.5) / static_cast<double>(kPoints);
         const double s = std::sin(phi);
         sum += DiodeAdaaLaw::f(gain * s) * s;
     }

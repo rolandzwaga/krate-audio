@@ -1,0 +1,23 @@
+T025 - Root CLAUDE.md rosters (FR-079) - verification, 2026-10-22
+$ grep -cF -- Profundum.vst3 CLAUDE.md
+2
+$ grep -cF -- --target\ profundum_tests CLAUDE.md
+1
+$ grep -cF -- \|profundum CLAUDE.md
+1
+$ grep -cF -- Add\ Profundum\ parameter CLAUDE.md
+1
+$ grep -cF -- Add\ Profundum\ test CLAUDE.md
+1
+$ grep -cF -- Change\ Profundum\ UI CLAUDE.md
+1
+$ grep -cF -- \*\*Profundum\*\* CLAUDE.md
+1
+$ grep -cF -- \[\`profundum\`\]\(plugins/profundum/CLAUDE.md\) CLAUDE.md
+1
+$ tr '\n' ' ' < CLAUDE.md | grep -c 'Plugins today:.*profundum'
+1
+$ git diff --stat CLAUDE.md
+ CLAUDE.md | 15 ++++++++++++---
+ 1 file changed, 12 insertions(+), 3 deletions(-)
+BOM preserved:  ef bb bf

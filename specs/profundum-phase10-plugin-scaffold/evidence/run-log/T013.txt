@@ -1,0 +1,25 @@
+T013 - setupProcessing, latency, setActive, shape guards, not-ready path
+=======================================================================
+
+Files changed:
+  plugins/profundum/tests/unit/lifecycle_test.cpp   (sections appended to Profundum_ProcessorLifecycle after IdleIsExactZero:
+                                                     Latency, NoLatencyMessage, NotReady, SampleSize64 steps 1-3,
+                                                     UnsupportedRate silence parts, PushInSetup, NoMidiInterfaces)
+  plugins/profundum/src/processor/processor.cpp     (setupProcessing per plan 2.5.4 incl. P-12 step 2b; setActive per
+                                                     2.5.5 / P-3; process() guards 3-7 per 2.5.6, rendered path still a
+                                                     stub until T014; pushParamsToEngine per 2.5.7; getLatencySamples
+                                                     per 2.5.9)
+
+Build / test: NOT run by this implementer (workflow rule: the group's build agent builds and runs the gate).
+
+P-2 note (for a later dsp/ change; dsp/ NOT edited here)
+--------------------------------------------------------
+dsp/include/krate/dsp/systems/profundum_engine.h:15 reads
+  "// TruePeakLimiter (FR-025). Latency 0."
+This is stale. The same header gives
+  :107  static constexpr std::size_t kLimiterLookaheadSamples = 64;
+  :444  [[nodiscard]] std::size_t latencySamples() const noexcept { return limiter_.lookaheadSamples(); }
+so the engine's output lags its input by 64 samples once prepared. The Profundum processor follows :107 / :444:
+getLatencySamples() returns kLimiterLookaheadSamples (64) whenever the engine exists, and SC-014 (Latency section)
+asserts it equals engineForTest()->latencySamples() after every accepted setup. The header comment at :15 should be
+corrected to "Latency kLimiterLookaheadSamples (64)" in a later dsp/ change.
