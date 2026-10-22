@@ -1,0 +1,44 @@
+T002 run-log (executor; no build/run per workflow rules)
+
+$ diff <(sed -n 16,81p plugins/vorago/src/processor/sustain_latch.h) <(sed -n 17,82p plugins/shared/src/midi/sustain_latch.h)
+5c5
+< namespace Vorago {
+---
+> namespace Krate::Plugins {
+66c66
+< }  // namespace Vorago
+---
+> }  // namespace Krate::Plugins
+
+$ diff (test body) plugins/vorago/tests/integration/sustain_test.cpp:36-186 vs plugins/shared/tests/test_sustain_latch.cpp:28-174
+0a1
+> namespace {
+16c17
+< TEST_CASE("Vorago_SustainLatchUnit", "[vorago][midi]")
+---
+> TEST_CASE("SustainLatch_SharedSemantics", "[profundum][shared][midi]")
+18c19
+<     Vorago::SustainLatch latch;
+---
+>     Krate::Plugins::SustainLatch latch;
+147,151d147
+<         REQUIRE(latchedOffs > 0u);    // ... and pedal-down (latched) note-offs
+<         REQUIRE(maxReleasesPerPass <= 128u);  // no pass released a key twice
+<     }
+< }
+< 
+(the trailing 147,151d lines are a window-length artefact: the shared file's last 5 lines are identical, see tail below)
+        REQUIRE(allocs == 0u);
+        REQUIRE(immediateOffs > 0u);  // the run exercised pedal-up note-offs
+        REQUIRE(latchedOffs > 0u);    // ... and pedal-down (latched) note-offs
+        REQUIRE(maxReleasesPerPass <= 128u);  // no pass released a key twice
+    }
+}
+
+$ grep -n allocation_operator_overrides plugins/shared/tests/test_sustain_latch.cpp
+11:// This TU must NOT include <allocation_operator_overrides.h>; the global
+
+$ grep -rn "class SustainLatch" dsp plugins
+plugins/shared/src/midi/sustain_latch.h:23:class SustainLatch {
+plugins/vorago/src/processor/sustain_latch.h:22:class SustainLatch {
+Distinct namespaces (Vorago vs Krate::Plugins): no ODR clash. shared_tests verdict pending G3 gate (T005 registers the TU).

@@ -6,7 +6,7 @@
 // DirectEngine, because no processor body exists when it first runs. Later
 // tasks (T013, T014, T018) add the processor-path sections to this case.
 // T013 adds Latency, NoLatencyMessage, NotReady, SampleSize64 (steps 1-3),
-// UnsupportedRate (silence parts), PushInSetup and NoMidiInterfaces.
+// UnsupportedRate (silence parts), PushInSetup and MidiInterfaces (amended by Phase 11 FR-050).
 // T014 adds LatencyIsReal, Guards, Reset, GainSnap and the recovery renders of
 // SampleSize64 (step 4) and UnsupportedRate.
 // T018 adds ActivateNoAlloc and ProcessNoAlloc (SC-007, SC-017.7) under the P-11
@@ -235,7 +235,7 @@ Steinberg::IPtr<Steinberg::MemoryStream> makeStateStream(float gain, std::int32_
     auto stream = Steinberg::owned(new Steinberg::MemoryStream());
     {
         Steinberg::IBStreamer s(stream, kLittleEndian);
-        REQUIRE(s.writeInt32(::Profundum::kCurrentStateVersion));
+        REQUIRE(s.writeInt32(::Profundum::kStateV1Version));  // a Phase 10 (v1) stream
         REQUIRE(s.writeFloat(gain));
         REQUIRE(s.writeInt32(voiceMode));
         REQUIRE(s.writeInt32(polyphony));
@@ -488,7 +488,7 @@ TEST_CASE("Profundum_ProcessorLifecycle", "[profundum][processor]") {
         auto stream = Steinberg::owned(new Steinberg::MemoryStream());
         {
             Steinberg::IBStreamer s(stream, kLittleEndian);
-            REQUIRE(s.writeInt32(::Profundum::kCurrentStateVersion));
+            REQUIRE(s.writeInt32(::Profundum::kStateV1Version));  // a Phase 10 (v1) stream
             REQUIRE(s.writeFloat(1.0f));     // gain
             REQUIRE(s.writeInt32(1));        // voice mode: Poly
             REQUIRE(s.writeInt32(2));        // polyphony
@@ -501,6 +501,12 @@ TEST_CASE("Profundum_ProcessorLifecycle", "[profundum][processor]") {
         REQUIRE(std::cmp_equal(stream->getSize(), ::Profundum::kStateV1Bytes));
         REQUIRE(stream->seek(0, Steinberg::IBStream::kIBSeekSet, nullptr) == Steinberg::kResultOk);
         REQUIRE(f.proc->setState(stream) == Steinberg::kResultOk);
+        {
+            // T017: whatever version was loaded, the processor saves the 510-byte v2 layout.
+            auto saved = Steinberg::owned(new Steinberg::MemoryStream());
+            REQUIRE(f.proc->getState(saved) == Steinberg::kResultOk);
+            REQUIRE(std::cmp_equal(saved->getSize(), ::Profundum::kStateV2Bytes));
+        }
 
         REQUIRE(setupAt(*f.proc, 48000.0) == Steinberg::kResultOk);  // no process() call follows
 
@@ -516,11 +522,13 @@ TEST_CASE("Profundum_ProcessorLifecycle", "[profundum][processor]") {
         REQUIRE(m.cleanViolent == 0.4f);
     }
 
-    SECTION("NoMidiInterfaces") {  // SC-017.8, FR-019: regression guard (controller.h declares neither base)
+    SECTION("MidiInterfaces") {  // SC-017.8 amended by Phase 11 FR-050: IMidiMapping yes, note expression still no
         Steinberg::IPtr<::Profundum::Controller> ctl = Steinberg::owned(new ::Profundum::Controller());
         REQUIRE(ctl->initialize(nullptr) == Steinberg::kResultOk);
         void* obj = nullptr;
-        REQUIRE(ctl->queryInterface(Steinberg::Vst::IMidiMapping::iid, &obj) == Steinberg::kNoInterface);
+        REQUIRE(ctl->queryInterface(Steinberg::Vst::IMidiMapping::iid, &obj) == Steinberg::kResultOk);
+        REQUIRE(obj != nullptr);
+        static_cast<Steinberg::Vst::IMidiMapping*>(obj)->release();  // queryInterface added a reference
         obj = nullptr;
         REQUIRE(ctl->queryInterface(Steinberg::Vst::INoteExpressionController::iid, &obj) ==
                 Steinberg::kNoInterface);

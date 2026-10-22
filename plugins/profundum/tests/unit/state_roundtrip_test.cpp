@@ -2,8 +2,8 @@
 // Profundum - processor state round trip (Phase 10 T011)
 // ==============================================================================
 // SC-011.1 - .5, processor arm (FR-044, FR-045; plan 2.5.10, layout 3.4):
-//   ByteIdentical36  getState -> fresh setState -> getState, 36 bytes, memcmp 0
-//   DefaultDecode    a default processor's stream, field by field (little-endian)
+//   ByteIdentical36  getState -> fresh setState -> getState: v2 size (510 B, T017), bytes 4-35 (the v1 body) memcmp 0
+//   DefaultDecode    a default processor's stream, field by field (little-endian), v1 body ends at byte 36
 //   FutureVersion    version kCurrentStateVersion + 1 -> kResultFalse, nothing moves
 //   Truncated        a stream cut at byte 20 loads the globals, keeps the macros
 //   Hostile          clamps, invalid voice modes, NaN / +Inf per float field
@@ -90,7 +90,7 @@ Snapshot snapshot(const ::Profundum::Processor& p) {
 
 // The raw stream fields, written verbatim (no sanitising) in the plan 3.4 layout.
 struct StreamFields {
-    int32 version = ::Profundum::kCurrentStateVersion;
+    int32 version = ::Profundum::kStateV1Version;  // a Phase 10 stream (T017)
     float gain = 0.5f;
     int32 voiceMode = 0;
     int32 polyphony = 3;
@@ -235,7 +235,7 @@ TEST_CASE("Profundum_StateRoundTrip", "[profundum][state]") {
         setKnown(a);
         auto first = makeStream();
         REQUIRE(a.proc->getState(first) == Steinberg::kResultOk);
-        REQUIRE(std::cmp_equal(first->getSize(), kStateV1Bytes));
+        REQUIRE(std::cmp_equal(first->getSize(), kStateV2Bytes));  // T017: state v2
 
         ProcessorFixture b;
         rewindStream(*first);
@@ -244,21 +244,27 @@ TEST_CASE("Profundum_StateRoundTrip", "[profundum][state]") {
 
         auto second = makeStream();
         REQUIRE(b.proc->getState(second) == Steinberg::kResultOk);
-        REQUIRE(std::cmp_equal(second->getSize(), kStateV1Bytes));
-        REQUIRE(std::memcmp(first->getData(), second->getData(), kStateV1Bytes) == 0);
+        REQUIRE(std::cmp_equal(second->getSize(), kStateV2Bytes));
+        // Bytes 4-35 (the v1 body) are identical across the round trip and equal the known v1 body.
+        constexpr std::size_t kBodyFrom = 4;
+        REQUIRE(std::memcmp(first->getData() + kBodyFrom, second->getData() + kBodyFrom, kStateV1Bytes - kBodyFrom) ==
+                0);
+        const auto knownV1 = writeFields(knownFields());
+        REQUIRE(std::memcmp(first->getData() + kBodyFrom, knownV1->getData() + kBodyFrom, kStateV1Bytes - kBodyFrom) ==
+                0);
     }
 
     SECTION("DefaultDecode") {
         ProcessorFixture fx;
         auto stream = makeStream();
         REQUIRE(fx.proc->getState(stream) == Steinberg::kResultOk);
-        REQUIRE(std::cmp_equal(stream->getSize(), kStateV1Bytes));
+        REQUIRE(std::cmp_equal(stream->getSize(), kStateV2Bytes));  // T017: state v2
         rewindStream(*stream);
 
         Steinberg::IBStreamer s(stream, kLittleEndian);
         int32 version = 0;
         REQUIRE(s.readInt32(version));
-        CHECK(version == 1);
+        CHECK(version == kCurrentStateVersion);
         float gain = 0.0f;
         REQUIRE(s.readFloat(gain));
         CHECK(gain == 1.0f);
@@ -277,8 +283,9 @@ TEST_CASE("Profundum_StateRoundTrip", "[profundum][state]") {
             CAPTURE(i);
             CHECK(macro == 0.5f);
         }
-        float extra = 0.0f;
-        CHECK_FALSE(s.readFloat(extra));  // exactly 36 bytes
+        Steinberg::int64 bodyEnd = 0;
+        REQUIRE(stream->tell(&bodyEnd) == Steinberg::kResultOk);
+        CHECK(std::cmp_equal(bodyEnd, kStateV1Bytes));  // the v1 body is exactly 36 bytes; v2 fields follow
     }
 
     SECTION("FutureVersion") {
@@ -428,9 +435,11 @@ TEST_CASE("Profundum_StateRoundTrip", "[profundum][state]") {
         setKnown(a);
         auto procStream = makeStream();
         REQUIRE(a.proc->getState(procStream) == Steinberg::kResultOk);
-        REQUIRE(std::cmp_equal(procStream->getSize(), kStateV1Bytes));
+        REQUIRE(std::cmp_equal(procStream->getSize(), kStateV2Bytes));  // T017: state v2
         const auto known = writeFields(knownFields());
-        REQUIRE(std::memcmp(procStream->getData(), known->getData(), kStateV1Bytes) == 0);
+        constexpr std::size_t kBodyFrom = 4;  // bytes 4-35: the v1 body
+        REQUIRE(std::memcmp(procStream->getData() + kBodyFrom, known->getData() + kBodyFrom,
+                            kStateV1Bytes - kBodyFrom) == 0);
 
         MirrorController c;
         REQUIRE(c.load(*procStream) == Steinberg::kResultOk);
@@ -468,7 +477,7 @@ TEST_CASE("Profundum_StateRoundTrip", "[profundum][state]") {
             checkClose(got, v, 1e-12);  // the other seven did not move
         }
 
-        // Version 2 -> kResultFalse and no parameter moves.
+        // A future version -> kResultFalse and no parameter moves.
         const Normalized before = c.read();
         StreamFields future;  // valid fields, all distinct from the known values
         future.version = kCurrentStateVersion + 1;

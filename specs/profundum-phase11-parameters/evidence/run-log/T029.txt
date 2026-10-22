@@ -1,0 +1,64 @@
+T029 CMake registration audit — 2026-10-22T17:48:03+02:00
+== plugins/profundum/CMakeLists.txt: each new header grep -c (expect 1) ==
+src/parameters/sound_param_row.h 1 exists=yes
+src/parameters/sound_param_table.h 1 exists=yes
+src/parameters/core_params.h 1 exists=yes
+src/parameters/anchor_params.h 1 exists=yes
+src/parameters/note_params.h 1 exists=yes
+src/parameters/fold_shape_params.h 1 exists=yes
+src/parameters/character_params.h 1 exists=yes
+src/parameters/dynamics_params.h 1 exists=yes
+src/parameters/field_params.h 1 exists=yes
+src/parameters/motion_params.h 1 exists=yes
+src/parameters/morph_params.h 1 exists=yes
+src/parameters/performance_params.h 1 exists=yes
+new .cpp in plugin list (expect 0 beyond Phase 10 three): 3 (entry/processor/controller)
+== plugins/profundum/tests/CMakeLists.txt: add_executable block (lines 7-49), each TU (expect 1) + file exists ==
+unit/test_main.cpp 1 exists=yes
+unit/processor_bus_test.cpp 1 exists=yes
+unit/param_denorm_test.cpp 1 exists=yes
+unit/state_roundtrip_test.cpp 1 exists=yes
+unit/midi_event_test.cpp 1 exists=yes
+unit/lifecycle_test.cpp 1 exists=yes
+unit/controller/editor_lifecycle_test.cpp 1 exists=yes
+integration/processor_audio_test.cpp 1 exists=yes
+integration/param_flow_test.cpp 1 exists=yes
+integration/processor_cpu_test.cpp 1 exists=yes
+unit/param_table_test.cpp 1 exists=yes
+unit/state_v2_test.cpp 1 exists=yes
+unit/midi_mapping_test.cpp 1 exists=yes
+unit/phase11_alloc_test.cpp 1 exists=yes
+integration/param_wiring_test.cpp 1 exists=yes
+integration/state_restore_render_test.cpp 1 exists=yes
+integration/copy_compare_test.cpp 1 exists=yes
+integration/tail_test.cpp 1 exists=yes
+integration/param_path_audibility_test.cpp 1 exists=yes
+integration/mono_sum_params_test.cpp 1 exists=yes
+integration/determinism_test.cpp 1 exists=yes
+integration/band_level_metric_test.cpp 1 exists=yes
+TU lines in add_executable (expect 22): 22
+== -fno-fast-math block (lines 83-104), Phase 11 TUs (expect 1 each) ==
+unit/param_table_test.cpp 1
+unit/state_v2_test.cpp 1
+unit/midi_mapping_test.cpp 1
+unit/phase11_alloc_test.cpp 1
+integration/param_wiring_test.cpp 1
+integration/state_restore_render_test.cpp 1
+integration/copy_compare_test.cpp 1
+integration/tail_test.cpp 1
+integration/param_path_audibility_test.cpp 1
+integration/mono_sum_params_test.cpp 1
+integration/determinism_test.cpp 1
+integration/band_level_metric_test.cpp 1
+processor_cpu_test.cpp in flag block (expect 0): 0
+set_source_files_properties blocks in file: 1
+dsp/tests/unit/systems include (expect 1): 1
+krate_test_pch line: 113:krate_test_pch(profundum_tests)  last non-blank line: 113:krate_test_pch(profundum_tests)
+== plugins/shared ==
+shared/tests/CMakeLists.txt test_sustain_latch.cpp (expect 1): 1
+shared/CMakeLists.txt src/midi/sustain_latch.h (expect 1): 1
+== warning suppressions added since 565f195d (expect 0) ==
+tracked diff: 0
+tracked diff (all lines, task's literal grep): 0
+untracked new files: 0
+RESULT: all audit counts as expected; no fixes required beyond the 12-header insertion.

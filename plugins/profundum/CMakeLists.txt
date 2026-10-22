@@ -39,6 +39,18 @@ smtg_add_vst3plugin(${PLUGIN_NAME}
     # Parameter Packs
     src/parameters/global_params.h
     src/parameters/macro_params.h
+    src/parameters/sound_param_row.h
+    src/parameters/sound_param_table.h
+    src/parameters/core_params.h
+    src/parameters/anchor_params.h
+    src/parameters/note_params.h
+    src/parameters/fold_shape_params.h
+    src/parameters/character_params.h
+    src/parameters/dynamics_params.h
+    src/parameters/field_params.h
+    src/parameters/motion_params.h
+    src/parameters/morph_params.h
+    src/parameters/performance_params.h
 
     # Prepare-time engine configuration (no DSP)
     src/engine/profundum_engine_config.h

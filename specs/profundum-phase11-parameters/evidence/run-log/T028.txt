@@ -1,0 +1,40 @@
+T028 — Roadmap band map, plugin CLAUDE.md, README.md, CHANGELOG.md (FR-072, FR-023; SC-026)
+Run 2026-10-22. Docs-only; no build.
+
+$ grep -n "drop / note behaviour / amp envelope" specs/Profundum-roadmap.md
+782:  400–499 drop / note behaviour / amp envelope, 500–599 fold / shape, 600–699 character, 700–799 mass dynamics,
+
+$ grep -nE "400.499 drop / note *$" specs/Profundum-roadmap.md
+exit=1 (1 = no drop-only line remains)
+
+$ grep -n "400–499" specs/Profundum-roadmap.md
+782:  400–499 drop / note behaviour / amp envelope, 500–599 fold / shape, 600–699 character, 700–799 mass dynamics,
+
+$ grep -n "Drop / note behaviour / amp envelope" plugins/profundum/CLAUDE.md
+35:  | 400–499 | Drop / note behaviour / amp envelope: Drop 400–403, note behaviour 410–417, amp envelope 420–426 | 19 | 11 |
+
+$ grep -nE "84 registered|kStateV2Bytes = 510|IMidiMapping. arrived|\[long\]" plugins/profundum/CLAUDE.md
+43:  **84 registered IDs** (Phase 11): 60 E-parameters (the morphed sound leaves: core, anchor, drop, amp envelope, fold,
+59:- **State:** `kCurrentStateVersion = 2`, `kStateV2Bytes = 510` (and the v1 constants `kStateV1Version = 1`,
+93:  | `integration/tail_test.cpp` | `Profundum_TailFormula`; `Profundum_TailCoversRelease` | `[tail]`; `[tail][long]` |
+94:  | `integration/state_restore_render_test.cpp` | `Profundum_StateRestoreRender` | `[state][long]` |
+95:  | `integration/param_path_audibility_test.cpp` | `Profundum_ParamPathAudibility`, `Profundum_MassOffsetAudibility` | `[audibility][long]` |
+96:  | `integration/mono_sum_params_test.cpp` | `Profundum_MonoSumViaParams` | `[mono][long]` |
+100:  The five `[long]` cases (`Profundum_TailCoversRelease`, `Profundum_StateRestoreRender`, `Profundum_ParamPathAudibility`,
+133:5. **`IMidiMapping` arrived in Phase 11**, while Profundum was unreleased at `0.1.0`, so adding the interface to the
+
+$ grep -n "writes the endpoint selected by Edit Target when" plugins/profundum/README.md
+35:**Automation is target-relative.** Host automation of a sound parameter writes the endpoint selected by Edit Target when
+
+$ grep -nE "Copy and Compare are controller operations|Linux display sync|drop / note behaviour / amp envelope" -i plugins/profundum/README.md
+22:| 400-499 | Drop / note behaviour / amp envelope: Drop 400-403, note behaviour 410-417, amp envelope 420-426 |
+39:**Copy and Compare are controller operations.** Copy A to B / B to A and Compare (A, A-B, B) exist in the controller
+47:**Linux display sync.** The processor sends endpoint changes to the controller every 50 ms on Windows and macOS. Linux
+
+$ grep -n "^## " plugins/profundum/CHANGELOG.md (no new version heading)
+8:## [0.1.0] - Unreleased
+
+$ grep -c "\"version\": \"0.1.0\"" plugins/profundum/version.json
+1
+
+$ git diff --stat -- plugins/profundum/version.json (empty = untouched)

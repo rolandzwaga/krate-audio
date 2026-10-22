@@ -1,0 +1,18 @@
+Filters: "Profundum_MonoSumViaParams"
+Randomness seeded to: 4102795775
+SC-019,SOLID,MONO,field,fc_hz,128.101,sub_in_band,1,valid,1,q_sub_db,0,rho_sub,1,s2m_db,-120,gated,1
+SC-019,SOLID,MONO,out,fc_hz,128.101,sub_in_band,1,valid,1,q_sub_db,0,rho_sub,1,s2m_db,-120,gated,1
+SC-019,SOLID,POLY4,field,fc_hz,128.101,sub_in_band,1,valid,1,q_sub_db,0,rho_sub,1,s2m_db,-120,gated,1
+SC-019,SOLID,POLY4,out,fc_hz,128.101,sub_in_band,1,valid,1,q_sub_db,0,rho_sub,1,s2m_db,-120,gated,1
+SC-019,SPREAD,MONO,field,fc_hz,128.101,sub_in_band,1,valid,1,q_sub_db,-1.16201e-12,rho_sub,1,s2m_db,-120,gated,1
+SC-019,SPREAD,MONO,out,fc_hz,128.101,sub_in_band,1,valid,1,q_sub_db,-1.81631e-12,rho_sub,1,s2m_db,-120,gated,1
+SC-019,SPREAD,POLY4,field,fc_hz,128.101,sub_in_band,1,valid,1,q_sub_db,-4.20881e-12,rho_sub,1,s2m_db,-120,gated,1
+SC-019,SPREAD,POLY4,out,fc_hz,128.101,sub_in_band,1,valid,1,q_sub_db,-5.83948e-12,rho_sub,1,s2m_db,-118.714,gated,1
+SC-019,WIDE,MONO,field,fc_hz,128.101,sub_in_band,1,valid,1,q_sub_db,-3.91569e-05,rho_sub,0.999984,s2m_db,-50.4497,gated,1
+SC-019,WIDE,MONO,out,fc_hz,128.101,sub_in_band,1,valid,1,q_sub_db,-3.95596e-05,rho_sub,0.999984,s2m_db,-50.4053,gated,1
+SC-019,WIDE,POLY4,field,fc_hz,128.101,sub_in_band,1,valid,1,q_sub_db,-2.01762e-05,rho_sub,0.999993,s2m_db,-53.3294,gated,1
+SC-019,WIDE,POLY4,out,fc_hz,128.101,sub_in_band,1,valid,1,q_sub_db,-2.04404e-05,rho_sub,0.999993,s2m_db,-53.2729,gated,1
+===============================================================================
+All tests passed (16340 assertions in 1 test case)
+
+exit: 0 wall: 11 s
