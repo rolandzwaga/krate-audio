@@ -1,0 +1,102 @@
+T010 - Voice criteria through the engine (SC-019, SC-020, SC-033, SC-034; FR-006, FR-008; plan S10.3, S10.6;
+deviation 2)
+Date: 2026-10-20  Branch: synth/profundum  Base: 0ae33b87
+
+ODR SWEEP (this session, before writing)
+Every new name is TU-local (anonymous namespace in profundum_voice_test.cpp) with the ve / kVe / Ve prefix of T007's
+cases: veAt, veOn, veOff, veEv, veScript, veRenderWithBendRange, veRenderedMask, veCents, VeJoin, veJoinIdentity,
+veEvidenceDir, veWithFeed, veMonoRetriggerScript, vePolyStealScript, veWriteJoinLine, VeRefNote, VeRefTrack,
+veDropReference, VePitchGate, veGatePitch, veVoiceStartingAt, veDropState, veAddBendRamp, kVeGlideMs,
+veDropMonoScript, veDropPolyScript, veAnchorModeName, veDropControl, veH2H1Db, kVeRectSeconds, veMeasureH2H1, VeKnob,
+veKnobFold, veKnobAsymmetry, veKnobDepth, kVeKnobs, VeRectState, veFindRectStates, veSwitchRender, veFlagMisses,
+vePeriods, kVeGrid, kVePi. No class / struct with external linkage was added.
+
+FACTS READ THIS SESSION (live anchors)
+- profundum_engine.h: setPitchBendRange :349 (pending, applied at the grid point :702); MONO mono_.setPortamentoTime
+  :681; pitch trajectories per grid point :926-930 (b = processPitchBend(); ratio = semitonesToRatio(b * range);
+  monoFRes = processPortamento() * ratio); POLY f_res fNote * ratio :946; MONO noteEvent(t, 0.0f, false) :743; POLY
+  noteEvent(t, midiNoteToFrequency(note), stolen) :764; renderChunk fills the sum with -0.0f :1053; prepare / reset
+  order of mono_ / bend_ (prepare step 4, reset, applySettings(true)).
+- profundum_voice.h: noteEvent declick -> untilSwitch_ = samplesUntilSwitch() :328; runPitch lock_.trigger(plannedCurve,
+  fResBuf_[from], gridPhase(), kMinF0Hz, capHz_, kind) :689, fCore = fRes * std::exp2(dc / 12.0f) :696, fAnchor
+  :697; LockBypass = Follow && !followNoBypass :513; applySwitch :745; SyncPhase logged at the sub-chunk's pos_ :769;
+  meter on the Fold output mid :828; FR-015 add :846; halfWave tap = lastHalfWave_ (the handed flag) :881.
+- profundum_voice_engine_test_helpers.h: VoiceEngineEventKind :115 (no bend-range event), VoiceEngineEvent :122,
+  VoiceEngineObserver :231, voiceEngineIssue :334, voiceEngineRender :369.
+- profundum_core_test_helpers.h: goertzelPhase :157 (BH7-windowed single bin, double).
+- note_memory.h resolve :83-106 and kMatrix :121-126 (AlwaysRetrigger: every transition (osc 1, env 1); declick =
+  phaseReset && audible; dropSnap = !audible || declick).
+- retrigger_declick.h: arm / samplesUntilSwitch (L_d - 1 = 71 at 48 kHz) :58-71.
+- drop_envelope.h setters latched at trigger :83-122; drop_phase_lock.h setBypass :111-120 (re-entering false is a
+  no-op), trigger ignored in bypass :131-133.
+- note_processor.h prepare / reset / setPitchBend / processPitchBend (returns the smoothed bipolar value) :80-118.
+- mono_handler.h noteOn frequency = midiNoteToFrequency(winner) :184; setPortamentoTime :293; processPortamento :305.
+- bass_character_stage.h: Amount 0 is a bypass copy (:380-409), so with Character Amount 0 the Character tap is the
+  Character input (the Fold output the meter reads).
+- spectral_shape_recipe.h evaluateShape :100-145 (depth 1 = kSineAnchor, depth 0 = 1/n: h2/h1 -6 dB).
+- bass_morph_engine.h setEndpoint :113-128 (dirty -> re-resolved at the next interval), kMinPositionRampMs 5 :67.
+
+FILES WRITTEN
+- dsp/tests/unit/systems/profundum_voice_test.cpp (appended; banner lines and includes added): VoiceEngine_AnchorJoin
+  [sc-019], VoiceEngine_DropRouting [sc-020][fr-006], VoiceEngine_DropLatchedAtTrigger [fr-006],
+  VoiceEngine_RectifySymmetry [sc-033][fr-008], VoiceEngine_PitchBend [sc-034][fr-024],
+  VoiceEngine_MeterBoundedAtTopNote [fr-008][c-5]; all [systems][profundum][voice-engine]. The T007 cases are untouched.
+- The SC-019 case writes evidence/sc019-join.txt at run time (the g_d != 1 interval tags).
+
+DESIGN NOTES / DEVIATIONS (surfaced)
+1. Bend range: VoiceEngineEventKind has no bend-range event and the helpers header is read-only after T009, so
+   SC-034 (range 12) and the top-note case (range 24) use veRenderWithBendRange, a TU-local copy of voiceEngineRender
+   (helpers :369-427) that also calls setPitchBendRange before prepare. Same allocation, observer, issue and split
+   rules; it reads back pitchBendRange() bitwise.
+2. SC-019(b) is checked over every rendering voice, not only where one voice sounds: the expected Sum is -0 plus each
+   rendering voice's (c * ga) * gd + (a * ga) * gd in voice-index order (the engine fill and the voice's add), with
+   "rendering" read from each voice's chunk records. The single-voice samples (the stolen voice alone after the others
+   release) are counted and required (> 0.3 s). Renders: MONO E1 + overlapping A1 (an audible Reset restart: a dip)
+   and POLY 4 with a fifth note stealing the oldest voice (VoiceReuse: a dip), each at g = 0, 0.5, 1; plus the MONO
+   render with endpoint A replaced at 0.5 s (g steps 0 -> 1 inside one interval). (d) reads the ramp from that render.
+3. SC-020 events sit on grid points, so the reference applies them at the same grid point without modelling the
+   latch. The reference builds its own MonoHandler / NoteProcessor / DropEnvelope / DropPhaseLock in the engine's and
+   the voice's call order, resolves each note with NoteMemory::resolve and places the overlapped E2's trigger at its
+   grid point + a test-side RetriggerDeclick's samplesUntilSwitch() (the voice's switch sample). MONO: E1, E2 overlapping
+   at 0.1 s with a 200 ms glide, so the Drop retriggers at the dip's switch sample; the bend ramp 0 -> +1 -> -1 runs
+   0.12 ... 0.32 s, during the E2 Drop. POLY: E1 / A1 / E2 / C3 staggered by 30 ms (the reference track is matched to
+   the voice whose first chunk starts at that note's sample). All four Anchor modes in MONO and POLY; the f_res tap is
+   gated too. Positive controls run in MONO.
+4. SC-033 states: the task names a bisection on Fold amount, then excitation asymmetry. The A_s core is a sine
+   (kSineAnchor), so neither knob is certain to produce an h2 (a symmetric fold of a sine adds odd harmonics; the
+   excitation's effect at E1 is unread). veFindRectStates scans each knob (9 points) in the task's order and bisects
+   inside the first bracketing pair; recipe.depth (sine -> 1/n, h2/h1 from about -inf to -6 dB) is a third, fallback
+   knob so the states exist. The case prints which knob placed each state and the scans. The h2/h1 reading is single
+   DFT bins at f and 2f (f = the core pitch tap) over the last 8 periods of the Character tap mid, with Character Amount
+   0 (the stage's bypass copy, so the tap is the Fold output the meter reads).
+5. SC-033 flag reads: "from either previous flag value" = each of -30 / -25 / -15 / -10 reached from the -30 state
+   (flag true) and from the -10 state (flag false), by replacing endpoint A at 0.4 s; the handed flag (the halfWave
+   tap) is read over the last 4 periods of each segment. Hysteresis: -20 dB reached from -25 and from -15, flag read
+   over the whole 0.6 s after the switch (>= 20 E1 periods), required constant.
+6. SC-033 phase sync: MONO E1, A1 overlapping at 0.3 s, A1 off at 0.5 s (ReturnToHeld), E1 off at 0.7 s, E2 at 1.2 s
+   (FromSilence), under Retrigger Reset and Continue. Expected SyncPhase samples: Reset {0, 0.3 s + 71, 0.5 s + 71,
+   1.2 s}; Continue {0} (FreeRunning restarts on a sounding core never take the Reset branch). The fresh core gets the
+   handed controls (the grid record's afterMotion.recipe with depth / body := the law targets), the state's
+   excitation, Reset, noteOn(f) and the voice's own f_core tap as its pitch input; phases compared on the L/R mid.
+7. VoiceEngine_MeterBoundedAtTopNote gates meterFreqHz == the clamp of f_core at the chunk's last 16-sample pitch
+   update (T007's exact form) on every chunk, never above capHz, and == capFrequency(fs) on every chunk after 100 ms
+   (the bend smoother ramps the first ms; T007 found the note's lock bump holds f_core a few cents off the cap for ~8
+   chunks). The task's literal "meterFreqHz == capFrequency(fs) per chunk" would fail on those first chunks without a
+   defect. The "no HalfWave call inside a period shorter than 2 samples" arm reads, for every HalfWave change handed
+   after the first interval, the meter frequency of the chunk before that grid point and requires fs / f >= 2.
+
+COST (estimate, not measured: nothing was built or run)
+RectifySymmetry is the heaviest case: up to 27 scan renders + up to 80 bisection renders (0.6 s, one voice) + 10
+switch renders (1 s) + 2 phase-sync renders (1.6 s), each with a full engine prepare. DropRouting: 10 renders of
+0.6 s. AnchorJoin: 9 renders (1-2 s). The build agent should record the wall clock of the six cases.
+
+RISK (for the Group 8 gate)
+- SC-019(b) and SC-020 are bitwise under /fp:fast and -ffast-math (plan C-10, C-11): if the compiler contracts or
+  reassociates the expressions differently in the header and in this TU the gate goes red with no logic defect. A red
+  goes back to the plan; the bar is not relaxed. The max cent difference is printed beside SC-020.
+- If no knob brackets an SC-033 target the case fails at REQUIRE(r.found) with the scan table printed.
+
+NOT BUILT / NOT RUN (per the task instruction: the Group 8 build agent builds and gates). The file was re-read after
+writing; new lines <= 120 columns (lines 18 and 518 are T007's). Verify: dsp_systems_tests "VoiceEngine_AnchorJoin",
+"VoiceEngine_DropRouting", "VoiceEngine_DropLatchedAtTrigger", "VoiceEngine_RectifySymmetry", "VoiceEngine_PitchBend",
+"VoiceEngine_MeterBoundedAtTopNote" (or the [voice-engine] tag).

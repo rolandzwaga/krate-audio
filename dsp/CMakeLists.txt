@@ -115,6 +115,7 @@ set(KRATE_DSP_PRIMITIVES_HEADERS
     include/krate/dsp/primitives/grain_pool.h
     include/krate/dsp/primitives/i_feedback_processor.h
     include/krate/dsp/primitives/lfo.h
+    include/krate/dsp/primitives/lowpass_biquad_d.h
     include/krate/dsp/primitives/oversampler.h
     include/krate/dsp/primitives/reverse_buffer.h
     include/krate/dsp/primitives/sample_rate_reducer.h
@@ -216,6 +217,12 @@ set(KRATE_DSP_SYSTEMS_HEADERS
     # Profundum Phase 8 (specs/profundum-phase8-bass-morph)
     include/krate/dsp/systems/morph_state.h
     include/krate/dsp/systems/bass_morph_engine.h
+    # Profundum Phase 9 (specs/profundum-phase9-voice-engine)
+    include/krate/dsp/systems/profundum_motion.h
+    include/krate/dsp/systems/profundum_macro_matrix.h
+    include/krate/dsp/systems/profundum_engine_observer.h
+    include/krate/dsp/systems/profundum_voice.h
+    include/krate/dsp/systems/profundum_engine.h
 )
 
 # Layer 4: Effects

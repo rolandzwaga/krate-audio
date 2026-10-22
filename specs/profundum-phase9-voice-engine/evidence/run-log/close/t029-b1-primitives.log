@@ -1,0 +1,59 @@
+Filters: [tanh_adaa],[polyphase-halfband]
+Randomness seeded to: 1993152913
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_primitives_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+PolyphaseHalfband_DesignResponse
+  outer stage (input rate 2fs): w = pi f / fs
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\primitives\polyphase_halfband_oversampler_test.cpp(154)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\primitives\polyphase_halfband_oversampler_test.cpp(172): warning:
+  outer: passband worst |dev| 9.65388e-11 dB (f <= 0.40 fs), at fs/2 -3.0103
+  dB, worst stopband -106.508 dB in [0.55 fs, fs] (plan -106.6)
+
+-------------------------------------------------------------------------------
+PolyphaseHalfband_DesignResponse
+  inner stage (input rate 4fs): w = pi f / (2 fs)
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\primitives\polyphase_halfband_oversampler_test.cpp(178)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\primitives\polyphase_halfband_oversampler_test.cpp(194): warning:
+  inner: passband worst |dev| 9.25562e-12 dB (f <= 0.5 fs), worst stopband -
+  116.713 dB in [1.5 fs, 2 fs] (plan -116.8)
+
+-------------------------------------------------------------------------------
+PolyphaseHalfband_RenderMatchesDesign
+  upsampler impulse response, F = 2
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\primitives\polyphase_halfband_oversampler_test.cpp(244)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\primitives\polyphase_halfband_oversampler_test.cpp(273): warning:
+  rendered upsampler: passband |render - design| worst 8.68926e-07 dB, worst
+  stopband -106.29 dB
+
+-------------------------------------------------------------------------------
+PolyphaseHalfband_GroupDelayRecorded
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\primitives\polyphase_halfband_oversampler_test.cpp(487)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\primitives\polyphase_halfband_oversampler_test.cpp(506): warning:
+  F = 2: round-trip group delay (phase slope 20-80 Hz @ 48 kHz) 3.23991 base
+  samples (1.61995 per direction; plan ~1.9); phase delay 3.23989 @ 20 Hz, 3.
+  23991 @ 80 Hz
+
+F:\projects\iterum\dsp\tests\unit\primitives\polyphase_halfband_oversampler_test.cpp(506): warning:
+  F = 4: round-trip group delay (phase slope 20-80 Hz @ 48 kHz) 4.34389 base
+  samples (2.17194 per direction; plan ~1.9); phase delay 4.34387 @ 20 Hz, 4.
+  34388 @ 80 Hz
+
+===============================================================================
+All tests passed (3988 assertions in 46 test cases)
+

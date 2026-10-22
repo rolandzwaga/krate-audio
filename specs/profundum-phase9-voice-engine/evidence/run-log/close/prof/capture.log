@@ -1,0 +1,34 @@
+=== wpr capture 2026-10-20T12:24:49Z
+
+	Failed to enable the policy to profile system performance.
+
+	Profile Id: CPU.Verbose.File
+	
+	Error code: 0xc5585011
+	
+	Failed to enable the policy to profile system performance.
+	
+	
+P1V static-morph Tube MONO 10.856 POLY4 36.907
+P1V static-morph Fracture MONO 11.193 POLY4 35.932
+P1V DONE static-morph
+
+	There are no trace profiles running.
+
+	Error code: 0xc5583000
+Press Ctrl+C to cancel the stop operation.
+=== xperf stacks 2026-10-20T12:25:24Z
+xperf rc=255 lines=0
+xperf: error: F:\projects\iterum\specs\profundum-phase9-voice-engine\evidence\run-log\close\prof\p1-static.etl: Unknown (0x8000ffff).
+xperf: error: stacks: unknown action.
+
+    Available Actions:
+
+	activityintervals Show per-thread activity over intervals
+	analyzepower     Analyze Energy Effeciency issues in the system.
+	boot             Show boot and shutdown statistics
+	bootprefetch     Show boot prefetching analysis information.
+	cpudisk          Show CPU/Disk activity report
+	cswitch          Show Context Switch data
+	diskidlehistogram Show histograms of disk idle periods
+	diskDONE 2026-10-20T12:25:24Z

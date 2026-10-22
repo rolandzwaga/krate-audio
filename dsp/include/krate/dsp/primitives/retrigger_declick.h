@@ -33,12 +33,18 @@ public:
 
     /// L_d = ceil(kDeclickMs * fs / 1000) with fs clamped to [22050, 192000],
     /// then reset(). A non-finite rate is a no-op (tasks.md deviation 7).
-    void prepare(double sampleRate) noexcept {
+    void prepare(double sampleRate) noexcept { prepare(sampleRate, kDeclickMs); }
+
+    /// Profundum Phase 9 (ruling R-B, 2026-10-20), append-only: the same dip over declickMs milliseconds
+    /// (L_d = ceil(declickMs * fs / 1000)). A non-finite or non-positive length falls back to kDeclickMs, so
+    /// every existing caller of prepare(fs) is bit-identical.
+    void prepare(double sampleRate, float declickMs) noexcept {
         if (!detail::isFinite(sampleRate))
             return;
         const double fs = std::clamp(sampleRate, kMinSampleRate, kMaxSampleRate);
-        length_ = static_cast<std::size_t>(
-            std::ceil(static_cast<double>(kDeclickMs) * fs / 1000.0));
+        const double ms = (detail::isFinite(declickMs) && declickMs > 0.0f) ? static_cast<double>(declickMs)
+                                                                            : static_cast<double>(kDeclickMs);
+        length_ = static_cast<std::size_t>(std::ceil(ms * fs / 1000.0));
         const double step = std::numbers::pi / static_cast<double>(length_);
         rotCos_ = std::cos(step);
         rotSin_ = std::sin(step);
@@ -68,6 +74,9 @@ public:
     [[nodiscard]] std::size_t samplesUntilSwitch() const noexcept {
         return active_ ? remaining_ : 0;
     }
+
+    /// L_d of the last prepare() (0 before it). Profundum Phase 9, append-only.
+    [[nodiscard]] std::size_t lengthSamples() const noexcept { return length_; }
 
     /// Gain for this sample (C-15). Exactly 1.0f when idle.
     [[nodiscard]] float process() noexcept {

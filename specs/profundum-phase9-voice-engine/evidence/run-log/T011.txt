@@ -1,0 +1,117 @@
+T011 - Engine criteria through the T009 driver / observer (SC-008, SC-011 in-process, SC-012, SC-022, SC-024,
+SC-026 - SC-029, SC-031, SC-032, SC-036; FR-005, FR-021, FR-028, FR-030, FR-045; deviations 3, 6)
+Date: 2026-10-20  Branch: synth/profundum  Base: 0ae33b87
+
+ODR SWEEP
+Every new name is TU-local (anonymous namespace in profundum_engine_test.cpp, pe / Pe / kPe prefix, as T008).
+$ grep -rn "PeCallSeries|peSc011Script|peMassScript|peMonoReference" dsp plugins tests -> only this TU.
+No header, class or shared helper was added or edited.
+
+FACTS READ THIS SESSION (live anchors)
+- profundum_engine.h (T008): prepare / reset :141-243 (reset keeps pending settings, macros, endpoints, morph target;
+  sets dropped_ = 0); setters / getters :255-410; processBlock (grid split) :413-433; gridStep (FR-026 order,
+  logCall Events ... DynKey, onGrid with afterMacros / afterMotion / targets / compressionHanded / anchorMassUsed)
+  in the private section; C-7 compression `nonZero(cTL) ? clamp(t.compressionAmount + cTL, 0, 1) :
+  t.compressionAmount`; anchor level `evaluateRow(kRows[AnchorLevel], mA, law_.base().anchorLevel)` with
+  mA = (!lock && nonZero(o.mass)) ? r.anchorMass + o.mass : r.anchorMass; lawBaseOf (depth / body from the recipe,
+  foldAmount, anchor.level); MONO f_res = processPortamento() * semitonesToRatio(processPitchBend() * range);
+  POLY f_res = noteFrequency() * ratio; voices logged in index order, active voices only; allocator Oldest / Hard.
+- profundum_voice.h (T007): beginInterval call order VoicePan, VoiceWide, CoreControls (value c.depth),
+  CoreExcitation, FoldAmount (value in.foldAmount), FoldF0, Shape, CharAlgorithm, CharAmount, CharTone, HalfWave,
+  FollowRatio, AnchorControls (value = handed level), LockBypass, A1, DropSetters, AmpEnv, AmpCurve; a1 from
+  evaluateShape / evaluateMask / applyMask on (s.recipe, fAnchor_[0]) * kCenterPanGain; SyncPhase / NoteOnCore /
+  NoteOnAnchor are logged at render time (after DynKey); taps per sub-chunk with .sample = pos_ (fRes = fResBuf_,
+  fAnchor, gAmp, a1 in the chunk record); envelopeRestarted_ set in applyTransition when a.envelopeRestart.
+- profundum_voice_engine_test_helpers.h (T009): VoiceEngineScript (attachObserver, tappedVoices,
+  countAllocations, endpointStates), voiceEngineIssue, voiceEngineRender (setters before prepare, events issued
+  before their sample), VoiceEngineTaps (outL/R, sumL/R, stageOutL/R, voices[v], grid, calls, allocations),
+  voiceEngineWindow / MaxDelta / DeltaRatio / SteadyOf / DeltaBound / DeclickSlope.
+- profundum_motion.h: Offsets, kMassHalfSpan 50, advanceInterval (m = (v amount) depth, outputValue = clamp(m)),
+  sourceValue = v; noteRestart = env_.gate(true) + lfo_.retrigger(); ENV Hard retrigger from the current level
+  (adsr_envelope.h:86-96, :451-466).
+- mass_law.h: Targets :82-90, evaluateRow :132-140, evaluate :142-148, setBase per-row clamp :170-175.
+- bass_morph_engine.h: Resolved :55-60 (anchorMass = Mass at p_a), curve(Lock) = 0 :187-196, kDefaultPositionRampMs
+  :69, kDefaultAnchorMorphMode :73, serializeRuntime / restoreRuntime :234-300 (version at kRtVersionOffset = 0,
+  :339, private), position() public.
+- voice_allocator.h: noteOn (same-note retrigger, then allocate) :228-247; findIdleVoiceOldest :568; Steal victim
+  findStealVictimSingle (Releasing first, then Active) :631-637; findVictimOldest (lowest timestamp, ties -> lowest
+  index) :672-684; timestamp_ incremented per note-on :236.
+- note_memory.h kMatrix :121-126 (Legato Overlap = k00: no envelope restart).
+- bass_stereo_field.h: foldedSyncTempo :565-575 (fold only when the synced rate > 1 Hz), magnitudeScale :654-657.
+- mass_dynamics_test_helpers.h: MassDynamicsTest::unbiasedH1Amplitude(base, f0, fs) :288-292.
+- shape_character_metric_helpers.h: ShapeCharacterTest::differentialClicks :76, :137.
+- allocation_detector.h: TestHelpers::AllocationScope :111-131 (read getAllocationCount() inside the scope).
+
+FILES WRITTEN
+- dsp/tests/unit/systems/profundum_engine_test.cpp (appended; includes added: profundum_voice_engine_test_helpers.h,
+  midi_utils.h, pitch_utils.h, note_processor.h, mass_law.h, <limits>, <random>, <span>):
+    VoiceEngine_MacroNeutral            [sc-008][fr-051][fr-054]
+    VoiceEngine_DeterminismHarness      [sc-011][fr-062]   (in-process arms only, deviation 6)
+    VoiceEngine_Partition               [sc-012][fr-063]
+    VoiceEngine_RealTimeSafety          [sc-022][fr-060]
+    VoiceEngine_SampleRates             [sc-024][fr-064]
+    VoiceEngine_MotionDepthZero         [sc-026][fr-042]
+    VoiceEngine_MassSplit               [sc-027][fr-027]
+    VoiceEngine_MorphGlobal             [sc-028][fr-030]
+    VoiceEngine_ModeSwitch              [sc-029][fr-023]
+    VoiceEngine_StealOrder              [sc-031][fr-022]
+    VoiceEngine_CallOrder               [sc-032][fr-026]
+    VoiceEngine_TapTransparency         [sc-036][fr-086]
+    VoiceEngine_A1MatchesUnbiasedH1     [fr-005][c-6]
+    VoiceEngine_MonoPriorityAndPortaMode [fr-021]
+    VoiceEngine_HostTempo               [fr-028]
+    VoiceEngine_MorphRuntimeRoundTrip   [fr-030]
+    VoiceEngine_PolyEnvRetrigger        [fr-045]
+  all [systems][profundum][voice-engine]; none [long], none hidden.
+
+DECISIONS / DEVIATIONS (surfaced)
+1. Direct engine driving where the driver cannot express the arm: SC-011 "two runs of one instance after reset()",
+   SC-022 (reset() inside the AllocationScope), SC-024 (re-prepare inside the scope), FR-030 (serialize / restore).
+   peRunSpan replicates voiceEngineRender's loop exactly (same host blocks, events issued before their sample via
+   ProfundumTest::voiceEngineIssue); SC-011 also checks the direct run equals the driver render bitwise.
+   Before the SC-011 reset run the schedule-changed settings are restored (morph position, ramp ms, Anchor mode,
+   macros, mode, polyphony, bend, tempo), because reset() keeps pending values by design (engine reset() comment).
+2. SC-008(b): "once" = macros set before prepare; "every interval" = the same macros before prepare PLUS four Macro
+   events at every grid sample (prepare-time snap-at-prepare setters see the same state in both). Host block 32 in
+   both so the event-split partition is identical. A positive control (non-neutral vs neutral differs) is added.
+3. SC-011 DRIFT off: Motion Off on both endpoints and field.motionSource = Cycle on both (the field's Drift off).
+   DRIFT on: Motion Drift -> Depth (amount 1, depth 1) on both endpoints; field left at the schedule's settings.
+4. SC-012: the bend ramp 0 -> +1 -> 0 (61 events, 480 samples apart, 0.6 - 1.2 s) and a tempo change to 90 BPM at
+   0.7 s; reference = host block 1; MONO and POLY.
+5. SC-022 Motion automation is through Endpoint events (A <- ENV -> Depth, B <- CYCLE -> Mass) because Motion is a
+   MorphState field; droppedEvents() is read before the reset (reset() zeroes it) and at the end.
+6. SC-026: 4 sources (Off, Env, Cycle, Drift) x 5 targets = 20 renders at depth 0 (amount 1) vs the Motion Off
+   reference, POLY on the SC-011 schedule; a depth-1 CYCLE -> Depth positive control.
+7. SC-027: Mass automated by the morph (A_s Mass 0, B Mass 100, ramp 1000 ms from sample 0) - the engine has no
+   other Mass input. (a) reads the handed receivers from the call log (voice 0 CoreControls = depth, FoldAmount;
+   engine DynDuration / DynCompression / DynTrim) plus grid targets (body) and compressionHanded, against
+   MassLaw::evaluate(smoothedMass, base recomputed from afterMotion). (b)/(c) expected level
+   evaluateRow(row, A.mass, A.anchor.level) (p_a = 0 in Lock). (d) o.mass = motionOutput * kMassHalfSpan (|m| <= 1
+   here, so the clamp in outputValue is the identity), checked against both anchorMassUsed and anchorLevel.
+8. SC-029: two switches in one render (MONO -> POLY at 0.5 s with E1 held; POLY -> MONO at 1.0 s with A1 + C3 held),
+   two references (each removes one switch and releases that switch's held notes at its grid point). W ends at the
+   first sample the switched voices' g_amp tap reads 0. Steady references for (b): separate steady renders of the
+   SAME note set (E1 MONO; A1 + C3 POLY), Sum tap over [0.3, 0.5) s - for the two-voice switch the steady SUM is the
+   steady reference, since the Sum tap's steady delta of a chord exceeds the max of its single-note references.
+   S_max = the declick slope (generous for a release). (c) differentialClicks recorded, not gated.
+9. SC-031: the victim is observed as the voice whose f_res tap at the event's grid sample is the new note's
+   frequency (ratio within 1e-6; notes are unique across non-idle slots). A 10 s release keeps released slots
+   Releasing for the whole 4.3 s schedule, so the model needs no release timing; events every 256 samples (grid
+   multiples, one event per interval); std::mt19937 raw output (portable), seed 0x5031.
+10. SC-032: the slice runs from the engine's Events record at the grid sample to the engine's DynKey record; voice
+    records are also checked by voice index; DcResync is expected exactly when the log holds one at that sample.
+    Intervals 0 and 0.5 s, MONO (1 voice) and POLY (4 voices).
+11. FR-021 reference: MonoHandler + NoteProcessor configured in the engine's own order (prepare, reset, the
+    prepare-time applySettings(true) values, then the grid-0 change-only settings), events at the first grid point at
+    or after their sample, per sample processPortamento() * semitonesToRatio(processPitchBend() * 2).
+12. FR-028: Motion Depth 0 (the CYCLE source still runs and is tapped as motionSource; SC-026 makes depth 0 inaudible)
+    so the field side-level period is not modulated by Motion; field cycleNote Whole (<= 1 Hz up to 240 BPM, so
+    foldedSyncTempo never folds). Field period = up-crossings of the detrended per-interval side power (0.5 (L - R)
+    of the Field tap, averaged over one E1 period) after 0.5 s; showcase B with sustain 1.
+13. FR-030: endpoints differ only in voice-level timbre (recipe, SHAPE, Character Amount, Fold) so a silent pre-roll
+    leaves no position-dependent field / dynamics history; the restored engine had the same 200 ms silent pre-roll.
+14. FR-045: the non-restarting cell is MONO Note Memory Legato with an overlapped key (note_memory.h Legato Overlap =
+    k00); in POLY every note event resolves to an envelope-restarting cell (FromSilence / Tail / VoiceReuse).
+
+NOT BUILT / NOT RUN (per the task instruction: the Group 8 build agent builds and gates). The file was re-read after
+writing; lines kept <= 120 columns. Verify: the Group 8 gate, filter "VoiceEngine_*" in dsp_systems_tests.

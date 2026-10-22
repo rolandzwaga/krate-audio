@@ -90,3 +90,6 @@ node_modules/
 package.json
 package-lock.json
 /.fallow
+
+# Profundum Phase 9 listening renders (65 MB, reproducible with evidence/close/listen.sh)
+/specs/profundum-phase9-voice-engine/evidence/listen/*.wav

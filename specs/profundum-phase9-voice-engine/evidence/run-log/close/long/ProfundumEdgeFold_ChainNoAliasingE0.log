@@ -1,0 +1,25 @@
+Filters: "ProfundumEdgeFold_ChainNoAliasingE0"
+Randomness seeded to: 627529647
+  SC-005 chain max excitation -> Fold 100, SC-009 state, fs 44100, f0 20.6017 Hz, L 262144: -103.3 dBFS (excluded 0.131)
+  SC-005 chain max excitation -> Fold 100, kGrowl, fs 44100, f0 20.6017 Hz, L 262144: -104.6 dBFS (excluded 0.131)
+  SC-005 chain max excitation -> Fold 100, kSawAnchor, fs 44100, f0 20.6017 Hz, L 262144: -124.0 dBFS (excluded 0.131)
+  SC-005 chain max excitation -> Fold 100, mid grid, fs 44100, f0 20.6017 Hz, L 262144: -120.3 dBFS (excluded 0.131)
+  SC-005 chain max excitation -> Fold 100, kSineAnchor, fs 44100, f0 20.6017 Hz, L 262144: -124.4 dBFS (excluded 0.131)
+ProfundumEdgeFold_ChainNoAliasingE0: chain, fs 44100, MIDI 16: worst -103.3 dBFS (bar -80, plan S9.4)
+  SC-005 chain max excitation -> Fold 100, SC-009 state, fs 48000, f0 20.6017 Hz, L 524288: -100.4 dBFS (excluded 0.071)
+  SC-005 chain max excitation -> Fold 100, kGrowl, fs 48000, f0 20.6017 Hz, L 524288: -102.2 dBFS (excluded 0.071)
+  SC-005 chain max excitation -> Fold 100, kSawAnchor, fs 48000, f0 20.6017 Hz, L 524288: -116.9 dBFS (excluded 0.071)
+  SC-005 chain max excitation -> Fold 100, mid grid, fs 48000, f0 20.6017 Hz, L 524288: -109.5 dBFS (excluded 0.071)
+  SC-005 chain max excitation -> Fold 100, kSineAnchor, fs 48000, f0 20.6017 Hz, L 524288: -119.1 dBFS (excluded 0.071)
+ProfundumEdgeFold_ChainNoAliasingE0: chain, fs 48000, MIDI 16: worst -100.4 dBFS (bar -80, plan S9.4)
+  SC-005 chain max excitation -> Fold 100, SC-009 state, fs 96000, f0 20.6017 Hz, L 524288: -101.7 dBFS (excluded 0.142)
+  SC-005 chain max excitation -> Fold 100, kGrowl, fs 96000, f0 20.6017 Hz, L 524288: -103.2 dBFS (excluded 0.142)
+  SC-005 chain max excitation -> Fold 100, kSawAnchor, fs 96000, f0 20.6017 Hz, L 524288: -115.5 dBFS (excluded 0.142)
+  SC-005 chain max excitation -> Fold 100, mid grid, fs 96000, f0 20.6017 Hz, L 524288: -113.8 dBFS (excluded 0.142)
+  SC-005 chain max excitation -> Fold 100, kSineAnchor, fs 96000, f0 20.6017 Hz, L 524288: -116.5 dBFS (excluded 0.142)
+ProfundumEdgeFold_ChainNoAliasingE0: chain, fs 96000, MIDI 16: worst -101.7 dBFS (bar -80, plan S9.4)
+11.743 s: ProfundumEdgeFold_ChainNoAliasingE0
+===============================================================================
+All tests passed (294 assertions in 1 test case)
+
+exit: 0 wall: 12 s

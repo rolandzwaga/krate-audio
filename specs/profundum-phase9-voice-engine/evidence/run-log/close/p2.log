@@ -1,0 +1,27 @@
+=== p2 probe 2026-10-20T12:35:49Z commit 0ae33b87
+cmd: build/windows-x64-release/bin/Release/dsp_systems_tests.exe "VoiceEngine_DeclickReferenceProbe"
+Filters: "VoiceEngine_DeclickReferenceProbe"
+Randomness seeded to: 4198749568
+# P-2 VoiceEngine_DeclickReferenceProbe (tasks.md T013; plan R-B, S10.4, S9.9)
+# A_s (showcase A, sustain 1, SOLID, Drop 0), AlwaysRetrigger, Retrigger Reset, held victim, host block 1, 48 kHz. Readings on the pre-dynamics Sum tap, the worse of L / R.
+# (a) ratio = max|dy| over W / the reference's (SC-005: polyphony 5; SC-006: POLY-2), bar 1.05925. (b) max|dy| over W <= bound (S9.9; SC-005 adds 1.1 D_max of each held filler).
+# W = [steal / restart grid point, + samplesUntilSwitch + L_d + one period of the slower f0).
+# skipped E1 -24 st: target note 4 outside [16, 127]
+P2 SC005 steal E1 victim held, new +3 st | W [24000, 25452) ratio=0.718121 a=PASS max_dy=0.0225536 bound=0.0346536 margin=1.5365 b=PASS
+P2 SC005 steal C3 victim held, new +3 st | W [24000, 24654) ratio=1.0321 a=PASS max_dy=0.0600893 bound=0.0913184 margin=1.51971 b=PASS
+P2 SC006 replace E1 +1 st, old held | W [24000, 25452) ratio=0.492197 a=PASS max_dy=0.005776 bound=0.013156 margin=2.27769 b=PASS
+P2 SC006 replace E1 -1 st, old held | W [24000, 25521) ratio=0.541843 a=PASS max_dy=0.00560942 bound=0.0128871 margin=2.29739 b=PASS
+P2 SC006 replace E1 +12 st, old held | W [24000, 25452) ratio=0.355389 a=PASS max_dy=0.00823202 bound=0.0174068 margin=2.11453 b=PASS
+P2 SC006 replace E1 -12 st, old held | W [24000, 26617) ratio=0.884878 a=PASS max_dy=0.00493148 bound=0.0128911 margin=2.61405 b=PASS
+P2 SC006 replace E1 +24 st, old held | W [24000, 25452) ratio=0.393899 a=PASS max_dy=0.0164012 bound=0.0263934 margin=1.60923 b=PASS
+P2 SC006 replace C3 +1 st, old held | W [24000, 24654) ratio=0.280425 a=PASS max_dy=0.0135978 bound=0.0235283 margin=1.73031 b=PASS
+P2 SC006 replace C3 -1 st, old held | W [24000, 24676) ratio=0.2694 a=PASS max_dy=0.0121896 bound=0.0226824 margin=1.8608 b=PASS
+P2 SC006 replace C3 +12 st, old held | W [24000, 24654) ratio=0.451896 a=PASS max_dy=0.0257586 bound=0.0368188 margin=1.42938 b=PASS
+P2 SC006 replace C3 -12 st, old held | W [24000, 25021) ratio=0.259757 a=PASS max_dy=0.00769961 bound=0.0226918 margin=2.94713 b=PASS
+P2 SC006 replace C3 +24 st, old held | W [24000, 24654) ratio=0.828905 a=PASS max_dy=0.0505581 bound=0.0641307 margin=1.26846 b=PASS
+P2 SC006 replace C3 -24 st, old held | W [24000, 25755) ratio=0.36205 a=PASS max_dy=0.00725609 bound=0.0226965 margin=3.12792 b=PASS
+P2 VERDICT GREEN worst_ratio=1.0321 (bar 1.05925)
+===============================================================================
+All tests passed (467 assertions in 1 test case)
+
+exit: 0 wall: 25 s

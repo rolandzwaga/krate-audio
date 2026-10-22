@@ -1,0 +1,17 @@
+Filters: "HarmonicFold_ThdAndCountMonotonic"
+Randomness seeded to: 2265499355
+HarmonicFold_ThdAndCountMonotonic fs 44100 MIDI 16: min THD step +0.069 dB at amount 99.75 (plan D-1 +0.069 at 100);THD(100) 4.56 dB, H(100) 17
+HarmonicFold_ThdAndCountMonotonic fs 44100 MIDI 28: min THD step +0.069 dB at amount 99.75 (plan D-1 +0.069 at 100);THD(100) 4.54 dB, H(100) 17
+HarmonicFold_ThdAndCountMonotonic fs 44100 MIDI 40: min THD step +0.069 dB at amount 99.75 (plan D-1 +0.069 at 100);THD(100) 4.45 dB, H(100) 17
+HarmonicFold_ThdAndCountMonotonic fs 44100 MIDI 36: min THD step +0.069 dB at amount 99.75 (plan D-1 +0.069 at 100);THD(100) 4.49 dB, H(100) 17
+HarmonicFold_ThdAndCountMonotonic fs 48000 MIDI 16: min THD step +0.069 dB at amount 99.75 (plan D-1 +0.069 at 100);THD(100) 4.56 dB, H(100) 17
+HarmonicFold_ThdAndCountMonotonic fs 48000 MIDI 28: min THD step +0.069 dB at amount 99.75 (plan D-1 +0.069 at 100);THD(100) 4.54 dB, H(100) 17
+HarmonicFold_ThdAndCountMonotonic fs 48000 MIDI 40: min THD step +0.069 dB at amount 99.75 (plan D-1 +0.069 at 100);THD(100) 4.46 dB, H(100) 17
+HarmonicFold_ThdAndCountMonotonic fs 48000 MIDI 36: min THD step +0.069 dB at amount 99.75 (plan D-1 +0.069 at 100);THD(100) 4.50 dB, H(100) 17
+HarmonicFold_ThdAndCountMonotonic fs 96000 MIDI 16: min THD step +0.069 dB at amount 99.75 (plan D-1 +0.069 at 100);THD(100) 4.56 dB, H(100) 17
+HarmonicFold_ThdAndCountMonotonic fs 96000 MIDI 28: min THD step +0.069 dB at amount 99.75 (plan D-1 +0.069 at 100);THD(100) 4.55 dB, H(100) 17
+HarmonicFold_ThdAndCountMonotonic fs 96000 MIDI 40: min THD step +0.069 dB at amount 99.75 (plan D-1 +0.069 at 100);THD(100) 4.51 dB, H(100) 17
+HarmonicFold_ThdAndCountMonotonic fs 96000 MIDI 36: min THD step +0.069 dB at amount 99.75 (plan D-1 +0.069 at 100);THD(100) 4.53 dB, H(100) 17
+===============================================================================
+All tests passed (57744 assertions in 1 test case)
+

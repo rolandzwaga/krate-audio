@@ -1,0 +1,30 @@
+Filters: "VoiceEngine_Aliasing_44k1_Bite"
+Randomness seeded to: 3060815565
+SC-021 44k1 E0 Bite SHAPE 0 Tone 0 LOCK: (a) Sum -102.73 dBFS, (b) out on -77.01 dBFS (added -77.03), off -94.92 dBFS (added -96.36); bar -80
+SC-021 44k1 E0 Bite SHAPE 0 Tone 0 FOLLOW: (a) Sum -102.73 dBFS, (b) out on -77.01 dBFS (added -77.03), off -94.92 dBFS (added -96.36); bar -80
+SC-021 44k1 E0 Bite SHAPE 0 Tone 1 LOCK: (a) Sum -92.80 dBFS, (b) out on -86.16 dBFS (added -86.64), off -94.10 dBFS (added -98.65); bar -80
+SC-021 44k1 E0 Bite SHAPE 0 Tone 1 FOLLOW: (a) Sum -92.80 dBFS, (b) out on -86.16 dBFS (added -86.64), off -94.10 dBFS (added -98.65); bar -80
+SC-021 44k1 E0 Bite SHAPE 1 Tone 0 LOCK: (a) Sum -115.78 dBFS, (b) out on -75.47 dBFS (added -75.47), off -92.57 dBFS (added -92.60); bar -80
+SC-021 44k1 E0 Bite SHAPE 1 Tone 0 FOLLOW: (a) Sum -115.78 dBFS, (b) out on -75.47 dBFS (added -75.47), off -92.57 dBFS (added -92.60); bar -80
+SC-021 44k1 E0 Bite SHAPE 1 Tone 1 LOCK: (a) Sum -107.10 dBFS, (b) out on -87.39 dBFS (added -87.41), off -108.65 dBFS (added -112.87); bar -80
+SC-021 44k1 E0 Bite SHAPE 1 Tone 1 FOLLOW: (a) Sum -107.10 dBFS, (b) out on -87.39 dBFS (added -87.41), off -108.65 dBFS (added -112.87); bar -80
+SC-021 44k1 E1 Bite SHAPE 0 Tone 0 LOCK: (a) Sum -98.87 dBFS, (b) out on -88.66 dBFS (added -89.14), off -97.87 dBFS (added -106.76); bar -80
+SC-021 44k1 E1 Bite SHAPE 0 Tone 0 FOLLOW: (a) Sum -98.87 dBFS, (b) out on -88.66 dBFS (added -89.14), off -97.87 dBFS (added -106.76); bar -80
+SC-021 44k1 E1 Bite SHAPE 0 Tone 1 LOCK: (a) Sum -95.21 dBFS, (b) out on -73.93 dBFS (added -73.95), off -73.96 dBFS (added -73.97); bar -80
+SC-021 44k1 E1 Bite SHAPE 0 Tone 1 FOLLOW: (a) Sum -95.21 dBFS, (b) out on -73.93 dBFS (added -73.95), off -73.96 dBFS (added -73.97); bar -80
+SC-021 44k1 E1 Bite SHAPE 1 Tone 0 LOCK: (a) Sum -114.60 dBFS, (b) out on -92.12 dBFS (added -92.14), off -100.07 dBFS (added -100.19); bar -80
+SC-021 44k1 E1 Bite SHAPE 1 Tone 0 FOLLOW: (a) Sum -114.60 dBFS, (b) out on -92.12 dBFS (added -92.14), off -100.07 dBFS (added -100.19); bar -80
+SC-021 44k1 E1 Bite SHAPE 1 Tone 1 LOCK: (a) Sum -105.41 dBFS, (b) out on -48.08 dBFS (added -48.08), off -47.91 dBFS (added -47.91); bar -80
+SC-021 44k1 E1 Bite SHAPE 1 Tone 1 FOLLOW: (a) Sum -105.41 dBFS, (b) out on -48.08 dBFS (added -48.08), off -47.91 dBFS (added -47.91); bar -80
+SC-021 44k1 E2 Bite SHAPE 0 Tone 0 LOCK: (a) Sum -96.90 dBFS, (b) out on -91.73 dBFS (added -93.15), off -95.62 dBFS (added -100.71); bar -80
+SC-021 44k1 E2 Bite SHAPE 0 Tone 0 FOLLOW: (a) Sum -96.90 dBFS, (b) out on -91.73 dBFS (added -93.15), off -95.62 dBFS (added -100.71); bar -80
+SC-021 44k1 E2 Bite SHAPE 0 Tone 1 LOCK: (a) Sum -82.32 dBFS, (b) out on -71.61 dBFS (added -71.80), off -71.62 dBFS (added -71.81); bar -80
+SC-021 44k1 E2 Bite SHAPE 0 Tone 1 FOLLOW: (a) Sum -82.32 dBFS, (b) out on -71.61 dBFS (added -71.80), off -71.62 dBFS (added -71.81); bar -80
+SC-021 44k1 E2 Bite SHAPE 1 Tone 0 LOCK: (a) Sum -116.59 dBFS, (b) out on -70.94 dBFS (added -70.94), off -70.90 dBFS (added -70.90); bar -80
+SC-021 44k1 E2 Bite SHAPE 1 Tone 0 FOLLOW: (a) Sum -116.59 dBFS, (b) out on -70.94 dBFS (added -70.94), off -70.90 dBFS (added -70.90); bar -80
+SC-021 44k1 E2 Bite SHAPE 1 Tone 1 LOCK: (a) Sum -98.01 dBFS, (b) out on -71.89 dBFS (added -71.89), off -63.21 dBFS (added -63.21); bar -80
+SC-021 44k1 E2 Bite SHAPE 1 Tone 1 FOLLOW: (a) Sum -98.01 dBFS, (b) out on -71.89 dBFS (added -71.89), off -63.21 dBFS (added -63.21); bar -80
+SC-021 shard 44k1 Bite: 24 cells, worst (a) Sum -82.32 dBFS (44k1 E2 Bite SHAPE 0 Tone 1 LOCK), worst (b) output -48.08 dBFS (44k1 E1 Bite SHAPE 1 Tone 1 LOCK), worst opt-in-off output -47.91 dBFS (recorded); bar -80; wall clock 56.2 s
+===============================================================================
+All tests passed (1873 assertions in 1 test case)
+

@@ -1,0 +1,19 @@
+Filters: "VoragoEngine_ConfigurationFuzz"
+Randomness seeded to: 2755649230
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+VoragoEngine_ConfigurationFuzz
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_engine_longrun_test.cpp(988)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_engine_longrun_test.cpp(996): 
+warning:
+  SC-013b: configurations [32, 1000) = 968 renders x 10.0 s, accelerated per
+  FR-086 with A = 100.0 on the engine's envelope and growth clocks
+
+exit: 127 wall: 15 s

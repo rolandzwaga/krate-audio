@@ -1,0 +1,177 @@
+Filters: "VoiceEngine_MacroMonotone"
+Randomness seeded to: 2303257400
+# SC-007 VoiceEngine_MacroMonotone: each macro 0 -> 1, the others neutral; base A_s (C-8), B_s for Dark <-> Bright (B10-1); eps 0.25 dB / 0.02 oct / 2 %; D(p_j) >= max_{i<j} D(p_i) - eps
+macro,note,macro_value,axis_reading,running_max_before,valid,pass
+"Weight",E1,0,-9.18337,-9.18337,1,PASS
+"Weight",E1,0.05,-8.79142,-9.18337,1,PASS
+"Weight",E1,0.1,-8.4074,-8.79142,1,PASS
+"Weight",E1,0.15,-8.02325,-8.4074,1,PASS
+"Weight",E1,0.2,-7.65874,-8.02325,1,PASS
+"Weight",E1,0.25,-7.32308,-7.65874,1,PASS
+"Weight",E1,0.3,-7.01677,-7.32308,1,PASS
+"Weight",E1,0.35,-6.73491,-7.01677,1,PASS
+"Weight",E1,0.4,-6.47064,-6.73491,1,PASS
+"Weight",E1,0.45,-6.21765,-6.47064,1,PASS
+"Weight",E1,0.5,-5.9717,-6.21765,1,PASS
+"Weight",E1,0.55,-5.9717,-5.9717,1,PASS
+"Weight",E1,0.6,-5.97169,-5.9717,1,PASS
+"Weight",E1,0.65,-5.97168,-5.97169,1,PASS
+"Weight",E1,0.7,-5.97166,-5.97168,1,PASS
+"Weight",E1,0.75,-5.97163,-5.97166,1,PASS
+"Weight",E1,0.8,-5.97161,-5.97163,1,PASS
+"Weight",E1,0.85,-5.97157,-5.97161,1,PASS
+"Weight",E1,0.9,-5.97154,-5.97157,1,PASS
+"Weight",E1,0.95,-5.97149,-5.97154,1,PASS
+"Weight",E1,1,-5.97144,-5.97149,1,PASS
+"Weight",C3,0,-9.20196,-9.20196,1,PASS
+"Weight",C3,0.05,-8.81073,-9.20196,1,PASS
+"Weight",C3,0.1,-8.42727,-8.81073,1,PASS
+"Weight",C3,0.15,-8.04357,-8.42727,1,PASS
+"Weight",C3,0.2,-7.67939,-8.04357,1,PASS
+"Weight",C3,0.25,-7.34398,-7.67939,1,PASS
+"Weight",C3,0.3,-7.03784,-7.34398,1,PASS
+"Weight",C3,0.35,-6.75609,-7.03784,1,PASS
+"Weight",C3,0.4,-6.49189,-6.75609,1,PASS
+"Weight",C3,0.45,-6.2389,-6.49189,1,PASS
+"Weight",C3,0.5,-5.99293,-6.2389,1,PASS
+"Weight",C3,0.55,-5.99293,-5.99293,1,PASS
+"Weight",C3,0.6,-5.99293,-5.99293,1,PASS
+"Weight",C3,0.65,-5.99291,-5.99293,1,PASS
+"Weight",C3,0.7,-5.9929,-5.99291,1,PASS
+"Weight",C3,0.75,-5.99288,-5.9929,1,PASS
+"Weight",C3,0.8,-5.99284,-5.99288,1,PASS
+"Weight",C3,0.85,-5.99281,-5.99284,1,PASS
+"Weight",C3,0.9,-5.99277,-5.99281,1,PASS
+"Weight",C3,0.95,-5.99273,-5.99277,1,PASS
+"Weight",C3,1,-5.99268,-5.99273,1,PASS
+"Dark <-> Bright",E1,0,0.353812,0.353812,1,PASS
+"Dark <-> Bright",E1,0.05,0.416834,0.353812,1,PASS
+"Dark <-> Bright",E1,0.1,0.484812,0.416834,1,PASS
+"Dark <-> Bright",E1,0.15,0.556493,0.484812,1,PASS
+"Dark <-> Bright",E1,0.2,0.630665,0.556493,1,PASS
+"Dark <-> Bright",E1,0.25,0.708795,0.630665,1,PASS
+"Dark <-> Bright",E1,0.3,0.785002,0.708795,1,PASS
+"Dark <-> Bright",E1,0.35,0.856568,0.785002,1,PASS
+"Dark <-> Bright",E1,0.4,0.921842,0.856568,1,PASS
+"Dark <-> Bright",E1,0.45,0.979856,0.921842,1,PASS
+"Dark <-> Bright",E1,0.5,1.03036,0.979856,1,PASS
+"Dark <-> Bright",E1,0.55,1.08384,1.03036,1,PASS
+"Dark <-> Bright",E1,0.6,1.12852,1.08384,1,PASS
+"Dark <-> Bright",E1,0.65,1.16359,1.12852,1,PASS
+"Dark <-> Bright",E1,0.7,1.19491,1.16359,1,PASS
+"Dark <-> Bright",E1,0.75,1.22321,1.19491,1,PASS
+"Dark <-> Bright",E1,0.8,1.24901,1.22321,1,PASS
+"Dark <-> Bright",E1,0.85,1.26925,1.24901,1,PASS
+"Dark <-> Bright",E1,0.9,1.28183,1.26925,1,PASS
+"Dark <-> Bright",E1,0.95,1.29183,1.28183,1,PASS
+"Dark <-> Bright",E1,1,1.29947,1.29183,1,PASS
+"Dark <-> Bright",C3,0,0.308626,0.308626,1,PASS
+"Dark <-> Bright",C3,0.05,0.368295,0.308626,1,PASS
+"Dark <-> Bright",C3,0.1,0.433695,0.368295,1,PASS
+"Dark <-> Bright",C3,0.15,0.500698,0.433695,1,PASS
+"Dark <-> Bright",C3,0.2,0.567675,0.500698,1,PASS
+"Dark <-> Bright",C3,0.25,0.633179,0.567675,1,PASS
+"Dark <-> Bright",C3,0.3,0.695797,0.633179,1,PASS
+"Dark <-> Bright",C3,0.35,0.754039,0.695797,1,PASS
+"Dark <-> Bright",C3,0.4,0.806925,0.754039,1,PASS
+"Dark <-> Bright",C3,0.45,0.853877,0.806925,1,PASS
+"Dark <-> Bright",C3,0.5,0.895053,0.853877,1,PASS
+"Dark <-> Bright",C3,0.55,0.934595,0.895053,1,PASS
+"Dark <-> Bright",C3,0.6,0.971262,0.934595,1,PASS
+"Dark <-> Bright",C3,0.65,1.00198,0.971262,1,PASS
+"Dark <-> Bright",C3,0.7,1.03026,1.00198,1,PASS
+"Dark <-> Bright",C3,0.75,1.05545,1.03026,1,PASS
+"Dark <-> Bright",C3,0.8,1.07703,1.05545,1,PASS
+"Dark <-> Bright",C3,0.85,1.09296,1.07703,1,PASS
+"Dark <-> Bright",C3,0.9,1.10197,1.09296,1,PASS
+"Dark <-> Bright",C3,0.95,1.10721,1.10197,1,PASS
+"Dark <-> Bright",C3,1,1.10924,1.10721,1,PASS
+"Tight <-> Loose",E1,0,998.805,998.805,1,PASS
+"Tight <-> Loose",E1,0.05,999.7,998.805,1,PASS
+"Tight <-> Loose",E1,0.1,1000.93,999.7,1,PASS
+"Tight <-> Loose",E1,0.15,1002.49,1000.93,1,PASS
+"Tight <-> Loose",E1,0.2,1004.1,1002.49,1,PASS
+"Tight <-> Loose",E1,0.25,1005.1,1004.1,1,PASS
+"Tight <-> Loose",E1,0.3,1006.14,1005.1,1,PASS
+"Tight <-> Loose",E1,0.35,1010.81,1006.14,1,PASS
+"Tight <-> Loose",E1,0.4,1015.96,1010.81,1,PASS
+"Tight <-> Loose",E1,0.45,1023.74,1015.96,1,PASS
+"Tight <-> Loose",E1,0.5,1034.19,1023.74,1,PASS
+"Tight <-> Loose",E1,0.55,1049.29,1034.19,1,PASS
+"Tight <-> Loose",E1,0.6,1070.41,1049.29,1,PASS
+"Tight <-> Loose",E1,0.65,1100.25,1070.41,1,PASS
+"Tight <-> Loose",E1,0.7,1142.01,1100.25,1,PASS
+"Tight <-> Loose",E1,0.75,1200.16,1142.01,1,PASS
+"Tight <-> Loose",E1,0.8,1281.47,1200.16,1,PASS
+"Tight <-> Loose",E1,0.85,1397.92,1281.47,1,PASS
+"Tight <-> Loose",E1,0.9,1566.45,1397.92,1,PASS
+"Tight <-> Loose",E1,0.95,1798.64,1566.45,1,PASS
+"Tight <-> Loose",E1,1,2132.48,1798.64,1,PASS
+"Tight <-> Loose",C3,0,997.401,997.401,1,PASS
+"Tight <-> Loose",C3,0.05,997.475,997.401,1,PASS
+"Tight <-> Loose",C3,0.1,997.782,997.475,1,PASS
+"Tight <-> Loose",C3,0.15,999.036,997.782,1,PASS
+"Tight <-> Loose",C3,0.2,1000.56,999.036,1,PASS
+"Tight <-> Loose",C3,0.25,1002.32,1000.56,1,PASS
+"Tight <-> Loose",C3,0.3,1004.94,1002.32,1,PASS
+"Tight <-> Loose",C3,0.35,1008.74,1004.94,1,PASS
+"Tight <-> Loose",C3,0.4,1014.02,1008.74,1,PASS
+"Tight <-> Loose",C3,0.45,1021.49,1014.02,1,PASS
+"Tight <-> Loose",C3,0.5,1032.03,1021.49,1,PASS
+"Tight <-> Loose",C3,0.55,1046.85,1032.03,1,PASS
+"Tight <-> Loose",C3,0.6,1067.55,1046.85,1,PASS
+"Tight <-> Loose",C3,0.65,1096.61,1067.55,1,PASS
+"Tight <-> Loose",C3,0.7,1138.32,1096.61,1,PASS
+"Tight <-> Loose",C3,0.75,1197.56,1138.32,1,PASS
+"Tight <-> Loose",C3,0.8,1279.84,1197.56,1,PASS
+"Tight <-> Loose",C3,0.85,1396.87,1279.84,1,PASS
+"Tight <-> Loose",C3,0.9,1562.58,1396.87,1,PASS
+"Tight <-> Loose",C3,0.95,1796.6,1562.58,1,PASS
+"Tight <-> Loose",C3,1,2128.65,1796.6,1,PASS
+"Clean <-> Violent",E1,0,0,0,1,PASS
+"Clean <-> Violent",E1,0.05,0,0,1,PASS
+"Clean <-> Violent",E1,0.1,0,0,1,PASS
+"Clean <-> Violent",E1,0.15,0,0,1,PASS
+"Clean <-> Violent",E1,0.2,0,0,1,PASS
+"Clean <-> Violent",E1,0.25,0,0,1,PASS
+"Clean <-> Violent",E1,0.3,0,0,1,PASS
+"Clean <-> Violent",E1,0.35,0,0,1,PASS
+"Clean <-> Violent",E1,0.4,0,0,1,PASS
+"Clean <-> Violent",E1,0.45,0,0,1,PASS
+"Clean <-> Violent",E1,0.5,0,0,1,PASS
+"Clean <-> Violent",E1,0.55,0,0,1,PASS
+"Clean <-> Violent",E1,0.6,0,0,1,PASS
+"Clean <-> Violent",E1,0.65,0,0,1,PASS
+"Clean <-> Violent",E1,0.7,0,0,1,PASS
+"Clean <-> Violent",E1,0.75,0,0,1,PASS
+"Clean <-> Violent",E1,0.8,0,0,1,PASS
+"Clean <-> Violent",E1,0.85,0,0,1,PASS
+"Clean <-> Violent",E1,0.9,0,0,1,PASS
+"Clean <-> Violent",E1,0.95,5.20821,0,1,PASS
+"Clean <-> Violent",E1,1,11.0488,5.20821,1,PASS
+"Clean <-> Violent",C3,0,0,0,1,PASS
+"Clean <-> Violent",C3,0.05,0,0,1,PASS
+"Clean <-> Violent",C3,0.1,0,0,1,PASS
+"Clean <-> Violent",C3,0.15,0,0,1,PASS
+"Clean <-> Violent",C3,0.2,0,0,1,PASS
+"Clean <-> Violent",C3,0.25,0,0,1,PASS
+"Clean <-> Violent",C3,0.3,0,0,1,PASS
+"Clean <-> Violent",C3,0.35,0,0,1,PASS
+"Clean <-> Violent",C3,0.4,0,0,1,PASS
+"Clean <-> Violent",C3,0.45,0,0,1,PASS
+"Clean <-> Violent",C3,0.5,0,0,1,PASS
+"Clean <-> Violent",C3,0.55,0,0,1,PASS
+"Clean <-> Violent",C3,0.6,0,0,1,PASS
+"Clean <-> Violent",C3,0.65,0,0,1,PASS
+"Clean <-> Violent",C3,0.7,0,0,1,PASS
+"Clean <-> Violent",C3,0.75,0,0,1,PASS
+"Clean <-> Violent",C3,0.8,0,0,1,PASS
+"Clean <-> Violent",C3,0.85,0,0,1,PASS
+"Clean <-> Violent",C3,0.9,0.439909,0,1,PASS
+"Clean <-> Violent",C3,0.95,6.12681,0.439909,1,PASS
+"Clean <-> Violent",C3,1,11.8209,6.12681,1,PASS
+360.522 s: VoiceEngine_MacroMonotone
+===============================================================================
+All tests passed (4813 assertions in 1 test case)
+
+exit: 0 wall: 361 s

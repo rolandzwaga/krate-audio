@@ -1,0 +1,7 @@
+Filters: "ShapeMorph_SweepContinuity"
+Randomness seeded to: 1659721788
+326.788 s: ShapeMorph_SweepContinuity
+===============================================================================
+All tests passed (35335 assertions in 1 test case)
+
+exit: 0 wall: 327 s

@@ -1,0 +1,12 @@
+P2DIAG mono-always-reset max_dy=0.00989053 at 24041 (tS+41)
+#   max step in W: gAmp 0 at tS+-24000; coreL 0.306162 at tS+71; charL 0.28018 at tS+71
+P2DIAG mono-always-continue max_dy=0.00436769 at 24460 (tS+460)
+#   max step in W: gAmp 0 at tS+-24000; coreL 0.00203115 at tS+438; charL 0.00235951 at tS+468
+P2DIAG mono-always-reset-nodip max_dy=0.00712503 at 24028 (tS+28)
+#   max step in W: gAmp 0 at tS+-24000; coreL 0.00203114 at tS+1100; charL 0.00512015 at tS+28
+P2DIAG mono-legato-reset max_dy=0.00436769 at 24460 (tS+460)
+#   max step in W: gAmp 0 at tS+-24000; coreL 0.00203115 at tS+438; charL 0.00235951 at tS+468
+P2DIAG mono-osccontinuous max_dy=0.00436769 at 24460 (tS+460)
+#   max step in W: gAmp 0 at tS+-24000; coreL 0.00203115 at tS+438; charL 0.00235951 at tS+468
+P2DIAG poly2-reference max_dy=0.0088906 at 24047 (tS+47)
+#   max step in W: gAmp 0 at tS+-24000; coreL 0.00191714 at tS+464; charL 0.00222719 at tS+496

@@ -155,8 +155,13 @@ private:
         void up(float x, float* out) noexcept {
             float pa = x;
             float pb = x;
-            for (auto& s : upA) pa = s.process(pa);
-            for (auto& s : upB) pb = s.process(pb);
+            // Profundum Phase 9 T029 (bit-identical): the two branch chains are independent, so they
+            // are advanced together, one section each per step, instead of one whole chain after the
+            // other; each branch still sees exactly its own sequence of operations.
+            for (std::size_t i = 0; i < N / 2; ++i) {
+                pa = upA[i].process(pa);
+                pb = upB[i].process(pb);
+            }
             out[0] = pa;
             out[1] = pb;
         }
@@ -165,8 +170,10 @@ private:
         float down(float x0, float x1) noexcept {
             float pa = x1;
             float pb = x0;
-            for (auto& s : dnA) pa = s.process(pa);
-            for (auto& s : dnB) pb = s.process(pb);
+            for (std::size_t i = 0; i < N / 2; ++i) {   // T029: branches interleaved (see up)
+                pa = dnA[i].process(pa);
+                pb = dnB[i].process(pb);
+            }
             return 0.5f * (pa + pb);
         }
 

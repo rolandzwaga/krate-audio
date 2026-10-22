@@ -1,0 +1,329 @@
+Filters: "AnchorOscillator_PhaseLockEveryIsa60s"
+Randomness seeded to: 684104986
+SC-003 ISA AVX2: core render sum|x| 9533.87308779
+SC-003(a) static sine midi 16 fs 44100 block 37: dTheta(1 s) +0.000803 deg, dTheta(60 s) +0.045328 deg, drift +0.044525 deg (bars 1.0 / 0.5)
+SC-003(d) static octave-down midi 16 fs 44100 block 37: dTheta(1 s) +0.000803 deg, dTheta(60 s) +0.045329 deg, drift +0.044526 deg (bars 1.0 / 0.5)
+SC-003(a) static sine midi 16 fs 48000 block 37: dTheta(1 s) +0.000079 deg, dTheta(60 s) +0.000157 deg, drift +0.000078 deg (bars 1.0 / 0.5)
+SC-003(d) static octave-down midi 16 fs 48000 block 37: dTheta(1 s) +0.000078 deg, dTheta(60 s) +0.000157 deg, drift +0.000079 deg (bars 1.0 / 0.5)
+SC-003(a) static sine midi 16 fs 96000 block 37: dTheta(1 s) -0.000096 deg, dTheta(60 s) -0.001441 deg, drift -0.001344 deg (bars 1.0 / 0.5)
+SC-003(d) static octave-down midi 16 fs 96000 block 37: dTheta(1 s) -0.000096 deg, dTheta(60 s) -0.001440 deg, drift -0.001344 deg (bars 1.0 / 0.5)
+SC-003(b) trajectory midi 16 fs 48000 block 37: dTheta(1 s) +0.012907 deg (11 bends)
+  after bend at 5 s: dTheta +0.010203 deg, drift -0.002704 deg
+  after bend at 10 s: dTheta +0.008923 deg, drift -0.003984 deg
+  after bend at 15 s: dTheta +0.006893 deg, drift -0.006014 deg
+  after bend at 20 s: dTheta +0.005532 deg, drift -0.007374 deg
+  after bend at 25 s: dTheta +0.003686 deg, drift -0.009221 deg
+  after bend at 30 s: dTheta +0.002064 deg, drift -0.010843 deg
+  after bend at 35 s: dTheta +0.000372 deg, drift -0.012535 deg
+  after bend at 40 s: dTheta -0.002112 deg, drift -0.015019 deg
+  after bend at 45 s: dTheta -0.003734 deg, drift -0.016640 deg
+  after bend at 50 s: dTheta -0.005752 deg, drift -0.018659 deg
+  after bend at 55 s: dTheta -0.007247 deg, drift -0.020154 deg
+  dTheta(60 s) -0.006592 deg, drift -0.019499 deg; worst drift 0.020154 deg (bar 0.5)
+SC-003(e) processed midi 16 fs 48000 block 37: (i) core h1: dTheta(1 s) +6.252979 deg (Phase 2 h1 figure 0.07 deg, not gated), drift to 60 s -0.009426 deg; (ii) after Fold 100: dTheta(1 s) -1.421873 deg (not gated), drift -0.008983 deg (recorded, not gated: Phase 1 inter-partial walk through the Fold, spec SC-003(e)(ii) 2026-10-12, evidence/drift-probe.cpp)
+SC-003(a) static sine midi 16 fs 44100 block 512: dTheta(1 s) +0.000803 deg, dTheta(60 s) +0.045328 deg, drift +0.044525 deg (bars 1.0 / 0.5)
+SC-003(d) static octave-down midi 16 fs 44100 block 512: dTheta(1 s) +0.000803 deg, dTheta(60 s) +0.045329 deg, drift +0.044526 deg (bars 1.0 / 0.5)
+SC-003(a) static sine midi 16 fs 48000 block 512: dTheta(1 s) +0.000079 deg, dTheta(60 s) +0.000157 deg, drift +0.000078 deg (bars 1.0 / 0.5)
+SC-003(d) static octave-down midi 16 fs 48000 block 512: dTheta(1 s) +0.000078 deg, dTheta(60 s) +0.000157 deg, drift +0.000079 deg (bars 1.0 / 0.5)
+SC-003(a) static sine midi 16 fs 96000 block 512: dTheta(1 s) -0.000096 deg, dTheta(60 s) -0.001441 deg, drift -0.001344 deg (bars 1.0 / 0.5)
+SC-003(d) static octave-down midi 16 fs 96000 block 512: dTheta(1 s) -0.000096 deg, dTheta(60 s) -0.001440 deg, drift -0.001344 deg (bars 1.0 / 0.5)
+SC-003(b) trajectory midi 16 fs 48000 block 512: dTheta(1 s) +0.012907 deg (11 bends)
+  after bend at 5 s: dTheta +0.010203 deg, drift -0.002704 deg
+  after bend at 10 s: dTheta +0.008923 deg, drift -0.003984 deg
+  after bend at 15 s: dTheta +0.006893 deg, drift -0.006014 deg
+  after bend at 20 s: dTheta +0.005532 deg, drift -0.007374 deg
+  after bend at 25 s: dTheta +0.003686 deg, drift -0.009221 deg
+  after bend at 30 s: dTheta +0.002064 deg, drift -0.010843 deg
+  after bend at 35 s: dTheta +0.000372 deg, drift -0.012535 deg
+  after bend at 40 s: dTheta -0.002112 deg, drift -0.015019 deg
+  after bend at 45 s: dTheta -0.003734 deg, drift -0.016640 deg
+  after bend at 50 s: dTheta -0.005752 deg, drift -0.018659 deg
+  after bend at 55 s: dTheta -0.007247 deg, drift -0.020154 deg
+  dTheta(60 s) -0.006592 deg, drift -0.019499 deg; worst drift 0.020154 deg (bar 0.5)
+SC-003(e) processed midi 16 fs 48000 block 512: (i) core h1: dTheta(1 s) +6.252979 deg (Phase 2 h1 figure 0.07 deg, not gated), drift to 60 s -0.009426 deg; (ii) after Fold 100: dTheta(1 s) -1.421873 deg (not gated), drift -0.008983 deg (recorded, not gated: Phase 1 inter-partial walk through the Fold, spec SC-003(e)(ii) 2026-10-12, evidence/drift-probe.cpp)
+SC-003(a) static sine midi 28 fs 44100 block 37: dTheta(1 s) +0.001401 deg, dTheta(60 s) +0.070715 deg, drift +0.069314 deg (bars 1.0 / 0.5)
+SC-003(d) static octave-down midi 28 fs 44100 block 37: dTheta(1 s) +0.001401 deg, dTheta(60 s) +0.070715 deg, drift +0.069314 deg (bars 1.0 / 0.5)
+SC-003(a) static sine midi 28 fs 48000 block 37: dTheta(1 s) +0.000191 deg, dTheta(60 s) +0.000413 deg, drift +0.000221 deg (bars 1.0 / 0.5)
+SC-003(d) static octave-down midi 28 fs 48000 block 37: dTheta(1 s) +0.000191 deg, dTheta(60 s) +0.000413 deg, drift +0.000221 deg (bars 1.0 / 0.5)
+SC-003(a) static sine midi 28 fs 96000 block 37: dTheta(1 s) -0.000161 deg, dTheta(60 s) +0.002263 deg, drift +0.002424 deg (bars 1.0 / 0.5)
+SC-003(d) static octave-down midi 28 fs 96000 block 37: dTheta(1 s) -0.000161 deg, dTheta(60 s) +0.002263 deg, drift +0.002424 deg (bars 1.0 / 0.5)
+SC-003(b) trajectory midi 28 fs 48000 block 37: dTheta(1 s) -0.000605 deg (11 bends)
+  after bend at 5 s: dTheta -0.003910 deg, drift -0.003305 deg
+  after bend at 10 s: dTheta -0.007091 deg, drift -0.006486 deg
+  after bend at 15 s: dTheta -0.010852 deg, drift -0.010248 deg
+  after bend at 20 s: dTheta -0.013216 deg, drift -0.012611 deg
+  after bend at 25 s: dTheta -0.015931 deg, drift -0.015326 deg
+  after bend at 30 s: dTheta -0.019091 deg, drift -0.018486 deg
+  after bend at 35 s: dTheta -0.021996 deg, drift -0.021391 deg
+  after bend at 40 s: dTheta -0.025012 deg, drift -0.024407 deg
+  after bend at 45 s: dTheta -0.028279 deg, drift -0.027674 deg
+  after bend at 50 s: dTheta -0.030878 deg, drift -0.030273 deg
+  after bend at 55 s: dTheta -0.033675 deg, drift -0.033070 deg
+  dTheta(60 s) -0.036056 deg, drift -0.035451 deg; worst drift 0.035451 deg (bar 0.5)
+SC-003(e) processed midi 28 fs 48000 block 37: (i) core h1: dTheta(1 s) +10.120877 deg (Phase 2 h1 figure 0.07 deg, not gated), drift to 60 s -0.013312 deg; (ii) after Fold 100: dTheta(1 s) +1.077206 deg (not gated), drift -0.007966 deg (recorded, not gated: Phase 1 inter-partial walk through the Fold, spec SC-003(e)(ii) 2026-10-12, evidence/drift-probe.cpp)
+SC-003(a) static sine midi 28 fs 44100 block 512: dTheta(1 s) +0.001401 deg, dTheta(60 s) +0.070715 deg, drift +0.069314 deg (bars 1.0 / 0.5)
+SC-003(d) static octave-down midi 28 fs 44100 block 512: dTheta(1 s) +0.001401 deg, dTheta(60 s) +0.070715 deg, drift +0.069314 deg (bars 1.0 / 0.5)
+SC-003(a) static sine midi 28 fs 48000 block 512: dTheta(1 s) +0.000191 deg, dTheta(60 s) +0.000413 deg, drift +0.000221 deg (bars 1.0 / 0.5)
+SC-003(d) static octave-down midi 28 fs 48000 block 512: dTheta(1 s) +0.000191 deg, dTheta(60 s) +0.000413 deg, drift +0.000221 deg (bars 1.0 / 0.5)
+SC-003(a) static sine midi 28 fs 96000 block 512: dTheta(1 s) -0.000161 deg, dTheta(60 s) +0.002263 deg, drift +0.002424 deg (bars 1.0 / 0.5)
+SC-003(d) static octave-down midi 28 fs 96000 block 512: dTheta(1 s) -0.000161 deg, dTheta(60 s) +0.002263 deg, drift +0.002424 deg (bars 1.0 / 0.5)
+SC-003(b) trajectory midi 28 fs 48000 block 512: dTheta(1 s) -0.000605 deg (11 bends)
+  after bend at 5 s: dTheta -0.003910 deg, drift -0.003305 deg
+  after bend at 10 s: dTheta -0.007091 deg, drift -0.006486 deg
+  after bend at 15 s: dTheta -0.010852 deg, drift -0.010248 deg
+  after bend at 20 s: dTheta -0.013216 deg, drift -0.012611 deg
+  after bend at 25 s: dTheta -0.015931 deg, drift -0.015326 deg
+  after bend at 30 s: dTheta -0.019091 deg, drift -0.018486 deg
+  after bend at 35 s: dTheta -0.021996 deg, drift -0.021391 deg
+  after bend at 40 s: dTheta -0.025012 deg, drift -0.024407 deg
+  after bend at 45 s: dTheta -0.028279 deg, drift -0.027674 deg
+  after bend at 50 s: dTheta -0.030878 deg, drift -0.030273 deg
+  after bend at 55 s: dTheta -0.033675 deg, drift -0.033070 deg
+  dTheta(60 s) -0.036056 deg, drift -0.035451 deg; worst drift 0.035451 deg (bar 0.5)
+SC-003(e) processed midi 28 fs 48000 block 512: (i) core h1: dTheta(1 s) +10.120877 deg (Phase 2 h1 figure 0.07 deg, not gated), drift to 60 s -0.013312 deg; (ii) after Fold 100: dTheta(1 s) +1.077206 deg (not gated), drift -0.007966 deg (recorded, not gated: Phase 1 inter-partial walk through the Fold, spec SC-003(e)(ii) 2026-10-12, evidence/drift-probe.cpp)
+SC-003(a) static sine midi 40 fs 44100 block 37: dTheta(1 s) +0.002406 deg, dTheta(60 s) +0.125033 deg, drift +0.122627 deg (bars 1.0 / 0.5)
+SC-003(d) static octave-down midi 40 fs 44100 block 37: dTheta(1 s) +0.002406 deg, dTheta(60 s) +0.125033 deg, drift +0.122627 deg (bars 1.0 / 0.5)
+SC-003(a) static sine midi 40 fs 48000 block 37: dTheta(1 s) +0.000102 deg, dTheta(60 s) +0.000988 deg, drift +0.000885 deg (bars 1.0 / 0.5)
+SC-003(d) static octave-down midi 40 fs 48000 block 37: dTheta(1 s) +0.000102 deg, dTheta(60 s) +0.000988 deg, drift +0.000885 deg (bars 1.0 / 0.5)
+SC-003(a) static sine midi 40 fs 96000 block 37: dTheta(1 s) +0.000064 deg, dTheta(60 s) +0.000541 deg, drift +0.000477 deg (bars 1.0 / 0.5)
+SC-003(d) static octave-down midi 40 fs 96000 block 37: dTheta(1 s) +0.000065 deg, dTheta(60 s) +0.000541 deg, drift +0.000476 deg (bars 1.0 / 0.5)
+SC-003(b) trajectory midi 40 fs 48000 block 37: dTheta(1 s) -0.001517 deg (11 bends)
+  after bend at 5 s: dTheta -0.007675 deg, drift -0.006159 deg
+  after bend at 10 s: dTheta -0.013729 deg, drift -0.012212 deg
+  after bend at 15 s: dTheta -0.020593 deg, drift -0.019076 deg
+  after bend at 20 s: dTheta -0.026236 deg, drift -0.024719 deg
+  after bend at 25 s: dTheta -0.032494 deg, drift -0.030977 deg
+  after bend at 30 s: dTheta -0.038439 deg, drift -0.036923 deg
+  after bend at 35 s: dTheta -0.044772 deg, drift -0.043255 deg
+  after bend at 40 s: dTheta -0.050778 deg, drift -0.049262 deg
+  after bend at 45 s: dTheta -0.057083 deg, drift -0.055566 deg
+  after bend at 50 s: dTheta -0.062746 deg, drift -0.061229 deg
+  after bend at 55 s: dTheta -0.069342 deg, drift -0.067825 deg
+  dTheta(60 s) -0.074130 deg, drift -0.072614 deg; worst drift 0.072614 deg (bar 0.5)
+SC-003(e) processed midi 40 fs 48000 block 37: (i) core h1: dTheta(1 s) +10.201220 deg (Phase 2 h1 figure 0.07 deg, not gated), drift to 60 s -0.017002 deg; (ii) after Fold 100: dTheta(1 s) +7.164766 deg (not gated), drift -0.043259 deg (recorded, not gated: Phase 1 inter-partial walk through the Fold, spec SC-003(e)(ii) 2026-10-12, evidence/drift-probe.cpp)
+SC-003(a) static sine midi 40 fs 44100 block 512: dTheta(1 s) +0.002406 deg, dTheta(60 s) +0.125033 deg, drift +0.122627 deg (bars 1.0 / 0.5)
+SC-003(d) static octave-down midi 40 fs 44100 block 512: dTheta(1 s) +0.002406 deg, dTheta(60 s) +0.125033 deg, drift +0.122627 deg (bars 1.0 / 0.5)
+SC-003(a) static sine midi 40 fs 48000 block 512: dTheta(1 s) +0.000102 deg, dTheta(60 s) +0.000988 deg, drift +0.000885 deg (bars 1.0 / 0.5)
+SC-003(d) static octave-down midi 40 fs 48000 block 512: dTheta(1 s) +0.000102 deg, dTheta(60 s) +0.000988 deg, drift +0.000885 deg (bars 1.0 / 0.5)
+SC-003(a) static sine midi 40 fs 96000 block 512: dTheta(1 s) +0.000064 deg, dTheta(60 s) +0.000541 deg, drift +0.000477 deg (bars 1.0 / 0.5)
+SC-003(d) static octave-down midi 40 fs 96000 block 512: dTheta(1 s) +0.000065 deg, dTheta(60 s) +0.000541 deg, drift +0.000476 deg (bars 1.0 / 0.5)
+SC-003(b) trajectory midi 40 fs 48000 block 512: dTheta(1 s) -0.001517 deg (11 bends)
+  after bend at 5 s: dTheta -0.007675 deg, drift -0.006159 deg
+  after bend at 10 s: dTheta -0.013729 deg, drift -0.012212 deg
+  after bend at 15 s: dTheta -0.020593 deg, drift -0.019076 deg
+  after bend at 20 s: dTheta -0.026236 deg, drift -0.024719 deg
+  after bend at 25 s: dTheta -0.032494 deg, drift -0.030977 deg
+  after bend at 30 s: dTheta -0.038439 deg, drift -0.036923 deg
+  after bend at 35 s: dTheta -0.044772 deg, drift -0.043255 deg
+  after bend at 40 s: dTheta -0.050778 deg, drift -0.049262 deg
+  after bend at 45 s: dTheta -0.057083 deg, drift -0.055566 deg
+  after bend at 50 s: dTheta -0.062746 deg, drift -0.061229 deg
+  after bend at 55 s: dTheta -0.069342 deg, drift -0.067825 deg
+  dTheta(60 s) -0.074130 deg, drift -0.072614 deg; worst drift 0.072614 deg (bar 0.5)
+SC-003(e) processed midi 40 fs 48000 block 512: (i) core h1: dTheta(1 s) +10.201220 deg (Phase 2 h1 figure 0.07 deg, not gated), drift to 60 s -0.017002 deg; (ii) after Fold 100: dTheta(1 s) +7.164766 deg (not gated), drift -0.043259 deg (recorded, not gated: Phase 1 inter-partial walk through the Fold, spec SC-003(e)(ii) 2026-10-12, evidence/drift-probe.cpp)
+SC-003(a) static sine midi 48 fs 44100 block 37: dTheta(1 s) -0.000154 deg, dTheta(60 s) -0.000798 deg, drift -0.000645 deg (bars 1.0 / 0.5)
+SC-003(d) static octave-down midi 48 fs 44100 block 37: dTheta(1 s) -0.000154 deg, dTheta(60 s) -0.000798 deg, drift -0.000645 deg (bars 1.0 / 0.5)
+SC-003(a) static sine midi 48 fs 48000 block 37: dTheta(1 s) +0.000015 deg, dTheta(60 s) -0.002539 deg, drift -0.002553 deg (bars 1.0 / 0.5)
+SC-003(d) static octave-down midi 48 fs 48000 block 37: dTheta(1 s) +0.000014 deg, dTheta(60 s) -0.002539 deg, drift -0.002553 deg (bars 1.0 / 0.5)
+SC-003(a) static sine midi 48 fs 96000 block 37: dTheta(1 s) +0.000404 deg, dTheta(60 s) -0.001496 deg, drift -0.001900 deg (bars 1.0 / 0.5)
+SC-003(d) static octave-down midi 48 fs 96000 block 37: dTheta(1 s) +0.000404 deg, dTheta(60 s) -0.001496 deg, drift -0.001901 deg (bars 1.0 / 0.5)
+SC-003(b) trajectory midi 48 fs 48000 block 37: dTheta(1 s) -0.002206 deg (11 bends)
+  after bend at 5 s: dTheta -0.011443 deg, drift -0.009236 deg
+  after bend at 10 s: dTheta -0.020702 deg, drift -0.018496 deg
+  after bend at 15 s: dTheta -0.030381 deg, drift -0.028175 deg
+  after bend at 20 s: dTheta -0.039302 deg, drift -0.037096 deg
+  after bend at 25 s: dTheta -0.048730 deg, drift -0.046523 deg
+  after bend at 30 s: dTheta -0.058025 deg, drift -0.055819 deg
+  after bend at 35 s: dTheta -0.067959 deg, drift -0.065752 deg
+  after bend at 40 s: dTheta -0.077589 deg, drift -0.075382 deg
+  after bend at 45 s: dTheta -0.086560 deg, drift -0.084354 deg
+  after bend at 50 s: dTheta -0.096400 deg, drift -0.094193 deg
+  after bend at 55 s: dTheta -0.106685 deg, drift -0.104479 deg
+  dTheta(60 s) -0.114437 deg, drift -0.112231 deg; worst drift 0.112231 deg (bar 0.5)
+SC-003(e) processed midi 48 fs 48000 block 37: (i) core h1: dTheta(1 s) +10.378790 deg (Phase 2 h1 figure 0.07 deg, not gated), drift to 60 s -0.030522 deg; (ii) after Fold 100: dTheta(1 s) +13.411684 deg (not gated), drift -0.583454 deg (recorded, not gated: Phase 1 inter-partial walk through the Fold, spec SC-003(e)(ii) 2026-10-12, evidence/drift-probe.cpp)
+SC-003(a) static sine midi 48 fs 44100 block 512: dTheta(1 s) -0.000154 deg, dTheta(60 s) -0.000798 deg, drift -0.000645 deg (bars 1.0 / 0.5)
+SC-003(d) static octave-down midi 48 fs 44100 block 512: dTheta(1 s) -0.000154 deg, dTheta(60 s) -0.000798 deg, drift -0.000645 deg (bars 1.0 / 0.5)
+SC-003(a) static sine midi 48 fs 48000 block 512: dTheta(1 s) +0.000015 deg, dTheta(60 s) -0.002539 deg, drift -0.002553 deg (bars 1.0 / 0.5)
+SC-003(d) static octave-down midi 48 fs 48000 block 512: dTheta(1 s) +0.000014 deg, dTheta(60 s) -0.002539 deg, drift -0.002553 deg (bars 1.0 / 0.5)
+SC-003(a) static sine midi 48 fs 96000 block 512: dTheta(1 s) +0.000404 deg, dTheta(60 s) -0.001496 deg, drift -0.001900 deg (bars 1.0 / 0.5)
+SC-003(d) static octave-down midi 48 fs 96000 block 512: dTheta(1 s) +0.000404 deg, dTheta(60 s) -0.001496 deg, drift -0.001901 deg (bars 1.0 / 0.5)
+SC-003(b) trajectory midi 48 fs 48000 block 512: dTheta(1 s) -0.002206 deg (11 bends)
+  after bend at 5 s: dTheta -0.011443 deg, drift -0.009236 deg
+  after bend at 10 s: dTheta -0.020702 deg, drift -0.018496 deg
+  after bend at 15 s: dTheta -0.030381 deg, drift -0.028175 deg
+  after bend at 20 s: dTheta -0.039302 deg, drift -0.037096 deg
+  after bend at 25 s: dTheta -0.048730 deg, drift -0.046523 deg
+  after bend at 30 s: dTheta -0.058025 deg, drift -0.055819 deg
+  after bend at 35 s: dTheta -0.067959 deg, drift -0.065752 deg
+  after bend at 40 s: dTheta -0.077589 deg, drift -0.075382 deg
+  after bend at 45 s: dTheta -0.086560 deg, drift -0.084354 deg
+  after bend at 50 s: dTheta -0.096400 deg, drift -0.094193 deg
+  after bend at 55 s: dTheta -0.106685 deg, drift -0.104479 deg
+  dTheta(60 s) -0.114437 deg, drift -0.112231 deg; worst drift 0.112231 deg (bar 0.5)
+SC-003(e) processed midi 48 fs 48000 block 512: (i) core h1: dTheta(1 s) +10.378790 deg (Phase 2 h1 figure 0.07 deg, not gated), drift to 60 s -0.030522 deg; (ii) after Fold 100: dTheta(1 s) +13.411684 deg (not gated), drift -0.583454 deg (recorded, not gated: Phase 1 inter-partial walk through the Fold, spec SC-003(e)(ii) 2026-10-12, evidence/drift-probe.cpp)
+SC-003 ISA SSE2: core render sum|x| 9533.85688689
+SC-003(a) static sine midi 16 fs 44100 block 37: dTheta(1 s) +0.000779 deg, dTheta(60 s) +0.033826 deg, drift +0.033047 deg (bars 1.0 / 0.5)
+SC-003(d) static octave-down midi 16 fs 44100 block 37: dTheta(1 s) +0.000780 deg, dTheta(60 s) +0.033826 deg, drift +0.033046 deg (bars 1.0 / 0.5)
+SC-003(a) static sine midi 16 fs 48000 block 37: dTheta(1 s) +0.000045 deg, dTheta(60 s) -0.001126 deg, drift -0.001170 deg (bars 1.0 / 0.5)
+SC-003(d) static octave-down midi 16 fs 48000 block 37: dTheta(1 s) +0.000044 deg, dTheta(60 s) -0.001127 deg, drift -0.001171 deg (bars 1.0 / 0.5)
+SC-003(a) static sine midi 16 fs 96000 block 37: dTheta(1 s) +0.000066 deg, dTheta(60 s) -0.002356 deg, drift -0.002421 deg (bars 1.0 / 0.5)
+SC-003(d) static octave-down midi 16 fs 96000 block 37: dTheta(1 s) +0.000064 deg, dTheta(60 s) -0.002355 deg, drift -0.002419 deg (bars 1.0 / 0.5)
+SC-003(b) trajectory midi 16 fs 48000 block 37: dTheta(1 s) +0.012600 deg (11 bends)
+  after bend at 5 s: dTheta +0.009605 deg, drift -0.002995 deg
+  after bend at 10 s: dTheta +0.007575 deg, drift -0.005025 deg
+  after bend at 15 s: dTheta +0.005470 deg, drift -0.007130 deg
+  after bend at 20 s: dTheta +0.003022 deg, drift -0.009578 deg
+  after bend at 25 s: dTheta +0.001015 deg, drift -0.011585 deg
+  after bend at 30 s: dTheta -0.000325 deg, drift -0.012925 deg
+  after bend at 35 s: dTheta -0.002026 deg, drift -0.014627 deg
+  after bend at 40 s: dTheta -0.003014 deg, drift -0.015615 deg
+  after bend at 45 s: dTheta -0.005120 deg, drift -0.017720 deg
+  after bend at 50 s: dTheta -0.006176 deg, drift -0.018776 deg
+  after bend at 55 s: dTheta -0.007724 deg, drift -0.020324 deg
+  dTheta(60 s) -0.007047 deg, drift -0.019648 deg; worst drift 0.020324 deg (bar 0.5)
+SC-003(e) processed midi 16 fs 48000 block 37: (i) core h1: dTheta(1 s) +6.253031 deg (Phase 2 h1 figure 0.07 deg, not gated), drift to 60 s -0.009643 deg; (ii) after Fold 100: dTheta(1 s) -1.421733 deg (not gated), drift -0.008169 deg (recorded, not gated: Phase 1 inter-partial walk through the Fold, spec SC-003(e)(ii) 2026-10-12, evidence/drift-probe.cpp)
+SC-003(a) static sine midi 16 fs 44100 block 512: dTheta(1 s) +0.000779 deg, dTheta(60 s) +0.033826 deg, drift +0.033047 deg (bars 1.0 / 0.5)
+SC-003(d) static octave-down midi 16 fs 44100 block 512: dTheta(1 s) +0.000780 deg, dTheta(60 s) +0.033826 deg, drift +0.033046 deg (bars 1.0 / 0.5)
+SC-003(a) static sine midi 16 fs 48000 block 512: dTheta(1 s) +0.000045 deg, dTheta(60 s) -0.001126 deg, drift -0.001170 deg (bars 1.0 / 0.5)
+SC-003(d) static octave-down midi 16 fs 48000 block 512: dTheta(1 s) +0.000044 deg, dTheta(60 s) -0.001127 deg, drift -0.001171 deg (bars 1.0 / 0.5)
+SC-003(a) static sine midi 16 fs 96000 block 512: dTheta(1 s) +0.000066 deg, dTheta(60 s) -0.002356 deg, drift -0.002421 deg (bars 1.0 / 0.5)
+SC-003(d) static octave-down midi 16 fs 96000 block 512: dTheta(1 s) +0.000064 deg, dTheta(60 s) -0.002355 deg, drift -0.002419 deg (bars 1.0 / 0.5)
+SC-003(b) trajectory midi 16 fs 48000 block 512: dTheta(1 s) +0.012600 deg (11 bends)
+  after bend at 5 s: dTheta +0.009605 deg, drift -0.002995 deg
+  after bend at 10 s: dTheta +0.007575 deg, drift -0.005025 deg
+  after bend at 15 s: dTheta +0.005470 deg, drift -0.007130 deg
+  after bend at 20 s: dTheta +0.003022 deg, drift -0.009578 deg
+  after bend at 25 s: dTheta +0.001015 deg, drift -0.011585 deg
+  after bend at 30 s: dTheta -0.000325 deg, drift -0.012925 deg
+  after bend at 35 s: dTheta -0.002026 deg, drift -0.014627 deg
+  after bend at 40 s: dTheta -0.003014 deg, drift -0.015615 deg
+  after bend at 45 s: dTheta -0.005120 deg, drift -0.017720 deg
+  after bend at 50 s: dTheta -0.006176 deg, drift -0.018776 deg
+  after bend at 55 s: dTheta -0.007724 deg, drift -0.020324 deg
+  dTheta(60 s) -0.007047 deg, drift -0.019648 deg; worst drift 0.020324 deg (bar 0.5)
+SC-003(e) processed midi 16 fs 48000 block 512: (i) core h1: dTheta(1 s) +6.253031 deg (Phase 2 h1 figure 0.07 deg, not gated), drift to 60 s -0.009643 deg; (ii) after Fold 100: dTheta(1 s) -1.421733 deg (not gated), drift -0.008169 deg (recorded, not gated: Phase 1 inter-partial walk through the Fold, spec SC-003(e)(ii) 2026-10-12, evidence/drift-probe.cpp)
+SC-003(a) static sine midi 28 fs 44100 block 37: dTheta(1 s) +0.001136 deg, dTheta(60 s) +0.070178 deg, drift +0.069041 deg (bars 1.0 / 0.5)
+SC-003(d) static octave-down midi 28 fs 44100 block 37: dTheta(1 s) +0.001136 deg, dTheta(60 s) +0.070178 deg, drift +0.069041 deg (bars 1.0 / 0.5)
+SC-003(a) static sine midi 28 fs 48000 block 37: dTheta(1 s) +0.000040 deg, dTheta(60 s) +0.000318 deg, drift +0.000278 deg (bars 1.0 / 0.5)
+SC-003(d) static octave-down midi 28 fs 48000 block 37: dTheta(1 s) +0.000040 deg, dTheta(60 s) +0.000318 deg, drift +0.000278 deg (bars 1.0 / 0.5)
+SC-003(a) static sine midi 28 fs 96000 block 37: dTheta(1 s) -0.000220 deg, dTheta(60 s) -0.001055 deg, drift -0.000835 deg (bars 1.0 / 0.5)
+SC-003(d) static octave-down midi 28 fs 96000 block 37: dTheta(1 s) -0.000220 deg, dTheta(60 s) -0.001055 deg, drift -0.000835 deg (bars 1.0 / 0.5)
+SC-003(b) trajectory midi 28 fs 48000 block 37: dTheta(1 s) -0.000753 deg (11 bends)
+  after bend at 5 s: dTheta -0.003827 deg, drift -0.003073 deg
+  after bend at 10 s: dTheta -0.007443 deg, drift -0.006690 deg
+  after bend at 15 s: dTheta -0.009983 deg, drift -0.009230 deg
+  after bend at 20 s: dTheta -0.012999 deg, drift -0.012246 deg
+  after bend at 25 s: dTheta -0.016295 deg, drift -0.015542 deg
+  after bend at 30 s: dTheta -0.019210 deg, drift -0.018457 deg
+  after bend at 35 s: dTheta -0.021935 deg, drift -0.021182 deg
+  after bend at 40 s: dTheta -0.025030 deg, drift -0.024277 deg
+  after bend at 45 s: dTheta -0.028055 deg, drift -0.027302 deg
+  after bend at 50 s: dTheta -0.031201 deg, drift -0.030448 deg
+  after bend at 55 s: dTheta -0.034171 deg, drift -0.033418 deg
+  dTheta(60 s) -0.037108 deg, drift -0.036355 deg; worst drift 0.036355 deg (bar 0.5)
+SC-003(e) processed midi 28 fs 48000 block 37: (i) core h1: dTheta(1 s) +10.120783 deg (Phase 2 h1 figure 0.07 deg, not gated), drift to 60 s -0.012881 deg; (ii) after Fold 100: dTheta(1 s) +1.077000 deg (not gated), drift -0.006760 deg (recorded, not gated: Phase 1 inter-partial walk through the Fold, spec SC-003(e)(ii) 2026-10-12, evidence/drift-probe.cpp)
+SC-003(a) static sine midi 28 fs 44100 block 512: dTheta(1 s) +0.001136 deg, dTheta(60 s) +0.070178 deg, drift +0.069041 deg (bars 1.0 / 0.5)
+SC-003(d) static octave-down midi 28 fs 44100 block 512: dTheta(1 s) +0.001136 deg, dTheta(60 s) +0.070178 deg, drift +0.069041 deg (bars 1.0 / 0.5)
+SC-003(a) static sine midi 28 fs 48000 block 512: dTheta(1 s) +0.000040 deg, dTheta(60 s) +0.000318 deg, drift +0.000278 deg (bars 1.0 / 0.5)
+SC-003(d) static octave-down midi 28 fs 48000 block 512: dTheta(1 s) +0.000040 deg, dTheta(60 s) +0.000318 deg, drift +0.000278 deg (bars 1.0 / 0.5)
+SC-003(a) static sine midi 28 fs 96000 block 512: dTheta(1 s) -0.000220 deg, dTheta(60 s) -0.001055 deg, drift -0.000835 deg (bars 1.0 / 0.5)
+SC-003(d) static octave-down midi 28 fs 96000 block 512: dTheta(1 s) -0.000220 deg, dTheta(60 s) -0.001055 deg, drift -0.000835 deg (bars 1.0 / 0.5)
+SC-003(b) trajectory midi 28 fs 48000 block 512: dTheta(1 s) -0.000753 deg (11 bends)
+  after bend at 5 s: dTheta -0.003827 deg, drift -0.003073 deg
+  after bend at 10 s: dTheta -0.007443 deg, drift -0.006690 deg
+  after bend at 15 s: dTheta -0.009983 deg, drift -0.009230 deg
+  after bend at 20 s: dTheta -0.012999 deg, drift -0.012246 deg
+  after bend at 25 s: dTheta -0.016295 deg, drift -0.015542 deg
+  after bend at 30 s: dTheta -0.019210 deg, drift -0.018457 deg
+  after bend at 35 s: dTheta -0.021935 deg, drift -0.021182 deg
+  after bend at 40 s: dTheta -0.025030 deg, drift -0.024277 deg
+  after bend at 45 s: dTheta -0.028055 deg, drift -0.027302 deg
+  after bend at 50 s: dTheta -0.031201 deg, drift -0.030448 deg
+  after bend at 55 s: dTheta -0.034171 deg, drift -0.033418 deg
+  dTheta(60 s) -0.037108 deg, drift -0.036355 deg; worst drift 0.036355 deg (bar 0.5)
+SC-003(e) processed midi 28 fs 48000 block 512: (i) core h1: dTheta(1 s) +10.120783 deg (Phase 2 h1 figure 0.07 deg, not gated), drift to 60 s -0.012881 deg; (ii) after Fold 100: dTheta(1 s) +1.077000 deg (not gated), drift -0.006760 deg (recorded, not gated: Phase 1 inter-partial walk through the Fold, spec SC-003(e)(ii) 2026-10-12, evidence/drift-probe.cpp)
+SC-003(a) static sine midi 40 fs 44100 block 37: dTheta(1 s) +0.002435 deg, dTheta(60 s) +0.125214 deg, drift +0.122779 deg (bars 1.0 / 0.5)
+SC-003(d) static octave-down midi 40 fs 44100 block 37: dTheta(1 s) +0.002435 deg, dTheta(60 s) +0.125214 deg, drift +0.122779 deg (bars 1.0 / 0.5)
+SC-003(a) static sine midi 40 fs 48000 block 37: dTheta(1 s) +0.000058 deg, dTheta(60 s) -0.002376 deg, drift -0.002434 deg (bars 1.0 / 0.5)
+SC-003(d) static octave-down midi 40 fs 48000 block 37: dTheta(1 s) +0.000058 deg, dTheta(60 s) -0.002376 deg, drift -0.002434 deg (bars 1.0 / 0.5)
+SC-003(a) static sine midi 40 fs 96000 block 37: dTheta(1 s) +0.000026 deg, dTheta(60 s) +0.000875 deg, drift +0.000849 deg (bars 1.0 / 0.5)
+SC-003(d) static octave-down midi 40 fs 96000 block 37: dTheta(1 s) +0.000026 deg, dTheta(60 s) +0.000876 deg, drift +0.000849 deg (bars 1.0 / 0.5)
+SC-003(b) trajectory midi 40 fs 48000 block 37: dTheta(1 s) -0.001178 deg (11 bends)
+  after bend at 5 s: dTheta -0.007228 deg, drift -0.006050 deg
+  after bend at 10 s: dTheta -0.013658 deg, drift -0.012480 deg
+  after bend at 15 s: dTheta -0.020434 deg, drift -0.019255 deg
+  after bend at 20 s: dTheta -0.026402 deg, drift -0.025224 deg
+  after bend at 25 s: dTheta -0.032317 deg, drift -0.031139 deg
+  after bend at 30 s: dTheta -0.037932 deg, drift -0.036753 deg
+  after bend at 35 s: dTheta -0.044006 deg, drift -0.042827 deg
+  after bend at 40 s: dTheta -0.050536 deg, drift -0.049358 deg
+  after bend at 45 s: dTheta -0.057242 deg, drift -0.056063 deg
+  after bend at 50 s: dTheta -0.063341 deg, drift -0.062163 deg
+  after bend at 55 s: dTheta -0.070006 deg, drift -0.068827 deg
+  dTheta(60 s) -0.075339 deg, drift -0.074161 deg; worst drift 0.074161 deg (bar 0.5)
+SC-003(e) processed midi 40 fs 48000 block 37: (i) core h1: dTheta(1 s) +10.201122 deg (Phase 2 h1 figure 0.07 deg, not gated), drift to 60 s -0.020277 deg; (ii) after Fold 100: dTheta(1 s) +7.164573 deg (not gated), drift -0.043308 deg (recorded, not gated: Phase 1 inter-partial walk through the Fold, spec SC-003(e)(ii) 2026-10-12, evidence/drift-probe.cpp)
+SC-003(a) static sine midi 40 fs 44100 block 512: dTheta(1 s) +0.002435 deg, dTheta(60 s) +0.125214 deg, drift +0.122779 deg (bars 1.0 / 0.5)
+SC-003(d) static octave-down midi 40 fs 44100 block 512: dTheta(1 s) +0.002435 deg, dTheta(60 s) +0.125214 deg, drift +0.122779 deg (bars 1.0 / 0.5)
+SC-003(a) static sine midi 40 fs 48000 block 512: dTheta(1 s) +0.000058 deg, dTheta(60 s) -0.002376 deg, drift -0.002434 deg (bars 1.0 / 0.5)
+SC-003(d) static octave-down midi 40 fs 48000 block 512: dTheta(1 s) +0.000058 deg, dTheta(60 s) -0.002376 deg, drift -0.002434 deg (bars 1.0 / 0.5)
+SC-003(a) static sine midi 40 fs 96000 block 512: dTheta(1 s) +0.000026 deg, dTheta(60 s) +0.000875 deg, drift +0.000849 deg (bars 1.0 / 0.5)
+SC-003(d) static octave-down midi 40 fs 96000 block 512: dTheta(1 s) +0.000026 deg, dTheta(60 s) +0.000876 deg, drift +0.000849 deg (bars 1.0 / 0.5)
+SC-003(b) trajectory midi 40 fs 48000 block 512: dTheta(1 s) -0.001178 deg (11 bends)
+  after bend at 5 s: dTheta -0.007228 deg, drift -0.006050 deg
+  after bend at 10 s: dTheta -0.013658 deg, drift -0.012480 deg
+  after bend at 15 s: dTheta -0.020434 deg, drift -0.019255 deg
+  after bend at 20 s: dTheta -0.026402 deg, drift -0.025224 deg
+  after bend at 25 s: dTheta -0.032317 deg, drift -0.031139 deg
+  after bend at 30 s: dTheta -0.037932 deg, drift -0.036753 deg
+  after bend at 35 s: dTheta -0.044006 deg, drift -0.042827 deg
+  after bend at 40 s: dTheta -0.050536 deg, drift -0.049358 deg
+  after bend at 45 s: dTheta -0.057242 deg, drift -0.056063 deg
+  after bend at 50 s: dTheta -0.063341 deg, drift -0.062163 deg
+  after bend at 55 s: dTheta -0.070006 deg, drift -0.068827 deg
+  dTheta(60 s) -0.075339 deg, drift -0.074161 deg; worst drift 0.074161 deg (bar 0.5)
+SC-003(e) processed midi 40 fs 48000 block 512: (i) core h1: dTheta(1 s) +10.201122 deg (Phase 2 h1 figure 0.07 deg, not gated), drift to 60 s -0.020277 deg; (ii) after Fold 100: dTheta(1 s) +7.164573 deg (not gated), drift -0.043308 deg (recorded, not gated: Phase 1 inter-partial walk through the Fold, spec SC-003(e)(ii) 2026-10-12, evidence/drift-probe.cpp)
+SC-003(a) static sine midi 48 fs 44100 block 37: dTheta(1 s) +0.000035 deg, dTheta(60 s) +0.000627 deg, drift +0.000592 deg (bars 1.0 / 0.5)
+SC-003(d) static octave-down midi 48 fs 44100 block 37: dTheta(1 s) +0.000035 deg, dTheta(60 s) +0.000627 deg, drift +0.000592 deg (bars 1.0 / 0.5)
+SC-003(a) static sine midi 48 fs 48000 block 37: dTheta(1 s) +0.000005 deg, dTheta(60 s) -0.001662 deg, drift -0.001667 deg (bars 1.0 / 0.5)
+SC-003(d) static octave-down midi 48 fs 48000 block 37: dTheta(1 s) +0.000005 deg, dTheta(60 s) -0.001662 deg, drift -0.001668 deg (bars 1.0 / 0.5)
+SC-003(a) static sine midi 48 fs 96000 block 37: dTheta(1 s) +0.000263 deg, dTheta(60 s) +0.002807 deg, drift +0.002544 deg (bars 1.0 / 0.5)
+SC-003(d) static octave-down midi 48 fs 96000 block 37: dTheta(1 s) +0.000263 deg, dTheta(60 s) +0.002807 deg, drift +0.002543 deg (bars 1.0 / 0.5)
+SC-003(b) trajectory midi 48 fs 48000 block 37: dTheta(1 s) -0.001999 deg (11 bends)
+  after bend at 5 s: dTheta -0.011850 deg, drift -0.009852 deg
+  after bend at 10 s: dTheta -0.020961 deg, drift -0.018963 deg
+  after bend at 15 s: dTheta -0.030888 deg, drift -0.028890 deg
+  after bend at 20 s: dTheta -0.040488 deg, drift -0.038489 deg
+  after bend at 25 s: dTheta -0.049865 deg, drift -0.047867 deg
+  after bend at 30 s: dTheta -0.059052 deg, drift -0.057053 deg
+  after bend at 35 s: dTheta -0.068248 deg, drift -0.066249 deg
+  after bend at 40 s: dTheta -0.078117 deg, drift -0.076119 deg
+  after bend at 45 s: dTheta -0.087264 deg, drift -0.085265 deg
+  after bend at 50 s: dTheta -0.096378 deg, drift -0.094380 deg
+  after bend at 55 s: dTheta -0.107068 deg, drift -0.105070 deg
+  dTheta(60 s) -0.114767 deg, drift -0.112768 deg; worst drift 0.112768 deg (bar 0.5)
+SC-003(e) processed midi 48 fs 48000 block 37: (i) core h1: dTheta(1 s) +10.378887 deg (Phase 2 h1 figure 0.07 deg, not gated), drift to 60 s -0.028795 deg; (ii) after Fold 100: dTheta(1 s) +13.412000 deg (not gated), drift -0.562074 deg (recorded, not gated: Phase 1 inter-partial walk through the Fold, spec SC-003(e)(ii) 2026-10-12, evidence/drift-probe.cpp)
+SC-003(a) static sine midi 48 fs 44100 block 512: dTheta(1 s) +0.000035 deg, dTheta(60 s) +0.000627 deg, drift +0.000592 deg (bars 1.0 / 0.5)
+SC-003(d) static octave-down midi 48 fs 44100 block 512: dTheta(1 s) +0.000035 deg, dTheta(60 s) +0.000627 deg, drift +0.000592 deg (bars 1.0 / 0.5)
+SC-003(a) static sine midi 48 fs 48000 block 512: dTheta(1 s) +0.000005 deg, dTheta(60 s) -0.001662 deg, drift -0.001667 deg (bars 1.0 / 0.5)
+SC-003(d) static octave-down midi 48 fs 48000 block 512: dTheta(1 s) +0.000005 deg, dTheta(60 s) -0.001662 deg, drift -0.001668 deg (bars 1.0 / 0.5)
+SC-003(a) static sine midi 48 fs 96000 block 512: dTheta(1 s) +0.000263 deg, dTheta(60 s) +0.002807 deg, drift +0.002544 deg (bars 1.0 / 0.5)
+SC-003(d) static octave-down midi 48 fs 96000 block 512: dTheta(1 s) +0.000263 deg, dTheta(60 s) +0.002807 deg, drift +0.002543 deg (bars 1.0 / 0.5)
+SC-003(b) trajectory midi 48 fs 48000 block 512: dTheta(1 s) -0.001999 deg (11 bends)
+  after bend at 5 s: dTheta -0.011850 deg, drift -0.009852 deg
+  after bend at 10 s: dTheta -0.020961 deg, drift -0.018963 deg
+  after bend at 15 s: dTheta -0.030888 deg, drift -0.028890 deg
+  after bend at 20 s: dTheta -0.040488 deg, drift -0.038489 deg
+  after bend at 25 s: dTheta -0.049865 deg, drift -0.047867 deg
+  after bend at 30 s: dTheta -0.059052 deg, drift -0.057053 deg
+  after bend at 35 s: dTheta -0.068248 deg, drift -0.066249 deg
+  after bend at 40 s: dTheta -0.078117 deg, drift -0.076119 deg
+  after bend at 45 s: dTheta -0.087264 deg, drift -0.085265 deg
+  after bend at 50 s: dTheta -0.096378 deg, drift -0.094380 deg
+  after bend at 55 s: dTheta -0.107068 deg, drift -0.105070 deg
+  dTheta(60 s) -0.114767 deg, drift -0.112768 deg; worst drift 0.112768 deg (bar 0.5)
+SC-003(e) processed midi 48 fs 48000 block 512: (i) core h1: dTheta(1 s) +10.378887 deg (Phase 2 h1 figure 0.07 deg, not gated), drift to 60 s -0.028795 deg; (ii) after Fold 100: dTheta(1 s) +13.412000 deg (not gated), drift -0.562074 deg (recorded, not gated: Phase 1 inter-partial walk through the Fold, spec SC-003(e)(ii) 2026-10-12, evidence/drift-probe.cpp)
+275.613 s: AnchorOscillator_PhaseLockEveryIsa60s
+===============================================================================
+All tests passed (3959 assertions in 1 test case)
+
+exit: 0 wall: 276 s

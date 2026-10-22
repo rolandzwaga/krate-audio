@@ -1,0 +1,6 @@
+Filters: "HarmonicFold_DetectorStabilityGrid"
+Randomness seeded to: 2628223803
+HarmonicFold_DetectorStabilityGrid: 180 cells, worst ripple 1.67e-05 (bar 1e-4) at fs 44100 f0 146.832 phase 0.00 amount 47.5
+===============================================================================
+All tests passed (540 assertions in 1 test case)
+

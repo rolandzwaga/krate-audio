@@ -63,6 +63,7 @@ public:
         dc_.reset();
         dcIn_ = 0.0f;
         dcOut_ = 0.0f;
+        linBase_ = 0.0f;
     }
 
     [[nodiscard]] std::size_t factor() const noexcept { return up_.factor(); }
@@ -84,6 +85,7 @@ public:
     /// lin, res: factor() samples each. Returns D(lin) + DC(D_notch(res)).
     [[nodiscard]] float downsample(const float* lin, const float* res) noexcept {
         const float linBase = downLin_.downsample(lin);
+        linBase_ = linBase;
         const float resBase = downRes_.downsample(res, [this](float v) noexcept {
             for (auto& n : notch_)
                 v = n.process(v);
@@ -93,6 +95,11 @@ public:
         dcOut_ = dc_.process(resBase);
         return linBase + dcOut_;
     }
+
+    /// D(lin) of the last downsample() call (Profundum Phase 9 T029, append-only): a caller that needs
+    /// the linear decimation on its own (ShapeMorph's HOLLOW tap) reads it here instead of running a
+    /// second, identical decimator on the same sequence.
+    [[nodiscard]] float lastLinearBase() const noexcept { return linBase_; }
 
     /// True when every piece of recurrent state is finite.
     [[nodiscard]] bool stateFinite() const noexcept {
@@ -110,6 +117,7 @@ private:
     std::array<Biquad, 3> notch_{};
     DCBlocker dc_;
     float dcIn_ = 0.0f, dcOut_ = 0.0f;                     // mirrors for stateFinite (harmonic_fold.h:312-313 pattern)
+    float linBase_ = 0.0f;                                 // D(lin) of the last call (lastLinearBase)
 };
 
 }  // namespace Krate::DSP

@@ -1,0 +1,7 @@
+Filters: "ProfundumCore_DepthRenderMonotonic"
+Randomness seeded to: 4232830502
+263.956 s: ProfundumCore_DepthRenderMonotonic
+===============================================================================
+All tests passed (34749 assertions in 1 test case)
+
+exit: 0 wall: 264 s

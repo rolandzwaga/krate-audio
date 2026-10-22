@@ -1,0 +1,7 @@
+T14 CHOSEN Weight (E_sub (Sum) dB) k=2.25 curve Linear
+T14 CHOSEN DarkBright (D_br (Sum) oct) k=1 curve Linear
+T14 CHOSEN TightLoose (D_t (Sum, gate render) ms) k=2.5 curve Linear
+T14 CHOSEN CleanViolent (D_nl (Character / twin) dB) k=1 curve Linear
+paste-harvest: F:\projects\iterum\specs\profundum-phase9-voice-engine\evidence\macro-rows.inc row 5: sign of 0.0f differs from the seed 0.5 (FR-052 directions are normative)
+harvest: paste-harvest.js failed (exit 1, specs/profundum-phase9-voice-engine/evidence/run-log/close/harvest-paste.log) (exit 1; status specs/profundum-phase9-voice-engine/evidence/run-log/close/harvest-status.txt)
+harvest exit=1

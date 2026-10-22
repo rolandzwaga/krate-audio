@@ -31,10 +31,10 @@
 //   y  = (1 - e)·x + e·z, e = 10 ms linear engage ramp; clamp ±kOutputCeiling.
 //
 // HOLLOW's tap lb (T010 design item, evidence/run-log/T010.txt):
-// - OversampledResidualPath::downsample returns only lb + rb, so lb is decimated
-//   from the same l by a second PolyphaseHalfbandOversampler (hollowDown) that
-//   runs only while HOLLOW is on. Same filter, same input: lb equals the path's
-//   linear decimation exactly.
+// - OversampledResidualPath::downsample returns lb + rb and keeps lb
+//   (lastLinearBase, Phase 9 T029); HOLLOW reads it. Until T029 a second
+//   PolyphaseHalfbandOversampler (hollowDown) decimated the same l through the
+//   same filter with the same history, i.e. produced the same bits.
 // - C-23 gap: with BITE's emphasis before the shared upsample, lb carries it while
 //   BITE and HOLLOW are both on (s in (0.5, 1)). Inv is the exact first-order
 //   inverse of the emphasis tilt, run at fs; it runs whenever HOLLOW is on, keyed
@@ -143,7 +143,6 @@ public:
 
         for (auto& ch : channels_) {
             ch.path.prepare(sampleRate);
-            ch.hollowDown.setFactor(ch.path.factor());
             ch.roundAdaa.setDrive(kRoundDrive);
             // C-23: ROUND's low-pass, HOLLOW's notch + band and BITE's emphasis run at fs.
             ch.roundLp.prepare(sampleRate);
@@ -292,7 +291,7 @@ public:
         if (!detail::isFinite(shapeSm_.getCurrentValue()) || !detail::isFinite(engage_.getCurrentValue()))
             return false;
         for (const auto& ch : channels_) {
-            if (!ch.path.stateFinite() || !ch.hollowDown.stateFinite() || !ch.biteAdaa.stateFinite())
+            if (!ch.path.stateFinite() || !ch.biteAdaa.stateFinite())
                 return false;
             if (!ch.inverse.stateFinite())
                 return false;
@@ -399,7 +398,6 @@ private:
 
     struct Channel {
         OversampledResidualPath path;
-        PolyphaseHalfbandOversampler hollowDown;  // decimates HOLLOW's tap l (downsampler only)
         // ROUND
         TanhADAA roundAdaa;
         SVF roundLp;
@@ -494,12 +492,15 @@ private:
     /// updateGains in double; one_pole.h clampCutoff / updateCoefficient in float). t2 = 0 is unity.
     void computeInverse(float t2) noexcept {
         {
-            const double g = static_cast<double>(t2) * static_cast<double>(kBiteMaxEmphasisDb);
-            const double lo = std::pow(10.0, -g / 20.0);
-            const double hi = std::pow(10.0, g / 20.0);
-            const double nu = std::sqrt(2.0 / (lo * lo + hi * hi));
-            inverseGL_ = static_cast<float>(lo * nu);
-            inverseGH_ = static_cast<float>(hi * nu);
+            // T032: the tilt's own float expressions (keytracked_tilt.h updateGains), same order, so the
+            // inverse's gains are the tilt's bit for bit; the tilt's Tone is 0.5 · (1 + t2) and its
+            // shelf depth kBiteMaxEmphasisDb, i.e. g = (2 · tone − 1) · maxDb = t2 · maxDb as here.
+            const float g = (2.0f * (0.5f * (1.0f + t2)) - 1.0f) * kBiteMaxEmphasisDb;
+            const float lo = std::exp2(-g * KeytrackedTilt::kLog2TenOver20);
+            const float hi = std::exp2(g * KeytrackedTilt::kLog2TenOver20);
+            const float nu = std::sqrt(2.0f / (lo * lo + hi * hi));
+            inverseGL_ = lo * nu;
+            inverseGH_ = hi * nu;
             const auto fsF = static_cast<float>(std::max(sampleRate_, 1000.0));
             float fc = kBitePivotMultiple * f0_;
             if (fc <= 0.0f)
@@ -546,7 +547,6 @@ private:
 
     static void resetChannel(Channel& ch) noexcept {
         ch.path.reset();
-        ch.hollowDown.reset();
         ch.roundAdaa.reset();
         ch.roundLp.reset();
         ch.hollowNotch.reset();
@@ -570,7 +570,6 @@ private:
             ch.biteTiltOut = xin;
         }
         std::array<float, kMaxFactor> u{};
-        std::array<float, kMaxFactor> tap{};
         std::array<float, kMaxFactor> lin{};
         std::array<float, kMaxFactor> res{};
         ch.path.upsample(xin, u.data());
@@ -588,7 +587,6 @@ private:
                 yNl = static_cast<float>(ch.biteAdaa.process(v)) * biteOutScale_;  // P·adaa(v)/c_B (deviation 9)
                 ch.biteOut = yNl;
             }
-            tap[k] = l;
             lin[k] = l;
             res[k] = yNl - l;
         }
@@ -602,7 +600,7 @@ private:
         }
         float z = wNl * zNl;
         {  // C-32: HOLLOW's linear chain runs warm from prepare (C-22 pattern); its weight alone switches it in
-            const float lb = ch.hollowDown.downsample(tap.data());
+            const float lb = ch.path.lastLinearBase();   // D(l), the same bits hollowDown produced (T029)
             const float h = ch.inverse.process(lb);  // unity while BITE is off
             const float yH = ch.hollowNotch.processMulti(h).notch + kHollowPeakGain * ch.hollowBand.processMulti(h).band;
             ch.hollowOut = yH;

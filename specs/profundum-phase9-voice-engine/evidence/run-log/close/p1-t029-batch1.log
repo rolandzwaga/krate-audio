@@ -1,0 +1,18 @@
+=== batch1 static-morph 2026-10-20T15:50:10Z
+pin-perf-cores: performance-core mask 0xFFFF
+Filters: "VoiceEngine_CpuProbe"
+Randomness seeded to: 1052593972
+# P-1 VoiceEngine_CpuProbe (tasks.md T013; plan R-A, S10.4, deviation 10)
+# SC-001 setting on both showcase endpoints, morph ramp 1000 ms toggled every 1 s, Drop 24 st retriggered every 0.25 s, block 64, 10 s timed after 1 s warm-up, median of 3 fresh instances, % of one core = wall / audio x 100. No observer.
+# P1 VARIANT static-morph SETTING -
+#   engine MONO Tube static-morph trials: 12.001 12.084 12.439 median 12.084
+#   engine POLY4 Tube static-morph trials: 36.899 38.372 36.351 median 36.899
+P1V static-morph Tube MONO 12.084 POLY4 36.899
+#   engine MONO Fracture static-morph trials: 11.138 12.592 11.291 median 11.291
+#   engine POLY4 Fracture static-morph trials: 37.29 36.589 35.966 median 36.589
+P1V static-morph Fracture MONO 11.291 POLY4 36.589
+P1V DONE static-morph
+===============================================================================
+All tests passed (78 assertions in 1 test case)
+
+DONE 2026-10-20T15:50:46Z

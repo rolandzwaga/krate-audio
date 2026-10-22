@@ -1,0 +1,47 @@
+Filters: "BassMorph_DiscreteClickFree_GoverningAmount"
+Randomness seeded to: 1643393972
+SC004 governing-amount,Character Tube/0->Fold/0.8 zeroA rise,E1,40,12000,0.999977,0.999976,0,0,0,0
+SC004 governing-amount,Character Tube/0->Fold/0.8 zeroA fall,E1,40,23488,1,1,0,0,0,0
+SC004 governing-amount,Character Tube/0->Fold/0.8 zeroA rise,C3,40,12000,1.04308,1.04469,0,0,0,0
+SC004 governing-amount,Character Tube/0->Fold/0.8 zeroA fall,C3,40,21888,0.99999,0.999989,0,0,0,0
+SC004 governing-amount,Character Tube/0->Fold/0.8 zeroB rise,E1,40,13920,1,1,0,0,0,0
+SC004 governing-amount,Character Tube/0->Fold/0.8 zeroB fall,E1,40,21568,0.705517,0.705487,0,0,0,0
+SC004 governing-amount,Character Tube/0->Fold/0.8 zeroB rise,C3,40,13920,1,1,0,0,0,0
+SC004 governing-amount,Character Tube/0->Fold/0.8 zeroB fall,C3,40,19968,1.05858,1.05818,0,0,0,0
+SC004 governing-amount,ImageMode Solid/0->Wide/1 zeroA rise,E1,40,12000,0.925498,1.06802,0,0,0,0
+SC004 recorded(a) governing-amount,ImageMode Solid/0->Wide/1 zeroA rise,E1,40,ratio_L,0.925498,ratio_R,1.06802 (B10-2: engagement ramp, not gated)
+SC004 governing-amount,ImageMode Solid/0->Wide/1 zeroA fall,E1,40,33696,1,1,0,0,0,0
+SC004 recorded(a) governing-amount,ImageMode Solid/0->Wide/1 zeroA fall,E1,40,ratio_L,1,ratio_R,1 (B10-2: engagement ramp, not gated)
+SC004 governing-amount,ImageMode Solid/0->Wide/1 zeroA rise,C3,40,12000,1.0065,0.957951,0,0,0,0
+SC004 recorded(a) governing-amount,ImageMode Solid/0->Wide/1 zeroA rise,C3,40,ratio_L,1.0065,ratio_R,0.957951 (B10-2: engagement ramp, not gated)
+SC004 governing-amount,ImageMode Solid/0->Wide/1 zeroA fall,C3,40,32096,1,1,0,0,0,0
+SC004 recorded(a) governing-amount,ImageMode Solid/0->Wide/1 zeroA fall,C3,40,ratio_L,1,ratio_R,1 (B10-2: engagement ramp, not gated)
+SC004 governing-amount,ImageMode Solid/0->Wide/1 zeroB rise,E1,40,13920,1,0.999999,0,0,0,0
+SC004 recorded(a) governing-amount,ImageMode Solid/0->Wide/1 zeroB rise,E1,40,ratio_L,1,ratio_R,0.999999 (B10-2: engagement ramp, not gated)
+SC004 governing-amount,ImageMode Solid/0->Wide/1 zeroB fall,E1,40,31776,0.928926,1.07089,0,0,0,0
+SC004 recorded(a) governing-amount,ImageMode Solid/0->Wide/1 zeroB fall,E1,40,ratio_L,0.928926,ratio_R,1.07089 (B10-2: engagement ramp, not gated)
+SC004 governing-amount,ImageMode Solid/0->Wide/1 zeroB rise,C3,40,13920,0.999999,1,0,0,0,0
+SC004 recorded(a) governing-amount,ImageMode Solid/0->Wide/1 zeroB rise,C3,40,ratio_L,0.999999,ratio_R,1 (B10-2: engagement ramp, not gated)
+SC004 governing-amount,ImageMode Solid/0->Wide/1 zeroB fall,C3,40,30176,1.00368,0.952296,0,0,0,0
+SC004 recorded(a) governing-amount,ImageMode Solid/0->Wide/1 zeroB fall,C3,40,ratio_L,1.00368,ratio_R,0.952296 (B10-2: engagement ramp, not gated)
+SC004 governing-amount,AnchorWaveform Sine/0->Triangle/0.7 zeroA rise,E1,40,12000,1,1,0,0,0,0
+SC004 governing-amount,AnchorWaveform Sine/0->Triangle/0.7 zeroA fall,E1,40,22080,1,1.00001,0,0,0,0
+SC004 governing-amount,AnchorWaveform Sine/0->Triangle/0.7 zeroA rise,C3,40,12000,1.00025,1.00025,0,0,0,0
+SC004 governing-amount,AnchorWaveform Sine/0->Triangle/0.7 zeroA fall,C3,40,21280,1,1,0,0,0,0
+SC004 governing-amount,AnchorWaveform Sine/0->Triangle/0.7 zeroB rise,E1,40,13920,1,1,0,0,0,0
+SC004 governing-amount,AnchorWaveform Sine/0->Triangle/0.7 zeroB fall,E1,40,20160,1,1,0,0,0,0
+SC004 governing-amount,AnchorWaveform Sine/0->Triangle/0.7 zeroB rise,C3,40,13920,1,1,0,0,0,0
+SC004 governing-amount,AnchorWaveform Sine/0->Triangle/0.7 zeroB fall,C3,40,19360,1.00031,1.00031,0,0,0,0
+SC004 governing-amount,AnchorMode Lock/0->Punch/0.7 zeroA rise,E1,40,12000,1,1,0,0,0,0
+SC004 governing-amount,AnchorMode Lock/0->Punch/0.7 zeroA fall,E1,40,22080,1,1,0,0,0,0
+SC004 governing-amount,AnchorMode Lock/0->Punch/0.7 zeroA rise,C3,40,12000,1,1,0,0,0,0
+SC004 governing-amount,AnchorMode Lock/0->Punch/0.7 zeroA fall,C3,40,21280,1,1,0,0,0,0
+SC004 governing-amount,AnchorMode Lock/0->Punch/0.7 zeroB rise,E1,40,13920,1,1,0,0,0,0
+SC004 governing-amount,AnchorMode Lock/0->Punch/0.7 zeroB fall,E1,40,20160,1,1,0,0,0,0
+SC004 governing-amount,AnchorMode Lock/0->Punch/0.7 zeroB rise,C3,40,13920,1,1,0,0,0,0
+SC004 governing-amount,AnchorMode Lock/0->Punch/0.7 zeroB fall,C3,40,19360,1,1,0,0,0,0
+13.093 s: BassMorph_DiscreteClickFree_GoverningAmount
+===============================================================================
+All tests passed (2362 assertions in 1 test case)
+
+exit: 0 wall: 13 s

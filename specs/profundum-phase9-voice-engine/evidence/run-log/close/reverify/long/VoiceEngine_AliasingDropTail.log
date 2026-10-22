@@ -1,0 +1,24 @@
+Filters: "VoiceEngine_AliasingDropTail"
+Randomness seeded to: 1233627654
+SC-021(c) 44k1 E0 kSawAnchor: core -130.29 dBFS (bar -96), Sum -103.41 dBFS (recorded), steepest upward step 0.4300 st/sample, frame 947 + 262144 at 20.6017 Hz
+SC-021(c) 44k1 E0 kGrowl: core -129.26 dBFS (bar -96), Sum -93.49 dBFS (recorded), steepest upward step 0.4300 st/sample, frame 947 + 262144 at 20.6017 Hz
+SC-021(c) 44k1 E1 kSawAnchor: core -128.15 dBFS (bar -96), Sum -97.07 dBFS (recorded), steepest upward step 0.4140 st/sample, frame 947 + 131072 at 41.2034 Hz
+SC-021(c) 44k1 E1 kGrowl: core -131.71 dBFS (bar -96), Sum -96.34 dBFS (recorded), steepest upward step 0.4140 st/sample, frame 947 + 131072 at 41.2034 Hz
+SC-021(c) 44k1 E2 kSawAnchor: core -111.87 dBFS (bar -96), Sum -91.54 dBFS (recorded), steepest upward step 0.4213 st/sample, frame 947 + 65536 at 82.4069 Hz
+SC-021(c) 44k1 E2 kGrowl: core -131.09 dBFS (bar -96), Sum -104.24 dBFS (recorded), steepest upward step 0.4213 st/sample, frame 947 + 65536 at 82.4069 Hz
+SC-021(c) 48k E0 kSawAnchor: core -128.42 dBFS (bar -96), Sum -104.46 dBFS (recorded), steepest upward step 0.3950 st/sample, frame 1025 + 262144 at 20.6017 Hz
+SC-021(c) 48k E0 kGrowl: core -130.01 dBFS (bar -96), Sum -90.80 dBFS (recorded), steepest upward step 0.3950 st/sample, frame 1025 + 262144 at 20.6017 Hz
+SC-021(c) 48k E1 kSawAnchor: core -128.14 dBFS (bar -96), Sum -101.07 dBFS (recorded), steepest upward step 0.3803 st/sample, frame 1025 + 131072 at 41.2034 Hz
+SC-021(c) 48k E1 kGrowl: core -132.03 dBFS (bar -96), Sum -98.11 dBFS (recorded), steepest upward step 0.3803 st/sample, frame 1025 + 131072 at 41.2034 Hz
+SC-021(c) 48k E2 kSawAnchor: core -112.10 dBFS (bar -96), Sum -97.09 dBFS (recorded), steepest upward step 0.3870 st/sample, frame 1025 + 65536 at 82.4069 Hz
+SC-021(c) 48k E2 kGrowl: core -131.34 dBFS (bar -96), Sum -98.88 dBFS (recorded), steepest upward step 0.3870 st/sample, frame 1025 + 65536 at 82.4069 Hz
+SC-021(c) 96k E0 kSawAnchor: core -128.08 dBFS (bar -96), Sum -106.68 dBFS (recorded), steepest upward step 0.1971 st/sample, frame 1985 + 524288 at 20.6017 Hz
+SC-021(c) 96k E0 kGrowl: core -127.85 dBFS (bar -96), Sum -92.10 dBFS (recorded), steepest upward step 0.1971 st/sample, frame 1985 + 524288 at 20.6017 Hz
+SC-021(c) 96k E1 kSawAnchor: core -130.27 dBFS (bar -96), Sum -103.38 dBFS (recorded), steepest upward step 0.1898 st/sample, frame 1985 + 262144 at 41.2034 Hz
+SC-021(c) 96k E1 kGrowl: core -130.16 dBFS (bar -96), Sum -95.29 dBFS (recorded), steepest upward step 0.1898 st/sample, frame 1985 + 262144 at 41.2034 Hz
+SC-021(c) 96k E2 kSawAnchor: core -132.84 dBFS (bar -96), Sum -94.40 dBFS (recorded), steepest upward step 0.1931 st/sample, frame 1985 + 131072 at 82.4069 Hz
+SC-021(c) 96k E2 kGrowl: core -132.87 dBFS (bar -96), Sum -97.36 dBFS (recorded), steepest upward step 0.1931 st/sample, frame 1985 + 131072 at 82.4069 Hz
+SC-021(c): 18 cells, worst core -111.87 dBFS (44k1 E2 kSawAnchor; bar -96), worst Sum -90.80 dBFS (recorded), steepest upward step 0.4300 st/sample (H-9 0.418), wall clock 27.4 s
+===============================================================================
+All tests passed (757 assertions in 1 test case)
+

@@ -1,0 +1,18 @@
+    static constexpr std::array<ProfundumMacroRow, kNumTargets> kRows{{
+        {.macro = ProfundumMacro::Weight, .target = ProfundumMacroTarget::RecipeDepth, .amount = 0.5625f, .curve = ModCurve::Linear},
+        {.macro = ProfundumMacro::Weight, .target = ProfundumMacroTarget::RecipeBody, .amount = 0.5625f, .curve = ModCurve::Linear},
+        {.macro = ProfundumMacro::Weight, .target = ProfundumMacroTarget::AnchorLevel, .amount = 0.5625f, .curve = ModCurve::Linear},
+        {.macro = ProfundumMacro::DarkBright, .target = ProfundumMacroTarget::RecipeEdge, .amount = 0.5f, .curve = ModCurve::Linear},
+        {.macro = ProfundumMacro::DarkBright, .target = ProfundumMacroTarget::RecipeShift, .amount = 0.5f, .curve = ModCurve::Linear},
+        {.macro = ProfundumMacro::DarkBright, .target = ProfundumMacroTarget::Shape, .amount = 0.0f, .curve = ModCurve::Linear},
+        {.macro = ProfundumMacro::DarkBright, .target = ProfundumMacroTarget::CharacterTone, .amount = 0.300000012f, .curve = ModCurve::Linear},
+        {.macro = ProfundumMacro::TightLoose, .target = ProfundumMacroTarget::AmpAttackOct, .amount = 5.0f, .curve = ModCurve::Linear},
+        {.macro = ProfundumMacro::TightLoose, .target = ProfundumMacroTarget::AmpDecayOct, .amount = 5.0f, .curve = ModCurve::Linear},
+        {.macro = ProfundumMacro::TightLoose, .target = ProfundumMacroTarget::AmpReleaseOct, .amount = 5.0f, .curve = ModCurve::Linear},
+        {.macro = ProfundumMacro::TightLoose, .target = ProfundumMacroTarget::TransientAttackDb, .amount = -15.0f, .curve = ModCurve::Linear},
+        {.macro = ProfundumMacro::TightLoose, .target = ProfundumMacroTarget::CompressionAmount, .amount = -1.25f, .curve = ModCurve::Linear},
+        {.macro = ProfundumMacro::CleanViolent, .target = ProfundumMacroTarget::ExcitationMix, .amount = 0.5f, .curve = ModCurve::Linear},
+        {.macro = ProfundumMacro::CleanViolent, .target = ProfundumMacroTarget::ExcitationDrive, .amount = 0.5f, .curve = ModCurve::Linear},
+        {.macro = ProfundumMacro::CleanViolent, .target = ProfundumMacroTarget::FoldAmount, .amount = 50.0f, .curve = ModCurve::Linear},
+        {.macro = ProfundumMacro::CleanViolent, .target = ProfundumMacroTarget::CharacterAmount, .amount = 0.5f, .curve = ModCurve::Linear},
+    }};

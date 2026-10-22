@@ -1,0 +1,68 @@
+Filters: "VoiceEngine_Aliasing_48k_Rectify"
+Randomness seeded to: 398152040
+SC-021 48k E0 Rectify SHAPE 0 Tone 0 LOCK: (a) Sum -102.19 dBFS, (b) out on -76.64 dBFS (added -76.66), off -93.98 dBFS (added -94.82); bar -80
+SC-021 48k E0 Rectify SHAPE 0 Tone 0 FOLLOW: (a) Sum -102.88 dBFS, (b) out on -76.65 dBFS (added -76.67), off -95.69 dBFS (added -96.84); bar -80
+SC-021 48k E0 Rectify SHAPE 0 Tone 1 LOCK: (a) Sum -89.19 dBFS, (b) out on -85.38 dBFS (added -85.68), off -92.49 dBFS (added -94.31); bar -80
+SC-021 48k E0 Rectify SHAPE 0 Tone 1 FOLLOW: (a) Sum -89.89 dBFS, (b) out on -84.65 dBFS (added -84.91), off -92.13 dBFS (added -93.85); bar -80
+SC-021 48k E0 Rectify SHAPE 1 Tone 0 LOCK: (a) Sum -113.50 dBFS, (b) out on -77.63 dBFS (added -77.63), off -103.86 dBFS (added -104.19); bar -80
+SC-021 48k E0 Rectify SHAPE 1 Tone 0 FOLLOW: (a) Sum -113.50 dBFS, (b) out on -77.63 dBFS (added -77.63), off -103.86 dBFS (added -104.19); bar -80
+SC-021 48k E0 Rectify SHAPE 1 Tone 1 LOCK: (a) Sum -101.79 dBFS, (b) out on -76.77 dBFS (added -76.78), off -68.62 dBFS (added -68.62); bar -80
+SC-021 48k E0 Rectify SHAPE 1 Tone 1 FOLLOW: (a) Sum -101.79 dBFS, (b) out on -76.77 dBFS (added -76.78), off -68.62 dBFS (added -68.62); bar -80
+SC-021 48k E1 Rectify SHAPE 0 Tone 0 LOCK: (a) Sum -90.66 dBFS, (b) out on -91.87 dBFS (added -3000.00), off -92.78 dBFS (added -3000.00); bar -80
+SC-021 48k E1 Rectify SHAPE 0 Tone 0 FOLLOW: (a) Sum -87.43 dBFS, (b) out on -89.10 dBFS (added -3000.00), off -89.61 dBFS (added -3000.00); bar -80
+SC-021 48k E1 Rectify SHAPE 0 Tone 1 LOCK: (a) Sum -85.34 dBFS, (b) out on -73.14 dBFS (added -73.21), off -73.16 dBFS (added -73.22); bar -80
+SC-021 48k E1 Rectify SHAPE 0 Tone 1 FOLLOW: (a) Sum -82.73 dBFS, (b) out on -76.14 dBFS (added -76.29), off -76.01 dBFS (added -76.16); bar -80
+SC-021 48k E1 Rectify SHAPE 1 Tone 0 LOCK: (a) Sum -115.04 dBFS, (b) out on -96.60 dBFS (added -96.64), off -107.14 dBFS (added -107.59); bar -80
+SC-021 48k E1 Rectify SHAPE 1 Tone 0 FOLLOW: (a) Sum -115.04 dBFS, (b) out on -96.60 dBFS (added -96.64), off -107.14 dBFS (added -107.59); bar -80
+SC-021 48k E1 Rectify SHAPE 1 Tone 1 LOCK: (a) Sum -103.49 dBFS, (b) out on -64.79 dBFS (added -64.79), off -64.44 dBFS (added -64.44); bar -80
+SC-021 48k E1 Rectify SHAPE 1 Tone 1 FOLLOW: (a) Sum -103.49 dBFS, (b) out on -64.79 dBFS (added -64.79), off -64.44 dBFS (added -64.44); bar -80
+SC-021 48k E2 Rectify SHAPE 0 Tone 0 LOCK: (a) Sum -87.28 dBFS, (b) out on -87.29 dBFS (added -89.50), off -87.36 dBFS (added -89.61); bar -80
+SC-021 48k E2 Rectify SHAPE 0 Tone 0 FOLLOW: (a) Sum -83.66 dBFS, (b) out on -84.02 dBFS (added -86.41), off -83.95 dBFS (added -86.29); bar -80
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+VoiceEngine_Aliasing_48k_Rectify
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_aliasing_test.cpp(543)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_aliasing_test.cpp(346): FAILED:
+  CHECK( r.on.sum.worst() <= kVeaBarDbfs )
+with expansion:
+  -79.6687768201 <= -80.0
+with messages:
+  SC-021 48k E2 Rectify SHAPE 0 Tone 1 LOCK: f0 82.4069 Hz, f_m 82.4069 Hz,
+  frame 48000 + 65536
+  follow ratio on [2, 2], off [2, 2]
+  (a) Sum L -82.3041 R -79.6688 dBFS; (b) output (opt-in on) L -68.3609 R -65.
+  6684 dBFS, dynamics-added -65.7012 dBFS; opt-in off: output -65.6679 dBFS,
+  dynamics-added -65.7007 dBFS; excluded 0.142334, total -3.29453 / -10.8758
+  dBFS
+
+SC-021 48k E2 Rectify SHAPE 0 Tone 1 LOCK: (a) Sum -79.67 dBFS, (b) out on -65.67 dBFS (added -65.70), off -65.67 dBFS (added -65.70); bar -80
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_aliasing_test.cpp(346): FAILED:
+  CHECK( r.on.sum.worst() <= kVeaBarDbfs )
+with expansion:
+  -78.9261019855 <= -80.0
+with messages:
+  SC-021 48k E2 Rectify SHAPE 0 Tone 1 FOLLOW: f0 82.4069 Hz, f_m 82.4069 Hz,
+  frame 48000 + 65536
+  follow ratio on [1, 1], off [1, 1]
+  (a) Sum L -78.9261 R -79.7154 dBFS; (b) output (opt-in on) L -67.2959 R -65.
+  6691 dBFS, dynamics-added -65.7052 dBFS; opt-in off: output -65.6641 dBFS,
+  dynamics-added -65.7001 dBFS; excluded 0.142334, total -3.36503 / -10.0554
+  dBFS
+
+SC-021 48k E2 Rectify SHAPE 0 Tone 1 FOLLOW: (a) Sum -78.93 dBFS, (b) out on -65.67 dBFS (added -65.71), off -65.66 dBFS (added -65.70); bar -80
+SC-021 48k E2 Rectify SHAPE 1 Tone 0 LOCK: (a) Sum -115.63 dBFS, (b) out on -82.68 dBFS (added -82.68), off -82.61 dBFS (added -82.61); bar -80
+SC-021 48k E2 Rectify SHAPE 1 Tone 0 FOLLOW: (a) Sum -115.63 dBFS, (b) out on -82.68 dBFS (added -82.68), off -82.61 dBFS (added -82.61); bar -80
+SC-021 48k E2 Rectify SHAPE 1 Tone 1 LOCK: (a) Sum -99.12 dBFS, (b) out on -67.23 dBFS (added -67.23), off -69.55 dBFS (added -69.55); bar -80
+SC-021 48k E2 Rectify SHAPE 1 Tone 1 FOLLOW: (a) Sum -99.12 dBFS, (b) out on -67.23 dBFS (added -67.23), off -69.55 dBFS (added -69.55); bar -80
+SC-021 shard 48k Rectify: 24 cells, worst (a) Sum -78.93 dBFS (48k E2 Rectify SHAPE 0 Tone 1 FOLLOW), worst (b) output -64.79 dBFS (48k E1 Rectify SHAPE 1 Tone 1 LOCK), worst opt-in-off output -64.44 dBFS (recorded); bar -80; wall clock 58.2 s
+===============================================================================
+test cases:    1 |    0 passed | 1 failed
+assertions: 1873 | 1871 passed | 2 failed
+

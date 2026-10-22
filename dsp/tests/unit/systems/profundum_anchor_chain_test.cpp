@@ -465,22 +465,18 @@ public:
     HwyTargetMock& operator=(const HwyTargetMock&) = delete;
 };
 
-/// FNV-1a over the bits of a 1 s E1 core render: shows the mock reached the bank's dispatch (the hash moves with
-/// the target's rounding) without pinning any value.
-std::uint64_t coreRenderHash() {
+/// Sum of |x| over a 1 s E1 core render, in double: shows the mock reached the bank's dispatch (the last digits
+/// move with the target's rounding) without pinning any value. (Phase 9 T026 / G13-1: this was an FNV-1a over the
+/// float bits, printed only, which tools/lint-float-bit-goldens.js — a CI step — flags as a bit-exact digest.)
+double coreRenderAbsSum() {
     ChainSpec s;
     s.total = 48000;
     s.noteOns = {ChainNoteOn{.at = 0, .policy = ARP::Reset, .f0 = PT::anchorMidiHz(28)}};
     const ChainRender r = renderChain(s);
-    std::uint64_t h = 1469598103934665603ULL;
-    for (const float x : r.core) {
-        const auto bits = std::bit_cast<std::uint32_t>(x);
-        for (int b = 0; b < 4; ++b) {
-            h ^= (bits >> (8 * b)) & 0xFFu;
-            h *= 1099511628211ULL;
-        }
-    }
-    return h;
+    double sum = 0.0;
+    for (const float x : r.core)
+        sum += std::abs(static_cast<double>(x));
+    return sum;
 }
 
 template <typename Body>
@@ -489,8 +485,7 @@ void forEachIsa(const Body& body) {   // const ref: called once per target, neve
     REQUIRE(!targets.empty());
     for (const std::int64_t t : targets) {
         const HwyTargetMock mock(t);
-        std::printf("SC-003 ISA %s: core render hash %016llx\n", hwy::TargetName(t),
-                    static_cast<unsigned long long>(coreRenderHash()));
+        std::printf("SC-003 ISA %s: core render sum|x| %.12g\n", hwy::TargetName(t), coreRenderAbsSum());
         INFO("Highway target " << hwy::TargetName(t));
         body();
     }

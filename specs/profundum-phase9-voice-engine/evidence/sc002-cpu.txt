@@ -1,0 +1,11 @@
+# SC-002 VoiceEngine_CpuPoly4 (POLY, E1 / A1 / E2 / C3, PerVoice) (tasks.md T020; plan S10.6)
+# SC-001 setting on both showcase endpoints, morph ramp 1000 ms toggled every 1 s, Drop 24 st retriggered every 0.25 s, block 64, 10 s timed after 1 s warm-up, median of 3 fresh engines, % of one core = wall / audio x 100, 48 kHz, FTZ/DAZ on, no observer.
+trial POLY4 Tube: 24.005 24.77 22.802 -> median 24.005
+SC002 POLY4 Tube 24.005
+trial POLY4 Fracture: 24.231 22.588 22.128 -> median 22.588
+SC002 POLY4 Fracture 22.588
+trial POLY8 Tube: 46.637 46.775 47.047 -> median 46.775
+trial POLY8 Fracture: 45.873 45.81 44.757 -> median 45.81
+# checksum -1217.2 (keeps the renders observable)
+SC002 RECORD POLY8 (E1 / C3 / A1 / E2 / G1 / B1 / E3 / A2; Q8, not gated) Tube 46.775 Fracture 45.81 max 46.775
+SC002 VERDICT GREEN 24.005 (Tube 24.005, Fracture 22.588; bar 25 %)

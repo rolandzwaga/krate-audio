@@ -1,0 +1,23 @@
+Filters: "ProfundumCore_EmphasisOddOnlyRendered"
+Randomness seeded to: 959923007
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+ProfundumCore_EmphasisOddOnlyRendered
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(1492)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(1505): warning:
+  SC-022 render (C2, 90 points): loudest even at emphasis -1 -120.626 dB re h1
+  (bar -50), 2880 evens checked (840 with n >= 10 at edge 1); FR-023 floor min
+  margin 0.275687 dB
+
+302.621 s: ProfundumCore_EmphasisOddOnlyRendered
+===============================================================================
+All tests passed (44797 assertions in 1 test case)
+
+exit: 0 wall: 303 s

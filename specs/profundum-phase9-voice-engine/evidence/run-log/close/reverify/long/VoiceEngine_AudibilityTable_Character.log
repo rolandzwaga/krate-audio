@@ -1,0 +1,39 @@
+Filters: "VoiceEngine_AudibilityTable_Character"
+Randomness seeded to: 1397686352
+# VoiceEngine_AudibilityTable_Character
+row,contrast,base,note,descriptor,tap,lo,hi,value,bar,pass,gated,out_descriptor,out_lo,out_hi,ampStep,remark
+"AT-04","Character Tube: Amount 0 -> 1","A + sustain 1 (C-8) + Tube",E1,"D_nl (dB)","Char / twin",0,13.1824,13.1824,">= 3 dB",PASS,gated,"L_K output (dB; D_nl has no output form)",-12.0435,-11.9864,"n/a",""
+"AT-05","Character Fold: Amount 0 -> 1","A + sustain 1 (C-8) + Fold",E1,"D_nl (dB)","Char / twin",0,6.50986,6.50986,">= 3 dB",PASS,gated,"L_K output (dB; D_nl has no output form)",-12.0435,-11.5415,"n/a",""
+"AT-06","Character Rectify: Amount 0 -> 1","A + sustain 1 (C-8) + Rectify",E1,"D_nl (dB)","Char / twin",0,34.2658,34.2658,">= 3 dB",PASS,gated,"L_K output (dB; D_nl has no output form)",-12.0435,-13.0666,"n/a",""
+"AT-07","Character Bite: Amount 0 -> 1","A + sustain 1 (C-8) + Bite",E1,"D_nl (dB)","Char / twin",0,37.2535,37.2535,">= 3 dB",PASS,gated,"L_K output (dB; D_nl has no output form)",-12.0435,-11.7351,"n/a",""
+"AT-08","Character Crush: Amount 0 -> 1","A + sustain 1 (C-8) + Crush",E1,"D_nl (dB)","Char / twin",0,46.4615,46.4615,">= 3 dB",PASS,gated,"L_K output (dB; D_nl has no output form)",-12.0435,-13.1822,"n/a",""
+"AT-09","Character Fracture: Amount 0 -> 1","A + sustain 1 (C-8) + Fracture",E1,"D_nl (dB)","Char / twin",0,0,0,">= 3 dB",FAIL,gated,"L_K output (dB; D_nl has no output form)",-12.0435,-17.2647,"n/a",""
+"AT-04","Character Tube: Amount 0 -> 1","A + sustain 1 (C-8) + Tube",C3,"D_nl (dB)","Char / twin",0,13.1696,13.1696,">= 3 dB",PASS,gated,"L_K output (dB; D_nl has no output form)",-7.34907,-7.27615,"n/a",""
+"AT-05","Character Fold: Amount 0 -> 1","A + sustain 1 (C-8) + Fold",C3,"D_nl (dB)","Char / twin",0,6.49428,6.49428,">= 3 dB",PASS,gated,"L_K output (dB; D_nl has no output form)",-7.34907,-7.0637,"n/a",""
+"AT-06","Character Rectify: Amount 0 -> 1","A + sustain 1 (C-8) + Rectify",C3,"D_nl (dB)","Char / twin",0,34.2448,34.2448,">= 3 dB",PASS,gated,"L_K output (dB; D_nl has no output form)",-7.34907,-10.3174,"n/a",""
+"AT-07","Character Bite: Amount 0 -> 1","A + sustain 1 (C-8) + Bite",C3,"D_nl (dB)","Char / twin",0,37.2389,37.2389,">= 3 dB",PASS,gated,"L_K output (dB; D_nl has no output form)",-7.34907,-7.26926,"n/a",""
+"AT-08","Character Crush: Amount 0 -> 1","A + sustain 1 (C-8) + Crush",C3,"D_nl (dB)","Char / twin",0,46.3414,46.3414,">= 3 dB",PASS,gated,"L_K output (dB; D_nl has no output form)",-7.34907,-9.51058,"n/a",""
+"AT-09","Character Fracture: Amount 0 -> 1","A + sustain 1 (C-8) + Fracture",C3,"D_nl (dB)","Char / twin",0,0,0,">= 3 dB",FAIL,gated,"L_K output (dB; D_nl has no output form)",-7.34907,-12.4451,"n/a",""
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+VoiceEngine_AudibilityTable_Character
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_audibility_test.cpp(1921)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_audibility_test.cpp(623): FAILED:
+  REQUIRE( c.pass )
+with expansion:
+  false
+with message:
+  AT-09 E1 (Character Fracture: Amount 0 -> 1, base A + sustain 1 (C-8) +
+  Fracture): D_nl (dB) lo 0 hi 0 value 0 bar >= 3 dB
+
+===============================================================================
+test cases:   1 |   0 passed | 1 failed
+assertions: 779 | 778 passed | 1 failed
+

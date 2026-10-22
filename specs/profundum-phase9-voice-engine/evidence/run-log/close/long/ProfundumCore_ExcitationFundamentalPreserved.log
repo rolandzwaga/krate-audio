@@ -1,0 +1,27 @@
+Filters: "ProfundumCore_ExcitationFundamentalPreserved"
+Randomness seeded to: 1688612415
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+ProfundumCore_ExcitationFundamentalPreserved
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_excitation_spectral_test.cpp(704)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_excitation_spectral_test.cpp(401): warning:
+  SC-012(a): worst ||T1|| 0.0693397 dB (bar 0.1; plan 0.06), worst |arg T1| 0.
+  138628 deg (bar 2; plan 0.13)
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_excitation_spectral_test.cpp(467): warning:
+  SC-012(b): worst |arg T1| 0.125309 deg where the bar is 2; kSawAnchor at
+  asymmetry > 0 14.9875 deg (bar 20; plan 15.04). SC-012(c): deepest dip below
+  the lower endpoint 0.0242352 dB (bar 0.5)
+
+37.361 s: ProfundumCore_ExcitationFundamentalPreserved
+===============================================================================
+All tests passed (7653 assertions in 1 test case)
+
+exit: 0 wall: 37 s

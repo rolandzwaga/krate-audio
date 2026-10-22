@@ -1,0 +1,46 @@
+Filters: "VoiceEngine_AudibilityTable_Motion"
+Randomness seeded to: 2333368464
+# VoiceEngine_AudibilityTable_Motion
+row,contrast,base,note,descriptor,tap,lo,hi,value,bar,pass,gated,out_descriptor,out_lo,out_hi,ampStep,remark
+"AT-34","Motion target Mass: Motion Off -> CYCLE 0.1 Hz, amount 1, Motion Depth 1","A + sustain 1 (C-8)",E1,"frame-wise E_sub p2p (dB)","Sum",0.000273307,2.66859,2.66832,">= 3 dB",FAIL,gated,"frame-wise E_sub p2p (dB) of the output",0.000312866,2.99165,"n/a",""
+"AT-35","Motion target Depth: Motion Off -> CYCLE 0.1 Hz, amount 1, Motion Depth 1","A + sustain 1 (C-8)",E1,"frame-wise E_sub p2p (dB)","Sum",0.000273307,0.310492,0.310218,">= 3 dB",FAIL,gated,"frame-wise E_sub p2p (dB) of the output",0.000312866,0.313554,"n/a",""
+"AT-36","Motion target Body: Motion Off -> CYCLE 0.1 Hz, amount 1, Motion Depth 1","A + sustain 1 (C-8)",E1,"frame-wise D_cx p2p (dB)","Sum",0.00132581,0.0679941,0.0666683,">= 3 dB",FAIL,gated,"frame-wise D_cx p2p (dB) of the output",0.00132599,0.0680083,"n/a",""
+"AT-37","Motion target Edge: Motion Off -> CYCLE 0.1 Hz, amount 1, Motion Depth 1","A + sustain 1 (C-8)",E1,"frame-wise D_br p2p (oct; centroid over h1..h8 of the S9.11 frame fit)","Sum",2.55419e-07,2.45467e-07,9.95223e-09,">= 0.25 oct",FAIL,gated,"frame-wise D_br p2p (oct; centroid over h1..h8 of the S9.11 frame fit) of the output",2.58802e-07,2.49267e-07,"n/a","PREDICTED INERT on A_s (B10-1 measured: Edge / Shift on the sine recipe move the centroid 0.016 oct); the B_s line below is recorded for a per-row ruling"
+"AT-37","Motion target Edge: Motion Off -> CYCLE 0.1 Hz, amount 1, Motion Depth 1","B + sustain 1 (B10-1)",E1,"frame-wise D_br p2p (oct; centroid over h1..h8 of the S9.11 frame fit)","Sum",0.000537216,0.068506,0.0679688,">= 0.25 oct",FAIL,recorded,"frame-wise D_br p2p (oct; centroid over h1..h8 of the S9.11 frame fit) of the output",0.000888915,0.0524721,"n/a","recorded (not gated): the candidate per-row base"
+"AT-38","Motion target Shift: Motion Off -> CYCLE 0.1 Hz, amount 1, Motion Depth 1","A + sustain 1 (C-8)",E1,"frame-wise D_br p2p (oct; centroid over h1..h8 of the S9.11 frame fit)","Sum",2.55419e-07,2.55419e-07,0,">= 0.25 oct",FAIL,gated,"frame-wise D_br p2p (oct; centroid over h1..h8 of the S9.11 frame fit) of the output",2.58802e-07,2.58802e-07,"n/a","PREDICTED INERT on A_s (B10-1 measured: Edge / Shift on the sine recipe move the centroid 0.016 oct); the B_s line below is recorded for a per-row ruling"
+"AT-38","Motion target Shift: Motion Off -> CYCLE 0.1 Hz, amount 1, Motion Depth 1","B + sustain 1 (B10-1)",E1,"frame-wise D_br p2p (oct; centroid over h1..h8 of the S9.11 frame fit)","Sum",0.000537216,0.0429008,0.0423636,">= 0.25 oct",FAIL,recorded,"frame-wise D_br p2p (oct; centroid over h1..h8 of the S9.11 frame fit) of the output",0.000888915,0.0438453,"n/a","recorded (not gated): the candidate per-row base"
+"AT-39","Motion source -> Mass: Off -> ENV (retriggered every 2 s)","A + sustain 1 (C-8)",E1,"frame-wise E_sub p2p (dB)","Sum",12.5882,13.1701,0.581837,">= 3 dB",FAIL,gated,"frame-wise E_sub p2p (dB) of the output",12.6398,13.2645,"n/a","retrigger = note-off at k 2 s, note-on 64 samples later (both arms)"
+"AT-40","Motion source -> Mass: Off -> DRIFT (smoothness 0.5)","A + sustain 1 (C-8)",E1,"frame-wise E_sub p2p (dB)","Sum",0.000273307,1.45081,1.45054,">= 3 dB",FAIL,gated,"frame-wise E_sub p2p (dB) of the output",0.000312866,1.42853,"n/a",""
+"AT-34","Motion target Mass: Motion Off -> CYCLE 0.1 Hz, amount 1, Motion Depth 1","A + sustain 1 (C-8)",C3,"frame-wise E_sub p2p (dB)","Sum",0.000121104,2.76872,2.7686,">= 3 dB",FAIL,gated,"frame-wise E_sub p2p (dB) of the output",0.000140746,2.87213,"n/a",""
+"AT-35","Motion target Depth: Motion Off -> CYCLE 0.1 Hz, amount 1, Motion Depth 1","A + sustain 1 (C-8)",C3,"frame-wise E_sub p2p (dB)","Sum",0.000121104,0.309603,0.309482,">= 3 dB",FAIL,gated,"frame-wise E_sub p2p (dB) of the output",0.000140746,0.311622,"n/a",""
+"AT-36","Motion target Body: Motion Off -> CYCLE 0.1 Hz, amount 1, Motion Depth 1","A + sustain 1 (C-8)",C3,"frame-wise D_cx p2p (dB)","Sum",0.0028581,0.0693337,0.0664756,">= 3 dB",FAIL,gated,"frame-wise D_cx p2p (dB) of the output",0.00285262,0.0693397,"n/a",""
+"AT-37","Motion target Edge: Motion Off -> CYCLE 0.1 Hz, amount 1, Motion Depth 1","A + sustain 1 (C-8)",C3,"frame-wise D_br p2p (oct; centroid over h1..h8 of the S9.11 frame fit)","Sum",5.49789e-07,5.2254e-07,2.72498e-08,">= 0.25 oct",FAIL,gated,"frame-wise D_br p2p (oct; centroid over h1..h8 of the S9.11 frame fit) of the output",5.49426e-07,5.20406e-07,"n/a","PREDICTED INERT on A_s (B10-1 measured: Edge / Shift on the sine recipe move the centroid 0.016 oct); the B_s line below is recorded for a per-row ruling"
+"AT-37","Motion target Edge: Motion Off -> CYCLE 0.1 Hz, amount 1, Motion Depth 1","B + sustain 1 (B10-1)",C3,"frame-wise D_br p2p (oct; centroid over h1..h8 of the S9.11 frame fit)","Sum",0.0021248,0.135131,0.133006,">= 0.25 oct",FAIL,recorded,"frame-wise D_br p2p (oct; centroid over h1..h8 of the S9.11 frame fit) of the output",0.00226941,0.137725,"n/a","recorded (not gated): the candidate per-row base"
+"AT-38","Motion target Shift: Motion Off -> CYCLE 0.1 Hz, amount 1, Motion Depth 1","A + sustain 1 (C-8)",C3,"frame-wise D_br p2p (oct; centroid over h1..h8 of the S9.11 frame fit)","Sum",5.49789e-07,5.49789e-07,0,">= 0.25 oct",FAIL,gated,"frame-wise D_br p2p (oct; centroid over h1..h8 of the S9.11 frame fit) of the output",5.49426e-07,5.49426e-07,"n/a","PREDICTED INERT on A_s (B10-1 measured: Edge / Shift on the sine recipe move the centroid 0.016 oct); the B_s line below is recorded for a per-row ruling"
+"AT-38","Motion target Shift: Motion Off -> CYCLE 0.1 Hz, amount 1, Motion Depth 1","B + sustain 1 (B10-1)",C3,"frame-wise D_br p2p (oct; centroid over h1..h8 of the S9.11 frame fit)","Sum",0.0021248,0.0855903,0.0834655,">= 0.25 oct",FAIL,recorded,"frame-wise D_br p2p (oct; centroid over h1..h8 of the S9.11 frame fit) of the output",0.00226941,0.0883159,"n/a","recorded (not gated): the candidate per-row base"
+"AT-39","Motion source -> Mass: Off -> ENV (retriggered every 2 s)","A + sustain 1 (C-8)",C3,"frame-wise E_sub p2p (dB)","Sum",7.59279,7.88375,0.290952,">= 3 dB",FAIL,gated,"frame-wise E_sub p2p (dB) of the output",7.58751,7.13142,"n/a","retrigger = note-off at k 2 s, note-on 64 samples later (both arms)"
+"AT-40","Motion source -> Mass: Off -> DRIFT (smoothness 0.5)","A + sustain 1 (C-8)",C3,"frame-wise E_sub p2p (dB)","Sum",0.000121104,1.64863,1.64851,">= 3 dB",FAIL,gated,"frame-wise E_sub p2p (dB) of the output",0.000140746,1.72036,"n/a",""
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+VoiceEngine_AudibilityTable_Motion
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_audibility_test.cpp(1947)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_audibility_test.cpp(623): FAILED:
+  REQUIRE( c.pass )
+with expansion:
+  false
+with message:
+  AT-34 E1 (Motion target Mass: Motion Off -> CYCLE 0.1 Hz, amount 1, Motion
+  Depth 1, base A + sustain 1 (C-8)): frame-wise E_sub p2p (dB) lo 0.000273307
+  hi 2.66859 value 2.66832 bar >= 3 dB
+
+===============================================================================
+test cases:     1 |     0 passed | 1 failed
+assertions: 99914 | 99913 passed | 1 failed
+

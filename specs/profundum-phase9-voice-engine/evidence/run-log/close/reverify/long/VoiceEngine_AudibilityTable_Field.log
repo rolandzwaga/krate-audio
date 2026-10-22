@@ -1,0 +1,49 @@
+Filters: "VoiceEngine_AudibilityTable_Field"
+Randomness seeded to: 360279242
+# VoiceEngine_AudibilityTable_Field
+row,contrast,base,note,descriptor,tap,lo,hi,value,bar,pass,gated,out_descriptor,out_lo,out_hi,ampStep,remark
+"AT-29","Image mode: SOLID -> SPREAD (spread 1)","A + sustain 1 (C-8)",E1,"D_st (dB; band validity G8-1)","field stage tap",-120,-32.136,87.864,">= 3 dB",FAIL,gated,"D_st output (dB)",-120,-32.1317,"n/a","PREDICTED INERT on A_s: the sine core has no partial above 2 f_c (Phase 7 G8-1, Phase 8 B10-4); the B_s line below is recorded for a B10-1-style per-row ruling | invalid reading (non-finite, or a D_st band below G8-1's -60 dBFS floor)"
+"AT-31","Spread: 0 -> 1 (SPREAD)","A + sustain 1 (C-8)",E1,"D_st (dB; band validity G8-1)","field stage tap",-120,-32.136,87.864,">= 3 dB",FAIL,gated,"D_st output (dB)",-120,-32.1317,"n/a","PREDICTED INERT on A_s: the sine core has no partial above 2 f_c (Phase 7 G8-1, Phase 8 B10-4); the B_s line below is recorded for a B10-1-style per-row ruling | invalid reading (non-finite, or a D_st band below G8-1's -60 dBFS floor)"
+"AT-32","Gravity: 0 -> 1 (SPREAD, spread 1)","A + sustain 1 (C-8)",E1,"D_st (dB; band validity G8-1)","field stage tap",-31.7126,-31.9634,0.250714,">= 3 dB",FAIL,gated,"D_st output (dB)",-31.7061,-31.954,"n/a","PREDICTED INERT on A_s: the sine core has no partial above 2 f_c (Phase 7 G8-1, Phase 8 B10-4); the B_s line below is recorded for a B10-1-style per-row ruling | invalid reading (non-finite, or a D_st band below G8-1's -60 dBFS floor)"
+"AT-33","Field MOTION: motionDepth 0 -> 1 (SPREAD, spread 1)","A + sustain 1 (C-8)",E1,"frame-wise D_st p2p (dB; S9.11 frames, band validity G8-1)","field stage tap",11.3144,13.713,2.39859,">= 3 dB",FAIL,gated,"frame-wise D_st p2p of the output (dB)",11.3202,13.7095,"n/a","PREDICTED INERT on A_s: the sine core has no partial above 2 f_c (Phase 7 G8-1, Phase 8 B10-4); the B_s line below is recorded for a B10-1-style per-row ruling | frames below the G8-1 band floor: 491 / 491"
+"AT-30","Image mode: SOLID -> WIDE","A + sustain 1 (C-8) + Character Rectify at Amount 0.5",E1,"D_st (dB; band validity G8-1)","field stage tap",-120,-120,0,">= 3 dB",FAIL,gated,"D_st output (dB)",-120,-120,"n/a",""
+"AT-29","Image mode: SOLID -> SPREAD (spread 1)","B + sustain 1 (B10-1)",E1,"D_st (dB; band validity G8-1)","field stage tap",-120,-1.95698,118.043,">= 3 dB",PASS,recorded,"D_st output (dB)",-120,-2.2299,"n/a","recorded (not gated): the candidate per-row base for AT-29 / AT-31 ... AT-33"
+"AT-31","Spread: 0 -> 1 (SPREAD)","B + sustain 1 (B10-1)",E1,"D_st (dB; band validity G8-1)","field stage tap",-120,-1.95698,118.043,">= 3 dB",PASS,recorded,"D_st output (dB)",-120,-2.2299,"n/a","recorded (not gated): the candidate per-row base for AT-29 / AT-31 ... AT-33"
+"AT-32","Gravity: 0 -> 1 (SPREAD, spread 1)","B + sustain 1 (B10-1)",E1,"D_st (dB; band validity G8-1)","field stage tap",-1.92628,-1.99245,0.0661701,">= 3 dB",FAIL,recorded,"D_st output (dB)",-2.16967,-2.29558,"n/a","recorded (not gated): the candidate per-row base for AT-29 / AT-31 ... AT-33"
+"AT-33","Field MOTION: motionDepth 0 -> 1 (SPREAD, spread 1)","B + sustain 1 (B10-1)",E1,"frame-wise D_st p2p (dB; S9.11 frames, band validity G8-1)","field stage tap",0.00143072,16.3894,16.3879,">= 3 dB",PASS,recorded,"frame-wise D_st p2p of the output (dB)",0.0185372,16.3441,"n/a","recorded (not gated): the candidate per-row base for AT-29 / AT-31 ... AT-33"
+"AT-29","Image mode: SOLID -> SPREAD (spread 1)","A + sustain 1 (C-8)",C3,"D_st (dB; band validity G8-1)","field stage tap",-120,-63.5481,56.4519,">= 3 dB",PASS,gated,"D_st output (dB)",-120,-63.5481,"n/a","PREDICTED INERT on A_s: the sine core has no partial above 2 f_c (Phase 7 G8-1, Phase 8 B10-4); the B_s line below is recorded for a B10-1-style per-row ruling"
+"AT-31","Spread: 0 -> 1 (SPREAD)","A + sustain 1 (C-8)",C3,"D_st (dB; band validity G8-1)","field stage tap",-120,-63.5481,56.4519,">= 3 dB",PASS,gated,"D_st output (dB)",-120,-63.5481,"n/a","PREDICTED INERT on A_s: the sine core has no partial above 2 f_c (Phase 7 G8-1, Phase 8 B10-4); the B_s line below is recorded for a B10-1-style per-row ruling"
+"AT-32","Gravity: 0 -> 1 (SPREAD, spread 1)","A + sustain 1 (C-8)",C3,"D_st (dB; band validity G8-1)","field stage tap",-63.1667,-64.0468,0.880062,">= 3 dB",FAIL,gated,"D_st output (dB)",-63.167,-64.0468,"n/a","PREDICTED INERT on A_s: the sine core has no partial above 2 f_c (Phase 7 G8-1, Phase 8 B10-4); the B_s line below is recorded for a B10-1-style per-row ruling"
+"AT-33","Field MOTION: motionDepth 0 -> 1 (SPREAD, spread 1)","A + sustain 1 (C-8)",C3,"frame-wise D_st p2p (dB; S9.11 frames, band validity G8-1)","field stage tap",3.3407,14.5838,11.2431,">= 3 dB",PASS,gated,"frame-wise D_st p2p of the output (dB)",3.34368,14.5977,"n/a","PREDICTED INERT on A_s: the sine core has no partial above 2 f_c (Phase 7 G8-1, Phase 8 B10-4); the B_s line below is recorded for a B10-1-style per-row ruling"
+"AT-30","Image mode: SOLID -> WIDE","A + sustain 1 (C-8) + Character Rectify at Amount 0.5",C3,"D_st (dB; band validity G8-1)","field stage tap",-120,-120,0,">= 3 dB",FAIL,gated,"D_st output (dB)",-120,-120,"n/a",""
+"AT-29","Image mode: SOLID -> SPREAD (spread 1)","B + sustain 1 (B10-1)",C3,"D_st (dB; band validity G8-1)","field stage tap",-120,-0.684223,119.316,">= 3 dB",PASS,recorded,"D_st output (dB)",-120,-0.757383,"n/a","recorded (not gated): the candidate per-row base for AT-29 / AT-31 ... AT-33"
+"AT-31","Spread: 0 -> 1 (SPREAD)","B + sustain 1 (B10-1)",C3,"D_st (dB; band validity G8-1)","field stage tap",-120,-0.684223,119.316,">= 3 dB",PASS,recorded,"D_st output (dB)",-120,-0.757383,"n/a","recorded (not gated): the candidate per-row base for AT-29 / AT-31 ... AT-33"
+"AT-32","Gravity: 0 -> 1 (SPREAD, spread 1)","B + sustain 1 (B10-1)",C3,"D_st (dB; band validity G8-1)","field stage tap",-0.68018,-0.68777,0.00758968,">= 3 dB",FAIL,recorded,"D_st output (dB)",-0.753375,-0.760908,"n/a","recorded (not gated): the candidate per-row base for AT-29 / AT-31 ... AT-33"
+"AT-33","Field MOTION: motionDepth 0 -> 1 (SPREAD, spread 1)","B + sustain 1 (B10-1)",C3,"frame-wise D_st p2p (dB; S9.11 frames, band validity G8-1)","field stage tap",0.00878972,14.4742,14.4654,">= 3 dB",PASS,recorded,"frame-wise D_st p2p of the output (dB)",0.0517034,14.3389,"n/a","recorded (not gated): the candidate per-row base for AT-29 / AT-31 ... AT-33"
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+VoiceEngine_AudibilityTable_Field
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_audibility_test.cpp(1943)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_audibility_test.cpp(623): FAILED:
+  REQUIRE( c.pass )
+with expansion:
+  false
+with message:
+  AT-29 E1 (Image mode: SOLID -> SPREAD (spread 1), base A + sustain 1 (C-8)):
+  D_st (dB; band validity G8-1) lo -120 hi -32.136 value 87.864 bar >= 3 dB |
+  PREDICTED INERT on A_s: the sine core has no partial above 2 f_c (Phase 7 G8-
+  1, Phase 8 B10-4); the B_s line below is recorded for a B10-1-style per-row
+  ruling | invalid reading (non-finite, or a D_st band below G8-1's -60 dBFS
+  floor)
+
+===============================================================================
+test cases:     1 |     0 passed | 1 failed
+assertions: 56270 | 56269 passed | 1 failed
+

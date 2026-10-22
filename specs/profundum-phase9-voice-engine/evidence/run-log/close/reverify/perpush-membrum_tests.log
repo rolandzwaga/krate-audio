@@ -1,0 +1,887 @@
+[host-sim-msg] hitA RMS = -31.11 dBFS
+[host-sim-msg] hitB RMS = -25.67 dBFS
+[host-sim-msg] diff RMS = -29.92 dBFS
+[host-sim-msg] selectedPadIndex_ = 0
+[host-sim] hitA RMS = -30.01 dBFS
+[host-sim] hitB RMS = -24.52 dBFS
+[host-sim] diff RMS = -28.39 dBFS (lower = identical)
+[host-sim] processor.selectedPadIndex_ at end = 0
+Filters: ~[long] ~[performance] ~[perf] ~[benchmark] ~[!benchmark]
+Randomness seeded to: 4246895378
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+membrum_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+VoicePool steal click-free across policies and sample rates
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\membrum\tests\unit\voice_pool\test_steal_click_free.cpp(452)
+...............................................................................
+
+F:\projects\iterum\plugins\membrum\tests\unit\voice_pool\test_steal_click_free.cpp(493): warning:
+  Skipping Quietest@22050 -- Quietest policy's allocator pick differs between
+  level=0 newVoiceMatching and level=0.8 real-steal scenarios (test
+  architecture limitation under Phase 8A.5 body-driven voice lifetime).
+
+F:\projects\iterum\plugins\membrum\tests\unit\voice_pool\test_steal_click_free.cpp(493): warning:
+  Skipping Quietest@44100 -- Quietest policy's allocator pick differs between
+  level=0 newVoiceMatching and level=0.8 real-steal scenarios (test
+  architecture limitation under Phase 8A.5 body-driven voice lifetime).
+
+F:\projects\iterum\plugins\membrum\tests\unit\voice_pool\test_steal_click_free.cpp(493): warning:
+  Skipping Quietest@48000 -- Quietest policy's allocator pick differs between
+  level=0 newVoiceMatching and level=0.8 real-steal scenarios (test
+  architecture limitation under Phase 8A.5 body-driven voice lifetime).
+
+F:\projects\iterum\plugins\membrum\tests\unit\voice_pool\test_steal_click_free.cpp(493): warning:
+  Skipping Quietest@96000 -- Quietest policy's allocator pick differs between
+  level=0 newVoiceMatching and level=0.8 real-steal scenarios (test
+  architecture limitation under Phase 8A.5 body-driven voice lifetime).
+
+F:\projects\iterum\plugins\membrum\tests\unit\voice_pool\test_steal_click_free.cpp(493): warning:
+  Skipping Quietest@192000 -- Quietest policy's allocator pick differs between
+  level=0 newVoiceMatching and level=0.8 real-steal scenarios (test
+  architecture limitation under Phase 8A.5 body-driven voice lifetime).
+
+-------------------------------------------------------------------------------
+Kick-then-snare on Jazz Brushes does not produce sustained sine
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1069)
+...............................................................................
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1146): warning:
+  Longest sustained-sine run: 0 windows (≈ 0 ms)
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1147): warning:
+  Trace: 100:0.0131(c=3.76) 200:0.0020(c=5.31) 300:0.0000(c=7.93) 400:0.0000(c=
+  5.55) 500:0.0000(c=3.71) 600:0.0000(c=0.00) 700:0.0000(c=0.00) 800:0.0000(c=
+  0.00) 900:0.0000(c=0.00) 1000:0.0000(c=0.00) 1100:0.0000(c=0.00) 1200:0.0000
+  (c=0.00) 1300:0.0000(c=0.00) 1400:0.0000(c=0.00) 1500:0.0000(c=0.00) 1600:0.
+  0000(c=0.00) 1700:0.0000(c=0.00) 1800:0.0000(c=0.00) 1900:0.0000(c=0.00)
+  2000:0.0000(c=0.00) 2100:0.0000(c=0.00) 2200:0.0000(c=0.00) 2300:0.0000(c=0.
+  00) 2400:0.0000(c=0.00) 2500:0.0000(c=0.00) 2600:0.0000(c=0.00) 2700:0.0000
+  (c=0.00) 2800:0.0000(c=0.00) 2900:0.0000(c=0.00) 3000:0.0000(c=0.00) 3100:0.
+  0000(c=0.00) 3200:0.0000(c=0.00) 3300:0.0000(c=0.00) 3400:0.0000(c=0.00)
+  3500:0.0000(c=0.00) 3600:0.0000(c=0.00) 3700:0.0000(c=0.00) 3800:0.0000(c=0.
+  00) 3900:0.0000(c=0.00) 4000:0.0000(c=0.00)
+
+-------------------------------------------------------------------------------
+Kick-then-snare at 44100/64
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1283)
+...............................................................................
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1275): warning:
+  44100/64 longestSineRun=0 (≈0ms)
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1276): warning:
+  44100/64 trace: 100:0.1645(c=21.29) 200:0.0012(c=5.22) 300:0.0000(c=5.57)
+  400:0.0000(c=6.23) 500:0.0000(c=0.00) 600:0.0000(c=0.00) 700:0.0000(c=0.00)
+  800:0.0000(c=0.00) 900:0.0000(c=0.00) 1000:0.0000(c=0.00) 1100:0.0000(c=0.00)
+  1200:0.0000(c=0.00) 1300:0.0000(c=0.00) 1400:0.0000(c=0.00) 1500:0.0000(c=0.
+  00) 1600:0.0000(c=0.00) 1700:0.0000(c=0.00) 1800:0.0000(c=0.00) 1900:0.0000
+  (c=0.00) 2000:0.0000(c=0.00) 2100:0.0000(c=0.00) 2200:0.0000(c=0.00) 2300:0.
+  0000(c=0.00) 2400:0.0000(c=0.00) 2500:0.0000(c=0.00) 2600:0.0000(c=0.00)
+  2700:0.0000(c=0.00) 2800:0.0000(c=0.00) 2900:0.0000(c=0.00) 3000:0.0000(c=0.
+  00) 3100:0.0000(c=0.00) 3200:0.0000(c=0.00) 3300:0.0000(c=0.00) 3400:0.0000
+  (c=0.00) 3500:0.0000(c=0.00) 3600:0.0000(c=0.00) 3700:0.0000(c=0.00) 3800:0.
+  0000(c=0.00) 3900:0.0000(c=0.00) 4000:0.0000(c=0.00)
+
+-------------------------------------------------------------------------------
+Kick-then-snare at 44100/512
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1289)
+...............................................................................
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1275): warning:
+  44100/512 longestSineRun=0 (≈0ms)
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1276): warning:
+  44100/512 trace: 100:0.0111(c=4.47) 200:0.0012(c=3.88) 300:0.0000(c=5.37)
+  400:0.0000(c=5.63) 500:0.0000(c=7.15) 600:0.0000(c=0.00) 700:0.0000(c=0.00)
+  800:0.0000(c=0.00) 900:0.0000(c=0.00) 1000:0.0000(c=0.00) 1100:0.0000(c=0.00)
+  1200:0.0000(c=0.00) 1300:0.0000(c=0.00) 1400:0.0000(c=0.00) 1500:0.0000(c=0.
+  00) 1600:0.0000(c=0.00) 1700:0.0000(c=0.00) 1800:0.0000(c=0.00) 1900:0.0000
+  (c=0.00) 2000:0.0000(c=0.00) 2100:0.0000(c=0.00) 2200:0.0000(c=0.00) 2300:0.
+  0000(c=0.00) 2400:0.0000(c=0.00) 2500:0.0000(c=0.00) 2600:0.0000(c=0.00)
+  2700:0.0000(c=0.00) 2800:0.0000(c=0.00) 2900:0.0000(c=0.00) 3000:0.0000(c=0.
+  00) 3100:0.0000(c=0.00) 3200:0.0000(c=0.00) 3300:0.0000(c=0.00) 3400:0.0000
+  (c=0.00) 3500:0.0000(c=0.00) 3600:0.0000(c=0.00) 3700:0.0000(c=0.00) 3800:0.
+  0000(c=0.00) 3900:0.0000(c=0.00) 4000:0.0000(c=0.00)
+
+-------------------------------------------------------------------------------
+Kick-then-snare at 96000/256
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1295)
+...............................................................................
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1275): warning:
+  96000/256 longestSineRun=0 (≈0ms)
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1276): warning:
+  96000/256 trace: 100:0.0743(c=12.24) 200:0.0034(c=5.20) 300:0.0000(c=7.07)
+  400:0.0000(c=5.86) 500:0.0000(c=3.87) 600:0.0000(c=0.00) 700:0.0000(c=0.00)
+  800:0.0000(c=0.00) 900:0.0000(c=0.00) 1000:0.0000(c=0.00) 1100:0.0000(c=0.00)
+  1200:0.0000(c=0.00) 1300:0.0000(c=0.00) 1400:0.0000(c=0.00) 1500:0.0000(c=0.
+  00) 1600:0.0000(c=0.00) 1700:0.0000(c=0.00) 1800:0.0000(c=0.00) 1900:0.0000
+  (c=0.00) 2000:0.0000(c=0.00) 2100:0.0000(c=0.00) 2200:0.0000(c=0.00) 2300:0.
+  0000(c=0.00) 2400:0.0000(c=0.00) 2500:0.0000(c=0.00) 2600:0.0000(c=0.00)
+  2700:0.0000(c=0.00) 2800:0.0000(c=0.00) 2900:0.0000(c=0.00) 3000:0.0000(c=0.
+  00) 3100:0.0000(c=0.00) 3200:0.0000(c=0.00) 3300:0.0000(c=0.00) 3400:0.0000
+  (c=0.00) 3500:0.0000(c=0.00) 3600:0.0000(c=0.00) 3700:0.0000(c=0.00) 3800:0.
+  0000(c=0.00) 3900:0.0000(c=0.00) 4000:0.0000(c=0.00)
+
+-------------------------------------------------------------------------------
+Kick→snare gap 50ms vel 1.0
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1375)
+...............................................................................
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1368): warning:
+  gap50/v1.0 longestSineRun=0 trace: 100:0.0479(c=3.21) 200:0.0061(c=3.36) 300:
+  0.0007(c=3.24) 400:0.0000(c=5.37) 500:0.0000(c=6.18) 600:0.0000(c=6.95) 700:
+  0.0000(c=0.00) 800:0.0000(c=0.00) 900:0.0000(c=0.00) 1000:0.0000(c=0.00)
+  1100:0.0000(c=0.00) 1200:0.0000(c=0.00) 1300:0.0000(c=0.00) 1400:0.0000(c=0.
+  00) 1500:0.0000(c=0.00) 1600:0.0000(c=0.00) 1700:0.0000(c=0.00) 1800:0.0000
+  (c=0.00) 1900:0.0000(c=0.00) 2000:0.0000(c=0.00) 2100:0.0000(c=0.00) 2200:0.
+  0000(c=0.00) 2300:0.0000(c=0.00) 2400:0.0000(c=0.00) 2500:0.0000(c=0.00)
+  2600:0.0000(c=0.00) 2700:0.0000(c=0.00) 2800:0.0000(c=0.00) 2900:0.0000(c=0.
+  00) 3000:0.0000(c=0.00) 3100:0.0000(c=0.00) 3200:0.0000(c=0.00) 3300:0.0000
+  (c=0.00) 3400:0.0000(c=0.00) 3500:0.0000(c=0.00) 3600:0.0000(c=0.00) 3700:0.
+  0000(c=0.00) 3800:0.0000(c=0.00) 3900:0.0000(c=0.00) 4000:0.0000(c=0.00)
+
+-------------------------------------------------------------------------------
+Kick→snare gap 0ms vel 0.787
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1379)
+...............................................................................
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1368): warning:
+  gap0/v0.787 longestSineRun=0 trace: 100:0.1296(c=3.75) 200:0.0152(c=3.48)
+  300:0.0022(c=3.42) 400:0.0000(c=5.36) 500:0.0000(c=5.26) 600:0.0000(c=6.34)
+  700:0.0000(c=0.00) 800:0.0000(c=0.00) 900:0.0000(c=0.00) 1000:0.0000(c=0.00)
+  1100:0.0000(c=0.00) 1200:0.0000(c=0.00) 1300:0.0000(c=0.00) 1400:0.0000(c=0.
+  00) 1500:0.0000(c=0.00) 1600:0.0000(c=0.00) 1700:0.0000(c=0.00) 1800:0.0000
+  (c=0.00) 1900:0.0000(c=0.00) 2000:0.0000(c=0.00) 2100:0.0000(c=0.00) 2200:0.
+  0000(c=0.00) 2300:0.0000(c=0.00) 2400:0.0000(c=0.00) 2500:0.0000(c=0.00)
+  2600:0.0000(c=0.00) 2700:0.0000(c=0.00) 2800:0.0000(c=0.00) 2900:0.0000(c=0.
+  00) 3000:0.0000(c=0.00) 3100:0.0000(c=0.00) 3200:0.0000(c=0.00) 3300:0.0000
+  (c=0.00) 3400:0.0000(c=0.00) 3500:0.0000(c=0.00) 3600:0.0000(c=0.00) 3700:0.
+  0000(c=0.00) 3800:0.0000(c=0.00) 3900:0.0000(c=0.00) 4000:0.0000(c=0.00)
+
+-------------------------------------------------------------------------------
+Kick→snare gap 50ms vel 0.787
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1383)
+...............................................................................
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1368): warning:
+  gap50/v0.787 longestSineRun=0 trace: 100:0.0379(c=2.80) 200:0.0050(c=2.74)
+  300:0.0007(c=3.32) 400:0.0000(c=5.44) 500:0.0000(c=5.95) 600:0.0000(c=7.27)
+  700:0.0000(c=0.00) 800:0.0000(c=0.00) 900:0.0000(c=0.00) 1000:0.0000(c=0.00)
+  1100:0.0000(c=0.00) 1200:0.0000(c=0.00) 1300:0.0000(c=0.00) 1400:0.0000(c=0.
+  00) 1500:0.0000(c=0.00) 1600:0.0000(c=0.00) 1700:0.0000(c=0.00) 1800:0.0000
+  (c=0.00) 1900:0.0000(c=0.00) 2000:0.0000(c=0.00) 2100:0.0000(c=0.00) 2200:0.
+  0000(c=0.00) 2300:0.0000(c=0.00) 2400:0.0000(c=0.00) 2500:0.0000(c=0.00)
+  2600:0.0000(c=0.00) 2700:0.0000(c=0.00) 2800:0.0000(c=0.00) 2900:0.0000(c=0.
+  00) 3000:0.0000(c=0.00) 3100:0.0000(c=0.00) 3200:0.0000(c=0.00) 3300:0.0000
+  (c=0.00) 3400:0.0000(c=0.00) 3500:0.0000(c=0.00) 3600:0.0000(c=0.00) 3700:0.
+  0000(c=0.00) 3800:0.0000(c=0.00) 3900:0.0000(c=0.00) 4000:0.0000(c=0.00)
+
+-------------------------------------------------------------------------------
+Kick→snare gap 500ms vel 0.787
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1387)
+...............................................................................
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1368): warning:
+  gap500/v0.787 longestSineRun=0 trace: 100:0.0100(c=3.91) 200:0.0013(c=6.21)
+  300:0.0000(c=6.00) 400:0.0000(c=5.67) 500:0.0000(c=4.63) 600:0.0000(c=0.00)
+  700:0.0000(c=0.00) 800:0.0000(c=0.00) 900:0.0000(c=0.00) 1000:0.0000(c=0.00)
+  1100:0.0000(c=0.00) 1200:0.0000(c=0.00) 1300:0.0000(c=0.00) 1400:0.0000(c=0.
+  00) 1500:0.0000(c=0.00) 1600:0.0000(c=0.00) 1700:0.0000(c=0.00) 1800:0.0000
+  (c=0.00) 1900:0.0000(c=0.00) 2000:0.0000(c=0.00) 2100:0.0000(c=0.00) 2200:0.
+  0000(c=0.00) 2300:0.0000(c=0.00) 2400:0.0000(c=0.00) 2500:0.0000(c=0.00)
+  2600:0.0000(c=0.00) 2700:0.0000(c=0.00) 2800:0.0000(c=0.00) 2900:0.0000(c=0.
+  00) 3000:0.0000(c=0.00) 3100:0.0000(c=0.00) 3200:0.0000(c=0.00) 3300:0.0000
+  (c=0.00) 3400:0.0000(c=0.00) 3500:0.0000(c=0.00) 3600:0.0000(c=0.00) 3700:0.
+  0000(c=0.00) 3800:0.0000(c=0.00) 3900:0.0000(c=0.00) 4000:0.0000(c=0.00)
+
+-------------------------------------------------------------------------------
+Kick→snare gap 1000ms vel 0.787
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1391)
+...............................................................................
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1368): warning:
+  gap1000/v0.787 longestSineRun=0 trace: 100:0.0100(c=3.91) 200:0.0013(c=6.21)
+  300:0.0000(c=6.00) 400:0.0000(c=5.67) 500:0.0000(c=4.63) 600:0.0000(c=0.00)
+  700:0.0000(c=0.00) 800:0.0000(c=0.00) 900:0.0000(c=0.00) 1000:0.0000(c=0.00)
+  1100:0.0000(c=0.00) 1200:0.0000(c=0.00) 1300:0.0000(c=0.00) 1400:0.0000(c=0.
+  00) 1500:0.0000(c=0.00) 1600:0.0000(c=0.00) 1700:0.0000(c=0.00) 1800:0.0000
+  (c=0.00) 1900:0.0000(c=0.00) 2000:0.0000(c=0.00) 2100:0.0000(c=0.00) 2200:0.
+  0000(c=0.00) 2300:0.0000(c=0.00) 2400:0.0000(c=0.00) 2500:0.0000(c=0.00)
+  2600:0.0000(c=0.00) 2700:0.0000(c=0.00) 2800:0.0000(c=0.00) 2900:0.0000(c=0.
+  00) 3000:0.0000(c=0.00) 3100:0.0000(c=0.00) 3200:0.0000(c=0.00) 3300:0.0000
+  (c=0.00) 3400:0.0000(c=0.00) 3500:0.0000(c=0.00) 3600:0.0000(c=0.00) 3700:0.
+  0000(c=0.00) 3800:0.0000(c=0.00) 3900:0.0000(c=0.00) 4000:0.0000(c=0.00)
+
+-------------------------------------------------------------------------------
+Stress: kick-then-snare on Jazz Brushes (44.1 kHz, randomized)
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1403)
+...............................................................................
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1490): warning:
+  Worst iteration: -1 gapBlocks=-1 vel=0 longestSineRun=0 (≈0 ms) peakAt2s=0
+
+-------------------------------------------------------------------------------
+Kick→snare on multi-bus configuration
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1505)
+...............................................................................
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1614): warning:
+  multi-bus longestSineRun=0 (≈0 ms) trace: 100:0.0387(c=2.95) 200:0.0054(c=
+  3.11) 300:0.0006(c=3.28) 400:0.0000(c=5.53) 500:0.0000(c=5.29) 600:0.0000(c=
+  0.00) 700:0.0000(c=0.00) 800:0.0000(c=0.00) 900:0.0000(c=0.00) 1000:0.0000(c=
+  0.00) 1100:0.0000(c=0.00) 1200:0.0000(c=0.00) 1300:0.0000(c=0.00) 1400:0.0000
+  (c=0.00) 1500:0.0000(c=0.00) 1600:0.0000(c=0.00) 1700:0.0000(c=0.00) 1800:0.
+  0000(c=0.00) 1900:0.0000(c=0.00) 2000:0.0000(c=0.00) 2100:0.0000(c=0.00)
+  2200:0.0000(c=0.00) 2300:0.0000(c=0.00) 2400:0.0000(c=0.00) 2500:0.0000(c=0.
+  00) 2600:0.0000(c=0.00) 2700:0.0000(c=0.00) 2800:0.0000(c=0.00) 2900:0.0000
+  (c=0.00) 3000:0.0000(c=0.00) 3100:0.0000(c=0.00) 3200:0.0000(c=0.00) 3300:0.
+  0000(c=0.00) 3400:0.0000(c=0.00) 3500:0.0000(c=0.00) 3600:0.0000(c=0.00)
+  3700:0.0000(c=0.00) 3800:0.0000(c=0.00) 3900:0.0000(c=0.00) 4000:0.0000(c=0.
+  00) 4100:0.0000(c=0.00) 4200:0.0000(c=0.00) 4300:0.0000(c=0.00) 4400:0.0000
+  (c=0.00) 4500:0.0000(c=0.00) 4600:0.0000(c=0.00) 4700:0.0000(c=0.00) 4800:0.
+  0000(c=0.00) 4900:0.0000(c=0.00) 5000:0.0000(c=0.00)
+
+-------------------------------------------------------------------------------
+Diagnostic: dump installed Jazz Brushes snare params
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1627)
+...............................................................................
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1635): warning:
+  Snare exciter=2 body=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1640): warning:
+  material=0.42 size=0.6 decay=0.55 strike=0.3 level=0.92
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1644): warning:
+  bodyDampingB1=0.3 bodyDampingB3=0.04 airLoading=0.45 modeScatter=0.38
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1649): warning:
+  couplingStrength=0.6 secondaryEnabled=1 secondarySize=0.65 secondaryMaterial=
+  0.45 tensionModAmt=0.2
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1653): warning:
+  decaySkew=0.5 modeStretch=0.333333 modeInjectAmount=0 nonlinearCoupling=0.18
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1657): warning:
+  noiseLayerMix=0.75 noiseLayerCutoff=0.62 noiseLayerResonance=0.05
+  noiseLayerDecay=0.55
+
+-------------------------------------------------------------------------------
+Diagnostic: minimal Membrane body at low b1 should decay
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1775)
+...............................................................................
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1832): warning:
+  t=100ms peak=0.198358
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1832): warning:
+  t=200ms peak=0.0615305
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1832): warning:
+  t=300ms peak=0.021633
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1832): warning:
+  t=400ms peak=0.00695952
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1832): warning:
+  t=500ms peak=0.00397946
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1832): warning:
+  t=600ms peak=0.00107463
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1832): warning:
+  t=700ms peak=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1832): warning:
+  t=800ms peak=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1832): warning:
+  t=900ms peak=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1832): warning:
+  t=1000ms peak=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1832): warning:
+  t=1100ms peak=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1832): warning:
+  t=1200ms peak=0
+
+-------------------------------------------------------------------------------
+Diagnostic: HHOpen frequency profile
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1840)
+...............................................................................
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1872): warning:
+  HHOpen @ 0.03s: peak=0.00690149 dominant ≈ 5208.98 Hz
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1872): warning:
+  HHOpen @ 0.08s: peak=0.0020749 dominant ≈ 4974.61 Hz
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1872): warning:
+  HHOpen @ 0.13s: peak=0.000720923 dominant ≈ 4998.05 Hz
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1872): warning:
+  HHOpen @ 0.18s: peak=3.53968e-05 dominant ≈ 5396.48 Hz
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1872): warning:
+  HHOpen @ 0.23s: peak=8.56852e-07 dominant ≈ 5367.19 Hz
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1872): warning:
+  HHOpen @ 0.28s: peak=1.84176e-08 dominant ≈ 3005.86 Hz
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1872): warning:
+  HHOpen @ 0.33s: peak=0 dominant ≈ 0 Hz
+
+-------------------------------------------------------------------------------
+Diagnostic: single Jazz Brushes tom decay trace
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1890)
+...............................................................................
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1916): warning:
+  t=0.1s peak=0.260698 slot0.state=1 slot0.level=0.164398
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1916): warning:
+  t=0.2s peak=0.0857726 slot0.state=1 slot0.level=0.0820182
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1916): warning:
+  t=0.3s peak=0.0471999 slot0.state=1 slot0.level=0.0422622
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1916): warning:
+  t=0.4s peak=0.0286941 slot0.state=1 slot0.level=0.027604
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1916): warning:
+  t=0.5s peak=0.0169798 slot0.state=1 slot0.level=0.017145
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1916): warning:
+  t=0.6s peak=0.0101065 slot0.state=1 slot0.level=0.0105811
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1916): warning:
+  t=0.7s peak=0.00603897 slot0.state=1 slot0.level=0.0064845
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1916): warning:
+  t=0.8s peak=0.00363711 slot0.state=1 slot0.level=0.00396519
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1916): warning:
+  t=0.9s peak=0.00220274 slot0.state=1 slot0.level=0.00242458
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1916): warning:
+  t=1s peak=0.00132457 slot0.state=1 slot0.level=0.00148141
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1916): warning:
+  t=1.1s peak=0.000777045 slot0.state=1 slot0.level=4.57366e-05
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1916): warning:
+  t=1.2s peak=1.7874e-05 slot0.state=1 slot0.level=1.20748e-07
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1916): warning:
+  t=1.3s peak=4.57537e-08 slot0.state=1 slot0.level=2.46229e-10
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1916): warning:
+  t=1.4s peak=9.63041e-11 slot0.state=0 slot0.level=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1916): warning:
+  t=1.5s peak=0 slot0.state=0 slot0.level=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1916): warning:
+  t=1.6s peak=0 slot0.state=0 slot0.level=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1916): warning:
+  t=1.7s peak=0 slot0.state=0 slot0.level=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1916): warning:
+  t=1.8s peak=0 slot0.state=0 slot0.level=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1916): warning:
+  t=1.9s peak=0 slot0.state=0 slot0.level=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1916): warning:
+  t=2s peak=0 slot0.state=0 slot0.level=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1916): warning:
+  t=2.1s peak=0 slot0.state=0 slot0.level=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1916): warning:
+  t=2.2s peak=0 slot0.state=0 slot0.level=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1916): warning:
+  t=2.3s peak=0 slot0.state=0 slot0.level=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1916): warning:
+  t=2.4s peak=0 slot0.state=0 slot0.level=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1916): warning:
+  t=2.5s peak=0 slot0.state=0 slot0.level=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1916): warning:
+  t=2.6s peak=0 slot0.state=0 slot0.level=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1916): warning:
+  t=2.7s peak=0 slot0.state=0 slot0.level=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1916): warning:
+  t=2.8s peak=0 slot0.state=0 slot0.level=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1916): warning:
+  t=2.9s peak=0 slot0.state=0 slot0.level=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1916): warning:
+  t=3s peak=0 slot0.state=0 slot0.level=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1916): warning:
+  t=3.1s peak=0 slot0.state=0 slot0.level=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1916): warning:
+  t=3.2s peak=0 slot0.state=0 slot0.level=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1916): warning:
+  t=3.3s peak=0 slot0.state=0 slot0.level=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1916): warning:
+  t=3.4s peak=0 slot0.state=0 slot0.level=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1916): warning:
+  t=3.5s peak=0 slot0.state=0 slot0.level=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1916): warning:
+  t=3.6s peak=0 slot0.state=0 slot0.level=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1916): warning:
+  t=3.7s peak=0 slot0.state=0 slot0.level=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1916): warning:
+  t=3.8s peak=0 slot0.state=0 slot0.level=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1916): warning:
+  t=3.9s peak=0 slot0.state=0 slot0.level=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1916): warning:
+  t=4s peak=0 slot0.state=0 slot0.level=0
+
+-------------------------------------------------------------------------------
+Diagnostic: hat hit dominant-frequency capture
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1926)
+...............................................................................
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1976): warning:
+  t=50ms peak=0.099177 slot0.state=1 level=0.0522337
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1976): warning:
+  t=100ms peak=0.0266255 slot0.state=1 level=0.0141059
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1976): warning:
+  t=150ms peak=0.00569664 slot0.state=1 level=0.00291364
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1976): warning:
+  t=200ms peak=0.00149565 slot0.state=1 level=0.000779617
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1976): warning:
+  t=250ms peak=0.0001071 slot0.state=1 level=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1976): warning:
+  t=300ms peak=0 slot0.state=1 level=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1976): warning:
+  t=350ms peak=0 slot0.state=1 level=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1976): warning:
+  t=400ms peak=0 slot0.state=1 level=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1976): warning:
+  t=450ms peak=0 slot0.state=1 level=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1976): warning:
+  t=500ms peak=0 slot0.state=0 level=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1976): warning:
+  t=550ms peak=0 slot0.state=0 level=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1976): warning:
+  t=600ms peak=0 slot0.state=0 level=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1976): warning:
+  t=650ms peak=0 slot0.state=0 level=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1976): warning:
+  t=700ms peak=0 slot0.state=0 level=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1976): warning:
+  t=750ms peak=0 slot0.state=0 level=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1976): warning:
+  t=800ms peak=0 slot0.state=0 level=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1976): warning:
+  t=850ms peak=0 slot0.state=0 level=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1976): warning:
+  t=900ms peak=0 slot0.state=0 level=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1976): warning:
+  t=950ms peak=0 slot0.state=0 level=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1976): warning:
+  t=1000ms peak=0 slot0.state=0 level=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1976): warning:
+  t=1050ms peak=0 slot0.state=0 level=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1976): warning:
+  t=1100ms peak=0 slot0.state=0 level=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1976): warning:
+  t=1150ms peak=0 slot0.state=0 level=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1976): warning:
+  t=1200ms peak=0 slot0.state=0 level=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1976): warning:
+  t=1250ms peak=0 slot0.state=0 level=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1976): warning:
+  t=1300ms peak=0 slot0.state=0 level=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1976): warning:
+  t=1350ms peak=0 slot0.state=0 level=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1976): warning:
+  t=1400ms peak=0 slot0.state=0 level=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1976): warning:
+  t=1450ms peak=0 slot0.state=0 level=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1976): warning:
+  t=1500ms peak=0 slot0.state=0 level=0
+
+-------------------------------------------------------------------------------
+Diagnostic: alternating two pads on Jazz Brushes
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(1985)
+...............................................................................
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2010): warning:
+  t=0.1s peak=0.230249
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2010): warning:
+  t=0.2s peak=0.138546
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2010): warning:
+  t=0.3s peak=0.0771952
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2010): warning:
+  t=0.4s peak=0.0575865
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2010): warning:
+  t=0.5s peak=0.0350836
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2010): warning:
+  t=0.6s peak=0.0207287
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2010): warning:
+  t=0.7s peak=0.0131125
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2010): warning:
+  t=0.8s peak=0.00752277
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2010): warning:
+  t=0.9s peak=0.00494821
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2010): warning:
+  t=1s peak=0.00360736
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2010): warning:
+  t=1.1s peak=0.00205636
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2010): warning:
+  t=1.2s peak=0.000968669
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2010): warning:
+  t=1.3s peak=0.000661722
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2010): warning:
+  t=1.4s peak=1.60934e-06
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2010): warning:
+  t=1.5s peak=4.51846e-09
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2010): warning:
+  t=1.6s peak=9.63583e-12
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2010): warning:
+  t=1.7s peak=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2010): warning:
+  t=1.8s peak=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2010): warning:
+  t=1.9s peak=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2010): warning:
+  t=2s peak=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2010): warning:
+  t=2.1s peak=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2010): warning:
+  t=2.2s peak=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2010): warning:
+  t=2.3s peak=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2010): warning:
+  t=2.4s peak=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2010): warning:
+  t=2.5s peak=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2010): warning:
+  t=2.6s peak=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2010): warning:
+  t=2.7s peak=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2010): warning:
+  t=2.8s peak=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2010): warning:
+  t=2.9s peak=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2010): warning:
+  t=3s peak=0
+
+-------------------------------------------------------------------------------
+Diagnostic: rapid self-hit on Jazz Brushes tom decay trace
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2020)
+...............................................................................
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2056): warning:
+  t=0.1s peak=0.262866 M0=0.163759
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2056): warning:
+  t=0.2s peak=0.0854332 M0=0.080813
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2056): warning:
+  t=0.3s peak=0.0469225 M0=0.041974
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2056): warning:
+  t=0.4s peak=0.0285371 M0=0.027452
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2056): warning:
+  t=0.5s peak=0.0168828 M0=0.017034
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2056): warning:
+  t=0.6s peak=0.0100463 M0=0.010513
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2056): warning:
+  t=0.7s peak=0.00600151 M0=0.006443
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2056): warning:
+  t=0.8s peak=0.00361412 M0=0.003939
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2056): warning:
+  t=0.9s peak=0.0021887 M0=0.002409
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2056): warning:
+  t=1s peak=0.00131527 M0=0.001472
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2056): warning:
+  t=1.1s peak=0.000771891 M0=0.000045
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2056): warning:
+  t=1.2s peak=1.77536e-05 M0=0.000000
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2056): warning:
+  t=1.3s peak=4.54533e-08 M0=0.000000
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2056): warning:
+  t=1.4s peak=9.55576e-11
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2056): warning:
+  t=1.5s peak=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2056): warning:
+  t=1.6s peak=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2056): warning:
+  t=1.7s peak=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2056): warning:
+  t=1.8s peak=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2056): warning:
+  t=1.9s peak=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2056): warning:
+  t=2s peak=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2056): warning:
+  t=2.1s peak=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2056): warning:
+  t=2.2s peak=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2056): warning:
+  t=2.3s peak=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2056): warning:
+  t=2.4s peak=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2056): warning:
+  t=2.5s peak=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2056): warning:
+  t=2.6s peak=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2056): warning:
+  t=2.7s peak=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2056): warning:
+  t=2.8s peak=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2056): warning:
+  t=2.9s peak=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2056): warning:
+  t=3s peak=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2056): warning:
+  t=3.1s peak=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2056): warning:
+  t=3.2s peak=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2056): warning:
+  t=3.3s peak=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2056): warning:
+  t=3.4s peak=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2056): warning:
+  t=3.5s peak=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2056): warning:
+  t=3.6s peak=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2056): warning:
+  t=3.7s peak=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2056): warning:
+  t=3.8s peak=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2056): warning:
+  t=3.9s peak=0
+
+F:\projects\iterum\plugins\membrum\tests\unit\processor\test_kit_switch_infinite_ring.cpp(2056): warning:
+  t=4s peak=0
+
+[diagnose_orch] bisecting distortion source (level=0.10)
+[diagnose_orch] baseline           peak=0.0537  rms=0.0063  samples>=0.99: 0  clean
+[diagnose_orch] no-secondary       peak=0.0476  rms=0.0048  samples>=0.99: 0  clean
+[diagnose_orch] no-noise-click     peak=0.0539  rms=0.0063  samples>=0.99: 0  clean
+[diagnose_orch] no-pitch-env       peak=0.0562  rms=0.0056  samples>=0.99: 0  clean
+[diagnose_orch] no-tension         peak=0.0537  rms=0.0062  samples>=0.99: 0  clean
+[diagnose_orch] no-coupling        peak=0.0476  rms=0.0048  samples>=0.99: 0  clean
+[diagnose_orch] body-only          peak=0.0500  rms=0.0050  samples>=0.99: 0  clean
+
+[diagnose_n1] F = peak_raw / Sum|a_k|   (realized body peak with current code = F * 0.25)
+[diagnose_n1] body      decay strtch |   F_imp  F_strk  F_sust | max2/(1-R^2)
+[diagnose_n1] Membrane   0.20   1.00 |    1.02   16.84  386.24 |   8248.4
+[diagnose_n1] Membrane   0.50   1.00 |    1.02   17.78  613.64 |  15978.3
+[diagnose_n1] Membrane   0.85   1.00 |    1.02   18.33  843.69 |  33354.3
+[diagnose_n1] Membrane   0.98   1.00 |    1.02   18.45  907.05 |  43129.1
+[diagnose_n1] Membrane   0.20   1.50 |    1.02   12.75  386.35 |   8246.4
+[diagnose_n1] Membrane   0.50   1.50 |    1.02   13.01  613.47 |  15970.7
+[diagnose_n1] Membrane   0.85   1.50 |    1.02   13.40  842.98 |  33354.3
+[diagnose_n1] Membrane   0.98   1.50 |    1.02   13.48  906.16 |  43129.1
+[diagnose_n1] Plate      0.20   1.00 |    1.02    3.37  190.29 |  19691.6
+[diagnose_n1] Plate      0.50   1.00 |    1.02    3.40  240.27 |  35964.0
+[diagnose_n1] Plate      0.85   1.00 |    1.02    3.42  276.36 |  66576.3
+[diagnose_n1] Plate      0.98   1.00 |    1.02    3.42  284.90 |  81049.4
+[diagnose_n1] Plate      0.20   1.50 |    1.02    3.11  190.15 |  19680.0
+[diagnose_n1] Plate      0.50   1.50 |    1.02    3.14  239.84 |  35964.0
+[diagnose_n1] Plate      0.85   1.50 |    1.02    3.15  275.97 |  66576.3
+[diagnose_n1] Plate      0.98   1.50 |    1.02    3.16  284.48 |  80854.1
+[diagnose_n1] Shell      0.20   1.00 |    1.02    3.44  180.18 |   8160.1
+[diagnose_n1] Shell      0.50   1.00 |    1.02    3.46  286.04 |  15650.4
+[diagnose_n1] Shell      0.85   1.00 |    1.02    3.47  393.22 |  31987.1
+[diagnose_n1] Shell      0.98   1.00 |    1.02    3.47  423.03 |  40870.2
+[diagnose_n1] Shell      0.20   1.50 |    1.02    3.67  193.86 |   8160.1
+[diagnose_n1] Shell      0.50   1.50 |    1.02    3.69  307.57 |  15650.4
+[diagnose_n1] Shell      0.85   1.50 |    1.02    3.71  422.56 |  31956.6
+[diagnose_n1] Shell      0.98   1.50 |    1.02    3.71  454.23 |  40820.5
+[diagnose_n1] Bell       0.20   1.00 |    1.02   15.03  450.91 |  17198.6
+[diagnose_n1] Bell       0.50   1.00 |    1.02   16.37  599.28 |  34204.3
+[diagnose_n1] Bell       0.85   1.00 |    1.02   17.16  713.28 |  76087.1
+[diagnose_n1] Bell       0.98   1.00 |    1.02   17.34  741.22 | 101989.2
+[diagnose_n1] Bell       0.20   1.50 |    1.02   13.56  451.06 |  17198.6
+[diagnose_n1] Bell       0.50   1.50 |    1.02   14.13  599.65 |  34204.3
+[diagnose_n1] Bell       0.85   1.50 |    1.02   14.45  713.87 |  76087.1
+[diagnose_n1] Bell       0.98   1.50 |    1.02   14.52  741.88 | 101989.2
+[diagnose_n1] NoiseBody  0.20   1.00 |    0.61    0.79   58.64 |   9794.1
+[diagnose_n1] NoiseBody  0.50   1.00 |    0.61    0.80   86.43 |  17819.7
+[diagnose_n1] NoiseBody  0.85   1.00 |    0.61    0.81  111.53 |  32736.0
+[diagnose_n1] NoiseBody  0.98   1.00 |    0.61    0.81  118.03 |  39662.4
+[diagnose_n1] NoiseBody  0.20   1.50 |    0.61    0.91   73.78 |   9791.2
+[diagnose_n1] NoiseBody  0.50   1.50 |    0.61    0.92  108.59 |  17810.2
+[diagnose_n1] NoiseBody  0.85   1.50 |    0.61    0.93  139.96 |  32704.1
+[diagnose_n1] NoiseBody  0.98   1.50 |    0.61    0.93  148.17 |  39615.6
+
+[diagnose_n1_tension] kTensionEnergyScale glide (base f0=158.15 Hz)
+[diagnose_n1_tension]   vel=0.30  peakF0=159.66 Hz  glide=0.164 semitones
+[diagnose_n1_tension]   vel=0.50  peakF0=162.13 Hz  glide=0.430 semitones
+[diagnose_n1_tension]   vel=0.70  peakF0=167.38 Hz  glide=0.982 semitones
+[diagnose_n1_tension]   vel=1.00  peakF0=176.44 Hz  glide=1.895 semitones
+
+[diagnose_n1_axes] F_strike sweeps (decay=0.85, others at default)
+[diagnose_n1_axes] body      | mat0.0 mat0.5 mat1.0 | sz0.2 sz0.5 sz0.9 | strk.1 strk.5 strk.9 | span
+[diagnose_n1_axes]   ref Membrane  F=18.33  sumA=9.0885  activeModes=44
+[diagnose_n1_axes]   detail Membrane  mat=0.0  F=21.19  sumA=9.089  rawPeak=192.60  modes=44
+[diagnose_n1_axes]   detail Membrane  mat=0.5  F=17.29  sumA=9.089  rawPeak=157.12  modes=44
+[diagnose_n1_axes]   detail Membrane  mat=1.0  F=15.36  sumA=9.089  rawPeak=139.64  modes=44
+[diagnose_n1_axes] Membrane  |  21.19  17.29  15.36 |  5.38 12.17 21.18 |  23.23  16.27  16.99 | 4.32x
+[diagnose_n1_axes]   ref Plate     F=3.42  sumA=21.5103  activeModes=48
+[diagnose_n1_axes]   detail Plate     mat=0.0  F=3.37  sumA=21.510  rawPeak=72.45  modes=48
+[diagnose_n1_axes]   detail Plate     mat=0.5  F=3.44  sumA=21.510  rawPeak=74.03  modes=48
+[diagnose_n1_axes]   detail Plate     mat=1.0  F=3.53  sumA=21.510  rawPeak=75.95  modes=48
+[diagnose_n1_axes] Plate     |   3.37   3.44   3.53 |  0.92  1.59  4.31 |   5.58   3.91   5.84 | 6.36x
+[diagnose_n1_axes]   ref Shell     F=3.47  sumA=5.8563  activeModes=13
+[diagnose_n1_axes]   detail Shell     mat=0.0  F=3.45  sumA=5.856  rawPeak=20.22  modes=13
+[diagnose_n1_axes]   detail Shell     mat=0.5  F=3.47  sumA=5.856  rawPeak=20.34  modes=13
+[diagnose_n1_axes]   detail Shell     mat=1.0  F=3.49  sumA=5.856  rawPeak=20.41  modes=13
+[diagnose_n1_axes] Shell     |   3.45   3.47   3.49 |  0.49  1.86  3.95 |   5.10   5.07   5.10 | 10.40x
+[diagnose_n1_axes]   ref Bell      F=17.16  sumA=8.4204  activeModes=16
+[diagnose_n1_axes]   detail Bell      mat=0.0  F=16.41  sumA=8.420  rawPeak=138.15  modes=16
+[diagnose_n1_axes]   detail Bell      mat=0.5  F=17.51  sumA=8.420  rawPeak=147.41  modes=16
+[diagnose_n1_axes]   detail Bell      mat=1.0  F=18.21  sumA=8.420  rawPeak=153.37  modes=16
+[diagnose_n1_axes] Bell      |  16.41  17.51  18.21 |  7.23 10.68 18.27 |  25.27  16.43  20.82 | 3.50x
+[diagnose_n1_axes]   ref NoiseBody F=0.81  sumA=27.0341  activeModes=64
+[diagnose_n1_axes]   detail NoiseBody mat=0.0  F=0.80  sumA=27.034  rawPeak=21.64  modes=64
+[diagnose_n1_axes]   detail NoiseBody mat=0.5  F=0.81  sumA=27.034  rawPeak=21.90  modes=64
+[diagnose_n1_axes]   detail NoiseBody mat=1.0  F=0.87  sumA=27.034  rawPeak=23.44  modes=64
+[diagnose_n1_axes] NoiseBody |   0.80   0.81   0.87 |  0.18  0.56  1.02 |   1.49   0.94   1.76 | 9.62x
+===============================================================================
+All tests passed (119419 assertions in 630 test cases)
+

@@ -1,0 +1,7 @@
+cell,ratio_a,a_gated,a_pass,max_dy,bound,margin_b,b_pass,clicks_c,clicks_transition,clicks_reference,declicked,ref_delay,w_begin,w_end,out_ratio,ampStep,ampStep_ref,bound_settled
+replace A_s+sustain1(C-8) E1 +12 st retrigger AlwaysRetrigger Reset Porta0 block 37,0.355389,1,1,0.00823202,0.0174188,2.11599,1,0,0,2,1,160,24000,25452,0.349885,n/a,n/a,0.0174068
+FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger AlwaysRetrigger Reset Porta0 block 37,0.355389,1,1,0.00823202,0.0174188,2.11599,1,0,0,2,1,160,24000,25452,0.349885,0.0032689,0,0.0174068
+replace A_s+sustain1(C-8) E1 +12 st retrigger AlwaysRetrigger Reset ConstantTime block 37,0.246252,0,1,0.00570403,0.0179553,3.14783,1,0,0,2,1,160,24000,25452,0.249954,n/a,n/a,0.0179433
+FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger AlwaysRetrigger Reset ConstantTime block 37,0.246252,0,1,0.00570403,0.0179553,3.14783,1,0,0,2,1,160,24000,25452,0.249954,0.0032689,0,0.0179433
+steal A_s+sustain1(C-8)/Solid E1 held AlwaysRetrigger Reset block 1 [disableStealFade],6.48183,1,0,0.203571,0.0346657,0.170288,0,2,2,0,1,160,24000,25452,6.84729,n/a,n/a,0
+replace A_s+sustain1(C-8)/Solid E1 +3 st retrigger AlwaysRetrigger Reset Porta0 block 1 [disableDeclick],15.6608,1,0,0.208436,0.0137551,0.0659922,0,2,2,2,1,160,24000,25452,15.2556,n/a,n/a,0.0137431

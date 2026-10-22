@@ -89,6 +89,57 @@ TEST_CASE("TruePeakLimiter bounds a hot signal to the ceiling", "[true_peak_limi
     REQUIRE(tp <= ceil + 0.06f);         // within ~0.5 dB of the -1 dBTP target
 }
 
+// Profundum Phase 9 T029: the halfband detector (opt-in) under the same bars as the IIR detector.
+TEST_CASE("TruePeakLimiter halfband detector bounds a hot signal to the ceiling",
+          "[true_peak_limiter][gain_staging][profundum]")
+{
+    const int n = 4096;
+    TruePeakLimiter lim;
+    lim.prepare(kSr, n);
+    lim.setCeilingDb(-1.0f);
+    lim.setHalfbandDetector(true);
+    REQUIRE(lim.halfbandDetector());
+    const float ceil = lim.getCeilingLinear();
+
+    std::vector<float> L(n), R(n);
+    for (int i = 0; i < n; ++i)
+    {
+        const float s = 2.0f * std::sin(2.0f * 3.14159265f * 1000.0f
+                                        * static_cast<float>(i) / static_cast<float>(kSr));
+        L[i] = s;
+        R[i] = s;
+    }
+    lim.processBlock(L.data(), R.data(), n);
+
+    const int skip = 64;
+    float samplePeak = 0.0f;
+    std::vector<float> tail;
+    for (int i = skip; i < n; ++i)
+    {
+        samplePeak = std::max(samplePeak, std::fabs(L[i]));
+        tail.push_back(L[i]);
+    }
+    REQUIRE(samplePeak <= ceil + 1.0e-4f);   // sample-level guarantee, exact
+    const float tp = measureTruePeak(tail);
+    REQUIRE(tp <= 1.0f);
+    REQUIRE(tp <= ceil + 0.06f);             // within ~0.5 dB of the -1 dBTP target
+
+    // Quiet input is untouched (gain stays 1) and the output is not delayed.
+    TruePeakLimiter quiet;
+    quiet.prepare(kSr, n);
+    quiet.setHalfbandDetector(true);
+    std::vector<float> qL(n, 0.0f), qR(n, 0.0f), qIn(n, 0.0f);
+    for (int i = 0; i < n; ++i)
+    {
+        qIn[i] = 0.25f * std::sin(2.0f * 3.14159265f * 220.0f * static_cast<float>(i) / static_cast<float>(kSr));
+        qL[i] = qIn[i];
+        qR[i] = qIn[i];
+    }
+    quiet.processBlock(qL.data(), qR.data(), n);
+    for (int i = 0; i < n; ++i)
+        REQUIRE(qL[i] == Approx(qIn[i]).margin(1.0e-6));
+}
+
 TEST_CASE("TruePeakLimiter passes a quiet signal transparently", "[true_peak_limiter][gain_staging]")
 {
     const int n = 2048;
@@ -215,4 +266,118 @@ TEST_CASE("TruePeakLimiter sample-level ceiling is exact (no float overshoot)",
     }
     INFO("samples above the ceiling: " << over << ", worst |out| - ceiling = " << (worst - ceil));
     CHECK(over == 0);
+}
+
+// -----------------------------------------------------------------------------
+// Profundum Phase 9 G14-1 (user ruling 2026-10-21): the opt-in look-ahead
+// -----------------------------------------------------------------------------
+
+namespace {
+/// A hot, asymmetric, harmonic-rich bass tone: the material on which the zero-look-ahead limiter's
+/// sample-by-sample gain steps read +1.02 dBTP (SC-013) and -46 dBFS of off-lattice content (SC-021).
+std::vector<float> hotAsymmetricTone(int n)
+{
+    std::vector<float> x(static_cast<std::size_t>(n));
+    for (int i = 0; i < n; ++i)
+    {
+        const float t = static_cast<float>(i) / static_cast<float>(kSr);
+        float v = 0.0f;
+        for (int h = 1; h <= 40; ++h)
+            v += std::sin(2.0f * 3.14159265f * 41.2f * static_cast<float>(h) * t + 0.3f * static_cast<float>(h))
+                 / static_cast<float>(h);
+        v = v > 0.0f ? 2.6f * v : 1.1f * v;   // asymmetric, well over the ceiling
+        x[static_cast<std::size_t>(i)] = v;
+    }
+    return x;
+}
+}  // namespace
+
+TEST_CASE("TruePeakLimiter look-ahead is off by default and bit-identical to the zero-latency path",
+          "[true_peak_limiter][gain_staging][profundum]")
+{
+    const int n = 8192;
+    TruePeakLimiter a, b;
+    a.prepare(kSr, 512);
+    b.setLookaheadSamples(0);
+    b.prepare(kSr, 512);
+    REQUIRE(a.lookaheadSamples() == 0u);
+    REQUIRE(b.lookaheadSamples() == 0u);
+    const std::vector<float> in = hotAsymmetricTone(n);
+    std::vector<float> aL = in, aR = in, bL = in, bR = in;
+    a.processBlock(aL.data(), aR.data(), n);
+    b.processBlock(bL.data(), bR.data(), n);
+    for (int i = 0; i < n; ++i)
+    {
+        REQUIRE(aL[static_cast<std::size_t>(i)] == bL[static_cast<std::size_t>(i)]);
+        REQUIRE(aR[static_cast<std::size_t>(i)] == bR[static_cast<std::size_t>(i)]);
+    }
+}
+
+TEST_CASE("TruePeakLimiter look-ahead delays the audio by N samples and passes quiet input bit for bit",
+          "[true_peak_limiter][gain_staging][profundum]")
+{
+    const int n = 4096;
+    const std::size_t N = 64;
+    TruePeakLimiter lim;
+    lim.setLookaheadSamples(N);
+    lim.prepare(kSr, 512);
+    REQUIRE(lim.lookaheadSamples() == N);
+    std::vector<float> in(static_cast<std::size_t>(n));
+    for (int i = 0; i < n; ++i)
+        in[static_cast<std::size_t>(i)] =
+            0.25f * std::sin(2.0f * 3.14159265f * 220.0f * static_cast<float>(i) / static_cast<float>(kSr));
+    std::vector<float> L = in, R = in;
+    lim.processBlock(L.data(), R.data(), n);
+    for (std::size_t i = 0; i < N; ++i)
+        REQUIRE(L[i] == 0.0f);   // the delay line's initial silence
+    for (std::size_t i = N; i < static_cast<std::size_t>(n); ++i)
+    {
+        REQUIRE(L[i] == in[i - N]);
+        REQUIRE(R[i] == in[i - N]);
+    }
+    lim.setLookaheadSamples(TruePeakLimiter::kMaxLookaheadSamples + 5);
+    lim.prepare(kSr, 512);
+    REQUIRE(lim.lookaheadSamples() == TruePeakLimiter::kMaxLookaheadSamples);   // clamped
+}
+
+TEST_CASE("TruePeakLimiter look-ahead bounds the true peak where the zero-latency path overshoots",
+          "[true_peak_limiter][gain_staging][profundum]")
+{
+    const int n = 48000;
+    const std::vector<float> in = hotAsymmetricTone(n);
+
+    TruePeakLimiter zero;
+    zero.prepare(kSr, 512);
+    zero.setCeilingDb(-1.0f);
+    zero.setHalfbandDetector(true);
+    std::vector<float> zL = in, zR = in;
+    zero.processBlock(zL.data(), zR.data(), n);
+
+    TruePeakLimiter la;
+    la.setLookaheadSamples(64);
+    la.prepare(kSr, 512);
+    la.setCeilingDb(-1.0f);
+    la.setHalfbandDetector(true);
+    std::vector<float> lL = in, lR = in;
+    la.processBlock(lL.data(), lR.data(), n);
+
+    const float ceil = la.getCeilingLinear();
+    const int skip = 4800;   // past the release settling
+    float zPeak = 0.0f, lPeak = 0.0f;
+    std::vector<float> zTail, lTail;
+    for (int i = skip; i < n; ++i)
+    {
+        zPeak = std::max(zPeak, std::fabs(zL[static_cast<std::size_t>(i)]));
+        lPeak = std::max(lPeak, std::fabs(lL[static_cast<std::size_t>(i)]));
+        zTail.push_back(zL[static_cast<std::size_t>(i)]);
+        lTail.push_back(lL[static_cast<std::size_t>(i)]);
+    }
+    REQUIRE(zPeak <= ceil + 1.0e-4f);   // both keep the sample-level guarantee
+    REQUIRE(lPeak <= ceil + 1.0e-4f);
+    const float zTp = measureTruePeak(zTail);
+    const float lTp = measureTruePeak(lTail);
+    INFO("true peak: zero-look-ahead " << 20.0f * std::log10(zTp) << " dBTP, look-ahead 64 "
+                                        << 20.0f * std::log10(lTp) << " dBTP, ceiling " << 20.0f * std::log10(ceil));
+    REQUIRE(lTp <= ceil * 1.0116f);   // within 0.1 dB of the ceiling (SC-013's allowance)
+    REQUIRE(lTp < zTp);               // and below what the stepping gain lets through
 }

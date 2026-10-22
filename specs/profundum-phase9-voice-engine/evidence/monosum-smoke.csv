@@ -1,0 +1,7 @@
+mode,voices,base,note,tap,fc_hz,sub_in_band,sub_valid,q_sub_db,rho_sub,s2m_sub_db,sub_mean_dbfs,gated,pass,anchor_lr_bitwise,dc_resync_sample,solid_out_lr_bitwise_from_resync,lr_diff_samples_switch_to_resync,lr_diff_samples_wide_lead_in,h20_band_lo_hz,h20_out_side_residue_dbfs
+SOLID,MONO,A_s,E1,core,120,1,1,0,1,-120,-12,0,1,1,24480,1,544,23705,2637.02,-3000
+SOLID,MONO,A_s,E1,character,120,1,1,0,1,-120,-11.9198,0,1,1,24480,1,544,23705,2637.02,-3000
+SOLID,MONO,A_s,E1,sum,120,1,1,0,1,-120,-5.9717,0,1,1,24480,1,544,23705,2637.02,-3000
+SOLID,MONO,A_s,E1,dyn,120,1,1,0,1,-120,-5.97163,0,1,1,24480,1,544,23705,2637.02,-3000
+SOLID,MONO,A_s,E1,field,120,1,1,0,1,-120,-5.97163,1,1,1,24480,1,544,23705,2637.02,-3000
+SOLID,MONO,A_s,E1,out,120,1,1,0,1,-120,-6.03327,1,1,1,24480,1,544,23705,2637.02,-3000

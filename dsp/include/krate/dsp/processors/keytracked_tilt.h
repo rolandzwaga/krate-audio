@@ -84,14 +84,24 @@ public:
     [[nodiscard]] float tone() const noexcept { return tone_; }
 
 private:
+    /// Profundum Phase 9 T032: float exp2 pair instead of two double pows. The Character stage hands
+    /// this tilt its per-sample smoothed Tone, so under a moving Tone the recompute ran per sample per
+    /// channel (5.8 % of the engine's samples in the P-1 profile); the gains were float already.
+    /// ShapeMorph::computeInverse evaluates the same expressions in the same order (C-23 exact inverse).
     void updateGains() noexcept {
-        const double g = (2.0 * static_cast<double>(tone_) - 1.0) * static_cast<double>(maxDb_);
-        const double lo = std::pow(10.0, -g / 20.0);
-        const double hi = std::pow(10.0, g / 20.0);
-        const double nu = std::sqrt(2.0 / (lo * lo + hi * hi));
-        gL_ = static_cast<float>(lo * nu);
-        gH_ = static_cast<float>(hi * nu);
+        const float g = (2.0f * tone_ - 1.0f) * maxDb_;
+        const float lo = std::exp2(-g * kLog2TenOver20);
+        const float hi = std::exp2(g * kLog2TenOver20);
+        const float nu = std::sqrt(2.0f / (lo * lo + hi * hi));
+        gL_ = lo * nu;
+        gH_ = hi * nu;
     }
+
+public:
+    /// log2(10) / 20: 10^(dB / 20) = 2^(dB · kLog2TenOver20). Shared with ShapeMorph::computeInverse.
+    static constexpr float kLog2TenOver20 = 0.16609640474436811f;
+
+private:
 
     OnePoleLP lp_;
     float k_ = 2.0f;
