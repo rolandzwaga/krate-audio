@@ -1,0 +1,6 @@
+START 2026-10-21T18:20:52Z commit 0ae33b87 nproc 32
+step1-fingerprint exit=0 wall=1s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/harvest-fingerprint.log
+step1-macro exit=0 wall=83s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/harvest-macro.log
+step1 wall=83s
+step3-paste exit=0 log=specs/profundum-phase9-voice-engine/evidence/run-log/close/harvest-paste.log
+DONE 2026-10-21T18:22:17Z exit=0 wall=85s green: macro rows and fingerprint pasted; rebuild dsp_systems_tests once, then run the Group 10 gate

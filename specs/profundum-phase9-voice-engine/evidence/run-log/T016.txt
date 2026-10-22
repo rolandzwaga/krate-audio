@@ -1,0 +1,137 @@
+T016 - Audibility table (SC-010), macro monotonicity (SC-007), Motion -> Mass swell (SC-009); FR-080; plan C-8, C-17, S9.11
+Date: 2026-10-20  Branch: synth/profundum  Base: 0ae33b87
+Executor run-log. Nothing was built and no test was run, per the task instruction; the group's build agent does both.
+One static check was run: clang++ -std=c++20 -fsyntax-only -Wall -Wextra on the TU (include paths dsp/include,
+tests/test_helpers, dsp/tests/unit/{systems,processors}, the Catch2 and pffft _deps of build/windows-x64-release).
+Result: 0 diagnostics in the TU. The 2 warnings are pre-existing, in crossover_filter.h:434-435
+(-Wdefaulted-function-deleted on MSVC's std::atomic), a header this task does not touch.
+
+FILES WRITTEN
+- dsp/tests/unit/systems/profundum_engine_audibility_test.cpp: T001 stub replaced. TEST_CASEs:
+    VoiceEngine_AudibilityTable_{Core,Character,Anchor,Pitch,Envelope,Mass,Field,Motion,Morph,NoteMemory,Macros}
+        [systems][profundum][voice-engine][sc-010][long] (Envelope also [fr-009]; Macros also [sc-007])
+    VoiceEngine_AudibilityTableSmoke [sc-010]                (AT-03, AT-10, AT-26 (A_s and B cells) at E1)
+    VoiceEngine_MacroMonotone [sc-007][long]; VoiceEngine_MacroMonotoneSmoke [sc-007] (Clean <-> Violent, E1, 5 steps)
+    VoiceEngine_MotionMassSwell [sc-009][long]; VoiceEngine_MotionMassSwellSmoke [sc-009] (2 Hz, 3 s)
+  Every non-[long] sibling uses the same readers and the same bar (deviation 5).
+- specs/profundum-phase9-voice-engine/spec.md: the FR-080 AT-24 row (Base column), and only that row: the per-row
+  setting with its reason (see DECISIONS 4).
+- this run-log.
+
+ODR SWEEP (this session, before writing)
+$ grep -rn "struct Au[A-Z]|class Au[A-Z]|struct T16|class T16| au[A-Z][a-zA-Z]*(" dsp/ plugins/  -> 0 hits
+$ grep -rn "VoiceEngine_AudibilityTable|VoiceEngine_MacroMonotone|VoiceEngine_MotionMassSwell" dsp/tests -> 0 hits
+Every new name lives in this TU's anonymous namespace and carries the au / Au / kAu prefix. No header was changed.
+
+FACTS READ THIS SESSION (live anchors)
+- tasks.md T016 :958-990; the precondition C-8 row :24 (A_s; B10-1 B_s); deviation 5 (smokes) and 7 (tags).
+- spec.md FR-080 :658-716 (table AT-01 ... AT-50; "Showcase inert" rule :670-672; bars :674-677); SC-007 :894,
+  SC-009 :896, SC-010 :897; FR-052 Dark <-> Bright B10-1 / B10-2 :564.
+- plan.md C-8 :235-241; S9.11 :1247-1253; the S10 test rows SC-007 / SC-009 / SC-010 :1354-1357.
+- profundum_voice_engine_test_helpers.h (T009): voiceEngineAs / voiceEngineBs :105 / :113; VoiceEngineEvent /
+  VoiceEngineScript :130 / :139; VoiceEngineVoiceTapSet / VoiceEngineGridRecord :171 / :177; VoiceEngineTaps :187;
+  voiceEngineRender :377; voiceEngineRenderWithTwin :449; asFieldTaps :466; voiceEngineDeclickLength :493;
+  voiceEngineDropDescriptors :615; voiceEngineFrameLength :648; VoiceEngineHarmonicFit :655;
+  voiceEngineFrames :793; voiceEngineFrameDnlDb :827 / :840; voiceEngineBoxcarAttenuation :850.
+- bass_morph_test_helpers.h: readWindow :703-718, midOf :720, floorPower :734, dCxDb :755, dNlDb :771-778,
+  dBrOct :808-813, lKDb :816-822, eSubDb :829-845, periodEnergies :874-891, fallOff :900-916, dTMs :919-930,
+  gateRender :945-966 (the protocol mirrored on the Sum tap, as T014's t14Measure does,
+  profundum_engine_probe_test.cpp:2327-2368).
+- bass_morph_state_helpers.h showcasePair :167-220 (A: kSineAnchor, decay 150, sustain 0, release 50, Anchor level 1
+  Sine LOCK :185-187; B: kHeavy edge 1, Fold 80, Character Fold 0.5, WIDE spread 1, sustain 0.8).
+- bass_stereo_field_test_helpers.h: kFloorDb / kValidMeanEnergy :90-91; BandReading :711-717; bandReading :736.
+- mass_dynamics_test_helpers.h: kSettleSeconds :87, descriptorSeconds :90-92.
+- profundum_core_test_helpers.h: kTwoPi :49, bh7Window :142, goertzelPhase :157.
+- profundum_engine.h: ProfundumEngineConfig :84-89; VoiceMode / constants :96-115; applyNoteOn (MONO = voice 0;
+  FromSilence / Overlap / Tail) :736-751. profundum_engine_observer.h: seams :31-41 (anchorPhaseTap :40), grid record
+  :52 (compressorGrDb), voice taps :61.
+- profundum_macro_matrix.h: ProfundumMacro :38, ProfundumMacroValues :58-63, kNeutral :67.
+- morph_state.h: AmpEnvelopeFields :71-79, MotionConfig :81-101, MorphState fields :103-122.
+- note_memory.h: Mode :24-29, Retrigger :32, Actions :48-56, resolve :82-101, kMatrix :117-122.
+- adsr_envelope.h: gate :86-110 (Hard retrigger -> enterAttack), enterAttack :451-463 (starts from output_).
+- anchor_oscillator.h: Waveform / Mode :57-58, Controls :99-106, phase() in cycles of the fundamental :358,
+  Ghost = cosine emerge 0 -> 1 over ghostTimeMs :1023-1024.
+- voice_allocator.h: same-note retrigger reuses the playing voice :238-242.
+- evidence/probes/p4-follow-flip.txt: P4 VERDICT FLIPS; Rectify ratio 2 from Amount 0.88, Fracture ratio 0.5 from
+  0.45, both still flipped at Amount 1 (E1 and C3).
+- evidence/macro-rows.txt: HARVEST GREEN (Weight k 2.25, Dark <-> Bright k 1, Tight <-> Loose k 2.5,
+  Clean <-> Violent k 1, all Linear).
+- specs/profundum-phase6-mass-dynamics/evidence/phase9-handoff.txt:42: Phase 6's H-17 reading -10.1172 dB
+  (4 voices at E1 detuned {-6, -2, +2, +6} cents).
+
+DECISIONS
+1. Bases. Rows on A use A_s (C-8), named "A + sustain 1 (C-8)". AT-48 (Dark <-> Bright) is gated on B_s
+   ("B + sustain 1 (B10-1)"), and its A_s reading is a second, ungated line. AT-26's second cell, AT-27 and AT-28 use
+   B as the spec names it (C-8: "B keeps its own 0.8"). The morph rows use the pair (A_s, B).
+2. Readers. These are the Phase 8 readers on the engine taps (asFieldTaps). D_nl is always the Character tap over the
+   forceLinearCore twin's core tap. D_t runs on the Phase 8 gate render on the Sum tap. A local copy (auDtMs) drops
+   the reader's REQUIRE, so a render that never falls 80 dB is recorded as invalid instead of aborting the shard.
+   The output-tap reading is written beside every row: the same descriptor on the output where one exists,
+   otherwise L_K of the output.
+3. value. Non-macro rows use |hi - lo|, or max / min for time ratios ("moves its descriptor by"). Macro rows use
+   the documented axis direction (hi - lo, hi / lo), as the T014 harvest did. D_st cells also require Phase 7's band
+   validity (G8-1, -60 dBFS) for both readings, because a band with no content above 2 f_c is not a width reading
+   (Phase 8 B10-4).
+4. AT-24 per-row setting, written into the spec table. This is FR-080's "Showcase inert" rule, applied on an
+   analytic bound. On any sustain-1 base the 1 s hold of the gate render dominates D_t:
+   D_t(0.1 ms) >= ~1015 ms and D_t(500 ms) >= 515 ms, so the ratio is <= 1.97 < 2 on A_s and B_s alike, and on B's
+   own sustain 0.8 in the same way. The row therefore uses plain A (decay 150 ms, sustain 0). The A_s reading is
+   recorded ungated beside it.
+5. AT-25 "release reading": D_t of the gate render from the note-off grid point on, normalised by that segment's
+   own peak period.
+6. AT-11 / AT-12: E_sub over [note-on, note-on + punchTimeMs / ghostTimeMs) is a least-squares projection onto
+   {1, cos, sin} at f0. The GHOST window (15 ms) is shorter than one E1 period, so a DFT bin cannot read it.
+7. AT-13: the Anchor's mean instantaneous frequency over [1 s, 2 s) comes from phase() differences, using the
+   anchorPhaseTap seam on voice 0. Pass requires the follow-ratio tap != 1 and the shift within +-5 cents of
+   1200 log2(ratio). Both algorithms run at Amount 1, the spec's setting; P-4 shows both flipped there.
+8. AT-17: BH7 single-bin power at f0/2 over 2^16 samples from 1 s, in dB relative to the Sine render's f0 power,
+   floored at -60 dB (the Phase 8 relative floor).
+9. Note Memory rows (AT-43 ... AT-46). On A_s, an envelope restart from sustain 1 re-attacks from 1 to 1
+   (enterAttack starts from output_), so every envelope-only Actions difference is silent. Each row therefore pairs M
+   with an M_ref whose resolved Actions differ only in the oscillator restart (phase reset + declick); envelope, Drop
+   (amount 0) and Anchor actions are identical. The reading is the core-h1 Goertzel phase jump, |wrap(phi_M - phi_ref)|
+   >= 30 deg, at the new f0 over 4 periods from t1 + 20 ms.
+     AT-43 AlwaysRetrigger vs EnvelopeRetriggerOnly, Overlap
+     AT-44 Legato vs OscillatorContinuous, Tail (note-off 10 ms before t1)
+     AT-45 EnvelopeRetriggerOnly vs Legato, Tail
+     AT-46 OscillatorContinuous vs AlwaysRetrigger, Tail
+   t1 is the grid point in [0.5 s, 0.5 s + one period] whose predicted jump frac(f1 t1 / fs + f2 L_d / fs) is
+   closest to half a cycle. M_ref, the transition kind and t1 are written in the CSV's contrast column.
+10. Frame-wise rows (AT-33 ... AT-40, SC-009) use S9.11 frames (8 periods, hop 960) from the 1 s settle.
+    AT-34 ... AT-38 run CYCLE 0.1 Hz for 30 s. AT-39 runs ENV for 6 s, retriggered every 2 s (note-off at k 2 s,
+    note-on 64 samples later, in both arms). AT-40 runs DRIFT for 30 s. AT-33 runs field MOTION for 10 s.
+    Frame D_br is the centroid over h1..h8 of the frame fit; frame D_cx is (sum_{n>=2} + P_{>=9}) / P1, floored at
+    -60 dB re P1. Each contrast is p2p(on) - p2p(off).
+11. FR-009 ampStep (Envelope shard). Each envelope row has a morph arm on A_s: a held note, a 5 ms ramp p 0 -> 1 at
+    0.5 s, and endpoints that differ only in the row's field. ampStep is max |dg_amp| over the 64 samples after each
+    grid point where that field's resolved value changed (bitwise, grid records), written beside ampStep_ref from
+    the no-morph run. It is recorded, not gated. Other rows write n/a.
+12. CSVs. Each TEST_CASE writes its own file, evidence/audibility-table/<case>.csv. The [long] shards run as
+    concurrent processes in the close lane, so a single audibility-table.csv would be a write race (DEVIATION from
+    the task's file name; the close lane can concatenate the files). The other outputs are macro-monotone.csv
+    (+ -smoke), motion-mass-swell.txt (+ -smoke) and h17-poly-gr.txt. Each shard writes its CSV before its first
+    REQUIRE, so a red cell never loses the rest of the table.
+13. H-17 DEVIATION. The engine's pitch API is MIDI notes plus one global bend (C-11), so 4 voices detuned by cents
+    around E1 cannot be reached through it. Recorded instead: MONO E1, and POLY 4 voices on E1 / F1 / F#1 / G1, beside
+    Phase 6's -10.1172 dB. The file states the deviation.
+14. The SC-009 smoke gates D_nl p2p >= 3 dB at 2 Hz: the same bar on the smoke's own cell (deviation 5). Expected
+    attenuation is the frame boxcar |sinc(pi 2 8 / 41.2)| = 0.77. The 40 ms Mass slew does not limit a +-50 swing at
+    2 Hz: its peak rate is 628 / s, below the slew's ~2500 / s.
+
+PREDICTED RED CELLS (the main loop's ruling; recorded here and in the CSV remarks, not pre-empted)
+- AT-29, AT-31, AT-32, AT-33 (D_st above 2 f_c = 240 Hz on A_s). A_s's sine core has no partial above 2 f_c at E1
+  (41 Hz) or C3 (131 Hz), so the band is below G8-1's floor and the cells read invalid. They are GATED on A_s as the
+  spec writes them. A B_s line for each is recorded ungated, so a B10-1-style per-row ruling (base -> B_s) has its
+  measurement from the same run. AT-30 (A_s + Rectify 0.5) has content above 2 f_c and may pass.
+- AT-37, AT-38 (Motion Edge / Shift -> D_br on A_s). B10-1 already measured these targets on the sine recipe:
+  0.016 oct. They are gated on A_s, with a B_s line recorded ungated.
+- Possibly AT-35 (Motion Depth -> E_sub on the single-partial sine recipe) and AT-02 (SHAPE -> D_br on a sine).
+  These are not predictable from the code read here; the close-lane CSV decides.
+Moving a row's base to B is a ruling, not an executor's decision (B10-1 precedent), so none of these was moved.
+
+RESOURCE NOTE (for the close lane)
+voiceEngineAllocateTaps reserves calls for (intervals + 1) x (32 + 32 x 8) records whatever the tapped-voice count.
+A 31 s render therefore reserves about 214 MB of call records plus about 60 MB of grid records and about 95 MB of
+per-sample taps. The SC-009 0.1 Hz and DRIFT cells keep a render and its twin alive at once (~0.75 GB peak), and
+the Motion shard renders sequentially (~0.4 GB peak). The helper header is read-only after T009, so this is recorded,
+not changed. Size the concurrent [long] lane accordingly.

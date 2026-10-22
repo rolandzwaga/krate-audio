@@ -1,0 +1,22 @@
+Filters: "VoiceEngine_AudibilityTable_NoteMemory"
+Randomness seeded to: 1078674208
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+VoiceEngine_AudibilityTable_NoteMemory
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_audibility_test.cpp(1955)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_morph_test_helpers.h(708): FAILED:
+  REQUIRE( w.start + w.length <= n )
+with expansion:
+  310144 (0x4bb80) <= 28090 (0x6dba)
+
+===============================================================================
+test cases:  1 |  0 passed | 1 failed
+assertions: 15 | 14 passed | 1 failed
+

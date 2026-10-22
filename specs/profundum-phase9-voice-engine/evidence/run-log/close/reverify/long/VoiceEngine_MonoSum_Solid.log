@@ -1,0 +1,6 @@
+Filters: "VoiceEngine_MonoSum_Solid"
+Randomness seeded to: 1625178348
+SC-015 monosum-solid.csv: 8 cells, 0 failing
+===============================================================================
+All tests passed (698 assertions in 1 test case)
+

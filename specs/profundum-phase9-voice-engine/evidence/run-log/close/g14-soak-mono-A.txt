@@ -1,0 +1,143 @@
+VoiceEngine soak 'mono' (SC-013 / SC-014; tasks.md T019)
+mode MONO, seed 0x5013, fs 48000, host block 32, 43200000 samples (900 s), 1538 events, wall 178.355 s
+lock notes: 28; lock 125 s after a 3 s gap; windows at s0 + 1 s 61 s 121 s
+
+[SC-013] finite (bit test)
+  output non-finite samples: 0  green
+  voice tap coreL: 0 non-finite
+  voice tap coreR: 0 non-finite
+  voice tap charL: 0 non-finite
+  voice tap charR: 0 non-finite
+  voice tap anchorL: 0 non-finite
+  voice tap anchorR: 0 non-finite
+  voice tap gAmp (amp envelope): 0 non-finite
+  voice tap gD (RetriggerDeclick): 0 non-finite
+  voice tap fRes: 0 non-finite
+  voice tap fCore (DropEnvelope / DropPhaseLock): 0 non-finite
+  voice tap fAnchor: 0 non-finite
+  voice tap anchorPhase: 0 non-finite
+  voice tap feed: 0 non-finite
+  voice scalars (followRatio, a1, anchorLevel, feed, meter): 0 chunks
+  engine tap sumL: 0 non-finite
+  engine tap sumR: 0 non-finite
+  engine tap dynL: 0 non-finite
+  engine tap dynR: 0 non-finite
+  engine tap fieldL (BassStereoField): 0 non-finite
+  engine tap fieldR (BassStereoField): 0 non-finite
+  engine tap dcL (DCBlocker): 0 non-finite
+  engine tap dcR (DCBlocker): 0 non-finite
+  engine tap outL (TruePeakLimiter): 0 non-finite
+  engine tap outR (TruePeakLimiter): 0 non-finite
+  grid resolved (BassMorphEngine): 0 records
+  grid afterMacros: 0 records
+  grid afterMotion: 0 records
+  grid motionSource / motionOutput (LFO / Drift / ENV): 0 records
+  grid mass / anchor / compression scalars (MassLaw smoothedMass): 0 records
+  grid targets (MassLaw handed): 0 records
+  observed: 1814565 voice chunks, 1909063 engine chunks, 1350000 grid records
+  state poll (engine stateFinite / oversamplerStateFinite), 1350562 polls: stateFinite polled, 0 false; oversamplerStateFinite polled, 0 false
+
+[SC-013] true peak (test-side 4x halfband): 1.01681 dBTP at sample 3554595; bar ceiling -1 + 0.1 dB  RED
+
+[SC-013] DC per 10 s window (BH7-weighted mean, worst channel) at the DC-safety tap (DCBlocker, ruling G11-4), bar -80 dBFS: worst -68.6208  RED; output (TruePeakLimiter) recorded: worst -44.8159 dBFS
+  window 0 [0 s]: DC tap -113.355 dBFS (480000 samples), output -113.355 dBFS
+  window 1 [10 s]: DC tap -112.02 dBFS (480000 samples), output -112.02 dBFS
+  window 2 [20 s]: DC tap -101.725 dBFS (480000 samples), output -71.1275 dBFS
+  window 3 [30 s]: DC tap -99.8957 dBFS (480000 samples), output -68.1039 dBFS
+  window 4 [40 s]: DC tap -102 dBFS (480000 samples), output -102.108 dBFS
+  window 5 [50 s]: DC tap -109.042 dBFS (480000 samples), output -116.546 dBFS
+  window 6 [60 s]: DC tap -97.6277 dBFS (480000 samples), output -105.89 dBFS
+  window 7 [70 s]: DC tap -94.7391 dBFS (480000 samples), output -82.9597 dBFS
+  window 8 [80 s]: DC tap -125.734 dBFS (480000 samples), output -125.735 dBFS
+  window 9 [90 s]: DC tap -127.454 dBFS (480000 samples), output -127.456 dBFS
+  window 10 [100 s]: DC tap -126.686 dBFS (480000 samples), output -126.688 dBFS
+  window 11 [110 s]: DC tap -128.655 dBFS (480000 samples), output -128.656 dBFS
+  window 12 [120 s]: DC tap -126.218 dBFS (480000 samples), output -126.219 dBFS
+  window 13 [130 s]: DC tap -124.445 dBFS (480000 samples), output -124.446 dBFS
+  window 14 [140 s]: DC tap -125.021 dBFS (480000 samples), output -125.022 dBFS
+  window 15 [150 s]: DC tap -129.012 dBFS (480000 samples), output -129.012 dBFS
+  window 16 [160 s]: DC tap -130.397 dBFS (480000 samples), output -130.398 dBFS
+  window 17 [170 s]: DC tap -129.8 dBFS (480000 samples), output -129.801 dBFS
+  window 18 [180 s]: DC tap -132.855 dBFS (480000 samples), output -132.855 dBFS
+  window 19 [190 s]: DC tap -127.259 dBFS (480000 samples), output -127.259 dBFS
+  window 20 [200 s]: DC tap -100.583 dBFS (480000 samples), output -100.584 dBFS
+  window 21 [210 s]: DC tap -129.994 dBFS (480000 samples), output -129.995 dBFS
+  window 22 [220 s]: DC tap -110.723 dBFS (480000 samples), output -110.724 dBFS
+  window 23 [230 s]: DC tap -97.2108 dBFS (480000 samples), output -97.2118 dBFS
+  window 24 [240 s]: DC tap -103.578 dBFS (480000 samples), output -103.579 dBFS
+  window 25 [250 s]: DC tap -109.174 dBFS (480000 samples), output -109.175 dBFS
+  window 26 [260 s]: DC tap -106.42 dBFS (480000 samples), output -106.421 dBFS
+  window 27 [270 s]: DC tap -103.188 dBFS (480000 samples), output -44.8159 dBFS
+  window 28 [280 s]: DC tap -96.6633 dBFS (480000 samples), output -71.5601 dBFS
+  window 29 [290 s]: DC tap -132.237 dBFS (480000 samples), output -132.238 dBFS
+  window 30 [300 s]: DC tap -130.057 dBFS (480000 samples), output -130.058 dBFS
+  window 31 [310 s]: DC tap -130.383 dBFS (480000 samples), output -130.384 dBFS
+  window 32 [320 s]: DC tap -130.283 dBFS (480000 samples), output -130.285 dBFS
+  window 33 [330 s]: DC tap -126.272 dBFS (480000 samples), output -126.273 dBFS
+  window 34 [340 s]: DC tap -126.319 dBFS (480000 samples), output -126.32 dBFS
+  window 35 [350 s]: DC tap -127.91 dBFS (480000 samples), output -127.911 dBFS
+  window 36 [360 s]: DC tap -128.995 dBFS (480000 samples), output -128.996 dBFS
+  window 37 [370 s]: DC tap -132.438 dBFS (480000 samples), output -132.438 dBFS
+  window 38 [380 s]: DC tap -134.939 dBFS (480000 samples), output -134.94 dBFS
+  window 39 [390 s]: DC tap -134.203 dBFS (480000 samples), output -134.203 dBFS
+  window 40 [400 s]: DC tap -132.379 dBFS (480000 samples), output -132.381 dBFS
+  window 41 [410 s]: DC tap -99.1066 dBFS (480000 samples), output -99.1076 dBFS
+  window 42 [420 s]: DC tap -96.2484 dBFS (480000 samples), output -96.2495 dBFS
+  window 43 [430 s]: DC tap -101.236 dBFS (480000 samples), output -101.119 dBFS
+  window 44 [440 s]: DC tap -83.3682 dBFS (480000 samples), output -69.4963 dBFS
+  window 45 [450 s]: DC tap -68.6208 dBFS (480000 samples), output -77.3267 dBFS
+  window 46 [460 s]: DC tap -72.789 dBFS (480000 samples), output -71.4537 dBFS
+  window 47 [470 s]: DC tap -76.3541 dBFS (480000 samples), output -87.0576 dBFS
+  window 48 [480 s]: DC tap -106.362 dBFS (480000 samples), output -106.363 dBFS
+  window 49 [490 s]: DC tap -101.678 dBFS (480000 samples), output -101.679 dBFS
+  window 50 [500 s]: DC tap -104.324 dBFS (480000 samples), output -104.325 dBFS
+  window 51 [510 s]: DC tap -125.307 dBFS (480000 samples), output -125.308 dBFS
+  window 52 [520 s]: DC tap -117.231 dBFS (480000 samples), output -117.232 dBFS
+  window 53 [530 s]: DC tap -121.676 dBFS (480000 samples), output -121.677 dBFS
+  window 54 [540 s]: DC tap -124.537 dBFS (480000 samples), output -124.538 dBFS
+  window 55 [550 s]: DC tap -139.871 dBFS (480000 samples), output -139.87 dBFS
+  window 56 [560 s]: DC tap -136.833 dBFS (480000 samples), output -136.834 dBFS
+  window 57 [570 s]: DC tap -113.09 dBFS (480000 samples), output -113.091 dBFS
+  window 58 [580 s]: DC tap -101.878 dBFS (480000 samples), output -101.879 dBFS
+  window 59 [590 s]: DC tap -108.395 dBFS (480000 samples), output -108.396 dBFS
+  window 60 [600 s]: DC tap -120.367 dBFS (480000 samples), output -120.368 dBFS
+  window 61 [610 s]: DC tap -100.912 dBFS (480000 samples), output -102.267 dBFS
+  window 62 [620 s]: DC tap -85.3622 dBFS (480000 samples), output -85.219 dBFS
+  window 63 [630 s]: DC tap -101.714 dBFS (480000 samples), output -67.297 dBFS
+  window 64 [640 s]: DC tap -108.85 dBFS (480000 samples), output -60.9223 dBFS
+  window 65 [650 s]: DC tap -112.4 dBFS (480000 samples), output -112.401 dBFS
+  window 66 [660 s]: DC tap -108.612 dBFS (480000 samples), output -108.669 dBFS
+  window 67 [670 s]: DC tap -109.059 dBFS (480000 samples), output -91.308 dBFS
+  window 68 [680 s]: DC tap -105.204 dBFS (480000 samples), output -105.205 dBFS
+  window 69 [690 s]: DC tap -116.796 dBFS (480000 samples), output -115.016 dBFS
+  window 70 [700 s]: DC tap -101.146 dBFS (480000 samples), output -101.147 dBFS
+  window 71 [710 s]: DC tap -90.0565 dBFS (480000 samples), output -90.0575 dBFS
+  window 72 [720 s]: DC tap -121.484 dBFS (480000 samples), output -121.485 dBFS
+  window 73 [730 s]: DC tap -89.0333 dBFS (480000 samples), output -89.0343 dBFS
+  window 74 [740 s]: DC tap -83.6662 dBFS (480000 samples), output -83.6672 dBFS
+  window 75 [750 s]: DC tap -114.391 dBFS (480000 samples), output -114.392 dBFS
+  window 76 [760 s]: DC tap -96.282 dBFS (480000 samples), output -96.283 dBFS
+  window 77 [770 s]: DC tap -106.073 dBFS (480000 samples), output -106.074 dBFS
+  window 78 [780 s]: DC tap -93.3137 dBFS (480000 samples), output -93.3147 dBFS
+  window 79 [790 s]: DC tap -101.073 dBFS (480000 samples), output -101.074 dBFS
+  window 80 [800 s]: DC tap -96.9231 dBFS (480000 samples), output -96.9241 dBFS
+  window 81 [810 s]: DC tap -95.8423 dBFS (480000 samples), output -95.8433 dBFS
+  window 82 [820 s]: DC tap -70.2123 dBFS (480000 samples), output -67.9104 dBFS
+  window 83 [830 s]: DC tap -128.665 dBFS (480000 samples), output -128.666 dBFS
+  window 84 [840 s]: DC tap -116.935 dBFS (480000 samples), output -116.936 dBFS
+  window 85 [850 s]: DC tap -91.7928 dBFS (480000 samples), output -91.7938 dBFS
+  window 86 [860 s]: DC tap -99.3784 dBFS (480000 samples), output -66.0347 dBFS
+  window 87 [870 s]: DC tap -95.4252 dBFS (480000 samples), output -45.9308 dBFS
+  window 88 [880 s]: DC tap -94.6005 dBFS (480000 samples), output -65.5831 dBFS
+  window 89 [890 s]: DC tap -114.998 dBFS (480000 samples), output -114.999 dBFS
+  trend over 30 windows: first -72.8719 dBFS, last -71.2996 dBFS, bar last <= first + 1 dB  RED
+
+[SC-014] Anchor vs core-tap h1 (goertzelPhase, Phase 3 lock window), bar 0.5 deg per window; H-2 = the same through Shape -> Fold 100 -> Character (recorded)
+  segment 0 Depth voice 0 note 28 (41.2034 Hz): dTheta[0] 44.7924 dTheta[1] 44.6308 dTheta[2] 44.4495 | windows 0.161548 0.181366 | trend -0.342914 deg || H-2 char-tap windows 0.095495 0.0888739
+  segment 1 Body voice 0 note 28 (41.2034 Hz): dTheta[0] 6.63452 dTheta[1] 6.5529 dTheta[2] 6.4719 | windows 0.0816228 0.0810033 | trend -0.162626 deg || H-2 char-tap windows 0.196003 0.198163
+  segment 2 Edge voice 0 note 28 (41.2034 Hz): dTheta[0] 11.6813 dTheta[1] 7.71864 dTheta[2] 11.8687 | windows 3.96269 4.15008 | trend 0.187381 deg || H-2 char-tap windows 2.42231 2.54217
+  segment 3 Shift voice 0 note 28 (41.2034 Hz): dTheta[0] 30.7361 dTheta[1] 17.7545 dTheta[2] 34.4075 | windows 12.9816 16.6531 | trend 3.67141 deg || H-2 char-tap windows 15.5183 18.2447
+  max core-tap window 16.6531 deg  RED; max char-tap window (H-2, recorded) 18.2447 deg
+  segments analysed 4 of 4
+
+endpoint rejections 0, dropped note-ons 0

@@ -1,0 +1,11 @@
+=== step1-fingerprint 2026-10-21T18:20:53Z cmd: build/windows-x64-release/bin/Release/dsp_systems_tests.exe "VoiceEngine_FingerprintHarvest"
+Filters: "VoiceEngine_FingerprintHarvest"
+Randomness seeded to: 580871145
+VoiceEngine_FingerprintHarvest: MONO L rms 0.285468489 peak 0.89125061 meanAbs 0.201079972 totalVariation 1307.76739
+VoiceEngine_FingerprintHarvest: MONO R rms 0.290295218 peak 0.891250908 meanAbs 0.204403159 totalVariation 1139.88555
+VoiceEngine_FingerprintHarvest: POLY L rms 0.305361002 peak 0.891250908 meanAbs 0.207363824 totalVariation 1747.01121
+VoiceEngine_FingerprintHarvest: POLY R rms 0.309519169 peak 0.891250908 meanAbs 0.210550151 totalVariation 1557.49717
+===============================================================================
+All tests passed (29 assertions in 1 test case)
+
+exit: 0 wall: 1 s

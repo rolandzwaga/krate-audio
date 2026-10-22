@@ -19,6 +19,7 @@
 #include <krate/dsp/core/db_utils.h>                         // detail::isFinite (L0)
 #include <krate/dsp/primitives/biquad.h>                     // L1, Phase 2
 #include <krate/dsp/primitives/dc_blocker.h>                 // L1, Phase 2
+#include <krate/dsp/primitives/lowpass_biquad_d.h>           // L1, Phase 9 close (split LPs in double)
 #include <krate/dsp/primitives/polyphase_halfband_oversampler.h>   // L1, Phase 2
 #include <krate/dsp/primitives/smoother.h>                   // L1, Phase 2
 #include <krate/dsp/processors/harmonic_oscillator_bank.h>   // L2
@@ -190,6 +191,25 @@ public:
             return;
         pendingControls_ = next;
         controlsDirty_ = true;
+        shapeProvided_ = false;   // T032: a shape handed in for earlier controls no longer applies
+    }
+
+    /// Profundum Phase 9 T032 (append-only): setControls(controls) plus the shape those controls
+    /// evaluate to, computed once by the owner for every voice it drives with the same controls
+    /// (ProfundumEngine; evaluateShape over 64 partials per voice was 7 % of the engine's samples at
+    /// 4 voices). Adopted at the next control update instead of evaluateTargetShape() when every
+    /// field is finite — then the latched controls are exactly the clamped ones the owner evaluated,
+    /// so the adopted shape is the one the core would have computed. Otherwise the core evaluates.
+    void setControlsWithShape(const SpectralShapeRecipe::Controls& controls, std::span<const float> shape) noexcept {
+        setControls(controls);
+        if (!prepared_ || !controlsDirty_ || shape.size() < static_cast<std::size_t>(numPartials_))
+            return;
+        if (!(detail::isFinite(controls.depth) && detail::isFinite(controls.body)
+              && detail::isFinite(controls.bodyCurvature) && detail::isFinite(controls.bodyEmphasis)
+              && detail::isFinite(controls.edge) && detail::isFinite(controls.shift)))
+            return;
+        std::copy_n(shape.data(), static_cast<std::size_t>(numPartials_), providedShape_.data());
+        shapeProvided_ = true;
     }
 
     void setFrequency(float f0Hz) noexcept {
@@ -607,6 +627,25 @@ private:
         noteOnPending_ = false;
     }
 
+    /// Profundum Phase 9 T032: the bank's constant-power pair for one offset, evaluated here instead
+    /// of by HarmonicOscillatorBank::applyPanOffsets (96 std::cos + 96 std::sin per interval, 2.5 % of
+    /// the engine's samples in the P-1 profile). The bank's law with its spread at 0 (this core never
+    /// sets one): angle = pi/4 + clamp(o, -1, 1)·pi/4, left = cos(angle), right = sin(angle). With
+    /// th = clamp(o)·pi/4 in [-pi/4, pi/4]: cos(pi/4 + th) = k·(cos th − sin th) and
+    /// sin(pi/4 + th) = k·(cos th + sin th), k = kCenterPanGain; cos th and sin th by the Cephes
+    /// single-precision minimax pair (<= 2 ulp on this range). An offset of 0 gives left == right ==
+    /// kCenterPanGain exactly, the centre table's value.
+    static void panPair(float offset, float& left, float& right) noexcept {
+        constexpr float kQuarterPi = 0.78539816339744831f;
+        const float th = std::clamp(offset, -1.0f, 1.0f) * kQuarterPi;
+        const float t2 = th * th;
+        const float s = ((-1.9515295891e-4f * t2 + 8.3321608736e-3f) * t2 - 1.6666654611e-1f) * t2 * th + th;
+        const float c = ((2.443315711809948e-5f * t2 - 1.388731625493765e-3f) * t2 + 4.166664568298827e-2f) * t2 * t2
+                        - 0.5f * t2 + 1.0f;
+        left = HarmonicOscillatorBank::kCenterPanGain * (c - s);
+        right = HarmonicOscillatorBank::kCenterPanGain * (c + s);
+    }
+
     /// S4.4 step 7 (FR-048): non-zero offsets go through applyPanOffsets; the return to all-zero
     /// restores the exact centre tables with restoreCenterPan (pan tables only: phase, amplitude
     /// and detune state stay untouched, SC-014(c)). An all-zero vector that was never applied
@@ -615,7 +654,9 @@ private:
         if (!panDirty_)
             return;
         if (panNonZero_) {
-            bank_.applyPanOffsets(panOffsets_);
+            for (std::size_t k = 0; k < kMaxPartials; ++k)   // T032: the pair evaluated here (panPair)
+                panPair(panOffsets_[k], panLeftCoef_[k], panRightCoef_[k]);
+            bank_.setPanCoefficients(panLeftCoef_, panRightCoef_);
             panAppliedNonZero_ = true;
         } else if (panAppliedNonZero_) {
             bank_.restoreCenterPan();
@@ -757,6 +798,11 @@ private:
 
     /// targetShape_ = evaluateShape(latchedControls_) over the first numPartials_ elements.
     void evaluateTargetShape() noexcept {
+        if (shapeProvided_) {   // T032: the owner's evaluation of these same controls
+            std::copy_n(providedShape_.data(), static_cast<std::size_t>(numPartials_), targetShape_.data());
+            shapeProvided_ = false;
+            return;
+        }
         SpectralShapeRecipe::evaluateShape(
             latchedControls_, std::span<float>(targetShape_.data(), static_cast<std::size_t>(numPartials_)));
     }
@@ -824,6 +870,8 @@ private:
     SpectralShapeRecipe::Controls pendingControls_{SpectralShapeRecipe::kDefaultControls};
     SpectralShapeRecipe::Controls latchedControls_{SpectralShapeRecipe::kDefaultControls};
     bool controlsDirty_ = false;
+    bool shapeProvided_ = false;                         // T032: providedShape_ holds pendingControls_'s shape
+    std::array<float, kMaxPartials> providedShape_{};    // T032: setControlsWithShape
     bool shapeConverged_ = true;
 
     std::array<float, kMaxPartials> targetShape_{};
@@ -844,6 +892,8 @@ private:
     std::array<float, kMaxPartials> panOffsets_{};
     bool panNonZero_ = false;
     bool panDirty_ = false;
+    std::array<float, kMaxPartials> panLeftCoef_{};    // T032: the pair handed to the bank
+    std::array<float, kMaxPartials> panRightCoef_{};
     bool panAppliedNonZero_ = false;
 
     RetriggerPhase policy_ = RetriggerPhase::Reset;
@@ -891,8 +941,11 @@ private:
         const float twoXRate = 2.0f * fs;
         for (ExcitationChannel& ch : excChannels_) {
             ch.os.setFactor(factor);
-            ch.splitBase.configure(FilterType::Lowpass, kExcitationSplitHz, kButterworthQ, 0.0f, fs);
-            ch.splitOs.configure(FilterType::Lowpass, kExcitationSplitHz, kButterworthQ, 0.0f, osRate);
+            // Phase 9 close (2026-10-21): double-precision state. The float32 TDF2 at fc / fs = 0.01 .. 0.0026
+            // rounded coherently with the input and left a -100 .. -118 dBFS quasi-periodic floor that the chain's
+            // later stages lifted to -65 .. -78 dBFS at the voice sum (Phase 9 SC-021(a)).
+            ch.splitBase.configure(kExcitationSplitHz, kButterworthQ, fs);
+            ch.splitOs.configure(kExcitationSplitHz, kButterworthQ, osRate);
             for (std::size_t k = 0; k < ch.notch.size(); ++k)
                 ch.notch[k].configure(FilterType::Notch, kExcitationNotchFractions[k] * fs, kExcitationNotchQ[k],
                                       0.0f, twoXRate);
@@ -1139,8 +1192,7 @@ private:
         for (const ExcitationChannel& ch : excChannels_) {
             if (!ch.os.stateFinite())
                 return false;
-            if (!detail::isFinite(ch.splitBase.getZ1()) || !detail::isFinite(ch.splitBase.getZ2())
-                || !detail::isFinite(ch.splitOs.getZ1()) || !detail::isFinite(ch.splitOs.getZ2()))
+            if (!ch.splitBase.stateFinite() || !ch.splitOs.stateFinite())
                 return false;
             for (const Biquad& n : ch.notch) {
                 if (!detail::isFinite(n.getZ1()) || !detail::isFinite(n.getZ2()))
@@ -1161,8 +1213,8 @@ private:
     /// One channel of excitation state (plan S5.2).
     struct ExcitationChannel {
         PolyphaseHalfbandOversampler os;
-        Biquad splitBase;
-        Biquad splitOs;
+        LowpassBiquadD splitBase;   // Phase 9 close: double state (see prepareExcitation)
+        LowpassBiquadD splitOs;
         std::array<Biquad, 3> notch{};
         DCBlocker dc;
         float dcIn = 0.0f;    // last value passed to dc.process (== its private x1_, dc_blocker.h)

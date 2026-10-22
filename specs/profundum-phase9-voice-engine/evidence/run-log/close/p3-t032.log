@@ -1,0 +1,18 @@
+Filters: "MassDynamics_OversamplingAliasProbe"
+Randomness seeded to: 1750297901
+# P-3 MassDynamics_OversamplingAliasProbe (tasks.md T006; plan R-C, S10.4)
+# Fold-100 kSawAnchor at E2 (82.4069 Hz) through MassDynamics alone, SC-010 settings, opt-in off / on
+# off / on = worst of Phase 6 residual windows (steady A_out, burst, step), dBFS
+# estimator = SC-021 aliasedPower(y, aliasFftLength(fs, f0)) after 1 s, worst of L / R, dBFS (gated -80 on the on reading)
+#   44100 E2_fold100_A+12 frame 65536 (bin 0.672913 Hz) input_estimator=-106.413 | off: steady -45.8336 burst -110.153 step -64.3656 | on: steady -88.3189 burst -110.13 step -64.3674
+P3 44100 E2_fold100_A+12 off=-45.8336 on=-64.3674 estimator_off=-45.8336 estimator_on=-88.3189
+#   44100 E2_fold100_A-12 frame 65536 (bin 0.672913 Hz) input_estimator=-106.413 | off: steady -45.834 burst -128.475 step -70.0396 | on: steady -88.4474 burst -128.47 step -70.0396
+P3 44100 E2_fold100_A-12 off=-45.834 on=-70.0396 estimator_off=-45.834 estimator_on=-88.4474
+#   48000 E2_fold100_A+12 frame 65536 (bin 0.732422 Hz) input_estimator=-106.244 | off: steady -55.0319 burst -70.874 step -64.8446 | on: steady -85.5044 burst -70.8741 step -64.8457
+P3 48000 E2_fold100_A+12 off=-55.0319 on=-64.8457 estimator_off=-55.0319 estimator_on=-85.5044
+#   48000 E2_fold100_A-12 frame 65536 (bin 0.732422 Hz) input_estimator=-106.244 | off: steady -55.0319 burst -82.8757 step -70.8744 | on: steady -85.1429 burst -82.8757 step -70.8744
+P3 48000 E2_fold100_A-12 off=-55.0319 on=-70.8744 estimator_off=-55.0319 estimator_on=-85.1429
+P3 VERDICT GREEN -85.1429
+===============================================================================
+All tests passed (567 assertions in 1 test case)
+

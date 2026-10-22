@@ -1,0 +1,53 @@
+T021 - Listening renders and the sheet (FR-070 Listen rows, FR-071, SC-035; tasks.md T021)
+Executor run-log, 2026-10-20. Nothing built or run here (the group's gate builds; the main loop runs listen.sh). bash -n passed.
+
+FILES WRITTEN
+- dsp/tests/unit/systems/profundum_engine_probe_test.cpp (appended after VoiceEngine_MacroHarvest; no existing line edited):
+  VoiceEngine_ListeningRenders [systems][profundum][voice-engine][.listen] and its TU-local t21 / T21 helpers (segment
+  renderer, a 32-bit float stereo RIFF writer copied in form from profundum_edge_fold_chain_test.cpp:598-634, no new
+  shared helper). It reuses this TU's T013 helpers: t13StateAs (A_s, C-8), t13AlgName, t13WriteEvidence, p3EvidenceDir,
+  kT13Fs (48 kHz), kT13Velocity, and the kT13Note* constants.
+- specs/profundum-phase9-voice-engine/evidence/close/listen.sh (bash -n OK)
+- specs/profundum-phase9-voice-engine/evidence/listening-sheet.md (8 entries. The "Verdict (user)" lines are left empty: SC-035)
+- this run-log.
+
+API USED (read this session)
+- ProfundumEngine: setEndpoint / setMorphPosition / setMorphRampMs (profundum_engine.h:305-307), setVoiceMode /
+  setPolyphony (:321, :325), prepare(double, const ProfundumEngineConfig& = {}) (:143), noteOn / noteOff (:259, :275),
+  processBlock (:417). The P-1 trial's calling pattern (probe TU p1EngineTrial) is the precedent.
+- MorphState fields (morph_state.h:103-121), BassStereoField::Controls (bass_stereo_field.h:99-111), wideCeiling 0.15 / 0.10
+  (:421-426), AnchorOscillator::Controls / Waveform (anchor_oscillator.h:57, 99-106), DropEnvelope::kDefaultTimeMs 100 ms
+  (drop_envelope.h:37), SpectralShapeRecipe presets (spectral_shape_recipe.h:82-84).
+
+DECISIONS
+1. One WAV per Listen row; H-28 is split into two files (h28a Fracture -> Crush / Rectify at C3; h28b OctaveDownSine -> Sine /
+   Triangle / RoundedSine / AsymmetricSine at E1), which gives 8 WAVs (the spec's "H-28 x2", plan SC-035 row).
+2. Each row is several segments, and each segment uses a fresh engine (MONO, polyphony 1, default config). Then no state
+   carries between A/B comparisons. Segment = note-on, hold, note-off, 0.75 s tail, 0.25 s silence. The start times in the
+   sheet are hold + 1 s cumulative, and the measured starts are written to evidence/listen/manifest.txt.
+3. The component switches (H-28) go through the morph: both endpoints are identical except for the switched selector, and
+   the position flips 0 <-> 1 every 1 s at a 5 ms ramp (setMorphRampMs). That is Phase 8 handoff 9.11's 5 ms ramp.
+4. Settings that the handoff text does not fix, chosen to make the item audible: the kSawAnchor recipe where the item needs
+   harmonics (H-1, H-2, H-10, H-19, H-28a). H-1 compares excitation mix 0 and 1 at E1 and A1. H-8 adds a T 100 ms reference
+   segment. H-10 uses Fold 100 + Tube 1 as the stages that depend on the waveform. H-14 renders the sub-only voice
+   (kSineAnchor), the reference (kDefaultControls) and the saw (kSawAnchor) at Mass 100. H-19 renders Fold and Rectify, each
+   with Anchor level 1 and 0.
+5. CHECKs (never REQUIRE on output): every sample finite (bit test, shipping FP mode) and each WAV written. A LISTEN line per
+   row gives seconds, peak dBFS and finite. These are not gates.
+6. Size: about 176 s of 48 kHz stereo float audio, about 68 MB under evidence/listen/. Whether the WAVs are committed or
+   ignored is the main loop's call.
+
+DEFERRED
+- Deferred to the main loop: run `bash specs/profundum-phase9-voice-engine/evidence/close/listen.sh` (about 2 min) after
+  the Group 11 gate build, then present evidence/listening-sheet.md to the user at comply. listen.sh appends its LISTEN
+  lines below.
+2026-10-21T18:22:39Z listen exit=0 wall=9s commit 0ae33b87
+LISTEN H-1 h01-split-hump.wav seconds=16.00 peak_dbfs=-1.00 finite=yes
+LISTEN H-2 h02-fold-breathing-c3.wav seconds=61.00 peak_dbfs=-1.00 finite=yes
+LISTEN H-8 h08-drop-snaps-e0.wav seconds=18.00 peak_dbfs=-1.00 finite=yes
+LISTEN H-10 h10-after-drop-vs-fresh.wav seconds=8.00 peak_dbfs=-1.00 finite=yes
+LISTEN H-14 h14-mass100-voices.wav seconds=15.00 peak_dbfs=-1.00 finite=yes
+LISTEN H-19 h19-wide-ceiling-fold-rectify.wav seconds=16.00 peak_dbfs=-1.00 finite=yes
+LISTEN H-28a h28a-fracture-switch-c3.wav seconds=14.00 peak_dbfs=-1.00 finite=yes
+LISTEN H-28b h28b-octavedown-switch-e1.wav seconds=28.00 peak_dbfs=-1.00 finite=yes
+LISTEN DONE 8 WAVs in F:/projects/iterum/dsp/tests/../../specs/profundum-phase9-voice-engine/evidence/listen

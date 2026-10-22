@@ -1,0 +1,10 @@
+# P-1 VoiceEngine_CpuProbe (tasks.md T013; plan R-A, S10.4, deviation 10)
+# SC-001 setting on both showcase endpoints, morph ramp 1000 ms toggled every 1 s, Drop 24 st retriggered every 0.25 s, block 64, 10 s timed after 1 s warm-up, median of 3 fresh instances, % of one core = wall / audio x 100. No observer.
+# P1 VARIANT static-morph SETTING -
+#   engine MONO Tube static-morph trials: 6.5069 6.9603 6.2248 median 6.5069
+#   engine POLY4 Tube static-morph trials: 23.201 23.627 23.323 median 23.323
+P1V static-morph Tube MONO 6.5069 POLY4 23.323
+#   engine MONO Fracture static-morph trials: 6.8967 6.882 6.8636 median 6.882
+#   engine POLY4 Fracture static-morph trials: 23.995 24.367 23.556 median 23.995
+P1V static-morph Fracture MONO 6.882 POLY4 23.995
+P1V DONE static-morph

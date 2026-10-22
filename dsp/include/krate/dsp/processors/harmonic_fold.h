@@ -28,6 +28,7 @@
 #include <krate/dsp/core/wavefold_math.h>
 #include <krate/dsp/primitives/biquad.h>
 #include <krate/dsp/primitives/dc_blocker.h>
+#include <krate/dsp/primitives/lowpass_biquad_d.h>   // Phase 9 close: the split LPs in double
 #include <krate/dsp/primitives/polyphase_halfband_oversampler.h>
 #include <krate/dsp/primitives/smoother.h>
 
@@ -96,7 +97,12 @@ public:
     static constexpr std::size_t kDetectorSegments = 8;
     static constexpr float kDetectorAttackMs = 0.0f;             // 0 = instant: env := raw on a rising raw (C-4 step clause)
     static constexpr float kDetectorReleasePeriods = 4.0f;
-    static constexpr float kDetectorReleaseHysteresis = 0.005f;  // D-4: release only when raw < env·(1 − h)
+    static constexpr float kDetectorReleaseHysteresis = 0.01f;   // D-4: release only when raw < env·(1 − h).
+                                                                 // 0.005 -> 0.01, Profundum Phase 9 G14-13 (user
+                                                                 // ruling 2026-10-21): the 0.5 % window ripple on a
+                                                                 // parity-panned channel toggled a Crush quantiser
+                                                                 // slot (44.1 kHz E2, -46 dBFS -> -122); G low by
+                                                                 // <= 0.087 dB after a level drop (was 0.043).
     static constexpr std::size_t kDetectorPeakOversampling = 4;  // D-4: true-peak estimate on 4x-upsampled |x|
     static constexpr float kDefaultFundamentalHz = 20.6017223f;  // E0 (FR-037 "default sized for E0")
     static constexpr float kMinFundamentalHz = 8.0f;
@@ -109,7 +115,7 @@ public:
                   "the detector ring index wraps with a mask");
     static_assert(kDetectorPeakOversampling == 2 || kDetectorPeakOversampling == 4,
                   "PolyphaseHalfbandOversampler::setFactor supports 2 and 4 only");
-    static_assert(kDetectorReleaseHysteresis > 0.0f && kDetectorReleaseHysteresis < 0.01f);
+    static_assert(kDetectorReleaseHysteresis > 0.0f && kDetectorReleaseHysteresis <= 0.01f);
 
     using AmountTable = std::array<float, kTablePoints>;
 
@@ -130,8 +136,10 @@ public:
         for (auto& ch : channels_) {
             ch.os.setFactor(factor);
             ch.detOs.setFactor(kDetectorPeakOversampling);  // D-4: at every rate
-            ch.splitBase.configure(FilterType::Lowpass, kSplitHz, kButterworthQ, 0.0f, fs);
-            ch.splitOs.configure(FilterType::Lowpass, kSplitHz, kButterworthQ, 0.0f, osRate);
+            // Phase 9 close (2026-10-21): double-precision state (the float32 TDF2 at fc / fs <= 0.01 left a
+            // -100 .. -118 dBFS quasi-periodic floor; Phase 9 SC-021(a), lowpass_biquad_d.h).
+            ch.splitBase.configure(kSplitHz, kButterworthQ, fs);
+            ch.splitOs.configure(kSplitHz, kButterworthQ, osRate);
             for (std::size_t k = 0; k < ch.notch.size(); ++k) {
                 ch.notch[k].configure(FilterType::Notch, kNotchRatios[k] * fs, kNotchQs[k], 0.0f,
                                       twoXRate);
@@ -250,7 +258,7 @@ public:
         for (const auto& ch : channels_) {
             if (!ch.os.stateFinite() || !ch.detOs.stateFinite())
                 return false;
-            if (!biquadFinite(ch.splitBase) || !biquadFinite(ch.splitOs))
+            if (!ch.splitBase.stateFinite() || !ch.splitOs.stateFinite())
                 return false;
             if (!detail::isFinite(ch.dcIn) || !detail::isFinite(ch.dcOut))
                 return false;
@@ -305,8 +313,8 @@ private:
 
     struct Channel {
         PolyphaseHalfbandOversampler os;
-        Biquad splitBase;
-        Biquad splitOs;
+        LowpassBiquadD splitBase;   // Phase 9 close: double state (see prepare)
+        LowpassBiquadD splitOs;
         std::array<Biquad, 3> notch{};
         DCBlocker dc;
         float dcIn = 0.0f;   // mirrors of the DC blocker's last input / output (its x1_/y1_
@@ -486,8 +494,35 @@ private:
     [[nodiscard]] static float phiFold(float u, float G, float invG, const MapCoeffs& m) noexcept {
         const float q = G * u;
         const float s = m.satOn ? m.pOverG * Sigmoid::recipSqrt(m.gOverP * q) : q;
-        const float z = m.foldOn ? m.vOverTheta * WavefoldMath::sineFold(s * m.invV, m.theta) : s;
+        // T029 hot spot #5: foldSine replaces WavefoldMath::sineFold's std::sin on the bounded fold
+        // argument (|s| <= V in the fold regime, theta <= kFoldIndexMax, so |theta * s / V| <= 3 rad);
+        // the fold regime's gate (theta >= kSineFoldGainEpsilon) is m.foldOn, as before.
+        const float z = m.foldOn ? m.vOverTheta * foldSine(m.theta * (s * m.invV)) : s;
         return m.makeup * z * invG;
+    }
+
+    /// sin(x) for |x| <= kFoldIndexMax + 1 (the fold argument; larger |x| falls back to std::sin):
+    /// quadrant reduction in double, then the single-precision minimax pair on [-pi/4, pi/4]
+    /// (Cephes sinf / cosf coefficients, <= 2 ulp). Profundum Phase 9 T029 (hot spot #5): a
+    /// per-4x-sample std::sin call was 4.5 % of the engine's samples.
+    [[nodiscard]] static float foldSine(float x) noexcept {
+        constexpr float kReduceLimit = kFoldIndexMax + 1.0f;
+        if (!(std::abs(x) <= kReduceLimit))
+            return std::sin(x);
+        constexpr double kHalfPiD = 1.57079632679489661923;
+        const double xd = static_cast<double>(x);
+        const double q = xd / kHalfPiD;
+        const int j = static_cast<int>(q + (q >= 0.0 ? 0.5 : -0.5));   // nearest, |j| <= 2 for |x| <= 4 (no lround call)
+        const auto r = static_cast<float>(xd - static_cast<double>(j) * kHalfPiD);   // [-pi/4, pi/4]
+        const float r2 = r * r;
+        float y;
+        if ((j & 1) == 0) {   // sin(r)
+            y = ((-1.9515295891e-4f * r2 + 8.3321608736e-3f) * r2 - 1.6666654611e-1f) * r2 * r + r;
+        } else {              // cos(r)
+            y = ((2.443315711809948e-5f * r2 - 1.388731625493765e-3f) * r2 + 4.166664568298827e-2f) * r2 * r2
+                - 0.5f * r2 + 1.0f;
+        }
+        return (j & 2) ? -y : y;
     }
 
     /// The S2.1 stage on one channel's sanitised sample x; returns y before the clamp.

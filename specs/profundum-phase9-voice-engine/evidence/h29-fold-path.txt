@@ -1,0 +1,5 @@
+# H-29 VoiceEngine_FoldPathRecord (FR-070 H-29 Record; plan S10.6; tasks.md T014). Recorded, not gated.
+# One held E1 (f0 41.2034 Hz) on A_s, MONO, 48 kHz, block 64. Path HELD: Fold 100 from the note-on. Path RAMP: morph 0 -> 1 (Fold 0 -> 100) over 500 ms issued at 0.5 s. Character tap mid, whole periods in [3 s, 4 s).
+H29 HELD level_db=-16.4946 h1_db=-22.6284
+H29 RAMP level_db=-16.4945 h1_db=-22.6282
+H29 DIFF (ramp - held) level_db=5.68245e-05 h1_db=0.000140124 | Phase 8 reference: ~0.13 dB (spec H-29, Phase 8 handoff 9.12)

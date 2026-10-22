@@ -177,6 +177,12 @@ private:
     float x1_;                  ///< Previous input sample
     float drive_;               ///< Saturation intensity (>= 0)
     bool hasPreviousSample_;    ///< True after first sample processed
+    // Profundum Phase 9 T029 (bit-identical): F1(x1_ * drive_) is F1(x * drive_) of the previous
+    // ADAA sample while drive_ is unchanged, so it is kept instead of being recomputed (one exp
+    // and one log1p per sample fewer). Invalid after setDrive(), reset() and every branch that
+    // updates x1_ without evaluating F1.
+    float f1x1_ = 0.0f;         ///< F1(x1_ * drive_) when f1Valid_
+    bool f1Valid_ = false;      ///< f1x1_ matches the current x1_ and drive_
 };
 
 // =============================================================================
@@ -186,12 +192,14 @@ private:
 inline void TanhADAA::setDrive(float drive) noexcept {
     // FR-003: Negative drive treated as absolute value
     drive_ = (drive < 0.0f) ? -drive : drive;
+    f1Valid_ = false;
 }
 
 inline void TanhADAA::reset() noexcept {
     // FR-005: Clear all internal state but preserve configuration
     x1_ = 0.0f;
     hasPreviousSample_ = false;
+    f1Valid_ = false;
 }
 
 inline float TanhADAA::getDrive() const noexcept {
@@ -238,6 +246,7 @@ inline float TanhADAA::process(float x) noexcept {
         // Update state for next sample
         x1_ = x;
         hasPreviousSample_ = true;
+        f1Valid_ = false;
         return result;
     }
 
@@ -245,6 +254,7 @@ inline float TanhADAA::process(float x) noexcept {
     if (!hasPreviousSample_) {
         hasPreviousSample_ = true;
         x1_ = x;
+        f1Valid_ = false;
         return FastMath::fastTanh(x * drive_);
     }
 
@@ -257,12 +267,16 @@ inline float TanhADAA::process(float x) noexcept {
         // FR-013: Epsilon fallback - use midpoint tanh
         const float midpoint = (x + x1_) * 0.5f;
         y = FastMath::fastTanh(midpoint * drive_);
+        f1Valid_ = false;
     } else {
         // FR-012: First-order ADAA formula
         // y = (F1(x*drive) - F1(x1*drive)) / (drive * (x - x1))
         const float xScaled = x * drive_;
-        const float x1Scaled = x1_ * drive_;
-        y = (F1(xScaled) - F1(x1Scaled)) / (drive_ * dx);
+        const float f1x = F1(xScaled);
+        const float f1x1 = f1Valid_ ? f1x1_ : F1(x1_ * drive_);
+        y = (f1x - f1x1) / (drive_ * dx);
+        f1x1_ = f1x;   // == F1(x1_ * drive_) of the next sample (same product, same drive_)
+        f1Valid_ = true;
     }
 
     // Update state for next sample

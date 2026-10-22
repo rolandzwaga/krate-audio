@@ -784,6 +784,36 @@ add_executable(dsp_systems_tests
     unit/systems/bass_morph_monosum_test.cpp
     unit/systems/bass_morph_aliasing_test.cpp
     unit/systems/bass_morph_perf_test.cpp
+    # Profundum Phase 9 (specs/profundum-phase9-voice-engine) - ENUMERATED, not globbed:
+    #   profundum_voice_engine_helpers_test.cpp  fixture self-tests, observer defaults
+    #   profundum_motion_test.cpp                FR-040 - FR-049, SC-026 unit
+    #   profundum_macro_matrix_test.cpp          FR-050 - FR-056, SC-008 unit
+    #   profundum_voice_test.cpp                 SC-019, SC-020, SC-033, SC-034, FR-010 / FR-015
+    #   profundum_engine_test.cpp                SC-008, SC-011, SC-012, SC-022, SC-024, SC-026 - SC-029, SC-031, SC-032,
+    #                                            SC-036
+    #   profundum_engine_nonfinite_test.cpp      SC-023 - in the -fno-fast-math block below
+    #   profundum_engine_click_test.cpp          SC-005, SC-006, SC-025 [long]
+    #   profundum_engine_audibility_test.cpp     SC-007, SC-009, SC-010 [long]
+    #   profundum_engine_chain_test.cpp          SC-015/016 [long], SC-017, SC-018
+    #   profundum_engine_aliasing_test.cpp       SC-021 [long]
+    #   profundum_engine_soak_test.cpp           SC-013/014 [long]
+    #   profundum_engine_probe_test.cpp          P-1 - P-4, H-13, harvests, listening renders - hidden
+    #   profundum_engine_perf_test.cpp           SC-001 - SC-004 [.perf]
+    #   mass_dynamics_oversampling_test.cpp      FR-082 opt-in
+    unit/systems/profundum_voice_engine_helpers_test.cpp
+    unit/systems/profundum_motion_test.cpp
+    unit/systems/profundum_macro_matrix_test.cpp
+    unit/systems/profundum_voice_test.cpp
+    unit/systems/profundum_engine_test.cpp
+    unit/systems/profundum_engine_nonfinite_test.cpp
+    unit/systems/profundum_engine_click_test.cpp
+    unit/systems/profundum_engine_audibility_test.cpp
+    unit/systems/profundum_engine_chain_test.cpp
+    unit/systems/profundum_engine_aliasing_test.cpp
+    unit/systems/profundum_engine_soak_test.cpp
+    unit/systems/profundum_engine_probe_test.cpp
+    unit/systems/profundum_engine_perf_test.cpp
+    unit/systems/mass_dynamics_oversampling_test.cpp
 )
 
 target_link_libraries(dsp_systems_tests
@@ -1283,6 +1313,8 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/systems/bass_stereo_field_nonfinite_test.cpp
         # Profundum Phase 8: injects NaN/Inf bit patterns (SC-012, FR-081). The perf TU stays out (shipping FP mode).
         unit/systems/bass_morph_nonfinite_test.cpp
+        # Profundum Phase 9: injects NaN/Inf bit patterns (SC-023, FR-061). The perf TU stays out (shipping FP mode).
+        unit/systems/profundum_engine_nonfinite_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 

@@ -1,0 +1,14 @@
+# SC-021(b) (G14-4): MassDynamics standalone on Phase 6's Fold-100 saw at each note and rate, release pinned
+# (kP3FixedReleaseMs), shaper +12 dB, compression 1, detector keyed at f0; the opt-in on at 4x is gated
+# <= -80 dBFS on the SC-021 off-lattice mask; off and on2x recorded. The engine output per cell is
+# recorded by the VoiceEngine_Aliasing_* shards (limiter gain riding and the program-dependent release).
+SC021B midi=16 fs=44100 off=-94.0075 on2x=-93.6183 on4x=-91.5592  green
+SC021B midi=16 fs=48000 off=-95.5041 on2x=-94.6699 on4x=-91.6528  green
+SC021B midi=16 fs=96000 off=-101.18 on2x=-95.8215 on4x=-85.2496  green
+SC021B midi=28 fs=44100 off=-92.6834 on2x=-93.1446 on4x=-90.7919  green
+SC021B midi=28 fs=48000 off=-93.5388 on2x=-92.9918 on4x=-90.1543  green
+SC021B midi=28 fs=96000 off=-86.4437 on2x=-86.7149 on4x=-82.3072  green
+SC021B midi=40 fs=44100 off=-45.9267 on2x=-70.1735 on4x=-88.8619  green
+SC021B midi=40 fs=48000 off=-55.123 on2x=-72.132 on4x=-85.3103  green
+SC021B midi=40 fs=96000 off=-93.6852 on2x=-92.7276 on4x=-91.5415  green
+SC021B VERDICT GREEN worst_on4x=-82.3072

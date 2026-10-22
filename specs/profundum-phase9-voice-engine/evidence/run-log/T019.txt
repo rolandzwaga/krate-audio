@@ -1,0 +1,76 @@
+T019 - Soak (SC-013, SC-014; FR-061, FR-062; H-2)
+Date: 2026-10-20  Branch: synth/profundum
+
+FILES WRITTEN
+- dsp/tests/unit/systems/profundum_engine_soak_test.cpp (the T001 stub filled; already registered in dsp_systems_tests,
+  dsp/tests/CMakeLists.txt:813)
+- this run-log
+Not built or run by this task (the group's build agent does that).
+
+CASES
+- VoiceEngine_Soak30Min_Mono  [systems][profundum][voice-engine][sc-013][sc-014][fr-061][fr-062][long]  seed 0x5013u
+  -> evidence/soak-mono.txt
+- VoiceEngine_Soak30Min_Poly  [systems][profundum][voice-engine][sc-013][sc-014][fr-061][fr-062][long]  seed 0x5014u
+  -> evidence/soak-poly.txt
+- VoiceEngine_SoakSmoke       [systems][profundum][voice-engine][sc-013][sc-014][fr-061][fr-062]         seed 0x5013u
+  -> evidence/soak-smoke.txt
+The two [long] halves are T025 lane work (15 min of audio each; R-K estimate <= 6 min wall each, run concurrently).
+
+FACTS READ THIS SESSION
+- Engine API: systems/profundum_engine.h prepare (:141), setObserver (:239), noteOn/noteOff, setters and read-backs
+  (:270-410), processBlock (:418), droppedEvents (:439). No stateFinite() / oversamplerStateFinite() and no voice or
+  MassDynamics accessor anywhere in the public surface (grep "stateFinite" over the header: no match).
+- Observer records: systems/profundum_engine_observer.h:52-74 (ProfundumGridRecord, ProfundumVoiceTaps,
+  ProfundumEngineTaps).
+- Voice taps: systems/profundum_voice.h:876-901 (spans of length m; fCore_ in Hz, :709); stateFinite :670.
+- MassDynamics: systems/mass_dynamics.h:648 stateFinite, :672 oversamplerStateFinite (both private to the engine).
+- MorphState / MotionConfig: systems/morph_state.h (MotionConfig :85-104; isValidMorphState :513; forEachMorphLeaf :336).
+- Resolved: systems/bass_morph_engine.h:55-60; kMinPositionRampMs :67. MassLaw::Targets: systems/mass_law.h:82-90.
+- Driver pieces reused: profundum_voice_engine_test_helpers.h VoiceEngineEvent (:130), voiceEngineIssue (:342).
+- Random states: bass_morph_state_helpers.h unitFromWord (:74), randomValidPair (:151).
+- Phase window method: profundum_anchor_chain_test.cpp:65 (lockWindowLength = round(ceil(f0) fs / f0)), :77-86
+  (Delta-theta = wrap(theta_a - theta_ref) by goertzelPhase); goertzelPhase / bh7Window profundum_core_test_helpers.h:141-170.
+- Test-side true peak: primitives/polyphase_halfband_oversampler.h (setFactor(4), upsample, unity-DC allpass branches).
+
+DECISIONS
+- Streaming driver (R-K): the TU does not use voiceEngineRender (it stores every sample of every tap). Its own loop
+  issues the same VoiceEngineEvent list through PT::voiceEngineIssue, except Endpoint events, which index a per-schedule
+  state list (voiceEngineIssue's two-state endpointStates cannot carry many activity pairs). Host block 32 (the grid), so
+  the state poll runs at least once per interval; events split blocks (C-9).
+- Observer: checks every FR-086 tap in place with detail::isFinite (voice: 13 spans + 7 scalars; engine: 10 spans;
+  grid: every float of Resolved / afterMacros / afterMotion via forEachMorphLeaf, motion source/output, the Mass /
+  anchor / compression scalars and the handed MassLaw targets). It copies only the lock-segment phase windows
+  (Anchor, core, Character and f_core taps, 1.1 s per window per voice). The grid record is checked, not copied.
+- Timeline per half (900 s): 4 x [77 s seeded activity, 3 s gap, 125 s lock] + 80 s activity tail. The gap releases
+  every note and hands the lock settings (both endpoints = the lock state, ramp 5 ms, position 0, Anchor morph Lock,
+  macros neutral, bend 0, portamento 0, legato off, the engine's default porta / glide / memory / retrigger / priority,
+  polyphony 4 in POLY, tempo 120), so no note event, Drop, glide, retrigger or morph motion falls inside a segment.
+- Lock state: kDefaultControls recipe; the Phase 3 SC-003(e) processed voice (excitation 1 / 1 / 1, Fold 100, Character
+  amount 0); Drop 0; sustain 1; SOLID spread 0; Motion CYCLE 0.5 Hz (Depth, Body) or DRIFT (Edge, Shift), amount 1,
+  depth 1; Mass 50; Anchor Sine LOCK level 1. MONO holds E1, POLY E1 / A1 / E2 / C3.
+- Activity: seeded mt19937 raw words only (rule 10): note on/off (E0..E3, up to 3 held MONO / 6 POLY so POLY steals),
+  morph position + ramp, macros, bend, portamento / legato / porta / glide mode, Note Memory mode / retrigger, priority
+  (MONO) or polyphony 1-8 (POLY), tempo, Anchor morph mode and fresh endpoint pairs; endpoints are
+  BassMorphTest::randomValidPair with Motion forced on (source Off -> Env/Cycle/Drift, amount 0 -> 0.5). Drops and
+  glides come from the random states' dropAmountSt and the portamento events.
+- SC-014 windows: t0 at s0 + 1, 61, 121 s; statistic |wrap(Delta-theta(t0 + 60 s) - Delta-theta(t0))| for the two
+  consecutive pairs = two windows per segment and voice (spec SC-014). Window length = Phase 3 lockWindowLength at the
+  voice's mean f_core; voices are matched to held notes by mean f_core within 3 %; every held note must match exactly
+  one voice, otherwise the case is red. Trend = Delta-theta(last) - Delta-theta(first), recorded with the maximum.
+- H-2: the same statistic against the Character tap (after Shape -> Fold 100 -> Character), recorded, never gated; the
+  C3 row is labelled (Phase 3 read 0.59 deg / 60 s).
+- DC: the BH7-weighted mean of each 10 s window (bin 0 of a 7-term Blackman-Harris DFT), worst channel. A plain mean
+  over a non-integer number of E0-E1 periods leaks ~ A / (2 pi 400) (about -74 dBFS at A 0.5), which would read the
+  sub-bass as DC; the BH7 window rejects content 200 bins away. Trend: the linear mean |DC| of the first 30 and last 30
+  windows (smoke: first and last window), in dB; bar last <= first + 1 dB.
+- True peak: test-side PolyphaseHalfbandOversampler at 4x per channel, max over both; bar outputCeilingDb() + 0.1 dB
+  (ceiling at its default -1 dBTP throughout; no ceiling event exists in VoiceEngineEventKind).
+- Smoke (deviation 5): 20 s MONO = 2 s activity, 3 s gap, one 15 s Depth segment; one window statistic (t0 = s0 + 1 s
+  against s0 + 13 s, a 12 s span, since a 60 s span does not fit in 15 s); the same bars.
+
+DEFECT: VoiceEngine_Soak30Min_{Mono,Poly} / VoiceEngine_SoakSmoke expected: SC-013 "per interval the stateFinite() voices / components and oversamplerStateFinite()" polled (tasks.md T019, plan S10.6 SC-013 row, R-E); observed: ProfundumEngine exposes no poll - its voices_ and dynamics_ are private and the header declares neither stateFinite() nor oversamplerStateFinite() (profundum_engine.h public surface :120-440), so the test cannot reach ProfundumVoice::stateFinite (profundum_voice.h:670) or MassDynamics::stateFinite / oversamplerStateFinite (mass_dynamics.h:648, :672); diagnosis: the plan lists the voice and MassDynamics polls but no engine accessor; owner dsp/include/krate/dsp/systems/profundum_engine.h (add `[[nodiscard]] bool stateFinite() const noexcept` = every voice's stateFinite() && dynamics_.stateFinite(), and `[[nodiscard]] bool oversamplerStateFinite() const noexcept` = dynamics_.oversamplerStateFinite()). The TU detects both by a requires-expression (vePollEngineState) and gates them as soon as they exist; until then each soak case WARNs and its evidence file says "UNAVAILABLE".
+
+ODR SWEEP
+grep -rn "class VeSoakObserver|struct VeSoakPlan|struct VeSoakResult|struct VeLockReading|struct VeSchedule|
+struct VeSegment|struct VeDefaults|struct VeStatePoll|struct VeSegmentAudit" dsp/ plugins/ (excluding this TU): no match.
+All TU-local names are in an anonymous namespace with the ve / Ve / kVe prefix (rule 5).

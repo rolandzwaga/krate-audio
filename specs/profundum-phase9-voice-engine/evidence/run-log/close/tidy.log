@@ -1,0 +1,95 @@
+=== T025 tidy 2026-10-21T18:27:50Z commit 0ae33b87
+--- vcvars: C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat
+--- reconfigure (cmake --preset windows-ninja in vcvars64) exit=0 wall=175s
+-- [SMTG] Setup running moduleinfotool for Vorago
+-- [KRATE] Copied compile_commands.json to project root
+-- Configuring done (79.8s)
+-- Generating done (2.9s)
+-- Build files have been written to: F:/projects/iterum/build/windows-ninja
+--- compile database: all 14 TUs present
+=== dsp/tests/unit/systems/profundum_voice_engine_helpers_test.cpp
+62522 warnings generated.
+Suppressed 62523 warnings (62518 in non-user code, 1 NOLINT, 4 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 93 s
+=== dsp/tests/unit/systems/profundum_motion_test.cpp
+58598 warnings generated.
+Suppressed 58599 warnings (58594 in non-user code, 1 NOLINT, 4 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 77 s
+=== dsp/tests/unit/systems/profundum_macro_matrix_test.cpp
+60640 warnings generated.
+Suppressed 60641 warnings (60637 in non-user code, 1 NOLINT, 3 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 72 s
+=== dsp/tests/unit/systems/profundum_voice_test.cpp
+64318 warnings generated.
+Suppressed 64319 warnings (64314 in non-user code, 1 NOLINT, 4 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 106 s
+=== dsp/tests/unit/systems/profundum_engine_test.cpp
+64581 warnings generated.
+Suppressed 64584 warnings (64577 in non-user code, 3 NOLINT, 4 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 112 s
+=== dsp/tests/unit/systems/profundum_engine_nonfinite_test.cpp
+60628 warnings generated.
+Suppressed 60629 warnings (60625 in non-user code, 1 NOLINT, 3 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 89 s
+=== dsp/tests/unit/systems/profundum_engine_click_test.cpp
+65179 warnings generated.
+Suppressed 65180 warnings (65175 in non-user code, 1 NOLINT, 4 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 117 s
+=== dsp/tests/unit/systems/profundum_engine_audibility_test.cpp
+64246 warnings generated.
+Suppressed 64247 warnings (64242 in non-user code, 1 NOLINT, 4 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 110 s
+=== dsp/tests/unit/systems/profundum_engine_chain_test.cpp
+64242 warnings generated.
+Suppressed 64243 warnings (64238 in non-user code, 1 NOLINT, 4 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 89 s
+=== dsp/tests/unit/systems/profundum_engine_aliasing_test.cpp
+64272 warnings generated.
+Suppressed 64273 warnings (64268 in non-user code, 1 NOLINT, 4 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 99 s
+=== dsp/tests/unit/systems/profundum_engine_soak_test.cpp
+64328 warnings generated.
+Suppressed 64329 warnings (64324 in non-user code, 1 NOLINT, 4 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 104 s
+=== dsp/tests/unit/systems/profundum_engine_probe_test.cpp
+65094 warnings generated.
+Suppressed 65095 warnings (65090 in non-user code, 1 NOLINT, 4 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 102 s
+=== dsp/tests/unit/systems/profundum_engine_perf_test.cpp
+64222 warnings generated.
+Suppressed 64223 warnings (64218 in non-user code, 1 NOLINT, 4 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 100 s
+=== dsp/tests/unit/systems/mass_dynamics_oversampling_test.cpp
+61872 warnings generated.
+Suppressed 61873 warnings (61868 in non-user code, 1 NOLINT, 4 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 97 s
+=== summary
+dsp/tests/unit/systems/profundum_voice_engine_helpers_test.cpp exit=0 warnings=0 errors=0
+dsp/tests/unit/systems/profundum_motion_test.cpp exit=0 warnings=0 errors=0
+dsp/tests/unit/systems/profundum_macro_matrix_test.cpp exit=0 warnings=0 errors=0
+dsp/tests/unit/systems/profundum_voice_test.cpp exit=0 warnings=0 errors=0
+dsp/tests/unit/systems/profundum_engine_test.cpp exit=0 warnings=0 errors=0
+dsp/tests/unit/systems/profundum_engine_nonfinite_test.cpp exit=0 warnings=0 errors=0
+dsp/tests/unit/systems/profundum_engine_click_test.cpp exit=0 warnings=0 errors=0
+dsp/tests/unit/systems/profundum_engine_audibility_test.cpp exit=0 warnings=0 errors=0
+dsp/tests/unit/systems/profundum_engine_chain_test.cpp exit=0 warnings=0 errors=0
+dsp/tests/unit/systems/profundum_engine_aliasing_test.cpp exit=0 warnings=0 errors=0
+dsp/tests/unit/systems/profundum_engine_soak_test.cpp exit=0 warnings=0 errors=0
+dsp/tests/unit/systems/profundum_engine_probe_test.cpp exit=0 warnings=0 errors=0
+dsp/tests/unit/systems/profundum_engine_perf_test.cpp exit=0 warnings=0 errors=0
+dsp/tests/unit/systems/mass_dynamics_oversampling_test.cpp exit=0 warnings=0 errors=0
+TIDY GREEN tus=14 warnings=0 errors=0 timeouts=[] failed=[] tidy_wall=119s total_wall=332s

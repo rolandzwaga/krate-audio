@@ -213,6 +213,40 @@ public:
         return output;
     }
 
+    /// Profundum Phase 9 T032 (append-only). processSample's detection, gain computer and gain
+    /// smoother — the same operations on the same state, so getCurrentGainReduction() follows the
+    /// same trajectory bit for bit — without the audio path, for a caller that discards the audio
+    /// output (BassCompressor, Phase 6 FR-013) and would otherwise pay two dbToGain evaluations per
+    /// sample for nothing. The look-ahead delay (when enabled) is kept in step.
+    void processDetectionOnly(float input) noexcept {
+        if (detail::isNaN(input)) {
+            input = 0.0f;
+        }
+        if (detail::isInf(input)) {
+            input = (input > 0.0f) ? 1e10f : -1e10f;
+        }
+        float detectionSample = input;
+        if (sidechainEnabled_) {
+            detectionSample = sidechainFilter_.process(input);
+        }
+        float envelope = envelopeFollower_.processSample(detectionSample);
+        // T032: 20·log10 through std::log2 instead of the constexpr series (gainToDb), same floor and
+        // the same non-positive / NaN rule; the series cost 0.9 % of the engine's samples.
+        float inputLevel_dB = kSilenceFloorDb;
+        if (!detail::isNaN(envelope) && envelope > 0.0f) {
+            constexpr float kDbPerOctave = 6.0205999132796239f;   // 20 · log10(2)
+            inputLevel_dB = std::max(kSilenceFloorDb, kDbPerOctave * std::log2(envelope));
+        }
+        float gainReduction_dB = computeGainReduction(inputLevel_dB);
+        gainSmoother_.setTarget(gainReduction_dB);
+        float smoothedGR = gainSmoother_.process();
+        currentGainReduction_ = detail::flushDenormal(-smoothedGR);
+        if (lookaheadSamples_ > 0) {
+            (void)lookaheadDelay_.read(lookaheadSamples_);
+            lookaheadDelay_.write(input);
+        }
+    }
+
     /// @brief Process a block of samples in-place
     /// @param buffer Audio buffer (overwritten with processed audio)
     /// @param numSamples Number of samples to process

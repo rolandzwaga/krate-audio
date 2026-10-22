@@ -1,0 +1,65 @@
+T020 - CPU cases SC-001 ... SC-004 (FR-083, FR-014; plan S10.6, C-14, C-16; tasks.md deviation 8)
+Date: 2026-10-20  Branch: synth/profundum  Base: 0ae33b87
+
+FILES WRITTEN
+- dsp/tests/unit/systems/profundum_engine_perf_test.cpp (the T001 stub filled; shipping FP mode, not -fno-fast-math)
+- specs/profundum-phase9-voice-engine/evidence/close/cpu-lane.sh (bash -n: OK)
+- this run-log
+
+FACTS READ THIS SESSION
+- Engine API: systems/profundum_engine.h ProfundumNonlinearPlacement / ProfundumEngineConfig (placement,
+  dynamicsOversampling, dynamicsOversamplingFactor, seams), prepare (:143), setObserver (:250), noteOn / noteOff,
+  setEndpoint / setMorphPosition / setMorphRampMs / setAnchorMorphMode, setVoiceMode / setPolyphony, processBlock.
+- Observer: systems/profundum_engine_observer.h ProfundumCall::AmpCurve / MorphAdvance, ProfundumCallRecord
+  {sample, voice, call, issued, value}, ProfundumGridRecord::resolved (BassMorphEngine::Resolved {state, position,
+  anchorPosition}, bass_morph_engine.h:55-60). AmpCurve logged once per interval per voice, issued only on a bitwise
+  curve change (profundum_voice.h:616-632).
+- Governing amounts per group: bass_morph_engine.h:379-383. kMinPositionRampMs 5 (:67). Character crossfade
+  kSwitchCrossfadeMs 10 (bass_character_stage.h:81).
+- Showcase pair: dsp/tests/unit/systems/bass_morph_state_helpers.h:167-220. Note constants incl. G1 / B1 / E3 / A2:
+  profundum_voice_engine_test_helpers.h:88-96.
+- P-1 protocol reused verbatim (p1ApplySetting / p1EngineTrial, profundum_engine_probe_test.cpp:446-575).
+- Phase 6 SC-017 CPU case: MassDynamics_CpuBudget (mass_dynamics_perf_test.cpp:249; "SC017 GATED" line :265).
+- Phase 8 lane structure: specs/profundum-phase8-bass-morph/evidence/close/cpu-lane.sh.
+
+CASES (all [systems][profundum][voice-engine][sc-00N][performance][.perf])
+- VoiceEngine_CpuMono -> evidence/sc001-cpu.txt, "SC001 VERDICT GREEN|RED <%>"; CHECK max(Tube, Fracture) <= 8.
+- VoiceEngine_CpuPoly4 -> evidence/sc002-cpu.txt, "SC002 VERDICT", "SC002 RECORD POLY8"; CHECK max <= 25.
+- VoiceEngine_WorstInterval -> evidence/sc003-worst-interval.txt, "SC003 BLOCK / RECORD / COINCIDENCE / COVERAGE",
+  "H13 RECORD", "SC003 VERDICT"; CHECK ratio <= 1.0 and the coincidence / coverage asserts.
+- VoiceEngine_PlacementCost -> evidence/placement.txt, two "FR014 READING" lines (placement, follow); recorded.
+
+CHOICES SURFACED (DEV = differs from the literal task / plan text)
+- SC-001 / SC-002 / SC-004 use P-1's protocol exactly (SC-001 setting on both showcase endpoints, ramp 1000 ms toggled
+  every 1 s, Drop retrigger = noteOff + noteOn at the first 64-block boundary at or after each 250 ms mark), so the
+  lane's figures compare directly with evidence/probes/p1-cpu.txt.
+- DEV (SC-001 per-stage breakdown): lever ablation of the REAL engine (14 levers, one at its idle value at a time:
+  excitation mix 0, shape 0, fold 0, fold-feed 0, character amount 0, anchor level 0, follow -> Lock, drop 0,
+  Motion Off, field SOLID / spread 0 / motionDepth 0, Mass neutral, dynamics oversampling off, morph held,
+  no retrigger), cost = full - without, median of 3, both algorithms. Not the deviation-10 replica (TU-local in the
+  probe TU; copying ~700 lines was rejected). It measures the shipped composition; "idle" is what the engine makes
+  cheap, which is not always "removed" (e.g. Character Amount 0 still runs its bypass path).
+- DEV (SC-003 statistic): 3 renders, per-block median across renders, gate the worst median (the Phase 8
+  BassMorph_WorstTransitionIntervalRecord precedent); the raw single-render maximum is printed beside it
+  (SC003 BLOCK raw_ratio). If the main loop rules the raw maximum is the gate, change the CHECK only.
+- SC-003 script details not fixed by the plan: base = SC-001 setting (Tube) then the five group pairs and the curves;
+  ampEnv.sustain = 1 on both endpoints (held voices, no retriggers, so A's sustain 0 would silence the A half);
+  position toggled every 100 ms (5 ms ramp); worst 32-sample interval from 3 extra renders at host block 32 (one
+  block == one grid interval, C-15). Selections are inferred from the resolved state's stepped fields
+  (characterAlgorithm, field.mode, field.motionSource, motion.source, anchor.waveform), each of which differs
+  between the endpoints; ProfundumEngine exposes no selection() getter.
+- SC-003 coverage assert reads "each of the 4 voices issued an AmpCurve record with issued == true at a grid point
+  inside the worst timed block" (>= 4 distinct voices), not "at every grid point of the block".
+- H-13 window = [Character switch grid point, + one E1 period (pre-roll bound) + kSwitchCrossfadeMs); mean of the
+  per-block medians overlapping it, / 4 voices.
+- SC-004 FOLLOW off = Anchor mode Lock on both endpoints (PerVoice). Criteria printed: ADOPT POSTSUM iff per-voice
+  max > 25 and post-sum max <= 25; FOLLOW ALONE BREACHES iff follow-on max > 25 and follow-off max <= 25.
+- cpu-lane.sh appends verdict lines to evidence/run-log/T027.txt (as tasks.md T020 says), 20 s settle (SETTLE_S),
+  order: VoiceEngine_CpuMono, VoiceEngine_CpuPoly4, VoiceEngine_WorstInterval, VoiceEngine_PlacementCost,
+  MassDynamics_CpuBudget.
+
+STATUS
+- Not built or run here (the group's build agent compiles the TU in the gate; [.perf] never runs in a gate).
+- DEFERRED to the main loop at close: run `bash specs/profundum-phase9-voice-engine/evidence/close/cpu-lane.sh` last,
+  alone (T027). Expectation from P-1 (evidence/probes/p1-cpu.txt, pre-Group-10b): MONO 12.9 %, POLY4 35.9 % - red
+  unless the Group 10b optimisations land; the lane measures, it does not move a bar.

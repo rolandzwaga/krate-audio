@@ -1,0 +1,48 @@
+Filters: "ProfundumCore_AudibilityGate_BodyEdgeShift"
+Randomness seeded to: 1768313185
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+ProfundumCore_AudibilityGate_BodyEdgeShift
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(437)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(500): warning:
+  SC-004 render f0 32.7: Body min span (headroom >= 6 dB, 22 points) 8.64701 dB
+  (bar 6, recipe 8.65); min span/headroom (5 points) 0.740464 (bar 0.7, recipe
+  0.740)
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(503): warning:
+  SC-004 render f0 32.7: Edge min span 8.88902 dB (bar 6, recipe 8.89); Shift
+  min span 1.42735 oct (bar 1, recipe 1.427); endpoint min distance 7.07299 dB
+  (bar 6, recipe 7.07)
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(500): warning:
+  SC-004 render f0 65.41: Body min span (headroom >= 6 dB, 22 points) 8.64821
+  dB (bar 6, recipe 8.65); min span/headroom (5 points) 0.740397 (bar 0.7,
+  recipe 0.740)
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(503): warning:
+  SC-004 render f0 65.41: Edge min span 8.88826 dB (bar 6, recipe 8.89); Shift
+  min span 1.42725 oct (bar 1, recipe 1.427); endpoint min distance 7.07342 dB
+  (bar 6, recipe 7.07)
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(500): warning:
+  SC-004 render f0 130.81: Body min span (headroom >= 6 dB, 22 points) 8.64705
+  dB (bar 6, recipe 8.65); min span/headroom (5 points) 0.74045 (bar 0.7,
+  recipe 0.740)
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(503): warning:
+  SC-004 render f0 130.81: Edge min span 8.8896 dB (bar 6, recipe 8.89); Shift
+  min span 1.42732 oct (bar 1, recipe 1.427); endpoint min distance 7.07315 dB
+  (bar 6, recipe 7.07)
+
+728.619 s: ProfundumCore_AudibilityGate_BodyEdgeShift
+===============================================================================
+All tests passed (83487 assertions in 1 test case)
+
+exit: 0 wall: 729 s

@@ -208,6 +208,7 @@ public:
         cosState_.fill(1.0f); // cos(0) = 1
         epsilon_.fill(0.0f);
         continuityEps_.fill(kContinuityUnset);
+        continuityDirty_ = true;
         currentAmplitude_.fill(0.0f);
         targetAmplitude_.fill(0.0f);
         antiAliasGain_.fill(0.0f);
@@ -273,6 +274,7 @@ public:
         targetPitch_ = targetPitch;
         int numPartials = std::min(frame.numPartials, static_cast<int>(kMaxPartials));
         activePartials_ = numPartials;
+        continuityDirty_ = true;
 
         for (int i = 0; i < numPartials; ++i) {
             const auto& partial = frame.partials[i];
@@ -294,6 +296,7 @@ public:
                 cosState_[i] = std::cos(phase);
                 epsilon_[i] = 2.0f * std::sin(kPi * freq * inverseSampleRate_);
                 continuityEps_[i] = kContinuityUnset;   // adopted at the first render
+                continuityDirty_ = true;
                 currentAmplitude_[i] = 0.0f; // will ramp up via smoothing
             }
         }
@@ -474,6 +477,7 @@ public:
                     cosState_[totalPartials] = std::cos(phase);
                     epsilon_[totalPartials] = 2.0f * std::sin(kPi * freq * inverseSampleRate_);
                     continuityEps_[totalPartials] = kContinuityUnset;   // adopted at the first render
+                    continuityDirty_ = true;
                     currentAmplitude_[totalPartials] = 0.0f;
                 }
 
@@ -482,6 +486,7 @@ public:
         }
 
         activePartials_ = totalPartials;
+        continuityDirty_ = true;
 
         // Zero out unused partials
         for (size_t i = static_cast<size_t>(totalPartials); i < kMaxPartials; ++i) {
@@ -658,6 +663,16 @@ public:
         }
     }
 
+    /// Profundum Phase 9 T032 (append-only): install per-partial pan coefficients computed by the
+    /// caller (left[i] = cos(angle_i), right[i] = sin(angle_i) of its own constant-power law). The
+    /// alternative to applyPanOffsets for a caller that evaluates the pair itself; the base tables
+    /// (setStereoSpread) and restoreCenterPan are unaffected.
+    void setPanCoefficients(const std::array<float, kMaxPartials>& left,
+                            const std::array<float, kMaxPartials>& right) noexcept {
+        panLeft_ = left;
+        panRight_ = right;
+    }
+
     /// @brief Apply external frequency multipliers on top of detune (M6 FR-026).
     ///
     /// Multiplies the given multipliers with the existing detuneMultiplier_
@@ -672,6 +687,7 @@ public:
         {
             detuneMultiplier_[i] *= multipliers[i];
         }
+        continuityDirty_ = true;
         // With continuousFrequencyUpdates_ the state rewrite happens at the next render
         // (reconcileContinuity), where the effective coefficient is final: a caller may
         // change epsilon_ or the detune base after this call and before rendering.
@@ -698,7 +714,10 @@ public:
     /// improves from -60 to -68 dB against the phase-exact reference. Cost: one compare
     /// per active partial per processStereo / processStereoBlock call. Enable before
     /// loadFrame. The mono process() path ignores detune and the opt-in.
-    void setContinuousFrequencyUpdates(bool enabled) noexcept { continuousFrequencyUpdates_ = enabled; }
+    void setContinuousFrequencyUpdates(bool enabled) noexcept {
+        continuousFrequencyUpdates_ = enabled;
+        continuityDirty_ = true;
+    }
     [[nodiscard]] bool continuousFrequencyUpdates() const noexcept { return continuousFrequencyUpdates_; }
 
     /// @brief Restore the exact centre pan tables that reset() writes (Profundum FR-064).
@@ -1082,6 +1101,7 @@ private:
             float eps = 2.0f * std::sin(kPi * freq * inverseSampleRate_);
             epsilon_[i] = std::clamp(eps, -kMaxEpsilon, kMaxEpsilon);
         }
+        continuityDirty_ = true;
     }
 
     /// @brief Recalculate epsilon for all active partials.
@@ -1098,6 +1118,7 @@ private:
             float eps = 2.0f * std::sin(kPi * freq * inverseSampleRate_);
             epsilon_[i] = std::clamp(eps, -kMaxEpsilon, kMaxEpsilon);
         }
+        continuityDirty_ = true;
     }
 
     /// @brief Recalculate anti-aliasing gains (FR-038).
@@ -1190,6 +1211,7 @@ private:
                 detuneMultiplier_[i] = std::pow(2.0f, offsetCents / 1200.0f);
             }
         }
+        continuityDirty_ = true;
     }
 
     // =========================================================================
@@ -1265,6 +1287,11 @@ private:
     bool polyMode_ = false;               ///< Whether using polyphonic source-aware mode
     bool hasBandwidth_ = false;           ///< Whether any partial has non-zero bandwidth (SIMD path selection)
     bool continuousFrequencyUpdates_ = false;   ///< Opt-in (Profundum Phase 4): see setContinuousFrequencyUpdates
+    /// Profundum Phase 9 T029 (bit-identical): set by every writer of epsilon_, detuneMultiplier_,
+    /// activePartials_ or continuityEps_; reconcileContinuity() returns at once while it is clear. A
+    /// pass with no writer since the previous one finds every entry already at its target, so
+    /// skipping it changes nothing.
+    bool continuityDirty_ = true;
     /// Effective coefficient each state last ran at (opt-in). kContinuityUnset after reset() or a
     /// phase seed: the first render adopts the then-effective coefficient without a rewrite, so a
     /// note that never moves renders bit-identically to the default path.
@@ -1274,6 +1301,9 @@ private:
     /// Opt-in state rewrite (setContinuousFrequencyUpdates): called at the top of every
     /// stereo render so the rewrite sees the final effective coefficient.
     void reconcileContinuity() noexcept {
+        if (!continuityDirty_)
+            return;
+        continuityDirty_ = false;
         const auto n = static_cast<size_t>(activePartials_);
         for (size_t i = 0; i < n; ++i) {
             const float eps2 = std::clamp(epsilon_[i] * detuneMultiplier_[i], -1.99f, 1.99f);

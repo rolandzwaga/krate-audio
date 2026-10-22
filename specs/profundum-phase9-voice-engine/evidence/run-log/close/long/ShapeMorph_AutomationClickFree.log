@@ -1,0 +1,26 @@
+Filters: "ShapeMorph_AutomationClickFree"
+Randomness seeded to: 512376911
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+ShapeMorph_AutomationClickFree
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\shape_morph_test.cpp(767)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_morph_test.cpp(526): warning:
+  E0, saw, SHAPE 1 -> 0, single step, block 64: 1 detection(s) inside the 10 ms
+  ramp window recorded (SC-003(a) ruling 2026-10-16); (b) ratio 0.241382
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_morph_test.cpp(526): warning:
+  E0, saw, SHAPE 1 -> 0, single step, block 512: 1 detection(s) inside the 10
+  ms ramp window recorded (SC-003(a) ruling 2026-10-16); (b) ratio 0.241382
+
+13.079 s: ShapeMorph_AutomationClickFree
+===============================================================================
+All tests passed (2176 assertions in 1 test case)
+
+exit: 0 wall: 14 s

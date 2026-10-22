@@ -1,0 +1,8 @@
+Filters: "VoiceEngine_MonoSum_Spread"
+Randomness seeded to: 4253457003
+SC-015 monosum-spread.csv: 8 cells, 0 failing
+22.622 s: VoiceEngine_MonoSum_Spread
+===============================================================================
+All tests passed (618 assertions in 1 test case)
+
+exit: 0 wall: 23 s

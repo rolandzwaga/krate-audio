@@ -1,0 +1,17 @@
+Filters: "VoiceEngine_AudibilityTable_Macros"
+Randomness seeded to: 2135246813
+# VoiceEngine_AudibilityTable_Macros
+row,contrast,base,note,descriptor,tap,lo,hi,value,bar,pass,gated,out_descriptor,out_lo,out_hi,ampStep,remark
+"AT-47","Macro Weight: 0 -> 1, the others at neutral","A + sustain 1 (C-8)",E1,"the SC-007 axis: E_sub (dB)","Sum",-9.18337,-5.97144,3.21192,">= 3 dB (hi - lo)",PASS,gated,"E_sub (dB) of the output",-9.24496,-6.03301,"n/a",""
+"AT-48","Macro Dark <-> Bright: 0 -> 1, the others at neutral","B + sustain 1 (B10-1)",E1,"the SC-007 axis: D_br (oct)","Sum",0.353277,1.29837,0.945095,">= 0.25 oct (hi - lo)",PASS,gated,"D_br (oct) of the output",0.357822,1.27925,"n/a","per-row base, ruling B10-1"
+"AT-48","Macro Dark <-> Bright: 0 -> 1, the others at neutral","A + sustain 1 (C-8)",E1,"the SC-007 axis: D_br (oct)","Sum",0.000851041,0.000851033,-8.00118e-09,">= 0.25 oct (hi - lo)",FAIL,recorded,"D_br (oct) of the output",0.000862159,0.000862151,"n/a","A_s reading, recorded (ungated): the macro is inert on A by construction (B10-1)"
+"AT-49","Macro Tight <-> Loose: 0 -> 1, the others at neutral","A + sustain 1 (C-8)",E1,"the SC-007 axis: D_t (ms, gate render)","Sum",998.805,2132.48,2.13503,"ratio >= 2 (hi / lo)",PASS,gated,"D_t (ms, gate render) of the output",856.757,2025.11,"n/a",""
+"AT-50","Macro Clean <-> Violent: 0 -> 1, the others at neutral","A + sustain 1 (C-8)",E1,"the SC-007 axis: D_nl (dB)","Char / twin",0,11.0536,11.0536,">= 3 dB (hi - lo)",PASS,gated,"L_K output (dB)",-12.0435,-11.9231,"n/a",""
+"AT-47","Macro Weight: 0 -> 1, the others at neutral","A + sustain 1 (C-8)",C3,"the SC-007 axis: E_sub (dB)","Sum",-9.20196,-5.99268,3.20928,">= 3 dB (hi - lo)",PASS,gated,"E_sub (dB) of the output",-9.20639,-5.99706,"n/a",""
+"AT-48","Macro Dark <-> Bright: 0 -> 1, the others at neutral","B + sustain 1 (B10-1)",C3,"the SC-007 axis: D_br (oct)","Sum",0.308431,1.1077,0.799269,">= 0.25 oct (hi - lo)",PASS,gated,"D_br (oct) of the output",0.30883,1.09912,"n/a","per-row base, ruling B10-1"
+"AT-48","Macro Dark <-> Bright: 0 -> 1, the others at neutral","A + sustain 1 (C-8)",C3,"the SC-007 axis: D_br (oct)","Sum",0.000855505,0.000855516,1.06022e-08,">= 0.25 oct (hi - lo)",FAIL,recorded,"D_br (oct) of the output",0.000856616,0.000856626,"n/a","A_s reading, recorded (ungated): the macro is inert on A by construction (B10-1)"
+"AT-49","Macro Tight <-> Loose: 0 -> 1, the others at neutral","A + sustain 1 (C-8)",C3,"the SC-007 axis: D_t (ms, gate render)","Sum",997.401,2128.65,2.13419,"ratio >= 2 (hi / lo)",PASS,gated,"D_t (ms, gate render) of the output",981.308,2021.58,"n/a",""
+"AT-50","Macro Clean <-> Violent: 0 -> 1, the others at neutral","A + sustain 1 (C-8)",C3,"the SC-007 axis: D_nl (dB)","Char / twin",0,11.8185,11.8185,">= 3 dB (hi - lo)",PASS,gated,"L_K output (dB)",-7.34907,-6.99574,"n/a",""
+===============================================================================
+All tests passed (557 assertions in 1 test case)
+

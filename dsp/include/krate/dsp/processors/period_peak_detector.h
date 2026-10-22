@@ -48,7 +48,7 @@ public:
     void prepare(double sampleRate, float holdMs) noexcept {
         sampleRate_ = sampleRate;
         for (auto& e : est_)
-            e.os.setFactor(kPeakOversampling);
+            e.os.setFactor(peakFactor_ == 1 ? kPeakOversampling : peakFactor_);   // unused at 1
         setHoldMs(holdMs);
         segLen_ = pendingSegLen_;
         reset();
@@ -99,6 +99,16 @@ public:
 
     [[nodiscard]] float holdMs() const noexcept { return holdMs_; }
 
+    /// Profundum Phase 9 T032 (append-only; default kPeakOversampling = 4, bit-identical). The peak
+    /// interpolation factor: 1, 2 or 4 (anything else -> 4). 1 skips the interpolator and runs the
+    /// parabolic estimate on the input samples themselves — for a caller whose input is already
+    /// oversampled (BassCompressor's 4x sidechain), so the effective detection rate stays 4x the base
+    /// rate. Takes effect at the next prepare().
+    void setPeakOversampling(std::size_t factor) noexcept {
+        peakFactor_ = (factor == 1 || factor == 2) ? factor : kPeakOversampling;
+    }
+    [[nodiscard]] std::size_t peakOversampling() const noexcept { return peakFactor_; }
+
     /// True when every state value (oversampler sections included) is finite.
     [[nodiscard]] bool stateFinite() const noexcept {
         for (const auto& e : est_) {
@@ -124,10 +134,16 @@ private:
 
     /// HarmonicFold advanceDetector's first half (harmonic_fold.h:403-417), verbatim: the larger
     /// of |x| and the parabolic-interpolated local maxima of |x| upsampled kPeakOversampling x.
-    [[nodiscard]] static float truePeak(Estimator& e, float x) noexcept {
+    [[nodiscard]] float truePeak(Estimator& e, float x) noexcept {
         float d = std::abs(x);
-        e.os.upsample(x, e.buf.data());
-        for (std::size_t i = 0; i < e.os.factor(); ++i) {
+        std::size_t n = 1;
+        if (peakFactor_ == 1) {   // T032: the input is the oversampled stream
+            e.buf[0] = x;
+        } else {
+            e.os.upsample(x, e.buf.data());
+            n = e.os.factor();
+        }
+        for (std::size_t i = 0; i < n; ++i) {
             const float d0 = std::abs(e.buf[i]);
             const float a = e.prev2;
             const float b = e.prev1;
@@ -172,6 +188,7 @@ private:
     std::size_t pendingSegLen_ = 1;
     double sampleRate_ = 48000.0;
     float holdMs_ = 50.0f;
+    std::size_t peakFactor_ = kPeakOversampling;   // T032: setPeakOversampling
 };
 
 }  // namespace Krate::DSP

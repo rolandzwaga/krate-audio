@@ -1,6 +1,7 @@
 // ==============================================================================
 // Layer 3: System
 // Profundum Phase 6 (specs/profundum-phase6-mass-dynamics)
+// Profundum Phase 9 (FR-082, Q4): opt-in 2x gain application + 8x detection, off by default
 // ==============================================================================
 // BassCompressor (FR-010-FR-019; SC-006, SC-007, SC-022, SC-024, compressor arms of SC-012/013/016/018/019/021) and MassDynamics (FR-013, FR-015, FR-041; SC-012-SC-018). Filled by T007 (BassCompressor) and T010 (MassDynamics).
 //   Spec:  specs/profundum-phase6-mass-dynamics/spec.md
@@ -20,6 +21,7 @@
 #include <krate/dsp/processors/dynamics_processor.h>
 #include <krate/dsp/processors/period_peak_detector.h>
 #include <krate/dsp/processors/transient_shaper.h>   // peer-lower L2 (MassDynamics, T010)
+#include <krate/dsp/primitives/polyphase_halfband_oversampler.h>   // L1 (Profundum Phase 9, FR-082)
 
 #include <algorithm>
 #include <array>
@@ -105,6 +107,7 @@ public:
         const double fs = std::clamp(detail::isFinite(sampleRate) ? sampleRate : 48000.0, kMinSampleRate,
                                      kMaxSampleRate);
         sampleRate_ = fs;
+        scRate_ = fs * static_cast<double>(scFactor_);   // Phase 9 T029: the sidechain's own rate (== fs by default)
 
         // 1. The shared gain computer: Peak detection, internal sidechain off, zero look-ahead
         //    (never non-zero, FR-014), constant attack, release from the rule, makeup applied by
@@ -120,10 +123,14 @@ public:
 
         // 2. The detector high-passes at the fallback corner (reset() reconfigures at the latched one).
         for (auto& hp : hp_)
-            hp.configure(FilterType::Highpass, kFallbackCornerHz, kButterworthQ, 0.0f, static_cast<float>(fs));
+            hp.configure(FilterType::Highpass, kFallbackCornerHz, kButterworthQ, 0.0f, static_cast<float>(scRate_));
 
         // 3. The held true-peak detector: one period of a 40 Hz key (2000 / 80 Hz = 25 ms).
-        det_.prepare(fs, 2000.0f / kFallbackCornerHz);
+        // T032: an oversampled sidechain (scFactor_ > 1) already feeds the detector an interpolated
+        // stream, so its own peak interpolation drops to 4 / scFactor_ (1 at 4x): 4x the base rate in
+        // every case rather than 16x. P-3 (SC-021(b)) re-measured with this in place.
+        det_.setPeakOversampling(PeriodPeakDetector::kPeakOversampling / scFactor_);
+        det_.prepare(scRate_, 2000.0f / kFallbackCornerHz);
 
         // 4. Smoothers: the corner at the interval rate, the makeup per sample. configure() takes a
         //    float rate (smoother.h:160).
@@ -211,38 +218,9 @@ public:
             //    so the DynamicsProcessor's own NaN / Inf branch is never reached.
             const float xL = detail::isFinite(left[i]) ? left[i] : 0.0f;
             const float xR = mono ? xL : (detail::isFinite(right[i]) ? right[i] : 0.0f);
-
-            // 2. Control step on the absolute 32-sample grid.
-            if (intervalPhase_ == 0)
-                controlStep();
-
-            // 3. Detection, FR-011 (b): high-pass on signed samples, then the held true-peak of
-            //    max(|HP L|, |HP R|). The probe's rectified feed is the struck form (unfiltered
-            //    max(|L|, |R|) into the internal sidechain), kept only for SC-006(e).
-            float d = 0.0f;
-            if (probeRectifiedFeed_) {
-                d = mono ? std::abs(xL) : std::max(std::abs(xL), std::abs(xR));
-            } else {
-                const float hL = probeHpBypass_ ? xL : hp_[0].process(xL);
-                if (mono) {
-                    d = det_.process(hL);
-                } else {
-                    const float hR = probeHpBypass_ ? xR : hp_[1].process(xR);
-                    d = det_.process(hL, hR);
-                }
-            }
-            detectorLevel_ = d;
-
-            // 4. Gain computer (its audio output is unused, FR-013). gr <= 0, already 5 ms smoothed.
-            (void)dyn_.processSample(d);
-            const float gr = dyn_.getCurrentGainReduction();
-            if (gr < -kRuleThresholdDb)
-                ++ruleCount_;
-
-            // 5. One gain for both channels. gainDb_ == 0 is the hard bypass (FR-016 / SC-013): gr is
-            //    exactly +0.0f there (flushDenormal(-0.0f) returns the literal 0.0f, db_utils.h:263).
-            const float mk = makeupS_.process();
-            gainDb_ = gr + mk;
+            // 2.-4., 6. (advanceGain) then 5. the application. Phase 9 T029 factored the loop body into
+            // advanceGain() so the opt-in can compute the gain without applying it; bit-identical here.
+            advanceGain(xL, xR, mono);
             if (gainDb_ == 0.0f) {
                 left[i] = xL;
                 if (!mono)
@@ -253,10 +231,40 @@ public:
                 if (!mono)
                     right[i] = xR * g;
             }
-
-            // 6. Grid.
-            intervalPhase_ = (intervalPhase_ + 1) % kControlInterval;
         }
+    }
+
+    /// Profundum Phase 9 (FR-082, T029; append-only): one sample of detection and gain computation WITHOUT
+    /// applying the gain — the same state trajectory as processBlock's loop (both call advanceGain). Returns the
+    /// linear gain for this sample, exactly 1.0f at 0 dB (processBlock's hard bypass). The caller sanitises.
+    [[nodiscard]] float processSampleGain(float xL, float xR, bool mono) noexcept {
+        if (!prepared_)
+            return 1.0f;
+        advanceGain(xL, xR, mono);
+        return gainDb_ == 0.0f ? 1.0f : detail::dbToGainFast(gainDb_);
+    }
+
+    /// Profundum Phase 9 (FR-082, T029; append-only, configuration-time): the sidechain (HP + held-peak detector)
+    /// runs at factor * fs. 1 (default) keeps every existing caller bit-identical. Takes effect at the next prepare().
+    void setSidechainOversampling(std::size_t factor) noexcept {
+        scFactor_ = (factor == 2 || factor == 4) ? factor : std::size_t{1};
+    }
+    [[nodiscard]] std::size_t sidechainOversampling() const noexcept { return scFactor_; }
+
+    /// One base-rate gain step from an oversampled sidechain: sc{L,R}[0, f) are this base sample's f inner-rate
+    /// samples (prepare()d with setSidechainOversampling(f)). HP + detector run on each, the gain computer once;
+    /// returns the linear gain for the base sample (1.0f at 0 dB). The caller sanitises and applies the gain.
+    [[nodiscard]] float processSampleGainOversampled(const float* scL, const float* scR, std::size_t f,
+                                                     bool mono) noexcept {
+        if (!prepared_ || scL == nullptr || f == 0)
+            return 1.0f;
+        if (intervalPhase_ == 0)
+            controlStep();
+        float d = 0.0f;
+        for (std::size_t i = 0; i < f; ++i)
+            d = detect(scL[i], mono ? scL[i] : scR[i], mono);
+        gainStep(d);
+        return gainDb_ == 0.0f ? 1.0f : detail::dbToGainFast(gainDb_);
     }
 
     /// FR-014: no look-ahead, no latency.
@@ -350,12 +358,58 @@ private:
     /// Both HP biquads and the detector hold at cornerHz_ (hold = one period of the key f0 when
     /// unclamped, C-6). In the probe's rectified-feed mode the internal sidechain follows the corner.
     void configureDetector() noexcept {
-        const auto fs = static_cast<float>(sampleRate_);
+        const auto fs = static_cast<float>(scRate_);   // the sidechain's rate (Phase 9 T029; == sampleRate_ by default)
         for (auto& hp : hp_)
             hp.configure(FilterType::Highpass, cornerHz_, kButterworthQ, 0.0f, fs);
         det_.setHoldMs(2000.0f / cornerHz_);
         if (probeRectifiedFeed_)
             dyn_.setSidechainCutoff(cornerHz_);
+    }
+
+    /// The per-sample detection and gain computation of processBlock (steps 2-4 and 6 of its loop), shared with
+    /// processSampleGain (Phase 9 T029). Writes gainDb_ and advances the interval phase.
+    void advanceGain(float xL, float xR, bool mono) noexcept {
+        // 2. Control step on the absolute 32-sample grid.
+        if (intervalPhase_ == 0)
+            controlStep();
+        gainStep(detect(xL, xR, mono));
+    }
+
+    /// 3. Detection, FR-011 (b): high-pass on signed samples, then the held true-peak of max(|HP L|, |HP R|), at
+    /// the sidechain's rate (Phase 9 T029). The probe's rectified feed is the struck form (unfiltered
+    /// max(|L|, |R|) into the internal sidechain), kept only for SC-006(e).
+    [[nodiscard]] float detect(float xL, float xR, bool mono) noexcept {
+        float d = 0.0f;
+        if (probeRectifiedFeed_) {
+            d = mono ? std::abs(xL) : std::max(std::abs(xL), std::abs(xR));
+        } else {
+            const float hL = probeHpBypass_ ? xL : hp_[0].process(xL);
+            if (mono) {
+                d = det_.process(hL);
+            } else {
+                const float hR = probeHpBypass_ ? xR : hp_[1].process(xR);
+                d = det_.process(hL, hR);
+            }
+        }
+        detectorLevel_ = d;
+        return d;
+    }
+
+    /// Steps 4-6: gain computer, makeup, gainDb_, grid; once per base sample.
+    void gainStep(float d) noexcept {
+        // 4. Gain computer (its audio output is unused, FR-013). gr <= 0, already 5 ms smoothed.
+        dyn_.processDetectionOnly(d);   // T032: the audio output was discarded (FR-013); same gr trajectory
+        const float gr = dyn_.getCurrentGainReduction();
+        if (gr < -kRuleThresholdDb)
+            ++ruleCount_;
+
+        // 5. One gain for both channels. gainDb_ == 0 is the hard bypass (FR-016 / SC-013): gr is
+        //    exactly +0.0f there (flushDenormal(-0.0f) returns the literal 0.0f, db_utils.h:263).
+        const float mk = makeupS_.process();
+        gainDb_ = gr + mk;
+
+        // 6. Grid.
+        intervalPhase_ = (intervalPhase_ + 1) % kControlInterval;
     }
 
     /// Plan S5.4, at intervalPhase_ == 0 (FR-012, FR-018, FR-049).
@@ -414,6 +468,8 @@ private:
     float gainDb_ = 0.0f;
     float detectorLevel_ = 0.0f;
     double sampleRate_ = 48000.0;
+    double scRate_ = 48000.0;     // Phase 9 T029: sampleRate_ * scFactor_
+    std::size_t scFactor_ = 1;    // Phase 9 T029: sidechain oversampling (1 = off)
     bool prepared_ = false;
     // Probe-only switches (positive / negative controls), written only by detail::MassDynamicsProbe.
     // At their defaults the production path is untouched (precedent bass_character_stage.h:71, 513).
@@ -480,7 +536,20 @@ public:
 
     /// Prepares both stages at sampleRate (each applies its stored setter values), then reset().
     void prepare(double sampleRate, std::size_t maxBlockSize) noexcept {
+        // Profundum Phase 9 (FR-082, C-3): with the opt-in off, inner == sampleRate and innerBlock ==
+        // maxBlockSize, so the three calls below are the Phase 6 calls with the same arguments.
+        // Optimisation group T029 (2026-10-20): only the compressor's SIDECHAIN (HP + detector) is oversampled;
+        // the shaper, the gain computer and the gain application stay at the base rate (zero latency, exactly the
+        // Phase 6 calls) and the requested factor runs at every sample rate; the compressor's rate ceiling no
+        // longer binds.
+        osEffectiveFactor_ = oversamplingRequested_ ? osFactor_ : 0;
+        osActive_ = osEffectiveFactor_ != 0;
+        if (osActive_) {
+            osL_.setFactor(osEffectiveFactor_);
+            osR_.setFactor(osEffectiveFactor_);
+        }
         shaper_.prepare(sampleRate, maxBlockSize);
+        comp_.setSidechainOversampling(osActive_ ? osEffectiveFactor_ : std::size_t{1});
         comp_.prepare(sampleRate, maxBlockSize);
         trimGainS_.configure(kTrimSmoothMs, static_cast<float>(sampleRate));
         reset();
@@ -494,6 +563,8 @@ public:
         comp_.reset();
         trimGainS_.snapTo(trimGainTarget_);
         intervalPhase_ = 0;
+        osL_.reset();
+        osR_.reset();
     }
 
     // -------------------------------------------------------------------------
@@ -539,6 +610,10 @@ public:
     void processBlock(float* left, float* right, std::size_t numSamples) noexcept {
         if (!prepared_ || left == nullptr || right == nullptr || numSamples == 0)
             return;
+        if (osActive_) {   // Profundum Phase 9 (FR-082): the opt-in path; off -> the Phase 6 loop below
+            processOversampled(left, right, numSamples);
+            return;
+        }
         std::size_t pos = 0;
         while (pos < numSamples) {
             // Latch on the absolute grid (plan C-11). right + pos == left + pos in mono.
@@ -578,6 +653,25 @@ public:
     /// The smoothed FR-021 trim gain now applied (linear; 1.0f at 0 dB).
     [[nodiscard]] float currentOutputTrimGain() const noexcept { return trimGainS_.getCurrentValue(); }
 
+    // ---- Profundum Phase 9 (FR-082, H-15, ruled Q4): opt-in 2x gain application + 8x detection ----
+    static constexpr std::size_t kOversamplingFactor = 2;      ///< the default factor
+    static constexpr std::size_t kMaxOversamplingFactor = 4;   ///< PolyphaseHalfbandOversampler::kMaxFactor
+    /// Configuration-time; takes effect at the next prepare(). Off by default (every existing caller unchanged).
+    void setOversampling(bool enabled) noexcept { oversamplingRequested_ = enabled; }
+    [[nodiscard]] bool oversamplingRequested() const noexcept { return oversamplingRequested_; }
+    /// Configuration-time: 2 (default) or 4; anything else is clamped to one of them. Takes effect at the next
+    /// prepare(); the path is active only while factor * fs <= BassCompressor::kMaxSampleRate (C-3).
+    void setOversamplingFactor(std::size_t factor) noexcept {
+        osFactor_ = (factor >= kMaxOversamplingFactor) ? kMaxOversamplingFactor : kOversamplingFactor;
+    }
+    [[nodiscard]] std::size_t oversamplingFactor() const noexcept { return osFactor_; }
+    /// The factor prepare() engaged (0 when the path is off; otherwise the requested one).
+    [[nodiscard]] std::size_t oversamplingActiveFactor() const noexcept { return osEffectiveFactor_; }
+    /// True when prepare() engaged the path (requested; since T029 the factor runs at every sample rate).
+    [[nodiscard]] bool oversamplingActive() const noexcept { return osActive_; }
+    /// The halfband pair's state (polled by Phase 9's soak; stateFinite() itself is left untouched).
+    [[nodiscard]] bool oversamplerStateFinite() const noexcept { return osL_.stateFinite() && osR_.stateFinite(); }
+
 private:
     // tasks.md deviation 4: the chain's positive / negative controls need the composed stages.
     friend struct detail::MassDynamicsProbe;
@@ -589,6 +683,52 @@ private:
     float pendingDurationMs_ = TransientShaper::kDefaultDurationMs;
     std::size_t intervalPhase_ = 0;
     bool prepared_ = false;
+    // ---- Profundum Phase 9 (FR-082, plan S7): the opt-in oversampling path ----
+    PolyphaseHalfbandOversampler osL_, osR_;
+    std::array<float, kMaxOversamplingFactor * kControlInterval> upL_{}, upR_{};
+    bool oversamplingRequested_ = false;
+    bool osActive_ = false;
+    std::size_t osFactor_ = kOversamplingFactor;
+    std::size_t osEffectiveFactor_ = 0;
+
+    /// Plan S7: the same grid-run split as processBlock's Phase 6 loop. Per run of len base samples:
+    /// each input sample is sanitised (a non-finite sample would poison the halfband state for good)
+    /// and upsampled 2x, the duration latches at base intervalPhase_ == 0, the shaper, the compressor
+    /// and the trim run on the 2 * len inner samples, then each pair is decimated. Base sample G maps
+    /// to inner sample 2G, so every base grid point is an inner grid point (the compressor's own
+    /// inner 32-sample grid is absolute too, so the path is partition-invariant). Mono when right ==
+    /// left (only L and osL_ used).
+    void processOversampled(float* left, float* right, std::size_t numSamples) noexcept {
+        const bool mono = (right == left);
+        const std::size_t f = osEffectiveFactor_;
+        std::size_t pos = 0;
+        while (pos < numSamples) {
+            if (intervalPhase_ == 0)
+                shaper_.setTransientDurationMs(pendingDurationMs_);
+            const std::size_t len = std::min(kControlInterval - intervalPhase_, numSamples - pos);
+            // FR-015: shaper -> compressor, fixed. The shaper runs at the base rate as in Phase 6 (its envelope
+            // followers make a smooth gain; P-3's attribution: it adds no aliasing).
+            shaper_.processBlock(left + pos, right + pos, len);
+            for (std::size_t k = 0; k < len; ++k) {
+                // The sidechain (HP + held-peak detector) runs at f * fs on the upsampled input: P-3's attribution
+                // showed the compressor's reading is detector gain jitter, which inner-rate detection removes
+                // (-91 dBFS at 4x). The gain computer, the gain application and the trim stay at the base rate.
+                const float xL = detail::isFinite(left[pos + k]) ? left[pos + k] : 0.0f;
+                const float xR = mono ? xL : (detail::isFinite(right[pos + k]) ? right[pos + k] : 0.0f);
+                osL_.upsample(xL, upL_.data());
+                if (!mono)
+                    osR_.upsample(xR, upR_.data());
+                const float g = comp_.processSampleGainOversampled(upL_.data(), mono ? upL_.data() : upR_.data(),
+                                                                   f, mono);
+                const float trim = trimGainS_.process();   // FR-021 output trim (G8-5), per base sample
+                left[pos + k] = (xL * g) * trim;
+                if (!mono)
+                    right[pos + k] = (xR * g) * trim;
+            }
+            intervalPhase_ = (intervalPhase_ + len) % kControlInterval;
+            pos += len;
+        }
+    }
 };
 
 static_assert(MassDynamics::kControlInterval == BassCompressor::kControlInterval,

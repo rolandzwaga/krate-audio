@@ -1,0 +1,114 @@
+Filters: "VoiceEngine_MonoReplaceClickless_Retrigger"
+Randomness seeded to: 3273749008
+FR-009 FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger AlwaysRetrigger Reset Porta0 block 37 ampStep 0.0032689 ampStep_ref 0 over 8 changed grid points
+FR-009 FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger AlwaysRetrigger Reset ConstantTime block 37 ampStep 0.0032689 ampStep_ref 0 over 8 changed grid points
+FR-009 FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger AlwaysRetrigger Reset ConstantRate block 37 ampStep 0.0032689 ampStep_ref 0 over 8 changed grid points
+FR-009 FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger AlwaysRetrigger Reset Quantized block 37 ampStep 0.0032689 ampStep_ref 0 over 8 changed grid points
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+VoiceEngine_MonoReplaceClickless_Retrigger
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_click_test.cpp(1147)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_click_test.cpp(427): FAILED:
+  CHECK( r.aPass() )
+with expansion:
+  false
+with message:
+  replace B C3 +24 st retrigger Legato Reset Porta0 block 37 ratio 1.06703 (bar
+  1.05925) max_dy 0.642627 bound 0.776694 W [24000, 24654) declicked 0
+
+FR-009 FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger Legato Reset Porta0 block 37 ampStep 0.00335795 ampStep_ref 0 over 8 changed grid points
+FR-009 FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger Legato Reset ConstantTime block 37 ampStep 0.00335795 ampStep_ref 0 over 8 changed grid points
+FR-009 FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger Legato Reset ConstantRate block 37 ampStep 0.00335795 ampStep_ref 0 over 8 changed grid points
+FR-009 FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger Legato Reset Quantized block 37 ampStep 0.00335795 ampStep_ref 0 over 8 changed grid points
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_click_test.cpp(427): FAILED:
+  CHECK( r.aPass() )
+with expansion:
+  false
+with message:
+  replace B C3 +24 st retrigger EnvelopeRetriggerOnly Reset Porta0 block 37
+  ratio 1.0676 (bar 1.05925) max_dy 0.642969 bound 0.776694 W [24000, 24654)
+  declicked 0
+
+FR-009 FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger EnvelopeRetriggerOnly Reset Porta0 block 37 ampStep 0 ampStep_ref 0 over 8 changed grid points
+FR-009 FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger EnvelopeRetriggerOnly Reset ConstantTime block 37 ampStep 0 ampStep_ref 0 over 8 changed grid points
+FR-009 FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger EnvelopeRetriggerOnly Reset ConstantRate block 37 ampStep 0 ampStep_ref 0 over 8 changed grid points
+FR-009 FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger EnvelopeRetriggerOnly Reset Quantized block 37 ampStep 0 ampStep_ref 0 over 8 changed grid points
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_click_test.cpp(427): FAILED:
+  CHECK( r.aPass() )
+with expansion:
+  false
+with message:
+  replace B C3 +24 st retrigger OscillatorContinuous Reset Porta0 block 37
+  ratio 1.06703 (bar 1.05925) max_dy 0.642627 bound 0.776694 W [24000, 24654)
+  declicked 0
+
+FR-009 FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger OscillatorContinuous Reset Porta0 block 37 ampStep 0.00335795 ampStep_ref 0 over 8 changed grid points
+FR-009 FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger OscillatorContinuous Reset ConstantTime block 37 ampStep 0.00335795 ampStep_ref 0 over 8 changed grid points
+FR-009 FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger OscillatorContinuous Reset ConstantRate block 37 ampStep 0.00335795 ampStep_ref 0 over 8 changed grid points
+FR-009 FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger OscillatorContinuous Reset Quantized block 37 ampStep 0.00335795 ampStep_ref 0 over 8 changed grid points
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_click_test.cpp(427): FAILED:
+  CHECK( r.aPass() )
+with expansion:
+  false
+with message:
+  replace B C3 +24 st retrigger AlwaysRetrigger Continue Porta0 block 37 ratio
+  1.0676 (bar 1.05925) max_dy 0.642969 bound 0.776694 W [24000, 24654)
+  declicked 0
+
+FR-009 FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger AlwaysRetrigger Continue Porta0 block 37 ampStep 0 ampStep_ref 0 over 8 changed grid points
+FR-009 FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger AlwaysRetrigger Continue ConstantTime block 37 ampStep 0 ampStep_ref 0 over 8 changed grid points
+FR-009 FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger AlwaysRetrigger Continue ConstantRate block 37 ampStep 0 ampStep_ref 0 over 8 changed grid points
+FR-009 FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger AlwaysRetrigger Continue Quantized block 37 ampStep 0 ampStep_ref 0 over 8 changed grid points
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_click_test.cpp(427): FAILED:
+  CHECK( r.aPass() )
+with expansion:
+  false
+with message:
+  replace B C3 +24 st retrigger Legato Continue Porta0 block 37 ratio 1.06703
+  (bar 1.05925) max_dy 0.642627 bound 0.776694 W [24000, 24654) declicked 0
+
+FR-009 FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger Legato Continue Porta0 block 37 ampStep 0.00335795 ampStep_ref 0 over 8 changed grid points
+FR-009 FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger Legato Continue ConstantTime block 37 ampStep 0.00335795 ampStep_ref 0 over 8 changed grid points
+FR-009 FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger Legato Continue ConstantRate block 37 ampStep 0.00335795 ampStep_ref 0 over 8 changed grid points
+FR-009 FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger Legato Continue Quantized block 37 ampStep 0.00335795 ampStep_ref 0 over 8 changed grid points
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_click_test.cpp(427): FAILED:
+  CHECK( r.aPass() )
+with expansion:
+  false
+with message:
+  replace B C3 +24 st retrigger EnvelopeRetriggerOnly Continue Porta0 block 37
+  ratio 1.0676 (bar 1.05925) max_dy 0.642969 bound 0.776694 W [24000, 24654)
+  declicked 0
+
+FR-009 FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger EnvelopeRetriggerOnly Continue Porta0 block 37 ampStep 0 ampStep_ref 0 over 8 changed grid points
+FR-009 FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger EnvelopeRetriggerOnly Continue ConstantTime block 37 ampStep 0 ampStep_ref 0 over 8 changed grid points
+FR-009 FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger EnvelopeRetriggerOnly Continue ConstantRate block 37 ampStep 0 ampStep_ref 0 over 8 changed grid points
+FR-009 FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger EnvelopeRetriggerOnly Continue Quantized block 37 ampStep 0 ampStep_ref 0 over 8 changed grid points
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_click_test.cpp(427): FAILED:
+  CHECK( r.aPass() )
+with expansion:
+  false
+with message:
+  replace B C3 +24 st retrigger OscillatorContinuous Continue Porta0 block 37
+  ratio 1.06703 (bar 1.05925) max_dy 0.642627 bound 0.776694 W [24000, 24654)
+  declicked 0
+
+FR-009 FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger OscillatorContinuous Continue Porta0 block 37 ampStep 0.00335795 ampStep_ref 0 over 8 changed grid points
+FR-009 FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger OscillatorContinuous Continue ConstantTime block 37 ampStep 0.00335795 ampStep_ref 0 over 8 changed grid points
+FR-009 FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger OscillatorContinuous Continue ConstantRate block 37 ampStep 0.00335795 ampStep_ref 0 over 8 changed grid points
+FR-009 FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger OscillatorContinuous Continue Quantized block 37 ampStep 0.00335795 ampStep_ref 0 over 8 changed grid points
+POSITIVE-CONTROL steal A_s+sustain1(C-8)/Solid E1 held AlwaysRetrigger Reset block 1 [disableStealFade] ratio 6.48183 max_dy 0.203571 bound 0.0346657 -> fails (a) or (b): OK
+POSITIVE-CONTROL replace A_s+sustain1(C-8)/Solid E1 +3 st retrigger AlwaysRetrigger Reset Porta0 block 1 [disableDeclick] ratio 15.6608 max_dy 0.208436 bound 0.0137551 -> fails (a) or (b): OK
+SC-006 VoiceEngine_MonoReplaceClickless_Retrigger: 704 cells, worst gated (a) ratio 1.0676 (replace B C3 +24 st retrigger EnvelopeRetriggerOnly Reset Porta0 block 37; bar 1.05925), min (b) margin 1.12494 (replace B C3 +12 st retrigger EnvelopeRetriggerOnly Reset Quantized block 37), wall clock 281.716 s
+===============================================================================
+test cases:     1 |     0 passed | 1 failed
+assertions: 28804 | 28797 passed | 7 failed
+
+exit 7

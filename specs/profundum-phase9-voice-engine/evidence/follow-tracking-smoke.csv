@@ -1,0 +1,2 @@
+case,algorithm,note,tone,recipe,kind,gated,event_index,event_sample,ratio_from,ratio_to,f_core_hz,post_ref_hz,post_ref_vs_fcore_ratio_cents,post_frame_start,post_frame_in_hold,settling_sample,settled,latency_samples,latency_ms,max_abs_err_after_settling_cents,pre_ref_hz,pre_mean_abs_err_cents,pass
+SC-018,Fracture,E1,0.500000,kSineAnchor,step,1,0,316672,1,0.5,41.2034,20.6017,6.71533e-05,361856,1,316687,1,15,0.3125,0.198026,41.2034,0.0359218,1

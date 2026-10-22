@@ -1,0 +1,19 @@
+MSBuild version 17.14.60+43b635718 for .NET Framework
+
+  Checking File Globs
+  Catch2.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\Catch2.lib
+  PFFFT.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\pffft.lib
+  hwy.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy.lib
+  hwy_contrib.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy_contrib.lib
+  KrateDSP.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\KrateDSP.lib
+  profundum_engine_soak_test.cpp
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_soak_test.cpp(1245,14): error C2039: 'cout': is not a member of 'std' [F:\projects\iterum\build\windows-x64-release\dsp\tests\dsp_systems_tests.vcxproj]
+      C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\fstream(20,1):
+      see declaration of 'std'
+  
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_soak_test.cpp(1245,14): error C2065: 'cout': undeclared identifier [F:\projects\iterum\build\windows-x64-release\dsp\tests\dsp_systems_tests.vcxproj]
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_soak_test.cpp(1251,22): error C2039: 'cout': is not a member of 'std' [F:\projects\iterum\build\windows-x64-release\dsp\tests\dsp_systems_tests.vcxproj]
+      C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\fstream(20,1):
+      see declaration of 'std'
+  
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_soak_test.cpp(1251,22): error C2065: 'cout': undeclared identifier [F:\projects\iterum\build\windows-x64-release\dsp\tests\dsp_systems_tests.vcxproj]

@@ -97,6 +97,19 @@ public:
     /// Stage 1 (FR-051): P0-normalised shape, no guard, no cap, f0-independent. out.size() = N in [1, 96].
     /// Writes min(out.size(), kRecipeMaxPartials) elements; anything beyond is left untouched.
     /// @note Real-time safe
+    /// Profundum Phase 9 T032: log2(harmonic) for harmonic in [1, kRecipeMaxPartials], each entry the
+    /// value std::log2(static_cast<float>(harmonic)) returns (filled by that call once), so every
+    /// consumer's shape is bit-identical to the per-call evaluation it replaces.
+    [[nodiscard]] static float log2OfHarmonic(std::size_t harmonic) noexcept {
+        static const std::array<float, kRecipeMaxPartials + 1> table = [] {
+            std::array<float, kRecipeMaxPartials + 1> t{};
+            for (std::size_t h = 1; h <= kRecipeMaxPartials; ++h)
+                t[h] = std::log2(static_cast<float>(h));
+            return t;
+        }();
+        return table[harmonic];
+    }
+
     static void evaluateShape(const Controls& c, std::span<float> out) noexcept {
         const std::size_t n = std::min(out.size(), kRecipeMaxPartials);
         if (n == 0)
@@ -124,7 +137,7 @@ public:
         double power = 1.0;
         for (std::size_t i = 1; i < n; ++i) {
             const std::size_t harmonic = i + 1;
-            const float u = std::log2(static_cast<float>(harmonic));
+            const float u = log2OfHarmonic(harmonic);   // T032: the same std::log2 value, from a table
             const float duB = u - uB;
             const float gB = std::exp(-(duB * duB) / bodyDen);
             const float duE = u - uE;

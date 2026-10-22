@@ -1,0 +1,9 @@
+Filters: "VoiceEngine_FingerprintHarvest"
+Randomness seeded to: 2374719055
+VoiceEngine_FingerprintHarvest: MONO L rms 0.287181819 peak 0.891250908 meanAbs 0.202438002 totalVariation 1379.25318
+VoiceEngine_FingerprintHarvest: MONO R rms 0.292254901 peak 0.891250908 meanAbs 0.205822061 totalVariation 1196.88389
+VoiceEngine_FingerprintHarvest: POLY L rms 0.310607611 peak 0.891250908 meanAbs 0.211370394 totalVariation 1887.32836
+VoiceEngine_FingerprintHarvest: POLY R rms 0.315044971 peak 0.891250908 meanAbs 0.214624401 totalVariation 1669.66098
+===============================================================================
+All tests passed (29 assertions in 1 test case)
+

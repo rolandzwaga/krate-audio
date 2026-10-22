@@ -1,0 +1,7 @@
+START 2026-10-20T22:54:02Z
+[T005 R-J] Mass 50: GR off 0 / on 0 dB, makeup off 0 / on 0 dB
+[T005 R-J] Mass 100: GR off -7.1242 / on -7.12423 dB, makeup off 5.8421 / on 5.8421 dB
+===============================================================================
+All tests passed (10207968 assertions in 479 test cases)
+
+rc=0 END 2026-10-20T23:01:41Z

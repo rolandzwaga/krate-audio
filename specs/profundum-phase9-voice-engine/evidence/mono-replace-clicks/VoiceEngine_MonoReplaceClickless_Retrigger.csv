@@ -1,0 +1,803 @@
+cell,ratio_a,a_gated,a_pass,max_dy,bound,margin_b,b_pass,clicks_c,clicks_transition,clicks_reference,declicked,ref_delay,w_begin,w_end,out_ratio,ampStep,ampStep_ref,bound_settled
+replace A_s+sustain1(C-8) E1 +1 st retrigger AlwaysRetrigger Reset Porta0 block 37,0.492197,1,1,0.005776,0.013168,2.27977,1,0,0,2,1,160,24000,25452,0.490954,n/a,n/a,0.013156
+replace A_s+sustain1(C-8) E1 -1 st retrigger AlwaysRetrigger Reset Porta0 block 37,0.541843,1,1,0.00560942,0.0129003,2.29976,1,0,0,2,1,160,24000,25521,0.538043,n/a,n/a,0.0128871
+replace A_s+sustain1(C-8) E1 +12 st retrigger AlwaysRetrigger Reset Porta0 block 37,0.355389,1,1,0.00823202,0.0174188,2.11599,1,0,0,2,1,160,24000,25452,0.349885,n/a,n/a,0.0174068
+replace A_s+sustain1(C-8) E1 -12 st retrigger AlwaysRetrigger Reset Porta0 block 37,0.884878,1,1,0.00493148,0.0129284,2.62161,1,0,0,0,1,160,24000,26617,0.885817,n/a,n/a,0.0128911
+replace A_s+sustain1(C-8) E1 +24 st retrigger AlwaysRetrigger Reset Porta0 block 37,0.393899,1,1,0.0164012,0.0264054,1.60997,1,0,0,2,1,160,24000,25452,0.391589,n/a,n/a,0.0263934
+skipped E1 -24 st: target 4 outside [16, 127]
+replace A_s+sustain1(C-8) C3 +1 st retrigger AlwaysRetrigger Reset Porta0 block 37,0.280425,1,1,0.0135978,0.0235296,1.7304,1,0,0,2,1,160,24000,24654,0.309457,n/a,n/a,0.0235283
+replace A_s+sustain1(C-8) C3 -1 st retrigger AlwaysRetrigger Reset Porta0 block 37,0.2694,1,1,0.0121896,0.0226835,1.86089,1,0,0,2,1,160,24000,24676,0.296692,n/a,n/a,0.0226824
+replace A_s+sustain1(C-8) C3 +12 st retrigger AlwaysRetrigger Reset Porta0 block 37,0.451896,1,1,0.0257586,0.03682,1.42943,1,0,0,2,1,160,24000,24654,0.449478,n/a,n/a,0.0368188
+replace A_s+sustain1(C-8) C3 -12 st retrigger AlwaysRetrigger Reset Porta0 block 37,0.259757,1,1,0.00769961,0.0226946,2.9475,1,0,0,0,1,160,24000,25021,0.296998,n/a,n/a,0.0226918
+replace A_s+sustain1(C-8) C3 +24 st retrigger AlwaysRetrigger Reset Porta0 block 37,0.828905,1,1,0.0505581,0.0641321,1.26848,1,0,0,2,1,160,24000,24654,1.10728,n/a,n/a,0.0641307
+replace A_s+sustain1(C-8) C3 -24 st retrigger AlwaysRetrigger Reset Porta0 block 37,0.36205,1,1,0.00725609,0.0227134,3.13026,1,0,0,0,1,160,24000,25755,0.431361,n/a,n/a,0.0226965
+replace B E1 +1 st retrigger AlwaysRetrigger Reset Porta0 block 37,0.996868,1,1,0.437041,0.500605,1.14544,1,0,26,29,1,160,24000,25452,1.14129,n/a,n/a,0.493593
+replace B E1 -1 st retrigger AlwaysRetrigger Reset Porta0 block 37,0.997712,1,1,0.413064,0.500393,1.21142,1,0,25,26,1,160,24000,25521,1.25185,n/a,n/a,0.48764
+replace B E1 +12 st retrigger AlwaysRetrigger Reset Porta0 block 37,1.00313,1,1,0.517896,0.605666,1.16947,1,0,29,33,1,160,24000,25452,1.16109,n/a,n/a,0.604498
+replace B E1 -12 st retrigger AlwaysRetrigger Reset Porta0 block 37,0.47906,1,1,0.19066,0.500393,2.62453,1,0,25,31,1,160,24000,26617,0.580842,n/a,n/a,0.48764
+replace B E1 +24 st retrigger AlwaysRetrigger Reset Porta0 block 37,0.99726,1,1,0.5567,0.64016,1.14992,1,1,36,38,1,160,24000,25452,1.34182,n/a,n/a,0.64016
+skipped E1 -24 st: target 4 outside [16, 127]
+replace B C3 +1 st retrigger AlwaysRetrigger Reset Porta0 block 37,0.991402,1,1,0.509227,0.63654,1.25001,1,0,54,55,1,160,24000,24654,1.27181,n/a,n/a,0.636448
+replace B C3 -1 st retrigger AlwaysRetrigger Reset Porta0 block 37,0.991351,1,1,0.508765,0.634394,1.24693,1,0,53,55,1,160,24000,24676,1.23622,n/a,n/a,0.634363
+replace B C3 +12 st retrigger AlwaysRetrigger Reset Porta0 block 37,0.977742,1,1,0.539641,0.634375,1.17555,1,0,57,52,1,160,24000,24654,1.27685,n/a,n/a,0.634344
+replace B C3 -12 st retrigger AlwaysRetrigger Reset Porta0 block 37,0.903788,1,1,0.46848,0.634375,1.35411,1,1,56,57,1,160,24000,25021,1.07073,n/a,n/a,0.634344
+replace B C3 +24 st retrigger AlwaysRetrigger Reset Porta0 block 37,1.00389,1,1,0.683976,0.777123,1.13618,1,4,51,50,1,160,24000,24654,1.27652,n/a,n/a,0.653489
+replace B C3 -24 st retrigger AlwaysRetrigger Reset Porta0 block 37,0.75846,1,1,0.390019,0.634375,1.62652,1,0,54,66,1,160,24000,25755,0.998878,n/a,n/a,0.634344
+FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger AlwaysRetrigger Reset Porta0 block 37,0.355389,1,1,0.00823202,0.0174188,2.11599,1,0,0,2,1,160,24000,25452,0.349885,0.0032689,0,0.0174068
+replace A_s+sustain1(C-8) E1 +1 st retrigger AlwaysRetrigger Reset ConstantTime block 37,0.48499,0,1,0.00569142,0.0134531,2.36375,1,0,0,2,1,160,24000,25452,0.483844,n/a,n/a,0.0134411
+replace A_s+sustain1(C-8) E1 -1 st retrigger AlwaysRetrigger Reset ConstantTime block 37,0.549623,0,1,0.00568996,0.0131695,2.31452,1,0,0,2,1,160,24000,25521,0.545678,n/a,n/a,0.0131563
+replace A_s+sustain1(C-8) E1 +12 st retrigger AlwaysRetrigger Reset ConstantTime block 37,0.246252,0,1,0.00570403,0.0179553,3.14783,1,0,0,2,1,160,24000,25452,0.249954,n/a,n/a,0.0179433
+replace A_s+sustain1(C-8) E1 -12 st retrigger AlwaysRetrigger Reset ConstantTime block 37,1.01967,0,1,0.00568266,0.0131976,2.32243,1,0,0,0,1,160,24000,26617,1.01837,n/a,n/a,0.0131603
+replace A_s+sustain1(C-8) E1 +24 st retrigger AlwaysRetrigger Reset ConstantTime block 37,0.208225,0,1,0.00867009,0.0274684,3.16818,1,0,0,2,1,160,24000,25452,0.205403,n/a,n/a,0.0274564
+skipped E1 -24 st: target 4 outside [16, 127]
+replace A_s+sustain1(C-8) C3 +1 st retrigger AlwaysRetrigger Reset ConstantTime block 37,0.268714,0,1,0.0130299,0.0244265,1.87466,1,0,0,2,1,160,24000,24654,0.296542,n/a,n/a,0.0244253
+replace A_s+sustain1(C-8) C3 -1 st retrigger AlwaysRetrigger Reset ConstantTime block 37,0.281258,0,1,0.0127261,0.0235309,1.84902,1,0,0,2,1,160,24000,24676,0.309735,n/a,n/a,0.0235297
+replace A_s+sustain1(C-8) C3 +12 st retrigger AlwaysRetrigger Reset ConstantTime block 37,0.273478,0,1,0.0155885,0.0384834,2.4687,1,0,0,2,1,160,24000,24654,0.258308,n/a,n/a,0.0384821
+replace A_s+sustain1(C-8) C3 -12 st retrigger AlwaysRetrigger Reset ConstantTime block 37,0.412248,0,1,0.0122197,0.0235419,1.92656,1,0,0,0,1,160,24000,25021,0.421887,n/a,n/a,0.0235391
+replace A_s+sustain1(C-8) C3 +24 st retrigger AlwaysRetrigger Reset ConstantTime block 37,0.297645,0,1,0.0181545,0.0672716,3.70551,1,0,0,2,1,160,24000,24654,0.385994,n/a,n/a,0.0672703
+replace A_s+sustain1(C-8) C3 -24 st retrigger AlwaysRetrigger Reset ConstantTime block 37,0.607288,0,1,0.0121711,0.0235608,1.9358,1,0,0,0,1,160,24000,25755,0.610428,n/a,n/a,0.0235438
+replace B E1 +1 st retrigger AlwaysRetrigger Reset ConstantTime block 37,0.950361,0,1,0.399927,0.510281,1.27594,1,0,26,29,1,160,24000,25452,1.08135,n/a,n/a,0.501488
+replace B E1 -1 st retrigger AlwaysRetrigger Reset ConstantTime block 37,0.972664,0,1,0.402694,0.500605,1.24314,1,0,26,26,1,160,24000,25521,1.20566,n/a,n/a,0.493593
+replace B E1 +12 st retrigger AlwaysRetrigger Reset ConstantTime block 37,1.00797,0,1,0.466055,0.611076,1.31117,1,2,27,33,1,160,24000,25452,1.25232,n/a,n/a,0.610352
+replace B E1 -12 st retrigger AlwaysRetrigger Reset ConstantTime block 37,0.814546,0,1,0.32418,0.500605,1.54422,1,3,26,31,1,160,24000,26617,0.855468,n/a,n/a,0.493593
+replace B E1 +24 st retrigger AlwaysRetrigger Reset ConstantTime block 37,0.896753,0,1,0.500594,0.640357,1.27919,1,2,27,38,1,160,24000,25452,1.17337,n/a,n/a,0.640357
+skipped E1 -24 st: target 4 outside [16, 127]
+replace B C3 +1 st retrigger AlwaysRetrigger Reset ConstantTime block 37,1.04923,0,1,0.53429,0.638396,1.19485,1,0,52,55,1,160,24000,24654,1.32621,n/a,n/a,0.63836
+replace B C3 -1 st retrigger AlwaysRetrigger Reset ConstantTime block 37,1.00414,0,1,0.514816,0.636559,1.23648,1,0,52,55,1,160,24000,24676,1.27169,n/a,n/a,0.636467
+replace B C3 +12 st retrigger AlwaysRetrigger Reset ConstantTime block 37,0.92762,0,1,0.534791,0.634375,1.18621,1,4,54,52,1,160,24000,24654,1.23102,n/a,n/a,0.634344
+replace B C3 -12 st retrigger AlwaysRetrigger Reset ConstantTime block 37,1.00837,0,1,0.51897,0.63654,1.22655,1,2,54,57,1,160,24000,25021,1.23942,n/a,n/a,0.636448
+replace B C3 +24 st retrigger AlwaysRetrigger Reset ConstantTime block 37,0.766007,0,1,0.5219,0.816818,1.56509,1,2,54,50,1,160,24000,24654,0.938359,n/a,n/a,0.697636
+replace B C3 -24 st retrigger AlwaysRetrigger Reset ConstantTime block 37,0.896242,0,1,0.494235,0.63654,1.28793,1,6,58,66,1,160,24000,25755,1.01348,n/a,n/a,0.636448
+FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger AlwaysRetrigger Reset ConstantTime block 37,0.246252,0,1,0.00570403,0.0179553,3.14783,1,0,0,2,1,160,24000,25452,0.249954,0.0032689,0,0.0179433
+replace A_s+sustain1(C-8) E1 +1 st retrigger AlwaysRetrigger Reset ConstantRate block 37,0.485656,0,1,0.00569925,0.0134531,2.3605,1,0,0,2,1,160,24000,25452,0.484473,n/a,n/a,0.0134411
+replace A_s+sustain1(C-8) E1 -1 st retrigger AlwaysRetrigger Reset ConstantRate block 37,0.548913,0,1,0.00568262,0.0131695,2.31751,1,0,0,2,1,160,24000,25521,0.545007,n/a,n/a,0.0131563
+replace A_s+sustain1(C-8) E1 +12 st retrigger AlwaysRetrigger Reset ConstantRate block 37,0.246255,0,1,0.00570409,0.0179553,3.14779,1,0,0,2,1,160,24000,25452,0.249952,n/a,n/a,0.0179433
+replace A_s+sustain1(C-8) E1 -12 st retrigger AlwaysRetrigger Reset ConstantRate block 37,1.01966,0,1,0.00568262,0.0131976,2.32245,1,0,0,0,1,160,24000,26617,1.01837,n/a,n/a,0.0131603
+replace A_s+sustain1(C-8) E1 +24 st retrigger AlwaysRetrigger Reset ConstantRate block 37,0.136992,0,1,0.00570409,0.0274684,4.81556,1,0,0,2,1,160,24000,25452,0.140263,n/a,n/a,0.0274564
+skipped E1 -24 st: target 4 outside [16, 127]
+replace A_s+sustain1(C-8) C3 +1 st retrigger AlwaysRetrigger Reset ConstantRate block 37,0.280468,0,1,0.0135999,0.0244265,1.79609,1,0,0,2,1,160,24000,24654,0.309503,n/a,n/a,0.0244253
+replace A_s+sustain1(C-8) C3 -1 st retrigger AlwaysRetrigger Reset ConstantRate block 37,0.270068,0,1,0.0122198,0.0235309,1.92563,1,0,0,2,1,160,24000,24676,0.300616,n/a,n/a,0.0235297
+replace A_s+sustain1(C-8) C3 +12 st retrigger AlwaysRetrigger Reset ConstantRate block 37,0.273469,0,1,0.015588,0.0384834,2.46878,1,0,0,2,1,160,24000,24654,0.258301,n/a,n/a,0.0384821
+replace A_s+sustain1(C-8) C3 -12 st retrigger AlwaysRetrigger Reset ConstantRate block 37,0.412252,0,1,0.0122198,0.0235419,1.92654,1,0,0,0,1,160,24000,25021,0.421886,n/a,n/a,0.0235391
+replace A_s+sustain1(C-8) C3 +24 st retrigger AlwaysRetrigger Reset ConstantRate block 37,0.255567,0,1,0.015588,0.0672716,4.3156,1,0,0,2,1,160,24000,24654,0.323342,n/a,n/a,0.0672703
+replace A_s+sustain1(C-8) C3 -24 st retrigger AlwaysRetrigger Reset ConstantRate block 37,0.609719,0,1,0.0122198,0.0235608,1.92808,1,0,0,0,1,160,24000,25755,0.612749,n/a,n/a,0.0235438
+replace B E1 +1 st retrigger AlwaysRetrigger Reset ConstantRate block 37,0.983875,0,1,0.413134,0.510281,1.23515,1,0,26,29,1,160,24000,25452,1.10754,n/a,n/a,0.501488
+replace B E1 -1 st retrigger AlwaysRetrigger Reset ConstantRate block 37,1.01139,0,1,0.418726,0.500605,1.19554,1,0,25,26,1,160,24000,25521,1.26709,n/a,n/a,0.493593
+replace B E1 +12 st retrigger AlwaysRetrigger Reset ConstantRate block 37,1.00517,0,1,0.464724,0.611076,1.31492,1,2,27,33,1,160,24000,25452,1.24888,n/a,n/a,0.610352
+replace B E1 -12 st retrigger AlwaysRetrigger Reset ConstantRate block 37,0.81329,0,1,0.32368,0.500605,1.5466,1,3,26,31,1,160,24000,26617,0.861554,n/a,n/a,0.493593
+replace B E1 +24 st retrigger AlwaysRetrigger Reset ConstantRate block 37,0.832496,0,1,0.464724,0.640357,1.37793,1,4,27,38,1,160,24000,25452,1.15631,n/a,n/a,0.640357
+skipped E1 -24 st: target 4 outside [16, 127]
+replace B C3 +1 st retrigger AlwaysRetrigger Reset ConstantRate block 37,1.05055,0,1,0.532154,0.638396,1.19965,1,0,54,55,1,160,24000,24654,1.34926,n/a,n/a,0.63836
+replace B C3 -1 st retrigger AlwaysRetrigger Reset ConstantRate block 37,1.04985,0,1,0.53619,0.636559,1.18719,1,0,52,55,1,160,24000,24676,1.30496,n/a,n/a,0.636467
+replace B C3 +12 st retrigger AlwaysRetrigger Reset ConstantRate block 37,0.928037,0,1,0.534944,0.634375,1.18587,1,4,54,52,1,160,24000,24654,1.23143,n/a,n/a,0.634344
+replace B C3 -12 st retrigger AlwaysRetrigger Reset ConstantRate block 37,1.01149,0,1,0.520033,0.63654,1.22404,1,2,54,57,1,160,24000,25021,1.24326,n/a,n/a,0.636448
+replace B C3 +24 st retrigger AlwaysRetrigger Reset ConstantRate block 37,0.785151,0,1,0.534944,0.816818,1.52692,1,2,54,50,1,160,24000,24654,0.955026,n/a,n/a,0.697636
+replace B C3 -24 st retrigger AlwaysRetrigger Reset ConstantRate block 37,0.98425,0,1,0.542768,0.63654,1.17277,1,6,62,66,1,160,24000,25755,1.089,n/a,n/a,0.636448
+FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger AlwaysRetrigger Reset ConstantRate block 37,0.246255,0,1,0.00570409,0.0179553,3.14779,1,0,0,2,1,160,24000,25452,0.249952,0.0032689,0,0.0179433
+replace A_s+sustain1(C-8) E1 +1 st retrigger AlwaysRetrigger Reset Quantized block 37,0.484926,0,1,0.00569068,0.0134531,2.36406,1,0,0,2,1,160,24000,25452,0.483792,n/a,n/a,0.0134411
+replace A_s+sustain1(C-8) E1 -1 st retrigger AlwaysRetrigger Reset Quantized block 37,0.549692,0,1,0.00569068,0.0131695,2.31423,1,0,0,2,1,160,24000,25521,0.545745,n/a,n/a,0.0131563
+replace A_s+sustain1(C-8) E1 +12 st retrigger AlwaysRetrigger Reset Quantized block 37,0.245676,0,1,0.00569068,0.0179553,3.15521,1,0,0,2,1,160,24000,25452,0.2496,n/a,n/a,0.0179433
+replace A_s+sustain1(C-8) E1 -12 st retrigger AlwaysRetrigger Reset Quantized block 37,1.0211,0,1,0.00569068,0.0131976,2.31916,1,0,0,0,1,160,24000,26617,1.01975,n/a,n/a,0.0131603
+replace A_s+sustain1(C-8) E1 +24 st retrigger AlwaysRetrigger Reset Quantized block 37,0.205001,0,1,0.00853584,0.0274684,3.21801,1,0,0,2,1,160,24000,25452,0.202966,n/a,n/a,0.0274564
+skipped E1 -24 st: target 4 outside [16, 127]
+replace A_s+sustain1(C-8) C3 +1 st retrigger AlwaysRetrigger Reset Quantized block 37,0.265577,0,1,0.0128778,0.0244265,1.8968,1,0,0,2,1,160,24000,24654,0.293075,n/a,n/a,0.0244253
+replace A_s+sustain1(C-8) C3 -1 st retrigger AlwaysRetrigger Reset Quantized block 37,0.284609,0,1,0.0128778,0.0235309,1.82725,1,0,0,2,1,160,24000,24676,0.313431,n/a,n/a,0.0235297
+replace A_s+sustain1(C-8) C3 +12 st retrigger AlwaysRetrigger Reset Quantized block 37,0.268781,0,1,0.0153208,0.0384834,2.51184,1,0,0,2,1,160,24000,24654,0.253,n/a,n/a,0.0384821
+replace A_s+sustain1(C-8) C3 -12 st retrigger AlwaysRetrigger Reset Quantized block 37,0.413898,0,1,0.0122686,0.0235419,1.91888,1,0,0,0,1,160,24000,25021,0.423491,n/a,n/a,0.0235391
+replace A_s+sustain1(C-8) C3 +24 st retrigger AlwaysRetrigger Reset Quantized block 37,0.293265,0,1,0.0178873,0.0672716,3.76085,1,0,0,2,1,160,24000,24654,0.353377,n/a,n/a,0.0672703
+replace A_s+sustain1(C-8) C3 -24 st retrigger AlwaysRetrigger Reset Quantized block 37,0.612153,0,1,0.0122686,0.0235608,1.92041,1,0,0,0,1,160,24000,25755,0.61508,n/a,n/a,0.0235438
+replace B E1 +1 st retrigger AlwaysRetrigger Reset Quantized block 37,0.997854,0,1,0.437473,0.510281,1.16643,1,0,26,29,1,160,24000,25452,1.1539,n/a,n/a,0.501488
+replace B E1 -1 st retrigger AlwaysRetrigger Reset Quantized block 37,1.05725,0,1,0.437473,0.500605,1.14431,1,0,26,26,1,160,24000,25521,1.30261,n/a,n/a,0.493593
+replace B E1 +12 st retrigger AlwaysRetrigger Reset Quantized block 37,0.872392,0,1,0.421967,0.611076,1.44816,1,1,27,33,1,160,24000,25452,1.1049,n/a,n/a,0.610352
+replace B E1 -12 st retrigger AlwaysRetrigger Reset Quantized block 37,0.832156,0,1,0.331188,0.500605,1.51154,1,3,32,31,1,160,24000,26617,0.955761,n/a,n/a,0.493593
+replace B E1 +24 st retrigger AlwaysRetrigger Reset Quantized block 37,0.882028,0,1,0.492374,0.640357,1.30055,1,2,27,38,1,160,24000,25452,1.16427,n/a,n/a,0.640357
+skipped E1 -24 st: target 4 outside [16, 127]
+replace B C3 +1 st retrigger AlwaysRetrigger Reset Quantized block 37,1.05076,0,1,0.533726,0.638396,1.19611,1,0,52,55,1,160,24000,24654,1.32722,n/a,n/a,0.63836
+replace B C3 -1 st retrigger AlwaysRetrigger Reset Quantized block 37,1.05134,0,1,0.533726,0.636559,1.19267,1,0,52,55,1,160,24000,24676,1.33024,n/a,n/a,0.636467
+replace B C3 +12 st retrigger AlwaysRetrigger Reset Quantized block 37,0.849562,0,1,0.499231,0.634375,1.2707,1,4,54,52,1,160,24000,24654,1.12532,n/a,n/a,0.634344
+replace B C3 -12 st retrigger AlwaysRetrigger Reset Quantized block 37,1.01809,0,1,0.493718,0.63654,1.28928,1,2,55,57,1,160,24000,25021,1.12415,n/a,n/a,0.636448
+replace B C3 +24 st retrigger AlwaysRetrigger Reset Quantized block 37,0.756453,0,1,0.515391,0.816818,1.58485,1,3,54,50,1,160,24000,24654,0.926085,n/a,n/a,0.697636
+replace B C3 -24 st retrigger AlwaysRetrigger Reset Quantized block 37,0.906807,0,1,0.495728,0.63654,1.28405,1,4,58,66,1,160,24000,25755,1.01966,n/a,n/a,0.636448
+FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger AlwaysRetrigger Reset Quantized block 37,0.245676,0,1,0.00569068,0.0179553,3.15521,1,0,0,2,1,160,24000,25452,0.2496,0.0032689,0,0.0179433
+replace A_s+sustain1(C-8) E1 +1 st retrigger Legato Reset Porta0 block 37,0.491271,1,1,0.00436769,0.013168,3.01486,1,0,0,2,0,0,24000,25452,0.469101,n/a,n/a,0.013156
+replace A_s+sustain1(C-8) E1 -1 st retrigger Legato Reset Porta0 block 37,0.518384,1,1,0.00389203,0.0129003,3.31455,1,0,0,2,0,0,24000,25521,0.494619,n/a,n/a,0.0128871
+replace A_s+sustain1(C-8) E1 +12 st retrigger Legato Reset Porta0 block 37,0.405132,1,1,0.00823181,0.0174188,2.11604,1,0,0,2,0,0,24000,25452,0.399245,n/a,n/a,0.0174068
+replace A_s+sustain1(C-8) E1 -12 st retrigger Legato Reset Porta0 block 37,0.477275,1,1,0.00285798,0.0129284,4.52361,1,0,0,0,0,0,24000,26617,0.871361,n/a,n/a,0.0128911
+replace A_s+sustain1(C-8) E1 +24 st retrigger Legato Reset Porta0 block 37,0.431473,1,1,0.0167384,0.0264054,1.57753,1,0,0,2,0,0,24000,25452,0.427421,n/a,n/a,0.0263934
+skipped E1 -24 st: target 4 outside [16, 127]
+replace A_s+sustain1(C-8) C3 +1 st retrigger Legato Reset Porta0 block 37,0.583208,1,1,0.0138097,0.0235296,1.70384,1,0,0,2,0,0,24000,24654,0.585469,n/a,n/a,0.0235283
+replace A_s+sustain1(C-8) C3 -1 st retrigger Legato Reset Porta0 block 37,0.602463,1,1,0.0123121,0.0226835,1.84238,1,0,0,2,0,0,24000,24676,0.604553,n/a,n/a,0.0226824
+replace A_s+sustain1(C-8) C3 +12 st retrigger Legato Reset Porta0 block 37,0.726051,1,1,0.025891,0.03682,1.42212,1,0,0,0,0,0,24000,24654,0.850063,n/a,n/a,0.0368188
+replace A_s+sustain1(C-8) C3 -12 st retrigger Legato Reset Porta0 block 37,0.402751,1,1,0.00775006,0.0226946,2.92831,1,0,0,0,0,0,24000,25021,0.544624,n/a,n/a,0.0226918
+replace A_s+sustain1(C-8) C3 +24 st retrigger Legato Reset Porta0 block 37,0.802334,1,1,0.0507215,0.0641321,1.2644,1,0,0,0,0,0,24000,24654,1.22338,n/a,n/a,0.0641307
+replace A_s+sustain1(C-8) C3 -24 st retrigger Legato Reset Porta0 block 37,0.441899,1,1,0.00720051,0.0227134,3.15442,1,0,0,0,0,0,24000,25755,0.724039,n/a,n/a,0.0226965
+replace B E1 +1 st retrigger Legato Reset Porta0 block 37,1.00992,1,1,0.39982,0.500605,1.25208,1,0,24,28,0,0,24000,25452,1.0689,n/a,n/a,0.493593
+replace B E1 -1 st retrigger Legato Reset Porta0 block 37,1.04354,1,1,0.421239,0.500393,1.18791,1,0,24,28,0,0,24000,25521,1.12805,n/a,n/a,0.48764
+replace B E1 +12 st retrigger Legato Reset Porta0 block 37,0.898228,1,1,0.505075,0.605666,1.19916,1,0,30,32,0,0,24000,25452,1.2964,n/a,n/a,0.604498
+replace B E1 -12 st retrigger Legato Reset Porta0 block 37,0.450323,1,1,0.179205,0.500393,2.7923,1,0,26,30,0,0,24000,26617,0.591488,n/a,n/a,0.48764
+replace B E1 +24 st retrigger Legato Reset Porta0 block 37,0.919857,0,1,0.529192,0.64016,1.20969,1,0,36,40,0,0,24000,25452,1.23844,n/a,n/a,0.64016
+skipped E1 -24 st: target 4 outside [16, 127]
+replace B C3 +1 st retrigger Legato Reset Porta0 block 37,0.999887,1,1,0.554125,0.63654,1.14873,1,0,53,56,0,0,24000,24654,1.08005,n/a,n/a,0.636448
+replace B C3 -1 st retrigger Legato Reset Porta0 block 37,0.993405,1,1,0.558827,0.634394,1.13522,1,0,53,54,0,0,24000,24676,1.0837,n/a,n/a,0.634363
+replace B C3 +12 st retrigger Legato Reset Porta0 block 37,1.03218,1,1,0.553341,0.634375,1.14644,1,3,54,50,0,0,24000,24654,1.2642,n/a,n/a,0.634344
+replace B C3 -12 st retrigger Legato Reset Porta0 block 37,0.90294,1,1,0.48875,0.634375,1.29795,1,1,50,56,0,0,24000,25021,1.20666,n/a,n/a,0.634344
+replace B C3 +24 st retrigger Legato Reset Porta0 block 37,1.06601,0,0,0.642385,0.777123,1.20975,1,1,53,49,0,0,24000,24654,1.3372,n/a,n/a,0.653489
+replace B C3 -24 st retrigger Legato Reset Porta0 block 37,0.77922,0,1,0.363517,0.634375,1.7451,1,4,53,68,0,0,24000,25755,0.872298,n/a,n/a,0.634344
+FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger Legato Reset Porta0 block 37,0.405132,1,1,0.00823181,0.0174188,2.11604,1,0,0,2,0,0,24000,25452,0.399245,0.00335795,0,0.0174068
+replace A_s+sustain1(C-8) E1 +1 st retrigger Legato Reset ConstantTime block 37,0.475399,0,1,0.00422658,0.0134531,3.18297,1,0,0,2,0,0,24000,25452,0.453329,n/a,n/a,0.0134411
+replace A_s+sustain1(C-8) E1 -1 st retrigger Legato Reset ConstantTime block 37,0.542872,0,1,0.00407589,0.0131695,3.23108,1,0,0,2,0,0,24000,25521,0.513947,n/a,n/a,0.0131563
+replace A_s+sustain1(C-8) E1 +12 st retrigger Legato Reset ConstantTime block 37,0.299148,0,1,0.00607834,0.0179553,2.95398,1,0,0,2,0,0,24000,25452,0.292826,n/a,n/a,0.0179433
+replace A_s+sustain1(C-8) E1 -12 st retrigger Legato Reset ConstantTime block 37,0.594857,0,1,0.00356208,0.0131976,3.70503,1,0,0,0,0,0,24000,26617,0.871361,n/a,n/a,0.0131603
+replace A_s+sustain1(C-8) E1 +24 st retrigger Legato Reset ConstantTime block 37,0.242864,0,1,0.00942154,0.0274684,2.91549,1,0,0,2,0,0,24000,25452,0.204952,n/a,n/a,0.0274564
+skipped E1 -24 st: target 4 outside [16, 127]
+replace A_s+sustain1(C-8) C3 +1 st retrigger Legato Reset ConstantTime block 37,0.558341,0,1,0.0132209,0.0244265,1.84757,1,0,0,2,0,0,24000,24654,0.560357,n/a,n/a,0.0244253
+replace A_s+sustain1(C-8) C3 -1 st retrigger Legato Reset ConstantTime block 37,0.637301,0,1,0.0130241,0.0235309,1.80672,1,0,0,2,0,0,24000,24676,0.639668,n/a,n/a,0.0235297
+replace A_s+sustain1(C-8) C3 +12 st retrigger Legato Reset ConstantTime block 37,0.427043,0,1,0.0152284,0.0384834,2.52709,1,0,0,0,0,0,24000,24654,0.49921,n/a,n/a,0.0384821
+replace A_s+sustain1(C-8) C3 -12 st retrigger Legato Reset ConstantTime block 37,0.670993,0,1,0.0129118,0.0235419,1.82329,1,0,0,0,0,0,24000,25021,0.808017,n/a,n/a,0.0235391
+replace A_s+sustain1(C-8) C3 +24 st retrigger Legato Reset ConstantTime block 37,0.296881,0,1,0.0187681,0.0672716,3.58437,1,0,0,0,0,0,24000,24654,0.42013,n/a,n/a,0.0672703
+replace A_s+sustain1(C-8) C3 -24 st retrigger Legato Reset ConstantTime block 37,0.784958,0,1,0.0127905,0.0235608,1.84206,1,0,0,0,0,0,24000,25755,1.06436,n/a,n/a,0.0235438
+replace B E1 +1 st retrigger Legato Reset ConstantTime block 37,1.08175,0,0,0.427237,0.510281,1.19438,1,0,26,28,0,0,24000,25452,1.14004,n/a,n/a,0.501488
+replace B E1 -1 st retrigger Legato Reset ConstantTime block 37,1.06559,0,0,0.425876,0.500605,1.17547,1,0,25,28,0,0,24000,25521,1.13998,n/a,n/a,0.493593
+replace B E1 +12 st retrigger Legato Reset ConstantTime block 37,0.843279,0,1,0.470083,0.611076,1.29993,1,1,25,32,0,0,24000,25452,1.20434,n/a,n/a,0.610352
+replace B E1 -12 st retrigger Legato Reset ConstantTime block 37,0.953168,0,1,0.37355,0.500605,1.34013,1,4,29,30,0,0,24000,26617,1.09946,n/a,n/a,0.493593
+replace B E1 +24 st retrigger Legato Reset ConstantTime block 37,0.86093,0,1,0.495291,0.640357,1.29289,1,2,28,40,0,0,24000,25452,1.15487,n/a,n/a,0.640357
+skipped E1 -24 st: target 4 outside [16, 127]
+replace B C3 +1 st retrigger Legato Reset ConstantTime block 37,1.02454,0,1,0.554784,0.638396,1.15071,1,0,53,56,0,0,24000,24654,1.12805,n/a,n/a,0.63836
+replace B C3 -1 st retrigger Legato Reset ConstantTime block 37,0.993752,0,1,0.559022,0.636559,1.1387,1,0,53,54,0,0,24000,24676,1.13636,n/a,n/a,0.636467
+replace B C3 +12 st retrigger Legato Reset ConstantTime block 37,1.05099,0,1,0.563426,0.634375,1.12592,1,1,53,50,0,0,24000,24654,1.24465,n/a,n/a,0.634344
+replace B C3 -12 st retrigger Legato Reset ConstantTime block 37,1.03309,0,1,0.559198,0.63654,1.13831,1,3,56,56,0,0,24000,25021,1.28584,n/a,n/a,0.636448
+replace B C3 +24 st retrigger Legato Reset ConstantTime block 37,0.856228,0,1,0.552708,0.816818,1.47785,1,0,54,49,0,0,24000,24654,1.05095,n/a,n/a,0.697636
+replace B C3 -24 st retrigger Legato Reset ConstantTime block 37,0.966927,0,1,0.533458,0.63654,1.19323,1,8,60,68,0,0,24000,25755,1.09136,n/a,n/a,0.636448
+FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger Legato Reset ConstantTime block 37,0.299148,0,1,0.00607834,0.0179553,2.95398,1,0,0,2,0,0,24000,25452,0.292826,0.00335795,0,0.0179433
+replace A_s+sustain1(C-8) E1 +1 st retrigger Legato Reset ConstantRate block 37,0.491273,0,1,0.00436771,0.0134531,3.08012,1,0,0,2,0,0,24000,25452,0.468972,n/a,n/a,0.0134411
+replace A_s+sustain1(C-8) E1 -1 st retrigger Legato Reset ConstantRate block 37,0.51838,0,1,0.003892,0.0131695,3.38374,1,0,0,2,0,0,24000,25521,0.494619,n/a,n/a,0.0131563
+replace A_s+sustain1(C-8) E1 +12 st retrigger Legato Reset ConstantRate block 37,0.299145,0,1,0.00607828,0.0179553,2.95401,1,0,0,2,0,0,24000,25452,0.292827,n/a,n/a,0.0179433
+replace A_s+sustain1(C-8) E1 -12 st retrigger Legato Reset ConstantRate block 37,0.59484,0,1,0.00356197,0.0131976,3.70514,1,0,0,0,0,0,24000,26617,0.871361,n/a,n/a,0.0131603
+replace A_s+sustain1(C-8) E1 +24 st retrigger Legato Reset ConstantRate block 37,0.156683,0,1,0.00607828,0.0274684,4.51911,1,0,0,2,0,0,24000,25452,0.15472,n/a,n/a,0.0274564
+skipped E1 -24 st: target 4 outside [16, 127]
+replace A_s+sustain1(C-8) C3 +1 st retrigger Legato Reset ConstantRate block 37,0.583206,0,1,0.0138097,0.0244265,1.7688,1,0,0,2,0,0,24000,24654,0.585398,n/a,n/a,0.0244253
+replace A_s+sustain1(C-8) C3 -1 st retrigger Legato Reset ConstantRate block 37,0.631809,0,1,0.0129118,0.0235309,1.82243,1,0,0,2,0,0,24000,24676,0.634284,n/a,n/a,0.0235297
+replace A_s+sustain1(C-8) C3 +12 st retrigger Legato Reset ConstantRate block 37,0.42703,0,1,0.0152279,0.0384834,2.52717,1,0,0,0,0,0,24000,24654,0.499195,n/a,n/a,0.0384821
+replace A_s+sustain1(C-8) C3 -12 st retrigger Legato Reset ConstantRate block 37,0.670994,0,1,0.0129118,0.0235419,1.82328,1,0,0,0,0,0,24000,25021,0.808023,n/a,n/a,0.0235391
+replace A_s+sustain1(C-8) C3 +24 st retrigger Legato Reset ConstantRate block 37,0.240881,0,1,0.0152279,0.0672716,4.41766,1,0,0,0,0,0,24000,24654,0.366673,n/a,n/a,0.0672703
+replace A_s+sustain1(C-8) C3 -24 st retrigger Legato Reset ConstantRate block 37,0.792406,0,1,0.0129118,0.0235608,1.82474,1,0,0,0,0,0,24000,25755,1.07421,n/a,n/a,0.0235438
+replace B E1 +1 st retrigger Legato Reset ConstantRate block 37,1.03168,0,1,0.410571,0.510281,1.24286,1,0,24,28,0,0,24000,25452,1.09482,n/a,n/a,0.501488
+replace B E1 -1 st retrigger Legato Reset ConstantRate block 37,1.00451,0,1,0.413568,0.500605,1.21045,1,0,25,28,0,0,24000,25521,1.1103,n/a,n/a,0.493593
+replace B E1 +12 st retrigger Legato Reset ConstantRate block 37,0.843293,0,1,0.472155,0.611076,1.29423,1,1,25,32,0,0,24000,25452,1.20964,n/a,n/a,0.610352
+replace B E1 -12 st retrigger Legato Reset ConstantRate block 37,0.951934,0,1,0.373067,0.500605,1.34186,1,4,29,30,0,0,24000,26617,1.0967,n/a,n/a,0.493593
+replace B E1 +24 st retrigger Legato Reset ConstantRate block 37,0.820714,0,1,0.472155,0.640357,1.35624,1,3,25,40,0,0,24000,25452,1.11821,n/a,n/a,0.640357
+skipped E1 -24 st: target 4 outside [16, 127]
+replace B C3 +1 st retrigger Legato Reset ConstantRate block 37,1.00441,0,1,0.545871,0.638396,1.1695,1,0,53,56,0,0,24000,24654,1.06055,n/a,n/a,0.63836
+replace B C3 -1 st retrigger Legato Reset ConstantRate block 37,0.994546,0,1,0.559469,0.636559,1.13779,1,0,53,54,0,0,24000,24676,1.13413,n/a,n/a,0.636467
+replace B C3 +12 st retrigger Legato Reset ConstantRate block 37,1.05159,0,1,0.563748,0.634375,1.12528,1,1,53,50,0,0,24000,24654,1.24532,n/a,n/a,0.634344
+replace B C3 -12 st retrigger Legato Reset ConstantRate block 37,1.03315,0,1,0.55923,0.63654,1.13824,1,3,56,56,0,0,24000,25021,1.28614,n/a,n/a,0.636448
+replace B C3 +24 st retrigger Legato Reset ConstantRate block 37,0.874989,0,1,0.563748,0.816818,1.44891,1,0,53,49,0,0,24000,24654,1.10177,n/a,n/a,0.697636
+replace B C3 -24 st retrigger Legato Reset ConstantRate block 37,1.01333,0,1,0.55923,0.63654,1.13824,1,7,63,68,0,0,24000,25755,1.15384,n/a,n/a,0.636448
+FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger Legato Reset ConstantRate block 37,0.299145,0,1,0.00607828,0.0179553,2.95401,1,0,0,2,0,0,24000,25452,0.292827,0.00335795,0,0.0179433
+replace A_s+sustain1(C-8) E1 +1 st retrigger Legato Reset Quantized block 37,0.463748,0,1,0.004123,0.0134531,3.26294,1,0,0,2,0,0,24000,25452,0.442145,n/a,n/a,0.0134411
+replace A_s+sustain1(C-8) E1 -1 st retrigger Legato Reset Quantized block 37,0.549147,0,1,0.004123,0.0131695,3.19416,1,0,0,2,0,0,24000,25521,0.519803,n/a,n/a,0.0131563
+replace A_s+sustain1(C-8) E1 +12 st retrigger Legato Reset Quantized block 37,0.293561,0,1,0.00596482,0.0179553,3.0102,1,0,0,2,0,0,24000,25452,0.281083,n/a,n/a,0.0179433
+replace A_s+sustain1(C-8) E1 -12 st retrigger Legato Reset Quantized block 37,0.613457,0,1,0.00367345,0.0131976,3.5927,1,0,0,0,0,0,24000,26617,0.871361,n/a,n/a,0.0131603
+replace A_s+sustain1(C-8) E1 +24 st retrigger Legato Reset Quantized block 37,0.22945,0,1,0.00890118,0.0274684,3.08593,1,0,0,2,0,0,24000,25452,0.20599,n/a,n/a,0.0274564
+skipped E1 -24 st: target 4 outside [16, 127]
+replace A_s+sustain1(C-8) C3 +1 st retrigger Legato Reset Quantized block 37,0.550687,0,1,0.0130397,0.0244265,1.87325,1,0,0,2,0,0,24000,24654,0.552664,n/a,n/a,0.0244253
+replace A_s+sustain1(C-8) C3 -1 st retrigger Legato Reset Quantized block 37,0.638065,0,1,0.0130397,0.0235309,1.80456,1,0,0,2,0,0,24000,24676,0.640348,n/a,n/a,0.0235297
+replace A_s+sustain1(C-8) C3 +12 st retrigger Legato Reset Quantized block 37,0.41013,0,1,0.0146252,0.0384834,2.6313,1,0,0,0,0,0,24000,24654,0.479447,n/a,n/a,0.0384821
+replace A_s+sustain1(C-8) C3 -12 st retrigger Legato Reset Quantized block 37,0.677363,0,1,0.0130344,0.0235419,1.80614,1,0,0,0,0,0,24000,25021,0.815505,n/a,n/a,0.0235391
+replace A_s+sustain1(C-8) C3 +24 st retrigger Legato Reset Quantized block 37,0.28218,0,1,0.0178387,0.0672716,3.7711,1,0,0,0,0,0,24000,24654,0.415619,n/a,n/a,0.0672703
+replace A_s+sustain1(C-8) C3 -24 st retrigger Legato Reset Quantized block 37,0.799927,0,1,0.0130344,0.0235608,1.80759,1,0,0,0,0,0,24000,25755,1.08416,n/a,n/a,0.0235438
+replace B E1 +1 st retrigger Legato Reset Quantized block 37,1.00066,0,1,0.395556,0.510281,1.29004,1,0,26,28,0,0,24000,25452,1.04107,n/a,n/a,0.501488
+replace B E1 -1 st retrigger Legato Reset Quantized block 37,0.994552,0,1,0.395556,0.500605,1.26557,1,0,26,28,0,0,24000,25521,1.04299,n/a,n/a,0.493593
+replace B E1 +12 st retrigger Legato Reset Quantized block 37,0.863879,0,1,0.4659,0.611076,1.3116,1,0,24,32,0,0,24000,25452,1.19884,n/a,n/a,0.610352
+replace B E1 -12 st retrigger Legato Reset Quantized block 37,0.985079,0,1,0.39201,0.500605,1.27702,1,4,29,30,0,0,24000,26617,1.15346,n/a,n/a,0.493593
+replace B E1 +24 st retrigger Legato Reset Quantized block 37,0.854783,0,1,0.491755,0.640357,1.30219,1,0,28,40,0,0,24000,25452,1.10797,n/a,n/a,0.640357
+skipped E1 -24 st: target 4 outside [16, 127]
+replace B C3 +1 st retrigger Legato Reset Quantized block 37,0.964729,0,1,0.534641,0.638396,1.19406,1,0,53,56,0,0,24000,24654,1.01638,n/a,n/a,0.63836
+replace B C3 -1 st retrigger Legato Reset Quantized block 37,0.95041,0,1,0.534641,0.636559,1.19063,1,0,53,54,0,0,24000,24676,1.08912,n/a,n/a,0.636467
+replace B C3 +12 st retrigger Legato Reset Quantized block 37,1.05146,0,1,0.563679,0.634375,1.12542,1,1,53,50,0,0,24000,24654,1.24567,n/a,n/a,0.634344
+replace B C3 -12 st retrigger Legato Reset Quantized block 37,1.03228,0,1,0.558758,0.63654,1.13921,1,0,56,56,0,0,24000,25021,1.29981,n/a,n/a,0.636448
+replace B C3 +24 st retrigger Legato Reset Quantized block 37,0.86128,0,1,0.543425,0.816818,1.50309,1,0,53,49,0,0,24000,24654,1.05237,n/a,n/a,0.697636
+replace B C3 -24 st retrigger Legato Reset Quantized block 37,0.999797,0,1,0.529208,0.63654,1.20282,1,3,61,68,0,0,24000,25755,1.08339,n/a,n/a,0.636448
+FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger Legato Reset Quantized block 37,0.293561,0,1,0.00596482,0.0179553,3.0102,1,0,0,2,0,0,24000,25452,0.281083,0.00335795,0,0.0179433
+replace A_s+sustain1(C-8) E1 +1 st retrigger EnvelopeRetriggerOnly Reset Porta0 block 37,0.491271,1,1,0.00436769,0.013168,3.01486,1,0,0,2,0,0,24000,25452,0.469101,n/a,n/a,0.013156
+replace A_s+sustain1(C-8) E1 -1 st retrigger EnvelopeRetriggerOnly Reset Porta0 block 37,0.518384,1,1,0.00389203,0.0129003,3.31455,1,0,0,2,0,0,24000,25521,0.494619,n/a,n/a,0.0128871
+replace A_s+sustain1(C-8) E1 +12 st retrigger EnvelopeRetriggerOnly Reset Porta0 block 37,0.405132,1,1,0.00823181,0.0174188,2.11604,1,0,0,2,0,0,24000,25452,0.399245,n/a,n/a,0.0174068
+replace A_s+sustain1(C-8) E1 -12 st retrigger EnvelopeRetriggerOnly Reset Porta0 block 37,0.477275,1,1,0.00285798,0.0129284,4.52361,1,0,0,0,0,0,24000,26617,0.871361,n/a,n/a,0.0128911
+replace A_s+sustain1(C-8) E1 +24 st retrigger EnvelopeRetriggerOnly Reset Porta0 block 37,0.431473,1,1,0.0167384,0.0264054,1.57753,1,0,0,2,0,0,24000,25452,0.427421,n/a,n/a,0.0263934
+skipped E1 -24 st: target 4 outside [16, 127]
+replace A_s+sustain1(C-8) C3 +1 st retrigger EnvelopeRetriggerOnly Reset Porta0 block 37,0.583208,1,1,0.0138097,0.0235296,1.70384,1,0,0,2,0,0,24000,24654,0.585469,n/a,n/a,0.0235283
+replace A_s+sustain1(C-8) C3 -1 st retrigger EnvelopeRetriggerOnly Reset Porta0 block 37,0.602463,1,1,0.0123121,0.0226835,1.84238,1,0,0,2,0,0,24000,24676,0.604553,n/a,n/a,0.0226824
+replace A_s+sustain1(C-8) C3 +12 st retrigger EnvelopeRetriggerOnly Reset Porta0 block 37,0.726051,1,1,0.025891,0.03682,1.42212,1,0,0,0,0,0,24000,24654,0.850063,n/a,n/a,0.0368188
+replace A_s+sustain1(C-8) C3 -12 st retrigger EnvelopeRetriggerOnly Reset Porta0 block 37,0.402751,1,1,0.00775006,0.0226946,2.92831,1,0,0,0,0,0,24000,25021,0.544624,n/a,n/a,0.0226918
+replace A_s+sustain1(C-8) C3 +24 st retrigger EnvelopeRetriggerOnly Reset Porta0 block 37,0.802334,1,1,0.0507215,0.0641321,1.2644,1,0,0,0,0,0,24000,24654,1.22338,n/a,n/a,0.0641307
+replace A_s+sustain1(C-8) C3 -24 st retrigger EnvelopeRetriggerOnly Reset Porta0 block 37,0.441899,1,1,0.00720051,0.0227134,3.15442,1,0,0,0,0,0,24000,25755,0.724039,n/a,n/a,0.0226965
+replace B E1 +1 st retrigger EnvelopeRetriggerOnly Reset Porta0 block 37,1.01049,1,1,0.400046,0.500605,1.25137,1,0,24,28,0,0,24000,25452,1.0689,n/a,n/a,0.493593
+replace B E1 -1 st retrigger EnvelopeRetriggerOnly Reset Porta0 block 37,1.04413,1,1,0.421479,0.500393,1.18723,1,0,24,28,0,0,24000,25521,1.12804,n/a,n/a,0.48764
+replace B E1 +12 st retrigger EnvelopeRetriggerOnly Reset Porta0 block 37,0.898826,1,1,0.505411,0.605666,1.19836,1,0,30,32,0,0,24000,25452,1.2964,n/a,n/a,0.604498
+replace B E1 -12 st retrigger EnvelopeRetriggerOnly Reset Porta0 block 37,0.4506,1,1,0.179315,0.500393,2.79058,1,0,26,30,0,0,24000,26617,0.591848,n/a,n/a,0.48764
+replace B E1 +24 st retrigger EnvelopeRetriggerOnly Reset Porta0 block 37,0.920374,0,1,0.529489,0.64016,1.20902,1,0,36,40,0,0,24000,25452,1.23765,n/a,n/a,0.64016
+skipped E1 -24 st: target 4 outside [16, 127]
+replace B C3 +1 st retrigger EnvelopeRetriggerOnly Reset Porta0 block 37,1.00043,1,1,0.554426,0.63654,1.14811,1,0,53,56,0,0,24000,24654,1.08005,n/a,n/a,0.636448
+replace B C3 -1 st retrigger EnvelopeRetriggerOnly Reset Porta0 block 37,0.993984,1,1,0.559153,0.634394,1.13456,1,0,53,54,0,0,24000,24676,1.08376,n/a,n/a,0.634363
+replace B C3 +12 st retrigger EnvelopeRetriggerOnly Reset Porta0 block 37,1.03275,1,1,0.553646,0.634375,1.14581,1,3,54,50,0,0,24000,24654,1.26485,n/a,n/a,0.634344
+replace B C3 -12 st retrigger EnvelopeRetriggerOnly Reset Porta0 block 37,0.903449,1,1,0.489026,0.634375,1.29722,1,1,50,56,0,0,24000,25021,1.20665,n/a,n/a,0.634344
+replace B C3 +24 st retrigger EnvelopeRetriggerOnly Reset Porta0 block 37,1.06658,0,0,0.642726,0.777123,1.2091,1,1,53,49,0,0,24000,24654,1.3379,n/a,n/a,0.653489
+replace B C3 -24 st retrigger EnvelopeRetriggerOnly Reset Porta0 block 37,0.779637,0,1,0.363711,0.634375,1.74417,1,4,53,68,0,0,24000,25755,0.872286,n/a,n/a,0.634344
+FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger EnvelopeRetriggerOnly Reset Porta0 block 37,0.405132,1,1,0.00823181,0.0174188,2.11604,1,0,0,2,0,0,24000,25452,0.399245,0,0,0.0174068
+replace A_s+sustain1(C-8) E1 +1 st retrigger EnvelopeRetriggerOnly Reset ConstantTime block 37,0.475399,0,1,0.00422658,0.0134531,3.18297,1,0,0,2,0,0,24000,25452,0.453329,n/a,n/a,0.0134411
+replace A_s+sustain1(C-8) E1 -1 st retrigger EnvelopeRetriggerOnly Reset ConstantTime block 37,0.542872,0,1,0.00407589,0.0131695,3.23108,1,0,0,2,0,0,24000,25521,0.513947,n/a,n/a,0.0131563
+replace A_s+sustain1(C-8) E1 +12 st retrigger EnvelopeRetriggerOnly Reset ConstantTime block 37,0.299148,0,1,0.00607834,0.0179553,2.95398,1,0,0,2,0,0,24000,25452,0.292826,n/a,n/a,0.0179433
+replace A_s+sustain1(C-8) E1 -12 st retrigger EnvelopeRetriggerOnly Reset ConstantTime block 37,0.594857,0,1,0.00356208,0.0131976,3.70503,1,0,0,0,0,0,24000,26617,0.871361,n/a,n/a,0.0131603
+replace A_s+sustain1(C-8) E1 +24 st retrigger EnvelopeRetriggerOnly Reset ConstantTime block 37,0.242864,0,1,0.00942154,0.0274684,2.91549,1,0,0,2,0,0,24000,25452,0.204952,n/a,n/a,0.0274564
+skipped E1 -24 st: target 4 outside [16, 127]
+replace A_s+sustain1(C-8) C3 +1 st retrigger EnvelopeRetriggerOnly Reset ConstantTime block 37,0.558341,0,1,0.0132209,0.0244265,1.84757,1,0,0,2,0,0,24000,24654,0.560357,n/a,n/a,0.0244253
+replace A_s+sustain1(C-8) C3 -1 st retrigger EnvelopeRetriggerOnly Reset ConstantTime block 37,0.637301,0,1,0.0130241,0.0235309,1.80672,1,0,0,2,0,0,24000,24676,0.639668,n/a,n/a,0.0235297
+replace A_s+sustain1(C-8) C3 +12 st retrigger EnvelopeRetriggerOnly Reset ConstantTime block 37,0.427043,0,1,0.0152284,0.0384834,2.52709,1,0,0,0,0,0,24000,24654,0.49921,n/a,n/a,0.0384821
+replace A_s+sustain1(C-8) C3 -12 st retrigger EnvelopeRetriggerOnly Reset ConstantTime block 37,0.670993,0,1,0.0129118,0.0235419,1.82329,1,0,0,0,0,0,24000,25021,0.808017,n/a,n/a,0.0235391
+replace A_s+sustain1(C-8) C3 +24 st retrigger EnvelopeRetriggerOnly Reset ConstantTime block 37,0.296881,0,1,0.0187681,0.0672716,3.58437,1,0,0,0,0,0,24000,24654,0.42013,n/a,n/a,0.0672703
+replace A_s+sustain1(C-8) C3 -24 st retrigger EnvelopeRetriggerOnly Reset ConstantTime block 37,0.784958,0,1,0.0127905,0.0235608,1.84206,1,0,0,0,0,0,24000,25755,1.06436,n/a,n/a,0.0235438
+replace B E1 +1 st retrigger EnvelopeRetriggerOnly Reset ConstantTime block 37,1.08236,0,0,0.427479,0.510281,1.1937,1,0,26,28,0,0,24000,25452,1.14004,n/a,n/a,0.501488
+replace B E1 -1 st retrigger EnvelopeRetriggerOnly Reset ConstantTime block 37,1.06619,0,0,0.426118,0.500605,1.1748,1,0,25,28,0,0,24000,25521,1.13998,n/a,n/a,0.493593
+replace B E1 +12 st retrigger EnvelopeRetriggerOnly Reset ConstantTime block 37,0.843755,0,1,0.470393,0.611076,1.29907,1,1,25,32,0,0,24000,25452,1.20434,n/a,n/a,0.610352
+replace B E1 -12 st retrigger EnvelopeRetriggerOnly Reset ConstantTime block 37,0.953712,0,1,0.373763,0.500605,1.33936,1,4,29,30,0,0,24000,26617,1.09945,n/a,n/a,0.493593
+replace B E1 +24 st retrigger EnvelopeRetriggerOnly Reset ConstantTime block 37,0.86148,0,1,0.495608,0.640357,1.29206,1,2,28,40,0,0,24000,25452,1.15488,n/a,n/a,0.640357
+skipped E1 -24 st: target 4 outside [16, 127]
+replace B C3 +1 st retrigger EnvelopeRetriggerOnly Reset ConstantTime block 37,1.02509,0,1,0.555085,0.638396,1.15009,1,0,53,56,0,0,24000,24654,1.1281,n/a,n/a,0.63836
+replace B C3 -1 st retrigger EnvelopeRetriggerOnly Reset ConstantTime block 37,0.994292,0,1,0.559326,0.636559,1.13808,1,0,53,54,0,0,24000,24676,1.13642,n/a,n/a,0.636467
+replace B C3 +12 st retrigger EnvelopeRetriggerOnly Reset ConstantTime block 37,1.05159,0,1,0.56375,0.634375,1.12528,1,1,53,50,0,0,24000,24654,1.24464,n/a,n/a,0.634344
+replace B C3 -12 st retrigger EnvelopeRetriggerOnly Reset ConstantTime block 37,1.03365,0,1,0.559502,0.63654,1.13769,1,3,56,56,0,0,24000,25021,1.28591,n/a,n/a,0.636448
+replace B C3 +24 st retrigger EnvelopeRetriggerOnly Reset ConstantTime block 37,0.856678,0,1,0.553023,0.816818,1.47701,1,0,54,49,0,0,24000,24654,1.05094,n/a,n/a,0.697636
+replace B C3 -24 st retrigger EnvelopeRetriggerOnly Reset ConstantTime block 37,0.96753,0,1,0.533748,0.63654,1.19258,1,8,60,68,0,0,24000,25755,1.09136,n/a,n/a,0.636448
+FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger EnvelopeRetriggerOnly Reset ConstantTime block 37,0.299148,0,1,0.00607834,0.0179553,2.95398,1,0,0,2,0,0,24000,25452,0.292826,0,0,0.0179433
+replace A_s+sustain1(C-8) E1 +1 st retrigger EnvelopeRetriggerOnly Reset ConstantRate block 37,0.491273,0,1,0.00436771,0.0134531,3.08012,1,0,0,2,0,0,24000,25452,0.468972,n/a,n/a,0.0134411
+replace A_s+sustain1(C-8) E1 -1 st retrigger EnvelopeRetriggerOnly Reset ConstantRate block 37,0.51838,0,1,0.003892,0.0131695,3.38374,1,0,0,2,0,0,24000,25521,0.494619,n/a,n/a,0.0131563
+replace A_s+sustain1(C-8) E1 +12 st retrigger EnvelopeRetriggerOnly Reset ConstantRate block 37,0.299145,0,1,0.00607828,0.0179553,2.95401,1,0,0,2,0,0,24000,25452,0.292827,n/a,n/a,0.0179433
+replace A_s+sustain1(C-8) E1 -12 st retrigger EnvelopeRetriggerOnly Reset ConstantRate block 37,0.59484,0,1,0.00356197,0.0131976,3.70514,1,0,0,0,0,0,24000,26617,0.871361,n/a,n/a,0.0131603
+replace A_s+sustain1(C-8) E1 +24 st retrigger EnvelopeRetriggerOnly Reset ConstantRate block 37,0.156683,0,1,0.00607828,0.0274684,4.51911,1,0,0,2,0,0,24000,25452,0.15472,n/a,n/a,0.0274564
+skipped E1 -24 st: target 4 outside [16, 127]
+replace A_s+sustain1(C-8) C3 +1 st retrigger EnvelopeRetriggerOnly Reset ConstantRate block 37,0.583206,0,1,0.0138097,0.0244265,1.7688,1,0,0,2,0,0,24000,24654,0.585398,n/a,n/a,0.0244253
+replace A_s+sustain1(C-8) C3 -1 st retrigger EnvelopeRetriggerOnly Reset ConstantRate block 37,0.631809,0,1,0.0129118,0.0235309,1.82243,1,0,0,2,0,0,24000,24676,0.634284,n/a,n/a,0.0235297
+replace A_s+sustain1(C-8) C3 +12 st retrigger EnvelopeRetriggerOnly Reset ConstantRate block 37,0.42703,0,1,0.0152279,0.0384834,2.52717,1,0,0,0,0,0,24000,24654,0.499195,n/a,n/a,0.0384821
+replace A_s+sustain1(C-8) C3 -12 st retrigger EnvelopeRetriggerOnly Reset ConstantRate block 37,0.670994,0,1,0.0129118,0.0235419,1.82328,1,0,0,0,0,0,24000,25021,0.808023,n/a,n/a,0.0235391
+replace A_s+sustain1(C-8) C3 +24 st retrigger EnvelopeRetriggerOnly Reset ConstantRate block 37,0.240881,0,1,0.0152279,0.0672716,4.41766,1,0,0,0,0,0,24000,24654,0.366673,n/a,n/a,0.0672703
+replace A_s+sustain1(C-8) C3 -24 st retrigger EnvelopeRetriggerOnly Reset ConstantRate block 37,0.792406,0,1,0.0129118,0.0235608,1.82474,1,0,0,0,0,0,24000,25755,1.07421,n/a,n/a,0.0235438
+replace B E1 +1 st retrigger EnvelopeRetriggerOnly Reset ConstantRate block 37,1.03226,0,1,0.410803,0.510281,1.24215,1,0,24,28,0,0,24000,25452,1.09482,n/a,n/a,0.501488
+replace B E1 -1 st retrigger EnvelopeRetriggerOnly Reset ConstantRate block 37,1.00508,0,1,0.413803,0.500605,1.20977,1,0,25,28,0,0,24000,25521,1.11029,n/a,n/a,0.493593
+replace B E1 +12 st retrigger EnvelopeRetriggerOnly Reset ConstantRate block 37,0.843769,0,1,0.472467,0.611076,1.29337,1,1,25,32,0,0,24000,25452,1.20965,n/a,n/a,0.610352
+replace B E1 -12 st retrigger EnvelopeRetriggerOnly Reset ConstantRate block 37,0.952477,0,1,0.373279,0.500605,1.3411,1,4,29,30,0,0,24000,26617,1.09669,n/a,n/a,0.493593
+replace B E1 +24 st retrigger EnvelopeRetriggerOnly Reset ConstantRate block 37,0.821256,0,1,0.472467,0.640357,1.35535,1,3,25,40,0,0,24000,25452,1.1182,n/a,n/a,0.640357
+skipped E1 -24 st: target 4 outside [16, 127]
+replace B C3 +1 st retrigger EnvelopeRetriggerOnly Reset ConstantRate block 37,1.00498,0,1,0.546167,0.638396,1.16886,1,0,53,56,0,0,24000,24654,1.06052,n/a,n/a,0.63836
+replace B C3 -1 st retrigger EnvelopeRetriggerOnly Reset ConstantRate block 37,0.995087,0,1,0.559773,0.636559,1.13717,1,0,53,54,0,0,24000,24676,1.13419,n/a,n/a,0.636467
+replace B C3 +12 st retrigger EnvelopeRetriggerOnly Reset ConstantRate block 37,1.05219,0,1,0.564073,0.634375,1.12463,1,1,53,50,0,0,24000,24654,1.24531,n/a,n/a,0.634344
+replace B C3 -12 st retrigger EnvelopeRetriggerOnly Reset ConstantRate block 37,1.03371,0,1,0.559534,0.63654,1.13762,1,3,56,56,0,0,24000,25021,1.28621,n/a,n/a,0.636448
+replace B C3 +24 st retrigger EnvelopeRetriggerOnly Reset ConstantRate block 37,0.875492,0,1,0.564073,0.816818,1.44807,1,0,53,49,0,0,24000,24654,1.10176,n/a,n/a,0.697636
+replace B C3 -24 st retrigger EnvelopeRetriggerOnly Reset ConstantRate block 37,1.01388,0,1,0.559534,0.63654,1.13762,1,7,63,68,0,0,24000,25755,1.1539,n/a,n/a,0.636448
+FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger EnvelopeRetriggerOnly Reset ConstantRate block 37,0.299145,0,1,0.00607828,0.0179553,2.95401,1,0,0,2,0,0,24000,25452,0.292827,0,0,0.0179433
+replace A_s+sustain1(C-8) E1 +1 st retrigger EnvelopeRetriggerOnly Reset Quantized block 37,0.463748,0,1,0.004123,0.0134531,3.26294,1,0,0,2,0,0,24000,25452,0.442145,n/a,n/a,0.0134411
+replace A_s+sustain1(C-8) E1 -1 st retrigger EnvelopeRetriggerOnly Reset Quantized block 37,0.549147,0,1,0.004123,0.0131695,3.19416,1,0,0,2,0,0,24000,25521,0.519803,n/a,n/a,0.0131563
+replace A_s+sustain1(C-8) E1 +12 st retrigger EnvelopeRetriggerOnly Reset Quantized block 37,0.293561,0,1,0.00596482,0.0179553,3.0102,1,0,0,2,0,0,24000,25452,0.281083,n/a,n/a,0.0179433
+replace A_s+sustain1(C-8) E1 -12 st retrigger EnvelopeRetriggerOnly Reset Quantized block 37,0.613457,0,1,0.00367345,0.0131976,3.5927,1,0,0,0,0,0,24000,26617,0.871361,n/a,n/a,0.0131603
+replace A_s+sustain1(C-8) E1 +24 st retrigger EnvelopeRetriggerOnly Reset Quantized block 37,0.22945,0,1,0.00890118,0.0274684,3.08593,1,0,0,2,0,0,24000,25452,0.20599,n/a,n/a,0.0274564
+skipped E1 -24 st: target 4 outside [16, 127]
+replace A_s+sustain1(C-8) C3 +1 st retrigger EnvelopeRetriggerOnly Reset Quantized block 37,0.550687,0,1,0.0130397,0.0244265,1.87325,1,0,0,2,0,0,24000,24654,0.552664,n/a,n/a,0.0244253
+replace A_s+sustain1(C-8) C3 -1 st retrigger EnvelopeRetriggerOnly Reset Quantized block 37,0.638065,0,1,0.0130397,0.0235309,1.80456,1,0,0,2,0,0,24000,24676,0.640348,n/a,n/a,0.0235297
+replace A_s+sustain1(C-8) C3 +12 st retrigger EnvelopeRetriggerOnly Reset Quantized block 37,0.41013,0,1,0.0146252,0.0384834,2.6313,1,0,0,0,0,0,24000,24654,0.479447,n/a,n/a,0.0384821
+replace A_s+sustain1(C-8) C3 -12 st retrigger EnvelopeRetriggerOnly Reset Quantized block 37,0.677363,0,1,0.0130344,0.0235419,1.80614,1,0,0,0,0,0,24000,25021,0.815505,n/a,n/a,0.0235391
+replace A_s+sustain1(C-8) C3 +24 st retrigger EnvelopeRetriggerOnly Reset Quantized block 37,0.28218,0,1,0.0178387,0.0672716,3.7711,1,0,0,0,0,0,24000,24654,0.415619,n/a,n/a,0.0672703
+replace A_s+sustain1(C-8) C3 -24 st retrigger EnvelopeRetriggerOnly Reset Quantized block 37,0.799927,0,1,0.0130344,0.0235608,1.80759,1,0,0,0,0,0,24000,25755,1.08416,n/a,n/a,0.0235438
+replace B E1 +1 st retrigger EnvelopeRetriggerOnly Reset Quantized block 37,1.00122,0,1,0.395805,0.510281,1.28923,1,0,26,28,0,0,24000,25452,1.04107,n/a,n/a,0.501488
+replace B E1 -1 st retrigger EnvelopeRetriggerOnly Reset Quantized block 37,0.995116,0,1,0.395805,0.500605,1.26478,1,0,26,28,0,0,24000,25521,1.04299,n/a,n/a,0.493593
+replace B E1 +12 st retrigger EnvelopeRetriggerOnly Reset Quantized block 37,0.864452,0,1,0.466209,0.611076,1.31073,1,0,24,32,0,0,24000,25452,1.19884,n/a,n/a,0.610352
+replace B E1 -12 st retrigger EnvelopeRetriggerOnly Reset Quantized block 37,0.985639,0,1,0.392233,0.500605,1.27629,1,4,29,30,0,0,24000,26617,1.15345,n/a,n/a,0.493593
+replace B E1 +24 st retrigger EnvelopeRetriggerOnly Reset Quantized block 37,0.855332,0,1,0.492071,0.640357,1.30135,1,0,28,40,0,0,24000,25452,1.10798,n/a,n/a,0.640357
+skipped E1 -24 st: target 4 outside [16, 127]
+replace B C3 +1 st retrigger EnvelopeRetriggerOnly Reset Quantized block 37,0.965288,0,1,0.534951,0.638396,1.19337,1,0,53,56,0,0,24000,24654,1.01634,n/a,n/a,0.63836
+replace B C3 -1 st retrigger EnvelopeRetriggerOnly Reset Quantized block 37,0.950961,0,1,0.534951,0.636559,1.18994,1,0,53,54,0,0,24000,24676,1.08915,n/a,n/a,0.636467
+replace B C3 +12 st retrigger EnvelopeRetriggerOnly Reset Quantized block 37,1.05207,0,1,0.564004,0.634375,1.12477,1,1,53,50,0,0,24000,24654,1.24567,n/a,n/a,0.634344
+replace B C3 -12 st retrigger EnvelopeRetriggerOnly Reset Quantized block 37,1.03284,0,1,0.559061,0.63654,1.13859,1,0,56,56,0,0,24000,25021,1.29976,n/a,n/a,0.636448
+replace B C3 +24 st retrigger EnvelopeRetriggerOnly Reset Quantized block 37,0.861761,0,1,0.543719,0.816818,1.50228,1,0,53,49,0,0,24000,24654,1.05236,n/a,n/a,0.697636
+replace B C3 -24 st retrigger EnvelopeRetriggerOnly Reset Quantized block 37,1.00036,0,1,0.52952,0.63654,1.20211,1,3,61,68,0,0,24000,25755,1.08338,n/a,n/a,0.636448
+FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger EnvelopeRetriggerOnly Reset Quantized block 37,0.293561,0,1,0.00596482,0.0179553,3.0102,1,0,0,2,0,0,24000,25452,0.281083,0,0,0.0179433
+replace A_s+sustain1(C-8) E1 +1 st retrigger OscillatorContinuous Reset Porta0 block 37,0.491271,1,1,0.00436769,0.013168,3.01486,1,0,0,2,0,0,24000,25452,0.469101,n/a,n/a,0.013156
+replace A_s+sustain1(C-8) E1 -1 st retrigger OscillatorContinuous Reset Porta0 block 37,0.518384,1,1,0.00389203,0.0129003,3.31455,1,0,0,2,0,0,24000,25521,0.494619,n/a,n/a,0.0128871
+replace A_s+sustain1(C-8) E1 +12 st retrigger OscillatorContinuous Reset Porta0 block 37,0.405132,1,1,0.00823181,0.0174188,2.11604,1,0,0,2,0,0,24000,25452,0.399245,n/a,n/a,0.0174068
+replace A_s+sustain1(C-8) E1 -12 st retrigger OscillatorContinuous Reset Porta0 block 37,0.477275,1,1,0.00285798,0.0129284,4.52361,1,0,0,0,0,0,24000,26617,0.871361,n/a,n/a,0.0128911
+replace A_s+sustain1(C-8) E1 +24 st retrigger OscillatorContinuous Reset Porta0 block 37,0.431473,1,1,0.0167384,0.0264054,1.57753,1,0,0,2,0,0,24000,25452,0.427421,n/a,n/a,0.0263934
+skipped E1 -24 st: target 4 outside [16, 127]
+replace A_s+sustain1(C-8) C3 +1 st retrigger OscillatorContinuous Reset Porta0 block 37,0.583208,1,1,0.0138097,0.0235296,1.70384,1,0,0,2,0,0,24000,24654,0.585469,n/a,n/a,0.0235283
+replace A_s+sustain1(C-8) C3 -1 st retrigger OscillatorContinuous Reset Porta0 block 37,0.602463,1,1,0.0123121,0.0226835,1.84238,1,0,0,2,0,0,24000,24676,0.604553,n/a,n/a,0.0226824
+replace A_s+sustain1(C-8) C3 +12 st retrigger OscillatorContinuous Reset Porta0 block 37,0.726051,1,1,0.025891,0.03682,1.42212,1,0,0,0,0,0,24000,24654,0.850063,n/a,n/a,0.0368188
+replace A_s+sustain1(C-8) C3 -12 st retrigger OscillatorContinuous Reset Porta0 block 37,0.402751,1,1,0.00775006,0.0226946,2.92831,1,0,0,0,0,0,24000,25021,0.544624,n/a,n/a,0.0226918
+replace A_s+sustain1(C-8) C3 +24 st retrigger OscillatorContinuous Reset Porta0 block 37,0.802334,1,1,0.0507215,0.0641321,1.2644,1,0,0,0,0,0,24000,24654,1.22338,n/a,n/a,0.0641307
+replace A_s+sustain1(C-8) C3 -24 st retrigger OscillatorContinuous Reset Porta0 block 37,0.441899,1,1,0.00720051,0.0227134,3.15442,1,0,0,0,0,0,24000,25755,0.724039,n/a,n/a,0.0226965
+replace B E1 +1 st retrigger OscillatorContinuous Reset Porta0 block 37,1.00992,1,1,0.39982,0.500605,1.25208,1,0,24,28,0,0,24000,25452,1.0689,n/a,n/a,0.493593
+replace B E1 -1 st retrigger OscillatorContinuous Reset Porta0 block 37,1.04354,1,1,0.421239,0.500393,1.18791,1,0,24,28,0,0,24000,25521,1.12805,n/a,n/a,0.48764
+replace B E1 +12 st retrigger OscillatorContinuous Reset Porta0 block 37,0.898228,1,1,0.505075,0.605666,1.19916,1,0,30,32,0,0,24000,25452,1.2964,n/a,n/a,0.604498
+replace B E1 -12 st retrigger OscillatorContinuous Reset Porta0 block 37,0.450323,1,1,0.179205,0.500393,2.7923,1,0,26,30,0,0,24000,26617,0.591488,n/a,n/a,0.48764
+replace B E1 +24 st retrigger OscillatorContinuous Reset Porta0 block 37,0.919857,0,1,0.529192,0.64016,1.20969,1,0,36,40,0,0,24000,25452,1.23844,n/a,n/a,0.64016
+skipped E1 -24 st: target 4 outside [16, 127]
+replace B C3 +1 st retrigger OscillatorContinuous Reset Porta0 block 37,0.999887,1,1,0.554125,0.63654,1.14873,1,0,53,56,0,0,24000,24654,1.08005,n/a,n/a,0.636448
+replace B C3 -1 st retrigger OscillatorContinuous Reset Porta0 block 37,0.993405,1,1,0.558827,0.634394,1.13522,1,0,53,54,0,0,24000,24676,1.0837,n/a,n/a,0.634363
+replace B C3 +12 st retrigger OscillatorContinuous Reset Porta0 block 37,1.03218,1,1,0.553341,0.634375,1.14644,1,3,54,50,0,0,24000,24654,1.2642,n/a,n/a,0.634344
+replace B C3 -12 st retrigger OscillatorContinuous Reset Porta0 block 37,0.90294,1,1,0.48875,0.634375,1.29795,1,1,50,56,0,0,24000,25021,1.20666,n/a,n/a,0.634344
+replace B C3 +24 st retrigger OscillatorContinuous Reset Porta0 block 37,1.06601,0,0,0.642385,0.777123,1.20975,1,1,53,49,0,0,24000,24654,1.3372,n/a,n/a,0.653489
+replace B C3 -24 st retrigger OscillatorContinuous Reset Porta0 block 37,0.77922,0,1,0.363517,0.634375,1.7451,1,4,53,68,0,0,24000,25755,0.872298,n/a,n/a,0.634344
+FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger OscillatorContinuous Reset Porta0 block 37,0.405132,1,1,0.00823181,0.0174188,2.11604,1,0,0,2,0,0,24000,25452,0.399245,0.00335795,0,0.0174068
+replace A_s+sustain1(C-8) E1 +1 st retrigger OscillatorContinuous Reset ConstantTime block 37,0.475399,0,1,0.00422658,0.0134531,3.18297,1,0,0,2,0,0,24000,25452,0.453329,n/a,n/a,0.0134411
+replace A_s+sustain1(C-8) E1 -1 st retrigger OscillatorContinuous Reset ConstantTime block 37,0.542872,0,1,0.00407589,0.0131695,3.23108,1,0,0,2,0,0,24000,25521,0.513947,n/a,n/a,0.0131563
+replace A_s+sustain1(C-8) E1 +12 st retrigger OscillatorContinuous Reset ConstantTime block 37,0.299148,0,1,0.00607834,0.0179553,2.95398,1,0,0,2,0,0,24000,25452,0.292826,n/a,n/a,0.0179433
+replace A_s+sustain1(C-8) E1 -12 st retrigger OscillatorContinuous Reset ConstantTime block 37,0.594857,0,1,0.00356208,0.0131976,3.70503,1,0,0,0,0,0,24000,26617,0.871361,n/a,n/a,0.0131603
+replace A_s+sustain1(C-8) E1 +24 st retrigger OscillatorContinuous Reset ConstantTime block 37,0.242864,0,1,0.00942154,0.0274684,2.91549,1,0,0,2,0,0,24000,25452,0.204952,n/a,n/a,0.0274564
+skipped E1 -24 st: target 4 outside [16, 127]
+replace A_s+sustain1(C-8) C3 +1 st retrigger OscillatorContinuous Reset ConstantTime block 37,0.558341,0,1,0.0132209,0.0244265,1.84757,1,0,0,2,0,0,24000,24654,0.560357,n/a,n/a,0.0244253
+replace A_s+sustain1(C-8) C3 -1 st retrigger OscillatorContinuous Reset ConstantTime block 37,0.637301,0,1,0.0130241,0.0235309,1.80672,1,0,0,2,0,0,24000,24676,0.639668,n/a,n/a,0.0235297
+replace A_s+sustain1(C-8) C3 +12 st retrigger OscillatorContinuous Reset ConstantTime block 37,0.427043,0,1,0.0152284,0.0384834,2.52709,1,0,0,0,0,0,24000,24654,0.49921,n/a,n/a,0.0384821
+replace A_s+sustain1(C-8) C3 -12 st retrigger OscillatorContinuous Reset ConstantTime block 37,0.670993,0,1,0.0129118,0.0235419,1.82329,1,0,0,0,0,0,24000,25021,0.808017,n/a,n/a,0.0235391
+replace A_s+sustain1(C-8) C3 +24 st retrigger OscillatorContinuous Reset ConstantTime block 37,0.296881,0,1,0.0187681,0.0672716,3.58437,1,0,0,0,0,0,24000,24654,0.42013,n/a,n/a,0.0672703
+replace A_s+sustain1(C-8) C3 -24 st retrigger OscillatorContinuous Reset ConstantTime block 37,0.784958,0,1,0.0127905,0.0235608,1.84206,1,0,0,0,0,0,24000,25755,1.06436,n/a,n/a,0.0235438
+replace B E1 +1 st retrigger OscillatorContinuous Reset ConstantTime block 37,1.08175,0,0,0.427237,0.510281,1.19438,1,0,26,28,0,0,24000,25452,1.14004,n/a,n/a,0.501488
+replace B E1 -1 st retrigger OscillatorContinuous Reset ConstantTime block 37,1.06559,0,0,0.425876,0.500605,1.17547,1,0,25,28,0,0,24000,25521,1.13998,n/a,n/a,0.493593
+replace B E1 +12 st retrigger OscillatorContinuous Reset ConstantTime block 37,0.843279,0,1,0.470083,0.611076,1.29993,1,1,25,32,0,0,24000,25452,1.20434,n/a,n/a,0.610352
+replace B E1 -12 st retrigger OscillatorContinuous Reset ConstantTime block 37,0.953168,0,1,0.37355,0.500605,1.34013,1,4,29,30,0,0,24000,26617,1.09946,n/a,n/a,0.493593
+replace B E1 +24 st retrigger OscillatorContinuous Reset ConstantTime block 37,0.86093,0,1,0.495291,0.640357,1.29289,1,2,28,40,0,0,24000,25452,1.15487,n/a,n/a,0.640357
+skipped E1 -24 st: target 4 outside [16, 127]
+replace B C3 +1 st retrigger OscillatorContinuous Reset ConstantTime block 37,1.02454,0,1,0.554784,0.638396,1.15071,1,0,53,56,0,0,24000,24654,1.12805,n/a,n/a,0.63836
+replace B C3 -1 st retrigger OscillatorContinuous Reset ConstantTime block 37,0.993752,0,1,0.559022,0.636559,1.1387,1,0,53,54,0,0,24000,24676,1.13636,n/a,n/a,0.636467
+replace B C3 +12 st retrigger OscillatorContinuous Reset ConstantTime block 37,1.05099,0,1,0.563426,0.634375,1.12592,1,1,53,50,0,0,24000,24654,1.24465,n/a,n/a,0.634344
+replace B C3 -12 st retrigger OscillatorContinuous Reset ConstantTime block 37,1.03309,0,1,0.559198,0.63654,1.13831,1,3,56,56,0,0,24000,25021,1.28584,n/a,n/a,0.636448
+replace B C3 +24 st retrigger OscillatorContinuous Reset ConstantTime block 37,0.856228,0,1,0.552708,0.816818,1.47785,1,0,54,49,0,0,24000,24654,1.05095,n/a,n/a,0.697636
+replace B C3 -24 st retrigger OscillatorContinuous Reset ConstantTime block 37,0.966927,0,1,0.533458,0.63654,1.19323,1,8,60,68,0,0,24000,25755,1.09136,n/a,n/a,0.636448
+FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger OscillatorContinuous Reset ConstantTime block 37,0.299148,0,1,0.00607834,0.0179553,2.95398,1,0,0,2,0,0,24000,25452,0.292826,0.00335795,0,0.0179433
+replace A_s+sustain1(C-8) E1 +1 st retrigger OscillatorContinuous Reset ConstantRate block 37,0.491273,0,1,0.00436771,0.0134531,3.08012,1,0,0,2,0,0,24000,25452,0.468972,n/a,n/a,0.0134411
+replace A_s+sustain1(C-8) E1 -1 st retrigger OscillatorContinuous Reset ConstantRate block 37,0.51838,0,1,0.003892,0.0131695,3.38374,1,0,0,2,0,0,24000,25521,0.494619,n/a,n/a,0.0131563
+replace A_s+sustain1(C-8) E1 +12 st retrigger OscillatorContinuous Reset ConstantRate block 37,0.299145,0,1,0.00607828,0.0179553,2.95401,1,0,0,2,0,0,24000,25452,0.292827,n/a,n/a,0.0179433
+replace A_s+sustain1(C-8) E1 -12 st retrigger OscillatorContinuous Reset ConstantRate block 37,0.59484,0,1,0.00356197,0.0131976,3.70514,1,0,0,0,0,0,24000,26617,0.871361,n/a,n/a,0.0131603
+replace A_s+sustain1(C-8) E1 +24 st retrigger OscillatorContinuous Reset ConstantRate block 37,0.156683,0,1,0.00607828,0.0274684,4.51911,1,0,0,2,0,0,24000,25452,0.15472,n/a,n/a,0.0274564
+skipped E1 -24 st: target 4 outside [16, 127]
+replace A_s+sustain1(C-8) C3 +1 st retrigger OscillatorContinuous Reset ConstantRate block 37,0.583206,0,1,0.0138097,0.0244265,1.7688,1,0,0,2,0,0,24000,24654,0.585398,n/a,n/a,0.0244253
+replace A_s+sustain1(C-8) C3 -1 st retrigger OscillatorContinuous Reset ConstantRate block 37,0.631809,0,1,0.0129118,0.0235309,1.82243,1,0,0,2,0,0,24000,24676,0.634284,n/a,n/a,0.0235297
+replace A_s+sustain1(C-8) C3 +12 st retrigger OscillatorContinuous Reset ConstantRate block 37,0.42703,0,1,0.0152279,0.0384834,2.52717,1,0,0,0,0,0,24000,24654,0.499195,n/a,n/a,0.0384821
+replace A_s+sustain1(C-8) C3 -12 st retrigger OscillatorContinuous Reset ConstantRate block 37,0.670994,0,1,0.0129118,0.0235419,1.82328,1,0,0,0,0,0,24000,25021,0.808023,n/a,n/a,0.0235391
+replace A_s+sustain1(C-8) C3 +24 st retrigger OscillatorContinuous Reset ConstantRate block 37,0.240881,0,1,0.0152279,0.0672716,4.41766,1,0,0,0,0,0,24000,24654,0.366673,n/a,n/a,0.0672703
+replace A_s+sustain1(C-8) C3 -24 st retrigger OscillatorContinuous Reset ConstantRate block 37,0.792406,0,1,0.0129118,0.0235608,1.82474,1,0,0,0,0,0,24000,25755,1.07421,n/a,n/a,0.0235438
+replace B E1 +1 st retrigger OscillatorContinuous Reset ConstantRate block 37,1.03168,0,1,0.410571,0.510281,1.24286,1,0,24,28,0,0,24000,25452,1.09482,n/a,n/a,0.501488
+replace B E1 -1 st retrigger OscillatorContinuous Reset ConstantRate block 37,1.00451,0,1,0.413568,0.500605,1.21045,1,0,25,28,0,0,24000,25521,1.1103,n/a,n/a,0.493593
+replace B E1 +12 st retrigger OscillatorContinuous Reset ConstantRate block 37,0.843293,0,1,0.472155,0.611076,1.29423,1,1,25,32,0,0,24000,25452,1.20964,n/a,n/a,0.610352
+replace B E1 -12 st retrigger OscillatorContinuous Reset ConstantRate block 37,0.951934,0,1,0.373067,0.500605,1.34186,1,4,29,30,0,0,24000,26617,1.0967,n/a,n/a,0.493593
+replace B E1 +24 st retrigger OscillatorContinuous Reset ConstantRate block 37,0.820714,0,1,0.472155,0.640357,1.35624,1,3,25,40,0,0,24000,25452,1.11821,n/a,n/a,0.640357
+skipped E1 -24 st: target 4 outside [16, 127]
+replace B C3 +1 st retrigger OscillatorContinuous Reset ConstantRate block 37,1.00441,0,1,0.545871,0.638396,1.1695,1,0,53,56,0,0,24000,24654,1.06055,n/a,n/a,0.63836
+replace B C3 -1 st retrigger OscillatorContinuous Reset ConstantRate block 37,0.994546,0,1,0.559469,0.636559,1.13779,1,0,53,54,0,0,24000,24676,1.13413,n/a,n/a,0.636467
+replace B C3 +12 st retrigger OscillatorContinuous Reset ConstantRate block 37,1.05159,0,1,0.563748,0.634375,1.12528,1,1,53,50,0,0,24000,24654,1.24532,n/a,n/a,0.634344
+replace B C3 -12 st retrigger OscillatorContinuous Reset ConstantRate block 37,1.03315,0,1,0.55923,0.63654,1.13824,1,3,56,56,0,0,24000,25021,1.28614,n/a,n/a,0.636448
+replace B C3 +24 st retrigger OscillatorContinuous Reset ConstantRate block 37,0.874989,0,1,0.563748,0.816818,1.44891,1,0,53,49,0,0,24000,24654,1.10177,n/a,n/a,0.697636
+replace B C3 -24 st retrigger OscillatorContinuous Reset ConstantRate block 37,1.01333,0,1,0.55923,0.63654,1.13824,1,7,63,68,0,0,24000,25755,1.15384,n/a,n/a,0.636448
+FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger OscillatorContinuous Reset ConstantRate block 37,0.299145,0,1,0.00607828,0.0179553,2.95401,1,0,0,2,0,0,24000,25452,0.292827,0.00335795,0,0.0179433
+replace A_s+sustain1(C-8) E1 +1 st retrigger OscillatorContinuous Reset Quantized block 37,0.463748,0,1,0.004123,0.0134531,3.26294,1,0,0,2,0,0,24000,25452,0.442145,n/a,n/a,0.0134411
+replace A_s+sustain1(C-8) E1 -1 st retrigger OscillatorContinuous Reset Quantized block 37,0.549147,0,1,0.004123,0.0131695,3.19416,1,0,0,2,0,0,24000,25521,0.519803,n/a,n/a,0.0131563
+replace A_s+sustain1(C-8) E1 +12 st retrigger OscillatorContinuous Reset Quantized block 37,0.293561,0,1,0.00596482,0.0179553,3.0102,1,0,0,2,0,0,24000,25452,0.281083,n/a,n/a,0.0179433
+replace A_s+sustain1(C-8) E1 -12 st retrigger OscillatorContinuous Reset Quantized block 37,0.613457,0,1,0.00367345,0.0131976,3.5927,1,0,0,0,0,0,24000,26617,0.871361,n/a,n/a,0.0131603
+replace A_s+sustain1(C-8) E1 +24 st retrigger OscillatorContinuous Reset Quantized block 37,0.22945,0,1,0.00890118,0.0274684,3.08593,1,0,0,2,0,0,24000,25452,0.20599,n/a,n/a,0.0274564
+skipped E1 -24 st: target 4 outside [16, 127]
+replace A_s+sustain1(C-8) C3 +1 st retrigger OscillatorContinuous Reset Quantized block 37,0.550687,0,1,0.0130397,0.0244265,1.87325,1,0,0,2,0,0,24000,24654,0.552664,n/a,n/a,0.0244253
+replace A_s+sustain1(C-8) C3 -1 st retrigger OscillatorContinuous Reset Quantized block 37,0.638065,0,1,0.0130397,0.0235309,1.80456,1,0,0,2,0,0,24000,24676,0.640348,n/a,n/a,0.0235297
+replace A_s+sustain1(C-8) C3 +12 st retrigger OscillatorContinuous Reset Quantized block 37,0.41013,0,1,0.0146252,0.0384834,2.6313,1,0,0,0,0,0,24000,24654,0.479447,n/a,n/a,0.0384821
+replace A_s+sustain1(C-8) C3 -12 st retrigger OscillatorContinuous Reset Quantized block 37,0.677363,0,1,0.0130344,0.0235419,1.80614,1,0,0,0,0,0,24000,25021,0.815505,n/a,n/a,0.0235391
+replace A_s+sustain1(C-8) C3 +24 st retrigger OscillatorContinuous Reset Quantized block 37,0.28218,0,1,0.0178387,0.0672716,3.7711,1,0,0,0,0,0,24000,24654,0.415619,n/a,n/a,0.0672703
+replace A_s+sustain1(C-8) C3 -24 st retrigger OscillatorContinuous Reset Quantized block 37,0.799927,0,1,0.0130344,0.0235608,1.80759,1,0,0,0,0,0,24000,25755,1.08416,n/a,n/a,0.0235438
+replace B E1 +1 st retrigger OscillatorContinuous Reset Quantized block 37,1.00066,0,1,0.395556,0.510281,1.29004,1,0,26,28,0,0,24000,25452,1.04107,n/a,n/a,0.501488
+replace B E1 -1 st retrigger OscillatorContinuous Reset Quantized block 37,0.994552,0,1,0.395556,0.500605,1.26557,1,0,26,28,0,0,24000,25521,1.04299,n/a,n/a,0.493593
+replace B E1 +12 st retrigger OscillatorContinuous Reset Quantized block 37,0.863879,0,1,0.4659,0.611076,1.3116,1,0,24,32,0,0,24000,25452,1.19884,n/a,n/a,0.610352
+replace B E1 -12 st retrigger OscillatorContinuous Reset Quantized block 37,0.985079,0,1,0.39201,0.500605,1.27702,1,4,29,30,0,0,24000,26617,1.15346,n/a,n/a,0.493593
+replace B E1 +24 st retrigger OscillatorContinuous Reset Quantized block 37,0.854783,0,1,0.491755,0.640357,1.30219,1,0,28,40,0,0,24000,25452,1.10797,n/a,n/a,0.640357
+skipped E1 -24 st: target 4 outside [16, 127]
+replace B C3 +1 st retrigger OscillatorContinuous Reset Quantized block 37,0.964729,0,1,0.534641,0.638396,1.19406,1,0,53,56,0,0,24000,24654,1.01638,n/a,n/a,0.63836
+replace B C3 -1 st retrigger OscillatorContinuous Reset Quantized block 37,0.95041,0,1,0.534641,0.636559,1.19063,1,0,53,54,0,0,24000,24676,1.08912,n/a,n/a,0.636467
+replace B C3 +12 st retrigger OscillatorContinuous Reset Quantized block 37,1.05146,0,1,0.563679,0.634375,1.12542,1,1,53,50,0,0,24000,24654,1.24567,n/a,n/a,0.634344
+replace B C3 -12 st retrigger OscillatorContinuous Reset Quantized block 37,1.03228,0,1,0.558758,0.63654,1.13921,1,0,56,56,0,0,24000,25021,1.29981,n/a,n/a,0.636448
+replace B C3 +24 st retrigger OscillatorContinuous Reset Quantized block 37,0.86128,0,1,0.543425,0.816818,1.50309,1,0,53,49,0,0,24000,24654,1.05237,n/a,n/a,0.697636
+replace B C3 -24 st retrigger OscillatorContinuous Reset Quantized block 37,0.999797,0,1,0.529208,0.63654,1.20282,1,3,61,68,0,0,24000,25755,1.08339,n/a,n/a,0.636448
+FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger OscillatorContinuous Reset Quantized block 37,0.293561,0,1,0.00596482,0.0179553,3.0102,1,0,0,2,0,0,24000,25452,0.281083,0.00335795,0,0.0179433
+replace A_s+sustain1(C-8) E1 +1 st retrigger AlwaysRetrigger Continue Porta0 block 37,0.491271,1,1,0.00436769,0.013168,3.01486,1,0,0,2,0,0,24000,25452,0.469101,n/a,n/a,0.013156
+replace A_s+sustain1(C-8) E1 -1 st retrigger AlwaysRetrigger Continue Porta0 block 37,0.518384,1,1,0.00389203,0.0129003,3.31455,1,0,0,2,0,0,24000,25521,0.494619,n/a,n/a,0.0128871
+replace A_s+sustain1(C-8) E1 +12 st retrigger AlwaysRetrigger Continue Porta0 block 37,0.405132,1,1,0.00823181,0.0174188,2.11604,1,0,0,2,0,0,24000,25452,0.399245,n/a,n/a,0.0174068
+replace A_s+sustain1(C-8) E1 -12 st retrigger AlwaysRetrigger Continue Porta0 block 37,0.477275,1,1,0.00285798,0.0129284,4.52361,1,0,0,0,0,0,24000,26617,0.871361,n/a,n/a,0.0128911
+replace A_s+sustain1(C-8) E1 +24 st retrigger AlwaysRetrigger Continue Porta0 block 37,0.431473,1,1,0.0167384,0.0264054,1.57753,1,0,0,2,0,0,24000,25452,0.427421,n/a,n/a,0.0263934
+skipped E1 -24 st: target 4 outside [16, 127]
+replace A_s+sustain1(C-8) C3 +1 st retrigger AlwaysRetrigger Continue Porta0 block 37,0.583208,1,1,0.0138097,0.0235296,1.70384,1,0,0,2,0,0,24000,24654,0.585469,n/a,n/a,0.0235283
+replace A_s+sustain1(C-8) C3 -1 st retrigger AlwaysRetrigger Continue Porta0 block 37,0.602463,1,1,0.0123121,0.0226835,1.84238,1,0,0,2,0,0,24000,24676,0.604553,n/a,n/a,0.0226824
+replace A_s+sustain1(C-8) C3 +12 st retrigger AlwaysRetrigger Continue Porta0 block 37,0.726051,1,1,0.025891,0.03682,1.42212,1,0,0,0,0,0,24000,24654,0.850063,n/a,n/a,0.0368188
+replace A_s+sustain1(C-8) C3 -12 st retrigger AlwaysRetrigger Continue Porta0 block 37,0.402751,1,1,0.00775006,0.0226946,2.92831,1,0,0,0,0,0,24000,25021,0.544624,n/a,n/a,0.0226918
+replace A_s+sustain1(C-8) C3 +24 st retrigger AlwaysRetrigger Continue Porta0 block 37,0.802334,1,1,0.0507215,0.0641321,1.2644,1,0,0,0,0,0,24000,24654,1.22338,n/a,n/a,0.0641307
+replace A_s+sustain1(C-8) C3 -24 st retrigger AlwaysRetrigger Continue Porta0 block 37,0.441899,1,1,0.00720051,0.0227134,3.15442,1,0,0,0,0,0,24000,25755,0.724039,n/a,n/a,0.0226965
+replace B E1 +1 st retrigger AlwaysRetrigger Continue Porta0 block 37,1.01049,1,1,0.400046,0.500605,1.25137,1,0,24,28,0,0,24000,25452,1.0689,n/a,n/a,0.493593
+replace B E1 -1 st retrigger AlwaysRetrigger Continue Porta0 block 37,1.04413,1,1,0.421479,0.500393,1.18723,1,0,24,28,0,0,24000,25521,1.12804,n/a,n/a,0.48764
+replace B E1 +12 st retrigger AlwaysRetrigger Continue Porta0 block 37,0.898826,1,1,0.505411,0.605666,1.19836,1,0,30,32,0,0,24000,25452,1.2964,n/a,n/a,0.604498
+replace B E1 -12 st retrigger AlwaysRetrigger Continue Porta0 block 37,0.4506,1,1,0.179315,0.500393,2.79058,1,0,26,30,0,0,24000,26617,0.591848,n/a,n/a,0.48764
+replace B E1 +24 st retrigger AlwaysRetrigger Continue Porta0 block 37,0.920374,0,1,0.529489,0.64016,1.20902,1,0,36,40,0,0,24000,25452,1.23765,n/a,n/a,0.64016
+skipped E1 -24 st: target 4 outside [16, 127]
+replace B C3 +1 st retrigger AlwaysRetrigger Continue Porta0 block 37,1.00043,1,1,0.554426,0.63654,1.14811,1,0,53,56,0,0,24000,24654,1.08005,n/a,n/a,0.636448
+replace B C3 -1 st retrigger AlwaysRetrigger Continue Porta0 block 37,0.993984,1,1,0.559153,0.634394,1.13456,1,0,53,54,0,0,24000,24676,1.08376,n/a,n/a,0.634363
+replace B C3 +12 st retrigger AlwaysRetrigger Continue Porta0 block 37,1.03275,1,1,0.553646,0.634375,1.14581,1,3,54,50,0,0,24000,24654,1.26485,n/a,n/a,0.634344
+replace B C3 -12 st retrigger AlwaysRetrigger Continue Porta0 block 37,0.903449,1,1,0.489026,0.634375,1.29722,1,1,50,56,0,0,24000,25021,1.20665,n/a,n/a,0.634344
+replace B C3 +24 st retrigger AlwaysRetrigger Continue Porta0 block 37,1.06658,0,0,0.642726,0.777123,1.2091,1,1,53,49,0,0,24000,24654,1.3379,n/a,n/a,0.653489
+replace B C3 -24 st retrigger AlwaysRetrigger Continue Porta0 block 37,0.779637,0,1,0.363711,0.634375,1.74417,1,4,53,68,0,0,24000,25755,0.872286,n/a,n/a,0.634344
+FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger AlwaysRetrigger Continue Porta0 block 37,0.405132,1,1,0.00823181,0.0174188,2.11604,1,0,0,2,0,0,24000,25452,0.399245,0,0,0.0174068
+replace A_s+sustain1(C-8) E1 +1 st retrigger AlwaysRetrigger Continue ConstantTime block 37,0.475399,0,1,0.00422658,0.0134531,3.18297,1,0,0,2,0,0,24000,25452,0.453329,n/a,n/a,0.0134411
+replace A_s+sustain1(C-8) E1 -1 st retrigger AlwaysRetrigger Continue ConstantTime block 37,0.542872,0,1,0.00407589,0.0131695,3.23108,1,0,0,2,0,0,24000,25521,0.513947,n/a,n/a,0.0131563
+replace A_s+sustain1(C-8) E1 +12 st retrigger AlwaysRetrigger Continue ConstantTime block 37,0.299148,0,1,0.00607834,0.0179553,2.95398,1,0,0,2,0,0,24000,25452,0.292826,n/a,n/a,0.0179433
+replace A_s+sustain1(C-8) E1 -12 st retrigger AlwaysRetrigger Continue ConstantTime block 37,0.594857,0,1,0.00356208,0.0131976,3.70503,1,0,0,0,0,0,24000,26617,0.871361,n/a,n/a,0.0131603
+replace A_s+sustain1(C-8) E1 +24 st retrigger AlwaysRetrigger Continue ConstantTime block 37,0.242864,0,1,0.00942154,0.0274684,2.91549,1,0,0,2,0,0,24000,25452,0.204952,n/a,n/a,0.0274564
+skipped E1 -24 st: target 4 outside [16, 127]
+replace A_s+sustain1(C-8) C3 +1 st retrigger AlwaysRetrigger Continue ConstantTime block 37,0.558341,0,1,0.0132209,0.0244265,1.84757,1,0,0,2,0,0,24000,24654,0.560357,n/a,n/a,0.0244253
+replace A_s+sustain1(C-8) C3 -1 st retrigger AlwaysRetrigger Continue ConstantTime block 37,0.637301,0,1,0.0130241,0.0235309,1.80672,1,0,0,2,0,0,24000,24676,0.639668,n/a,n/a,0.0235297
+replace A_s+sustain1(C-8) C3 +12 st retrigger AlwaysRetrigger Continue ConstantTime block 37,0.427043,0,1,0.0152284,0.0384834,2.52709,1,0,0,0,0,0,24000,24654,0.49921,n/a,n/a,0.0384821
+replace A_s+sustain1(C-8) C3 -12 st retrigger AlwaysRetrigger Continue ConstantTime block 37,0.670993,0,1,0.0129118,0.0235419,1.82329,1,0,0,0,0,0,24000,25021,0.808017,n/a,n/a,0.0235391
+replace A_s+sustain1(C-8) C3 +24 st retrigger AlwaysRetrigger Continue ConstantTime block 37,0.296881,0,1,0.0187681,0.0672716,3.58437,1,0,0,0,0,0,24000,24654,0.42013,n/a,n/a,0.0672703
+replace A_s+sustain1(C-8) C3 -24 st retrigger AlwaysRetrigger Continue ConstantTime block 37,0.784958,0,1,0.0127905,0.0235608,1.84206,1,0,0,0,0,0,24000,25755,1.06436,n/a,n/a,0.0235438
+replace B E1 +1 st retrigger AlwaysRetrigger Continue ConstantTime block 37,1.08236,0,0,0.427479,0.510281,1.1937,1,0,26,28,0,0,24000,25452,1.14004,n/a,n/a,0.501488
+replace B E1 -1 st retrigger AlwaysRetrigger Continue ConstantTime block 37,1.06619,0,0,0.426118,0.500605,1.1748,1,0,25,28,0,0,24000,25521,1.13998,n/a,n/a,0.493593
+replace B E1 +12 st retrigger AlwaysRetrigger Continue ConstantTime block 37,0.843755,0,1,0.470393,0.611076,1.29907,1,1,25,32,0,0,24000,25452,1.20434,n/a,n/a,0.610352
+replace B E1 -12 st retrigger AlwaysRetrigger Continue ConstantTime block 37,0.953712,0,1,0.373763,0.500605,1.33936,1,4,29,30,0,0,24000,26617,1.09945,n/a,n/a,0.493593
+replace B E1 +24 st retrigger AlwaysRetrigger Continue ConstantTime block 37,0.86148,0,1,0.495608,0.640357,1.29206,1,2,28,40,0,0,24000,25452,1.15488,n/a,n/a,0.640357
+skipped E1 -24 st: target 4 outside [16, 127]
+replace B C3 +1 st retrigger AlwaysRetrigger Continue ConstantTime block 37,1.02509,0,1,0.555085,0.638396,1.15009,1,0,53,56,0,0,24000,24654,1.1281,n/a,n/a,0.63836
+replace B C3 -1 st retrigger AlwaysRetrigger Continue ConstantTime block 37,0.994292,0,1,0.559326,0.636559,1.13808,1,0,53,54,0,0,24000,24676,1.13642,n/a,n/a,0.636467
+replace B C3 +12 st retrigger AlwaysRetrigger Continue ConstantTime block 37,1.05159,0,1,0.56375,0.634375,1.12528,1,1,53,50,0,0,24000,24654,1.24464,n/a,n/a,0.634344
+replace B C3 -12 st retrigger AlwaysRetrigger Continue ConstantTime block 37,1.03365,0,1,0.559502,0.63654,1.13769,1,3,56,56,0,0,24000,25021,1.28591,n/a,n/a,0.636448
+replace B C3 +24 st retrigger AlwaysRetrigger Continue ConstantTime block 37,0.856678,0,1,0.553023,0.816818,1.47701,1,0,54,49,0,0,24000,24654,1.05094,n/a,n/a,0.697636
+replace B C3 -24 st retrigger AlwaysRetrigger Continue ConstantTime block 37,0.96753,0,1,0.533748,0.63654,1.19258,1,8,60,68,0,0,24000,25755,1.09136,n/a,n/a,0.636448
+FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger AlwaysRetrigger Continue ConstantTime block 37,0.299148,0,1,0.00607834,0.0179553,2.95398,1,0,0,2,0,0,24000,25452,0.292826,0,0,0.0179433
+replace A_s+sustain1(C-8) E1 +1 st retrigger AlwaysRetrigger Continue ConstantRate block 37,0.491273,0,1,0.00436771,0.0134531,3.08012,1,0,0,2,0,0,24000,25452,0.468972,n/a,n/a,0.0134411
+replace A_s+sustain1(C-8) E1 -1 st retrigger AlwaysRetrigger Continue ConstantRate block 37,0.51838,0,1,0.003892,0.0131695,3.38374,1,0,0,2,0,0,24000,25521,0.494619,n/a,n/a,0.0131563
+replace A_s+sustain1(C-8) E1 +12 st retrigger AlwaysRetrigger Continue ConstantRate block 37,0.299145,0,1,0.00607828,0.0179553,2.95401,1,0,0,2,0,0,24000,25452,0.292827,n/a,n/a,0.0179433
+replace A_s+sustain1(C-8) E1 -12 st retrigger AlwaysRetrigger Continue ConstantRate block 37,0.59484,0,1,0.00356197,0.0131976,3.70514,1,0,0,0,0,0,24000,26617,0.871361,n/a,n/a,0.0131603
+replace A_s+sustain1(C-8) E1 +24 st retrigger AlwaysRetrigger Continue ConstantRate block 37,0.156683,0,1,0.00607828,0.0274684,4.51911,1,0,0,2,0,0,24000,25452,0.15472,n/a,n/a,0.0274564
+skipped E1 -24 st: target 4 outside [16, 127]
+replace A_s+sustain1(C-8) C3 +1 st retrigger AlwaysRetrigger Continue ConstantRate block 37,0.583206,0,1,0.0138097,0.0244265,1.7688,1,0,0,2,0,0,24000,24654,0.585398,n/a,n/a,0.0244253
+replace A_s+sustain1(C-8) C3 -1 st retrigger AlwaysRetrigger Continue ConstantRate block 37,0.631809,0,1,0.0129118,0.0235309,1.82243,1,0,0,2,0,0,24000,24676,0.634284,n/a,n/a,0.0235297
+replace A_s+sustain1(C-8) C3 +12 st retrigger AlwaysRetrigger Continue ConstantRate block 37,0.42703,0,1,0.0152279,0.0384834,2.52717,1,0,0,0,0,0,24000,24654,0.499195,n/a,n/a,0.0384821
+replace A_s+sustain1(C-8) C3 -12 st retrigger AlwaysRetrigger Continue ConstantRate block 37,0.670994,0,1,0.0129118,0.0235419,1.82328,1,0,0,0,0,0,24000,25021,0.808023,n/a,n/a,0.0235391
+replace A_s+sustain1(C-8) C3 +24 st retrigger AlwaysRetrigger Continue ConstantRate block 37,0.240881,0,1,0.0152279,0.0672716,4.41766,1,0,0,0,0,0,24000,24654,0.366673,n/a,n/a,0.0672703
+replace A_s+sustain1(C-8) C3 -24 st retrigger AlwaysRetrigger Continue ConstantRate block 37,0.792406,0,1,0.0129118,0.0235608,1.82474,1,0,0,0,0,0,24000,25755,1.07421,n/a,n/a,0.0235438
+replace B E1 +1 st retrigger AlwaysRetrigger Continue ConstantRate block 37,1.03226,0,1,0.410803,0.510281,1.24215,1,0,24,28,0,0,24000,25452,1.09482,n/a,n/a,0.501488
+replace B E1 -1 st retrigger AlwaysRetrigger Continue ConstantRate block 37,1.00508,0,1,0.413803,0.500605,1.20977,1,0,25,28,0,0,24000,25521,1.11029,n/a,n/a,0.493593
+replace B E1 +12 st retrigger AlwaysRetrigger Continue ConstantRate block 37,0.843769,0,1,0.472467,0.611076,1.29337,1,1,25,32,0,0,24000,25452,1.20965,n/a,n/a,0.610352
+replace B E1 -12 st retrigger AlwaysRetrigger Continue ConstantRate block 37,0.952477,0,1,0.373279,0.500605,1.3411,1,4,29,30,0,0,24000,26617,1.09669,n/a,n/a,0.493593
+replace B E1 +24 st retrigger AlwaysRetrigger Continue ConstantRate block 37,0.821256,0,1,0.472467,0.640357,1.35535,1,3,25,40,0,0,24000,25452,1.1182,n/a,n/a,0.640357
+skipped E1 -24 st: target 4 outside [16, 127]
+replace B C3 +1 st retrigger AlwaysRetrigger Continue ConstantRate block 37,1.00498,0,1,0.546167,0.638396,1.16886,1,0,53,56,0,0,24000,24654,1.06052,n/a,n/a,0.63836
+replace B C3 -1 st retrigger AlwaysRetrigger Continue ConstantRate block 37,0.995087,0,1,0.559773,0.636559,1.13717,1,0,53,54,0,0,24000,24676,1.13419,n/a,n/a,0.636467
+replace B C3 +12 st retrigger AlwaysRetrigger Continue ConstantRate block 37,1.05219,0,1,0.564073,0.634375,1.12463,1,1,53,50,0,0,24000,24654,1.24531,n/a,n/a,0.634344
+replace B C3 -12 st retrigger AlwaysRetrigger Continue ConstantRate block 37,1.03371,0,1,0.559534,0.63654,1.13762,1,3,56,56,0,0,24000,25021,1.28621,n/a,n/a,0.636448
+replace B C3 +24 st retrigger AlwaysRetrigger Continue ConstantRate block 37,0.875492,0,1,0.564073,0.816818,1.44807,1,0,53,49,0,0,24000,24654,1.10176,n/a,n/a,0.697636
+replace B C3 -24 st retrigger AlwaysRetrigger Continue ConstantRate block 37,1.01388,0,1,0.559534,0.63654,1.13762,1,7,63,68,0,0,24000,25755,1.1539,n/a,n/a,0.636448
+FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger AlwaysRetrigger Continue ConstantRate block 37,0.299145,0,1,0.00607828,0.0179553,2.95401,1,0,0,2,0,0,24000,25452,0.292827,0,0,0.0179433
+replace A_s+sustain1(C-8) E1 +1 st retrigger AlwaysRetrigger Continue Quantized block 37,0.463748,0,1,0.004123,0.0134531,3.26294,1,0,0,2,0,0,24000,25452,0.442145,n/a,n/a,0.0134411
+replace A_s+sustain1(C-8) E1 -1 st retrigger AlwaysRetrigger Continue Quantized block 37,0.549147,0,1,0.004123,0.0131695,3.19416,1,0,0,2,0,0,24000,25521,0.519803,n/a,n/a,0.0131563
+replace A_s+sustain1(C-8) E1 +12 st retrigger AlwaysRetrigger Continue Quantized block 37,0.293561,0,1,0.00596482,0.0179553,3.0102,1,0,0,2,0,0,24000,25452,0.281083,n/a,n/a,0.0179433
+replace A_s+sustain1(C-8) E1 -12 st retrigger AlwaysRetrigger Continue Quantized block 37,0.613457,0,1,0.00367345,0.0131976,3.5927,1,0,0,0,0,0,24000,26617,0.871361,n/a,n/a,0.0131603
+replace A_s+sustain1(C-8) E1 +24 st retrigger AlwaysRetrigger Continue Quantized block 37,0.22945,0,1,0.00890118,0.0274684,3.08593,1,0,0,2,0,0,24000,25452,0.20599,n/a,n/a,0.0274564
+skipped E1 -24 st: target 4 outside [16, 127]
+replace A_s+sustain1(C-8) C3 +1 st retrigger AlwaysRetrigger Continue Quantized block 37,0.550687,0,1,0.0130397,0.0244265,1.87325,1,0,0,2,0,0,24000,24654,0.552664,n/a,n/a,0.0244253
+replace A_s+sustain1(C-8) C3 -1 st retrigger AlwaysRetrigger Continue Quantized block 37,0.638065,0,1,0.0130397,0.0235309,1.80456,1,0,0,2,0,0,24000,24676,0.640348,n/a,n/a,0.0235297
+replace A_s+sustain1(C-8) C3 +12 st retrigger AlwaysRetrigger Continue Quantized block 37,0.41013,0,1,0.0146252,0.0384834,2.6313,1,0,0,0,0,0,24000,24654,0.479447,n/a,n/a,0.0384821
+replace A_s+sustain1(C-8) C3 -12 st retrigger AlwaysRetrigger Continue Quantized block 37,0.677363,0,1,0.0130344,0.0235419,1.80614,1,0,0,0,0,0,24000,25021,0.815505,n/a,n/a,0.0235391
+replace A_s+sustain1(C-8) C3 +24 st retrigger AlwaysRetrigger Continue Quantized block 37,0.28218,0,1,0.0178387,0.0672716,3.7711,1,0,0,0,0,0,24000,24654,0.415619,n/a,n/a,0.0672703
+replace A_s+sustain1(C-8) C3 -24 st retrigger AlwaysRetrigger Continue Quantized block 37,0.799927,0,1,0.0130344,0.0235608,1.80759,1,0,0,0,0,0,24000,25755,1.08416,n/a,n/a,0.0235438
+replace B E1 +1 st retrigger AlwaysRetrigger Continue Quantized block 37,1.00122,0,1,0.395805,0.510281,1.28923,1,0,26,28,0,0,24000,25452,1.04107,n/a,n/a,0.501488
+replace B E1 -1 st retrigger AlwaysRetrigger Continue Quantized block 37,0.995116,0,1,0.395805,0.500605,1.26478,1,0,26,28,0,0,24000,25521,1.04299,n/a,n/a,0.493593
+replace B E1 +12 st retrigger AlwaysRetrigger Continue Quantized block 37,0.864452,0,1,0.466209,0.611076,1.31073,1,0,24,32,0,0,24000,25452,1.19884,n/a,n/a,0.610352
+replace B E1 -12 st retrigger AlwaysRetrigger Continue Quantized block 37,0.985639,0,1,0.392233,0.500605,1.27629,1,4,29,30,0,0,24000,26617,1.15345,n/a,n/a,0.493593
+replace B E1 +24 st retrigger AlwaysRetrigger Continue Quantized block 37,0.855332,0,1,0.492071,0.640357,1.30135,1,0,28,40,0,0,24000,25452,1.10798,n/a,n/a,0.640357
+skipped E1 -24 st: target 4 outside [16, 127]
+replace B C3 +1 st retrigger AlwaysRetrigger Continue Quantized block 37,0.965288,0,1,0.534951,0.638396,1.19337,1,0,53,56,0,0,24000,24654,1.01634,n/a,n/a,0.63836
+replace B C3 -1 st retrigger AlwaysRetrigger Continue Quantized block 37,0.950961,0,1,0.534951,0.636559,1.18994,1,0,53,54,0,0,24000,24676,1.08915,n/a,n/a,0.636467
+replace B C3 +12 st retrigger AlwaysRetrigger Continue Quantized block 37,1.05207,0,1,0.564004,0.634375,1.12477,1,1,53,50,0,0,24000,24654,1.24567,n/a,n/a,0.634344
+replace B C3 -12 st retrigger AlwaysRetrigger Continue Quantized block 37,1.03284,0,1,0.559061,0.63654,1.13859,1,0,56,56,0,0,24000,25021,1.29976,n/a,n/a,0.636448
+replace B C3 +24 st retrigger AlwaysRetrigger Continue Quantized block 37,0.861761,0,1,0.543719,0.816818,1.50228,1,0,53,49,0,0,24000,24654,1.05236,n/a,n/a,0.697636
+replace B C3 -24 st retrigger AlwaysRetrigger Continue Quantized block 37,1.00036,0,1,0.52952,0.63654,1.20211,1,3,61,68,0,0,24000,25755,1.08338,n/a,n/a,0.636448
+FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger AlwaysRetrigger Continue Quantized block 37,0.293561,0,1,0.00596482,0.0179553,3.0102,1,0,0,2,0,0,24000,25452,0.281083,0,0,0.0179433
+replace A_s+sustain1(C-8) E1 +1 st retrigger Legato Continue Porta0 block 37,0.491271,1,1,0.00436769,0.013168,3.01486,1,0,0,2,0,0,24000,25452,0.469101,n/a,n/a,0.013156
+replace A_s+sustain1(C-8) E1 -1 st retrigger Legato Continue Porta0 block 37,0.518384,1,1,0.00389203,0.0129003,3.31455,1,0,0,2,0,0,24000,25521,0.494619,n/a,n/a,0.0128871
+replace A_s+sustain1(C-8) E1 +12 st retrigger Legato Continue Porta0 block 37,0.405132,1,1,0.00823181,0.0174188,2.11604,1,0,0,2,0,0,24000,25452,0.399245,n/a,n/a,0.0174068
+replace A_s+sustain1(C-8) E1 -12 st retrigger Legato Continue Porta0 block 37,0.477275,1,1,0.00285798,0.0129284,4.52361,1,0,0,0,0,0,24000,26617,0.871361,n/a,n/a,0.0128911
+replace A_s+sustain1(C-8) E1 +24 st retrigger Legato Continue Porta0 block 37,0.431473,1,1,0.0167384,0.0264054,1.57753,1,0,0,2,0,0,24000,25452,0.427421,n/a,n/a,0.0263934
+skipped E1 -24 st: target 4 outside [16, 127]
+replace A_s+sustain1(C-8) C3 +1 st retrigger Legato Continue Porta0 block 37,0.583208,1,1,0.0138097,0.0235296,1.70384,1,0,0,2,0,0,24000,24654,0.585469,n/a,n/a,0.0235283
+replace A_s+sustain1(C-8) C3 -1 st retrigger Legato Continue Porta0 block 37,0.602463,1,1,0.0123121,0.0226835,1.84238,1,0,0,2,0,0,24000,24676,0.604553,n/a,n/a,0.0226824
+replace A_s+sustain1(C-8) C3 +12 st retrigger Legato Continue Porta0 block 37,0.726051,1,1,0.025891,0.03682,1.42212,1,0,0,0,0,0,24000,24654,0.850063,n/a,n/a,0.0368188
+replace A_s+sustain1(C-8) C3 -12 st retrigger Legato Continue Porta0 block 37,0.402751,1,1,0.00775006,0.0226946,2.92831,1,0,0,0,0,0,24000,25021,0.544624,n/a,n/a,0.0226918
+replace A_s+sustain1(C-8) C3 +24 st retrigger Legato Continue Porta0 block 37,0.802334,1,1,0.0507215,0.0641321,1.2644,1,0,0,0,0,0,24000,24654,1.22338,n/a,n/a,0.0641307
+replace A_s+sustain1(C-8) C3 -24 st retrigger Legato Continue Porta0 block 37,0.441899,1,1,0.00720051,0.0227134,3.15442,1,0,0,0,0,0,24000,25755,0.724039,n/a,n/a,0.0226965
+replace B E1 +1 st retrigger Legato Continue Porta0 block 37,1.00992,1,1,0.39982,0.500605,1.25208,1,0,24,28,0,0,24000,25452,1.0689,n/a,n/a,0.493593
+replace B E1 -1 st retrigger Legato Continue Porta0 block 37,1.04354,1,1,0.421239,0.500393,1.18791,1,0,24,28,0,0,24000,25521,1.12805,n/a,n/a,0.48764
+replace B E1 +12 st retrigger Legato Continue Porta0 block 37,0.898228,1,1,0.505075,0.605666,1.19916,1,0,30,32,0,0,24000,25452,1.2964,n/a,n/a,0.604498
+replace B E1 -12 st retrigger Legato Continue Porta0 block 37,0.450323,1,1,0.179205,0.500393,2.7923,1,0,26,30,0,0,24000,26617,0.591488,n/a,n/a,0.48764
+replace B E1 +24 st retrigger Legato Continue Porta0 block 37,0.919857,0,1,0.529192,0.64016,1.20969,1,0,36,40,0,0,24000,25452,1.23844,n/a,n/a,0.64016
+skipped E1 -24 st: target 4 outside [16, 127]
+replace B C3 +1 st retrigger Legato Continue Porta0 block 37,0.999887,1,1,0.554125,0.63654,1.14873,1,0,53,56,0,0,24000,24654,1.08005,n/a,n/a,0.636448
+replace B C3 -1 st retrigger Legato Continue Porta0 block 37,0.993405,1,1,0.558827,0.634394,1.13522,1,0,53,54,0,0,24000,24676,1.0837,n/a,n/a,0.634363
+replace B C3 +12 st retrigger Legato Continue Porta0 block 37,1.03218,1,1,0.553341,0.634375,1.14644,1,3,54,50,0,0,24000,24654,1.2642,n/a,n/a,0.634344
+replace B C3 -12 st retrigger Legato Continue Porta0 block 37,0.90294,1,1,0.48875,0.634375,1.29795,1,1,50,56,0,0,24000,25021,1.20666,n/a,n/a,0.634344
+replace B C3 +24 st retrigger Legato Continue Porta0 block 37,1.06601,0,0,0.642385,0.777123,1.20975,1,1,53,49,0,0,24000,24654,1.3372,n/a,n/a,0.653489
+replace B C3 -24 st retrigger Legato Continue Porta0 block 37,0.77922,0,1,0.363517,0.634375,1.7451,1,4,53,68,0,0,24000,25755,0.872298,n/a,n/a,0.634344
+FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger Legato Continue Porta0 block 37,0.405132,1,1,0.00823181,0.0174188,2.11604,1,0,0,2,0,0,24000,25452,0.399245,0.00335795,0,0.0174068
+replace A_s+sustain1(C-8) E1 +1 st retrigger Legato Continue ConstantTime block 37,0.475399,0,1,0.00422658,0.0134531,3.18297,1,0,0,2,0,0,24000,25452,0.453329,n/a,n/a,0.0134411
+replace A_s+sustain1(C-8) E1 -1 st retrigger Legato Continue ConstantTime block 37,0.542872,0,1,0.00407589,0.0131695,3.23108,1,0,0,2,0,0,24000,25521,0.513947,n/a,n/a,0.0131563
+replace A_s+sustain1(C-8) E1 +12 st retrigger Legato Continue ConstantTime block 37,0.299148,0,1,0.00607834,0.0179553,2.95398,1,0,0,2,0,0,24000,25452,0.292826,n/a,n/a,0.0179433
+replace A_s+sustain1(C-8) E1 -12 st retrigger Legato Continue ConstantTime block 37,0.594857,0,1,0.00356208,0.0131976,3.70503,1,0,0,0,0,0,24000,26617,0.871361,n/a,n/a,0.0131603
+replace A_s+sustain1(C-8) E1 +24 st retrigger Legato Continue ConstantTime block 37,0.242864,0,1,0.00942154,0.0274684,2.91549,1,0,0,2,0,0,24000,25452,0.204952,n/a,n/a,0.0274564
+skipped E1 -24 st: target 4 outside [16, 127]
+replace A_s+sustain1(C-8) C3 +1 st retrigger Legato Continue ConstantTime block 37,0.558341,0,1,0.0132209,0.0244265,1.84757,1,0,0,2,0,0,24000,24654,0.560357,n/a,n/a,0.0244253
+replace A_s+sustain1(C-8) C3 -1 st retrigger Legato Continue ConstantTime block 37,0.637301,0,1,0.0130241,0.0235309,1.80672,1,0,0,2,0,0,24000,24676,0.639668,n/a,n/a,0.0235297
+replace A_s+sustain1(C-8) C3 +12 st retrigger Legato Continue ConstantTime block 37,0.427043,0,1,0.0152284,0.0384834,2.52709,1,0,0,0,0,0,24000,24654,0.49921,n/a,n/a,0.0384821
+replace A_s+sustain1(C-8) C3 -12 st retrigger Legato Continue ConstantTime block 37,0.670993,0,1,0.0129118,0.0235419,1.82329,1,0,0,0,0,0,24000,25021,0.808017,n/a,n/a,0.0235391
+replace A_s+sustain1(C-8) C3 +24 st retrigger Legato Continue ConstantTime block 37,0.296881,0,1,0.0187681,0.0672716,3.58437,1,0,0,0,0,0,24000,24654,0.42013,n/a,n/a,0.0672703
+replace A_s+sustain1(C-8) C3 -24 st retrigger Legato Continue ConstantTime block 37,0.784958,0,1,0.0127905,0.0235608,1.84206,1,0,0,0,0,0,24000,25755,1.06436,n/a,n/a,0.0235438
+replace B E1 +1 st retrigger Legato Continue ConstantTime block 37,1.08175,0,0,0.427237,0.510281,1.19438,1,0,26,28,0,0,24000,25452,1.14004,n/a,n/a,0.501488
+replace B E1 -1 st retrigger Legato Continue ConstantTime block 37,1.06559,0,0,0.425876,0.500605,1.17547,1,0,25,28,0,0,24000,25521,1.13998,n/a,n/a,0.493593
+replace B E1 +12 st retrigger Legato Continue ConstantTime block 37,0.843279,0,1,0.470083,0.611076,1.29993,1,1,25,32,0,0,24000,25452,1.20434,n/a,n/a,0.610352
+replace B E1 -12 st retrigger Legato Continue ConstantTime block 37,0.953168,0,1,0.37355,0.500605,1.34013,1,4,29,30,0,0,24000,26617,1.09946,n/a,n/a,0.493593
+replace B E1 +24 st retrigger Legato Continue ConstantTime block 37,0.86093,0,1,0.495291,0.640357,1.29289,1,2,28,40,0,0,24000,25452,1.15487,n/a,n/a,0.640357
+skipped E1 -24 st: target 4 outside [16, 127]
+replace B C3 +1 st retrigger Legato Continue ConstantTime block 37,1.02454,0,1,0.554784,0.638396,1.15071,1,0,53,56,0,0,24000,24654,1.12805,n/a,n/a,0.63836
+replace B C3 -1 st retrigger Legato Continue ConstantTime block 37,0.993752,0,1,0.559022,0.636559,1.1387,1,0,53,54,0,0,24000,24676,1.13636,n/a,n/a,0.636467
+replace B C3 +12 st retrigger Legato Continue ConstantTime block 37,1.05099,0,1,0.563426,0.634375,1.12592,1,1,53,50,0,0,24000,24654,1.24465,n/a,n/a,0.634344
+replace B C3 -12 st retrigger Legato Continue ConstantTime block 37,1.03309,0,1,0.559198,0.63654,1.13831,1,3,56,56,0,0,24000,25021,1.28584,n/a,n/a,0.636448
+replace B C3 +24 st retrigger Legato Continue ConstantTime block 37,0.856228,0,1,0.552708,0.816818,1.47785,1,0,54,49,0,0,24000,24654,1.05095,n/a,n/a,0.697636
+replace B C3 -24 st retrigger Legato Continue ConstantTime block 37,0.966927,0,1,0.533458,0.63654,1.19323,1,8,60,68,0,0,24000,25755,1.09136,n/a,n/a,0.636448
+FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger Legato Continue ConstantTime block 37,0.299148,0,1,0.00607834,0.0179553,2.95398,1,0,0,2,0,0,24000,25452,0.292826,0.00335795,0,0.0179433
+replace A_s+sustain1(C-8) E1 +1 st retrigger Legato Continue ConstantRate block 37,0.491273,0,1,0.00436771,0.0134531,3.08012,1,0,0,2,0,0,24000,25452,0.468972,n/a,n/a,0.0134411
+replace A_s+sustain1(C-8) E1 -1 st retrigger Legato Continue ConstantRate block 37,0.51838,0,1,0.003892,0.0131695,3.38374,1,0,0,2,0,0,24000,25521,0.494619,n/a,n/a,0.0131563
+replace A_s+sustain1(C-8) E1 +12 st retrigger Legato Continue ConstantRate block 37,0.299145,0,1,0.00607828,0.0179553,2.95401,1,0,0,2,0,0,24000,25452,0.292827,n/a,n/a,0.0179433
+replace A_s+sustain1(C-8) E1 -12 st retrigger Legato Continue ConstantRate block 37,0.59484,0,1,0.00356197,0.0131976,3.70514,1,0,0,0,0,0,24000,26617,0.871361,n/a,n/a,0.0131603
+replace A_s+sustain1(C-8) E1 +24 st retrigger Legato Continue ConstantRate block 37,0.156683,0,1,0.00607828,0.0274684,4.51911,1,0,0,2,0,0,24000,25452,0.15472,n/a,n/a,0.0274564
+skipped E1 -24 st: target 4 outside [16, 127]
+replace A_s+sustain1(C-8) C3 +1 st retrigger Legato Continue ConstantRate block 37,0.583206,0,1,0.0138097,0.0244265,1.7688,1,0,0,2,0,0,24000,24654,0.585398,n/a,n/a,0.0244253
+replace A_s+sustain1(C-8) C3 -1 st retrigger Legato Continue ConstantRate block 37,0.631809,0,1,0.0129118,0.0235309,1.82243,1,0,0,2,0,0,24000,24676,0.634284,n/a,n/a,0.0235297
+replace A_s+sustain1(C-8) C3 +12 st retrigger Legato Continue ConstantRate block 37,0.42703,0,1,0.0152279,0.0384834,2.52717,1,0,0,0,0,0,24000,24654,0.499195,n/a,n/a,0.0384821
+replace A_s+sustain1(C-8) C3 -12 st retrigger Legato Continue ConstantRate block 37,0.670994,0,1,0.0129118,0.0235419,1.82328,1,0,0,0,0,0,24000,25021,0.808023,n/a,n/a,0.0235391
+replace A_s+sustain1(C-8) C3 +24 st retrigger Legato Continue ConstantRate block 37,0.240881,0,1,0.0152279,0.0672716,4.41766,1,0,0,0,0,0,24000,24654,0.366673,n/a,n/a,0.0672703
+replace A_s+sustain1(C-8) C3 -24 st retrigger Legato Continue ConstantRate block 37,0.792406,0,1,0.0129118,0.0235608,1.82474,1,0,0,0,0,0,24000,25755,1.07421,n/a,n/a,0.0235438
+replace B E1 +1 st retrigger Legato Continue ConstantRate block 37,1.03168,0,1,0.410571,0.510281,1.24286,1,0,24,28,0,0,24000,25452,1.09482,n/a,n/a,0.501488
+replace B E1 -1 st retrigger Legato Continue ConstantRate block 37,1.00451,0,1,0.413568,0.500605,1.21045,1,0,25,28,0,0,24000,25521,1.1103,n/a,n/a,0.493593
+replace B E1 +12 st retrigger Legato Continue ConstantRate block 37,0.843293,0,1,0.472155,0.611076,1.29423,1,1,25,32,0,0,24000,25452,1.20964,n/a,n/a,0.610352
+replace B E1 -12 st retrigger Legato Continue ConstantRate block 37,0.951934,0,1,0.373067,0.500605,1.34186,1,4,29,30,0,0,24000,26617,1.0967,n/a,n/a,0.493593
+replace B E1 +24 st retrigger Legato Continue ConstantRate block 37,0.820714,0,1,0.472155,0.640357,1.35624,1,3,25,40,0,0,24000,25452,1.11821,n/a,n/a,0.640357
+skipped E1 -24 st: target 4 outside [16, 127]
+replace B C3 +1 st retrigger Legato Continue ConstantRate block 37,1.00441,0,1,0.545871,0.638396,1.1695,1,0,53,56,0,0,24000,24654,1.06055,n/a,n/a,0.63836
+replace B C3 -1 st retrigger Legato Continue ConstantRate block 37,0.994546,0,1,0.559469,0.636559,1.13779,1,0,53,54,0,0,24000,24676,1.13413,n/a,n/a,0.636467
+replace B C3 +12 st retrigger Legato Continue ConstantRate block 37,1.05159,0,1,0.563748,0.634375,1.12528,1,1,53,50,0,0,24000,24654,1.24532,n/a,n/a,0.634344
+replace B C3 -12 st retrigger Legato Continue ConstantRate block 37,1.03315,0,1,0.55923,0.63654,1.13824,1,3,56,56,0,0,24000,25021,1.28614,n/a,n/a,0.636448
+replace B C3 +24 st retrigger Legato Continue ConstantRate block 37,0.874989,0,1,0.563748,0.816818,1.44891,1,0,53,49,0,0,24000,24654,1.10177,n/a,n/a,0.697636
+replace B C3 -24 st retrigger Legato Continue ConstantRate block 37,1.01333,0,1,0.55923,0.63654,1.13824,1,7,63,68,0,0,24000,25755,1.15384,n/a,n/a,0.636448
+FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger Legato Continue ConstantRate block 37,0.299145,0,1,0.00607828,0.0179553,2.95401,1,0,0,2,0,0,24000,25452,0.292827,0.00335795,0,0.0179433
+replace A_s+sustain1(C-8) E1 +1 st retrigger Legato Continue Quantized block 37,0.463748,0,1,0.004123,0.0134531,3.26294,1,0,0,2,0,0,24000,25452,0.442145,n/a,n/a,0.0134411
+replace A_s+sustain1(C-8) E1 -1 st retrigger Legato Continue Quantized block 37,0.549147,0,1,0.004123,0.0131695,3.19416,1,0,0,2,0,0,24000,25521,0.519803,n/a,n/a,0.0131563
+replace A_s+sustain1(C-8) E1 +12 st retrigger Legato Continue Quantized block 37,0.293561,0,1,0.00596482,0.0179553,3.0102,1,0,0,2,0,0,24000,25452,0.281083,n/a,n/a,0.0179433
+replace A_s+sustain1(C-8) E1 -12 st retrigger Legato Continue Quantized block 37,0.613457,0,1,0.00367345,0.0131976,3.5927,1,0,0,0,0,0,24000,26617,0.871361,n/a,n/a,0.0131603
+replace A_s+sustain1(C-8) E1 +24 st retrigger Legato Continue Quantized block 37,0.22945,0,1,0.00890118,0.0274684,3.08593,1,0,0,2,0,0,24000,25452,0.20599,n/a,n/a,0.0274564
+skipped E1 -24 st: target 4 outside [16, 127]
+replace A_s+sustain1(C-8) C3 +1 st retrigger Legato Continue Quantized block 37,0.550687,0,1,0.0130397,0.0244265,1.87325,1,0,0,2,0,0,24000,24654,0.552664,n/a,n/a,0.0244253
+replace A_s+sustain1(C-8) C3 -1 st retrigger Legato Continue Quantized block 37,0.638065,0,1,0.0130397,0.0235309,1.80456,1,0,0,2,0,0,24000,24676,0.640348,n/a,n/a,0.0235297
+replace A_s+sustain1(C-8) C3 +12 st retrigger Legato Continue Quantized block 37,0.41013,0,1,0.0146252,0.0384834,2.6313,1,0,0,0,0,0,24000,24654,0.479447,n/a,n/a,0.0384821
+replace A_s+sustain1(C-8) C3 -12 st retrigger Legato Continue Quantized block 37,0.677363,0,1,0.0130344,0.0235419,1.80614,1,0,0,0,0,0,24000,25021,0.815505,n/a,n/a,0.0235391
+replace A_s+sustain1(C-8) C3 +24 st retrigger Legato Continue Quantized block 37,0.28218,0,1,0.0178387,0.0672716,3.7711,1,0,0,0,0,0,24000,24654,0.415619,n/a,n/a,0.0672703
+replace A_s+sustain1(C-8) C3 -24 st retrigger Legato Continue Quantized block 37,0.799927,0,1,0.0130344,0.0235608,1.80759,1,0,0,0,0,0,24000,25755,1.08416,n/a,n/a,0.0235438
+replace B E1 +1 st retrigger Legato Continue Quantized block 37,1.00066,0,1,0.395556,0.510281,1.29004,1,0,26,28,0,0,24000,25452,1.04107,n/a,n/a,0.501488
+replace B E1 -1 st retrigger Legato Continue Quantized block 37,0.994552,0,1,0.395556,0.500605,1.26557,1,0,26,28,0,0,24000,25521,1.04299,n/a,n/a,0.493593
+replace B E1 +12 st retrigger Legato Continue Quantized block 37,0.863879,0,1,0.4659,0.611076,1.3116,1,0,24,32,0,0,24000,25452,1.19884,n/a,n/a,0.610352
+replace B E1 -12 st retrigger Legato Continue Quantized block 37,0.985079,0,1,0.39201,0.500605,1.27702,1,4,29,30,0,0,24000,26617,1.15346,n/a,n/a,0.493593
+replace B E1 +24 st retrigger Legato Continue Quantized block 37,0.854783,0,1,0.491755,0.640357,1.30219,1,0,28,40,0,0,24000,25452,1.10797,n/a,n/a,0.640357
+skipped E1 -24 st: target 4 outside [16, 127]
+replace B C3 +1 st retrigger Legato Continue Quantized block 37,0.964729,0,1,0.534641,0.638396,1.19406,1,0,53,56,0,0,24000,24654,1.01638,n/a,n/a,0.63836
+replace B C3 -1 st retrigger Legato Continue Quantized block 37,0.95041,0,1,0.534641,0.636559,1.19063,1,0,53,54,0,0,24000,24676,1.08912,n/a,n/a,0.636467
+replace B C3 +12 st retrigger Legato Continue Quantized block 37,1.05146,0,1,0.563679,0.634375,1.12542,1,1,53,50,0,0,24000,24654,1.24567,n/a,n/a,0.634344
+replace B C3 -12 st retrigger Legato Continue Quantized block 37,1.03228,0,1,0.558758,0.63654,1.13921,1,0,56,56,0,0,24000,25021,1.29981,n/a,n/a,0.636448
+replace B C3 +24 st retrigger Legato Continue Quantized block 37,0.86128,0,1,0.543425,0.816818,1.50309,1,0,53,49,0,0,24000,24654,1.05237,n/a,n/a,0.697636
+replace B C3 -24 st retrigger Legato Continue Quantized block 37,0.999797,0,1,0.529208,0.63654,1.20282,1,3,61,68,0,0,24000,25755,1.08339,n/a,n/a,0.636448
+FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger Legato Continue Quantized block 37,0.293561,0,1,0.00596482,0.0179553,3.0102,1,0,0,2,0,0,24000,25452,0.281083,0.00335795,0,0.0179433
+replace A_s+sustain1(C-8) E1 +1 st retrigger EnvelopeRetriggerOnly Continue Porta0 block 37,0.491271,1,1,0.00436769,0.013168,3.01486,1,0,0,2,0,0,24000,25452,0.469101,n/a,n/a,0.013156
+replace A_s+sustain1(C-8) E1 -1 st retrigger EnvelopeRetriggerOnly Continue Porta0 block 37,0.518384,1,1,0.00389203,0.0129003,3.31455,1,0,0,2,0,0,24000,25521,0.494619,n/a,n/a,0.0128871
+replace A_s+sustain1(C-8) E1 +12 st retrigger EnvelopeRetriggerOnly Continue Porta0 block 37,0.405132,1,1,0.00823181,0.0174188,2.11604,1,0,0,2,0,0,24000,25452,0.399245,n/a,n/a,0.0174068
+replace A_s+sustain1(C-8) E1 -12 st retrigger EnvelopeRetriggerOnly Continue Porta0 block 37,0.477275,1,1,0.00285798,0.0129284,4.52361,1,0,0,0,0,0,24000,26617,0.871361,n/a,n/a,0.0128911
+replace A_s+sustain1(C-8) E1 +24 st retrigger EnvelopeRetriggerOnly Continue Porta0 block 37,0.431473,1,1,0.0167384,0.0264054,1.57753,1,0,0,2,0,0,24000,25452,0.427421,n/a,n/a,0.0263934
+skipped E1 -24 st: target 4 outside [16, 127]
+replace A_s+sustain1(C-8) C3 +1 st retrigger EnvelopeRetriggerOnly Continue Porta0 block 37,0.583208,1,1,0.0138097,0.0235296,1.70384,1,0,0,2,0,0,24000,24654,0.585469,n/a,n/a,0.0235283
+replace A_s+sustain1(C-8) C3 -1 st retrigger EnvelopeRetriggerOnly Continue Porta0 block 37,0.602463,1,1,0.0123121,0.0226835,1.84238,1,0,0,2,0,0,24000,24676,0.604553,n/a,n/a,0.0226824
+replace A_s+sustain1(C-8) C3 +12 st retrigger EnvelopeRetriggerOnly Continue Porta0 block 37,0.726051,1,1,0.025891,0.03682,1.42212,1,0,0,0,0,0,24000,24654,0.850063,n/a,n/a,0.0368188
+replace A_s+sustain1(C-8) C3 -12 st retrigger EnvelopeRetriggerOnly Continue Porta0 block 37,0.402751,1,1,0.00775006,0.0226946,2.92831,1,0,0,0,0,0,24000,25021,0.544624,n/a,n/a,0.0226918
+replace A_s+sustain1(C-8) C3 +24 st retrigger EnvelopeRetriggerOnly Continue Porta0 block 37,0.802334,1,1,0.0507215,0.0641321,1.2644,1,0,0,0,0,0,24000,24654,1.22338,n/a,n/a,0.0641307
+replace A_s+sustain1(C-8) C3 -24 st retrigger EnvelopeRetriggerOnly Continue Porta0 block 37,0.441899,1,1,0.00720051,0.0227134,3.15442,1,0,0,0,0,0,24000,25755,0.724039,n/a,n/a,0.0226965
+replace B E1 +1 st retrigger EnvelopeRetriggerOnly Continue Porta0 block 37,1.01049,1,1,0.400046,0.500605,1.25137,1,0,24,28,0,0,24000,25452,1.0689,n/a,n/a,0.493593
+replace B E1 -1 st retrigger EnvelopeRetriggerOnly Continue Porta0 block 37,1.04413,1,1,0.421479,0.500393,1.18723,1,0,24,28,0,0,24000,25521,1.12804,n/a,n/a,0.48764
+replace B E1 +12 st retrigger EnvelopeRetriggerOnly Continue Porta0 block 37,0.898826,1,1,0.505411,0.605666,1.19836,1,0,30,32,0,0,24000,25452,1.2964,n/a,n/a,0.604498
+replace B E1 -12 st retrigger EnvelopeRetriggerOnly Continue Porta0 block 37,0.4506,1,1,0.179315,0.500393,2.79058,1,0,26,30,0,0,24000,26617,0.591848,n/a,n/a,0.48764
+replace B E1 +24 st retrigger EnvelopeRetriggerOnly Continue Porta0 block 37,0.920374,0,1,0.529489,0.64016,1.20902,1,0,36,40,0,0,24000,25452,1.23765,n/a,n/a,0.64016
+skipped E1 -24 st: target 4 outside [16, 127]
+replace B C3 +1 st retrigger EnvelopeRetriggerOnly Continue Porta0 block 37,1.00043,1,1,0.554426,0.63654,1.14811,1,0,53,56,0,0,24000,24654,1.08005,n/a,n/a,0.636448
+replace B C3 -1 st retrigger EnvelopeRetriggerOnly Continue Porta0 block 37,0.993984,1,1,0.559153,0.634394,1.13456,1,0,53,54,0,0,24000,24676,1.08376,n/a,n/a,0.634363
+replace B C3 +12 st retrigger EnvelopeRetriggerOnly Continue Porta0 block 37,1.03275,1,1,0.553646,0.634375,1.14581,1,3,54,50,0,0,24000,24654,1.26485,n/a,n/a,0.634344
+replace B C3 -12 st retrigger EnvelopeRetriggerOnly Continue Porta0 block 37,0.903449,1,1,0.489026,0.634375,1.29722,1,1,50,56,0,0,24000,25021,1.20665,n/a,n/a,0.634344
+replace B C3 +24 st retrigger EnvelopeRetriggerOnly Continue Porta0 block 37,1.06658,0,0,0.642726,0.777123,1.2091,1,1,53,49,0,0,24000,24654,1.3379,n/a,n/a,0.653489
+replace B C3 -24 st retrigger EnvelopeRetriggerOnly Continue Porta0 block 37,0.779637,0,1,0.363711,0.634375,1.74417,1,4,53,68,0,0,24000,25755,0.872286,n/a,n/a,0.634344
+FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger EnvelopeRetriggerOnly Continue Porta0 block 37,0.405132,1,1,0.00823181,0.0174188,2.11604,1,0,0,2,0,0,24000,25452,0.399245,0,0,0.0174068
+replace A_s+sustain1(C-8) E1 +1 st retrigger EnvelopeRetriggerOnly Continue ConstantTime block 37,0.475399,0,1,0.00422658,0.0134531,3.18297,1,0,0,2,0,0,24000,25452,0.453329,n/a,n/a,0.0134411
+replace A_s+sustain1(C-8) E1 -1 st retrigger EnvelopeRetriggerOnly Continue ConstantTime block 37,0.542872,0,1,0.00407589,0.0131695,3.23108,1,0,0,2,0,0,24000,25521,0.513947,n/a,n/a,0.0131563
+replace A_s+sustain1(C-8) E1 +12 st retrigger EnvelopeRetriggerOnly Continue ConstantTime block 37,0.299148,0,1,0.00607834,0.0179553,2.95398,1,0,0,2,0,0,24000,25452,0.292826,n/a,n/a,0.0179433
+replace A_s+sustain1(C-8) E1 -12 st retrigger EnvelopeRetriggerOnly Continue ConstantTime block 37,0.594857,0,1,0.00356208,0.0131976,3.70503,1,0,0,0,0,0,24000,26617,0.871361,n/a,n/a,0.0131603
+replace A_s+sustain1(C-8) E1 +24 st retrigger EnvelopeRetriggerOnly Continue ConstantTime block 37,0.242864,0,1,0.00942154,0.0274684,2.91549,1,0,0,2,0,0,24000,25452,0.204952,n/a,n/a,0.0274564
+skipped E1 -24 st: target 4 outside [16, 127]
+replace A_s+sustain1(C-8) C3 +1 st retrigger EnvelopeRetriggerOnly Continue ConstantTime block 37,0.558341,0,1,0.0132209,0.0244265,1.84757,1,0,0,2,0,0,24000,24654,0.560357,n/a,n/a,0.0244253
+replace A_s+sustain1(C-8) C3 -1 st retrigger EnvelopeRetriggerOnly Continue ConstantTime block 37,0.637301,0,1,0.0130241,0.0235309,1.80672,1,0,0,2,0,0,24000,24676,0.639668,n/a,n/a,0.0235297
+replace A_s+sustain1(C-8) C3 +12 st retrigger EnvelopeRetriggerOnly Continue ConstantTime block 37,0.427043,0,1,0.0152284,0.0384834,2.52709,1,0,0,0,0,0,24000,24654,0.49921,n/a,n/a,0.0384821
+replace A_s+sustain1(C-8) C3 -12 st retrigger EnvelopeRetriggerOnly Continue ConstantTime block 37,0.670993,0,1,0.0129118,0.0235419,1.82329,1,0,0,0,0,0,24000,25021,0.808017,n/a,n/a,0.0235391
+replace A_s+sustain1(C-8) C3 +24 st retrigger EnvelopeRetriggerOnly Continue ConstantTime block 37,0.296881,0,1,0.0187681,0.0672716,3.58437,1,0,0,0,0,0,24000,24654,0.42013,n/a,n/a,0.0672703
+replace A_s+sustain1(C-8) C3 -24 st retrigger EnvelopeRetriggerOnly Continue ConstantTime block 37,0.784958,0,1,0.0127905,0.0235608,1.84206,1,0,0,0,0,0,24000,25755,1.06436,n/a,n/a,0.0235438
+replace B E1 +1 st retrigger EnvelopeRetriggerOnly Continue ConstantTime block 37,1.08236,0,0,0.427479,0.510281,1.1937,1,0,26,28,0,0,24000,25452,1.14004,n/a,n/a,0.501488
+replace B E1 -1 st retrigger EnvelopeRetriggerOnly Continue ConstantTime block 37,1.06619,0,0,0.426118,0.500605,1.1748,1,0,25,28,0,0,24000,25521,1.13998,n/a,n/a,0.493593
+replace B E1 +12 st retrigger EnvelopeRetriggerOnly Continue ConstantTime block 37,0.843755,0,1,0.470393,0.611076,1.29907,1,1,25,32,0,0,24000,25452,1.20434,n/a,n/a,0.610352
+replace B E1 -12 st retrigger EnvelopeRetriggerOnly Continue ConstantTime block 37,0.953712,0,1,0.373763,0.500605,1.33936,1,4,29,30,0,0,24000,26617,1.09945,n/a,n/a,0.493593
+replace B E1 +24 st retrigger EnvelopeRetriggerOnly Continue ConstantTime block 37,0.86148,0,1,0.495608,0.640357,1.29206,1,2,28,40,0,0,24000,25452,1.15488,n/a,n/a,0.640357
+skipped E1 -24 st: target 4 outside [16, 127]
+replace B C3 +1 st retrigger EnvelopeRetriggerOnly Continue ConstantTime block 37,1.02509,0,1,0.555085,0.638396,1.15009,1,0,53,56,0,0,24000,24654,1.1281,n/a,n/a,0.63836
+replace B C3 -1 st retrigger EnvelopeRetriggerOnly Continue ConstantTime block 37,0.994292,0,1,0.559326,0.636559,1.13808,1,0,53,54,0,0,24000,24676,1.13642,n/a,n/a,0.636467
+replace B C3 +12 st retrigger EnvelopeRetriggerOnly Continue ConstantTime block 37,1.05159,0,1,0.56375,0.634375,1.12528,1,1,53,50,0,0,24000,24654,1.24464,n/a,n/a,0.634344
+replace B C3 -12 st retrigger EnvelopeRetriggerOnly Continue ConstantTime block 37,1.03365,0,1,0.559502,0.63654,1.13769,1,3,56,56,0,0,24000,25021,1.28591,n/a,n/a,0.636448
+replace B C3 +24 st retrigger EnvelopeRetriggerOnly Continue ConstantTime block 37,0.856678,0,1,0.553023,0.816818,1.47701,1,0,54,49,0,0,24000,24654,1.05094,n/a,n/a,0.697636
+replace B C3 -24 st retrigger EnvelopeRetriggerOnly Continue ConstantTime block 37,0.96753,0,1,0.533748,0.63654,1.19258,1,8,60,68,0,0,24000,25755,1.09136,n/a,n/a,0.636448
+FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger EnvelopeRetriggerOnly Continue ConstantTime block 37,0.299148,0,1,0.00607834,0.0179553,2.95398,1,0,0,2,0,0,24000,25452,0.292826,0,0,0.0179433
+replace A_s+sustain1(C-8) E1 +1 st retrigger EnvelopeRetriggerOnly Continue ConstantRate block 37,0.491273,0,1,0.00436771,0.0134531,3.08012,1,0,0,2,0,0,24000,25452,0.468972,n/a,n/a,0.0134411
+replace A_s+sustain1(C-8) E1 -1 st retrigger EnvelopeRetriggerOnly Continue ConstantRate block 37,0.51838,0,1,0.003892,0.0131695,3.38374,1,0,0,2,0,0,24000,25521,0.494619,n/a,n/a,0.0131563
+replace A_s+sustain1(C-8) E1 +12 st retrigger EnvelopeRetriggerOnly Continue ConstantRate block 37,0.299145,0,1,0.00607828,0.0179553,2.95401,1,0,0,2,0,0,24000,25452,0.292827,n/a,n/a,0.0179433
+replace A_s+sustain1(C-8) E1 -12 st retrigger EnvelopeRetriggerOnly Continue ConstantRate block 37,0.59484,0,1,0.00356197,0.0131976,3.70514,1,0,0,0,0,0,24000,26617,0.871361,n/a,n/a,0.0131603
+replace A_s+sustain1(C-8) E1 +24 st retrigger EnvelopeRetriggerOnly Continue ConstantRate block 37,0.156683,0,1,0.00607828,0.0274684,4.51911,1,0,0,2,0,0,24000,25452,0.15472,n/a,n/a,0.0274564
+skipped E1 -24 st: target 4 outside [16, 127]
+replace A_s+sustain1(C-8) C3 +1 st retrigger EnvelopeRetriggerOnly Continue ConstantRate block 37,0.583206,0,1,0.0138097,0.0244265,1.7688,1,0,0,2,0,0,24000,24654,0.585398,n/a,n/a,0.0244253
+replace A_s+sustain1(C-8) C3 -1 st retrigger EnvelopeRetriggerOnly Continue ConstantRate block 37,0.631809,0,1,0.0129118,0.0235309,1.82243,1,0,0,2,0,0,24000,24676,0.634284,n/a,n/a,0.0235297
+replace A_s+sustain1(C-8) C3 +12 st retrigger EnvelopeRetriggerOnly Continue ConstantRate block 37,0.42703,0,1,0.0152279,0.0384834,2.52717,1,0,0,0,0,0,24000,24654,0.499195,n/a,n/a,0.0384821
+replace A_s+sustain1(C-8) C3 -12 st retrigger EnvelopeRetriggerOnly Continue ConstantRate block 37,0.670994,0,1,0.0129118,0.0235419,1.82328,1,0,0,0,0,0,24000,25021,0.808023,n/a,n/a,0.0235391
+replace A_s+sustain1(C-8) C3 +24 st retrigger EnvelopeRetriggerOnly Continue ConstantRate block 37,0.240881,0,1,0.0152279,0.0672716,4.41766,1,0,0,0,0,0,24000,24654,0.366673,n/a,n/a,0.0672703
+replace A_s+sustain1(C-8) C3 -24 st retrigger EnvelopeRetriggerOnly Continue ConstantRate block 37,0.792406,0,1,0.0129118,0.0235608,1.82474,1,0,0,0,0,0,24000,25755,1.07421,n/a,n/a,0.0235438
+replace B E1 +1 st retrigger EnvelopeRetriggerOnly Continue ConstantRate block 37,1.03226,0,1,0.410803,0.510281,1.24215,1,0,24,28,0,0,24000,25452,1.09482,n/a,n/a,0.501488
+replace B E1 -1 st retrigger EnvelopeRetriggerOnly Continue ConstantRate block 37,1.00508,0,1,0.413803,0.500605,1.20977,1,0,25,28,0,0,24000,25521,1.11029,n/a,n/a,0.493593
+replace B E1 +12 st retrigger EnvelopeRetriggerOnly Continue ConstantRate block 37,0.843769,0,1,0.472467,0.611076,1.29337,1,1,25,32,0,0,24000,25452,1.20965,n/a,n/a,0.610352
+replace B E1 -12 st retrigger EnvelopeRetriggerOnly Continue ConstantRate block 37,0.952477,0,1,0.373279,0.500605,1.3411,1,4,29,30,0,0,24000,26617,1.09669,n/a,n/a,0.493593
+replace B E1 +24 st retrigger EnvelopeRetriggerOnly Continue ConstantRate block 37,0.821256,0,1,0.472467,0.640357,1.35535,1,3,25,40,0,0,24000,25452,1.1182,n/a,n/a,0.640357
+skipped E1 -24 st: target 4 outside [16, 127]
+replace B C3 +1 st retrigger EnvelopeRetriggerOnly Continue ConstantRate block 37,1.00498,0,1,0.546167,0.638396,1.16886,1,0,53,56,0,0,24000,24654,1.06052,n/a,n/a,0.63836
+replace B C3 -1 st retrigger EnvelopeRetriggerOnly Continue ConstantRate block 37,0.995087,0,1,0.559773,0.636559,1.13717,1,0,53,54,0,0,24000,24676,1.13419,n/a,n/a,0.636467
+replace B C3 +12 st retrigger EnvelopeRetriggerOnly Continue ConstantRate block 37,1.05219,0,1,0.564073,0.634375,1.12463,1,1,53,50,0,0,24000,24654,1.24531,n/a,n/a,0.634344
+replace B C3 -12 st retrigger EnvelopeRetriggerOnly Continue ConstantRate block 37,1.03371,0,1,0.559534,0.63654,1.13762,1,3,56,56,0,0,24000,25021,1.28621,n/a,n/a,0.636448
+replace B C3 +24 st retrigger EnvelopeRetriggerOnly Continue ConstantRate block 37,0.875492,0,1,0.564073,0.816818,1.44807,1,0,53,49,0,0,24000,24654,1.10176,n/a,n/a,0.697636
+replace B C3 -24 st retrigger EnvelopeRetriggerOnly Continue ConstantRate block 37,1.01388,0,1,0.559534,0.63654,1.13762,1,7,63,68,0,0,24000,25755,1.1539,n/a,n/a,0.636448
+FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger EnvelopeRetriggerOnly Continue ConstantRate block 37,0.299145,0,1,0.00607828,0.0179553,2.95401,1,0,0,2,0,0,24000,25452,0.292827,0,0,0.0179433
+replace A_s+sustain1(C-8) E1 +1 st retrigger EnvelopeRetriggerOnly Continue Quantized block 37,0.463748,0,1,0.004123,0.0134531,3.26294,1,0,0,2,0,0,24000,25452,0.442145,n/a,n/a,0.0134411
+replace A_s+sustain1(C-8) E1 -1 st retrigger EnvelopeRetriggerOnly Continue Quantized block 37,0.549147,0,1,0.004123,0.0131695,3.19416,1,0,0,2,0,0,24000,25521,0.519803,n/a,n/a,0.0131563
+replace A_s+sustain1(C-8) E1 +12 st retrigger EnvelopeRetriggerOnly Continue Quantized block 37,0.293561,0,1,0.00596482,0.0179553,3.0102,1,0,0,2,0,0,24000,25452,0.281083,n/a,n/a,0.0179433
+replace A_s+sustain1(C-8) E1 -12 st retrigger EnvelopeRetriggerOnly Continue Quantized block 37,0.613457,0,1,0.00367345,0.0131976,3.5927,1,0,0,0,0,0,24000,26617,0.871361,n/a,n/a,0.0131603
+replace A_s+sustain1(C-8) E1 +24 st retrigger EnvelopeRetriggerOnly Continue Quantized block 37,0.22945,0,1,0.00890118,0.0274684,3.08593,1,0,0,2,0,0,24000,25452,0.20599,n/a,n/a,0.0274564
+skipped E1 -24 st: target 4 outside [16, 127]
+replace A_s+sustain1(C-8) C3 +1 st retrigger EnvelopeRetriggerOnly Continue Quantized block 37,0.550687,0,1,0.0130397,0.0244265,1.87325,1,0,0,2,0,0,24000,24654,0.552664,n/a,n/a,0.0244253
+replace A_s+sustain1(C-8) C3 -1 st retrigger EnvelopeRetriggerOnly Continue Quantized block 37,0.638065,0,1,0.0130397,0.0235309,1.80456,1,0,0,2,0,0,24000,24676,0.640348,n/a,n/a,0.0235297
+replace A_s+sustain1(C-8) C3 +12 st retrigger EnvelopeRetriggerOnly Continue Quantized block 37,0.41013,0,1,0.0146252,0.0384834,2.6313,1,0,0,0,0,0,24000,24654,0.479447,n/a,n/a,0.0384821
+replace A_s+sustain1(C-8) C3 -12 st retrigger EnvelopeRetriggerOnly Continue Quantized block 37,0.677363,0,1,0.0130344,0.0235419,1.80614,1,0,0,0,0,0,24000,25021,0.815505,n/a,n/a,0.0235391
+replace A_s+sustain1(C-8) C3 +24 st retrigger EnvelopeRetriggerOnly Continue Quantized block 37,0.28218,0,1,0.0178387,0.0672716,3.7711,1,0,0,0,0,0,24000,24654,0.415619,n/a,n/a,0.0672703
+replace A_s+sustain1(C-8) C3 -24 st retrigger EnvelopeRetriggerOnly Continue Quantized block 37,0.799927,0,1,0.0130344,0.0235608,1.80759,1,0,0,0,0,0,24000,25755,1.08416,n/a,n/a,0.0235438
+replace B E1 +1 st retrigger EnvelopeRetriggerOnly Continue Quantized block 37,1.00122,0,1,0.395805,0.510281,1.28923,1,0,26,28,0,0,24000,25452,1.04107,n/a,n/a,0.501488
+replace B E1 -1 st retrigger EnvelopeRetriggerOnly Continue Quantized block 37,0.995116,0,1,0.395805,0.500605,1.26478,1,0,26,28,0,0,24000,25521,1.04299,n/a,n/a,0.493593
+replace B E1 +12 st retrigger EnvelopeRetriggerOnly Continue Quantized block 37,0.864452,0,1,0.466209,0.611076,1.31073,1,0,24,32,0,0,24000,25452,1.19884,n/a,n/a,0.610352
+replace B E1 -12 st retrigger EnvelopeRetriggerOnly Continue Quantized block 37,0.985639,0,1,0.392233,0.500605,1.27629,1,4,29,30,0,0,24000,26617,1.15345,n/a,n/a,0.493593
+replace B E1 +24 st retrigger EnvelopeRetriggerOnly Continue Quantized block 37,0.855332,0,1,0.492071,0.640357,1.30135,1,0,28,40,0,0,24000,25452,1.10798,n/a,n/a,0.640357
+skipped E1 -24 st: target 4 outside [16, 127]
+replace B C3 +1 st retrigger EnvelopeRetriggerOnly Continue Quantized block 37,0.965288,0,1,0.534951,0.638396,1.19337,1,0,53,56,0,0,24000,24654,1.01634,n/a,n/a,0.63836
+replace B C3 -1 st retrigger EnvelopeRetriggerOnly Continue Quantized block 37,0.950961,0,1,0.534951,0.636559,1.18994,1,0,53,54,0,0,24000,24676,1.08915,n/a,n/a,0.636467
+replace B C3 +12 st retrigger EnvelopeRetriggerOnly Continue Quantized block 37,1.05207,0,1,0.564004,0.634375,1.12477,1,1,53,50,0,0,24000,24654,1.24567,n/a,n/a,0.634344
+replace B C3 -12 st retrigger EnvelopeRetriggerOnly Continue Quantized block 37,1.03284,0,1,0.559061,0.63654,1.13859,1,0,56,56,0,0,24000,25021,1.29976,n/a,n/a,0.636448
+replace B C3 +24 st retrigger EnvelopeRetriggerOnly Continue Quantized block 37,0.861761,0,1,0.543719,0.816818,1.50228,1,0,53,49,0,0,24000,24654,1.05236,n/a,n/a,0.697636
+replace B C3 -24 st retrigger EnvelopeRetriggerOnly Continue Quantized block 37,1.00036,0,1,0.52952,0.63654,1.20211,1,3,61,68,0,0,24000,25755,1.08338,n/a,n/a,0.636448
+FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger EnvelopeRetriggerOnly Continue Quantized block 37,0.293561,0,1,0.00596482,0.0179553,3.0102,1,0,0,2,0,0,24000,25452,0.281083,0,0,0.0179433
+replace A_s+sustain1(C-8) E1 +1 st retrigger OscillatorContinuous Continue Porta0 block 37,0.491271,1,1,0.00436769,0.013168,3.01486,1,0,0,2,0,0,24000,25452,0.469101,n/a,n/a,0.013156
+replace A_s+sustain1(C-8) E1 -1 st retrigger OscillatorContinuous Continue Porta0 block 37,0.518384,1,1,0.00389203,0.0129003,3.31455,1,0,0,2,0,0,24000,25521,0.494619,n/a,n/a,0.0128871
+replace A_s+sustain1(C-8) E1 +12 st retrigger OscillatorContinuous Continue Porta0 block 37,0.405132,1,1,0.00823181,0.0174188,2.11604,1,0,0,2,0,0,24000,25452,0.399245,n/a,n/a,0.0174068
+replace A_s+sustain1(C-8) E1 -12 st retrigger OscillatorContinuous Continue Porta0 block 37,0.477275,1,1,0.00285798,0.0129284,4.52361,1,0,0,0,0,0,24000,26617,0.871361,n/a,n/a,0.0128911
+replace A_s+sustain1(C-8) E1 +24 st retrigger OscillatorContinuous Continue Porta0 block 37,0.431473,1,1,0.0167384,0.0264054,1.57753,1,0,0,2,0,0,24000,25452,0.427421,n/a,n/a,0.0263934
+skipped E1 -24 st: target 4 outside [16, 127]
+replace A_s+sustain1(C-8) C3 +1 st retrigger OscillatorContinuous Continue Porta0 block 37,0.583208,1,1,0.0138097,0.0235296,1.70384,1,0,0,2,0,0,24000,24654,0.585469,n/a,n/a,0.0235283
+replace A_s+sustain1(C-8) C3 -1 st retrigger OscillatorContinuous Continue Porta0 block 37,0.602463,1,1,0.0123121,0.0226835,1.84238,1,0,0,2,0,0,24000,24676,0.604553,n/a,n/a,0.0226824
+replace A_s+sustain1(C-8) C3 +12 st retrigger OscillatorContinuous Continue Porta0 block 37,0.726051,1,1,0.025891,0.03682,1.42212,1,0,0,0,0,0,24000,24654,0.850063,n/a,n/a,0.0368188
+replace A_s+sustain1(C-8) C3 -12 st retrigger OscillatorContinuous Continue Porta0 block 37,0.402751,1,1,0.00775006,0.0226946,2.92831,1,0,0,0,0,0,24000,25021,0.544624,n/a,n/a,0.0226918
+replace A_s+sustain1(C-8) C3 +24 st retrigger OscillatorContinuous Continue Porta0 block 37,0.802334,1,1,0.0507215,0.0641321,1.2644,1,0,0,0,0,0,24000,24654,1.22338,n/a,n/a,0.0641307
+replace A_s+sustain1(C-8) C3 -24 st retrigger OscillatorContinuous Continue Porta0 block 37,0.441899,1,1,0.00720051,0.0227134,3.15442,1,0,0,0,0,0,24000,25755,0.724039,n/a,n/a,0.0226965
+replace B E1 +1 st retrigger OscillatorContinuous Continue Porta0 block 37,1.00992,1,1,0.39982,0.500605,1.25208,1,0,24,28,0,0,24000,25452,1.0689,n/a,n/a,0.493593
+replace B E1 -1 st retrigger OscillatorContinuous Continue Porta0 block 37,1.04354,1,1,0.421239,0.500393,1.18791,1,0,24,28,0,0,24000,25521,1.12805,n/a,n/a,0.48764
+replace B E1 +12 st retrigger OscillatorContinuous Continue Porta0 block 37,0.898228,1,1,0.505075,0.605666,1.19916,1,0,30,32,0,0,24000,25452,1.2964,n/a,n/a,0.604498
+replace B E1 -12 st retrigger OscillatorContinuous Continue Porta0 block 37,0.450323,1,1,0.179205,0.500393,2.7923,1,0,26,30,0,0,24000,26617,0.591488,n/a,n/a,0.48764
+replace B E1 +24 st retrigger OscillatorContinuous Continue Porta0 block 37,0.919857,0,1,0.529192,0.64016,1.20969,1,0,36,40,0,0,24000,25452,1.23844,n/a,n/a,0.64016
+skipped E1 -24 st: target 4 outside [16, 127]
+replace B C3 +1 st retrigger OscillatorContinuous Continue Porta0 block 37,0.999887,1,1,0.554125,0.63654,1.14873,1,0,53,56,0,0,24000,24654,1.08005,n/a,n/a,0.636448
+replace B C3 -1 st retrigger OscillatorContinuous Continue Porta0 block 37,0.993405,1,1,0.558827,0.634394,1.13522,1,0,53,54,0,0,24000,24676,1.0837,n/a,n/a,0.634363
+replace B C3 +12 st retrigger OscillatorContinuous Continue Porta0 block 37,1.03218,1,1,0.553341,0.634375,1.14644,1,3,54,50,0,0,24000,24654,1.2642,n/a,n/a,0.634344
+replace B C3 -12 st retrigger OscillatorContinuous Continue Porta0 block 37,0.90294,1,1,0.48875,0.634375,1.29795,1,1,50,56,0,0,24000,25021,1.20666,n/a,n/a,0.634344
+replace B C3 +24 st retrigger OscillatorContinuous Continue Porta0 block 37,1.06601,0,0,0.642385,0.777123,1.20975,1,1,53,49,0,0,24000,24654,1.3372,n/a,n/a,0.653489
+replace B C3 -24 st retrigger OscillatorContinuous Continue Porta0 block 37,0.77922,0,1,0.363517,0.634375,1.7451,1,4,53,68,0,0,24000,25755,0.872298,n/a,n/a,0.634344
+FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger OscillatorContinuous Continue Porta0 block 37,0.405132,1,1,0.00823181,0.0174188,2.11604,1,0,0,2,0,0,24000,25452,0.399245,0.00335795,0,0.0174068
+replace A_s+sustain1(C-8) E1 +1 st retrigger OscillatorContinuous Continue ConstantTime block 37,0.475399,0,1,0.00422658,0.0134531,3.18297,1,0,0,2,0,0,24000,25452,0.453329,n/a,n/a,0.0134411
+replace A_s+sustain1(C-8) E1 -1 st retrigger OscillatorContinuous Continue ConstantTime block 37,0.542872,0,1,0.00407589,0.0131695,3.23108,1,0,0,2,0,0,24000,25521,0.513947,n/a,n/a,0.0131563
+replace A_s+sustain1(C-8) E1 +12 st retrigger OscillatorContinuous Continue ConstantTime block 37,0.299148,0,1,0.00607834,0.0179553,2.95398,1,0,0,2,0,0,24000,25452,0.292826,n/a,n/a,0.0179433
+replace A_s+sustain1(C-8) E1 -12 st retrigger OscillatorContinuous Continue ConstantTime block 37,0.594857,0,1,0.00356208,0.0131976,3.70503,1,0,0,0,0,0,24000,26617,0.871361,n/a,n/a,0.0131603
+replace A_s+sustain1(C-8) E1 +24 st retrigger OscillatorContinuous Continue ConstantTime block 37,0.242864,0,1,0.00942154,0.0274684,2.91549,1,0,0,2,0,0,24000,25452,0.204952,n/a,n/a,0.0274564
+skipped E1 -24 st: target 4 outside [16, 127]
+replace A_s+sustain1(C-8) C3 +1 st retrigger OscillatorContinuous Continue ConstantTime block 37,0.558341,0,1,0.0132209,0.0244265,1.84757,1,0,0,2,0,0,24000,24654,0.560357,n/a,n/a,0.0244253
+replace A_s+sustain1(C-8) C3 -1 st retrigger OscillatorContinuous Continue ConstantTime block 37,0.637301,0,1,0.0130241,0.0235309,1.80672,1,0,0,2,0,0,24000,24676,0.639668,n/a,n/a,0.0235297
+replace A_s+sustain1(C-8) C3 +12 st retrigger OscillatorContinuous Continue ConstantTime block 37,0.427043,0,1,0.0152284,0.0384834,2.52709,1,0,0,0,0,0,24000,24654,0.49921,n/a,n/a,0.0384821
+replace A_s+sustain1(C-8) C3 -12 st retrigger OscillatorContinuous Continue ConstantTime block 37,0.670993,0,1,0.0129118,0.0235419,1.82329,1,0,0,0,0,0,24000,25021,0.808017,n/a,n/a,0.0235391
+replace A_s+sustain1(C-8) C3 +24 st retrigger OscillatorContinuous Continue ConstantTime block 37,0.296881,0,1,0.0187681,0.0672716,3.58437,1,0,0,0,0,0,24000,24654,0.42013,n/a,n/a,0.0672703
+replace A_s+sustain1(C-8) C3 -24 st retrigger OscillatorContinuous Continue ConstantTime block 37,0.784958,0,1,0.0127905,0.0235608,1.84206,1,0,0,0,0,0,24000,25755,1.06436,n/a,n/a,0.0235438
+replace B E1 +1 st retrigger OscillatorContinuous Continue ConstantTime block 37,1.08175,0,0,0.427237,0.510281,1.19438,1,0,26,28,0,0,24000,25452,1.14004,n/a,n/a,0.501488
+replace B E1 -1 st retrigger OscillatorContinuous Continue ConstantTime block 37,1.06559,0,0,0.425876,0.500605,1.17547,1,0,25,28,0,0,24000,25521,1.13998,n/a,n/a,0.493593
+replace B E1 +12 st retrigger OscillatorContinuous Continue ConstantTime block 37,0.843279,0,1,0.470083,0.611076,1.29993,1,1,25,32,0,0,24000,25452,1.20434,n/a,n/a,0.610352
+replace B E1 -12 st retrigger OscillatorContinuous Continue ConstantTime block 37,0.953168,0,1,0.37355,0.500605,1.34013,1,4,29,30,0,0,24000,26617,1.09946,n/a,n/a,0.493593
+replace B E1 +24 st retrigger OscillatorContinuous Continue ConstantTime block 37,0.86093,0,1,0.495291,0.640357,1.29289,1,2,28,40,0,0,24000,25452,1.15487,n/a,n/a,0.640357
+skipped E1 -24 st: target 4 outside [16, 127]
+replace B C3 +1 st retrigger OscillatorContinuous Continue ConstantTime block 37,1.02454,0,1,0.554784,0.638396,1.15071,1,0,53,56,0,0,24000,24654,1.12805,n/a,n/a,0.63836
+replace B C3 -1 st retrigger OscillatorContinuous Continue ConstantTime block 37,0.993752,0,1,0.559022,0.636559,1.1387,1,0,53,54,0,0,24000,24676,1.13636,n/a,n/a,0.636467
+replace B C3 +12 st retrigger OscillatorContinuous Continue ConstantTime block 37,1.05099,0,1,0.563426,0.634375,1.12592,1,1,53,50,0,0,24000,24654,1.24465,n/a,n/a,0.634344
+replace B C3 -12 st retrigger OscillatorContinuous Continue ConstantTime block 37,1.03309,0,1,0.559198,0.63654,1.13831,1,3,56,56,0,0,24000,25021,1.28584,n/a,n/a,0.636448
+replace B C3 +24 st retrigger OscillatorContinuous Continue ConstantTime block 37,0.856228,0,1,0.552708,0.816818,1.47785,1,0,54,49,0,0,24000,24654,1.05095,n/a,n/a,0.697636
+replace B C3 -24 st retrigger OscillatorContinuous Continue ConstantTime block 37,0.966927,0,1,0.533458,0.63654,1.19323,1,8,60,68,0,0,24000,25755,1.09136,n/a,n/a,0.636448
+FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger OscillatorContinuous Continue ConstantTime block 37,0.299148,0,1,0.00607834,0.0179553,2.95398,1,0,0,2,0,0,24000,25452,0.292826,0.00335795,0,0.0179433
+replace A_s+sustain1(C-8) E1 +1 st retrigger OscillatorContinuous Continue ConstantRate block 37,0.491273,0,1,0.00436771,0.0134531,3.08012,1,0,0,2,0,0,24000,25452,0.468972,n/a,n/a,0.0134411
+replace A_s+sustain1(C-8) E1 -1 st retrigger OscillatorContinuous Continue ConstantRate block 37,0.51838,0,1,0.003892,0.0131695,3.38374,1,0,0,2,0,0,24000,25521,0.494619,n/a,n/a,0.0131563
+replace A_s+sustain1(C-8) E1 +12 st retrigger OscillatorContinuous Continue ConstantRate block 37,0.299145,0,1,0.00607828,0.0179553,2.95401,1,0,0,2,0,0,24000,25452,0.292827,n/a,n/a,0.0179433
+replace A_s+sustain1(C-8) E1 -12 st retrigger OscillatorContinuous Continue ConstantRate block 37,0.59484,0,1,0.00356197,0.0131976,3.70514,1,0,0,0,0,0,24000,26617,0.871361,n/a,n/a,0.0131603
+replace A_s+sustain1(C-8) E1 +24 st retrigger OscillatorContinuous Continue ConstantRate block 37,0.156683,0,1,0.00607828,0.0274684,4.51911,1,0,0,2,0,0,24000,25452,0.15472,n/a,n/a,0.0274564
+skipped E1 -24 st: target 4 outside [16, 127]
+replace A_s+sustain1(C-8) C3 +1 st retrigger OscillatorContinuous Continue ConstantRate block 37,0.583206,0,1,0.0138097,0.0244265,1.7688,1,0,0,2,0,0,24000,24654,0.585398,n/a,n/a,0.0244253
+replace A_s+sustain1(C-8) C3 -1 st retrigger OscillatorContinuous Continue ConstantRate block 37,0.631809,0,1,0.0129118,0.0235309,1.82243,1,0,0,2,0,0,24000,24676,0.634284,n/a,n/a,0.0235297
+replace A_s+sustain1(C-8) C3 +12 st retrigger OscillatorContinuous Continue ConstantRate block 37,0.42703,0,1,0.0152279,0.0384834,2.52717,1,0,0,0,0,0,24000,24654,0.499195,n/a,n/a,0.0384821
+replace A_s+sustain1(C-8) C3 -12 st retrigger OscillatorContinuous Continue ConstantRate block 37,0.670994,0,1,0.0129118,0.0235419,1.82328,1,0,0,0,0,0,24000,25021,0.808023,n/a,n/a,0.0235391
+replace A_s+sustain1(C-8) C3 +24 st retrigger OscillatorContinuous Continue ConstantRate block 37,0.240881,0,1,0.0152279,0.0672716,4.41766,1,0,0,0,0,0,24000,24654,0.366673,n/a,n/a,0.0672703
+replace A_s+sustain1(C-8) C3 -24 st retrigger OscillatorContinuous Continue ConstantRate block 37,0.792406,0,1,0.0129118,0.0235608,1.82474,1,0,0,0,0,0,24000,25755,1.07421,n/a,n/a,0.0235438
+replace B E1 +1 st retrigger OscillatorContinuous Continue ConstantRate block 37,1.03168,0,1,0.410571,0.510281,1.24286,1,0,24,28,0,0,24000,25452,1.09482,n/a,n/a,0.501488
+replace B E1 -1 st retrigger OscillatorContinuous Continue ConstantRate block 37,1.00451,0,1,0.413568,0.500605,1.21045,1,0,25,28,0,0,24000,25521,1.1103,n/a,n/a,0.493593
+replace B E1 +12 st retrigger OscillatorContinuous Continue ConstantRate block 37,0.843293,0,1,0.472155,0.611076,1.29423,1,1,25,32,0,0,24000,25452,1.20964,n/a,n/a,0.610352
+replace B E1 -12 st retrigger OscillatorContinuous Continue ConstantRate block 37,0.951934,0,1,0.373067,0.500605,1.34186,1,4,29,30,0,0,24000,26617,1.0967,n/a,n/a,0.493593
+replace B E1 +24 st retrigger OscillatorContinuous Continue ConstantRate block 37,0.820714,0,1,0.472155,0.640357,1.35624,1,3,25,40,0,0,24000,25452,1.11821,n/a,n/a,0.640357
+skipped E1 -24 st: target 4 outside [16, 127]
+replace B C3 +1 st retrigger OscillatorContinuous Continue ConstantRate block 37,1.00441,0,1,0.545871,0.638396,1.1695,1,0,53,56,0,0,24000,24654,1.06055,n/a,n/a,0.63836
+replace B C3 -1 st retrigger OscillatorContinuous Continue ConstantRate block 37,0.994546,0,1,0.559469,0.636559,1.13779,1,0,53,54,0,0,24000,24676,1.13413,n/a,n/a,0.636467
+replace B C3 +12 st retrigger OscillatorContinuous Continue ConstantRate block 37,1.05159,0,1,0.563748,0.634375,1.12528,1,1,53,50,0,0,24000,24654,1.24532,n/a,n/a,0.634344
+replace B C3 -12 st retrigger OscillatorContinuous Continue ConstantRate block 37,1.03315,0,1,0.55923,0.63654,1.13824,1,3,56,56,0,0,24000,25021,1.28614,n/a,n/a,0.636448
+replace B C3 +24 st retrigger OscillatorContinuous Continue ConstantRate block 37,0.874989,0,1,0.563748,0.816818,1.44891,1,0,53,49,0,0,24000,24654,1.10177,n/a,n/a,0.697636
+replace B C3 -24 st retrigger OscillatorContinuous Continue ConstantRate block 37,1.01333,0,1,0.55923,0.63654,1.13824,1,7,63,68,0,0,24000,25755,1.15384,n/a,n/a,0.636448
+FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger OscillatorContinuous Continue ConstantRate block 37,0.299145,0,1,0.00607828,0.0179553,2.95401,1,0,0,2,0,0,24000,25452,0.292827,0.00335795,0,0.0179433
+replace A_s+sustain1(C-8) E1 +1 st retrigger OscillatorContinuous Continue Quantized block 37,0.463748,0,1,0.004123,0.0134531,3.26294,1,0,0,2,0,0,24000,25452,0.442145,n/a,n/a,0.0134411
+replace A_s+sustain1(C-8) E1 -1 st retrigger OscillatorContinuous Continue Quantized block 37,0.549147,0,1,0.004123,0.0131695,3.19416,1,0,0,2,0,0,24000,25521,0.519803,n/a,n/a,0.0131563
+replace A_s+sustain1(C-8) E1 +12 st retrigger OscillatorContinuous Continue Quantized block 37,0.293561,0,1,0.00596482,0.0179553,3.0102,1,0,0,2,0,0,24000,25452,0.281083,n/a,n/a,0.0179433
+replace A_s+sustain1(C-8) E1 -12 st retrigger OscillatorContinuous Continue Quantized block 37,0.613457,0,1,0.00367345,0.0131976,3.5927,1,0,0,0,0,0,24000,26617,0.871361,n/a,n/a,0.0131603
+replace A_s+sustain1(C-8) E1 +24 st retrigger OscillatorContinuous Continue Quantized block 37,0.22945,0,1,0.00890118,0.0274684,3.08593,1,0,0,2,0,0,24000,25452,0.20599,n/a,n/a,0.0274564
+skipped E1 -24 st: target 4 outside [16, 127]
+replace A_s+sustain1(C-8) C3 +1 st retrigger OscillatorContinuous Continue Quantized block 37,0.550687,0,1,0.0130397,0.0244265,1.87325,1,0,0,2,0,0,24000,24654,0.552664,n/a,n/a,0.0244253
+replace A_s+sustain1(C-8) C3 -1 st retrigger OscillatorContinuous Continue Quantized block 37,0.638065,0,1,0.0130397,0.0235309,1.80456,1,0,0,2,0,0,24000,24676,0.640348,n/a,n/a,0.0235297
+replace A_s+sustain1(C-8) C3 +12 st retrigger OscillatorContinuous Continue Quantized block 37,0.41013,0,1,0.0146252,0.0384834,2.6313,1,0,0,0,0,0,24000,24654,0.479447,n/a,n/a,0.0384821
+replace A_s+sustain1(C-8) C3 -12 st retrigger OscillatorContinuous Continue Quantized block 37,0.677363,0,1,0.0130344,0.0235419,1.80614,1,0,0,0,0,0,24000,25021,0.815505,n/a,n/a,0.0235391
+replace A_s+sustain1(C-8) C3 +24 st retrigger OscillatorContinuous Continue Quantized block 37,0.28218,0,1,0.0178387,0.0672716,3.7711,1,0,0,0,0,0,24000,24654,0.415619,n/a,n/a,0.0672703
+replace A_s+sustain1(C-8) C3 -24 st retrigger OscillatorContinuous Continue Quantized block 37,0.799927,0,1,0.0130344,0.0235608,1.80759,1,0,0,0,0,0,24000,25755,1.08416,n/a,n/a,0.0235438
+replace B E1 +1 st retrigger OscillatorContinuous Continue Quantized block 37,1.00066,0,1,0.395556,0.510281,1.29004,1,0,26,28,0,0,24000,25452,1.04107,n/a,n/a,0.501488
+replace B E1 -1 st retrigger OscillatorContinuous Continue Quantized block 37,0.994552,0,1,0.395556,0.500605,1.26557,1,0,26,28,0,0,24000,25521,1.04299,n/a,n/a,0.493593
+replace B E1 +12 st retrigger OscillatorContinuous Continue Quantized block 37,0.863879,0,1,0.4659,0.611076,1.3116,1,0,24,32,0,0,24000,25452,1.19884,n/a,n/a,0.610352
+replace B E1 -12 st retrigger OscillatorContinuous Continue Quantized block 37,0.985079,0,1,0.39201,0.500605,1.27702,1,4,29,30,0,0,24000,26617,1.15346,n/a,n/a,0.493593
+replace B E1 +24 st retrigger OscillatorContinuous Continue Quantized block 37,0.854783,0,1,0.491755,0.640357,1.30219,1,0,28,40,0,0,24000,25452,1.10797,n/a,n/a,0.640357
+skipped E1 -24 st: target 4 outside [16, 127]
+replace B C3 +1 st retrigger OscillatorContinuous Continue Quantized block 37,0.964729,0,1,0.534641,0.638396,1.19406,1,0,53,56,0,0,24000,24654,1.01638,n/a,n/a,0.63836
+replace B C3 -1 st retrigger OscillatorContinuous Continue Quantized block 37,0.95041,0,1,0.534641,0.636559,1.19063,1,0,53,54,0,0,24000,24676,1.08912,n/a,n/a,0.636467
+replace B C3 +12 st retrigger OscillatorContinuous Continue Quantized block 37,1.05146,0,1,0.563679,0.634375,1.12542,1,1,53,50,0,0,24000,24654,1.24567,n/a,n/a,0.634344
+replace B C3 -12 st retrigger OscillatorContinuous Continue Quantized block 37,1.03228,0,1,0.558758,0.63654,1.13921,1,0,56,56,0,0,24000,25021,1.29981,n/a,n/a,0.636448
+replace B C3 +24 st retrigger OscillatorContinuous Continue Quantized block 37,0.86128,0,1,0.543425,0.816818,1.50309,1,0,53,49,0,0,24000,24654,1.05237,n/a,n/a,0.697636
+replace B C3 -24 st retrigger OscillatorContinuous Continue Quantized block 37,0.999797,0,1,0.529208,0.63654,1.20282,1,3,61,68,0,0,24000,25755,1.08339,n/a,n/a,0.636448
+FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger OscillatorContinuous Continue Quantized block 37,0.293561,0,1,0.00596482,0.0179553,3.0102,1,0,0,2,0,0,24000,25452,0.281083,0.00335795,0,0.0179433
+steal A_s+sustain1(C-8)/Solid E1 held AlwaysRetrigger Reset block 1 [disableStealFade],6.48183,1,0,0.203571,0.0346657,0.170288,0,2,2,0,1,160,24000,25452,6.84729,n/a,n/a,0
+replace A_s+sustain1(C-8)/Solid E1 +3 st retrigger AlwaysRetrigger Reset Porta0 block 1 [disableDeclick],15.6608,1,0,0.208436,0.0137551,0.0659922,0,2,2,2,1,160,24000,25452,15.2556,n/a,n/a,0.0137431

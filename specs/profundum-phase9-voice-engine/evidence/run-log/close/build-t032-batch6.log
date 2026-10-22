@@ -1,0 +1,25 @@
+START 2026-10-20T18:29:09Z
+MSBuild version 17.14.60+43b635718 for .NET Framework
+
+  Checking File Globs
+  Catch2.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\Catch2.lib
+  hwy.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy.lib
+  PFFFT.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\pffft.lib
+  hwy_contrib.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy_contrib.lib
+  KrateDSP.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\KrateDSP.lib
+  mass_dynamics_oversampling_test.cpp
+  profundum_engine_aliasing_test.cpp
+  profundum_engine_audibility_test.cpp
+  profundum_engine_chain_test.cpp
+  profundum_engine_click_test.cpp
+  profundum_engine_nonfinite_test.cpp
+  profundum_engine_perf_test.cpp
+  profundum_engine_probe_test.cpp
+  profundum_engine_soak_test.cpp
+  profundum_engine_test.cpp
+  profundum_macro_matrix_test.cpp
+  profundum_motion_test.cpp
+  profundum_voice_engine_helpers_test.cpp
+  profundum_voice_test.cpp
+  dsp_systems_tests.vcxproj -> F:\projects\iterum\build\windows-x64-release\bin\Release\dsp_systems_tests.exe
+rc=0 END 2026-10-20T18:29:23Z

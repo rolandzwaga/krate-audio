@@ -1,0 +1,7 @@
+Filters: "VoiceEngine_MotionSelectorsClickFree"
+Randomness seeded to: 243719007
+SC-025 VoiceEngine_MotionSelectorsClickFree: 80 pairs, worst ratio 1 (source Off->Env; bar 1.05925), W [48000, 51325), wall clock 33.9434 s
+===============================================================================
+All tests passed (4570 assertions in 1 test case)
+
+exit 0

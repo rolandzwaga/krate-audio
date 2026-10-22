@@ -1,0 +1,38 @@
+T001 - Register every Phase 9 file (tasks.md deviation 1)
+Date: 2026-10-20  Branch: synth/profundum  Base: 0ae33b87
+
+ODR SWEEP (re-run this session)
+$ grep -rnw -E "ProfundumVoice|ProfundumEngine|ProfundumEngineConfig|ProfundumEngineSeams|ProfundumEngineObserver|ProfundumMotion|ProfundumMacro|ProfundumMacroTarget|ProfundumMacroRow|ProfundumMacroValues|ProfundumMacroMatrix|ProfundumVoiceTaps|ProfundumEngineTaps|ProfundumCall|ProfundumCallRecord|ProfundumGridRecord|ProfundumNonlinearPlacement|HarmonicBalanceMeter|VoiceEngineRender|VoiceEngineScript|VoiceEngineTaps|VoiceEngineEvent" --include=*.h --include=*.cpp --include=*.js dsp plugins tests tools
+dsp/tests/unit/systems/profundum_note_behaviour_test_helpers.h:11:// NoteMemory classifies and resolves each event (plan S8 steps 1-7). Phase 9's ProfundumVoice
+$ find dsp plugins tests -iname "profundum_voice*" -o -iname "profundum_engine*" -o -iname "profundum_motion*" -o -iname "profundum_macro*" -o -iname "mass_dynamics_oversampling*"
+(no output)
+Verdict: exactly the one expected hit (the comment at profundum_note_behaviour_test_helpers.h:11). No collision. Sweep run BEFORE any file was created.
+
+FILES WRITTEN
+Header stubs (#pragma once, Layer 3 banner, "STUB - filled by T00n", empty namespace Krate::DSP {}):
+  dsp/include/krate/dsp/systems/profundum_macro_matrix.h      (T002)
+  dsp/include/krate/dsp/systems/profundum_motion.h            (T003)
+  dsp/include/krate/dsp/systems/profundum_engine_observer.h   (T004)
+  dsp/include/krate/dsp/systems/profundum_voice.h             (T007)
+  dsp/include/krate/dsp/systems/profundum_engine.h            (T008)
+TU stubs (file comment naming SCs + filling task, all five new headers, <catch2/catch_test_macros.hpp>, no TEST_CASE):
+  dsp/tests/unit/systems/profundum_voice_engine_helpers_test.cpp, profundum_motion_test.cpp, profundum_macro_matrix_test.cpp,
+  profundum_voice_test.cpp, profundum_engine_test.cpp (+ vorago_engine.h, seraphis_voice.h, voice_allocator.h coexistence includes),
+  profundum_engine_nonfinite_test.cpp, profundum_engine_click_test.cpp, profundum_engine_audibility_test.cpp,
+  profundum_engine_chain_test.cpp, profundum_engine_aliasing_test.cpp, profundum_engine_soak_test.cpp,
+  profundum_engine_probe_test.cpp, profundum_engine_perf_test.cpp, mass_dynamics_oversampling_test.cpp
+CMake:
+  dsp/CMakeLists.txt: after include/krate/dsp/systems/bass_morph_engine.h (was :219), before ")" - Phase 9 comment + five headers
+    in plan S11.1 order (motion, macro_matrix, engine_observer, voice, engine). CRLF preserved.
+  dsp/tests/CMakeLists.txt: dsp_systems_tests - after unit/systems/bass_morph_perf_test.cpp (was :786), Phase 8-style comment block
+    + the fourteen unit/systems/ lines in the tasks.md order. -fno-fast-math block - after unit/systems/bass_morph_nonfinite_test.cpp
+    (was :1285), before PROPERTIES: the Phase 9 comment + unit/systems/profundum_engine_nonfinite_test.cpp. Perf TU stays out.
+Evidence dirs: specs/profundum-phase9-voice-engine/evidence/{run-log, run-log/close, close, probes}/ each with .gitkeep.
+
+DECISIONS / DEVIATIONS
+- Edits made by a Node script (anchor-unique, EOL-preserving); no other line of either CMake file touched.
+- Not built, not run (executor rule). Expected Group 1 gate: dsp_systems_tests builds; the [profundum] gate case count is unchanged
+  (the stubs contain no TEST_CASE).
+- .serena/project.yml was already modified before this task (git status snapshot); not touched here.
+
+DEFECT lines: none.

@@ -1,0 +1,39 @@
+PROBES START 2026-10-20T11:39:04Z
+#   44100 E2_fold100_A-12 frame 65536 (bin 0.672913 Hz) input_estimator=-106.415 | off: steady -45.833 burst -128.484 step -70.0395 | on: steady -69.5422 burst -22.0025 step -21.4281
+P3 44100 E2_fold100_A-12 off=-45.833 on=-21.4281 estimator_off=-45.833 estimator_on=-69.5422
+#   48000 E2_fold100_A+12 frame 65536 (bin 0.732422 Hz) input_estimator=-106.243 | off: steady -55.0321 burst -70.874 step -64.8446 | on: steady -72.9571 burst -20.9843 step -20.949
+P3 48000 E2_fold100_A+12 off=-55.0321 on=-20.949 estimator_off=-55.0321 estimator_on=-72.9571
+#   48000 E2_fold100_A-12 frame 65536 (bin 0.732422 Hz) input_estimator=-106.243 | off: steady -55.0321 burst -82.8756 step -70.8744 | on: steady -72.9585 burst -22.2033 step -21.6199
+P3 48000 E2_fold100_A-12 off=-55.0321 on=-21.6199 estimator_off=-55.0321 estimator_on=-72.9585
+P3 VERDICT RED -69.5247
+===============================================================================
+test cases:   1 |   0 passed | 1 failed
+assertions: 567 | 563 passed | 4 failed
+
+exit: 4 wall: 3 s
+probe: verdict appended to specs/profundum-phase9-voice-engine/evidence/run-log/T006.txt
+P3 VERDICT RED -69.5247
+p3 rc=4
+probe: verdict appended to specs/profundum-phase9-voice-engine/evidence/run-log/T013.txt
+probe: verdict appended to specs/profundum-phase9-voice-engine/evidence/run-log/T013.txt
+probe: verdict appended to specs/profundum-phase9-voice-engine/evidence/run-log/T013.txt
+P2 VERDICT GREEN worst_ratio=39.3367 (bar 1.05925)
+P4 VERDICT FLIPS
+H13 GROWL_SWING C3 17.7839 dB (min -25.8208, max -8.03691)
+all-but-p1 rc=0
+#   replica POLY4 Fracture without field(stage+pan+wide) trials: 27.511 28.093 27.713 median 27.713
+P1 STAGE POLY4 Fracture field(stage+pan+wide) without=27.713 cost=14.508 per_voice=3.6271
+#   replica POLY4 Fracture without dc+limiter trials: 41.051 41.127 42.09 median 41.127
+P1 STAGE POLY4 Fracture dc+limiter without=41.127 cost=1.0938 per_voice=0.27344
+#   replica POLY4 Fracture without morph+law+motion+macros trials: 37.676 36.447 36.759 median 36.759
+P1 STAGE POLY4 Fracture morph+law+motion+macros without=36.759 cost=5.4627 per_voice=1.3657
+# checksum 3249.7 (keeps the renders observable)
+P1 VERDICT RED mono_max=13.611 (bar 8) poly4_max=46.317 postsum4_max=53.007 (bar 25)
+===============================================================================
+All tests passed (1106 assertions in 1 test case)
+
+exit: 0 wall: 486 s
+probe: verdict appended to specs/profundum-phase9-voice-engine/evidence/run-log/T013.txt
+P1 VERDICT RED mono_max=13.611 (bar 8) poly4_max=46.317 postsum4_max=53.007 (bar 25)
+p1 rc=0
+PROBES DONE 2026-10-20T11:48:20Z

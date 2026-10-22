@@ -1,0 +1,8 @@
+Filters: "ProfundumCore_ExcitationOutputBounded"
+Randomness seeded to: 1677741519
+ProfundumCore_ExcitationOutputBounded: worst excitation pre-ceiling peak 0.691 (MIDI 20; ceiling 6.0, plan <= 1.42), worst Fold pre-ceiling peak 0.914 (MIDI 20; ceiling 6.0, plan <= 2.40)
+4.493 s: ProfundumCore_ExcitationOutputBounded
+===============================================================================
+All tests passed (833 assertions in 1 test case)
+
+exit: 0 wall: 5 s

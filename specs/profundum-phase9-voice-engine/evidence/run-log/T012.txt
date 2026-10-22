@@ -1,0 +1,50 @@
+T012 - Non-finite safety (SC-023; FR-061)
+Date: 2026-10-20  Branch: synth/profundum  Base: 0ae33b87
+
+ODR SWEEP (this session, before writing)
+$ grep -rnE "\b(pnf[A-Z]|Pnf[A-Z]|kPnf)" dsp/tests plugins -> 0 hits. TU-local names (pnf*, Pnf*, kPnf*) live in an
+  anonymous namespace. No new class in any header. "VoiceEngine_NonFinite" -> 0 prior hits in dsp/tests.
+
+FACTS READ THIS SESSION (live anchors)
+- profundum_engine.h: setPitchBend :283-287 (non-finite keeps, clamp [-1, 1]); setTempoBpm :290-294 (non-finite or
+  !(bpm > 0) keeps); setEndpoint / setMorphPosition / setMorphRampMs forward to BassMorphEngine :301-303;
+  setPortamentoTimeMs :327-331; setPitchBendRange :349-353 (kMaxBendRangeSt :107); setOutputCeilingDb :355-359
+  (kMin/kMaxCeilingDb :102-103); setMacro / setMacros :361-362; getters :370-401 (macro(m) :390-400);
+  processBlock :413-430.
+- bass_morph_engine.h: setEndpoint :113-127 (false, nothing written, iff !isValidMorphState); setPosition :140-147
+  (non-finite keeps, p < kDenormalThreshold -> +0, p >= 1 -> 1); setPositionRampMs :155-163; kMin/kMaxPositionRampMs
+  :67-68.
+- profundum_macro_matrix.h: setMacro :162-168 (non-finite keeps, clamp [0, 1]); setMacros :171-176 field-wise.
+- mono_handler.h: kMin/kMaxPortamentoTimeMs :111-112 (0, 10000).
+- morph_state.h: kMorphLeafFieldCount = 62 (46 F32) :133; kFieldTable :142; forEachMorphLeaf :336;
+  isValidMorphState :513 (finite + box via orderedFloatKey, denormals valid finite values).
+- db_utils.h: kDenormalThreshold :38; detail::isFinite (bit test).
+- dsp_test_main.cpp:13 enableFTZDAZ(): the denormal arm's expected values are computed on the test thread with each
+  setter's documented rule, so DAZ reads the same on both sides.
+- bass_morph_state_helpers.h: showcasePair :167 (B sustain 0.8: a held E1 on B stays audible); bitEqual :40.
+- Precedent: bass_morph_nonfinite_test.cpp (bmFromBits volatile bit_cast, bmWithFloatLeaf) - pnfWithFloatLeaf ported.
+- CMake: unit/systems/profundum_engine_nonfinite_test.cpp is in the -fno-fast-math -fno-finite-math-only block
+  (dsp/tests/CMakeLists.txt:1317-1318, T001).
+
+FILES WRITTEN
+- dsp/tests/unit/systems/profundum_engine_nonfinite_test.cpp (T001 stub banner replaced; the five Phase 9 includes kept)
+- this run-log
+
+CASE
+- VoiceEngine_NonFinite [systems][profundum][voice-engine][sc-023][fr-061][nonfinite]
+  Setup: endpoints A_s / showcase B, morph position 1 (on B), every float setter at a non-default value (bend 0.25,
+  tempo 97, ramp 37 ms, portamento 23 ms, bend range 7, ceiling -2.5 dB, macros .61/.42/.57/.38), prepare(48 kHz),
+  E1 held, 4800 samples warm-up (REQUIRE peak > 1e-3, so the comparison is not against silence).
+  Setters (15): setPitchBend, setTempoBpm, setMorphPosition, setMorphRampMs, setPortamentoTimeMs, setPitchBendRange,
+  setOutputCeilingDb, setMacro x 4, setMacros x 4 (one bad field each); plus setEndpoint on every F32 leaf (46) of
+  A and of B.
+  SECTION non-finite (NaN 0x7FC00000, +Inf, -Inf): two engines in lockstep (FR-062 twins); 13 samples (mid-interval),
+  the bad call on the test engine only, getter bitwise == previous (setEndpoint: returns false, endpoint bitEqual,
+  candidate fails isValidMorphState), 83 more samples (two grid points); every test-engine sample finite (bit test)
+  and bitwise equal to the reference. 45 + 276 = 321 injections.
+  SECTION denormal (0x00000001): one engine; getter bitwise == the setter's documented rule (clamp / tempo keep if
+  !(d > 0) / morph position +0); setEndpoint returns isValidMorphState(candidate) and the stored endpoint equals the
+  candidate if valid, else the previous; every sample finite.
+
+NOT RUN (per task instruction: the group's build agent builds and runs). Run:
+  build/windows-x64-release/bin/Release/dsp_systems_tests.exe "VoiceEngine_NonFinite"

@@ -1,0 +1,41 @@
+T002 - ProfundumMacroMatrix (FR-050 - FR-056; SC-008 unit arm; plan S4, S9.3, C-7; deviation 12)
+Date: 2026-10-20  Branch: synth/profundum  Base: 0ae33b87
+Not built or run by this task (the Group 2 gate builds dsp_systems_tests and runs the gate filter).
+
+FILES WRITTEN
+  dsp/tests/unit/systems/profundum_macro_matrix_test.cpp   (tests written first; replaces the T001 stub, keeps its five Phase 9 includes)
+  dsp/include/krate/dsp/systems/profundum_macro_matrix.h   (replaces the T001 stub)
+  specs/profundum-phase9-voice-engine/evidence/run-log/T002.txt
+
+TEST CASES (all tagged [systems][profundum][voice-engine] + criterion tags)
+  ProfundumMacro_TableInvariants       [fr-050]          count==1 per target, no Stepped, FR-052 owner, signs; STATIC_REQUIRE of
+                                                          the same predicates written TU-locally (independent of the header's own)
+  ProfundumMacro_NeutralIsIdentity     [sc-008][fr-051]  defaults 0.5 bitwise; contributions()/compressionContribution() +-0;
+                                                          1000 BassMorphTest::randomValidState (mt19937 0x9008) bitEqual after apply
+  ProfundumMacro_Directions            [fr-052]          bases A_s (showcase A + ampEnv.sustain 1, C-8) and B; each macro at 1 and 0;
+                                                          direction, clamp-binds => == bound, amp times bitwise clamp(t*exp2(c)),
+                                                          no foreign field changes (restore own fields, bitEqual); row 10 lowered by
+                                                          Loose; compressionContribution < 0 Loose, > 0 Tight, +-0 for other macros
+  ProfundumMacro_ValuesRoundTrip       [fr-055][fr-061]  setMacros/macros bitwise; NaN/+Inf/-Inf (bit patterns 0x7FC00000/0x7F800000/
+                                                          0xFF800000 through a volatile sink + std::bit_cast) keep 0.1; 1.5 -> 1, -0.5 -> 0;
+                                                          Count ignored; setMacros obeys the same field-wise rules
+  ProfundumMacro_ContributionArithmetic [fr-050]         m in {0, .25, .5, .75, 1}, every row, bitwise vs amount*applyModCurve(curve,|u|)*sign(u)
+
+DECISIONS
+  - Includes exactly plan S2's list: core/db_utils.h (detail::isFinite, db_utils.h:118), core/modulation_curves.h (applyModCurve,
+    modulation_curves.h:37-55), core/modulation_types.h (ModCurve, modulation_types.h:79-84), primitives/envelope_utils.h
+    (kMinEnvelopeTimeMs/kMaxEnvelopeTimeMs, envelope_utils.h:50-51), systems/morph_state.h; plus std headers.
+  - Field ranges -12/12 dB (TransientShaper::kMinGainDb/kMaxGainDb, transient_shaper.h:78-79) and Fold 100 (harmonic_fold.h:166-169)
+    are private literals, because S2's include list has neither header and rule 2 forbids transitive reliance.
+  - contributions() ASSIGNS each row's value (one row per target, static_asserted) instead of summing onto +0: summing a -0
+    (negative-amount row at the neutral) onto +0 yields +0 and would break the bitwise ContributionArithmetic check.
+  - compressionContribution() returns contributions()[CompressionAmount]. An in-class constexpr row-index lookup was avoided:
+    a static constexpr member initialised by a member constexpr function is ill-formed before the class is complete.
+  - FR-050 invariants are public static constexpr predicates (documentedOwner, everyTargetClaimedOnce, noSteppedCurve,
+    ownersDocumented, signsDocumented), static_assert'ed after the class, so no new namespace-scope name is introduced
+    beyond the rule-2 list.
+  - apply() skips a +-0 contribution (bit test) and guards x + c / t * exp2(c) with detail::isFinite before std::clamp (rule 3).
+  - HARVEST markers: "// HARVEST-BEGIN macro-rows" / "// HARVEST-END macro-rows" wrap the kRows definition (deviation 12).
+
+DEVIATIONS: none.
+DEFECTS: none.

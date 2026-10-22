@@ -1,0 +1,18 @@
+  Catch2.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\Catch2.lib
+  PFFFT.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\pffft.lib
+  hwy.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy.lib
+  hwy_contrib.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy_contrib.lib
+  KrateDSP.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\KrateDSP.lib
+  dsp_systems_tests.vcxproj -> F:\projects\iterum\build\windows-x64-release\bin\Release\dsp_systems_tests.exe
+build exit=0
+probe: verdict appended to specs/profundum-phase9-voice-engine/evidence/run-log/T006.txt
+P3 VERDICT GREEN -91.1351
+probe: verdict appended to specs/profundum-phase9-voice-engine/evidence/run-log/T013.txt
+P2 VERDICT GREEN worst_ratio=1.0321 (bar 1.05925)
+=== per-push lane 2026-10-20T12:36:15Z
+lane exit=5
+===============================================================================
+test cases:      468 |      466 passed | 2 failed
+assertions: 10205093 | 10205088 passed | 5 failed
+
+DONE 2026-10-20T12:53:34Z

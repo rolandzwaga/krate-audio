@@ -1,0 +1,109 @@
+T013 - Probes P-1, P-2, P-4 and VoiceEngine_CharacterRecords (plan S10.4, R-A, R-B, H-13; deviations 4, 10)
+Date: 2026-10-20  Branch: synth/profundum  Base: 0ae33b87
+
+FILES WRITTEN
+- dsp/tests/unit/systems/profundum_engine_probe_test.cpp (appended; the T006 P-3 case untouched; banner extended,
+  includes added for the components the replica and the readers use directly)
+- specs/profundum-phase9-voice-engine/evidence/close/probe.sh (extended: p1 pinned, p2, p4, h13, all-but-p1;
+  bash -n: OK)
+- this run-log
+
+FACTS READ THIS SESSION
+- Engine API / grid step / renderChunk: systems/profundum_engine.h public constants (:96-115: kMaxVoices ...
+  kControlInterval, kDcCutoffHz, kDefaultCeilingDb, kDefaultTempoBpm, kDefaultBendRangeSt, kDefaultSeed,
+  kMotionDriftSalt, kFieldDriftSalt), prepare (:141), processBlock (:413), lawBaseOf (private, :567),
+  configureAllocator Oldest / Hard (:610), gridStep (:828), renderChunk (:1052).
+- Voice: systems/profundum_voice.h HarmonicBalanceMeter (public nested, :85), prepare (:199) / reset, beginInterval
+  S5.4 (:364), render (:635), renderSub S5.6 (:765; the Character tap is mainL_ / mainR_, :865);
+  ShapeMorph calls :201, :212, :231, :256, :445, :796.
+- Observer records: systems/profundum_engine_observer.h:65 (ProfundumVoiceTaps followRatio ... halfWave).
+- Character flip: systems/bass_character_stage.h:467-480 (perceivedPitchRatio: Rectify 2 iff halfWaveSymmetric_ and
+  flippedRect_; Fracture 0.5 iff flippedFrac_), :1508-1527 (flip edges with hysteresis on amount_, by tone).
+- Fold idle: processors/harmonic_fold.h:215-224 (amount 0 and target 0: bit-exact copy).
+- Driver / readers: dsp/tests/unit/systems/profundum_voice_engine_test_helpers.h:131-147 (script), :369-427
+  (voiceEngineRender), :485-591 (click machinery: L_d, slope, window, max delta, ratio, unit-gain steady, bound),
+  :764-782 (K-weighted level).
+- Showcase pair: dsp/tests/unit/systems/bass_morph_state_helpers.h:167-220. Steal model (Oldest / Hard):
+  profundum_engine.h:610; profundum_engine_test.cpp:1542 (VoiceEngine_StealOrder).
+- Phase 5 h1 table: specs/profundum-phase5-shape-character/evidence/sc020-h1-transfer.csv (kSawAnchor fixture;
+  columns stage,setting,tone,fixture,note,f0_hz,h1_db,h1_deg,group_delay_samples,phase_delay_samples,status).
+- Pinning: tools/pin-perf-cores.ps1:16-21; Phase 8 pattern specs/profundum-phase8-bass-morph/evidence/close/probe.sh:57-61.
+
+CASES
+- VoiceEngine_CpuProbe [systems][profundum][voice-engine][.probe][.perf] -> evidence/probes/p1-cpu.txt
+- VoiceEngine_DeclickReferenceProbe [systems][profundum][voice-engine][.probe] -> evidence/probes/p2-declick.txt
+- VoiceEngine_FollowFlipProbe [systems][profundum][voice-engine][.probe] -> evidence/probes/p4-follow-flip.txt
+- VoiceEngine_CharacterRecords [systems][profundum][voice-engine][.probe] -> evidence/h13-character-records.txt
+
+CHOICES SURFACED (deviations from the task text are marked DEV)
+P-1
+- The SC-001 setting is applied to BOTH showcase endpoints (A and B keep their other leaves: recipe, Tone, envelope,
+  Anchor level), so the morph ramp moves real leaves. WIDE: field.mode Wide, spread 1, field motionDepth 1,
+  motionSource Cycle. Motion: source Cycle, target Mass, amount 1, depth 1. Morph ramp 1000 ms, target toggled every
+  1 s (always ramping). Drop retrigger every 250 ms = noteOff + noteOn of every held note at the first host-block
+  boundary at or after the mark (12000 samples is not a multiple of 64: up to 63 samples late).
+- Engine figures: MONO (E1), POLY4 PerVoice and POSTSUM4 (E1 / A1 / E2 / C3), Tube and Fracture; 10 s timed after a
+  1 s warm-up, median of 3 fresh engines; no observer.
+- Breakdown (deviation 10): a test-side replica of the voice (S5.4 / S5.6) and the engine (S6.5 grid step plus the
+  global chain) with change-only setters, on whole 32-sample intervals. Stages removed one at a time: core+excitation,
+  shape, fold, character, anchor, pitch(drop+lock), a1+meter, amp-env, mass-dynamics, field (stage + per-voice pan
+  vector + WIDE offsets), dc+limiter, morph+law+motion+macros. cost = full - without. Run at 1 and 4 voices, both
+  algorithms, the same timing protocol (about 6 min of wall clock in total for the breakdown).
+  DEV (replica simplifications; per-event, not per-sample, costs): every retrigger is a Reset-branch restart with no
+  NoteMemory / RetriggerDeclick bookkeeping (g_d == 1), no pitch-bend smoother and no MONO portamento (f_res = the
+  note frequency), no observer. The replica's full figure is printed beside the engine's (P1 BREAKDOWN lines), so
+  its fidelity is visible.
+- Verdict exactly as tasks.md: GREEN iff max(MONO) <= 8 and (max(POLY4) <= 25 or max(POSTSUM4) <= 25).
+P-2
+- Cells: SC-005 steal at E1 and C3 (POLY 4; victim = the cell note, held and the oldest; three held fillers at
+  +5 / +7 / +10 st on at 50 / 100 / 150 ms; the fifth note at +3 st steals at 0.5 s; reference polyphony 5).
+  SC-006 MONO replacement at E1 and C3, intervals {1, 12, 24} st up and down (the old note held: Overlap),
+  reference POLY-2. E1 - 24 st (note 4) is skipped (below E0) and logged. All A_s, AlwaysRetrigger, Retrigger Reset,
+  SOLID, host block 1; readings on the pre-dynamics Sum tap, the worse of L / R. W = [the grid point, +
+  samplesUntilSwitch + L_d + one period of the slower f0).
+- (b): SC-006 cells use voiceEngineDeltaBound over the two notes involved (S9.9). DEV: SC-005 cells read the Sum of
+  four sounding voices, so their bound adds 1.1 x D_max of each held filler (the triangle inequality over the voices
+  in W). That makes (b) more generous, so a RED (a fails while b passes) is more likely to surface, not less.
+  Steady references: separate MONO renders, [0.5 s, 1.0 s) of voice 0's unit-gain output.
+- Verdict: RED iff any cell fails (a) (ratio > 10^(0.5/20)) while (b) passes; such cells are marked
+  "<- R-B STOP CELL".
+P-4
+- One continuous sweep per (algorithm, note): A_s (kSineAnchor, Fold 0, excitation 0, Tone 0.5), Anchor FOLLOW,
+  MONO; a 0.5 s lead-in, then Amount i / 100 set on both endpoints (position 0) and held 60 ms per step; the
+  follow-ratio tap and the HalfWave flag of voice 0's last chunk per step. The sweep only rises, so the first flip is
+  read on the rising edge of the hysteresis (bass_character_stage.h:1519 / :1524).
+- "FOLLOW INERT" iff no (algorithm, note) flips at any Amount; the full table is in the file either way.
+H-13
+- Fixture kSawAnchor (Phase 5's), Fold 0, excitation 0, SHAPE 0, Tone 0.5, Amount 1; MONO; window = whole periods
+  near 0.5 s from 1 s. DEV: the voice taps carry no Character-INPUT tap, so the input is rebuilt from the core tap by
+  a ShapeMorph given the voice's setter sequence and chunk partition (Fold 0 is the bit-exact idle copy and a +0 feed
+  is skipped, so this is the Character input). Each transfer row CHECKs that the Mass-law fold target is 0.
+- Group delay from the phase at f0 +- 1 % via pitch bend (range 2 st: bend = 6 log2(1.01) and 6 log2(0.99)), using
+  each render's measured f_core. Each row prints Phase 5's tone-0.5 row from sc020-h1-transfer.csv beside it.
+- Growl level swing: kGrowl, Tube at Amount 0, SHAPE 0 ... 1 in 11 steps, L_K of the Character tap per note.
+probe.sh
+- p1 runs pinned via tools/pin-perf-cores.ps1 behind the existing busy check (builds / dsp_*_tests / clang-tidy).
+  all-but-p1 runs p2 / p4 / h13 concurrently in the background and waits. Every verdict line lands here.
+
+NOT RUN (per task instruction: no build, no test run)
+- Deferred to the main loop: after the Group 9 gate build, run
+  `bash specs/profundum-phase9-voice-engine/evidence/close/probe.sh all-but-p1`, then
+  `bash specs/profundum-phase9-voice-engine/evidence/close/probe.sh p1` ALONE.
+  P1 VERDICT RED -> STOP AND SURFACE with the breakdown (R-A stop rule: options are L3 with a user ruling, an
+  append-only cost fix in a Phase 2 / 5 component with a ruling, or another ruling; a ceiling is never relaxed).
+  P2 VERDICT RED -> STOP AND SURFACE with the readings (R-B; RetriggerDeclick's 1.5 ms is not changed).
+  P-4 "FOLLOW INERT" is recorded and carried to T016 / T017.
+  No Group 11 gated render is trusted until P-1 and P-2 read GREEN.
+
+VERDICTS (appended by probe.sh)
+2026-10-20T11:39:14Z probe p4 exit=0 wall=4s | P4 VERDICT FLIPS
+2026-10-20T11:39:31Z probe p2 exit=0 wall=21s | P2 VERDICT GREEN worst_ratio=39.3367 (bar 1.05925)
+2026-10-20T11:40:12Z probe h13 exit=0 wall=62s | H13 GROWL_SWING C3 17.7839 dB (min -25.8208, max -8.03691)
+2026-10-20T11:48:20Z probe p1 exit=0 wall=486s | P1 VERDICT RED mono_max=13.611 (bar 8) poly4_max=46.317 postsum4_max=53.007 (bar 25)
+2026-10-20T12:14:50Z probe p2 exit=0 wall=10s | P2 VERDICT RED worst_ratio=1.5151 (bar 1.05925)
+2026-10-20T12:27:41Z probe p2 exit=0 wall=22s | P2 VERDICT RED worst_ratio=1.10656 (bar 1.05925)
+2026-10-20T12:36:14Z probe p2 exit=0 wall=25s | P2 VERDICT GREEN worst_ratio=1.0321 (bar 1.05925)
+2026-10-20T16:25:51Z probe p1 exit=0 wall=450s | P1 VERDICT RED mono_max=13.23 (bar 8) poly4_max=44.567 postsum4_max=49.572 (bar 25)
+2026-10-20T16:53:40Z probe p1 exit=0 wall=325s | P1 VERDICT RED mono_max=9.1958 (bar 8) poly4_max=30.214 postsum4_max=33.937 (bar 25)
+2026-10-20T18:28:00Z probe p1 exit=0 wall=281s | P1 VERDICT RED mono_max=6.7682 (bar 8) poly4_max=25.712 postsum4_max=29.563 (bar 25)
+2026-10-20T18:43:02Z probe p1 exit=0 wall=285s | P1 VERDICT GREEN mono_max=7.2551 (bar 8) poly4_max=23.933 postsum4_max=28.373 (bar 25)

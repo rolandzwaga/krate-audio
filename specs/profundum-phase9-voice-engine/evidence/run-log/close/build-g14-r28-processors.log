@@ -1,0 +1,19 @@
+MSBuild version 17.14.60+43b635718 for .NET Framework
+
+  Checking File Globs
+  Catch2.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\Catch2.lib
+  PFFFT.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\pffft.lib
+  hwy.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy.lib
+  hwy_contrib.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy_contrib.lib
+  KrateDSP.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\KrateDSP.lib
+  harmonic_fold_nonfinite_test.cpp
+  harmonic_fold_test.cpp
+  oversampled_residual_path_test.cpp
+  period_peak_detector_test.cpp
+  rectifier_nonfinite_test.cpp
+  rectifier_test.cpp
+  shape_character_metric_helpers_test.cpp
+  transient_shaper_helpers_test.cpp
+  transient_shaper_nonfinite_test.cpp
+  transient_shaper_test.cpp
+  dsp_processors_tests.vcxproj -> F:\projects\iterum\build\windows-x64-release\bin\Release\dsp_processors_tests.exe

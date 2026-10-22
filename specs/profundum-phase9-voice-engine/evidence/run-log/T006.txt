@@ -1,0 +1,58 @@
+T006 - Probe P-3 MassDynamics_OversamplingAliasProbe (plan R-C, S10.4; C-3)
+Date: 2026-10-20  Branch: synth/profundum  Base: 0ae33b87
+
+FILES WRITTEN
+- dsp/tests/unit/systems/profundum_engine_probe_test.cpp (first case; T001 stub banner replaced, the five Phase 9 includes kept)
+- specs/profundum-phase9-voice-engine/evidence/close/probe.sh (bash -n: OK)
+- this run-log
+
+FACTS READ THIS SESSION
+- Phase 6 cell set: dsp/tests/unit/systems/mass_dynamics_aliasing_test.cpp mdaRunGrid :285-293, mdaRunCell :190-273,
+  settings :70-88 (A {+12,-12} dB, 5 ms duration, sustain 0, comp amount 1, fixed release 50 ms via
+  detail::MassDynamicsProbe::setFixedReleaseMs), render mdaRenderDynamics :107-129 (one sample at a time,
+  gain tap shaper().currentGainDb() + compressor().currentGainDb()); shards :306-312.
+- Residual method: MassDynamicsTest::aliasResidualDb (dsp/tests/unit/systems/mass_dynamics_test_helpers.h:865);
+  steady residual = ProfundumTest::aliasedPower on one aliasFftLength(fs, f0) frame at 1 s (mdaRunCell :229-233).
+- Estimator: ProfundumTest::aliasFftLength :257, aliasedPower :273 (dsp/tests/unit/systems/profundum_core_test_helpers.h).
+- Opt-in (T005): MassDynamics::setOversampling / oversamplingActive (systems/mass_dynamics.h append after
+  currentOutputTrimGain); active iff 2*fs <= BassCompressor::kMaxSampleRate (mass_dynamics.h:75, 192000) -> active
+  at 44.1 / 48 kHz; the probe CHECKs oversamplingActive() == requested.
+- Fixtures: ShapeCharacterTest::fold100 (shape_character_test_helpers.h:80), HarmonicFoldTest::recipeAdditive
+  (processors/harmonic_fold_test_helpers.h:268), TransientShaperTest::burst / twoLevelStep / onsetIndex / kE2Hz
+  (processors/transient_shaper_test_helpers.h:86, :107, :82, :48).
+- Evidence dir macro KRATE_DSP_TESTS_DIR defined for dsp_systems_tests (dsp/tests/CMakeLists.txt:908-909).
+
+CASE
+- MassDynamics_OversamplingAliasProbe [systems][profundum][mass-dynamics][voice-engine][.probe]
+  cells: fs {44100, 48000} x E2 fold100(kSawAnchor) x A {+12, -12}; opt-in off and on.
+  per cell: "P3 <fs> <cell> off=<dB> on=<dB> estimator_off=<dBFS> estimator_on=<dBFS>", where off / on = the worst
+  of Phase 6's three residual windows (steady A_out, burst, step); a preceding "#" detail line prints each window,
+  the frame / bin and the INPUT's estimator reading (attribution). Last line "P3 VERDICT GREEN|RED <worst on>":
+  GREEN iff every estimator_on <= -80 dBFS. CHECK only. Writes evidence/probes/p3-output-alias.txt.
+
+CHOICES SURFACED
+- off= / on= are the worst of the three Phase 6 residual windows (tasks.md names one number per mode; all three
+  are printed on the detail line).
+- With the opt-in on, the per-sample gain tap is the last inner sample's gain and the output carries the halfband
+  pair's delay (T005 records ~3.8 base samples at 40 Hz), so the on-path burst / step residuals compare against
+  x*g at zero delay: they are recorded, not the verdict. The verdict is (ii), as tasks.md rules.
+- The input's own estimator reading is printed so a RED set by the Fold-100 fixture itself (rather than the
+  dynamics) is visible; the verdict still reads the absolute -80 dBFS bar (Q4), unchanged.
+- probe.sh refuses to start on cl / link / MSBuild / ninja / cmake / clang-tidy / dsp_*_tests.exe (image names
+  anchored at the tasklist line start); appends the verdict line here.
+
+NOT RUN (per task instruction: no build, no test run)
+- Deferred to the main loop: run `bash specs/profundum-phase9-voice-engine/evidence/close/probe.sh p3` after the
+  Group 4 gate build. A `P3 VERDICT RED` is STOP AND SURFACE to the user with the table (R-C; Q4's -80 dBFS bar
+  is not moved). No later group's gated render is trusted until P-3 reads GREEN.
+
+VERDICTS (appended by probe.sh)
+2026-10-20T11:39:08Z probe p3 exit=4 wall=3s | P3 VERDICT RED -69.5247
+2026-10-20T12:35:47Z probe p3 exit=0 wall=4s | P3 VERDICT GREEN -91.1351
+2026-10-20T13:34:13Z probe p3 exit=0 wall=2s | P3 VERDICT GREEN -91.1351
+2026-10-20T13:36:37Z probe p3 exit=4 wall=2s | P3 VERDICT RED -45.8318
+2026-10-20T13:38:52Z probe p3 exit=4 wall=2s | P3 VERDICT RED -45.8318
+2026-10-20T13:40:48Z probe p3 exit=4 wall=1s | P3 VERDICT RED -45.8318
+2026-10-20T13:43:55Z probe p3 exit=4 wall=1s | P3 VERDICT RED -45.8318
+2026-10-20T13:44:50Z probe p3 exit=4 wall=2s | P3 VERDICT RED -45.8318
+2026-10-20T13:46:34Z probe p3 exit=0 wall=2s | P3 VERDICT GREEN -89.4572

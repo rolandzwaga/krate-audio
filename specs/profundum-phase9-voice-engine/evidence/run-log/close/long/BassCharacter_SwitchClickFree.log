@@ -1,0 +1,311 @@
+Filters: "BassCharacter_SwitchClickFree"
+Randomness seeded to: 3795915290
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+BassCharacter_SwitchClickFree
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1528)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level E1, Tube -> Fold: over 1.1267 dB, under 0 dB; midpoint L_tr -11.
+  1711 vs steady [-12.4989, -12.1679] dBFS, midpoint excursion 0.996869 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level E1, Tube -> Rectify: over 0.476258 dB, under -0.231372 dB;
+  midpoint L_tr -10.9088 vs steady [-12.4989, -10.7638] dBFS, midpoint
+  excursion 0 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level E1, Tube -> Bite: over 1.04322 dB, under 0 dB; midpoint L_tr -
+  11.5511 vs steady [-12.4989, -11.7405] dBFS, midpoint excursion 0.189424 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level E1, Tube -> Crush: over 0.256331 dB, under -1.12404 dB; midpoint
+  L_tr -12.9977 vs steady [-12.5308, -12.4989] dBFS, midpoint excursion -0.
+  466888 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level E1, Tube -> Fracture: over -7.67418e-06 dB, under 0.160022 dB;
+  midpoint L_tr -14.2751 vs steady [-18.3361, -12.4989] dBFS, midpoint
+  excursion 0 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level E1, Fold -> Tube: over 0.394195 dB, under -0.386957 dB; midpoint
+  L_tr -12.4229 vs steady [-12.4989, -12.1679] dBFS, midpoint excursion 0 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level E1, Fold -> Rectify: over 0.358228 dB, under -0.782187 dB;
+  midpoint L_tr -11.4291 vs steady [-12.1679, -10.7638] dBFS, midpoint
+  excursion 0 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level E1, Fold -> Bite: over 0.685808 dB, under 6.4807e-06 dB;
+  midpoint L_tr -11.9269 vs steady [-12.1679, -11.7405] dBFS, midpoint
+  excursion 0 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level E1, Fold -> Crush: over 0.205181 dB, under -2.1495 dB; midpoint
+  L_tr -13.3942 vs steady [-12.5308, -12.1679] dBFS, midpoint excursion -0.
+  863431 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level E1, Fold -> Fracture: over 0 dB, under 0.160022 dB; midpoint
+  L_tr -15.2621 vs steady [-18.3361, -12.1679] dBFS, midpoint excursion 0 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level E1, Rectify -> Tube: over 0.399202 dB, under -0.741545 dB;
+  midpoint L_tr -12.1733 vs steady [-12.4989, -10.7638] dBFS, midpoint
+  excursion 0 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level E1, Rectify -> Fold: over 0.581495 dB, under -0.986787 dB;
+  midpoint L_tr -11.5415 vs steady [-12.1679, -10.7638] dBFS, midpoint
+  excursion 0 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level E1, Rectify -> Bite: over 0.357181 dB, under -0.466756 dB;
+  midpoint L_tr -11.8068 vs steady [-11.7405, -10.7638] dBFS, midpoint
+  excursion -0.0662499 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level E1, Rectify -> Crush: over 0 dB, under -1.19764 dB; midpoint
+  L_tr -12.962 vs steady [-12.5308, -10.7638] dBFS, midpoint excursion -0.
+  431147 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level E1, Rectify -> Fracture: over 0 dB, under 0.160022 dB; midpoint
+  L_tr -13.6628 vs steady [-18.3361, -10.7638] dBFS, midpoint excursion 0 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level E1, Bite -> Tube: over 0.450064 dB, under -0.491045 dB; midpoint
+  L_tr -11.7406 vs steady [-12.4989, -11.7405] dBFS, midpoint excursion 0 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level E1, Bite -> Fold: over 0.828266 dB, under 0.0482837 dB; midpoint
+  L_tr -10.9457 vs steady [-12.1679, -11.7405] dBFS, midpoint excursion 0.
+  794831 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level E1, Bite -> Rectify: over 0.178202 dB, under -0.516095 dB;
+  midpoint L_tr -10.8114 vs steady [-11.7405, -10.7638] dBFS, midpoint
+  excursion 0 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level E1, Bite -> Crush: over -1.67198e-06 dB, under -0.826117 dB;
+  midpoint L_tr -12.4461 vs steady [-12.5308, -11.7405] dBFS, midpoint
+  excursion 0 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level E1, Bite -> Fracture: over -1.67198e-06 dB, under 0.160022 dB;
+  midpoint L_tr -13.8031 vs steady [-18.3361, -11.7405] dBFS, midpoint
+  excursion 0 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level E1, Crush -> Tube: over 0.491121 dB, under -1.6515 dB; midpoint
+  L_tr -13.3236 vs steady [-12.5308, -12.4989] dBFS, midpoint excursion -0.
+  792806 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level E1, Crush -> Fold: over 0.653722 dB, under -0.452408 dB;
+  midpoint L_tr -12.0959 vs steady [-12.5308, -12.1679] dBFS, midpoint
+  excursion 0.0720439 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level E1, Crush -> Rectify: over 0.128583 dB, under -1.74464 dB;
+  midpoint L_tr -11.9443 vs steady [-12.5308, -10.7638] dBFS, midpoint
+  excursion 0 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level E1, Crush -> Bite: over 0.460625 dB, under -0.598152 dB;
+  midpoint L_tr -12.4869 vs steady [-12.5308, -11.7405] dBFS, midpoint
+  excursion 0 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level E1, Crush -> Fracture: over -2.71789e-05 dB, under 0.160022 dB;
+  midpoint L_tr -15.0873 vs steady [-18.3361, -12.5308] dBFS, midpoint
+  excursion 0 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level E1, Fracture -> Tube: over 0.0350719 dB, under -0.313382 dB;
+  midpoint L_tr -16.2316 vs steady [-18.3361, -12.4989] dBFS, midpoint
+  excursion 0 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level E1, Fracture -> Fold: over 0.106456 dB, under -0.258669 dB;
+  midpoint L_tr -14.6292 vs steady [-18.3361, -12.1679] dBFS, midpoint
+  excursion 0 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level E1, Fracture -> Rectify: over 0.00815144 dB, under -0.441967 dB;
+  midpoint L_tr -12.9406 vs steady [-18.3361, -10.7638] dBFS, midpoint
+  excursion 0 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level E1, Fracture -> Bite: over 0.000689473 dB, under -0.295327 dB;
+  midpoint L_tr -14.9659 vs steady [-18.3361, -11.7405] dBFS, midpoint
+  excursion 0 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level E1, Fracture -> Crush: over 0.199428 dB, under 2.03309e-05 dB;
+  midpoint L_tr -15.5446 vs steady [-18.3361, -12.5308] dBFS, midpoint
+  excursion 0 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level C2, Tube -> Fold: over 0.906181 dB, under -1.57947e-05 dB;
+  midpoint L_tr -11.0754 vs steady [-12.3078, -11.9731] dBFS, midpoint
+  excursion 0.897735 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level C2, Tube -> Rectify: over 0.241792 dB, under -0.186755 dB;
+  midpoint L_tr -11.3806 vs steady [-12.3078, -10.761] dBFS, midpoint excursion
+  0 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level C2, Tube -> Bite: over 0.877583 dB, under 3.03559e-06 dB;
+  midpoint L_tr -11.4825 vs steady [-12.3078, -11.7512] dBFS, midpoint
+  excursion 0.268698 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level C2, Tube -> Crush: over 0.427493 dB, under -0.47987 dB; midpoint
+  L_tr -12.9601 vs steady [-12.5309, -12.3078] dBFS, midpoint excursion -0.
+  42925 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level C2, Tube -> Fracture: over 0 dB, under -0.897441 dB; midpoint
+  L_tr -13.8027 vs steady [-18.334, -12.3078] dBFS, midpoint excursion 0 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level C2, Fold -> Tube: over 0.486564 dB, under -0.101874 dB; midpoint
+  L_tr -12.3418 vs steady [-12.3078, -11.9731] dBFS, midpoint excursion -0.
+  0339682 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level C2, Fold -> Rectify: over 0.154641 dB, under -0.690935 dB;
+  midpoint L_tr -12.2672 vs steady [-11.9731, -10.761] dBFS, midpoint excursion
+  -0.294133 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level C2, Fold -> Bite: over 0.796319 dB, under -4.21891e-06 dB;
+  midpoint L_tr -11.8624 vs steady [-11.9731, -11.7512] dBFS, midpoint
+  excursion 0 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level C2, Fold -> Crush: over 0.402006 dB, under -0.884784 dB;
+  midpoint L_tr -13.3338 vs steady [-12.5309, -11.9731] dBFS, midpoint
+  excursion -0.802895 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level C2, Fold -> Fracture: over -5.13665e-05 dB, under -0.897441 dB;
+  midpoint L_tr -14.9051 vs steady [-18.334, -11.9731] dBFS, midpoint excursion
+  0 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level C2, Rectify -> Tube: over 0.249751 dB, under -0.761837 dB;
+  midpoint L_tr -11.8262 vs steady [-12.3078, -10.761] dBFS, midpoint excursion
+  0 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level C2, Rectify -> Fold: over 0.272953 dB, under -1.77047 dB;
+  midpoint L_tr -11.5091 vs steady [-11.9731, -10.761] dBFS, midpoint excursion
+  0 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level C2, Rectify -> Bite: over 0.181674 dB, under -1.22312 dB;
+  midpoint L_tr -11.9758 vs steady [-11.7512, -10.761] dBFS, midpoint excursion
+  -0.224675 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level C2, Rectify -> Crush: over -2.69567e-05 dB, under -1.92894 dB;
+  midpoint L_tr -13.542 vs steady [-12.5309, -10.761] dBFS, midpoint excursion
+  -1.01117 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level C2, Rectify -> Fracture: over -2.69567e-05 dB, under -0.897441
+  dB; midpoint L_tr -13.0225 vs steady [-18.334, -10.761] dBFS, midpoint
+  excursion 0 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level C2, Bite -> Tube: over 0.400626 dB, under -0.165429 dB; midpoint
+  L_tr -11.6887 vs steady [-12.3078, -11.7512] dBFS, midpoint excursion 0.
+  0624307 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level C2, Bite -> Fold: over 0.896956 dB, under 0.0539354 dB; midpoint
+  L_tr -10.8627 vs steady [-11.9731, -11.7512] dBFS, midpoint excursion 0.
+  888482 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level C2, Bite -> Rectify: over 0.00738454 dB, under -0.611515 dB;
+  midpoint L_tr -11.7431 vs steady [-11.7512, -10.761] dBFS, midpoint excursion
+  0 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level C2, Bite -> Crush: over 0.344365 dB, under 0.0342682 dB;
+  midpoint L_tr -12.3739 vs steady [-12.5309, -11.7512] dBFS, midpoint
+  excursion 0 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level C2, Bite -> Fracture: over -0.000230633 dB, under -0.897441 dB;
+  midpoint L_tr -13.5618 vs steady [-18.334, -11.7512] dBFS, midpoint excursion
+  0 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level C2, Crush -> Tube: over 0.707827 dB, under -0.98908 dB; midpoint
+  L_tr -12.2667 vs steady [-12.5309, -12.3078] dBFS, midpoint excursion 0.
+  0410958 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level C2, Crush -> Fold: over 0.844139 dB, under -0.289405 dB;
+  midpoint L_tr -11.1969 vs steady [-12.5309, -11.9731] dBFS, midpoint
+  excursion 0.776145 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level C2, Crush -> Rectify: over 0.00305241 dB, under -1.87517 dB;
+  midpoint L_tr -12.4833 vs steady [-12.5309, -10.761] dBFS, midpoint excursion
+  0 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level C2, Crush -> Bite: over 0.75895 dB, under -0.277515 dB; midpoint
+  L_tr -11.4879 vs steady [-12.5309, -11.7512] dBFS, midpoint excursion 0.
+  263302 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level C2, Crush -> Fracture: over 0.000263602 dB, under -0.897441 dB;
+  midpoint L_tr -13.6505 vs steady [-18.334, -12.5309] dBFS, midpoint excursion
+  0 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level C2, Fracture -> Tube: over 0.00538947 dB, under -0.400117 dB;
+  midpoint L_tr -16.3045 vs steady [-18.334, -12.3078] dBFS, midpoint excursion
+  0 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level C2, Fracture -> Fold: over 0.0633713 dB, under -0.308671 dB;
+  midpoint L_tr -14.8661 vs steady [-18.334, -11.9731] dBFS, midpoint excursion
+  0 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level C2, Fracture -> Rectify: over 0.00305241 dB, under -0.424547 dB;
+  midpoint L_tr -13.947 vs steady [-18.334, -10.761] dBFS, midpoint excursion 0
+  dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level C2, Fracture -> Bite: over 0.00114364 dB, under -0.355356 dB;
+  midpoint L_tr -15.3859 vs steady [-18.334, -11.7512] dBFS, midpoint excursion
+  0 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level C2, Fracture -> Crush: over 0.153578 dB, under 4.22354e-05 dB;
+  midpoint L_tr -17.4958 vs steady [-18.334, -12.5309] dBFS, midpoint excursion
+  0 dB
+
+4.200 s: BassCharacter_SwitchClickFree
+===============================================================================
+All tests passed (2431 assertions in 1 test case)
+
+exit: 0 wall: 5 s

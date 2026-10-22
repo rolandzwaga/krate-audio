@@ -1,0 +1,15 @@
+Filters: "VoiceEngine_AliasingCoreProbe4"
+Randomness seeded to: 2769750449
+PROBE core4 48k E1 [x (mix 0 core)]: off-lattice -132.12 dBFS, 8 Hz family -144.69, rest -132.37; top 4.875Hz:-140.21 5.375Hz:-141.09 4.625Hz:-142.5 5.625Hz:-143.79 dBFS
+PROBE core4 48k E1 [replica, float split LPs]: off-lattice -108.12 dBFS, 8 Hz family -115.12, rest -109.09; top 8.875Hz:-124.17 8.125Hz:-124.21 8.375Hz:-124.52 9.125Hz:-124.65 dBFS
+PROBE core4 48k E1 [replica, double split LPs]: off-lattice -131.84 dBFS, 8 Hz family -144.23, rest -132.1; top 4.875Hz:-140.4 5.375Hz:-141.25 4.625Hz:-142.46 5.625Hz:-143.93 dBFS
+PROBE core4 48k E1 [split LP alone, float]: off-lattice -117.18 dBFS, 8 Hz family -124.6, rest -118.04; top 17.125Hz:-132.92 17.625Hz:-133.72 5.375Hz:-133.78 4.875Hz:-133.78 dBFS
+PROBE core4 48k E1 [split LP alone, double]: off-lattice -132.37 dBFS, 8 Hz family -145.25, rest -132.6; top 4.875Hz:-140.26 5.375Hz:-141.13 4.625Hz:-142.59 5.625Hz:-143.88 dBFS
+PROBE core4 96k E1 [x (mix 0 core)]: off-lattice -124.56 dBFS, 8 Hz family -139.82, rest -124.69; top 3.125Hz:-128.75 3.375Hz:-130.7 3.875Hz:-134.8 4.125Hz:-137.89 dBFS
+PROBE core4 96k E1 [replica, float split LPs]: off-lattice -99.806 dBFS, 8 Hz family -102.87, rest -102.76; top 8.125Hz:-110.17 7.875Hz:-110.83 8.375Hz:-111.45 7.625Hz:-111.57 dBFS
+PROBE core4 96k E1 [replica, double split LPs]: off-lattice -124.48 dBFS, 8 Hz family -139.11, rest -124.63; top 3.125Hz:-128.89 3.375Hz:-130.87 3.875Hz:-135.11 4.125Hz:-137.54 dBFS
+PROBE core4 96k E1 [split LP alone, float]: off-lattice -108.31 dBFS, 8 Hz family -115.77, rest -109.16; top 19.875Hz:-124.59 17.125Hz:-125.02 15.125Hz:-125.05 14.875Hz:-125.09 dBFS
+PROBE core4 96k E1 [split LP alone, double]: off-lattice -124.63 dBFS, 8 Hz family -140.12, rest -124.76; top 3.125Hz:-128.76 3.375Hz:-130.71 3.875Hz:-134.83 4.125Hz:-137.96 dBFS
+===============================================================================
+All tests passed (48 assertions in 1 test case)
+

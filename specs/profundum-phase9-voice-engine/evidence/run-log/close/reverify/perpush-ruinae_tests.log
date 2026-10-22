@@ -1,0 +1,684 @@
+  Source enum 1: norm=0.0714285714 -> stored=1 (expected 1) OK
+  Source enum 2: norm=0.1428571429 -> stored=2 (expected 2) OK
+  Source enum 3: norm=0.2142857143 -> stored=3 (expected 3) OK
+  Source enum 4: norm=0.2857142857 -> stored=4 (expected 4) OK
+  Source enum 5: norm=0.3571428571 -> stored=5 (expected 5) OK
+  Source enum 6: norm=0.4285714286 -> stored=6 (expected 6) OK
+  Source enum 7: norm=0.5000000000 -> stored=7 (expected 7) OK
+  Source enum 8: norm=0.5714285714 -> stored=8 (expected 8) OK
+  Source enum 9: norm=0.6428571429 -> stored=9 (expected 9) OK
+  Source enum 10: norm=0.7142857143 -> stored=10 (expected 10) OK
+  Source enum 11: norm=0.7857142857 -> stored=11 (expected 11) OK
+  Source enum 12: norm=0.8571428571 -> stored=12 (expected 12) OK
+  Source enum 13: norm=0.9285714286 -> stored=13 (expected 13) OK
+  Source enum 14: norm=1.0000000000 -> stored=14 (expected 14) OK
+Filters: ~[long] ~[performance] ~[perf] ~[benchmark] ~[!benchmark]
+Randomness seeded to: 4049778233
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ruinae_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+ArpGateLength_NegativeClamp
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\ruinae\tests\unit\processor\arp_mod_integration_test.cpp(730)
+...............................................................................
+
+F:\projects\iterum\plugins\ruinae\tests\unit\processor\arp_mod_integration_test.cpp(775): warning:
+  No audio detected with 1% gate (expected with very short gates)
+
+-------------------------------------------------------------------------------
+Abyssal preset output level analysis
+  Abyssal preset with C2 (MIDI 36) - already very low
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\ruinae\tests\integration\abyssal_level_test.cpp(305)
+...............................................................................
+
+F:\projects\iterum\plugins\ruinae\tests\integration\abyssal_level_test.cpp(308): warning:
+  === Abyssal Preset (C2/36, vel=0.8) — playing very low ===
+
+F:\projects\iterum\plugins\ruinae\tests\integration\abyssal_level_test.cpp(309): warning:
+    Peak amplitude: 0.353418 (-9.03422 dBFS)
+
+F:\projects\iterum\plugins\ruinae\tests\integration\abyssal_level_test.cpp(310): warning:
+    Max RMS: 0.241542 (-12.3402 dBFS)
+
+F:\projects\iterum\plugins\ruinae\tests\integration\abyssal_level_test.cpp(311): warning:
+    Max AC RMS: 0.209171 (-13.59 dBFS)
+
+F:\projects\iterum\plugins\ruinae\tests\integration\abyssal_level_test.cpp(313): warning:
+    Peak after attack: 0.353418 (-9.03422 dBFS)
+
+F:\projects\iterum\plugins\ruinae\tests\integration\abyssal_level_test.cpp(314): warning:
+    Blocks with audio: 398 / 400
+
+F:\projects\iterum\plugins\ruinae\tests\integration\abyssal_level_test.cpp(315): warning:
+    Total zero crossings: 775
+
+-------------------------------------------------------------------------------
+Abyssal preset output level analysis
+  Reference: default processor (saw wave, C4)
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\ruinae\tests\integration\abyssal_level_test.cpp(318)
+...............................................................................
+
+F:\projects\iterum\plugins\ruinae\tests\integration\abyssal_level_test.cpp(322): warning:
+  === Reference Default (Saw C4, vel=0.8) ===
+
+F:\projects\iterum\plugins\ruinae\tests\integration\abyssal_level_test.cpp(323): warning:
+    Peak amplitude: 0.741919 (-2.59287 dBFS)
+
+F:\projects\iterum\plugins\ruinae\tests\integration\abyssal_level_test.cpp(324): warning:
+    Max RMS: 0.400741 (-7.94273 dBFS)
+
+F:\projects\iterum\plugins\ruinae\tests\integration\abyssal_level_test.cpp(325): warning:
+    Max AC RMS: 0.40074 (-7.94275 dBFS)
+
+F:\projects\iterum\plugins\ruinae\tests\integration\abyssal_level_test.cpp(327): warning:
+    Peak after attack: 0.611709 (-4.26911 dBFS)
+
+F:\projects\iterum\plugins\ruinae\tests\integration\abyssal_level_test.cpp(328): warning:
+    Blocks with audio: 399 / 400
+
+F:\projects\iterum\plugins\ruinae\tests\integration\abyssal_level_test.cpp(329): warning:
+    Total zero crossings: 2417
+
+-------------------------------------------------------------------------------
+Cathedral_Organ preset envelope analysis - 4 sequential notes
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(108)
+...............................................................................
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(309): warning:
+  === Cathedral_Organ Envelope Analysis ===
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(310): warning:
+  Preset: Cathedral_Organ | Notes: C4 D4 E4 F4 | Duration: ~1s each | Vel: 0.8
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(311): warning:
+  Block size: 512 | Sample rate: 44100
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(312): warning:
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(313): warning:
+  --- Per-Block RMS Timeline (every 4 blocks = ~46ms) ---
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(314): warning:
+  Block | Time(s) | RMS(dBFS) | Peak(dBFS) | Event
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(315): warning:
+  ------|---------|-----------|------------|------
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+      0 |   0.000 |     -35.1 |      -27.0 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+      4 |   0.046 |     -18.3 |      -10.8 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+      8 |   0.093 |     -15.9 |       -6.6 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+     12 |   0.139 |     -15.6 |       -8.8 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+     16 |   0.186 |      -9.2 |       -0.4 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+     20 |   0.232 |      -7.4 |       -0.4 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+     24 |   0.279 |     -11.5 |       -4.0 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+     28 |   0.325 |     -12.1 |       -4.5 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+     32 |   0.372 |      -7.1 |       -0.6 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+     36 |   0.418 |      -6.4 |       -0.2 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+     40 |   0.464 |     -11.1 |       -3.7 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+     44 |   0.511 |     -11.8 |       -4.0 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+     48 |   0.557 |      -6.7 |       -0.3 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+     52 |   0.604 |      -6.8 |       -0.2 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+     56 |   0.650 |     -11.7 |       -4.2 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+     60 |   0.697 |     -11.4 |       -5.0 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+     64 |   0.743 |      -6.4 |       -0.1 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+     68 |   0.789 |      -6.9 |       -0.2 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+     72 |   0.836 |     -12.5 |       -6.1 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+     76 |   0.882 |     -10.7 |       -3.9 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+     80 |   0.929 |      -6.1 |       -0.1 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+     84 |   0.975 |      -7.5 |       -0.3 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+     88 |   1.022 |      -6.8 |       -0.1 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+     92 |   1.068 |      -7.1 |       -0.5 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+     96 |   1.115 |     -12.4 |       -4.5 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    100 |   1.161 |      -8.9 |       -0.6 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    104 |   1.207 |      -7.3 |       -0.1 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    108 |   1.254 |      -7.7 |       -0.2 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    112 |   1.300 |     -12.8 |       -2.3 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    116 |   1.347 |      -9.4 |       -0.9 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    120 |   1.393 |      -6.2 |       -0.0 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    124 |   1.440 |     -10.5 |       -2.0 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    128 |   1.486 |     -13.2 |       -4.3 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    132 |   1.533 |     -11.2 |       -1.9 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    136 |   1.579 |      -7.0 |       -0.0 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    140 |   1.625 |     -11.3 |       -2.7 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    144 |   1.672 |     -15.0 |       -6.0 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    148 |   1.718 |     -12.9 |       -3.1 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    152 |   1.765 |      -9.4 |       -0.2 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    156 |   1.811 |     -13.6 |       -5.6 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    160 |   1.858 |     -16.4 |       -6.5 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    164 |   1.904 |     -12.2 |       -4.2 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    168 |   1.950 |      -9.9 |       -0.2 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    172 |   1.997 |     -11.9 |       -1.9 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    176 |   2.043 |     -10.3 |       -2.2 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    180 |   2.090 |     -13.7 |       -5.3 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    184 |   2.136 |     -11.7 |       -4.5 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    188 |   2.183 |      -8.8 |       -0.7 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    192 |   2.229 |      -6.6 |        0.0 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    196 |   2.276 |      -9.5 |       -2.8 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    200 |   2.322 |     -12.5 |       -5.0 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    204 |   2.368 |      -8.0 |       -0.2 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    208 |   2.415 |      -6.1 |       -0.0 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    212 |   2.461 |     -14.7 |       -5.7 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    216 |   2.508 |     -12.2 |       -4.1 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    220 |   2.554 |      -8.2 |       -1.8 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    224 |   2.601 |      -7.7 |       -0.2 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    228 |   2.647 |     -13.1 |       -6.0 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    232 |   2.694 |     -11.9 |       -5.1 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    236 |   2.740 |      -8.2 |       -0.4 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    240 |   2.786 |      -7.5 |       -0.3 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    244 |   2.833 |     -14.2 |       -7.4 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    248 |   2.879 |     -11.3 |       -3.9 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    252 |   2.926 |      -7.6 |       -0.4 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    256 |   2.972 |      -8.8 |       -1.1 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    260 |   3.019 |      -8.4 |       -0.6 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    264 |   3.065 |      -9.5 |       -1.4 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    268 |   3.111 |     -12.1 |       -4.3 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    272 |   3.158 |      -7.6 |       -1.5 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    276 |   3.204 |      -3.8 |        0.0 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    280 |   3.251 |      -6.2 |       -0.1 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    284 |   3.297 |     -11.3 |       -4.4 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    288 |   3.344 |      -7.3 |       -0.9 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    292 |   3.390 |      -6.0 |       -0.1 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    296 |   3.437 |      -7.6 |       -0.3 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    300 |   3.483 |     -11.6 |       -4.2 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    304 |   3.529 |      -7.5 |       -0.8 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    308 |   3.576 |      -4.0 |       -0.0 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    312 |   3.622 |      -6.6 |       -1.1 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    316 |   3.669 |     -10.1 |       -3.2 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    320 |   3.715 |      -6.7 |       -0.8 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    324 |   3.762 |      -5.0 |       -0.1 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    328 |   3.808 |      -7.4 |       -1.7 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    332 |   3.855 |     -11.7 |       -5.8 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    336 |   3.901 |      -6.6 |       -0.8 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    340 |   3.947 |      -5.1 |       -0.1 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    344 |   3.994 |      -8.4 |       -2.6 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    348 |   4.040 |     -11.1 |       -6.0 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    352 |   4.087 |      -7.3 |       -1.1 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    356 |   4.133 |      -5.3 |       -0.3 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    360 |   4.180 |     -10.2 |       -4.3 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    364 |   4.226 |     -12.5 |       -6.5 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    368 |   4.272 |      -7.6 |       -2.1 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    372 |   4.319 |      -7.8 |       -1.8 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    376 |   4.365 |     -12.1 |       -7.4 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    380 |   4.412 |     -14.6 |       -9.1 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    384 |   4.458 |      -9.6 |       -4.5 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    388 |   4.505 |      -9.9 |       -3.8 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    392 |   4.551 |     -16.4 |      -11.2 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    396 |   4.598 |     -16.5 |      -11.7 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    400 |   4.644 |     -13.2 |       -7.7 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    404 |   4.690 |     -14.0 |       -9.2 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    408 |   4.737 |     -20.7 |      -15.9 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    412 |   4.783 |     -21.5 |      -16.6 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    416 |   4.830 |     -17.9 |      -13.3 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    420 |   4.876 |     -22.0 |      -18.0 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    424 |   4.923 |     -28.6 |      -24.5 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(328): warning:
+    428 |   4.969 |     -29.3 |      -25.2 | 
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(335): warning:
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(336): warning:
+  --- Per-Note Summary ---
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(348): warning:
+  Note 1 (MIDI 60): Peak -0.0 dBFS | RMS max -5.9 dBFS | 1st half RMS max -6.3
+  dBFS | 2nd half RMS max -5.9 dBFS | Boost: no
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(348): warning:
+  Note 2 (MIDI 62): Peak 0.0 dBFS | RMS max -5.5 dBFS | 1st half RMS max -5.5
+  dBFS | 2nd half RMS max -7.0 dBFS | Boost: no
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(348): warning:
+  Note 3 (MIDI 64): Peak 0.0 dBFS | RMS max -4.7 dBFS | 1st half RMS max -4.7
+  dBFS | 2nd half RMS max -7.0 dBFS | Boost: no
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(348): warning:
+  Note 4 (MIDI 65): Peak 0.0 dBFS | RMS max -3.8 dBFS | 1st half RMS max -3.8
+  dBFS | 2nd half RMS max -3.9 dBFS | Boost: no
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(354): warning:
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(355): warning:
+  --- Amplitude Envelope (ASCII graph, per block) ---
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(356): warning:
+  Each char = ~11.6ms (1 block). '|' = note boundary. Scale: 0 to max peak.
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(383): warning:
+   ...:::::::::+++########++++++###@@@@###++++++##@@@@@##++++++###@@@@@##++++++
+  ##@@@@@##|@@@@###++++++###@#@@###++++++###@@#@#+++:+:+++#######++::::++++#+
+  ##+++::::::+++++++++|++++++++++:++###@#X@@@+#++++#+###@@@###:+++++#########++
+  ::++++#######+++::++#########|#######+++:++##@@XX#@@@+++#++#XX@@XX@####++
+  ###@XXXX@@@#+++++#@@@@XX@###++++##@XXXX@@#|+++++###@@@@@##++++++########++++:
+  ::+++####+++::::::::++++++:::.....::::::.......  ..
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(384): warning:
+  Legend: ' '=silence .=quiet :=low +=mid #=high @=loud X=peak |=note boundary
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(390): warning:
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(400): warning:
+  No obvious volume boost detected in any note's second half.
+
+F:\projects\iterum\plugins\ruinae\tests\integration\cathedral_organ_envelope_test.cpp(401): warning:
+  The issue may be more subtle — check the timeline for gradual increases.
+
+-------------------------------------------------------------------------------
+Euclidean_Bells preset level analysis
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(87)
+...............................................................................
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(127): warning:
+  State version: 8
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(136): warning:
+  === Key Preset Parameters ===
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(137): warning:
+  Master gain: 1 (linear, 1.0 = 0dB, range 0-2)
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(138): warning:
+  Voice mode: 0 (0=poly, 1=mono)
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(139): warning:
+  Polyphony: 8
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(140): warning:
+  Soft limit: 1
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(141): warning:
+  Width: 1 | Spread: 0
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(150): warning:
+  OscA type: 4 | level: 0.7 | tuneSemi: 0 | fineCents: 0
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(163): warning:
+  OscB type: 0 | level: 0 | tuneSemi: 0
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(168): warning:
+  (Remaining params omitted — binary layout too complex for manual decode)
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(269): warning:
+  === Euclidean_Bells Level Analysis ===
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(270): warning:
+  Note: C4 (MIDI 60) | Velocity: 0.8 | Duration: 3s + 1s tail
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(272): warning:
+  Overall peak: -1.1348 dBFS (0.877526 linear)
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(273): warning:
+  Overall RMS max: -10.0762 dBFS
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(274): warning:
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(275): warning:
+  Block | Time(s) | RMS L(dB) | RMS R(dB) | Peak L(dB) | Peak R(dB)
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(276): warning:
+  ------|---------|-----------|-----------|------------|----------
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(285): warning:
+      0 |   0.000 |     -14.3 |     -14.3 |       -4.4 |       -4.4
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(285): warning:
+      8 |   0.093 |     -11.7 |     -11.2 |       -4.9 |       -5.3
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(285): warning:
+     16 |   0.186 |     -11.9 |     -10.9 |       -3.9 |       -4.0
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(285): warning:
+     24 |   0.279 |     -12.3 |     -11.4 |       -4.3 |       -4.0
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(285): warning:
+     32 |   0.372 |     -12.5 |     -11.1 |       -3.0 |       -3.4
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(285): warning:
+     40 |   0.464 |     -11.5 |     -10.3 |       -3.1 |       -2.0
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(285): warning:
+     48 |   0.557 |     -12.0 |     -10.8 |       -4.3 |       -2.0
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(285): warning:
+     56 |   0.650 |     -12.1 |     -11.4 |       -4.2 |       -2.0
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(285): warning:
+     64 |   0.743 |     -12.6 |     -11.6 |       -3.9 |       -2.7
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(285): warning:
+     72 |   0.836 |     -13.7 |     -12.1 |       -5.1 |       -4.0
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(285): warning:
+     80 |   0.929 |     -14.3 |     -12.9 |       -5.5 |       -3.8
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(285): warning:
+     88 |   1.022 |     -15.0 |     -13.8 |       -6.1 |       -6.0
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(285): warning:
+     96 |   1.115 |     -16.1 |     -14.5 |       -6.9 |       -5.7
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(285): warning:
+    104 |   1.207 |     -17.4 |     -15.6 |       -7.3 |       -6.9
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(285): warning:
+    112 |   1.300 |     -18.1 |     -16.5 |       -9.5 |       -7.8
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(285): warning:
+    120 |   1.393 |     -19.1 |     -17.5 |      -10.7 |       -8.5
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(285): warning:
+    128 |   1.486 |     -20.7 |     -18.7 |      -10.6 |       -9.3
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(285): warning:
+    136 |   1.579 |     -22.6 |     -20.0 |      -13.9 |      -11.0
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(285): warning:
+    144 |   1.672 |     -23.8 |     -21.0 |      -13.9 |      -11.8
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(285): warning:
+    152 |   1.765 |     -24.8 |     -21.9 |      -15.8 |      -13.7
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(285): warning:
+    160 |   1.858 |     -25.5 |     -22.6 |      -16.4 |      -14.6
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(285): warning:
+    168 |   1.950 |     -26.2 |     -23.5 |      -18.0 |      -14.8
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(285): warning:
+    176 |   2.043 |     -26.7 |     -24.0 |      -17.8 |      -15.9
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(285): warning:
+    184 |   2.136 |     -26.8 |     -24.9 |      -17.7 |      -15.8
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(285): warning:
+    192 |   2.229 |     -27.3 |     -25.2 |      -17.0 |      -15.9
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(285): warning:
+    200 |   2.322 |     -27.3 |     -25.0 |      -17.6 |      -16.5
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(285): warning:
+    208 |   2.415 |     -27.2 |     -25.5 |      -18.4 |      -16.9
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(285): warning:
+    216 |   2.508 |     -27.5 |     -25.3 |      -19.2 |      -16.3
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(285): warning:
+    224 |   2.601 |     -27.7 |     -25.7 |      -18.5 |      -16.3
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(285): warning:
+    232 |   2.694 |     -27.6 |     -25.7 |      -19.3 |      -17.1
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(285): warning:
+    240 |   2.786 |     -27.5 |     -26.0 |      -18.9 |      -16.4
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(285): warning:
+    248 |   2.879 |     -27.5 |     -26.2 |      -18.9 |      -18.0
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(285): warning:
+    256 |   2.972 |     -27.3 |     -26.2 |      -18.0 |      -17.3
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(285): warning:
+    264 |   3.065 |     -27.8 |     -26.7 |      -19.3 |      -18.1
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(285): warning:
+    272 |   3.158 |     -28.4 |     -27.2 |      -19.4 |      -17.9
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(285): warning:
+    280 |   3.251 |     -29.1 |     -27.5 |      -20.5 |      -17.0
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(285): warning:
+    288 |   3.344 |     -29.5 |     -28.1 |      -19.8 |      -19.3
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(285): warning:
+    296 |   3.437 |     -30.1 |     -28.8 |      -21.7 |      -20.2
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(285): warning:
+    304 |   3.529 |     -31.3 |     -29.8 |      -22.6 |      -20.9
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(285): warning:
+    312 |   3.622 |     -32.5 |     -30.5 |      -23.8 |      -21.7
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(285): warning:
+    320 |   3.715 |     -33.4 |     -31.4 |      -24.2 |      -22.3
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(285): warning:
+    328 |   3.808 |     -34.6 |     -32.5 |      -24.8 |      -23.9
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(285): warning:
+    336 |   3.901 |     -35.9 |     -33.7 |      -24.1 |      -25.2
+
+-------------------------------------------------------------------------------
+Default processor level baseline
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(306)
+...............................................................................
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(362): warning:
+  === Default Processor Baseline ===
+
+F:\projects\iterum\plugins\ruinae\tests\integration\euclidean_bells_level_test.cpp(363): warning:
+  Overall peak: -2.59287 dBFS (0.741919 linear)
+
+===============================================================================
+All tests passed (29205 assertions in 732 test cases)
+

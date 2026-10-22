@@ -1,0 +1,641 @@
+Filters: "ShapeCharacter_ParameterStepsClickFree"
+Randomness seeded to: 1434630512
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+ShapeCharacter_ParameterStepsClickFree
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1761)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1124): warning:
+  E1, saw control Tube at sample 49224: counted 2 (guarded out 0, transition
+  detections 87, reference detections 177, N 145) - FLAGGED
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1124): warning:
+  E1, saw control Fold at sample 49224: counted 2 (guarded out 0, transition
+  detections 88, reference detections 177, N 145) - FLAGGED
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1124): warning:
+  E1, saw control Rectify at sample 48064: counted 2 (guarded out 0, transition
+  detections 86, reference detections 176, N 145) - FLAGGED
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1124): warning:
+  E1, saw control Bite at sample 48064: counted 2 (guarded out 0, transition
+  detections 86, reference detections 171, N 145) - FLAGGED
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush E1, saw, Amount (Amount 0 -> 1, Tone 0.5 -> 0.5, offsets (0, 0)
+  -> (0, 0)), single step: max |dy| L 0.281883 / R 0.281883 vs grid steady max
+  0.461314 / 0.461314, ratio 0.611044 / 0.611044 (bar 1.1); differential clicks
+  recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush E1, saw, Amount (Amount 1 -> 0, Tone 0.5 -> 0.5, offsets (0, 0)
+  -> (0, 0)), single step: max |dy| L 0.218063 / R 0.218063 vs grid steady max
+  0.461314 / 0.461314, ratio 0.472701 / 0.472701 (bar 1.1); differential clicks
+  recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush E1, saw, Amount (Amount 0 -> 1, Tone 0.5 -> 0.5, offsets (0, 0)
+  -> (0, 0)), 20 ms ramp: max |dy| L 0.336812 / R 0.336812 vs grid steady max
+  0.461314 / 0.461314, ratio 0.730114 / 0.730114 (bar 1.1); differential clicks
+  recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush E1, saw, Amount (Amount 1 -> 0, Tone 0.5 -> 0.5, offsets (0, 0)
+  -> (0, 0)), 20 ms ramp: max |dy| L 0.440931 / R 0.440931 vs grid steady max
+  0.461314 / 0.461314, ratio 0.955816 / 0.955816 (bar 1.1); differential clicks
+  recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush E1, saw, Tone (Amount 0.5 -> 0.5, Tone 0 -> 1, offsets (0, 0) ->
+  (0, 0)), single step: max |dy| L 0.469144 / R 0.469144 vs grid steady max 0.
+  549044 / 0.549044, ratio 0.854474 / 0.854474 (bar 1.1); differential clicks
+  recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush E1, saw, Tone (Amount 0.5 -> 0.5, Tone 1 -> 0, offsets (0, 0) ->
+  (0, 0)), single step: max |dy| L 0.409471 / R 0.409471 vs grid steady max 0.
+  549044 / 0.549044, ratio 0.74579 / 0.74579 (bar 1.1); differential clicks
+  recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush E1, saw, Tone (Amount 0.5 -> 0.5, Tone 0 -> 1, offsets (0, 0) ->
+  (0, 0)), 20 ms ramp: max |dy| L 0.46912 / R 0.46912 vs grid steady max 0.
+  549044 / 0.549044, ratio 0.854432 / 0.854432 (bar 1.1); differential clicks
+  recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush E1, saw, Tone (Amount 0.5 -> 0.5, Tone 1 -> 0, offsets (0, 0) ->
+  (0, 0)), 20 ms ramp: max |dy| L 0.485474 / R 0.485474 vs grid steady max 0.
+  549044 / 0.549044, ratio 0.884218 / 0.884218 (bar 1.1); differential clicks
+  recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush E1, saw, amount offset (Amount 0.5 -> 0.5, Tone 0.5 -> 0.5,
+  offsets (-0.15, 0) -> (0.15, 0)), single step: max |dy| L 0.393008 / R 0.
+  396744 vs grid steady max 0.459707 / 0.459707, ratio 0.85491 / 0.863036 (bar
+  1.1); differential clicks recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush E1, saw, amount offset (Amount 0.5 -> 0.5, Tone 0.5 -> 0.5,
+  offsets (0.15, 0) -> (-0.15, 0)), single step: max |dy| L 0.396744 / R 0.
+  393008 vs grid steady max 0.459707 / 0.459707, ratio 0.863036 / 0.85491 (bar
+  1.1); differential clicks recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush E1, saw, amount offset (Amount 0.5 -> 0.5, Tone 0.5 -> 0.5,
+  offsets (-0.15, 0) -> (0.15, 0)), 20 ms ramp: max |dy| L 0.350151 / R 0.
+  401231 vs grid steady max 0.459707 / 0.459707, ratio 0.761683 / 0.872797 (bar
+  1.1); differential clicks recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush E1, saw, amount offset (Amount 0.5 -> 0.5, Tone 0.5 -> 0.5,
+  offsets (0.15, 0) -> (-0.15, 0)), 20 ms ramp: max |dy| L 0.401231 / R 0.
+  350151 vs grid steady max 0.459707 / 0.459707, ratio 0.872797 / 0.761683 (bar
+  1.1); differential clicks recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush E1, saw, tone offset (Amount 0.5 -> 0.5, Tone 0.5 -> 0.5,
+  offsets (0, -0.15) -> (0, 0.15)), single step: max |dy| L 0.434601 / R 0.
+  37132 vs grid steady max 0.507386 / 0.507386, ratio 0.856548 / 0.731829 (bar
+  1.1); differential clicks recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush E1, saw, tone offset (Amount 0.5 -> 0.5, Tone 0.5 -> 0.5,
+  offsets (0, 0.15) -> (0, -0.15)), single step: max |dy| L 0.37132 / R 0.
+  434601 vs grid steady max 0.507386 / 0.507386, ratio 0.731829 / 0.856548 (bar
+  1.1); differential clicks recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush E1, saw, tone offset (Amount 0.5 -> 0.5, Tone 0.5 -> 0.5,
+  offsets (0, -0.15) -> (0, 0.15)), 20 ms ramp: max |dy| L 0.43409 / R 0.446482
+  vs grid steady max 0.507386 / 0.507386, ratio 0.855542 / 0.879966 (bar 1.1);
+  differential clicks recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush E1, saw, tone offset (Amount 0.5 -> 0.5, Tone 0.5 -> 0.5,
+  offsets (0, 0.15) -> (0, -0.15)), 20 ms ramp: max |dy| L 0.446482 / R 0.43409
+  vs grid steady max 0.507386 / 0.507386, ratio 0.879966 / 0.855542 (bar 1.1);
+  differential clicks recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush E1, saw, bypass edge (Amount 0 -> 0.05, Tone 0.5 -> 0.5, offsets
+  (0, 0) -> (0, 0)), single step: max |dy| L 0.390129 / R 0.390129 vs grid
+  steady max 0.462008 / 0.462008, ratio 0.844422 / 0.844422 (bar 1.1);
+  differential clicks recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush E1, saw, bypass edge (Amount 0.05 -> 0, Tone 0.5 -> 0.5, offsets
+  (0, 0) -> (0, 0)), single step: max |dy| L 0.422365 / R 0.422365 vs grid
+  steady max 0.462008 / 0.462008, ratio 0.914194 / 0.914194 (bar 1.1);
+  differential clicks recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush E1, saw, bypass edge (Amount 0 -> 0.05, Tone 0.5 -> 0.5, offsets
+  (0, 0) -> (0, 0)), 20 ms ramp: max |dy| L 0.390129 / R 0.390129 vs grid
+  steady max 0.462008 / 0.462008, ratio 0.844422 / 0.844422 (bar 1.1);
+  differential clicks recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush E1, saw, bypass edge (Amount 0.05 -> 0, Tone 0.5 -> 0.5, offsets
+  (0, 0) -> (0, 0)), 20 ms ramp: max |dy| L 0.460368 / R 0.460368 vs grid
+  steady max 0.462008 / 0.462008, ratio 0.996452 / 0.996452 (bar 1.1);
+  differential clicks recorded: counted L 0 / R 0 (guarded out 2 / 2)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1124): warning:
+  E1, saw control Crush at sample 48072: counted 2 (guarded out 0, transition
+  detections 112, reference detections 168, N 145) - FLAGGED
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1124): warning:
+  E1, saw control Fracture at sample 49224: counted 2 (guarded out 0,
+  transition detections 87, reference detections 170, N 145) - FLAGGED
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1124): warning:
+  E1, saw control (i) hard switch Tube -> Fracture at sample 48600: counted 1
+  (guarded out 5, transition detections 75, reference detections 155, N 145) -
+  FLAGGED
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1124): warning:
+  E1, saw control (ii) unsmoothed Amount 0 -> 1 at sample 48064: counted 2
+  (guarded out 0, transition detections 86, reference detections 175, N 145) -
+  FLAGGED
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1124): warning:
+  E1, growl control Tube at sample 48080: counted 1 (guarded out 0, transition
+  detections 116, reference detections 234, N 145) - FLAGGED
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1124): warning:
+  E1, growl control Fold at sample 48080: counted 1 (guarded out 0, transition
+  detections 117, reference detections 233, N 145) - FLAGGED
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1124): warning:
+  E1, growl control Rectify at sample 48080: counted 1 (guarded out 0,
+  transition detections 114, reference detections 231, N 145) - FLAGGED
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1124): warning:
+  E1, growl control Bite at sample 48080: counted 1 (guarded out 0, transition
+  detections 112, reference detections 224, N 145) - FLAGGED
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush E1, growl, Amount (Amount 0 -> 1, Tone 0.5 -> 0.5, offsets (0,
+  0) -> (0, 0)), single step: max |dy| L 0.456767 / R 0.456767 vs grid steady
+  max 0.460115 / 0.460115, ratio 0.992724 / 0.992724 (bar 1.1); differential
+  clicks recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush E1, growl, Amount (Amount 1 -> 0, Tone 0.5 -> 0.5, offsets (0,
+  0) -> (0, 0)), single step: max |dy| L 0.456779 / R 0.456779 vs grid steady
+  max 0.460115 / 0.460115, ratio 0.99275 / 0.99275 (bar 1.1); differential
+  clicks recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush E1, growl, Amount (Amount 0 -> 1, Tone 0.5 -> 0.5, offsets (0,
+  0) -> (0, 0)), 20 ms ramp: max |dy| L 0.456767 / R 0.456767 vs grid steady
+  max 0.460115 / 0.460115, ratio 0.992724 / 0.992724 (bar 1.1); differential
+  clicks recorded: counted L 0 / R 0 (guarded out 1 / 1)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush E1, growl, Amount (Amount 1 -> 0, Tone 0.5 -> 0.5, offsets (0,
+  0) -> (0, 0)), 20 ms ramp: max |dy| L 0.456732 / R 0.456732 vs grid steady
+  max 0.460115 / 0.460115, ratio 0.992649 / 0.992649 (bar 1.1); differential
+  clicks recorded: counted L 3 / R 3 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush E1, growl, Tone (Amount 0.5 -> 0.5, Tone 0 -> 1, offsets (0, 0)
+  -> (0, 0)), single step: max |dy| L 0.166784 / R 0.166784 vs grid steady max
+  0.173724 / 0.173724, ratio 0.960051 / 0.960051 (bar 1.1); differential clicks
+  recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush E1, growl, Tone (Amount 0.5 -> 0.5, Tone 1 -> 0, offsets (0, 0)
+  -> (0, 0)), single step: max |dy| L 0.121464 / R 0.121464 vs grid steady max
+  0.173724 / 0.173724, ratio 0.69918 / 0.69918 (bar 1.1); differential clicks
+  recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush E1, growl, Tone (Amount 0.5 -> 0.5, Tone 0 -> 1, offsets (0, 0)
+  -> (0, 0)), 20 ms ramp: max |dy| L 0.166779 / R 0.166779 vs grid steady max
+  0.173724 / 0.173724, ratio 0.960024 / 0.960024 (bar 1.1); differential clicks
+  recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush E1, growl, Tone (Amount 0.5 -> 0.5, Tone 1 -> 0, offsets (0, 0)
+  -> (0, 0)), 20 ms ramp: max |dy| L 0.168802 / R 0.168802 vs grid steady max
+  0.173724 / 0.173724, ratio 0.971669 / 0.971669 (bar 1.1); differential clicks
+  recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush E1, growl, amount offset (Amount 0.5 -> 0.5, Tone 0.5 -> 0.5,
+  offsets (-0.15, 0) -> (0.15, 0)), single step: max |dy| L 0.277225 / R 0.
+  142798 vs grid steady max 0.331727 / 0.331727, ratio 0.835703 / 0.430467 (bar
+  1.1); differential clicks recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush E1, growl, amount offset (Amount 0.5 -> 0.5, Tone 0.5 -> 0.5,
+  offsets (0.15, 0) -> (-0.15, 0)), single step: max |dy| L 0.142798 / R 0.
+  277225 vs grid steady max 0.331727 / 0.331727, ratio 0.430467 / 0.835703 (bar
+  1.1); differential clicks recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush E1, growl, amount offset (Amount 0.5 -> 0.5, Tone 0.5 -> 0.5,
+  offsets (-0.15, 0) -> (0.15, 0)), 20 ms ramp: max |dy| L 0.287441 / R 0.
+  345646 vs grid steady max 0.331727 / 0.331727, ratio 0.866498 / 1.04196 (bar
+  1.1); differential clicks recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush E1, growl, amount offset (Amount 0.5 -> 0.5, Tone 0.5 -> 0.5,
+  offsets (0.15, 0) -> (-0.15, 0)), 20 ms ramp: max |dy| L 0.345646 / R 0.
+  287441 vs grid steady max 0.331727 / 0.331727, ratio 1.04196 / 0.866498 (bar
+  1.1); differential clicks recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush E1, growl, tone offset (Amount 0.5 -> 0.5, Tone 0.5 -> 0.5,
+  offsets (0, -0.15) -> (0, 0.15)), single step: max |dy| L 0.153854 / R 0.
+  10942 vs grid steady max 0.160105 / 0.160105, ratio 0.960959 / 0.68343 (bar
+  1.1); differential clicks recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush E1, growl, tone offset (Amount 0.5 -> 0.5, Tone 0.5 -> 0.5,
+  offsets (0, 0.15) -> (0, -0.15)), single step: max |dy| L 0.10942 / R 0.
+  153854 vs grid steady max 0.160105 / 0.160105, ratio 0.68343 / 0.960959 (bar
+  1.1); differential clicks recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush E1, growl, tone offset (Amount 0.5 -> 0.5, Tone 0.5 -> 0.5,
+  offsets (0, -0.15) -> (0, 0.15)), 20 ms ramp: max |dy| L 0.153775 / R 0.
+  152117 vs grid steady max 0.160105 / 0.160105, ratio 0.960465 / 0.950109 (bar
+  1.1); differential clicks recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush E1, growl, tone offset (Amount 0.5 -> 0.5, Tone 0.5 -> 0.5,
+  offsets (0, 0.15) -> (0, -0.15)), 20 ms ramp: max |dy| L 0.152117 / R 0.
+  153775 vs grid steady max 0.160105 / 0.160105, ratio 0.950109 / 0.960465 (bar
+  1.1); differential clicks recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush E1, growl, bypass edge (Amount 0 -> 0.05, Tone 0.5 -> 0.5,
+  offsets (0, 0) -> (0, 0)), single step: max |dy| L 0.456767 / R 0.456767 vs
+  grid steady max 0.463046 / 0.463046, ratio 0.98644 / 0.98644 (bar 1.1);
+  differential clicks recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush E1, growl, bypass edge (Amount 0.05 -> 0, Tone 0.5 -> 0.5,
+  offsets (0, 0) -> (0, 0)), single step: max |dy| L 0.456779 / R 0.456779 vs
+  grid steady max 0.463046 / 0.463046, ratio 0.986465 / 0.986465 (bar 1.1);
+  differential clicks recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush E1, growl, bypass edge (Amount 0 -> 0.05, Tone 0.5 -> 0.5,
+  offsets (0, 0) -> (0, 0)), 20 ms ramp: max |dy| L 0.456767 / R 0.456767 vs
+  grid steady max 0.463046 / 0.463046, ratio 0.98644 / 0.98644 (bar 1.1);
+  differential clicks recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush E1, growl, bypass edge (Amount 0.05 -> 0, Tone 0.5 -> 0.5,
+  offsets (0, 0) -> (0, 0)), 20 ms ramp: max |dy| L 0.462063 / R 0.462063 vs
+  grid steady max 0.463046 / 0.463046, ratio 0.997878 / 0.997878 (bar 1.1);
+  differential clicks recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1124): warning:
+  E1, growl control Crush at sample 48000 (no candidate clear of reference
+  detections): counted 0 (guarded out 4, transition detections 271, reference
+  detections 696, N 145) - not flagged (recorded)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1124): warning:
+  E1, growl control Fracture at sample 48080: counted 1 (guarded out 0,
+  transition detections 115, reference detections 231, N 145) - FLAGGED
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1124): warning:
+  E1, growl control (i) hard switch Tube -> Fracture at sample 48064: counted 0
+  (guarded out 0, transition detections 144, reference detections 156, N 145) -
+  not flagged (recorded)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1124): warning:
+  E1, growl control (ii) unsmoothed Amount 0 -> 1 at sample 48080: counted 2
+  (guarded out 0, transition detections 120, reference detections 243, N 145) -
+  FLAGGED
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1124): warning:
+  C2, saw control Tube at sample 48248: counted 2 (guarded out 0, transition
+  detections 123, reference detections 246, N 91) - FLAGGED
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1124): warning:
+  C2, saw control Fold at sample 48248: counted 2 (guarded out 0, transition
+  detections 125, reference detections 247, N 91) - FLAGGED
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1124): warning:
+  C2, saw control Rectify at sample 48248: counted 2 (guarded out 0, transition
+  detections 120, reference detections 247, N 91) - FLAGGED
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1124): warning:
+  C2, saw control Bite at sample 48248: counted 2 (guarded out 0, transition
+  detections 117, reference detections 236, N 91) - FLAGGED
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush C2, saw, Amount (Amount 0 -> 1, Tone 0.5 -> 0.5, offsets (0, 0)
+  -> (0, 0)), single step: max |dy| L 0.335788 / R 0.335788 vs grid steady max
+  0.46184 / 0.46184, ratio 0.727064 / 0.727064 (bar 1.1); differential clicks
+  recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush C2, saw, Amount (Amount 1 -> 0, Tone 0.5 -> 0.5, offsets (0, 0)
+  -> (0, 0)), single step: max |dy| L 0.395104 / R 0.395104 vs grid steady max
+  0.46184 / 0.46184, ratio 0.855498 / 0.855498 (bar 1.1); differential clicks
+  recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush C2, saw, Amount (Amount 0 -> 1, Tone 0.5 -> 0.5, offsets (0, 0)
+  -> (0, 0)), 20 ms ramp: max |dy| L 0.336178 / R 0.336178 vs grid steady max
+  0.46184 / 0.46184, ratio 0.727909 / 0.727909 (bar 1.1); differential clicks
+  recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush C2, saw, Amount (Amount 1 -> 0, Tone 0.5 -> 0.5, offsets (0, 0)
+  -> (0, 0)), 20 ms ramp: max |dy| L 0.422244 / R 0.422244 vs grid steady max
+  0.46184 / 0.46184, ratio 0.914265 / 0.914265 (bar 1.1); differential clicks
+  recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush C2, saw, Tone (Amount 0.5 -> 0.5, Tone 0 -> 1, offsets (0, 0) ->
+  (0, 0)), single step: max |dy| L 0.549963 / R 0.549963 vs grid steady max 0.
+  550473 / 0.550473, ratio 0.999075 / 0.999075 (bar 1.1); differential clicks
+  recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush C2, saw, Tone (Amount 0.5 -> 0.5, Tone 1 -> 0, offsets (0, 0) ->
+  (0, 0)), single step: max |dy| L 0.524064 / R 0.524064 vs grid steady max 0.
+  550473 / 0.550473, ratio 0.952025 / 0.952025 (bar 1.1); differential clicks
+  recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush C2, saw, Tone (Amount 0.5 -> 0.5, Tone 0 -> 1, offsets (0, 0) ->
+  (0, 0)), 20 ms ramp: max |dy| L 0.54021 / R 0.54021 vs grid steady max 0.
+  550473 / 0.550473, ratio 0.981356 / 0.981356 (bar 1.1); differential clicks
+  recorded: counted L 0 / R 0 (guarded out 1 / 1)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush C2, saw, Tone (Amount 0.5 -> 0.5, Tone 1 -> 0, offsets (0, 0) ->
+  (0, 0)), 20 ms ramp: max |dy| L 0.547321 / R 0.547321 vs grid steady max 0.
+  550473 / 0.550473, ratio 0.994276 / 0.994276 (bar 1.1); differential clicks
+  recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush C2, saw, amount offset (Amount 0.5 -> 0.5, Tone 0.5 -> 0.5,
+  offsets (-0.15, 0) -> (0.15, 0)), single step: max |dy| L 0.375758 / R 0.
+  440603 vs grid steady max 0.460983 / 0.460983, ratio 0.815124 / 0.95579 (bar
+  1.1); differential clicks recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush C2, saw, amount offset (Amount 0.5 -> 0.5, Tone 0.5 -> 0.5,
+  offsets (0.15, 0) -> (-0.15, 0)), single step: max |dy| L 0.440603 / R 0.
+  375758 vs grid steady max 0.460983 / 0.460983, ratio 0.95579 / 0.815124 (bar
+  1.1); differential clicks recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush C2, saw, amount offset (Amount 0.5 -> 0.5, Tone 0.5 -> 0.5,
+  offsets (-0.15, 0) -> (0.15, 0)), 20 ms ramp: max |dy| L 0.401743 / R 0.
+  450434 vs grid steady max 0.460983 / 0.460983, ratio 0.871491 / 0.977117 (bar
+  1.1); differential clicks recorded: counted L 0 / R 0 (guarded out 0 / 2)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush C2, saw, amount offset (Amount 0.5 -> 0.5, Tone 0.5 -> 0.5,
+  offsets (0.15, 0) -> (-0.15, 0)), 20 ms ramp: max |dy| L 0.450434 / R 0.
+  401743 vs grid steady max 0.460983 / 0.460983, ratio 0.977117 / 0.871491 (bar
+  1.1); differential clicks recorded: counted L 0 / R 0 (guarded out 2 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush C2, saw, tone offset (Amount 0.5 -> 0.5, Tone 0.5 -> 0.5,
+  offsets (0, -0.15) -> (0, 0.15)), single step: max |dy| L 0.510201 / R 0.
+  455677 vs grid steady max 0.510616 / 0.510616, ratio 0.999187 / 0.892406 (bar
+  1.1); differential clicks recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush C2, saw, tone offset (Amount 0.5 -> 0.5, Tone 0.5 -> 0.5,
+  offsets (0, 0.15) -> (0, -0.15)), single step: max |dy| L 0.455677 / R 0.
+  510201 vs grid steady max 0.510616 / 0.510616, ratio 0.892406 / 0.999187 (bar
+  1.1); differential clicks recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush C2, saw, tone offset (Amount 0.5 -> 0.5, Tone 0.5 -> 0.5,
+  offsets (0, -0.15) -> (0, 0.15)), 20 ms ramp: max |dy| L 0.501615 / R 0.
+  505135 vs grid steady max 0.510616 / 0.510616, ratio 0.982372 / 0.989266 (bar
+  1.1); differential clicks recorded: counted L 0 / R 0 (guarded out 2 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush C2, saw, tone offset (Amount 0.5 -> 0.5, Tone 0.5 -> 0.5,
+  offsets (0, 0.15) -> (0, -0.15)), 20 ms ramp: max |dy| L 0.505135 / R 0.
+  501615 vs grid steady max 0.510616 / 0.510616, ratio 0.989266 / 0.982372 (bar
+  1.1); differential clicks recorded: counted L 0 / R 0 (guarded out 0 / 2)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush C2, saw, bypass edge (Amount 0 -> 0.05, Tone 0.5 -> 0.5, offsets
+  (0, 0) -> (0, 0)), single step: max |dy| L 0.453553 / R 0.453553 vs grid
+  steady max 0.461986 / 0.461986, ratio 0.981746 / 0.981746 (bar 1.1);
+  differential clicks recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush C2, saw, bypass edge (Amount 0.05 -> 0, Tone 0.5 -> 0.5, offsets
+  (0, 0) -> (0, 0)), single step: max |dy| L 0.401841 / R 0.401841 vs grid
+  steady max 0.461986 / 0.461986, ratio 0.869812 / 0.869812 (bar 1.1);
+  differential clicks recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush C2, saw, bypass edge (Amount 0 -> 0.05, Tone 0.5 -> 0.5, offsets
+  (0, 0) -> (0, 0)), 20 ms ramp: max |dy| L 0.461412 / R 0.461412 vs grid
+  steady max 0.461986 / 0.461986, ratio 0.998758 / 0.998758 (bar 1.1);
+  differential clicks recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush C2, saw, bypass edge (Amount 0.05 -> 0, Tone 0.5 -> 0.5, offsets
+  (0, 0) -> (0, 0)), 20 ms ramp: max |dy| L 0.437527 / R 0.437527 vs grid
+  steady max 0.461986 / 0.461986, ratio 0.947057 / 0.947057 (bar 1.1);
+  differential clicks recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1124): warning:
+  C2, saw control Crush at sample 48248: counted 2 (guarded out 0, transition
+  detections 112, reference detections 215, N 91) - FLAGGED
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1124): warning:
+  C2, saw control Fracture at sample 48248: counted 2 (guarded out 0,
+  transition detections 117, reference detections 236, N 91) - FLAGGED
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1124): warning:
+  C2, saw control (i) hard switch Tube -> Fracture at sample 48256: counted 1
+  (guarded out 0, transition detections 104, reference detections 229, N 91) -
+  FLAGGED
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1124): warning:
+  C2, saw control (ii) unsmoothed Amount 0 -> 1 at sample 48248: counted 2
+  (guarded out 0, transition detections 122, reference detections 246, N 91) -
+  FLAGGED
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1124): warning:
+  C2, growl control Tube at sample 48624: counted 0 (guarded out 0, transition
+  detections 197, reference detections 408, N 91) - not flagged (recorded)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1124): warning:
+  C2, growl control Fold at sample 48624: counted 0 (guarded out 0, transition
+  detections 178, reference detections 353, N 91) - not flagged (recorded)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1124): warning:
+  C2, growl control Rectify at sample 48648: counted 0 (guarded out 0,
+  transition detections 207, reference detections 445, N 91) - not flagged
+  (recorded)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1124): warning:
+  C2, growl control Bite at sample 48624: counted 0 (guarded out 0, transition
+  detections 174, reference detections 340, N 91) - not flagged (recorded)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush C2, growl, Amount (Amount 0 -> 1, Tone 0.5 -> 0.5, offsets (0,
+  0) -> (0, 0)), single step: max |dy| L 0.722101 / R 0.722101 vs grid steady
+  max 0.722643 / 0.722643, ratio 0.99925 / 0.99925 (bar 1.1); differential
+  clicks recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush C2, growl, Amount (Amount 1 -> 0, Tone 0.5 -> 0.5, offsets (0,
+  0) -> (0, 0)), single step: max |dy| L 0.716388 / R 0.716388 vs grid steady
+  max 0.722643 / 0.722643, ratio 0.991345 / 0.991345 (bar 1.1); differential
+  clicks recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush C2, growl, Amount (Amount 0 -> 1, Tone 0.5 -> 0.5, offsets (0,
+  0) -> (0, 0)), 20 ms ramp: max |dy| L 0.722101 / R 0.722101 vs grid steady
+  max 0.722643 / 0.722643, ratio 0.99925 / 0.99925 (bar 1.1); differential
+  clicks recorded: counted L 1 / R 1 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush C2, growl, Amount (Amount 1 -> 0, Tone 0.5 -> 0.5, offsets (0,
+  0) -> (0, 0)), 20 ms ramp: max |dy| L 0.715392 / R 0.715392 vs grid steady
+  max 0.722643 / 0.722643, ratio 0.989966 / 0.989966 (bar 1.1); differential
+  clicks recorded: counted L 1 / R 1 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush C2, growl, Tone (Amount 0.5 -> 0.5, Tone 0 -> 1, offsets (0, 0)
+  -> (0, 0)), single step: max |dy| L 0.242122 / R 0.242122 vs grid steady max
+  0.243841 / 0.243841, ratio 0.992951 / 0.992951 (bar 1.1); differential clicks
+  recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush C2, growl, Tone (Amount 0.5 -> 0.5, Tone 1 -> 0, offsets (0, 0)
+  -> (0, 0)), single step: max |dy| L 0.176789 / R 0.176789 vs grid steady max
+  0.243841 / 0.243841, ratio 0.725018 / 0.725018 (bar 1.1); differential clicks
+  recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush C2, growl, Tone (Amount 0.5 -> 0.5, Tone 0 -> 1, offsets (0, 0)
+  -> (0, 0)), 20 ms ramp: max |dy| L 0.243735 / R 0.243735 vs grid steady max
+  0.243841 / 0.243841, ratio 0.999566 / 0.999566 (bar 1.1); differential clicks
+  recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush C2, growl, Tone (Amount 0.5 -> 0.5, Tone 1 -> 0, offsets (0, 0)
+  -> (0, 0)), 20 ms ramp: max |dy| L 0.209719 / R 0.209719 vs grid steady max
+  0.243841 / 0.243841, ratio 0.860066 / 0.860066 (bar 1.1); differential clicks
+  recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush C2, growl, amount offset (Amount 0.5 -> 0.5, Tone 0.5 -> 0.5,
+  offsets (-0.15, 0) -> (0.15, 0)), single step: max |dy| L 0.24538 / R 0.
+  194236 vs grid steady max 0.283822 / 0.283822, ratio 0.864555 / 0.684359 (bar
+  1.1); differential clicks recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush C2, growl, amount offset (Amount 0.5 -> 0.5, Tone 0.5 -> 0.5,
+  offsets (0.15, 0) -> (-0.15, 0)), single step: max |dy| L 0.194236 / R 0.
+  24538 vs grid steady max 0.283822 / 0.283822, ratio 0.684359 / 0.864555 (bar
+  1.1); differential clicks recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush C2, growl, amount offset (Amount 0.5 -> 0.5, Tone 0.5 -> 0.5,
+  offsets (-0.15, 0) -> (0.15, 0)), 20 ms ramp: max |dy| L 0.253343 / R 0.
+  291259 vs grid steady max 0.283822 / 0.283822, ratio 0.892612 / 1.0262 (bar
+  1.1); differential clicks recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush C2, growl, amount offset (Amount 0.5 -> 0.5, Tone 0.5 -> 0.5,
+  offsets (0.15, 0) -> (-0.15, 0)), 20 ms ramp: max |dy| L 0.291259 / R 0.
+  253343 vs grid steady max 0.283822 / 0.283822, ratio 1.0262 / 0.892612 (bar
+  1.1); differential clicks recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush C2, growl, tone offset (Amount 0.5 -> 0.5, Tone 0.5 -> 0.5,
+  offsets (0, -0.15) -> (0, 0.15)), single step: max |dy| L 0.223594 / R 0.
+  153369 vs grid steady max 0.225305 / 0.225305, ratio 0.992407 / 0.680718 (bar
+  1.1); differential clicks recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush C2, growl, tone offset (Amount 0.5 -> 0.5, Tone 0.5 -> 0.5,
+  offsets (0, 0.15) -> (0, -0.15)), single step: max |dy| L 0.153369 / R 0.
+  223594 vs grid steady max 0.225305 / 0.225305, ratio 0.680718 / 0.992407 (bar
+  1.1); differential clicks recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush C2, growl, tone offset (Amount 0.5 -> 0.5, Tone 0.5 -> 0.5,
+  offsets (0, -0.15) -> (0, 0.15)), 20 ms ramp: max |dy| L 0.225241 / R 0.
+  190807 vs grid steady max 0.225305 / 0.225305, ratio 0.999718 / 0.846887 (bar
+  1.1); differential clicks recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush C2, growl, tone offset (Amount 0.5 -> 0.5, Tone 0.5 -> 0.5,
+  offsets (0, 0.15) -> (0, -0.15)), 20 ms ramp: max |dy| L 0.190807 / R 0.
+  225241 vs grid steady max 0.225305 / 0.225305, ratio 0.846887 / 0.999718 (bar
+  1.1); differential clicks recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush C2, growl, bypass edge (Amount 0 -> 0.05, Tone 0.5 -> 0.5,
+  offsets (0, 0) -> (0, 0)), single step: max |dy| L 0.722101 / R 0.722101 vs
+  grid steady max 0.722643 / 0.722643, ratio 0.99925 / 0.99925 (bar 1.1);
+  differential clicks recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush C2, growl, bypass edge (Amount 0.05 -> 0, Tone 0.5 -> 0.5,
+  offsets (0, 0) -> (0, 0)), single step: max |dy| L 0.716388 / R 0.716388 vs
+  grid steady max 0.722643 / 0.722643, ratio 0.991345 / 0.991345 (bar 1.1);
+  differential clicks recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush C2, growl, bypass edge (Amount 0 -> 0.05, Tone 0.5 -> 0.5,
+  offsets (0, 0) -> (0, 0)), 20 ms ramp: max |dy| L 0.722101 / R 0.722101 vs
+  grid steady max 0.722643 / 0.722643, ratio 0.99925 / 0.99925 (bar 1.1);
+  differential clicks recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1405): warning:
+  SC-021 Crush C2, growl, bypass edge (Amount 0.05 -> 0, Tone 0.5 -> 0.5,
+  offsets (0, 0) -> (0, 0)), 20 ms ramp: max |dy| L 0.715392 / R 0.715392 vs
+  grid steady max 0.722643 / 0.722643, ratio 0.989966 / 0.989966 (bar 1.1);
+  differential clicks recorded: counted L 0 / R 0 (guarded out 0 / 0)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1124): warning:
+  C2, growl control Crush at sample 48648: counted 0 (guarded out 1, transition
+  detections 300, reference detections 710, N 91) - not flagged (recorded)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1124): warning:
+  C2, growl control Fracture at sample 48624: counted 0 (guarded out 0,
+  transition detections 203, reference detections 433, N 91) - not flagged
+  (recorded)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1124): warning:
+  C2, growl control (i) hard switch Tube -> Fracture at sample 48240: counted 1
+  (guarded out 0, transition detections 303, reference detections 425, N 91) -
+  FLAGGED
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1124): warning:
+  C2, growl control (ii) unsmoothed Amount 0 -> 1 at sample 48648: counted 0
+  (guarded out 0, transition detections 221, reference detections 480, N 91) -
+  not flagged (recorded)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1866): warning:
+  SC-021 Crush sample-delta bound: worst ratio over every Crush cell 1.04196
+  (bar 1.1)
+
+113.985 s: ShapeCharacter_ParameterStepsClickFree
+===============================================================================
+All tests passed (11332 assertions in 1 test case)
+
+exit: 0 wall: 115 s

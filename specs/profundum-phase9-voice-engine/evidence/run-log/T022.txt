@@ -1,0 +1,61 @@
+T022 - Resolve every DEFECT: line, gate-documented red and wall-clock re-tag
+Date: 2026-10-20. Executor: Group 12 implementer. Nothing built or run (the group gate builds); one --list-tests call.
+
+FILES WRITTEN
+- dsp/include/krate/dsp/systems/profundum_engine.h  (append-only: two const accessors after droppedEvents())
+- specs/profundum-phase9-voice-engine/tasks.md       ("Defects found": entry T019-1 appended)
+- specs/profundum-phase9-voice-engine/evidence/run-log/T022.txt (this file)
+Deviation: the workflow file list named only this run-log; the T022 section (authoritative) says "fix the owner,
+record under 'Defects found'", so the owner header and the tasks.md section were edited. Nothing else touched.
+
+1. DEFECT SWEEP
+grep -rn DEFECT evidence/run-log/ :
+- T001.txt:38, T002.txt:41, T003.txt:71, T014.txt:72-73, T015.txt:133 - "none" lines, nothing to resolve.
+- T019.txt:71 - OPEN DEFECT (resolved below as T019-1).
+- close/g11-smokes.log:25 - the T019 WARN text printed by the soak smoke ("DEFECT in run-log T019, T022 resolves");
+  same defect.
+- close/perpush-after-rulings.log / close/perpush-final.log: 50 "SC013-R2-DEFECT" lines each. Source:
+  dsp/tests/unit/systems/profundum_note_behaviour_spectral_test.cpp:563 (Phase 4 TU). Its header comment (:35-38)
+  says the R-2 probe "is not a gate here (plan R-2)"; Phase 4 tasks.md:1174 records "R-2 gaps > 0.3 deg are recorded
+  per shard. They are not gated." These are Phase 4's recorded, non-gating probe prints of an untouched TU (not in
+  the Phase 9 change set), not Phase 9 DEFECT lines. No action; noted for comply.
+
+T019-1 (FIXED)
+- Case: VoiceEngine_SoakSmoke / VoiceEngine_Soak30Min_{Mono,Poly}.
+- Expected: per-interval poll of stateFinite() and oversamplerStateFinite() (plan S10.6 SC-013 row; plan R-E,
+  plan.md:1440 "stateFinite / oversamplerStateFinite polled in the soak").
+- Observed: WARN "SC-013 state poll unavailable" (close/g11-smokes.log:24-25); ProfundumEngine had no accessor;
+  voices_ (profundum_engine.h:1200 before the edit) and dynamics_ (:1208) are private.
+- Diagnosis: plan lists the component polls (ProfundumVoice::stateFinite profundum_voice.h:670, public section
+  from :70 to :675; MassDynamics::stateFinite mass_dynamics.h:648 and oversamplerStateFinite :672, public from
+  :526) but no engine surface.
+- Fix (profundum_engine.h, after droppedEvents()):
+    [[nodiscard]] bool stateFinite() const noexcept;            // all kMaxVoices voices && dynamics_.stateFinite()
+    [[nodiscard]] bool oversamplerStateFinite() const noexcept; // dynamics_.oversamplerStateFinite()
+  Inline, const, allocation-free, no new names (no ODR sweep needed: member functions). Exactly the owner
+  accessors the T019 DEFECT line proposed; PostSum stages / field / limiter not added (not in the diagnosis).
+- Test side: no edit. vePollEngineState (profundum_engine_soak_test.cpp:181-193) detects both by requires-expression
+  and the smoke then gates r.poll.stateBad == 0 and r.poll.oversamplerBad == 0 (:982-983); the WARN at :984-986
+  no longer fires.
+- Re-run reading: PENDING the group gate (rebuild dsp_systems_tests, then "VoiceEngine_SoakSmoke"). Expected: no
+  WARN, both counters 0. A non-zero counter is a real non-finite state and goes back to triage.
+
+2. GATE-DOCUMENTED RED
+- close/perpush-final.log: "All tests passed (10205106 assertions in 468 test cases)", rc=0 (filter
+  [profundum] ~perf ~[long] ~[.]), 18:45:25Z -> 18:52:57Z.
+- close/g11-smokes.log: "All tests passed (527 assertions in 3 test cases)".
+- tasks.md "Defects found" G11-1 .. G11-4: all closed (fixed / ruled with outcomes recorded). No open red.
+
+3. WALL-CLOCK RE-TAG
+- Input missing: no Group 11 gate log captured with -D 15 exists (grep for Catch2 "<secs> s: " duration lines over
+  evidence/ finds none; .claude/workflows/profundum-phase.js passes no -D). perpush-final.log has no per-case
+  timings (whole [profundum] per-push lane 7 min 32 s for 468 cases), so no case can be attributed > 15 s.
+- Phase 9 scope (existing binary, --list-tests): 75 per-push [voice-engine] cases, 47 [voice-engine][long].
+- No re-tag made without a measurement (rule 13: no guessed workloads). DEFERRED to the main loop (the lane is
+  ~minutes of renders, rule 15):
+    build/windows-x64-release/bin/Release/dsp_systems_tests.exe "[voice-engine]~[long]~[performance]~[perf]~[benchmark]~[!benchmark]" -D 15 \
+      > specs/profundum-phase9-voice-engine/evidence/run-log/close/g11-durations.log 2>&1
+  Then each listed case > 15 s that is toolchain-independent and not in rule 6's never-[long] list gets [long] plus
+  a ...Smoke sibling, recorded here with its seconds. T025's shard list is generated, so it picks them up.
+
+DEFECT lines: none open after this task (T019-1 fixed; re-run pending the gate).

@@ -1,0 +1,31 @@
+Filters: "VoiceEngine_AliasingG1413Probe"
+Randomness seeded to: 589895620
+PROBE G14-13(a) 96k E1 Rectify SHAPE 0 Tone 1 FOLLOW Mass 100: half-wave flag flips total 31, inside the frame 23 (periods in the frame 112.51), FOLLOW ratio changes in the frame 23, first flips at 97856 109536 121184 132832 144480 156128 167776 179424 191072 202720 214368 226016; Sum -7.345 dBFS
+PROBE G14-13(a) 96k E1 Rectify SHAPE 0 Tone 0 FOLLOW Mass 100: half-wave flag flips total 31, inside the frame 23 (periods in the frame 112.51), FOLLOW ratio changes in the frame 23, first flips at 97856 109536 121184 132832 144480 156128 167776 179424 191072 202720 214368 226016; Sum -8.6423 dBFS
+PROBE G14-13(a) 96k E1 Rectify SHAPE 0 Tone 1 FOLLOW Mass 50: half-wave flag flips total 0, inside the frame 0 (periods in the frame 112.51), FOLLOW ratio changes in the frame 0, first flips at; Sum -86.326 dBFS
+PROBE G14-13(a) 48k E2 Rectify SHAPE 0 Tone 1 FOLLOW Mass 100: half-wave flag flips total 39, inside the frame 22 (periods in the frame 112.51), FOLLOW ratio changes in the frame 22, first flips at 50688 53600 56512 59424 62336 65248 68160 71072 73984 76896 79808 82720; Sum -5.6318 dBFS
+PROBE G14-13(a) 44k1 E2 Rectify SHAPE 0 Tone 1 LOCK Mass 100: half-wave flag flips total 1, inside the frame 0 (periods in the frame 122.46), FOLLOW ratio changes in the frame 0, first flips at; Sum -78.106 dBFS
+PROBE G14-13(b2) 44k1 Crush [WIDE spread 1 (the cell)]: Sum L -129.65 R -121.79 dBFS; core -131.37 char -121.79; top offsets 12.125Hz:-127.3 12.875Hz:-128.21 11.375Hz:-130.33 13.375Hz:-132.05
+PROBE G14-13(b2) 44k1 Crush [SPREAD spread 1]: Sum L -129.65 R -137.76 dBFS; core -131.37 char -129.66; top offsets 12.125Hz:-138.28 12.625Hz:-138.44 12.875Hz:-139 13.375Hz:-140.54
+PROBE G14-13(b2) 44k1 Crush [WIDE spread 0.5]: Sum L -131.2 R -129.6 dBFS; core -133.16 char -129.61; top offsets 12.625Hz:-136.55 12.125Hz:-139.16 11.875Hz:-139.92 13.375Hz:-140.3
+PROBE G14-13(b2) 44k1 Crush [WIDE spread 0.25]: Sum L -130.97 R -130.94 dBFS; core -132.86 char -130.96; top offsets 12.125Hz:-138.79 11.375Hz:-141.28 12.625Hz:-141.54 6.125Hz:-142.56
+PROBE G14-13(b2) 44k1 Crush [WIDE spread 1 amount 0.5]: Sum L -130.04 R -88.708 dBFS; core -131.37 char -88.708; top offsets 5.625Hz:-101.79 6.125Hz:-102.32 6.375Hz:-102.59 6.625Hz:-103.69
+PROBE G14-13(b2) 44k1 Crush [WIDE spread 1 Tone 0.5]: Sum L -117.13 R -112.58 dBFS; core -131.37 char -112.58; top offsets 12.625Hz:-118.73 11.875Hz:-120.61 13.375Hz:-122.48 12.125Hz:-122.54
+PROBE G14-13(b2) 44k1 Crush [WIDE spread 1 note 39]: Sum L -133.48 R -136.8 dBFS; core -132.73 char -133.51; top offsets 6.625Hz:-141.21 7.375Hz:-141.22 6.125Hz:-144.11 8.125Hz:-145.75
+PROBE G14-13(b2) 44k1 Crush [WIDE spread 1 note 41]: Sum L -135.56 R -131.67 dBFS; core -135.07 char -131.7; top offsets 11.625Hz:-138.66 12.125Hz:-140.1 11.875Hz:-140.91 11.375Hz:-141.3
+PROBE G14-13(b2) 44k1 Crush [WIDE spread 1 note 43]: Sum L -142.79 R -138.41 dBFS; core -133.94 char -138.48; top offsets 14.875Hz:-146.07 16.125Hz:-146.35 13.375Hz:-148.32 17.375Hz:-149.95
+PROBE G14-13(b) 44k1 E2 Crush SOLID amount 1: Sum -128.26 dBFS; top offsets 6.125Hz:-136.17 6.625Hz:-138.57 12.625Hz:-139.57 12.125Hz:-140.67
+PROBE G14-13(b) 44k1 E2 Crush SOLID amount 0.95: Sum -134.27 dBFS; top offsets 12.125Hz:-142.46 12.625Hz:-142.64 6.125Hz:-143.89 11.375Hz:-145.83
+PROBE G14-13(b) 44k1 E2 Crush SOLID amount 0.9: Sum -131.67 dBFS; top offsets 12.625Hz:-139.51 12.125Hz:-141.77 11.875Hz:-142.07 11.375Hz:-142.8
+PROBE G14-13(b) 44k1 E2 Crush SOLID amount 0.8: Sum -131.26 dBFS; top offsets 12.125Hz:-142.11 8.125Hz:-142.27 11.375Hz:-142.33 7.375Hz:-142.58
+PROBE G14-13(b) 44k1 E2 Crush SOLID amount 0.7: Sum -132.67 dBFS; top offsets 6.125Hz:-142.63 12.125Hz:-143.69 6.625Hz:-144.67 12.625Hz:-144.93
+PROBE G14-13(b) 44k1 E2 Crush SOLID amount 0.5: Sum -128.49 dBFS; top offsets 12.625Hz:-137.65 11.875Hz:-138.23 12.375Hz:-139.37 12.875Hz:-141.09
+PROBE G14-13(b) 48k E2 Crush SOLID amount 1: Sum -130.16 dBFS; top offsets 39.375Hz:-139.84 38.625Hz:-140.67 39.125Hz:-141.86 40.125Hz:-142.9
+PROBE G14-13(b) 48k E2 Crush SOLID amount 0.95: Sum -134.58 dBFS; top offsets 39.375Hz:-142.37 38.625Hz:-143.25 40.125Hz:-145.39 8.125Hz:-145.92
+PROBE G14-13(b) 48k E2 Crush SOLID amount 0.9: Sum -130.93 dBFS; top offsets 39.375Hz:-139.87 8.125Hz:-140.38 38.625Hz:-140.69 8.875Hz:-140.98
+PROBE G14-13(b) 48k E2 Crush SOLID amount 0.8: Sum -133.51 dBFS; top offsets 39.375Hz:-142.36 38.625Hz:-143.2 39.125Hz:-144.59 40.125Hz:-145.41
+PROBE G14-13(b) 48k E2 Crush SOLID amount 0.7: Sum -130.41 dBFS; top offsets 7.375Hz:-137.38 6.625Hz:-137.83 8.125Hz:-139.24 8.875Hz:-143.13
+PROBE G14-13(b) 48k E2 Crush SOLID amount 0.5: Sum -130.87 dBFS; top offsets 39.375Hz:-139.23 38.625Hz:-140.05 40.125Hz:-142.3 16.125Hz:-143.98
+===============================================================================
+All tests passed (841 assertions in 1 test case)
+

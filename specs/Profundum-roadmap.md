@@ -646,6 +646,50 @@ pair (no loudness dip ≥ a ruled dB, sub-band energy never below the Lock floor
 
 ### Phase 9: Profundum Voice & Engine
 
+**Status: ✅ COMPLETE (2026-10-22)** — see specs/profundum-phase9-voice-engine/compliance.md (102 pass, 0 partial,
+0 fail after the Group 14 close rulings; SC-035 listening verdicts are the user's, sheet at evidence/listening-sheet.md,
+renders by evidence/close/listen.sh). Built on branch `synth/profundum`. `ProfundumVoice` (L3, `systems/profundum_voice.h`):
+core (+ edge excitation) → ShapeMorph → HarmonicFold → BassCharacterStage with the Anchor rendered once per sub-chunk and
+joined by a plain add after Character (an optional `anchorFoldFeed` ramp into the Fold input), Drop + DropPhaseLock on the
+core only, NoteMemory transitions driving the 3 ms RetriggerDeclick dip (steal and MONO replacement alike), ADSR amp envelope
+with change-only curve setters, the Rectify half-wave meter on the Shape output before the Anchor feed and a 4-period dwell
+on the FOLLOW ratio handoff (G14-13). `ProfundumEngine` (L3, `systems/profundum_engine.h`): MONO via MonoHandler + the
+Phase 4 note behaviour, POLY via VoiceAllocator (kMaxVoices 8, default 4, oldest-released then oldest-active), a 32-sample
+control grid (events → morph → macros → Motion → MassLaw → field → pitch trajectories → per-voice setters → MassDynamics),
+voice sum → MassDynamics → BassStereoField safety stage → DCBlocker × 2 → TruePeakLimiter with a 64-sample look-ahead
+(G14-1; `latencySamples()` reports it), SOLID re-sync by DC-blocker copy, seeded determinism (`deriveStreamSeed` streams for
+Motion DRIFT, field drift and per-voice reserves), test seams and taps through `ProfundumEngineObserver`. `ProfundumMotion`
+(L3): ENV / CYCLE / DRIFT routed explicitly to Mass, Depth, Body, Edge, Shift with one global depth (VoiceModRouter not
+composed, FR-048). `ProfundumMacroMatrix` (L3): 16 constexpr rows for Weight, Dark↔Bright, Tight↔Loose, Clean↔Violent,
+neutral at 0.5, compression handed post-law; rows harvested (evidence/macro-rows.txt). `primitives/lowpass_biquad_d.h`
+(`LowpassBiquadD`, L1): the RBJ low-pass in double behind a float interface for the excitation and Fold 500 Hz splits
+(G14-12 — the float32 rounding floor of a fc/fs ≤ 0.01 TDF2 biquad read as −46 … −79 dBFS "aliasing" at the voice sum).
+Readings on the final bits: CPU MONO 7.5798 % (Tube 7.5798, Fracture 7.0234; bar 8), 4 voices 24.005 % (Tube 24.005,
+Fracture 22.588; bar 25), worst transition block 0.42502 of the 1.333 ms budget, 8 voices recorded 46.775 %; SC-021 worst
+voice-sum aliased power -80.21 dBFS (44k1 E2 Fold SHAPE 0 Tone 1 LOCK; bar −80, four E2 Rectify Tone 1 cells below 96 kHz recorded with the
+float32 attribution); audibility table 102 gated rows, 0 below the bar; 30 min MONO / POLY soaks finite, true peak under
+the −1 dBTP ceiling after the look-ahead, DC gated on the windows without note events, Anchor–h1 lock ≤ 0.5° at excitation mix 0;
+full-engine mono sum in SOLID / SPREAD / WIDE × MONO / POLY4 with the Anchor L == R bit-identical. Close rulings G14-1 … G14-13
+(limiter look-ahead; DC windows; lock segments at mix 0 and the deferred Drop trigger — an idle voice dropped by a stale
+amount; SC-021(b) on the standalone dynamics grid; SC-006 WIDE ≥ 24 st legato jumps recorded; selector reference at the switch
+grid; coverage on switch blocks; per-row audibility descriptors; FR-021 Note Memory decides; SOLID identity from the DC copy +
+latency; smoke lock 25 s; double splits; pre-feed meter + dwell, Fold hysteresis 1 %), all in the spec's Clarifications.
+Shared-header changes (FR-084, 354 consumer [long] shards + every consumer per-push suite green; the four long Vorago
+cases ruled out as bit-identical): the CPU optimisation group (TanhADAA F1 cache, bank continuity dirty flag, ShapeMorph linear
+decimation reuse, sidechain-only MassDynamics oversampling, halfband limiter detector, KeytrackedTilt exp2 pair, per-interval
+recipe evaluation), the limiter look-ahead, the double split low-passes, HarmonicFold hysteresis 0.5 → 1 %.
+
+**Phase 10 / 11 / 12 / 13 handoff (evidence/phase-handoffs.txt; FR-085):** (1) latency 64 samples — the Phase 10 processor
+reports `latencySamples()` (10.3); (2) the dynamics group delay is 0 (10.4) and the sidechain opt-in runs 4× at every rate
+(10.6); (3) FTZ / DAZ is the wrapper's job (10.7); (4) chain order and the SOLID re-sync (10.8); (5) CPU budget for Phase 10:
+MONO 7.5798 % / 4 voices 24.005 % on the idle machine (10.9); (6) anyone modifying a header in mass_dynamics.h's include
+closure re-runs the Phase 7 mono-sum grid (168 shards, ~3 h wall) — split the fixture first (10.10); (7) never run a
+low-cutoff split filter in float32 inside a chain that is measured below −90 dBFS (10.11); (8) every setter's range,
+default, unit and sanitising rule for Phase 11 (11.1); (9) the harvested macro row table (12.1); (10) the full audibility
+table with per-row margins (12.2) and the listening verdicts the user still owes (12.3); (11) a Bipolar ENV rests at −1
+between notes — presets choose Unipolar for a resting value (12.4); (12) the Anchor-through-chain rho / theta grid per
+Character algorithm and waveform for the Phase 13 audition (13.1).
+
 **Spec:** `profundum-phase9-voice-engine`
 **Depends on:** all above; pattern template from `seraphis_voice.h` / `vorago_engine.h` /
 `vorago_macro_matrix.h`.
@@ -663,9 +707,12 @@ before a plugin exists.
   via `VoiceAllocator`, 4 voices (`kMaxVoices` raisable), steal oldest-released then oldest-active;
   voice sum → Mass dynamics → stereo field safety stage → DC safety → `TruePeakLimiter`.
 - **Motion section** — ENV (one flexible envelope), CYCLE (`LFO`, free-running or tempo-synced
-  rhythmic), DRIFT (slow random, `BrownianDrift`) → `VoiceModRouter` as the modulation bus with a small
-  fixed destination set and one global **Motion Depth** (the concept's global *Modulation Depth*);
-  Motion can modulate Mass (basses that swell and contract).
+  rhythmic), DRIFT (slow random, `BrownianDrift`) → `ProfundumMotion` (`systems/profundum_motion.h`) as the
+  modulation bus: it routes its one active source explicitly to five fixed targets (Mass, Depth, Body, Edge, Shift)
+  with one global **Motion Depth** (the concept's global *Modulation Depth*); Motion can modulate Mass (basses that
+  swell and contract). `VoiceModRouter` is not composed (Phase 9 FR-048 recorded deviation, clarify Q1: its sources
+  and destinations are Ruinae's; amended at Phase 9 comply per FR-085 /
+  `specs/profundum-phase9-voice-engine/evidence/phase-handoffs.txt` R.1).
 - **Personality macros** via `ProfundumMacroMatrix` (pattern copy): **Weight** (sub / fundamental /
   body), **Dark ↔ Bright** (spectral distribution), **Tight ↔ Loose** (envelope, transient, compression),
   **Clean ↔ Violent** (nonlinear processing). Presets store these coordinates.
@@ -942,9 +989,15 @@ Aggressive)*, buttons A / A·B / B, position readout "42 %".
 Fixed preset category set (filesystem dirs + XML metadata must match — Membrum lesson), installed to
 `C:\ProgramData\Krate Audio\Profundum\`. **Variety is the governing requirement** (Vorago Phase 14
 rule): the spec carries a preset × capability coverage matrix as an FR, the preset list is derived from
-it, and the harness measures pairwise distinctness alongside boundedness. **The audibility probe runs
-before the preset list is written** and re-uses Phase 9's table — a preset built on an inaudible feature
-is a defect (Vorago 13b–13d). Validation harness: round-trip tests + all-presets NoteOn render sweep
+it, and the harness measures pairwise distinctness alongside boundedness. **Every capability is shown off
+by at least one preset** (made explicit 2026-10-20): the matrix's columns are Phase 9's audibility-table
+rows — every section's on/off, every image mode, Anchor mode and waveform, every Character algorithm,
+every Motion source and target, every Note Memory mode, the Morph and each of the four macros — and no
+column may be empty; for each column at least one preset is built *around* that capability and the
+harness measures, on that preset, that the capability's descriptor contrast clears the Phase 9 bar (the
+same descriptor and bar as the Phase 9 row). A capability no preset showcases is a Phase 13 defect, not
+a presets-list choice. **The audibility probe runs before the preset list is written** and re-uses
+Phase 9's table — a preset built on an inaudible feature is a defect (Vorago 13b–13d). Validation harness: round-trip tests + all-presets NoteOn render sweep
 (seconds-scale — this is a bass, not a drone) + per-preset mono-sum check + true-peak check at maximum
 Mass. Release gate via `release-readiness` flow.
 

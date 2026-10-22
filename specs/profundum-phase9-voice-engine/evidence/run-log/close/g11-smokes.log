@@ -1,0 +1,29 @@
+Filters: "VoiceEngine_AnchorThroughChainSmoke","VoiceEngine_AudibilityTableSmoke","VoiceEngine_SoakSmoke"
+Randomness seeded to: 1105641247
+# VoiceEngine_AudibilityTableSmoke
+row,contrast,base,note,descriptor,tap,lo,hi,value,bar,pass,gated,out_descriptor,out_lo,out_hi,ampStep,remark
+"AT-03","Fold: foldAmount 0 -> 100","A + sustain 1 (C-8)",E1,"D_nl (dB)","Char / twin",0,47.6755,47.6755,">= 3 dB",PASS,gated,"L_K output (dB; D_nl has no output form)",-12.0435,-14.0505,"n/a",""
+"AT-10","Anchor: level 0 -> 1 (Sine, LOCK)","A + sustain 1 (C-8)",E1,"E_sub (dB)","Sum",-11.9198,-5.9717,5.94809,"dE_sub >= 2 dB",PASS,gated,"E_sub output (dB)",-11.9804,-6.03327,"n/a",""
+"AT-26","Mass: 0 -> 100","A + sustain 1 (C-8) + anchor level 0.5 (per-row setting, G11-2)",E1,"E_sub (dB)","Sum",-11.9198,-6.67358,5.24621,">= 3 dB",PASS,gated,"E_sub output (dB)",-9.93101,-4.85782,"n/a","H-14: L_K output -15.921414 -> -9.362278 dB; per-row setting G11-2: A's anchor level 1.0 sits at the AnchorLevel row's clamp, so Mass 100 cannot raise it"
+"AT-26","Mass: 0 -> 100","A + sustain 1 (C-8)",E1,"E_sub (dB)","Sum",-8.45341,-6.67358,1.77983,">= 3 dB",FAIL,recorded,"E_sub output (dB)",-6.46561,-4.85782,"n/a","H-14: L_K output -12.470629 -> -9.362278 dB; plain A_s, recorded (G11-2)"
+"AT-26","Mass: 0 -> 100","B (its own sustain 0.8, C-8)",E1,"E_sub (dB)","Sum",-16.723,-12.6159,4.10712,">= 3 dB",PASS,gated,"E_sub output (dB)",-14.7351,-15.17,"n/a","H-14: L_K output -18.839351 -> -13.632799 dB"
+SC-017 E1 Rectify Sine: rho 0.183284 theta 172.728 deg, R 0.0801846 dB / -9.90981 deg, anchor S/R -9.64327e-16 dB, dE meas -7.76769 pred -7.76769 (|err| 4.71152e-09), tap-sum residual S 2.60811e-10 R 4.99408e-10
+SC-017 anchor-chain-smoke.csv: 1 cells, 0 failing
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+VoiceEngine_SoakSmoke
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_soak_test.cpp(1044)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_soak_test.cpp(986): warning:
+  SC-013 state poll unavailable: ProfundumEngine declares no stateFinite() /
+  oversamplerStateFinite() (DEFECT in run-log T019, T022 resolves)
+
+===============================================================================
+All tests passed (527 assertions in 3 test cases)
+

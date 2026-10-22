@@ -31,6 +31,7 @@ export const meta = {
     { title: 'Build+Test', detail: 'build + run suites (sonnet reporter), bounded fix loop (opus fixer)', model: 'opus' },
     { title: 'Comply', detail: 'adversarial FR/SC verification, real output only', model: 'opus' },
     { title: 'Report', detail: 'compliance.md + honest gap list (sonnet); roadmap marked done if COMPLETE (haiku)', model: 'sonnet' },
+    { title: 'Cleanup', detail: 'node tools/clean-test-output.js --apply: scratch dirs, stale builds, raw traces, A/B exe copies (haiku)', model: 'haiku' },
   ],
 }
 
@@ -753,6 +754,17 @@ if (finalFailures.length === 0) {
 } else {
   log(`Phase INCOMPLETE — roadmap NOT updated (${finalFailures.length} failing item(s))`)
 }
+
+// Standing rule (user, 2026-10-20): every phase close cleans up its own test output. The tool is bounded
+// (explicit paths, no drive walk) and only removes regenerable things: F:\tmp scratch, build/ entries
+// other than the working configurations, exe copies kept for A/B pairing, raw .etl traces (their
+// exported .txt profiles stay). Runs whether the phase is COMPLETE or not.
+phase('Cleanup')
+const cleanup = await run(
+  `You are in the Krate Audio monorepo at f:/projects/iterum. Run exactly this command from the repo root and return its last line verbatim: node tools/clean-test-output.js --apply\nDo nothing else: no other deletions, no edits.`,
+  { label: 'cleanup', phase: 'Cleanup', model: TRIVIAL },
+)
+log(`Cleanup: ${typeof cleanup === 'string' ? cleanup.trim().split('\n').pop() : JSON.stringify(cleanup)}`)
 
 return {
   stage: 'build',

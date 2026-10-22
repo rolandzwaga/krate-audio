@@ -1,0 +1,28 @@
+Filters: "VoiceEngine_SoakPolyLockProbe"
+Randomness seeded to: 2641905464
+PROBE SOAK poly-shift-4:
+  [record] f_core vs f_res from each segment's first window start (G14-3), per segment and voice: 
+    segment 0 Shift voice 0 note 40 (82.4069 Hz): dTheta[0] 0.00131169 dTheta[1] 0.0042851 | windows 0.00297341 | trend 0.00297341 deg || H-2 char-tap windows 0.773999
+    segment 0 Shift voice 1 note 48 (130.813 Hz): dTheta[0] -6.78054e-05 dTheta[1] -0.00221589 | windows 0.00214809 | trend -0.00214809 deg || H-2 char-tap windows 0.160591  (H-2 C3 row; Phase 3 read 0.59 deg / 60 s)
+    segment 0 Shift voice 2 note 28 (41.2035 Hz): dTheta[0] -0.0025205 dTheta[1] 0.000712017 | windows 0.00323252 | trend 0.00323252 deg || H-2 char-tap windows 0.0190924
+    segment 0 Shift voice 3 note 33 (55 Hz): dTheta[0] -0.00240358 dTheta[1] -0.0818524 | windows 0.0794488 | trend -0.0794488 deg || H-2 char-tap windows 0.340947
+    max core-tap window 0.0794488 deg  green; max char-tap window (H-2, recorded) 0.773999 deg
+PROBE SOAK poly-depth-4:
+  [record] f_core vs f_res from each segment's first window start (G14-3), per segment and voice: 
+    segment 0 Depth voice 0 note 40 (82.4069 Hz): dTheta[0] 0.00112592 dTheta[1] 0.00280568 | windows 0.00167976 | trend 0.00167976 deg || H-2 char-tap windows 2.05437
+    segment 0 Depth voice 1 note 48 (130.813 Hz): dTheta[0] -0.00036995 dTheta[1] -0.00171251 | windows 0.00134256 | trend -0.00134256 deg || H-2 char-tap windows 2.50067  (H-2 C3 row; Phase 3 read 0.59 deg / 60 s)
+    segment 0 Depth voice 2 note 28 (41.2035 Hz): dTheta[0] -0.00056251 dTheta[1] -0.00120573 | windows 0.000643224 | trend -0.000643224 deg || H-2 char-tap windows 1.9475
+    segment 0 Depth voice 3 note 33 (55 Hz): dTheta[0] -0.00244548 dTheta[1] -0.0794473 | windows 0.0770018 | trend -0.0770018 deg || H-2 char-tap windows 1.67682
+    max core-tap window 0.0770018 deg  green; max char-tap window (H-2, recorded) 2.50067 deg
+PROBE SOAK poly-shift-2:
+  [record] f_core vs f_res from each segment's first window start (G14-3), per segment and voice: 
+    segment 0 Shift voice 2 note 33 (55 Hz): dTheta[0] -0.00240358 dTheta[1] -0.0818524 | windows 0.0794488 | trend -0.0794488 deg || H-2 char-tap windows 0.340947
+    segment 0 Shift voice 3 note 40 (82.4069 Hz): dTheta[0] 0.000159187 dTheta[1] 0.0022792 | windows 0.00212002 | trend 0.00212002 deg || H-2 char-tap windows 1.00228
+    max core-tap window 0.0794488 deg  green; max char-tap window (H-2, recorded) 1.00228 deg
+PROBE SOAK mono-shift-a1:
+  [record] f_core vs f_res from each segment's first window start (G14-3), per segment and voice: 
+    segment 0 Shift voice 0 note 33 (55 Hz): dTheta[0] -0.00240358 dTheta[1] -0.0818524 | windows 0.0794488 | trend -0.0794488 deg || H-2 char-tap windows 0.339903
+    max core-tap window 0.0794488 deg  green; max char-tap window (H-2, recorded) 0.339903 deg
+===============================================================================
+All tests passed (161 assertions in 1 test case)
+

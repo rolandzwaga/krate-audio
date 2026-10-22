@@ -1,0 +1,17 @@
+=== static-morph 2026-10-20T12:06:17Z
+#   engine MONO Tube static-morph trials: 10.595 10.494 9.7068 median 10.494
+#   engine POLY4 Tube static-morph trials: 31.857 30.332 31.218 median 31.218
+P1V static-morph Tube MONO 10.494 POLY4 31.218
+#   engine MONO Fracture static-morph trials: 10.113 9.6625 9.8047 median 9.8047
+#   engine POLY4 Fracture static-morph trials: 31.084 30.148 30.473 median 30.473
+P1V static-morph Fracture MONO 9.8047 POLY4 30.473
+P1V DONE static-morph
+=== static-all 2026-10-20T12:06:47Z
+#   engine MONO Tube static-all trials: 10.947 10.439 9.6025 median 10.439
+#   engine POLY4 Tube static-all trials: 29.8 28.825 30.059 median 29.8
+P1V static-all Tube MONO 10.439 POLY4 29.8
+#   engine MONO Fracture static-all trials: 9.1869 9.7452 9.493 median 9.493
+#   engine POLY4 Fracture static-all trials: 30.356 28.21 29.419 median 29.419
+P1V static-all Fracture MONO 9.493 POLY4 29.419
+P1V DONE static-all
+P1 VARIANTS DONE 2026-10-20T12:07:15Z

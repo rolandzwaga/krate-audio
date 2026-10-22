@@ -1,0 +1,133 @@
+T015 - Clicks: SC-005, SC-006, SC-025 (FR-016, FR-009 record; plan S1 C-4, S9.9; tasks.md deviation 5)
+Date: 2026-10-20  Branch: synth/profundum  Base: 0ae33b87
+
+PRECONDITION (Group 11 checkpoint)
+- evidence/probes/p1-cpu.txt: "P1 VERDICT GREEN mono_max=7.2551 (bar 8) poly4_max=23.933 postsum4_max=28.373 (bar 25)"
+- evidence/probes/p2-declick.txt: "P2 VERDICT GREEN worst_ratio=1.0321 (bar 1.05925)"
+- evidence/probes/p3-output-alias.txt: "P3 VERDICT GREEN -85.1429"
+  All three GREEN -> the task proceeds.
+
+FILES WRITTEN
+- dsp/tests/unit/systems/profundum_engine_click_test.cpp (the T001 stub filled; the five Phase 9 includes kept)
+- this run-log
+No other file touched (no header, no CMake list, no helper; the TU was registered by T001).
+
+FACTS READ THIS SESSION (file:line)
+- Driver / taps / click machinery: dsp/tests/unit/systems/profundum_voice_engine_test_helpers.h:105-117 (voiceEngineAs /
+  voiceEngineBs), :123-155 (event kinds, VoiceEngineEvent, VoiceEngineScript incl. tappedVoices), :171-196 (voice tap
+  set incl. gD / gAmp, VoiceEngineTaps incl. grid, droppedEvents), :176-185 (VoiceEngineGridRecord.afterMotion),
+  :342-372 (voiceEngineIssue: Endpoint uses endpointStates[index]), :377-435 (voiceEngineRender), :493-501 (L_d from
+  ProfundumVoice::kDeclickMs, pi / (2 L_d)), :511-513 (voiceEngineGlideStepKeyHz), :517-547 (window, max delta,
+  ratio), :567-599 (unit-gain steady, voiceEngineDeltaBound).
+- P-2 template: dsp/tests/unit/systems/profundum_engine_probe_test.cpp:1386-1562 (steal / replace cells, the
+  switch-delay reference refinement, the filler term), :1566-1617 (P-2 case).
+- Engine API: dsp/include/krate/dsp/systems/profundum_engine.h:84-91 (ProfundumEngineConfig.seams), :96-115 (constants),
+  setters :166-229 (setEndpoint, setMorphPosition, setMorphRampMs, setNoteMemoryMode, setNoteRetrigger, legato,
+  portamento, glide). Seams: systems/profundum_engine_observer.h:32-40 (disableStealFade, disableDeclick).
+- RetriggerDeclick::prepare(double, float) / arm() / samplesUntilSwitch(): primitives/retrigger_declick.h:41, :64, :74;
+  ProfundumVoice::kDeclickMs = 3.0f: systems/profundum_voice.h:74.
+- NoteMemory::Mode / Retrigger: processors/note_memory.h:24-32. GlideMode / PortaMode: processors/mono_handler.h:64-77.
+- MorphState::MotionConfig: systems/morph_state.h:81-101; AmpEnvelopeFields :71-79; BassStereoField::ImageMode /
+  Controls: systems/bass_stereo_field.h:64, :99-111; Waveform: primitives/lfo.h:47-54; NoteValue / NoteModifier:
+  core/note_value.h:38-58; MassLaw::kMassSweepMs = 40: systems/mass_law.h:77; BassMorphEngine::Resolved :55-60,
+  kMinPositionRampMs = 5 :67, kThetaUp / kThetaDown :70-71.
+- Showcase pair: dsp/tests/unit/systems/bass_morph_state_helpers.h:167-220 (A: sine, sustain 0, release 50 ms, SOLID,
+  spread 0; B: heavy / fold 80 / WIDE spread 1 / sustain 0.8 / release 800 ms; both Drop 0).
+- differentialClicks(transition, refStart, refEnd, n, fs, f0) -> ClickCount: dsp/tests/unit/processors/
+  shape_character_metric_helpers.h:44-50, :76-133.
+- Spec rows: spec.md:892 (SC-005), :893 (SC-006), :912 (SC-025), :326-337 (FR-009 immediate receivers, step recorded in
+  SC-006's CSV), :396-399 (FR-016), :854 (seams). Plan: plan.md:177-196 (C-4), :1217-1224 (S9.9), :1352-1353, :1372
+  (S10.3 rows). Phase 8 SC-004(a)/(b) form: specs/profundum-phase8-bass-morph/spec.md:846; handoff 9.8:
+  specs/profundum-phase8-bass-morph/evidence/phase-handoffs.txt:100-108.
+
+CASES (TEST_CASE names verbatim from tasks.md / plan S10.3)
+- VoiceEngine_StealClickless_Solid / _Spread / _Wide  [systems][profundum][voice-engine][sc-005][fr-016][long]
+  victim {held, releasing} x Note Memory {AlwaysRetrigger, Legato, EnvelopeRetriggerOnly, OscillatorContinuous} x
+  Retrigger {Reset, Continue} x host block {1, 37, 512} x base {A_s, B} x {E1, C3} = 192 cells per shard, plus the
+  two positive controls. CSV evidence/steal-clicks/<case>.csv.
+- VoiceEngine_StealClicklessSmoke  [systems][profundum][voice-engine][sc-005][fr-016]
+  SOLID, E1, A_s, held, AlwaysRetrigger, Reset, block 37 + both positive controls.
+- VoiceEngine_MonoReplaceClickless_Legato / _Retrigger  [...][sc-006][fr-016][fr-009][long]
+  legato on / off x Retrigger x Note Memory x glide {Porta0, ConstantTime, ConstantRate, Quantized @ 50 ms} x base
+  {A_s, B} x {E1, C3} x {+-1, +-12, +-24} st (E1 -24 st skipped: note 4 < E0, logged in the CSV) = 704 cells per shard,
+  32 FR-009 arms per shard, both positive controls. CSV evidence/mono-replace-clicks/<case>.csv.
+- VoiceEngine_MonoReplaceClicklessSmoke  [...][sc-006][fr-016][fr-009]
+  AlwaysRetrigger / Reset / ConstantTime (at portamento 0 and at 50 ms), +12 st, E1, A_s, legato off, block 37; the
+  slice's two FR-009 arms; both positive controls.
+- VoiceEngine_MotionSelectorsClickFree  [...][sc-025][long]: 80 ordered pairs (source 12, target 20, cycleShape 30,
+  polarity 2, cycleSync 2, cycleRetrigger 2, cycleNote 6, cycleModifier 6; the count is asserted).
+  CSV evidence/motion-selector-clicks/<case>.csv.
+- VoiceEngine_MotionSelectorsClickFreeSmoke  [...][sc-025]: source Off->Cycle, target Mass->Depth.
+
+GATES (bars unchanged)
+- SC-005 / SC-006: (a) max|dy| over W on the Sum tap (worse of L / R) <= 10^(0.5/20) = 1.0592537 x the reference's;
+  (b) max|dy| over W <= the S9.9 bound; droppedEvents == 0. (c) ClickDetector differential count recorded only.
+  SC-006 (a) is recorded, not gated, in the glide slices (portamento > 0), as the spec row says.
+- Positive controls (each shard and smoke): disableStealFade steal (POLY, E1 held victim, A_s in the shard's image
+  mode, AlwaysRetrigger, Reset, block 1) and a disableDeclick MONO Reset restart (E1 +3 st, same settings) each
+  CHECK(!(a passes && b passes)).
+- SC-025: ratio <= 1.0592537 over the transition window on the Sum tap, and the morph's differential click count
+  (refStart = A static, refEnd = B static) <= the direct-setter reference's.
+- FR-009 arm: recorded (ampStep, ampStep_ref columns); the only assertion is the arm's premise (at least one grid
+  point where a time / sustain receiver changed).
+
+DECISIONS (surfaced; none changes a bar)
+D1 Reference timing. Spec SC-005's refinement issues the reference's new note at the switch sample's grid point. Cells
+   that do not declick (Continue, or a mode whose VoiceReuse / Overlap cell does not restart) have no switch sample,
+   so their reference note is issued at the event's own grid point. "Declicked" is read from the render: a voice
+   whose g_d tap was exactly 1.0f just before the event and drops below 1 in [event, event + samplesUntilSwitch + L_d).
+   The positive controls use the declicked cell's timing (AlwaysRetrigger / Reset / held is a declicked VoiceReuse,
+   plan C-4). The declicked flag and the reference delay are CSV columns.
+D2 (b) S_max. Plan C-4: "S_max for SC-005(b) / SC-006(b) is the dip's analytic peak slope pi / (2 L_d)", used for
+   every cell, including those that do not dip (the envelope's Hard retrigger from its current level is the only
+   other gain slope and S9.9 names no separate term for it). SC-005 adds 1.1 D_max of each held filler (P-2's form:
+   the Sum carries four voices). SC-006 glide cells add the steady reference one semitone above the higher note
+   (Phase 4 SC-010(c), voiceEngineGlideStepKeyHz). Steady references: separate MONO renders of the same base,
+   [0.5 s, 1.0 s) of voice 0's unit-gain output, cached per (base, note) within a case.
+D3 Image modes (SC-005 shards). The shard's ImageMode is set on both endpoints of both bases; Spread and Wide also set
+   field.spread = 1 (A_s carries spread 0, which would leave SPREAD inert). SC-006 has no image axis in the task text;
+   each base keeps its own field (A_s SOLID, B WIDE spread 1).
+D4 SC-006 glide axis. GlideMode is inert at portamento 0, so the axis is {portamento 0, ConstantTime / ConstantRate /
+   Quantized at 50 ms (ConstantRate: 50 ms per octave)}, portamento mode Always. The smoke's "ConstantTime" runs at
+   portamento 0 (the (a)-gated path) and at 50 ms (the (b)-only path).
+D5 SC-006 host block: 37 for every cell (the task names no block axis for SC-006; 37 splits blocks off the grid).
+   SC-005 runs the full {1, 37, 512} axis.
+D6 SC-006 bases: both A_s and B ("on the full chain with Shape, Fold, Character and Mass": A_s leaves those idle).
+D7 Releasing victim (SC-005): note-off 20 ms (960 samples) before the steal, inside A_s's 50 ms release.
+D8 FR-009 arm: per matrix slice (Retrigger x Note Memory x glide, per legato shard), E1 +12 st on A_s, endpoint B = A_s
+   with attack 40 ms, decay 600 ms, sustain 0.4, release 500 ms; the morph (5 ms ramp) set before the note and the
+   position 0 -> 1 issued at the replacement. Receiver changes are read from consecutive grid records'
+   afterMotion.ampEnv (bitwise); ampStep_ref reads the same windows of the slice's no-morph render.
+D9 SC-025 setup: A_s held at E1, MONO, block 64; base Motion CYCLE -> Mass, amount 1, depth 1; the cycleNote /
+   cycleModifier pairs with cycleSync on (modifier None / note Quarter). Switch grid point g_sw = 1.0 s. Morph render:
+   ramp 5 ms (set at sample 0), position 0 -> 1 at g_sw. Direct-setter reference: setEndpoint(A, the new value) at
+   g_sw, p held 0. Transition window: [g_sw, g_sw + ramp + MassLaw::kMassSweepMs + one period of E1) (the Phase 8
+   SC-004 form: "the component's transition end plus one period"; Mass's full slew is the slowest receiver of a
+   Motion selector). Gate tap: the Sum (SC-005's rule and H-30); the Output tap's ratio is a CSV column.
+D10 Differential click counts read a slice from 4096 samples before W to W's end (identical for transition and
+   references), summed over L and R; f0 for N is the higher of the two f0s (Phase 4's f_max).
+D11 CSVs are written per TEST_CASE under evidence/steal-clicks/, evidence/mono-replace-clicks/ and
+   evidence/motion-selector-clicks/ (the tasks text names single files steal-clicks.csv / mono-replace-clicks.csv /
+   motion-selector-clicks.csv; one file per case keeps concurrently run shards from overwriting each other, the
+   Phase 7 sc001-grid/ precedent). Columns: cell id, (a) ratio, a_gated, a_pass, max_dy, bound, (b) margin, b_pass,
+   (c) counted / raw detections, declicked, ref_delay, W, output-tap ratio, ampStep, ampStep_ref.
+
+COST ESTIMATE (for the lane; from P-2's wall clock, ~0.8 s per block-1 render of 0.8 s, and P-1's engine figures)
+- StealClickless shard: 384 renders (a third at block 1) + ~20 steady renders: roughly 3-5 min each.
+- MonoReplaceClickless shard: ~1440 renders at block 37 + 32 arm renders: roughly 5-8 min each.
+- MotionSelectorsClickFree: 160 renders + ~50 static renders of 1.3 s: roughly 1-2 min.
+- Smokes: a few seconds each. The six [long] cases are independent and can run concurrently by name.
+
+NOT RUN (per task instruction: no build, no test run)
+- The smokes run in the Group 11 gate.
+- Deferred to the main loop at close: the six [long] cases, concurrently, one process per name:
+    B=build/windows-x64-release/bin/Release
+    $B/dsp_systems_tests.exe "VoiceEngine_StealClickless_Solid"
+    $B/dsp_systems_tests.exe "VoiceEngine_StealClickless_Spread"
+    $B/dsp_systems_tests.exe "VoiceEngine_StealClickless_Wide"
+    $B/dsp_systems_tests.exe "VoiceEngine_MonoReplaceClickless_Legato"
+    $B/dsp_systems_tests.exe "VoiceEngine_MonoReplaceClickless_Retrigger"
+    $B/dsp_systems_tests.exe "VoiceEngine_MotionSelectorsClickFree"
+  (no lane script written: the task's file list holds only the TU and this run-log.)
+
+DEFECT lines: none (nothing run).
