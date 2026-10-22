@@ -1,0 +1,36 @@
+Filters: "Profundum_ParamPathAudibility"
+Randomness seeded to: 139128762
+AT-27,E1,"dL_K = L_K(dyn) - L_K(Sum) (dB)","dynL/R and sumL/R",3.51596,3.51596,3.51596,3,"L_K output (dB): -18.8379 -> -13.6453",PASS
+AT-27,C3,"dL_K = L_K(dyn) - L_K(Sum) (dB)","dynL/R and sumL/R",4.01259,4.01259,4.01259,3,"L_K output (dB): -12.9436 -> -11.3202",PASS
+AT-01,E1,"D_nl (dB)","Char / twin",29.3673,29.3673,29.3673,3,"L_K output (dB): -12.0432 -> -11.834",PASS
+AT-01,C3,"D_nl (dB)","Char / twin",29.4025,29.4025,29.4025,3,"L_K output (dB): -7.34931 -> -7.22205",PASS
+AT-10,E1,"E_sub (dB)","sumL/R",5.94809,5.94809,5.94809,2,"E_sub output (dB): -11.9804 -> -6.03327",PASS
+AT-10,C3,"E_sub (dB)","sumL/R",5.92968,5.92968,5.92968,2,"E_sub output (dB): -11.926 -> -5.99733",PASS
+AT-11,E1,"E_sub over [0, punchTimeMs) (dB; LS fit)","sumL/R",2.08853,2.08853,2.08853,2,"E_sub output, same window (dB): -3.90521 -> -4.37305",PASS
+AT-11,C3,"E_sub over [0, punchTimeMs) (dB; LS fit)","sumL/R",2.03878,2.03878,2.03878,2,"E_sub output, same window (dB): -4.29641 -> -5.35114",PASS
+AT-21,E1,"alpha (mean d over [0, N] / A)","fCore / fRes voice 0",0.755316,0.755316,0.755316,0.1,"L_K output short (dB): -12.0449 -> -12.0443",PASS
+AT-21,C3,"alpha (mean d over [0, N] / A)","fCore / fRes voice 0",0.767995,0.767995,0.767995,0.1,"L_K output short (dB): -7.34588 -> -7.34605",PASS
+AT-23,E1,"t_50 ratio (samples)","fRes voice 0",287.344,287.344,287.344,2,"L_K output short (dB): -8.87114 -> -9.08858",PASS
+AT-23,C3,"t_50 ratio (samples)","fRes voice 0",287.219,287.219,287.219,2,"L_K output short (dB): -6.95915 -> -6.98893",PASS
+AT-25,E1,"D_t release reading ratio (ms)","sumL/R",38.1903,38.1903,38.1903,2,"D_t output release (ms): 40.022 -> 1454.49",PASS
+AT-25,C3,"D_t release reading ratio (ms)","sumL/R",40.3031,40.3031,40.3031,2,"D_t output release (ms): 38.2613 -> 1452.95",PASS
+AT-43,E1,"core-h1 phase jump (deg)","coreL/R",177.667,177.667,177.667,30,"L_K output short (dB): -10.9562 -> -11.0899",PASS
+AT-43,C3,"core-h1 phase jump (deg)","coreL/R",167.525,167.525,167.525,30,"L_K output short (dB): -7.2789 -> -7.31825",PASS
+AT-03,E1,"D_nl (dB)","Char / twin",47.6755,47.6755,47.6755,3,"L_K output (dB): -12.0432 -> -14.0502",PASS
+AT-03,C3,"D_nl (dB)","Char / twin",47.6593,47.6593,47.6593,3,"L_K output (dB): -7.3493 -> -10.2671",PASS
+AT-02,E1,"D_br (oct)","sumL/R",2.47299,2.47299,2.47299,0.25,"D_br output (oct): 1.37971 -> 3.84347",PASS
+AT-02,C3,"D_br (oct)","sumL/R",0.378903,0.378903,0.378903,0.25,"D_br output (oct): 0.899769 -> 1.28208",PASS
+AT-05,E1,"D_nl (dB)","Char / twin",6.50986,6.50986,6.50986,3,"L_K output (dB): -12.0432 -> -11.5414",PASS
+AT-05,C3,"D_nl (dB)","Char / twin",6.49428,6.49428,6.49428,3,"L_K output (dB): -7.3493 -> -7.06457",PASS
+AT-28,E1,"onset ratio (dB)","dynL/R",10.4185,10.4185,10.4185,3,"onset ratio output (dB): 9.79646 -> 9.80638",PASS
+AT-28,C3,"onset ratio (dB)","dynL/R",10.6639,10.6639,10.6639,3,"onset ratio output (dB): 10.0746 -> 10.2356",PASS
+AT-33,E1,"frame-wise D_st p2p (dB; G8-1)","fieldL/R",16.3826,16.3826,16.3826,3,"frame-wise D_st p2p output (dB): 0.00574777 -> 16.3433",PASS
+AT-33,C3,"frame-wise D_st p2p (dB; G8-1)","fieldL/R",11.2431,11.2431,11.2431,3,"frame-wise D_st p2p output (dB): 3.21831 -> 14.7708",PASS
+AT-38,E1,"frame-wise D_br p2p (oct)","sumL/R",0.299477,0.299477,0.299477,0.25,"frame-wise D_br p2p output (oct): 0.00216681 -> 0.305912",PASS
+AT-38,C3,"frame-wise D_br p2p (oct)","sumL/R",0.303864,0.303864,0.303864,0.25,"frame-wise D_br p2p output (oct): 0.0110474 -> 0.30992",PASS
+AT-42,E1,"D_nl (dB)","Char / twin",8.15013,8.15013,8.15013,3,"L_K output (dB): -12.0432 -> -15.1442",PASS
+AT-42,C3,"D_nl (dB)","Char / twin",6.72976,6.72976,6.72976,3,"L_K output (dB): -7.3493 -> -10.059",PASS
+===============================================================================
+All tests passed (1852580 assertions in 1 test case)
+
+exit: 0 wall: 150 s

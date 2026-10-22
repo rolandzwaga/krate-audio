@@ -2522,3 +2522,102 @@ TEST_CASE("VoiceEngine_FoldPathRecord", "[systems][profundum][voice-engine][sc-0
     for (const double x : {h.levelDb, h.h1Db, r.levelDb, r.h1Db, dLevel, dH1})
         CHECK(peFinite(static_cast<float>(x)));
 }
+
+// Phase 11 FR-074 (user ruling 2026-10-22, SC-011 close finding): an idle voice's first note must attack with the
+// amp-envelope values of the interval it starts in, not the ones the voice last applied. ProfundumVoice gated the
+// envelope in applyTransition (at the note event), ahead of this interval's amp setters (step 10); the ADSR's table
+// path latches the attack increment in enterAttack, so the first note played the stale attack time (here the 10 ms
+// default against a 500 ms state set while the voice was idle). The fix defers the gate like G14-3's Drop trigger.
+TEST_CASE("VoiceEngine_IdleVoiceFirstNoteUsesCurrentAmpEnvelope", "[systems][profundum][voice-engine][fr-074]") {
+    enableFTZDAZ();
+    MorphState slow{};
+    slow.ampEnv.attackMs = 500.0f;
+    constexpr double fs = 48000.0;
+    constexpr std::size_t kSilence = 9600;   // 200 ms
+    constexpr std::size_t kNote = 14400;     // 300 ms after the note-on
+    auto render = [&](bool changedWhileIdle) {
+        auto e = std::make_unique<ProfundumEngine>();
+        if (!changedWhileIdle) {
+            REQUIRE(e->setEndpoint(BassMorphEngine::Endpoint::A, slow));
+            REQUIRE(e->setEndpoint(BassMorphEngine::Endpoint::B, slow));
+        }
+        e->prepare(fs);
+        std::vector<float> l(kSilence), r(kSilence);
+        e->processBlock(l.data(), r.data(), kSilence / 2);
+        if (changedWhileIdle) {   // the voice was reset with the 10 ms default and has not rendered since
+            REQUIRE(e->setEndpoint(BassMorphEngine::Endpoint::A, slow));
+            REQUIRE(e->setEndpoint(BassMorphEngine::Endpoint::B, slow));
+        }
+        e->processBlock(l.data(), r.data(), kSilence / 2);
+        e->noteOn(kPeNoteE1, 100);
+        std::vector<float> nl(kNote), nr(kNote);
+        e->processBlock(nl.data(), nr.data(), kNote);
+        double sum = 0.0;
+        for (std::size_t i = 0; i < 4800; ++i)   // the first 100 ms: deep inside a 500 ms attack
+            sum += static_cast<double>(nl[i]) * nl[i];
+        return 10.0 * std::log10(sum / 4800.0 + 1e-30);
+    };
+    const double fresh = render(false);
+    const double changed = render(true);
+    CAPTURE(fresh, changed);
+    CHECK(std::abs(changed - fresh) <= 0.1);
+}
+
+// Phase 11 FR-074 (second clause): a runtime blob restored before any block has rendered since prepare / reset lands
+// settled. The engine prepared at the registered position resolves the discrete selections by the hysteresis rule (A
+// inside the band); the restored blob installs B, and without a re-snap the voices and post stages met the first note
+// mid-transition (the restored instance of Phase 11 SC-011 read 0.37 dB from the original's continued render).
+TEST_CASE("VoiceEngine_RestoreBeforeFirstBlockLandsSettled", "[systems][profundum][voice-engine][fr-074]") {
+    enableFTZDAZ();
+    auto [a, b] = Krate::DSP::BassMorphTest::algorithmCrossingPair();
+    // Every discrete group differs: Character (the pair), image mode and the Anchor waveform.
+    a.field.mode = Krate::DSP::BassStereoField::ImageMode::Solid;
+    b.field.mode = Krate::DSP::BassStereoField::ImageMode::Wide;
+    a.field.spread = 1.0f;   // the image mode is audible only with width to give
+    b.field.spread = 1.0f;
+    a.anchor.waveform = Krate::DSP::AnchorOscillator::Waveform::Sine;
+    b.anchor.waveform = Krate::DSP::AnchorOscillator::Waveform::Triangle;
+    REQUIRE(Krate::DSP::isValidMorphState(a));
+    REQUIRE(Krate::DSP::isValidMorphState(b));
+    constexpr double fs = 48000.0;
+    constexpr std::size_t kNote = 28800;   // 600 ms after the note-on
+    auto noteDb = [](ProfundumEngine& e) {
+        std::vector<float> l(kNote), r(kNote);
+        e.noteOn(kPeNoteE1, 100);
+        e.processBlock(l.data(), r.data(), kNote);
+        double sum = 0.0;
+        for (std::size_t i = 0; i < 9600; ++i)   // the first 200 ms: attack and the transition window
+            sum += 0.25 * (static_cast<double>(l[i]) - r[i]) * (static_cast<double>(l[i]) - r[i]);   // side energy
+        return 10.0 * std::log10(sum / 9600.0 + 1e-30);
+    };
+    // The original: at 1 (every selection B), then 0.5 inside the band (B kept), settled in silence.
+    auto src = std::make_unique<ProfundumEngine>();
+    REQUIRE(src->setEndpoint(BassMorphEngine::Endpoint::A, a));
+    REQUIRE(src->setEndpoint(BassMorphEngine::Endpoint::B, b));
+    src->setMacro(Krate::DSP::ProfundumMacro::TightLoose, 0.8f);   // the SC-011 reader: the envelope / transient / compression rows
+    src->setMorphPosition(1.0f);
+    src->prepare(fs);
+    std::vector<float> l(96000), r(96000);
+    src->processBlock(l.data(), r.data(), 24000);
+    src->setMorphPosition(0.5f);
+    src->processBlock(l.data(), r.data(), 96000);
+    std::array<std::byte, BassMorphEngine::kMorphRuntimeBytes> blob{};
+    REQUIRE(src->serializeMorphRuntime(blob.data(), blob.size()) == blob.size());
+    REQUIRE((std::to_integer<unsigned>(blob[18]) & 1u) == 1u);   // Character selection B
+    // The restored engine: prepared at 0.5 (Character selection A by the band rule), the blob before any block.
+    auto dst = std::make_unique<ProfundumEngine>();
+    REQUIRE(dst->setEndpoint(BassMorphEngine::Endpoint::A, a));
+    REQUIRE(dst->setEndpoint(BassMorphEngine::Endpoint::B, b));
+    dst->setMacro(Krate::DSP::ProfundumMacro::TightLoose, 0.8f);
+    dst->setMorphPosition(0.5f);
+    dst->prepare(fs);
+    std::array<std::byte, BassMorphEngine::kMorphRuntimeBytes> pre{};
+    REQUIRE(dst->serializeMorphRuntime(pre.data(), pre.size()) == pre.size());
+    CAPTURE(std::to_integer<unsigned>(pre[18]), std::to_integer<unsigned>(blob[18]));
+    CHECK((std::to_integer<unsigned>(pre[18]) & 1u) == 0u);   // teeth: the restore changes the Character selection
+    REQUIRE(dst->restoreMorphRuntime(blob.data(), blob.size()));
+    const double srcDb = noteDb(*src);
+    const double dstDb = noteDb(*dst);
+    CAPTURE(srcDb, dstDb);
+    CHECK(std::abs(srcDb - dstDb) <= 0.1);
+}

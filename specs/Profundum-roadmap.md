@@ -778,9 +778,9 @@ IDs 100–199 and 1000–1099, the 36-byte state layout grows only under a versi
 - AU identity: type `aumu`; subtype **`Prfd`** (taken: `Itrm Dsrm Ruin Innx Grad Mbrm Srph Vrgo`);
   manufacturer `KrAt`; bundle base `com.krateaudio.profundum`; two fresh FUIDs.
 - Parameter ID base 0 with 100-ID section gaps: 0–99 global (gain, mono/poly, polyphony, limiter),
-  100–199 Personality macros + Mass + Morph position, 200–299 core, 300–399 anchor, 400–499 drop / note
-  behaviour, 500–599 fold / shape, 600–699 character, 700–799 mass dynamics, 800–899 stereo field,
-  900–999 motion, 1000–1099 morph control (anchor morph mode, edit target).
+  100–199 Personality macros + Mass + Morph position, 200–299 core, 300–399 anchor,
+  400–499 drop / note behaviour / amp envelope, 500–599 fold / shape, 600–699 character, 700–799 mass dynamics,
+  800–899 stereo field, 900–999 motion, 1000–1099 morph control (anchor morph mode, edit target).
 - Full out-of-tree registration checklist from Seraphis Phase 8.5 (root CMake, ci.yml ~17 sites,
   release.yml, valgrind-nightly, both clang-tidy scripts, check-changelog-coverage, gen-specs-index,
   CLAUDE.md rosters + new leaf) — every item, day one.
@@ -807,6 +807,32 @@ controls first (no general matrix). **Amended 2026-10-12 (Phase 3 SC-022 PASS):*
 registered in the 300–399 anchor block. **Amended 2026-10-13 (Phase 4 FR-027, SC-027):** "The single portamento knob is labelled per Glide
 Mode: milliseconds for ConstantTime (the whole glide), milliseconds per octave for ConstantRate, milliseconds for Quantized
 (the whole underlying ramp). `MonoHandler` has no second glide setter (Phase 4 FR-026)."
+
+**Status: ✅ COMPLETE (2026-10-22; SC-004 auval and the macOS / Linux CI legs PENDING-CI)** — see
+specs/profundum-phase11-parameters/compliance.md. 84 parameters (76 new): 60 morph sound parameters covering all 62 `MorphState`
+leaves (each tempo-sync note + modifier pair is one 30-entry list), 8 note-behaviour (410–417), morph controls 105 / 1000–1002, hidden
+Pitch Bend 4, Sustain 5 and Mod Wheel 6 / Channel Pressure 7. Ranges, laws and defaults come from `BassMorphEngine::kLawTable` only.
+Edit Target (1001, saved, not automatable, Q6) addresses one endpoint; the processor owns both endpoint slots and pushes them to the
+controller (Q3); on every OS the controller pulls before an Edit Target re-display (Q9) and restarts the host cache (Q2). Copy A↔B and
+A / A·B / B compare are messages; compare writes no state. Mod wheel and channel pressure drive a hidden, unsaved Mass offset (Q1).
+State v2: 510 bytes (the v1 36-byte part, note, morph control, seed, both 201-byte endpoints, the 20-byte morph runtime blob; v1 loads,
+v3 is refused, a truncated stream keeps prior fields). Names: ID 500 Harmonic Fold, Character Wavefold, Anchor Morph Mode Hold / Blend /
+Yield (Q4). `SustainLatch` promoted to `plugins/shared/src/midi` with a Vorago alias (Q5, gated as a pure code move). Amp envelope IDs
+420–426 (Q8, band map amended). Close: FR-074 (`dsp/` exception) fixed two engine defects found by SC-011 (1.09 → 0.018 dB): an idle
+voice's first note played the amp attack it last applied (the gate now waits for the interval's setters, the G14-3 pattern), and a
+restore before the first block let the selection transitions run under the first note (the engine re-snaps). SC-020 CPU is measured on
+one engine instance, 640 × 10-block trials with an INVALID control: MONO 4.30 %, 4 voices 14.58 %, macros-max 4.86 / 16.57 % (bars
+8 / 25), P/D 0.985–1.020 (bar 1.05). check-portability gained a profundum include branch (FR-073); 213 clang-tidy fixes.
+
+**Phase 12 handoff (from Phase 11):**
+- 12.1 The controller holds both endpoints (`mirror_`, replaced from the processor's `kMsgEndpoint` messages) and the compare mode;
+  the UI reads those, never its own observed edits. Linux has no 50 ms SDK timer: an editor timer should send the sync request
+  (`kMsgRequestSync`) so an open editor stays fresh.
+- 12.2 Copy and compare are `kMsgCopyEndpoint` / `kMsgCompare` messages, not parameters; the A / A·B / B control and the Copy
+  buttons send them.
+- 12.3 Edit Target 1001 is a registered list parameter; switching it re-displays the 60 sound parameters and calls
+  `restartComponent(kParamValuesChanged)` once. Mod Wheel / Channel Pressure (6, 7) are hidden and unsaved.
+- 12.4 Display strings are fixed (SC-005): Harmonic Fold, Wavefold, Hold / Blend / Yield; the portamento unit follows Glide Mode.
 
 ### Phase 12: UI
 

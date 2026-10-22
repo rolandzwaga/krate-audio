@@ -285,6 +285,7 @@ public:
         syncPhasePending_ = false;
         fieldResetPending_ = false;
         envelopeRestarted_ = false;
+        ampGatePending_ = false;
         held_ = false;
 
         // Pitch, interval and handed state: the first interval hands everything (C-20).
@@ -328,7 +329,7 @@ public:
         fNote_ = fNote;
         held_ = true;
         // 1.
-        const NoteMemory::Actions a = memory_.resolve(t, ampEnv_.isActive());
+        const NoteMemory::Actions a = memory_.resolve(t, ampActive());
         // 2. C-4: the steal seam suppresses the dip for steal-originated events, the declick seam for every other.
         const bool suppressed = stealOriginated ? seams_.disableStealFade : seams_.disableDeclick;
         if (a.declick && !suppressed) {
@@ -349,14 +350,15 @@ public:
 
     /// Amp-envelope gate off.
     void release() noexcept {
+        flushAmpGate();   // FR-074: a gate still pending opens first, so the release is not lost
         ampEnv_.gate(false);
         held_ = false;
     }
 
-    [[nodiscard]] bool audible() const noexcept { return ampEnv_.isActive(); }   // Phase 4 spec line 849
+    [[nodiscard]] bool audible() const noexcept { return ampActive(); }   // Phase 4 spec line 849
     [[nodiscard]] bool held() const noexcept { return held_; }
     [[nodiscard]] bool active() const noexcept {
-        return ampEnv_.isActive() || dipPending_ || declick_.isActive() || coreNoteOnPending_;
+        return ampActive() || dipPending_ || declick_.isActive() || coreNoteOnPending_;
     }
     /// True once after an envelope-restarting transition was applied (FR-045, D-5): the engine then calls
     /// motion.noteRestart(). Clears the flag.
@@ -653,6 +655,7 @@ public:
             }
             logCall(ProfundumCall::AmpCurve, curveIssue, e.attackCurve);
         }
+        flushAmpGate();   // FR-074: a transition's gate opens with this interval's amp values
 
         // 11. Fold-feed ramp endpoints (FR-003, S9.5); the add is skipped when both ends are +0 (C-10).
         feedFrom_ = feedTo_;
@@ -770,11 +773,25 @@ private:
         anchorNoteOnPending_ = true;
         anchorRearm_ = a.anchorRearm;
         if (a.envelopeRestart) {
-            ampEnv_.gate(true);   // Hard: from the current level on the table path
+            // FR-074 (Phase 11, 2026-10-22): deferred to flushAmpGate(), after this interval's amp setters (step 10)
+            // or at once at the declick switch (applySwitch). The ADSR's table path latches the attack increment in
+            // enterAttack, so gating here gave an idle voice's first note the attack time it last applied.
+            ampGatePending_ = true;
             envelopeRestarted_ = true;
         }
         coreSounding_ = true;
     }
+
+    /// FR-074: the amp gate a transition deferred. Hard retrigger: from the current level on the table path.
+    void flushAmpGate() noexcept {
+        if (!ampGatePending_)
+            return;
+        ampGatePending_ = false;
+        ampEnv_.gate(true);
+    }
+
+    /// The envelope is running or a transition's gate is pending (FR-074): what isActive() read before the deferral.
+    [[nodiscard]] bool ampActive() const noexcept { return ampEnv_.isActive() || ampGatePending_; }
 
     /// G14-3: the Drop trigger a transition deferred, with the lock trigger it implies (runPitch runs the lock's solve).
     void flushDropTrigger() noexcept {
@@ -801,6 +818,7 @@ private:
         character_.reset();
         applyTransition(pending_);
         flushDropTrigger();   // G14-3: this interval's Drop setters were applied at its head
+        flushAmpGate();       // FR-074: so were its amp setters
         runPitch(k, intervalLen_);
         if (fieldResetPending_) {
             fieldResetPending_ = false;
@@ -1021,6 +1039,7 @@ private:
     bool syncPhasePending_ = false;
     bool fieldResetPending_ = false;
     bool envelopeRestarted_ = false;
+    bool ampGatePending_ = false;   // FR-074: a transition's amp gate, flushed after the amp setters
     bool held_ = false;
 
     // ---- pitch and interval ----

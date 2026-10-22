@@ -16,6 +16,20 @@ add_executable(profundum_tests
     integration/param_flow_test.cpp
     integration/processor_cpu_test.cpp
 
+    # Phase 11
+    unit/param_table_test.cpp
+    unit/state_v2_test.cpp
+    unit/midi_mapping_test.cpp
+    unit/phase11_alloc_test.cpp
+    integration/param_wiring_test.cpp
+    integration/state_restore_render_test.cpp
+    integration/copy_compare_test.cpp
+    integration/tail_test.cpp
+    integration/param_path_audibility_test.cpp
+    integration/mono_sum_params_test.cpp
+    integration/determinism_test.cpp
+    integration/band_level_metric_test.cpp
+
     # SECOND compilation of every plugin .cpp (needed by the plugin-shell tests).
     # A new plugin .cpp must appear here AND in plugins/profundum/CMakeLists.txt.
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor.cpp
@@ -52,6 +66,8 @@ target_include_directories(profundum_tests
         ${CMAKE_SOURCE_DIR}/tests
         ${vst3sdk_SOURCE_DIR}
         ${vst3sdk_SOURCE_DIR}/vstgui4
+        # read-only Phase 9 test helpers for SC-018 / SC-019 (plan 6.4; FR-070 forbids edits, not includes)
+        ${CMAKE_SOURCE_DIR}/dsp/tests/unit/systems
 )
 
 target_compile_features(profundum_tests PRIVATE cxx_std_20)
@@ -71,6 +87,19 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/midi_event_test.cpp           # bit-pattern finiteness over renders
         integration/processor_audio_test.cpp
         integration/param_flow_test.cpp
+        # Phase 11 (build non-finite values or compare bits)
+        unit/param_table_test.cpp
+        unit/state_v2_test.cpp
+        unit/midi_mapping_test.cpp
+        unit/phase11_alloc_test.cpp
+        integration/param_wiring_test.cpp
+        integration/state_restore_render_test.cpp
+        integration/copy_compare_test.cpp
+        integration/tail_test.cpp
+        integration/param_path_audibility_test.cpp
+        integration/mono_sum_params_test.cpp
+        integration/determinism_test.cpp
+        integration/band_level_metric_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
     # integration/processor_cpu_test.cpp is DELIBERATELY ABSENT: the timed code must

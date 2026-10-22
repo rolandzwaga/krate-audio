@@ -6,6 +6,15 @@
 // initialised, UNPREPARED processor and reads the latched atomics back through
 // the const test seams. T010 appends the controller sections (RegisteredInfo,
 // Display: SC-010 controller arm, FR-047) on a heap Controller.
+//
+// Phase 11 T008 appends the leaf-law sections (SC-006, FR-002, FR-003, FR-011,
+// FR-012): the double mapping pair of parameters/sound_param_row.h, the stored
+// word boxes, list indices, default bits, the leaf visitor and the generic row
+// write. They need no processor and run on the same initialised fixture.
+//
+// Phase 11 T014 amends RegisteredInfo for the 84 registered parameters (the 8
+// Phase 10 IDs keep their defaults; the 76 new IDs are each routed) and adds
+// RegisteredParamRoundTrip (SC-006 parameter arms).
 // ==============================================================================
 
 #include "profundum_test_fixture.h"
@@ -13,6 +22,10 @@
 #include "controller/controller.h"
 #include "parameters/global_params.h"
 #include "parameters/macro_params.h"
+#include "parameters/morph_params.h"
+#include "parameters/note_params.h"
+#include "parameters/sound_param_row.h"
+#include "parameters/sound_param_table.h"
 #include "plugin_ids.h"
 
 #include "base/source/fobject.h"
@@ -22,8 +35,11 @@
 
 #include <array>
 #include <atomic>
+#include <bit>
 #include <cmath>
+#include <cstdint>
 #include <string>
+#include <vector>
 
 using namespace ProfundumPluginTest;
 
@@ -100,6 +116,14 @@ struct ControllerHandle {
         return toAscii(s);
     }
 };
+
+using MorphKind = Krate::DSP::MorphState::Kind;
+
+// -0.0 built from its bit pattern through a volatile (immune to constant folding).
+[[nodiscard]] double makeNegZeroD() noexcept {
+    volatile std::uint64_t bits = 0x8000000000000000ULL;
+    return std::bit_cast<double>(static_cast<std::uint64_t>(bits));
+}
 
 double expectedDefault(ParamID id) {
     switch (id) {
@@ -230,9 +254,11 @@ TEST_CASE("Profundum_ParamDenormRoundTrip", "[profundum][params]") {
 
     SECTION("RegisteredInfo") {
         const ControllerHandle h;
-        REQUIRE(h.ctl->getParameterCount() == 8);
+        REQUIRE(h.ctl->getParameterCount() == 84);  // Phase 11 (FR-001): 8 Phase 10 + 76 new
 
         std::array<bool, kAllIds.size()> seen{};
+        std::array<bool, ::Profundum::kNumRoutedIds> seenNew{};
+        int newIds = 0;
         for (Steinberg::int32 i = 0; i < h.ctl->getParameterCount(); ++i) {
             Steinberg::Vst::ParameterInfo info{};
             REQUIRE(h.ctl->getParameterInfo(i, info) == Steinberg::kResultOk);
@@ -245,18 +271,30 @@ TEST_CASE("Profundum_ParamDenormRoundTrip", "[profundum][params]") {
                     known = true;
                 }
             }
-            REQUIRE(known);
-            REQUIRE(std::abs(info.defaultNormalizedValue - expectedDefault(info.id)) <= 1e-12);
-            if (info.id == ::Profundum::kPolyphonyId) {
-                REQUIRE(info.stepCount == 7);
+            if (known) {
+                // The Phase 10 IDs keep their Phase 10 defaults and step counts.
+                REQUIRE(std::abs(info.defaultNormalizedValue - expectedDefault(info.id)) <= 1e-12);
+                if (info.id == ::Profundum::kPolyphonyId) {
+                    REQUIRE(info.stepCount == 7);
+                }
+                if (info.id == ::Profundum::kVoiceModeId) {
+                    REQUIRE(info.stepCount == 1);
+                }
+                continue;
             }
-            if (info.id == ::Profundum::kVoiceModeId) {
-                REQUIRE(info.stepCount == 1);
-            }
+            // A new ID: routed, registered once, default inside [0, 1] (exact values: Profundum_ParamTableConformance).
+            REQUIRE(info.id < static_cast<ParamID>(::Profundum::kNumRoutedIds));
+            REQUIRE(::Profundum::kParamRoutes[info.id].kind != ::Profundum::RouteKind::None);
+            REQUIRE_FALSE(seenNew[info.id]);
+            seenNew[info.id] = true;
+            ++newIds;
+            REQUIRE(info.defaultNormalizedValue >= 0.0);
+            REQUIRE(info.defaultNormalizedValue <= 1.0);
         }
         for (const bool s : seen) {
             REQUIRE(s);
         }
+        REQUIRE(newIds == 76);
 
         for (int k = 0; k <= 7; ++k) {
             CAPTURE(k);
@@ -274,5 +312,223 @@ TEST_CASE("Profundum_ParamDenormRoundTrip", "[profundum][params]") {
         REQUIRE(h.str(::Profundum::kOutputGainId, 0.9) == "-6.0 dB");
         REQUIRE(h.str(::Profundum::kOutputCeilingId, 11.0 / 12.0) == "-1.0 dBTP");
         REQUIRE(h.str(::Profundum::kMacroWeightId, 0.5) == "50%");
+    }
+
+    // ==========================================================================
+    // Phase 11 T008 - leaf laws (SC-006, FR-002, FR-003; plan 4.1, 4.3)
+    // ==========================================================================
+
+    SECTION("LeafLawRoundTrip") {
+        for (std::size_t n = 0; n < ::Profundum::kNumLeaves; ++n) {
+            const auto i = static_cast<std::uint8_t>(n);
+            const auto& f = ::Profundum::lawOf(i);
+            if (f.kind != MorphKind::F32) {
+                continue;
+            }
+            CAPTURE(n, f.name);
+            for (int k = 0; k <= 100; ++k) {
+                const double v = static_cast<double>(k) / 100.0;
+                const double plain = ::Profundum::plainFromNormalized(f, v);
+                const double back = ::Profundum::normalizedFromPlain(f, plain);
+                CAPTURE(k, plain, back);
+                REQUIRE(std::abs(back - v) <= 1e-9);
+            }
+            // Exact endpoints (the explicit snaps, independent of pow / log rounding).
+            REQUIRE(::Profundum::plainFromNormalized(f, 0.0) == static_cast<double>(f.lo));
+            REQUIRE(::Profundum::normalizedFromPlain(f, static_cast<double>(f.lo)) == 0.0);
+            REQUIRE(::Profundum::plainFromNormalized(f, 1.0) == static_cast<double>(f.hi));
+            REQUIRE(::Profundum::normalizedFromPlain(f, static_cast<double>(f.hi)) == 1.0);
+        }
+    }
+
+    SECTION("LeafLawBoxes") {
+        int hiOpenRows = 0;
+        for (std::size_t n = 0; n < ::Profundum::kNumLeaves; ++n) {
+            const auto i = static_cast<std::uint8_t>(n);
+            const auto& f = ::Profundum::lawOf(i);
+            if (f.hiOpen) {
+                ++hiOpenRows;
+            }
+            if (f.kind != MorphKind::F32) {
+                continue;
+            }
+            CAPTURE(n, f.name);
+            // The stored plain range equals the table box bitwise (SC-006 last bullet).
+            REQUIRE(::Profundum::leafWordFromNormalized(i, 0.0) == std::bit_cast<std::uint32_t>(f.lo));
+            if (n != 45) {
+                REQUIRE(::Profundum::leafWordFromNormalized(i, 1.0) == std::bit_cast<std::uint32_t>(f.hi));
+            }
+        }
+        // motion.cyclePhaseDeg is the one open box: normalised 1 stores the float just below 360.
+        REQUIRE(::Profundum::lawOf(45).hiOpen);
+        REQUIRE(::Profundum::leafWordFromNormalized(45, 1.0) ==
+                std::bit_cast<std::uint32_t>(std::nextafter(360.0f, 0.0f)));
+        REQUIRE(hiOpenRows == 1);
+    }
+
+    SECTION("ListIndexRoundTrip") {
+        int listLeaves = 0;
+        for (std::size_t n = 0; n < ::Profundum::kNumLeaves; ++n) {
+            const auto i = static_cast<std::uint8_t>(n);
+            const auto& f = ::Profundum::lawOf(i);
+            if (f.kind == MorphKind::F32) {
+                continue;
+            }
+            ++listLeaves;
+            const int maxEnum = static_cast<int>(f.maxEnum);
+            REQUIRE(maxEnum >= 1);
+            for (int k = 0; k <= maxEnum; ++k) {
+                const double v = static_cast<double>(k) / static_cast<double>(maxEnum);
+                CAPTURE(n, f.name, k, v);
+                REQUIRE(::Profundum::indexFromNormalized(v, maxEnum) == k);
+                REQUIRE(::Profundum::leafWordFromNormalized(i, v) == static_cast<std::uint32_t>(k));
+            }
+        }
+        REQUIRE(listLeaves == 16);  // 13 enums + 3 bools (morph_state.h:132)
+    }
+
+    SECTION("DefaultLeafBitsRoundTrip") {
+        // FR-003 / Risk R2: the registered default denormalises to MorphState{} bit-for-bit.
+        for (std::size_t n = 0; n < ::Profundum::kNumLeaves; ++n) {
+            const auto i = static_cast<std::uint8_t>(n);
+            const double d = ::Profundum::defaultNormalizedOf(i);
+            CAPTURE(n, ::Profundum::lawOf(i).name, d);
+            REQUIRE(d >= 0.0);
+            REQUIRE(d <= 1.0);
+            REQUIRE(::Profundum::leafWordFromNormalized(i, d) == ::Profundum::kDefaultLeafBits[n]);
+        }
+    }
+
+    SECTION("LeafBitsVisitor") {
+        REQUIRE(Krate::DSP::detail::morph_state_io::leafBitsEqual(
+            ::Profundum::morphStateFromLeafBits(::Profundum::kDefaultLeafBits), Krate::DSP::MorphState{}));
+
+        Krate::DSP::MorphState s{};
+        s.recipe.depth = 0.25f;
+        s.characterAlgorithm = static_cast<Krate::DSP::BassCharacterStage::Algorithm>(3);
+        s.motion.cycleRetrigger = false;
+        const ::Profundum::LeafBits bits = ::Profundum::leafBitsOf(s);
+        // Non-vacuity: the three edits are visible in the words.
+        REQUIRE(bits[0] == std::bit_cast<std::uint32_t>(0.25f));
+        REQUIRE(bits[11] == 3u);
+        REQUIRE(bits[46] == 0u);
+        REQUIRE(bits != ::Profundum::kDefaultLeafBits);
+        REQUIRE(Krate::DSP::detail::morph_state_io::leafBitsEqual(::Profundum::morphStateFromLeafBits(bits), s));
+        REQUIRE_FALSE(Krate::DSP::detail::morph_state_io::leafBitsEqual(
+            ::Profundum::morphStateFromLeafBits(bits), Krate::DSP::MorphState{}));
+    }
+
+    SECTION("NegativeZeroSnapsToLo") {
+        const double negZero = makeNegZeroD();
+        REQUIRE(std::signbit(negZero));
+        // The plugin never writes -0 into a [0, x] leaf.
+        REQUIRE(::Profundum::leafWordFromNormalized(0, negZero) == std::bit_cast<std::uint32_t>(0.0f));
+    }
+
+    SECTION("SyncRateIndex") {
+        for (int idx = 0; idx < Krate::DSP::kNoteValueDropdownCount; ++idx) {
+            const auto& m = Krate::DSP::kNoteValueDropdownMapping[static_cast<std::size_t>(idx)];
+            CAPTURE(idx);
+            REQUIRE(::Profundum::syncRateIndexOf(static_cast<std::uint8_t>(m.note),
+                                                 static_cast<std::uint8_t>(m.modifier)) == idx);
+        }
+    }
+
+    SECTION("WriteSoundRowSetsFlags") {
+        ::Profundum::EndpointParams ep;
+        REQUIRE(ep.dirty.load(std::memory_order_relaxed));
+        REQUIRE_FALSE(ep.syncPending.load(std::memory_order_relaxed));
+        REQUIRE(ep.load() == ::Profundum::kDefaultLeafBits);
+        ep.dirty.store(false, std::memory_order_relaxed);
+
+        const ::Profundum::SoundParamRow row{.id = ::Profundum::kCoreDepthId,
+                                             .leaf = 0,
+                                             .leaf2 = ::Profundum::kNoLeaf,
+                                             .title = STR16("Depth"),
+                                             .units = STR16("%"),
+                                             .labels = nullptr,
+                                             .labelCount = 0,
+                                             .display = ::Profundum::DisplayUnit::Percent};
+        ::Profundum::writeSoundRow(ep, row, 1.0);
+
+        const ::Profundum::LeafBits after = ep.load();
+        REQUIRE(after[0] == std::bit_cast<std::uint32_t>(::Profundum::lawOf(0).hi));
+        REQUIRE(after[0] != ::Profundum::kDefaultLeafBits[0]);  // non-vacuity: depth's default is 0.5, not hi
+        REQUIRE(ep.dirty.load(std::memory_order_relaxed));
+        REQUIRE(ep.syncPending.load(std::memory_order_relaxed));
+        for (std::size_t n = 1; n < ::Profundum::kNumLeaves; ++n) {
+            CAPTURE(n);
+            REQUIRE(after[n] == ::Profundum::kDefaultLeafBits[n]);
+        }
+    }
+
+    SECTION("RegisteredParamRoundTrip") {
+        // SC-006 parameter arms (T014): the continuous laws of the registered non-leaf parameters (412, 1002, 105,
+        // 4, 6, 7) and of every continuous E row, then every list through the controller's toPlain / toNormalized.
+        struct NamedLaw {
+            ParamID id;
+            ::Profundum::PlainLaw law;
+        };
+        std::vector<NamedLaw> laws{
+            {.id = ::Profundum::kNotePortamentoId, .law = ::Profundum::PlainLaw{.lo = 0.0, .hi = 10000.0, .logOffset = 1.0, .logarithmic = true}},
+            {.id = ::Profundum::kMorphRampTimeId, .law = ::Profundum::PlainLaw{.lo = 5.0, .hi = 2000.0, .logOffset = 0.0, .logarithmic = true}},
+            {.id = ::Profundum::kMorphPositionId, .law = ::Profundum::PlainLaw{.lo = 0.0, .hi = 1.0, .logOffset = 0.0, .logarithmic = false}},
+            {.id = ::Profundum::kPitchBendId, .law = ::Profundum::PlainLaw{.lo = 0.0, .hi = 1.0, .logOffset = 0.0, .logarithmic = false}},
+            {.id = ::Profundum::kModWheelId, .law = ::Profundum::PlainLaw{.lo = 0.0, .hi = 1.0, .logOffset = 0.0, .logarithmic = false}},
+            {.id = ::Profundum::kChannelPressureId, .law = ::Profundum::PlainLaw{.lo = 0.0, .hi = 1.0, .logOffset = 0.0, .logarithmic = false}},
+        };
+        // The packs' own laws are the ones checked (non-vacuity: a drifted pack constant fails here).
+        REQUIRE(::Profundum::kPortamentoLaw.lo == laws[0].law.lo);
+        REQUIRE(::Profundum::kPortamentoLaw.hi == laws[0].law.hi);
+        REQUIRE(::Profundum::kPortamentoLaw.logOffset == laws[0].law.logOffset);
+        REQUIRE(::Profundum::kMorphRampLaw.lo == laws[1].law.lo);
+        REQUIRE(::Profundum::kMorphRampLaw.hi == laws[1].law.hi);
+        int continuousRows = 0;
+        for (const auto& row : ::Profundum::kSoundRows) {
+            const auto& f = ::Profundum::lawOf(row.leaf);
+            if (row.leaf2 != ::Profundum::kNoLeaf || f.kind != MorphKind::F32) {
+                continue;
+            }
+            ++continuousRows;
+            laws.push_back({.id = row.id, .law = ::Profundum::plainLawOf(f)});
+        }
+        // 60 rows minus 12 enum / bool lists and the 2 Sync Rate pairs: the 46 F32 leaves.
+        REQUIRE(continuousRows == 60 - 14);
+
+        const ControllerHandle h;
+        for (const NamedLaw& nl : laws) {
+            CAPTURE(nl.id, nl.law.lo, nl.law.hi, nl.law.logOffset, nl.law.logarithmic);
+            Steinberg::Vst::ParameterInfo info{};
+            REQUIRE(h.ctl->getParameterInfoByTag(nl.id, info) == Steinberg::kResultOk);
+            REQUIRE(info.stepCount == 0);  // continuous
+            for (int k = 0; k <= 100; ++k) {
+                const double v = static_cast<double>(k) / 100.0;
+                const double back =
+                    ::Profundum::normalizedFromPlain(nl.law, ::Profundum::plainFromNormalized(nl.law, v));
+                CAPTURE(k, back);
+                REQUIRE(std::abs(back - v) <= 1e-9);
+            }
+            REQUIRE(::Profundum::normalizedFromPlain(nl.law, nl.law.lo) == 0.0);
+            REQUIRE(::Profundum::normalizedFromPlain(nl.law, nl.law.hi) == 1.0);
+        }
+
+        // Every list (and the stepped Pitch Bend Range): index -> normalised -> index exact.
+        int steppedParams = 0;
+        for (Steinberg::int32 i = 0; i < h.ctl->getParameterCount(); ++i) {
+            Steinberg::Vst::ParameterInfo info{};
+            REQUIRE(h.ctl->getParameterInfo(i, info) == Steinberg::kResultOk);
+            if (info.stepCount <= 0) {
+                continue;
+            }
+            ++steppedParams;
+            for (Steinberg::int32 k = 0; k <= info.stepCount; ++k) {
+                const double n = h.ctl->plainParamToNormalized(info.id, static_cast<double>(k));
+                CAPTURE(info.id, info.stepCount, k, n);
+                REQUIRE(n == static_cast<double>(k) / static_cast<double>(info.stepCount));
+                REQUIRE(h.ctl->normalizedParamToPlain(info.id, n) == static_cast<double>(k));
+            }
+        }
+        // 2 Phase 10 lists + 14 E lists + 6 note lists + Pitch Bend Range + 2 morph-control lists.
+        REQUIRE(steppedParams == 25);
     }
 }

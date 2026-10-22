@@ -200,52 +200,11 @@ public:
     /// values, macros, endpoints and morph target are kept. A changed seed takes effect here (C-19).
     void reset() noexcept {
         morph_.reset();
-        resolveInitialState();
-        appliedSeed_ = seed_;
-        for (std::size_t v = 0; v < kMaxVoices; ++v) {
-            voiceSeeds_[v] = deriveStreamSeed(appliedSeed_, kVoiceSaltBase + v);   // reserved (C-19)
-            voices_[v].reset(state_);
-        }
-        mono_.reset();
-        allocator_.reset();
-        configureAllocator(pending_.polyphony);
-        bend_.reset();
-        motion_.setSeed(deriveStreamSeed(appliedSeed_, kMotionDriftSalt));
-        motion_.reset();
-        field_.setDriftSeed(deriveStreamSeed(appliedSeed_, kFieldDriftSalt));
-        field_.setControls(state_.field);
-        field_.reset();
-        law_.setBase(lawBaseOf(state_));
-        law_.setMass(state_.mass);
-        law_.reset();
-        handDynamicsDirect(law_.currentTargets());
-        dynamics_.reset();
-        dcL_.reset();
-        dcR_.reset();
-        limiter_.reset();
-        snapPostStages();
-        postShape_.reset();
-        postFold_.reset();
-        postChar_.reset();
-
-        applySettings(true);
-
+        resetDependents();
         queueCount_ = 0;
         pendingRelease_.fill(false);
         anyPendingRelease_ = false;
         dropped_ = 0;
-        pos_ = 0;
-        gridPhase_ = 0;
-        dcSynced_ = false;
-        monoActiveNote_ = -1;
-        followsMono_.fill(false);
-        rendering_.fill(false);
-        for (std::array<float, kControlInterval>& a : fResV_)
-            a.fill(0.0f);
-        handedValid_ = false;
-        postHandedValid_ = false;
-        postF0_ = BassStereoField::kDefaultF0Hz;
-        setPostSumActive(false);
     }
 
     /// FR-086: configuration-time. The voices' slots are re-pointed (the PostSum adapter forwards to @p o).
@@ -314,8 +273,15 @@ public:
     [[nodiscard]] std::size_t serializeMorphRuntime(std::byte* dst, std::size_t cap) const noexcept {
         return morph_.serializeRuntime(dst, cap);
     }
+    /// FR-074 (Phase 11, 2026-10-22): a blob restored before any block has rendered since prepare / reset lands
+    /// settled. The dependent state (voices, field, Mass law, dynamics, post stages) is re-snapped from the restored
+    /// resolution as reset() does; the restored morph (target, p, p_a, selections) and queued events are kept.
+    /// Restored mid-stream, the engine transitions as for any setter change.
     [[nodiscard]] bool restoreMorphRuntime(const std::byte* src, std::size_t size) noexcept {
-        return morph_.restoreRuntime(src, size);
+        const bool ok = morph_.restoreRuntime(src, size);
+        if (ok && prepared_ && !renderedSinceReset_)
+            resetDependents();
+        return ok;
     }
 
     // =========================================================================
@@ -427,6 +393,7 @@ public:
             std::fill_n(right, numSamples, 0.0f);
             return;
         }
+        renderedSinceReset_ = true;
         std::size_t i = 0;
         while (i < numSamples) {
             if (gridPhase_ == 0)
@@ -618,6 +585,54 @@ private:
             return;
         observer_->onCall(ProfundumCallRecord{
             .sample = pos_, .voice = kEngineRecordVoice, .call = c, .issued = issued, .value = value});
+    }
+
+    /// reset() without the morph snap and the event queue (FR-074, Phase 11): every state that follows the resolved
+    /// state is re-derived from the morph's current resolution, the timeline restarts, and no block has rendered.
+    void resetDependents() noexcept {
+        resolveInitialState();
+        appliedSeed_ = seed_;
+        for (std::size_t v = 0; v < kMaxVoices; ++v) {
+            voiceSeeds_[v] = deriveStreamSeed(appliedSeed_, kVoiceSaltBase + v);   // reserved (C-19)
+            voices_[v].reset(state_);
+        }
+        mono_.reset();
+        allocator_.reset();
+        configureAllocator(pending_.polyphony);
+        bend_.reset();
+        motion_.setSeed(deriveStreamSeed(appliedSeed_, kMotionDriftSalt));
+        motion_.reset();
+        field_.setDriftSeed(deriveStreamSeed(appliedSeed_, kFieldDriftSalt));
+        field_.setControls(state_.field);
+        field_.reset();
+        law_.setBase(lawBaseOf(state_));
+        law_.setMass(state_.mass);
+        law_.reset();
+        handDynamicsDirect(law_.currentTargets());
+        dynamics_.reset();
+        dcL_.reset();
+        dcR_.reset();
+        limiter_.reset();
+        snapPostStages();
+        postShape_.reset();
+        postFold_.reset();
+        postChar_.reset();
+
+        applySettings(true);
+
+        pos_ = 0;
+        gridPhase_ = 0;
+        dcSynced_ = false;
+        monoActiveNote_ = -1;
+        followsMono_.fill(false);
+        rendering_.fill(false);
+        for (std::array<float, kControlInterval>& a : fResV_)
+            a.fill(0.0f);
+        handedValid_ = false;
+        postHandedValid_ = false;
+        postF0_ = BassStereoField::kDefaultF0Hz;
+        setPostSumActive(false);
+        renderedSinceReset_ = false;
     }
 
     /// The resolved state at the current morph position with the macro offsets (S6.4 step 2).
@@ -1237,6 +1252,7 @@ private:
     ProfundumEngineSeams seams_{};
     ProfundumEngineObserver* observer_ = nullptr;
     bool prepared_ = false;
+    bool renderedSinceReset_ = false;   // FR-074: restoreMorphRuntime re-snaps until the first rendered block
 
     // ---- working state ----
     MorphState state_{};         // the working copy per interval (after macros and Motion)

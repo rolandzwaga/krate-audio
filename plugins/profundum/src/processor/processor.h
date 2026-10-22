@@ -5,7 +5,7 @@
 // ==============================================================================
 // Constitution Principle I: VST3 Architecture Separation. This header includes
 // no controller header; processor and controller share only plugin_ids.h and
-// the two parameters/*.h packs.
+// the parameters/*.h packs.
 //
 // A thin wrapper around Krate::DSP::ProfundumEngine (heap-owned, FR-022): one
 // event input, one stereo output, no audio input (FR-021). The only operation
@@ -16,25 +16,48 @@
 // ==============================================================================
 
 #include "public.sdk/source/vst/vstaudioeffect.h"
+#include "pluginterfaces/base/smartpointer.h"
 #include "pluginterfaces/vst/ivstevents.h"
+#include "pluginterfaces/vst/ivstmessage.h"
 #include "pluginterfaces/vst/ivstparameterchanges.h"
+#include "base/source/timer.h"
 
 #include "parameters/global_params.h"
 #include "parameters/macro_params.h"
+#include "parameters/morph_params.h"
+#include "parameters/note_params.h"
+#include "parameters/performance_params.h"
+#include "parameters/sound_param_row.h"
+
+#include "midi/sustain_latch.h"  // plugins/shared/src/midi/sustain_latch.h (FR-061)
 
 #include <krate/dsp/primitives/smoother.h>
 #include <krate/dsp/systems/profundum_engine.h>
 
 #include <array>
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
 
 namespace Profundum {
 
-class Processor : public Steinberg::Vst::AudioEffect {
+// Phase 11 T020 (plan 4.5.4 - 4.5.6; FR-025, FR-030 - FR-033): the processor is authoritative for both endpoint
+// slots and the compare mode. The audio thread only sets the syncPending / compareSyncPending_ flags;
+// flushControllerSync() sends the changed endpoints and the compare mode on a NON-audio thread: the 50 ms SDK
+// timer (onTimer; Timer::create returns nullptr on Linux, base/source/timer.cpp:346-351) and the ends of notify,
+// setState, getState and setActive. Copy and Compare arrive through notify (kMsgCopyEndpoint / kMsgCompare);
+// kMsgRequestSync is the controller's Edit Target pull.
+class Processor : public Steinberg::Vst::AudioEffect, public Steinberg::ITimerCallback {
 public:
     static constexpr std::size_t kMaxEventsPerBlock = 1024;  // FR-025; 1024 x 8 B = 8 KiB
+    static constexpr Steinberg::uint32 kSyncTimerIntervalMs = 50;  // FR-025 periodic send (Windows / macOS)
+    /// FR-041 (plan 4.5.2): the 20-byte morph runtime blob, carried as five 32-bit seqlock words.
+    using RuntimeBlob = std::array<std::byte, Krate::DSP::BassMorphEngine::kMorphRuntimeBytes>;
+    static constexpr std::size_t kRuntimeWords = Krate::DSP::BassMorphEngine::kMorphRuntimeBytes / 4u;
+    static_assert(kRuntimeWords * 4u == Krate::DSP::BassMorphEngine::kMorphRuntimeBytes,
+                  "the runtime blob is a whole number of 32-bit words");
+    static constexpr int kRuntimeReadTries = 1024;  // getState's bounded seqlock read (plan 4.5.2)
 
     Processor();
     ~Processor() override;
@@ -55,7 +78,16 @@ public:
     Steinberg::uint32 PLUGIN_API getLatencySamples() override;
     Steinberg::tresult PLUGIN_API setState(Steinberg::IBStream* state) override;
     Steinberg::tresult PLUGIN_API getState(Steinberg::IBStream* state) override;
-    // getTailSamples(): NOT overridden (SDK kNoTail; Phase 11 owns it).
+    /// FR-060 (plan 4.5.7): ceil((R_eff + 1250) * fs / 1000) + 64. Reads atomics only; 0 before setupProcessing.
+    Steinberg::uint32 PLUGIN_API getTailSamples() override;
+
+    /// FR-030 / FR-031 / FR-025 (plan 4.5.5): copy, compare and sync-pull requests; anything else -> base.
+    Steinberg::tresult PLUGIN_API notify(Steinberg::Vst::IMessage* message) override;
+    /// FR-025: the 50 ms SDK timer; does nothing but flushControllerSync().
+    void onTimer(Steinberg::Timer* timer) override;
+    /// FR-025 sender (plan 4.5.4). NON-AUDIO threads only (timer, notify, setState, setActive, getState, tests).
+    /// Allocates IMessages; never reached from process(). Sends the PERSISTED slots only (FR-056).
+    void flushControllerSync() noexcept;
 
     // ---- FR-033 test seams: const, allocation-free, never called by process() ----
     [[nodiscard]] const Krate::DSP::ProfundumEngine* engineForTest() const noexcept { return engine_.get(); }
@@ -66,17 +98,66 @@ public:
     }
     [[nodiscard]] std::uint32_t lastSliceCountForTest() const noexcept { return lastSliceCount_; }
 
+    // ---- Phase 11 FR-067 seams (never called by process(), allocation-free) ----
+    void setEngineObserverForTest(Krate::DSP::ProfundumEngineObserver* o) noexcept { engine_->setObserver(o); }
+    /// SC-020: the CPU case drives this processor's own engine directly, so P / D share one instance.
+    [[nodiscard]] Krate::DSP::ProfundumEngine* mutableEngineForTest() noexcept { return engine_.get(); }
+    [[nodiscard]] std::uint32_t endpointRejectionsForTest() const noexcept {
+        return endpointRejections_.load(std::memory_order_relaxed);
+    }
+    /// FR-052: the sustain latch's pedal state. Audio-thread state: read between process() calls on one thread.
+    [[nodiscard]] bool sustainDownForTest() const noexcept { return latch_.isDown(); }
+    /// The stored slot word of @p leaf in endpoint @p e (A or B); 0 for a leaf past the table.
+    [[nodiscard]] std::uint32_t endpointSlotForTest(Krate::DSP::BassMorphEngine::Endpoint e,
+                                                    std::size_t leaf) const noexcept {
+        if (leaf >= kNumLeaves) {
+            return 0u;
+        }
+        const std::size_t idx = (e == Krate::DSP::BassMorphEngine::Endpoint::B) ? 1u : 0u;
+        return endpoints_[idx].leaf[leaf].load(std::memory_order_relaxed);
+    }
+    /// FR-042 (plan 4.5.2): the last loaded blob restoreMorphRuntime accepted. Written by the audio thread;
+    /// read it only after that thread has joined (or between process() calls on one thread).
+    [[nodiscard]] const RuntimeBlob& lastRestoreBlobForTest() const noexcept { return lastRestoreBlob_; }
+    /// FR-042: the number of restoreMorphRuntime calls that returned true. Same threading rule as above.
+    [[nodiscard]] std::uint32_t restoreApplyCountForTest() const noexcept { return restoreApplyCount_; }
+    /// FR-031: the compare mode the processor holds.
+    [[nodiscard]] CompareMode compareModeForTest() const noexcept {
+        return static_cast<CompareMode>(compareMode_.load(std::memory_order_relaxed));
+    }
+    /// FR-025: true while the 50 ms sync timer exists (initialize .. terminate; never on Linux).
+    [[nodiscard]] bool hasSyncTimerForTest() const noexcept { return syncTimer_.get() != nullptr; }
+
 private:
     struct EventSlot {
         std::int32_t offset;     // clamped to [0, numSamples - 1]
         std::int32_t listIndex;  // index into data.inputEvents
     };
+    /// FR-052: one Sustain Pedal point of the current block. offset is the RAW host offset (clamped by process()).
+    struct PedalPoint {
+        std::int32_t offset;
+        bool down;  // value >= 0.5
+    };
+    static constexpr std::size_t kMaxPedalPoints = 128;  // as Vorago processor.h:206; surplus points coalesce
 
+    void applyPendingCopy() noexcept;  // FR-030 (plan 4.5.1 step 2), audio thread
     void processParameterChanges(Steinberg::Vst::IParameterChanges* changes) noexcept;
-    void pushParamsToEngine() noexcept;  // FR-023.5, FR-024.4
+    // FR-052 (Vorago processor.cpp:803-846 semantics): every Sustain Pedal point of the block, applied in order.
+    void collectPedalPoints(Steinberg::Vst::IParamValueQueue* queue) noexcept;
+    void applyPedalPoint(const PedalPoint& p) noexcept;
+    void applyPendingPedalPointsImmediately() noexcept;
+    void routeParamChange(EndpointParams& slot, Steinberg::Vst::ParamID id, double value) noexcept;  // pass 2
+    void applyEndpoints() noexcept;                     // FR-013, FR-055
+    void pushParamsToEngine(CompareMode cmp) noexcept;  // FR-023.5, FR-024.4, FR-014
     std::size_t buildEventOrder(Steinberg::Vst::IEventList* events, std::size_t total) noexcept;
     void dispatchEvent(const Steinberg::Vst::Event& e) noexcept;
     void applyOutputGain(float* outL, float* outR, std::size_t n) noexcept;
+    void publishRuntime() noexcept;                                         // FR-041 writer (audio thread)
+    [[nodiscard]] bool readPublishedRuntime(RuntimeBlob& out) const noexcept;  // FR-041 reader (getState)
+    [[nodiscard]] RuntimeBlob synthesizedRuntimeBlob() const noexcept;      // FR-041 pre-render blob
+    void publishRestore(const RuntimeBlob& blob) noexcept;                  // FR-042 writer (setState only)
+    void applyPendingRestore() noexcept;                                    // FR-042 reader (audio, one try)
+    [[nodiscard]] bool readPendingRestore(RuntimeBlob& out) const noexcept;  // FR-041 precedence 1 (getState)
 
     std::unique_ptr<Krate::DSP::ProfundumEngine> engine_;  // FR-022: heap only
     GlobalParams globalParams_{};
@@ -86,6 +167,41 @@ private:
     bool prepared_ = false;
     std::uint32_t lastSliceCount_ = 0;
     std::array<EventSlot, kMaxEventsPerBlock> eventOrder_{};
+
+    // ---- Phase 11 (plan 4.5) ----
+    std::array<EndpointParams, 2> endpoints_{};  // [A, B]: the authoritative slots (FR-025, FR-040)
+    NoteParams noteParams_{};
+    MorphControlParams morphParams_{};
+    PerformanceParams perfParams_{};
+    std::atomic<std::uint8_t> compareMode_{static_cast<std::uint8_t>(CompareMode::AB)};  // FR-031
+    std::atomic<std::uint32_t> endpointRejections_{0};  // FR-013 / FR-067
+    std::atomic<std::uint32_t> seed_{Krate::DSP::ProfundumEngine::kDefaultSeed};  // FR-043: persisted, not registered
+    std::atomic<bool> compareSyncPending_{false};       // FR-025 / FR-033: report the compare mode
+    std::atomic<bool> clearLatchPending_{false};        // FR-052: setState asks the audio thread to clear the latch
+    // FR-041 runtime blob: a Boehm seqlock with one writer, the audio thread (plan 4.5.2).
+    std::atomic<std::uint32_t> rtSeq_{0};               // even = stable, odd = a write in progress
+    std::array<std::atomic<std::uint32_t>, kRuntimeWords> rtWords_{};
+    std::atomic<bool> rtPublished_{false};
+    // FR-042 restore hand-off, setState -> audio thread: a second seqlock (plan 4.5.2 "Restore hand-off").
+    std::atomic<std::uint32_t> restoreSeq_{0};          // even = stable, odd = a write in progress
+    std::array<std::atomic<std::uint32_t>, kRuntimeWords> restoreWords_{};
+    std::atomic<std::uint32_t> restoreAppliedSeq_{0};   // stored by the audio thread only, at the end of process()
+    std::uint32_t restoreSeenSeq_ = 0;                  // audio only: the sequence consumed so far
+    std::atomic_flag restoreWriterBusy_ = ATOMIC_FLAG_INIT;  // serialises setState writers (non-audio side only)
+    RuntimeBlob lastRestoreBlob_{};                     // audio-written test seam; read after the thread joins
+    std::uint32_t restoreApplyCount_ = 0;               // idem: restoreMorphRuntime calls that returned true
+    float lastPerfOffsetC_ = 0.0f;                      // audio only (FR-055 change detection)
+    // FR-052: the sustain latch (audio thread; setupProcessing / setActive(false) with processing stopped) and this
+    // block's Sustain Pedal points. Fixed-size: no allocation.
+    Krate::Plugins::SustainLatch latch_{};
+    std::array<PedalPoint, kMaxPedalPoints> pedalPoints_{};
+    std::size_t numPedalPoints_ = 0;
+    // FR-025 / FR-030 (plan 4.5, T020)
+    std::atomic<std::int32_t> copyRequest_{-1};         // -1 none, 0 A -> B, 1 B -> A (FR-030)
+    Steinberg::IPtr<Steinberg::Timer> syncTimer_;       // nullptr on Linux (timer.cpp:346-351)
+    std::atomic_flag flushBusy_ = ATOMIC_FLAG_INIT;     // flushControllerSync re-entrancy / cross-thread guard
+    // FR-060 (plan 4.5.7, T022): stored by a successful setupProcessing, cleared by terminate; 0 = no tail.
+    std::atomic<double> tailSampleRate_{0.0};
 };
 
 static_assert(sizeof(Processor) < 64u * 1024u,

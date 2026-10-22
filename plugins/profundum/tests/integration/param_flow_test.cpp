@@ -382,7 +382,7 @@ TEST_CASE("Profundum_ParamFlowReachesEngine", "[profundum][params][audio]") {
         Steinberg::IPtr<Steinberg::MemoryStream> stream = Steinberg::owned(new Steinberg::MemoryStream());
         {
             Steinberg::IBStreamer s(stream, kLittleEndian);
-            REQUIRE(s.writeInt32(::Profundum::kCurrentStateVersion));
+            REQUIRE(s.writeInt32(::Profundum::kStateV1Version));  // a Phase 10 (v1) stream
             REQUIRE(s.writeFloat(1.0f));     // output gain
             REQUIRE(s.writeInt32(1));        // voice mode Poly
             REQUIRE(s.writeInt32(2));        // polyphony

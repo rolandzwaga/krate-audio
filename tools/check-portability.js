@@ -127,6 +127,12 @@ function pluginFlagsFor(file) {
     if (plugin === 'vorago') {
         flags.push('-DVORAGO_PERF_BUDGET_HEADER=\\"dsp/tests/unit/systems/vorago_perf_budget.h\\"');
     }
+    // profundum_tests puts dsp/tests/unit/systems on its include path
+    // (plugins/profundum/tests/CMakeLists.txt) for the read-only stereo-field and
+    // engine test helpers; mirror it or those TUs are skipped (Profundum Phase 11, FR-073).
+    if (plugin === 'profundum') {
+        flags.push('-I dsp/tests/unit/systems');
+    }
     return flags;
 }
 

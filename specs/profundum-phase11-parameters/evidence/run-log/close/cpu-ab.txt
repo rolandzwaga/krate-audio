@@ -1,0 +1,14 @@
+SC-020 CPU A/B (2026-10-22). old.exe = profundum_tests with dsp/ profundum_voice.h + profundum_engine.h at HEAD (565f195d,
+no FR-074); new.exe = with FR-074. Each run alone, 60 s settle, pinned via tools/pin-perf-cores.ps1 (mask 0xFFFF),
+"[performance]" (SC-015 Profundum_ProcessorCpu + SC-020 Profundum_ProcessorCpuFullSurface), 16 trials x 100 blocks.
+
+run        SC-020 POLY pct P / pct D / ratio   MAX-POLY P / D / ratio    AUTO-MONO ratio   SC-015 P-POLY/D-POLY
+old-1      27.06 / 25.87 / 1.046               26.04 / 30.27 / 0.860     0.995             1.023
+new-1      26.52 / 26.66 / 0.995               28.93 / 30.38 / 0.952     1.119             1.047
+old-2      23.84 / 30.19 / 0.790               28.03 / 32.54 / 0.861     0.958             1.149
+new-2      24.04 / 21.65 / 1.110               24.96 / 26.34 / 0.948     1.130             0.963
+
+Reading: old and new are indistinguishable (FR-074 costs nothing measurable). Identical code reads P/D 0.79-1.18 and the
+bare engine POLY 21.7-32.5 %: the 16 x 100-block method's noise floor exceeds the 1.05 ratio bar and straddles the 25 %
+pct bar. Earlier runs the same day: comply (pre-FR-074) POLY 19.1-23.3 %; cpu-lane.log / cpu-lane-r2.log red.
+Unpinned runs (ab-*.log) discarded: up to 1.76x slower on this hybrid part.

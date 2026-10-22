@@ -1,0 +1,215 @@
+pin-perf-cores: performance-core mask 0xFFFF
+Filters: [performance],[perf],[.perf] [.perf],[benchmark],[!benchmark],[long] ~[vorago-sweep]
+Randomness seeded to: 1167031280
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+profundum_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+Profundum_ProcessorCpu
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(214)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(274): warning:
+  SC-015 last warm-up block peak: P-MONO 0.17128, P-POLY 0.452991, P-MAX-MONO
+  0.297774, P-MAX-POLY 0.584921, D-MONO 0.17128, D-POLY 0.452991
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(312): warning:
+  SC-015 best ns per 10 blocks (512 @ 48 kHz, real time 1.06667e+08 ns): P-MONO
+  2.5346e+06, D-MONO 2.5619e+06, P-POLY 7.3934e+06, D-POLY 7.3609e+06, P-MAX-
+  MONO 4.8055e+06, P-MAX-POLY 1.64247e+07
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(313): warning:
+  SC-015 pct P-MONO = 2.37619 % (bar <= 8)
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(314): warning:
+  SC-015 pct P-POLY = 6.93131 % (bar <= 25)
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(315): warning:
+  SC-015 pct D-MONO = 2.40178 %, pct D-POLY = 6.90084 % (recorded)
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(317): warning:
+  SC-015 ratio P-MONO / D-MONO = 0.989344 (bar <= 1.05)
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(319): warning:
+  SC-015 ratio P-POLY / D-POLY = 1.00442 (bar <= 1.05)
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(321): warning:
+  SC-015 pct P-MAX-MONO (all four macros 1.0) = 4.50516 % (bar <= 8, Q-A gated)
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(323): warning:
+  SC-015 pct P-MAX-POLY (all four macros 1.0) = 15.3982 % (bar <= 25, Q-A
+  gated)
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(326): warning:
+  Phase 9 reference MONO 7.5798 % / POLY4 24.005 %: showcase setting, not
+  comparable (P-1)
+
+-------------------------------------------------------------------------------
+Profundum_ProcessorCpuFullSurface
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(573)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(676): warning:
+  SC-020 last warm-up block peak MONO: P 0.305783, D 0.236861
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(676): warning:
+  SC-020 last warm-up block peak POLY: P 0.575272, D 0.530707
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(676): warning:
+  SC-020 last warm-up block peak MAX-MONO: P 0.415935, D 0.443597
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(676): warning:
+  SC-020 last warm-up block peak MAX-POLY: P 0.623995, D 0.816692
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(676): warning:
+  SC-020 last warm-up block peak AUTO-MONO: P 0.29702, D 0.221554
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(676): warning:
+  SC-020 last warm-up block peak AUTO-POLY: P 0.582879, D 0.502392
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(676): warning:
+  SC-020 last warm-up block peak AUTO-MAX-MONO: P 0.406553, D 0.422334
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(676): warning:
+  SC-020 last warm-up block peak AUTO-MAX-POLY: P 0.623328, D 0.884799
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(696): warning:
+  SC-020 real time per 10 blocks (512 @ 48 kHz) = 1.06667e+08 ns
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(704): warning:
+  SC-020 MONO: best ns P 4.5876e+06, D (same engine) 4.6408e+06, D (separate
+  engine) 4.7178e+06; pct P = 4.30087 % (bar <= 8), pct D separate = 4.42294 %
+  (recorded); ratio P / D = 0.988536 (bar <= 1.05)
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(704): warning:
+  SC-020 POLY: best ns P 1.55504e+07, D (same engine) 1.52478e+07, D (separate
+  engine) 1.57715e+07; pct P = 14.5785 % (bar <= 25), pct D separate = 14.7858
+  % (recorded); ratio P / D = 1.01985 (bar <= 1.05)
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(704): warning:
+  SC-020 MAX-MONO: best ns P 5.179e+06, D (same engine) 5.2366e+06, D (separate
+  engine) 5.0084e+06; pct P = 4.85531 % (bar <= 8), pct D separate = 4.69537 %
+  (recorded); ratio P / D = 0.989 (bar <= 1.05)
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(704): warning:
+  SC-020 MAX-POLY: best ns P 1.76723e+07, D (same engine) 1.79444e+07, D
+  (separate engine) 1.77202e+07; pct P = 16.5678 % (bar <= 25), pct D separate
+  = 16.6127 % (recorded); ratio P / D = 0.984836 (bar <= 1.05)
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(704): warning:
+  SC-020 AUTO-MONO: best ns P 4.548e+06, D (same engine) 4.5982e+06, D
+  (separate engine) 4.6424e+06; pct P = 4.26375 % (bar <= 8), pct D separate =
+  4.35225 % (recorded); ratio P / D = 0.989083 (bar <= 1.05)
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(704): warning:
+  SC-020 AUTO-POLY: best ns P 1.60196e+07, D (same engine) 1.58097e+07, D
+  (separate engine) 1.56236e+07; pct P = 15.0184 % (bar <= 25), pct D separate
+  = 14.6471 % (recorded); ratio P / D = 1.01328 (bar <= 1.05)
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(704): warning:
+  SC-020 AUTO-MAX-MONO: best ns P 5.1432e+06, D (same engine) 5.1008e+06, D
+  (separate engine) 5.1725e+06; pct P = 4.82175 % (bar <= 8), pct D separate =
+  4.84922 % (recorded); ratio P / D = 1.00831 (bar <= 1.05)
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(704): warning:
+  SC-020 AUTO-MAX-POLY: best ns P 1.78947e+07, D (same engine) 1.81111e+07, D
+  (separate engine) 1.76104e+07; pct P = 16.7763 % (bar <= 25), pct D separate
+  = 16.5097 % (recorded); ratio P / D = 0.988052 (bar <= 1.05)
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(712): warning:
+  SC-020 MONO: control S2 / S (same D path twice) = 1.00776 (valid within [0.
+  952381, 1.05])
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(712): warning:
+  SC-020 POLY: control S2 / S (same D path twice) = 1.00911 (valid within [0.
+  952381, 1.05])
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(712): warning:
+  SC-020 MAX-MONO: control S2 / S (same D path twice) = 0.958313 (valid within
+  [0.952381, 1.05])
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(712): warning:
+  SC-020 MAX-POLY: control S2 / S (same D path twice) = 0.985227 (valid within
+  [0.952381, 1.05])
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(712): warning:
+  SC-020 AUTO-MONO: control S2 / S (same D path twice) = 1.00916 (valid within
+  [0.952381, 1.05])
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(712): warning:
+  SC-020 AUTO-POLY: control S2 / S (same D path twice) = 0.996597 (valid within
+  [0.952381, 1.05])
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(712): warning:
+  SC-020 AUTO-MAX-MONO: control S2 / S (same D path twice) = 1.00353 (valid
+  within [0.952381, 1.05])
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(712): warning:
+  SC-020 AUTO-MAX-POLY: control S2 / S (same D path twice) = 0.975071 (valid
+  within [0.952381, 1.05])
+
+-------------------------------------------------------------------------------
+Profundum_StateRestoreRender
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\integration\state_restore_render_test.cpp(94)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\integration\state_restore_render_test.cpp(174): warning:
+  SC-011 band-level difference (aggregate, [100 ms, 2.1 s)): 0.0178014 dB (bar
+  0.1 dB)
+
+AT-27,E1,"dL_K = L_K(dyn) - L_K(Sum) (dB)","dynL/R and sumL/R",3.51596,3.51596,3.51596,3,"L_K output (dB): -18.8379 -> -13.6453",PASS
+AT-27,C3,"dL_K = L_K(dyn) - L_K(Sum) (dB)","dynL/R and sumL/R",4.01259,4.01259,4.01259,3,"L_K output (dB): -12.9436 -> -11.3202",PASS
+AT-01,E1,"D_nl (dB)","Char / twin",29.3673,29.3673,29.3673,3,"L_K output (dB): -12.0432 -> -11.834",PASS
+AT-01,C3,"D_nl (dB)","Char / twin",29.4025,29.4025,29.4025,3,"L_K output (dB): -7.34931 -> -7.22205",PASS
+AT-10,E1,"E_sub (dB)","sumL/R",5.94809,5.94809,5.94809,2,"E_sub output (dB): -11.9804 -> -6.03327",PASS
+AT-10,C3,"E_sub (dB)","sumL/R",5.92968,5.92968,5.92968,2,"E_sub output (dB): -11.926 -> -5.99733",PASS
+AT-11,E1,"E_sub over [0, punchTimeMs) (dB; LS fit)","sumL/R",2.08853,2.08853,2.08853,2,"E_sub output, same window (dB): -3.90521 -> -4.37305",PASS
+AT-11,C3,"E_sub over [0, punchTimeMs) (dB; LS fit)","sumL/R",2.03878,2.03878,2.03878,2,"E_sub output, same window (dB): -4.29641 -> -5.35114",PASS
+AT-21,E1,"alpha (mean d over [0, N] / A)","fCore / fRes voice 0",0.755316,0.755316,0.755316,0.1,"L_K output short (dB): -12.0449 -> -12.0443",PASS
+AT-21,C3,"alpha (mean d over [0, N] / A)","fCore / fRes voice 0",0.767995,0.767995,0.767995,0.1,"L_K output short (dB): -7.34588 -> -7.34605",PASS
+AT-23,E1,"t_50 ratio (samples)","fRes voice 0",287.344,287.344,287.344,2,"L_K output short (dB): -8.87114 -> -9.08858",PASS
+AT-23,C3,"t_50 ratio (samples)","fRes voice 0",287.219,287.219,287.219,2,"L_K output short (dB): -6.95915 -> -6.98893",PASS
+AT-25,E1,"D_t release reading ratio (ms)","sumL/R",38.1903,38.1903,38.1903,2,"D_t output release (ms): 40.022 -> 1454.49",PASS
+AT-25,C3,"D_t release reading ratio (ms)","sumL/R",40.3031,40.3031,40.3031,2,"D_t output release (ms): 38.2613 -> 1452.95",PASS
+AT-43,E1,"core-h1 phase jump (deg)","coreL/R",177.667,177.667,177.667,30,"L_K output short (dB): -10.9562 -> -11.0899",PASS
+AT-43,C3,"core-h1 phase jump (deg)","coreL/R",167.525,167.525,167.525,30,"L_K output short (dB): -7.2789 -> -7.31825",PASS
+AT-03,E1,"D_nl (dB)","Char / twin",47.6755,47.6755,47.6755,3,"L_K output (dB): -12.0432 -> -14.0502",PASS
+AT-03,C3,"D_nl (dB)","Char / twin",47.6593,47.6593,47.6593,3,"L_K output (dB): -7.3493 -> -10.2671",PASS
+AT-02,E1,"D_br (oct)","sumL/R",2.47299,2.47299,2.47299,0.25,"D_br output (oct): 1.37971 -> 3.84347",PASS
+AT-02,C3,"D_br (oct)","sumL/R",0.378903,0.378903,0.378903,0.25,"D_br output (oct): 0.899769 -> 1.28208",PASS
+AT-05,E1,"D_nl (dB)","Char / twin",6.50986,6.50986,6.50986,3,"L_K output (dB): -12.0432 -> -11.5414",PASS
+AT-05,C3,"D_nl (dB)","Char / twin",6.49428,6.49428,6.49428,3,"L_K output (dB): -7.3493 -> -7.06457",PASS
+AT-28,E1,"onset ratio (dB)","dynL/R",10.4185,10.4185,10.4185,3,"onset ratio output (dB): 9.79646 -> 9.80638",PASS
+AT-28,C3,"onset ratio (dB)","dynL/R",10.6639,10.6639,10.6639,3,"onset ratio output (dB): 10.0746 -> 10.2356",PASS
+AT-33,E1,"frame-wise D_st p2p (dB; G8-1)","fieldL/R",16.3826,16.3826,16.3826,3,"frame-wise D_st p2p output (dB): 0.00574777 -> 16.3433",PASS
+AT-33,C3,"frame-wise D_st p2p (dB; G8-1)","fieldL/R",11.2431,11.2431,11.2431,3,"frame-wise D_st p2p output (dB): 3.21831 -> 14.7708",PASS
+AT-38,E1,"frame-wise D_br p2p (oct)","sumL/R",0.299477,0.299477,0.299477,0.25,"frame-wise D_br p2p output (oct): 0.00216681 -> 0.305912",PASS
+AT-38,C3,"frame-wise D_br p2p (oct)","sumL/R",0.303864,0.303864,0.303864,0.25,"frame-wise D_br p2p output (oct): 0.0110474 -> 0.30992",PASS
+AT-42,E1,"D_nl (dB)","Char / twin",8.15013,8.15013,8.15013,3,"L_K output (dB): -12.0432 -> -15.1442",PASS
+AT-42,C3,"D_nl (dB)","Char / twin",6.72976,6.72976,6.72976,3,"L_K output (dB): -7.3493 -> -10.059",PASS
+Profundum_MassOffsetAudibility position 0: dL_K lo 2.04942 hi -1.46653 value 3.51596 bar 3
+Profundum_MassOffsetAudibility position 0.5: dL_K lo 2.04942 hi -2.03139 value 4.08081 bar 3
+Profundum_MassOffsetAudibility position 1: dL_K lo 2.04942 hi -2.55375 value 4.60318 bar 3
+Profundum_MassOffsetAudibility wall clock 2.49791 s
+SC-019,SOLID,MONO,field,fc_hz,128.101,sub_in_band,1,valid,1,q_sub_db,0,rho_sub,1,s2m_db,-120,gated,1
+SC-019,SOLID,MONO,out,fc_hz,128.101,sub_in_band,1,valid,1,q_sub_db,0,rho_sub,1,s2m_db,-120,gated,1
+SC-019,SOLID,POLY4,field,fc_hz,128.101,sub_in_band,1,valid,1,q_sub_db,0,rho_sub,1,s2m_db,-120,gated,1
+SC-019,SOLID,POLY4,out,fc_hz,128.101,sub_in_band,1,valid,1,q_sub_db,0,rho_sub,1,s2m_db,-120,gated,1
+SC-019,SPREAD,MONO,field,fc_hz,128.101,sub_in_band,1,valid,1,q_sub_db,-1.16201e-12,rho_sub,1,s2m_db,-120,gated,1
+SC-019,SPREAD,MONO,out,fc_hz,128.101,sub_in_band,1,valid,1,q_sub_db,-1.81631e-12,rho_sub,1,s2m_db,-120,gated,1
+SC-019,SPREAD,POLY4,field,fc_hz,128.101,sub_in_band,1,valid,1,q_sub_db,-4.20881e-12,rho_sub,1,s2m_db,-120,gated,1
+SC-019,SPREAD,POLY4,out,fc_hz,128.101,sub_in_band,1,valid,1,q_sub_db,-5.83948e-12,rho_sub,1,s2m_db,-118.714,gated,1
+SC-019,WIDE,MONO,field,fc_hz,128.101,sub_in_band,1,valid,1,q_sub_db,-3.91569e-05,rho_sub,0.999984,s2m_db,-50.4497,gated,1
+SC-019,WIDE,MONO,out,fc_hz,128.101,sub_in_band,1,valid,1,q_sub_db,-3.95596e-05,rho_sub,0.999984,s2m_db,-50.4053,gated,1
+SC-019,WIDE,POLY4,field,fc_hz,128.101,sub_in_band,1,valid,1,q_sub_db,-2.01762e-05,rho_sub,0.999993,s2m_db,-53.3294,gated,1
+SC-019,WIDE,POLY4,out,fc_hz,128.101,sub_in_band,1,valid,1,q_sub_db,-2.04404e-05,rho_sub,0.999993,s2m_db,-53.2729,gated,1
+No test cases matched '[benchmark]'
+No test cases matched '[!benchmark]'
+===============================================================================
+All tests passed (2093714 assertions in 7 test cases)
+

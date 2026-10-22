@@ -1,0 +1,32 @@
+T032 — Portability (SC-001) — run 2026-10-22, once, Git Bash, unsandboxed
+Script: specs/profundum-phase11-parameters/evidence/close/portability.sh  (bash -n: SYNTAX OK)
+Full log: specs/profundum-phase11-parameters/evidence/run-log/close/portability.log
+Wall clock: 84 s total (check-portability 78 s, lint-apple-globals 0 s, then wsl --shutdown); 300 s ceiling not hit.
+
+VERDICT: PORTABILITY RED ( check-portability=not-all-clear-20 )
+
+.cpp list (git diff --name-only 565f195d UNION untracked, \.cpp$): 20 files; identical to the tasks.md T032 step-1 list.
+
+check-portability (quoted):
+  OK  18 TUs (controller.cpp, processor.cpp, band_level_metric_test, copy_compare_test, determinism_test, param_flow_test,
+      param_wiring_test, processor_cpu_test, state_restore_render_test, tail_test, lifecycle_test, midi_mapping_test,
+      param_denorm_test, param_table_test, phase11_alloc_test, state_roundtrip_test, state_v2_test, test_sustain_latch)
+  skip    plugins/profundum/tests/integration/mono_sum_params_test.cpp  (bass_stereo_field_test_helpers.h: No such file or directory)
+  skip    plugins/profundum/tests/integration/param_path_audibility_test.cpp  (bass_stereo_field_test_helpers.h: No such file or directory)
+  check-portability: all clear -- 18 compiled, 2 skipped.
+  check-portability exit=0 wall=78s
+
+lint-apple-globals (quoted):
+  lint-apple-globals: OK — 40 files, no macOS-only name collisions
+  lint-apple-globals exit=0 wall=0s
+
+Root cause of the 2 skips (a tool include-set gap, not a source defect):
+  - The header is dsp/tests/unit/systems/bass_stereo_field_test_helpers.h. profundum_tests puts that directory on its include
+    path (plugins/profundum/tests/CMakeLists.txt:69, "read-only Phase 9 test helpers ... FR-070 forbids edits, not includes").
+  - tools/check-portability.js pluginFlagsFor() (lines 106-131) gives a plugin TU only -I plugins/<p>/src and -I plugins/<p>/tests
+    plus the global INCLUDES (lines 39-50: '.', dsp/include, dsp/tests, dsp/tests/test_helpers, tests, ...); dsp/tests/unit/systems
+    is not among them, and the CLI takes no extra -I (main(), lines 289-292: only file args and one --mode).
+  - Vorago hit the same class and the tool was amended with a vorago-only flag (lines 122-130).
+
+Not fixed here: the fix is in tools/check-portability.js, outside T032's file list and outside the T030 scope-fence allow-list
+(plugins/profundum/**, the sustain_latch files, the two shared CMake lists, specs/...). Decision needed — see the agent's notes.

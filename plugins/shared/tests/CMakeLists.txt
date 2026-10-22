@@ -24,6 +24,7 @@ add_executable(shared_tests
     test_oscillator_type_selector.cpp
     test_lfo_shape_selector.cpp
     test_midi_event_dispatcher.cpp
+    test_sustain_latch.cpp
     test_version_compare.cpp
     test_update_checker.cpp
     test_shared_display_bridge.cpp

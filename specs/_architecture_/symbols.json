@@ -849,7 +849,7 @@
       "scope": "Krate::DSP::ProfundumEngine",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/profundum_engine.h",
-      "line": 482
+      "line": 449
     },
     {
       "name": "EarlyTap",
@@ -2401,7 +2401,7 @@
       "scope": "Krate::DSP::ProfundumEngine",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/profundum_engine.h",
-      "line": 491
+      "line": 458
     },
     {
       "name": "PostSumTap",
@@ -2409,7 +2409,7 @@
       "scope": "Krate::DSP::ProfundumEngine",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/profundum_engine.h",
-      "line": 503
+      "line": 470
     },
     {
       "name": "PredictorCache",
@@ -2633,7 +2633,7 @@
       "scope": "Krate::DSP::ProfundumEngine",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/profundum_engine.h",
-      "line": 476
+      "line": 443
     },
     {
       "name": "RampLaw",
@@ -3065,7 +3065,7 @@
       "scope": "Krate::DSP::ProfundumEngine",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/profundum_engine.h",
-      "line": 460
+      "line": 427
     },
     {
       "name": "ShapedRamp",
