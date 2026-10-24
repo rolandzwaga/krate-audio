@@ -63,7 +63,8 @@ constexpr std::size_t kBlock = 512;
 constexpr double kFs = 48000.0;
 
 [[nodiscard]] RuntimeBlob blobOf(const StateBytes& b) {
-    REQUIRE(b.size() == ::Profundum::kStateV2Bytes);
+    // P-2 (Phase 12 T019): reads bytes [490, 510) of a getState stream (v3 since Phase 12) or a genuine v2 stream.
+    REQUIRE((b.size() == ::Profundum::kStateV2Bytes || b.size() == ::Profundum::kStateV3Bytes));
     RuntimeBlob r{};
     std::memcpy(r.data(), b.data() + ::Profundum::kStateRuntimeOffset, r.size());
     return r;
@@ -218,7 +219,8 @@ struct Field {
 
 /// @p bytes (a v2 stream) with its runtime blob replaced by @p blob.
 [[nodiscard]] StateBytes withBlob(StateBytes bytes, const RuntimeBlob& blob) {
-    REQUIRE(bytes.size() == ::Profundum::kStateV2Bytes);
+    // P-2 (Phase 12 T019): patches bytes [490, 510) of a v2 or v3 stream (same offsets in both).
+    REQUIRE((bytes.size() == ::Profundum::kStateV2Bytes || bytes.size() == ::Profundum::kStateV3Bytes));
     std::memcpy(bytes.data() + ::Profundum::kStateRuntimeOffset, blob.data(), blob.size());
     return bytes;
 }
@@ -413,7 +415,7 @@ TEST_CASE("Profundum_StateVersions", "[profundum][state]") {
         ProcessorFixture p;
         makePriorStateP(p);
         const StateBytes prior = writeV2Stream(*p.proc);
-        REQUIRE(prior.size() == kStateV2Bytes);
+        REQUIRE(prior.size() == kStateV3Bytes);
 
         const V1Globals g{.gain = 0.3f, .voiceMode = 1, .polyphony = 3, .ceilingDb = -2.0f};
         const std::array<float, 4> macros{0.15f, 0.25f, 0.35f, 0.45f};
@@ -456,7 +458,7 @@ TEST_CASE("Profundum_StateVersions", "[profundum][state]") {
         CHECK(static_cast<int>(e->anchorMorphMode()) == kDefaultAnchorMorphModeIndex);
 
         const StateBytes after = writeV2Stream(*p.proc);
-        REQUIRE(after.size() == kStateV2Bytes);
+        REQUIRE(after.size() == kStateV3Bytes);
         CHECK(readU32(after, kV2MorphAt + 12u) == static_cast<std::uint32_t>(kDefaultEditTarget));  // Edit Target A
         CHECK(readU32(after, kV2SeedAt) == Krate::DSP::ProfundumEngine::kDefaultSeed);           // LE seed
 
@@ -467,7 +469,7 @@ TEST_CASE("Profundum_StateVersions", "[profundum][state]") {
         REQUIRE(loadStateBytes(*q.proc, v1) == Steinberg::kResultOk);
         renderBlock(q);
         const StateBytes fresh = writeV2Stream(*q.proc);
-        REQUIRE(fresh.size() == kStateV2Bytes);
+        REQUIRE(fresh.size() == kStateV3Bytes);
         // Teeth: P held non-default Phase 11 fields before the load.
         REQUIRE(firstMismatch(prior, fresh, kV2NoteAt, kStateRuntimeOffset) != kStateRuntimeOffset);
         const std::size_t mismatch = firstMismatch(after, fresh, 0, kStateRuntimeOffset);
@@ -480,7 +482,7 @@ TEST_CASE("Profundum_StateVersions", "[profundum][state]") {
         const StateBytes s = withFields(withEndpoints(writeV2Stream(*source.proc), randomValidMorphState(0x13Au),
                                                       randomValidMorphState(0x13Bu)),
                                         fieldsS());
-        REQUIRE(s.size() == kStateV2Bytes);
+        REQUIRE(s.size() == kStateV3Bytes);
         const std::vector<Field> fields = fieldsBeforeBlob();
 
         // Teeth: S differs from P in every field but the version word.
@@ -504,7 +506,7 @@ TEST_CASE("Profundum_StateVersions", "[profundum][state]") {
             ProcessorFixture p;
             makePriorStateP(p);
             const StateBytes before = writeV2Stream(*p.proc);
-            REQUIRE(before.size() == kStateV2Bytes);
+            REQUIRE(before.size() == kStateV3Bytes);
             const std::uint32_t appliedBefore = p.proc->restoreApplyCountForTest();
 
             const StateBytes cut(s.begin(), s.begin() + static_cast<std::ptrdiff_t>(k));
@@ -519,7 +521,7 @@ TEST_CASE("Profundum_StateVersions", "[profundum][state]") {
                 }
             }
             const StateBytes after = writeV2Stream(*p.proc);
-            REQUIRE(after.size() == kStateV2Bytes);
+            REQUIRE(after.size() == kStateV3Bytes);
             const std::size_t mismatch = firstMismatch(after, expected, 0, kStateRuntimeOffset);
             CAPTURE(mismatch);
             CHECK(mismatch == kStateRuntimeOffset);
@@ -559,7 +561,7 @@ TEST_CASE("Profundum_StateVersions", "[profundum][state]") {
             renderBlock(source);
         }
         const StateBytes s = writeV2Stream(*source.proc);
-        REQUIRE(s.size() == kStateV2Bytes);
+        REQUIRE(s.size() == kStateV3Bytes);
         const RuntimeBlob sBlob = blobOf(s);
         REQUIRE(floatAt(sBlob, kRtTargetOffset) == fieldsS().position);
         REQUIRE(bitsAt(sBlob, kRtPositionOffset) != bitsAt(sBlob, kRtTargetOffset));  // saved mid-ramp: p != target
@@ -571,11 +573,11 @@ TEST_CASE("Profundum_StateVersions", "[profundum][state]") {
 
         // Before any block: getState writes the loaded blob (precedence 1), so load-then-save is byte-stable.
         const StateBytes pending = writeV2Stream(*p.proc);
-        REQUIRE(pending.size() == kStateV2Bytes);
+        REQUIRE(pending.size() == kStateV3Bytes);
         CHECK(sameBlob(blobOf(pending), sBlob));
-        const std::size_t mismatch = firstMismatch(pending, s, 0, kStateV2Bytes);
+        const std::size_t mismatch = firstMismatch(pending, s, 0, kStateV3Bytes);
         CAPTURE(mismatch);
-        CHECK(mismatch == kStateV2Bytes);
+        CHECK(mismatch == kStateV3Bytes);
 
         // One block applies it (plan 4.5.1 step 9).
         renderBlock(p);
@@ -615,7 +617,7 @@ TEST_CASE("Profundum_StateVersions", "[profundum][state]") {
             REQUIRE(fx.processNoOutputs(&pc) == Steinberg::kResultOk);  // parameters only: nothing renders
 
             const StateBytes st = writeV2Stream(*fx.proc);
-            REQUIRE(st.size() == kStateV2Bytes);
+            REQUIRE(st.size() == kStateV3Bytes);
             const float pos = std::bit_cast<float>(readU32(st, kV2MorphAt));
             const float ramp = std::bit_cast<float>(readU32(st, kV2MorphAt + 4u));
             CHECK(pos == 0.7f);
@@ -750,7 +752,7 @@ TEST_CASE("Profundum_StateVersions", "[profundum][state]") {
         const StateBytes s = withFields(withEndpoints(writeV2Stream(*source.proc), randomValidMorphState(0x13Au),
                                                       randomValidMorphState(0x13Bu)),
                                         fieldsS());
-        REQUIRE(s.size() == kStateV2Bytes);
+        REQUIRE(s.size() == kStateV3Bytes);
         const std::vector<Field> fields = fieldsBeforeBlob();
         // Teeth: S differs from P in every displayed field and in both endpoints.
         for (const Steinberg::Vst::ParamID id : kNoteMorphIds) {
@@ -861,7 +863,7 @@ TEST_CASE("Profundum_StateRoundTripV2", "[profundum][state]") {
         src.renderScript(std::span<const ProcessorFixture::ScriptedEvent>(&toHalf, 1), 96000u, kBlock);
 
         const StateBytes saved = writeV2Stream(*src.proc);
-        REQUIRE(saved.size() == kStateV2Bytes);
+        REQUIRE(saved.size() == kStateV3Bytes);
         const RuntimeBlob savedBlob = blobOf(saved);
         REQUIRE(floatAt(savedBlob, kRtTargetOffset) == 0.5f);
         REQUIRE(floatAt(savedBlob, kRtPositionOffset) == 0.5f);  // settled
@@ -874,11 +876,11 @@ TEST_CASE("Profundum_StateRoundTripV2", "[profundum][state]") {
         renderBlock(dst);
 
         const StateBytes again = writeV2Stream(*dst.proc);
-        REQUIRE(again.size() == kStateV2Bytes);
-        const std::size_t mismatch = firstMismatch(again, saved, 0, kStateV2Bytes);
+        REQUIRE(again.size() == kStateV3Bytes);
+        const std::size_t mismatch = firstMismatch(again, saved, 0, kStateV3Bytes);
         CAPTURE(mismatch);
-        CHECK(mismatch == kStateV2Bytes);
-        CHECK(std::memcmp(again.data(), saved.data(), kStateV2Bytes) == 0);
+        CHECK(mismatch == kStateV3Bytes);
+        CHECK(std::memcmp(again.data(), saved.data(), kStateV3Bytes) == 0);
         CHECK(Krate::DSP::detail::morph_state_io::leafBitsEqual(dst.engine()->getEndpoint(Endpoint::A), a));
         CHECK(Krate::DSP::detail::morph_state_io::leafBitsEqual(dst.engine()->getEndpoint(Endpoint::B), b));
         CHECK(dst.engine()->morphPosition() == src.engine()->morphPosition());
@@ -915,7 +917,7 @@ TEST_CASE("Profundum_StateRoundTripV2", "[profundum][state]") {
         toHalf.value = 0.5;
         src.renderScript(std::span<const ProcessorFixture::ScriptedEvent>(&toHalf, 1), 96000u, kBlock);
         const StateBytes saved = writeV2Stream(*src.proc);
-        REQUIRE(saved.size() == kStateV2Bytes);
+        REQUIRE(saved.size() == kStateV3Bytes);
 
         ControllerFixture cf;
         dirtyHidden(*cf.controller);
@@ -953,7 +955,7 @@ TEST_CASE("Profundum_StateRoundTripV2", "[profundum][state]") {
                 renderBlock(src);
             }
             const StateBytes saved = writeV2Stream(*src.proc);
-            REQUIRE(saved.size() == kStateV2Bytes);
+            REQUIRE(saved.size() == kStateV3Bytes);
             CHECK(readU32(saved, kV2MorphAt) == 0u);  // the stored position's bits are +0
             CHECK(bitsAt(blobOf(saved), kRtTargetOffset) == 0u);
 
@@ -964,8 +966,8 @@ TEST_CASE("Profundum_StateRoundTripV2", "[profundum][state]") {
             renderBlock(dst);
             CHECK(dst.proc->restoreApplyCountForTest() == 1u);
             const StateBytes again = writeV2Stream(*dst.proc);
-            REQUIRE(again.size() == kStateV2Bytes);
-            CHECK(firstMismatch(again, saved, 0, kStateV2Bytes) == kStateV2Bytes);
+            REQUIRE(again.size() == kStateV3Bytes);
+            CHECK(firstMismatch(again, saved, 0, kStateV3Bytes) == kStateV3Bytes);
 
             // The same value hand-written into bytes 68-71 of the stream gives the same result.
             StateBytes hand = saved;
@@ -977,8 +979,8 @@ TEST_CASE("Profundum_StateRoundTripV2", "[profundum][state]") {
             renderBlock(dst2);
             CHECK(dst2.proc->restoreApplyCountForTest() == 1u);
             const StateBytes again2 = writeV2Stream(*dst2.proc);
-            REQUIRE(again2.size() == kStateV2Bytes);
-            CHECK(firstMismatch(again2, saved, 0, kStateV2Bytes) == kStateV2Bytes);
+            REQUIRE(again2.size() == kStateV3Bytes);
+            CHECK(firstMismatch(again2, saved, 0, kStateV3Bytes) == kStateV3Bytes);
         }
     }
 }

@@ -17,9 +17,14 @@
 //   P-MAX-MONO / P-MAX-POLY as P-MONO / P-POLY with all four macro points at 1.0
 //                           in the warm-up block (P-1, GATED: user ruling Q-A
 //                           2026-10-22).
+//   P-ON-MONO / P-ON-POLY   Phase 12 T032 (SC-013, FR-075): the P-MONO / P-POLY
+//                           instance itself with setSpectrumProducerEnabledForTest(true)
+//                           set for its timed blocks only (the seam arm: the
+//                           producer runs with no open queue). Same bars, same
+//                           P / D ratio ceiling against D-MONO / D-POLY.
 //
-// All six arms run in ONE interleaved trial loop, each P / D pair in flipped order
-// on odd trials. best_X = the minimum over trials of ns per kBlocksPerTrial blocks;
+// All eight arms run in ONE interleaved trial loop, each P / P-ON / D triple in
+// flipped order on odd trials. best_X = the minimum over trials of ns per kBlocksPerTrial blocks;
 // pct_X = best_X / (kBlocksPerTrial x 512 / 48000 x 1e9) x 100. Short trials, many
 // of them (Phase 11 SC-020 ruling, 2026-10-22): 16 x 100-block trials read identical
 // code from 0.79 to 1.18 P / D on this machine.
@@ -209,6 +214,27 @@ void timeArm(Arm& arm, double& best) {
     best = std::min(best, elapsedNs(t0, t1));
 }
 
+// Phase 12 T032 (SC-013): one producer-on trial of @p arm, on @p proc (the processor @p arm drives). The seam is
+// set between process() calls, outside the timed window, and cleared again so the producer-off twin stays off.
+template <typename Arm>
+void timeArmProducerOn(Arm& arm, ::Profundum::Processor& proc, double& best) {
+    proc.setSpectrumProducerEnabledForTest(true);
+    timeArm(arm, best);
+    proc.setSpectrumProducerEnabledForTest(false);
+}
+
+// Phase 12 T032: kWarmupBlocks producer-on blocks of @p arm (discarded); returns the frames the producer published.
+template <typename Arm>
+[[nodiscard]] std::uint32_t warmUpProducerOn(Arm& arm, ::Profundum::Processor& proc) {
+    const std::uint32_t before = proc.spectrumFramesPublishedForTest();
+    proc.setSpectrumProducerEnabledForTest(true);
+    for (std::size_t b = 0; b < kWarmupBlocks; ++b) {
+        arm.processBlock();
+    }
+    proc.setSpectrumProducerEnabledForTest(false);
+    return proc.spectrumFramesPublishedForTest() - before;
+}
+
 }  // namespace
 
 TEST_CASE("Profundum_ProcessorCpu", "[profundum][.perf][performance]") {
@@ -265,6 +291,17 @@ TEST_CASE("Profundum_ProcessorCpu", "[profundum][.perf][performance]") {
     }
     dPoly.warmUp();
 
+    // Phase 12 T032 (SC-013): the producer-off arms really run without the producer (no open queue: the bare
+    // fixture is never connected), and the producer-on arm of the same instance really runs it.
+    REQUIRE_FALSE(pMono.fixture.proc->spectrumQueueOpenForTest());
+    REQUIRE_FALSE(pPoly.fixture.proc->spectrumQueueOpenForTest());
+    const std::uint32_t onFramesMono = warmUpProducerOn(pMono, *pMono.fixture.proc);
+    const std::uint32_t onFramesPoly = warmUpProducerOn(pPoly, *pPoly.fixture.proc);
+    WARN("SC-013 producer-on warm-up frames published: P-ON-MONO " << onFramesMono << ", P-ON-POLY "
+                                                                   << onFramesPoly);
+    REQUIRE(onFramesMono > 0u);
+    REQUIRE(onFramesPoly > 0u);
+
     // Recorded: every arm is sounding when timing starts (the last warm-up block).
     WARN("SC-015 last warm-up block peak: P-MONO " << pMono.call.peak() << ", P-POLY "
                                                    << pPoly.call.peak() << ", P-MAX-MONO "
@@ -280,16 +317,22 @@ TEST_CASE("Profundum_ProcessorCpu", "[profundum][.perf][performance]") {
     double bestPMaxPoly = std::numeric_limits<double>::max();
     double bestDMono = std::numeric_limits<double>::max();
     double bestDPoly = std::numeric_limits<double>::max();
+    double bestPOnMono = std::numeric_limits<double>::max();  // Phase 12 T032 (SC-013)
+    double bestPOnPoly = std::numeric_limits<double>::max();
     for (std::size_t trial = 0; trial < kTrials; ++trial) {
         if (trial % 2 == 0) {
             timeArm(pMono, bestPMono);
+            timeArmProducerOn(pMono, *pMono.fixture.proc, bestPOnMono);
             timeArm(dMono, bestDMono);
             timeArm(pPoly, bestPPoly);
+            timeArmProducerOn(pPoly, *pPoly.fixture.proc, bestPOnPoly);
             timeArm(dPoly, bestDPoly);
         } else {
             timeArm(dMono, bestDMono);
+            timeArmProducerOn(pMono, *pMono.fixture.proc, bestPOnMono);
             timeArm(pMono, bestPMono);
             timeArm(dPoly, bestDPoly);
+            timeArmProducerOn(pPoly, *pPoly.fixture.proc, bestPOnPoly);
             timeArm(pPoly, bestPPoly);
         }
         timeArm(pMaxMono, bestPMaxMono);
@@ -304,6 +347,10 @@ TEST_CASE("Profundum_ProcessorCpu", "[profundum][.perf][performance]") {
     const double pctDPoly = pctOf(bestDPoly);
     const double ratioMono = bestPMono / bestDMono;
     const double ratioPoly = bestPPoly / bestDPoly;
+    const double pctPOnMono = pctOf(bestPOnMono);
+    const double pctPOnPoly = pctOf(bestPOnPoly);
+    const double ratioOnMono = bestPOnMono / bestDMono;
+    const double ratioOnPoly = bestPOnPoly / bestDPoly;
 
     WARN("SC-015 best ns per " << kBlocksPerTrial << " blocks (512 @ 48 kHz, real time "
                                << trialPeriodNs() << " ns): P-MONO " << bestPMono << ", D-MONO "
@@ -321,6 +368,12 @@ TEST_CASE("Profundum_ProcessorCpu", "[profundum][.perf][performance]") {
                                                            << kMonoPctBar << ", Q-A gated)");
     WARN("SC-015 pct P-MAX-POLY (all four macros 1.0) = " << pctPMaxPoly << " % (bar <= "
                                                            << kPolyPctBar << ", Q-A gated)");
+    WARN("SC-013 best ns per " << kBlocksPerTrial << " blocks: P-ON-MONO " << bestPOnMono << ", P-ON-POLY "
+                               << bestPOnPoly << " (producer on, same instance as P-MONO / P-POLY)");
+    WARN("SC-013 pct P-ON-MONO = " << pctPOnMono << " % (bar <= " << kMonoPctBar << ")");
+    WARN("SC-013 pct P-ON-POLY = " << pctPOnPoly << " % (bar <= " << kPolyPctBar << ")");
+    WARN("SC-013 ratio P-ON-MONO / D-MONO = " << ratioOnMono << " (bar <= " << kWrapperOverheadCeiling << ")");
+    WARN("SC-013 ratio P-ON-POLY / D-POLY = " << ratioOnPoly << " (bar <= " << kWrapperOverheadCeiling << ")");
     WARN("Phase 9 reference MONO " << kPhase9MonoShowcasePct << " % / POLY4 "
                                    << kPhase9PolyShowcasePct
                                    << " %: showcase setting, not comparable (P-1)");
@@ -331,6 +384,10 @@ TEST_CASE("Profundum_ProcessorCpu", "[profundum][.perf][performance]") {
     REQUIRE(pctPPoly <= kPolyPctBar);
     REQUIRE(pctPMaxMono <= kMonoPctBar);  // Q-A (user ruling 2026-10-22)
     REQUIRE(pctPMaxPoly <= kPolyPctBar);  // Q-A (user ruling 2026-10-22)
+    REQUIRE(bestPOnMono <= kWrapperOverheadCeiling * bestDMono);  // Phase 12 T032 (SC-013)
+    REQUIRE(bestPOnPoly <= kWrapperOverheadCeiling * bestDPoly);
+    REQUIRE(pctPOnMono <= kMonoPctBar);
+    REQUIRE(pctPOnPoly <= kPolyPctBar);
 }
 
 // ==============================================================================
@@ -357,6 +414,11 @@ TEST_CASE("Profundum_ProcessorCpu", "[profundum][.perf][performance]") {
 //       calls setEndpoint(k % 2, the identical assembled state) before each of
 //       its blocks. v_k cycles through kAutoCycle distinct values, so every
 //       block changes the edited endpoint's Depth leaf.
+//
+// Phase 12 T032 (SC-013, FR-075): every configuration also has a producer-on
+// arm, P-ON: the same processor instance as P, with
+// setSpectrumProducerEnabledForTest(true) set for its timed blocks only, under
+// the same bars and the same P / D ceiling against the same-engine D.
 //
 // Bars: MONO-class arms <= kMonoPctBar, POLY-class arms <= kPolyPctBar,
 // P / D <= kWrapperOverheadCeiling, in every arm. No observer is attached. Every
@@ -504,6 +566,7 @@ struct SurfacePair {
     SurfaceDirectArm d;
     SurfaceDirectArm s;    // D on the SAME engine as P (the ratio's denominator; SC-020 ruling)
     double bestP = std::numeric_limits<double>::max();
+    double bestPOn = std::numeric_limits<double>::max();  // Phase 12 T032 (SC-013): P with the producer on
     double bestD = std::numeric_limits<double>::max();   // separate instance: recorded only
     double bestS = std::numeric_limits<double>::max();
     double bestS2 = std::numeric_limits<double>::max();  // control: the same D path timed again
@@ -676,16 +739,30 @@ TEST_CASE("Profundum_ProcessorCpuFullSurface", "[profundum][.perf][performance]"
                                                << pair->d.arm.peak());
     }
 
+    // Phase 12 T032 (SC-013): P really runs without the producer (the bare fixture is never connected, so no queue
+    // opens), and P-ON, the same instance, really runs it. After the parity checks: these blocks advance p.k.
+    for (auto& pair : pairs) {
+        INFO("arm " << pair->cfg.name);
+        ::Profundum::Processor& proc = *pair->p.arm.fixture.proc;
+        REQUIRE_FALSE(proc.spectrumQueueOpenForTest());
+        const std::uint32_t onFrames = warmUpProducerOn(pair->p, proc);
+        WARN("SC-013 " << pair->cfg.name << ": producer-on warm-up frames published " << onFrames);
+        REQUIRE(onFrames > 0u);
+    }
+
     // ---------------------------------------------------------------- interleaved trials
     for (std::size_t trial = 0; trial < kTrials; ++trial) {
         for (auto& pair : pairs) {
+            ::Profundum::Processor& proc = *pair->p.arm.fixture.proc;
             if (trial % 2 == 0) {
                 timeArm(pair->p, pair->bestP);
+                timeArmProducerOn(pair->p, proc, pair->bestPOn);
                 timeArm(pair->s, pair->bestS);
                 timeArm(pair->s, pair->bestS2);
             } else {
                 timeArm(pair->s, pair->bestS2);
                 timeArm(pair->s, pair->bestS);
+                timeArmProducerOn(pair->p, proc, pair->bestPOn);
                 timeArm(pair->p, pair->bestP);
             }
             timeArm(pair->d, pair->bestD);
@@ -702,6 +779,10 @@ TEST_CASE("Profundum_ProcessorCpuFullSurface", "[profundum][.perf][performance]"
                        << ", D (separate engine) " << pair->bestD << "; pct P = " << pctP << " % (bar <= " << pair->pctBar()
                        << "), pct D separate = " << pctD << " % (recorded); ratio P / D = " << ratio << " (bar <= "
                        << kWrapperOverheadCeiling << ")");
+        WARN("SC-013 " << pair->cfg.name << " P-ON (producer on, same instance as P): best ns " << pair->bestPOn
+                       << "; pct P-ON = " << pctOf(pair->bestPOn) << " % (bar <= " << pair->pctBar()
+                       << "); ratio P-ON / D = " << pair->bestPOn / pair->bestS << " (bar <= "
+                       << kWrapperOverheadCeiling << ")");
     }
     for (const auto& pair : pairs) {
         INFO("arm " << pair->cfg.name);
@@ -716,5 +797,7 @@ TEST_CASE("Profundum_ProcessorCpuFullSurface", "[profundum][.perf][performance]"
         }
         CHECK(pctOf(pair->bestP) <= pair->pctBar());
         CHECK(pair->bestP <= kWrapperOverheadCeiling * pair->bestS);
+        CHECK(pctOf(pair->bestPOn) <= pair->pctBar());                   // Phase 12 T032 (SC-013)
+        CHECK(pair->bestPOn <= kWrapperOverheadCeiling * pair->bestS);
     }
 }

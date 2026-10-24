@@ -1,0 +1,105 @@
+Filters: [profundum] ~[performance] ~[perf] ~[benchmark] ~[!benchmark] ~[long] ~[.]
+Randomness seeded to: 599226483
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+ShapeCharacter_H1TransferRecord
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1345)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1424): warning:
+  SC-020 recorded: 126 h1 transfer rows in F:/projects/iterum/dsp/tests/../../
+  specs/profundum-phase5-shape-character/evidence/sc020-h1-transfer.csv
+
+-------------------------------------------------------------------------------
+ShapeCharacter_DropTracksHarmonicNumbersSmoke
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1432)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1455): warning:
+  SC-025(a) smoke SHAPE 0.500000, instant d <= 24 st: keytracked members worst
+  relative difference 0
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1455): warning:
+  SC-025(a) smoke SHAPE 0.500000, instant d <= 6 st: keytracked members worst
+  relative difference 0
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1455): warning:
+  SC-025(a) smoke Crush A 1.000000 T 0.500000, instant d <= 24 st: keytracked
+  members worst relative difference 0
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1474): warning:
+  SC-025(a) smoke |H(n)| recorded (not gated): Crush A 1.000000 T 0.500000,
+  instant d <= 24 st: max |dH| 1.09734 dB at h15
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1455): warning:
+  SC-025(a) smoke Crush A 1.000000 T 0.500000, instant d <= 6 st: keytracked
+  members worst relative difference 0
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1474): warning:
+  SC-025(a) smoke |H(n)| recorded (not gated): Crush A 1.000000 T 0.500000,
+  instant d <= 6 st: max |dH| 1.09153 dB at h13
+
+KWeighting_ReferenceLevels (SC-026)
+  b1[0] got 1.53512485958697 want 1.53512485958697 |err| 2.22045e-16
+  b1[1] got -2.69169618940638 want -2.69169618940638 |err| 8.88178e-16
+  b1[2] got 1.19839281085285 want 1.19839281085285 |err| 0
+  a1[0] got 1 want 1 |err| 0
+  a1[1] got -1.69065929318241 want -1.69065929318241 |err| 2.22045e-16
+  a1[2] got 0.73248077421585 want 0.73248077421585 |err| 1.11022e-16
+  b2[0] got 1 want 1 |err| 0
+  b2[1] got -2 want -2 |err| 0
+  b2[2] got 1 want 1 |err| 0
+  a2[0] got 1 want 1 |err| 0
+  a2[1] got -1.99004745483398 want -1.99004745483398 |err| 2.22045e-16
+  a2[2] got 0.99007225036621 want 0.99007225036621 |err| 1.11022e-16
+  997 Hz @ 48000 Hz: -3.01029 LKFS (want -3.01 +/- 0.1)
+  E1 41.20344 Hz @ 48000 Hz: -9.02722 LKFS, re 997 Hz -6.01693 dB (want <= -1)
+  997 Hz @ 44100 Hz: -3.00752 LKFS, re 48 kHz 0.00276233 dB (want |d| <= 0.1)
+  997 Hz @ 96000 Hz: -3.02761 LKFS, re 48 kHz -0.0173232 dB (want |d| <= 0.1)
+MassCompressor_AmountMapping amount 0.6: threshold -6.60938 (exp -6.60938) ratio 1.85185 (exp 1.85185) knee 6 (exp 6) makeup 2.08326 (exp 2.08326)
+MassCompressor_TransparentAtAmountZero E0 kSawAnchor: L bit-equal, R bit-equal, nonzero-gain intervals 0
+MassCompressor_TransparentAtAmountZero E0 sine: L bit-equal, R bit-equal, nonzero-gain intervals 0
+MassCompressor_TransparentAtAmountZero C3 kSawAnchor: L bit-equal, R bit-equal, nonzero-gain intervals 0
+MassCompressor_TransparentAtAmountZero C3 sine: L bit-equal, R bit-equal, nonzero-gain intervals 0
+MassCompressor_ReleaseRuleLaw: detector -1.45637 dB at unit scale, threshold -11.0156 dB, scale 0.332688
+MassCompressor_ReleaseRuleLaw: after 1 s at +12 dB f = 1, release 500 ms, GR -8.04034 dB
+MassCompressor_ReleaseRuleLaw: f reached 0 after 432 ms at -30 dB
+MassCompressor_ReleaseRuleLaw: ramp end f = 1, release 500 ms; law failures 0, dynamics mismatches 0, monotonicity breaks 0
+MassCompressor_ProgramDependentRelease E1: threshold -11.0156 dB, 1 s plateau detector 0.984368 dB (expected 0.984375 +/- 0.5)
+  short (20 ms): peak GR -8.04575 dB, recovery from Peak 26.9375 ms, from PlateauEnd 18.5833 ms
+  long (1 s):    peak GR -8.04575 dB, recovery from Peak 1065.81 ms, from PlateauEnd 85.5 ms
+  short/long: Peak 0.0252741, PlateauEnd 0.217349 (gated: PlateauEnd, bar <= 0.5)
+MassCompressor_ProgramDependentRelease C3: threshold -11.0156 dB, 1 s plateau detector 0.984373 dB (expected 0.984375 +/- 0.5)
+  short (20 ms): peak GR -8.05046 dB, recovery from Peak 29.9375 ms, from PlateauEnd 17.0833 ms
+  long (1 s):    peak GR -8.05046 dB, recovery from Peak 1078.62 ms, from PlateauEnd 85.625 ms
+  short/long: Peak 0.0277552, PlateauEnd 0.199513 (gated: PlateauEnd, bar <= 0.5)
+MassCompressor_FixedReleasePositiveControl E1 (fixed 275 ms): short Peak 57 / PlateauEnd 47.6667 ms, long Peak 1026.54 / PlateauEnd 47.1042 ms; ratio Peak 0.0555262, PlateauEnd 1.01194 (must be > 0.5)
+MassCompressor_FixedReleasePositiveControl C3 (fixed 275 ms): short Peak 59.9583 / PlateauEnd 47.2292 ms, long Peak 1038.31 / PlateauEnd 47.25 ms; ratio Peak 0.0577459, PlateauEnd 0.999559 (must be > 0.5)
+MassCompressor_KeytrackedCorner (a): corner 82.4069 Hz (2*E1 = 82.4069)
+MassCompressor_KeytrackedCorner (b) ramp end: key 8.1758 Hz, corner 20 Hz
+MassCompressor_KeytrackedCorner (b) continuity: 2101 steps, 0 over the smoother bound, max excess 0 log2 units
+MassCompressor_KeytrackedCorner (c) key 0: corner 80 Hz
+MassCompressor_KeytrackedCorner (c) key -1: corner 80 Hz
+MassCompressor_KeytrackedCorner (c) key NaN: corner 80 Hz
+MassCompressor_KeytrackedCorner (c) key +Inf: corner 80 Hz
+MassCompressor_KeytrackedCorner (e) block 17 vs 1: bit-equal
+MassCompressor_KeytrackedCorner (e) block 512 vs 1: bit-equal
+MassCompressor_MonoSum (a) amount 0: L == R bit-equal, final GR 0 dB
+MassCompressor_MonoSum (a) amount 0.5: L == R bit-equal, final GR -1.6207 dB
+MassCompressor_MonoSum (a) amount 1: L == R bit-equal, final GR -6.40497 dB
+MassCompressor_MonoSum (b): min GR -6.40516 dB, per-sample gain mismatches 0, side/mid in -9.54243 dB, out -9.54243 dB (|delta| 1.77636e-15)
+MassCompressor_NoAllocation: 0 allocation(s) (positive control 1)
+MassCompressor_PartitionInvariant block 17 vs 1: bit-equal
+MassCompressor_PartitionInvariant block 32 vs 1: bit-equal
+MassCompressor_PartitionInvariant block 64 vs 1: bit-equal
+MassCompressor_PartitionInvariant block 512 vs 1: bit-equal
+===============================================================================
+All tests passed (16426 assertions in 30 test cases)
+
+rc=0 wall=57s

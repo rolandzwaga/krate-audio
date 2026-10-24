@@ -93,7 +93,7 @@ inline Render renderCore(ProfundumCore& core, const SpectralShapeRecipe::Control
                          bool record = false, std::size_t block = ProfundumCore::kControlInterval,
                          const float* f0Trajectory = nullptr) {
     REQUIRE(core.isPrepared());
-    REQUIRE(block > 0);
+    REQUIRE(block > 0u);
     const double fs = coreSampleRate(core);
     const auto total = static_cast<std::size_t>(std::llround(seconds * fs));
 
@@ -172,8 +172,8 @@ inline double goertzelPhase(const float* x, std::size_t L, double fs, double hz)
 /// of two. Twiddles are evaluated directly (no recurrence), so the round-off floor is ~1e-16.
 inline void fftDouble(std::vector<std::complex<double>>& a) {
     const std::size_t n = a.size();
-    REQUIRE(n >= 2);
-    REQUIRE((n & (n - 1)) == 0);
+    REQUIRE(n >= 2u);
+    REQUIRE((n & (n - 1)) == 0u);
     for (std::size_t i = 1, j = 0; i < n; ++i) {
         std::size_t bit = n >> 1;
         for (; (j & bit) != 0; bit >>= 1)
@@ -327,7 +327,7 @@ inline SidebandResult sidebandPower(const float* x, double fs, double f0, std::s
     constexpr double kRegionHalfHz = 20.0;
     constexpr double kVibratoRateHz = 5.0;
     REQUIRE(f0 > 0.0);
-    REQUIRE(controlInterval > 0);
+    REQUIRE(controlInterval > 0u);
     const std::vector<double> p = bh7PowerSpectrum(x, kLen);
     const std::vector<double> pRef = totalRef != nullptr ? bh7PowerSpectrum(totalRef, kLen) : p;
     const double binHz = fs / static_cast<double>(kLen);
@@ -452,7 +452,7 @@ inline double pitchHoldAlignedF0(const std::vector<float>& traj, std::size_t i) 
 /// RMS of x[0..n) in dBFS re 1.0, over every sample.
 inline double rmsDbfs(const float* x, std::size_t n) {
     REQUIRE(x != nullptr);
-    REQUIRE(n > 0);
+    REQUIRE(n > 0u);
     double sum = 0.0;
     for (std::size_t i = 0; i < n; ++i)
         sum += static_cast<double>(x[i]) * static_cast<double>(x[i]);

@@ -1,0 +1,25 @@
+build: exit 0 wall 5 s (log specs/profundum-phase12-ui/evidence/listen/build.log)
+render: exit 0 wall 57 s (log specs/profundum-phase12-ui/evidence/listen/render.log)
+Randomness seeded to: 2292108230
+===============================================================================
+All tests passed (240969 assertions in 1 test case)
+
+exit: 0 wall: 57 s
+render: 106 WAV files in specs/profundum-phase12-ui/evidence/listen
+Randomness seeded to: 1463802636
+LISTEN H-1 h01-split-hump.wav seconds=16.00 peak_dbfs=-1.00 finite=yes
+LISTEN H-2 h02-fold-breathing-c3.wav seconds=61.00 peak_dbfs=-1.00 finite=yes
+LISTEN H-8 h08-drop-snaps-e0.wav seconds=18.00 peak_dbfs=-1.00 finite=yes
+LISTEN H-10 h10-after-drop-vs-fresh.wav seconds=8.00 peak_dbfs=-1.00 finite=yes
+LISTEN H-14 h14-mass100-voices.wav seconds=15.00 peak_dbfs=-1.00 finite=yes
+LISTEN H-19 h19-wide-ceiling-fold-rectify.wav seconds=16.00 peak_dbfs=-1.00 finite=yes
+LISTEN H-28a h28a-fracture-switch-c3.wav seconds=14.00 peak_dbfs=-1.00 finite=yes
+LISTEN H-28b h28b-octavedown-switch-e1.wav seconds=28.00 peak_dbfs=-1.00 finite=yes
+LISTEN DONE 8 WAVs in F:/projects/iterum/dsp/tests/../../specs/profundum-phase9-voice-engine/evidence/listen
+===============================================================================
+All tests passed (108 assertions in 1 test case)
+
+exit: 0 wall: 16 s
+listen: LISTEN lines appended to specs/profundum-phase9-voice-engine/evidence/run-log/T021.txt
+phase9 listen: exit 0 wall 17 s
+LISTEN RENDERS DONE

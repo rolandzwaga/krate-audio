@@ -69,7 +69,7 @@ static_assert(std::string_view(::Profundum::lawOf(kLeafMotionTarget).name) == "m
                 {kMotionDepthId, normOf(kMotionDepthId, 1.0)},
             }) == Steinberg::kResultOk);
     StateBytes s = writeV2Stream(*fx.proc);
-    REQUIRE(s.size() == kStateV2Bytes);
+    REQUIRE(s.size() == kStateV3Bytes);
     return s;
 }
 

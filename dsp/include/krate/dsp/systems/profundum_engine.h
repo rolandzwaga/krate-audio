@@ -421,6 +421,32 @@ public:
     /// SC-013 soak poll (plan R-E): MassDynamics' halfband pair (mass_dynamics.h oversamplerStateFinite()).
     [[nodiscard]] bool oversamplerStateFinite() const noexcept { return dynamics_.oversamplerStateFinite(); }
 
+    // Phase 12 FR-075 / FR-095: display read path. const, allocation-free, behaviour-neutral.
+    /// Position inside the current 32-sample control interval; 0 exactly at a grid point (the next processBlock
+    /// runs gridStep).
+    [[nodiscard]] std::size_t controlGridPhase() const noexcept { return gridPhase_; }
+    /// The engine's sample clock (reset() sets 0); ProfundumVoiceTaps::sample uses the same clock.
+    [[nodiscard]] std::uint64_t samplePosition() const noexcept { return pos_; }
+    /// The voice mode applied at the last grid point (pending_ applies there, C-9).
+    [[nodiscard]] VoiceMode appliedVoiceMode() const noexcept { return applied_.mode; }
+    /// Read-only view of voice v (v is clamped to kMaxVoices - 1).
+    [[nodiscard]] const ProfundumVoice& voiceForDisplay(std::size_t v) const noexcept {
+        return voices_[std::min(v, kMaxVoices - 1)];
+    }
+    /// True when voice v rendered in the current (last begun) interval (rendering_, S6.6); false past kMaxVoices.
+    [[nodiscard]] bool voiceRenderedThisInterval(std::size_t v) const noexcept {
+        return v < kMaxVoices && rendering_[v];
+    }
+    /// MIDI note voice v sounds: MONO -> voice 0 holds monoActiveNote_ (-1 none); POLY -> the allocator's note
+    /// (-1 idle).
+    [[nodiscard]] int voiceMidiNote(std::size_t v) const noexcept {
+        if (v >= kMaxVoices)
+            return -1;
+        if (applied_.mode == VoiceMode::Mono)
+            return v == 0 ? monoActiveNote_ : -1;
+        return allocator_.getVoiceNote(v);
+    }
+
 private:
     // ---- plan S6.3 state types ----
 

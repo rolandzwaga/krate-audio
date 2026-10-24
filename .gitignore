@@ -96,3 +96,4 @@ package-lock.json
 
 # Profundum Phase 9 listening renders (65 MB, reproducible with evidence/close/listen.sh)
 /specs/profundum-phase9-voice-engine/evidence/listen/*.wav
+/specs/profundum-phase12-ui/evidence/listen/*.wav

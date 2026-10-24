@@ -88,8 +88,8 @@ inline double goertzelPhase(const float* x, std::size_t L, double fs, double hz)
 /// of two. Twiddles are evaluated directly (no recurrence), so the round-off floor is ~1e-16.
 inline void fftDouble(std::vector<std::complex<double>>& a) {
     const std::size_t n = a.size();
-    REQUIRE(n >= 2);
-    REQUIRE((n & (n - 1)) == 0);
+    REQUIRE(n >= 2u);
+    REQUIRE((n & (n - 1)) == 0u);
     for (std::size_t i = 1, j = 0; i < n; ++i) {
         std::size_t bit = n >> 1;
         for (; (j & bit) != 0; bit >>= 1)
@@ -363,7 +363,7 @@ inline std::pair<std::vector<float>, std::vector<float>> renderFold(HarmonicFold
                                                                     const std::vector<float>& inL,
                                                                     const std::vector<float>& inR,
                                                                     std::size_t block) {
-    REQUIRE(block > 0);
+    REQUIRE(block > 0u);
     REQUIRE(inL.size() == inR.size());
     std::vector<float> L = inL;
     std::vector<float> R = inR;

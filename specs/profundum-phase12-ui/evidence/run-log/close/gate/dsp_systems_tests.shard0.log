@@ -1,0 +1,50 @@
+Filters: [profundum] ~[performance] ~[perf] ~[benchmark] ~[!benchmark] ~[long] ~[.]
+Randomness seeded to: 3862714913
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+ProfundumCore_NoZipperControlSweeps
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_test.cpp(1476)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_test.cpp(1106): warning:
+  SC-010(a) depth step: residual RMS -64.9831 dB re core RMS, 0 clicks
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_test.cpp(1106): warning:
+  SC-010(a) depth sweep: residual RMS -72.1469 dB re core RMS, 0 clicks
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_test.cpp(1106): warning:
+  SC-010(a) body step: residual RMS -69.1928 dB re core RMS, 0 clicks
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_test.cpp(1106): warning:
+  SC-010(a) body sweep: residual RMS -75.519 dB re core RMS, 0 clicks
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_test.cpp(1106): warning:
+  SC-010(a) edge step: residual RMS -73.4953 dB re core RMS, 0 clicks
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_test.cpp(1106): warning:
+  SC-010(a) edge sweep: residual RMS -76.9976 dB re core RMS, 0 clicks
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_test.cpp(1106): warning:
+  SC-010(a) shift step: residual RMS -70.0162 dB re core RMS, 0 clicks
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_test.cpp(1106): warning:
+  SC-010(a) shift sweep: residual RMS -69.6989 dB re core RMS, 0 clicks
+
+-------------------------------------------------------------------------------
+ProfundumCore_NoZipperPitchBend
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_test.cpp(1554)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_test.cpp(1106): warning:
+  SC-010(a) +-12 semitone bend: residual RMS -67.6003 dB re core RMS, 0 clicks
+
+===============================================================================
+All tests passed (117343 assertions in 31 test cases)
+
+rc=0 wall=7s

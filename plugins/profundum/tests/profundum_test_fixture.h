@@ -216,10 +216,15 @@ private:
 
 // -----------------------------------------------------------------------------
 // CountingConnectionPoint - counts the IMessages sent to it (SC-014).
+// Phase 12 (FR-071): the SDK DataExchange IMessage fallback ("DataExchange",
+// "DataExchangeQueueOpened", "DataExchangeQueueClosed"; dataexchange.cpp:44-46)
+// is the spectrum transport, not a processor announcement, so it is counted
+// apart in dataExchangeMessages and never in notifications.
 // -----------------------------------------------------------------------------
 class CountingConnectionPoint final : public Steinberg::Vst::IConnectionPoint {
 public:
     int notifications = 0;
+    int dataExchangeMessages = 0;
 
     Steinberg::tresult PLUGIN_API connect(Steinberg::Vst::IConnectionPoint* /*other*/) override {
         return Steinberg::kResultTrue;
@@ -227,8 +232,13 @@ public:
     Steinberg::tresult PLUGIN_API disconnect(Steinberg::Vst::IConnectionPoint* /*other*/) override {
         return Steinberg::kResultTrue;
     }
-    Steinberg::tresult PLUGIN_API notify(Steinberg::Vst::IMessage* /*message*/) override {
-        ++notifications;
+    Steinberg::tresult PLUGIN_API notify(Steinberg::Vst::IMessage* message) override {
+        const char* id = message != nullptr ? message->getMessageID() : nullptr;
+        if (id != nullptr && std::string_view(id).starts_with("DataExchange")) {
+            ++dataExchangeMessages;
+        } else {
+            ++notifications;
+        }
         return Steinberg::kResultTrue;
     }
 
@@ -257,6 +267,8 @@ public:
         bool hasBlob = false;
         std::vector<std::byte> blob;
         std::thread::id thread;
+        bool hasName = false;          // Phase 12 T019: the binary "name" of kMsgEndpointName
+        std::vector<std::byte> name;
     };
 
     Steinberg::Vst::IConnectionPoint* target = nullptr;
@@ -343,6 +355,15 @@ public:
                 const auto* bytes = static_cast<const std::byte*>(data);
                 r.hasBlob = true;
                 r.blob.assign(bytes, bytes + size);
+            }
+            const void* nameData = nullptr;
+            Steinberg::uint32 nameSize = 0;
+            if (attrs->getBinary("name", nameData, nameSize) == Steinberg::kResultOk) {
+                r.hasName = true;
+                if (nameData != nullptr) {
+                    const auto* bytes = static_cast<const std::byte*>(nameData);
+                    r.name.assign(bytes, bytes + nameSize);
+                }
             }
         }
         {
@@ -1004,6 +1025,7 @@ static_assert(kV2SeedAt + ::Profundum::kStateSeedBytes == ::Profundum::kStateEnd
 }
 
 /// A real getState stream of @p proc, as bytes (plan 6.1 writeV2Stream).
+/// Returns the current format (v3 since Phase 12, 574 bytes); a genuine v2 stream comes only from v2StreamOf.
 [[nodiscard]] inline StateBytes writeV2Stream(::Profundum::Processor& proc) {
     auto stream = Steinberg::owned(new Steinberg::MemoryStream());
     REQUIRE(proc.getState(stream) == Steinberg::kResultOk);
@@ -1042,7 +1064,8 @@ inline void patchF32(StateBytes& b, std::size_t at, float v) { patchU32(b, at, s
 /// @p bytes (a v2 stream) with the two endpoint blobs replaced by serializeMorphState of @p a / @p b.
 [[nodiscard]] inline StateBytes withEndpoints(StateBytes bytes, const Krate::DSP::MorphState& a,
                                               const Krate::DSP::MorphState& b) {
-    REQUIRE(bytes.size() == ::Profundum::kStateV2Bytes);
+    // P-2 (Phase 12 T019): a v2 or v3 stream; both carry the v2 body at the same offsets, patched below 510.
+    REQUIRE((bytes.size() == ::Profundum::kStateV2Bytes || bytes.size() == ::Profundum::kStateV3Bytes));
     const auto blobA = serializedMorphState(a);
     const auto blobB = serializedMorphState(b);
     std::memcpy(bytes.data() + ::Profundum::kStateEndpointAOffset, blobA.data(), blobA.size());
@@ -1089,7 +1112,8 @@ struct V2Fields {
 
 /// @p bytes (a v2 stream) with every explicit field of @p f written in place (bytes 4-87).
 [[nodiscard]] inline StateBytes withFields(StateBytes bytes, const V2Fields& f) {
-    REQUIRE(bytes.size() == ::Profundum::kStateV2Bytes);
+    // P-2 (Phase 12 T019): a v2 or v3 stream; both carry the v2 body at the same offsets, patched below 510.
+    REQUIRE((bytes.size() == ::Profundum::kStateV2Bytes || bytes.size() == ::Profundum::kStateV3Bytes));
     patchF32(bytes, kV2GlobalsAt + 0u, f.globals.gain);
     patchI32(bytes, kV2GlobalsAt + 4u, f.globals.voiceMode);
     patchI32(bytes, kV2GlobalsAt + 8u, f.globals.polyphony);
@@ -1109,6 +1133,21 @@ struct V2Fields {
     patchI32(bytes, kV2MorphAt + 8u, f.anchorMorphMode);
     patchI32(bytes, kV2MorphAt + 12u, f.editTarget);
     patchU32(bytes, kV2SeedAt, f.seed);
+    return bytes;
+}
+
+/// Phase 12 T019 (plan 6.2 SC-027 "v2 reference"): a genuine 510-byte v2 stream built field by field, never from
+/// getState: a zeroed kStateV2Bytes buffer with the version word kStateV2Version, @p f and the two endpoints
+/// written in place, and bytes [490, 510) from BassMorphEngine::serializeRuntime of a freshly constructed engine.
+[[nodiscard]] inline StateBytes v2StreamOf(const V2Fields& f, const Krate::DSP::MorphState& a,
+                                           const Krate::DSP::MorphState& b) {
+    StateBytes bytes(::Profundum::kStateV2Bytes);  // value-initialised: every byte 0
+    patchI32(bytes, 0, ::Profundum::kStateV2Version);
+    bytes = withEndpoints(withFields(std::move(bytes), f), a, b);
+    const Krate::DSP::BassMorphEngine fresh;
+    std::array<std::byte, Krate::DSP::BassMorphEngine::kMorphRuntimeBytes> rt{};
+    REQUIRE(fresh.serializeRuntime(rt.data(), rt.size()) == rt.size());
+    std::memcpy(bytes.data() + ::Profundum::kStateRuntimeOffset, rt.data(), rt.size());
     return bytes;
 }
 

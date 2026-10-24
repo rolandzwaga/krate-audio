@@ -40,7 +40,7 @@ struct AnchorRender {
 inline AnchorRender renderAnchor(AnchorOscillator& a, std::size_t n, std::size_t block,
                                  const float* f0Traj = nullptr, const float* rTraj = nullptr,
                                  bool perSample = false) {
-    REQUIRE(block > 0);
+    REQUIRE(block > 0u);
     const std::size_t blk = perSample ? std::size_t{1} : block;
     AnchorRender r;
     r.L.assign(n, 0.0f);
@@ -67,7 +67,7 @@ inline AnchorRender renderAnchor(AnchorOscillator& a, std::size_t n, std::size_t
 /// Instantaneous frequency between recorded phases n - 1 and n: wrap(phase[n] - phase[n-1]) · fs,
 /// with the difference wrapped into [-0.5, 0.5).
 inline double anchorInstFreqHz(const std::vector<double>& phase, std::size_t n, double fs) {
-    REQUIRE(n >= 1);
+    REQUIRE(n >= 1u);
     REQUIRE(n < phase.size());
     double d = phase[n] - phase[n - 1];
     d -= std::floor(d + 0.5);   // [-0.5, 0.5)
@@ -97,7 +97,7 @@ inline constexpr double kAnchorPiD = 3.14159265358979323846;
 
 /// D-4 closed form in double: g0 + a·½(1 − cos(π·n/len)).
 inline double anchorRaisedCosine(double g0, double a, std::size_t n, std::size_t len) {
-    REQUIRE(len > 0);
+    REQUIRE(len > 0u);
     return g0 + a * 0.5 * (1.0 - std::cos(kAnchorPiD * static_cast<double>(n) / static_cast<double>(len)));
 }
 
@@ -105,7 +105,7 @@ inline double anchorRaisedCosine(double g0, double a, std::size_t n, std::size_t
 /// at n = len. Basis h00/h10/h01 with t = n/len and m0 = len·gp0. n is not clamped: n > len evaluates
 /// the cubic's extension (used by central differences at n = len).
 inline double anchorHermite(double g0, double gp0, double g1, std::size_t n, std::size_t len) {
-    REQUIRE(len > 0);
+    REQUIRE(len > 0u);
     const double t = static_cast<double>(n) / static_cast<double>(len);
     const double t2 = t * t;
     const double t3 = t2 * t;
@@ -119,7 +119,7 @@ inline double anchorHermite(double g0, double gp0, double g1, std::size_t n, std
 /// Peak |second difference| per sample² of anchorHermite: H'' is linear in t, so the peak is at an
 /// end: max(|6Δ − 4m0|, |6Δ − 2m0|)/len², Δ = g1 − g0, m0 = len·gp0.
 inline double anchorHermitePeakD2(double g0, double gp0, double g1, std::size_t len) {
-    REQUIRE(len > 0);
+    REQUIRE(len > 0u);
     const double L = static_cast<double>(len);
     const double delta = g1 - g0;
     const double m0 = L * gp0;

@@ -1,0 +1,8 @@
+=== render 2026-10-24T08:53:10Z commit 40f6ebca
+cmd: build/windows-x64-release/bin/Release/profundum_tests.exe "Profundum_MainPageRenderSet"
+Filters: "Profundum_MainPageRenderSet"
+Randomness seeded to: 2400669839
+===============================================================================
+All tests passed (250338 assertions in 1 test case)
+
+exit: 0 wall: 25 s

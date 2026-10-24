@@ -134,7 +134,7 @@ TEST_CASE("Profundum_StateRestoreRender", "[profundum][state][long]") {
     }
 
     const StateBytes saved = writeV2Stream(*src.proc);
-    REQUIRE(saved.size() == kStateV2Bytes);
+    REQUIRE(saved.size() == kStateV3Bytes);
     // Precondition (teeth of the control arm): the original's selections are all B.
     REQUIRE(byteAt(engineRuntimeOf(src), kRtMainMaskOffset) == kAllB);
     REQUIRE(std::to_integer<std::uint8_t>(saved[kStateRuntimeOffset + kRtMainMaskOffset]) == kAllB);

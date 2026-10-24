@@ -1,0 +1,33 @@
+=== T036 tidy 2026-10-24T08:27:08Z commit 40f6ebca cores=32 jobs/lane=10
+--- profundum lane: 44 .cpp files (specs/profundum-phase12-ui/evidence/run-log/close/tidy/profundum-files.txt); dsp lane: 15 .cpp files (specs/profundum-phase12-ui/evidence/run-log/close/tidy/dsp-files.txt)
+--- vcvars: C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat
+--- reconfigure (cmake --preset windows-ninja in vcvars64) exit=0 wall=7s
+-- [SMTG] Setup running moduleinfotool for Profundum
+-- [KRATE] Copied compile_commands.json to project root
+-- Configuring done (5.5s)
+-- Generating done (0.6s)
+-- Build files have been written to: F:/projects/iterum/build/windows-ninja
+--- compile database: all 59 TUs present (44 Profundum incl. 4 src/ui, 15 dsp)
+=================== lane profundum (rc=0 wall=166)
+[INFO] Using clang-tidy: C:\Program Files\LLVM\bin\clang-tidy.exe
+[INFO] Parallel jobs: 10
+[INFO] Using compile_commands.json from: build/windows-ninja
+[INFO] Found 44 source files to analyze
+[1/44] plugins/profundum/tests/integration/band_level_metric_test.cpp                    [2/44] plugins/profundum/src/ui/spread_curve_view.cpp                    [3/44] plugins/profundum/src/ui/offset_ring_knob.cpp                    [4/44] plugins/profundum/src/entry.cpp                    [5/44] plugins/profundum/tests/integration/copy_compare_test.cpp                    [6/44] plugins/profundum/src/ui/harmonic_bar_view.cpp                    [7/44] plugins/profundum/src/processor/processor.cpp                    [8/44] plugins/profundum/tests/integration/determinism_test.cpp                    [9/44] plugins/profundum/src/ui/panel_sub_controller.cpp                    [10/44] plugins/profundum/src/controller/controller.cpp                    [11/44] plugins/profundum/tests/integration/main_page_render_set_test.cpp                    [12/44] plugins/profundum/src/processor/goertzel_bank_simd.cpp                    [13/44] plugins/profundum/tests/integration/main_page_sanity_test.cpp                    [14/44] plugins/profundum/tests/integration/main_page_audibility_test.cpp                    [15/44] plugins/profundum/tests/integration/mono_sum_params_test.cpp                    [16/44] plugins/profundum/tests/integration/param_flow_test.cpp                    [17/44] plugins/profundum/tests/integration/param_path_audibility_test.cpp                    [18/44] plugins/profundum/tests/integration/param_wiring_test.cpp                    [19/44] plugins/profundum/tests/integration/processor_audio_test.cpp                    [20/44] plugins/profundum/tests/integration/processor_cpu_test.cpp                    [21/44] plugins/profundum/tests/integration/state_restore_render_test.cpp                    [22/44] plugins/profundum/tests/integration/tail_test.cpp                    [23/44] plugins/profundum/tests/integration/spectrum_frame_test.cpp                    [24/44] plugins/profundum/tests/unit/controller/editor_lifecycle_test.cpp                    [25/44] plugins/profundum/tests/unit/controller/custom_view_laws_test.cpp                    [26/44] plugins/profundum/tests/unit/controller/editor_layout_test.cpp                    [27/44] plugins/profundum/tests/unit/controller/editor_sync_test.cpp                    [28/44] plugins/profundum/tests/unit/controller/ui_views_test.cpp                    [29/44] plugins/profundum/tests/unit/controller/macro_ui_test.cpp                    [30/44] plugins/profundum/tests/unit/controller/spread_curve_test.cpp                    [31/44] plugins/profundum/tests/unit/controller/morph_component_test.cpp                    [32/44] plugins/profundum/tests/unit/lifecycle_test.cpp                    [33/44] plugins/profundum/tests/unit/midi_event_test.cpp                    [34/44] plugins/profundum/tests/unit/midi_mapping_test.cpp                    [35/44] plugins/profundum/tests/vstgui_test_stubs.cpp                    [36/44] plugins/profundum/tests/unit/param_denorm_test.cpp                    [37/44] plugins/profundum/tests/unit/param_table_test.cpp                    [38/44] plugins/profundum/tests/unit/spectrum_producer_test.cpp                    [39/44] plugins/profundum/tests/unit/test_main.cpp                    [40/44] plugins/profundum/tests/unit/phase11_alloc_test.cpp                    [41/44] plugins/profundum/tests/unit/processor_bus_test.cpp                    [42/44] plugins/profundum/tests/unit/state_roundtrip_test.cpp                    [43/44] plugins/profundum/tests/unit/state_v2_test.cpp                    [44/44] plugins/profundum/tests/unit/state_v3_test.cpp                    
+
+============================================================
+[INFO] Clang-Tidy Analysis Complete
+  Files analyzed: 44
+[OK]   Errors: 0
+[OK]   Warnings: 0
+============================================================
+=================== lane dsp (rc=0 wall=68 listed=15)
+=== dsp lane: clang-tidy -p build/windows-ninja over 15 .cpp file(s) (specs/profundum-phase12-ui/evidence/run-log/close/tidy/dsp-files.txt)
+  Files analyzed: 15
+  Errors: 0
+  Warnings: 0
+=== summary
+lane profundum GREEN files=44 warnings=0 errors=0 exit=0 wall=166s
+lane dsp GREEN files=15 warnings=0 errors=0 exit=0 wall=68s
+lanes wall=166s
+TIDY GREEN total_wall=176s

@@ -1,0 +1,6 @@
+Filters: [profundum] ~[performance] ~[perf] ~[benchmark] ~[!benchmark] ~[long] ~[.]
+Randomness seeded to: 1675063905
+===============================================================================
+All tests passed (4349 assertions in 5 test cases)
+
+rc=0 wall=7s

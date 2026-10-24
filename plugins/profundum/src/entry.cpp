@@ -9,7 +9,7 @@
 // - Each has its own unique FUID
 // - Host can instantiate them independently
 //
-// FR-018: no ui/*.h include in Phase 10 (stock VSTGUI views only).
+// FR-018: shared view creators are registered by controller.cpp's ui/*.h includes; Phase 12, P-4.
 // ==============================================================================
 
 #include "plugin_ids.h"

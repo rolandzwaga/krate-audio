@@ -316,8 +316,8 @@ struct MorphVoice {
                                                       bool recordPerVoice) {
     REQUIRE(!f0s.empty());
     REQUIRE(cfg.fs > 0.0);
-    REQUIRE(cfg.hostBlock > 0);
-    REQUIRE(cfg.noteOnSample % kGrid == 0);
+    REQUIRE(cfg.hostBlock > 0u);
+    REQUIRE(cfg.noteOnSample % kGrid == 0u);
     REQUIRE(std::is_sorted(cfg.automation.begin(), cfg.automation.end(),
                            [](const MorphEvent& x, const MorphEvent& y) { return x.sample < y.sample; }));
     REQUIRE_FALSE(static_cast<bool>(cfg.tail.f0At));          // the fixture owns the f0 track (cfg.drop)
@@ -326,7 +326,7 @@ struct MorphVoice {
     for (const double f : f0s)
         REQUIRE((detail::isFinite(static_cast<float>(f)) && f > 0.0));
     const std::size_t total = MassDynamicsTest::renderLength(cfg.fs, cfg.seconds);
-    REQUIRE(total > 0);
+    REQUIRE(total > 0u);
 
     // ---- S5.3 step 1: the engine (prepare resets, C-5) ----
     BassMorphEngine engine;
@@ -840,7 +840,7 @@ struct DstCoreReading {
             ++count;
         }
     }
-    REQUIRE(count > 0);
+    REQUIRE(count > 0u);
     return sum / static_cast<double>(count) - 20.0 * std::log10(std::sqrt(2.0));
 }
 
@@ -860,7 +860,7 @@ struct DstCoreReading {
             ++count;
         }
     }
-    REQUIRE(count > 0);
+    REQUIRE(count > 0u);
     return sum / static_cast<double>(count);
 }
 

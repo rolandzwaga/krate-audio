@@ -1,0 +1,32 @@
+Phase 12 remediation gate, 2026-10-24T05:24:33Z, HEAD 40f6ebca + working tree
+filter: [profundum]~[performance]~[perf]~[benchmark]~[!benchmark]~[long]~[.]  (Catch2 --shard-count/--shard-index, one process per shard, concurrent)
+dsp_systems_tests: 16 shards, 483 cases (run after the last dsp/ edit: profundum_engine_display_test.cpp tidy fixes); total lane wall 140 s
+profundum_tests: 12 shards, 57 cases (re-run after the spectrum_producer.h Goertzel rewrite); total lane wall 73 s
+dsp_systems_tests.shard0.log: All tests passed (117343 assertions in 31 test cases) | rc=0 wall=7s
+dsp_systems_tests.shard1.log: All tests passed (23747 assertions in 31 test cases) | rc=0 wall=66s
+dsp_systems_tests.shard10.log: All tests passed (4598 assertions in 30 test cases) | rc=0 wall=6s
+dsp_systems_tests.shard11.log: All tests passed (250565 assertions in 30 test cases) | rc=0 wall=139s
+dsp_systems_tests.shard12.log: All tests passed (5624744 assertions in 30 test cases) | rc=0 wall=63s
+dsp_systems_tests.shard13.log: All tests passed (35023 assertions in 30 test cases) | rc=0 wall=37s
+dsp_systems_tests.shard14.log: All tests passed (22620 assertions in 30 test cases) | rc=0 wall=79s
+dsp_systems_tests.shard15.log: All tests passed (98335 assertions in 30 test cases) | rc=0 wall=70s
+dsp_systems_tests.shard2.log: All tests passed (39160 assertions in 31 test cases) | rc=0 wall=78s
+dsp_systems_tests.shard3.log: All tests passed (3786856 assertions in 30 test cases) | rc=0 wall=10s
+dsp_systems_tests.shard4.log: All tests passed (101402 assertions in 30 test cases) | rc=0 wall=53s
+dsp_systems_tests.shard5.log: All tests passed (35088 assertions in 30 test cases) | rc=0 wall=107s
+dsp_systems_tests.shard6.log: All tests passed (43235 assertions in 30 test cases) | rc=0 wall=50s
+dsp_systems_tests.shard7.log: All tests passed (16426 assertions in 30 test cases) | rc=0 wall=57s
+dsp_systems_tests.shard8.log: All tests passed (3971 assertions in 30 test cases) | rc=0 wall=36s
+dsp_systems_tests.shard9.log: All tests passed (5724 assertions in 30 test cases) | rc=0 wall=42s
+profundum_tests.shard0.log: All tests passed (715845 assertions in 5 test cases) | rc=0 wall=12s
+profundum_tests.shard1.log: All tests passed (30843 assertions in 5 test cases) | rc=0 wall=11s
+profundum_tests.shard10.log: All tests passed (25044 assertions in 4 test cases) | rc=0 wall=10s
+profundum_tests.shard11.log: All tests passed (267735 assertions in 4 test cases) | rc=0 wall=33s
+profundum_tests.shard2.log: All tests passed (338638 assertions in 5 test cases) | rc=0 wall=73s
+profundum_tests.shard3.log: All tests passed (12535 assertions in 5 test cases) | rc=0 wall=5s
+profundum_tests.shard4.log: All tests passed (4349 assertions in 5 test cases) | rc=0 wall=7s
+profundum_tests.shard5.log: All tests passed (11932 assertions in 5 test cases) | rc=0 wall=4s
+profundum_tests.shard6.log: All tests passed (710 assertions in 5 test cases) | rc=0 wall=0s
+profundum_tests.shard7.log: All tests passed (2331 assertions in 5 test cases) | rc=0 wall=2s
+profundum_tests.shard8.log: All tests passed (4997 assertions in 5 test cases) | rc=0 wall=0s
+profundum_tests.shard9.log: All tests passed (13683 assertions in 4 test cases) | rc=0 wall=1s

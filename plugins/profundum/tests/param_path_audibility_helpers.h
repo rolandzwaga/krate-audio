@@ -279,7 +279,7 @@ struct AuReading {
 // ported from profundum_engine_audibility_test.cpp:464 (E_sub over [start, start + len) by LS fit at f0)
 [[nodiscard]] inline double auWindowESubDb(const std::vector<float>& L, const std::vector<float>& R,
                                            std::size_t start, std::size_t len, double f0) {
-    REQUIRE(len >= 8);
+    REQUIRE(len >= 8u);
     REQUIRE(start + len <= L.size());
     std::array<std::array<double, 4>, 3> m{};   // [G | b]
     const double w = auPt::kTwoPi * f0 / kAuFs;

@@ -1,0 +1,149 @@
+T001 — Branch, base, scope, ruling census, ODR sweep (no code)
+Run 2026-10-23, cwd f:/projects/iterum, Git Bash. No source file changed by this task.
+VERDICT: BLOCKED. Steps 1-4 are clean; step 5 found citation mismatches in 4 rows of the
+"Verified API surface" table (see STEP 5). Every symbol and value is confirmed; only the cited lines/counts are off.
+
+== STEP 1: branch / base / status ==
+$ git branch --show-current
+synth/profundum
+$ git rev-parse HEAD
+40f6ebcabbfb726060248d41f9a234d742e1270e
+$ git merge-base --is-ancestor 40f6ebca HEAD
+exit=0
+$ git status --porcelain
+ M .serena/project.yml
+?? specs/profundum-phase12-ui/
+-> PASS (only the allowed paths)
+
+== STEP 2: scope baseline ==
+$ git diff --name-only 40f6ebca -- dsp/ plugins/ tests/
+(no output, exit=0)
+-> PASS
+
+== STEP 3: ruling census (plan §10 Open Questions 1-7; plan.md:1928-1956) ==
+OQ-1 (P-1): RULED. spec.md:111 "P-1: May a hidden render case land before ratification? → Yes: one `[.listen]` test-only case + `render.sh`; no plugin source. [FR-001, SC-006]"; owning row FR-001 spec.md:248-251 "**Exception (user ruling 2026-10-23, P-1):** before ratification, one hidden test-only case `plugins/profundum/tests/integration/main_page_render_set_test.cpp` (tag `[.listen]`, never in a gate), its CMake registration and `render.sh` ... Running Phase 9's `listen.sh` is allowed too."
+OQ-2 (P-2): RULED. spec.md:112 "P-2: Reword SC-004 for v3? → Yes: every `getState` length assertion moves to `kStateV3Bytes`; v1 / v2 load expectations unchanged. [SC-004]"; owning row SC-004 spec.md:646-647 "every `getState` length assertion moves from `kStateV2Bytes` to `kStateV3Bytes` (36 lines in 7 Phase 11 test files; user ruling 2026-10-23, P-2)."
+OQ-3 (P-5): RULED. spec.md:114 "P-5: Macro ring shape → one-sided (base → base + offset), plugin-local view, no shared-header change. [FR-061]"; owning row FR-061 spec.md:488-489 "drawn as a **one-sided** modulation ring from the base value to base + offset, in the macro's direction (user ruling 2026-10-23, P-5)".
+OQ-4 (P-4, copy names): RULED. spec.md:115 "P-4: Does Copy copy the name? → No, sound only. [FR-042]"; owning row is FR-042 spec.md:432-433 "Copy copies the sound only; each endpoint keeps its own name (user ruling 2026-10-23, P-4)." (T001 step 3 names FR-047 as the owner; FR-047 spec.md:452 carries no P-4 text — the ruling sits in FR-042, which the Clarifications line itself names.)
+OQ-5 (ratification of §3.1 proposals / D1-D7): OPEN. spec.md:103-104 "Still owed by the user ...: the dated listening verdict on the FR-006 render set (SC-006 (b)), the eight Phase 9 listening verdicts (FR-097), and the ratification of D1–D7 (SC-001)." No design/ folder exists yet. Expected at this point; T011 enforces.
+OQ-6 (P-8): RULED. spec.md:116 "P-8: Display-only readouts → allowed beside the writing control on the same page. [FR-032]"; owning row FR-032 spec.md:404-406 "A display-only `CParamDisplay` may also bind an ID when the same page binds that ID to a writing control (value readouts; user ruling 2026-10-23, P-8); it never writes."
+OQ-7 (P-9): RULED (no). spec.md:117 "P-9: Header preset field in Phase 12 → no; Phase 13 adds the browser. [FR-001 scope]". No new FR needed (a "no" adds no row; Appendix A not built).
+
+== STEP 4: ODR sweep ==
+$ for n in <names>; do grep -rnw "$n" dsp/ plugins/ tools/ tests/ | wc -l; done
+ProfundumSpectrumProducer: 0
+ProfundumSpectrumFrame: 0
+kProfundumFrameUserContextId: 0
+HarmonicBarView: 0
+SpreadCurveView: 0
+ProfundumPanelSubController: 0
+SpreadCurveModel: 0
+kMacroTargetParamIds: 0
+describeEndpoint: 0
+kMsgEndpointName: 0
+kEndpointNameMaxBytes: 0
+kEndpointNameBlockBytes: 0
+kStateNamesOffset: 0
+publishSpectrumFrame: 0
+kEditorSyncIntervalMs: 0
+hasEditorSyncTimerForTest: 0
+SpectrumQueueState: 0
+spectrumQueueOpenForTest: 0
+v2StreamOf: 0
+portaReadoutInvalidationsForTest: 0
+kneeMarksForTest: 0
+lowerKneeHz: 0
+upperKneeHz: 0
+kD6UiOnlyTags: 0
+controlGridPhase: 0
+voiceForDisplay: 0
+voiceMidiNote: 0
+voiceRenderedThisInterval: 0
+appliedVoiceMode: 0
+characterTapL: 0
+characterTapR: 0
+anchorTapL: 0
+anchorTapR: 0
+intervalSamplesRendered: 0
+EndpointName: 0
+sanitizeEndpointName: 0
+defaultEndpointName: 0
+writeEndpointName: 0
+readEndpointName: 0
+HeadlessEditor: 0
+Profundum_SpectrumProducerMath: 0
+Profundum_UiViewsUnit: 0
+Profundum_MacroUiMap: 0
+$ grep -rnw kStateV3Bytes dsp/ plugins/ tools/ tests/
+All hits are under plugins/vorago/ (namespace Vorago): CLAUDE.md:71, src/plugin_ids.h:52 / :54,
+src/processor/processor.cpp:578 / :650, tests/integration/param_surface_test.cpp:2195,
+tests/integration/preset_browser_test.cpp:20 / :330 / :331, tests/preset_test_support.h:874 / :912,
+tests/unit/preset/factory_preset_test.cpp (:665 :1314 :1431 :1774 :1819 :1826), tests/unit/state_roundtrip_test.cpp
+(:12 :244 :251 :252 :260 :299 :379), tests/unit/state_v2_test.cpp (:6 :10 :300 :447 :484 :741),
+tests/unit/state_v3_test.cpp (:153 :163 :201 :236 :241 :254 :268 :300 :326).
+0 hits in dsp/, tools/, tests/, plugins/profundum/, or any other plugin.
+-> PASS
+
+== STEP 5: Verified API surface re-read (at HEAD 40f6ebca; working tree clean outside the spec folder) ==
+CONFIRMED rows:
+- plugin_ids.h:22 kCurrentStateVersion = 2; :31 kStateV1Version = 1; :38 kStateV2Bytes = 510;
+  :48-49 static_assert(kCurrentStateVersion == 2 && kStateV1Version + 1 == kCurrentStateVersion, ...)
+- plugin_ids.h:70-74 kMsgCopyEndpoint, kMsgCompare, kMsgEndpoint, kMsgCompareMode, kMsgRequestSync
+- processor.cpp:504 "if (version < kCurrentStateVersion) {"; Processor::applyPendingCopy defined at processor.cpp:647
+- controller.cpp:117 "} else if (version >= kCurrentStateVersion) {"
+- profundum_engine.h: :96 public:; :399-405 gridStep / renderChunk / pos_ += m / gridPhase_ update; :422
+  oversamplerStateFinite(); :424 private:; :623-628 pos_ = 0 / gridPhase_ = 0 / dcSynced_ / monoActiveNote_ = -1 /
+  followsMono_ / rendering_.fill(false); :768 VoiceMode::Mono branch; :784 allocator_.noteOn(note, velocity)
+- profundum_voice.h: :379 k_ = 0 (inside beginInterval :374); :693 currentCoreF0(); :695-698 stateFinite(); :700 private:;
+  :864 mainL_.data() + k0; :871 anchorL_.data() + k0; :941 .charL = tap(mainL_); :943 .anchorL = tap(anchorL_);
+  :991 scratch arrays coreL_..anchorR_; :1053 std::size_t k_ = 0
+- profundum_macro_matrix.h: enum class ProfundumMacro at :38 (row says :37, its doc comment), enum class
+  ProfundumMacroTarget :41-47 (row says :40-47; :40 is its doc comment), 16 targets in Weight / DarkBright / TightLoose /
+  CleanViolent order. Accepted as confirmed (one-line doc-comment offset).
+- dsp/tests/CMakeLists.txt:787 "# Profundum Phase 9 ... ENUMERATED" ... :816 unit/systems/mass_dynamics_oversampling_test.cpp
+- plugins/profundum/tests/CMakeLists.txt: add_executable(profundum_tests :7; SECOND compilation :33; -fno-fast-math
+  block :103; catch_discover_tests :110; krate_test_pch(profundum_tests) :113 (last)
+- editor_lifecycle_test.cpp: HarnessCycles :151 (cycles = 3 :157); EditorBindsSurface :163; REQUIRE(controlCount == 8u) :199;
+  CreateViewNames :205
+- processor_cpu_test.cpp: :71 kMonoPctBar = 8.0; :72 kPolyPctBar = 25.0;
+  :214 TEST_CASE("Profundum_ProcessorCpu", "[profundum][.perf][performance]")
+- profundum_test_fixture.h: CountingConnectionPoint :220, hold :263, releaseHeld() :308, RecordingComponentHandler :379,
+  ControllerFixture :456, ProcessorFixture :508, ConnectedPair :755, kV2GlobalsAt :982, kV2SeedAt :986, writeV2Stream :1007,
+  withEndpoints :1043, v1Stream :1062, withFields :1091
+- $ grep -rn kStateV2Bytes plugins/profundum/tests -> 36 lines in 7 files (state_v2_test 26, state_roundtrip_test 4,
+  profundum_test_fixture.h 2, determinism_test / state_restore_render_test / lifecycle_test / phase11_alloc_test 1 each)
+- vorago processor.cpp:266 connect (kAlignment = 32 round-up :277-279, config.numBlocks = 4 :283,
+  onConnect(other, getHostContext()) :289), disconnect :296-302
+- vorago controller.cpp:303 queueOpened, :310 queueClosed, :314 onDataExchangeBlocksReceived, :330 notify ->
+  dataExchangeReceiver_.onMessage :334
+- vorago ecosystem_frame_test.cpp:109 / :111 kQueueMayBeUnavailable, :116 bool queueAvailable(bool opened, const char* step)
+- phase9 phase-handoffs.txt: :155 "12. Phase 12", :157 12.1, :180 12.2 (AT-03 :182, AT-10 :183, AT-26 :184-186),
+  :201 12.3 (eight Listen rows), :206 12.4 Bipolar ENV; evidence/audibility-table.csv = 175 lines (header + 174 rows)
+- profundum_voice_engine_test_helpers.h: :89 kVoiceEngineNoteE1 = 28, :91 kVoiceEngineNoteC3 = 48, :139 VoiceEngineScript,
+  :239 VoiceEngineObserver, :342 voiceEngineIssue, :377 voiceEngineRender
+- plugins/profundum/CHANGELOG.md:8 "## [0.1.0] - Unreleased"; plugins/profundum/version.json "version": "0.1.0"
+
+MISMATCHED rows (-> blocked, per T001 step 5):
+M1 "Parameter IDs 0–7, 100–105, 200–208 ..., 900– | plugin_ids.h:86–193":
+   enum ParameterIDs opens at plugin_ids.h:100 (kOutputGainId = 0 at :101) and runs to :205 (kMotionSourceId = 900 :185,
+   kMotionParamRangeEnd :200, kMorphAnchorModeId = 1000 :202, kMorphEditTargetId = 1001 :203, kMorphParamRangeEnd = 1100
+   :205). Lines 86-99 are kSubCategories and band-map comments. Every ID value in the row is confirmed; the cited range is
+   wrong and leaves out 900-914 / 1000-1002. spec.md:159 has the same :86–193 citation.
+M2 "Consumers of profundum_engine.h / profundum_voice.h: 15 Profundum TUs + mass_dynamics_oversampling_test.cpp":
+   $ grep -rlE "profundum_engine\.h|profundum_voice\.h" dsp/ plugins/ tools/ tests/
+   dsp/tests/unit/systems: 13 profundum_*.cpp TUs + mass_dynamics_oversampling_test.cpp = 14 .cpp TUs (other hits are
+   not TUs: profundum_voice_engine_test_helpers.h, profundum_engine_observer.h, profundum_engine.h, dsp/CMakeLists.txt).
+   Widening the pattern to the helpers and observer headers still gives 14 .cpp TUs. "plugins/profundum/ only" is
+   confirmed (17 plugin files, no other plugin). The row's 15 + 1 = 16 does not match 14.
+M3 "editor_lifecycle_test.cpp: headless editor = new VST3Editor(...) + attached(...) :170–175; collectBoundControls :66–86":
+   collectBoundControls is defined at :71-91 (:66 is inside nextTempCounter). new VSTGUI::VST3Editor(controller.get(),
+   "editor", uidescPath.c_str()) is at :169; attached(nullptr, Krate::TestSupport::nativePlatformType()) at :171-172.
+M4 "Plugin source list smtg_add_vst3plugin(...) | plugins/profundum/CMakeLists.txt:19–61":
+   smtg_add_vst3plugin(${PLUGIN_NAME} opens at :23 and closes at :64; :19-21 is the "ENUMERATED ... Every new .cpp must
+   appear in BOTH lists" comment (that quote, cited in Deviation 1, is confirmed at :19-21).
+Minor (outside the table, noted only): Deviation 7 cites vorago panel_sub_controller.cpp:28 for uidesc-label; the constant
+kLabelAttribute = "uidesc-label" is at :29 (verifyView :60-61 confirmed). Vorago editor_layout_test.cpp :324 XmlNode,
+:338 XmlScan, :391 scanUidesc confirmed.
+
+DECISION NEEDED: correct the citations of tasks.md "Verified API surface" rows M1-M4 (and spec.md:159 for M1), or have
+the orchestrator/user rule this line drift non-blocking. Then T002+ can rely on the table.

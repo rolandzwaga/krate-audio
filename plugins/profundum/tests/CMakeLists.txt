@@ -30,10 +30,30 @@ add_executable(profundum_tests
     integration/determinism_test.cpp
     integration/band_level_metric_test.cpp
 
+    # Phase 12
+    integration/main_page_render_set_test.cpp   # [.listen] FR-006 render set (T010; P-1 ruling, spec FR-001)
+    unit/spectrum_producer_test.cpp
+    unit/state_v3_test.cpp
+    unit/controller/editor_layout_test.cpp
+    unit/controller/morph_component_test.cpp
+    unit/controller/macro_ui_test.cpp
+    unit/controller/spread_curve_test.cpp
+    unit/controller/editor_sync_test.cpp
+    unit/controller/custom_view_laws_test.cpp
+    unit/controller/ui_views_test.cpp
+    integration/spectrum_frame_test.cpp
+    integration/main_page_sanity_test.cpp
+    integration/main_page_audibility_test.cpp   # SC-006 (a) rows (T039, ruled 2026-10-24)
+
     # SECOND compilation of every plugin .cpp (needed by the plugin-shell tests).
     # A new plugin .cpp must appear here AND in plugins/profundum/CMakeLists.txt.
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/goertzel_bank_simd.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/ui/harmonic_bar_view.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/ui/spread_curve_view.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/ui/offset_ring_knob.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/ui/panel_sub_controller.cpp
 
     # VST3 SDK sources
     ${vst3sdk_SOURCE_DIR}/public.sdk/source/common/memorystream.cpp
@@ -52,6 +72,7 @@ add_executable(profundum_tests
 target_link_libraries(profundum_tests
     PRIVATE
         KrateDSP
+        hwy  # T040: goertzel_bank_simd.cpp
         KratePluginsShared
         Catch2::Catch2
         test_helpers
@@ -100,6 +121,13 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         integration/mono_sum_params_test.cpp
         integration/determinism_test.cpp
         integration/band_level_metric_test.cpp
+        # Phase 12
+        integration/main_page_render_set_test.cpp  # bit-pattern finiteness over renders
+        unit/spectrum_producer_test.cpp            # NaN f0 / NaN sample; bit-pattern normal check
+        unit/state_v3_test.cpp
+        integration/spectrum_frame_test.cpp
+        integration/main_page_sanity_test.cpp
+        integration/main_page_audibility_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
     # integration/processor_cpu_test.cpp is DELIBERATELY ABSENT: the timed code must

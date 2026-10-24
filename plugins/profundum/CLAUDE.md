@@ -16,7 +16,7 @@ Auto-loads when working under `plugins/profundum/`. Root `CLAUDE.md` still appli
   `morph_params.h`, `performance_params.h`) plus the 60-row E-parameter table (`sound_param_row.h`,
   `sound_param_table.h`); `preset/` and `update/` are the shared-config adapters
   (`makeProfundumPresetConfig()` / `makeProfundumUpdateConfig()`; the controller never creates an
-  `UpdateChecker`); `ui/` holds only `.gitkeep` until the UI phase.
+  `UpdateChecker`); `ui/` holds the Phase 12 editor classes (see **UI** below).
   Generated, never hand-edited, never committed (see `.gitignore`): `src/version.h`,
   `resources/win32resource.rc`, `resources/auv3/audiounitconfig.h` — only `audiounitconfig.h.in` is authored.
 - **Buses:** 1 event input, 1 stereo audio output, **no `addAudioInput()`**. `kSupportedNumChannels` is
@@ -48,21 +48,21 @@ Auto-loads when working under `plugins/profundum/`. Root `CLAUDE.md` still appli
   no `performEdit`. Edit Target is not `kCanAutomate` and is persisted. The processor is authoritative for both endpoints
   and the compare mode; the controller mirror is replaced only from its `kMsgEndpoint` / `kMsgCompareMode` messages
   (sent off the audio thread: a 50 ms SDK timer on Windows / macOS, none on Linux, plus the `kMsgRequestSync` pull on an
-  Edit Target switch). Copy A→B / B→A and Compare (A, A·B, B) are controller operations (`copyEndpoint`, `setCompare`)
-  with no UI until Phase 12; Compare is never persisted and resets to A·B on `setState` / `setActive(false)`.
+  Edit Target switch). Copy A→B / B→A and Compare (A, A·B, B) are controller operations (`copyEndpoint`, `setCompare`),
+  driven from the editor's morph component since Phase 12; Compare is never persisted and resets to A·B on `setState` / `setActive(false)`.
   The seed is persisted and **not registered**. Macro IDs obey `id - 100 == static_cast<int>(ProfundumMacro::X)`.
   Registered types and ranges are **frozen**: `kOutputGainId`, `kOutputCeilingId` and the four macros are
   plain `Steinberg::Vst::Parameter`s, `kVoiceModeId` ("Mono", "Poly") and `kPolyphonyId` ("1".."8") are
   `StringListParameter`s — never swap a type or change a range at the same ID. Titles are ASCII:
   "Weight", "Dark/Bright", "Tight/Loose", "Clean/Violent".
   Pipeline to add one: `plugin_ids.h → parameters/ → processor → controller → resources/editor.uidesc`.
-- **State:** `kCurrentStateVersion = 2`, `kStateV2Bytes = 510` (and the v1 constants `kStateV1Version = 1`,
-  `kStateV1Bytes = 36`) live in `plugin_ids.h`, shared by processor and controller with no cross-include; every offset is
-  `static_assert`ed. Little-endian `IBStreamer`:
+- **State:** `kCurrentStateVersion = 3`, `kStateV3Bytes = 574` (and `kStateV2Version = 2` / `kStateV2Bytes = 510`,
+  `kStateV1Version = 1` / `kStateV1Bytes = 36`) live in `plugin_ids.h`, shared by processor and controller with no
+  cross-include; every offset is `static_assert`ed. Little-endian `IBStreamer`:
 
   | Bytes | Block | Content |
   |---|---|---|
-  | 0–3 | version | `int32` = 2 |
+  | 0–3 | version | `int32` = 3 |
   | 4–19 | global (v1) | float outputGain, int32 voiceMode, int32 polyphony, float outputCeilingDb |
   | 20–35 | macros (v1) | four floats in `ProfundumMacro` order |
   | 36–67 | note behaviour | priority i32, legato i32, portamento ms f32, portamento mode i32, glide mode i32, Note Memory i32, retrigger i32, bend range f32 |
@@ -71,12 +71,46 @@ Auto-loads when working under `plugins/profundum/`. Root `CLAUDE.md` still appli
   | 88–288 | endpoint A | `serializeMorphState`, 201 bytes |
   | 289–489 | endpoint B | 201 bytes |
   | 490–509 | morph runtime | `serializeMorphRuntime`, 20 bytes |
+  | 510–541 | name A (v3) | u8 length L (0–31), then L UTF-8 bytes, zero-padded to 31 (`kEndpointNameBlockBytes = 32`) |
+  | 542–573 | name B (v3) | same layout |
 
-  The hidden performance parameters (4–7) are never written or read. Version `> 2` → `kResultFalse`, nothing changed.
-  A v1 (36-byte) stream loads the globals and macros and resets both endpoints, the note and morph-control fields and the
-  seed to their defaults. A truncated stream keeps the prior value of every field it does not hold completely (an endpoint
-  needs all 201 bytes). `setState` makes no engine call: the next `process()` applies the endpoints, then the morph-control
-  fields, then the runtime blob only if its target, ramp and mode match. The next format change appends after byte 510.
+  Bytes 0–509 of a v3 stream are the v2 body with version word 3. The hidden performance parameters (4–7) are never
+  written or read. Version `> 3` → `kResultFalse`, nothing changed. A v1 (36-byte) stream loads the globals and macros
+  and resets both endpoints, the note and morph-control fields, the seed and both names to their defaults. A v2 (510-byte)
+  stream loads everything but the names, which reset to the defaults `A` and `B`. A truncated stream keeps the prior
+  value of every field it does not hold completely (an endpoint needs all 201 bytes; a short or invalid name block keeps
+  that endpoint's prior name and stops the chain). An empty name is the default name. `setState` makes no engine call:
+  the next `process()` applies the endpoints, then the morph-control fields, then the runtime blob only if its target,
+  ramp and mode match. `process()` never touches the names; the processor holds them under `namesMutex_`, taken only by
+  `notify`, `getState` and `setState`. A name edit in the editor sends **`kMsgEndpointName`**
+  (`"ProfundumEndpointName"`, ctl → proc, int `"endpoint"`, binary `"name"` of 0–31 bytes) and sets the project dirty.
+  The endpoint descriptor shown beside a name is computed from the endpoint and is never stored. The next format change
+  appends after byte 574.
+- **UI (Phase 12, `specs/profundum-phase12-ui/`; design docs D1–D7 in its `design/`):**
+  - **Pages:** one fixed 960 × 600 editor (`minSize = maxSize`) with a **Main** page and an **Advanced** page (session tag
+    9100); Advanced has three tabs, Sections / Modulation / Settings (session tag 9110). `resources/editor.uidesc` is the
+    whole layout; change it with XSLT.
+  - **Sub-controller:** `createSubController("ProfundumPanel")` builds `UI::ProfundumPanelSubController`
+    (`src/ui/panel_sub_controller.{h,cpp}`): page and tab switching, the morph component (Compare A / A·B / B, Copy
+    A→B / B→A, the endpoint-name fields, the `Held at A` lock dimming) and the macro highlight.
+  - **Custom views:** `createCustomView` makes `HarmonicBarView` (attribute `bar-variant` main / core; the live
+    harmonic spectrum) and `SpreadCurveView` (the stereo-field spread curve); `OffsetRingKnob` is a registered view
+    class (`src/ui/offset_ring_knob.{h,cpp}`) that draws a macro's offset as a one-sided ring from the knob's value.
+    Macro offsets act on the resolved state and **never move the knobs**. `src/ui/macro_ui_map.h` maps the 16 macro
+    rows to registered IDs; `src/ui/endpoint_descriptor.h` is the descriptor table.
+  - **Spectrum frame:** the processor publishes at most one 288-byte `ProfundumSpectrumFrame`
+    (`src/processor/spectrum_frame.h`, produced by `spectrum_producer.h`) per `process()` through a one-way
+    DataExchange queue with user context **`kProfundumFrameUserContextId = 0x50524644`** (`'PRFD'`); the controller
+    (`IDataExchangeReceiver`) caches the newest frame on the UI thread with or without an open editor. **The spectrum
+    is empty in a host with neither DataExchange nor a run loop** (for example a bare test harness); this is documented,
+    not worked around.
+  - **Sync timer:** while an editor is open, a VSTGUI `CVSTGUITimer` with period `kEditorSyncIntervalMs = 100` refreshes
+    the views; it skips a tick while a gesture is open and is stopped in `willClose` / `terminate`. It is separate from
+    the processor's 50 ms SDK timer.
+  - **Zoom:** steps 100 / 125 / 150 / 200 % (`Controller::kZoomSteps`), chosen in the header and in the SETTINGS tab
+    (session tag 9300) or the host's zoom menu, applied with `VST3Editor::setZoomFactor`. Zoom, page, tab and highlight
+    are **session state**: never persisted, never a parameter.
+  - `IMidiLearn` is **not** implemented; MIDI learn is the host's.
 - **Tests:** `profundum_tests` (namespace `ProfundumPluginTest`; every case carries `[profundum]`). The timed CPU
   cases `Profundum_ProcessorCpu` and `Profundum_ProcessorCpuFullSurface` are hidden behind `[.perf]`; run them only via
   `node tools/run-cpu-tests.js profundum_tests`, alone. `Profundum_IdleTailProbe` (`[.][probe]`) is hidden and prints only.
@@ -96,6 +130,23 @@ Auto-loads when working under `plugins/profundum/`. Root `CLAUDE.md` still appli
   | `integration/mono_sum_params_test.cpp` | `Profundum_MonoSumViaParams` | `[mono][long]` |
   | `integration/determinism_test.cpp` | `Profundum_Determinism` | `[determinism]` |
   | `integration/band_level_metric_test.cpp` | `Profundum_BandLevelMetricSelfTest` | `[metric]` |
+
+  Phase 12 cases (every `profundum_tests` case of the phase also carries `[ui]`), one line each:
+
+  - `unit/state_v3_test.cpp` — `Profundum_EndpointNames` (`[morph][state]`): name sanitising, block round trip, descriptor table, version 3, one `kMsgEndpointName` per commit, v1 / v2 streams load.
+  - `unit/spectrum_producer_test.cpp` — `Profundum_SpectrumProducerMath` (`[spectrum]`): the per-partial power arithmetic.
+  - `unit/controller/custom_view_laws_test.cpp` — `Profundum_UiCustomViewLaws`: the drawing laws of the custom views.
+  - `unit/controller/editor_layout_test.cpp` — `Profundum_UidescBindsEverySurfaceId`, `Profundum_UidescTagIntegrity`, `Profundum_UiClassRule`, `Profundum_UiLabels`, `Profundum_Editor_PageSwitch`, `Profundum_UiLayout`, `Profundum_UiPlacement`, `Profundum_UiZoom`: ID binding, tags, view classes, labels, page switching, layout and accessibility at every zoom step, placement, zoom.
+  - `unit/controller/editor_lifecycle_test.cpp` — `Profundum_EditorLifecycle` (`[controller][lifecycle]`): open / close cycles of the real editor.
+  - `unit/controller/editor_sync_test.cpp` — `Profundum_EditorSyncTimer` (`[lifecycle]`): the 100 ms timer exists only while an editor is open.
+  - `unit/controller/macro_ui_test.cpp` — `Profundum_MacroUiMap`, `Profundum_MacroModulationRing`, `Profundum_MacroHighlight`, `Profundum_MidiLearnHostLevel`: macro row → ID map, offset rings, highlight sets, host-level MIDI learn. `Profundum_UiContractTables` (`[.][probe]`, hidden) prints the D3 / D4 CSVs that `specs/profundum-phase12-ui/evidence/close/regen-tables.sh` pastes into `design/macro-mapping.md` and `design/morph-laws.md`.
+  - `unit/controller/morph_component_test.cpp` — `Profundum_MorphComponentUi`, `Profundum_MorphLockDimming` (`[morph]`), `Profundum_UiPortamentoUnitFollowsGlideMode`: compare / copy / names, the `Held at A` dimming, the portamento unit label.
+  - `unit/controller/spread_curve_test.cpp` — `Profundum_SpreadCurveMatchesField`: the drawn curve follows the field.
+  - `unit/controller/ui_views_test.cpp` — `Profundum_UiViewsUnit`: the custom views in isolation.
+  - `integration/spectrum_frame_test.cpp` — `Profundum_SpectrumFrameMatchesSignal`, `…DoesNotChangeAudio`, `…AllocationFree` (`[rt]`), `…FocusVoice`, `…Sanitise`, `…HandlerLifecycle` (`[lifecycle]`), `…Cadence` (the others `[spectrum]`): frame against the rendered signal, audio unchanged, no allocation, focus voice, sanitising, queue lifecycle, cadence.
+  - `integration/main_page_sanity_test.cpp` — `Profundum_MainPageSanity` (`[render]`): each of the 17 Main-page controls renders finite audio above the RMS bar and at or under the ceiling.
+  - `integration/main_page_render_set_test.cpp` — `Profundum_MainPageRenderSet` (`[render][.listen]`, hidden): writes the listening WAVs to `specs/profundum-phase12-ui/evidence/listen/` (git-ignored).
+  - `dsp/tests/unit/systems/profundum_engine_display_test.cpp` (in `dsp_systems_tests`) — `Profundum_EngineDisplayAccessorNeutral` (`[profundum][systems][display]`): the engine's display accessors do not change the render.
 
   The five `[long]` cases (`Profundum_TailCoversRelease`, `Profundum_StateRestoreRender`, `Profundum_ParamPathAudibility`,
   `Profundum_MassOffsetAudibility`, `Profundum_MonoSumViaParams`) are excluded from per-push CI and run nightly.
