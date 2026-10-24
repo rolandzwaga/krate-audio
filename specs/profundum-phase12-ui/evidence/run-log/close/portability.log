@@ -1,0 +1,108 @@
+=== T037 portability 2026-10-24T07:59:57Z commit 40f6ebca base 40f6ebca
+TUs (30):
+  dsp/tests/unit/systems/profundum_engine_display_test.cpp
+  plugins/profundum/src/controller/controller.cpp
+  plugins/profundum/src/entry.cpp
+  plugins/profundum/src/processor/goertzel_bank_simd.cpp
+  plugins/profundum/src/processor/processor.cpp
+  plugins/profundum/src/ui/harmonic_bar_view.cpp
+  plugins/profundum/src/ui/offset_ring_knob.cpp
+  plugins/profundum/src/ui/panel_sub_controller.cpp
+  plugins/profundum/src/ui/spread_curve_view.cpp
+  plugins/profundum/tests/integration/determinism_test.cpp
+  plugins/profundum/tests/integration/main_page_audibility_test.cpp
+  plugins/profundum/tests/integration/main_page_render_set_test.cpp
+  plugins/profundum/tests/integration/main_page_sanity_test.cpp
+  plugins/profundum/tests/integration/processor_cpu_test.cpp
+  plugins/profundum/tests/integration/spectrum_frame_test.cpp
+  plugins/profundum/tests/integration/state_restore_render_test.cpp
+  plugins/profundum/tests/unit/controller/custom_view_laws_test.cpp
+  plugins/profundum/tests/unit/controller/editor_layout_test.cpp
+  plugins/profundum/tests/unit/controller/editor_lifecycle_test.cpp
+  plugins/profundum/tests/unit/controller/editor_sync_test.cpp
+  plugins/profundum/tests/unit/controller/macro_ui_test.cpp
+  plugins/profundum/tests/unit/controller/morph_component_test.cpp
+  plugins/profundum/tests/unit/controller/spread_curve_test.cpp
+  plugins/profundum/tests/unit/controller/ui_views_test.cpp
+  plugins/profundum/tests/unit/lifecycle_test.cpp
+  plugins/profundum/tests/unit/phase11_alloc_test.cpp
+  plugins/profundum/tests/unit/spectrum_producer_test.cpp
+  plugins/profundum/tests/unit/state_roundtrip_test.cpp
+  plugins/profundum/tests/unit/state_v2_test.cpp
+  plugins/profundum/tests/unit/state_v3_test.cpp
+headers (28):
+  dsp/include/krate/dsp/systems/profundum_engine.h
+  dsp/include/krate/dsp/systems/profundum_voice.h
+  dsp/tests/unit/processors/harmonic_fold_test_helpers.h
+  dsp/tests/unit/processors/shape_character_metric_helpers.h
+  dsp/tests/unit/processors/transient_shaper_test_helpers.h
+  dsp/tests/unit/systems/anchor_oscillator_test_helpers.h
+  dsp/tests/unit/systems/bass_morph_test_helpers.h
+  dsp/tests/unit/systems/bass_stereo_field_test_helpers.h
+  dsp/tests/unit/systems/mass_dynamics_test_helpers.h
+  dsp/tests/unit/systems/profundum_core_test_helpers.h
+  dsp/tests/unit/systems/profundum_voice_engine_test_helpers.h
+  plugins/profundum/src/controller/controller.h
+  plugins/profundum/src/parameters/endpoint_names.h
+  plugins/profundum/src/plugin_ids.h
+  plugins/profundum/src/processor/goertzel_bank_simd.h
+  plugins/profundum/src/processor/processor.h
+  plugins/profundum/src/processor/spectrum_frame.h
+  plugins/profundum/src/processor/spectrum_producer.h
+  plugins/profundum/src/ui/endpoint_descriptor.h
+  plugins/profundum/src/ui/harmonic_bar_view.h
+  plugins/profundum/src/ui/macro_ui_map.h
+  plugins/profundum/src/ui/offset_ring_knob.h
+  plugins/profundum/src/ui/panel_sub_controller.h
+  plugins/profundum/src/ui/spread_curve_view.h
+  plugins/profundum/tests/param_path_audibility_helpers.h
+  plugins/profundum/tests/profundum_test_fixture.h
+  plugins/profundum/tests/ui_strings_test_table.h
+  plugins/profundum/tests/ui_tree_helpers.h
+
+== check-portability ==
+check-portability: 30 translation unit(s) with g++
+
+  OK      dsp/tests/unit/systems/profundum_engine_display_test.cpp
+  OK      plugins/profundum/src/controller/controller.cpp
+  OK      plugins/profundum/src/entry.cpp
+  OK      plugins/profundum/src/processor/goertzel_bank_simd.cpp
+  OK      plugins/profundum/src/processor/processor.cpp
+  OK      plugins/profundum/src/ui/harmonic_bar_view.cpp
+  OK      plugins/profundum/src/ui/offset_ring_knob.cpp
+  OK      plugins/profundum/src/ui/panel_sub_controller.cpp
+  OK      plugins/profundum/src/ui/spread_curve_view.cpp
+  OK      plugins/profundum/tests/integration/determinism_test.cpp
+  OK      plugins/profundum/tests/integration/main_page_audibility_test.cpp
+  OK      plugins/profundum/tests/integration/main_page_render_set_test.cpp
+  OK      plugins/profundum/tests/integration/main_page_sanity_test.cpp
+  OK      plugins/profundum/tests/integration/processor_cpu_test.cpp
+  OK      plugins/profundum/tests/integration/spectrum_frame_test.cpp
+  OK      plugins/profundum/tests/integration/state_restore_render_test.cpp
+  OK      plugins/profundum/tests/unit/controller/custom_view_laws_test.cpp
+  OK      plugins/profundum/tests/unit/controller/editor_layout_test.cpp
+  OK      plugins/profundum/tests/unit/controller/editor_lifecycle_test.cpp
+  OK      plugins/profundum/tests/unit/controller/editor_sync_test.cpp
+  OK      plugins/profundum/tests/unit/controller/macro_ui_test.cpp
+  OK      plugins/profundum/tests/unit/controller/morph_component_test.cpp
+  OK      plugins/profundum/tests/unit/controller/spread_curve_test.cpp
+  OK      plugins/profundum/tests/unit/controller/ui_views_test.cpp
+  OK      plugins/profundum/tests/unit/lifecycle_test.cpp
+  OK      plugins/profundum/tests/unit/phase11_alloc_test.cpp
+  OK      plugins/profundum/tests/unit/spectrum_producer_test.cpp
+  OK      plugins/profundum/tests/unit/state_roundtrip_test.cpp
+  OK      plugins/profundum/tests/unit/state_v2_test.cpp
+  OK      plugins/profundum/tests/unit/state_v3_test.cpp
+
+check-portability: all clear -- 30 compiled.
+check-portability exit=0 wall=87s
+
+== lint-apple-globals ==
+lint-apple-globals: OK — 58 files, no macOS-only name collisions
+lint-apple-globals exit=0 wall=0s
+
+== list cross-check (expected vs computed) ==
+identical (30 files)
+
+wsl --shutdown done; total wall 92s
+PORTABILITY GREEN

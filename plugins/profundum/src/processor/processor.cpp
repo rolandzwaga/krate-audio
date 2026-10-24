@@ -10,6 +10,7 @@
 #include "processor/processor.h"
 
 #include "engine/profundum_engine_config.h"
+#include "parameters/endpoint_names.h"
 #include "parameters/sound_param_table.h"
 #include "plugin_ids.h"
 
@@ -17,6 +18,8 @@
 #include "pluginterfaces/vst/ivstprocesscontext.h"
 
 #include "base/source/fstreamer.h"
+// Phase 12 T020 (plan 4.4): DataExchangeHandler's definition (forward-declared in processor.h).
+#include "public.sdk/source/vst/utility/dataexchange.h"
 
 #include <krate/dsp/core/db_utils.h>
 #include <krate/dsp/core/scoped_denormal_mode.h>
@@ -30,6 +33,7 @@
 #include <cmath>
 #include <cstring>
 #include <memory>
+#include <mutex>
 #include <string_view>
 #include <thread>
 #include <utility>
@@ -151,7 +155,21 @@ using EndpointBlob = std::array<std::byte, Krate::DSP::kMorphStateBytes>;
     return s.readRaw(blob.data(), static_cast<TSize>(blob.size())) == static_cast<TSize>(blob.size());
 }
 
+// Phase 12 FR-047 (plan 4.5): names_ index 0 / 1 -> Endpoint A / B.
+[[nodiscard]] constexpr Krate::DSP::BassMorphEngine::Endpoint endpointOfIndex(std::size_t e) noexcept {
+    return e == 1u ? Krate::DSP::BassMorphEngine::Endpoint::B : Krate::DSP::BassMorphEngine::Endpoint::A;
+}
+
+// Plan 4.5: "an empty result means the caller uses the default name".
+[[nodiscard]] EndpointName nameOrDefault(const EndpointName& name, Krate::DSP::BassMorphEngine::Endpoint e) noexcept {
+    return name.length == 0u ? defaultEndpointName(e) : name;
+}
+
 }  // namespace
+
+// T014's endpoint_names.h keeps its own constants so it stays independent of plugin_ids.h; T019 ties them here.
+static_assert(kEndpointNameBytes == kEndpointNameMaxBytes, "endpoint_names.h and plugin_ids.h agree on 31 bytes");
+static_assert(kEndpointNameBlock == kEndpointNameBlockBytes, "endpoint_names.h and plugin_ids.h agree on 32 bytes");
 
 Processor::Processor() {
     setControllerClass(kControllerUID);
@@ -256,6 +274,7 @@ tresult PLUGIN_API Processor::setupProcessing(ProcessSetup& setup) {
     applyEndpoints();
     pushParamsToEngine(static_cast<CompareMode>(compareMode_.load(std::memory_order_relaxed)));
     engine_->prepare(sr, makeProfundumEngineConfig());
+    spectrum_.prepare(sr);  // Phase 12 FR-073 (plan 4.4): control thread; every later frame carries this rate
     // 3b. FR-052 (Vorago processor.cpp:214): no note sounds across a re-prepare, so the sustain latch forgets
     //     everything without releasing.
     latch_.clearWithoutRelease();
@@ -276,7 +295,26 @@ tresult PLUGIN_API Processor::setupProcessing(ProcessSetup& setup) {
 tresult PLUGIN_API Processor::setActive(TBool state) {
     if (state != 0) {
         snapGainPending_ = true;  // no allocation (SC-017.7)
+        // Phase 12 FR-071 / FR-076 (plan 4.4): open the spectrum queue. Host thread, audio stopped: the SDK
+        // fallback's allocations in onActivate (dataexchange.cpp:76-105) never reach the audio thread. processSetup
+        // is the AudioEffect member setupProcessing() filled. The first process() probes whether it opened.
+        if (dataExchangeHandler_ != nullptr) {
+            dataExchangeHandler_->onActivate(processSetup);
+        }
+        spectrum_.reset();
+        lastFrame_ = ProfundumSpectrumFrame{};
+        framesPublished_ = 0;
+        maxFramesPerCall_ = 0;
+        skippedBlocks_ = 0;
+        queueState_.store(dataExchangeHandler_ != nullptr ? SpectrumQueueState::ProbePending
+                                                          : SpectrumQueueState::Closed,
+                          std::memory_order_release);
     } else {
+        // Phase 12 (plan 4.4): close the spectrum queue BEFORE the release and the reset.
+        queueState_.store(SpectrumQueueState::Closed, std::memory_order_release);
+        if (dataExchangeHandler_ != nullptr) {
+            dataExchangeHandler_->onDeactivate();
+        }
         // FR-052 (plan 4.5.6; Vorago processor.cpp:250): release every latched note before the reset. Processing has
         // stopped, so the engine's event queue is safe to write here.
         latch_.releaseAll([this](std::uint8_t n) noexcept {
@@ -296,6 +334,41 @@ tresult PLUGIN_API Processor::setActive(TBool state) {
     const tresult result = AudioEffect::setActive(state);
     flushControllerSync();
     return result;
+}
+
+// Phase 12 FR-071 / FR-076 (plan 4.4). Shape copied from Vorago processor.cpp:262-303. The handler is built here and
+// released in disconnect(); setActive() opens and closes the queue. Host thread only.
+tresult PLUGIN_API Processor::connect(IConnectionPoint* other) {
+    const tresult result = AudioEffect::connect(other);
+    if (result == kResultTrue) {
+        auto configCallback = [](DataExchangeHandler::Config& config, const ProcessSetup& /*setup*/) {
+            // sizeof(ProfundumSpectrumFrame) rounded UP to the alignment: the SDK fallback allocates each block with
+            // aligned_alloc(alignment, blockSize), and macOS returns null for a size that is not a multiple of it.
+            constexpr uint32 kAlignment = 32;
+            constexpr uint32 kBlockSize =
+                ((static_cast<uint32>(sizeof(ProfundumSpectrumFrame)) + kAlignment - 1u) / kAlignment) * kAlignment;
+            static_assert(kBlockSize % kAlignment == 0 && kBlockSize >= sizeof(ProfundumSpectrumFrame));
+            static_assert(kBlockSize == 288u, "SC-023 / SC-030: the handler block is the 288-byte frame");
+            config.blockSize = kBlockSize;
+            config.numBlocks = 4;
+            config.alignment = kAlignment;
+            config.userContextID = kProfundumFrameUserContextId;
+            return true;
+        };
+        dataExchangeHandler_ = std::make_unique<DataExchangeHandler>(this, configCallback);
+        dataExchangeHandler_->onConnect(other, getHostContext());
+    }
+    return result;
+}
+
+tresult PLUGIN_API Processor::disconnect(IConnectionPoint* other) {
+    // Plan 4.4: the publish gate closes first, then the handler is released, not merely idled.
+    queueState_.store(SpectrumQueueState::Closed, std::memory_order_release);
+    if (dataExchangeHandler_ != nullptr) {
+        dataExchangeHandler_->onDisconnect(other);
+        dataExchangeHandler_.reset();
+    }
+    return AudioEffect::disconnect(other);
 }
 
 // FR-024, FR-025, FR-029, FR-030 (plan 2.5.6, 3.2).
@@ -401,6 +474,19 @@ tresult PLUGIN_API Processor::process(ProcessData& data) {
         }
     };
 
+    // Phase 12 FR-071 (plan 4.4): the one-time queue probe. The SDK gives the processor no open / closed signal
+    // (onActivate returns void), so the first process() after activation asks for a block, once, on the audio thread
+    // ("call only in process call", dataexchange.h:90). Nothing was sent in this activation and numBlocks = 4, so an
+    // invalid block means the queue did not open; a valid one stays locked as the current block until the first
+    // publish sends it (lockBlock, dataexchange.cpp:249-250). ProbePending implies a handler exists.
+    if (queueState_.load(std::memory_order_acquire) == SpectrumQueueState::ProbePending) {
+        const Steinberg::Vst::DataExchangeBlock block = dataExchangeHandler_->getCurrentOrNewBlock();
+        const bool open = block.blockID != Steinberg::Vst::InvalidDataExchangeBlockID && block.data != nullptr &&
+                          block.size >= sizeof(ProfundumSpectrumFrame);
+        queueState_.store(open ? SpectrumQueueState::Open : SpectrumQueueState::Closed, std::memory_order_release);
+    }
+    const bool spectrumOn = queueState_.load(std::memory_order_relaxed) == SpectrumQueueState::Open || spectrumForced_;
+
     std::size_t cursor = 0;
     lastSliceCount_ = 0;
     std::size_t pedalNext = 0;  // FR-052: the second cursor, over pedalPoints_ (Vorago processor.cpp:419-447)
@@ -427,7 +513,24 @@ tresult PLUGIN_API Processor::process(ProcessData& data) {
                                 static_cast<std::size_t>(clampOffset(pedalPoints_[pedalNext].offset, total)));
         }
         const std::size_t n = sliceEnd - cursor;
-        engine_->processBlock(outL + cursor, outR + cursor, n);  // engine.h:422; no scratch (FR-029)
+        if (spectrumOn) {
+            // Phase 12 FR-072 (plan 4.4, 5.1): sub-slice at the engine's own grid points only, where processBlock
+            // already splits, so the gridStep / renderChunk sequence (and every float operation) is unchanged.
+            // After each completed interval the producer reads the focus voice through const accessors.
+            std::size_t done = 0;
+            while (done < n) {
+                const std::size_t toGrid =
+                    Krate::DSP::ProfundumEngine::kControlInterval - engine_->controlGridPhase();
+                const std::size_t m = std::min(n - done, toGrid);
+                engine_->processBlock(outL + cursor + done, outR + cursor + done, m);
+                if (engine_->controlGridPhase() == 0) {
+                    spectrum_.onInterval(*engine_);
+                }
+                done += m;
+            }
+        } else {
+            engine_->processBlock(outL + cursor, outR + cursor, n);  // engine.h:422; no scratch (FR-029)
+        }
         applyOutputGain(outL + cursor, outR + cursor, n);
         ++lastSliceCount_;
         cursor = sliceEnd;
@@ -443,6 +546,8 @@ tresult PLUGIN_API Processor::process(ProcessData& data) {
         publishRuntime();
         restoreAppliedSeq_.store(restoreSeenSeq_, std::memory_order_release);
     }
+
+    publishSpectrumFrame();  // Phase 12 FR-071 (plan 4.4): at most one frame per call, after the slice loop
 
     data.outputs[0].silenceFlags = 0;  // FR-024.6: every rendered block
     return kResultOk;
@@ -501,7 +606,9 @@ tresult PLUGIN_API Processor::setState(IBStream* state) {
         return kResultFalse;
     }
     const bool v1BodyComplete = loadGlobalParams(globalParams_, s) && loadMacroParams(macroParams_, s);
-    if (version < kCurrentStateVersion) {
+    // Phase 12 T019 (R-11): only a v1 (or older) stream resets; v2 and v3 both run the v2 chain. The Phase 11
+    // test `version < kCurrentStateVersion` would reset every v2 project once the current version is 3.
+    if (version <= kStateV1Version) {
         // FR-044 v1: every Phase 11 field takes its default, whatever the instance held before.
         for (EndpointParams& slot : endpoints_) {
             slot.store(kDefaultLeafBits);
@@ -511,6 +618,7 @@ tresult PLUGIN_API Processor::setState(IBStream* state) {
         resetMorphControlParams(morphParams_);  // position 0, ramp 40, Blend, Edit Target A
         seed_.store(Krate::DSP::ProfundumEngine::kDefaultSeed, std::memory_order_relaxed);
         publishRestore(RuntimeBlob{});  // cancel: a blob pending from an earlier setState is dropped
+        resetNamesToDefaults();         // FR-047: a v1 stream has no names
     } else {
         // FR-042: the loaded blob is handed to the audio thread; a chain stopped before it cancels instead
         // (five zero words: version byte 0, never passed to the engine).
@@ -518,6 +626,21 @@ tresult PLUGIN_API Processor::setState(IBStream* state) {
         const bool blobRead =
             v1BodyComplete && loadV2Tail(s, noteParams_, morphParams_, seed_, endpoints_, blob);
         publishRestore(blobRead ? blob : RuntimeBlob{});
+        if (version == kStateV2Version) {
+            resetNamesToDefaults();  // FR-047: a v2 stream has no names
+        } else if (blobRead) {
+            // v3 (plan 4.5): the two name blocks follow the runtime blob. A short or invalid block keeps that
+            // endpoint's prior name and stops the chain (the Phase 11 truncation rule); a chain cut before the
+            // blob keeps both prior names.
+            for (std::size_t e = 0; e < names_.size(); ++e) {
+                EndpointName name{};
+                if (!readEndpointName(s, name)) {
+                    break;
+                }
+                const std::scoped_lock lock(namesMutex_);
+                names_[e] = nameOrDefault(name, endpointOfIndex(e));
+            }
+        }
     }
     // Always, for both versions (FR-033, FR-046, FR-052, FR-025): the compare resets to A.B, and both endpoints
     // and the compare mode are reported to the controller.
@@ -532,7 +655,8 @@ tresult PLUGIN_API Processor::setState(IBStream* state) {
     return kResultOk;
 }
 
-// FR-040 / FR-041 (plan 4.5.3): the 510-byte v2 layout, little-endian. The endpoints come from the slots, never
+// FR-040 / FR-041 (plan 4.5.3): the v2 body, little-endian, then (Phase 12, plan 4.5) the two name blocks: the
+// 574-byte v3 layout. The endpoints come from the slots, never
 // from the engine, so the bytes depend neither on the audio thread nor on Mod Wheel / Channel Pressure (FR-056).
 tresult PLUGIN_API Processor::getState(IBStream* state) {
     if (state == nullptr) {
@@ -557,6 +681,15 @@ tresult PLUGIN_API Processor::getState(IBStream* state) {
         blob = synthesizedRuntimeBlob();
     }
     s.writeRaw(blob.data(), static_cast<TSize>(blob.size()));
+    // Phase 12 FR-047 (plan 4.5): v3 appends the two 32-byte name blocks after the runtime blob.
+    std::array<EndpointName, 2> names{};
+    {
+        const std::scoped_lock lock(namesMutex_);
+        names = names_;
+    }
+    for (const EndpointName& name : names) {
+        static_cast<void>(writeEndpointName(s, name));
+    }
     flushControllerSync();  // FR-025: a flush point (the Linux path has no timer)
     return kResultOk;
 }
@@ -587,11 +720,40 @@ tresult PLUGIN_API Processor::notify(IMessage* message) {
             slot.syncPending.store(true, std::memory_order_relaxed);
         }
         compareSyncPending_.store(true, std::memory_order_relaxed);
+    } else if (FIDStringsEqual(id, kMsgEndpointName)) {
+        // Phase 12 FR-047 / R-13 (plan 4.5): validate the endpoint, sanitise the bytes, store under the mutex.
+        // An empty result stores the default name. Nothing is reported back, so no flushControllerSync.
+        int64 endpoint = -1;
+        const void* data = nullptr;
+        uint32 size = 0;
+        if (attrs != nullptr && attrs->getInt("endpoint", endpoint) == kResultOk && (endpoint == 0 || endpoint == 1) &&
+            attrs->getBinary("name", data, size) == kResultOk) {
+            const std::string_view raw =
+                (data != nullptr) ? std::string_view(static_cast<const char*>(data), size) : std::string_view{};
+            const auto e = static_cast<std::size_t>(endpoint);
+            const EndpointName name = nameOrDefault(sanitizeEndpointName(raw), endpointOfIndex(e));
+            const std::scoped_lock lock(namesMutex_);
+            names_[e] = name;
+        }
+        return kResultOk;
     } else {
         return AudioEffect::notify(message);
     }
     flushControllerSync();
     return kResultOk;
+}
+
+// Phase 12 FR-047: the processor's copy of one endpoint name, taken under the mutex (non-audio threads).
+EndpointName Processor::endpointNameForTest(Krate::DSP::BassMorphEngine::Endpoint e) const {
+    const std::scoped_lock lock(namesMutex_);
+    return names_[e == Krate::DSP::BassMorphEngine::Endpoint::B ? 1u : 0u];
+}
+
+// FR-047 (plan 4.5): a v1 or v2 stream carries no names, so both become "A" / "B". setState only.
+void Processor::resetNamesToDefaults() {
+    const std::scoped_lock lock(namesMutex_);
+    names_[0] = defaultEndpointName(Krate::DSP::BassMorphEngine::Endpoint::A);
+    names_[1] = defaultEndpointName(Krate::DSP::BassMorphEngine::Endpoint::B);
 }
 
 // FR-025: the 50 ms SDK timer (Windows / macOS), on the thread that created it; never the audio thread.
@@ -839,6 +1001,7 @@ void Processor::dispatchEvent(const Event& e) noexcept {
             const auto pitch = static_cast<std::uint8_t>(e.noteOn.pitch);
             if (e.noteOn.velocity > 0.0f) {
                 latch_.noteOn(pitch);
+                spectrum_.noteOnArrived(pitch);  // Phase 12 FR-074 (plan 4.3.2): the focus rule's arrival order
                 engine_->noteOn(pitch, quantiseVelocity(e.noteOn.velocity));  // engine.h:264
             } else if (latch_.noteOff(pitch)) {  // velocity 0 == note-off, through the latch
                 engine_->noteOff(pitch);         // engine.h:280
@@ -915,6 +1078,30 @@ void Processor::applyPendingPedalPointsImmediately() noexcept {
 
 // FR-028 (plan 2.5.6, 3.1): one smoother step per output sample, in place, after
 // the limiter. g is in [0, 1], so |out| <= the ceiling still holds.
+// Phase 12 FR-071 (plan 4.4), audio thread, end of process(): takes the newest staged frame (the producer keeps only
+// one, so at most one per call), counts it, and sends it when the queue is open. A call that finds no usable block
+// skips the frame and never retries it (Vorago processor.cpp:556-561). Allocation-free: the fallback's blocks were
+// allocated in onActivate, and sendCurrentBlock only moves a locked block.
+void Processor::publishSpectrumFrame() noexcept {
+    if (!spectrum_.takeFrame(lastFrame_)) {
+        return;
+    }
+    ++framesPublished_;
+    constexpr std::uint32_t kFramesThisCall = 1;
+    maxFramesPerCall_ = std::max(maxFramesPerCall_, kFramesThisCall);
+    if (queueState_.load(std::memory_order_relaxed) != SpectrumQueueState::Open) {
+        return;  // the seam arm, or a closed queue
+    }
+    const DataExchangeBlock block = dataExchangeHandler_->getCurrentOrNewBlock();
+    if (block.blockID == InvalidDataExchangeBlockID || block.data == nullptr ||
+        block.size < sizeof(ProfundumSpectrumFrame)) {
+        ++skippedBlocks_;
+        return;
+    }
+    std::memcpy(block.data, &lastFrame_, sizeof(ProfundumSpectrumFrame));
+    static_cast<void>(dataExchangeHandler_->sendCurrentBlock());
+}
+
 void Processor::applyOutputGain(float* outL, float* outR, std::size_t n) noexcept {
     for (std::size_t s = 0; s < n; ++s) {
         const float g = outputGain_.process();  // smoother.h:197

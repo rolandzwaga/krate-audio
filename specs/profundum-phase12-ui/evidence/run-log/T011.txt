@@ -1,0 +1,88 @@
+T011 — 12a ratification gate (SC-001)
+Re-run 2026-10-23 (after the user's ratification reply), cwd f:/projects/iterum, Git Bash. Read-only checks; this file is
+the only file written. Supersedes the earlier BLOCKED run of the same date.
+VERDICT: DONE — 12a ratified on 2026-10-23; 12b may start.
+
+== ITEM 1: FR-002 design files ==
+$ ls specs/profundum-phase12-ui/design/
+accessibility-scaling.md (D7)  advanced-page.md (D2)  interaction-automation.md (D6)  macro-mapping.md (D3)
+main-page.md (D1)  morph-laws.md (D4)  voice-note.md (D5)
+-> PRESENT 7/7. Line 3 of every file now reads "**Status: RATIFIED by the user, 2026-10-23 (spec Clarifications
+   "Session 2026-10-23 (12a ratification)").**". Wireframe controls carry numeric IDs or "UI-only (session tag NNNN)"
+   (unchanged from the earlier run). PASS
+
+== ITEM 2: T009 ratification checklist (spec.md:146-157) ==
+  spec.md:148  D1 (Main page), with its §14 delta table — user: Roland Zwaga (date: 2026-10-23)
+  spec.md:149  D2 — user: Roland Zwaga (date: 2026-10-23)
+  spec.md:150  D3 — user: Roland Zwaga (date: 2026-10-23)
+  spec.md:151  D4 — user: Roland Zwaga (date: 2026-10-23)
+  spec.md:152  D5 — user: Roland Zwaga (date: 2026-10-23)
+  spec.md:153  D6 — user: Roland Zwaga (date: 2026-10-23)
+  spec.md:154  D7 — user: Roland Zwaga (date: 2026-10-23)
+  spec.md:155  FR-006 render-set listening verdict (SC-006 (b)) — Roland Zwaga 2026-10-23: "The patch renders all sound
+               pretty damned amazing, very deep and tight low end."
+  spec.md:156  FR-097 account — Roland Zwaga (date: 2026-10-23)
+  spec.md:157  D2-ruled strings and values (tooltips, descriptor table, 300 ms decay) — Roland Zwaga (date: 2026-10-23)
+D1 §14 delta table: design/main-page.md:196-214, 11 rows (#1-#11). Session bullets spec.md:120-127.
+-> PASS (10/10 lines signed and dated).
+
+== ITEM 3: FR-097 table (spec.md:129-144) ==
+8 rows, all "given (2026-10-23): ...": H-1 :137, H-2 :138, H-8 :139, H-10 :140, H-14 :141, H-19 :142, H-28(1) :143,
+H-28(2) :144. None blank.
+Change-requesting verdicts: none. H-8 prefers the 100 ms time, which is the default
+(phase9 listening-sheet.md:51 "T 100 ms (the default time, as a reference)"); spec.md:127 records "none asks for a change".
+-> PASS
+
+== ITEM 4: plan questions ==
+  OQ-2 / P-2: spec.md:112, list :175-177 "yes"; SC-004 row spec.md:725-729 (kStateV2Bytes -> kStateV3Bytes, 36 lines,
+              "user ruling 2026-10-23, P-2") -> RULED, plan default
+  OQ-6 / P-8: spec.md:116, list :186-188 "yes"; FR-032 row spec.md:485-486 ("A display-only CParamDisplay may also bind ...
+              user ruling 2026-10-23, P-8") -> RULED, plan default
+  OQ-3 / P-5: spec.md:114, list :178-180 one-sided ring; FR-061 row spec.md:570-573 -> RULED; already re-cut at plan stage
+              (tasks.md:106: T016/T023/T027/T029). No further re-cut.
+  OQ-4 / P-4: spec.md:115, list :181-182 "no, sound only"; FR-042 row spec.md:511-513 -> RULED, plan default
+  OQ-7 / P-9: spec.md:117, list :189 "no" -> RULED, plan default (no preset-field task)
+  OQ-5:       spec.md:122, list :183-185 "ratified 2026-10-23: all §3.1 proposals as written in D1, D2 and D7; zoom in the
+              header and in SETTINGS (FR-010)" -> RULED
+  Deviation 6: spec.md:118, list :193-194 "not run" -> T036 unchanged (no 46-case lane)
+  P-3:        spec.md:113, list :190-192 acknowledged
+New 12a rulings and their owning rows:
+  Zoom in header AND SETTINGS, one tag 9300 (spec.md:123) -> FR-010 row spec.md:418-419; design/advanced-page.md:267-269
+              ("Ruled 2026-10-23: both"); accessibility-scaling.md:37; interaction-automation.md:47,54
+  D1 §8.4 "follow all recommendations" (spec.md:124) -> FR-006 row spec.md:391-394 (B endpoint via 1001 = B with Growl
+              values Edge 70 %, Fold 60, Mass 70, then 1001 = A, 105 = 50 %; legato-pair renders for 412 min/max and 1 both values)
+  Motion on Main with Amount 0 (spec.md:125) -> FR-050 row spec.md:549-551 (selector + tooltip note; no default change;
+              Morph and motion render sets 902)
+-> PASS
+Note for executors: design/main-page.md:287-309 (§8.4) still carries the pre-ratification wording ("None of these is
+changed in this proposal", "Decision needed from the user"). The rulings live in the FR-006 / FR-050 rows above, which win.
+
+== ITEM 5: no 12b commit ==
+$ git log --name-only 40f6ebca..HEAD -- plugins/ dsp/
+(no output; HEAD = 40f6ebca) -> PASS
+$ git status --porcelain plugins dsp
+ M plugins/profundum/tests/CMakeLists.txt
+?? plugins/profundum/tests/integration/main_page_render_set_test.cpp
+-> T010's two files only (allowed under P-1, spec.md:111, FR-001 row spec.md:324-327). PASS
+Note: the FR-006 ruling (spec.md:391-394) adds B-endpoint and legato-pair renders to T010's render set; that TU change is
+not part of this gate.
+
+== ITEM 6: ratified values later tasks read ==
+  Designed size 960 x 600, minSize = maxSize ........ design/main-page.md:18-23; accessibility-scaling.md:13,16
+  Zoom steps 100/125/150/200 %, session tag 9300 ..... design/accessibility-scaling.md:25,33,37; interaction-automation.md:47,293
+                                                        (kZoomSteps{1.0, 1.25, 1.5, 2.0}); main-page.md:87,159; advanced-page.md:262,267-269,445
+  Zoom placement: header AND SETTINGS ................ FR-010 spec.md:418-419; advanced-page.md:24,58,267-269
+  D7 minima (font 10 px, hit 20x20, segment 24x24) .. design/accessibility-scaling.md:46-48
+  Contrast 4.5:1 text / 3.0:1 large bold ............. design/accessibility-scaling.md:65-66
+  Colour tokens (nine) ................................ design/accessibility-scaling.md §5 :77-93; pairs §6 :94-120
+  Tooltip literals .................................... design/advanced-page.md §5 :333-457; main-page.md §3 :107-164
+  Descriptor table + thresholds 0.33f / 0.66f ........ design/advanced-page.md §7 :485-547 (constants :511-514)
+  Bar decay 300 ms .................................... design/advanced-page.md:290
+  Editor sync period 100 ms ........................... not in design/; plan.md:1141 (kEditorSyncIntervalMs = 100),
+                                                        ratified by OQ-5 (spec.md:183-185)
+  Image-mode mirror on Main: no ....................... design/main-page.md:179-181 (§5); main-page.md:141 (17 bound controls)
+  Render-set additions (B endpoint, legato pairs) .... FR-006 spec.md:391-394
+  Motion on Main = selector + tooltip note ............ FR-050 spec.md:549-551
+
+== RESULT ==
+All six items hold. 12a ratified on 2026-10-23; 12b may start.

@@ -9,18 +9,27 @@
 // double-counts, and an unset user override would read the machine's real user
 // preset folder. Model: plugins/vorago/tests/unit/controller/editor_lifecycle_test.cpp.
 //
-// SECTION "HarnessCycles" (FR-055): headless open/close cycles through the shared
-// harness (tests/test_helpers/editor_lifecycle_harness.h:102), then the
-// controller's preset manager is non-null.
+// SECTION "HarnessCycles" (FR-055; Phase 12 SC-016: 10 cycles): headless open/close
+// cycles through the shared harness (tests/test_helpers/editor_lifecycle_harness.h:102),
+// then the controller's preset manager is non-null.
 //
-// SECTION "EditorBindsSurface" (FR-054): the BUILT view tree carries exactly the
-// eight bound controls {0, 1, 2, 3, 100, 101, 102, 103}; Voice Mode (1) and
-// Polyphony (2) are COptionMenus (both are StringListParameters). The
-// getTag() >= 0 filter is load-bearing: CTextLabel IS-A CControl and keeps tag -1
-// when untagged, so an unfiltered walk would also count the labels.
+// SECTION "EditorBindsSurfaceV12" (Phase 12 SC-002 / SC-016; replaces the Phase 10
+// EditorBindsSurface): the BUILT view tree binds exactly the 80 visible IDs (every
+// registered ID but the hidden performance IDs 4 - 7); tags at or above 9000 are the
+// UI-only session tags (plan 4.7) and are not parameter bindings. The getTag() >= 0
+// filter is load-bearing: CTextLabel IS-A CControl and keeps tag -1 when untagged.
 // The editor is built with the ABSOLUTE uidesc path, exactly as the harness does:
 // createView's "editor.uidesc" is a bundle-resource name that the test executable
 // (not a plugin bundle) cannot resolve. CreateViewNames covers createView itself.
+//
+// SECTION "CustomViewCounts" (SC-016, FR-070, FR-080): exactly two HarmonicBarViews
+// (Main, Advanced core) and one SpreadCurveView in the built tree; every controller
+// view pointer is null after willClose (FR-091).
+// SECTION "ClosedFrameCachedThenShown" (SC-016, FR-091): a frame delivered while the
+// editor is closed touches no view pointer and is cached; on reopen both bar views
+// draw it.
+// SECTION "TimerOwningViewsAttachRemove" (SC-016): attached / removed 10 times on each
+// built HarmonicBarView (the only timer-owning view); the timer exists only while attached.
 //
 // SECTION "CreateViewNames" (FR-055): only ViewType::kEditor yields a view.
 //
@@ -29,20 +38,25 @@
 // ==============================================================================
 
 #include "test_helpers/editor_lifecycle_harness.h"
+#include "ui_tree_helpers.h"  // HeadlessEditor, collectViewsOfType (Phase 12)
 
 #include "controller/controller.h"
 #include "plugin_ids.h"
 #include "preset/preset_manager.h"
 #include "preset/profundum_preset_config.h"
+#include "processor/spectrum_frame.h"
+#include "ui/harmonic_bar_view.h"
+#include "ui/spread_curve_view.h"
 #include "update/profundum_update_config.h"
 
 #include "pluginterfaces/base/smartpointer.h"
 #include "pluginterfaces/gui/iplugview.h"
+#include "pluginterfaces/vst/ivstdataexchange.h"
+#include "pluginterfaces/vst/ivsteditcontroller.h"
 #include "vstgui/lib/cframe.h"
 #include "vstgui/lib/cview.h"
 #include "vstgui/lib/cviewcontainer.h"
 #include "vstgui/lib/controls/ccontrol.h"
-#include "vstgui/lib/controls/coptionmenu.h"
 #include "vstgui/plugin-bindings/vst3editor.h"
 
 #include <catch2/catch_test_macros.hpp>
@@ -55,6 +69,7 @@
 #include <set>
 #include <string>
 #include <system_error>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -154,15 +169,28 @@ TEST_CASE("Profundum_EditorLifecycle", "[profundum][controller][ui][lifecycle]")
 
         Krate::TestSupport::exerciseEditorLifecycle(
             *controller, "editor", std::string(PROFUNDUM_RESOURCES_DIR) + "/editor.uidesc",
-            /*cycles=*/3);
+            /*cycles=*/10);
 
         REQUIRE(controller->presetManagerForTest() != nullptr);
         REQUIRE(controller->terminate() == Steinberg::kResultOk);
     }
 
-    SECTION("EditorBindsSurface") {  // SC-013.3, FR-054
+    SECTION("EditorBindsSurfaceV12") {  // Phase 12 SC-002 counts, SC-016
         auto controller = Steinberg::owned(new ::Profundum::Controller());
         REQUIRE(controller->initialize(nullptr) == Steinberg::kResultOk);
+
+        // The 80 visible IDs: every registered ID except the hidden performance IDs 4 - 7.
+        std::set<std::int32_t> expected;
+        const Steinberg::int32 paramCount = controller->getParameterCount();
+        for (Steinberg::int32 i = 0; i < paramCount; ++i) {
+            Steinberg::Vst::ParameterInfo info{};
+            REQUIRE(controller->getParameterInfo(i, info) == Steinberg::kResultOk);
+            const auto id = static_cast<std::int32_t>(info.id);
+            if (id < static_cast<std::int32_t>(::Profundum::kPitchBendId) ||
+                id > static_cast<std::int32_t>(::Profundum::kChannelPressureId)) {
+                expected.insert(id);
+            }
+        }
 
         Krate::TestSupport::ensureVstguiInitialized();
         const std::string uidescPath = std::string(PROFUNDUM_RESOURCES_DIR) + "/editor.uidesc";
@@ -175,31 +203,134 @@ TEST_CASE("Profundum_EditorLifecycle", "[profundum][controller][ui][lifecycle]")
         std::vector<VSTGUI::CControl*> controls;
         collectBoundControls(editor->getFrame(), controls);
 
-        std::set<std::int32_t> tags;
-        bool voiceModeIsMenu = false;
-        bool polyphonyIsMenu = false;
+        std::set<std::int32_t> tags;  // parameter bindings only: session tags (>= 9000) are UI-only
         for (auto* control : controls) {
-            const std::int32_t tag = control->getTag();
-            tags.insert(tag);
-            const bool isMenu = dynamic_cast<VSTGUI::COptionMenu*>(control) != nullptr;
-            if (tag == 1) {
-                voiceModeIsMenu = isMenu;
-            }
-            if (tag == 2) {
-                polyphonyIsMenu = isMenu;
+            if (control->getTag() < 9000) {
+                tags.insert(control->getTag());
             }
         }
-        const std::size_t controlCount = controls.size();
 
         view->removed();
         view->release();
         REQUIRE(controller->terminate() == Steinberg::kResultOk);
 
-        const std::set<std::int32_t> expected{0, 1, 2, 3, 100, 101, 102, 103};
-        REQUIRE(controlCount == 8u);
+        REQUIRE(paramCount == 84);
+        REQUIRE(expected.size() == 80u);
+        REQUIRE(tags.size() == 80u);
         REQUIRE(tags == expected);
-        REQUIRE(voiceModeIsMenu);
-        REQUIRE(polyphonyIsMenu);
+        for (const std::int32_t hidden : {4, 5, 6, 7}) {
+            CAPTURE(hidden);
+            REQUIRE_FALSE(tags.contains(hidden));
+        }
+    }
+
+    SECTION("CustomViewCounts") {  // SC-016, FR-070, FR-080, FR-091
+        auto controller = Steinberg::owned(new ::Profundum::Controller());
+        REQUIRE(controller->initialize(nullptr) == Steinberg::kResultOk);
+        {
+            ProfundumPluginTest::HeadlessEditor ed(controller.get());
+            REQUIRE(ed.frame() != nullptr);
+            const auto bars = ProfundumPluginTest::collectViewsOfType<::Profundum::UI::HarmonicBarView>(ed.frame());
+            const auto spreads = ProfundumPluginTest::collectViewsOfType<::Profundum::UI::SpreadCurveView>(ed.frame());
+            REQUIRE(bars.size() == 2u);
+            CHECK(spreads.size() == 1u);
+            const int mainBars = static_cast<int>(bars[0]->variant() == ::Profundum::UI::HarmonicBarView::Variant::Main) +
+                                 static_cast<int>(bars[1]->variant() == ::Profundum::UI::HarmonicBarView::Variant::Main);
+            CHECK(mainBars == 1);  // one Main instance, one Advanced core instance
+            CHECK_FALSE(controller->viewPointersNullForTest());  // non-vacuity: held while open
+        }
+        CHECK(controller->viewPointersNullForTest());
+        REQUIRE(controller->terminate() == Steinberg::kResultOk);
+    }
+
+    SECTION("ClosedFrameCachedThenShown") {  // SC-016, FR-091
+        auto controller = Steinberg::owned(new ::Profundum::Controller());
+        REQUIRE(controller->initialize(nullptr) == Steinberg::kResultOk);
+        {
+            ProfundumPluginTest::HeadlessEditor ed(controller.get());
+            REQUIRE(ed.frame() != nullptr);
+        }
+        REQUIRE(controller->viewPointersNullForTest());
+
+        ::Profundum::ProfundumSpectrumFrame frame = ::Profundum::Controller::silenceFrame();
+        frame.sequence = 5151u;
+        frame.flags = 0;
+        frame.sampleRate = 48000.0f;
+        frame.f0Hz = 41.2f;
+        frame.anchorPower = 0.25f;
+        frame.numPartials = 4;
+        frame.partialPower[0] = 0.5f;
+        frame.partialPower[1] = 0.125f;
+        frame.partialPower[2] = 0.05f;
+        frame.partialPower[3] = 0.02f;
+        Steinberg::Vst::DataExchangeBlock block{};
+        block.data = &frame;
+        block.size = static_cast<Steinberg::uint32>(sizeof(frame));
+        block.blockID = 0;
+        const std::uint64_t receivedBefore = controller->framesReceivedForTest();
+        controller->onDataExchangeBlocksReceived(::Profundum::kProfundumFrameUserContextId, 1u, &block, 0);
+        CHECK(controller->framesReceivedForTest() == receivedBefore + 1u);
+        CHECK(controller->cachedFrameForTest().sequence == 5151u);  // cached
+        CHECK(controller->viewPointersNullForTest());               // no view touched
+
+        {
+            ProfundumPluginTest::HeadlessEditor ed(controller.get());
+            REQUIRE(ed.frame() != nullptr);
+            const auto bars = ProfundumPluginTest::collectViewsOfType<::Profundum::UI::HarmonicBarView>(ed.frame());
+            REQUIRE(bars.size() == 2u);
+            for (auto* bar : bars) {
+                CHECK(bar->barHeightsForTest()[0] == 0.0f);  // nothing drawn before the first tick
+                bar->onTickForTest(0.033f);
+                CHECK(bar->barHeightsForTest()[0] > 0.0f);  // the cached frame
+            }
+            CHECK(bars[0]->barHeightsForTest() == bars[1]->barHeightsForTest());
+        }
+        REQUIRE(controller->terminate() == Steinberg::kResultOk);
+    }
+
+    SECTION("TimerOwningViewsAttachRemove") {  // SC-016, FR-091
+        auto controller = Steinberg::owned(new ::Profundum::Controller());
+        REQUIRE(controller->initialize(nullptr) == Steinberg::kResultOk);
+        {
+            ProfundumPluginTest::HeadlessEditor ed(controller.get());
+            REQUIRE(ed.frame() != nullptr);
+            // (view, parent container) of every HarmonicBarView; the walk supplies the parent, because an
+            // unattached view does not know it.
+            std::vector<std::pair<::Profundum::UI::HarmonicBarView*, VSTGUI::CViewContainer*>> owners;
+            std::vector<VSTGUI::CViewContainer*> pending{ed.frame()};
+            while (!pending.empty()) {
+                VSTGUI::CViewContainer* container = pending.back();
+                pending.pop_back();
+                for (std::uint32_t i = 0; i < container->getNbViews(); ++i) {
+                    VSTGUI::CView* v = container->getView(i);
+                    if (auto* bar = dynamic_cast<::Profundum::UI::HarmonicBarView*>(v)) {
+                        owners.emplace_back(bar, container);
+                    }
+                    if (auto* child = v != nullptr ? v->asViewContainer() : nullptr) {
+                        pending.push_back(child);
+                    }
+                }
+            }
+            REQUIRE(owners.size() == 2u);
+            for (auto& [bar, parent] : owners) {
+                const bool wasAttached = bar->isAttached();
+                if (wasAttached) {
+                    REQUIRE(bar->removed(parent));
+                }
+                REQUIRE_FALSE(bar->hasTimerForTest());
+                for (int cycle = 0; cycle < 10; ++cycle) {
+                    CAPTURE(cycle);
+                    REQUIRE(bar->attached(parent));
+                    CHECK(bar->hasTimerForTest());
+                    REQUIRE(bar->removed(parent));
+                    CHECK_FALSE(bar->hasTimerForTest());
+                }
+                if (wasAttached) {
+                    REQUIRE(bar->attached(parent));  // back to the state the editor built
+                }
+            }
+        }
+        REQUIRE(controller->terminate() == Steinberg::kResultOk);
     }
 
     SECTION("CreateViewNames") {  // SC-013.4, FR-055

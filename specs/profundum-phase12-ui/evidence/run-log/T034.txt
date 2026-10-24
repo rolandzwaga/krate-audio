@@ -1,0 +1,51 @@
+# T034 CMake registration audit (2026-10-24)
+## plugins/profundum/CMakeLists.txt (expected 1 each)
+src/ui/harmonic_bar_view.h: 1
+src/ui/spread_curve_view.h: 1
+src/ui/panel_sub_controller.h: 1
+src/ui/macro_ui_map.h: 1
+src/ui/endpoint_descriptor.h: 1
+src/processor/spectrum_frame.h: 1
+src/processor/spectrum_producer.h: 1
+src/parameters/endpoint_names.h: 1
+src/ui/offset_ring_knob.h: 1
+src/ui/harmonic_bar_view.cpp: 1
+src/ui/spread_curve_view.cpp: 1
+src/ui/panel_sub_controller.cpp: 1
+src/ui/offset_ring_knob.cpp: 1
+## plugins/profundum/tests/CMakeLists.txt add_executable (expected 1 each)
+integration/main_page_render_set_test.cpp: add_executable=1 files_on_disk=yes
+unit/spectrum_producer_test.cpp: add_executable=1 files_on_disk=yes
+unit/state_v3_test.cpp: add_executable=1 files_on_disk=yes
+unit/controller/editor_layout_test.cpp: add_executable=1 files_on_disk=yes
+unit/controller/morph_component_test.cpp: add_executable=1 files_on_disk=yes
+unit/controller/macro_ui_test.cpp: add_executable=1 files_on_disk=yes
+unit/controller/spread_curve_test.cpp: add_executable=1 files_on_disk=yes
+unit/controller/editor_sync_test.cpp: add_executable=1 files_on_disk=yes
+unit/controller/custom_view_laws_test.cpp: add_executable=1 files_on_disk=yes
+unit/controller/ui_views_test.cpp: add_executable=1 files_on_disk=yes
+integration/spectrum_frame_test.cpp: add_executable=1 files_on_disk=yes
+integration/main_page_sanity_test.cpp: add_executable=1 files_on_disk=yes
+## SECOND-compilation block (expected 1 each)
+src/ui/harmonic_bar_view.cpp: 1
+src/ui/spread_curve_view.cpp: 1
+src/ui/panel_sub_controller.cpp: 1
+src/ui/offset_ring_knob.cpp: 1
+## -fno-fast-math block
+integration/main_page_render_set_test.cpp: 1 (expected 1)
+unit/spectrum_producer_test.cpp: 1 (expected 1)
+unit/state_v3_test.cpp: 1 (expected 1)
+integration/spectrum_frame_test.cpp: 1 (expected 1)
+integration/main_page_sanity_test.cpp: 1 (expected 1)
+integration/processor_cpu_test.cpp in flag block: 0 (expected 0)
+last non-blank line of plugins/profundum/tests/CMakeLists.txt: krate_test_pch(profundum_tests)
+## dsp/tests/CMakeLists.txt
+unit/systems/profundum_engine_display_test.cpp registrations: 1 (expected 1; line 803 is a comment)
+## warning suppressions since 40f6ebca (tracked diff, expected 0)
+0
+## warning suppressions in untracked Phase 12 files (expected 0)
+0
+## Note
+The task text lists 8 headers + 3 src/ui/*.cpp; the P-5 re-cut (tasks.md:106, T016 tasks.md:624) added
+src/ui/offset_ring_knob.h/.cpp, so 9 headers + 4 cpps are registered and audited above.
+Git's "LF will be replaced by CRLF" notices (stderr) were dropped from the suppression-count section; counts unchanged.

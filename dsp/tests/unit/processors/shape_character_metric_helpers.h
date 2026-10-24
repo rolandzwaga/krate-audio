@@ -146,7 +146,7 @@ inline ClickCount differentialClicks(const float* transition, const float* refer
 /// max |y[k] − y[k−1]| for k in [begin, end). Requires 1 ≤ begin < end.
 inline double steadyDeltaMax(const float* y, std::size_t begin, std::size_t end) {
     REQUIRE(y != nullptr);
-    REQUIRE(begin >= 1);
+    REQUIRE(begin >= 1u);
     REQUIRE(begin < end);
     double m = 0.0;
     for (std::size_t k = begin; k < end; ++k)
@@ -165,7 +165,7 @@ inline double d11Ratio(const float* y, const float* ga, const float* gb, double 
     REQUIRE(y != nullptr);
     REQUIRE(ga != nullptr);
     REQUIRE(gb != nullptr);
-    REQUIRE(begin >= 1);
+    REQUIRE(begin >= 1u);
     REQUIRE(begin < end);
     double worst = 0.0;
     for (std::size_t k = begin; k < end; ++k) {
@@ -241,7 +241,7 @@ inline double levelDb(const float* y, std::size_t n, double fs, double f0) {
 /// Uniform white noise from xorshift32 (13, 17, 5), mapped to [−1, 1), then scaled so the RMS of
 /// the n returned samples equals `rmsDbfs` (computed in double). Deterministic per seed; seed != 0.
 inline std::vector<float> whiteNoise(std::size_t n, std::uint32_t seed, double rmsDbfs) {
-    REQUIRE(n > 0);
+    REQUIRE(n > 0u);
     REQUIRE(seed != 0u);
     std::uint32_t s = seed;
     std::vector<double> raw(n, 0.0);

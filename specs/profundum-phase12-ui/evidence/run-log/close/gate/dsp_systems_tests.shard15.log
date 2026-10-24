@@ -1,0 +1,84 @@
+Filters: [profundum] ~[performance] ~[perf] ~[benchmark] ~[!benchmark] ~[long] ~[.]
+Randomness seeded to: 1441705619
+VoiceEngine_A1MatchesUnbiasedH1: anchor mode 0 voices 1 intervals checked 1500 mismatches 0
+VoiceEngine_A1MatchesUnbiasedH1: anchor mode 0 voices 4 intervals checked 6000 mismatches 0
+VoiceEngine_A1MatchesUnbiasedH1: anchor mode 1 voices 1 intervals checked 1500 mismatches 0
+VoiceEngine_A1MatchesUnbiasedH1: anchor mode 1 voices 4 intervals checked 6000 mismatches 0
+VoiceEngine_MonoPriorityAndPortaMode: priority 0 f_res mismatches 0 of 50400, cents at 0.35 s -0.000480843, at 0.55 s 0
+VoiceEngine_MonoPriorityAndPortaMode: priority 1 f_res mismatches 0 of 50400, cents at 0.35 s -0.000480843, at 0.55 s -0.000480843
+VoiceEngine_MonoPriorityAndPortaMode: priority 2 f_res mismatches 0 of 50400, cents at 0.35 s -0.000160281, at 0.55 s 0
+VoiceEngine_MonoPriorityAndPortaMode: porta mode 0 f_res mismatches 0 of 48000, cents from target at the non-overlapped onset -499.896, at the overlapped onset -699.854
+VoiceEngine_MonoPriorityAndPortaMode: porta mode 1 f_res mismatches 0 of 48000, cents from target at the non-overlapped onset 0, at the overlapped onset -699.854
+VoiceEngine_HostTempo: 90 BPM CYCLE period 31999.997 (expected 32000), field Motion period 128002.89 (expected 128000) samples
+VoiceEngine_HostTempo: 120 BPM CYCLE period 24000 (expected 24000), field Motion period 96003.392 (expected 96000) samples
+VoiceEngine_HostTempo: 150 BPM CYCLE period 19199.998 (expected 19200), field Motion period 76801.234 (expected 76800) samples
+VoiceEngine_HostTempo: no tempo set: CYCLE period 24000, field Motion period 96003.392 samples (120 BPM: 24000, 96000)
+VoiceEngine_MorphRuntimeRoundTrip: restored engine vs original mismatches 0
+VoiceEngine_PolyEnvRetrigger: POLY ENV before 0.0137753 at 0.133561 peak after 1; MONO Legato overlap before 0.0137753 at 0.0134942 peak after 0.0134942
+VoiceEngine_DeterminismFingerprint: MONO L worst metric rel 0 (bound 0.00025), worst sample 0 (bound 0.0005)
+VoiceEngine_DeterminismFingerprint: MONO R worst metric rel 0 (bound 0.00025), worst sample 0 (bound 0.0005)
+VoiceEngine_DeterminismFingerprint: POLY L worst metric rel 0 (bound 0.00025), worst sample 0 (bound 0.0005)
+VoiceEngine_DeterminismFingerprint: POLY R worst metric rel 0 (bound 0.00025), worst sample 0 (bound 0.0005)
+# H-29 VoiceEngine_FoldPathRecord (FR-070 H-29 Record; plan S10.6; tasks.md T014). Recorded, not gated.
+# One held E1 (f0 41.2034 Hz) on A_s, MONO, 48 kHz, block 64. Path HELD: Fold 100 from the note-on. Path RAMP: morph 0 -> 1 (Fold 0 -> 100) over 500 ms issued at 0.5 s. Character tap mid, whole periods in [3 s, 4 s).
+H29 HELD level_db=-16.4946 h1_db=-22.6284
+H29 RAMP level_db=-16.4945 h1_db=-22.6282
+H29 DIFF (ramp - held) level_db=5.68245e-05 h1_db=0.000140124 | Phase 8 reference: ~0.13 dB (spec H-29, Phase 8 handoff 9.12)
+POSITIVE-CONTROL steal A_s+sustain1(C-8)/Solid E1 held AlwaysRetrigger Reset block 1 [disableStealFade] ratio 6.48183 max_dy 0.203571 bound 0.0346657 -> fails (a) or (b): OK
+POSITIVE-CONTROL replace A_s+sustain1(C-8)/Solid E1 +3 st retrigger AlwaysRetrigger Reset Porta0 block 1 [disableDeclick] ratio 15.6608 max_dy 0.208436 bound 0.0137551 -> fails (a) or (b): OK
+SC-005 VoiceEngine_StealClicklessSmoke: 1 cells, worst gated (a) ratio 0.718121 (steal A_s+sustain1(C-8)/Solid E1 held AlwaysRetrigger Reset block 37; bar 1.05925), min (b) margin 1.53703 (steal A_s+sustain1(C-8)/Solid E1 held AlwaysRetrigger Reset block 37), wall clock 4.13022 s
+FR-009 FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger AlwaysRetrigger Reset Porta0 block 37 ampStep 0.0032689 ampStep_ref 0 over 8 changed grid points
+FR-009 FR-009 arm (morph 5 ms at the replacement moves attack/decay/sustain/release) replace A_s+sustain1(C-8) E1 +12 st retrigger AlwaysRetrigger Reset ConstantTime block 37 ampStep 0.0032689 ampStep_ref 0 over 8 changed grid points
+POSITIVE-CONTROL steal A_s+sustain1(C-8)/Solid E1 held AlwaysRetrigger Reset block 1 [disableStealFade] ratio 6.48183 max_dy 0.203571 bound 0.0346657 -> fails (a) or (b): OK
+POSITIVE-CONTROL replace A_s+sustain1(C-8)/Solid E1 +3 st retrigger AlwaysRetrigger Reset Porta0 block 1 [disableDeclick] ratio 15.6608 max_dy 0.208436 bound 0.0137551 -> fails (a) or (b): OK
+SC-006 VoiceEngine_MonoReplaceClicklessSmoke: 2 cells, worst gated (a) ratio 0.355389 (replace A_s+sustain1(C-8) E1 +12 st retrigger AlwaysRetrigger Reset Porta0 block 37; bar 1.05925), min (b) margin 2.11599 (replace A_s+sustain1(C-8) E1 +12 st retrigger AlwaysRetrigger Reset Porta0 block 37), wall clock 7.82772 s
+SC-025 VoiceEngine_MotionSelectorsClickFreeSmoke: 2 pairs, worst ratio 1 (source Off->Cycle; bar 1.05925), W [48000, 51325), wall clock 3.06653 s
+# VoiceEngine_AudibilityTableSmoke
+row,contrast,base,note,descriptor,tap,lo,hi,value,bar,pass,gated,out_descriptor,out_lo,out_hi,ampStep,remark
+"AT-03","Fold: foldAmount 0 -> 100","A + sustain 1 (C-8)",E1,"D_nl (dB)","Char / twin",0,47.6755,47.6755,">= 3 dB",PASS,gated,"L_K output (dB; D_nl has no output form)",-12.0432,-14.0502,"n/a",""
+"AT-10","Anchor: level 0 -> 1 (Sine, LOCK)","A + sustain 1 (C-8)",E1,"E_sub (dB)","Sum",-11.9198,-5.9717,5.94809,"dE_sub >= 2 dB",PASS,gated,"E_sub output (dB)",-11.9804,-6.03327,"n/a",""
+"AT-26","Mass: 0 -> 100","A + sustain 1 (C-8) + anchor level 0.5 (per-row setting, G11-2)",E1,"E_sub (dB)","Sum",-11.9198,-6.67308,5.24671,">= 3 dB",PASS,gated,"E_sub output (dB)",-9.93101,-4.86242,"n/a","H-14: L_K output -15.921102 -> -9.368590 dB; per-row setting G11-2: A's anchor level 1.0 sits at the AnchorLevel row's clamp, so Mass 100 cannot raise it"
+"AT-26","Mass: 0 -> 100","A + sustain 1 (C-8)",E1,"E_sub (dB)","Sum",-8.45341,-6.67308,1.78033,">= 3 dB",FAIL,recorded,"E_sub output (dB)",-6.46561,-4.86242,"n/a","H-14: L_K output -12.470351 -> -9.368590 dB; plain A_s, recorded (G11-2)"
+"AT-26","Mass: 0 -> 100","B (its own sustain 0.8, C-8)",E1,"E_sub (dB)","Sum",-16.722,-12.6275,4.09452,">= 3 dB",PASS,gated,"E_sub output (dB)",-14.7336,-15.1938,"n/a","H-14: L_K output -18.837904 -> -13.645299 dB | the named base reaches the bar"
+"AT-26","Mass: 0 -> 100","B + sustain 1 (B10-1)",E1,"E_sub (dB)","Sum",-15.0105,-10.916,4.09451,">= 3 dB",PASS,recorded,"E_sub output (dB)",-13.0227,-15.1152,"n/a","H-14: L_K output -17.166839 -> -13.564219 dB | recorded: a later candidate"
+# SC-007 VoiceEngine_MacroMonotone: each macro 0 -> 1, the others neutral; base A_s (C-8), B_s for Dark <-> Bright (B10-1); eps 0.25 dB / 0.02 oct / 2 %; D(p_j) >= max_{i<j} D(p_i) - eps
+macro,note,macro_value,axis_reading,running_max_before,valid,pass
+"Clean <-> Violent",E1,0,0,0,1,PASS
+"Clean <-> Violent",E1,0.25,0,0,1,PASS
+"Clean <-> Violent",E1,0.5,0,0,1,PASS
+"Clean <-> Violent",E1,0.75,0,0,1,PASS
+"Clean <-> Violent",E1,1,11.0488,0,1,PASS
+SC009 SMOKE CYCLE rate_hz=2 seconds=3 frames=141 E_sub_p2p_db=1.73146 D_nl_p2p_db=8.18885 L_K_sum_p2p_db=2.39998 boxcar_attenuation=0.769777
+SC-015 monosum-smoke.csv: 1 cells, 0 failing
+SC-017 E1 Rectify Sine: rho 0.184564 theta 172.699 deg, R 0.0801846 dB / -9.90981 deg, anchor S/R -9.64327e-16 dB, dE meas -7.78097 pred -7.78097 (|err| 5.19968e-09), tap-sum residual S 4.22982e-10 R 4.99408e-10
+SC-017 anchor-chain-smoke.csv: 1 cells, 0 failing
+SC-018 Fracture E1 step tone 0.5: event 0 @316672 ratio 1 -> 0.5, ref 20.6017 Hz (6.71533e-05 cents vs f_core x ratio), latency 15 samples (0.3125 ms), max |err| after 0.198026 cents, settled 1
+SC-018 follow-tracking-smoke.csv: 1 cases, 0 failing
+SC-021 48k E1 Tube SHAPE 0 Tone 0 LOCK: (a) Sum -102.95 dBFS, (b) out on -78.78 dBFS (added -78.80), off -101.04 dBFS (added -110.67); bar -80
+SC-021 smoke: 1 cells, worst (a) Sum -102.95 dBFS (48k E1 Tube SHAPE 0 Tone 0 LOCK), worst (b) output -78.78 dBFS (48k E1 Tube SHAPE 0 Tone 0 LOCK), worst opt-in-off output -101.04 dBFS (recorded); bar -80; wall clock 1.7 s
+# SC-021(b) (G14-4): MassDynamics standalone on Phase 6's Fold-100 saw at each note and rate, release pinned
+# (kP3FixedReleaseMs), shaper +12 dB, compression 1, detector keyed at f0; the opt-in on at 4x is gated
+# <= -80 dBFS on the SC-021 off-lattice mask; off and on2x recorded. The engine output per cell is
+# recorded by the VoiceEngine_Aliasing_* shards (limiter gain riding and the program-dependent release).
+SC021B midi=16 fs=44100 off=-94.0075 on2x=-93.6183 on4x=-91.5592  green
+SC021B midi=16 fs=48000 off=-95.5041 on2x=-94.6699 on4x=-91.6528  green
+SC021B midi=16 fs=96000 off=-101.18 on2x=-95.8215 on4x=-85.2496  green
+SC021B midi=28 fs=44100 off=-92.6834 on2x=-93.1446 on4x=-90.7919  green
+SC021B midi=28 fs=48000 off=-93.5388 on2x=-92.9918 on4x=-90.1543  green
+SC021B midi=28 fs=96000 off=-86.4437 on2x=-86.7149 on4x=-82.3072  green
+SC021B midi=40 fs=44100 off=-45.9267 on2x=-70.1735 on4x=-88.8619  green
+SC021B midi=40 fs=48000 off=-55.123 on2x=-72.132 on4x=-85.3103  green
+SC021B midi=40 fs=96000 off=-93.6852 on2x=-92.7276 on4x=-91.5415  green
+SC021B VERDICT GREEN worst_on4x=-82.3072
+[T005 FR-082] transfer 40 Hz: on/off 0 dB (bound +/-0.05)
+[T005 FR-082] group delay at 40 Hz: 0 base samples (plan S7 expects ~3.8)
+[T005 FR-082] transfer 200 Hz: on/off 0 dB (bound +/-0.05)
+[T005 FR-082] transfer 1000 Hz: on/off 0 dB (bound +/-0.05)
+[T005 FR-082] transfer 5000 Hz: on/off 0 dB (bound +/-0.05)
+[T005 R-J] Mass 0: GR off 0 / on 0 dB, makeup off 0 / on 0 dB
+[T005 R-J] Mass 50: GR off 0 / on 0 dB, makeup off 0 / on 0 dB
+[T005 R-J] Mass 100: GR off -7.12428 / on -7.12432 dB, makeup off 5.8421 / on 5.8421 dB
+===============================================================================
+All tests passed (98335 assertions in 30 test cases)
+
+rc=0 wall=70s

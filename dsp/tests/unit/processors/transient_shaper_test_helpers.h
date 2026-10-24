@@ -93,7 +93,7 @@ inline std::vector<float> burst(Tone tone, double f0, double fs, double holdSeco
     const std::vector<float> x = steadyTone(tone, f0, fs, holdSeconds);
     const std::size_t hold = x.size();
     const std::size_t R = rampSamples(fs);
-    REQUIRE(R >= 1);
+    REQUIRE(R >= 1u);
     REQUIRE(hold >= R);
     std::vector<float> y(pre + hold + tail, 0.0f);
     for (std::size_t k = 0; k < hold; ++k) {
@@ -112,7 +112,7 @@ inline std::vector<float> twoLevelStep(Tone tone, double f0, double fs, double l
     std::vector<float> x = steadyTone(tone, f0, fs, static_cast<double>(total) / fs);
     REQUIRE(x.size() == total);
     const std::size_t R = rampSamples(fs);
-    REQUIRE(R >= 1);
+    REQUIRE(R >= 1u);
     REQUIRE(s0 + R <= total);
     const double gLow = std::pow(10.0, -12.0 / 20.0);
     for (std::size_t n = 0; n < s0 + R; ++n) {
@@ -154,7 +154,7 @@ inline std::size_t dTrWindow(double fs, double maxDurationMs) {
 /// D_tr = 10·log10(energy [onset, onset + W) / energy [steadyStart, steadyStart + W)).
 inline double dTrDb(const float* y, std::size_t n, std::size_t onset, std::size_t steadyStart, std::size_t window) {
     REQUIRE(y != nullptr);
-    REQUIRE(window > 0);
+    REQUIRE(window > 0u);
     REQUIRE(onset + window <= n);
     REQUIRE(steadyStart + window <= n);
     double eOnset = 0.0;

@@ -1,11 +1,11 @@
 # Phase 9 (profundum-phase9-voice-engine) Compliance Report
 
-**Overall status: COMPLETE** — 102 pass, 0 partial, 0 fail, 1 pending the user (SC-035: listening verdicts). Written 2026-10-22 from the final close logs (run-log/close/, exe of build-final.log) after the Group 14 close rulings G14-1 … G14-13 (spec Clarifications, tasks.md defects).
+**Overall status: COMPLETE** — 103 pass, 0 partial, 0 fail (SC-035 listening verdicts given by the user 2026-10-23). Written 2026-10-22 from the final close logs (run-log/close/, exe of build-final.log) after the Group 14 close rulings G14-1 … G14-13 (spec Clarifications, tasks.md defects).
 
 ## Gap list
 
 - none
-- Pending the user: SC-035 (evidence/listening-sheet.md verdict lines; renders in evidence/listen/).
+- SC-035: verdicts given by the user 2026-10-23 (evidence/listening-sheet.md); none asks for a change.
 
 ## Close lanes (what ran on the final bits)
 
@@ -109,7 +109,7 @@
 | SC-032 | pass | VoiceEngine_CallOrder in the final per-push lane: 'VoiceEngine_CallOrder: voices 1 interval 0 records 34 expected 34 (with DcResync)' (evidence/run-log/close/perpush-profundum-r13.log:4722). |
 | SC-033 | pass | VoiceEngine_RectifySymmetry on the final bits (meter before the Anchor feed, G14-13): 'All tests passed (548 assertions in 1 test case)' (evidence/run-log/close/g14-13-rectifysymmetry.log:53); sync 'VoiceEngine_RectifySymmetry sync (Reset): issued at 0 14543 24143 57600; expected 0 14543 24143 57600' (evidence/run-log/close/g14-13-rectifysymmetry.log:45). |
 | SC-034 | pass | VoiceEngine_PitchBend in the final per-push lane: 'VoiceEngine_PitchBend range 2 POLY voice 3 (130.813 Hz): +1 error 9.48493e-05 cent, -1 error 2.31401e-05 cent' (evidence/run-log/close/perpush-profundum-r13.log:4666); 'VoiceEngine_PitchBend range 12 MONO voice 0 (41.2034 Hz): +1 error 0 cent, -1 error 0 cent' (evidence/run-log/close/perpush-profundum-r13.log:4667) (bar 0.1 cent). |
-| SC-035 | pending (user) | evidence/listen/ re-rendered on the final bits ('All tests passed (108 assertions in 1 test case)' (evidence/run-log/close/listen-final.out:12); 8 WAVs + manifest.txt, not committed — reproducible with evidence/close/listen.sh). Verdict (user) lines still empty at listening-sheet.md:35, 43, 57, 72, 87, 104, 119, 136 — the user's listening verdicts (FR-071). |
+| SC-035 | pass | User verdicts 2026-10-23 (listening-sheet.md Verdict lines): H-1 keep the colour; H-2 no slow timbre movement heard; H-8 the 10 ms snap reads as a pump that fits the character, 100 ms (the default) more musical; H-10 held note sounds the same; H-14 no pumping; H-19 the Anchor brings the sub back to a solid centre; H-28(1)/(2) no clicks or thumps. No verdict asks for a change. Renders: evidence/listen/ re-rendered on the final bits ('All tests passed (108 assertions in 1 test case)' (evidence/run-log/close/listen-final.out:12); 8 WAVs + manifest.txt, not committed — reproducible with evidence/close/listen.sh). Verdict (user) lines still empty at listening-sheet.md:35, 43, 57, 72, 87, 104, 119, 136 — the user's listening verdicts (FR-071). |
 | FR-071 | pass | evidence/listening-sheet.md with eight Listen rows and the setting of each; renders by evidence/close/listen.sh (SC-035 row). The verdicts are the user's and stay out of the agent's hands (listening-sheet.md:16-17). |
 | SC-036 | pass | VoiceEngine_TapTransparency in the final per-push lane: 'VoiceEngine_TapTransparency: mode 0 observer attached mismatches 0, anchorPhaseTap mismatches 0, no-observer allocations 0' (evidence/run-log/close/perpush-profundum-r13.log:4726). |
 | FR-086 | pass | profundum_engine_observer.h:32-41 ProfundumEngineSeams {macroBypass, anchorDetached, forceLinearCore, disableStealFade, disableDeclick, followNoBypass, lockReadsCore}; voice taps (voice :914-941 incl. meterTheta / meterFreqHz), engine taps (engine :1174-1183, grid :1056-1066); seams consumed at voice :261, :333, :380, :571, :660, :855, :895 and engine :626, :639, :869-871. SC-036 row. |

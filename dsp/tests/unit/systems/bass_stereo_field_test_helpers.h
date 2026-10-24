@@ -268,10 +268,10 @@ inline FieldChainTaps renderFieldChain(const FieldChainConfig& cfg) {
     const MassDynamicsTest::ChainConfig& cc = cfg.chain;
     REQUIRE(cc.f0 > 0.0);
     REQUIRE(cc.fs > 0.0);
-    REQUIRE(cc.hostBlock > 0);
-    REQUIRE(cc.noteOnSample % kGrid == 0);
+    REQUIRE(cc.hostBlock > 0u);
+    REQUIRE(cc.noteOnSample % kGrid == 0u);
     const std::size_t total = MassDynamicsTest::renderLength(cc.fs, cc.seconds);
-    REQUIRE(total > 0);
+    REQUIRE(total > 0u);
     const auto f0 = static_cast<float>(cc.f0);
 
     std::vector<float> f0Track;
@@ -429,7 +429,7 @@ inline FieldChainTaps renderFieldChain(const FieldChainConfig& cfg) {
 inline FieldChainTaps restage(const FieldChainTaps& t, const FieldChainConfig& cfg, float floorGain) {
     const MassDynamicsTest::ChainConfig& cc = cfg.chain;
     REQUIRE_FALSE(cfg.bypassField);
-    REQUIRE(cc.hostBlock > 0);
+    REQUIRE(cc.hostBlock > 0u);
     const std::size_t total = t.dynL.size();
     REQUIRE(total == MassDynamicsTest::renderLength(cc.fs, cc.seconds));
     FieldChainTaps r = t;
@@ -464,13 +464,13 @@ inline FieldChainTaps renderFieldPoly(std::span<const double> f0s, const FieldCh
     const MassDynamicsTest::ChainConfig& cc = common.chain;
     REQUIRE(!f0s.empty());
     REQUIRE(cc.fs > 0.0);
-    REQUIRE(cc.hostBlock > 0);
-    REQUIRE(cc.noteOnSample % kGrid == 0);
+    REQUIRE(cc.hostBlock > 0u);
+    REQUIRE(cc.noteOnSample % kGrid == 0u);
     REQUIRE_FALSE(static_cast<bool>(common.f0At));
     REQUIRE_FALSE(common.generatorGravity.has_value());
     REQUIRE_FALSE(common.forceSubCentre);
     const std::size_t total = MassDynamicsTest::renderLength(cc.fs, cc.seconds);
-    REQUIRE(total > 0);
+    REQUIRE(total > 0u);
 
     std::vector<float> keys;
     std::vector<PolyFieldVoice> voices(f0s.size());
@@ -657,7 +657,7 @@ inline BandSpectra bandSpectra(const float* L, const float* R, std::size_t n) {
     REQUIRE(L != nullptr);
     REQUIRE(R != nullptr);
     const std::size_t W = largestPow2AtMost(n);
-    REQUIRE(W >= 2);
+    REQUIRE(W >= 2u);
     const std::vector<double> w = hannWindow(W);
     BandSpectra s;
     s.length = W;
@@ -751,8 +751,8 @@ inline std::vector<BandReading> bandReadings(const float* L, const float* R, std
 /// Window starts for moving renders: settle + k * hop while the window [start, start + lenPow2) fits in n.
 inline std::vector<std::size_t> windows(std::size_t n, double fs, double settleSeconds, std::size_t lenPow2,
                                         std::size_t hop) {
-    REQUIRE(lenPow2 > 0);
-    REQUIRE(hop > 0);
+    REQUIRE(lenPow2 > 0u);
+    REQUIRE(hop > 0u);
     std::vector<std::size_t> starts;
     const auto settle = static_cast<std::size_t>(std::llround(settleSeconds * fs));
     for (std::size_t s = settle; s + lenPow2 <= n; s += hop)
@@ -828,7 +828,7 @@ inline double wrapPhase(double p) {
 
 inline ToneFit goertzelComplex(const float* x, std::size_t L, double fs, double hz) {
     REQUIRE(x != nullptr);
-    REQUIRE(L > 0);
+    REQUIRE(L > 0u);
     double re = 0.0;
     double im = 0.0;
     for (std::size_t k = 0; k < L; ++k) {

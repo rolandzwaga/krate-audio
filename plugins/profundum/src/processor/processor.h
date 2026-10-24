@@ -22,12 +22,16 @@
 #include "pluginterfaces/vst/ivstparameterchanges.h"
 #include "base/source/timer.h"
 
+#include "parameters/endpoint_names.h"  // Phase 12 T019 (FR-047)
 #include "parameters/global_params.h"
 #include "parameters/macro_params.h"
 #include "parameters/morph_params.h"
 #include "parameters/note_params.h"
 #include "parameters/performance_params.h"
 #include "parameters/sound_param_row.h"
+
+#include "processor/spectrum_frame.h"     // Phase 12 T020 (FR-071 - FR-075)
+#include "processor/spectrum_producer.h"
 
 #include "midi/sustain_latch.h"  // plugins/shared/src/midi/sustain_latch.h (FR-061)
 
@@ -39,6 +43,14 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <mutex>
+
+// Phase 12 T020 (plan 4.4): forward-declared as Vorago processor.h:53 does, so this header stays cheap;
+// dataexchange.h is included by processor.cpp alone. The unique_ptr member over this incomplete type is legal
+// because ~Processor() is defined out of line in processor.cpp.
+namespace Steinberg::Vst {
+class DataExchangeHandler;
+}  // namespace Steinberg::Vst
 
 namespace Profundum {
 
@@ -85,6 +97,9 @@ public:
     Steinberg::tresult PLUGIN_API notify(Steinberg::Vst::IMessage* message) override;
     /// FR-025: the 50 ms SDK timer; does nothing but flushControllerSync().
     void onTimer(Steinberg::Timer* timer) override;
+    /// Phase 12 FR-071 / FR-076 (plan 4.4): the spectrum-frame DataExchange lifecycle (Vorago processor.cpp:262-303).
+    Steinberg::tresult PLUGIN_API connect(Steinberg::Vst::IConnectionPoint* other) override;
+    Steinberg::tresult PLUGIN_API disconnect(Steinberg::Vst::IConnectionPoint* other) override;
     /// FR-025 sender (plan 4.5.4). NON-AUDIO threads only (timer, notify, setState, setActive, getState, tests).
     /// Allocates IMessages; never reached from process(). Sends the PERSISTED slots only (FR-056).
     void flushControllerSync() noexcept;
@@ -127,8 +142,33 @@ public:
     }
     /// FR-025: true while the 50 ms sync timer exists (initialize .. terminate; never on Linux).
     [[nodiscard]] bool hasSyncTimerForTest() const noexcept { return syncTimer_.get() != nullptr; }
+    /// Phase 12 FR-047: the name the processor holds for endpoint @p e, copied under namesMutex_. Non-audio threads.
+    [[nodiscard]] EndpointName endpointNameForTest(Krate::DSP::BassMorphEngine::Endpoint e) const;
+
+    // ---- Phase 12 T020 test seams (plan 4.4; shipping logic branches only on the gate) ----
+    /// Seam arm (SC-010 - SC-013, SC-025, SC-026, SC-030): run the producer with no open queue.
+    /// Set it between process() calls.
+    void setSpectrumProducerEnabledForTest(bool on) noexcept { spectrumForced_ = on; }
+    /// The last frame publishSpectrumFrame() took from the producer (audio-written; read between process() calls).
+    [[nodiscard]] const ProfundumSpectrumFrame& lastSpectrumFrameForTest() const noexcept { return lastFrame_; }
+    /// Frames taken from the producer since the last setActive(true), sent or not.
+    [[nodiscard]] std::uint32_t spectrumFramesPublishedForTest() const noexcept { return framesPublished_; }
+    /// The most frames one process() call published since the last setActive(true) (FR-071: at most 1).
+    [[nodiscard]] std::uint32_t spectrumMaxFramesPerProcessForTest() const noexcept { return maxFramesPerCall_; }
+    [[nodiscard]] const ProfundumSpectrumProducer& spectrumProducerForTest() const noexcept { return spectrum_; }
+    /// SC-026 steps 1 and 4: the processor's own producer instance, for feedInterval injection between process()
+    /// calls (the engine-seam precedent is mutableEngineForTest above).
+    [[nodiscard]] ProfundumSpectrumProducer& mutableSpectrumProducerForTest() noexcept { return spectrum_; }
+    /// Publishes that found no usable DataExchange block (never retried).
+    [[nodiscard]] std::uint64_t spectrumSkippedBlocksForTest() const noexcept { return skippedBlocks_; }
+    [[nodiscard]] bool spectrumQueueOpenForTest() const noexcept {
+        return queueState_.load(std::memory_order_acquire) == SpectrumQueueState::Open;
+    }
 
 private:
+    /// Phase 12 (plan 4.4): Closed until activation; ProbePending (a handler exists) until the first process()
+    /// observes whether the queue opened; then Open or Closed for the rest of the activation.
+    enum class SpectrumQueueState : std::uint8_t { Closed, ProbePending, Open };
     struct EventSlot {
         std::int32_t offset;     // clamped to [0, numSamples - 1]
         std::int32_t listIndex;  // index into data.inputEvents
@@ -158,6 +198,8 @@ private:
     void publishRestore(const RuntimeBlob& blob) noexcept;                  // FR-042 writer (setState only)
     void applyPendingRestore() noexcept;                                    // FR-042 reader (audio, one try)
     [[nodiscard]] bool readPendingRestore(RuntimeBlob& out) const noexcept;  // FR-041 precedence 1 (getState)
+    void resetNamesToDefaults();                                            // FR-047: v1 / v2 load (setState only)
+    void publishSpectrumFrame() noexcept;                                   // Phase 12 FR-071 (audio thread)
 
     std::unique_ptr<Krate::DSP::ProfundumEngine> engine_;  // FR-022: heap only
     GlobalParams globalParams_{};
@@ -202,6 +244,23 @@ private:
     std::atomic_flag flushBusy_ = ATOMIC_FLAG_INIT;     // flushControllerSync re-entrancy / cross-thread guard
     // FR-060 (plan 4.5.7, T022): stored by a successful setupProcessing, cleared by terminate; 0 = no tail.
     std::atomic<double> tailSampleRate_{0.0};
+    // Phase 12 FR-047 (plan 4.4, 4.5): the endpoint names [A, B]. Touched only by notify (kMsgEndpointName),
+    // getState and setState, under namesMutex_; process() never touches them, so the mutex is never taken on the
+    // audio thread.
+    std::array<EndpointName, 2> names_{defaultEndpointName(Krate::DSP::BassMorphEngine::Endpoint::A),
+                                       defaultEndpointName(Krate::DSP::BassMorphEngine::Endpoint::B)};
+    mutable std::mutex namesMutex_;
+    // Phase 12 FR-071 - FR-075 (plan 4.4): the spectrum producer and its DataExchange queue. The handler is built in
+    // connect and released in disconnect (host thread); setActive opens / closes the queue; the audio thread probes
+    // it once per activation and publishes at most one frame per process() call.
+    std::unique_ptr<Steinberg::Vst::DataExchangeHandler> dataExchangeHandler_;
+    ProfundumSpectrumProducer spectrum_{};
+    ProfundumSpectrumFrame lastFrame_{};
+    bool spectrumForced_ = false;
+    std::atomic<SpectrumQueueState> queueState_{SpectrumQueueState::Closed};  // setActive / disconnect and the probe
+    std::uint32_t framesPublished_ = 0;
+    std::uint32_t maxFramesPerCall_ = 0;
+    std::uint64_t skippedBlocks_ = 0;
 };
 
 static_assert(sizeof(Processor) < 64u * 1024u,

@@ -18,8 +18,9 @@
 
 namespace Profundum {
 
-/// FR-012 / FR-040 (Phase 11: v2, 510 bytes). Shared by processor and controller; neither includes the other.
-constexpr Steinberg::int32 kCurrentStateVersion = 2;
+/// FR-012 / FR-040 (Phase 11: v2, 510 bytes); Phase 12 FR-047 / FR-096: v3, 574 bytes (the v2 body plus two
+/// endpoint-name blocks, plan 4.5). Shared by processor and controller; neither includes the other.
+constexpr Steinberg::int32 kCurrentStateVersion = 3;
 
 /// FR-044: version (4) + global block (4 + 4 + 4 + 4) + macro block (4 x 4).
 constexpr std::size_t kStateV1Bytes = 36;
@@ -29,6 +30,7 @@ static_assert(kStateV1Bytes == 4 + (4 + 4 + 4 + 4) + 4 * 4, "spec FR-044 byte la
 // State v2 layout (Phase 11, FR-040; plan 3.2).
 // ------------------------------------------------------------------------------
 constexpr Steinberg::int32 kStateV1Version = 1;               // a Phase 10 stream
+constexpr Steinberg::int32 kStateV2Version = 2;               // a Phase 11 stream (Phase 12 T019)
 constexpr std::size_t kStateNoteBlockBytes = 32;              // bytes 36-67
 constexpr std::size_t kStateMorphControlBytes = 16;           // bytes 68-83
 constexpr std::size_t kStateSeedBytes = 4;                    // bytes 84-87
@@ -45,8 +47,20 @@ static_assert(kStateRuntimeOffset == kStateEndpointBOffset + Krate::DSP::kMorphS
               "plan 3.2: morph runtime follows endpoint B");
 static_assert(kStateV2Bytes == kStateRuntimeOffset + Krate::DSP::BassMorphEngine::kMorphRuntimeBytes,
               "plan 3.2: v2 stream ends after the morph runtime blob");
-static_assert(kCurrentStateVersion == 2 && kStateV1Version + 1 == kCurrentStateVersion,
-              "FR-040: v2 follows the Phase 10 v1 stream");
+static_assert(kStateV1Version + 1 == kStateV2Version && kStateV2Version + 1 == kCurrentStateVersion,
+              "FR-040 / FR-096: v2 follows the Phase 10 v1 stream, v3 the Phase 11 v2 stream");
+
+// ------------------------------------------------------------------------------
+// State v3 (Phase 12, FR-047 / FR-096; plan 4.5): the v2 body (version word 3), then two name blocks.
+//   510-541 name A: u8 length L (0 - 31), then L UTF-8 bytes, zero-padded to 31
+//   542-573 name B: same layout
+// ------------------------------------------------------------------------------
+constexpr std::size_t kEndpointNameMaxBytes = 31;   // UTF-8 bytes; 1 length byte + 31 = 32 per endpoint
+constexpr std::size_t kEndpointNameBlockBytes = 32;
+constexpr std::size_t kStateNamesOffset = kStateV2Bytes;   // 510: the Phase 11 "append after byte 510" rule
+constexpr std::size_t kStateV3Bytes = kStateNamesOffset + 2 * kEndpointNameBlockBytes;   // 574
+static_assert(kEndpointNameBlockBytes == kEndpointNameMaxBytes + 1, "plan 4.5: the u8 length byte + 31 bytes");
+static_assert(kStateV3Bytes == 574, "plan 4.5: v3 is 574 bytes");
 
 // ------------------------------------------------------------------------------
 // The 20-byte morph runtime blob (FR-041; plan 4.5.2). The engine keeps its offsets private
@@ -72,6 +86,7 @@ inline constexpr const char* kMsgCompare = "ProfundumCompare";             // ct
 inline constexpr const char* kMsgEndpoint = "ProfundumEndpoint";           // proc -> ctl, int "endpoint", binary "blob" (201 B)
 inline constexpr const char* kMsgCompareMode = "ProfundumCompareMode";     // proc -> ctl, int "mode"
 inline constexpr const char* kMsgRequestSync = "ProfundumRequestSync";     // ctl -> proc, no attributes (FR-025 pull)
+inline constexpr const char* kMsgEndpointName = "ProfundumEndpointName";   // ctl -> proc, int "endpoint", binary "name" (0..31 B)
 
 /// FR-011. Fresh v4 GUIDs generated 2026-10-22 with Node crypto.randomUUID(); compared
 /// against the sixteen registered FUIDs (spec New components): no match. NEVER change.

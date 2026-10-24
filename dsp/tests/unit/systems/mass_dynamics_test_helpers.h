@@ -101,7 +101,7 @@ inline std::size_t renderLength(double fs, double seconds) {
 /// sample counter and calls fn(start, len, atGrid) for each run, in order; atGrid == (start % 32 == 0).
 template <class F>
 inline void gridDriver(std::size_t total, std::size_t hostBlock, F&& fn) {
-    REQUIRE(hostBlock > 0);
+    REQUIRE(hostBlock > 0u);
     for (std::size_t b = 0; b < total; b += hostBlock) {
         const std::size_t end = std::min(total, b + hostBlock);
         std::size_t pos = b;
@@ -372,10 +372,10 @@ inline void prepareChainLaw(MassLaw& law, const ChainConfig& cfg) {
 inline ChainTaps renderChain(const ChainConfig& cfg) {
     REQUIRE(cfg.f0 > 0.0);
     REQUIRE(cfg.fs > 0.0);
-    REQUIRE(cfg.hostBlock > 0);
-    REQUIRE(cfg.noteOnSample % kGrid == 0);
+    REQUIRE(cfg.hostBlock > 0u);
+    REQUIRE(cfg.noteOnSample % kGrid == 0u);
     const std::size_t total = renderLength(cfg.fs, cfg.seconds);
-    REQUIRE(total > 0);
+    REQUIRE(total > 0u);
     const auto f0 = static_cast<float>(cfg.f0);
 
     auto core = std::make_unique<ProfundumCore>();
@@ -453,10 +453,10 @@ struct PolyVoice {
 /// voice sums; a1PerInterval and anchorControlsPerInterval are not recorded (per-voice quantities).
 inline ChainTaps renderPoly(std::span<const double> f0s, const ChainConfig& common) {
     REQUIRE(common.fs > 0.0);
-    REQUIRE(common.hostBlock > 0);
-    REQUIRE(common.noteOnSample % kGrid == 0);
+    REQUIRE(common.hostBlock > 0u);
+    REQUIRE(common.noteOnSample % kGrid == 0u);
     const std::size_t total = renderLength(common.fs, common.seconds);
-    REQUIRE(total > 0);
+    REQUIRE(total > 0u);
 
     std::vector<float> keys;
     std::vector<PolyVoice> voices(f0s.size());
@@ -647,7 +647,7 @@ inline SubBand subBand(const float* y, std::size_t n, double fs, double f0) {
     const auto M = static_cast<std::size_t>(std::floor(sb.period));
     const double frac = sb.period - static_cast<double>(M);
     sb.windowSamples = M + 1;
-    REQUIRE(M >= 8);
+    REQUIRE(M >= 8u);
     REQUIRE(n >= sb.windowSamples);
     sb.hop = subBandHop(fs, f0);
 
@@ -734,7 +734,7 @@ inline PeriodDescriptors periodDescriptors(const float* y, std::size_t start, do
     REQUIRE(start >= static_cast<std::size_t>(kResampleHalf));
     const double P = fs / f0;
     const auto N = static_cast<std::size_t>(std::floor(P));
-    REQUIRE(N >= 4);
+    REQUIRE(N >= 4u);
     const double dN = static_cast<double>(N);
 
     // One period, t_k = start + k·P/N, onto an integer grid of N points.
@@ -871,8 +871,8 @@ inline double aliasResidualDb(const float* x, const float* gainDb, const float* 
     const auto meas = static_cast<std::size_t>(std::llround(kAliasMeasureMs * 0.001 * fs));
     const std::size_t S = aliasResidualSegment(fs);
     const std::size_t post = S - pre - meas;
-    REQUIRE(pre > 0);
-    REQUIRE(post > 0);
+    REQUIRE(pre > 0u);
+    REQUIRE(post > 0u);
     REQUIRE(t0 >= pre);
     REQUIRE(t0 + meas + post <= n);
     const std::size_t seg0 = t0 - pre;

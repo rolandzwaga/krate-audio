@@ -800,6 +800,7 @@ add_executable(dsp_systems_tests
     #   profundum_engine_probe_test.cpp          P-1 - P-4, H-13, harvests, listening renders - hidden
     #   profundum_engine_perf_test.cpp           SC-001 - SC-004 [.perf]
     #   mass_dynamics_oversampling_test.cpp      FR-082 opt-in
+    #   profundum_engine_display_test.cpp        Phase 12 SC-022 accessor neutrality
     unit/systems/profundum_voice_engine_helpers_test.cpp
     unit/systems/profundum_motion_test.cpp
     unit/systems/profundum_macro_matrix_test.cpp
@@ -814,6 +815,7 @@ add_executable(dsp_systems_tests
     unit/systems/profundum_engine_probe_test.cpp
     unit/systems/profundum_engine_perf_test.cpp
     unit/systems/mass_dynamics_oversampling_test.cpp
+    unit/systems/profundum_engine_display_test.cpp
 )
 
 target_link_libraries(dsp_systems_tests

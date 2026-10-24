@@ -697,6 +697,14 @@ public:
                && anchor_.stateFinite() && meter_.stateFinite();
     }
 
+    // Phase 12 FR-075 / FR-095: display read path. const, allocation-free, behaviour-neutral.
+    // The current interval's scratch, [0, k_). Valid until the next beginInterval.
+    [[nodiscard]] std::size_t intervalSamplesRendered() const noexcept { return k_; }
+    [[nodiscard]] std::span<const float> characterTapL() const noexcept { return {mainL_.data(), k_}; }
+    [[nodiscard]] std::span<const float> characterTapR() const noexcept { return {mainR_.data(), k_}; }
+    [[nodiscard]] std::span<const float> anchorTapL() const noexcept { return {anchorL_.data(), k_}; }
+    [[nodiscard]] std::span<const float> anchorTapR() const noexcept { return {anchorR_.data(), k_}; }
+
 private:
     [[nodiscard]] static bool same(float a, float b) noexcept {
         return std::bit_cast<std::uint32_t>(a) == std::bit_cast<std::uint32_t>(b);

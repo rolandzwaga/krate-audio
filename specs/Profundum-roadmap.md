@@ -1026,6 +1026,29 @@ Morph control concept: *A — DEEP PRESSURE (Round · Clean · Heavy)* ◉━━
 Aggressive)*, buttons A / A·B / B, position readout "42 %".
 
 
+**Status: ✅ COMPLETE (2026-10-24; the macOS / Linux CI legs of SC-021 PENDING-CI)** — see
+specs/profundum-phase12-ui/compliance.md (96 pass). 12a: D1–D7 ratified 2026-10-23 (960 × 600, zoom 100–200 % in the header
+and in SETTINGS, Modulation / Settings as tabs of Advanced). The user gave the main-page render-set verdict ("very deep and tight
+low end") and the eight Phase 9 SC-035 verdicts. 12b:
+- **Spectrum.** A plugin-local harmonic-bar view, display-only on Main and Advanced. An audio-thread Goertzel bank (64 partials,
+  K = 8 periods, double) feeds it through the Vorago DataExchange pattern. It reads the focus voice through append-only `const`
+  dsp accessors, and the bank is a plugin-local Highway kernel with runtime dispatch.
+- **State v3 (574 bytes).** Typed 32-byte UTF-8 endpoint names; v1 and v2 still load. Copy copies the sound only.
+- **Controls.** One-sided macro offset rings (`OffsetRingKnob`). Compare A / A·B / B switches Edit Target. MIDI learn stays
+  host-level.
+- **Close.** SC-006 (a) gained gated main-page rows for 1, 200, 201, 204 and 1000 (`Profundum_MainPageAudibility`); 1001 is exempt
+  as a routing control. SC-013 failed on the SSE2 Goertzel (P-ON / D 1.038–1.053) and passed with the Highway kernel at 1.0228
+  (bar 1.05; MONO 2.46 %, 4 voices 7.00 %).
+
+**Phase 13 handoff (from Phase 12):**
+- 13.1 There is no preset field in the header yet (P-9). Phase 13 adds the browser to the header row of the ratified D1 layout.
+- 13.2 Endpoint names live in state v3 (bytes 510–573). Factory presets carry an A and a B name, and the descriptor is derived.
+- 13.3 `Profundum_MainPageAudibility` shows the processor-path contrast pattern (`ppRenderProcessor`, a normalised parameter
+  write, a Sum-tap descriptor against the Phase 9 bar). The preset showcase measure can reuse it.
+- 13.4 `evidence/listen/render.sh` (Phase 12) renders a patch list to WAV with a manifest. It is the template for preset
+  audition renders.
+- 13.5 The CPU lane must run after an idle and never straight after a clang-tidy lane: one such run read every arm 10–19 % slow.
+
 ### Phase 13: Factory Presets & Release Readiness
 
 **Spec:** `profundum-phase13-presets-release`

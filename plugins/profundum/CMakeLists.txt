@@ -31,10 +31,26 @@ smtg_add_vst3plugin(${PLUGIN_NAME}
     # Processor (Audio Thread)
     src/processor/processor.h
     src/processor/processor.cpp
+    src/processor/spectrum_frame.h
+    src/processor/spectrum_producer.h
+    src/processor/goertzel_bank_simd.h
+    src/processor/goertzel_bank_simd.cpp
 
     # Controller (UI Thread)
     src/controller/controller.h
     src/controller/controller.cpp
+
+    # UI (Phase 12)
+    src/ui/harmonic_bar_view.h
+    src/ui/harmonic_bar_view.cpp
+    src/ui/spread_curve_view.h
+    src/ui/spread_curve_view.cpp
+    src/ui/offset_ring_knob.h
+    src/ui/offset_ring_knob.cpp
+    src/ui/panel_sub_controller.h
+    src/ui/panel_sub_controller.cpp
+    src/ui/macro_ui_map.h
+    src/ui/endpoint_descriptor.h
 
     # Parameter Packs
     src/parameters/global_params.h
@@ -51,6 +67,7 @@ smtg_add_vst3plugin(${PLUGIN_NAME}
     src/parameters/motion_params.h
     src/parameters/morph_params.h
     src/parameters/performance_params.h
+    src/parameters/endpoint_names.h
 
     # Prepare-time engine configuration (no DSP)
     src/engine/profundum_engine_config.h
@@ -70,6 +87,7 @@ target_link_libraries(${PLUGIN_NAME}
         vstgui_support
         KrateDSP
         KratePluginsShared
+        hwy  # T040: the plugin-local Goertzel kernel (goertzel_bank_simd.cpp)
 )
 
 # Include directories

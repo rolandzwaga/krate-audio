@@ -433,6 +433,9 @@ TEST_CASE("Profundum_ProcessorLifecycle", "[profundum][processor]") {
 
         runLatencySequence(f);
         REQUIRE(peer.notifications == 0);
+        // Non-vacuity of the split (FR-071): setActive(true) opened the spectrum queue over the IMessage fallback,
+        // and that message is the only one the peer received.
+        REQUIRE(peer.dataExchangeMessages >= 1);
 
         // Positive control: the connection carries a message when one is sent.
         REQUIRE(f.proc->sendTextMessage("probe") == Steinberg::kResultOk);
@@ -502,10 +505,10 @@ TEST_CASE("Profundum_ProcessorLifecycle", "[profundum][processor]") {
         REQUIRE(stream->seek(0, Steinberg::IBStream::kIBSeekSet, nullptr) == Steinberg::kResultOk);
         REQUIRE(f.proc->setState(stream) == Steinberg::kResultOk);
         {
-            // T017: whatever version was loaded, the processor saves the 510-byte v2 layout.
+            // T017: whatever version was loaded, the processor saves the current layout (574-byte v3 since Phase 12).
             auto saved = Steinberg::owned(new Steinberg::MemoryStream());
             REQUIRE(f.proc->getState(saved) == Steinberg::kResultOk);
-            REQUIRE(std::cmp_equal(saved->getSize(), ::Profundum::kStateV2Bytes));
+            REQUIRE(std::cmp_equal(saved->getSize(), ::Profundum::kStateV3Bytes));
         }
 
         REQUIRE(setupAt(*f.proc, 48000.0) == Steinberg::kResultOk);  // no process() call follows

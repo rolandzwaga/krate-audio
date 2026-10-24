@@ -32,16 +32,14 @@ a ruling in the owning FR / SC row (FR-071). For H-28 a defect verdict opens a P
 
 - **Question:** Is the +1.2 ... +1.6 dB hump at 500-550 Hz on the excitation's linear path audible when the excitation
   engages (mix 0 -> 1)? If so, does it read as a colour you would keep, or as a boxy or honky resonance that should be removed?
-- **Verdict (user):**
-
+- **Verdict (user, 2026-10-23):** "colour I would keep"
 ## H-2: "breathing" at C3 through the Fold (Phase 3, roadmap line 328)
 
 - **Render:** `evidence/listen/h02-fold-breathing-c3.wav` (61 s)
 - **Setting:** A_s with the kSawAnchor recipe and Fold 100. C3 is held for 60 s (0 s to 60 s). The soak records the drift (SC-013).
 - **Question:** Over the 60 s hold, do you hear a slow movement in the timbre (the core partials' phase walk, about 0.59 deg per
   60 s seen through the Fold)? If so, is it musically welcome (the user's earlier note) or a defect to pin?
-- **Verdict (user):**
-
+- **Verdict (user, 2026-10-23):** "I do not hear a slow movement in the timbre, it just sounds like a continuous note to me"
 ## H-8: Anchor raw level swing on hard snaps (Phase 4, roadmap line 372)
 
 - **Render:** `evidence/listen/h08-drop-snaps-e0.wav` (18 s)
@@ -54,8 +52,7 @@ a ruling in the owning FR / SC row (FR-071). For H-28 a defect verdict opens a P
 
 - **Question:** On the 10 ms snaps, does the Anchor's level dip or swing during the drop read as a gap, a pump or a click in
   the sub? Or does it sit inside the snap's character? Compare it with the 100 ms reference.
-- **Verdict (user):**
-
+- **Verdict (user, 2026-10-23):** "It sounds like a pump to me, it fits the character, the 100ms version is more musical I think"
 ## H-10: a note after a Drop against a fresh note (Phase 5 handoff (1), roadmap line 425)
 
 - **Render:** `evidence/listen/h10-after-drop-vs-fresh.wav` (8 s)
@@ -69,8 +66,7 @@ a ruling in the owning FR / SC row (FR-071). For H-28 a defect verdict opens a P
 - **Question:** Once the drop has landed, does the held note sound different from the fresh one (a different timbre or growl,
   because the partial phases are kept)? If so, does that matter? A "yes, fix it" verdict records a possible Phase 4 amendment.
   It is not made in this phase.
-- **Verdict (user):**
-
+- **Verdict (user, 2026-10-23):** "The held note sounds the same for both"
 ## H-14: sub-only voice at Mass 100; reference / saw voices (Phase 6 handoff (3))
 
 - **Render:** `evidence/listen/h14-mass100-voices.wav` (15 s)
@@ -84,8 +80,7 @@ a ruling in the owning FR / SC row (FR-071). For H-28 a defect verdict opens a P
 
 - **Question:** At Mass 100, does the sub-only voice sound squashed or "stuck" on the limiter? On the reference and saw voices,
   is the 0.5 s of heavy limiting after each attack audible as pumping or a flattened transient? If so, is it acceptable?
-- **Verdict (user):**
-
+- **Verdict (user, 2026-10-23):** "No pumping, all three sound good"
 ## H-19: Fold / Rectify at the WIDE offset ceilings (Phase 7 handoff (5))
 
 - **Render:** `evidence/listen/h19-wide-ceiling-fold-rectify.wav` (16 s)
@@ -101,8 +96,7 @@ a ruling in the owning FR / SC row (FR-071). For H-28 a defect verdict opens a P
 
 - **Question:** In stereo, and again summed to mono, does the fundamental sound hollow, phasey or thin? With the Anchor at 0,
   the regenerated fundamental is inverted between the channels. Does the Anchor (level 1) bring the sub back to a solid centre?
-- **Verdict (user):**
-
+- **Verdict (user, 2026-10-23):** "Anchor brings back the sub to a solid center, no hollow sounds"
 ## H-28 (1): Fracture -> Crush / Rectify switch at C3 (Phase 8 handoff 9.11; OQ-9)
 
 - **Render:** `evidence/listen/h28a-fracture-switch-c3.wav` (14 s)
@@ -116,8 +110,7 @@ a ruling in the owning FR / SC row (FR-071). For H-28 a defect verdict opens a P
 
 - **Question:** Does any switch click or thump? This is the component's own switch, which this phase does not re-measure (OQ-9).
   A "defect" verdict opens a Phase 5 fix outside this phase.
-- **Verdict (user):**
-
+- **Verdict (user, 2026-10-23):** "No clicks or thumps"
 ## H-28 (2): OctaveDownSine -> each other Anchor waveform at E1 (Phase 8 handoff 9.11; OQ-9)
 
 - **Render:** `evidence/listen/h28b-octavedown-switch-e1.wav` (28 s)
@@ -133,4 +126,4 @@ a ruling in the owning FR / SC row (FR-071). For H-28 a defect verdict opens a P
 
 - **Question:** Does any waveform switch click or thump in the sub? This is the Anchor's own switch, which this phase does not
   re-measure (OQ-9). A "defect" verdict opens a Phase 3 fix outside this phase.
-- **Verdict (user):**
+- **Verdict (user, 2026-10-23):** "No clicks or thumps"

@@ -1,0 +1,588 @@
+Filters: [profundum] ~[performance] ~[perf] ~[benchmark] ~[!benchmark] ~[long] ~[.]
+Randomness seeded to: 2971462739
+SC-016 fs 48000: E1 sine THD -161.226 dB (bar -90); fingerprint vs a fresh instance: metric 0, sample 0 
+SC-016 fs 48000: E1 triangle worst odd-ratio error 0.0015 dB (bar 0.5), worst even -163.81 dB (bar -90)
+SC-016 fs 48000: SC-002 sine        RMS -12.0000 dB, expected -12.0000 dB (bar 0.1)
+SC-016 fs 48000: SC-002 triangle    RMS -12.0000 dB, expected -12.0000 dB (bar 0.1)
+SC-016 fs 48000: SC-002 rounded     RMS -12.0000 dB, expected -12.0000 dB (bar 0.1)
+SC-016 fs 48000: SC-002 asymmetric  RMS -12.0000 dB, expected -12.0000 dB (bar 0.1)
+SC-016 fs 48000: SC-002 octave-down RMS -12.0000 dB, expected -12.0000 dB (bar 0.1)
+SC-016 fs 48000: SC-003(a) E1 dTheta(1 s) +0.000191 deg (bar 1), drift to 10 s -0.000407 deg (bar 0.5)
+SC-016 fs 96000: E1 sine THD -127.548 dB (bar -90); fingerprint vs a fresh instance: metric 0, sample 0 
+SC-016 fs 96000: E1 triangle worst odd-ratio error 0.0011 dB (bar 0.5), worst even -126.78 dB (bar -90)
+SC-016 fs 96000: SC-002 sine        RMS -12.0000 dB, expected -12.0000 dB (bar 0.1)
+SC-016 fs 96000: SC-002 triangle    RMS -12.0000 dB, expected -12.0000 dB (bar 0.1)
+SC-016 fs 96000: SC-002 rounded     RMS -12.0000 dB, expected -12.0000 dB (bar 0.1)
+SC-016 fs 96000: SC-002 asymmetric  RMS -12.0000 dB, expected -12.0000 dB (bar 0.1)
+SC-016 fs 96000: SC-002 octave-down RMS -12.0000 dB, expected -12.0000 dB (bar 0.1)
+SC-016 fs 96000: SC-003(a) E1 dTheta(1 s) -0.000161 deg (bar 1), drift to 10 s +0.000582 deg (bar 0.5)
+SC-016 fs 44100: E1 sine THD -159.339 dB (bar -90); fingerprint vs a fresh instance: metric 0, sample 0 
+SC-016 fs 44100: E1 triangle worst odd-ratio error 0.0020 dB (bar 0.5), worst even -159.90 dB (bar -90)
+SC-016 fs 44100: SC-002 sine        RMS -12.0000 dB, expected -12.0000 dB (bar 0.1)
+SC-016 fs 44100: SC-002 triangle    RMS -12.0000 dB, expected -12.0000 dB (bar 0.1)
+SC-016 fs 44100: SC-002 rounded     RMS -12.0000 dB, expected -12.0000 dB (bar 0.1)
+SC-016 fs 44100: SC-002 asymmetric  RMS -12.0000 dB, expected -12.0000 dB (bar 0.1)
+SC-016 fs 44100: SC-002 octave-down RMS -12.0000 dB, expected -12.0000 dB (bar 0.1)
+SC-016 fs 44100: SC-003(a) E1 dTheta(1 s) +0.001401 deg (bar 1), drift to 10 s +0.010427 deg (bar 0.5)
+SC-016 fs 22050: E1 sine THD -161.058 dB (bar -90); fingerprint vs a fresh instance: metric 0, sample 0 
+SC-016 fs 22050: E1 triangle worst odd-ratio error 0.0016 dB (bar 0.5), worst even -161.44 dB (bar -90)
+SC-016 fs 22050: SC-002 sine        RMS -12.0000 dB, expected -12.0000 dB (bar 0.1)
+SC-016 fs 22050: SC-002 triangle    RMS -12.0001 dB, expected -12.0000 dB (bar 0.1)
+SC-016 fs 22050: SC-002 rounded     RMS -12.0000 dB, expected -12.0000 dB (bar 0.1)
+SC-016 fs 22050: SC-002 asymmetric  RMS -12.0001 dB, expected -12.0000 dB (bar 0.1)
+SC-016 fs 22050: SC-002 octave-down RMS -12.0000 dB, expected -12.0000 dB (bar 0.1)
+SC-016 fs 22050: SC-003(a) E1 dTheta(1 s) +0.001207 deg (bar 1), drift to 10 s +0.010882 deg (bar 0.5)
+SC-016 fs 192000: E1 sine THD -111.681 dB (bar -90); fingerprint vs a fresh instance: metric 0, sample 0 
+SC-016 fs 192000: E1 triangle worst odd-ratio error 0.0005 dB (bar 0.5), worst even -111.66 dB (bar -90)
+SC-016 fs 192000: SC-002 sine        RMS -12.0000 dB, expected -12.0000 dB (bar 0.1)
+SC-016 fs 192000: SC-002 triangle    RMS -12.0000 dB, expected -12.0000 dB (bar 0.1)
+SC-016 fs 192000: SC-002 rounded     RMS -12.0000 dB, expected -12.0000 dB (bar 0.1)
+SC-016 fs 192000: SC-002 asymmetric  RMS -12.0000 dB, expected -12.0000 dB (bar 0.1)
+SC-016 fs 192000: SC-002 octave-down RMS -12.0000 dB, expected -12.0000 dB (bar 0.1)
+SC-016 fs 192000: SC-003(a) E1 dTheta(1 s) -0.000037 deg (bar 1), drift to 10 s -0.000192 deg (bar 0.5)
+SC-007 matrix: 200 renders (5 waveforms x 4 modes x 2 policies x 5 blocks), 0 L != R, 0 mono-sum failures, 0 silent (bars 0 / 0 / 0 / 0)
+SC-001 sine        midi 28 fs 44100: THD -159.339 dB, h2 -160.498 h3 -179.358 h5 -181.605 dB re w1
+SC-001 triangle    midi 28 fs 44100: THD -18.335 dB, h2 -159.903 h3 -19.085 h5 -27.960 dB re w1
+SC-001 rounded     midi 28 fs 44100: THD -12.042 dB, h2 -159.681 h3 -12.042 h5 -178.724 dB re w1
+SC-001 asymmetric  midi 28 fs 44100: THD -12.041 dB, h2 -12.041 h3 -168.595 h5 -182.276 dB re w1
+SC-001 octave-down midi 28 fs 44100: THD -129.783 dB, h2 -129.847 h3 -148.813 h5 -167.990 dB re w1
+SC-001(c) midi 28 fs 44100: rounded h3 - triangle h3 = 7.044 dB (bar 7.0)
+SC-001 sine        midi 36 fs 44100: THD -162.937 dB, h2 -164.525 h3 -181.055 h5 -186.004 dB re w1
+SC-001 triangle    midi 36 fs 44100: THD -18.336 dB, h2 -165.656 h3 -19.086 h5 -27.958 dB re w1
+SC-001 rounded     midi 36 fs 44100: THD -12.042 dB, h2 -162.302 h3 -12.042 h5 -182.710 dB re w1
+SC-001 asymmetric  midi 36 fs 44100: THD -12.042 dB, h2 -12.042 h3 -173.466 h5 -184.579 dB re w1
+SC-001 octave-down midi 36 fs 44100: THD -141.660 dB, h2 -141.749 h3 -159.814 h5 -177.150 dB re w1
+SC-001(c) midi 36 fs 44100: rounded h3 - triangle h3 = 7.044 dB (bar 7.0)
+SC-001 sine        midi 48 fs 44100: THD -167.125 dB, h2 -176.186 h3 -185.225 h5 -186.803 dB re w1
+SC-001 triangle    midi 48 fs 44100: THD -18.334 dB, h2 -176.636 h3 -19.084 h5 -27.957 dB re w1
+SC-001 rounded     midi 48 fs 44100: THD -12.040 dB, h2 -176.307 h3 -12.040 h5 -184.153 dB re w1
+SC-001 asymmetric  midi 48 fs 44100: THD -12.040 dB, h2 -12.040 h3 -183.352 h5 -181.105 dB re w1
+SC-001 octave-down midi 48 fs 44100: THD -161.985 dB, h2 -164.624 h3 -180.512 h5 -181.629 dB re w1
+SC-001(c) midi 48 fs 44100: rounded h3 - triangle h3 = 7.044 dB (bar 7.0)
+SC-001 sine        midi 28 fs 48000: THD -161.226 dB, h2 -166.838 h3 -167.397 h5 -165.751 dB re w1
+SC-001 triangle    midi 28 fs 48000: THD -18.335 dB, h2 -163.811 h3 -19.085 h5 -27.959 dB re w1
+SC-001 rounded     midi 28 fs 48000: THD -12.041 dB, h2 -170.894 h3 -12.041 h5 -170.693 dB re w1
+SC-001 asymmetric  midi 28 fs 48000: THD -12.041 dB, h2 -12.041 h3 -166.598 h5 -186.461 dB re w1
+SC-001 octave-down midi 28 fs 48000: THD -127.556 dB, h2 -127.618 h3 -146.403 h5 -165.810 dB re w1
+SC-001(c) midi 28 fs 48000: rounded h3 - triangle h3 = 7.044 dB (bar 7.0)
+SC-001 sine        midi 36 fs 48000: THD -160.758 dB, h2 -161.595 h3 -180.023 h5 -183.134 dB re w1
+SC-001 triangle    midi 36 fs 48000: THD -18.336 dB, h2 -163.446 h3 -19.086 h5 -27.958 dB re w1
+SC-001 rounded     midi 36 fs 48000: THD -12.042 dB, h2 -159.552 h3 -12.042 h5 -180.277 dB re w1
+SC-001 asymmetric  midi 36 fs 48000: THD -12.042 dB, h2 -12.042 h3 -168.268 h5 -181.074 dB re w1
+SC-001 octave-down midi 36 fs 48000: THD -139.754 dB, h2 -139.839 h3 -157.801 h5 -173.423 dB re w1
+SC-001(c) midi 36 fs 48000: rounded h3 - triangle h3 = 7.044 dB (bar 7.0)
+SC-001 sine        midi 48 fs 48000: THD -167.180 dB, h2 -174.516 h3 -188.512 h5 -180.479 dB re w1
+SC-001 triangle    midi 48 fs 48000: THD -18.334 dB, h2 -174.259 h3 -19.084 h5 -27.957 dB re w1
+SC-001 rounded     midi 48 fs 48000: THD -12.040 dB, h2 -174.128 h3 -12.040 h5 -183.600 dB re w1
+SC-001 asymmetric  midi 48 fs 48000: THD -12.040 dB, h2 -12.040 h3 -187.858 h5 -179.008 dB re w1
+SC-001 octave-down midi 48 fs 48000: THD -161.294 dB, h2 -162.409 h3 -179.409 h5 -179.699 dB re w1
+SC-001(c) midi 48 fs 48000: rounded h3 - triangle h3 = 7.044 dB (bar 7.0)
+SC-001 sine        midi 28 fs 96000: THD -127.548 dB, h2 -127.610 h3 -146.500 h5 -165.300 dB re w1
+SC-001 triangle    midi 28 fs 96000: THD -18.335 dB, h2 -126.776 h3 -19.085 h5 -27.959 dB re w1
+SC-001 rounded     midi 28 fs 96000: THD -12.041 dB, h2 -129.807 h3 -12.041 h5 -155.182 dB re w1
+SC-001 asymmetric  midi 28 fs 96000: THD -12.039 dB, h2 -12.039 h3 -145.068 h5 -164.750 dB re w1
+SC-001 octave-down midi 28 fs 96000: THD -111.680 dB, h2 -111.747 h3 -130.403 h5 -147.833 dB re w1
+SC-001(c) midi 28 fs 96000: rounded h3 - triangle h3 = 7.044 dB (bar 7.0)
+SC-001 sine        midi 36 fs 96000: THD -139.749 dB, h2 -139.834 h3 -157.642 h5 -175.023 dB re w1
+SC-001 triangle    midi 36 fs 96000: THD -18.334 dB, h2 -139.993 h3 -19.084 h5 -27.957 dB re w1
+SC-001 rounded     midi 36 fs 96000: THD -12.040 dB, h2 -139.348 h3 -12.040 h5 -171.635 dB re w1
+SC-001 asymmetric  midi 36 fs 96000: THD -12.040 dB, h2 -12.040 h3 -151.703 h5 -172.152 dB re w1
+SC-001 octave-down midi 36 fs 96000: THD -122.735 dB, h2 -122.816 h3 -140.693 h5 -157.758 dB re w1
+SC-001(c) midi 36 fs 96000: rounded h3 - triangle h3 = 7.044 dB (bar 7.0)
+SC-001 sine        midi 48 fs 96000: THD -160.758 dB, h2 -161.595 h3 -180.023 h5 -183.134 dB re w1
+SC-001 triangle    midi 48 fs 96000: THD -18.336 dB, h2 -163.446 h3 -19.086 h5 -27.958 dB re w1
+SC-001 rounded     midi 48 fs 96000: THD -12.042 dB, h2 -159.552 h3 -12.042 h5 -180.277 dB re w1
+SC-001 asymmetric  midi 48 fs 96000: THD -12.042 dB, h2 -12.042 h3 -168.268 h5 -181.074 dB re w1
+SC-001 octave-down midi 48 fs 96000: THD -139.754 dB, h2 -139.839 h3 -157.801 h5 -173.423 dB re w1
+SC-001(c) midi 48 fs 96000: rounded h3 - triangle h3 = 7.044 dB (bar 7.0)
+SC-001(f) float sine midi 28 fs 44100: THD -159.410 dB (bar -100)
+SC-001(f) float sine midi 36 fs 44100: THD -162.480 dB (bar -100)
+SC-001(f) float sine midi 48 fs 44100: THD -166.324 dB (bar -100)
+SC-001(f) float sine midi 28 fs 48000: THD -162.845 dB (bar -100)
+SC-001(f) float sine midi 36 fs 48000: THD -161.204 dB (bar -100)
+SC-001(f) float sine midi 48 fs 48000: THD -168.007 dB (bar -100)
+SC-001(f) float sine midi 28 fs 96000: THD -127.563 dB (bar -100)
+SC-001(f) float sine midi 36 fs 96000: THD -140.151 dB (bar -100)
+SC-001(f) float sine midi 48 fs 96000: THD -161.204 dB (bar -100)
+SC-001(f) triangle C2 x 1.0003: h3 -19.084 dB, THD -18.334 dB
+FR-012 C5 44.1k: n  3 at   1569.8 Hz T 1.000000 expected  -19.085 dB got  -19.084 dB
+FR-012 C5 44.1k: n  5 at   2616.3 Hz T 1.000000 expected  -27.959 dB got  -27.958 dB
+FR-012 C5 44.1k: n  7 at   3662.8 Hz T 1.000000 expected  -33.804 dB got  -33.804 dB
+FR-012 C5 44.1k: n  9 at   4709.3 Hz T 1.000000 expected  -38.170 dB got  -38.169 dB
+FR-012 C5 44.1k: n 11 at   5755.8 Hz T 1.000000 expected  -41.656 dB got  -41.654 dB
+FR-012 C5 44.1k: n 13 at   6802.3 Hz T 1.000000 expected  -44.558 dB got  -44.557 dB
+FR-012 C5 44.1k: n 15 at   7848.8 Hz T 0.747976 expected  -49.566 dB got  -49.567 dB
+FR-012 C5 44.1k: n 17 at   8895.3 Hz T 0.079213 expected  -71.242 dB got  -71.241 dB
+FR-012 C5 44.1k: n 19 at   9941.8 Hz T 0.010772 expected  -90.504 dB got  -90.503 dB
+FR-012 C5 44.1k: n 21 at  10988.3 Hz T 0.001789 expected -107.837 dB got -107.837 dB
+FR-012 C5 44.1k: n 23 at  12034.8 Hz T 0.000350 expected -123.592 dB got -123.596 dB
+FR-012 C5 44.1k: n 25 at  13081.3 Hz T 0.000078 expected -138.032 dB got -138.071 dB
+FR-012 C5 44.1k: n 27 at  14127.8 Hz T 0.000020 expected -151.360 dB got -151.490 dB
+FR-012 C5 44.1k: n 29 at  15174.3 Hz T 0.000005 expected -163.736 dB got -163.030 dB
+FR-012 C5 44.1k: n 31 at  16220.8 Hz T 0.000002 expected -175.286 dB got -173.954 dB
+SC-002 sine        midi 28 fs 44100 a1 0.355234: RMS -12.0000 dB expected -12.0000 dB
+SC-002 sine        midi 28 fs 44100 a1 0.088809: RMS -24.0412 dB expected -24.0412 dB
+SC-002 triangle    midi 28 fs 44100 a1 0.355234: RMS -12.0000 dB expected -12.0000 dB
+SC-002 triangle    midi 28 fs 44100 a1 0.088809: RMS -24.0412 dB expected -24.0412 dB
+SC-002 rounded     midi 28 fs 44100 a1 0.355234: RMS -12.0000 dB expected -12.0000 dB
+SC-002 rounded     midi 28 fs 44100 a1 0.088809: RMS -24.0412 dB expected -24.0412 dB
+SC-002 asymmetric  midi 28 fs 44100 a1 0.355234: RMS -12.0000 dB expected -12.0000 dB
+SC-002 asymmetric  midi 28 fs 44100 a1 0.088809: RMS -24.0412 dB expected -24.0412 dB
+SC-002 octave-down midi 28 fs 44100 a1 0.355234: RMS -12.0000 dB expected -12.0000 dB
+SC-002 octave-down midi 28 fs 44100 a1 0.088809: RMS -24.0412 dB expected -24.0412 dB
+SC-002 midi 28 fs 44100: waveform spread 0.0000 dB (bar 0.1)
+SC-002 midi 28 fs 44100: waveform spread 0.0000 dB (bar 0.1)
+SC-002 sine        midi 48 fs 44100 a1 0.355234: RMS -12.0000 dB expected -12.0000 dB
+SC-002 sine        midi 48 fs 44100 a1 0.088809: RMS -24.0412 dB expected -24.0412 dB
+SC-002 triangle    midi 48 fs 44100 a1 0.355234: RMS -12.0000 dB expected -12.0000 dB
+SC-002 triangle    midi 48 fs 44100 a1 0.088809: RMS -24.0412 dB expected -24.0412 dB
+SC-002 rounded     midi 48 fs 44100 a1 0.355234: RMS -12.0000 dB expected -12.0000 dB
+SC-002 rounded     midi 48 fs 44100 a1 0.088809: RMS -24.0412 dB expected -24.0412 dB
+SC-002 asymmetric  midi 48 fs 44100 a1 0.355234: RMS -12.0000 dB expected -12.0000 dB
+SC-002 asymmetric  midi 48 fs 44100 a1 0.088809: RMS -24.0412 dB expected -24.0412 dB
+SC-002 octave-down midi 48 fs 44100 a1 0.355234: RMS -12.0000 dB expected -12.0000 dB
+SC-002 octave-down midi 48 fs 44100 a1 0.088809: RMS -24.0412 dB expected -24.0412 dB
+SC-002 midi 48 fs 44100: waveform spread 0.0000 dB (bar 0.1)
+SC-002 midi 48 fs 44100: waveform spread 0.0000 dB (bar 0.1)
+SC-002 sine        midi 28 fs 48000 a1 0.355234: RMS -12.0000 dB expected -12.0000 dB
+SC-002 sine        midi 28 fs 48000 a1 0.088809: RMS -24.0412 dB expected -24.0412 dB
+SC-002 triangle    midi 28 fs 48000 a1 0.355234: RMS -12.0000 dB expected -12.0000 dB
+SC-002 triangle    midi 28 fs 48000 a1 0.088809: RMS -24.0412 dB expected -24.0412 dB
+SC-002 rounded     midi 28 fs 48000 a1 0.355234: RMS -12.0000 dB expected -12.0000 dB
+SC-002 rounded     midi 28 fs 48000 a1 0.088809: RMS -24.0412 dB expected -24.0412 dB
+SC-002 asymmetric  midi 28 fs 48000 a1 0.355234: RMS -12.0000 dB expected -12.0000 dB
+SC-002 asymmetric  midi 28 fs 48000 a1 0.088809: RMS -24.0412 dB expected -24.0412 dB
+SC-002 octave-down midi 28 fs 48000 a1 0.355234: RMS -12.0000 dB expected -12.0000 dB
+SC-002 octave-down midi 28 fs 48000 a1 0.088809: RMS -24.0412 dB expected -24.0412 dB
+SC-002 midi 28 fs 48000: waveform spread 0.0001 dB (bar 0.1)
+SC-002 midi 28 fs 48000: waveform spread 0.0001 dB (bar 0.1)
+SC-002 sine        midi 48 fs 48000 a1 0.355234: RMS -12.0000 dB expected -12.0000 dB
+SC-002 sine        midi 48 fs 48000 a1 0.088809: RMS -24.0412 dB expected -24.0412 dB
+SC-002 triangle    midi 48 fs 48000 a1 0.355234: RMS -12.0000 dB expected -12.0000 dB
+SC-002 triangle    midi 48 fs 48000 a1 0.088809: RMS -24.0412 dB expected -24.0412 dB
+SC-002 rounded     midi 48 fs 48000 a1 0.355234: RMS -12.0000 dB expected -12.0000 dB
+SC-002 rounded     midi 48 fs 48000 a1 0.088809: RMS -24.0412 dB expected -24.0412 dB
+SC-002 asymmetric  midi 48 fs 48000 a1 0.355234: RMS -12.0000 dB expected -12.0000 dB
+SC-002 asymmetric  midi 48 fs 48000 a1 0.088809: RMS -24.0412 dB expected -24.0412 dB
+SC-002 octave-down midi 48 fs 48000 a1 0.355234: RMS -12.0000 dB expected -12.0000 dB
+SC-002 octave-down midi 48 fs 48000 a1 0.088809: RMS -24.0412 dB expected -24.0412 dB
+SC-002 midi 48 fs 48000: waveform spread 0.0000 dB (bar 0.1)
+SC-002 midi 48 fs 48000: waveform spread 0.0000 dB (bar 0.1)
+SC-002 sine        midi 28 fs 96000 a1 0.355234: RMS -12.0000 dB expected -12.0000 dB
+SC-002 sine        midi 28 fs 96000 a1 0.088809: RMS -24.0412 dB expected -24.0412 dB
+SC-002 triangle    midi 28 fs 96000 a1 0.355234: RMS -12.0000 dB expected -12.0000 dB
+SC-002 triangle    midi 28 fs 96000 a1 0.088809: RMS -24.0412 dB expected -24.0412 dB
+SC-002 rounded     midi 28 fs 96000 a1 0.355234: RMS -12.0000 dB expected -12.0000 dB
+SC-002 rounded     midi 28 fs 96000 a1 0.088809: RMS -24.0412 dB expected -24.0412 dB
+SC-002 asymmetric  midi 28 fs 96000 a1 0.355234: RMS -12.0000 dB expected -12.0000 dB
+SC-002 asymmetric  midi 28 fs 96000 a1 0.088809: RMS -24.0412 dB expected -24.0412 dB
+SC-002 octave-down midi 28 fs 96000 a1 0.355234: RMS -12.0000 dB expected -12.0000 dB
+SC-002 octave-down midi 28 fs 96000 a1 0.088809: RMS -24.0412 dB expected -24.0412 dB
+SC-002 midi 28 fs 96000: waveform spread 0.0000 dB (bar 0.1)
+SC-002 midi 28 fs 96000: waveform spread 0.0000 dB (bar 0.1)
+SC-002 sine        midi 48 fs 96000 a1 0.355234: RMS -12.0000 dB expected -12.0000 dB
+SC-002 sine        midi 48 fs 96000 a1 0.088809: RMS -24.0412 dB expected -24.0412 dB
+SC-002 triangle    midi 48 fs 96000 a1 0.355234: RMS -12.0000 dB expected -12.0000 dB
+SC-002 triangle    midi 48 fs 96000 a1 0.088809: RMS -24.0412 dB expected -24.0412 dB
+SC-002 rounded     midi 48 fs 96000 a1 0.355234: RMS -12.0000 dB expected -12.0000 dB
+SC-002 rounded     midi 48 fs 96000 a1 0.088809: RMS -24.0412 dB expected -24.0412 dB
+SC-002 asymmetric  midi 48 fs 96000 a1 0.355234: RMS -12.0000 dB expected -12.0000 dB
+SC-002 asymmetric  midi 48 fs 96000 a1 0.088809: RMS -24.0412 dB expected -24.0412 dB
+SC-002 octave-down midi 48 fs 96000 a1 0.355234: RMS -12.0000 dB expected -12.0000 dB
+SC-002 octave-down midi 48 fs 96000 a1 0.088809: RMS -24.0412 dB expected -24.0412 dB
+SC-002 midi 48 fs 96000: waveform spread 0.0000 dB (bar 0.1)
+SC-002 midi 48 fs 96000: waveform spread 0.0000 dB (bar 0.1)
+SC-002 zero arm sine        midi 28 fs 44100 a1 -> 0: first exact-zero sample 361 (8.186 ms), bound 361.53 samples (derived 8.175 ms + 1 sample)
+SC-002 zero arm sine        midi 28 fs 44100 level 1 -> 0: first exact-zero sample 407 (9.229 ms), bound 407.18 samples (derived 9.210 ms + 1 sample)
+SC-002 zero arm triangle    midi 28 fs 44100 a1 -> 0: first exact-zero sample 361 (8.186 ms), bound 361.53 samples (derived 8.175 ms + 1 sample)
+SC-002 zero arm triangle    midi 28 fs 44100 level 1 -> 0: first exact-zero sample 407 (9.229 ms), bound 407.18 samples (derived 9.210 ms + 1 sample)
+SC-002 zero arm rounded     midi 28 fs 44100 a1 -> 0: first exact-zero sample 361 (8.186 ms), bound 361.53 samples (derived 8.175 ms + 1 sample)
+SC-002 zero arm rounded     midi 28 fs 44100 level 1 -> 0: first exact-zero sample 407 (9.229 ms), bound 407.18 samples (derived 9.210 ms + 1 sample)
+SC-002 zero arm asymmetric  midi 28 fs 44100 a1 -> 0: first exact-zero sample 361 (8.186 ms), bound 361.53 samples (derived 8.175 ms + 1 sample)
+SC-002 zero arm asymmetric  midi 28 fs 44100 level 1 -> 0: first exact-zero sample 407 (9.229 ms), bound 407.18 samples (derived 9.210 ms + 1 sample)
+SC-002 zero arm octave-down midi 28 fs 44100 a1 -> 0: first exact-zero sample 361 (8.186 ms), bound 361.53 samples (derived 8.175 ms + 1 sample)
+SC-002 zero arm octave-down midi 28 fs 44100 level 1 -> 0: first exact-zero sample 407 (9.229 ms), bound 407.18 samples (derived 9.210 ms + 1 sample)
+SC-002 zero arm sine        midi 48 fs 44100 a1 -> 0: first exact-zero sample 361 (8.186 ms), bound 361.53 samples (derived 8.175 ms + 1 sample)
+SC-002 zero arm sine        midi 48 fs 44100 level 1 -> 0: first exact-zero sample 407 (9.229 ms), bound 407.18 samples (derived 9.210 ms + 1 sample)
+SC-002 zero arm triangle    midi 48 fs 44100 a1 -> 0: first exact-zero sample 361 (8.186 ms), bound 361.53 samples (derived 8.175 ms + 1 sample)
+SC-002 zero arm triangle    midi 48 fs 44100 level 1 -> 0: first exact-zero sample 407 (9.229 ms), bound 407.18 samples (derived 9.210 ms + 1 sample)
+SC-002 zero arm rounded     midi 48 fs 44100 a1 -> 0: first exact-zero sample 361 (8.186 ms), bound 361.53 samples (derived 8.175 ms + 1 sample)
+SC-002 zero arm rounded     midi 48 fs 44100 level 1 -> 0: first exact-zero sample 407 (9.229 ms), bound 407.18 samples (derived 9.210 ms + 1 sample)
+SC-002 zero arm asymmetric  midi 48 fs 44100 a1 -> 0: first exact-zero sample 361 (8.186 ms), bound 361.53 samples (derived 8.175 ms + 1 sample)
+SC-002 zero arm asymmetric  midi 48 fs 44100 level 1 -> 0: first exact-zero sample 407 (9.229 ms), bound 407.18 samples (derived 9.210 ms + 1 sample)
+SC-002 zero arm octave-down midi 48 fs 44100 a1 -> 0: first exact-zero sample 361 (8.186 ms), bound 361.53 samples (derived 8.175 ms + 1 sample)
+SC-002 zero arm octave-down midi 48 fs 44100 level 1 -> 0: first exact-zero sample 407 (9.229 ms), bound 407.18 samples (derived 9.210 ms + 1 sample)
+SC-002 zero arm sine        midi 28 fs 48000 a1 -> 0: first exact-zero sample 393 (8.188 ms), bound 393.42 samples (derived 8.175 ms + 1 sample)
+SC-002 zero arm sine        midi 28 fs 48000 level 1 -> 0: first exact-zero sample 443 (9.229 ms), bound 443.10 samples (derived 9.210 ms + 1 sample)
+SC-002 zero arm triangle    midi 28 fs 48000 a1 -> 0: first exact-zero sample 393 (8.188 ms), bound 393.42 samples (derived 8.175 ms + 1 sample)
+SC-002 zero arm triangle    midi 28 fs 48000 level 1 -> 0: first exact-zero sample 443 (9.229 ms), bound 443.10 samples (derived 9.210 ms + 1 sample)
+SC-002 zero arm rounded     midi 28 fs 48000 a1 -> 0: first exact-zero sample 393 (8.188 ms), bound 393.42 samples (derived 8.175 ms + 1 sample)
+SC-002 zero arm rounded     midi 28 fs 48000 level 1 -> 0: first exact-zero sample 443 (9.229 ms), bound 443.10 samples (derived 9.210 ms + 1 sample)
+SC-002 zero arm asymmetric  midi 28 fs 48000 a1 -> 0: first exact-zero sample 393 (8.188 ms), bound 393.42 samples (derived 8.175 ms + 1 sample)
+SC-002 zero arm asymmetric  midi 28 fs 48000 level 1 -> 0: first exact-zero sample 443 (9.229 ms), bound 443.10 samples (derived 9.210 ms + 1 sample)
+SC-002 zero arm octave-down midi 28 fs 48000 a1 -> 0: first exact-zero sample 393 (8.188 ms), bound 393.42 samples (derived 8.175 ms + 1 sample)
+SC-002 zero arm octave-down midi 28 fs 48000 level 1 -> 0: first exact-zero sample 443 (9.229 ms), bound 443.10 samples (derived 9.210 ms + 1 sample)
+SC-002 zero arm sine        midi 48 fs 48000 a1 -> 0: first exact-zero sample 393 (8.188 ms), bound 393.42 samples (derived 8.175 ms + 1 sample)
+SC-002 zero arm sine        midi 48 fs 48000 level 1 -> 0: first exact-zero sample 443 (9.229 ms), bound 443.10 samples (derived 9.210 ms + 1 sample)
+SC-002 zero arm triangle    midi 48 fs 48000 a1 -> 0: first exact-zero sample 393 (8.188 ms), bound 393.42 samples (derived 8.175 ms + 1 sample)
+SC-002 zero arm triangle    midi 48 fs 48000 level 1 -> 0: first exact-zero sample 443 (9.229 ms), bound 443.10 samples (derived 9.210 ms + 1 sample)
+SC-002 zero arm rounded     midi 48 fs 48000 a1 -> 0: first exact-zero sample 393 (8.188 ms), bound 393.42 samples (derived 8.175 ms + 1 sample)
+SC-002 zero arm rounded     midi 48 fs 48000 level 1 -> 0: first exact-zero sample 443 (9.229 ms), bound 443.10 samples (derived 9.210 ms + 1 sample)
+SC-002 zero arm asymmetric  midi 48 fs 48000 a1 -> 0: first exact-zero sample 393 (8.188 ms), bound 393.42 samples (derived 8.175 ms + 1 sample)
+SC-002 zero arm asymmetric  midi 48 fs 48000 level 1 -> 0: first exact-zero sample 443 (9.229 ms), bound 443.10 samples (derived 9.210 ms + 1 sample)
+SC-002 zero arm octave-down midi 48 fs 48000 a1 -> 0: first exact-zero sample 393 (8.188 ms), bound 393.42 samples (derived 8.175 ms + 1 sample)
+SC-002 zero arm octave-down midi 48 fs 48000 level 1 -> 0: first exact-zero sample 443 (9.229 ms), bound 443.10 samples (derived 9.210 ms + 1 sample)
+SC-002 zero arm sine        midi 28 fs 96000 a1 -> 0: first exact-zero sample 785 (8.177 ms), bound 785.83 samples (derived 8.175 ms + 1 sample)
+SC-002 zero arm sine        midi 28 fs 96000 level 1 -> 0: first exact-zero sample 885 (9.219 ms), bound 885.19 samples (derived 9.210 ms + 1 sample)
+SC-002 zero arm triangle    midi 28 fs 96000 a1 -> 0: first exact-zero sample 785 (8.177 ms), bound 785.83 samples (derived 8.175 ms + 1 sample)
+SC-002 zero arm triangle    midi 28 fs 96000 level 1 -> 0: first exact-zero sample 885 (9.219 ms), bound 885.19 samples (derived 9.210 ms + 1 sample)
+SC-002 zero arm rounded     midi 28 fs 96000 a1 -> 0: first exact-zero sample 785 (8.177 ms), bound 785.83 samples (derived 8.175 ms + 1 sample)
+SC-002 zero arm rounded     midi 28 fs 96000 level 1 -> 0: first exact-zero sample 885 (9.219 ms), bound 885.19 samples (derived 9.210 ms + 1 sample)
+SC-002 zero arm asymmetric  midi 28 fs 96000 a1 -> 0: first exact-zero sample 785 (8.177 ms), bound 785.83 samples (derived 8.175 ms + 1 sample)
+SC-002 zero arm asymmetric  midi 28 fs 96000 level 1 -> 0: first exact-zero sample 885 (9.219 ms), bound 885.19 samples (derived 9.210 ms + 1 sample)
+SC-002 zero arm octave-down midi 28 fs 96000 a1 -> 0: first exact-zero sample 785 (8.177 ms), bound 785.83 samples (derived 8.175 ms + 1 sample)
+SC-002 zero arm octave-down midi 28 fs 96000 level 1 -> 0: first exact-zero sample 885 (9.219 ms), bound 885.19 samples (derived 9.210 ms + 1 sample)
+SC-002 zero arm sine        midi 48 fs 96000 a1 -> 0: first exact-zero sample 785 (8.177 ms), bound 785.83 samples (derived 8.175 ms + 1 sample)
+SC-002 zero arm sine        midi 48 fs 96000 level 1 -> 0: first exact-zero sample 885 (9.219 ms), bound 885.19 samples (derived 9.210 ms + 1 sample)
+SC-002 zero arm triangle    midi 48 fs 96000 a1 -> 0: first exact-zero sample 785 (8.177 ms), bound 785.83 samples (derived 8.175 ms + 1 sample)
+SC-002 zero arm triangle    midi 48 fs 96000 level 1 -> 0: first exact-zero sample 885 (9.219 ms), bound 885.19 samples (derived 9.210 ms + 1 sample)
+SC-002 zero arm rounded     midi 48 fs 96000 a1 -> 0: first exact-zero sample 785 (8.177 ms), bound 785.83 samples (derived 8.175 ms + 1 sample)
+SC-002 zero arm rounded     midi 48 fs 96000 level 1 -> 0: first exact-zero sample 885 (9.219 ms), bound 885.19 samples (derived 9.210 ms + 1 sample)
+SC-002 zero arm asymmetric  midi 48 fs 96000 a1 -> 0: first exact-zero sample 785 (8.177 ms), bound 785.83 samples (derived 8.175 ms + 1 sample)
+SC-002 zero arm asymmetric  midi 48 fs 96000 level 1 -> 0: first exact-zero sample 885 (9.219 ms), bound 885.19 samples (derived 9.210 ms + 1 sample)
+SC-002 zero arm octave-down midi 48 fs 96000 a1 -> 0: first exact-zero sample 785 (8.177 ms), bound 785.83 samples (derived 8.175 ms + 1 sample)
+SC-002 zero arm octave-down midi 48 fs 96000 level 1 -> 0: first exact-zero sample 885 (9.219 ms), bound 885.19 samples (derived 9.210 ms + 1 sample)
+SC-010 sine        midi 16 fs 44100: aliased -153.66 dBFS (+12 -> -141.66, bar -80)
+SC-010 triangle    midi 16 fs 44100: aliased -148.48 dBFS (+12 -> -136.48, bar -80)
+SC-010 rounded     midi 16 fs 44100: aliased -152.44 dBFS (+12 -> -140.44, bar -80)
+SC-010 asymmetric  midi 16 fs 44100: aliased -152.99 dBFS (+12 -> -140.99, bar -80)
+SC-010 octave-down midi 16 fs 44100: aliased -153.86 dBFS (+12 -> -141.86, bar -80)
+SC-010 sine        midi 28 fs 44100: aliased -153.88 dBFS (+12 -> -141.88, bar -80)
+SC-010 triangle    midi 28 fs 44100: aliased -148.54 dBFS (+12 -> -136.54, bar -80)
+SC-010 rounded     midi 28 fs 44100: aliased -152.68 dBFS (+12 -> -140.68, bar -80)
+SC-010 asymmetric  midi 28 fs 44100: aliased -153.22 dBFS (+12 -> -141.22, bar -80)
+SC-010 octave-down midi 28 fs 44100: aliased -153.92 dBFS (+12 -> -141.92, bar -80)
+SC-010 sine        midi 40 fs 44100: aliased -153.92 dBFS (+12 -> -141.92, bar -80)
+SC-010 triangle    midi 40 fs 44100: aliased -148.44 dBFS (+12 -> -136.44, bar -80)
+SC-010 rounded     midi 40 fs 44100: aliased -152.72 dBFS (+12 -> -140.72, bar -80)
+SC-010 asymmetric  midi 40 fs 44100: aliased -153.30 dBFS (+12 -> -141.30, bar -80)
+SC-010 octave-down midi 40 fs 44100: aliased -153.89 dBFS (+12 -> -141.89, bar -80)
+SC-010 sine        midi 16 fs 48000: aliased -153.78 dBFS (+12 -> -141.78, bar -80)
+SC-010 triangle    midi 16 fs 48000: aliased -148.57 dBFS (+12 -> -136.57, bar -80)
+SC-010 rounded     midi 16 fs 48000: aliased -152.54 dBFS (+12 -> -140.54, bar -80)
+SC-010 asymmetric  midi 16 fs 48000: aliased -153.05 dBFS (+12 -> -141.05, bar -80)
+SC-010 octave-down midi 16 fs 48000: aliased -153.71 dBFS (+12 -> -141.71, bar -80)
+SC-010 sine        midi 28 fs 48000: aliased -153.75 dBFS (+12 -> -141.75, bar -80)
+SC-010 triangle    midi 28 fs 48000: aliased -148.53 dBFS (+12 -> -136.53, bar -80)
+SC-010 rounded     midi 28 fs 48000: aliased -152.53 dBFS (+12 -> -140.53, bar -80)
+SC-010 asymmetric  midi 28 fs 48000: aliased -153.04 dBFS (+12 -> -141.04, bar -80)
+SC-010 octave-down midi 28 fs 48000: aliased -153.79 dBFS (+12 -> -141.79, bar -80)
+SC-010 sine        midi 40 fs 48000: aliased -154.71 dBFS (+12 -> -142.71, bar -80)
+SC-010 triangle    midi 40 fs 48000: aliased -148.77 dBFS (+12 -> -136.77, bar -80)
+SC-010 rounded     midi 40 fs 48000: aliased -153.61 dBFS (+12 -> -141.61, bar -80)
+SC-010 asymmetric  midi 40 fs 48000: aliased -154.00 dBFS (+12 -> -142.00, bar -80)
+SC-010 octave-down midi 40 fs 48000: aliased -154.62 dBFS (+12 -> -142.62, bar -80)
+SC-010 sine        midi 16 fs 96000: aliased -153.69 dBFS (+12 -> -141.69, bar -80)
+SC-010 triangle    midi 16 fs 96000: aliased -148.53 dBFS (+12 -> -136.53, bar -80)
+SC-010 rounded     midi 16 fs 96000: aliased -152.47 dBFS (+12 -> -140.47, bar -80)
+SC-010 asymmetric  midi 16 fs 96000: aliased -153.00 dBFS (+12 -> -141.00, bar -80)
+SC-010 octave-down midi 16 fs 96000: aliased -154.00 dBFS (+12 -> -142.00, bar -80)
+SC-010 sine        midi 28 fs 96000: aliased -153.78 dBFS (+12 -> -141.78, bar -80)
+SC-010 triangle    midi 28 fs 96000: aliased -148.57 dBFS (+12 -> -136.57, bar -80)
+SC-010 rounded     midi 28 fs 96000: aliased -152.54 dBFS (+12 -> -140.54, bar -80)
+SC-010 asymmetric  midi 28 fs 96000: aliased -153.05 dBFS (+12 -> -141.05, bar -80)
+SC-010 octave-down midi 28 fs 96000: aliased -153.71 dBFS (+12 -> -141.71, bar -80)
+SC-010 sine        midi 40 fs 96000: aliased -153.75 dBFS (+12 -> -141.75, bar -80)
+SC-010 triangle    midi 40 fs 96000: aliased -148.53 dBFS (+12 -> -136.53, bar -80)
+SC-010 rounded     midi 40 fs 96000: aliased -152.53 dBFS (+12 -> -140.53, bar -80)
+SC-010 asymmetric  midi 40 fs 96000: aliased -153.04 dBFS (+12 -> -141.04, bar -80)
+SC-010 octave-down midi 40 fs 96000: aliased -153.79 dBFS (+12 -> -141.79, bar -80)
+SC-010 recorded sine        midi 40 48k: aliased -154.71 dBFS (+12 -> -142.71)
+SC-010 recorded triangle    midi 40 48k: aliased -148.77 dBFS (+12 -> -136.77)
+SC-010 recorded rounded     midi 40 48k: aliased -153.61 dBFS (+12 -> -141.61)
+SC-010 recorded asymmetric  midi 40 48k: aliased -154.00 dBFS (+12 -> -142.00)
+SC-010 recorded octave-down midi 40 48k: aliased -154.62 dBFS (+12 -> -142.62)
+SC-010 recorded sine        midi 52 48k: aliased -153.77 dBFS (+12 -> -141.77)
+SC-010 recorded triangle    midi 52 48k: aliased -148.56 dBFS (+12 -> -136.56)
+SC-010 recorded rounded     midi 52 48k: aliased -152.55 dBFS (+12 -> -140.55)
+SC-010 recorded asymmetric  midi 52 48k: aliased -153.00 dBFS (+12 -> -141.00)
+SC-010 recorded octave-down midi 52 48k: aliased -153.70 dBFS (+12 -> -141.70)
+SC-010 recorded sine        midi 64 48k: aliased -154.34 dBFS (+12 -> -142.34)
+SC-010 recorded triangle    midi 64 48k: aliased -149.31 dBFS (+12 -> -137.31)
+SC-010 recorded rounded     midi 64 48k: aliased -153.06 dBFS (+12 -> -141.06)
+SC-010 recorded asymmetric  midi 64 48k: aliased -153.67 dBFS (+12 -> -141.67)
+SC-010 recorded octave-down midi 64 48k: aliased -153.79 dBFS (+12 -> -141.79)
+SC-010 recorded sine        midi 72 48k: aliased -154.32 dBFS (+12 -> -142.32)
+SC-010 recorded triangle    midi 72 48k: aliased -150.81 dBFS (+12 -> -138.81)
+SC-010 recorded rounded     midi 72 48k: aliased -153.00 dBFS (+12 -> -141.00)
+SC-010 recorded asymmetric  midi 72 48k: aliased -153.47 dBFS (+12 -> -141.47)
+SC-010 recorded octave-down midi 72 48k: aliased -154.26 dBFS (+12 -> -142.26)
+SC-010 FOLLOW triangle r 4 midi 40: f_a 329.63 Hz, aliased -149.34 dBFS (+12 -> -137.34, bar -80); 13 harmonics in [cap, fs/2), worst -174.58 dB re w1 (bar -90)
+SC-010 FOLLOW triangle r 4 midi 48: f_a 523.25 Hz, aliased -150.88 dBFS (+12 -> -138.88, bar -80); 9 harmonics in [cap, fs/2), worst -172.57 dB re w1 (bar -90)
+SC-010 FOLLOW triangle r 4 midi 60: f_a 1046.50 Hz, aliased -153.16 dBFS (+12 -> -141.16, bar -80); 5 harmonics in [cap, fs/2), worst -176.03 dB re w1 (bar -90)
+SC-010 FOLLOW triangle r step 1 -> 4 (setFollowRatio) C3: f_a 523.25 Hz, aliased -150.43 dBFS (+12 -> -138.43, bar -80); 9 harmonics in [cap, fs/2), worst -169.86 dB re w1 (bar -90)
+SC-010 FOLLOW triangle r step 1 -> 4 (followRatioPerSample) C3: f_a 523.25 Hz, aliased -150.43 dBFS (+12 -> -138.43, bar -80); 9 harmonics in [cap, fs/2), worst -169.86 dB re w1 (bar -90)
+SC-010 FOLLOW rounded r 4 midi 40: f_a 329.63 Hz, aliased -152.60 dBFS (+12 -> -140.60, bar -80); 13 harmonics in [cap, fs/2), worst -178.84 dB re w1 (bar -90)
+SC-010 FOLLOW rounded r 4 midi 48: f_a 523.25 Hz, aliased -152.55 dBFS (+12 -> -140.55, bar -80); 9 harmonics in [cap, fs/2), worst -171.77 dB re w1 (bar -90)
+SC-010 FOLLOW rounded r 4 midi 60: f_a 1046.50 Hz, aliased -153.65 dBFS (+12 -> -141.65, bar -80); 5 harmonics in [cap, fs/2), worst -170.12 dB re w1 (bar -90)
+SC-010 FOLLOW rounded r step 1 -> 4 (setFollowRatio) C3: f_a 523.25 Hz, aliased -152.63 dBFS (+12 -> -140.63, bar -80); 9 harmonics in [cap, fs/2), worst -173.18 dB re w1 (bar -90)
+SC-010 FOLLOW rounded r step 1 -> 4 (followRatioPerSample) C3: f_a 523.25 Hz, aliased -152.63 dBFS (+12 -> -140.63, bar -80); 9 harmonics in [cap, fs/2), worst -173.18 dB re w1 (bar -90)
+SC-010 FOLLOW asymmetric r 4 midi 40: f_a 329.63 Hz, aliased -153.15 dBFS (+12 -> -141.15, bar -80); 13 harmonics in [cap, fs/2), worst -177.04 dB re w1 (bar -90)
+SC-010 FOLLOW asymmetric r 4 midi 48: f_a 523.25 Hz, aliased -153.06 dBFS (+12 -> -141.06, bar -80); 9 harmonics in [cap, fs/2), worst -171.49 dB re w1 (bar -90)
+SC-010 FOLLOW asymmetric r 4 midi 60: f_a 1046.50 Hz, aliased -154.82 dBFS (+12 -> -142.82, bar -80); 5 harmonics in [cap, fs/2), worst -171.69 dB re w1 (bar -90)
+SC-010 FOLLOW asymmetric r step 1 -> 4 (setFollowRatio) C3: f_a 523.25 Hz, aliased -153.04 dBFS (+12 -> -141.04, bar -80); 9 harmonics in [cap, fs/2), worst -178.57 dB re w1 (bar -90)
+SC-010 FOLLOW asymmetric r step 1 -> 4 (followRatioPerSample) C3: f_a 523.25 Hz, aliased -153.04 dBFS (+12 -> -141.04, bar -80); 9 harmonics in [cap, fs/2), worst -178.57 dB re w1 (bar -90)
+SC-010 positive control: naive triangle C4 44.1k aliased -74.56 dBFS (+12 -> -62.56), bar -80
+SC-011 sine        midi 16: DC -115.92 dBFS over 26 periods (bar -80)
+SC-011 triangle    midi 16: DC -117.49 dBFS over 26 periods (bar -80)
+SC-011 rounded     midi 16: DC -113.28 dBFS over 26 periods (bar -80)
+SC-011 asymmetric  midi 16: DC -115.18 dBFS over 26 periods (bar -80)
+SC-011 octave-down midi 16: DC -111.86 dBFS over 13 periods (bar -80)
+SC-011 sine        midi 28: DC -113.00 dBFS over 53 periods (bar -80)
+SC-011 triangle    midi 28: DC -112.66 dBFS over 53 periods (bar -80)
+SC-011 rounded     midi 28: DC -114.83 dBFS over 53 periods (bar -80)
+SC-011 asymmetric  midi 28: DC -111.56 dBFS over 53 periods (bar -80)
+SC-011 octave-down midi 28: DC -115.97 dBFS over 26 periods (bar -80)
+SC-011 sine        midi 48: DC -118.79 dBFS over 170 periods (bar -80)
+SC-011 triangle    midi 48: DC -118.81 dBFS over 170 periods (bar -80)
+SC-011 rounded     midi 48: DC -120.06 dBFS over 170 periods (bar -80)
+SC-011 asymmetric  midi 48: DC -120.92 dBFS over 170 periods (bar -80)
+SC-011 octave-down midi 48: DC -123.18 dBFS over 85 periods (bar -80)
+SC-008(a) r 0.50 midi 28: f 20.601724 Hz, r*f0 20.601723 Hz, +0.00007 cents (bar 1); zero-crossing estimate 20.50 Hz
+SC-008(a) r 0.50 midi 36: f 32.703199 Hz, r*f0 32.703197 Hz, +0.00006 cents (bar 1); zero-crossing estimate 32.50 Hz
+SC-008(a) r 0.50 midi 48: f 65.406399 Hz, r*f0 65.406395 Hz, +0.00010 cents (bar 1); zero-crossing estimate 65.50 Hz
+SC-008(a) r 0.75 midi 28: f 30.902585 Hz, r*f0 30.902584 Hz, +0.00007 cents (bar 1); zero-crossing estimate 31.00 Hz
+SC-008(a) r 0.75 midi 36: f 49.054798 Hz, r*f0 49.054796 Hz, +0.00006 cents (bar 1); zero-crossing estimate 49.00 Hz
+SC-008(a) r 0.75 midi 48: f 98.109598 Hz, r*f0 98.109592 Hz, +0.00010 cents (bar 1); zero-crossing estimate 98.00 Hz
+SC-008(a) r 1.50 midi 28: f 61.805171 Hz, r*f0 61.805168 Hz, +0.00007 cents (bar 1); zero-crossing estimate 62.00 Hz
+SC-008(a) r 1.50 midi 36: f 98.109596 Hz, r*f0 98.109592 Hz, +0.00006 cents (bar 1); zero-crossing estimate 98.00 Hz
+SC-008(a) r 1.50 midi 48: f 196.219197 Hz, r*f0 196.219185 Hz, +0.00010 cents (bar 1); zero-crossing estimate 196.00 Hz
+SC-008(a) r 2.00 midi 28: f 82.406894 Hz, r*f0 82.406891 Hz, +0.00007 cents (bar 1); zero-crossing estimate 82.50 Hz
+SC-008(a) r 2.00 midi 36: f 130.812794 Hz, r*f0 130.812790 Hz, +0.00006 cents (bar 1); zero-crossing estimate 131.00 Hz
+SC-008(a) r 2.00 midi 48: f 261.625595 Hz, r*f0 261.625580 Hz, +0.00010 cents (bar 1); zero-crossing estimate 262.00 Hz
+SC-008(a) static r: worst 0.00010 cents (bar 1)
+SC-008(a) glide midi 28 +12 st, r 1.5: worst 0.00009 cents from 50 ms after the end (bar 5)
+SC-008(a) glide midi 28 -12 st, r 1.5: worst 0.00001 cents from 50 ms after the end (bar 5)
+SC-008(a) glide midi 36 +12 st, r 1.5: worst 0.00010 cents from 50 ms after the end (bar 5)
+SC-008(a) glide midi 36 -12 st, r 1.5: worst 0.00005 cents from 50 ms after the end (bar 5)
+SC-008(a) glide midi 48 +12 st, r 1.5: worst 0.00009 cents from 50 ms after the end (bar 5)
+SC-008(a) glide midi 48 -12 st, r 1.5: worst 0.00006 cents from 50 ms after the end (bar 5)
+SC-008(a) glide: worst 0.00010 cents (bar 5)
+SC-012(a) C2 sine vs triangle: separated
+SC-012(a) C2 sine vs rounded: separated
+SC-012(a) C2 sine vs asymmetric: separated
+SC-012(a) C2 triangle vs rounded: separated
+SC-012(a) C2 triangle vs asymmetric: separated
+SC-012(a) C2 triangle vs octave-down: separated
+SC-012(a) C2 rounded vs asymmetric: separated
+SC-012(a) C2 rounded vs octave-down: separated
+SC-012(a) C2 asymmetric vs octave-down: separated
+SC-012(a) C2 sine vs octave-down: octave-down fundamental 32.703199 Hz (+0.00006 cents re f0/2, bar 1), sine 65.406397 Hz (+0.00006 cents re f0), power at f0 -139.84 dB re its w1 (bar -90)
+SC-012(a) C2 rounded vs triangle at h3: 7.044 dB (analytic 7.04)
+SC-012(a) C2 asymmetric vs sine at h2: 77.958 dB (analytic >= 12)
+SC-012(a) C2 asymmetric vs triangle at h2: 77.958 dB (analytic >= 12)
+SC-012(a) C2 asymmetric vs rounded at h2: 77.958 dB (analytic >= 12)
+SC-012(a) C2 asymmetric vs octave-down at h2: 77.958 dB (analytic >= 12)
+SC-012(a) C2 positive control sine vs sine (second render): not separated
+SC-012(a) C2 positive control triangle vs triangle (second render): not separated
+SC-012(b) C2 level sweep: E_sub strictly increasing, span 40.0000011 dB (bar 40 dB - 1e-4 dB, plan S1 C-9)
+SC-012(c) C2 punch boost: window 1968 samples, energy strictly increasing, span 8.846 dB (bar 6)
+SC-012(d) C2 punch time: window [48, 12048), energy strictly increasing, span 3.599 dB (bar 3)
+SC-012(e) C2 ghost time: first 480 samples, energy strictly decreasing, span 40.734 dB (bar 10)
+SC-012(f) C2 FOLLOW r 0.5: fundamental 32.703199 Hz, r*f0 32.703197 Hz, +0.00006 cents (bar 1)
+SC-012(f) C2 FOLLOW r 2.0: fundamental 130.812794 Hz, r*f0 130.812790 Hz, +0.00006 cents (bar 1)
+SC-012(a) E1 sine vs triangle: separated
+SC-012(a) E1 sine vs rounded: separated
+SC-012(a) E1 sine vs asymmetric: separated
+SC-012(a) E1 triangle vs rounded: separated
+SC-012(a) E1 triangle vs asymmetric: separated
+SC-012(a) E1 triangle vs octave-down: separated
+SC-012(a) E1 rounded vs asymmetric: separated
+SC-012(a) E1 rounded vs octave-down: separated
+SC-012(a) E1 asymmetric vs octave-down: separated
+SC-012(a) E1 sine vs octave-down: octave-down fundamental 20.601724 Hz (+0.00007 cents re f0/2, bar 1), sine 41.203447 Hz (+0.00007 cents re f0), power at f0 -127.62 dB re its w1 (bar -90)
+SC-012(a) E1 rounded vs triangle at h3: 7.044 dB (analytic 7.04)
+SC-012(a) E1 asymmetric vs sine at h2: 77.959 dB (analytic >= 12)
+SC-012(a) E1 asymmetric vs triangle at h2: 77.959 dB (analytic >= 12)
+SC-012(a) E1 asymmetric vs rounded at h2: 77.959 dB (analytic >= 12)
+SC-012(a) E1 asymmetric vs octave-down at h2: 77.959 dB (analytic >= 12)
+SC-012(a) E1 positive control sine vs sine (second render): not separated
+SC-012(a) E1 positive control triangle vs triangle (second render): not separated
+SC-012(b) E1 level sweep: E_sub strictly increasing, span 40.0000005 dB (bar 40 dB - 1e-4 dB, plan S1 C-9)
+SC-012(c) E1 punch boost: window 1968 samples, energy strictly increasing, span 8.892 dB (bar 6)
+SC-012(d) E1 punch time: window [48, 12048), energy strictly increasing, span 3.654 dB (bar 3)
+SC-012(e) E1 ghost time: first 480 samples, energy strictly decreasing, span 38.931 dB (bar 10)
+SC-012(f) E1 FOLLOW r 0.5: fundamental 20.601724 Hz, r*f0 20.601723 Hz, +0.00007 cents (bar 1)
+SC-012(f) E1 FOLLOW r 2.0: fundamental 82.406894 Hz, r*f0 82.406891 Hz, +0.00007 cents (bar 1)
+SC-012(g) midi 28: GHOST/LOCK -6.322 dB (analytic -6.322, spec -6.32; bar <= -3), PUNCH/LOCK 3.901 dB (analytic 3.901, spec 3.90; bar >= 3), PUNCH/GHOST 5.166 dB (analytic 5.166, spec 5.17; bar >= 3)
+SC-012(g) midi 36: GHOST/LOCK -4.110 dB (analytic -4.110, spec -4.11; bar <= -3), PUNCH/LOCK 3.870 dB (analytic 3.870, spec 3.87; bar >= 3), PUNCH/GHOST 5.024 dB (analytic 5.024, spec 5.02; bar >= 3)
+SC-012(g) midi 48: GHOST/LOCK -4.127 dB (analytic -4.127, spec -4.13; bar <= -3), PUNCH/LOCK 3.764 dB (analytic 3.764, spec 3.76; bar >= 3), PUNCH/GHOST 4.873 dB (analytic 4.873, spec 4.87; bar >= 3)
+SC-015 bound arm: fs  22050 Hz C2  max|y| 1.709954  analytic worst 1.710100  ceiling 1.75
+SC-015 bound arm: fs  22050 Hz E0  max|y| 1.709792  analytic worst 1.710100  ceiling 1.75
+SC-015 bound arm: fs  44100 Hz C2  max|y| 1.710000  analytic worst 1.710100  ceiling 1.75
+SC-015 bound arm: fs  44100 Hz E0  max|y| 1.709832  analytic worst 1.710100  ceiling 1.75
+SC-015 bound arm: fs  48000 Hz C2  max|y| 1.710079  analytic worst 1.710100  ceiling 1.75
+SC-015 bound arm: fs  48000 Hz E0  max|y| 1.709839  analytic worst 1.710100  ceiling 1.75
+SC-015 bound arm: fs  96000 Hz C2  max|y| 1.710079  analytic worst 1.710100  ceiling 1.75
+SC-015 bound arm: fs  96000 Hz E0  max|y| 1.709839  analytic worst 1.710100  ceiling 1.75
+SC-015 bound arm: fs 192000 Hz C2  max|y| 1.710079  analytic worst 1.710100  ceiling 1.75
+SC-015 bound arm: fs 192000 Hz E0  max|y| 1.709840  analytic worst 1.710100  ceiling 1.75
+SC-003(a) static sine midi 28 fs 48000 block 37: dTheta(1 s) +0.000191 deg, dTheta(10 s) -0.000216 deg, drift -0.000407 deg (bars 1.0 / 0.5)
+SC-003(a) static sine midi 28 fs 48000 block 512: dTheta(1 s) +0.000191 deg, dTheta(10 s) -0.000216 deg, drift -0.000407 deg (bars 1.0 / 0.5)
+SC-003(d) static octave-down midi 28 fs 48000 block 37: dTheta(1 s) +0.000191 deg, dTheta(10 s) -0.000216 deg, drift -0.000407 deg (bars 1.0 / 0.5)
+SC-003(d) static octave-down midi 28 fs 48000 block 512: dTheta(1 s) +0.000191 deg, dTheta(10 s) -0.000216 deg, drift -0.000407 deg (bars 1.0 / 0.5)
+SC-003(b) trajectory midi 28 fs 48000 block 37: dTheta(1 s) -0.000605 deg (1 bends)
+  after bend at 5 s: dTheta -0.003910 deg, drift -0.003305 deg
+  dTheta(10 s) -0.006626 deg, drift -0.006021 deg; worst drift 0.006021 deg (bar 0.5)
+SC-003(b) trajectory midi 28 fs 48000 block 512: dTheta(1 s) -0.000605 deg (1 bends)
+  after bend at 5 s: dTheta -0.003910 deg, drift -0.003305 deg
+  dTheta(10 s) -0.006626 deg, drift -0.006021 deg; worst drift 0.006021 deg (bar 0.5)
+SC-003(c) Reset same f0 midi 28 block 37 (noteOn at sample 96015): dTheta(+1 s) +0.000128 deg, dTheta(+9 s) -0.000335 deg, drift -0.000463 deg (bars 1.0 / 0.5)
+SC-003(c) Reset same f0 midi 28 block 512 (noteOn at sample 96256): dTheta(+1 s) +0.000128 deg, dTheta(+9 s) -0.000335 deg, drift -0.000463 deg (bars 1.0 / 0.5)
+SC-003(c) FreeRunning same f0 midi 28 block 37 (noteOn at sample 96015): dTheta(+1 s) +0.000070 deg, dTheta(+9 s) -0.000260 deg, drift -0.000330 deg (bars 1.0 / 0.5)
+SC-003(c) FreeRunning same f0 midi 28 block 512 (noteOn at sample 96256): dTheta(+1 s) +0.000070 deg, dTheta(+9 s) -0.000258 deg, drift -0.000329 deg (bars 1.0 / 0.5)
+SC-003(c) FreeRunning +7 midi 28 block 37 (noteOn at sample 96015): dTheta(+1 s) -0.003962 deg, dTheta(+9 s) -0.023831 deg, drift -0.019869 deg (bars 1.0 / 0.5)
+SC-003(c) FreeRunning +7 midi 28 block 512 (noteOn at sample 96256): dTheta(+1 s) -0.003685 deg, dTheta(+9 s) -0.023846 deg, drift -0.020161 deg (bars 1.0 / 0.5)
+SC-003(c) Reset same f0 midi 48 block 37 (noteOn at sample 96015): dTheta(+1 s) +0.000190 deg, dTheta(+9 s) +0.000316 deg, drift +0.000126 deg (bars 1.0 / 0.5)
+SC-003(c) Reset same f0 midi 48 block 512 (noteOn at sample 96256): dTheta(+1 s) +0.000190 deg, dTheta(+9 s) +0.000316 deg, drift +0.000126 deg (bars 1.0 / 0.5)
+SC-003(c) FreeRunning same f0 midi 48 block 37 (noteOn at sample 96015): dTheta(+1 s) -0.000051 deg, dTheta(+9 s) +0.000100 deg, drift +0.000151 deg (bars 1.0 / 0.5)
+SC-003(c) FreeRunning same f0 midi 48 block 512 (noteOn at sample 96256): dTheta(+1 s) -0.000051 deg, dTheta(+9 s) +0.000099 deg, drift +0.000150 deg (bars 1.0 / 0.5)
+SC-003(c) FreeRunning +7 midi 48 block 37 (noteOn at sample 96015): dTheta(+1 s) -0.007580 deg, dTheta(+9 s) -0.048118 deg, drift -0.040538 deg (bars 1.0 / 0.5)
+SC-003(c) FreeRunning +7 midi 48 block 512 (noteOn at sample 96256): dTheta(+1 s) -0.007491 deg, dTheta(+9 s) -0.047785 deg, drift -0.040293 deg (bars 1.0 / 0.5)
+SC-003(e) processed midi 28 fs 48000 block 37: (i) core h1: dTheta(1 s) +10.120877 deg (Phase 2 h1 figure 0.07 deg, not gated), drift to 10 s -0.002317 deg; (ii) after Fold 100: dTheta(1 s) +1.077206 deg (not gated), drift -0.002074 deg (recorded, not gated: Phase 1 inter-partial walk through the Fold, spec SC-003(e)(ii) 2026-10-12, evidence/drift-probe.cpp)
+SC-003(e) processed midi 28 fs 48000 block 512: (i) core h1: dTheta(1 s) +10.120877 deg (Phase 2 h1 figure 0.07 deg, not gated), drift to 10 s -0.002317 deg; (ii) after Fold 100: dTheta(1 s) +1.077206 deg (not gated), drift -0.002074 deg (recorded, not gated: Phase 1 inter-partial walk through the Fold, spec SC-003(e)(ii) 2026-10-12, evidence/drift-probe.cpp)
+SC-003 ISA AVX2: core render sum|x| 9533.87308779
+SC-003(a) static sine midi 28 fs 48000 block 37: dTheta(1 s) +0.000191 deg, dTheta(10 s) -0.000216 deg, drift -0.000407 deg (bars 1.0 / 0.5)
+SC-003(d) static octave-down midi 28 fs 48000 block 37: dTheta(1 s) +0.000191 deg, dTheta(10 s) -0.000216 deg, drift -0.000407 deg (bars 1.0 / 0.5)
+SC-003(b) trajectory midi 28 fs 48000 block 37: dTheta(1 s) -0.000605 deg (1 bends)
+  after bend at 5 s: dTheta -0.003910 deg, drift -0.003305 deg
+  dTheta(10 s) -0.006626 deg, drift -0.006021 deg; worst drift 0.006021 deg (bar 0.5)
+SC-003(e) processed midi 28 fs 48000 block 37: (i) core h1: dTheta(1 s) +10.120877 deg (Phase 2 h1 figure 0.07 deg, not gated), drift to 10 s -0.002317 deg; (ii) after Fold 100: dTheta(1 s) +1.077206 deg (not gated), drift -0.002074 deg (recorded, not gated: Phase 1 inter-partial walk through the Fold, spec SC-003(e)(ii) 2026-10-12, evidence/drift-probe.cpp)
+SC-003(a) static sine midi 28 fs 48000 block 512: dTheta(1 s) +0.000191 deg, dTheta(10 s) -0.000216 deg, drift -0.000407 deg (bars 1.0 / 0.5)
+SC-003(d) static octave-down midi 28 fs 48000 block 512: dTheta(1 s) +0.000191 deg, dTheta(10 s) -0.000216 deg, drift -0.000407 deg (bars 1.0 / 0.5)
+SC-003(b) trajectory midi 28 fs 48000 block 512: dTheta(1 s) -0.000605 deg (1 bends)
+  after bend at 5 s: dTheta -0.003910 deg, drift -0.003305 deg
+  dTheta(10 s) -0.006626 deg, drift -0.006021 deg; worst drift 0.006021 deg (bar 0.5)
+SC-003(e) processed midi 28 fs 48000 block 512: (i) core h1: dTheta(1 s) +10.120877 deg (Phase 2 h1 figure 0.07 deg, not gated), drift to 10 s -0.002317 deg; (ii) after Fold 100: dTheta(1 s) +1.077206 deg (not gated), drift -0.002074 deg (recorded, not gated: Phase 1 inter-partial walk through the Fold, spec SC-003(e)(ii) 2026-10-12, evidence/drift-probe.cpp)
+SC-003(c) Reset same f0 midi 28 block 37 (noteOn at sample 96015): dTheta(+1 s) +0.000128 deg, dTheta(+9 s) -0.000335 deg, drift -0.000463 deg (bars 1.0 / 0.5)
+SC-003(c) Reset same f0 midi 28 block 512 (noteOn at sample 96256): dTheta(+1 s) +0.000128 deg, dTheta(+9 s) -0.000335 deg, drift -0.000463 deg (bars 1.0 / 0.5)
+SC-003(c) FreeRunning same f0 midi 28 block 37 (noteOn at sample 96015): dTheta(+1 s) +0.000070 deg, dTheta(+9 s) -0.000260 deg, drift -0.000330 deg (bars 1.0 / 0.5)
+SC-003(c) FreeRunning same f0 midi 28 block 512 (noteOn at sample 96256): dTheta(+1 s) +0.000070 deg, dTheta(+9 s) -0.000258 deg, drift -0.000329 deg (bars 1.0 / 0.5)
+SC-003(c) FreeRunning +7 midi 28 block 37 (noteOn at sample 96015): dTheta(+1 s) -0.003962 deg, dTheta(+9 s) -0.023831 deg, drift -0.019869 deg (bars 1.0 / 0.5)
+SC-003(c) FreeRunning +7 midi 28 block 512 (noteOn at sample 96256): dTheta(+1 s) -0.003685 deg, dTheta(+9 s) -0.023846 deg, drift -0.020161 deg (bars 1.0 / 0.5)
+SC-003(c) Reset same f0 midi 48 block 37 (noteOn at sample 96015): dTheta(+1 s) +0.000190 deg, dTheta(+9 s) +0.000316 deg, drift +0.000126 deg (bars 1.0 / 0.5)
+SC-003(c) Reset same f0 midi 48 block 512 (noteOn at sample 96256): dTheta(+1 s) +0.000190 deg, dTheta(+9 s) +0.000316 deg, drift +0.000126 deg (bars 1.0 / 0.5)
+SC-003(c) FreeRunning same f0 midi 48 block 37 (noteOn at sample 96015): dTheta(+1 s) -0.000051 deg, dTheta(+9 s) +0.000100 deg, drift +0.000151 deg (bars 1.0 / 0.5)
+SC-003(c) FreeRunning same f0 midi 48 block 512 (noteOn at sample 96256): dTheta(+1 s) -0.000051 deg, dTheta(+9 s) +0.000099 deg, drift +0.000150 deg (bars 1.0 / 0.5)
+SC-003(c) FreeRunning +7 midi 48 block 37 (noteOn at sample 96015): dTheta(+1 s) -0.007580 deg, dTheta(+9 s) -0.048118 deg, drift -0.040538 deg (bars 1.0 / 0.5)
+SC-003(c) FreeRunning +7 midi 48 block 512 (noteOn at sample 96256): dTheta(+1 s) -0.007491 deg, dTheta(+9 s) -0.047785 deg, drift -0.040293 deg (bars 1.0 / 0.5)
+SC-003 ISA SSE2: core render sum|x| 9533.85688689
+SC-003(a) static sine midi 28 fs 48000 block 37: dTheta(1 s) +0.000040 deg, dTheta(10 s) -0.000509 deg, drift -0.000549 deg (bars 1.0 / 0.5)
+SC-003(d) static octave-down midi 28 fs 48000 block 37: dTheta(1 s) +0.000040 deg, dTheta(10 s) -0.000509 deg, drift -0.000549 deg (bars 1.0 / 0.5)
+SC-003(b) trajectory midi 28 fs 48000 block 37: dTheta(1 s) -0.000753 deg (1 bends)
+  after bend at 5 s: dTheta -0.003827 deg, drift -0.003073 deg
+  dTheta(10 s) -0.006768 deg, drift -0.006015 deg; worst drift 0.006015 deg (bar 0.5)
+SC-003(e) processed midi 28 fs 48000 block 37: (i) core h1: dTheta(1 s) +10.120783 deg (Phase 2 h1 figure 0.07 deg, not gated), drift to 10 s -0.002583 deg; (ii) after Fold 100: dTheta(1 s) +1.077000 deg (not gated), drift -0.001858 deg (recorded, not gated: Phase 1 inter-partial walk through the Fold, spec SC-003(e)(ii) 2026-10-12, evidence/drift-probe.cpp)
+SC-003(a) static sine midi 28 fs 48000 block 512: dTheta(1 s) +0.000040 deg, dTheta(10 s) -0.000509 deg, drift -0.000549 deg (bars 1.0 / 0.5)
+SC-003(d) static octave-down midi 28 fs 48000 block 512: dTheta(1 s) +0.000040 deg, dTheta(10 s) -0.000509 deg, drift -0.000549 deg (bars 1.0 / 0.5)
+SC-003(b) trajectory midi 28 fs 48000 block 512: dTheta(1 s) -0.000753 deg (1 bends)
+  after bend at 5 s: dTheta -0.003827 deg, drift -0.003073 deg
+  dTheta(10 s) -0.006768 deg, drift -0.006015 deg; worst drift 0.006015 deg (bar 0.5)
+SC-003(e) processed midi 28 fs 48000 block 512: (i) core h1: dTheta(1 s) +10.120783 deg (Phase 2 h1 figure 0.07 deg, not gated), drift to 10 s -0.002583 deg; (ii) after Fold 100: dTheta(1 s) +1.077000 deg (not gated), drift -0.001858 deg (recorded, not gated: Phase 1 inter-partial walk through the Fold, spec SC-003(e)(ii) 2026-10-12, evidence/drift-probe.cpp)
+SC-003(c) Reset same f0 midi 28 block 37 (noteOn at sample 96015): dTheta(+1 s) +0.000032 deg, dTheta(+9 s) -0.000450 deg, drift -0.000483 deg (bars 1.0 / 0.5)
+SC-003(c) Reset same f0 midi 28 block 512 (noteOn at sample 96256): dTheta(+1 s) +0.000032 deg, dTheta(+9 s) -0.000450 deg, drift -0.000483 deg (bars 1.0 / 0.5)
+SC-003(c) FreeRunning same f0 midi 28 block 37 (noteOn at sample 96015): dTheta(+1 s) -0.000281 deg, dTheta(+9 s) -0.000330 deg, drift -0.000049 deg (bars 1.0 / 0.5)
+SC-003(c) FreeRunning same f0 midi 28 block 512 (noteOn at sample 96256): dTheta(+1 s) -0.000281 deg, dTheta(+9 s) -0.000328 deg, drift -0.000047 deg (bars 1.0 / 0.5)
+SC-003(c) FreeRunning +7 midi 28 block 37 (noteOn at sample 96015): dTheta(+1 s) -0.003948 deg, dTheta(+9 s) -0.024758 deg, drift -0.020810 deg (bars 1.0 / 0.5)
+SC-003(c) FreeRunning +7 midi 28 block 512 (noteOn at sample 96256): dTheta(+1 s) -0.003565 deg, dTheta(+9 s) -0.024025 deg, drift -0.020460 deg (bars 1.0 / 0.5)
+SC-003(c) Reset same f0 midi 48 block 37 (noteOn at sample 96015): dTheta(+1 s) -0.000056 deg, dTheta(+9 s) -0.000370 deg, drift -0.000314 deg (bars 1.0 / 0.5)
+SC-003(c) Reset same f0 midi 48 block 512 (noteOn at sample 96256): dTheta(+1 s) -0.000056 deg, dTheta(+9 s) -0.000370 deg, drift -0.000314 deg (bars 1.0 / 0.5)
+SC-003(c) FreeRunning same f0 midi 48 block 37 (noteOn at sample 96015): dTheta(+1 s) +0.000061 deg, dTheta(+9 s) -0.000067 deg, drift -0.000127 deg (bars 1.0 / 0.5)
+SC-003(c) FreeRunning same f0 midi 48 block 512 (noteOn at sample 96256): dTheta(+1 s) +0.000060 deg, dTheta(+9 s) -0.000067 deg, drift -0.000126 deg (bars 1.0 / 0.5)
+SC-003(c) FreeRunning +7 midi 48 block 37 (noteOn at sample 96015): dTheta(+1 s) -0.008188 deg, dTheta(+9 s) -0.048752 deg, drift -0.040564 deg (bars 1.0 / 0.5)
+SC-003(c) FreeRunning +7 midi 48 block 512 (noteOn at sample 96256): dTheta(+1 s) -0.007924 deg, dTheta(+9 s) -0.048697 deg, drift -0.040772 deg (bars 1.0 / 0.5)
+SC-024 kSineAnchor      midi 28: a1 0.355234; (a) core h1 vs ref L -0.0000 dB R -0.0000 dB (bar 0.1), anchor RMS/(a1/sqrt2) +0.0000 dB (expected +0.0000, bar 0.1); (b) w1 rise level 1 6.0206 dB (expected 6.0206), kDefaultLevel 3.5218 dB (expected 3.5218) (bar 0.25)
+SC-024(c) kSineAnchor      midi 28: RMS rise at kDefaultLevel over the core alone +3.5218 dB (bar <= 3.6 dB; model 0.00 ... 3.52 dB)
+SC-024 kSawAnchor       midi 28: a1 0.278290; (a) core h1 vs ref L -0.0000 dB R -0.0000 dB (bar 0.1), anchor RMS/(a1/sqrt2) +0.0000 dB (expected +0.0000, bar 0.1); (b) w1 rise level 1 6.0206 dB (expected 6.0206), kDefaultLevel 3.5218 dB (expected 3.5218) (bar 0.25)
+SC-024(c) kSawAnchor       midi 28: RMS rise at kDefaultLevel over the core alone +2.4727 dB (bar <= 3.6 dB; model 0.00 ... 3.52 dB)
+SC-024 kHeavy           midi 28: a1 0.327486; (a) core h1 vs ref L -0.0000 dB R -0.0000 dB (bar 0.1), anchor RMS/(a1/sqrt2) +0.0000 dB (expected +0.0000, bar 0.1); (b) w1 rise level 1 6.0206 dB (expected 6.0206), kDefaultLevel 3.5218 dB (expected 3.5218) (bar 0.25)
+SC-024(c) kHeavy           midi 28: RMS rise at kDefaultLevel over the core alone +3.1436 dB (bar <= 3.6 dB; model 0.00 ... 3.52 dB)
+SC-024 kHollow          midi 28: a1 0.018348; (a) core h1 vs ref L -0.0000 dB R -0.0000 dB (bar 0.1), anchor RMS/(a1/sqrt2) +0.0000 dB (expected +0.0000, bar 0.1); (b) w1 rise level 1 6.0206 dB (expected 6.0206), kDefaultLevel 3.5218 dB (expected 3.5218) (bar 0.25)
+SC-024(c) kHollow          midi 28: RMS rise at kDefaultLevel over the core alone +0.0145 dB (bar <= 3.6 dB; model 0.00 ... 3.52 dB)
+SC-024 kGrowl           midi 28: a1 0.004439; (a) core h1 vs ref L -0.0000 dB R -0.0000 dB (bar 0.1), anchor RMS/(a1/sqrt2) +0.0000 dB (expected +0.0000, bar 0.1); (b) w1 rise level 1 6.0206 dB (expected 6.0206), kDefaultLevel 3.5218 dB (expected 3.5218) (bar 0.25)
+SC-024(c) kGrowl           midi 28: RMS rise at kDefaultLevel over the core alone +0.0008 dB (bar <= 3.6 dB; model 0.00 ... 3.52 dB)
+SC-024 kDefaultControls midi 28: a1 0.190081; (a) core h1 vs ref L -0.0000 dB R -0.0000 dB (bar 0.1), anchor RMS/(a1/sqrt2) +0.0000 dB (expected +0.0000, bar 0.1); (b) w1 rise level 1 6.0206 dB (expected 6.0206), kDefaultLevel 3.5218 dB (expected 3.5218) (bar 0.25)
+SC-024(c) kDefaultControls midi 28: RMS rise at kDefaultLevel over the core alone +1.3287 dB (bar <= 3.6 dB; model 0.00 ... 3.52 dB)
+SC-024(a) midi 28: anchor RMS/(a1/sqrt2) spread across the six states 0.0000 dB (bar 0.1)
+SC-024 kSineAnchor      midi 36: a1 0.355234; (a) core h1 vs ref L -0.0002 dB R -0.0002 dB (bar 0.1), anchor RMS/(a1/sqrt2) -0.0000 dB (expected +0.0000, bar 0.1); (b) w1 rise level 1 6.0207 dB (expected 6.0206), kDefaultLevel 3.5219 dB (expected 3.5218) (bar 0.25)
+SC-024(c) kSineAnchor      midi 36: RMS rise at kDefaultLevel over the core alone +3.5219 dB (bar <= 3.6 dB; model 0.00 ... 3.52 dB)
+SC-024 kSawAnchor       midi 36: a1 0.278290; (a) core h1 vs ref L -0.0002 dB R -0.0002 dB (bar 0.1), anchor RMS/(a1/sqrt2) -0.0000 dB (expected +0.0000, bar 0.1); (b) w1 rise level 1 6.0207 dB (expected 6.0206), kDefaultLevel 3.5219 dB (expected 3.5218) (bar 0.25)
+SC-024(c) kSawAnchor       midi 36: RMS rise at kDefaultLevel over the core alone +2.4727 dB (bar <= 3.6 dB; model 0.00 ... 3.52 dB)
+SC-024 kHeavy           midi 36: a1 0.327486; (a) core h1 vs ref L -0.0002 dB R -0.0002 dB (bar 0.1), anchor RMS/(a1/sqrt2) -0.0000 dB (expected +0.0000, bar 0.1); (b) w1 rise level 1 6.0207 dB (expected 6.0206), kDefaultLevel 3.5219 dB (expected 3.5218) (bar 0.25)
+SC-024(c) kHeavy           midi 36: RMS rise at kDefaultLevel over the core alone +3.1437 dB (bar <= 3.6 dB; model 0.00 ... 3.52 dB)
+SC-024 kHollow          midi 36: a1 0.018348; (a) core h1 vs ref L -0.0002 dB R -0.0002 dB (bar 0.1), anchor RMS/(a1/sqrt2) -0.0000 dB (expected +0.0000, bar 0.1); (b) w1 rise level 1 6.0207 dB (expected 6.0206), kDefaultLevel 3.5219 dB (expected 3.5218) (bar 0.25)
+SC-024(c) kHollow          midi 36: RMS rise at kDefaultLevel over the core alone +0.0145 dB (bar <= 3.6 dB; model 0.00 ... 3.52 dB)
+SC-024 kGrowl           midi 36: a1 0.004439; (a) core h1 vs ref L -0.0002 dB R -0.0002 dB (bar 0.1), anchor RMS/(a1/sqrt2) -0.0000 dB (expected +0.0000, bar 0.1); (b) w1 rise level 1 6.0207 dB (expected 6.0206), kDefaultLevel 3.5219 dB (expected 3.5218) (bar 0.25)
+SC-024(c) kGrowl           midi 36: RMS rise at kDefaultLevel over the core alone +0.0008 dB (bar <= 3.6 dB; model 0.00 ... 3.52 dB)
+SC-024 kDefaultControls midi 36: a1 0.190081; (a) core h1 vs ref L -0.0002 dB R -0.0002 dB (bar 0.1), anchor RMS/(a1/sqrt2) -0.0000 dB (expected +0.0000, bar 0.1); (b) w1 rise level 1 6.0207 dB (expected 6.0206), kDefaultLevel 3.5219 dB (expected 3.5218) (bar 0.25)
+SC-024(c) kDefaultControls midi 36: RMS rise at kDefaultLevel over the core alone +1.3287 dB (bar <= 3.6 dB; model 0.00 ... 3.52 dB)
+SC-024(a) midi 36: anchor RMS/(a1/sqrt2) spread across the six states 0.0000 dB (bar 0.1)
+SC-008(r) kSawAnchor midi 16 f0 20.6017 Hz: folded-voice SHS f0 20.601721 Hz, -0.0001 cent (bar 1)
+SC-008(r) kSawAnchor midi 28 f0 41.2034 Hz: folded-voice SHS f0 41.203448 Hz, +0.0001 cent (bar 1)
+SC-008(r) kSawAnchor midi 40 f0 82.4069 Hz: folded-voice SHS f0 82.406904 Hz, +0.0003 cent (bar 1)
+SC-008(r) kSawAnchor midi 48 f0 130.8128 Hz: folded-voice SHS f0 130.812786 Hz, -0.0001 cent (bar 1)
+SC-008(r) kGrowl     midi 16 f0 20.6017 Hz: folded-voice SHS f0 20.601727 Hz, +0.0004 cent (bar 1)
+SC-008(r) kGrowl     midi 28 f0 41.2034 Hz: folded-voice SHS f0 41.203463 Hz, +0.0007 cent (bar 1)
+SC-008(r) kGrowl     midi 40 f0 82.4069 Hz: folded-voice SHS f0 82.406950 Hz, +0.0012 cent (bar 1)
+SC-008(r) kGrowl     midi 48 f0 130.8128 Hz: folded-voice SHS f0 130.812837 Hz, +0.0006 cent (bar 1)
+SC-009 mid grid   midi 16 sine       : E_sub(S) - E_sub(R) -1.5606 dB, coherent-sum pred -1.5606 dB, residual +0.0000 dB (bars: residual 0.1, |sum| 4.1); core-only w1 change -3.4629 dB; core h1 phase re Anchor: S +1.423 deg, R -0.000 deg
+SC-009 mid grid   midi 16 triangle   : E_sub(S) - E_sub(R) -1.5669 dB, coherent-sum pred -1.5606 dB, residual -0.0062 dB (bars: residual 0.1, |sum| 4.1); core-only w1 change -3.4629 dB; core h1 phase re Anchor: S +1.423 deg, R -0.000 deg
+SC-009 mid grid   midi 16 rounded    : E_sub(S) - E_sub(R) -1.5866 dB, coherent-sum pred -1.5606 dB, residual -0.0259 dB (bars: residual 0.1, |sum| 4.1); core-only w1 change -3.4629 dB; core h1 phase re Anchor: S +1.423 deg, R -0.000 deg
+SC-009 mid grid   midi 16 asymmetric : E_sub(S) - E_sub(R) -1.5866 dB, coherent-sum pred -1.5606 dB, residual -0.0259 dB (bars: residual 0.1, |sum| 4.1); core-only w1 change -3.4629 dB; core h1 phase re Anchor: S +1.423 deg, R -0.000 deg
+SC-009 mid grid   midi 16 octave-down (recorded, not gated): E_sub(S) - E_sub(R) at f0/2 -0.0000 dB; core-only w1 change at f0 -3.4629 dB
+SC-009 mid grid   midi 28 sine       : E_sub(S) - E_sub(R) -1.9787 dB, coherent-sum pred -1.9787 dB, residual +0.0000 dB (bars: residual 0.1, |sum| 4.1); core-only w1 change -4.5444 dB; core h1 phase re Anchor: S -1.076 deg, R +0.000 deg
+SC-009 mid grid   midi 28 triangle   : E_sub(S) - E_sub(R) -1.9868 dB, coherent-sum pred -1.9787 dB, residual -0.0081 dB (bars: residual 0.1, |sum| 4.1); core-only w1 change -4.5444 dB; core h1 phase re Anchor: S -1.076 deg, R +0.000 deg
+SC-009 mid grid   midi 28 rounded    : E_sub(S) - E_sub(R) -2.0124 dB, coherent-sum pred -1.9787 dB, residual -0.0337 dB (bars: residual 0.1, |sum| 4.1); core-only w1 change -4.5444 dB; core h1 phase re Anchor: S -1.076 deg, R +0.000 deg
+SC-009 mid grid   midi 28 asymmetric : E_sub(S) - E_sub(R) -2.0124 dB, coherent-sum pred -1.9787 dB, residual -0.0337 dB (bars: residual 0.1, |sum| 4.1); core-only w1 change -4.5444 dB; core h1 phase re Anchor: S -1.076 deg, R +0.000 deg
+SC-009 mid grid   midi 28 octave-down (recorded, not gated): E_sub(S) - E_sub(R) at f0/2 +0.0000 dB; core-only w1 change at f0 -4.5444 dB
+SC-009 mid grid   midi 40 sine       : E_sub(S) - E_sub(R) -2.2315 dB, coherent-sum pred -2.2315 dB, residual +0.0000 dB (bars: residual 0.1, |sum| 4.1); core-only w1 change -5.1984 dB; core h1 phase re Anchor: S -7.163 deg, R -0.000 deg
+SC-009 mid grid   midi 40 triangle   : E_sub(S) - E_sub(R) -2.2407 dB, coherent-sum pred -2.2315 dB, residual -0.0092 dB (bars: residual 0.1, |sum| 4.1); core-only w1 change -5.1984 dB; core h1 phase re Anchor: S -7.163 deg, R -0.000 deg
+SC-009 mid grid   midi 40 rounded    : E_sub(S) - E_sub(R) -2.2699 dB, coherent-sum pred -2.2315 dB, residual -0.0384 dB (bars: residual 0.1, |sum| 4.1); core-only w1 change -5.1984 dB; core h1 phase re Anchor: S -7.163 deg, R -0.000 deg
+SC-009 mid grid   midi 40 asymmetric : E_sub(S) - E_sub(R) -2.2699 dB, coherent-sum pred -2.2315 dB, residual -0.0384 dB (bars: residual 0.1, |sum| 4.1); core-only w1 change -5.1984 dB; core h1 phase re Anchor: S -7.163 deg, R -0.000 deg
+SC-009 mid grid   midi 40 octave-down (recorded, not gated): E_sub(S) - E_sub(R) at f0/2 -0.0000 dB; core-only w1 change at f0 -5.1984 dB
+SC-009 kSawAnchor midi 16 sine       : E_sub(S) - E_sub(R) -2.1820 dB, coherent-sum pred -2.1820 dB, residual -0.0000 dB (bars: residual 0.1, |sum| 4.1); core-only w1 change -4.9739 dB; core h1 phase re Anchor: S -12.318 deg, R -0.000 deg
+SC-009 kSawAnchor midi 16 triangle   : E_sub(S) - E_sub(R) -2.1909 dB, coherent-sum pred -2.1820 dB, residual -0.0089 dB (bars: residual 0.1, |sum| 4.1); core-only w1 change -4.9739 dB; core h1 phase re Anchor: S -12.318 deg, R -0.000 deg
+SC-009 kSawAnchor midi 16 rounded    : E_sub(S) - E_sub(R) -2.2192 dB, coherent-sum pred -2.1820 dB, residual -0.0372 dB (bars: residual 0.1, |sum| 4.1); core-only w1 change -4.9739 dB; core h1 phase re Anchor: S -12.318 deg, R -0.000 deg
+SC-009 kSawAnchor midi 16 asymmetric : E_sub(S) - E_sub(R) -2.2192 dB, coherent-sum pred -2.1820 dB, residual -0.0372 dB (bars: residual 0.1, |sum| 4.1); core-only w1 change -4.9739 dB; core h1 phase re Anchor: S -12.318 deg, R -0.000 deg
+SC-009 kSawAnchor midi 16 octave-down (recorded, not gated): E_sub(S) - E_sub(R) at f0/2 +0.0000 dB; core-only w1 change at f0 -4.9739 dB
+SC-009 kSawAnchor midi 28 sine       : E_sub(S) - E_sub(R) +1.3488 dB, coherent-sum pred +1.3488 dB, residual -0.0000 dB (bars: residual 0.1, |sum| 4.1); core-only w1 change +2.6213 dB; core h1 phase re Anchor: S -13.643 deg, R +0.000 deg
+SC-009 kSawAnchor midi 28 triangle   : E_sub(S) - E_sub(R) +1.3536 dB, coherent-sum pred +1.3488 dB, residual +0.0048 dB (bars: residual 0.1, |sum| 4.1); core-only w1 change +2.6213 dB; core h1 phase re Anchor: S -13.643 deg, R +0.000 deg
+SC-009 kSawAnchor midi 28 rounded    : E_sub(S) - E_sub(R) +1.3688 dB, coherent-sum pred +1.3488 dB, residual +0.0200 dB (bars: residual 0.1, |sum| 4.1); core-only w1 change +2.6213 dB; core h1 phase re Anchor: S -13.643 deg, R +0.000 deg
+SC-009 kSawAnchor midi 28 asymmetric : E_sub(S) - E_sub(R) +1.3688 dB, coherent-sum pred +1.3488 dB, residual +0.0200 dB (bars: residual 0.1, |sum| 4.1); core-only w1 change +2.6213 dB; core h1 phase re Anchor: S -13.643 deg, R +0.000 deg
+SC-009 kSawAnchor midi 28 octave-down (recorded, not gated): E_sub(S) - E_sub(R) at f0/2 +0.0000 dB; core-only w1 change at f0 +2.6213 dB
+SC-009 kSawAnchor midi 40 sine       : E_sub(S) - E_sub(R) +1.3051 dB, coherent-sum pred +1.3050 dB, residual +0.0000 dB (bars: residual 0.1, |sum| 4.1); core-only w1 change +2.6126 dB; core h1 phase re Anchor: S -17.475 deg, R -0.000 deg
+SC-009 kSawAnchor midi 40 triangle   : E_sub(S) - E_sub(R) +1.3099 dB, coherent-sum pred +1.3050 dB, residual +0.0049 dB (bars: residual 0.1, |sum| 4.1); core-only w1 change +2.6126 dB; core h1 phase re Anchor: S -17.475 deg, R -0.000 deg
+SC-009 kSawAnchor midi 40 rounded    : E_sub(S) - E_sub(R) +1.3252 dB, coherent-sum pred +1.3050 dB, residual +0.0201 dB (bars: residual 0.1, |sum| 4.1); core-only w1 change +2.6126 dB; core h1 phase re Anchor: S -17.475 deg, R -0.000 deg
+SC-009 kSawAnchor midi 40 asymmetric : E_sub(S) - E_sub(R) +1.3252 dB, coherent-sum pred +1.3050 dB, residual +0.0201 dB (bars: residual 0.1, |sum| 4.1); core-only w1 change +2.6126 dB; core h1 phase re Anchor: S -17.475 deg, R -0.000 deg
+SC-009 kSawAnchor midi 40 octave-down (recorded, not gated): E_sub(S) - E_sub(R) at f0/2 +0.0000 dB; core-only w1 change at f0 +2.6126 dB
+SC-022(1) midi 28 Fold 65: THD feed 0 -1.529 dB, feed 1 -6.003 dB, delta -4.474 dB (bar 3); centroid feed 0 0.7608 oct, feed 1 0.3813 oct, delta -0.3795 oct (bar 0.25): audible
+SC-022(1) midi 28 Fold 100: THD feed 0 +1.144 dB, feed 1 -7.261 dB, delta -8.405 dB (bar 3); centroid feed 0 1.2703 oct, feed 1 0.4125 oct, delta -0.8579 oct (bar 0.25): audible
+SC-022(1) midi 36 Fold 65: THD feed 0 -1.273 dB, feed 1 -5.740 dB, delta -4.467 dB (bar 3); centroid feed 0 0.7775 oct, feed 1 0.3940 oct, delta -0.3835 oct (bar 0.25): audible
+SC-022(1) midi 36 Fold 100: THD feed 0 +1.162 dB, feed 1 -7.309 dB, delta -8.471 dB (bar 3); centroid feed 0 1.2676 oct, feed 1 0.4078 oct, delta -0.8598 oct (bar 0.25): audible
+SC-022 VERDICT: PASS (feed ships as anchorFoldFeed; decides T021's branch)
+SC-022(2) midi 28 Fold 65: E_sub(feed 1) - E_sub(feed 0) +3.9510 dB (floor -1 dB, ceiling +6.27 dB)
+SC-022(2) midi 28 Fold 100: E_sub(feed 1) - E_sub(feed 0) +4.4142 dB (floor -1 dB, ceiling +6.27 dB)
+SC-022(2) midi 36 Fold 65: E_sub(feed 1) - E_sub(feed 0) +3.9562 dB (floor -1 dB, ceiling +6.27 dB)
+SC-022(2) midi 36 Fold 100: E_sub(feed 1) - E_sub(feed 0) +4.4144 dB (floor -1 dB, ceiling +6.27 dB)
+SC-022(3) midi 28 Fold 65: L == R bitwise feed 0 yes, feed 1 yes
+SC-022(3) midi 28 Fold 100: L == R bitwise feed 0 yes, feed 1 yes
+SC-022(3) midi 36 Fold 65: L == R bitwise feed 0 yes, feed 1 yes
+SC-022(3) midi 36 Fold 100: L == R bitwise feed 0 yes, feed 1 yes
+D-15 f_zc self-test: worst |f_zc - half-period mean| 0.042368 cents (bar 1.0)
+SC-012(a) note 28: 5 Reset noteOns, worst |theta| 0.441078 deg (bar 1.0)
+SC-012(a) note 48: 5 Reset noteOns, worst |theta| 0.408778 deg (bar 1.0)
+SC-009(b): 17 Reset (worst 0.000000 deg vs fresh), 6 FreeRunning same-note (bitwise), 25 FreeRunning note changes (worst advance error 0.000270 deg), worst Anchor step error 6.491e-11 cycles
+===============================================================================
+All tests passed (101402 assertions in 30 test cases)
+
+rc=0 wall=53s

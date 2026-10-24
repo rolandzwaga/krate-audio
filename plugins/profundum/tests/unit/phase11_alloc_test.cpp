@@ -188,7 +188,7 @@ TEST_CASE("Profundum_Phase11PathsDoNotAllocate", "[profundum][rt]") {
             makePriorStateP(prior);
             stateBytes = writeV2Stream(*prior.proc);
         }
-        REQUIRE(stateBytes.size() == P::kStateV2Bytes);
+        REQUIRE(stateBytes.size() == P::kStateV3Bytes);
         auto stateStream = memoryStreamOf(stateBytes);
         const std::uint32_t restoresBefore = cp.fx.proc->restoreApplyCountForTest();
         REQUIRE(cp.fx.proc->setState(stateStream) == Steinberg::kResultOk);  // ends with a flush (non-audio)

@@ -1,0 +1,198 @@
+Filters: [profundum] ~[performance] ~[perf] ~[benchmark] ~[!benchmark] ~[long] ~[.]
+Randomness seeded to: 2640581309
+MassChain_Phase9HandoffRecord: wrote F:/projects/iterum/dsp/tests/../../specs/profundum-phase6-mass-dynamics/evidence/phase9-handoff.txt; poly-sum Mass 100 GR -10.1172 dB; 98 numbers
+MassCompressor_NoSubPumping E0: (a) M_sub dft 0.000861 dB, lp 0.003914 dB (LP group delay 0.358491 periods); (d) GR 4.039507 dB; (b) GR[1.5,2] 3.941658 dB, GR[3,3.5] 4.230520 dB, |diff| 0.288863 dB
+MassCompressor_NoSubPumping E1: (a) M_sub dft 0.000075 dB, lp 0.002744 dB (LP group delay 0.361465 periods); (d) GR 5.833652 dB; (b) GR[1.5,2] 5.777013 dB, GR[3,3.5] 5.945211 dB, |diff| 0.168197 dB
+MassCompressor_NoSubPumping E2: (a) M_sub dft 0.000368 dB, lp 0.001260 dB (LP group delay 0.361306 periods); (d) GR 5.837495 dB; (b) GR[1.5,2] 5.780823 dB, GR[3,3.5] 5.949153 dB, |diff| 0.168331 dB
+MassCompressor_NoSubPumping C3: (a) M_sub dft 0.000779 dB, lp 0.001007 dB (LP group delay 0.361173 periods); (d) GR 5.850556 dB; (b) GR[1.5,2] 5.794075 dB, GR[3,3.5] 5.961659 dB, |diff| 0.167583 dB
+MassCompressor_NoSubPumping (c) HP bypassed E0: (a) M_sub dft 0.000063 dB, lp 0.004796 dB (LP group delay 0.358491 periods); (d) GR 4.140724 dB; (b) GR[1.5,2] 3.790014 dB, GR[3,3.5] 4.801153 dB, |diff| 1.011139 dB
+MassCompressor_NoSubPumping (c) E0 positive control: (a) within, (b) EXCEEDS -> control has teeth (with HP: |dGR| 0.288863 dB)
+MassCompressor_RectifiedFeedNegativeControl E0: (a) M_sub dft 0.000052 dB, lp 0.005226 dB (LP group delay 0.358491 periods); (d) GR 0.000021 dB; (b) GR[1.5,2] 0.000000 dB, GR[3,3.5] 0.000646 dB, |diff| 0.000646 dB
+MassCompressor_RectifiedFeedNegativeControl E0 verdict: (b) passes, (d) FAILS -> counted failure
+MassCompressor_RectifiedFeedNegativeControl E1: (a) M_sub dft 0.000158 dB, lp 0.001683 dB (LP group delay 0.361465 periods); (d) GR -0.000000 dB; (b) GR[1.5,2] -0.000000 dB, GR[3,3.5] -0.000000 dB, |diff| 0.000000 dB
+MassCompressor_RectifiedFeedNegativeControl E1 verdict: (b) passes, (d) FAILS -> counted failure
+MassCompressor_RectifiedFeedNegativeControl E2: (a) M_sub dft 0.000554 dB, lp 0.001385 dB (LP group delay 0.361306 periods); (d) GR -0.000000 dB; (b) GR[1.5,2] -0.000000 dB, GR[3,3.5] -0.000000 dB, |diff| 0.000000 dB
+MassCompressor_RectifiedFeedNegativeControl E2 verdict: (b) passes, (d) FAILS
+MassCompressor_RectifiedFeedNegativeControl C3: (a) M_sub dft 0.001273 dB, lp 0.001402 dB (LP group delay 0.361173 periods); (d) GR -0.000000 dB; (b) GR[1.5,2] -0.000000 dB, GR[3,3.5] -0.000000 dB, |diff| 0.000000 dB
+MassCompressor_RectifiedFeedNegativeControl C3 verdict: (b) passes, (d) FAILS
+MassCompressor_MakeupMatchesGr amount 0.000000 E1: steady GR -0.000000 dB, makeup 0.000000 dB, residual +0.000000 dB
+MassCompressor_MakeupMatchesGr amount 0 E1: 0 samples with GR != 0.0f
+MassCompressor_MakeupMatchesGr amount 0.000000 C3: steady GR -0.000000 dB, makeup 0.000000 dB, residual +0.000000 dB
+MassCompressor_MakeupMatchesGr amount 0 C3: 0 samples with GR != 0.0f
+MassCompressor_MakeupMatchesGr amount 0.250000 E1: steady GR 0.247146 dB, makeup 0.248969 dB, residual +0.001823 dB
+MassCompressor_MakeupMatchesGr amount 0.250000 C3: steady GR 0.250792 dB, makeup 0.248969 dB, residual -0.001823 dB
+MassCompressor_MakeupMatchesGr amount 0.500000 E1: steady GR 1.279652 dB, makeup 1.284698 dB, residual +0.005046 dB
+MassCompressor_MakeupMatchesGr amount 0.500000 C3: steady GR 1.289744 dB, makeup 1.284698 dB, residual -0.005046 dB
+MassCompressor_MakeupMatchesGr amount 0.750000 E1: steady GR 3.274170 dB, makeup 3.281108 dB, residual +0.006938 dB
+MassCompressor_MakeupMatchesGr amount 0.750000 C3: steady GR 3.288046 dB, makeup 3.281108 dB, residual -0.006938 dB
+MassCompressor_MakeupMatchesGr amount 1.000000 E1: steady GR 5.833652 dB, makeup 5.842104 dB, residual +0.008452 dB
+MassCompressor_MakeupMatchesGr amount 1.000000 C3: steady GR 5.850556 dB, makeup 5.842104 dB, residual -0.008452 dB
+MassCompressor_Audibility E1 kSawAnchor: dL_step(0) 11.999011 dB, dL_step(1) 5.477931 dB, difference 6.521079 dB (bar >= 3); amount-1 steady GR (recorded) low 0.034239 dB, high 6.555318 dB
+MassCompressor_KeytrackedCornerPoly order {41.20344, 130.81278}: 451 intervals from 200 ms, worst |corner/2E1 - 1| 0.000000 (bar 0.01); closest |corner/2C3 - 1| 0.685020 (must exceed 0.01)
+MassCompressor_KeytrackedCornerPoly order {130.81278, 41.20344}: 451 intervals from 200 ms, worst |corner/2E1 - 1| 0.000000 (bar 0.01); closest |corner/2C3 - 1| 0.685020 (must exceed 0.01)
+SC-001(b) Depth E1 Mass 0: w1/sum(w) dB of outL = -8.03915e-08 (target 1)
+SC-001(b) Depth E1 Mass 50: w1/sum(w) dB of outL = -0.99847 (target 0.5)
+SC-001(b) Depth E1 Mass 100: w1/sum(w) dB of outL = -16.4969 (target 0)
+SC-001(b) Depth E1: epsilon 0.1 dB (measured -1, cap 0.1), direction non-increasing, worst step 0.99847 dB at Mass 50, violations 0
+SC-001(b) Body E1 Mass 0: E_low dB of outL = -77.5518 (target 0)
+SC-001(b) Body E1 Mass 50: E_low dB of outL = -65.8172 (target 0.5)
+SC-001(b) Body E1 Mass 100: E_low dB of outL = -56.5759 (target 0.9)
+SC-001(b) Body E1: epsilon 0.1 dB (measured -1, cap 0.1), direction non-decreasing, worst step 9.24134 dB at Mass 100, violations 0
+SC-001(b) Duration E1 Mass 0: D_tr dB of outL (375 ms window, shaper +6 / 0 dB) = 0.513554 (target 10)
+SC-001(b) Duration E1 Mass 50: D_tr dB of outL (375 ms window, shaper +6 / 0 dB) = 1.69179 (target 40)
+SC-001(b) Duration E1 Mass 100: D_tr dB of outL (375 ms window, shaper +6 / 0 dB) = 4.13664 (target 150)
+SC-001(b) Duration E1: epsilon 0.1 dB (measured -1, cap 0.1), direction non-decreasing, worst step 1.17824 dB at Mass 50, violations 0
+SC-001(b) Fold E1 Mass 0: THD dB of outL = -77.3257 (target 0)
+SC-001(b) Fold E1 Mass 50: THD dB of outL = -77.3257 (target 0)
+SC-001(b) Fold E1 Mass 100: THD dB of outL = -20.6894 (target 61.3281)
+SC-001(b) Fold E1: epsilon 0.1 dB (measured -1, cap 0.1), direction non-decreasing, worst step 0 dB at Mass 50, violations 0
+SC-001(b) Compression E1 Mass 0: Delta L_step dB of outL (kSawAnchor step) = 11.999 (target 0), steady GR low 0 dB / high 0 dB (recorded)
+SC-001(b) Compression E1 Mass 50: Delta L_step dB of outL (kSawAnchor step) = 11.999 (target 0), steady GR low 0 dB / high 0 dB (recorded)
+SC-001(b) Compression E1 Mass 100: Delta L_step dB of outL (kSawAnchor step) = 5.47798 (target 1), steady GR low -0.0342407 dB / high -6.55524 dB (recorded)
+SC-001(b) Compression E1: epsilon 0.1 dB (measured -1, cap 0.1), direction non-increasing, worst step 0 dB at Mass 50, violations 0
+SC-001(b) AnchorLevel E1 Mass 0: w1 dB of sumL = 89.1008 (target 0)
+SC-001(b) AnchorLevel E1 Mass 50: w1 dB of sumL = 91.16 (target 0.5)
+SC-001(b) AnchorLevel E1 Mass 100: w1 dB of sumL = 92.8234 (target 1)
+SC-001(b) AnchorLevel E1: epsilon 0.1 dB (measured -1, cap 0.1), direction non-decreasing, worst step 1.6634 dB at Mass 100, violations 0
+SC-001(b) OutputTrim E1 Mass 0: L dBFS of outL = -10.0113 (target 2.04938)
+SC-001(b) OutputTrim E1 Mass 50: L dBFS of outL = -12.0607 (target 0)
+SC-001(b) OutputTrim E1 Mass 100: L dBFS of outL = -12.0607 (target 0)
+SC-001(b) OutputTrim E1: epsilon 0.1 dB (measured -1, cap 0.1), direction non-increasing, worst step 0 dB at Mass 100, violations 0
+SC-001(c) Ref E1 Mass 0: w1(outL) = 89.1008 dB
+SC-001(c) Ref E1 Mass 25: w1(outL) = 90.0764 dB
+SC-001(c) Ref E1 Mass 50: w1(outL) = 87.1911 dB
+SC-001(c) Ref E1 Mass 75: w1(outL) = 84.3447 dB
+SC-001(c) Ref E1 Mass 100: w1(outL) = 84.7679 dB
+SC-001(c) Ref E1: epsilon 0.1 dB (measured at Mass 50 -1, cap 0.1), worst fall from Mass 0 -4.7561 dB at Mass 75 (bar -6 - eps), worst step -2.88531 dB at Mass 50 (recorded, G8-4; non-decreasing violations 2)
+SC-003 Ref E2 Mass 0: P = -12.2939 LKFS, L = -9.96383 dBFS
+SC-003 Ref E2 Mass 25: P = -12.1978 LKFS, L = -9.91112 dBFS
+SC-003 Ref E2 Mass 50: P = -12.0832 LKFS, L = -10.6779 dBFS
+SC-003 Ref E2 Mass 75: P = -12.2075 LKFS, L = -11.2486 dBFS
+SC-003 Ref E2 Mass 100: P = -13.0114 LKFS, L = -12.3393 dBFS
+SC-003 Ref E2: span(P) 0.928227 dB (bar 3), max |dP| 0.0321591 dB/unit (bar 0.2), K-weighted GATED; span(L) 2.42822 dB (bar 6, gated)
+SC-003 Ref C3 Mass 0: P = -11.3085 LKFS, L = -9.95412 dBFS
+SC-003 Ref C3 Mass 25: P = -11.2307 LKFS, L = -9.90162 dBFS
+SC-003 Ref C3 Mass 50: P = -11.5193 LKFS, L = -10.6727 dBFS
+SC-003 Ref C3 Mass 75: P = -11.4626 LKFS, L = -10.876 dBFS
+SC-003 Ref C3 Mass 100: P = -12.6341 LKFS, L = -12.3138 dBFS
+SC-003 Ref C3: span(P) 1.40338 dB (bar 3), max |dP| 0.0468604 dB/unit (bar 0.2), K-weighted GATED; span(L) 2.41221 dB (bar 6, gated)
+[T015 SC-002] f0 41.2034 Mass 0: THD -77.3257 dB, E_low -77.5518 dB, E_high -90.2737 dB, L -9.98586 dBFS, mean GR [1 s, end] -0 dB
+[T015 SC-002] f0 41.2034 Mass 50: THD 0.501374 dB, E_low -3.07586 dB, E_high -14.3985 dB, L -10.6368 dBFS, mean GR [1 s, end] -0 dB
+[T015 SC-002] f0 41.2034 Mass 100: THD 7.00283 dB, E_low -1.59606 dB, E_high -8.49878 dB, L -12.7638 dBFS, mean GR [1 s, end] 10.0298 dB
+[T015 SC-002] f0 41.2034 Mass 0: samples with GR != 0: 0
+[T015 SC-002] f0 130.813 Mass 0: THD -77.3681 dB, E_low -77.5935 dB, E_high -90.3285 dB, L -9.92681 dBFS, mean GR [1 s, end] -0 dB
+[T015 SC-002] f0 130.813 Mass 50: THD 0.451486 dB, E_low -3.09908 dB, E_high -14.427 dB, L -10.6112 dBFS, mean GR [1 s, end] -0 dB
+[T015 SC-002] f0 130.813 Mass 100: THD 7.73633 dB, E_low -1.20688 dB, E_high -10.0662 dB, L -12.3125 dBFS, mean GR [1 s, end] 10.2743 dB
+[T015 SC-002] f0 130.813 Mass 0: samples with GR != 0: 0
+[T015 SC-005(a)] E2 step 0->100 (smoke), block 512: counted 0 (transition 338, reference 677, N 72, guarded out 0)
+[T015 SC-005(a)] E2 hard +12 dB switch control (smoke), block 512: counted 1 (transition 339, reference 677, N 72, guarded out 0)
+[T015 SC-005(a)] E2 unsmoothedMass 0->100 control (smoke), block 512: counted 0 (transition 338, reference 677, N 72, guarded out 0)
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+MassLaw_AutomationContinuousSmoke
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\mass_law_automation_test.cpp(642)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\mass_law_automation_test.cpp(666): warning:
+  E2 unsmoothedMass control (smoke): counted 0 (recorded, G8-7)
+
+[T015 lattice E2 smoke] Mass 0: w1/Sum -0.344524 dB, E_low -11.2053, E_high -33.0238, THD -10.8323 dB, C 0.0920496 oct, L -9.93823 dBFS, w1(sum) 88.7571 dB, GR -0 dB
+[T015 lattice E2 smoke] Mass 1: w1/Sum -0.3503 dB, E_low -11.1378, E_high -32.6703, THD -10.7571 dB, C 0.0939387 oct, L -9.91171 dBFS, w1(sum) 88.8165 dB, GR -0 dB
+[T015 lattice E2 smoke] Mass 2: w1/Sum -0.356249 dB, E_low -11.0697, E_high -32.3158, THD -10.681 dB, C 0.0958968 oct, L -9.88587 dBFS, w1(sum) 88.875 dB, GR -0 dB
+[T015 lattice E2 smoke] Mass 49: w1/Sum -1.04235 dB, E_low -7.42864, E_high -14.8671, THD -5.66613 dB, C 0.411909 oct, L -9.44124 dBFS, w1(sum) 90.504 dB, GR -0 dB
+[T015 lattice E2 smoke] Mass 50: w1/Sum -1.07419 dB, E_low -7.36121, E_high -14.4949, THD -5.51888 dB, C 0.43072 oct, L -9.45773 dBFS, w1(sum) 90.5022 dB, GR -0 dB
+[T015 lattice E2 smoke] Mass 51: w1/Sum -1.06294 dB, E_low -7.40003, E_high -14.5429, THD -5.57043 dB, C 0.426627 oct, L -9.38758 dBFS, w1(sum) 90.5581 dB, GR -0 dB
+[T015 lattice E2 smoke] Mass 98: w1/Sum -3.33116 dB, E_low -2.81307, E_high -19.0734, THD 0.619629 dB, C 0.93801 oct, L -8.77483 dBFS, w1(sum) 90.1236 dB, GR 6.56542 dB
+[T015 lattice E2 smoke] Mass 99: w1/Sum -3.37505 dB, E_low -2.7717, E_high -19.194, THD 0.70122 dB, C 0.945088 oct, L -8.77275 dBFS, w1(sum) 90.0924 dB, GR 6.7795 dB
+[T015 lattice E2 smoke] Mass 100: w1/Sum -3.41334 dB, E_low -2.73564, E_high -19.3287, THD 0.771838 dB, C 0.951042 oct, L -8.77394 dBFS, w1(sum) 90.0628 dB, GR 6.99273 dB
+[T015 SC-005(b)] E2 smoke largest adjacent step: w1/Sum(w) 0.0438915 dB (0.0438915 /unit) E_low 0.0681426 dB (0.0681426 /unit) E_high 0.372224 dB (0.372224 /unit) THD 0.147248 dB (0.147248 /unit) C 0.0188109 oct (0.0188109 /unit) L 0.0701453 dB (0.0701453 /unit) w1(sum) 0.0593385 dB (0.0593385 /unit) GR 0.214082 dB (0.214082 /unit)
+[T015 lattice E2 trajectory smoke] Mass 0: w1/Sum -0.344524 dB, E_low -11.2053, E_high -33.0238, THD -10.8323 dB, C 0.0920496 oct, L -9.93823 dBFS, w1(sum) 88.7571 dB, GR -0 dB
+[T015 lattice E2 trajectory smoke] Mass 5: w1/Sum -0.375196 dB, E_low -10.8611, E_high -31.2469, THD -10.4463 dB, C 0.102217 oct, L -9.81275 dBFS, w1(sum) 89.0459 dB, GR -0 dB
+[T015 lattice E2 trajectory smoke] Mass 10: w1/Sum -0.410841 dB, E_low -10.4999, E_high -29.4475, THD -10.0341 dB, C 0.114458 oct, L -9.70296 dBFS, w1(sum) 89.3148 dB, GR -0 dB
+[T015 lattice E2 trajectory smoke] Mass 15: w1/Sum -0.452416 dB, E_low -10.1232, E_high -27.6263, THD -9.5943 dB, C 0.129333 oct, L -9.61098 dBFS, w1(sum) 89.5629 dB, GR -0 dB
+[T015 lattice E2 trajectory smoke] Mass 20: w1/Sum -0.501147 dB, E_low -9.73284, E_high -25.7845, THD -9.12521 dB, C 0.147605 oct, L -9.53273 dBFS, w1(sum) 89.7891 dB, GR -0 dB
+[T015 lattice E2 trajectory smoke] Mass 25: w1/Sum -0.558612 dB, E_low -9.33135, E_high -23.9235, THD -8.62444 dB, C 0.170338 oct, L -9.46948 dBFS, w1(sum) 89.9914 dB, GR -0 dB
+[T015 lattice E2 trajectory smoke] Mass 30: w1/Sum -0.626859 dB, E_low -8.92236, E_high -22.0461, THD -8.08894 dB, C 0.199023 oct, L -9.42123 dBFS, w1(sum) 90.167 dB, GR -0 dB
+[T015 lattice E2 trajectory smoke] Mass 35: w1/Sum -0.708562 dB, E_low -8.51115, E_high -20.1562, THD -7.51497 dB, C 0.235778 oct, L -9.38955 dBFS, w1(sum) 90.3122 dB, GR -0 dB
+[T015 lattice E2 trajectory smoke] Mass 40: w1/Sum -0.807199 dB, E_low -8.10547, E_high -18.2602, THD -6.89819 dB, C 0.283599 oct, L -9.37616 dBFS, w1(sum) 90.4215 dB, GR -0 dB
+[T015 lattice E2 trajectory smoke] Mass 45: w1/Sum -0.927235 dB, E_low -7.71667, E_high -16.3682, THD -6.23408 dB, C 0.346683 oct, L -9.38742 dBFS, w1(sum) 90.4878 dB, GR -0 dB
+[T015 lattice E2 trajectory smoke] Mass 50: w1/Sum -1.07419 dB, E_low -7.36121, E_high -14.4949, THD -5.51888 dB, C 0.43072 oct, L -9.45773 dBFS, w1(sum) 90.5022 dB, GR -0 dB
+[T015 lattice E2 trajectory smoke] Mass 55: w1/Sum -1.04595 dB, E_low -7.37447, E_high -15.088, THD -5.64928 dB, C 0.411267 oct, L -9.11712 dBFS, w1(sum) 90.7454 dB, GR 0.0107315 dB
+[T015 lattice E2 trajectory smoke] Mass 60: w1/Sum -1.17961 dB, E_low -6.75143, E_high -15.7555, THD -5.0573 dB, C 0.444874 oct, L -8.96717 dBFS, w1(sum) 90.9117 dB, GR 0.234448 dB
+[T015 lattice E2 trajectory smoke] Mass 65: w1/Sum -1.38116 dB, E_low -6.16137, E_high -15.173, THD -4.26654 dB, C 0.52338 oct, L -9.05898 dBFS, w1(sum) 90.9691 dB, GR 0.821161 dB
+[T015 lattice E2 trajectory smoke] Mass 70: w1/Sum -1.53307 dB, E_low -5.65892, E_high -15.8984, THD -3.73315 dB, C 0.557744 oct, L -9.06767 dBFS, w1(sum) 90.9124 dB, GR 1.33451 dB
+[T015 lattice E2 trajectory smoke] Mass 75: w1/Sum -1.71622 dB, E_low -5.16339, E_high -16.5984, THD -3.14578 dB, C 0.60102 oct, L -9.22257 dBFS, w1(sum) 90.75 dB, GR 1.92163 dB
+[T015 lattice E2 trajectory smoke] Mass 80: w1/Sum -2.16023 dB, E_low -4.27769, E_high -17.3404, THD -1.90805 dB, C 0.705987 oct, L -9.01262 dBFS, w1(sum) 90.7372 dB, GR 2.92597 dB
+[T015 lattice E2 trajectory smoke] Mass 85: w1/Sum -2.49479 dB, E_low -3.75819, E_high -17.9367, THD -1.10056 dB, C 0.778666 oct, L -8.99095 dBFS, w1(sum) 90.5733 dB, GR 3.86439 dB
+[T015 lattice E2 trajectory smoke] Mass 90: w1/Sum -2.84334 dB, E_low -3.31728, E_high -18.3787, THD -0.340594 dB, C 0.849541 oct, L -8.927 dBFS, w1(sum) 90.4006 dB, GR 4.87842 dB
+[T015 lattice E2 trajectory smoke] Mass 95: w1/Sum -3.17095 dB, E_low -2.96793, E_high -18.7759, THD 0.315572 dB, C 0.910644 oct, L -8.80278 dBFS, w1(sum) 90.2239 dB, GR 5.92282 dB
+[T015 lattice E2 trajectory smoke] Mass 100: w1/Sum -3.41334 dB, E_low -2.73564, E_high -19.3287, THD 0.771838 dB, C 0.951042 oct, L -8.77394 dBFS, w1(sum) 90.0628 dB, GR 6.99273 dB
+[T015 SC-005(b)] E2 trajectory smoke largest adjacent step: w1/Sum(w) 0.444009 dB (0.0888019 /unit) E_low 0.885697 dB (0.177139 /unit) E_high 1.89594 dB (0.379189 /unit) THD 1.23773 dB (0.247546 /unit) C 0.104967 oct (0.0209935 /unit) L 0.340607 dB (0.0681214 /unit) w1(sum) 0.288801 dB (0.0577601 /unit) GR 1.06991 dB (0.213983 /unit)
+[T015 SC-005(c)] E2 smoke 0->100 host step: traversal [96000, 97920) samples, 5 windows; per descriptor worst |change| / worst change-to-bound ratio / violations: w1/Sum(w) 1.52913 / 0.436385 / 0 E_low 3.56455 / 0.334732 / 0 E_high 10.7186 / 0.469059 / 0 THD 4.9293 / 0.363768 / 0 C 0.4521 / 0.357502 / 0 L 1.81735 / 0.434017 / 0 w1(sum) 1.02542 / 0.349354 / 0 GR 5.88103 / 0.708331 / 0
+[T015 SC-005(c)] E2 smoke 0->100 20 ms host ramp: traversal [96032, 97952) samples, 5 windows; per descriptor worst |change| / worst change-to-bound ratio / violations: w1/Sum(w) 1.79582 / 0.512497 / 0 E_low 3.42638 / 0.385513 / 0 E_high 10.3673 / 0.453685 / 0 THD 4.70003 / 0.429946 / 0 C 0.419349 / 0.431844 / 0 L 1.65086 / 0.394255 / 0 w1(sum) 0.963913 / 0.380903 / 0 GR 5.8788 / 0.708062 / 0
+[T015 SC-011] Mass 0 vs 100 (E1): E_low -77.5518 / -1.59606, E_high -90.2737 / -8.49878, THD -77.3257 / 7.00283, I -119.92 / -121.229 dB, C -6.16253e-05 / 1.77719 oct; separation 67.0028 dB (THD), dC 1.77725 oct, distinct 1
+[T015 SC-011] Depth -> w1/Sum(w) (dB): target 1 -> 0, descriptor -8.03915e-08 -> -16.4969 (raw -8.03915e-08 -> -16.4969), moved 16.4969 dB (bar 3)
+[T015 SC-011] Body -> E_low (dB, floored): target 0 -> 0.9, descriptor -60 -> -56.5759 (raw -77.5518 -> -56.5759), moved 3.42411 dB (bar 3)
+[T015 SC-011] Duration -> D_tr (dB, shaper +6 / 0): target 10 -> 150, descriptor 0.513554 -> 4.13664 (raw 0.513554 -> 4.13664), moved 3.62309 dB (bar 3)
+[T015 SC-011] Fold -> THD (dB, floored): target 0 -> 61.3281, descriptor -60 -> -20.6894 (raw -77.3257 -> -20.6894), moved 39.3106 dB (bar 3)
+[T015 SC-011] Compression steady GR (recorded) over the high segment: amount 0 -0 dB, amount 1 6.5553 dB
+[T015 SC-011] Compression -> DeltaL_step (dB; moved = DeltaL(0) - DeltaL(100)): target 0 -> 1, descriptor 11.999 -> 5.47792 (raw 11.999 -> 5.47792), moved 6.52106 dB (bar 3)
+[T015 SC-011] AnchorLevel -> w1 of the sum (dB): target 0 -> 1, descriptor 89.1008 -> 92.8234 (raw 89.1008 -> 92.8234), moved 3.72266 dB (bar 3)
+[T015 SC-011] OutputTrim -> L of outL (dB, recorded): target 2.04938 -> 0, descriptor -9.98586 -> -12.0352 (raw -9.98586 -> -12.0352), moved 2.04937 dB (bar 3)
+-------------------------------------------------------------------------------
+MassLaw_Audibility
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\mass_law_automation_test.cpp(742)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\mass_law_automation_test.cpp(861): warning:
+  OutputTrim -> L of outL (dB, recorded): moved 2.04937 dB (recorded, G8-5)
+
+[T015 SC-023] reference voice E1 Mass 50 vs detached: 17 / 17 taps memcmp-equal, targets neutral 1
+[T015 SC-023] kSawAnchor E1 Mass 50 vs detached: 17 / 17 taps memcmp-equal, targets neutral 1
+[T015 SC-023 edge] depth 1 base, Mass 100: depth 0.5, body 0.9, duration 150 ms, fold 61.3281, compression 1, anchor level 1
+[T015 SC-023 edge] fold 100 base, Mass 0: depth 1, body 0, duration 10 ms, fold 50, compression 0, anchor level 0
+[T015 SC-023 edge] depth 1 base, Mass 0 (clamps): depth 1, body 0, duration 10 ms, fold 0, compression 0, anchor level 0
+[T015 SC-023 edge] fold 100 base, Mass 100 (clamps): depth 0, body 0.9, duration 150 ms, fold 100, compression 1, anchor level 1
+[T016 SC-010] positive control fs 48000: hard 0 -> +12 dB step on a Fold-100 C3 kSawAnchor, residual -64.9918 dBFS (must read > -80)
+[T016 SC-010] fs 48000 E1 (41.2034 Hz) kSawAnchor A 12 dB, method Residual gates
+    residual steady: frame 131072, bin 0.366211 Hz, A_in -161.428 dBFS, A_out -117.993 dBFS pass
+    residual moving: FFT 131072 (8x domain), bin 2.92969 Hz; burst -122.442 dBFS (gain -2.93817 .. 17.8421 dB), step -112.221 dBFS (bar -80)
+    spec steady [1 s, 2 s]: frame 32768, bin 1.46484 Hz, A_in -164.612 dBFS, A_out -119.992 dBFS pass
+    spec burst [0, 100 ms]: frame 4096, bin 11.7188 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+    spec step [step, step + 100 ms]: frame 4096, bin 11.7188 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+MassDynamics_NonFinite [BassCompressor]: non-finite outputs 0, sanitised input samples 144, of which non-zero at the output 0
+MassDynamics_NonFinite [BassCompressor]: burst 0 NaN L pre -12.562305 dB post(100 ms) -12.562773 dB delta -0.000468 dB (at 100 ms -0.000468 dB, recorded) stateFinite 1
+MassDynamics_NonFinite [BassCompressor]: burst 1 +Inf L pre -12.562305 dB post(100 ms) -12.562773 dB delta -0.000468 dB (at 100 ms -0.000468 dB, recorded) stateFinite 1
+MassDynamics_NonFinite [BassCompressor]: burst 2 -Inf L pre -12.562305 dB post(100 ms) -12.562773 dB delta -0.000468 dB (at 100 ms -0.000468 dB, recorded) stateFinite 1
+MassDynamics_NonFinite [BassCompressor]: burst 3 NaN L+R pre -12.562305 dB post(100 ms) -12.562582 dB delta -0.000278 dB (at 100 ms -0.000278 dB, recorded) stateFinite 1
+MassDynamics_NonFinite [BassCompressor]: burst 4 +Inf L+R pre -12.562114 dB post(100 ms) -12.562617 dB delta -0.000502 dB (at 100 ms -0.000502 dB, recorded) stateFinite 1
+MassDynamics_NonFinite [BassCompressor]: burst 5 -Inf L+R pre -12.562148 dB post(100 ms) -12.562524 dB delta -0.000375 dB (at 100 ms -0.000375 dB, recorded) stateFinite 1
+MassDynamics_NonFinite [MassDynamics]: non-finite outputs 0, sanitised input samples 144, of which non-zero at the output 0
+MassDynamics_NonFinite [MassDynamics]: burst 0 NaN L pre -14.542582 dB post(600 ms) -14.543413 dB delta -0.000831 dB (at 100 ms -0.415917 dB, recorded) stateFinite 1
+MassDynamics_NonFinite [MassDynamics]: burst 1 +Inf L pre -14.542631 dB post(600 ms) -14.543430 dB delta -0.000799 dB (at 100 ms -0.413399 dB, recorded) stateFinite 1
+MassDynamics_NonFinite [MassDynamics]: burst 2 -Inf L pre -14.542639 dB post(600 ms) -14.543459 dB delta -0.000819 dB (at 100 ms -0.411965 dB, recorded) stateFinite 1
+MassDynamics_NonFinite [MassDynamics]: burst 3 NaN L+R pre -14.542701 dB post(600 ms) -14.543441 dB delta -0.000741 dB (at 100 ms -0.409499 dB, recorded) stateFinite 1
+MassDynamics_NonFinite [MassDynamics]: burst 4 +Inf L+R pre -14.542659 dB post(600 ms) -14.543452 dB delta -0.000793 dB (at 100 ms -0.409313 dB, recorded) stateFinite 1
+MassDynamics_NonFinite [MassDynamics]: burst 5 -Inf L+R pre -14.542646 dB post(600 ms) -14.543344 dB delta -0.000698 dB (at 100 ms -0.406524 dB, recorded) stateFinite 1
+MassDynamics_NonFinite [BassCompressor setters] before prepare NaN: amount 0.500000 corner 79.999992 Hz
+MassDynamics_NonFinite [BassCompressor setters] before prepare +Inf: amount 0.500000 corner 79.999992 Hz
+MassDynamics_NonFinite [BassCompressor setters] before prepare -Inf: amount 0.500000 corner 79.999992 Hz
+MassDynamics_NonFinite [BassCompressor setters] after prepare NaN: amount 0.500000 corner 79.999992 Hz
+MassDynamics_NonFinite [BassCompressor setters] after prepare +Inf: amount 0.500000 corner 79.999992 Hz
+MassDynamics_NonFinite [BassCompressor setters] after prepare -Inf: amount 0.500000 corner 79.999992 Hz
+MassDynamics_NonFinite [MassDynamics setters] before prepare NaN: duration 100.000000 ms attack 12.000000 dB sustain -6.000000 dB amount 0.500000 corner 79.999992 Hz
+MassDynamics_NonFinite [MassDynamics setters] before prepare +Inf: duration 100.000000 ms attack 12.000000 dB sustain -6.000000 dB amount 0.500000 corner 79.999992 Hz
+MassDynamics_NonFinite [MassDynamics setters] before prepare -Inf: duration 100.000000 ms attack 12.000000 dB sustain -6.000000 dB amount 0.500000 corner 79.999992 Hz
+MassDynamics_NonFinite [MassDynamics setters] after prepare NaN: duration 100.000000 ms attack 12.000000 dB sustain -6.000000 dB amount 0.500000 corner 79.999992 Hz
+MassDynamics_NonFinite [MassDynamics setters] after prepare +Inf: duration 100.000000 ms attack 12.000000 dB sustain -6.000000 dB amount 0.500000 corner 79.999992 Hz
+MassDynamics_NonFinite [MassDynamics setters] after prepare -Inf: duration 100.000000 ms attack 12.000000 dB sustain -6.000000 dB amount 0.500000 corner 79.999992 Hz
+===============================================================================
+All tests passed (5724 assertions in 30 test cases)
+
+rc=0 wall=42s

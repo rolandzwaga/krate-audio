@@ -1,0 +1,157 @@
+Filters: [profundum] ~[performance] ~[perf] ~[benchmark] ~[!benchmark] ~[long] ~[.]
+Randomness seeded to: 1101623861
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+profundum_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+Profundum_StateRoundTrip
+  HostileGainKeepsCeiling
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\unit\state_roundtrip_test.cpp(566)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\unit\state_roundtrip_test.cpp(600): warning:
+  SC-011.5 HostileGainKeepsCeiling: peak L = 0.891251, R = 0.891251 (bar 0.
+  891251); stored gain = 1
+
+-------------------------------------------------------------------------------
+Profundum_MidiEventTranslation
+  PartitionInvariance
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\unit\midi_event_test.cpp(211)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\unit\midi_event_test.cpp(236): warning:
+  PartitionInvariance: 512 render rmsDb[24000, 96000) L = -16.6547 dB, R = -16.
+  5547 dB
+
+-------------------------------------------------------------------------------
+Profundum_MidiEventTranslation
+  EventOrder
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\unit\midi_event_test.cpp(248)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\unit\midi_event_test.cpp(263): warning:
+  EventOrder: reference peak over the last 0.25 s = 0.25127
+
+-------------------------------------------------------------------------------
+Profundum_MidiEventTranslation
+  Overflow
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\unit\midi_event_test.cpp(270)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\unit\midi_event_test.cpp(275): warning:
+  Overflow: droppedEvents() = 0 (control 0); slices in block B = 2
+
+F:\projects\iterum\plugins\profundum\tests\unit\midi_event_test.cpp(283): warning:
+  Overflow (a): peak over [B_end + 1 s, + 0.5 s) = 0
+
+F:\projects\iterum\plugins\profundum\tests\unit\midi_event_test.cpp(291): warning:
+  Overflow (b): control rmsDb L = -8.69245 dB, R = -9.23594 dB
+
+F:\projects\iterum\plugins\profundum\tests\unit\midi_event_test.cpp(336): warning:
+  Overflow (c): reference peak over block B + 100 ms = 0.890734; mismatches L =
+  0, R = 0
+
+-------------------------------------------------------------------------------
+Profundum_MidiEventTranslation
+  Translation
+  TinyVelocitySounds
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\unit\midi_event_test.cpp(390)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\unit\midi_event_test.cpp(400): warning:
+  Translation: velocity 0.003 rmsDb[24000, 48000) L = -17.2438 dB, R = -17.2433
+  dB
+
+-------------------------------------------------------------------------------
+Profundum_MidiEventTranslation
+  Translation
+  VelocityZeroNoteOnReleases
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\unit\midi_event_test.cpp(405)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\unit\midi_event_test.cpp(420): warning:
+  Translation: velocity-0 note-on, held peak = 0.89125, peak over [72000,
+  96000) = 1.41108e-15
+
+-------------------------------------------------------------------------------
+Profundum_ProcessorLifecycle
+  IdleIsExactZero
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\unit\lifecycle_test.cpp(347)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\unit\lifecycle_test.cpp(359): warning:
+  P-5 idle: non-zero samples L = 0, R = 0 of 4096
+
+F:\projects\iterum\plugins\profundum\tests\unit\lifecycle_test.cpp(395): warning:
+  P-5 held E1 RMS (L, 0 .. 0.5 s) = -14.3377 dBFS
+
+F:\projects\iterum\plugins\profundum\tests\unit\lifecycle_test.cpp(404): warning:
+  P-5 release: last non-zero Sum-tap sample = 28798 (bar < 30000); samples
+  above 1e-6 from 48000: L 0, R 0; last non-zero output sample L = 72527, R =
+  72527 (exact-zero tail starts at 84000)
+
+-------------------------------------------------------------------------------
+Profundum_ProcessorLifecycle
+  LatencyIsReal
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\unit\lifecycle_test.cpp(543)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\unit\lifecycle_test.cpp(559): warning:
+  SC-014 LatencyIsReal: first non-zero sample index = 65 (bar [64, 68])
+
+-------------------------------------------------------------------------------
+Profundum_ProcessorLifecycle
+  Guards
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\unit\lifecycle_test.cpp(564)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\unit\lifecycle_test.cpp(587): warning:
+  SC-017.1 Guards control: peak of the block after a valid NoteOn = 0.661112
+
+-------------------------------------------------------------------------------
+Profundum_ProcessorLifecycle
+  Reset
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\unit\lifecycle_test.cpp(591)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\unit\lifecycle_test.cpp(616): warning:
+  SC-017.4 Reset: non-zero samples after reset L = 0, R = 0; control block peak
+  = 0.219873
+
+-------------------------------------------------------------------------------
+Profundum_ProcessorLifecycle
+  ActivateNoAlloc
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\unit\lifecycle_test.cpp(642)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\unit\lifecycle_test.cpp(655): warning:
+  SC-017.7 ActivateNoAlloc: allocations in setActive(true) = 0
+
+-------------------------------------------------------------------------------
+Profundum_ProcessorLifecycle
+  ProcessNoAlloc
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\unit\lifecycle_test.cpp(660)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\unit\lifecycle_test.cpp(782): warning:
+  SC-007 ProcessNoAlloc: allocations over 188 x 512 samples = 0 (probe 1);
+  output peak = 0.999967
+
+===============================================================================
+All tests passed (715845 assertions in 5 test cases)
+
+rc=0 wall=12s

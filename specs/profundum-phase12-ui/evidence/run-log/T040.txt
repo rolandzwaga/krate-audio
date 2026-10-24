@@ -1,0 +1,26 @@
+T040 (main loop, 2026-10-24): plugin-local Highway Goertzel kernel (FR-075, SC-013 ruling)
+build: Profundum + profundum_tests, /nr:false -> exit 0, 0 warning lines
+equivalence: Profundum_GoertzelBankSimdMatchesScalar -> All tests passed (1 assertion in 1 test case)
+teeth: StoreU s1L/s2L swapped in the 4-sample loop -> assertions: 6 | 6 failed; restored, rebuilt
+[spectrum]: All tests passed (36081 assertions in 8 test cases)
+Profundum_SpectrumFrameAllocationFree: All tests passed (106 assertions in 1 test case)
+
+## CPU, idle machine, pinned (tools/pin-perf-cores.ps1), Profundum_ProcessorCpu,Profundum_ProcessorCpuFullSurface
+before (SSE2 ping-pong, baseline):
+  SC-013 ratio P-ON-MONO / D-MONO = 1.0438 (bar <= 1.05)
+  SC-013 ratio P-ON-POLY / D-POLY = 1.01522 (bar <= 1.05)
+4-lane register block (rejected, MSVC scalar):
+  SC-013 ratio P-ON-MONO / D-MONO = 1.10903 (bar <= 1.05)
+  SC-013 ratio P-ON-POLY / D-POLY = 1.03664 (bar <= 1.05)
+4-sample unroll SSE2 (rejected, 1 of 2 cases red):
+  SC-013 ratio P-ON-MONO / D-MONO = 1.03823 (bar <= 1.05)
+  SC-013 ratio P-ON-POLY / D-POLY = 1.03569 (bar <= 1.05)
+test cases:   2 |   1 passed | 1 failed
+Highway kernel (adopted):
+  SC-015 ratio P-MONO / D-MONO = 1.00393 (bar <= 1.05)
+  SC-015 ratio P-POLY / D-POLY = 0.998557 (bar <= 1.05)
+  SC-013 pct P-ON-MONO = 2.45841 % (bar <= 8)
+  SC-013 pct P-ON-POLY = 7.14272 % (bar <= 25)
+  SC-013 ratio P-ON-MONO / D-MONO = 1.02043 (bar <= 1.05)
+  SC-013 ratio P-ON-POLY / D-POLY = 1.00843 (bar <= 1.05)
+All tests passed (324 assertions in 2 test cases)

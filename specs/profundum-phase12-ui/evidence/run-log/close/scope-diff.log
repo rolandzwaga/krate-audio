@@ -1,0 +1,25 @@
+=== git diff --name-only 40f6ebca -- dsp/include dsp/src plugins/shared tests/test_helpers (must print exactly the two profundum_{engine,voice}.h)
+warning: in the working copy of 'dsp/include/krate/dsp/systems/profundum_engine.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'dsp/include/krate/dsp/systems/profundum_voice.h', LF will be replaced by CRLF the next time Git touches it
+dsp/include/krate/dsp/systems/profundum_engine.h
+dsp/include/krate/dsp/systems/profundum_voice.h
+=== git ls-files --others --exclude-standard -- dsp/include dsp/src plugins/shared tests/test_helpers (new files; reported)
+=== git diff --name-only 40f6ebca -- dsp/tests (modified dsp test files; reported)
+warning: in the working copy of 'dsp/tests/CMakeLists.txt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'dsp/tests/unit/processors/shape_character_metric_helpers.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'dsp/tests/unit/processors/transient_shaper_test_helpers.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'dsp/tests/unit/systems/anchor_oscillator_test_helpers.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'dsp/tests/unit/systems/bass_morph_test_helpers.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'dsp/tests/unit/systems/bass_stereo_field_test_helpers.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'dsp/tests/unit/systems/mass_dynamics_test_helpers.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'dsp/tests/unit/systems/profundum_voice_engine_test_helpers.h', LF will be replaced by CRLF the next time Git touches it
+dsp/tests/CMakeLists.txt
+dsp/tests/unit/processors/harmonic_fold_test_helpers.h
+dsp/tests/unit/processors/shape_character_metric_helpers.h
+dsp/tests/unit/processors/transient_shaper_test_helpers.h
+dsp/tests/unit/systems/anchor_oscillator_test_helpers.h
+dsp/tests/unit/systems/bass_morph_test_helpers.h
+dsp/tests/unit/systems/bass_stereo_field_test_helpers.h
+dsp/tests/unit/systems/mass_dynamics_test_helpers.h
+dsp/tests/unit/systems/profundum_core_test_helpers.h
+dsp/tests/unit/systems/profundum_voice_engine_test_helpers.h

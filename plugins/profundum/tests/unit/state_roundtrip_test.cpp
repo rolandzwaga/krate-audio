@@ -235,7 +235,7 @@ TEST_CASE("Profundum_StateRoundTrip", "[profundum][state]") {
         setKnown(a);
         auto first = makeStream();
         REQUIRE(a.proc->getState(first) == Steinberg::kResultOk);
-        REQUIRE(std::cmp_equal(first->getSize(), kStateV2Bytes));  // T017: state v2
+        REQUIRE(std::cmp_equal(first->getSize(), kStateV3Bytes));  // T017: state v2; Phase 12 T019: v3
 
         ProcessorFixture b;
         rewindStream(*first);
@@ -244,7 +244,7 @@ TEST_CASE("Profundum_StateRoundTrip", "[profundum][state]") {
 
         auto second = makeStream();
         REQUIRE(b.proc->getState(second) == Steinberg::kResultOk);
-        REQUIRE(std::cmp_equal(second->getSize(), kStateV2Bytes));
+        REQUIRE(std::cmp_equal(second->getSize(), kStateV3Bytes));
         // Bytes 4-35 (the v1 body) are identical across the round trip and equal the known v1 body.
         constexpr std::size_t kBodyFrom = 4;
         REQUIRE(std::memcmp(first->getData() + kBodyFrom, second->getData() + kBodyFrom, kStateV1Bytes - kBodyFrom) ==
@@ -258,7 +258,7 @@ TEST_CASE("Profundum_StateRoundTrip", "[profundum][state]") {
         ProcessorFixture fx;
         auto stream = makeStream();
         REQUIRE(fx.proc->getState(stream) == Steinberg::kResultOk);
-        REQUIRE(std::cmp_equal(stream->getSize(), kStateV2Bytes));  // T017: state v2
+        REQUIRE(std::cmp_equal(stream->getSize(), kStateV3Bytes));  // T017: state v2; Phase 12 T019: v3
         rewindStream(*stream);
 
         Steinberg::IBStreamer s(stream, kLittleEndian);
@@ -435,7 +435,7 @@ TEST_CASE("Profundum_StateRoundTrip", "[profundum][state]") {
         setKnown(a);
         auto procStream = makeStream();
         REQUIRE(a.proc->getState(procStream) == Steinberg::kResultOk);
-        REQUIRE(std::cmp_equal(procStream->getSize(), kStateV2Bytes));  // T017: state v2
+        REQUIRE(std::cmp_equal(procStream->getSize(), kStateV3Bytes));  // T017: state v2; Phase 12 T019: v3
         const auto known = writeFields(knownFields());
         constexpr std::size_t kBodyFrom = 4;  // bytes 4-35: the v1 body
         REQUIRE(std::memcmp(procStream->getData() + kBodyFrom, known->getData() + kBodyFrom,

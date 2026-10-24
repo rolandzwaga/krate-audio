@@ -376,8 +376,8 @@ inline void voiceEngineIssue(ProfundumEngine& e, const VoiceEngineEvent& ev, con
 /// event issued before that sample is rendered (C-9).
 [[nodiscard]] inline VoiceEngineTaps voiceEngineRender(const VoiceEngineScript& s) {
     REQUIRE(s.fs > 0.0);
-    REQUIRE(s.hostBlock >= 1);
-    REQUIRE(s.totalSamples > 0);
+    REQUIRE(s.hostBlock >= 1u);
+    REQUIRE(s.totalSamples > 0u);
     std::vector<VoiceEngineEvent> events = s.events;
     std::stable_sort(events.begin(), events.end(),
                      [](const VoiceEngineEvent& x, const VoiceEngineEvent& y) { return x.sample < y.sample; });
@@ -780,7 +780,7 @@ struct VoiceEngineFrame {
 
 /// TestUtils::kWeightedLevelDb's value on y[start, start + n) of a K-weighted signal.
 [[nodiscard]] inline double voiceEngineKLevelDb(const std::vector<double>& y, std::size_t start, std::size_t n) {
-    REQUIRE(n > 0);
+    REQUIRE(n > 0u);
     REQUIRE(start + n <= y.size());
     double sumSq = 0.0;
     for (std::size_t i = start; i < start + n; ++i)
