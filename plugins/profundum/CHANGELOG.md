@@ -5,13 +5,12 @@ All notable changes to Profundum will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.0] - Unreleased
+## [1.0.0] - 2026-10-25
 
-First cut of the plugin. Profundum has existed since Phase 1 as a set of KrateDSP
-components with unit tests and no way to play them; this release wraps the
-finished `ProfundumEngine` in a VST3 you can load, play a bass line on, and hear.
-The full sound design surface is exposed as host parameters and has its own editor;
-the factory library is built on it.
+First release. Profundum is a mass bass instrument: one controllable bass voice, built around Mass, the Anchor, Spectral
+Shift and Bass Morph, that moves from pure sub to a distorted speaker-grabber without losing its low-frequency centre. It
+ships with the full sound-design surface as host parameters, a Main and an Advanced editor page, a live harmonic
+spectrum, and a library of 58 factory presets.
 
 ### Added
 
@@ -21,7 +20,6 @@ the factory library is built on it.
 - **Four live Personality macros: Weight, Dark/Bright, Tight/Loose, Clean/Violent** — Each one moves the sound from the first release; the centre position (0.5) is neutral and changes nothing. All four are saved with the project.
 - **Host tempo** — When the host reports a tempo, the engine's tempo-synced motion follows it; otherwise it runs at 120 BPM.
 - **64 samples of reported latency** — Constant at every sample rate: the output limiter's look-ahead. The plugin reports its delay so the host can compensate.
-- **Presets scan the `Sub` category** — The preset browser is live and reads `Krate Audio/Profundum/Sub`. The name is permanent: later releases add categories beside it and never rename it.
 - **Test suite `profundum_tests`** — Bus layout, parameter denormalisation, state round trip (hostile streams included), MIDI event ordering and overflow, lifecycle, editor lifecycle, wrapper transparency, parameter audibility, zero allocation on the audio thread, and a timed CPU case run on its own.
 - **The full parameter surface: 84 parameters** — Every engine lever is a host parameter, in 100-ID bands: Mass and Morph Position beside the macros (104, 105), Core 200-208, Anchor 300-306, Drop / note behaviour / amp envelope 400-499 (Drop 400-403, note behaviour 410-417, amp envelope 420-426), Fold / Shape 500-501, Character 600-602, Mass dynamics 700-701, Stereo field 800-809, Motion 900-914 and Morph control 1000-1002 (Anchor Morph Mode, Edit Target, Morph Ramp Time).
 - **Two endpoints, A and B, with an Edit Target** — The 60 sound parameters each hold an A and a B value and Morph Position moves between them. Edit Target chooses which endpoint you see and edit; switching it never changes the sound. Host automation of a sound parameter writes the endpoint selected by Edit Target when it plays back.
@@ -37,7 +35,7 @@ the factory library is built on it.
 - **Endpoint names are saved** — The saved state grows to 574 bytes (format version 3) to hold the two names. Projects saved by earlier builds still load, with the endpoints named A and B.
 - **Registered across the repository** — CI build and test lanes, release packaging and installers, nightly valgrind, clang-tidy, the CPU, shard and close-lane runners, the changelog and specs-index tools, and the root documentation all know about Profundum.
 - **58 factory presets in six categories** — Sub (12), Resonant (8), Harmonic (9), Driven (13), Plucked (8) and Animated (8); five store POLY with 4 voices for chords. Each preset leads with one lever of the engine and was authored against a measurement: a render of the preset as stored against the same preset with that lever switched off, so a preset that claims a feature makes it audible. Every preset is checked for mono compatibility, for staying under the output ceiling at full Mass, and for a level within 4 dB of the library median. The presets are generated from the plugin's own parameter surface and installed with the plugin.
-- **Preset browser** — A PRESETS button in the header opens the preset browser, with an All tab, one tab per category and its own save dialog. Loading a preset restores the whole saved sound, both endpoints, the endpoint names and the random seed included, also while a note is held.
+- **Preset browser** — A PRESETS button in the header opens the preset browser, with an All tab, one tab per category and its own save dialog. Loading a preset restores the whole saved sound, both endpoints, the endpoint names and the random seed included, also while a note is held. The selected preset's description is shown under the list.
 - **User manual** — `MANUAL.md`, with an HTML page under `docs/`, covers the signal flow, every control by its on-screen name, the Anchor / Mass split, Bass Morph with Edit Target and Compare, the Personality macros, and the factory library by category with a one-line description of each preset.
 
 ### Known limitations
