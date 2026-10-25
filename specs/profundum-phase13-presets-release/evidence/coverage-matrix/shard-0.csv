@@ -19,3 +19,5 @@ preset,column,role,variant,note,value,bar,margin,window_ms,overrides,descriptor,
 "Morph Span","AT-42 Morph Position Half",secondary,"",C3,9.55319,3,6.55319,0,"","D_nl","Char / twin"
 "Loose Ends","AT-49 Macros Tight Loose",primary,"",E1,2.39708,2,0.397084,0,"","D_t","Sum"
 "Loose Ends","AT-49 Macros Tight Loose",primary,"",C3,3.70441,2,1.70441,0,"","D_t","Sum"
+"Poly Rectifier","AT-06 Character Rectify",primary,"",E1,10.449,3,7.44905,0,"","D_nl","Char / twin"
+"Poly Rectifier","AT-06 Character Rectify",primary,"",C3,11.1396,3,8.13956,0,"","D_nl","Char / twin"

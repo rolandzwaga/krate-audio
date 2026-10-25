@@ -11,3 +11,5 @@ preset,column,role,variant,note,value,bar,margin,window_ms,overrides,descriptor,
 "Shifting Spectrum","AT-38 Motion Cycle to Shift",primary,"",C3,0.303864,0.25,0.053864,0,"","D_br_p2p","Sum"
 "Continuous Phase","AT-46 NoteMemory OscillatorContinuous",primary,"",E1,178.752,30,148.752,0,"","phase_deg","core tap"
 "Continuous Phase","AT-46 NoteMemory OscillatorContinuous",primary,"",C3,167.882,30,137.882,0,"","phase_deg","core tap"
+"Poly Spread","AT-31 Field Spread",primary,"",E1,115.364,3,112.364,0,"","D_st","field stage tap"
+"Poly Spread","AT-31 Field Spread",primary,"",C3,115.392,3,112.392,0,"","D_st","field stage tap"

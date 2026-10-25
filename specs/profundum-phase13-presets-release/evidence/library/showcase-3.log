@@ -1,7 +1,7 @@
-=== showcase-3 2026-10-25T07:23:39Z commit e6095b24
+=== showcase-3 2026-10-25T11:34:19Z commit 5ad50273
 cmd: build/windows-x64-release/bin/Release/profundum_tests.exe Profundum_PresetShowcase_3of8
 Filters: "Profundum_PresetShowcase_3of8"
-Randomness seeded to: 3430658478
+Randomness seeded to: 3260644979
 # Profundum_PresetShowcase_3of8: presets=7 arms=16
 preset,column,role,variant,note,value,bar,margin,window_ms,overrides,descriptor,tap
 "Valve Pressure","AT-04 Character Tube",primary,"",E1,3.81675,3,0.816749,0,"","D_nl","Char / twin"
@@ -23,4 +23,4 @@ preset,column,role,variant,note,value,bar,margin,window_ms,overrides,descriptor,
 ===============================================================================
 All tests passed (903994 assertions in 1 test case)
 
-WALL showcase-3 41.1 s exit=0
+WALL showcase-3 32.4 s exit=0

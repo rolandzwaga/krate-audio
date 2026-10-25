@@ -114,12 +114,12 @@ TEST_CASE("Profundum_ManualCoversSurface", "[profundum][docs]") {
         CHECK(missing.empty());
     }
 
-    // ---- all 53 factory preset names ----
+    // ---- all 58 factory preset names ----
     std::vector<std::string> presetNames;
     for (const auto& def : ::Profundum::PresetDefs::allPresets()) {
         presetNames.emplace_back(def.name);
     }
-    REQUIRE(presetNames.size() == 53);
+    REQUIRE(presetNames.size() == 58);
     {
         const std::vector<std::string> missing = manualMissing(manual, presetNames);
         for (const std::string& m : missing) {

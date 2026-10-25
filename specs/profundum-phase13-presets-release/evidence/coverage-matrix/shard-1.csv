@@ -13,3 +13,5 @@ preset,column,role,variant,note,value,bar,margin,window_ms,overrides,descriptor,
 "Halfway Morph","AT-42 Morph Position Half",primary,"",C3,8.6303,3,5.6303,0,"","D_nl","Char / twin"
 "Clean To Violent","AT-50 Macros Clean Violent",primary,"",E1,11.3041,3,8.30408,0,"","D_nl","Char / twin"
 "Clean To Violent","AT-50 Macros Clean Violent",primary,"",C3,11.3225,3,8.32252,0,"","D_nl","Char / twin"
+"Poly Pluck","AT-25 Envelope Amp Release",primary,"",E1,40.651,2,38.651,0,"","D_t_release","Sum"
+"Poly Pluck","AT-25 Envelope Amp Release",primary,"",C3,40.1842,2,38.1842,0,"","D_t_release","Sum"

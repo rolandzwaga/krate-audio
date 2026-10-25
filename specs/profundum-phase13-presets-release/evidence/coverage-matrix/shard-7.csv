@@ -10,3 +10,5 @@ preset,column,role,variant,note,value,bar,margin,window_ms,overrides,descriptor,
 "Drifting Weight","AT-40 Motion Drift to Mass",primary,"",C3,3.59572,3,0.595717,0,"","E_sub_p2p","Sum"
 "Dark To Bright","AT-48 Macros Dark Bright",primary,"",E1,0.757618,0.25,0.507618,0,"","D_br","Sum"
 "Dark To Bright","AT-48 Macros Dark Bright",primary,"",C3,0.655184,0.25,0.405184,0,"","D_br","Sum"
+"Poly Ignition","AT-01 Core Excitation Mix",primary,"",E1,10.99,3,7.99,0,"","D_nl","Char / twin"
+"Poly Ignition","AT-01 Core Excitation Mix",primary,"",C3,10.0055,3,7.00547,0,"","D_nl","Char / twin"

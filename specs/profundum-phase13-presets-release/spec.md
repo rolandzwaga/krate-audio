@@ -472,6 +472,10 @@ The lane of every check is the **Lane** column of the Success Criteria table; th
 - **FR-008** No stored float may be non-finite (bit-pattern check, immune to fast-math).
 - **FR-009** Every preset MUST store both endpoint names as C-9 requires, and the names round-trip through `setState` and
   `getState`. [roadmap 1045]
+- **FR-066** (Phase 13b, user 2026-10-25) At least 5 factory presets MUST store Voice Mode Poly (control 1 = Poly, Polyphony 4 by
+  P-6), so the Poly arms of FR-038 / FR-063 (the E1, B1, E2 chord render) and FR-045 (POLY4 CPU, ≤ 25 % at 4 voices) measure real
+  presets. Each is an ordinary library preset: one primary column whose contrast does not require Mono (no AT-23, no AT-43 to
+  AT-46), and every FR-004 / FR-012 / FR-038 to FR-047 / FR-061 / C-7 rule applies to it unchanged. N becomes 58.
 
 ### Coverage matrix (the variety requirement)
 
@@ -704,9 +708,10 @@ The lane of every check is the **Lane** column of the Success Criteria table; th
 | **SC-033** | FR-065 | (a) `Krate_PresetManagerReadsDescription` (shared_tests, `[preset]`): a preset saved with a description
 (including `"`, `&`, `<` and `>`) scans back with the identical string; a preset without one scans back empty; a truncated file
 and one whose chunk list points past the end both scan with an empty description and their name and category unchanged.
-(b) Every one of the 53 Profundum factory files scans back with its def's `description` exactly (`Profundum_PresetDescriptions`).
+(b) Every one of the 58 Profundum factory files scans back with its def's `description` exactly (`Profundum_PresetDescriptions`).
 (c) `Krate_PresetBrowserShowsDescription` (shared_tests, `[ui]`): selecting a row shows that preset's description, deselecting
 or changing tabs clears it. The scoped FR-065 gate is green | per-push |
+| **SC-034** | FR-066 | `Profundum_PolyPresetCount` (`[preset]`): at least 5 definitions decode with Voice Mode Poly and Polyphony 4, none with a Mono-requiring primary. Each passes its primary showcase arm with no override (coverage-matrix.csv), the chord render of `Profundum_PresetSweep`, and the SC-022 POLY4 arm reads a real maximum (not "0 % (-)") ≤ 25 % in the CPU lane | per-push; `[long]`; CPU lane |
 
 ---
 
@@ -791,3 +796,7 @@ Ruled by the user on 2026-10-24 ("Approve all 10", `evidence/plan-rulings.md`). 
 - CPU MONO arm: a preset that stores Poly meets the MONO bar measured with Voice Mode forced to Mono, the override recorded in `cpu.csv`, plus the POLY4 arm on its stored state. [FR-045, SC-022]
 - P-11: the processor test seam `setEngineSeamsForTest` (applied at the `processor.cpp:276` prepare) carries `anchorPhaseTap` for the AT-13 processor runs; never a preset field. [SC-009]
 - §2.0: the amended texts of FR-057 / SC-029, FR-012 / SC-007 / SC-006, C-7 / SC-020, C-9 / FR-007, FR-045 / SC-022 and SC-009 approved verbatim and written into those rows. [FR-057, SC-029, FR-012, SC-007, SC-006, C-7, SC-020, C-9, FR-007, FR-045, SC-022, SC-009]
+
+### Session 2026-10-25 (Phase 13b: Poly presets)
+
+- Q: How many factory presets store Poly? -> At least 5 (user: "I actually want at least 5 poly presets"; done as a lean 13b on the Phase 13 spec, no new workflow). [FR-066, SC-034]

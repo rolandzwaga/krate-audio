@@ -1,8 +1,8 @@
-=== determinism 2026-10-25T07:23:39Z commit e6095b24
+=== determinism 2026-10-25T11:34:19Z commit 5ad50273
 cmd: build/windows-x64-release/bin/Release/profundum_tests.exe Profundum_PresetDeterminism
 Filters: "Profundum_PresetDeterminism"
-Randomness seeded to: 3211353386
-# Profundum_PresetDeterminism: presets=53
+Randomness seeded to: 2768841425
+# Profundum_PresetDeterminism: presets=58
 preset,seed_dependent,same_seed_worst,other_seed_worst,pass
 "Edge Ignition",0,0,0,1
 "Biting Reed",0,0,0,1
@@ -57,8 +57,13 @@ preset,seed_dependent,same_seed_worst,other_seed_worst,pass
 "Mono Bedrock",0,0,0,1
 "Locked Floor",0,0,0,1
 "Bedrock Sine",0,0,0,1
+"Poly Spread",0,0,0,1
+"Poly Swell",0,0,0,1
+"Poly Ignition",0,0,0,1
+"Poly Rectifier",0,0,0,1
+"Poly Pluck",0,0,0,1
 # contradicting=0
 ===============================================================================
-All tests passed (287014 assertions in 1 test case)
+All tests passed (315797 assertions in 1 test case)
 
-WALL determinism 68.9 s exit=0
+WALL determinism 60.0 s exit=0

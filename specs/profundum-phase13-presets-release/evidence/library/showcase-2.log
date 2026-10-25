@@ -1,7 +1,7 @@
-=== showcase-2 2026-10-25T07:23:39Z commit e6095b24
+=== showcase-2 2026-10-25T11:34:19Z commit 5ad50273
 cmd: build/windows-x64-release/bin/Release/profundum_tests.exe Profundum_PresetShowcase_2of8
 Filters: "Profundum_PresetShowcase_2of8"
-Randomness seeded to: 3673302036
+Randomness seeded to: 1378813126
 # Profundum_PresetShowcase_2of8: presets=7 arms=14
 preset,column,role,variant,note,value,bar,margin,window_ms,overrides,descriptor,tap
 "Folded Mass","AT-03 Core Harmonic Fold",primary,"",E1,15.82,3,12.82,0,"","D_nl","Char / twin"
@@ -21,4 +21,4 @@ preset,column,role,variant,note,value,bar,margin,window_ms,overrides,descriptor,
 ===============================================================================
 All tests passed (984259 assertions in 1 test case)
 
-WALL showcase-2 39.1 s exit=0
+WALL showcase-2 30.6 s exit=0

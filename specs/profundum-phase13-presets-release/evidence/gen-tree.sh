@@ -18,7 +18,7 @@ cd "$ROOT" || exit 2
 
 CMAKE="/c/Program Files/CMake/bin/cmake.exe"
 TREE="plugins/profundum/resources/presets"
-EXPECTED=53
+EXPECTED=58
 BUILD_LOG="$(mktemp)"
 trap 'rm -f "$BUILD_LOG"' EXIT
 

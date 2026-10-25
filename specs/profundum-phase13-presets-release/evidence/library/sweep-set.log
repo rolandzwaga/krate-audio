@@ -1,8 +1,8 @@
-=== sweep-set 2026-10-25T07:23:39Z commit e6095b24
+=== sweep-set 2026-10-25T11:34:19Z commit 5ad50273
 cmd: build/windows-x64-release/bin/Release/profundum_tests.exe Profundum_PresetSweep*,Profundum_PresetTruePeakMaxMass,Profundum_PresetMonoSum,Profundum_PresetLoudnessMatch
 Filters: "Profundum_PresetSweep*","Profundum_PresetTruePeakMaxMass","Profundum_PresetMonoSum","Profundum_PresetLoudnessMatch"
-Randomness seeded to: 2804725504
-# Profundum_PresetSweep: presets=53
+Randomness seeded to: 1669768958
+# Profundum_PresetSweep: presets=58
 preset,render,non_finite,held_rms_db,tail_rms_db,tail_samples
 "Edge Ignition",E1,0,-8.29367,-200,74464
 "Edge Ignition",C3,0,-7.97305,-200,74464
@@ -110,7 +110,22 @@ preset,render,non_finite,held_rms_db,tail_rms_db,tail_samples
 "Locked Floor",C3,0,-10.4716,-200,74464
 "Bedrock Sine",E1,0,-7.81629,-200,84064
 "Bedrock Sine",C3,0,-7.6754,-200,84064
-# Profundum_PresetSweepRates: presets=53
+"Poly Spread",E1,0,-12.4527,-200,93665
+"Poly Spread",C3,0,-12.5757,-200,93665
+"Poly Spread",chord E1+B1+E2,0,-9.41524,-200,93665
+"Poly Swell",E1,0,-12.068,-200,103265
+"Poly Swell",C3,0,-11.7662,-200,103265
+"Poly Swell",chord E1+B1+E2,0,-8.8288,-200,103265
+"Poly Ignition",E1,0,-9.22934,-200,74464
+"Poly Ignition",C3,0,-9.11897,-200,74464
+"Poly Ignition",chord E1+B1+E2,0,-7.46667,-200,74464
+"Poly Rectifier",E1,0,-10.8053,-200,72064
+"Poly Rectifier",C3,0,-10.8426,-200,72064
+"Poly Rectifier",chord E1+B1+E2,0,-9.04851,-200,72064
+"Poly Pluck",E1,0,-12.0328,-200,156064
+"Poly Pluck",C3,0,-11.8445,-200,156064
+"Poly Pluck",chord E1+B1+E2,0,-8.3046,-200,156064
+# Profundum_PresetSweepRates: presets=58
 preset,fs,non_finite,held_rms_db,tail_rms_db,true_peak_dbtp,margin_db
 "Edge Ignition",44100,0,-8.28999,-279.27,-0.99999,0.0999898
 "Edge Ignition",48000,0,-8.29367,-200,-0.999997,0.0999968
@@ -271,8 +286,23 @@ preset,fs,non_finite,held_rms_db,tail_rms_db,true_peak_dbtp,margin_db
 "Bedrock Sine",44100,0,-7.81516,-279.357,-0.999995,0.0999951
 "Bedrock Sine",48000,0,-7.81629,-200,-0.999509,0.0995089
 "Bedrock Sine",96000,0,-7.89706,-275.342,-0.999753,0.0997534
+"Poly Spread",44100,0,-12.4515,-339.02,-0.999967,0.0999672
+"Poly Spread",48000,0,-12.4527,-200,-0.999998,0.099998
+"Poly Spread",96000,0,-12.5137,-272.522,-0.999997,0.0999968
+"Poly Swell",44100,0,-12.067,-276.515,-2.73168,1.83168
+"Poly Swell",48000,0,-12.068,-200,-2.73649,1.83649
+"Poly Swell",96000,0,-12.0729,-277.273,-2.79347,1.89347
+"Poly Ignition",44100,0,-9.22656,-341.044,-0.999986,0.0999858
+"Poly Ignition",48000,0,-9.22934,-200,-0.999985,0.0999846
+"Poly Ignition",96000,0,-9.24626,-277.674,-0.999996,0.0999962
+"Poly Rectifier",44100,0,-10.7958,-279.327,-0.999991,0.099991
+"Poly Rectifier",48000,0,-10.8053,-200,-0.999995,0.0999945
+"Poly Rectifier",96000,0,-10.8402,-275.021,-0.999994,0.0999939
+"Poly Pluck",44100,0,-12.0312,-279.385,-0.999992,0.0999916
+"Poly Pluck",48000,0,-12.0328,-200,-0.999995,0.0999945
+"Poly Pluck",96000,0,-12.112,-271.744,-0.999996,0.0999956
 # worst true-peak margin 0.070251 dB (Fault Line at 44100.000000)
-# Profundum_PresetTruePeakMaxMass: presets=53
+# Profundum_PresetTruePeakMaxMass: presets=58
 preset,note,non_finite,true_peak_dbtp,margin_db
 "Edge Ignition",E1,0,-0.998332,0.0983315
 "Edge Ignition",C3,0,-1.00048,0.10048
@@ -380,8 +410,18 @@ preset,note,non_finite,true_peak_dbtp,margin_db
 "Locked Floor",C3,0,-0.999996,0.0999956
 "Bedrock Sine",E1,0,-1.0016,0.101604
 "Bedrock Sine",C3,0,-0.999825,0.0998255
+"Poly Spread",E1,0,-0.999134,0.0991336
+"Poly Spread",C3,0,-1.00065,0.100649
+"Poly Swell",E1,0,-1.34701,0.447007
+"Poly Swell",C3,0,-0.999702,0.0997017
+"Poly Ignition",E1,0,-1.00532,0.105321
+"Poly Ignition",C3,0,-0.989256,0.0892564
+"Poly Rectifier",E1,0,-1,0.1
+"Poly Rectifier",C3,0,-1,0.1
+"Poly Pluck",E1,0,-0.999997,0.0999974
+"Poly Pluck",C3,0,-0.999825,0.0998249
 # worst true-peak margin 0.0369267 dB
-# Profundum_PresetMonoSum: presets=53
+# Profundum_PresetMonoSum: presets=58
 preset,fc_hz,window,start,valid,rho,q_db,anchor_mismatches,solid_active,solid_differing,control_rho
 "Edge Ignition",120,1,72000,1,1,-8.26284e-12,0,0,194591,-1
 "Biting Reed",120,1,72000,1,0.999966,-7.65169e-05,0,0,192510,-1
@@ -436,64 +476,74 @@ preset,fc_hz,window,start,valid,rho,q_db,anchor_mismatches,solid_active,solid_di
 "Mono Bedrock",120,1,72000,1,1,0,0,1,0,-1
 "Locked Floor",120,1,72000,1,1,-2.21795e-13,0,0,188101,-1
 "Bedrock Sine",120,1,72000,1,0.999976,-5.27463e-05,0,0,210974,-1
+"Poly Spread",120,1,72000,1,1,-3.75394e-08,0,0,215116,-1
+"Poly Swell",120,1,72000,1,1,-7.92157e-09,0,0,228248,-1
+"Poly Ignition",120,1,72000,1,0.999979,-4.53926e-05,0,0,199553,-1
+"Poly Rectifier",120,1,72000,1,0.999999,-2.84282e-06,0,0,197778,-1
+"Poly Pluck",120,1,72000,1,1,-5.32121e-10,0,0,277313,-1
 # ungated=0
-# Profundum_PresetLoudnessMatch: presets=53 median_db=-11.1537
+# Profundum_PresetLoudnessMatch: presets=58 median_db=-11.167
 preset,level_db,deviation_db
-"Edge Ignition",-8.4183,2.7354
-"Biting Reed",-13.3083,-2.15457
-"Folded Mass",-12.1454,-0.991737
-"Valve Pressure",-8.00084,3.15286
-"Folding Wire",-11.544,-0.39027
-"Rectified Floor",-11.7397,-0.586009
-"Bite Down",-12.4468,-1.29312
-"Crushed Basalt",-11.6579,-0.50419
-"Fault Line",-13.7333,-2.5796
-"Bedrock",-11.1175,0.0361818
-"Punch Anchor",-12.8716,-1.71787
-"Ghost Kick",-10.8351,0.318614
-"Rectified Follow",-10.9159,0.237838
-"Triangle Floor",-11.8787,-0.725033
-"Rounded Weight",-10.3106,0.843151
-"Lopsided Sub",-8.04694,3.10676
-"Under Octave",-11.1537,0
-"Fed Fold",-8.16932,2.98439
-"Dropping Stone",-11.9448,-0.791126
-"Slow Fall",-11.8683,-0.714619
-"Curved Drop",-14.4168,-3.26311
-"Rebound",-12.8545,-1.70077
-"Glide Path",-11.708,-0.554293
-"Slow Swell",-13.5165,-2.36283
-"Long Tail",-8.11675,3.03695
-"Heavy Mass",-10.7718,0.381892
-"Pressure Front",-12.8097,-1.65599
-"Hard Attack",-11.3752,-0.221511
-"Wide Harmonics",-13.4234,-2.2697
-"Wide Rectifier",-8.44088,2.71282
-"Spread Choir",-14.1256,-2.9719
-"Gravity Well",-10.124,1.02971
-"Orbiting Field",-9.51657,1.63713
-"Mass Tide",-11.1804,-0.0266824
-"Breathing Depth",-10.2471,0.906643
-"Body Wave",-11.7391,-0.585413
-"Edge Cycle",-12.6714,-1.51769
-"Shifting Spectrum",-13.6439,-2.49024
-"Envelope Mass",-9.84209,1.31162
-"Drifting Weight",-7.56538,3.58833
-"Morph Span",-10.9004,0.253333
-"Halfway Morph",-10.8332,0.320528
-"Restrike",-14.3142,-3.16047
-"Legato Line",-8.52848,2.62523
-"Envelope Restart",-11.5918,-0.438086
-"Continuous Phase",-7.98999,3.16371
-"Weight Lever",-10.6577,0.49598
-"Dark To Bright",-11.1262,0.0275515
-"Loose Ends",-12.0515,-0.897826
-"Clean To Violent",-7.6559,3.49781
-"Mono Bedrock",-8.02909,3.12461
-"Locked Floor",-10.4931,0.660571
-"Bedrock Sine",-7.89037,3.26333
-# worst deviation 3.58833 dB
+"Edge Ignition",-8.4183,2.74874
+"Biting Reed",-13.3083,-2.14123
+"Folded Mass",-12.1454,-0.978396
+"Valve Pressure",-8.00084,3.1662
+"Folding Wire",-11.544,-0.376929
+"Rectified Floor",-11.7397,-0.572668
+"Bite Down",-12.4468,-1.27978
+"Crushed Basalt",-11.6579,-0.490849
+"Fault Line",-13.7333,-2.56626
+"Bedrock",-11.1175,0.049523
+"Punch Anchor",-12.8716,-1.70452
+"Ghost Kick",-10.8351,0.331955
+"Rectified Follow",-10.9159,0.251179
+"Triangle Floor",-11.8787,-0.711692
+"Rounded Weight",-10.3106,0.856492
+"Lopsided Sub",-8.04694,3.1201
+"Under Octave",-11.1537,0.0133412
+"Fed Fold",-8.16932,2.99773
+"Dropping Stone",-11.9448,-0.777784
+"Slow Fall",-11.8683,-0.701278
+"Curved Drop",-14.4168,-3.24977
+"Rebound",-12.8545,-1.68742
+"Glide Path",-11.708,-0.540952
+"Slow Swell",-13.5165,-2.34949
+"Long Tail",-8.11675,3.05029
+"Heavy Mass",-10.7718,0.395233
+"Pressure Front",-12.8097,-1.64265
+"Hard Attack",-11.3752,-0.208169
+"Wide Harmonics",-13.4234,-2.25635
+"Wide Rectifier",-8.44088,2.72616
+"Spread Choir",-14.1256,-2.95856
+"Gravity Well",-10.124,1.04305
+"Orbiting Field",-9.51657,1.65047
+"Mass Tide",-11.1804,-0.0133412
+"Breathing Depth",-10.2471,0.919984
+"Body Wave",-11.7391,-0.572072
+"Edge Cycle",-12.6714,-1.50434
+"Shifting Spectrum",-13.6439,-2.47689
+"Envelope Mass",-9.84209,1.32496
+"Drifting Weight",-7.56538,3.60167
+"Morph Span",-10.9004,0.266674
+"Halfway Morph",-10.8332,0.333869
+"Restrike",-14.3142,-3.14713
+"Legato Line",-8.52848,2.63857
+"Envelope Restart",-11.5918,-0.424744
+"Continuous Phase",-7.98999,3.17705
+"Weight Lever",-10.6577,0.509321
+"Dark To Bright",-11.1262,0.0408927
+"Loose Ends",-12.0515,-0.884485
+"Clean To Violent",-7.6559,3.51115
+"Mono Bedrock",-8.02909,3.13795
+"Locked Floor",-10.4931,0.673912
+"Bedrock Sine",-7.89037,3.27667
+"Poly Spread",-12.8006,-1.6336
+"Poly Swell",-12.3927,-1.22567
+"Poly Ignition",-9.35558,1.81146
+"Poly Rectifier",-10.8328,0.334255
+"Poly Pluck",-12.0156,-0.848507
+# worst deviation 3.60167 dB
 ===============================================================================
-All tests passed (981150 assertions in 5 test cases)
+All tests passed (1095887 assertions in 5 test cases)
 
-WALL sweep-set 215.9 s exit=0
+WALL sweep-set 228.9 s exit=0

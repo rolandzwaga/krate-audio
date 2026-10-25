@@ -1,0 +1,51 @@
+P13b -- Five Poly factory presets (FR-066, SC-034; user 2026-10-25) -- main loop
+Presets (tools/profundum_preset_defs.h rows 54-58, endpoint A from a source preset with measured edits, B = A, controls Voice Mode Poly):
+  Poly Spread (Harmonic, AT-31), Poly Swell (Resonant, AT-24), Poly Ignition (Driven, AT-01), Poly Rectifier (Driven, AT-06), Poly Pluck (Plucked, AT-25)
+Tuning ([.tune] TuneP_Poly, removed): round 1 Poly Ignition d 1.15971 to Edge Ignition, Poly Pluck level -21.8042 dBFS; round 2 picks: Ignition B (margin 7.00547, -9.35558 dBFS, d 2.18428), Pluck sustain 0.6 (-12.0156 dBFS, d 4.12912).
+gen-tree.sh: TREE GREEN n=58
+per-push profundum_tests: All tests passed (2565527 assertions in 101 test cases)
+library lanes (wall 335 s + render-guard):
+  [library] building profundum_tests -> specs/profundum-phase13-presets-release/evidence/library/build.log
+  [library] build exit=0 warnings=0 wall=1.6s
+  [library] showcase-6 exit=0 wall=24.5s
+  [library] showcase-2 exit=0 wall=30.6s
+  [library] showcase-3 exit=0 wall=32.4s
+  [library] showcase-7 exit=0 wall=36.5s
+  [library] showcase-1 exit=0 wall=44.8s
+  [library] showcase-5 exit=0 wall=59.4s
+  [library] showcase-0 exit=0 wall=59.7s
+  [library] determinism exit=0 wall=60.0s
+  [library] showcase-4 exit=0 wall=66.1s
+  [library] listen exit=0 wall=66.9s
+  [library] sweep-set exit=0 wall=228.9s
+  [library] distinctness exit=0 wall=334.7s
+  [library] lanes done wall=334.9s failed=0
+  [library] render-guard exit=0 wall=42.4s case_seconds=11.5626
+  LIBRARY LANES GREEN
+  # Profundum_PresetDistinctness: presets=58 F=1 closest=Bedrock vs Locked Floor d=1.91446 masked=15
+  "Poly Spread",chord E1+B1+E2,0,-9.41524,-200,93665
+  "Poly Swell",chord E1+B1+E2,0,-8.8288,-200,103265
+  "Poly Ignition",chord E1+B1+E2,0,-7.46667,-200,74464
+  "Poly Rectifier",chord E1+B1+E2,0,-9.04851,-200,72064
+  "Poly Pluck",chord E1+B1+E2,0,-8.3046,-200,156064
+  # worst true-peak margin 0.070251 dB (Fault Line at 44100.000000)
+  # worst true-peak margin 0.0369267 dB
+  # ungated=0
+  # Profundum_PresetLoudnessMatch: presets=58 median_db=-11.167
+  # worst deviation 3.60167 dB
+CPU lane (alone after a 9 min idle, 12:49:50 - 13:20:18):
+  
+  1/1 suites passed.
+  CPU GREEN
+    SC-022 Poly Spread (Harmonic, stored Poly): MONO (Voice Mode forced to Mono)
+    4.18284 % (bar <= 8), POLY4 13.7722 % (bar <= 25); D 13.7464 %, D' 13.6176 %,
+    SC-022 Poly Swell (Resonant, stored Poly): MONO (Voice Mode forced to Mono)
+    3.08766 % (bar <= 8), POLY4 10.0844 % (bar <= 25); D 10.285 %, D' 10.2481 %,
+    SC-022 Poly Ignition (Driven, stored Poly): MONO (Voice Mode forced to Mono)
+    3.90956 % (bar <= 8), POLY4 13.171 % (bar <= 25); D 13.2368 %, D' 13.4157 %,
+    SC-022 Poly Rectifier (Driven, stored Poly): MONO (Voice Mode forced to Mono)
+    3.603 % (bar <= 8), POLY4 11.5442 % (bar <= 25); D 11.6488 %, D' 11.5753 %,
+    SC-022 Poly Pluck (Plucked, stored Poly): MONO (Voice Mode forced to Mono) 4.
+    38553 % (bar <= 8), POLY4 15.0305 % (bar <= 25); D 15.0701 %, D' 14.787 %,
+    SC-022 max MONO 5.01619 % (Fault Line), max POLY4 15.0305 % (Poly Pluck);
+clang-tidy preset_library_test.cpp: 0 warnings; check-portability: all clear -- 3 compiled.

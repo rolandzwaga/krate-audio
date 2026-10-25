@@ -369,7 +369,7 @@ TEST_CASE("Profundum_GeneratorSmoke", "[profundum][preset]") {
     INFO("why: " << why);
     REQUIRE(ok);
     CHECK(written == pd::allPresets().size());
-    CHECK(written == 53u);   // T024 (SC-010): the whole library
+    CHECK(written == 58u);   // T024 (SC-010): the whole library
     for (const std::string_view category : pd::kCategories) {
         INFO("category " << category);
         CHECK(std::filesystem::is_directory(first.path / std::string(category)));
@@ -1218,7 +1218,7 @@ TEST_CASE("Profundum_FactoryLibraryShape", "[profundum][preset]") {
         CHECK(n >= 3u);
     }
     CHECK(defs.size() >= 53u);
-    CHECK(defs.size() == 53u);
+    CHECK(defs.size() == 58u);
 
     // The committed tree has the same shape.
     std::map<std::string, std::size_t> perDir;
@@ -1423,4 +1423,31 @@ TEST_CASE("Profundum_FactoryPresetCeiling", "[profundum][preset]") {
         atCeiling += held ? 1u : 0u;
     }
     CHECK(atCeiling == files.size());
+}
+
+// SC-034 (FR-066, Phase 13b): at least 5 factory presets store Voice Mode Poly with Polyphony 4, and none of them leads with a
+// column whose contrast requires Mono (AT-23 legato glide, AT-43 to AT-46 note memory).
+TEST_CASE("Profundum_PolyPresetCount", "[profundum][preset]") {
+    namespace pd = ::Profundum::PresetDefs;
+    using C = pd::Capability;
+    using ProfundumPluginTest::decodePresetState;
+    using ProfundumPluginTest::DecodedPresetState;
+    using ProfundumPluginTest::presetCompOf;
+    std::size_t poly = 0;
+    for (const pd::ProfundumPresetDef& def : pd::allPresets()) {
+        const DecodedPresetState d = decodePresetState(presetCompOf(def));
+        INFO("preset " << def.name);
+        REQUIRE(d.ok);
+        if (d.voiceMode != 1) {
+            continue;
+        }
+        ++poly;
+        CHECK(d.polyphony == 4);
+        CHECK(def.primary != C::AT23);
+        CHECK(def.primary != C::AT43);
+        CHECK(def.primary != C::AT44);
+        CHECK(def.primary != C::AT45);
+        CHECK(def.primary != C::AT46);
+    }
+    CHECK(poly >= 5u);
 }

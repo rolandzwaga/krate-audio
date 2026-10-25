@@ -1,4 +1,4 @@
-=== build 2026-10-25T07:23:40Z commit e6095b24
+=== build 2026-10-25T11:34:19Z commit 5ad50273
 cmd: "/c/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target profundum_tests -- /nr:false
 MSBuild version 17.14.60+43b635718 for .NET Framework
 
