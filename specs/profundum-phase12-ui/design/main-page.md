@@ -118,19 +118,19 @@ every bound control has one (SC-019; D7). Ranges and defaults are the registered
 | 100 | `ArcKnob` | WEIGHT | `Weight: more depth, more body and a louder anchor together. Centre is neutral.` | 0–100 %, default 0.5 (`plugins/profundum/src/parameters/macro_params.h:118–127`; `kNeutral` `profundum_macro_matrix.h:67`) |
 | 101 | `BipolarSlider` (neutral 0.5) | DARK ↔ BRIGHT | `Dark ↔ Bright: moves the edge, the spectral shift and the character tone together. Centre is neutral.` | 0–100 %, default 0.5 (as 100) |
 | 103 | `BipolarSlider` (neutral 0.5) | CLEAN ↔ VIOLENT | `Clean ↔ Violent: more drive, more fold and more character together. Centre is neutral.` | 0–100 %, default 0.5 (as 100) |
-| 104 | `ArcKnob` | MASS | `Mass: how heavy the note feels. Above 50 heavier, below 50 lighter; 50 is neutral.` | 0–100, default 50 (`dsp/include/krate/dsp/systems/mass_law.h:72–74`; row `morph_params.h:51`) |
-| 105 | `CSlider` (writes 105) + display-only `CParamDisplay` (P-8) | A … B (slider ends); readout shows the registered percent | `Bass Morph: moves the sound from endpoint A to endpoint B.` (both controls) | 0–100 %, default 0 (`morph_params.h:183, :252–253`) |
+| 104 | `ArcKnob` | MASS | `Mass: how heavy the note feels, from a pure, sine-like sub at 0 to an enormous driven bass at 100. 50 is neutral; the mod wheel and channel pressure push it higher.` | 0–100, default 50 (`dsp/include/krate/dsp/systems/mass_law.h:72–74`; row `morph_params.h:51`) |
+| 105 | `CSlider` (writes 105) + display-only `CParamDisplay` (P-8) | A … B (slider ends); readout shows the registered percent | `Bass Morph: moves the sound from endpoint A (0 %) to endpoint B (100 %). Automate it to travel between two complete sounds.` (both controls) | 0–100 %, default 0 (`morph_params.h:183, :252–253`) |
 | 200 | `ArcKnob` | DEPTH | `Depth: high keeps the energy in the fundamental; low spreads it up through the harmonics.` | 0–1 (shown %), default 0.5 (`morph_state.h:160–161`; `dsp/include/krate/dsp/processors/spectral_shape_recipe.h:240–241`) |
 | 201 | `ArcKnob` | BODY | `Body: the weight of the low harmonics that make the note sound full.` | 0–1 (shown %), default 0.5 (`morph_state.h:162–163`; `spectral_shape_recipe.h:241`) |
-| 204 | `ArcKnob` | EDGE | `Edge: the bite of the upper harmonics.` | 0–1 (shown %), default 0.5 (`morph_state.h:168–169`; `spectral_shape_recipe.h:241`) |
-| 300 | `COptionMenu` | CHARACTER | `Anchor Waveform: the shape of the sub tone under the mass.` | list of 5, default Sine (`anchor_params.h:24–25, :32–33`; `dsp/include/krate/dsp/systems/anchor_oscillator.h:57, :100`) |
-| 302 | `ArcKnob` | LEVEL | `Anchor Level: how loud the stable sub tone under the mass is.` | 0–1 (shown %), default 0.5 (`anchor_params.h:36`; `anchor_oscillator.h:72`; `morph_state.h:303–304`) |
-| 400 | `ArcKnob` | DROP | `Drop: each note starts this many semitones above its pitch and falls onto it.` | 0–48 st, default 0 (`note_params.h:64`; `dsp/include/krate/dsp/processors/drop_envelope.h:31, :36`) |
+| 204 | `ArcKnob` | EDGE | `Edge: the bite of the upper harmonics. Turn it up for buzz and presence, down for a smooth, round bass.` | 0–1 (shown %), default 0.5 (`morph_state.h:168–169`; `spectral_shape_recipe.h:241`) |
+| 300 | `COptionMenu` | CHARACTER | `Anchor Waveform: the shape of the sub tone under the mass: Sine, Triangle, Rounded Sine, Asymmetric Sine or Octave Down.` | list of 5, default Sine (`anchor_params.h:24–25, :32–33`; `dsp/include/krate/dsp/systems/anchor_oscillator.h:57, :100`) |
+| 302 | `ArcKnob` | LEVEL | `Anchor Level: how loud the stable sub tone under the mass is. It stays centred and clean whatever the mass does.` | 0–1 (shown %), default 0.5 (`anchor_params.h:36`; `anchor_oscillator.h:72`; `morph_state.h:303–304`) |
+| 400 | `ArcKnob` | DROP | `Drop: each note starts this many semitones above its pitch and falls onto it (0 to 48). 0 is off; its time and shape are on the Advanced page.` | 0–48 st, default 0 (`note_params.h:64`; `dsp/include/krate/dsp/processors/drop_envelope.h:31, :36`) |
 | 412 | `ArcKnob` (writes 412) + display-only `CParamDisplay` (P-8) | GLIDE | `Glide: time to slide between notes in Mono. The readout unit follows Glide Mode on the Advanced page.` (both controls) | 0–10000 ms, offset-log law on (t + 1 ms), default 0 ms (`note_params.h:226–231, :308–309`) |
-| 500 | `ArcKnob` | FOLD | `Harmonic Fold: folds the sound back on itself to grow new harmonics.` | 0–100, default 0 (`fold_shape_params.h:23`; `morph_state.h:105, :180–181`) |
+| 500 | `ArcKnob` | FOLD | `Harmonic Fold: grows new harmonics, from soft saturation through harmonic compression to folding at 100. 0 is clean; the anchor stays clean unless Anchor Fold Feed sends it in.` | 0–100, default 0 (`fold_shape_params.h:23`; `morph_state.h:105, :180–181`) |
 | 900 | `CSegmentButton`, four segments | MOTION · OFF / ENV / CYCLE / DRIFT | `Motion: what moves the sound over time. Its target, amount and timing are on the Advanced page.` | list Off / Env / Cycle / Drift, default Off (`motion_params.h:37–38, :52–53`; `morph_state.h:82, :85`) |
 | 1000 | `CSegmentButton`, three segments, under the `CTextLabel` MORPH BEHAVIOUR | MORPH BEHAVIOUR · HOLD / BLEND / YIELD | `Morph Behaviour: how the anchor follows the Bass Morph. Hold keeps A's anchor, Blend follows the morph, Yield hands over late.` | list Hold / Blend / Yield, default Blend (`morph_params.h:179–180, :185–188`) |
-| 1001 | `CSegmentButton`, two segments | EDIT · A / B | `Edit Target: which endpoint the knobs edit. Not automatable.` | list A / B, default A (`morph_params.h:181, :187, :262–265`) |
+| 1001 | `CSegmentButton`, two segments | EDIT · A / B | `Edit Target: whether the knobs edit endpoint A or endpoint B. It changes what you edit, not what you hear. Not automatable.` | list A / B, default A (`morph_params.h:181, :187, :262–265`) |
 
 The bound-ID set of the Main page is exactly the FR-011 set:
 
@@ -156,7 +156,7 @@ c = 0, c = p, c = p³ (`dsp/include/krate/dsp/systems/bass_morph_engine.h:72` `k
 | 9211 | `CTextEdit` | (shows name B) | `Name of endpoint B. Saved with the preset.` |
 | 9220 | `CTextLabel` | (descriptor of A) | `How endpoint A sounds: shape, colour and force.` |
 | 9221 | `CTextLabel` | (descriptor of B) | `How endpoint B sounds: shape, colour and force.` |
-| 9300 | `CSegmentButton` or `COptionMenu`, four entries | ZOOM · 100% / 125% / 150% / 200% | `Editor zoom.` |
+| 9300 | `CSegmentButton` or `COptionMenu`, four entries | ZOOM · 100% / 125% / 150% / 200% | `Editor zoom: 100, 125, 150 or 200 %. Kept for the session, not saved with the project.` |
 
 The compare tooltip follows CQ-4 (spec Clarifications: A or B also switches Edit Target 1001; A·B leaves it unchanged; FR-049).
 The Copy tooltips follow plan OQ-4 (copy the sound only, not the name); if the user rules names are copied, the sentence
