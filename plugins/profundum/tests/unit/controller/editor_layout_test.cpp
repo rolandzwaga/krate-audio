@@ -38,6 +38,7 @@
 #include "ui/panel_sub_controller.h"
 #include "ui/preset_browser_view.h"  // plugins/shared/src/ui (Phase 13 T013 walker stop)
 #include "ui/spread_curve_view.h"
+#include "ui/update_banner_view.h"   // plugins/shared/src/ui: VersionLabel (FR-059 amendment)
 
 // plugins/shared/src/ui
 #include "ui/adsr_display.h"
@@ -1137,6 +1138,7 @@ TEST_CASE("Profundum_UiLayout", "[profundum][ui]") {
             VSTGUI::CRect(780.0, 24.0, 948.0, 48.0),  // zoom-header
         }};
         const VSTGUI::CRect kButtonRect(452.0, 24.0, 548.0, 48.0);
+        const VSTGUI::CRect kVersionRect(16.0, 40.0, 116.0, 54.0);  // FR-059 amendment: under the title
 
         VSTGUI::CControl* buttonAtStep0 = nullptr;
         for (std::size_t zi = 0; zi < kD7ZoomSteps.size(); ++zi) {
@@ -1160,8 +1162,22 @@ TEST_CASE("Profundum_UiLayout", "[profundum][ui]") {
                     children.push_back(i);
                 }
             }
-            // The nine ratified children plus the button: no preset-name display, no previous / next control.
-            REQUIRE(children.size() == kRatifiedHeader.size() + 1u);
+            // The nine ratified children, the version label and the button: no preset-name display, no previous / next control.
+            REQUIRE(children.size() == kRatifiedHeader.size() + 2u);
+
+            // FR-059 amendment: one shared VersionLabel, after the ratified children and before the button.
+            std::vector<std::size_t> versionLabels;
+            for (const std::size_t i : children) {
+                if (dynamic_cast<Krate::Plugins::VersionLabel*>(tree[i].view) != nullptr) {
+                    versionLabels.push_back(i);
+                }
+            }
+            REQUIRE(versionLabels.size() == 1u);
+            const BuiltView& version = tree[versionLabels.front()];
+            CHECK(versionLabels.front() == children[kRatifiedHeader.size()]);
+            CHECK(version.visible);
+            CHECK(version.view->getViewSize() == kVersionRect);
+            CHECK_FALSE(version.view->getMouseEnabled());
 
             std::vector<std::size_t> buttons;
             for (const std::size_t i : children) {
@@ -1172,6 +1188,7 @@ TEST_CASE("Profundum_UiLayout", "[profundum][ui]") {
             REQUIRE(buttons.size() == 1u);
             const BuiltView& button = tree[buttons.front()];
             CHECK(buttons.front() == children.back());  // the last header child
+            CHECK_FALSE(strictlyOverlap(version.window, button.window));
             CHECK(button.visible);
             CHECK(button.window == kButtonRect);
             // Scaled by the step: the frame draws the 100 % rect through the zoom transform.
@@ -1192,6 +1209,7 @@ TEST_CASE("Profundum_UiLayout", "[profundum][ui]") {
                 CAPTURE(what);
                 CHECK(child.view->getViewSize() == kRatifiedHeader[c]);
                 CHECK_FALSE(strictlyOverlap(child.window, button.window));
+                CHECK_FALSE(strictlyOverlap(child.window, version.window));
                 for (const std::string& text : textsOf(child.view)) {
                     CAPTURE(text);
                     CHECK_FALSE(containsNoCase(text, "preset"));
