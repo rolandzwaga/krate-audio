@@ -14,12 +14,4 @@ MSBuild version 17.14.60+43b635718 for .NET Framework
   KratePluginsShared.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\KratePluginsShared.lib
   vstgui_uidescription.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\vstgui_uidescription.lib
   vstgui_support.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\vstgui_support.lib
-  preset_probe_test.cpp
-  preset_rt_test.cpp
-  preset_showcase_test.cpp
-  preset_sweep_test.cpp
-  processor_cpu_test.cpp
-  preset_description_test.cpp
-  preset_library_test.cpp
-     Creating library F:/projects/iterum/build/windows-x64-release/lib/Release/profundum_tests.lib and object F:/projects/iterum/build/windows-x64-release/lib/Release/profundum_tests.exp
   profundum_tests.vcxproj -> F:\projects\iterum\build\windows-x64-release\bin\Release\profundum_tests.exe

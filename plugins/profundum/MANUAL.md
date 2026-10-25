@@ -403,11 +403,12 @@ A·B. **Save** writes the complete current state as a user preset.
 
 ### Factory Library
 
-53 presets ship with the plugin in six categories: **Sub**, **Resonant**, **Harmonic**, **Driven**, **Plucked** and
+58 presets ship with the plugin in six categories: **Sub**, **Resonant**, **Harmonic**, **Driven**, **Plucked** and
 **Animated**. Each one is built around one capability of the instrument and names it at the start of its comment, so
 the library also works as a tour of the controls. Every preset is rendered during the build and checked to make sound,
 stay bounded, differ measurably from the others, keep its low end intact in a mono sum and make its named capability
-audible.
+audible. Five of them (Poly Spread, Poly Swell, Poly Ignition, Poly Rectifier and Poly Pluck) are stored in POLY with 4 voices,
+for playing chords; the rest are MONO.
 
 #### Sub
 
@@ -437,6 +438,7 @@ audible.
 | Restrike | NoteMemory AlwaysRetrigger: MONO with Retrigger Reset, every note restrikes a resonant body from the start. |
 | Legato Line | NoteMemory Legato: MONO with Retrigger Reset; overlapping notes carry the phase on, a joined line. |
 | Loose Ends | Macros Tight Loose: a half-sustain body with the Tight Loose macro at 0.5, loose ends around a SPREAD image. |
+| Poly Swell | Envelope Amp Attack: a slow attack swells a folded, shifted body under every held chord in Poly. |
 
 #### Harmonic
 
@@ -450,6 +452,7 @@ audible.
 | Morph Span | Morph Position Full: endpoint A is a clean sub, endpoint B a driven harmonic growl; Morph from 0 to 1 crosses the whole span. |
 | Envelope Restart | NoteMemory EnvelopeRetriggerOnly: MONO with Retrigger Reset; each note restarts the envelope but not the oscillator. |
 | Dark To Bright | Macros Dark Bright: a heavy harmonic body with the Dark Bright macro at 0.5; endpoint B is a darker, rounder twin. |
+| Poly Spread | Field Spread: a hollow tube-coloured body spread wide in SPREAD, played as chords in Poly. |
 
 #### Driven
 
@@ -466,6 +469,8 @@ audible.
 | Fed Fold | Anchor Fold Feed: Harmonic Fold 100 with the Anchor Fold Feed at 1, the Anchor driven into the folder. |
 | Wide Rectifier | Field Solid to Wide: Rectify at 0.5 with Tone 0.5 under the WIDE image at spread 1. |
 | Clean To Violent | Macros Clean Violent: a lightly driven core with the Clean Violent macro stored at 0.4, with room to turn toward violent. |
+| Poly Ignition | Core Excitation Mix: full edge excitation through Bite on a WIDE image, a driven chord bass in Poly. |
+| Poly Rectifier | Character Rectify: full Rectify on a brighter body in SPREAD, rectified chords in Poly. |
 
 #### Plucked
 
@@ -478,6 +483,7 @@ audible.
 | Curved Drop | Pitch Drop Shape: a 24 st drop with shape 1, the curve bending late into the pitch. |
 | Rebound | Pitch Drop Rebound: a 24 st drop with rebound 1 that undershoots and bounces back up to the note. |
 | Hard Attack | Mass Transient Attack: the Transient Attack at +12 dB snaps the front of a harmonic pluck. |
+| Poly Pluck | Envelope Amp Release: a short decay to a lower sustain with a long release, chords that ring out in Poly. |
 
 #### Animated
 

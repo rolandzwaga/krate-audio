@@ -478,3 +478,48 @@ Verdict (user):
 - Files: `Sub/Bedrock Sine_E1.wav`, `Sub/Bedrock Sine_C3.wav`
 
 Verdict (user):
+
+## Harmonic / Poly Spread
+
+- Comment: Field Spread: a hollow tube-coloured body spread wide in SPREAD, played as chords in Poly.
+- Primary: AT-31 Field Spread
+- Endpoints: A "Spread Chord", B "Spread Chord Held"; stored Morph Position 0
+- Files: `Harmonic/Poly Spread_E1.wav`, `Harmonic/Poly Spread_C3.wav`
+
+Verdict (user):
+
+## Resonant / Poly Swell
+
+- Comment: Envelope Amp Attack: a slow attack swells a folded, shifted body under every held chord in Poly.
+- Primary: AT-24 Envelope Amp Attack
+- Endpoints: A "Swelling Chord", B "Swelling Chord Held"; stored Morph Position 0
+- Files: `Resonant/Poly Swell_E1.wav`, `Resonant/Poly Swell_C3.wav`
+
+Verdict (user):
+
+## Driven / Poly Ignition
+
+- Comment: Core Excitation Mix: full edge excitation through Bite on a WIDE image, a driven chord bass in Poly.
+- Primary: AT-01 Core Excitation Mix
+- Endpoints: A "Ignited Chord", B "Ignited Chord Held"; stored Morph Position 0
+- Files: `Driven/Poly Ignition_E1.wav`, `Driven/Poly Ignition_C3.wav`
+
+Verdict (user):
+
+## Driven / Poly Rectifier
+
+- Comment: Character Rectify: full Rectify on a brighter body in SPREAD, rectified chords in Poly.
+- Primary: AT-06 Character Rectify
+- Endpoints: A "Rectified Chord", B "Rectified Chord Held"; stored Morph Position 0
+- Files: `Driven/Poly Rectifier_E1.wav`, `Driven/Poly Rectifier_C3.wav`
+
+Verdict (user):
+
+## Plucked / Poly Pluck
+
+- Comment: Envelope Amp Release: a short decay to a lower sustain with a long release, chords that ring out in Poly.
+- Primary: AT-25 Envelope Amp Release
+- Endpoints: A "Plucked Chord", B "Plucked Chord Held"; stored Morph Position 0
+- Files: `Plucked/Poly Pluck_E1.wav`, `Plucked/Poly Pluck_C3.wav`
+
+Verdict (user):

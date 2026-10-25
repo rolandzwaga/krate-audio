@@ -1,15 +1,15 @@
-=== listen 2026-10-25T07:23:40Z commit e6095b24
+=== listen 2026-10-25T11:34:19Z commit 5ad50273
 cmd: bash specs/profundum-phase13-presets-release/evidence/listen/render.sh
 build: exit 0 wall 3 s (log specs/profundum-phase13-presets-release/evidence/listen/build.log)
-render: exit 0 wall 71 s (log specs/profundum-phase13-presets-release/evidence/listen/render.log)
-# Profundum_PresetAuditionRenders: presets=53 wavs=117 gestures=11 flagged=0
+render: exit 0 wall 63 s (log specs/profundum-phase13-presets-release/evidence/listen/render.log)
+# Profundum_PresetAuditionRenders: presets=58 wavs=127 gestures=11 flagged=0
 ===============================================================================
-All tests passed (310664 assertions in 1 test case)
+All tests passed (339457 assertions in 1 test case)
 
-exit: 0 wall: 71 s
-case: presets=53 wavs=117 gestures=11 flagged=0
-manifest: 117 lines (106 E1/C3, 11 gesture)
+exit: 0 wall: 63 s
+case: presets=58 wavs=127 gestures=11 flagged=0
+manifest: 127 lines (116 E1/C3, 11 gesture)
 manifest: 0 missing WAV files
-sheet: 53 verdict lines (53 empty), 0 fundamental-loss notes; csv rows 0
+sheet: 58 verdict lines (58 empty), 0 fundamental-loss notes; csv rows 0
 LISTEN GREEN
-WALL listen 74.6 s exit=0
+WALL listen 66.9 s exit=0

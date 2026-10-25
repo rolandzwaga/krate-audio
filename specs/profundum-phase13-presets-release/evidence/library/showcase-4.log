@@ -1,7 +1,7 @@
-=== showcase-4 2026-10-25T07:23:39Z commit e6095b24
+=== showcase-4 2026-10-25T11:34:19Z commit 5ad50273
 cmd: build/windows-x64-release/bin/Release/profundum_tests.exe Profundum_PresetShowcase_4of8
 Filters: "Profundum_PresetShowcase_4of8"
-Randomness seeded to: 2071980128
+Randomness seeded to: 1869261175
 # Profundum_PresetShowcase_4of8: presets=7 arms=18
 preset,column,role,variant,note,value,bar,margin,window_ms,overrides,descriptor,tap
 "Folding Wire","AT-05 Character Wavefold",primary,"",E1,8.16972,3,5.16972,0,"","D_nl","Char / twin"
@@ -25,4 +25,4 @@ preset,column,role,variant,note,value,bar,margin,window_ms,overrides,descriptor,
 ===============================================================================
 All tests passed (1235313 assertions in 1 test case)
 
-WALL showcase-4 77.1 s exit=0
+WALL showcase-4 66.1 s exit=0

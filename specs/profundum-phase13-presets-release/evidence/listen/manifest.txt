@@ -117,3 +117,13 @@
 "Sub/Locked Floor_C3.wav","Locked Floor",C3,none
 "Sub/Bedrock Sine_E1.wav","Bedrock Sine",E1,none
 "Sub/Bedrock Sine_C3.wav","Bedrock Sine",C3,none
+"Harmonic/Poly Spread_E1.wav","Poly Spread",E1,none
+"Harmonic/Poly Spread_C3.wav","Poly Spread",C3,none
+"Resonant/Poly Swell_E1.wav","Poly Swell",E1,none
+"Resonant/Poly Swell_C3.wav","Poly Swell",C3,none
+"Driven/Poly Ignition_E1.wav","Poly Ignition",E1,none
+"Driven/Poly Ignition_C3.wav","Poly Ignition",C3,none
+"Driven/Poly Rectifier_E1.wav","Poly Rectifier",E1,none
+"Driven/Poly Rectifier_C3.wav","Poly Rectifier",C3,none
+"Plucked/Poly Pluck_E1.wav","Poly Pluck",E1,none
+"Plucked/Poly Pluck_C3.wav","Poly Pluck",C3,none

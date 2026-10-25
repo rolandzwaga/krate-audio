@@ -15,3 +15,5 @@ preset,column,role,variant,note,value,bar,margin,window_ms,overrides,descriptor,
 "Envelope Mass","AT-39 Motion Env to Mass",primary,"",C3,3.17683,3,0.176834,0,"","E_sub_p2p","Sum"
 "Weight Lever","AT-47 Macros Weight",primary,"",E1,3.30633,3,0.306327,0,"","E_sub","Sum"
 "Weight Lever","AT-47 Macros Weight",primary,"",C3,3.22505,3,0.225049,0,"","E_sub","Sum"
+"Poly Swell","AT-24 Envelope Amp Attack",primary,"",E1,19.2,2,17.2,0,"","t_90","Sum"
+"Poly Swell","AT-24 Envelope Amp Attack",primary,"",C3,29.88,2,27.88,0,"","t_90","Sum"

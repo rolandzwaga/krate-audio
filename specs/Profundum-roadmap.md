@@ -1053,6 +1053,8 @@ low end") and the eight Phase 9 SC-035 verdicts. 12b:
 
 **Status: ✅ COMPLETE (2026-10-25)** — see specs/profundum-phase13-presets-release/compliance.md
 
+**Phase 13b (2026-10-25):** five factory presets store POLY (Poly Spread, Poly Swell, Poly Ignition, Poly Rectifier, Poly Pluck; FR-066, SC-034), library N = 58; POLY4 CPU max 15.03 % against 25 %.
+
 **Spec:** `profundum-phase13-presets-release`
 
 Fixed preset category set (filesystem dirs + XML metadata must match — Membrum lesson), installed to

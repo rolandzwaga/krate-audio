@@ -734,7 +734,7 @@ TEST_CASE("Profundum_FactoryPresetScan", "[profundum][browser]") {
         emptySubcategory += p.subcategory.empty() ? 1u : 0u;
         seen.insert(p.subcategory);
     }
-    CHECK(n == 53u);
+    CHECK(n == 58u);
     CHECK(emptySubcategory == 0u);
     for (const std::string& category : config.subcategoryNames) {
         INFO("category " << category);
@@ -767,7 +767,7 @@ TEST_CASE("Profundum_InstalledPresetTree", "[profundum][browser][.install]") {
         CHECK_FALSE(p.subcategory.empty());
         seen.insert(p.subcategory);
     }
-    CHECK(n == 53u);
+    CHECK(n == 58u);
     const std::set<std::string> six(config.subcategoryNames.begin(), config.subcategoryNames.end());
     CHECK(seen == six);
 }

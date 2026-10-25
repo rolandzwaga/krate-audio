@@ -158,3 +158,13 @@ Seraphis only the MSB3073 ProgramData copy). Then, concurrently on those binarie
 - dsp_systems_tests `[#profundum_engine_audibility_test]~[long]`: `All tests passed (1873 assertions in 3 test cases)`
 - tidy.sh: `TIDY GREEN total_wall=241s`
 Caveats 1-4 are closed by these readings. Caveat 6 (no Poly preset) is taken up by Phase 13b (user, 2026-10-25: at least 5 Poly presets).
+
+## Phase 13b addendum (2026-10-25): FR-066 / SC-034, five Poly presets
+
+| Item | Verdict | Evidence (evidence/run-log/P13b.txt) |
+|---|---|---|
+| FR-066 | pass | tools/profundum_preset_defs.h rows 54-58: Poly Spread (AT-31), Poly Swell (AT-24), Poly Ignition (AT-01), Poly Rectifier (AT-06), Poly Pluck (AT-25); each `.controls` carries `{kVoiceModeId, 1.0}`; no Mono-requiring primary. TREE GREEN n=58. |
+| SC-034 | pass | `Profundum_PolyPresetCount` in the per-push run "All tests passed (2565527 assertions in 101 test cases)"; showcase shards 0-7 green with the five primaries (0 overrides); chord render rows "chord E1+B1+E2" for all five; CPU lane "SC-022 max MONO 5.01619 % (Fault Line), max POLY4 15.0305 % (Poly Pluck)" against 8 / 25 %, "CPU GREEN". |
+| FR-004, FR-061, C-7 (re-measured at N = 58) | pass | "LIBRARY LANES GREEN"; distinctness "presets=58 F=1 closest=Bedrock vs Locked Floor d=1.91446"; loudness "presets=58 median_db=-11.167", "worst deviation 3.60167 dB". |
+
+Caveat 6 above (no Poly preset) is closed by this addendum.

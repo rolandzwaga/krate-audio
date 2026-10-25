@@ -1,8 +1,8 @@
-=== showcase-1 2026-10-25T07:23:39Z commit e6095b24
+=== showcase-1 2026-10-25T11:34:19Z commit 5ad50273
 cmd: build/windows-x64-release/bin/Release/profundum_tests.exe Profundum_PresetShowcase_1of8
 Filters: "Profundum_PresetShowcase_1of8"
-Randomness seeded to: 574246356
-# Profundum_PresetShowcase_1of8: presets=7 arms=14
+Randomness seeded to: 1662902921
+# Profundum_PresetShowcase_1of8: presets=8 arms=16
 preset,column,role,variant,note,value,bar,margin,window_ms,overrides,descriptor,tap
 "Biting Reed","AT-02 Core Shape",primary,"",E1,1.73355,0.25,1.48355,0,"","D_br","Sum"
 "Biting Reed","AT-02 Core Shape",primary,"",C3,1.78968,0.25,1.53968,0,"","D_br","Sum"
@@ -18,7 +18,9 @@ preset,column,role,variant,note,value,bar,margin,window_ms,overrides,descriptor,
 "Halfway Morph","AT-42 Morph Position Half",primary,"",C3,8.6303,3,5.6303,0,"","D_nl","Char / twin"
 "Clean To Violent","AT-50 Macros Clean Violent",primary,"",E1,11.3041,3,8.30408,0,"","D_nl","Char / twin"
 "Clean To Violent","AT-50 Macros Clean Violent",primary,"",C3,11.3225,3,8.32252,0,"","D_nl","Char / twin"
+"Poly Pluck","AT-25 Envelope Amp Release",primary,"",E1,40.651,2,38.651,0,"","D_t_release","Sum"
+"Poly Pluck","AT-25 Envelope Amp Release",primary,"",C3,40.1842,2,38.1842,0,"","D_t_release","Sum"
 ===============================================================================
-All tests passed (1269467 assertions in 1 test case)
+All tests passed (1359646 assertions in 1 test case)
 
-WALL showcase-1 52.7 s exit=0
+WALL showcase-1 44.8 s exit=0

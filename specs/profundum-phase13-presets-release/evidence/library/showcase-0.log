@@ -1,8 +1,8 @@
-=== showcase-0 2026-10-25T07:23:39Z commit e6095b24
+=== showcase-0 2026-10-25T11:34:19Z commit 5ad50273
 cmd: build/windows-x64-release/bin/Release/profundum_tests.exe Profundum_PresetShowcase_0of8
 Filters: "Profundum_PresetShowcase_0of8"
-Randomness seeded to: 428326000
-# Profundum_PresetShowcase_0of8: presets=7 arms=20
+Randomness seeded to: 2548336455
+# Profundum_PresetShowcase_0of8: presets=8 arms=22
 preset,column,role,variant,note,value,bar,margin,window_ms,overrides,descriptor,tap
 "Edge Ignition","AT-01 Core Excitation Mix",primary,"",E1,28.5212,3,25.5212,0,"","D_nl","Char / twin"
 "Edge Ignition","AT-01 Core Excitation Mix",primary,"",C3,28.5905,3,25.5905,0,"","D_nl","Char / twin"
@@ -24,7 +24,9 @@ preset,column,role,variant,note,value,bar,margin,window_ms,overrides,descriptor,
 "Morph Span","AT-42 Morph Position Half",secondary,"",C3,9.55319,3,6.55319,0,"","D_nl","Char / twin"
 "Loose Ends","AT-49 Macros Tight Loose",primary,"",E1,2.39708,2,0.397084,0,"","D_t","Sum"
 "Loose Ends","AT-49 Macros Tight Loose",primary,"",C3,3.70441,2,1.70441,0,"","D_t","Sum"
+"Poly Rectifier","AT-06 Character Rectify",primary,"",E1,10.449,3,7.44905,0,"","D_nl","Char / twin"
+"Poly Rectifier","AT-06 Character Rectify",primary,"",C3,11.1396,3,8.13956,0,"","D_nl","Char / twin"
 ===============================================================================
-All tests passed (1031624 assertions in 1 test case)
+All tests passed (1148163 assertions in 1 test case)
 
-WALL showcase-0 64.7 s exit=0
+WALL showcase-0 59.7 s exit=0

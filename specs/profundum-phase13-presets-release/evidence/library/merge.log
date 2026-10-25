@@ -1,9 +1,21 @@
-merge-csv: shard-0.csv 20 rows
-merge-csv: shard-1.csv 14 rows
+merge-csv: shard-0.csv 22 rows
+merge-csv: shard-1.csv 16 rows
 merge-csv: shard-2.csv 14 rows
 merge-csv: shard-3.csv 16 rows
 merge-csv: shard-4.csv 18 rows
-merge-csv: shard-5.csv 12 rows
-merge-csv: shard-6.csv 16 rows
-merge-csv: shard-7.csv 11 rows
-merge-csv: specs/profundum-phase13-presets-release/evidence/coverage-matrix.csv rows=121 files=8 OK
+merge-csv: shard-5.csv 14 rows
+merge-csv: shard-6.csv 18 rows
+merge-csv: shard-7.csv 13 rows
+merge-csv: group-min Core margin=1.48355 (Biting Reed / AT-02 Core Shape)
+merge-csv: group-min Character margin=0.816749 (Valve Pressure / AT-04 Character Tube)
+merge-csv: group-min Anchor margin=0.0361321 (Locked Floor / R-LOCK Reference Lock)
+merge-csv: group-min Pitch margin=0.602034 (Curved Drop / AT-21 Pitch Drop Shape)
+merge-csv: group-min Envelope margin=17.2 (Poly Swell / AT-24 Envelope Amp Attack)
+merge-csv: group-min Mass margin=1.01259 (Pressure Front / AT-27 Mass Dynamics Gain)
+merge-csv: group-min Field margin=10.0917 (Gravity Well / AT-32 Field Gravity)
+merge-csv: group-min Motion margin=0.0494771 (Shifting Spectrum / AT-38 Motion Cycle to Shift)
+merge-csv: group-min Morph margin=4.37899 (Halfway Morph / AT-42 Morph Position Half)
+merge-csv: group-min NoteMemory margin=65.5179 (Glide Path / AT-44 NoteMemory Legato)
+merge-csv: group-min Macros margin=0.225049 (Weight Lever / AT-47 Macros Weight)
+merge-csv: group-min groups=11
+merge-csv: specs/profundum-phase13-presets-release/evidence/coverage-matrix.csv rows=131 files=8 OK

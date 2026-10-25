@@ -1,8 +1,8 @@
-=== showcase-5 2026-10-25T07:23:39Z commit e6095b24
+=== showcase-5 2026-10-25T11:34:19Z commit 5ad50273
 cmd: build/windows-x64-release/bin/Release/profundum_tests.exe Profundum_PresetShowcase_5of8
 Filters: "Profundum_PresetShowcase_5of8"
-Randomness seeded to: 1329666410
-# Profundum_PresetShowcase_5of8: presets=6 arms=12
+Randomness seeded to: 3615992032
+# Profundum_PresetShowcase_5of8: presets=7 arms=14
 preset,column,role,variant,note,value,bar,margin,window_ms,overrides,descriptor,tap
 "Rectified Floor","AT-06 Character Rectify",primary,"",E1,24.9238,3,21.9238,0,"","D_nl","Char / twin"
 "Rectified Floor","AT-06 Character Rectify",primary,"",C3,25.3472,3,22.3472,0,"","D_nl","Char / twin"
@@ -16,7 +16,9 @@ preset,column,role,variant,note,value,bar,margin,window_ms,overrides,descriptor,
 "Shifting Spectrum","AT-38 Motion Cycle to Shift",primary,"",C3,0.303864,0.25,0.053864,0,"","D_br_p2p","Sum"
 "Continuous Phase","AT-46 NoteMemory OscillatorContinuous",primary,"",E1,178.752,30,148.752,0,"","phase_deg","core tap"
 "Continuous Phase","AT-46 NoteMemory OscillatorContinuous",primary,"",C3,167.882,30,137.882,0,"","phase_deg","core tap"
+"Poly Spread","AT-31 Field Spread",primary,"",E1,115.364,3,112.364,0,"","D_st","field stage tap"
+"Poly Spread","AT-31 Field Spread",primary,"",C3,115.392,3,112.392,0,"","D_st","field stage tap"
 ===============================================================================
-All tests passed (966140 assertions in 1 test case)
+All tests passed (1082655 assertions in 1 test case)
 
-WALL showcase-5 67.7 s exit=0
+WALL showcase-5 59.4 s exit=0
