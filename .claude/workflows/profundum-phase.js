@@ -148,7 +148,9 @@ CROSS-CUTTING CONSTRAINTS (violations are defects at every stage):
 - Portability: MSVC-green proves nothing; code must satisfy node tools/check-portability.js;
   the macOS leg is -ffast-math -ffp-contract=fast (dsp/CLAUDE.md "The macOS leg builds with -ffast-math"):
   finiteness only through detail::isFinite / isNaN / isInf (never std::isnan, never a hand-written bit-mask
-  clone, which Apple clang folds: tools/lint-finite-bitmask.js); clamp pow / sqrt / log / acos arguments at the
+  clone, which Apple clang folds: tools/lint-finite-bitmask.js); no numeric_limits infinity() / quiet_NaN()
+  constant in fast-math code, not even as a search seed or a "fails every bar" return (max() / lowest());
+  clamp pow / sqrt / log / acos arguments at the
   domain edge; a neutral point or endpoint that must be exact comes from a branch or clamp, not cancellation;
   no bit-equality claim between separately compiled computations outside dsp_ieee_tests; an IEEE CMake flag
   set is "-fno-fast-math -fno-finite-math-only -ffp-contract=off" on one line (tools/lint-ieee-flag-sets.js);

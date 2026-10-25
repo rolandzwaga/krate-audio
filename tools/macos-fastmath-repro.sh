@@ -71,13 +71,14 @@ INC="-I $OUT/shim -I $PFFFT/include -I $ROOT -I $ROOT/dsp/include -I $ROOT/dsp/t
 DEF=(-DNDEBUG -DHWY_COMPILE_ONLY_STATIC=1 -DKRATE_DSP_AETHER_TEST_HOOKS
      "-DKRATE_DSP_TESTS_DIR=\"$OUT/evidence/a/b\"" "-DVORAGO_P1_HARNESS_DIR=\"$OUT/evidence/\"")
 
+WARN=-w   # warning flags of build(); the TUs under test get the fast-math UB warnings, see below
 build() {  # build <object> <flags...> -- <source>; skips an existing object
   local o=$1; shift
   [ -f "$o" ] && return 0
   local flags=()
   while [ "$1" != -- ]; do flags+=("$1"); shift; done
   shift
-  if ! clang++ -std=c++20 -O3 -w "${flags[@]}" "${DEF[@]}" -c "$1" -o "$o" > "$o.log" 2>&1; then
+  if ! clang++ -std=c++20 -O3 $WARN "${flags[@]}" "${DEF[@]}" -c "$1" -o "$o" > "$o.log" 2>&1; then
     echo "compile failed: $1 (see $o.log)" >&2; grep -m5 error "$o.log" >&2; rm -f "$o"; return 1
   fi
 }
@@ -103,13 +104,20 @@ for s in $(sed -n 's#^\s*\(include/krate/dsp/.*\.cpp\)\s*$#\1#p' "$ROOT/dsp/CMak
   LIBOBJS+=("$o")
 done
 
-# The TUs under test: always rebuilt (they are what changes).
+# The TUs under test: always rebuilt (they are what changes). In mac mode clang reports every infinity / NaN
+# constant or comparison that -ffinite-math-only makes undefined behaviour (-Wnan-infinity-disabled): each is a
+# candidate macOS-only red (BassStereoField_TransitionsClickFreeSmoke's infinity() search seed, 2026-10-25).
 TUOBJS=()
+[ "$MODE" = mac ] && WARN="-Wno-everything -Wnan-infinity-disabled"
 NAME=""
 for tu in "${TUS[@]}"; do
   o="$OBJ/tu_$(basename "$tu" .cpp).o"
   rm -f "$o"
   build "$o" $FP $ARCH $INC -- "$ROOT/dsp/tests/unit/$tu" || exit 1
+  if grep -q "nan-infinity-disabled" "$o.log"; then
+    echo "!! $tu: $(grep -c "nan-infinity-disabled" "$o.log") use(s) of infinity / NaN that -ffast-math makes undefined (see $o.log):"
+    grep "nan-infinity-disabled" "$o.log" | sed "s#^$ROOT/##" | head -10
+  fi
   TUOBJS+=("$o")
   NAME="${NAME}_$(basename "$tu" .cpp)"
 done

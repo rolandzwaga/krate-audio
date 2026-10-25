@@ -164,11 +164,12 @@ node tools/lint-midi-timing-goldens.js   # gate; also runs in CI
 
 The Xcode leg compiles every TU with `-ffast-math -ffp-contract=fast` (SMTG_PlatformToolset.cmake:46) on a CPU with
 FMA. Windows' `/fp:fast` is far milder and Linux has no fast-math, so **a green Windows + Linux run is no evidence for
-macOS floating point**. The CI rounds of 2026-10-25 had seven classes of macOS-only red. Each rule below names one:
+macOS floating point**. The CI rounds of 2026-10-25 had eight classes of macOS-only red. Each rule below names one:
 
 | Rule | Why (the red it cost) |
 |---|---|
 | Classify finiteness only through `detail::isFinite` / `isNaN` / `isInf`. Never `std::isnan`, never a local `(bits & 0x7F800000u) != 0x7F800000u` clone, in DSP or tests. | Apple clang folds the clone to "finite" even through `bit_cast` / `memcpy`: seven test helpers were vacuous. Gated by `tools/lint-finite-bitmask.js` (ratchet) and `tools/lint-nonfinite-symbols.js`. |
+| No `numeric_limits<T>::infinity()` / `quiet_NaN()` constant in fast-math code, not even as a search seed or a "fails every bar" return value: use `max()` / `lowest()`. | Under `-ffinite-math-only` the constant is undefined behaviour (clang says so: `-Wnan-infinity-disabled`). BassStereoField_TransitionsClickFreeSmoke seeded `ratio = infinity()`, `ratio > bestRatio` never held on macOS arm64, and the REQUIRE blamed the data ("no grid point is clear"). `tools/lint-nonfinite-symbols.js` is a tree-wide ratchet now, and `tools/macos-fastmath-repro.sh` prints each warning for the TUs under test. |
 | Clamp the argument of `pow` / `sqrt` / `log` / `acos` at its domain edge whenever IEEE arithmetic only *happens* to land on the edge. | `HarmonicFold`: `pow(1 - (a - c) / span, p)` had base exactly 0 at amount 100 in IEEE, -4.4e-16 after reassociation: NaN, Fold 100 broken on Mac. |
 | A value that must be exact at a neutral point or an endpoint (Mass 50, normalized 0 / 1) is produced by a branch or a clamp, or by a `#pragma clang fp contract(off) reassociate(off)` body, never by arithmetic that cancels in IEEE. | `MassLaw`: `(m - 50) * 0.02f` became `fma(m, 0.02f, -1)` = -2.2e-8 at 50. Profundum's ceiling: `(db + 12) / 12` became `fma(db, 1 / 12, 1)` = 5.6e-17 at the floor. |
 | No bit-equality claim between two separately compiled computations (engine tap vs the test's recomputation, two helpers, a live object vs a frozen copy). Put such a TU in `dsp_ieee_tests`, or compare within a tolerance below the meaningful step. | Each inlined call site is rewritten on its own (`(s - 69) / 12` became `s * (1/12) - 5.75` in one copy only). MonoHandler, DropPhaseLock, SpectralShapeRecipe, MassSplit, AnchorJoin, C1CheckerCrossCheck. |

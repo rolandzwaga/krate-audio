@@ -198,8 +198,11 @@ far milder and Linux has none, so a green Windows + Linux run proves nothing abo
 with the red behind each rule: `dsp/CLAUDE.md` "The macOS leg builds with -ffast-math".
 - Classify finiteness only through `Krate::DSP::detail::isFinite` / `isNaN` / `isInf` (`core/db_utils.h`): never
   `std::isnan`, never a hand-written `(bits & 0x7F800000u)` clone, which Apple clang folds to "finite". A per-file
-  `-fno-fast-math` does not protect inline header code. Gated by `tools/lint-finite-bitmask.js` (a ratchet over the
-  pre-existing clones) and `tools/lint-nonfinite-symbols.js`.
+  `-fno-fast-math` does not protect inline header code. Gated by `tools/lint-finite-bitmask.js` and
+  `tools/lint-nonfinite-symbols.js`, both tree-wide ratchets over the pre-existing hits.
+- No `numeric_limits<T>::infinity()` / `quiet_NaN()` constant in fast-math code, not even as a search seed or a
+  "fails every bar" return value: it is undefined behaviour there (clang `-Wnan-infinity-disabled`). Seed with
+  `max()` / `lowest()`.
 - Clamp the argument of `pow` / `sqrt` / `log` / `acos` at its domain edge when IEEE only *happens* to land on it.
 - Produce a value that must be exact at a neutral point or an endpoint (Mass 50, normalized 0 / 1) by a branch or a
   clamp, not by arithmetic that cancels in IEEE: contraction leaves 1e-8 or 1e-17 there.
