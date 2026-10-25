@@ -1,0 +1,54 @@
+T037 -- Preset descriptions: read Comment back, show it in the browser (FR-065, SC-033) -- main loop
+=====================================================================================================
+
+1. Implementation
+   - plugins/shared/src/preset/preset_manager.cpp: readMetadata opens the file (Steinberg::Vst::FileStream), walks the
+     chunk list with the SDK's PresetFile::readChunkList (header, version, class ID, list offset; 'List' entries) and
+     reads the Info chunk with readMetaInfo, bounded to kMaxMetaInfoBytes (1 MiB). commentFromMetaXml takes only
+     id="Comment" value="..." and xmlUnescapeAttribute restores the five entities. Both writers escape the description
+     (xmlEscapeAttribute).
+   - plugins/shared/src/ui/preset_browser_view.{h,cpp}: descriptionLabel_ (CTextLabel, kDescriptionHeight 20) between
+     the list and the button bar; the list loses those 20 px plus one padding, nothing else moves. updateButtonStates()
+     sets the text and tooltip from the selected preset and clears them when no preset is selected (it runs on every
+     path that changes or resets selectedPresetIndex_). descriptionTextForTest() for the test.
+   - Tests: plugins/shared/tests/test_preset_description.cpp (Krate_PresetManagerReadsDescription,
+     Krate_PresetBrowserShowsDescription: 36 assertions in 2 cases, SC-033 a, c);
+     plugins/profundum/tests/unit/preset/preset_description_test.cpp (Profundum_PresetDescriptions: 53 descriptions and
+     categories, 214 assertions, SC-033 b).
+
+2. clang-tidy (the changed shared and preset TUs; run-clang-tidy.ps1 has no shared target and "all" does not reach
+   plugins/shared). build/windows-ninja reconfigured first (the database predated the new test registration), then
+   clang-tidy -p build/windows-ninja on preset_manager.cpp, preset_browser_view.cpp, test_preset_description.cpp,
+   preset_description_test.cpp, preset_rt_test.cpp, with the script's own Catch2 filter
+   (bugprone-chained-comparison, cppcoreguidelines-avoid-do-while in test files).
+   Run 1: 9 warnings (4 modernize-raw-string-literal in the two writers, 1 modernize-loop-convert in the browser's tab
+   loop, 2 + 1 modernize-use-designated-initializers, 1 cppcoreguidelines-pro-type-const-cast). All fixed.
+   Run 2: preset_browser_view.cpp: 0, preset_description_test.cpp: 0, preset_manager.cpp: 0, preset_rt_test.cpp: 0,
+   test_preset_description.cpp: 0.
+
+3. Scoped gate (evidence/close/fr065-gate.sh revision 2; logs evidence/run-log/close/fr065/)
+   Revision 1 tag filter "[preset],[browser],[lifecycle] ~[perf]..." applied the exclusions to the last OR term only;
+   Vorago's [long] 420 s factory sweep (defs loaded directly, no PresetManager) ran 2 h 13 min and was stopped.
+   Revision 2 selects by file (Catch2 -# tags) and puts ~[.] and the perf exclusions on every term.
+   Rebuilt first: 10 test exes and 9 plugins, 0 warnings (Seraphis: 59 MSB3073 ProgramData copy errors only).
+   shared_tests exit=0 last="All tests passed (6490 assertions in 464 test cases)"
+   gradus exit=0 last="All tests passed (148 assertions in 5 test cases)"
+   vorago exit=0 last="All tests passed (18010 assertions in 37 test cases)"
+   disrumpo exit=0 last="All tests passed (223 assertions in 31 test cases)"
+   seraphis exit=0 last="All tests passed (1598 assertions in 38 test cases)"
+   membrum exit=0 last="All tests passed (211 assertions in 2 test cases)"
+   innexus exit=0 last="All tests passed (10 assertions in 1 test case)"
+   iterum exit=0 last="All tests passed (120 assertions in 15 test cases)"
+   profundum exit=0 last="All tests passed (11514 assertions in 32 test cases)"
+   ruinae exit=0 last="All tests passed (4003 assertions in 27 test cases)"
+   pluginval-Iterum exit=0 last="Completed tests in pluginval / Restoring default layout"
+   pluginval-Disrumpo exit=0 last="Completed tests in pluginval / Restoring default layout"
+   pluginval-Ruinae exit=0 last="Completed tests in pluginval / Restoring default layout"
+   pluginval-Innexus exit=0 last="Completed tests in pluginval / Restoring default layout"
+   pluginval-Gradus exit=0 last="Completed tests in pluginval / Restoring default layout"
+   pluginval-Membrum exit=0 last="Completed tests in pluginval / Restoring default layout"
+   pluginval-Seraphis exit=0 last="Completed tests in pluginval / Restoring default layout"
+   pluginval-Vorago exit=0 last="Completed tests in pluginval / Restoring default layout"
+   pluginval-Profundum exit=0 last="Completed tests in pluginval / Restoring default layout"
+   wall=87s
+   FR065 GATE GREEN

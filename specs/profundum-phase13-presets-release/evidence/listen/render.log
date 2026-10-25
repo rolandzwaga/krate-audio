@@ -1,0 +1,9 @@
+=== render 2026-10-25T07:23:43Z commit e6095b24
+cmd: build/windows-x64-release/bin/Release/profundum_tests.exe "Profundum_PresetAuditionRenders"
+Filters: "Profundum_PresetAuditionRenders"
+Randomness seeded to: 2422473479
+# Profundum_PresetAuditionRenders: presets=53 wavs=117 gestures=11 flagged=0
+===============================================================================
+All tests passed (310664 assertions in 1 test case)
+
+exit: 0 wall: 71 s

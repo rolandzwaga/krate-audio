@@ -96,6 +96,9 @@ public:
     void onDeleteClicked();
     void onCloseClicked();
 
+    /// FR-065 test read: the description line's current text (empty when no preset with one is selected).
+    [[nodiscard]] std::string descriptionTextForTest() const;
+
 private:
     PresetManager* presetManager_ = nullptr;
     std::vector<std::string> tabLabels_;
@@ -104,6 +107,7 @@ private:
     CategoryTabBar* categoryTabBar_ = nullptr;
     VSTGUI::CDataBrowser* presetList_ = nullptr;
     VSTGUI::CTextEdit* searchField_ = nullptr;
+    VSTGUI::CTextLabel* descriptionLabel_ = nullptr;  // FR-065: the selected preset's description
     OutlineBrowserButton* saveButton_ = nullptr;
     OutlineBrowserButton* importButton_ = nullptr;
     OutlineBrowserButton* deleteButton_ = nullptr;

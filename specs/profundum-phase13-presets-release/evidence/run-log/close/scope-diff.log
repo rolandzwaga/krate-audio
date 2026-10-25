@@ -1,0 +1,10 @@
+=== git diff --name-only e6095b24 -- dsp/include dsp/src plugins/shared tests/test_helpers (must print nothing beyond the FR-065 allow-list)
+plugins/shared/src/preset/preset_manager.cpp
+plugins/shared/src/ui/preset_browser_view.cpp
+plugins/shared/src/ui/preset_browser_view.h
+plugins/shared/tests/CMakeLists.txt
+=== git ls-files --others --exclude-standard -- dsp/include dsp/src plugins/shared tests/test_helpers (new files; reported)
+plugins/shared/tests/test_preset_description.cpp
+=== git diff --name-only e6095b24 -- dsp/tests (modified dsp test files; reported)
+warning: in the working copy of 'dsp/tests/unit/systems/profundum_engine_audibility_test.cpp', LF will be replaced by CRLF the next time Git touches it
+dsp/tests/unit/systems/profundum_engine_audibility_test.cpp

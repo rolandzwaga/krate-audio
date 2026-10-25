@@ -1,0 +1,228 @@
+{
+  "base": "e6095b24",
+  "source_file": "dsp/tests/unit/systems/profundum_engine_audibility_test.cpp",
+  "header_file": "dsp/tests/unit/systems/profundum_audibility_readers.h",
+  "note": "Written by T003. source = the plan §4.1 regions at e6095b24 (wildcards replaced in place by the call-site text); calls = further e6095b24 lines rewritten as call sites (T002 deviation d); header = the header lines holding the lifted function(s). Header ranges of L10/L11 shifted +4 on 2026-10-24 (main loop): auShardMass builds auStateB()/auStateBs() once each, as the e6095b24 cell() calls did, to keep the Catch2 assertion count identical (FR-058).",
+  "lifts": [
+    {
+      "id": "L1",
+      "function": "auCellOnsetESub",
+      "source": [
+        1154,
+        1173
+      ],
+      "header": [
+        1134,
+        1158
+      ]
+    },
+    {
+      "id": "L2",
+      "function": "auCellAt13",
+      "source": [
+        1213,
+        1238
+      ],
+      "header": [
+        1159,
+        1188
+      ]
+    },
+    {
+      "id": "L3",
+      "function": "auCellAt17",
+      "source": [
+        1266,
+        1286
+      ],
+      "header": [
+        1189,
+        1213
+      ]
+    },
+    {
+      "id": "L4",
+      "function": "auDropCell",
+      "source": [
+        1305,
+        1327
+      ],
+      "calls": [
+        [
+          1334,
+          1335
+        ],
+        [
+          1343,
+          1344
+        ],
+        [
+          1352,
+          1353
+        ],
+        [
+          1361,
+          1363
+        ]
+      ],
+      "header": [
+        1319,
+        1344
+      ]
+    },
+    {
+      "id": "L5",
+      "function": "auCellAt23",
+      "source": [
+        1365,
+        1385
+      ],
+      "header": [
+        1345,
+        1367
+      ]
+    },
+    {
+      "id": "L6",
+      "function": "auCellAt24",
+      "source": [
+        1436,
+        1457
+      ],
+      "header": [
+        1455,
+        1481
+      ]
+    },
+    {
+      "id": "L7",
+      "function": "auCellAt25",
+      "source": [
+        1470,
+        1489
+      ],
+      "header": [
+        1482,
+        1506
+      ]
+    },
+    {
+      "id": "L8",
+      "function": [
+        "auDlk",
+        "auCellAt27"
+      ],
+      "source": [
+        1498,
+        1521
+      ],
+      "calls": [
+        [
+          1522,
+          1522
+        ],
+        [
+          1524,
+          1524
+        ]
+      ],
+      "header": [
+        1536,
+        1563
+      ]
+    },
+    {
+      "id": "L9",
+      "function": [
+        "auOnsetDyn",
+        "auCellAt28"
+      ],
+      "source": [
+        1528,
+        1549
+      ],
+      "header": [
+        1564,
+        1589
+      ]
+    },
+    {
+      "id": "L10",
+      "function": [
+        "auNoteMemoryPhase",
+        "AuNoteMemoryRow",
+        "auNoteMemoryRows",
+        "auCellNoteMemory"
+      ],
+      "source": [
+        [
+          1964,
+          1964
+        ],
+        [
+          1981,
+          2002
+        ],
+        [
+          2005,
+          2030
+        ]
+      ],
+      "calls": [
+        [
+          1959,
+          1959
+        ],
+        [
+          1980,
+          1980
+        ],
+        [
+          2004,
+          2004
+        ]
+      ],
+      "header": [
+        [
+          2026,
+          2027
+        ],
+        [
+          2032,
+          2032
+        ],
+        [
+          2047,
+          2106
+        ]
+      ]
+    },
+    {
+      "id": "L11",
+      "function": [
+        "auMacroAxisRead",
+        "auMacroCellOn"
+      ],
+      "source": [
+        [
+          2076,
+          2082
+        ],
+        [
+          2097,
+          2127
+        ]
+      ],
+      "header": [
+        [
+          2152,
+          2162
+        ],
+        [
+          2180,
+          2216
+        ]
+      ]
+    }
+  ]
+}

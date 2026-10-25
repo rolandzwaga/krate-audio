@@ -25,6 +25,11 @@
 // pull), and a reply that replaces the Edit Target endpoint AFTER the re-display
 // re-displays and restarts again.
 // FR-050: owns a PresetManager built from makeProfundumPresetConfig().
+// Phase 13 T013 (plan 4.6; FR-030, FR-031, FR-032, FR-059): the PresetManager's state provider saves the
+// processor's own getState bytes (through the host's IComponent) and its load provider is loadPresetStream, which
+// sends the whole stream to the processor (kMsgLoadPresetState) before it mirrors it. The PresetBrowserView overlay
+// is built in didOpen (the frame owns it) and dropped in willClose; "PresetBrowserButton" is the shared
+// OutlineBrowserButton. No current-preset name, no previous / next, no new state.
 //
 // The implementation is controller.cpp (plan section 2.6).
 // ==============================================================================
@@ -55,9 +60,11 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace Krate::Plugins {
 class ADSRDisplay;  // plugins/shared/src/ui/adsr_display.h; held by pointer only (Phase 12 T025)
+class PresetBrowserView;  // plugins/shared/src/ui/preset_browser_view.h; held by pointer only (Phase 13 T013)
 }  // namespace Krate::Plugins
 
 namespace Profundum {
@@ -134,17 +141,20 @@ public:
     Steinberg::tresult performEdit(Steinberg::Vst::ParamID tag, Steinberg::Vst::ParamValue valueNormalized) override;
 
     // ---- VST3EditorDelegate (plan 4.6.2; FR-092) ----
-    /// "HarmonicBarView" (attribute bar-variant main / core) and "SpreadCurveView", the rect from origin / size;
-    /// any other name -> nullptr.
+    /// "HarmonicBarView" (attribute bar-variant main / core), "SpreadCurveView" and (Phase 13 FR-059)
+    /// "PresetBrowserButton" (a shared OutlineBrowserButton, no listener, tag -1: the panel sub-controller gives it
+    /// its session tag), the rect from origin / size; any other name -> nullptr.
     VSTGUI::CView* createCustomView(VSTGUI::UTF8StringPtr name, const VSTGUI::UIAttributes& attributes,
                                     const VSTGUI::IUIDescription* description, VSTGUI::VST3Editor* editor) override;
     /// "ProfundumPanel" -> a new UI::ProfundumPanelSubController (owned by the view tree); anything else -> nullptr.
     VSTGUI::IController* createSubController(VSTGUI::UTF8StringPtr name, const VSTGUI::IUIDescription* description,
                                              VSTGUI::VST3Editor* editor) override;
-    /// Stores the editor, applies the allowed zoom steps and the session zoom, starts the sync timer, refreshes the
-    /// rings, the SPREAD model, the captions and the dimming.
+    /// Stores the editor, adds the (closed) PresetBrowserView overlay to the frame once (Phase 13 FR-030), applies
+    /// the allowed zoom steps and the session zoom, starts the sync timer, refreshes the rings, the SPREAD model,
+    /// the captions and the dimming.
     void didOpen(VSTGUI::VST3Editor* editor) override;
-    /// Stops and releases the sync timer; forgets every view pointer (FR-091).
+    /// Closes the overlay if it is open and forgets it (the frame owns it), stops and releases the sync timer;
+    /// forgets every view pointer (FR-091).
     void willClose(VSTGUI::VST3Editor* editor) override;
     /// The editor's own zoom menu (allowed factors) keeps the session step and the zoom controls in step.
     void onZoomChanged(VSTGUI::VST3Editor* editor, double newZoom) override;
@@ -169,6 +179,16 @@ public:
     /// Plan 4.6.6: the panel re-reads both captions and names (every mirror replacement and name change).
     void refreshEndpointCaptions();
 
+    // ---- Phase 13 preset browser (plan 4.6; FR-030, FR-031, FR-032, FR-059) ----
+    /// The PresetManager load provider. Reads the whole chunk; refuses one larger than 4096 bytes, shorter than the
+    /// version word or whose first int32 is above kCurrentStateVersion. Then sends kMsgLoadPresetState (binary
+    /// "state") to the processor, mirrors the same bytes through setComponentState and calls
+    /// restartComponent(kParamValuesChanged). False, with nothing changed, when no message can be allocated (no
+    /// host context) or the processor refuses it; otherwise true iff setComponentState returned kResultOk.
+    bool loadPresetStream(Steinberg::IBStream* stream);
+    /// Opens the overlay when it exists (an open editor) and is closed; otherwise a no-op.
+    void openPresetBrowser();
+
     // ---- Test seams (SC-015, SC-016) ----
     [[nodiscard]] bool hasEditorSyncTimerForTest() const noexcept { return editorSyncTimer_ != nullptr; }
     /// The configured period of the running timer (getFireTime()), 0 while none exists.
@@ -176,9 +196,16 @@ public:
         return editorSyncTimer_ != nullptr ? editorSyncTimer_->getFireTime() : 0u;
     }
     void editorSyncTickForTest() { onEditorSyncTick(); }
-    /// True when no raw view pointer is held (FR-091): bar views, SPREAD view, panel, editor, ADSRDisplay, ring knobs.
+    /// True when no raw view pointer is held (FR-091): bar views, SPREAD view, panel, editor, ADSRDisplay, ring knobs,
+    /// and (Phase 13) the preset browser overlay.
     [[nodiscard]] bool viewPointersNullForTest() const noexcept;
     [[nodiscard]] UI::ProfundumPanelSubController* panelForTest() const noexcept { return panel_; }
+    /// Phase 13 T013: the overlay, non-null only while an editor is open.
+    [[nodiscard]] const Krate::Plugins::PresetBrowserView* presetBrowserViewForTest() const noexcept {
+        return presetBrowserView_;
+    }
+    /// Phase 13 T013: the tab labels didOpen passes to the overlay.
+    [[nodiscard]] const std::vector<std::string>& presetTabLabelsForTest() const noexcept { return presetTabLabels_; }
 
     DEFINE_INTERFACES
         DEF_INTERFACE(Steinberg::Vst::IMidiMapping)
@@ -301,8 +328,13 @@ private:
     void onEditorSyncTick();
     /// Stops and releases the sync timer (willClose, terminate).
     void stopEditorSyncTimer() noexcept;
+    /// Phase 13 FR-031 (Vorago controller.cpp:152-168): the processor's own getState bytes, through the host's
+    /// IComponent (the component handler); nullptr when the handler offers none. The caller releases the stream.
+    [[nodiscard]] Steinberg::IBStream* createComponentStateStream();
 
     std::unique_ptr<Krate::Plugins::PresetManager> presetManager_;
+    // Phase 13 FR-030: "All" + the six subcategories (makeProfundumPresetTabLabels), set in initialize.
+    std::vector<std::string> presetTabLabels_;
     std::array<Krate::DSP::MorphState, 2> mirror_{};  // FR-021: [A, B]
     CompareMode compare_ = CompareMode::AB;           // FR-031, set only by the processor's message
     std::uint32_t compareChanges_ = 0;                // FR-046: accepted kMsgCompareMode messages
@@ -341,6 +373,8 @@ private:
     std::array<UI::HarmonicBarView*, 2> barViews_{};  // [Main, Core] in creation order
     UI::SpreadCurveView* spreadView_ = nullptr;
     UI::ProfundumPanelSubController* panel_ = nullptr;
+    // Phase 13 FR-030: frame-owned, created in didOpen, nulled in willClose.
+    Krate::Plugins::PresetBrowserView* presetBrowserView_ = nullptr;
     // Plan 4.6.7 (D-10): created in didOpen, released in willClose.
     VSTGUI::SharedPointer<VSTGUI::CVSTGUITimer> editorSyncTimer_;
     int openGestures_ = 0;  // plan 4.6.4: beginEdit minus endEdit

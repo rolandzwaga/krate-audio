@@ -1,0 +1,13 @@
+key,value
+F,1
+t_max,0
+t_max_twin,"none"
+near_variant_preset,Bedrock Sine
+near_variant_parameter,Mass (104) endpoint A 0.5 -> 0.55 normalized
+near_variant_d,0.295328965
+near_variant_masked,11
+near_variant_pass,1
+control,showcasePair() first vs second (single-endpoint presets)
+control_d,1409.54913
+control_masked,21
+control_pass,1

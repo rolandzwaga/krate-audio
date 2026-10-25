@@ -46,6 +46,7 @@
 #include "preset/profundum_preset_config.h"
 #include "processor/spectrum_frame.h"
 #include "ui/harmonic_bar_view.h"
+#include "ui/preset_browser_view.h"  // plugins/shared/src/ui (Phase 13 T013 walker stop)
 #include "ui/spread_curve_view.h"
 #include "update/profundum_update_config.h"
 
@@ -99,6 +100,10 @@ void collectBoundControls(VSTGUI::CViewContainer* container,
                 out.push_back(control);
             }
         }
+        // Phase 13 T013: never descend into the PresetBrowserView overlay (its own tagged buttons, 1-5 / 10-31).
+        if (dynamic_cast<Krate::Plugins::PresetBrowserView*>(view) != nullptr) {
+            continue;
+        }
         if (auto* child = dynamic_cast<VSTGUI::CViewContainer*>(view)) {
             collectBoundControls(child, out);
         }
@@ -112,7 +117,8 @@ TEST_CASE("Profundum_EditorLifecycle", "[profundum][controller][ui][lifecycle]")
         const auto cfg = ::Profundum::makeProfundumPresetConfig();
         REQUIRE(cfg.pluginName == "Profundum");
         REQUIRE(cfg.pluginCategoryDesc == "Synth");
-        REQUIRE(cfg.subcategoryNames == std::vector<std::string>{"Sub"});
+        REQUIRE(cfg.subcategoryNames == std::vector<std::string>{"Sub", "Resonant", "Harmonic", "Driven",
+                                                           "Plucked", "Animated"});  // Phase 13 FR-001 (Q1)
         const bool processorUidMatches = (cfg.processorUID == ::Profundum::kProcessorUID);
         REQUIRE(processorUidMatches);
 

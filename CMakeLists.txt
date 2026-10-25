@@ -743,6 +743,79 @@ add_custom_target(generate_vorago_presets
 )
 
 # ==============================================================================
+# profundum_preset_generator — Profundum Phase 13 factory-preset generator
+# ==============================================================================
+# The target NAME and the run-time output directory are FIXED by the release
+# workflow (.github/workflows/release.yml:150-182): every non-Iterum plugin maps
+# to `${PLUGIN}_preset_generator`, built and then run as
+# `./build/bin/${PLUGIN}_preset_generator generated-presets` with
+# `if-no-files-found: error`. Copied from the Vorago block above.
+add_executable(profundum_preset_generator
+    tools/profundum_preset_generator.cpp
+    # Profundum's processor.cpp is compiled as an executable source, as for Vorago.
+    plugins/profundum/src/processor/processor.cpp
+    # The plugin-local Goertzel kernel (spectrum_producer.h needs it).
+    plugins/profundum/src/processor/goertzel_bank_simd.cpp
+    ${vst3sdk_SOURCE_DIR}/public.sdk/source/common/memorystream.cpp
+    ${vst3sdk_SOURCE_DIR}/public.sdk/source/vst/hosting/hostclasses.cpp
+    ${vst3sdk_SOURCE_DIR}/public.sdk/source/vst/hosting/pluginterfacesupport.cpp
+    ${vst3sdk_SOURCE_DIR}/public.sdk/source/main/moduleinit.cpp
+    ${vst3sdk_SOURCE_DIR}/public.sdk/source/main/pluginfactory.cpp
+    # GetPluginFactory stub ONLY; moduleHandle is defined in tools/profundum_preset_generator.cpp.
+    plugins/profundum/tests/vstgui_test_stubs.cpp
+)
+
+# NO VSTGUI (neither vstgui nor vstgui_support) and NO Catch2 (SC-010): KratePluginsShared links
+# vstgui PUBLIC (plugins/shared/CMakeLists.txt), so it is NOT linked here; the generator needs only the
+# header-only plugins/shared/src/midi/sustain_latch.h (processor.h), added as an include directory below.
+# hwy: goertzel_bank_simd.cpp uses Highway directly.
+target_link_libraries(profundum_preset_generator PRIVATE KrateDSP hwy sdk)
+
+target_include_directories(profundum_preset_generator PRIVATE
+    ${CMAKE_SOURCE_DIR}/plugins/profundum/src    # "plugin_ids.h", "processor/processor.h"
+    ${CMAKE_SOURCE_DIR}/plugins/profundum/tests  # profundum_preset_host.h
+    ${CMAKE_SOURCE_DIR}/tests/test_helpers       # HEADER ONLY, not the test_helpers
+                                                 # target (it links Catch2 INTERFACE)
+    ${CMAKE_SOURCE_DIR}/tools                    # profundum_preset_defs.h
+    ${CMAKE_SOURCE_DIR}/plugins/shared/src       # "midi/sustain_latch.h" (header only)
+    ${vst3sdk_SOURCE_DIR}
+)
+
+target_compile_features(profundum_preset_generator PRIVATE cxx_std_20)
+
+set_target_properties(profundum_preset_generator PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+)
+
+# Warning posture copies vorago_preset_generator above, including MSVC /wd4459.
+if(MSVC)
+    target_compile_options(profundum_preset_generator PRIVATE
+        /W4
+        /permissive-
+        /Zc:__cplusplus
+        /wd4100
+        /wd4458
+        /wd4459
+    )
+else()
+    target_compile_options(profundum_preset_generator PRIVATE
+        -Wall
+        -Wextra
+        -Wpedantic
+        -Wno-unused-parameter
+    )
+endif()
+
+# Custom target to regenerate Profundum factory presets on demand
+# Usage: cmake --build build --target generate_profundum_presets
+add_custom_target(generate_profundum_presets
+    COMMAND profundum_preset_generator "${CMAKE_SOURCE_DIR}/plugins/profundum/resources/presets"
+    DEPENDS profundum_preset_generator
+    COMMENT "Generating Profundum factory presets (53 presets across 6 categories)"
+    VERBATIM
+)
+
+# ==============================================================================
 # gen_v2_fixtures — Spec 142 migration regression fixture generator
 # ==============================================================================
 # Generates byte-exact v2 state fixtures (.bin) for the Gradus processor and

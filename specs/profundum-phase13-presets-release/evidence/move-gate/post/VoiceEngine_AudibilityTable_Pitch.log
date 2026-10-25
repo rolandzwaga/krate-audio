@@ -1,0 +1,18 @@
+Filters: "VoiceEngine_AudibilityTable_Pitch"
+Randomness seeded to: 4069186154
+# VoiceEngine_AudibilityTable_Pitch
+row,contrast,base,note,descriptor,tap,lo,hi,value,bar,pass,gated,out_descriptor,out_lo,out_hi,ampStep,remark
+"AT-19","Drop amount: 0 -> 24 st (time 200 ms)","A + sustain 1 (C-8)",E1,"start pitch (st, Phase 4 descriptor)","f_core pitch tap (d_core = 12 log2(f_core / f_res), voice 0)",0,24,24,">= 6 st",PASS,gated,"L_K output (dB; a pitch-tap descriptor has no output form)",-12.046,-12.0415,"n/a",""
+"AT-20","Drop time: 60 -> 500 ms (amount 24 st)","A + sustain 1 (C-8)",E1,"t_s (samples, 1-cent threshold)","f_core pitch tap (d_core = 12 log2(f_core / f_res), voice 0)",2845,22631,7.95466,"ratio >= 2",PASS,gated,"L_K output (dB; a pitch-tap descriptor has no output form)",-12.044,-12.044,"n/a",""
+"AT-21","Drop shape: 0 -> 1 (amount 24 st)","A + sustain 1 (C-8)",E1,"alpha (mean d over [0, N] / A)","f_core pitch tap (d_core = 12 log2(f_core / f_res), voice 0)",0.111361,0.866677,0.755316,">= 0.1",PASS,gated,"L_K output (dB; a pitch-tap descriptor has no output form)",-12.0449,-12.0443,"n/a",""
+"AT-22","Drop rebound: 0 -> 1 (amount 24 st)","A + sustain 1 (C-8)",E1,"rho (st, the deepest undershoot)","f_core pitch tap (d_core = 12 log2(f_core / f_res), voice 0)",0.37947,3.77442,3.39495,">= 0.05 A_drop = 1.2 st",PASS,gated,"L_K output (dB; a pitch-tap descriptor has no output form)",-12.0449,-12.0273,"n/a",""
+"AT-23","Glide: portamento time 0 -> 200 ms, legato E1 -> E2, MONO","A + sustain 1 (C-8)",E1,"t_50 (samples until f_res stays within 50 cents of the target, floored at 32)","f_res pitch tap (voice 0)",32,9195,287.344,"ratio >= 2",PASS,gated,"n/a (pitch-tap descriptor)",0,0,"n/a",""
+"AT-19","Drop amount: 0 -> 24 st (time 200 ms)","A + sustain 1 (C-8)",C3,"start pitch (st, Phase 4 descriptor)","f_core pitch tap (d_core = 12 log2(f_core / f_res), voice 0)",0,24,24,">= 6 st",PASS,gated,"L_K output (dB; a pitch-tap descriptor has no output form)",-7.3465,-7.34231,"n/a",""
+"AT-20","Drop time: 60 -> 500 ms (amount 24 st)","A + sustain 1 (C-8)",C3,"t_s (samples, 1-cent threshold)","f_core pitch tap (d_core = 12 log2(f_core / f_res), voice 0)",2675,23106,8.63776,"ratio >= 2",PASS,gated,"L_K output (dB; a pitch-tap descriptor has no output form)",-7.34664,-7.34109,"n/a",""
+"AT-21","Drop shape: 0 -> 1 (amount 24 st)","A + sustain 1 (C-8)",C3,"alpha (mean d over [0, N] / A)","f_core pitch tap (d_core = 12 log2(f_core / f_res), voice 0)",0.102136,0.870132,0.767995,">= 0.1",PASS,gated,"L_K output (dB; a pitch-tap descriptor has no output form)",-7.34588,-7.34605,"n/a",""
+"AT-22","Drop rebound: 0 -> 1 (amount 24 st)","A + sustain 1 (C-8)",C3,"rho (st, the deepest undershoot)","f_core pitch tap (d_core = 12 log2(f_core / f_res), voice 0)",0.752019,5.30096,4.54894,">= 0.05 A_drop = 1.2 st",PASS,gated,"L_K output (dB; a pitch-tap descriptor has no output form)",-7.34588,-7.34477,"n/a",""
+"AT-23","Glide: portamento time 0 -> 200 ms, legato C3 -> C4, MONO","A + sustain 1 (C-8)",C3,"t_50 (samples until f_res stays within 50 cents of the target, floored at 32)","f_res pitch tap (voice 0)",32,9191,287.219,"ratio >= 2",PASS,gated,"n/a (pitch-tap descriptor)",0,0,"n/a",""
+===============================================================================
+All tests passed (187 assertions in 1 test case)
+
+WALL VoiceEngine_AudibilityTable_Pitch 11.5 s exit=0

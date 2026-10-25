@@ -18,6 +18,7 @@
 #include "pluginterfaces/vst/ivstprocesscontext.h"
 
 #include "base/source/fstreamer.h"
+#include "public.sdk/source/common/memorystream.h"  // Phase 13 FR-031: kMsgLoadPresetState
 // Phase 12 T020 (plan 4.4): DataExchangeHandler's definition (forward-declared in processor.h).
 #include "public.sdk/source/vst/utility/dataexchange.h"
 
@@ -273,7 +274,10 @@ tresult PLUGIN_API Processor::setupProcessing(ProcessSetup& setup) {
     //     target (engine.h:144-146). The runtime blob stays with process() step 9 (FR-042).
     applyEndpoints();
     pushParamsToEngine(static_cast<CompareMode>(compareMode_.load(std::memory_order_relaxed)));
-    engine_->prepare(sr, makeProfundumEngineConfig());
+    // Phase 13 P-11: the test seams ride on the shipping config; with the default member it is unchanged.
+    Krate::DSP::ProfundumEngineConfig cfg = makeProfundumEngineConfig();
+    cfg.seams = engineSeamsForTest_;
+    engine_->prepare(sr, cfg);
     spectrum_.prepare(sr);  // Phase 12 FR-073 (plan 4.4): control thread; every later frame carries this rate
     // 3b. FR-052 (Vorago processor.cpp:214): no note sounds across a re-prepare, so the sustain latch forgets
     //     everything without releasing.
@@ -736,6 +740,28 @@ tresult PLUGIN_API Processor::notify(IMessage* message) {
             names_[e] = name;
         }
         return kResultOk;
+    } else if (FIDStringsEqual(id, kMsgLoadPresetState)) {
+        // Phase 13 FR-031 step 2 (plan 4.6): the whole component stream from the preset browser. Non-audio thread,
+        // so the stream may allocate here. setState does the restore hand-off, the names, the compare reset and
+        // flushControllerSync, so its result is returned as is.
+        constexpr uint32 kMaxPresetStateMessageBytes = 4096;  // the 574-byte v3 stream with headroom
+        const void* data = nullptr;
+        uint32 size = 0;
+        if (attrs == nullptr || attrs->getBinary("state", data, size) != kResultOk) {
+            return kResultFalse;
+        }
+        if (data == nullptr || size == 0 || size > kMaxPresetStateMessageBytes) {
+            return kResultFalse;
+        }
+        auto stream = owned(new MemoryStream());
+        int32 written = 0;
+        // IBStream::write takes a non-const void*; MemoryStream only reads from it.
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
+        if (stream->write(const_cast<void*>(data), static_cast<int32>(size), &written) != kResultOk ||
+            std::cmp_not_equal(written, size) || stream->seek(0, IBStream::kIBSeekSet, nullptr) != kResultOk) {
+            return kResultFalse;
+        }
+        return setState(stream);
     } else {
         return AudioEffect::notify(message);
     }

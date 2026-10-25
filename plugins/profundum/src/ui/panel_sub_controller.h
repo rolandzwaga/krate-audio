@@ -79,12 +79,13 @@ inline constexpr std::int32_t kNameBTag = 9211;
 inline constexpr std::int32_t kCaptionATag = 9220;       ///< CTextLabel, display only
 inline constexpr std::int32_t kCaptionBTag = 9221;
 inline constexpr std::int32_t kZoomTag = 9300;           ///< header and SETTINGS (one session step)
+inline constexpr std::int32_t kPresetBrowserTag = 9400;  ///< Phase 13: the header OutlineBrowserButton (FR-059)
 
-/// The 13 UI-only tags of plan 4.7 / D6, in table order.
-inline constexpr std::array<std::int32_t, 13> kSessionTags{
+/// The 13 UI-only tags of plan 4.7 / D6, in table order, then the Phase 13 preset button.
+inline constexpr std::array<std::int32_t, 14> kSessionTags{
     kPageStripTag,   kTabStripTag,         kCompareMainTag,      kCopyAToBMainTag, kCopyBToAMainTag,
     kCompareAdvancedTag, kCopyAToBAdvancedTag, kCopyBToAAdvancedTag, kNameATag,        kNameBTag,
-    kCaptionATag,    kCaptionBTag,         kZoomTag};
+    kCaptionATag,    kCaptionBTag,         kZoomTag,             kPresetBrowserTag};
 
 /// Plan 4.7: compare segment index 0 -> A, 1 -> A.B, 2 -> B.
 [[nodiscard]] constexpr CompareMode compareModeOfSegment(int index) noexcept {
@@ -156,7 +157,8 @@ private:
     using Mask = std::array<bool, kNumRoutedIds>;
 
     [[nodiscard]] static bool isSessionTag(std::int32_t tag) noexcept { return tag >= kSessionTagBase; }
-    /// Session tag of @p control from its session-tag attribute or its own tag; -1 when it has none.
+    /// Session tag of @p control from its session-tag attribute, its custom-view-name (PresetBrowserButton ->
+    /// kPresetBrowserTag) or its own tag; -1 when it has none.
     [[nodiscard]] static std::int32_t sessionTagOf(const VSTGUI::CControl* control,
                                                    const VSTGUI::UIAttributes& attributes) noexcept;
     void collectSessionControl(VSTGUI::CControl* control, std::int32_t tag);

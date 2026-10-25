@@ -1,0 +1,64 @@
+T003 - FR-057 move with the P-1 shim and the P-10 lifts L1-L11 (FR-021, FR-057; plan §4.1)
+Run: 2026-10-24 (executor; no build, no test run - the G3 gate builds dsp_systems_tests and runs the three smoke cases)
+
+1. Preconditions (read this session)
+   - plan-rulings.md: P-1 and P-10 (route (b), lifts L1-L11) APPROVED as the plan reads them.
+   - T002 baseline present: move-gate/pre/ holds the 16 case logs, 17 evidence copies (RUN pre DONE cases=16 wall=351.9).
+   - TU equal to e6095b24 before the edit (git show e6095b24:<TU> | cmp - <TU> -> same). Source is LF-only.
+   - ODR sweep `grep -rnw <Name> dsp/ plugins/ tools/ tests/` before writing, 0 hits each: ProfundumAudibility,
+     ScriptRenderFn, ScriptRenderHook, ScriptRenderScope, scriptRenderHook, profundum_audibility_readers,
+     auCellOnsetESub, auCellAt13, auCellAt17, auDropCell, auCellAt23, auCellAt24, auCellAt25, auDlk, auCellAt27,
+     auOnsetDyn, auCellAt28, AuNoteMemoryRow, auNoteMemoryRows, auCellNoteMemory, auMacroAxisRead, auMacroCellOn.
+
+2. How the files were produced
+   A Node generator (scratchpad, not in the repo) read `git show e6095b24:<TU>` and emitted the header, the TU and
+   move-lifts.json, so every moved line is the e6095b24 text byte for byte except the mechanical edits:
+   - edit 1: :90 `namespace {` -> `namespace Krate::DSP::ProfundumAudibility {`; :2265 close -> `}  // namespace
+     Krate::DSP::ProfundumAudibility` (the close is :2265, not :2264 as tasks/plan say; T002 recorded the same).
+   - edit 2: `inline` prepended to 126 namespace-scope lines (every non-template function and every constexpr
+     variable; there are no namespace-scope templates in the source).
+   - edit 3 (P-1): :92 alias -> `namespace auPt = Krate::DSP::ProfundumAudibility::render;` (1 line).
+   - the render shim, verbatim from plan §4.1, above the moved block; the include block :46-86 verbatim (with
+     <catch2/catch_test_macros.hpp>, kept in both header and TU).
+   - lift bodies are the source regions' text, de-indented, with only the parameter substitutions the plan table
+     names; `cells.push_back(c);` -> `return c;` where the region built one cell.
+   KRATE_DSP_TESTS_DIR stays referenced by auEvidenceDir (1 occurrence in the header).
+
+3. Line counts
+   dsp/tests/unit/systems/profundum_audibility_readers.h      2358 lines
+   dsp/tests/unit/systems/profundum_engine_audibility_test.cpp  205 lines (was 2419)
+
+4. Lift manifest (evidence/move-lifts.json; header ranges are the new file's lines)
+   L1  auCellOnsetESub              source 1154-1173                     header 1134-1158
+   L2  auCellAt13                   source 1213-1238                     header 1159-1188
+   L3  auCellAt17                   source 1266-1286                     header 1189-1213
+   L4  auDropCell (template)        source 1305-1327  calls 1334-1335, 1343-1344, 1352-1353, 1361-1363  header 1319-1344
+   L5  auCellAt23                   source 1365-1385                     header 1345-1367
+   L6  auCellAt24                   source 1436-1457                     header 1455-1481
+   L7  auCellAt25                   source 1470-1489                     header 1482-1506
+   L8  auDlk, auCellAt27            source 1498-1521  calls 1522, 1524   header 1536-1563
+   L9  auOnsetDyn, auCellAt28       source 1528-1549                     header 1564-1589
+   L10 auNoteMemoryPhase, AuNoteMemoryRow, auNoteMemoryRows, auCellNoteMemory
+                                    source 1964, 1981-2002, 2005-2030  calls 1959, 1980, 2004
+                                    header 2022-2023 (new signature), 2028 (auOne(base)), 2043-2102
+   L11 auMacroAxisRead, auMacroCellOn source 2076-2082, 2097-2127        header 2148-2158, 2176-2212
+
+5. Deviations (surfaced, not silent)
+   a. L8: the plan's region :1498-1521 stops one line short of the cell lambda's closing `};` (:1522). :1522 is
+      listed under "calls" (removed), with :1524 (the auGateOnEither call site). The "s.mass = mass" assignment
+      moved to the call site as four named states b0 / b100 / bs0 / bs100 (auStateB / auStateBs, Mass 0 / 100).
+   b. L10 "calls": :1959 (auNoteMemoryPhase signature gains `const MorphState& base`), :1980 (`using M =
+      NoteMemory::Mode;` would be an unused local alias in the shard after the lift - clang -Wunused-local-typedef;
+      it moves into auNoteMemoryRows()), :2004 (the loop over auNoteMemoryRows()). AuNoteMemoryRow spells its
+      fields `NoteMemory::Mode` (namespace scope has no `M`). The shard keeps the loop braces (:2031 unchanged).
+   c. L4 "calls": the four dropCell( call sites, now cells.push_back(auDropCell(..., note, ...)).
+   d. L11: auMacroCell's closing brace :2127 is inside the plan's region, so the replacement call-site text ends with `}`.
+   e. L7: the ampStep render now runs before the two gate renders (plan note; fresh engine per render).
+
+6. Self-check (a scratchpad copy of evidence/move-check.js with its output paths redirected to the scratchpad, so
+   evidence/move-gate/lifts.diff and paths.txt are NOT written by this task; T004 runs the real script):
+     MOVE PURE changed=1 lifted=11
+   git status --porcelain -uall -- dsp/  ->  " M dsp/tests/unit/systems/profundum_engine_audibility_test.cpp",
+                                            "?? dsp/tests/unit/systems/profundum_audibility_readers.h"
+
+7. Not done here (by design): build, the three smoke cases (G3 gate), the post-move run and verdict (T004).

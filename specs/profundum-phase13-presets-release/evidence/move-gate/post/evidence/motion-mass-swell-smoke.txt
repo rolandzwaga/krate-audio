@@ -1,0 +1,1 @@
+SC009 SMOKE CYCLE rate_hz=2 seconds=3 frames=141 E_sub_p2p_db=1.73146 D_nl_p2p_db=8.18885 L_K_sum_p2p_db=2.39998 boxcar_attenuation=0.769777

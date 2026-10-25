@@ -1,0 +1,47 @@
+T030 - CMake registration audit (plan 9; tasks Deviation 1)
+Date: 2026-10-25   Baseline: e6095b24   Result: AUDIT GREEN, no CMake edits needed
+
+plugins/profundum/tests/CMakeLists.txt
+  Phase 13 TU                                  add_executable  -fno-fast-math block  file exists
+  unit/preset/preset_library_test.cpp          1 (L49)         1 (L148)              yes
+  unit/manual_coverage_test.cpp                1 (L51)         1 (L149)              yes
+  integration/preset_browser_test.cpp          1 (L52)         1 (L150)              yes
+  integration/preset_rt_test.cpp               1 (L53)         1 (L151)              yes
+  integration/preset_probe_test.cpp            1 (L54)         1 (L152)              yes
+  integration/preset_showcase_test.cpp         1 (L55)         1 (L153)              yes
+  integration/preset_sweep_test.cpp            1 (L56)         1 (L154)              yes
+  -> 7/7 exactly once in each list.
+  Additional (T037, not in plan 9's seven): unit/preset/preset_description_test.cpp
+    add_executable 1 (L50); flag block 0 - it uses no NaN/Inf/bit-pattern checks
+    (grep isnan|isinf|isfinite|bit_cast|NaN|infinity = 0), so no block entry is needed. Not changed.
+  Unregistered TUs under unit/, unit/*/, integration/: 0.
+  integration/processor_cpu_test.cpp: add_executable L17; flag blocks 0 (only the L157 comment).
+  include dirs: ${CMAKE_SOURCE_DIR}/tools L103, ${CMAKE_SOURCE_DIR}/tests/test_helpers L104.
+  compile definitions: KRATE_DSP_TESTS_DIR="${CMAKE_SOURCE_DIR}/dsp/tests" L114,
+    PROFUNDUM_PRESETS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../resources/presets" L115.
+  krate_test_pch(profundum_tests): L165, last statement of the file (after the flag block L119-159).
+
+dsp/tests/CMakeLists.txt
+  git diff e6095b24 -- dsp/tests/CMakeLists.txt | wc -l = 0 (unchanged).
+
+root CMakeLists.txt (generator block, inserted after the generate_vorago_presets target, L745-813)
+  add_executable(profundum_preset_generator ...) names plugins/profundum/src/processor/goertzel_bank_simd.cpp: 1
+  target_link_libraries(profundum_preset_generator PRIVATE KrateDSP hwy KratePluginsShared sdk) (L770): hwy yes
+  lines mentioning profundum_preset_generator that name vstgui_support or Catch2: 0
+  (the only vstgui_support/Catch2 text is the "NO vstgui_support and NO Catch2" comment, on a line that does not name the target)
+
+Warning suppressions
+  git diff e6095b24 -- '*.txt' '*.h' '*.cpp' | grep -cE "^\+.*(/wd|-Wno-|pragma warning)" = 5
+    all 5 are in the copied Vorago generator flag block of root CMakeLists.txt:
+    the comment "# Warning posture copies vorago_preset_generator above, including MSVC /wd4459.",
+    /wd4100, /wd4458, /wd4459, -Wno-unused-parameter - identical to the vorago_preset_generator block
+    (root CMakeLists.txt L717-733 before the insert). Excepted as named.
+  untracked .txt/.h/.cpp outside specs/ (git ls-files --others) containing /wd|-Wno-|pragma warning: 0
+  -> 0 suppressions added beyond the copied Vorago block.
+
+Related, outside this task's edit list (checked, not edited)
+  plugins/shared/tests/CMakeLists.txt L37 registers test_preset_description.cpp (T037).
+  generate_profundum_presets COMMENT says "53 presets across 6 categories": tree has 53 .vstpreset in 6 dirs.
+
+Files edited by T030: none of the CMake lists (no discrepancy). Build verification is the G26 gate:
+  Profundum profundum_tests profundum_preset_generator, 0 warnings.

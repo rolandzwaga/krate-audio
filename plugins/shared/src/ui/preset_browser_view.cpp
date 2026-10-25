@@ -29,6 +29,7 @@ namespace Layout {
     constexpr float kButtonWidth = 80.0f;
     constexpr float kButtonSpacing = 8.0f;
     constexpr float kInnerPadding = 8.0f;
+    constexpr float kDescriptionHeight = 20.0f;  // FR-065: one line under the preset list
 }
 
 // =============================================================================
@@ -456,12 +457,12 @@ void PresetBrowserView::createChildViews() {
     searchField_->registerTextEditListener(this);
     addView(searchField_);
 
-    // Preset List
+    // Preset List (FR-065: it ends one description line above innerBottom)
     auto listRect = VSTGUI::CRect(
         browserLeft,
         searchRect.bottom + Layout::kInnerPadding,
         browserRight,
-        innerBottom
+        innerBottom - Layout::kDescriptionHeight - Layout::kInnerPadding
     );
 
     dataSource_ = new PresetDataSource();
@@ -469,9 +470,9 @@ void PresetBrowserView::createChildViews() {
     // Derive allowed subcategories from tab labels (all entries except "All")
     {
         std::vector<std::string> allowed;
-        for (size_t i = 0; i < tabLabels_.size(); ++i) {
-            if (tabLabels_[i] != "All") {
-                allowed.push_back(tabLabels_[i]);
+        for (const auto& label : tabLabels_) {
+            if (label != "All") {
+                allowed.push_back(label);
             }
         }
         if (!allowed.empty()) {
@@ -494,6 +495,16 @@ void PresetBrowserView::createChildViews() {
     );
     presetList_->setBackgroundColor(VSTGUI::CColor(40, 40, 45));
     addView(presetList_);
+
+    // Description line (FR-065): the selected preset's description, empty otherwise.
+    descriptionLabel_ = new VSTGUI::CTextLabel(
+        VSTGUI::CRect(browserLeft, innerBottom - Layout::kDescriptionHeight, browserRight, innerBottom), "");
+    descriptionLabel_->setBackColor(VSTGUI::CColor(0, 0, 0, 0));
+    descriptionLabel_->setFrameColor(VSTGUI::CColor(0, 0, 0, 0));
+    descriptionLabel_->setFontColor(VSTGUI::CColor(170, 170, 175));
+    descriptionLabel_->setHoriAlign(VSTGUI::kLeftText);
+    descriptionLabel_->setMouseEnabled(false);
+    addView(descriptionLabel_);
 
     // Button Bar
     auto buttonY = contentRect.bottom - Layout::kButtonBarHeight;
@@ -546,11 +557,18 @@ void PresetBrowserView::updateButtonStates() {
     bool hasSelection = (selectedPresetIndex_ >= 0);
     bool isFactoryPreset = false;
 
+    std::string description;
     if (hasSelection && dataSource_) {
         const PresetInfo* preset = dataSource_->getPresetAtRow(selectedPresetIndex_);
         if (preset) {
             isFactoryPreset = preset->isFactory;
+            description = preset->description;
         }
+    }
+
+    if (descriptionLabel_) {  // FR-065
+        descriptionLabel_->setText(VSTGUI::UTF8String(description));
+        descriptionLabel_->setTooltipText(description.empty() ? nullptr : description.c_str());
     }
 
     if (deleteButton_) {
@@ -562,6 +580,10 @@ void PresetBrowserView::updateButtonStates() {
     if (saveButton_) {
         saveButton_->setMouseEnabled(true);
     }
+}
+
+std::string PresetBrowserView::descriptionTextForTest() const {
+    return descriptionLabel_ ? std::string(descriptionLabel_->getText().getString()) : std::string();
 }
 
 void PresetBrowserView::createDialogViews() {

@@ -45,6 +45,16 @@ add_executable(profundum_tests
     integration/main_page_sanity_test.cpp
     integration/main_page_audibility_test.cpp   # SC-006 (a) rows (T039, ruled 2026-10-24)
 
+    # Phase 13
+    unit/preset/preset_library_test.cpp
+    unit/preset/preset_description_test.cpp   # FR-065 / SC-033 (b) (T037)
+    unit/manual_coverage_test.cpp
+    integration/preset_browser_test.cpp
+    integration/preset_rt_test.cpp
+    integration/preset_probe_test.cpp
+    integration/preset_showcase_test.cpp
+    integration/preset_sweep_test.cpp
+
     # SECOND compilation of every plugin .cpp (needed by the plugin-shell tests).
     # A new plugin .cpp must appear here AND in plugins/profundum/CMakeLists.txt.
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor.cpp
@@ -89,6 +99,9 @@ target_include_directories(profundum_tests
         ${vst3sdk_SOURCE_DIR}/vstgui4
         # read-only Phase 9 test helpers for SC-018 / SC-019 (plan 6.4; FR-070 forbids edits, not includes)
         ${CMAKE_SOURCE_DIR}/dsp/tests/unit/systems
+        # Phase 13
+        ${CMAKE_SOURCE_DIR}/tools
+        ${CMAKE_SOURCE_DIR}/tests/test_helpers
 )
 
 target_compile_features(profundum_tests PRIVATE cxx_std_20)
@@ -97,6 +110,9 @@ target_compile_features(profundum_tests PRIVATE cxx_std_20)
 target_compile_definitions(profundum_tests
     PRIVATE
         PROFUNDUM_RESOURCES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../resources"
+        # Phase 13: auEvidenceDir (moved header) and the factory preset tree
+        KRATE_DSP_TESTS_DIR="${CMAKE_SOURCE_DIR}/dsp/tests"
+        PROFUNDUM_PRESETS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../resources/presets"
 )
 
 # Disable -ffast-math for IEEE 754 compliant NaN/Inf handling.
@@ -128,6 +144,14 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         integration/spectrum_frame_test.cpp
         integration/main_page_sanity_test.cpp
         integration/main_page_audibility_test.cpp
+        # Phase 13 (bit-pattern finiteness)
+        unit/preset/preset_library_test.cpp
+        unit/manual_coverage_test.cpp
+        integration/preset_browser_test.cpp
+        integration/preset_rt_test.cpp
+        integration/preset_probe_test.cpp
+        integration/preset_showcase_test.cpp
+        integration/preset_sweep_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
     # integration/processor_cpu_test.cpp is DELIBERATELY ABSENT: the timed code must

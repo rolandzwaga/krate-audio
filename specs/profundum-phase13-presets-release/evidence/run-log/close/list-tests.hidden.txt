@@ -1,0 +1,17 @@
+[.perf]|Profundum_ProcessorCpu
+[.perf]|Profundum_ProcessorCpuFullSurface
+[.perf]|Profundum_PresetCpu
+[.install]|Profundum_InstalledPresetTree
+[.probe]|Profundum_IdleTailProbe
+[.probe]|Profundum_UiContractTables
+[.probe]|Profundum_PresetAudibilityProbe_Core
+[.probe]|Profundum_PresetAudibilityProbe_Character
+[.probe]|Profundum_PresetAudibilityProbe_Anchor
+[.probe]|Profundum_PresetAudibilityProbe_Pitch
+[.probe]|Profundum_PresetAudibilityProbe_Envelope
+[.probe]|Profundum_PresetAudibilityProbe_Mass
+[.probe]|Profundum_PresetAudibilityProbe_Field
+[.probe]|Profundum_PresetAudibilityProbe_Motion
+[.probe]|Profundum_PresetAudibilityProbe_Morph
+[.probe]|Profundum_PresetAudibilityProbe_NoteMemory
+[.probe]|Profundum_PresetAudibilityProbe_Macros

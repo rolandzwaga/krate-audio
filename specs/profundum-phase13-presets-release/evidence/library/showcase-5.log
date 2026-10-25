@@ -1,0 +1,22 @@
+=== showcase-5 2026-10-25T07:23:39Z commit e6095b24
+cmd: build/windows-x64-release/bin/Release/profundum_tests.exe Profundum_PresetShowcase_5of8
+Filters: "Profundum_PresetShowcase_5of8"
+Randomness seeded to: 1329666410
+# Profundum_PresetShowcase_5of8: presets=6 arms=12
+preset,column,role,variant,note,value,bar,margin,window_ms,overrides,descriptor,tap
+"Rectified Floor","AT-06 Character Rectify",primary,"",E1,24.9238,3,21.9238,0,"","D_nl","Char / twin"
+"Rectified Floor","AT-06 Character Rectify",primary,"",C3,25.3472,3,22.3472,0,"","D_nl","Char / twin"
+"Triangle Floor","AT-14 Anchor Sine to Triangle",primary,"",E1,3.84404,3,0.844036,0,"","D_cx","Sum"
+"Triangle Floor","AT-14 Anchor Sine to Triangle",primary,"",C3,3.87561,3,0.875608,0,"","D_cx","Sum"
+"Rebound","AT-22 Pitch Drop Rebound",primary,"",E1,7.25156,1.2,6.05156,0,"","drop_rho","f_core pitch tap (d_core = 12 log2(f_core / f_res), voice 0)"
+"Rebound","AT-22 Pitch Drop Rebound",primary,"",C3,6.42321,1.2,5.22321,0,"","drop_rho","f_core pitch tap (d_core = 12 log2(f_core / f_res), voice 0)"
+"Wide Rectifier","AT-30 Field Solid to Wide",primary,"",E1,99.6501,3,96.6501,0,"","D_st","field stage tap"
+"Wide Rectifier","AT-30 Field Solid to Wide",primary,"",C3,105.925,3,102.925,0,"","D_st","field stage tap"
+"Shifting Spectrum","AT-38 Motion Cycle to Shift",primary,"",E1,0.299477,0.25,0.0494771,0,"","D_br_p2p","Sum"
+"Shifting Spectrum","AT-38 Motion Cycle to Shift",primary,"",C3,0.303864,0.25,0.053864,0,"","D_br_p2p","Sum"
+"Continuous Phase","AT-46 NoteMemory OscillatorContinuous",primary,"",E1,178.752,30,148.752,0,"","phase_deg","core tap"
+"Continuous Phase","AT-46 NoteMemory OscillatorContinuous",primary,"",C3,167.882,30,137.882,0,"","phase_deg","core tap"
+===============================================================================
+All tests passed (966140 assertions in 1 test case)
+
+WALL showcase-5 67.7 s exit=0

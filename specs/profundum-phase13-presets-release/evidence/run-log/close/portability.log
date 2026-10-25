@@ -1,0 +1,75 @@
+=== T033 portability 2026-10-25T08:26:41Z commit e6095b24 base e6095b24
+TUs (19):
+  dsp/tests/unit/systems/profundum_engine_audibility_test.cpp
+  plugins/profundum/src/controller/controller.cpp
+  plugins/profundum/src/processor/processor.cpp
+  plugins/profundum/src/ui/panel_sub_controller.cpp
+  plugins/profundum/tests/integration/preset_browser_test.cpp
+  plugins/profundum/tests/integration/preset_probe_test.cpp
+  plugins/profundum/tests/integration/preset_rt_test.cpp
+  plugins/profundum/tests/integration/preset_showcase_test.cpp
+  plugins/profundum/tests/integration/preset_sweep_test.cpp
+  plugins/profundum/tests/integration/processor_cpu_test.cpp
+  plugins/profundum/tests/unit/controller/editor_layout_test.cpp
+  plugins/profundum/tests/unit/controller/editor_lifecycle_test.cpp
+  plugins/profundum/tests/unit/manual_coverage_test.cpp
+  plugins/profundum/tests/unit/preset/preset_description_test.cpp
+  plugins/profundum/tests/unit/preset/preset_library_test.cpp
+  plugins/shared/src/preset/preset_manager.cpp
+  plugins/shared/src/ui/preset_browser_view.cpp
+  plugins/shared/tests/test_preset_description.cpp
+  tools/profundum_preset_generator.cpp
+headers (12):
+  dsp/tests/unit/systems/profundum_audibility_readers.h
+  plugins/profundum/src/controller/controller.h
+  plugins/profundum/src/plugin_ids.h
+  plugins/profundum/src/preset/profundum_preset_config.h
+  plugins/profundum/src/processor/processor.h
+  plugins/profundum/src/ui/panel_sub_controller.h
+  plugins/profundum/tests/preset_render_support.h
+  plugins/profundum/tests/preset_test_support.h
+  plugins/profundum/tests/profundum_preset_host.h
+  plugins/profundum/tests/ui_tree_helpers.h
+  plugins/shared/src/ui/preset_browser_view.h
+  tools/profundum_preset_defs.h
+
+== check-portability ==
+check-portability: 19 translation unit(s) with g++
+
+  OK      dsp/tests/unit/systems/profundum_engine_audibility_test.cpp
+  OK      plugins/profundum/src/controller/controller.cpp
+  OK      plugins/profundum/src/processor/processor.cpp
+  OK      plugins/profundum/src/ui/panel_sub_controller.cpp
+  OK      plugins/profundum/tests/integration/preset_browser_test.cpp
+  OK      plugins/profundum/tests/integration/preset_probe_test.cpp
+  OK      plugins/profundum/tests/integration/preset_rt_test.cpp
+  OK      plugins/profundum/tests/integration/preset_showcase_test.cpp
+  OK      plugins/profundum/tests/integration/preset_sweep_test.cpp
+  OK      plugins/profundum/tests/integration/processor_cpu_test.cpp
+  OK      plugins/profundum/tests/unit/controller/editor_layout_test.cpp
+  OK      plugins/profundum/tests/unit/controller/editor_lifecycle_test.cpp
+  OK      plugins/profundum/tests/unit/manual_coverage_test.cpp
+  OK      plugins/profundum/tests/unit/preset/preset_description_test.cpp
+  OK      plugins/profundum/tests/unit/preset/preset_library_test.cpp
+  OK      plugins/shared/src/preset/preset_manager.cpp
+  OK      plugins/shared/src/ui/preset_browser_view.cpp
+  OK      plugins/shared/tests/test_preset_description.cpp
+  OK      tools/profundum_preset_generator.cpp
+
+check-portability: all clear -- 19 compiled.
+check-portability exit=0 wall=67s
+
+== lint-apple-globals ==
+lint-apple-globals: OK — 31 files, no macOS-only name collisions
+lint-apple-globals exit=0 wall=0s
+
+== list cross-check (tasks.md T033 step 1 vs computed) ==
+every task-named file present (15)
+also changed (compiled, informational):
+  plugins/profundum/tests/unit/controller/editor_lifecycle_test.cpp
+  plugins/shared/src/preset/preset_manager.cpp
+  plugins/shared/src/ui/preset_browser_view.cpp
+  plugins/shared/tests/test_preset_description.cpp
+
+wsl --shutdown done; total wall 72s
+PORTABILITY GREEN

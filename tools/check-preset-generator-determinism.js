@@ -20,7 +20,8 @@
 //
 // `--plugin` (default `seraphis`) selects the generator: `seraphis` ->
 // seraphis_preset_generator, `vorago` -> vorago_preset_generator (Vorago Phase 14
-// FR-024 / SC-007). The no-flag path is the Seraphis check, unchanged.
+// FR-024 / SC-007), `profundum` -> profundum_preset_generator (Profundum Phase 13
+// FR-028 / SC-011). The no-flag path is the Seraphis check, unchanged.
 //
 // Exit 0 with a one-line summary; exit 1 printing the first differing path.
 // Temp directories are removed on success and KEPT on failure, with their paths
@@ -54,6 +55,7 @@ const TOOL = 'check-preset-generator-determinism';
 const GENERATORS = {
     seraphis: 'seraphis_preset_generator',
     vorago: 'vorago_preset_generator',
+    profundum: 'profundum_preset_generator',
 };
 const DEFAULT_PLUGIN = 'seraphis';
 

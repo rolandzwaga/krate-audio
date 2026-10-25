@@ -1,0 +1,12 @@
+Filters: "VoiceEngine_AudibilityTable_Morph"
+Randomness seeded to: 4108087517
+# VoiceEngine_AudibilityTable_Morph
+row,contrast,base,note,descriptor,tap,lo,hi,value,bar,pass,gated,out_descriptor,out_lo,out_hi,ampStep,remark
+"AT-41","Morph position: 0 -> 1","showcase pair (A_s (C-8), B)",E1,"D_nl (dB)","Char / twin",0,14.3505,14.3505,">= 3 dB",PASS,gated,"L_K output (dB; D_nl has no output form)",-12.0432,-13.8071,"n/a",""
+"AT-42","Morph position: 0 -> 0.5","showcase pair (A_s (C-8), B)",E1,"D_nl (dB)","Char / twin",0,8.15013,8.15013,">= 3 dB",PASS,gated,"L_K output (dB; D_nl has no output form)",-12.0432,-15.1442,"n/a",""
+"AT-41","Morph position: 0 -> 1","showcase pair (A_s (C-8), B)",C3,"D_nl (dB)","Char / twin",0,13.8628,13.8628,">= 3 dB",PASS,gated,"L_K output (dB; D_nl has no output form)",-7.3493,-11.4257,"n/a",""
+"AT-42","Morph position: 0 -> 0.5","showcase pair (A_s (C-8), B)",C3,"D_nl (dB)","Char / twin",0,6.72976,6.72976,">= 3 dB",PASS,gated,"L_K output (dB; D_nl has no output form)",-7.3493,-10.059,"n/a",""
+===============================================================================
+All tests passed (269 assertions in 1 test case)
+
+WALL VoiceEngine_AudibilityTable_Morph 14.0 s exit=0

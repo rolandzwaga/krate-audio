@@ -1,0 +1,15 @@
+T035 -- CPU lane (main loop close lane)
+
+
+Main loop (2026-10-25): idle 9 min after tidy.sh (nothing running), then cpu-lane.sh alone, 10:00:16 - 10:26:24.
+  [cpu-lane] started 2026-10-25 10:00:16
+  [cpu-lane] node tools/run-cpu-tests.js profundum_tests
+  RUN  profundum_tests ... PASS  All tests passed (21668430 assertions in 23 test cases)
+  
+  1/1 suites passed.
+  CPU GREEN
+    SC-022 max MONO 5.04534 % (Fault Line), max POLY4 0 % (-); real time per 10
+    SC-022 max MONO 5.04534 % (Fault Line), max POLY4 0 % (-); real time per 10
+  SC-022 max MONO 5.04534 % (Fault Line), max POLY4 0 % (-); real time per 10
+  Note: max POLY4 0 % (-): no factory preset stores Poly (no kVoiceModeId in tools/profundum_preset_defs.h), so the
+  "every Poly preset" arm of FR-045 / SC-022 (and the FR-038 / FR-063 chord render) holds vacuously.

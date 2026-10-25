@@ -1,0 +1,16 @@
+Filters: "VoiceEngine_MotionMassSwell"
+Randomness seeded to: 3414640311
+# SC-009 VoiceEngine_MotionMassSwell (tasks.md T016; plan S9.11). A_s (C-8), Mass 50, E1, MONO, 48 kHz;
+# CYCLE -> Mass, amount 1, depth 1 (half-span: Mass 0 ... 100); 1 s settle + max(3 cycles, 3 s); frames of 8
+# periods of f0, hop 960; peak-to-peak over the whole cycles; boxcar = |sinc(pi f_m 8 / f0)|.
+# Gate: D_nl p2p at 0.1 Hz >= 3 dB. ENV (retriggered every 2 s) and DRIFT (smoothness 0.5) recorded.
+SC009 CYCLE rate_hz=0.100000 seconds=30 frames=1491 E_sub_p2p_db=2.66923 D_nl_p2p_db=14.2898 L_K_sum_p2p_db=3.28657 boxcar_attenuation=0.99938
+SC009 CYCLE rate_hz=0.500000 seconds=6 frames=291 E_sub_p2p_db=2.65176 D_nl_p2p_db=11.8807 L_K_sum_p2p_db=3.23778 boxcar_attenuation=0.984569
+SC009 CYCLE rate_hz=2.000000 seconds=3 frames=141 E_sub_p2p_db=1.73146 D_nl_p2p_db=8.18885 L_K_sum_p2p_db=2.39998 boxcar_attenuation=0.769777
+SC009 ENV retrigger_s=2 seconds=6 frames=291 E_sub_p2p_db=13.1701 D_nl_p2p_db=2.50618 L_K_sum_p2p_db=0.922111 boxcar_attenuation=1
+SC009 DRIFT smoothness=0.5 seconds=30 frames=1491 E_sub_p2p_db=1.45147 D_nl_p2p_db=1.95748 L_K_sum_p2p_db=1.51374 boxcar_attenuation=1
+SC009 GATE D_nl_p2p_at_0.1Hz=14.2898 bar=3 PASS
+===============================================================================
+All tests passed (30075 assertions in 1 test case)
+
+WALL VoiceEngine_MotionMassSwell 19.2 s exit=0

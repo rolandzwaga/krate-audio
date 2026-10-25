@@ -1,0 +1,16 @@
+Filters: "Profundum_PresetAudibilityProbe_Macros"
+Randomness seeded to: 1193447121
+# Profundum_PresetAudibilityProbe_Macros
+at_id,variant,note,base,processor_value,bar,pass,live_value,csv_value,rel_dev,anchor_phase_tap_renders
+"AT-47","",E1,"A + sustain 1 (C-8)",3.21192,">= 3 dB (hi - lo)",PASS,3.21192,3.21192,1.44962e-06,n/a
+"AT-48","",E1,"B + sustain 1 (B10-1)",0.945659,">= 0.25 oct (hi - lo)",PASS,0.945659,0.945659,3.82812e-07,n/a
+"AT-49","",E1,"A + sustain 1 (C-8)",2.13503,"ratio >= 2 (hi / lo)",PASS,2.13503,2.13503,2.17079e-06,n/a
+"AT-50","",E1,"A + sustain 1 (C-8)",11.0488,">= 3 dB (hi - lo)",PASS,11.0488,11.0488,6.23233e-08,n/a
+"AT-47","",C3,"A + sustain 1 (C-8)",3.20928,">= 3 dB (hi - lo)",PASS,3.20928,3.20928,1.40567e-06,n/a
+"AT-48","",C3,"B + sustain 1 (B10-1)",0.800617,">= 0.25 oct (hi - lo)",PASS,0.800617,0.800617,4.63567e-07,n/a
+"AT-49","",C3,"A + sustain 1 (C-8)",2.13419,"ratio >= 2 (hi / lo)",PASS,2.13419,2.13419,1.58554e-06,n/a
+"AT-50","",C3,"A + sustain 1 (C-8)",11.8209,">= 3 dB (hi - lo)",PASS,11.8209,11.8209,3.55256e-06,n/a
+===============================================================================
+All tests passed (520927 assertions in 1 test case)
+
+WALL Macros 26.2 s exit=0

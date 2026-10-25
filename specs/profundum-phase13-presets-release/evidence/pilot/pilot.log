@@ -1,0 +1,141 @@
+===== Profundum_PresetDistinctnessPilot =====
+Filters: "Profundum_PresetDistinctnessPilot"
+Randomness seeded to: 2995927757
+# Profundum_PresetDistinctnessPilot: presets=53
+# twins
+preset,twin,d,masked
+"Edge Ignition",seed,0,13
+"Edge Ignition",block37,0,13
+"Biting Reed",seed,0,4
+"Biting Reed",block37,0,4
+"Folded Mass",seed,0,11
+"Folded Mass",block37,0,11
+"Valve Pressure",seed,0,5
+"Valve Pressure",block37,0,5
+"Folding Wire",seed,0,6
+"Folding Wire",block37,0,6
+"Rectified Floor",seed,0,11
+"Rectified Floor",block37,0,11
+"Bite Down",seed,0,6
+"Bite Down",block37,0,6
+"Crushed Basalt",seed,0,11
+"Crushed Basalt",block37,0,11
+"Fault Line",seed,0,3
+"Fault Line",block37,0,3
+"Bedrock",seed,0,14
+"Bedrock",block37,0,14
+"Punch Anchor",seed,0,12
+"Punch Anchor",block37,0,12
+"Ghost Kick",seed,0,12
+"Ghost Kick",block37,0,12
+"Rectified Follow",seed,0,12
+"Rectified Follow",block37,0,12
+"Triangle Floor",seed,0,12
+"Triangle Floor",block37,0,12
+"Rounded Weight",seed,0,13
+"Rounded Weight",block37,0,13
+"Lopsided Sub",seed,0,15
+"Lopsided Sub",block37,0,15
+"Under Octave",seed,0,11
+"Under Octave",block37,0,11
+"Fed Fold",seed,0,13
+"Fed Fold",block37,0,13
+"Dropping Stone",seed,0,14
+"Dropping Stone",block37,0,14
+"Slow Fall",seed,0,10
+"Slow Fall",block37,0,10
+"Curved Drop",seed,0,12
+"Curved Drop",block37,0,12
+"Rebound",seed,0,8
+"Rebound",block37,0,8
+"Glide Path",seed,0,8
+"Glide Path",block37,0,8
+"Slow Swell",seed,0,8
+"Slow Swell",block37,0,8
+"Long Tail",seed,0,12
+"Long Tail",block37,0,12
+"Heavy Mass",seed,0,12
+"Heavy Mass",block37,0,12
+"Pressure Front",seed,0,3
+"Pressure Front",block37,0,3
+"Hard Attack",seed,0,5
+"Hard Attack",block37,0,5
+"Wide Harmonics",seed,0,8
+"Wide Harmonics",block37,0,8
+"Wide Rectifier",seed,0,7
+"Wide Rectifier",block37,0,7
+"Spread Choir",seed,0,8
+"Spread Choir",block37,0,8
+"Gravity Well",seed,0,5
+"Gravity Well",block37,0,5
+"Orbiting Field",block37,0,8
+"Mass Tide",seed,0,10
+"Mass Tide",block37,0,10
+"Breathing Depth",seed,0,4
+"Breathing Depth",block37,0,4
+"Body Wave",seed,0,3
+"Body Wave",block37,0,3
+"Edge Cycle",seed,0,5
+"Edge Cycle",block37,0,5
+"Shifting Spectrum",seed,0,3
+"Shifting Spectrum",block37,0,3
+"Envelope Mass",seed,0,16
+"Envelope Mass",block37,0,16
+"Drifting Weight",block37,0,10
+"Morph Span",seed,0,14
+"Morph Span",block37,0,14
+"Halfway Morph",seed,0,6
+"Halfway Morph",block37,0,6
+"Restrike",seed,0,8
+"Restrike",block37,0,8
+"Legato Line",seed,0,12
+"Legato Line",block37,0,12
+"Envelope Restart",seed,0,11
+"Envelope Restart",block37,0,11
+"Continuous Phase",seed,0,12
+"Continuous Phase",block37,0,12
+"Weight Lever",seed,0,13
+"Weight Lever",block37,0,13
+"Dark To Bright",seed,0,11
+"Dark To Bright",block37,0,11
+"Loose Ends",seed,0,16
+"Loose Ends",block37,0,16
+"Clean To Violent",seed,0,8
+"Clean To Violent",block37,0,8
+"Mono Bedrock",seed,0,12
+"Mono Bedrock",block37,0,12
+"Locked Floor",seed,0,13
+"Locked Floor",block37,0,13
+"Bedrock Sine",seed,0,11
+"Bedrock Sine",block37,0,11
+# distinctness.csv
+key,value
+F,1
+t_max,0
+t_max_twin,"none"
+near_variant_preset,Bedrock Sine
+near_variant_parameter,Mass (104) endpoint A 0.5 -> 0.55 normalized
+near_variant_d,0.295328965
+near_variant_masked,11
+near_variant_pass,1
+control,showcasePair() first vs second (single-endpoint presets)
+control_d,1409.54913
+control_masked,21
+control_pass,1
+===============================================================================
+All tests passed (34499889 assertions in 1 test case)
+
+WALL Profundum_PresetDistinctnessPilot 825.2 s exit=0
+===== Profundum_ReferenceColumns =====
+Filters: "Profundum_ReferenceColumns"
+Randomness seeded to: 616936802
+# Profundum_ReferenceColumns: Mono Bedrock,E1,D_st,lo=-120,hi=-9.04213,value=110.958,bar=3,pass=1
+# Profundum_ReferenceColumns: Mono Bedrock,C3,D_st,lo=-120,hi=-2.71789,value=117.282,bar=3,pass=1
+# Profundum_ReferenceColumns: Locked Floor,E1,E_sub_onset,lo=-6.09567,hi=-4.00211,value=2.09356,bar=2,pass=1
+# Profundum_ReferenceColumns: Locked Floor,C3,E_sub_onset,lo=-6.21843,hi=-4.1823,value=2.03613,bar=2,pass=1
+# Profundum_ReferenceColumns: Bedrock Sine,E1,D_cx,lo=-31.1188,hi=-26.4393,value=4.67956,bar=3,pass=1
+# Profundum_ReferenceColumns: Bedrock Sine,C3,D_cx,lo=-31.1542,hi=-25.2922,value=5.86201,bar=3,pass=1
+===============================================================================
+All tests passed (251616 assertions in 1 test case)
+
+WALL Profundum_ReferenceColumns 5.2 s exit=0

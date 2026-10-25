@@ -1,0 +1,11 @@
+at_id,variant,note,base,processor_value,bar,pass,live_value,csv_value,rel_dev,anchor_phase_tap_renders
+"AT-19","",E1,"A + sustain 1 (C-8)",24,">= 6 st",PASS,24,24,0,n/a
+"AT-20","",E1,"A + sustain 1 (C-8)",7.95466,"ratio >= 2",PASS,7.95466,7.95466,3.40241e-07,n/a
+"AT-21","",E1,"A + sustain 1 (C-8)",0.755316,">= 0.1",PASS,0.755316,0.755316,5.6513e-07,n/a
+"AT-22","",E1,"A + sustain 1 (C-8)",3.39495,">= 0.05 A_drop = 1.2 st",PASS,3.39495,3.39495,2.13684e-07,n/a
+"AT-23","",E1,"A + sustain 1 (C-8)",287.344,"ratio >= 2",PASS,287.344,287.344,8.70037e-07,n/a
+"AT-19","",C3,"A + sustain 1 (C-8)",24,">= 6 st",PASS,24,24,0,n/a
+"AT-20","",C3,"A + sustain 1 (C-8)",8.63776,"ratio >= 2",PASS,8.63776,8.63776,3.4623e-07,n/a
+"AT-21","",C3,"A + sustain 1 (C-8)",0.767995,">= 0.1",PASS,0.767995,0.767995,2.80533e-07,n/a
+"AT-22","",C3,"A + sustain 1 (C-8)",4.54894,">= 0.05 A_drop = 1.2 st",PASS,4.54894,4.54894,6.29764e-08,n/a
+"AT-23","",C3,"A + sustain 1 (C-8)",287.219,"ratio >= 2",PASS,287.219,287.219,8.70416e-07,n/a

@@ -1,0 +1,118 @@
+Filters: "Profundum_PresetRenderGuard_*"
+Randomness seeded to: 2677051379
+presets=53
+  guard T (test-local mechanics preset) [stored]: truePeak=-0.999995 dBTP nonFinite=0
+  guard T (test-local mechanics preset) [max Mass]: truePeak=-0.99999 dBTP nonFinite=0
+  guard Biting Reed [stored]: truePeak=-0.982054 dBTP nonFinite=0
+  guard Biting Reed [max Mass]: truePeak=-0.988042 dBTP nonFinite=0
+  guard Valve Pressure [stored]: truePeak=-0.999947 dBTP nonFinite=0
+  guard Valve Pressure [max Mass]: truePeak=-0.999939 dBTP nonFinite=0
+  guard Rectified Floor [stored]: truePeak=-1 dBTP nonFinite=0
+  guard Rectified Floor [max Mass]: truePeak=-0.999976 dBTP nonFinite=0
+  guard Crushed Basalt [stored]: truePeak=-0.986723 dBTP nonFinite=0
+  guard Crushed Basalt [max Mass]: truePeak=-0.998697 dBTP nonFinite=0
+  guard Bedrock [stored]: truePeak=-1.97387 dBTP nonFinite=0
+  guard Bedrock [max Mass]: truePeak=-1.00345 dBTP nonFinite=0
+  guard Ghost Kick [stored]: truePeak=-1.00001 dBTP nonFinite=0
+  guard Ghost Kick [max Mass]: truePeak=-0.999884 dBTP nonFinite=0
+  guard Triangle Floor [stored]: truePeak=-0.999995 dBTP nonFinite=0
+  guard Triangle Floor [max Mass]: truePeak=-0.999976 dBTP nonFinite=0
+  guard Lopsided Sub [stored]: truePeak=-0.999993 dBTP nonFinite=0
+  guard Lopsided Sub [max Mass]: truePeak=-0.999996 dBTP nonFinite=0
+  guard Fed Fold [stored]: truePeak=-0.999971 dBTP nonFinite=0
+  guard Fed Fold [max Mass]: truePeak=-0.999998 dBTP nonFinite=0
+  guard Slow Fall [stored]: truePeak=-0.999997 dBTP nonFinite=0
+  guard Slow Fall [max Mass]: truePeak=-1 dBTP nonFinite=0
+  guard Rebound [stored]: truePeak=-0.999985 dBTP nonFinite=0
+  guard Rebound [max Mass]: truePeak=-0.999938 dBTP nonFinite=0
+  guard Slow Swell [stored]: truePeak=-4.16405 dBTP nonFinite=0
+  guard Slow Swell [max Mass]: truePeak=-2.12311 dBTP nonFinite=0
+  guard Heavy Mass [stored]: truePeak=-1.00085 dBTP nonFinite=0
+  guard Heavy Mass [max Mass]: truePeak=-1.00085 dBTP nonFinite=0
+  guard Hard Attack [stored]: truePeak=-0.999525 dBTP nonFinite=0
+  guard Hard Attack [max Mass]: truePeak=-0.966061 dBTP nonFinite=0
+  guard Wide Rectifier [stored]: truePeak=-0.999999 dBTP nonFinite=0
+  guard Wide Rectifier [max Mass]: truePeak=-0.99999 dBTP nonFinite=0
+  guard Gravity Well [stored]: truePeak=-0.999455 dBTP nonFinite=0
+  guard Gravity Well [max Mass]: truePeak=-0.967009 dBTP nonFinite=0
+  guard Mass Tide [stored]: truePeak=-0.999996 dBTP nonFinite=0
+  guard Mass Tide [max Mass]: truePeak=-1.00001 dBTP nonFinite=0
+  guard Body Wave [stored]: truePeak=-0.978113 dBTP nonFinite=0
+  guard Body Wave [max Mass]: truePeak=-0.997544 dBTP nonFinite=0
+  guard Shifting Spectrum [stored]: truePeak=-0.977439 dBTP nonFinite=0
+  guard Shifting Spectrum [max Mass]: truePeak=-0.964508 dBTP nonFinite=0
+  guard Drifting Weight [stored]: truePeak=-0.999981 dBTP nonFinite=0
+  guard Drifting Weight [max Mass]: truePeak=-0.999993 dBTP nonFinite=0
+  guard Halfway Morph [stored]: truePeak=-1.00002 dBTP nonFinite=0
+  guard Halfway Morph [max Mass]: truePeak=-0.997886 dBTP nonFinite=0
+  guard Legato Line [stored]: truePeak=-0.999996 dBTP nonFinite=0
+  guard Legato Line [max Mass]: truePeak=-1.00001 dBTP nonFinite=0
+  guard Continuous Phase [stored]: truePeak=-0.999992 dBTP nonFinite=0
+  guard Continuous Phase [max Mass]: truePeak=-1 dBTP nonFinite=0
+  guard Dark To Bright [stored]: truePeak=-0.976903 dBTP nonFinite=0
+  guard Dark To Bright [max Mass]: truePeak=-0.996695 dBTP nonFinite=0
+  guard Clean To Violent [stored]: truePeak=-0.999998 dBTP nonFinite=0
+  guard Clean To Violent [max Mass]: truePeak=-1.00049 dBTP nonFinite=0
+  guard Locked Floor [stored]: truePeak=-1 dBTP nonFinite=0
+  guard Locked Floor [max Mass]: truePeak=-1 dBTP nonFinite=0
+render-guard worst truePeak=-0.964508 dBTP (Shifting Spectrum [max Mass]); wall clock 14.3403 s over 27 presets (shard 0 of 2)
+presets=53
+  guard Edge Ignition [stored]: truePeak=-0.999997 dBTP nonFinite=0
+  guard Edge Ignition [max Mass]: truePeak=-0.998332 dBTP nonFinite=0
+  guard Folded Mass [stored]: truePeak=-0.999956 dBTP nonFinite=0
+  guard Folded Mass [max Mass]: truePeak=-0.999834 dBTP nonFinite=0
+  guard Folding Wire [stored]: truePeak=-0.999996 dBTP nonFinite=0
+  guard Folding Wire [max Mass]: truePeak=-0.999904 dBTP nonFinite=0
+  guard Bite Down [stored]: truePeak=-0.999999 dBTP nonFinite=0
+  guard Bite Down [max Mass]: truePeak=-1.0048 dBTP nonFinite=0
+  guard Fault Line [stored]: truePeak=-0.974651 dBTP nonFinite=0
+  guard Fault Line [max Mass]: truePeak=-0.974651 dBTP nonFinite=0
+  guard Punch Anchor [stored]: truePeak=-0.999996 dBTP nonFinite=0
+  guard Punch Anchor [max Mass]: truePeak=-1.00005 dBTP nonFinite=0
+  guard Rectified Follow [stored]: truePeak=-0.999997 dBTP nonFinite=0
+  guard Rectified Follow [max Mass]: truePeak=-1.00145 dBTP nonFinite=0
+  guard Rounded Weight [stored]: truePeak=-0.998937 dBTP nonFinite=0
+  guard Rounded Weight [max Mass]: truePeak=-0.999997 dBTP nonFinite=0
+  guard Under Octave [stored]: truePeak=-0.999999 dBTP nonFinite=0
+  guard Under Octave [max Mass]: truePeak=-0.999999 dBTP nonFinite=0
+  guard Dropping Stone [stored]: truePeak=-0.999995 dBTP nonFinite=0
+  guard Dropping Stone [max Mass]: truePeak=-0.999988 dBTP nonFinite=0
+  guard Curved Drop [stored]: truePeak=-1 dBTP nonFinite=0
+  guard Curved Drop [max Mass]: truePeak=-1 dBTP nonFinite=0
+  guard Glide Path [stored]: truePeak=-0.999996 dBTP nonFinite=0
+  guard Glide Path [max Mass]: truePeak=-1 dBTP nonFinite=0
+  guard Long Tail [stored]: truePeak=-0.999993 dBTP nonFinite=0
+  guard Long Tail [max Mass]: truePeak=-0.999978 dBTP nonFinite=0
+  guard Pressure Front [stored]: truePeak=-0.986609 dBTP nonFinite=0
+  guard Pressure Front [max Mass]: truePeak=-0.986609 dBTP nonFinite=0
+  guard Wide Harmonics [stored]: truePeak=-1 dBTP nonFinite=0
+  guard Wide Harmonics [max Mass]: truePeak=-0.999785 dBTP nonFinite=0
+  guard Spread Choir [stored]: truePeak=-1 dBTP nonFinite=0
+  guard Spread Choir [max Mass]: truePeak=-1 dBTP nonFinite=0
+  guard Orbiting Field [stored]: truePeak=-0.999986 dBTP nonFinite=0
+  guard Orbiting Field [max Mass]: truePeak=-1.00017 dBTP nonFinite=0
+  guard Breathing Depth [stored]: truePeak=-0.996711 dBTP nonFinite=0
+  guard Breathing Depth [max Mass]: truePeak=-0.992706 dBTP nonFinite=0
+  guard Edge Cycle [stored]: truePeak=-5.47504 dBTP nonFinite=0
+  guard Edge Cycle [max Mass]: truePeak=-1.00019 dBTP nonFinite=0
+  guard Envelope Mass [stored]: truePeak=-2.39834 dBTP nonFinite=0
+  guard Envelope Mass [max Mass]: truePeak=-0.99999 dBTP nonFinite=0
+  guard Morph Span [stored]: truePeak=-0.999996 dBTP nonFinite=0
+  guard Morph Span [max Mass]: truePeak=-0.999969 dBTP nonFinite=0
+  guard Restrike [stored]: truePeak=-0.999996 dBTP nonFinite=0
+  guard Restrike [max Mass]: truePeak=-1.00003 dBTP nonFinite=0
+  guard Envelope Restart [stored]: truePeak=-1.14198 dBTP nonFinite=0
+  guard Envelope Restart [max Mass]: truePeak=-0.999856 dBTP nonFinite=0
+  guard Weight Lever [stored]: truePeak=-1 dBTP nonFinite=0
+  guard Weight Lever [max Mass]: truePeak=-1 dBTP nonFinite=0
+  guard Loose Ends [stored]: truePeak=-0.999995 dBTP nonFinite=0
+  guard Loose Ends [max Mass]: truePeak=-1 dBTP nonFinite=0
+  guard Mono Bedrock [stored]: truePeak=-0.998966 dBTP nonFinite=0
+  guard Mono Bedrock [max Mass]: truePeak=-0.99999 dBTP nonFinite=0
+  guard Bedrock Sine [stored]: truePeak=-0.999509 dBTP nonFinite=0
+  guard Bedrock Sine [max Mass]: truePeak=-1.0016 dBTP nonFinite=0
+render-guard worst truePeak=-0.974651 dBTP (Fault Line [stored]); wall clock 13.7946 s over 27 presets (shard 1 of 2)
+===============================================================================
+All tests passed (47726 assertions in 2 test cases)
+
+WALL render-guard 28.3 s exit=0 case_seconds=14.3403
