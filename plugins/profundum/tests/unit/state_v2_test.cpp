@@ -247,7 +247,8 @@ constexpr std::array<Steinberg::Vst::ParamID, 12> kNoteMorphIds{
     ::Profundum::kNoteRetriggerId,      ::Profundum::kNotePitchBendRangeId, ::Profundum::kMorphPositionId,
     ::Profundum::kMorphAnchorModeId,    ::Profundum::kMorphEditTargetId,    ::Profundum::kMorphRampTimeId};
 
-/// Continuous IDs compared within 1e-9 (FR-045); lists and stepped rows are compared exactly.
+/// Continuous IDs compared within 1e-9 (FR-045); lists exactly, the stepped Pitch Bend Range within 1e-12
+/// (noteMorphMismatches).
 [[nodiscard]] bool isContinuousId(Steinberg::Vst::ParamID id) noexcept {
     return id == ::Profundum::kNotePortamentoId || id == ::Profundum::kMorphPositionId ||
            id == ::Profundum::kMorphRampTimeId;
@@ -299,7 +300,16 @@ constexpr std::array<Steinberg::Vst::ParamID, 12> kNoteMorphIds{
     for (const Steinberg::Vst::ParamID id : kNoteMorphIds) {
         const double want = expectedDisplay(expected, id);
         const double got = ctl.getParamNormalized(id);
-        const bool ok = isContinuousId(id) ? std::fabs(got - want) <= 1e-9 : got == want;
+        // The stepped Pitch Bend Range row is k / 24, which is not exact in binary. This TU is IEEE (-fno-fast-math,
+        // tests/CMakeLists.txt) and the controller is built in the shipping FP mode, where the macOS SDK's -ffast-math
+        // turns the division into k * (1 / 24): one ulp lower at k = 5, 7, 10, 14, 17, 20, 23 (macOS arm64 CI,
+        // 2026-10-25). The steps are 1 / 24 apart, so 1e-12 still rejects any wrong step; lists stay exact.
+        bool ok = got == want;
+        if (isContinuousId(id)) {
+            ok = std::fabs(got - want) <= 1e-9;
+        } else if (id == ::Profundum::kNotePitchBendRangeId) {
+            ok = std::fabs(got - want) <= 1e-12;
+        }
         if (!ok) {
             UNSCOPED_INFO("ID " << id << ": displayed " << got << ", expected " << want);
             ++bad;
