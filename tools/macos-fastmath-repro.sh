@@ -10,7 +10,8 @@
 #
 #   bash tools/macos-fastmath-repro.sh [--ieee] <tu> [<tu> ...] [-- <catch2 args>]
 #     <tu>     path under dsp/tests/unit, e.g. systems/profundum_engine_test.cpp
-#     --ieee   the same build without fast-math (the control: a case red only without --ieee is a fast-math red)
+#     --ieee   dsp_ieee_tests' flags, -fno-fast-math -fno-finite-math-only -ffp-contract=off (the control: a case red
+#              only without --ieee is a fast-math red). EXTRA_FP=<flags> adds flags to the code under test.
 #
 #   e.g. (from Windows)  wsl -e bash -lc 'bash /mnt/f/projects/iterum/tools/macos-fastmath-repro.sh \
 #                          systems/mass_law_test.cpp -- "MassLaw_SlewBounded"'
@@ -43,8 +44,9 @@ done
 [ ${#TUS[@]} -gt 0 ] || { echo "usage: $0 [--ieee] <tu under dsp/tests/unit> ... [-- <catch2 args>]" >&2; exit 2; }
 
 ARCH="-mfma -mavx2"
-if [ "$MODE" = mac ]; then FP="-ffast-math -ffp-contract=fast"; else FP=""; fi
-IEEE_FP="-fno-fast-math -fno-finite-math-only"
+if [ "$MODE" = mac ]; then FP="-ffast-math -ffp-contract=fast"; else FP="-fno-fast-math -fno-finite-math-only -ffp-contract=off"; fi
+FP="$FP ${EXTRA_FP:-}"   # EXTRA_FP: extra flags for the code under test, e.g. -ffp-contract=on to see contraction
+IEEE_FP="-fno-fast-math -fno-finite-math-only -ffp-contract=off"
 OUT=$HOME/.krate-fastmath-repro
 OBJ=$OUT/$MODE
 mkdir -p "$OBJ" "$OUT/shim/catch2/matchers" "$OUT/shim/catch2/generators" "$OUT/evidence/a/b"

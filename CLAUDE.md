@@ -206,6 +206,8 @@ with the red behind each rule: `dsp/CLAUDE.md` "The macOS leg builds with -ffast
 - Never assert bit-equality between separately compiled computations (an engine tap vs the test's recomputation, or
   an IEEE test TU's expected `k / 24` vs fast-math plugin code). DSP: `dsp_ieee_tests`. Elsewhere: a tolerance below
   the meaningful step.
+- "IEEE" in CMake means `-fno-fast-math -fno-finite-math-only -ffp-contract=off` on one line. Without the last flag,
+  clang still fuses `a*b + c*d` into an fma on arm64 (`tools/lint-ieee-flag-sets.js`).
 - Reproduce before pushing: `tools/macos-fastmath-repro.sh` (DSP TUs, WSL clang, minutes) and
   `tools/clangcl-fastmath-build.ps1` (plugin tests; read its blind spot).
 

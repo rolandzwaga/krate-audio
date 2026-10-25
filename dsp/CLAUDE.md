@@ -164,7 +164,7 @@ node tools/lint-midi-timing-goldens.js   # gate; also runs in CI
 
 The Xcode leg compiles every TU with `-ffast-math -ffp-contract=fast` (SMTG_PlatformToolset.cmake:46) on a CPU with
 FMA. Windows' `/fp:fast` is far milder and Linux has no fast-math, so **a green Windows + Linux run is no evidence for
-macOS floating point**. One CI round on 2026-10-25 had six classes of macOS-only red. Each rule below names one:
+macOS floating point**. The CI rounds of 2026-10-25 had seven classes of macOS-only red. Each rule below names one:
 
 | Rule | Why (the red it cost) |
 |---|---|
@@ -173,6 +173,7 @@ macOS floating point**. One CI round on 2026-10-25 had six classes of macOS-only
 | A value that must be exact at a neutral point or an endpoint (Mass 50, normalized 0 / 1) is produced by a branch or a clamp, or by a `#pragma clang fp contract(off) reassociate(off)` body, never by arithmetic that cancels in IEEE. | `MassLaw`: `(m - 50) * 0.02f` became `fma(m, 0.02f, -1)` = -2.2e-8 at 50. Profundum's ceiling: `(db + 12) / 12` became `fma(db, 1 / 12, 1)` = 5.6e-17 at the floor. |
 | No bit-equality claim between two separately compiled computations (engine tap vs the test's recomputation, two helpers, a live object vs a frozen copy). Put such a TU in `dsp_ieee_tests`, or compare within a tolerance below the meaningful step. | Each inlined call site is rewritten on its own (`(s - 69) / 12` became `s * (1/12) - 5.75` in one copy only). MonoHandler, DropPhaseLock, SpectralShapeRecipe, MassSplit, AnchorJoin, C1CheckerCrossCheck. |
 | A `-fno-fast-math` test TU is not IEEE for the inline DSP it calls in a mixed executable, and its expected values differ from the fast-math code it checks. NaN-injection TUs go in `dsp_ieee_tests`; a plugin test computing an expected `k / 24` compares within a tolerance. | COMDAT: the linker keeps one copy of an un-inlined inline function, often from a fast-math TU (FeedbackEcology_NonFinite). Profundum Pitch Bend Range: IEEE test `5 / 24` vs fast-math `5 * (1/24)`, one ulp. |
+| An IEEE flag set is `-fno-fast-math -fno-finite-math-only -ffp-contract=off`, on one line. | `-fno-fast-math` keeps clang's `-ffp-contract=on`, which fuses `a*b + c*d` into an fma wherever the CPU has FMA, always on arm64. arm64 and x86 clang even fuse different products of the same expression. ProfundumVoice_OutputIdentity went red inside `dsp_ieee_tests` (31 declick-dip samples). Gated by `tools/lint-ieee-flag-sets.js`. |
 | A new test executable with allocation checks needs exactly one TU including `<allocation_operator_overrides.h>`. | Without it every `getAllocationCount() == 0` passes vacuously and every positive control reads 0 (`dsp_ieee_tests` lived like that for one commit). |
 
 **Reproduce locally, minutes instead of a CI round:**
