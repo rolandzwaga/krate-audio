@@ -53,6 +53,7 @@
 
 #include <k_weighting.h>
 
+#include <krate/dsp/core/db_utils.h>
 #include <krate/dsp/core/midi_utils.h>
 #include <krate/dsp/processors/note_memory.h>
 #include <krate/dsp/processors/spectral_shape_recipe.h>
@@ -117,7 +118,7 @@ inline constexpr double kPpPortTolerance = 0.10;
 
 // ported from profundum_engine_audibility_test.cpp:146
 [[nodiscard]] inline bool auFinite(double x) noexcept {
-    return (std::bit_cast<std::uint64_t>(x) & 0x7FF0000000000000ull) != 0x7FF0000000000000ull;
+    return ::Krate::DSP::detail::isFinite(x);   // barrier read: a plain bit_cast mask is folded under fast-math
 }
 
 // ported from profundum_engine_audibility_test.cpp:155

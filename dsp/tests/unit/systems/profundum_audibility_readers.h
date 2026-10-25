@@ -10,6 +10,7 @@
 // checked by specs/profundum-phase13-presets-release/evidence/move-check.js.
 // ==============================================================================
 
+#include <krate/dsp/core/db_utils.h>
 #include <krate/dsp/systems/profundum_engine.h>
 #include <krate/dsp/systems/profundum_engine_observer.h>
 #include <krate/dsp/systems/profundum_macro_matrix.h>
@@ -144,7 +145,7 @@ inline constexpr std::size_t kAuAmpStepSamples = 64;        // FR-009 record (T0
 
 /// Bit test (this TU builds with the shipping FP mode; std::isfinite may be folded away under -ffast-math).
 [[nodiscard]] inline bool auFinite(double x) noexcept {
-    return (std::bit_cast<std::uint64_t>(x) & 0x7FF0000000000000ull) != 0x7FF0000000000000ull;
+    return ::Krate::DSP::detail::isFinite(x);   // barrier read: a plain bit_cast mask is folded under fast-math
 }
 
 [[nodiscard]] inline bool auSame(float a, float b) noexcept {

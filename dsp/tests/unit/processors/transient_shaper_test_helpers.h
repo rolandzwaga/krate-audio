@@ -22,6 +22,7 @@
 
 #include "harmonic_fold_test_helpers.h"
 
+#include <krate/dsp/core/db_utils.h>
 #include <krate/dsp/processors/harmonic_fold.h>
 #include <krate/dsp/processors/spectral_shape_recipe.h>
 
@@ -214,7 +215,7 @@ inline double sideMidRatioDb(const float* L, const float* R, std::size_t n) {
 
 /// Finite by bit pattern: exponent bits not all ones (fast-math immune, no FP comparison).
 inline bool isFiniteBits(float x) noexcept {
-    return (std::bit_cast<std::uint32_t>(x) & 0x7F800000u) != 0x7F800000u;
+    return ::Krate::DSP::detail::isFinite(x);   // barrier read: a plain bit_cast mask is folded under fast-math
 }
 
 }  // namespace Krate::DSP::TransientShaperTest

@@ -22,6 +22,7 @@
 
 #include "pluginterfaces/base/ftypes.h"
 
+#include <krate/dsp/core/db_utils.h>
 #include <krate/dsp/systems/morph_state.h>
 
 #include <algorithm>
@@ -270,7 +271,7 @@ static_assert(kSeedOffset + Profundum::kStateSeedBytes == Profundum::kStateEndpo
 
 /// Exponent test on the bit pattern: immune to fast-math (never std::isfinite).
 [[nodiscard]] inline bool presetFloatIsFinite(float x) noexcept {
-    return (std::bit_cast<std::uint32_t>(x) & 0x7F800000u) != 0x7F800000u;
+    return ::Krate::DSP::detail::isFinite(x);   // barrier read: a plain bit_cast mask is folded under fast-math
 }
 
 /// C-9 rule 5 (plan 6): an active endpoint (plan 5.6: A alone at p = 0, B alone at p = 1, both for 0 < p < 1) stores

@@ -39,6 +39,7 @@
 #include <vst_event_list.h>
 #include <vst_param_changes.h>
 
+#include <krate/dsp/core/db_utils.h>
 #include <krate/dsp/primitives/smoother.h>
 #include <krate/dsp/systems/bass_morph_engine.h>
 #include <krate/dsp/systems/morph_state.h>
@@ -923,7 +924,7 @@ inline constexpr std::size_t kToEnd = std::numeric_limits<std::size_t>::max();
 
 // Exponent test on the bit pattern: fast-math immune (never std::isfinite).
 [[nodiscard]] inline bool isFiniteBits(float x) noexcept {
-    return (std::bit_cast<std::uint32_t>(x) & 0x7F800000u) != 0x7F800000u;
+    return ::Krate::DSP::detail::isFinite(x);   // barrier read: a plain bit_cast mask is folded under fast-math
 }
 
 // Non-finite values built from bit patterns through a volatile (FR-062).
