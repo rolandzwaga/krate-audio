@@ -41,7 +41,8 @@ Also check `dsp_utils.h` and `specs/_architecture_/` for an existing component b
 ## Real-time safety (audio thread = hard real-time)
 
 No allocations, locks, exceptions, or I/O on the audio path. Enable FTZ/DAZ for denormals.
-`-ffast-math` breaks `std::isnan()` — detect NaN via bit manipulation on a `-fno-fast-math` TU.
+`-ffast-math` breaks `std::isnan()` and hand-written bit-mask checks alike — classify through `detail::isFinite` /
+`isNaN` / `isInf` (`core/db_utils.h`). See "The macOS leg builds with -ffast-math" below.
 See the `dsp-architecture` skill for interpolation choice, oversampling, DC blocking, perf budgets.
 
 ## Cross-platform: never arch-guard a krate include
@@ -158,6 +159,39 @@ measured tolerance: `tests/test_helpers/midi_golden_compare.h` is the drop-in re
 ```bash
 node tools/lint-midi-timing-goldens.js   # gate; also runs in CI
 ```
+
+## The macOS leg builds with -ffast-math: write for it, and reproduce it before pushing
+
+The Xcode leg compiles every TU with `-ffast-math -ffp-contract=fast` (SMTG_PlatformToolset.cmake:46) on a CPU with
+FMA. Windows' `/fp:fast` is far milder and Linux has no fast-math, so **a green Windows + Linux run is no evidence for
+macOS floating point**. One CI round on 2026-10-25 had six classes of macOS-only red. Each rule below names one:
+
+| Rule | Why (the red it cost) |
+|---|---|
+| Classify finiteness only through `detail::isFinite` / `isNaN` / `isInf`. Never `std::isnan`, never a local `(bits & 0x7F800000u) != 0x7F800000u` clone, in DSP or tests. | Apple clang folds the clone to "finite" even through `bit_cast` / `memcpy`: seven test helpers were vacuous. Gated by `tools/lint-finite-bitmask.js` (ratchet) and `tools/lint-nonfinite-symbols.js`. |
+| Clamp the argument of `pow` / `sqrt` / `log` / `acos` at its domain edge whenever IEEE arithmetic only *happens* to land on the edge. | `HarmonicFold`: `pow(1 - (a - c) / span, p)` had base exactly 0 at amount 100 in IEEE, -4.4e-16 after reassociation: NaN, Fold 100 broken on Mac. |
+| A value that must be exact at a neutral point or an endpoint (Mass 50, normalized 0 / 1) is produced by a branch or a clamp, or by a `#pragma clang fp contract(off) reassociate(off)` body, never by arithmetic that cancels in IEEE. | `MassLaw`: `(m - 50) * 0.02f` became `fma(m, 0.02f, -1)` = -2.2e-8 at 50. Profundum's ceiling: `(db + 12) / 12` became `fma(db, 1 / 12, 1)` = 5.6e-17 at the floor. |
+| No bit-equality claim between two separately compiled computations (engine tap vs the test's recomputation, two helpers, a live object vs a frozen copy). Put such a TU in `dsp_ieee_tests`, or compare within a tolerance below the meaningful step. | Each inlined call site is rewritten on its own (`(s - 69) / 12` became `s * (1/12) - 5.75` in one copy only). MonoHandler, DropPhaseLock, SpectralShapeRecipe, MassSplit, AnchorJoin, C1CheckerCrossCheck. |
+| A `-fno-fast-math` test TU is not IEEE for the inline DSP it calls in a mixed executable, and its expected values differ from the fast-math code it checks. NaN-injection TUs go in `dsp_ieee_tests`; a plugin test computing an expected `k / 24` compares within a tolerance. | COMDAT: the linker keeps one copy of an un-inlined inline function, often from a fast-math TU (FeedbackEcology_NonFinite). Profundum Pitch Bend Range: IEEE test `5 / 24` vs fast-math `5 * (1/24)`, one ulp. |
+| A new test executable with allocation checks needs exactly one TU including `<allocation_operator_overrides.h>`. | Without it every `getAllocationCount() == 0` passes vacuously and every positive control reads 0 (`dsp_ieee_tests` lived like that for one commit). |
+
+**Reproduce locally, minutes instead of a CI round:**
+
+```bash
+# DSP test TUs under the macOS flags (x86 clang in WSL); --ieee is the control build.
+wsl -e bash -lc 'bash /mnt/f/projects/iterum/tools/macos-fastmath-repro.sh systems/mass_law_test.cpp -- "MassLaw_*"'
+```
+
+```powershell
+# Plugin tests (VST SDK, VSTGUI): clang-cl + /fp:fast proxy tree. Blind spot: per-file -fno-fast-math test TUs keep the
+# reciprocal transform here, so an IEEE-test-vs-fast-math-plugin split does not show (read the script header).
+.\tools\clangcl-fastmath-build.ps1 -Targets profundum_tests
+```
+
+To attribute a CI red, first read which commit the run built (the log's `HEAD is now at <merge> Merge <sha> into ...`
+line), then run the repro on a `git worktree` at that commit as well as at HEAD: red at the CI commit and green at HEAD
+means a later commit already fixed it. Both tools are x86, not Apple clang on arm64; an arm64-only red (C1CheckerCrossCheck)
+stays green here, so read the code for those.
 
 ## Verify platform-dependent BEHAVIOUR on Linux via WSL (Ubuntu + g++ 13 installed)
 

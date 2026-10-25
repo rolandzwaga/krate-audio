@@ -18,6 +18,9 @@
 
     lld-link has no m.lib (a Unix -lm that a dependency adds); the script drops an empty stub into the build tree.
 
+    node tools/clean-test-output.js --apply deletes F:\tmp trees, this one included; the next run configures it again
+    and builds from scratch.
+
 .PARAMETER Targets
     CMake targets to build, e.g. profundum_tests.
 .PARAMETER BuildDir

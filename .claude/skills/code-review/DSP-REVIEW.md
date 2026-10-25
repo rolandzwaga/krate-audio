@@ -73,7 +73,9 @@ Before approving any new class or struct definition:
 | Check | Where | Severity |
 |-------|-------|----------|
 | Division by zero guards | Any division where denominator could be zero | CRITICAL |
-| `std::isnan()` usage | Will break under `-ffast-math`; use bit manipulation | WARNING |
+| `std::isnan()` or a hand-written bit-mask finiteness check | Both fold under `-ffast-math` (Apple clang); use `detail::isFinite` / `isNaN` / `isInf` (`core/db_utils.h`) | WARNING |
+| `pow` / `sqrt` / `log` / `acos` argument at its domain edge | Reassociation moves an exact 0 to -4e-16: NaN on macOS (HarmonicFold, Fold 100); clamp it | CRITICAL |
+| Value exact only by cancellation (neutral point, 0 / 1 endpoint) | FMA contraction leaves 1e-8 / 1e-17 on macOS (MassLaw at 50, the Profundum ceiling floor); branch or clamp | WARNING |
 | Feedback loop sanitization | Output of any feedback path should be sanitized | CRITICAL |
 | Filter coefficient bounds | Biquad coefficients must be checked for stability | WARNING |
 | Log/sqrt of zero/negative | `std::log(x)` where x could be <= 0 | CRITICAL |

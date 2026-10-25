@@ -193,7 +193,29 @@ All parameters at VST boundary are **normalized (0.0 to 1.0)**. Denormalize in `
 
 See constitution section "Cross-Platform Compatibility" for complete reference. Key points:
 
-**NaN Detection:** `-ffast-math` breaks `std::isnan()`. Use bit manipulation with `-fno-fast-math` on source file.
+**Fast-math (the macOS leg):** Xcode builds every TU with `-ffast-math -ffp-contract=fast`. Windows' `/fp:fast` is
+far milder and Linux has none, so a green Windows + Linux run proves nothing about macOS floating point. The full table,
+with the red behind each rule: `dsp/CLAUDE.md` "The macOS leg builds with -ffast-math".
+- Classify finiteness only through `Krate::DSP::detail::isFinite` / `isNaN` / `isInf` (`core/db_utils.h`): never
+  `std::isnan`, never a hand-written `(bits & 0x7F800000u)` clone, which Apple clang folds to "finite". A per-file
+  `-fno-fast-math` does not protect inline header code. Gated by `tools/lint-finite-bitmask.js` (a ratchet over the
+  pre-existing clones) and `tools/lint-nonfinite-symbols.js`.
+- Clamp the argument of `pow` / `sqrt` / `log` / `acos` at its domain edge when IEEE only *happens* to land on it.
+- Produce a value that must be exact at a neutral point or an endpoint (Mass 50, normalized 0 / 1) by a branch or a
+  clamp, not by arithmetic that cancels in IEEE: contraction leaves 1e-8 or 1e-17 there.
+- Never assert bit-equality between separately compiled computations (an engine tap vs the test's recomputation, or
+  an IEEE test TU's expected `k / 24` vs fast-math plugin code). DSP: `dsp_ieee_tests`. Elsewhere: a tolerance below
+  the meaningful step.
+- Reproduce before pushing: `tools/macos-fastmath-repro.sh` (DSP TUs, WSL clang, minutes) and
+  `tools/clangcl-fastmath-build.ps1` (plugin tests; read its blind spot).
+
+**Linux test harnesses have no run loop:** `Timer::create` returns nullptr without an injected run-loop factory, so an
+SDK path that needs a Timer (the DataExchange `IMessage` fallback) never runs in a bare test. Real hosts inject one.
+Gate such non-vacuity checks on Linux instead of asserting them.
+
+**Wall-clock bars in per-push tests:** the case must read ≤ 60 % of its bar on the 32-core dev box. CI's windows-2022
+runner measured 1.25-1.4x slower (Profundum render-guard shards: 11.5-13.2 s locally, 15.8-16.4 s on CI, bar 15 s).
+Cut fixed per-case cost or shard further; never raise the bar.
 
 **Floating-Point:** MSVC/Clang differ at 7th-8th decimal. Use `Approx().margin()` in tests, `std::setprecision(6)` in approval tests.
 

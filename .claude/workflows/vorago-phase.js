@@ -114,7 +114,11 @@ CROSS-CUTTING CONSTRAINTS (violations are defects at every stage):
 - CPU budgets are functional requirements, measured in tests, not aspirations.
 - NO bit-exact float goldens — use render_fingerprint.h / measured tolerances.
 - Portability: MSVC-green proves nothing; code must satisfy node tools/check-portability.js;
-  no std::isnan under -ffast-math (bit-pattern check instead); no narrowing in brace init;
+  the macOS leg is -ffast-math -ffp-contract=fast (dsp/CLAUDE.md "The macOS leg builds with -ffast-math"):
+  finiteness only through detail::isFinite / isNaN / isInf (never std::isnan, never a hand-written bit-mask
+  clone, which Apple clang folds: tools/lint-finite-bitmask.js); clamp pow / sqrt / log / acos arguments at the
+  domain edge; a neutral point or endpoint that must be exact comes from a branch or clamp, not cancellation;
+  no bit-equality claim between separately compiled computations outside dsp_ieee_tests; no narrowing in brace init;
   SIMD loads/stores unaligned (hn::LoadU/StoreU) unless alignment is proven.
 - Naming: classes PascalCase, functions camelCase, members trailing underscore,
   constants kPascalCase, params k{Section}{Parameter}Id with the standard names table.
@@ -465,7 +469,7 @@ if (stage === 'plan') {
   phase('Tasks')
   log(`Authoring ${TASKS}...`)
   const tasksStatus = await run(
-    `${CONTEXT}\n\nWrite the dependency-ordered task list for ${PLAN} to ${TASKS}. Read spec and plan first.\n\nTASK FORMAT:\n- Tasks T001... grouped into ordered GROUPS. Within a group, tasks marked [P] are parallel-safe: they touch fully disjoint NEW files only. Any task editing a SHARED file (CMake test lists, existing headers, a header another task also touches) goes in its own sequential group.\n- Each task is fully self-contained (executor has no other context): exact files to create/edit, the failing test to write FIRST (test file, TEST_CASE name, exact assertions with numbers), then the implementation intent, then which test target verifies it.\n- Follow the repo's canonical order: failing test → implement → zero warnings → tests pass.\n- Last group: integration tasks — CMake registration (single task), full-suite run, portability check (node tools/check-portability.js).\n- Do NOT include commit tasks — commits happen outside this workflow.\n\nReturn the doc status.`,
+    `${CONTEXT}\n\nWrite the dependency-ordered task list for ${PLAN} to ${TASKS}. Read spec and plan first.\n\nTASK FORMAT:\n- Tasks T001... grouped into ordered GROUPS. Within a group, tasks marked [P] are parallel-safe: they touch fully disjoint NEW files only. Any task editing a SHARED file (CMake test lists, existing headers, a header another task also touches) goes in its own sequential group.\n- Each task is fully self-contained (executor has no other context): exact files to create/edit, the failing test to write FIRST (test file, TEST_CASE name, exact assertions with numbers), then the implementation intent, then which test target verifies it.\n- Follow the repo's canonical order: failing test → implement → zero warnings → tests pass.\n- Last group: integration tasks — CMake registration (single task), full-suite run, portability check (node tools/check-portability.js, node tools/lint-finite-bitmask.js, node tools/lint-nonfinite-symbols.js), the macOS fast-math repro of the phase’s DSP test TUs (bash tools/macos-fastmath-repro.sh <tu> in WSL, a main-loop lane; a case red there and green with --ieee is a macOS red to fix before push).\n- Do NOT include commit tasks — commits happen outside this workflow.\n\nReturn the doc status.`,
     { label: 'tasks', phase: 'Tasks', schema: DOC_STATUS },
   )
 
@@ -633,7 +637,7 @@ phase('Comply')
 const complyLenses = [
   { key: 'fr', what: `every FR-xxx in ${SPEC}: open the implementation, read the code, confirm the requirement is met. Evidence = file:line + a one-sentence proof from the code you quote.` },
   { key: 'sc', what: `every SC-xxx in ${SPEC}: RUN the specific test or measurement yourself (${dispatch.test_targets.map(t => `build/windows-x64-release/bin/Release/${t}.exe "<TestName>*"`).join(' or ')}) and paste the ACTUAL numbers vs the threshold. Never paraphrase output.` },
-  { key: 'constraints', what: `the cross-cutting constraints: RT safety of every new process path (read for allocations/locks/exceptions), layer discipline of every new header (check its #includes), naming conventions, zero-warning build, and run node tools/check-portability.js reporting its verbatim result. Report each as its own item (id: CC-rt, CC-layers, CC-naming, CC-warnings, CC-portability).` },
+  { key: 'constraints', what: `the cross-cutting constraints: RT safety of every new process path (read for allocations/locks/exceptions), layer discipline of every new header (check its #includes), naming conventions, zero-warning build, and run node tools/check-portability.js reporting its verbatim result; run node tools/lint-finite-bitmask.js and node tools/lint-nonfinite-symbols.js reporting their verbatim results, and read every new finiteness check, pow / sqrt / log / acos call and bit-equality assertion of the phase against the dsp/CLAUDE.md fast-math rules (the macOS repro readings come from the main-loop lane’s run-log). Report each as its own item (id: CC-rt, CC-layers, CC-naming, CC-warnings, CC-portability, CC-fastmath).` },
 ]
 const complyResults = await parallel(
   complyLenses.map(l => () =>
