@@ -37,6 +37,8 @@ spectrum, and a library of 58 factory presets.
 - **58 factory presets in six categories** — Sub (12), Resonant (8), Harmonic (9), Driven (13), Plucked (8) and Animated (8); five store POLY with 4 voices for chords. Each preset leads with one lever of the engine and was authored against a measurement: a render of the preset as stored against the same preset with that lever switched off, so a preset that claims a feature makes it audible. Every preset is checked for mono compatibility, for staying under the output ceiling at full Mass, and for a level within 4 dB of the library median. The presets are generated from the plugin's own parameter surface and installed with the plugin.
 - **Preset browser** — A PRESETS button in the header opens the preset browser, with an All tab, one tab per category and its own save dialog. Loading a preset restores the whole saved sound, both endpoints, the endpoint names and the random seed included, also while a note is held. The selected preset's description is shown under the list.
 - **User manual** — `MANUAL.md`, with an HTML page under `docs/`, covers the signal flow, every control by its on-screen name, the Anchor / Mass split, Bass Morph with Edit Target and Compare, the Personality macros, and the factory library by category with a one-line description of each preset.
+- **Hover help on every control** — Each control's tooltip says how to use it: its range or options and what you will hear. The stereo-field controls also state, in plain words, that the sub stays centred and mono-safe.
+- **Signal flow diagram** — The documentation site has a diagram of the whole instrument: the control layer, the per-voice chain with the Anchor on its own path, and the global chain to the output.
 
 ### Known limitations
 
