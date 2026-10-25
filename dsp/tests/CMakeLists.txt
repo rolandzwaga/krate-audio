@@ -671,10 +671,9 @@ add_executable(dsp_systems_tests
     unit/systems/anchor_oscillator_perf_test.cpp
     # Profundum Phase 4 (specs/profundum-phase4-drop-note-behaviour) - ENUMERATED, not globbed:
     #   profundum_note_behaviour_test.cpp          SC-009(b)(c), SC-011, SC-012,
-    #                                              SC-016, SC-018, SC-023, SC-026
+    #                                              SC-016, SC-018, SC-023, SC-026 - in dsp_ieee_tests
     #   profundum_note_behaviour_spectral_test.cpp SC-010, SC-013, SC-014, SC-015,
     #                                              SC-021; full grids [long]
-    unit/systems/profundum_note_behaviour_test.cpp
     unit/systems/profundum_note_behaviour_spectral_test.cpp
     #   profundum_core_pitch_continuity_test.cpp   SC-028 (2026-10-13 ruling): spectrum preserved across a Drop
     unit/systems/profundum_core_pitch_continuity_test.cpp
@@ -764,9 +763,9 @@ add_executable(dsp_systems_tests
     #   profundum_voice_engine_helpers_test.cpp  fixture self-tests, observer defaults
     #   profundum_motion_test.cpp                FR-040 - FR-049, SC-026 unit
     #   profundum_macro_matrix_test.cpp          FR-050 - FR-056, SC-008 unit
-    #   profundum_voice_test.cpp                 SC-019, SC-020, SC-033, SC-034, FR-010 / FR-015
+    #   profundum_voice_test.cpp                 SC-019, SC-020, SC-033, SC-034, FR-010 / FR-015 - in dsp_ieee_tests
     #   profundum_engine_test.cpp                SC-008, SC-011, SC-012, SC-022, SC-024, SC-026 - SC-029, SC-031, SC-032,
-    #                                            SC-036
+    #                                            SC-036 - in dsp_ieee_tests
     #   profundum_engine_nonfinite_test.cpp      SC-023 - in the -fno-fast-math block below
     #   profundum_engine_click_test.cpp          SC-005, SC-006, SC-025 [long]
     #   profundum_engine_audibility_test.cpp     SC-007, SC-009, SC-010 [long]
@@ -780,8 +779,6 @@ add_executable(dsp_systems_tests
     unit/systems/profundum_voice_engine_helpers_test.cpp
     unit/systems/profundum_motion_test.cpp
     unit/systems/profundum_macro_matrix_test.cpp
-    unit/systems/profundum_voice_test.cpp
-    unit/systems/profundum_engine_test.cpp
     unit/systems/profundum_engine_click_test.cpp
     unit/systems/profundum_engine_audibility_test.cpp
     unit/systems/profundum_engine_chain_test.cpp
@@ -868,9 +865,12 @@ target_compile_features(dsp_effects_tests PRIVATE cxx_std_20)
 # IEEE-only TUs (2026-10-25). Two kinds: the fault-injection TUs, which poison DSP state with NaN / Inf bit patterns
 # and assert on the result, and the bit-exactness TUs at the end of the list, which assert that two separately
 # compiled computations agree bit for bit (MonoHandler against its frozen pre-Phase-4 copy, DropPhaseLock's
-# pass-through, SpectralShapeRecipe's equality at the neutral point). Under the macOS SDK's -ffast-math, clang
-# reassociates each inlined call site on its own ((s - 69) / 12 became s * (1/12) - 5.75: A4 read 440.00007 Hz in
-# one copy and 440 in the other), so those claims hold only under IEEE, where Windows and Linux already check them.
+# pass-through, SpectralShapeRecipe's equality at the neutral point; the Profundum engine, voice and note-behaviour
+# TUs, which compare the engine's taps with the test's own recomputation and harvested references). Under the macOS
+# SDK's -ffast-math, clang reassociates each inlined call site on its own ((s - 69) / 12 became s * (1/12) - 5.75: A4
+# read 440.00007 Hz in one copy and 440 in the other; VoiceEngine_MassSplit's receivers missed MassLaw::evaluate in
+# 410 of 2250 intervals, VoiceEngine_AnchorJoin's POLY sum missed the re-sum in 956 samples), so those claims hold
+# only under IEEE, where Windows and Linux already check them.
 # Both kinds need IEEE semantics in EVERY function they run, not only in their own bodies. In a mixed binary
 # that is not guaranteed: an inline header function (EnvelopeFollower::processSample, DCBlocker::process, ...) that
 # is not inlined into the -fno-fast-math TU is a COMDAT symbol, and the linker keeps ONE copy for the whole image -
@@ -911,6 +911,10 @@ add_executable(dsp_ieee_tests
     unit/processors/spectral_shape_recipe_test.cpp
     unit/processors/drop_phase_lock_test.cpp
     unit/processors/mono_handler_glide_test.cpp
+    # Profundum bit-exactness TUs (moved from dsp_systems_tests)
+    unit/systems/profundum_note_behaviour_test.cpp
+    unit/systems/profundum_voice_test.cpp
+    unit/systems/profundum_engine_test.cpp
 )
 
 target_link_libraries(dsp_ieee_tests
