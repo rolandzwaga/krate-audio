@@ -233,6 +233,13 @@ jobs:
       - name: Non-finite symbol lint (fast-math safety)
         run: node tools/lint-nonfinite-symbols.js
 
+      # Catches hand-written "exponent all ones" finiteness tests ((bits & 0x7F800000u) != 0x7F800000u) outside
+      # core/db_utils.h. Apple clang folds them to "finite" under -ffast-math even through bit_cast / memcpy; only
+      # detail::isFinite / isNaN / isInf (barrier read) survive. A ratchet: tools/lint-finite-bitmask-baseline.json
+      # holds the per-file count of the pre-existing ones, and a new file or a higher count fails.
+      - name: Finiteness bit-mask lint (fast-math safety)
+        run: node tools/lint-finite-bitmask.js
+
       # Identifiers that compile on Windows and Linux but not on macOS: VSTGUI's
       # platform macros (MAC / WINDOWS / LINUX) used as names, and names at
       # global or anonymous-namespace scope that MacTypes.h also declares
