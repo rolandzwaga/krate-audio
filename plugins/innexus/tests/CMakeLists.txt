@@ -233,7 +233,7 @@ if(NOT MSVC)
         integration/test_sidechain_wav_quality.cpp
         unit/processor/test_physical_model.cpp
         unit/processor/waveguide_integration_test.cpp
-        PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
+        PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only -ffp-contract=off"
     )
 endif()
 

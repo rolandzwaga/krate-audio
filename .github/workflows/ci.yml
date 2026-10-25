@@ -240,6 +240,12 @@ jobs:
       - name: Finiteness bit-mask lint (fast-math safety)
         run: node tools/lint-finite-bitmask.js
 
+      # Catches a CMake -fno-fast-math flag set without -ffp-contract=off on the same line. -fno-fast-math keeps
+      # clang's default -ffp-contract=on, which fuses a*b + c*d into an fma on arm64 (always FMA), so an "IEEE" TU
+      # still differs per call site on the macOS leg (ProfundumVoice_OutputIdentity in dsp_ieee_tests, 2026-10-25).
+      - name: IEEE flag-set lint (fast-math safety)
+        run: node tools/lint-ieee-flag-sets.js
+
       # Identifiers that compile on Windows and Linux but not on macOS: VSTGUI's
       # platform macros (MAC / WINDOWS / LINUX) used as names, and names at
       # global or anonymous-namespace scope that MacTypes.h also declares

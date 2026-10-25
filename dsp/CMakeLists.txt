@@ -71,7 +71,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         # factory-state bits, and under IEEE semantics so those bits are the
         # plain libm results on every toolchain (see spectral_state.cpp).
         include/krate/dsp/processors/spectral_state.cpp
-        PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
+        PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only -ffp-contract=off"
     )
 endif()
 

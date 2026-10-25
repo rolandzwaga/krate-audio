@@ -183,7 +183,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         # preset_render_sweep_test.cpp DOES get it too: bit-pattern non-finite
         # checks over every rendered sample and per-second RMS statistics.
         integration/preset_render_sweep_test.cpp
-        PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
+        PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only -ffp-contract=off"
     )
 endif()
 

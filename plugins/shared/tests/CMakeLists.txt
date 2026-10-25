@@ -87,7 +87,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
     set_source_files_properties(
         test_oscillator_type_selector.cpp
         test_lfo_shape_selector.cpp
-        PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
+        PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only -ffp-contract=off"
     )
 endif()
 

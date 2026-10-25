@@ -926,7 +926,7 @@ target_link_libraries(dsp_ieee_tests
 )
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
-    target_compile_options(dsp_ieee_tests PRIVATE -fno-fast-math -fno-finite-math-only)
+    target_compile_options(dsp_ieee_tests PRIVATE -fno-fast-math -fno-finite-math-only -ffp-contract=off)
 endif()
 
 target_compile_definitions(dsp_ieee_tests
@@ -1363,7 +1363,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/systems/bass_morph_nonfinite_test.cpp
         # Profundum Phase 9: injects NaN/Inf bit patterns (SC-023, FR-061). The perf TU stays out (shipping FP mode).
         unit/systems/profundum_engine_nonfinite_test.cpp
-        PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
+        PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only -ffp-contract=off"
     )
 
     # GCC 13+ -O3 causes pathological performance regression in the reverb
@@ -1372,7 +1372,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
     set_source_files_properties(
         unit/effects/reverb_test.cpp
         unit/effects/fdn_reverb_test.cpp
-        PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only -O2"
+        PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only -ffp-contract=off -O2"
     )
 
     # Seraphis Phase 6: same GCC 13+ -O3 reverb pathology as reverb_test.cpp /

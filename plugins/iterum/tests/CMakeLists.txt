@@ -130,7 +130,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/processor/mode_crossfade_tests.cpp
         unit/processor/mode_switch_buffer_retention_test.cpp
         unit/processor/mix_parameter_conversion_test.cpp
-        PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
+        PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only -ffp-contract=off"
     )
 endif()
 

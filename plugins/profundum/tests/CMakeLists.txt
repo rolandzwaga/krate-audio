@@ -152,7 +152,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         integration/preset_probe_test.cpp
         integration/preset_showcase_test.cpp
         integration/preset_sweep_test.cpp
-        PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
+        PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only -ffp-contract=off"
     )
     # integration/processor_cpu_test.cpp is DELIBERATELY ABSENT: the timed code must
     # run in the shipping FP mode (plugins/vorago/tests/CMakeLists.txt:159-160).
