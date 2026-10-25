@@ -274,7 +274,9 @@ std::size_t bsfControlGridPoint(const std::vector<float>& aL, const std::vector<
         const auto first = std::lower_bound(refIdx.begin(), refIdx.end(), g > windowN ? g - windowN : 0);
         if (first != refIdx.end() && *first <= g + windowN)
             continue;
-        double ratio = std::numeric_limits<double>::infinity();
+        // max(), not infinity(): this TU is -ffast-math, where an infinity constant is undefined behaviour; on macOS
+        // arm64 the seed left `ratio > bestRatio` false at every grid point (2026-10-25).
+        double ratio = std::numeric_limits<double>::max();
         for (std::size_t ch = 0; ch < 2; ++ch) {
             const std::vector<float>& a = ch == 0 ? aL : aR;
             const std::vector<float>& b = ch == 0 ? bL : bR;

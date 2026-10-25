@@ -212,6 +212,22 @@ function collectFastMathExemptTus() {
       const names = block.match(/[\w./-]+\.(?:cpp|cc|mm|h|hpp)/g) || [];
       for (const n of names) exempt.add(path.basename(n));
     }
+    // A whole target built -fno-fast-math (target_compile_options(<t> ... -fno-fast-math ...), e.g. dsp_ieee_tests)
+    // exempts every source its add_executable / add_library block lists. Headers are never listed there, so header
+    // code stays subject to the lint: it is inlined into fast-math TUs too.
+    const code = stripCMakeComments(text);
+    const ieeeTargets = new Set();
+    for (const m of code.matchAll(/target_compile_options\s*\(\s*([\w-]+)[^)]*-fno-fast-math/g)) ieeeTargets.add(m[1]);
+    for (const t of ieeeTargets) {
+      const codeLines = code.split('\n');
+      for (let i = 0; i < codeLines.length; ++i) {
+        if (!new RegExp(`add_(executable|library)\\s*\\(\\s*${t}\\b`).test(codeLines[i])) continue;
+        const start = i;
+        while (i < codeLines.length && !/^\s*\)\s*$/.test(codeLines[i])) ++i;
+        const names = codeLines.slice(start, i + 1).join('\n').match(/[\w./-]+\.(?:cpp|cc|mm)/g) || [];
+        for (const n of names) exempt.add(path.basename(n));
+      }
+    }
   }
   return exempt;
 }
@@ -289,10 +305,67 @@ function scan(file, exempt, violations) {
   });
 }
 
+// Tree-wide ratchet (2026-10-25). The GUARDED list protected 17 files; the rest of the tree was only surveyed, so
+// BassStereoField_TransitionsClickFreeSmoke's `ratio = numeric_limits<double>::infinity()` search seed, in a
+// fast-math TU nobody had listed, went red on macOS arm64 (clang: "use of infinity is undefined behavior due to the
+// currently enabled floating-point options"). Every file now carries a per-file ceiling in
+// tools/lint-nonfinite-symbols-baseline.json: a file that is not listed, or whose count grows, fails.
+const BASELINE = path.join(__dirname, 'lint-nonfinite-symbols-baseline.json');
+
+function treeCounts(exempt) {
+  const all = [];
+  for (const dir of SCAN_DIRS) {
+    walk(path.join(REPO_ROOT, dir), (f) => scan(f, exempt, all), SOURCE_EXT);
+  }
+  const counts = {};
+  for (const v of all) counts[v.file] = (counts[v.file] || 0) + 1;
+  return { all, counts };
+}
+
+function ratchet(exempt) {
+  const { all, counts } = treeCounts(exempt);
+  if (process.argv.includes('--update-baseline')) {
+    const sorted = Object.fromEntries(Object.entries(counts).sort(([a], [b]) => a.localeCompare(b)));
+    fs.writeFileSync(BASELINE, JSON.stringify(sorted, null, 2) + '\n');
+    console.log(`lint-nonfinite-symbols: baseline written, ${all.length} hits in ${Object.keys(sorted).length} files`);
+    return 0;
+  }
+  let baseline;
+  try {
+    baseline = JSON.parse(fs.readFileSync(BASELINE, 'utf8'));
+  } catch (err) {
+    console.error(`lint-nonfinite-symbols: cannot read ${path.relative(REPO_ROOT, BASELINE)}: ${err.message}`);
+    return 2;
+  }
+  let bad = 0;
+  for (const [file, n] of Object.entries(counts)) {
+    if (n <= (baseline[file] || 0)) continue;
+    ++bad;
+    console.error(`::error file=${file}::${file}: ${n} non-finite symbol(s) in a fast-math TU, baseline ${baseline[file] || 0}`);
+    for (const v of all.filter((x) => x.file === file)) console.error(`  ${v.file}:${v.line}  ${v.what}\n      ${v.text}`);
+  }
+  if (bad > 0) {
+    console.error('lint-nonfinite-symbols: FAILED (tree ratchet). Under -ffinite-math-only an infinity() / quiet_NaN()');
+    console.error('constant is undefined behaviour and std::isnan folds: seed a search with numeric_limits<T>::max() or');
+    console.error('lowest(), classify through detail::isNaN / isInf / isFinite (core/db_utils.h).');
+    return 1;
+  }
+  const lowered = Object.keys(baseline).filter((f) => (counts[f] || 0) < baseline[f]);
+  if (lowered.length > 0) {
+    console.log(`lint-nonfinite-symbols: ${lowered.length} file(s) below the baseline; run --update-baseline to tighten it.`);
+  }
+  return 0;
+}
+
 function main() {
   const surveyAll = process.argv.includes('--all');
   const exempt = collectFastMathExemptTus();
   const violations = [];
+
+  if (!surveyAll) {
+    const r = ratchet(exempt);
+    if (r !== 0 || process.argv.includes('--update-baseline')) return r;
+  }
 
   if (surveyAll) {
     for (const dir of SCAN_DIRS) {

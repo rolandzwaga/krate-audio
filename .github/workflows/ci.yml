@@ -228,8 +228,10 @@ jobs:
       # fold to `false` and the constants fold to finite garbage, so a NaN guard
       # silently disappears and a NaN-injecting test silently stops injecting.
       # Neither is visible on the Windows leg. Gates an explicit list of
-      # converted files; run with --all to survey the pre-existing tree-wide
-      # debt.
+      # converted files at zero, and the whole tree as a ratchet over
+      # tools/lint-nonfinite-symbols-baseline.json (a new file or a higher
+      # count fails: an infinity() search seed in an unlisted test TU went red
+      # on macOS arm64, 2026-10-25); --all surveys every hit.
       - name: Non-finite symbol lint (fast-math safety)
         run: node tools/lint-nonfinite-symbols.js
 

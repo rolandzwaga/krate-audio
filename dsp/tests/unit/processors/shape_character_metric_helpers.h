@@ -158,7 +158,8 @@ inline double steadyDeltaMax(const float* y, std::size_t begin, std::size_t end)
 /// max over k in [begin, end) of |y[k] − y[k−1]| /
 ///   (ga[k]·Da + gb[k]·Db + |ga[k] − ga[k−1]|·maxXa + |gb[k] − gb[k−1]|·maxXb).
 /// Da, Db are the steady-state max sample deltas of each branch alone; maxXa, maxXb their max |x|.
-/// A sample whose delta is zero contributes 0; a nonzero delta over a zero bound is +infinity.
+/// A sample whose delta is zero contributes 0; a nonzero delta over a zero bound is numeric_limits<double>::max() (over
+/// every bar). Not infinity(): the fast-math TUs that include this header make an infinity constant undefined.
 /// Requires 1 ≤ begin < end.
 inline double d11Ratio(const float* y, const float* ga, const float* gb, double Da, double Db, double maxXa,
                        double maxXb, std::size_t begin, std::size_t end) {
@@ -178,7 +179,7 @@ inline double d11Ratio(const float* y, const float* ga, const float* gb, double 
         const double dgb = std::abs(gbk - static_cast<double>(gb[k - 1]));
         const double bound = gak * Da + gbk * Db + dga * maxXa + dgb * maxXb;
         if (bound <= 0.0)
-            return std::numeric_limits<double>::infinity();
+            return std::numeric_limits<double>::max();
         worst = std::max(worst, dy / bound);
     }
     return worst;
