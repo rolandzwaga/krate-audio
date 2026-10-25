@@ -15,8 +15,10 @@
 
 #include <allocation_detector.h>
 
+#include <algorithm>
 #include <array>
 #include <cmath>
+#include <numbers>
 
 using membrum_exciter_tests::isFiniteSample;
 using membrum_exciter_tests::runBurst;
@@ -44,7 +46,8 @@ TEST_CASE("FMImpulseExciter: velocity spectral centroid ratio >= 2.0 (SC-004)",
     Membrum::FMImpulseExciter exc;
     exc.prepare(kSR, 0);
 
-    std::array<float, kSamples> lo{}, hi{};
+    std::array<float, kSamples> lo{};
+    std::array<float, kSamples> hi{};
     runBurst(exc, 0.23f, lo.data(), kSamples);
     exc.reset();
     runBurst(exc, 1.0f,  hi.data(), kSamples);
@@ -79,9 +82,10 @@ TEST_CASE("FMImpulseExciter: velocity drives modulation index / high-order sideb
     constexpr int kSamples = 1024; // ~23 ms; captures the bright onset burst
 
     auto goertzel = [&](const float* buf, double freq) noexcept {
-        const double w = 2.0 * 3.14159265358979323846 * freq / kSR;
+        const double w = 2.0 * std::numbers::pi * freq / kSR;
         const double coeff = 2.0 * std::cos(w);
-        double s1 = 0.0, s2 = 0.0;
+        double s1 = 0.0;
+        double s2 = 0.0;
         for (int n = 0; n < kSamples; ++n)
         {
             const double s = static_cast<double>(buf[n]) + coeff * s1 - s2;
@@ -132,7 +136,7 @@ TEST_CASE("FMImpulseExciter: 1 s output is finite and peak <= 1.0",
         const float s = exc.process(0.0f);
         if (!isFiniteSample(s)) { finite = false; break; }
         const float a = s < 0 ? -s : s;
-        if (a > peak) peak = a;
+        peak = std::max(peak, a);
     }
     CHECK(finite);
     CHECK(peak <= 1.0f);
@@ -153,7 +157,7 @@ TEST_CASE("FMImpulseExciter: retrigger safety",
         const float s = exc.process(0.0f);
         if (!isFiniteSample(s)) { finite = false; break; }
         const float a = s < 0 ? -s : s;
-        if (a > peak) peak = a;
+        peak = std::max(peak, a);
     }
     CHECK(finite);
     CHECK(peak <= 1.0f);
@@ -183,7 +187,7 @@ TEST_CASE("FMImpulseExciter: sample-rate change safe",
         const float s = exc.process(0.0f);
         if (!isFiniteSample(s)) { finite = false; break; }
         const float a = s < 0 ? -s : s;
-        if (a > peak) peak = a;
+        peak = std::max(peak, a);
     }
     CHECK(finite);
     CHECK(peak > 1e-6f);
@@ -211,8 +215,9 @@ TEST_CASE("FMImpulseExciter: first-50-ms has energy at 1:1.4 sideband (US1-5)",
     // sideband (6000 Hz) both dominate a far control band — the inharmonic
     // signature of the 1:1.4 Chowning bell (FR-014 / US1-5).
     auto goertzel = [&](float freq) noexcept {
-        const float w = 2.0f * 3.14159265f * freq / static_cast<float>(kSR);
-        float re = 0.0f, im = 0.0f;
+        const float w = 2.0f * std::numbers::pi_v<float> * freq / static_cast<float>(kSR);
+        float re = 0.0f;
+        float im = 0.0f;
         for (int n = 0; n < kSamples; ++n)
         {
             re += buf[n] * std::cos(w * n);

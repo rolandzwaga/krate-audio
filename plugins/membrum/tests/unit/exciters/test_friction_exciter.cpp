@@ -14,6 +14,7 @@
 
 #include <allocation_detector.h>
 
+#include <algorithm>
 #include <array>
 
 using membrum_exciter_tests::isFiniteSample;
@@ -42,7 +43,8 @@ TEST_CASE("FrictionExciter: velocity spectral centroid ratio >= 2.0 (SC-004)",
     Membrum::FrictionExciter exc;
     exc.prepare(kSR, 0);
 
-    std::array<float, kSamples> lo{}, hi{};
+    std::array<float, kSamples> lo{};
+    std::array<float, kSamples> hi{};
     runBurst(exc, 0.23f, lo.data(), kSamples);
     exc.reset();
     runBurst(exc, 1.0f,  hi.data(), kSamples);
@@ -69,7 +71,7 @@ TEST_CASE("FrictionExciter: 1 s output is finite and peak <= 1.0",
         const float s = exc.process(0.0f);
         if (!isFiniteSample(s)) { finite = false; break; }
         const float a = s < 0 ? -s : s;
-        if (a > peak) peak = a;
+        peak = std::max(peak, a);
     }
     CHECK(finite);
     CHECK(peak <= 1.0f);
@@ -90,7 +92,7 @@ TEST_CASE("FrictionExciter: retrigger safety",
         const float s = exc.process(0.0f);
         if (!isFiniteSample(s)) { finite = false; break; }
         const float a = s < 0 ? -s : s;
-        if (a > peak) peak = a;
+        peak = std::max(peak, a);
     }
     CHECK(finite);
     CHECK(peak <= 1.0f);
@@ -120,7 +122,7 @@ TEST_CASE("FrictionExciter: sample-rate change safe",
         const float s = exc.process(0.0f);
         if (!isFiniteSample(s)) { finite = false; break; }
         const float a = s < 0 ? -s : s;
-        if (a > peak) peak = a;
+        peak = std::max(peak, a);
     }
     CHECK(finite);
     CHECK(peak > 1e-6f);
@@ -140,8 +142,8 @@ TEST_CASE("FrictionExciter: first-50-ms envelope is non-monotonic (US1-4)",
     // (energy not strictly monotonic decreasing) indicating stick-slip.
     constexpr int kBlock = static_cast<int>(kSR * 0.005);
     constexpr int kNumBlocks = kWindow / kBlock;
-    std::array<float, 10> blockEnergy{};
-    for (int b = 0; b < kNumBlocks && b < static_cast<int>(blockEnergy.size()); ++b)
+    std::array<float, kNumBlocks> blockEnergy{};
+    for (int b = 0; b < kNumBlocks; ++b)
     {
         double sum = 0.0;
         for (int i = 0; i < kBlock; ++i)
@@ -164,7 +166,7 @@ TEST_CASE("FrictionExciter: first-50-ms envelope is non-monotonic (US1-4)",
             nonMonotonic = true;
             break;
         }
-        if (blockEnergy[b] > runningPeak) runningPeak = blockEnergy[b];
+        runningPeak = std::max(runningPeak, blockEnergy[b]);
     }
     CHECK(nonMonotonic);
 }
