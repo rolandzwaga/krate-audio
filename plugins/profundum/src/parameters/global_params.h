@@ -96,7 +96,15 @@ struct GlobalParams {
                               static_cast<double>(Engine::kMaxCeilingDb - Engine::kMinCeilingDb) * v);
 }
 
+/// -12 maps to exactly 0 and 0 to exactly 1: under the macOS SDK's -ffast-math, clang contracted the division into
+/// fma(db, 1 / 12, 1), and -12 read back as 5.6e-17 (macOS arm64 CI, 2026-10-25).
 [[nodiscard]] inline double ceilingToNormalized(float db) noexcept {
+    if (!(db > Engine::kMinCeilingDb)) {
+        return 0.0;
+    }
+    if (db >= Engine::kMaxCeilingDb) {
+        return 1.0;
+    }
     return (static_cast<double>(db) + 12.0) / 12.0;
 }
 
