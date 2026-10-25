@@ -262,7 +262,6 @@ add_executable(dsp_processors_tests
     unit/processors/spectral_shape_recipe_test.cpp
     # Profundum Phase 2 (specs/profundum-phase2-edge-fold): HarmonicFold (L2) - SC-006/007/008/010/011/012(d)/013(a)(c)/015/016/017/019/024/025/026
     unit/processors/harmonic_fold_test.cpp
-    unit/processors/harmonic_fold_nonfinite_test.cpp
     # Profundum Phase 4 (specs/profundum-phase4-drop-note-behaviour) - ENUMERATED, not globbed:
     #   drop_envelope_test.cpp                SC-001-SC-005, SC-024(a), DropEnvelope_Lifecycle
     #   drop_phase_lock_test.cpp              SC-024(b), SC-025 allocation, SC-026 bypass
@@ -275,7 +274,6 @@ add_executable(dsp_processors_tests
     unit/processors/drop_phase_lock_test.cpp
     unit/processors/note_memory_test.cpp
     unit/processors/mono_handler_glide_test.cpp
-    unit/processors/drop_note_behaviour_nonfinite_test.cpp
     unit/processors/drop_note_behaviour_perf_test.cpp
     # Profundum Phase 5 (specs/profundum-phase5-shape-character) - ENUMERATED, not globbed:
     #   keytracked_tilt_test.cpp                 SC-028(a)(b) parts (KeytrackedTilt)
@@ -287,7 +285,6 @@ add_executable(dsp_processors_tests
     unit/processors/oversampled_residual_path_test.cpp
     unit/processors/shape_character_metric_helpers_test.cpp
     unit/processors/rectifier_test.cpp
-    unit/processors/rectifier_nonfinite_test.cpp
     # Profundum Phase 6 (specs/profundum-phase6-mass-dynamics) - ENUMERATED, not globbed:
     #   period_peak_detector_test.cpp         PeriodPeakDetector (plan C-4, S3)
     #   transient_shaper_helpers_test.cpp     transient helper self-tests (tasks deviation 3)
@@ -296,7 +293,6 @@ add_executable(dsp_processors_tests
     unit/processors/period_peak_detector_test.cpp
     unit/processors/transient_shaper_helpers_test.cpp
     unit/processors/transient_shaper_test.cpp
-    unit/processors/transient_shaper_nonfinite_test.cpp
     unit/processors/residual_types_tests.cpp
     unit/processors/residual_analyzer_tests.cpp
     unit/processors/residual_synthesizer_tests.cpp
@@ -355,7 +351,6 @@ add_executable(dsp_processors_tests
     unit/processors/spectral_smear_test.cpp
     unit/processors/spectral_smear_spectral_test.cpp
     unit/processors/spectral_smear_perf_test.cpp
-    unit/processors/spectral_smear_nonfinite_test.cpp
 )
 
 target_link_libraries(dsp_processors_tests
@@ -420,14 +415,12 @@ add_executable(dsp_systems_tests
     unit/systems/atmosphere_engine_test.cpp
     unit/systems/atmosphere_engine_spectral_test.cpp
     unit/systems/atmosphere_engine_perf_test.cpp
-    unit/systems/atmosphere_engine_nonfinite_test.cpp
     # Seraphis Phase 7 (specs/seraphis-phase7-voice-engine): SeraphisVoice,
     # SeraphisEngine, SeraphisMacroMatrix. This list is ENUMERATED, not globbed -
     # an unregistered TU silently drops out of the build and its cases never run.
     unit/systems/seraphis_voice_test.cpp
     unit/systems/seraphis_engine_test.cpp
     unit/systems/seraphis_macro_test.cpp
-    unit/systems/seraphis_nonfinite_test.cpp
     unit/systems/seraphis_perf_test.cpp
     # Seraphis Phase 9 (specs/seraphis-phase9-parameters): the broadcast POD,
     # applyVoiceParams / applySpectralStates, the macro base overrides, the new
@@ -464,7 +457,6 @@ add_executable(dsp_systems_tests
     unit/systems/noise_organism_test.cpp
     unit/systems/noise_organism_spectral_test.cpp
     unit/systems/noise_organism_perf_test.cpp
-    unit/systems/noise_organism_nonfinite_test.cpp
     # Vorago Phase 3 (specs/vorago-phase3-resonance-drift): ResonanceDriftNetwork.
     # This list is ENUMERATED, not globbed - an unregistered TU silently drops
     # out of the build and its cases never run.
@@ -479,7 +471,6 @@ add_executable(dsp_systems_tests
     unit/systems/resonance_drift_network_test.cpp
     unit/systems/resonance_drift_network_spectral_test.cpp
     unit/systems/resonance_drift_network_perf_test.cpp
-    unit/systems/resonance_drift_network_nonfinite_test.cpp
     # Vorago Phase 5 (specs/vorago-phase5-feedback-ecology): FeedbackEcology.
     # This list is ENUMERATED, not globbed - an unregistered TU silently drops
     # out of the build and its cases never run.
@@ -493,7 +484,6 @@ add_executable(dsp_systems_tests
     unit/systems/feedback_ecology_test.cpp
     unit/systems/feedback_ecology_spectral_test.cpp
     unit/systems/feedback_ecology_perf_test.cpp
-    unit/systems/feedback_ecology_nonfinite_test.cpp
     # Vorago Phase 6 (specs/vorago-phase6-subharmonic): SubharmonicEngine.
     # This list is ENUMERATED, not globbed - an unregistered TU silently drops
     # out of the build and its cases never run.
@@ -507,7 +497,6 @@ add_executable(dsp_systems_tests
     unit/systems/subharmonic_engine_test.cpp
     unit/systems/subharmonic_engine_spectral_test.cpp
     unit/systems/subharmonic_engine_perf_test.cpp
-    unit/systems/subharmonic_engine_nonfinite_test.cpp
     # Vorago Phase 7 (specs/vorago-phase7-harmonic-bloom): BloomEngine.
     # This list is ENUMERATED, not globbed - an unregistered TU silently drops
     # out of the build and its cases never run.
@@ -520,7 +509,6 @@ add_executable(dsp_systems_tests
     unit/systems/bloom_engine_test.cpp
     unit/systems/bloom_engine_spectral_test.cpp
     unit/systems/bloom_engine_perf_test.cpp
-    unit/systems/bloom_engine_nonfinite_test.cpp
     # Vorago Phase 8 (specs/vorago-phase8-ecosystem): EcosystemEngine.
     # This list is ENUMERATED, not globbed - an unregistered TU silently drops
     # out of the build and its cases never run.
@@ -535,7 +523,6 @@ add_executable(dsp_systems_tests
     unit/systems/ecosystem_engine_test.cpp
     unit/systems/ecosystem_engine_longrun_test.cpp
     unit/systems/ecosystem_engine_perf_test.cpp
-    unit/systems/ecosystem_engine_nonfinite_test.cpp
     # Vorago Phase 13 (specs/vorago-phase13-ui): SC-019 pair accessors (strength/cooldown/partner).
     unit/systems/ecosystem_engine_pair_accessors_test.cpp
     # Vorago Phase 10 (specs/vorago-phase10-voice-engine): VoragoVoice, VoragoEngine,
@@ -580,7 +567,6 @@ add_executable(dsp_systems_tests
     #   vorago_ghost_ext_test.cpp          SC-010 only (the vorago_engine.h side)
     unit/systems/atmosphere_ghost_test.cpp
     unit/systems/atmosphere_ghost_longrun_test.cpp
-    unit/systems/atmosphere_ghost_nonfinite_test.cpp
     unit/systems/atmosphere_ghost_perf_test.cpp
     unit/systems/vorago_ghost_ext_test.cpp
     # Vorago Phase 12 (specs/vorago-phase12-parameters): the DSP side of the full
@@ -638,7 +624,6 @@ add_executable(dsp_systems_tests
     #   per-push with a MaskNeverSlewedBendLong sibling
     unit/systems/profundum_core_test.cpp
     unit/systems/profundum_core_spectral_test.cpp
-    unit/systems/profundum_core_nonfinite_test.cpp
     unit/systems/profundum_core_perf_test.cpp
     # Profundum Phase 2 (specs/profundum-phase2-edge-fold): ProfundumCore
     # excitation + the HarmonicFold chain. ENUMERATED, not globbed - an
@@ -667,7 +652,6 @@ add_executable(dsp_systems_tests
     unit/systems/profundum_core_excitation_test.cpp
     unit/systems/profundum_core_excitation_spectral_test.cpp
     unit/systems/profundum_edge_fold_chain_test.cpp
-    unit/systems/profundum_core_excitation_nonfinite_test.cpp
     unit/systems/profundum_edge_fold_perf_test.cpp
     # Profundum Phase 3 (specs/profundum-phase3-anchor): AnchorOscillator + the
     # core/Fold chain. ENUMERATED, not globbed - an unregistered TU silently
@@ -686,7 +670,6 @@ add_executable(dsp_systems_tests
     #   anchor_oscillator_perf_test.cpp      SC-018  [.perf]
     unit/systems/anchor_oscillator_test.cpp
     unit/systems/anchor_oscillator_spectral_test.cpp
-    unit/systems/anchor_oscillator_nonfinite_test.cpp
     unit/systems/profundum_anchor_chain_test.cpp
     unit/systems/anchor_oscillator_perf_test.cpp
     # Profundum Phase 4 (specs/profundum-phase4-drop-note-behaviour) - ENUMERATED, not globbed:
@@ -713,7 +696,6 @@ add_executable(dsp_systems_tests
     unit/systems/bass_character_spectral_test.cpp
     unit/systems/bass_character_rlaw_test.cpp
     unit/systems/shape_character_chain_test.cpp
-    unit/systems/shape_character_nonfinite_test.cpp
     unit/systems/shape_character_perf_test.cpp
     # Profundum Phase 6 (specs/profundum-phase6-mass-dynamics) - ENUMERATED, not globbed:
     #   k_weighting_helper_test.cpp          SC-026 (BS.1770 K-weighting reference)
@@ -738,7 +720,6 @@ add_executable(dsp_systems_tests
     unit/systems/mass_law_spectral_test.cpp
     unit/systems/mass_law_automation_test.cpp
     unit/systems/mass_dynamics_aliasing_test.cpp
-    unit/systems/mass_dynamics_nonfinite_test.cpp
     unit/systems/mass_dynamics_perf_test.cpp
     # Profundum Phase 7 (specs/profundum-phase7-stereo-field) - ENUMERATED, not globbed:
     #   bass_stereo_field_test.cpp           FR-011, FR-034, FR-053, SC-004(b)(c), SC-005 gates, SC-009(a')(c), SC-011, SC-012,
@@ -753,7 +734,6 @@ add_executable(dsp_systems_tests
     #   bass_stereo_field_perf_test.cpp      SC-013  [.perf]
     unit/systems/bass_stereo_field_test.cpp
     unit/systems/bass_stereo_field_helpers_test.cpp
-    unit/systems/bass_stereo_field_nonfinite_test.cpp
     unit/systems/bass_stereo_field_monosum_test.cpp
     unit/systems/bass_stereo_field_spectral_test.cpp
     unit/systems/bass_stereo_field_motion_test.cpp
@@ -775,7 +755,6 @@ add_executable(dsp_systems_tests
     #   bass_morph_perf_test.cpp          SC-018, FR-083 record [.perf]
     unit/systems/morph_state_test.cpp
     unit/systems/bass_morph_engine_test.cpp
-    unit/systems/bass_morph_nonfinite_test.cpp
     unit/systems/bass_morph_helpers_test.cpp
     unit/systems/bass_morph_probe_test.cpp
     unit/systems/bass_morph_chain_test.cpp
@@ -806,7 +785,6 @@ add_executable(dsp_systems_tests
     unit/systems/profundum_macro_matrix_test.cpp
     unit/systems/profundum_voice_test.cpp
     unit/systems/profundum_engine_test.cpp
-    unit/systems/profundum_engine_nonfinite_test.cpp
     unit/systems/profundum_engine_click_test.cpp
     unit/systems/profundum_engine_audibility_test.cpp
     unit/systems/profundum_engine_chain_test.cpp
@@ -859,7 +837,6 @@ add_executable(dsp_effects_tests
     unit/effects/aether_reverb_matrix_test.cpp
     unit/effects/aether_reverb_spectral_test.cpp
     unit/effects/aether_reverb_perf_test.cpp
-    unit/effects/aether_reverb_nonfinite_test.cpp
     # Vorago Phase 9 (specs/vorago-phase9-cavern-space)
     unit/effects/cavern_verb_test.cpp
     unit/effects/cavern_verb_freeze_test.cpp
@@ -890,6 +867,63 @@ target_link_libraries(dsp_effects_tests
 target_compile_definitions(dsp_effects_tests PRIVATE KRATE_DSP_AETHER_TEST_HOOKS)
 
 target_compile_features(dsp_effects_tests PRIVATE cxx_std_20)
+
+# IEEE-only fault-injection TUs (2026-10-25). Every TU here poisons DSP state with NaN / Inf bit patterns and asserts
+# on the result, so it needs IEEE semantics in EVERY function it runs, not only in its own body. In a mixed binary
+# that is not guaranteed: an inline header function (EnvelopeFollower::processSample, DCBlocker::process, ...) that
+# is not inlined into the -fno-fast-math TU is a COMDAT symbol, and the linker keeps ONE copy for the whole image -
+# from whichever TU came first, usually a -ffast-math one. Apple clang on the macOS arm64 runner then folded the NaN
+# out of that copy (FeedbackEcology_NonFinite (c2) red, 2026-10-25). Here every TU is -fno-fast-math, so every copy
+# is IEEE. The per-source entries in the -fno-fast-math block below stay (they keep these files out of the PCH).
+# The target defines the union of the three source executables' target-wide macros; KRATE_DSP_AETHER_TEST_HOOKS is
+# target-wide for the same ODR reason as in dsp_effects_tests (aether_reverb_nonfinite_test.cpp needs it).
+add_executable(dsp_nonfinite_tests
+    # Shared Catch2 main + FTZ/DAZ setup (see dsp_test_main.cpp)
+    dsp_test_main.cpp
+    unit/systems/atmosphere_engine_nonfinite_test.cpp
+    unit/systems/atmosphere_ghost_nonfinite_test.cpp
+    unit/effects/aether_reverb_nonfinite_test.cpp
+    unit/systems/seraphis_nonfinite_test.cpp
+    unit/systems/noise_organism_nonfinite_test.cpp
+    unit/systems/resonance_drift_network_nonfinite_test.cpp
+    unit/processors/spectral_smear_nonfinite_test.cpp
+    unit/systems/feedback_ecology_nonfinite_test.cpp
+    unit/systems/subharmonic_engine_nonfinite_test.cpp
+    unit/systems/bloom_engine_nonfinite_test.cpp
+    unit/systems/ecosystem_engine_nonfinite_test.cpp
+    unit/systems/profundum_core_nonfinite_test.cpp
+    unit/processors/harmonic_fold_nonfinite_test.cpp
+    unit/systems/profundum_core_excitation_nonfinite_test.cpp
+    unit/systems/anchor_oscillator_nonfinite_test.cpp
+    unit/processors/drop_note_behaviour_nonfinite_test.cpp
+    unit/processors/rectifier_nonfinite_test.cpp
+    unit/systems/shape_character_nonfinite_test.cpp
+    unit/processors/transient_shaper_nonfinite_test.cpp
+    unit/systems/mass_dynamics_nonfinite_test.cpp
+    unit/systems/bass_stereo_field_nonfinite_test.cpp
+    unit/systems/bass_morph_nonfinite_test.cpp
+    unit/systems/profundum_engine_nonfinite_test.cpp
+)
+
+target_link_libraries(dsp_nonfinite_tests
+    PRIVATE
+        KrateDSP
+        Catch2::Catch2
+        test_helpers
+        hwy
+)
+
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+    target_compile_options(dsp_nonfinite_tests PRIVATE -fno-fast-math -fno-finite-math-only)
+endif()
+
+target_compile_definitions(dsp_nonfinite_tests
+    PRIVATE
+        KRATE_DSP_AETHER_TEST_HOOKS
+        KRATE_DSP_TESTS_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
+        VORAGO_P1_HARNESS_DIR="${CMAKE_BINARY_DIR}/vorago_p1/")
+
+target_compile_features(dsp_nonfinite_tests PRIVATE cxx_std_20)
 
 
 # ==============================================================================
@@ -1353,6 +1387,7 @@ catch_discover_tests(dsp_primitives_tests REPORTER console)
 catch_discover_tests(dsp_processors_tests REPORTER console)
 catch_discover_tests(dsp_systems_tests REPORTER console)
 catch_discover_tests(dsp_effects_tests REPORTER console)
+catch_discover_tests(dsp_nonfinite_tests REPORTER console)
 
 # ==============================================================================
 # Precompiled Catch2 + STL per executable when KRATE_TEST_PCH is ON

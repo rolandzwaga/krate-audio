@@ -6,6 +6,7 @@
     "dsp_processors_tests": 72,
     "dsp_systems_tests": 636,
     "dsp_effects_tests": 45,
+    "dsp_nonfinite_tests": 15,
     "shared_tests": 1,
     "plugin_tests": 1,
     "approval_tests": 1,

@@ -392,9 +392,11 @@ CMAKE="/c/Program Files/CMake/bin/cmake.exe"
 # Build (Release)
 "$CMAKE" --build build/windows-x64-release --config Release
 
-# Run DSP tests (split into 5 per-layer executables: core/primitives/processors/systems/effects)
-"$CMAKE" --build build/windows-x64-release --config Release --target dsp_core_tests dsp_primitives_tests dsp_processors_tests dsp_systems_tests dsp_effects_tests
-for t in dsp_core_tests dsp_primitives_tests dsp_processors_tests dsp_systems_tests dsp_effects_tests; do build/windows-x64-release/bin/Release/$t.exe 2>&1 | tail -3; done
+# Run DSP tests (5 per-layer executables: core/primitives/processors/systems/effects, plus dsp_nonfinite_tests:
+# the IEEE-only *_nonfinite_test.cpp TUs, every TU -fno-fast-math, so no fast-math copy of an inline DSP body
+# can be the one the linker keeps - dsp/tests/CMakeLists.txt)
+"$CMAKE" --build build/windows-x64-release --config Release --target dsp_core_tests dsp_primitives_tests dsp_processors_tests dsp_systems_tests dsp_effects_tests dsp_nonfinite_tests
+for t in dsp_core_tests dsp_primitives_tests dsp_processors_tests dsp_systems_tests dsp_effects_tests dsp_nonfinite_tests; do build/windows-x64-release/bin/Release/$t.exe 2>&1 | tail -3; done
 # (Editing one layer only relinks that layer's exe — e.g. --target dsp_core_tests)
 
 # Run plugin-specific tests

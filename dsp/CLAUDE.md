@@ -186,13 +186,16 @@ The suite is split into 5 per-layer executables (`dsp_core_tests`, `dsp_primitiv
 `dsp_processors_tests`, `dsp_systems_tests`, `dsp_effects_tests`) so editing one layer only
 relinks that layer's exe. A new test file MUST be added to the matching target in
 `dsp/tests/CMakeLists.txt` (sources are listed explicitly, not globbed) or it silently drops.
+A test that injects NaN / Inf and asserts on it (`*_nonfinite_test.cpp`) goes in `dsp_nonfinite_tests`, whose every
+TU is `-fno-fast-math`: in a mixed executable the linker may keep a fast-math copy of an inline DSP function, and
+Apple clang folds NaN out of it (FeedbackEcology_NonFinite, macOS arm64, 2026-10-25).
 
 ```bash
 CMAKE="/c/Program Files/CMake/bin/cmake.exe"
 # Build + run just the layer you touched, e.g. core:
 "$CMAKE" --build build/windows-x64-release --config Release --target dsp_core_tests
 build/windows-x64-release/bin/Release/dsp_core_tests.exe 2>&1 | tail -5
-# ...or all five: --target dsp_core_tests dsp_primitives_tests dsp_processors_tests dsp_systems_tests dsp_effects_tests
+# ...or all six: --target dsp_core_tests dsp_primitives_tests dsp_processors_tests dsp_systems_tests dsp_effects_tests dsp_nonfinite_tests
 ```
 
 Run one suite by passing the Catch2 case name positionally (`dsp_core_tests.exe "SomeTest*"`), NOT

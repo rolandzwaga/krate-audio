@@ -292,7 +292,7 @@ jobs:
           SHARED="${{ needs.detect-changes.outputs.shared }}"
           INFRA="${{ needs.detect-changes.outputs.infra }}"
           if [ "$DSP" = "true" ] || [ "$INFRA" = "true" ]; then
-            TARGETS="$TARGETS dsp_core_tests dsp_primitives_tests dsp_processors_tests dsp_systems_tests dsp_effects_tests"
+            TARGETS="$TARGETS dsp_core_tests dsp_primitives_tests dsp_processors_tests dsp_systems_tests dsp_effects_tests dsp_nonfinite_tests"
           fi
           if [ "$SHARED" = "true" ] || [ "$INFRA" = "true" ]; then
             TARGETS="$TARGETS shared_tests"
@@ -346,7 +346,7 @@ jobs:
           INFRA="${{ needs.detect-changes.outputs.infra }}"
           SUITES=()
           if [ "$DSP" = "true" ] || [ "$INFRA" = "true" ]; then
-            SUITES+=(dsp_core_tests dsp_primitives_tests dsp_processors_tests dsp_systems_tests dsp_effects_tests)
+            SUITES+=(dsp_core_tests dsp_primitives_tests dsp_processors_tests dsp_systems_tests dsp_effects_tests dsp_nonfinite_tests)
           fi
           if [ "$SHARED" = "true" ] || [ "$INFRA" = "true" ]; then
             SUITES+=(shared_tests)
@@ -577,7 +577,7 @@ jobs:
           SHARED="${{ needs.detect-changes.outputs.shared }}"
           INFRA="${{ needs.detect-changes.outputs.infra }}"
           if [ "$DSP" = "true" ] || [ "$INFRA" = "true" ]; then
-            TARGETS="$TARGETS dsp_core_tests dsp_primitives_tests dsp_processors_tests dsp_systems_tests dsp_effects_tests"
+            TARGETS="$TARGETS dsp_core_tests dsp_primitives_tests dsp_processors_tests dsp_systems_tests dsp_effects_tests dsp_nonfinite_tests"
           fi
           if [ "$SHARED" = "true" ] || [ "$INFRA" = "true" ]; then
             TARGETS="$TARGETS shared_tests"
@@ -640,7 +640,7 @@ jobs:
           INFRA="${{ needs.detect-changes.outputs.infra }}"
           SUITES=()
           if [ "$DSP" = "true" ] || [ "$INFRA" = "true" ]; then
-            SUITES+=(dsp_core_tests dsp_primitives_tests dsp_processors_tests dsp_systems_tests dsp_effects_tests)
+            SUITES+=(dsp_core_tests dsp_primitives_tests dsp_processors_tests dsp_systems_tests dsp_effects_tests dsp_nonfinite_tests)
           fi
           if [ "$SHARED" = "true" ] || [ "$INFRA" = "true" ]; then
             SUITES+=(shared_tests)
@@ -1081,7 +1081,7 @@ jobs:
           SHARED="${{ needs.detect-changes.outputs.shared }}"
           INFRA="${{ needs.detect-changes.outputs.infra }}"
           if [ "$DSP" = "true" ] || [ "$INFRA" = "true" ]; then
-            TARGETS="$TARGETS dsp_core_tests dsp_primitives_tests dsp_processors_tests dsp_systems_tests dsp_effects_tests"
+            TARGETS="$TARGETS dsp_core_tests dsp_primitives_tests dsp_processors_tests dsp_systems_tests dsp_effects_tests dsp_nonfinite_tests"
           fi
           if [ "$SHARED" = "true" ] || [ "$INFRA" = "true" ]; then
             TARGETS="$TARGETS shared_tests"
@@ -1135,7 +1135,7 @@ jobs:
           INFRA="${{ needs.detect-changes.outputs.infra }}"
           SUITES=()
           if [ "$DSP" = "true" ] || [ "$INFRA" = "true" ]; then
-            SUITES+=(dsp_core_tests dsp_primitives_tests dsp_processors_tests dsp_systems_tests dsp_effects_tests)
+            SUITES+=(dsp_core_tests dsp_primitives_tests dsp_processors_tests dsp_systems_tests dsp_effects_tests dsp_nonfinite_tests)
           fi
           if [ "$SHARED" = "true" ] || [ "$INFRA" = "true" ]; then
             SUITES+=(shared_tests)
