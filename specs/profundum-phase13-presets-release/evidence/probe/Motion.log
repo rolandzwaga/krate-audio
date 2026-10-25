@@ -1,0 +1,22 @@
+Filters: "Profundum_PresetAudibilityProbe_Motion"
+Randomness seeded to: 1993166760
+# Profundum_PresetAudibilityProbe_Motion
+at_id,variant,note,base,processor_value,bar,pass,live_value,csv_value,rel_dev,anchor_phase_tap_renders
+"AT-34","",E1,"A + sustain 1 (C-8) + anchor level 0.5 (per-row setting, G11-2 / G14-8)",5.66385,">= 3 dB",PASS,5.66385,5.66385,3.27258e-07,n/a
+"AT-35","",E1,"B + sustain 1 (B10-1)",6.27757,">= 3 dB",PASS,6.27757,6.27757,7.61201e-07,n/a
+"AT-36","",E1,"B + sustain 1 (B10-1)",7.76017,">= 3 dB",PASS,7.76017,7.76017,2.58164e-08,n/a
+"AT-37","",E1,"A + sustain 1 (C-8) + recipe kSawAnchor at edge 0.5 (per-row setting candidate)",2.43054,">= 0.25 oct",PASS,2.43054,2.43054,9.98312e-07,n/a
+"AT-38","",E1,"B + sustain 1 (B10-1)",0.299477,">= 0.25 oct",PASS,0.299477,0.299477,1.20091e-06,n/a
+"AT-39","",E1,"A + sustain 1 (C-8) + anchor level 0.5 (per-row setting, G11-2 / G14-8) + ENV decay 1000 ms (per-row setting candidate)",3.38491,">= 3 dB",PASS,3.38491,3.38491,1.79608e-07,n/a
+"AT-40","",E1,"A + sustain 1 (C-8) + anchor level 0.5 (per-row setting, G11-2 / G14-8)",3.22016,">= 3 dB",PASS,3.22016,3.22016,1.91184e-07,n/a
+"AT-34","",C3,"A + sustain 1 (C-8) + anchor level 0.5 (per-row setting, G11-2 / G14-8)",5.75851,">= 3 dB",PASS,5.75851,5.75851,7.04963e-07,n/a
+"AT-35","",C3,"B + sustain 1 (B10-1)",7.56986,">= 3 dB",PASS,7.56986,7.56986,4.87957e-07,n/a
+"AT-36","",C3,"B + sustain 1 (B10-1)",6.15884,">= 3 dB",PASS,6.15884,6.15884,6.89475e-08,n/a
+"AT-37","",C3,"A + sustain 1 (C-8) + recipe kSawAnchor at edge 0.5 (per-row setting candidate)",2.44908,">= 0.25 oct",PASS,2.44908,2.44908,6.4186e-07,n/a
+"AT-38","",C3,"B + sustain 1 (B10-1)",0.303864,">= 0.25 oct",PASS,0.303864,0.303864,9.1911e-07,n/a
+"AT-39","",C3,"A + sustain 1 (C-8) + anchor level 0.5 (per-row setting, G11-2 / G14-8)",3.13675,">= 3 dB",PASS,3.13675,3.13675,1.27896e-06,n/a
+"AT-40","",C3,"A + sustain 1 (C-8) + anchor level 0.5 (per-row setting, G11-2 / G14-8)",3.5362,">= 3 dB",PASS,3.5362,3.5362,1.39495e-06,n/a
+===============================================================================
+All tests passed (9267871 assertions in 1 test case)
+
+WALL Motion 414.9 s exit=0

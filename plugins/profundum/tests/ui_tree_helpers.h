@@ -12,6 +12,9 @@
 //   - collectBoundControls: copied from unit/controller/editor_lifecycle_test.cpp
 //     (every CControl with tag >= 0; CTextLabel IS-A CControl and keeps tag -1).
 //   - collectViewsOfType<T>: every descendant view that dynamic_casts to T.
+//   - Both walkers stop descending at a PresetBrowserView (Phase 13 T013, the
+//     Vorago editor_lifecycle_test.cpp pattern): the overlay itself is visited,
+//     its tagged child buttons are not.
 //   - XML scan (LayoutRect / XmlNode / XmlScan / scanUidesc / findTemplate /
 //     isDescendantOf / findLabelled / boundNodes): copied from
 //     plugins/vorago/tests/unit/controller/editor_layout_test.cpp (Deviation 7).
@@ -21,6 +24,7 @@
 // ==============================================================================
 
 #include "test_helpers/editor_lifecycle_harness.h"
+#include "ui/preset_browser_view.h"  // plugins/shared/src/ui (Phase 13 T013 walker stop)
 
 #include "pluginterfaces/gui/iplugview.h"
 #include "public.sdk/source/vst/vsteditcontroller.h"
@@ -100,6 +104,10 @@ inline void collectBoundControls(VSTGUI::CViewContainer* container,
                 out.push_back(control);
             }
         }
+        // Phase 13 T013: never descend into the PresetBrowserView overlay (its own tagged buttons, 1-5 / 10-31).
+        if (dynamic_cast<Krate::Plugins::PresetBrowserView*>(view) != nullptr) {
+            continue;
+        }
         if (auto* child = dynamic_cast<VSTGUI::CViewContainer*>(view)) {
             collectBoundControls(child, out);
         }
@@ -120,6 +128,10 @@ inline void collectViewsOfTypeInto(VSTGUI::CViewContainer* container, std::vecto
         }
         if (auto* typed = dynamic_cast<T*>(view)) {
             out.push_back(typed);
+        }
+        // Phase 13 T013: never descend into the PresetBrowserView overlay (its own tagged buttons, 1-5 / 10-31).
+        if (dynamic_cast<Krate::Plugins::PresetBrowserView*>(view) != nullptr) {
+            continue;
         }
         if (auto* child = dynamic_cast<VSTGUI::CViewContainer*>(view)) {
             collectViewsOfTypeInto(child, out);

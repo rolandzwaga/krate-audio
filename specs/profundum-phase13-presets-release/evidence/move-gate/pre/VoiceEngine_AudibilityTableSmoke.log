@@ -1,0 +1,14 @@
+Filters: "VoiceEngine_AudibilityTableSmoke"
+Randomness seeded to: 1838503588
+# VoiceEngine_AudibilityTableSmoke
+row,contrast,base,note,descriptor,tap,lo,hi,value,bar,pass,gated,out_descriptor,out_lo,out_hi,ampStep,remark
+"AT-03","Fold: foldAmount 0 -> 100","A + sustain 1 (C-8)",E1,"D_nl (dB)","Char / twin",0,47.6755,47.6755,">= 3 dB",PASS,gated,"L_K output (dB; D_nl has no output form)",-12.0432,-14.0502,"n/a",""
+"AT-10","Anchor: level 0 -> 1 (Sine, LOCK)","A + sustain 1 (C-8)",E1,"E_sub (dB)","Sum",-11.9198,-5.9717,5.94809,"dE_sub >= 2 dB",PASS,gated,"E_sub output (dB)",-11.9804,-6.03327,"n/a",""
+"AT-26","Mass: 0 -> 100","A + sustain 1 (C-8) + anchor level 0.5 (per-row setting, G11-2)",E1,"E_sub (dB)","Sum",-11.9198,-6.67308,5.24671,">= 3 dB",PASS,gated,"E_sub output (dB)",-9.93101,-4.86242,"n/a","H-14: L_K output -15.921102 -> -9.368590 dB; per-row setting G11-2: A's anchor level 1.0 sits at the AnchorLevel row's clamp, so Mass 100 cannot raise it"
+"AT-26","Mass: 0 -> 100","A + sustain 1 (C-8)",E1,"E_sub (dB)","Sum",-8.45341,-6.67308,1.78033,">= 3 dB",FAIL,recorded,"E_sub output (dB)",-6.46561,-4.86242,"n/a","H-14: L_K output -12.470351 -> -9.368590 dB; plain A_s, recorded (G11-2)"
+"AT-26","Mass: 0 -> 100","B (its own sustain 0.8, C-8)",E1,"E_sub (dB)","Sum",-16.722,-12.6275,4.09452,">= 3 dB",PASS,gated,"E_sub output (dB)",-14.7336,-15.1938,"n/a","H-14: L_K output -18.837904 -> -13.645299 dB | the named base reaches the bar"
+"AT-26","Mass: 0 -> 100","B + sustain 1 (B10-1)",E1,"E_sub (dB)","Sum",-15.0105,-10.916,4.09451,">= 3 dB",PASS,recorded,"E_sub output (dB)",-13.0227,-15.1152,"n/a","H-14: L_K output -17.166839 -> -13.564219 dB | recorded: a later candidate"
+===============================================================================
+All tests passed (485 assertions in 1 test case)
+
+WALL VoiceEngine_AudibilityTableSmoke 12.6 s exit=0

@@ -1,0 +1,7 @@
+at_id,variant,note,base,processor_value,bar,pass,live_value,csv_value,rel_dev,anchor_phase_tap_renders
+"AT-01","",E1,"A + sustain 1 (C-8) + edge 1 (per-row setting candidate; Phase 2 SC-001's fixture)",29.3673,">= 3 dB",PASS,29.3673,29.3673,1.87777e-07,n/a
+"AT-02","",E1,"A + sustain 1 (C-8) + recipe kSawAnchor at edge 0.5 (per-row setting candidate)",2.47299,">= 0.25 oct",PASS,2.47299,2.47299,1.02139e-06,n/a
+"AT-03","",E1,"A + sustain 1 (C-8)",47.6755,">= 3 dB",PASS,47.6755,47.6755,5.09907e-07,n/a
+"AT-01","",C3,"A + sustain 1 (C-8) + edge 1 (per-row setting candidate; Phase 2 SC-001's fixture)",29.4025,">= 3 dB",PASS,29.4025,29.4025,1.10914e-06,n/a
+"AT-02","",C3,"B + sustain 1 (B10-1)",0.378903,">= 0.25 oct",PASS,0.378903,0.378903,9.7745e-07,n/a
+"AT-03","",C3,"A + sustain 1 (C-8)",47.6593,">= 3 dB",PASS,47.6593,47.6593,1.27842e-07,n/a

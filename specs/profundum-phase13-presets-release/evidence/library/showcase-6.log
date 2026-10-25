@@ -1,0 +1,26 @@
+=== showcase-6 2026-10-25T07:23:39Z commit e6095b24
+cmd: build/windows-x64-release/bin/Release/profundum_tests.exe Profundum_PresetShowcase_6of8
+Filters: "Profundum_PresetShowcase_6of8"
+Randomness seeded to: 1345486031
+# Profundum_PresetShowcase_6of8: presets=6 arms=16
+preset,column,role,variant,note,value,bar,margin,window_ms,overrides,descriptor,tap
+"Bite Down","AT-07 Character Bite",primary,"",E1,12.7979,3,9.79792,0,"","D_nl","Char / twin"
+"Bite Down","AT-07 Character Bite",primary,"",C3,12.4729,3,9.47288,0,"","D_nl","Char / twin"
+"Bite Down","AT-28 Mass Transient Attack",secondary,"",E1,10.8442,3,7.84425,0,"","onset_ratio","dynamics output tap"
+"Bite Down","AT-28 Mass Transient Attack",secondary,"",C3,10.9047,3,7.90471,0,"","onset_ratio","dynamics output tap"
+"Rounded Weight","AT-15 Anchor Sine to Rounded Sine",primary,"",E1,9.47948,3,6.47948,0,"","D_cx","Sum"
+"Rounded Weight","AT-15 Anchor Sine to Rounded Sine",primary,"",C3,8.36096,3,5.36096,0,"","D_cx","Sum"
+"Glide Path","AT-23 Pitch Glide",primary,"",E1,287.344,2,285.344,0,"","t_50","f_res pitch tap (voice 0)"
+"Glide Path","AT-23 Pitch Glide",primary,"",C3,287.219,2,285.219,0,"","t_50","f_res pitch tap (voice 0)"
+"Glide Path","AT-44 NoteMemory Legato",secondary,"",E1,147.304,30,117.304,0,"","phase_deg","core tap"
+"Glide Path","AT-44 NoteMemory Legato",secondary,"",C3,95.5179,30,65.5179,0,"","phase_deg","core tap"
+"Spread Choir","AT-31 Field Spread",primary,"",E1,111.125,3,108.125,0,"","D_st","field stage tap"
+"Spread Choir","AT-31 Field Spread",primary,"",C3,117.01,3,114.01,0,"","D_st","field stage tap"
+"Envelope Mass","AT-39 Motion Env to Mass",primary,"",E1,3.26077,3,0.260769,0,"","E_sub_p2p","Sum"
+"Envelope Mass","AT-39 Motion Env to Mass",primary,"",C3,3.17683,3,0.176834,0,"","E_sub_p2p","Sum"
+"Weight Lever","AT-47 Macros Weight",primary,"",E1,3.30633,3,0.306327,0,"","E_sub","Sum"
+"Weight Lever","AT-47 Macros Weight",primary,"",C3,3.22505,3,0.225049,0,"","E_sub","Sum"
+===============================================================================
+All tests passed (650990 assertions in 1 test case)
+
+WALL showcase-6 31.3 s exit=0

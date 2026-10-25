@@ -1,0 +1,5 @@
+0 0 plugins/shared/src/preset/preset_manager.cpp
+0 0 plugins/shared/src/ui/preset_browser_view.cpp
+0 0 plugins/shared/tests/test_preset_description.cpp
+0 0 dsp/tests/unit/systems/profundum_engine_audibility_test.cpp
+0 0 tools/profundum_preset_generator.cpp

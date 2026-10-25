@@ -1,0 +1,25 @@
+MSBuild version 17.14.60+43b635718 for .NET Framework
+
+  Checking File Globs
+  Catch2.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\Catch2.lib
+  PFFFT.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\pffft.lib
+  hwy.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy.lib
+  hwy_contrib.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy_contrib.lib
+  KrateDSP.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\KrateDSP.lib
+  base.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\base.lib
+  pluginterfaces.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\pluginterfaces.lib
+  sdk_common.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\sdk_common.lib
+  sdk.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\sdk.lib
+  vstgui.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\vstgui.lib
+  KratePluginsShared.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\KratePluginsShared.lib
+  vstgui_uidescription.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\vstgui_uidescription.lib
+  vstgui_support.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\vstgui_support.lib
+  preset_probe_test.cpp
+  preset_rt_test.cpp
+  preset_showcase_test.cpp
+  preset_sweep_test.cpp
+  processor_cpu_test.cpp
+  preset_description_test.cpp
+  preset_library_test.cpp
+     Creating library F:/projects/iterum/build/windows-x64-release/lib/Release/profundum_tests.lib and object F:/projects/iterum/build/windows-x64-release/lib/Release/profundum_tests.exp
+  profundum_tests.vcxproj -> F:\projects\iterum\build\windows-x64-release\bin\Release\profundum_tests.exe

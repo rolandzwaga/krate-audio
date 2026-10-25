@@ -1,0 +1,24 @@
+=== showcase-2 2026-10-25T07:23:39Z commit e6095b24
+cmd: build/windows-x64-release/bin/Release/profundum_tests.exe Profundum_PresetShowcase_2of8
+Filters: "Profundum_PresetShowcase_2of8"
+Randomness seeded to: 3673302036
+# Profundum_PresetShowcase_2of8: presets=7 arms=14
+preset,column,role,variant,note,value,bar,margin,window_ms,overrides,descriptor,tap
+"Folded Mass","AT-03 Core Harmonic Fold",primary,"",E1,15.82,3,12.82,0,"","D_nl","Char / twin"
+"Folded Mass","AT-03 Core Harmonic Fold",primary,"",C3,16.5798,3,13.5798,0,"","D_nl","Char / twin"
+"Punch Anchor","AT-11 Anchor Lock to Punch",primary,"",E1,2.16876,2,0.168764,39.9999,"","E_sub_onset","Sum"
+"Punch Anchor","AT-11 Anchor Lock to Punch",primary,"",C3,2.09658,2,0.0965758,39.9999,"","E_sub_onset","Sum"
+"Dropping Stone","AT-19 Pitch Drop Amount",primary,"",E1,24,6,18,0,"","drop_start","f_core pitch tap (d_core = 12 log2(f_core / f_res), voice 0)"
+"Dropping Stone","AT-19 Pitch Drop Amount",primary,"",C3,24,6,18,0,"","drop_start","f_core pitch tap (d_core = 12 log2(f_core / f_res), voice 0)"
+"Pressure Front","AT-27 Mass Dynamics Gain",primary,"",E1,4.60318,3,1.60318,0,"","dL_K","dynamics output tap and Sum"
+"Pressure Front","AT-27 Mass Dynamics Gain",primary,"",C3,4.01259,3,1.01259,0,"","dL_K","dynamics output tap and Sum"
+"Breathing Depth","AT-35 Motion Cycle to Depth",primary,"",E1,5.05711,3,2.05711,0,"","E_sub_p2p","Sum"
+"Breathing Depth","AT-35 Motion Cycle to Depth",primary,"",C3,5.13837,3,2.13837,0,"","E_sub_p2p","Sum"
+"Restrike","AT-43 NoteMemory AlwaysRetrigger",primary,"",E1,177.88,30,147.88,0,"","phase_deg","core tap"
+"Restrike","AT-43 NoteMemory AlwaysRetrigger",primary,"",C3,167.591,30,137.591,0,"","phase_deg","core tap"
+"Mono Bedrock","R-SOLID Reference Solid",primary,"",E1,110.958,3,107.958,0,"","D_st","field stage tap"
+"Mono Bedrock","R-SOLID Reference Solid",primary,"",C3,117.282,3,114.282,0,"","D_st","field stage tap"
+===============================================================================
+All tests passed (984259 assertions in 1 test case)
+
+WALL showcase-2 39.1 s exit=0

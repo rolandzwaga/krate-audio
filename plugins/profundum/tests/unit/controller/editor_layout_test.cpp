@@ -34,7 +34,9 @@
 #include "ui/harmonic_bar_view.h"
 #include "ui/macro_ui_map.h"
 #include "ui/offset_ring_knob.h"
+#include "ui/outline_button.h"       // plugins/shared/src/ui: OutlineBrowserButton (Phase 13 T014)
 #include "ui/panel_sub_controller.h"
+#include "ui/preset_browser_view.h"  // plugins/shared/src/ui (Phase 13 T013 walker stop)
 #include "ui/spread_curve_view.h"
 
 // plugins/shared/src/ui
@@ -91,6 +93,8 @@ namespace P = ::Profundum;
 using Steinberg::Vst::ParamID;
 
 constexpr std::int32_t kSessionBase = P::UI::kSessionTagBase;  // 9000: every tag at or above it is UI-only
+/// Phase 13 T014: the header preset button's tooltip (editor.uidesc, the PresetBrowserButton node); not a D1 row.
+constexpr const char* kPresetButtonTooltip = "Browse and load factory and user presets.";
 
 // ==============================================================================
 // Shared helpers
@@ -245,6 +249,10 @@ void walkBuilt(VSTGUI::CViewContainer* container, int containerIndex, VSTGUI::CP
         const std::vector<std::string> childLabels = bv.labels;
         out.push_back(std::move(bv));
         const int index = static_cast<int>(out.size()) - 1;
+        // Phase 13 T013: never descend into the PresetBrowserView overlay (its own tagged buttons, 1-5 / 10-31).
+        if (dynamic_cast<Krate::Plugins::PresetBrowserView*>(view) != nullptr) {
+            continue;
+        }
         if (auto* child = view->asViewContainer()) {
             walkBuilt(child, index, childOffset, childVisible, childLabels, out);
         }
@@ -795,6 +803,8 @@ TEST_CASE("Profundum_UiLabels", "[profundum][ui]") {
             expected = bars->variant() == P::UI::HarmonicBarView::Variant::Main ? kBarsMainTooltip : kBarsCoreTooltip;
         } else if (dynamic_cast<P::UI::SpreadCurveView*>(bv.view) != nullptr) {
             expected = kSpreadCurveTooltip;
+        } else if (tag == P::UI::kPresetBrowserTag) {
+            expected = kPresetButtonTooltip;  // Phase 13 T014
         } else if (tag >= 0) {
             expected = ruledTooltip(bv.advanced(), tag);
             if (expected == nullptr) {
@@ -1111,6 +1121,109 @@ TEST_CASE("Profundum_UiLayout", "[profundum][ui]") {
         CHECK_FALSE((id >= static_cast<int>(P::kMotionTargetId) && id <= static_cast<int>(P::kMotionEnvDecayId)));
     }
     CHECK(mainBindsMotionSource);
+
+    // ---- Phase 13 T014 (FR-030, FR-059; SC-013 layout arm): the header preset button ----
+    SECTION("header holds exactly one OutlineBrowserButton at (452, 24) 96 x 24, every ratified rect kept") {
+        // The nine ratified header children, in uidesc order, read from editor.uidesc:125-133 before the insert.
+        const std::array<VSTGUI::CRect, 9> kRatifiedHeader{{
+            VSTGUI::CRect(16.0, 16.0, 156.0, 40.0),   // PROFUNDUM
+            VSTGUI::CRect(170.0, 4.0, 290.0, 20.0),   // VOICE
+            VSTGUI::CRect(170.0, 24.0, 290.0, 48.0),  // VoiceMode
+            VSTGUI::CRect(310.0, 4.0, 436.0, 20.0),   // GLIDE
+            VSTGUI::CRect(310.0, 22.0, 340.0, 52.0),  // NotePortamento knob
+            VSTGUI::CRect(346.0, 26.0, 436.0, 46.0),  // NotePortamento readout (ends at x 436)
+            VSTGUI::CRect(560.0, 24.0, 760.0, 48.0),  // page strip (starts at x 560)
+            VSTGUI::CRect(780.0, 4.0, 948.0, 20.0),   // ZOOM
+            VSTGUI::CRect(780.0, 24.0, 948.0, 48.0),  // zoom-header
+        }};
+        const VSTGUI::CRect kButtonRect(452.0, 24.0, 548.0, 48.0);
+
+        VSTGUI::CControl* buttonAtStep0 = nullptr;
+        for (std::size_t zi = 0; zi < kD7ZoomSteps.size(); ++zi) {
+            ctl.setZoomStep(static_cast<int>(zi));
+            const double zoom = ed.editor()->getZoomFactor();
+            REQUIRE(zoom == kD7ZoomSteps[zi]);
+            CAPTURE(zoom);
+            const std::vector<BuiltView> tree = builtTree(ed.frame());
+
+            int header = -1;
+            for (std::size_t i = 0; i < tree.size(); ++i) {
+                if (tree[i].view->asViewContainer() != nullptr && uidescLabelOf(tree[i].view) == "header") {
+                    REQUIRE(header == -1);  // one header
+                    header = static_cast<int>(i);
+                }
+            }
+            REQUIRE(header >= 0);
+            std::vector<std::size_t> children;
+            for (std::size_t i = 0; i < tree.size(); ++i) {
+                if (tree[i].parentIndex == header) {
+                    children.push_back(i);
+                }
+            }
+            // The nine ratified children plus the button: no preset-name display, no previous / next control.
+            REQUIRE(children.size() == kRatifiedHeader.size() + 1u);
+
+            std::vector<std::size_t> buttons;
+            for (const std::size_t i : children) {
+                if (dynamic_cast<Krate::Plugins::OutlineBrowserButton*>(tree[i].view) != nullptr) {
+                    buttons.push_back(i);
+                }
+            }
+            REQUIRE(buttons.size() == 1u);
+            const BuiltView& button = tree[buttons.front()];
+            CHECK(buttons.front() == children.back());  // the last header child
+            CHECK(button.visible);
+            CHECK(button.window == kButtonRect);
+            // Scaled by the step: the frame draws the 100 % rect through the zoom transform.
+            const VSTGUI::CRect scaled(button.window.left * zoom, button.window.top * zoom,
+                                       button.window.right * zoom, button.window.bottom * zoom);
+            CHECK(scaled == VSTGUI::CRect(452.0 * zoom, 24.0 * zoom, 548.0 * zoom, 48.0 * zoom));
+            CHECK(scaled.getWidth() == Catch::Approx(96.0 * zoom));
+            CHECK(scaled.getHeight() == Catch::Approx(24.0 * zoom));
+            CHECK(button.window.left >= 436.0);   // clear of the Glide readout
+            CHECK(button.window.right <= 560.0);  // clear of the page strip
+            CHECK(button.tag() == P::UI::kPresetBrowserTag);
+            CHECK(button.control()->getListener() == static_cast<VSTGUI::IControlListener*>(panel));
+            CHECK_FALSE(tooltipOf(button.view).empty());
+
+            for (std::size_t c = 0; c < kRatifiedHeader.size(); ++c) {
+                const BuiltView& child = tree[children[c]];
+                const std::string what = std::to_string(c) + " " + typeid(*child.view).name();
+                CAPTURE(what);
+                CHECK(child.view->getViewSize() == kRatifiedHeader[c]);
+                CHECK_FALSE(strictlyOverlap(child.window, button.window));
+                for (const std::string& text : textsOf(child.view)) {
+                    CAPTURE(text);
+                    CHECK_FALSE(containsNoCase(text, "preset"));
+                    CHECK_FALSE(containsNoCase(text, "previous"));
+                    CHECK_FALSE(containsNoCase(text, "next"));
+                }
+                if (dynamic_cast<VSTGUI::CParamDisplay*>(child.view) != nullptr &&
+                    dynamic_cast<VSTGUI::CTextLabel*>(child.view) == nullptr) {
+                    CHECK(child.tag() == static_cast<std::int32_t>(P::kNotePortamentoId));  // the Glide readout only
+                }
+            }
+            if (zi == 0u) {
+                buttonAtStep0 = button.control();
+            }
+        }
+        ctl.setZoomStep(0);
+
+        // The session tag list: 14 tags, 9400 last.
+        CHECK(P::UI::kSessionTags.size() == 14u);
+        CHECK(P::UI::kPresetBrowserTag == 9400);
+        CHECK(P::UI::kSessionTags.back() == P::UI::kPresetBrowserTag);
+        CHECK(std::find(P::UI::kSessionTags.begin(), P::UI::kSessionTags.end(), 9400) != P::UI::kSessionTags.end());
+
+        // A click (the button's one valueChanged per press) opens the overlay.
+        REQUIRE(buttonAtStep0 != nullptr);
+        const Krate::Plugins::PresetBrowserView* browser = ctl.presetBrowserViewForTest();
+        REQUIRE(browser != nullptr);
+        CHECK_FALSE(browser->isOpen());
+        buttonAtStep0->setValueNormalized(1.0f);
+        panel->valueChanged(buttonAtStep0);
+        CHECK(browser->isOpen());
+    }
 }
 
 // ==============================================================================
@@ -1263,7 +1376,10 @@ TEST_CASE("Profundum_UiPlacement", "[profundum][ui]") {
     CHECK(bars[0]->anchorHeightForTest() == bars[1]->anchorHeightForTest());
     CHECK(bars[0]->barHeightsForTest()[0] > 0.0f);  // non-vacuity: the frame was drawn
 
-    // (f) the FR-009 drift guard: every tagged control is a registered ID or a D6 UI-only tag; every D6 tag exists.
+    // (f) the FR-009 drift guard: every tagged control is a registered ID or a D6 UI-only tag (plus the Phase 13
+    // preset button, T014); every one of them exists.
+    std::set<std::int32_t> expectedSessionTags(kD6UiOnlyTags.begin(), kD6UiOnlyTags.end());
+    expectedSessionTags.insert(P::UI::kPresetBrowserTag);
     std::set<std::int32_t> sessionTagsSeen;
     for (const BuiltView& bv : builtTree(ed.frame())) {
         const std::int32_t tag = bv.tag();
@@ -1274,11 +1390,11 @@ TEST_CASE("Profundum_UiPlacement", "[profundum][ui]") {
         if (tag < kSessionBase) {
             CHECK(ctl.getParameterObject(static_cast<ParamID>(tag)) != nullptr);
         } else {
-            CHECK(std::find(kD6UiOnlyTags.begin(), kD6UiOnlyTags.end(), tag) != kD6UiOnlyTags.end());
+            CHECK(expectedSessionTags.contains(tag));
             sessionTagsSeen.insert(tag);
         }
     }
-    CHECK(sessionTagsSeen == std::set<std::int32_t>(kD6UiOnlyTags.begin(), kD6UiOnlyTags.end()));
+    CHECK(sessionTagsSeen == expectedSessionTags);
 }
 
 // ==============================================================================

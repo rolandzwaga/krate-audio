@@ -1,0 +1,33 @@
+spec: [#preset_browser_test]~[.]~[performance]~[perf]~[benchmark]~[!benchmark],[#editor_layout_test]~[.]~[performance]~[perf]~[benchmark]~[!benchmark],[#editor_lifecycle_test]~[.]~[performance]~[perf]~[benchmark]~[!benchmark],[#factory_preset_test]~[.]~[performance]~[perf]~[benchmark]~[!benchmark],[lifecycle]~[.]~[performance]~[perf]~[benchmark]~[!benchmark]
+Filters: [#preset_browser_test] ~[.] ~[performance] ~[perf] ~[benchmark] ~[!benchmark],[#editor_layout_test] ~[.] ~[performance] ~[perf] ~[benchmark] ~[!benchmark],[#editor_lifecycle_test] ~[.] ~[performance] ~[perf] ~[benchmark] ~[!benchmark],[#factory_preset_test] ~[.] ~[performance] ~[perf] ~[benchmark] ~[!benchmark],[lifecycle] ~[.] ~[performance] ~[perf] ~[benchmark] ~[!benchmark]
+Randomness seeded to: 2156367610
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+vorago_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+Vorago_FactoryPresets_TreeMatchesGenerator
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\vorago\tests\unit\preset\factory_preset_test.cpp(1815)
+...............................................................................
+
+F:\projects\iterum\plugins\vorago\tests\unit\preset\factory_preset_test.cpp(1853): warning:
+  tree vs generator over 42 preset(s); per float field worst |c - r| / max(|c|,
+  |r|, 1) (tolerance 1.19e-07):
+    86 float field(s) bit-identical on every preset
+    overall worst 0
+
+-------------------------------------------------------------------------------
+Vorago_PresetMatrix_ParameterSpaceDistinct
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\vorago\tests\unit\preset\factory_preset_test.cpp(1864)
+...............................................................................
+
+F:\projects\iterum\plugins\vorago\tests\unit\preset\factory_preset_test.cpp(1925): warning:
+  parameter-space minimum: 9 differing IDs (Drones/Slow Bloom vs default
+  surface); floor 8
+
+===============================================================================
+All tests passed (18010 assertions in 37 test cases)
+

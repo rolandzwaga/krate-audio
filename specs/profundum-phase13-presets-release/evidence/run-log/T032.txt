@@ -1,0 +1,23 @@
+T032 (main loop close lane)
+
+
+Main loop (2026-10-25)
+Run 1 (08:27Z, with tidy.sh): RED -- perpush:profundum_tests 2 failed: Profundum_PresetRenderGuard_0of2 16.0174809 <= 15.0,
+_1of2 15.6791801 <= 15.0 (alone in T027 run 3: 14.3403 / 13.7946 s). Re-split into _0of4 .. _3of4 (SC-027 row, plan R-11; bar unchanged).
+Run 2 (08:42Z, with tidy.sh):
+  === summary
+  scope (FR-058, FR-065)            GREEN base=e6095b24 fr065_paths=[plugins/shared/src/preset/preset_manager.cpp plugins/shared/src/ui/preset_browser_view.cpp plugins/shared/src/ui/preset_browser_view.h plugins/shared/tests/CMakeLists.txt] fr065-gate last="FR065 GATE GREEN"
+  build (SC-025)                    GREEN exit=0 warnings=0 compile_errors=0 wall=6s
+  perpush:profundum_tests             GREEN last="All tests passed (2518562 assertions in 100 test cases)" wall=456s
+  perpush:dsp_systems_tests (FR-058)  GREEN filter="[#profundum_engine_audibility_test]~[long]" last="All tests passed (1873 assertions in 3 test cases)" wall=24s
+  long (phase's own TUs)            GREEN run=15 done=15 red=[] missing=[] foreign_not_run=[Profundum_StateRestoreRender Profundum_TailCoversRelease Profundum_ParamPathAudibility Profundum_MassOffsetAudibility Profundum_MonoSumViaParams] long-lane shards=15 skipped=0 wall=471s
+  list-tests (SC names)             GREEN wall=2s
+  pluginval Profundum (SC-025)      GREEN exit=0 wall=9s
+  determinism (SC-011)              GREEN exit=0 wall=55s
+  installed tree (SC-014)           GREEN exit=0 wall=0s
+  lanes wall=471s total wall=480s
+  DONE 2026-10-25T08:50:35Z GREEN
+  render-guard worst truePeak=-0.966061 dBTP (Hard Attack [max Mass]); wall clock 11.5161 s over 14 presets (shard 0 of 4)
+  render-guard worst truePeak=-0.974651 dBTP (Fault Line [stored]); wall clock 11.3763 s over 14 presets (shard 1 of 4)
+  render-guard worst truePeak=-0.964508 dBTP (Shifting Spectrum [max Mass]); wall clock 11.0553 s over 13 presets (shard 2 of 4)
+  render-guard worst truePeak=-0.986609 dBTP (Pressure Front [stored]); wall clock 11.1408 s over 13 presets (shard 3 of 4)

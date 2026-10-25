@@ -1,0 +1,47 @@
+T017 — Probe run and probe-table.csv (FR-020, FR-022, FR-023; SC-009; plan 5.7)
+Run: 2026-10-24 (executor; script only, the probe itself is a main-loop run)
+
+1. File written
+   evidence/probe/run-probe.sh   bash -n -> OK
+
+2. What the script does
+   - Guard: refuses to start if `git status --porcelain -uall -- specs/profundum-phase9-voice-engine/evidence`
+     is non-empty (its restore is a git checkout).
+   - Builds profundum_tests with `-- /nr:false` -> evidence/probe/build.log; RED unless exit 0 and 0 warnings.
+   - Runs the 11 hidden cases Profundum_PresetAudibilityProbe_{Core,Character,Anchor,Pitch,Envelope,Mass,Field,
+     Motion,Morph,NoteMemory,Macros} as 11 concurrent processes -> evidence/probe/<Group>.log, each ending in
+     "WALL <Group> <s> s exit=<rc>".
+   - node evidence/merge-csv.js evidence/probe-table evidence/probe-table.csv 102
+   - git checkout -- specs/profundum-phase9-voice-engine/evidence/ (plus git clean of untracked files there)
+   - Last line "PROBE GREEN rows=102" or "PROBE RED <reason / first failing line>".
+
+3. Observed at write time
+   - specs/profundum-phase9-voice-engine/evidence/soak-smoke.txt shows as modified (` M`), so the guard
+     will refuse the run until the main loop restores or accounts for that file. Not touched by this task.
+   - evidence/probe-table.csv does not exist yet.
+
+4. Main-loop readings (to be filled in by the main loop)
+   - build: exit / warnings / wall
+   - WALL lines for the 11 groups
+   - merge line
+   - verdict line (PROBE GREEN rows=102 | PROBE RED ...)
+   - commit hash recording probe-table.csv (SC-009)
+
+## Main loop, 2026-10-24 19:00: bash specs/profundum-phase13-presets-release/evidence/probe/run-probe.sh
+[probe] building profundum_tests -> specs/profundum-phase13-presets-release/evidence/probe/build.log
+[probe] build exit=0 warnings=0 wall=1.5s
+WALL NoteMemory 8.0 s exit=0
+WALL Pitch 12.0 s exit=0
+WALL Envelope 12.6 s exit=0
+WALL Morph 19.8 s exit=0
+WALL Macros 26.2 s exit=0
+WALL Mass 34.6 s exit=0
+WALL Anchor 36.7 s exit=0
+WALL Field 52.9 s exit=0
+WALL Core 60.2 s exit=0
+WALL Character 93.1 s exit=0
+WALL Motion 414.9 s exit=0
+[probe] cases done wall=415.0s failed=0
+[probe] merge exit=0: merge-csv: Anchor.csv 20 rows
+PROBE GREEN rows=102
+FR-022 / SC-009 ordering: probe-table.csv recorded at HEAD e6095b24 (uncommitted tree), before any ProfundumPresetDef row exists; allPresets() is empty (definitions header T005). The Phase 13 commit records both.

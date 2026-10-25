@@ -39,6 +39,7 @@
 #include "parameters/sound_param_table.h"
 #include "plugin_ids.h"
 #include "profundum_test_fixture.h"
+#include "profundum_preset_host.h"  // Phase 13 T021: buildPresetComponentState, decodePresetState, allPresets
 
 #include <vst_event_list.h>
 
@@ -57,8 +58,12 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
+#include <filesystem>
+#include <fstream>
 #include <limits>
 #include <memory>
+#include <string>
 #include <vector>
 
 using namespace ProfundumPluginTest;
@@ -799,5 +804,238 @@ TEST_CASE("Profundum_ProcessorCpuFullSurface", "[profundum][.perf][performance]"
         CHECK(pair->bestP <= kWrapperOverheadCeiling * pair->bestS);
         CHECK(pctOf(pair->bestPOn) <= pair->pctBar());                   // Phase 12 T032 (SC-013)
         CHECK(pair->bestPOn <= kWrapperOverheadCeiling * pair->bestS);
+    }
+}
+
+// ==============================================================================
+// Profundum_PresetCpu (Phase 13 T021; FR-045, FR-062; SC-022, SC-032; plan 5.11)
+// ==============================================================================
+// HIDDEN ([.perf]) and wall-clock based: run it ALONE, after an idle, never right
+// after clang-tidy (node tools/run-cpu-tests.js profundum_tests); T035's lane only.
+// It stays in this TU, so it runs in shipping FP mode (outside -fno-fast-math) and
+// reuses kTrials, kBlocksPerTrial, ProcessorArm, timeArm and SurfaceDirectArm.
+//
+// Per factory preset (allPresets(), Comp built by buildPresetComponentState):
+//   MONO   a ProcessorArm, setState(Comp); a preset that stores Poly gets the
+//          voice-mode word written to 0 (Mono) first, and the override is recorded.
+//   POLY4  Poly presets only: a ProcessorArm on the stored state.
+//   D, D'  the engine of the stored-state processor (POLY4 for a Poly preset, MONO
+//          otherwise) driven through mutableEngineForTest() plus the processor's
+//          output-gain loop, timed twice: the control pair.
+// Notes E1, B1, E2, G#2 (MIDI 28, 35, 40, 44) go on at block 0 of each processor's
+// warm-up, so D renders the voices the processor started (no second note-on).
+// The arms alternate and the order flips on odd trials; the best reading per arm is
+// kept. best(D') / best(D) outside [1/1.05, 1.05]: the preset's run is INVALID; it
+// is printed and fails, and its bars are never read. Bars: MONO <= kMonoPctBar,
+// POLY4 <= kPolyPctBar. Every reading and the maxima go to evidence/cpu.csv before
+// any gate. Never relax a bar or shrink the workload.
+// ==============================================================================
+
+namespace {
+
+constexpr std::array<Steinberg::int16, 4> kPresetCpuNotes{28, 35, 40, 44};  // E1, B1, E2, G#2
+static_assert(kPresetCpuNotes[0] == kE1, "the first preset-CPU note is E1");
+
+// The int32 voiceMode word of the component state (global_params.h:184: gain, voiceMode, polyphony, ceiling).
+constexpr std::size_t kPresetCpuVoiceModeAt = kV2GlobalsAt + 4u;
+static_assert(kPresetCpuVoiceModeAt == preset_decode_detail::kGlobalOffset + preset_decode_detail::kWord,
+              "the voice-mode word the decoder reads");
+
+[[nodiscard]] std::filesystem::path presetCpuCsvPath() {
+    return {std::string(KRATE_DSP_TESTS_DIR) +
+                                 "/../../specs/profundum-phase13-presets-release/evidence/cpu.csv"};
+}
+
+// setState(@p comp) on the prepared @p arm (the voice-mode word written to 0 when @p forceMono), then the
+// warm-up whose first block carries @p notes.
+void loadPresetArm(ProcessorArm& arm, const std::vector<std::uint8_t>& comp, bool forceMono,
+                   Steinberg::Vst::IEventList* notes) {
+    StateBytes bytes(comp.size());
+    std::memcpy(bytes.data(), comp.data(), comp.size());
+    if (forceMono) {
+        patchI32(bytes, kPresetCpuVoiceModeAt, 0);
+    }
+    REQUIRE(loadStateBytes(*arm.fixture.proc, bytes) == Steinberg::kResultOk);
+    arm.warmUp(notes, nullptr);
+    REQUIRE(arm.fixture.proc->endpointRejectionsForTest() == 0u);
+}
+
+struct PresetCpuReading {
+    std::string preset;
+    std::string category;
+    bool poly = false;  // stores Poly: the MONO arm carries the override and a POLY4 arm exists
+    double bestMono = std::numeric_limits<double>::max();
+    double bestPoly = std::numeric_limits<double>::max();
+    double bestD = std::numeric_limits<double>::max();
+    double bestD2 = std::numeric_limits<double>::max();
+    float peakMono = 0.0f;
+    float peakPoly = 0.0f;
+    float peakD = 0.0f;
+
+    [[nodiscard]] double control() const noexcept { return bestD2 / bestD; }
+    [[nodiscard]] bool valid() const noexcept {
+        const double c = control();
+        return c <= kControlRatioCeiling && c >= 1.0 / kControlRatioCeiling;
+    }
+    [[nodiscard]] const char* storedName() const noexcept { return poly ? "Poly" : "Mono"; }
+};
+
+}  // namespace
+
+TEST_CASE("Profundum_PresetCpu", "[profundum][.perf][performance]") {
+    using Engine = Krate::DSP::ProfundumEngine;
+    const std::vector<::Profundum::PresetDefs::ProfundumPresetDef>& defs = ::Profundum::PresetDefs::allPresets();
+    REQUIRE(!defs.empty());
+
+    // ---------------------------------------------------------------- the four notes (asserted and printed)
+    Krate::Test::EventList notes;
+    for (const Steinberg::int16 pitch : kPresetCpuNotes) {
+        notes.addNoteOn(pitch, kVelocity, 0);
+    }
+    REQUIRE(notes.getEventCount() == static_cast<Steinberg::int32>(kPresetCpuNotes.size()));
+    REQUIRE((kPresetCpuNotes == std::array<Steinberg::int16, 4>{28, 35, 40, 44}));
+    WARN("SC-022 preset CPU notes (MIDI, on at block 0): " << kPresetCpuNotes[0] << ", " << kPresetCpuNotes[1]
+                                                           << ", " << kPresetCpuNotes[2] << ", "
+                                                           << kPresetCpuNotes[3]);
+
+    std::vector<PresetCpuReading> readings;
+    readings.reserve(defs.size());
+
+    for (const auto& def : defs) {
+        INFO("preset " << def.name);
+        std::vector<std::uint8_t> comp;
+        std::string why;
+        const bool built = buildPresetComponentState(def, comp, why);
+        INFO("build: " << why);
+        REQUIRE(built);
+        const DecodedPresetState decoded = decodePresetState(comp);
+        REQUIRE(decoded.ok);
+        REQUIRE((decoded.voiceMode == 0 || decoded.voiceMode == 1));
+
+        PresetCpuReading r;
+        r.preset = std::string(def.name);
+        r.category = std::string(def.category);
+        r.poly = decoded.voiceMode == 1;
+
+        // ------------------------------------------------------------ arms (heap processors, one preset at a time)
+        auto mono = std::make_unique<ProcessorArm>();
+        loadPresetArm(*mono, comp, r.poly, &notes);
+        REQUIRE(mono->fixture.engine() != nullptr);
+        REQUIRE(mono->fixture.engine()->voiceMode() == Engine::VoiceMode::Mono);  // the override took effect
+
+        std::unique_ptr<ProcessorArm> poly;
+        if (r.poly) {
+            poly = std::make_unique<ProcessorArm>();
+            loadPresetArm(*poly, comp, false, &notes);
+            REQUIRE(poly->fixture.engine() != nullptr);
+            REQUIRE(poly->fixture.engine()->voiceMode() == Engine::VoiceMode::Poly);
+        }
+
+        ProcessorArm& stored = r.poly ? *poly : *mono;
+        auto d = std::make_unique<SurfaceDirectArm>();
+        d->shared = stored.fixture.proc->mutableEngineForTest();
+        REQUIRE(d->shared != nullptr);
+        d->warmUp();
+
+        // Recorded: the level of each arm's last warm-up block (a decayed preset reads near 0 here).
+        r.peakMono = mono->call.peak();
+        r.peakPoly = r.poly ? poly->call.peak() : 0.0f;
+        r.peakD = d->arm.peak();
+
+        // ------------------------------------------------------------ interleaved trials
+        for (std::size_t trial = 0; trial < kTrials; ++trial) {
+            if (trial % 2 == 0) {
+                timeArm(*mono, r.bestMono);
+                if (r.poly) {
+                    timeArm(*poly, r.bestPoly);
+                }
+                timeArm(*d, r.bestD);
+                timeArm(*d, r.bestD2);
+            } else {
+                timeArm(*d, r.bestD2);
+                timeArm(*d, r.bestD);
+                if (r.poly) {
+                    timeArm(*poly, r.bestPoly);
+                }
+                timeArm(*mono, r.bestMono);
+            }
+        }
+
+        if (r.poly) {
+            WARN("SC-022 " << r.preset << " (" << r.category << ", stored Poly): MONO (Voice Mode forced to Mono) "
+                           << pctOf(r.bestMono) << " % (bar <= " << kMonoPctBar << "), POLY4 "
+                           << pctOf(r.bestPoly) << " % (bar <= " << kPolyPctBar << "); D " << pctOf(r.bestD)
+                           << " %, D' " << pctOf(r.bestD2) << " %, control D' / D = " << r.control()
+                           << (r.valid() ? "" : " INVALID"));
+        } else {
+            WARN("SC-022 " << r.preset << " (" << r.category << ", stored Mono): MONO " << pctOf(r.bestMono)
+                           << " % (bar <= " << kMonoPctBar << "); D " << pctOf(r.bestD) << " %, D' "
+                           << pctOf(r.bestD2) << " %, control D' / D = " << r.control()
+                           << (r.valid() ? "" : " INVALID"));
+        }
+        readings.push_back(r);
+    }
+
+    // ---------------------------------------------------------------- maxima
+    double maxMono = 0.0;
+    double maxPoly = 0.0;
+    std::string maxMonoPreset = "-";
+    std::string maxPolyPreset = "-";
+    for (const PresetCpuReading& r : readings) {
+        if (pctOf(r.bestMono) > maxMono) {
+            maxMono = pctOf(r.bestMono);
+            maxMonoPreset = r.preset;
+        }
+        if (r.poly && pctOf(r.bestPoly) > maxPoly) {
+            maxPoly = pctOf(r.bestPoly);
+            maxPolyPreset = r.preset;
+        }
+    }
+    WARN("SC-022 max MONO " << maxMono << " % (" << maxMonoPreset << "), max POLY4 " << maxPoly << " % ("
+                            << maxPolyPreset << "); real time per " << kBlocksPerTrial << " blocks = "
+                            << trialPeriodNs() << " ns");
+
+    // ---------------------------------------------------------------- evidence/cpu.csv (before any gate)
+    {
+        const std::filesystem::path csv = presetCpuCsvPath();
+        std::error_code ec;
+        std::filesystem::create_directories(csv.parent_path(), ec);
+        std::ofstream out(csv, std::ios::trunc);
+        INFO("evidence/cpu.csv: " << csv.string());
+        REQUIRE(out.good());
+        out << "preset,category,stored_voice_mode,arm,override,best_ns,pct,bar_pct,control,valid,peak\n";
+        for (const PresetCpuReading& r : readings) {
+            const char* valid = r.valid() ? "1" : "0";
+            out << r.preset << ',' << r.category << ',' << r.storedName() << ",MONO,"
+                << (r.poly ? "kVoiceModeId=0" : "") << ',' << r.bestMono << ',' << pctOf(r.bestMono) << ','
+                << kMonoPctBar << ',' << r.control() << ',' << valid << ',' << r.peakMono << '\n';
+            if (r.poly) {
+                out << r.preset << ',' << r.category << ",Poly,POLY4,," << r.bestPoly << ',' << pctOf(r.bestPoly)
+                    << ',' << kPolyPctBar << ',' << r.control() << ',' << valid << ',' << r.peakPoly << '\n';
+            }
+            out << r.preset << ',' << r.category << ',' << r.storedName() << ",D,," << r.bestD << ','
+                << pctOf(r.bestD) << ",," << r.control() << ',' << valid << ',' << r.peakD << '\n';
+            out << r.preset << ',' << r.category << ',' << r.storedName() << ",D',," << r.bestD2 << ','
+                << pctOf(r.bestD2) << ",," << r.control() << ',' << valid << ",\n";
+        }
+        out << maxMonoPreset << ",,,MAX-MONO,,," << maxMono << ',' << kMonoPctBar << ",,,\n";
+        out << maxPolyPreset << ",,,MAX-POLY4,,," << maxPoly << ',' << kPolyPctBar << ",,,\n";
+        out.flush();
+        REQUIRE(out.good());
+    }
+
+    // ---------------------------------------------------------------- gates (an INVALID run is never read)
+    for (const PresetCpuReading& r : readings) {
+        INFO("preset " << r.preset);
+        if (!r.valid()) {
+            FAIL_CHECK("SC-022 " << r.preset << " INVALID: control D' / D = " << r.control() << " outside ["
+                                 << 1.0 / kControlRatioCeiling << ", " << kControlRatioCeiling
+                                 << "]; re-run alone on an idle machine");
+            continue;
+        }
+        CHECK(pctOf(r.bestMono) <= kMonoPctBar);
+        if (r.poly) {
+            CHECK(pctOf(r.bestPoly) <= kPolyPctBar);
+        }
     }
 }

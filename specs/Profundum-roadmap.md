@@ -1051,6 +1051,8 @@ low end") and the eight Phase 9 SC-035 verdicts. 12b:
 
 ### Phase 13: Factory Presets & Release Readiness
 
+**Status: ✅ COMPLETE (2026-10-25)** — see specs/profundum-phase13-presets-release/compliance.md
+
 **Spec:** `profundum-phase13-presets-release`
 
 Fixed preset category set (filesystem dirs + XML metadata must match — Membrum lesson), installed to
@@ -1078,7 +1080,7 @@ Mass. Release gate via `release-readiness` flow.
 Phase 1 ─────────┼─→ Phase 7 (stereo field) ───────────┼─→ Phase 9 (voice/engine) ─→ Phase 10 (scaffold)
 (harmonic core)  └─→ Phase 8 (bass morph) ─────────────┤              │
                                                        │              ▼
-Phase 4 (drop + note behaviour) ───────────────────────┤   Phase 11 → 12 → 13
+Phase 4 (drop + note behaviour) ───────────────────────┤   Phase 11 → 12 → 13 ✅
 Phase 5 (shape + character) ───────────────────────────┤
 Phase 6 (mass + dynamics) ─────────────────────────────┘
 ```

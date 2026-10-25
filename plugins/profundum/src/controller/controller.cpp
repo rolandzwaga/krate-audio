@@ -22,6 +22,8 @@
 // session zoom / page / tab and the panel refresh hooks (FR-013, FR-014, FR-035, FR-044, FR-090 - FR-092; plan 4.6.2,
 // 4.6.4, 4.6.7, 4.6.9). D-11 / P-4: the shared view creators are registered by the ui/*.h includes below, so the test
 // binary, which never compiles entry.cpp, builds the same view tree as the plugin.
+// Phase 13 T013: the PresetManager state / load providers, loadPresetStream (kMsgLoadPresetState, then the mirror),
+// the PresetBrowserView overlay and the "PresetBrowserButton" custom view (FR-030, FR-031, FR-032, FR-059; plan 4.6).
 // ==============================================================================
 
 #include "controller/controller.h"
@@ -43,10 +45,15 @@
 #include "ui/arc_knob.h"          // plugins/shared/src/ui: registers "ArcKnob" (D-11)
 #include "ui/bipolar_slider.h"    // plugins/shared/src/ui: registers "BipolarSlider" (D-11)
 #include "ui/harmonic_bar_view.h"
+#include "ui/outline_button.h"       // plugins/shared/src/ui: OutlineBrowserButton (Phase 13 FR-059)
 #include "ui/panel_sub_controller.h"
+#include "ui/preset_browser_view.h"  // plugins/shared/src/ui (Phase 13 FR-030)
 #include "ui/spread_curve_view.h"
 
 #include "pluginterfaces/vst/ivstattributes.h"
+#include "pluginterfaces/vst/ivstcomponent.h"
+#include "public.sdk/source/common/memorystream.h"
+#include "vstgui/lib/cframe.h"
 #include "vstgui/lib/cpoint.h"
 #include "vstgui/lib/crect.h"
 #include "vstgui/plugin-bindings/vst3editor.h"
@@ -100,6 +107,12 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context) {
     // FR-050. No UpdateChecker (FR-052).
     presetManager_ = std::make_unique<Krate::Plugins::PresetManager>(makeProfundumPresetConfig(),
                                                                      nullptr, this);
+    // Phase 13 FR-031 (plan 4.6, Vorago controller.cpp:113-118): save the processor's own getState bytes; load the
+    // whole stream through the processor first (loadPresetStream).
+    presetManager_->setStateProvider([this]() -> IBStream* { return createComponentStateStream(); });
+    presetManager_->setLoadProvider(
+        [this](IBStream* stream, const Krate::Plugins::PresetInfo& /*info*/) { return loadPresetStream(stream); });
+    presetTabLabels_ = makeProfundumPresetTabLabels();
 
     // Phase 12 FR-080 (plan 4.6.8): the never-prepared field the SPREAD model evaluates, then the model of the
     // registered defaults.
@@ -209,6 +222,86 @@ void Controller::setToRegisteredDefault(ParamID id) {
     if (Parameter* p = getParameterObject(id)) {
         setParamNormalized(id, p->getInfo().defaultNormalizedValue);
     }
+}
+
+// Phase 13 FR-031 / FR-032 (plan 4.6 "Controller"): the processor is authoritative, so it receives the whole stream
+// first (kMsgLoadPresetState; its setState does the restore hand-off, the names and the controller sync); the mirror
+// then reads the same bytes. Nothing changes here when the message cannot be sent or the processor refuses it.
+bool Controller::loadPresetStream(IBStream* stream) {
+    if (stream == nullptr) {
+        return false;
+    }
+    constexpr std::size_t kMaxPresetStateBytes = 4096;  // the processor's kMsgLoadPresetState bound
+    // One byte more than the bound, so an oversize chunk is seen without reading all of it.
+    std::vector<std::byte> bytes(kMaxPresetStateBytes + 1u);
+    std::size_t total = 0;
+    while (total < bytes.size()) {
+        int32 got = 0;
+        const tresult r = stream->read(bytes.data() + total, static_cast<int32>(bytes.size() - total), &got);
+        if (got > 0) {
+            total += static_cast<std::size_t>(got);  // a short read (FileStream: kResultFalse) still delivered bytes
+        }
+        if (r != kResultOk || got <= 0) {
+            break;
+        }
+    }
+    if (total < sizeof(int32) || total > kMaxPresetStateBytes) {
+        return false;
+    }
+    bytes.resize(total);
+    std::uint32_t versionWord = 0;  // the state is little-endian (IBStreamer kLittleEndian)
+    for (std::size_t i = 0; i < sizeof(versionWord); ++i) {
+        versionWord |= static_cast<std::uint32_t>(std::to_integer<std::uint8_t>(bytes[i])) << (8u * i);
+    }
+    if (static_cast<int32>(versionWord) > kCurrentStateVersion) {
+        return false;
+    }
+
+    // 1. The processor first. No host context -> allocateMessage() is nullptr -> refused, mirror untouched.
+    IPtr<IMessage> msg = owned(allocateMessage());
+    IAttributeList* attrs = (msg.get() != nullptr) ? msg->getAttributes() : nullptr;
+    if (attrs == nullptr) {
+        return false;
+    }
+    msg->setMessageID(kMsgLoadPresetState);
+    if (attrs->setBinary("state", bytes.data(), static_cast<uint32>(bytes.size())) != kResultOk) {
+        return false;
+    }
+    if (sendMessage(msg) != kResultOk) {
+        return false;  // no peer, or the processor refused the stream: the mirror never runs ahead of it
+    }
+
+    // 2. The mirror, from the same bytes.
+    auto mirrorStream = owned(new MemoryStream());
+    int32 written = 0;
+    if (mirrorStream->write(bytes.data(), static_cast<int32>(bytes.size()), &written) != kResultOk ||
+        std::cmp_not_equal(written, bytes.size()) ||
+        mirrorStream->seek(0, IBStream::kIBSeekSet, nullptr) != kResultOk) {
+        return false;
+    }
+    const tresult mirrored = setComponentState(mirrorStream);
+
+    // 3. The host re-reads every parameter once.
+    if (componentHandler) {
+        componentHandler->restartComponent(kParamValuesChanged);
+    }
+    return mirrored == kResultOk;
+}
+
+// Phase 13 FR-031 (Vorago controller.cpp:152-168; Ruinae controller_presets.cpp:372-385): delegate to the processor
+// through the host's IComponent::getState, never re-serialise from the controller.
+IBStream* Controller::createComponentStateStream() {
+    FUnknownPtr<IComponent> component(getComponentHandler());
+    if (!component) {
+        return nullptr;
+    }
+    auto* stream = new MemoryStream();
+    if (component->getState(stream) != kResultOk) {
+        stream->release();
+        return nullptr;
+    }
+    stream->seek(0, IBStream::kIBSeekSet, nullptr);
+    return stream;
 }
 
 tresult PLUGIN_API Controller::getParamStringByValue(ParamID tag, ParamValue valueNormalized,
@@ -852,6 +945,11 @@ VSTGUI::CView* Controller::createCustomView(VSTGUI::UTF8StringPtr name, const VS
         spreadView_ = new UI::SpreadCurveView(viewRect, &spreadModel_);
         return spreadView_;
     }
+    if (std::strcmp(name, "PresetBrowserButton") == 0) {
+        // Phase 13 FR-059: the shared outline button; the panel sub-controller gives it its session tag and
+        // listener in verifyView.
+        return new Krate::Plugins::OutlineBrowserButton(viewRect, nullptr, -1, "PRESETS");
+    }
     return nullptr;
 }
 
@@ -867,6 +965,14 @@ VSTGUI::IController* Controller::createSubController(VSTGUI::UTF8StringPtr name,
 
 void Controller::didOpen(VSTGUI::VST3Editor* editor) {
     activeEditor_ = editor;
+    // Phase 13 FR-030 (Vorago controller.cpp:383-392): the browser overlay lives in the frame, closed until the
+    // header button opens it; its own save dialog is the save path.
+    VSTGUI::CFrame* frame = (editor != nullptr) ? editor->getFrame() : nullptr;
+    if (frame != nullptr && presetManager_ != nullptr && presetBrowserView_ == nullptr) {
+        presetBrowserView_ =
+            new Krate::Plugins::PresetBrowserView(frame->getViewSize(), presetManager_.get(), presetTabLabels_);
+        frame->addView(presetBrowserView_);
+    }
     if (editor != nullptr) {
         // Plan 4.6.2 step 2: the session zoom survives a reopen.
         editor->setAllowedZoomFactors(std::vector<double>(kZoomSteps.begin(), kZoomSteps.end()));
@@ -886,6 +992,14 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
 }
 
 void Controller::willClose(VSTGUI::VST3Editor* /*editor*/) {
+    // Phase 13 FR-030 (Vorago controller.cpp:411-418): close() unhooks the frame's keyboard hook while the frame is
+    // still alive; the frame owns and destroys the view.
+    if (presetBrowserView_ != nullptr) {
+        if (presetBrowserView_->isOpen()) {
+            presetBrowserView_->close();
+        }
+        presetBrowserView_ = nullptr;
+    }
     stopEditorSyncTimer();
     // FR-091: every raw view pointer goes before the tree is destroyed.
     clearRingKnobs();
@@ -926,6 +1040,14 @@ void Controller::setZoomStep(int step) {
     }
 }
 
+// Phase 13 FR-030 / FR-059: the header button's action.
+void Controller::openPresetBrowser() {
+    if (presetBrowserView_ == nullptr || presetBrowserView_->isOpen()) {
+        return;
+    }
+    presetBrowserView_->open();
+}
+
 void Controller::refreshEndpointCaptions() {
     if (panel_ != nullptr) {
         panel_->refreshCaptions();
@@ -957,7 +1079,7 @@ bool Controller::viewPointersNullForTest() const noexcept {
         }
     }
     return activeEditor_ == nullptr && barViews_[0] == nullptr && barViews_[1] == nullptr &&
-           spreadView_ == nullptr && panel_ == nullptr && adsrDisplay_ == nullptr;
+           spreadView_ == nullptr && panel_ == nullptr && adsrDisplay_ == nullptr && presetBrowserView_ == nullptr;
 }
 
 }  // namespace Profundum

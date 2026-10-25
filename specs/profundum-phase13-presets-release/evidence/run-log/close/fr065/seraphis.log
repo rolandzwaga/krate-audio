@@ -1,0 +1,43 @@
+spec: [#preset_load_test]~[.]~[performance]~[perf]~[benchmark]~[!benchmark],[#custom_view_test]~[.]~[performance]~[perf]~[benchmark]~[!benchmark],[#editor_lifecycle_test]~[.]~[performance]~[perf]~[benchmark]~[!benchmark],[#factory_preset_test]~[.]~[performance]~[perf]~[benchmark]~[!benchmark],[lifecycle]~[.]~[performance]~[perf]~[benchmark]~[!benchmark]
+Filters: [#preset_load_test] ~[.] ~[performance] ~[perf] ~[benchmark] ~[!benchmark],[#custom_view_test] ~[.] ~[performance] ~[perf] ~[benchmark] ~[!benchmark],[#editor_lifecycle_test] ~[.] ~[performance] ~[perf] ~[benchmark] ~[!benchmark],[#factory_preset_test] ~[.] ~[performance] ~[perf] ~[benchmark] ~[!benchmark],[lifecycle] ~[.] ~[performance] ~[perf] ~[benchmark] ~[!benchmark]
+Randomness seeded to: 782039536
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+seraphis_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+Seraphis_FactoryPresets_TreeMatchesGenerator
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\seraphis\tests\unit\preset\factory_preset_test.cpp(2677)
+...............................................................................
+
+F:\projects\iterum\plugins\seraphis\tests\unit\preset\factory_preset_test.cpp(3074): warning:
+  
+=== FR-029 tree-vs-generator margins (T021) ============================
+    toolchain          : MSVC _MSC_VER=1944
+    presets compared   : 42
+    scalar tolerance   : 1.200000e-07 (PINNED 2026-08-05 at 1 float ULP - the
+  measured worst was exactly 0 on MSVC and on GCC 13.3.0, and 10x0 would be a
+  forbidden bit-exact golden)
+    payload tolerance  : 1.200000e-06 (PINNED 2026-08-05 at 10x GCC 13.3.0's
+  worst, 1.175472e-07)
+    macOS leg          : NOT YET MEASURED - a disagreement there is
+  INVESTIGATED, never widened
+    SCALAR  worst relative error = 0.000000000e+00
+        preset      : Bells/Bell Garden
+        field       : [global].masterGain
+        committed   : 1.000000000e+00
+        regenerated : 1.000000000e+00
+        10x worst   : 0.000000000e+00
+    PAYLOAD worst relative error = 0.000000000e+00
+        preset      : Bells/Bell Garden
+        field       : payload[0].ratios[0]
+        committed   : 1.019803882e+00
+        regenerated : 1.019803882e+00
+        10x worst   : 0.000000000e+00
+  ========================================================================
+
+===============================================================================
+All tests passed (1598 assertions in 38 test cases)
+

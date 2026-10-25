@@ -1,0 +1,63 @@
+Filters: "Profundum_PresetLoudnessMatch"
+Randomness seeded to: 1871865794
+# Profundum_PresetLoudnessMatch: presets=53 median_db=-11.1537
+preset,level_db,deviation_db
+"Edge Ignition",-8.4183,2.7354
+"Biting Reed",-13.3083,-2.15457
+"Folded Mass",-12.1454,-0.991737
+"Valve Pressure",-8.00084,3.15286
+"Folding Wire",-11.544,-0.39027
+"Rectified Floor",-11.7397,-0.586009
+"Bite Down",-12.4468,-1.29312
+"Crushed Basalt",-11.6579,-0.50419
+"Fault Line",-13.7333,-2.5796
+"Bedrock",-11.1175,0.0361818
+"Punch Anchor",-12.8716,-1.71787
+"Ghost Kick",-10.8351,0.318614
+"Rectified Follow",-10.9159,0.237838
+"Triangle Floor",-11.8787,-0.725033
+"Rounded Weight",-10.3106,0.843151
+"Lopsided Sub",-8.04694,3.10676
+"Under Octave",-11.1537,0
+"Fed Fold",-8.16932,2.98439
+"Dropping Stone",-11.9448,-0.791126
+"Slow Fall",-11.8683,-0.714619
+"Curved Drop",-14.4168,-3.26311
+"Rebound",-12.8545,-1.70077
+"Glide Path",-11.708,-0.554293
+"Slow Swell",-13.5165,-2.36283
+"Long Tail",-8.11675,3.03695
+"Heavy Mass",-10.7718,0.381892
+"Pressure Front",-12.8097,-1.65599
+"Hard Attack",-11.3752,-0.221511
+"Wide Harmonics",-13.4234,-2.2697
+"Wide Rectifier",-8.44088,2.71282
+"Spread Choir",-14.1256,-2.9719
+"Gravity Well",-10.124,1.02971
+"Orbiting Field",-9.51657,1.63713
+"Mass Tide",-11.1804,-0.0266824
+"Breathing Depth",-10.2471,0.906643
+"Body Wave",-11.7391,-0.585413
+"Edge Cycle",-12.6714,-1.51769
+"Shifting Spectrum",-13.6439,-2.49024
+"Envelope Mass",-9.84209,1.31162
+"Drifting Weight",-7.56538,3.58833
+"Morph Span",-10.9004,0.253333
+"Halfway Morph",-10.8332,0.320528
+"Restrike",-14.3142,-3.16047
+"Legato Line",-8.52848,2.62523
+"Envelope Restart",-11.5918,-0.438086
+"Continuous Phase",-7.98999,3.16371
+"Weight Lever",-10.6577,0.49598
+"Dark To Bright",-11.1262,0.0275515
+"Loose Ends",-12.0515,-0.897826
+"Clean To Violent",-7.6559,3.49781
+"Mono Bedrock",-8.02909,3.12461
+"Locked Floor",-10.4931,0.660571
+"Bedrock Sine",-7.89037,3.26333
+# worst deviation 3.58833 dB
+62.347 s: Profundum_PresetLoudnessMatch
+===============================================================================
+All tests passed (141981 assertions in 1 test case)
+
+exit: 0 wall: 63 s

@@ -1,0 +1,31 @@
+T004 — Post-move run and verdict (FR-058, SC-029; plan §5.1 steps 2-5)
+Date: 2026-10-24
+
+Step 1: node specs/profundum-phase13-presets-release/evidence/move-check.js
+Output (verbatim):
+  lifts.diff -> specs\profundum-phase13-presets-release\evidence\move-gate\lifts.diff; paths.txt -> specs\profundum-phase13-presets-release\evidence\move-gate\paths.txt
+  MOVE PURE changed=1 lifted=11
+Exit code: 0
+
+Step 2: move-gate/post/ status
+  move-gate/post/ does not exist (0 of 16 logs). compare.js has not been run.
+
+Verdict: BLOCKED (pending main loop)
+  Main loop: run `bash specs/profundum-phase13-presets-release/evidence/move-gate/run-cases.sh post`,
+  then `node specs/profundum-phase13-presets-release/evidence/move-gate/compare.js`; quote both last
+  lines here; on MOVE GATE GREEN unblock T004; on RED, STOP: surface the first differing CSV line
+  (plan R-1 / R-14), never tolerate it.
+
+## Main loop, 2026-10-24: move gate
+run 1: refused (Phase 9 soak-smoke.txt dirty from the G3 gate run); restored, re-run
+run 2: RED, VoiceEngine_AudibilityTable_Mass 912 vs 920 assertions (lifted call site built auStateB()/auStateBs() 6x per note vs 4x; showcasePair has 2 REQUIREs). Fix: one build each, as the e6095b24 cell() calls; L10/L11 header ranges +4 in move-lifts.json
+run 3: RED, VoiceEngine_AudibilityTable_NoteMemory 217 vs 201 (lift built auStateAs() once per row vs once per arm). Fix: auCellNoteMemory(baseM, baseRef, ...); Phase 9 passes auStateAs() twice; plan.md table updated
+run 4:
+[post] building dsp_systems_tests -> specs/profundum-phase13-presets-release/evidence/move-gate/post/build.log
+[post] build exit=0 warnings=0 wall=14.4s
+[post] evidence files copied: 17 (listed in specs/profundum-phase13-presets-release/evidence/move-gate/post/written.txt)
+[post] build wall=14.4s warnings=0; cases with non-zero exit: 0
+RUN post DONE cases=16 wall=360.7
+evidence: 17/17 pre files byte-identical to post
+move-check.js: MOVE PURE changed=1 lifted=11
+MOVE GATE GREEN

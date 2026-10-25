@@ -117,6 +117,8 @@ public:
     void setEngineObserverForTest(Krate::DSP::ProfundumEngineObserver* o) noexcept { engine_->setObserver(o); }
     /// SC-020: the CPU case drives this processor's own engine directly, so P / D share one instance.
     [[nodiscard]] Krate::DSP::ProfundumEngine* mutableEngineForTest() noexcept { return engine_.get(); }
+    /// Phase 13 P-11: the engine observer seams applied at the next setupProcessing (prepare). Default: all off.
+    void setEngineSeamsForTest(const Krate::DSP::ProfundumEngineSeams& s) noexcept { engineSeamsForTest_ = s; }
     [[nodiscard]] std::uint32_t endpointRejectionsForTest() const noexcept {
         return endpointRejections_.load(std::memory_order_relaxed);
     }
@@ -261,6 +263,8 @@ private:
     std::uint32_t framesPublished_ = 0;
     std::uint32_t maxFramesPerCall_ = 0;
     std::uint64_t skippedBlocks_ = 0;
+    // Phase 13 P-11: copied into the engine config at setupProcessing; default all off (shipping behaviour).
+    Krate::DSP::ProfundumEngineSeams engineSeamsForTest_{};
 };
 
 static_assert(sizeof(Processor) < 64u * 1024u,

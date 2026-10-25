@@ -1,0 +1,64 @@
+=== determinism 2026-10-25T07:23:39Z commit e6095b24
+cmd: build/windows-x64-release/bin/Release/profundum_tests.exe Profundum_PresetDeterminism
+Filters: "Profundum_PresetDeterminism"
+Randomness seeded to: 3211353386
+# Profundum_PresetDeterminism: presets=53
+preset,seed_dependent,same_seed_worst,other_seed_worst,pass
+"Edge Ignition",0,0,0,1
+"Biting Reed",0,0,0,1
+"Folded Mass",0,0,0,1
+"Valve Pressure",0,0,0,1
+"Folding Wire",0,0,0,1
+"Rectified Floor",0,0,0,1
+"Bite Down",0,0,0,1
+"Crushed Basalt",0,0,0,1
+"Fault Line",0,0,0,1
+"Bedrock",0,0,0,1
+"Punch Anchor",0,0,0,1
+"Ghost Kick",0,0,0,1
+"Rectified Follow",0,0,0,1
+"Triangle Floor",0,0,0,1
+"Rounded Weight",0,0,0,1
+"Lopsided Sub",0,0,0,1
+"Under Octave",0,0,0,1
+"Fed Fold",0,0,0,1
+"Dropping Stone",0,0,0,1
+"Slow Fall",0,0,0,1
+"Curved Drop",0,0,0,1
+"Rebound",0,0,0,1
+"Glide Path",0,0,0,1
+"Slow Swell",0,0,0,1
+"Long Tail",0,0,0,1
+"Heavy Mass",0,0,0,1
+"Pressure Front",0,0,0,1
+"Hard Attack",0,0,0,1
+"Wide Harmonics",0,0,0,1
+"Wide Rectifier",0,0,0,1
+"Spread Choir",0,0,0,1
+"Gravity Well",0,0,0,1
+"Orbiting Field",1,0,0.0610185,1
+"Mass Tide",0,0,0,1
+"Breathing Depth",0,0,0,1
+"Body Wave",0,0,0,1
+"Edge Cycle",0,0,0,1
+"Shifting Spectrum",0,0,0,1
+"Envelope Mass",0,0,0,1
+"Drifting Weight",1,0,0.268821,1
+"Morph Span",0,0,0,1
+"Halfway Morph",0,0,0,1
+"Restrike",0,0,0,1
+"Legato Line",0,0,0,1
+"Envelope Restart",0,0,0,1
+"Continuous Phase",0,0,0,1
+"Weight Lever",0,0,0,1
+"Dark To Bright",0,0,0,1
+"Loose Ends",0,0,0,1
+"Clean To Violent",0,0,0,1
+"Mono Bedrock",0,0,0,1
+"Locked Floor",0,0,0,1
+"Bedrock Sine",0,0,0,1
+# contradicting=0
+===============================================================================
+All tests passed (287014 assertions in 1 test case)
+
+WALL determinism 68.9 s exit=0

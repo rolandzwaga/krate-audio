@@ -87,6 +87,7 @@ inline constexpr const char* kMsgEndpoint = "ProfundumEndpoint";           // pr
 inline constexpr const char* kMsgCompareMode = "ProfundumCompareMode";     // proc -> ctl, int "mode"
 inline constexpr const char* kMsgRequestSync = "ProfundumRequestSync";     // ctl -> proc, no attributes (FR-025 pull)
 inline constexpr const char* kMsgEndpointName = "ProfundumEndpointName";   // ctl -> proc, int "endpoint", binary "name" (0..31 B)
+inline constexpr const char* kMsgLoadPresetState = "ProfundumLoadPresetState";   // ctl -> proc, binary "state" (<= 4096 B), Phase 13 FR-031
 
 /// FR-011. Fresh v4 GUIDs generated 2026-10-22 with Node crypto.randomUUID(); compared
 /// against the sixteen registered FUIDs (spec New components): no match. NEVER change.

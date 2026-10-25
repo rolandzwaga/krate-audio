@@ -48,6 +48,8 @@ using Endpoint = Krate::DSP::BassMorphEngine::Endpoint;
 constexpr const char* kLabelAttribute = "uidesc-label";
 constexpr const char* kSessionTagAttribute = "session-tag";
 constexpr const char* kTitleAttribute = "title";
+constexpr const char* kCustomViewNameAttribute = "custom-view-name";
+constexpr const char* kPresetButtonViewName = "PresetBrowserButton";  // Phase 13 FR-059 (Vorago :89-95)
 constexpr const char* kHeldLabelName = "held-at-a";
 constexpr const char* kHeldLabelText = "Held at A";
 
@@ -122,7 +124,10 @@ ProfundumPanelSubController::~ProfundumPanelSubController() {
 std::int32_t ProfundumPanelSubController::sessionTagOf(const VSTGUI::CControl* control,
                                                        const VSTGUI::UIAttributes& attributes) noexcept {
     std::int32_t tag = -1;
-    if (const std::string* value = attributes.getAttributeValue(kSessionTagAttribute)) {
+    const std::string* customName = attributes.getAttributeValue(kCustomViewNameAttribute);
+    if (customName != nullptr && *customName == kPresetButtonViewName) {
+        tag = kPresetBrowserTag;  // the header preset button (created with tag -1, controller.cpp createCustomView)
+    } else if (const std::string* value = attributes.getAttributeValue(kSessionTagAttribute)) {
         std::int32_t parsed = -1;
         const char* first = value->data();
         const char* last = first + value->size();
@@ -321,6 +326,9 @@ void ProfundumPanelSubController::valueChanged(VSTGUI::CControl* control) {
         case kZoomTag:
             owner_->setZoomStep(selectedIndexOf(control));
             showSessionState();  // both zoom controls (header and SETTINGS) show the one session step
+            break;
+        case kPresetBrowserTag:  // Phase 13 FR-030 / FR-059 (Vorago :145-148): one valueChanged per press
+            owner_->openPresetBrowser();
             break;
         default:  // the captions are display only; never forwarded (not a ParamID)
             break;

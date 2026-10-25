@@ -34,11 +34,13 @@ add_executable(shared_tests
     # <allocation_operator_overrides.h>); no other file in this list may include
     # that header, or the binary fails to link on duplicate symbols.
     test_allocation_detector.cpp
+    test_preset_description.cpp   # FR-065 / SC-033 (Profundum Phase 13 T037)
 
     # Stubs for GetPluginFactory and moduleHandle (needed by vstgui_support on Linux)
     vstgui_test_stubs.cpp
     ${vst3sdk_SOURCE_DIR}/public.sdk/source/main/moduleinit.cpp
     ${vst3sdk_SOURCE_DIR}/public.sdk/source/main/pluginfactory.cpp
+    ${vst3sdk_SOURCE_DIR}/public.sdk/source/common/memorystream.cpp   # T037: component stream for savePreset
 )
 
 target_link_libraries(shared_tests
