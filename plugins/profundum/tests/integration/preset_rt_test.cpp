@@ -103,14 +103,20 @@ struct RtPreset {
 }
 
 /// T first, then every library definition (C-4 build). Prints presets=<n> (the library count).
-[[nodiscard]] std::vector<RtPreset> rtPresetsUnderTest() {
+/// With `shards` > 1, builds only the presets whose index % shards == shard (T is index 0): a shard pays for its own
+/// C-4 builds, not for the whole library's (R-11).
+[[nodiscard]] std::vector<RtPreset> rtPresetsUnderTest(std::size_t shard = 0, std::size_t shards = 1) {
     const std::vector<RtPd::ProfundumPresetDef>& defs = RtPd::allPresets();
     std::cout << "presets=" << defs.size() << "\n";
     std::vector<RtPreset> out;
-    out.reserve(defs.size() + 1u);
-    out.push_back(RtPreset{.name = "T (test-local mechanics preset)", .comp = rtPresetT()});
-    for (const RtPd::ProfundumPresetDef& def : defs) {
-        out.push_back(RtPreset{.name = std::string(def.name), .comp = presetCompOf(def)});
+    out.reserve(defs.size() / shards + 1u);
+    if (shard == 0) {
+        out.push_back(RtPreset{.name = "T (test-local mechanics preset)", .comp = rtPresetT()});
+    }
+    for (std::size_t k = 1; k <= defs.size(); ++k) {
+        if (k % shards == shard) {
+            out.push_back(RtPreset{.name = std::string(defs[k - 1].name), .comp = presetCompOf(defs[k - 1])});
+        }
     }
     return out;
 }
@@ -357,13 +363,7 @@ void runRenderGuardShard(std::size_t shard, std::size_t shards) {
     enableFTZDAZ();
     const auto t0 = std::chrono::steady_clock::now();
 
-    const std::vector<RtPreset> all = rtPresetsUnderTest();
-    std::vector<RtPreset> presets;
-    for (std::size_t k = 0; k < all.size(); ++k) {
-        if (k % shards == shard) {
-            presets.push_back(all[k]);
-        }
-    }
+    const std::vector<RtPreset> presets = rtPresetsUnderTest(shard, shards);
     REQUIRE(!presets.empty());
     const std::size_t s0 = presetSolidSettleSample(kRtFs);
     REQUIRE(s0 == 544u);
@@ -410,10 +410,14 @@ void runRenderGuardShard(std::size_t shard, std::size_t shards) {
 
 }  // namespace
 
-TEST_CASE("Profundum_PresetRenderGuard_0of4", "[profundum][preset][rt]") { runRenderGuardShard(0, 4); }
-TEST_CASE("Profundum_PresetRenderGuard_1of4", "[profundum][preset][rt]") { runRenderGuardShard(1, 4); }
-TEST_CASE("Profundum_PresetRenderGuard_2of4", "[profundum][preset][rt]") { runRenderGuardShard(2, 4); }
-TEST_CASE("Profundum_PresetRenderGuard_3of4", "[profundum][preset][rt]") { runRenderGuardShard(3, 4); }
+TEST_CASE("Profundum_PresetRenderGuard_0of8", "[profundum][preset][rt]") { runRenderGuardShard(0, 8); }
+TEST_CASE("Profundum_PresetRenderGuard_1of8", "[profundum][preset][rt]") { runRenderGuardShard(1, 8); }
+TEST_CASE("Profundum_PresetRenderGuard_2of8", "[profundum][preset][rt]") { runRenderGuardShard(2, 8); }
+TEST_CASE("Profundum_PresetRenderGuard_3of8", "[profundum][preset][rt]") { runRenderGuardShard(3, 8); }
+TEST_CASE("Profundum_PresetRenderGuard_4of8", "[profundum][preset][rt]") { runRenderGuardShard(4, 8); }
+TEST_CASE("Profundum_PresetRenderGuard_5of8", "[profundum][preset][rt]") { runRenderGuardShard(5, 8); }
+TEST_CASE("Profundum_PresetRenderGuard_6of8", "[profundum][preset][rt]") { runRenderGuardShard(6, 8); }
+TEST_CASE("Profundum_PresetRenderGuard_7of8", "[profundum][preset][rt]") { runRenderGuardShard(7, 8); }
 
 TEST_CASE("Profundum_PresetLoadUnderHeldNote", "[profundum][preset][rt]") {
     enableFTZDAZ();

@@ -817,7 +817,7 @@ mechanics preset) **and** on every `allPresets()` entry (empty before G22), and 
   `process(512)` inside `TestHelpers::AllocationScope` reads `getAllocationCount() == 0`.
 - `Profundum_PresetRenderGuard`: E1, 48 kHz, block 512, note-off at 0.5 s, total 0.75 s; stored and at max Mass (the T019 four-block
   prelude); 0 non-finite; true peak ≤ −0.9 dBTP (`measureTruePeakDb`); the case's wall clock is printed (`std::chrono::steady_clock`)
-  and `CHECK(seconds <= 15.0)`; if T027 measures it above 15 s with the full library, T027 splits it into `_0of2` / `_1of2` (R-11; re-split into `_0of4` to `_3of4` at the close, 2026-10-25, SC-027 row).
+  and `CHECK(seconds <= 15.0)`; if T027 measures it above 15 s with the full library, T027 splits it into `_0of2` / `_1of2` (R-11; re-split into `_0of4` to `_3of4` at the close, then into `_0of8` to `_7of8` after the CI wall clock, both 2026-10-25, SC-027 row).
 - `Profundum_PresetLoadUnderHeldNote`: default-state processor holds E1 from 0; at L = 12288 `setState(Comp)` between two
   `process()` calls; render to L + llround(0.1 fs) + 4096 + 512; 0 non-finite; `step(L, L + 20 ms) ≤ 2 · max(step(L − 4096, L),
   step(L + 100 ms, L + 100 ms + 4096))`; worst ratio printed. **Non-vacuity:** a copy of T's render with a 0.5 full-scale step

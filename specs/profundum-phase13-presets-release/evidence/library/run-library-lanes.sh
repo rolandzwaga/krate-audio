@@ -21,7 +21,7 @@
 # 4. git checkout -- specs/profundum-phase9-voice-engine/evidence/ (the lanes rewrite Phase 9 evidence files).
 # 5. "Profundum_PresetRenderGuard" alone, AFTER the concurrent lanes (it asserts its own wall clock, SC-027):
 #    the per-push case with the full library. Above 15 s (R-11) it is RED with "split needed": the case is split
-#    by preset index in preset_rt_test.cpp (_0of4 .. _3of4 since 2026-10-25; never moved to [long], never a relaxed bar).
+#    by preset index in preset_rt_test.cpp (_0of8 .. _7of8 since 2026-10-25; never moved to [long], never a relaxed bar).
 # Last line: "LIBRARY LANES GREEN" or "LIBRARY LANES RED <lane>: <first FAILED line>".
 # Expected cost (plan 10): showcase ~10-15 min wall on 8 shards, sweep set ~10 min.
 # ==============================================================================
@@ -161,7 +161,7 @@ guard_rc=1
 guard_case_s=""
 if [[ ${#failed[@]} -eq 0 ]]; then
     g0=$(date +%s%N)
-    "$EXE" "Profundum_PresetRenderGuard_*" 2>&1 | tr -d '\r' > "$OUT/render-guard.log"   # R-11 split: _0of2, _1of2
+    "$EXE" "Profundum_PresetRenderGuard_*" 2>&1 | tr -d '\r' > "$OUT/render-guard.log"   # R-11 split: _0of8 .. _7of8
     guard_rc=${PIPESTATUS[0]}
     g_s=$(secs_since "$g0")
     guard_case_s="$(grep -E "^render-guard worst truePeak=.* wall clock [0-9.e+-]+ s over [0-9]+ presets" \
