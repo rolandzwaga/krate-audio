@@ -480,10 +480,13 @@ re-sweeps every name it finally claims.
   documents. The UI adds no voice behaviour.
 - **FR-024** — **No Advanced control may silently invalidate the stable, centred low end.** The controls that affect mono
   compatibility are image mode 800, Spread 801, Gravity 802, crossover 803, curve 804, field Motion 805–809, and Character
-  600–602 in WIDE. Each one says so in its tooltip / label and states the guarantee Phase 7 measures (Phase 7 handoff §4):
-  - the generation vector is pan-only and constant-power, and the generator's sub band sits at ρ ≥ 0.9989;
-  - Gravity 0 still attenuates side content below 2·f_c by ×0.035 (−29.1 dB);
-  - WIDE's sub-band correlation depends on the harvested offset pair.
+  600–602 in WIDE. Each one says so in its tooltip / label, in plain language a player can act on, and states the guarantee Phase 7 measures
+  (Phase 7 handoff §4; wording amended 2026-10-25, user: "explain its usage", figures kept; D2 §5.1 MONO-GUARANTEE / WIDE-CAVEAT):
+  - width only pans, so the sub stays centred: the generator's sub band sits at ρ ≥ 0.9989 (the vector is pan-only and
+    constant-power);
+  - even at Gravity 0 the sides below twice the crossover are cut by 29 dB (×0.035, −29.1 dB);
+  - in WIDE, left and right get slightly different Character settings (the harvested offset pair), so the sub is a little
+    less mono than in Solid or Spread.
 
   There is no "low-end protection" switch (lines 905–906, 911–913).
 - **FR-025** — The spectrum display represents the actual signal and is never decoration (lines 880–881, 907). Every drawn value
@@ -1139,3 +1142,6 @@ Every question below is decided. The body of the spec states each behaviour; the
   - *Controller citations.* Corrected to `controller.h:81, :83, :104, :105` and the range `:49–114`; the earlier numbers were
     wrong.
 
+### Session 2026-10-25 (tooltips)
+
+- Q: Should the hover messages explain usage, and may the FR-024 statements be reworded? -> Yes (user: "add hover messages to all of the controls that explain its usage"; ruling "Rewrite weak + plain FR-024"): 63 texts rewritten with ranges, options and what to listen for; the MONO-GUARANTEE and WIDE-CAVEAT literals reworded in plain language with the measured figures kept. D1 / D2, the test table and editor.uidesc carry the same literals. [FR-024, SC-005]

@@ -342,8 +342,8 @@ contains its literal. Non-ASCII code points used: `–` U+2013 EN DASH, `−` U+
 |---|---|---|
 | FIELD-SYNC (FR-051) | `Synced rates above 1 Hz fold into 0.5–1 Hz.` | 809 |
 | BIPOLAR-REST (FR-052) | `Bipolar ENV rests at −amount between notes; Unipolar rests at the set value.` | 911 |
-| MONO-GUARANTEE (FR-024) | `Width is pan-only and constant-power; the generator's sub band stays at ρ ≥ 0.9989. Gravity 0 still attenuates side content below 2·f_c by −29 dB.` | each of 800, 801, 802, 803, 804, 805, 806, 807, 808, 809 |
-| WIDE-CAVEAT (FR-024) | `In WIDE the sub-band correlation depends on the Character offset pair.` | each of 600, 601, 602 |
+| MONO-GUARANTEE (FR-024) | `Mono-safe: width only pans, so the sub stays centred (correlation ≥ 0.9989), and even at Gravity 0 the sides below twice the crossover are cut by 29 dB.` | each of 800, 801, 802, 803, 804, 805, 806, 807, 808, 809 |
+| WIDE-CAVEAT (FR-024) | `In WIDE, left and right get slightly different Character settings, so the sub is a little less mono than in Solid or Spread.` | each of 600, 601, 602 |
 | COMPRESSION (FR-060) | `Compression` (the word; CompressionAmount has no control) | 102 |
 
 - FR-051 is ruled as **stating the folding** rather than computing the effective rate, because the fold depends on the
@@ -370,79 +370,79 @@ says otherwise. For 800 – 809, "+ MONO-GUARANTEE" means the §5.1 literal is a
 | 500 | core, excitation-fold | AK | Harmonic Fold | `Harmonic Fold: folds the waveform back on itself to add new harmonics. 0 is clean.` |
 | 102 | core | BS | Tight/Loose | `Tight ↔ Loose: toward Tight, shorter attack, decay and release, a harder transient and more Compression; toward Loose the reverse. Compression has no control of its own.` |
 | `HarmonicBarView` #2 | core | view | — | `The measured harmonics of the sounding note after Fold and Character, before the amp envelope, in dB below the strongest component. Shows the resolved sound, including morph, macros and Motion.` |
-| 207 | excitation-fold | AK | Excitation Drive | `Excitation Drive: how hard the excitation stage is driven.` |
+| 207 | excitation-fold | AK | Excitation Drive | `Excitation Drive: how hard the excitation stage is driven. More drive grows more new harmonics; it is heard only when Excitation Mix is above 0.` |
 | 206 | excitation-fold | AK | Excitation Mix | `Excitation Mix: blends the driven excitation into the clean tone. 0 is clean.` |
 | 208 | excitation-fold | AK | Excitation Asymmetry | `Excitation Asymmetry: biases the drive for uneven, even-harmonic grit.` |
-| 501 | shape-character | AK | Shape | `Shape: morphs the curve of the SHAPE stage.` |
-| 600 | shape-character | OM | Character | `Character: the type of colouring stage. In WIDE the sub-band correlation depends on the Character offset pair.` |
-| 601 | shape-character | AK | Character Amount | `Character Amount: how much of the Character stage is heard. In WIDE the sub-band correlation depends on the Character offset pair.` |
-| 602 | shape-character | AK | Character Tone | `Character Tone: darkens or brightens the Character stage. In WIDE the sub-band correlation depends on the Character offset pair.` |
-| 700 | mass | AK | Transient Attack | `Transient Attack: boosts or softens the start of each note.` |
-| 701 | mass | AK | Transient Sustain | `Transient Sustain: boosts or softens the body that follows the start.` |
-| 302 | sub-anchor | AK | Anchor Level | `Anchor Level: level of the pure sub tone under the bass.` |
-| 300 | sub-anchor | OM | Anchor Waveform | `Anchor Waveform: the shape of the sub tone.` |
-| 301 | sub-anchor | SEG(4) | ANCHOR MODE | `Anchor Mode: how the sub tone tracks the note: Lock, Follow, Punch or Ghost.` |
-| 303 | sub-anchor | AK | Punch Boost | `Punch Boost: extra sub level at the note start in Punch mode.` |
-| 304 | sub-anchor | AK | Punch Time | `Punch Time: how long the Punch boost lasts.` |
-| 305 | sub-anchor | AK | Ghost Time | `Ghost Time: the timing of the dip in Ghost mode.` |
-| 306 | sub-anchor | AK | Anchor Fold Feed | `Anchor Fold Feed: sends the sub tone into Harmonic Fold.` |
+| 501 | shape-character | AK | Shape | `Shape: the SHAPE stage, one control across three characters: 0 % ROUND (soft and dark), 50 % HOLLOW (resonant and scooped), 100 % BITE (bright and edgy).` |
+| 600 | shape-character | OM | Character | `Character: the type of colouring stage: Tube, Wavefold, Rectify, Bite, Crush or Fracture. Character Amount sets how much is heard. In WIDE, left and right get slightly different Character settings, so the sub is a little less mono than in Solid or Spread.` |
+| 601 | shape-character | AK | Character Amount | `Character Amount: how much of the Character stage is heard. 0 is off. In WIDE, left and right get slightly different Character settings, so the sub is a little less mono than in Solid or Spread.` |
+| 602 | shape-character | AK | Character Tone | `Character Tone: darkens or brightens the Character stage. In WIDE, left and right get slightly different Character settings, so the sub is a little less mono than in Solid or Spread.` |
+| 700 | mass | AK | Transient Attack | `Transient Attack: boosts or softens the start of each note, −12 to +12 dB.` |
+| 701 | mass | AK | Transient Sustain | `Transient Sustain: boosts or softens the body that follows the start, −12 to +12 dB.` |
+| 302 | sub-anchor | AK | Anchor Level | `Anchor Level: level of the pure sub tone under the bass. It stays centred and outside the drive stages.` |
+| 300 | sub-anchor | OM | Anchor Waveform | `Anchor Waveform: the shape of the sub tone: Sine (purest), Triangle, Rounded Sine, Asymmetric Sine or Octave Down (one octave below the note).` |
+| 301 | sub-anchor | SEG(4) | ANCHOR MODE | `Anchor Mode: how the sub tone behaves: Lock stays constant, Follow tracks the pitch you hear, Punch is louder at the note start, Ghost fades in after it.` |
+| 303 | sub-anchor | AK | Punch Boost | `Punch Boost: extra sub level at the note start in Punch mode, 0 to +12 dB.` |
+| 304 | sub-anchor | AK | Punch Time | `Punch Time: how long the Punch boost lasts, 5 to 250 ms.` |
+| 305 | sub-anchor | AK | Ghost Time | `Ghost Time: in Ghost mode, how long the sub tone takes to emerge after the note starts, 1 to 100 ms.` |
+| 306 | sub-anchor | AK | Anchor Fold Feed | `Anchor Fold Feed: sends some of the sub tone into Harmonic Fold, so the fold works on the sub too. 0 keeps the sub clean.` |
 | 1000 | sub-anchor, morph-behaviour | SEG(3) | MORPH BEHAVIOUR | `Morph behaviour of the sub tone: Hold keeps A's sub, Blend follows the morph, Yield hands over late.` |
 | `Held at A` | sub-anchor | TL | Held at A | `Hold is on and you are editing B: B's sub settings are stored but not heard.` |
-| 800 | stereo-output | SEG(3) | Image | `Image Mode: Solid is mono, Spread widens above the crossover, Wide adds the Character offsets.` + MONO-GUARANTEE |
+| 800 | stereo-output | SEG(3) | Image | `Image Mode: Solid is mono, Spread widens the upper harmonics above the crossover, Wide also gives left and right slightly different Character settings.` + MONO-GUARANTEE |
 | `SpreadCurveView` | stereo-output | view | — | `How wide each frequency is for the endpoint being edited: 0 is mono, 1 is fully wide. Field Motion is not drawn.` |
-| 801 | stereo-output | AK | Spread | `Spread: overall stereo width above the crossover.` + MONO-GUARANTEE |
-| 802 | stereo-output | AK | Gravity | `Gravity: how far below the crossover the width begins. At 0 the width reaches lowest.` + MONO-GUARANTEE |
-| 803 | stereo-output | AK | Crossover | `Crossover: the frequency below which the bass stays centred.` + MONO-GUARANTEE |
+| 801 | stereo-output | AK | Spread | `Spread: overall stereo width above the crossover. 0 is centred.` + MONO-GUARANTEE |
+| 802 | stereo-output | AK | Gravity | `Gravity: how far below the crossover the width begins. At 0 the width reaches lowest; at 100 % the low band is pulled firmly to the centre.` + MONO-GUARANTEE |
+| 803 | stereo-output | AK | Crossover | `Crossover: the frequency below which the bass stays centred, 60 to 250 Hz.` + MONO-GUARANTEE |
 | 804 | stereo-output | AK | Curve | `Curve: how quickly the width rises between the low and high knees.` + MONO-GUARANTEE |
-| 805 | stereo-output | AK | Field Motion Depth | `Field Motion Depth: how much the width moves over time.` + MONO-GUARANTEE |
-| 806 | stereo-output | AK | Field Motion Rate | `Field Motion Rate: speed of the width movement.` + MONO-GUARANTEE |
+| 805 | stereo-output | AK | Field Motion Depth | `Field Motion Depth: how much the width moves over time. 0 holds it still.` + MONO-GUARANTEE |
+| 806 | stereo-output | AK | Field Motion Rate | `Field Motion Rate: speed of the width movement. Cycle runs from 0.05 to 1 Hz; Drift wanders from slowly to quickly.` + MONO-GUARANTEE |
 | 807 | stereo-output | TG | Field Motion Source | `Field Motion Source: Drift wanders, Cycle repeats.` + MONO-GUARANTEE |
-| 808 | stereo-output | TG | Field Sync | `Field Sync: lock the width movement to the host tempo.` + MONO-GUARANTEE |
+| 808 | stereo-output | TG | Field Sync | `Field Sync: lock the width movement to the host tempo; Field Sync Rate then sets the note value.` + MONO-GUARANTEE |
 | 809 | stereo-output | OM | Field Sync Rate | `Field Sync Rate: note value of the synced width movement. Synced rates above 1 Hz fold into 0.5–1 Hz.` + MONO-GUARANTEE |
-| 0 | stereo-output | AK | Output Gain | `Output Gain: final level.` |
-| 2 | stereo-output | OM | Polyphony | `Polyphony: how many notes can sound at once in Poly.` |
-| 3 | stereo-output | AK | Output Ceiling | `Output Ceiling: the highest true-peak level the output reaches.` |
+| 0 | stereo-output | AK | Output Gain | `Output Gain: final level after the limiter, from silence up to 0 dB. It only turns down, so it never pushes past the Output Ceiling.` |
+| 2 | stereo-output | OM | Polyphony | `Polyphony: how many notes can sound at once in Poly (1 to 8). Mono ignores it.` |
+| 3 | stereo-output | AK | Output Ceiling | `Output Ceiling: the highest true-peak level the output reaches (−12 to 0 dBTP, default −1). The limiter holds everything under it.` |
 | 400 | pitch-envelopes | AK | Drop Amount | `Drop Amount: how far the pitch falls into each note, in semitones.` |
-| 401 | pitch-envelopes | AK | Drop Time | `Drop Time: how long the pitch drop takes.` |
-| 402 | pitch-envelopes | AK | Drop Shape | `Drop Shape: the curve of the pitch drop.` |
+| 401 | pitch-envelopes | AK | Drop Time | `Drop Time: how long the pitch drop takes, from 1 ms to 4 s.` |
+| 402 | pitch-envelopes | AK | Drop Shape | `Drop Shape: the curve of the pitch drop: 0 % exponential (fast, then slow), 33 % linear, 67 % logarithmic (slow, then fast), 100 % elastic (it overshoots and settles).` |
 | 403 | pitch-envelopes | AK | Drop Rebound | `Drop Rebound: how much the pitch overshoots and settles at the end of the drop.` |
 | `ADSRDisplay` | pitch-envelopes | ADSRDisplay | — | `Amp envelope: drag the points to set Attack, Decay, Sustain and Release.` |
-| 420 | pitch-envelopes | AK | Attack | `Attack: time to full level.` |
-| 421 | pitch-envelopes | AK | Decay | `Decay: time to fall to the Sustain level.` |
-| 422 | pitch-envelopes | AK | Sustain | `Sustain: level held while the key is down.` |
-| 423 | pitch-envelopes | AK | Release | `Release: time to silence after the key is released.` |
-| 424 | pitch-envelopes | AK | Attack Curve | `Attack Curve: bends the attack segment.` |
-| 425 | pitch-envelopes | AK | Decay Curve | `Decay Curve: bends the decay segment.` |
-| 426 | pitch-envelopes | AK | Release Curve | `Release Curve: bends the release segment.` |
+| 420 | pitch-envelopes | AK | Attack | `Attack: time to full level after a note starts, 0.1 ms to 10 s.` |
+| 421 | pitch-envelopes | AK | Decay | `Decay: time to fall from full level to the Sustain level, 0.1 ms to 10 s.` |
+| 422 | pitch-envelopes | AK | Sustain | `Sustain: level held while the key is down, 0 to 100 %.` |
+| 423 | pitch-envelopes | AK | Release | `Release: time to silence after the key is released, 0.1 ms to 10 s.` |
+| 424 | pitch-envelopes | AK | Attack Curve | `Attack Curve: bends the attack segment. 0 is a straight line, + is exponential, − is logarithmic.` |
+| 425 | pitch-envelopes | AK | Decay Curve | `Decay Curve: bends the decay segment. 0 is a straight line, + is exponential, − is logarithmic.` |
+| 426 | pitch-envelopes | AK | Release Curve | `Release Curve: bends the release segment. 0 is a straight line, + is exponential, − is logarithmic.` |
 | 410 | pitch-envelopes | SEG(3) | Mono Priority | `Mono Priority: which held note sounds in Mono: Last, Low or High.` |
 | 411 | pitch-envelopes | TG | Legato | `Legato: overlapping notes glide without restarting the envelope.` |
-| 412 | pitch-envelopes | AK | Portamento | `Portamento: glide time between notes.` |
+| 412 | pitch-envelopes | AK | Portamento | `Portamento: glide time between notes, from 0 (off) to 10 s. Glide Mode decides whether this is a time or a rate.` |
 | 413 | pitch-envelopes | TG | Portamento Mode | `Portamento Mode: glide on every note, or only between overlapping notes.` |
-| 414 | pitch-envelopes | SEG(3) | Glide Mode | `Glide Mode: Constant Time, Constant Rate or Quantized glide.` |
-| 415 | pitch-envelopes | OM | Note Memory | `Note Memory: what a new note restarts.` |
+| 414 | pitch-envelopes | SEG(3) | Glide Mode | `Glide Mode: Constant Time takes the same time for any interval, Constant Rate takes longer for wider intervals, Quantized steps through the semitones.` |
+| 415 | pitch-envelopes | OM | Note Memory | `Note Memory: what carries over between notes in Mono: Always Retrigger restarts everything, Legato carries on across overlapping notes, Envelope Retrigger restarts only the envelope, Oscillator Continuous keeps the waveform running.` |
 | 416 | pitch-envelopes | TG | Note Retrigger | `Note Retrigger: Reset restarts the note's movement, Continue carries it on.` |
-| 417 | pitch-envelopes | AK | Pitch Bend Range | `Pitch Bend Range: bend wheel range in semitones.` |
-| 1002 | morph-behaviour | AK | Morph Ramp Time | `Morph smoothing: how quickly the sound follows a change of the morph position.` |
+| 417 | pitch-envelopes | AK | Pitch Bend Range | `Pitch Bend Range: how far the bend wheel bends, 0 to 24 semitones each way.` |
+| 1002 | morph-behaviour | AK | Morph Ramp Time | `Morph smoothing: how quickly the sound follows a change of the morph position, 5 ms to 2 s. Longer glides smoothly between A and B.` |
 | 9203 | morph-behaviour | SEG(3) | Compare | `Compare: hear A, the morph, or B. Choosing A or B also edits that side.` |
 | 9204 | morph-behaviour | BTN | Copy A → B | `Copy A's sound to B. Names are not copied.` |
 | 9205 | morph-behaviour | BTN | Copy B → A | `Copy B's sound to A. Names are not copied.` |
-| 900 | modulation | SEG(4) | Motion Source | `Motion Source: Off, Env, Cycle or Drift.` |
-| 901 | modulation | OM | Motion Target | `Motion Target: what Motion moves.` |
+| 900 | modulation | SEG(4) | Motion Source | `Motion Source: what moves the target: Env rises and falls with each note, Cycle repeats, Drift wanders. Off disables Motion.` |
+| 901 | modulation | OM | Motion Target | `Motion Target: what Motion moves: Mass, Depth, Body, Edge or Shift.` |
 | 902 | modulation | BS | Motion Amount | `Motion Amount: how far and in which direction Motion moves its target.` |
-| 903 | modulation | AK | Motion Depth | `Motion Depth: overall Motion depth.` |
-| 904 | modulation | AK | Cycle Rate | `Cycle Rate: speed of the Cycle source.` |
-| 905 | modulation | OM | Cycle Shape | `Cycle Shape: waveform of the Cycle source.` |
-| 906 | modulation | TG | Cycle Sync | `Cycle Sync: lock the Cycle to the host tempo.` |
-| 907 | modulation | OM | Cycle Sync Rate | `Cycle Sync Rate: note value of the synced Cycle.` |
-| 908 | modulation | AK | Cycle Phase | `Cycle Phase: start phase of the Cycle.` |
-| 909 | modulation | TG | Cycle Retrigger | `Cycle Retrigger: restart the Cycle on each note.` |
-| 910 | modulation | AK | Cycle Fade-In | `Cycle Fade-In: time for the Cycle to reach full depth.` |
+| 903 | modulation | AK | Motion Depth | `Motion Depth: scales all of Motion at once, 0 to 100 %. Motion Amount sets the direction and size for the target.` |
+| 904 | modulation | AK | Cycle Rate | `Cycle Rate: speed of the Cycle source, 0.01 to 20 Hz, when Cycle Sync is off.` |
+| 905 | modulation | OM | Cycle Shape | `Cycle Shape: waveform of the Cycle source: Sine, Triangle, Sawtooth, Square, S&H or Smooth Random.` |
+| 906 | modulation | TG | Cycle Sync | `Cycle Sync: lock the Cycle to the host tempo; Cycle Sync Rate then sets the note value.` |
+| 907 | modulation | OM | Cycle Sync Rate | `Cycle Sync Rate: note value of one synced Cycle, 1/64T to 4/1D.` |
+| 908 | modulation | AK | Cycle Phase | `Cycle Phase: where in its waveform the Cycle starts, 0 to 360°.` |
+| 909 | modulation | TG | Cycle Retrigger | `Cycle Retrigger: restart the Cycle at its start phase on each new note. Off lets it run freely.` |
+| 910 | modulation | AK | Cycle Fade-In | `Cycle Fade-In: time for the Cycle to reach full depth after a note starts, 0 to 5 s.` |
 | 911 | modulation | TG | Motion Polarity | `Motion Polarity: Bipolar ENV rests at −amount between notes; Unipolar rests at the set value.` |
-| 912 | modulation | AK | Drift Smoothness | `Drift Smoothness: how smoothly the Drift source wanders.` |
-| 913 | modulation | AK | Env Attack | `Env Attack: rise time of the Env source.` |
-| 914 | modulation | AK | Env Decay | `Env Decay: fall time of the Env source.` |
-| 9110 | (page) | SEG(3) | Sections / Modulation / Settings | `Advanced page sections.` |
-| 9300 | settings | SEG(4) | Zoom | `Window size.` |
+| 912 | modulation | AK | Drift Smoothness | `Drift Smoothness: how smoothly the Drift source wanders. Higher is gentler.` |
+| 913 | modulation | AK | Env Attack | `Env Attack: rise time of the Env source, 0.1 ms to 10 s.` |
+| 914 | modulation | AK | Env Decay | `Env Decay: fall time of the Env source back to rest, 0.1 ms to 10 s.` |
+| 9110 | (page) | SEG(3) | Sections / Modulation / Settings | `Advanced page sections: choose which group of controls to show.` |
+| 9300 | settings | SEG(4) | Zoom | `Window size: 100, 125, 150 or 200 %. Kept for the session, not saved with the project.` |
 
 Tooltip notes:
 
