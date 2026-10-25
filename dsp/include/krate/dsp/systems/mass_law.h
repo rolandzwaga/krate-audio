@@ -130,6 +130,12 @@ public:
     /// default of the row's field (the pure function has no "previous": FR-029's keep-previous rule
     /// lives in setMass / setBase).
     [[nodiscard]] static float evaluateRow(const Row& row, float mass, float base) noexcept {
+        // FR-026 (bit-identical outputs for the same inputs, neutral at kNeutralMass) needs IEEE order here. Under
+        // the macOS SDK's -ffast-math, clang rewrote (mass - 50) * 0.02f as fma(mass, 0.02f, -1): -2.2e-8 at Mass 50,
+        // so Mass 50 was not neutral and the same evaluate() differed by call site (macOS arm64 CI, 2026-10-25).
+#if defined(__clang__)
+#pragma clang fp contract(off) reassociate(off)
+#endif
         if (!detail::isFinite(mass)) mass = kNeutralMass;
         if (!detail::isFinite(base)) base = fieldOf(Targets{}, row.target);
         mass = std::clamp(mass, kMinMass, kMaxMass);
