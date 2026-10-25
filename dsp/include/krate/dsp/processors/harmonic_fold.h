@@ -585,8 +585,12 @@ private:
             const double g = (a <= softEnd) ? gS * a / softEnd
                                             : gS * std::pow(gC / gS, (a - softEnd) / compSpan);
             // D-1 (tasks.md, 2026-10-11): ease-out fold index, zero slope at 100, theta(100) = thetaMax.
+            // The base is clamped at 0: exactly 0 at a = 100 in IEEE arithmetic, but -4.4e-16 under clang
+            // -ffast-math (the macOS SDK flags reassociate the quotient), and pow(negative, easeP) is NaN.
             const double theta =
-                (a <= compEnd) ? 0.0 : thetaMax * (1.0 - std::pow(1.0 - (a - compEnd) / foldSpan, easeP));
+                (a <= compEnd)
+                    ? 0.0
+                    : thetaMax * (1.0 - std::pow(std::max(0.0, 1.0 - (a - compEnd) / foldSpan), easeP));
 
             const auto sat = [g, P](double q) noexcept {
                 if (g < 1.0e-6)
