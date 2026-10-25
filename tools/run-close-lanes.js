@@ -34,7 +34,7 @@ const EXE = (n) => path.join(BIN, process.platform === 'win32' ? `${n}.exe` : n)
 const TIMING = '~[performance]~[perf]~[benchmark]~[!benchmark]';
 
 const lanes = [];
-for (const s of ['dsp_core_tests', 'dsp_primitives_tests', 'dsp_processors_tests', 'dsp_systems_tests', 'dsp_effects_tests', 'dsp_nonfinite_tests',
+for (const s of ['dsp_core_tests', 'dsp_primitives_tests', 'dsp_processors_tests', 'dsp_systems_tests', 'dsp_effects_tests', 'dsp_ieee_tests',
                  'vorago_tests', 'seraphis_tests', 'shared_tests', 'profundum_tests']) {
   lanes.push({ name: `suite_${s}`, exe: EXE(s), argv: [`${TIMING}~[long]`], env: {} });
 }

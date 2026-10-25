@@ -259,7 +259,6 @@ add_executable(dsp_processors_tests
     unit/processors/partial_tracker_tests.cpp
     unit/processors/harmonic_oscillator_bank_tests.cpp
     # Profundum Phase 1 (specs/profundum-phase1-harmonic-core): recipe-only SCs
-    unit/processors/spectral_shape_recipe_test.cpp
     # Profundum Phase 2 (specs/profundum-phase2-edge-fold): HarmonicFold (L2) - SC-006/007/008/010/011/012(d)/013(a)(c)/015/016/017/019/024/025/026
     unit/processors/harmonic_fold_test.cpp
     # Profundum Phase 4 (specs/profundum-phase4-drop-note-behaviour) - ENUMERATED, not globbed:
@@ -271,9 +270,7 @@ add_executable(dsp_processors_tests
     #                                         the -fno-fast-math block below
     #   drop_note_behaviour_perf_test.cpp     SC-019, SC-025 cost  [.perf]
     unit/processors/drop_envelope_test.cpp
-    unit/processors/drop_phase_lock_test.cpp
     unit/processors/note_memory_test.cpp
-    unit/processors/mono_handler_glide_test.cpp
     unit/processors/drop_note_behaviour_perf_test.cpp
     # Profundum Phase 5 (specs/profundum-phase5-shape-character) - ENUMERATED, not globbed:
     #   keytracked_tilt_test.cpp                 SC-028(a)(b) parts (KeytrackedTilt)
@@ -868,8 +865,13 @@ target_compile_definitions(dsp_effects_tests PRIVATE KRATE_DSP_AETHER_TEST_HOOKS
 
 target_compile_features(dsp_effects_tests PRIVATE cxx_std_20)
 
-# IEEE-only fault-injection TUs (2026-10-25). Every TU here poisons DSP state with NaN / Inf bit patterns and asserts
-# on the result, so it needs IEEE semantics in EVERY function it runs, not only in its own body. In a mixed binary
+# IEEE-only TUs (2026-10-25). Two kinds: the fault-injection TUs, which poison DSP state with NaN / Inf bit patterns
+# and assert on the result, and the bit-exactness TUs at the end of the list, which assert that two separately
+# compiled computations agree bit for bit (MonoHandler against its frozen pre-Phase-4 copy, DropPhaseLock's
+# pass-through, SpectralShapeRecipe's equality at the neutral point). Under the macOS SDK's -ffast-math, clang
+# reassociates each inlined call site on its own ((s - 69) / 12 became s * (1/12) - 5.75: A4 read 440.00007 Hz in
+# one copy and 440 in the other), so those claims hold only under IEEE, where Windows and Linux already check them.
+# Both kinds need IEEE semantics in EVERY function they run, not only in their own bodies. In a mixed binary
 # that is not guaranteed: an inline header function (EnvelopeFollower::processSample, DCBlocker::process, ...) that
 # is not inlined into the -fno-fast-math TU is a COMDAT symbol, and the linker keeps ONE copy for the whole image -
 # from whichever TU came first, usually a -ffast-math one. Apple clang on the macOS arm64 runner then folded the NaN
@@ -877,9 +879,11 @@ target_compile_features(dsp_effects_tests PRIVATE cxx_std_20)
 # is IEEE. The per-source entries in the -fno-fast-math block below stay (they keep these files out of the PCH).
 # The target defines the union of the three source executables' target-wide macros; KRATE_DSP_AETHER_TEST_HOOKS is
 # target-wide for the same ODR reason as in dsp_effects_tests (aether_reverb_nonfinite_test.cpp needs it).
-add_executable(dsp_nonfinite_tests
+add_executable(dsp_ieee_tests
     # Shared Catch2 main + FTZ/DAZ setup (see dsp_test_main.cpp)
     dsp_test_main.cpp
+    # The image's one owner of the operator new/delete replacements (allocation_detector.h)
+    dsp_ieee_alloc_overrides.cpp
     unit/systems/atmosphere_engine_nonfinite_test.cpp
     unit/systems/atmosphere_ghost_nonfinite_test.cpp
     unit/effects/aether_reverb_nonfinite_test.cpp
@@ -903,9 +907,13 @@ add_executable(dsp_nonfinite_tests
     unit/systems/bass_stereo_field_nonfinite_test.cpp
     unit/systems/bass_morph_nonfinite_test.cpp
     unit/systems/profundum_engine_nonfinite_test.cpp
+    # bit-exactness TUs (moved from dsp_processors_tests)
+    unit/processors/spectral_shape_recipe_test.cpp
+    unit/processors/drop_phase_lock_test.cpp
+    unit/processors/mono_handler_glide_test.cpp
 )
 
-target_link_libraries(dsp_nonfinite_tests
+target_link_libraries(dsp_ieee_tests
     PRIVATE
         KrateDSP
         Catch2::Catch2
@@ -914,16 +922,16 @@ target_link_libraries(dsp_nonfinite_tests
 )
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
-    target_compile_options(dsp_nonfinite_tests PRIVATE -fno-fast-math -fno-finite-math-only)
+    target_compile_options(dsp_ieee_tests PRIVATE -fno-fast-math -fno-finite-math-only)
 endif()
 
-target_compile_definitions(dsp_nonfinite_tests
+target_compile_definitions(dsp_ieee_tests
     PRIVATE
         KRATE_DSP_AETHER_TEST_HOOKS
         KRATE_DSP_TESTS_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
         VORAGO_P1_HARNESS_DIR="${CMAKE_BINARY_DIR}/vorago_p1/")
 
-target_compile_features(dsp_nonfinite_tests PRIVATE cxx_std_20)
+target_compile_features(dsp_ieee_tests PRIVATE cxx_std_20)
 
 
 # ==============================================================================
@@ -1387,7 +1395,7 @@ catch_discover_tests(dsp_primitives_tests REPORTER console)
 catch_discover_tests(dsp_processors_tests REPORTER console)
 catch_discover_tests(dsp_systems_tests REPORTER console)
 catch_discover_tests(dsp_effects_tests REPORTER console)
-catch_discover_tests(dsp_nonfinite_tests REPORTER console)
+catch_discover_tests(dsp_ieee_tests REPORTER console)
 
 # ==============================================================================
 # Precompiled Catch2 + STL per executable when KRATE_TEST_PCH is ON

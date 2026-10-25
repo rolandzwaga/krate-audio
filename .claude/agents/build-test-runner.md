@@ -32,7 +32,7 @@ build with `"$CMAKE" --build build/windows-ninja-dev`.
 
 | Area | Test target(s) | Run path (all test exes land in one bin dir) | pluginval bundle |
 |------|----------------|----------------------------------------------|------------------|
-| DSP library | 5 per-layer: `dsp_core_tests` `dsp_primitives_tests` `dsp_processors_tests` `dsp_systems_tests` `dsp_effects_tests`, plus `dsp_nonfinite_tests` (the IEEE-only NaN/Inf injection TUs) | `.../bin/Release/dsp_<layer>_tests.exe` | — |
+| DSP library | 5 per-layer: `dsp_core_tests` `dsp_primitives_tests` `dsp_processors_tests` `dsp_systems_tests` `dsp_effects_tests`, plus `dsp_ieee_tests` (the IEEE-only TUs: NaN/Inf injection and bit-exactness) | `.../bin/Release/dsp_<layer>_tests.exe` | — |
 | Iterum | `plugin_tests` **and** `approval_tests` | `.../bin/Release/plugin_tests.exe`, `.../approval_tests.exe` | `Iterum.vst3` |
 | Disrumpo | `disrumpo_tests` | `.../bin/Release/disrumpo_tests.exe` | `Disrumpo.vst3` |
 | Ruinae | `ruinae_tests` | `.../bin/Release/ruinae_tests.exe` | `Ruinae.vst3` |
