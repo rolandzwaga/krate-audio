@@ -98,7 +98,8 @@ TEST_CASE("ClapExciter: bit-identical output for same voiceId + velocity (FR-124
 {
     constexpr double kSR = 48000.0;
     constexpr int kSamples = 2400;
-    Membrum::ClapExciter a, b;
+    Membrum::ClapExciter a;
+    Membrum::ClapExciter b;
     a.prepare(kSR, 7);
     b.prepare(kSR, 7);
 

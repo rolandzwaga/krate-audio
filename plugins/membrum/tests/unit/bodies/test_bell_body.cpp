@@ -17,6 +17,7 @@
 
 #include <allocation_detector.h>
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <vector>
@@ -296,7 +297,7 @@ TEST_CASE("BellBody: Material sweep changes decay tilt monotonically (US4-4)",
     const int tailStart  = static_cast<int>(kSR * 0.20);
     const int tailLength = static_cast<int>(kSR * 0.50);
 
-    auto runAt = [&](float materialVal) noexcept {
+    auto runAt = [&](float materialVal) {
         auto p = base;
         p.material = materialVal;
         std::vector<float> buf(kN, 0.0f);
@@ -353,7 +354,7 @@ TEST_CASE("BellBody: DrumVoice with Level=0 produces silent output (US4-5)",
             const float s = block[static_cast<size_t>(i)];
             if (!isFiniteSample(s)) allFinite = false;
             const float a = s < 0.0f ? -s : s;
-            if (a > peakAbs) peakAbs = a;
+            peakAbs = std::max(peakAbs, a);
         }
         remaining -= n;
     }
