@@ -49,6 +49,8 @@
 #include "ui/panel_sub_controller.h"
 #include "ui/preset_browser_view.h"  // plugins/shared/src/ui (Phase 13 FR-030)
 #include "ui/spread_curve_view.h"
+#include "ui/update_banner_view.h"  // plugins/shared/src/ui: VersionLabel (Phase 13 FR-059 amendment)
+#include "version.h"
 
 #include "pluginterfaces/vst/ivstattributes.h"
 #include "pluginterfaces/vst/ivstcomponent.h"
@@ -949,6 +951,10 @@ VSTGUI::CView* Controller::createCustomView(VSTGUI::UTF8StringPtr name, const VS
         // Phase 13 FR-059: the shared outline button; the panel sub-controller gives it its session tag and
         // listener in verifyView.
         return new Krate::Plugins::OutlineBrowserButton(viewRect, nullptr, -1, "PRESETS");
+    }
+    if (std::strcmp(name, "VersionLabel") == 0) {
+        // FR-059 amendment: the shared label (Vorago / Seraphis / Ruinae), VERSION_STR from version.json.
+        return new Krate::Plugins::VersionLabel(viewRect, VERSION_STR);
     }
     return nullptr;
 }

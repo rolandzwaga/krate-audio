@@ -552,7 +552,9 @@ The lane of every check is the **Lane** column of the Success Criteria table; th
 - **FR-059** (Q5) The header preset control is exactly one `OutlineBrowserButton` whose action opens the `PresetBrowserView` overlay (the
   Vorago pattern, Phase 12 plan Appendix A). It MUST NOT show a current-preset name, MUST NOT have previous / next controls, and MUST NOT
   add any new controller or processor state (no "modified" flag, no current-preset notification, no new parameter or message beyond the
-  FR-031 load message). The ratified D1 layout does not move.
+  FR-031 load message). The ratified D1 layout does not move. The header also carries exactly one shared `VersionLabel`
+  (`plugins/shared/src/ui/update_banner_view.h`, the Vorago / Seraphis / Ruinae view), drawing `VERSION_STR` from `version.json` at
+  (16, 40) 100 × 14, under the title and clear of every ratified rect; the preset button stays the last header child.
 - **FR-032** Loading a factory preset through the browser MUST produce the same decoded state as `setState` with its `Comp`
   chunk. Every decoded field MUST match, and the seed (bytes 84–87), both endpoint names and the morph runtime block are named fields
   of that comparison. The editor-lifecycle harness (`Profundum_EditorLifecycle`) MUST stay green with the browser present.
@@ -800,3 +802,7 @@ Ruled by the user on 2026-10-24 ("Approve all 10", `evidence/plan-rulings.md`). 
 ### Session 2026-10-25 (Phase 13b: Poly presets)
 
 - Q: How many factory presets store Poly? -> At least 5 (user: "I actually want at least 5 poly presets"; done as a lean 13b on the Phase 13 spec, no new workflow). [FR-066, SC-034]
+
+### Session 2026-10-25 (version label)
+
+- Q: Does the editor show the plugin version, like Vorago and Seraphis? -> Yes: the shared `VersionLabel` under the header title (user: "can you add the version label to profundum?"). [FR-059]

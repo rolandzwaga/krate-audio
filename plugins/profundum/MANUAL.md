@@ -63,7 +63,8 @@ The editor is a fixed 960 × 600 window with four zoom steps (100 %, 125 %, 150 
 share one header.
 
 - **The header** — the **Voice Mode** switch (MONO / POLY), the **GLIDE** knob and its readout (the
-  **Portamento** parameter), the **PRESETS** button, the MAIN / ADVANCED page switch and the zoom selector.
+  **Portamento** parameter), the **PRESETS** button, the MAIN / ADVANCED page switch and the zoom selector. The
+  plugin version is shown under the PROFUNDUM title.
 - **The Main page** — the playing surface. It holds THE MASS (a live harmonic display, six large knobs and the
   macros), THE ANCHOR and BASS MORPH.
 - **The Advanced page** — every parameter, in three tabs: **SECTIONS** (eight sections), **MODULATION** (the
