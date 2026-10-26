@@ -1,0 +1,2130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profundum User Manual - Mass Bass Instrument | Krate Audio</title>
+    <meta name="description" content="Complete user manual for Profundum, a free open-source mass bass instrument VST3 plugin. Covers the Mass and the Anchor, the four personality macros, Bass Morph between two endpoints, the Advanced page sections, Motion, and the factory presets.">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://krateaudio.com/profundum/manual.html">
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="Profundum User Manual - Mass Bass Instrument">
+    <meta property="og:description" content="Complete user manual for Profundum, a free open-source mass bass instrument VST3 plugin.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://krateaudio.com/profundum/manual.html">
+    <meta property="og:site_name" content="Krate Audio">
+    <meta property="og:locale" content="en_US">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Profundum User Manual">
+    <meta name="twitter:description" content="Complete user manual for Profundum, a free open-source mass bass instrument VST3 plugin.">
+
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Base — matches Profundum landing page */
+        :root {
+            --color-bg: #0a0a0f;
+            --color-surface: #12121a;
+            --color-border: #2a2a3a;
+            --color-text: #e8e8f0;
+            --color-text-muted: #8888a0;
+            --color-accent: #e0b458;
+            --color-accent-hover: #f0cc78;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--color-bg);
+            color: var(--color-text);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+
+        /* Layout */
+        .manual-container {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 3rem 2rem 4rem;
+        }
+
+        /* Header */
+        .manual-header {
+            text-align: center;
+            margin-bottom: 3rem;
+            padding-bottom: 2rem;
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        .manual-header .breadcrumb {
+            font-size: 0.875rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .manual-header .breadcrumb a {
+            color: var(--color-text-muted);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .manual-header .breadcrumb a:hover {
+            color: var(--color-accent);
+        }
+
+        .manual-header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--color-text) 0%, var(--color-accent) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .manual-header .subtitle {
+            color: var(--color-text-muted);
+            font-size: 1.1rem;
+        }
+
+        /* Table of contents */
+        #TOC {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: 12px;
+            padding: 1.5rem 2rem;
+            margin-bottom: 3rem;
+        }
+
+        #TOC > ul { list-style: none; }
+        #TOC ul { list-style: none; padding-left: 1.25rem; }
+        #TOC > ul > li { margin-bottom: 0.5rem; }
+        #TOC li { margin-bottom: 0.25rem; }
+
+        #TOC a {
+            color: var(--color-text);
+            text-decoration: none;
+            transition: color 0.2s;
+            font-size: 0.95rem;
+        }
+
+        #TOC a:hover { color: var(--color-accent); }
+        #TOC > ul > li > a { font-weight: 600; }
+
+        /* Headings */
+        h1 { font-size: 2rem; font-weight: 700; margin: 3rem 0 1rem; }
+        h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin: 3rem 0 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--color-border);
+            color: var(--color-text);
+        }
+        h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin: 2rem 0 0.75rem;
+            color: var(--color-accent-hover);
+        }
+        h4 { font-size: 1.05rem; font-weight: 600; margin: 1.5rem 0 0.5rem; }
+        h5 { font-size: 1rem; font-weight: 600; margin: 1.25rem 0 0.5rem; color: var(--color-text-muted); }
+
+        /* Paragraphs & text */
+        p { margin-bottom: 1rem; }
+        strong { font-weight: 600; }
+
+        a {
+            color: var(--color-accent);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+        a:hover { color: var(--color-accent-hover); }
+
+        /* Lists */
+        ul, ol {
+            margin-bottom: 1rem;
+            padding-left: 1.5rem;
+        }
+        li { margin-bottom: 0.35rem; }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 1.5rem;
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        thead {
+            background: rgba(224, 180, 88, 0.08);
+        }
+
+        th {
+            text-align: left;
+            padding: 0.75rem 1rem;
+            font-weight: 600;
+            font-size: 0.875rem;
+            color: var(--color-accent-hover);
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        td {
+            padding: 0.6rem 1rem;
+            font-size: 0.9rem;
+            border-bottom: 1px solid var(--color-border);
+            vertical-align: top;
+        }
+
+        tr:last-child td { border-bottom: none; }
+
+        /* Code */
+        code {
+            font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+            font-size: 0.85em;
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            padding: 0.125rem 0.375rem;
+            border-radius: 4px;
+        }
+
+        pre {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            padding: 1rem 1.25rem;
+            overflow-x: auto;
+            margin-bottom: 1.5rem;
+        }
+
+        pre code {
+            background: none;
+            border: none;
+            padding: 0;
+            font-size: 0.85rem;
+            line-height: 1.6;
+        }
+
+        /* Images */
+        img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            border: 1px solid var(--color-border);
+            margin: 1rem 0 1.5rem;
+            display: block;
+        }
+
+        /* Horizontal rules */
+        hr {
+            border: none;
+            border-top: 1px solid var(--color-border);
+            margin: 2.5rem 0;
+        }
+
+        /* Blockquotes (tips) */
+        blockquote {
+            border-left: 3px solid var(--color-accent);
+            padding: 0.75rem 1rem;
+            margin: 1rem 0 1.5rem;
+            background: rgba(224, 180, 88, 0.05);
+            border-radius: 0 8px 8px 0;
+        }
+
+        blockquote p { margin-bottom: 0; }
+
+        /* Footer */
+        .manual-footer {
+            text-align: center;
+            padding-top: 2rem;
+            margin-top: 3rem;
+            border-top: 1px solid var(--color-border);
+            color: var(--color-text-muted);
+            font-size: 0.875rem;
+        }
+
+        .manual-footer a {
+            color: var(--color-text);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .manual-footer a:hover { color: var(--color-accent); }
+
+        /* Responsive */
+        @media (max-width: 640px) {
+            .manual-container { padding: 2rem 1rem; }
+            .manual-header h1 { font-size: 2rem; }
+            h2 { font-size: 1.25rem; }
+            table { font-size: 0.85rem; }
+            th, td { padding: 0.5rem 0.75rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="manual-container">
+        <div class="manual-header">
+            <p class="breadcrumb">
+                <a href="../">Krate Audio</a> / <a href="./">Profundum</a>
+            </p>
+            <h1>Profundum — User Manual</h1>
+            <p class="subtitle">Mass Bass Instrument</p>
+        </div>
+
+        <ul>
+        <li><a href="#introduction"
+        id="toc-introduction">Introduction</a></li>
+        <li><a href="#signal-flow" id="toc-signal-flow">Signal
+        Flow</a></li>
+        <li><a href="#interface-overview"
+        id="toc-interface-overview">Interface Overview</a></li>
+        <li><a href="#macros" id="toc-macros">Macros</a></li>
+        <li><a href="#header-controls" id="toc-header-controls">Header
+        Controls</a></li>
+        <li><a href="#the-main-page" id="toc-the-main-page">The Main
+        Page</a>
+        <ul>
+        <li><a href="#the-mass" id="toc-the-mass">The Mass</a></li>
+        <li><a href="#the-anchor" id="toc-the-anchor">The
+        Anchor</a></li>
+        <li><a href="#bass-morph" id="toc-bass-morph">Bass
+        Morph</a></li>
+        </ul></li>
+        <li><a href="#the-advanced-page" id="toc-the-advanced-page">The
+        Advanced Page</a>
+        <ul>
+        <li><a href="#core-spectrum" id="toc-core-spectrum">Core
+        Spectrum</a></li>
+        <li><a href="#excitation-fold"
+        id="toc-excitation-fold">Excitation &amp; Fold</a></li>
+        <li><a href="#shape-character" id="toc-shape-character">Shape
+        &amp; Character</a></li>
+        <li><a href="#mass" id="toc-mass">Mass</a></li>
+        <li><a href="#sub-anchor" id="toc-sub-anchor">Sub
+        Anchor</a></li>
+        <li><a href="#stereo-output" id="toc-stereo-output">Stereo &amp;
+        Output</a></li>
+        <li><a href="#pitch-envelopes" id="toc-pitch-envelopes">Pitch
+        &amp; Envelopes</a></li>
+        <li><a href="#morph-behaviour" id="toc-morph-behaviour">Morph
+        Behaviour</a></li>
+        <li><a href="#the-modulation-tab"
+        id="toc-the-modulation-tab">The MODULATION Tab</a></li>
+        <li><a href="#the-settings-tab" id="toc-the-settings-tab">The
+        SETTINGS Tab</a></li>
+        </ul></li>
+        <li><a href="#presets" id="toc-presets">Presets</a>
+        <ul>
+        <li><a href="#factory-library" id="toc-factory-library">Factory
+        Library</a></li>
+        </ul></li>
+        <li><a href="#performance-notes"
+        id="toc-performance-notes">Performance Notes</a></li>
+        <li><a href="#cross-platform"
+        id="toc-cross-platform">Cross-Platform</a></li>
+        <li><a href="#tips-tricks" id="toc-tips-tricks">Tips &amp;
+        Tricks</a></li>
+        </ul>
+        <h2 id="introduction">Introduction</h2>
+        <p>Profundum is a <strong>mass bass instrument</strong>. It does
+        not stack layers to build a bass; it plays one bass voice and
+        lets you decide how heavy that voice is. A note can be a pure
+        sub, a resonant body, a harmonic growl or a driven, folded bite,
+        and in every one of those places the low end stays centred and
+        present.</p>
+        <p>Two ideas carry the whole instrument:</p>
+        <ul>
+        <li><strong>The Mass and the Anchor.</strong> Every voice has
+        two parts. <em>The Mass</em> is the harmonic body of the note:
+        its depth, body and edge, its fold, its character and its
+        weight. <em>The Anchor</em> is a separate, stable sub tone
+        underneath it, identical in both channels, that keeps the
+        fundamental in place whatever the Mass is doing. You can drive,
+        fold and widen the Mass as far as you like; the Anchor is what
+        keeps the bass a bass.</li>
+        <li><strong>Bass Morph.</strong> Every sound parameter holds two
+        values, <strong>endpoint A</strong> and <strong>endpoint
+        B</strong>. <strong>Morph Position</strong> moves the sound from
+        A to B. One control can carry a clean sub into a distorted
+        growl, or a short pluck into a long swell, along a path you
+        designed at both ends.</li>
+        </ul>
+        <p>Four <strong>personality macros</strong> (Weight,
+        Dark/Bright, Tight/Loose, Clean/Violent) and the
+        <strong>Mass</strong> knob steer the sound on top of that, and
+        <strong>Motion</strong> moves it over time.</p>
+        <p><strong>Formats:</strong> VST3 (Windows, macOS, Linux) and
+        Audio Unit (macOS). One MIDI input, one stereo output.</p>
+        <h2 id="signal-flow">Signal Flow</h2>
+        <pre><code>MIDI in ──────────── notes, pitch bend, mod wheel (CC 1), sustain (CC 64), channel pressure
+  │
+  ▼
+Note handling ────── Mono (priority, legato, glide) or Poly (up to 8 voices)
+  │
+  ▼
+Control layer ────── Bass Morph (A → B) → macros → Motion → Mass, once every 32 samples
+  │
+  ▼
+Pitch ────────────── Drop: each note starts above its pitch and falls onto it
+  │
+  ▼
+The Mass ─────────── core spectrum (Depth, Body, Edge, Spectral Shift) + excitation
+  │                  → Shape → (+ Anchor Fold Feed) → Harmonic Fold → Character
+  │
+The Anchor ───────── a separate sub tone beside the Mass, identical in left and right
+  │
+  ▼
+Amp envelope ─────── Attack, Decay, Sustain, Release per voice (the Mass and the Anchor together)
+  │
+  ▼
+Voice sum ────────── → Mass dynamics (Transient Attack / Sustain, compression)
+  │
+  ▼
+Stereo field ─────── Image Mode: Solid, Spread or Wide; the band below the crossover stays centred
+  │
+  ▼
+Output ───────────── DC blocking → true-peak limiter at Output Ceiling → Output Gain</code></pre>
+        <p>The Anchor is never widened: it is the same signal in both
+        channels in every image mode. The only route by which it reaches
+        a nonlinear stage is <strong>Anchor Fold Feed</strong>, which
+        you set yourself.</p>
+        <h2 id="interface-overview">Interface Overview</h2>
+        <p>The editor is a fixed 960 × 600 window with four zoom steps
+        (100 %, 125 %, 150 % and 200 %). It has two pages that share one
+        header.</p>
+        <ul>
+        <li><strong>The header</strong> — the <strong>Voice
+        Mode</strong> switch (MONO / POLY), the <strong>GLIDE</strong>
+        knob and its readout (the <strong>Portamento</strong>
+        parameter), the <strong>PRESETS</strong> button, the MAIN /
+        ADVANCED page switch and the zoom selector. The plugin version
+        is shown under the PROFUNDUM title.</li>
+        <li><strong>The Main page</strong> — the playing surface. It
+        holds THE MASS (a live harmonic display, six large knobs and the
+        macros), THE ANCHOR and BASS MORPH.</li>
+        <li><strong>The Advanced page</strong> — every parameter, in
+        three tabs: <strong>SECTIONS</strong> (eight sections),
+        <strong>MODULATION</strong> (the Motion source in full) and
+        <strong>SETTINGS</strong> (zoom).</li>
+        </ul>
+        <p>Every parameter stays automatable from the host whichever
+        page is showing, except <strong>Edit Target</strong>, which is
+        deliberately not automatable (see <em>Edit Target and
+        automation</em> below). Every control carries a tooltip.</p>
+        <p>The <strong>live harmonic display</strong> shows the measured
+        harmonics of the sound you hear, with the Anchor in its own lane
+        at the left. It only reads; nothing you do in it changes the
+        sound.</p>
+        <h2 id="macros">Macros</h2>
+        <p>The four personality macros are <strong>Weight</strong>,
+        <strong>Dark/Bright</strong>, <strong>Tight/Loose</strong> and
+        <strong>Clean/Violent</strong>. Weight, Dark ↔︎ Bright and Clean
+        ↔︎ Violent sit in the MACROS column of the Main page; Tight ↔︎
+        Loose is in the Advanced page’s Core Spectrum section.</p>
+        <p>Three things are worth knowing:</p>
+        <ol type="1">
+        <li><strong>Every macro is bipolar, and the centre (50 %) is
+        neutral.</strong> At the centre a macro contributes exactly
+        nothing; the sound parameters alone describe the sound. Turning
+        a macro up pushes its targets one way, turning it down pushes
+        them the other way by the same amount.</li>
+        <li><strong>Macros do not move the knobs.</strong> A macro
+        offsets the sound the knobs describe, and the knobs keep their
+        values. On each knob a macro reaches, a one-sided ring shows
+        where the macro has taken that parameter. Hovering over or
+        moving a macro highlights the controls it reaches.</li>
+        <li><strong>The knobs set the origin the macros travel
+        from.</strong> Each target is clamped to its own range, so a
+        target that already sits at an end has nowhere further to go in
+        that direction.</li>
+        </ol>
+        <p>The table gives each macro’s targets and how far a macro at
+        100 % moves each one. A macro at 0 % moves the same targets the
+        same distance the other way. The travel is linear in between: at
+        75 % a target moves half the distance it moves at 100 %.</p>
+        <table>
+        <colgroup>
+        <col style="width: 33%" />
+        <col style="width: 33%" />
+        <col style="width: 33%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Macro</th>
+        <th>Target</th>
+        <th>Travel at 100 %</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Weight</strong></td>
+        <td>Depth</td>
+        <td>+56 %</td>
+        </tr>
+        <tr class="even">
+        <td></td>
+        <td>Body</td>
+        <td>+56 %</td>
+        </tr>
+        <tr class="odd">
+        <td></td>
+        <td>Anchor Level</td>
+        <td>+56 %</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Dark/Bright</strong></td>
+        <td>Edge</td>
+        <td>+50 %</td>
+        </tr>
+        <tr class="odd">
+        <td></td>
+        <td>Spectral Shift</td>
+        <td>+50 %</td>
+        </tr>
+        <tr class="even">
+        <td></td>
+        <td>Character Tone</td>
+        <td>+30 %</td>
+        </tr>
+        <tr class="odd">
+        <td></td>
+        <td>Shape</td>
+        <td>none (the row is kept with amount 0)</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Tight/Loose</strong></td>
+        <td>Attack</td>
+        <td>time × 32</td>
+        </tr>
+        <tr class="odd">
+        <td></td>
+        <td>Decay</td>
+        <td>time × 32</td>
+        </tr>
+        <tr class="even">
+        <td></td>
+        <td>Release</td>
+        <td>time × 32</td>
+        </tr>
+        <tr class="odd">
+        <td></td>
+        <td>Transient Attack</td>
+        <td>−15 dB</td>
+        </tr>
+        <tr class="even">
+        <td></td>
+        <td>Compression</td>
+        <td>less toward Loose, more toward Tight (it has no control of
+        its own)</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Clean/Violent</strong></td>
+        <td>Excitation Mix</td>
+        <td>+50 %</td>
+        </tr>
+        <tr class="even">
+        <td></td>
+        <td>Excitation Drive</td>
+        <td>+50 %</td>
+        </tr>
+        <tr class="odd">
+        <td></td>
+        <td>Harmonic Fold</td>
+        <td>+50</td>
+        </tr>
+        <tr class="even">
+        <td></td>
+        <td>Character Amount</td>
+        <td>+50 %</td>
+        </tr>
+        </tbody>
+        </table>
+        <p>The amp times are multiplied and then held inside 0.1 ms … 10
+        000 ms. At 100 % Tight/Loose takes the default 10 ms attack to
+        320 ms; at 0 % it takes it to about 0.3 ms. Spectral Shift spans
+        −100 … +100 %, so its +50 % is a quarter of its range.</p>
+        <p><strong>Compression</strong> belongs to the Mass dynamics and
+        has no knob; Tight/Loose is the only control that reaches it
+        directly. Mass adds compression only above 50, so at Mass 50 or
+        below the Loose half of Tight/Loose has no compression left to
+        take away. The Tight half acts at every Mass.</p>
+        <h2 id="header-controls">Header Controls</h2>
+        <table>
+        <colgroup>
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Range</th>
+        <th>Default</th>
+        <th>Notes</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Voice Mode</strong></td>
+        <td>Mono / Poly</td>
+        <td>Mono</td>
+        <td>Mono plays one note at a time, with glide and legato. Poly
+        plays chords; the voice count is <strong>Polyphony</strong> on
+        the Advanced page</td>
+        </tr>
+        <tr class="even">
+        <td><strong>GLIDE</strong> (<strong>Portamento</strong>)</td>
+        <td>0 – 10 000 ms</td>
+        <td>0 ms</td>
+        <td>Time to slide between notes in Mono. The readout’s unit
+        follows <strong>Glide Mode</strong></td>
+        </tr>
+        <tr class="odd">
+        <td><strong>PRESETS</strong></td>
+        <td>—</td>
+        <td>—</td>
+        <td>Opens the preset browser (see <em>Presets</em>)</td>
+        </tr>
+        <tr class="even">
+        <td><strong>MAIN / ADVANCED</strong></td>
+        <td>—</td>
+        <td>Main</td>
+        <td>Switches page. The page and tab choice is not saved</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>ZOOM</strong></td>
+        <td>100 / 125 / 150 / 200 %</td>
+        <td>100 %</td>
+        <td>Editor size. The same control appears in the SETTINGS
+        tab</td>
+        </tr>
+        </tbody>
+        </table>
+        <h2 id="the-main-page">The Main Page</h2>
+        <h3 id="the-mass">The Mass</h3>
+        <p>The upper half of the Main page is THE MASS: the live
+        harmonic display, six large knobs and the macros.</p>
+        <table>
+        <colgroup>
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Knob</th>
+        <th>Parameter</th>
+        <th>Range</th>
+        <th>Default</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td>DEPTH</td>
+        <td><strong>Depth</strong></td>
+        <td>0 – 100 %</td>
+        <td>50 %</td>
+        <td>High keeps the energy in the fundamental; low spreads it up
+        through the harmonics</td>
+        </tr>
+        <tr class="even">
+        <td>BODY</td>
+        <td><strong>Body</strong></td>
+        <td>0 – 100 %</td>
+        <td>50 %</td>
+        <td>The weight of the low harmonics that make the note sound
+        full</td>
+        </tr>
+        <tr class="odd">
+        <td>EDGE</td>
+        <td><strong>Edge</strong></td>
+        <td>0 – 100 %</td>
+        <td>50 %</td>
+        <td>The bite of the upper harmonics</td>
+        </tr>
+        <tr class="even">
+        <td>FOLD</td>
+        <td><strong>Harmonic Fold</strong></td>
+        <td>0 – 100</td>
+        <td>0</td>
+        <td>Folds the sound back on itself to grow new harmonics</td>
+        </tr>
+        <tr class="odd">
+        <td>MASS</td>
+        <td><strong>Mass</strong></td>
+        <td>0 – 100</td>
+        <td>50</td>
+        <td>How heavy the note feels. Above 50 heavier, below 50
+        lighter; 50 is neutral</td>
+        </tr>
+        <tr class="even">
+        <td>DROP</td>
+        <td><strong>Drop Amount</strong></td>
+        <td>0 – 48 st</td>
+        <td>0 st</td>
+        <td>Each note starts this many semitones above its pitch and
+        falls onto it</td>
+        </tr>
+        </tbody>
+        </table>
+        <p><strong>Mass</strong> is the instrument’s own law. One knob
+        moves seven things together: the core Depth and Body, the length
+        of the transient, the fold, the compression, the Anchor Level
+        and an output trim. The trim is calibrated so that a heavier
+        note sounds heavier rather than only louder. At exactly 50 Mass
+        changes nothing. Mass is smoothed: a full 0 → 100 sweep takes 40
+        ms, so automating it does not click. The mod wheel and channel
+        pressure add to Mass while you play (see <em>Performance
+        Notes</em>).</p>
+        <p>Beside the knobs, the MACROS column holds
+        <strong>Weight</strong> (a knob), <strong>Dark/Bright</strong>
+        and <strong>Clean/Violent</strong> (centred sliders) and the
+        <strong>MOTION</strong> selector, which is the <strong>Motion
+        Source</strong> parameter (Off / Env / Cycle / Drift). The
+        Motion target, amount and timing are on the Advanced page’s
+        MODULATION tab.</p>
+        <h3 id="the-anchor">The Anchor</h3>
+        <table>
+        <colgroup>
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Parameter</th>
+        <th>Range</th>
+        <th>Default</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td>LEVEL</td>
+        <td><strong>Anchor Level</strong></td>
+        <td>0 – 100 %</td>
+        <td>50 %</td>
+        <td>How loud the stable sub tone under the mass is</td>
+        </tr>
+        <tr class="even">
+        <td>CHARACTER</td>
+        <td><strong>Anchor Waveform</strong></td>
+        <td>Sine / Triangle / Rounded Sine / Asymmetric Sine / Octave
+        Down</td>
+        <td>Sine</td>
+        <td>The shape of the sub tone</td>
+        </tr>
+        <tr class="odd">
+        <td>MORPH BEHAVIOUR</td>
+        <td><strong>Anchor Morph Mode</strong></td>
+        <td>Hold / Blend / Yield</td>
+        <td>Blend</td>
+        <td>How the Anchor follows the Bass Morph</td>
+        </tr>
+        </tbody>
+        </table>
+        <p>The Main page’s CHARACTER menu is the <strong>Anchor
+        Waveform</strong>. The colouring stage called
+        <strong>Character</strong> is a different control, in the
+        Advanced page’s Shape &amp; Character section.</p>
+        <p><strong>The Anchor / Mass split.</strong> The Anchor is its
+        own sub oscillator under the Mass, the same in both channels.
+        The Mass can be widened, folded and driven; the Anchor stays a
+        clean, centred fundamental. In the <strong>Lock</strong>,
+        <strong>Punch</strong> and <strong>Ghost</strong> modes the
+        Anchor plays the note’s own pitch and ignores the Drop; in
+        <strong>Follow</strong> it follows the Mass, Drop included.
+        <strong>Anchor Mode</strong> and the Punch and Ghost timings are
+        in the Advanced page’s Sub Anchor section.
+        <strong>Weight</strong> and <strong>Mass</strong> both reach the
+        Anchor Level, so the balance between the two parts moves with
+        them.</p>
+        <h3 id="bass-morph">Bass Morph</h3>
+        <table>
+        <colgroup>
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Parameter</th>
+        <th>Range</th>
+        <th>Default</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td>A ━━●━━ B</td>
+        <td><strong>Morph Position</strong></td>
+        <td>0 – 100 %</td>
+        <td>0 %</td>
+        <td>Moves the sound from endpoint A to endpoint B</td>
+        </tr>
+        <tr class="even">
+        <td>EDIT A / B</td>
+        <td><strong>Edit Target</strong></td>
+        <td>A / B</td>
+        <td>A</td>
+        <td>Which endpoint the sound parameters show and edit. Not
+        automatable</td>
+        </tr>
+        <tr class="odd">
+        <td>COMPARE</td>
+        <td>—</td>
+        <td>A / A·B / B</td>
+        <td>A·B</td>
+        <td>Hear endpoint A alone, the morph, or endpoint B alone</td>
+        </tr>
+        <tr class="even">
+        <td>COPY A → B, COPY B → A</td>
+        <td>—</td>
+        <td>—</td>
+        <td>—</td>
+        <td>Copy one endpoint’s sound onto the other. The name is not
+        copied</td>
+        </tr>
+        <tr class="odd">
+        <td>name fields</td>
+        <td>—</td>
+        <td>up to 31 bytes</td>
+        <td>A, B</td>
+        <td>A name for each endpoint, saved with the preset</td>
+        </tr>
+        </tbody>
+        </table>
+        <p>Under each name a three-word caption describes how that
+        endpoint sounds (its shape, colour and force). The caption is
+        computed from the endpoint’s settings and is never stored.</p>
+        <p><strong>Morph.</strong> Sixty sound parameters hold an A
+        value and a B value: everything in Core Spectrum, Excitation
+        &amp; Fold, Shape &amp; Character, Mass, Sub Anchor (except
+        Anchor Morph Mode), the Stereo field, Drop, the amp envelope and
+        Motion, plus the <strong>Mass</strong> knob itself.
+        <strong>Morph Position</strong> blends between them. Continuous
+        values move smoothly; stepped values (such as
+        <strong>Character</strong> or <strong>Image Mode</strong>)
+        change over once, near the middle of the travel, with a little
+        hysteresis so they never flicker. <strong>Morph Ramp
+        Time</strong> (Advanced page, Morph Behaviour section) sets how
+        quickly the sound follows a change of Morph Position. The global
+        controls (Output Gain, Voice Mode, Polyphony, Output Ceiling),
+        the macros, the note behaviour and the morph controls hold one
+        value each.</p>
+        <p><strong>Anchor Morph Mode</strong> decides how the Anchor
+        takes part in the morph. <strong>Hold</strong> keeps endpoint
+        A’s Anchor all the way to B. <strong>Blend</strong> moves the
+        Anchor with the morph, like everything else.
+        <strong>Yield</strong> keeps A’s Anchor for most of the travel
+        and hands over to B’s late (the Anchor follows the cube of the
+        morph position). With <strong>Hold</strong> on and <strong>Edit
+        Target</strong> on B, B’s Anchor settings are stored but not
+        heard; the Sub Anchor section dims them and shows <em>Held at
+        A</em>.</p>
+        <p><strong>Edit Target and automation.</strong> Switching
+        <strong>Edit Target</strong> never changes the sound; it changes
+        which endpoint the knobs show and write. Host automation of a
+        sound parameter writes the endpoint selected by Edit Target when
+        it plays back, so a lane recorded while editing A writes B if
+        Edit Target is B at playback. Edit Target itself is not
+        automatable, and it is saved with the project.</p>
+        <p><strong>Compare.</strong> COMPARE A or B plays that endpoint
+        alone, whatever Morph Position says. Choosing A or B also
+        switches Edit Target to that side, so what you hear is what you
+        edit; A·B returns to the morph and leaves Edit Target alone.
+        Compare only changes what you hear: it is never saved, and it
+        returns to A·B when a preset or project loads.</p>
+        <h2 id="the-advanced-page">The Advanced Page</h2>
+        <p>The SECTIONS tab holds eight sections. Two controls appear
+        twice (<strong>Harmonic Fold</strong> in Core Spectrum and in
+        Excitation &amp; Fold; <strong>Anchor Morph Mode</strong> in Sub
+        Anchor and in Morph Behaviour); both copies are the same
+        parameter.</p>
+        <h3 id="core-spectrum">Core Spectrum</h3>
+        <p>The core is the harmonic recipe of the Mass.</p>
+        <table>
+        <colgroup>
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Parameter</th>
+        <th>Range</th>
+        <th>Default</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Depth</strong></td>
+        <td>0 – 100 %</td>
+        <td>50 %</td>
+        <td>How steeply the harmonics fall away above the fundamental.
+        Higher is rounder, lower is richer</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Body</strong></td>
+        <td>0 – 100 %</td>
+        <td>50 %</td>
+        <td>Lifts the low harmonics (about 2 to 8) that carry the bass’s
+        body</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Body Curvature</strong></td>
+        <td>0 – 100 %</td>
+        <td>50 %</td>
+        <td>Narrows or broadens the region Body lifts</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Body Emphasis</strong></td>
+        <td>−100 – 0 %</td>
+        <td>0 %</td>
+        <td>At 0 all harmonics sound; toward −100 % the even harmonics
+        fade for a hollower tone</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Edge</strong></td>
+        <td>0 – 100 %</td>
+        <td>50 %</td>
+        <td>Lifts the upper harmonics that give the bass its bite</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Spectral Shift</strong></td>
+        <td>−100 – +100 %</td>
+        <td>0 %</td>
+        <td>Moves the Body and Edge regions down (darker) or up
+        (brighter) together</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Harmonic Fold</strong></td>
+        <td>0 – 100</td>
+        <td>0</td>
+        <td>Folds the waveform back on itself to add new harmonics. 0 is
+        clean</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Tight/Loose</strong></td>
+        <td>0 – 100 %</td>
+        <td>50 %</td>
+        <td>The fourth macro: toward Tight, shorter attack, decay and
+        release, a harder transient and more compression; toward Loose
+        the reverse</td>
+        </tr>
+        </tbody>
+        </table>
+        <p>A second harmonic display in this section shows the measured
+        harmonics of the sounding note after Fold and Character, before
+        the amp envelope. It shows the resolved sound, including the
+        morph, the macros and Motion.</p>
+        <h3 id="excitation-fold">Excitation &amp; Fold</h3>
+        <table>
+        <colgroup>
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Parameter</th>
+        <th>Range</th>
+        <th>Default</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Excitation Drive</strong></td>
+        <td>0 – 100 %</td>
+        <td>50 %</td>
+        <td>How hard the excitation stage is driven</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Excitation Mix</strong></td>
+        <td>0 – 100 %</td>
+        <td>0 %</td>
+        <td>Blends the driven excitation into the clean tone. 0 is
+        clean</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Excitation Asymmetry</strong></td>
+        <td>0 – 100 %</td>
+        <td>0 %</td>
+        <td>Biases the drive for uneven, even-harmonic grit</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Harmonic Fold</strong></td>
+        <td>0 – 100</td>
+        <td>0</td>
+        <td>The same parameter as in Core Spectrum</td>
+        </tr>
+        </tbody>
+        </table>
+        <h3 id="shape-character">Shape &amp; Character</h3>
+        <table>
+        <colgroup>
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Parameter</th>
+        <th>Range</th>
+        <th>Default</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Shape</strong></td>
+        <td>0 – 100 %</td>
+        <td>0 %</td>
+        <td>Morphs the curve of the shaping stage</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Character</strong></td>
+        <td>Tube / Wavefold / Rectify / Bite / Crush / Fracture</td>
+        <td>Tube</td>
+        <td>The type of colouring stage</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Character Amount</strong></td>
+        <td>0 – 100 %</td>
+        <td>0 %</td>
+        <td>How much of the Character stage is heard</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Character Tone</strong></td>
+        <td>0 – 100 %</td>
+        <td>50 %</td>
+        <td>Darkens or brightens the Character stage</td>
+        </tr>
+        </tbody>
+        </table>
+        <p>In the <strong>Wide</strong> image mode the Character stage
+        adds a small offset between the two channels, so in Wide the
+        correlation of the sub band depends on that offset pair.</p>
+        <h3 id="mass">Mass</h3>
+        <table>
+        <colgroup>
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Parameter</th>
+        <th>Range</th>
+        <th>Default</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Transient Attack</strong></td>
+        <td>−12 – +12 dB</td>
+        <td>+6 dB</td>
+        <td>Boosts or softens the start of each note</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Transient Sustain</strong></td>
+        <td>−12 – +12 dB</td>
+        <td>0 dB</td>
+        <td>Boosts or softens the body that follows the start</td>
+        </tr>
+        </tbody>
+        </table>
+        <p>The <strong>Mass</strong> knob itself is on the Main page;
+        these two shape the dynamics stage that Mass also drives.</p>
+        <h3 id="sub-anchor">Sub Anchor</h3>
+        <table>
+        <colgroup>
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Parameter</th>
+        <th>Range</th>
+        <th>Default</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Anchor Level</strong></td>
+        <td>0 – 100 %</td>
+        <td>50 %</td>
+        <td>Level of the pure sub tone under the bass</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Anchor Waveform</strong></td>
+        <td>Sine / Triangle / Rounded Sine / Asymmetric Sine / Octave
+        Down</td>
+        <td>Sine</td>
+        <td>The shape of the sub tone</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Anchor Mode</strong></td>
+        <td>Lock / Follow / Punch / Ghost</td>
+        <td>Lock</td>
+        <td>How the sub tone tracks the note</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Punch Boost</strong></td>
+        <td>0 – 12 dB</td>
+        <td>6 dB</td>
+        <td>Extra sub level at the note start in Punch mode</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Punch Time</strong></td>
+        <td>5 – 250 ms</td>
+        <td>40 ms</td>
+        <td>How long the Punch boost lasts</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Ghost Time</strong></td>
+        <td>1 – 100 ms</td>
+        <td>15 ms</td>
+        <td>The timing of the dip in Ghost mode</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Anchor Fold Feed</strong></td>
+        <td>0 – 100 %</td>
+        <td>0 %</td>
+        <td>Sends the sub tone into Harmonic Fold</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Anchor Morph Mode</strong></td>
+        <td>Hold / Blend / Yield</td>
+        <td>Blend</td>
+        <td>The same parameter as MORPH BEHAVIOUR on the Main page</td>
+        </tr>
+        </tbody>
+        </table>
+        <p>The four modes: <strong>Lock</strong> holds the sub tone
+        steady on the played pitch. <strong>Follow</strong> tracks the
+        Mass’s pitch, so the Drop and the glide move it too.
+        <strong>Punch</strong> adds <strong>Punch Boost</strong> to the
+        start of each note for <strong>Punch Time</strong>.
+        <strong>Ghost</strong> dips the sub tone at the start of each
+        note for <strong>Ghost Time</strong>, a kick-like thump.</p>
+        <p><strong>Anchor Fold Feed</strong> is the one route by which
+        the Anchor reaches a nonlinear stage. At 0 the fold never
+        touches the Anchor; turned up, the sub tone itself is folded
+        with the Mass.</p>
+        <h3 id="stereo-output">Stereo &amp; Output</h3>
+        <table>
+        <colgroup>
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Parameter</th>
+        <th>Range</th>
+        <th>Default</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Image Mode</strong></td>
+        <td>Solid / Spread / Wide</td>
+        <td>Spread</td>
+        <td>Solid is mono, Spread widens above the crossover, Wide adds
+        the Character offsets</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Spread</strong></td>
+        <td>0 – 100 %</td>
+        <td>50 %</td>
+        <td>Overall stereo width above the crossover</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Gravity</strong></td>
+        <td>0 – 100 %</td>
+        <td>50 %</td>
+        <td>How far below the crossover the width begins. At 0 the width
+        reaches lowest</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Crossover</strong></td>
+        <td>60 – 250 Hz</td>
+        <td>120 Hz</td>
+        <td>The frequency below which the bass stays centred</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Curve</strong></td>
+        <td>0 – 100 %</td>
+        <td>50 %</td>
+        <td>How quickly the width rises between the low and high
+        knees</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Field Motion Depth</strong></td>
+        <td>0 – 100 %</td>
+        <td>0 %</td>
+        <td>How much the width moves over time</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Field Motion Rate</strong></td>
+        <td>0 – 100 %</td>
+        <td>30 %</td>
+        <td>Speed of the width movement</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Field Motion Source</strong></td>
+        <td>Drift / Cycle</td>
+        <td>Drift</td>
+        <td>Drift wanders, Cycle repeats</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Field Sync</strong></td>
+        <td>Off / On</td>
+        <td>Off</td>
+        <td>Lock the width movement to the host tempo</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Field Sync Rate</strong></td>
+        <td>note values</td>
+        <td>whole note</td>
+        <td>Note value of the synced width movement. Synced rates above
+        1 Hz fold into 0.5 – 1 Hz</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Output Gain</strong></td>
+        <td>−∞ – 0 dB</td>
+        <td>0 dB</td>
+        <td>Final level</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Polyphony</strong></td>
+        <td>1 – 8</td>
+        <td>4</td>
+        <td>How many notes can sound at once in Poly</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Output Ceiling</strong></td>
+        <td>−12 – 0 dBTP</td>
+        <td>−1 dBTP</td>
+        <td>The highest true-peak level the output reaches</td>
+        </tr>
+        </tbody>
+        </table>
+        <p>A small curve view shows how wide each frequency is for the
+        endpoint being edited: 0 is mono, 1 is fully wide. Field Motion
+        is not drawn on it.</p>
+        <p><strong>Mono safety.</strong> Width is pan-only and
+        constant-power, and the sub band keeps a correlation of at least
+        0.9989 in every image mode. Even at Gravity 0, side content
+        below twice the crossover is attenuated by about 29 dB. The
+        Anchor is identical in both channels throughout, and in Solid
+        the whole output is.</p>
+        <h3 id="pitch-envelopes">Pitch &amp; Envelopes</h3>
+        <p><strong>Drop</strong> — the pitch fall into each note.</p>
+        <table>
+        <colgroup>
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Parameter</th>
+        <th>Range</th>
+        <th>Default</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Drop Amount</strong></td>
+        <td>0 – 48 st</td>
+        <td>0 st</td>
+        <td>How far the pitch falls into each note, in semitones</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Drop Time</strong></td>
+        <td>1 – 4000 ms</td>
+        <td>100 ms</td>
+        <td>How long the pitch drop takes</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Drop Shape</strong></td>
+        <td>0 – 100 %</td>
+        <td>0 %</td>
+        <td>The curve of the pitch drop</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Drop Rebound</strong></td>
+        <td>0 – 100 %</td>
+        <td>0 %</td>
+        <td>How much the pitch overshoots and settles at the end of the
+        drop</td>
+        </tr>
+        </tbody>
+        </table>
+        <p><strong>Amp envelope</strong> — one per voice, shaping the
+        Mass and the Anchor together. The envelope display can be
+        dragged to set Attack, Decay, Sustain and Release directly.</p>
+        <table>
+        <colgroup>
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Parameter</th>
+        <th>Range</th>
+        <th>Default</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Attack</strong></td>
+        <td>0.1 – 10 000 ms</td>
+        <td>10 ms</td>
+        <td>Time to full level</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Decay</strong></td>
+        <td>0.1 – 10 000 ms</td>
+        <td>50 ms</td>
+        <td>Time to fall to the Sustain level</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Sustain</strong></td>
+        <td>0 – 100 %</td>
+        <td>50 %</td>
+        <td>Level held while the key is down</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Release</strong></td>
+        <td>0.1 – 10 000 ms</td>
+        <td>100 ms</td>
+        <td>Time to silence after the key is released</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Attack Curve</strong></td>
+        <td>−100 – +100 %</td>
+        <td>+70 %</td>
+        <td>Bends the attack segment</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Decay Curve</strong></td>
+        <td>−100 – +100 %</td>
+        <td>+70 %</td>
+        <td>Bends the decay segment</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Release Curve</strong></td>
+        <td>−100 – +100 %</td>
+        <td>+70 %</td>
+        <td>Bends the release segment</td>
+        </tr>
+        </tbody>
+        </table>
+        <p><strong>Note behaviour</strong></p>
+        <table>
+        <colgroup>
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Parameter</th>
+        <th>Range</th>
+        <th>Default</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Mono Priority</strong></td>
+        <td>Last / Low / High</td>
+        <td>Last</td>
+        <td>Which held note sounds in Mono</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Legato</strong></td>
+        <td>Off / On</td>
+        <td>Off</td>
+        <td>Overlapping notes glide without restarting the envelope</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Portamento</strong></td>
+        <td>0 – 10 000 ms</td>
+        <td>0 ms</td>
+        <td>Glide time between notes (the header’s GLIDE knob)</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Portamento Mode</strong></td>
+        <td>Always / Legato Only</td>
+        <td>Always</td>
+        <td>Glide on every note, or only between overlapping notes</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Glide Mode</strong></td>
+        <td>Constant Time / Constant Rate / Quantized</td>
+        <td>Constant Time</td>
+        <td>How the glide is timed</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Note Memory</strong></td>
+        <td>Always Retrigger / Legato / Envelope Retrigger / Oscillator
+        Continuous</td>
+        <td>Always Retrigger</td>
+        <td>What a new note restarts</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Note Retrigger</strong></td>
+        <td>Reset / Continue</td>
+        <td>Reset</td>
+        <td>Reset restarts the note’s movement, Continue carries it
+        on</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Pitch Bend Range</strong></td>
+        <td>0 – 24 st</td>
+        <td>2 st</td>
+        <td>Bend wheel range in semitones</td>
+        </tr>
+        </tbody>
+        </table>
+        <p><strong>Note Memory</strong> decides what carries over from
+        one note to the next in Mono. <strong>Always Retrigger</strong>
+        restarts the note from the start every time.
+        <strong>Legato</strong> carries the phase on across overlapping
+        notes, so a line joins up. <strong>Envelope Retrigger</strong>
+        restarts the envelope but not the oscillator. <strong>Oscillator
+        Continuous</strong> lets the oscillator run on through every
+        note.</p>
+        <h3 id="morph-behaviour">Morph Behaviour</h3>
+        <table>
+        <colgroup>
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Parameter</th>
+        <th>Range</th>
+        <th>Default</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Anchor Morph Mode</strong></td>
+        <td>Hold / Blend / Yield</td>
+        <td>Blend</td>
+        <td>The same parameter as on the Main page</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Morph Ramp Time</strong></td>
+        <td>5 – 2000 ms</td>
+        <td>40 ms</td>
+        <td>How quickly the sound follows a change of the morph
+        position</td>
+        </tr>
+        </tbody>
+        </table>
+        <p>This section repeats the Compare and Copy controls of the
+        Main page’s Bass Morph band.</p>
+        <h3 id="the-modulation-tab">The MODULATION Tab</h3>
+        <p><strong>Motion</strong> is one modulation source per voice,
+        aimed at one target. The tab has three columns: SOURCE, CYCLE
+        and ENV &amp; DRIFT.</p>
+        <table>
+        <colgroup>
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Parameter</th>
+        <th>Range</th>
+        <th>Default</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Motion Source</strong></td>
+        <td>Off / Env / Cycle / Drift</td>
+        <td>Off</td>
+        <td>What moves the sound: an envelope, a repeating cycle or a
+        random drift</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Motion Target</strong></td>
+        <td>Mass / Depth / Body / Edge / Shift</td>
+        <td>Mass</td>
+        <td>What Motion moves</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Motion Amount</strong></td>
+        <td>−100 – +100 %</td>
+        <td>0 %</td>
+        <td>How far and in which direction Motion moves its target</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Motion Depth</strong></td>
+        <td>0 – 100 %</td>
+        <td>100 %</td>
+        <td>Overall Motion depth</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Cycle Rate</strong></td>
+        <td>0.01 – 20 Hz</td>
+        <td>1 Hz</td>
+        <td>Speed of the Cycle source</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Cycle Shape</strong></td>
+        <td>Sine / Triangle / Sawtooth / Square / S&amp;H / Smooth
+        Random</td>
+        <td>Sine</td>
+        <td>Waveform of the Cycle source</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Cycle Sync</strong></td>
+        <td>Off / On</td>
+        <td>Off</td>
+        <td>Lock the Cycle to the host tempo</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Cycle Sync Rate</strong></td>
+        <td>note values</td>
+        <td>1/4</td>
+        <td>Note value of the synced Cycle</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Cycle Phase</strong></td>
+        <td>0 – 360°</td>
+        <td>0°</td>
+        <td>Start phase of the Cycle</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Cycle Retrigger</strong></td>
+        <td>Off / On</td>
+        <td>On</td>
+        <td>Restart the Cycle on each note</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Cycle Fade-In</strong></td>
+        <td>0 – 5000 ms</td>
+        <td>0 ms</td>
+        <td>Time for the Cycle to reach full depth</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Motion Polarity</strong></td>
+        <td>Bipolar / Unipolar</td>
+        <td>Bipolar</td>
+        <td>Bipolar Env rests at −amount between notes; Unipolar rests
+        at the set value</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Drift Smoothness</strong></td>
+        <td>0 – 100 %</td>
+        <td>50 %</td>
+        <td>How smoothly the Drift source wanders</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Env Attack</strong></td>
+        <td>0.1 – 10 000 ms</td>
+        <td>10 ms</td>
+        <td>Rise time of the Env source</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Env Decay</strong></td>
+        <td>0.1 – 10 000 ms</td>
+        <td>300 ms</td>
+        <td>Fall time of the Env source</td>
+        </tr>
+        </tbody>
+        </table>
+        <p>With <strong>Motion Amount</strong> at 0, Motion does nothing
+        whatever the source, so set an amount before judging a source.
+        The macro rings on the knobs do not show Motion.</p>
+        <h3 id="the-settings-tab">The SETTINGS Tab</h3>
+        <p>The SETTINGS tab holds the second zoom selector and a note
+        about the harmonic displays: in a host that provides neither the
+        VST3 data exchange nor a run loop, no frames arrive and the
+        displays stay empty. The sound is not affected.</p>
+        <h2 id="presets">Presets</h2>
+        <p>Click <strong>PRESETS</strong> in the header to open the
+        browser. Categories appear as tabs, with <strong>All</strong>
+        first. Selecting a preset shows its one-line comment;
+        double-clicking it loads it. Loading restores every saved
+        setting — both endpoints and their names, the macros, the note
+        behaviour, the morph controls, the Edit Target and the seed —
+        and returns Compare to A·B. <strong>Save</strong> writes the
+        complete current state as a user preset.</p>
+        <ul>
+        <li><strong>Factory presets</strong> are installed in
+        <code>C:\ProgramData\Krate Audio\Profundum\</code> (Windows),
+        <code>/Library/Application Support/Krate Audio/Profundum/</code>
+        (macOS) and <code>/usr/share/krate-audio/profundum/</code>
+        (Linux).</li>
+        <li><strong>User presets</strong> are saved under
+        <code>Documents/Krate Audio/Profundum/</code> in your home
+        folder, one folder per category.</li>
+        </ul>
+        <h3 id="factory-library">Factory Library</h3>
+        <p>58 presets ship with the plugin in six categories:
+        <strong>Sub</strong>, <strong>Resonant</strong>,
+        <strong>Harmonic</strong>, <strong>Driven</strong>,
+        <strong>Plucked</strong> and <strong>Animated</strong>. Each one
+        is built around one capability of the instrument and names it at
+        the start of its comment, so the library also works as a tour of
+        the controls. Every preset is rendered during the build and
+        checked to make sound, stay bounded, differ measurably from the
+        others, keep its low end intact in a mono sum and make its named
+        capability audible. Five of them (Poly Spread, Poly Swell, Poly
+        Ignition, Poly Rectifier and Poly Pluck) are stored in POLY with
+        4 voices, for playing chords; the rest are MONO.</p>
+        <h4 id="sub">Sub</h4>
+        <table>
+        <colgroup>
+        <col style="width: 50%" />
+        <col style="width: 50%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Preset</th>
+        <th>Comment</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td>Bedrock</td>
+        <td>Anchor Level: a thin core over the Sine Anchor in LOCK at
+        level 1, with Mass 70 for a plain heavy floor.</td>
+        </tr>
+        <tr class="even">
+        <td>Triangle Floor</td>
+        <td>Anchor Sine to Triangle: a Triangle Anchor at level 1 under
+        a thin core, a hollow-edged floor.</td>
+        </tr>
+        <tr class="odd">
+        <td>Rounded Weight</td>
+        <td>Anchor Sine to Rounded Sine: a Rounded Sine Anchor at level
+        1 with Mass 70, soft but weighty.</td>
+        </tr>
+        <tr class="even">
+        <td>Lopsided Sub</td>
+        <td>Anchor Sine to Asymmetric Sine: an Asymmetric Sine Anchor
+        gives the sub a lopsided, even-harmonic push.</td>
+        </tr>
+        <tr class="odd">
+        <td>Under Octave</td>
+        <td>Anchor Sine to Octave Down: the Octave Down Anchor puts a
+        sub an octave under the core.</td>
+        </tr>
+        <tr class="even">
+        <td>Long Tail</td>
+        <td>Envelope Amp Release: a 2000 ms release lets the sub ring on
+        long after the key lifts.</td>
+        </tr>
+        <tr class="odd">
+        <td>Heavy Mass</td>
+        <td>Mass Amount: Mass at 100 with the Anchor at 0.5, the
+        heaviest held weight.</td>
+        </tr>
+        <tr class="even">
+        <td>Continuous Phase</td>
+        <td>NoteMemory OscillatorContinuous: MONO with Retrigger Reset;
+        the oscillator runs on through every note.</td>
+        </tr>
+        <tr class="odd">
+        <td>Weight Lever</td>
+        <td>Macros Weight: a clean sine sub with a soft 20 ms attack
+        under a WIDE image, the Weight macro stored at 0.6.</td>
+        </tr>
+        <tr class="even">
+        <td>Mono Bedrock</td>
+        <td>Reference Solid: a SOLID image on both endpoints over a warm
+        Tube 0.4 sub, the mono floor that every widened preset is heard
+        against.</td>
+        </tr>
+        <tr class="odd">
+        <td>Locked Floor</td>
+        <td>Reference Lock: the Anchor held in LOCK under a Triangle
+        waveform with a SPREAD image, a steady floor with no punch.</td>
+        </tr>
+        <tr class="even">
+        <td>Bedrock Sine</td>
+        <td>Reference Sine: a pure Sine Anchor on both endpoints under a
+        WIDE image; endpoint B adds a heavy harmonic body to morph
+        into.</td>
+        </tr>
+        </tbody>
+        </table>
+        <h4 id="resonant">Resonant</h4>
+        <table>
+        <colgroup>
+        <col style="width: 50%" />
+        <col style="width: 50%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Preset</th>
+        <th>Comment</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td>Glide Path</td>
+        <td>Pitch Glide: MONO legato with a 200 ms portamento sliding a
+        resonant body; NoteMemory Legato keeps the phase across each
+        slide.</td>
+        </tr>
+        <tr class="even">
+        <td>Slow Swell</td>
+        <td>Envelope Amp Attack: a 500 ms attack swells a resonant body
+        up to sustain 0.8.</td>
+        </tr>
+        <tr class="odd">
+        <td>Gravity Well</td>
+        <td>Field Gravity: Gravity at 1 pulls the low band of a SPREAD
+        image at spread 1 back to the centre.</td>
+        </tr>
+        <tr class="even">
+        <td>Halfway Morph</td>
+        <td>Morph Position Half: a round endpoint A against a hollow,
+        bright, driven endpoint B, stored halfway at 0.5.</td>
+        </tr>
+        <tr class="odd">
+        <td>Restrike</td>
+        <td>NoteMemory AlwaysRetrigger: MONO with Retrigger Reset, every
+        note restrikes a resonant body from the start.</td>
+        </tr>
+        <tr class="even">
+        <td>Legato Line</td>
+        <td>NoteMemory Legato: MONO with Retrigger Reset; overlapping
+        notes carry the phase on, a joined line.</td>
+        </tr>
+        <tr class="odd">
+        <td>Loose Ends</td>
+        <td>Macros Tight Loose: a half-sustain body with the Tight Loose
+        macro at 0.5, loose ends around a SPREAD image.</td>
+        </tr>
+        <tr class="even">
+        <td>Poly Swell</td>
+        <td>Envelope Amp Attack: a slow attack swells a folded, shifted
+        body under every held chord in Poly.</td>
+        </tr>
+        </tbody>
+        </table>
+        <h4 id="harmonic">Harmonic</h4>
+        <table>
+        <colgroup>
+        <col style="width: 50%" />
+        <col style="width: 50%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Preset</th>
+        <th>Comment</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td>Edge Ignition</td>
+        <td>Core Excitation Mix: a sine recipe pushed to edge 1 with the
+        excitation mix and drive at full; Harmonic Fold 50 adds folded
+        overtones.</td>
+        </tr>
+        <tr class="even">
+        <td>Biting Reed</td>
+        <td>Core Shape: a saw-like recipe at edge 0.5 with SHAPE at 1,
+        the BITE end; the reed snarls on every note.</td>
+        </tr>
+        <tr class="odd">
+        <td>Pressure Front</td>
+        <td>Mass Dynamics Gain: Mass 100 on a heavy harmonic body, the
+        dynamics gain pressing the front of each note.</td>
+        </tr>
+        <tr class="even">
+        <td>Wide Harmonics</td>
+        <td>Field Solid to Spread: the SPREAD image at spread 1 opens a
+        harmonic body while the sub stays centred.</td>
+        </tr>
+        <tr class="odd">
+        <td>Spread Choir</td>
+        <td>Field Spread: SPREAD at spread 0.9 over a high body, a choir
+        of partials around a centred floor.</td>
+        </tr>
+        <tr class="even">
+        <td>Morph Span</td>
+        <td>Morph Position Full: endpoint A is a clean sub, endpoint B a
+        driven harmonic growl; Morph from 0 to 1 crosses the whole
+        span.</td>
+        </tr>
+        <tr class="odd">
+        <td>Envelope Restart</td>
+        <td>NoteMemory EnvelopeRetriggerOnly: MONO with Retrigger Reset;
+        each note restarts the envelope but not the oscillator.</td>
+        </tr>
+        <tr class="even">
+        <td>Dark To Bright</td>
+        <td>Macros Dark Bright: a heavy harmonic body with the Dark
+        Bright macro at 0.5; endpoint B is a darker, rounder twin.</td>
+        </tr>
+        <tr class="odd">
+        <td>Poly Spread</td>
+        <td>Field Spread: a hollow tube-coloured body spread wide in
+        SPREAD, played as chords in Poly.</td>
+        </tr>
+        </tbody>
+        </table>
+        <h4 id="driven">Driven</h4>
+        <table>
+        <colgroup>
+        <col style="width: 50%" />
+        <col style="width: 50%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Preset</th>
+        <th>Comment</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td>Folded Mass</td>
+        <td>Core Harmonic Fold: Harmonic Fold at 100 over a deep core,
+        with the Anchor at 0.6 holding the floor.</td>
+        </tr>
+        <tr class="even">
+        <td>Valve Pressure</td>
+        <td>Character Tube: the Tube algorithm at Amount 1 for full
+        valve pressure, with Mass 90 under an Anchor at 0.5.</td>
+        </tr>
+        <tr class="odd">
+        <td>Folding Wire</td>
+        <td>Character Wavefold: the Fold algorithm at Amount 1, a
+        wire-bright wavefold over a mid core.</td>
+        </tr>
+        <tr class="even">
+        <td>Rectified Floor</td>
+        <td>Character Rectify: Rectify at Amount 1 with Tone 0.4 over a
+        floor-heavy core, the Anchor at 0.6.</td>
+        </tr>
+        <tr class="odd">
+        <td>Bite Down</td>
+        <td>Character Bite: Bite at Amount 1 with the Transient Attack
+        at +12 dB, so every note bites down.</td>
+        </tr>
+        <tr class="even">
+        <td>Crushed Basalt</td>
+        <td>Character Crush: Crush at Amount 1 grinds the core while the
+        Anchor at 0.5 keeps the fundamental.</td>
+        </tr>
+        <tr class="odd">
+        <td>Fault Line</td>
+        <td>Character Fracture: Fracture at Amount 1 on a harmonic-rich
+        core; the Anchor in FOLLOW tracks the fractured pitch.</td>
+        </tr>
+        <tr class="even">
+        <td>Rectified Follow</td>
+        <td>Anchor Lock to Follow: Rectify at Amount 1 doubles the core
+        and the Anchor in FOLLOW at level 1 goes with it.</td>
+        </tr>
+        <tr class="odd">
+        <td>Fed Fold</td>
+        <td>Anchor Fold Feed: Harmonic Fold 100 with the Anchor Fold
+        Feed at 1, the Anchor driven into the folder.</td>
+        </tr>
+        <tr class="even">
+        <td>Wide Rectifier</td>
+        <td>Field Solid to Wide: Rectify at 0.5 with Tone 0.5 under the
+        WIDE image at spread 1.</td>
+        </tr>
+        <tr class="odd">
+        <td>Clean To Violent</td>
+        <td>Macros Clean Violent: a lightly driven core with the Clean
+        Violent macro stored at 0.4, with room to turn toward
+        violent.</td>
+        </tr>
+        <tr class="even">
+        <td>Poly Ignition</td>
+        <td>Core Excitation Mix: full edge excitation through Bite on a
+        WIDE image, a driven chord bass in Poly.</td>
+        </tr>
+        <tr class="odd">
+        <td>Poly Rectifier</td>
+        <td>Character Rectify: full Rectify on a brighter body in
+        SPREAD, rectified chords in Poly.</td>
+        </tr>
+        </tbody>
+        </table>
+        <h4 id="plucked">Plucked</h4>
+        <table>
+        <colgroup>
+        <col style="width: 50%" />
+        <col style="width: 50%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Preset</th>
+        <th>Comment</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td>Punch Anchor</td>
+        <td>Anchor Lock to Punch: the Anchor in PUNCH, a 6 dB boost over
+        40 ms, under a 300 ms pluck of a light body.</td>
+        </tr>
+        <tr class="even">
+        <td>Ghost Kick</td>
+        <td>Anchor Lock to Ghost: the Anchor in GHOST for 100 ms under a
+        short decay, a kick-like thump.</td>
+        </tr>
+        <tr class="odd">
+        <td>Dropping Stone</td>
+        <td>Pitch Drop Amount: a 24 st drop over 200 ms at every note, a
+        stone falling into the floor.</td>
+        </tr>
+        <tr class="even">
+        <td>Slow Fall</td>
+        <td>Pitch Drop Time: a 24 st drop stretched to 500 ms, a slow
+        fall onto the note.</td>
+        </tr>
+        <tr class="odd">
+        <td>Curved Drop</td>
+        <td>Pitch Drop Shape: a 24 st drop with shape 1, the curve
+        bending late into the pitch.</td>
+        </tr>
+        <tr class="even">
+        <td>Rebound</td>
+        <td>Pitch Drop Rebound: a 24 st drop with rebound 1 that
+        undershoots and bounces back up to the note.</td>
+        </tr>
+        <tr class="odd">
+        <td>Hard Attack</td>
+        <td>Mass Transient Attack: the Transient Attack at +12 dB snaps
+        the front of a harmonic pluck.</td>
+        </tr>
+        <tr class="even">
+        <td>Poly Pluck</td>
+        <td>Envelope Amp Release: a short decay to a lower sustain with
+        a long release, chords that ring out in Poly.</td>
+        </tr>
+        </tbody>
+        </table>
+        <h4 id="animated">Animated</h4>
+        <table>
+        <colgroup>
+        <col style="width: 50%" />
+        <col style="width: 50%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Preset</th>
+        <th>Comment</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td>Orbiting Field</td>
+        <td>Field Motion: Field Motion at depth 1 orbits a SPREAD image
+        at spread 1 around a harmonic core.</td>
+        </tr>
+        <tr class="even">
+        <td>Mass Tide</td>
+        <td>Motion Cycle to Mass: a slow CYCLE swells and drains the
+        Mass under an Anchor at 0.5.</td>
+        </tr>
+        <tr class="odd">
+        <td>Breathing Depth</td>
+        <td>Motion Cycle to Depth: a CYCLE breathes the core Depth of a
+        heavy harmonic body in and out.</td>
+        </tr>
+        <tr class="even">
+        <td>Body Wave</td>
+        <td>Motion Cycle to Body: a CYCLE sweeps the Body of a harmonic
+        core, a slow wave through the mids.</td>
+        </tr>
+        <tr class="odd">
+        <td>Edge Cycle</td>
+        <td>Motion Cycle to Edge: a saw-like recipe whose Edge a CYCLE
+        opens and closes.</td>
+        </tr>
+        <tr class="even">
+        <td>Shifting Spectrum</td>
+        <td>Motion Cycle to Shift: a slow CYCLE drifts the spectral
+        Shift of a heavy harmonic body up and down.</td>
+        </tr>
+        <tr class="odd">
+        <td>Envelope Mass</td>
+        <td>Motion Env to Mass: a Unipolar ENV, 1000 ms up and 1000 ms
+        down, swells the Mass from 0 at every note and lets it
+        settle.</td>
+        </tr>
+        <tr class="even">
+        <td>Drifting Weight</td>
+        <td>Motion Drift to Mass: a DRIFT source at smoothness 0.5
+        wanders the Mass, different under every seed.</td>
+        </tr>
+        </tbody>
+        </table>
+        <h2 id="performance-notes">Performance Notes</h2>
+        <ul>
+        <li><strong>MIDI.</strong> The mod wheel (CC 1) and channel
+        pressure add to <strong>Mass</strong> while you play. Their sum,
+        up to the full 0 → 100 range, is added at every Morph Position
+        without changing the saved Mass, and the result is held inside 0
+        … 100. Pitch bend follows <strong>Pitch Bend Range</strong>. The
+        sustain pedal (CC 64) holds released notes. These four are
+        host-mapped performance parameters (<em>Pitch Bend</em>,
+        <em>Sustain Pedal</em>, <em>Mod Wheel</em>, <em>Channel
+        Pressure</em>); they have no control in the editor and are never
+        saved.</li>
+        <li><strong>Latency:</strong> Profundum reports a constant
+        latency of 64 samples, the look-ahead of the output’s true-peak
+        limiter. It never changes with settings, so the host compensates
+        once and stays correct.</li>
+        <li><strong>Tail:</strong> the reported tail follows the longer
+        of the two endpoints’ <strong>Release</strong>, including the
+        Tight/Loose offset, plus the time the output stages need to
+        settle.</li>
+        <li><strong>CPU:</strong> every factory preset is held to a
+        measured budget of 8 % of one core in Mono and 25 % of one core
+        with four voices in Poly, at 48 kHz. <strong>Polyphony</strong>
+        is the CPU lever in Poly; Mono costs one voice.</li>
+        <li>The audio path allocates no memory, takes no locks and
+        performs no I/O while running; everything is sized when the host
+        prepares the plugin.</li>
+        <li><strong>Everything is bounded.</strong> The output always
+        ends in a true-peak limiter at <strong>Output Ceiling</strong>,
+        and Mass is smoothed so a jump in automation never clicks.</li>
+        </ul>
+        <h2 id="cross-platform">Cross-Platform</h2>
+        <table>
+        <thead>
+        <tr class="header">
+        <th>Platform</th>
+        <th>Formats</th>
+        <th>Notes</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td>Windows 10+</td>
+        <td>VST3</td>
+        <td>64-bit</td>
+        </tr>
+        <tr class="even">
+        <td>macOS 12+</td>
+        <td>VST3, Audio Unit</td>
+        <td>Universal (Intel + Apple Silicon)</td>
+        </tr>
+        <tr class="odd">
+        <td>Linux</td>
+        <td>VST3</td>
+        <td>x86-64</td>
+        </tr>
+        </tbody>
+        </table>
+        <p>State saved on any platform loads identically on the
+        others.</p>
+        <h2 id="tips-tricks">Tips &amp; Tricks</h2>
+        <ul>
+        <li><strong>Start from neutral.</strong> With all four macros at
+        50 % and Mass at 50 the knobs describe the sound. Design the
+        patch there, then use the macros and Mass as the performance
+        surface on top; they always travel <em>from</em> what you
+        set.</li>
+        <li><strong>Design both ends.</strong> A morph is only as good
+        as its endpoints. Build A, press <strong>COPY A → B</strong>,
+        set <strong>EDIT</strong> to B and change only what should move.
+        <em>Morph Span</em> and <em>Halfway Morph</em> show two ways of
+        using the same control.</li>
+        <li><strong>Compare while you edit.</strong> COMPARE A and B
+        also switch Edit Target, so you always edit the side you hear.
+        Go back to A·B before judging the morph.</li>
+        <li><strong>Leave the Anchor out of the fold until you want it
+        in.</strong> With <strong>Anchor Fold Feed</strong> at 0 the
+        fundamental stays clean however hard you fold the Mass. Turn it
+        up only when you want the sub tone itself folded (<em>Fed
+        Fold</em>).</li>
+        <li><strong>Lock for a steady floor, Follow for a moving
+        one.</strong> With a large <strong>Drop Amount</strong>, Lock
+        keeps the sub on the note while the Mass falls into it; Follow
+        makes the whole bass fall together.</li>
+        <li><strong>Solid is the reference.</strong> <em>Mono
+        Bedrock</em> is a Solid image on both endpoints. Switch a
+        widened patch’s <strong>Image Mode</strong> to Solid for a
+        moment to hear how much of its weight comes from the width.</li>
+        <li><strong>Motion needs an amount.</strong> <strong>Motion
+        Source</strong> on the Main page chooses the source, but nothing
+        moves until <strong>Motion Amount</strong> on the MODULATION tab
+        is set away from 0.</li>
+        <li><strong>Bipolar controls rest at the centre:</strong> the
+        four macros, Mass, Spectral Shift and Motion Amount all mean “no
+        change” in the middle. Automation that seems to do nothing is
+        often sitting on one of these centres.</li>
+        <li><strong>Play Mass with your hands.</strong> Map nothing: the
+        mod wheel and channel pressure already add weight to every note,
+        and lifting off returns the sound to the saved Mass.</li>
+        </ul>
+        <hr />
+        <p><em>Profundum is free and open-source software from Krate
+        Audio, released under the MIT license.</em></p>
+
+        <div class="manual-footer">
+            <p>
+                <a href="./">Back to Profundum</a> |
+                <a href="../">Krate Audio</a>
+            </p>
+        </div>
+    </div>
+</body>
+</html>
