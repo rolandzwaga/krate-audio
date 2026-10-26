@@ -1,8 +1,8 @@
 preset,column,role,variant,note,value,bar,margin,window_ms,overrides,descriptor,tap
-"Edge Ignition","AT-01 Core Excitation Mix",primary,"",E1,28.5212,3,25.5212,0,"","D_nl","Char / twin"
-"Edge Ignition","AT-01 Core Excitation Mix",primary,"",C3,28.5905,3,25.5905,0,"","D_nl","Char / twin"
-"Edge Ignition","AT-03 Core Harmonic Fold",secondary,"",E1,5.19442,3,2.19442,0,"","D_nl","Char / twin"
-"Edge Ignition","AT-03 Core Harmonic Fold",secondary,"",C3,4.85545,3,1.85545,0,"","D_nl","Char / twin"
+"Edge Ignition","AT-01 Core Excitation Mix",primary,"",E1,28.6783,3,25.6783,0,"","D_nl","Char / twin"
+"Edge Ignition","AT-01 Core Excitation Mix",primary,"",C3,28.7843,3,25.7843,0,"","D_nl","Char / twin"
+"Edge Ignition","AT-03 Core Harmonic Fold",secondary,"",E1,5.19407,3,2.19407,0,"","D_nl","Char / twin"
+"Edge Ignition","AT-03 Core Harmonic Fold",secondary,"",C3,4.86069,3,1.86069,0,"","D_nl","Char / twin"
 "Fault Line","AT-09 Character Fracture",primary,"",E1,30.2301,3,27.2301,0,"","D_nl","Char / twin"
 "Fault Line","AT-09 Character Fracture",primary,"",C3,28.7193,3,25.7193,0,"","D_nl","Char / twin"
 "Fault Line","AT-13 Anchor Lock to Follow",secondary,"Fracture",E1,-1200,-1200,5,0,"","anchor_shift_cents","Anchor tap (anchorPhaseTap seam)"

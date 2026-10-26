@@ -415,7 +415,7 @@ for playing chords; the rest are MONO.
 
 | Preset | Comment |
 |---|---|
-| Bedrock | Anchor Level: a thin core over the Sine Anchor in LOCK at level 1, with Mass 70 for a plain heavy floor. |
+| Bedrock | Anchor Level: the Sine Anchor in LOCK at level 1 under a dark core grained by the Fold Character, with Mass 70 for a heavy floor and a faint spread on top. Morph to B warms it into a driven Tube bass with a body. |
 | Triangle Floor | Anchor Sine to Triangle: a Triangle Anchor at level 1 under a thin core, a hollow-edged floor. |
 | Rounded Weight | Anchor Sine to Rounded Sine: a Rounded Sine Anchor at level 1 with Mass 70, soft but weighty. |
 | Lopsided Sub | Anchor Sine to Asymmetric Sine: an Asymmetric Sine Anchor gives the sub a lopsided, even-harmonic push. |
@@ -433,7 +433,7 @@ for playing chords; the rest are MONO.
 | Preset | Comment |
 |---|---|
 | Glide Path | Pitch Glide: MONO legato with a 200 ms portamento sliding a resonant body; NoteMemory Legato keeps the phase across each slide. |
-| Slow Swell | Envelope Amp Attack: a 500 ms attack swells a resonant body up to sustain 0.8. |
+| Slow Swell | Envelope Amp Attack: a 500 ms attack swells a resonant body up to full sustain, a light Rectify adding a glassy octave over an Asymmetric Anchor. Morph to B opens it into a hollow, wide, slower glow. |
 | Gravity Well | Field Gravity: Gravity at 1 pulls the low band of a SPREAD image at spread 1 back to the centre. |
 | Halfway Morph | Morph Position Half: a round endpoint A against a hollow, bright, driven endpoint B, stored halfway at 0.5. |
 | Restrike | NoteMemory AlwaysRetrigger: MONO with Retrigger Reset, every note restrikes a resonant body from the start. |
@@ -445,7 +445,7 @@ for playing chords; the rest are MONO.
 
 | Preset | Comment |
 |---|---|
-| Edge Ignition | Core Excitation Mix: a sine recipe pushed to edge 1 with the excitation mix and drive at full; Harmonic Fold 50 adds folded overtones. |
+| Edge Ignition | Core Excitation Mix: a sine recipe pushed to edge 1 with the excitation mix and drive at full, igniting with a fast 7 semitone drop; Harmonic Fold 50 adds folded overtones over a Triangle Anchor. Morph to B burns it: Rectify, a lopsided drive and a wide image. |
 | Biting Reed | Core Shape: a saw-like recipe at edge 0.5 with SHAPE at 1, the BITE end; the reed snarls on every note. |
 | Pressure Front | Mass Dynamics Gain: Mass 100 on a heavy harmonic body, the dynamics gain pressing the front of each note. |
 | Wide Harmonics | Field Solid to Spread: the SPREAD image at spread 1 opens a harmonic body while the sub stays centred. |
@@ -459,7 +459,7 @@ for playing chords; the rest are MONO.
 
 | Preset | Comment |
 |---|---|
-| Folded Mass | Core Harmonic Fold: Harmonic Fold at 100 over a deep core, with the Anchor at 0.6 holding the floor. |
+| Folded Mass | Core Harmonic Fold: Harmonic Fold at 100 over a deep core with some body, sharpened by Bite and spread wide, with an Asymmetric Anchor at 0.6 holding the floor. Morph to B crushes it: Crush, the BITE shape and an octave-down Anchor. |
 | Valve Pressure | Character Tube: the Tube algorithm at Amount 1 for full valve pressure, with Mass 90 under an Anchor at 0.5. |
 | Folding Wire | Character Wavefold: the Fold algorithm at Amount 1, a wire-bright wavefold over a mid core. |
 | Rectified Floor | Character Rectify: Rectify at Amount 1 with Tone 0.4 over a floor-heavy core, the Anchor at 0.6. |
@@ -477,7 +477,7 @@ for playing chords; the rest are MONO.
 
 | Preset | Comment |
 |---|---|
-| Punch Anchor | Anchor Lock to Punch: the Anchor in PUNCH, a 6 dB boost over 40 ms, under a 300 ms pluck of a light body. |
+| Punch Anchor | Anchor Lock to Punch: the Anchor in PUNCH, a 9 dB boost over 40 ms, under a 300 ms pluck that drops 5 semitones into a Crush-grained body with a Rounded Anchor. Morph to B turns the pluck into a longer, biting note. |
 | Ghost Kick | Anchor Lock to Ghost: the Anchor in GHOST for 100 ms under a short decay, a kick-like thump. |
 | Dropping Stone | Pitch Drop Amount: a 24 st drop over 200 ms at every note, a stone falling into the floor. |
 | Slow Fall | Pitch Drop Time: a 24 st drop stretched to 500 ms, a slow fall onto the note. |
@@ -491,7 +491,7 @@ for playing chords; the rest are MONO.
 | Preset | Comment |
 |---|---|
 | Orbiting Field | Field Motion: Field Motion at depth 1 orbits a SPREAD image at spread 1 around a harmonic core. |
-| Mass Tide | Motion Cycle to Mass: a slow CYCLE swells and drains the Mass under an Anchor at 0.5. |
+| Mass Tide | Motion Cycle to Mass: a slow CYCLE swells and drains the Mass of a warm Tube-driven body under an Anchor at 0.5. Morph to B whips it into a fractured, wide storm at 1 Hz. |
 | Breathing Depth | Motion Cycle to Depth: a CYCLE breathes the core Depth of a heavy harmonic body in and out. |
 | Body Wave | Motion Cycle to Body: a CYCLE sweeps the Body of a harmonic core, a slow wave through the mids. |
 | Edge Cycle | Motion Cycle to Edge: a saw-like recipe whose Edge a CYCLE opens and closes. |

@@ -884,9 +884,11 @@ TEST_CASE("Profundum_PresetDistinctnessPilot", "[profundum][distinct][.pilot]") 
 // specs/profundum-phase13-presets-release/evidence/listen/:
 //   - <category>/<name>_E1.wav and _C3.wav: the plan 5.5 sweep render (renderPresetSweep, 48 kHz, block 512, note on at
 //     0, off at 3 s, rendered through the reported tail), 32-bit float stereo as the Phase 12 case writes;
+//   - <category>/<name>_B_E1.wav: endpoint B on its own (both endpoints = B), rendered like _E1; the sheet records the
+//     held E1 level (mid RMS over [1.0 s, 3.0 s)) of A and of B;
 //   - gesture WAVs (48 kHz, block 512, the stored state, tail = getTailSamples() after setupProcessing):
-//       _morph   (AT-41 / AT-42 claimants, primary or secondary): E1 held 3 s, Morph Position (105) 0 -> 1 linearly
-//                over 2 s from sample 0, one point per host block;
+//       _morph   (every preset: Morph is part of each preset's sound): E1 held 3 s, Morph Position (105) 0 -> 1
+//                linearly over 2 s from sample 0, one point per host block;
 //       _macro   (AT-47 - AT-50 claimants): the claimed macro 0 -> 1 the same way (one file per claimed macro;
 //                _macro_AT-nn when a preset claims more than one);
 //       _legato  (AT-23, AT-43 - AT-46 claimants): E1 on at 0, E2 on at 1.0 s, E1 off at 1.5 s, E2 off at 3.0 s;
@@ -1104,6 +1106,20 @@ struct SwWindow {
     return w;
 }
 
+/// The held level of a 48 kHz sweep render: mid ((L + R) / 2) RMS in dBFS over [1.0 s, 3.0 s), the held part of
+/// the note (on at 0, off at 3 s). -200 for silence.
+[[nodiscard]] double swHeldLevelDb(const std::vector<float>& L, const std::vector<float>& R) {
+    const std::size_t from = swAt(1.0);
+    const std::size_t to = std::min({swAt(3.0), L.size(), R.size()});
+    double sum = 0.0;
+    for (std::size_t i = from; i < to; ++i) {
+        const double mid = 0.5 * (static_cast<double>(L[i]) + static_cast<double>(R[i]));
+        sum += mid * mid;
+    }
+    const double meanSquare = to > from ? sum / static_cast<double>(to - from) : 0.0;
+    return meanSquare > 0.0 ? 10.0 * std::log10(meanSquare) : -200.0;
+}
+
 /// Keeps a sheet the user has written verdicts into: copied to listening-sheet.prev<k>.md (first free k).
 void swKeepFilledSheet(const std::filesystem::path& sheet) {
     std::ifstream in(sheet, std::ios::binary);
@@ -1211,8 +1227,20 @@ TEST_CASE("Profundum_PresetAuditionRenders", "[profundum][.listen]") {
         }
         REQUIRE(storedE1.has_value());
 
-        // Gestures.
-        if (swClaims(def, C::AT41) || swClaims(def, C::AT42)) {
+        // Endpoint B on its own (both endpoints = B, so Morph Position 0 renders B): the A / B comparison every preset
+        // owes the listener, since Morph is part of every preset's sound. Its E1 level beside A's goes on the sheet.
+        const std::vector<std::uint8_t> compB = swBytesOf(withEndpoints(swStateOf(comp), d.b, d.b));
+        const PresetSweepRender rB = renderPresetSweep(compB, e1, kSwFs, false);
+        {
+            INFO(name << " _B_E1: non-finite " << swNonFinite(rB.L, rB.R));
+            CHECK(swNonFinite(rB.L, rB.R) == 0u);
+            emit("_B_E1", rB.L, rB.R, "E1", "endpoint B static");
+        }
+        const double levelA = swHeldLevelDb(storedE1->L, storedE1->R);
+        const double levelB = swHeldLevelDb(rB.L, rB.R);
+
+        // Gestures. The morph sweep runs for every preset, not only the AT-41 / AT-42 claimants.
+        {
             const SwAuditionRender g = swRenderGesture(comp, swRampScript(P::kMorphPositionId), swAt(3.0));
             INFO(name << " _morph: non-finite " << g.nonFinite);
             CHECK(g.nonFinite == 0u);
@@ -1256,6 +1284,9 @@ TEST_CASE("Profundum_PresetAuditionRenders", "[profundum][.listen]") {
         sheet << '\n';
         sheet << "- Endpoints: A \"" << d.names[0] << "\", B \"" << d.names[1] << "\"; stored Morph Position "
               << d.morph.position << '\n';
+        sheet << "- E1 held level (1-3 s, mid RMS): A " << levelA << " dB, B " << levelB << " dB (B - A "
+              << levelB - levelA << " dB)\n";
+        std::cout << "# " << name << ": E1 held level A " << levelA << " dB, B " << levelB << " dB\n";
         sheet << "- Files:";
         for (std::size_t k = 0; k < files.size(); ++k) {
             sheet << (k == 0 ? " `" : ", `") << files[k] << '`';

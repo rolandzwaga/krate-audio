@@ -1,9 +1,67 @@
-=== render 2026-10-25T11:34:22Z commit 5ad50273
+=== render 2026-10-26T12:22:16Z commit 01223dbb
 cmd: build/windows-x64-release/bin/Release/profundum_tests.exe "Profundum_PresetAuditionRenders"
 Filters: "Profundum_PresetAuditionRenders"
-Randomness seeded to: 1503488389
-# Profundum_PresetAuditionRenders: presets=58 wavs=127 gestures=11 flagged=0
+Randomness seeded to: 1721881165
+# Edge Ignition: E1 held level A -8.4193 dB, B -10.4021 dB
+# Biting Reed: E1 held level A -13.3216 dB, B -12.7485 dB
+# Folded Mass: E1 held level A -12.1456 dB, B -14.5983 dB
+# Valve Pressure: E1 held level A -8.00749 dB, B -8.74387 dB
+# Folding Wire: E1 held level A -11.5484 dB, B -12.3134 dB
+# Rectified Floor: E1 held level A -11.7253 dB, B -10.86 dB
+# Bite Down: E1 held level A -12.4492 dB, B -13.1777 dB
+# Crushed Basalt: E1 held level A -11.6477 dB, B -11.7509 dB
+# Fault Line: E1 held level A -12.4369 dB, B -12.6697 dB
+# Bedrock: E1 held level A -11.1172 dB, B -10.9554 dB
+# Punch Anchor: E1 held level A -12.8752 dB, B -12.5696 dB
+# Ghost Kick: E1 held level A -10.84 dB, B -10.84 dB
+# Rectified Follow: E1 held level A -10.914 dB, B -12.4502 dB
+# Triangle Floor: E1 held level A -11.8775 dB, B -12.0962 dB
+# Rounded Weight: E1 held level A -10.3115 dB, B -8.9954 dB
+# Lopsided Sub: E1 held level A -8.04284 dB, B -8.97593 dB
+# Under Octave: E1 held level A -10.0928 dB, B -10.0872 dB
+# Fed Fold: E1 held level A -8.17148 dB, B -8.99425 dB
+# Dropping Stone: E1 held level A -11.9442 dB, B -11.9442 dB
+# Slow Fall: E1 held level A -11.8722 dB, B -11.8722 dB
+# Curved Drop: E1 held level A -14.419 dB, B -14.419 dB
+# Rebound: E1 held level A -12.8589 dB, B -12.8589 dB
+# Glide Path: E1 held level A -11.7169 dB, B -12.4168 dB
+# Slow Swell: E1 held level A -13.4964 dB, B -16.0958 dB
+# Long Tail: E1 held level A -8.11694 dB, B -8.11694 dB
+# Heavy Mass: E1 held level A -10.7761 dB, B -14.0329 dB
+# Pressure Front: E1 held level A -12.812 dB, B -11.3629 dB
+# Hard Attack: E1 held level A -11.382 dB, B -11.4285 dB
+# Wide Harmonics: E1 held level A -13.4349 dB, B -13.4849 dB
+# Wide Rectifier: E1 held level A -8.43213 dB, B -7.96766 dB
+# Spread Choir: E1 held level A -14.1358 dB, B -14.0607 dB
+# Gravity Well: E1 held level A -10.1262 dB, B -10.3779 dB
+# Orbiting Field: E1 held level A -9.52084 dB, B -9.52098 dB
+# Mass Tide: E1 held level A -11.1234 dB, B -14.3622 dB
+# Breathing Depth: E1 held level A -10.1413 dB, B -9.83571 dB
+# Body Wave: E1 held level A -11.735 dB, B -11.7028 dB
+# Edge Cycle: E1 held level A -12.5939 dB, B -11.9986 dB
+# Shifting Spectrum: E1 held level A -13.6407 dB, B -13.516 dB
+# Envelope Mass: E1 held level A -9.81187 dB, B -9.84268 dB
+# Drifting Weight: E1 held level A -7.57518 dB, B -7.80723 dB
+# Morph Span: E1 held level A -10.8998 dB, B -11.7393 dB
+# Halfway Morph: E1 held level A -10.8361 dB, B -8.79945 dB
+# Restrike: E1 held level A -14.3246 dB, B -14.1768 dB
+# Legato Line: E1 held level A -8.53153 dB, B -8.53468 dB
+# Envelope Restart: E1 held level A -11.5971 dB, B -11.0626 dB
+# Continuous Phase: E1 held level A -7.99554 dB, B -7.98572 dB
+# Weight Lever: E1 held level A -10.6575 dB, B -10.6575 dB
+# Dark To Bright: E1 held level A -11.1344 dB, B -7.52448 dB
+# Loose Ends: E1 held level A -12.0507 dB, B -12.9604 dB
+# Clean To Violent: E1 held level A -7.65693 dB, B -7.64887 dB
+# Mono Bedrock: E1 held level A -8.03185 dB, B -7.97512 dB
+# Locked Floor: E1 held level A -10.4918 dB, B -10.4918 dB
+# Bedrock Sine: E1 held level A -7.89009 dB, B -9.89125 dB
+# Poly Spread: E1 held level A -12.8111 dB, B -12.8111 dB
+# Poly Swell: E1 held level A -12.3716 dB, B -12.3716 dB
+# Poly Ignition: E1 held level A -9.35879 dB, B -9.35879 dB
+# Poly Rectifier: E1 held level A -10.8405 dB, B -10.8405 dB
+# Poly Pluck: E1 held level A -12.0215 dB, B -12.0215 dB
+# Profundum_PresetAuditionRenders: presets=58 wavs=241 gestures=125 flagged=0
 ===============================================================================
-All tests passed (339457 assertions in 1 test case)
+All tests passed (645223 assertions in 1 test case)
 
-exit: 0 wall: 63 s
+exit: 0 wall: 92 s
