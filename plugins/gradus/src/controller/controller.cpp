@@ -7,6 +7,7 @@
 #include "../version.h"
 #include "../parameters/arpeggiator_params.h"
 #include "../preset/gradus_preset_config.h"
+#include "../update/gradus_update_config.h"
 
 #include "ui/arp_lane_editor.h"
 #include "ui/arp_modifier_lane.h"
@@ -15,6 +16,7 @@
 #include "ui/arp_inversion_lane.h"
 #include "ui/preset_browser_view.h"
 #include "ui/save_preset_dialog_view.h"
+#include "ui/update_banner_view.h"
 #include "../ui/ring_display.h"
 #include "../ui/detail_strip.h"
 #include "../ui/speed_curve_editor.h"
@@ -78,11 +80,15 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
             return loadComponentStateWithNotify(stream);
         });
 
+    // Update checker
+    updateChecker_ = std::make_unique<Krate::Plugins::UpdateChecker>(makeGradusUpdateConfig());
+
     return kResultOk;
 }
 
 tresult PLUGIN_API Controller::terminate()
 {
+    updateChecker_.reset();
     presetManager_.reset();
     return EditControllerEx1::terminate();
 }
@@ -266,6 +272,15 @@ VSTGUI::CView* Controller::createCustomView(
     if (viewName == "SavePresetButton")
         return createPresetButton(viewRect, false);
 
+    // Update banner (hidden until a newer version is found) and the manual check button
+    if (viewName == "UpdateBanner") {
+        auto* banner = new Krate::Plugins::UpdateBannerView(viewRect, updateChecker_.get());
+        updateBannerView_ = banner;
+        return banner;
+    }
+    if (viewName == "CheckForUpdatesButton")
+        return new Krate::Plugins::CheckForUpdatesButton(viewRect, updateChecker_.get());
+
     if (viewName == "RingDisplay") {
         auto* display = new RingDisplay(viewRect);
         ringDisplay_ = display;
@@ -344,12 +359,24 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor)
             }
         }
     }
+
+    // Start update check and banner polling
+    if (updateChecker_)
+        updateChecker_->checkForUpdate(false);
+    if (updateBannerView_)
+        updateBannerView_->startPolling();
 }
 
 void Controller::willClose([[maybe_unused]] VSTGUI::VST3Editor* editor)
 {
     // Stop the sync timer before tearing down views
     viewSyncTimer_ = nullptr;
+
+    // Stop update banner polling (view is owned by frame)
+    if (updateBannerView_) {
+        updateBannerView_->stopPolling();
+        updateBannerView_ = nullptr;
+    }
 
     // Null all lane pointers (VSTGUI owns their lifetime)
     velocityLane_ = nullptr;

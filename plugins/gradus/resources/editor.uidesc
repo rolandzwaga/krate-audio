@@ -675,6 +675,9 @@
                   popup-position="top"
                   tooltip="Audition decay time"/>
 
+            <!-- Manual update check -->
+            <view custom-view-name="CheckForUpdatesButton" origin="764, 6" size="110, 22"/>
+
             <!-- Krate Audio label (right side) -->
             <view class="CTextLabel" origin="880, 0" size="100, 34"
                   font="~ NormalFontSmaller" font-color="text-secondary"
@@ -712,6 +715,9 @@
               transparent="true"
               template-names="EmptyContent,PianoRollContent"
               template-switch-control="ArpSourceMode"/>
+
+        <!-- Update banner (last child = paints on top of everything); hidden until a newer version is found -->
+        <view custom-view-name="UpdateBanner" origin="0, 0" size="1100, 60"/>
 
     </template>
 

@@ -76,6 +76,9 @@ add_executable(gradus_tests
     # Editor open/close lifecycle regression (willClose UAF guard)
     unit/ui/editor_lifecycle_test.cpp
 
+    # The live update check: banner + manual button views and their uidesc placement
+    unit/ui/update_check_test.cpp
+
     # Ring edit routing / geometry seeding lane-order guard (audit F11 + F12)
     unit/ui/ring_edit_routing_test.cpp
 
