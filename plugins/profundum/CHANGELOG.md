@@ -40,6 +40,7 @@ spectrum, and a library of 58 factory presets.
 - **Hover help on every control** — Each control's tooltip says how to use it: its range or options and what you will hear. The stereo-field controls also state, in plain words, that the sub stays centred and mono-safe.
 - **Signal flow diagram** — The documentation site has a diagram of the whole instrument: the control layer, the per-voice chain with the Anchor on its own path, and the global chain to the output.
 - **Version in the editor** — The plugin version is shown under the PROFUNDUM title in the header.
+- **Update check** — When the editor opens, Profundum checks online for a newer version, at most once a day, and shows a banner across the top of the window when one exists. A Check for Updates button in the Settings tab checks right away.
 
 ### Known limitations
 

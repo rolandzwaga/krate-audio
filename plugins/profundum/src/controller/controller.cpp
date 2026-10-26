@@ -5,7 +5,7 @@
 // macro pack) and getParamStringByValue formats the continuous ones (FR-047).
 // T012: setComponentState mirrors the processor stream (FR-045, FR-046).
 // T019: the PresetManager (FR-050) and createView on the stock-view placeholder
-// editor.uidesc (FR-054, FR-055). No UpdateChecker (FR-052).
+// editor.uidesc (FR-054, FR-055).
 // Phase 11 T014: initialize registers all 84 parameters (global, macro,
 // performance, sound, note, morph control) and getParamStringByValue formats
 // every continuous one (FR-001 - FR-009).
@@ -49,7 +49,7 @@
 #include "ui/panel_sub_controller.h"
 #include "ui/preset_browser_view.h"  // plugins/shared/src/ui (Phase 13 FR-030)
 #include "ui/spread_curve_view.h"
-#include "ui/update_banner_view.h"  // plugins/shared/src/ui: VersionLabel (Phase 13 FR-059 amendment)
+#include "ui/update_banner_view.h"  // plugins/shared/src/ui: VersionLabel, UpdateBannerView, CheckForUpdatesButton
 #include "version.h"
 
 #include "pluginterfaces/vst/ivstattributes.h"
@@ -75,17 +75,12 @@
 #include <memory>
 #include <string>
 #include <string_view>
-#include <type_traits>
 #include <utility>
 #include <vector>
 
-// Compile touch point for the update config (FR-052, plan section 2.6): the
-// header is included by nothing else in the plugin, and a .h in a CMake source
-// list is HEADER_FILE_ONLY, so this static_assert is what compiles it.
-// No UpdateChecker is ever instantiated (FR-052).
+// The live update check (2026-10-26): the FR-052 "compiled but unused" ruling is superseded, as Vorago's was on
+// 2026-10-11; the controller owns an UpdateChecker like every plugin with a live check.
 #include "update/profundum_update_config.h"
-static_assert(std::is_same_v<decltype(Profundum::makeProfundumUpdateConfig()),
-                             Krate::Plugins::UpdateCheckerConfig>);
 
 namespace Profundum {
 
@@ -106,7 +101,7 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context) {
     registerNoteParams(parameters);
     registerMorphControlParams(parameters);
 
-    // FR-050. No UpdateChecker (FR-052).
+    // FR-050.
     presetManager_ = std::make_unique<Krate::Plugins::PresetManager>(makeProfundumPresetConfig(),
                                                                      nullptr, this);
     // Phase 13 FR-031 (plan 4.6, Vorago controller.cpp:113-118): save the processor's own getState bytes; load the
@@ -115,6 +110,7 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context) {
     presetManager_->setLoadProvider(
         [this](IBStream* stream, const Krate::Plugins::PresetInfo& /*info*/) { return loadPresetStream(stream); });
     presetTabLabels_ = makeProfundumPresetTabLabels();
+    updateChecker_ = std::make_unique<Krate::Plugins::UpdateChecker>(makeProfundumUpdateConfig());
 
     // Phase 12 FR-080 (plan 4.6.8): the never-prepared field the SPREAD model evaluates, then the model of the
     // registered defaults.
@@ -125,6 +121,7 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context) {
 
 tresult PLUGIN_API Controller::terminate() {
     stopEditorSyncTimer();  // a host that tears down without willClose must not leave the timer firing
+    updateChecker_.reset();
     presetManager_ = nullptr;
     return EditControllerEx1::terminate();
 }
@@ -956,6 +953,15 @@ VSTGUI::CView* Controller::createCustomView(VSTGUI::UTF8StringPtr name, const VS
         // FR-059 amendment: the shared label (Vorago / Seraphis / Ruinae), VERSION_STR from version.json.
         return new Krate::Plugins::VersionLabel(viewRect, VERSION_STR);
     }
+    // Update banner (hidden until a newer version is found) and the manual check button: the shared views every
+    // plugin with a live update check uses.
+    if (std::strcmp(name, "UpdateBanner") == 0) {
+        updateBannerView_ = new Krate::Plugins::UpdateBannerView(viewRect, updateChecker_.get());
+        return updateBannerView_;
+    }
+    if (std::strcmp(name, "CheckForUpdatesButton") == 0) {
+        return new Krate::Plugins::CheckForUpdatesButton(viewRect, updateChecker_.get());
+    }
     return nullptr;
 }
 
@@ -995,6 +1001,13 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
     if (panel_ != nullptr) {
         panel_->refreshAnchorDimming();
     }
+    // Start the (24 h cooldown) update check and the banner's result polling.
+    if (updateChecker_) {
+        updateChecker_->checkForUpdate(false);
+    }
+    if (updateBannerView_ != nullptr) {
+        updateBannerView_->startPolling();
+    }
 }
 
 void Controller::willClose(VSTGUI::VST3Editor* /*editor*/) {
@@ -1005,6 +1018,10 @@ void Controller::willClose(VSTGUI::VST3Editor* /*editor*/) {
             presetBrowserView_->close();
         }
         presetBrowserView_ = nullptr;
+    }
+    if (updateBannerView_ != nullptr) {
+        updateBannerView_->stopPolling();
+        updateBannerView_ = nullptr;  // the frame owns and destroys it
     }
     stopEditorSyncTimer();
     // FR-091: every raw view pointer goes before the tree is destroyed.
@@ -1085,7 +1102,8 @@ bool Controller::viewPointersNullForTest() const noexcept {
         }
     }
     return activeEditor_ == nullptr && barViews_[0] == nullptr && barViews_[1] == nullptr &&
-           spreadView_ == nullptr && panel_ == nullptr && adsrDisplay_ == nullptr && presetBrowserView_ == nullptr;
+           spreadView_ == nullptr && panel_ == nullptr && adsrDisplay_ == nullptr && presetBrowserView_ == nullptr &&
+           updateBannerView_ == nullptr;
 }
 
 }  // namespace Profundum

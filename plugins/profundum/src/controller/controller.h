@@ -37,6 +37,7 @@
 #include "parameters/endpoint_names.h"  // Phase 12 T019 (FR-047)
 #include "parameters/morph_params.h"
 #include "preset/preset_manager.h"
+#include "update/update_checker.h"
 #include "processor/spectrum_frame.h"  // Phase 12 T021: POD only, shared like plugin_ids.h (FR-071)
 #include "ui/spread_curve_view.h"      // Phase 12 T024: UI::SpreadCurveModel (plan 4.6.8)
 
@@ -65,6 +66,7 @@
 namespace Krate::Plugins {
 class ADSRDisplay;  // plugins/shared/src/ui/adsr_display.h; held by pointer only (Phase 12 T025)
 class PresetBrowserView;  // plugins/shared/src/ui/preset_browser_view.h; held by pointer only (Phase 13 T013)
+class UpdateBannerView;   // plugins/shared/src/ui/update_banner_view.h; held by pointer only
 }  // namespace Krate::Plugins
 
 namespace Profundum {
@@ -333,6 +335,7 @@ private:
     [[nodiscard]] Steinberg::IBStream* createComponentStateStream();
 
     std::unique_ptr<Krate::Plugins::PresetManager> presetManager_;
+    std::unique_ptr<Krate::Plugins::UpdateChecker> updateChecker_;  // the live update check (2026-10-26)
     // Phase 13 FR-030: "All" + the six subcategories (makeProfundumPresetTabLabels), set in initialize.
     std::vector<std::string> presetTabLabels_;
     std::array<Krate::DSP::MorphState, 2> mirror_{};  // FR-021: [A, B]
@@ -375,6 +378,8 @@ private:
     UI::ProfundumPanelSubController* panel_ = nullptr;
     // Phase 13 FR-030: frame-owned, created in didOpen, nulled in willClose.
     Krate::Plugins::PresetBrowserView* presetBrowserView_ = nullptr;
+    // Frame-owned, created by createCustomView("UpdateBanner"), nulled in willClose.
+    Krate::Plugins::UpdateBannerView* updateBannerView_ = nullptr;
     // Plan 4.6.7 (D-10): created in didOpen, released in willClose.
     VSTGUI::SharedPointer<VSTGUI::CVSTGUITimer> editorSyncTimer_;
     int openGestures_ = 0;  // plan 4.6.4: beginEdit minus endEdit

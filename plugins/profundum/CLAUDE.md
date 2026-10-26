@@ -15,8 +15,8 @@ Auto-loads when working under `plugins/profundum/`. Root `CLAUDE.md` still appli
   `fold_shape_params.h`, `character_params.h`, `dynamics_params.h`, `field_params.h`, `motion_params.h`,
   `morph_params.h`, `performance_params.h`) plus the 60-row E-parameter table (`sound_param_row.h`,
   `sound_param_table.h`); `preset/` and `update/` are the shared-config adapters
-  (`makeProfundumPresetConfig()` / `makeProfundumUpdateConfig()`; the controller never creates an
-  `UpdateChecker`); `ui/` holds the Phase 12 editor classes (see **UI** below).
+  (`makeProfundumPresetConfig()` / `makeProfundumUpdateConfig()`; the controller owns the live
+  `UpdateChecker`: the banner over the editor, the manual button on Advanced → SETTINGS); `ui/` holds the Phase 12 editor classes (see **UI** below).
   Generated, never hand-edited, never committed (see `.gitignore`): `src/version.h`,
   `resources/win32resource.rc`, `resources/auv3/audiounitconfig.h` — only `audiounitconfig.h.in` is authored.
 - **Buses:** 1 event input, 1 stereo audio output, **no `addAudioInput()`**. `kSupportedNumChannels` is
