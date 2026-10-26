@@ -808,6 +808,16 @@ VSTGUI::CView* Controller::createCustomView(
         return new Krate::Plugins::CheckForUpdatesButton(rect, updateChecker_.get());
     }
 
+    // Version label (the shared view every plugin uses; VERSION_STR from version.json)
+    if (VSTGUI::UTF8StringView(name) == "VersionLabel") {
+        VSTGUI::CPoint origin(0, 0);
+        VSTGUI::CPoint size(60, 16);
+        attributes.getPointAttribute("origin", origin);
+        attributes.getPointAttribute("size", size);
+        VSTGUI::CRect rect(origin.x, origin.y, origin.x + size.x, origin.y + size.y);
+        return new Krate::Plugins::VersionLabel(rect, VERSION_STR);
+    }
+
     return nullptr;
 }
 
@@ -947,37 +957,6 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
                     &activeEditor_, patternType,
                     kFreezeNoiseColorId,  // Child control tag
                     0.833f, 1.01f);  // Range: show when value >= 0.833
-            }
-
-            // =====================================================================
-            // Dynamic Version Label
-            // =====================================================================
-            // Set version label text from version.json instead of hardcoded string
-            // Tag 9999 is assigned to the version label in editor.uidesc
-            // =====================================================================
-            std::function<VSTGUI::CTextLabel*(VSTGUI::CViewContainer*, int32_t)> findTextLabel;
-            findTextLabel = [&findTextLabel](VSTGUI::CViewContainer* container, int32_t tag) -> VSTGUI::CTextLabel* {
-                if (!container) return nullptr;
-                VSTGUI::ViewIterator it(container);
-                while (*it) {
-                    if (auto* label = dynamic_cast<VSTGUI::CTextLabel*>(*it)) {
-                        if (label->getTag() == tag) {
-                            return label;
-                        }
-                    }
-                    if (auto* childContainer = (*it)->asViewContainer()) {
-                        if (auto* found = findTextLabel(childContainer, tag)) {
-                            return found;
-                        }
-                    }
-                    ++it;
-                }
-                return nullptr;
-            };
-
-            // Find and update version label (tag 9999)
-            if (auto* versionLabel = findTextLabel(frame, 9999)) {
-                versionLabel->setText(UI_VERSION_STR);
             }
 
             // =====================================================================

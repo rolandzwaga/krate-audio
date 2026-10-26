@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Preset descriptions in the browser** — The preset browser has a line under the preset
   list that shows the selected preset's description, for presets that carry one.
+- **Version label** — The version at the right of the bottom bar is drawn by the same
+  label every Krate plugin uses, and reads "v1.10.1" instead of "Gradus v1.10.1".
 
 ## [1.10.0] - 2026-07-24
 

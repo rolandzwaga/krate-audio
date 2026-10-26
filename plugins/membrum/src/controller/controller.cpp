@@ -26,6 +26,7 @@
 #include "ui/update_banner_view.h"
 #include "update/update_checker.h"
 #include "update/membrum_update_config.h"
+#include "version.h"
 
 #include "public.sdk/source/vst/vstparameters.h"
 #include "public.sdk/source/common/memorystream.h"
@@ -1066,6 +1067,10 @@ VSTGUI::CView* Controller::createCustomView(
     }
     if (std::strcmp(name, "CheckForUpdatesButton") == 0)
         return new Krate::Plugins::CheckForUpdatesButton(viewRect, updateChecker_.get());
+
+    // Version label (the shared view every plugin uses; VERSION_STR from version.json)
+    if (std::strcmp(name, "VersionLabel") == 0)
+        return new Krate::Plugins::VersionLabel(viewRect, VERSION_STR);
 
     if (std::strcmp(name, "PadGridView") == 0)
     {

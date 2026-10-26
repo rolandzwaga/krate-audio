@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Update check** — When the editor opens, Membrum checks online for a newer version, at
   most once a day, and shows a banner across the top of the window when one exists. A
   Check for Updates button under the meters checks right away.
+- **Version in the editor** — The plugin version is shown next to the Check for Updates
+  button.
 
 ### Changed
 

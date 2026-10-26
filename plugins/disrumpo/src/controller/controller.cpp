@@ -1341,6 +1341,16 @@ VSTGUI::CView* Controller::createCustomView(
         return new Krate::Plugins::CheckForUpdatesButton(rect, updateChecker_.get());
     }
 
+    // Version label (the shared view every plugin uses; VERSION_STR from version.json)
+    if (VSTGUI::UTF8StringView(name) == "VersionLabel") {
+        VSTGUI::CPoint origin(0, 0);
+        VSTGUI::CPoint size(60, 16);
+        attributes.getPointAttribute("origin", origin);
+        attributes.getPointAttribute("size", size);
+        VSTGUI::CRect rect(origin.x, origin.y, origin.x + size.x, origin.y + size.y);
+        return new Krate::Plugins::VersionLabel(rect, VERSION_STR);
+    }
+
     return nullptr;
 }
 

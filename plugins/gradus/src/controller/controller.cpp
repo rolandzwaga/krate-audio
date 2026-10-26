@@ -25,8 +25,6 @@
 
 #include "controller_state_helpers.h"
 #include "vstgui/lib/controls/ccontrol.h"
-#include "vstgui/lib/controls/ctextlabel.h"
-#include "vstgui/lib/cviewcontainer.h"
 
 #include "public.sdk/source/common/memorystream.h"
 #include "base/source/fstreamer.h"
@@ -281,6 +279,10 @@ VSTGUI::CView* Controller::createCustomView(
     if (viewName == "CheckForUpdatesButton")
         return new Krate::Plugins::CheckForUpdatesButton(viewRect, updateChecker_.get());
 
+    // Version label (the shared view every plugin uses; VERSION_STR from version.json)
+    if (viewName == "VersionLabel")
+        return new Krate::Plugins::VersionLabel(viewRect, VERSION_STR);
+
     if (viewName == "RingDisplay") {
         auto* display = new RingDisplay(viewRect);
         ringDisplay_ = display;
@@ -317,29 +319,6 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor)
     // Start UI sync timer (~30fps) for thread-safe deferred view updates
     viewSyncTimer_ = VSTGUI::makeOwned<VSTGUI::CVSTGUITimer>(
         [this](VSTGUI::CVSTGUITimer*) { syncViewsFromParams(); }, 33);
-
-    // Dynamic version label (tag 9999)
-    if (auto* frame = editor->getFrame()) {
-        std::function<VSTGUI::CTextLabel*(VSTGUI::CViewContainer*, int32_t)> findTextLabel;
-        findTextLabel = [&findTextLabel](VSTGUI::CViewContainer* container, int32_t tag) -> VSTGUI::CTextLabel* {
-            if (!container) return nullptr;
-            VSTGUI::ViewIterator it(container);
-            while (*it) {
-                if (auto* label = dynamic_cast<VSTGUI::CTextLabel*>(*it)) {
-                    if (label->getTag() == tag)
-                        return label;
-                }
-                if (auto* child = (*it)->asViewContainer()) {
-                    if (auto* found = findTextLabel(child, tag))
-                        return found;
-                }
-                ++it;
-            }
-            return nullptr;
-        };
-        if (auto* versionLabel = findTextLabel(frame, 9999))
-            versionLabel->setText(UI_VERSION_STR);
-    }
 
     // Create preset browser and save dialog overlay views
     if (auto* frame = editor->getFrame()) {
