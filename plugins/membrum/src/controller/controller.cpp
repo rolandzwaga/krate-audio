@@ -23,6 +23,9 @@
 #include "preset/preset_info.h"
 #include "ui/preset_browser_view.h"
 #include "ui/save_preset_dialog_view.h"
+#include "ui/update_banner_view.h"
+#include "update/update_checker.h"
+#include "update/membrum_update_config.h"
 
 #include "public.sdk/source/vst/vstparameters.h"
 #include "public.sdk/source/common/memorystream.h"
@@ -775,6 +778,9 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
             return ok;
         });
 
+    // Update checker
+    updateChecker_ = std::make_unique<Krate::Plugins::UpdateChecker>(makeMembrumUpdateConfig());
+
     return kResultOk;
 }
 
@@ -1050,6 +1056,16 @@ VSTGUI::CView* Controller::createCustomView(
     const VSTGUI::CRect viewRect(
         origin.x, origin.y,
         origin.x + size.x, origin.y + size.y);
+
+    // Update banner (hidden until a newer version is found) and the manual check button
+    if (std::strcmp(name, "UpdateBanner") == 0)
+    {
+        auto* banner = new Krate::Plugins::UpdateBannerView(viewRect, updateChecker_.get());
+        updateBannerView_ = banner;
+        return banner;
+    }
+    if (std::strcmp(name, "CheckForUpdatesButton") == 0)
+        return new Krate::Plugins::CheckForUpdatesButton(viewRect, updateChecker_.get());
 
     if (std::strcmp(name, "PadGridView") == 0)
     {
@@ -1646,6 +1662,12 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor)
     // And hide the Material Morph toggle if the selected pad is currently on
     // a non-Membrane body.
     updateMorphEnabledToggleVisibility();
+
+    // Start update check and banner polling
+    if (updateChecker_)
+        updateChecker_->checkForUpdate(false);
+    if (updateBannerView_)
+        updateBannerView_->startPolling();
 }
 
 void Controller::willClose(VSTGUI::VST3Editor* /*editor*/)
@@ -1657,6 +1679,12 @@ void Controller::willClose(VSTGUI::VST3Editor* /*editor*/)
     {
         pollTimer_->stop();
         pollTimer_ = nullptr;
+    }
+    // Stop update banner polling (view is owned by frame)
+    if (updateBannerView_)
+    {
+        updateBannerView_->stopPolling();
+        updateBannerView_ = nullptr;
     }
     activeEditor_      = nullptr;
     // Audit finding 12: drop any queued view refreshes and forget the UI thread

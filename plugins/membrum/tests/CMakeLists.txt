@@ -147,6 +147,9 @@ add_executable(membrum_tests
     # the full view tree and running verifyView/willClose via the shared harness.
     unit/controller/editor_lifecycle_test.cpp
 
+    # The live update check: banner + manual button views and their uidesc placement
+    unit/controller/update_check_test.cpp
+
     # Shared state/preset codec unit tests
     unit/state/test_state_codec.cpp
 
