@@ -1058,19 +1058,11 @@ VSTGUI::CView* Controller::createCustomView(
         origin.x, origin.y,
         origin.x + size.x, origin.y + size.y);
 
-    // Update banner (hidden until a newer version is found) and the manual check button
-    if (std::strcmp(name, "UpdateBanner") == 0)
-    {
-        auto* banner = new Krate::Plugins::UpdateBannerView(viewRect, updateChecker_.get());
-        updateBannerView_ = banner;
-        return banner;
-    }
-    if (std::strcmp(name, "CheckForUpdatesButton") == 0)
-        return new Krate::Plugins::CheckForUpdatesButton(viewRect, updateChecker_.get());
-
-    // Version label (the shared view every plugin uses; VERSION_STR from version.json)
-    if (std::strcmp(name, "VersionLabel") == 0)
-        return new Krate::Plugins::VersionLabel(viewRect, VERSION_STR);
+    // The update banner, the manual check button and the version label: the shared
+    // views every Krate editor carries.
+    if (auto* shared = Krate::Plugins::createSharedEditorView(
+            name, attributes, updateChecker_.get(), VERSION_STR, updateBannerView_))
+        return shared;
 
     if (std::strcmp(name, "PadGridView") == 0)
     {

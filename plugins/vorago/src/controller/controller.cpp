@@ -360,18 +360,11 @@ VSTGUI::CView* Controller::createCustomView(VSTGUI::UTF8StringPtr name,
         ecosystemView_ = new UI::EcosystemView(viewRect, &cachedFrame_);
         return ecosystemView_;
     }
-    // Update banner (hidden until a newer version is found) and the manual check
-    // button: the shared views every plugin with a live update check uses.
-    if (std::strcmp(name, "UpdateBanner") == 0) {
-        auto* banner = new Krate::Plugins::UpdateBannerView(viewRect, updateChecker_.get());
-        updateBannerView_ = banner;
-        return banner;
-    }
-    if (std::strcmp(name, "CheckForUpdatesButton") == 0) {
-        return new Krate::Plugins::CheckForUpdatesButton(viewRect, updateChecker_.get());
-    }
-    if (std::strcmp(name, "VersionLabel") == 0) {
-        return new Krate::Plugins::VersionLabel(viewRect, VERSION_STR);
+    // The update banner, the manual check button and the version label: the shared
+    // views every Krate editor carries.
+    if (auto* shared = Krate::Plugins::createSharedEditorView(name, attributes, updateChecker_.get(),
+                                                              VERSION_STR, updateBannerView_)) {
+        return shared;
     }
     if (std::strcmp(name, "PresetBrowserButton") == 0) {
         // Plan D-1: the shared outline button; VoragoPanelSubController gives it

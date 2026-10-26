@@ -1321,34 +1321,11 @@ VSTGUI::CView* Controller::createCustomView(
         return new SavePresetButton(rect, this);
     }
 
-    if (VSTGUI::UTF8StringView(name) == "UpdateBanner") {
-        VSTGUI::CPoint origin(0, 0);
-        VSTGUI::CPoint size(100, 30);
-        attributes.getPointAttribute("origin", origin);
-        attributes.getPointAttribute("size", size);
-        VSTGUI::CRect rect(origin.x, origin.y, origin.x + size.x, origin.y + size.y);
-        auto* banner = new Krate::Plugins::UpdateBannerView(rect, updateChecker_.get());
-        updateBannerView_ = banner;
-        return banner;
-    }
-
-    if (VSTGUI::UTF8StringView(name) == "CheckForUpdatesButton") {
-        VSTGUI::CPoint origin(0, 0);
-        VSTGUI::CPoint size(120, 24);
-        attributes.getPointAttribute("origin", origin);
-        attributes.getPointAttribute("size", size);
-        VSTGUI::CRect rect(origin.x, origin.y, origin.x + size.x, origin.y + size.y);
-        return new Krate::Plugins::CheckForUpdatesButton(rect, updateChecker_.get());
-    }
-
-    // Version label (the shared view every plugin uses; VERSION_STR from version.json)
-    if (VSTGUI::UTF8StringView(name) == "VersionLabel") {
-        VSTGUI::CPoint origin(0, 0);
-        VSTGUI::CPoint size(60, 16);
-        attributes.getPointAttribute("origin", origin);
-        attributes.getPointAttribute("size", size);
-        VSTGUI::CRect rect(origin.x, origin.y, origin.x + size.x, origin.y + size.y);
-        return new Krate::Plugins::VersionLabel(rect, VERSION_STR);
+    // The update banner, the manual check button and the version label: the shared
+    // views every Krate editor carries.
+    if (auto* shared = Krate::Plugins::createSharedEditorView(
+            name, attributes, updateChecker_.get(), VERSION_STR, updateBannerView_)) {
+        return shared;
     }
 
     return nullptr;

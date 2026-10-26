@@ -270,18 +270,11 @@ VSTGUI::CView* Controller::createCustomView(
     if (viewName == "SavePresetButton")
         return createPresetButton(viewRect, false);
 
-    // Update banner (hidden until a newer version is found) and the manual check button
-    if (viewName == "UpdateBanner") {
-        auto* banner = new Krate::Plugins::UpdateBannerView(viewRect, updateChecker_.get());
-        updateBannerView_ = banner;
-        return banner;
-    }
-    if (viewName == "CheckForUpdatesButton")
-        return new Krate::Plugins::CheckForUpdatesButton(viewRect, updateChecker_.get());
-
-    // Version label (the shared view every plugin uses; VERSION_STR from version.json)
-    if (viewName == "VersionLabel")
-        return new Krate::Plugins::VersionLabel(viewRect, VERSION_STR);
+    // The update banner, the manual check button and the version label: the shared
+    // views every Krate editor carries.
+    if (auto* shared = Krate::Plugins::createSharedEditorView(
+            name, attributes, updateChecker_.get(), VERSION_STR, updateBannerView_))
+        return shared;
 
     if (viewName == "RingDisplay") {
         auto* display = new RingDisplay(viewRect);

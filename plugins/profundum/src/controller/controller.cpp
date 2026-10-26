@@ -949,18 +949,11 @@ VSTGUI::CView* Controller::createCustomView(VSTGUI::UTF8StringPtr name, const VS
         // listener in verifyView.
         return new Krate::Plugins::OutlineBrowserButton(viewRect, nullptr, -1, "PRESETS");
     }
-    if (std::strcmp(name, "VersionLabel") == 0) {
-        // FR-059 amendment: the shared label (Vorago / Seraphis / Ruinae), VERSION_STR from version.json.
-        return new Krate::Plugins::VersionLabel(viewRect, VERSION_STR);
-    }
-    // Update banner (hidden until a newer version is found) and the manual check button: the shared views every
-    // plugin with a live update check uses.
-    if (std::strcmp(name, "UpdateBanner") == 0) {
-        updateBannerView_ = new Krate::Plugins::UpdateBannerView(viewRect, updateChecker_.get());
-        return updateBannerView_;
-    }
-    if (std::strcmp(name, "CheckForUpdatesButton") == 0) {
-        return new Krate::Plugins::CheckForUpdatesButton(viewRect, updateChecker_.get());
+    // The update banner, the manual check button and the version label (FR-059 amendment, VERSION_STR from
+    // version.json): the shared views every Krate editor carries.
+    if (auto* shared = Krate::Plugins::createSharedEditorView(name, attributes, updateChecker_.get(), VERSION_STR,
+                                                              updateBannerView_)) {
+        return shared;
     }
     return nullptr;
 }

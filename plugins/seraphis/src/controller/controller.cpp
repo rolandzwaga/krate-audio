@@ -473,18 +473,10 @@ VSTGUI::CView* Controller::createCustomView(VSTGUI::UTF8StringPtr name,
     // plugin's Presets button uses (Krate::Plugins::drawOutlineButton). It is a
     // CControl, so verifyView() gives it its session tag (9000) and this
     // listener from the session-tag attribute - one valueChanged per click.
-    // Update banner (hidden until a newer version is found) and the manual check
-    // button: the shared views every plugin with a live update check uses.
-    if (std::strcmp(name, "UpdateBanner") == 0) {
-        auto* banner = new Krate::Plugins::UpdateBannerView(viewRect, updateChecker_.get());
-        updateBannerView_ = banner;
-        return banner;
-    }
-    if (std::strcmp(name, "CheckForUpdatesButton") == 0) {
-        return new Krate::Plugins::CheckForUpdatesButton(viewRect, updateChecker_.get());
-    }
-    if (std::strcmp(name, "VersionLabel") == 0) {
-        return new Krate::Plugins::VersionLabel(viewRect, VERSION_STR);
+    // The update banner, the manual check button and the version label: the shared views every Krate editor carries.
+    if (auto* shared = Krate::Plugins::createSharedEditorView(name, attributes, updateChecker_.get(), VERSION_STR,
+                                                              updateBannerView_)) {
+        return shared;
     }
     if (std::strcmp(name, "PresetButton") == 0) {
         return new Krate::Plugins::OutlineBrowserButton(viewRect, nullptr, -1, "PRESETS");

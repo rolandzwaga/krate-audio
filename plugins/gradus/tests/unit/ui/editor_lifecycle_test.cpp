@@ -11,7 +11,7 @@
 // here as hard failures.
 
 #include <editor_lifecycle_harness.h>
-#include <version_label_probe.h>
+#include <shared_editor_views_probe.h>
 
 #include "controller/controller.h"
 
@@ -29,17 +29,21 @@ TEST_CASE("Gradus editor open/close cycle is UAF- and leak-free",
     controller.terminate();
 }
 
-// Every Krate editor shows its version through the shared VersionLabel view
-// (createCustomView("VersionLabel") from VERSION_STR); no hand-filled tag-9999 label.
-TEST_CASE("Gradus editor shows the version through the shared VersionLabel",
+// Every Krate editor carries the shared views createSharedEditorView builds: one
+// update banner, one Check for Updates button and one VersionLabel (VERSION_STR),
+// and no hand-filled tag-9999 version label. tools/lint-plugin-editor-baseline.js
+// requires this case in every plugin.
+TEST_CASE("Gradus editor carries the shared update and version views",
           "[gradus][controller][ui][version]")
 {
-    Gradus::Controller controller;
+    ::Gradus::Controller controller;
     REQUIRE(controller.initialize(nullptr) == Steinberg::kResultOk);
 
-    const auto count = Krate::TestSupport::openEditorAndCountVersionLabels(
+    const auto count = Krate::TestSupport::openEditorAndCountSharedViews(
         controller, "editor", std::string(GRADUS_RESOURCES_DIR) + "/editor.uidesc");
-    CHECK(count.shared == 1);
+    CHECK(count.banners == 1);
+    CHECK(count.checkButtons == 1);
+    CHECK(count.versionLabels == 1);
     CHECK(count.legacyTagged == 0);
 
     controller.terminate();

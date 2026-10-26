@@ -301,26 +301,11 @@ VSTGUI::CView* Controller::createCustomView(
         return new FixedOptionMenu(rect, nullptr, -1);
     }
 
-    // Update Banner
-    if (VSTGUI::UTF8StringView(name) == "UpdateBanner") {
-        VSTGUI::CPoint origin(0, 0);
-        VSTGUI::CPoint size(100, 30);
-        attributes.getPointAttribute("origin", origin);
-        attributes.getPointAttribute("size", size);
-        VSTGUI::CRect rect(origin.x, origin.y, origin.x + size.x, origin.y + size.y);
-        auto* banner = new Krate::Plugins::UpdateBannerView(rect, updateChecker_.get());
-        updateBannerView_ = banner;
-        return banner;
-    }
-
-    // Check for Updates button (manual trigger)
-    if (VSTGUI::UTF8StringView(name) == "CheckForUpdatesButton") {
-        VSTGUI::CPoint origin(0, 0);
-        VSTGUI::CPoint size(120, 24);
-        attributes.getPointAttribute("origin", origin);
-        attributes.getPointAttribute("size", size);
-        VSTGUI::CRect rect(origin.x, origin.y, origin.x + size.x, origin.y + size.y);
-        return new Krate::Plugins::CheckForUpdatesButton(rect, updateChecker_.get());
+    // The update banner, the manual check button and the version label: the shared
+    // views every Krate editor carries.
+    if (auto* shared = Krate::Plugins::createSharedEditorView(
+            name, attributes, updateChecker_.get(), VERSION_STR, updateBannerView_)) {
+        return shared;
     }
 
     // ADSR Expand Buttons
@@ -350,16 +335,6 @@ VSTGUI::CView* Controller::createCustomView(
         VSTGUI::CRect rect(origin.x, origin.y, origin.x + size.x, origin.y + size.y);
         return new ADSRExpandButton(rect, this, EnvelopeType::kMod,
             VSTGUI::CColor(0xA0, 0x5A, 0xC8)); // mod-env color
-    }
-
-    // Version label (dynamic, reads VERSION_STR)
-    if (VSTGUI::UTF8StringView(name) == "VersionLabel") {
-        VSTGUI::CPoint origin(0, 0);
-        VSTGUI::CPoint size(60, 16);
-        attributes.getPointAttribute("origin", origin);
-        attributes.getPointAttribute("size", size);
-        VSTGUI::CRect rect(origin.x, origin.y, origin.x + size.x, origin.y + size.y);
-        return new Krate::Plugins::VersionLabel(rect, VERSION_STR);
     }
 
     return nullptr;
