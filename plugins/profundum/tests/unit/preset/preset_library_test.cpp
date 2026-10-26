@@ -1451,3 +1451,69 @@ TEST_CASE("Profundum_PolyPresetCount", "[profundum][preset]") {
     }
     CHECK(poly >= 5u);
 }
+
+// Library breadth (2026-10-26, the designed-library pass): the factory library loads as designed sounds, not as one lever
+// over registered defaults. Counted on endpoint A, the sound a preset loads with. Before the pass: Fold 0 on 78 %, the Sine
+// Anchor on 91 %, Character Amount 0 on 61 %.
+TEST_CASE("Profundum_PresetLibraryBreadth", "[profundum][preset]") {
+    namespace pd = ::Profundum::PresetDefs;
+    using Alg = Krate::DSP::BassCharacterStage::Algorithm;
+    using Img = Krate::DSP::BassStereoField::ImageMode;
+    using AW = Krate::DSP::AnchorOscillator::Waveform;
+    using ProfundumPluginTest::decodePresetState;
+    using ProfundumPluginTest::DecodedPresetState;
+    using ProfundumPluginTest::presetCompOf;
+    constexpr double kMaxFoldOffShare = 0.30;     // Harmonic Fold 0 on at most 30 % of the library
+    constexpr double kMaxSineAnchorShare = 0.50;  // the Sine Anchor on at most half of it
+    constexpr float kCharacterOnAmount = 0.15f;   // a Character algorithm counts as used from Amount 0.15
+    constexpr std::size_t kMinPerAlgorithm = 6;
+    constexpr std::size_t kMinPerImageMode = 4;
+    constexpr std::size_t kMinPerAnchorWaveform = 4;
+
+    const std::vector<pd::ProfundumPresetDef>& defs = pd::allPresets();
+    REQUIRE(!defs.empty());
+    std::size_t foldOff = 0;
+    std::array<std::size_t, 6> perAlgorithm{};
+    std::array<std::size_t, 3> perImageMode{};
+    std::array<std::size_t, 5> perWaveform{};
+    for (const pd::ProfundumPresetDef& def : defs) {
+        const DecodedPresetState d = decodePresetState(presetCompOf(def));
+        INFO("preset " << def.name);
+        REQUIRE(d.ok);
+        foldOff += d.a.foldAmount <= 0.0f ? 1u : 0u;
+        if (d.a.characterAmount >= kCharacterOnAmount) {
+            ++perAlgorithm[static_cast<std::size_t>(d.a.characterAlgorithm)];
+        }
+        ++perImageMode[static_cast<std::size_t>(d.a.field.mode)];
+        ++perWaveform[static_cast<std::size_t>(d.a.anchor.waveform)];
+    }
+
+    const double n = static_cast<double>(defs.size());
+    const std::array<const char*, 6> algNames{"Tube", "Fold", "Rectify", "Bite", "Crush", "Fracture"};
+    const std::array<const char*, 3> imageNames{"Solid", "Spread", "Wide"};
+    const std::array<const char*, 5> waveNames{"Sine", "Triangle", "RoundedSine", "AsymmetricSine", "OctaveDownSine"};
+    std::cout << "# Profundum_PresetLibraryBreadth: presets=" << defs.size() << " fold_off=" << foldOff
+              << " sine_anchor=" << perWaveform[static_cast<std::size_t>(AW::Sine)] << '\n';
+    for (std::size_t i = 0; i < algNames.size(); ++i) {
+        std::cout << "#   character " << algNames[i] << ": " << perAlgorithm[i] << '\n';
+        INFO("Character " << algNames[i] << " at Amount >= " << kCharacterOnAmount << " on endpoint A");
+        CHECK(perAlgorithm[i] >= kMinPerAlgorithm);
+    }
+    for (std::size_t i = 0; i < imageNames.size(); ++i) {
+        std::cout << "#   image " << imageNames[i] << ": " << perImageMode[i] << '\n';
+        INFO("image mode " << imageNames[i] << " on endpoint A");
+        CHECK(perImageMode[i] >= kMinPerImageMode);
+    }
+    for (std::size_t i = 0; i < waveNames.size(); ++i) {
+        std::cout << "#   anchor " << waveNames[i] << ": " << perWaveform[i] << '\n';
+        INFO("Anchor waveform " << waveNames[i] << " on endpoint A");
+        CHECK(perWaveform[i] >= kMinPerAnchorWaveform);
+    }
+    std::cout << std::flush;
+    INFO("Harmonic Fold 0 on endpoint A: " << foldOff << " of " << defs.size());
+    CHECK(static_cast<double>(foldOff) <= kMaxFoldOffShare * n);
+    INFO("Sine Anchor on endpoint A: " << perWaveform[static_cast<std::size_t>(AW::Sine)] << " of " << defs.size());
+    CHECK(static_cast<double>(perWaveform[static_cast<std::size_t>(AW::Sine)]) <= kMaxSineAnchorShare * n);
+    static_assert(static_cast<std::size_t>(Alg::Fracture) == 5 && static_cast<std::size_t>(Img::Wide) == 2 &&
+                  static_cast<std::size_t>(AW::OctaveDownSine) == 4);
+}
