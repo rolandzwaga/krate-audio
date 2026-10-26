@@ -106,7 +106,10 @@ double measureProcessingTimeNs(Disrumpo::MorphEngine& engine, float input, int n
 // =============================================================================
 
 TEST_CASE("MorphEngine same-family - parameters are interpolated linearly", "[morph][interpolation][FR-006]") {
-    Disrumpo::MorphEngine engine;
+    // MorphEngine is ~936 KB (five DistortionAdapters); on the stack it overflows Windows'
+    // 1 MB thread stack, so it lives on the heap here as it does in BandProcessor.
+    auto engineOwner = std::make_unique<Disrumpo::MorphEngine>();
+    auto& engine = *engineOwner;
     prepareTestEngine(engine);
     auto nodes = createSameFamilyNodes();
     engine.setNodes(nodes, 2);
@@ -169,7 +172,8 @@ TEST_CASE("MorphEngine same-family - basic processing works", "[morph][interpola
 
     SECTION("same-family processing") {
         // Same-family setup
-        Disrumpo::MorphEngine engine;
+        auto engineOwner = std::make_unique<Disrumpo::MorphEngine>();
+        auto& engine = *engineOwner;
         prepareTestEngine(engine);
         auto nodes = createSameFamilyNodes();
         engine.setNodes(nodes, 2);
@@ -196,7 +200,8 @@ TEST_CASE("MorphEngine same-family - basic processing works", "[morph][interpola
 
     SECTION("cross-family processing") {
         // Cross-family setup
-        Disrumpo::MorphEngine engine;
+        auto engineOwner = std::make_unique<Disrumpo::MorphEngine>();
+        auto& engine = *engineOwner;
         prepareTestEngine(engine);
         auto nodes = createCrossFamilyNodes();
         engine.setNodes(nodes, 2);
@@ -225,7 +230,8 @@ TEST_CASE("MorphEngine same-family - basic processing works", "[morph][interpola
 // =============================================================================
 
 TEST_CASE("MorphEngine cross-family - processes nodes in parallel", "[morph][interpolation][FR-007]") {
-    Disrumpo::MorphEngine engine;
+    auto engineOwner = std::make_unique<Disrumpo::MorphEngine>();
+    auto& engine = *engineOwner;
     prepareTestEngine(engine);
     auto nodes = createCrossFamilyNodes();
     engine.setNodes(nodes, 2);
@@ -250,7 +256,8 @@ TEST_CASE("MorphEngine cross-family - processes nodes in parallel", "[morph][int
 // =============================================================================
 
 TEST_CASE("MorphEngine cross-family - output level consistent across blend positions", "[morph][interpolation][SC-002]") {
-    Disrumpo::MorphEngine engine;
+    auto engineOwner = std::make_unique<Disrumpo::MorphEngine>();
+    auto& engine = *engineOwner;
     prepareTestEngine(engine);
     auto nodes = createCrossFamilyNodes();
     engine.setNodes(nodes, 2);
@@ -304,7 +311,8 @@ TEST_CASE("MorphEngine cross-family - output level consistent across blend posit
 // =============================================================================
 
 TEST_CASE("MorphEngine cross-family - transition zone activation", "[morph][interpolation][FR-008]") {
-    Disrumpo::MorphEngine engine;
+    auto engineOwner = std::make_unique<Disrumpo::MorphEngine>();
+    auto& engine = *engineOwner;
     prepareTestEngine(engine);
     auto nodes = createCrossFamilyNodes();
     engine.setNodes(nodes, 2);
@@ -339,7 +347,8 @@ TEST_CASE("MorphEngine cross-family - transition zone activation", "[morph][inte
 // =============================================================================
 
 TEST_CASE("MorphEngine family detection - same family detected correctly", "[morph][interpolation][FR-016]") {
-    Disrumpo::MorphEngine engine;
+    auto engineOwner = std::make_unique<Disrumpo::MorphEngine>();
+    auto& engine = *engineOwner;
     prepareTestEngine(engine);
 
     SECTION("Saturation family") {
@@ -506,7 +515,8 @@ TEST_CASE("MorphEngine same-family Fractal - long duration stability (5 seconds)
     constexpr float kTwoPi = 6.28318530718f;
     constexpr float durationSeconds = 5.0f;
 
-    Disrumpo::MorphEngine engine;
+    auto engineOwner = std::make_unique<Disrumpo::MorphEngine>();
+    auto& engine = *engineOwner;
     engine.prepare(sampleRate, 512);
     engine.setSmoothingTime(0.0f);
     engine.setMode(Disrumpo::MorphMode::Linear1D);
@@ -618,7 +628,8 @@ TEST_CASE("MorphEngine same-family Fractal - all modes long duration",
 
     for (int mode = 0; mode <= 4; ++mode) {
         SECTION("Fractal mode " + std::to_string(mode)) {
-            Disrumpo::MorphEngine engine;
+            auto engineOwner = std::make_unique<Disrumpo::MorphEngine>();
+            auto& engine = *engineOwner;
             engine.prepare(sampleRate, 512);
             engine.setSmoothingTime(0.0f);
             engine.setMode(Disrumpo::MorphMode::Linear1D);
@@ -776,7 +787,8 @@ TEST_CASE("MorphEngine same-family Fractal - low drive still stable over time",
     constexpr float kTwoPi = 6.28318530718f;
     constexpr float durationSeconds = 5.0f;
 
-    Disrumpo::MorphEngine engine;
+    auto engineOwner = std::make_unique<Disrumpo::MorphEngine>();
+    auto& engine = *engineOwner;
     engine.prepare(sampleRate, 512);
     engine.setSmoothingTime(0.0f);
     engine.setMode(Disrumpo::MorphMode::Linear1D);

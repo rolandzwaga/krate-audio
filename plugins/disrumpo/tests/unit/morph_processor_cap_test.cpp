@@ -8,6 +8,7 @@
 // ==============================================================================
 
 #include <catch2/catch_test_macros.hpp>
+#include <memory>
 #include <catch2/catch_approx.hpp>
 
 #include "dsp/morph_engine.h"
@@ -72,7 +73,10 @@ int countActiveProcessors(const std::array<float, Disrumpo::kMaxMorphNodes>& wei
 // =============================================================================
 
 TEST_CASE("MorphEngine processor cap - weights are skipped below threshold", "[morph][cap][FR-019]") {
-    Disrumpo::MorphEngine engine;
+    // MorphEngine is ~936 KB (five DistortionAdapters); on the stack it overflows Windows'
+    // 1 MB thread stack, so it lives on the heap here as it does in BandProcessor.
+    auto engineOwner = std::make_unique<Disrumpo::MorphEngine>();
+    auto& engine = *engineOwner;
     prepareTestEngine(engine);
     auto nodes = createMaxCrossFamilyNodes();
     engine.setNodes(nodes, 4);
@@ -93,7 +97,8 @@ TEST_CASE("MorphEngine processor cap - weights are skipped below threshold", "[m
 }
 
 TEST_CASE("MorphEngine processor cap - center position activates all 4 nodes", "[morph][cap][FR-019]") {
-    Disrumpo::MorphEngine engine;
+    auto engineOwner = std::make_unique<Disrumpo::MorphEngine>();
+    auto& engine = *engineOwner;
     prepareTestEngine(engine);
     auto nodes = createMaxCrossFamilyNodes();
     engine.setNodes(nodes, 4);
@@ -122,7 +127,8 @@ TEST_CASE("MorphEngine processor cap - dynamic threshold raises when exceeding l
     // With 5 bands * 4 nodes = 20 potential processors (exceeds 16 cap)
 
     // For now, test the single-engine threshold behavior
-    Disrumpo::MorphEngine engine;
+    auto engineOwner = std::make_unique<Disrumpo::MorphEngine>();
+    auto& engine = *engineOwner;
     prepareTestEngine(engine);
     auto nodes = createMaxCrossFamilyNodes();
     engine.setNodes(nodes, 4);
@@ -142,7 +148,8 @@ TEST_CASE("MorphEngine processor cap - threshold never exceeds 0.25", "[morph][c
     // FR-019 specifies threshold should never go above 0.25
     // This ensures at least some morphing is always possible
 
-    Disrumpo::MorphEngine engine;
+    auto engineOwner = std::make_unique<Disrumpo::MorphEngine>();
+    auto& engine = *engineOwner;
     prepareTestEngine(engine);
     auto nodes = createMaxCrossFamilyNodes();
     engine.setNodes(nodes, 4);
@@ -165,7 +172,8 @@ TEST_CASE("MorphEngine processor cap - threshold never exceeds 0.25", "[morph][c
 // =============================================================================
 
 TEST_CASE("MorphEngine processor cap - single band never exceeds 4 processors", "[morph][cap][SC-009]") {
-    Disrumpo::MorphEngine engine;
+    auto engineOwner = std::make_unique<Disrumpo::MorphEngine>();
+    auto& engine = *engineOwner;
     prepareTestEngine(engine);
     auto nodes = createMaxCrossFamilyNodes();
     engine.setNodes(nodes, 4);
@@ -196,7 +204,8 @@ TEST_CASE("MorphEngine processor cap - single band never exceeds 4 processors", 
 }
 
 TEST_CASE("MorphEngine processor cap - weights remain normalized after threshold", "[morph][cap][FR-019]") {
-    Disrumpo::MorphEngine engine;
+    auto engineOwner = std::make_unique<Disrumpo::MorphEngine>();
+    auto& engine = *engineOwner;
     prepareTestEngine(engine);
     auto nodes = createMaxCrossFamilyNodes();
     engine.setNodes(nodes, 4);
@@ -221,7 +230,8 @@ TEST_CASE("MorphEngine processor cap - weights remain normalized after threshold
 // =============================================================================
 
 TEST_CASE("MorphEngine processor cap - 2-node configuration", "[morph][cap][edge]") {
-    Disrumpo::MorphEngine engine;
+    auto engineOwner = std::make_unique<Disrumpo::MorphEngine>();
+    auto& engine = *engineOwner;
     prepareTestEngine(engine);
 
     std::array<Disrumpo::MorphNode, Disrumpo::kMaxMorphNodes> nodes;
@@ -247,7 +257,8 @@ TEST_CASE("MorphEngine processor cap - 2-node configuration", "[morph][cap][edge
 }
 
 TEST_CASE("MorphEngine processor cap - processing with threshold does not crash", "[morph][cap][edge]") {
-    Disrumpo::MorphEngine engine;
+    auto engineOwner = std::make_unique<Disrumpo::MorphEngine>();
+    auto& engine = *engineOwner;
     prepareTestEngine(engine);
     auto nodes = createMaxCrossFamilyNodes();
     engine.setNodes(nodes, 4);

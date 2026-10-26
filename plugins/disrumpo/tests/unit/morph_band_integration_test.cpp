@@ -383,7 +383,10 @@ TEST_CASE("DIAG: DistortionAdapters produce different output for different types
 
 TEST_CASE("DIAG: MorphEngine produces different output for cross-family types",
           "[diagnostic]") {
-    Disrumpo::MorphEngine engine;
+    // MorphEngine is ~936 KB (five DistortionAdapters); on the stack it overflows Windows'
+    // 1 MB thread stack, so it lives on the heap here as it does in BandProcessor.
+    auto engineOwner = std::make_unique<Disrumpo::MorphEngine>();
+    auto& engine = *engineOwner;
     engine.prepare(kSampleRate, static_cast<int>(kBlockSize));
     engine.setSmoothingTime(0.0f);  // No smoothing for instant response
 
@@ -440,7 +443,8 @@ TEST_CASE("DIAG: MorphEngine produces different output for cross-family types",
 
 TEST_CASE("DIAG: Same-family types (SoftClip vs Tube) produce different output",
           "[diagnostic]") {
-    Disrumpo::MorphEngine engine;
+    auto engineOwner = std::make_unique<Disrumpo::MorphEngine>();
+    auto& engine = *engineOwner;
     engine.prepare(kSampleRate, static_cast<int>(kBlockSize));
     engine.setSmoothingTime(0.0f);
 

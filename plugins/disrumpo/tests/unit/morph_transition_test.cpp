@@ -8,6 +8,7 @@
 // ==============================================================================
 
 #include <catch2/catch_test_macros.hpp>
+#include <memory>
 #include <catch2/catch_approx.hpp>
 
 #include "dsp/morph_engine.h"
@@ -72,7 +73,10 @@ bool hasClicks(const std::vector<float>& output, float threshold = 0.1f) {
 // =============================================================================
 
 TEST_CASE("MorphEngine smoothing - 0ms smoothing gives fast transition", "[morph][transition][FR-009]") {
-    Disrumpo::MorphEngine engine;
+    // MorphEngine is ~936 KB (five DistortionAdapters); on the stack it overflows Windows'
+    // 1 MB thread stack, so it lives on the heap here as it does in BandProcessor.
+    auto engineOwner = std::make_unique<Disrumpo::MorphEngine>();
+    auto& engine = *engineOwner;
     prepareTestEngine(engine);
     auto nodes = createTwoNodes();
     engine.setNodes(nodes, 2);
@@ -99,7 +103,8 @@ TEST_CASE("MorphEngine smoothing - 100ms smoothing completes in approximately 10
     constexpr double sampleRate = 44100.0;
     constexpr float smoothingMs = 100.0f;
 
-    Disrumpo::MorphEngine engine;
+    auto engineOwner = std::make_unique<Disrumpo::MorphEngine>();
+    auto& engine = *engineOwner;
     prepareTestEngine(engine, sampleRate);
     auto nodes = createTwoNodes();
     engine.setNodes(nodes, 2);
@@ -137,7 +142,8 @@ TEST_CASE("MorphEngine smoothing - rapid automation produces limited sample-to-s
     constexpr double sampleRate = 44100.0;
     constexpr float smoothingMs = 10.0f;  // Fast but with some smoothing
 
-    Disrumpo::MorphEngine engine;
+    auto engineOwner = std::make_unique<Disrumpo::MorphEngine>();
+    auto& engine = *engineOwner;
     prepareTestEngine(engine, sampleRate);
     auto nodes = createTwoNodes();
     engine.setNodes(nodes, 2);
@@ -186,7 +192,8 @@ TEST_CASE("MorphEngine smoothing - timing accuracy reaches target", "[morph][tra
     SECTION("50ms smoothing") {
         constexpr float smoothingMs = 50.0f;
 
-        Disrumpo::MorphEngine engine;
+        auto engineOwner = std::make_unique<Disrumpo::MorphEngine>();
+        auto& engine = *engineOwner;
         prepareTestEngine(engine, sampleRate);
         auto nodes = createTwoNodes();
         engine.setNodes(nodes, 2);
@@ -214,7 +221,8 @@ TEST_CASE("MorphEngine smoothing - timing accuracy reaches target", "[morph][tra
     SECTION("200ms smoothing") {
         constexpr float smoothingMs = 200.0f;
 
-        Disrumpo::MorphEngine engine;
+        auto engineOwner = std::make_unique<Disrumpo::MorphEngine>();
+        auto& engine = *engineOwner;
         prepareTestEngine(engine, sampleRate);
         auto nodes = createTwoNodes();
         engine.setNodes(nodes, 2);
@@ -248,7 +256,8 @@ TEST_CASE("MorphEngine handles 20Hz LFO modulation without artifacts", "[morph][
     constexpr double sampleRate = 44100.0;
     constexpr float smoothingMs = 5.0f;  // Fast smoothing for rapid modulation
 
-    Disrumpo::MorphEngine engine;
+    auto engineOwner = std::make_unique<Disrumpo::MorphEngine>();
+    auto& engine = *engineOwner;
     prepareTestEngine(engine, sampleRate);
     auto nodes = createTwoNodes();
     engine.setNodes(nodes, 2);
@@ -283,7 +292,8 @@ TEST_CASE("MorphEngine handles 20Hz LFO modulation without artifacts", "[morph][
 
 TEST_CASE("MorphEngine smoothing - handles sample rate changes", "[morph][transition][edge]") {
     // Start at 44.1kHz
-    Disrumpo::MorphEngine engine;
+    auto engineOwner = std::make_unique<Disrumpo::MorphEngine>();
+    auto& engine = *engineOwner;
     prepareTestEngine(engine, 44100.0);
     auto nodes = createTwoNodes();
     engine.setNodes(nodes, 2);
@@ -308,7 +318,8 @@ TEST_CASE("MorphEngine smoothing - handles sample rate changes", "[morph][transi
 }
 
 TEST_CASE("MorphEngine smoothing - handles extreme smoothing times", "[morph][transition][edge]") {
-    Disrumpo::MorphEngine engine;
+    auto engineOwner = std::make_unique<Disrumpo::MorphEngine>();
+    auto& engine = *engineOwner;
     prepareTestEngine(engine);
     auto nodes = createTwoNodes();
     engine.setNodes(nodes, 2);
@@ -337,7 +348,8 @@ TEST_CASE("MorphEngine smoothing - handles extreme smoothing times", "[morph][tr
 }
 
 TEST_CASE("MorphEngine smoothing - reset clears smoother state", "[morph][transition][edge]") {
-    Disrumpo::MorphEngine engine;
+    auto engineOwner = std::make_unique<Disrumpo::MorphEngine>();
+    auto& engine = *engineOwner;
     prepareTestEngine(engine);
     auto nodes = createTwoNodes();
     engine.setNodes(nodes, 2);

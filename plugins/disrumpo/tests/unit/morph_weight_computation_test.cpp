@@ -8,6 +8,7 @@
 // ==============================================================================
 
 #include <catch2/catch_test_macros.hpp>
+#include <memory>
 #include <catch2/catch_approx.hpp>
 #include <catch2/benchmark/catch_benchmark.hpp>
 
@@ -55,7 +56,10 @@ std::array<Disrumpo::MorphNode, Disrumpo::kMaxMorphNodes> createFourCornerNodes(
 // =============================================================================
 
 TEST_CASE("MorphEngine weight computation - cursor at node position gives 100% weight", "[morph][weight][FR-001]") {
-    Disrumpo::MorphEngine engine;
+    // MorphEngine is ~936 KB (five DistortionAdapters); on the stack it overflows Windows'
+    // 1 MB thread stack, so it lives on the heap here as it does in BandProcessor.
+    auto engineOwner = std::make_unique<Disrumpo::MorphEngine>();
+    auto& engine = *engineOwner;
     prepareTestEngine(engine);
     auto nodes = createTwoNodes();
     engine.setNodes(nodes, 2);
@@ -79,7 +83,8 @@ TEST_CASE("MorphEngine weight computation - cursor at node position gives 100% w
 }
 
 TEST_CASE("MorphEngine weight computation - equidistant from 2 nodes gives 50/50 weights", "[morph][weight][FR-001]") {
-    Disrumpo::MorphEngine engine;
+    auto engineOwner = std::make_unique<Disrumpo::MorphEngine>();
+    auto& engine = *engineOwner;
     prepareTestEngine(engine);
     auto nodes = createTwoNodes();
     engine.setNodes(nodes, 2);
@@ -93,7 +98,8 @@ TEST_CASE("MorphEngine weight computation - equidistant from 2 nodes gives 50/50
 }
 
 TEST_CASE("MorphEngine weight computation - 4 nodes at corners, cursor at center gives 25% each", "[morph][weight][FR-001]") {
-    Disrumpo::MorphEngine engine;
+    auto engineOwner = std::make_unique<Disrumpo::MorphEngine>();
+    auto& engine = *engineOwner;
     prepareTestEngine(engine);
     auto nodes = createFourCornerNodes();
     engine.setNodes(nodes, 4);
@@ -114,7 +120,8 @@ TEST_CASE("MorphEngine weight computation - 4 nodes at corners, cursor at center
 // =============================================================================
 
 TEST_CASE("MorphEngine weight computation - deterministic (same inputs always produce same weights)", "[morph][weight][FR-014]") {
-    Disrumpo::MorphEngine engine;
+    auto engineOwner = std::make_unique<Disrumpo::MorphEngine>();
+    auto& engine = *engineOwner;
     prepareTestEngine(engine);
     auto nodes = createFourCornerNodes();
     engine.setNodes(nodes, 4);
@@ -142,7 +149,8 @@ TEST_CASE("MorphEngine weight computation - deterministic (same inputs always pr
 // =============================================================================
 
 TEST_CASE("MorphEngine weight computation - weights below threshold are skipped and renormalized", "[morph][weight][FR-015]") {
-    Disrumpo::MorphEngine engine;
+    auto engineOwner = std::make_unique<Disrumpo::MorphEngine>();
+    auto& engine = *engineOwner;
     prepareTestEngine(engine);
     auto nodes = createFourCornerNodes();
     engine.setNodes(nodes, 4);
@@ -161,7 +169,8 @@ TEST_CASE("MorphEngine weight computation - weights below threshold are skipped 
 }
 
 TEST_CASE("MorphEngine weight computation - weights sum to 1.0 (normalized)", "[morph][weight][SC-005]") {
-    Disrumpo::MorphEngine engine;
+    auto engineOwner = std::make_unique<Disrumpo::MorphEngine>();
+    auto& engine = *engineOwner;
     prepareTestEngine(engine);
     auto nodes = createFourCornerNodes();
     engine.setNodes(nodes, 4);
@@ -194,7 +203,8 @@ TEST_CASE("MorphEngine weight computation - weights sum to 1.0 (normalized)", "[
 // =============================================================================
 
 TEST_CASE("MorphEngine weight computation - benchmark performance", "[morph][weight][SC-001][benchmark]") {
-    Disrumpo::MorphEngine engine;
+    auto engineOwner = std::make_unique<Disrumpo::MorphEngine>();
+    auto& engine = *engineOwner;
     prepareTestEngine(engine);
     auto nodes = createFourCornerNodes();
     engine.setNodes(nodes, 4);
@@ -211,7 +221,8 @@ TEST_CASE("MorphEngine weight computation - benchmark performance", "[morph][wei
 // =============================================================================
 
 TEST_CASE("MorphEngine weight computation - handles edge positions correctly", "[morph][weight][edge]") {
-    Disrumpo::MorphEngine engine;
+    auto engineOwner = std::make_unique<Disrumpo::MorphEngine>();
+    auto& engine = *engineOwner;
     prepareTestEngine(engine);
     auto nodes = createFourCornerNodes();
     engine.setNodes(nodes, 4);
@@ -235,7 +246,8 @@ TEST_CASE("MorphEngine weight computation - handles edge positions correctly", "
 }
 
 TEST_CASE("MorphEngine weight computation - 2-node linear interpolation", "[morph][weight][linear]") {
-    Disrumpo::MorphEngine engine;
+    auto engineOwner = std::make_unique<Disrumpo::MorphEngine>();
+    auto& engine = *engineOwner;
     prepareTestEngine(engine);
     auto nodes = createTwoNodes();
     engine.setNodes(nodes, 2);
@@ -259,7 +271,8 @@ TEST_CASE("MorphEngine weight computation - 2-node linear interpolation", "[morp
 }
 
 TEST_CASE("MorphEngine weight computation - nodes at same position", "[morph][weight][edge]") {
-    Disrumpo::MorphEngine engine;
+    auto engineOwner = std::make_unique<Disrumpo::MorphEngine>();
+    auto& engine = *engineOwner;
     prepareTestEngine(engine);
     std::array<Disrumpo::MorphNode, Disrumpo::kMaxMorphNodes> nodes;
     // All nodes at center
