@@ -1,0 +1,41 @@
+Filters: "BassMorph_DiscreteClickFree_FieldCycleModifier"
+Randomness seeded to: 796494645
+SC004 field-cycle-modifier,None->Dotted,E1,5,12096,1,1,0,0,0,0
+SC004 field-cycle-modifier,None->Dotted,E1,40,12992,1,1,0,0,0,0
+SC004 field-cycle-modifier,None->Dotted,E1,2000,61888,1,1,0,0,0,0
+SC004 field-cycle-modifier,None->Triplet,E1,5,12096,1,1,0,0,0,0
+SC004 field-cycle-modifier,None->Triplet,E1,40,12992,1,1,0,0,0,0
+SC004 field-cycle-modifier,None->Triplet,E1,2000,61888,1,1,0,0,0,0
+SC004 field-cycle-modifier,Dotted->None,E1,5,12096,1,1,0,0,0,0
+SC004 field-cycle-modifier,Dotted->None,E1,40,12992,1,1,0,0,0,0
+SC004 field-cycle-modifier,Dotted->None,E1,2000,61888,1,1,0,0,0,0
+SC004 field-cycle-modifier,Dotted->Triplet,E1,5,12096,1,1,0,0,0,0
+SC004 field-cycle-modifier,Dotted->Triplet,E1,40,12992,1,1,0,0,0,0
+SC004 field-cycle-modifier,Dotted->Triplet,E1,2000,61888,1,1,0,0,0,0
+SC004 field-cycle-modifier,Triplet->None,E1,5,12096,1,1,0,0,0,0
+SC004 field-cycle-modifier,Triplet->None,E1,40,12992,1,1,0,0,0,0
+SC004 field-cycle-modifier,Triplet->None,E1,2000,61888,1,1,0,0,0,0
+SC004 field-cycle-modifier,Triplet->Dotted,E1,5,12096,1,1,0,0,0,0
+SC004 field-cycle-modifier,Triplet->Dotted,E1,40,12992,1,1,0,0,0,0
+SC004 field-cycle-modifier,Triplet->Dotted,E1,2000,61888,1,1,0,0,0,0
+SC004 field-cycle-modifier,None->Dotted,C3,5,12096,1,1,0,0,0,0
+SC004 field-cycle-modifier,None->Dotted,C3,40,12992,1,1,0,0,0,0
+SC004 field-cycle-modifier,None->Dotted,C3,2000,61888,1,1,0,0,0,0
+SC004 field-cycle-modifier,None->Triplet,C3,5,12096,1,1,0,0,0,0
+SC004 field-cycle-modifier,None->Triplet,C3,40,12992,1,1,0,0,0,0
+SC004 field-cycle-modifier,None->Triplet,C3,2000,61888,1,1,0,0,0,0
+SC004 field-cycle-modifier,Dotted->None,C3,5,12096,1,1,0,0,0,0
+SC004 field-cycle-modifier,Dotted->None,C3,40,12992,1,1,0,0,0,0
+SC004 field-cycle-modifier,Dotted->None,C3,2000,61888,1,1,0,0,0,0
+SC004 field-cycle-modifier,Dotted->Triplet,C3,5,12096,1,1,0,0,0,0
+SC004 field-cycle-modifier,Dotted->Triplet,C3,40,12992,1,1,0,0,0,0
+SC004 field-cycle-modifier,Dotted->Triplet,C3,2000,61888,1,1,0,0,0,0
+SC004 field-cycle-modifier,Triplet->None,C3,5,12096,1,1,0,0,0,0
+SC004 field-cycle-modifier,Triplet->None,C3,40,12992,1,1,0,0,0,0
+SC004 field-cycle-modifier,Triplet->None,C3,2000,61888,1,1,0,0,0,0
+SC004 field-cycle-modifier,Triplet->Dotted,C3,5,12096,1,1,0,0,0,0
+SC004 field-cycle-modifier,Triplet->Dotted,C3,40,12992,1,1,0,0,0,0
+SC004 field-cycle-modifier,Triplet->Dotted,C3,2000,61888,1,1,0,0,0,0
+===============================================================================
+All tests passed (3059 assertions in 1 test case)
+

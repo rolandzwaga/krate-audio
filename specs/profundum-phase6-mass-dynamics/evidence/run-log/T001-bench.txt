@@ -1,0 +1,42 @@
+=== T001 bench 2026-10-17T08:50:16Z variant=base runs=3 settle=60s quick=0
+compile: "/c/Program Files/LLVM/bin/clang++.exe" -std=c++20 -O2 -ffast-math -march=x86-64-v2 -DNDEBUG -Idsp/include <variant defines> specs/profundum-phase6-mass-dynamics/bench/mass-dynamics-bench.cpp
+commit: 02fecee1
+--- run 1
+pin-perf-cores: performance-core mask 0xFFFF
+P6BENCH fs=48000 block=64 interval=32 tp_factor=4 dyn_tick=1 seconds_per_cell=3.00
+cell shaper ns_per_sample 65.86 pct_core 0.3161
+cell compressor ns_per_sample 73.45 pct_core 0.3525
+cell total ns_per_sample 161.30 pct_core 0.7743
+cell dc_limiter ns_per_sample 274.08 pct_core 1.3156
+cell linked ns_per_sample 138.59 pct_core 0.6652
+cell silence ns_per_sample 108.69 pct_core 0.5217
+sink 173.989
+--- run 2
+pin-perf-cores: performance-core mask 0xFFFF
+P6BENCH fs=48000 block=64 interval=32 tp_factor=4 dyn_tick=1 seconds_per_cell=3.00
+cell shaper ns_per_sample 74.48 pct_core 0.3575
+cell compressor ns_per_sample 81.68 pct_core 0.3921
+cell total ns_per_sample 160.29 pct_core 0.7694
+cell dc_limiter ns_per_sample 263.44 pct_core 1.2645
+cell linked ns_per_sample 127.99 pct_core 0.6144
+cell silence ns_per_sample 109.68 pct_core 0.5265
+sink 175.543
+--- run 3
+pin-perf-cores: performance-core mask 0xFFFF
+P6BENCH fs=48000 block=64 interval=32 tp_factor=4 dyn_tick=1 seconds_per_cell=3.00
+cell shaper ns_per_sample 75.60 pct_core 0.3629
+cell compressor ns_per_sample 83.28 pct_core 0.3997
+cell total ns_per_sample 154.74 pct_core 0.7427
+cell dc_limiter ns_per_sample 287.06 pct_core 1.3779
+cell linked ns_per_sample 134.77 pct_core 0.6469
+cell silence ns_per_sample 107.39 pct_core 0.5155
+sink 174.594
+--- medians over 3 run(s) (% of one core, 48 kHz, variant base)
+median shaper       0.3575
+median compressor   0.3921
+median total        0.7694
+median dc_limiter   1.3156
+median linked       0.6469
+median silence      0.5217
+DECISION: median_total 0.7694 -> PROCEED (median Total <= 1.0 %) with variant base
+RECORD: shaper / compressor / dc_limiter / linked / silence are recorded, not gated

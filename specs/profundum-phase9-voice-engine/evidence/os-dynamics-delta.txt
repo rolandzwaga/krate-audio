@@ -1,0 +1,19 @@
+# Profundum Phase 9 T005 (FR-082, plan S7, R-J). Written by MassDynamics_OversamplingTransfer
+# (dsp/tests/unit/systems/mass_dynamics_oversampling_test.cpp). Recorded, not gated.
+# fs 48000 Hz, host block 64.
+
+== Neutral transfer (compression 0, trim 0, transient gains 0; sine amplitude 0.25; 1 s settle, 1 s read) ==
+hz on_over_off_db (gated +/-0.05 dB)
+40 0
+200 0
+1000 0
+5000 0
+
+== Group delay at 40 Hz (cross-correlation peak, parabolic interpolation) ==
+delay_base_samples 0 (peak on the search edge)
+
+== R-J: steady compressor GR and makeup, Fold-100 E2 sum input (Mass 100 chain render), mean over host-block ends in [1 s, 2 s) ==
+mass gr_off_db gr_on_db gr_delta_db makeup_off_db makeup_on_db makeup_delta_db
+0 0 0 0 0 0 0
+50 0 0 0 0 0 0
+100 -7.12428 -7.12432 -4.29344e-05 5.8421 5.8421 0

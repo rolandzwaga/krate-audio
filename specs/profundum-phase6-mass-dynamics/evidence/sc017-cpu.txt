@@ -1,0 +1,6 @@
+SC017 setup fs=48000 block=64 interval=32 note=E1 (41.20344 Hz) fixture=kSawAnchor -12 dBFS RMS loop=47763 samples R_delay=431 samples (0.37 P) reps=best of 5 x 10.0 s warmup=1 s bar=1.0%
+SC017 GATED distinct_pair MassDynamics(A=+12 dB S=-6 dB duration=40 ms amount=1 key=E1) + MassLaw advanceInterval+evaluate per 32 samples (Mass 75) pct=0.9908 bar=1.0
+SC017 RECORD dc_limiter DCBlocker x2 + TruePeakLimiter (Phase 9) pct=1.2346 (not gated)
+SC017 RECORD linked L == R (MassDynamics mono path, right == left, copied to R) pct=0.7527 (not gated)
+SC017 RECORD silence one silent second after 1 s of signal (gated chain) pct=0.7949 (not gated)
+SC017 VERDICT PASS 0.991 %

@@ -1,0 +1,6 @@
+Filters: "VoiceEngine_SoakSmoke","VoiceEngine_StaticContract"
+Randomness seeded to: 3057951834
+===============================================================================
+All tests passed (126 assertions in 2 test cases)
+
+exit 0

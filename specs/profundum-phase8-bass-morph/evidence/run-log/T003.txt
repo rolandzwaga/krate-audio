@@ -1,0 +1,95 @@
+T003 BassMorphEngine API, lifecycle, position ramp, Anchor curves and the identity resolver (FR-010 - FR-016,
+FR-020 - FR-022, FR-035, FR-050 - FR-052; SC-001, SC-002, SC-003(a)(c), SC-014, SC-021(a), SC-022; plan S4.1 - S4.4,
+C-3, C-5, C-7, C-14; deviations 4, 11) - 2026-10-19
+
+STATUS: BLOCKED - STOP AND SURFACE (tasks.md rule 13). SC-003(a)'s and SC-022's per-interval step bars are
+unreachable with the plan's float SlewLimiter ramp. The tests are written at the bars as specified (not relaxed); the
+Group 3 gate will show BassMorph_BoundedStep (a) and BassMorph_RampTimeChange red. A ruling is needed (below).
+
+Order: the ten TEST_CASEs and the helper append written first, then bass_morph_engine.h (replacing the T001 stub).
+Not built or run (the Group 3 gate does that). Every written file re-read for obvious compile errors.
+
+Files written:
+  dsp/include/krate/dsp/systems/bass_morph_engine.h (T001 stub replaced)
+      class BassMorphEngine: plan S4.1 API without serializeRuntime / restoreRuntime (T005), plus public
+      static curve(AnchorMorphMode, float) (deviation 11) and the kMorphRuntimeFormatVersion / kMorphRuntimeBytes
+      constants (test 1 asserts them). S4.2 members: a_, b_, logA_, logB_ (zero-filled, [[maybe_unused]] until T004,
+      so clang's -Wunused-private-field stays quiet), posSlew_, anchorSlew_, target_, rampMs_, intervalRate_, mode_,
+      selections_ (all A, read only through MorphState::groupIndex), resolved_, prepared_, dirty_, and
+      static_assert(groupIndex(Anchor) < tuple_size_v<decltype(selections_)>). S4.3 lifecycle (C-5), S4.4
+      position / ramp / curve (C-7), advanceInterval (C-3: p_a target = curve(mode, ramped p) every interval;
+      before prepare: reset() snap + resolve, FR-011), selection(g) (None -> A). TEMPORARY identity-only resolver
+      (deviation 4; banner says "interior positions resolve to A until T004").
+  dsp/tests/unit/systems/bass_morph_state_helpers.h (append only)
+      #include <krate/dsp/systems/bass_morph_engine.h>; bitEqual(const BassMorphEngine::Resolved&, const Resolved&)
+      = bitEqual(state) and std::bit_cast<uint32_t> equality of position, anchorPosition, anchorMass.
+  dsp/tests/unit/systems/bass_morph_engine_test.cpp (T001 stub filled)
+      BassMorph_InterfaceStatics [fr-010][fr-014], BassMorph_EndpointApi [fr-012], BassMorph_AnchorModeApi [fr-014],
+      BassMorph_SubThresholdLanding [fr-022][fr-013], BassMorph_BoundedStep [sc-003] SECTIONs (a) (c),
+      BassMorph_RampTimeChange [sc-022], BassMorph_SampleRates [sc-014], BassMorph_Lifecycle [sc-021] SECTION (a),
+      BassMorph_EndpointIdentity [sc-001], BassMorph_EqualEndpointsConstant [sc-002]. All [systems][profundum]
+      [bass-morph]; none [long], none hidden; no FTZ / DAZ. TU-local helpers in an anonymous namespace with the bm
+      prefix: bmLand (rule 17, cap 2*ceil(rampMs*fs/32000)+8, FAIL with values printed), bmIsLanded, bmMakeEngine,
+      bmIdentityMismatches (the SC-001 procedure, shared by tests 7 and 9), bmStepChecked / BmStepStats (SC-003(a)
+      bookkeeping; T004's SECTION (b) can reuse the loop), bmDeltaMax, bmTraversal, bmUnit (raw words, R-8).
+  specs/profundum-phase8-bass-morph/evidence/run-log/T003.txt (this file)
+
+Sources read this session: smoother.h:468-624 (SlewLimiter: configure :501-514, setTarget :519-529, process
+:545-560 with current_ = target_ at :553 and flushDenormal at :557, snapTo :591-600), smoother.h:114-121
+(calculateSlewRate = unitsPerMs / (sampleRate * 0.001f)); db_utils.h:38 (kDenormalThreshold = 1e-15f),
+:99-129 (isNaN / isFinite), :263-264 (flushDenormal); profundum_core.h:97, mass_law.h:74-75,
+bass_stereo_field.h:68 (kControlInterval 32, kNeutralMass 50); spectral_shape_recipe.h:82-84, :227-249 (the seven
+named recipes); morph_state.h (T002, whole file).
+
+Decisions:
+  - prepare(non-finite) reads as kMinSampleRate before the clamp (rule 3: never hand a non-finite value to std::clamp).
+    The plan does not specify it; T006 owns the non-finite rows and may assert something else (then this line moves).
+  - curve(m, p): Lock 0, Punch p*p*p (static_assert(kPunchExponent == 3) beside it), Blend p; every branch returns
+    through detail::flushDenormal (C-7). Plain static, not constexpr (deviation 11's spelling).
+  - setAnchorMorphMode / setEndpoint reject undeclared enumerators by explicit comparison.
+  - dirty_ is set by setEndpoint (on a real change) and by any bitwise change of p or p_a in advanceInterval;
+    resolve() runs only when dirty_ (C-6's cache, which T004 extends with selection changes). Identity / twin
+    results are unaffected (same inputs, same outputs).
+  - BoundedStep uses the showcase pair as endpoints (so T004's (b) has differing fields); the random run draws from
+    a fresh std::mt19937(0x8003) per (fs, ramp, mode): target word (u < 0.1 -> one more word & 1 picks 0 / 1, else a
+    uniform word), then the hold length 25 + 375*u ms rounded to intervals (>= 1); the Anchor mode cycles
+    Lock -> Blend -> Punch every round(0.5*fs/32) intervals, starting from the combo's mode.
+  - RampTimeChange "|dp| == new dpmax within (1 + 4 eps)" is read two-sided: | |dp|/dpmax - 1 | <= 4*FLT_EPSILON,
+    excluding the landing step (a remainder by definition).
+  - SampleRates: the clamped-rate traversals (8000 vs 22050, 384000 vs 192000) use the clamped rate's cap.
+
+Traversal counts at 48 kHz (0 -> 1, SC-003(c)): NOT YET MEASURED by the C++ build (executors do not build). An exact
+IEEE-float emulation of SlewLimiter::configure / process (Node, Math.fround) predicts:
+    5 ms:    8 intervals  (ceil = 8)
+    40 ms:  61 intervals  (ceil = 60; within +/- 1: r = 0.016666666 is 0.5 eps below dpmax, so one extra landing step)
+    2000 ms: 3001 intervals (ceil = 3000; within +/- 1)
+  Other rates (emulated): 22.05 kHz 4 / 28 / 1379; 44.1 kHz 7 / 56 / 2757; 96 kHz 16 / 121 / 6001;
+  192 kHz 31 / 241 / 12001 (all within ceil +/- 1). The gate's printed lines replace these.
+
+STOP AND SURFACE - SC-003(a) and SC-022 are unreachable as written (rule 13):
+  SC-003(a) asks |dp| <= dpmax * (1 + 4*FLT_EPSILON) per interval. SlewLimiter::process (smoother.h:549) computes
+  current_ += riseRate_ in float, so each step is fl(p + r) - p, which differs from r by up to 0.5 ulp(p) ABSOLUTE
+  (2^-25 for p in [0.5, 1)). The spec's tolerance covers only the float computation of r (calculateSlewRate), not the
+  rounding of the addition; relative to a small r the absolute 0.5 ulp dominates. The plan mandates the SlewLimiter
+  (FR-020, plan S4.2), so the engine cannot avoid it without a plan / spec change.
+  Emulated worst (max(|dp|, |dp_a|) / dpmax - 1) / FLT_EPSILON over the three jumps (allowed: 4.0):
+      fs \ ramp      5 ms (L/B/P)       40 ms (L/B/P)        2000 ms (L/B/P)
+      44 100         1.0 / 1.0 / 1.0     11.3 / 11.3 / 11.3   38.9 / 38.9 / 38.9
+      48 000        -0.5 / -0.5 / 1.4    -0.5 / -0.5 / -0.5   142 / 142 / 142
+      96 000        -0.5 / -0.5 / -0.5   -0.5 / -0.5 / 7.0    142 / 142 / 142
+      192 000       -0.5 / -0.5 / -0.5   -0.5 / -0.5 / 52.0   2392 / 2392 / 2392
+  SC-022 (two-sided | |dp|/dpmax - 1 | after a mid-traversal change at 48 kHz, allowed 4 eps): 5 ms 2.38 eps,
+  40 ms 8.00 eps (red), 2000 ms 608 eps (red).
+  The excess in absolute terms is <= 0.5 ulp(p) in every cell (e.g. 192 kHz / 2000 ms: 2392 eps * dpmax(8.33e-5)
+  = 2.4e-8 < 0.5 ulp(0.99) = 3.0e-8).
+  Decision needed (user): one of
+    (1) amend SC-003(a) / SC-022 to dpmax*(1 + 4*FLT_EPSILON) + 0.5*ulp(max(|p_old|, |p_new|)) (the same kind of
+        k*ulp rounding term SC-003(b) already carries); the engine stays on SlewLimiter as planned; or
+    (2) keep the bar and replace the SlewLimiter step by an engine-side step that rounds toward the old value
+        (e.g. nextafter back when fl(p + r) - p > r), a plan S4.2 / FR-020 change; or
+    (3) another ruling. No threshold was relaxed and no workload shrunk; the tests assert the bars as written.
+
+DEFECT lines: none (the conflict is in the spec bar, not in a file another task owns).
+
+RULING B3-1 (user, 2026-10-19): option (1). SC-003(a) and SC-022 gain + 0.5*ulp(max(|p_old|,|p_new|)); the engine
+stays on SlewLimiter. Main loop changed bmRecordStep and the RampTimeChange off-step test (bmHalfUlp) and the two SC rows.

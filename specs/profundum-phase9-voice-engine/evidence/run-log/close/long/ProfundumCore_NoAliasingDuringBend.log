@@ -1,0 +1,26 @@
+Filters: "ProfundumCore_NoAliasingDuringBend"
+Randomness seeded to: 505184402
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+ProfundumCore_NoAliasingDuringBend
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(1079)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(1084): warning:
+  SC-009 bend fs 44100 (MIDI 24 -> 108 -> 24, 10 ms legs): worst aliased -132.
+  316 dBFS (bar -96), max excluded fraction 0.248047 (bar 0.5)
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(1084): warning:
+  SC-009 bend fs 48000 (MIDI 24 -> 108 -> 24, 10 ms legs): worst aliased -132.
+  213 dBFS (bar -96), max excluded fraction 0.240234 (bar 0.5)
+
+10.230 s: ProfundumCore_NoAliasingDuringBend
+===============================================================================
+All tests passed (2696 assertions in 1 test case)
+
+exit: 0 wall: 10 s

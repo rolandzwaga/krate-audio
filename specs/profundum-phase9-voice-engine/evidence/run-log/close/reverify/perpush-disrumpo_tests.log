@@ -1,0 +1,98 @@
+Filters: ~[long] ~[performance] ~[perf] ~[benchmark] ~[!benchmark]
+Randomness seeded to: 2618771578
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+disrumpo_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+DIAGNOSTIC: Chaos attractor state statistics per model
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\disrumpo\tests\integration\chaos_distortion_wiring_test.cpp(447)
+...............................................................................
+
+F:\projects\iterum\plugins\disrumpo\tests\integration\chaos_distortion_wiring_test.cpp(508): warning:
+  Lorenz: output_rms=0.922536 input_rms=0.707155 MAD_from_dry=0.260972 range=[-
+  1, 1] histogram_bins_used=100/100
+
+F:\projects\iterum\plugins\disrumpo\tests\integration\chaos_distortion_wiring_test.cpp(508): warning:
+  Rossler: output_rms=0.85798 input_rms=0.707155 MAD_from_dry=0.190606 range=[-
+  1, 1] histogram_bins_used=100/100
+
+F:\projects\iterum\plugins\disrumpo\tests\integration\chaos_distortion_wiring_test.cpp(508): warning:
+  Chua: output_rms=0.836202 input_rms=0.707155 MAD_from_dry=0.179702 range=[-1,
+  1] histogram_bins_used=100/100
+
+F:\projects\iterum\plugins\disrumpo\tests\integration\chaos_distortion_wiring_test.cpp(508): warning:
+  Henon: output_rms=0.846493 input_rms=0.707155 MAD_from_dry=0.239606 range=[-
+  1, 1] histogram_bins_used=100/100
+
+-------------------------------------------------------------------------------
+MorphEngine: switching to cross-family does not produce noise
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\disrumpo\tests\integration\multi_node_distortion_test.cpp(635)
+...............................................................................
+
+F:\projects\iterum\plugins\disrumpo\tests\integration\multi_node_distortion_test.cpp(684): warning:
+  Setting 2 nodes: Fuzz + BitwiseMangler
+
+F:\projects\iterum\plugins\disrumpo\tests\integration\multi_node_distortion_test.cpp(686): warning:
+  setNodes completed
+
+F:\projects\iterum\plugins\disrumpo\tests\integration\multi_node_distortion_test.cpp(708): warning:
+  MorphEngine cross-family RMS=0.310355 ZCR=0.0454212 autocorr=0.963121
+
+-------------------------------------------------------------------------------
+DistortionAdapter: BitwiseMangler with shadow defaults is not noise
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\disrumpo\tests\integration\multi_node_distortion_test.cpp(723)
+...............................................................................
+
+F:\projects\iterum\plugins\disrumpo\tests\integration\multi_node_distortion_test.cpp(760): warning:
+  Adapter BitwiseMangler(shadow defaults) RMS=0.500118 ZCR=0.0454323 autocorr=
+  0.908612
+
+-------------------------------------------------------------------------------
+Full Processor: Bitcrush knob turn does not produce white noise
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\disrumpo\tests\integration\bitcrush_noise_repro_test.cpp(143)
+...............................................................................
+
+F:\projects\iterum\plugins\disrumpo\tests\integration\bitcrush_noise_repro_test.cpp(192): warning:
+  BEFORE knob turn: RMS=0.551483 autocorr=0.99535 ZCR=0.0195695
+
+F:\projects\iterum\plugins\disrumpo\tests\integration\bitcrush_noise_repro_test.cpp(213): warning:
+  AFTER knob turn: RMS=0.548561 autocorr=0.995658 ZCR=0.0195695
+
+-------------------------------------------------------------------------------
+Full Processor: Bitcrush actually modifies the signal
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\disrumpo\tests\integration\bitcrush_noise_repro_test.cpp(230)
+...............................................................................
+
+F:\projects\iterum\plugins\disrumpo\tests\integration\bitcrush_noise_repro_test.cpp(258): warning:
+  Default (SoftClip): RMS=0.54437 autocorr=0.997127
+
+F:\projects\iterum\plugins\disrumpo\tests\integration\bitcrush_noise_repro_test.cpp(307): warning:
+  Bitcrush (1-bit, drive=5): RMS=0.551729 autocorr=0.994765 ZCR=0.0195695
+
+F:\projects\iterum\plugins\disrumpo\tests\integration\bitcrush_noise_repro_test.cpp(314): warning:
+  First 20 samples: 0.536775 0.573121 0.699871 0.634440 0.659953 0.682410 0.
+  702076 0.719192 0.733970 0.746591 0.757199 0.765900 0.867027 0.777724 0.
+  780725 0.781504 0.779606 0.774277 0.764373 0.748331 
+
+-------------------------------------------------------------------------------
+Full Processor: Quantize knob turn does not produce white noise
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\disrumpo\tests\integration\bitcrush_noise_repro_test.cpp(324)
+...............................................................................
+
+F:\projects\iterum\plugins\disrumpo\tests\integration\bitcrush_noise_repro_test.cpp(368): warning:
+  Quantize BEFORE knob: RMS=0.554465 autocorr=0.99538
+
+F:\projects\iterum\plugins\disrumpo\tests\integration\bitcrush_noise_repro_test.cpp(386): warning:
+  Quantize AFTER knob: RMS=0.550135 autocorr=0.995539 ZCR=0.0195695
+
+===============================================================================
+All tests passed (595525 assertions in 505 test cases)
+

@@ -1,0 +1,246 @@
+Filters: "BassStereoField_SideFloorHarvest_DirtyFold"
+Randomness seeded to: 2311378510
+HARVEST side-floor-config DirtyFold K_wide 1 committed_floor 0.5
+HARVEST-CELL side-floor DirtyFold_Solid_E0_s0_fc60_c0 render_ms 839.516 restage_ms 5918.15 total_ms 6757.67
+HARVEST-CELL side-floor DirtyFold_Solid_E0_s0_fc60_c1 render_ms 828.345 restage_ms 5918.92 total_ms 6747.27
+HARVEST-CELL side-floor DirtyFold_Solid_E0_s0_fc120_c0 render_ms 815.706 restage_ms 5842.98 total_ms 6658.69
+HARVEST-CELL side-floor DirtyFold_Solid_E0_s0_fc120_c1 render_ms 822.573 restage_ms 5705.17 total_ms 6527.74
+HARVEST-CELL side-floor DirtyFold_Solid_E0_s0_fc250_c0 render_ms 826.439 restage_ms 5854.32 total_ms 6680.76
+HARVEST-CELL side-floor DirtyFold_Solid_E0_s0_fc250_c1 render_ms 839.09 restage_ms 5734.19 total_ms 6573.28
+HARVEST-CELL side-floor DirtyFold_Solid_E0_s0.5_fc60_c0 render_ms 841.426 restage_ms 5837.11 total_ms 6678.54
+HARVEST-CELL side-floor DirtyFold_Solid_E0_s0.5_fc60_c1 render_ms 858.571 restage_ms 5796.36 total_ms 6654.93
+HARVEST-CELL side-floor DirtyFold_Solid_E0_s0.5_fc120_c0 render_ms 870.723 restage_ms 6008.24 total_ms 6878.96
+HARVEST-CELL side-floor DirtyFold_Solid_E0_s0.5_fc120_c1 render_ms 866.79 restage_ms 5806.04 total_ms 6672.83
+HARVEST-CELL side-floor DirtyFold_Solid_E0_s0.5_fc250_c0 render_ms 883.205 restage_ms 5875.93 total_ms 6759.14
+HARVEST-CELL side-floor DirtyFold_Solid_E0_s0.5_fc250_c1 render_ms 891.114 restage_ms 6019.8 total_ms 6910.92
+HARVEST-CELL side-floor DirtyFold_Solid_E0_s1_fc60_c0 render_ms 870.483 restage_ms 6236.2 total_ms 7106.68
+HARVEST-CELL side-floor DirtyFold_Solid_E0_s1_fc60_c1 render_ms 898.968 restage_ms 6031.52 total_ms 6930.49
+HARVEST-CELL side-floor DirtyFold_Solid_E0_s1_fc120_c0 render_ms 909.452 restage_ms 5846.45 total_ms 6755.9
+HARVEST-CELL side-floor DirtyFold_Solid_E0_s1_fc120_c1 render_ms 903.821 restage_ms 6141.89 total_ms 7045.71
+HARVEST-CELL side-floor DirtyFold_Solid_E0_s1_fc250_c0 render_ms 897.591 restage_ms 6088.17 total_ms 6985.76
+HARVEST-CELL side-floor DirtyFold_Solid_E0_s1_fc250_c1 render_ms 901.761 restage_ms 5989.36 total_ms 6891.12
+HARVEST-CELL side-floor DirtyFold_Solid_E1_s0_fc60_c0 render_ms 903.581 restage_ms 6360.99 total_ms 7264.57
+HARVEST-CELL side-floor DirtyFold_Solid_E1_s0_fc60_c1 render_ms 930.08 restage_ms 6248.94 total_ms 7179.02
+HARVEST-CELL side-floor DirtyFold_Solid_E1_s0_fc120_c0 render_ms 942.428 restage_ms 6023.4 total_ms 6965.83
+HARVEST-CELL side-floor DirtyFold_Solid_E1_s0_fc120_c1 render_ms 930.033 restage_ms 6174.18 total_ms 7104.22
+HARVEST-CELL side-floor DirtyFold_Solid_E1_s0_fc250_c0 render_ms 928.537 restage_ms 6086.08 total_ms 7014.61
+HARVEST-CELL side-floor DirtyFold_Solid_E1_s0_fc250_c1 render_ms 917.334 restage_ms 6103.81 total_ms 7021.15
+HARVEST-CELL side-floor DirtyFold_Solid_E1_s0.5_fc60_c0 render_ms 914.839 restage_ms 6391.69 total_ms 7306.53
+HARVEST-CELL side-floor DirtyFold_Solid_E1_s0.5_fc60_c1 render_ms 894.424 restage_ms 6107.66 total_ms 7002.08
+HARVEST-CELL side-floor DirtyFold_Solid_E1_s0.5_fc120_c0 render_ms 933.443 restage_ms 6529.47 total_ms 7462.91
+HARVEST-CELL side-floor DirtyFold_Solid_E1_s0.5_fc120_c1 render_ms 979.008 restage_ms 6357.89 total_ms 7336.9
+HARVEST-CELL side-floor DirtyFold_Solid_E1_s0.5_fc250_c0 render_ms 958.016 restage_ms 6431.07 total_ms 7389.08
+HARVEST-CELL side-floor DirtyFold_Solid_E1_s0.5_fc250_c1 render_ms 977.175 restage_ms 6744.97 total_ms 7722.14
+HARVEST-CELL side-floor DirtyFold_Solid_E1_s1_fc60_c0 render_ms 1060.69 restage_ms 6331.38 total_ms 7392.07
+HARVEST-CELL side-floor DirtyFold_Solid_E1_s1_fc60_c1 render_ms 977.031 restage_ms 6433.57 total_ms 7410.6
+HARVEST-CELL side-floor DirtyFold_Solid_E1_s1_fc120_c0 render_ms 949.997 restage_ms 6290.98 total_ms 7240.97
+HARVEST-CELL side-floor DirtyFold_Solid_E1_s1_fc120_c1 render_ms 947.795 restage_ms 6108.29 total_ms 7056.09
+HARVEST-CELL side-floor DirtyFold_Solid_E1_s1_fc250_c0 render_ms 968.421 restage_ms 6418.59 total_ms 7387.01
+HARVEST-CELL side-floor DirtyFold_Solid_E1_s1_fc250_c1 render_ms 961.941 restage_ms 6213.9 total_ms 7175.84
+HARVEST-CELL side-floor DirtyFold_Solid_E2_s0_fc60_c0 render_ms 967.565 restage_ms 6328.92 total_ms 7296.48
+HARVEST-CELL side-floor DirtyFold_Solid_E2_s0_fc60_c1 render_ms 981.042 restage_ms 6283.93 total_ms 7264.97
+HARVEST-CELL side-floor DirtyFold_Solid_E2_s0_fc120_c0 render_ms 955.973 restage_ms 6351.83 total_ms 7307.81
+HARVEST-CELL side-floor DirtyFold_Solid_E2_s0_fc120_c1 render_ms 981.865 restage_ms 6176.47 total_ms 7158.33
+HARVEST-CELL side-floor DirtyFold_Solid_E2_s0_fc250_c0 render_ms 979.231 restage_ms 6402.88 total_ms 7382.11
+HARVEST-CELL side-floor DirtyFold_Solid_E2_s0_fc250_c1 render_ms 933.697 restage_ms 6138.78 total_ms 7072.47
+HARVEST-CELL side-floor DirtyFold_Solid_E2_s0.5_fc60_c0 render_ms 965.55 restage_ms 6001.56 total_ms 6967.11
+HARVEST-CELL side-floor DirtyFold_Solid_E2_s0.5_fc60_c1 render_ms 883.684 restage_ms 6157.16 total_ms 7040.85
+HARVEST-CELL side-floor DirtyFold_Solid_E2_s0.5_fc120_c0 render_ms 912.071 restage_ms 6165.34 total_ms 7077.41
+HARVEST-CELL side-floor DirtyFold_Solid_E2_s0.5_fc120_c1 render_ms 912.057 restage_ms 6241.93 total_ms 7153.98
+HARVEST-CELL side-floor DirtyFold_Solid_E2_s0.5_fc250_c0 render_ms 903.58 restage_ms 5975.29 total_ms 6878.87
+HARVEST-CELL side-floor DirtyFold_Solid_E2_s0.5_fc250_c1 render_ms 913.38 restage_ms 6148.15 total_ms 7061.53
+HARVEST-CELL side-floor DirtyFold_Solid_E2_s1_fc60_c0 render_ms 945.784 restage_ms 6049.17 total_ms 6994.95
+HARVEST-CELL side-floor DirtyFold_Solid_E2_s1_fc60_c1 render_ms 935.542 restage_ms 6060.98 total_ms 6996.52
+HARVEST-CELL side-floor DirtyFold_Solid_E2_s1_fc120_c0 render_ms 928.631 restage_ms 6065.95 total_ms 6994.58
+HARVEST-CELL side-floor DirtyFold_Solid_E2_s1_fc120_c1 render_ms 878.795 restage_ms 5895.04 total_ms 6773.84
+HARVEST-CELL side-floor DirtyFold_Solid_E2_s1_fc250_c0 render_ms 879.178 restage_ms 6003.05 total_ms 6882.23
+HARVEST-CELL side-floor DirtyFold_Solid_E2_s1_fc250_c1 render_ms 897.098 restage_ms 6025.75 total_ms 6922.85
+HARVEST-CELL side-floor DirtyFold_Solid_C3_s0_fc60_c0 render_ms 909.385 restage_ms 6382.42 total_ms 7291.81
+HARVEST-CELL side-floor DirtyFold_Solid_C3_s0_fc60_c1 render_ms 971.333 restage_ms 6243.01 total_ms 7214.34
+HARVEST-CELL side-floor DirtyFold_Solid_C3_s0_fc120_c0 render_ms 922.641 restage_ms 6207.52 total_ms 7130.16
+HARVEST-CELL side-floor DirtyFold_Solid_C3_s0_fc120_c1 render_ms 929.364 restage_ms 6391.73 total_ms 7321.09
+HARVEST-CELL side-floor DirtyFold_Solid_C3_s0_fc250_c0 render_ms 938.413 restage_ms 6080.66 total_ms 7019.07
+HARVEST-CELL side-floor DirtyFold_Solid_C3_s0_fc250_c1 render_ms 992.449 restage_ms 6204.78 total_ms 7197.23
+HARVEST-CELL side-floor DirtyFold_Solid_C3_s0.5_fc60_c0 render_ms 948.315 restage_ms 6362 total_ms 7310.31
+HARVEST-CELL side-floor DirtyFold_Solid_C3_s0.5_fc60_c1 render_ms 970.215 restage_ms 6297.2 total_ms 7267.42
+HARVEST-CELL side-floor DirtyFold_Solid_C3_s0.5_fc120_c0 render_ms 960.527 restage_ms 6211.91 total_ms 7172.43
+HARVEST-CELL side-floor DirtyFold_Solid_C3_s0.5_fc120_c1 render_ms 959.461 restage_ms 6459.17 total_ms 7418.63
+HARVEST-CELL side-floor DirtyFold_Solid_C3_s0.5_fc250_c0 render_ms 988.087 restage_ms 6317.83 total_ms 7305.92
+HARVEST-CELL side-floor DirtyFold_Solid_C3_s0.5_fc250_c1 render_ms 936.764 restage_ms 6280.77 total_ms 7217.53
+HARVEST-CELL side-floor DirtyFold_Solid_C3_s1_fc60_c0 render_ms 979.25 restage_ms 6330.22 total_ms 7309.47
+HARVEST-CELL side-floor DirtyFold_Solid_C3_s1_fc60_c1 render_ms 949.461 restage_ms 6340.5 total_ms 7289.96
+HARVEST-CELL side-floor DirtyFold_Solid_C3_s1_fc120_c0 render_ms 927.702 restage_ms 6301.97 total_ms 7229.67
+HARVEST-CELL side-floor DirtyFold_Solid_C3_s1_fc120_c1 render_ms 996.103 restage_ms 6283.26 total_ms 7279.36
+HARVEST-CELL side-floor DirtyFold_Solid_C3_s1_fc250_c0 render_ms 966.648 restage_ms 6401.58 total_ms 7368.22
+HARVEST-CELL side-floor DirtyFold_Solid_C3_s1_fc250_c1 render_ms 1001.55 restage_ms 6203.44 total_ms 7204.99
+HARVEST-CELL side-floor DirtyFold_Spread_E0_s0_fc60_c0 render_ms 940.758 restage_ms 6300.44 total_ms 7241.19
+HARVEST-CELL side-floor DirtyFold_Spread_E0_s0_fc60_c1 render_ms 1009.32 restage_ms 6300.92 total_ms 7310.25
+HARVEST-CELL side-floor DirtyFold_Spread_E0_s0_fc120_c0 render_ms 954.326 restage_ms 6420.52 total_ms 7374.85
+HARVEST-CELL side-floor DirtyFold_Spread_E0_s0_fc120_c1 render_ms 959.434 restage_ms 6312.66 total_ms 7272.1
+HARVEST-CELL side-floor DirtyFold_Spread_E0_s0_fc250_c0 render_ms 981.104 restage_ms 6245.6 total_ms 7226.71
+HARVEST-CELL side-floor DirtyFold_Spread_E0_s0_fc250_c1 render_ms 998.329 restage_ms 6156.37 total_ms 7154.7
+HARVEST-CELL side-floor DirtyFold_Spread_E0_s0.5_fc60_c0 render_ms 1326.25 restage_ms 6875.54 total_ms 8201.79
+HARVEST-CELL side-floor DirtyFold_Spread_E0_s0.5_fc60_c1 render_ms 1410.51 restage_ms 6949.39 total_ms 8359.9
+HARVEST-CELL side-floor DirtyFold_Spread_E0_s0.5_fc120_c0 render_ms 1412.65 restage_ms 6809.37 total_ms 8222.02
+HARVEST-CELL side-floor DirtyFold_Spread_E0_s0.5_fc120_c1 render_ms 1414.71 restage_ms 6757.97 total_ms 8172.67
+HARVEST-CELL side-floor DirtyFold_Spread_E0_s0.5_fc250_c0 render_ms 1435.12 restage_ms 6767.83 total_ms 8202.95
+HARVEST-CELL side-floor DirtyFold_Spread_E0_s0.5_fc250_c1 render_ms 1430.18 restage_ms 6779.68 total_ms 8209.85
+HARVEST-CELL side-floor DirtyFold_Spread_E0_s1_fc60_c0 render_ms 1374.4 restage_ms 6798.68 total_ms 8173.08
+HARVEST-CELL side-floor DirtyFold_Spread_E0_s1_fc60_c1 render_ms 1375.54 restage_ms 6772.97 total_ms 8148.51
+HARVEST-CELL side-floor DirtyFold_Spread_E0_s1_fc120_c0 render_ms 1370.25 restage_ms 6634.4 total_ms 8004.65
+HARVEST-CELL side-floor DirtyFold_Spread_E0_s1_fc120_c1 render_ms 1359.87 restage_ms 7251.88 total_ms 8611.75
+HARVEST-CELL side-floor DirtyFold_Spread_E0_s1_fc250_c0 render_ms 1455.34 restage_ms 7038.08 total_ms 8493.42
+HARVEST-CELL side-floor DirtyFold_Spread_E0_s1_fc250_c1 render_ms 1454.95 restage_ms 6696.21 total_ms 8151.16
+HARVEST-CELL side-floor DirtyFold_Spread_E1_s0_fc60_c0 render_ms 1051.64 restage_ms 6997.84 total_ms 8049.48
+HARVEST-CELL side-floor DirtyFold_Spread_E1_s0_fc60_c1 render_ms 1039.08 restage_ms 7165.56 total_ms 8204.64
+HARVEST-CELL side-floor DirtyFold_Spread_E1_s0_fc120_c0 render_ms 1022.33 restage_ms 7516.51 total_ms 8538.84
+HARVEST-CELL side-floor DirtyFold_Spread_E1_s0_fc120_c1 render_ms 1066.16 restage_ms 7011.77 total_ms 8077.93
+HARVEST-CELL side-floor DirtyFold_Spread_E1_s0_fc250_c0 render_ms 1036.87 restage_ms 7175.06 total_ms 8211.94
+HARVEST-CELL side-floor DirtyFold_Spread_E1_s0_fc250_c1 render_ms 1027.43 restage_ms 6821.79 total_ms 7849.22
+HARVEST-CELL side-floor DirtyFold_Spread_E1_s0.5_fc60_c0 render_ms 1448.25 restage_ms 6762.56 total_ms 8210.82
+HARVEST-CELL side-floor DirtyFold_Spread_E1_s0.5_fc60_c1 render_ms 1392.37 restage_ms 7039.67 total_ms 8432.03
+HARVEST-CELL side-floor DirtyFold_Spread_E1_s0.5_fc120_c0 render_ms 1463.62 restage_ms 6771.31 total_ms 8234.92
+HARVEST-CELL side-floor DirtyFold_Spread_E1_s0.5_fc120_c1 render_ms 1429.29 restage_ms 6888.69 total_ms 8317.98
+HARVEST-CELL side-floor DirtyFold_Spread_E1_s0.5_fc250_c0 render_ms 1384.48 restage_ms 7059.59 total_ms 8444.08
+HARVEST-CELL side-floor DirtyFold_Spread_E1_s0.5_fc250_c1 render_ms 1417.68 restage_ms 7021.83 total_ms 8439.5
+HARVEST-CELL side-floor DirtyFold_Spread_E1_s1_fc60_c0 render_ms 1485.83 restage_ms 6707.67 total_ms 8193.5
+HARVEST-CELL side-floor DirtyFold_Spread_E1_s1_fc60_c1 render_ms 1463.23 restage_ms 6823.98 total_ms 8287.21
+HARVEST-CELL side-floor DirtyFold_Spread_E1_s1_fc120_c0 render_ms 1459.19 restage_ms 6777.53 total_ms 8236.72
+HARVEST-CELL side-floor DirtyFold_Spread_E1_s1_fc120_c1 render_ms 1388.34 restage_ms 6856.3 total_ms 8244.64
+HARVEST-CELL side-floor DirtyFold_Spread_E1_s1_fc250_c0 render_ms 1469.39 restage_ms 6698.86 total_ms 8168.25
+HARVEST-CELL side-floor DirtyFold_Spread_E1_s1_fc250_c1 render_ms 1436.05 restage_ms 6690.56 total_ms 8126.61
+HARVEST-CELL side-floor DirtyFold_Spread_E2_s0_fc60_c0 render_ms 1014.59 restage_ms 6747.31 total_ms 7761.9
+HARVEST-CELL side-floor DirtyFold_Spread_E2_s0_fc60_c1 render_ms 975.796 restage_ms 6906.19 total_ms 7881.98
+HARVEST-CELL side-floor DirtyFold_Spread_E2_s0_fc120_c0 render_ms 1011.71 restage_ms 7121.82 total_ms 8133.54
+HARVEST-CELL side-floor DirtyFold_Spread_E2_s0_fc120_c1 render_ms 1022.9 restage_ms 7231.77 total_ms 8254.66
+HARVEST-CELL side-floor DirtyFold_Spread_E2_s0_fc250_c0 render_ms 993.495 restage_ms 7193.18 total_ms 8186.68
+HARVEST-CELL side-floor DirtyFold_Spread_E2_s0_fc250_c1 render_ms 1047.4 restage_ms 6809.82 total_ms 7857.22
+HARVEST-CELL side-floor DirtyFold_Spread_E2_s0.5_fc60_c0 render_ms 1448.55 restage_ms 6963.58 total_ms 8412.14
+HARVEST-CELL side-floor DirtyFold_Spread_E2_s0.5_fc60_c1 render_ms 1458.52 restage_ms 6901.71 total_ms 8360.24
+HARVEST-CELL side-floor DirtyFold_Spread_E2_s0.5_fc120_c0 render_ms 1466.07 restage_ms 6884.32 total_ms 8350.39
+HARVEST-CELL side-floor DirtyFold_Spread_E2_s0.5_fc120_c1 render_ms 1429.7 restage_ms 7017.96 total_ms 8447.67
+HARVEST-CELL side-floor DirtyFold_Spread_E2_s0.5_fc250_c0 render_ms 1443.94 restage_ms 7108.11 total_ms 8552.05
+HARVEST-CELL side-floor DirtyFold_Spread_E2_s0.5_fc250_c1 render_ms 1586.99 restage_ms 6992.38 total_ms 8579.37
+HARVEST-CELL side-floor DirtyFold_Spread_E2_s1_fc60_c0 render_ms 1515.06 restage_ms 7058.96 total_ms 8574.02
+HARVEST-CELL side-floor DirtyFold_Spread_E2_s1_fc60_c1 render_ms 1432.99 restage_ms 6864.56 total_ms 8297.56
+HARVEST-CELL side-floor DirtyFold_Spread_E2_s1_fc120_c0 render_ms 1473.09 restage_ms 6833.78 total_ms 8306.88
+HARVEST-CELL side-floor DirtyFold_Spread_E2_s1_fc120_c1 render_ms 1463.25 restage_ms 6763.4 total_ms 8226.64
+HARVEST-CELL side-floor DirtyFold_Spread_E2_s1_fc250_c0 render_ms 1453.66 restage_ms 6995.54 total_ms 8449.2
+HARVEST-CELL side-floor DirtyFold_Spread_E2_s1_fc250_c1 render_ms 1380.46 restage_ms 6910.77 total_ms 8291.23
+HARVEST-CELL side-floor DirtyFold_Spread_C3_s0_fc60_c0 render_ms 1006.85 restage_ms 6730.04 total_ms 7736.89
+HARVEST-CELL side-floor DirtyFold_Spread_C3_s0_fc60_c1 render_ms 994.383 restage_ms 6931.74 total_ms 7926.13
+HARVEST-CELL side-floor DirtyFold_Spread_C3_s0_fc120_c0 render_ms 971.174 restage_ms 7191.15 total_ms 8162.33
+HARVEST-CELL side-floor DirtyFold_Spread_C3_s0_fc120_c1 render_ms 1001.58 restage_ms 6560.63 total_ms 7562.21
+HARVEST-CELL side-floor DirtyFold_Spread_C3_s0_fc250_c0 render_ms 1018.95 restage_ms 6863.29 total_ms 7882.24
+HARVEST-CELL side-floor DirtyFold_Spread_C3_s0_fc250_c1 render_ms 932.952 restage_ms 6134.16 total_ms 7067.11
+HARVEST-CELL side-floor DirtyFold_Spread_C3_s0.5_fc60_c0 render_ms 1342.21 restage_ms 6214.52 total_ms 7556.73
+HARVEST-CELL side-floor DirtyFold_Spread_C3_s0.5_fc60_c1 render_ms 1340.12 restage_ms 6413.6 total_ms 7753.72
+HARVEST-CELL side-floor DirtyFold_Spread_C3_s0.5_fc120_c0 render_ms 1315.72 restage_ms 6334.66 total_ms 7650.38
+HARVEST-CELL side-floor DirtyFold_Spread_C3_s0.5_fc120_c1 render_ms 1338.97 restage_ms 6318.4 total_ms 7657.37
+HARVEST-CELL side-floor DirtyFold_Spread_C3_s0.5_fc250_c0 render_ms 1342.27 restage_ms 6022.67 total_ms 7364.93
+HARVEST-CELL side-floor DirtyFold_Spread_C3_s0.5_fc250_c1 render_ms 1326.61 restage_ms 6108.95 total_ms 7435.56
+HARVEST-CELL side-floor DirtyFold_Spread_C3_s1_fc60_c0 render_ms 1346.28 restage_ms 6216.68 total_ms 7562.96
+HARVEST-CELL side-floor DirtyFold_Spread_C3_s1_fc60_c1 render_ms 1409.47 restage_ms 6198.9 total_ms 7608.37
+HARVEST-CELL side-floor DirtyFold_Spread_C3_s1_fc120_c0 render_ms 1384.63 restage_ms 6177.59 total_ms 7562.22
+HARVEST-CELL side-floor DirtyFold_Spread_C3_s1_fc120_c1 render_ms 1439.06 restage_ms 6229.55 total_ms 7668.61
+HARVEST-CELL side-floor DirtyFold_Spread_C3_s1_fc250_c0 render_ms 1408.36 restage_ms 6310.45 total_ms 7718.81
+HARVEST-CELL side-floor DirtyFold_Spread_C3_s1_fc250_c1 render_ms 1371.49 restage_ms 6335.07 total_ms 7706.56
+HARVEST-CELL side-floor DirtyFold_Wide_E0_s0_fc60_c0 render_ms 917.309 restage_ms 6065.33 total_ms 6982.64
+HARVEST-CELL side-floor DirtyFold_Wide_E0_s0_fc60_c1 render_ms 926.62 restage_ms 6121.86 total_ms 7048.48
+HARVEST-CELL side-floor DirtyFold_Wide_E0_s0_fc120_c0 render_ms 948.836 restage_ms 5986.08 total_ms 6934.92
+HARVEST-CELL side-floor DirtyFold_Wide_E0_s0_fc120_c1 render_ms 924.66 restage_ms 6310.64 total_ms 7235.3
+HARVEST-CELL side-floor DirtyFold_Wide_E0_s0_fc250_c0 render_ms 1002.28 restage_ms 6453.82 total_ms 7456.1
+HARVEST-CELL side-floor DirtyFold_Wide_E0_s0_fc250_c1 render_ms 1050.55 restage_ms 6282.31 total_ms 7332.86
+HARVEST-CELL side-floor DirtyFold_Wide_E0_s0.5_fc60_c0 render_ms 1386.87 restage_ms 6158.21 total_ms 7545.07
+HARVEST-CELL side-floor DirtyFold_Wide_E0_s0.5_fc60_c1 render_ms 1322.13 restage_ms 6471.31 total_ms 7793.44
+HARVEST-CELL side-floor DirtyFold_Wide_E0_s0.5_fc120_c0 render_ms 1400.85 restage_ms 6228.45 total_ms 7629.3
+HARVEST-CELL side-floor DirtyFold_Wide_E0_s0.5_fc120_c1 render_ms 1423.7 restage_ms 6351.82 total_ms 7775.52
+HARVEST-CELL side-floor DirtyFold_Wide_E0_s0.5_fc250_c0 render_ms 1356.57 restage_ms 6347.99 total_ms 7704.55
+HARVEST-CELL side-floor DirtyFold_Wide_E0_s0.5_fc250_c1 render_ms 1335.27 restage_ms 6406.2 total_ms 7741.47
+HARVEST-CELL side-floor DirtyFold_Wide_E0_s1_fc60_c0 render_ms 1303.62 restage_ms 6434.04 total_ms 7737.66
+HARVEST-CELL side-floor DirtyFold_Wide_E0_s1_fc60_c1 render_ms 1328.36 restage_ms 6397.88 total_ms 7726.24
+HARVEST-CELL side-floor DirtyFold_Wide_E0_s1_fc120_c0 render_ms 1331.98 restage_ms 6522.03 total_ms 7854.01
+HARVEST-CELL side-floor DirtyFold_Wide_E0_s1_fc120_c1 render_ms 1379.31 restage_ms 6488.92 total_ms 7868.23
+HARVEST-CELL side-floor DirtyFold_Wide_E0_s1_fc250_c0 render_ms 1355.75 restage_ms 6460.35 total_ms 7816.1
+HARVEST-CELL side-floor DirtyFold_Wide_E0_s1_fc250_c1 render_ms 1307.97 restage_ms 6732.04 total_ms 8040.02
+HARVEST-CELL side-floor DirtyFold_Wide_E1_s0_fc60_c0 render_ms 963.244 restage_ms 6699.04 total_ms 7662.29
+HARVEST-CELL side-floor DirtyFold_Wide_E1_s0_fc60_c1 render_ms 995.738 restage_ms 6432.11 total_ms 7427.85
+HARVEST-CELL side-floor DirtyFold_Wide_E1_s0_fc120_c0 render_ms 952.242 restage_ms 6347.03 total_ms 7299.27
+HARVEST-CELL side-floor DirtyFold_Wide_E1_s0_fc120_c1 render_ms 922.833 restage_ms 6408.38 total_ms 7331.21
+HARVEST-CELL side-floor DirtyFold_Wide_E1_s0_fc250_c0 render_ms 939.602 restage_ms 6379.25 total_ms 7318.85
+HARVEST-CELL side-floor DirtyFold_Wide_E1_s0_fc250_c1 render_ms 967.383 restage_ms 6205.31 total_ms 7172.69
+HARVEST-CELL side-floor DirtyFold_Wide_E1_s0.5_fc60_c0 render_ms 1268.14 restage_ms 6362.62 total_ms 7630.76
+HARVEST-CELL side-floor DirtyFold_Wide_E1_s0.5_fc60_c1 render_ms 1299.62 restage_ms 6363.25 total_ms 7662.87
+HARVEST-CELL side-floor DirtyFold_Wide_E1_s0.5_fc120_c0 render_ms 1304.06 restage_ms 6273.19 total_ms 7577.25
+HARVEST-CELL side-floor DirtyFold_Wide_E1_s0.5_fc120_c1 render_ms 1329.2 restage_ms 6576.2 total_ms 7905.41
+HARVEST-CELL side-floor DirtyFold_Wide_E1_s0.5_fc250_c0 render_ms 1303.7 restage_ms 6420.42 total_ms 7724.12
+HARVEST-CELL side-floor DirtyFold_Wide_E1_s0.5_fc250_c1 render_ms 1286.66 restage_ms 6311.16 total_ms 7597.82
+HARVEST-CELL side-floor DirtyFold_Wide_E1_s1_fc60_c0 render_ms 1347.3 restage_ms 6338.46 total_ms 7685.75
+HARVEST-CELL side-floor DirtyFold_Wide_E1_s1_fc60_c1 render_ms 1337.76 restage_ms 6359.32 total_ms 7697.08
+HARVEST-CELL side-floor DirtyFold_Wide_E1_s1_fc120_c0 render_ms 1292.91 restage_ms 6146.24 total_ms 7439.14
+HARVEST-CELL side-floor DirtyFold_Wide_E1_s1_fc120_c1 render_ms 1297.52 restage_ms 6109.08 total_ms 7406.59
+HARVEST-CELL side-floor DirtyFold_Wide_E1_s1_fc250_c0 render_ms 1313.27 restage_ms 6257.28 total_ms 7570.55
+HARVEST-CELL side-floor DirtyFold_Wide_E1_s1_fc250_c1 render_ms 1305.37 restage_ms 6157.14 total_ms 7462.51
+HARVEST-CELL side-floor DirtyFold_Wide_E2_s0_fc60_c0 render_ms 951.992 restage_ms 6238.47 total_ms 7190.46
+HARVEST-CELL side-floor DirtyFold_Wide_E2_s0_fc60_c1 render_ms 904.772 restage_ms 6216.01 total_ms 7120.78
+HARVEST-CELL side-floor DirtyFold_Wide_E2_s0_fc120_c0 render_ms 918.113 restage_ms 6314.46 total_ms 7232.57
+HARVEST-CELL side-floor DirtyFold_Wide_E2_s0_fc120_c1 render_ms 960.661 restage_ms 6307.29 total_ms 7267.95
+HARVEST-CELL side-floor DirtyFold_Wide_E2_s0_fc250_c0 render_ms 934.199 restage_ms 6472.51 total_ms 7406.71
+HARVEST-CELL side-floor DirtyFold_Wide_E2_s0_fc250_c1 render_ms 940.476 restage_ms 6224.86 total_ms 7165.33
+HARVEST-CELL side-floor DirtyFold_Wide_E2_s0.5_fc60_c0 render_ms 1393.08 restage_ms 6377.61 total_ms 7770.69
+HARVEST-CELL side-floor DirtyFold_Wide_E2_s0.5_fc60_c1 render_ms 1340.48 restage_ms 6457.64 total_ms 7798.12
+HARVEST-CELL side-floor DirtyFold_Wide_E2_s0.5_fc120_c0 render_ms 1298.84 restage_ms 6467.48 total_ms 7766.32
+HARVEST-CELL side-floor DirtyFold_Wide_E2_s0.5_fc120_c1 render_ms 1312.83 restage_ms 6395.94 total_ms 7708.77
+HARVEST-CELL side-floor DirtyFold_Wide_E2_s0.5_fc250_c0 render_ms 1348.1 restage_ms 6220.39 total_ms 7568.49
+HARVEST-CELL side-floor DirtyFold_Wide_E2_s0.5_fc250_c1 render_ms 1335.7 restage_ms 6332.61 total_ms 7668.32
+HARVEST-CELL side-floor DirtyFold_Wide_E2_s1_fc60_c0 render_ms 1425.39 restage_ms 6173.41 total_ms 7598.8
+HARVEST-CELL side-floor DirtyFold_Wide_E2_s1_fc60_c1 render_ms 1354.72 restage_ms 5925.18 total_ms 7279.9
+HARVEST-CELL side-floor DirtyFold_Wide_E2_s1_fc120_c0 render_ms 1307.94 restage_ms 5974.76 total_ms 7282.71
+HARVEST-CELL side-floor DirtyFold_Wide_E2_s1_fc120_c1 render_ms 1315.9 restage_ms 6197.98 total_ms 7513.88
+HARVEST-CELL side-floor DirtyFold_Wide_E2_s1_fc250_c0 render_ms 1382.9 restage_ms 6138.66 total_ms 7521.56
+HARVEST-CELL side-floor DirtyFold_Wide_E2_s1_fc250_c1 render_ms 1328.19 restage_ms 6105.29 total_ms 7433.48
+HARVEST-CELL side-floor DirtyFold_Wide_C3_s0_fc60_c0 render_ms 959.778 restage_ms 6006.93 total_ms 6966.71
+HARVEST-CELL side-floor DirtyFold_Wide_C3_s0_fc60_c1 render_ms 957.378 restage_ms 6161.56 total_ms 7118.94
+HARVEST-CELL side-floor DirtyFold_Wide_C3_s0_fc120_c0 render_ms 947.728 restage_ms 6043.87 total_ms 6991.6
+HARVEST-CELL side-floor DirtyFold_Wide_C3_s0_fc120_c1 render_ms 937.271 restage_ms 6089.31 total_ms 7026.58
+HARVEST-CELL side-floor DirtyFold_Wide_C3_s0_fc250_c0 render_ms 936.459 restage_ms 5999.59 total_ms 6936.05
+HARVEST-CELL side-floor DirtyFold_Wide_C3_s0_fc250_c1 render_ms 947.859 restage_ms 6024.84 total_ms 6972.7
+HARVEST-CELL side-floor DirtyFold_Wide_C3_s0.5_fc60_c0 render_ms 1339.25 restage_ms 6044.19 total_ms 7383.44
+HARVEST-CELL side-floor DirtyFold_Wide_C3_s0.5_fc60_c1 render_ms 1347.38 restage_ms 5977.03 total_ms 7324.41
+HARVEST-CELL side-floor DirtyFold_Wide_C3_s0.5_fc120_c0 render_ms 1395.39 restage_ms 6046.64 total_ms 7442.03
+HARVEST-CELL side-floor DirtyFold_Wide_C3_s0.5_fc120_c1 render_ms 1378.56 restage_ms 6097.38 total_ms 7475.94
+HARVEST-CELL side-floor DirtyFold_Wide_C3_s0.5_fc250_c0 render_ms 1384.71 restage_ms 5947.13 total_ms 7331.84
+HARVEST-CELL side-floor DirtyFold_Wide_C3_s0.5_fc250_c1 render_ms 1383.27 restage_ms 6089.54 total_ms 7472.81
+HARVEST-CELL side-floor DirtyFold_Wide_C3_s1_fc60_c0 render_ms 1342.35 restage_ms 6031.63 total_ms 7373.98
+HARVEST-CELL side-floor DirtyFold_Wide_C3_s1_fc60_c1 render_ms 1379.89 restage_ms 6108.18 total_ms 7488.07
+HARVEST-CELL side-floor DirtyFold_Wide_C3_s1_fc120_c0 render_ms 1360.54 restage_ms 6227.77 total_ms 7588.31
+HARVEST-CELL side-floor DirtyFold_Wide_C3_s1_fc120_c1 render_ms 1458.21 restage_ms 6252.92 total_ms 7711.13
+HARVEST-CELL side-floor DirtyFold_Wide_C3_s1_fc250_c0 render_ms 1370.93 restage_ms 5333.62 total_ms 6704.55
+HARVEST-CELL side-floor DirtyFold_Wide_C3_s1_fc250_c1 render_ms 1230.69 restage_ms 5388.09 total_ms 6618.78
+BSF_HARVEST_FLOOR_SHARD,DirtyFold,cells,216,mean_cell_ms,7517.34,shard_ms,1.62449e+06
+BSF_HARVEST_FLOOR_ROW,DirtyFold,g,0.71,pass,167,cells,216,worst_sub_q_db,-15.4389,worst_rho_sub,-0.945621,worst_oct_q_db,-9.26182,valid_sub_readings,486,exempt,4
+HARVEST side-floor DirtyFold 0.71 FAIL -15.4389 -0.945621
+BSF_HARVEST_FLOOR_ROW,DirtyFold,g,0.5,pass,170,cells,216,worst_sub_q_db,-12.54,worst_rho_sub,-0.89356,worst_oct_q_db,-9.22618,valid_sub_readings,486,exempt,4
+HARVEST side-floor DirtyFold 0.5 FAIL -12.54 -0.89356
+BSF_HARVEST_FLOOR_ROW,DirtyFold,g,0.35,pass,181,cells,216,worst_sub_q_db,-9.71757,worst_rho_sub,-0.794631,worst_oct_q_db,-9.22373,valid_sub_readings,486,exempt,4
+HARVEST side-floor DirtyFold 0.35 FAIL -9.71757 -0.794631
+BSF_HARVEST_FLOOR_ROW,DirtyFold,g,0.25,pass,186,cells,216,worst_sub_q_db,-7.25568,worst_rho_sub,-0.634112,worst_oct_q_db,-9.2221,valid_sub_readings,486,exempt,4
+HARVEST side-floor DirtyFold 0.25 FAIL -7.25568 -0.634112
+BSF_HARVEST_FLOOR_ROW,DirtyFold,g,0.18,pass,201,cells,216,worst_sub_q_db,-5.14467,worst_rho_sub,-0.39731,worst_oct_q_db,-9.22096,valid_sub_readings,486,exempt,4
+HARVEST side-floor DirtyFold 0.18 FAIL -5.14467 -0.39731
+BSF_HARVEST_FLOOR_ROW,DirtyFold,g,0.125,pass,210,cells,216,worst_sub_q_db,-3.26122,worst_rho_sub,-0.0576836,worst_oct_q_db,-9.22006,valid_sub_readings,486,exempt,4
+HARVEST side-floor DirtyFold 0.125 FAIL -3.26122 -0.0576836
+BSF_HARVEST_FLOOR_ROW,DirtyFold,g,0.1,pass,212,cells,216,worst_sub_q_db,-2.37823,worst_rho_sub,0.16088,worst_oct_q_db,-9.21965,valid_sub_readings,486,exempt,4
+HARVEST side-floor DirtyFold 0.1 FAIL -2.37823 0.16088
+BSF_HARVEST_FLOOR_ROW,DirtyFold,g,0.071,pass,215,cells,216,worst_sub_q_db,-1.40221,worst_rho_sub,0.457941,worst_oct_q_db,-9.21918,valid_sub_readings,486,exempt,4
+HARVEST side-floor DirtyFold 0.071 FAIL -1.40221 0.457941
+BSF_HARVEST_FLOOR_ROW,DirtyFold,g,0.05,pass,216,cells,216,worst_sub_q_db,-0.787968,worst_rho_sub,0.678173,worst_oct_q_db,-9.21883,valid_sub_readings,486,exempt,4
+HARVEST side-floor DirtyFold 0.05 PASS -0.787968 0.678173
+BSF_HARVEST_FLOOR_ROW,DirtyFold,g,0.035,pass,216,cells,216,worst_sub_q_db,-0.432685,worst_rho_sub,0.817829,worst_oct_q_db,-9.21859,valid_sub_readings,486,exempt,4
+HARVEST side-floor DirtyFold 0.035 PASS -0.432685 0.817829
+BSF_HARVEST_FLOOR_ROW,DirtyFold,g,0.03,pass,216,cells,216,worst_sub_q_db,-0.334329,worst_rho_sub,0.858083,worst_oct_q_db,-9.21851,valid_sub_readings,486,exempt,4
+HARVEST side-floor DirtyFold 0.03 PASS -0.334329 0.858083
+===============================================================================
+All tests passed (124850 assertions in 1 test case)
+
+exit: 0 wall: 1625 s

@@ -1,0 +1,7 @@
+warning: in the working copy of '.gitignore', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'CMakeLists.txt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'dsp/include/krate/dsp/core/closed_form_adaa2.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'dsp/include/krate/dsp/systems/profundum_engine.h', LF will be replaced by CRLF the next time Git touches it
+scope-fence: 107 path(s) checked against 285613c5, 0 offending
+SCOPE GREEN
+exit: 0

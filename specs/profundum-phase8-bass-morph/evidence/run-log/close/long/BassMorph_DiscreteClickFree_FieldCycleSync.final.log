@@ -1,0 +1,17 @@
+Filters: "BassMorph_DiscreteClickFree_FieldCycleSync"
+Randomness seeded to: 656211371
+SC004 field-cycle-sync,SyncOff->SyncOn,E1,5,12096,1,1,0,0,0,0
+SC004 field-cycle-sync,SyncOff->SyncOn,E1,40,12992,1,1,0,0,0,0
+SC004 field-cycle-sync,SyncOff->SyncOn,E1,2000,61888,1,1,0,0,0,0
+SC004 field-cycle-sync,SyncOn->SyncOff,E1,5,12096,1,1,0,0,0,0
+SC004 field-cycle-sync,SyncOn->SyncOff,E1,40,12992,1,1,0,0,0,0
+SC004 field-cycle-sync,SyncOn->SyncOff,E1,2000,61888,1,1,0,0,0,0
+SC004 field-cycle-sync,SyncOff->SyncOn,C3,5,12096,1,1,0,0,0,0
+SC004 field-cycle-sync,SyncOff->SyncOn,C3,40,12992,1,1,0,0,0,0
+SC004 field-cycle-sync,SyncOff->SyncOn,C3,2000,61888,1,1,0,0,0,0
+SC004 field-cycle-sync,SyncOn->SyncOff,C3,5,12096,1,1,0,0,0,0
+SC004 field-cycle-sync,SyncOn->SyncOff,C3,40,12992,1,1,0,0,0,0
+SC004 field-cycle-sync,SyncOn->SyncOff,C3,2000,61888,1,1,0,0,0,0
+===============================================================================
+All tests passed (1059 assertions in 1 test case)
+

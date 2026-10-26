@@ -1,0 +1,458 @@
+START 2026-10-24T08:00:20Z commit 40f6ebca base 40f6ebca cores 32
+scope consumer dsp/CMakeLists.txt
+scope consumer dsp/include/krate/dsp/systems/profundum_engine.h
+scope consumer dsp/include/krate/dsp/systems/profundum_engine_observer.h
+scope consumer dsp/tests/unit/systems/mass_dynamics_oversampling_test.cpp
+scope consumer dsp/tests/unit/systems/profundum_engine_aliasing_test.cpp
+scope consumer dsp/tests/unit/systems/profundum_engine_audibility_test.cpp
+scope consumer dsp/tests/unit/systems/profundum_engine_chain_test.cpp
+scope consumer dsp/tests/unit/systems/profundum_engine_click_test.cpp
+scope consumer dsp/tests/unit/systems/profundum_engine_display_test.cpp
+scope consumer dsp/tests/unit/systems/profundum_engine_nonfinite_test.cpp
+scope consumer dsp/tests/unit/systems/profundum_engine_perf_test.cpp
+scope consumer dsp/tests/unit/systems/profundum_engine_probe_test.cpp
+scope consumer dsp/tests/unit/systems/profundum_engine_soak_test.cpp
+scope consumer dsp/tests/unit/systems/profundum_engine_test.cpp
+scope consumer dsp/tests/unit/systems/profundum_macro_matrix_test.cpp
+scope consumer dsp/tests/unit/systems/profundum_motion_test.cpp
+scope consumer dsp/tests/unit/systems/profundum_voice_engine_helpers_test.cpp
+scope consumer dsp/tests/unit/systems/profundum_voice_engine_test_helpers.h
+scope consumer dsp/tests/unit/systems/profundum_voice_test.cpp
+scope consumer plugins/profundum/src/engine/profundum_engine_config.h
+scope consumer plugins/profundum/src/parameters/global_params.h
+scope consumer plugins/profundum/src/parameters/note_params.h
+scope consumer plugins/profundum/src/processor/processor.cpp
+scope consumer plugins/profundum/src/processor/processor.h
+scope consumer plugins/profundum/src/processor/spectrum_producer.h
+scope consumer plugins/profundum/tests/integration/copy_compare_test.cpp
+scope consumer plugins/profundum/tests/integration/main_page_sanity_test.cpp
+scope consumer plugins/profundum/tests/integration/mono_sum_params_test.cpp
+scope consumer plugins/profundum/tests/integration/param_flow_test.cpp
+scope consumer plugins/profundum/tests/integration/param_wiring_test.cpp
+scope consumer plugins/profundum/tests/integration/processor_cpu_test.cpp
+scope consumer plugins/profundum/tests/integration/spectrum_frame_test.cpp
+scope consumer plugins/profundum/tests/integration/state_restore_render_test.cpp
+scope consumer plugins/profundum/tests/param_path_audibility_helpers.h
+scope consumer plugins/profundum/tests/profundum_test_fixture.h
+scope consumer plugins/profundum/tests/unit/midi_event_test.cpp
+scope consumer plugins/profundum/tests/unit/midi_mapping_test.cpp
+scope consumer plugins/profundum/tests/unit/state_v2_test.cpp
+scope dsp-test-modified path=dsp/tests/CMakeLists.txt
+scope dsp-test-modified path=dsp/tests/unit/processors/harmonic_fold_test_helpers.h exe=dsp_processors_tests
+scope dsp-test-modified path=dsp/tests/unit/processors/shape_character_metric_helpers.h exe=dsp_processors_tests
+scope dsp-test-modified path=dsp/tests/unit/processors/transient_shaper_test_helpers.h exe=dsp_processors_tests
+scope dsp-test-modified path=dsp/tests/unit/systems/anchor_oscillator_test_helpers.h exe=dsp_systems_tests
+scope dsp-test-modified path=dsp/tests/unit/systems/bass_morph_test_helpers.h exe=dsp_systems_tests
+scope dsp-test-modified path=dsp/tests/unit/systems/bass_stereo_field_test_helpers.h exe=dsp_systems_tests
+scope dsp-test-modified path=dsp/tests/unit/systems/mass_dynamics_test_helpers.h exe=dsp_systems_tests
+scope dsp-test-modified path=dsp/tests/unit/systems/profundum_core_test_helpers.h exe=dsp_systems_tests
+scope dsp-test-modified path=dsp/tests/unit/systems/profundum_voice_engine_test_helpers.h exe=dsp_systems_tests
+scope GREEN base=40f6ebca fence=[dsp/include/krate/dsp/systems/profundum_engine.h dsp/include/krate/dsp/systems/profundum_voice.h] new_under_fence=[] consumers=38 foreign=[] modified_helpers_outside_lane=[dsp_processors_tests] log=specs/profundum-phase12-ui/evidence/run-log/close/scope-diff.log
+scope NOTE modified dsp test files are compiled by [dsp_processors_tests]: rebuilt to 0 warnings, suite not run (FR-095 2026-10-24)
+build targets=[Profundum profundum_tests dsp_systems_tests dsp_processors_tests] exit=0 wall=21s warnings=0 compile_errors=0 log=specs/profundum-phase12-ui/evidence/run-log/close/build.log
+long-list run=1 [Profundum_StateRestoreRender] missing=[] foreign_not_run=[Profundum_TailCoversRelease Profundum_ParamPathAudibility Profundum_MassOffsetAudibility Profundum_MonoSumViaParams] jobs=8 list=specs/profundum-phase12-ui/evidence/run-log/close/long/long-run.txt
+consumer-long-listed (not run, Deviation 6): ProfundumCore_DepthLoudnessFlat
+consumer-long-listed (not run, Deviation 6): ProfundumCore_DetuneShadowNoDrift
+consumer-long-listed (not run, Deviation 6): ProfundumCore_MaskNeverSlewedBendLong
+consumer-long-listed (not run, Deviation 6): ProfundumCore_PartialFrequencyAccuracy
+consumer-long-listed (not run, Deviation 6): ProfundumCore_DepthRenderMonotonic
+consumer-long-listed (not run, Deviation 6): ProfundumCore_AudibilityGate_BodyEdgeShift
+consumer-long-listed (not run, Deviation 6): ProfundumCore_SpectrumInvariantC1toC3
+consumer-long-listed (not run, Deviation 6): ProfundumCore_SpectrumInvariantC1toC3N96
+consumer-long-listed (not run, Deviation 6): ProfundumCore_NoAliasingAllNotes
+consumer-long-listed (not run, Deviation 6): ProfundumCore_NoAliasingDuringBend
+consumer-long-listed (not run, Deviation 6): ProfundumCore_EmphasisOddOnlyRendered
+consumer-long-listed (not run, Deviation 6): ProfundumCore_ExcitationDriveMonotonic
+consumer-long-listed (not run, Deviation 6): ProfundumCore_ExcitationMixMonotonic
+consumer-long-listed (not run, Deviation 6): ProfundumCore_EdgeDrivesExcitationRendered
+consumer-long-listed (not run, Deviation 6): ProfundumCore_ExcitationEvenHarmonicsMonotonic
+consumer-long-listed (not run, Deviation 6): ProfundumCore_ExcitationFundamentalPreserved
+consumer-long-listed (not run, Deviation 6): ProfundumCore_ExcitationLevelLaw
+consumer-long-listed (not run, Deviation 6): ProfundumCore_ExcitationNoAliasingE0
+consumer-long-listed (not run, Deviation 6): ProfundumCore_ExcitationNoAliasingE1
+consumer-long-listed (not run, Deviation 6): ProfundumCore_ExcitationNoAliasingE2
+consumer-long-listed (not run, Deviation 6): HarmonicFold_NoAliasingE0
+consumer-long-listed (not run, Deviation 6): HarmonicFold_NoAliasingE1
+consumer-long-listed (not run, Deviation 6): HarmonicFold_NoAliasingE2
+consumer-long-listed (not run, Deviation 6): ProfundumEdgeFold_ChainNoAliasingE0
+consumer-long-listed (not run, Deviation 6): ProfundumEdgeFold_ChainNoAliasingE1
+consumer-long-listed (not run, Deviation 6): ProfundumEdgeFold_ChainNoAliasingE2
+consumer-long-listed (not run, Deviation 6): ProfundumCore_ExcitationOutputBounded
+consumer-long-listed (not run, Deviation 6): ProfundumEdgeFold_RecordedAliasingByOctave
+consumer-long-listed (not run, Deviation 6): AnchorOscillator_PhaseLockStatic60s
+consumer-long-listed (not run, Deviation 6): AnchorOscillator_PhaseLockTrajectory
+consumer-long-listed (not run, Deviation 6): ProfundumAnchor_PhaseLockProcessedVoice
+consumer-long-listed (not run, Deviation 6): AnchorOscillator_PhaseLockEveryIsa60s
+consumer-long-listed (not run, Deviation 6): ProfundumNoteBehaviour_GlideLock60s
+consumer-long-listed (not run, Deviation 6): ProfundumNoteBehaviour_PostDropLanding_E0
+consumer-long-listed (not run, Deviation 6): ProfundumNoteBehaviour_PostDropLanding_E1
+consumer-long-listed (not run, Deviation 6): ProfundumNoteBehaviour_PostDropLanding_E2
+consumer-long-listed (not run, Deviation 6): ProfundumNoteBehaviour_PostDropLanding_C3
+consumer-long-listed (not run, Deviation 6): ProfundumNoteBehaviour_PostDropLanding_PunchGhostE1
+consumer-long-listed (not run, Deviation 6): ProfundumNoteBehaviour_FollowAfterDrop
+consumer-long-listed (not run, Deviation 6): ProfundumNoteBehaviour_RetriggerClickFree_E0
+consumer-long-listed (not run, Deviation 6): ProfundumNoteBehaviour_RetriggerClickFree_E1
+consumer-long-listed (not run, Deviation 6): ProfundumNoteBehaviour_RetriggerClickFree_E2
+consumer-long-listed (not run, Deviation 6): ProfundumNoteBehaviour_RetriggerClickFree_C3
+consumer-long-listed (not run, Deviation 6): ProfundumNoteBehaviour_GlideClickFree_E0
+consumer-long-listed (not run, Deviation 6): ProfundumNoteBehaviour_GlideClickFree_E1
+consumer-long-listed (not run, Deviation 6): ProfundumNoteBehaviour_GlideClickFree_E2
+consumer-long-listed (not run, Deviation 6): ProfundumNoteBehaviour_GlideClickFree_C3
+consumer-long-listed (not run, Deviation 6): ProfundumNoteBehaviour_TrajectoryNyquist
+consumer-long-listed (not run, Deviation 6): ShapeMorph_AutomationClickFree
+consumer-long-listed (not run, Deviation 6): ShapeMorph_SweepContinuity
+consumer-long-listed (not run, Deviation 6): ShapeMorph_AliasingE0E2
+consumer-long-listed (not run, Deviation 6): ShapeMorph_RIsOne
+consumer-long-listed (not run, Deviation 6): BassCharacter_SwitchClickFree
+consumer-long-listed (not run, Deviation 6): ShapeCharacter_ParameterStepsClickFree
+consumer-long-listed (not run, Deviation 6): BassCharacter_ToneMonotonicCentroid
+consumer-long-listed (not run, Deviation 6): BassCharacter_AmountTrajectory
+consumer-long-listed (not run, Deviation 6): BassCharacter_AliasingE0E2
+consumer-long-listed (not run, Deviation 6): BassCharacter_RLawMatchesReference_Sine
+consumer-long-listed (not run, Deviation 6): BassCharacter_RLawMatchesReference_Triangle
+consumer-long-listed (not run, Deviation 6): BassCharacter_RLawMatchesReference_Saw
+consumer-long-listed (not run, Deviation 6): BassCharacter_RLawMatchesReference_Growl
+consumer-long-listed (not run, Deviation 6): BassCharacter_RectifyFlipPoint
+consumer-long-listed (not run, Deviation 6): BassCharacter_RLawHysteresisBandWidth
+consumer-long-listed (not run, Deviation 6): Rectifier_RLawEvidence
+consumer-long-listed (not run, Deviation 6): BassCharacter_CrushFractureRLaw
+consumer-long-listed (not run, Deviation 6): BassCharacter_FractureRLawAndSidebands
+consumer-long-listed (not run, Deviation 6): BassCharacter_RIsOne
+consumer-long-listed (not run, Deviation 6): BassCharacter_RLawUpstreamChain
+consumer-long-listed (not run, Deviation 6): ShapeCharacter_DropTracksHarmonicNumbers
+consumer-long-listed (not run, Deviation 6): MassLaw_RenderedTargetsMonotonic_Depth_E1
+consumer-long-listed (not run, Deviation 6): MassLaw_RenderedTargetsMonotonic_Depth_C3
+consumer-long-listed (not run, Deviation 6): MassLaw_RenderedTargetsMonotonic_Body_E1
+consumer-long-listed (not run, Deviation 6): MassLaw_RenderedTargetsMonotonic_Body_C3
+consumer-long-listed (not run, Deviation 6): MassLaw_RenderedTargetsMonotonic_Duration_E1
+consumer-long-listed (not run, Deviation 6): MassLaw_RenderedTargetsMonotonic_Duration_C3
+consumer-long-listed (not run, Deviation 6): MassLaw_RenderedTargetsMonotonic_Fold_E1
+consumer-long-listed (not run, Deviation 6): MassLaw_RenderedTargetsMonotonic_Fold_C3
+consumer-long-listed (not run, Deviation 6): MassLaw_RenderedTargetsMonotonic_Compression_E1
+consumer-long-listed (not run, Deviation 6): MassLaw_RenderedTargetsMonotonic_Compression_C3
+consumer-long-listed (not run, Deviation 6): MassLaw_RenderedTargetsMonotonic_AnchorLevel_E1
+consumer-long-listed (not run, Deviation 6): MassLaw_RenderedTargetsMonotonic_AnchorLevel_C3
+consumer-long-listed (not run, Deviation 6): MassLaw_RenderedTargetsMonotonic_OutputTrim_E1
+consumer-long-listed (not run, Deviation 6): MassLaw_RenderedTargetsMonotonic_OutputTrim_C3
+consumer-long-listed (not run, Deviation 6): MassLaw_FundamentalStrengthJointSweep_Ref_E0
+consumer-long-listed (not run, Deviation 6): MassLaw_FundamentalStrengthJointSweep_Ref_E1
+consumer-long-listed (not run, Deviation 6): MassLaw_FundamentalStrengthJointSweep_Ref_E2
+consumer-long-listed (not run, Deviation 6): MassLaw_FundamentalStrengthJointSweep_Ref_C3
+consumer-long-listed (not run, Deviation 6): MassLaw_FundamentalStrengthJointSweep_Saw_E0
+consumer-long-listed (not run, Deviation 6): MassLaw_FundamentalStrengthJointSweep_Saw_E1
+consumer-long-listed (not run, Deviation 6): MassLaw_FundamentalStrengthJointSweep_Saw_E2
+consumer-long-listed (not run, Deviation 6): MassLaw_FundamentalStrengthJointSweep_Saw_C3
+consumer-long-listed (not run, Deviation 6): MassLaw_FundamentalStrengthJointSweep_Sine_E0
+consumer-long-listed (not run, Deviation 6): MassLaw_FundamentalStrengthJointSweep_Sine_E1
+consumer-long-listed (not run, Deviation 6): MassLaw_FundamentalStrengthJointSweep_Sine_E2
+consumer-long-listed (not run, Deviation 6): MassLaw_FundamentalStrengthJointSweep_Sine_C3
+consumer-long-listed (not run, Deviation 6): MassLaw_LevelSlopeBounded_Ref_E0
+consumer-long-listed (not run, Deviation 6): MassLaw_LevelSlopeBounded_Ref_E1
+consumer-long-listed (not run, Deviation 6): MassLaw_LevelSlopeBounded_Ref_E2
+consumer-long-listed (not run, Deviation 6): MassLaw_LevelSlopeBounded_Ref_C3
+consumer-long-listed (not run, Deviation 6): MassLaw_LevelSlopeBounded_Saw_E0
+consumer-long-listed (not run, Deviation 6): MassLaw_LevelSlopeBounded_Saw_E1
+consumer-long-listed (not run, Deviation 6): MassLaw_LevelSlopeBounded_Saw_E2
+consumer-long-listed (not run, Deviation 6): MassLaw_LevelSlopeBounded_Saw_C3
+consumer-long-listed (not run, Deviation 6): MassLaw_LevelSlopeBounded_Sine_E0
+consumer-long-listed (not run, Deviation 6): MassLaw_LevelSlopeBounded_Sine_E1
+consumer-long-listed (not run, Deviation 6): MassLaw_LevelSlopeBounded_Sine_E2
+consumer-long-listed (not run, Deviation 6): MassLaw_LevelSlopeBounded_Sine_C3
+consumer-long-listed (not run, Deviation 6): MassLaw_AutomationContinuous_E0
+consumer-long-listed (not run, Deviation 6): MassLaw_AutomationContinuous_E2
+consumer-long-listed (not run, Deviation 6): MassLaw_AutomationContinuous_C3
+consumer-long-listed (not run, Deviation 6): MassLaw_StaticLattice_E0
+consumer-long-listed (not run, Deviation 6): MassLaw_StaticLattice_E2
+consumer-long-listed (not run, Deviation 6): MassLaw_StaticLattice_C3
+consumer-long-listed (not run, Deviation 6): MassLaw_AutomationDescriptorTrajectory_E0
+consumer-long-listed (not run, Deviation 6): MassLaw_AutomationDescriptorTrajectory_E2
+consumer-long-listed (not run, Deviation 6): MassLaw_AutomationDescriptorTrajectory_C3
+consumer-long-listed (not run, Deviation 6): MassDynamics_AliasingE0E2_44k1
+consumer-long-listed (not run, Deviation 6): MassDynamics_AliasingE0E2_48k
+consumer-long-listed (not run, Deviation 6): MassDynamics_AliasingE0E2_96k
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Solid_CleanSaw_E0
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Solid_CleanSaw_E1
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Solid_CleanSaw_E2
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Solid_CleanSaw_C3
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Solid_CleanGrowl_E0
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Solid_CleanGrowl_E1
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Solid_CleanGrowl_E2
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Solid_CleanGrowl_C3
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Solid_DirtyTube_E0
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Solid_DirtyTube_E1
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Solid_DirtyTube_E2
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Solid_DirtyTube_C3
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Solid_DirtyFold_E0
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Solid_DirtyFold_E1
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Solid_DirtyFold_E2
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Solid_DirtyFold_C3
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Solid_DirtyRectify_E0
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Solid_DirtyRectify_E1
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Solid_DirtyRectify_E2
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Solid_DirtyRectify_C3
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Solid_DirtyBite_E0
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Solid_DirtyBite_E1
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Solid_DirtyBite_E2
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Solid_DirtyBite_C3
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Solid_DirtyCrush_E0
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Solid_DirtyCrush_E1
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Solid_DirtyCrush_E2
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Solid_DirtyCrush_C3
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Solid_DirtyFracture_E0
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Solid_DirtyFracture_E1
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Solid_DirtyFracture_E2
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Solid_DirtyFracture_C3
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Solid_AnchorTube_E0
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Solid_AnchorTube_E1
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Solid_AnchorTube_E2
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Solid_AnchorTube_C3
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Solid_AnchorFold_E0
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Solid_AnchorFold_E1
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Solid_AnchorFold_E2
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Solid_AnchorFold_C3
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Solid_AnchorRectify_E0
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Solid_AnchorRectify_E1
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Solid_AnchorRectify_E2
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Solid_AnchorRectify_C3
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Solid_AnchorBite_E0
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Solid_AnchorBite_E1
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Solid_AnchorBite_E2
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Solid_AnchorBite_C3
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Solid_AnchorCrush_E0
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Solid_AnchorCrush_E1
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Solid_AnchorCrush_E2
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Solid_AnchorCrush_C3
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Solid_AnchorFracture_E0
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Solid_AnchorFracture_E1
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Solid_AnchorFracture_E2
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Solid_AnchorFracture_C3
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Spread_CleanSaw_E0
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Spread_CleanSaw_E1
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Spread_CleanSaw_E2
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Spread_CleanSaw_C3
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Spread_CleanGrowl_E0
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Spread_CleanGrowl_E1
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Spread_CleanGrowl_E2
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Spread_CleanGrowl_C3
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Spread_DirtyTube_E0
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Spread_DirtyTube_E1
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Spread_DirtyTube_E2
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Spread_DirtyTube_C3
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Spread_DirtyFold_E0
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Spread_DirtyFold_E1
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Spread_DirtyFold_E2
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Spread_DirtyFold_C3
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Spread_DirtyRectify_E0
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Spread_DirtyRectify_E1
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Spread_DirtyRectify_E2
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Spread_DirtyRectify_C3
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Spread_DirtyBite_E0
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Spread_DirtyBite_E1
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Spread_DirtyBite_E2
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Spread_DirtyBite_C3
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Spread_DirtyCrush_E0
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Spread_DirtyCrush_E1
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Spread_DirtyCrush_E2
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Spread_DirtyCrush_C3
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Spread_DirtyFracture_E0
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Spread_DirtyFracture_E1
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Spread_DirtyFracture_E2
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Spread_DirtyFracture_C3
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Spread_AnchorTube_E0
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Spread_AnchorTube_E1
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Spread_AnchorTube_E2
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Spread_AnchorTube_C3
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Spread_AnchorFold_E0
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Spread_AnchorFold_E1
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Spread_AnchorFold_E2
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Spread_AnchorFold_C3
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Spread_AnchorRectify_E0
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Spread_AnchorRectify_E1
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Spread_AnchorRectify_E2
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Spread_AnchorRectify_C3
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Spread_AnchorBite_E0
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Spread_AnchorBite_E1
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Spread_AnchorBite_E2
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Spread_AnchorBite_C3
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Spread_AnchorCrush_E0
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Spread_AnchorCrush_E1
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Spread_AnchorCrush_E2
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Spread_AnchorCrush_C3
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Spread_AnchorFracture_E0
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Spread_AnchorFracture_E1
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Spread_AnchorFracture_E2
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Spread_AnchorFracture_C3
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Wide_CleanSaw_E0
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Wide_CleanSaw_E1
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Wide_CleanSaw_E2
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Wide_CleanSaw_C3
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Wide_CleanGrowl_E0
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Wide_CleanGrowl_E1
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Wide_CleanGrowl_E2
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Wide_CleanGrowl_C3
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Wide_DirtyTube_E0
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Wide_DirtyTube_E1
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Wide_DirtyTube_E2
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Wide_DirtyTube_C3
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Wide_DirtyFold_E0
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Wide_DirtyFold_E1
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Wide_DirtyFold_E2
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Wide_DirtyFold_C3
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Wide_DirtyRectify_E0
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Wide_DirtyRectify_E1
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Wide_DirtyRectify_E2
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Wide_DirtyRectify_C3
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Wide_DirtyBite_E0
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Wide_DirtyBite_E1
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Wide_DirtyBite_E2
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Wide_DirtyBite_C3
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Wide_DirtyCrush_E0
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Wide_DirtyCrush_E1
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Wide_DirtyCrush_E2
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Wide_DirtyCrush_C3
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Wide_DirtyFracture_E0
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Wide_DirtyFracture_E1
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Wide_DirtyFracture_E2
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Wide_DirtyFracture_C3
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Wide_AnchorTube_E0
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Wide_AnchorTube_E1
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Wide_AnchorTube_E2
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Wide_AnchorTube_C3
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Wide_AnchorFold_E0
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Wide_AnchorFold_E1
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Wide_AnchorFold_E2
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Wide_AnchorFold_C3
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Wide_AnchorRectify_E0
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Wide_AnchorRectify_E1
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Wide_AnchorRectify_E2
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Wide_AnchorRectify_C3
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Wide_AnchorBite_E0
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Wide_AnchorBite_E1
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Wide_AnchorBite_E2
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Wide_AnchorBite_C3
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Wide_AnchorCrush_E0
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Wide_AnchorCrush_E1
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Wide_AnchorCrush_E2
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Wide_AnchorCrush_C3
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Wide_AnchorFracture_E0
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Wide_AnchorFracture_E1
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Wide_AnchorFracture_E2
+consumer-long-listed (not run, Deviation 6): BassStereoField_MonoSumPerBand_Wide_AnchorFracture_C3
+consumer-long-listed (not run, Deviation 6): BassStereoField_GravityFloor_CleanSaw
+consumer-long-listed (not run, Deviation 6): BassStereoField_GravityFloor_CleanGrowl
+consumer-long-listed (not run, Deviation 6): BassStereoField_GravityFloor_DirtyTube
+consumer-long-listed (not run, Deviation 6): BassStereoField_GravityFloor_DirtyFold
+consumer-long-listed (not run, Deviation 6): BassStereoField_GravityFloor_DirtyRectify
+consumer-long-listed (not run, Deviation 6): BassStereoField_GravityFloor_DirtyBite
+consumer-long-listed (not run, Deviation 6): BassStereoField_GravityFloor_DirtyCrush
+consumer-long-listed (not run, Deviation 6): BassStereoField_GravityFloor_DirtyFracture
+consumer-long-listed (not run, Deviation 6): BassStereoField_GravityFloor_AnchorTube
+consumer-long-listed (not run, Deviation 6): BassStereoField_GravityFloor_AnchorFold
+consumer-long-listed (not run, Deviation 6): BassStereoField_GravityFloor_AnchorRectify
+consumer-long-listed (not run, Deviation 6): BassStereoField_GravityFloor_AnchorBite
+consumer-long-listed (not run, Deviation 6): BassStereoField_GravityFloor_AnchorCrush
+consumer-long-listed (not run, Deviation 6): BassStereoField_GravityFloor_AnchorFracture
+consumer-long-listed (not run, Deviation 6): BassStereoField_PolyMonoSumRecord
+consumer-long-listed (not run, Deviation 6): BassStereoField_WidthMonotonic
+consumer-long-listed (not run, Deviation 6): BassStereoField_SafetyStagePhase
+consumer-long-listed (not run, Deviation 6): BassStereoField_SafetyStageAttenuation
+consumer-long-listed (not run, Deviation 6): BassStereoField_LeversAudible
+consumer-long-listed (not run, Deviation 6): BassStereoField_SampleRates
+consumer-long-listed (not run, Deviation 6): BassStereoField_MotionBounded
+consumer-long-listed (not run, Deviation 6): BassStereoField_NoZipper
+consumer-long-listed (not run, Deviation 6): BassStereoField_WideAliasing
+consumer-long-listed (not run, Deviation 6): BassStereoField_TransitionsClickFree
+consumer-long-listed (not run, Deviation 6): BassStereoField_H1Centred
+consumer-long-listed (not run, Deviation 6): BassStereoField_PanOnlyDirection
+consumer-long-listed (not run, Deviation 6): BassMorph_AnchorCurvesRendered
+consumer-long-listed (not run, Deviation 6): BassMorph_IdempotentRender
+consumer-long-listed (not run, Deviation 6): BassMorph_DiscreteClickFree_Algorithm
+consumer-long-listed (not run, Deviation 6): BassMorph_DiscreteClickFree_ImageMode
+consumer-long-listed (not run, Deviation 6): BassMorph_DiscreteClickFree_AnchorWaveform
+consumer-long-listed (not run, Deviation 6): BassMorph_DiscreteClickFree_AnchorMode
+consumer-long-listed (not run, Deviation 6): BassMorph_DiscreteClickFree_FieldMotionSource
+consumer-long-listed (not run, Deviation 6): BassMorph_DiscreteClickFree_FieldCycleSync
+consumer-long-listed (not run, Deviation 6): BassMorph_DiscreteClickFree_FieldCycleModifier
+consumer-long-listed (not run, Deviation 6): BassMorph_DiscreteClickFree_FieldCycleNote
+consumer-long-listed (not run, Deviation 6): BassMorph_DiscreteClickFree_GoverningAmount
+consumer-long-listed (not run, Deviation 6): BassMorph_ShowcaseTrajectory_Lock_E1
+consumer-long-listed (not run, Deviation 6): BassMorph_ShowcaseTrajectory_Lock_C3
+consumer-long-listed (not run, Deviation 6): BassMorph_ShowcaseTrajectory_Blend_E1
+consumer-long-listed (not run, Deviation 6): BassMorph_ShowcaseTrajectory_Blend_C3
+consumer-long-listed (not run, Deviation 6): BassMorph_ShowcaseTrajectory_Punch_E1
+consumer-long-listed (not run, Deviation 6): BassMorph_ShowcaseTrajectory_Punch_C3
+consumer-long-listed (not run, Deviation 6): BassMorph_MonoSum_E1
+consumer-long-listed (not run, Deviation 6): BassMorph_MonoSum_C3
+consumer-long-listed (not run, Deviation 6): BassMorph_MonoSum_AnchorThroughTail_E1
+consumer-long-listed (not run, Deviation 6): BassMorph_MonoSum_AnchorThroughTail_C3
+consumer-long-listed (not run, Deviation 6): BassMorph_Aliasing_44k
+consumer-long-listed (not run, Deviation 6): BassMorph_Aliasing_48k
+consumer-long-listed (not run, Deviation 6): BassMorph_Aliasing_96k
+consumer-long-listed (not run, Deviation 6): VoiceEngine_StealClickless_Solid
+consumer-long-listed (not run, Deviation 6): VoiceEngine_StealClickless_Spread
+consumer-long-listed (not run, Deviation 6): VoiceEngine_StealClickless_Wide
+consumer-long-listed (not run, Deviation 6): VoiceEngine_MonoReplaceClickless_Legato
+consumer-long-listed (not run, Deviation 6): VoiceEngine_MonoReplaceClickless_Retrigger
+consumer-long-listed (not run, Deviation 6): VoiceEngine_MotionSelectorsClickFree
+consumer-long-listed (not run, Deviation 6): VoiceEngine_AudibilityTable_Core
+consumer-long-listed (not run, Deviation 6): VoiceEngine_AudibilityTable_Character
+consumer-long-listed (not run, Deviation 6): VoiceEngine_AudibilityTable_Anchor
+consumer-long-listed (not run, Deviation 6): VoiceEngine_AudibilityTable_Pitch
+consumer-long-listed (not run, Deviation 6): VoiceEngine_AudibilityTable_Envelope
+consumer-long-listed (not run, Deviation 6): VoiceEngine_AudibilityTable_Mass
+consumer-long-listed (not run, Deviation 6): VoiceEngine_AudibilityTable_Field
+consumer-long-listed (not run, Deviation 6): VoiceEngine_AudibilityTable_Motion
+consumer-long-listed (not run, Deviation 6): VoiceEngine_AudibilityTable_Morph
+consumer-long-listed (not run, Deviation 6): VoiceEngine_AudibilityTable_NoteMemory
+consumer-long-listed (not run, Deviation 6): VoiceEngine_AudibilityTable_Macros
+consumer-long-listed (not run, Deviation 6): VoiceEngine_MacroMonotone
+consumer-long-listed (not run, Deviation 6): VoiceEngine_MotionMassSwell
+consumer-long-listed (not run, Deviation 6): VoiceEngine_MonoSum_Solid
+consumer-long-listed (not run, Deviation 6): VoiceEngine_MonoSum_Spread
+consumer-long-listed (not run, Deviation 6): VoiceEngine_MonoSum_Wide
+consumer-long-listed (not run, Deviation 6): VoiceEngine_AnchorThroughChain_E0
+consumer-long-listed (not run, Deviation 6): VoiceEngine_AnchorThroughChain_E1
+consumer-long-listed (not run, Deviation 6): VoiceEngine_AnchorThroughChain_E2
+consumer-long-listed (not run, Deviation 6): VoiceEngine_FollowTracking
+consumer-long-listed (not run, Deviation 6): VoiceEngine_Aliasing_44k1_Tube
+consumer-long-listed (not run, Deviation 6): VoiceEngine_Aliasing_44k1_Fold
+consumer-long-listed (not run, Deviation 6): VoiceEngine_Aliasing_44k1_Rectify
+consumer-long-listed (not run, Deviation 6): VoiceEngine_Aliasing_44k1_Bite
+consumer-long-listed (not run, Deviation 6): VoiceEngine_Aliasing_44k1_Crush
+consumer-long-listed (not run, Deviation 6): VoiceEngine_Aliasing_44k1_Fracture
+consumer-long-listed (not run, Deviation 6): VoiceEngine_Aliasing_48k_Tube
+consumer-long-listed (not run, Deviation 6): VoiceEngine_Aliasing_48k_Fold
+consumer-long-listed (not run, Deviation 6): VoiceEngine_Aliasing_48k_Rectify
+consumer-long-listed (not run, Deviation 6): VoiceEngine_Aliasing_48k_Bite
+consumer-long-listed (not run, Deviation 6): VoiceEngine_Aliasing_48k_Crush
+consumer-long-listed (not run, Deviation 6): VoiceEngine_Aliasing_48k_Fracture
+consumer-long-listed (not run, Deviation 6): VoiceEngine_Aliasing_96k_Tube
+consumer-long-listed (not run, Deviation 6): VoiceEngine_Aliasing_96k_Fold
+consumer-long-listed (not run, Deviation 6): VoiceEngine_Aliasing_96k_Rectify
+consumer-long-listed (not run, Deviation 6): VoiceEngine_Aliasing_96k_Bite
+consumer-long-listed (not run, Deviation 6): VoiceEngine_Aliasing_96k_Crush
+consumer-long-listed (not run, Deviation 6): VoiceEngine_Aliasing_96k_Fracture
+consumer-long-listed (not run, Deviation 6): VoiceEngine_AliasingDropTail
+consumer-long-listed (not run, Deviation 6): VoiceEngine_Soak30Min_Mono
+consumer-long-listed (not run, Deviation 6): VoiceEngine_Soak30Min_Poly
+consumer-long exit=0 wall=0s listed=384 expected=46 run=0 list=specs/profundum-phase12-ui/evidence/run-log/close/consumer-long-listed.txt
+list-tests exit=0 wall=3s missing=[] leaked_hidden=[] log=specs/profundum-phase12-ui/evidence/run-log/close/list-tests.log
+long:Profundum_StateRestoreRender exit=0 wall=2s log=specs/profundum-phase12-ui/evidence/run-log/close/long/Profundum_StateRestoreRender.log
+long-lane shards=1 wall=3s
+regen-tables exit=0 wall=6s last="Binary file (standard input) matches" log=specs/profundum-phase12-ui/evidence/run-log/close/regen-tables.log
+pluginval:Profundum exit=0 wall=12s log=specs/profundum-phase12-ui/evidence/run-log/close/pluginval-Profundum.log
+perpush:profundum_tests exit=0 wall=261s log=specs/profundum-phase12-ui/evidence/run-log/close/perpush-profundum_tests.log
+perpush:dsp_systems_tests exit=0 wall=1432s log=specs/profundum-phase12-ui/evidence/run-log/close/perpush-dsp_systems_tests.log
+=== summary
+scope (FR-095)                   GREEN base=40f6ebca consumers=38 modified_helpers_outside_lane=[dsp_processors_tests]
+build (SC-021)                   GREEN exit=0 warnings=0 compile_errors=0 wall=21s
+perpush:profundum_tests            GREEN last="All tests passed (1609997 assertions in 59 test cases)" wall=261s
+perpush:dsp_systems_tests (SC-022) GREEN last="All tests passed (16278409 assertions in 1913 test cases)" wall=1432s
+long (own + amended TUs)         GREEN run=1 done=1 red=[] missing=[] foreign_not_run=[Profundum_TailCoversRelease Profundum_ParamPathAudibility Profundum_MassOffsetAudibility Profundum_MonoSumViaParams] long-lane shards=1 wall=3s
+consumer [long] (Deviation 6)    GREEN listed=384 expected=46 run=0 wall=0s
+  NOTE: consumer [long] count 384 differs from the 46 cut-time count (report to the user)
+list-tests (SC names, SC-013)    GREEN wall=3s
+pluginval Profundum (SC-020)     GREEN exit=0 wall=12s
+regen-tables (T033)              RED exit=0 last="Binary file (standard input) matches" wall=6s
+lanes wall=1432s total wall=1466s
+DONE 2026-10-24T08:24:46Z RED

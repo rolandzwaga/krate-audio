@@ -1,0 +1,63 @@
+Filters: "VoiceEngine_MotionSelectorsClickFree"
+Randomness seeded to: 2134849705
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+VoiceEngine_MotionSelectorsClickFree
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_click_test.cpp(1130)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_click_test.cpp(1044): FAILED:
+  CHECK( ratio <= kVeRatioBar )
+with expansion:
+  1.2760223727 <= 1.0592537252
+with message:
+  SC-025 source Off->Env ratio 1.27602 (bar 1.05925) clicks morph 0 direct 0
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_click_test.cpp(1044): FAILED:
+  CHECK( ratio <= kVeRatioBar )
+with expansion:
+  1.2744262867 <= 1.0592537252
+with message:
+  SC-025 source Cycle->Env ratio 1.27443 (bar 1.05925) clicks morph 0 direct 0
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_click_test.cpp(1044): FAILED:
+  CHECK( ratio <= kVeRatioBar )
+with expansion:
+  1.2870536867 <= 1.0592537252
+with message:
+  SC-025 source Drift->Env ratio 1.28705 (bar 1.05925) clicks morph 0 direct 0
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_click_test.cpp(1044): FAILED:
+  CHECK( ratio <= kVeRatioBar )
+with expansion:
+  1.3441365674 <= 1.0592537252
+with message:
+  SC-025 cycleNote SixtyFourth->Quarter ratio 1.34414 (bar 1.05925) clicks
+  morph 0 direct 0
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_click_test.cpp(1044): FAILED:
+  CHECK( ratio <= kVeRatioBar )
+with expansion:
+  1.1208896997 <= 1.0592537252
+with message:
+  SC-025 cycleNote SixtyFourth->QuadrupleWhole ratio 1.12089 (bar 1.05925)
+  clicks morph 0 direct 0
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_click_test.cpp(1044): FAILED:
+  CHECK( ratio <= kVeRatioBar )
+with expansion:
+  1.24649678 <= 1.0592537252
+with message:
+  SC-025 cycleNote QuadrupleWhole->SixtyFourth ratio 1.2465 (bar 1.05925)
+  clicks morph 0 direct 0
+
+SC-025 VoiceEngine_MotionSelectorsClickFree: 80 pairs, worst ratio 1.34414 (cycleNote SixtyFourth->Quarter; bar 1.05925), W [48000, 51325), wall clock 99.9456 s
+===============================================================================
+test cases:    1 |    0 passed | 1 failed
+assertions: 4570 | 4564 passed | 6 failed
+

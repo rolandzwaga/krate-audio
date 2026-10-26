@@ -12,6 +12,7 @@
 #include "exciter_test_helpers.h"
 
 #include <array>
+#include <utility>
 
 using membrum_exciter_tests::spectralCentroidDFT;
 
@@ -34,7 +35,7 @@ CentroidResult measureCentroidRatio(Membrum::ExciterType type, double sr, int nu
     std::array<float, 441> bufLow{};
     std::array<float, 441> bufHigh{};
     // 441 samples = 10 ms at 44.1 kHz
-    REQUIRE(numSamples <= static_cast<int>(bufLow.size()));
+    REQUIRE(std::cmp_less_equal(numSamples, bufLow.size()));
 
     bank.trigger(0.23f);
     for (int i = 0; i < numSamples; ++i)
@@ -51,7 +52,7 @@ CentroidResult measureCentroidRatio(Membrum::ExciterType type, double sr, int nu
 
     const float cLow  = spectralCentroidDFT(bufLow.data(),  numSamples, sr);
     const float cHigh = spectralCentroidDFT(bufHigh.data(), numSamples, sr);
-    return {type, cLow, cHigh, cLow > 0.0f ? cHigh / cLow : 0.0f};
+    return {.type = type, .centLow = cLow, .centHigh = cHigh, .ratio = cLow > 0.0f ? cHigh / cLow : 0.0f};
 }
 
 } // namespace

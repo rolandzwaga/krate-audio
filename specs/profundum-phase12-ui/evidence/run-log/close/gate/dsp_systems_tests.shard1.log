@@ -1,0 +1,333 @@
+Filters: [profundum] ~[performance] ~[perf] ~[benchmark] ~[!benchmark] ~[long] ~[.]
+Randomness seeded to: 3893053182
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+ProfundumCore_PartialFrequencyAccuracySmoke
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(281)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(289): warning:
+  SC-001 smoke (MIDI 36, 48 kHz, n = 1, 8): worst error 4.73426e-05 cent (bar <
+  0.1)
+
+-------------------------------------------------------------------------------
+ProfundumCore_AudibilityGate_BodyEdgeShiftSmoke
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(507)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(522): warning:
+  SC-004 render smoke (mid grid) f0 32.7: Body span 11.5778 dB, Edge span 30.
+  0414 dB, Shift span 2.11713 oct, endpoint min 7.07299 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(522): warning:
+  SC-004 render smoke (mid grid) f0 65.41: Body span 11.5798 dB, Edge span 30.
+  0413 dB, Shift span 2.11724 oct, endpoint min 7.07342 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(522): warning:
+  SC-004 render smoke (mid grid) f0 130.81: Body span 11.578 dB, Edge span 30.
+  0415 dB, Shift span 2.11715 oct, endpoint min 7.07315 dB
+
+-------------------------------------------------------------------------------
+ProfundumCore_AudibilityGate_BodyCurvatureEmphasis
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(531)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(547): warning:
+  SC-005 render curvature sigma span: -0.375315 oct (bar |span| >= 0.25, recipe
+  -0.375)
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(581): warning:
+  SC-005 render emphasis odd/even: 151.439 -> 4.70592 dB, span 146.733 dB (bar
+  20)
+
+-------------------------------------------------------------------------------
+ProfundumCore_WaveformAnchorsRendered
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(626)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(621): warning:
+  SC-006 kSineAnchor aliasing re total: -122.219 dB (bar -60), excluded
+  fraction 0.179077
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(621): warning:
+  SC-006 kTriangleAnchor aliasing re total: -122.211 dB (bar -60), excluded
+  fraction 0.179077
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(621): warning:
+  SC-006 kSawAnchor aliasing re total: -122.979 dB (bar -60), excluded fraction
+  0.179077
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(621): warning:
+  SC-006 kSineAnchor aliasing re total: -122.226 dB (bar -60), excluded
+  fraction 0.179077
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(621): warning:
+  SC-006 kTriangleAnchor aliasing re total: -122.198 dB (bar -60), excluded
+  fraction 0.179077
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(621): warning:
+  SC-006 kSawAnchor aliasing re total: -122.956 dB (bar -60), excluded fraction
+  0.179077
+
+-------------------------------------------------------------------------------
+ProfundumCore_NamedDistributionsRendered
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(702)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(761): warning:
+  SC-007 render kHeavy: min dominant margin over C1/C2/C3 7.54098 dB (bar 3);
+  worst per-harmonic error 0.00170494 dB (bar 3)
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(761): warning:
+  SC-007 render kHollow: min dominant margin over C1/C2/C3 25.7272 dB (bar 3);
+  worst per-harmonic error 0.00188569 dB (bar 3)
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(761): warning:
+  SC-007 render kGrowl: min dominant margin over C1/C2/C3 12.8213 dB (bar 3);
+  worst per-harmonic error 0.00220452 dB (bar 3)
+
+-------------------------------------------------------------------------------
+ProfundumCore_SpectrumInvariantC1toC3Smoke
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(905)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(914): warning:
+  SC-008 smoke (mid grid, C1/C2/C3, 48 kHz): worst error 0.00179791 dB over 150
+  harmonics (bar 0.5)
+
+-------------------------------------------------------------------------------
+ProfundumCore_NoAliasingAllNotesSmoke
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(1053)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(1075): warning:
+  SC-009 static smoke fs 48000: worst aliased -126.901 dBFS (bar -96), max
+  excluded fraction 0.179169 (bar 0.5)
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(1075): warning:
+  SC-009 static smoke fs 44100: worst aliased -133.609 dBFS (bar -96), max
+  excluded fraction 0.20752 (bar 0.5)
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(1075): warning:
+  SC-009 static smoke fs 96000: worst aliased -137.566 dBFS (bar -96), max
+  excluded fraction 0.200684 (bar 0.5)
+
+-------------------------------------------------------------------------------
+ProfundumCore_NoAliasingDuringBendSmoke
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(1088)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(1093): warning:
+  SC-009 bend smoke (MIDI 100 -> 108 -> 100, 48 kHz): worst aliased -139.837
+  dBFS (bar -96), max excluded fraction 0.0371094 (bar 0.5)
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(1100): warning:
+  SC-009 bend smoke (MIDI 24 -> 26 -> 24, 44.1 kHz): worst aliased -132.662
+  dBFS (bar -96), max excluded fraction 0.164673 (bar 0.5)
+
+-------------------------------------------------------------------------------
+ProfundumCore_NoZipperControlSweepsSidebands
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(1231)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(1225): warning:
+  SC-010(b) 2 Hz triangle on depth: residual (core - ideal) sideband power -72.
+  6754 dB re core total (bar -60)
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(1247): warning:
+  SC-010(b) positive control 2 Hz triangle on depth: held raw - ideal sideband
+  power -54.8853 dB re core total (must exceed -60 on at least one lever)
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(1225): warning:
+  SC-010(b) 2 Hz triangle on body: residual (core - ideal) sideband power -83.
+  975 dB re core total (bar -60)
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(1247): warning:
+  SC-010(b) positive control 2 Hz triangle on body: held raw - ideal sideband
+  power -59.9237 dB re core total (must exceed -60 on at least one lever)
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(1225): warning:
+  SC-010(b) 2 Hz triangle on edge: residual (core - ideal) sideband power -83.
+  8819 dB re core total (bar -60)
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(1247): warning:
+  SC-010(b) positive control 2 Hz triangle on edge: held raw - ideal sideband
+  power -67.4014 dB re core total (must exceed -60 on at least one lever)
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(1225): warning:
+  SC-010(b) 2 Hz triangle on shift: residual (core - ideal) sideband power -67.
+  309 dB re core total (bar -60)
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(1247): warning:
+  SC-010(b) positive control 2 Hz triangle on shift: held raw - ideal sideband
+  power -50.9001 dB re core total (must exceed -60 on at least one lever)
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(1225): warning:
+  SC-010(b) 5 Hz +-2 semitone vibrato (kSineAnchor): residual (core - ideal)
+  sideband power -100.812 dB re core total (bar -60)
+
+-------------------------------------------------------------------------------
+ProfundumCore_LowNoteGuardReducesUpperEnergy
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(1272)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(1297): warning:
+  SC-011(a) kSawAnchor: R_pres reduction one octave below the onset 10.4551 dB
+  (bar 6, model 10.45)
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(1297): warning:
+  SC-011(a) midGrid: R_pres reduction one octave below the onset 8.5614 dB (bar
+  6, model 8.56)
+
+-------------------------------------------------------------------------------
+ProfundumCore_SampleRateChange
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(1306)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(1329): warning:
+  SC-017 fs 48000: SC-001 MIDI 36 worst 4.73426e-05 cent (bar < 0.1); SC-008
+  mid grid worst 0.00179791 dB over 150 harmonics (bar 0.5), 0 excluded in the
+  taper
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(1329): warning:
+  SC-017 fs 96000: SC-001 MIDI 36 worst 9.23075e-05 cent (bar < 0.1); SC-008
+  mid grid worst 0.00159953 dB over 150 harmonics (bar 0.5), 0 excluded in the
+  taper
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(1329): warning:
+  SC-017 fs 44100: SC-001 MIDI 36 worst 5.98628e-05 cent (bar < 0.1); SC-008
+  mid grid worst 0.00190161 dB over 150 harmonics (bar 0.5), 0 excluded in the
+  taper
+
+-------------------------------------------------------------------------------
+ProfundumCore_BodyColoursDistinctRendered
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(1339)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(1405): warning:
+  SC-019 render (C2): min pairwise body-colour distance 16.2422 dB (bar 6,
+  model 16.24)
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(1408): warning:
+  SC-019 render (C2): kBodyRound lowest C by 0.374855 oct (bar 0.05, model 0.
+  375); kBodyHollow highest odd/even 151.982042 dB by 140.86 dB (bar 1, model
+  18.9)
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(1411): warning:
+  SC-019 render (C2): kBodyNasal smallest sigma by 0.063858 oct (bar 0.05,
+  model 0.064); kBodyThick highest R_body by 1.26924 dB (bar 1, model 1.27)
+
+-------------------------------------------------------------------------------
+ProfundumCore_EmphasisOddOnlyRenderedSmoke
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(1508)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(1527): warning:
+  SC-022 render smoke (C2): loudest even at emphasis -1 -148.611 dB re h1 (bar
+  -50); FR-023 floor min margin 0.275767 dB
+
+-------------------------------------------------------------------------------
+ProfundumCore_ExcitationControlStepsNoClick
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_excitation_test.cpp(513)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_excitation_test.cpp(594): warning:
+  SC-009 worst ratio 1.0098 (mix, f0 41.2034, kSawAnchor, phase 15); bar 1.1,
+  plan worst 1.038
+
+-------------------------------------------------------------------------------
+ProfundumCore_ExcitationZeroLatency
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_excitation_test.cpp(987)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_excitation_test.cpp(1065): warning:
+  SC-022(i) mid grid f0 41.2034: |arg T1| 0.0381105 deg, low-passed (125 Hz)
+  argmax 0, low-passed (250 Hz) argmax 0, full-band argmax -4, group delay 4.
+  9753 samples @ 988.882 Hz, 4.78363 samples @ 2595.81 Hz
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_excitation_test.cpp(1065): warning:
+  SC-022(i) mid grid f0 65.4064: |arg T1| 0.0712927 deg, low-passed (125 Hz)
+  argmax 0, low-passed (250 Hz) argmax -1, full-band argmax -4, group delay 4.
+  94712 samples @ 981.096 Hz, 4.98371 samples @ 3989.79 Hz
+
+SC-022(j) ProfundumCore_ExcitationRecordedSplitHump mid grid f0 41.2 fs 48000 mix 0.50 drive -12 dB: h1 41 Hz -0.03 dB h8 330 Hz +1.54 dB h9 371 Hz +1.54 dB h10 412 Hz +1.58 dB h11 453 Hz +1.62 dB h12 494 Hz +1.64 dB h13 536 Hz +1.64 dB h14 577 Hz +1.62 dB h15 618 Hz +1.59 dB h16 659 Hz +1.55 dB h17 700 Hz +1.51 dB h18 742 Hz +1.45 dB h19 783 Hz +1.39 dB h20 824 Hz +1.32 dB h21 865 Hz +1.25 dB
+SC-022(j) ProfundumCore_ExcitationRecordedSplitHump mid grid f0 41.2 fs 48000 mix 0.50 drive +0 dB: h1 41 Hz -0.09 dB h8 330 Hz +4.31 dB h9 371 Hz +2.72 dB h10 412 Hz +1.82 dB h11 453 Hz +1.31 dB h12 494 Hz +1.10 dB h13 536 Hz +1.06 dB h14 577 Hz +1.07 dB h15 618 Hz +1.14 dB h16 659 Hz +1.23 dB h17 700 Hz +1.31 dB h18 742 Hz +1.33 dB h19 783 Hz +1.29 dB h20 824 Hz +1.22 dB h21 865 Hz +1.13 dB
+SC-022(j) ProfundumCore_ExcitationRecordedSplitHump mid grid f0 41.2 fs 48000 mix 0.50 drive +12 dB: h1 41 Hz -0.04 dB h8 330 Hz +9.15 dB h9 371 Hz +3.67 dB h10 412 Hz +0.48 dB h11 453 Hz -0.02 dB h12 494 Hz -0.45 dB h13 536 Hz +0.09 dB h14 577 Hz +0.44 dB h15 618 Hz +0.26 dB h16 659 Hz -0.13 dB h17 700 Hz +0.09 dB h18 742 Hz +0.47 dB h19 783 Hz +0.61 dB h20 824 Hz +0.53 dB h21 865 Hz +0.46 dB
+SC-022(j) ProfundumCore_ExcitationRecordedSplitHump mid grid f0 41.2 fs 48000 mix 1.00 drive -12 dB: h1 41 Hz -0.04 dB h8 330 Hz +1.85 dB h9 371 Hz +1.67 dB h10 412 Hz +1.61 dB h11 453 Hz +1.59 dB h12 494 Hz +1.59 dB h13 536 Hz +1.59 dB h14 577 Hz +1.57 dB h15 618 Hz +1.55 dB h16 659 Hz +1.52 dB h17 700 Hz +1.49 dB h18 742 Hz +1.45 dB h19 783 Hz +1.39 dB h20 824 Hz +1.32 dB h21 865 Hz +1.25 dB
+SC-022(j) ProfundumCore_ExcitationRecordedSplitHump mid grid f0 41.2 fs 48000 mix 1.00 drive +0 dB: h1 41 Hz -0.16 dB h8 330 Hz +6.58 dB h9 371 Hz +3.85 dB h10 412 Hz +2.08 dB h11 453 Hz +0.98 dB h12 494 Hz +0.47 dB h13 536 Hz +0.36 dB h14 577 Hz +0.42 dB h15 618 Hz +0.61 dB h16 659 Hz +0.87 dB h17 700 Hz +1.10 dB h18 742 Hz +1.21 dB h19 783 Hz +1.20 dB h20 824 Hz +1.11 dB h21 865 Hz +0.99 dB
+SC-022(j) ProfundumCore_ExcitationRecordedSplitHump mid grid f0 41.2 fs 48000 mix 1.00 drive +12 dB: h1 41 Hz -0.05 dB h8 330 Hz +13.22 dB h9 371 Hz +5.46 dB h10 412 Hz -0.74 dB h11 453 Hz -2.08 dB h12 494 Hz -3.28 dB h13 536 Hz -1.88 dB h14 577 Hz -1.00 dB h15 618 Hz -1.37 dB h16 659 Hz -2.27 dB h17 700 Hz -1.62 dB h18 742 Hz -0.65 dB h19 783 Hz -0.25 dB h20 824 Hz -0.34 dB h21 865 Hz -0.41 dB
+SC-022(j) ProfundumCore_ExcitationRecordedSplitHump mid grid f0 65.4 fs 48000 mix 0.50 drive -12 dB: h1 65 Hz +0.01 dB h5 327 Hz +1.12 dB h6 392 Hz +1.47 dB h7 458 Hz +2.05 dB h8 523 Hz +2.00 dB h9 589 Hz +1.80 dB h10 654 Hz +1.62 dB h11 719 Hz +1.47 dB h12 785 Hz +1.33 dB h13 850 Hz +1.22 dB
+SC-022(j) ProfundumCore_ExcitationRecordedSplitHump mid grid f0 65.4 fs 48000 mix 0.50 drive +0 dB: h1 65 Hz -0.05 dB h5 327 Hz -0.06 dB h6 392 Hz +0.91 dB h7 458 Hz +5.54 dB h8 523 Hz +4.65 dB h9 589 Hz +2.94 dB h10 654 Hz +1.86 dB h11 719 Hz +1.16 dB h12 785 Hz +0.78 dB h13 850 Hz +0.61 dB
+SC-022(j) ProfundumCore_ExcitationRecordedSplitHump mid grid f0 65.4 fs 48000 mix 0.50 drive +12 dB: h1 65 Hz +0.00 dB h5 327 Hz -6.26 dB h6 392 Hz -10.94 dB h7 458 Hz +13.14 dB h8 523 Hz +9.35 dB h9 589 Hz +3.87 dB h10 654 Hz +0.52 dB h11 719 Hz -0.20 dB h12 785 Hz -0.83 dB h13 850 Hz -0.40 dB
+SC-022(j) ProfundumCore_ExcitationRecordedSplitHump mid grid f0 65.4 fs 48000 mix 1.00 drive -12 dB: h1 65 Hz +0.00 dB h5 327 Hz +1.02 dB h6 392 Hz +1.45 dB h7 458 Hz +2.43 dB h8 523 Hz +2.29 dB h9 589 Hz +1.92 dB h10 654 Hz +1.65 dB h11 719 Hz +1.44 dB h12 785 Hz +1.29 dB h13 850 Hz +1.17 dB
+SC-022(j) ProfundumCore_ExcitationRecordedSplitHump mid grid f0 65.4 fs 48000 mix 1.00 drive +0 dB: h1 65 Hz -0.12 dB h5 327 Hz -1.55 dB h6 392 Hz +0.30 dB h7 458 Hz +8.22 dB h8 523 Hz +6.85 dB h9 589 Hz +4.06 dB h10 654 Hz +2.12 dB h11 719 Hz +0.82 dB h12 785 Hz +0.13 dB h13 850 Hz -0.12 dB
+SC-022(j) ProfundumCore_ExcitationRecordedSplitHump mid grid f0 65.4 fs 48000 mix 1.00 drive +12 dB: h1 65 Hz -0.01 dB h5 327 Hz -12.91 dB h6 392 Hz +4.72 dB h7 458 Hz +17.92 dB h8 523 Hz +13.35 dB h9 589 Hz +5.63 dB h10 654 Hz -0.69 dB h11 719 Hz -2.30 dB h12 785 Hz -3.80 dB h13 850 Hz -2.49 dB
+SC-022(j) ProfundumCore_ExcitationRecordedSplitHump kSawAnchor f0 41.2 fs 48000 mix 0.50 drive -12 dB: h1 41 Hz -0.02 dB h8 330 Hz +1.22 dB h9 371 Hz +1.40 dB h10 412 Hz +1.54 dB h11 453 Hz +1.63 dB h12 494 Hz +1.68 dB h13 536 Hz +1.69 dB h14 577 Hz +1.67 dB h15 618 Hz +1.63 dB h16 659 Hz +1.58 dB h17 700 Hz +1.51 dB h18 742 Hz +1.45 dB h19 783 Hz +1.38 dB h20 824 Hz +1.32 dB h21 865 Hz +1.25 dB
+SC-022(j) ProfundumCore_ExcitationRecordedSplitHump kSawAnchor f0 41.2 fs 48000 mix 0.50 drive +0 dB: h1 41 Hz -0.00 dB h8 330 Hz +1.14 dB h9 371 Hz +1.32 dB h10 412 Hz +1.46 dB h11 453 Hz +1.55 dB h12 494 Hz +1.60 dB h13 536 Hz +1.61 dB h14 577 Hz +1.59 dB h15 618 Hz +1.55 dB h16 659 Hz +1.49 dB h17 700 Hz +1.43 dB h18 742 Hz +1.36 dB h19 783 Hz +1.29 dB h20 824 Hz +1.22 dB h21 865 Hz +1.16 dB
+SC-022(j) ProfundumCore_ExcitationRecordedSplitHump kSawAnchor f0 41.2 fs 48000 mix 0.50 drive +12 dB: h1 41 Hz +0.20 dB h8 330 Hz +0.53 dB h9 371 Hz +0.72 dB h10 412 Hz +0.87 dB h11 453 Hz +0.96 dB h12 494 Hz +1.01 dB h13 536 Hz +1.02 dB h14 577 Hz +0.99 dB h15 618 Hz +0.94 dB h16 659 Hz +0.88 dB h17 700 Hz +0.81 dB h18 742 Hz +0.73 dB h19 783 Hz +0.66 dB h20 824 Hz +0.58 dB h21 865 Hz +0.51 dB
+SC-022(j) ProfundumCore_ExcitationRecordedSplitHump kSawAnchor f0 41.2 fs 48000 mix 1.00 drive -12 dB: h1 41 Hz -0.02 dB h8 330 Hz +1.21 dB h9 371 Hz +1.40 dB h10 412 Hz +1.54 dB h11 453 Hz +1.63 dB h12 494 Hz +1.68 dB h13 536 Hz +1.69 dB h14 577 Hz +1.67 dB h15 618 Hz +1.63 dB h16 659 Hz +1.57 dB h17 700 Hz +1.51 dB h18 742 Hz +1.44 dB h19 783 Hz +1.38 dB h20 824 Hz +1.31 dB h21 865 Hz +1.25 dB
+SC-022(j) ProfundumCore_ExcitationRecordedSplitHump kSawAnchor f0 41.2 fs 48000 mix 1.00 drive +0 dB: h1 41 Hz +0.02 dB h8 330 Hz +1.05 dB h9 371 Hz +1.23 dB h10 412 Hz +1.37 dB h11 453 Hz +1.47 dB h12 494 Hz +1.51 dB h13 536 Hz +1.52 dB h14 577 Hz +1.50 dB h15 618 Hz +1.46 dB h16 659 Hz +1.40 dB h17 700 Hz +1.33 dB h18 742 Hz +1.27 dB h19 783 Hz +1.20 dB h20 824 Hz +1.13 dB h21 865 Hz +1.06 dB
+SC-022(j) ProfundumCore_ExcitationRecordedSplitHump kSawAnchor f0 41.2 fs 48000 mix 1.00 drive +12 dB: h1 41 Hz +0.43 dB h8 330 Hz -0.23 dB h9 371 Hz -0.03 dB h10 412 Hz +0.13 dB h11 453 Hz +0.23 dB h12 494 Hz +0.27 dB h13 536 Hz +0.28 dB h14 577 Hz +0.25 dB h15 618 Hz +0.19 dB h16 659 Hz +0.12 dB h17 700 Hz +0.04 dB h18 742 Hz -0.05 dB h19 783 Hz -0.14 dB h20 824 Hz -0.22 dB h21 865 Hz -0.31 dB
+SC-022(j) ProfundumCore_ExcitationRecordedSplitHump kSawAnchor f0 65.4 fs 48000 mix 0.50 drive -12 dB: h1 65 Hz +0.02 dB h5 327 Hz +1.21 dB h6 392 Hz +1.48 dB h7 458 Hz +1.64 dB h8 523 Hz +1.69 dB h9 589 Hz +1.66 dB h10 654 Hz +1.58 dB h11 719 Hz +1.48 dB h12 785 Hz +1.38 dB h13 850 Hz +1.28 dB
+SC-022(j) ProfundumCore_ExcitationRecordedSplitHump kSawAnchor f0 65.4 fs 48000 mix 0.50 drive +0 dB: h1 65 Hz +0.04 dB h5 327 Hz +1.13 dB h6 392 Hz +1.40 dB h7 458 Hz +1.57 dB h8 523 Hz +1.62 dB h9 589 Hz +1.58 dB h10 654 Hz +1.50 dB h11 719 Hz +1.40 dB h12 785 Hz +1.29 dB h13 850 Hz +1.19 dB
+SC-022(j) ProfundumCore_ExcitationRecordedSplitHump kSawAnchor f0 65.4 fs 48000 mix 0.50 drive +12 dB: h1 65 Hz +0.24 dB h5 327 Hz +0.53 dB h6 392 Hz +0.82 dB h7 458 Hz +0.98 dB h8 523 Hz +1.03 dB h9 589 Hz +1.00 dB h10 654 Hz +0.91 dB h11 719 Hz +0.80 dB h12 785 Hz +0.68 dB h13 850 Hz +0.57 dB
+SC-022(j) ProfundumCore_ExcitationRecordedSplitHump kSawAnchor f0 65.4 fs 48000 mix 1.00 drive -12 dB: h1 65 Hz +0.02 dB h5 327 Hz +1.20 dB h6 392 Hz +1.48 dB h7 458 Hz +1.64 dB h8 523 Hz +1.69 dB h9 589 Hz +1.66 dB h10 654 Hz +1.58 dB h11 719 Hz +1.48 dB h12 785 Hz +1.38 dB h13 850 Hz +1.27 dB
+SC-022(j) ProfundumCore_ExcitationRecordedSplitHump kSawAnchor f0 65.4 fs 48000 mix 1.00 drive +0 dB: h1 65 Hz +0.06 dB h5 327 Hz +1.05 dB h6 392 Hz +1.32 dB h7 458 Hz +1.48 dB h8 523 Hz +1.53 dB h9 589 Hz +1.50 dB h10 654 Hz +1.42 dB h11 719 Hz +1.32 dB h12 785 Hz +1.21 dB h13 850 Hz +1.10 dB
+SC-022(j) ProfundumCore_ExcitationRecordedSplitHump kSawAnchor f0 65.4 fs 48000 mix 1.00 drive +12 dB: h1 65 Hz +0.46 dB h5 327 Hz -0.22 dB h6 392 Hz +0.09 dB h7 458 Hz +0.26 dB h8 523 Hz +0.31 dB h9 589 Hz +0.27 dB h10 654 Hz +0.18 dB h11 719 Hz +0.05 dB h12 785 Hz -0.08 dB h13 850 Hz -0.21 dB
+SC-022(j) ProfundumCore_ExcitationRecordedSplitHump mid grid f0 41.2 fs 96000 mix 0.50 drive -12 dB: h1 41 Hz -0.04 dB h8 330 Hz +0.97 dB h9 371 Hz +0.87 dB h10 412 Hz +0.84 dB h11 453 Hz +0.83 dB h12 494 Hz +0.83 dB h13 536 Hz +0.82 dB h14 577 Hz +0.81 dB h15 618 Hz +0.79 dB h16 659 Hz +0.78 dB h17 700 Hz +0.76 dB h18 742 Hz +0.73 dB h19 783 Hz +0.69 dB h20 824 Hz +0.65 dB h21 865 Hz +0.61 dB
+SC-022(j) ProfundumCore_ExcitationRecordedSplitHump mid grid f0 41.2 fs 96000 mix 0.50 drive +0 dB: h1 41 Hz -0.11 dB h8 330 Hz +3.90 dB h9 371 Hz +2.14 dB h10 412 Hz +1.10 dB h11 453 Hz +0.50 dB h12 494 Hz +0.24 dB h13 536 Hz +0.18 dB h14 577 Hz +0.20 dB h15 618 Hz +0.29 dB h16 659 Hz +0.42 dB h17 700 Hz +0.54 dB h18 742 Hz +0.60 dB h19 783 Hz +0.59 dB h20 824 Hz +0.54 dB h21 865 Hz +0.47 dB
+SC-022(j) ProfundumCore_ExcitationRecordedSplitHump mid grid f0 41.2 fs 96000 mix 0.50 drive +12 dB: h1 41 Hz -0.05 dB h8 330 Hz +8.92 dB h9 371 Hz +3.16 dB h10 412 Hz -0.36 dB h11 453 Hz -0.97 dB h12 494 Hz -1.48 dB h13 536 Hz -0.89 dB h14 577 Hz -0.49 dB h15 618 Hz -0.67 dB h16 659 Hz -1.08 dB h17 700 Hz -0.80 dB h18 742 Hz -0.34 dB h19 783 Hz -0.15 dB h20 824 Hz -0.21 dB h21 865 Hz -0.24 dB
+SC-022(j) ProfundumCore_ExcitationRecordedSplitHump mid grid f0 41.2 fs 96000 mix 1.00 drive -12 dB: h1 41 Hz -0.05 dB h8 330 Hz +1.29 dB h9 371 Hz +1.01 dB h10 412 Hz +0.88 dB h11 453 Hz +0.81 dB h12 494 Hz +0.78 dB h13 536 Hz +0.76 dB h14 577 Hz +0.75 dB h15 618 Hz +0.75 dB h16 659 Hz +0.75 dB h17 700 Hz +0.74 dB h18 742 Hz +0.72 dB h19 783 Hz +0.69 dB h20 824 Hz +0.65 dB h21 865 Hz +0.60 dB
+SC-022(j) ProfundumCore_ExcitationRecordedSplitHump mid grid f0 41.2 fs 96000 mix 1.00 drive +0 dB: h1 41 Hz -0.18 dB h8 330 Hz +6.27 dB h9 371 Hz +3.35 dB h10 412 Hz +1.38 dB h11 453 Hz +0.13 dB h12 494 Hz -0.46 dB h13 536 Hz -0.59 dB h14 577 Hz -0.52 dB h15 618 Hz -0.29 dB h16 659 Hz +0.02 dB h17 700 Hz +0.31 dB h18 742 Hz +0.46 dB h19 783 Hz +0.49 dB h20 824 Hz +0.42 dB h21 865 Hz +0.33 dB
+SC-022(j) ProfundumCore_ExcitationRecordedSplitHump mid grid f0 41.2 fs 96000 mix 1.00 drive +12 dB: h1 41 Hz -0.07 dB h8 330 Hz +13.09 dB h9 371 Hz +5.06 dB h10 412 Hz -1.70 dB h11 453 Hz -3.29 dB h12 494 Hz -4.74 dB h13 536 Hz -3.11 dB h14 577 Hz -2.10 dB h15 618 Hz -2.50 dB h16 659 Hz -3.49 dB h17 700 Hz -2.71 dB h18 742 Hz -1.57 dB h19 783 Hz -1.09 dB h20 824 Hz -1.15 dB h21 865 Hz -1.19 dB
+SC-022(j) ProfundumCore_ExcitationRecordedSplitHump mid grid f0 65.4 fs 96000 mix 0.50 drive -12 dB: h1 65 Hz -0.02 dB h5 327 Hz +0.52 dB h6 392 Hz +0.76 dB h7 458 Hz +1.30 dB h8 523 Hz +1.22 dB h9 589 Hz +1.01 dB h10 654 Hz +0.85 dB h11 719 Hz +0.73 dB h12 785 Hz +0.63 dB h13 850 Hz +0.56 dB
+SC-022(j) ProfundumCore_ExcitationRecordedSplitHump mid grid f0 65.4 fs 96000 mix 0.50 drive +0 dB: h1 65 Hz -0.09 dB h5 327 Hz -0.75 dB h6 392 Hz +0.15 dB h7 458 Hz +5.05 dB h8 523 Hz +4.08 dB h9 589 Hz +2.25 dB h10 654 Hz +1.11 dB h11 719 Hz +0.39 dB h12 785 Hz +0.03 dB h13 850 Hz -0.10 dB
+SC-022(j) ProfundumCore_ExcitationRecordedSplitHump mid grid f0 65.4 fs 96000 mix 0.50 drive +12 dB: h1 65 Hz -0.03 dB h5 327 Hz -7.84 dB h6 392 Hz -8.87 dB h7 458 Hz +12.94 dB h8 523 Hz +9.02 dB h9 589 Hz +3.26 dB h10 654 Hz -0.35 dB h11 719 Hz -1.10 dB h12 785 Hz -1.74 dB h13 850 Hz -1.20 dB
+SC-022(j) ProfundumCore_ExcitationRecordedSplitHump mid grid f0 65.4 fs 96000 mix 1.00 drive -12 dB: h1 65 Hz -0.03 dB h5 327 Hz +0.42 dB h6 392 Hz +0.74 dB h7 458 Hz +1.71 dB h8 523 Hz +1.54 dB h9 589 Hz +1.14 dB h10 654 Hz +0.88 dB h11 719 Hz +0.70 dB h12 785 Hz +0.58 dB h13 850 Hz +0.50 dB
+SC-022(j) ProfundumCore_ExcitationRecordedSplitHump mid grid f0 65.4 fs 96000 mix 1.00 drive +0 dB: h1 65 Hz -0.16 dB h5 327 Hz -2.39 dB h6 392 Hz -0.52 dB h7 458 Hz +7.87 dB h8 523 Hz +6.41 dB h9 589 Hz +3.45 dB h10 654 Hz +1.39 dB h11 719 Hz +0.01 dB h12 785 Hz -0.69 dB h13 850 Hz -0.90 dB
+SC-022(j) ProfundumCore_ExcitationRecordedSplitHump mid grid f0 65.4 fs 96000 mix 1.00 drive +12 dB: h1 65 Hz -0.05 dB h5 327 Hz -11.29 dB h6 392 Hz +5.15 dB h7 458 Hz +17.81 dB h8 523 Hz +13.15 dB h9 589 Hz +5.14 dB h10 654 Hz -1.70 dB h11 719 Hz -3.46 dB h12 785 Hz -5.10 dB h13 850 Hz -3.51 dB
+SC-022(j) ProfundumCore_ExcitationRecordedSplitHump kSawAnchor f0 41.2 fs 96000 mix 0.50 drive -12 dB: h1 41 Hz -0.03 dB h8 330 Hz +0.62 dB h9 371 Hz +0.72 dB h10 412 Hz +0.80 dB h11 453 Hz +0.85 dB h12 494 Hz +0.88 dB h13 536 Hz +0.88 dB h14 577 Hz +0.87 dB h15 618 Hz +0.84 dB h16 659 Hz +0.80 dB h17 700 Hz +0.76 dB h18 742 Hz +0.72 dB h19 783 Hz +0.68 dB h20 824 Hz +0.64 dB h21 865 Hz +0.61 dB
+SC-022(j) ProfundumCore_ExcitationRecordedSplitHump kSawAnchor f0 41.2 fs 96000 mix 0.50 drive +0 dB: h1 41 Hz -0.01 dB h8 330 Hz +0.53 dB h9 371 Hz +0.64 dB h10 412 Hz +0.71 dB h11 453 Hz +0.76 dB h12 494 Hz +0.79 dB h13 536 Hz +0.79 dB h14 577 Hz +0.77 dB h15 618 Hz +0.75 dB h16 659 Hz +0.71 dB h17 700 Hz +0.67 dB h18 742 Hz +0.63 dB h19 783 Hz +0.58 dB h20 824 Hz +0.54 dB h21 865 Hz +0.51 dB
+SC-022(j) ProfundumCore_ExcitationRecordedSplitHump kSawAnchor f0 41.2 fs 96000 mix 0.50 drive +12 dB: h1 41 Hz +0.19 dB h8 330 Hz -0.13 dB h9 371 Hz -0.02 dB h10 412 Hz +0.06 dB h11 453 Hz +0.11 dB h12 494 Hz +0.14 dB h13 536 Hz +0.14 dB h14 577 Hz +0.12 dB h15 618 Hz +0.08 dB h16 659 Hz +0.04 dB h17 700 Hz -0.01 dB h18 742 Hz -0.06 dB h19 783 Hz -0.10 dB h20 824 Hz -0.15 dB h21 865 Hz -0.20 dB
+SC-022(j) ProfundumCore_ExcitationRecordedSplitHump kSawAnchor f0 41.2 fs 96000 mix 1.00 drive -12 dB: h1 41 Hz -0.03 dB h8 330 Hz +0.62 dB h9 371 Hz +0.72 dB h10 412 Hz +0.80 dB h11 453 Hz +0.85 dB h12 494 Hz +0.87 dB h13 536 Hz +0.88 dB h14 577 Hz +0.86 dB h15 618 Hz +0.83 dB h16 659 Hz +0.80 dB h17 700 Hz +0.76 dB h18 742 Hz +0.72 dB h19 783 Hz +0.68 dB h20 824 Hz +0.64 dB h21 865 Hz +0.60 dB
+SC-022(j) ProfundumCore_ExcitationRecordedSplitHump kSawAnchor f0 41.2 fs 96000 mix 1.00 drive +0 dB: h1 41 Hz +0.01 dB h8 330 Hz +0.44 dB h9 371 Hz +0.54 dB h10 412 Hz +0.62 dB h11 453 Hz +0.67 dB h12 494 Hz +0.69 dB h13 536 Hz +0.69 dB h14 577 Hz +0.68 dB h15 618 Hz +0.65 dB h16 659 Hz +0.61 dB h17 700 Hz +0.57 dB h18 742 Hz +0.52 dB h19 783 Hz +0.48 dB h20 824 Hz +0.44 dB h21 865 Hz +0.40 dB
+SC-022(j) ProfundumCore_ExcitationRecordedSplitHump kSawAnchor f0 41.2 fs 96000 mix 1.00 drive +12 dB: h1 41 Hz +0.41 dB h8 330 Hz -0.95 dB h9 371 Hz -0.84 dB h10 412 Hz -0.75 dB h11 453 Hz -0.70 dB h12 494 Hz -0.68 dB h13 536 Hz -0.68 dB h14 577 Hz -0.71 dB h15 618 Hz -0.75 dB h16 659 Hz -0.80 dB h17 700 Hz -0.86 dB h18 742 Hz -0.92 dB h19 783 Hz -0.98 dB h20 824 Hz -1.03 dB h21 865 Hz -1.09 dB
+SC-022(j) ProfundumCore_ExcitationRecordedSplitHump kSawAnchor f0 65.4 fs 96000 mix 0.50 drive -12 dB: h1 65 Hz -0.01 dB h5 327 Hz +0.61 dB h6 392 Hz +0.77 dB h7 458 Hz +0.86 dB h8 523 Hz +0.88 dB h9 589 Hz +0.86 dB h10 654 Hz +0.81 dB h11 719 Hz +0.75 dB h12 785 Hz +0.68 dB h13 850 Hz +0.62 dB
+SC-022(j) ProfundumCore_ExcitationRecordedSplitHump kSawAnchor f0 65.4 fs 96000 mix 0.50 drive +0 dB: h1 65 Hz +0.01 dB h5 327 Hz +0.53 dB h6 392 Hz +0.68 dB h7 458 Hz +0.77 dB h8 523 Hz +0.80 dB h9 589 Hz +0.77 dB h10 654 Hz +0.72 dB h11 719 Hz +0.66 dB h12 785 Hz +0.59 dB h13 850 Hz +0.53 dB
+SC-022(j) ProfundumCore_ExcitationRecordedSplitHump kSawAnchor f0 65.4 fs 96000 mix 0.50 drive +12 dB: h1 65 Hz +0.21 dB h5 327 Hz -0.12 dB h6 392 Hz +0.04 dB h7 458 Hz +0.13 dB h8 523 Hz +0.16 dB h9 589 Hz +0.13 dB h10 654 Hz +0.07 dB h11 719 Hz -0.00 dB h12 785 Hz -0.08 dB h13 850 Hz -0.15 dB
+SC-022(j) ProfundumCore_ExcitationRecordedSplitHump kSawAnchor f0 65.4 fs 96000 mix 1.00 drive -12 dB: h1 65 Hz -0.01 dB h5 327 Hz +0.61 dB h6 392 Hz +0.76 dB h7 458 Hz +0.85 dB h8 523 Hz +0.88 dB h9 589 Hz +0.85 dB h10 654 Hz +0.80 dB h11 719 Hz +0.74 dB h12 785 Hz +0.68 dB h13 850 Hz +0.62 dB
+SC-022(j) ProfundumCore_ExcitationRecordedSplitHump kSawAnchor f0 65.4 fs 96000 mix 1.00 drive +0 dB: h1 65 Hz +0.03 dB h5 327 Hz +0.44 dB h6 392 Hz +0.59 dB h7 458 Hz +0.68 dB h8 523 Hz +0.71 dB h9 589 Hz +0.68 dB h10 654 Hz +0.63 dB h11 719 Hz +0.56 dB h12 785 Hz +0.49 dB h13 850 Hz +0.43 dB
+SC-022(j) ProfundumCore_ExcitationRecordedSplitHump kSawAnchor f0 65.4 fs 96000 mix 1.00 drive +12 dB: h1 65 Hz +0.43 dB h5 327 Hz -0.93 dB h6 392 Hz -0.76 dB h7 458 Hz -0.66 dB h8 523 Hz -0.64 dB h9 589 Hz -0.68 dB h10 654 Hz -0.74 dB h11 719 Hz -0.82 dB h12 785 Hz -0.91 dB h13 850 Hz -0.99 dB
+-------------------------------------------------------------------------------
+ProfundumCore_ExcitationDriveMonotonicSmoke
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_excitation_spectral_test.cpp(524)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_excitation_spectral_test.cpp(258): warning:
+  SC-001 drive sweep: smallest THD(drive 1) - THD(drive 0) 31.332 dB (bar 20;
+  plan 44.4 / 31.4)
+
+===============================================================================
+All tests passed (23747 assertions in 31 test cases)
+
+rc=0 wall=66s

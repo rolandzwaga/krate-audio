@@ -1,0 +1,79 @@
+T011 run-log (2026-10-18) - MOTION bounds and the zipper references (SC-008, SC-009(a); FR-015, FR-030 - FR-036; plan C-9, C-16)
+
+## Files written
+- dsp/tests/unit/systems/bass_stereo_field_motion_test.cpp (T002 stub filled; already registered in dsp_systems_tests,
+  dsp/tests/CMakeLists.txt:759; not in the -fno-fast-math block - the bad tempo is a NaN bit pattern through a volatile).
+  Includes bass_stereo_field_test_helpers.h (T007, read-only). TU-local names prefixed bmo / kBmo / Bmo (anonymous namespace).
+  4 TEST_CASEs, tags [systems][profundum][stereo-field][motion] + [sc-008] / [sc-009]:
+    BassStereoField_MotionBounded       [long] law level, no audio: per interval advanceControl() then computePanVector(vs, E1,
+        out, 64) (plan S1 C-7), 60 s = 90 000 intervals at 48 kHz. Grid: source {Drift, Cycle} x Spread {0.5, 1} x mu {0, 0.5, 1}
+        x rate {0, 0.5, 1} (mu 0 for the inward-motion record), then synced Cycle (SixtyFourth + Triplet) at 120 and 200 BPM with
+        setTempoBpm(NaN) and setTempoBpm(-1) before the middle interval. P_k / s_k from a depth-0 field with the same controls
+        (unprimed query). Gates per cell: excursion max_t |p_k - s_k P_k (1 - 0.5 mu)| <= 0.5 mu P_k + 1e-6 and max_t |p_k| <= P_k
+        + 1e-6 for every k with P_k > 0; Cycle non-vacuity max excursion >= 0.99 * 0.5 mu P_k for P_k > 0.01; h1 and every c_k = 0
+        partial (k < 64) bit-equal to its +0 throughout, entries k >= 64 +0, at least 2 fixed partials (h1 + k = 1 at E1);
+        no sign change (p == 0 allowed, else signbit(p) == signbit(s_k)); Cycle mean_t |p_k| within 1e-3 * P_k of P_k (1 - 0.5 mu)
+        over whole Cycle periods; Cycle affine identity |p_k(t) - s_k P_k (1 - 0.5 mu + 0.5 mu m(t))| <= 1e-6 on every moving k.
+        Spectral (mu > 0, the largest- and the smallest-P_k moving partials): Cycle BH7 peak (window-weighted mean removed,
+        zero-padded to 2^17 at 1500 Hz, bin 0.0114 Hz) <= 1 Hz and within one bin of cycleFrequencyHz(); Drift fitted 1/e
+        autocorrelation time (mean removed, linear ACF via a 2^18 FFT, interpolated lag) within [0.5, 2] x driftTauSeconds() where
+        tau <= 6 s (rates 0.5 and 1), printed at rate 0 (tau 30 s). driftTauSeconds() in [0.5, 30] at rate {0, .25, .5, .75, 1}
+        (formula printed beside). Sync: cycleFrequencyHz() 0.75 / 0.625 Hz (+-1e-5), <= 1 Hz, bit-unchanged across the bad tempos.
+        CSV evidence/sc008-motion.csv (kind k: one row per partial per cell; kind rep: the representatives' peak / tau fit).
+    BassStereoField_MotionBoundedSmoke  10 s (15 000 intervals), mu 1, Spread 1, rate 1, Cycle and Drift: the same per-partial
+        gates (excursion, |p| <= P, no sign change, fixed partials, Cycle vacuity / mean / affine); no spectra, no CSV.
+    BassStereoField_NoZipper            [long] SC-009(a), C-16: clean core kSawAnchor, 64 partials, 48 kHz via renderFieldChain with
+        shapeOn false, no algorithm, attachAnchor false, bypassField = true AND bypassHandsVector = true (T007 decision: the stage
+        is not run, the vector is handed), reading coreL/R and vectorPerInterval. (a_n, phi_n) by Sft::fitHarmonics on coreL of a
+        2 s Spread 0 render of the same note, from 1 s over the whole-period length (top half of the period counts) closest to an
+        integer number of samples. References by Sft::renderPanReference (Held / Interpolated) from the product's vectors.
+          validity: static E1, Spread 1, 3 s: sum (product - held)^2 / sum product^2 over [1 s, end) <= -60 dB on L and R
+                    (non-vacuity: L - R re L > -40 dB).
+          (1) Spread 0 -> 1 at 1 s, 1 -> 0 at 3 s (fieldAt), static E1, 3.5 s; frame [0.75 s, +2^17) holds both slewed sweeps.
+          (2) Cycle rate 1, depth 1, Spread 1, static E1, 3.8 s; frame [1 s, +2^17).
+              (1)(2): ProfundumTest::sidebandPower(held - interp, fs, f0, 32, 0, 0.0, 0.0, product) <= -60 dB on L and R;
+              non-vacuity: the vector moved (max per-interval step > 0), the residual is non-zero.
+          (3) Drop C3 -> C3 / 16 log-linear over [0.5 s, 1.5 s] (f0At), Spread 1, 2.5 s; fit from static C3; reference f0 =
+              ProfundumTest::pitchHoldAlignedF0 of the float track the core was fed. Broadband sum (held - interp)^2 / sum
+              product^2 over [0.5 s, end) <= -60 dB per channel; ShapeCharacterTest::differentialClicks(product, held as float,
+              from 0.25 s, f0 = C3).counted == 0 on L and R; non-vacuity: the vector moved.
+        Every reading printed as a BSF_ZIPPER,... line.
+    BassStereoField_NoZipperSmoke       the validity arm (2 s) and arm (1)'s 0 -> 1 step (3.5 s, frame from 0.75 s).
+
+## API relied on (read this session)
+- dsp/include/krate/dsp/systems/bass_stereo_field.h: kMotionExcursion :78, kCycleMaxHz :80, kDriftTauMaxSec / MinSec :81-82,
+  kCycleSyncFold :95, Controls :97-109, VoiceState :111-124, prepare :162, setControls :230, setTempoBpm :270-275,
+  advanceControl :289-326, computePanVector :337-383 (slew :356-362, h1 +0 :347, k >= N +0 :365-367), motionValue :483,
+  driftTauSeconds :488, cycleFrequencyHz :489, foldedSyncTempo :552-562, updateLawCache magnitudeScale_ :641-644.
+- dsp/tests/unit/systems/bass_stereo_field_test_helpers.h: FieldChainConfig :113-133 (bypassHandsVector :118, f0At :129),
+  FieldChainTaps :135-144, renderFieldChain :266-421, fitHarmonics :860-872, renderPanReference :883-940.
+- dsp/tests/unit/systems/profundum_core_test_helpers.h: bh7Window :142, fftDouble :173, safeDb10 :58, sidebandPower :323
+  (kLen 2^17 :326), pitchHoldAlignedF0 :433.
+- dsp/tests/unit/processors/shape_character_metric_helpers.h: ClickCount :44, differentialClicks :76 / :137.
+- dsp/tests/unit/systems/shape_character_test_helpers.h: kE1Hz :50, kC3Hz :54.
+- dsp/tests/unit/systems/mass_dynamics_test_helpers.h: ChainConfig :173-193, kSettleSeconds :87.
+- dsp/include/krate/dsp/processors/brownian_drift.h: OU, corr(lag k) = a^k (1/e = tau) :28-33, 150 ms output smoother :103.
+
+## Decisions (recorded; surface, do not silently revert)
+- Representatives: the 64 per-partial series of a cell share one m(t). For Cycle the TU gates the affine identity
+  p_k = s_k P_k (1 - 0.5 mu + 0.5 mu m(t)) within 1e-6 on every moving partial (the slew never engages: the fastest Cycle,
+  1 Hz at 0.5 mu P <= 0.5, moves <= 0.0021 per interval < 0.003), so the spectral peak and the 1/e fit are read on two
+  representatives (largest and smallest moving P_k) rather than 62 FFTs per cell. Drift's affine deviation is printed.
+- Cycle inward-motion mean: over the largest whole number of Cycle periods inside the render (a part period biases the mean
+  of a 0.2236 Hz sine by up to ~2.4 % of 0.5 mu P_k, above the 1e-3 bar); the 60 s mean is printed (inward line, CSV).
+  Tolerance read as 1e-3 * P_k (the spec's "within 1e-3 of P_k"), tighter than tasks.md's absolute 1e-3 since P_k <= 1.
+- BH7 peak: the window-weighted mean is removed before windowing (p_k(t) sits on p-bar). A Node model of a pure sine at
+  0.05, 0.2236, 0.75, 0.625 and 1.0 Hz (90 000 samples at 1500 Hz, 2^17 FFT) puts the peak on the nearest bin in each case
+  (offsets -0.37 .. +0.46 bin; 1.0 Hz -> 0.99564 Hz <= 1 Hz).
+- No-sign-change: p == 0 (centre, reached when m = -1 at mu = 1) is allowed and counted (zero_hits); any other sample must
+  carry s_k's sign bit (spec FR-030: "sign(p_k(t)) is the same s_k at every t where p_k(t) != 0").
+- The synced cells use rate 0.3 (ignored while synced) and mu 1, Spread 1.
+- Drop: the reference f0 is pitchHoldAlignedF0 of the core's float track, so the held reference is phase-aligned with the
+  core for the click count; the residual (held - interpolated) shares the oscillators and does not depend on it. Clicks are
+  counted from 0.25 s (past the note-on ramp, before the glide at 0.5 s); the window N uses f0 = C3 (the strictest N).
+- Deviation (Smoke): tasks.md says "arm (1) at 2 s"; a 2 s render (96 000 samples) cannot hold sidebandPower's 2^17-sample
+  frame (2.73 s at 48 kHz), so the Smoke's arm (1) is the 0 -> 1 step at 1 s in a 3.5 s render (frame from 0.75 s); the
+  validity arm runs at 2 s.
+
+## Not built or run (executor rule); the Group 7 gate builds dsp_systems_tests and runs the per-push cases
+## (BassStereoField_MotionBoundedSmoke, BassStereoField_NoZipperSmoke). The [long] cases run in the [long] lane.

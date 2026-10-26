@@ -1,0 +1,15 @@
+T034 (main loop close lane)
+
+
+Main loop (2026-10-25)
+Run 1 (08:27Z): TIDY RED -- lane profundum files=52 warnings=93; lane files files=5 warnings=2 (preset_library_test 36 + preset_probe_test 23
++ preset_sweep / showcase / browser / processor_cpu designated-initializer, return-braced-init-list, concise-preprocessor,
+simplify-boolean, exception-escape x3, inefficient-vector / string; generator avoid-endl + exception-escape). Fixed: clang-tidy
+fix-its per file for the mechanical checks, the rest by hand (try/catch in PresetFileGuard and the generator main, reserve,
+append, De Morgan); two NOLINTNEXTLINE(bugprone-exception-escape) with reasons (CategoryVocabulary implicit std::set members,
+the repo form of ui_tree_helpers.h:171; the generator main, a false positive inside try / catch (...)).
+Run 2 (08:42Z):
+  lane profundum GREEN files=52 warnings=0 errors=0 exit=0 wall=268s
+  lane files GREEN files=5 warnings=0 errors=0 exit=0 wall=46s
+  lanes wall=268s
+  TIDY GREEN total_wall=283s

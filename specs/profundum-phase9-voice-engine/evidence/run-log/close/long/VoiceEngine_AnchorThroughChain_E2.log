@@ -1,0 +1,38 @@
+Filters: "VoiceEngine_AnchorThroughChain_E2"
+Randomness seeded to: 541345969
+SC-017 E2 Tube Sine: rho 0.514357 theta -11.0976 deg, R 0.0778261 dB / -11.0525 deg, anchor S/R -9.64327e-16 dB, dE meas -2.45115 pred -2.45115 (|err| 3.62018e-09), tap-sum residual S 2.22533e-10 R 1.95126e-10
+SC-017 E2 Tube Triangle: rho 0.518117 theta -11.0976 deg, R 0.141081 dB / -11.0525 deg, anchor S/R 0 dB, dE meas -2.46153 pred -2.46153 (|err| 4.16321e-10), tap-sum residual S 2.65552e-10 R 3.14068e-10
+SC-017 E2 Tube RoundedSine: rho 0.53019 theta -11.0977 deg, R 0.341155 dB / -11.0526 deg, anchor S/R 0 dB, dE meas -2.49443 pred -2.49443 (|err| 4.15954e-09), tap-sum residual S 1.90721e-10 R 5.58924e-10
+SC-017 E2 Tube AsymmetricSine: rho 0.530191 theta -11.0978 deg, R 0.341174 dB / -11.0527 deg, anchor S/R 0 dB, dE meas -2.49443 pred -2.49443 (|err| 4.21242e-09), tap-sum residual S 5.00792e-10 R 2.43388e-10
+SC-017 E2 Tube OctaveDownSine (recorded): rho 31.7481 theta 63.2093 deg, R 35.8869 dB / 63.2544 deg, anchor S/R 0 dB, dE meas -5.79016 pred -5.79016 (|err| 4.29122e-09), tap-sum residual S 1.64935e-10 R 4.71197e-10
+SC-017 E2 Fold Sine: rho 0.726935 theta -10.8912 deg, R 0.0778261 dB / -11.0525 deg, anchor S/R -9.64327e-16 dB, dE meas -1.31192 pred -1.31192 (|err| 1.7327e-09), tap-sum residual S 1.14263e-10 R 1.95126e-10
+SC-017 E2 Fold Triangle: rho 0.732248 theta -10.8912 deg, R 0.141081 dB / -11.0525 deg, anchor S/R 0 dB, dE meas -1.31711 pred -1.31711 (|err| 1.61663e-09), tap-sum residual S 1.7855e-10 R 3.14068e-10
+SC-017 E2 Fold RoundedSine: rho 0.749311 theta -10.8913 deg, R 0.341155 dB / -11.0526 deg, anchor S/R 0 dB, dE meas -1.33354 pred -1.33354 (|err| 4.32604e-10), tap-sum residual S 4.37859e-10 R 5.58924e-10
+SC-017 E2 Fold AsymmetricSine: rho 0.749312 theta -10.8914 deg, R 0.341174 dB / -11.0527 deg, anchor S/R 0 dB, dE meas -1.33355 pred -1.33355 (|err| 1.58015e-09), tap-sum residual S 2.77643e-10 R 2.43388e-10
+SC-017 E2 Fold OctaveDownSine (recorded): rho 44.8692 theta 63.4158 deg, R 35.8869 dB / 63.2544 deg, anchor S/R 0 dB, dE meas -2.82344 pred -2.82344 (|err| 5.79201e-09), tap-sum residual S 9.29524e-10 R 4.71197e-10
+SC-017 E2 Rectify Sine: rho 0.188259 theta 172.462 deg, R 0.0778261 dB / -11.0525 deg, anchor S/R -9.64327e-16 dB, dE meas -7.80939 pred -7.80939 (|err| 5.23648e-10), tap-sum residual S 4.10115e-10 R 1.95126e-10
+SC-017 E2 Rectify Triangle: rho 0.189635 theta 172.462 deg, R 0.141081 dB / -11.0525 deg, anchor S/R 0 dB, dE meas -7.85572 pred -7.85572 (|err| 1.26052e-09), tap-sum residual S 5.01727e-10 R 3.14068e-10
+SC-017 E2 Rectify RoundedSine: rho 0.194053 theta 172.462 deg, R 0.341155 dB / -11.0526 deg, anchor S/R 0 dB, dE meas -8.00391 pred -8.00391 (|err| 9.23213e-09), tap-sum residual S 7.26848e-10 R 5.58924e-10
+SC-017 E2 Rectify AsymmetricSine: rho 0.194054 theta 172.462 deg, R 0.341174 dB / -11.0527 deg, anchor S/R 0 dB, dE meas -8.00392 pred -8.00392 (|err| 3.35334e-09), tap-sum residual S 1.51842e-10 R 2.43388e-10
+SC-017 E2 Rectify OctaveDownSine (recorded): rho 11.62 theta -113.231 deg, R 35.8869 dB / 63.2544 deg, anchor S/R 0 dB, dE meas -14.9171 pred -14.9171 (|err| 1.86314e-08), tap-sum residual S 2.57091e-09 R 4.71197e-10
+SC-017 E2 Bite Sine: rho 0.803479 theta -16.6269 deg, R 0.0778261 dB / -11.0525 deg, anchor S/R -9.64327e-16 dB, dE meas -0.987567 pred -0.987567 (|err| 3.92227e-09), tap-sum residual S 3.97076e-10 R 1.95126e-10
+SC-017 E2 Bite Triangle: rho 0.809352 theta -16.6269 deg, R 0.141081 dB / -11.0525 deg, anchor S/R 0 dB, dE meas -0.991229 pred -0.991229 (|err| 2.2557e-09), tap-sum residual S 9.75902e-11 R 3.14068e-10
+SC-017 E2 Bite RoundedSine: rho 0.828211 theta -16.627 deg, R 0.341155 dB / -11.0526 deg, anchor S/R 0 dB, dE meas -1.00281 pred -1.00281 (|err| 5.41297e-09), tap-sum residual S 3.13044e-10 R 5.58924e-10
+SC-017 E2 Bite AsymmetricSine: rho 0.828213 theta -16.627 deg, R 0.341174 dB / -11.0527 deg, anchor S/R 0 dB, dE meas -1.00281 pred -1.00281 (|err| 2.21959e-09), tap-sum residual S 9.77066e-11 R 2.43388e-10
+SC-017 E2 Bite OctaveDownSine (recorded): rho 49.5938 theta 57.6801 deg, R 35.8869 dB / 63.2544 deg, anchor S/R 0 dB, dE meas -1.94738 pred -1.94738 (|err| 3.17836e-09), tap-sum residual S 4.61249e-10 R 4.71197e-10
+SC-017 E2 Crush Sine: rho 0.35596 theta -113.552 deg, R 0.0778261 dB / -11.0525 deg, anchor S/R -9.64327e-16 dB, dE meas -6.76479 pred -6.76479 (|err| 8.9561e-10), tap-sum residual S 2.56425e-10 R 1.95126e-10
+SC-017 E2 Crush Triangle: rho 0.358561 theta -113.552 deg, R 0.141081 dB / -11.0525 deg, anchor S/R 0 dB, dE meas -6.79775 pred -6.79775 (|err| 1.66739e-09), tap-sum residual S 1.29725e-10 R 3.14068e-10
+SC-017 E2 Crush RoundedSine: rho 0.366916 theta -113.552 deg, R 0.341155 dB / -11.0526 deg, anchor S/R 0 dB, dE meas -6.90237 pred -6.90237 (|err| 1.04716e-10), tap-sum residual S 4.75615e-10 R 5.58924e-10
+SC-017 E2 Crush AsymmetricSine: rho 0.366917 theta -113.552 deg, R 0.341174 dB / -11.0527 deg, anchor S/R 0 dB, dE meas -6.90238 pred -6.90238 (|err| 2.48892e-09), tap-sum residual S 4.91291e-11 R 2.43388e-10
+SC-017 E2 Crush OctaveDownSine (recorded): rho 21.9712 theta -39.245 deg, R 35.8869 dB / 63.2544 deg, anchor S/R 0 dB, dE meas -8.80898 pred -8.80898 (|err| 2.57622e-09), tap-sum residual S 5.59508e-10 R 4.71197e-10
+SC-017 E2 Fracture Sine: rho 0.00588576 theta 49.5387 deg, R 0.0778261 dB / -11.0525 deg, anchor S/R -9.64327e-16 dB, dE meas -5.98594 pred -5.98594 (|err| 1.9488e-09), tap-sum residual S 3.38339e-10 R 1.95126e-10
+SC-017 E2 Fracture Triangle: rho 0.00592878 theta 49.5388 deg, R 0.141081 dB / -11.0525 deg, anchor S/R 0 dB, dE meas -6.01752 pred -6.01752 (|err| 5.01839e-11), tap-sum residual S 3.10718e-10 R 3.14068e-10
+SC-017 E2 Fracture RoundedSine: rho 0.00606693 theta 49.5387 deg, R 0.341155 dB / -11.0526 deg, anchor S/R 0 dB, dE meas -6.11818 pred -6.11818 (|err| 2.94401e-09), tap-sum residual S 9.62619e-11 R 5.58924e-10
+SC-017 E2 Fracture AsymmetricSine: rho 0.00606695 theta 49.5386 deg, R 0.341174 dB / -11.0527 deg, anchor S/R 0 dB, dE meas -6.11819 pred -6.11819 (|err| 1.98587e-09), tap-sum residual S 1.31271e-10 R 2.43388e-10
+SC-017 E2 Fracture OctaveDownSine (recorded): rho 0.363292 theta 123.846 deg, R 35.8869 dB / 63.2544 deg, anchor S/R 0 dB, dE meas -37.3331 pred -37.3331 (|err| 3.98272e-08), tap-sum residual S 1.30398e-08 R 4.71197e-10
+SC-017 anchor-chain-E2.csv: 30 cells, 0 failing
+50.008 s: VoiceEngine_AnchorThroughChain_E2
+===============================================================================
+All tests passed (1526 assertions in 1 test case)
+
+exit: 0 wall: 51 s

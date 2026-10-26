@@ -1,0 +1,77 @@
+T001 — Ruling gate, plan §2.0 row amendments, branch / base / ODR census (no code)
+Run: 2026-10-24
+
+1. Census (branch safety)
+   git rev-parse --abbrev-ref HEAD            -> synth/profundum            (required: synth/profundum)  PASS
+   git rev-parse HEAD                          -> e6095b241a372459bef6b41ffe5ff2a8d5bd343d
+   git merge-base --is-ancestor e6095b24 HEAD  -> exit 0                     (required: 0)               PASS
+
+2. Ruling gate
+   evidence/plan-rulings.md present; ruled by the user 2026-10-24 ("Approve all 10").
+   All ten plan §13 items carry a decision, each "APPROVED as the plan reads it":
+     1 P-1 render shim .......................... APPROVED
+     2 P-2 AT-13 by stored variant .............. APPROVED
+     3 P-3 / P-4 single-state + AT-33 forced .... APPROVED
+     4 P-5 steady components via auSteady ....... APPROVED
+     5 P-6 carrier-less pins .................... APPROVED
+     6 P-7 F = max(2.5 * t_max, 1.0), units ..... APPROVED
+     7 CPU MONO arm ............................. APPROVED
+     8 P-10 lifts L1-L11, route (b) ............. APPROVED
+     9 P-11 setEngineSeamsForTest ............... APPROVED
+    10 §2.0 amended row texts ................... APPROVED verbatim
+   No item ruled otherwise -> no re-cut. Gate: PASS.
+
+3. Rows amended in spec.md (row first), then Clarifications
+   P-1 + P-10 : FR-057, SC-029
+   P-2        : FR-012, SC-007, SC-006
+   P-5        : C-7 "Sound space", SC-020
+   P-6        : C-9 (new "Carrier-less fields" bullet), FR-007
+   CPU MONO   : FR-045, SC-022
+   P-11       : SC-009
+   Deviation 5: FR-007 gains the P-3 / P-4 claim rules; C-7 "Threshold F" and SC-020 gain
+                "F = max(2.5 · t_max, 1.0) with the plan §5.8 units (dB ÷ 3, E_sub ÷ 2, D_br ÷ 0.25 oct,
+                t₉₀ log₂ ms ÷ 1, side/mid clamped to [−40, 0] dB)".
+   Clarifications: "### Session 2026-10-24 (plan rulings)" appended, one line per ruling with enforcing ids.
+   Every replacement anchor matched exactly once (script asserted match count == 1 for all 14 edits).
+
+4. ODR re-sweep: grep -rnw <Name> dsp/ plugins/ tools/ tests/   (count = matching lines)
+   §4.1 lift table L1-L11 and shim
+     auCellOnsetESub 0 | auCellAt13 0 | auCellAt17 0 | auDropCell 0 | auCellAt23 0 | auCellAt24 0
+     auCellAt25 0 | auDlk 0 | auCellAt27 0 | auOnsetDyn 0 | auCellAt28 0
+     auNoteMemoryPhase 4   EXPECTED: not a new name; L10 adds a leading parameter to the existing Phase 9 function.
+                           Hits: dsp/tests/unit/systems/profundum_engine_audibility_test.cpp:1959 (definition), :2005, :2006
+                           (its calls), plugins/profundum/tests/param_path_audibility_helpers.h:922 (a comment only).
+     AuNoteMemoryRow 0 | auNoteMemoryRows 0 | auCellNoteMemory 0 | auMacroAxisRead 0 | auMacroCellOn 0
+     ProfundumAudibility 0 | ScriptRenderHook 0 | ScriptRenderScope 0 | ScriptRenderFn 0 | scriptRenderHook 0
+     profundum_audibility_readers 0
+   §4.3
+     ProfundumPresetDef 0 | CapabilityInfo 0 | kFactoryDefaultSeed 0
+   §4.4
+     PresetHost 29 lines   EXPECTED: exactly 1 definition, plugins/vorago/tests/vorago_preset_host.h:47 `class PresetHost`
+                           (namespace VoragoTest; spec New components table). The other 28 lines are its uses in
+                           plugins/vorago/tests/{preset_test_support.h, vorago_preset_host.h, unit/preset/factory_preset_test.cpp,
+                           integration/preset_cpu_test.cpp, integration/preset_load_rt_test.cpp, integration/preset_sweep_test.cpp}.
+                           0 hits under plugins/profundum.
+     writeFactoryTree 0
+   §4.6
+     kMsgLoadPresetState 0 | ProfundumLoadPresetState 0 | setEngineSeamsForTest 0 | engineSeamsForTest_ 0
+     kPresetBrowserTag 0 | loadPresetStream 0 | makeProfundumPresetTabLabels 0
+     openPresetBrowser 28 lines   NOT an ODR hazard: class-scope member functions of each plugin's own Controller
+                           (e.g. plugins/vorago/src/controller/controller.h:115, plugins/ruinae/src/controller/controller.h:159);
+                           files in disrumpo, gradus, innexus, iterum, ruinae, vorago controllers + ruinae/vorago tests.
+                           Plan §4.6 adds the same member to Profundum::Controller (the Vorago pattern it cites).
+                           0 hits under plugins/profundum.
+     presetBrowserView_ 70 lines  NOT an ODR hazard: private data member of each plugin's own Controller
+                           (e.g. plugins/vorago/src/controller/controller.h:151), plus plugins/seraphis/CLAUDE.md prose.
+                           0 hits under plugins/profundum.
+   §4.7
+     PresetArmContext 0 | renderScriptThroughProcessor 0 | effectiveScriptFor 0 | processorRenderHook 0
+     PresetRenderReadings 0 | ShowcaseArm 0 | PresetSweepObserver 0 | presetFloatIsFinite 0
+     fundamentalLossFlagged 0 | presetReadings 0 | showcaseColumn 0 | describePreset 0 | presetDistance 0
+   §8
+     PresetHostComponentHandler 0
+   Verdict: every new name 0 hits; the four non-zero names are an existing function being lifted (auNoteMemoryPhase),
+   the spec-recorded VoragoTest::PresetHost, and two per-Controller class members. No hit beyond the spec / plan
+   expectation -> no STOP.
+
+T001: DONE (no code changed).

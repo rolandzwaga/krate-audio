@@ -24,6 +24,7 @@ add_executable(shared_tests
     test_oscillator_type_selector.cpp
     test_lfo_shape_selector.cpp
     test_midi_event_dispatcher.cpp
+    test_sustain_latch.cpp
     test_version_compare.cpp
     test_update_checker.cpp
     test_shared_display_bridge.cpp
@@ -33,11 +34,13 @@ add_executable(shared_tests
     # <allocation_operator_overrides.h>); no other file in this list may include
     # that header, or the binary fails to link on duplicate symbols.
     test_allocation_detector.cpp
+    test_preset_description.cpp   # FR-065 / SC-033 (Profundum Phase 13 T037)
 
     # Stubs for GetPluginFactory and moduleHandle (needed by vstgui_support on Linux)
     vstgui_test_stubs.cpp
     ${vst3sdk_SOURCE_DIR}/public.sdk/source/main/moduleinit.cpp
     ${vst3sdk_SOURCE_DIR}/public.sdk/source/main/pluginfactory.cpp
+    ${vst3sdk_SOURCE_DIR}/public.sdk/source/common/memorystream.cpp   # T037: component stream for savePreset
 )
 
 target_link_libraries(shared_tests
@@ -84,7 +87,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
     set_source_files_properties(
         test_oscillator_type_selector.cpp
         test_lfo_shape_selector.cpp
-        PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
+        PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only -ffp-contract=off"
     )
 endif()
 

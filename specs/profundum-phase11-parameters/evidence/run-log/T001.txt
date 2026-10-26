@@ -1,0 +1,67 @@
+T001 — Branch, base, ruling check, ODR sweep (no code)
+Date: 2026-10-22   cwd: f:/projects/iterum   Result: PASS (all five steps green; no blocking item)
+
+== Step 1: branch / base / status ==
+$ git branch --show-current
+synth/profundum
+$ git merge-base --is-ancestor 565f195d HEAD; echo "exit=$?"
+exit=0
+$ git status --porcelain
+ M .serena/project.yml
+?? specs/profundum-phase11-parameters/
+-> only the two permitted entries. PASS
+
+== Step 2: ruling check (spec.md, BLOCKING) ==
+$ grep -nE "FR-025|FR-041|FR-006" specs/profundum-phase11-parameters/spec.md   (rows read in full)
+FR-025 (spec.md:324-338): carries "pull on Edit Target switch (user ruling 2026-10-22, every OS)" bullet (kMsgRequestSync,
+  processor answers from notify, late reply re-displays + restartComponent again) AND the periodic-send bullet:
+  "A 50 ms SDK timer drives the sender on Windows and macOS. On Linux, where the SDK provides no timer, an edit the
+  controller does not observe reaches the mirror at the next `notify`, `setState`, `getState` or `setActive` call".
+  Option 1 (+ pull), not option 2. Also Clarifications Q9 (spec.md:51). PASS
+FR-041 (spec.md:364-371): "A runtime blob loaded by `setState` and not yet applied is written as loaded, so load-then-save
+  is byte-stable (user ruling 2026-10-22; SC-012 "Pending loaded blob")". Clarifications Q11 (spec.md:53). PASS
+  OQ-1 ruled in the same row: "p_a = `BassMorphEngine::curve(mode, position)` (`bass_morph_engine.h:188`; Lock 0,
+  Blend p, Punch p³)"; Clarifications Q10 (spec.md:52). T017 builds curve(mode, position) (NOT the precondition
+  table's p_a = position default, tasks.md:83 -- the ruled alternative applies). PASS
+FR-006 (spec.md:264-271): "Hz with two decimal places below 1 Hz (`"%.2f Hz"`, e.g. `0.25 Hz`) and one decimal at 1 Hz
+  and above (user ruling 2026-10-22)". PASS
+
+== Step 3: ODR sweep ==
+$ grep -rnE "(class|struct|enum class|enum|using) (SoundParamRow|EndpointParams|NoteParams|MorphControlParams|PerformanceParams|CompareMode|ParamRoute|RouteKind|DisplayUnit|PlainLaw|LeafBits|BandLevelReading)\b" dsp/ plugins/ tests/ ; echo "odr_exit=$?"
+odr_exit=1
+-> 0 lines. PASS
+$ grep -rnE "class SustainLatch\b" dsp/ plugins/ tests/
+plugins/vorago/src/processor/sustain_latch.h:22:class SustainLatch {
+-> exactly one line at the expected location. PASS
+
+== Step 4: scope baseline ==
+$ git diff --name-only 565f195d -- dsp/ ; echo "diff_exit=$?"
+diff_exit=0
+-> prints nothing. PASS
+
+== Step 5: Verified API surface re-read ==
+$ sed -n 305,398p dsp/include/krate/dsp/systems/profundum_engine.h
+  :310 bool setEndpoint(BassMorphEngine::Endpoint e, const MorphState& s) noexcept
+  :311 setMorphPosition(float) :312 setMorphRampMs(float) :313 setAnchorMorphMode(AnchorMorphMode)
+  :314 [[nodiscard]] std::size_t serializeMorphRuntime(std::byte* dst, std::size_t cap) const noexcept
+  :317 [[nodiscard]] bool restoreMorphRuntime(const std::byte* src, std::size_t size) noexcept
+  -> row "Morph surface setEndpoint … restoreMorphRuntime :310-319" MATCH
+  :331 setMonoPriority (undeclared enum ignored) ... :336-340 setPortamentoTimeMs (non-finite kept) ... :373 setSeed
+  -> row "Non-morphed setters setMonoPriority … setSeed :331-373" MATCH
+  :379 pitchBend() :381 getEndpoint(e) :384 morphPosition() :385 morphRampMs() :386 anchorMorphMode()
+  :389 monoPriority() ... :396 pitchBendRange()
+  -> row "Read-backs :379-396" MATCH
+$ sed -n 46,78p dsp/include/krate/dsp/systems/bass_morph_engine.h
+  :48 enum class Endpoint : std::uint8_t { A, B };  :49 enum class AnchorMorphMode : std::uint8_t { Lock, Blend, Punch };
+  -> row ":48, :49" MATCH
+  :67 kMinPositionRampMs 5.0f :68 kMaxPositionRampMs 2000.0f :69 kDefaultPositionRampMs 40.0f :70 kThetaUp 0.52f
+  :71 kThetaDown 0.48f :73 kDefaultAnchorMorphMode Blend :74 kLawTable :75 kMorphRuntimeFormatVersion 1 :76 kMorphRuntimeBytes 20
+  (:72 kPunchExponent 3 also inside the range)
+  -> row ":67-76" MATCH
+Spot-check of adjacent cited lines (not required by step 5, read anyway):
+  bass_morph_engine.h :113 setEndpoint :140 setPosition :155 setPositionRampMs :168 setAnchorMorphMode
+    :188 [[nodiscard]] static float curve(AnchorMorphMode m, float p) noexcept :235 serializeRuntime :274 restoreRuntime  MATCH
+  profundum_engine.h :107 kLimiterLookaheadSamples = 64 :112 kDefaultBendRangeSt = 2.0f :113 kMaxBendRangeSt = 24.0f
+    :114 kDefaultSeed = 0xB455u :252 setObserver :292 setPitchBend  MATCH
+
+No source file changed by T001.

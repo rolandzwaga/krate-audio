@@ -1,0 +1,4 @@
+cell,ratio_a,a_gated,a_pass,max_dy,bound,margin_b,b_pass,clicks_c,clicks_transition,clicks_reference,declicked,ref_delay,w_begin,w_end,out_ratio,ampStep,ampStep_ref,bound_settled
+steal A_s+sustain1(C-8)/Solid E1 held AlwaysRetrigger Reset block 37,0.718121,1,1,0.0225536,0.0346657,1.53703,1,0,0,0,1,160,24000,25452,0.730819,n/a,n/a,0
+steal A_s+sustain1(C-8)/Solid E1 held AlwaysRetrigger Reset block 1 [disableStealFade],6.48183,1,0,0.203571,0.0346657,0.170288,0,2,2,0,1,160,24000,25452,6.84729,n/a,n/a,0
+replace A_s+sustain1(C-8)/Solid E1 +3 st retrigger AlwaysRetrigger Reset Porta0 block 1 [disableDeclick],15.6608,1,0,0.208436,0.0137551,0.0659922,0,2,2,2,1,160,24000,25452,15.2556,n/a,n/a,0.0137431

@@ -25,6 +25,10 @@ const SUBSYSTEMS = [
   // 'spectral' (vorago-phase4-spectral-smear), which would otherwise file the
   // plugin's own specs under "DSP / Spectral".
   ['vorago', 'Vorago'],
+  // 'profundum' MUST also precede the DSP keywords: its phase slugs contain
+  // 'harmonic', 'stereo-field' and 'voice-engine', which would otherwise file
+  // the plugin's own specs under a "DSP / …" subsystem.
+  ['profundum', 'Profundum'],
   ['membrum', 'Membrum'],
   ['gradus', 'Gradus'],
   ['ruinae', 'Ruinae'],

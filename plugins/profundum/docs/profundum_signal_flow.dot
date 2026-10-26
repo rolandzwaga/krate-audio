@@ -1,0 +1,157 @@
+digraph ProfundumSignalFlow {
+    rankdir=TB;
+    fontname="Helvetica";
+    fontsize=11;
+    node [fontname="Helvetica", fontsize=10, style=filled];
+    edge [fontname="Helvetica", fontsize=8];
+    compound=true;
+    newrank=true;
+
+    // Source of truth: dsp/include/krate/dsp/systems/profundum_voice.h (per-voice chain, lines 11-16 and the render
+    // steps 3-10), profundum_engine.h (engine summary and the grid step 1-8 order) and
+    // plugins/profundum/src/processor/processor.cpp (MIDI, output gain, spectrum).
+
+    // =========================================================================
+    // COLOR LEGEND
+    // =========================================================================
+    subgraph cluster_legend {
+        label="Legend";
+        style=rounded;
+        color="#888888";
+        fontsize=12;
+        fontcolor="#444444";
+        bgcolor="#FAFAFA";
+
+        node [shape=plaintext, fillcolor="#FAFAFA"];
+        leg [label=<
+            <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="4">
+            <TR><TD BGCOLOR="#4A90D9" WIDTH="20"> </TD><TD ALIGN="LEFT">Audio signal path (harmonic voice)</TD></TR>
+            <TR><TD BGCOLOR="#2E5E8C" WIDTH="20"> </TD><TD ALIGN="LEFT">Sub Anchor (always mono, L == R)</TD></TR>
+            <TR><TD BGCOLOR="#E8A838" WIDTH="20"> </TD><TD ALIGN="LEFT">Control layer (every 32 samples)</TD></TR>
+            <TR><TD BGCOLOR="#6BBF6B" WIDTH="20"> </TD><TD ALIGN="LEFT">Global chain after the voice sum</TD></TR>
+            <TR><TD BGCOLOR="#AAAAAA" WIDTH="20"> </TD><TD ALIGN="LEFT">Host / wrapper / editor</TD></TR>
+            <TR><TD>───▶</TD><TD ALIGN="LEFT">Audio flow</TD></TR>
+            <TR><TD>- - ▶</TD><TD ALIGN="LEFT">Modulation / control</TD></TR>
+            </TABLE>
+        >];
+    }
+
+    // =========================================================================
+    // INPUT
+    // =========================================================================
+    subgraph cluster_input {
+        label="Input";
+        style=rounded;
+        color="#666666";
+        bgcolor="#F0F0F0";
+
+        midi_in [label="MIDI notes", shape=house, fillcolor="#CCDDEE"];
+        midi_cc [label="MIDI controllers\nmod wheel, channel pressure\npitch bend, sustain pedal", shape=house, fillcolor="#CCDDEE"];
+        params [label="84 host parameters\n60 sound parameters hold an\nA and a B value (Edit Target)", shape=house, fillcolor="#CCDDEE"];
+        tempo [label="Host tempo\n(120 BPM when absent)", shape=house, fillcolor="#CCDDEE"];
+    }
+
+    sustain_latch [label="Sustain\n(note-offs held while\nthe pedal is down)", shape=box, fillcolor="#CCCCCC"];
+    midi_in -> sustain_latch [penwidth=2, label="note on/off"];
+    midi_cc -> sustain_latch [style=dashed, color="#888888", label="sustain"];
+
+    // =========================================================================
+    // CONTROL LAYER (grid step, every 32 samples, in this order)
+    // =========================================================================
+    subgraph cluster_control {
+        label="Control layer — every 32 samples, in this order";
+        style=rounded;
+        color="#C08020";
+        bgcolor="#FFF6E5";
+
+        morph [label="1-2  Bass Morph\nendpoints A and B, Morph Position\n(ramped); per-parameter laws;\nAnchor morph Lock / Blend / Punch", shape=box, fillcolor="#E8A838"];
+        macros [label="3  Personality macros\nWeight · Dark/Bright\nTight/Loose · Clean/Violent\n(0.5 = neutral)", shape=box, fillcolor="#E8A838"];
+        motion [label="4  Motion\nENV · CYCLE · DRIFT\n→ Mass / Depth / Body / Edge / Shift\nAmount × Motion Depth", shape=box, fillcolor="#E8A838"];
+        masslaw [label="5  Mass law\nMass 0-100 (+ mod wheel / pressure)\n→ Depth bias, Body bias, Fold,\ntransient, compression, Anchor level", shape=box, fillcolor="#E8A838"];
+        fieldctl [label="6  Field controls\nimage mode, Spread, Gravity,\nfield Motion", shape=box, fillcolor="#E8A838"];
+
+        morph -> macros -> motion -> masslaw -> fieldctl [style=dashed, color="#C08020"];
+    }
+
+    params -> morph [style=dashed, color="#888888", label="A / B"];
+    midi_cc -> masslaw [style=dashed, color="#888888", label="mod wheel,\npressure"];
+    tempo -> motion [style=dashed, color="#888888", label="CYCLE sync"];
+
+    // =========================================================================
+    // VOICE MANAGEMENT
+    // =========================================================================
+    voice_mgmt [label="7  Voice management\nMONO (default): one voice, priority,\nlegato, glide (time / rate / quantized),\nNote Memory, Retrigger\nPOLY: up to 4 voices (8 max),\nsteals the oldest released first", shape=octagon, fillcolor="#7BAFD4"];
+    sustain_latch -> voice_mgmt [penwidth=2, label="note on/off"];
+    midi_cc -> voice_mgmt [style=dashed, color="#888888", label="pitch bend"];
+
+    // =========================================================================
+    // PER-VOICE PROCESSING
+    // =========================================================================
+    subgraph cluster_voice {
+        label="Per voice (MONO: 1, POLY: up to 4)";
+        style=rounded;
+        color="#2E5E8C";
+        bgcolor="#EEF4FB";
+
+        pitch [label="Pitch\nnote → glide / bend → Drop\n(Amount, Time, Shape, Rebound)\n→ Drop phase lock → f_core", shape=box, fillcolor="#D6E4F2"];
+
+        core [label="Harmonic Core\nSpectral Shape: Depth · Body · Edge · Shift\nLow Note Guard, Nyquist cap\n64-partial oscillator bank\nper-partial width (Spread)\n+ Edge Excitation (oversampled soft clip)", shape=box, fillcolor="#4A90D9", fontcolor="white"];
+        shape_m [label="SHAPE\nROUND · HOLLOW · BITE\none continuous control", shape=box, fillcolor="#4A90D9", fontcolor="white"];
+        feed [label="+ Anchor Fold Feed\n(optional; off = skipped)", shape=ellipse, fillcolor="#7BAFD4"];
+        fold [label="Harmonic Fold\nsoft saturation → harmonic\ncompression → folding", shape=box, fillcolor="#4A90D9", fontcolor="white"];
+        character [label="Character\nTube · Fold · Rectify · Bite · Crush · Fracture\nAmount + Tone\n(L/R offsets in WIDE)", shape=box, fillcolor="#4A90D9", fontcolor="white"];
+
+        anchor [label="Sub Anchor\nSine · Triangle · Rounded · Asymmetric · Octave Down\nLOCK · FOLLOW · PUNCH · GHOST\nphase-locked to the voice, L == R", shape=box, fillcolor="#2E5E8C", fontcolor="white"];
+
+        amp [label="Amp envelope\nADSR with curves\n+ retrigger / steal declick", shape=box, fillcolor="#D6E4F2"];
+        vsum [label="+", shape=circle, fillcolor="#7BAFD4", width=0.4, fixedsize=true];
+
+        pitch -> core [style=dashed, color="#2E5E8C", label="f_core"];
+        pitch -> anchor [style=dashed, color="#2E5E8C", label="f_res (FOLLOW: f_core)"];
+        core -> shape_m [penwidth=2];
+        shape_m -> feed [penwidth=2];
+        anchor -> feed [color="#2E5E8C", style=dashed, label="feed level"];
+        feed -> fold [penwidth=2];
+        fold -> character [penwidth=2];
+        character -> vsum [penwidth=2, label="× amp"];
+        anchor -> vsum [penwidth=2, color="#2E5E8C", label="× amp\n(bypasses Shape,\nFold, Character)"];
+        amp -> vsum [style=dashed, color="#2E5E8C"];
+    }
+
+    voice_mgmt -> pitch [penwidth=2, lhead=cluster_voice, label="note, glide"];
+    masslaw -> core [style=dashed, color="#C08020", lhead=cluster_voice, label="resolved sound state\n(+ Motion, macros, Mass)"];
+    fieldctl -> core [style=dashed, color="#C08020", label="partial width"];
+
+    // =========================================================================
+    // GLOBAL CHAIN
+    // =========================================================================
+    subgraph cluster_global {
+        label="Global chain (after the voice sum)";
+        style=rounded;
+        color="#3C8C3C";
+        bgcolor="#EEF8EE";
+
+        voicesum [label="Σ voices", shape=circle, fillcolor="#6BBF6B", width=0.7, fixedsize=true];
+        massdyn [label="Mass Dynamics\ntransient shaper (attack / sustain)\nbass compressor, sidechain high-pass\n(the sub never pumps it)", shape=box, fillcolor="#6BBF6B"];
+        field [label="Bass Stereo Field\nSOLID · SPREAD · WIDE\nGravity: side content below the\ncrossover collapsed to mono\nfield Motion", shape=box, fillcolor="#6BBF6B"];
+        dc [label="DC safety\n(two DC blockers)", shape=box, fillcolor="#6BBF6B"];
+        limiter [label="True-peak limiter\nOutput Ceiling (default -1 dBTP)\n64-sample look-ahead (reported latency)", shape=box, fillcolor="#6BBF6B"];
+        gain [label="Output Gain\n(attenuation only, smoothed)", shape=box, fillcolor="#6BBF6B"];
+
+        voicesum -> massdyn -> field -> dc -> limiter -> gain [penwidth=2];
+    }
+
+    vsum -> voicesum [penwidth=2, ltail=cluster_voice];
+    masslaw -> massdyn [style=dashed, color="#C08020", label="transient,\ncompression"];
+    fieldctl -> field [style=dashed, color="#C08020"];
+
+    out [label="Stereo out", shape=invhouse, fillcolor="#CCDDEE"];
+    gain -> out [penwidth=2];
+
+    // =========================================================================
+    // EDITOR FEEDBACK
+    // =========================================================================
+    spectrum [label="Live harmonic spectrum\nthe focus voice: power at n × f0 per partial\n(Goertzel bank, pitch-synchronous window)\n+ the Anchor drawn separately\n→ editor via DataExchange", shape=box, fillcolor="#CCCCCC"];
+    character -> spectrum [style=dashed, color="#888888", label="Character tap"];
+    anchor -> spectrum [style=dashed, color="#888888", label="Anchor tap"];
+}

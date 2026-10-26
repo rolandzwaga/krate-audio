@@ -1,0 +1,1156 @@
+START 2026-10-18T21:49:52Z commit 4599d180 base 4599d180
+build exit=0 wall=2s warnings=0 log=specs/profundum-phase7-stereo-field/evidence/run-log/close/build.log
+scope GREEN base=4599d180 unexpected=[] missing=[] log=specs/profundum-phase7-stereo-field/evidence/run-log/close/scope-diff.log
+long-list cases=194 jobs=28 list=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/long-cases.txt
+long:BassStereoField_MonoSumPerBand_Solid_CleanSaw_E1 exit=0 wall=1010s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_CleanSaw_E1.log
+long:BassStereoField_MonoSumPerBand_Solid_CleanSaw_E0 exit=0 wall=1012s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_CleanSaw_E0.log
+long:BassStereoField_MonoSumPerBand_Solid_CleanSaw_E2 exit=0 wall=1028s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_CleanSaw_E2.log
+long:BassStereoField_MonoSumPerBand_Solid_CleanSaw_C3 exit=0 wall=1030s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_CleanSaw_C3.log
+long:BassStereoField_MonoSumPerBand_Solid_CleanGrowl_E0 exit=0 wall=1032s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_CleanGrowl_E0.log
+long:BassStereoField_MonoSumPerBand_Solid_CleanGrowl_E1 exit=0 wall=1054s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_CleanGrowl_E1.log
+long:BassStereoField_MonoSumPerBand_Solid_CleanGrowl_E2 exit=0 wall=1058s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_CleanGrowl_E2.log
+long:BassStereoField_MonoSumPerBand_Solid_CleanGrowl_C3 exit=0 wall=1095s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_CleanGrowl_C3.log
+long:BassStereoField_MonoSumPerBand_Solid_DirtyRectify_E0 exit=0 wall=1483s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_DirtyRectify_E0.log
+long:BassStereoField_MonoSumPerBand_Solid_DirtyRectify_E1 exit=0 wall=1484s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_DirtyRectify_E1.log
+long:BassStereoField_MonoSumPerBand_Solid_DirtyFold_E0 exit=0 wall=1492s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_DirtyFold_E0.log
+long:BassStereoField_MonoSumPerBand_Solid_DirtyBite_E1 exit=0 wall=1493s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_DirtyBite_E1.log
+long:BassStereoField_MonoSumPerBand_Solid_DirtyBite_E0 exit=0 wall=1494s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_DirtyBite_E0.log
+long:BassStereoField_MonoSumPerBand_Solid_DirtyRectify_E2 exit=0 wall=1499s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_DirtyRectify_E2.log
+long:BassStereoField_MonoSumPerBand_Solid_DirtyBite_E2 exit=0 wall=1502s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_DirtyBite_E2.log
+long:BassStereoField_MonoSumPerBand_Solid_DirtyFold_E1 exit=0 wall=1506s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_DirtyFold_E1.log
+long:BassStereoField_MonoSumPerBand_Solid_DirtyRectify_C3 exit=0 wall=1520s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_DirtyRectify_C3.log
+long:BassStereoField_MonoSumPerBand_Solid_DirtyBite_C3 exit=0 wall=1521s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_DirtyBite_C3.log
+long:BassStereoField_MonoSumPerBand_Solid_DirtyCrush_E1 exit=0 wall=1543s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_DirtyCrush_E1.log
+long:BassStereoField_MonoSumPerBand_Solid_DirtyCrush_C3 exit=0 wall=1550s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_DirtyCrush_C3.log
+long:BassStereoField_MonoSumPerBand_Solid_DirtyCrush_E2 exit=0 wall=1554s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_DirtyCrush_E2.log
+long:BassStereoField_MonoSumPerBand_Solid_DirtyCrush_E0 exit=0 wall=1556s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_DirtyCrush_E0.log
+long:BassStereoField_MonoSumPerBand_Solid_DirtyFold_C3 exit=0 wall=1559s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_DirtyFold_C3.log
+long:BassStereoField_MonoSumPerBand_Solid_DirtyFold_E2 exit=0 wall=1561s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_DirtyFold_E2.log
+long:BassStereoField_MonoSumPerBand_Solid_DirtyTube_E0 exit=0 wall=1661s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_DirtyTube_E0.log
+long:BassStereoField_MonoSumPerBand_Solid_DirtyTube_E1 exit=0 wall=1680s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_DirtyTube_E1.log
+long:BassStereoField_MonoSumPerBand_Solid_DirtyTube_E2 exit=0 wall=1683s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_DirtyTube_E2.log
+long:BassStereoField_MonoSumPerBand_Solid_DirtyTube_C3 exit=0 wall=1689s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_DirtyTube_C3.log
+long:BassStereoField_MonoSumPerBand_Solid_DirtyFracture_E0 exit=0 wall=1715s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_DirtyFracture_E0.log
+long:BassStereoField_MonoSumPerBand_Solid_DirtyFracture_E1 exit=0 wall=1720s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_DirtyFracture_E1.log
+long:BassStereoField_MonoSumPerBand_Solid_DirtyFracture_E2 exit=0 wall=1725s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_DirtyFracture_E2.log
+long:BassStereoField_MonoSumPerBand_Solid_DirtyFracture_C3 exit=0 wall=1738s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_DirtyFracture_C3.log
+long:BassStereoField_MonoSumPerBand_Solid_AnchorTube_E0 exit=0 wall=1760s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_AnchorTube_E0.log
+long:BassStereoField_MonoSumPerBand_Solid_AnchorTube_E1 exit=0 wall=1764s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_AnchorTube_E1.log
+long:BassStereoField_MonoSumPerBand_Solid_AnchorTube_E2 exit=0 wall=1774s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_AnchorTube_E2.log
+long:BassStereoField_MonoSumPerBand_Solid_AnchorTube_C3 exit=0 wall=1791s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_AnchorTube_C3.log
+long:BassStereoField_MonoSumPerBand_Solid_AnchorRectify_E0 exit=0 wall=1578s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_AnchorRectify_E0.log
+long:BassStereoField_MonoSumPerBand_Solid_AnchorRectify_E1 exit=0 wall=1576s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_AnchorRectify_E1.log
+long:BassStereoField_MonoSumPerBand_Solid_AnchorFold_E0 exit=0 wall=1600s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_AnchorFold_E0.log
+long:BassStereoField_MonoSumPerBand_Solid_AnchorRectify_E2 exit=0 wall=1585s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_AnchorRectify_E2.log
+long:BassStereoField_MonoSumPerBand_Solid_AnchorFold_E1 exit=0 wall=1612s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_AnchorFold_E1.log
+long:BassStereoField_MonoSumPerBand_Solid_AnchorRectify_C3 exit=0 wall=1608s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_AnchorRectify_C3.log
+long:BassStereoField_MonoSumPerBand_Solid_AnchorBite_E0 exit=0 wall=1605s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_AnchorBite_E0.log
+long:BassStereoField_MonoSumPerBand_Solid_AnchorBite_E1 exit=0 wall=1610s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_AnchorBite_E1.log
+long:BassStereoField_MonoSumPerBand_Solid_AnchorFold_E2 exit=0 wall=1643s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_AnchorFold_E2.log
+long:BassStereoField_MonoSumPerBand_Solid_AnchorBite_E2 exit=0 wall=1621s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_AnchorBite_E2.log
+long:BassStereoField_MonoSumPerBand_Solid_AnchorFold_C3 exit=0 wall=1675s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_AnchorFold_C3.log
+long:BassStereoField_MonoSumPerBand_Solid_AnchorBite_C3 exit=0 wall=1632s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_AnchorBite_C3.log
+long:BassStereoField_MonoSumPerBand_Solid_AnchorCrush_E1 exit=0 wall=1661s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_AnchorCrush_E1.log
+long:BassStereoField_MonoSumPerBand_Solid_AnchorCrush_E0 exit=0 wall=1665s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_AnchorCrush_E0.log
+long:BassStereoField_MonoSumPerBand_Solid_AnchorCrush_E2 exit=0 wall=1663s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_AnchorCrush_E2.log
+long:BassStereoField_MonoSumPerBand_Solid_AnchorCrush_C3 exit=0 wall=1671s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_AnchorCrush_C3.log
+long:BassStereoField_MonoSumPerBand_Solid_AnchorFracture_E0 exit=0 wall=1765s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_AnchorFracture_E0.log
+long:BassStereoField_MonoSumPerBand_Solid_AnchorFracture_E1 exit=0 wall=1765s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_AnchorFracture_E1.log
+long:BassStereoField_MonoSumPerBand_Solid_AnchorFracture_E2 exit=0 wall=1777s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_AnchorFracture_E2.log
+long:BassStereoField_MonoSumPerBand_Solid_AnchorFracture_C3 exit=0 wall=1784s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_AnchorFracture_C3.log
+long:BassStereoField_MonoSumPerBand_Spread_CleanSaw_E0 exit=0 wall=1182s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_CleanSaw_E0.log
+long:BassStereoField_MonoSumPerBand_Spread_CleanSaw_E1 exit=0 wall=1183s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_CleanSaw_E1.log
+long:BassStereoField_MonoSumPerBand_Spread_CleanSaw_E2 exit=0 wall=1186s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_CleanSaw_E2.log
+long:BassStereoField_MonoSumPerBand_Spread_CleanSaw_C3 exit=0 wall=1190s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_CleanSaw_C3.log
+long:BassStereoField_MonoSumPerBand_Spread_CleanGrowl_E0 exit=0 wall=1195s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_CleanGrowl_E0.log
+long:BassStereoField_MonoSumPerBand_Spread_CleanGrowl_E1 exit=0 wall=1214s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_CleanGrowl_E1.log
+long:BassStereoField_MonoSumPerBand_Spread_CleanGrowl_E2 exit=0 wall=1244s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_CleanGrowl_E2.log
+long:BassStereoField_MonoSumPerBand_Spread_CleanGrowl_C3 exit=0 wall=1271s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_CleanGrowl_C3.log
+perpush:dsp_systems_tests exit=0 wall=5036s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/perpush-dsp_systems_tests.log
+long:BassStereoField_MonoSumPerBand_Spread_DirtyRectify_E0 exit=0 wall=1904s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_DirtyRectify_E0.log
+long:BassStereoField_MonoSumPerBand_Spread_DirtyFold_E0 exit=0 wall=1946s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_DirtyFold_E0.log
+long:BassStereoField_MonoSumPerBand_Spread_DirtyRectify_E1 exit=0 wall=1917s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_DirtyRectify_E1.log
+long:BassStereoField_MonoSumPerBand_Spread_DirtyFold_E1 exit=0 wall=1980s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_DirtyFold_E1.log
+long:BassStereoField_MonoSumPerBand_Spread_DirtyRectify_E2 exit=0 wall=1949s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_DirtyRectify_E2.log
+long:BassStereoField_MonoSumPerBand_Spread_DirtyBite_E0 exit=0 wall=1927s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_DirtyBite_E0.log
+long:BassStereoField_MonoSumPerBand_Spread_DirtyRectify_C3 exit=0 wall=1968s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_DirtyRectify_C3.log
+long:BassStereoField_MonoSumPerBand_Spread_DirtyFold_E2 exit=0 wall=2036s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_DirtyFold_E2.log
+long:BassStereoField_MonoSumPerBand_Spread_DirtyBite_E1 exit=0 wall=1950s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_DirtyBite_E1.log
+long:BassStereoField_MonoSumPerBand_Spread_DirtyFold_C3 exit=0 wall=2052s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_DirtyFold_C3.log
+long:BassStereoField_MonoSumPerBand_Spread_DirtyBite_E2 exit=0 wall=1974s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_DirtyBite_E2.log
+long:BassStereoField_MonoSumPerBand_Spread_DirtyBite_C3 exit=0 wall=1995s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_DirtyBite_C3.log
+long:BassStereoField_MonoSumPerBand_Spread_DirtyTube_E0 exit=0 wall=2228s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_DirtyTube_E0.log
+long:BassStereoField_MonoSumPerBand_Spread_DirtyTube_E1 exit=0 wall=2247s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_DirtyTube_E1.log
+long:BassStereoField_MonoSumPerBand_Spread_DirtyTube_E2 exit=0 wall=2269s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_DirtyTube_E2.log
+long:BassStereoField_MonoSumPerBand_Spread_DirtyTube_C3 exit=0 wall=2297s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_DirtyTube_C3.log
+long:BassStereoField_MonoSumPerBand_Spread_DirtyCrush_E0 exit=0 wall=2015s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_DirtyCrush_E0.log
+long:BassStereoField_MonoSumPerBand_Spread_DirtyCrush_E1 exit=0 wall=2017s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_DirtyCrush_E1.log
+long:BassStereoField_MonoSumPerBand_Spread_DirtyCrush_E2 exit=0 wall=2027s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_DirtyCrush_E2.log
+long:BassStereoField_MonoSumPerBand_Spread_DirtyCrush_C3 exit=0 wall=2040s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_DirtyCrush_C3.log
+long:BassStereoField_MonoSumPerBand_Spread_DirtyFracture_E0 exit=0 wall=2150s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_DirtyFracture_E0.log
+long:BassStereoField_MonoSumPerBand_Spread_DirtyFracture_E1 exit=0 wall=2159s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_DirtyFracture_E1.log
+long:BassStereoField_MonoSumPerBand_Spread_DirtyFracture_E2 exit=0 wall=2175s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_DirtyFracture_E2.log
+long:BassStereoField_MonoSumPerBand_Spread_DirtyFracture_C3 exit=0 wall=2190s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_DirtyFracture_C3.log
+long:BassStereoField_MonoSumPerBand_Spread_AnchorTube_E0 exit=0 wall=2202s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_AnchorTube_E0.log
+long:BassStereoField_MonoSumPerBand_Spread_AnchorTube_E1 exit=0 wall=2219s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_AnchorTube_E1.log
+long:BassStereoField_MonoSumPerBand_Spread_AnchorTube_E2 exit=0 wall=2238s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_AnchorTube_E2.log
+long:BassStereoField_MonoSumPerBand_Spread_AnchorTube_C3 exit=0 wall=2257s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_AnchorTube_C3.log
+long:BassStereoField_MonoSumPerBand_Spread_AnchorFold_E0 exit=0 wall=1907s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_AnchorFold_E0.log
+long:BassStereoField_MonoSumPerBand_Spread_AnchorFold_E1 exit=0 wall=1937s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_AnchorFold_E1.log
+long:BassStereoField_MonoSumPerBand_Spread_AnchorRectify_E0 exit=0 wall=1870s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_AnchorRectify_E0.log
+long:BassStereoField_MonoSumPerBand_Spread_AnchorRectify_E1 exit=0 wall=1884s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_AnchorRectify_E1.log
+long:BassStereoField_MonoSumPerBand_Spread_AnchorRectify_E2 exit=0 wall=1907s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_AnchorRectify_E2.log
+long:BassStereoField_MonoSumPerBand_Spread_AnchorBite_E0 exit=0 wall=1902s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_AnchorBite_E0.log
+long:BassStereoField_MonoSumPerBand_Spread_AnchorFold_E2 exit=0 wall=2008s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_AnchorFold_E2.log
+long:BassStereoField_MonoSumPerBand_Spread_AnchorRectify_C3 exit=0 wall=1930s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_AnchorRectify_C3.log
+long:BassStereoField_MonoSumPerBand_Spread_AnchorBite_E1 exit=0 wall=1922s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_AnchorBite_E1.log
+long:BassStereoField_MonoSumPerBand_Spread_AnchorFold_C3 exit=0 wall=2022s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_AnchorFold_C3.log
+long:BassStereoField_MonoSumPerBand_Spread_AnchorBite_E2 exit=0 wall=1951s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_AnchorBite_E2.log
+long:BassStereoField_MonoSumPerBand_Wide_CleanSaw_E0 exit=0 wall=1128s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_CleanSaw_E0.log
+long:BassStereoField_MonoSumPerBand_Spread_AnchorBite_C3 exit=0 wall=1971s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_AnchorBite_C3.log
+long:BassStereoField_MonoSumPerBand_Wide_CleanSaw_E1 exit=0 wall=1127s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_CleanSaw_E1.log
+long:BassStereoField_MonoSumPerBand_Wide_CleanSaw_E2 exit=0 wall=1130s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_CleanSaw_E2.log
+long:BassStereoField_MonoSumPerBand_Wide_CleanSaw_C3 exit=0 wall=1140s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_CleanSaw_C3.log
+long:BassStereoField_MonoSumPerBand_Spread_AnchorCrush_E0 exit=0 wall=2000s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_AnchorCrush_E0.log
+long:BassStereoField_MonoSumPerBand_Spread_AnchorCrush_E1 exit=0 wall=2001s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_AnchorCrush_E1.log
+long:BassStereoField_MonoSumPerBand_Wide_CleanGrowl_E0 exit=0 wall=1143s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_CleanGrowl_E0.log
+long:BassStereoField_MonoSumPerBand_Spread_AnchorCrush_E2 exit=0 wall=2013s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_AnchorCrush_E2.log
+long:BassStereoField_MonoSumPerBand_Spread_AnchorCrush_C3 exit=0 wall=2025s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_AnchorCrush_C3.log
+long:BassStereoField_MonoSumPerBand_Wide_CleanGrowl_E1 exit=0 wall=1162s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_CleanGrowl_E1.log
+long:BassStereoField_MonoSumPerBand_Wide_CleanGrowl_E2 exit=0 wall=1191s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_CleanGrowl_E2.log
+long:BassStereoField_MonoSumPerBand_Spread_AnchorFracture_E0 exit=0 wall=2153s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_AnchorFracture_E0.log
+long:BassStereoField_MonoSumPerBand_Spread_AnchorFracture_E1 exit=0 wall=2163s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_AnchorFracture_E1.log
+long:BassStereoField_MonoSumPerBand_Wide_CleanGrowl_C3 exit=0 wall=1215s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_CleanGrowl_C3.log
+long:BassStereoField_MonoSumPerBand_Spread_AnchorFracture_E2 exit=0 wall=2177s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_AnchorFracture_E2.log
+long:BassStereoField_MonoSumPerBand_Spread_AnchorFracture_C3 exit=0 wall=2191s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_AnchorFracture_C3.log
+long:BassStereoField_MonoSumPerBand_Wide_DirtyRectify_E0 exit=0 wall=3645s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_DirtyRectify_E0.log
+long:BassStereoField_MonoSumPerBand_Wide_DirtyFold_E0 exit=0 wall=3726s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_DirtyFold_E0.log
+long:BassStereoField_MonoSumPerBand_Wide_DirtyRectify_E1 exit=0 wall=3678s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_DirtyRectify_E1.log
+long:BassStereoField_MonoSumPerBand_Wide_DirtyFold_E1 exit=0 wall=3785s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_DirtyFold_E1.log
+long:BassStereoField_MonoSumPerBand_Wide_DirtyRectify_E2 exit=0 wall=3738s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_DirtyRectify_E2.log
+long:BassStereoField_MonoSumPerBand_Wide_DirtyBite_E0 exit=0 wall=3698s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_DirtyBite_E0.log
+long:BassStereoField_MonoSumPerBand_Wide_DirtyBite_E1 exit=0 wall=3739s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_DirtyBite_E1.log
+long:BassStereoField_MonoSumPerBand_Wide_DirtyRectify_C3 exit=0 wall=3771s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_DirtyRectify_C3.log
+long:BassStereoField_MonoSumPerBand_Wide_DirtyFold_E2 exit=0 wall=3900s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_DirtyFold_E2.log
+long:BassStereoField_MonoSumPerBand_Wide_DirtyBite_E2 exit=0 wall=3789s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_DirtyBite_E2.log
+long:BassStereoField_MonoSumPerBand_Wide_DirtyFold_C3 exit=0 wall=3942s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_DirtyFold_C3.log
+long:BassStereoField_MonoSumPerBand_Wide_DirtyBite_C3 exit=0 wall=3831s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_DirtyBite_C3.log
+long:BassStereoField_MonoSumPerBand_Wide_DirtyCrush_E0 exit=0 wall=3884s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_DirtyCrush_E0.log
+long:BassStereoField_MonoSumPerBand_Wide_DirtyCrush_E1 exit=0 wall=3887s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_DirtyCrush_E1.log
+long:BassStereoField_MonoSumPerBand_Wide_DirtyTube_E0 exit=0 wall=4270s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_DirtyTube_E0.log
+long:BassStereoField_MonoSumPerBand_Wide_DirtyCrush_E2 exit=0 wall=3912s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_DirtyCrush_E2.log
+long:BassStereoField_MonoSumPerBand_Wide_DirtyTube_E1 exit=0 wall=4307s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_DirtyTube_E1.log
+long:BassStereoField_MonoSumPerBand_Wide_DirtyCrush_C3 exit=0 wall=3940s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_DirtyCrush_C3.log
+long:BassStereoField_MonoSumPerBand_Wide_DirtyTube_E2 exit=0 wall=4358s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_DirtyTube_E2.log
+long:BassStereoField_MonoSumPerBand_Wide_DirtyTube_C3 exit=0 wall=4405s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_DirtyTube_C3.log
+long:BassStereoField_MonoSumPerBand_Wide_DirtyFracture_E0 exit=0 wall=4194s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_DirtyFracture_E0.log
+long:BassStereoField_MonoSumPerBand_Wide_DirtyFracture_E1 exit=0 wall=4212s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_DirtyFracture_E1.log
+long:BassStereoField_GravityFloor_CleanSaw exit=0 wall=30s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_GravityFloor_CleanSaw.log
+long:BassStereoField_GravityFloor_CleanGrowl exit=0 wall=31s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_GravityFloor_CleanGrowl.log
+long:BassStereoField_GravityFloor_DirtyTube exit=0 wall=58s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_GravityFloor_DirtyTube.log
+long:BassStereoField_GravityFloor_DirtyFold exit=0 wall=52s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_GravityFloor_DirtyFold.log
+long:BassStereoField_MonoSumPerBand_Wide_DirtyFracture_E2 exit=0 wall=4239s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_DirtyFracture_E2.log
+long:BassStereoField_GravityFloor_DirtyRectify exit=0 wall=51s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_GravityFloor_DirtyRectify.log
+long:BassStereoField_GravityFloor_DirtyBite exit=0 wall=51s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_GravityFloor_DirtyBite.log
+long:BassStereoField_GravityFloor_DirtyCrush exit=0 wall=52s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_GravityFloor_DirtyCrush.log
+long:BassStereoField_GravityFloor_DirtyFracture exit=0 wall=58s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_GravityFloor_DirtyFracture.log
+long:BassStereoField_GravityFloor_AnchorTube exit=0 wall=59s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_GravityFloor_AnchorTube.log
+long:BassStereoField_GravityFloor_AnchorFold exit=0 wall=52s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_GravityFloor_AnchorFold.log
+long:BassStereoField_GravityFloor_AnchorRectify exit=0 wall=51s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_GravityFloor_AnchorRectify.log
+long:BassStereoField_MonoSumPerBand_Wide_DirtyFracture_C3 exit=3 wall=4271s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_DirtyFracture_C3.log
+long:BassStereoField_GravityFloor_AnchorBite exit=0 wall=52s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_GravityFloor_AnchorBite.log
+long:BassStereoField_GravityFloor_AnchorCrush exit=0 wall=54s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_GravityFloor_AnchorCrush.log
+long:BassStereoField_SafetyStagePhase exit=0 wall=4s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_SafetyStagePhase.log
+long:BassStereoField_GravityFloor_AnchorFracture exit=0 wall=58s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_GravityFloor_AnchorFracture.log
+long:BassStereoField_PolyMonoSumRecord exit=0 wall=54s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_PolyMonoSumRecord.log
+long:BassStereoField_MonoSumPerBand_Wide_AnchorTube_E0 exit=0 wall=4301s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_AnchorTube_E0.log
+long:BassStereoField_SampleRates exit=1 wall=17s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_SampleRates.log
+long:BassStereoField_MotionBounded exit=0 wall=13s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MotionBounded.log
+long:BassStereoField_NoZipper exit=0 wall=7s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_NoZipper.log
+long:BassStereoField_MonoSumPerBand_Wide_AnchorTube_E1 exit=0 wall=4332s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_AnchorTube_E1.log
+long:BassStereoField_H1Centred exit=0 wall=35s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_H1Centred.log
+long:BassStereoField_LeversAudible exit=1 wall=120s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_LeversAudible.log
+long:BassStereoField_PanOnlyDirection exit=0 wall=36s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_PanOnlyDirection.log
+long:BassStereoField_WideAliasing exit=0 wall=100s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_WideAliasing.log
+long:BassStereoField_MonoSumPerBand_Wide_AnchorTube_E2 exit=0 wall=4384s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_AnchorTube_E2.log
+long:BassStereoField_SafetyStageAttenuation exit=1 wall=202s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_SafetyStageAttenuation.log
+long:BassStereoField_MonoSumPerBand_Wide_AnchorTube_C3 exit=0 wall=4418s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_AnchorTube_C3.log
+long:BassStereoField_TransitionsClickFree exit=0 wall=214s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_TransitionsClickFree.log
+long:BassStereoField_WidthMonotonic exit=4 wall=827s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_WidthMonotonic.log
+long:BassStereoField_MonoSumPerBand_Wide_AnchorFold_E0 exit=0 wall=3365s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_AnchorFold_E0.log
+long:BassStereoField_MonoSumPerBand_Wide_AnchorRectify_E0 exit=0 wall=3284s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_AnchorRectify_E0.log
+long:BassStereoField_MonoSumPerBand_Wide_AnchorFold_E1 exit=0 wall=3408s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_AnchorFold_E1.log
+long:BassStereoField_MonoSumPerBand_Wide_AnchorRectify_E1 exit=0 wall=3301s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_AnchorRectify_E1.log
+long:BassStereoField_MonoSumPerBand_Wide_AnchorRectify_E2 exit=0 wall=3325s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_AnchorRectify_E2.log
+long:BassStereoField_MonoSumPerBand_Wide_AnchorFold_E2 exit=0 wall=3480s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_AnchorFold_E2.log
+long:BassStereoField_MonoSumPerBand_Wide_AnchorBite_E0 exit=0 wall=3299s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_AnchorBite_E0.log
+long:BassStereoField_MonoSumPerBand_Wide_AnchorRectify_C3 exit=0 wall=3351s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_AnchorRectify_C3.log
+long:BassStereoField_MonoSumPerBand_Wide_AnchorBite_E1 exit=0 wall=3307s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_AnchorBite_E1.log
+long:BassStereoField_MonoSumPerBand_Wide_AnchorFold_C3 exit=0 wall=3508s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_AnchorFold_C3.log
+long:BassStereoField_MonoSumPerBand_Wide_AnchorBite_E2 exit=0 wall=3340s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_AnchorBite_E2.log
+long:BassStereoField_MonoSumPerBand_Wide_AnchorBite_C3 exit=0 wall=3322s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_AnchorBite_C3.log
+long:BassStereoField_MonoSumPerBand_Wide_AnchorCrush_E0 exit=0 wall=3310s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_AnchorCrush_E0.log
+long:BassStereoField_MonoSumPerBand_Wide_AnchorCrush_E1 exit=0 wall=3295s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_AnchorCrush_E1.log
+long:BassStereoField_MonoSumPerBand_Wide_AnchorCrush_E2 exit=0 wall=3304s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_AnchorCrush_E2.log
+long:BassStereoField_MonoSumPerBand_Wide_AnchorCrush_C3 exit=0 wall=3300s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_AnchorCrush_C3.log
+long:BassStereoField_MonoSumPerBand_Wide_AnchorFracture_E0 exit=0 wall=3371s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_AnchorFracture_E0.log
+long:BassStereoField_MonoSumPerBand_Wide_AnchorFracture_E1 exit=0 wall=3368s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_AnchorFracture_E1.log
+long:BassStereoField_MonoSumPerBand_Wide_AnchorFracture_E2 exit=0 wall=3352s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_AnchorFracture_E2.log
+long:BassStereoField_MonoSumPerBand_Wide_AnchorFracture_C3 exit=3 wall=3296s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_AnchorFracture_C3.log
+long-lane shards=194 wall=14732s
+lanes wall=14732s
+=== summary: C-1 / C-2 / C-17 readings (per-push log, recorded)
+[T004 C-17] (Spread 0, X60) -> (Spread 1, X250) [plan counter-example] note 28: largest W step per 0.05 t 91.8857 dB; worst excursion beyond the endpoints 92.1982 dB at k 4; 35 (t in {.25,.5,.75}, k) beyond 0.5 dB; W path at k 4 (dB): -120 -31.1523 -28.0195 -27.8018 -28.8979 -30.7946 -33.2776 -36.2568 -39.7104 -43.6645 -48.191 -53.4171 -59.5538 -66.9576 -76.2792 -88.8896 -108.574 -120 -120 -120 -120
+[T004 C-17] (Spread 0, X60) -> (Spread 1, X250) [plan counter-example] note 36: largest W step per 0.05 t 91.8857 dB; worst excursion beyond the endpoints 90.6481 dB at k 2; 23 (t in {.25,.5,.75}, k) beyond 0.5 dB; W path at k 2 (dB): -120 -32.1476 -29.3519 -29.4433 -30.8453 -33.0636 -35.9013 -39.2879 -43.2261 -47.7776 -53.0681 -59.3163 -66.9003 -76.526 -89.7167 -110.868 -120 -120 -120 -120 -120
+[T004 C-17] (Spread 1, G1) -> (Spread 0.2, G0) note 28: largest W step per 0.05 t 6.52904 dB; worst excursion beyond the endpoints 1.83811 dB at k 3; 3 (t in {.25,.5,.75}, k) beyond 0.5 dB; W path at k 3 (dB): -45.5011 -45.1379 -44.8131 -44.5268 -44.2793 -44.0715 -43.9042 -43.779 -43.6978 -43.6629 -43.6777 -43.746 -43.8729 -44.0651 -44.3307 -44.681 -45.1306 -45.6995 -46.4164 -47.3229 -48.4844
+[T004 C-17] (Spread 1, G1) -> (Spread 0.2, G0) note 36: largest W step per 0.05 t 2.75185 dB; worst excursion beyond the endpoints 1.00186 dB at k 1; 1 (t in {.25,.5,.75}, k) beyond 0.5 dB; W path at k 1 (dB): -90.7308 -87.9789 -85.5293 -83.3375 -81.3718 -79.6016 -78.0085 -76.5759 -75.2889 -74.1395 -73.1189 -72.2238 -71.451 -70.8005 -70.2756 -69.8821 -69.6307 -69.5377 -69.6283 -69.9413 -70.5396
+[T004 C-17] (curve 0, X250) -> (curve 1, X60) note 28: largest W step per 0.05 t 25.1655 dB; worst excursion beyond the endpoints 0 dB at k 0; 0 (t in {.25,.5,.75}, k) beyond 0.5 dB; W path at k 0 (dB): -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120
+[T004 C-17] (curve 0, X250) -> (curve 1, X60) note 36: largest W step per 0.05 t 35.4376 dB; worst excursion beyond the endpoints 0 dB at k 0; 0 (t in {.25,.5,.75}, k) beyond 0.5 dB; W path at k 0 (dB): -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120
+[T006 SC-005 C-1] largest |M_out - M_in| / (2^-23 (|M_in| + |S'_out|)) over 27 cells: 0.496419 (violations 0)
+[T006 SC-005 C-1 record] kGateMidBitExact false: mid bit differences 54714 over 27 x 48000 samples, largest |delta| 2.98023e-08
+[T006 SC-004(b) C-2 record] crossover 60 Hz: L == R bit-for-bit from 30001 samples (625.021 ms) after the first L == R input sample
+[T006 SC-004(b) C-2 record] crossover 120 Hz: L == R bit-for-bit from 855 samples (17.8125 ms) after the first L == R input sample
+[T006 SC-004(b) C-2 record] crossover 250 Hz: L == R bit-for-bit from 402 samples (8.375 ms) after the first L == R input sample
+[T006 SC-004(c) C-2 record] MIDI 16 (SPREAD, 120 Hz, Gravity 0.5): output == anchor and L == R from 1166 samples (24.2917 ms) after the noise
+[T006 SC-004(c) C-2 record] MIDI 28 (SPREAD, 120 Hz, Gravity 0.5): output == anchor and L == R from 1166 samples (24.2917 ms) after the noise
+[T006 SC-004(c) C-2 record] MIDI 40 (SPREAD, 120 Hz, Gravity 0.5): output == anchor and L == R from 887 samples (18.4792 ms) after the noise
+[T006 SC-004(c) C-2 record] MIDI 48 (SPREAD, 120 Hz, Gravity 0.5): output == anchor and L == R from 1102 samples (22.9583 ms) after the noise
+=== summary: per-push cases over 15 s (re-tag candidates, T016 bullet 2 rule)
+52.267 s: Every cell of the enumerated parameter grid is finite and bounded
+52.267 s: HarmonicCloud_ParameterGridStaysFiniteAndBounded
+15.540 s: EntropyProcessor_FlatnessRisesWithEntropy
+20.331 s: (a) 60 s of full-scale drive stays bounded and does not grow
+20.331 s: ContinuousBody_SustainedDriveBounded
+27.108 s: ContinuousBody_DecaysToSilence
+78.369 s: AtmosphereEngine_BoundedUnderStress
+25.539 s: (b) the behavioural arm a hard-wired decimation fails
+25.539 s: FeedbackEcology_WanderRateMapping
+45.932 s: (c) 300 s at 192 kHz
+45.933 s: FeedbackEcology_DelayMotion
+17.846 s: FeedbackEcology_Governor
+152.505 s: EcosystemEngine_OutputAnchorIsScaleInvariant
+21.075 s: EcosystemEngine_DeterministicUnderSeed
+15.381 s: EcosystemEngine_LateWindowLiveness
+20.240 s: EcosystemEngine_SeedsProduceDifferentVoices
+32.984 s: VoragoVoice_AttackCurveReach
+119.759 s: VoragoEngine_DeterminismHarness
+76.252 s: VoragoEngine_NoAllocationAfterPrepare
+19.845 s: VoragoEngine_SoakSentinel
+42.639 s: VoragoEngine_ConfigurationFuzzSentinel
+60.141 s: clause 2: the level is EVENT-GATED, not a continuous wash
+60.141 s: VoragoEngine_GhostConfiguration
+18.112 s: 3. a 10 s render is BIT-IDENTICAL with the matrix never applied
+18.112 s: VoragoMacro_NeutralIsIdentity
+17.599 s: VoragoMacro_ApplyIsIdempotent
+29.774 s: AtmosphereGhost_ReverseLiveness
+18.425 s: clause (a) - the 60 s default render is unchanged from the base commit
+18.425 s: VoragoEngine_GhostExtensionWiring
+32.450 s: clause (c) - the closed gate spawns nothing while the events still fire
+32.450 s: VoragoEngine_GhostExtensionWiring
+32.635 s: VoragoEngine_GhostExtensionWiring_Engaged
+15.044 s: VoragoVoice_EcosystemLeverClickFree
+811.526 s: VoragoEngine_EcosystemLeverBounded
+694.446 s: VoragoEngine_CapabilityLeverBounded
+127.448 s: VoragoEngine_EcosystemLeverDeterminism
+47.207 s: ProfundumCore_DepthRenderMonotonicSmoke
+49.046 s: ProfundumCore_AudibilityGate_BodyEdgeShiftSmoke
+39.643 s: ProfundumCore_ExcitationControlStepsNoClick
+15.530 s: ProfundumCore_ExcitationRecordedSplitHump
+18.481 s: ProfundumCore_ExcitationDriveMonotonicSmoke
+15.040 s: ProfundumCore_EdgeDrivesExcitationRenderedSmoke
+15.029 s: ProfundumCore_ExcitationFundamentalPreservedSmoke
+22.749 s: ProfundumCore_ExcitationLevelLawSmoke
+18.800 s: HarmonicFold_FundamentalPreservedCoreInput
+52.890 s: ProfundumEdgeFold_SampleRateChange
+21.662 s: ProfundumEdgeFold_RecordedAliasingRateExtremes
+19.248 s: AnchorOscillator_PhaseLockEveryIsaSmoke
+23.342 s: ProfundumNoteBehaviour_Matrix
+40.485 s: (a)-(c) grid at E1, the negative control and the R-2 probe on E1 and C3
+40.493 s: ProfundumNoteBehaviour_PostDropLandingSmoke
+49.975 s: ProfundumNoteBehaviour_RetriggerClickFreeSmoke
+50.835 s: ProfundumNoteBehaviour_MonoIdentity
+19.969 s: ProfundumNoteBehaviour_UseCaseRenders
+53.823 s: ProfundumCore_SpectrumPreservedAcrossDrop
+24.278 s: (b) band energy of (L + R)/2 below 2·f0 at the gated offsets; (c) the offsets are not inert
+24.279 s: BassCharacter_MonoSum
+36.488 s: BassCharacter_OnsetInvariance
+17.117 s: ShapeCharacter_H1TransferRecord
+22.955 s: MassChain_CoreAnchorValidated
+21.292 s: MassChain_LimiterIdleSteadyState
+17.188 s: MassLaw_AutomationDescriptorTrajectorySmoke
+65.633 s: BassStereoField_SolidBitIdentical_Tube
+62.696 s: BassStereoField_SolidBitIdentical_Fold
+62.339 s: BassStereoField_SolidBitIdentical_Rectify
+62.459 s: BassStereoField_SolidBitIdentical_Bite
+62.683 s: BassStereoField_SolidBitIdentical_Crush
+64.837 s: BassStereoField_SolidBitIdentical_Fracture
+17.752 s: BassStereoField_TransitionsClickFreeSmoke
+=== summary: SC-006 validity table (recorded)
+BSF_SC006,i_wide_dirty_Tube_E0_fc60,third 25.1984 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Tube_E0_fc60,third 31.748 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Tube_E0_fc60,third 50.3968 Hz: no distortion-born content
+BSF_SC006,gravity0,i_wide_dirty_Tube_E0_fc60,A_B_db,27.7487
+BSF_SC006,validity,i_wide_dirty_Tube_E0_fc60,valid,1,expected,1
+BSF_SC006,i_wide_dirty_Fold_E0_fc60,third 25.1984 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fold_E0_fc60,third 31.748 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fold_E0_fc60,third 50.3968 Hz: no distortion-born content
+BSF_SC006,gravity0,i_wide_dirty_Fold_E0_fc60,A_B_db,27.3782
+BSF_SC006,validity,i_wide_dirty_Fold_E0_fc60,valid,1,expected,1
+BSF_SC006,i_wide_dirty_Rectify_E0_fc60,third 25.1984 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Rectify_E0_fc60,third 31.748 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Rectify_E0_fc60,third 50.3968 Hz: no distortion-born content
+BSF_SC006,gravity0,i_wide_dirty_Rectify_E0_fc60,A_B_db,28.7314
+BSF_SC006,validity,i_wide_dirty_Rectify_E0_fc60,valid,1,expected,1
+BSF_SC006,i_wide_dirty_Bite_E0_fc60,third 25.1984 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Bite_E0_fc60,third 31.748 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Bite_E0_fc60,third 50.3968 Hz: no distortion-born content
+BSF_SC006,gravity0,i_wide_dirty_Bite_E0_fc60,A_B_db,27.9757
+BSF_SC006,validity,i_wide_dirty_Bite_E0_fc60,valid,1,expected,1
+BSF_SC006,i_wide_dirty_Crush_E0_fc60,third 25.1984 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Crush_E0_fc60,third 31.748 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Crush_E0_fc60,third 50.3968 Hz: no distortion-born content
+BSF_SC006,gravity0,i_wide_dirty_Crush_E0_fc60,A_B_db,28.0818
+BSF_SC006,validity,i_wide_dirty_Crush_E0_fc60,valid,1,expected,1
+BSF_SC006,i_wide_dirty_Fracture_E0_fc60,third 31.748 Hz: no distortion-born content
+BSF_SC006,gravity0,i_wide_dirty_Fracture_E0_fc60,A_B_db,24.702
+BSF_SC006,validity,i_wide_dirty_Fracture_E0_fc60,valid,1,expected,1
+BSF_SC006,ii_excitation_E0_fc60,no distortion-born content in B
+BSF_SC006,validity,ii_excitation_E0_fc60,valid,0,expected,1,MISMATCH
+BSF_SC006,i_wide_dirty_Tube_E1_fc60,third 20 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Tube_E1_fc60,third 25.1984 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Tube_E1_fc60,third 31.748 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Tube_E1_fc60,third 50.3968 Hz: no distortion-born content
+BSF_SC006,gravity0,i_wide_dirty_Tube_E1_fc60,A_B_db,26.333
+BSF_SC006,validity,i_wide_dirty_Tube_E1_fc60,valid,1,expected,1
+BSF_SC006,i_wide_dirty_Fold_E1_fc60,third 20 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fold_E1_fc60,third 25.1984 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fold_E1_fc60,third 31.748 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fold_E1_fc60,third 50.3968 Hz: no distortion-born content
+BSF_SC006,gravity0,i_wide_dirty_Fold_E1_fc60,A_B_db,26.3325
+BSF_SC006,validity,i_wide_dirty_Fold_E1_fc60,valid,1,expected,1
+BSF_SC006,i_wide_dirty_Rectify_E1_fc60,third 20 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Rectify_E1_fc60,third 25.1984 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Rectify_E1_fc60,third 31.748 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Rectify_E1_fc60,third 50.3968 Hz: no distortion-born content
+BSF_SC006,gravity0,i_wide_dirty_Rectify_E1_fc60,A_B_db,26.3329
+BSF_SC006,validity,i_wide_dirty_Rectify_E1_fc60,valid,1,expected,1
+BSF_SC006,i_wide_dirty_Bite_E1_fc60,third 20 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Bite_E1_fc60,third 25.1984 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Bite_E1_fc60,third 31.748 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Bite_E1_fc60,third 50.3968 Hz: no distortion-born content
+BSF_SC006,gravity0,i_wide_dirty_Bite_E1_fc60,A_B_db,26.3324
+BSF_SC006,validity,i_wide_dirty_Bite_E1_fc60,valid,1,expected,1
+BSF_SC006,i_wide_dirty_Crush_E1_fc60,third 20 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Crush_E1_fc60,third 25.1984 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Crush_E1_fc60,third 31.748 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Crush_E1_fc60,third 50.3968 Hz: no distortion-born content
+BSF_SC006,gravity0,i_wide_dirty_Crush_E1_fc60,A_B_db,26.3322
+BSF_SC006,validity,i_wide_dirty_Crush_E1_fc60,valid,1,expected,1
+BSF_SC006,i_wide_dirty_Fracture_E1_fc60,third 25.1984 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fracture_E1_fc60,third 31.748 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fracture_E1_fc60,third 50.3968 Hz: no distortion-born content
+BSF_SC006,gravity0,i_wide_dirty_Fracture_E1_fc60,A_B_db,28.8537
+BSF_SC006,validity,i_wide_dirty_Fracture_E1_fc60,valid,1,expected,1
+BSF_SC006,ii_excitation_E1_fc60,no distortion-born content in B
+BSF_SC006,validity,ii_excitation_E1_fc60,valid,0,expected,1,MISMATCH
+BSF_SC006,i_wide_dirty_Tube_E2_fc60,no distortion-born content in B
+BSF_SC006,validity,i_wide_dirty_Tube_E2_fc60,valid,0,expected,0
+BSF_SC006,i_wide_dirty_Fold_E2_fc60,no distortion-born content in B
+BSF_SC006,validity,i_wide_dirty_Fold_E2_fc60,valid,0,expected,0
+BSF_SC006,i_wide_dirty_Rectify_E2_fc60,no distortion-born content in B
+BSF_SC006,validity,i_wide_dirty_Rectify_E2_fc60,valid,0,expected,0
+BSF_SC006,i_wide_dirty_Bite_E2_fc60,no distortion-born content in B
+BSF_SC006,validity,i_wide_dirty_Bite_E2_fc60,valid,0,expected,0
+BSF_SC006,i_wide_dirty_Crush_E2_fc60,no distortion-born content in B
+BSF_SC006,validity,i_wide_dirty_Crush_E2_fc60,valid,0,expected,0
+BSF_SC006,i_wide_dirty_Fracture_E2_fc60,third 20 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fracture_E2_fc60,third 25.1984 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fracture_E2_fc60,third 31.748 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fracture_E2_fc60,third 50.3968 Hz: no distortion-born content
+BSF_SC006,gravity0,i_wide_dirty_Fracture_E2_fc60,A_B_db,26.3323
+BSF_SC006,validity,i_wide_dirty_Fracture_E2_fc60,valid,1,expected,0,MISMATCH
+BSF_SC006,ii_excitation_E2_fc60,no distortion-born content in B
+BSF_SC006,validity,ii_excitation_E2_fc60,valid,0,expected,0
+BSF_SC006,i_wide_dirty_Tube_C3_fc60,no distortion-born content in B
+BSF_SC006,validity,i_wide_dirty_Tube_C3_fc60,valid,0,expected,0
+BSF_SC006,i_wide_dirty_Fold_C3_fc60,no distortion-born content in B
+BSF_SC006,validity,i_wide_dirty_Fold_C3_fc60,valid,0,expected,0
+BSF_SC006,i_wide_dirty_Rectify_C3_fc60,no distortion-born content in B
+BSF_SC006,validity,i_wide_dirty_Rectify_C3_fc60,valid,0,expected,0
+BSF_SC006,i_wide_dirty_Bite_C3_fc60,no distortion-born content in B
+BSF_SC006,validity,i_wide_dirty_Bite_C3_fc60,valid,0,expected,0
+BSF_SC006,i_wide_dirty_Crush_C3_fc60,no distortion-born content in B
+BSF_SC006,validity,i_wide_dirty_Crush_C3_fc60,valid,0,expected,0
+BSF_SC006,i_wide_dirty_Fracture_C3_fc60,no distortion-born content in B
+BSF_SC006,validity,i_wide_dirty_Fracture_C3_fc60,valid,0,expected,0
+BSF_SC006,ii_excitation_C3_fc60,no distortion-born content in B
+BSF_SC006,validity,ii_excitation_C3_fc60,valid,0,expected,0
+BSF_SC006,i_wide_dirty_Tube_E0_fc120,third 25.1984 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Tube_E0_fc120,third 31.748 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Tube_E0_fc120,third 63.496 Hz: no distortion-born content
+BSF_SC006,gravity0,i_wide_dirty_Tube_E0_fc120,A_B_db,27.9617
+BSF_SC006,validity,i_wide_dirty_Tube_E0_fc120,valid,1,expected,1
+BSF_SC006,i_wide_dirty_Fold_E0_fc120,third 25.1984 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fold_E0_fc120,third 31.748 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fold_E0_fc120,third 63.496 Hz: no distortion-born content
+BSF_SC006,gravity0,i_wide_dirty_Fold_E0_fc120,A_B_db,28.4526
+BSF_SC006,validity,i_wide_dirty_Fold_E0_fc120,valid,1,expected,1
+BSF_SC006,i_wide_dirty_Rectify_E0_fc120,third 25.1984 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Rectify_E0_fc120,third 31.748 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Rectify_E0_fc120,third 63.496 Hz: no distortion-born content
+BSF_SC006,gravity0,i_wide_dirty_Rectify_E0_fc120,A_B_db,27.5974
+BSF_SC006,validity,i_wide_dirty_Rectify_E0_fc120,valid,1,expected,1
+BSF_SC006,i_wide_dirty_Bite_E0_fc120,third 25.1984 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Bite_E0_fc120,third 31.748 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Bite_E0_fc120,third 63.496 Hz: no distortion-born content
+BSF_SC006,gravity0,i_wide_dirty_Bite_E0_fc120,A_B_db,28.3154
+BSF_SC006,validity,i_wide_dirty_Bite_E0_fc120,valid,1,expected,1
+BSF_SC006,i_wide_dirty_Crush_E0_fc120,third 25.1984 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Crush_E0_fc120,third 31.748 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Crush_E0_fc120,third 63.496 Hz: no distortion-born content
+BSF_SC006,gravity0,i_wide_dirty_Crush_E0_fc120,A_B_db,28.7924
+BSF_SC006,validity,i_wide_dirty_Crush_E0_fc120,valid,1,expected,1
+BSF_SC006,i_wide_dirty_Fracture_E0_fc120,third 31.748 Hz: no distortion-born content
+BSF_SC006,gravity0,i_wide_dirty_Fracture_E0_fc120,A_B_db,27.2858
+BSF_SC006,validity,i_wide_dirty_Fracture_E0_fc120,valid,1,expected,1
+BSF_SC006,ii_excitation_E0_fc120,no distortion-born content in B
+BSF_SC006,validity,ii_excitation_E0_fc120,valid,0,expected,1,MISMATCH
+BSF_SC006,i_wide_dirty_Tube_E1_fc120,third 20 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Tube_E1_fc120,third 25.1984 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Tube_E1_fc120,third 31.748 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Tube_E1_fc120,third 50.3968 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Tube_E1_fc120,third 63.496 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Tube_E1_fc120,third 100.794 Hz: no distortion-born content
+BSF_SC006,gravity0,i_wide_dirty_Tube_E1_fc120,A_B_db,27.2954
+BSF_SC006,validity,i_wide_dirty_Tube_E1_fc120,valid,1,expected,1
+BSF_SC006,i_wide_dirty_Fold_E1_fc120,third 20 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fold_E1_fc120,third 25.1984 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fold_E1_fc120,third 31.748 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fold_E1_fc120,third 50.3968 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fold_E1_fc120,third 63.496 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fold_E1_fc120,third 100.794 Hz: no distortion-born content
+BSF_SC006,gravity0,i_wide_dirty_Fold_E1_fc120,A_B_db,27.692
+BSF_SC006,validity,i_wide_dirty_Fold_E1_fc120,valid,1,expected,1
+BSF_SC006,i_wide_dirty_Rectify_E1_fc120,third 20 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Rectify_E1_fc120,third 25.1984 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Rectify_E1_fc120,third 31.748 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Rectify_E1_fc120,third 50.3968 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Rectify_E1_fc120,third 63.496 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Rectify_E1_fc120,third 100.794 Hz: no distortion-born content
+BSF_SC006,gravity0,i_wide_dirty_Rectify_E1_fc120,A_B_db,27.5453
+BSF_SC006,validity,i_wide_dirty_Rectify_E1_fc120,valid,1,expected,1
+BSF_SC006,i_wide_dirty_Bite_E1_fc120,third 20 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Bite_E1_fc120,third 25.1984 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Bite_E1_fc120,third 31.748 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Bite_E1_fc120,third 50.3968 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Bite_E1_fc120,third 63.496 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Bite_E1_fc120,third 100.794 Hz: no distortion-born content
+BSF_SC006,gravity0,i_wide_dirty_Bite_E1_fc120,A_B_db,27.8486
+BSF_SC006,validity,i_wide_dirty_Bite_E1_fc120,valid,1,expected,1
+BSF_SC006,i_wide_dirty_Crush_E1_fc120,third 20 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Crush_E1_fc120,third 25.1984 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Crush_E1_fc120,third 31.748 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Crush_E1_fc120,third 50.3968 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Crush_E1_fc120,third 63.496 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Crush_E1_fc120,third 100.794 Hz: no distortion-born content
+BSF_SC006,gravity0,i_wide_dirty_Crush_E1_fc120,A_B_db,28.1301
+BSF_SC006,validity,i_wide_dirty_Crush_E1_fc120,valid,1,expected,1
+BSF_SC006,i_wide_dirty_Fracture_E1_fc120,third 25.1984 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fracture_E1_fc120,third 31.748 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fracture_E1_fc120,third 63.496 Hz: no distortion-born content
+BSF_SC006,gravity0,i_wide_dirty_Fracture_E1_fc120,A_B_db,26.49
+BSF_SC006,validity,i_wide_dirty_Fracture_E1_fc120,valid,1,expected,1
+BSF_SC006,ii_excitation_E1_fc120,no distortion-born content in B
+BSF_SC006,validity,ii_excitation_E1_fc120,valid,0,expected,1,MISMATCH
+BSF_SC006,i_wide_dirty_Tube_E2_fc120,third 20 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Tube_E2_fc120,third 25.1984 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Tube_E2_fc120,third 31.748 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Tube_E2_fc120,third 40 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Tube_E2_fc120,third 50.3968 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Tube_E2_fc120,third 63.496 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Tube_E2_fc120,third 100.794 Hz: no distortion-born content
+BSF_SC006,gravity0,i_wide_dirty_Tube_E2_fc120,A_B_db,26.3339
+BSF_SC006,validity,i_wide_dirty_Tube_E2_fc120,valid,1,expected,1
+BSF_SC006,i_wide_dirty_Fold_E2_fc120,third 20 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fold_E2_fc120,third 25.1984 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fold_E2_fc120,third 31.748 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fold_E2_fc120,third 40 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fold_E2_fc120,third 50.3968 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fold_E2_fc120,third 63.496 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fold_E2_fc120,third 100.794 Hz: no distortion-born content
+BSF_SC006,gravity0,i_wide_dirty_Fold_E2_fc120,A_B_db,26.3339
+BSF_SC006,validity,i_wide_dirty_Fold_E2_fc120,valid,1,expected,1
+BSF_SC006,i_wide_dirty_Rectify_E2_fc120,third 20 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Rectify_E2_fc120,third 25.1984 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Rectify_E2_fc120,third 31.748 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Rectify_E2_fc120,third 40 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Rectify_E2_fc120,third 50.3968 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Rectify_E2_fc120,third 63.496 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Rectify_E2_fc120,third 100.794 Hz: no distortion-born content
+BSF_SC006,gravity0,i_wide_dirty_Rectify_E2_fc120,A_B_db,26.3336
+BSF_SC006,validity,i_wide_dirty_Rectify_E2_fc120,valid,1,expected,1
+BSF_SC006,i_wide_dirty_Bite_E2_fc120,third 20 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Bite_E2_fc120,third 25.1984 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Bite_E2_fc120,third 31.748 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Bite_E2_fc120,third 40 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Bite_E2_fc120,third 50.3968 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Bite_E2_fc120,third 63.496 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Bite_E2_fc120,third 100.794 Hz: no distortion-born content
+BSF_SC006,gravity0,i_wide_dirty_Bite_E2_fc120,A_B_db,26.3337
+BSF_SC006,validity,i_wide_dirty_Bite_E2_fc120,valid,1,expected,1
+BSF_SC006,i_wide_dirty_Crush_E2_fc120,third 20 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Crush_E2_fc120,third 25.1984 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Crush_E2_fc120,third 31.748 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Crush_E2_fc120,third 40 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Crush_E2_fc120,third 50.3968 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Crush_E2_fc120,third 63.496 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Crush_E2_fc120,third 100.794 Hz: no distortion-born content
+BSF_SC006,gravity0,i_wide_dirty_Crush_E2_fc120,A_B_db,26.3338
+BSF_SC006,validity,i_wide_dirty_Crush_E2_fc120,valid,1,expected,1
+BSF_SC006,i_wide_dirty_Fracture_E2_fc120,third 20 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fracture_E2_fc120,third 25.1984 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fracture_E2_fc120,third 31.748 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fracture_E2_fc120,third 50.3968 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fracture_E2_fc120,third 63.496 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fracture_E2_fc120,third 100.794 Hz: no distortion-born content
+BSF_SC006,gravity0,i_wide_dirty_Fracture_E2_fc120,A_B_db,28.8792
+BSF_SC006,validity,i_wide_dirty_Fracture_E2_fc120,valid,1,expected,1
+BSF_SC006,ii_excitation_E2_fc120,no distortion-born content in B
+BSF_SC006,validity,ii_excitation_E2_fc120,valid,0,expected,1,MISMATCH
+BSF_SC006,i_wide_dirty_Tube_C3_fc120,no distortion-born content in B
+BSF_SC006,validity,i_wide_dirty_Tube_C3_fc120,valid,0,expected,0
+BSF_SC006,i_wide_dirty_Fold_C3_fc120,no distortion-born content in B
+BSF_SC006,validity,i_wide_dirty_Fold_C3_fc120,valid,0,expected,0
+BSF_SC006,i_wide_dirty_Rectify_C3_fc120,no distortion-born content in B
+BSF_SC006,validity,i_wide_dirty_Rectify_C3_fc120,valid,0,expected,0
+BSF_SC006,i_wide_dirty_Bite_C3_fc120,no distortion-born content in B
+BSF_SC006,validity,i_wide_dirty_Bite_C3_fc120,valid,0,expected,0
+BSF_SC006,i_wide_dirty_Crush_C3_fc120,no distortion-born content in B
+BSF_SC006,validity,i_wide_dirty_Crush_C3_fc120,valid,0,expected,0
+BSF_SC006,i_wide_dirty_Fracture_C3_fc120,third 20 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fracture_C3_fc120,third 25.1984 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fracture_C3_fc120,third 31.748 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fracture_C3_fc120,third 40 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fracture_C3_fc120,third 50.3968 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fracture_C3_fc120,third 80 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fracture_C3_fc120,third 100.794 Hz: no distortion-born content
+BSF_SC006,gravity0,i_wide_dirty_Fracture_C3_fc120,A_B_db,27.8946
+BSF_SC006,validity,i_wide_dirty_Fracture_C3_fc120,valid,1,expected,0,MISMATCH
+BSF_SC006,ii_excitation_C3_fc120,no distortion-born content in B
+BSF_SC006,validity,ii_excitation_C3_fc120,valid,0,expected,0
+BSF_SC006,i_wide_dirty_Tube_E0_fc250,third 25.1984 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Tube_E0_fc250,third 31.748 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Tube_E0_fc250,third 63.496 Hz: no distortion-born content
+BSF_SC006,gravity0,i_wide_dirty_Tube_E0_fc250,A_B_db,28.3828
+BSF_SC006,validity,i_wide_dirty_Tube_E0_fc250,valid,1,expected,1
+BSF_SC006,i_wide_dirty_Fold_E0_fc250,third 25.1984 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fold_E0_fc250,third 31.748 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fold_E0_fc250,third 63.496 Hz: no distortion-born content
+BSF_SC006,gravity0,i_wide_dirty_Fold_E0_fc250,A_B_db,28.1408
+BSF_SC006,validity,i_wide_dirty_Fold_E0_fc250,valid,1,expected,1
+BSF_SC006,i_wide_dirty_Rectify_E0_fc250,third 25.1984 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Rectify_E0_fc250,third 31.748 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Rectify_E0_fc250,third 63.496 Hz: no distortion-born content
+BSF_SC006,gravity0,i_wide_dirty_Rectify_E0_fc250,A_B_db,27.6409
+BSF_SC006,validity,i_wide_dirty_Rectify_E0_fc250,valid,1,expected,1
+BSF_SC006,i_wide_dirty_Bite_E0_fc250,third 25.1984 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Bite_E0_fc250,third 31.748 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Bite_E0_fc250,third 63.496 Hz: no distortion-born content
+BSF_SC006,gravity0,i_wide_dirty_Bite_E0_fc250,A_B_db,28.3832
+BSF_SC006,validity,i_wide_dirty_Bite_E0_fc250,valid,1,expected,1
+BSF_SC006,i_wide_dirty_Crush_E0_fc250,third 25.1984 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Crush_E0_fc250,third 31.748 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Crush_E0_fc250,third 63.496 Hz: no distortion-born content
+BSF_SC006,gravity0,i_wide_dirty_Crush_E0_fc250,A_B_db,28.889
+BSF_SC006,validity,i_wide_dirty_Crush_E0_fc250,valid,1,expected,1
+BSF_SC006,i_wide_dirty_Fracture_E0_fc250,third 31.748 Hz: no distortion-born content
+BSF_SC006,gravity0,i_wide_dirty_Fracture_E0_fc250,A_B_db,28.3167
+BSF_SC006,validity,i_wide_dirty_Fracture_E0_fc250,valid,1,expected,1
+BSF_SC006,ii_excitation_E0_fc250,no distortion-born content in B
+BSF_SC006,validity,ii_excitation_E0_fc250,valid,0,expected,1,MISMATCH
+BSF_SC006,i_wide_dirty_Tube_E1_fc250,third 20 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Tube_E1_fc250,third 25.1984 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Tube_E1_fc250,third 31.748 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Tube_E1_fc250,third 50.3968 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Tube_E1_fc250,third 63.496 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Tube_E1_fc250,third 126.992 Hz: no distortion-born content
+BSF_SC006,gravity0,i_wide_dirty_Tube_E1_fc250,A_B_db,27.9338
+BSF_SC006,validity,i_wide_dirty_Tube_E1_fc250,valid,1,expected,1
+BSF_SC006,i_wide_dirty_Fold_E1_fc250,third 20 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fold_E1_fc250,third 25.1984 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fold_E1_fc250,third 31.748 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fold_E1_fc250,third 50.3968 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fold_E1_fc250,third 63.496 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fold_E1_fc250,third 126.992 Hz: no distortion-born content
+BSF_SC006,gravity0,i_wide_dirty_Fold_E1_fc250,A_B_db,27.1353
+BSF_SC006,validity,i_wide_dirty_Fold_E1_fc250,valid,1,expected,1
+BSF_SC006,i_wide_dirty_Rectify_E1_fc250,third 20 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Rectify_E1_fc250,third 25.1984 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Rectify_E1_fc250,third 31.748 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Rectify_E1_fc250,third 50.3968 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Rectify_E1_fc250,third 63.496 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Rectify_E1_fc250,third 126.992 Hz: no distortion-born content
+BSF_SC006,gravity0,i_wide_dirty_Rectify_E1_fc250,A_B_db,26.7139
+BSF_SC006,validity,i_wide_dirty_Rectify_E1_fc250,valid,1,expected,1
+BSF_SC006,i_wide_dirty_Bite_E1_fc250,third 20 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Bite_E1_fc250,third 25.1984 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Bite_E1_fc250,third 31.748 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Bite_E1_fc250,third 50.3968 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Bite_E1_fc250,third 63.496 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Bite_E1_fc250,third 126.992 Hz: no distortion-born content
+BSF_SC006,gravity0,i_wide_dirty_Bite_E1_fc250,A_B_db,28.1964
+BSF_SC006,validity,i_wide_dirty_Bite_E1_fc250,valid,1,expected,1
+BSF_SC006,i_wide_dirty_Crush_E1_fc250,third 20 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Crush_E1_fc250,third 25.1984 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Crush_E1_fc250,third 31.748 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Crush_E1_fc250,third 50.3968 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Crush_E1_fc250,third 63.496 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Crush_E1_fc250,third 126.992 Hz: no distortion-born content
+BSF_SC006,gravity0,i_wide_dirty_Crush_E1_fc250,A_B_db,28.6877
+BSF_SC006,validity,i_wide_dirty_Crush_E1_fc250,valid,1,expected,1
+BSF_SC006,i_wide_dirty_Fracture_E1_fc250,third 25.1984 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fracture_E1_fc250,third 31.748 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fracture_E1_fc250,third 63.496 Hz: no distortion-born content
+BSF_SC006,gravity0,i_wide_dirty_Fracture_E1_fc250,A_B_db,28.7303
+BSF_SC006,validity,i_wide_dirty_Fracture_E1_fc250,valid,1,expected,1
+BSF_SC006,ii_excitation_E1_fc250,no distortion-born content in B
+BSF_SC006,validity,ii_excitation_E1_fc250,valid,0,expected,1,MISMATCH
+BSF_SC006,i_wide_dirty_Tube_E2_fc250,third 20 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Tube_E2_fc250,third 25.1984 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Tube_E2_fc250,third 31.748 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Tube_E2_fc250,third 40 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Tube_E2_fc250,third 50.3968 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Tube_E2_fc250,third 63.496 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Tube_E2_fc250,third 100.794 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Tube_E2_fc250,third 126.992 Hz: no distortion-born content
+BSF_SC006,gravity0,i_wide_dirty_Tube_E2_fc250,A_B_db,23.7694
+BSF_SC006,validity,i_wide_dirty_Tube_E2_fc250,valid,1,expected,1
+BSF_SC006,i_wide_dirty_Fold_E2_fc250,third 20 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fold_E2_fc250,third 25.1984 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fold_E2_fc250,third 31.748 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fold_E2_fc250,third 40 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fold_E2_fc250,third 50.3968 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fold_E2_fc250,third 63.496 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fold_E2_fc250,third 100.794 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fold_E2_fc250,third 126.992 Hz: no distortion-born content
+BSF_SC006,gravity0,i_wide_dirty_Fold_E2_fc250,A_B_db,27.5133
+BSF_SC006,validity,i_wide_dirty_Fold_E2_fc250,valid,1,expected,1
+BSF_SC006,i_wide_dirty_Rectify_E2_fc250,third 20 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Rectify_E2_fc250,third 25.1984 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Rectify_E2_fc250,third 31.748 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Rectify_E2_fc250,third 40 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Rectify_E2_fc250,third 50.3968 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Rectify_E2_fc250,third 63.496 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Rectify_E2_fc250,third 100.794 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Rectify_E2_fc250,third 126.992 Hz: no distortion-born content
+BSF_SC006,gravity0,i_wide_dirty_Rectify_E2_fc250,A_B_db,22.2486
+BSF_SC006,validity,i_wide_dirty_Rectify_E2_fc250,valid,1,expected,1
+BSF_SC006,i_wide_dirty_Bite_E2_fc250,third 20 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Bite_E2_fc250,third 25.1984 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Bite_E2_fc250,third 31.748 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Bite_E2_fc250,third 40 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Bite_E2_fc250,third 50.3968 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Bite_E2_fc250,third 63.496 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Bite_E2_fc250,third 100.794 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Bite_E2_fc250,third 126.992 Hz: no distortion-born content
+BSF_SC006,gravity0,i_wide_dirty_Bite_E2_fc250,A_B_db,25.3481
+BSF_SC006,validity,i_wide_dirty_Bite_E2_fc250,valid,1,expected,1
+BSF_SC006,i_wide_dirty_Crush_E2_fc250,third 20 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Crush_E2_fc250,third 25.1984 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Crush_E2_fc250,third 31.748 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Crush_E2_fc250,third 40 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Crush_E2_fc250,third 50.3968 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Crush_E2_fc250,third 63.496 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Crush_E2_fc250,third 100.794 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Crush_E2_fc250,third 126.992 Hz: no distortion-born content
+BSF_SC006,gravity0,i_wide_dirty_Crush_E2_fc250,A_B_db,27.7971
+BSF_SC006,validity,i_wide_dirty_Crush_E2_fc250,valid,1,expected,1
+BSF_SC006,i_wide_dirty_Fracture_E2_fc250,third 20 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fracture_E2_fc250,third 25.1984 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fracture_E2_fc250,third 31.748 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fracture_E2_fc250,third 50.3968 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fracture_E2_fc250,third 63.496 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fracture_E2_fc250,third 126.992 Hz: no distortion-born content
+BSF_SC006,gravity0,i_wide_dirty_Fracture_E2_fc250,A_B_db,27.5096
+BSF_SC006,validity,i_wide_dirty_Fracture_E2_fc250,valid,1,expected,1
+BSF_SC006,ii_excitation_E2_fc250,no distortion-born content in B
+BSF_SC006,validity,ii_excitation_E2_fc250,valid,0,expected,1,MISMATCH
+BSF_SC006,i_wide_dirty_Tube_C3_fc250,third 20 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Tube_C3_fc250,third 25.1984 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Tube_C3_fc250,third 31.748 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Tube_C3_fc250,third 40 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Tube_C3_fc250,third 50.3968 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Tube_C3_fc250,third 63.496 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Tube_C3_fc250,third 80 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Tube_C3_fc250,third 100.794 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Tube_C3_fc250,third 160 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Tube_C3_fc250,third 201.587 Hz: no distortion-born content
+BSF_SC006,gravity0,i_wide_dirty_Tube_C3_fc250,A_B_db,28.0693
+BSF_SC006,validity,i_wide_dirty_Tube_C3_fc250,valid,1,expected,1
+BSF_SC006,i_wide_dirty_Fold_C3_fc250,third 20 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fold_C3_fc250,third 25.1984 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fold_C3_fc250,third 31.748 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fold_C3_fc250,third 40 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fold_C3_fc250,third 50.3968 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fold_C3_fc250,third 63.496 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fold_C3_fc250,third 80 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fold_C3_fc250,third 100.794 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fold_C3_fc250,third 160 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fold_C3_fc250,third 201.587 Hz: no distortion-born content
+BSF_SC006,gravity0,i_wide_dirty_Fold_C3_fc250,A_B_db,28.0693
+BSF_SC006,validity,i_wide_dirty_Fold_C3_fc250,valid,1,expected,1
+BSF_SC006,i_wide_dirty_Rectify_C3_fc250,third 20 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Rectify_C3_fc250,third 25.1984 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Rectify_C3_fc250,third 31.748 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Rectify_C3_fc250,third 40 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Rectify_C3_fc250,third 50.3968 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Rectify_C3_fc250,third 63.496 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Rectify_C3_fc250,third 80 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Rectify_C3_fc250,third 100.794 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Rectify_C3_fc250,third 160 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Rectify_C3_fc250,third 201.587 Hz: no distortion-born content
+BSF_SC006,gravity0,i_wide_dirty_Rectify_C3_fc250,A_B_db,28.0692
+BSF_SC006,validity,i_wide_dirty_Rectify_C3_fc250,valid,1,expected,1
+BSF_SC006,i_wide_dirty_Bite_C3_fc250,third 20 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Bite_C3_fc250,third 25.1984 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Bite_C3_fc250,third 31.748 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Bite_C3_fc250,third 40 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Bite_C3_fc250,third 50.3968 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Bite_C3_fc250,third 63.496 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Bite_C3_fc250,third 80 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Bite_C3_fc250,third 100.794 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Bite_C3_fc250,third 160 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Bite_C3_fc250,third 201.587 Hz: no distortion-born content
+BSF_SC006,gravity0,i_wide_dirty_Bite_C3_fc250,A_B_db,28.0693
+BSF_SC006,validity,i_wide_dirty_Bite_C3_fc250,valid,1,expected,1
+BSF_SC006,i_wide_dirty_Crush_C3_fc250,third 20 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Crush_C3_fc250,third 25.1984 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Crush_C3_fc250,third 31.748 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Crush_C3_fc250,third 40 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Crush_C3_fc250,third 50.3968 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Crush_C3_fc250,third 63.496 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Crush_C3_fc250,third 80 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Crush_C3_fc250,third 100.794 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Crush_C3_fc250,third 160 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Crush_C3_fc250,third 201.587 Hz: no distortion-born content
+BSF_SC006,gravity0,i_wide_dirty_Crush_C3_fc250,A_B_db,28.0693
+BSF_SC006,validity,i_wide_dirty_Crush_C3_fc250,valid,1,expected,1
+BSF_SC006,i_wide_dirty_Fracture_C3_fc250,third 20 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fracture_C3_fc250,third 25.1984 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fracture_C3_fc250,third 31.748 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fracture_C3_fc250,third 40 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fracture_C3_fc250,third 50.3968 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fracture_C3_fc250,third 80 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fracture_C3_fc250,third 100.794 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Fracture_C3_fc250,third 201.587 Hz: no distortion-born content
+BSF_SC006,gravity0,i_wide_dirty_Fracture_C3_fc250,A_B_db,26.6978
+BSF_SC006,validity,i_wide_dirty_Fracture_C3_fc250,valid,1,expected,1
+BSF_SC006,ii_excitation_C3_fc250,no distortion-born content in B
+BSF_SC006,validity,ii_excitation_C3_fc250,valid,0,expected,1,MISMATCH
+BSF_SC006,summary,empty_cells,28,validity_mismatches,11
+BSF_SC006,i_Tube_E1_fc120_fs48000,third 20 Hz: no distortion-born content
+BSF_SC006,i_Tube_E1_fc120_fs48000,third 25.1984 Hz: no distortion-born content
+BSF_SC006,i_Tube_E1_fc120_fs48000,third 31.748 Hz: no distortion-born content
+BSF_SC006,i_Tube_E1_fc120_fs48000,third 50.3968 Hz: no distortion-born content
+BSF_SC006,i_Tube_E1_fc120_fs48000,third 63.496 Hz: no distortion-born content
+BSF_SC006,i_Tube_E1_fc120_fs48000,third 100.794 Hz: no distortion-born content
+BSF_SC006,i_Tube_E1_fc120_fs44100,third 20 Hz: no distortion-born content
+BSF_SC006,i_Tube_E1_fc120_fs44100,third 25.1984 Hz: no distortion-born content
+BSF_SC006,i_Tube_E1_fc120_fs44100,third 31.748 Hz: no distortion-born content
+BSF_SC006,i_Tube_E1_fc120_fs44100,third 50.3968 Hz: no distortion-born content
+BSF_SC006,i_Tube_E1_fc120_fs44100,third 63.496 Hz: no distortion-born content
+BSF_SC006,i_Tube_E1_fc120_fs44100,third 100.794 Hz: no distortion-born content
+BSF_SC006,i_Tube_E1_fc120_fs88200,third 20 Hz: no distortion-born content
+BSF_SC006,i_Tube_E1_fc120_fs88200,third 25.1984 Hz: no distortion-born content
+BSF_SC006,i_Tube_E1_fc120_fs88200,third 31.748 Hz: no distortion-born content
+BSF_SC006,i_Tube_E1_fc120_fs88200,third 50.3968 Hz: no distortion-born content
+BSF_SC006,i_Tube_E1_fc120_fs88200,third 63.496 Hz: no distortion-born content
+BSF_SC006,i_Tube_E1_fc120_fs88200,third 100.794 Hz: no distortion-born content
+BSF_SC006,i_Tube_E1_fc120_fs96000,third 20 Hz: no distortion-born content
+BSF_SC006,i_Tube_E1_fc120_fs96000,third 25.1984 Hz: no distortion-born content
+BSF_SC006,i_Tube_E1_fc120_fs96000,third 31.748 Hz: no distortion-born content
+BSF_SC006,i_Tube_E1_fc120_fs96000,third 50.3968 Hz: no distortion-born content
+BSF_SC006,i_Tube_E1_fc120_fs96000,third 63.496 Hz: no distortion-born content
+BSF_SC006,i_Tube_E1_fc120_fs96000,third 100.794 Hz: no distortion-born content
+BSF_SC006,i_Tube_E1_fc120_fs192000,third 20 Hz: no distortion-born content
+BSF_SC006,i_Tube_E1_fc120_fs192000,third 25.1984 Hz: no distortion-born content
+BSF_SC006,i_Tube_E1_fc120_fs192000,third 31.748 Hz: no distortion-born content
+BSF_SC006,i_Tube_E1_fc120_fs192000,third 50.3968 Hz: no distortion-born content
+BSF_SC006,i_Tube_E1_fc120_fs192000,third 63.496 Hz: no distortion-born content
+BSF_SC006,i_Tube_E1_fc120_fs192000,third 100.794 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Tube_E1_fc120,third 20 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Tube_E1_fc120,third 25.1984 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Tube_E1_fc120,third 31.748 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Tube_E1_fc120,third 50.3968 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Tube_E1_fc120,third 63.496 Hz: no distortion-born content
+BSF_SC006,i_wide_dirty_Tube_E1_fc120,third 100.794 Hz: no distortion-born content
+BSF_SC006,gravity0,i_wide_dirty_Tube_E1_fc120,A_B_db,27.2954
+=== summary: SC-001 worst cells per shard (recorded)
+BassStereoField_MonoSumPerBand_Solid_AnchorBite_C3 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Solid_AnchorBite_C3,cells,162,failing,0,worst_abs_q_sub_db,0,SOLID_AnchorBite_C3_s0_g0_fc250_c0_d0@core,worst_oct_q_db,0,SOLID_AnchorBite_C3_s0_g0_fc60_c0_d0@core@oct120,worst_rho_sub,1,SOLID_AnchorBite_C3_s0_g0_fc250_c0_d0@core,cells_valid_sub,54,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Solid_AnchorBite_E0 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Solid_AnchorBite_E0,cells,162,failing,0,worst_abs_q_sub_db,0,SOLID_AnchorBite_E0_s0_g0_fc60_c0_d0@core,worst_oct_q_db,0,SOLID_AnchorBite_E0_s0_g0_fc60_c0_d0@core@oct60,worst_rho_sub,1,SOLID_AnchorBite_E0_s0_g0_fc60_c0_d0@core,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Solid_AnchorBite_E1 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Solid_AnchorBite_E1,cells,162,failing,0,worst_abs_q_sub_db,0,SOLID_AnchorBite_E1_s0_g0_fc60_c0_d0@core,worst_oct_q_db,0,SOLID_AnchorBite_E1_s0_g0_fc60_c0_d0@core@oct60,worst_rho_sub,1,SOLID_AnchorBite_E1_s0_g0_fc60_c0_d0@core,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Solid_AnchorBite_E2 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Solid_AnchorBite_E2,cells,162,failing,0,worst_abs_q_sub_db,0,SOLID_AnchorBite_E2_s0_g0_fc120_c0_d0@core,worst_oct_q_db,0,SOLID_AnchorBite_E2_s0_g0_fc60_c0_d0@core@oct60,worst_rho_sub,1,SOLID_AnchorBite_E2_s0_g0_fc120_c0_d0@core,cells_valid_sub,108,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Solid_AnchorCrush_C3 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Solid_AnchorCrush_C3,cells,162,failing,0,worst_abs_q_sub_db,0,SOLID_AnchorCrush_C3_s0_g0_fc250_c0_d0@core,worst_oct_q_db,0,SOLID_AnchorCrush_C3_s0_g0_fc60_c0_d0@core@oct120,worst_rho_sub,1,SOLID_AnchorCrush_C3_s0_g0_fc250_c0_d0@core,cells_valid_sub,54,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Solid_AnchorCrush_E0 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Solid_AnchorCrush_E0,cells,162,failing,0,worst_abs_q_sub_db,0,SOLID_AnchorCrush_E0_s0_g0_fc60_c0_d0@core,worst_oct_q_db,0,SOLID_AnchorCrush_E0_s0_g0_fc60_c0_d0@core@oct60,worst_rho_sub,1,SOLID_AnchorCrush_E0_s0_g0_fc60_c0_d0@core,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Solid_AnchorCrush_E1 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Solid_AnchorCrush_E1,cells,162,failing,0,worst_abs_q_sub_db,0,SOLID_AnchorCrush_E1_s0_g0_fc60_c0_d0@core,worst_oct_q_db,0,SOLID_AnchorCrush_E1_s0_g0_fc60_c0_d0@core@oct60,worst_rho_sub,1,SOLID_AnchorCrush_E1_s0_g0_fc60_c0_d0@core,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Solid_AnchorCrush_E2 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Solid_AnchorCrush_E2,cells,162,failing,0,worst_abs_q_sub_db,0,SOLID_AnchorCrush_E2_s0_g0_fc120_c0_d0@core,worst_oct_q_db,0,SOLID_AnchorCrush_E2_s0_g0_fc60_c0_d0@core@oct60,worst_rho_sub,1,SOLID_AnchorCrush_E2_s0_g0_fc120_c0_d0@core,cells_valid_sub,108,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Solid_AnchorFold_C3 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Solid_AnchorFold_C3,cells,162,failing,0,worst_abs_q_sub_db,0,SOLID_AnchorFold_C3_s0_g0_fc250_c0_d0@core,worst_oct_q_db,0,SOLID_AnchorFold_C3_s0_g0_fc60_c0_d0@core@oct120,worst_rho_sub,1,SOLID_AnchorFold_C3_s0_g0_fc250_c0_d0@core,cells_valid_sub,54,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Solid_AnchorFold_E0 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Solid_AnchorFold_E0,cells,162,failing,0,worst_abs_q_sub_db,0,SOLID_AnchorFold_E0_s0_g0_fc60_c0_d0@core,worst_oct_q_db,0,SOLID_AnchorFold_E0_s0_g0_fc60_c0_d0@core@oct60,worst_rho_sub,1,SOLID_AnchorFold_E0_s0_g0_fc60_c0_d0@core,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Solid_AnchorFold_E1 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Solid_AnchorFold_E1,cells,162,failing,0,worst_abs_q_sub_db,0,SOLID_AnchorFold_E1_s0_g0_fc60_c0_d0@core,worst_oct_q_db,0,SOLID_AnchorFold_E1_s0_g0_fc60_c0_d0@core@oct60,worst_rho_sub,1,SOLID_AnchorFold_E1_s0_g0_fc60_c0_d0@core,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Solid_AnchorFold_E2 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Solid_AnchorFold_E2,cells,162,failing,0,worst_abs_q_sub_db,0,SOLID_AnchorFold_E2_s0_g0_fc120_c0_d0@core,worst_oct_q_db,0,SOLID_AnchorFold_E2_s0_g0_fc60_c0_d0@core@oct60,worst_rho_sub,1,SOLID_AnchorFold_E2_s0_g0_fc120_c0_d0@core,cells_valid_sub,108,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Solid_AnchorFracture_C3 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Solid_AnchorFracture_C3,cells,162,failing,0,worst_abs_q_sub_db,0,SOLID_AnchorFracture_C3_s0_g0_fc120_c0_d0@stageOut,worst_oct_q_db,0,SOLID_AnchorFracture_C3_s0_g0_fc60_c0_d0@core@oct120,worst_rho_sub,1,SOLID_AnchorFracture_C3_s0_g0_fc120_c0_d0@stageOut,cells_valid_sub,108,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Solid_AnchorFracture_E0 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Solid_AnchorFracture_E0,cells,162,failing,0,worst_abs_q_sub_db,0,SOLID_AnchorFracture_E0_s0_g0_fc60_c0_d0@core,worst_oct_q_db,0,SOLID_AnchorFracture_E0_s0_g0_fc60_c0_d0@core@oct60,worst_rho_sub,1,SOLID_AnchorFracture_E0_s0_g0_fc60_c0_d0@core,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Solid_AnchorFracture_E1 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Solid_AnchorFracture_E1,cells,162,failing,0,worst_abs_q_sub_db,0,SOLID_AnchorFracture_E1_s0_g0_fc60_c0_d0@core,worst_oct_q_db,0,SOLID_AnchorFracture_E1_s0_g0_fc60_c0_d0@core@oct60,worst_rho_sub,1,SOLID_AnchorFracture_E1_s0_g0_fc60_c0_d0@core,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Solid_AnchorFracture_E2 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Solid_AnchorFracture_E2,cells,162,failing,0,worst_abs_q_sub_db,0,SOLID_AnchorFracture_E2_s0_g0_fc60_c0_d0@stageOut,worst_oct_q_db,0,SOLID_AnchorFracture_E2_s0_g0_fc60_c0_d0@core@oct60,worst_rho_sub,1,SOLID_AnchorFracture_E2_s0_g0_fc60_c0_d0@stageOut,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Solid_AnchorRectify_C3 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Solid_AnchorRectify_C3,cells,162,failing,0,worst_abs_q_sub_db,0,SOLID_AnchorRectify_C3_s0_g0_fc60_c0_d0@out,worst_oct_q_db,0,SOLID_AnchorRectify_C3_s0_g0_fc60_c0_d0@core@oct120,worst_rho_sub,1,SOLID_AnchorRectify_C3_s0_g0_fc250_c0_d0@core,cells_valid_sub,54,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Solid_AnchorRectify_E0 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Solid_AnchorRectify_E0,cells,162,failing,0,worst_abs_q_sub_db,0,SOLID_AnchorRectify_E0_s0_g0_fc60_c0_d0@core,worst_oct_q_db,0,SOLID_AnchorRectify_E0_s0_g0_fc60_c0_d0@core@oct60,worst_rho_sub,1,SOLID_AnchorRectify_E0_s0_g0_fc60_c0_d0@core,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Solid_AnchorRectify_E1 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Solid_AnchorRectify_E1,cells,162,failing,0,worst_abs_q_sub_db,0,SOLID_AnchorRectify_E1_s0_g0_fc60_c0_d0@core,worst_oct_q_db,0,SOLID_AnchorRectify_E1_s0_g0_fc60_c0_d0@core@oct60,worst_rho_sub,1,SOLID_AnchorRectify_E1_s0_g0_fc60_c0_d0@core,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Solid_AnchorRectify_E2 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Solid_AnchorRectify_E2,cells,162,failing,0,worst_abs_q_sub_db,0,SOLID_AnchorRectify_E2_s0_g0_fc60_c0_d0@out,worst_oct_q_db,0,SOLID_AnchorRectify_E2_s0_g0_fc60_c0_d0@core@oct60,worst_rho_sub,1,SOLID_AnchorRectify_E2_s0_g0_fc120_c0_d0@core,cells_valid_sub,108,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Solid_AnchorTube_C3 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Solid_AnchorTube_C3,cells,162,failing,0,worst_abs_q_sub_db,0,SOLID_AnchorTube_C3_s0_g0_fc250_c0_d0@core,worst_oct_q_db,0,SOLID_AnchorTube_C3_s0_g0_fc60_c0_d0@core@oct120,worst_rho_sub,1,SOLID_AnchorTube_C3_s0_g0_fc250_c0_d0@core,cells_valid_sub,54,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Solid_AnchorTube_E0 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Solid_AnchorTube_E0,cells,162,failing,0,worst_abs_q_sub_db,0,SOLID_AnchorTube_E0_s0_g0_fc60_c0_d0@core,worst_oct_q_db,0,SOLID_AnchorTube_E0_s0_g0_fc60_c0_d0@core@oct60,worst_rho_sub,1,SOLID_AnchorTube_E0_s0_g0_fc60_c0_d0@core,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Solid_AnchorTube_E1 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Solid_AnchorTube_E1,cells,162,failing,0,worst_abs_q_sub_db,0,SOLID_AnchorTube_E1_s0_g0_fc60_c0_d0@core,worst_oct_q_db,0,SOLID_AnchorTube_E1_s0_g0_fc60_c0_d0@core@oct60,worst_rho_sub,1,SOLID_AnchorTube_E1_s0_g0_fc60_c0_d0@core,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Solid_AnchorTube_E2 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Solid_AnchorTube_E2,cells,162,failing,0,worst_abs_q_sub_db,0,SOLID_AnchorTube_E2_s0_g0_fc120_c0_d0@core,worst_oct_q_db,0,SOLID_AnchorTube_E2_s0_g0_fc60_c0_d0@core@oct60,worst_rho_sub,1,SOLID_AnchorTube_E2_s0_g0_fc120_c0_d0@core,cells_valid_sub,108,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Solid_CleanGrowl_C3 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Solid_CleanGrowl_C3,cells,162,failing,0,worst_abs_q_sub_db,0,SOLID_CleanGrowl_C3_s0_g0_fc250_c0_d0@core,worst_oct_q_db,0,SOLID_CleanGrowl_C3_s0_g0_fc60_c0_d0@core@oct120,worst_rho_sub,1,SOLID_CleanGrowl_C3_s0_g0_fc250_c0_d0@core,cells_valid_sub,54,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Solid_CleanGrowl_E0 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Solid_CleanGrowl_E0,cells,162,failing,0,worst_abs_q_sub_db,0,SOLID_CleanGrowl_E0_s0_g0_fc60_c0_d0@core,worst_oct_q_db,0,SOLID_CleanGrowl_E0_s0_g0_fc60_c0_d0@core@oct60,worst_rho_sub,1,SOLID_CleanGrowl_E0_s0_g0_fc60_c0_d0@core,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Solid_CleanGrowl_E1 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Solid_CleanGrowl_E1,cells,162,failing,0,worst_abs_q_sub_db,0,SOLID_CleanGrowl_E1_s0_g0_fc60_c0_d0@core,worst_oct_q_db,0,SOLID_CleanGrowl_E1_s0_g0_fc60_c0_d0@core@oct60,worst_rho_sub,1,SOLID_CleanGrowl_E1_s0_g0_fc60_c0_d0@core,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Solid_CleanGrowl_E2 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Solid_CleanGrowl_E2,cells,162,failing,0,worst_abs_q_sub_db,0,SOLID_CleanGrowl_E2_s0_g0_fc120_c0_d0@core,worst_oct_q_db,0,SOLID_CleanGrowl_E2_s0_g0_fc60_c0_d0@core@oct60,worst_rho_sub,1,SOLID_CleanGrowl_E2_s0_g0_fc120_c0_d0@core,cells_valid_sub,108,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Solid_CleanSaw_C3 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Solid_CleanSaw_C3,cells,162,failing,0,worst_abs_q_sub_db,0,SOLID_CleanSaw_C3_s0_g0_fc250_c0_d0@core,worst_oct_q_db,0,SOLID_CleanSaw_C3_s0_g0_fc60_c0_d0@core@oct120,worst_rho_sub,1,SOLID_CleanSaw_C3_s0_g0_fc250_c0_d0@core,cells_valid_sub,54,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Solid_CleanSaw_E0 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Solid_CleanSaw_E0,cells,162,failing,0,worst_abs_q_sub_db,0,SOLID_CleanSaw_E0_s0_g0_fc60_c0_d0@core,worst_oct_q_db,0,SOLID_CleanSaw_E0_s0_g0_fc60_c0_d0@core@oct60,worst_rho_sub,1,SOLID_CleanSaw_E0_s0_g0_fc60_c0_d0@core,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Solid_CleanSaw_E1 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Solid_CleanSaw_E1,cells,162,failing,0,worst_abs_q_sub_db,0,SOLID_CleanSaw_E1_s0_g0_fc60_c0_d0@core,worst_oct_q_db,0,SOLID_CleanSaw_E1_s0_g0_fc60_c0_d0@core@oct60,worst_rho_sub,1,SOLID_CleanSaw_E1_s0_g0_fc60_c0_d0@core,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Solid_CleanSaw_E2 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Solid_CleanSaw_E2,cells,162,failing,0,worst_abs_q_sub_db,0,SOLID_CleanSaw_E2_s0_g0_fc120_c0_d0@core,worst_oct_q_db,0,SOLID_CleanSaw_E2_s0_g0_fc60_c0_d0@core@oct60,worst_rho_sub,1,SOLID_CleanSaw_E2_s0_g0_fc120_c0_d0@core,cells_valid_sub,108,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Solid_DirtyBite_C3 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Solid_DirtyBite_C3,cells,162,failing,0,worst_abs_q_sub_db,0,SOLID_DirtyBite_C3_s0_g0_fc250_c0_d0@core,worst_oct_q_db,0,SOLID_DirtyBite_C3_s0_g0_fc60_c0_d0@core@oct120,worst_rho_sub,1,SOLID_DirtyBite_C3_s0_g0_fc250_c0_d0@core,cells_valid_sub,54,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Solid_DirtyBite_E0 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Solid_DirtyBite_E0,cells,162,failing,0,worst_abs_q_sub_db,0,SOLID_DirtyBite_E0_s0_g0_fc60_c0_d0@core,worst_oct_q_db,0,SOLID_DirtyBite_E0_s0_g0_fc60_c0_d0@core@oct60,worst_rho_sub,1,SOLID_DirtyBite_E0_s0_g0_fc60_c0_d0@core,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Solid_DirtyBite_E1 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Solid_DirtyBite_E1,cells,162,failing,0,worst_abs_q_sub_db,0,SOLID_DirtyBite_E1_s0_g0_fc60_c0_d0@core,worst_oct_q_db,0,SOLID_DirtyBite_E1_s0_g0_fc60_c0_d0@core@oct60,worst_rho_sub,1,SOLID_DirtyBite_E1_s0_g0_fc60_c0_d0@core,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Solid_DirtyBite_E2 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Solid_DirtyBite_E2,cells,162,failing,0,worst_abs_q_sub_db,0,SOLID_DirtyBite_E2_s0_g0_fc120_c0_d0@core,worst_oct_q_db,0,SOLID_DirtyBite_E2_s0_g0_fc60_c0_d0@core@oct60,worst_rho_sub,1,SOLID_DirtyBite_E2_s0_g0_fc120_c0_d0@core,cells_valid_sub,108,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Solid_DirtyCrush_C3 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Solid_DirtyCrush_C3,cells,162,failing,0,worst_abs_q_sub_db,0,SOLID_DirtyCrush_C3_s0_g0_fc250_c0_d0@core,worst_oct_q_db,0,SOLID_DirtyCrush_C3_s0_g0_fc60_c0_d0@core@oct120,worst_rho_sub,1,SOLID_DirtyCrush_C3_s0_g0_fc250_c0_d0@core,cells_valid_sub,54,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Solid_DirtyCrush_E0 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Solid_DirtyCrush_E0,cells,162,failing,0,worst_abs_q_sub_db,0,SOLID_DirtyCrush_E0_s0_g0_fc60_c0_d0@core,worst_oct_q_db,0,SOLID_DirtyCrush_E0_s0_g0_fc60_c0_d0@core@oct60,worst_rho_sub,1,SOLID_DirtyCrush_E0_s0_g0_fc60_c0_d0@core,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Solid_DirtyCrush_E1 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Solid_DirtyCrush_E1,cells,162,failing,0,worst_abs_q_sub_db,0,SOLID_DirtyCrush_E1_s0_g0_fc60_c0_d0@core,worst_oct_q_db,0,SOLID_DirtyCrush_E1_s0_g0_fc60_c0_d0@core@oct60,worst_rho_sub,1,SOLID_DirtyCrush_E1_s0_g0_fc60_c0_d0@core,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Solid_DirtyCrush_E2 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Solid_DirtyCrush_E2,cells,162,failing,0,worst_abs_q_sub_db,0,SOLID_DirtyCrush_E2_s0_g0_fc120_c0_d0@core,worst_oct_q_db,0,SOLID_DirtyCrush_E2_s0_g0_fc60_c0_d0@core@oct60,worst_rho_sub,1,SOLID_DirtyCrush_E2_s0_g0_fc120_c0_d0@core,cells_valid_sub,108,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Solid_DirtyFold_C3 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Solid_DirtyFold_C3,cells,162,failing,0,worst_abs_q_sub_db,0,SOLID_DirtyFold_C3_s0_g0_fc250_c0_d0@core,worst_oct_q_db,0,SOLID_DirtyFold_C3_s0_g0_fc60_c0_d0@core@oct120,worst_rho_sub,1,SOLID_DirtyFold_C3_s0_g0_fc250_c0_d0@core,cells_valid_sub,54,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Solid_DirtyFold_E0 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Solid_DirtyFold_E0,cells,162,failing,0,worst_abs_q_sub_db,0,SOLID_DirtyFold_E0_s0_g0_fc60_c0_d0@core,worst_oct_q_db,0,SOLID_DirtyFold_E0_s0_g0_fc60_c0_d0@core@oct60,worst_rho_sub,1,SOLID_DirtyFold_E0_s0_g0_fc60_c0_d0@core,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Solid_DirtyFold_E1 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Solid_DirtyFold_E1,cells,162,failing,0,worst_abs_q_sub_db,0,SOLID_DirtyFold_E1_s0_g0_fc60_c0_d0@core,worst_oct_q_db,0,SOLID_DirtyFold_E1_s0_g0_fc60_c0_d0@core@oct60,worst_rho_sub,1,SOLID_DirtyFold_E1_s0_g0_fc60_c0_d0@core,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Solid_DirtyFold_E2 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Solid_DirtyFold_E2,cells,162,failing,0,worst_abs_q_sub_db,0,SOLID_DirtyFold_E2_s0_g0_fc120_c0_d0@core,worst_oct_q_db,0,SOLID_DirtyFold_E2_s0_g0_fc60_c0_d0@core@oct60,worst_rho_sub,1,SOLID_DirtyFold_E2_s0_g0_fc120_c0_d0@core,cells_valid_sub,108,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Solid_DirtyFracture_C3 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Solid_DirtyFracture_C3,cells,162,failing,0,worst_abs_q_sub_db,0,SOLID_DirtyFracture_C3_s0_g0_fc120_c0_d0@stageOut,worst_oct_q_db,0,SOLID_DirtyFracture_C3_s0_g0_fc60_c0_d0@core@oct120,worst_rho_sub,1,SOLID_DirtyFracture_C3_s0_g0_fc120_c0_d0@stageOut,cells_valid_sub,108,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Solid_DirtyFracture_E0 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Solid_DirtyFracture_E0,cells,162,failing,0,worst_abs_q_sub_db,0,SOLID_DirtyFracture_E0_s0_g0_fc60_c0_d0@core,worst_oct_q_db,0,SOLID_DirtyFracture_E0_s0_g0_fc60_c0_d0@core@oct60,worst_rho_sub,1,SOLID_DirtyFracture_E0_s0_g0_fc60_c0_d0@core,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Solid_DirtyFracture_E1 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Solid_DirtyFracture_E1,cells,162,failing,0,worst_abs_q_sub_db,0,SOLID_DirtyFracture_E1_s0_g0_fc60_c0_d0@core,worst_oct_q_db,0,SOLID_DirtyFracture_E1_s0_g0_fc60_c0_d0@core@oct60,worst_rho_sub,1,SOLID_DirtyFracture_E1_s0_g0_fc60_c0_d0@core,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Solid_DirtyFracture_E2 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Solid_DirtyFracture_E2,cells,162,failing,0,worst_abs_q_sub_db,0,SOLID_DirtyFracture_E2_s0_g0_fc60_c0_d0@stageOut,worst_oct_q_db,0,SOLID_DirtyFracture_E2_s0_g0_fc60_c0_d0@core@oct60,worst_rho_sub,1,SOLID_DirtyFracture_E2_s0_g0_fc60_c0_d0@stageOut,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Solid_DirtyRectify_C3 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Solid_DirtyRectify_C3,cells,162,failing,0,worst_abs_q_sub_db,0,SOLID_DirtyRectify_C3_s0_g0_fc60_c0_d0@out,worst_oct_q_db,0,SOLID_DirtyRectify_C3_s0_g0_fc60_c0_d0@core@oct120,worst_rho_sub,1,SOLID_DirtyRectify_C3_s0_g0_fc250_c0_d0@core,cells_valid_sub,54,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Solid_DirtyRectify_E0 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Solid_DirtyRectify_E0,cells,162,failing,0,worst_abs_q_sub_db,0,SOLID_DirtyRectify_E0_s0_g0_fc60_c0_d0@core,worst_oct_q_db,0,SOLID_DirtyRectify_E0_s0_g0_fc60_c0_d0@core@oct60,worst_rho_sub,1,SOLID_DirtyRectify_E0_s0_g0_fc60_c0_d0@core,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Solid_DirtyRectify_E1 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Solid_DirtyRectify_E1,cells,162,failing,0,worst_abs_q_sub_db,0,SOLID_DirtyRectify_E1_s0_g0_fc60_c0_d0@core,worst_oct_q_db,0,SOLID_DirtyRectify_E1_s0_g0_fc60_c0_d0@core@oct60,worst_rho_sub,1,SOLID_DirtyRectify_E1_s0_g0_fc60_c0_d0@core,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Solid_DirtyRectify_E2 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Solid_DirtyRectify_E2,cells,162,failing,0,worst_abs_q_sub_db,0,SOLID_DirtyRectify_E2_s0_g0_fc60_c0_d0@out,worst_oct_q_db,0,SOLID_DirtyRectify_E2_s0_g0_fc60_c0_d0@core@oct60,worst_rho_sub,1,SOLID_DirtyRectify_E2_s0_g0_fc120_c0_d0@core,cells_valid_sub,108,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Solid_DirtyTube_C3 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Solid_DirtyTube_C3,cells,162,failing,0,worst_abs_q_sub_db,0,SOLID_DirtyTube_C3_s0_g0_fc250_c0_d0@core,worst_oct_q_db,0,SOLID_DirtyTube_C3_s0_g0_fc60_c0_d0@core@oct120,worst_rho_sub,1,SOLID_DirtyTube_C3_s0_g0_fc250_c0_d0@core,cells_valid_sub,54,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Solid_DirtyTube_E0 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Solid_DirtyTube_E0,cells,162,failing,0,worst_abs_q_sub_db,0,SOLID_DirtyTube_E0_s0_g0_fc60_c0_d0@core,worst_oct_q_db,0,SOLID_DirtyTube_E0_s0_g0_fc60_c0_d0@core@oct60,worst_rho_sub,1,SOLID_DirtyTube_E0_s0_g0_fc60_c0_d0@core,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Solid_DirtyTube_E1 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Solid_DirtyTube_E1,cells,162,failing,0,worst_abs_q_sub_db,0,SOLID_DirtyTube_E1_s0_g0_fc60_c0_d0@core,worst_oct_q_db,0,SOLID_DirtyTube_E1_s0_g0_fc60_c0_d0@core@oct60,worst_rho_sub,1,SOLID_DirtyTube_E1_s0_g0_fc60_c0_d0@core,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Solid_DirtyTube_E2 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Solid_DirtyTube_E2,cells,162,failing,0,worst_abs_q_sub_db,0,SOLID_DirtyTube_E2_s0_g0_fc120_c0_d0@core,worst_oct_q_db,0,SOLID_DirtyTube_E2_s0_g0_fc60_c0_d0@core@oct60,worst_rho_sub,1,SOLID_DirtyTube_E2_s0_g0_fc120_c0_d0@core,cells_valid_sub,108,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Spread_AnchorBite_C3 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Spread_AnchorBite_C3,cells,162,failing,0,worst_abs_q_sub_db,0.00913844,SPREAD_AnchorBite_C3_s0.5_g0_fc120_c0_d1drift@out,worst_oct_q_db,-7.9486,SPREAD_AnchorBite_C3_s1_g1_fc250_c1_d1drift@out@oct1000,worst_rho_sub,0.99941,SPREAD_AnchorBite_C3_s1_g0_fc120_c0_d1drift@stageOut,cells_valid_sub,102,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Spread_AnchorBite_E0 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Spread_AnchorBite_E0,cells,162,failing,0,worst_abs_q_sub_db,2.19882e-05,SPREAD_AnchorBite_E0_s1_g0_fc60_c0_d0@out,worst_oct_q_db,-6.83999,SPREAD_AnchorBite_E0_s1_g0.5_fc60_c0_d0@out@oct7680,worst_rho_sub,0.99999,SPREAD_AnchorBite_E0_s1_g0_fc60_c0_d0@stageOut,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Spread_AnchorBite_E1 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Spread_AnchorBite_E1,cells,162,failing,0,worst_abs_q_sub_db,0.000936543,SPREAD_AnchorBite_E1_s1_g0_fc60_c0_d0@stageOut,worst_oct_q_db,-6.93774,SPREAD_AnchorBite_E1_s0.5_g1_fc250_c1_d0@out@oct500,worst_rho_sub,0.999758,SPREAD_AnchorBite_E1_s1_g0_fc120_c0_d0@stageOut,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Spread_AnchorBite_E2 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Spread_AnchorBite_E2,cells,162,failing,0,worst_abs_q_sub_db,0.0195251,SPREAD_AnchorBite_E2_s0.5_g1_fc60_c1_d0@out,worst_oct_q_db,-8.8957,SPREAD_AnchorBite_E2_s1_g0_fc250_c1_d0@out@oct500,worst_rho_sub,0.999395,SPREAD_AnchorBite_E2_s1_g0_fc250_c0_d0@stageOut,cells_valid_sub,132,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Spread_AnchorCrush_C3 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Spread_AnchorCrush_C3,cells,162,failing,0,worst_abs_q_sub_db,0.273442,SPREAD_AnchorCrush_C3_s1_g0_fc60_c0_d1drift@out,worst_oct_q_db,-3.0103,SPREAD_AnchorCrush_C3_s1_g0.5_fc250_c0_d0@core@oct8000,worst_rho_sub,0.995768,SPREAD_AnchorCrush_C3_s0.5_g0_fc120_c1_d1drift@stageOut,cells_valid_sub,102,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Spread_AnchorCrush_E0 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Spread_AnchorCrush_E0,cells,162,failing,0,worst_abs_q_sub_db,0.000819372,SPREAD_AnchorCrush_E0_s0.5_g0_fc60_c1_d0@out,worst_oct_q_db,-3.0103,SPREAD_AnchorCrush_E0_s1_g1_fc60_c0_d0@core@oct960,worst_rho_sub,0.999657,SPREAD_AnchorCrush_E0_s0.5_g0_fc120_c0_d0@stageOut,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Spread_AnchorCrush_E1 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Spread_AnchorCrush_E1,cells,162,failing,0,worst_abs_q_sub_db,0.00216534,SPREAD_AnchorCrush_E1_s0.5_g0_fc60_c0_d1drift@out,worst_oct_q_db,-3.0103,SPREAD_AnchorCrush_E1_s1_g0.5_fc60_c1_d0@core@oct480,worst_rho_sub,0.999436,SPREAD_AnchorCrush_E1_s0.5_g0_fc250_c1_d1drift@stageOut,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Spread_AnchorCrush_E2 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Spread_AnchorCrush_E2,cells,162,failing,0,worst_abs_q_sub_db,0.0548895,SPREAD_AnchorCrush_E2_s0.5_g0_fc60_c1_d1drift@out,worst_oct_q_db,-3.0103,SPREAD_AnchorCrush_E2_s1_g1_fc60_c1_d0@core@oct480,worst_rho_sub,0.99746,SPREAD_AnchorCrush_E2_s0.5_g0_fc60_c1_d1drift@stageOut,cells_valid_sub,132,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Spread_AnchorFold_C3 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Spread_AnchorFold_C3,cells,162,failing,0,worst_abs_q_sub_db,0.0134158,SPREAD_AnchorFold_C3_s1_g0_fc250_c1_d1drift@out,worst_oct_q_db,-5.68733,SPREAD_AnchorFold_C3_s0.5_g0_fc60_c0_d1drift@out@oct120,worst_rho_sub,0.995197,SPREAD_AnchorFold_C3_s1_g0_fc250_c1_d1drift@stageOut,cells_valid_sub,102,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Spread_AnchorFold_E0 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Spread_AnchorFold_E0,cells,162,failing,0,worst_abs_q_sub_db,3.53022e-05,SPREAD_AnchorFold_E0_s1_g0_fc60_c0_d1drift@out,worst_oct_q_db,-5.13701,SPREAD_AnchorFold_E0_s0.5_g1_fc120_c0_d0@stageOut@oct7680,worst_rho_sub,0.999984,SPREAD_AnchorFold_E0_s1_g0_fc60_c0_d1drift@stageOut,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Spread_AnchorFold_E1 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Spread_AnchorFold_E1,cells,162,failing,0,worst_abs_q_sub_db,0.00072688,SPREAD_AnchorFold_E1_s1_g0_fc120_c0_d0@out,worst_oct_q_db,-4.53002,SPREAD_AnchorFold_E1_s1_g0_fc60_c1_d0@stageOut@oct240,worst_rho_sub,0.999695,SPREAD_AnchorFold_E1_s1_g0_fc120_c0_d0@stageOut,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Spread_AnchorFold_E2 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Spread_AnchorFold_E2,cells,162,failing,0,worst_abs_q_sub_db,0.00534656,SPREAD_AnchorFold_E2_s0.5_g0_fc60_c0_d1drift@out,worst_oct_q_db,-8.60992,SPREAD_AnchorFold_E2_s1_g1_fc60_c0_d0@out@oct120,worst_rho_sub,0.999182,SPREAD_AnchorFold_E2_s0.5_g0_fc120_c0_d1drift@stageOut,cells_valid_sub,132,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Spread_AnchorFracture_C3 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Spread_AnchorFracture_C3,cells,162,failing,0,worst_abs_q_sub_db,0.0115634,SPREAD_AnchorFracture_C3_s1_g0_fc60_c0_d1drift@out,worst_oct_q_db,-8.40609,SPREAD_AnchorFracture_C3_s1_g0_fc250_c1_d0@out@oct500,worst_rho_sub,0.995279,SPREAD_AnchorFracture_C3_s1_g0_fc60_c0_d1drift@stageOut,cells_valid_sub,114,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Spread_AnchorFracture_E0 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Spread_AnchorFracture_E0,cells,162,failing,0,worst_abs_q_sub_db,0.000219391,SPREAD_AnchorFracture_E0_s1_g0_fc60_c0_d0@out,worst_oct_q_db,-10.0959,SPREAD_AnchorFracture_E0_s1_g0_fc60_c0_d0@out@oct7680,worst_rho_sub,0.999907,SPREAD_AnchorFracture_E0_s1_g0_fc60_c0_d0@stageOut,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Spread_AnchorFracture_E1 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Spread_AnchorFracture_E1,cells,162,failing,0,worst_abs_q_sub_db,0.000767233,SPREAD_AnchorFracture_E1_s1_g0_fc120_c0_d0@out,worst_oct_q_db,-8.70975,SPREAD_AnchorFracture_E1_s1_g0_fc120_c1_d1drift@out@oct240,worst_rho_sub,0.999658,SPREAD_AnchorFracture_E1_s1_g0_fc120_c0_d0@stageOut,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Spread_AnchorFracture_E2 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Spread_AnchorFracture_E2,cells,162,failing,0,worst_abs_q_sub_db,0.000742696,SPREAD_AnchorFracture_E2_s1_g0_fc250_c0_d0@out,worst_oct_q_db,-9.59939,SPREAD_AnchorFracture_E2_s0.5_g1_fc120_c0_d0@out@oct240,worst_rho_sub,0.999661,SPREAD_AnchorFracture_E2_s1_g0_fc250_c0_d0@stageOut,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Spread_AnchorRectify_C3 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Spread_AnchorRectify_C3,cells,162,failing,0,worst_abs_q_sub_db,1.84641,SPREAD_AnchorRectify_C3_s0.5_g1_fc120_c0_d0@out,worst_oct_q_db,-8.17108,SPREAD_AnchorRectify_C3_s1_g0_fc60_c0_d1drift@stageOut@oct240,worst_rho_sub,0.989038,SPREAD_AnchorRectify_C3_s1_g0_fc60_c0_d1drift@stageOut,cells_valid_sub,102,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Spread_AnchorRectify_E0 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Spread_AnchorRectify_E0,cells,162,failing,0,worst_abs_q_sub_db,0.000193414,SPREAD_AnchorRectify_E0_s1_g0_fc120_c0_d0@out,worst_oct_q_db,-5.22253,SPREAD_AnchorRectify_E0_s1_g1_fc250_c0_d0@out@oct8000,worst_rho_sub,0.999928,SPREAD_AnchorRectify_E0_s1_g0_fc60_c0_d0@stageOut,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Spread_AnchorRectify_E1 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Spread_AnchorRectify_E1,cells,162,failing,0,worst_abs_q_sub_db,0.00365064,SPREAD_AnchorRectify_E1_s1_g0_fc60_c0_d0@out,worst_oct_q_db,-9.57977,SPREAD_AnchorRectify_E1_s1_g0_fc60_c0_d0@out@oct240,worst_rho_sub,0.999337,SPREAD_AnchorRectify_E1_s1_g0_fc120_c0_d0@stageOut,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Spread_AnchorRectify_E2 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Spread_AnchorRectify_E2,cells,162,failing,0,worst_abs_q_sub_db,1.29255,SPREAD_AnchorRectify_E2_s1_g0_fc60_c1_d0@out,worst_oct_q_db,-11.3519,SPREAD_AnchorRectify_E2_s1_g1_fc60_c0_d1drift@stageOut@oct120,worst_rho_sub,0.991289,SPREAD_AnchorRectify_E2_s1_g0_fc60_c0_d1drift@stageOut,cells_valid_sub,132,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Spread_AnchorTube_C3 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Spread_AnchorTube_C3,cells,162,failing,0,worst_abs_q_sub_db,0.00768159,SPREAD_AnchorTube_C3_s0.5_g0_fc120_c0_d1drift@out,worst_oct_q_db,-10.4147,SPREAD_AnchorTube_C3_s1_g1_fc120_c1_d0@stageOut@oct480,worst_rho_sub,0.999347,SPREAD_AnchorTube_C3_s1_g0_fc120_c0_d1drift@stageOut,cells_valid_sub,102,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Spread_AnchorTube_E0 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Spread_AnchorTube_E0,cells,162,failing,0,worst_abs_q_sub_db,2.91228e-05,SPREAD_AnchorTube_E0_s1_g0_fc120_c0_d0@out,worst_oct_q_db,-7.53945,SPREAD_AnchorTube_E0_s1_g1_fc60_c0_d0@stageOut@oct7680,worst_rho_sub,0.999987,SPREAD_AnchorTube_E0_s1_g0_fc120_c0_d0@stageOut,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Spread_AnchorTube_E1 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Spread_AnchorTube_E1,cells,162,failing,0,worst_abs_q_sub_db,0.000880203,SPREAD_AnchorTube_E1_s1_g0_fc60_c0_d0@out,worst_oct_q_db,-7.12267,SPREAD_AnchorTube_E1_s1_g1_fc60_c1_d1drift@stageOut@oct240,worst_rho_sub,0.999814,SPREAD_AnchorTube_E1_s1_g0_fc120_c0_d0@stageOut,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Spread_AnchorTube_E2 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Spread_AnchorTube_E2,cells,162,failing,0,worst_abs_q_sub_db,0.0112423,SPREAD_AnchorTube_E2_s1_g1_fc60_c0_d1drift@out,worst_oct_q_db,-9.82243,SPREAD_AnchorTube_E2_s1_g0_fc60_c0_d0@out@oct480,worst_rho_sub,0.999537,SPREAD_AnchorTube_E2_s1_g0_fc250_c0_d0@stageOut,cells_valid_sub,132,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Spread_CleanGrowl_C3 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Spread_CleanGrowl_C3,cells,162,failing,0,worst_abs_q_sub_db,0.0346852,SPREAD_CleanGrowl_C3_s1_g1_fc250_c1_d0@out,worst_oct_q_db,-3.1066,SPREAD_CleanGrowl_C3_s1_g0_fc120_c0_d0@out@oct7680,worst_rho_sub,0.999978,SPREAD_CleanGrowl_C3_s1_g0_fc250_c0_d1drift@core,cells_valid_sub,54,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Spread_CleanGrowl_E0 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Spread_CleanGrowl_E0,cells,162,failing,0,worst_abs_q_sub_db,0.126984,SPREAD_CleanGrowl_E0_s1_g1_fc60_c1_d0@out,worst_oct_q_db,-12.2723,SPREAD_CleanGrowl_E0_s1_g0_fc60_c0_d0@out@oct1920,worst_rho_sub,0.999961,SPREAD_CleanGrowl_E0_s1_g0_fc60_c0_d1drift@core,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Spread_CleanGrowl_E1 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Spread_CleanGrowl_E1,cells,162,failing,0,worst_abs_q_sub_db,0.990973,SPREAD_CleanGrowl_E1_s1_g1_fc60_c1_d0@out,worst_oct_q_db,-44.3499,SPREAD_CleanGrowl_E1_s1_g1_fc120_c0_d0@out@oct7680,worst_rho_sub,0.999811,SPREAD_CleanGrowl_E1_s1_g0_fc250_c0_d0@core,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Spread_CleanGrowl_E2 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Spread_CleanGrowl_E2,cells,162,failing,0,worst_abs_q_sub_db,0.2085,SPREAD_CleanGrowl_E2_s1_g1_fc120_c1_d0@out,worst_oct_q_db,-41.3815,SPREAD_CleanGrowl_E2_s1_g1_fc250_c0_d0@out@oct8000,worst_rho_sub,0.999871,SPREAD_CleanGrowl_E2_s1_g0_fc250_c0_d1cycle@core,cells_valid_sub,108,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Spread_CleanSaw_C3 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Spread_CleanSaw_C3,cells,162,failing,0,worst_abs_q_sub_db,7.19495e-08,SPREAD_CleanSaw_C3_s1_g0_fc250_c0_d1drift@core,worst_oct_q_db,-3.0103,SPREAD_CleanSaw_C3_s1_g0.5_fc250_c0_d0@core@oct8000,worst_rho_sub,1,SPREAD_CleanSaw_C3_s1_g0_fc250_c0_d1drift@core,cells_valid_sub,54,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Spread_CleanSaw_E0 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Spread_CleanSaw_E0,cells,162,failing,0,worst_abs_q_sub_db,2.05781e-06,SPREAD_CleanSaw_E0_s1_g0_fc250_c0_d0@core,worst_oct_q_db,-3.0103,SPREAD_CleanSaw_E0_s1_g1_fc60_c0_d0@core@oct960,worst_rho_sub,0.999999,SPREAD_CleanSaw_E0_s1_g0_fc250_c0_d0@core,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Spread_CleanSaw_E1 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Spread_CleanSaw_E1,cells,162,failing,0,worst_abs_q_sub_db,3.48291e-05,SPREAD_CleanSaw_E1_s1_g0_fc250_c0_d0@core,worst_oct_q_db,-3.0103,SPREAD_CleanSaw_E1_s1_g0.5_fc60_c1_d0@core@oct480,worst_rho_sub,0.999984,SPREAD_CleanSaw_E1_s1_g0_fc250_c0_d0@core,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Spread_CleanSaw_E2 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Spread_CleanSaw_E2,cells,162,failing,0,worst_abs_q_sub_db,0.000152652,SPREAD_CleanSaw_E2_s1_g0_fc250_c0_d0@core,worst_oct_q_db,-3.0103,SPREAD_CleanSaw_E2_s1_g1_fc60_c0_d0@stageOut@oct3840,worst_rho_sub,0.999935,SPREAD_CleanSaw_E2_s1_g0_fc250_c0_d0@core,cells_valid_sub,108,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Spread_DirtyBite_C3 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Spread_DirtyBite_C3,cells,162,failing,0,worst_abs_q_sub_db,0.00913072,SPREAD_DirtyBite_C3_s0.5_g0_fc60_c0_d1drift@stageOut,worst_oct_q_db,-7.94829,SPREAD_DirtyBite_C3_s1_g1_fc250_c1_d1drift@out@oct1000,worst_rho_sub,0.999409,SPREAD_DirtyBite_C3_s1_g0_fc120_c0_d1drift@stageOut,cells_valid_sub,102,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Spread_DirtyBite_E0 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Spread_DirtyBite_E0,cells,162,failing,0,worst_abs_q_sub_db,4.14278e-05,SPREAD_DirtyBite_E0_s1_g0_fc60_c0_d0@out,worst_oct_q_db,-6.84003,SPREAD_DirtyBite_E0_s1_g0.5_fc60_c0_d0@stageOut@oct7680,worst_rho_sub,0.999981,SPREAD_DirtyBite_E0_s1_g0_fc60_c0_d0@stageOut,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Spread_DirtyBite_E1 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Spread_DirtyBite_E1,cells,162,failing,0,worst_abs_q_sub_db,0.00327163,SPREAD_DirtyBite_E1_s1_g0_fc60_c0_d0@stageOut,worst_oct_q_db,-6.93771,SPREAD_DirtyBite_E1_s0.5_g1_fc250_c1_d0@out@oct500,worst_rho_sub,0.99949,SPREAD_DirtyBite_E1_s1_g0_fc120_c0_d0@stageOut,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Spread_DirtyBite_E2 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Spread_DirtyBite_E2,cells,162,failing,0,worst_abs_q_sub_db,0.0175556,SPREAD_DirtyBite_E2_s0.5_g1_fc60_c1_d1drift@out,worst_oct_q_db,-8.89552,SPREAD_DirtyBite_E2_s1_g0_fc250_c1_d0@out@oct500,worst_rho_sub,0.998806,SPREAD_DirtyBite_E2_s1_g0_fc250_c0_d0@stageOut,cells_valid_sub,132,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Spread_DirtyCrush_C3 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Spread_DirtyCrush_C3,cells,162,failing,0,worst_abs_q_sub_db,0.0812965,SPREAD_DirtyCrush_C3_s1_g0_fc60_c0_d1drift@out,worst_oct_q_db,-3.0103,SPREAD_DirtyCrush_C3_s1_g0.5_fc250_c0_d0@core@oct8000,worst_rho_sub,0.995789,SPREAD_DirtyCrush_C3_s0.5_g0_fc120_c1_d1drift@stageOut,cells_valid_sub,102,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Spread_DirtyCrush_E0 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Spread_DirtyCrush_E0,cells,162,failing,0,worst_abs_q_sub_db,0.00139332,SPREAD_DirtyCrush_E0_s0.5_g0_fc60_c1_d0@out,worst_oct_q_db,-3.0103,SPREAD_DirtyCrush_E0_s1_g1_fc60_c0_d0@core@oct960,worst_rho_sub,0.999366,SPREAD_DirtyCrush_E0_s0.5_g0_fc60_c1_d0@stageOut,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Spread_DirtyCrush_E1 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Spread_DirtyCrush_E1,cells,162,failing,0,worst_abs_q_sub_db,0.00355895,SPREAD_DirtyCrush_E1_s0.5_g0_fc60_c0_d1drift@out,worst_oct_q_db,-3.0103,SPREAD_DirtyCrush_E1_s1_g0.5_fc60_c1_d0@core@oct480,worst_rho_sub,0.999044,SPREAD_DirtyCrush_E1_s0.5_g0_fc120_c0_d1drift@stageOut,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Spread_DirtyCrush_E2 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Spread_DirtyCrush_E2,cells,162,failing,0,worst_abs_q_sub_db,0.0110695,SPREAD_DirtyCrush_E2_s1_g0_fc60_c0_d1drift@out,worst_oct_q_db,-3.0103,SPREAD_DirtyCrush_E2_s1_g1_fc60_c1_d0@core@oct480,worst_rho_sub,0.997457,SPREAD_DirtyCrush_E2_s0.5_g0_fc60_c1_d1drift@stageOut,cells_valid_sub,132,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Spread_DirtyFold_C3 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Spread_DirtyFold_C3,cells,162,failing,0,worst_abs_q_sub_db,0.0114296,SPREAD_DirtyFold_C3_s0.5_g0_fc120_c0_d1drift@out,worst_oct_q_db,-5.21955,SPREAD_DirtyFold_C3_s0.5_g0_fc120_c0_d1drift@stageOut@oct960,worst_rho_sub,0.997895,SPREAD_DirtyFold_C3_s1_g0_fc250_c0_d0@stageOut,cells_valid_sub,102,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Spread_DirtyFold_E0 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Spread_DirtyFold_E0,cells,162,failing,0,worst_abs_q_sub_db,5.25643e-05,SPREAD_DirtyFold_E0_s1_g0_fc60_c0_d1drift@out,worst_oct_q_db,-5.13701,SPREAD_DirtyFold_E0_s0.5_g1_fc120_c0_d0@out@oct7680,worst_rho_sub,0.999977,SPREAD_DirtyFold_E0_s1_g0_fc60_c0_d1drift@stageOut,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Spread_DirtyFold_E1 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Spread_DirtyFold_E1,cells,162,failing,0,worst_abs_q_sub_db,0.00199365,SPREAD_DirtyFold_E1_s1_g0_fc120_c0_d1drift@out,worst_oct_q_db,-4.53001,SPREAD_DirtyFold_E1_s1_g0_fc60_c1_d0@stageOut@oct240,worst_rho_sub,0.999097,SPREAD_DirtyFold_E1_s1_g0_fc120_c0_d1drift@stageOut,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Spread_DirtyFold_E2 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Spread_DirtyFold_E2,cells,162,failing,0,worst_abs_q_sub_db,0.0295869,SPREAD_DirtyFold_E2_s0.5_g0_fc120_c0_d0@out,worst_oct_q_db,-8.60271,SPREAD_DirtyFold_E2_s1_g1_fc60_c0_d0@out@oct120,worst_rho_sub,0.987311,SPREAD_DirtyFold_E2_s0.5_g0_fc120_c0_d0@stageOut,cells_valid_sub,132,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Spread_DirtyFracture_C3 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Spread_DirtyFracture_C3,cells,162,failing,0,worst_abs_q_sub_db,0.0524881,SPREAD_DirtyFracture_C3_s1_g0_fc60_c0_d1drift@out,worst_oct_q_db,-8.40608,SPREAD_DirtyFracture_C3_s1_g0_fc250_c1_d0@out@oct500,worst_rho_sub,0.990669,SPREAD_DirtyFracture_C3_s1_g0_fc60_c0_d1drift@stageOut,cells_valid_sub,114,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Spread_DirtyFracture_E0 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Spread_DirtyFracture_E0,cells,162,failing,0,worst_abs_q_sub_db,0.000475675,SPREAD_DirtyFracture_E0_s1_g0_fc60_c0_d0@out,worst_oct_q_db,-10.1037,SPREAD_DirtyFracture_E0_s1_g0_fc60_c0_d0@out@oct7680,worst_rho_sub,0.999809,SPREAD_DirtyFracture_E0_s1_g0_fc60_c0_d0@stageOut,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Spread_DirtyFracture_E1 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Spread_DirtyFracture_E1,cells,162,failing,0,worst_abs_q_sub_db,0.00115325,SPREAD_DirtyFracture_E1_s1_g0_fc120_c0_d0@out,worst_oct_q_db,-8.70732,SPREAD_DirtyFracture_E1_s1_g0_fc120_c1_d1drift@out@oct240,worst_rho_sub,0.999493,SPREAD_DirtyFracture_E1_s1_g0_fc120_c0_d0@stageOut,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Spread_DirtyFracture_E2 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Spread_DirtyFracture_E2,cells,162,failing,0,worst_abs_q_sub_db,0.00102999,SPREAD_DirtyFracture_E2_s1_g0_fc250_c0_d0@out,worst_oct_q_db,-9.59937,SPREAD_DirtyFracture_E2_s0.5_g1_fc120_c0_d0@out@oct240,worst_rho_sub,0.999532,SPREAD_DirtyFracture_E2_s1_g0_fc250_c0_d0@stageOut,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Spread_DirtyRectify_C3 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Spread_DirtyRectify_C3,cells,162,failing,0,worst_abs_q_sub_db,0.898495,SPREAD_DirtyRectify_C3_s0.5_g1_fc120_c0_d1drift@out,worst_oct_q_db,-8.17197,SPREAD_DirtyRectify_C3_s1_g0_fc60_c0_d1drift@stageOut@oct240,worst_rho_sub,0.989131,SPREAD_DirtyRectify_C3_s1_g0_fc60_c0_d1drift@stageOut,cells_valid_sub,102,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Spread_DirtyRectify_E0 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Spread_DirtyRectify_E0,cells,162,failing,0,worst_abs_q_sub_db,0.000512937,SPREAD_DirtyRectify_E0_s1_g1_fc60_c0_d1drift@out,worst_oct_q_db,-5.18926,SPREAD_DirtyRectify_E0_s1_g1_fc250_c0_d0@out@oct8000,worst_rho_sub,0.999818,SPREAD_DirtyRectify_E0_s1_g0_fc60_c0_d0@stageOut,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Spread_DirtyRectify_E1 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Spread_DirtyRectify_E1,cells,162,failing,0,worst_abs_q_sub_db,0.0320956,SPREAD_DirtyRectify_E1_s1_g0_fc60_c1_d1drift@out,worst_oct_q_db,-9.42483,SPREAD_DirtyRectify_E1_s1_g0_fc60_c0_d0@out@oct240,worst_rho_sub,0.995227,SPREAD_DirtyRectify_E1_s1_g0_fc60_c1_d1drift@stageOut,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Spread_DirtyRectify_E2 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Spread_DirtyRectify_E2,cells,162,failing,0,worst_abs_q_sub_db,0.891532,SPREAD_DirtyRectify_E2_s1_g0.5_fc60_c1_d0@out,worst_oct_q_db,-11.3797,SPREAD_DirtyRectify_E2_s1_g1_fc60_c0_d1drift@stageOut@oct120,worst_rho_sub,0.829691,SPREAD_DirtyRectify_E2_s1_g0_fc120_c1_d0@stageOut,cells_valid_sub,132,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Spread_DirtyTube_C3 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Spread_DirtyTube_C3,cells,162,failing,0,worst_abs_q_sub_db,0.00795963,SPREAD_DirtyTube_C3_s0.5_g0_fc120_c0_d1drift@out,worst_oct_q_db,-10.4147,SPREAD_DirtyTube_C3_s1_g1_fc120_c1_d0@stageOut@oct480,worst_rho_sub,0.999354,SPREAD_DirtyTube_C3_s1_g0_fc120_c0_d1drift@stageOut,cells_valid_sub,102,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Spread_DirtyTube_E0 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Spread_DirtyTube_E0,cells,162,failing,0,worst_abs_q_sub_db,4.38487e-05,SPREAD_DirtyTube_E0_s1_g0_fc60_c0_d0@out,worst_oct_q_db,-7.53956,SPREAD_DirtyTube_E0_s1_g1_fc60_c0_d0@stageOut@oct7680,worst_rho_sub,0.999981,SPREAD_DirtyTube_E0_s1_g0_fc60_c0_d0@stageOut,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Spread_DirtyTube_E1 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Spread_DirtyTube_E1,cells,162,failing,0,worst_abs_q_sub_db,0.00272718,SPREAD_DirtyTube_E1_s1_g0_fc60_c0_d0@out,worst_oct_q_db,-7.1227,SPREAD_DirtyTube_E1_s1_g1_fc60_c1_d1drift@stageOut@oct240,worst_rho_sub,0.999645,SPREAD_DirtyTube_E1_s1_g0_fc120_c0_d0@stageOut,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Spread_DirtyTube_E2 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Spread_DirtyTube_E2,cells,162,failing,0,worst_abs_q_sub_db,0.0124332,SPREAD_DirtyTube_E2_s0.5_g0_fc60_c1_d1drift@out,worst_oct_q_db,-9.81833,SPREAD_DirtyTube_E2_s1_g0_fc60_c0_d0@stageOut@oct480,worst_rho_sub,0.999122,SPREAD_DirtyTube_E2_s1_g0_fc250_c0_d0@stageOut,cells_valid_sub,132,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Wide_AnchorBite_C3 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Wide_AnchorBite_C3,cells,162,failing,0,worst_abs_q_sub_db,0.0330986,WIDE_AnchorBite_C3_s0.5_g0_fc60_c0_d1drift@out,worst_oct_q_db,-7.05446,WIDE_AnchorBite_C3_s0.5_g1_fc120_c1_d0@stageOut@oct480,worst_rho_sub,0.999381,WIDE_AnchorBite_C3_s0.5_g0_fc120_c1_d1drift@stageOut,cells_valid_sub,102,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Wide_AnchorBite_E0 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Wide_AnchorBite_E0,cells,162,failing,0,worst_abs_q_sub_db,0.000654302,WIDE_AnchorBite_E0_s1_g0_fc250_c1_d1drift@out,worst_oct_q_db,-7.46562,WIDE_AnchorBite_E0_s0.5_g1_fc120_c1_d1drift@out@oct7680,worst_rho_sub,0.999727,WIDE_AnchorBite_E0_s1_g0_fc250_c1_d0@stageOut,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Wide_AnchorBite_E1 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Wide_AnchorBite_E1,cells,162,failing,0,worst_abs_q_sub_db,0.00176376,WIDE_AnchorBite_E1_s1_g0_fc60_c0_d0@stageOut,worst_oct_q_db,-6.88791,WIDE_AnchorBite_E1_s0.5_g1_fc250_c1_d0@out@oct500,worst_rho_sub,0.999505,WIDE_AnchorBite_E1_s1_g0_fc60_c0_d1drift@stageOut,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Wide_AnchorBite_E2 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Wide_AnchorBite_E2,cells,162,failing,0,worst_abs_q_sub_db,0.0984018,WIDE_AnchorBite_E2_s0.5_g0_fc60_c0_d0@out,worst_oct_q_db,-7.52619,WIDE_AnchorBite_E2_s0.5_g1_fc250_c1_d0@out@oct500,worst_rho_sub,0.999221,WIDE_AnchorBite_E2_s1_g0_fc250_c0_d0@stageOut,cells_valid_sub,132,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Wide_AnchorCrush_C3 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Wide_AnchorCrush_C3,cells,162,failing,0,worst_abs_q_sub_db,0.0128641,WIDE_AnchorCrush_C3_s0.5_g0_fc60_c0_d1cycle@stageOut,worst_oct_q_db,-6.84909,WIDE_AnchorCrush_C3_s1_g0_fc120_c1_d0@stageOut@oct480,worst_rho_sub,0.99508,WIDE_AnchorCrush_C3_s0.5_g0_fc120_c0_d1drift@stageOut,cells_valid_sub,102,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Wide_AnchorCrush_E0 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Wide_AnchorCrush_E0,cells,162,failing,0,worst_abs_q_sub_db,0.0059518,WIDE_AnchorCrush_E0_s1_g0_fc60_c0_d1drift@stageOut,worst_oct_q_db,-5.14403,WIDE_AnchorCrush_E0_s1_g0_fc60_c1_d1drift@out@oct120,worst_rho_sub,0.997568,WIDE_AnchorCrush_E0_s1_g0_fc60_c0_d1drift@stageOut,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Wide_AnchorCrush_E1 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Wide_AnchorCrush_E1,cells,162,failing,0,worst_abs_q_sub_db,0.0101025,WIDE_AnchorCrush_E1_s1_g0_fc60_c0_d1drift@out,worst_oct_q_db,-5.53989,WIDE_AnchorCrush_E1_s1_g1_fc60_c1_d1drift@out@oct240,worst_rho_sub,0.997612,WIDE_AnchorCrush_E1_s1_g0_fc250_c1_d1drift@stageOut,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Wide_AnchorCrush_E2 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Wide_AnchorCrush_E2,cells,162,failing,0,worst_abs_q_sub_db,0.0143516,WIDE_AnchorCrush_E2_s1_g0_fc60_c0_d1drift@stageOut,worst_oct_q_db,-7.33793,WIDE_AnchorCrush_E2_s1_g1_fc60_c1_d1drift@out@oct240,worst_rho_sub,0.993768,WIDE_AnchorCrush_E2_s1_g0_fc60_c0_d1drift@stageOut,cells_valid_sub,132,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Wide_AnchorFold_C3 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Wide_AnchorFold_C3,cells,162,failing,0,worst_abs_q_sub_db,0.0138565,WIDE_AnchorFold_C3_s0.5_g0_fc250_c0_d1drift@out,worst_oct_q_db,-6.51006,WIDE_AnchorFold_C3_s0.5_g0_fc60_c0_d1drift@stageOut@oct120,worst_rho_sub,0.994288,WIDE_AnchorFold_C3_s1_g0_fc250_c0_d1drift@stageOut,cells_valid_sub,102,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Wide_AnchorFold_E0 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Wide_AnchorFold_E0,cells,162,failing,0,worst_abs_q_sub_db,0.000824157,WIDE_AnchorFold_E0_s1_g0_fc60_c0_d1drift@out,worst_oct_q_db,-4.62118,WIDE_AnchorFold_E0_s0.5_g1_fc120_c0_d0@out@oct7680,worst_rho_sub,0.999629,WIDE_AnchorFold_E0_s1_g0_fc60_c0_d1drift@stageOut,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Wide_AnchorFold_E1 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Wide_AnchorFold_E1,cells,162,failing,0,worst_abs_q_sub_db,0.0013954,WIDE_AnchorFold_E1_s1_g0_fc250_c0_d1drift@out,worst_oct_q_db,-4.87844,WIDE_AnchorFold_E1_s0.5_g1_fc60_c1_d1drift@stageOut@oct240,worst_rho_sub,0.999414,WIDE_AnchorFold_E1_s1_g0_fc250_c0_d1drift@stageOut,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Wide_AnchorFold_E2 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Wide_AnchorFold_E2,cells,162,failing,0,worst_abs_q_sub_db,0.00519022,WIDE_AnchorFold_E2_s0.5_g0_fc60_c0_d1drift@stageOut,worst_oct_q_db,-9.5339,WIDE_AnchorFold_E2_s1_g1_fc60_c1_d0@out@oct480,worst_rho_sub,0.998895,WIDE_AnchorFold_E2_s1_g0_fc120_c0_d1drift@stageOut,cells_valid_sub,132,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Wide_AnchorFracture_C3 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Wide_AnchorFracture_C3,cells,162,failing,2,worst_abs_q_sub_db,0.0429546,WIDE_AnchorFracture_C3_s1_g0_fc60_c0_d1drift@out,worst_oct_q_db,-7.52108,WIDE_AnchorFracture_C3_s0.5_g1_fc120_c1_d1drift@stageOut@oct480,worst_rho_sub,0.988022,WIDE_AnchorFracture_C3_s1_g0_fc60_c0_d1drift@stageOut,cells_valid_sub,114,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Wide_AnchorFracture_E0 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Wide_AnchorFracture_E0,cells,162,failing,0,worst_abs_q_sub_db,0.000476808,WIDE_AnchorFracture_E0_s1_g0_fc60_c0_d0@out,worst_oct_q_db,-11.8765,WIDE_AnchorFracture_E0_s1_g0_fc60_c0_d0@out@oct7680,worst_rho_sub,0.999784,WIDE_AnchorFracture_E0_s1_g0_fc60_c0_d0@stageOut,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Wide_AnchorFracture_E1 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Wide_AnchorFracture_E1,cells,162,failing,0,worst_abs_q_sub_db,0.000849734,WIDE_AnchorFracture_E1_s1_g0_fc120_c0_d0@out,worst_oct_q_db,-8.20056,WIDE_AnchorFracture_E1_s0.5_g1_fc250_c0_d1drift@out@oct8000,worst_rho_sub,0.999625,WIDE_AnchorFracture_E1_s1_g0_fc120_c0_d0@stageOut,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Wide_AnchorFracture_E2 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Wide_AnchorFracture_E2,cells,162,failing,0,worst_abs_q_sub_db,0.00193517,WIDE_AnchorFracture_E2_s1_g0_fc60_c0_d0@out,worst_oct_q_db,-8.40728,WIDE_AnchorFracture_E2_s0.5_g0.5_fc250_c0_d1drift@out@oct8000,worst_rho_sub,0.999146,WIDE_AnchorFracture_E2_s1_g0_fc60_c0_d0@stageOut,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Wide_AnchorRectify_C3 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Wide_AnchorRectify_C3,cells,162,failing,0,worst_abs_q_sub_db,1.10573,WIDE_AnchorRectify_C3_s0.5_g1_fc120_c0_d0@out,worst_oct_q_db,-8.78911,WIDE_AnchorRectify_C3_s1_g0_fc120_c0_d1drift@stageOut@oct960,worst_rho_sub,0.991114,WIDE_AnchorRectify_C3_s1_g0_fc120_c1_d1drift@stageOut,cells_valid_sub,102,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Wide_AnchorRectify_E0 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Wide_AnchorRectify_E0,cells,162,failing,0,worst_abs_q_sub_db,0.000491639,WIDE_AnchorRectify_E0_s1_g1_fc60_c0_d1drift@out,worst_oct_q_db,-4.60291,WIDE_AnchorRectify_E0_s1_g1_fc250_c0_d0@out@oct8000,worst_rho_sub,0.999796,WIDE_AnchorRectify_E0_s1_g0_fc60_c0_d0@stageOut,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Wide_AnchorRectify_E1 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Wide_AnchorRectify_E1,cells,162,failing,0,worst_abs_q_sub_db,0.00524176,WIDE_AnchorRectify_E1_s1_g0_fc60_c1_d1drift@out,worst_oct_q_db,-8.64769,WIDE_AnchorRectify_E1_s1_g0_fc60_c0_d0@out@oct240,worst_rho_sub,0.99936,WIDE_AnchorRectify_E1_s1_g0_fc120_c0_d0@stageOut,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Wide_AnchorRectify_E2 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Wide_AnchorRectify_E2,cells,162,failing,0,worst_abs_q_sub_db,1.29866,WIDE_AnchorRectify_E2_s0.5_g0_fc60_c1_d0@out,worst_oct_q_db,-9.32615,WIDE_AnchorRectify_E2_s1_g0_fc60_c0_d1drift@stageOut@oct120,worst_rho_sub,0.991673,WIDE_AnchorRectify_E2_s1_g0_fc60_c1_d1drift@stageOut,cells_valid_sub,132,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Wide_AnchorTube_C3 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Wide_AnchorTube_C3,cells,162,failing,0,worst_abs_q_sub_db,0.0346384,WIDE_AnchorTube_C3_s1_g0_fc120_c0_d1drift@out,worst_oct_q_db,-9.49353,WIDE_AnchorTube_C3_s1_g0_fc120_c1_d0@stageOut@oct480,worst_rho_sub,0.99928,WIDE_AnchorTube_C3_s0.5_g0_fc120_c1_d1drift@stageOut,cells_valid_sub,102,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Wide_AnchorTube_E0 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Wide_AnchorTube_E0,cells,162,failing,0,worst_abs_q_sub_db,0.000491482,WIDE_AnchorTube_E0_s1_g0_fc120_c1_d1drift@out,worst_oct_q_db,-6.81351,WIDE_AnchorTube_E0_s1_g1_fc60_c0_d0@stageOut@oct7680,worst_rho_sub,0.999781,WIDE_AnchorTube_E0_s1_g0_fc60_c0_d1drift@stageOut,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Wide_AnchorTube_E1 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Wide_AnchorTube_E1,cells,162,failing,0,worst_abs_q_sub_db,0.00152883,WIDE_AnchorTube_E1_s1_g0_fc60_c0_d0@out,worst_oct_q_db,-6.51164,WIDE_AnchorTube_E1_s0.5_g1_fc250_c1_d1drift@stageOut@oct1000,worst_rho_sub,0.999686,WIDE_AnchorTube_E1_s1_g0_fc250_c0_d0@stageOut,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Wide_AnchorTube_E2 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Wide_AnchorTube_E2,cells,162,failing,0,worst_abs_q_sub_db,0.429505,WIDE_AnchorTube_E2_s1_g0_fc60_c0_d0@out,worst_oct_q_db,-7.79864,WIDE_AnchorTube_E2_s0.5_g0_fc60_c0_d0@out@oct7680,worst_rho_sub,0.999239,WIDE_AnchorTube_E2_s1_g0_fc250_c0_d0@stageOut,cells_valid_sub,132,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Wide_CleanGrowl_C3 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Wide_CleanGrowl_C3,cells,162,failing,0,worst_abs_q_sub_db,0.0346852,WIDE_CleanGrowl_C3_s1_g1_fc250_c1_d0@out,worst_oct_q_db,-3.1066,WIDE_CleanGrowl_C3_s1_g0_fc120_c0_d0@out@oct7680,worst_rho_sub,0.999978,WIDE_CleanGrowl_C3_s1_g0_fc250_c0_d1drift@core,cells_valid_sub,54,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Wide_CleanGrowl_E0 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Wide_CleanGrowl_E0,cells,162,failing,0,worst_abs_q_sub_db,0.126984,WIDE_CleanGrowl_E0_s1_g1_fc60_c1_d0@out,worst_oct_q_db,-12.2723,WIDE_CleanGrowl_E0_s1_g0_fc60_c0_d0@out@oct1920,worst_rho_sub,0.999961,WIDE_CleanGrowl_E0_s1_g0_fc60_c0_d1drift@core,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Wide_CleanGrowl_E1 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Wide_CleanGrowl_E1,cells,162,failing,0,worst_abs_q_sub_db,0.990973,WIDE_CleanGrowl_E1_s1_g1_fc60_c1_d0@out,worst_oct_q_db,-44.3499,WIDE_CleanGrowl_E1_s1_g1_fc120_c0_d0@out@oct7680,worst_rho_sub,0.999811,WIDE_CleanGrowl_E1_s1_g0_fc250_c0_d0@core,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Wide_CleanGrowl_E2 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Wide_CleanGrowl_E2,cells,162,failing,0,worst_abs_q_sub_db,0.2085,WIDE_CleanGrowl_E2_s1_g1_fc120_c1_d0@out,worst_oct_q_db,-41.3815,WIDE_CleanGrowl_E2_s1_g1_fc250_c0_d0@out@oct8000,worst_rho_sub,0.999871,WIDE_CleanGrowl_E2_s1_g0_fc250_c0_d1cycle@core,cells_valid_sub,108,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Wide_CleanSaw_C3 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Wide_CleanSaw_C3,cells,162,failing,0,worst_abs_q_sub_db,7.19495e-08,WIDE_CleanSaw_C3_s1_g0_fc250_c0_d1drift@core,worst_oct_q_db,-3.0103,WIDE_CleanSaw_C3_s1_g0.5_fc250_c0_d0@core@oct8000,worst_rho_sub,1,WIDE_CleanSaw_C3_s1_g0_fc250_c0_d1drift@core,cells_valid_sub,54,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Wide_CleanSaw_E0 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Wide_CleanSaw_E0,cells,162,failing,0,worst_abs_q_sub_db,2.05781e-06,WIDE_CleanSaw_E0_s1_g0_fc250_c0_d0@core,worst_oct_q_db,-3.0103,WIDE_CleanSaw_E0_s1_g1_fc60_c0_d0@core@oct960,worst_rho_sub,0.999999,WIDE_CleanSaw_E0_s1_g0_fc250_c0_d0@core,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Wide_CleanSaw_E1 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Wide_CleanSaw_E1,cells,162,failing,0,worst_abs_q_sub_db,3.48291e-05,WIDE_CleanSaw_E1_s1_g0_fc250_c0_d0@core,worst_oct_q_db,-3.0103,WIDE_CleanSaw_E1_s1_g0.5_fc60_c1_d0@core@oct480,worst_rho_sub,0.999984,WIDE_CleanSaw_E1_s1_g0_fc250_c0_d0@core,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Wide_CleanSaw_E2 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Wide_CleanSaw_E2,cells,162,failing,0,worst_abs_q_sub_db,0.000152652,WIDE_CleanSaw_E2_s1_g0_fc250_c0_d0@core,worst_oct_q_db,-3.0103,WIDE_CleanSaw_E2_s1_g1_fc60_c0_d0@stageOut@oct3840,worst_rho_sub,0.999935,WIDE_CleanSaw_E2_s1_g0_fc250_c0_d0@core,cells_valid_sub,108,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Wide_DirtyBite_C3 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Wide_DirtyBite_C3,cells,162,failing,0,worst_abs_q_sub_db,0.0475152,WIDE_DirtyBite_C3_s0.5_g0_fc60_c0_d1drift@out,worst_oct_q_db,-7.05446,WIDE_DirtyBite_C3_s0.5_g1_fc120_c1_d0@stageOut@oct480,worst_rho_sub,0.999369,WIDE_DirtyBite_C3_s1_g0_fc250_c0_d1drift@stageOut,cells_valid_sub,102,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Wide_DirtyBite_E0 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Wide_DirtyBite_E0,cells,162,failing,0,worst_abs_q_sub_db,0.00113893,WIDE_DirtyBite_E0_s1_g0_fc250_c1_d1drift@out,worst_oct_q_db,-7.46443,WIDE_DirtyBite_E0_s0.5_g1_fc120_c1_d1drift@stageOut@oct7680,worst_rho_sub,0.99948,WIDE_DirtyBite_E0_s1_g0_fc250_c1_d1drift@stageOut,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Wide_DirtyBite_E1 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Wide_DirtyBite_E1,cells,162,failing,0,worst_abs_q_sub_db,0.00839747,WIDE_DirtyBite_E1_s1_g0_fc60_c0_d0@out,worst_oct_q_db,-6.88771,WIDE_DirtyBite_E1_s0.5_g1_fc250_c1_d0@out@oct500,worst_rho_sub,0.998856,WIDE_DirtyBite_E1_s1_g0_fc60_c0_d1drift@stageOut,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Wide_DirtyBite_E2 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Wide_DirtyBite_E2,cells,162,failing,0,worst_abs_q_sub_db,0.246312,WIDE_DirtyBite_E2_s0.5_g0.5_fc60_c0_d0@out,worst_oct_q_db,-7.53313,WIDE_DirtyBite_E2_s0.5_g1_fc250_c1_d0@out@oct500,worst_rho_sub,0.998446,WIDE_DirtyBite_E2_s1_g0_fc250_c0_d0@stageOut,cells_valid_sub,132,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Wide_DirtyCrush_C3 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Wide_DirtyCrush_C3,cells,162,failing,0,worst_abs_q_sub_db,0.0150788,WIDE_DirtyCrush_C3_s1_g0_fc250_c1_d1drift@out,worst_oct_q_db,-6.84909,WIDE_DirtyCrush_C3_s1_g0_fc120_c1_d0@stageOut@oct480,worst_rho_sub,0.993234,WIDE_DirtyCrush_C3_s1_g0_fc250_c1_d1drift@stageOut,cells_valid_sub,102,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Wide_DirtyCrush_E0 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Wide_DirtyCrush_E0,cells,162,failing,0,worst_abs_q_sub_db,0.0105053,WIDE_DirtyCrush_E0_s1_g0_fc60_c0_d1drift@out,worst_oct_q_db,-5.14433,WIDE_DirtyCrush_E0_s1_g0_fc60_c1_d1drift@out@oct120,worst_rho_sub,0.995331,WIDE_DirtyCrush_E0_s1_g0_fc60_c0_d1drift@stageOut,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Wide_DirtyCrush_E1 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Wide_DirtyCrush_E1,cells,162,failing,0,worst_abs_q_sub_db,0.0186466,WIDE_DirtyCrush_E1_s1_g0_fc60_c0_d1drift@out,worst_oct_q_db,-5.53984,WIDE_DirtyCrush_E1_s1_g1_fc60_c1_d1drift@out@oct240,worst_rho_sub,0.992804,WIDE_DirtyCrush_E1_s1_g0_fc60_c1_d0@stageOut,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Wide_DirtyCrush_E2 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Wide_DirtyCrush_E2,cells,162,failing,0,worst_abs_q_sub_db,0.020065,WIDE_DirtyCrush_E2_s1_g0_fc120_c0_d1drift@out,worst_oct_q_db,-7.33824,WIDE_DirtyCrush_E2_s1_g1_fc60_c1_d1drift@out@oct240,worst_rho_sub,0.992439,WIDE_DirtyCrush_E2_s1_g0_fc120_c0_d1drift@stageOut,cells_valid_sub,132,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Wide_DirtyFold_C3 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Wide_DirtyFold_C3,cells,162,failing,0,worst_abs_q_sub_db,0.432685,WIDE_DirtyFold_C3_s1_g0_fc250_c0_d0@out,worst_oct_q_db,-5.75994,WIDE_DirtyFold_C3_s1_g0_fc120_c0_d0@stageOut@oct480,worst_rho_sub,0.817829,WIDE_DirtyFold_C3_s1_g0_fc250_c0_d0@stageOut,cells_valid_sub,102,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Wide_DirtyFold_E0 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Wide_DirtyFold_E0,cells,162,failing,0,worst_abs_q_sub_db,0.00124621,WIDE_DirtyFold_E0_s1_g0_fc60_c0_d1drift@out,worst_oct_q_db,-4.62118,WIDE_DirtyFold_E0_s0.5_g1_fc120_c0_d0@stageOut@oct7680,worst_rho_sub,0.999546,WIDE_DirtyFold_E0_s1_g0_fc60_c0_d1drift@stageOut,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Wide_DirtyFold_E1 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Wide_DirtyFold_E1,cells,162,failing,0,worst_abs_q_sub_db,0.00312779,WIDE_DirtyFold_E1_s1_g0_fc60_c0_d1drift@out,worst_oct_q_db,-4.87845,WIDE_DirtyFold_E1_s0.5_g1_fc60_c1_d1drift@stageOut@oct240,worst_rho_sub,0.998908,WIDE_DirtyFold_E1_s1_g0_fc250_c0_d1drift@stageOut,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Wide_DirtyFold_E2 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Wide_DirtyFold_E2,cells,162,failing,0,worst_abs_q_sub_db,0.1851,WIDE_DirtyFold_E2_s1_g0_fc120_c1_d1drift@out,worst_oct_q_db,-9.50273,WIDE_DirtyFold_E2_s1_g1_fc60_c1_d0@stageOut@oct480,worst_rho_sub,0.947113,WIDE_DirtyFold_E2_s1_g0_fc120_c1_d1drift@stageOut,cells_valid_sub,132,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Wide_DirtyFracture_C3 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Wide_DirtyFracture_C3,cells,162,failing,2,worst_abs_q_sub_db,0.0424292,WIDE_DirtyFracture_C3_s1_g0_fc60_c0_d1drift@out,worst_oct_q_db,-7.52157,WIDE_DirtyFracture_C3_s0.5_g1_fc120_c1_d1drift@stageOut@oct480,worst_rho_sub,0.987186,WIDE_DirtyFracture_C3_s1_g0_fc60_c0_d1drift@stageOut,cells_valid_sub,114,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Wide_DirtyFracture_E0 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Wide_DirtyFracture_E0,cells,162,failing,0,worst_abs_q_sub_db,0.00107813,WIDE_DirtyFracture_E0_s1_g0_fc60_c0_d0@out,worst_oct_q_db,-11.7945,WIDE_DirtyFracture_E0_s1_g0_fc60_c0_d0@out@oct7680,worst_rho_sub,0.999539,WIDE_DirtyFracture_E0_s1_g0_fc60_c0_d0@stageOut,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Wide_DirtyFracture_E1 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Wide_DirtyFracture_E1,cells,162,failing,0,worst_abs_q_sub_db,0.00135004,WIDE_DirtyFracture_E1_s1_g0_fc120_c0_d0@out,worst_oct_q_db,-8.19754,WIDE_DirtyFracture_E1_s0.5_g1_fc250_c0_d1drift@out@oct8000,worst_rho_sub,0.999423,WIDE_DirtyFracture_E1_s1_g0_fc120_c0_d0@stageOut,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Wide_DirtyFracture_E2 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Wide_DirtyFracture_E2,cells,162,failing,0,worst_abs_q_sub_db,0.00193511,WIDE_DirtyFracture_E2_s1_g0_fc60_c0_d0@stageOut,worst_oct_q_db,-8.39605,WIDE_DirtyFracture_E2_s0.5_g0.5_fc250_c0_d1drift@out@oct8000,worst_rho_sub,0.999146,WIDE_DirtyFracture_E2_s1_g0_fc60_c0_d0@stageOut,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Wide_DirtyRectify_C3 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Wide_DirtyRectify_C3,cells,162,failing,0,worst_abs_q_sub_db,0.905013,WIDE_DirtyRectify_C3_s0.5_g1_fc120_c0_d1drift@out,worst_oct_q_db,-8.80523,WIDE_DirtyRectify_C3_s1_g0_fc120_c0_d1drift@out@oct960,worst_rho_sub,0.991138,WIDE_DirtyRectify_C3_s1_g0_fc120_c1_d1drift@stageOut,cells_valid_sub,102,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Wide_DirtyRectify_E0 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Wide_DirtyRectify_E0,cells,162,failing,0,worst_abs_q_sub_db,0.00147485,WIDE_DirtyRectify_E0_s1_g1_fc60_c0_d1drift@out,worst_oct_q_db,-4.61874,WIDE_DirtyRectify_E0_s1_g1_fc120_c1_d0@out@oct1920,worst_rho_sub,0.999422,WIDE_DirtyRectify_E0_s1_g0_fc60_c0_d0@stageOut,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Wide_DirtyRectify_E1 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Wide_DirtyRectify_E1,cells,162,failing,0,worst_abs_q_sub_db,0.0564267,WIDE_DirtyRectify_E1_s1_g0_fc60_c1_d1drift@out,worst_oct_q_db,-8.66002,WIDE_DirtyRectify_E1_s1_g0_fc60_c0_d0@out@oct240,worst_rho_sub,0.989887,WIDE_DirtyRectify_E1_s1_g0_fc60_c1_d1drift@stageOut,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Wide_DirtyRectify_E2 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Wide_DirtyRectify_E2,cells,162,failing,0,worst_abs_q_sub_db,1.30117,WIDE_DirtyRectify_E2_s1_g0_fc120_c1_d0@out,worst_oct_q_db,-9.32748,WIDE_DirtyRectify_E2_s1_g0_fc60_c0_d1drift@stageOut@oct120,worst_rho_sub,0.723641,WIDE_DirtyRectify_E2_s1_g0_fc120_c1_d0@stageOut,cells_valid_sub,132,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Wide_DirtyTube_C3 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Wide_DirtyTube_C3,cells,162,failing,0,worst_abs_q_sub_db,0.0234736,WIDE_DirtyTube_C3_s1_g0_fc120_c0_d1drift@out,worst_oct_q_db,-9.49351,WIDE_DirtyTube_C3_s1_g0_fc120_c1_d0@stageOut@oct480,worst_rho_sub,0.999271,WIDE_DirtyTube_C3_s0.5_g0_fc120_c1_d1drift@stageOut,cells_valid_sub,102,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Wide_DirtyTube_E0 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Wide_DirtyTube_E0,cells,162,failing,0,worst_abs_q_sub_db,0.000745683,WIDE_DirtyTube_E0_s1_g0_fc60_c0_d1drift@out,worst_oct_q_db,-6.81352,WIDE_DirtyTube_E0_s1_g1_fc60_c0_d0@stageOut@oct7680,worst_rho_sub,0.999682,WIDE_DirtyTube_E0_s1_g0_fc60_c0_d1drift@stageOut,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Wide_DirtyTube_E1 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Wide_DirtyTube_E1,cells,162,failing,0,worst_abs_q_sub_db,0.00576128,WIDE_DirtyTube_E1_s1_g0_fc60_c0_d0@out,worst_oct_q_db,-6.51163,WIDE_DirtyTube_E1_s0.5_g1_fc250_c1_d1drift@stageOut@oct1000,worst_rho_sub,0.999485,WIDE_DirtyTube_E1_s1_g0_fc60_c0_d1cycle@stageOut,cells_valid_sub,162,cells_valid_oct,162
+BassStereoField_MonoSumPerBand_Wide_DirtyTube_E2 | BSF_SC001_WORST,BassStereoField_MonoSumPerBand_Wide_DirtyTube_E2,cells,162,failing,0,worst_abs_q_sub_db,0.0706181,WIDE_DirtyTube_E2_s1_g0_fc60_c0_d1drift@out,worst_oct_q_db,-7.79204,WIDE_DirtyTube_E2_s0.5_g0_fc60_c0_d0@out@oct7680,worst_rho_sub,0.998667,WIDE_DirtyTube_E2_s1_g0_fc250_c0_d0@stageOut,cells_valid_sub,132,cells_valid_oct,162
+=== summary: wall clock per shard, longest first (for the next run's sharding)
+4418 s BassStereoField_MonoSumPerBand_Wide_AnchorTube_C3 exit=0
+4405 s BassStereoField_MonoSumPerBand_Wide_DirtyTube_C3 exit=0
+4384 s BassStereoField_MonoSumPerBand_Wide_AnchorTube_E2 exit=0
+4358 s BassStereoField_MonoSumPerBand_Wide_DirtyTube_E2 exit=0
+4332 s BassStereoField_MonoSumPerBand_Wide_AnchorTube_E1 exit=0
+4307 s BassStereoField_MonoSumPerBand_Wide_DirtyTube_E1 exit=0
+4301 s BassStereoField_MonoSumPerBand_Wide_AnchorTube_E0 exit=0
+4271 s BassStereoField_MonoSumPerBand_Wide_DirtyFracture_C3 exit=3
+4270 s BassStereoField_MonoSumPerBand_Wide_DirtyTube_E0 exit=0
+4239 s BassStereoField_MonoSumPerBand_Wide_DirtyFracture_E2 exit=0
+4212 s BassStereoField_MonoSumPerBand_Wide_DirtyFracture_E1 exit=0
+4194 s BassStereoField_MonoSumPerBand_Wide_DirtyFracture_E0 exit=0
+3942 s BassStereoField_MonoSumPerBand_Wide_DirtyFold_C3 exit=0
+3940 s BassStereoField_MonoSumPerBand_Wide_DirtyCrush_C3 exit=0
+3912 s BassStereoField_MonoSumPerBand_Wide_DirtyCrush_E2 exit=0
+3900 s BassStereoField_MonoSumPerBand_Wide_DirtyFold_E2 exit=0
+3887 s BassStereoField_MonoSumPerBand_Wide_DirtyCrush_E1 exit=0
+3884 s BassStereoField_MonoSumPerBand_Wide_DirtyCrush_E0 exit=0
+3831 s BassStereoField_MonoSumPerBand_Wide_DirtyBite_C3 exit=0
+3789 s BassStereoField_MonoSumPerBand_Wide_DirtyBite_E2 exit=0
+3785 s BassStereoField_MonoSumPerBand_Wide_DirtyFold_E1 exit=0
+3771 s BassStereoField_MonoSumPerBand_Wide_DirtyRectify_C3 exit=0
+3739 s BassStereoField_MonoSumPerBand_Wide_DirtyBite_E1 exit=0
+3738 s BassStereoField_MonoSumPerBand_Wide_DirtyRectify_E2 exit=0
+3726 s BassStereoField_MonoSumPerBand_Wide_DirtyFold_E0 exit=0
+3698 s BassStereoField_MonoSumPerBand_Wide_DirtyBite_E0 exit=0
+3678 s BassStereoField_MonoSumPerBand_Wide_DirtyRectify_E1 exit=0
+3645 s BassStereoField_MonoSumPerBand_Wide_DirtyRectify_E0 exit=0
+3508 s BassStereoField_MonoSumPerBand_Wide_AnchorFold_C3 exit=0
+3480 s BassStereoField_MonoSumPerBand_Wide_AnchorFold_E2 exit=0
+3408 s BassStereoField_MonoSumPerBand_Wide_AnchorFold_E1 exit=0
+3371 s BassStereoField_MonoSumPerBand_Wide_AnchorFracture_E0 exit=0
+3368 s BassStereoField_MonoSumPerBand_Wide_AnchorFracture_E1 exit=0
+3365 s BassStereoField_MonoSumPerBand_Wide_AnchorFold_E0 exit=0
+3352 s BassStereoField_MonoSumPerBand_Wide_AnchorFracture_E2 exit=0
+3351 s BassStereoField_MonoSumPerBand_Wide_AnchorRectify_C3 exit=0
+3340 s BassStereoField_MonoSumPerBand_Wide_AnchorBite_E2 exit=0
+3325 s BassStereoField_MonoSumPerBand_Wide_AnchorRectify_E2 exit=0
+3322 s BassStereoField_MonoSumPerBand_Wide_AnchorBite_C3 exit=0
+3310 s BassStereoField_MonoSumPerBand_Wide_AnchorCrush_E0 exit=0
+3307 s BassStereoField_MonoSumPerBand_Wide_AnchorBite_E1 exit=0
+3304 s BassStereoField_MonoSumPerBand_Wide_AnchorCrush_E2 exit=0
+3301 s BassStereoField_MonoSumPerBand_Wide_AnchorRectify_E1 exit=0
+3300 s BassStereoField_MonoSumPerBand_Wide_AnchorCrush_C3 exit=0
+3299 s BassStereoField_MonoSumPerBand_Wide_AnchorBite_E0 exit=0
+3296 s BassStereoField_MonoSumPerBand_Wide_AnchorFracture_C3 exit=3
+3295 s BassStereoField_MonoSumPerBand_Wide_AnchorCrush_E1 exit=0
+3284 s BassStereoField_MonoSumPerBand_Wide_AnchorRectify_E0 exit=0
+2297 s BassStereoField_MonoSumPerBand_Spread_DirtyTube_C3 exit=0
+2269 s BassStereoField_MonoSumPerBand_Spread_DirtyTube_E2 exit=0
+2257 s BassStereoField_MonoSumPerBand_Spread_AnchorTube_C3 exit=0
+2247 s BassStereoField_MonoSumPerBand_Spread_DirtyTube_E1 exit=0
+2238 s BassStereoField_MonoSumPerBand_Spread_AnchorTube_E2 exit=0
+2228 s BassStereoField_MonoSumPerBand_Spread_DirtyTube_E0 exit=0
+2219 s BassStereoField_MonoSumPerBand_Spread_AnchorTube_E1 exit=0
+2202 s BassStereoField_MonoSumPerBand_Spread_AnchorTube_E0 exit=0
+2191 s BassStereoField_MonoSumPerBand_Spread_AnchorFracture_C3 exit=0
+2190 s BassStereoField_MonoSumPerBand_Spread_DirtyFracture_C3 exit=0
+2177 s BassStereoField_MonoSumPerBand_Spread_AnchorFracture_E2 exit=0
+2175 s BassStereoField_MonoSumPerBand_Spread_DirtyFracture_E2 exit=0
+2163 s BassStereoField_MonoSumPerBand_Spread_AnchorFracture_E1 exit=0
+2159 s BassStereoField_MonoSumPerBand_Spread_DirtyFracture_E1 exit=0
+2153 s BassStereoField_MonoSumPerBand_Spread_AnchorFracture_E0 exit=0
+2150 s BassStereoField_MonoSumPerBand_Spread_DirtyFracture_E0 exit=0
+2052 s BassStereoField_MonoSumPerBand_Spread_DirtyFold_C3 exit=0
+2040 s BassStereoField_MonoSumPerBand_Spread_DirtyCrush_C3 exit=0
+2036 s BassStereoField_MonoSumPerBand_Spread_DirtyFold_E2 exit=0
+2027 s BassStereoField_MonoSumPerBand_Spread_DirtyCrush_E2 exit=0
+2025 s BassStereoField_MonoSumPerBand_Spread_AnchorCrush_C3 exit=0
+2022 s BassStereoField_MonoSumPerBand_Spread_AnchorFold_C3 exit=0
+2017 s BassStereoField_MonoSumPerBand_Spread_DirtyCrush_E1 exit=0
+2015 s BassStereoField_MonoSumPerBand_Spread_DirtyCrush_E0 exit=0
+2013 s BassStereoField_MonoSumPerBand_Spread_AnchorCrush_E2 exit=0
+2008 s BassStereoField_MonoSumPerBand_Spread_AnchorFold_E2 exit=0
+2001 s BassStereoField_MonoSumPerBand_Spread_AnchorCrush_E1 exit=0
+2000 s BassStereoField_MonoSumPerBand_Spread_AnchorCrush_E0 exit=0
+1995 s BassStereoField_MonoSumPerBand_Spread_DirtyBite_C3 exit=0
+1980 s BassStereoField_MonoSumPerBand_Spread_DirtyFold_E1 exit=0
+1974 s BassStereoField_MonoSumPerBand_Spread_DirtyBite_E2 exit=0
+1971 s BassStereoField_MonoSumPerBand_Spread_AnchorBite_C3 exit=0
+1968 s BassStereoField_MonoSumPerBand_Spread_DirtyRectify_C3 exit=0
+1951 s BassStereoField_MonoSumPerBand_Spread_AnchorBite_E2 exit=0
+1950 s BassStereoField_MonoSumPerBand_Spread_DirtyBite_E1 exit=0
+1949 s BassStereoField_MonoSumPerBand_Spread_DirtyRectify_E2 exit=0
+1946 s BassStereoField_MonoSumPerBand_Spread_DirtyFold_E0 exit=0
+1937 s BassStereoField_MonoSumPerBand_Spread_AnchorFold_E1 exit=0
+1930 s BassStereoField_MonoSumPerBand_Spread_AnchorRectify_C3 exit=0
+1927 s BassStereoField_MonoSumPerBand_Spread_DirtyBite_E0 exit=0
+1922 s BassStereoField_MonoSumPerBand_Spread_AnchorBite_E1 exit=0
+1917 s BassStereoField_MonoSumPerBand_Spread_DirtyRectify_E1 exit=0
+1907 s BassStereoField_MonoSumPerBand_Spread_AnchorRectify_E2 exit=0
+1907 s BassStereoField_MonoSumPerBand_Spread_AnchorFold_E0 exit=0
+1904 s BassStereoField_MonoSumPerBand_Spread_DirtyRectify_E0 exit=0
+1902 s BassStereoField_MonoSumPerBand_Spread_AnchorBite_E0 exit=0
+1884 s BassStereoField_MonoSumPerBand_Spread_AnchorRectify_E1 exit=0
+1870 s BassStereoField_MonoSumPerBand_Spread_AnchorRectify_E0 exit=0
+1791 s BassStereoField_MonoSumPerBand_Solid_AnchorTube_C3 exit=0
+1784 s BassStereoField_MonoSumPerBand_Solid_AnchorFracture_C3 exit=0
+1777 s BassStereoField_MonoSumPerBand_Solid_AnchorFracture_E2 exit=0
+1774 s BassStereoField_MonoSumPerBand_Solid_AnchorTube_E2 exit=0
+1765 s BassStereoField_MonoSumPerBand_Solid_AnchorFracture_E1 exit=0
+1765 s BassStereoField_MonoSumPerBand_Solid_AnchorFracture_E0 exit=0
+1764 s BassStereoField_MonoSumPerBand_Solid_AnchorTube_E1 exit=0
+1760 s BassStereoField_MonoSumPerBand_Solid_AnchorTube_E0 exit=0
+1738 s BassStereoField_MonoSumPerBand_Solid_DirtyFracture_C3 exit=0
+1725 s BassStereoField_MonoSumPerBand_Solid_DirtyFracture_E2 exit=0
+1720 s BassStereoField_MonoSumPerBand_Solid_DirtyFracture_E1 exit=0
+1715 s BassStereoField_MonoSumPerBand_Solid_DirtyFracture_E0 exit=0
+1689 s BassStereoField_MonoSumPerBand_Solid_DirtyTube_C3 exit=0
+1683 s BassStereoField_MonoSumPerBand_Solid_DirtyTube_E2 exit=0
+1680 s BassStereoField_MonoSumPerBand_Solid_DirtyTube_E1 exit=0
+1675 s BassStereoField_MonoSumPerBand_Solid_AnchorFold_C3 exit=0
+1671 s BassStereoField_MonoSumPerBand_Solid_AnchorCrush_C3 exit=0
+1665 s BassStereoField_MonoSumPerBand_Solid_AnchorCrush_E0 exit=0
+1663 s BassStereoField_MonoSumPerBand_Solid_AnchorCrush_E2 exit=0
+1661 s BassStereoField_MonoSumPerBand_Solid_DirtyTube_E0 exit=0
+1661 s BassStereoField_MonoSumPerBand_Solid_AnchorCrush_E1 exit=0
+1643 s BassStereoField_MonoSumPerBand_Solid_AnchorFold_E2 exit=0
+1632 s BassStereoField_MonoSumPerBand_Solid_AnchorBite_C3 exit=0
+1621 s BassStereoField_MonoSumPerBand_Solid_AnchorBite_E2 exit=0
+1612 s BassStereoField_MonoSumPerBand_Solid_AnchorFold_E1 exit=0
+1610 s BassStereoField_MonoSumPerBand_Solid_AnchorBite_E1 exit=0
+1608 s BassStereoField_MonoSumPerBand_Solid_AnchorRectify_C3 exit=0
+1605 s BassStereoField_MonoSumPerBand_Solid_AnchorBite_E0 exit=0
+1600 s BassStereoField_MonoSumPerBand_Solid_AnchorFold_E0 exit=0
+1585 s BassStereoField_MonoSumPerBand_Solid_AnchorRectify_E2 exit=0
+1578 s BassStereoField_MonoSumPerBand_Solid_AnchorRectify_E0 exit=0
+1576 s BassStereoField_MonoSumPerBand_Solid_AnchorRectify_E1 exit=0
+1561 s BassStereoField_MonoSumPerBand_Solid_DirtyFold_E2 exit=0
+1559 s BassStereoField_MonoSumPerBand_Solid_DirtyFold_C3 exit=0
+1556 s BassStereoField_MonoSumPerBand_Solid_DirtyCrush_E0 exit=0
+1554 s BassStereoField_MonoSumPerBand_Solid_DirtyCrush_E2 exit=0
+1550 s BassStereoField_MonoSumPerBand_Solid_DirtyCrush_C3 exit=0
+1543 s BassStereoField_MonoSumPerBand_Solid_DirtyCrush_E1 exit=0
+1521 s BassStereoField_MonoSumPerBand_Solid_DirtyBite_C3 exit=0
+1520 s BassStereoField_MonoSumPerBand_Solid_DirtyRectify_C3 exit=0
+1506 s BassStereoField_MonoSumPerBand_Solid_DirtyFold_E1 exit=0
+1502 s BassStereoField_MonoSumPerBand_Solid_DirtyBite_E2 exit=0
+1499 s BassStereoField_MonoSumPerBand_Solid_DirtyRectify_E2 exit=0
+1494 s BassStereoField_MonoSumPerBand_Solid_DirtyBite_E0 exit=0
+1493 s BassStereoField_MonoSumPerBand_Solid_DirtyBite_E1 exit=0
+1492 s BassStereoField_MonoSumPerBand_Solid_DirtyFold_E0 exit=0
+1484 s BassStereoField_MonoSumPerBand_Solid_DirtyRectify_E1 exit=0
+1483 s BassStereoField_MonoSumPerBand_Solid_DirtyRectify_E0 exit=0
+1271 s BassStereoField_MonoSumPerBand_Spread_CleanGrowl_C3 exit=0
+1244 s BassStereoField_MonoSumPerBand_Spread_CleanGrowl_E2 exit=0
+1215 s BassStereoField_MonoSumPerBand_Wide_CleanGrowl_C3 exit=0
+1214 s BassStereoField_MonoSumPerBand_Spread_CleanGrowl_E1 exit=0
+1195 s BassStereoField_MonoSumPerBand_Spread_CleanGrowl_E0 exit=0
+1191 s BassStereoField_MonoSumPerBand_Wide_CleanGrowl_E2 exit=0
+1190 s BassStereoField_MonoSumPerBand_Spread_CleanSaw_C3 exit=0
+1186 s BassStereoField_MonoSumPerBand_Spread_CleanSaw_E2 exit=0
+1183 s BassStereoField_MonoSumPerBand_Spread_CleanSaw_E1 exit=0
+1182 s BassStereoField_MonoSumPerBand_Spread_CleanSaw_E0 exit=0
+1162 s BassStereoField_MonoSumPerBand_Wide_CleanGrowl_E1 exit=0
+1143 s BassStereoField_MonoSumPerBand_Wide_CleanGrowl_E0 exit=0
+1140 s BassStereoField_MonoSumPerBand_Wide_CleanSaw_C3 exit=0
+1130 s BassStereoField_MonoSumPerBand_Wide_CleanSaw_E2 exit=0
+1128 s BassStereoField_MonoSumPerBand_Wide_CleanSaw_E0 exit=0
+1127 s BassStereoField_MonoSumPerBand_Wide_CleanSaw_E1 exit=0
+1095 s BassStereoField_MonoSumPerBand_Solid_CleanGrowl_C3 exit=0
+1058 s BassStereoField_MonoSumPerBand_Solid_CleanGrowl_E2 exit=0
+1054 s BassStereoField_MonoSumPerBand_Solid_CleanGrowl_E1 exit=0
+1032 s BassStereoField_MonoSumPerBand_Solid_CleanGrowl_E0 exit=0
+1030 s BassStereoField_MonoSumPerBand_Solid_CleanSaw_C3 exit=0
+1028 s BassStereoField_MonoSumPerBand_Solid_CleanSaw_E2 exit=0
+1012 s BassStereoField_MonoSumPerBand_Solid_CleanSaw_E0 exit=0
+1010 s BassStereoField_MonoSumPerBand_Solid_CleanSaw_E1 exit=0
+827 s BassStereoField_WidthMonotonic exit=4
+214 s BassStereoField_TransitionsClickFree exit=0
+202 s BassStereoField_SafetyStageAttenuation exit=1
+120 s BassStereoField_LeversAudible exit=1
+100 s BassStereoField_WideAliasing exit=0
+59 s BassStereoField_GravityFloor_AnchorTube exit=0
+58 s BassStereoField_GravityFloor_DirtyTube exit=0
+58 s BassStereoField_GravityFloor_DirtyFracture exit=0
+58 s BassStereoField_GravityFloor_AnchorFracture exit=0
+54 s BassStereoField_PolyMonoSumRecord exit=0
+54 s BassStereoField_GravityFloor_AnchorCrush exit=0
+52 s BassStereoField_GravityFloor_DirtyFold exit=0
+52 s BassStereoField_GravityFloor_DirtyCrush exit=0
+52 s BassStereoField_GravityFloor_AnchorFold exit=0
+52 s BassStereoField_GravityFloor_AnchorBite exit=0
+51 s BassStereoField_GravityFloor_DirtyRectify exit=0
+51 s BassStereoField_GravityFloor_DirtyBite exit=0
+51 s BassStereoField_GravityFloor_AnchorRectify exit=0
+36 s BassStereoField_PanOnlyDirection exit=0
+35 s BassStereoField_H1Centred exit=0
+31 s BassStereoField_GravityFloor_CleanGrowl exit=0
+30 s BassStereoField_GravityFloor_CleanSaw exit=0
+17 s BassStereoField_SampleRates exit=1
+13 s BassStereoField_MotionBounded exit=0
+7 s BassStereoField_NoZipper exit=0
+4 s BassStereoField_SafetyStagePhase exit=0
+--- perpush-dsp_systems_tests tail
+All tests passed (10286477 assertions in 1783 test cases)
+
+exit: 0 wall: 5036 s
+DONE 2026-10-19T01:55:47Z RED warnings=0 scope_red=0 perpush_red=0 long_red=6/194 total_wall=14755s

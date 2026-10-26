@@ -1,0 +1,20 @@
+# Phase 7 harvest: cells recorded under the anti-phase exemption (spec SC-002, G8-1 refinement: character-tap sub-band rho_pre <= -0.5)
+# Source: harvest/side-floor-<arm>-cells.csv at the committed floor row (g 0.035), run 3 of harvest.sh, 2026-10-18. Columns: cell, rho_pre, s2m_pre_db, sub_mean_dbfs
+AnchorFold_Spread_E2_s0.5_fc120_c0,-0.884416,4.6801,-28.8616
+AnchorFold_Wide_C3_s1_fc250_c0,-0.977924,18.3066,-27.2148
+AnchorFold_Wide_E2_s0.5_fc120_c0,-0.929078,9.90869,-27.0171
+AnchorFold_Wide_E2_s0.5_fc120_c1,-0.661562,5.06122,-30.4128
+AnchorRectify_Spread_C3_s1_fc250_c0,-0.721311,3.29311,-19.8773
+AnchorRectify_Spread_C3_s1_fc250_c1,-0.540874,4.94558,-19.3588
+AnchorRectify_Spread_E2_s1_fc120_c1,-0.999535,17.7592,-26.2077
+AnchorRectify_Wide_C3_s1_fc250_c0,-0.849181,5.0979,-20.7753
+AnchorRectify_Wide_E2_s1_fc120_c1,-0.991438,18.3842,-25.3548
+DirtyFold_Spread_E2_s0.5_fc120_c0,-0.884416,4.6801,-28.8616
+DirtyFold_Wide_C3_s1_fc250_c0,-0.977924,18.3066,-27.2148
+DirtyFold_Wide_E2_s0.5_fc120_c0,-0.929078,9.90869,-27.0171
+DirtyFold_Wide_E2_s0.5_fc120_c1,-0.661562,5.06122,-30.4128
+DirtyRectify_Spread_C3_s1_fc250_c0,-0.721311,3.29311,-19.8773
+DirtyRectify_Spread_C3_s1_fc250_c1,-0.540874,4.94558,-19.3588
+DirtyRectify_Spread_E2_s1_fc120_c1,-0.999535,17.7592,-26.2077
+DirtyRectify_Wide_C3_s1_fc250_c0,-0.849181,5.0979,-20.7753
+DirtyRectify_Wide_E2_s1_fc120_c1,-0.991438,18.3842,-25.3548

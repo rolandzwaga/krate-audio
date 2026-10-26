@@ -1,0 +1,21 @@
+=== p3 probe 2026-10-20T13:46:32Z commit 0ae33b87
+cmd: build/windows-x64-release/bin/Release/dsp_systems_tests.exe "MassDynamics_OversamplingAliasProbe"
+Filters: "MassDynamics_OversamplingAliasProbe"
+Randomness seeded to: 3021659046
+# P-3 MassDynamics_OversamplingAliasProbe (tasks.md T006; plan R-C, S10.4)
+# Fold-100 kSawAnchor at E2 (82.4069 Hz) through MassDynamics alone, SC-010 settings, opt-in off / on
+# off / on = worst of Phase 6 residual windows (steady A_out, burst, step), dBFS
+# estimator = SC-021 aliasedPower(y, aliasFftLength(fs, f0)) after 1 s, worst of L / R, dBFS (gated -80 on the on reading)
+#   44100 E2_fold100_A+12 frame 65536 (bin 0.672913 Hz) input_estimator=-106.415 | off: steady -45.8339 burst -110.168 step -64.3656 | on: steady -94.9217 burst -110.141 step -64.3674
+P3 44100 E2_fold100_A+12 off=-45.8339 on=-64.3674 estimator_off=-45.8339 estimator_on=-94.9217
+#   44100 E2_fold100_A-12 frame 65536 (bin 0.672913 Hz) input_estimator=-106.415 | off: steady -45.833 burst -128.484 step -70.0395 | on: steady -95.0758 burst -128.463 step -70.0395
+P3 44100 E2_fold100_A-12 off=-45.833 on=-70.0395 estimator_off=-45.833 estimator_on=-95.0758
+#   48000 E2_fold100_A+12 frame 65536 (bin 0.732422 Hz) input_estimator=-106.243 | off: steady -55.0321 burst -70.874 step -64.8446 | on: steady -90.1648 burst -70.8742 step -64.8457
+P3 48000 E2_fold100_A+12 off=-55.0321 on=-64.8457 estimator_off=-55.0321 estimator_on=-90.1648
+#   48000 E2_fold100_A-12 frame 65536 (bin 0.732422 Hz) input_estimator=-106.243 | off: steady -55.0321 burst -82.8756 step -70.8744 | on: steady -89.4572 burst -82.8756 step -70.8744
+P3 48000 E2_fold100_A-12 off=-55.0321 on=-70.8744 estimator_off=-55.0321 estimator_on=-89.4572
+P3 VERDICT GREEN -89.4572
+===============================================================================
+All tests passed (567 assertions in 1 test case)
+
+exit: 0 wall: 2 s

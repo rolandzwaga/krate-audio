@@ -1,0 +1,77 @@
+=== T018 tidy 2026-10-19T19:35:40Z commit 964045a4
+--- vcvars: C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat
+--- reconfigure (cmake --preset windows-ninja in vcvars64) exit=0 wall=18s
+-- [SMTG] Setup running moduleinfotool for Vorago
+-- [KRATE] Copied compile_commands.json to project root
+-- Configuring done (11.9s)
+-- Generating done (1.5s)
+-- Build files have been written to: F:/projects/iterum/build/windows-ninja
+--- compile database: all 11 TUs present
+=== dsp/tests/unit/systems/morph_state_test.cpp
+58571 warnings generated.
+Suppressed 58571 warnings (58568 in non-user code, 3 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 28 s
+=== dsp/tests/unit/systems/bass_morph_engine_test.cpp
+60344 warnings generated.
+Suppressed 60344 warnings (60341 in non-user code, 3 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 32 s
+=== dsp/tests/unit/systems/bass_morph_nonfinite_test.cpp
+58451 warnings generated.
+Suppressed 58451 warnings (58448 in non-user code, 3 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 26 s
+=== dsp/tests/unit/systems/bass_morph_helpers_test.cpp
+62364 warnings generated.
+Suppressed 62364 warnings (62360 in non-user code, 4 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 33 s
+=== dsp/tests/unit/systems/bass_morph_probe_test.cpp
+64037 warnings generated.
+Suppressed 64037 warnings (64033 in non-user code, 4 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 34 s
+=== dsp/tests/unit/systems/bass_morph_chain_test.cpp
+64121 warnings generated.
+Suppressed 64121 warnings (64117 in non-user code, 4 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 35 s
+=== dsp/tests/unit/systems/bass_morph_click_test.cpp
+65004 warnings generated.
+Suppressed 65004 warnings (65000 in non-user code, 4 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 36 s
+=== dsp/tests/unit/systems/bass_morph_trajectory_test.cpp
+64844 warnings generated.
+Suppressed 64844 warnings (64840 in non-user code, 4 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 35 s
+=== dsp/tests/unit/systems/bass_morph_monosum_test.cpp
+64065 warnings generated.
+Suppressed 64065 warnings (64061 in non-user code, 4 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 34 s
+=== dsp/tests/unit/systems/bass_morph_aliasing_test.cpp
+64077 warnings generated.
+Suppressed 64077 warnings (64073 in non-user code, 4 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 34 s
+=== dsp/tests/unit/systems/bass_morph_perf_test.cpp
+64061 warnings generated.
+Suppressed 64061 warnings (64057 in non-user code, 4 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 34 s
+=== summary
+dsp/tests/unit/systems/morph_state_test.cpp exit=0 warnings=0 errors=0
+dsp/tests/unit/systems/bass_morph_engine_test.cpp exit=0 warnings=0 errors=0
+dsp/tests/unit/systems/bass_morph_nonfinite_test.cpp exit=0 warnings=0 errors=0
+dsp/tests/unit/systems/bass_morph_helpers_test.cpp exit=0 warnings=0 errors=0
+dsp/tests/unit/systems/bass_morph_probe_test.cpp exit=0 warnings=0 errors=0
+dsp/tests/unit/systems/bass_morph_chain_test.cpp exit=0 warnings=0 errors=0
+dsp/tests/unit/systems/bass_morph_click_test.cpp exit=0 warnings=0 errors=0
+dsp/tests/unit/systems/bass_morph_trajectory_test.cpp exit=0 warnings=0 errors=0
+dsp/tests/unit/systems/bass_morph_monosum_test.cpp exit=0 warnings=0 errors=0
+dsp/tests/unit/systems/bass_morph_aliasing_test.cpp exit=0 warnings=0 errors=0
+dsp/tests/unit/systems/bass_morph_perf_test.cpp exit=0 warnings=0 errors=0
+TIDY GREEN tus=11 warnings=0 errors=0 timeouts=[] failed=[] tidy_wall=37s total_wall=59s

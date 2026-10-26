@@ -1,0 +1,202 @@
+T026 Portability, lints and the SC-030 diff check (FR-084, SC-030; cross-cutting portability)
+Executor run 2026-10-21 (Git Bash, working tree on synth/profundum, HEAD 0ae33b87 + uncommitted Phase 9 work).
+
+Scripts (syntax): bash -n evidence/close/portability.sh -> SYNTAX OK; node --check evidence/close/sc030-diff.js -> CHECK OK.
+
+VERDICTS: PORTABILITY RED (lint-float-bit-goldens only; every other lane 0 findings) ; SC030 RED (one hunk).
+
+Findings (neither is in a Phase 9 file, so neither is fixed here; both need a decision):
+
+F-1 lint-float-bit-goldens: dsp/tests/unit/systems/profundum_anchor_chain_test.cpp:470-484 (Phase 3 TU, unchanged since
+    3d8ca19f) FNV-1a over std::bit_cast<uint32_t> of a core render. Read at :486-497: the hash is only printf'd per
+    Highway target ("SC-003 ISA %s: core render hash"), never compared to a constant, so it pins nothing; the lint fires
+    on bit_cast + hash in one file. It is red on the tree since Phase 3 (Phase 8's portability.sh did not run this lint).
+    Options: replace the printed hash with render_fingerprint.h aggregates in that Phase 3 TU, or teach the lint an
+    exemption for print-only digests. Owning file is outside T026's list.
+
+F-2 SC-030: mass_dynamics.h hunk 9 (-353 +361) rewrites `const auto fs = static_cast<float>(sampleRate_);` to
+    `scRate_` inside BassCompressor::configureDetector, outside the two plan-S7 branch points (prepare, processBlock).
+    Equal on the off path (scRate_ == sampleRate_ by default, per the added comment) but not an append. Also recorded,
+    though inside a branch-point function: hunks 6-7 extract BassCompressor::processBlock's loop steps 2-4/6 into a
+    helper (24 removed code lines relocated verbatim, line 237 `(void)dyn_.processSample(d);` rewritten, T032
+    processDetectionOnly), so the "off path executes exactly the existing statements" wording of plan S7 no longer holds
+    literally. Decision needed: amend SC-030 / plan S7 to the T029/T032 shape (consumer suites + fingerprint digits as
+    the gate), or restore configureDetector's line and route the sidechain rate another way.
+    Note: spec.md's SC-030 row omits systems/profundum_core.h, which FR-084 (3) names (T032 setControlsWithShape); the
+    script treats it as ruled and prints a NOTE for comply to reconcile the row.
+    core/db_utils.h absent (R-D holds). true_peak_limiter.h present via T029 setHalfbandDetector (ruled R-A), not the
+    C-1 accessor.
+
+---------------------------------------------------------------------------------------------------------------------
+evidence/run-log/close/portability.log
+---------------------------------------------------------------------------------------------------------------------
+=== T026 portability 2026-10-20T22:14:51Z commit 0ae33b87
+
+== check-portability ==
+check-portability: 14 translation unit(s) with g++
+
+  OK      dsp/tests/unit/systems/profundum_voice_engine_helpers_test.cpp
+  OK      dsp/tests/unit/systems/profundum_motion_test.cpp
+  OK      dsp/tests/unit/systems/profundum_macro_matrix_test.cpp
+  OK      dsp/tests/unit/systems/profundum_voice_test.cpp
+  OK      dsp/tests/unit/systems/profundum_engine_test.cpp
+  OK      dsp/tests/unit/systems/profundum_engine_nonfinite_test.cpp
+  OK      dsp/tests/unit/systems/profundum_engine_click_test.cpp
+  OK      dsp/tests/unit/systems/profundum_engine_audibility_test.cpp
+  OK      dsp/tests/unit/systems/profundum_engine_chain_test.cpp
+  OK      dsp/tests/unit/systems/profundum_engine_aliasing_test.cpp
+  OK      dsp/tests/unit/systems/profundum_engine_soak_test.cpp
+  OK      dsp/tests/unit/systems/profundum_engine_probe_test.cpp
+  OK      dsp/tests/unit/systems/profundum_engine_perf_test.cpp
+  OK      dsp/tests/unit/systems/mass_dynamics_oversampling_test.cpp
+
+check-portability: all clear -- 14 compiled.
+check-portability exit=0 wall=42s
+
+== lint-apple-globals ==
+lint-apple-globals: OK — 20 files, no macOS-only name collisions
+lint-apple-globals exit=0 wall=0s
+
+== lint-layers ==
+lint-layers: OK — no layer-dependency violations in 5-layer DSP tree.
+lint-layers exit=0 wall=0s
+
+== lint-odr ==
+lint-odr: OK — 905 definitions scanned, no cross-file name collisions.
+lint-odr exit=0 wall=1s
+
+== lint-nonfinite-symbols ==
+lint-nonfinite-symbols: all clear (17 guarded files)
+lint-nonfinite-symbols exit=0 wall=1s
+
+== lint-float-bit-goldens ==
+lint-float-bit-goldens: bit-exact float digest(s) found
+
+  dsp\tests\unit\systems\profundum_anchor_chain_test.cpp
+    L477: const auto bits = std::bit_cast<std::uint32_t>(x);   <-- float bits
+    L759: if (std::bit_cast<std::uint32_t>(summed[i]) != std::bit_cast<std::uint32_t>(plainAdd))   <-- float bits
+    L475: std::uint64_t h = 1469598103934665603ULL;   <-- hashed
+    L480: h *= 1099511628211ULL;   <-- hashed
+
+A digest over float bits asserts bit-exact equality of floating-point math
+across MSVC, GCC and Apple Clang (the last of which builds with -ffast-math).
+It cannot hold. Compare aggregate metrics + sample checkpoints at a measured
+tolerance instead -- see tests/test_helpers/render_fingerprint.h.
+
+lint-float-bit-goldens exit=1 wall=1s
+
+== lint-simd-aligned-loadstore ==
+lint-simd-aligned-loadstore: clean -- 1791 file(s) scanned.
+lint-simd-aligned-loadstore exit=0 wall=1s
+
+wsl --shutdown done; total wall 47s
+PORTABILITY RED ( lint-float-bit-goldens=1 ; 124 = 300 s ceiling hit)
+
+---------------------------------------------------------------------------------------------------------------------
+evidence/run-log/close/sc030-diff.log
+---------------------------------------------------------------------------------------------------------------------
+=== T026 SC-030 diff check 2026-10-20T22:13:59.608Z base 0ae33b87 HEAD 0ae33b87
+
+== 1. git diff --name-only 0ae33b87 -- dsp/include dsp/src plugins tests/test_helpers  (14 file(s))
+  ruled    dsp/include/krate/dsp/primitives/polyphase_halfband_oversampler.h   [FR-084 (3) R-A T029]
+  ruled    dsp/include/krate/dsp/primitives/retrigger_declick.h   [FR-084 (2) R-B prepare(fs, declickMs)]
+  ruled    dsp/include/krate/dsp/primitives/tanh_adaa.h   [FR-084 (3) R-A T029]
+  ruled    dsp/include/krate/dsp/processors/dynamics_processor.h   [FR-084 (3) R-A T032]
+  ruled    dsp/include/krate/dsp/processors/harmonic_fold.h   [FR-084 (3) R-A T029 / T032]
+  ruled    dsp/include/krate/dsp/processors/harmonic_oscillator_bank.h   [FR-084 (3) R-A T029 / T032]
+  ruled    dsp/include/krate/dsp/processors/keytracked_tilt.h   [FR-084 (3) R-A T032]
+  ruled    dsp/include/krate/dsp/processors/oversampled_residual_path.h   [FR-084 (3) R-A T029]
+  ruled    dsp/include/krate/dsp/processors/period_peak_detector.h   [FR-084 (3) R-A T032]
+  ruled    dsp/include/krate/dsp/processors/spectral_shape_recipe.h   [FR-084 (3) R-A T032]
+  ruled    dsp/include/krate/dsp/processors/true_peak_limiter.h   [FR-084 (3) R-A T029 setHalfbandDetector (not the C-1 accessor)]
+  ruled    dsp/include/krate/dsp/systems/mass_dynamics.h   [FR-084 (1) FR-082 opt-in (Q4), plan S7 as amended by T029 / T032]
+  ruled    dsp/include/krate/dsp/systems/profundum_core.h   [FR-084 (3) R-A T032 setControlsWithShape]
+           NOTE: named by FR-084 (3) but missing from spec.md's SC-030 row; comply reconciles the row.
+  ruled    dsp/include/krate/dsp/systems/shape_morph.h   [FR-084 (3) R-A T029 / T032]
+  absent   dsp/include/krate/dsp/core/db_utils.h   (R-D: no change to core/db_utils.h without a user ruling)
+
+== 2. git diff -U0 0ae33b87 -- dsp/include/krate/dsp/systems/mass_dynamics.h
+  hunk 1: -3,0 +4,1  (+1 / -0)  ADDITION
+  hunk 2: -22,0 +24,1  (+1 / -0)  ADDITION
+  hunk 3: -107,0 +110,1  (+1 / -0)  ADDITION
+  hunk 4: -123,1 +126,1  (+1 / -1)  in BassCompressor::prepare  BRANCH POINT
+      - 123 [rewritten]             hp.configure(FilterType::Highpass, kFallbackCornerHz, kButterworthQ, 0.0f, static_cast<float>(fs));
+  hunk 5: -126,1 +129,5  (+5 / -1)  in BassCompressor::prepare  BRANCH POINT
+      - 126 [rewritten]         det_.prepare(fs, 2000.0f / kFallbackCornerHz);
+  hunk 6: -214,32 +221,3  (+3 / -32)  in BassCompressor::processBlock  BRANCH POINT
+      - 214 [comment/blank] 
+      - 215 [comment/blank]             // 2. Control step on the absolute 32-sample grid.
+      - 216 [relocated]             if (intervalPhase_ == 0)
+      - 217 [relocated]                 controlStep();
+      - 218 [comment/blank] 
+      - 219 [comment/blank]             // 3. Detection, FR-011 (b): high-pass on signed samples, then the held true-peak of
+      - 220 [comment/blank]             //    max(|HP L|, |HP R|). The probe's rectified feed is the struck form (unfiltered
+      - 221 [comment/blank]             //    max(|L|, |R|) into the internal sidechain), kept only for SC-006(e).
+      - 222 [relocated]             float d = 0.0f;
+      - 223 [relocated]             if (probeRectifiedFeed_) {
+      - 224 [relocated]                 d = mono ? std::abs(xL) : std::max(std::abs(xL), std::abs(xR));
+      - 225 [relocated]             } else {
+      - 226 [relocated]                 const float hL = probeHpBypass_ ? xL : hp_[0].process(xL);
+      - 227 [relocated]                 if (mono) {
+      - 228 [relocated]                     d = det_.process(hL);
+      - 229 [relocated]                 } else {
+      - 230 [relocated]                     const float hR = probeHpBypass_ ? xR : hp_[1].process(xR);
+      - 231 [relocated]                     d = det_.process(hL, hR);
+      - 232 [relocated]                 }
+      - 233 [relocated]             }
+      - 234 [relocated]             detectorLevel_ = d;
+      - 235 [comment/blank] 
+      - 236 [comment/blank]             // 4. Gain computer (its audio output is unused, FR-013). gr <= 0, already 5 ms smoothed.
+      - 237 [rewritten]             (void)dyn_.processSample(d);
+      - 238 [relocated]             const float gr = dyn_.getCurrentGainReduction();
+      - 239 [relocated]             if (gr < -kRuleThresholdDb)
+      - 240 [relocated]                 ++ruleCount_;
+      - 241 [comment/blank] 
+      - 242 [comment/blank]             // 5. One gain for both channels. gainDb_ == 0 is the hard bypass (FR-016 / SC-013): gr is
+      - 243 [comment/blank]             //    exactly +0.0f there (flushDenormal(-0.0f) returns the literal 0.0f, db_utils.h:263).
+      - 244 [relocated]             const float mk = makeupS_.process();
+      - 245 [relocated]             gainDb_ = gr + mk;
+  hunk 7: -256,3 +233,0  (+0 / -3)  in BassCompressor::processBlock  BRANCH POINT
+      - 256 [comment/blank] 
+      - 257 [comment/blank]             // 6. Grid.
+      - 258 [relocated]             intervalPhase_ = (intervalPhase_ + 1) % kControlInterval;
+  hunk 8: -261,0 +237,33  (+33 / -0)  ADDITION
+  hunk 9: -353,1 +361,1  (+1 / -1)  in BassCompressor::configureDetector  RED: removed lines outside prepare / processBlock
+      - 353 [rewritten]         const auto fs = static_cast<float>(sampleRate_);
+  hunk 10: -360,0 +369,46  (+46 / -0)  ADDITION
+  hunk 11: -416,0 +471,2  (+2 / -0)  ADDITION
+  hunk 12: -482,0 +539,11  (+11 / -0)  ADDITION
+  hunk 13: -483,0 +551,1  (+1 / -0)  ADDITION
+  hunk 14: -496,0 +565,2  (+2 / -0)  ADDITION
+  hunk 15: -541,0 +612,4  (+4 / -0)  ADDITION
+  hunk 16: -580,0 +655,19  (+19 / -0)  ADDITION
+  hunk 17: -591,0 +685,46  (+46 / -0)  ADDITION
+  total: 17 hunk(s), +177 / -38 lines
+
+== 3. Other ruled headers (gate: their consumer suites under the change-set rule, T025)
+  dsp/include/krate/dsp/primitives/polyphase_halfband_oversampler.h: 2 hunk(s), +11 / -4
+  dsp/include/krate/dsp/primitives/retrigger_declick.h: 3 hunk(s), +12 / -3
+  dsp/include/krate/dsp/primitives/tanh_adaa.h: 7 hunk(s), +16 / -2
+  dsp/include/krate/dsp/processors/dynamics_processor.h: 1 hunk(s), +34 / -0
+  dsp/include/krate/dsp/processors/harmonic_fold.h: 2 hunk(s), +28 / -1
+  dsp/include/krate/dsp/processors/harmonic_oscillator_bank.h: 13 hunk(s), +31 / -1
+  dsp/include/krate/dsp/processors/keytracked_tilt.h: 3 hunk(s), +16 / -6
+  dsp/include/krate/dsp/processors/oversampled_residual_path.h: 4 hunk(s), +8 / -0
+  dsp/include/krate/dsp/processors/period_peak_detector.h: 5 hunk(s), +21 / -4
+  dsp/include/krate/dsp/processors/spectral_shape_recipe.h: 2 hunk(s), +14 / -1
+  dsp/include/krate/dsp/processors/true_peak_limiter.h: 8 hunk(s), +38 / -5
+  dsp/include/krate/dsp/systems/profundum_core.h: 6 hunk(s), +50 / -1
+  dsp/include/krate/dsp/systems/shape_morph.h: 9 hunk(s), +15 / -17
+
+SC030 RED (dsp/include/krate/dsp/systems/mass_dynamics.h hunk 9 removes lines in BassCompressor::configureDetector)
+
+== Main-loop addendum (2026-10-21): F-1 and F-2 resolved ==
+F-1  lint-float-bit-goldens: Phase 3 TU profundum_anchor_chain_test.cpp's printed-only FNV hash replaced by the
+     double sum of |x| (coreRenderAbsSum). `node tools/lint-float-bit-goldens.js` -> "clean (1791 files scanned)", exit 0.
+     dsp_systems_tests rebuilt (build-g13.log, exit 0, 0 warnings); AnchorOscillator_PhaseLockEveryIsaSmoke
+     (close/g13-isa-smoke.log): "All tests passed (1063 assertions in 1 test case)"; SC-003 ISA AVX2 sum|x|
+     9533.87308779, SSE2 9533.85688689 (the diagnostic still moves per target).
+F-2  SC-030 row amended under R-A (consumer suites are the gate; profundum_core.h added to the list); sc030-diff.js
+     step 2 records out-of-branch-point hunks. Re-run (close/sc030-diff.log): mass_dynamics.h hunk 9 "RECORD",
+     last line "SC030 GREEN".
+     portability.sh re-run (close/portability.log): 14/14 OK, every lint clean, "PORTABILITY GREEN", wall 39 s.

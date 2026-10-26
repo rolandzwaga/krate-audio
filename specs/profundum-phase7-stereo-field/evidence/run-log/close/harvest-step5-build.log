@@ -1,0 +1,19 @@
+MSBuild version 17.14.60+43b635718 for .NET Framework
+
+  Checking File Globs
+  Catch2.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\Catch2.lib
+  PFFFT.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\pffft.lib
+  hwy.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy.lib
+  hwy_contrib.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy_contrib.lib
+  KrateDSP.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\KrateDSP.lib
+  bass_stereo_field_chain_test.cpp
+  bass_stereo_field_harvest_test.cpp
+  bass_stereo_field_helpers_test.cpp
+  bass_stereo_field_monosum_test.cpp
+  bass_stereo_field_motion_test.cpp
+  bass_stereo_field_nonfinite_test.cpp
+  bass_stereo_field_perf_test.cpp
+  bass_stereo_field_spectral_test.cpp
+  bass_stereo_field_test.cpp
+  dsp_systems_tests.vcxproj -> F:\projects\iterum\build\windows-x64-release\bin\Release\dsp_systems_tests.exe
+exit: 0 wall: 27 s warnings: 0

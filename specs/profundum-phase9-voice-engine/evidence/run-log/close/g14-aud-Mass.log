@@ -1,0 +1,53 @@
+Filters: "VoiceEngine_AudibilityTable_Mass"
+Randomness seeded to: 2287713478
+# H-17 record (tasks.md T016; spec H-17, Phase 6 handoff (8)). Base B, Mass 100, 48 kHz; steady sub-band GR
+# = median of the grid record's compressorGrDb over [0.5 s, 1.5 s). Phase 6: 4 voices at E1 detuned
+# {-6, -2, +2, +6} cents read -10.1172 dB (specs/profundum-phase6-mass-dynamics/evidence/phase9-handoff.txt:42).
+# DEVIATION: the engine's pitch API is MIDI notes plus ONE global bend (C-11: POLY f = midiNoteToFrequency(note)
+# x bend ratio), so four voices detuned by cents around E1 (E1 +- 7 / +- 13 cents) are not reachable through it.
+# Recorded instead: MONO E1 (one voice) and POLY 4 voices on the nearest distinct keys E1 / F1 / F#1 / G1.
+H17 MONO E1 gr_db=-8.55798
+H17 POLY4 E1,F1,F#1,G1 gr_db=-13.4377
+H17 PHASE6 4x detuned E1 gr_db=-10.1172
+# VoiceEngine_AudibilityTable_Mass
+row,contrast,base,note,descriptor,tap,lo,hi,value,bar,pass,gated,out_descriptor,out_lo,out_hi,ampStep,remark
+"AT-26","Mass: 0 -> 100","A + sustain 1 (C-8) + anchor level 0.5 (per-row setting, G11-2)",E1,"E_sub (dB)","Sum",-11.9198,-6.67358,5.24621,">= 3 dB",PASS,gated,"E_sub output (dB)",-9.93101,-4.85782,"n/a","H-14: L_K output -15.921414 -> -9.362278 dB; per-row setting G11-2: A's anchor level 1.0 sits at the AnchorLevel row's clamp, so Mass 100 cannot raise it"
+"AT-26","Mass: 0 -> 100","A + sustain 1 (C-8)",E1,"E_sub (dB)","Sum",-8.45341,-6.67358,1.77983,">= 3 dB",FAIL,recorded,"E_sub output (dB)",-6.46561,-4.85782,"n/a","H-14: L_K output -12.470629 -> -9.362278 dB; plain A_s, recorded (G11-2)"
+"AT-26","Mass: 0 -> 100","B (its own sustain 0.8, C-8) + anchor level 0.5 (per-row setting, G11-2 / G14-8)",E1,"E_sub (dB)","Sum",-16.723,-12.6159,4.10712,">= 3 dB",PASS,gated,"E_sub output (dB)",-14.7351,-15.17,"n/a","H-14: L_K output -18.839351 -> -13.632799 dB; per-row setting on B too: plain B read +1.84 dB at C3"
+"AT-26","Mass: 0 -> 100","B (its own sustain 0.8, C-8)",E1,"E_sub (dB)","Sum",-16.723,-12.6159,4.10712,">= 3 dB",PASS,recorded,"E_sub output (dB)",-14.7351,-15.17,"n/a","H-14: L_K output -18.839351 -> -13.632799 dB; plain B, recorded (G14-8)"
+"AT-27","Mass dynamics, gain: Mass 0 -> 100","B",E1,"dL_K = L_K(dynamics output) - L_K(Sum) (dB)","dynamics output tap and Sum",2.04942,-1.45543,3.50485,">= 3 dB",PASS,gated,"L_K output (dB)",-18.8394,-13.6328,"n/a",""
+"AT-27","Mass dynamics, gain: Mass 0 -> 100","B + sustain 1 (B10-1)",E1,"dL_K = L_K(dynamics output) - L_K(Sum) (dB)","dynamics output tap and Sum",2.04942,-2.54277,4.59219,">= 3 dB",PASS,recorded,"L_K output (dB)",-17.1682,-13.5436,"n/a","recorded: the B_s candidate (A_s reaches the bar)"
+"AT-28","Mass dynamics, transient: transientAttackDb 0 -> +12","B",E1,"onset ratio: peak |y| over [0, 20 ms) over RMS over [100, 300) ms (dB)","dynamics output tap",6.63949,17.058,10.4185,">= 3 dB",PASS,gated,"onset ratio of the output (dB)",9.77367,9.74787,"n/a",""
+"AT-26","Mass: 0 -> 100","A + sustain 1 (C-8) + anchor level 0.5 (per-row setting, G11-2)",C3,"E_sub (dB)","Sum",-11.9226,-6.60305,5.31957,">= 3 dB",PASS,gated,"E_sub output (dB)",-9.87668,-5.54738,"n/a","H-14: L_K output -11.220567 -> -6.040512 dB; per-row setting G11-2: A's anchor level 1.0 sits at the AnchorLevel row's clamp, so Mass 100 cannot raise it"
+"AT-26","Mass: 0 -> 100","A + sustain 1 (C-8)",C3,"E_sub (dB)","Sum",-8.47284,-6.60305,1.86979,">= 3 dB",FAIL,recorded,"E_sub output (dB)",-6.4279,-5.54738,"n/a","H-14: L_K output -7.777577 -> -6.040512 dB; plain A_s, recorded (G11-2)"
+"AT-26","Mass: 0 -> 100","B (its own sustain 0.8, C-8) + anchor level 0.5 (per-row setting, G11-2 / G14-8)",C3,"E_sub (dB)","Sum",-16.248,-14.4107,1.83737,">= 3 dB",FAIL,gated,"E_sub output (dB)",-14.2031,-16.1852,"n/a","H-14: L_K output -14.615877 -> -11.301579 dB; per-row setting on B too: plain B read +1.84 dB at C3"
+"AT-26","Mass: 0 -> 100","B (its own sustain 0.8, C-8)",C3,"E_sub (dB)","Sum",-16.248,-14.4107,1.83737,">= 3 dB",FAIL,recorded,"E_sub output (dB)",-14.2031,-16.1852,"n/a","H-14: L_K output -14.615877 -> -11.301579 dB; plain B, recorded (G14-8)"
+"AT-27","Mass dynamics, gain: Mass 0 -> 100","B",C3,"dL_K = L_K(dynamics output) - L_K(Sum) (dB)","dynamics output tap and Sum",2.04941,-0.874348,2.92376,">= 3 dB",FAIL,recorded,"L_K output (dB)",-14.6159,-11.3016,"n/a","recorded: inert on A_s (B reads 2.92 dB at C3); per-row base B_s (FR-080 showcase-inert rule, B10-1 form)"
+"AT-27","Mass dynamics, gain: Mass 0 -> 100","B + sustain 1 (B10-1)",C3,"dL_K = L_K(dynamics output) - L_K(Sum) (dB)","dynamics output tap and Sum",2.04941,-1.96324,4.01266,">= 3 dB",PASS,gated,"L_K output (dB)",-12.9437,-11.2702,"n/a","per-row base B_s (FR-080 showcase-inert rule, B10-1 form; A_s recorded: B reads 2.92 dB at C3)"
+"AT-28","Mass dynamics, transient: transientAttackDb 0 -> +12","B",C3,"onset ratio: peak |y| over [0, 20 ms) over RMS over [100, 300) ms (dB)","dynamics output tap",10.1091,20.7729,10.6639,">= 3 dB",PASS,gated,"onset ratio of the output (dB)",10.0866,10.0803,"n/a",""
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+VoiceEngine_AudibilityTable_Mass
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_audibility_test.cpp(2107)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_audibility_test.cpp(663): FAILED:
+  REQUIRE( c.pass )
+with expansion:
+  false
+with message:
+  AT-26 C3 (Mass: 0 -> 100, base B (its own sustain 0.8, C-8) + anchor level 0.
+  5 (per-row setting, G11-2 / G14-8)): E_sub (dB) lo -16.248 hi -14.4107 value
+  1.83737 bar >= 3 dB | H-14: L_K output -14.615877 -> -11.301579 dB; per-row
+  setting on B too: plain B read +1.84 dB at C3
+
+===============================================================================
+test cases:   1 |   0 passed | 1 failed
+assertions: 913 | 912 passed | 1 failed
+
+exit 1

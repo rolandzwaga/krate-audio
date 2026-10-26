@@ -24,7 +24,7 @@ krate-audio/
 │   │   ├── processors/       # Layer 2: Composed processors (filters, saturation, dynamics)
 │   │   ├── systems/          # Layer 3: Complex systems (feedback networks, voices, organisms)
 │   │   └── effects/          # Layer 4: Complete effect algorithms
-│   └── tests/                # DSP unit tests (7200+ test cases, one executable per layer)
+│   └── tests/                # DSP unit tests (7200+ test cases, one executable per layer plus an IEEE-only one)
 │
 ├── plugins/
 │   ├── iterum/               # Iterum - Delay plugin with 10 modes
@@ -35,6 +35,7 @@ krate-audio/
 │   ├── membrum/              # Membrum - Physically-modelled drum synthesizer
 │   ├── seraphis/             # Seraphis - Spectral organism synthesizer
 │   ├── vorago/               # Vorago - Dark ambient drone instrument
+│   ├── profundum/            # Profundum - Mass bass instrument
 │   └── shared/               # Shared plugin infrastructure (UI controls, presets, MIDI, update)
 │
 ├── tools/
@@ -98,11 +99,17 @@ A spectral organism synthesizer: each voice is a 64-partial harmonic cloud drive
 
 [**Website & Documentation**](https://krateaudio.com/seraphis/) | [**Plugin README**](plugins/seraphis/README.md)
 
-### Vorago (in development)
+### [Vorago](plugins/vorago/README.md)
 
-A dark ambient drone instrument, Seraphis's subterranean sibling: sound masses grown from emergent agent interaction and slow discrete events rather than authored states. The DSP layer is being built first, phase by phase, as `Krate::DSP` systems (slow event engine, noise organism, resonance drift network, spectral smear, feedback ecology, subharmonic engine); the plugin itself follows once the engine is complete.
+A dark-ambient drone instrument, Seraphis's subterranean sibling: deep harmonic clouds, sub tones, spectral smear and a cavernous space engine, grown from slow discrete events and emergent agent interaction rather than authored states. Twelve concept macros steer the ecosystem, a live ecosystem view shows what it is doing, and 42 factory presets across seven categories ship with it. Drones take seconds to surface and minutes to swell; that is the instrument, not a fault.
 
-[**Roadmap**](specs/Vorago-roadmap.md)
+[**Website & Documentation**](https://krateaudio.com/vorago/) | [**Plugin README**](plugins/vorago/README.md) | [**Changelog**](plugins/vorago/CHANGELOG.md)
+
+### [Profundum](plugins/profundum/README.md)
+
+A bass instrument built around mass rather than layers: one additive harmonic core whose spectrum is regenerated from four controls (Depth, Body, Edge, Spectral Shift), a per-voice Sub Anchor that sits outside every nonlinear stage so the fundamental never disappears, a Mass macro, a frequency-dependent stereo field that keeps the weight centred, and a Bass Morph between two complete sound states. Four Personality macros (Weight, Dark/Bright, Tight/Loose, Clean/Violent), a live harmonic spectrum, Mono and 8-voice Poly modes, and 58 factory presets across six categories ship with it.
+
+[**Website & Documentation**](https://krateaudio.com/profundum/) | [**Plugin README**](plugins/profundum/README.md) | [**Changelog**](plugins/profundum/CHANGELOG.md)
 
 ## KrateDSP Library
 
@@ -151,8 +158,8 @@ ctest --test-dir build/windows-x64-release -C Release
 ctest --test-dir build/macos-release -C Release
 ctest --test-dir build/linux-release -C Release
 
-# Run DSP tests only (one executable per layer)
-cmake --build build/windows-x64-release --config Release --target dsp_core_tests dsp_primitives_tests dsp_processors_tests dsp_systems_tests dsp_effects_tests
+# Run DSP tests only (one executable per layer, plus dsp_ieee_tests for the IEEE-only NaN / Inf and bit-exactness cases)
+cmake --build build/windows-x64-release --config Release --target dsp_core_tests dsp_primitives_tests dsp_processors_tests dsp_systems_tests dsp_effects_tests dsp_ieee_tests
 ./build/windows-x64-release/bin/Release/dsp_core_tests
 ```
 
@@ -160,8 +167,8 @@ cmake --build build/windows-x64-release --config Release --target dsp_core_tests
 
 | Target | Location |
 |--------|----------|
-| Plugins | `build/<preset>/VST3/Release/<Plugin>.vst3` (Iterum, Disrumpo, Ruinae, Innexus, Gradus, Membrum, Seraphis) |
-| DSP tests | `build/<preset>/bin/Release/dsp_{core,primitives,processors,systems,effects}_tests` |
+| Plugins | `build/<preset>/VST3/Release/<Plugin>.vst3` (Iterum, Disrumpo, Ruinae, Innexus, Gradus, Membrum, Seraphis, Vorago, Profundum) |
+| DSP tests | `build/<preset>/bin/Release/dsp_{core,primitives,processors,systems,effects,ieee}_tests` |
 | Plugin tests | `build/<preset>/bin/Release/<plugin>_tests` (Iterum: `plugin_tests` and `approval_tests`) |
 | Shared infrastructure tests | `build/<preset>/bin/Release/shared_tests` |
 | KrateDSP library | `build/<preset>/lib/Release/KrateDSP.lib` |

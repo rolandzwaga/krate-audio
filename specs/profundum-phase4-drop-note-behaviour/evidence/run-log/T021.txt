@@ -1,0 +1,44 @@
+T021 - SC-013 smoke + R-2 probe, full grid; SC-026 FOLLOW grid (FR-053-FR-059; C-4, C-5; deviation 4)
+Date: 2026-10-13   Branch: synth/profundum
+
+STATUS: cases WRITTEN; build and runs NOT YET EXECUTED (the implementing agent was barred from building or
+running; the build agent runs them). No figure below is measured yet. Do not mark T021 done until section 2
+holds real output.
+
+=== 1. Cases (dsp/tests/unit/systems/profundum_note_behaviour_spectral_test.cpp, dsp_systems_tests) ===
+Per push ([systems][profundum][note-behaviour]):
+- ProfundumNoteBehaviour_PostDropLandingSmoke
+    (a)-(c) E1, 48 kHz, A {12, 48} x T {60, 200} ms x s {0, 1/3, 2/3, 1} x R {0, 1}, LOCK, block 37, 10 s drift;
+    R-2 probe also on the same cells at C3 (landing only, all of (a)-(c) except the drift);
+    bypass negative control (>= 1 cell |theta| > 90 deg); cornered-ramp C1 positive control;
+    (d) bridged retriggers mid-fall / mid-rebound / mid-elastic (E1 -> E1+5, A 24, T 200);
+        Reset noteOn zeroes the accumulator (theta from the effective sample, second Drop A = 0);
+        interrupted 4 s Drop + FreeRunning snap at E1 and C3 (accumulator kept, second landing gated);
+        glide in flight during a bridged Drop (theta recorded, E-15).
+- ProfundumNoteBehaviour_FollowAfterDropSmoke: FOLLOW, E1, 48 kHz, A {12, 48}, T 200, four anchors, R 1, 10 s.
+[long] shards (run each by name, concurrently, each to its own log):
+- ProfundumNoteBehaviour_PostDropLanding_E0 / _E1 / _E2 / _C3   (384 cells each; CSV evidence/sc013-<note>.csv)
+- ProfundumNoteBehaviour_PostDropLanding_PunchGhostE1          (768 cells; CSV evidence/sc013-E1-punch-ghost.csv)
+- ProfundumNoteBehaviour_FollowAfterDrop                       (128 cells, 60 s window each)
+Rulings applied: every cell gated |theta| <= 1 deg; no infeasible set; |gamma| recorded per T (shard summary
+lines "max |gamma|"); SC-013(c) Gamma = gamma_an (test-side, 4000-midpoint L(g), bisection on [0, 48]) + carry
+(0 on snaps) + 1 ulp(A); gamma_an unbounded -> the constant gamma_lim 48 st (CSV gamma_an = -1).
+R-2 gaps > 0.3 deg print "SC013-R2-DEFECT ..." lines: copy each into tasks.md "Defects found".
+
+=== 2. Run (TO BE FILLED by the build agent) ===
+Build:  "C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target dsp_systems_tests
+Smoke:  build/windows-x64-release/bin/Release/dsp_systems_tests.exe "ProfundumNoteBehaviour_PostDropLandingSmoke" "ProfundumNoteBehaviour_FollowAfterDropSmoke"
+Shards (six processes concurrently, one log each):
+        dsp_systems_tests.exe "ProfundumNoteBehaviour_PostDropLanding_E0"
+        dsp_systems_tests.exe "ProfundumNoteBehaviour_PostDropLanding_E1"
+        dsp_systems_tests.exe "ProfundumNoteBehaviour_PostDropLanding_E2"
+        dsp_systems_tests.exe "ProfundumNoteBehaviour_PostDropLanding_C3"
+        dsp_systems_tests.exe "ProfundumNoteBehaviour_PostDropLanding_PunchGhostE1"
+        dsp_systems_tests.exe "ProfundumNoteBehaviour_FollowAfterDrop"
+Quote each case's summary line and wall clock here:
+  Smoke wall clock                    : NOT MEASURED
+  FollowAfterDropSmoke wall clock     : NOT MEASURED
+  Shard E0 / E1 / E2 / C3 wall clock  : NOT MEASURED
+  Shard PunchGhostE1 wall clock       : NOT MEASURED
+  FollowAfterDrop wall clock          : NOT MEASURED
+  R-2 worst gap (smoke)               : NOT MEASURED

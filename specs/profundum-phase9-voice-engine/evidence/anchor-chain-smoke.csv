@@ -1,0 +1,2 @@
+note,algorithm,waveform,gated,f0_hz,window_samples,fold_target_s,rho,theta_deg,rho_r_db,theta_r_deg,anchor_s_vs_r_db,e_sub_s_db,e_sub_r_db,de_meas_db,de_pred_db,c_err_db,tapsum_residual_s,tapsum_residual_r,gains_steady,f_dev,anchor_half_f0_s_db,premises_ok,b_gate,e_sub_s_minus_anchor_db,pass_a,pass_b,pass_c
+E1,Rectify,Sine,1,41.2034,20969,100,0.184564,172.699,0.0801846,-9.90981,-9.64327e-16,-10.7424,-2.96142,-7.78097,-7.78097,5.19968e-09,4.22982e-10,4.99408e-10,1,0,-112.362,1,floor,-1.7527,1,1,1

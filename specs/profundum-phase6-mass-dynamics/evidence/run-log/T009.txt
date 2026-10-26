@@ -1,0 +1,62 @@
+T009 run-log - MassLaw (L3, systems/mass_law.h) and its law-level tests
+Date: 2026-10-17. Executor stage only: nothing built or run here (the group's build agent runs
+dsp_systems_tests "[mass-law]~[long]" after this group).
+
+== Files ==
+dsp/include/krate/dsp/systems/mass_law.h               (T002 stub filled)
+dsp/tests/unit/systems/mass_law_test.cpp               (T002 stub filled; registered at dsp/tests/CMakeLists.txt:733,
+                                                        shipping FP mode, not the -fno-fast-math block)
+specs/profundum-phase6-mass-dynamics/evidence/run-log/T009.txt (this file)
+
+== ODR ==
+grep -rn "class MassLaw|struct MassLaw" dsp/ plugins/ -> 0 hits before this task. Nested names (Target, Targets,
+Row) are class members; the test's helpers are in an anonymous namespace.
+
+== Reused APIs (read this session) ==
+primitives/smoother.h: SlewLimiter(float initialValue) :485, configure(float ratePerMs, float sampleRate) :512,
+  setTarget :519, getCurrentValue :539, process :545 (snaps to target within one rate step), snapTo :591;
+  calculateSlewRate = unitsPerMs / (sampleRate * 0.001f) :114-121.
+core/modulation_curves.h: applyModCurve(ModCurve, float) :38 (clamps x to [0, 1]; Linear x, Exponential x^2,
+  SCurve x^2(3-2x), Stepped floor(4x)/3). core/modulation_types.h: enum class ModCurve : uint8_t :79-84.
+core/db_utils.h: detail::isFinite(float) :118 (fast-math safe).
+processors/transient_shaper.h: kMinDurationMs 5 :70, kMaxDurationMs 250 :71, kDefaultDurationMs 40 :74.
+systems/anchor_oscillator.h: AnchorOscillator::kDefaultLevel 0.5f :72 (test only).
+processors/spectral_shape_recipe.h: kDefaultControls :227-228 (depth 0.5, body 0.5), kSineAnchor :230-231
+  (depth 1, body 0), kSawAnchor :236-237 (depth 0, body 0) (test only).
+tests/test_helpers/allocation_detector.h: AllocationDetector::getAllocationCount :70, AllocationScope :111.
+
+== Header (plan S7, C-7 (i) RULED 2026-10-17) ==
+kMassSweepMs = 40.0f, kSlewBoundRefMs = 20.0f; kRows between HARVEST-BEGIN/END mass-law-rows, one row per line;
+six static_asserts after the class (enum order, lo < hi, D-2 signs, no Stepped, C-7 slew cap, duration range).
+Slew: configure(100 / 40 = 2.5 units/ms, fs / 32): 1.6667 Mass units per interval at 48 kHz, 60 intervals per
+0 -> 100 sweep (55.125 -> 56 at 44.1 kHz, 120 at 96 kHz).
+
+== Tests (written first; tag [systems][profundum][mass-law]) ==
+1 MassLaw_TableInvariants   FR-021/022/024/030, SC-025 law (sizeof(Targets) == 6 floats; defaults == component defaults)
+2 MassLaw_TargetsMonotonic  SC-001(a): 1001 points x 3 bases x 6 fields; clamped runs printed
+3 MassLaw_NeutralAtFifty    SC-023 law arm: 3 fixture bases + 100 seeded (mt19937 6006) bases bit-equal at 50;
+                            edge bases (all-lo, all-hi, depth1-fold100) printed at Mass 0 / 100, clamps asserted
+4 MassLaw_SlewBounded       SC-004: fs {48, 44.1, 96} kHz x 3 bases x host blocks {1, 17, 64, 512}; |dTarget| <=
+                            range * (32/fs) / 20 ms + 1e-6 * range (excess printed); steps == ceil(40 ms * fs / 32) +/- 1;
+                            per-interval target sequences memcmp-equal across blocks
+5 MassLaw_PureEvaluation    FR-026
+6 MassLaw_InputSafety       FR-029
+7 MassLaw_Lifecycle         pre-prepare advanceInterval == 50, reset snaps, 96 kHz sweep 120 +/- 1
+8 MassLaw_NoAllocation      SC-016 law arm, positive control first; no Catch2 macro inside the tracked windows
+No [long] case in this TU.
+
+== Decisions / deviations (surface; none relaxes a bar) ==
+D-1 Seed rows under C-7 (i): the task text lists the S8.2 (ii) seed (Fold +50/+50, compression +0.5/+0.5) but the
+    same section and the C-7 ruling say "the S8.2 Fold / compression seeds at +60 / +1". Encoded as Fold
+    {0, 100, down +50, up +60} and CompressionAmount {0, 1, down +0.5, up +1} (plan S8.2 table "under (i)" values
+    are the Mass 100 side); the amountDown values keep the S8.2 seed (they clamp at the reference voice's 0 base).
+    Under (i) the compression row meets the SC-004 bound with equality (1 * 0.02 * 1.6667 = 0.03333 = 1 * (32/48000)
+    / 0.020), which the 1e-6 * range margin covers (deviation 12).
+D-2 prepare() calls reset() after configuring the slew (snap to the pending Mass), so a re-prepare never sweeps
+    from a stale smoothed value. Before prepare() advanceInterval() returns the current smoothed Mass unchanged
+    (initially 50); reset() before prepare() still snaps. Both recorded in the header comment.
+D-3 The D-2 sign check is applied to amountDown as well as amountUp (the task's "amountUp * amountDown >= 0" plus
+    the amountUp sign would admit amountUp == 0 with a wrong-signed amountDown). Stricter, not a relaxation.
+D-4 MassLaw::maxSlope(ModCurve) is public static constexpr (the C-7 check's "constexpr function"); Stepped returns 0
+    and is rejected separately. Private static fieldOf(Targets, Target) maps a row to its field (not in S7.1's list).
+D-5 Extra member prepared_ (bool) for the pre-prepare rule; SlewLimiter is constructed at kNeutralMass.

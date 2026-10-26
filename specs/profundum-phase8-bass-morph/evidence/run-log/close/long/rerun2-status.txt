@@ -1,0 +1,10 @@
+BassMorph_DiscreteClickFree_GoverningAmount exit=0 wall=12s
+BassMorph_ShowcaseTrajectory_Lock_C3 exit=0 wall=43s
+BassMorph_ShowcaseTrajectory_Lock_E1 exit=2 wall=45s
+BassMorph_IdempotentRender exit=0 wall=63s
+BassMorph_DiscreteClickFree_AnchorWaveform exit=0 wall=66s
+BassMorph_ShowcaseTrajectory_Blend_C3 exit=0 wall=68s
+BassMorph_ShowcaseTrajectory_Blend_E1 exit=2 wall=70s
+BassMorph_DiscreteClickFree_Algorithm exit=0 wall=87s
+BassMorph_ShowcaseTrajectory_Punch_C3 exit=0 wall=90s
+BassMorph_ShowcaseTrajectory_Punch_E1 exit=2 wall=92s

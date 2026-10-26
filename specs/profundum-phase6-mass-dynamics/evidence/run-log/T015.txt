@@ -1,0 +1,85 @@
+T015 run-log - Mass anchors, automation continuity, audibility, neutral render
+(SC-002, SC-005 (a)(b)(c), SC-011 Mass, SC-023 rendered; FR-023, FR-025, FR-027, FR-043)
+Date: 2026-10-17. Executor stage only: nothing was built or run (the Group 7 build agent runs the gate).
+
+== Files ==
+dsp/tests/unit/systems/mass_law_automation_test.cpp   (T002 stub filled; test-only, no header edits)
+specs/profundum-phase6-mass-dynamics/evidence/run-log/T015.txt (this file)
+
+== ODR ==
+TU-local names use the mla / kMla / Mla prefix in anonymous namespaces (tasks.md rule 5); grep for
+"mla[A-Z]|kMla" over dsp/tests and plugins found 0 hits before this task.
+
+== Reused APIs (read this session) ==
+dsp/tests/unit/systems/mass_dynamics_test_helpers.h: ChainConfig :171-191, ChainTaps :193-209, lawBaseFor :230,
+  targetField :120-142, renderChain :360, renderLength :95, descriptorSeconds :90, kSettleSeconds :87, kGrid :81,
+  periodDescriptors :715, PeriodDescriptors :704, kResampleHalf :549, deltaLStepDb :780.
+dsp/tests/unit/systems/shape_character_test_helpers.h: describe, Descriptors, separate, Separation, floorClamp.
+dsp/tests/unit/processors/shape_character_metric_helpers.h: differentialClicks(transition, refStart, refEnd, n, fs, f0) :76,
+  ClickCount :44.
+dsp/tests/unit/processors/transient_shaper_test_helpers.h: kE0Hz..kC3Hz, secondsToSamples, dTrWindow, dTrDb, meanOf,
+  isFiniteBits.
+dsp/tests/unit/systems/profundum_core_test_helpers.h: ProfundumTest::renderedHarmonicPowers :235.
+dsp/include/krate/dsp/systems/mass_law.h: kRows, evaluateRow, Targets, kNeutralMass, kNumTargets.
+dsp/include/krate/dsp/systems/mass_dynamics.h: BassCompressor::currentGainReductionDb :270 (0 = none, negative =
+  reduction) -> GR is reported as -tap (positive dB).
+
+== Cases (tag [systems][profundum][mass-law]) ==
+Per-push (gate): MassLaw_AnchorPoints, MassLaw_AutomationContinuousSmoke, MassLaw_StaticLatticeSmoke,
+  MassLaw_AutomationDescriptorTrajectorySmoke, MassLaw_Audibility, MassLaw_NeutralAtFiftyRendered.
+Expected red until T019 (Group 7 gate rule): MassLaw_AnchorPoints, MassLaw_Audibility.
+
+== [long] shard list (main loop, at close; one TEST_CASE each, run by name) ==
+MassLaw_AutomationContinuous_E0
+MassLaw_AutomationContinuous_E2
+MassLaw_AutomationContinuous_C3
+MassLaw_StaticLattice_E0
+MassLaw_StaticLattice_E2
+MassLaw_StaticLattice_C3
+MassLaw_AutomationDescriptorTrajectory_E0
+MassLaw_AutomationDescriptorTrajectory_E2
+MassLaw_AutomationDescriptorTrajectory_C3
+Cost estimate per shard (renders of the full chain): AutomationContinuous 14 x 4 s; StaticLattice 101 x 6.46 s;
+AutomationDescriptorTrajectory 101 + 32 (repeat noise) x 6.46 s + 2 x 4 s. The nine shards are independent and
+can run concurrently.
+
+== Decisions ==
+1. GR = -BassCompressor::currentGainReductionDb() (positive dB). SC-002 "GR(0) == 0.0f at every sample" counts
+   compGrDb samples != 0.0f over the whole render (must be 0); steady GR(100) = mean positive GR over [1 s, end].
+2. E_low, E_high and THD are compared after the OQ-S -60 dB floor clamp (ShapeCharacterTest::floorClamp, the T011
+   self-test convention) in SC-005(b)(c) and in the SC-011 Body / Fold levers; raw values are printed beside them.
+   SC-002 gates the raw describe() values (its bars are relative to THD(0) <= -30 dB, above the floor). SURFACE:
+   if the main loop reads the SC-005(b) E bars as unclamped, flip mlaCompared to return the raw values.
+3. "w1 of the sum": static frames use ProfundumTest::renderedHarmonicPowers(sumL last frame, N = 1); one-period
+   windows use L + 10*log10(w1Frac) of periodDescriptors(sumL) (PeriodDescriptors has no absolute w1). w1/Sum(w)
+   is 10*log10 of the fraction.
+4. SC-005(a): 4 s renders, the Mass move at 2 s (sample 96000, on the 32 grid), 20 ms host ramp = 960 samples
+   (massAt linear, read at grid points). refStart / refEnd are static renders at the start / end Mass at the same
+   host block and note-on. The hard +12 dB switch control multiplies the transition outL from the step sample on
+   (every arm); the unsmoothedMass control is the 0 -> 100 step (per block). Clicks are counted on outL.
+5. SC-005(b) smoke: the bars are applied to the adjacent pairs inside each three-point run ({0,1},{1,2},{49,50},
+   {50,51},{98,99},{99,100}); the task text says "three adjacent pairs of each run", a three-point run has two.
+6. SC-005(c): the traversal is the span of 32-sample intervals whose smoothed Mass (massPerInterval) differs from
+   the first and last values; windows start at tBegin - P + k*P (rounded) until past tEnd. For each consecutive
+   pair the bound is perUnit * (max - min of massPerInterval over the intervals both windows touch) + eps; GR per
+   window = mean positive GR over the window's floor(P) samples. Per descriptor the violation count must be 0;
+   worst change and worst change/bound ratio are printed.
+7. SC-005(c) repeat noise (long shards): plan S13.2 max - min over 8 note-on offsets x blocks {64, 512} at Mass 0
+   and 100, capped at 0.1 dB / 0.005 oct. DEVIATION: the offsets k*P/8 are rounded to the nearest multiple of 32
+   because renderChain REQUIREs noteOnSample on the 32 grid (T011 decision 1). The smoke uses eps = the caps
+   (the T014 smoke precedent).
+8. SC-011: the six levers use the SC-001(b) override scheme (massAt = 0, every target overridden, the driven
+   one at Mass 0 vs Mass 100). Compression: base kSawAnchor, preDynamicsGainDb -12 dB before 1 s + 131072
+   samples (179072) then 0 dB; DeltaL_step low segment [step - 65536, step), high segment [end - 65536, end);
+   moved = DeltaL(0) - DeltaL(100) (signed, compression shrinks it); steady GR printed (recorded only). Duration:
+   D_tr on outL from note-on (sample 0) against the last W samples, W = dTrWindow(fs, 250) = 375 ms, shaper at
+   the FR-009 defaults (+6 / 0, ChainConfig defaults).
+9. SC-023 rendered: 2 s renders with per-sample dynamics taps, all 17 taps memcmp-equal law vs massLawDetached for
+   the reference voice and kSawAnchor at E1; per-interval targets memcmp-equal to the law base. Edge bases: the
+   tasks.md pair (depth 1 at Mass 100, fold 100 at Mass 0; both biases pull AWAY from the edge, so nothing
+   clamps) plus, to satisfy the spec SC-023 row's "a base at a range end with a pushing bias", the clamping pair
+   (depth 1 at Mass 0 -> 1.0f, fold 100 at Mass 100 -> 100.0f, CHECKed). Every edge render's targets are printed,
+   each target is CHECKed inside its row's [lo, hi], and outL / outR are finite (bit test).
+
+== DEFECT lines ==
+none (nothing run).

@@ -6,12 +6,83 @@
 #include "public.sdk/source/vst/vstpresetfile.h"
 
 #include <algorithm>
+#include <cstddef>
+#include <string>
+#include <string_view>
 #include <cctype>
 #include <ranges>
 #include <sstream>
 #include <utility>
 
 namespace Krate::Plugins {
+
+namespace {
+
+// FR-065: the five XML entities, so a description round-trips through the Info chunk's Comment attribute.
+std::string xmlEscapeAttribute(const std::string& text) {
+    std::string out;
+    out.reserve(text.size());
+    for (const char c : text) {
+        switch (c) {
+            case '&': out += "&amp;"; break;
+            case '<': out += "&lt;"; break;
+            case '>': out += "&gt;"; break;
+            case '"': out += "&quot;"; break;
+            case '\'': out += "&apos;"; break;
+            default: out += c; break;
+        }
+    }
+    return out;
+}
+
+std::string xmlUnescapeAttribute(const std::string& text) {
+    static constexpr std::pair<const char*, char> kEntities[] = {
+        {"&amp;", '&'}, {"&lt;", '<'}, {"&gt;", '>'}, {"&quot;", '"'}, {"&apos;", '\''}};
+    std::string out;
+    out.reserve(text.size());
+    for (std::size_t i = 0; i < text.size();) {
+        bool replaced = false;
+        if (text[i] == '&') {
+            for (const auto& [entity, ch] : kEntities) {
+                const std::string_view e(entity);
+                if (text.compare(i, e.size(), e) == 0) {
+                    out += ch;
+                    i += e.size();
+                    replaced = true;
+                    break;
+                }
+            }
+        }
+        if (!replaced) {
+            out += text[i];
+            ++i;
+        }
+    }
+    return out;
+}
+
+// FR-065: the value of the Info chunk's Comment attribute, or empty when there is none.
+std::string commentFromMetaXml(const std::string& xml) {
+    const std::size_t attr = xml.find("id=\"Comment\"");
+    if (attr == std::string::npos) {
+        return {};
+    }
+    const std::size_t elementEnd = xml.find('>', attr);
+    const std::size_t value = xml.find("value=\"", attr);
+    if (value == std::string::npos || (elementEnd != std::string::npos && value > elementEnd)) {
+        return {};
+    }
+    const std::size_t begin = value + 7;
+    const std::size_t end = xml.find('"', begin);
+    if (end == std::string::npos) {
+        return {};
+    }
+    return xmlUnescapeAttribute(xml.substr(begin, end - begin));
+}
+
+constexpr Steinberg::int32 kMaxMetaInfoBytes = 1 << 20;  // a larger Info chunk is malformed; nothing is read
+
+}  // namespace
 
 PresetManager::PresetManager(
     PresetManagerConfig config,
@@ -265,13 +336,13 @@ bool PresetManager::savePreset(
     xml << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
     xml << "<MetaInfo>\n";
     xml << "  <Attr id=\"MediaType\" value=\"VstPreset\" type=\"string\"/>\n";
-    xml << "  <Attr id=\"PlugInName\" value=\"" << config_.pluginName << "\" type=\"string\"/>\n";
-    xml << "  <Attr id=\"PlugInCategory\" value=\"" << config_.pluginCategoryDesc << "\" type=\"string\"/>\n";
+    xml << R"(  <Attr id="PlugInName" value=")" << config_.pluginName << "\" type=\"string\"/>\n";
+    xml << R"(  <Attr id="PlugInCategory" value=")" << config_.pluginCategoryDesc << "\" type=\"string\"/>\n";
     xml << R"(  <Attr id="Name" value=")" << name << "\" type=\"string\"/>\n";
     xml << R"(  <Attr id="MusicalCategory" value=")" << subcategory << "\" type=\"string\"/>\n";
     xml << R"(  <Attr id="MusicalInstrument" value=")" << subDir << "\" type=\"string\"/>\n";
     if (!description.empty()) {
-        xml << R"(  <Attr id="Comment" value=")" << description << "\" type=\"string\"/>\n";
+        xml << R"(  <Attr id="Comment" value=")" << xmlEscapeAttribute(description) << "\" type=\"string\"/>\n";
     }
     xml << "</MetaInfo>\n";
     std::string xmlStr = xml.str();
@@ -354,13 +425,13 @@ bool PresetManager::overwritePreset(const PresetInfo& preset) {
     xml << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
     xml << "<MetaInfo>\n";
     xml << "  <Attr id=\"MediaType\" value=\"VstPreset\" type=\"string\"/>\n";
-    xml << "  <Attr id=\"PlugInName\" value=\"" << config_.pluginName << "\" type=\"string\"/>\n";
-    xml << "  <Attr id=\"PlugInCategory\" value=\"" << config_.pluginCategoryDesc << "\" type=\"string\"/>\n";
+    xml << R"(  <Attr id="PlugInName" value=")" << config_.pluginName << "\" type=\"string\"/>\n";
+    xml << R"(  <Attr id="PlugInCategory" value=")" << config_.pluginCategoryDesc << "\" type=\"string\"/>\n";
     xml << R"(  <Attr id="Name" value=")" << preset.name << "\" type=\"string\"/>\n";
     xml << R"(  <Attr id="MusicalCategory" value=")" << preset.category << "\" type=\"string\"/>\n";
     xml << R"(  <Attr id="MusicalInstrument" value=")" << preset.subcategory << "\" type=\"string\"/>\n";
     if (!preset.description.empty()) {
-        xml << R"(  <Attr id="Comment" value=")" << preset.description << "\" type=\"string\"/>\n";
+        xml << R"(  <Attr id="Comment" value=")" << xmlEscapeAttribute(preset.description) << "\" type=\"string\"/>\n";
     }
     xml << "</MetaInfo>\n";
     std::string xmlStr = xml.str();
@@ -509,9 +580,30 @@ bool PresetManager::writeMetadata(const std::filesystem::path& /*path*/, const P
     return true;
 }
 
-bool PresetManager::readMetadata(const std::filesystem::path& /*path*/, PresetInfo& /*info*/) {
-    // TODO: Implement XML metadata reading
-    return true;
+// FR-065: reads only the Info chunk's Comment attribute into info.description. Name and category keep coming from
+// the filename and folder (parsePresetFile), so no plugin's browser regroups. A missing, truncated or malformed
+// chunk leaves the description empty.
+bool PresetManager::readMetadata(const std::filesystem::path& path, PresetInfo& info) {
+    auto* stream = Steinberg::Vst::FileStream::open(path.string().c_str(), "rb");
+    if (stream == nullptr) {
+        return false;
+    }
+    bool ok = false;
+    {
+        Steinberg::Vst::PresetFile file(stream);
+        Steinberg::int32 size = 0;
+        if (file.readChunkList() && file.readMetaInfo(nullptr, size) && size > 0 && size <= kMaxMetaInfoBytes) {
+            std::string xml(static_cast<std::size_t>(size), '\0');
+            Steinberg::int32 got = size;
+            if (file.readMetaInfo(xml.data(), got) && got > 0 && got <= size) {
+                xml.resize(static_cast<std::size_t>(got));
+                info.description = commentFromMetaXml(xml);
+                ok = true;
+            }
+        }
+    }
+    stream->release();
+    return ok;
 }
 
 } // namespace Krate::Plugins

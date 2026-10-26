@@ -1,0 +1,22 @@
+Filters: "ProfundumCore_ExcitationDriveMonotonic"
+Randomness seeded to: 540377962
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+ProfundumCore_ExcitationDriveMonotonic
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_excitation_spectral_test.cpp(520)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_excitation_spectral_test.cpp(258): warning:
+  SC-001 drive sweep: smallest THD(drive 1) - THD(drive 0) 31.3302 dB (bar 20;
+  plan 44.4 / 31.4)
+
+169.276 s: ProfundumCore_ExcitationDriveMonotonic
+===============================================================================
+All tests passed (8688 assertions in 1 test case)
+
+exit: 0 wall: 170 s

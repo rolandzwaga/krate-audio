@@ -1,0 +1,13 @@
+=== paired A/B batch2 vs batch5 (static-morph, pinned) 2026-10-20T18:13:08Z
+--- batch2 round 1 2026-10-20T18:13:08Z
+batch2 r1 P1V static-morph Tube MONO 8.4402 POLY4 24.115
+batch2 r1 P1V static-morph Fracture MONO 6.68 POLY4 24.4
+--- batch5 round 1 2026-10-20T18:13:33Z
+batch5 r1 P1V static-morph Tube MONO 7.2606 POLY4 24.48
+batch5 r1 P1V static-morph Fracture MONO 6.6843 POLY4 24.428
+--- batch2 round 2 2026-10-20T18:13:56Z
+batch2 r2 P1V static-morph Tube MONO 8.0008 POLY4 24.754
+batch2 r2 P1V static-morph Fracture MONO 6.7032 POLY4 24.364
+--- batch5 round 2 2026-10-20T18:14:19Z
+batch5 r2 P1V static-morph Tube MONO 6.5069 POLY4 23.323
+batch5 r2 P1V static-morph Fracture MONO 6.882 POLY4 23.995

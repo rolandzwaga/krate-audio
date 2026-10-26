@@ -1,0 +1,9 @@
+=== distinctness 2026-10-25T11:34:19Z commit 5ad50273
+cmd: build/windows-x64-release/bin/Release/profundum_tests.exe Profundum_PresetDistinctness
+Filters: "Profundum_PresetDistinctness"
+Randomness seeded to: 2152700374
+# Profundum_PresetDistinctness: presets=58 F=1 closest=Bedrock vs Locked Floor d=1.91446 masked=15
+===============================================================================
+All tests passed (11226632 assertions in 1 test case)
+
+WALL distinctness 334.7 s exit=0

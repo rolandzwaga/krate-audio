@@ -1,0 +1,3 @@
+pair,ratio,ratio_pass,clicks_morph,clicks_direct,clicks_pass,morph_detections,direct_detections,static_detections,out_ratio,w_begin,w_end
+source Off->Cycle,1,1,0,0,1,0,0,0,1,48000,51325
+target Mass->Depth,1,1,0,0,1,0,0,0,1,48000,51325

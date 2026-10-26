@@ -1,0 +1,179 @@
+=== SC-001 .. SC-004 + SC-017 cpu lane 2026-10-22T00:14:25Z commit 0ae33b87
+--- cmd: pwsh -NoProfile -File tools/pin-perf-cores.ps1 -Exe build/windows-x64-release/bin/Release/dsp_systems_tests.exe -ExeArgs "VoiceEngine_CpuMono"
+pin-perf-cores: performance-core mask 0xFFFF
+Filters: "VoiceEngine_CpuMono"
+Randomness seeded to: 1257894367
+# SC-001 VoiceEngine_CpuMono (MONO, E1) (tasks.md T020; plan S10.6)
+# SC-001 setting on both showcase endpoints, morph ramp 1000 ms toggled every 1 s, Drop 24 st retriggered every 0.25 s, block 64, 10 s timed after 1 s warm-up, median of 3 fresh engines, % of one core = wall / audio x 100, 48 kHz, FTZ/DAZ on, no observer.
+trial MONO Tube full: 8.9265 8.2745 8.1667 -> median 8.2745
+SC001 MONO Tube 8.2745
+trial MONO Fracture full: 7.9668 7.6 7.6459 -> median 7.6459
+SC001 MONO Fracture 7.6459
+# per-stage breakdown: lever ablation of the real engine (one lever at its idle value, the rest the SC-001 setting); cost = full - without, % of one core
+trial MONO Tube without excitation(mix 0): 7.5152 7.4181 7.3718 -> median 7.4181
+SC001 STAGE Tube excitation(mix 0) without=7.4181 cost=0.85638
+trial MONO Tube without shape(0): 8.9437 8.1866 8.7296 -> median 8.7296
+SC001 STAGE Tube shape(0) without=8.7296 cost=-0.45513
+trial MONO Tube without fold(0): 7.4596 7.3049 6.991 -> median 7.3049
+SC001 STAGE Tube fold(0) without=7.3049 cost=0.96959
+trial MONO Tube without fold-feed(0): 7.9888 8.385 8.3205 -> median 8.3205
+SC001 STAGE Tube fold-feed(0) without=8.3205 cost=-0.04604
+trial MONO Tube without character(amount 0): 8.1539 8.054 8.0743 -> median 8.0743
+SC001 STAGE Tube character(amount 0) without=8.0743 cost=0.2002
+trial MONO Tube without anchor(level 0): 7.8877 8.3808 7.9932 -> median 7.9932
+SC001 STAGE Tube anchor(level 0) without=7.9932 cost=0.28126
+trial MONO Tube without follow(mode Lock): 8.0366 8.0968 8.536 -> median 8.0968
+SC001 STAGE Tube follow(mode Lock) without=8.0968 cost=0.17765
+trial MONO Tube without drop(0 st): 7.0673 7.9842 7.0282 -> median 7.0673
+SC001 STAGE Tube drop(0 st) without=7.0673 cost=1.2072
+trial MONO Tube without motion(source Off): 7.4081 7.3566 7.9757 -> median 7.4081
+SC001 STAGE Tube motion(source Off) without=7.4081 cost=0.86641
+trial MONO Tube without field(SOLID, spread 0, motionDepth 0): 5.4275 5.1483 5.3226 -> median 5.3226
+SC001 STAGE Tube field(SOLID, spread 0, motionDepth 0) without=5.3226 cost=2.9519
+trial MONO Tube without mass(neutral): 8.3065 7.9689 8.4774 -> median 8.3065
+SC001 STAGE Tube mass(neutral) without=8.3065 cost=-0.031989
+trial MONO Tube without dynamics-oversampling(off): 7.9739 6.966 7.4399 -> median 7.4399
+SC001 STAGE Tube dynamics-oversampling(off) without=7.4399 cost=0.83454
+trial MONO Tube without morph(position held at 0): 7.0221 7.0559 7.4141 -> median 7.0559
+SC001 STAGE Tube morph(position held at 0) without=7.0559 cost=1.2185
+trial MONO Tube without retrigger(none): 8.2898 7.5623 7.4278 -> median 7.5623
+SC001 STAGE Tube retrigger(none) without=7.5623 cost=0.71215
+trial MONO Fracture without excitation(mix 0): 6.9517 7.5266 7.5389 -> median 7.5266
+SC001 STAGE Fracture excitation(mix 0) without=7.5266 cost=0.11934
+trial MONO Fracture without shape(0): 12.88 8.8581 7.6875 -> median 8.8581
+SC001 STAGE Fracture shape(0) without=8.8581 cost=-1.2122
+trial MONO Fracture without fold(0): 7.0376 7.5763 7.5417 -> median 7.5417
+SC001 STAGE Fracture fold(0) without=7.5417 cost=0.10427
+trial MONO Fracture without fold-feed(0): 8.446 8.7827 8.9303 -> median 8.7827
+SC001 STAGE Fracture fold-feed(0) without=8.7827 cost=-1.1367
+trial MONO Fracture without character(amount 0): 8.2262 8.6989 9.0411 -> median 8.6989
+SC001 STAGE Fracture character(amount 0) without=8.6989 cost=-1.0529
+trial MONO Fracture without anchor(level 0): 18.283 21.009 15.371 -> median 18.283
+SC001 STAGE Fracture anchor(level 0) without=18.283 cost=-10.637
+trial MONO Fracture without follow(mode Lock): 9.3531 8.2227 8.2644 -> median 8.2644
+SC001 STAGE Fracture follow(mode Lock) without=8.2644 cost=-0.61842
+trial MONO Fracture without drop(0 st): 8.0993 7.9787 21.691 -> median 8.0993
+SC001 STAGE Fracture drop(0 st) without=8.0993 cost=-0.45335
+trial MONO Fracture without motion(source Off): 22.573 10.102 8.5158 -> median 10.102
+SC001 STAGE Fracture motion(source Off) without=10.102 cost=-2.4563
+trial MONO Fracture without field(SOLID, spread 0, motionDepth 0): 5.7597 6.017 6.2742 -> median 6.017
+SC001 STAGE Fracture field(SOLID, spread 0, motionDepth 0) without=6.017 cost=1.629
+trial MONO Fracture without mass(neutral): 8.4963 8.1234 8.2907 -> median 8.2907
+SC001 STAGE Fracture mass(neutral) without=8.2907 cost=-0.64476
+trial MONO Fracture without dynamics-oversampling(off): 7.7023 8.182 7.7066 -> median 7.7066
+SC001 STAGE Fracture dynamics-oversampling(off) without=7.7066 cost=-0.060622
+trial MONO Fracture without morph(position held at 0): 7.7372 10.397 8.4079 -> median 8.4079
+SC001 STAGE Fracture morph(position held at 0) without=8.4079 cost=-0.76192
+trial MONO Fracture without retrigger(none): 8.186 7.3792 6.8636 -> median 7.3792
+SC001 STAGE Fracture retrigger(none) without=7.3792 cost=0.26672
+# checksum 322.8 (keeps the renders observable)
+SC001 VERDICT RED 8.2745 (Tube 8.2745, Fracture 7.6459; bar 8 %)
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+VoiceEngine_CpuMono
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_perf_test.cpp(515)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_perf_test.cpp(550): FAILED:
+  CHECK( worst <= kPfMonoBarPct )
+with expansion:
+  8.274476 <= 8.0
+
+===============================================================================
+test cases:   1 |   0 passed | 1 failed
+assertions: 573 | 572 passed | 1 failed
+
+--- VoiceEngine_CpuMono exit: 1 wall: 98 s
+--- cmd: pwsh -NoProfile -File tools/pin-perf-cores.ps1 -Exe build/windows-x64-release/bin/Release/dsp_systems_tests.exe -ExeArgs "VoiceEngine_CpuPoly4"
+pin-perf-cores: performance-core mask 0xFFFF
+Filters: "VoiceEngine_CpuPoly4"
+Randomness seeded to: 4050271292
+# SC-002 VoiceEngine_CpuPoly4 (POLY, E1 / A1 / E2 / C3, PerVoice) (tasks.md T020; plan S10.6)
+# SC-001 setting on both showcase endpoints, morph ramp 1000 ms toggled every 1 s, Drop 24 st retriggered every 0.25 s, block 64, 10 s timed after 1 s warm-up, median of 3 fresh engines, % of one core = wall / audio x 100, 48 kHz, FTZ/DAZ on, no observer.
+trial POLY4 Tube: 31.193 30.659 26.415 -> median 30.659
+SC002 POLY4 Tube 30.659
+trial POLY4 Fracture: 26.699 32.515 28.003 -> median 28.003
+SC002 POLY4 Fracture 28.003
+trial POLY8 Tube: 54.894 65.699 54.365 -> median 54.894
+trial POLY8 Fracture: 55.965 53.104 47.078 -> median 53.104
+# checksum -1217.2 (keeps the renders observable)
+SC002 RECORD POLY8 (E1 / C3 / A1 / E2 / G1 / B1 / E3 / A2; Q8, not gated) Tube 54.894 Fracture 53.104 max 54.894
+SC002 VERDICT RED 30.659 (Tube 30.659, Fracture 28.003; bar 25 %)
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+VoiceEngine_CpuPoly4
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_perf_test.cpp(557)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_perf_test.cpp(589): FAILED:
+  CHECK( worst <= kPfPolyBarPct )
+with expansion:
+  30.659367 <= 25.0
+
+===============================================================================
+test cases:  1 |  0 passed | 1 failed
+assertions: 80 | 79 passed | 1 failed
+
+--- VoiceEngine_CpuPoly4 exit: 1 wall: 59 s
+--- cmd: pwsh -NoProfile -File tools/pin-perf-cores.ps1 -Exe build/windows-x64-release/bin/Release/dsp_systems_tests.exe -ExeArgs "VoiceEngine_WorstInterval"
+pin-perf-cores: performance-core mask 0xFFFF
+Filters: "VoiceEngine_WorstInterval"
+Randomness seeded to: 3690338993
+# SC-003 VoiceEngine_WorstInterval (tasks.md T020; plan S10.6 SC-003 row)
+# 4 voices held E1 / A1 / E2 / C3, block 64, ramp 5 ms, position toggled 0 <-> 1 every 0.1 s; pair Tube<->Fracture / SOLID<->WIDE / field Motion Drift<->Cycle / Motion ENV<->CYCLE / Anchor Sine<->Triangle, all amp curves -1<->+1, sustain 1, Anchor morph Blend; 10 s reported after 1 s warm-up; 3 renders, per-block median across renders
+# checksum 321.71 (keeps the renders observable)
+SC003 BLOCK worst_median_ms=0.6208 (block 152, sample 57728) ratio=0.4656 raw_max_ms=1.848 raw_ratio=1.386 mean_ms=0.35327 budget_ms=1.3333
+SC003 RECORD worst 32-sample interval 54.6 % of a core (Phase 8: 81.6 %, fixture overhead included; recorded, not gated)
+SC003 COINCIDENCE switches=109 all_five_together=109 anchorPosition==position=109
+SC003 COVERAGE switch blocks: AmpCurve issued on min 4 voices over 109 switches (109 blocks with all 4); worst timed block is not a switch block (its AmpCurve mask 0xf, recorded)
+H13 RECORD crossfade window (switch + one E1 period + 10 ms) blocks=2700 cost=7.8833 % of a core per voice (all-block mean 6.6239 %; Phase 5 crossfade cell 2.65 %)
+SC003 VERDICT GREEN 0.4656 (bar 1.0)
+===============================================================================
+All tests passed (161 assertions in 1 test case)
+
+--- VoiceEngine_WorstInterval exit: 0 wall: 22 s
+--- cmd: pwsh -NoProfile -File tools/pin-perf-cores.ps1 -Exe build/windows-x64-release/bin/Release/dsp_systems_tests.exe -ExeArgs "VoiceEngine_PlacementCost"
+pin-perf-cores: performance-core mask 0xFFFF
+Filters: "VoiceEngine_PlacementCost"
+Randomness seeded to: 4156389474
+# SC-004 VoiceEngine_PlacementCost (4 voices E1 / A1 / E2 / C3, SC-002 protocol) (tasks.md T020; plan S10.6)
+# SC-001 setting on both showcase endpoints, morph ramp 1000 ms toggled every 1 s, Drop 24 st retriggered every 0.25 s, block 64, 10 s timed after 1 s warm-up, median of 3 fresh engines, % of one core = wall / audio x 100, 48 kHz, FTZ/DAZ on, no observer.
+trial PERVOICE4 Tube: 25.445 24.745 24.235 -> median 24.745
+trial POSTSUM4 Tube: 28.258 32.342 29.326 -> median 29.326
+trial FOLLOWOFF4 Tube: 25.186 24.858 26.997 -> median 25.186
+SC004 Tube pervoice=24.745 postsum=29.326 follow_on=24.745 follow_off=25.186 follow_cost=-0.44158
+trial PERVOICE4 Fracture: 24.587 24.826 26.111 -> median 24.826
+trial POSTSUM4 Fracture: 31.328 29.762 30.425 -> median 30.425
+trial FOLLOWOFF4 Fracture: 22.951 23.019 25.971 -> median 23.019
+SC004 Fracture pervoice=24.826 postsum=30.425 follow_on=24.826 follow_off=23.019 follow_cost=1.8062
+# checksum -460.85 (keeps the renders observable)
+FR014 READING placement: per-voice max=24.826 post-sum max=30.425 (bar 25 %); criterion per-voice > bar AND post-sum <= bar -> KEEP PERVOICE
+FR014 READING follow: follow-on (per voice) max=24.826 follow-off max=25.186 cost=-0.36064; criterion follow-on > bar AND follow-off <= bar -> KEEP FOLLOW PER VOICE
+===============================================================================
+All tests passed (119 assertions in 1 test case)
+
+--- VoiceEngine_PlacementCost exit: 0 wall: 56 s
+--- cmd: pwsh -NoProfile -File tools/pin-perf-cores.ps1 -Exe build/windows-x64-release/bin/Release/dsp_systems_tests.exe -ExeArgs "MassDynamics_CpuBudget"
+pin-perf-cores: performance-core mask 0xFFFF
+Filters: "MassDynamics_CpuBudget"
+Randomness seeded to: 1392211414
+SC017 setup fs=48000 block=64 interval=32 note=E1 (41.20344 Hz) fixture=kSawAnchor -12 dBFS RMS loop=47763 samples R_delay=431 samples (0.37 P) reps=best of 5 x 10.0 s warmup=1 s bar=1.0%
+SC017 GATED distinct_pair MassDynamics(A=+12 dB S=-6 dB duration=40 ms amount=1 key=E1) + MassLaw advanceInterval+evaluate per 32 samples (Mass 75) pct=0.6962 bar=1.0
+SC017 RECORD dc_limiter DCBlocker x2 + TruePeakLimiter (Phase 9) pct=1.0470 (not gated)
+SC017 RECORD linked L == R (MassDynamics mono path, right == left, copied to R) pct=0.4873 (not gated)
+SC017 RECORD silence one silent second after 1 s of signal (gated chain) pct=0.5328 (not gated)
+SC017 VERDICT PASS 0.696 %
+===============================================================================
+All tests passed (15 assertions in 1 test case)
+
+--- MassDynamics_CpuBudget exit: 0 wall: 2 s

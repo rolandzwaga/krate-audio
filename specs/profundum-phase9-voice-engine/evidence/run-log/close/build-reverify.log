@@ -1,0 +1,501 @@
+MSBuild version 17.14.60+43b635718 for .NET Framework
+
+  Checking File Globs
+  Catch2.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\Catch2.lib
+  PFFFT.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\pffft.lib
+  hwy.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy.lib
+  hwy_contrib.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy_contrib.lib
+  KrateDSP.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\KrateDSP.lib
+  dsp_core_tests.vcxproj -> F:\projects\iterum\build\windows-x64-release\bin\Release\dsp_core_tests.exe
+MSBuild version 17.14.60+43b635718 for .NET Framework
+
+  Checking File Globs
+  Catch2.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\Catch2.lib
+  hwy.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy.lib
+  PFFFT.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\pffft.lib
+  hwy_contrib.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy_contrib.lib
+  KrateDSP.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\KrateDSP.lib
+  dsp_primitives_tests.vcxproj -> F:\projects\iterum\build\windows-x64-release\bin\Release\dsp_primitives_tests.exe
+MSBuild version 17.14.60+43b635718 for .NET Framework
+
+  Checking File Globs
+  Catch2.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\Catch2.lib
+  PFFFT.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\pffft.lib
+  hwy.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy.lib
+  hwy_contrib.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy_contrib.lib
+  KrateDSP.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\KrateDSP.lib
+  dsp_processors_tests.vcxproj -> F:\projects\iterum\build\windows-x64-release\bin\Release\dsp_processors_tests.exe
+MSBuild version 17.14.60+43b635718 for .NET Framework
+
+  Checking File Globs
+  Catch2.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\Catch2.lib
+  hwy.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy.lib
+  PFFFT.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\pffft.lib
+  hwy_contrib.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy_contrib.lib
+  KrateDSP.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\KrateDSP.lib
+  dsp_systems_tests.vcxproj -> F:\projects\iterum\build\windows-x64-release\bin\Release\dsp_systems_tests.exe
+MSBuild version 17.14.60+43b635718 for .NET Framework
+
+  Checking File Globs
+  Catch2.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\Catch2.lib
+  PFFFT.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\pffft.lib
+  hwy.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy.lib
+  hwy_contrib.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy_contrib.lib
+  KrateDSP.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\KrateDSP.lib
+  digital_delay_age0_ramping_test.cpp
+  digital_delay_test.cpp
+  digital_width_processing_test.cpp
+  ducking_delay_test.cpp
+  freeze_mode_test.cpp
+  ping_pong_delay_test.cpp
+  reverse_delay_test.cpp
+  shimmer_delay_test.cpp
+  vorago_composed_chain_test.cpp
+  dsp_effects_tests.vcxproj -> F:\projects\iterum\build\windows-x64-release\bin\Release\dsp_effects_tests.exe
+MSBuild version 17.14.60+43b635718 for .NET Framework
+
+  Checking File Globs
+  Catch2.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\Catch2.lib
+  base.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\base.lib
+  pluginterfaces.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\pluginterfaces.lib
+  PFFFT.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\pffft.lib
+  hwy.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy.lib
+  sdk_common.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\sdk_common.lib
+  vstgui.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\vstgui.lib
+  hwy_contrib.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy_contrib.lib
+  sdk.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\sdk.lib
+  KrateDSP.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\KrateDSP.lib
+  vstgui_uidescription.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\vstgui_uidescription.lib
+  vstgui_support.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\vstgui_support.lib
+  KratePluginsShared.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\KratePluginsShared.lib
+  processor.cpp
+  processor_messages.cpp
+  processor_midi.cpp
+  processor_params.cpp
+  processor_state.cpp
+  enable_disable_tests.cpp
+  harmonic_memory_tests.cpp
+  innexus_processor_tests.cpp
+  musical_control_tests.cpp
+  reset_trap_tests.cpp
+  residual_integration_tests.cpp
+  sample_load_e2e_tests.cpp
+  sidechain_integration_tests.cpp
+  test_adsr_envelope.cpp
+  test_adsr_phase8_verification.cpp
+  test_analysis_feedback.cpp
+  test_data_exchange_pipeline.cpp
+  test_evolution_engine.cpp
+  test_harmonic_physics_integration.cpp
+  test_m6_pipeline_integration.cpp
+  test_modulator_sync.cpp
+  test_output_noise.cpp
+  test_physical_model_output_levels.cpp
+  test_polyphonic_mpe.cpp
+  test_real_sample_noise.cpp
+  test_sidechain_signal_end.cpp
+  test_sidechain_wav_quality.cpp
+  test_stereo_spread_integration.cpp
+  test_adsr_display_wiring.cpp
+  test_controller_ui.cpp
+  body_resonance_integration_tests.cpp
+  bow_exciter_switch_test.cpp
+  innexus_voice_bow_test.cpp
+  sympathetic_resonance_integration_test.cpp
+  test_data_exchange.cpp
+  test_harmonic_blender.cpp
+  test_memory_slot_adsr.cpp
+  test_physical_model.cpp
+  waveguide_integration_test.cpp
+  bow_oversampling_test.cpp
+  controller_state_tests.cpp
+  harmonic_memory_vst_tests.cpp
+  innexus_vst_tests.cpp
+  test_state_v10.cpp
+  test_state_v6.cpp
+  test_state_v7.cpp
+  test_state_v8.cpp
+  test_state_v9.cpp
+     Creating library F:/projects/iterum/build/windows-x64-release/lib/Release/innexus_tests.lib and object F:/projects/iterum/build/windows-x64-release/lib/Release/innexus_tests.exp
+  innexus_tests.vcxproj -> F:\projects\iterum\build\windows-x64-release\bin\Release\innexus_tests.exe
+MSBuild version 17.14.60+43b635718 for .NET Framework
+
+  Checking File Globs
+  Catch2.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\Catch2.lib
+  base.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\base.lib
+  PFFFT.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\pffft.lib
+  hwy.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy.lib
+  pluginterfaces.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\pluginterfaces.lib
+  membrum_float_guard.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\membrum_float_guard.lib
+  vstgui.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\vstgui.lib
+  hwy_contrib.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy_contrib.lib
+  sdk_common.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\sdk_common.lib
+  KrateDSP.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\KrateDSP.lib
+  sdk.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\sdk.lib
+  vstgui_uidescription.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\vstgui_uidescription.lib
+  KratePluginsShared.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\KratePluginsShared.lib
+  vstgui_support.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\vstgui_support.lib
+  membrum_preset_io.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\membrum_preset_io.lib
+  processor.cpp
+  voice_pool.cpp
+  membrum_core.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\membrum_core.lib
+  test_phase1_regression.cpp
+  test_editor_asan_lifecycle.cpp
+  test_benchmark_144.cpp
+  test_noise_body_cpu.cpp
+  test_polyphony_benchmark.cpp
+  test_polyphony_stress_16.cpp
+  test_exciter_bank.cpp
+  test_bell_body.cpp
+  test_membrane_body.cpp
+  test_noise_body.cpp
+  test_plate_body.cpp
+  test_shell_body.cpp
+  test_string_body.cpp
+  test_phase6_parameters.cpp
+  test_ui_mode_session_scope.cpp
+  test_body_resonant_peak.cpp
+  test_orchestral_distortion.cpp
+  test_snare_audition.cpp
+  test_snare_body_diagnose.cpp
+  test_body_headroom_budget.cpp
+  test_clap_acceptance.cpp
+  test_crash_acceptance.cpp
+  test_natural_fundamental_hz.cpp
+  test_per_mode_damping.cpp
+  test_pitch_env_all_bodies.cpp
+  test_render_perceptual.cpp
+  test_wire_coupling.cpp
+  test_feedback_exciter.cpp
+  test_velocity_mapping.cpp
+  membrum_processor_tests.cpp
+  test_coupling_energy.cpp
+  test_coupling_fuzz.cpp
+  test_coupling_integration.cpp
+  test_coupling_phase9_verification.cpp
+  test_coupling_state.cpp
+  test_dc_offset_trace.cpp
+  test_kit_preset_load_render.cpp
+  test_kit_switch_infinite_ring.cpp
+  test_macro_automation_extreme.cpp
+  test_macro_preset_load_regression.cpp
+  test_morph_host_simulation.cpp
+  test_output_level_measure.cpp
+  test_snare_body_balance.cpp
+  test_state_v6_migration.cpp
+  test_tom_body_depth.cpp
+  test_allocation_matrix.cpp
+  test_exciter_body_matrix.cpp
+  test_stability_guard.cpp
+  test_pitch_envelope_808.cpp
+  test_coupling_no_homogenization.cpp
+  test_decay_skew.cpp
+  test_material_morph_audibility.cpp
+  test_mode_inject.cpp
+  test_mode_inject_envelope.cpp
+  test_mode_stretch.cpp
+  test_morph_diagnose.cpp
+  test_nonlinear_coupling.cpp
+  test_choke_allocation_free.cpp
+  test_choke_click_free.cpp
+  test_choke_group.cpp
+  test_dead_exciter_params.cpp
+  test_fast_release_denormals.cpp
+  test_fast_release_double_steal.cpp
+  test_fast_release_resteal_collision.cpp
+  test_multi_bus_output.cpp
+  test_oversized_block.cpp
+  test_per_pad_dispatch.cpp
+  test_per_pad_pan.cpp
+  test_per_pad_pitch_env.cpp
+  test_phase2_regression_maxpoly1.cpp
+  test_poly_change_live.cpp
+  test_polyphony_allocation_matrix.cpp
+  test_secondary_shell_paths.cpp
+  test_steal_click_free.cpp
+  test_voice_pool_allocate.cpp
+  test_voice_pool_allocation_free.cpp
+  test_voice_pool_scaffold.cpp
+  test_voice_pool_stealing_policies.cpp
+  membrum_vst_tests.cpp
+     Creating library F:/projects/iterum/build/windows-x64-release/lib/Release/membrum_tests.lib and object F:/projects/iterum/build/windows-x64-release/lib/Release/membrum_tests.exp
+  membrum_tests.vcxproj -> F:\projects\iterum\build\windows-x64-release\bin\Release\membrum_tests.exe
+MSBuild version 17.14.60+43b635718 for .NET Framework
+
+  Checking File Globs
+  Catch2.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\Catch2.lib
+  pluginterfaces.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\pluginterfaces.lib
+  PFFFT.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\pffft.lib
+  hwy.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy.lib
+  base.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\base.lib
+  vstgui.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\vstgui.lib
+  sdk_common.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\sdk_common.lib
+  hwy_contrib.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy_contrib.lib
+  vstgui_uidescription.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\vstgui_uidescription.lib
+  sdk.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\sdk.lib
+  KrateDSP.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\KrateDSP.lib
+  vstgui_support.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\vstgui_support.lib
+  KratePluginsShared.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\KratePluginsShared.lib
+  controller.cpp
+  controller_adsr.cpp
+  controller_arp.cpp
+  controller_mod_matrix.cpp
+  controller_param_display.cpp
+  controller_presets.cpp
+  controller_settings.cpp
+  controller_verify_view.cpp
+  controller_view_sync.cpp
+  processor.cpp
+  processor_messaging.cpp
+  processor_midi.cpp
+  processor_params.cpp
+  processor_state.cpp
+  abyssal_level_test.cpp
+  arp_lane_param_flow_test.cpp
+  arp_step_count_dropdown_test.cpp
+  cathedral_organ_envelope_test.cpp
+  chaos_wind_audio_test.cpp
+  chorus_reverb_artifact_test.cpp
+  controller_state_test.cpp
+  euclidean_bells_level_test.cpp
+  harmonizer_param_flow_test.cpp
+  midi_events_test.cpp
+  mod_source_pipeline_test.cpp
+  morph_pad_modulation_test.cpp
+  mpe_test.cpp
+  param_flow_test.cpp
+  preset_switch_safety_test.cpp
+  processor_audio_test.cpp
+  reverb_volume_test.cpp
+  tempo_sync_test.cpp
+  trance_gate_param_flow_test.cpp
+  voice_mod_filter_test.cpp
+  arp_performance_test.cpp
+  arp_preset_e2e_test.cpp
+  arp_controller_test.cpp
+  bottom_bar_test.cpp
+  editor_lifecycle_test.cpp
+  mod_source_view_teardown_test.cpp
+  preset_browser_test.cpp
+  controller_display_test.cpp
+  controller_params_test.cpp
+  factory_preset_audio_test.cpp
+  harmonizer_params_test.cpp
+  macro_params_test.cpp
+  mod_matrix_params_test.cpp
+  param_denorm_test.cpp
+  arpeggiator_params_test.cpp
+  flanger_params_test.cpp
+  osc_params_test.cpp
+  osc_state_test.cpp
+  preset_format_compat_test.cpp
+  preset_safety_test.cpp
+  arp_integration_test.cpp
+  arp_mod_integration_test.cpp
+  modulation_type_test.cpp
+  reverb_type_test.cpp
+  processor_bus_test.cpp
+  ruinae_byte_identical_post_lane10_test.cpp
+  ruinae_effects_chain_test.cpp
+  ruinae_engine_integration_test.cpp
+  ruinae_engine_test.cpp
+  state_migration_test.cpp
+  state_roundtrip_test.cpp
+  engine_osc_param_test.cpp
+  osc_ab_independence_test.cpp
+  voice_route_rt_safety_test.cpp
+     Creating library F:/projects/iterum/build/windows-x64-release/lib/Release/ruinae_tests.lib and object F:/projects/iterum/build/windows-x64-release/lib/Release/ruinae_tests.exp
+  ruinae_tests.vcxproj -> F:\projects\iterum\build\windows-x64-release\bin\Release\ruinae_tests.exe
+MSBuild version 17.14.60+43b635718 for .NET Framework
+
+  Checking File Globs
+  Catch2.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\Catch2.lib
+  hwy.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy.lib
+  PFFFT.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\pffft.lib
+  base.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\base.lib
+  pluginterfaces.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\pluginterfaces.lib
+  vstgui.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\vstgui.lib
+  sdk_common.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\sdk_common.lib
+  hwy_contrib.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy_contrib.lib
+  vstgui_uidescription.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\vstgui_uidescription.lib
+  sdk.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\sdk.lib
+  KrateDSP.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\KrateDSP.lib
+  vstgui_support.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\vstgui_support.lib
+  KratePluginsShared.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\KratePluginsShared.lib
+  controller.cpp
+  processor.cpp
+  cloud_frame_test.cpp
+  effects_chain_test.cpp
+  effects_perf_test.cpp
+  macro_wiring_test.cpp
+  param_cadence_test.cpp
+  param_character_test.cpp
+  param_continuity_test.cpp
+  param_flow_test.cpp
+  param_perf_test.cpp
+  param_reach_test.cpp
+  partial_edit_test.cpp
+  preset_load_test.cpp
+  preset_render_sweep_test.cpp
+  processor_audio_test.cpp
+  ui_negative_control_test.cpp
+  ui_perf_test.cpp
+  custom_view_test.cpp
+  lifecycle_test.cpp
+  midi_event_test.cpp
+  morph_sync_test.cpp
+  param_denorm_test.cpp
+  parameter_surface_test.cpp
+  factory_preset_test.cpp
+  processor_bus_test.cpp
+  state_roundtrip_test.cpp
+  state_v2_test.cpp
+  state_v3_test.cpp
+     Creating library F:/projects/iterum/build/windows-x64-release/lib/Release/seraphis_tests.lib and object F:/projects/iterum/build/windows-x64-release/lib/Release/seraphis_tests.exp
+  seraphis_tests.vcxproj -> F:\projects\iterum\build\windows-x64-release\bin\Release\seraphis_tests.exe
+MSBuild version 17.14.60+43b635718 for .NET Framework
+
+  Checking File Globs
+  Catch2.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\Catch2.lib
+  base.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\base.lib
+  pluginterfaces.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\pluginterfaces.lib
+  PFFFT.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\pffft.lib
+  hwy.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy.lib
+  vstgui.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\vstgui.lib
+  sdk_common.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\sdk_common.lib
+  hwy_contrib.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy_contrib.lib
+  sdk.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\sdk.lib
+  vstgui_uidescription.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\vstgui_uidescription.lib
+  KrateDSP.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\KrateDSP.lib
+  vstgui_support.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\vstgui_support.lib
+  KratePluginsShared.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\KratePluginsShared.lib
+  controller.cpp
+  processor.cpp
+  automation_rt_test.cpp
+  channel_pressure_test.cpp
+  continuity_test.cpp
+  ecosystem_frame_test.cpp
+  ecosystem_rule_probe_test.cpp
+  param_flow_test.cpp
+  param_surface_test.cpp
+  preset_browser_test.cpp
+  preset_cpu_test.cpp
+  preset_load_rt_test.cpp
+  preset_matrix_test.cpp
+  preset_pilot_test.cpp
+  preset_sweep_test.cpp
+  processor_audio_test.cpp
+  processor_cpu_test.cpp
+  seed_test.cpp
+  soak_test.cpp
+  sustain_test.cpp
+  editor_layout_test.cpp
+  editor_lifecycle_test.cpp
+  ecosystem_roster_test.cpp
+  lifecycle_test.cpp
+  midi_event_test.cpp
+  param_denorm_test.cpp
+  param_table_test.cpp
+  bloom_params_test.cpp
+  body_params_test.cpp
+  cloud_params_test.cpp
+  ecology_params_test.cpp
+  ecosystem_params_test.cpp
+  envelope_params_test.cpp
+  ghost_params_test.cpp
+  global_ext_params_test.cpp
+  life_params_test.cpp
+  noise_params_test.cpp
+  resonance_params_test.cpp
+  smear_params_test.cpp
+  space_params_test.cpp
+  sub_params_test.cpp
+  factory_preset_test.cpp
+  processor_bus_test.cpp
+  state_roundtrip_test.cpp
+  state_v2_test.cpp
+  state_v3_test.cpp
+  tail_samples_test.cpp
+     Creating library F:/projects/iterum/build/windows-x64-release/lib/Release/vorago_tests.lib and object F:/projects/iterum/build/windows-x64-release/lib/Release/vorago_tests.exp
+  vorago_tests.vcxproj -> F:\projects\iterum\build\windows-x64-release\bin\Release\vorago_tests.exe
+MSBuild version 17.14.60+43b635718 for .NET Framework
+
+  Checking File Globs
+  Catch2.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\Catch2.lib
+  PFFFT.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\pffft.lib
+  hwy.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy.lib
+  pluginterfaces.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\pluginterfaces.lib
+  base.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\base.lib
+  vstgui.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\vstgui.lib
+  sdk_common.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\sdk_common.lib
+  hwy_contrib.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy_contrib.lib
+  sdk.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\sdk.lib
+  KrateDSP.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\KrateDSP.lib
+  vstgui_uidescription.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\vstgui_uidescription.lib
+  KratePluginsShared.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\KratePluginsShared.lib
+  vstgui_support.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\vstgui_support.lib
+  dropdown_mappings_test.cpp
+  mix_parameter_conversion_test.cpp
+  mode_switch_buffer_retention_test.cpp
+     Creating library F:/projects/iterum/build/windows-x64-release/lib/Release/plugin_tests.lib and object F:/projects/iterum/build/windows-x64-release/lib/Release/plugin_tests.exp
+  plugin_tests.vcxproj -> F:\projects\iterum\build\windows-x64-release\bin\Release\plugin_tests.exe
+MSBuild version 17.14.60+43b635718 for .NET Framework
+
+  Checking File Globs
+  Catch2.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\Catch2.lib
+  hwy.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy.lib
+  PFFFT.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\pffft.lib
+  pluginterfaces.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\pluginterfaces.lib
+  base.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\base.lib
+  vstgui.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\vstgui.lib
+  sdk_common.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\sdk_common.lib
+  hwy_contrib.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy_contrib.lib
+  sdk.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\sdk.lib
+  sdk_hosting.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\sdk_hosting.lib
+  KrateDSP.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\KrateDSP.lib
+  vstgui_uidescription.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\vstgui_uidescription.lib
+  KratePluginsShared.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\KratePluginsShared.lib
+  vstgui_support.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\vstgui_support.lib
+  disrumpo_tests.vcxproj -> F:\projects\iterum\build\windows-x64-release\bin\Release\disrumpo_tests.exe
+MSBuild version 17.14.60+43b635718 for .NET Framework
+
+  Checking File Globs
+  Catch2.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\Catch2.lib
+  pluginterfaces.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\pluginterfaces.lib
+  PFFFT.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\pffft.lib
+  hwy.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy.lib
+  base.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\base.lib
+  vstgui.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\vstgui.lib
+  sdk_common.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\sdk_common.lib
+  hwy_contrib.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy_contrib.lib
+  vstgui_uidescription.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\vstgui_uidescription.lib
+  sdk.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\sdk.lib
+  KrateDSP.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\KrateDSP.lib
+  vstgui_support.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\vstgui_support.lib
+  KratePluginsShared.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\KratePluginsShared.lib
+  controller.cpp
+  controller_verify_view.cpp
+  controller_view_sync.cpp
+  processor.cpp
+  arpeggiator_core_sequencer_test.cpp
+  audition_and_tempo_test.cpp
+  audition_polyphony_test.cpp
+  boundary_metadata_test.cpp
+  event_cap_overflow_test.cpp
+  live_mode_byte_identical_test.cpp
+  live_mode_play_edge_test.cpp
+  midi_delay_lane_metadata_test.cpp
+  sequencer_polymetric_test.cpp
+  sequencer_rests_advance_test.cpp
+  sequencer_transport_gating_test.cpp
+  set_active_flush_test.cpp
+  source_mode_toggle_test.cpp
+  source_mode_transpose_test.cpp
+  strum_offset_range_test.cpp
+  velocity_zero_noteon_test.cpp
+  markov_matrix_editor_tests.cpp
+  speed_curve_data_tests.cpp
+  gradus_vst_tests.cpp
+  state_v2_v3_migration_test.cpp
+     Creating library F:/projects/iterum/build/windows-x64-release/lib/Release/gradus_tests.lib and object F:/projects/iterum/build/windows-x64-release/lib/Release/gradus_tests.exp
+  gradus_tests.vcxproj -> F:\projects\iterum\build\windows-x64-release\bin\Release\gradus_tests.exe

@@ -1,0 +1,15 @@
+Filters: "Profundum_PresetAudibilityProbe_Mass"
+Randomness seeded to: 1130451797
+# Profundum_PresetAudibilityProbe_Mass
+at_id,variant,note,base,processor_value,bar,pass,live_value,csv_value,rel_dev,anchor_phase_tap_renders
+"AT-26","",E1,"A + sustain 1 (C-8) + anchor level 0.5 (per-row setting, G11-2)",5.24671,">= 3 dB",PASS,5.24671,5.24671,6.43783e-07,n/a
+"AT-26","",E1,"B (its own sustain 0.8, C-8)",4.09452,">= 3 dB",PASS,4.09452,4.09452,5.42495e-07,n/a
+"AT-27","",E1,"B",3.51596,">= 3 dB",PASS,3.51596,3.51596,1.17669e-06,n/a
+"AT-28","",E1,"B",10.4185,">= 3 dB",PASS,10.4185,10.4185,1.54777e-06,n/a
+"AT-26","",C3,"A + sustain 1 (C-8) + anchor level 0.5 (per-row setting, G11-2)",5.3203,">= 3 dB",PASS,5.3203,5.3203,6.41234e-07,n/a
+"AT-27","",C3,"B + sustain 1 (B10-1)",4.01259,">= 3 dB",PASS,4.01259,4.01259,2.69969e-07,n/a
+"AT-28","",C3,"B",10.6639,">= 3 dB",PASS,10.6639,10.6639,2.76503e-06,n/a
+===============================================================================
+All tests passed (718379 assertions in 1 test case)
+
+WALL Mass 34.6 s exit=0

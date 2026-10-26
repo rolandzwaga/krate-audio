@@ -37,6 +37,12 @@
     Number of parallel clang-tidy processes. Default: number of logical processors.
     Set to 1 for sequential execution.
 
+.PARAMETER FileTimeoutSec
+    Wall-clock ceiling per translation unit. A clang-tidy process still running
+    after this many seconds is killed, reported by file name as an error, and the
+    sweep continues (2026-10-13: one TU hung for 15 h and stalled the whole dsp
+    sweep with an empty log). Default: 600. 0 disables the ceiling.
+
 .EXAMPLE
     .\tools\run-clang-tidy.ps1
     # Run clang-tidy on all source files
@@ -57,10 +63,11 @@
 param(
     [string]$BuildDir = "build/windows-x64-release",
     [switch]$Fix,
-    [ValidateSet("all", "dsp", "dsp-lib", "dsp-tests", "iterum", "disrumpo", "ruinae", "innexus", "gradus", "membrum", "seraphis", "vorago")]
+    [ValidateSet("all", "dsp", "dsp-lib", "dsp-tests", "iterum", "disrumpo", "ruinae", "innexus", "gradus", "membrum", "seraphis", "vorago", "profundum")]
     [string]$Target = "all",
     [switch]$Quiet,
-    [int]$Jobs = 0
+    [int]$Jobs = 0,
+    [int]$FileTimeoutSec = 600
 )
 
 $ErrorActionPreference = "Stop"
@@ -219,6 +226,17 @@ switch ($Target) {
         $IncludeDirs += "tests"
         $IncludeDirs += "extern/vst3sdk"
     }
+    "profundum" {
+        # src and tests, matching run-clang-tidy.sh's `profundum)` case (same
+        # reason as the Seraphis case above: both scripts must analyze one file set).
+        $SourceDirs += "plugins/profundum/src"
+        $SourceDirs += "plugins/profundum/tests"
+        $IncludeDirs += "dsp/include"
+        $IncludeDirs += "plugins/profundum/src"
+        $IncludeDirs += "plugins/profundum/tests"
+        $IncludeDirs += "tests"
+        $IncludeDirs += "extern/vst3sdk"
+    }
     "all" {
         $SourceDirs += "dsp/include"
         $SourceDirs += "dsp/tests"
@@ -232,6 +250,8 @@ switch ($Target) {
         $SourceDirs += "plugins/seraphis/src"
         $SourceDirs += "plugins/vorago/src"
         $SourceDirs += "plugins/vorago/tests"
+        $SourceDirs += "plugins/profundum/src"
+        $SourceDirs += "plugins/profundum/tests"
         $IncludeDirs += "dsp/include"
         $IncludeDirs += "plugins/iterum/src"
         $IncludeDirs += "plugins/disrumpo/src"
@@ -242,6 +262,8 @@ switch ($Target) {
         $IncludeDirs += "plugins/seraphis/src"
         $IncludeDirs += "plugins/vorago/src"
         $IncludeDirs += "plugins/vorago/tests"
+        $IncludeDirs += "plugins/profundum/src"
+        $IncludeDirs += "plugins/profundum/tests"
         $IncludeDirs += "tests"
         $IncludeDirs += "extern/vst3sdk"
     }
@@ -400,6 +422,7 @@ try {
                 OutFile      = $outFile
                 ErrFile      = $errFile
                 RelativePath = $job.RelativePath
+                StartedAt    = [DateTime]::UtcNow
             })
 
             $JobIndex++
@@ -438,6 +461,13 @@ try {
                 if (-not $Quiet) {
                     Write-Host "`r[$FileCount/$TotalFiles] $($r.RelativePath)                    " -ForegroundColor Gray -NoNewline
                 }
+            } elseif ($FileTimeoutSec -gt 0 -and ([DateTime]::UtcNow - $r.StartedAt).TotalSeconds -gt $FileTimeoutSec) {
+                # Per-TU ceiling: a hung clang-tidy must not stall the sweep (2026-10-13: 15 h on one TU).
+                try { $r.Process.Kill() } catch { }
+                $ErrorCount++
+                $FileCount++
+                Write-Host ""
+                Write-Err "$($r.RelativePath): clang-tidy exceeded $FileTimeoutSec s and was killed (hung translation unit; diagnose it alone with -Target on its directory or clang-tidy -p <build> <file>)"
             } else {
                 [void]$stillRunning.Add($r)
             }

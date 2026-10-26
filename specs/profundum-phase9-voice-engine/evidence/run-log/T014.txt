@@ -1,0 +1,78 @@
+T014 - Macro-row harvest, the SC-011 fingerprint, VoiceEngine_FoldPathRecord (plan S10.5, S10.6, H-29; deviations 6, 12)
+Executor run-log, 2026-10-20. Nothing built or run here (the group's gate does); bash -n and node --check passed.
+
+FILES WRITTEN
+- dsp/tests/unit/systems/profundum_engine_probe_test.cpp (appended): VoiceEngine_MacroHarvest
+  [systems][profundum][voice-engine][sc-007][sc-010][.harvest] and its TU-local t14 / T14 helpers.
+- dsp/tests/unit/systems/profundum_engine_test.cpp (appended, plus 5 include lines in the existing include block:
+  render_fingerprint.h, filesystem, fstream, sstream, string): the fingerprint HARVEST markers, VoiceEngine_FingerprintHarvest
+  [.harvest], VoiceEngine_DeterminismFingerprint [sc-011][fr-062], VoiceEngine_FoldPathRecord [sc-011].
+- dsp/include/krate/dsp/systems/profundum_macro_matrix.h: NOT edited by hand. Only paste-harvest.js writes it, and only
+  between "// HARVEST-BEGIN macro-rows" / "// HARVEST-END macro-rows" (deviation 12).
+- specs/profundum-phase9-voice-engine/evidence/close/harvest.sh (bash -n OK)
+- specs/profundum-phase9-voice-engine/evidence/close/paste-harvest.js (node --check OK; exercised on synthetic copies of
+  the two target files in the scratchpad: a good paste writes both blocks with the harvested-date line and keeps the
+  markers; a sign change and a HARVEST RED line in macro-rows.txt are each refused with exit 1, nothing written).
+- this run-log.
+
+DECISIONS
+1. Candidate emulation (kRows is static constexpr, so a candidate table cannot be handed to the engine). The harvest
+   applies the candidate's offsets to the endpoint state test-side with the matrix's own S9.3 arithmetic (add + clamp,
+   amp times x 2^c, a +-0 contribution skipped), A = B = that state, the engine's macros at the neutral (every
+   contribution +-0, apply() leaves the state untouched, SC-008). Before the search the case REQUIREs the port to be
+   bit-equal (BassMorphTest::bitEqual) to ProfundumMacroMatrix::apply on the live kRows for every macro at 7 values.
+   Row 11 (CompressionAmount) is not a MorphState field: the engine hands it post-law to MassDynamics only
+   (profundum_engine.h:851 cTL, :970-974 setCompressionAmount), after the Sum tap and outside the Character / core taps,
+   so none of the four harvest descriptors (E_sub Sum, D_br Sum, D_t Sum, D_nl Character / twin) can read it. It is
+   scaled with its macro like every other row. Row 10 (transientAttackDb) is a MorphState field and is emulated; it too
+   acts only in MassDynamics, after the Sum tap.
+2. "Raise |amount| per macro": every row of the macro is scaled by one k (1, 1.25, ..., 4 x the seed) under one curve.
+   Candidate order: Linear k = 1 ... 3; Exponential k = 1 ... 4; SCurve k = 1 ... 4; Linear k = 3.25 ... 4. The first
+   candidate whose AT row passes at E1 and C3 AND whose 21-step sweep is monotone at both notes is chosen. None ->
+   "HARVEST RED <macro>" (STOP AND SURFACE; macro-rows.inc is then not written and a stale one is removed).
+3. The AT row reads macro 0 and 1 only; applyModCurve(c, 1) == 1 for Linear / Exponential / SCurve
+   (modulation_curves.h:39-50), so the row reading depends on k alone and is cached per k across curves.
+4. Bars (FR-080 families): Weight E_sub(1) - E_sub(0) >= 3 dB; DarkBright D_br(1) - D_br(0) >= 0.25 oct; TightLoose
+   D_t(1) / D_t(0) >= 2; CleanViolent D_nl(1) - D_nl(0) >= 3 dB. Sweep monotone against the RUNNING MAXIMUM (Phase 8
+   deviation 8, bass_morph_trajectory_test.cpp:182-204): eps 0.25 dB, 0.02 oct, D_t >= 0.98 x running max.
+5. Readers: BassMorphTest::eSubDb(sumL, sumR), dBrOct(asFieldTaps(taps, Sum)), dNlDb(voiceEngineRenderWithTwin taps),
+   dTMs(sumL, sumR) after the Phase 8 gate-render protocol (note-off at 1 s grid-aligned, length note-off + 2 s, + 1 s
+   steps to 12 s until the Sum mid falls 80 dB, bass_morph_test_helpers.h:942-966) on the Sum tap. A gate render that
+   never falls 80 dB within 12 s is an invalid reading: the candidate fails (the gated SC-007 / AT case would FAIL on
+   it), the harvest does not abort. Steady renders: MassDynamicsTest::descriptorSeconds(48 kHz) rounded up to the grid
+   plus one interval (readWindow: 1 s settle + kLowFrequencyFftSize).
+6. VoiceEngine_FingerprintHarvest is in profundum_engine_test.cpp, NOT in the probe TU (deviation 4 names the probe TU as
+   the home of T014's harvests). Reason: it renders peSc011Script (TU-local to profundum_engine_test.cpp, T011), the very
+   schedule VoiceEngine_DeterminismFingerprint compares; a copy in the probe TU could drift from it, and the constants
+   are harvested inside the consuming TU. Tags carry [.harvest], so no gate runs it.
+7. Fingerprints: {MONO, POLY} x {L, R} of the output tap (4 RenderFingerprints). Compared with
+   TestUtils::compareFingerprints at its defaults (kSampleTolerance 5e-4, kMetricTolerance 2.5e-4). The unharvested
+   marker block is "constexpr bool kPeFingerprintHarvested = false;" + an empty kPeFingerprints; the case FAILs
+   "not harvested" through if constexpr (no C4127), and the guard stays after the paste. Literals: doubles scientific
+   17 digits, floats scientific 9 significant digits + f.
+8. The fingerprint is harvested on the pre-paste build: the SC-011 schedule runs all four macros at the neutral, where
+   each contribution is +-0 and every apply() step is skipped, so the macro paste cannot move it beyond codegen noise
+   (which the tolerance covers).
+9. VoiceEngine_FoldPathRecord: HELD = A = B = A_s with Fold 100 from the note-on; RAMP = A (Fold 0) -> B (Fold 100), ramp
+   500 ms issued at 0.5 s. Both end at position 1 / law Fold 100 (CHECKed bitwise from the grid records). Level = RMS dB
+   of the Character tap mid; h1 = single-bin DFT at f0 (RMS convention), whole periods of E1 in [3 s, 4 s). Differences
+   RAMP - HELD written to evidence/h29-fold-path.txt beside Phase 8's ~0.13 dB; CHECKed finite by a bit test only. Not
+   hidden (a recorded case in the gate, as the tasks place it in the engine TU).
+10. harvest.sh does not build. It runs the two harvest cases concurrently (both single-threaded; neither timing-
+    sensitive), STOP AND SURFACE (exit 3) on any HARVEST RED, requires both .inc files fresh, then runs
+    paste-harvest.js macro-rows fingerprint (all or nothing). Cost not measured here (nothing run); the macro harvest's
+    worst case is ~13 row cells x 4 renders + up to 39 sweeps x 38 renders per macro (D_nl doubled by its twin; D_t
+    renders 3-12 s each), so expect tens of minutes. The fingerprint case renders 2 x 3 s.
+
+DEVIATIONS
+- Decision 6 (FingerprintHarvest location).
+- Five include lines added to profundum_engine_test.cpp's existing include block (the task says "append"; the new
+  cases need render_fingerprint.h and the evidence-writing headers).
+
+DEFECTS
+- none found (nothing run).
+
+DEFERRED TO THE MAIN LOOP
+- After the Group 10 build: bash specs/profundum-phase9-voice-engine/evidence/close/harvest.sh; rebuild dsp_systems_tests
+  once; then the Group 10 gate. VoiceEngine_DeterminismFingerprint FAILs ("not harvested") until the paste and the
+  rebuild. A HARVEST RED is STOP AND SURFACE.

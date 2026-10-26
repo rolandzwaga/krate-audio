@@ -13,7 +13,7 @@ without permission). Follow every step; do not skip or reorder.
 ## Inputs
 
 - **Plugin** (required): one of `iterum`, `disrumpo`, `ruinae`, `innexus`, `gradus`, `membrum`,
-  `seraphis`, `vorago`.
+  `seraphis`, `vorago`, `profundum`.
   If not given in the invocation, ask which plugin — do not guess.
 - **New version** (required): `X.Y.Z`. If not given, read the current `plugins/<plugin>/version.json`
   version and ask the user for the target (or confirm the intended semver bump). Do not invent it.
@@ -30,6 +30,7 @@ without permission). Follow every step; do not skip or reorder.
 | membrum | `membrum_tests` | `Membrum.vst3` |
 | seraphis | `seraphis_tests` | `Seraphis.vst3` |
 | vorago | `vorago_tests` | `Vorago.vst3` |
+| profundum | `profundum_tests` | `Profundum.vst3` |
 
 ## Steps (in order)
 

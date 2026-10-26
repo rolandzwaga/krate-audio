@@ -1,0 +1,78 @@
+T002 morph_state.h, the light test helpers and the MorphState tests (FR-001 - FR-007; SC-007(a)(b), SC-019(a)(c);
+plan S3, C-1, C-8, C-13; deviation 3) - 2026-10-19
+
+Order: helpers + the ten TEST_CASEs written first, then morph_state.h (replacing the T001 stub). Not built or run (the
+Group 2 gate does that). Every written file re-read for obvious compile errors.
+
+Files written:
+  dsp/include/krate/dsp/systems/morph_state.h
+      MorphState (plan S3.1 verbatim member order; nested Law, Axis, Kind, SelectionGroup, kNumSelectionGroups = 5,
+      groupIndex, FieldInfo, AmpEnvelopeFields (C-8 defaults), MotionConfig {Source, Target, Polarity}); static_asserts
+      after the struct; kMorphStateFormatVersion = 1, kMorphLeafFieldCount = 62, kMorphStateBytes = 201;
+      detail::morph_state_io { kFieldTable (62 rows, S3.2), kLeafOffsets, Leaf, forEachMorphLeaf, kindOf, sumOfRowBytes
+      (consteval), leavesMatchTable (consteval, decltype(leaf)::value per R-4), leafBitsEqual }; static_asserts:
+      leavesMatchTable(), kMorphStateBytes == 1 + sumOfRowBytes(), == 201, kLeafOffsets[61] == 197, the S4.2 row-shape
+      sweep (Stepped <=> group != None <=> Enum8/Bool; bytes match kind; Bool maxEnum 1; anchorBlock exactly rows 55-61;
+      log rows lo + o > 0; lo <= hi / lo < hi open), little-endian; isValidMorphState (S3.4), serializeMorphState /
+      deserializeMorphState (S3.5, spectral_state.h:178-300 pattern, decode into a local, copy on success; enums and
+      bools as one uint8; bool byte > 1 rejected, C-13).
+  dsp/tests/unit/systems/bass_morph_state_helpers.h (new, namespace Krate::DSP::BassMorphTest)
+      serializedBytes, bitEqual(MorphState, MorphState), differingLeaves, ulpOf, randomValidState, randomValidPair,
+      showcasePair, massOnlyPair, anchorCurvePair, maxNonlinearPair, algorithmCrossingPair, plus unitFromWord (below).
+  dsp/tests/unit/systems/morph_state_test.cpp (T001 stub filled)
+      MorphState_TypeTraits [fr-001], MorphState_Defaults [fr-004], MorphState_DefaultIsValid [fr-004][fr-005],
+      MorphState_TableMatchesComponentRanges [fr-002][fr-030], MorphState_Validation [fr-005], MorphState_LeafArity
+      [sc-019], BassMorph_Serialisation_RoundTrip [sc-007], BassMorph_Serialisation_Rejects [sc-007],
+      MorphStateHelpers_BitEqualAgreesWithLeafBits, MorphStateHelpers_RandomValidStateIsValid. All carry
+      [systems][profundum][bass-morph]; none [long], none hidden.
+  specs/profundum-phase8-bass-morph/evidence/run-log/T002.txt (this file)
+
+Sources re-read this session for every range / default used:
+  spectral_shape_recipe.h:40-47 (Controls), :227-248 (kDefaultControls, kSineAnchor, kGrowl, defined inline constexpr);
+  profundum_core.h:334-340 (ExcitationControls), :1192 (kDefaultExcitation, used in static_asserts by
+  profundum_core_excitation_test.cpp:270-272, so it is a constant expression); bass_character_stage.h:78 (Algorithm);
+  bass_stereo_field.h:63-72 (ImageMode, MotionSource, crossover range), :99-111 (Controls), :263-270 (isValidControls),
+  :540-548 (inClosedRange: rejects negative non-zero bit patterns, accepts -0.0f); anchor_oscillator.h:57-58, :84-86,
+  :99-106; drop_envelope.h:30-38; transient_shaper.h:78-83; mass_law.h:71-73; lfo.h:34-35, :47-54;
+  note_value.h:38-58; envelope_utils.h:50-51; db_utils.h:99-129 (isFinite constant-evaluation path).
+
+Decisions:
+  - kFieldTable is built by an immediately-invoked lambda holding local type aliases (K, L, A, G, ...) so the 62 rows
+    stay readable without adding namespace-scope names (rule 2's closed list); every row sets every FieldInfo member
+    by designated initialiser; maxEnum is written from the last enumerator (static_cast<uint8_t>(Alg::Fracture) etc.),
+    ranges from source constants where one exists (kMinEnvelopeTimeMs, DropEnvelope::kMaxAmountSemitones /
+    kMinTimeMs / kMaxTimeMs, BassStereoField::kMin/kMaxCrossoverHz, kMinFrequency / kMaxFrequency,
+    MassLaw::kMinMass / kMaxMass, TransientShaper::kMin/kMaxGainDb, AnchorOscillator punch / ghost constants);
+    literals 100 (Fold), 5000 (fade-in), 360 and the unit boxes.
+  - Non-F32 rows carry lo = hi = 0, hiOpen false, logOffset 0 (unused fields); the TU's expected-table literal says
+    the same.
+  - kLeafOffsets is built by a constexpr immediately-invoked lambda (the variable is constexpr, so it is evaluated at
+    compile time). Plan wording "consteval-built"; a consteval lambda was avoided only for MSVC robustness. Not a
+    behaviour change.
+  - isValidMorphState's open-box test is written `v < hi || (!hiOpen && v == hi)` (no constant ternary condition,
+    MSVC /W4 C4127 hygiene); generic-lambda parameters used only in some if-constexpr branches carry
+    [[maybe_unused]] (MSVC C4100 hygiene).
+  - randomValidState (plan S5.1, R-8): one raw word per row for the value, then for F32 one word for the 5 % edge
+    test and, when taken, one word for the side (the hiOpen row draws it too and discards it, so the word sequence
+    is row-independent); then one word per governing amount (order characterAmount, field.spread, field.motionDepth,
+    motion.amount, anchor.level). Log rows: exp2 of a uniform in [log2(lo + o), log2(hi + o)] minus o, in double,
+    clamped into [lo, hi]. Added inline helper BassMorphTest::unitFromWord(w) = (w >> 8) * 2^-24 (shared by the
+    generator and the TU's field-block draw). It is the only helper beyond the task's list.
+  - randomValidPair: one draw per leaf in table order; B's leaf copied from A when u < pEqual.
+  - ulpOf and the TU's nextafter directions use FLT_MAX / lowest instead of +-infinity (no infinity literal under
+    -ffast-math, clang -Wnan-infinity-disabled); identical result for every finite table bound and |x| < FLT_MAX.
+  - The TU uses a file-scope namespace alias `BassMorphTest = Krate::DSP::BassMorphTest` and using-declarations for
+    the component types; no using-directive (rule 5).
+  - MorphState_Validation also asserts each Enum8 at maxEnum is valid and counts 46 F32 + 13 Enum8 rows.
+  - MorphState_TableMatchesComponentRanges also asserts the random field draw produced both valid and invalid blocks
+    (so "0 disagreements" cannot pass vacuously).
+  - MorphStateHelpers_BitEqualAgreesWithLeafBits also asserts differingLeaves names exactly the changed leaf, and that
+    a state is bitEqual / leafBitsEqual to itself. The +0 / -0 arm runs on every F32 row whose box holds 0 (lo <= 0 <=
+    hi).
+  - MorphStateHelpers_RandomValidStateIsValid also asserts the hiOpen row never produces 360.
+  - Value prints use std::setprecision(9) where they show an input bound (nextafter neighbours need 9 digits to be
+    distinguishable); no measured value is printed in this TU.
+
+Deviations: none from tasks.md T002 beyond the helper unitFromWord and the constexpr (not consteval) kLeafOffsets
+lambda noted above.
+DEFECT lines: none.

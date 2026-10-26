@@ -104,7 +104,7 @@ const log = (line) => emit(`${line}\n`);
 // How many Catch2 shards each executable is cut into. Everything else runs whole. Keep a unit under about
 // ten minutes on a GitHub runner; when a suite grows past that, raise its count here and refresh the times.
 const kSuiteShards = longLane
-    ? { dsp_systems_tests: 8, vorago_tests: 2, seraphis_tests: 2 }
+    ? { dsp_systems_tests: 8, vorago_tests: 2, seraphis_tests: 2, profundum_tests: 4 }
     : { dsp_systems_tests: 6, vorago_tests: 2, seraphis_tests: 2 };
 
 // Per-push: everything except perf/benchmark and the [long] renders (those run nightly, and always locally).
@@ -171,6 +171,7 @@ function installWindowsPresets() {
     const plugins = [
         ['iterum', 'Iterum'], ['disrumpo', 'Disrumpo'], ['ruinae', 'Ruinae'], ['innexus', 'Innexus'],
         ['gradus', 'Gradus'], ['membrum', 'Membrum', 'Kit Presets', 'Kits'], ['seraphis', 'Seraphis'], ['vorago', 'Vorago'],
+        ['profundum', 'Profundum'],
     ];
     for (const [dir, target, srcSub, destSub] of plugins) {
         let src = path.join('plugins', dir, 'resources', 'presets');

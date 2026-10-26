@@ -1,0 +1,40 @@
+# T021 VoiceEngine_ListeningRenders: ProfundumEngine, MONO, 48 kHz, block 64, 32-bit float stereo.
+# Each segment: note-on at its start, hold, note-off, 0.75 s tail, 0.25 s silence.
+H-1 h01-split-hump.wav
+  start 0.00 s  hold 3.00 s  E1 saw, excitation mix 0
+  start 4.00 s  hold 3.00 s  E1 saw, excitation mix 1
+  start 8.00 s  hold 3.00 s  A1 saw, excitation mix 0
+  start 12.00 s  hold 3.00 s  A1 saw, excitation mix 1
+  LISTEN H-1 h01-split-hump.wav seconds=16.00 peak_dbfs=-1.00 finite=yes
+H-2 h02-fold-breathing-c3.wav
+  start 0.00 s  hold 60.00 s  C3 saw, Fold 100, held 60 s
+  LISTEN H-2 h02-fold-breathing-c3.wav seconds=61.00 peak_dbfs=-1.00 finite=yes
+H-8 h08-drop-snaps-e0.wav
+  start 0.00 s  hold 8.00 s  E0, Drop 48 st T 10 ms, retrigger every 1 s
+  start 9.00 s  hold 8.00 s  E0, Drop 48 st T 100 ms (reference), retrigger every 1 s
+  LISTEN H-8 h08-drop-snaps-e0.wav seconds=18.00 peak_dbfs=-1.00 finite=yes
+H-10 h10-after-drop-vs-fresh.wav
+  start 0.00 s  hold 3.00 s  E1 fresh note (no Drop)
+  start 4.00 s  hold 3.00 s  E1 after a 24 st / 100 ms Drop
+  LISTEN H-10 h10-after-drop-vs-fresh.wav seconds=8.00 peak_dbfs=-1.00 finite=yes
+H-14 h14-mass100-voices.wav
+  start 0.00 s  hold 4.00 s  E1 sub-only (kSineAnchor), Mass 100, retrigger at 2 s
+  start 5.00 s  hold 4.00 s  E1 reference (kDefaultControls), Mass 100, retrigger at 2 s
+  start 10.00 s  hold 4.00 s  E1 saw (kSawAnchor), Mass 100, retrigger at 2 s
+  LISTEN H-14 h14-mass100-voices.wav seconds=15.00 peak_dbfs=-1.00 finite=yes
+H-19 h19-wide-ceiling-fold-rectify.wav
+  start 0.00 s  hold 3.00 s  E1 WIDE Spread 1, Fold Amount 1, Anchor level 1
+  start 4.00 s  hold 3.00 s  E1 WIDE Spread 1, Fold Amount 1, Anchor level 0
+  start 8.00 s  hold 3.00 s  E1 WIDE Spread 1, Rectify Amount 1, Anchor level 1
+  start 12.00 s  hold 3.00 s  E1 WIDE Spread 1, Rectify Amount 1, Anchor level 0
+  LISTEN H-19 h19-wide-ceiling-fold-rectify.wav seconds=16.00 peak_dbfs=-1.00 finite=yes
+H-28a h28a-fracture-switch-c3.wav
+  start 0.00 s  hold 6.00 s  C3 Fracture <-> Crush (Amount 1, 5 ms ramp, switch every 1 s)
+  start 7.00 s  hold 6.00 s  C3 Fracture <-> Rectify (Amount 1, 5 ms ramp, switch every 1 s)
+  LISTEN H-28a h28a-fracture-switch-c3.wav seconds=14.00 peak_dbfs=-1.00 finite=yes
+H-28b h28b-octavedown-switch-e1.wav
+  start 0.00 s  hold 6.00 s  E1 Anchor OctaveDownSine <-> Sine (5 ms ramp, switch every 1 s)
+  start 7.00 s  hold 6.00 s  E1 Anchor OctaveDownSine <-> Triangle (5 ms ramp, switch every 1 s)
+  start 14.00 s  hold 6.00 s  E1 Anchor OctaveDownSine <-> RoundedSine (5 ms ramp, switch every 1 s)
+  start 21.00 s  hold 6.00 s  E1 Anchor OctaveDownSine <-> AsymmetricSine (5 ms ramp, switch every 1 s)
+  LISTEN H-28b h28b-octavedown-switch-e1.wav seconds=28.00 peak_dbfs=-1.00 finite=yes

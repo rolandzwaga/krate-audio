@@ -1,0 +1,17 @@
+=== listen 2026-10-21T18:22:30Z commit 0ae33b87
+cmd: build/windows-x64-release/bin/Release/dsp_systems_tests.exe "VoiceEngine_ListeningRenders"
+Filters: "VoiceEngine_ListeningRenders"
+Randomness seeded to: 3631737689
+LISTEN H-1 h01-split-hump.wav seconds=16.00 peak_dbfs=-1.00 finite=yes
+LISTEN H-2 h02-fold-breathing-c3.wav seconds=61.00 peak_dbfs=-1.00 finite=yes
+LISTEN H-8 h08-drop-snaps-e0.wav seconds=18.00 peak_dbfs=-1.00 finite=yes
+LISTEN H-10 h10-after-drop-vs-fresh.wav seconds=8.00 peak_dbfs=-1.00 finite=yes
+LISTEN H-14 h14-mass100-voices.wav seconds=15.00 peak_dbfs=-1.00 finite=yes
+LISTEN H-19 h19-wide-ceiling-fold-rectify.wav seconds=16.00 peak_dbfs=-1.00 finite=yes
+LISTEN H-28a h28a-fracture-switch-c3.wav seconds=14.00 peak_dbfs=-1.00 finite=yes
+LISTEN H-28b h28b-octavedown-switch-e1.wav seconds=28.00 peak_dbfs=-1.00 finite=yes
+LISTEN DONE 8 WAVs in F:/projects/iterum/dsp/tests/../../specs/profundum-phase9-voice-engine/evidence/listen
+===============================================================================
+All tests passed (108 assertions in 1 test case)
+
+exit: 0 wall: 9 s

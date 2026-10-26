@@ -103,6 +103,11 @@ function pluginFlagsFor(file) {
         }
         return flags;
     }
+    // The Profundum factory-preset generator lives in tools/ but compiles against the plugin
+    // (root CMakeLists.txt, profundum_preset_generator target): mirror its include roots.
+    if (file === 'tools/profundum_preset_generator.cpp') {
+        return ['-I plugins/profundum/src', '-I plugins/profundum/tests', '-I tests/test_helpers', '-I tools'];
+    }
     const m = file.match(/plugins\/([a-z0-9-]+)\//);
     if (!m) return [];
     const plugin = m[1];
@@ -126,6 +131,18 @@ function pluginFlagsFor(file) {
     // runs. Same class as the aether / harness cases above (Phase 11, B-4).
     if (plugin === 'vorago') {
         flags.push('-DVORAGO_PERF_BUDGET_HEADER=\\"dsp/tests/unit/systems/vorago_perf_budget.h\\"');
+    }
+    // profundum_tests puts dsp/tests/unit/systems on its include path
+    // (plugins/profundum/tests/CMakeLists.txt) for the read-only stereo-field and
+    // engine test helpers; mirror it or those TUs are skipped (Profundum Phase 11, FR-073).
+    if (plugin === 'profundum') {
+        flags.push('-I dsp/tests/unit/systems');
+        // Phase 13 (plugins/profundum/tests/CMakeLists.txt): the preset definitions and the
+        // header-only test helpers, plus two string macros (the moved audibility readers'
+        // evidence root and the factory preset tree). Without them those TUs hit their own
+        // #error guards -- a portability failure that does not exist.
+        flags.push('-I tools', '-I tests/test_helpers');
+        flags.push('-DKRATE_DSP_TESTS_DIR=\\"/tmp\\"', '-DPROFUNDUM_PRESETS_DIR=\\"/tmp\\"');
     }
     return flags;
 }

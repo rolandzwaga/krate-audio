@@ -1,0 +1,55 @@
+pin-perf-cores: performance-core mask 0xFFFF
+Filters: [performance],[perf],[.perf] [.perf],[benchmark],[!benchmark],[long] ~[vorago-sweep]
+Randomness seeded to: 2307649733
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+profundum_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+Profundum_ProcessorCpu
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(206)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(266): warning:
+  SC-015 last warm-up block peak: P-MONO 0.17128, P-POLY 0.452991, P-MAX-MONO
+  0.297775, P-MAX-POLY 0.584906, D-MONO 0.17128, D-POLY 0.452991
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(297): warning:
+  SC-015 best ns per 100 blocks (512 @ 48 kHz, real time 1.06667e+09 ns): P-
+  MONO 3.25661e+07, D-MONO 3.27633e+07, P-POLY 9.04591e+07, D-POLY 1.0493e+08,
+  P-MAX-MONO 6.37859e+07, P-MAX-POLY 2.27748e+08
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(298): warning:
+  SC-015 pct P-MONO = 3.05307 % (bar <= 8)
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(299): warning:
+  SC-015 pct P-POLY = 8.48054 % (bar <= 25)
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(300): warning:
+  SC-015 pct D-MONO = 3.07156 %, pct D-POLY = 9.83715 % (recorded)
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(302): warning:
+  SC-015 ratio P-MONO / D-MONO = 0.993981 (bar <= 1.05)
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(304): warning:
+  SC-015 ratio P-POLY / D-POLY = 0.862093 (bar <= 1.05)
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(306): warning:
+  SC-015 pct P-MAX-MONO (all four macros 1.0) = 5.97993 % (bar <= 8, Q-A gated)
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(308): warning:
+  SC-015 pct P-MAX-POLY (all four macros 1.0) = 21.3513 % (bar <= 25, Q-A
+  gated)
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(311): warning:
+  Phase 9 reference MONO 7.5798 % / POLY4 24.005 %: showcase setting, not
+  comparable (P-1)
+
+No test cases matched '[benchmark]'
+No test cases matched '[!benchmark]'
+No test cases matched '[long] ~[vorago-sweep]'
+===============================================================================
+All tests passed (29 assertions in 1 test case)
+

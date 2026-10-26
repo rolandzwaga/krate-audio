@@ -1,0 +1,160 @@
+T004 Interpolation laws, the per-group selection machine, the resolution cache and their tests (FR-030 - FR-037,
+FR-034, FR-040, FR-053 - FR-055, FR-061, FR-082; SC-003(b), SC-004(c), SC-004(d) engine, SC-005 engine, SC-013,
+SC-019(b), SC-020, SC-021(b), SC-024 engine; plan S4.5 - S4.7, S6, C-2, C-4, C-6) - 2026-10-19
+
+STATUS: done (not built, not run: the Group 4 gate builds dsp_systems_tests and runs the gate filter).
+
+Order: the eleven test items appended to bass_morph_engine_test.cpp first (nine new TEST_CASEs + SECTION (b) of
+BassMorph_BoundedStep + SECTION (b) of BassMorph_Lifecycle), then bass_morph_engine.h edited. Every written file
+re-read. Extra compile sanity (not a build of the tree): clang++ -std=c++20 -fsyntax-only -Wall -Wextra -Wshadow
+on bass_morph_engine_test.cpp with dsp/include + the fetched Catch2 include dirs: no diagnostic in any Phase 8
+file (the only three warnings are in untouched headers, closed_form_adaa2.h:124 -Wshadow and
+crossover_filter.h:434-435 -Wdefaulted-function-deleted, which my extra -Wshadow flag / clang surface; not in the
+project's flag set, recorded only).
+
+Files written:
+  dsp/include/krate/dsp/systems/bass_morph_engine.h (edit)
+      - Banner: T004 Serves line, Encodes C-2 / C-4 / C-6 added; the TEMPORARY "until T004" paragraph removed.
+      - #include <cmath>.
+      - Default constructor BassMorphEngine() noexcept: refreshes logA_ / logB_ for the two default endpoints (see
+        decision D1). Copy / nothrow move unchanged (all members are values).
+      - reset(): calls updateSelections(p, p_a) at the snapped positions before resolve() (plan S4.3: inside the band
+        the selection is kept).
+      - setEndpoint: on a real change refreshes that endpoint's log2(x + o) cache (11 Logarithmic rows, double) and
+        sets dirty_ (C-4, C-6, FR-061: applied at the next advanceInterval, not ramped).
+      - advanceInterval: updateSelections(p, p_a) after the p / p_a step; any selection change sets dirty_; resolve()
+        only when dirty_ (C-6: endpoint, p or p_a bitwise, or a selection changed).
+      - private governingAmount(s, g): Character characterAmount, ImageMode field.spread, FieldMotion
+        field.motionDepth, Motion motion.amount, Anchor anchor.level (plan S4.5).
+      - private updateSelections(p, pa) -> bool changed: plan S4.5 verbatim per group over kSelectionGroups
+        {Character, ImageMode, FieldMotion, Motion, Anchor}, q = p_a for Anchor; rule 1 identity, rule 2 forced
+        ("== 0.0f" / "!= 0.0f", so +/-0 are zero and a negative motion.amount is non-zero), rule 3 hysteresis
+        (>= kThetaUp -> B, <= kThetaDown -> A, else kept). Indexed only through MorphState::groupIndex(g).
+      - private static refreshLogCache(s, cache): log2(double(x) + double(o)) per Logarithmic row.
+      - resolve(): plan S4.6. Stepped -> selections_[groupIndex(row.group)]'s value. Continuous: identity branches
+        untouched (q == 0 or bitwise-equal endpoints -> x_A, q == 1 -> x_B); else double evaluation (t = double(q)):
+        Linear xa + t (xb - xa); EqualPower sqrt(a2 + t (b2 - a2)) (decision D2); Logarithmic
+        exp2(logA[i] + t (logB[i] - logA[i])) - o; then std::clamp(float(y), min(xa, xb), max(xa, xb)).
+        anchorMass: identity at p_a == 0 / equal masses -> A.mass, p_a == 1 -> B.mass, else linear in double, rounded
+        once, clamped (FR-054).
+      - private static constexpr kSelectionGroups; logA_ / logB_ lose [[maybe_unused]].
+  dsp/tests/unit/systems/bass_morph_engine_test.cpp (append; T003 cases untouched apart from the two SECTION (b)
+      insertions and the file comment's T004 line; includes <filesystem>, <fstream>, <tuple> added)
+      TU-local helpers (anonymous namespace, bm prefix): bmGroups, bmGroupName, bmUlpK, bmLawDouble (closed forms in
+      double with the FR-035 identity branches), bmLawStepBound (plan S6), bmLeafValue, bmDrawDifferentLeaf,
+      bmGroupLeavesEqual, bmGoverning, bmConfigureGroupDiscretes, bmRule3CharacterPair, bmEvidenceDir,
+      BmLawStepStats / bmRecordLawStep, bmSc003Runs (T003's (a) loops and seed, reproduced exactly, with a step
+      callback), BmMonotoneStats / bmCheckMonotone / bmPrintReversal, BmEventKind / BmEvent / bmApplyEvent /
+      bmRunPartition.
+      Cases, all [systems][profundum][bass-morph]; none [long], none hidden:
+        1  BassMorph_LawTable [sc-019]
+        2  BassMorph_LawTable_GoverningAmount [sc-019][fr-034]
+        3  BassMorph_MonotoneLaws [fr-037]
+        4  BassMorph_ValidityClosure [sc-020]
+        5  BassMorph_BoundedStep SECTION (b) [sc-003]
+        6  BassMorph_Hysteresis [sc-004]
+        7  BassMorph_GoverningAmountRule [sc-004]
+        8  BassMorph_AnchorCurves [sc-005] (writes evidence/sc005e-mass-only.csv: p,mode,anchorMass,effectiveLevel)
+        9  BassMorph_Lifecycle SECTION (b) [sc-021]
+        10 BassMorph_EndpointEditMidMorph [sc-024]
+        11 BassMorph_Partition [sc-013]
+  specs/profundum-phase8-bass-morph/evidence/run-log/T004.txt (this file)
+
+Sources read this session: tasks.md (precondition table, deviations, rules 1-17, T003 / T004 / T005 sections);
+plan.md S1 C-1 - C-8, S4.1 - S4.8, S6, S7.1 - S7.4; spec.md FR-030 - FR-039, FR-052 - FR-055, FR-060 - FR-062;
+bass_morph_engine.h (T003, whole file); morph_state.h (whole file: kFieldTable :142-317, forEachMorphLeaf
+:335-399, leafBitsEqual :484, isValidMorphState :513); bass_morph_state_helpers.h (whole file);
+bass_morph_engine_test.cpp (T003, whole file); mass_law.h:63-140 (Target :67-69, kNeutralMass :73, Row :91-98,
+kRows :103-111 with AnchorLevel lo 0 / hi 1 / 0.5 / 0.5 Linear, evaluateRow :132-140); anchor_oscillator.h:57-58
+(Waveform, Mode {Lock, Follow, Punch, Ghost}), :72 (kDefaultLevel 0.5), :99-102 (Controls);
+bass_stereo_field.h:64-65 (ImageMode, MotionSource), :99-111 (Controls defaults: mode Spread, spread 0.5,
+motionDepth 0, cycleNote Whole), :263-270 (isValidControls: declared enums and closed boxes only, no cross-field
+rule); bass_character_stage.h:78 (Algorithm); note_value.h:38-57; lfo.h:47-54 (Waveform).
+
+Failing-first evidence (reasoning against T003's identity-only resolver, per tasks.md "Verify"; not a run):
+  1  LawTable: RED. Every F32 row at p = 0.25 resolves to A, so differingLeaves(resolved, A) is empty (expected
+     {idx}); every Stepped row at kThetaUp resolves to A (T003's selections never leave A).
+  2  LawTable_GoverningAmount: RED. Rule-2 cases expect the non-silent side B at 0.01 (T003: A); rule-3 cases expect
+     B at 0.99 (T003: A).
+  3  MonotoneLaws: RED via the non-vacuity check CHECK(st.interiorValues > 0): the identity resolver never produces
+     a value strictly between the endpoints. (Its monotonicity assertion alone would pass vacuously, a constant is
+     monotone; the non-vacuity check is my addition, decision D5.)
+  4  ValidityClosure: RED via CHECK(interior > 0) for the same reason (validity and the box hold trivially for
+     A / B values).
+  5  BoundedStep (b): RED. At the landing interval of the 0 -> 1 jump T003 jumps every differing continuous leaf
+     from x_A to x_B in one interval, |dx| = |x_B - x_A| >> bound(|dq| = one step) (showcase pair: foldAmount 0 -> 80
+     in one interval against 80 * 0.0167).
+  6  Hysteresis: RED. The mirror run REQUIREs selection B after landing at 0.49 from 1 (T003: A); the theta_up run
+     CHECKs the final selection B (T003: A).
+  7  GoverningAmountRule: RED. Zero-on-A rows expect the change at the first interval with q > 0 (T003 changes only
+     at the landing on 1); both-non-zero rows expect the change at q >= 0.52 (T003: at q == 1).
+  8  AnchorCurves: RED. Blend level must be 1 - 0.3p within 1e-6 (T003: 1.0 at every interior p); (e) Lock passes,
+     Blend effective level at p = 1 is 1.0 under both, but (a)-(c) fail.
+  9  Lifecycle (b): RED. Swept 1 -> 0.5 then reset() expects B (T003: A); reset() at 0.53 expects B (T003: A).
+  10 EndpointEditMidMorph: RED. The expected change law(0.3; A, B') - law(0.3; A, B) is non-zero for every one of
+     the 46 continuous leaves (each B' leaf differs from B's); T003 resolves A at 0.3 so the change is 0.
+  11 Partition: RED via CHECK(interior > 0): under T003 every interval's state equals the current endpoint A (or B
+     at q == 1). Partition equality itself holds under T003 too (it is a determinism property).
+
+Decisions (each a deviation from a literal reading, surfaced for the main loop; none relaxes a bar):
+  D1 Default constructor. Plan S4.2 / S4.6 only refresh the log cache in setEndpoint, so an endpoint that is never
+     set (MorphState{} default) would interpolate its Logarithmic rows from a zero cache (exp2(0) = 1: wrong
+     values for e.g. dropTimeMs 100 ms). The constructor fills both caches from the defaults. No allocation; the
+     engine stays copyable and nothrow-movable (BassMorph_InterfaceStatics' static_asserts unaffected). T005's
+     restoreRuntime does not touch endpoints, so it needs nothing more.
+  D2 Equal-power regrouping. FR-033 / plan S4.6 spell the radicand (1 - t) m_A^2 + t m_B^2. The resolver evaluates
+     the algebraically identical m_A^2 + t (m_B^2 - m_A^2) in double: m_A^2 and m_B^2 are exact in double (48-bit
+     products), the difference is t-independent, and t * d and the sum are correctly rounded and monotone in t,
+     so FR-037 holds by argument for this law (the two-term form adds a decreasing and an increasing rounded term,
+     which plan S4.6's monotonicity argument does not actually cover). The SC-019(b) closed form in the test stays
+     the spec's sqrt(0.75 x_A^2 + 0.25 x_B^2); the two forms agree within 2 ulp by C-4's error analysis.
+  D3 Test 2 "the other four groups' selections ... stay A's throughout": unsatisfiable as written, because rule 1
+     (S4.5, FR-034) selects B for every group at q = 1, and the other groups' governing amounts are the defaults on
+     both sides (Character 0 / 0, ImageMode 0.5 / 0.5, FieldMotion 0 / 0, Motion 0 / 0, Anchor 0.5 / 0.5), so rule 3
+     selects B at 0.99 too. The test asserts, for the other four groups, the rule-3 trajectory (A at 0, 0.01, 0.25,
+     theta_up - 0.005 ascending; B at 0.99, 1 and at theta_up - 0.005 descending; A at 0.25, 0.01, 0) and that their
+     discrete leaves equal A's (equal on both sides) at every visit. That is the reading that keeps the clause's
+     intent (the tested group's amounts do not leak into the other groups). DEFECT: tasks.md T004 test 2 and plan
+     S7.4's SC-019 row say "selections ... stay at A's values throughout" for the other four groups; expected rule-3
+     trajectory per S4.5; text fix in tasks.md / plan.md (not files this task owns; T015).
+  D4 Test 5 (b): the per-leaf bound is evaluated at the interval's own |dq| (|dp| for main leaves, |dp_a| for the
+     Anchor block), not at the constant Delta p_max. SECTION (a) gates |dq| <= Delta p_max (1 + 4 eps) + 0.5 ulp
+     (B3-1); the laws' bounds are monotone in d, so the per-interval form is at least as strict wherever
+     |dq| <= Delta p_max and is exact math where the B3-1 half-ulp excess applies (at 2000 ms / 192 kHz that excess
+     is ~3.6e-4 relative to Delta p_max, far above the 4 eps factor, so the literal Delta p_max form could go red on
+     a correct engine through the ruled slew rounding alone).
+  D5 Non-vacuity checks added (no bar changed): MonotoneLaws interiorValues > 0, ValidityClosure interior > 0,
+     Partition interior > 0, BoundedStep (b) totalChecks > 0, Hysteresis premise REQUIREs (selection A / B after the
+     approach, as the spec states) and the end-selection CHECK. Each makes the case able to fail against an
+     identity resolver.
+  D6 Test 2 Motion variants: (v, z) in {(+0.5, +0), (-0.5, +0), (+0.5, -0)}; four cases each: zero on A (z / v), zero
+     on B (v / z), both non-zero (v / -v), both zero (z / z). Discretes per group as the task text names (Motion:
+     Env / Cycle, Mass / Body, Sine / Triangle, false / true, Quarter / Whole, None / Dotted, true / false,
+     Bipolar / Unipolar; motion.depth 1 on both sides).
+  D7 Test 7 positive control: one "both non-zero" row per row type (A amount 0.8, B 0.7) for Character, ImageMode,
+     Anchor waveform and Anchor mode. The per-interval "non-silent side" value check applies to rule-2 rows only
+     (rule-3 rows have no single non-silent side); q == 0 / q == 1 identity is checked on every row.
+  D8 Test 11 event list: Position stamps every round((20 + 180 u) ms * 48) samples (not grid-aligned); value 10 %
+     theta_up / theta_down +/- 1e-3 (side and sign one word bit each), 5 % exact 0 / 1, else uniform; RampMs at every
+     48 000 samples, 5 + 1995 u; Mode at every 33 600 samples, word % 3; EndpointA and EndpointB both at every
+     62 400 samples (A first). Initial endpoints: the first randomValidPair of the seed. Events std::stable_sort'ed
+     by stamp. The reference is (block 1, engine 0); 11 further sequences compared with BassMorphTest::bitEqual.
+  D9 Test 1 draws: F32 uniform (log rows log-uniform) on the row box, redrawn (<= 64 tries, then REQUIRE) until at
+     least 1 % of the span from A's value, so the 0.25 point is distinguishable; the hiOpen phase row maps 360 to
+     nextafter(360, 0); Enum8 = (a + 1 + w % maxEnum) % (maxEnum + 1); Bool = !a.
+  D10 Test 8 (e) CSV holds all three modes (Punch printed, not asserted; Lock and Blend asserted as specified).
+  D11 Lambdas never capture structured bindings (named copies instead), for Apple Clang < 16 portability.
+  D12 Test 10 B': randomValidState, then every F32 leaf equal to B's replaced by lo + 0.25 span (or lo + 0.75 span if
+     that equals B's), every discrete leaf copied from B, every governing amount that is 0 set to 0.25 (0.75 if B's
+     is 0.25). The discrete arm edits A's characterAlgorithm to (a + 1) % 6 and checks it is not visible before the
+     interval and is after exactly one advanceInterval().
+
+Timing note (for the gate): the heaviest new cases are BoundedStep (b) (the SC-003 runs again, ~3.2 M intervals
+over the 36 combos, each with a 46-leaf check), MonotoneLaws (300 x 10 000 resets + 300 x 3 000 intervals) and
+ValidityClosure (100 000 pairs). All engine-only; expected seconds, not minutes. Not [long] (bounded-grid / closure
+cases, rule 6).
+
+DEFECT: BassMorph_LawTable_GoverningAmount (tasks.md T004 test 2 / plan S7.4 SC-019 row) expected "other four
+groups' selections stay A throughout" / observed by construction rule 1 selects B at q = 1 for every group (S4.5)
+/ the clause conflicts with FR-034 rule 1; the test asserts the rule-3 trajectory instead (D3) / owning files
+specs/profundum-phase8-bass-morph/tasks.md and plan.md.

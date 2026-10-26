@@ -1,0 +1,23 @@
+SC-011 close finding (2026-10-22): Profundum_StateRestoreRender read 1.09162 dB (bar 0.1).
+Hidden probes in state_restore_render_test.cpp (removed after the diagnosis), profundum_tests at the Phase 11 build head:
+
+1. Restore is byte-perfect: the restored instance equalled a reset original exactly (dst-src2 = 0); getState after the
+   stream matched byte for byte. The gap was "running instance" vs "freshly reset instance".
+2. Reset then N ms of silence (0..1000 ms) before the note: 1.11193 dB at every N, so not a settle; a persistent
+   reset-only difference. (An earlier settle reading, 4.57 dB decaying over ~20 ms, was a probe confound: a fresh
+   stream's rejected blob made p ramp from 0.)
+3. Endpoints A = B still 2.5 dB; default endpoints 0.27 dB -> not the morph. Globals bisect: Tight<->Loose macro alone
+   0.30 dB, every other global 0.
+4. Cause 1 (ProfundumVoice): applyTransition gated the amp envelope at the note event, before the interval's amp
+   setters (step 10). ADSREnvelope's table path latches the attack increment in enterAttack, so an idle voice's first
+   note played the attack time it last applied (Tight<->Loose scales it). Engine test
+   VoiceEngine_IdleVoiceFirstNoteUsesCurrentAmpEnvelope: before -9.58 dB vs fresh -75.54 dB (first 100 ms), after pass.
+   Fix: the gate is deferred to flushAmpGate() after the amp setters / at the declick switch (the G14-3 pattern).
+   SC-011 after cause 1: 0.381452 dB.
+5. Cause 2 (ProfundumEngine): a blob restored before the first block installs selection B on an engine prepared with
+   selection A (band rule at p = 0.5); the stereo field's image-mode fade then ran under the first note. Equalising the
+   field leaves: 0.0139529 dB; restore + one block + reset: matched the original (0.0178 dB). Engine test
+   VoiceEngine_RestoreBeforeFirstBlockLandsSettled (Solid -> Wide, spread 1, Tight<->Loose 0.8): side energy
+   -33.2920 vs -33.9753 dB before, pass after. Fix: restoreMorphRuntime re-snaps the dependent state (reset() minus
+   the morph snap and the event queue) while no block has rendered since prepare / reset.
+6. SC-011 after both: 0.0178014 dB (bar 0.1), All tests passed (5572 assertions in 1 test case).

@@ -13,23 +13,20 @@
 //   - runBodyImpulse(): trigger BodyBank with an impulse and collect samples
 // ==============================================================================
 
+#include <krate/dsp/core/db_utils.h>
 #include "dsp/body_bank.h"
 #include "dsp/body_model_type.h"
 #include "dsp/voice_common_params.h"
 
 #include <cmath>
-#include <cstdint>
-#include <cstring>
 
 namespace membrum_body_tests {
 
-// Bit-manipulation NaN/Inf check. -ffast-math breaks std::isnan()/isfinite(),
-// so we inspect the IEEE-754 exponent bits directly (see CLAUDE.md).
+// NaN/Inf check that survives -ffast-math: the shared detail::isFinite reads the bits through db_utils.h's
+// barrier. A local memcpy + mask (this helper's old body) is folded to "finite" by newer Apple clang.
 inline bool isFiniteSample(float x) noexcept
 {
-    std::uint32_t bits = 0;
-    std::memcpy(&bits, &x, sizeof(bits));
-    return (bits & 0x7F800000u) != 0x7F800000u;
+    return ::Krate::DSP::detail::isFinite(x);
 }
 
 // Goertzel algorithm: single-bin DFT magnitude at `targetHz` over `numSamples`

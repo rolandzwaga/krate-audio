@@ -1,0 +1,17 @@
+specs/profundum-phase9-voice-engine/evidence/audibility-table/VoiceEngine_AudibilityTableSmoke.csv
+specs/profundum-phase9-voice-engine/evidence/audibility-table/VoiceEngine_AudibilityTable_Anchor.csv
+specs/profundum-phase9-voice-engine/evidence/audibility-table/VoiceEngine_AudibilityTable_Character.csv
+specs/profundum-phase9-voice-engine/evidence/audibility-table/VoiceEngine_AudibilityTable_Core.csv
+specs/profundum-phase9-voice-engine/evidence/audibility-table/VoiceEngine_AudibilityTable_Envelope.csv
+specs/profundum-phase9-voice-engine/evidence/audibility-table/VoiceEngine_AudibilityTable_Field.csv
+specs/profundum-phase9-voice-engine/evidence/audibility-table/VoiceEngine_AudibilityTable_Macros.csv
+specs/profundum-phase9-voice-engine/evidence/audibility-table/VoiceEngine_AudibilityTable_Mass.csv
+specs/profundum-phase9-voice-engine/evidence/audibility-table/VoiceEngine_AudibilityTable_Morph.csv
+specs/profundum-phase9-voice-engine/evidence/audibility-table/VoiceEngine_AudibilityTable_Motion.csv
+specs/profundum-phase9-voice-engine/evidence/audibility-table/VoiceEngine_AudibilityTable_NoteMemory.csv
+specs/profundum-phase9-voice-engine/evidence/audibility-table/VoiceEngine_AudibilityTable_Pitch.csv
+specs/profundum-phase9-voice-engine/evidence/h17-poly-gr.txt
+specs/profundum-phase9-voice-engine/evidence/macro-monotone-smoke.csv
+specs/profundum-phase9-voice-engine/evidence/macro-monotone.csv
+specs/profundum-phase9-voice-engine/evidence/motion-mass-swell-smoke.txt
+specs/profundum-phase9-voice-engine/evidence/motion-mass-swell.txt

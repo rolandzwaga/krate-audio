@@ -1,0 +1,37 @@
+T018 CMake registration audit - 2026-10-18 (base 4599d180)
+
+== grep -c of each Phase 7 TU path in dsp/tests/CMakeLists.txt (expected 1; nonfinite 2) ==
+unit/systems/bass_stereo_field_test.cpp 1
+unit/systems/bass_stereo_field_helpers_test.cpp 1
+unit/systems/bass_stereo_field_nonfinite_test.cpp 2
+unit/systems/bass_stereo_field_monosum_test.cpp 1
+unit/systems/bass_stereo_field_spectral_test.cpp 1
+unit/systems/bass_stereo_field_motion_test.cpp 1
+unit/systems/bass_stereo_field_chain_test.cpp 1
+unit/systems/bass_stereo_field_harvest_test.cpp 1
+unit/systems/bass_stereo_field_perf_test.cpp 1
+
+== line numbers (grep -n unit/systems/bass_stereo_field dsp/tests/CMakeLists.txt) ==
+754:    unit/systems/bass_stereo_field_test.cpp
+755:    unit/systems/bass_stereo_field_helpers_test.cpp
+756:    unit/systems/bass_stereo_field_nonfinite_test.cpp
+757:    unit/systems/bass_stereo_field_monosum_test.cpp
+758:    unit/systems/bass_stereo_field_spectral_test.cpp
+759:    unit/systems/bass_stereo_field_motion_test.cpp
+760:    unit/systems/bass_stereo_field_chain_test.cpp
+761:    unit/systems/bass_stereo_field_harvest_test.cpp
+762:    unit/systems/bass_stereo_field_perf_test.cpp
+1259:        unit/systems/bass_stereo_field_nonfinite_test.cpp
+(754-762: add_executable(dsp_systems_tests ...) list; 1259: set_source_files_properties -fno-fast-math -fno-finite-math-only block, nonfinite TU only; perf TU appears only at 762)
+
+== header in dsp/CMakeLists.txt (expected 1, in KRATE_DSP_SYSTEMS_HEADERS) ==
+count: 1
+215:    include/krate/dsp/systems/bass_stereo_field.h
+182:set(KRATE_DSP_SYSTEMS_HEADERS
+
+== git diff 4599d180 --numstat (added, removed, file) ==
+2	0	dsp/CMakeLists.txt
+22	0	dsp/tests/CMakeLists.txt
+removed-line count (lines starting '-' excluding '---' headers): 0
+
+VERDICT: PASS - every count as required, header listed once in the systems list, diff is additions only. No CMake edit made by T018.

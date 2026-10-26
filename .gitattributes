@@ -17,3 +17,6 @@ specs/_architecture_/repo-map.json text eol=lf
 specs/_architecture_/symbols.json  text eol=lf
 specs/INDEX.md                     text eol=lf
 .claude/workflows/*.js              text eol=lf
+
+# Run from WSL against this (Windows, core.autocrlf=true) checkout: a CRLF copy fails in bash on the first line.
+tools/macos-fastmath-repro.sh       text eol=lf

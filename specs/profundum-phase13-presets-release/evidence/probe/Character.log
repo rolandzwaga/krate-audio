@@ -1,0 +1,20 @@
+Filters: "Profundum_PresetAudibilityProbe_Character"
+Randomness seeded to: 659785672
+# Profundum_PresetAudibilityProbe_Character
+at_id,variant,note,base,processor_value,bar,pass,live_value,csv_value,rel_dev,anchor_phase_tap_renders
+"AT-04","",E1,"A + sustain 1 (C-8) + Tube",13.1824,">= 3 dB",PASS,13.1824,13.1824,3.39781e-06,n/a
+"AT-05","",E1,"A + sustain 1 (C-8) + Fold",6.50986,">= 3 dB",PASS,6.50986,6.50986,4.66231e-07,n/a
+"AT-06","",E1,"A + sustain 1 (C-8) + Rectify",34.2658,">= 3 dB",PASS,34.2658,34.2658,1.06736e-06,n/a
+"AT-07","",E1,"A + sustain 1 (C-8) + Bite",37.2535,">= 3 dB",PASS,37.2535,37.2535,9.83152e-07,n/a
+"AT-08","",E1,"A + sustain 1 (C-8) + Crush",46.4615,">= 3 dB",PASS,46.4615,46.4615,3.90336e-08,n/a
+"AT-09","",E1,"B + sustain 1 (B10-1) + Fracture",27.8887,">= 3 dB",PASS,27.8887,27.8887,1.69654e-06,n/a
+"AT-04","",C3,"A + sustain 1 (C-8) + Tube",13.1696,">= 3 dB",PASS,13.1696,13.1696,1.09526e-06,n/a
+"AT-05","",C3,"A + sustain 1 (C-8) + Fold",6.49428,">= 3 dB",PASS,6.49428,6.49428,1.18633e-07,n/a
+"AT-06","",C3,"A + sustain 1 (C-8) + Rectify",34.2448,">= 3 dB",PASS,34.2448,34.2448,6.83193e-08,n/a
+"AT-07","",C3,"A + sustain 1 (C-8) + Bite",37.2389,">= 3 dB",PASS,37.2389,37.2389,3.17688e-07,n/a
+"AT-08","",C3,"A + sustain 1 (C-8) + Crush",46.3414,">= 3 dB",PASS,46.3414,46.3414,1.05772e-06,n/a
+"AT-09","",C3,"B + sustain 1 (B10-1) + Fracture",30.8921,">= 3 dB",PASS,30.8921,30.8921,7.33325e-07,n/a
+===============================================================================
+All tests passed (1400015 assertions in 1 test case)
+
+WALL Character 93.1 s exit=0

@@ -1,0 +1,39 @@
+T024 CMake registration audit (Phase 9, Group 13) - 2026-10-21
+Base commit: 0ae33b87. Verdict: PASS - no fix needed; neither CMake file edited by T024.
+
+1. dsp/tests/CMakeLists.txt - grep -c "<path>" per Phase 9 TU (plan S10.1, all 14):
+   unit/systems/profundum_voice_engine_helpers_test.cpp   1  (expected 1)
+   unit/systems/profundum_motion_test.cpp                 1  (expected 1)
+   unit/systems/profundum_macro_matrix_test.cpp           1  (expected 1)
+   unit/systems/profundum_voice_test.cpp                  1  (expected 1)
+   unit/systems/profundum_engine_test.cpp                 1  (expected 1)
+   unit/systems/profundum_engine_nonfinite_test.cpp       2  (expected 2: list L808 + -fno-fast-math block L1317)
+   unit/systems/profundum_engine_click_test.cpp           1  (expected 1)
+   unit/systems/profundum_engine_audibility_test.cpp      1  (expected 1)
+   unit/systems/profundum_engine_chain_test.cpp           1  (expected 1)
+   unit/systems/profundum_engine_aliasing_test.cpp        1  (expected 1)
+   unit/systems/profundum_engine_soak_test.cpp            1  (expected 1)
+   unit/systems/profundum_engine_probe_test.cpp           1  (expected 1)
+   unit/systems/profundum_engine_perf_test.cpp            1  (expected 1; list L815 only)
+   unit/systems/mass_dynamics_oversampling_test.cpp       1  (expected 1)
+   All 14 files exist on disk under dsp/tests/unit/systems/.
+   All 14 list entries lie inside add_executable(dsp_systems_tests ...) (opens L371, closes L817).
+   The nonfinite entry at L1317 lies in the set_source_files_properties(... PROPERTIES COMPILE_FLAGS
+   "-fno-fast-math -fno-finite-math-only") block (L1318), with a "Profundum Phase 9" comment at L1316.
+   profundum_engine_perf_test.cpp appears in no set_source_files_properties block (its only path hit is L815).
+
+2. dsp/CMakeLists.txt - grep -c "systems/<header>" per new header:
+   profundum_motion.h           1  (L220)
+   profundum_macro_matrix.h     1  (L221)
+   profundum_engine_observer.h  1  (L222)
+   profundum_voice.h            1  (L223)
+   profundum_engine.h           1  (L224)
+   All five inside set(KRATE_DSP_SYSTEMS_HEADERS ...) (opens L182, closes L225, before
+   KRATE_DSP_EFFECTS_HEADERS at L228), after the Phase 8 block, with a Phase 9 comment at L219.
+   All five files exist under dsp/include/krate/dsp/systems/.
+
+3. git diff 0ae33b87 -- dsp/CMakeLists.txt dsp/tests/CMakeLists.txt
+   Changed lines (excluding +++/--- headers): 38, all "+" lines, zero "-" lines.
+     dsp/CMakeLists.txt:        6 added (1 comment + 5 headers)
+     dsp/tests/CMakeLists.txt: 32 added (16 comment + 14 TUs in the list; 1 comment + 1 TU in the -fno-fast-math block)
+   Verdict: added lines only.

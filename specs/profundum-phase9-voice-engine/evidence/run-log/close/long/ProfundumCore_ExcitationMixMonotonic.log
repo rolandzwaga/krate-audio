@@ -1,0 +1,21 @@
+Filters: "ProfundumCore_ExcitationMixMonotonic"
+Randomness seeded to: 2488094595
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+ProfundumCore_ExcitationMixMonotonic
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_excitation_spectral_test.cpp(528)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_excitation_spectral_test.cpp(284): warning:
+  SC-001 mix sweep: smallest THD(mix 1) - THD(mix 0) 55.9033 dB (bar 20)
+
+96.222 s: ProfundumCore_ExcitationMixMonotonic
+===============================================================================
+All tests passed (3960 assertions in 1 test case)
+
+exit: 0 wall: 97 s

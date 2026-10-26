@@ -1,0 +1,125 @@
+Filters: "Profundum_ParamFlowReachesEngine"
+Randomness seeded to: 3961924144
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+profundum_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+Profundum_ParamFlowReachesEngine
+  ReadBack
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(157)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(192): warning:
+  ReadBack: voiceMode 1, polyphony 5, ceiling -7.2 dBTP, macros {0.2, 0.7, 0.9,
+  0.1}
+
+-------------------------------------------------------------------------------
+Profundum_ParamFlowReachesEngine
+  Audibility
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(204)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(215): warning:
+  gain 0.9: rms ratio over [2400, 96000) L = 0.501187, R = 0.501187 (bar [0.
+  491, 0.511])
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(228): warning:
+  gain 0.0: non-zero samples from index 960 = 0, peak = 0
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(234): warning:
+  gain 1.0: mismatches vs default L = 0, R = 0
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(245): warning:
+  voice mode Mono vs Poly: maxAbsDiff = 1.27478 (bar > 1e-3)
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(258): warning:
+  polyphony 1 vs 4 (kChord4): rmsDb L -16.6464 vs -10.9182, R -16.0418 vs -10.
+  7484 (bar |diff| > 1 dB)
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(272): warning:
+  ceiling (kChord8): default peak = 0.891251, -12 dBTP peak = 0.251189 (bar 0.
+  251189)
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(290): warning:
+  macro 100 = 0: rmsDb(x - default) = -17.3485 dBFS (bar > -60)
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(290): warning:
+  macro 100 = 1: rmsDb(x - default) = -14.7945 dBFS (bar > -60)
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(290): warning:
+  macro 101 = 0: rmsDb(x - default) = -21.1065 dBFS (bar > -60)
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(290): warning:
+  macro 101 = 1: rmsDb(x - default) = -19.6822 dBFS (bar > -60)
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(290): warning:
+  macro 102 = 0: rmsDb(x - default) = -18.1675 dBFS (bar > -60)
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(290): warning:
+  macro 102 = 1: rmsDb(x - default) = -19.1082 dBFS (bar > -60)
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(290): warning:
+  macro 103 = 0: rmsDb(x - default) = -200 dBFS (recorded: inert by
+  construction on the default patch, D-2)
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(290): warning:
+  macro 103 = 1: rmsDb(x - default) = -27.8486 dBFS (bar > -60)
+
+-------------------------------------------------------------------------------
+Profundum_ParamFlowReachesEngine
+  Tempo
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(299)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(324): warning:
+  Tempo: after kTempoValid 90 = 90, after state 0 / 140 = 90, after null
+  context = 90
+
+-------------------------------------------------------------------------------
+Profundum_ParamFlowReachesEngine
+  MacrosLive
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(331)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(344): warning:
+  MacrosLive: tightLoose after a 0.8 point = 0.8
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(369): warning:
+  MacrosLive all-0.5 vs DirectEngine: mismatches L = 0, R = 0
+
+-------------------------------------------------------------------------------
+Profundum_ParamFlowReachesEngine
+  StateWhileRunning
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(375)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(408): warning:
+  StateWhileRunning: voiceMode 1, polyphony 2, ceiling -6, macros {0.1, 0.2, 0.
+  3, 0.4}
+
+-------------------------------------------------------------------------------
+Profundum_ParamFlowReachesEngine
+  GainRamp
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(419)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(493): warning:
+  GainRamp: block 0 mismatches L = 0, R = 0; gain after block 1 = 0.535848,
+  predicted = 0.535848 (|diff| 0)
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(496): warning:
+  GainRamp ratio L: count 512, increases 0, first 0.997409, last 0.535848; R:
+  count 512, increases 0, first 0.997409, last 0.535848
+
+===============================================================================
+All tests passed (21747 assertions in 1 test case)
+
+exit: 0

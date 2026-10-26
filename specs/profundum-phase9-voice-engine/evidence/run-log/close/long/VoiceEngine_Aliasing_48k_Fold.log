@@ -1,0 +1,32 @@
+Filters: "VoiceEngine_Aliasing_48k_Fold"
+Randomness seeded to: 1849132609
+SC-021 48k E0 Fold SHAPE 0 Tone 0 LOCK: (a) Sum -105.48 dBFS, (b) out on -74.10 dBFS (added -74.10), off -91.82 dBFS (added -92.04); bar -80
+SC-021 48k E0 Fold SHAPE 0 Tone 0 FOLLOW: (a) Sum -105.48 dBFS, (b) out on -74.10 dBFS (added -74.10), off -91.82 dBFS (added -92.04); bar -80
+SC-021 48k E0 Fold SHAPE 0 Tone 1 LOCK: (a) Sum -90.63 dBFS, (b) out on -81.33 dBFS (added -81.45), off -81.61 dBFS (added -81.73); bar -80
+SC-021 48k E0 Fold SHAPE 0 Tone 1 FOLLOW: (a) Sum -90.63 dBFS, (b) out on -81.33 dBFS (added -81.45), off -81.61 dBFS (added -81.73); bar -80
+SC-021 48k E0 Fold SHAPE 1 Tone 0 LOCK: (a) Sum -115.61 dBFS, (b) out on -77.34 dBFS (added -77.34), off -96.16 dBFS (added -96.25); bar -80
+SC-021 48k E0 Fold SHAPE 1 Tone 0 FOLLOW: (a) Sum -115.61 dBFS, (b) out on -77.34 dBFS (added -77.34), off -96.16 dBFS (added -96.25); bar -80
+SC-021 48k E0 Fold SHAPE 1 Tone 1 LOCK: (a) Sum -104.78 dBFS, (b) out on -52.80 dBFS (added -52.80), off -52.70 dBFS (added -52.70); bar -80
+SC-021 48k E0 Fold SHAPE 1 Tone 1 FOLLOW: (a) Sum -104.78 dBFS, (b) out on -52.80 dBFS (added -52.80), off -52.70 dBFS (added -52.70); bar -80
+SC-021 48k E1 Fold SHAPE 0 Tone 0 LOCK: (a) Sum -93.39 dBFS, (b) out on -83.53 dBFS (added -84.32), off -93.76 dBFS (added -3000.00); bar -80
+SC-021 48k E1 Fold SHAPE 0 Tone 0 FOLLOW: (a) Sum -93.39 dBFS, (b) out on -83.53 dBFS (added -84.32), off -93.76 dBFS (added -3000.00); bar -80
+SC-021 48k E1 Fold SHAPE 0 Tone 1 LOCK: (a) Sum -87.75 dBFS, (b) out on -67.26 dBFS (added -67.29), off -67.08 dBFS (added -67.11); bar -80
+SC-021 48k E1 Fold SHAPE 0 Tone 1 FOLLOW: (a) Sum -87.75 dBFS, (b) out on -67.26 dBFS (added -67.29), off -67.08 dBFS (added -67.11); bar -80
+SC-021 48k E1 Fold SHAPE 1 Tone 0 LOCK: (a) Sum -115.24 dBFS, (b) out on -87.05 dBFS (added -87.06), off -100.10 dBFS (added -100.31); bar -80
+SC-021 48k E1 Fold SHAPE 1 Tone 0 FOLLOW: (a) Sum -115.24 dBFS, (b) out on -87.05 dBFS (added -87.06), off -100.10 dBFS (added -100.31); bar -80
+SC-021 48k E1 Fold SHAPE 1 Tone 1 LOCK: (a) Sum -106.07 dBFS, (b) out on -81.50 dBFS (added -81.51), off -61.62 dBFS (added -61.62); bar -80
+SC-021 48k E1 Fold SHAPE 1 Tone 1 FOLLOW: (a) Sum -106.07 dBFS, (b) out on -81.50 dBFS (added -81.51), off -61.62 dBFS (added -61.62); bar -80
+SC-021 48k E2 Fold SHAPE 0 Tone 0 LOCK: (a) Sum -87.05 dBFS, (b) out on -86.14 dBFS (added -100.20), off -86.17 dBFS (added -101.09); bar -80
+SC-021 48k E2 Fold SHAPE 0 Tone 0 FOLLOW: (a) Sum -87.05 dBFS, (b) out on -86.14 dBFS (added -100.20), off -86.17 dBFS (added -101.09); bar -80
+SC-021 48k E2 Fold SHAPE 0 Tone 1 LOCK: (a) Sum -81.71 dBFS, (b) out on -72.08 dBFS (added -72.32), off -64.80 dBFS (added -64.85); bar -80
+SC-021 48k E2 Fold SHAPE 0 Tone 1 FOLLOW: (a) Sum -81.71 dBFS, (b) out on -72.08 dBFS (added -72.32), off -64.80 dBFS (added -64.85); bar -80
+SC-021 48k E2 Fold SHAPE 1 Tone 0 LOCK: (a) Sum -111.39 dBFS, (b) out on -95.48 dBFS (added -95.50), off -95.52 dBFS (added -95.54); bar -80
+SC-021 48k E2 Fold SHAPE 1 Tone 0 FOLLOW: (a) Sum -111.39 dBFS, (b) out on -95.48 dBFS (added -95.50), off -95.52 dBFS (added -95.54); bar -80
+SC-021 48k E2 Fold SHAPE 1 Tone 1 LOCK: (a) Sum -97.58 dBFS, (b) out on -58.40 dBFS (added -58.40), off -58.40 dBFS (added -58.40); bar -80
+SC-021 48k E2 Fold SHAPE 1 Tone 1 FOLLOW: (a) Sum -97.58 dBFS, (b) out on -58.40 dBFS (added -58.40), off -58.40 dBFS (added -58.40); bar -80
+SC-021 shard 48k Fold: 24 cells, worst (a) Sum -81.71 dBFS (48k E2 Fold SHAPE 0 Tone 1 LOCK), worst (b) output -52.80 dBFS (48k E0 Fold SHAPE 1 Tone 1 LOCK), worst opt-in-off output -52.70 dBFS (recorded); bar -80; wall clock 98.0 s
+97.970 s: VoiceEngine_Aliasing_48k_Fold
+===============================================================================
+All tests passed (1873 assertions in 1 test case)
+
+exit: 0 wall: 99 s

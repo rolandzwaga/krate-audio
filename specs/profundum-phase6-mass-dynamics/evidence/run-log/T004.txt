@@ -1,0 +1,49 @@
+T004 run-log - PeriodPeakDetector (L2; plan S1 C-4, S3, R-11)
+Date: 2026-10-17. Executor stage only: no build and no test run here (the group's build agent runs
+dsp_processors_tests "[period-peak]" after this group).
+
+== Files ==
+dsp/include/krate/dsp/processors/period_peak_detector.h        (T002 stub filled)
+dsp/tests/unit/processors/period_peak_detector_test.cpp        (T002 stub filled)
+
+== ODR ==
+grep -r "class PeriodPeakDetector" dsp/ plugins/  -> 1 hit, the new header only.
+
+== Port source (read this session) ==
+truePeak  <- dsp/include/krate/dsp/processors/harmonic_fold.h:403-417 (advanceDetector, true-peak half)
+pushHeld  <- harmonic_fold.h:418-428 (ring-max half), plus segLen_ = pendingSegLen_ at segment completion
+segLen    <- harmonic_fold.h:145-147  max(1, ceil(round(hold * fs) / 8))
+Oversampler API: primitives/polyphase_halfband_oversampler.h:34 kMaxFactor, :49 setFactor, :54 factor(),
+:57 reset(), :70 upsample(float, float*), :105 stateFinite().
+
+== Test cases (tag [processors][profundum][period-peak]) ==
+PeriodPeakDetector_ConstantsMatchHarmonicFold
+PeriodPeakDetector_HeldBoundsInput
+PeriodPeakDetector_SteadyOnNonIntegerPeriod
+PeriodPeakDetector_HoldLengthAndBoundary
+PeriodPeakDetector_SettersAndLifecycle
+
+== Pre-build model of the detector (scratch node port of the header, float rounding via Math.fround; NOT compliance evidence) ==
+Impulse 1.0 at sample 0, 48 kHz: d[0..7] = 1.0000 0.1777 0.6694 0.7387 0.4074 0.4098 0.3045 0.2465;
+no later d reaches 1.0, so held() == 1.0f exactly over the hold. Tail: d[60] = 6.2e-3, d[100] = 5.6e-4,
+d[540] = 1.7e-15 (decays, never exactly 0 without FTZ). Predicted: hold 10 ms held 539 samples, tail max
+~6.2e-3 (< 1e-2); hold 20 ms held 1079 samples.
+
+D-4 ripple, E1, hold 50 ms, settle 1 s, window 2 s (bar 1e-4):
+  64 partials  fs 44100: 1.26e-5   fs 48000: 1.08e-5   fs 96000: 1.55e-6   -> pass
+  wide (0.45 fs) 481 partials fs 44100: 1.43e-3; 524 partials fs 48000: 1.44e-3; 1048 partials fs 96000: 7.39e-4
+                                                                              -> PREDICTED RED (7x-14x the bar)
+  Same wide saw at 48 kHz with HarmonicFold's 125 ms hold: 4.55e-5 (pass); at one period (24.27 ms): 2.0e-3.
+Reason: HarmonicFold's D-4 gate reads its follower env, whose 0.005 release hysteresis
+(harmonic_fold.h:99, :433) absorbs a raw window ripple of ~1.4e-3; it also uses a 125 ms window (5 E1
+periods). PeriodPeakDetector has no follower by plan S3, and the task's hold is 50 ms (2 periods), so the
+raw held value's period-to-period true-peak variation on the wide saw is what the gate reads.
+The test is written at the bar as specified; no bar or hold was changed. Needs a ruling if the build
+agent measures the same (options: gate the wide arm at hold 125 ms as HarmonicFold does, gate the
+64-partial arm only and record the wide one, or accept a different bar for the raw held value).
+
+Group 2 gate (2026-10-17): the prediction above was measured.
+- SteadyOnNonIntegerPeriod, wide arm at the 50 ms hold: ripple 1.43e-3 / 1.44e-3 / 7.39e-4 at 44.1 / 48 / 96 kHz. This is red against 1e-4.
+- The 64-partial arm reads 1.25e-5 / 1.08e-5 / 1.55e-6 and passes.
+- A scratch probe with the hold changed to 125 ms (F:/tmp/ppd_probe/probe.cpp) reads 4.37e-5 / 4.55e-5 / 4.45e-5.
+- Triaged as G2-1 in the tasks.md "Defects found" section. It awaits a user ruling. The code and the test are unchanged.

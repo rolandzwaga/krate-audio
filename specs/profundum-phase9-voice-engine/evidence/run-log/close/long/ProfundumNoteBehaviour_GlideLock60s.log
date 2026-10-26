@@ -1,0 +1,13 @@
+Filters: "ProfundumNoteBehaviour_GlideLock60s"
+Randomness seeded to: 2457905790
+SC-012(d) 60 s note 28 glide 0: dTheta(1 s) -0.001389 deg, dTheta(60 s) -0.112284 deg, drift -0.104976 deg, worst drift 0.104976 deg (bar 0.5)
+SC-012(d) 60 s note 28 glide 1: dTheta(1 s) -0.001389 deg, dTheta(60 s) -0.112789 deg, drift -0.105354 deg, worst drift 0.105354 deg (bar 0.5)
+SC-012(d) 60 s note 28 glide 2: dTheta(1 s) -0.001389 deg, dTheta(60 s) -0.111987 deg, drift -0.104466 deg, worst drift 0.104466 deg (bar 0.5)
+SC-012(d) 60 s note 48 glide 0: dTheta(1 s) -0.000205 deg, dTheta(60 s) -0.155027 deg, drift -0.151454 deg, worst drift 0.151454 deg (bar 0.5)
+SC-012(d) 60 s note 48 glide 1: dTheta(1 s) -0.000205 deg, dTheta(60 s) -0.153908 deg, drift -0.150326 deg, worst drift 0.150326 deg (bar 0.5)
+SC-012(d) 60 s note 48 glide 2: dTheta(1 s) -0.000205 deg, dTheta(60 s) -0.153057 deg, drift -0.149335 deg, worst drift 0.149335 deg (bar 0.5)
+24.218 s: ProfundumNoteBehaviour_GlideLock60s
+===============================================================================
+All tests passed (924 assertions in 1 test case)
+
+exit: 0 wall: 25 s

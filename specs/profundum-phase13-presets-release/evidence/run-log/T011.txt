@@ -1,0 +1,26 @@
+T011 — Root CMakeLists.txt: profundum_preset_generator + generate_profundum_presets (FR-024 – FR-026; plan §4.5)
+Date: 2026-10-24
+
+Edit: root CMakeLists.txt, new block inserted immediately after the Vorago generate_vorago_presets
+custom target (previous end of the Vorago block at :743; the new block occupies :745-812).
+- add_executable(profundum_preset_generator ...): tools/profundum_preset_generator.cpp,
+  plugins/profundum/src/processor/processor.cpp, plugins/profundum/src/processor/goertzel_bank_simd.cpp,
+  the five SDK sources of the Vorago block (memorystream, hostclasses, pluginterfacesupport,
+  moduleinit, pluginfactory), plugins/profundum/tests/vstgui_test_stubs.cpp.
+- target_link_libraries(profundum_preset_generator PRIVATE KrateDSP hwy KratePluginsShared sdk)
+  (no vstgui_support, no Catch2, never the test_helpers target).
+- include dirs: plugins/profundum/src, plugins/profundum/tests, tests/test_helpers (header-only), tools, ${vst3sdk_SOURCE_DIR}.
+- cxx_std_20; RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"; Vorago warning flags verbatim.
+- add_custom_target(generate_profundum_presets ... "53 presets across 6 categories" VERBATIM).
+- Banner comment copies the Vorago one about the fixed release.yml contract.
+
+Build: NOT run by the executor (the G9 build agent runs it).
+  "C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target profundum_preset_generator 2>&1 | tee build.log
+  Pass: 0 warnings, 0 errors.
+
+SC-010 link-line check (main loop runs at close; both greps must print 0):
+  grep -i -c "vstgui" <(grep -i "AdditionalDependencies" build/windows-x64-release/profundum_preset_generator.vcxproj)
+  grep -i -c "catch2" <(grep -i "AdditionalDependencies" build/windows-x64-release/profundum_preset_generator.vcxproj)
+  (Equivalently on a Ninja/Make build log: grep the profundum_preset_generator link line for vstgui and Catch2.)
+
+Verdict: PENDING G9 build gate.

@@ -1,0 +1,126 @@
+MSBuild version 17.14.60+43b635718 for .NET Framework
+
+  Checking File Globs
+  hwy.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy.lib
+  PFFFT.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\pffft.lib
+  base.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\base.lib
+  pluginterfaces.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\pluginterfaces.lib
+  vstgui.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\vstgui.lib
+  sdk_common.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\sdk_common.lib
+  hwy_contrib.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy_contrib.lib
+  KrateDSP.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\KrateDSP.lib
+  sdk_hosting.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\sdk_hosting.lib
+  sdk.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\sdk.lib
+  vstgui_uidescription.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\vstgui_uidescription.lib
+  KratePluginsShared.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\KratePluginsShared.lib
+  vstgui_support.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\vstgui_support.lib
+  moduleinfotool.vcxproj -> F:\projects\iterum\build\windows-x64-release\bin\Release\moduleinfotool.exe
+  controller.cpp
+  entry.cpp
+  processor.cpp
+     Creating library F:/projects/iterum/build/windows-x64-release/lib/Release/Profundum.lib and object F:/projects/iterum/build/windows-x64-release/lib/Release/Profundum.exp
+  Profundum.vcxproj -> F:\projects\iterum\build\windows-x64-release\VST3\Release\Profundum.vst3\Contents\x86_64-win\Profundum.vst3
+  [SMTG] Copy PlugIn.ico and desktop.ini and change their attributes.		Installing Profundum.vst3 to system VST3 folder	Installing Profundum factory presets to system directory
+  [VSTWORK] Copying plugin to C:\Users\scab\AppData\Local/Programs/Common/VST3...
+  [VSTWORK] Plugin installed to C:\Users\scab\AppData\Local/Programs/Common/VST3/Profundum.vst3
+  [VSTWORK] Installing Profundum factory presets...
+  [VSTWORK] Factory presets installed to C:\ProgramData/Krate Audio/Profundum
+MSBuild version 17.14.60+43b635718 for .NET Framework
+
+  Checking File Globs
+  Catch2.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\Catch2.lib
+  PFFFT.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\pffft.lib
+  hwy.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy.lib
+  base.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\base.lib
+  pluginterfaces.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\pluginterfaces.lib
+  vstgui.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\vstgui.lib
+  sdk_common.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\sdk_common.lib
+  hwy_contrib.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy_contrib.lib
+  vstgui_uidescription.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\vstgui_uidescription.lib
+  sdk.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\sdk.lib
+  KrateDSP.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\KrateDSP.lib
+  vstgui_support.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\vstgui_support.lib
+  KratePluginsShared.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\KratePluginsShared.lib
+  controller.cpp
+  processor.cpp
+  param_flow_test.cpp
+  processor_audio_test.cpp
+  processor_cpu_test.cpp
+  lifecycle_test.cpp
+  midi_event_test.cpp
+  param_denorm_test.cpp
+  processor_bus_test.cpp
+  state_roundtrip_test.cpp
+     Creating library F:/projects/iterum/build/windows-x64-release/lib/Release/profundum_tests.lib and object F:/projects/iterum/build/windows-x64-release/lib/Release/profundum_tests.exp
+  profundum_tests.vcxproj -> F:\projects\iterum\build\windows-x64-release\bin\Release\profundum_tests.exe
+MSBuild version 17.14.60+43b635718 for .NET Framework
+
+  Checking File Globs
+  Catch2.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\Catch2.lib
+  PFFFT.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\pffft.lib
+  hwy.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy.lib
+  hwy_contrib.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy_contrib.lib
+  KrateDSP.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\KrateDSP.lib
+  rectifier_nonfinite_test.cpp
+  rectifier_test.cpp
+  dsp_processors_tests.vcxproj -> F:\projects\iterum\build\windows-x64-release\bin\Release\dsp_processors_tests.exe
+MSBuild version 17.14.60+43b635718 for .NET Framework
+
+  Checking File Globs
+  Catch2.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\Catch2.lib
+  PFFFT.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\pffft.lib
+  hwy.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy.lib
+  hwy_contrib.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy_contrib.lib
+  KrateDSP.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\KrateDSP.lib
+  bass_character_rlaw_test.cpp
+  bass_character_spectral_test.cpp
+  bass_character_stage_test.cpp
+  bass_morph_aliasing_test.cpp
+  bass_morph_chain_test.cpp
+  bass_morph_click_test.cpp
+  bass_morph_engine_test.cpp
+  bass_morph_helpers_test.cpp
+  bass_morph_monosum_test.cpp
+  bass_morph_nonfinite_test.cpp
+  bass_morph_perf_test.cpp
+  bass_morph_probe_test.cpp
+  bass_morph_trajectory_test.cpp
+  bass_stereo_field_chain_test.cpp
+  bass_stereo_field_harvest_test.cpp
+  bass_stereo_field_helpers_test.cpp
+  bass_stereo_field_monosum_test.cpp
+  bass_stereo_field_motion_test.cpp
+  bass_stereo_field_nonfinite_test.cpp
+  bass_stereo_field_perf_test.cpp
+  bass_stereo_field_spectral_test.cpp
+  bass_stereo_field_test.cpp
+  mass_dynamics_oversampling_test.cpp
+  morph_state_test.cpp
+  profundum_engine_aliasing_test.cpp
+  profundum_engine_audibility_test.cpp
+  profundum_engine_chain_test.cpp
+  profundum_engine_click_test.cpp
+  profundum_engine_nonfinite_test.cpp
+  profundum_engine_perf_test.cpp
+  profundum_engine_probe_test.cpp
+  profundum_engine_soak_test.cpp
+  profundum_engine_test.cpp
+  profundum_macro_matrix_test.cpp
+  profundum_motion_test.cpp
+  profundum_voice_engine_helpers_test.cpp
+  profundum_voice_test.cpp
+  shape_character_chain_test.cpp
+  shape_character_nonfinite_test.cpp
+  shape_character_perf_test.cpp
+  shape_morph_spectral_test.cpp
+  shape_morph_test.cpp
+  dsp_systems_tests.vcxproj -> F:\projects\iterum\build\windows-x64-release\bin\Release\dsp_systems_tests.exe
+MSBuild version 17.14.60+43b635718 for .NET Framework
+
+  Checking File Globs
+  Catch2.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\Catch2.lib
+  PFFFT.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\pffft.lib
+  hwy.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy.lib
+  hwy_contrib.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\hwy_contrib.lib
+  KrateDSP.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\KrateDSP.lib
+  dsp_effects_tests.vcxproj -> F:\projects\iterum\build\windows-x64-release\bin\Release\dsp_effects_tests.exe

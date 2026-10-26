@@ -1,0 +1,60 @@
+T013 - Anti-aliasing while morphing (SC-017; FR-086; plan S1 C-16; deviation 5)
+==============================================================================
+
+Files written
+- dsp/tests/unit/systems/bass_morph_aliasing_test.cpp (T001 stub filled)
+- specs/profundum-phase8-bass-morph/evidence/run-log/T013.txt (this file)
+No other file touched. Not built or run (the group's gate does that).
+
+TEST_CASEs
+- BassMorph_Aliasing_44k / _48k / _96k   [systems][profundum][bass-morph][sc-017][long]
+    E0, E1, E2 each. (a) GATED: maxNonlinearPair() 21 frozen points p = i/20 (initialPosition = p, steady render,
+    ampEnvelope = false, 1 s settle); StereoFieldTest::wideAliasedDbfs(characterL|R, fs, f0, algorithm of the
+    render's first resolvedPerInterval entry) CHECKed <= -80 dBFS per channel. REQUIREs: p = 0 resolves Tube
+    (rule 1), every p > 0 resolves Fracture (rule 2, and p = 1 rule 1); no discrete setter call in a frozen render;
+    finite taps. Crossing arms on algorithmCrossingPair() (plan S1 C-16): fresh engine, setPosition(0), prepare
+    (reset at 0), setPosition(kThetaUp - 0.005f), advance until landed (rule 17 cap) -> REQUIRE selection(Character)
+    == A (and resolved Tube); setPosition(kThetaUp), land -> REQUIRE == B (Fracture); each arm then a frozen steady
+    render at that p whose first resolved interval must carry the landed engine's algorithm; same -80 dBFS bar.
+    (b) RECORDED, not gated: per note, a 1 s ramp render (rampMs 1000) of algorithmCrossingPair() and of
+    maxNonlinearPair(); g_sw = the single recorded character setAlgorithm call (REQUIRE exactly one); for
+    maxNonlinearPair REQUIRE g_sw == the first interval with p > 0; window [g_sw, g_sw + transitionEndSamples(
+    CharacterAlgorithm)] = one period (ceil) + 10 ms; Hann; non-harmonic in-band energy excluding +/-(2/T_window)
+    of every k*f0; appended to evidence/aliasing-crossfade.txt (one header line per shard + one SC017B line per
+    pair and note). Writes evidence/sc017-aliasing-<44k|48k|96k>.csv (one row per gated point). Prints
+    "SC017 WORST <fs> <dBFS>" per shard.
+- BassMorph_AliasingSmoke   [systems][profundum][bass-morph][sc-017]
+    48 kHz, E1: (a) at p in {0, 0.5, 1} plus both crossing arms, same assertions; REQUIREs p = 0.5 -> Fracture,
+    arm A Tube, arm B Fracture. Writes no evidence file (stdout only), so it never clobbers a shard's CSV.
+
+Decisions
+1. Frozen render length = kSettleSeconds + aliasFftLength(fs, f0/2)/fs + 0.05 s (rectifier_test.cpp:144 precedent),
+   for every point of a note. The default descriptorSeconds (1 s + 262144/fs) is shorter than the Fracture frame
+   at E0 (aliasFftLength(96000, 10.3 Hz) = 1 048 576 samples) and wideAliasedDbfs REQUIREs size >= L + settle
+   (bass_stereo_field_test_helpers.h:1120-1125). Using the f0/2 frame length for Tube points too only lengthens
+   their settle; the read is always the last L(selected algorithm) samples.
+2. (b) ramp: the Position 1 event at 0.25 s (floored to the 32-sample grid), rampMs 1000, render 1.5 s, so the
+   note has sounded before the ramp starts (maxNonlinearPair's switch is at its first interval with p > 0, which
+   would otherwise be the note-on interval). Recorded only.
+3. (b) per-bin power: direct DFT at the window's own bins m/T, normalised so the one-sided sum is the windowed
+   mean square, reported dB re 0.5 (0 dBFS sine), the convention of HarmonicFoldTest::aliasedPower. DC is
+   excluded (within 2/T of 0*f0). The excluded fraction is printed beside each value.
+4. Supplementary (b) columns excluding every k*f0/2 (Fracture's output period is 2/f0, the spacing
+   wideAliasedDbfs uses for it). Recorded only.
+5. FTZ / DAZ: enableFTZDAZ() at the top of each case (the bass_morph_helpers_test.cpp / bass_morph_probe_test.cpp
+   precedent of T007 / T008); not restored on exit, as in those TUs (the test binary enables it globally anyway).
+6. The (a) bar is CHECKed (every point is evaluated and printed even after a red); the selection / arm preconditions
+   are REQUIREd.
+
+FOR THE MAIN LOOP (spec-level observation, not a code defect, not gated)
+- The SC-017(b) measure as worded is degenerate for every Phase 8 note: the window is T = 1/f0 + 10 ms, so the
+  exclusion half-width 2/T Hz exceeds f0/4 whenever 4 >= f0*T = 1 + 0.01*f0, i.e. for every f0 <= 300 Hz. The
+  exclusion bands around consecutive k*f0 then overlap and every in-band bin is excluded: E0 (T = 58.5 ms, +/-34 Hz
+  vs 20.6 Hz spacing), E1 (T = 34.3 ms, +/-58 Hz vs 41.2 Hz), E2 (T = 22.1 ms, +/-90 Hz vs 82.4 Hz). The record will
+  read the numeric floor (safeDb10 of 0, about -3000 dB) with excluded_fraction 1. The test writes it as specified
+  and prints the excluded fraction so the reading is self-explaining. A meaningful (b) record needs a ruling
+  (e.g. a longer window or a narrower exclusion); (a) - the gate - is unaffected. Spec SC-017 states (b) is covered
+  by composition, so no bar is at stake.
+
+DEFECT lines
+- none

@@ -1,0 +1,55 @@
+Filters: "AnchorOscillator_PhaseLockEveryIsaSmoke"
+Randomness seeded to: 2180820484
+SC-003 ISA AVX2: core render sum|x| 9533.87308779
+SC-003(a) static sine midi 28 fs 48000 block 37: dTheta(1 s) +0.000191 deg, dTheta(10 s) -0.000216 deg, drift -0.000407 deg (bars 1.0 / 0.5)
+SC-003(d) static octave-down midi 28 fs 48000 block 37: dTheta(1 s) +0.000191 deg, dTheta(10 s) -0.000216 deg, drift -0.000407 deg (bars 1.0 / 0.5)
+SC-003(b) trajectory midi 28 fs 48000 block 37: dTheta(1 s) -0.000605 deg (1 bends)
+  after bend at 5 s: dTheta -0.003910 deg, drift -0.003305 deg
+  dTheta(10 s) -0.006626 deg, drift -0.006021 deg; worst drift 0.006021 deg (bar 0.5)
+SC-003(e) processed midi 28 fs 48000 block 37: (i) core h1: dTheta(1 s) +10.123819 deg (Phase 2 h1 figure 0.07 deg, not gated), drift to 10 s -0.002612 deg; (ii) after Fold 100: dTheta(1 s) +1.096804 deg (not gated), drift -0.002232 deg (recorded, not gated: Phase 1 inter-partial walk through the Fold, spec SC-003(e)(ii) 2026-10-12, evidence/drift-probe.cpp)
+SC-003(a) static sine midi 28 fs 48000 block 512: dTheta(1 s) +0.000191 deg, dTheta(10 s) -0.000216 deg, drift -0.000407 deg (bars 1.0 / 0.5)
+SC-003(d) static octave-down midi 28 fs 48000 block 512: dTheta(1 s) +0.000191 deg, dTheta(10 s) -0.000216 deg, drift -0.000407 deg (bars 1.0 / 0.5)
+SC-003(b) trajectory midi 28 fs 48000 block 512: dTheta(1 s) -0.000605 deg (1 bends)
+  after bend at 5 s: dTheta -0.003910 deg, drift -0.003305 deg
+  dTheta(10 s) -0.006626 deg, drift -0.006021 deg; worst drift 0.006021 deg (bar 0.5)
+SC-003(e) processed midi 28 fs 48000 block 512: (i) core h1: dTheta(1 s) +10.123819 deg (Phase 2 h1 figure 0.07 deg, not gated), drift to 10 s -0.002612 deg; (ii) after Fold 100: dTheta(1 s) +1.096804 deg (not gated), drift -0.002232 deg (recorded, not gated: Phase 1 inter-partial walk through the Fold, spec SC-003(e)(ii) 2026-10-12, evidence/drift-probe.cpp)
+SC-003(c) Reset same f0 midi 28 block 37 (noteOn at sample 96015): dTheta(+1 s) +0.000128 deg, dTheta(+9 s) -0.000335 deg, drift -0.000463 deg (bars 1.0 / 0.5)
+SC-003(c) Reset same f0 midi 28 block 512 (noteOn at sample 96256): dTheta(+1 s) +0.000128 deg, dTheta(+9 s) -0.000335 deg, drift -0.000463 deg (bars 1.0 / 0.5)
+SC-003(c) FreeRunning same f0 midi 28 block 37 (noteOn at sample 96015): dTheta(+1 s) +0.000070 deg, dTheta(+9 s) -0.000260 deg, drift -0.000330 deg (bars 1.0 / 0.5)
+SC-003(c) FreeRunning same f0 midi 28 block 512 (noteOn at sample 96256): dTheta(+1 s) +0.000070 deg, dTheta(+9 s) -0.000258 deg, drift -0.000329 deg (bars 1.0 / 0.5)
+SC-003(c) FreeRunning +7 midi 28 block 37 (noteOn at sample 96015): dTheta(+1 s) -0.003962 deg, dTheta(+9 s) -0.023831 deg, drift -0.019869 deg (bars 1.0 / 0.5)
+SC-003(c) FreeRunning +7 midi 28 block 512 (noteOn at sample 96256): dTheta(+1 s) -0.003685 deg, dTheta(+9 s) -0.023846 deg, drift -0.020161 deg (bars 1.0 / 0.5)
+SC-003(c) Reset same f0 midi 48 block 37 (noteOn at sample 96015): dTheta(+1 s) +0.000190 deg, dTheta(+9 s) +0.000316 deg, drift +0.000126 deg (bars 1.0 / 0.5)
+SC-003(c) Reset same f0 midi 48 block 512 (noteOn at sample 96256): dTheta(+1 s) +0.000190 deg, dTheta(+9 s) +0.000316 deg, drift +0.000126 deg (bars 1.0 / 0.5)
+SC-003(c) FreeRunning same f0 midi 48 block 37 (noteOn at sample 96015): dTheta(+1 s) -0.000051 deg, dTheta(+9 s) +0.000100 deg, drift +0.000151 deg (bars 1.0 / 0.5)
+SC-003(c) FreeRunning same f0 midi 48 block 512 (noteOn at sample 96256): dTheta(+1 s) -0.000051 deg, dTheta(+9 s) +0.000099 deg, drift +0.000150 deg (bars 1.0 / 0.5)
+SC-003(c) FreeRunning +7 midi 48 block 37 (noteOn at sample 96015): dTheta(+1 s) -0.007580 deg, dTheta(+9 s) -0.048118 deg, drift -0.040538 deg (bars 1.0 / 0.5)
+SC-003(c) FreeRunning +7 midi 48 block 512 (noteOn at sample 96256): dTheta(+1 s) -0.007491 deg, dTheta(+9 s) -0.047785 deg, drift -0.040293 deg (bars 1.0 / 0.5)
+SC-003 ISA SSE2: core render sum|x| 9533.85688689
+SC-003(a) static sine midi 28 fs 48000 block 37: dTheta(1 s) +0.000040 deg, dTheta(10 s) -0.000509 deg, drift -0.000549 deg (bars 1.0 / 0.5)
+SC-003(d) static octave-down midi 28 fs 48000 block 37: dTheta(1 s) +0.000040 deg, dTheta(10 s) -0.000509 deg, drift -0.000549 deg (bars 1.0 / 0.5)
+SC-003(b) trajectory midi 28 fs 48000 block 37: dTheta(1 s) -0.000753 deg (1 bends)
+  after bend at 5 s: dTheta -0.003827 deg, drift -0.003073 deg
+  dTheta(10 s) -0.006768 deg, drift -0.006015 deg; worst drift 0.006015 deg (bar 0.5)
+SC-003(e) processed midi 28 fs 48000 block 37: (i) core h1: dTheta(1 s) +10.123745 deg (Phase 2 h1 figure 0.07 deg, not gated), drift to 10 s -0.002828 deg; (ii) after Fold 100: dTheta(1 s) +1.096494 deg (not gated), drift -0.001608 deg (recorded, not gated: Phase 1 inter-partial walk through the Fold, spec SC-003(e)(ii) 2026-10-12, evidence/drift-probe.cpp)
+SC-003(a) static sine midi 28 fs 48000 block 512: dTheta(1 s) +0.000040 deg, dTheta(10 s) -0.000509 deg, drift -0.000549 deg (bars 1.0 / 0.5)
+SC-003(d) static octave-down midi 28 fs 48000 block 512: dTheta(1 s) +0.000040 deg, dTheta(10 s) -0.000509 deg, drift -0.000549 deg (bars 1.0 / 0.5)
+SC-003(b) trajectory midi 28 fs 48000 block 512: dTheta(1 s) -0.000753 deg (1 bends)
+  after bend at 5 s: dTheta -0.003827 deg, drift -0.003073 deg
+  dTheta(10 s) -0.006768 deg, drift -0.006015 deg; worst drift 0.006015 deg (bar 0.5)
+SC-003(e) processed midi 28 fs 48000 block 512: (i) core h1: dTheta(1 s) +10.123745 deg (Phase 2 h1 figure 0.07 deg, not gated), drift to 10 s -0.002828 deg; (ii) after Fold 100: dTheta(1 s) +1.096494 deg (not gated), drift -0.001608 deg (recorded, not gated: Phase 1 inter-partial walk through the Fold, spec SC-003(e)(ii) 2026-10-12, evidence/drift-probe.cpp)
+SC-003(c) Reset same f0 midi 28 block 37 (noteOn at sample 96015): dTheta(+1 s) +0.000032 deg, dTheta(+9 s) -0.000450 deg, drift -0.000483 deg (bars 1.0 / 0.5)
+SC-003(c) Reset same f0 midi 28 block 512 (noteOn at sample 96256): dTheta(+1 s) +0.000032 deg, dTheta(+9 s) -0.000450 deg, drift -0.000483 deg (bars 1.0 / 0.5)
+SC-003(c) FreeRunning same f0 midi 28 block 37 (noteOn at sample 96015): dTheta(+1 s) -0.000281 deg, dTheta(+9 s) -0.000330 deg, drift -0.000049 deg (bars 1.0 / 0.5)
+SC-003(c) FreeRunning same f0 midi 28 block 512 (noteOn at sample 96256): dTheta(+1 s) -0.000281 deg, dTheta(+9 s) -0.000328 deg, drift -0.000047 deg (bars 1.0 / 0.5)
+SC-003(c) FreeRunning +7 midi 28 block 37 (noteOn at sample 96015): dTheta(+1 s) -0.003948 deg, dTheta(+9 s) -0.024758 deg, drift -0.020810 deg (bars 1.0 / 0.5)
+SC-003(c) FreeRunning +7 midi 28 block 512 (noteOn at sample 96256): dTheta(+1 s) -0.003565 deg, dTheta(+9 s) -0.024025 deg, drift -0.020460 deg (bars 1.0 / 0.5)
+SC-003(c) Reset same f0 midi 48 block 37 (noteOn at sample 96015): dTheta(+1 s) -0.000056 deg, dTheta(+9 s) -0.000370 deg, drift -0.000314 deg (bars 1.0 / 0.5)
+SC-003(c) Reset same f0 midi 48 block 512 (noteOn at sample 96256): dTheta(+1 s) -0.000056 deg, dTheta(+9 s) -0.000370 deg, drift -0.000314 deg (bars 1.0 / 0.5)
+SC-003(c) FreeRunning same f0 midi 48 block 37 (noteOn at sample 96015): dTheta(+1 s) +0.000061 deg, dTheta(+9 s) -0.000067 deg, drift -0.000127 deg (bars 1.0 / 0.5)
+SC-003(c) FreeRunning same f0 midi 48 block 512 (noteOn at sample 96256): dTheta(+1 s) +0.000060 deg, dTheta(+9 s) -0.000067 deg, drift -0.000126 deg (bars 1.0 / 0.5)
+SC-003(c) FreeRunning +7 midi 48 block 37 (noteOn at sample 96015): dTheta(+1 s) -0.008188 deg, dTheta(+9 s) -0.048752 deg, drift -0.040564 deg (bars 1.0 / 0.5)
+SC-003(c) FreeRunning +7 midi 48 block 512 (noteOn at sample 96256): dTheta(+1 s) -0.007924 deg, dTheta(+9 s) -0.048697 deg, drift -0.040772 deg (bars 1.0 / 0.5)
+===============================================================================
+All tests passed (1063 assertions in 1 test case)
+

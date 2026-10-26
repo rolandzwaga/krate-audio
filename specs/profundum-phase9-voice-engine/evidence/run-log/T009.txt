@@ -1,0 +1,85 @@
+T009 - profundum_voice_engine_test_helpers.h and its self-tests (plan S10.2, S9.9, S9.11; C-8, C-9; deviation 11)
+Date: 2026-10-20  Branch: synth/profundum  Base: 0ae33b87
+
+ODR SWEEP (this session, before writing)
+$ grep -rn "voiceEngine[A-Z]|struct VoiceEngine|class VoiceEngine|VoiceTapSet|asFieldTaps|enum class VoiceEngineTap"
+  dsp plugins tests -> 0 hits. Every new name is in namespace Krate::DSP::ProfundumTest (shared with
+  profundum_core_test_helpers.h:47) and carries the VoiceEngine / voiceEngine prefix, except asFieldTaps (the name
+  the task gives; 0 hits). TU-local names: ve* / kVe* in an anonymous namespace.
+
+FACTS READ THIS SESSION (live anchors)
+- profundum_engine.h (T008): ProfundumEngineConfig :84-88; constants :96-115 (kDefaultSeed :108, kEngineRecordVoice
+  :115); prepare(double, const ProfundumEngineConfig&) :141; reset :192; setObserver :243 (re-points the voice
+  slots); noteOn / noteOff :255 / :271; setPitchBend :283; setTempoBpm :290; setEndpoint -> bool :301;
+  setMorphPosition / setMorphRampMs / setAnchorMorphMode :302-304; FR-031 setters :317-364; processBlock :413
+  (chunks never cross the grid); droppedEvents :435; gridStep :826 (logCall(Events, settingsApplied || notes > 0)
+  at pos_, the grid sample; onGrid at the end with afterMacros_ / state_ pointers); renderChunk (onEngineChunk
+  with sum / dyn / field / dc / out spans at pos_); PostSumTap forwards every callback (:483-541).
+- profundum_voice.h (T007): kMaxChunk = 32 :75; IntervalInputs :187-194; CoreExcitation logged every interval with
+  value e.mix after the forceLinearCore zeroing :410-420; logCall stamps pos_ :672-676; onVoiceChunk at the end of
+  each sub-chunk with .sample = pos_ before the sub-chunk advance :854-882 (render :633-652 advances pos_ after).
+- profundum_engine_observer.h (T004): seams :31-40, ProfundumCall :43-46, records :50-71, observer :72-78.
+- bass_morph_test_helpers.h: MorphChainTaps :170-183 (linearCoreL/R, resolvedPerInterval, anchorLevelHanded,
+  advanceSamples); readers midOf :720, floorPower :734, dNlDb :771-778, eSubDb :829-845.
+  bass_stereo_field_test_helpers.h FieldChainTaps :136-145 (characterL/R, stageOutL/R);
+  mass_dynamics_test_helpers.h ChainTaps :195-211; subBand :641-692; kSettleSeconds :87.
+- bass_morph_state_helpers.h: differingLeaves :47; showcasePair :167-220 (A: sustain 0, C-8).
+- Phase 4 sources ported (profundum_note_behaviour_spectral_test.cpp): t22DeclickLength :1163-1165,
+  t22DeclickSlope :1190-1192, t22DeltaBound :1293-1347 (1.1 factor kT22BoundFactor :1110), glide note :1079-1080,
+  T22Descriptors :1997, t22CoreDescriptors :2006-2032 (1-cent t_s threshold :2012).
+- retrigger_declick.h: kDeclickMs = 1.5f :30; dip g[k] = 0.5 (1 + cos(pi (k + 1) / L_d)) :11.
+- k_weighting.h: KWeightingFilter :73-104, kWeightedLevelDb :111-131. allocation_detector.h: AllocationScope
+  :111-131 (count latched in the destructor; read getAllocationCount() inside the scope, the
+  bass_morph_engine_test.cpp:2666-2701 pattern). enable_ftz_daz.h: enableFTZDAZ :26.
+- profundum_core_test_helpers.h: kTwoPi :49.
+
+ORDER OF WORK (honest record)
+The header was drafted before the self-test cases were appended (the header's API had to exist for the cases to
+be written against it); nothing was built or run in this task, per the instruction.
+
+FILES WRITTEN
+- dsp/tests/unit/systems/profundum_voice_engine_test_helpers.h (new): VoiceEngineEvent / VoiceEngineEventKind /
+  VoiceEngineScript; VoiceEngineChunkRecord, VoiceEngineVoiceTapSet, VoiceEngineGridRecord, VoiceEngineTaps :
+  BassMorphTest::MorphChainTaps, VoiceEngineTap; voiceEngineAllocateTaps; VoiceEngineObserver; voiceEngineIssue,
+  voiceEngineRender, voiceEngineTwinScript, voiceEngineRenderWithTwin, asFieldTaps, voiceEngineAs (C-8) and the
+  note constants of plan S10.2; click machinery voiceEngineDeclickLength / voiceEngineDeclickSlope /
+  voiceEngineDropSlope / voiceEngineGlideStepKeyHz / VoiceEngineWindow + voiceEngineWindow / voiceEngineMaxDelta /
+  voiceEngineDeltaRatio / VoiceEngineSteady + voiceEngineSteadyOf / voiceEngineUnitGainSteady /
+  voiceEngineDeltaBound; VoiceEngineDropDescriptors + voiceEngineDropDescriptors; frame readers
+  voiceEngineFrameLength / VoiceEngineHarmonicFit / VoiceEngineFrame / voiceEngineKWeighted / voiceEngineKLevelDb /
+  voiceEngineFrames / voiceEngineFrameDnlDb (two overloads) / voiceEngineBoxcarAttenuation.
+- dsp/tests/unit/systems/profundum_voice_engine_helpers_test.cpp (appended; the helper include and std includes
+  added to the include block): VoiceEngineHelpers_DriverSplitsAtEvents [fr-063],
+  VoiceEngineHelpers_TwinDiffersOnlyInExcitation [fr-086], VoiceEngineHelpers_FrameReaders [fr-086],
+  VoiceEngineHelpers_DropDescriptorsKnownCurve [fr-086], VoiceEngineHelpers_DeltaBoundOnKnownSignal [fr-086];
+  all [systems][profundum][voice-engine].
+
+DEVIATIONS / DECISIONS (surfaced)
+1. VoiceEngineScript gains two fields beyond the task's list: tappedVoices (default kMaxVoices; per-sample voice
+   taps cost 13 floats per sample per tapped voice, ~140 MB for 8 voices x 7 s at 48 kHz, so callers that need one
+   voice set 1) and countAllocations (an AllocationScope around the render loop only, prepare outside; result in
+   taps.allocations), for T011's SC-022 arm through the driver.
+2. The per-voice tap set is VoiceEngineVoiceTapSet (the task's "VoiceTapSet"), to honour the prefix rule.
+3. Endpoint events: index 0 / 1 selects endpoint A / B and the state endpointStates[index] (validated with
+   isValidMorphState before the render).
+4. Frame readers (S9.11): an 8-period frame is round(8 fs / f0) samples, not whole periods for a non-integer period
+   (E1: 9319.7). A plain DFT on the rounded frame leaks ~1e-4 of h1 into P_{>=9}, i.e. ~60 dB above a -60 dB
+   harmonic, so P_DC, P_1..P_8 are the least-squares projection onto {1, cos n w k, sin n w k}_{n<=8, below
+   Nyquist} (exactly the DFT bins on a whole-period frame) and P_{>=9} is the residual's mean square (= P_total -
+   P_DC - sum P_n by the projection theorem). Basis and Cholesky factor built once per (length, f0, fs).
+5. L_K per frame = kWeightedLevelDb's value on the frame (fresh filter from sample 0), computed with one filter pass
+   per channel; the FrameReaders case checks three frames against kWeightedLevelDb itself (1e-9).
+6. Frame D_nl uses dNlDb's floor (BassMorphTest::floorPower of the twin frame's P_1); S9.11 names no floor.
+7. S9.9 bound: 1.1 (G_max D_max + S_max P_max + dropSlope P_max), dropSlope = |A| max|d'| ln2 / 12
+   (voiceEngineDropSlope); the glide term is Phase 4's own method (spectral_test.cpp:1079-1080: covered by D at the
+   upper step's frequency), exposed as voiceEngineGlideStepKeyHz. W = [steal grid, fade end + round(fs / min f0)).
+8. TwinDiffersOnlyInExcitation: forceLinearCore zeroes the HANDED excitation (profundum_voice.h:410-420), not
+   state_, so the grid afterMotion states are expected bitwise equal; the case asserts that every differing leaf is
+   excitation.mix (none expected), that the main state carries mix 1, and that every CoreExcitation record reads 1
+   in the main render and +0 in the twin.
+9. Summed core / Character / Anchor taps start at -0.0f (the IEEE additive identity): with one voice they are that
+   voice's taps bit for bit. In PostSum (C-14) the summed Character tap is the voices' discarded per-voice Character
+   output, not the global stage's (the engine exposes no tap for the latter).
+
+NOT BUILT / NOT RUN (per the task instruction: the Group 7 build agent builds and gates). Both files re-read after
+writing; lines kept <= 120 columns. Verify: the Group 7 gate, filter "VoiceEngineHelpers_*" in dsp_systems_tests.

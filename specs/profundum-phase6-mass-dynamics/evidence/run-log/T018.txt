@@ -1,0 +1,58 @@
+T018 run-log - SC-017 CPU budget TU and lane script (FR-045; tasks.md deviation 9)
+Date: 2026-10-17. Executor stage only: nothing built or run here. The lane is DEFERRED to the main loop at close:
+  bash specs/profundum-phase6-mass-dynamics/evidence/close/cpu-lane.sh
+run after everything else, alone, after the machine has idled (T024). cpu-lane.sh appends its verdict line below.
+
+== Files ==
+dsp/tests/unit/systems/mass_dynamics_perf_test.cpp   (T002 stub filled; dsp_systems_tests; NOT -fno-fast-math)
+specs/profundum-phase6-mass-dynamics/evidence/close/cpu-lane.sh   (structure copied from Phase 5's cpu-lane.sh)
+specs/profundum-phase6-mass-dynamics/evidence/run-log/T018.txt     (this file)
+
+== Checks done ==
+bash -n cpu-lane.sh -> ok (SYNTAX_OK).
+TU-local names carry mdp / kMdp / Mdp prefixes (unique under dsp/tests/unit/systems; grep for Mdp|mdpt|kMdp in the
+other systems TUs -> 0 hits). TEST_CASE name MassDynamics_CpuBudget is unique.
+
+== Reused APIs (read this session) ==
+systems/mass_dynamics.h MassDynamics: prepare :476, setTransientDurationMs :496, setCompressionAmount :503,
+  setDetectorKeyHz :506, setTransientAttackDb / setTransientSustainDb :512-513, processBlock :521 (mono when
+  right == left), stateFinite :549, kControlInterval :469.
+systems/mass_law.h MassLaw: kControlInterval :70, Targets :77, evaluate(float, const Targets&) :134 (static),
+  prepare :145, setMass :155, advanceInterval :171, base :180.
+primitives/dc_blocker.h DCBlocker::prepare :135, process :200. processors/true_peak_limiter.h prepare :59,
+  processBlock(float*, float*, int) :104.
+tests/unit/processors/transient_shaper_test_helpers.h steadyTone(Tone::Saw = recipeAdditive(kSawAnchor), -12 dBFS
+  RMS) :75, kE1Hz :47.
+
+== Case design (tasks.md T018) ==
+GATED: 48 kHz, host block 64; L = kSawAnchor E1 loop of 41 whole periods (llround(41 x 1164.951) = 47763 samples), R = L delayed by
+  round(0.37 P) = 431 samples, both cut from one longer render; MassDynamics A +12 / S -6 / duration 40 / amount 1 /
+  key E1 (shaper gains set before prepare so the 10 ms smoothers are snapped); MassLaw at Mass 75 with one
+  advanceInterval() + evaluate(m, base()) per 32 samples (2 per host block, on the same absolute grid as
+  MassDynamics). 1 s untimed warm-up, then 5 x 10 s timed with steady_clock; best (min) of 5; % = wall / audio x 100.
+  CHECK <= 1.0 %.
+RECORDED (not gated): DCBlocker x2 + TruePeakLimiter on the same pair; the L == R cell (MassDynamics mono path,
+  processBlock(l, l), copied to R; MassLaw included); one silent second through the gated chain after 1 s of signal
+  (best of 5).
+Output lines: "SC017 setup ...", "SC017 GATED distinct_pair ... pct=<x>", "SC017 RECORD dc_limiter|linked|silence
+  ... pct=<x>", "SC017 VERDICT PASS|FAIL <x.xxx> %"; all written to evidence/sc017-cpu.txt.
+Expected wall clock of the lane: about 3 min (3 cells x (1 s warm-up + 50 s) + silence 5 x 2 s, plus the input render).
+Reference: T001 pinned bench median Total 0.7694 % (T001.txt).
+
+== Lane verdicts (appended by cpu-lane.sh) ==
+2026-10-17 compliance-verifier isolated runs (machine idle, pinned through tools/pin-perf-cores.ps1, MassDynamics_CpuBudget alone; reported in the compliance round, not by cpu-lane.sh):
+  run 1: SC017 GATED distinct_pair pct=1.0472 bar=1.0 -> VERDICT FAIL 1.047 % (mass_dynamics_perf_test.cpp(303) CHECK( gatedPct <= kMdpBarPct ) 1.047224 <= 1.0)
+  run 2 (after 90 s idle): pct=1.1826 bar=1.0 -> VERDICT FAIL 1.183 % (evidence/sc017-cpu.txt, written by the case 2026-10-17 23:36)
+  recorded: DCBlocker x2 + TruePeakLimiter 0.9699 / 1.1307 %; linked L == R 0.9438 %; silence 0.7302 % (run 2)
+  STATUS: SC-017 / FR-045 RED on the shipped code (T001's 0.7694 % was the pre-implementation prototype bench). Bar not relaxed.
+  Next (main loop, isolated): the T001 decision rule's pre-ruled fallbacks (run-bench.sh tick4, then tick4-tp2x; tp2x re-checked
+  against SC-009 / SC-010) or an implementation profile against the prototype; then cpu-lane.sh alone.
+2026-10-17T22:31:02Z cpu-lane exit=1 | SC017 VERDICT FAIL 1.270 % | SC017 GATED distinct_pair MassDynamics(A=+12 dB S=-6 dB duration=40 ms amount=1 key=E1) + MassLaw advanceInterval+evaluate per 32 samples (Mass 75) pct=1.2695 bar=1.0
+2026-10-18 main loop, FR-045 profile (evidence/run-log/close/stage-bench.txt; bench/stage-bench.cpp built with cl /O2 /fp:fast, pinned, alone):
+  before: total_gated 1.1453 % (shaper 0.5257, compressor 0.4583, period_peak_detector_stereo 0.1879, dynamics_processor_sample 0.2795,
+          gainToDb+dbToGain pair 0.2349 per sample = 24 ns each; six conversions per sample pair = about 60 % of the cost)
+  after:  total_gated 0.8020 % (shaper 0.2879, compressor 0.4690, mass_dynamics 0.7857) -- detail::gainToDbFast / dbToGainFast
+          (std::log2 / std::exp2 forms of the same functions) in the shaper's c and g and the compressor's g; setTransientDurationMs
+          early-out on an unchanged value. The two discarded dbToGain inside DynamicsProcessor::processSample stay (FR-044).
+  R-1 fallbacks (2) TICK4 and (3) TP2X not applied. Gate: cpu-lane.sh alone at close.
+2026-10-18T10:45:05Z cpu-lane exit=0 | SC017 VERDICT PASS 0.991 % | SC017 GATED distinct_pair MassDynamics(A=+12 dB S=-6 dB duration=40 ms amount=1 key=E1) + MassLaw advanceInterval+evaluate per 32 samples (Mass 75) pct=0.9908 bar=1.0

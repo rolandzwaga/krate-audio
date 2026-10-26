@@ -1,0 +1,335 @@
+Filters: "VoiceEngine_AliasingSumProbe"
+Randomness seeded to: 3417491208
+PROBE SC-021(a) 44k1 E0 Bite SHAPE 1 Tone 1 LOCK [base]: aliased dBFS core -101.56 char -75.894 anchor -154.8 sum -75.894 out -79.179; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -75.894 k2 -76.105 k3 -78.166 k4 -77.019 k5 -83.853 k6 -80.293 k7 -86.517 k8 -3000 dBFS
+  off-lattice power: below f_m -107.47 dBFS, f_m .. fs/4 -76.139 dBFS, above fs/4 -88.543 dBFS (R)
+  bin 3748 f 630.52 Hz (30.605 f0) -104.12 dBFS, nearest mirrored harmonic 0.16209 Hz away
+  bin 4850 f 815.91 Hz (39.604 f0) -104.29 dBFS, nearest mirrored harmonic 0.13397 Hz away
+  bin 3747 f 630.35 Hz (30.597 f0) -104.46 dBFS, nearest mirrored harmonic 0.0061417 Hz away
+  bin 4335 f 729.27 Hz (35.398 f0) -104.87 dBFS, nearest mirrored harmonic 0.087906 Hz away
+  bin 2646 f 445.13 Hz (21.607 f0) -104.95 dBFS, nearest mirrored harmonic 0.1902 Hz away
+  bin 2645 f 444.96 Hz (21.598 f0) -104.97 dBFS, nearest mirrored harmonic 0.021976 Hz away
+  bin 538 f 90.507 Hz (4.3932 f0) -105.06 dBFS, nearest mirrored harmonic 0.19667 Hz away
+  bin 1518 f 255.37 Hz (12.396 f0) -105.07 dBFS, nearest mirrored harmonic 0.14689 Hz away
+PROBE SC-021(a) 44k1 E0 Bite SHAPE 1 Tone 1 LOCK [SOLID]: aliased dBFS core -102.17 char -77.941 anchor -154.8 sum -77.941 out -80.137; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -77.941 k2 -78.633 k3 -79.72 k4 -80.662 k5 -83.143 k6 -83.266 k7 -88.969 k8 -3000 dBFS
+PROBE SC-021(a) 44k1 E0 Bite SHAPE 1 Tone 1 LOCK [anchorFoldFeed 0]: aliased dBFS core -101.56 char -73.631 anchor -154.8 sum -73.631 out -75.959; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -73.631 k2 -73.907 k3 -76.133 k4 -75.906 k5 -80.5 k6 -80.757 k7 -81.653 k8 -3000 dBFS
+PROBE SC-021(a) 44k1 E0 Bite SHAPE 1 Tone 1 LOCK [SHAPE 0]: aliased dBFS core -101.56 char -91.612 anchor -154.8 sum -91.612 out -86.749; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -91.612 k2 -91.884 k3 -93.521 k4 -94.945 k5 -95.597 k6 -97.54 k7 -101.89 k8 -3000 dBFS
+PROBE SC-021(a) 44k1 E0 Bite SHAPE 1 Tone 1 LOCK [Character amount 0]: aliased dBFS core -101.56 char -75.143 anchor -154.8 sum -75.143 out -80.669; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -75.143 k2 -75.393 k3 -77.137 k4 -76.861 k5 -83.531 k6 -80.158 k7 -84.711 k8 -3000 dBFS
+PROBE SC-021(a) 44k1 E0 Bite SHAPE 1 Tone 1 LOCK [excitation mix 0]: aliased dBFS core -129.9 char -104.73 anchor -154.8 sum -104.73 out -88.907; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -104.73 k2 -105.07 k3 -105.97 k4 -106.04 k5 -108.24 k6 -109.29 k7 -113.67 k8 -3000 dBFS
+PROBE SC-021(a) 44k1 E0 Bite SHAPE 1 Tone 1 LOCK [Mass 50]: aliased dBFS core -103.37 char -80.698 anchor -154.8 sum -80.698 out -64.63; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -80.698 k2 -81.03 k3 -83.137 k4 -82.03 k5 -88.879 k6 -86.237 k7 -92.337 k8 -3000 dBFS
+PROBE SC-021(a) 44k1 E0 Bite SHAPE 1 Tone 1 LOCK [Fold 0]: aliased dBFS core -101.56 char -81.802 anchor -154.8 sum -81.802 out -79.112; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -81.802 k2 -82.016 k3 -84.004 k4 -83.357 k5 -89.428 k6 -86.607 k7 -92.666 k8 -3000 dBFS
+PROBE SC-021(a) 44k1 E0 Bite SHAPE 1 Tone 1 LOCK [Anchor level 0]: aliased dBFS core -101.56 char -71.785 anchor -160.82 sum -71.785 out -75.004; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -71.785 k2 -71.953 k3 -74.375 k4 -72.966 k5 -81.144 k6 -76.309 k7 -84.289 k8 -3000 dBFS
+PROBE SC-021(a) 44k1 E0 Bite SHAPE 1 Tone 1 LOCK [Mass 0]: aliased dBFS core -103.26 char -73.708 anchor -160.82 sum -73.708 out -73.949; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -73.708 k2 -73.937 k3 -77.362 k4 -74.722 k5 -83.231 k6 -80.55 k7 -84.958 k8 -3000 dBFS
+PROBE SC-021(a) 44k1 E0 Bite SHAPE 1 Tone 1 LOCK [Mass 0 + Fold 0]: aliased dBFS core -103.26 char -77.457 anchor -160.82 sum -77.457 out -77.284; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -77.457 k2 -77.842 k3 -80.223 k4 -78.93 k5 -85.286 k6 -84.256 k7 -87.929 k8 -3000 dBFS
+PROBE SC-021(a) 44k1 E0 Bite SHAPE 1 Tone 1 LOCK [Mass 0 + Fold 100]: aliased dBFS core -103.26 char -73.708 anchor -160.82 sum -73.708 out -73.949; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -73.708 k2 -73.937 k3 -77.362 k4 -74.722 k5 -83.231 k6 -80.55 k7 -84.958 k8 -3000 dBFS
+PROBE SC-021(a) 44k1 E2 Crush SHAPE 0 Tone 0 LOCK [base]: aliased dBFS core -101.55 char -46.563 anchor -155.71 sum -46.563 out -47.776; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -46.563 k2 -46.76 k3 -47.121 k4 -47.692 k5 -48.631 k6 -50.338 k7 -54.116 k8 -187.29 dBFS
+  off-lattice power: below f_m -48.126 dBFS, f_m .. fs/4 -51.759 dBFS, above fs/4 -100.78 dBFS (L)
+  bin 9 f 6.0562 Hz (0.073492 f0) -60.314 dBFS, nearest mirrored harmonic 6.2572 Hz away
+  bin 10 f 6.7291 Hz (0.081657 f0) -61.148 dBFS, nearest mirrored harmonic 5.5843 Hz away
+  bin 114 f 76.712 Hz (0.93089 f0) -61.465 dBFS, nearest mirrored harmonic 6.6185 Hz away
+  bin 11 f 7.402 Hz (0.089823 f0) -61.912 dBFS, nearest mirrored harmonic 4.9113 Hz away
+  bin 131 f 88.152 Hz (1.0697 f0) -62.238 dBFS, nearest mirrored harmonic 6.5687 Hz away
+  bin 113 f 76.039 Hz (0.92273 f0) -62.436 dBFS, nearest mirrored harmonic 5.9456 Hz away
+  bin 12 f 8.075 Hz (0.097989 f0) -62.615 dBFS, nearest mirrored harmonic 4.2384 Hz away
+  bin 13 f 8.7479 Hz (0.10615 f0) -63.265 dBFS, nearest mirrored harmonic 3.5655 Hz away
+PROBE SC-021(a) 44k1 E2 Crush SHAPE 0 Tone 0 LOCK [SOLID]: aliased dBFS core -101.49 char -128.26 anchor -155.71 sum -128.26 out -122.63; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -128.26 k2 -128.54 k3 -128.51 k4 -128.87 k5 -131.46 k6 -132.25 k7 -135.65 k8 -191.04 dBFS
+PROBE SC-021(a) 44k1 E2 Crush SHAPE 0 Tone 0 LOCK [anchorFoldFeed 0]: aliased dBFS core -101.55 char -130.28 anchor -155.71 sum -130.26 out -95.835; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -130.26 k2 -130.3 k3 -130.33 k4 -130.48 k5 -140.25 k6 -143.12 k7 -153.08 k8 -187.47 dBFS
+PROBE SC-021(a) 44k1 E2 Crush SHAPE 0 Tone 0 LOCK [Character amount 0]: aliased dBFS core -101.55 char -89.973 anchor -155.71 sum -89.973 out -85.96; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -89.973 k2 -90.639 k3 -91.512 k4 -92.731 k5 -94.871 k6 -96.409 k7 -99.36 k8 -196.32 dBFS
+PROBE SC-021(a) 44k1 E2 Crush SHAPE 0 Tone 0 LOCK [excitation mix 0]: aliased dBFS core -136.82 char -126.47 anchor -155.71 sum -126.46 out -100.35; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -126.46 k2 -126.49 k3 -126.51 k4 -126.53 k5 -135.11 k6 -135.81 k7 -139.85 k8 -188.21 dBFS
+PROBE SC-021(a) 44k1 E2 Crush SHAPE 0 Tone 0 LOCK [Mass 50]: aliased dBFS core -100.93 char -131.3 anchor -155.71 sum -131.28 out -123.65; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -131.28 k2 -131.37 k3 -131.4 k4 -131.5 k5 -141.39 k6 -144.08 k7 -146.76 k8 -185.66 dBFS
+PROBE SC-021(a) 44k1 E2 Crush SHAPE 0 Tone 0 LOCK [Fold 0]: aliased dBFS core -101.55 char -127.02 anchor -155.71 sum -127.01 out -77.875; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -127.01 k2 -127.07 k3 -127.1 k4 -127.14 k5 -133.99 k6 -136.36 k7 -139.5 k8 -184.6 dBFS
+PROBE SC-021(a) 44k1 E2 Crush SHAPE 0 Tone 0 LOCK [Anchor level 0]: aliased dBFS core -101.55 char -129.92 anchor -161.73 sum -129.91 out -117.8; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -129.91 k2 -129.92 k3 -129.99 k4 -130.2 k5 -137.28 k6 -139.15 k7 -148.24 k8 -196.99 dBFS
+PROBE SC-021(a) 44k1 E2 Crush SHAPE 0 Tone 0 LOCK [Mass 0]: aliased dBFS core -97.911 char -119.02 anchor -161.73 sum -119.02 out -117.24; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -119.02 k2 -119.05 k3 -119.12 k4 -119.16 k5 -130.21 k6 -136.73 k7 -144.09 k8 -191.86 dBFS
+PROBE SC-021(a) 44k1 E2 Crush SHAPE 0 Tone 0 LOCK [Mass 0 + Fold 0]: aliased dBFS core -97.911 char -122.08 anchor -161.73 sum -122.08 out -118.1; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -122.08 k2 -122.09 k3 -122.13 k4 -122.16 k5 -134.81 k6 -140.27 k7 -144.17 k8 -192.7 dBFS
+PROBE SC-021(a) 44k1 E2 Crush SHAPE 0 Tone 0 LOCK [Mass 0 + Fold 100]: aliased dBFS core -97.911 char -119.02 anchor -161.73 sum -119.02 out -117.24; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -119.02 k2 -119.05 k3 -119.12 k4 -119.16 k5 -130.21 k6 -136.73 k7 -144.09 k8 -191.86 dBFS
+PROBE SC-021(a) 44k1 E0 Fold SHAPE 1 Tone 1 LOCK [base]: aliased dBFS core -101.56 char -72.112 anchor -154.8 sum -72.112 out -55.714; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -72.112 k2 -72.35 k3 -74.219 k4 -73.628 k5 -80.112 k6 -77.022 k7 -82.192 k8 -3000 dBFS
+  off-lattice power: below f_m -107.73 dBFS, f_m .. fs/4 -72.429 dBFS, above fs/4 -83.642 dBFS (R)
+  bin 8034 f 1351.5 Hz (65.603 f0) -98.014 dBFS, nearest mirrored harmonic 0.12751 Hz away
+  bin 9136 f 1536.9 Hz (74.602 f0) -98.233 dBFS, nearest mirrored harmonic 0.099388 Hz away
+  bin 9014 f 1516.4 Hz (73.606 f0) -98.937 dBFS, nearest mirrored harmonic 0.17728 Hz away
+  bin 8035 f 1351.7 Hz (65.612 f0) -98.968 dBFS, nearest mirrored harmonic 0.29573 Hz away
+  bin 8621 f 1450.3 Hz (70.397 f0) -99.042 dBFS, nearest mirrored harmonic 0.12249 Hz away
+  bin 10116 f 1701.8 Hz (82.605 f0) -99.421 dBFS, nearest mirrored harmonic 0.14916 Hz away
+  bin 9137 f 1537.1 Hz (74.61 f0) -99.442 dBFS, nearest mirrored harmonic 0.26762 Hz away
+  bin 9993 f 1681.1 Hz (81.6 f0) -99.599 dBFS, nearest mirrored harmonic 0.058826 Hz away
+PROBE SC-021(a) 44k1 E0 Fold SHAPE 1 Tone 1 LOCK [SOLID]: aliased dBFS core -102.17 char -73.835 anchor -154.8 sum -73.835 out -72.113; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -73.835 k2 -74.548 k3 -75.521 k4 -76.678 k5 -79.524 k6 -79.374 k7 -83.846 k8 -3000 dBFS
+PROBE SC-021(a) 44k1 E0 Fold SHAPE 1 Tone 1 LOCK [anchorFoldFeed 0]: aliased dBFS core -101.56 char -71.129 anchor -154.8 sum -71.129 out -73.103; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -71.129 k2 -71.386 k3 -73.077 k4 -73.813 k5 -77.965 k6 -77.787 k7 -78.942 k8 -3000 dBFS
+PROBE SC-021(a) 44k1 E0 Fold SHAPE 1 Tone 1 LOCK [SHAPE 0]: aliased dBFS core -101.56 char -89.905 anchor -154.8 sum -89.905 out -80.251; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -89.905 k2 -90.448 k3 -91.612 k4 -92.266 k5 -94.613 k6 -95.676 k7 -101.29 k8 -3000 dBFS
+PROBE SC-021(a) 44k1 E0 Fold SHAPE 1 Tone 1 LOCK [Character amount 0]: aliased dBFS core -101.56 char -76.038 anchor -154.8 sum -76.038 out -81.797; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -76.038 k2 -76.278 k3 -78.095 k4 -77.699 k5 -84.6 k6 -81.093 k7 -85.721 k8 -3000 dBFS
+PROBE SC-021(a) 44k1 E0 Fold SHAPE 1 Tone 1 LOCK [excitation mix 0]: aliased dBFS core -129.9 char -99.058 anchor -154.8 sum -99.058 out -70.722; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -99.058 k2 -99.334 k3 -100.73 k4 -100.36 k5 -104 k6 -104.37 k7 -108.16 k8 -3000 dBFS
+PROBE SC-021(a) 44k1 E0 Fold SHAPE 1 Tone 1 LOCK [Mass 50]: aliased dBFS core -103.37 char -76.878 anchor -154.8 sum -76.878 out -57.249; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -76.878 k2 -77.376 k3 -79.71 k4 -78.484 k5 -83.81 k6 -83.523 k7 -86.578 k8 -3000 dBFS
+PROBE SC-021(a) 44k1 E0 Fold SHAPE 1 Tone 1 LOCK [Fold 0]: aliased dBFS core -101.56 char -80.65 anchor -154.8 sum -80.65 out -81.443; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -80.65 k2 -80.92 k3 -82.199 k4 -82.447 k5 -87.794 k6 -85.691 k7 -88.608 k8 -3000 dBFS
+PROBE SC-021(a) 44k1 E0 Fold SHAPE 1 Tone 1 LOCK [Anchor level 0]: aliased dBFS core -101.56 char -69.269 anchor -160.82 sum -69.269 out -47.679; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -69.269 k2 -69.438 k3 -71.701 k4 -70.489 k5 -78.34 k6 -73.721 k7 -80.988 k8 -3000 dBFS
+PROBE SC-021(a) 44k1 E0 Fold SHAPE 1 Tone 1 LOCK [Mass 0]: aliased dBFS core -103.26 char -81.148 anchor -160.82 sum -81.148 out -80.602; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -81.148 k2 -81.541 k3 -83.44 k4 -83.159 k5 -86.848 k6 -87.75 k7 -91.301 k8 -3000 dBFS
+PROBE SC-021(a) 44k1 E0 Fold SHAPE 1 Tone 1 LOCK [Mass 0 + Fold 0]: aliased dBFS core -103.26 char -83.085 anchor -160.82 sum -83.085 out -82.405; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -83.085 k2 -83.49 k3 -85.341 k4 -85.175 k5 -88.888 k6 -89.706 k7 -93.035 k8 -3000 dBFS
+PROBE SC-021(a) 44k1 E0 Fold SHAPE 1 Tone 1 LOCK [Mass 0 + Fold 100]: aliased dBFS core -103.26 char -81.148 anchor -160.82 sum -81.148 out -80.602; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -81.148 k2 -81.541 k3 -83.44 k4 -83.159 k5 -86.848 k6 -87.75 k7 -91.301 k8 -3000 dBFS
+PROBE SC-021(a) 44k1 E0 Rectify SHAPE 1 Tone 1 LOCK [base]: aliased dBFS core -101.56 char -69.078 anchor -154.8 sum -69.078 out -71.105; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -69.078 k2 -69.315 k3 -71.147 k4 -70.66 k5 -77.522 k6 -74.026 k7 -79.162 k8 -3000 dBFS
+  off-lattice power: below f_m -100.65 dBFS, f_m .. fs/4 -69.179 dBFS, above fs/4 -85.603 dBFS (R)
+  bin 7299 f 1227.9 Hz (59.602 f0) -94.273 dBFS, nearest mirrored harmonic 0.090176 Hz away
+  bin 5070 f 852.92 Hz (41.4 f0) -94.292 dBFS, nearest mirrored harmonic 0.050575 Hz away
+  bin 5069 f 852.75 Hz (41.392 f0) -94.49 dBFS, nearest mirrored harmonic 0.2188 Hz away
+  bin 6197 f 1042.5 Hz (50.603 f0) -94.526 dBFS, nearest mirrored harmonic 0.11829 Hz away
+  bin 8279 f 1392.8 Hz (67.604 f0) -94.665 dBFS, nearest mirrored harmonic 0.13995 Hz away
+  bin 6687 f 1124.9 Hz (54.604 f0) -94.68 dBFS, nearest mirrored harmonic 0.14318 Hz away
+  bin 6172 f 1038.3 Hz (50.399 f0) -94.822 dBFS, nearest mirrored harmonic 0.078693 Hz away
+  bin 7300 f 1228.1 Hz (59.61 f0) -94.836 dBFS, nearest mirrored harmonic 0.2584 Hz away
+PROBE SC-021(a) 44k1 E0 Rectify SHAPE 1 Tone 1 LOCK [SOLID]: aliased dBFS core -102.17 char -71.157 anchor -154.8 sum -71.157 out -71.369; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -71.157 k2 -71.872 k3 -72.799 k4 -74.001 k5 -76.872 k6 -76.608 k7 -81.236 k8 -3000 dBFS
+PROBE SC-021(a) 44k1 E0 Rectify SHAPE 1 Tone 1 LOCK [anchorFoldFeed 0]: aliased dBFS core -101.56 char -69.008 anchor -154.8 sum -69.008 out -69.665; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -69.008 k2 -69.259 k3 -70.635 k4 -71.347 k5 -75.869 k6 -74.42 k7 -76.929 k8 -3000 dBFS
+PROBE SC-021(a) 44k1 E0 Rectify SHAPE 1 Tone 1 LOCK [SHAPE 0]: aliased dBFS core -101.56 char -87.293 anchor -154.8 sum -87.293 out -77.924; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -87.293 k2 -87.672 k3 -89.138 k4 -90.601 k5 -91.024 k6 -93.277 k7 -97.79 k8 -3000 dBFS
+PROBE SC-021(a) 44k1 E0 Rectify SHAPE 1 Tone 1 LOCK [Character amount 0]: aliased dBFS core -101.56 char -75.987 anchor -154.8 sum -75.987 out -82.342; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -75.987 k2 -76.227 k3 -78.044 k4 -77.645 k5 -84.119 k6 -81.038 k7 -85.678 k8 -3000 dBFS
+PROBE SC-021(a) 44k1 E0 Rectify SHAPE 1 Tone 1 LOCK [excitation mix 0]: aliased dBFS core -129.9 char -95.069 anchor -154.8 sum -95.069 out -66.734; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -95.069 k2 -95.369 k3 -97.116 k4 -96.391 k5 -100.81 k6 -100.7 k7 -104.71 k8 -3000 dBFS
+PROBE SC-021(a) 44k1 E0 Rectify SHAPE 1 Tone 1 LOCK [Mass 50]: aliased dBFS core -103.37 char -75.109 anchor -154.8 sum -75.109 out -76.198; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -75.109 k2 -75.542 k3 -77.369 k4 -76.763 k5 -81.766 k6 -80.83 k7 -85.086 k8 -3000 dBFS
+PROBE SC-021(a) 44k1 E0 Rectify SHAPE 1 Tone 1 LOCK [Fold 0]: aliased dBFS core -101.56 char -77.203 anchor -154.8 sum -77.203 out -73.466; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -77.203 k2 -77.475 k3 -79.083 k4 -79.052 k5 -85.443 k6 -82.319 k7 -86.285 k8 -3000 dBFS
+PROBE SC-021(a) 44k1 E0 Rectify SHAPE 1 Tone 1 LOCK [Anchor level 0]: aliased dBFS core -101.56 char -66.163 anchor -160.82 sum -66.163 out -68.542; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -66.163 k2 -66.321 k3 -68.625 k4 -67.356 k5 -76.34 k6 -70.592 k7 -78.079 k8 -3000 dBFS
+PROBE SC-021(a) 44k1 E0 Rectify SHAPE 1 Tone 1 LOCK [Mass 0]: aliased dBFS core -103.26 char -77.158 anchor -160.82 sum -77.158 out -74.972; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -77.158 k2 -77.505 k3 -79.306 k4 -79.003 k5 -83.444 k6 -83.097 k7 -87.001 k8 -3000 dBFS
+PROBE SC-021(a) 44k1 E0 Rectify SHAPE 1 Tone 1 LOCK [Mass 0 + Fold 0]: aliased dBFS core -103.26 char -78.951 anchor -160.82 sum -78.951 out -76.376; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -78.951 k2 -79.322 k3 -81.132 k4 -80.777 k5 -85.237 k6 -85.059 k7 -88.824 k8 -3000 dBFS
+PROBE SC-021(a) 44k1 E0 Rectify SHAPE 1 Tone 1 LOCK [Mass 0 + Fold 100]: aliased dBFS core -103.26 char -77.158 anchor -160.82 sum -77.158 out -74.972; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -77.158 k2 -77.505 k3 -79.306 k4 -79.003 k5 -83.444 k6 -83.097 k7 -87.001 k8 -3000 dBFS
+PROBE SC-021(a) 44k1 E0 Tube SHAPE 1 Tone 1 LOCK [base]: aliased dBFS core -101.56 char -77.25 anchor -154.8 sum -77.25 out -80.311; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -77.25 k2 -77.485 k3 -79.364 k4 -78.663 k5 -85.404 k6 -81.937 k7 -87.709 k8 -3000 dBFS
+  off-lattice power: below f_m -109.99 dBFS, f_m .. fs/4 -77.45 dBFS, above fs/4 -90.762 dBFS (R)
+  bin 5805 f 976.56 Hz (47.402 f0) -105.05 dBFS, nearest mirrored harmonic 0.013245 Hz away
+  bin 4850 f 815.91 Hz (39.604 f0) -105.1 dBFS, nearest mirrored harmonic 0.13397 Hz away
+  bin 5804 f 976.4 Hz (47.394 f0) -105.25 dBFS, nearest mirrored harmonic 0.18147 Hz away
+  bin 3723 f 626.31 Hz (30.401 f0) -105.4 dBFS, nearest mirrored harmonic 0.034901 Hz away
+  bin 9993 f 1681.1 Hz (81.6 f0) -105.75 dBFS, nearest mirrored harmonic 0.058826 Hz away
+  bin 6932 f 1166.2 Hz (56.605 f0) -105.78 dBFS, nearest mirrored harmonic 0.15562 Hz away
+  bin 2620 f 440.76 Hz (21.394 f0) -105.81 dBFS, nearest mirrored harmonic 0.17501 Hz away
+  bin 2621 f 440.93 Hz (21.402 f0) -105.84 dBFS, nearest mirrored harmonic 0.0067825 Hz away
+PROBE SC-021(a) 44k1 E0 Tube SHAPE 1 Tone 1 LOCK [SOLID]: aliased dBFS core -102.17 char -79.195 anchor -154.8 sum -79.195 out -81.422; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -79.195 k2 -79.907 k3 -80.902 k4 -81.99 k5 -84.469 k6 -84.552 k7 -89.819 k8 -3000 dBFS
+PROBE SC-021(a) 44k1 E0 Tube SHAPE 1 Tone 1 LOCK [anchorFoldFeed 0]: aliased dBFS core -101.56 char -75.132 anchor -154.8 sum -75.132 out -77.955; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -75.132 k2 -75.397 k3 -77.481 k4 -77.503 k5 -81.913 k6 -81.848 k7 -83.148 k8 -3000 dBFS
+PROBE SC-021(a) 44k1 E0 Tube SHAPE 1 Tone 1 LOCK [SHAPE 0]: aliased dBFS core -101.56 char -93.722 anchor -154.8 sum -93.722 out -90.317; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -93.722 k2 -94.036 k3 -95.6 k4 -97.066 k5 -97.685 k6 -99.706 k7 -103.95 k8 -3000 dBFS
+PROBE SC-021(a) 44k1 E0 Tube SHAPE 1 Tone 1 LOCK [Character amount 0]: aliased dBFS core -101.56 char -74.405 anchor -154.8 sum -74.405 out -82.087; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -74.405 k2 -74.657 k3 -76.379 k4 -76.191 k5 -82.701 k6 -79.518 k7 -83.867 k8 -3000 dBFS
+PROBE SC-021(a) 44k1 E0 Tube SHAPE 1 Tone 1 LOCK [excitation mix 0]: aliased dBFS core -129.9 char -103.31 anchor -154.8 sum -103.31 out -90.485; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -103.31 k2 -103.69 k3 -104.88 k4 -105.01 k5 -107.99 k6 -108.75 k7 -112.17 k8 -3000 dBFS
+PROBE SC-021(a) 44k1 E0 Tube SHAPE 1 Tone 1 LOCK [Mass 50]: aliased dBFS core -103.37 char -81.673 anchor -154.8 sum -81.673 out -51.854; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -81.673 k2 -82.084 k3 -83.886 k4 -83.319 k5 -88.917 k6 -87.642 k7 -92.715 k8 -3000 dBFS
+PROBE SC-021(a) 44k1 E0 Tube SHAPE 1 Tone 1 LOCK [Fold 0]: aliased dBFS core -101.56 char -82.667 anchor -154.8 sum -82.667 out -84.002; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -82.667 k2 -82.857 k3 -85.113 k4 -83.817 k5 -92.149 k6 -87.236 k7 -94.136 k8 -3000 dBFS
+PROBE SC-021(a) 44k1 E0 Tube SHAPE 1 Tone 1 LOCK [Anchor level 0]: aliased dBFS core -101.56 char -72.995 anchor -160.82 sum -72.995 out -76.715; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -72.995 k2 -73.145 k3 -75.568 k4 -74.131 k5 -83.091 k6 -77.43 k7 -85.388 k8 -3000 dBFS
+PROBE SC-021(a) 44k1 E0 Tube SHAPE 1 Tone 1 LOCK [Mass 0]: aliased dBFS core -103.26 char -79.818 anchor -160.82 sum -79.818 out -78.948; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -79.818 k2 -80.143 k3 -82.628 k4 -81.4 k5 -87.057 k6 -86.334 k7 -90.014 k8 -3000 dBFS
+PROBE SC-021(a) 44k1 E0 Tube SHAPE 1 Tone 1 LOCK [Mass 0 + Fold 0]: aliased dBFS core -103.26 char -81.293 anchor -160.82 sum -81.293 out -80.474; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -81.293 k2 -81.636 k3 -84.052 k4 -82.868 k5 -88.602 k6 -87.913 k7 -91.574 k8 -3000 dBFS
+PROBE SC-021(a) 44k1 E0 Tube SHAPE 1 Tone 1 LOCK [Mass 0 + Fold 100]: aliased dBFS core -103.26 char -79.818 anchor -160.82 sum -79.818 out -78.948; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -79.818 k2 -80.143 k3 -82.628 k4 -81.4 k5 -87.057 k6 -86.334 k7 -90.014 k8 -3000 dBFS
+PROBE SC-021(a) 48k E1 Bite SHAPE 1 Tone 1 LOCK [base]: aliased dBFS core -99.303 char -76.122 anchor -155.87 sum -76.122 out -63.675; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -76.122 k2 -76.346 k3 -78.188 k4 -79.324 k5 -86.046 k6 -84.905 k7 -99.086 k8 -167.98 dBFS
+  off-lattice power: below f_m -111.68 dBFS, f_m .. fs/4 -76.95 dBFS, above fs/4 -83.738 dBFS (R)
+  bin 2273 f 832.4 Hz (20.202 f0) -107.54 dBFS, nearest mirrored harmonic 2.2599 Hz away
+  bin 2948 f 1079.6 Hz (26.201 f0) -107.72 dBFS, nearest mirrored harmonic 2.2316 Hz away
+  bin 2272 f 832.03 Hz (20.193 f0) -107.75 dBFS, nearest mirrored harmonic 1.8937 Hz away
+  bin 2947 f 1079.2 Hz (26.193 f0) -108.09 dBFS, nearest mirrored harmonic 1.8654 Hz away
+  bin 3128 f 1145.5 Hz (27.801 f0) -108.2 dBFS, nearest mirrored harmonic 2.1204 Hz away
+  bin 6323 f 2315.6 Hz (56.198 f0) -108.41 dBFS, nearest mirrored harmonic 2.0899 Hz away
+  bin 5041 f 1846.1 Hz (44.804 f0) -108.5 dBFS, nearest mirrored harmonic 2.0176 Hz away
+  bin 2453 f 898.32 Hz (21.802 f0) -108.61 dBFS, nearest mirrored harmonic 2.0921 Hz away
+PROBE SC-021(a) 48k E1 Bite SHAPE 1 Tone 1 LOCK [SOLID]: aliased dBFS core -98.376 char -75.043 anchor -155.87 sum -75.043 out -78.106; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -75.043 k2 -75.243 k3 -75.841 k4 -80.082 k5 -84.541 k6 -84.781 k7 -95.474 k8 -173.2 dBFS
+PROBE SC-021(a) 48k E1 Bite SHAPE 1 Tone 1 LOCK [anchorFoldFeed 0]: aliased dBFS core -99.303 char -73.71 anchor -155.87 sum -73.71 out -67.392; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -73.71 k2 -73.918 k3 -74.912 k4 -76.184 k5 -84.207 k6 -82.383 k7 -99.804 k8 -170.01 dBFS
+PROBE SC-021(a) 48k E1 Bite SHAPE 1 Tone 1 LOCK [SHAPE 0]: aliased dBFS core -99.303 char -90.755 anchor -155.87 sum -90.755 out -74.465; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -90.755 k2 -91.105 k3 -93.44 k4 -92.476 k5 -98.091 k6 -99.704 k7 -114.19 k8 -168.03 dBFS
+PROBE SC-021(a) 48k E1 Bite SHAPE 1 Tone 1 LOCK [Character amount 0]: aliased dBFS core -99.303 char -73.718 anchor -155.87 sum -73.718 out -76.204; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -73.718 k2 -73.957 k3 -75.597 k4 -76.924 k5 -83.802 k6 -83.012 k7 -96.238 k8 -166.38 dBFS
+PROBE SC-021(a) 48k E1 Bite SHAPE 1 Tone 1 LOCK [excitation mix 0]: aliased dBFS core -134.06 char -106.57 anchor -155.87 sum -106.57 out -74.129; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -106.57 k2 -106.79 k3 -107.51 k4 -110.9 k5 -113.47 k6 -114.5 k7 -128.1 k8 -170.42 dBFS
+PROBE SC-021(a) 48k E1 Bite SHAPE 1 Tone 1 LOCK [Mass 50]: aliased dBFS core -99.442 char -83.255 anchor -155.87 sum -83.255 out -66.171; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -83.255 k2 -83.534 k3 -84.433 k4 -86.934 k5 -91.902 k6 -93.16 k7 -106.91 k8 -178.48 dBFS
+PROBE SC-021(a) 48k E1 Bite SHAPE 1 Tone 1 LOCK [Fold 0]: aliased dBFS core -99.303 char -81.402 anchor -155.87 sum -81.402 out -83.894; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -81.402 k2 -81.628 k3 -82.5 k4 -84.073 k5 -90.846 k6 -89.751 k7 -105.91 k8 -171.48 dBFS
+PROBE SC-021(a) 48k E1 Bite SHAPE 1 Tone 1 LOCK [Anchor level 0]: aliased dBFS core -99.303 char -73.546 anchor -161.89 sum -73.546 out -63.249; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -73.546 k2 -73.796 k3 -75.168 k4 -76.122 k5 -81.877 k6 -82.396 k7 -97.869 k8 -170.82 dBFS
+PROBE SC-021(a) 48k E1 Bite SHAPE 1 Tone 1 LOCK [Mass 0]: aliased dBFS core -101.23 char -76.353 anchor -161.89 sum -76.353 out -75.671; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -76.353 k2 -76.671 k3 -77.544 k4 -80.285 k5 -86.053 k6 -85.127 k7 -100.08 k8 -173.66 dBFS
+PROBE SC-021(a) 48k E1 Bite SHAPE 1 Tone 1 LOCK [Mass 0 + Fold 0]: aliased dBFS core -101.23 char -78.412 anchor -161.89 sum -78.412 out -77.588; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -78.412 k2 -78.933 k3 -79.867 k4 -81.429 k5 -87.1 k6 -86.137 k7 -101.95 k8 -176.67 dBFS
+PROBE SC-021(a) 48k E1 Bite SHAPE 1 Tone 1 LOCK [Mass 0 + Fold 100]: aliased dBFS core -101.23 char -76.353 anchor -161.89 sum -76.353 out -75.671; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -76.353 k2 -76.671 k3 -77.544 k4 -80.285 k5 -86.053 k6 -85.127 k7 -100.08 k8 -173.66 dBFS
+PROBE SC-021(a) 96k E1 Fold SHAPE 1 Tone 1 LOCK [base]: aliased dBFS core -92.897 char -64.111 anchor -157.83 sum -64.111 out -51.87; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -64.111 k2 -64.805 k3 -66.366 k4 -66.627 k5 -72.29 k6 -72.824 k7 -87.105 k8 -174.32 dBFS
+  off-lattice power: below f_m -99.717 dBFS, f_m .. fs/4 -64.656 dBFS, above fs/4 -73.401 dBFS (L)
+  bin 5469 f 2002.8 Hz (48.608 f0) -92.205 dBFS, nearest mirrored harmonic 4.0247 Hz away
+  bin 4770 f 1746.8 Hz (42.395 f0) -92.231 dBFS, nearest mirrored harmonic 4.1442 Hz away
+  bin 5107 f 1870.2 Hz (45.39 f0) -92.266 dBFS, nearest mirrored harmonic 3.947 Hz away
+  bin 4769 f 1746.5 Hz (42.386 f0) -92.417 dBFS, nearest mirrored harmonic 3.778 Hz away
+  bin 2656 f 972.66 Hz (23.606 f0) -93.201 dBFS, nearest mirrored harmonic 4.0897 Hz away
+  bin 6144 f 2250 Hz (54.607 f0) -93.21 dBFS, nearest mirrored harmonic 4.053 Hz away
+  bin 5470 f 2003.2 Hz (48.617 f0) -93.362 dBFS, nearest mirrored harmonic 3.6585 Hz away
+  bin 5106 f 1869.9 Hz (45.381 f0) -93.42 dBFS, nearest mirrored harmonic 3.5807 Hz away
+PROBE SC-021(a) 96k E1 Fold SHAPE 1 Tone 1 LOCK [SOLID]: aliased dBFS core -92.303 char -63.354 anchor -157.83 sum -63.354 out -64.991; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -63.354 k2 -63.678 k3 -66.293 k4 -64.614 k5 -69.333 k6 -73.405 k7 -86.893 k8 -184.94 dBFS
+PROBE SC-021(a) 96k E1 Fold SHAPE 1 Tone 1 LOCK [anchorFoldFeed 0]: aliased dBFS core -92.897 char -62.643 anchor -157.83 sum -62.643 out -64.326; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -62.643 k2 -63.27 k3 -65.293 k4 -65.199 k5 -70.733 k6 -71.848 k7 -85.453 k8 -182.48 dBFS
+PROBE SC-021(a) 96k E1 Fold SHAPE 1 Tone 1 LOCK [SHAPE 0]: aliased dBFS core -92.897 char -81.039 anchor -157.83 sum -81.039 out -81.577; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -81.039 k2 -82.039 k3 -82.71 k4 -84.304 k5 -87.947 k6 -90.663 k7 -102.69 k8 -182.12 dBFS
+PROBE SC-021(a) 96k E1 Fold SHAPE 1 Tone 1 LOCK [Character amount 0]: aliased dBFS core -92.897 char -69.28 anchor -157.83 sum -69.28 out -70.891; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -69.28 k2 -69.578 k3 -71.853 k4 -71.204 k5 -75.982 k6 -77.046 k7 -92.31 k8 -183.02 dBFS
+PROBE SC-021(a) 96k E1 Fold SHAPE 1 Tone 1 LOCK [excitation mix 0]: aliased dBFS core -129.5 char -92.855 anchor -157.83 sum -92.855 out -71.766; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -92.855 k2 -93.227 k3 -94.892 k4 -94.982 k5 -98.834 k6 -101.54 k7 -115.84 k8 -176.62 dBFS
+PROBE SC-021(a) 96k E1 Fold SHAPE 1 Tone 1 LOCK [Mass 50]: aliased dBFS core -94.975 char -71.102 anchor -157.83 sum -71.102 out -69.21; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -71.102 k2 -71.908 k3 -73.713 k4 -73.299 k5 -78.229 k6 -80.284 k7 -94.299 k8 -190.98 dBFS
+PROBE SC-021(a) 96k E1 Fold SHAPE 1 Tone 1 LOCK [Fold 0]: aliased dBFS core -92.897 char -73.139 anchor -157.83 sum -73.139 out -75.123; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -73.139 k2 -73.872 k3 -75.265 k4 -76.02 k5 -80.494 k6 -82.426 k7 -94.845 k8 -177.6 dBFS
+PROBE SC-021(a) 96k E1 Fold SHAPE 1 Tone 1 LOCK [Anchor level 0]: aliased dBFS core -92.897 char -63.024 anchor -163.85 sum -63.024 out -62.847; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -63.024 k2 -63.643 k3 -65.764 k4 -65.389 k5 -71.315 k6 -72.053 k7 -86.165 k8 -182.55 dBFS
+PROBE SC-021(a) 96k E1 Fold SHAPE 1 Tone 1 LOCK [Mass 0]: aliased dBFS core -94.561 char -74.236 anchor -163.85 sum -74.236 out -73.483; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -74.236 k2 -74.862 k3 -76.357 k4 -77.106 k5 -79.894 k6 -82.527 k7 -95.747 k8 -197.52 dBFS
+PROBE SC-021(a) 96k E1 Fold SHAPE 1 Tone 1 LOCK [Mass 0 + Fold 0]: aliased dBFS core -94.561 char -75.69 anchor -163.85 sum -75.69 out -74.827; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -75.69 k2 -76.304 k3 -77.738 k4 -78.582 k5 -81.32 k6 -83.903 k7 -96.596 k8 -188.53 dBFS
+PROBE SC-021(a) 96k E1 Fold SHAPE 1 Tone 1 LOCK [Mass 0 + Fold 100]: aliased dBFS core -94.561 char -74.236 anchor -163.85 sum -74.236 out -73.483; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -74.236 k2 -74.862 k3 -76.357 k4 -77.106 k5 -79.894 k6 -82.527 k7 -95.747 k8 -197.52 dBFS
+PROBE SC-021(a) 96k E2 Tube SHAPE 1 Tone 1 LOCK [base]: aliased dBFS core -90.363 char -70.02 anchor -155.89 sum -70.02 out -63.369; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -70.02 k2 -70.29 k3 -70.838 k4 -75.836 k5 -78.414 k6 -80.179 k7 -94.249 k8 -175.26 dBFS
+  off-lattice power: below f_m -108.22 dBFS, f_m .. fs/4 -70.122 dBFS, above fs/4 -86.387 dBFS (R)
+  bin 7448 f 5455.1 Hz (66.197 f0) -95.894 dBFS, nearest mirrored harmonic 4.1397 Hz away
+  bin 7404 f 5422.9 Hz (65.806 f0) -96.391 dBFS, nearest mirrored harmonic 3.9196 Hz away
+  bin 4816 f 3527.3 Hz (42.804 f0) -96.581 dBFS, nearest mirrored harmonic 4.069 Hz away
+  bin 6166 f 4516.1 Hz (54.803 f0) -96.638 dBFS, nearest mirrored harmonic 4.1821 Hz away
+  bin 6210 f 4548.3 Hz (55.194 f0) -96.652 dBFS, nearest mirrored harmonic 3.8773 Hz away
+  bin 4028 f 2950.2 Hz (35.8 f0) -96.662 dBFS, nearest mirrored harmonic 4.3692 Hz away
+  bin 8686 f 6361.8 Hz (77.2 f0) -97.011 dBFS, nearest mirrored harmonic 4.4022 Hz away
+  bin 8685 f 6361.1 Hz (77.191 f0) -97.023 dBFS, nearest mirrored harmonic 3.6698 Hz away
+PROBE SC-021(a) 96k E2 Tube SHAPE 1 Tone 1 LOCK [SOLID]: aliased dBFS core -90.755 char -69.034 anchor -155.89 sum -69.034 out -71.817; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -69.034 k2 -69.383 k3 -70.274 k4 -73.268 k5 -78.597 k6 -82.184 k7 -91.522 k8 -167.59 dBFS
+PROBE SC-021(a) 96k E2 Tube SHAPE 1 Tone 1 LOCK [anchorFoldFeed 0]: aliased dBFS core -90.363 char -68.209 anchor -155.89 sum -68.209 out -68.499; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -68.209 k2 -68.472 k3 -69.72 k4 -72.056 k5 -75.872 k6 -78.089 k7 -90.353 k8 -167.91 dBFS
+PROBE SC-021(a) 96k E2 Tube SHAPE 1 Tone 1 LOCK [SHAPE 0]: aliased dBFS core -90.363 char -76.621 anchor -155.89 sum -76.621 out -72.988; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -76.621 k2 -76.76 k3 -77.534 k4 -82.394 k5 -89.077 k6 -87.743 k7 -96.96 k8 -177.5 dBFS
+PROBE SC-021(a) 96k E2 Tube SHAPE 1 Tone 1 LOCK [Character amount 0]: aliased dBFS core -90.363 char -67.863 anchor -155.89 sum -67.863 out -77.212; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -67.863 k2 -68.157 k3 -68.732 k4 -73.954 k5 -76.867 k6 -78.589 k7 -91.968 k8 -173.3 dBFS
+PROBE SC-021(a) 96k E2 Tube SHAPE 1 Tone 1 LOCK [excitation mix 0]: aliased dBFS core -133.51 char -97.074 anchor -155.89 sum -97.074 out -63.315; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -97.074 k2 -97.452 k3 -98.828 k4 -100.95 k5 -104.85 k6 -107.16 k7 -119.66 k8 -177.3 dBFS
+PROBE SC-021(a) 96k E2 Tube SHAPE 1 Tone 1 LOCK [Mass 50]: aliased dBFS core -93.65 char -74.9 anchor -155.89 sum -74.9 out -68.129; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -74.9 k2 -75.667 k3 -76.043 k4 -78.304 k5 -81.692 k6 -81.912 k7 -97.871 k8 -167.62 dBFS
+PROBE SC-021(a) 96k E2 Tube SHAPE 1 Tone 1 LOCK [Fold 0]: aliased dBFS core -90.363 char -78.741 anchor -155.89 sum -78.741 out -80.955; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -78.741 k2 -79.081 k3 -79.505 k4 -83.306 k5 -86.455 k6 -87.855 k7 -101.5 k8 -164.9 dBFS
+PROBE SC-021(a) 96k E2 Tube SHAPE 1 Tone 1 LOCK [Anchor level 0]: aliased dBFS core -90.363 char -69.5 anchor -161.91 sum -69.5 out -65.037; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -69.5 k2 -69.815 k3 -70.313 k4 -72.953 k5 -75.992 k6 -78.067 k7 -91.204 k8 -169.41 dBFS
+PROBE SC-021(a) 96k E2 Tube SHAPE 1 Tone 1 LOCK [Mass 0]: aliased dBFS core -94.178 char -74.396 anchor -161.91 sum -74.396 out -73.84; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -74.396 k2 -74.934 k3 -75.745 k4 -78.241 k5 -81.193 k6 -81.339 k7 -95.026 k8 -172.2 dBFS
+PROBE SC-021(a) 96k E2 Tube SHAPE 1 Tone 1 LOCK [Mass 0 + Fold 0]: aliased dBFS core -94.178 char -75.611 anchor -161.91 sum -75.611 out -74.962; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -75.611 k2 -76.125 k3 -77.063 k4 -79.511 k5 -82.335 k6 -82.611 k7 -96.463 k8 -165.95 dBFS
+PROBE SC-021(a) 96k E2 Tube SHAPE 1 Tone 1 LOCK [Mass 0 + Fold 100]: aliased dBFS core -94.178 char -74.396 anchor -161.91 sum -74.396 out -73.84; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -74.396 k2 -74.934 k3 -75.745 k4 -78.241 k5 -81.193 k6 -81.339 k7 -95.026 k8 -172.2 dBFS
+PROBE SC-021(a) 96k E1 Rectify SHAPE 0 Tone 1 FOLLOW [base]: aliased dBFS core -92.897 char -8.2155 anchor -14.118 sum -7.5665 out -13.783; follow ratio [1, 2]
+  residual on the f0/k lattice: k1 -7.5665 k2 -22.574 k3 -7.6156 k4 -23.992 k5 -7.674 k6 -28.033 k7 -26.754 k8 -176.41 dBFS
+  off-lattice power: below f_m -31.506 dBFS, f_m .. fs/4 -7.5841 dBFS, above fs/4 -53.954 dBFS (R)
+  bin 281 f 102.91 Hz (2.4975 f0) -19.749 dBFS, nearest mirrored harmonic 8.3615 Hz away
+  bin 282 f 103.27 Hz (2.5064 f0) -20.655 dBFS, nearest mirrored harmonic 8.202 Hz away
+  bin 169 f 61.89 Hz (1.5021 f0) -21.866 dBFS, nearest mirrored harmonic 8.3803 Hz away
+  bin 619 f 226.68 Hz (5.5016 f0) -21.974 dBFS, nearest mirrored harmonic 8.3992 Hz away
+  bin 394 f 144.29 Hz (3.5018 f0) -22.624 dBFS, nearest mirrored harmonic 8.3898 Hz away
+  bin 168 f 61.523 Hz (1.4932 f0) -22.913 dBFS, nearest mirrored harmonic 8.1831 Hz away
+  bin 280 f 102.54 Hz (2.4886 f0) -22.966 dBFS, nearest mirrored harmonic 7.9952 Hz away
+  bin 618 f 226.32 Hz (5.4927 f0) -23.269 dBFS, nearest mirrored harmonic 8.1642 Hz away
+PROBE SC-021(a) 96k E1 Rectify SHAPE 0 Tone 1 FOLLOW [SOLID]: aliased dBFS core -92.303 char -79.911 anchor -157.37 sum -79.911 out -82.2; follow ratio [1, 2]
+  residual on the f0/k lattice: k1 -79.911 k2 -80.246 k3 -83.961 k4 -80.883 k5 -87.357 k6 -90.067 k7 -105.37 k8 -183.33 dBFS
+PROBE SC-021(a) 96k E1 Rectify SHAPE 0 Tone 1 FOLLOW [anchorFoldFeed 0]: aliased dBFS core -92.897 char -75.492 anchor -157.83 sum -75.492 out -68.613; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -75.492 k2 -75.786 k3 -77.826 k4 -77.193 k5 -82.659 k6 -84.53 k7 -98.786 k8 -182.06 dBFS
+PROBE SC-021(a) 96k E1 Rectify SHAPE 0 Tone 1 FOLLOW [LOCK]: aliased dBFS core -92.897 char -79.381 anchor -157.83 sum -79.381 out -65.833; follow ratio [2, 2]
+  residual on the f0/k lattice: k1 -79.381 k2 -79.746 k3 -81.296 k4 -82.14 k5 -86.727 k6 -88.926 k7 -101.12 k8 -181.56 dBFS
+PROBE SC-021(a) 96k E1 Rectify SHAPE 0 Tone 1 FOLLOW [Character amount 0]: aliased dBFS core -92.897 char -86.652 anchor -157.83 sum -86.652 out -88.669; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -86.652 k2 -87.023 k3 -88.349 k4 -89.553 k5 -94.022 k6 -96.173 k7 -107.03 k8 -181.99 dBFS
+PROBE SC-021(a) 96k E1 Rectify SHAPE 0 Tone 1 FOLLOW [excitation mix 0]: aliased dBFS core -129.5 char -8.7216 anchor -15.592 sum -7.6507 out -14.082; follow ratio [1, 2]
+  residual on the f0/k lattice: k1 -7.6507 k2 -13.348 k3 -7.9714 k4 -14.485 k5 -9.6735 k6 -16.687 k7 -25.748 k8 -173.75 dBFS
+PROBE SC-021(a) 96k E1 Rectify SHAPE 0 Tone 1 FOLLOW [Mass 50]: aliased dBFS core -94.975 char -81.517 anchor -157.83 sum -81.517 out -84.047; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -81.517 k2 -82.311 k3 -83.513 k4 -84.426 k5 -86.303 k6 -89.818 k7 -105.49 k8 -194.52 dBFS
+PROBE SC-021(a) 96k E1 Rectify SHAPE 0 Tone 1 FOLLOW [Fold 0]: aliased dBFS core -92.897 char -9.1267 anchor -14.118 sum -7.453 out -11.831; follow ratio [1, 2]
+  residual on the f0/k lattice: k1 -7.453 k2 -33.904 k3 -7.4563 k4 -35.379 k5 -7.4651 k6 -39.532 k7 -39.33 k8 -172.66 dBFS
+PROBE SC-021(a) 96k E1 Rectify SHAPE 0 Tone 1 FOLLOW [Anchor level 0]: aliased dBFS core -92.897 char -76.926 anchor -163.85 sum -76.926 out -73.664; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -76.926 k2 -77.208 k3 -79.097 k4 -78.916 k5 -83.599 k6 -86.031 k7 -99.819 k8 -175.05 dBFS
+PROBE SC-021(a) 96k E1 Rectify SHAPE 0 Tone 1 FOLLOW [Mass 0]: aliased dBFS core -94.561 char -82.701 anchor -163.85 sum -82.701 out -76.757; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -82.701 k2 -83.443 k3 -84.765 k4 -85.366 k5 -88.051 k6 -90.243 k7 -105.69 k8 -185.36 dBFS
+PROBE SC-021(a) 96k E1 Rectify SHAPE 0 Tone 1 FOLLOW [Mass 0 + Fold 0]: aliased dBFS core -94.561 char -88.84 anchor -163.85 sum -88.84 out -78.074; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -88.84 k2 -89.373 k3 -91.307 k4 -91.204 k5 -94.076 k6 -96.706 k7 -111.05 k8 -180.03 dBFS
+PROBE SC-021(a) 96k E1 Rectify SHAPE 0 Tone 1 FOLLOW [Mass 0 + Fold 100]: aliased dBFS core -94.561 char -82.701 anchor -163.85 sum -82.701 out -76.757; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -82.701 k2 -83.443 k3 -84.765 k4 -85.366 k5 -88.051 k6 -90.243 k7 -105.69 k8 -185.36 dBFS
+PROBE SC-021(a) 96k E1 Fracture SHAPE 1 Tone 1 FOLLOW [base]: aliased dBFS core -92.981 char -76.106 anchor -155.69 sum -76.106 out -71.923; follow ratio [0.5, 0.5]
+  residual on the f0/k lattice: k1 -76.106 k2 -76.554 k3 -77.09 k4 -81.569 k5 -82.292 k6 -83.258 k7 -95.641 k8 -3000 dBFS
+  off-lattice power: below f_m -117.19 dBFS, f_m .. fs/4 -76.128 dBFS, above fs/4 -99.257 dBFS (L)
+  bin 4926 f 901.98 Hz (21.891 f0) -106.2 dBFS, nearest mirrored harmonic 0.45279 Hz away
+  bin 4925 f 901.79 Hz (21.886 f0) -106.62 dBFS, nearest mirrored harmonic 0.63589 Hz away
+  bin 5763 f 1055.2 Hz (25.61 f0) -106.79 dBFS, nearest mirrored harmonic 3.916 Hz away
+  bin 3350 f 613.4 Hz (14.887 f0) -107.5 dBFS, nearest mirrored harmonic 0.60284 Hz away
+  bin 3351 f 613.59 Hz (14.892 f0) -107.76 dBFS, nearest mirrored harmonic 0.41973 Hz away
+  bin 7338 f 1343.6 Hz (32.61 f0) -107.8 dBFS, nearest mirrored harmonic 3.9491 Hz away
+  bin 2450 f 448.61 Hz (10.888 f0) -107.92 dBFS, nearest mirrored harmonic 0.58395 Hz away
+  bin 15164 f 2776.6 Hz (67.388 f0) -107.95 dBFS, nearest mirrored harmonic 3.8431 Hz away
+PROBE SC-021(a) 96k E1 Fracture SHAPE 1 Tone 1 FOLLOW [SOLID]: aliased dBFS core -92.948 char -76.995 anchor -155.69 sum -76.995 out -73.938; follow ratio [0.5, 0.5]
+  residual on the f0/k lattice: k1 -76.995 k2 -77.709 k3 -78.064 k4 -81.081 k5 -82.472 k6 -84.869 k7 -97.104 k8 -3000 dBFS
+PROBE SC-021(a) 96k E1 Fracture SHAPE 1 Tone 1 FOLLOW [anchorFoldFeed 0]: aliased dBFS core -92.981 char -75.003 anchor -155.69 sum -75.003 out -72.868; follow ratio [0.5, 0.5]
+  residual on the f0/k lattice: k1 -75.003 k2 -75.521 k3 -75.858 k4 -80.545 k5 -82.199 k6 -82.991 k7 -94.534 k8 -3000 dBFS
+PROBE SC-021(a) 96k E1 Fracture SHAPE 1 Tone 1 FOLLOW [LOCK]: aliased dBFS core -92.981 char -78.48 anchor -155.78 sum -78.48 out -75.011; follow ratio [0.5, 0.5]
+  residual on the f0/k lattice: k1 -78.48 k2 -79.201 k3 -79.621 k4 -82.699 k5 -84.407 k6 -87.485 k7 -98.858 k8 -3000 dBFS
+PROBE SC-021(a) 96k E1 Fracture SHAPE 1 Tone 1 FOLLOW [SHAPE 0]: aliased dBFS core -92.981 char -89.746 anchor -155.69 sum -89.746 out -80.308; follow ratio [0.5, 0.5]
+  residual on the f0/k lattice: k1 -89.746 k2 -90.455 k3 -90.982 k4 -94.161 k5 -96.102 k6 -98.61 k7 -109.45 k8 -3000 dBFS
+PROBE SC-021(a) 96k E1 Fracture SHAPE 1 Tone 1 FOLLOW [Character amount 0]: aliased dBFS core -92.981 char -71.746 anchor -155.78 sum -71.746 out -71.006; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -71.746 k2 -72.362 k3 -72.884 k4 -75.522 k5 -77.782 k6 -79.538 k7 -91.082 k8 -3000 dBFS
+PROBE SC-021(a) 96k E1 Fracture SHAPE 1 Tone 1 FOLLOW [excitation mix 0]: aliased dBFS core -125.83 char -92.244 anchor -155.69 sum -92.244 out -81.251; follow ratio [0.5, 0.5]
+  residual on the f0/k lattice: k1 -92.244 k2 -93.219 k3 -93.994 k4 -95.53 k5 -96.787 k6 -99.83 k7 -114.84 k8 -3000 dBFS
+PROBE SC-021(a) 96k E1 Fracture SHAPE 1 Tone 1 FOLLOW [Mass 50]: aliased dBFS core -94.591 char -74.867 anchor -155.69 sum -74.867 out -75.049; follow ratio [0.5, 0.5]
+  residual on the f0/k lattice: k1 -74.867 k2 -75.834 k3 -76.38 k4 -78.088 k5 -81.195 k6 -83.509 k7 -96.515 k8 -3000 dBFS
+PROBE SC-021(a) 96k E1 Fracture SHAPE 1 Tone 1 FOLLOW [Fold 0]: aliased dBFS core -92.981 char -83.068 anchor -155.69 sum -83.068 out -79.66; follow ratio [0.5, 0.5]
+  residual on the f0/k lattice: k1 -83.068 k2 -83.63 k3 -84.143 k4 -87.634 k5 -89.047 k6 -90.637 k7 -102.9 k8 -3000 dBFS
+PROBE SC-021(a) 96k E1 Fracture SHAPE 1 Tone 1 FOLLOW [Anchor level 0]: aliased dBFS core -92.981 char -74.957 anchor -161.71 sum -74.957 out -73.337; follow ratio [0.5, 0.5]
+  residual on the f0/k lattice: k1 -74.957 k2 -75.435 k3 -75.804 k4 -80.738 k5 -81.806 k6 -82.339 k7 -94.027 k8 -3000 dBFS
+PROBE SC-021(a) 96k E1 Fracture SHAPE 1 Tone 1 FOLLOW [Mass 0]: aliased dBFS core -94.904 char -82.481 anchor -161.71 sum -82.481 out -81.663; follow ratio [0.5, 0.5]
+  residual on the f0/k lattice: k1 -82.481 k2 -83.303 k3 -83.754 k4 -85.64 k5 -87.694 k6 -89.853 k7 -103.07 k8 -3000 dBFS
+PROBE SC-021(a) 96k E1 Fracture SHAPE 1 Tone 1 FOLLOW [Mass 0 + Fold 0]: aliased dBFS core -94.904 char -84.373 anchor -161.71 sum -84.373 out -83.603; follow ratio [0.5, 0.5]
+  residual on the f0/k lattice: k1 -84.373 k2 -85.169 k3 -85.689 k4 -87.604 k5 -89.68 k6 -91.923 k7 -105.1 k8 -3000 dBFS
+PROBE SC-021(a) 96k E1 Fracture SHAPE 1 Tone 1 FOLLOW [Mass 0 + Fold 100]: aliased dBFS core -94.904 char -82.481 anchor -161.71 sum -82.481 out -81.663; follow ratio [0.5, 0.5]
+  residual on the f0/k lattice: k1 -82.481 k2 -83.303 k3 -83.754 k4 -85.64 k5 -87.694 k6 -89.853 k7 -103.07 k8 -3000 dBFS
+===============================================================================
+All tests passed (20080 assertions in 1 test case)
+

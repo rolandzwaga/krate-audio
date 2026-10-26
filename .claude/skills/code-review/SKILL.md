@@ -121,7 +121,7 @@ These apply to ALL changed files regardless of category:
 2. **Layer dependency**: Does the file include headers from a higher layer? (e.g., Layer 1 including Layer 2)
 3. **Cross-platform**: Any platform-specific API usage? (Win32, Cocoa, platform-specific headers)
 4. **Narrowing conversions**: Brace initialization with implicit narrowing? (Clang will error)
-5. **`-ffast-math` gotchas**: Using `std::isnan()`, `std::isinf()`, or `std::fpclassify()`? These break under `-ffast-math`.
+5. **`-ffast-math` gotchas** (the macOS leg; rules in `dsp/CLAUDE.md` "The macOS leg builds with -ffast-math"): `std::isnan()` / `std::isinf()` / `std::fpclassify()` or a hand-written `(bits & 0x7F800000u)` finiteness clone (both fold; use `detail::isFinite` / `isNaN` / `isInf`)? A `pow` / `sqrt` / `log` / `acos` argument that only lands on its domain edge in IEEE (clamp it)? A neutral point or endpoint that is exact only by cancellation (contraction leaves 1e-8)? A test asserting bit-equality between two separately compiled computations (belongs in `dsp_ieee_tests`, or a tolerance)?
 6. **Naming conventions**: Classes PascalCase, functions camelCase, members trailing underscore, constants kPascalCase, parameter IDs follow `k{Mode}{Parameter}Id` pattern.
 7. **Modern C++**: Raw `new`/`delete` instead of smart pointers? Missing `constexpr`? Missing move semantics?
 

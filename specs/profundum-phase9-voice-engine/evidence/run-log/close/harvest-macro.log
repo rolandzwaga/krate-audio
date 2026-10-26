@@ -1,0 +1,76 @@
+=== step1-macro 2026-10-21T18:20:53Z cmd: build/windows-x64-release/bin/Release/dsp_systems_tests.exe "VoiceEngine_MacroHarvest"
+Filters: "VoiceEngine_MacroHarvest"
+Randomness seeded to: 804765445
+# T014 VoiceEngine_MacroHarvest (plan S4.2, S10.5). 48 kHz, MONO, base A_s (C-8; B_s for Dark <-> Bright, ruling B10-1), one held note per render (E1, C3), the other macros neutral; bars E_sub / D_nl >= 3 dB, D_br >= 0.25 oct, D_t ratio >= 2; sweep 21 steps against the running max, eps 0.25 dB / 0.02 oct / 2 %
+# ---- Weight: E_sub (Sum) dB (base A_s)
+T14 ROW Weight k=1 E1 lo=-7.14952 hi=-5.97165 delta=1.17787 bar=3 FAIL
+T14 ROW Weight k=1 C3 lo=-7.17053 hi=-5.99288 delta=1.17765 bar=3 FAIL
+T14 ROW Weight k=1.25 E1 lo=-7.5058 hi=-5.97162 delta=1.53418 bar=3 FAIL
+T14 ROW Weight k=1.25 C3 lo=-7.52658 hi=-5.99285 delta=1.53372 bar=3 FAIL
+T14 ROW Weight k=1.5 E1 lo=-7.89889 hi=-5.97159 delta=1.92731 bar=3 FAIL
+T14 ROW Weight k=1.5 C3 lo=-7.91934 hi=-5.99282 delta=1.92651 bar=3 FAIL
+T14 ROW Weight k=1.75 E1 lo=-8.32119 hi=-5.97154 delta=2.34964 bar=3 FAIL
+T14 ROW Weight k=1.75 C3 lo=-8.34117 hi=-5.99278 delta=2.34839 bar=3 FAIL
+T14 ROW Weight k=2 E1 lo=-8.74936 hi=-5.9715 delta=2.77786 bar=3 FAIL
+T14 ROW Weight k=2 C3 lo=-8.76874 hi=-5.99274 delta=2.776 bar=3 FAIL
+T14 ROW Weight k=2.25 E1 lo=-9.18337 hi=-5.97144 delta=3.21192 bar=3 PASS
+T14 ROW Weight k=2.25 C3 lo=-9.20196 hi=-5.99268 delta=3.20928 bar=3 PASS
+T14 SWEEP Weight Linear k=2.25 E1 : -9.18337 -8.79142 -8.4074 -8.02325 -7.65874 -7.32308 -7.01677 -6.73491 -6.47064 -6.21765 -5.9717 -5.9717 -5.97169 -5.97168 -5.97166 -5.97163 -5.97161 -5.97157 -5.97154 -5.97149 -5.97144 MONOTONE
+T14 SWEEP Weight Linear k=2.25 C3 : -9.20196 -8.81073 -8.42727 -8.04357 -7.67939 -7.34398 -7.03784 -6.75609 -6.49189 -6.2389 -5.99293 -5.99293 -5.99293 -5.99291 -5.9929 -5.99288 -5.99284 -5.99281 -5.99277 -5.99273 -5.99268 MONOTONE
+# ---- DarkBright: D_br (Sum) oct (base B_s, B10-1)
+T14 ROW DarkBright k=1 E1 lo=0.353812 hi=1.29947 delta=0.945659 bar=0.25 PASS
+T14 ROW DarkBright k=1 C3 lo=0.308626 hi=1.10924 delta=0.800617 bar=0.25 PASS
+T14 SWEEP DarkBright Linear k=1 E1 : 0.353812 0.416834 0.484812 0.556493 0.630665 0.708795 0.785002 0.856568 0.921842 0.979856 1.03036 1.08384 1.12852 1.16359 1.19491 1.22321 1.24901 1.26925 1.28183 1.29183 1.29947 MONOTONE
+T14 SWEEP DarkBright Linear k=1 C3 : 0.308626 0.368295 0.433695 0.500698 0.567675 0.633179 0.695797 0.754039 0.806925 0.853877 0.895053 0.934595 0.971262 1.00198 1.03026 1.05545 1.07703 1.09296 1.10197 1.10721 1.10924 MONOTONE
+# ---- TightLoose: D_t (Sum, gate render) ms (base A_s)
+T14 ROW TightLoose k=1 E1 lo=1006.14 hi=1142.01 ratio=1.13504 bar=2 gate_s=3/3 FAIL
+T14 ROW TightLoose k=1 C3 lo=1004.94 hi=1138.32 ratio=1.13272 bar=2 gate_s=3/3 FAIL
+T14 ROW TightLoose k=1.25 E1 lo=1005.1 hi=1200.16 ratio=1.19407 bar=2 gate_s=3/3 FAIL
+T14 ROW TightLoose k=1.25 C3 lo=1002.32 hi=1197.56 ratio=1.1948 bar=2 gate_s=3/3 FAIL
+T14 ROW TightLoose k=1.5 E1 lo=1004.1 hi=1281.47 ratio=1.27623 bar=2 gate_s=3/3 FAIL
+T14 ROW TightLoose k=1.5 C3 lo=1000.56 hi=1279.84 ratio=1.27912 bar=2 gate_s=3/3 FAIL
+T14 ROW TightLoose k=1.75 E1 lo=1002.49 hi=1397.92 ratio=1.39444 bar=2 gate_s=3/3 FAIL
+T14 ROW TightLoose k=1.75 C3 lo=999.036 hi=1396.87 ratio=1.39822 bar=2 gate_s=3/3 FAIL
+T14 ROW TightLoose k=2 E1 lo=1000.93 hi=1566.45 ratio=1.56499 bar=2 gate_s=3/3 FAIL
+T14 ROW TightLoose k=2 C3 lo=997.782 hi=1562.58 ratio=1.56605 bar=2 gate_s=3/3 FAIL
+T14 ROW TightLoose k=2.25 E1 lo=999.7 hi=1798.64 ratio=1.79918 bar=2 gate_s=3/3 FAIL
+T14 ROW TightLoose k=2.25 C3 lo=997.475 hi=1796.6 ratio=1.80115 bar=2 gate_s=3/3 FAIL
+T14 ROW TightLoose k=2.5 E1 lo=998.805 hi=2132.48 ratio=2.13503 bar=2 gate_s=3/3 PASS
+T14 ROW TightLoose k=2.5 C3 lo=997.401 hi=2128.65 ratio=2.13419 bar=2 gate_s=3/3 PASS
+T14 SWEEP TightLoose Linear k=2.5 E1 : 998.805 999.7 1000.93 1002.49 1004.1 1005.1 1006.14 1010.81 1015.96 1023.74 1034.19 1049.29 1070.41 1100.25 1142.01 1200.16 1281.47 1397.92 1566.45 1798.64 2132.48 MONOTONE
+T14 SWEEP TightLoose Linear k=2.5 C3 : 997.401 997.475 997.782 999.036 1000.56 1002.32 1004.94 1008.74 1014.02 1021.49 1032.03 1046.85 1067.55 1096.61 1138.32 1197.56 1279.84 1396.87 1562.58 1796.6 2128.65 MONOTONE
+# ---- CleanViolent: D_nl (Character / twin) dB (base A_s)
+T14 ROW CleanViolent k=1 E1 lo=0 hi=11.0488 delta=11.0488 bar=3 PASS
+T14 ROW CleanViolent k=1 C3 lo=0 hi=11.8209 delta=11.8209 bar=3 PASS
+T14 SWEEP CleanViolent Linear k=1 E1 : 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 5.20821 11.0488 MONOTONE
+T14 SWEEP CleanViolent Linear k=1 C3 : 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.439909 6.12681 11.8209 MONOTONE
+# T014 VoiceEngine_MacroHarvest (plan S4.2, S10.5; tasks.md T014). Base A_s (C-8; B_s for Dark <-> Bright, ruling B10-1), MONO, 48 kHz, E1 and C3. The search log (every row and sweep reading) is this case's stdout, kept by evidence/close/harvest.sh in evidence/run-log/close/harvest-macro.log.
+T14 CHOSEN Weight (E_sub (Sum) dB) k=2.25 curve Linear
+T14 CHOSEN DarkBright (D_br (Sum) oct) k=1 curve Linear
+T14 CHOSEN TightLoose (D_t (Sum, gate render) ms) k=2.5 curve Linear
+T14 CHOSEN CleanViolent (D_nl (Character / twin) dB) k=1 curve Linear
+
+| Row | Macro | Target | Seed amount | Amount | Curve | Unit |
+|---|---|---|---|---|---|---|
+| 0 | Weight | RecipeDepth | 0.25 | 0.5625 | Linear | recipe [0, 1] |
+| 1 | Weight | RecipeBody | 0.25 | 0.5625 | Linear | recipe [0, 1] |
+| 2 | Weight | AnchorLevel | 0.25 | 0.5625 | Linear | level [0, 1] |
+| 3 | DarkBright | RecipeEdge | 0.5 | 0.5 | Linear | recipe [0, 1] |
+| 4 | DarkBright | RecipeShift | 0.5 | 0.5 | Linear | recipe [-1, 1] |
+| 5 | DarkBright | Shape | 0 | 0 | Linear | SHAPE [0, 1], toward BITE (1) |
+| 6 | DarkBright | CharacterTone | 0.300000012 | 0.300000012 | Linear | Tone [0, 1] |
+| 7 | TightLoose | AmpAttackOct | 2 | 5 | Linear | octaves of time (x4 at Loose, /4 at Tight, at the seed) |
+| 8 | TightLoose | AmpDecayOct | 2 | 5 | Linear | octaves |
+| 9 | TightLoose | AmpReleaseOct | 2 | 5 | Linear | octaves |
+| 10 | TightLoose | TransientAttackDb | -6 | -15 | Linear | dB, [-12, 12] |
+| 11 | TightLoose | CompressionAmount | -0.5 | -1.25 | Linear | amount [0, 1], post-law (C-7) |
+| 12 | CleanViolent | ExcitationMix | 0.5 | 0.5 | Linear | [0, 1] |
+| 13 | CleanViolent | ExcitationDrive | 0.5 | 0.5 | Linear | [0, 1] |
+| 14 | CleanViolent | FoldAmount | 50 | 50 | Linear | [0, 100] |
+| 15 | CleanViolent | CharacterAmount | 0.5 | 0.5 | Linear | [0, 1] |
+
+HARVEST GREEN
+===============================================================================
+All tests passed (3869 assertions in 1 test case)
+
+exit: 0 wall: 83 s

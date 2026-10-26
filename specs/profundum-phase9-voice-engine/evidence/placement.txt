@@ -1,0 +1,13 @@
+# SC-004 VoiceEngine_PlacementCost (4 voices E1 / A1 / E2 / C3, SC-002 protocol) (tasks.md T020; plan S10.6)
+# SC-001 setting on both showcase endpoints, morph ramp 1000 ms toggled every 1 s, Drop 24 st retriggered every 0.25 s, block 64, 10 s timed after 1 s warm-up, median of 3 fresh engines, % of one core = wall / audio x 100, 48 kHz, FTZ/DAZ on, no observer.
+trial PERVOICE4 Tube: 24.538 25.206 25.523 -> median 25.206
+trial POSTSUM4 Tube: 29.748 30.119 30.07 -> median 30.07
+trial FOLLOWOFF4 Tube: 25.632 25.54 25.692 -> median 25.632
+SC004 Tube pervoice=25.206 postsum=30.07 follow_on=25.206 follow_off=25.632 follow_cost=-0.42607
+trial PERVOICE4 Fracture: 23.825 23.982 23.913 -> median 23.913
+trial POSTSUM4 Fracture: 26.617 27.42 28.37 -> median 27.42
+trial FOLLOWOFF4 Fracture: 24.536 24.274 24.339 -> median 24.339
+SC004 Fracture pervoice=23.913 postsum=27.42 follow_on=23.913 follow_off=24.339 follow_cost=-0.42554
+# checksum -460.85 (keeps the renders observable)
+FR014 READING placement: per-voice max=25.206 post-sum max=30.07 (bar 25 %); criterion per-voice > bar AND post-sum <= bar -> KEEP PERVOICE
+FR014 READING follow: follow-on (per voice) max=25.206 follow-off max=25.632 cost=-0.42607; criterion follow-on > bar AND follow-off <= bar -> KEEP FOLLOW PER VOICE

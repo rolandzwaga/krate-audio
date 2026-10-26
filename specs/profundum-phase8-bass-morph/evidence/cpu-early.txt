@@ -1,0 +1,7 @@
+R-2 early CPU probe (tasks.md T008; plan R-2, deviation 7). Not the SC-018 gate (T014 / T020).
+workload: seed 0x8018, randomValidPair(rng, 0) redrawn until every leaf differs and no governing amount is 0; draws 1061; fs 48000 Hz; ramp 2000 ms; mode Blend; target re-set 0 <-> 1 on landing
+calls per repetition 200000, repetitions 3, warm-up static intervals 0 of 200000
+repetitions_ns_per_interval 234.428 199.498 177.366
+ns_per_interval 199.498
+% of one core 0.0299247
+R2 EARLY GREEN 199.498 vs 333.3

@@ -1,0 +1,32 @@
+Filters: "BassStereoField_PanOnlyDirection"
+Randomness seeded to: 3514923167
+SC019,E1,SPREAD,spread,0.5,depth0,harmonics_with_energy,64,phase_checks,128,one_sided_skipped,0,worst_phase_rad,3.72316e-07,worst_Q_db,-0.687694
+SC019,E1,SPREAD,spread,0.5,drift1,harmonics_with_energy,64,phase_checks,128,one_sided_skipped,0,worst_phase_rad,0.000122689,worst_Q_db,-0.242929
+SC019,E1,SPREAD,spread,0.5,cycle1,harmonics_with_energy,64,phase_checks,128,one_sided_skipped,0,worst_phase_rad,5.80419e-06,worst_Q_db,-0.289828
+SC019,E1,SPREAD,spread,1,depth0,harmonics_with_energy,64,phase_checks,22,one_sided_skipped,53,worst_phase_rad,8.70747e-06,worst_Q_db,-3.0103
+SC019,E1,SPREAD,spread,1,drift1,harmonics_with_energy,64,phase_checks,128,one_sided_skipped,0,worst_phase_rad,0.00023685,worst_Q_db,-0.998587
+SC019,E1,SPREAD,spread,1,cycle1,harmonics_with_energy,64,phase_checks,128,one_sided_skipped,0,worst_phase_rad,2.07988e-05,worst_Q_db,-1.15912
+SC019,E1,WIDE,spread,0.5,depth0,harmonics_with_energy,64,phase_checks,128,one_sided_skipped,0,worst_phase_rad,3.72316e-07,worst_Q_db,-0.687694
+SC019,E1,WIDE,spread,0.5,drift1,harmonics_with_energy,64,phase_checks,128,one_sided_skipped,0,worst_phase_rad,0.000122689,worst_Q_db,-0.242929
+SC019,E1,WIDE,spread,0.5,cycle1,harmonics_with_energy,64,phase_checks,128,one_sided_skipped,0,worst_phase_rad,5.80419e-06,worst_Q_db,-0.289828
+SC019,E1,WIDE,spread,1,depth0,harmonics_with_energy,64,phase_checks,22,one_sided_skipped,53,worst_phase_rad,8.70747e-06,worst_Q_db,-3.0103
+SC019,E1,WIDE,spread,1,drift1,harmonics_with_energy,64,phase_checks,128,one_sided_skipped,0,worst_phase_rad,0.00023685,worst_Q_db,-0.998587
+SC019,E1,WIDE,spread,1,cycle1,harmonics_with_energy,64,phase_checks,128,one_sided_skipped,0,worst_phase_rad,2.07988e-05,worst_Q_db,-1.15912
+SC019,C2,SPREAD,spread,0.5,depth0,harmonics_with_energy,64,phase_checks,128,one_sided_skipped,0,worst_phase_rad,4.71472e-07,worst_Q_db,-0.687695
+SC019,C2,SPREAD,spread,0.5,drift1,harmonics_with_energy,64,phase_checks,128,one_sided_skipped,0,worst_phase_rad,8.86775e-05,worst_Q_db,-0.242966
+SC019,C2,SPREAD,spread,0.5,cycle1,harmonics_with_energy,64,phase_checks,128,one_sided_skipped,0,worst_phase_rad,4.36603e-05,worst_Q_db,-0.289829
+SC019,C2,SPREAD,spread,1,depth0,harmonics_with_energy,64,phase_checks,14,one_sided_skipped,57,worst_phase_rad,2.29186e-06,worst_Q_db,-3.0103
+SC019,C2,SPREAD,spread,1,drift1,harmonics_with_energy,64,phase_checks,128,one_sided_skipped,0,worst_phase_rad,0.000197049,worst_Q_db,-0.998716
+SC019,C2,SPREAD,spread,1,cycle1,harmonics_with_energy,64,phase_checks,128,one_sided_skipped,0,worst_phase_rad,0.000199392,worst_Q_db,-1.15913
+SC019,C2,WIDE,spread,0.5,depth0,harmonics_with_energy,64,phase_checks,128,one_sided_skipped,0,worst_phase_rad,4.71472e-07,worst_Q_db,-0.687695
+SC019,C2,WIDE,spread,0.5,drift1,harmonics_with_energy,64,phase_checks,128,one_sided_skipped,0,worst_phase_rad,8.86775e-05,worst_Q_db,-0.242966
+SC019,C2,WIDE,spread,0.5,cycle1,harmonics_with_energy,64,phase_checks,128,one_sided_skipped,0,worst_phase_rad,4.36603e-05,worst_Q_db,-0.289829
+SC019,C2,WIDE,spread,1,depth0,harmonics_with_energy,64,phase_checks,14,one_sided_skipped,57,worst_phase_rad,2.29186e-06,worst_Q_db,-3.0103
+SC019,C2,WIDE,spread,1,drift1,harmonics_with_energy,64,phase_checks,128,one_sided_skipped,0,worst_phase_rad,0.000197049,worst_Q_db,-0.998716
+SC019,C2,WIDE,spread,1,cycle1,harmonics_with_energy,64,phase_checks,128,one_sided_skipped,0,worst_phase_rad,0.000199392,worst_Q_db,-1.15913
+SC019,wall_s,36.3693
+36.370 s: BassStereoField_PanOnlyDirection
+===============================================================================
+All tests passed (9864 assertions in 1 test case)
+
+exit: 0 wall: 36 s

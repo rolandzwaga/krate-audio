@@ -1,0 +1,28 @@
+BEGIN-INITIALIZER duration-table
+        {.durationMs = 5.0f, .slowAttackArgMs = 7.30807829f},
+        {.durationMs = 7.5f, .slowAttackArgMs = 11.7715015f},
+        {.durationMs = 10.0f, .slowAttackArgMs = 15.3191643f},
+        {.durationMs = 15.0f, .slowAttackArgMs = 24.3181133f},
+        {.durationMs = 20.0f, .slowAttackArgMs = 33.2880974f},
+        {.durationMs = 30.0f, .slowAttackArgMs = 49.6755791f},
+        {.durationMs = 40.0f, .slowAttackArgMs = 67.6638641f},
+        {.durationMs = 60.0f, .slowAttackArgMs = 103.588699f},
+        {.durationMs = 100.0f, .slowAttackArgMs = 175.304916f},
+        {.durationMs = 150.0f, .slowAttackArgMs = 264.961334f},
+        {.durationMs = 250.0f, .slowAttackArgMs = 444.156616f},
+END-INITIALIZER duration-table
+# TransientShaper_DurationTableHarvest (plan S8.1): 48 kHz, A = +12 dB, S = 0 dB; geometric bisection (40 steps) over [0.2 a0, 5 a0], a0 = 2 pi d / (0.438 * 8); mean ln(transient / d) over the four cells = 0.
+# Per-cell transient-time error (%): sine E1, saw E1, sine C3, saw C3. The E1-sine cells at 5 and 7.5 ms are recorded (plan C-2; extended to 7.5 ms by user ruling 2026-10-18, G9-2); any other cell beyond +/-15 % is surfaced to the user as a stop line (FR-008), never a retune.
+d 5.0 ms: +30.00 -11.25 -2.08 -11.67
+  recorded (C-2 / G9-2, FR-048 measurement): d 5.0 ms sine E1 error +30.00 %
+d 7.5 ms: +19.17 -7.50 -1.39 -7.78
+  recorded (C-2 / G9-2, FR-048 measurement): d 7.5 ms sine E1 error +19.17 %
+d 10.0 ms: +9.17 -10.83 -6.25 +9.58
+d 15.0 ms: +6.11 -7.08 -4.03 +5.83
+d 20.0 ms: +4.48 -5.31 -3.02 +4.17
+d 30.0 ms: +0.14 +5.21 -4.86 -0.21
+d 40.0 ms: +0.16 +3.59 -3.59 -0.10
+d 60.0 ms: +0.17 +2.22 -2.33 -0.03
+d 100.0 ms: +0.12 +1.25 -1.37 -0.02
+d 150.0 ms: +0.10 +0.82 -0.90 -0.01
+d 250.0 ms: +0.07 +0.48 -0.53 +0.01

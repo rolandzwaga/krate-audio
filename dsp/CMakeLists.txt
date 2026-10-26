@@ -71,7 +71,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         # factory-state bits, and under IEEE semantics so those bits are the
         # plain libm results on every toolchain (see spectral_state.cpp).
         include/krate/dsp/processors/spectral_state.cpp
-        PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
+        PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only -ffp-contract=off"
     )
 endif()
 
@@ -98,6 +98,10 @@ set(KRATE_DSP_CORE_HEADERS
     include/krate/dsp/core/wavetable_data.h
     include/krate/dsp/core/window_functions.h
     include/krate/dsp/core/hungarian_algorithm.h
+    # Profundum Phase 4 (specs/profundum-phase4-drop-note-behaviour)
+    include/krate/dsp/core/drop_curve.h
+    # Profundum Phase 5 (specs/profundum-phase5-shape-character)
+    include/krate/dsp/core/closed_form_adaa2.h
 )
 
 # Layer 1: Primitives
@@ -111,6 +115,7 @@ set(KRATE_DSP_PRIMITIVES_HEADERS
     include/krate/dsp/primitives/grain_pool.h
     include/krate/dsp/primitives/i_feedback_processor.h
     include/krate/dsp/primitives/lfo.h
+    include/krate/dsp/primitives/lowpass_biquad_d.h
     include/krate/dsp/primitives/oversampler.h
     include/krate/dsp/primitives/reverse_buffer.h
     include/krate/dsp/primitives/sample_rate_reducer.h
@@ -122,6 +127,10 @@ set(KRATE_DSP_PRIMITIVES_HEADERS
     include/krate/dsp/primitives/stft.h
     include/krate/dsp/primitives/wavetable_generator.h
     include/krate/dsp/primitives/wavetable_oscillator.h
+    # Profundum Phase 2 (specs/profundum-phase2-edge-fold)
+    include/krate/dsp/primitives/polyphase_halfband_oversampler.h
+    # Profundum Phase 4 (specs/profundum-phase4-drop-note-behaviour)
+    include/krate/dsp/primitives/retrigger_declick.h
 )
 
 # Layer 2: Processors
@@ -153,6 +162,21 @@ set(KRATE_DSP_PROCESSORS_HEADERS
     include/krate/dsp/processors/harmonic_oscillator_bank_simd.h
     include/krate/dsp/processors/modal_resonator_bank.h
     include/krate/dsp/processors/modal_resonator_bank_simd.h
+    # Profundum Phase 1 (specs/profundum-phase1-harmonic-core)
+    include/krate/dsp/processors/spectral_shape_recipe.h
+    # Profundum Phase 2 (specs/profundum-phase2-edge-fold)
+    include/krate/dsp/processors/harmonic_fold.h
+    # Profundum Phase 4 (specs/profundum-phase4-drop-note-behaviour)
+    include/krate/dsp/processors/drop_envelope.h
+    include/krate/dsp/processors/drop_phase_lock.h
+    include/krate/dsp/processors/note_memory.h
+    # Profundum Phase 5 (specs/profundum-phase5-shape-character)
+    include/krate/dsp/processors/keytracked_tilt.h
+    include/krate/dsp/processors/oversampled_residual_path.h
+    include/krate/dsp/processors/rectifier.h
+    # Profundum Phase 6 (specs/profundum-phase6-mass-dynamics)
+    include/krate/dsp/processors/period_peak_detector.h
+    include/krate/dsp/processors/transient_shaper.h
 )
 
 # Layer 3: Systems
@@ -178,6 +202,27 @@ set(KRATE_DSP_SYSTEMS_HEADERS
     include/krate/dsp/systems/vorago_voice.h
     include/krate/dsp/systems/vorago_engine.h
     include/krate/dsp/systems/vorago_macro_matrix.h
+    # Profundum Phase 1 (specs/profundum-phase1-harmonic-core)
+    include/krate/dsp/systems/profundum_core.h
+    # Profundum Phase 3 (specs/profundum-phase3-anchor)
+    include/krate/dsp/systems/anchor_oscillator.h
+    # Profundum Phase 5 (specs/profundum-phase5-shape-character)
+    include/krate/dsp/systems/shape_morph.h
+    include/krate/dsp/systems/bass_character_stage.h
+    # Profundum Phase 6 (specs/profundum-phase6-mass-dynamics)
+    include/krate/dsp/systems/mass_dynamics.h
+    include/krate/dsp/systems/mass_law.h
+    # Profundum Phase 7 (specs/profundum-phase7-stereo-field)
+    include/krate/dsp/systems/bass_stereo_field.h
+    # Profundum Phase 8 (specs/profundum-phase8-bass-morph)
+    include/krate/dsp/systems/morph_state.h
+    include/krate/dsp/systems/bass_morph_engine.h
+    # Profundum Phase 9 (specs/profundum-phase9-voice-engine)
+    include/krate/dsp/systems/profundum_motion.h
+    include/krate/dsp/systems/profundum_macro_matrix.h
+    include/krate/dsp/systems/profundum_engine_observer.h
+    include/krate/dsp/systems/profundum_voice.h
+    include/krate/dsp/systems/profundum_engine.h
 )
 
 # Layer 4: Effects

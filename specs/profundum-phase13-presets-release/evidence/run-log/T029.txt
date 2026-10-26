@@ -1,0 +1,39 @@
+T029 -- Release-skill roster, determinism script, CI shard table, CHANGELOG, plugin CLAUDE.md (FR-028, FR-053, FR-054)
+=====================================================================================================================
+
+Edits:
+- .claude/skills/release/SKILL.md: profundum in Inputs; row | profundum | `profundum_tests` | `Profundum.vst3` |.
+- tools/check-preset-generator-determinism.js: GENERATORS += profundum: 'profundum_preset_generator'; header comment.
+- tools/ci-test-shard.js: long-lane kSuiteShards += profundum_tests: 4. Per-push lane unchanged: T027 measured
+  Profundum_PresetRenderGuard at case_seconds=14.3403 (bar 15 s, evidence/library/status.txt), so no per-push split.
+- tools/ci-test-times.json: long.profundum_tests = 1004 (sum of the Phase 13 [long] lane wall clocks in
+  evidence/library/status.txt: showcase 0-7 31.3+39.1+39.2+41.1+52.7+64.7+67.7+77.1 = 412.9 s, sweep-set 215.9 s,
+  determinism 68.9 s, distinctness 305.9 s; lanes ran concurrently on the 32-core box). per_push has no measured
+  profundum_tests entry and is unchanged (the 60 s unknown-suite default applies).
+- plugins/profundum/CHANGELOG.md: three bullets under [0.1.0] - Unreleased / Added (factory library, preset browser,
+  manual); the now-false "The category ships empty." sentence and the "No factory presets ship." limitation removed.
+  version.json not touched.
+- plugins/profundum/CLAUDE.md: Presets and Browser bullets (kMsgLoadPresetState, setEngineSeamsForTest), Phase 13 test TUs.
+
+$ node tools/check-preset-generator-determinism.js --help
+usage: node tools/check-preset-generator-determinism.js [--plugin <name>] [--bin <path>]
+
+  --plugin <name> Which generator to check: seraphis | vorago | profundum
+                 (default seraphis).
+  --bin <path>   Path to the generator (absolute, or relative to the current
+                 working directory). Defaults, tried in order (for --plugin seraphis):
+                   build/windows-x64-release/bin/Release/seraphis_preset_generator.exe
+                   build/bin/seraphis_preset_generator
+                   build/bin/seraphis_preset_generator.exe
+  -h, --help     Print this message.
+
+$ node tools/ci-test-shard.js --long true --manifest <profundum_tests, vorago_tests, seraphis_tests, dsp_systems_tests> --count 8 --list
+lane: long  filter: [long]~[vorago-sweep]  shards: 8
+shard 0: est 2263 s  dsp_systems_tests [1/8], seraphis_tests [1/2]
+shard 1: est 2263 s  dsp_systems_tests [2/8], seraphis_tests [2/2]
+shard 2: est 2225 s  dsp_systems_tests [3/8], vorago_tests [1/2]
+shard 3: est 2225 s  dsp_systems_tests [4/8], vorago_tests [2/2]
+shard 4: est 2214 s  dsp_systems_tests [5/8], profundum_tests [1/4]
+shard 5: est 2214 s  dsp_systems_tests [6/8], profundum_tests [2/4]
+shard 6: est 2214 s  dsp_systems_tests [7/8], profundum_tests [3/4]
+shard 7: est 2214 s  dsp_systems_tests [8/8], profundum_tests [4/4]

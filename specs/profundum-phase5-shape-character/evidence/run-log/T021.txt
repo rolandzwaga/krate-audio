@@ -1,0 +1,1 @@
+2026-10-16T23:13:45Z cpu-lane exit=0 | SC015 VERDICT PASS max_linked=1.8463 bar=2.0 | SC015 GATED max_linked pct=1.8463 argmax algo=Fracture shape=0.00 shape_alone=0.6325 char_alone=0.8350 bar=2.0

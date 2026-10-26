@@ -1,0 +1,3 @@
+=== git diff --name-only 4599d180 -- dsp/include dsp/src plugins/shared tests/test_helpers
+=== untracked under dsp/include
+dsp/include/krate/dsp/systems/bass_stereo_field.h

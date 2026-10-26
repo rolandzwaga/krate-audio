@@ -1,0 +1,11 @@
+p,mode,level,handedLevel,anchorW1RelDb,expectedDb,deltaDb,eSubAnchorDb
+0,Lock,1,1,0,0,0,-17.4315
+1,Lock,1,1,0,0,0,-17.4315
+0,Blend,1,1,0,0,0,-17.4315
+1,Blend,0.7,0.7,-3.09804,-3.09804,3.47575e-07,-20.5296
+0,Punch,1,1,0,0,0,-17.4315
+1,Punch,0.7,0.7,-3.09804,-3.09804,3.47575e-07,-20.5296
+# (a) Lock E_sub(Anchor tap) range dB,0,bar,0.05
+# (d) worst |w1 - 20log10(level)| dB,3.47575e-07,bar,0.1
+# (e) massOnlyPair Lock Phase-6 audibility: E_low,-26.7093,-0.198618,E_high,-93.213,-13.6749,THD,-26.7,27.443,I,-104.519,-90.7958,C_oct,0.0033247,1.75702,separation_dB,54.143,which,THD,dC_oct,1.7537,distinct,1,bar,3dB_or_0.25oct
+# (e) massOnlyPair Lock D_nl p0,0,p1,-6.44339,travel,-6.44339 (recorded, B9-1)

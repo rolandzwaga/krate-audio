@@ -1,0 +1,14 @@
+Filters: "VoiceEngine_ReplaceBlockProbe"
+Randomness seeded to: 2879318106
+PROBE SC-006 replace B C3 +24 st legato EnvelopeRetriggerOnly Reset Porta0 block 37: ratio 1.0676 (L 1.0676 R 0.922472) max_dy 0.642969 ref_max_dy 0.697006 bound 0.776694 argmax 24119 (tS 119) gD 1 gAmp 1 W [24000, 24654) declicked 0
+PROBE SC-006 replace B C3 +24 st legato AlwaysRetrigger Reset Porta0 block 37: ratio 1.0039 (L 0.844473 R 1.0039) max_dy 0.683517 ref_max_dy 0.680858 bound 0.776694 argmax 24533 (tS 533) gD 1 gAmp 1 W [24000, 24654) declicked 1
+PROBE SC-006 replace B C3 +24 st legato OscillatorContinuous Reset Porta0 block 37: ratio 1.06703 (L 1.06703 R 0.921982) max_dy 0.642627 ref_max_dy 0.697006 bound 0.776694 argmax 24119 (tS 119) gD 1 gAmp 0.999469 W [24000, 24654) declicked 0
+PROBE SC-006 replace B/Solid C3 +24 st legato EnvelopeRetriggerOnly Reset Porta0 block 37: ratio 0.781408 (L 0.781408 R 0.781408) max_dy 0.49588 ref_max_dy 0.634598 bound 0.702155 argmax 24444 (tS 444) gD 1 gAmp 1 W [24000, 24654) declicked 0
+PROBE SC-006 replace B/Solid C3 +24 st legato AlwaysRetrigger Reset Porta0 block 37: ratio 1.00482 (L 1.00482 R 1.00482) max_dy 0.626145 ref_max_dy 0.623139 bound 0.702155 argmax 24441 (tS 441) gD 1 gAmp 1 W [24000, 24654) declicked 1
+PROBE SC-006 replace B/Solid C3 +24 st legato OscillatorContinuous Reset Porta0 block 37: ratio 0.780968 (L 0.780968 R 0.780968) max_dy 0.495601 ref_max_dy 0.634598 bound 0.702155 argmax 24444 (tS 444) gD 1 gAmp 0.999437 W [24000, 24654) declicked 0
+PROBE SC-006 replace B/Spread C3 +24 st legato EnvelopeRetriggerOnly Reset Porta0 block 37: ratio 0.956647 (L 0.865158 R 0.956647) max_dy 0.637304 ref_max_dy 0.666185 bound 0.751344 argmax 24119 (tS 119) gD 1 gAmp 1 W [24000, 24654) declicked 0
+PROBE SC-006 replace B/Spread C3 +24 st legato AlwaysRetrigger Reset Porta0 block 37: ratio 0.998545 (L 0.816834 R 0.998545) max_dy 0.65845 ref_max_dy 0.706865 bound 0.751344 argmax 24441 (tS 441) gD 1 gAmp 1 W [24000, 24654) declicked 1
+PROBE SC-006 replace B/Spread C3 +24 st legato OscillatorContinuous Reset Porta0 block 37: ratio 0.956139 (L 0.864698 R 0.956139) max_dy 0.636965 ref_max_dy 0.666185 bound 0.751344 argmax 24119 (tS 119) gD 1 gAmp 0.999469 W [24000, 24654) declicked 0
+===============================================================================
+All tests passed (404 assertions in 1 test case)
+

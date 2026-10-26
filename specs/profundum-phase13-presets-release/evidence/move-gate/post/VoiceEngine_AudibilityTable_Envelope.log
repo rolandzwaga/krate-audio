@@ -1,0 +1,14 @@
+Filters: "VoiceEngine_AudibilityTable_Envelope"
+Randomness seeded to: 3233822862
+# VoiceEngine_AudibilityTable_Envelope
+row,contrast,base,note,descriptor,tap,lo,hi,value,bar,pass,gated,out_descriptor,out_lo,out_hi,ampStep,remark
+"AT-24","Amp envelope attack: 0.1 -> 500 ms","A (per-row setting: without C-8's sustain 1)",E1,"t_90 (ms): first 1 ms frame of the Sum's RMS at >= 90 % of its maximum (drafted-descriptor replacement, G14-8)","Sum",5.33333,491.333,92.125,"ratio >= 2",PASS,gated,"t_90 output (ms)",6,492,"0 (ref 0; 8 grid points)","FR-080 per-row setting (T016): on any sustain-1 base the 1 s gate hold dominates D_t, bounding the ratio at <= 1015 / 515 = 1.97 < 2 (A_s and B_s alike); on A the attack is the note"
+"AT-24","Amp envelope attack: 0.1 -> 500 ms","A + sustain 1 (C-8)",E1,"t_90 (ms): first 1 ms frame of the Sum's RMS at >= 90 % of its maximum (drafted-descriptor replacement, G14-8)","Sum",5.33333,491.333,92.125,"ratio >= 2",PASS,recorded,"t_90 output (ms)",6,492,"0 (ref 0; 8 grid points)","the C-8 base, recorded (analytically below the bar, see the gated line)"
+"AT-25","Amp envelope release: 50 -> 2000 ms","A + sustain 1 (C-8)",E1,"D_t release reading (ms: D_t of the gate render from the note-off grid point on)","Sum",38.0261,1452.23,38.1903,"ratio >= 2",PASS,gated,"D_t output release reading (ms; -1 where the output does not fall 80 dB)",40.022,1454.49,"0 (ref 0; 8 grid points)",""
+"AT-24","Amp envelope attack: 0.1 -> 500 ms","A (per-row setting: without C-8's sustain 1)",C3,"t_90 (ms): first 1 ms frame of the Sum's RMS at >= 90 % of its maximum (drafted-descriptor replacement, G14-8)","Sum",6,491.333,81.8889,"ratio >= 2",PASS,gated,"t_90 output (ms)",3.33333,485.333,"0 (ref 0; 8 grid points)","FR-080 per-row setting (T016): on any sustain-1 base the 1 s gate hold dominates D_t, bounding the ratio at <= 1015 / 515 = 1.97 < 2 (A_s and B_s alike); on A the attack is the note"
+"AT-24","Amp envelope attack: 0.1 -> 500 ms","A + sustain 1 (C-8)",C3,"t_90 (ms): first 1 ms frame of the Sum's RMS at >= 90 % of its maximum (drafted-descriptor replacement, G14-8)","Sum",6,491.333,81.8889,"ratio >= 2",PASS,recorded,"t_90 output (ms)",3.33333,485.333,"0 (ref 0; 8 grid points)","the C-8 base, recorded (analytically below the bar, see the gated line)"
+"AT-25","Amp envelope release: 50 -> 2000 ms","A + sustain 1 (C-8)",C3,"D_t release reading (ms: D_t of the gate render from the note-off grid point on)","Sum",35.9908,1450.54,40.3031,"ratio >= 2",PASS,gated,"D_t output release reading (ms; -1 where the output does not fall 80 dB)",38.2613,1452.95,"0 (ref 0; 8 grid points)",""
+===============================================================================
+All tests passed (225 assertions in 1 test case)
+
+WALL VoiceEngine_AudibilityTable_Envelope 12.3 s exit=0

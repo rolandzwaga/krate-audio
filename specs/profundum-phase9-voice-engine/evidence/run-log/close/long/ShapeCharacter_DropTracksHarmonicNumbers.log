@@ -1,0 +1,895 @@
+Filters: "ShapeCharacter_DropTracksHarmonicNumbers"
+Randomness seeded to: 3950928796
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+ShapeCharacter_DropTracksHarmonicNumbers
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1483)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kSawAnchor, block 64, SHAPE 0.000000:
+  max |dH| 2.00359 dB (instant d <= 1.500000 st, h15)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kSawAnchor, block 512, SHAPE 0.000000:
+  max |dH| 2.00359 dB (instant d <= 1.500000 st, h15)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kSawAnchor, block 64, SHAPE 1.000000:
+  max |dH| 17.7316 dB (instant d <= 12.000000 st, h16)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kSawAnchor, block 512, SHAPE 1.000000:
+  max |dH| 17.7316 dB (instant d <= 12.000000 st, h16)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kSawAnchor, block 64, Tube A 1.000000
+  T 0.000000: max |dH| 19.5606 dB (instant d <= 12.000000 st, h16)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kSawAnchor, block 512, Tube A 1.000000
+  T 0.000000: max |dH| 19.5606 dB (instant d <= 12.000000 st, h16)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kSawAnchor, block 64, Tube A 1.000000
+  T 0.500000: max |dH| 6.84764 dB (instant d <= 1.500000 st, h15)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kSawAnchor, block 512, Tube A 1.000000
+  T 0.500000: max |dH| 6.84764 dB (instant d <= 1.500000 st, h15)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kSawAnchor, block 64, Tube A 1.000000
+  T 1.000000: max |dH| 4.24983 dB (instant d <= 12.000000 st, h15)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kSawAnchor, block 512, Tube A 1.000000
+  T 1.000000: max |dH| 4.24983 dB (instant d <= 12.000000 st, h15)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kSawAnchor, block 64, Fold A 1.000000
+  T 0.000000: max |dH| 24.534 dB (instant d <= 6.000000 st, h15)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kSawAnchor, block 512, Fold A 1.000000
+  T 0.000000: max |dH| 24.534 dB (instant d <= 6.000000 st, h15)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kSawAnchor, block 64, Fold A 1.000000
+  T 0.500000: max |dH| 29.1405 dB (instant d <= 12.000000 st, h15)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kSawAnchor, block 512, Fold A 1.000000
+  T 0.500000: max |dH| 29.1405 dB (instant d <= 12.000000 st, h15)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kSawAnchor, block 64, Fold A 1.000000
+  T 1.000000: max |dH| 29.1402 dB (instant d <= 12.000000 st, h15)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kSawAnchor, block 512, Fold A 1.000000
+  T 1.000000: max |dH| 29.1402 dB (instant d <= 12.000000 st, h15)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kSawAnchor, block 64, Rectify A 1.
+  000000 T 0.000000: max |dH| 25.6495 dB (instant d <= 6.000000 st, h9)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kSawAnchor, block 512, Rectify A 1.
+  000000 T 0.000000: max |dH| 25.6495 dB (instant d <= 6.000000 st, h9)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kSawAnchor, block 64, Rectify A 1.
+  000000 T 0.500000: max |dH| 27.136 dB (instant d <= 6.000000 st, h9)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kSawAnchor, block 512, Rectify A 1.
+  000000 T 0.500000: max |dH| 27.136 dB (instant d <= 6.000000 st, h9)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kSawAnchor, block 64, Rectify A 1.
+  000000 T 1.000000: max |dH| 27.136 dB (instant d <= 3.000000 st, h9)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kSawAnchor, block 512, Rectify A 1.
+  000000 T 1.000000: max |dH| 27.136 dB (instant d <= 3.000000 st, h9)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kSawAnchor, block 64, Bite A 1.000000
+  T 0.000000: max |dH| 5.95203 dB (instant d <= 1.500000 st, h16)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kSawAnchor, block 512, Bite A 1.000000
+  T 0.000000: max |dH| 5.95203 dB (instant d <= 1.500000 st, h16)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kSawAnchor, block 64, Bite A 1.000000
+  T 0.500000: max |dH| 10.2643 dB (instant d <= 24.000000 st, h14)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kSawAnchor, block 512, Bite A 1.000000
+  T 0.500000: max |dH| 10.2643 dB (instant d <= 24.000000 st, h14)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kSawAnchor, block 64, Bite A 1.000000
+  T 1.000000: max |dH| 6.14213 dB (instant d <= 12.000000 st, h15)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kSawAnchor, block 512, Bite A 1.000000
+  T 1.000000: max |dH| 6.14213 dB (instant d <= 12.000000 st, h15)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kSawAnchor, block 64, Crush A 1.000000
+  T 0.000000: max |dH| 1.0984 dB (instant d <= 24.000000 st, h15)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1688): warning:
+  SC-025(c) kSawAnchor, block 64, Crush A 1.000000 T 0.000000, instant d <= 24
+  st: I (floored, recorded) during the Drop -30.8309 dB, steady -60 dB (input
+  during the Drop -74.395 dB); feed tracking worst relative 2.10096e-16
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1688): warning:
+  SC-025(c) kSawAnchor, block 64, Crush A 1.000000 T 0.000000, instant d <= 12
+  st: I (floored, recorded) during the Drop -32.4045 dB, steady -60 dB (input
+  during the Drop -3000 dB); feed tracking worst relative 2.10096e-16
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1688): warning:
+  SC-025(c) kSawAnchor, block 64, Crush A 1.000000 T 0.000000, instant d <= 6
+  st: I (floored, recorded) during the Drop -33.3434 dB, steady -60 dB (input
+  during the Drop -3000 dB); feed tracking worst relative 2.10096e-16
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1688): warning:
+  SC-025(c) kSawAnchor, block 64, Crush A 1.000000 T 0.000000, instant d <= 3
+  st: I (floored, recorded) during the Drop -34.073 dB, steady -60 dB (input
+  during the Drop -3000 dB); feed tracking worst relative 1.26299e-16
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1688): warning:
+  SC-025(c) kSawAnchor, block 64, Crush A 1.000000 T 0.000000, instant d <= 1.5
+  st: I (floored, recorded) during the Drop -34.7128 dB, steady -60 dB (input
+  during the Drop -3000 dB); feed tracking worst relative 1.26299e-16
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1762): warning:
+  SC-025(d) Crush kSawAnchor, block 64, Crush A 1.000000 T 0.000000: Drop max
+  |dy| 0.260764 vs reference max 0.261351 (held-f0 grid; grid 0.261351, pre-
+  fall 0.261351, post-fall 0.050556), ratio 0.997754 (bar 1.1); largest |dy|:
+  0.260764 @ fall+7 (end-2873) 0.197401 @ fall+48 (end-2832) 0.166117 @ fall+8
+  (end-2872) 0.155076 @ fall+47 (end-2833) 0.149637 @ fall+6 (end-2874);
+  differential count recorded: counted 0 (guarded out 2)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kSawAnchor, block 512, Crush A 1.
+  000000 T 0.000000: max |dH| 1.0984 dB (instant d <= 24.000000 st, h15)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1688): warning:
+  SC-025(c) kSawAnchor, block 512, Crush A 1.000000 T 0.000000, instant d <= 24
+  st: I (floored, recorded) during the Drop -30.8309 dB, steady -60 dB (input
+  during the Drop -74.395 dB); feed tracking worst relative 2.10096e-16
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1688): warning:
+  SC-025(c) kSawAnchor, block 512, Crush A 1.000000 T 0.000000, instant d <= 12
+  st: I (floored, recorded) during the Drop -32.4045 dB, steady -60 dB (input
+  during the Drop -3000 dB); feed tracking worst relative 2.10096e-16
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1688): warning:
+  SC-025(c) kSawAnchor, block 512, Crush A 1.000000 T 0.000000, instant d <= 6
+  st: I (floored, recorded) during the Drop -33.3434 dB, steady -60 dB (input
+  during the Drop -3000 dB); feed tracking worst relative 2.10096e-16
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1688): warning:
+  SC-025(c) kSawAnchor, block 512, Crush A 1.000000 T 0.000000, instant d <= 3
+  st: I (floored, recorded) during the Drop -34.073 dB, steady -60 dB (input
+  during the Drop -3000 dB); feed tracking worst relative 1.26299e-16
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1688): warning:
+  SC-025(c) kSawAnchor, block 512, Crush A 1.000000 T 0.000000, instant d <= 1.
+  5 st: I (floored, recorded) during the Drop -34.7128 dB, steady -60 dB (input
+  during the Drop -3000 dB); feed tracking worst relative 1.26299e-16
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1762): warning:
+  SC-025(d) Crush kSawAnchor, block 512, Crush A 1.000000 T 0.000000: Drop max
+  |dy| 0.260764 vs reference max 0.261351 (held-f0 grid; grid 0.261351, pre-
+  fall 0.261351, post-fall 0.050556), ratio 0.997754 (bar 1.1); largest |dy|:
+  0.260764 @ fall+7 (end-2873) 0.197401 @ fall+48 (end-2832) 0.166117 @ fall+8
+  (end-2872) 0.155076 @ fall+47 (end-2833) 0.149637 @ fall+6 (end-2874);
+  differential count recorded: counted 0 (guarded out 2)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kSawAnchor, block 64, Crush A 1.000000
+  T 0.500000: max |dH| 1.09734 dB (instant d <= 24.000000 st, h15)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1688): warning:
+  SC-025(c) kSawAnchor, block 64, Crush A 1.000000 T 0.500000, instant d <= 24
+  st: I (floored, recorded) during the Drop -32.723 dB, steady -60 dB (input
+  during the Drop -74.395 dB); feed tracking worst relative 2.10096e-16
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1688): warning:
+  SC-025(c) kSawAnchor, block 64, Crush A 1.000000 T 0.500000, instant d <= 12
+  st: I (floored, recorded) during the Drop -34.3485 dB, steady -60 dB (input
+  during the Drop -3000 dB); feed tracking worst relative 2.10096e-16
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1688): warning:
+  SC-025(c) kSawAnchor, block 64, Crush A 1.000000 T 0.500000, instant d <= 6
+  st: I (floored, recorded) during the Drop -35.2926 dB, steady -60 dB (input
+  during the Drop -3000 dB); feed tracking worst relative 2.10096e-16
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1688): warning:
+  SC-025(c) kSawAnchor, block 64, Crush A 1.000000 T 0.500000, instant d <= 3
+  st: I (floored, recorded) during the Drop -36.0243 dB, steady -60 dB (input
+  during the Drop -3000 dB); feed tracking worst relative 1.26299e-16
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1688): warning:
+  SC-025(c) kSawAnchor, block 64, Crush A 1.000000 T 0.500000, instant d <= 1.5
+  st: I (floored, recorded) during the Drop -36.6655 dB, steady -60 dB (input
+  during the Drop -3000 dB); feed tracking worst relative 1.26299e-16
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1762): warning:
+  SC-025(d) Crush kSawAnchor, block 64, Crush A 1.000000 T 0.500000: Drop max
+  |dy| 0.367636 vs reference max 0.386989 (held-f0 grid; grid 0.386989, pre-
+  fall 0.386989, post-fall 0.369542), ratio 0.949991 (bar 1.1); largest |dy|:
+  0.367636 @ fall+3266 (end+386) 0.367393 @ fall+587 (end-2293) 0.364635 @
+  fall+4431 (end+1551) 0.362987 @ fall+7 (end-2873) 0.360350 @ fall+1533 (end-
+  1347); differential count recorded: counted 1 (guarded out 1)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kSawAnchor, block 512, Crush A 1.
+  000000 T 0.500000: max |dH| 1.09734 dB (instant d <= 24.000000 st, h15)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1688): warning:
+  SC-025(c) kSawAnchor, block 512, Crush A 1.000000 T 0.500000, instant d <= 24
+  st: I (floored, recorded) during the Drop -32.723 dB, steady -60 dB (input
+  during the Drop -74.395 dB); feed tracking worst relative 2.10096e-16
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1688): warning:
+  SC-025(c) kSawAnchor, block 512, Crush A 1.000000 T 0.500000, instant d <= 12
+  st: I (floored, recorded) during the Drop -34.3485 dB, steady -60 dB (input
+  during the Drop -3000 dB); feed tracking worst relative 2.10096e-16
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1688): warning:
+  SC-025(c) kSawAnchor, block 512, Crush A 1.000000 T 0.500000, instant d <= 6
+  st: I (floored, recorded) during the Drop -35.2926 dB, steady -60 dB (input
+  during the Drop -3000 dB); feed tracking worst relative 2.10096e-16
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1688): warning:
+  SC-025(c) kSawAnchor, block 512, Crush A 1.000000 T 0.500000, instant d <= 3
+  st: I (floored, recorded) during the Drop -36.0243 dB, steady -60 dB (input
+  during the Drop -3000 dB); feed tracking worst relative 1.26299e-16
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1688): warning:
+  SC-025(c) kSawAnchor, block 512, Crush A 1.000000 T 0.500000, instant d <= 1.
+  5 st: I (floored, recorded) during the Drop -36.6655 dB, steady -60 dB (input
+  during the Drop -3000 dB); feed tracking worst relative 1.26299e-16
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1762): warning:
+  SC-025(d) Crush kSawAnchor, block 512, Crush A 1.000000 T 0.500000: Drop max
+  |dy| 0.367636 vs reference max 0.386989 (held-f0 grid; grid 0.386989, pre-
+  fall 0.386989, post-fall 0.369542), ratio 0.949991 (bar 1.1); largest |dy|:
+  0.367636 @ fall+3266 (end+386) 0.367393 @ fall+587 (end-2293) 0.364635 @
+  fall+4431 (end+1551) 0.362987 @ fall+7 (end-2873) 0.360350 @ fall+1533 (end-
+  1347); differential count recorded: counted 1 (guarded out 1)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kSawAnchor, block 64, Crush A 1.000000
+  T 1.000000: max |dH| 1.09643 dB (instant d <= 24.000000 st, h15)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1688): warning:
+  SC-025(c) kSawAnchor, block 64, Crush A 1.000000 T 1.000000, instant d <= 24
+  st: I (floored, recorded) during the Drop -46.9572 dB, steady -60 dB (input
+  during the Drop -74.395 dB); feed tracking worst relative 2.10096e-16
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1688): warning:
+  SC-025(c) kSawAnchor, block 64, Crush A 1.000000 T 1.000000, instant d <= 12
+  st: I (floored, recorded) during the Drop -54.5903 dB, steady -60 dB (input
+  during the Drop -3000 dB); feed tracking worst relative 2.10096e-16
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1688): warning:
+  SC-025(c) kSawAnchor, block 64, Crush A 1.000000 T 1.000000, instant d <= 6
+  st: I (floored, recorded) during the Drop -56.2631 dB, steady -60 dB (input
+  during the Drop -3000 dB); feed tracking worst relative 2.10096e-16
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1688): warning:
+  SC-025(c) kSawAnchor, block 64, Crush A 1.000000 T 1.000000, instant d <= 3
+  st: I (floored, recorded) during the Drop -57.1039 dB, steady -60 dB (input
+  during the Drop -3000 dB); feed tracking worst relative 1.26299e-16
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1688): warning:
+  SC-025(c) kSawAnchor, block 64, Crush A 1.000000 T 1.000000, instant d <= 1.5
+  st: I (floored, recorded) during the Drop -57.7675 dB, steady -60 dB (input
+  during the Drop -3000 dB); feed tracking worst relative 1.26299e-16
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1762): warning:
+  SC-025(d) Crush kSawAnchor, block 64, Crush A 1.000000 T 1.000000: Drop max
+  |dy| 0.50118 vs reference max 0.504918 (post-fall segment; grid 0.46287, pre-
+  fall 0.341552, post-fall 0.504918), ratio 0.992596 (bar 1.1); largest |dy|:
+  0.501180 @ fall+3266 (end+386) 0.496563 @ fall+4431 (end+1551) 0.490921 @
+  fall+587 (end-2293) 0.489410 @ fall+1533 (end-1347) 0.487784 @ fall+1002
+  (end-1878); differential count recorded: counted 1 (guarded out 2)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kSawAnchor, block 512, Crush A 1.
+  000000 T 1.000000: max |dH| 1.09643 dB (instant d <= 24.000000 st, h15)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1688): warning:
+  SC-025(c) kSawAnchor, block 512, Crush A 1.000000 T 1.000000, instant d <= 24
+  st: I (floored, recorded) during the Drop -46.9572 dB, steady -60 dB (input
+  during the Drop -74.395 dB); feed tracking worst relative 2.10096e-16
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1688): warning:
+  SC-025(c) kSawAnchor, block 512, Crush A 1.000000 T 1.000000, instant d <= 12
+  st: I (floored, recorded) during the Drop -54.5903 dB, steady -60 dB (input
+  during the Drop -3000 dB); feed tracking worst relative 2.10096e-16
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1688): warning:
+  SC-025(c) kSawAnchor, block 512, Crush A 1.000000 T 1.000000, instant d <= 6
+  st: I (floored, recorded) during the Drop -56.2631 dB, steady -60 dB (input
+  during the Drop -3000 dB); feed tracking worst relative 2.10096e-16
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1688): warning:
+  SC-025(c) kSawAnchor, block 512, Crush A 1.000000 T 1.000000, instant d <= 3
+  st: I (floored, recorded) during the Drop -57.1039 dB, steady -60 dB (input
+  during the Drop -3000 dB); feed tracking worst relative 1.26299e-16
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1688): warning:
+  SC-025(c) kSawAnchor, block 512, Crush A 1.000000 T 1.000000, instant d <= 1.
+  5 st: I (floored, recorded) during the Drop -57.7675 dB, steady -60 dB (input
+  during the Drop -3000 dB); feed tracking worst relative 1.26299e-16
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1762): warning:
+  SC-025(d) Crush kSawAnchor, block 512, Crush A 1.000000 T 1.000000: Drop max
+  |dy| 0.50118 vs reference max 0.504918 (post-fall segment; grid 0.46287, pre-
+  fall 0.341552, post-fall 0.504918), ratio 0.992596 (bar 1.1); largest |dy|:
+  0.501180 @ fall+3266 (end+386) 0.496563 @ fall+4431 (end+1551) 0.490921 @
+  fall+587 (end-2293) 0.489410 @ fall+1533 (end-1347) 0.487784 @ fall+1002
+  (end-1878); differential count recorded: counted 1 (guarded out 2)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kSawAnchor, block 64, Fracture A 1.
+  000000 T 0.000000: max |dH| 23.7593 dB (instant d <= 1.500000 st, h16)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kSawAnchor, block 512, Fracture A 1.
+  000000 T 0.000000: max |dH| 23.7593 dB (instant d <= 1.500000 st, h16)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kSawAnchor, block 64, Fracture A 1.
+  000000 T 0.500000: max |dH| 23.5718 dB (instant d <= 1.500000 st, h16)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kSawAnchor, block 512, Fracture A 1.
+  000000 T 0.500000: max |dH| 23.5718 dB (instant d <= 1.500000 st, h16)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kSawAnchor, block 64, Fracture A 1.
+  000000 T 1.000000: max |dH| 23.4719 dB (instant d <= 1.500000 st, h16)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kSawAnchor, block 512, Fracture A 1.
+  000000 T 1.000000: max |dH| 23.4719 dB (instant d <= 1.500000 st, h16)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1807): warning:
+  SC-025(d) control (i) Character hard switch, kSawAnchor, block 64: counted 32
+  (guarded out 0) - FLAGGED
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1835): warning:
+  SC-025(d) control (ii) Character Amount step placement, kSawAnchor, block 64:
+  previous event 25600, step at 25600, |jump| 0.075110, local ref max|dy| 0.
+  088033, ratio 0.853204, nearest reference detection 100 (not clear of
+  reference detections by 2N); chosen event 29672, step at 29672, |jump| 0.
+  224386, local ref max|dy| 0.056012, ratio 4.006054, nearest reference
+  detection 178 (valid)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1853): warning:
+  SC-025(d) control (ii) Character unsmoothed Amount step, kSawAnchor, block
+  64: counted 1 (guarded out 0) - FLAGGED
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1882): warning:
+  SC-025(d) control (i) ShapeMorph placement, kSawAnchor, block 64 (delay 159):
+  previous event 25600, step at 25759, |jump| 0.040865, local ref max|dy| 0.
+  261008, ratio 0.156567, nearest reference detection 248 (valid); chosen event
+  30536, step at 30695, |jump| 0.644575, local ref max|dy| 0.164680, ratio 3.
+  914108, nearest reference detection 559 (valid)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1898): warning:
+  SC-025(d) control (i) ShapeMorph hard regime switch, kSawAnchor, block 64:
+  counted 1 (guarded out 0) - FLAGGED
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1882): warning:
+  SC-025(d) control (ii) ShapeMorph placement, kSawAnchor, block 64 (delay 0):
+  previous event 25600, step at 25600, |jump| 0.622030, local ref max|dy| 0.
+  205029, ratio 3.033868, nearest reference detection 89 (not clear of
+  reference detections by 2N); chosen event 30656, step at 30656, |jump| 0.
+  857755, local ref max|dy| 0.205713, ratio 4.169666, nearest reference
+  detection 567 (valid)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1898): warning:
+  SC-025(d) control (ii) ShapeMorph unsmoothed SHAPE step, kSawAnchor, block
+  64: counted 1 (guarded out 1) - FLAGGED
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1807): warning:
+  SC-025(d) control (i) Character hard switch, kSawAnchor, block 512: counted
+  32 (guarded out 0) - FLAGGED
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1835): warning:
+  SC-025(d) control (ii) Character Amount step placement, kSawAnchor, block
+  512: previous event 25600, step at 25600, |jump| 0.075110, local ref max|dy|
+  0.088033, ratio 0.853204, nearest reference detection 100 (not clear of
+  reference detections by 2N); chosen event 29672, step at 29672, |jump| 0.
+  224386, local ref max|dy| 0.056012, ratio 4.006054, nearest reference
+  detection 178 (valid)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1853): warning:
+  SC-025(d) control (ii) Character unsmoothed Amount step, kSawAnchor, block
+  512: counted 1 (guarded out 0) - FLAGGED
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1882): warning:
+  SC-025(d) control (i) ShapeMorph placement, kSawAnchor, block 512 (delay 159)
+  : previous event 25600, step at 25759, |jump| 0.040865, local ref max|dy| 0.
+  261008, ratio 0.156567, nearest reference detection 248 (valid); chosen event
+  30536, step at 30695, |jump| 0.644575, local ref max|dy| 0.164680, ratio 3.
+  914108, nearest reference detection 559 (valid)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1898): warning:
+  SC-025(d) control (i) ShapeMorph hard regime switch, kSawAnchor, block 512:
+  counted 1 (guarded out 0) - FLAGGED
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1882): warning:
+  SC-025(d) control (ii) ShapeMorph placement, kSawAnchor, block 512 (delay 0):
+  previous event 25600, step at 25600, |jump| 0.622030, local ref max|dy| 0.
+  205029, ratio 3.033868, nearest reference detection 89 (not clear of
+  reference detections by 2N); chosen event 30656, step at 30656, |jump| 0.
+  857755, local ref max|dy| 0.205713, ratio 4.169666, nearest reference
+  detection 567 (valid)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1898): warning:
+  SC-025(d) control (ii) ShapeMorph unsmoothed SHAPE step, kSawAnchor, block
+  512: counted 1 (guarded out 1) - FLAGGED
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kGrowl, block 64, SHAPE 0.000000: max
+  |dH| 16.8545 dB (instant d <= 12.000000 st, h8)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kGrowl, block 512, SHAPE 0.000000: max
+  |dH| 16.8545 dB (instant d <= 12.000000 st, h8)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kGrowl, block 64, SHAPE 1.000000: max
+  |dH| 21.6515 dB (instant d <= 24.000000 st, h12)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kGrowl, block 512, SHAPE 1.000000: max
+  |dH| 21.6515 dB (instant d <= 24.000000 st, h12)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kGrowl, block 64, Tube A 1.000000 T 0.
+  000000: max |dH| 11.8654 dB (instant d <= 24.000000 st, h2)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kGrowl, block 512, Tube A 1.000000 T
+  0.000000: max |dH| 11.8654 dB (instant d <= 24.000000 st, h2)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kGrowl, block 64, Tube A 1.000000 T 0.
+  500000: max |dH| 8.80113 dB (instant d <= 24.000000 st, h9)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kGrowl, block 512, Tube A 1.000000 T
+  0.500000: max |dH| 8.80113 dB (instant d <= 24.000000 st, h9)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kGrowl, block 64, Tube A 1.000000 T 1.
+  000000: max |dH| 7.27362 dB (instant d <= 1.500000 st, h8)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kGrowl, block 512, Tube A 1.000000 T
+  1.000000: max |dH| 7.27362 dB (instant d <= 1.500000 st, h8)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kGrowl, block 64, Fold A 1.000000 T 0.
+  000000: max |dH| 20.8168 dB (instant d <= 1.500000 st, h1)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kGrowl, block 512, Fold A 1.000000 T
+  0.000000: max |dH| 20.8168 dB (instant d <= 1.500000 st, h1)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kGrowl, block 64, Fold A 1.000000 T 0.
+  500000: max |dH| 20.8169 dB (instant d <= 1.500000 st, h1)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kGrowl, block 512, Fold A 1.000000 T
+  0.500000: max |dH| 20.8169 dB (instant d <= 1.500000 st, h1)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kGrowl, block 64, Fold A 1.000000 T 1.
+  000000: max |dH| 20.817 dB (instant d <= 1.500000 st, h1)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kGrowl, block 512, Fold A 1.000000 T
+  1.000000: max |dH| 20.817 dB (instant d <= 1.500000 st, h1)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kGrowl, block 64, Rectify A 1.000000 T
+  0.000000: max |dH| 27.9568 dB (instant d <= 1.500000 st, h1)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kGrowl, block 512, Rectify A 1.000000
+  T 0.000000: max |dH| 27.9568 dB (instant d <= 1.500000 st, h1)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kGrowl, block 64, Rectify A 1.000000 T
+  0.500000: max |dH| 27.9569 dB (instant d <= 1.500000 st, h1)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kGrowl, block 512, Rectify A 1.000000
+  T 0.500000: max |dH| 27.9569 dB (instant d <= 1.500000 st, h1)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kGrowl, block 64, Rectify A 1.000000 T
+  1.000000: max |dH| 27.957 dB (instant d <= 1.500000 st, h1)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kGrowl, block 512, Rectify A 1.000000
+  T 1.000000: max |dH| 27.957 dB (instant d <= 1.500000 st, h1)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kGrowl, block 64, Bite A 1.000000 T 0.
+  000000: max |dH| 15.0001 dB (instant d <= 24.000000 st, h16)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kGrowl, block 512, Bite A 1.000000 T
+  0.000000: max |dH| 15.0001 dB (instant d <= 24.000000 st, h16)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kGrowl, block 64, Bite A 1.000000 T 0.
+  500000: max |dH| 21.0748 dB (instant d <= 12.000000 st, h16)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kGrowl, block 512, Bite A 1.000000 T
+  0.500000: max |dH| 21.0748 dB (instant d <= 12.000000 st, h16)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kGrowl, block 64, Bite A 1.000000 T 1.
+  000000: max |dH| 24.3395 dB (instant d <= 6.000000 st, h16)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kGrowl, block 512, Bite A 1.000000 T
+  1.000000: max |dH| 24.3395 dB (instant d <= 6.000000 st, h16)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kGrowl, block 64, Crush A 1.000000 T
+  0.000000: max |dH| 21.3119 dB (instant d <= 6.000000 st, h13)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1688): warning:
+  SC-025(c) kGrowl, block 64, Crush A 1.000000 T 0.000000, instant d <= 24 st:
+  I (floored, recorded) during the Drop -34.5287 dB, steady -60 dB (input
+  during the Drop -53.5231 dB); feed tracking worst relative 2.10096e-16
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1688): warning:
+  SC-025(c) kGrowl, block 64, Crush A 1.000000 T 0.000000, instant d <= 12 st:
+  I (floored, recorded) during the Drop -36.4977 dB, steady -60 dB (input
+  during the Drop -74.2724 dB); feed tracking worst relative 2.10096e-16
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1688): warning:
+  SC-025(c) kGrowl, block 64, Crush A 1.000000 T 0.000000, instant d <= 6 st: I
+  (floored, recorded) during the Drop -37.4459 dB, steady -60 dB (input during
+  the Drop -99.1025 dB); feed tracking worst relative 2.10096e-16
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1688): warning:
+  SC-025(c) kGrowl, block 64, Crush A 1.000000 T 0.000000, instant d <= 3 st: I
+  (floored, recorded) during the Drop -38.178 dB, steady -60 dB (input during
+  the Drop -3000 dB); feed tracking worst relative 1.26299e-16
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1688): warning:
+  SC-025(c) kGrowl, block 64, Crush A 1.000000 T 0.000000, instant d <= 1.5 st:
+  I (floored, recorded) during the Drop -38.8198 dB, steady -60 dB (input
+  during the Drop -94.8215 dB); feed tracking worst relative 1.26299e-16
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1762): warning:
+  SC-025(d) Crush kGrowl, block 64, Crush A 1.000000 T 0.000000: Drop max |dy|
+  0.167132 vs reference max 0.167527 (held-f0 grid; grid 0.167527, pre-fall 0.
+  167527, post-fall 0.0527714), ratio 0.997643 (bar 1.1); largest |dy|: 0.
+  167132 @ fall+7 (end-2873) 0.106435 @ fall+8 (end-2872) 0.095930 @ fall+6
+  (end-2874) 0.093706 @ fall+19 (end-2861) 0.072404 @ fall+33 (end-2847);
+  differential count recorded: counted 0 (guarded out 5)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kGrowl, block 512, Crush A 1.000000 T
+  0.000000: max |dH| 21.3119 dB (instant d <= 6.000000 st, h13)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1688): warning:
+  SC-025(c) kGrowl, block 512, Crush A 1.000000 T 0.000000, instant d <= 24 st:
+  I (floored, recorded) during the Drop -34.5287 dB, steady -60 dB (input
+  during the Drop -53.5231 dB); feed tracking worst relative 2.10096e-16
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1688): warning:
+  SC-025(c) kGrowl, block 512, Crush A 1.000000 T 0.000000, instant d <= 12 st:
+  I (floored, recorded) during the Drop -36.4977 dB, steady -60 dB (input
+  during the Drop -74.2724 dB); feed tracking worst relative 2.10096e-16
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1688): warning:
+  SC-025(c) kGrowl, block 512, Crush A 1.000000 T 0.000000, instant d <= 6 st:
+  I (floored, recorded) during the Drop -37.4459 dB, steady -60 dB (input
+  during the Drop -99.1025 dB); feed tracking worst relative 2.10096e-16
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1688): warning:
+  SC-025(c) kGrowl, block 512, Crush A 1.000000 T 0.000000, instant d <= 3 st:
+  I (floored, recorded) during the Drop -38.178 dB, steady -60 dB (input during
+  the Drop -3000 dB); feed tracking worst relative 1.26299e-16
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1688): warning:
+  SC-025(c) kGrowl, block 512, Crush A 1.000000 T 0.000000, instant d <= 1.5
+  st: I (floored, recorded) during the Drop -38.8198 dB, steady -60 dB (input
+  during the Drop -94.8215 dB); feed tracking worst relative 1.26299e-16
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1762): warning:
+  SC-025(d) Crush kGrowl, block 512, Crush A 1.000000 T 0.000000: Drop max |dy|
+  0.167132 vs reference max 0.167527 (held-f0 grid; grid 0.167527, pre-fall 0.
+  167527, post-fall 0.0527714), ratio 0.997643 (bar 1.1); largest |dy|: 0.
+  167132 @ fall+7 (end-2873) 0.106435 @ fall+8 (end-2872) 0.095930 @ fall+6
+  (end-2874) 0.093706 @ fall+19 (end-2861) 0.072404 @ fall+33 (end-2847);
+  differential count recorded: counted 0 (guarded out 5)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kGrowl, block 64, Crush A 1.000000 T
+  0.500000: max |dH| 23.2075 dB (instant d <= 24.000000 st, h3)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1688): warning:
+  SC-025(c) kGrowl, block 64, Crush A 1.000000 T 0.500000, instant d <= 24 st:
+  I (floored, recorded) during the Drop -36.2339 dB, steady -60 dB (input
+  during the Drop -53.5231 dB); feed tracking worst relative 2.10096e-16
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1688): warning:
+  SC-025(c) kGrowl, block 64, Crush A 1.000000 T 0.500000, instant d <= 12 st:
+  I (floored, recorded) during the Drop -38.4408 dB, steady -60 dB (input
+  during the Drop -74.2724 dB); feed tracking worst relative 2.10096e-16
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1688): warning:
+  SC-025(c) kGrowl, block 64, Crush A 1.000000 T 0.500000, instant d <= 6 st: I
+  (floored, recorded) during the Drop -39.4012 dB, steady -60 dB (input during
+  the Drop -99.1025 dB); feed tracking worst relative 2.10096e-16
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1688): warning:
+  SC-025(c) kGrowl, block 64, Crush A 1.000000 T 0.500000, instant d <= 3 st: I
+  (floored, recorded) during the Drop -40.1351 dB, steady -60 dB (input during
+  the Drop -3000 dB); feed tracking worst relative 1.26299e-16
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1688): warning:
+  SC-025(c) kGrowl, block 64, Crush A 1.000000 T 0.500000, instant d <= 1.5 st:
+  I (floored, recorded) during the Drop -40.7775 dB, steady -60 dB (input
+  during the Drop -94.8215 dB); feed tracking worst relative 1.26299e-16
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1762): warning:
+  SC-025(d) Crush kGrowl, block 64, Crush A 1.000000 T 0.500000: Drop max |dy|
+  0.385049 vs reference max 0.385137 (post-fall segment; grid 0.247477, pre-
+  fall 0.247477, post-fall 0.385137), ratio 0.999771 (bar 1.1); largest |dy|:
+  0.385049 @ fall+4625 (end+1745) 0.384071 @ fall+1721 (end-1159) 0.383912 @
+  fall+3460 (end+580) 0.339467 @ fall+1171 (end-1709) 0.338149 @ fall+2878
+  (end-2); differential count recorded: counted 0 (guarded out 4)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kGrowl, block 512, Crush A 1.000000 T
+  0.500000: max |dH| 23.2075 dB (instant d <= 24.000000 st, h3)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1688): warning:
+  SC-025(c) kGrowl, block 512, Crush A 1.000000 T 0.500000, instant d <= 24 st:
+  I (floored, recorded) during the Drop -36.2339 dB, steady -60 dB (input
+  during the Drop -53.5231 dB); feed tracking worst relative 2.10096e-16
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1688): warning:
+  SC-025(c) kGrowl, block 512, Crush A 1.000000 T 0.500000, instant d <= 12 st:
+  I (floored, recorded) during the Drop -38.4408 dB, steady -60 dB (input
+  during the Drop -74.2724 dB); feed tracking worst relative 2.10096e-16
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1688): warning:
+  SC-025(c) kGrowl, block 512, Crush A 1.000000 T 0.500000, instant d <= 6 st:
+  I (floored, recorded) during the Drop -39.4012 dB, steady -60 dB (input
+  during the Drop -99.1025 dB); feed tracking worst relative 2.10096e-16
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1688): warning:
+  SC-025(c) kGrowl, block 512, Crush A 1.000000 T 0.500000, instant d <= 3 st:
+  I (floored, recorded) during the Drop -40.1351 dB, steady -60 dB (input
+  during the Drop -3000 dB); feed tracking worst relative 1.26299e-16
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1688): warning:
+  SC-025(c) kGrowl, block 512, Crush A 1.000000 T 0.500000, instant d <= 1.5
+  st: I (floored, recorded) during the Drop -40.7775 dB, steady -60 dB (input
+  during the Drop -94.8215 dB); feed tracking worst relative 1.26299e-16
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1762): warning:
+  SC-025(d) Crush kGrowl, block 512, Crush A 1.000000 T 0.500000: Drop max |dy|
+  0.385049 vs reference max 0.385137 (post-fall segment; grid 0.247477, pre-
+  fall 0.247477, post-fall 0.385137), ratio 0.999771 (bar 1.1); largest |dy|:
+  0.385049 @ fall+4625 (end+1745) 0.384071 @ fall+1721 (end-1159) 0.383912 @
+  fall+3460 (end+580) 0.339467 @ fall+1171 (end-1709) 0.338149 @ fall+2878
+  (end-2); differential count recorded: counted 0 (guarded out 4)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kGrowl, block 64, Crush A 1.000000 T
+  1.000000: max |dH| 28.8601 dB (instant d <= 24.000000 st, h3)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1688): warning:
+  SC-025(c) kGrowl, block 64, Crush A 1.000000 T 1.000000, instant d <= 24 st:
+  I (floored, recorded) during the Drop -42.9945 dB, steady -60 dB (input
+  during the Drop -53.5231 dB); feed tracking worst relative 2.10096e-16
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1688): warning:
+  SC-025(c) kGrowl, block 64, Crush A 1.000000 T 1.000000, instant d <= 12 st:
+  I (floored, recorded) during the Drop -56.1463 dB, steady -60 dB (input
+  during the Drop -74.2724 dB); feed tracking worst relative 2.10096e-16
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1688): warning:
+  SC-025(c) kGrowl, block 64, Crush A 1.000000 T 1.000000, instant d <= 6 st: I
+  (floored, recorded) during the Drop -60 dB, steady -60 dB (input during the
+  Drop -99.1025 dB); feed tracking worst relative 2.10096e-16
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1688): warning:
+  SC-025(c) kGrowl, block 64, Crush A 1.000000 T 1.000000, instant d <= 3 st: I
+  (floored, recorded) during the Drop -60 dB, steady -60 dB (input during the
+  Drop -3000 dB); feed tracking worst relative 1.26299e-16
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1688): warning:
+  SC-025(c) kGrowl, block 64, Crush A 1.000000 T 1.000000, instant d <= 1.5 st:
+  I (floored, recorded) during the Drop -60 dB, steady -60 dB (input during the
+  Drop -94.8215 dB); feed tracking worst relative 1.26299e-16
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1762): warning:
+  SC-025(d) Crush kGrowl, block 64, Crush A 1.000000 T 1.000000: Drop max |dy|
+  0.525887 vs reference max 0.525892 (post-fall segment; grid 0.220391, pre-
+  fall 0.217904, post-fall 0.525892), ratio 0.999991 (bar 1.1); largest |dy|:
+  0.525887 @ fall+4625 (end+1745) 0.524753 @ fall+3460 (end+580) 0.523323 @
+  fall+1721 (end-1159) 0.460918 @ fall+2296 (end-584) 0.458964 @ fall+1171
+  (end-1709); differential count recorded: counted 4 (guarded out 1)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kGrowl, block 512, Crush A 1.000000 T
+  1.000000: max |dH| 28.8601 dB (instant d <= 24.000000 st, h3)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1688): warning:
+  SC-025(c) kGrowl, block 512, Crush A 1.000000 T 1.000000, instant d <= 24 st:
+  I (floored, recorded) during the Drop -42.9945 dB, steady -60 dB (input
+  during the Drop -53.5231 dB); feed tracking worst relative 2.10096e-16
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1688): warning:
+  SC-025(c) kGrowl, block 512, Crush A 1.000000 T 1.000000, instant d <= 12 st:
+  I (floored, recorded) during the Drop -56.1463 dB, steady -60 dB (input
+  during the Drop -74.2724 dB); feed tracking worst relative 2.10096e-16
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1688): warning:
+  SC-025(c) kGrowl, block 512, Crush A 1.000000 T 1.000000, instant d <= 6 st:
+  I (floored, recorded) during the Drop -60 dB, steady -60 dB (input during the
+  Drop -99.1025 dB); feed tracking worst relative 2.10096e-16
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1688): warning:
+  SC-025(c) kGrowl, block 512, Crush A 1.000000 T 1.000000, instant d <= 3 st:
+  I (floored, recorded) during the Drop -60 dB, steady -60 dB (input during the
+  Drop -3000 dB); feed tracking worst relative 1.26299e-16
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1688): warning:
+  SC-025(c) kGrowl, block 512, Crush A 1.000000 T 1.000000, instant d <= 1.5
+  st: I (floored, recorded) during the Drop -60 dB, steady -60 dB (input during
+  the Drop -94.8215 dB); feed tracking worst relative 1.26299e-16
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1762): warning:
+  SC-025(d) Crush kGrowl, block 512, Crush A 1.000000 T 1.000000: Drop max |dy|
+  0.525887 vs reference max 0.525892 (post-fall segment; grid 0.220391, pre-
+  fall 0.217904, post-fall 0.525892), ratio 0.999991 (bar 1.1); largest |dy|:
+  0.525887 @ fall+4625 (end+1745) 0.524753 @ fall+3460 (end+580) 0.523323 @
+  fall+1721 (end-1159) 0.460918 @ fall+2296 (end-584) 0.458964 @ fall+1171
+  (end-1709); differential count recorded: counted 4 (guarded out 1)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kGrowl, block 64, Fracture A 1.000000
+  T 0.000000: max |dH| 30.5296 dB (instant d <= 12.000000 st, h1)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kGrowl, block 512, Fracture A 1.000000
+  T 0.000000: max |dH| 30.5296 dB (instant d <= 12.000000 st, h1)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kGrowl, block 64, Fracture A 1.000000
+  T 0.500000: max |dH| 28.65 dB (instant d <= 3.000000 st, h1)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kGrowl, block 512, Fracture A 1.000000
+  T 0.500000: max |dH| 28.65 dB (instant d <= 3.000000 st, h1)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kGrowl, block 64, Fracture A 1.000000
+  T 1.000000: max |dH| 17.9796 dB (instant d <= 3.000000 st, h1)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1623): warning:
+  SC-025(a) |H(n)| recorded (not gated): kGrowl, block 512, Fracture A 1.000000
+  T 1.000000: max |dH| 17.9796 dB (instant d <= 3.000000 st, h1)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1807): warning:
+  SC-025(d) control (i) Character hard switch, kGrowl, block 64: counted 0
+  (guarded out 42)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1835): warning:
+  SC-025(d) control (ii) Character Amount step placement, kGrowl, block 64:
+  previous event 25600, step at 25600, |jump| 0.171546, local ref max|dy| 0.
+  445568, ratio 0.385004, nearest reference detection 18446744073709551615
+  (valid); chosen event 28192, step at 28192, |jump| 0.828455, local ref max|dy
+  | 0.389934, ratio 2.124601, nearest reference detection 18446744073709551615
+  (valid)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1853): warning:
+  SC-025(d) control (ii) Character unsmoothed Amount step, kGrowl, block 64:
+  counted 1 (guarded out 0) - FLAGGED
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1882): warning:
+  SC-025(d) control (i) ShapeMorph placement, kGrowl, block 64 (delay 159):
+  previous event 25600, step at 25759, |jump| 0.217017, local ref max|dy| 0.
+  470048, ratio 0.461691, nearest reference detection 874 (valid); chosen event
+  27008, step at 27167, |jump| 0.743287, local ref max|dy| 0.454027, ratio 1.
+  637098, nearest reference detection 2282 (valid)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1898): warning:
+  SC-025(d) control (i) ShapeMorph hard regime switch, kGrowl, block 64:
+  counted 1 (guarded out 1) - FLAGGED
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1882): warning:
+  SC-025(d) control (ii) ShapeMorph placement, kGrowl, block 64 (delay 0):
+  previous event 25600, step at 25600, |jump| 0.651385, local ref max|dy| 0.
+  470205, ratio 1.385322, nearest reference detection 715 (valid); chosen event
+  25848, step at 25848, |jump| 0.865895, local ref max|dy| 0.478921, ratio 1.
+  808012, nearest reference detection 963 (valid)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1898): warning:
+  SC-025(d) control (ii) ShapeMorph unsmoothed SHAPE step, kGrowl, block 64:
+  counted 1 (guarded out 0) - FLAGGED
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1807): warning:
+  SC-025(d) control (i) Character hard switch, kGrowl, block 512: counted 0
+  (guarded out 42)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1835): warning:
+  SC-025(d) control (ii) Character Amount step placement, kGrowl, block 512:
+  previous event 25600, step at 25600, |jump| 0.171546, local ref max|dy| 0.
+  445568, ratio 0.385004, nearest reference detection 18446744073709551615
+  (valid); chosen event 28192, step at 28192, |jump| 0.828455, local ref max|dy
+  | 0.389934, ratio 2.124601, nearest reference detection 18446744073709551615
+  (valid)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1853): warning:
+  SC-025(d) control (ii) Character unsmoothed Amount step, kGrowl, block 512:
+  counted 1 (guarded out 0) - FLAGGED
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1882): warning:
+  SC-025(d) control (i) ShapeMorph placement, kGrowl, block 512 (delay 159):
+  previous event 25600, step at 25759, |jump| 0.217017, local ref max|dy| 0.
+  470048, ratio 0.461691, nearest reference detection 874 (valid); chosen event
+  27008, step at 27167, |jump| 0.743287, local ref max|dy| 0.454027, ratio 1.
+  637098, nearest reference detection 2282 (valid)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1898): warning:
+  SC-025(d) control (i) ShapeMorph hard regime switch, kGrowl, block 512:
+  counted 1 (guarded out 1) - FLAGGED
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1882): warning:
+  SC-025(d) control (ii) ShapeMorph placement, kGrowl, block 512 (delay 0):
+  previous event 25600, step at 25600, |jump| 0.651385, local ref max|dy| 0.
+  470205, ratio 1.385322, nearest reference detection 715 (valid); chosen event
+  25848, step at 25848, |jump| 0.865895, local ref max|dy| 0.478921, ratio 1.
+  808012, nearest reference detection 963 (valid)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1898): warning:
+  SC-025(d) control (ii) ShapeMorph unsmoothed SHAPE step, kGrowl, block 512:
+  counted 1 (guarded out 0) - FLAGGED
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(1910): warning:
+  SC-025(a) summary: keytracked members worst relative difference 0 (none);
+  HOLLOW |H(n)| worst 0.0958094 dB (kSawAnchor, block 64, SHAPE 0.500000,
+  instant d <= 24.000000 st, h3); recorded nonlinear |H(n)| worst 30.5296 dB
+  (kGrowl, block 64, Fracture A 1.000000 T 0.000000, instant d <= 12.000000 st,
+  h1)
+
+72.749 s: ShapeCharacter_DropTracksHarmonicNumbers
+===============================================================================
+All tests passed (13149 assertions in 1 test case)
+
+exit: 0 wall: 74 s

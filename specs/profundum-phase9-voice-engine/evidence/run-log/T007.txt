@@ -1,0 +1,101 @@
+T007 - ProfundumVoice and its direct-voice cases (FR-001 - FR-016; plan S5, S9.4 - S9.7; C-4, C-5, C-6, C-10, C-11,
+C-18, C-20; deviation 2)
+Date: 2026-10-20  Branch: synth/profundum  Base: 0ae33b87
+
+ODR SWEEP (this session, before writing)
+$ grep -rnw "class ProfundumVoice|HarmonicBalanceMeter|struct IntervalInputs" dsp plugins tests
+  -> only the T001 stub banner comment of profundum_voice.h. TU-local test names (VeObserver, VeRig, ve*, kVe*) live
+     in an anonymous namespace; grep "VeObserver|VeRig" dsp/tests: 0 hits.
+
+FACTS READ THIS SESSION (live line anchors)
+- ProfundumCore: prepare(double, int) :121; reset() :158 (latches pending controls); setControls bitwise skip;
+  setRetriggerPhase :201; noteOn :208 (sanitizeF0); setPartialPanOffsets(const std::array<float, kMaxPartials>&) :218;
+  processBlock(L, R, n, f0PerSample); applyNoteOn Reset branch `policy_ == Reset || !sounding_` :532 (bank_.reset,
+  intervalPhase_ = 0); setExcitation dirties on every call (ExcitationControls {mix, drive, asymmetry}).
+- SpectralShapeRecipe: evaluateShape(const Controls&, span<float>) / evaluateMask(float, double, span<float>) /
+  applyMask(span<const float>, span<const float>, span<float>); evaluate = Shape -> Mask -> applyMask; capFrequency
+  = 0.8 * fs * 0.5; kCenterPanGain.
+- MassDynamicsTest::unbiasedH1Amplitude(base, double f0, double fs): std::array<float, 64> + evaluate,
+  g[0] * kCenterPanGain (mass_dynamics_test_helpers.h:288-292).
+- ShapeMorph prepare(double, size_t) :135, reset :172, setShape :194, processBlock(L, R, n, f0PerSample) :221.
+- HarmonicFold prepare(double, size_t) :121, setAmount :168 (valid before prepare), setFundamentalHz :178,
+  processBlock(L, R, n) :188.
+- BassCharacterStage prepare(double, size_t) :180; setAlgorithm (switch machine); setAmount / setTone retarget on
+  every call; setChannelOffsets; syncPhase(float) ("call after prepare"); setInputHalfWaveSymmetric(bool);
+  processBlock(L, R, n, f0PerSample); perceivedPitchRatio() :466-480.
+- AnchorOscillator Controls {waveform, mode, level, punchBoostDb, punchTimeMs, ghostTimeMs} :99-106; prepare(double)
+  :123; setControls bitwise skip; setFollowRatio; setCoreH1Amplitude; setRetriggerPhase; noteOn(float, bool);
+  processBlock(L, R, n, f0PerSample, followRatioPerSample); phase() returns double.
+- DropEnvelope prepare / reset / setAmount / setTime / setShape / setRebound (no-ops before prepare) / trigger(bool) /
+  process() / plannedCurve(); DropPhaseLock prepare / reset (keeps bypass_) / setBypass / trigger(curve, fRes,
+  gridPhase, minF, cap, kind) / process(float); NoteMemory resolve / Actions / PhasePolicy (note_memory.h);
+  RetriggerDeclick arm / samplesUntilSwitch / process / isActive (retrigger_declick.h).
+- ADSREnvelope prepare(float), setAttack / Decay / Sustain / Release, setAttackCurve(float) etc., gate, process,
+  isActive, setRetriggerMode(RetriggerMode::Hard) (RetriggerMode: envelope_utils.h:64).
+- BassStereoField VoiceState / ChannelOffsets / computePanVector(VoiceState&, float, std::array<float, kMaxPartials>&,
+  int) const / wideOffsets(Algorithm) const / prepare(double, size_t) / advanceControl / setControls.
+- MorphState (morph_state.h:43-122); showcasePair() A (bass_morph_state_helpers.h:167-215).
+- Phase 4 harness applyTransition / renderSub (profundum_note_behaviour_test_helpers.h:541-760).
+- profundum_engine_observer.h (T004): seams, ProfundumCall order, ProfundumCallRecord, ProfundumVoiceTaps.
+
+FILES WRITTEN
+- dsp/tests/unit/systems/profundum_voice_test.cpp (written first): ProfundumVoice_PhasePolicyMapping [fr-010],
+  ProfundumVoice_OutputIdentity [fr-015][sc-019], ProfundumVoice_FeedSkipAndRamp [fr-003][c-10],
+  ProfundumVoice_A1MatchesUnbiasedH1 [fr-005][c-6], ProfundumVoice_ChangeOnlySetters [fr-013][c-20],
+  ProfundumVoice_MeterBounded [fr-008][c-5], ProfundumVoice_IdleNotActive [fr-015]; all [systems][profundum]
+  [voice-engine]. Test-side BassStereoField prepared at fs / 32 with advanceControl() per interval; IntervalInputs
+  built with designated initialisers; a VeObserver (ProfundumEngineObserver subclass, attached through
+  setObserverSlot(&obs, 0, &seams)) copies every onVoiceChunk span and onCall record into reserved vectors.
+- dsp/include/krate/dsp/systems/profundum_voice.h: the T001 stub replaced by ProfundumVoice (plan S5.1 - S5.7,
+  S9.4 - S9.7), nested HarmonicBalanceMeter and IntervalInputs, the FR-010 static_asserts at namespace scope.
+
+DECISIONS
+- Includes are exactly plan S2's list (+ <algorithm> <array> <bit> <cmath> <cstddef> <cstdint> <initializer_list>
+  <span>). Three symbols reach the header transitively because S2's list has no row for them: kMaxPartials
+  (processors/harmonic_types.h, via profundum_core.h / bass_stereo_field.h), RetriggerMode (primitives/envelope_utils.h,
+  via adsr_envelope.h), DropCurve (core/drop_curve.h, via drop_envelope.h). Recorded, not added (S2's list is
+  "exact"); adding them is a three-line change if T026 rules otherwise.
+- MassLaw / BassMorphEngine kControlInterval static_asserts (S5.1 comment) are left to the engine (T008): neither
+  header is in S2's list for profundum_voice.h. The voice asserts ProfundumCore, AnchorOscillator, BassStereoField.
+- prepare: S5.3 step 1 (pre-prepare snap setters), step 2 (prepares; capHz_ from the clamped rate), then
+  reset(initial), which re-issues steps 1 and 3 before resetting every component, so post-reset == post-prepare. The
+  lock bypass is set from initial.anchor.mode at reset too, so the first interval's pitch stage (step 0, which
+  precedes step 7's bypass) already runs bypassed in FOLLOW.
+- Every S5.4 step emits exactly one ProfundumCallRecord per interval, in ProfundumCall order (FoldAmount, FoldF0,
+  Shape as the enum orders them); issued only on a bitwise change of the handed argument, or on the first interval
+  after prepare / reset (handedValid_). The pan vector is compared bitwise in the voice as well (the core's own change
+  test does not make the call change-only). SyncPhase / NoteOnCore / NoteOnAnchor are logged only when issued.
+- Transition timing: the dip switch is a countdown (untilSwitch_ = samplesUntilSwitch(), decremented per rendered
+  sample), not an absolute position, so it is independent of the record clock. render splits a chunk at the switch,
+  applies the pending transition there, reruns the pitch stage from the switch, and re-runs FR-012's pan step after
+  fieldState_.reset() when the core takes its Reset branch. A switch landing on sample 0 is applied at
+  beginInterval step 0.
+- Meter (S9.6): rotor step recomputed at every 16-sample core pitch update (coreGridCount_ % 16 == 0) and at the core
+  note-on sample; f = clamp(f_core, kMinF0Hz, capHz_) (a non-finite f_core keeps the previous f, never reaches
+  std::clamp); thresholds compared as amplitude ratios 10^(-22/20) / 10^(-18/20) (no log of 0); theta() never
+  returns 1.0f by float rounding.
+- a1 (C-6): cached shape keyed on the six recipe fields, mask keyed on fAnchor[0] bitwise, applyMask when either
+  changed, spans of exactly 64; evaluateMask gets the fs handed to prepare (unclamped), as unbiasedH1Amplitude does.
+- anchorPhase tap: per sample under the anchorPhaseTap seam; otherwise the phase after the chunk, replicated.
+- Test sum buffers are cleared to -0.0f per chunk (the IEEE additive identity), so the sum holds the voice's
+  contribution bit for bit, -0 contributions included.
+
+DEVIATIONS (surfaced)
+1. Three public additions beyond the S5.1 listing, each needed by the engine (T008): consumeEnvelopeRestart() (S5.5:
+   the engine "is told" to call motion.noteRestart(); a restart can apply at a switch sample inside render, so a
+   flag polled after render is how it is told), noteFrequency() (S6.5 renderChunk step 2 needs fNote_v), and
+   setSamplePosition(uint64) (records carry the engine sample; a skipped voice cannot count it).
+2. IntervalInputs members carry default member initialisers (nullptr / {} / 0 / false); still an aggregate.
+3. ProfundumVoice_OutputIdentity renders 1 s with the Tail retrigger at 0.5 s (task text: "1 s, then a Tail
+   transition ... at 0.5 s", read as the Tail at 0.5 s inside the 1 s render). Odd intervals render in 7-sample
+   chunks so the split path is exercised.
+4. ProfundumVoice_ChangeOnlySetters reads its 200 unchanged intervals after a 1 s warm-up: on A_s the Rectify
+   meter's first reading lands one E1 period (about 36 intervals) after the note, a legitimate first change.
+
+RISK (for the Group 5 gate)
+- SC-019(b) / OutputIdentity is bitwise under /fp:fast + -ffast-math. If the compiler contracts or reassociates
+  (c*ga)*gd + (a*ga)*gd differently in the header and in the test, the case goes red with no logic defect. Plan
+  C-10 rules it bitwise; a red here goes back to the plan, the bar is not relaxed.
+
+NOT BUILT / NOT RUN (per the task instruction: the Group 5 build agent builds and gates). Both files re-read after
+writing. Verify: the Group 5 gate, filter "ProfundumVoice_*".

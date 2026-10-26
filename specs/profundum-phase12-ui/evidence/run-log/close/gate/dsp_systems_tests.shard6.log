@@ -1,0 +1,366 @@
+Filters: [profundum] ~[performance] ~[perf] ~[benchmark] ~[!benchmark] ~[long] ~[.]
+Randomness seeded to: 4199245837
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+BassCharacter_CrushHoldRing
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(610)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(740): warning:
+  differential clicks on the 0.5 s Amount ramp (recorded, not gated; long-ramp
+  ruling 2026-10-16): counted 21 (guarded out 6, transition detections 204,
+  reference detections 218, N 145)
+
+-------------------------------------------------------------------------------
+BassCharacter_ClickCountPositiveControl
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1484)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1124): warning:
+  E1, saw control (i) hard switch Tube -> Fracture at sample 48600: counted 1
+  (guarded out 5, transition detections 75, reference detections 155, N 145) -
+  FLAGGED
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1124): warning:
+  E1, saw control (ii) unsmoothed Amount 0 -> 1 at sample 48064: counted 2
+  (guarded out 0, transition detections 86, reference detections 175, N 145) -
+  FLAGGED
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1124): warning:
+  E1, growl control (i) hard switch Tube -> Fracture at sample 48064: counted 0
+  (guarded out 0, transition detections 144, reference detections 156, N 145) -
+  not flagged (recorded)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1124): warning:
+  E1, growl control (ii) unsmoothed Amount 0 -> 1 at sample 48080: counted 2
+  (guarded out 0, transition detections 120, reference detections 243, N 145) -
+  FLAGGED
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1124): warning:
+  C2, saw control (i) hard switch Tube -> Fracture at sample 48256: counted 1
+  (guarded out 0, transition detections 104, reference detections 229, N 91) -
+  FLAGGED
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1124): warning:
+  C2, saw control (ii) unsmoothed Amount 0 -> 1 at sample 48248: counted 2
+  (guarded out 0, transition detections 122, reference detections 246, N 91) -
+  FLAGGED
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1124): warning:
+  C2, growl control (i) hard switch Tube -> Fracture at sample 48240: counted 1
+  (guarded out 0, transition detections 303, reference detections 425, N 91) -
+  FLAGGED
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1124): warning:
+  C2, growl control (ii) unsmoothed Amount 0 -> 1 at sample 48648: counted 0
+  (guarded out 0, transition detections 221, reference detections 480, N 91) -
+  not flagged (recorded)
+
+-------------------------------------------------------------------------------
+BassCharacter_SwitchClickFreeSmoke
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1513)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level E1, Tube -> Bite: over 1.04322 dB, under 0 dB; midpoint L_tr -
+  11.5511 vs steady [-12.4989, -11.7405] dBFS, midpoint excursion 0.189424 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1302): warning:
+  SC-009 level E1, Rectify -> Fracture: over 0 dB, under 0.160022 dB; midpoint
+  L_tr -13.6628 vs steady [-18.3361, -10.7638] dBFS, midpoint excursion 0 dB
+
+-------------------------------------------------------------------------------
+BassCharacter_MonoSum
+  (b) band energy of (L + R)/2 below 2·f0 at the gated offsets; (c) the
+  offsets are not inert
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1574)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1684): warning:
+  SC-013(b) recorded (not gated): E0, Rectify at +-0.15: mid band energy re the
+  L/R mean -1.45729 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1706): warning:
+  SC-013(b) offset ceiling: E0, Rectify ceiling +-0.1 ((b) -0.609117 dB at it;
+  +-0.10 -0.609117 dB, +-0.05 -0.157687 dB; +-0.15 -1.45729 dB)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1684): warning:
+  SC-013(b) recorded (not gated): E0, Fracture at +-0.15: mid band energy re
+  the L/R mean -1.1541 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1706): warning:
+  SC-013(b) offset ceiling: E0, Fracture ceiling +-0.1 ((b) -0.591022 dB at it;
+  +-0.10 -0.591022 dB, +-0.05 -0.161891 dB; +-0.15 -1.1541 dB)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1684): warning:
+  SC-013(b) recorded (not gated): E1, Rectify at +-0.15: mid band energy re the
+  L/R mean -1.44725 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1706): warning:
+  SC-013(b) offset ceiling: E1, Rectify ceiling +-0.1 ((b) -0.596596 dB at it;
+  +-0.10 -0.596596 dB, +-0.05 -0.155481 dB; +-0.15 -1.44725 dB)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1684): warning:
+  SC-013(b) recorded (not gated): E1, Fracture at +-0.15: mid band energy re
+  the L/R mean -1.09807 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1706): warning:
+  SC-013(b) offset ceiling: E1, Fracture ceiling +-0.1 ((b) -0.557137 dB at it;
+  +-0.10 -0.557137 dB, +-0.05 -0.151615 dB; +-0.15 -1.09807 dB)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1684): warning:
+  SC-013(b) recorded (not gated): E2, Rectify at +-0.15: mid band energy re the
+  L/R mean -1.40954 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1706): warning:
+  SC-013(b) offset ceiling: E2, Rectify ceiling +-0.1 ((b) -0.582507 dB at it;
+  +-0.10 -0.582507 dB, +-0.05 -0.151789 dB; +-0.15 -1.40954 dB)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1684): warning:
+  SC-013(b) recorded (not gated): E2, Fracture at +-0.15: mid band energy re
+  the L/R mean -1.09658 dB
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1706): warning:
+  SC-013(b) offset ceiling: E2, Fracture ceiling +-0.1 ((b) -0.556489 dB at it;
+  +-0.10 -0.556489 dB, +-0.05 -0.151459 dB; +-0.15 -1.09658 dB)
+
+-------------------------------------------------------------------------------
+ShapeCharacter_ParameterStepsClickFreeSmoke
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1732)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1124): warning:
+  E1, saw control hard bypass Amount 0 -> 0.1 (Bite) at sample 49224: counted 2
+  (guarded out 0, transition detections 87, reference detections 171, N 145) -
+  FLAGGED
+
+-------------------------------------------------------------------------------
+BassCharacter_OnsetInvariance
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(1968)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(2102): warning:
+  SC-030 E1, saw, Crush, Amount 0.5: recorded path-dependence across the 8
+  synced onsets: engine 0 (m 14): 0 of 14 slots differ, max 0 step(s); engine 1
+  (m 13): 0 of 13 slots differ, max 0 step(s);
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(2109): warning:
+  SC-030 E1, saw, Crush, Amount 0.5: synced spread C 3.96276e-09 oct, L 0.
+  00034352, E_low 5.50298e-07, E_high 6.17639e-07, I 0 dB (THD 8.94188e-07,
+  R_oe 1.06582e-06 dB recorded); unsynced spread C 0.225761 oct, L 0.650673,
+  E_low 0.799412, E_high 2.15509, I 0, THD 1.48456, R_oe 1.01762 dB, silent 0
+  (control flags)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(2102): warning:
+  SC-030 E1, saw, Crush, Amount 1: recorded path-dependence across the 8 synced
+  onsets: engine 0 (m 4): 0 of 4 slots differ, max 0 step(s); engine 1 (m 3): 0
+  of 3 slots differ, max 0 step(s);
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(2109): warning:
+  SC-030 E1, saw, Crush, Amount 1: synced spread C 2.24376e-09 oct, L 0.
+  000856044, E_low 1.15739e-06, E_high 1.04526e-06, I 0 dB (THD 1.55035e-06,
+  R_oe 8.91062e-07 dB recorded); unsynced spread C 6.66958e-08 oct, L 1.59254,
+  E_low 9.97507e-07, E_high 8.2904e-07, I 0, THD 1.41894e-06, R_oe 5.93981e-07
+  dB, silent 0 (control flags)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(2109): warning:
+  SC-030 E1, saw, Fracture, Amount 0.5: synced spread C 2.10287e-06 oct, L 0.
+  00026317, E_low 1.13364e-05, E_high 2.21009e-05, I 0 dB (THD 1.99883e-05,
+  R_oe 2.6368e-05 dB recorded); unsynced spread C 0.483364 oct, L 1.0685, E_low
+  1.65938, E_high 1.19767, I 0, THD 10.1986, R_oe 10.3459 dB, silent 0 (control
+  flags)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(2109): warning:
+  SC-030 E1, saw, Fracture, Amount 1: synced spread C 7.08005e-07 oct, L 0.
+  00130032, E_low 7.37712e-06, E_high 2.69459e-05, I 0 dB (THD 8.51209e-06,
+  R_oe 7.54109e-06 dB recorded); unsynced spread C 1.85807 oct, L 2.85885,
+  E_low 9.19847, E_high 9.33897, I 0, THD 18.1272, R_oe 8.9397 dB, silent 0
+  (control flags)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(2102): warning:
+  SC-030 E1, growl, Crush, Amount 0.5: recorded path-dependence across the 8
+  synced onsets: engine 0 (m 14): 0 of 14 slots differ, max 0 step(s); engine 1
+  (m 13): 1 of 13 slots differ, max 1 step(s);
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(2109): warning:
+  SC-030 E1, growl, Crush, Amount 0.5: synced spread C 0.00075942 oct, L 0.
+  00749072, E_low 0.0030269, E_high 0.00164237, I 0 dB (THD 0.0161375, R_oe 0.
+  00107895 dB recorded); unsynced spread C 1.16423 oct, L 3.90831, E_low 0.
+  532881, E_high 4.14141, I 0, THD 9.27362, R_oe 1.95952 dB, silent 0 (control
+  flags)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(2102): warning:
+  SC-030 E1, growl, Crush, Amount 1: recorded path-dependence across the 8
+  synced onsets: engine 0 (m 4): 0 of 4 slots differ, max 0 step(s); engine 1
+  (m 3): 0 of 3 slots differ, max 0 step(s);
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(2109): warning:
+  SC-030 E1, growl, Crush, Amount 1: synced spread C 1.2448e-08 oct, L 0.
+  00675177, E_low 7.73828e-07, E_high 5.21381e-07, I 0 dB (THD 1.04968e-06,
+  R_oe 1.01487e-06 dB recorded); unsynced spread C 4.62669e-08 oct, L 17.504,
+  E_low 7.15589e-07, E_high 7.04924e-07, I 0, THD 1.0429e-06, R_oe 4.79656e-07
+  dB, silent 1 (control flags)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(2109): warning:
+  SC-030 E1, growl, Fracture, Amount 0.5: synced spread C 3.20689e-06 oct, L 4.
+  51836e-06, E_low 3.65719e-05, E_high 1.38418e-06, I 0 dB (THD 0.00294404,
+  R_oe 8.6264e-05 dB recorded); unsynced spread C 0.212813 oct, L 0.942047,
+  E_low 0.890334, E_high 0.0608751, I 0, THD 21.5469, R_oe 8.96544 dB, silent 0
+  (control flags)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(2109): warning:
+  SC-030 E1, growl, Fracture, Amount 1: synced spread C 4.44403e-06 oct, L 2.
+  05025e-05, E_low 2.38634e-05, E_high 5.62151e-06, I 0 dB (THD 3.48347e-05,
+  R_oe 2.74283e-07 dB recorded); unsynced spread C 0.498002 oct, L 3.11206,
+  E_low 4.96337, E_high 0.516814, I 0, THD 10.0743, R_oe 0.302992 dB, silent 0
+  (control flags)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(2102): warning:
+  SC-030 C2, saw, Crush, Amount 0.5: recorded path-dependence across the 8
+  synced onsets: engine 0 (m 14): 1 of 14 slots differ, max 1 step(s); engine 1
+  (m 13): 0 of 13 slots differ, max 0 step(s);
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(2109): warning:
+  SC-030 C2, saw, Crush, Amount 0.5: synced spread C 0.00139387 oct, L 0.
+  00756242, E_low 0.00365639, E_high 0.0140254, I 0 dB (THD 0.00839843, R_oe 0.
+  0126776 dB recorded); unsynced spread C 0.101346 oct, L 0.323799, E_low 0.
+  33411, E_high 1.24522, I 0, THD 0.673474, R_oe 0.430996 dB, silent 0 (control
+  flags)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(2102): warning:
+  SC-030 C2, saw, Crush, Amount 1: recorded path-dependence across the 8 synced
+  onsets: engine 0 (m 4): 0 of 4 slots differ, max 0 step(s); engine 1 (m 3): 0
+  of 3 slots differ, max 0 step(s);
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(2109): warning:
+  SC-030 C2, saw, Crush, Amount 1: synced spread C 4.85181e-09 oct, L 0.
+  000709182, E_low 9.09846e-07, E_high 1.03699e-06, I 0 dB (THD 1.35565e-06,
+  R_oe 1.02808e-06 dB recorded); unsynced spread C 3.59586e-08 oct, L 0.782652,
+  E_low 7.7048e-07, E_high 7.53927e-07, I 0, THD 1.07074e-06, R_oe 1.02697e-06
+  dB, silent 0 (control flags)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(2109): warning:
+  SC-030 C2, saw, Fracture, Amount 0.5: synced spread C 1.99121e-06 oct, L 0.
+  000177703, E_low 4.78832e-06, E_high 1.12769e-05, I 0 dB (THD 1.32309e-05,
+  R_oe 1.92194e-05 dB recorded); unsynced spread C 0.484044 oct, L 1.07225,
+  E_low 1.65844, E_high 1.20227, I 0, THD 10.0899, R_oe 10.3538 dB, silent 0
+  (control flags)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(2109): warning:
+  SC-030 C2, saw, Fracture, Amount 1: synced spread C 8.503e-07 oct, L 0.
+  000640096, E_low 1.75889e-05, E_high 3.25264e-05, I 0 dB (THD 1.42289e-05,
+  R_oe 1.25989e-05 dB recorded); unsynced spread C 1.86216 oct, L 2.87172,
+  E_low 9.16109, E_high 9.18531, I 0, THD 17.8223, R_oe 8.88635 dB, silent 0
+  (control flags)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(2102): warning:
+  SC-030 C2, growl, Crush, Amount 0.5: recorded path-dependence across the 8
+  synced onsets: engine 0 (m 14): 0 of 14 slots differ, max 0 step(s); engine 1
+  (m 13): 1 of 13 slots differ, max 1 step(s);
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(2109): warning:
+  SC-030 C2, growl, Crush, Amount 0.5: synced spread C 0.00141104 oct, L 0.
+  00175353, E_low 0.00256514, E_high 0.000946863, I 0 dB (THD 0.011666, R_oe 0.
+  00280357 dB recorded); unsynced spread C 1.1874 oct, L 5.67853, E_low 0.
+  697174, E_high 3.94783, I 0, THD 18.2287, R_oe 2.29158 dB, silent 0 (control
+  flags)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(2102): warning:
+  SC-030 C2, growl, Crush, Amount 1: recorded path-dependence across the 8
+  synced onsets: engine 0 (m 4): 0 of 4 slots differ, max 0 step(s); engine 1
+  (m 3): 0 of 3 slots differ, max 0 step(s);
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(2109): warning:
+  SC-030 C2, growl, Crush, Amount 1: synced spread C 1.37274e-08 oct, L 0.
+  00672814, E_low 7.4638e-07, E_high 6.33325e-07, I 0 dB (THD 1.00111e-06, R_oe
+  6.13137e-07 dB recorded); unsynced spread C 9.20168e-08 oct, L 17.5012, E_low
+  6.70877e-07, E_high 6.42182e-07, I 0, THD 8.33048e-07, R_oe 5.72083e-07 dB,
+  silent 1 (control flags)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(2109): warning:
+  SC-030 C2, growl, Fracture, Amount 0.5: synced spread C 2.68149e-06 oct, L 3.
+  41128e-06, E_low 9.49411e-05, E_high 3.67201e-06, I 0 dB (THD 0.00265541,
+  R_oe 4.25847e-05 dB recorded); unsynced spread C 0.204574 oct, L 0.912611,
+  E_low 0.90679, E_high 0.0596632, I 0, THD 22.117, R_oe 8.85028 dB, silent 0
+  (control flags)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(2109): warning:
+  SC-030 C2, growl, Fracture, Amount 1: synced spread C 2.78134e-06 oct, L 5.
+  98241e-06, E_low 5.93576e-06, E_high 1.17664e-06, I 0 dB (THD 2.58713e-05,
+  R_oe 1.79181e-07 dB recorded); unsynced spread C 0.495662 oct, L 3.1327,
+  E_low 4.74937, E_high 0.5191, I 0, THD 10.6967, R_oe 0.31164 dB, silent 0
+  (control flags)
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(2121): warning:
+  SC-030 silent cells (recorded): 0
+
+-------------------------------------------------------------------------------
+BassCharacter_DryShareNoComb
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(2242)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(2360): warning:
+  SC-027 Amount 0.5 (recorded, not gated): Rectify dry share 0 (wet = min(1, A
+  / 0.4)); residual -169.323 dBFS, ripple 0.0205243 dB; raw-dry control ripple
+  0.0205243 dB
+
+-------------------------------------------------------------------------------
+BassCharacter_AlgorithmQueue
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(2369)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(2374): warning:
+  SC-029(e) API review: BassCharacterStage exposes no setAlgorithmBlend (the
+  requires-expression is false); setAlgorithm is the only transition API
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_stage_test.cpp(2516): warning:
+  SC-029 sampled ordered triples (xorshift32 seed 0x13579BDF), 32 recorded:
+    0: Fracture -> Fold, C Rectify at +460, D Crush at +1032
+    1: Fold -> Rectify, C Fracture at +24, D Crush at +424
+    2: Bite -> Fold, C Crush at +582, D Tube at +872
+    3: Fold -> Crush, C Tube at +146, D Fold at +1141
+    4: Rectify -> Tube, C Crush at +792, D Rectify at +1098
+    5: Fracture -> Fold, C Tube at +606, D Crush at +1157
+    6: Tube -> Fracture, C Bite at +604, D Rectify at +1533
+    7: Bite -> Fold, C Fracture at +493, D Crush at +791
+    8: Fold -> Crush, C Rectify at +300, D Fracture at +870
+    9: Tube -> Bite, C Fracture at +396, D Rectify at +1522
+    10: Crush -> Fracture, C Bite at +144, D Rectify at +506
+    11: Fracture -> Tube, C Rectify at +670, D Fracture at +727
+    12: Rectify -> Bite, C Crush at +615, D Rectify at +1490
+    13: Crush -> Bite, C Tube at +375, D Crush at +1436
+    14: Tube -> Fracture, C Crush at +365, D Fold at +503
+    15: Rectify -> Fold, C Fracture at +418, D Crush at +786
+    16: Crush -> Bite, C Tube at +19, D Fracture at +1190
+    17: Fold -> Bite, C Crush at +743, D Tube at +1153
+    18: Fold -> Tube, C Fracture at +145, D Fold at +430
+    19: Fold -> Fracture, C Rectify at +731, D Tube at +1580
+    20: Fold -> Fracture, C Rectify at +521, D Bite at +1447
+    21: Tube -> Crush, C Rectify at +331, D Bite at +1231
+    22: Fold -> Crush, C Tube at +386, D Bite at +987
+    23: Bite -> Rectify, C Crush at +36, D Fracture at +58
+    24: Fracture -> Tube, C Bite at +580, D Crush at +788
+    25: Fold -> Crush, C Tube at +234, D Fold at +821
+    26: Bite -> Fracture, C Fold at +248, D Bite at +1393
+    27: Crush -> Bite, C Tube at +414, D Crush at +669
+    28: Tube -> Crush, C Fold at +227, D Bite at +1306
+    29: Bite -> Fracture, C Crush at +546, D Fold at +866
+    30: Fracture -> Fold, C Tube at +118, D Rectify at +511
+    31: Fracture -> Bite, C Crush at +559, D Rectify at +1251
+
+===============================================================================
+All tests passed (43235 assertions in 30 test cases)
+
+rc=0 wall=50s

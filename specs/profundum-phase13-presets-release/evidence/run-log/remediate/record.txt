@@ -1,0 +1,25 @@
+Profundum Phase 13 compliance remediation, 2026-10-25
+
+FR-043 / SC-020 (EVIDENCE): pilot re-run over the full library.
+  bash evidence/pilot/run-pilot.sh -> run-log/remediate/run-pilot.out, evidence/pilot/pilot.log
+  "# Profundum_PresetDistinctnessPilot: presets=53"; 53 block37 twin rows (512 vs 37, every preset),
+  51 seed twin rows (the seed-independent presets); 0 rows with d != 0 -> t_max=0, F=1 (unchanged).
+  near-variant Bedrock Sine Mass(104) A 0.5->0.55 d=0.295328965 pass=1; control d=1409.54913 pass=1.
+  WALL Profundum_PresetDistinctnessPilot 825.2 s exit=0; "PILOT GREEN F=1".
+  F is unchanged, so run-log/close/long/Profundum_PresetDistinctness.log (closest d=1.91446 >= F=1) stands.
+
+SC-007 (BEHAVIOUR, tooling): merge-csv.js --group-min adds a group column and one "group-min" record per C-2.1
+  group to coverage-matrix.csv; run-library-lanes.sh passes it. Regenerated from the close-run shards (identical
+  to the old merged rows): run-log/remediate/coverage-merge.log, rows=121 OK, groups=11, overall min
+  Anchor 0.0361321 (Locked Floor / R-LOCK). Probe-table mode (no flag) output byte-identical to probe-table.csv.
+
+SC-010 (BEHAVIOUR): CMakeLists.txt profundum_preset_generator no longer links KratePluginsShared (which links
+  vstgui PUBLIC); plugins/shared/src added as an include dir for the header-only midi/sustain_latch.h.
+  Link-line check on build/windows-x64-release/profundum_preset_generator.vcxproj AdditionalDependencies:
+    before: vstgui=2 catch2=0   after: vstgui=0 catch2=0
+  Build: run-log/remediate/build-generator.log, build-all.log: exit 0, 0 warnings.
+  Generator run into a scratch dir: "wrote 53 presets", exit 0; diff -r against plugins/profundum/resources/presets:
+  byte-identical.
+
+Gate ([profundum]~[performance]~[perf]~[benchmark]~[!benchmark]~[long]~[.]):
+  gate-profundum_tests.log, gate-dsp_systems_tests.log: All tests passed, exit=0.

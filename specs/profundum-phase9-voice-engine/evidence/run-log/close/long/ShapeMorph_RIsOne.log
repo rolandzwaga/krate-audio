@@ -1,0 +1,22 @@
+Filters: "ShapeMorph_RIsOne"
+Randomness seeded to: 1450943338
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+ShapeMorph_RIsOne
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\shape_morph_spectral_test.cpp(519)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_morph_spectral_test.cpp(569): warning:
+  SC-012(f) ShapeMorph: 160 cells, 40 recorded (input does not read f0; C-3), 0
+  failing of the gated cells
+
+687.295 s: ShapeMorph_RIsOne
+===============================================================================
+All tests passed (2243 assertions in 1 test case)
+
+exit: 0 wall: 688 s

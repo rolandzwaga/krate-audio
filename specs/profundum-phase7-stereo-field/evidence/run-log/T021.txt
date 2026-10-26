@@ -1,0 +1,16 @@
+T021 CPU lane alone (SC-013) -- DEFERRED TO THE MAIN LOOP
+
+Status: not run by the executor (tasks.md T021: "Executor: return done with notes 'deferred to the main loop at close'").
+
+Precondition: T015, T019 and T020 lanes finished, machine idle (not back-to-back with other suites; the runner settles between runs).
+
+Main loop, at close, last and alone:
+  bash specs/profundum-phase7-stereo-field/evidence/close/cpu-lane.sh   (T014)
+
+Then quote here and in evidence/phase-handoffs.txt (T017):
+  - the "SC013 VERDICT PASS|FAIL <a> <a-sweep> <b1> <b4>" line
+  - the "SC013 GATED <cells>" line
+  - evidence/sc013-cpu.txt figures (a, a-sweep 48 kHz + 192 kHz printed, step-train arm, b1, b4, handoffs/s)
+A red reading is re-run once alone after the machine has idled; only then is it a defect (never relax).
+
+Figures: pending.

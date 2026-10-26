@@ -1,0 +1,12 @@
+Filters: "MassDynamics_AliasingE0E2Smoke"
+Randomness seeded to: 1116808812
+[T016 SC-010] positive control fs 48000: hard 0 -> +12 dB step on a C3 kSawAnchor, residual -76.4921 dBFS (must read > -80)
+[T016 SC-010] fs 48000 E1 (41.2034 Hz) kSawAnchor A 12 dB, method Residual gates
+    residual steady: frame 131072, bin 0.366211 Hz, A_in -161.428 dBFS, A_out -131.77 dBFS pass
+    residual moving: FFT 131072 (8x domain), bin 2.92969 Hz; burst -134.528 dBFS (gain -16.1398 .. 12 dB), step -123.758 dBFS (bar -80)
+    spec steady [1 s, 2 s]: frame 32768, bin 1.46484 Hz, A_in -164.612 dBFS, A_out -132.53 dBFS pass
+    spec burst [0, 100 ms]: frame 4096, bin 11.7188 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+    spec step [step, step + 100 ms]: frame 4096, bin 11.7188 Hz, A_in -3000 dBFS, A_out -3000 dBFS VACUOUS FAIL
+===============================================================================
+All tests passed (157 assertions in 1 test case)
+

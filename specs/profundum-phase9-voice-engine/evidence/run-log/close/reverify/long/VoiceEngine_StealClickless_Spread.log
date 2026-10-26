@@ -1,0 +1,8 @@
+Filters: "VoiceEngine_StealClickless_Spread"
+Randomness seeded to: 2553916657
+POSITIVE-CONTROL steal A_s+sustain1(C-8)/Spread E1 held AlwaysRetrigger Reset block 1 [disableStealFade] ratio 6.4819 max_dy 0.203571 bound 0.0346533 -> fails (a) or (b): OK
+POSITIVE-CONTROL replace A_s+sustain1(C-8)/Spread E1 +3 st retrigger AlwaysRetrigger Reset Porta0 block 1 [disableDeclick] ratio 15.6609 max_dy 0.208436 bound 0.0137431 -> fails (a) or (b): OK
+SC-005 VoiceEngine_StealClickless_Spread: 192 cells, worst gated (a) ratio 1.03212 (steal A_s+sustain1(C-8)/Spread C3 held AlwaysRetrigger Reset block 1; bar 1.05925), min (b) margin 1.51963 (steal A_s+sustain1(C-8)/Spread C3 held AlwaysRetrigger Reset block 1), wall clock 283.784 s
+===============================================================================
+All tests passed (7518 assertions in 1 test case)
+

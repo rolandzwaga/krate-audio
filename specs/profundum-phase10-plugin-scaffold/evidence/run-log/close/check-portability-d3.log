@@ -1,0 +1,22 @@
+warning: in the working copy of '.gitignore', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'CMakeLists.txt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'dsp/include/krate/dsp/core/closed_form_adaa2.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'dsp/include/krate/dsp/systems/profundum_engine.h', LF will be replaced by CRLF the next time Git touches it
+check-portability: 14 translation unit(s) with g++
+
+  OK      plugins/profundum/src/controller/controller.cpp
+  OK      plugins/profundum/src/entry.cpp
+  OK      plugins/profundum/src/processor/processor.cpp
+  OK      plugins/profundum/tests/integration/param_flow_test.cpp
+  OK      plugins/profundum/tests/integration/processor_audio_test.cpp
+  OK      plugins/profundum/tests/integration/processor_cpu_test.cpp
+  OK      plugins/profundum/tests/unit/controller/editor_lifecycle_test.cpp
+  OK      plugins/profundum/tests/unit/lifecycle_test.cpp
+  OK      plugins/profundum/tests/unit/midi_event_test.cpp
+  OK      plugins/profundum/tests/unit/param_denorm_test.cpp
+  OK      plugins/profundum/tests/unit/processor_bus_test.cpp
+  OK      plugins/profundum/tests/unit/state_roundtrip_test.cpp
+  OK      plugins/profundum/tests/unit/test_main.cpp
+  OK      plugins/profundum/tests/vstgui_test_stubs.cpp
+
+check-portability: all clear -- 14 compiled.

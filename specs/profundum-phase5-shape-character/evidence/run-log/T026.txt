@@ -1,0 +1,29 @@
+T026 Portability and Apple globals (FR-071; SC-023) -- executor run 2026-10-16
+
+== node tools/lint-apple-globals.js <6 new headers + dc_blocker.h + 4 test headers + 14 TUs> ==
+lint-apple-globals: OK — 25 files, no macOS-only name collisions
+exit=0 wall=0s
+
+== node tools/check-portability.js <14 TUs> ==
+(environment failure, NOT a code finding: the sandboxed WSL had only C: mounted, so /mnt/f was empty;
+ every TU failed before g++ ran. First entries quoted, the rest are identical.)
+check-portability: 14 translation unit(s) with g++
+
+  FAILED  dsp/tests/unit/core/closed_form_adaa2_test.cpp
+          wsl: Failed to translate 'F:\projects\iterum'
+bash: line 1: cd: /mnt/f/projects/iterum: No such file or directory
+  FAILED  dsp/tests/unit/processors/keytracked_tilt_test.cpp
+  ... (12 more identical entries) ...
+check-portability: 14 file(s) fail under g++ but may well build under MSVC.
+Fix before pushing -- the Linux and macOS CI legs will fail on these.
+exit=1 wall=1s
+
+wsl --shutdown: exit 0
+
+Result: lint-apple-globals 0 findings. check-portability NOT measured (environment).
+Deferred to the main loop at close: bash specs/profundum-phase5-shape-character/evidence/close/portability.sh
+(unsandboxed, so WSL sees F:); quote its evidence/run-log/close/portability.log here.
+
+Round 9 remediation 2026-10-16 (main-loop deferral discharged): bash evidence/close/portability.sh, unsandboxed, after the
+clang-tidy fixes to the test TUs: "check-portability: all clear -- 14 compiled." port exit=0 wall=24s; wsl --shutdown done;
+PORTABILITY GREEN. Full output: evidence/run-log/close/portability.log.

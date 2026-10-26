@@ -1,0 +1,230 @@
+# Profundum Phase 7 -- harvest-wide-floor (plan S9.1 / S9.2, C-13; tasks.md T015)
+# chosen pair: g_floor 0.035 (kSideFloorGain), K_wide 1 (kWideOffsetScale)
+# date 2026-10-18 commit 4599d180 (harvested on this commit; step 2 ran at committed floor 0.5f)
+BEGIN-INITIALIZER wide-floor
+static constexpr float kSideFloorGain = 0.035f;
+static constexpr float kWideOffsetScale = 1.0f;
+END-INITIALIZER wide-floor
+
+## Step 1: K_wide candidates at g_floor 0.5, WIDE dirty arm
+K_wide  verdict
+1       PASS
+0.75    PASS
+chosen K_wide 1
+
+## Step 1 records
+BSF_HARVEST_WIDE_ROW,k,1,pass,61,cells,144,worst_sub_q_db,-14.8894,worst_rho_sub,-0.180712,worst_oct_q_db,-15.9999,worst_alias_dbfs,-81.5774,alias_cells,54,exempt,3,lever_E1_s2m_db,4.01652,lever_E1_rho,0.109383,lever_E1_pass,1,lever_C3_s2m_db,2.69822,lever_C3_rho,0.198935,lever_C3_pass,1,candidate_ms,148634
+BSF_HARVEST_WIDE_ROW,k,0.75,pass,66,cells,144,worst_sub_q_db,-16.5231,worst_rho_sub,-0.800032,worst_oct_q_db,-11.5829,worst_alias_dbfs,-92.3338,alias_cells,54,exempt,3,lever_E1_s2m_db,3.09718,lever_E1_rho,0.0806545,lever_E1_pass,1,lever_C3_s2m_db,1.98479,lever_C3_rho,0.155041,lever_C3_pass,1,candidate_ms,144856
+
+## Step 2: g_floor candidates at K_wide 1, SC-001 grid at Gravity 0, depth 0 (14 shards + lever)
+g_floor  shards_pass  lever  worst_Q_sub_dB  worst_rho_sub  failing
+0.71     2/14         PASS   -18.8598        -0.960072      AnchorBite AnchorCrush AnchorFold AnchorFracture AnchorRectify AnchorTube DirtyBite DirtyCrush DirtyFold DirtyFracture DirtyRectify DirtyTube
+0.5      2/14         PASS   -15.919         -0.920444      AnchorBite AnchorCrush AnchorFold AnchorFracture AnchorRectify AnchorTube DirtyBite DirtyCrush DirtyFold DirtyFracture DirtyRectify DirtyTube
+0.35     2/14         PASS   -13.0277        -0.840593      AnchorBite AnchorCrush AnchorFold AnchorFracture AnchorRectify AnchorTube DirtyBite DirtyCrush DirtyFold DirtyFracture DirtyRectify DirtyTube
+0.25     2/14         PASS   -10.4276        -0.697659      AnchorBite AnchorCrush AnchorFold AnchorFracture AnchorRectify AnchorTube DirtyBite DirtyCrush DirtyFold DirtyFracture DirtyRectify DirtyTube
+0.18     4/14         PASS   -8.07538        -0.458004      AnchorCrush AnchorFold AnchorFracture AnchorRectify DirtyBite DirtyCrush DirtyFold DirtyFracture DirtyRectify DirtyTube
+0.125    8/14         PASS   -5.78045        -0.128155      AnchorCrush AnchorFold AnchorRectify DirtyCrush DirtyFold DirtyRectify
+0.1      9/14         PASS   -4.58598        0.0694749      AnchorCrush AnchorFold DirtyCrush DirtyFold DirtyRectify
+0.071    9/14         PASS   -3.10518        0.348262       AnchorCrush AnchorFold DirtyCrush DirtyFold DirtyRectify
+0.05     12/14        PASS   -2.02383        0.570091       AnchorFold DirtyCrush
+0.035    14/14        PASS   -1.30117        0.723641       -
+0.03     14/14        PASS   -1.29783        0.771139       -
+
+arm               0.71   0.5    0.35   0.25   0.18   0.125  0.1    0.071  0.05   0.035  0.03  
+AnchorBite        FAIL   FAIL   FAIL   FAIL   PASS   PASS   PASS   PASS   PASS   PASS   PASS  
+AnchorCrush       FAIL   FAIL   FAIL   FAIL   FAIL   FAIL   FAIL   FAIL   PASS   PASS   PASS  
+AnchorFold        FAIL   FAIL   FAIL   FAIL   FAIL   FAIL   FAIL   FAIL   FAIL   PASS   PASS  
+AnchorFracture    FAIL   FAIL   FAIL   FAIL   FAIL   PASS   PASS   PASS   PASS   PASS   PASS  
+AnchorRectify     FAIL   FAIL   FAIL   FAIL   FAIL   FAIL   PASS   PASS   PASS   PASS   PASS  
+AnchorTube        FAIL   FAIL   FAIL   FAIL   PASS   PASS   PASS   PASS   PASS   PASS   PASS  
+CleanGrowl        PASS   PASS   PASS   PASS   PASS   PASS   PASS   PASS   PASS   PASS   PASS  
+CleanSaw          PASS   PASS   PASS   PASS   PASS   PASS   PASS   PASS   PASS   PASS   PASS  
+DirtyBite         FAIL   FAIL   FAIL   FAIL   FAIL   PASS   PASS   PASS   PASS   PASS   PASS  
+DirtyCrush        FAIL   FAIL   FAIL   FAIL   FAIL   FAIL   FAIL   FAIL   FAIL   PASS   PASS  
+DirtyFold         FAIL   FAIL   FAIL   FAIL   FAIL   FAIL   FAIL   FAIL   PASS   PASS   PASS  
+DirtyFracture     FAIL   FAIL   FAIL   FAIL   FAIL   PASS   PASS   PASS   PASS   PASS   PASS  
+DirtyRectify      FAIL   FAIL   FAIL   FAIL   FAIL   FAIL   FAIL   FAIL   PASS   PASS   PASS  
+DirtyTube         FAIL   FAIL   FAIL   FAIL   FAIL   PASS   PASS   PASS   PASS   PASS   PASS  
+lever             PASS   PASS   PASS   PASS   PASS   PASS   PASS   PASS   PASS   PASS   PASS  
+chosen g_floor 0.035
+
+## Step 2 records
+BSF_HARVEST_FLOOR_SHARD,AnchorBite,cells,216,mean_cell_ms,7463.03,shard_ms,1.61269e+06
+BSF_HARVEST_FLOOR_ROW,AnchorBite,g,0.71,pass,180,cells,216,worst_sub_q_db,-0.406456,worst_rho_sub,0.876406,worst_oct_q_db,-9.52261,valid_sub_readings,490,exempt,0
+BSF_HARVEST_FLOOR_ROW,AnchorBite,g,0.5,pass,187,cells,216,worst_sub_q_db,-0.423925,worst_rho_sub,0.936254,worst_oct_q_db,-9.32831,valid_sub_readings,491,exempt,0
+BSF_HARVEST_FLOOR_ROW,AnchorBite,g,0.35,pass,199,cells,216,worst_sub_q_db,-0.295389,worst_rho_sub,0.967889,worst_oct_q_db,-9.18903,valid_sub_readings,491,exempt,0
+BSF_HARVEST_FLOOR_ROW,AnchorBite,g,0.25,pass,208,cells,216,worst_sub_q_db,-0.221871,worst_rho_sub,0.983233,worst_oct_q_db,-9.096,valid_sub_readings,491,exempt,0
+BSF_HARVEST_FLOOR_ROW,AnchorBite,g,0.18,pass,216,cells,216,worst_sub_q_db,-0.176362,worst_rho_sub,0.991087,worst_oct_q_db,-9.03081,valid_sub_readings,491,exempt,0
+BSF_HARVEST_FLOOR_ROW,AnchorBite,g,0.125,pass,216,cells,216,worst_sub_q_db,-0.144178,worst_rho_sub,0.995544,worst_oct_q_db,-8.97958,valid_sub_readings,491,exempt,0
+BSF_HARVEST_FLOOR_ROW,AnchorBite,g,0.1,pass,216,cells,216,worst_sub_q_db,-0.130602,worst_rho_sub,0.996987,worst_oct_q_db,-8.95628,valid_sub_readings,491,exempt,0
+BSF_HARVEST_FLOOR_ROW,AnchorBite,g,0.071,pass,216,cells,216,worst_sub_q_db,-0.115668,worst_rho_sub,0.998179,worst_oct_q_db,-8.92925,valid_sub_readings,491,exempt,0
+BSF_HARVEST_FLOOR_ROW,AnchorBite,g,0.05,pass,216,cells,216,worst_sub_q_db,-0.105434,worst_rho_sub,0.998845,worst_oct_q_db,-8.90968,valid_sub_readings,491,exempt,0
+BSF_HARVEST_FLOOR_ROW,AnchorBite,g,0.035,pass,216,cells,216,worst_sub_q_db,-0.0984018,worst_rho_sub,0.999221,worst_oct_q_db,-8.8957,valid_sub_readings,489,exempt,0
+BSF_HARVEST_FLOOR_ROW,AnchorBite,g,0.03,pass,216,cells,216,worst_sub_q_db,-0.0961472,worst_rho_sub,0.999327,worst_oct_q_db,-8.89104,valid_sub_readings,489,exempt,0
+BSF_HARVEST_FLOOR_SHARD,AnchorCrush,cells,216,mean_cell_ms,7469.62,shard_ms,1.61411e+06
+BSF_HARVEST_FLOOR_ROW,AnchorCrush,g,0.71,pass,148,cells,216,worst_sub_q_db,-2.18213,worst_rho_sub,0.22623,worst_oct_q_db,-6.99413,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_ROW,AnchorCrush,g,0.5,pass,151,cells,216,worst_sub_q_db,-1.22384,worst_rho_sub,0.538377,worst_oct_q_db,-6.9491,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_ROW,AnchorCrush,g,0.35,pass,157,cells,216,worst_sub_q_db,-0.647469,worst_rho_sub,0.749188,worst_oct_q_db,-6.91689,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_ROW,AnchorCrush,g,0.25,pass,171,cells,216,worst_sub_q_db,-0.345861,worst_rho_sub,0.864684,worst_oct_q_db,-6.89539,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_ROW,AnchorCrush,g,0.18,pass,182,cells,216,worst_sub_q_db,-0.185293,worst_rho_sub,0.927211,worst_oct_q_db,-6.88032,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_ROW,AnchorCrush,g,0.125,pass,188,cells,216,worst_sub_q_db,-0.0923497,worst_rho_sub,0.963652,worst_oct_q_db,-6.86848,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_ROW,AnchorCrush,g,0.1,pass,199,cells,216,worst_sub_q_db,-0.0603972,worst_rho_sub,0.976214,worst_oct_q_db,-6.86309,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_ROW,AnchorCrush,g,0.071,pass,214,cells,216,worst_sub_q_db,-0.0316728,worst_rho_sub,0.98752,worst_oct_q_db,-6.85685,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_ROW,AnchorCrush,g,0.05,pass,216,cells,216,worst_sub_q_db,-0.0172337,worst_rho_sub,0.993472,worst_oct_q_db,-6.85232,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_ROW,AnchorCrush,g,0.035,pass,216,cells,216,worst_sub_q_db,-0.0100998,worst_rho_sub,0.996559,worst_oct_q_db,-6.84909,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_ROW,AnchorCrush,g,0.03,pass,216,cells,216,worst_sub_q_db,-0.00814147,worst_rho_sub,0.997371,worst_oct_q_db,-6.84801,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_SHARD,AnchorFold,cells,216,mean_cell_ms,7511.5,shard_ms,1.6232e+06
+BSF_HARVEST_FLOOR_ROW,AnchorFold,g,0.71,pass,174,cells,216,worst_sub_q_db,-3.05802,worst_rho_sub,-0.0114651,worst_oct_q_db,-9.26847,valid_sub_readings,486,exempt,4
+BSF_HARVEST_FLOOR_ROW,AnchorFold,g,0.5,pass,181,cells,216,worst_sub_q_db,-1.78886,worst_rho_sub,0.338943,worst_oct_q_db,-9.22617,valid_sub_readings,486,exempt,4
+BSF_HARVEST_FLOOR_ROW,AnchorFold,g,0.35,pass,192,cells,216,worst_sub_q_db,-0.975119,worst_rho_sub,0.616169,worst_oct_q_db,-9.22373,valid_sub_readings,486,exempt,4
+BSF_HARVEST_FLOOR_ROW,AnchorFold,g,0.25,pass,199,cells,216,worst_sub_q_db,-0.529994,worst_rho_sub,0.784975,worst_oct_q_db,-9.22209,valid_sub_readings,486,exempt,4
+BSF_HARVEST_FLOOR_ROW,AnchorFold,g,0.18,pass,212,cells,216,worst_sub_q_db,-0.28673,worst_rho_sub,0.881923,worst_oct_q_db,-9.22095,valid_sub_readings,486,exempt,4
+BSF_HARVEST_FLOOR_ROW,AnchorFold,g,0.125,pass,212,cells,216,worst_sub_q_db,-0.143742,worst_rho_sub,0.940322,worst_oct_q_db,-9.22005,valid_sub_readings,486,exempt,4
+BSF_HARVEST_FLOOR_ROW,AnchorFold,g,0.1,pass,212,cells,216,worst_sub_q_db,-0.0942004,worst_rho_sub,0.960784,worst_oct_q_db,-9.21965,valid_sub_readings,486,exempt,4
+BSF_HARVEST_FLOOR_ROW,AnchorFold,g,0.071,pass,214,cells,216,worst_sub_q_db,-0.0494908,worst_rho_sub,0.979347,worst_oct_q_db,-9.21917,valid_sub_readings,486,exempt,4
+BSF_HARVEST_FLOOR_ROW,AnchorFold,g,0.05,pass,215,cells,216,worst_sub_q_db,-0.0259056,worst_rho_sub,0.989176,worst_oct_q_db,-9.21883,valid_sub_readings,486,exempt,4
+BSF_HARVEST_FLOOR_ROW,AnchorFold,g,0.035,pass,216,cells,216,worst_sub_q_db,-0.0136611,worst_rho_sub,0.994288,worst_oct_q_db,-9.21858,valid_sub_readings,486,exempt,4
+BSF_HARVEST_FLOOR_ROW,AnchorFold,g,0.03,pass,216,cells,216,worst_sub_q_db,-0.0104389,worst_rho_sub,0.995635,worst_oct_q_db,-9.2185,valid_sub_readings,486,exempt,4
+BSF_HARVEST_FLOOR_SHARD,AnchorFracture,cells,216,mean_cell_ms,7553.06,shard_ms,1.63221e+06
+BSF_HARVEST_FLOOR_ROW,AnchorFracture,g,0.71,pass,165,cells,216,worst_sub_q_db,-0.404785,worst_rho_sub,0.827669,worst_oct_q_db,-11.8765,valid_sub_readings,558,exempt,0
+BSF_HARVEST_FLOOR_ROW,AnchorFracture,g,0.5,pass,184,cells,216,worst_sub_q_db,-0.208709,worst_rho_sub,0.909582,worst_oct_q_db,-11.8765,valid_sub_readings,558,exempt,0
+BSF_HARVEST_FLOOR_ROW,AnchorFracture,g,0.35,pass,202,cells,216,worst_sub_q_db,-0.105905,worst_rho_sub,0.953704,worst_oct_q_db,-11.8765,valid_sub_readings,558,exempt,0
+BSF_HARVEST_FLOOR_ROW,AnchorFracture,g,0.25,pass,211,cells,216,worst_sub_q_db,-0.0560183,worst_rho_sub,0.975405,worst_oct_q_db,-11.8765,valid_sub_readings,558,exempt,0
+BSF_HARVEST_FLOOR_ROW,AnchorFracture,g,0.18,pass,215,cells,216,worst_sub_q_db,-0.0303311,worst_rho_sub,0.986654,worst_oct_q_db,-11.8765,valid_sub_readings,558,exempt,0
+BSF_HARVEST_FLOOR_ROW,AnchorFracture,g,0.125,pass,216,cells,216,worst_sub_q_db,-0.0155908,worst_rho_sub,0.993131,worst_oct_q_db,-11.8765,valid_sub_readings,558,exempt,0
+BSF_HARVEST_FLOOR_ROW,AnchorFracture,g,0.1,pass,216,cells,216,worst_sub_q_db,-0.0104896,worst_rho_sub,0.995376,worst_oct_q_db,-11.8765,valid_sub_readings,558,exempt,0
+BSF_HARVEST_FLOOR_ROW,AnchorFracture,g,0.071,pass,216,cells,216,worst_sub_q_db,-0.00583111,worst_rho_sub,0.997429,worst_oct_q_db,-11.8765,valid_sub_readings,558,exempt,0
+BSF_HARVEST_FLOOR_ROW,AnchorFracture,g,0.05,pass,216,cells,216,worst_sub_q_db,-0.00330408,worst_rho_sub,0.998543,worst_oct_q_db,-11.8765,valid_sub_readings,558,exempt,0
+BSF_HARVEST_FLOOR_ROW,AnchorFracture,g,0.035,pass,216,cells,216,worst_sub_q_db,-0.00193517,worst_rho_sub,0.999146,worst_oct_q_db,-11.8765,valid_sub_readings,558,exempt,0
+BSF_HARVEST_FLOOR_ROW,AnchorFracture,g,0.03,pass,216,cells,216,worst_sub_q_db,-0.0015597,worst_rho_sub,0.999312,worst_oct_q_db,-11.8765,valid_sub_readings,558,exempt,0
+BSF_HARVEST_FLOOR_SHARD,AnchorRectify,cells,216,mean_cell_ms,7446.73,shard_ms,1.60923e+06
+BSF_HARVEST_FLOOR_ROW,AnchorRectify,g,0.71,pass,174,cells,216,worst_sub_q_db,-2.04327,worst_rho_sub,0.598372,worst_oct_q_db,-9.68861,valid_sub_readings,534,exempt,5
+BSF_HARVEST_FLOOR_ROW,AnchorRectify,g,0.5,pass,184,cells,216,worst_sub_q_db,-1.58327,worst_rho_sub,0.785689,worst_oct_q_db,-9.63842,valid_sub_readings,535,exempt,5
+BSF_HARVEST_FLOOR_ROW,AnchorRectify,g,0.35,pass,196,cells,216,worst_sub_q_db,-1.3329,worst_rho_sub,0.890705,worst_oct_q_db,-9.62413,valid_sub_readings,536,exempt,5
+BSF_HARVEST_FLOOR_ROW,AnchorRectify,g,0.25,pass,205,cells,216,worst_sub_q_db,-1.27891,worst_rho_sub,0.942828,worst_oct_q_db,-9.61376,valid_sub_readings,536,exempt,5
+BSF_HARVEST_FLOOR_ROW,AnchorRectify,g,0.18,pass,212,cells,216,worst_sub_q_db,-1.2996,worst_rho_sub,0.969724,worst_oct_q_db,-9.60606,valid_sub_readings,536,exempt,5
+BSF_HARVEST_FLOOR_ROW,AnchorRectify,g,0.125,pass,215,cells,216,worst_sub_q_db,-1.31153,worst_rho_sub,0.985013,worst_oct_q_db,-9.59792,valid_sub_readings,536,exempt,5
+BSF_HARVEST_FLOOR_ROW,AnchorRectify,g,0.1,pass,216,cells,216,worst_sub_q_db,-1.30855,worst_rho_sub,0.990222,worst_oct_q_db,-9.59303,valid_sub_readings,536,exempt,5
+BSF_HARVEST_FLOOR_ROW,AnchorRectify,g,0.071,pass,216,cells,216,worst_sub_q_db,-1.30444,worst_rho_sub,0.994883,worst_oct_q_db,-9.58714,valid_sub_readings,536,exempt,5
+BSF_HARVEST_FLOOR_ROW,AnchorRectify,g,0.05,pass,216,cells,216,worst_sub_q_db,-1.30119,worst_rho_sub,0.997327,worst_oct_q_db,-9.58285,valid_sub_readings,536,exempt,5
+BSF_HARVEST_FLOOR_ROW,AnchorRectify,g,0.035,pass,216,cells,216,worst_sub_q_db,-1.29866,worst_rho_sub,0.998463,worst_oct_q_db,-9.57977,valid_sub_readings,536,exempt,5
+BSF_HARVEST_FLOOR_ROW,AnchorRectify,g,0.03,pass,216,cells,216,worst_sub_q_db,-1.29783,worst_rho_sub,0.998635,worst_oct_q_db,-9.57874,valid_sub_readings,536,exempt,5
+BSF_HARVEST_FLOOR_SHARD,AnchorTube,cells,216,mean_cell_ms,7588.4,shard_ms,1.63978e+06
+BSF_HARVEST_FLOOR_ROW,AnchorTube,g,0.71,pass,186,cells,216,worst_sub_q_db,-1.02786,worst_rho_sub,0.917885,worst_oct_q_db,-10.3548,valid_sub_readings,489,exempt,0
+BSF_HARVEST_FLOOR_ROW,AnchorTube,g,0.5,pass,198,cells,216,worst_sub_q_db,-0.821841,worst_rho_sub,0.958097,worst_oct_q_db,-10.3063,valid_sub_readings,488,exempt,0
+BSF_HARVEST_FLOOR_ROW,AnchorTube,g,0.35,pass,202,cells,216,worst_sub_q_db,-0.68481,worst_rho_sub,0.979002,worst_oct_q_db,-10.2715,valid_sub_readings,488,exempt,0
+BSF_HARVEST_FLOOR_ROW,AnchorTube,g,0.25,pass,214,cells,216,worst_sub_q_db,-0.598662,worst_rho_sub,0.988832,worst_oct_q_db,-10.2483,valid_sub_readings,488,exempt,0
+BSF_HARVEST_FLOOR_ROW,AnchorTube,g,0.18,pass,216,cells,216,worst_sub_q_db,-0.541119,worst_rho_sub,0.993604,worst_oct_q_db,-10.232,valid_sub_readings,488,exempt,0
+BSF_HARVEST_FLOOR_ROW,AnchorTube,g,0.125,pass,216,cells,216,worst_sub_q_db,-0.497532,worst_rho_sub,0.996419,worst_oct_q_db,-10.2192,valid_sub_readings,488,exempt,0
+BSF_HARVEST_FLOOR_ROW,AnchorTube,g,0.1,pass,216,cells,216,worst_sub_q_db,-0.478237,worst_rho_sub,0.997425,worst_oct_q_db,-10.2134,valid_sub_readings,488,exempt,0
+BSF_HARVEST_FLOOR_ROW,AnchorTube,g,0.071,pass,216,cells,216,worst_sub_q_db,-0.456226,worst_rho_sub,0.998377,worst_oct_q_db,-10.2066,valid_sub_readings,488,exempt,0
+BSF_HARVEST_FLOOR_ROW,AnchorTube,g,0.05,pass,216,cells,216,worst_sub_q_db,-0.440386,worst_rho_sub,0.998923,worst_oct_q_db,-10.2017,valid_sub_readings,488,exempt,0
+BSF_HARVEST_FLOOR_ROW,AnchorTube,g,0.035,pass,216,cells,216,worst_sub_q_db,-0.429505,worst_rho_sub,0.999239,worst_oct_q_db,-10.1982,valid_sub_readings,488,exempt,0
+BSF_HARVEST_FLOOR_ROW,AnchorTube,g,0.03,pass,216,cells,216,worst_sub_q_db,-0.425798,worst_rho_sub,0.99933,worst_oct_q_db,-10.1971,valid_sub_readings,488,exempt,0
+BSF_HARVEST_FLOOR_SHARD,CleanGrowl,cells,216,mean_cell_ms,7098.1,shard_ms,1.53396e+06
+BSF_HARVEST_FLOOR_ROW,CleanGrowl,g,0.71,pass,216,cells,216,worst_sub_q_db,-0.968866,worst_rho_sub,0.999621,worst_oct_q_db,-44.3427,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_ROW,CleanGrowl,g,0.5,pass,216,cells,216,worst_sub_q_db,-0.97083,worst_rho_sub,0.999799,worst_oct_q_db,-44.3423,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_ROW,CleanGrowl,g,0.35,pass,216,cells,216,worst_sub_q_db,-0.972224,worst_rho_sub,0.999811,worst_oct_q_db,-44.3419,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_ROW,CleanGrowl,g,0.25,pass,216,cells,216,worst_sub_q_db,-0.973172,worst_rho_sub,0.999811,worst_oct_q_db,-44.3418,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_ROW,CleanGrowl,g,0.18,pass,216,cells,216,worst_sub_q_db,-0.973839,worst_rho_sub,0.999811,worst_oct_q_db,-44.3416,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_ROW,CleanGrowl,g,0.125,pass,216,cells,216,worst_sub_q_db,-0.974323,worst_rho_sub,0.999811,worst_oct_q_db,-44.3414,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_ROW,CleanGrowl,g,0.1,pass,216,cells,216,worst_sub_q_db,-0.974567,worst_rho_sub,0.999811,worst_oct_q_db,-44.3415,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_ROW,CleanGrowl,g,0.071,pass,216,cells,216,worst_sub_q_db,-0.974844,worst_rho_sub,0.999811,worst_oct_q_db,-44.3414,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_ROW,CleanGrowl,g,0.05,pass,216,cells,216,worst_sub_q_db,-0.975056,worst_rho_sub,0.999811,worst_oct_q_db,-44.3412,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_ROW,CleanGrowl,g,0.035,pass,216,cells,216,worst_sub_q_db,-0.975169,worst_rho_sub,0.999811,worst_oct_q_db,-44.3411,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_ROW,CleanGrowl,g,0.03,pass,216,cells,216,worst_sub_q_db,-0.975239,worst_rho_sub,0.999811,worst_oct_q_db,-44.3412,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_SHARD,CleanSaw,cells,216,mean_cell_ms,6902.65,shard_ms,1.4917e+06
+BSF_HARVEST_FLOOR_ROW,CleanSaw,g,0.71,pass,216,cells,216,worst_sub_q_db,-0.000152652,worst_rho_sub,0.999935,worst_oct_q_db,-3.0103,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_ROW,CleanSaw,g,0.5,pass,216,cells,216,worst_sub_q_db,-0.000152652,worst_rho_sub,0.999935,worst_oct_q_db,-3.0103,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_ROW,CleanSaw,g,0.35,pass,216,cells,216,worst_sub_q_db,-0.000152652,worst_rho_sub,0.999935,worst_oct_q_db,-3.0103,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_ROW,CleanSaw,g,0.25,pass,216,cells,216,worst_sub_q_db,-0.000152652,worst_rho_sub,0.999935,worst_oct_q_db,-3.0103,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_ROW,CleanSaw,g,0.18,pass,216,cells,216,worst_sub_q_db,-0.000152652,worst_rho_sub,0.999935,worst_oct_q_db,-3.0103,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_ROW,CleanSaw,g,0.125,pass,216,cells,216,worst_sub_q_db,-0.000152652,worst_rho_sub,0.999935,worst_oct_q_db,-3.0103,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_ROW,CleanSaw,g,0.1,pass,216,cells,216,worst_sub_q_db,-0.000152652,worst_rho_sub,0.999935,worst_oct_q_db,-3.0103,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_ROW,CleanSaw,g,0.071,pass,216,cells,216,worst_sub_q_db,-0.000152652,worst_rho_sub,0.999935,worst_oct_q_db,-3.0103,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_ROW,CleanSaw,g,0.05,pass,216,cells,216,worst_sub_q_db,-0.000152652,worst_rho_sub,0.999935,worst_oct_q_db,-3.0103,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_ROW,CleanSaw,g,0.035,pass,216,cells,216,worst_sub_q_db,-0.000152652,worst_rho_sub,0.999935,worst_oct_q_db,-3.0103,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_ROW,CleanSaw,g,0.03,pass,216,cells,216,worst_sub_q_db,-0.000152652,worst_rho_sub,0.999935,worst_oct_q_db,-3.0103,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_SHARD,DirtyBite,cells,216,mean_cell_ms,7431.84,shard_ms,1.60597e+06
+BSF_HARVEST_FLOOR_ROW,DirtyBite,g,0.71,pass,172,cells,216,worst_sub_q_db,-1.53583,worst_rho_sub,0.775713,worst_oct_q_db,-9.52242,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_ROW,DirtyBite,g,0.5,pass,180,cells,216,worst_sub_q_db,-0.841474,worst_rho_sub,0.88152,worst_oct_q_db,-9.32813,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_ROW,DirtyBite,g,0.35,pass,187,cells,216,worst_sub_q_db,-0.442278,worst_rho_sub,0.939566,worst_oct_q_db,-9.18884,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_ROW,DirtyBite,g,0.25,pass,198,cells,216,worst_sub_q_db,-0.2382,worst_rho_sub,0.968262,worst_oct_q_db,-9.09581,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_ROW,DirtyBite,g,0.18,pass,208,cells,216,worst_sub_q_db,-0.130212,worst_rho_sub,0.983085,worst_oct_q_db,-9.03063,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_ROW,DirtyBite,g,0.125,pass,216,cells,216,worst_sub_q_db,-0.0673049,worst_rho_sub,0.991451,worst_oct_q_db,-8.97939,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_ROW,DirtyBite,g,0.1,pass,216,cells,216,worst_sub_q_db,-0.0453713,worst_rho_sub,0.993997,worst_oct_q_db,-8.9561,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_ROW,DirtyBite,g,0.071,pass,216,cells,216,worst_sub_q_db,-0.0252663,worst_rho_sub,0.996371,worst_oct_q_db,-8.92907,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_ROW,DirtyBite,g,0.05,pass,216,cells,216,worst_sub_q_db,-0.0143304,worst_rho_sub,0.997699,worst_oct_q_db,-8.9095,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_ROW,DirtyBite,g,0.035,pass,216,cells,216,worst_sub_q_db,-0.00839747,worst_rho_sub,0.998446,worst_oct_q_db,-8.89552,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_ROW,DirtyBite,g,0.03,pass,216,cells,216,worst_sub_q_db,-0.00676907,worst_rho_sub,0.998658,worst_oct_q_db,-8.89086,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_SHARD,DirtyCrush,cells,216,mean_cell_ms,7451.78,shard_ms,1.61027e+06
+BSF_HARVEST_FLOOR_ROW,DirtyCrush,g,0.71,pass,144,cells,216,worst_sub_q_db,-3.02284,worst_rho_sub,-0.00290319,worst_oct_q_db,-6.99412,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_ROW,DirtyCrush,g,0.5,pass,145,cells,216,worst_sub_q_db,-1.76539,worst_rho_sub,0.334103,worst_oct_q_db,-6.9491,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_ROW,DirtyCrush,g,0.35,pass,148,cells,216,worst_sub_q_db,-0.961154,worst_rho_sub,0.605708,worst_oct_q_db,-6.91689,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_ROW,DirtyCrush,g,0.25,pass,156,cells,216,worst_sub_q_db,-0.522022,worst_rho_sub,0.775729,worst_oct_q_db,-6.89539,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_ROW,DirtyCrush,g,0.18,pass,171,cells,216,worst_sub_q_db,-0.282298,worst_rho_sub,0.875618,worst_oct_q_db,-6.88032,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_ROW,DirtyCrush,g,0.125,pass,182,cells,216,worst_sub_q_db,-0.141485,worst_rho_sub,0.93673,worst_oct_q_db,-6.86848,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_ROW,DirtyCrush,g,0.1,pass,184,cells,216,worst_sub_q_db,-0.0927125,worst_rho_sub,0.958327,worst_oct_q_db,-6.86309,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_ROW,DirtyCrush,g,0.071,pass,194,cells,216,worst_sub_q_db,-0.0515623,worst_rho_sub,0.978006,worst_oct_q_db,-6.85684,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_ROW,DirtyCrush,g,0.05,pass,212,cells,216,worst_sub_q_db,-0.0292833,worst_rho_sub,0.987737,worst_oct_q_db,-6.85232,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_ROW,DirtyCrush,g,0.035,pass,216,cells,216,worst_sub_q_db,-0.0171722,worst_rho_sub,0.992804,worst_oct_q_db,-6.84909,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_ROW,DirtyCrush,g,0.03,pass,216,cells,216,worst_sub_q_db,-0.0138451,worst_rho_sub,0.994197,worst_oct_q_db,-6.84801,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_SHARD,DirtyFold,cells,216,mean_cell_ms,7517.34,shard_ms,1.62449e+06
+BSF_HARVEST_FLOOR_ROW,DirtyFold,g,0.71,pass,167,cells,216,worst_sub_q_db,-15.4389,worst_rho_sub,-0.945621,worst_oct_q_db,-9.26182,valid_sub_readings,486,exempt,4
+BSF_HARVEST_FLOOR_ROW,DirtyFold,g,0.5,pass,170,cells,216,worst_sub_q_db,-12.54,worst_rho_sub,-0.89356,worst_oct_q_db,-9.22618,valid_sub_readings,486,exempt,4
+BSF_HARVEST_FLOOR_ROW,DirtyFold,g,0.35,pass,181,cells,216,worst_sub_q_db,-9.71757,worst_rho_sub,-0.794631,worst_oct_q_db,-9.22373,valid_sub_readings,486,exempt,4
+BSF_HARVEST_FLOOR_ROW,DirtyFold,g,0.25,pass,186,cells,216,worst_sub_q_db,-7.25568,worst_rho_sub,-0.634112,worst_oct_q_db,-9.2221,valid_sub_readings,486,exempt,4
+BSF_HARVEST_FLOOR_ROW,DirtyFold,g,0.18,pass,201,cells,216,worst_sub_q_db,-5.14467,worst_rho_sub,-0.39731,worst_oct_q_db,-9.22096,valid_sub_readings,486,exempt,4
+BSF_HARVEST_FLOOR_ROW,DirtyFold,g,0.125,pass,210,cells,216,worst_sub_q_db,-3.26122,worst_rho_sub,-0.0576836,worst_oct_q_db,-9.22006,valid_sub_readings,486,exempt,4
+BSF_HARVEST_FLOOR_ROW,DirtyFold,g,0.1,pass,212,cells,216,worst_sub_q_db,-2.37823,worst_rho_sub,0.16088,worst_oct_q_db,-9.21965,valid_sub_readings,486,exempt,4
+BSF_HARVEST_FLOOR_ROW,DirtyFold,g,0.071,pass,215,cells,216,worst_sub_q_db,-1.40221,worst_rho_sub,0.457941,worst_oct_q_db,-9.21918,valid_sub_readings,486,exempt,4
+BSF_HARVEST_FLOOR_ROW,DirtyFold,g,0.05,pass,216,cells,216,worst_sub_q_db,-0.787968,worst_rho_sub,0.678173,worst_oct_q_db,-9.21883,valid_sub_readings,486,exempt,4
+BSF_HARVEST_FLOOR_ROW,DirtyFold,g,0.035,pass,216,cells,216,worst_sub_q_db,-0.432685,worst_rho_sub,0.817829,worst_oct_q_db,-9.21859,valid_sub_readings,486,exempt,4
+BSF_HARVEST_FLOOR_ROW,DirtyFold,g,0.03,pass,216,cells,216,worst_sub_q_db,-0.334329,worst_rho_sub,0.858083,worst_oct_q_db,-9.21851,valid_sub_readings,486,exempt,4
+BSF_HARVEST_FLOOR_SHARD,DirtyFracture,cells,216,mean_cell_ms,7563.83,shard_ms,1.63455e+06
+BSF_HARVEST_FLOOR_ROW,DirtyFracture,g,0.71,pass,164,cells,216,worst_sub_q_db,-0.404784,worst_rho_sub,0.827669,worst_oct_q_db,-11.7945,valid_sub_readings,558,exempt,0
+BSF_HARVEST_FLOOR_ROW,DirtyFracture,g,0.5,pass,177,cells,216,worst_sub_q_db,-0.208708,worst_rho_sub,0.909582,worst_oct_q_db,-11.7945,valid_sub_readings,558,exempt,0
+BSF_HARVEST_FLOOR_ROW,DirtyFracture,g,0.35,pass,193,cells,216,worst_sub_q_db,-0.105905,worst_rho_sub,0.953704,worst_oct_q_db,-11.7945,valid_sub_readings,558,exempt,0
+BSF_HARVEST_FLOOR_ROW,DirtyFracture,g,0.25,pass,206,cells,216,worst_sub_q_db,-0.0560179,worst_rho_sub,0.975406,worst_oct_q_db,-11.7945,valid_sub_readings,558,exempt,0
+BSF_HARVEST_FLOOR_ROW,DirtyFracture,g,0.18,pass,213,cells,216,worst_sub_q_db,-0.0303309,worst_rho_sub,0.986654,worst_oct_q_db,-11.7945,valid_sub_readings,558,exempt,0
+BSF_HARVEST_FLOOR_ROW,DirtyFracture,g,0.125,pass,216,cells,216,worst_sub_q_db,-0.0155906,worst_rho_sub,0.993131,worst_oct_q_db,-11.7945,valid_sub_readings,558,exempt,0
+BSF_HARVEST_FLOOR_ROW,DirtyFracture,g,0.1,pass,216,cells,216,worst_sub_q_db,-0.0104895,worst_rho_sub,0.995376,worst_oct_q_db,-11.7945,valid_sub_readings,558,exempt,0
+BSF_HARVEST_FLOOR_ROW,DirtyFracture,g,0.071,pass,216,cells,216,worst_sub_q_db,-0.00583101,worst_rho_sub,0.997429,worst_oct_q_db,-11.7945,valid_sub_readings,558,exempt,0
+BSF_HARVEST_FLOOR_ROW,DirtyFracture,g,0.05,pass,216,cells,216,worst_sub_q_db,-0.00344705,worst_rho_sub,0.998543,worst_oct_q_db,-11.7945,valid_sub_readings,558,exempt,0
+BSF_HARVEST_FLOOR_ROW,DirtyFracture,g,0.035,pass,216,cells,216,worst_sub_q_db,-0.00214885,worst_rho_sub,0.999098,worst_oct_q_db,-11.7945,valid_sub_readings,558,exempt,0
+BSF_HARVEST_FLOOR_ROW,DirtyFracture,g,0.03,pass,216,cells,216,worst_sub_q_db,-0.00178517,worst_rho_sub,0.999245,worst_oct_q_db,-11.7945,valid_sub_readings,558,exempt,0
+BSF_HARVEST_FLOOR_SHARD,DirtyRectify,cells,216,mean_cell_ms,7456.06,shard_ms,1.61123e+06
+BSF_HARVEST_FLOOR_ROW,DirtyRectify,g,0.71,pass,163,cells,216,worst_sub_q_db,-18.8598,worst_rho_sub,-0.960072,worst_oct_q_db,-11.5682,valid_sub_readings,528,exempt,5
+BSF_HARVEST_FLOOR_ROW,DirtyRectify,g,0.5,pass,177,cells,216,worst_sub_q_db,-15.919,worst_rho_sub,-0.920444,worst_oct_q_db,-10.7326,valid_sub_readings,528,exempt,5
+BSF_HARVEST_FLOOR_ROW,DirtyRectify,g,0.35,pass,185,cells,216,worst_sub_q_db,-13.0277,worst_rho_sub,-0.840593,worst_oct_q_db,-10.0875,valid_sub_readings,528,exempt,5
+BSF_HARVEST_FLOOR_ROW,DirtyRectify,g,0.25,pass,199,cells,216,worst_sub_q_db,-10.4276,worst_rho_sub,-0.697659,worst_oct_q_db,-9.63243,valid_sub_readings,528,exempt,5
+BSF_HARVEST_FLOOR_ROW,DirtyRectify,g,0.18,pass,209,cells,216,worst_sub_q_db,-8.07538,worst_rho_sub,-0.458004,worst_oct_q_db,-9.44633,valid_sub_readings,528,exempt,5
+BSF_HARVEST_FLOOR_ROW,DirtyRectify,g,0.125,pass,213,cells,216,worst_sub_q_db,-5.78045,worst_rho_sub,-0.128155,worst_oct_q_db,-9.43829,valid_sub_readings,528,exempt,5
+BSF_HARVEST_FLOOR_ROW,DirtyRectify,g,0.1,pass,215,cells,216,worst_sub_q_db,-4.58598,worst_rho_sub,0.0694749,worst_oct_q_db,-9.43459,valid_sub_readings,528,exempt,5
+BSF_HARVEST_FLOOR_ROW,DirtyRectify,g,0.071,pass,215,cells,216,worst_sub_q_db,-3.10518,worst_rho_sub,0.348262,worst_oct_q_db,-9.43026,valid_sub_readings,528,exempt,5
+BSF_HARVEST_FLOOR_ROW,DirtyRectify,g,0.05,pass,216,cells,216,worst_sub_q_db,-2.02383,worst_rho_sub,0.570091,worst_oct_q_db,-9.4271,valid_sub_readings,528,exempt,5
+BSF_HARVEST_FLOOR_ROW,DirtyRectify,g,0.035,pass,216,cells,216,worst_sub_q_db,-1.30117,worst_rho_sub,0.723641,worst_oct_q_db,-9.42483,valid_sub_readings,528,exempt,5
+BSF_HARVEST_FLOOR_ROW,DirtyRectify,g,0.03,pass,216,cells,216,worst_sub_q_db,-1.07972,worst_rho_sub,0.771139,worst_oct_q_db,-9.42407,valid_sub_readings,528,exempt,5
+BSF_HARVEST_FLOOR_SHARD,DirtyTube,cells,216,mean_cell_ms,7584.35,shard_ms,1.63893e+06
+BSF_HARVEST_FLOOR_ROW,DirtyTube,g,0.71,pass,176,cells,216,worst_sub_q_db,-1.12049,worst_rho_sub,0.872254,worst_oct_q_db,-10.3548,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_ROW,DirtyTube,g,0.5,pass,185,cells,216,worst_sub_q_db,-0.598747,worst_rho_sub,0.933243,worst_oct_q_db,-10.3063,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_ROW,DirtyTube,g,0.35,pass,197,cells,216,worst_sub_q_db,-0.309789,worst_rho_sub,0.965107,worst_oct_q_db,-10.2715,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_ROW,DirtyTube,g,0.25,pass,204,cells,216,worst_sub_q_db,-0.165394,worst_rho_sub,0.980747,worst_oct_q_db,-10.2483,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_ROW,DirtyTube,g,0.18,pass,215,cells,216,worst_sub_q_db,-0.0899535,worst_rho_sub,0.988956,worst_oct_q_db,-10.232,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_ROW,DirtyTube,g,0.125,pass,216,cells,216,worst_sub_q_db,-0.0463418,worst_rho_sub,0.993804,worst_oct_q_db,-10.2192,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_ROW,DirtyTube,g,0.1,pass,216,cells,216,worst_sub_q_db,-0.0311986,worst_rho_sub,0.995538,worst_oct_q_db,-10.2134,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_ROW,DirtyTube,g,0.071,pass,216,cells,216,worst_sub_q_db,-0.0173501,worst_rho_sub,0.99718,worst_oct_q_db,-10.2066,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_ROW,DirtyTube,g,0.05,pass,216,cells,216,worst_sub_q_db,-0.00983388,worst_rho_sub,0.998122,worst_oct_q_db,-10.2017,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_ROW,DirtyTube,g,0.035,pass,216,cells,216,worst_sub_q_db,-0.00576128,worst_rho_sub,0.998667,worst_oct_q_db,-10.1982,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_ROW,DirtyTube,g,0.03,pass,216,cells,216,worst_sub_q_db,-0.0046438,worst_rho_sub,0.998825,worst_oct_q_db,-10.1971,valid_sub_readings,486,exempt,0
+BSF_HARVEST_FLOOR_LEVER,g,0.71,E1_s2m_db,12.9646,E1_rho,0.030199,C3_s2m_db,1.78783,C3_rho,0.0229291
+BSF_HARVEST_FLOOR_LEVER,g,0.5,E1_s2m_db,11.3313,E1_rho,0.0233631,C3_s2m_db,1.42925,C3_rho,0.0177541
+BSF_HARVEST_FLOOR_LEVER,g,0.35,E1_s2m_db,9.94509,E1_rho,0.0186726,C3_s2m_db,1.169,C3_rho,0.0141921
+BSF_HARVEST_FLOOR_LEVER,g,0.25,E1_s2m_db,8.88272,E1_rho,0.0156361,C3_s2m_db,0.993784,C3_rho,0.0118798
+BSF_HARVEST_FLOOR_LEVER,g,0.18,E1_s2m_db,8.05504,E1_rho,0.013554,C3_s2m_db,0.870399,C3_rho,0.0102909
+BSF_HARVEST_FLOOR_LEVER,g,0.125,E1_s2m_db,7.3459,E1_rho,0.0119434,C3_s2m_db,0.773065,C3_rho,0.0090597
+BSF_HARVEST_FLOOR_LEVER,g,0.1,E1_s2m_db,7.00392,E1_rho,0.0112187,C3_s2m_db,0.728718,C3_rho,0.00850508
+BSF_HARVEST_FLOOR_LEVER,g,0.071,E1_s2m_db,6.59012,E1_rho,0.0103839,C3_s2m_db,0.677197,C3_rho,0.00786563
+BSF_HARVEST_FLOOR_LEVER,g,0.05,E1_s2m_db,6.27809,E1_rho,0.00978324,C3_s2m_db,0.63984,C3_rho,0.00740522
+BSF_HARVEST_FLOOR_LEVER,g,0.035,E1_s2m_db,6.04839,E1_rho,0.00935623,C3_s2m_db,0.613132,C3_rho,0.00707771
+BSF_HARVEST_FLOOR_LEVER,g,0.03,E1_s2m_db,5.9705,E1_rho,0.00921427,C3_s2m_db,0.604225,C3_rho,0.00696879

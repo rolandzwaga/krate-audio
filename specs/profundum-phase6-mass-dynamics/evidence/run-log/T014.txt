@@ -1,0 +1,89 @@
+T014 run-log - Mass law spectral grids and the law harvest (SC-001(b)(c), SC-003; FR-024, FR-028; plan C-1, S8.2, R-6)
+Date: 2026-10-17. Executor stage only: nothing in the tree was built or run (the group's build agent runs the gate).
+One single-TU syntax check was run (no artifacts, no build tree touched):
+  "/c/Program Files/LLVM/bin/clang++.exe" -std=c++20 -fsyntax-only -Wall -Wextra -Wshadow -ffast-math -Idsp/include
+    -Itests/test_helpers -I<_deps>/pffft-src/include -I<_deps>/catch2-src/src -I<_deps>/catch2-build/generated-includes
+    -DKRATE_DSP_TESTS_DIR=... dsp/tests/unit/systems/mass_law_spectral_test.cpp
+  -> 0 diagnostics in this TU. One warning from a Phase 5 header it includes (not this task's file):
+     shape_character_metric_helpers.h:181 std::numeric_limits<double>::infinity() under -ffast-math
+     (-Wnan-infinity-disabled, clang only). Recorded, not a DEFECT of a Phase 6 file.
+
+== Files ==
+dsp/tests/unit/systems/mass_law_spectral_test.cpp   (T002 stub filled)
+specs/profundum-phase6-mass-dynamics/evidence/run-log/T014.txt (this file)
+
+== TEST_CASEs (tags [systems][profundum][mass-law]; shards add [long]; harvest [.calibration]) ==
+Per-push (gate: dsp_systems_tests "MassLaw_*Smoke"):
+  MassLaw_RenderedTargetsMonotonicSmoke          SC-001(b): six targets at E1, Mass {0, 50, 100}, eps = 0.1 dB cap (18 renders)
+  MassLaw_FundamentalStrengthJointSweepSmoke     SC-001(c): Ref at E1, Mass {0, 25, 50, 75, 100}, eps = cap. EXPECTED RED UNTIL T019
+  MassLaw_LevelSlopeBoundedSmoke                 SC-003: Ref at E2 and C3, Mass {0, 25, 50, 75, 100}. EXPECTED RED UNTIL T019
+[long] shard list (36; run by the main loop at close, concurrently, one process per shard name):
+  MassLaw_RenderedTargetsMonotonic_{Depth,Body,Duration,Fold,Compression,AnchorLevel}_{E1,C3}      (12; 101 + 32 renders each)
+  MassLaw_FundamentalStrengthJointSweep_{Ref,Saw,Sine}_{E0,E1,E2,C3}                               (12; 101 + 16 renders each)
+  MassLaw_LevelSlopeBounded_{Ref,Saw,Sine}_{E0,E1,E2,C3}                                           (12; 101 renders each)
+  Each shard writes evidence/sc001b-<Target>-<Note>.csv, sc001c-<Fixture>-<Note>.csv or sc003-<Fixture>-<Note>.csv.
+Hidden (main loop, T019 step 4, after the amount table is pasted):
+  MassLaw_TableHarvest  -> evidence/mass-law-table.txt (BEGIN-INITIALIZER mass-law-rows / 6 rows / END-INITIALIZER mass-law-rows,
+                           then rounds, render count, wall clock, the search log, every check per cell, STOP AND SURFACE lines)
+
+== Reused APIs (read this session) ==
+dsp/tests/unit/systems/mass_dynamics_test_helpers.h: kGrid :81, descriptorSeconds :90, targetField :120/:132, ChainConfig :171-191
+  (targetOverride, lawBase, noteOnSample, preDynamicsGainDb, rowsOverride, perSampleDynamicsTaps), ChainTaps :193-209 (outL, sumL,
+  compGrDb), lawBaseFor :230, chainTargets :246 (rowsOverride -> evaluateRow per row), renderChain (REQUIRE noteOnSample % 32 == 0),
+  deltaLStepDb (helper section "Delta L_step").
+dsp/include/krate/dsp/systems/mass_law.h: Target :64, kNumTargets :66, kMinMass/kMaxMass/kNeutralMass :67-69, kMassSweepMs :72,
+  kSlewBoundRefMs :74, Targets :77-84, Row :86-93, kRows :97-104 (HARVEST markers :96, :105), maxSlope :109, evaluateRow :124,
+  C-7 cap static_assert :248-260.
+dsp/tests/unit/processors/transient_shaper_test_helpers.h: secondsToSamples, rampSamples, rampWeight, dTrWindow, dTrDb, meanOf,
+  levelDbPeriods.
+tests/test_helpers/k_weighting.h: kWeightedLevelDb(x, n, fs, measureFrom) :111.
+dsp/tests/unit/systems/profundum_core_test_helpers.h: safeDb10 :58, renderedHarmonicPowers :235.
+dsp/tests/unit/systems/shape_character_test_helpers.h: noteHz :48, describe formulas :107-150.
+tests/test_helpers/low_frequency_metrics.h: analysisFft / magnitudeSpectrum keep function-local static scratch :94-134.
+dsp/include/krate/dsp/processors/spectral_shape_recipe.h: kDefaultControls / kSineAnchor / kSawAnchor :225-237.
+
+== Decisions ==
+1. Repeat-noise offsets: k * round(P / 8) is rounded to the nearest multiple of 32, because renderChain REQUIREs noteOnSample on
+   the 32-sample grid (T011 decision 1). The offsets stay distinct at every note (C3: 0, 32, 96, 128, 192, 224, 288, 320).
+2. Spectral descriptors use the describe() power formulas on renderedHarmonicPowers of the last 262144 samples directly (same math;
+   skips the I / C / L passes describe() also runs). w1, w1/sum(w), E_low, THD in dB, so the 0.1 dB cap applies to every SC-001(b)
+   descriptor. No SC-001(b) descriptor is a centroid: the 0.005 oct cap has no row in this TU.
+3. The step fixture (Compression row): preDynamicsGainDb -12 dB until 1 s + 131072 samples (absolute), then the twoLevelStep 0.5 ms
+   raised cosine to 0 dB. Delta L_step = L(last 65536 samples of the render) - L(65536 samples before the step). The step stays at
+   the absolute sample under the repeat-noise offsets. Steady GR (compGrDb mean over the same two windows) is printed, never gated.
+4. DEVIATION (harvest step 2 Fold interval): the task text gives Fold amountUp in [0, 50]; that is the C-7 (ii) cap. C-7 is RULED (i)
+   and the seed is already +60, outside [0, 50]. The search uses [0, the C-7 (i) cap] = [0, 100]. The result is identical whenever the
+   smallest passing value is <= 50. Body and Anchor keep the [0, 0.5] intervals (also min'd with the C-7 cap).
+5. Harvest step 2 lever order: Body amountUp cannot move THD(50) - THD(0) or E_low(50) - E_low(0) (both depend only on the amountDown
+   rows, mass_law.h:128-130); it moves THD(100). The search is: the smallest Fold amountUp meeting THD(100) >= THD(50) + 6.5 dB at
+   E1 and C3; only if the Fold cap fails, the smallest Body amountUp in [0, 0.5] with the Fold at its cap. The Mass 0 -> 50 margins
+   are checked on the final full lattice; a failure is a STOP AND SURFACE (no S8.2 lever moves them).
+6. Harvest step 1 is separable: at Mass 50, u == 0 and every amount drops out (mass_law.h:128-130), so the Mass 50 readings are
+   rendered once per round and reused; amountUp moves only Mass > 50, amountDown only Mass < 50. amountDown is searched only when
+   the 0..50 half dips (task text).
+7. Rounds: (1) then (2), repeated while (2) changes a row, at most 3 rounds. Step 3 then runs the full 11-point lattice on all 12
+   cells; if the gated |dP| (E2 / C3, kGateKWeightAt) fails, it tries Fold SCurve, Anchor SCurve, both (each only within the C-7
+   cap) and adopts the first that keeps SC-001(c) and SC-003 L and meets the gated slope. The best E0 / E1 K-weighted span over every
+   evaluated table is recorded (FR-048 measurement).
+8. STOP AND SURFACE lines (each also a FAIL of the hidden case): SC-001(c) not met at an interval end; THD(100) step not met with Fold
+   and Body at their caps; a row outside the C-7 cap; "FR-021 ruling needed (R-6)" when SC-001(c) and SC-003 L do not hold together;
+   SC-003 K-weighted at E2 / C3; SC-002 + 0.5 dB margins. The best table found is written either way.
+9. Harvest parallelism: renders run as std::async waves of hardware_concurrency() (cell, Mass) jobs (finer than the 12-cell fan-out,
+   same work, better core use on the 32-core box: 132 renders per full lattice instead of 12 threads x 11 sequential). Workers only
+   render; every FFT descriptor runs on the calling thread because lowFreq::magnitudeSpectrum uses function-local static scratch.
+   Caveat recorded: renderChain's passing REQUIREs execute on worker threads; Catch2 3.4 (build/_deps/catch2-src
+   catch_version_macros.hpp: CATCH_VERSION_MINOR 4) assertions are not thread-safe, so the passed-assertion counter of this hidden case
+   may undercount. A failing REQUIRE propagates through future::get. Peak memory ~ 32 concurrent ChainTaps x ~17 MB.
+10. Harvest output rows use the header's exact positional form with 8-space indent, setprecision(9), always a decimal point and an f
+    suffix (paste-harvest.js parses "finite float with an f suffix").
+11. SC-003 slope on the 101-point grid is |dP| per Mass unit (step 1); the Smoke divides by the 25-unit spacing; the harvest lattice by
+    10. kGateKWeightAt = {false, false, true, true} (RULED 2026-10-17, C-1 (a)); E0 / E1 K-weighted figures are WARN-recorded.
+12. Expected-red allowance: MassLaw_FundamentalStrengthJointSweepSmoke and MassLaw_LevelSlopeBoundedSmoke (seed rows) until T019.
+    MassLaw_RenderedTargetsMonotonicSmoke is not marked expected red.
+
+== Cost note (for the main loop) ==
+Every render is descriptorSeconds(48 kHz) = 310144 samples through the full chain; no wall clock was measured here (executors do not
+run the tree). Smoke cost = 18 + 5 + 10 renders. If any Smoke exceeds ~15 s at the gate, T020 rule applies (re-tag [long] + new Smoke).
+
+== DEFECT lines ==
+none

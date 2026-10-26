@@ -1,0 +1,471 @@
+Filters: [profundum] ~[performance] ~[perf] ~[benchmark] ~[!benchmark] ~[long] ~[.]
+Randomness seeded to: 521493951
+SC-011 block 1 Overlap: onset latency 71 samples (bar 73)
+SC-011 block 1 ReturnToHeld: onset latency 71 samples (bar 73)
+SC-011 block 1 Tail: onset latency 71 samples (bar 73)
+SC-011 block 37 Overlap: onset latency 71 samples (bar 73)
+SC-011 block 37 ReturnToHeld: onset latency 71 samples (bar 73)
+SC-011 block 37 Tail: onset latency 71 samples (bar 73)
+SC-011 block 512 Overlap: onset latency 71 samples (bar 73)
+SC-011 block 512 ReturnToHeld: onset latency 71 samples (bar 73)
+SC-011 block 512 Tail: onset latency 71 samples (bar 73)
+SC-011 mode 0 retrigger 0 Overlap: onset latency 71 samples (bar 73)
+SC-011 mode 0 retrigger 0 ReturnToHeld: onset latency 71 samples (bar 73)
+SC-011 mode 0 retrigger 0 Tail: onset latency 71 samples (bar 73)
+SC-011 mode 1 retrigger 0 Tail: onset latency 71 samples (bar 73)
+SC-012(b) note 28 A 12 T 60 ms: Anchor vs f_res worst 0.000067 cents (bar 1), core update vs commanded worst 0.000000 cents over 180 updates (bar 0.1), staircase error 49.128 cents (recorded)
+SC-012(b) note 28 A 12 T 200 ms: Anchor vs f_res worst 0.000067 cents (bar 1), core update vs commanded worst 0.000000 cents over 600 updates (bar 0.1), staircase error 14.905 cents (recorded)
+SC-012(b) note 28 A 48 T 60 ms: Anchor vs f_res worst 0.000067 cents (bar 1), core update vs commanded worst 0.000000 cents over 180 updates (bar 0.1), staircase error 196.012 cents (recorded)
+SC-012(b) note 28 A 48 T 200 ms: Anchor vs f_res worst 0.000067 cents (bar 1), core update vs commanded worst 0.000000 cents over 600 updates (bar 0.1), staircase error 59.629 cents (recorded)
+SC-012(b) note 48 A 12 T 60 ms: Anchor vs f_res worst 0.000117 cents (bar 1), core update vs commanded worst 0.000000 cents over 180 updates (bar 0.1), staircase error 48.946 cents (recorded)
+SC-012(b) note 48 A 12 T 200 ms: Anchor vs f_res worst 0.000117 cents (bar 1), core update vs commanded worst 0.000000 cents over 600 updates (bar 0.1), staircase error 14.905 cents (recorded)
+SC-012(b) note 48 A 48 T 60 ms: Anchor vs f_res worst 0.000117 cents (bar 1), core update vs commanded worst 0.000000 cents over 180 updates (bar 0.1), staircase error 195.909 cents (recorded)
+SC-012(b) note 48 A 48 T 200 ms: Anchor vs f_res worst 0.000117 cents (bar 1), core update vs commanded worst 0.000000 cents over 600 updates (bar 0.1), staircase error 59.626 cents (recorded)
+SC-012(c) note 28 A 12 T 60 ms: accumulated phase error 4.156e-08 cycles at 2815 (bar 1e-6), worst step 2.309e-10, residual vs currentFrequency() 6.508e-03 cycles (recorded), dTheta(t_s + 1 s) -0.001146 deg (bar 1)
+SC-012(c) note 28 A 12 T 200 ms: accumulated phase error 1.027e-07 cycles at 9471 (bar 1e-6), worst step 1.699e-10, residual vs currentFrequency() 6.459e-03 cycles (recorded), dTheta(t_s + 1 s) -0.001468 deg (bar 1)
+SC-012(c) note 28 A 48 T 60 ms: accumulated phase error 4.881e-08 cycles at 223 (bar 1e-6), worst step 1.005e-09, residual vs currentFrequency() 9.882e-02 cycles (recorded), dTheta(t_s + 1 s) -0.001526 deg (bar 1)
+SC-012(c) note 28 A 48 T 200 ms: accumulated phase error 1.514e-07 cycles at 9599 (bar 1e-6), worst step 1.482e-09, residual vs currentFrequency() 9.724e-02 cycles (recorded), dTheta(t_s + 1 s) -0.001593 deg (bar 1)
+SC-012(c) note 48 A 12 T 60 ms: accumulated phase error 7.285e-08 cycles at 575 (bar 1e-6), worst step 5.684e-10, residual vs currentFrequency() 2.066e-02 cycles (recorded), dTheta(t_s + 1 s) -0.000024 deg (bar 1)
+SC-012(c) note 48 A 12 T 200 ms: accumulated phase error 3.731e-07 cycles at 9600 (bar 1e-6), worst step 7.155e-10, residual vs currentFrequency() 2.051e-02 cycles (recorded), dTheta(t_s + 1 s) -0.000435 deg (bar 1)
+SC-012(c) note 48 A 48 T 60 ms: accumulated phase error 1.998e-07 cycles at 191 (bar 1e-6), worst step 2.438e-09, residual vs currentFrequency() 3.137e-01 cycles (recorded), dTheta(t_s + 1 s) -0.000373 deg (bar 1)
+SC-012(c) note 48 A 48 T 200 ms: accumulated phase error 2.932e-07 cycles at 255 (bar 1e-6), worst step 4.821e-09, residual vs currentFrequency() 3.087e-01 cycles (recorded), dTheta(t_s + 1 s) -0.000667 deg (bar 1)
+SC-012(d) note 28 glide 0: dTheta(1 s) -0.001389, after up-glide -0.003542, after down-glide -0.007591 deg (bar 1), drift -0.006203 deg (bar 0.5)
+SC-012(d) note 28 glide 1: dTheta(1 s) -0.001389, after up-glide -0.003893, after down-glide -0.008291 deg (bar 1), drift -0.006903 deg (bar 0.5)
+SC-012(d) note 28 glide 2: dTheta(1 s) -0.001389, after up-glide -0.003666, after down-glide -0.007437 deg (bar 1), drift -0.006049 deg (bar 0.5)
+SC-012(d) note 48 glide 0: dTheta(1 s) -0.000205, after up-glide -0.003711, after down-glide -0.010593 deg (bar 1), drift -0.010388 deg (bar 0.5)
+SC-012(d) note 48 glide 1: dTheta(1 s) -0.000205, after up-glide -0.004117, after down-glide -0.010411 deg (bar 1), drift -0.010206 deg (bar 0.5)
+SC-012(d) note 48 glide 2: dTheta(1 s) -0.000205, after up-glide -0.003716, after down-glide -0.010489 deg (bar 1), drift -0.010284 deg (bar 0.5)
+SC-026 AnchorUntouched mode 0: Anchor output a1-scaled max |diff| 2.612e-08 = -139.68 dB re peak 0.2518 (bar -120); raw max |diff| 8.014e-05 = -69.95 dB (recorded); unchecked 0
+SC-026 AnchorUntouched mode 2: Anchor output a1-scaled max |diff| 2.915e-08 = -142.24 dB re peak 0.3775 (bar -120); raw max |diff| 1.230e-04 = -69.74 dB (recorded); unchecked 0
+SC-026 AnchorUntouched mode 3: Anchor output a1-scaled max |diff| 2.612e-08 = -139.68 dB re peak 0.2518 (bar -120); raw max |diff| 8.014e-05 = -69.95 dB (recorded); unchecked 0
+Plan S9 source scan core/drop_curve.h: 19597 bytes, 0 mutable static(s) (bar 0)
+Plan S9 source scan primitives/retrigger_declick.h: 4470 bytes, 0 mutable static(s) (bar 0)
+Plan S9 source scan processors/drop_envelope.h: 10911 bytes, 0 mutable static(s) (bar 0)
+Plan S9 source scan processors/drop_phase_lock.h: 34531 bytes, 0 mutable static(s) (bar 0)
+Plan S9 source scan processors/note_memory.h: 4833 bytes, 0 mutable static(s) (bar 0)
+SC-013 LOCK E1 fs 48000 A 12 T   60 s 0.0000 R 0: theta +0.077910 deg (bar 1.0), drift 0.012245 deg (bar 0.5), bypass theta +94.856 deg, |gamma| 3.6173 st, gamma_an 3.7169, Gamma 3.7169, peak |c| 3.617273 (bar 3.902795), residual 1.005e-12, R-2 gap 0.0779 deg, Anchor output a1-scaled diff -400.00 dB (bar -120), raw diff -400.00 dB (max 0.000e+00 re peak 0.1901; recorded), unchecked 0
+SC013-R2-DEFECT LOCK E1 fs 48000 A 12 T 60 s 0.0000 R 1: rendered theta -0.430853 deg, staircase prediction +0.000004 deg, gap 0.430856 deg (> 0.3; model worst 0.22)
+SC-013 LOCK E1 fs 48000 A 12 T   60 s 0.0000 R 1: theta -0.430853 deg (bar 1.0), drift 0.011661 deg (bar 0.5), bypass theta -72.710 deg, |gamma| 1.9588 st, gamma_an 2.0426, Gamma 2.0426, peak |c| 1.958780 (bar 2.144783), residual 7.372e-14, R-2 gap 0.4309 deg, Anchor output a1-scaled diff -400.00 dB (bar -120), raw diff -400.00 dB (max 0.000e+00 re peak 0.1901; recorded), unchecked 0
+SC-013 LOCK E1 fs 48000 A 12 T   60 s 0.3333 R 0: theta +0.077918 deg (bar 1.0), drift 0.011405 deg (bar 0.5), bypass theta +36.142 deg, |gamma| 0.9487 st, gamma_an 0.9551, Gamma 0.9551, peak |c| 0.948699 (bar 1.002815), residual 9.214e-11, R-2 gap 0.0779 deg, Anchor output a1-scaled diff -400.00 dB (bar -120), raw diff -400.00 dB (max 0.000e+00 re peak 0.1901; recorded), unchecked 0
+SC013-R2-DEFECT LOCK E1 fs 48000 A 12 T 60 s 0.3333 R 1: rendered theta -0.430837 deg, staircase prediction +0.000014 deg, gap 0.430850 deg (> 0.3; model worst 0.22)
+SC-013 LOCK E1 fs 48000 A 12 T   60 s 0.3333 R 1: theta -0.430837 deg (bar 1.0), drift 0.011258 deg (bar 0.5), bypass theta -93.081 deg, |gamma| 1.9682 st, gamma_an 2.0521, Gamma 2.0521, peak |c| 1.968213 (bar 2.154664), residual 8.682e-10, R-2 gap 0.4309 deg, Anchor output a1-scaled diff -400.00 dB (bar -120), raw diff -400.00 dB (max 0.000e+00 re peak 0.1901; recorded), unchecked 0
+SC-013 LOCK E1 fs 48000 A 12 T   60 s 0.6667 R 0: theta +0.077889 deg (bar 1.0), drift 0.012096 deg (bar 0.5), bypass theta +40.049 deg, |gamma| 0.7729 st, gamma_an 0.7769, Gamma 0.7769, peak |c| 0.772872 (bar 0.815764), residual 4.306e-11, R-2 gap 0.0779 deg, Anchor output a1-scaled diff -400.00 dB (bar -120), raw diff -400.00 dB (max 0.000e+00 re peak 0.1901; recorded), unchecked 0
+SC013-R2-DEFECT LOCK E1 fs 48000 A 12 T 60 s 0.6667 R 1: rendered theta -0.430716 deg, staircase prediction +0.000033 deg, gap 0.430749 deg (> 0.3; model worst 0.22)
+SC-013 LOCK E1 fs 48000 A 12 T   60 s 0.6667 R 1: theta -0.430716 deg (bar 1.0), drift 0.011081 deg (bar 0.5), bypass theta -23.118 deg, |gamma| 0.3513 st, gamma_an 0.3541, Gamma 0.3541, peak |c| 0.351284 (bar 0.371766), residual 9.797e-13, R-2 gap 0.4307 deg, Anchor output a1-scaled diff -400.00 dB (bar -120), raw diff -400.00 dB (max 0.000e+00 re peak 0.1901; recorded), unchecked 0
+SC-013 LOCK E1 fs 48000 A 12 T   60 s 1.0000 R 0: theta -0.150866 deg (bar 1.0), drift 0.011878 deg (bar 0.5), bypass theta +28.228 deg, |gamma| 0.3813 st, gamma_an 0.3823, Gamma 0.3823, peak |c| 0.381255 (bar 0.401467), residual 6.302e-13, R-2 gap 0.1509 deg, Anchor output a1-scaled diff -400.00 dB (bar -120), raw diff -400.00 dB (max 0.000e+00 re peak 0.1901; recorded), unchecked 0
+SC-013 LOCK E1 fs 48000 A 12 T   60 s 1.0000 R 1: theta -0.150725 deg (bar 1.0), drift 0.011054 deg (bar 0.5), bypass theta -29.276 deg, |gamma| 0.4022 st, gamma_an 0.4056, Gamma 0.4056, peak |c| 0.402167 (bar 0.425871), residual 7.412e-13, R-2 gap 0.1508 deg, Anchor output a1-scaled diff -143.15 dB (bar -120), raw diff -37.45 dB (max 2.601e-03 re peak 0.1939; recorded), unchecked 0
+SC013-R2-DEFECT LOCK E1 fs 48000 A 12 T 200 s 0.0000 R 0: rendered theta +0.444770 deg, staircase prediction +0.000016 deg, gap 0.444755 deg (> 0.3; model worst 0.22)
+SC-013 LOCK E1 fs 48000 A 12 T  200 s 0.0000 R 0: theta +0.444770 deg (bar 1.0), drift 0.011737 deg (bar 0.5), bypass theta -47.905 deg, |gamma| 0.5023 st, gamma_an 0.5078, Gamma 0.5078, peak |c| 0.502329 (bar 0.533226), residual 6.624e-13, R-2 gap 0.4448 deg, Anchor output a1-scaled diff -400.00 dB (bar -120), raw diff -400.00 dB (max 0.000e+00 re peak 0.1901; recorded), unchecked 0
+SC013-R2-DEFECT LOCK E1 fs 48000 A 12 T 200 s 0.0000 R 1: rendered theta +0.343406 deg, staircase prediction -0.000006 deg, gap 0.343412 deg (> 0.3; model worst 0.22)
+SC-013 LOCK E1 fs 48000 A 12 T  200 s 0.0000 R 1: theta +0.343406 deg (bar 1.0), drift 0.010599 deg (bar 0.5), bypass theta +111.436 deg, |gamma| 0.9635 st, gamma_an 0.9703, Gamma 0.9703, peak |c| 0.963505 (bar 1.018816), residual 4.259e-12, R-2 gap 0.3434 deg, Anchor output a1-scaled diff -400.00 dB (bar -120), raw diff -400.00 dB (max 0.000e+00 re peak 0.1901; recorded), unchecked 0
+SC013-R2-DEFECT LOCK E1 fs 48000 A 12 T 200 s 0.3333 R 0: rendered theta +0.444732 deg, staircase prediction +0.000047 deg, gap 0.444685 deg (> 0.3; model worst 0.22)
+SC-013 LOCK E1 fs 48000 A 12 T  200 s 0.3333 R 0: theta +0.444732 deg (bar 1.0), drift 0.000573 deg (bar 0.5), bypass theta -124.912 deg, |gamma| 0.9366 st, gamma_an 0.9559, Gamma 0.9559, peak |c| 0.936583 (bar 1.003713), residual 9.174e-12, R-2 gap 0.4447 deg, Anchor output a1-scaled diff -400.00 dB (bar -120), raw diff -400.00 dB (max 0.000e+00 re peak 0.1901; recorded), unchecked 0
+SC013-R2-DEFECT LOCK E1 fs 48000 A 12 T 200 s 0.3333 R 1: rendered theta +0.343273 deg, staircase prediction +0.000017 deg, gap 0.343255 deg (> 0.3; model worst 0.22)
+SC-013 LOCK E1 fs 48000 A 12 T  200 s 0.3333 R 1: theta +0.343273 deg (bar 1.0), drift 0.012024 deg (bar 0.5), bypass theta +163.074 deg, |gamma| 1.1066 st, gamma_an 1.1158, Gamma 1.1158, peak |c| 1.106553 (bar 1.171585), residual 8.247e-12, R-2 gap 0.3433 deg, Anchor output a1-scaled diff -400.00 dB (bar -120), raw diff -400.00 dB (max 0.000e+00 re peak 0.1901; recorded), unchecked 0
+SC013-R2-DEFECT LOCK E1 fs 48000 A 12 T 200 s 0.6667 R 0: rendered theta +0.444760 deg, staircase prediction +0.000061 deg, gap 0.444699 deg (> 0.3; model worst 0.22)
+SC-013 LOCK E1 fs 48000 A 12 T  200 s 0.6667 R 0: theta +0.444760 deg (bar 1.0), drift 0.000763 deg (bar 0.5), bypass theta +8.926 deg, |gamma| 0.0480 st, gamma_an 0.0481, Gamma 0.0481, peak |c| 0.048050 (bar 0.050470), residual 8.106e-11, R-2 gap 0.4447 deg, Anchor output a1-scaled diff -400.00 dB (bar -120), raw diff -400.00 dB (max 0.000e+00 re peak 0.1901; recorded), unchecked 0
+SC013-R2-DEFECT LOCK E1 fs 48000 A 12 T 200 s 0.6667 R 1: rendered theta +0.343307 deg, staircase prediction +0.000073 deg, gap 0.343235 deg (> 0.3; model worst 0.22)
+SC-013 LOCK E1 fs 48000 A 12 T  200 s 0.6667 R 1: theta +0.343307 deg (bar 1.0), drift 0.011329 deg (bar 0.5), bypass theta +157.929 deg, |gamma| 0.7514 st, gamma_an 0.7551, Gamma 0.7551, peak |c| 0.751411 (bar 0.792844), residual 1.757e-12, R-2 gap 0.3432 deg, Anchor output a1-scaled diff -400.00 dB (bar -120), raw diff -400.00 dB (max 0.000e+00 re peak 0.1901; recorded), unchecked 0
+SC-013 LOCK E1 fs 48000 A 12 T  200 s 1.0000 R 0: theta +0.052934 deg (bar 1.0), drift 0.010698 deg (bar 0.5), bypass theta -31.605 deg, |gamma| 0.1281 st, gamma_an 0.1284, Gamma 0.1284, peak |c| 0.128079 (bar 0.134852), residual 1.776e-15, R-2 gap 0.0529 deg, Anchor output a1-scaled diff -400.00 dB (bar -120), raw diff -400.00 dB (max 0.000e+00 re peak 0.1901; recorded), unchecked 0
+SC-013 LOCK E1 fs 48000 A 12 T  200 s 1.0000 R 1: theta +0.052966 deg (bar 1.0), drift 0.011380 deg (bar 0.5), bypass theta +137.423 deg, |gamma| 0.5864 st, gamma_an 0.5891, Gamma 0.5891, peak |c| 0.586372 (bar 0.618516), residual 2.931e-13, R-2 gap 0.0529 deg, Anchor output a1-scaled diff -142.44 dB (bar -120), raw diff -33.84 dB (max 3.962e-03 re peak 0.1950; recorded), unchecked 0
+SC-013 LOCK E1 fs 48000 A 48 T   60 s 0.0000 R 0: theta +0.077843 deg (bar 1.0), drift 0.011657 deg (bar 0.5), bypass theta +87.481 deg, |gamma| 2.8378 st, gamma_an 2.9085, Gamma 2.9085, peak |c| 2.837826 (bar 3.053967), residual 2.765e-12, R-2 gap 0.0780 deg, Anchor output a1-scaled diff -142.86 dB (bar -120), raw diff -98.65 dB (max 2.220e-06 re peak 0.1901; recorded), unchecked 0
+SC013-R2-DEFECT LOCK E1 fs 48000 A 48 T 60 s 0.0000 R 1: rendered theta -0.431045 deg, staircase prediction -0.000260 deg, gap 0.430786 deg (> 0.3; model worst 0.22)
+SC-013 LOCK E1 fs 48000 A 48 T   60 s 0.0000 R 1: theta -0.431045 deg (bar 1.0), drift 0.011524 deg (bar 0.5), bypass theta +127.636 deg, |gamma| 6.1137 st, gamma_an 6.4739, Gamma 6.4739, peak |c| 6.113680 (bar 6.797609), residual 6.337e-11, R-2 gap 0.4308 deg, Anchor output a1-scaled diff -140.59 dB (bar -120), raw diff -17.03 dB (max 3.420e-02 re peak 0.2430; recorded), unchecked 0
+SC-013 LOCK E1 fs 48000 A 48 T   60 s 0.3333 R 0: theta +0.078050 deg (bar 1.0), drift 0.000851 deg (bar 0.5), bypass theta +1.681 deg, |gamma| 0.0129 st, gamma_an 0.0129, Gamma 0.0129, peak |c| 0.012865 (bar 0.013515), residual 3.020e-10, R-2 gap 0.0778 deg, Anchor output a1-scaled diff -142.43 dB (bar -120), raw diff -111.05 dB (max 5.364e-07 re peak 0.1914; recorded), unchecked 0
+SC013-R2-DEFECT LOCK E1 fs 48000 A 48 T 60 s 0.3333 R 1: rendered theta -0.430504 deg, staircase prediction +0.000155 deg, gap 0.430659 deg (> 0.3; model worst 0.22)
+SC-013 LOCK E1 fs 48000 A 48 T   60 s 0.3333 R 1: theta -0.430504 deg (bar 1.0), drift 0.012097 deg (bar 0.5), bypass theta +126.315 deg, |gamma| 1.6292 st, gamma_an 1.6576, Gamma 1.6576, peak |c| 1.629173 (bar 1.740481), residual 3.038e-13, R-2 gap 0.4307 deg, Anchor output a1-scaled diff -144.06 dB (bar -120), raw diff -27.52 dB (max 9.922e-03 re peak 0.2358; recorded), unchecked 0
+SC-013 LOCK E1 fs 48000 A 48 T   60 s 0.6667 R 0: theta +0.079113 deg (bar 1.0), drift 0.011515 deg (bar 0.5), bypass theta +69.017 deg, |gamma| 0.1791 st, gamma_an 0.1793, Gamma 0.1793, peak |c| 0.179108 (bar 0.188283), residual 3.716e-12, R-2 gap 0.0783 deg, Anchor output a1-scaled diff -142.40 dB (bar -120), raw diff -61.99 dB (max 1.533e-04 re peak 0.1929; recorded), unchecked 0
+SC013-R2-DEFECT LOCK E1 fs 48000 A 48 T 60 s 0.6667 R 1: rendered theta -0.429553 deg, staircase prediction +0.000790 deg, gap 0.430343 deg (> 0.3; model worst 0.22)
+SC-013 LOCK E1 fs 48000 A 48 T   60 s 0.6667 R 1: theta -0.429553 deg (bar 1.0), drift 0.011875 deg (bar 0.5), bypass theta -68.458 deg, |gamma| 0.1924 st, gamma_an 0.1932, Gamma 0.1932, peak |c| 0.192402 (bar 0.202894), residual 3.304e-13, R-2 gap 0.4303 deg, Anchor output a1-scaled diff -144.08 dB (bar -120), raw diff -49.79 dB (max 7.641e-04 re peak 0.2357; recorded), unchecked 0
+SC-013 LOCK E1 fs 48000 A 48 T   60 s 1.0000 R 0: theta -0.149413 deg (bar 1.0), drift 0.011965 deg (bar 0.5), bypass theta +30.123 deg, |gamma| 0.0966 st, gamma_an 0.0967, Gamma 0.0967, peak |c| 0.096618 (bar 0.101548), residual 1.386e-13, R-2 gap 0.1503 deg, Anchor output a1-scaled diff -142.98 dB (bar -120), raw diff -50.42 dB (max 6.155e-04 re peak 0.2043; recorded), unchecked 0
+SC-013 LOCK E1 fs 48000 A 48 T   60 s 1.0000 R 1: theta -0.149558 deg (bar 1.0), drift 0.011485 deg (bar 0.5), bypass theta -66.580 deg, |gamma| 0.2285 st, gamma_an 0.2295, Gamma 0.2295, peak |c| 0.228476 (bar 0.240937), residual 6.466e-13, R-2 gap 0.1504 deg, Anchor output a1-scaled diff -140.23 dB (bar -120), raw diff -47.80 dB (max 1.133e-03 re peak 0.2779; recorded), unchecked 0
+SC013-R2-DEFECT LOCK E1 fs 48000 A 48 T 200 s 0.0000 R 0: rendered theta +0.444935 deg, staircase prediction +0.000084 deg, gap 0.444851 deg (> 0.3; model worst 0.22)
+SC-013 LOCK E1 fs 48000 A 48 T  200 s 0.0000 R 0: theta +0.444935 deg (bar 1.0), drift 0.011598 deg (bar 0.5), bypass theta +84.140 deg, |gamma| 0.7810 st, gamma_an 0.7861, Gamma 0.7861, peak |c| 0.780954 (bar 0.825401), residual 2.481e-11, R-2 gap 0.4449 deg, Anchor output a1-scaled diff -142.46 dB (bar -120), raw diff -103.66 dB (max 1.252e-06 re peak 0.1907; recorded), unchecked 0
+SC013-R2-DEFECT LOCK E1 fs 48000 A 48 T 200 s 0.0000 R 1: rendered theta +0.343322 deg, staircase prediction +0.000068 deg, gap 0.343254 deg (> 0.3; model worst 0.22)
+SC-013 LOCK E1 fs 48000 A 48 T  200 s 0.0000 R 1: theta +0.343322 deg (bar 1.0), drift 0.011453 deg (bar 0.5), bypass theta -24.287 deg, |gamma| 0.3133 st, gamma_an 0.3153, Gamma 0.3153, peak |c| 0.313254 (bar 0.331026), residual 2.351e-13, R-2 gap 0.3433 deg, Anchor output a1-scaled diff -144.39 dB (bar -120), raw diff -41.94 dB (max 1.947e-03 re peak 0.2433; recorded), unchecked 0
+SC013-R2-DEFECT LOCK E1 fs 48000 A 48 T 200 s 0.3333 R 0: rendered theta +0.445808 deg, staircase prediction +0.000748 deg, gap 0.445060 deg (> 0.3; model worst 0.22)
+SC-013 LOCK E1 fs 48000 A 48 T  200 s 0.3333 R 0: theta +0.445808 deg (bar 1.0), drift 0.012217 deg (bar 0.5), bypass theta +158.143 deg, |gamma| 0.3819 st, gamma_an 0.3830, Gamma 0.3830, peak |c| 0.381878 (bar 0.402198), residual 1.315e-12, R-2 gap 0.4451 deg, Anchor output a1-scaled diff -142.23 dB (bar -120), raw diff -66.27 dB (max 9.340e-05 re peak 0.1922; recorded), unchecked 0
+SC013-R2-DEFECT LOCK E1 fs 48000 A 48 T 200 s 0.3333 R 1: rendered theta +0.344415 deg, staircase prediction +0.000673 deg, gap 0.343742 deg (> 0.3; model worst 0.22)
+SC-013 LOCK E1 fs 48000 A 48 T  200 s 0.3333 R 1: theta +0.344415 deg (bar 1.0), drift 0.011269 deg (bar 0.5), bypass theta -146.519 deg, |gamma| 0.5449 st, gamma_an 0.5504, Gamma 0.5504, peak |c| 0.544908 (bar 0.577940), residual 2.153e-12, R-2 gap 0.3437 deg, Anchor output a1-scaled diff -144.30 dB (bar -120), raw diff -37.55 dB (max 3.220e-03 re peak 0.2428; recorded), unchecked 0
+SC013-R2-DEFECT LOCK E1 fs 48000 A 48 T 200 s 0.6667 R 0: rendered theta +0.448647 deg, staircase prediction +0.002114 deg, gap 0.446533 deg (> 0.3; model worst 0.22)
+SC-013 LOCK E1 fs 48000 A 48 T  200 s 0.6667 R 0: theta +0.448647 deg (bar 1.0), drift 0.012054 deg (bar 0.5), bypass theta +25.228 deg, |gamma| 0.0191 st, gamma_an 0.0191, Gamma 0.0191, peak |c| 0.019138 (bar 0.020103), residual 7.357e-11, R-2 gap 0.4465 deg, Anchor output a1-scaled diff -142.31 dB (bar -120), raw diff -68.69 dB (max 7.096e-05 re peak 0.1929; recorded), unchecked 0
+SC013-R2-DEFECT LOCK E1 fs 48000 A 48 T 200 s 0.6667 R 1: rendered theta +0.346826 deg, staircase prediction +0.002061 deg, gap 0.344765 deg (> 0.3; model worst 0.22)
+SC-013 LOCK E1 fs 48000 A 48 T  200 s 0.6667 R 1: theta +0.346826 deg (bar 1.0), drift 0.012072 deg (bar 0.5), bypass theta +165.050 deg, |gamma| 0.1406 st, gamma_an 0.1408, Gamma 0.1408, peak |c| 0.140640 (bar 0.147816), residual 1.421e-13, R-2 gap 0.3448 deg, Anchor output a1-scaled diff -144.23 dB (bar -120), raw diff -50.80 dB (max 6.941e-04 re peak 0.2406; recorded), unchecked 0
+SC-013 LOCK E1 fs 48000 A 48 T  200 s 1.0000 R 0: theta +0.056720 deg (bar 1.0), drift 0.011763 deg (bar 0.5), bypass theta -105.967 deg, |gamma| 0.1022 st, gamma_an 0.1024, Gamma 0.1024, peak |c| 0.102233 (bar 0.107561), residual 4.263e-14, R-2 gap 0.0547 deg, Anchor output a1-scaled diff -142.96 dB (bar -120), raw diff -49.79 dB (max 6.771e-04 re peak 0.2090; recorded), unchecked 0
+SC-013 LOCK E1 fs 48000 A 48 T  200 s 1.0000 R 1: theta +0.056193 deg (bar 1.0), drift 0.011207 deg (bar 0.5), bypass theta +172.914 deg, |gamma| 0.1807 st, gamma_an 0.1810, Gamma 0.1810, peak |c| 0.180700 (bar 0.190084), residual 9.948e-14, R-2 gap 0.0544 deg, Anchor output a1-scaled diff -139.68 dB (bar -120), raw diff -47.96 dB (max 1.124e-03 re peak 0.2811; recorded), unchecked 0
+SC013-R2-DEFECT LOCK C3 fs 48000 A 12 T 60 s 0.0000 R 0: rendered theta -0.359702 deg, staircase prediction +0.000007 deg, gap 0.359709 deg (> 0.3; model worst 0.22)
+SC-013 LOCK C3 fs 48000 A 12 T   60 s 0.0000 R 0: theta -0.359702 deg (bar 1.0), drift -1.000000 deg (bar 0.5), bypass theta -57.858 deg, |gamma| 0.6271 st, gamma_an 0.6357, Gamma 0.6357, peak |c| 0.627089 (bar 0.667458), residual 5.498e-11, R-2 gap 0.3597 deg, Anchor output a1-scaled diff -142.23 dB (bar -120), raw diff -99.26 dB (max 2.071e-06 re peak 0.1902; recorded), unchecked 0
+SC013-R2-DEFECT LOCK C3 fs 48000 A 12 T 60 s 0.0000 R 1: rendered theta -0.439570 deg, staircase prediction -0.000012 deg, gap 0.439558 deg (> 0.3; model worst 0.22)
+SC-013 LOCK C3 fs 48000 A 12 T   60 s 0.0000 R 1: theta -0.439570 deg (bar 1.0), drift -1.000000 deg (bar 0.5), bypass theta +129.545 deg, |gamma| 1.1742 st, gamma_an 1.1843, Gamma 1.1843, peak |c| 1.174212 (bar 1.243561), residual 2.710e-10, R-2 gap 0.4396 deg, Anchor output a1-scaled diff -142.40 dB (bar -120), raw diff -109.05 dB (max 6.706e-07 re peak 0.1901; recorded), unchecked 0
+SC013-R2-DEFECT LOCK C3 fs 48000 A 12 T 60 s 0.3333 R 0: rendered theta -0.359617 deg, staircase prediction +0.000049 deg, gap 0.359667 deg (> 0.3; model worst 0.22)
+SC-013 LOCK C3 fs 48000 A 12 T   60 s 0.3333 R 0: theta -0.359617 deg (bar 1.0), drift -1.000000 deg (bar 0.5), bypass theta +178.676 deg, |gamma| 1.4182 st, gamma_an 1.4626, Gamma 1.4626, peak |c| 1.418233 (bar 1.535769), residual 1.528e-13, R-2 gap 0.3597 deg, Anchor output a1-scaled diff -142.26 dB (bar -120), raw diff -79.94 dB (max 1.916e-05 re peak 0.1902; recorded), unchecked 0
+SC013-R2-DEFECT LOCK C3 fs 48000 A 12 T 60 s 0.3333 R 1: rendered theta -0.439364 deg, staircase prediction +0.000045 deg, gap 0.439409 deg (> 0.3; model worst 0.22)
+SC-013 LOCK C3 fs 48000 A 12 T   60 s 0.3333 R 1: theta -0.439364 deg (bar 1.0), drift -1.000000 deg (bar 0.5), bypass theta +127.284 deg, |gamma| 0.8983 st, gamma_an 0.9044, Gamma 0.9044, peak |c| 0.898340 (bar 0.949629), residual 9.854e-11, R-2 gap 0.4394 deg, Anchor output a1-scaled diff -142.34 dB (bar -120), raw diff -90.48 dB (max 5.692e-06 re peak 0.1902; recorded), unchecked 0
+SC013-R2-DEFECT LOCK C3 fs 48000 A 12 T 60 s 0.6667 R 0: rendered theta -0.359467 deg, staircase prediction +0.000106 deg, gap 0.359573 deg (> 0.3; model worst 0.22)
+SC-013 LOCK C3 fs 48000 A 12 T   60 s 0.6667 R 0: theta -0.359467 deg (bar 1.0), drift -1.000000 deg (bar 0.5), bypass theta -106.426 deg, |gamma| 0.6228 st, gamma_an 0.6314, Gamma 0.6314, peak |c| 0.622800 (bar 0.663016), residual 6.134e-11, R-2 gap 0.3596 deg, Anchor output a1-scaled diff -142.37 dB (bar -120), raw diff -80.23 dB (max 1.852e-05 re peak 0.1902; recorded), unchecked 0
+SC013-R2-DEFECT LOCK C3 fs 48000 A 12 T 60 s 0.6667 R 1: rendered theta -0.439238 deg, staircase prediction +0.000068 deg, gap 0.439306 deg (> 0.3; model worst 0.22)
+SC-013 LOCK C3 fs 48000 A 12 T   60 s 0.6667 R 1: theta -0.439238 deg (bar 1.0), drift -1.000000 deg (bar 0.5), bypass theta +53.378 deg, |gamma| 0.2641 st, gamma_an 0.2645, Gamma 0.2645, peak |c| 0.264081 (bar 0.277760), residual 9.903e-13, R-2 gap 0.4393 deg, Anchor output a1-scaled diff -142.28 dB (bar -120), raw diff -88.59 dB (max 7.078e-06 re peak 0.1902; recorded), unchecked 0
+SC013-R2-DEFECT LOCK C3 fs 48000 A 12 T 60 s 1.0000 R 0: rendered theta -0.421954 deg, staircase prediction +0.000174 deg, gap 0.422128 deg (> 0.3; model worst 0.22)
+SC-013 LOCK C3 fs 48000 A 12 T   60 s 1.0000 R 0: theta -0.421954 deg (bar 1.0), drift -1.000000 deg (bar 0.5), bypass theta -144.296 deg, |gamma| 0.6042 st, gamma_an 0.6120, Gamma 0.6120, peak |c| 0.604159 (bar 0.642595), residual 1.204e-11, R-2 gap 0.4221 deg, Anchor output a1-scaled diff -142.29 dB (bar -120), raw diff -83.29 dB (max 1.302e-05 re peak 0.1902; recorded), unchecked 0
+SC013-R2-DEFECT LOCK C3 fs 48000 A 12 T 60 s 1.0000 R 1: rendered theta -0.421951 deg, staircase prediction +0.000096 deg, gap 0.422047 deg (> 0.3; model worst 0.22)
+SC-013 LOCK C3 fs 48000 A 12 T   60 s 1.0000 R 1: theta -0.421951 deg (bar 1.0), drift -1.000000 deg (bar 0.5), bypass theta +33.543 deg, |gamma| 0.1504 st, gamma_an 0.1506, Gamma 0.1506, peak |c| 0.150433 (bar 0.158140), residual 1.137e-13, R-2 gap 0.4220 deg, Anchor output a1-scaled diff -142.30 dB (bar -120), raw diff -94.09 dB (max 3.755e-06 re peak 0.1902; recorded), unchecked 0
+SC013-R2-DEFECT LOCK C3 fs 48000 A 12 T 200 s 0.0000 R 0: rendered theta +0.378335 deg, staircase prediction +0.000029 deg, gap 0.378306 deg (> 0.3; model worst 0.22)
+SC-013 LOCK C3 fs 48000 A 12 T  200 s 0.0000 R 0: theta +0.378335 deg (bar 1.0), drift -1.000000 deg (bar 0.5), bypass theta -90.266 deg, |gamma| 0.2970 st, gamma_an 0.2989, Gamma 0.2989, peak |c| 0.297003 (bar 0.313872), residual 2.625e-13, R-2 gap 0.3783 deg, Anchor output a1-scaled diff -142.22 dB (bar -120), raw diff -106.00 dB (max 9.537e-07 re peak 0.1902; recorded), unchecked 0
+SC013-R2-DEFECT LOCK C3 fs 48000 A 12 T 200 s 0.0000 R 1: rendered theta +0.443988 deg, staircase prediction +0.000008 deg, gap 0.443979 deg (> 0.3; model worst 0.22)
+SC-013 LOCK C3 fs 48000 A 12 T  200 s 0.0000 R 1: theta +0.443988 deg (bar 1.0), drift -1.000000 deg (bar 0.5), bypass theta -67.743 deg, |gamma| 0.1798 st, gamma_an 0.1805, Gamma 0.1805, peak |c| 0.179756 (bar 0.189482), residual 1.621e-14, R-2 gap 0.4440 deg, Anchor output a1-scaled diff -142.28 dB (bar -120), raw diff -123.03 dB (max 1.341e-07 re peak 0.1902; recorded), unchecked 0
+SC013-R2-DEFECT LOCK C3 fs 48000 A 12 T 200 s 0.3333 R 0: rendered theta +0.378394 deg, staircase prediction +0.000189 deg, gap 0.378205 deg (> 0.3; model worst 0.22)
+SC-013 LOCK C3 fs 48000 A 12 T  200 s 0.3333 R 0: theta +0.378394 deg (bar 1.0), drift -1.000000 deg (bar 0.5), bypass theta -144.436 deg, |gamma| 0.3453 st, gamma_an 0.3479, Gamma 0.3479, peak |c| 0.345289 (bar 0.365306), residual 5.080e-13, R-2 gap 0.3782 deg, Anchor output a1-scaled diff -142.18 dB (bar -120), raw diff -92.05 dB (max 4.753e-06 re peak 0.1902; recorded), unchecked 0
+SC013-R2-DEFECT LOCK C3 fs 48000 A 12 T 200 s 0.3333 R 1: rendered theta +0.444045 deg, staircase prediction +0.000057 deg, gap 0.443988 deg (> 0.3; model worst 0.22)
+SC-013 LOCK C3 fs 48000 A 12 T  200 s 0.3333 R 1: theta +0.444045 deg (bar 1.0), drift -1.000000 deg (bar 0.5), bypass theta -75.026 deg, |gamma| 0.1559 st, gamma_an 0.1564, Gamma 0.1564, peak |c| 0.155898 (bar 0.164243), residual 1.243e-14, R-2 gap 0.4440 deg, Anchor output a1-scaled diff -142.13 dB (bar -120), raw diff -103.53 dB (max 1.267e-06 re peak 0.1902; recorded), unchecked 0
+SC013-R2-DEFECT LOCK C3 fs 48000 A 12 T 200 s 0.6667 R 0: rendered theta +0.378708 deg, staircase prediction +0.000198 deg, gap 0.378510 deg (> 0.3; model worst 0.22)
+SC-013 LOCK C3 fs 48000 A 12 T  200 s 0.6667 R 0: theta +0.378708 deg (bar 1.0), drift -1.000000 deg (bar 0.5), bypass theta +107.536 deg, |gamma| 0.1923 st, gamma_an 0.1926, Gamma 0.1926, peak |c| 0.192319 (bar 0.202197), residual 3.908e-14, R-2 gap 0.3785 deg, Anchor output a1-scaled diff -142.16 dB (bar -120), raw diff -88.23 dB (max 7.376e-06 re peak 0.1902; recorded), unchecked 0
+SC013-R2-DEFECT LOCK C3 fs 48000 A 12 T 200 s 0.6667 R 1: rendered theta +0.444624 deg, staircase prediction +0.000203 deg, gap 0.444421 deg (> 0.3; model worst 0.22)
+SC-013 LOCK C3 fs 48000 A 12 T  200 s 0.6667 R 1: theta +0.444624 deg (bar 1.0), drift -1.000000 deg (bar 0.5), bypass theta +159.890 deg, |gamma| 0.2369 st, gamma_an 0.2372, Gamma 0.2372, peak |c| 0.236860 (bar 0.249085), residual 5.684e-14, R-2 gap 0.4444 deg, Anchor output a1-scaled diff -142.26 dB (bar -120), raw diff -88.41 dB (max 7.227e-06 re peak 0.1902; recorded), unchecked 0
+SC013-R2-DEFECT LOCK C3 fs 48000 A 12 T 200 s 1.0000 R 0: rendered theta +0.397592 deg, staircase prediction +0.000208 deg, gap 0.397384 deg (> 0.3; model worst 0.22)
+SC-013 LOCK C3 fs 48000 A 12 T  200 s 1.0000 R 0: theta +0.397592 deg (bar 1.0), drift -1.000000 deg (bar 0.5), bypass theta -20.283 deg, |gamma| 0.0263 st, gamma_an 0.0263, Gamma 0.0263, peak |c| 0.026281 (bar 0.027611), residual 2.240e-11, R-2 gap 0.3974 deg, Anchor output a1-scaled diff -142.17 dB (bar -120), raw diff -107.31 dB (max 8.196e-07 re peak 0.1902; recorded), unchecked 0
+SC013-R2-DEFECT LOCK C3 fs 48000 A 12 T 200 s 1.0000 R 1: rendered theta +0.397563 deg, staircase prediction +0.000244 deg, gap 0.397319 deg (> 0.3; model worst 0.22)
+SC-013 LOCK C3 fs 48000 A 12 T  200 s 1.0000 R 1: theta +0.397563 deg (bar 1.0), drift -1.000000 deg (bar 0.5), bypass theta +94.685 deg, |gamma| 0.1260 st, gamma_an 0.1262, Gamma 0.1262, peak |c| 0.126038 (bar 0.132471), residual 1.421e-14, R-2 gap 0.3973 deg, Anchor output a1-scaled diff -142.22 dB (bar -120), raw diff -94.70 dB (max 3.502e-06 re peak 0.1902; recorded), unchecked 0
+SC013-R2-DEFECT LOCK C3 fs 48000 A 48 T 60 s 0.0000 R 0: rendered theta -0.360049 deg, staircase prediction -0.000465 deg, gap 0.359584 deg (> 0.3; model worst 0.22)
+SC-013 LOCK C3 fs 48000 A 48 T   60 s 0.0000 R 0: theta -0.360049 deg (bar 1.0), drift -1.000000 deg (bar 0.5), bypass theta +44.905 deg, |gamma| 0.4356 st, gamma_an 0.4372, Gamma 0.4372, peak |c| 0.435600 (bar 0.459046), residual 9.224e-10, R-2 gap 0.3596 deg, Anchor output a1-scaled diff -142.56 dB (bar -120), raw diff -67.32 dB (max 8.389e-05 re peak 0.1950; recorded), unchecked 0
+SC013-R2-DEFECT LOCK C3 fs 48000 A 48 T 60 s 0.0000 R 1: rendered theta -0.440400 deg, staircase prediction -0.000846 deg, gap 0.439554 deg (> 0.3; model worst 0.22)
+SC-013 LOCK C3 fs 48000 A 48 T   60 s 0.0000 R 1: theta -0.440400 deg (bar 1.0), drift -1.000000 deg (bar 0.5), bypass theta +44.415 deg, |gamma| 0.6058 st, gamma_an 0.6089, Gamma 0.6089, peak |c| 0.605776 (bar 0.639366), residual 9.246e-11, R-2 gap 0.4396 deg, Anchor output a1-scaled diff -142.40 dB (bar -120), raw diff -93.58 dB (max 4.083e-06 re peak 0.1949; recorded), unchecked 0
+SC013-R2-DEFECT LOCK C3 fs 48000 A 48 T 60 s 0.3333 R 0: rendered theta -0.358148 deg, staircase prediction +0.000967 deg, gap 0.359115 deg (> 0.3; model worst 0.22)
+SC-013 LOCK C3 fs 48000 A 48 T   60 s 0.3333 R 0: theta -0.358148 deg (bar 1.0), drift -1.000000 deg (bar 0.5), bypass theta -23.089 deg, |gamma| 0.0568 st, gamma_an 0.0568, Gamma 0.0568, peak |c| 0.056774 (bar 0.059685), residual 4.469e-12, R-2 gap 0.3591 deg, Anchor output a1-scaled diff -142.45 dB (bar -120), raw diff -65.28 dB (max 1.065e-04 re peak 0.1955; recorded), unchecked 0
+SC013-R2-DEFECT LOCK C3 fs 48000 A 48 T 60 s 0.3333 R 1: rendered theta -0.438513 deg, staircase prediction +0.000556 deg, gap 0.439069 deg (> 0.3; model worst 0.22)
+SC-013 LOCK C3 fs 48000 A 48 T   60 s 0.3333 R 1: theta -0.438513 deg (bar 1.0), drift -1.000000 deg (bar 0.5), bypass theta -175.617 deg, |gamma| 0.6862 st, gamma_an 0.6949, Gamma 0.6949, peak |c| 0.686206 (bar 0.729694), residual 1.685e-10, R-2 gap 0.4391 deg, Anchor output a1-scaled diff -142.55 dB (bar -120), raw diff -60.52 dB (max 1.841e-04 re peak 0.1955; recorded), unchecked 0
+SC013-R2-DEFECT LOCK C3 fs 48000 A 48 T 60 s 0.6667 R 0: rendered theta -0.355200 deg, staircase prediction +0.002710 deg, gap 0.357910 deg (> 0.3; model worst 0.22)
+SC-013 LOCK C3 fs 48000 A 48 T   60 s 0.6667 R 0: theta -0.355200 deg (bar 1.0), drift -1.000000 deg (bar 0.5), bypass theta -114.813 deg, |gamma| 0.0927 st, gamma_an 0.0929, Gamma 0.0929, peak |c| 0.092693 (bar 0.097535), residual 8.697e-12, R-2 gap 0.3579 deg, Anchor output a1-scaled diff -142.50 dB (bar -120), raw diff -65.80 dB (max 1.003e-04 re peak 0.1955; recorded), unchecked 0
+SC013-R2-DEFECT LOCK C3 fs 48000 A 48 T 60 s 0.6667 R 1: rendered theta -0.435488 deg, staircase prediction +0.002527 deg, gap 0.438015 deg (> 0.3; model worst 0.22)
+SC-013 LOCK C3 fs 48000 A 48 T   60 s 0.6667 R 1: theta -0.435488 deg (bar 1.0), drift -1.000000 deg (bar 0.5), bypass theta +105.002 deg, |gamma| 0.0935 st, gamma_an 0.0935, Gamma 0.0935, peak |c| 0.093460 (bar 0.098199), residual 1.080e-12, R-2 gap 0.4380 deg, Anchor output a1-scaled diff -142.61 dB (bar -120), raw diff -64.17 dB (max 1.210e-04 re peak 0.1955; recorded), unchecked 0
+SC013-R2-DEFECT LOCK C3 fs 48000 A 48 T 60 s 1.0000 R 0: rendered theta -0.417845 deg, staircase prediction +0.002755 deg, gap 0.420600 deg (> 0.3; model worst 0.22)
+SC-013 LOCK C3 fs 48000 A 48 T   60 s 1.0000 R 0: theta -0.417845 deg (bar 1.0), drift -1.000000 deg (bar 0.5), bypass theta +120.412 deg, |gamma| 0.1219 st, gamma_an 0.1221, Gamma 0.1221, peak |c| 0.121935 (bar 0.128185), residual 7.105e-13, R-2 gap 0.4206 deg, Anchor output a1-scaled diff -142.79 dB (bar -120), raw diff -64.64 dB (max 1.146e-04 re peak 0.1955; recorded), unchecked 0
+SC013-R2-DEFECT LOCK C3 fs 48000 A 48 T 60 s 1.0000 R 1: rendered theta -0.418098 deg, staircase prediction +0.002368 deg, gap 0.420466 deg (> 0.3; model worst 0.22)
+SC-013 LOCK C3 fs 48000 A 48 T   60 s 1.0000 R 1: theta -0.418098 deg (bar 1.0), drift -1.000000 deg (bar 0.5), bypass theta +112.061 deg, |gamma| 0.1227 st, gamma_an 0.1229, Gamma 0.1229, peak |c| 0.122717 (bar 0.129017), residual 7.390e-13, R-2 gap 0.4205 deg, Anchor output a1-scaled diff -142.65 dB (bar -120), raw diff -64.03 dB (max 1.229e-04 re peak 0.1955; recorded), unchecked 0
+SC013-R2-DEFECT LOCK C3 fs 48000 A 48 T 200 s 0.0000 R 0: rendered theta +0.378981 deg, staircase prediction +0.000346 deg, gap 0.378635 deg (> 0.3; model worst 0.22)
+SC-013 LOCK C3 fs 48000 A 48 T  200 s 0.0000 R 0: theta +0.378981 deg (bar 1.0), drift -1.000000 deg (bar 0.5), bypass theta -12.284 deg, |gamma| 0.0363 st, gamma_an 0.0363, Gamma 0.0363, peak |c| 0.036263 (bar 0.038108), residual 6.539e-10, R-2 gap 0.3786 deg, Anchor output a1-scaled diff -142.41 dB (bar -120), raw diff -66.45 dB (max 9.298e-05 re peak 0.1953; recorded), unchecked 0
+SC013-R2-DEFECT LOCK C3 fs 48000 A 48 T 200 s 0.0000 R 1: rendered theta +0.444243 deg, staircase prediction +0.000088 deg, gap 0.444155 deg (> 0.3; model worst 0.22)
+SC-013 LOCK C3 fs 48000 A 48 T  200 s 0.0000 R 1: theta +0.444243 deg (bar 1.0), drift -1.000000 deg (bar 0.5), bypass theta -15.121 deg, |gamma| 0.0624 st, gamma_an 0.0624, Gamma 0.0624, peak |c| 0.062368 (bar 0.065573), residual 9.026e-10, R-2 gap 0.4442 deg, Anchor output a1-scaled diff -142.40 dB (bar -120), raw diff -110.31 dB (max 5.960e-07 re peak 0.1953; recorded), unchecked 0
+SC013-R2-DEFECT LOCK C3 fs 48000 A 48 T 200 s 0.3333 R 0: rendered theta +0.382853 deg, staircase prediction +0.002930 deg, gap 0.379923 deg (> 0.3; model worst 0.22)
+SC-013 LOCK C3 fs 48000 A 48 T  200 s 0.3333 R 0: theta +0.382853 deg (bar 1.0), drift -1.000000 deg (bar 0.5), bypass theta -111.556 deg, |gamma| 0.0836 st, gamma_an 0.0837, Gamma 0.0837, peak |c| 0.083551 (bar 0.087885), residual 0.000e+00, R-2 gap 0.3799 deg, Anchor output a1-scaled diff -142.41 dB (bar -120), raw diff -65.47 dB (max 1.041e-04 re peak 0.1955; recorded), unchecked 0
+SC013-R2-DEFECT LOCK C3 fs 48000 A 48 T 200 s 0.3333 R 1: rendered theta +0.447626 deg, staircase prediction +0.002004 deg, gap 0.445622 deg (> 0.3; model worst 0.22)
+SC-013 LOCK C3 fs 48000 A 48 T  200 s 0.3333 R 1: theta +0.447626 deg (bar 1.0), drift -1.000000 deg (bar 0.5), bypass theta -143.132 deg, |gamma| 0.1686 st, gamma_an 0.1691, Gamma 0.1691, peak |c| 0.168564 (bar 0.177547), residual 1.705e-13, R-2 gap 0.4456 deg, Anchor output a1-scaled diff -142.48 dB (bar -120), raw diff -62.93 dB (max 1.395e-04 re peak 0.1955; recorded), unchecked 0
+SC013-R2-DEFECT LOCK C3 fs 48000 A 48 T 200 s 0.6667 R 0: rendered theta +0.389717 deg, staircase prediction +0.006112 deg, gap 0.383605 deg (> 0.3; model worst 0.22)
+SC-013 LOCK C3 fs 48000 A 48 T  200 s 0.6667 R 0: theta +0.389717 deg (bar 1.0), drift -1.000000 deg (bar 0.5), bypass theta +63.246 deg, |gamma| 0.0153 st, gamma_an 0.0153, Gamma 0.0153, peak |c| 0.015270 (bar 0.016042), residual 1.443e-10, R-2 gap 0.3836 deg, Anchor output a1-scaled diff -142.50 dB (bar -120), raw diff -68.10 dB (max 7.692e-05 re peak 0.1955; recorded), unchecked 0
+SC013-R2-DEFECT LOCK C3 fs 48000 A 48 T 200 s 0.6667 R 1: rendered theta +0.455805 deg, staircase prediction +0.006303 deg, gap 0.449502 deg (> 0.3; model worst 0.22)
+SC-013 LOCK C3 fs 48000 A 48 T  200 s 0.6667 R 1: theta +0.455805 deg (bar 1.0), drift -1.000000 deg (bar 0.5), bypass theta -165.716 deg, |gamma| 0.0441 st, gamma_an 0.0441, Gamma 0.0441, peak |c| 0.044075 (bar 0.046328), residual 9.435e-10, R-2 gap 0.4495 deg, Anchor output a1-scaled diff -142.45 dB (bar -120), raw diff -65.22 dB (max 1.072e-04 re peak 0.1955; recorded), unchecked 0
+SC013-R2-DEFECT LOCK C3 fs 48000 A 48 T 200 s 1.0000 R 0: rendered theta +0.409799 deg, staircase prediction +0.006964 deg, gap 0.402835 deg (> 0.3; model worst 0.22)
+SC-013 LOCK C3 fs 48000 A 48 T  200 s 1.0000 R 0: theta +0.409799 deg (bar 1.0), drift -1.000000 deg (bar 0.5), bypass theta +6.741 deg, |gamma| 0.0019 st, gamma_an 0.0019, Gamma 0.0019, peak |c| 0.001928 (bar 0.002030), residual 2.274e-13, R-2 gap 0.4028 deg, Anchor output a1-scaled diff -142.45 dB (bar -120), raw diff -76.96 dB (max 2.774e-05 re peak 0.1955; recorded), unchecked 0
+SC013-R2-DEFECT LOCK C3 fs 48000 A 48 T 200 s 1.0000 R 1: rendered theta +0.409698 deg, staircase prediction +0.007089 deg, gap 0.402609 deg (> 0.3; model worst 0.22)
+SC-013 LOCK C3 fs 48000 A 48 T  200 s 1.0000 R 1: theta +0.409698 deg (bar 1.0), drift -1.000000 deg (bar 0.5), bypass theta -141.437 deg, |gamma| 0.0463 st, gamma_an 0.0463, Gamma 0.0463, peak |c| 0.046274 (bar 0.048632), residual 5.300e-10, R-2 gap 0.4026 deg, Anchor output a1-scaled diff -142.45 dB (bar -120), raw diff -65.19 dB (max 1.075e-04 re peak 0.1955; recorded), unchecked 0
+SC-013 smoke: worst bypass |theta| 178.676 deg (negative control > 90), worst R-2 gap 0.4495 deg (investigate > 0.3)
+ProfundumNoteBehaviour_PostDropLandingSmoke wall clock 19.3 s
+ProfundumNoteBehaviour_PostDropLandingSmoke wall clock 0.0 s
+SC-013(d) bridged mid-fall (E1 -> E1+5, A 24, T 200, retrigger at 2880): theta -0.221060 deg at the final landing 12576 (bar 1.0), |gamma| 0.0379 st, residual 4.565e-13
+SC-013(d) bridged mid-rebound (E1 -> E1+5, A 24, T 200, retrigger at 12000): theta -0.234423 deg at the final landing 26496 (bar 1.0), |gamma| 0.1111 st, residual 2.558e-13
+SC-013(d) bridged mid-elastic (E1 -> E1+5, A 24, T 200, retrigger at 12480): theta -0.395633 deg at the final landing 31776 (bar 1.0), |gamma| 0.0760 st, residual 1.776e-14
+ProfundumNoteBehaviour_PostDropLandingSmoke wall clock 0.1 s
+SC-013(d) Reset noteOn at 2880 (effective 2951): accumulated 1.982298e+00 -> 0.000000e+00 cycles (mirror 0.000000e+00), theta +0.000184 deg (bar 1.0)
+ProfundumNoteBehaviour_PostDropLandingSmoke wall clock 0.0 s
+SC-013(d) interrupted Drop E1: accumulated 139.887667 cycles kept at the FreeRunning snap (mirror 139.887667), theta +0.133136 deg at the second landing 81600 (bar 1.0)
+SC-013(d) interrupted Drop C3: accumulated 443.747949 cycles kept at the FreeRunning snap (mirror 443.747949), theta +0.316811 deg at the second landing 81600 (bar 1.0)
+ProfundumNoteBehaviour_PostDropLandingSmoke wall clock 0.2 s
+SC-013(d) glide in flight (E1 -> E1+7, 200 ms ConstantTime, from 2880) during a bridged Drop: f_res at landing 61.7354 Hz (target 61.7354), theta +17.738947 deg (recorded, E-15)
+ProfundumNoteBehaviour_PostDropLandingSmoke wall clock 0.0 s
+SC-026 FOLLOW E1 A 12 T  200 s 0.0000 R 1: dTheta(t_s + 1 s) -0.001447 deg (bar 1.0), dTheta(t_s + 10 s) -0.012286 deg, drift -0.010839 deg (bar 0.5)
+SC-026 FOLLOW E1 A 12 T  200 s 0.3333 R 1: dTheta(t_s + 1 s) -0.001541 deg (bar 1.0), dTheta(t_s + 10 s) -0.013146 deg, drift -0.011605 deg (bar 0.5)
+SC-026 FOLLOW E1 A 12 T  200 s 0.6667 R 1: dTheta(t_s + 1 s) -0.001264 deg (bar 1.0), dTheta(t_s + 10 s) -0.012537 deg, drift -0.011273 deg (bar 0.5)
+SC-026 FOLLOW E1 A 12 T  200 s 1.0000 R 1: dTheta(t_s + 1 s) -0.001448 deg (bar 1.0), dTheta(t_s + 10 s) -0.013123 deg, drift -0.011675 deg (bar 0.5)
+SC-026 FOLLOW E1 A 48 T  200 s 0.0000 R 1: dTheta(t_s + 1 s) -0.001274 deg (bar 1.0), dTheta(t_s + 10 s) -0.012825 deg, drift -0.011550 deg (bar 0.5)
+SC-026 FOLLOW E1 A 48 T  200 s 0.3333 R 1: dTheta(t_s + 1 s) -0.001899 deg (bar 1.0), dTheta(t_s + 10 s) -0.013207 deg, drift -0.011308 deg (bar 0.5)
+SC-026 FOLLOW E1 A 48 T  200 s 0.6667 R 1: dTheta(t_s + 1 s) -0.002529 deg (bar 1.0), dTheta(t_s + 10 s) -0.014732 deg, drift -0.012203 deg (bar 0.5)
+SC-026 FOLLOW E1 A 48 T  200 s 1.0000 R 1: dTheta(t_s + 1 s) -0.002665 deg (bar 1.0), dTheta(t_s + 10 s) -0.014404 deg, drift -0.011739 deg (bar 0.5)
+ProfundumNoteBehaviour_FollowAfterDropSmoke wall clock 3.1 s
+SC010-A E1 fs 48000 kSawAnchor LOCK block 1 AlwaysRetrigger/Reset matrix: 0 counted of 509 raw detections, N 48 (recorded, not gated)
+SC010-CLICK E1 fs 48000 kSawAnchor LOCK block 1 AlwaysRetrigger/Reset VoiceReuse: detection at sample 8196 (amplitude 2.247274e-03) absent from the reference within +-40 (mapped to 32151.42), nearest event at 0 (8196 samples away)
+SC010-CLICK E1 fs 48000 kSawAnchor LOCK block 1 AlwaysRetrigger/Reset VoiceReuse: detection at sample 15103 (amplitude 2.024218e-03) absent from the reference within +-40 (mapped to 39058.42), nearest event at 24000 (8897 samples away)
+SC010-A E1 fs 48000 kSawAnchor LOCK block 1 AlwaysRetrigger/Reset VoiceReuse: 2 counted of 66 raw detections, N 40 (recorded, not gated)
+SC010-A E1 fs 48000 kSawAnchor LOCK block 1 AlwaysRetrigger/Continue matrix: 0 counted of 505 raw detections, N 48 (recorded, not gated)
+SC010-CLICK E1 fs 48000 kSawAnchor LOCK block 1 AlwaysRetrigger/Continue VoiceReuse: detection at sample 8196 (amplitude 2.247274e-03) absent from the reference within +-40 (mapped to 32151.42), nearest event at 0 (8196 samples away)
+SC010-CLICK E1 fs 48000 kSawAnchor LOCK block 1 AlwaysRetrigger/Continue VoiceReuse: detection at sample 15103 (amplitude 2.024218e-03) absent from the reference within +-40 (mapped to 39058.42), nearest event at 24000 (8897 samples away)
+SC010-A E1 fs 48000 kSawAnchor LOCK block 1 AlwaysRetrigger/Continue VoiceReuse: 2 counted of 74 raw detections, N 40 (recorded, not gated)
+SC010-A E1 fs 48000 kSawAnchor LOCK block 1 Legato/Reset matrix: 0 counted of 506 raw detections, N 48 (recorded, not gated)
+SC010-CLICK E1 fs 48000 kSawAnchor LOCK block 1 Legato/Reset VoiceReuse: detection at sample 8196 (amplitude 2.247274e-03) absent from the reference within +-40 (mapped to 32151.42), nearest event at 0 (8196 samples away)
+SC010-CLICK E1 fs 48000 kSawAnchor LOCK block 1 Legato/Reset VoiceReuse: detection at sample 15103 (amplitude 2.024218e-03) absent from the reference within +-40 (mapped to 39058.42), nearest event at 24000 (8897 samples away)
+SC010-A E1 fs 48000 kSawAnchor LOCK block 1 Legato/Reset VoiceReuse: 2 counted of 66 raw detections, N 40 (recorded, not gated)
+SC010-A E1 fs 48000 kSawAnchor LOCK block 1 Legato/Continue matrix: 0 counted of 503 raw detections, N 48 (recorded, not gated)
+SC010-CLICK E1 fs 48000 kSawAnchor LOCK block 1 Legato/Continue VoiceReuse: detection at sample 8196 (amplitude 2.247274e-03) absent from the reference within +-40 (mapped to 32151.42), nearest event at 0 (8196 samples away)
+SC010-CLICK E1 fs 48000 kSawAnchor LOCK block 1 Legato/Continue VoiceReuse: detection at sample 15103 (amplitude 2.024218e-03) absent from the reference within +-40 (mapped to 39058.42), nearest event at 24000 (8897 samples away)
+SC010-A E1 fs 48000 kSawAnchor LOCK block 1 Legato/Continue VoiceReuse: 2 counted of 74 raw detections, N 40 (recorded, not gated)
+SC010-CLICK E1 fs 48000 kSawAnchor LOCK block 1 EnvelopeRetriggerOnly/Reset matrix: detection at sample 369600 (amplitude 9.625657e-03) absent from the reference within +-48 (mapped to 24163.05), nearest event at 369600 (0 samples away)
+SC010-A E1 fs 48000 kSawAnchor LOCK block 1 EnvelopeRetriggerOnly/Reset matrix: 1 counted of 507 raw detections, N 48 (recorded, not gated)
+SC010-CLICK E1 fs 48000 kSawAnchor LOCK block 1 EnvelopeRetriggerOnly/Reset VoiceReuse: detection at sample 8196 (amplitude 2.247274e-03) absent from the reference within +-40 (mapped to 32151.42), nearest event at 0 (8196 samples away)
+SC010-CLICK E1 fs 48000 kSawAnchor LOCK block 1 EnvelopeRetriggerOnly/Reset VoiceReuse: detection at sample 15103 (amplitude 2.024218e-03) absent from the reference within +-40 (mapped to 39058.42), nearest event at 24000 (8897 samples away)
+SC010-A E1 fs 48000 kSawAnchor LOCK block 1 EnvelopeRetriggerOnly/Reset VoiceReuse: 2 counted of 74 raw detections, N 40 (recorded, not gated)
+SC010-A E1 fs 48000 kSawAnchor LOCK block 1 EnvelopeRetriggerOnly/Continue matrix: 0 counted of 505 raw detections, N 48 (recorded, not gated)
+SC010-CLICK E1 fs 48000 kSawAnchor LOCK block 1 EnvelopeRetriggerOnly/Continue VoiceReuse: detection at sample 8196 (amplitude 2.247274e-03) absent from the reference within +-40 (mapped to 32151.42), nearest event at 0 (8196 samples away)
+SC010-CLICK E1 fs 48000 kSawAnchor LOCK block 1 EnvelopeRetriggerOnly/Continue VoiceReuse: detection at sample 15103 (amplitude 2.024218e-03) absent from the reference within +-40 (mapped to 39058.42), nearest event at 24000 (8897 samples away)
+SC010-A E1 fs 48000 kSawAnchor LOCK block 1 EnvelopeRetriggerOnly/Continue VoiceReuse: 2 counted of 74 raw detections, N 40 (recorded, not gated)
+SC010-A E1 fs 48000 kSawAnchor LOCK block 1 OscillatorContinuous/Reset matrix: 0 counted of 503 raw detections, N 48 (recorded, not gated)
+SC010-CLICK E1 fs 48000 kSawAnchor LOCK block 1 OscillatorContinuous/Reset VoiceReuse: detection at sample 8196 (amplitude 2.247274e-03) absent from the reference within +-40 (mapped to 32151.42), nearest event at 0 (8196 samples away)
+SC010-CLICK E1 fs 48000 kSawAnchor LOCK block 1 OscillatorContinuous/Reset VoiceReuse: detection at sample 15103 (amplitude 2.024218e-03) absent from the reference within +-40 (mapped to 39058.42), nearest event at 24000 (8897 samples away)
+SC010-A E1 fs 48000 kSawAnchor LOCK block 1 OscillatorContinuous/Reset VoiceReuse: 2 counted of 74 raw detections, N 40 (recorded, not gated)
+SC010-A E1 fs 48000 kSawAnchor LOCK block 1 OscillatorContinuous/Continue matrix: 0 counted of 503 raw detections, N 48 (recorded, not gated)
+SC010-CLICK E1 fs 48000 kSawAnchor LOCK block 1 OscillatorContinuous/Continue VoiceReuse: detection at sample 8196 (amplitude 2.247274e-03) absent from the reference within +-40 (mapped to 32151.42), nearest event at 0 (8196 samples away)
+SC010-CLICK E1 fs 48000 kSawAnchor LOCK block 1 OscillatorContinuous/Continue VoiceReuse: detection at sample 15103 (amplitude 2.024218e-03) absent from the reference within +-40 (mapped to 39058.42), nearest event at 24000 (8897 samples away)
+SC010-A E1 fs 48000 kSawAnchor LOCK block 1 OscillatorContinuous/Continue VoiceReuse: 2 counted of 74 raw detections, N 40 (recorded, not gated)
+SC010-A E1 fs 48000 kSawAnchor LOCK block 512 AlwaysRetrigger/Reset matrix: 0 counted of 509 raw detections, N 48 (recorded, not gated)
+SC010-CLICK E1 fs 48000 kSawAnchor LOCK block 512 AlwaysRetrigger/Reset VoiceReuse: detection at sample 8196 (amplitude 2.247274e-03) absent from the reference within +-40 (mapped to 32151.42), nearest event at 0 (8196 samples away)
+SC010-CLICK E1 fs 48000 kSawAnchor LOCK block 512 AlwaysRetrigger/Reset VoiceReuse: detection at sample 15103 (amplitude 2.024218e-03) absent from the reference within +-40 (mapped to 39058.42), nearest event at 24000 (8897 samples away)
+SC010-A E1 fs 48000 kSawAnchor LOCK block 512 AlwaysRetrigger/Reset VoiceReuse: 2 counted of 66 raw detections, N 40 (recorded, not gated)
+SC010-A E1 fs 48000 kSawAnchor LOCK block 512 AlwaysRetrigger/Continue matrix: 0 counted of 505 raw detections, N 48 (recorded, not gated)
+SC010-CLICK E1 fs 48000 kSawAnchor LOCK block 512 AlwaysRetrigger/Continue VoiceReuse: detection at sample 8196 (amplitude 2.247274e-03) absent from the reference within +-40 (mapped to 32151.42), nearest event at 0 (8196 samples away)
+SC010-CLICK E1 fs 48000 kSawAnchor LOCK block 512 AlwaysRetrigger/Continue VoiceReuse: detection at sample 15103 (amplitude 2.024218e-03) absent from the reference within +-40 (mapped to 39058.42), nearest event at 24000 (8897 samples away)
+SC010-A E1 fs 48000 kSawAnchor LOCK block 512 AlwaysRetrigger/Continue VoiceReuse: 2 counted of 74 raw detections, N 40 (recorded, not gated)
+SC010-A E1 fs 48000 kSawAnchor LOCK block 512 Legato/Reset matrix: 0 counted of 506 raw detections, N 48 (recorded, not gated)
+SC010-CLICK E1 fs 48000 kSawAnchor LOCK block 512 Legato/Reset VoiceReuse: detection at sample 8196 (amplitude 2.247274e-03) absent from the reference within +-40 (mapped to 32151.42), nearest event at 0 (8196 samples away)
+SC010-CLICK E1 fs 48000 kSawAnchor LOCK block 512 Legato/Reset VoiceReuse: detection at sample 15103 (amplitude 2.024218e-03) absent from the reference within +-40 (mapped to 39058.42), nearest event at 24000 (8897 samples away)
+SC010-A E1 fs 48000 kSawAnchor LOCK block 512 Legato/Reset VoiceReuse: 2 counted of 66 raw detections, N 40 (recorded, not gated)
+SC010-A E1 fs 48000 kSawAnchor LOCK block 512 Legato/Continue matrix: 0 counted of 503 raw detections, N 48 (recorded, not gated)
+SC010-CLICK E1 fs 48000 kSawAnchor LOCK block 512 Legato/Continue VoiceReuse: detection at sample 8196 (amplitude 2.247274e-03) absent from the reference within +-40 (mapped to 32151.42), nearest event at 0 (8196 samples away)
+SC010-CLICK E1 fs 48000 kSawAnchor LOCK block 512 Legato/Continue VoiceReuse: detection at sample 15103 (amplitude 2.024218e-03) absent from the reference within +-40 (mapped to 39058.42), nearest event at 24000 (8897 samples away)
+SC010-A E1 fs 48000 kSawAnchor LOCK block 512 Legato/Continue VoiceReuse: 2 counted of 74 raw detections, N 40 (recorded, not gated)
+SC010-CLICK E1 fs 48000 kSawAnchor LOCK block 512 EnvelopeRetriggerOnly/Reset matrix: detection at sample 369600 (amplitude 9.625657e-03) absent from the reference within +-48 (mapped to 24163.05), nearest event at 369600 (0 samples away)
+SC010-A E1 fs 48000 kSawAnchor LOCK block 512 EnvelopeRetriggerOnly/Reset matrix: 1 counted of 507 raw detections, N 48 (recorded, not gated)
+SC010-CLICK E1 fs 48000 kSawAnchor LOCK block 512 EnvelopeRetriggerOnly/Reset VoiceReuse: detection at sample 8196 (amplitude 2.247274e-03) absent from the reference within +-40 (mapped to 32151.42), nearest event at 0 (8196 samples away)
+SC010-CLICK E1 fs 48000 kSawAnchor LOCK block 512 EnvelopeRetriggerOnly/Reset VoiceReuse: detection at sample 15103 (amplitude 2.024218e-03) absent from the reference within +-40 (mapped to 39058.42), nearest event at 24000 (8897 samples away)
+SC010-A E1 fs 48000 kSawAnchor LOCK block 512 EnvelopeRetriggerOnly/Reset VoiceReuse: 2 counted of 74 raw detections, N 40 (recorded, not gated)
+SC010-A E1 fs 48000 kSawAnchor LOCK block 512 EnvelopeRetriggerOnly/Continue matrix: 0 counted of 505 raw detections, N 48 (recorded, not gated)
+SC010-CLICK E1 fs 48000 kSawAnchor LOCK block 512 EnvelopeRetriggerOnly/Continue VoiceReuse: detection at sample 8196 (amplitude 2.247274e-03) absent from the reference within +-40 (mapped to 32151.42), nearest event at 0 (8196 samples away)
+SC010-CLICK E1 fs 48000 kSawAnchor LOCK block 512 EnvelopeRetriggerOnly/Continue VoiceReuse: detection at sample 15103 (amplitude 2.024218e-03) absent from the reference within +-40 (mapped to 39058.42), nearest event at 24000 (8897 samples away)
+SC010-A E1 fs 48000 kSawAnchor LOCK block 512 EnvelopeRetriggerOnly/Continue VoiceReuse: 2 counted of 74 raw detections, N 40 (recorded, not gated)
+SC010-A E1 fs 48000 kSawAnchor LOCK block 512 OscillatorContinuous/Reset matrix: 0 counted of 503 raw detections, N 48 (recorded, not gated)
+SC010-CLICK E1 fs 48000 kSawAnchor LOCK block 512 OscillatorContinuous/Reset VoiceReuse: detection at sample 8196 (amplitude 2.247274e-03) absent from the reference within +-40 (mapped to 32151.42), nearest event at 0 (8196 samples away)
+SC010-CLICK E1 fs 48000 kSawAnchor LOCK block 512 OscillatorContinuous/Reset VoiceReuse: detection at sample 15103 (amplitude 2.024218e-03) absent from the reference within +-40 (mapped to 39058.42), nearest event at 24000 (8897 samples away)
+SC010-A E1 fs 48000 kSawAnchor LOCK block 512 OscillatorContinuous/Reset VoiceReuse: 2 counted of 74 raw detections, N 40 (recorded, not gated)
+SC010-A E1 fs 48000 kSawAnchor LOCK block 512 OscillatorContinuous/Continue matrix: 0 counted of 503 raw detections, N 48 (recorded, not gated)
+SC010-CLICK E1 fs 48000 kSawAnchor LOCK block 512 OscillatorContinuous/Continue VoiceReuse: detection at sample 8196 (amplitude 2.247274e-03) absent from the reference within +-40 (mapped to 32151.42), nearest event at 0 (8196 samples away)
+SC010-CLICK E1 fs 48000 kSawAnchor LOCK block 512 OscillatorContinuous/Continue VoiceReuse: detection at sample 15103 (amplitude 2.024218e-03) absent from the reference within +-40 (mapped to 39058.42), nearest event at 24000 (8897 samples away)
+SC010-A E1 fs 48000 kSawAnchor LOCK block 512 OscillatorContinuous/Continue VoiceReuse: 2 counted of 74 raw detections, N 40 (recorded, not gated)
+SC-010(a)(b) smoke E1 48 kHz kSawAnchor LOCK: 32 renders, SC-016 L != R in 0 (bar 0); SC-010(a) 34 counted clicks (recorded, not gated) of 9234 raw detections, N 40-48, 104 reference renders; SC-010(b) 128 windows, 0 over the bound, worst ratio 0.7187 (bar 1, the click gate); wall clock 22.5 s
+SC-010(a)(b) smoke E1 48 kHz kSawAnchor LOCK: matched detections by distance to the reference's: <= 1: 7250, <= 2: 10, <= 4: 8, <= 8: 134, > 8: 1798 samples
+SC-016 mono identity E1 48 kHz: 128 renders, SC-016 L != R in 0 (bar 0); SC-010(a) 0 counted clicks (recorded, not gated) of 0 raw detections, N 0-0, 0 reference renders; SC-010(b) 0 windows, 0 over the bound, worst ratio 0.0000 (bar 1, the click gate); wall clock 16.0 s
+SC-016 mono identity E1 48 kHz: matched detections by distance to the reference's: <= 1: 0, <= 2: 0, <= 4: 0, <= 8: 0, > 8: 0 samples
+SC010-A E1 fs 48000 kSawAnchor LOCK block 37 Quantized delta +1 T 10 ms: 0 counted of 37 raw detections, N 137 (recorded, not gated)
+SC010-A E1 fs 48000 kSawAnchor LOCK block 37 Quantized delta +1 T 500 ms: 0 counted of 63 raw detections, N 137 (recorded, not gated)
+SC010-A E1 fs 48000 kSawAnchor LOCK block 37 Quantized delta -1 T 10 ms: 0 counted of 32 raw detections, N 137 (recorded, not gated)
+SC010-A E1 fs 48000 kSawAnchor LOCK block 37 Quantized delta -1 T 500 ms: 0 counted of 63 raw detections, N 137 (recorded, not gated)
+SC010-A E1 fs 48000 kSawAnchor LOCK block 37 Quantized delta +12 T 10 ms: 0 counted of 47 raw detections, N 72 (recorded, not gated)
+SC010-A E1 fs 48000 kSawAnchor LOCK block 37 Quantized delta +12 T 500 ms: 0 counted of 80 raw detections, N 72 (recorded, not gated)
+SC010-A E1 fs 48000 kSawAnchor LOCK block 37 Quantized delta -12 T 10 ms: 0 counted of 48 raw detections, N 72 (recorded, not gated)
+SC010-A E1 fs 48000 kSawAnchor LOCK block 37 Quantized delta -12 T 500 ms: 0 counted of 82 raw detections, N 72 (recorded, not gated)
+SC010-CLICK E1 fs 48000 kSawAnchor LOCK block 37 Quantized delta +24 T 10 ms: detection at sample 8196 (amplitude 2.247244e-03) absent from the reference within +-36 (mapped to 32659.98), nearest event at 14400 (6204 samples away)
+SC010-A E1 fs 48000 kSawAnchor LOCK block 37 Quantized delta +24 T 10 ms: 1 counted of 68 raw detections, N 36 (recorded, not gated)
+SC010-CLICK E1 fs 48000 kSawAnchor LOCK block 37 Quantized delta +24 T 500 ms: detection at sample 8196 (amplitude 2.247244e-03) absent from the reference within +-36 (mapped to 32659.98), nearest event at 14400 (6204 samples away)
+SC010-A E1 fs 48000 kSawAnchor LOCK block 37 Quantized delta +24 T 500 ms: 1 counted of 115 raw detections, N 36 (recorded, not gated)
+SC010-CLICK E1 fs 48000 kSawAnchor LOCK block 37 Quantized delta -24 T 10 ms: detection at sample 20223 (amplitude 2.008080e-03) absent from the reference within +-36 (mapped to 30247.31), nearest event at 14400 (5823 samples away)
+SC010-A E1 fs 48000 kSawAnchor LOCK block 37 Quantized delta -24 T 10 ms: 1 counted of 68 raw detections, N 36 (recorded, not gated)
+SC010-A E1 fs 48000 kSawAnchor LOCK block 37 Quantized delta -24 T 500 ms: 0 counted of 113 raw detections, N 36 (recorded, not gated)
+SC010-CLICK E1 fs 48000 kSawAnchor LOCK block 37 ConstantRate delta +24 T 10 ms: detection at sample 8196 (amplitude 2.247244e-03) absent from the reference within +-36 (mapped to 32659.98), nearest event at 14400 (6204 samples away)
+SC010-A E1 fs 48000 kSawAnchor LOCK block 37 ConstantRate delta +24 T 10 ms: 1 counted of 69 raw detections, N 36 (recorded, not gated)
+SC010-CLICK E1 fs 48000 kSawAnchor LOCK block 37 ConstantRate delta -24 T 10 ms: detection at sample 25601 (amplitude 1.986220e-03) absent from the reference within +-36 (mapped to 34991.00), nearest event at 14400 (11201 samples away)
+SC010-A E1 fs 48000 kSawAnchor LOCK block 37 ConstantRate delta -24 T 10 ms: 1 counted of 67 raw detections, N 36 (recorded, not gated)
+SC010-A E1 fs 48000 kSawAnchor LOCK block 37 switch ConstantTime -> ConstantRate (delta +12, T 500 ms): 0 counted of 81 raw detections, N 72 (recorded, not gated)
+SC010-A E1 fs 48000 kSawAnchor LOCK block 37 switch ConstantTime -> Quantized (delta +12, T 500 ms): 0 counted of 76 raw detections, N 72 (recorded, not gated)
+SC010-A E1 fs 48000 kSawAnchor LOCK block 37 switch ConstantRate -> ConstantTime (delta +12, T 500 ms): 0 counted of 77 raw detections, N 72 (recorded, not gated)
+SC010-A E1 fs 48000 kSawAnchor LOCK block 37 switch ConstantRate -> Quantized (delta +12, T 500 ms): 0 counted of 77 raw detections, N 72 (recorded, not gated)
+SC010-A E1 fs 48000 kSawAnchor LOCK block 37 switch Quantized -> ConstantTime (delta +12, T 500 ms): 0 counted of 77 raw detections, N 72 (recorded, not gated)
+SC010-A E1 fs 48000 kSawAnchor LOCK block 37 switch Quantized -> ConstantRate (delta +12, T 500 ms): 0 counted of 81 raw detections, N 72 (recorded, not gated)
+SC-010(c) glides E1 48 kHz kSawAnchor LOCK: 20 glide renders, SC-016 L != R in 0 (bar 0); SC-010(a) 5 counted clicks (recorded, not gated) of 1421 raw detections, N 36-137, 40 reference renders; 179 step/switch windows, 0 over the bound, worst ratio 0.6748 (bar 1, the click gate); wall clock 2.3 s
+SC-010(c) glides E1 48 kHz kSawAnchor LOCK: matched detections by distance to the reference's: <= 1: 1169, <= 2: 20, <= 4: 9, <= 8: 17, > 8: 201 samples
+SC-010 positive control (a): detection at 30099, nearest reference detection 0.36 samples from its mapped position (N 109)
+SC-010 positive control (a), undeclicked Reset at 30099: 0 counted detection(s) within 8 samples (0 counted, 57 raw in the render, N 109; recorded, not gated)
+SC-010 positive control (b), undeclicked Reset at 30099: max|dy| 1.609456e-01 vs bound 8.095805e-02 (ratio 1.99, must be > 1)
+SC-010 positive control (b), late declick at 30099: max|dy| 1.609456e-01 vs bound 8.096037e-02 (ratio 1.99, must be > 1)
+SC-010 positive control (b) late declick: detection at 30099, nearest reference detection 0.36 samples from its mapped position (N 109)
+SC-010 positive control (b) late declick: detection at 30171, nearest reference detection 71.64 samples from its mapped position (N 109)
+SC-010 positive control (a) on the late declick at 30099: 0 counted detection(s) in [ev - 8, ev + L_d + 8] (0 counted, 58 raw in the render, N 109; recorded, not gated)
+SC-010 positive control (c), Quantized step at 20400 with a phase reset: max|dy| 1.606639e-01 vs bound 7.607278e-02 (ratio 2.11, must be > 1)
+SC-010 positive control (c) Quantized reset: detection at 20400, nearest reference detection 0.50 samples from its mapped position (N 72)
+SC-010 positive control (a) on the Quantized step at 20400: 0 counted detection(s) within 8 samples (0 counted, 76 raw in the render, N 72; recorded, not gated)
+SC-014 Amount E1 A  0: start 0.0000 st (d_core), -0.0000 st (f_zc)
+SC-014 Amount E1 A  6: start 6.0000 st (d_core), 5.9235 st (f_zc)
+SC-014 Amount E1 A 12: start 12.0000 st (d_core), 11.8922 st (f_zc)
+SC-014 Amount E1 A 18: start 18.0000 st (d_core), 17.8867 st (f_zc)
+SC-014 Amount E1 A 24: start 24.0000 st (d_core), 23.8944 st (f_zc)
+SC-014 Amount E1 A 30: start 30.0000 st (d_core), 29.9083 st (f_zc)
+SC-014 Amount E1 A 36: start 36.0000 st (d_core), 35.9239 st (f_zc)
+SC-014 Amount E1 A 42: start 42.0000 st (d_core), 41.9382 st (f_zc)
+SC-014 Amount E1 A 48: start 48.0000 st (d_core), 47.9510 st (f_zc)
+ProfundumNoteBehaviour_Audibility section wall clock 0.4 s
+SC-014 Time E1 T   10 ms: t_s 479.0 samples (d_core), 873.7 (f_zc)
+SC-014 Time E1 T   30 ms: t_s 1439.0 samples (d_core), 2038.7 (f_zc)
+SC-014 Time E1 T  100 ms: t_s 4575.0 samples (d_core), 4367.6 (f_zc)
+SC-014 Time E1 T  300 ms: t_s 13599.0 samples (d_core), 12520.2 (f_zc)
+SC-014 Time E1 T 1000 ms: t_s 46623.0 samples (d_core), 40499.8 (f_zc)
+ProfundumNoteBehaviour_Audibility section wall clock 0.1 s
+SC-014 Shape E1 s 0.0000: alpha 0.13080 (d_core), 0.12879 (f_zc)
+SC-014 Shape E1 s 0.1667: alpha 0.30991 (d_core), 0.30935 (f_zc)
+SC-014 Shape E1 s 0.3333: alpha 0.50019 (d_core), 0.50117 (f_zc)
+SC-014 Shape E1 s 0.5000: alpha 0.68703 (d_core), 0.68950 (f_zc)
+SC-014 Shape E1 s 0.6667: alpha 0.87136 (d_core), 0.87532 (f_zc)
+SC-014 Shape E1 s 0.6667: epsilon -0.00000 st (d_core), 0.00000 st (f_zc)
+SC-014 Shape E1 s 0.8333: epsilon 1.72023 st (d_core), 1.71930 st (f_zc)
+SC-014 Shape E1 s 1.0000: epsilon 3.67705 st (d_core), 3.67161 st (f_zc)
+ProfundumNoteBehaviour_Audibility section wall clock 0.4 s
+SC-014 Rebound E1 R 0.00: rho -0.00000 st (d_core), 0.00000 st (f_zc)
+SC-014 Rebound E1 R 0.25: rho 1.55140 st (d_core), 1.54998 st (f_zc)
+SC-014 Rebound E1 R 0.50: rho 2.88068 st (d_core), 2.87754 st (f_zc)
+SC-014 Rebound E1 R 1.00: rho 5.98441 st (d_core), 5.97024 st (f_zc)
+ProfundumNoteBehaviour_Audibility section wall clock 0.2 s
+SC-014 Amount note A  0: start 0.0000 st (d_core), 0.0000 st (f_zc)
+SC-014 Amount note A  6: start 6.0000 st (d_core), 5.9524 st (f_zc)
+SC-014 Amount note A 12: start 12.0000 st (d_core), 11.9331 st (f_zc)
+SC-014 Amount note A 18: start 18.0000 st (d_core), 17.9298 st (f_zc)
+SC-014 Amount note A 24: start 24.0000 st (d_core), 23.9349 st (f_zc)
+SC-014 Amount note A 30: start 30.0000 st (d_core), 29.9438 st (f_zc)
+SC-014 Amount note A 36: start 36.0000 st (d_core), 35.9538 st (f_zc)
+SC-014 Amount note A 42: start 42.0000 st (d_core), 41.9614 st (f_zc)
+SC-014 Amount note A 48: start 48.0000 st (d_core), 47.9738 st (f_zc)
+ProfundumNoteBehaviour_Audibility section wall clock 0.4 s
+SC-014 Time note T   10 ms: t_s 479.0 samples (d_core), 917.3 (f_zc)
+SC-014 Time note T   30 ms: t_s 1439.0 samples (d_core), 1651.2 (f_zc)
+SC-014 Time note T  100 ms: t_s 4719.0 samples (d_core), 4587.3 (f_zc)
+SC-014 Time note T  300 ms: t_s 12287.0 samples (d_core), 8622.6 (f_zc)
+SC-014 Time note T 1000 ms: t_s 46271.0 samples (d_core), 35071.6 (f_zc)
+ProfundumNoteBehaviour_Audibility section wall clock 0.1 s
+SC-014 Shape note s 0.0000: alpha 0.12612 (d_core), 0.12427 (f_zc)
+SC-014 Shape note s 0.1667: alpha 0.31529 (d_core), 0.31354 (f_zc)
+SC-014 Shape note s 0.3333: alpha 0.49915 (d_core), 0.49749 (f_zc)
+SC-014 Shape note s 0.5000: alpha 0.68820 (d_core), 0.68663 (f_zc)
+SC-014 Shape note s 0.6667: alpha 0.87456 (d_core), 0.87309 (f_zc)
+SC-014 Shape note s 0.6667: epsilon -0.00000 st (d_core), 0.00000 st (f_zc)
+SC-014 Shape note s 0.8333: epsilon 1.81916 st (d_core), 1.81864 st (f_zc)
+SC-014 Shape note s 1.0000: epsilon 3.59841 st (d_core), 3.59615 st (f_zc)
+ProfundumNoteBehaviour_Audibility section wall clock 0.4 s
+SC-014 Rebound note R 0.00: rho -0.00000 st (d_core), 0.00000 st (f_zc)
+SC-014 Rebound note R 0.25: rho 1.52414 st (d_core), 1.52271 st (f_zc)
+SC-014 Rebound note R 0.50: rho 3.08114 st (d_core), 3.07984 st (f_zc)
+SC-014 Rebound note R 1.00: rho 5.97859 st (d_core), 5.97430 st (f_zc)
+ProfundumNoteBehaviour_Audibility section wall clock 0.2 s
+SC-014 Retrigger onset 1 (Overlap at 57600, effective 57671): D 5.45 dB (bar >= -10); Reset minimum 0.25 ms RMS -69.98 dB at [57660, 57672) vs Continue one-period RMS -12.22 dB over [57164, 58037) (centred on Continue's effective 57600): gap 57.75 dB (bar >= 20); same-window Continue -36.07 dB (recorded)
+SC-014 Retrigger onset 2 (ReturnToHeld at 115200, effective 115271): D 5.73 dB (bar >= -10); Reset minimum 0.25 ms RMS -51.74 dB at [115262, 115274) vs Continue one-period RMS -12.79 dB over [114618, 115783) (centred on Continue's effective 115200): gap 38.95 dB (bar >= 20); same-window Continue -32.81 dB (recorded)
+SC-014 Retrigger onset 4 (Tail at 177600, effective 177671): D -3.52 dB (bar >= -10); Reset minimum 0.25 ms RMS -84.48 dB at [177660, 177672) vs Continue one-period RMS -11.63 dB over [177110, 178090) (centred on Continue's effective 177600): gap 72.85 dB (bar >= 20); same-window Continue -6.43 dB (recorded)
+ProfundumNoteBehaviour_Audibility section wall clock 0.4 s
+SC-014 Note Memory AlwaysRetrigger vs Legato (Reset): max RMS-envelope difference 31.57 dB (bar >= 3), max D 7.46 dB (bar >= -10)
+SC-014 Note Memory AlwaysRetrigger vs EnvelopeRetriggerOnly (Reset): max RMS-envelope difference 77.88 dB (bar >= 3), max D 5.27 dB (bar >= -10)
+SC-014 Note Memory AlwaysRetrigger vs OscillatorContinuous (Reset): max RMS-envelope difference 77.88 dB (bar >= 3), max D 7.46 dB (bar >= -10)
+SC-014 Note Memory Legato vs EnvelopeRetriggerOnly (Reset): max RMS-envelope difference 68.27 dB (bar >= 3), max D -0.47 dB (bar >= -10)
+SC-014 Note Memory Legato vs OscillatorContinuous (Reset): max RMS-envelope difference 68.27 dB (bar >= 3), max D 3.88 dB (bar >= -10)
+SC-014 Note Memory EnvelopeRetriggerOnly vs OscillatorContinuous (Reset): max RMS-envelope difference 34.49 dB (bar >= 3), max D 4.37 dB (bar >= -10)
+ProfundumNoteBehaviour_Audibility section wall clock 1.5 s
+SC-014 Glide C2 -> C4 at T/2: CT 11.994, CR 6.000, Q 12.000 st (d_core); CT 11.986, CR 5.997, Q 11.541 st (f_zc); max |Q - CT| 0.992 st (d_core), 0.901 st (f_zc); Quantized 24 steps, worst |step - 1 st| 0.00000 st
+ProfundumNoteBehaviour_Audibility section wall clock 0.1 s
+SC-015 kSawAnchor E1 fs 48000 drop-A48-T1-s0.000-R1-bypass: aliased -132.35 dBFS (bar -96), excluded 0.142, trajectory end 81, frame 145 + 131072 at 41.2034 Hz
+SC-015 kSawAnchor E1 fs 48000 drop-A48-T1-s0.000-R1-lock: aliased -130.79 dBFS (bar -96), excluded 0.142, trajectory end 81, frame 145 + 131072 at 41.2034 Hz
+SC-015 kSawAnchor E1 fs 48000 drop-A48-T1-s0.333-R1-bypass: aliased -131.16 dBFS (bar -96), excluded 0.142, trajectory end 81, frame 145 + 131072 at 41.2034 Hz
+SC-015 kSawAnchor E1 fs 48000 drop-A48-T1-s0.333-R1-lock: aliased -132.73 dBFS (bar -96), excluded 0.142, trajectory end 81, frame 145 + 131072 at 41.2034 Hz
+SC-015 kSawAnchor E1 fs 48000 drop-A48-T1-s0.667-R1-bypass: aliased -131.68 dBFS (bar -96), excluded 0.142, trajectory end 81, frame 145 + 131072 at 41.2034 Hz
+SC-015 kSawAnchor E1 fs 48000 drop-A48-T1-s0.667-R1-lock: aliased -130.84 dBFS (bar -96), excluded 0.142, trajectory end 81, frame 145 + 131072 at 41.2034 Hz
+SC-015 kSawAnchor E1 fs 48000 drop-A48-T1-s1.000-R1-bypass: aliased -133.22 dBFS (bar -96), excluded 0.142, trajectory end 97, frame 161 + 131072 at 41.2034 Hz
+SC-015 kSawAnchor E1 fs 48000 drop-A48-T1-s1.000-R1-lock: aliased -132.90 dBFS (bar -96), excluded 0.142, trajectory end 97, frame 161 + 131072 at 41.2034 Hz
+SC-015 kSawAnchor E1 fs 48000 glide-Quantized-up24-T0.0208ms: aliased -138.49 dBFS (bar -96), excluded 0.142, trajectory end 977, frame 1041 + 32768 at 164.8138 Hz
+SC-015 kSawAnchor E1 fs 48000 glide-Quantized-up24-T1.0000ms: aliased -139.39 dBFS (bar -96), excluded 0.142, trajectory end 1009, frame 1073 + 32768 at 164.8138 Hz
+SC-015 kSawAnchor E1 fs 48000 glide-ConstantRate-up24-T0.0208ms: aliased -137.94 dBFS (bar -96), excluded 0.142, trajectory end 977, frame 1041 + 32768 at 164.8138 Hz
+SC-015 kSawAnchor E1 fs 48000 glide-ConstantRate-up24-T1.0000ms: aliased -139.29 dBFS (bar -96), excluded 0.142, trajectory end 1057, frame 1121 + 32768 at 164.8138 Hz
+SC-015 kSawAnchor E1 fs 48000 bridge-midfall-up5-A48-T1-R1-bypass: aliased -136.55 dBFS (bar -96), excluded 0.213, trajectory end 145, frame 209 + 65536 at 55.0000 Hz
+SC-015 kSawAnchor E1 fs 48000 bridge-fromrest-up5-A48-T1-R1-bypass: aliased -137.58 dBFS (bar -96), excluded 0.213, trajectory end 1089, frame 1153 + 65536 at 55.0000 Hz
+SC-015 kSawAnchor E1 fs 48000 bridge-midfall-up5-A48-T1-R1-lock: aliased -135.80 dBFS (bar -96), excluded 0.213, trajectory end 145, frame 209 + 65536 at 55.0000 Hz
+SC-015 kSawAnchor E1 fs 48000 bridge-fromrest-up5-A48-T1-R1-lock: aliased -138.23 dBFS (bar -96), excluded 0.213, trajectory end 1089, frame 1153 + 65536 at 55.0000 Hz
+SC-015 kSawAnchor C3 fs 48000 drop-A48-T1-s0.000-R1-bypass: aliased -138.72 dBFS (bar -96), excluded 0.179, trajectory end 81, frame 145 + 32768 at 130.8128 Hz
+SC-015 kSawAnchor C3 fs 48000 drop-A48-T1-s0.000-R1-lock: aliased -139.27 dBFS (bar -96), excluded 0.179, trajectory end 81, frame 145 + 32768 at 130.8128 Hz
+SC-015 kSawAnchor C3 fs 48000 drop-A48-T1-s0.333-R1-bypass: aliased -139.93 dBFS (bar -96), excluded 0.179, trajectory end 81, frame 145 + 32768 at 130.8128 Hz
+SC-015 kSawAnchor C3 fs 48000 drop-A48-T1-s0.333-R1-lock: aliased -140.09 dBFS (bar -96), excluded 0.179, trajectory end 81, frame 145 + 32768 at 130.8128 Hz
+SC-015 kSawAnchor C3 fs 48000 drop-A48-T1-s0.667-R1-bypass: aliased -138.97 dBFS (bar -96), excluded 0.179, trajectory end 81, frame 145 + 32768 at 130.8128 Hz
+SC-015 kSawAnchor C3 fs 48000 drop-A48-T1-s0.667-R1-lock: aliased -138.50 dBFS (bar -96), excluded 0.179, trajectory end 81, frame 145 + 32768 at 130.8128 Hz
+SC-015 kSawAnchor C3 fs 48000 drop-A48-T1-s1.000-R1-bypass: aliased -139.65 dBFS (bar -96), excluded 0.179, trajectory end 97, frame 161 + 32768 at 130.8128 Hz
+SC-015 kSawAnchor C3 fs 48000 drop-A48-T1-s1.000-R1-lock: aliased -139.10 dBFS (bar -96), excluded 0.179, trajectory end 97, frame 161 + 32768 at 130.8128 Hz
+SC-015 kSawAnchor C3 fs 48000 glide-Quantized-up24-T0.0208ms: aliased -144.20 dBFS (bar -96), excluded 0.178, trajectory end 977, frame 1041 + 8192 at 523.2511 Hz
+SC-015 kSawAnchor C3 fs 48000 glide-Quantized-up24-T1.0000ms: aliased -143.34 dBFS (bar -96), excluded 0.178, trajectory end 1009, frame 1073 + 8192 at 523.2511 Hz
+SC-015 kSawAnchor C3 fs 48000 glide-ConstantRate-up24-T0.0208ms: aliased -143.76 dBFS (bar -96), excluded 0.178, trajectory end 977, frame 1041 + 8192 at 523.2511 Hz
+SC-015 kSawAnchor C3 fs 48000 glide-ConstantRate-up24-T1.0000ms: aliased -144.28 dBFS (bar -96), excluded 0.178, trajectory end 1057, frame 1121 + 8192 at 523.2511 Hz
+SC-015 kSawAnchor C3 fs 48000 bridge-midfall-up5-A48-T1-R1-bypass: aliased -139.41 dBFS (bar -96), excluded 0.134, trajectory end 145, frame 209 + 32768 at 174.6141 Hz
+SC-015 kSawAnchor C3 fs 48000 bridge-fromrest-up5-A48-T1-R1-bypass: aliased -138.82 dBFS (bar -96), excluded 0.134, trajectory end 1089, frame 1153 + 32768 at 174.6141 Hz
+SC-015 kSawAnchor C3 fs 48000 bridge-midfall-up5-A48-T1-R1-lock: aliased -138.92 dBFS (bar -96), excluded 0.134, trajectory end 145, frame 209 + 32768 at 174.6141 Hz
+SC-015 kSawAnchor C3 fs 48000 bridge-fromrest-up5-A48-T1-R1-lock: aliased -140.13 dBFS (bar -96), excluded 0.134, trajectory end 1089, frame 1153 + 32768 at 174.6141 Hz
+SC-015 smoke: 32 cells, worst aliased -130.79 dBFS (sc015-48000-E1-kSawAnchor.csv drop-A48-T1-s0.000-R1-lock; bar -96), wall clock 4.1 s
+SC-021 808-attack E1: start 12.000 st, t_s 118.31 ms, alpha 0.2524, rho -0.0000 st, epsilon -0.0000 st, peak 0.3567 (ceiling 9.75), SC-010(b) 0 of 1 window(s) over the bound, worst ratio 0.4720 (bar 1, the click gate); SC-010(a) 0 counted (recorded)
+SC-021 cinematic-impact E1: start 36.000 st, t_s 1333.98 ms, alpha 0.8649, rho 2.6615 st, epsilon 2.6615 st, peak 0.4841 (ceiling 9.75), SC-010(b) 0 of 1 window(s) over the bound, worst ratio 0.7495 (bar 1, the click gate); SC-010(a) 0 counted (recorded)
+SC-021 techno-pluck E1: start 7.000 st, t_s 37.31 ms, alpha 0.0650, rho 4.2598 st, epsilon 4.2598 st, peak 0.4777 (ceiling 9.75), SC-010(b) 0 of 1 window(s) over the bound, worst ratio 0.2450 (bar 1, the click gate); SC-010(a) 0 counted (recorded)
+SC-021 kick-bass-hybrid E1: start 24.000 st, t_s 89.31 ms, alpha 0.8136, rho 11.0130 st, epsilon 11.0130 st, peak 0.5694 (ceiling 9.75), SC-010(b) 0 of 1 window(s) over the bound, worst ratio 0.7219 (bar 1, the click gate); SC-010(a) 0 counted (recorded)
+SC-021 E1 808-attack vs cinematic-impact: |d start| 24.000 st, t_s ratio 11.275, |d alpha| 0.6125, |d rho| 2.6615 st (bars 6, 2, 0.1, 1.80)
+SC-021 E1 808-attack vs techno-pluck: |d start| 5.000 st, t_s ratio 3.171, |d alpha| 0.1873, |d rho| 4.2598 st (bars 6, 2, 0.1, 0.60)
+SC-021 E1 808-attack vs kick-bass-hybrid: |d start| 12.000 st, t_s ratio 1.325, |d alpha| 0.5612, |d rho| 11.0130 st (bars 6, 2, 0.1, 1.20)
+SC-021 E1 cinematic-impact vs techno-pluck: |d start| 29.000 st, t_s ratio 35.752, |d alpha| 0.7999, |d rho| 1.5983 st (bars 6, 2, 0.1, 1.80)
+SC-021 E1 cinematic-impact vs kick-bass-hybrid: |d start| 12.000 st, t_s ratio 14.936, |d alpha| 0.0513, |d rho| 8.3514 st (bars 6, 2, 0.1, 1.80)
+SC-021 E1 techno-pluck vs kick-bass-hybrid: |d start| 17.000 st, t_s ratio 2.394, |d alpha| 0.7486, |d rho| 6.7531 st (bars 6, 2, 0.1, 1.20)
+SC-021 808-attack C2: start 12.000 st, t_s 116.98 ms, alpha 0.1561, rho -0.0000 st, epsilon -0.0000 st, peak 0.4234 (ceiling 9.75), SC-010(b) 0 of 1 window(s) over the bound, worst ratio 0.6437 (bar 1, the click gate); SC-010(a) 0 counted (recorded)
+SC-021 cinematic-impact C2: start 36.000 st, t_s 1334.31 ms, alpha 0.8636, rho 2.7210 st, epsilon 2.7210 st, peak 0.4774 (ceiling 9.75), SC-010(b) 0 of 1 window(s) over the bound, worst ratio 0.7454 (bar 1, the click gate); SC-010(a) 0 counted (recorded)
+SC-021 techno-pluck C2: start 7.000 st, t_s 37.31 ms, alpha 0.0650, rho 4.2598 st, epsilon 4.2598 st, peak 0.5815 (ceiling 9.75), SC-010(b) 0 of 1 window(s) over the bound, worst ratio 0.4625 (bar 1, the click gate); SC-010(a) 0 counted (recorded)
+SC-021 kick-bass-hybrid C2: start 24.000 st, t_s 89.31 ms, alpha 0.8561, rho 9.1726 st, epsilon 9.1726 st, peak 0.5912 (ceiling 9.75), SC-010(b) 0 of 1 window(s) over the bound, worst ratio 0.7520 (bar 1, the click gate); SC-010(a) 0 counted (recorded)
+SC-021 C2 808-attack vs cinematic-impact: |d start| 24.000 st, t_s ratio 11.406, |d alpha| 0.7075, |d rho| 2.7210 st (bars 6, 2, 0.1, 1.80)
+SC-021 C2 808-attack vs techno-pluck: |d start| 5.000 st, t_s ratio 3.135, |d alpha| 0.0911, |d rho| 4.2598 st (bars 6, 2, 0.1, 0.60)
+SC-021 C2 808-attack vs kick-bass-hybrid: |d start| 12.000 st, t_s ratio 1.310, |d alpha| 0.7000, |d rho| 9.1726 st (bars 6, 2, 0.1, 1.20)
+SC-021 C2 cinematic-impact vs techno-pluck: |d start| 29.000 st, t_s ratio 35.760, |d alpha| 0.7986, |d rho| 1.5388 st (bars 6, 2, 0.1, 1.80)
+SC-021 C2 cinematic-impact vs kick-bass-hybrid: |d start| 12.000 st, t_s ratio 14.940, |d alpha| 0.0075, |d rho| 6.4516 st (bars 6, 2, 0.1, 1.80)
+SC-021 C2 techno-pluck vs kick-bass-hybrid: |d start| 17.000 st, t_s ratio 2.394, |d alpha| 0.7911, |d rho| 4.9128 st (bars 6, 2, 0.1, 1.20)
+SC-028 spectrum across Drop: 162 cells, worst partial -0.2460 dB (bar 0.1 within 40 dB of h1, 0.5 dB below) at mid grid midi 48 fs 44100 A 24 T 1 ms, k63, worst |energy| 0.0007 dB (bar 0.05)
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+ShapeMorph_ClickCountPositiveControl
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\shape_morph_test.cpp(711)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_morph_test.cpp(734): warning:
+  E2, saw control (i) unsmoothed step at 24704 (step / local ref max|dy| 17.
+  4921): counted 1 (guarded out 0, transition detections 112, reference
+  detections 221, N 72) - FLAGGED
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_morph_test.cpp(744): warning:
+  E2, saw control (ii) hard regime switch, event at 24464 (ROUND -> HOLLOW at +
+  159, step / local ref max|dy| 12.1545): counted 2 (guarded out 0, transition
+  detections 113, reference detections 221, N 72) - FLAGGED
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_morph_test.cpp(734): warning:
+  E2, growl control (i) unsmoothed step at 24216 (step / local ref max|dy| 1.
+  57234): counted 0 (guarded out 0, transition detections 110, reference
+  detections 222, N 72) - not flagged (recorded)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_morph_test.cpp(744): warning:
+  E2, growl control (ii) hard regime switch, event at 24488 (ROUND -> HOLLOW at
+  +159, step / local ref max|dy| 1.30635): counted 0 (guarded out 1, transition
+  detections 109, reference detections 222, N 72) - not flagged (recorded)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_morph_test.cpp(734): warning:
+  E0, saw control (i) unsmoothed step at 24384 (step / local ref max|dy| 262.
+  913): counted 1 (guarded out 0, transition detections 21, reference
+  detections 38, N 291) - FLAGGED
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_morph_test.cpp(744): warning:
+  E0, saw control (ii) hard regime switch, event at 24136 (ROUND -> HOLLOW at +
+  159, step / local ref max|dy| 281.575): counted 2 (guarded out 0, transition
+  detections 22, reference detections 38, N 291) - FLAGGED
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_morph_test.cpp(734): warning:
+  E0, growl control (i) unsmoothed step at 24624 (step / local ref max|dy| 5.
+  50002): counted 0 (guarded out 0, transition detections 40, reference
+  detections 83, N 291) - not flagged (recorded)
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_morph_test.cpp(744): warning:
+  E0, growl control (ii) hard regime switch, event at 24304 (ROUND -> HOLLOW at
+  +159, step / local ref max|dy| 4.92693): counted 0 (guarded out 0, transition
+  detections 40, reference detections 83, N 291) - not flagged (recorded)
+
+===============================================================================
+All tests passed (35088 assertions in 30 test cases)
+
+rc=0 wall=107s

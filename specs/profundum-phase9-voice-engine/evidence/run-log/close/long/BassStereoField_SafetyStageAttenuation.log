@@ -1,0 +1,1661 @@
+Filters: "BassStereoField_SafetyStageAttenuation"
+Randomness seeded to: 2165003355
+label,kind,lo_hz,hi_hz,valid,d_in_dbfs,d_out_dbfs,atten_db
+i_wide_dirty_Tube_E0_fc60,B,20,60,1,-25.4041,-66.9168,41.5127
+i_wide_dirty_Tube_E0_fc60,third,20,25.1984,1,-27.4319,-88.6637,61.2317
+i_wide_dirty_Tube_E0_fc60,third,25.1984,31.748,0,-100.517,-132.801,32.2842
+BSF_SC006,i_wide_dirty_Tube_E0_fc60,third 25.1984 Hz: no distortion-born content
+i_wide_dirty_Tube_E0_fc60,third,31.748,40,0,-96.0565,-131.268,35.211
+BSF_SC006,i_wide_dirty_Tube_E0_fc60,third 31.748 Hz: no distortion-born content
+i_wide_dirty_Tube_E0_fc60,third,40,50.3968,1,-29.6861,-66.9459,37.2598
+i_wide_dirty_Tube_E0_fc60,third,50.3968,60,0,-104.935,-128.387,23.4519
+BSF_SC006,i_wide_dirty_Tube_E0_fc60,third 50.3968 Hz: no distortion-born content
+i_wide_dirty_Tube_E0_fc60,gravity_0,20,60,1,-25.4041,-53.1674,27.7633
+BSF_SC006,gravity0,i_wide_dirty_Tube_E0_fc60,A_B_db,27.7633
+i_wide_dirty_Tube_E0_fc60,gravity_0.1,20,60,1,-25.4041,-53.9295,28.5254
+i_wide_dirty_Tube_E0_fc60,gravity_0.2,20,60,1,-25.4041,-54.7626,29.3585
+i_wide_dirty_Tube_E0_fc60,gravity_0.3,20,60,1,-25.4041,-55.6808,30.2767
+i_wide_dirty_Tube_E0_fc60,gravity_0.4,20,60,1,-25.4041,-56.7024,31.2983
+i_wide_dirty_Tube_E0_fc60,gravity_0.5,20,60,1,-25.4041,-57.8516,32.4475
+i_wide_dirty_Tube_E0_fc60,gravity_0.6,20,60,1,-25.4041,-59.1614,33.7573
+i_wide_dirty_Tube_E0_fc60,gravity_0.7,20,60,1,-25.4041,-60.6761,35.272
+i_wide_dirty_Tube_E0_fc60,gravity_0.8,20,60,1,-25.4041,-62.4525,37.0484
+i_wide_dirty_Tube_E0_fc60,gravity_0.9,20,60,1,-25.4041,-64.5465,39.1424
+i_wide_dirty_Tube_E0_fc60,gravity_1,20,60,1,-25.4041,-66.9168,41.5127
+BSF_SC006,validity,i_wide_dirty_Tube_E0_fc60,valid,1,expected,1
+i_wide_dirty_Fold_E0_fc60,B,20,60,1,-23.2864,-63.3917,40.1053
+i_wide_dirty_Fold_E0_fc60,third,20,25.1984,1,-26.4497,-87.6848,61.2351
+i_wide_dirty_Fold_E0_fc60,third,25.1984,31.748,0,-107.18,-130.403,23.2226
+BSF_SC006,i_wide_dirty_Fold_E0_fc60,third 25.1984 Hz: no distortion-born content
+i_wide_dirty_Fold_E0_fc60,third,31.748,40,0,-104.753,-130.908,26.1551
+BSF_SC006,i_wide_dirty_Fold_E0_fc60,third 31.748 Hz: no distortion-born content
+i_wide_dirty_Fold_E0_fc60,third,40,50.3968,1,-26.1489,-63.4079,37.259
+i_wide_dirty_Fold_E0_fc60,third,50.3968,60,0,-110.816,-129.397,18.5805
+BSF_SC006,i_wide_dirty_Fold_E0_fc60,third 50.3968 Hz: no distortion-born content
+i_wide_dirty_Fold_E0_fc60,gravity_0,20,60,1,-23.2864,-50.676,27.3896
+BSF_SC006,gravity0,i_wide_dirty_Fold_E0_fc60,A_B_db,27.3896
+i_wide_dirty_Fold_E0_fc60,gravity_0.1,20,60,1,-23.2864,-51.4035,28.1171
+i_wide_dirty_Fold_E0_fc60,gravity_0.2,20,60,1,-23.2864,-52.1954,28.909
+i_wide_dirty_Fold_E0_fc60,gravity_0.3,20,60,1,-23.2864,-53.0639,29.7775
+i_wide_dirty_Fold_E0_fc60,gravity_0.4,20,60,1,-23.2864,-54.0245,30.7381
+i_wide_dirty_Fold_E0_fc60,gravity_0.5,20,60,1,-23.2864,-55.0976,31.8112
+i_wide_dirty_Fold_E0_fc60,gravity_0.6,20,60,1,-23.2864,-56.3105,33.0241
+i_wide_dirty_Fold_E0_fc60,gravity_0.7,20,60,1,-23.2864,-57.6994,34.413
+i_wide_dirty_Fold_E0_fc60,gravity_0.8,20,60,1,-23.2864,-59.3119,36.0255
+i_wide_dirty_Fold_E0_fc60,gravity_0.9,20,60,1,-23.2864,-61.2023,37.9159
+i_wide_dirty_Fold_E0_fc60,gravity_1,20,60,1,-23.2864,-63.3917,40.1053
+BSF_SC006,validity,i_wide_dirty_Fold_E0_fc60,valid,1,expected,1
+i_wide_dirty_Rectify_E0_fc60,B,20,60,1,-26.1615,-75.8382,49.6767
+i_wide_dirty_Rectify_E0_fc60,third,20,25.1984,1,-26.4004,-87.629,61.2286
+i_wide_dirty_Rectify_E0_fc60,third,25.1984,31.748,0,-95.2408,-124.833,29.5927
+BSF_SC006,i_wide_dirty_Rectify_E0_fc60,third 25.1984 Hz: no distortion-born content
+i_wide_dirty_Rectify_E0_fc60,third,31.748,40,0,-94.6472,-122.944,28.2965
+BSF_SC006,i_wide_dirty_Rectify_E0_fc60,third 31.748 Hz: no distortion-born content
+i_wide_dirty_Rectify_E0_fc60,third,40,50.3968,1,-38.876,-76.1363,37.2602
+i_wide_dirty_Rectify_E0_fc60,third,50.3968,60,0,-92.356,-116.687,24.3312
+BSF_SC006,i_wide_dirty_Rectify_E0_fc60,third 50.3968 Hz: no distortion-born content
+i_wide_dirty_Rectify_E0_fc60,gravity_0,20,60,1,-26.1615,-54.8881,28.7266
+BSF_SC006,gravity0,i_wide_dirty_Rectify_E0_fc60,A_B_db,28.7266
+i_wide_dirty_Rectify_E0_fc60,gravity_0.1,20,60,1,-26.1615,-55.7563,29.5949
+i_wide_dirty_Rectify_E0_fc60,gravity_0.2,20,60,1,-26.1615,-56.7203,30.5589
+i_wide_dirty_Rectify_E0_fc60,gravity_0.3,20,60,1,-26.1615,-57.8035,31.642
+i_wide_dirty_Rectify_E0_fc60,gravity_0.4,20,60,1,-26.1615,-59.0391,32.8776
+i_wide_dirty_Rectify_E0_fc60,gravity_0.5,20,60,1,-26.1615,-60.4759,34.3145
+i_wide_dirty_Rectify_E0_fc60,gravity_0.6,20,60,1,-26.1615,-62.1904,36.0289
+i_wide_dirty_Rectify_E0_fc60,gravity_0.7,20,60,1,-26.1615,-64.3095,38.148
+i_wide_dirty_Rectify_E0_fc60,gravity_0.8,20,60,1,-26.1615,-67.0619,40.9004
+i_wide_dirty_Rectify_E0_fc60,gravity_0.9,20,60,1,-26.1615,-70.8716,44.7101
+i_wide_dirty_Rectify_E0_fc60,gravity_1,20,60,1,-26.1615,-75.8382,49.6767
+BSF_SC006,validity,i_wide_dirty_Rectify_E0_fc60,valid,1,expected,1
+i_wide_dirty_Bite_E0_fc60,B,20,60,1,-23.5444,-66.0817,42.5373
+i_wide_dirty_Bite_E0_fc60,third,20,25.1984,1,-25.0551,-86.2858,61.2307
+i_wide_dirty_Bite_E0_fc60,third,25.1984,31.748,0,-92.9345,-131.984,39.0498
+BSF_SC006,i_wide_dirty_Bite_E0_fc60,third 25.1984 Hz: no distortion-born content
+i_wide_dirty_Bite_E0_fc60,third,31.748,40,0,-87.2095,-125.443,38.233
+BSF_SC006,i_wide_dirty_Bite_E0_fc60,third 31.748 Hz: no distortion-born content
+i_wide_dirty_Bite_E0_fc60,third,40,50.3968,1,-28.864,-66.1234,37.2594
+i_wide_dirty_Bite_E0_fc60,third,50.3968,60,0,-91.87,-116.912,25.0421
+BSF_SC006,i_wide_dirty_Bite_E0_fc60,third 50.3968 Hz: no distortion-born content
+i_wide_dirty_Bite_E0_fc60,gravity_0,20,60,1,-23.5444,-51.5274,27.983
+BSF_SC006,gravity0,i_wide_dirty_Bite_E0_fc60,A_B_db,27.983
+i_wide_dirty_Bite_E0_fc60,gravity_0.1,20,60,1,-23.5444,-52.3115,28.7671
+i_wide_dirty_Bite_E0_fc60,gravity_0.2,20,60,1,-23.5444,-53.1711,29.6267
+i_wide_dirty_Bite_E0_fc60,gravity_0.3,20,60,1,-23.5444,-54.1218,30.5775
+i_wide_dirty_Bite_E0_fc60,gravity_0.4,20,60,1,-23.5444,-55.1841,31.6397
+i_wide_dirty_Bite_E0_fc60,gravity_0.5,20,60,1,-23.5444,-56.3856,32.8412
+i_wide_dirty_Bite_E0_fc60,gravity_0.6,20,60,1,-23.5444,-57.7642,34.2198
+i_wide_dirty_Bite_E0_fc60,gravity_0.7,20,60,1,-23.5444,-59.3721,35.8277
+i_wide_dirty_Bite_E0_fc60,gravity_0.8,20,60,1,-23.5444,-61.2775,37.7332
+i_wide_dirty_Bite_E0_fc60,gravity_0.9,20,60,1,-23.5444,-63.5444,40
+i_wide_dirty_Bite_E0_fc60,gravity_1,20,60,1,-23.5444,-66.0817,42.5373
+BSF_SC006,validity,i_wide_dirty_Bite_E0_fc60,valid,1,expected,1
+i_wide_dirty_Crush_E0_fc60,B,20,60,1,-16.6757,-59.7449,43.0691
+i_wide_dirty_Crush_E0_fc60,third,20,25.1984,1,-17.9805,-79.209,61.2285
+i_wide_dirty_Crush_E0_fc60,third,25.1984,31.748,0,-106.587,-133.647,27.0603
+BSF_SC006,i_wide_dirty_Crush_E0_fc60,third 25.1984 Hz: no distortion-born content
+i_wide_dirty_Crush_E0_fc60,third,31.748,40,0,-103.819,-130.381,26.5618
+BSF_SC006,i_wide_dirty_Crush_E0_fc60,third 31.748 Hz: no distortion-born content
+i_wide_dirty_Crush_E0_fc60,third,40,50.3968,1,-22.5343,-59.7943,37.26
+i_wide_dirty_Crush_E0_fc60,third,50.3968,60,0,-95.8292,-118.962,23.1329
+BSF_SC006,i_wide_dirty_Crush_E0_fc60,third 50.3968 Hz: no distortion-born content
+i_wide_dirty_Crush_E0_fc60,gravity_0,20,60,1,-16.6757,-44.7575,28.0817
+BSF_SC006,gravity0,i_wide_dirty_Crush_E0_fc60,A_B_db,28.0817
+i_wide_dirty_Crush_E0_fc60,gravity_0.1,20,60,1,-16.6757,-45.5518,28.8761
+i_wide_dirty_Crush_E0_fc60,gravity_0.2,20,60,1,-16.6757,-46.424,29.7482
+i_wide_dirty_Crush_E0_fc60,gravity_0.3,20,60,1,-16.6757,-47.3902,30.7144
+i_wide_dirty_Crush_E0_fc60,gravity_0.4,20,60,1,-16.6757,-48.4721,31.7963
+i_wide_dirty_Crush_E0_fc60,gravity_0.5,20,60,1,-16.6757,-49.6991,33.0234
+i_wide_dirty_Crush_E0_fc60,gravity_0.6,20,60,1,-16.6757,-51.1122,34.4364
+i_wide_dirty_Crush_E0_fc60,gravity_0.7,20,60,1,-16.6757,-52.7681,36.0923
+i_wide_dirty_Crush_E0_fc60,gravity_0.8,20,60,1,-16.6757,-54.7425,38.0668
+i_wide_dirty_Crush_E0_fc60,gravity_0.9,20,60,1,-16.6757,-57.1071,40.4313
+i_wide_dirty_Crush_E0_fc60,gravity_1,20,60,1,-16.6757,-59.7449,43.0691
+BSF_SC006,validity,i_wide_dirty_Crush_E0_fc60,valid,1,expected,1
+i_wide_dirty_Fracture_E0_fc60,B,20,60,1,-34.3592,-65.9869,31.6277
+i_wide_dirty_Fracture_E0_fc60,third,20,25.1984,1,-51.3388,-112.533,61.194
+i_wide_dirty_Fracture_E0_fc60,third,25.1984,31.748,1,-39.3987,-86.576,47.1773
+i_wide_dirty_Fracture_E0_fc60,third,31.748,40,0,-92.1428,-134.733,42.5899
+BSF_SC006,i_wide_dirty_Fracture_E0_fc60,third 31.748 Hz: no distortion-born content
+i_wide_dirty_Fracture_E0_fc60,third,40,50.3968,1,-48.211,-85.4726,37.2616
+i_wide_dirty_Fracture_E0_fc60,third,50.3968,60,1,-36.3976,-66.0747,29.6771
+i_wide_dirty_Fracture_E0_fc60,gravity_0,20,60,1,-34.3592,-59.0641,24.7049
+BSF_SC006,gravity0,i_wide_dirty_Fracture_E0_fc60,A_B_db,24.7049
+i_wide_dirty_Fracture_E0_fc60,gravity_0.1,20,60,1,-34.3592,-59.5743,25.2151
+i_wide_dirty_Fracture_E0_fc60,gravity_0.2,20,60,1,-34.3592,-60.114,25.7548
+i_wide_dirty_Fracture_E0_fc60,gravity_0.3,20,60,1,-34.3592,-60.6866,26.3274
+i_wide_dirty_Fracture_E0_fc60,gravity_0.4,20,60,1,-34.3592,-61.2957,26.9366
+i_wide_dirty_Fracture_E0_fc60,gravity_0.5,20,60,1,-34.3592,-61.9457,27.5866
+i_wide_dirty_Fracture_E0_fc60,gravity_0.6,20,60,1,-34.3592,-62.6414,28.2822
+i_wide_dirty_Fracture_E0_fc60,gravity_0.7,20,60,1,-34.3592,-63.388,29.0288
+i_wide_dirty_Fracture_E0_fc60,gravity_0.8,20,60,1,-34.3592,-64.1911,29.832
+i_wide_dirty_Fracture_E0_fc60,gravity_0.9,20,60,1,-34.3592,-65.0562,30.697
+i_wide_dirty_Fracture_E0_fc60,gravity_1,20,60,1,-34.3592,-65.9869,31.6277
+BSF_SC006,validity,i_wide_dirty_Fracture_E0_fc60,valid,1,expected,1
+ii_excitation_E0_fc60,B,20,60,0,-95.8161,-129.216,33.3998
+BSF_SC006,ii_excitation_E0_fc60,no distortion-born content in B
+BSF_SC006,validity,ii_excitation_E0_fc60,valid,0,expected,1,MISMATCH
+i_wide_dirty_Tube_E1_fc60,B,20,60,1,-25.723,-62.9827,37.2597
+i_wide_dirty_Tube_E1_fc60,third,20,25.1984,0,-134.363,-124.664,-9.69865
+BSF_SC006,i_wide_dirty_Tube_E1_fc60,third 20 Hz: no distortion-born content
+i_wide_dirty_Tube_E1_fc60,third,25.1984,31.748,0,-135.723,-123.676,-12.0471
+BSF_SC006,i_wide_dirty_Tube_E1_fc60,third 25.1984 Hz: no distortion-born content
+i_wide_dirty_Tube_E1_fc60,third,31.748,40,0,-106.715,-123.548,16.8323
+BSF_SC006,i_wide_dirty_Tube_E1_fc60,third 31.748 Hz: no distortion-born content
+i_wide_dirty_Tube_E1_fc60,third,40,50.3968,1,-25.723,-62.9827,37.2597
+i_wide_dirty_Tube_E1_fc60,third,50.3968,60,0,-129.502,-122.867,-6.63544
+BSF_SC006,i_wide_dirty_Tube_E1_fc60,third 50.3968 Hz: no distortion-born content
+i_wide_dirty_Tube_E1_fc60,gravity_0,20,60,1,-25.723,-52.0552,26.3322
+BSF_SC006,gravity0,i_wide_dirty_Tube_E1_fc60,A_B_db,26.3322
+i_wide_dirty_Tube_E1_fc60,gravity_0.1,20,60,1,-25.723,-52.7003,26.9773
+i_wide_dirty_Tube_E1_fc60,gravity_0.2,20,60,1,-25.723,-53.3972,27.6742
+i_wide_dirty_Tube_E1_fc60,gravity_0.3,20,60,1,-25.723,-54.1549,28.4319
+i_wide_dirty_Tube_E1_fc60,gravity_0.4,20,60,1,-25.723,-54.9851,29.2621
+i_wide_dirty_Tube_E1_fc60,gravity_0.5,20,60,1,-25.723,-55.9031,30.1801
+i_wide_dirty_Tube_E1_fc60,gravity_0.6,20,60,1,-25.723,-56.9297,31.2068
+i_wide_dirty_Tube_E1_fc60,gravity_0.7,20,60,1,-25.723,-58.0942,32.3712
+i_wide_dirty_Tube_E1_fc60,gravity_0.8,20,60,1,-25.723,-59.4393,33.7163
+i_wide_dirty_Tube_E1_fc60,gravity_0.9,20,60,1,-25.723,-61.0315,35.3086
+i_wide_dirty_Tube_E1_fc60,gravity_1,20,60,1,-25.723,-62.9827,37.2597
+BSF_SC006,validity,i_wide_dirty_Tube_E1_fc60,valid,1,expected,1
+i_wide_dirty_Fold_E1_fc60,B,20,60,1,-28.9868,-66.2442,37.2574
+i_wide_dirty_Fold_E1_fc60,third,20,25.1984,0,-106.479,-128.543,22.0645
+BSF_SC006,i_wide_dirty_Fold_E1_fc60,third 20 Hz: no distortion-born content
+i_wide_dirty_Fold_E1_fc60,third,25.1984,31.748,0,-99.5765,-126.541,26.9644
+BSF_SC006,i_wide_dirty_Fold_E1_fc60,third 25.1984 Hz: no distortion-born content
+i_wide_dirty_Fold_E1_fc60,third,31.748,40,0,-80.3502,-119.165,38.8151
+BSF_SC006,i_wide_dirty_Fold_E1_fc60,third 31.748 Hz: no distortion-born content
+i_wide_dirty_Fold_E1_fc60,third,40,50.3968,1,-28.9869,-66.2443,37.2574
+i_wide_dirty_Fold_E1_fc60,third,50.3968,60,0,-103.059,-123.279,20.2202
+BSF_SC006,i_wide_dirty_Fold_E1_fc60,third 50.3968 Hz: no distortion-born content
+i_wide_dirty_Fold_E1_fc60,gravity_0,20,60,1,-28.9868,-55.3184,26.3315
+BSF_SC006,gravity0,i_wide_dirty_Fold_E1_fc60,A_B_db,26.3315
+i_wide_dirty_Fold_E1_fc60,gravity_0.1,20,60,1,-28.9868,-55.9634,26.9766
+i_wide_dirty_Fold_E1_fc60,gravity_0.2,20,60,1,-28.9868,-56.6603,27.6734
+i_wide_dirty_Fold_E1_fc60,gravity_0.3,20,60,1,-28.9868,-57.4179,28.4311
+i_wide_dirty_Fold_E1_fc60,gravity_0.4,20,60,1,-28.9868,-58.248,29.2612
+i_wide_dirty_Fold_E1_fc60,gravity_0.5,20,60,1,-28.9868,-59.1659,30.1791
+i_wide_dirty_Fold_E1_fc60,gravity_0.6,20,60,1,-28.9868,-60.1925,31.2056
+i_wide_dirty_Fold_E1_fc60,gravity_0.7,20,60,1,-28.9868,-61.3567,32.3699
+i_wide_dirty_Fold_E1_fc60,gravity_0.8,20,60,1,-28.9868,-62.7016,33.7148
+i_wide_dirty_Fold_E1_fc60,gravity_0.9,20,60,1,-28.9868,-64.2935,35.3067
+i_wide_dirty_Fold_E1_fc60,gravity_1,20,60,1,-28.9868,-66.2442,37.2574
+BSF_SC006,validity,i_wide_dirty_Fold_E1_fc60,valid,1,expected,1
+i_wide_dirty_Rectify_E1_fc60,B,20,60,1,-25.3659,-62.6266,37.2607
+i_wide_dirty_Rectify_E1_fc60,third,20,25.1984,0,-121.429,-120.341,-1.08768
+BSF_SC006,i_wide_dirty_Rectify_E1_fc60,third 20 Hz: no distortion-born content
+i_wide_dirty_Rectify_E1_fc60,third,25.1984,31.748,0,-124.229,-121.554,-2.67554
+BSF_SC006,i_wide_dirty_Rectify_E1_fc60,third 25.1984 Hz: no distortion-born content
+i_wide_dirty_Rectify_E1_fc60,third,31.748,40,0,-105.218,-116.679,11.4611
+BSF_SC006,i_wide_dirty_Rectify_E1_fc60,third 31.748 Hz: no distortion-born content
+i_wide_dirty_Rectify_E1_fc60,third,40,50.3968,1,-25.3659,-62.6266,37.2607
+i_wide_dirty_Rectify_E1_fc60,third,50.3968,60,0,-114.047,-117.825,3.77779
+BSF_SC006,i_wide_dirty_Rectify_E1_fc60,third 50.3968 Hz: no distortion-born content
+i_wide_dirty_Rectify_E1_fc60,gravity_0,20,60,1,-25.3659,-51.6983,26.3324
+BSF_SC006,gravity0,i_wide_dirty_Rectify_E1_fc60,A_B_db,26.3324
+i_wide_dirty_Rectify_E1_fc60,gravity_0.1,20,60,1,-25.3659,-52.3434,26.9776
+i_wide_dirty_Rectify_E1_fc60,gravity_0.2,20,60,1,-25.3659,-53.0404,27.6745
+i_wide_dirty_Rectify_E1_fc60,gravity_0.3,20,60,1,-25.3659,-53.7981,28.4322
+i_wide_dirty_Rectify_E1_fc60,gravity_0.4,20,60,1,-25.3659,-54.6284,29.2625
+i_wide_dirty_Rectify_E1_fc60,gravity_0.5,20,60,1,-25.3659,-55.5464,30.1805
+i_wide_dirty_Rectify_E1_fc60,gravity_0.6,20,60,1,-25.3659,-56.5731,31.2072
+i_wide_dirty_Rectify_E1_fc60,gravity_0.7,20,60,1,-25.3659,-57.7376,32.3718
+i_wide_dirty_Rectify_E1_fc60,gravity_0.8,20,60,1,-25.3659,-59.0828,33.717
+i_wide_dirty_Rectify_E1_fc60,gravity_0.9,20,60,1,-25.3659,-60.6752,35.3093
+i_wide_dirty_Rectify_E1_fc60,gravity_1,20,60,1,-25.3659,-62.6266,37.2607
+BSF_SC006,validity,i_wide_dirty_Rectify_E1_fc60,valid,1,expected,1
+i_wide_dirty_Bite_E1_fc60,B,20,60,1,-25.5059,-62.7649,37.2591
+i_wide_dirty_Bite_E1_fc60,third,20,25.1984,0,-129.949,-124.296,-5.65286
+BSF_SC006,i_wide_dirty_Bite_E1_fc60,third 20 Hz: no distortion-born content
+i_wide_dirty_Bite_E1_fc60,third,25.1984,31.748,0,-134.402,-123.606,-10.7965
+BSF_SC006,i_wide_dirty_Bite_E1_fc60,third 25.1984 Hz: no distortion-born content
+i_wide_dirty_Bite_E1_fc60,third,31.748,40,0,-106.187,-121.609,15.4219
+BSF_SC006,i_wide_dirty_Bite_E1_fc60,third 31.748 Hz: no distortion-born content
+i_wide_dirty_Bite_E1_fc60,third,40,50.3968,1,-25.5059,-62.765,37.2591
+i_wide_dirty_Bite_E1_fc60,third,50.3968,60,0,-122.741,-123.308,0.56761
+BSF_SC006,i_wide_dirty_Bite_E1_fc60,third 50.3968 Hz: no distortion-born content
+i_wide_dirty_Bite_E1_fc60,gravity_0,20,60,1,-25.5059,-51.8379,26.332
+BSF_SC006,gravity0,i_wide_dirty_Bite_E1_fc60,A_B_db,26.332
+i_wide_dirty_Bite_E1_fc60,gravity_0.1,20,60,1,-25.5059,-52.483,26.9771
+i_wide_dirty_Bite_E1_fc60,gravity_0.2,20,60,1,-25.5059,-53.1799,27.674
+i_wide_dirty_Bite_E1_fc60,gravity_0.3,20,60,1,-25.5059,-53.9376,28.4317
+i_wide_dirty_Bite_E1_fc60,gravity_0.4,20,60,1,-25.5059,-54.7677,29.2619
+i_wide_dirty_Bite_E1_fc60,gravity_0.5,20,60,1,-25.5059,-55.6857,30.1799
+i_wide_dirty_Bite_E1_fc60,gravity_0.6,20,60,1,-25.5059,-56.7123,31.2065
+i_wide_dirty_Bite_E1_fc60,gravity_0.7,20,60,1,-25.5059,-57.8767,32.3709
+i_wide_dirty_Bite_E1_fc60,gravity_0.8,20,60,1,-25.5059,-59.2218,33.7159
+i_wide_dirty_Bite_E1_fc60,gravity_0.9,20,60,1,-25.5059,-60.8139,35.3081
+i_wide_dirty_Bite_E1_fc60,gravity_1,20,60,1,-25.5059,-62.7649,37.2591
+BSF_SC006,validity,i_wide_dirty_Bite_E1_fc60,valid,1,expected,1
+i_wide_dirty_Crush_E1_fc60,B,20,60,1,-16.2153,-53.4756,37.2603
+i_wide_dirty_Crush_E1_fc60,third,20,25.1984,0,-129.301,-128.654,-0.646739
+BSF_SC006,i_wide_dirty_Crush_E1_fc60,third 20 Hz: no distortion-born content
+i_wide_dirty_Crush_E1_fc60,third,25.1984,31.748,0,-131.89,-127.829,-4.06188
+BSF_SC006,i_wide_dirty_Crush_E1_fc60,third 25.1984 Hz: no distortion-born content
+i_wide_dirty_Crush_E1_fc60,third,31.748,40,0,-97.4528,-128.074,30.6213
+BSF_SC006,i_wide_dirty_Crush_E1_fc60,third 31.748 Hz: no distortion-born content
+i_wide_dirty_Crush_E1_fc60,third,40,50.3968,1,-16.2153,-53.4756,37.2603
+i_wide_dirty_Crush_E1_fc60,third,50.3968,60,0,-126.107,-127.085,0.978201
+BSF_SC006,i_wide_dirty_Crush_E1_fc60,third 50.3968 Hz: no distortion-born content
+i_wide_dirty_Crush_E1_fc60,gravity_0,20,60,1,-16.2153,-42.5476,26.3323
+BSF_SC006,gravity0,i_wide_dirty_Crush_E1_fc60,A_B_db,26.3323
+i_wide_dirty_Crush_E1_fc60,gravity_0.1,20,60,1,-16.2153,-43.1927,26.9775
+i_wide_dirty_Crush_E1_fc60,gravity_0.2,20,60,1,-16.2153,-43.8896,27.6744
+i_wide_dirty_Crush_E1_fc60,gravity_0.3,20,60,1,-16.2153,-44.6474,28.4321
+i_wide_dirty_Crush_E1_fc60,gravity_0.4,20,60,1,-16.2153,-45.4776,29.2623
+i_wide_dirty_Crush_E1_fc60,gravity_0.5,20,60,1,-16.2153,-46.3956,30.1804
+i_wide_dirty_Crush_E1_fc60,gravity_0.6,20,60,1,-16.2153,-47.4223,31.2071
+i_wide_dirty_Crush_E1_fc60,gravity_0.7,20,60,1,-16.2153,-48.5868,32.3716
+i_wide_dirty_Crush_E1_fc60,gravity_0.8,20,60,1,-16.2153,-49.932,33.7167
+i_wide_dirty_Crush_E1_fc60,gravity_0.9,20,60,1,-16.2153,-51.5243,35.309
+i_wide_dirty_Crush_E1_fc60,gravity_1,20,60,1,-16.2153,-53.4756,37.2603
+BSF_SC006,validity,i_wide_dirty_Crush_E1_fc60,valid,1,expected,1
+i_wide_dirty_Fracture_E1_fc60,B,20,60,1,-34.5142,-88.8353,54.3211
+i_wide_dirty_Fracture_E1_fc60,third,20,25.1984,1,-34.5828,-95.7928,61.21
+i_wide_dirty_Fracture_E1_fc60,third,25.1984,31.748,0,-120.002,-131.544,11.5422
+BSF_SC006,i_wide_dirty_Fracture_E1_fc60,third 25.1984 Hz: no distortion-born content
+i_wide_dirty_Fracture_E1_fc60,third,31.748,40,0,-121.82,-130.018,8.19727
+BSF_SC006,i_wide_dirty_Fracture_E1_fc60,third 31.748 Hz: no distortion-born content
+i_wide_dirty_Fracture_E1_fc60,third,40,50.3968,1,-52.5625,-89.8182,37.2557
+i_wide_dirty_Fracture_E1_fc60,third,50.3968,60,0,-95.9032,-119.152,23.2487
+BSF_SC006,i_wide_dirty_Fracture_E1_fc60,third 50.3968 Hz: no distortion-born content
+i_wide_dirty_Fracture_E1_fc60,gravity_0,20,60,1,-34.5142,-63.3699,28.8558
+BSF_SC006,gravity0,i_wide_dirty_Fracture_E1_fc60,A_B_db,28.8558
+i_wide_dirty_Fracture_E1_fc60,gravity_0.1,20,60,1,-34.5142,-64.2546,29.7404
+i_wide_dirty_Fracture_E1_fc60,gravity_0.2,20,60,1,-34.5142,-65.2394,30.7252
+i_wide_dirty_Fracture_E1_fc60,gravity_0.3,20,60,1,-34.5142,-66.3498,31.8357
+i_wide_dirty_Fracture_E1_fc60,gravity_0.4,20,60,1,-34.5142,-67.6226,33.1085
+i_wide_dirty_Fracture_E1_fc60,gravity_0.5,20,60,1,-34.5142,-69.1131,34.599
+i_wide_dirty_Fracture_E1_fc60,gravity_0.6,20,60,1,-34.5142,-70.9106,36.3964
+i_wide_dirty_Fracture_E1_fc60,gravity_0.7,20,60,1,-34.5142,-73.1727,38.6585
+i_wide_dirty_Fracture_E1_fc60,gravity_0.8,20,60,1,-34.5142,-76.2169,41.7027
+i_wide_dirty_Fracture_E1_fc60,gravity_0.9,20,60,1,-34.5142,-80.8216,46.3075
+i_wide_dirty_Fracture_E1_fc60,gravity_1,20,60,1,-34.5142,-88.8353,54.3211
+BSF_SC006,validity,i_wide_dirty_Fracture_E1_fc60,valid,1,expected,1
+ii_excitation_E1_fc60,B,20,60,0,-75.7762,-112.146,36.3694
+BSF_SC006,ii_excitation_E1_fc60,no distortion-born content in B
+BSF_SC006,validity,ii_excitation_E1_fc60,valid,0,expected,1,MISMATCH
+i_wide_dirty_Tube_E2_fc60,B,20,60,0,-98.1263,-115.282,17.1553
+BSF_SC006,i_wide_dirty_Tube_E2_fc60,no distortion-born content in B
+BSF_SC006,validity,i_wide_dirty_Tube_E2_fc60,valid,0,expected,0
+i_wide_dirty_Fold_E2_fc60,B,20,60,0,-98.9452,-115.818,16.8732
+BSF_SC006,i_wide_dirty_Fold_E2_fc60,no distortion-born content in B
+BSF_SC006,validity,i_wide_dirty_Fold_E2_fc60,valid,0,expected,0
+i_wide_dirty_Rectify_E2_fc60,B,20,60,0,-123.144,-110.124,-13.0205
+BSF_SC006,i_wide_dirty_Rectify_E2_fc60,no distortion-born content in B
+BSF_SC006,validity,i_wide_dirty_Rectify_E2_fc60,valid,0,expected,0
+i_wide_dirty_Bite_E2_fc60,B,20,60,0,-122.208,-116.943,-5.26494
+BSF_SC006,i_wide_dirty_Bite_E2_fc60,no distortion-born content in B
+BSF_SC006,validity,i_wide_dirty_Bite_E2_fc60,valid,0,expected,0
+i_wide_dirty_Crush_E2_fc60,B,20,60,0,-130.568,-114.316,-16.2517
+BSF_SC006,i_wide_dirty_Crush_E2_fc60,no distortion-born content in B
+BSF_SC006,validity,i_wide_dirty_Crush_E2_fc60,valid,0,expected,0
+i_wide_dirty_Fracture_E2_fc60,B,20,60,1,-30.9138,-68.1749,37.261
+i_wide_dirty_Fracture_E2_fc60,third,20,25.1984,0,-130.005,-131.543,1.53741
+BSF_SC006,i_wide_dirty_Fracture_E2_fc60,third 20 Hz: no distortion-born content
+i_wide_dirty_Fracture_E2_fc60,third,25.1984,31.748,0,-136.002,-130.309,-5.69343
+BSF_SC006,i_wide_dirty_Fracture_E2_fc60,third 25.1984 Hz: no distortion-born content
+i_wide_dirty_Fracture_E2_fc60,third,31.748,40,0,-111.357,-130.602,19.2447
+BSF_SC006,i_wide_dirty_Fracture_E2_fc60,third 31.748 Hz: no distortion-born content
+i_wide_dirty_Fracture_E2_fc60,third,40,50.3968,1,-30.9138,-68.1749,37.261
+i_wide_dirty_Fracture_E2_fc60,third,50.3968,60,0,-126.762,-129,2.23809
+BSF_SC006,i_wide_dirty_Fracture_E2_fc60,third 50.3968 Hz: no distortion-born content
+i_wide_dirty_Fracture_E2_fc60,gravity_0,20,60,1,-30.9138,-57.2464,26.3325
+BSF_SC006,gravity0,i_wide_dirty_Fracture_E2_fc60,A_B_db,26.3325
+i_wide_dirty_Fracture_E2_fc60,gravity_0.1,20,60,1,-30.9138,-57.8915,26.9777
+i_wide_dirty_Fracture_E2_fc60,gravity_0.2,20,60,1,-30.9138,-58.5884,27.6746
+i_wide_dirty_Fracture_E2_fc60,gravity_0.3,20,60,1,-30.9138,-59.3462,28.4324
+i_wide_dirty_Fracture_E2_fc60,gravity_0.4,20,60,1,-30.9138,-60.1764,29.2626
+i_wide_dirty_Fracture_E2_fc60,gravity_0.5,20,60,1,-30.9138,-61.0945,30.1807
+i_wide_dirty_Fracture_E2_fc60,gravity_0.6,20,60,1,-30.9138,-62.1212,31.2074
+i_wide_dirty_Fracture_E2_fc60,gravity_0.7,20,60,1,-30.9138,-63.2858,32.3719
+i_wide_dirty_Fracture_E2_fc60,gravity_0.8,20,60,1,-30.9138,-64.631,33.7172
+i_wide_dirty_Fracture_E2_fc60,gravity_0.9,20,60,1,-30.9138,-66.2234,35.3096
+i_wide_dirty_Fracture_E2_fc60,gravity_1,20,60,1,-30.9138,-68.1749,37.261
+BSF_SC006,validity,i_wide_dirty_Fracture_E2_fc60,valid,1,expected,1
+ii_excitation_E2_fc60,B,20,60,0,-151.639,-119.193,-32.4461
+BSF_SC006,ii_excitation_E2_fc60,no distortion-born content in B
+BSF_SC006,validity,ii_excitation_E2_fc60,valid,0,expected,0
+i_wide_dirty_Tube_C3_fc60,B,20,60,0,-133.509,-114.422,-19.0869
+BSF_SC006,i_wide_dirty_Tube_C3_fc60,no distortion-born content in B
+BSF_SC006,validity,i_wide_dirty_Tube_C3_fc60,valid,0,expected,0
+i_wide_dirty_Fold_C3_fc60,B,20,60,0,-82.7967,-113.4,30.6031
+BSF_SC006,i_wide_dirty_Fold_C3_fc60,no distortion-born content in B
+BSF_SC006,validity,i_wide_dirty_Fold_C3_fc60,valid,0,expected,0
+i_wide_dirty_Rectify_C3_fc60,B,20,60,0,-91.5917,-109.358,17.7662
+BSF_SC006,i_wide_dirty_Rectify_C3_fc60,no distortion-born content in B
+BSF_SC006,validity,i_wide_dirty_Rectify_C3_fc60,valid,0,expected,0
+i_wide_dirty_Bite_C3_fc60,B,20,60,0,-93.2142,-113.535,20.3203
+BSF_SC006,i_wide_dirty_Bite_C3_fc60,no distortion-born content in B
+BSF_SC006,validity,i_wide_dirty_Bite_C3_fc60,valid,0,expected,0
+i_wide_dirty_Crush_C3_fc60,B,20,60,0,-93.4994,-110.455,16.9553
+BSF_SC006,i_wide_dirty_Crush_C3_fc60,no distortion-born content in B
+BSF_SC006,validity,i_wide_dirty_Crush_C3_fc60,valid,0,expected,0
+i_wide_dirty_Fracture_C3_fc60,B,20,60,0,-120.875,-121.535,0.659665
+BSF_SC006,i_wide_dirty_Fracture_C3_fc60,no distortion-born content in B
+BSF_SC006,validity,i_wide_dirty_Fracture_C3_fc60,valid,0,expected,1,MISMATCH
+ii_excitation_C3_fc60,B,20,60,0,-148.695,-117.169,-31.5264
+BSF_SC006,ii_excitation_C3_fc60,no distortion-born content in B
+BSF_SC006,validity,ii_excitation_C3_fc60,valid,0,expected,0
+i_wide_dirty_Tube_E0_fc120,B,20,120,1,-23.6218,-63.4858,39.864
+i_wide_dirty_Tube_E0_fc120,third,20,25.1984,1,-26.042,-111.366,85.3239
+i_wide_dirty_Tube_E0_fc120,third,25.1984,31.748,0,-102.331,-148.489,46.1586
+BSF_SC006,i_wide_dirty_Tube_E0_fc120,third 25.1984 Hz: no distortion-born content
+i_wide_dirty_Tube_E0_fc120,third,31.748,40,0,-101.44,-146.412,44.9717
+BSF_SC006,i_wide_dirty_Tube_E0_fc120,third 31.748 Hz: no distortion-born content
+i_wide_dirty_Tube_E0_fc120,third,40,50.3968,1,-29.7017,-90.9383,61.2365
+i_wide_dirty_Tube_E0_fc120,third,50.3968,63.496,1,-41.2451,-88.4234,47.1783
+i_wide_dirty_Tube_E0_fc120,third,63.496,80,0,-105.262,-142.195,36.9327
+BSF_SC006,i_wide_dirty_Tube_E0_fc120,third 63.496 Hz: no distortion-born content
+i_wide_dirty_Tube_E0_fc120,third,80,100.794,1,-34.466,-71.7299,37.2639
+i_wide_dirty_Tube_E0_fc120,third,100.794,120,1,-34.536,-64.2164,29.6804
+i_wide_dirty_Tube_E0_fc120,gravity_0,20,120,1,-23.6218,-51.5835,27.9617
+BSF_SC006,gravity0,i_wide_dirty_Tube_E0_fc120,A_B_db,27.9617
+i_wide_dirty_Tube_E0_fc120,gravity_0.1,20,120,1,-23.6218,-52.3509,28.7291
+i_wide_dirty_Tube_E0_fc120,gravity_0.2,20,120,1,-23.6218,-53.187,29.5652
+i_wide_dirty_Tube_E0_fc120,gravity_0.3,20,120,1,-23.6218,-54.1038,30.482
+i_wide_dirty_Tube_E0_fc120,gravity_0.4,20,120,1,-23.6218,-55.1158,31.494
+i_wide_dirty_Tube_E0_fc120,gravity_0.5,20,120,1,-23.6218,-56.2404,32.6186
+i_wide_dirty_Tube_E0_fc120,gravity_0.6,20,120,1,-23.6218,-57.4964,33.8746
+i_wide_dirty_Tube_E0_fc120,gravity_0.7,20,120,1,-23.6218,-58.8992,35.2774
+i_wide_dirty_Tube_E0_fc120,gravity_0.8,20,120,1,-23.6218,-60.4441,36.8223
+i_wide_dirty_Tube_E0_fc120,gravity_0.9,20,120,1,-23.6218,-62.0573,38.4356
+i_wide_dirty_Tube_E0_fc120,gravity_1,20,120,1,-23.6218,-63.4858,39.864
+BSF_SC006,validity,i_wide_dirty_Tube_E0_fc120,valid,1,expected,1
+i_wide_dirty_Fold_E0_fc120,B,20,120,1,-22.5532,-67.0693,44.5161
+i_wide_dirty_Fold_E0_fc120,third,20,25.1984,1,-25.5539,-110.838,85.2838
+i_wide_dirty_Fold_E0_fc120,third,25.1984,31.748,0,-104.158,-147.049,42.891
+BSF_SC006,i_wide_dirty_Fold_E0_fc120,third 25.1984 Hz: no distortion-born content
+i_wide_dirty_Fold_E0_fc120,third,31.748,40,0,-104.174,-145.747,41.5732
+BSF_SC006,i_wide_dirty_Fold_E0_fc120,third 31.748 Hz: no distortion-born content
+i_wide_dirty_Fold_E0_fc120,third,40,50.3968,1,-27.2273,-88.46,61.2327
+i_wide_dirty_Fold_E0_fc120,third,50.3968,63.496,1,-40.4471,-87.6265,47.1793
+i_wide_dirty_Fold_E0_fc120,third,63.496,80,0,-105.08,-141.044,35.964
+BSF_SC006,i_wide_dirty_Fold_E0_fc120,third 63.496 Hz: no distortion-born content
+i_wide_dirty_Fold_E0_fc120,third,80,100.794,1,-31.3273,-68.591,37.2637
+i_wide_dirty_Fold_E0_fc120,third,100.794,120,1,-42.925,-72.6057,29.6806
+i_wide_dirty_Fold_E0_fc120,gravity_0,20,120,1,-22.5532,-51.0058,28.4526
+BSF_SC006,gravity0,i_wide_dirty_Fold_E0_fc120,A_B_db,28.4526
+i_wide_dirty_Fold_E0_fc120,gravity_0.1,20,120,1,-22.5532,-51.8379,29.2847
+i_wide_dirty_Fold_E0_fc120,gravity_0.2,20,120,1,-22.5532,-52.7558,30.2026
+i_wide_dirty_Fold_E0_fc120,gravity_0.3,20,120,1,-22.5532,-53.7784,31.2252
+i_wide_dirty_Fold_E0_fc120,gravity_0.4,20,120,1,-22.5532,-54.9313,32.3782
+i_wide_dirty_Fold_E0_fc120,gravity_0.5,20,120,1,-22.5532,-56.2501,33.697
+i_wide_dirty_Fold_E0_fc120,gravity_0.6,20,120,1,-22.5532,-57.7848,35.2317
+i_wide_dirty_Fold_E0_fc120,gravity_0.7,20,120,1,-22.5532,-59.6061,37.0529
+i_wide_dirty_Fold_E0_fc120,gravity_0.8,20,120,1,-22.5532,-61.8048,39.2517
+i_wide_dirty_Fold_E0_fc120,gravity_0.9,20,120,1,-22.5532,-64.4317,41.8786
+i_wide_dirty_Fold_E0_fc120,gravity_1,20,120,1,-22.5532,-67.0693,44.5161
+BSF_SC006,validity,i_wide_dirty_Fold_E0_fc120,valid,1,expected,1
+i_wide_dirty_Rectify_E0_fc120,B,20,120,1,-24.2465,-62.7159,38.4693
+i_wide_dirty_Rectify_E0_fc120,third,20,25.1984,1,-25.6657,-111.001,85.335
+i_wide_dirty_Rectify_E0_fc120,third,25.1984,31.748,0,-100.128,-139.651,39.5233
+BSF_SC006,i_wide_dirty_Rectify_E0_fc120,third 25.1984 Hz: no distortion-born content
+i_wide_dirty_Rectify_E0_fc120,third,31.748,40,0,-106.994,-140.665,33.6706
+BSF_SC006,i_wide_dirty_Rectify_E0_fc120,third 31.748 Hz: no distortion-born content
+i_wide_dirty_Rectify_E0_fc120,third,40,50.3968,1,-57.4165,-118.356,60.9396
+i_wide_dirty_Rectify_E0_fc120,third,50.3968,63.496,1,-40.093,-87.2644,47.1714
+i_wide_dirty_Rectify_E0_fc120,third,63.496,80,0,-101.874,-135.282,33.408
+BSF_SC006,i_wide_dirty_Rectify_E0_fc120,third 63.496 Hz: no distortion-born content
+i_wide_dirty_Rectify_E0_fc120,third,80,100.794,1,-32.6027,-69.8676,37.2649
+i_wide_dirty_Rectify_E0_fc120,third,100.794,120,1,-33.9838,-63.6644,29.6806
+i_wide_dirty_Rectify_E0_fc120,gravity_0,20,120,1,-24.2465,-51.8439,27.5974
+BSF_SC006,gravity0,i_wide_dirty_Rectify_E0_fc120,A_B_db,27.5974
+i_wide_dirty_Rectify_E0_fc120,gravity_0.1,20,120,1,-24.2465,-52.573,28.3264
+i_wide_dirty_Rectify_E0_fc120,gravity_0.2,20,120,1,-24.2465,-53.3629,29.1163
+i_wide_dirty_Rectify_E0_fc120,gravity_0.3,20,120,1,-24.2465,-54.2231,29.9766
+i_wide_dirty_Rectify_E0_fc120,gravity_0.4,20,120,1,-24.2465,-55.1649,30.9184
+i_wide_dirty_Rectify_E0_fc120,gravity_0.5,20,120,1,-24.2465,-56.2009,31.9544
+i_wide_dirty_Rectify_E0_fc120,gravity_0.6,20,120,1,-24.2465,-57.3439,33.0974
+i_wide_dirty_Rectify_E0_fc120,gravity_0.7,20,120,1,-24.2465,-58.6026,34.3561
+i_wide_dirty_Rectify_E0_fc120,gravity_0.8,20,120,1,-24.2465,-59.9701,35.7236
+i_wide_dirty_Rectify_E0_fc120,gravity_0.9,20,120,1,-24.2465,-61.3941,37.1476
+i_wide_dirty_Rectify_E0_fc120,gravity_1,20,120,1,-24.2465,-62.7159,38.4693
+BSF_SC006,validity,i_wide_dirty_Rectify_E0_fc120,valid,1,expected,1
+i_wide_dirty_Bite_E0_fc120,B,20,120,1,-21.4168,-63.699,42.2822
+i_wide_dirty_Bite_E0_fc120,third,20,25.1984,1,-23.44,-108.754,85.3143
+i_wide_dirty_Bite_E0_fc120,third,25.1984,31.748,0,-94.041,-146.709,52.668
+BSF_SC006,i_wide_dirty_Bite_E0_fc120,third 25.1984 Hz: no distortion-born content
+i_wide_dirty_Bite_E0_fc120,third,31.748,40,0,-89.9728,-146.9,56.9267
+BSF_SC006,i_wide_dirty_Bite_E0_fc120,third 31.748 Hz: no distortion-born content
+i_wide_dirty_Bite_E0_fc120,third,40,50.3968,1,-28.3684,-89.6052,61.2368
+i_wide_dirty_Bite_E0_fc120,third,50.3968,63.496,1,-34.7693,-81.9478,47.1785
+i_wide_dirty_Bite_E0_fc120,third,63.496,80,0,-93.8488,-135.203,41.3547
+BSF_SC006,i_wide_dirty_Bite_E0_fc120,third 63.496 Hz: no distortion-born content
+i_wide_dirty_Bite_E0_fc120,third,80,100.794,1,-32.1043,-69.3681,37.2638
+i_wide_dirty_Bite_E0_fc120,third,100.794,120,1,-35.4976,-65.1781,29.6805
+i_wide_dirty_Bite_E0_fc120,gravity_0,20,120,1,-21.4168,-49.7323,28.3155
+BSF_SC006,gravity0,i_wide_dirty_Bite_E0_fc120,A_B_db,28.3155
+i_wide_dirty_Bite_E0_fc120,gravity_0.1,20,120,1,-21.4168,-50.5435,29.1267
+i_wide_dirty_Bite_E0_fc120,gravity_0.2,20,120,1,-21.4168,-51.4344,30.0176
+i_wide_dirty_Bite_E0_fc120,gravity_0.3,20,120,1,-21.4168,-52.421,31.0042
+i_wide_dirty_Bite_E0_fc120,gravity_0.4,20,120,1,-21.4168,-53.5242,32.1074
+i_wide_dirty_Bite_E0_fc120,gravity_0.5,20,120,1,-21.4168,-54.7715,33.3547
+i_wide_dirty_Bite_E0_fc120,gravity_0.6,20,120,1,-21.4168,-56.1976,34.7808
+i_wide_dirty_Bite_E0_fc120,gravity_0.7,20,120,1,-21.4168,-57.8437,36.4269
+i_wide_dirty_Bite_E0_fc120,gravity_0.8,20,120,1,-21.4168,-59.74,38.3232
+i_wide_dirty_Bite_E0_fc120,gravity_0.9,20,120,1,-21.4168,-61.8292,40.4124
+i_wide_dirty_Bite_E0_fc120,gravity_1,20,120,1,-21.4168,-63.699,42.2822
+BSF_SC006,validity,i_wide_dirty_Bite_E0_fc120,valid,1,expected,1
+i_wide_dirty_Crush_E0_fc120,B,20,120,1,-16.1812,-63.8595,47.6783
+i_wide_dirty_Crush_E0_fc120,third,20,25.1984,1,-17.8667,-103.186,85.3192
+i_wide_dirty_Crush_E0_fc120,third,25.1984,31.748,0,-106.471,-150.625,44.1539
+BSF_SC006,i_wide_dirty_Crush_E0_fc120,third 25.1984 Hz: no distortion-born content
+i_wide_dirty_Crush_E0_fc120,third,31.748,40,0,-104.073,-147.29,43.2169
+BSF_SC006,i_wide_dirty_Crush_E0_fc120,third 31.748 Hz: no distortion-born content
+i_wide_dirty_Crush_E0_fc120,third,40,50.3968,1,-22.7897,-84.0237,61.234
+i_wide_dirty_Crush_E0_fc120,third,50.3968,63.496,1,-27.5672,-74.7448,47.1776
+i_wide_dirty_Crush_E0_fc120,third,63.496,80,0,-93.9284,-139.664,45.7355
+BSF_SC006,i_wide_dirty_Crush_E0_fc120,third 63.496 Hz: no distortion-born content
+i_wide_dirty_Crush_E0_fc120,third,80,100.794,1,-33.2456,-70.5094,37.2638
+i_wide_dirty_Crush_E0_fc120,third,100.794,120,1,-35.7755,-65.4559,29.6804
+i_wide_dirty_Crush_E0_fc120,gravity_0,20,120,1,-16.1812,-44.9736,28.7924
+BSF_SC006,gravity0,i_wide_dirty_Crush_E0_fc120,A_B_db,28.7924
+i_wide_dirty_Crush_E0_fc120,gravity_0.1,20,120,1,-16.1812,-45.8462,29.665
+i_wide_dirty_Crush_E0_fc120,gravity_0.2,20,120,1,-16.1812,-46.8147,30.6335
+i_wide_dirty_Crush_E0_fc120,gravity_0.3,20,120,1,-16.1812,-47.9024,31.7212
+i_wide_dirty_Crush_E0_fc120,gravity_0.4,20,120,1,-16.1812,-49.1417,32.9605
+i_wide_dirty_Crush_E0_fc120,gravity_0.5,20,120,1,-16.1812,-50.5799,34.3987
+i_wide_dirty_Crush_E0_fc120,gravity_0.6,20,120,1,-16.1812,-52.2884,36.1072
+i_wide_dirty_Crush_E0_fc120,gravity_0.7,20,120,1,-16.1812,-54.3802,38.199
+i_wide_dirty_Crush_E0_fc120,gravity_0.8,20,120,1,-16.1812,-57.0343,40.8531
+i_wide_dirty_Crush_E0_fc120,gravity_0.9,20,120,1,-16.1812,-60.4535,44.2723
+i_wide_dirty_Crush_E0_fc120,gravity_1,20,120,1,-16.1812,-63.8595,47.6783
+BSF_SC006,validity,i_wide_dirty_Crush_E0_fc120,valid,1,expected,1
+i_wide_dirty_Fracture_E0_fc120,B,20,120,1,-33.4595,-70.1838,36.7244
+i_wide_dirty_Fracture_E0_fc120,third,20,25.1984,1,-49.0823,-134.438,85.3552
+i_wide_dirty_Fracture_E0_fc120,third,25.1984,31.748,1,-39.6672,-110.877,71.2098
+i_wide_dirty_Fracture_E0_fc120,third,31.748,40,0,-91.4114,-151.208,59.7965
+BSF_SC006,i_wide_dirty_Fracture_E0_fc120,third 31.748 Hz: no distortion-born content
+i_wide_dirty_Fracture_E0_fc120,third,40,50.3968,1,-49.4965,-110.718,61.2212
+i_wide_dirty_Fracture_E0_fc120,third,50.3968,63.496,1,-36.4795,-89.9138,53.4343
+i_wide_dirty_Fracture_E0_fc120,third,63.496,80,1,-44.1498,-86.0035,41.8537
+i_wide_dirty_Fracture_E0_fc120,third,80,100.794,1,-47.8577,-82.7425,34.8848
+i_wide_dirty_Fracture_E0_fc120,third,100.794,120,1,-44.0278,-70.6053,26.5774
+i_wide_dirty_Fracture_E0_fc120,gravity_0,20,120,1,-33.4595,-60.7453,27.2858
+BSF_SC006,gravity0,i_wide_dirty_Fracture_E0_fc120,A_B_db,27.2858
+i_wide_dirty_Fracture_E0_fc120,gravity_0.1,20,120,1,-33.4595,-61.4352,27.9758
+i_wide_dirty_Fracture_E0_fc120,gravity_0.2,20,120,1,-33.4595,-62.177,28.7175
+i_wide_dirty_Fracture_E0_fc120,gravity_0.3,20,120,1,-33.4595,-62.977,29.5175
+i_wide_dirty_Fracture_E0_fc120,gravity_0.4,20,120,1,-33.4595,-63.8421,30.3826
+i_wide_dirty_Fracture_E0_fc120,gravity_0.5,20,120,1,-33.4595,-64.7788,31.3194
+i_wide_dirty_Fracture_E0_fc120,gravity_0.6,20,120,1,-33.4595,-65.7913,32.3318
+i_wide_dirty_Fracture_E0_fc120,gravity_0.7,20,120,1,-33.4595,-66.8767,33.4172
+i_wide_dirty_Fracture_E0_fc120,gravity_0.8,20,120,1,-33.4595,-68.0164,34.5569
+i_wide_dirty_Fracture_E0_fc120,gravity_0.9,20,120,1,-33.4595,-69.1571,35.6976
+i_wide_dirty_Fracture_E0_fc120,gravity_1,20,120,1,-33.4595,-70.1838,36.7244
+BSF_SC006,validity,i_wide_dirty_Fracture_E0_fc120,valid,1,expected,1
+ii_excitation_E0_fc120,B,20,120,0,-95.8888,-128.812,32.9228
+BSF_SC006,ii_excitation_E0_fc120,no distortion-born content in B
+BSF_SC006,validity,ii_excitation_E0_fc120,valid,0,expected,1,MISMATCH
+i_wide_dirty_Tube_E1_fc120,B,20,120,1,-24.59,-64.3991,39.809
+i_wide_dirty_Tube_E1_fc120,third,20,25.1984,0,-119.819,-139.949,20.1303
+BSF_SC006,i_wide_dirty_Tube_E1_fc120,third 20 Hz: no distortion-born content
+i_wide_dirty_Tube_E1_fc120,third,25.1984,31.748,0,-109.693,-139.425,29.7319
+BSF_SC006,i_wide_dirty_Tube_E1_fc120,third 25.1984 Hz: no distortion-born content
+i_wide_dirty_Tube_E1_fc120,third,31.748,40,0,-92.4538,-138.531,46.0775
+BSF_SC006,i_wide_dirty_Tube_E1_fc120,third 31.748 Hz: no distortion-born content
+i_wide_dirty_Tube_E1_fc120,third,40,50.3968,1,-28.1037,-89.3328,61.2291
+i_wide_dirty_Tube_E1_fc120,third,50.3968,63.496,0,-109.636,-136.358,26.7227
+BSF_SC006,i_wide_dirty_Tube_E1_fc120,third 50.3968 Hz: no distortion-born content
+i_wide_dirty_Tube_E1_fc120,third,63.496,80,0,-96.4704,-132.514,36.0437
+BSF_SC006,i_wide_dirty_Tube_E1_fc120,third 63.496 Hz: no distortion-born content
+i_wide_dirty_Tube_E1_fc120,third,80,100.794,1,-27.1493,-64.4131,37.2638
+i_wide_dirty_Tube_E1_fc120,third,100.794,120,0,-93.1536,-118.04,24.8862
+BSF_SC006,i_wide_dirty_Tube_E1_fc120,third 100.794 Hz: no distortion-born content
+i_wide_dirty_Tube_E1_fc120,gravity_0,20,120,1,-24.59,-51.8894,27.2993
+BSF_SC006,gravity0,i_wide_dirty_Tube_E1_fc120,A_B_db,27.2993
+i_wide_dirty_Tube_E1_fc120,gravity_0.1,20,120,1,-24.59,-52.6088,28.0188
+i_wide_dirty_Tube_E1_fc120,gravity_0.2,20,120,1,-24.59,-53.3914,28.8014
+i_wide_dirty_Tube_E1_fc120,gravity_0.3,20,120,1,-24.59,-54.2487,29.6587
+i_wide_dirty_Tube_E1_fc120,gravity_0.4,20,120,1,-24.59,-55.1959,30.6058
+i_wide_dirty_Tube_E1_fc120,gravity_0.5,20,120,1,-24.59,-56.2525,31.6625
+i_wide_dirty_Tube_E1_fc120,gravity_0.6,20,120,1,-24.59,-57.4449,32.8549
+i_wide_dirty_Tube_E1_fc120,gravity_0.7,20,120,1,-24.59,-58.8081,34.2181
+i_wide_dirty_Tube_E1_fc120,gravity_0.8,20,120,1,-24.59,-60.3885,35.7985
+i_wide_dirty_Tube_E1_fc120,gravity_0.9,20,120,1,-24.59,-62.2411,37.6511
+i_wide_dirty_Tube_E1_fc120,gravity_1,20,120,1,-24.59,-64.3991,39.809
+BSF_SC006,validity,i_wide_dirty_Tube_E1_fc120,valid,1,expected,1
+i_wide_dirty_Fold_E1_fc120,B,20,120,1,-26.6572,-67.8967,41.2395
+i_wide_dirty_Fold_E1_fc120,third,20,25.1984,0,-123.081,-141.277,18.1963
+BSF_SC006,i_wide_dirty_Fold_E1_fc120,third 20 Hz: no distortion-born content
+i_wide_dirty_Fold_E1_fc120,third,25.1984,31.748,0,-128.665,-142.516,13.8506
+BSF_SC006,i_wide_dirty_Fold_E1_fc120,third 25.1984 Hz: no distortion-born content
+i_wide_dirty_Fold_E1_fc120,third,31.748,40,0,-109.089,-140.505,31.4165
+BSF_SC006,i_wide_dirty_Fold_E1_fc120,third 31.748 Hz: no distortion-born content
+i_wide_dirty_Fold_E1_fc120,third,40,50.3968,1,-28.8609,-90.0919,61.231
+i_wide_dirty_Fold_E1_fc120,third,50.3968,63.496,0,-128.193,-138.666,10.4727
+BSF_SC006,i_wide_dirty_Fold_E1_fc120,third 50.3968 Hz: no distortion-born content
+i_wide_dirty_Fold_E1_fc120,third,63.496,80,0,-118.214,-137.65,19.4354
+BSF_SC006,i_wide_dirty_Fold_E1_fc120,third 63.496 Hz: no distortion-born content
+i_wide_dirty_Fold_E1_fc120,third,80,100.794,1,-30.6589,-67.923,37.2641
+i_wide_dirty_Fold_E1_fc120,third,100.794,120,0,-122.362,-135.951,13.5889
+BSF_SC006,i_wide_dirty_Fold_E1_fc120,third 100.794 Hz: no distortion-born content
+i_wide_dirty_Fold_E1_fc120,gravity_0,20,120,1,-26.6572,-54.355,27.6978
+BSF_SC006,gravity0,i_wide_dirty_Fold_E1_fc120,A_B_db,27.6978
+i_wide_dirty_Fold_E1_fc120,gravity_0.1,20,120,1,-26.6572,-55.1107,28.4535
+i_wide_dirty_Fold_E1_fc120,gravity_0.2,20,120,1,-26.6572,-55.9362,29.279
+i_wide_dirty_Fold_E1_fc120,gravity_0.3,20,120,1,-26.6572,-56.8451,30.188
+i_wide_dirty_Fold_E1_fc120,gravity_0.4,20,120,1,-26.6572,-57.8552,31.198
+i_wide_dirty_Fold_E1_fc120,gravity_0.5,20,120,1,-26.6572,-58.9899,32.3327
+i_wide_dirty_Fold_E1_fc120,gravity_0.6,20,120,1,-26.6572,-60.2809,33.6237
+i_wide_dirty_Fold_E1_fc120,gravity_0.7,20,120,1,-26.6572,-61.7707,35.1135
+i_wide_dirty_Fold_E1_fc120,gravity_0.8,20,120,1,-26.6572,-63.5138,36.8567
+i_wide_dirty_Fold_E1_fc120,gravity_0.9,20,120,1,-26.6572,-65.5652,38.908
+i_wide_dirty_Fold_E1_fc120,gravity_1,20,120,1,-26.6572,-67.8967,41.2395
+BSF_SC006,validity,i_wide_dirty_Fold_E1_fc120,valid,1,expected,1
+i_wide_dirty_Rectify_E1_fc120,B,20,120,1,-27.6487,-68.1626,40.5139
+i_wide_dirty_Rectify_E1_fc120,third,20,25.1984,0,-134.525,-136.057,1.53168
+BSF_SC006,i_wide_dirty_Rectify_E1_fc120,third 20 Hz: no distortion-born content
+i_wide_dirty_Rectify_E1_fc120,third,25.1984,31.748,0,-132.765,-133.042,0.277293
+BSF_SC006,i_wide_dirty_Rectify_E1_fc120,third 25.1984 Hz: no distortion-born content
+i_wide_dirty_Rectify_E1_fc120,third,31.748,40,0,-111.768,-132.951,21.1823
+BSF_SC006,i_wide_dirty_Rectify_E1_fc120,third 31.748 Hz: no distortion-born content
+i_wide_dirty_Rectify_E1_fc120,third,40,50.3968,1,-30.4141,-91.6352,61.221
+i_wide_dirty_Rectify_E1_fc120,third,50.3968,63.496,0,-130.829,-130.261,-0.568027
+BSF_SC006,i_wide_dirty_Rectify_E1_fc120,third 50.3968 Hz: no distortion-born content
+i_wide_dirty_Rectify_E1_fc120,third,63.496,80,0,-120.755,-129.202,8.4469
+BSF_SC006,i_wide_dirty_Rectify_E1_fc120,third 63.496 Hz: no distortion-born content
+i_wide_dirty_Rectify_E1_fc120,third,80,100.794,1,-30.9184,-68.1822,37.2637
+i_wide_dirty_Rectify_E1_fc120,third,100.794,120,0,-117.981,-129.198,11.2172
+BSF_SC006,i_wide_dirty_Rectify_E1_fc120,third 100.794 Hz: no distortion-born content
+i_wide_dirty_Rectify_E1_fc120,gravity_0,20,120,1,-27.6487,-55.1561,27.5075
+BSF_SC006,gravity0,i_wide_dirty_Rectify_E1_fc120,A_B_db,27.5075
+i_wide_dirty_Rectify_E1_fc120,gravity_0.1,20,120,1,-27.6487,-55.8941,28.2454
+i_wide_dirty_Rectify_E1_fc120,gravity_0.2,20,120,1,-27.6487,-56.6985,29.0498
+i_wide_dirty_Rectify_E1_fc120,gravity_0.3,20,120,1,-27.6487,-57.5818,29.9332
+i_wide_dirty_Rectify_E1_fc120,gravity_0.4,20,120,1,-27.6487,-58.5605,30.9119
+i_wide_dirty_Rectify_E1_fc120,gravity_0.5,20,120,1,-27.6487,-59.656,32.0073
+i_wide_dirty_Rectify_E1_fc120,gravity_0.6,20,120,1,-27.6487,-60.897,33.2483
+i_wide_dirty_Rectify_E1_fc120,gravity_0.7,20,120,1,-27.6487,-62.3217,34.673
+i_wide_dirty_Rectify_E1_fc120,gravity_0.8,20,120,1,-27.6487,-63.9798,36.3312
+i_wide_dirty_Rectify_E1_fc120,gravity_0.9,20,120,1,-27.6487,-65.9253,38.2767
+i_wide_dirty_Rectify_E1_fc120,gravity_1,20,120,1,-27.6487,-68.1626,40.5139
+BSF_SC006,validity,i_wide_dirty_Rectify_E1_fc120,valid,1,expected,1
+i_wide_dirty_Bite_E1_fc120,B,20,120,1,-22.7949,-64.7184,41.9235
+i_wide_dirty_Bite_E1_fc120,third,20,25.1984,0,-110.206,-141.481,31.2753
+BSF_SC006,i_wide_dirty_Bite_E1_fc120,third 20 Hz: no distortion-born content
+i_wide_dirty_Bite_E1_fc120,third,25.1984,31.748,0,-99.1349,-138.844,39.7087
+BSF_SC006,i_wide_dirty_Bite_E1_fc120,third 25.1984 Hz: no distortion-born content
+i_wide_dirty_Bite_E1_fc120,third,31.748,40,0,-83.0154,-137.585,54.5697
+BSF_SC006,i_wide_dirty_Bite_E1_fc120,third 31.748 Hz: no distortion-born content
+i_wide_dirty_Bite_E1_fc120,third,40,50.3968,1,-24.5952,-85.8272,61.232
+i_wide_dirty_Bite_E1_fc120,third,50.3968,63.496,0,-100.318,-136.987,36.6694
+BSF_SC006,i_wide_dirty_Bite_E1_fc120,third 50.3968 Hz: no distortion-born content
+i_wide_dirty_Bite_E1_fc120,third,63.496,80,0,-94.9752,-131.751,36.7754
+BSF_SC006,i_wide_dirty_Bite_E1_fc120,third 63.496 Hz: no distortion-born content
+i_wide_dirty_Bite_E1_fc120,third,80,100.794,1,-27.4885,-64.7522,37.2637
+i_wide_dirty_Bite_E1_fc120,third,100.794,120,0,-91.0843,-116.325,25.2408
+BSF_SC006,i_wide_dirty_Bite_E1_fc120,third 100.794 Hz: no distortion-born content
+i_wide_dirty_Bite_E1_fc120,gravity_0,20,120,1,-22.7949,-50.6516,27.8566
+BSF_SC006,gravity0,i_wide_dirty_Bite_E1_fc120,A_B_db,27.8566
+i_wide_dirty_Bite_E1_fc120,gravity_0.1,20,120,1,-22.7949,-51.4228,28.6279
+i_wide_dirty_Bite_E1_fc120,gravity_0.2,20,120,1,-22.7949,-52.2669,29.472
+i_wide_dirty_Bite_E1_fc120,gravity_0.3,20,120,1,-22.7949,-53.1985,30.4036
+i_wide_dirty_Bite_E1_fc120,gravity_0.4,20,120,1,-22.7949,-54.2367,31.4418
+i_wide_dirty_Bite_E1_fc120,gravity_0.5,20,120,1,-22.7949,-55.4073,32.6123
+i_wide_dirty_Bite_E1_fc120,gravity_0.6,20,120,1,-22.7949,-56.7449,33.9499
+i_wide_dirty_Bite_E1_fc120,gravity_0.7,20,120,1,-22.7949,-58.2968,35.5019
+i_wide_dirty_Bite_E1_fc120,gravity_0.8,20,120,1,-22.7949,-60.124,37.3291
+i_wide_dirty_Bite_E1_fc120,gravity_0.9,20,120,1,-22.7949,-62.2848,39.4898
+i_wide_dirty_Bite_E1_fc120,gravity_1,20,120,1,-22.7949,-64.7184,41.9235
+BSF_SC006,validity,i_wide_dirty_Bite_E1_fc120,valid,1,expected,1
+i_wide_dirty_Crush_E1_fc120,B,20,120,1,-14.7688,-58.1159,43.3471
+i_wide_dirty_Crush_E1_fc120,third,20,25.1984,0,-128.466,-144.963,16.4969
+BSF_SC006,i_wide_dirty_Crush_E1_fc120,third 20 Hz: no distortion-born content
+i_wide_dirty_Crush_E1_fc120,third,25.1984,31.748,0,-131.752,-143.386,11.6343
+BSF_SC006,i_wide_dirty_Crush_E1_fc120,third 25.1984 Hz: no distortion-born content
+i_wide_dirty_Crush_E1_fc120,third,31.748,40,0,-97.2218,-141.307,44.0854
+BSF_SC006,i_wide_dirty_Crush_E1_fc120,third 31.748 Hz: no distortion-born content
+i_wide_dirty_Crush_E1_fc120,third,40,50.3968,1,-15.98,-77.2133,61.2333
+i_wide_dirty_Crush_E1_fc120,third,50.3968,63.496,0,-126.835,-140.759,13.9233
+BSF_SC006,i_wide_dirty_Crush_E1_fc120,third 50.3968 Hz: no distortion-born content
+i_wide_dirty_Crush_E1_fc120,third,63.496,80,0,-111.999,-139.016,27.0174
+BSF_SC006,i_wide_dirty_Crush_E1_fc120,third 63.496 Hz: no distortion-born content
+i_wide_dirty_Crush_E1_fc120,third,80,100.794,1,-20.906,-58.1697,37.2637
+i_wide_dirty_Crush_E1_fc120,third,100.794,120,0,-120.116,-137.637,17.5215
+BSF_SC006,i_wide_dirty_Crush_E1_fc120,third 100.794 Hz: no distortion-born content
+i_wide_dirty_Crush_E1_fc120,gravity_0,20,120,1,-14.7688,-42.8988,28.13
+BSF_SC006,gravity0,i_wide_dirty_Crush_E1_fc120,A_B_db,28.13
+i_wide_dirty_Crush_E1_fc120,gravity_0.1,20,120,1,-14.7688,-43.6982,28.9295
+i_wide_dirty_Crush_E1_fc120,gravity_0.2,20,120,1,-14.7688,-44.5766,29.8078
+i_wide_dirty_Crush_E1_fc120,gravity_0.3,20,120,1,-14.7688,-45.5504,30.7816
+i_wide_dirty_Crush_E1_fc120,gravity_0.4,20,120,1,-14.7688,-46.6421,31.8733
+i_wide_dirty_Crush_E1_fc120,gravity_0.5,20,120,1,-14.7688,-47.882,33.1132
+i_wide_dirty_Crush_E1_fc120,gravity_0.6,20,120,1,-14.7688,-49.3125,34.5437
+i_wide_dirty_Crush_E1_fc120,gravity_0.7,20,120,1,-14.7688,-50.9932,36.2244
+i_wide_dirty_Crush_E1_fc120,gravity_0.8,20,120,1,-14.7688,-53.0039,38.2351
+i_wide_dirty_Crush_E1_fc120,gravity_0.9,20,120,1,-14.7688,-55.4214,40.6527
+i_wide_dirty_Crush_E1_fc120,gravity_1,20,120,1,-14.7688,-58.1159,43.3471
+BSF_SC006,validity,i_wide_dirty_Crush_E1_fc120,valid,1,expected,1
+i_wide_dirty_Fracture_E1_fc120,B,20,120,1,-29.495,-64.3792,34.8843
+i_wide_dirty_Fracture_E1_fc120,third,20,25.1984,1,-31.7972,-117.113,85.3154
+i_wide_dirty_Fracture_E1_fc120,third,25.1984,31.748,0,-118.022,-147.142,29.1205
+BSF_SC006,i_wide_dirty_Fracture_E1_fc120,third 25.1984 Hz: no distortion-born content
+i_wide_dirty_Fracture_E1_fc120,third,31.748,40,0,-122.925,-147.298,24.3722
+BSF_SC006,i_wide_dirty_Fracture_E1_fc120,third 31.748 Hz: no distortion-born content
+i_wide_dirty_Fracture_E1_fc120,third,40,50.3968,1,-50.7962,-112.029,61.2325
+i_wide_dirty_Fracture_E1_fc120,third,50.3968,63.496,1,-39.475,-86.6526,47.1776
+i_wide_dirty_Fracture_E1_fc120,third,63.496,80,0,-105.787,-143.506,37.7193
+BSF_SC006,i_wide_dirty_Fracture_E1_fc120,third 63.496 Hz: no distortion-born content
+i_wide_dirty_Fracture_E1_fc120,third,80,100.794,1,-53.0457,-90.3082,37.2625
+i_wide_dirty_Fracture_E1_fc120,third,100.794,120,1,-34.7357,-64.4163,29.6806
+i_wide_dirty_Fracture_E1_fc120,gravity_0,20,120,1,-29.495,-56.0171,26.5222
+BSF_SC006,gravity0,i_wide_dirty_Fracture_E1_fc120,A_B_db,26.5222
+i_wide_dirty_Fracture_E1_fc120,gravity_0.1,20,120,1,-29.495,-56.6415,27.1466
+i_wide_dirty_Fracture_E1_fc120,gravity_0.2,20,120,1,-29.495,-57.3076,27.8127
+i_wide_dirty_Fracture_E1_fc120,gravity_0.3,20,120,1,-29.495,-58.0198,28.5249
+i_wide_dirty_Fracture_E1_fc120,gravity_0.4,20,120,1,-29.495,-58.7827,29.2878
+i_wide_dirty_Fracture_E1_fc120,gravity_0.5,20,120,1,-29.495,-59.6007,30.1057
+i_wide_dirty_Fracture_E1_fc120,gravity_0.6,20,120,1,-29.495,-60.4766,30.9816
+i_wide_dirty_Fracture_E1_fc120,gravity_0.7,20,120,1,-29.495,-61.4098,31.9149
+i_wide_dirty_Fracture_E1_fc120,gravity_0.8,20,120,1,-29.495,-62.392,32.897
+i_wide_dirty_Fracture_E1_fc120,gravity_0.9,20,120,1,-29.495,-63.3992,33.9042
+i_wide_dirty_Fracture_E1_fc120,gravity_1,20,120,1,-29.495,-64.3792,34.8843
+BSF_SC006,validity,i_wide_dirty_Fracture_E1_fc120,valid,1,expected,1
+ii_excitation_E1_fc120,B,20,120,0,-70.9712,-109.228,38.2569
+BSF_SC006,ii_excitation_E1_fc120,no distortion-born content in B
+BSF_SC006,validity,ii_excitation_E1_fc120,valid,0,expected,1,MISMATCH
+i_wide_dirty_Tube_E2_fc120,B,20,120,1,-25.7144,-62.9783,37.2639
+i_wide_dirty_Tube_E2_fc120,third,20,25.1984,0,-124.28,-135.807,11.5264
+BSF_SC006,i_wide_dirty_Tube_E2_fc120,third 20 Hz: no distortion-born content
+i_wide_dirty_Tube_E2_fc120,third,25.1984,31.748,0,-117.515,-135.144,17.6294
+BSF_SC006,i_wide_dirty_Tube_E2_fc120,third 25.1984 Hz: no distortion-born content
+i_wide_dirty_Tube_E2_fc120,third,31.748,40,0,-105.101,-131.42,26.3194
+BSF_SC006,i_wide_dirty_Tube_E2_fc120,third 31.748 Hz: no distortion-born content
+i_wide_dirty_Tube_E2_fc120,third,40,50.3968,0,-103.76,-131.478,27.7181
+BSF_SC006,i_wide_dirty_Tube_E2_fc120,third 40 Hz: no distortion-born content
+i_wide_dirty_Tube_E2_fc120,third,50.3968,63.496,0,-108.825,-131.5,22.6749
+BSF_SC006,i_wide_dirty_Tube_E2_fc120,third 50.3968 Hz: no distortion-born content
+i_wide_dirty_Tube_E2_fc120,third,63.496,80,0,-83.7406,-122.602,38.8609
+BSF_SC006,i_wide_dirty_Tube_E2_fc120,third 63.496 Hz: no distortion-born content
+i_wide_dirty_Tube_E2_fc120,third,80,100.794,1,-25.7144,-62.9783,37.2639
+i_wide_dirty_Tube_E2_fc120,third,100.794,120,0,-100.365,-124.049,23.6841
+BSF_SC006,i_wide_dirty_Tube_E2_fc120,third 100.794 Hz: no distortion-born content
+i_wide_dirty_Tube_E2_fc120,gravity_0,20,120,1,-25.7144,-52.0483,26.3339
+BSF_SC006,gravity0,i_wide_dirty_Tube_E2_fc120,A_B_db,26.3339
+i_wide_dirty_Tube_E2_fc120,gravity_0.1,20,120,1,-25.7144,-52.6934,26.979
+i_wide_dirty_Tube_E2_fc120,gravity_0.2,20,120,1,-25.7144,-53.3904,27.676
+i_wide_dirty_Tube_E2_fc120,gravity_0.3,20,120,1,-25.7144,-54.1483,28.4339
+i_wide_dirty_Tube_E2_fc120,gravity_0.4,20,120,1,-25.7144,-54.9786,29.2642
+i_wide_dirty_Tube_E2_fc120,gravity_0.5,20,120,1,-25.7144,-55.8968,30.1824
+i_wide_dirty_Tube_E2_fc120,gravity_0.6,20,120,1,-25.7144,-56.9236,31.2092
+i_wide_dirty_Tube_E2_fc120,gravity_0.7,20,120,1,-25.7144,-58.0883,32.3739
+i_wide_dirty_Tube_E2_fc120,gravity_0.8,20,120,1,-25.7144,-59.4337,33.7193
+i_wide_dirty_Tube_E2_fc120,gravity_0.9,20,120,1,-25.7144,-61.0264,35.3121
+i_wide_dirty_Tube_E2_fc120,gravity_1,20,120,1,-25.7144,-62.9783,37.2639
+BSF_SC006,validity,i_wide_dirty_Tube_E2_fc120,valid,1,expected,1
+i_wide_dirty_Fold_E2_fc120,B,20,120,1,-28.9093,-66.173,37.2637
+i_wide_dirty_Fold_E2_fc120,third,20,25.1984,0,-140.549,-140.056,-0.492534
+BSF_SC006,i_wide_dirty_Fold_E2_fc120,third 20 Hz: no distortion-born content
+i_wide_dirty_Fold_E2_fc120,third,25.1984,31.748,0,-140.958,-138.272,-2.686
+BSF_SC006,i_wide_dirty_Fold_E2_fc120,third 25.1984 Hz: no distortion-born content
+i_wide_dirty_Fold_E2_fc120,third,31.748,40,0,-136.01,-137.651,1.64072
+BSF_SC006,i_wide_dirty_Fold_E2_fc120,third 31.748 Hz: no distortion-born content
+i_wide_dirty_Fold_E2_fc120,third,40,50.3968,0,-136.142,-136.956,0.813995
+BSF_SC006,i_wide_dirty_Fold_E2_fc120,third 40 Hz: no distortion-born content
+i_wide_dirty_Fold_E2_fc120,third,50.3968,63.496,0,-135.365,-135.269,-0.0958946
+BSF_SC006,i_wide_dirty_Fold_E2_fc120,third 50.3968 Hz: no distortion-born content
+i_wide_dirty_Fold_E2_fc120,third,63.496,80,0,-116.868,-134.507,17.639
+BSF_SC006,i_wide_dirty_Fold_E2_fc120,third 63.496 Hz: no distortion-born content
+i_wide_dirty_Fold_E2_fc120,third,80,100.794,1,-28.9093,-66.173,37.2637
+i_wide_dirty_Fold_E2_fc120,third,100.794,120,0,-135.596,-135.313,-0.28284
+BSF_SC006,i_wide_dirty_Fold_E2_fc120,third 100.794 Hz: no distortion-born content
+i_wide_dirty_Fold_E2_fc120,gravity_0,20,120,1,-28.9093,-55.2431,26.3338
+BSF_SC006,gravity0,i_wide_dirty_Fold_E2_fc120,A_B_db,26.3338
+i_wide_dirty_Fold_E2_fc120,gravity_0.1,20,120,1,-28.9093,-55.8883,26.979
+i_wide_dirty_Fold_E2_fc120,gravity_0.2,20,120,1,-28.9093,-56.5852,27.676
+i_wide_dirty_Fold_E2_fc120,gravity_0.3,20,120,1,-28.9093,-57.3431,28.4338
+i_wide_dirty_Fold_E2_fc120,gravity_0.4,20,120,1,-28.9093,-58.1734,29.2641
+i_wide_dirty_Fold_E2_fc120,gravity_0.5,20,120,1,-28.9093,-59.0916,30.1823
+i_wide_dirty_Fold_E2_fc120,gravity_0.6,20,120,1,-28.9093,-60.1184,31.2091
+i_wide_dirty_Fold_E2_fc120,gravity_0.7,20,120,1,-28.9093,-61.2831,32.3738
+i_wide_dirty_Fold_E2_fc120,gravity_0.8,20,120,1,-28.9093,-62.6285,33.7192
+i_wide_dirty_Fold_E2_fc120,gravity_0.9,20,120,1,-28.9093,-64.2212,35.3119
+i_wide_dirty_Fold_E2_fc120,gravity_1,20,120,1,-28.9093,-66.173,37.2637
+BSF_SC006,validity,i_wide_dirty_Fold_E2_fc120,valid,1,expected,1
+i_wide_dirty_Rectify_E2_fc120,B,20,120,1,-25.5879,-62.8513,37.2634
+i_wide_dirty_Rectify_E2_fc120,third,20,25.1984,0,-131.232,-131.026,-0.20552
+BSF_SC006,i_wide_dirty_Rectify_E2_fc120,third 20 Hz: no distortion-born content
+i_wide_dirty_Rectify_E2_fc120,third,25.1984,31.748,0,-121.277,-129.698,8.42123
+BSF_SC006,i_wide_dirty_Rectify_E2_fc120,third 25.1984 Hz: no distortion-born content
+i_wide_dirty_Rectify_E2_fc120,third,31.748,40,0,-113.967,-131.202,17.2341
+BSF_SC006,i_wide_dirty_Rectify_E2_fc120,third 31.748 Hz: no distortion-born content
+i_wide_dirty_Rectify_E2_fc120,third,40,50.3968,0,-112.845,-128.901,16.0563
+BSF_SC006,i_wide_dirty_Rectify_E2_fc120,third 40 Hz: no distortion-born content
+i_wide_dirty_Rectify_E2_fc120,third,50.3968,63.496,0,-112.282,-127.299,15.0168
+BSF_SC006,i_wide_dirty_Rectify_E2_fc120,third 50.3968 Hz: no distortion-born content
+i_wide_dirty_Rectify_E2_fc120,third,63.496,80,0,-90.6389,-125.277,34.6382
+BSF_SC006,i_wide_dirty_Rectify_E2_fc120,third 63.496 Hz: no distortion-born content
+i_wide_dirty_Rectify_E2_fc120,third,80,100.794,1,-25.5879,-62.8513,37.2634
+i_wide_dirty_Rectify_E2_fc120,third,100.794,120,0,-103.89,-125.451,21.5607
+BSF_SC006,i_wide_dirty_Rectify_E2_fc120,third 100.794 Hz: no distortion-born content
+i_wide_dirty_Rectify_E2_fc120,gravity_0,20,120,1,-25.5879,-51.9216,26.3337
+BSF_SC006,gravity0,i_wide_dirty_Rectify_E2_fc120,A_B_db,26.3337
+i_wide_dirty_Rectify_E2_fc120,gravity_0.1,20,120,1,-25.5879,-52.5668,26.9789
+i_wide_dirty_Rectify_E2_fc120,gravity_0.2,20,120,1,-25.5879,-53.2638,27.6758
+i_wide_dirty_Rectify_E2_fc120,gravity_0.3,20,120,1,-25.5879,-54.0216,28.4337
+i_wide_dirty_Rectify_E2_fc120,gravity_0.4,20,120,1,-25.5879,-54.8519,29.264
+i_wide_dirty_Rectify_E2_fc120,gravity_0.5,20,120,1,-25.5879,-55.77,30.1821
+i_wide_dirty_Rectify_E2_fc120,gravity_0.6,20,120,1,-25.5879,-56.7969,31.2089
+i_wide_dirty_Rectify_E2_fc120,gravity_0.7,20,120,1,-25.5879,-57.9615,32.3736
+i_wide_dirty_Rectify_E2_fc120,gravity_0.8,20,120,1,-25.5879,-59.3069,33.719
+i_wide_dirty_Rectify_E2_fc120,gravity_0.9,20,120,1,-25.5879,-60.8996,35.3116
+i_wide_dirty_Rectify_E2_fc120,gravity_1,20,120,1,-25.5879,-62.8513,37.2634
+BSF_SC006,validity,i_wide_dirty_Rectify_E2_fc120,valid,1,expected,1
+i_wide_dirty_Bite_E2_fc120,B,20,120,1,-25.53,-62.7937,37.2638
+i_wide_dirty_Bite_E2_fc120,third,20,25.1984,0,-132.047,-136.297,4.24952
+BSF_SC006,i_wide_dirty_Bite_E2_fc120,third 20 Hz: no distortion-born content
+i_wide_dirty_Bite_E2_fc120,third,25.1984,31.748,0,-129.508,-135.582,6.0735
+BSF_SC006,i_wide_dirty_Bite_E2_fc120,third 25.1984 Hz: no distortion-born content
+i_wide_dirty_Bite_E2_fc120,third,31.748,40,0,-123.472,-134.787,11.3151
+BSF_SC006,i_wide_dirty_Bite_E2_fc120,third 31.748 Hz: no distortion-born content
+i_wide_dirty_Bite_E2_fc120,third,40,50.3968,0,-124.434,-134.152,9.71775
+BSF_SC006,i_wide_dirty_Bite_E2_fc120,third 40 Hz: no distortion-born content
+i_wide_dirty_Bite_E2_fc120,third,50.3968,63.496,0,-115.558,-132.043,16.4855
+BSF_SC006,i_wide_dirty_Bite_E2_fc120,third 50.3968 Hz: no distortion-born content
+i_wide_dirty_Bite_E2_fc120,third,63.496,80,0,-101.339,-130.779,29.4396
+BSF_SC006,i_wide_dirty_Bite_E2_fc120,third 63.496 Hz: no distortion-born content
+i_wide_dirty_Bite_E2_fc120,third,80,100.794,1,-25.53,-62.7937,37.2638
+i_wide_dirty_Bite_E2_fc120,third,100.794,120,0,-111.233,-129.411,18.1778
+BSF_SC006,i_wide_dirty_Bite_E2_fc120,third 100.794 Hz: no distortion-born content
+i_wide_dirty_Bite_E2_fc120,gravity_0,20,120,1,-25.53,-51.8638,26.3338
+BSF_SC006,gravity0,i_wide_dirty_Bite_E2_fc120,A_B_db,26.3338
+i_wide_dirty_Bite_E2_fc120,gravity_0.1,20,120,1,-25.53,-52.509,26.979
+i_wide_dirty_Bite_E2_fc120,gravity_0.2,20,120,1,-25.53,-53.2059,27.676
+i_wide_dirty_Bite_E2_fc120,gravity_0.3,20,120,1,-25.53,-53.9638,28.4338
+i_wide_dirty_Bite_E2_fc120,gravity_0.4,20,120,1,-25.53,-54.7941,29.2641
+i_wide_dirty_Bite_E2_fc120,gravity_0.5,20,120,1,-25.53,-55.7123,30.1823
+i_wide_dirty_Bite_E2_fc120,gravity_0.6,20,120,1,-25.53,-56.7391,31.2091
+i_wide_dirty_Bite_E2_fc120,gravity_0.7,20,120,1,-25.53,-57.9038,32.3738
+i_wide_dirty_Bite_E2_fc120,gravity_0.8,20,120,1,-25.53,-59.2492,33.7192
+i_wide_dirty_Bite_E2_fc120,gravity_0.9,20,120,1,-25.53,-60.8419,35.3119
+i_wide_dirty_Bite_E2_fc120,gravity_1,20,120,1,-25.53,-62.7937,37.2638
+BSF_SC006,validity,i_wide_dirty_Bite_E2_fc120,valid,1,expected,1
+i_wide_dirty_Crush_E2_fc120,B,20,120,1,-13.5789,-50.8428,37.2639
+i_wide_dirty_Crush_E2_fc120,third,20,25.1984,0,-98.5457,-139.444,40.8987
+BSF_SC006,i_wide_dirty_Crush_E2_fc120,third 20 Hz: no distortion-born content
+i_wide_dirty_Crush_E2_fc120,third,25.1984,31.748,0,-98.6241,-137.764,39.1399
+BSF_SC006,i_wide_dirty_Crush_E2_fc120,third 25.1984 Hz: no distortion-born content
+i_wide_dirty_Crush_E2_fc120,third,31.748,40,0,-98.3235,-138.382,40.0584
+BSF_SC006,i_wide_dirty_Crush_E2_fc120,third 31.748 Hz: no distortion-born content
+i_wide_dirty_Crush_E2_fc120,third,40,50.3968,0,-97.0385,-136.61,39.5713
+BSF_SC006,i_wide_dirty_Crush_E2_fc120,third 40 Hz: no distortion-born content
+i_wide_dirty_Crush_E2_fc120,third,50.3968,63.496,0,-93.9479,-135.115,41.1675
+BSF_SC006,i_wide_dirty_Crush_E2_fc120,third 50.3968 Hz: no distortion-born content
+i_wide_dirty_Crush_E2_fc120,third,63.496,80,0,-82.4164,-121.868,39.4513
+BSF_SC006,i_wide_dirty_Crush_E2_fc120,third 63.496 Hz: no distortion-born content
+i_wide_dirty_Crush_E2_fc120,third,80,100.794,1,-13.5789,-50.8428,37.2639
+i_wide_dirty_Crush_E2_fc120,third,100.794,120,0,-91.4048,-118.604,27.1988
+BSF_SC006,i_wide_dirty_Crush_E2_fc120,third 100.794 Hz: no distortion-born content
+i_wide_dirty_Crush_E2_fc120,gravity_0,20,120,1,-13.5789,-39.9127,26.3338
+BSF_SC006,gravity0,i_wide_dirty_Crush_E2_fc120,A_B_db,26.3338
+i_wide_dirty_Crush_E2_fc120,gravity_0.1,20,120,1,-13.5789,-40.5579,26.979
+i_wide_dirty_Crush_E2_fc120,gravity_0.2,20,120,1,-13.5789,-41.2549,27.676
+i_wide_dirty_Crush_E2_fc120,gravity_0.3,20,120,1,-13.5789,-42.0127,28.4339
+i_wide_dirty_Crush_E2_fc120,gravity_0.4,20,120,1,-13.5789,-42.843,29.2642
+i_wide_dirty_Crush_E2_fc120,gravity_0.5,20,120,1,-13.5789,-43.7612,30.1824
+i_wide_dirty_Crush_E2_fc120,gravity_0.6,20,120,1,-13.5789,-44.7881,31.2092
+i_wide_dirty_Crush_E2_fc120,gravity_0.7,20,120,1,-13.5789,-45.9528,32.3739
+i_wide_dirty_Crush_E2_fc120,gravity_0.8,20,120,1,-13.5789,-47.2982,33.7193
+i_wide_dirty_Crush_E2_fc120,gravity_0.9,20,120,1,-13.5789,-48.8909,35.312
+i_wide_dirty_Crush_E2_fc120,gravity_1,20,120,1,-13.5789,-50.8428,37.2639
+BSF_SC006,validity,i_wide_dirty_Crush_E2_fc120,valid,1,expected,1
+i_wide_dirty_Fracture_E2_fc120,B,20,120,1,-32.3372,-88.4148,56.0776
+i_wide_dirty_Fracture_E2_fc120,third,20,25.1984,0,-134.687,-146.064,11.3774
+BSF_SC006,i_wide_dirty_Fracture_E2_fc120,third 20 Hz: no distortion-born content
+i_wide_dirty_Fracture_E2_fc120,third,25.1984,31.748,0,-138.019,-141.439,3.42053
+BSF_SC006,i_wide_dirty_Fracture_E2_fc120,third 25.1984 Hz: no distortion-born content
+i_wide_dirty_Fracture_E2_fc120,third,31.748,40,0,-113.379,-140.152,26.7726
+BSF_SC006,i_wide_dirty_Fracture_E2_fc120,third 31.748 Hz: no distortion-born content
+i_wide_dirty_Fracture_E2_fc120,third,40,50.3968,1,-32.3772,-93.6152,61.2381
+i_wide_dirty_Fracture_E2_fc120,third,50.3968,63.496,0,-125.684,-140.135,14.4511
+BSF_SC006,i_wide_dirty_Fracture_E2_fc120,third 50.3968 Hz: no distortion-born content
+i_wide_dirty_Fracture_E2_fc120,third,63.496,80,0,-124.235,-138.614,14.3787
+BSF_SC006,i_wide_dirty_Fracture_E2_fc120,third 63.496 Hz: no distortion-born content
+i_wide_dirty_Fracture_E2_fc120,third,80,100.794,1,-52.7123,-89.9763,37.264
+i_wide_dirty_Fracture_E2_fc120,third,100.794,120,0,-114.914,-136.117,21.2026
+BSF_SC006,i_wide_dirty_Fracture_E2_fc120,third 100.794 Hz: no distortion-born content
+i_wide_dirty_Fracture_E2_fc120,gravity_0,20,120,1,-32.3372,-61.2171,28.88
+BSF_SC006,gravity0,i_wide_dirty_Fracture_E2_fc120,A_B_db,28.88
+i_wide_dirty_Fracture_E2_fc120,gravity_0.1,20,120,1,-32.3372,-62.1048,29.7676
+i_wide_dirty_Fracture_E2_fc120,gravity_0.2,20,120,1,-32.3372,-63.0934,30.7562
+i_wide_dirty_Fracture_E2_fc120,gravity_0.3,20,120,1,-32.3372,-64.2089,31.8718
+i_wide_dirty_Fracture_E2_fc120,gravity_0.4,20,120,1,-32.3372,-65.4887,33.1515
+i_wide_dirty_Fracture_E2_fc120,gravity_0.5,20,120,1,-32.3372,-66.9893,34.6522
+i_wide_dirty_Fracture_E2_fc120,gravity_0.6,20,120,1,-32.3372,-68.8027,36.4656
+i_wide_dirty_Fracture_E2_fc120,gravity_0.7,20,120,1,-32.3372,-71.0932,38.756
+i_wide_dirty_Fracture_E2_fc120,gravity_0.8,20,120,1,-32.3372,-74.1986,41.8614
+i_wide_dirty_Fracture_E2_fc120,gravity_0.9,20,120,1,-32.3372,-78.9977,46.6605
+i_wide_dirty_Fracture_E2_fc120,gravity_1,20,120,1,-32.3372,-88.4148,56.0776
+BSF_SC006,validity,i_wide_dirty_Fracture_E2_fc120,valid,1,expected,1
+ii_excitation_E2_fc120,B,20,120,0,-75.7527,-112.922,37.1695
+BSF_SC006,ii_excitation_E2_fc120,no distortion-born content in B
+BSF_SC006,validity,ii_excitation_E2_fc120,valid,0,expected,1,MISMATCH
+i_wide_dirty_Tube_C3_fc120,B,20,120,0,-92.0492,-118.676,26.6265
+BSF_SC006,i_wide_dirty_Tube_C3_fc120,no distortion-born content in B
+BSF_SC006,validity,i_wide_dirty_Tube_C3_fc120,valid,0,expected,0
+i_wide_dirty_Fold_C3_fc120,B,20,120,0,-79.731,-106.992,27.2605
+BSF_SC006,i_wide_dirty_Fold_C3_fc120,no distortion-born content in B
+BSF_SC006,validity,i_wide_dirty_Fold_C3_fc120,valid,0,expected,0
+i_wide_dirty_Rectify_C3_fc120,B,20,120,0,-72.8073,-99.2023,26.3949
+BSF_SC006,i_wide_dirty_Rectify_C3_fc120,no distortion-born content in B
+BSF_SC006,validity,i_wide_dirty_Rectify_C3_fc120,valid,0,expected,0
+i_wide_dirty_Bite_C3_fc120,B,20,120,0,-75.39,-101.763,26.3731
+BSF_SC006,i_wide_dirty_Bite_C3_fc120,no distortion-born content in B
+BSF_SC006,validity,i_wide_dirty_Bite_C3_fc120,valid,0,expected,0
+i_wide_dirty_Crush_C3_fc120,B,20,120,0,-119.506,-124.994,5.48774
+BSF_SC006,i_wide_dirty_Crush_C3_fc120,no distortion-born content in B
+BSF_SC006,validity,i_wide_dirty_Crush_C3_fc120,valid,0,expected,0
+i_wide_dirty_Fracture_C3_fc120,B,20,120,1,-35.3549,-80.5743,45.2195
+i_wide_dirty_Fracture_C3_fc120,third,20,25.1984,0,-138.412,-143.758,5.34638
+BSF_SC006,i_wide_dirty_Fracture_C3_fc120,third 20 Hz: no distortion-born content
+i_wide_dirty_Fracture_C3_fc120,third,25.1984,31.748,0,-138.895,-141.002,2.10693
+BSF_SC006,i_wide_dirty_Fracture_C3_fc120,third 25.1984 Hz: no distortion-born content
+i_wide_dirty_Fracture_C3_fc120,third,31.748,40,0,-137.865,-142.783,4.9179
+BSF_SC006,i_wide_dirty_Fracture_C3_fc120,third 31.748 Hz: no distortion-born content
+i_wide_dirty_Fracture_C3_fc120,third,40,50.3968,0,-136.928,-138.985,2.05755
+BSF_SC006,i_wide_dirty_Fracture_C3_fc120,third 40 Hz: no distortion-born content
+i_wide_dirty_Fracture_C3_fc120,third,50.3968,63.496,0,-109.933,-138.226,28.2928
+BSF_SC006,i_wide_dirty_Fracture_C3_fc120,third 50.3968 Hz: no distortion-born content
+i_wide_dirty_Fracture_C3_fc120,third,63.496,80,1,-35.3549,-80.5744,45.2195
+i_wide_dirty_Fracture_C3_fc120,third,80,100.794,0,-131.998,-137.475,5.47676
+BSF_SC006,i_wide_dirty_Fracture_C3_fc120,third 80 Hz: no distortion-born content
+i_wide_dirty_Fracture_C3_fc120,third,100.794,120,0,-133.354,-137.449,4.09437
+BSF_SC006,i_wide_dirty_Fracture_C3_fc120,third 100.794 Hz: no distortion-born content
+i_wide_dirty_Fracture_C3_fc120,gravity_0,20,120,1,-35.3549,-63.2495,27.8946
+BSF_SC006,gravity0,i_wide_dirty_Fracture_C3_fc120,A_B_db,27.8946
+i_wide_dirty_Fracture_C3_fc120,gravity_0.1,20,120,1,-35.3549,-64.0343,28.6794
+i_wide_dirty_Fracture_C3_fc120,gravity_0.2,20,120,1,-35.3549,-64.8971,29.5422
+i_wide_dirty_Fracture_C3_fc120,gravity_0.3,20,120,1,-35.3549,-65.8552,30.5003
+i_wide_dirty_Fracture_C3_fc120,gravity_0.4,20,120,1,-35.3549,-66.9322,31.5774
+i_wide_dirty_Fracture_C3_fc120,gravity_0.5,20,120,1,-35.3549,-68.162,32.8071
+i_wide_dirty_Fracture_C3_fc120,gravity_0.6,20,120,1,-35.3549,-69.595,34.2401
+i_wide_dirty_Fracture_C3_fc120,gravity_0.7,20,120,1,-35.3549,-71.3121,35.9572
+i_wide_dirty_Fracture_C3_fc120,gravity_0.8,20,120,1,-35.3549,-73.4544,38.0995
+i_wide_dirty_Fracture_C3_fc120,gravity_0.9,20,120,1,-35.3549,-76.3044,40.9495
+i_wide_dirty_Fracture_C3_fc120,gravity_1,20,120,1,-35.3549,-80.5743,45.2195
+BSF_SC006,validity,i_wide_dirty_Fracture_C3_fc120,valid,1,expected,1
+ii_excitation_C3_fc120,B,20,120,0,-148.01,-127.161,-20.8492
+BSF_SC006,ii_excitation_C3_fc120,no distortion-born content in B
+BSF_SC006,validity,ii_excitation_C3_fc120,valid,0,expected,0
+i_wide_dirty_Tube_E0_fc250,B,20,250,1,-22.87,-64.7116,41.8416
+i_wide_dirty_Tube_E0_fc250,third,20,25.1984,1,-25.7245,-136.544,110.82
+i_wide_dirty_Tube_E0_fc250,third,25.1984,31.748,0,-112.926,-163.379,50.4528
+BSF_SC006,i_wide_dirty_Tube_E0_fc250,third 25.1984 Hz: no distortion-born content
+i_wide_dirty_Tube_E0_fc250,third,31.748,40,0,-110.96,-162.756,51.7955
+BSF_SC006,i_wide_dirty_Tube_E0_fc250,third 31.748 Hz: no distortion-born content
+i_wide_dirty_Tube_E0_fc250,third,40,50.3968,1,-30.0211,-116.751,86.73
+i_wide_dirty_Tube_E0_fc250,third,50.3968,63.496,1,-41.7339,-114.385,72.6511
+i_wide_dirty_Tube_E0_fc250,third,63.496,80,0,-108.039,-159.719,51.6803
+BSF_SC006,i_wide_dirty_Tube_E0_fc250,third 63.496 Hz: no distortion-born content
+i_wide_dirty_Tube_E0_fc250,third,80,100.794,1,-34.6934,-97.352,62.6586
+i_wide_dirty_Tube_E0_fc250,third,100.794,126.992,1,-32.6187,-84.6526,52.0339
+i_wide_dirty_Tube_E0_fc250,third,126.992,160,1,-39.0667,-82.3355,43.2688
+i_wide_dirty_Tube_E0_fc250,third,160,201.587,1,-36.1757,-73.3207,37.1449
+i_wide_dirty_Tube_E0_fc250,third,201.587,250,1,-37.6001,-65.4986,27.8985
+i_wide_dirty_Tube_E0_fc250,gravity_0,20,250,1,-22.87,-51.2528,28.3828
+BSF_SC006,gravity0,i_wide_dirty_Tube_E0_fc250,A_B_db,28.3828
+i_wide_dirty_Tube_E0_fc250,gravity_0.1,20,250,1,-22.87,-52.0678,29.1978
+i_wide_dirty_Tube_E0_fc250,gravity_0.2,20,250,1,-22.87,-52.9623,30.0923
+i_wide_dirty_Tube_E0_fc250,gravity_0.3,20,250,1,-22.87,-53.9522,31.0822
+i_wide_dirty_Tube_E0_fc250,gravity_0.4,20,250,1,-22.87,-55.0575,32.1875
+i_wide_dirty_Tube_E0_fc250,gravity_0.5,20,250,1,-22.87,-56.304,33.434
+i_wide_dirty_Tube_E0_fc250,gravity_0.6,20,250,1,-22.87,-57.7226,34.8526
+i_wide_dirty_Tube_E0_fc250,gravity_0.7,20,250,1,-22.87,-59.3454,36.4754
+i_wide_dirty_Tube_E0_fc250,gravity_0.8,20,250,1,-22.87,-61.1813,38.3112
+i_wide_dirty_Tube_E0_fc250,gravity_0.9,20,250,1,-22.87,-63.1252,40.2552
+i_wide_dirty_Tube_E0_fc250,gravity_1,20,250,1,-22.87,-64.7116,41.8416
+BSF_SC006,validity,i_wide_dirty_Tube_E0_fc250,valid,1,expected,1
+i_wide_dirty_Fold_E0_fc250,B,20,250,1,-21.8948,-61.5521,39.6574
+i_wide_dirty_Fold_E0_fc250,third,20,25.1984,1,-25.3756,-136.137,110.762
+i_wide_dirty_Fold_E0_fc250,third,25.1984,31.748,0,-95.2237,-163.124,67.9002
+BSF_SC006,i_wide_dirty_Fold_E0_fc250,third 25.1984 Hz: no distortion-born content
+i_wide_dirty_Fold_E0_fc250,third,31.748,40,0,-81.7809,-161.07,79.2895
+BSF_SC006,i_wide_dirty_Fold_E0_fc250,third 31.748 Hz: no distortion-born content
+i_wide_dirty_Fold_E0_fc250,third,40,50.3968,1,-27.5068,-114.243,86.7361
+i_wide_dirty_Fold_E0_fc250,third,50.3968,63.496,1,-36.7523,-109.404,72.6516
+i_wide_dirty_Fold_E0_fc250,third,63.496,80,0,-86.9723,-153.374,66.4013
+BSF_SC006,i_wide_dirty_Fold_E0_fc250,third 63.496 Hz: no distortion-born content
+i_wide_dirty_Fold_E0_fc250,third,80,100.794,1,-32.3934,-95.0532,62.6598
+i_wide_dirty_Fold_E0_fc250,third,100.794,126.992,1,-37.0855,-90.3222,53.2366
+i_wide_dirty_Fold_E0_fc250,third,126.992,160,1,-37.234,-80.5029,43.2689
+i_wide_dirty_Fold_E0_fc250,third,160,201.587,1,-35.3613,-73.4589,38.0977
+i_wide_dirty_Fold_E0_fc250,third,201.587,250,1,-34.8768,-61.9095,27.0327
+i_wide_dirty_Fold_E0_fc250,gravity_0,20,250,1,-21.8948,-50.0356,28.1408
+BSF_SC006,gravity0,i_wide_dirty_Fold_E0_fc250,A_B_db,28.1408
+i_wide_dirty_Fold_E0_fc250,gravity_0.1,20,250,1,-21.8948,-50.8155,28.9207
+i_wide_dirty_Fold_E0_fc250,gravity_0.2,20,250,1,-21.8948,-51.6652,29.7704
+i_wide_dirty_Fold_E0_fc250,gravity_0.3,20,250,1,-21.8948,-52.5965,30.7018
+i_wide_dirty_Fold_E0_fc250,gravity_0.4,20,250,1,-21.8948,-53.6233,31.7285
+i_wide_dirty_Fold_E0_fc250,gravity_0.5,20,250,1,-21.8948,-54.761,32.8662
+i_wide_dirty_Fold_E0_fc250,gravity_0.6,20,250,1,-21.8948,-56.024,34.1293
+i_wide_dirty_Fold_E0_fc250,gravity_0.7,20,250,1,-21.8948,-57.4178,35.523
+i_wide_dirty_Fold_E0_fc250,gravity_0.8,20,250,1,-21.8948,-58.9146,37.0198
+i_wide_dirty_Fold_E0_fc250,gravity_0.9,20,250,1,-21.8948,-60.3953,38.5005
+i_wide_dirty_Fold_E0_fc250,gravity_1,20,250,1,-21.8948,-61.5521,39.6574
+BSF_SC006,validity,i_wide_dirty_Fold_E0_fc250,valid,1,expected,1
+i_wide_dirty_Rectify_E0_fc250,B,20,250,1,-22.7124,-60.6472,37.9348
+i_wide_dirty_Rectify_E0_fc250,third,20,25.1984,1,-25.5495,-136.502,110.953
+i_wide_dirty_Rectify_E0_fc250,third,25.1984,31.748,0,-107.746,-152.772,45.0264
+BSF_SC006,i_wide_dirty_Rectify_E0_fc250,third 25.1984 Hz: no distortion-born content
+i_wide_dirty_Rectify_E0_fc250,third,31.748,40,0,-113.092,-151.789,38.6965
+BSF_SC006,i_wide_dirty_Rectify_E0_fc250,third 31.748 Hz: no distortion-born content
+i_wide_dirty_Rectify_E0_fc250,third,40,50.3968,1,-49.3006,-135.63,86.3296
+i_wide_dirty_Rectify_E0_fc250,third,50.3968,63.496,1,-38.8236,-111.46,72.6367
+i_wide_dirty_Rectify_E0_fc250,third,63.496,80,0,-104.59,-149.051,44.461
+BSF_SC006,i_wide_dirty_Rectify_E0_fc250,third 63.496 Hz: no distortion-born content
+i_wide_dirty_Rectify_E0_fc250,third,80,100.794,1,-33.2383,-95.8995,62.6612
+i_wide_dirty_Rectify_E0_fc250,third,100.794,126.992,1,-30.9053,-82.604,51.6987
+i_wide_dirty_Rectify_E0_fc250,third,126.992,160,1,-37.1226,-80.3911,43.2685
+i_wide_dirty_Rectify_E0_fc250,third,160,201.587,1,-31.9651,-68.2843,36.3192
+i_wide_dirty_Rectify_E0_fc250,third,201.587,250,1,-35.0946,-61.5601,26.4655
+i_wide_dirty_Rectify_E0_fc250,gravity_0,20,250,1,-22.7124,-50.3533,27.641
+BSF_SC006,gravity0,i_wide_dirty_Rectify_E0_fc250,A_B_db,27.641
+i_wide_dirty_Rectify_E0_fc250,gravity_0.1,20,250,1,-22.7124,-51.0799,28.3675
+i_wide_dirty_Rectify_E0_fc250,gravity_0.2,20,250,1,-22.7124,-51.8654,29.153
+i_wide_dirty_Rectify_E0_fc250,gravity_0.3,20,250,1,-22.7124,-52.7182,30.0059
+i_wide_dirty_Rectify_E0_fc250,gravity_0.4,20,250,1,-22.7124,-53.6479,30.9355
+i_wide_dirty_Rectify_E0_fc250,gravity_0.5,20,250,1,-22.7124,-54.664,31.9516
+i_wide_dirty_Rectify_E0_fc250,gravity_0.6,20,250,1,-22.7124,-55.7743,33.0619
+i_wide_dirty_Rectify_E0_fc250,gravity_0.7,20,250,1,-22.7124,-56.9789,34.2665
+i_wide_dirty_Rectify_E0_fc250,gravity_0.8,20,250,1,-22.7124,-58.2566,35.5442
+i_wide_dirty_Rectify_E0_fc250,gravity_0.9,20,250,1,-22.7124,-59.5357,36.8234
+i_wide_dirty_Rectify_E0_fc250,gravity_1,20,250,1,-22.7124,-60.6472,37.9348
+BSF_SC006,validity,i_wide_dirty_Rectify_E0_fc250,valid,1,expected,1
+i_wide_dirty_Bite_E0_fc250,B,20,250,1,-20.711,-62.2289,41.5179
+i_wide_dirty_Bite_E0_fc250,third,20,25.1984,1,-23.1087,-133.911,110.802
+i_wide_dirty_Bite_E0_fc250,third,25.1984,31.748,0,-111.273,-164.018,52.7447
+BSF_SC006,i_wide_dirty_Bite_E0_fc250,third 25.1984 Hz: no distortion-born content
+i_wide_dirty_Bite_E0_fc250,third,31.748,40,0,-109.64,-163.024,53.3838
+BSF_SC006,i_wide_dirty_Bite_E0_fc250,third 31.748 Hz: no distortion-born content
+i_wide_dirty_Bite_E0_fc250,third,40,50.3968,1,-28.5741,-115.307,86.7324
+i_wide_dirty_Bite_E0_fc250,third,50.3968,63.496,1,-35.2503,-107.899,72.649
+i_wide_dirty_Bite_E0_fc250,third,63.496,80,0,-101.631,-159.701,58.0696
+BSF_SC006,i_wide_dirty_Bite_E0_fc250,third 63.496 Hz: no distortion-born content
+i_wide_dirty_Bite_E0_fc250,third,80,100.794,1,-32.4488,-95.1078,62.659
+i_wide_dirty_Bite_E0_fc250,third,100.794,126.992,1,-33.5387,-85.9032,52.3645
+i_wide_dirty_Bite_E0_fc250,third,126.992,160,1,-35.0628,-78.3317,43.2689
+i_wide_dirty_Bite_E0_fc250,third,160,201.587,1,-36.1714,-74.5117,38.3403
+i_wide_dirty_Bite_E0_fc250,third,201.587,250,1,-34.562,-62.6312,28.0693
+i_wide_dirty_Bite_E0_fc250,gravity_0,20,250,1,-20.711,-49.0942,28.3832
+BSF_SC006,gravity0,i_wide_dirty_Bite_E0_fc250,A_B_db,28.3832
+i_wide_dirty_Bite_E0_fc250,gravity_0.1,20,250,1,-20.711,-49.9075,29.1965
+i_wide_dirty_Bite_E0_fc250,gravity_0.2,20,250,1,-20.711,-50.7994,30.0885
+i_wide_dirty_Bite_E0_fc250,gravity_0.3,20,250,1,-20.711,-51.7855,31.0745
+i_wide_dirty_Bite_E0_fc250,gravity_0.4,20,250,1,-20.711,-52.8849,32.1739
+i_wide_dirty_Bite_E0_fc250,gravity_0.5,20,250,1,-20.711,-54.1219,33.4109
+i_wide_dirty_Bite_E0_fc250,gravity_0.6,20,250,1,-20.711,-55.5247,34.8138
+i_wide_dirty_Bite_E0_fc250,gravity_0.7,20,250,1,-20.711,-57.12,36.409
+i_wide_dirty_Bite_E0_fc250,gravity_0.8,20,250,1,-20.711,-58.9062,38.1952
+i_wide_dirty_Bite_E0_fc250,gravity_0.9,20,250,1,-20.711,-60.7625,40.0515
+i_wide_dirty_Bite_E0_fc250,gravity_1,20,250,1,-20.711,-62.2289,41.5179
+BSF_SC006,validity,i_wide_dirty_Bite_E0_fc250,valid,1,expected,1
+i_wide_dirty_Crush_E0_fc250,B,20,250,1,-15.1135,-62.3042,47.1907
+i_wide_dirty_Crush_E0_fc250,third,20,25.1984,1,-16.6004,-127.447,110.847
+i_wide_dirty_Crush_E0_fc250,third,25.1984,31.748,0,-105.215,-166.062,60.8472
+BSF_SC006,i_wide_dirty_Crush_E0_fc250,third 25.1984 Hz: no distortion-born content
+i_wide_dirty_Crush_E0_fc250,third,31.748,40,0,-104.237,-162.943,58.706
+BSF_SC006,i_wide_dirty_Crush_E0_fc250,third 31.748 Hz: no distortion-born content
+i_wide_dirty_Crush_E0_fc250,third,40,50.3968,1,-22.9825,-109.721,86.7384
+i_wide_dirty_Crush_E0_fc250,third,50.3968,63.496,1,-27.7934,-100.443,72.6497
+i_wide_dirty_Crush_E0_fc250,third,63.496,80,0,-94.1531,-160.159,66.0055
+BSF_SC006,i_wide_dirty_Crush_E0_fc250,third 63.496 Hz: no distortion-born content
+i_wide_dirty_Crush_E0_fc250,third,80,100.794,1,-32.3005,-94.9596,62.6591
+i_wide_dirty_Crush_E0_fc250,third,100.794,126.992,1,-33.9909,-87.0414,53.0505
+i_wide_dirty_Crush_E0_fc250,third,126.992,160,1,-33.7326,-77.0016,43.2689
+i_wide_dirty_Crush_E0_fc250,third,160,201.587,1,-32.3978,-70.7479,38.3502
+i_wide_dirty_Crush_E0_fc250,third,201.587,250,1,-36.0203,-63.1718,27.1515
+i_wide_dirty_Crush_E0_fc250,gravity_0,20,250,1,-15.1135,-44.0025,28.889
+BSF_SC006,gravity0,i_wide_dirty_Crush_E0_fc250,A_B_db,28.889
+i_wide_dirty_Crush_E0_fc250,gravity_0.1,20,250,1,-15.1135,-44.8844,29.7709
+i_wide_dirty_Crush_E0_fc250,gravity_0.2,20,250,1,-15.1135,-45.864,30.7505
+i_wide_dirty_Crush_E0_fc250,gravity_0.3,20,250,1,-15.1135,-46.9651,31.8515
+i_wide_dirty_Crush_E0_fc250,gravity_0.4,20,250,1,-15.1135,-48.2208,33.1073
+i_wide_dirty_Crush_E0_fc250,gravity_0.5,20,250,1,-15.1135,-49.6792,34.5657
+i_wide_dirty_Crush_E0_fc250,gravity_0.6,20,250,1,-15.1135,-51.4125,36.299
+i_wide_dirty_Crush_E0_fc250,gravity_0.7,20,250,1,-15.1135,-53.5319,38.4184
+i_wide_dirty_Crush_E0_fc250,gravity_0.8,20,250,1,-15.1135,-56.2007,41.0872
+i_wide_dirty_Crush_E0_fc250,gravity_0.9,20,250,1,-15.1135,-59.5214,44.4079
+i_wide_dirty_Crush_E0_fc250,gravity_1,20,250,1,-15.1135,-62.3042,47.1907
+BSF_SC006,validity,i_wide_dirty_Crush_E0_fc250,valid,1,expected,1
+i_wide_dirty_Fracture_E0_fc250,B,20,250,1,-32.9899,-74.2765,41.2866
+i_wide_dirty_Fracture_E0_fc250,third,20,25.1984,1,-48.6399,-159.632,110.993
+i_wide_dirty_Fracture_E0_fc250,third,25.1984,31.748,1,-39.9425,-136.665,96.7229
+i_wide_dirty_Fracture_E0_fc250,third,31.748,40,0,-91.3638,-169.767,78.4035
+BSF_SC006,i_wide_dirty_Fracture_E0_fc250,third 31.748 Hz: no distortion-born content
+i_wide_dirty_Fracture_E0_fc250,third,40,50.3968,1,-49.9771,-136.703,86.7262
+i_wide_dirty_Fracture_E0_fc250,third,50.3968,63.496,1,-36.9105,-115.784,78.8737
+i_wide_dirty_Fracture_E0_fc250,third,63.496,80,1,-42.8796,-110.176,67.2961
+i_wide_dirty_Fracture_E0_fc250,third,80,100.794,1,-47.4275,-107.205,59.7771
+i_wide_dirty_Fracture_E0_fc250,third,100.794,126.992,1,-43.978,-95.5835,51.6056
+i_wide_dirty_Fracture_E0_fc250,third,126.992,160,1,-45.4926,-90.7041,45.2115
+i_wide_dirty_Fracture_E0_fc250,third,160,201.587,1,-46.611,-81.6915,35.0805
+i_wide_dirty_Fracture_E0_fc250,third,201.587,250,1,-48.5599,-75.3131,26.7532
+i_wide_dirty_Fracture_E0_fc250,gravity_0,20,250,1,-32.9899,-61.3065,28.3166
+BSF_SC006,gravity0,i_wide_dirty_Fracture_E0_fc250,A_B_db,28.3166
+i_wide_dirty_Fracture_E0_fc250,gravity_0.1,20,250,1,-32.9899,-62.1125,29.1226
+i_wide_dirty_Fracture_E0_fc250,gravity_0.2,20,250,1,-32.9899,-62.9957,30.0058
+i_wide_dirty_Fracture_E0_fc250,gravity_0.3,20,250,1,-32.9899,-63.9709,30.981
+i_wide_dirty_Fracture_E0_fc250,gravity_0.4,20,250,1,-32.9899,-65.0565,32.0666
+i_wide_dirty_Fracture_E0_fc250,gravity_0.5,20,250,1,-32.9899,-66.2758,33.2859
+i_wide_dirty_Fracture_E0_fc250,gravity_0.6,20,250,1,-32.9899,-67.6556,34.6657
+i_wide_dirty_Fracture_E0_fc250,gravity_0.7,20,250,1,-32.9899,-69.2208,36.2309
+i_wide_dirty_Fracture_E0_fc250,gravity_0.8,20,250,1,-32.9899,-70.9704,37.9805
+i_wide_dirty_Fracture_E0_fc250,gravity_0.9,20,250,1,-32.9899,-72.7948,39.8049
+i_wide_dirty_Fracture_E0_fc250,gravity_1,20,250,1,-32.9899,-74.2765,41.2866
+BSF_SC006,validity,i_wide_dirty_Fracture_E0_fc250,valid,1,expected,1
+ii_excitation_E0_fc250,B,20,250,0,-109.373,-139.388,30.0152
+BSF_SC006,ii_excitation_E0_fc250,no distortion-born content in B
+BSF_SC006,validity,ii_excitation_E0_fc250,valid,0,expected,1,MISMATCH
+i_wide_dirty_Tube_E1_fc250,B,20,250,1,-21.1323,-60.4025,39.2702
+i_wide_dirty_Tube_E1_fc250,third,20,25.1984,0,-132.664,-155.747,23.0832
+BSF_SC006,i_wide_dirty_Tube_E1_fc250,third 20 Hz: no distortion-born content
+i_wide_dirty_Tube_E1_fc250,third,25.1984,31.748,0,-136.538,-152.44,15.9023
+BSF_SC006,i_wide_dirty_Tube_E1_fc250,third 25.1984 Hz: no distortion-born content
+i_wide_dirty_Tube_E1_fc250,third,31.748,40,0,-105.071,-151.744,46.673
+BSF_SC006,i_wide_dirty_Tube_E1_fc250,third 31.748 Hz: no distortion-born content
+i_wide_dirty_Tube_E1_fc250,third,40,50.3968,1,-23.8359,-110.581,86.7453
+i_wide_dirty_Tube_E1_fc250,third,50.3968,63.496,0,-131.395,-150.21,18.8155
+BSF_SC006,i_wide_dirty_Tube_E1_fc250,third 50.3968 Hz: no distortion-born content
+i_wide_dirty_Tube_E1_fc250,third,63.496,80,0,-118.782,-148.872,30.0908
+BSF_SC006,i_wide_dirty_Tube_E1_fc250,third 63.496 Hz: no distortion-born content
+i_wide_dirty_Tube_E1_fc250,third,80,100.794,1,-28.0326,-90.6921,62.6595
+i_wide_dirty_Tube_E1_fc250,third,100.794,126.992,1,-30.9042,-79.5016,48.5974
+i_wide_dirty_Tube_E1_fc250,third,126.992,160,0,-122.18,-146.432,24.2526
+BSF_SC006,i_wide_dirty_Tube_E1_fc250,third 126.992 Hz: no distortion-born content
+i_wide_dirty_Tube_E1_fc250,third,160,201.587,1,-31.6357,-70.3069,38.6712
+i_wide_dirty_Tube_E1_fc250,third,201.587,250,1,-33.0156,-60.9354,27.9198
+i_wide_dirty_Tube_E1_fc250,gravity_0,20,250,1,-21.1323,-49.066,27.9338
+BSF_SC006,gravity0,i_wide_dirty_Tube_E1_fc250,A_B_db,27.9338
+i_wide_dirty_Tube_E1_fc250,gravity_0.1,20,250,1,-21.1323,-49.8264,28.6941
+i_wide_dirty_Tube_E1_fc250,gravity_0.2,20,250,1,-21.1323,-50.6532,29.5209
+i_wide_dirty_Tube_E1_fc250,gravity_0.3,20,250,1,-21.1323,-51.5573,30.425
+i_wide_dirty_Tube_E1_fc250,gravity_0.4,20,250,1,-21.1323,-52.5516,31.4193
+i_wide_dirty_Tube_E1_fc250,gravity_0.5,20,250,1,-21.1323,-53.6506,32.5184
+i_wide_dirty_Tube_E1_fc250,gravity_0.6,20,250,1,-21.1323,-54.8686,33.7363
+i_wide_dirty_Tube_E1_fc250,gravity_0.7,20,250,1,-21.1323,-56.2133,35.081
+i_wide_dirty_Tube_E1_fc250,gravity_0.8,20,250,1,-21.1323,-57.6677,36.5354
+i_wide_dirty_Tube_E1_fc250,gravity_0.9,20,250,1,-21.1323,-59.1451,38.0128
+i_wide_dirty_Tube_E1_fc250,gravity_1,20,250,1,-21.1323,-60.4025,39.2702
+BSF_SC006,validity,i_wide_dirty_Tube_E1_fc250,valid,1,expected,1
+i_wide_dirty_Fold_E1_fc250,B,20,250,1,-22.7683,-59.9088,37.1405
+i_wide_dirty_Fold_E1_fc250,third,20,25.1984,0,-129.367,-155.562,26.1956
+BSF_SC006,i_wide_dirty_Fold_E1_fc250,third 20 Hz: no distortion-born content
+i_wide_dirty_Fold_E1_fc250,third,25.1984,31.748,0,-134.224,-154.796,20.5721
+BSF_SC006,i_wide_dirty_Fold_E1_fc250,third 25.1984 Hz: no distortion-born content
+i_wide_dirty_Fold_E1_fc250,third,31.748,40,0,-106.668,-152.783,46.1144
+BSF_SC006,i_wide_dirty_Fold_E1_fc250,third 31.748 Hz: no distortion-born content
+i_wide_dirty_Fold_E1_fc250,third,40,50.3968,1,-25.7431,-112.48,86.7374
+i_wide_dirty_Fold_E1_fc250,third,50.3968,63.496,0,-129.702,-152.076,22.374
+BSF_SC006,i_wide_dirty_Fold_E1_fc250,third 50.3968 Hz: no distortion-born content
+i_wide_dirty_Fold_E1_fc250,third,63.496,80,0,-123.807,-149.949,26.1415
+BSF_SC006,i_wide_dirty_Fold_E1_fc250,third 63.496 Hz: no distortion-born content
+i_wide_dirty_Fold_E1_fc250,third,80,100.794,1,-33.517,-96.1739,62.657
+i_wide_dirty_Fold_E1_fc250,third,100.794,126.992,1,-38.6486,-87.2469,48.5982
+i_wide_dirty_Fold_E1_fc250,third,126.992,160,0,-122.307,-146.847,24.5393
+BSF_SC006,i_wide_dirty_Fold_E1_fc250,third 126.992 Hz: no distortion-born content
+i_wide_dirty_Fold_E1_fc250,third,160,201.587,1,-29.4719,-68.1431,38.6712
+i_wide_dirty_Fold_E1_fc250,third,201.587,250,1,-30.4057,-60.6261,30.2205
+i_wide_dirty_Fold_E1_fc250,gravity_0,20,250,1,-22.7683,-49.9035,27.1352
+BSF_SC006,gravity0,i_wide_dirty_Fold_E1_fc250,A_B_db,27.1352
+i_wide_dirty_Fold_E1_fc250,gravity_0.1,20,250,1,-22.7683,-50.5896,27.8213
+i_wide_dirty_Fold_E1_fc250,gravity_0.2,20,250,1,-22.7683,-51.329,28.5607
+i_wide_dirty_Fold_E1_fc250,gravity_0.3,20,250,1,-22.7683,-52.1292,29.3609
+i_wide_dirty_Fold_E1_fc250,gravity_0.4,20,250,1,-22.7683,-52.999,30.2307
+i_wide_dirty_Fold_E1_fc250,gravity_0.5,20,250,1,-22.7683,-53.9481,31.1798
+i_wide_dirty_Fold_E1_fc250,gravity_0.6,20,250,1,-22.7683,-54.9862,32.2179
+i_wide_dirty_Fold_E1_fc250,gravity_0.7,20,250,1,-22.7683,-56.1202,33.3519
+i_wide_dirty_Fold_E1_fc250,gravity_0.8,20,250,1,-22.7683,-57.3477,34.5794
+i_wide_dirty_Fold_E1_fc250,gravity_0.9,20,250,1,-22.7683,-58.64,35.8717
+i_wide_dirty_Fold_E1_fc250,gravity_1,20,250,1,-22.7683,-59.9088,37.1405
+BSF_SC006,validity,i_wide_dirty_Fold_E1_fc250,valid,1,expected,1
+i_wide_dirty_Rectify_E1_fc250,B,20,250,1,-20.2625,-55.1594,34.8969
+i_wide_dirty_Rectify_E1_fc250,third,20,25.1984,0,-132.999,-149.245,16.2459
+BSF_SC006,i_wide_dirty_Rectify_E1_fc250,third 20 Hz: no distortion-born content
+i_wide_dirty_Rectify_E1_fc250,third,25.1984,31.748,0,-129.136,-148.818,19.6822
+BSF_SC006,i_wide_dirty_Rectify_E1_fc250,third 25.1984 Hz: no distortion-born content
+i_wide_dirty_Rectify_E1_fc250,third,31.748,40,0,-107.557,-148.523,40.9655
+BSF_SC006,i_wide_dirty_Rectify_E1_fc250,third 31.748 Hz: no distortion-born content
+i_wide_dirty_Rectify_E1_fc250,third,40,50.3968,1,-37.7858,-124.518,86.7323
+i_wide_dirty_Rectify_E1_fc250,third,50.3968,63.496,0,-121.954,-144.29,22.3357
+BSF_SC006,i_wide_dirty_Rectify_E1_fc250,third 50.3968 Hz: no distortion-born content
+i_wide_dirty_Rectify_E1_fc250,third,63.496,80,0,-101.244,-144.213,42.9688
+BSF_SC006,i_wide_dirty_Rectify_E1_fc250,third 63.496 Hz: no distortion-born content
+i_wide_dirty_Rectify_E1_fc250,third,80,100.794,1,-24.4427,-87.1047,62.662
+i_wide_dirty_Rectify_E1_fc250,third,100.794,126.992,1,-24.9475,-73.5455,48.5979
+i_wide_dirty_Rectify_E1_fc250,third,126.992,160,0,-102.447,-140.559,38.1122
+BSF_SC006,i_wide_dirty_Rectify_E1_fc250,third 126.992 Hz: no distortion-born content
+i_wide_dirty_Rectify_E1_fc250,third,160,201.587,1,-28.6771,-67.3484,38.6713
+i_wide_dirty_Rectify_E1_fc250,third,201.587,250,1,-29.6062,-55.5005,25.8944
+i_wide_dirty_Rectify_E1_fc250,gravity_0,20,250,1,-20.2625,-46.9764,26.714
+BSF_SC006,gravity0,i_wide_dirty_Rectify_E1_fc250,A_B_db,26.714
+i_wide_dirty_Rectify_E1_fc250,gravity_0.1,20,250,1,-20.2625,-47.6095,27.347
+i_wide_dirty_Rectify_E1_fc250,gravity_0.2,20,250,1,-20.2625,-48.2839,28.0214
+i_wide_dirty_Rectify_E1_fc250,gravity_0.3,20,250,1,-20.2625,-49.0038,28.7413
+i_wide_dirty_Rectify_E1_fc250,gravity_0.4,20,250,1,-20.2625,-49.7728,29.5103
+i_wide_dirty_Rectify_E1_fc250,gravity_0.5,20,250,1,-20.2625,-50.5936,30.3311
+i_wide_dirty_Rectify_E1_fc250,gravity_0.6,20,250,1,-20.2625,-51.4664,31.2039
+i_wide_dirty_Rectify_E1_fc250,gravity_0.7,20,250,1,-20.2625,-52.3859,32.1235
+i_wide_dirty_Rectify_E1_fc250,gravity_0.8,20,250,1,-20.2625,-53.3365,33.074
+i_wide_dirty_Rectify_E1_fc250,gravity_0.9,20,250,1,-20.2625,-54.2829,34.0204
+i_wide_dirty_Rectify_E1_fc250,gravity_1,20,250,1,-20.2625,-55.1594,34.8969
+BSF_SC006,validity,i_wide_dirty_Rectify_E1_fc250,valid,1,expected,1
+i_wide_dirty_Bite_E1_fc250,B,20,250,1,-19.4655,-60.5995,41.134
+i_wide_dirty_Bite_E1_fc250,third,20,25.1984,0,-104.325,-155.148,50.8228
+BSF_SC006,i_wide_dirty_Bite_E1_fc250,third 20 Hz: no distortion-born content
+i_wide_dirty_Bite_E1_fc250,third,25.1984,31.748,0,-95.8244,-154.448,58.624
+BSF_SC006,i_wide_dirty_Bite_E1_fc250,third 25.1984 Hz: no distortion-born content
+i_wide_dirty_Bite_E1_fc250,third,31.748,40,0,-73.67,-151.247,77.5767
+BSF_SC006,i_wide_dirty_Bite_E1_fc250,third 31.748 Hz: no distortion-born content
+i_wide_dirty_Bite_E1_fc250,third,40,50.3968,1,-20.9863,-107.716,86.7293
+i_wide_dirty_Bite_E1_fc250,third,50.3968,63.496,0,-96.1215,-149.845,53.7239
+BSF_SC006,i_wide_dirty_Bite_E1_fc250,third 50.3968 Hz: no distortion-born content
+i_wide_dirty_Bite_E1_fc250,third,63.496,80,0,-90.1466,-148.673,58.5264
+BSF_SC006,i_wide_dirty_Bite_E1_fc250,third 63.496 Hz: no distortion-born content
+i_wide_dirty_Bite_E1_fc250,third,80,100.794,1,-30.1312,-92.7909,62.6596
+i_wide_dirty_Bite_E1_fc250,third,100.794,126.992,1,-33.0348,-81.6325,48.5977
+i_wide_dirty_Bite_E1_fc250,third,126.992,160,0,-90.0156,-134.035,44.0197
+BSF_SC006,i_wide_dirty_Bite_E1_fc250,third 126.992 Hz: no distortion-born content
+i_wide_dirty_Bite_E1_fc250,third,160,201.587,1,-28.692,-67.3633,38.6713
+i_wide_dirty_Bite_E1_fc250,third,201.587,250,1,-32.8195,-61.674,28.8545
+i_wide_dirty_Bite_E1_fc250,gravity_0,20,250,1,-19.4655,-47.6619,28.1964
+BSF_SC006,gravity0,i_wide_dirty_Bite_E1_fc250,A_B_db,28.1964
+i_wide_dirty_Bite_E1_fc250,gravity_0.1,20,250,1,-19.4655,-48.4566,28.9911
+i_wide_dirty_Bite_E1_fc250,gravity_0.2,20,250,1,-19.4655,-49.3265,29.8611
+i_wide_dirty_Bite_E1_fc250,gravity_0.3,20,250,1,-19.4655,-50.2859,30.8204
+i_wide_dirty_Bite_E1_fc250,gravity_0.4,20,250,1,-19.4655,-51.3526,31.8871
+i_wide_dirty_Bite_E1_fc250,gravity_0.5,20,250,1,-19.4655,-52.5492,33.0837
+i_wide_dirty_Bite_E1_fc250,gravity_0.6,20,250,1,-19.4655,-53.9023,34.4368
+i_wide_dirty_Bite_E1_fc250,gravity_0.7,20,250,1,-19.4655,-55.4386,35.9731
+i_wide_dirty_Bite_E1_fc250,gravity_0.8,20,250,1,-19.4655,-57.1654,37.6999
+i_wide_dirty_Bite_E1_fc250,gravity_0.9,20,250,1,-19.4655,-59.0024,39.537
+i_wide_dirty_Bite_E1_fc250,gravity_1,20,250,1,-19.4655,-60.5995,41.134
+BSF_SC006,validity,i_wide_dirty_Bite_E1_fc250,valid,1,expected,1
+i_wide_dirty_Crush_E1_fc250,B,20,250,1,-13.9698,-58.8687,44.8989
+i_wide_dirty_Crush_E1_fc250,third,20,25.1984,0,-128.124,-160.674,32.5499
+BSF_SC006,i_wide_dirty_Crush_E1_fc250,third 20 Hz: no distortion-born content
+i_wide_dirty_Crush_E1_fc250,third,25.1984,31.748,0,-131.031,-159.935,28.9038
+BSF_SC006,i_wide_dirty_Crush_E1_fc250,third 25.1984 Hz: no distortion-born content
+i_wide_dirty_Crush_E1_fc250,third,31.748,40,0,-96.5814,-159.848,63.2664
+BSF_SC006,i_wide_dirty_Crush_E1_fc250,third 31.748 Hz: no distortion-born content
+i_wide_dirty_Crush_E1_fc250,third,40,50.3968,1,-15.3373,-102.073,86.7357
+i_wide_dirty_Crush_E1_fc250,third,50.3968,63.496,0,-125.906,-157.832,31.926
+BSF_SC006,i_wide_dirty_Crush_E1_fc250,third 50.3968 Hz: no distortion-born content
+i_wide_dirty_Crush_E1_fc250,third,63.496,80,0,-112.853,-155.348,42.495
+BSF_SC006,i_wide_dirty_Crush_E1_fc250,third 63.496 Hz: no distortion-born content
+i_wide_dirty_Crush_E1_fc250,third,80,100.794,1,-21.7652,-84.4244,62.6592
+i_wide_dirty_Crush_E1_fc250,third,100.794,126.992,1,-26.947,-75.5446,48.5976
+i_wide_dirty_Crush_E1_fc250,third,126.992,160,0,-120.076,-153.153,33.0766
+BSF_SC006,i_wide_dirty_Crush_E1_fc250,third 126.992 Hz: no distortion-born content
+i_wide_dirty_Crush_E1_fc250,third,160,201.587,1,-28.2521,-66.9234,38.6713
+i_wide_dirty_Crush_E1_fc250,third,201.587,250,1,-31.8476,-59.7349,27.8874
+i_wide_dirty_Crush_E1_fc250,gravity_0,20,250,1,-13.9698,-42.6679,28.6981
+BSF_SC006,gravity0,i_wide_dirty_Crush_E1_fc250,A_B_db,28.6981
+i_wide_dirty_Crush_E1_fc250,gravity_0.1,20,250,1,-13.9698,-43.5249,29.5551
+i_wide_dirty_Crush_E1_fc250,gravity_0.2,20,250,1,-13.9698,-44.4728,30.503
+i_wide_dirty_Crush_E1_fc250,gravity_0.3,20,250,1,-13.9698,-45.5322,31.5624
+i_wide_dirty_Crush_E1_fc250,gravity_0.4,20,250,1,-13.9698,-46.7313,32.7615
+i_wide_dirty_Crush_E1_fc250,gravity_0.5,20,250,1,-13.9698,-48.1091,34.1393
+i_wide_dirty_Crush_E1_fc250,gravity_0.6,20,250,1,-13.9698,-49.7203,35.7505
+i_wide_dirty_Crush_E1_fc250,gravity_0.7,20,250,1,-13.9698,-51.6405,37.6707
+i_wide_dirty_Crush_E1_fc250,gravity_0.8,20,250,1,-13.9698,-53.9551,39.9853
+i_wide_dirty_Crush_E1_fc250,gravity_0.9,20,250,1,-13.9698,-56.6348,42.665
+i_wide_dirty_Crush_E1_fc250,gravity_1,20,250,1,-13.9698,-58.8687,44.8989
+BSF_SC006,validity,i_wide_dirty_Crush_E1_fc250,valid,1,expected,1
+i_wide_dirty_Fracture_E1_fc250,B,20,250,1,-28.0689,-72.9606,44.8917
+i_wide_dirty_Fracture_E1_fc250,third,20,25.1984,1,-28.8203,-139.557,110.737
+i_wide_dirty_Fracture_E1_fc250,third,25.1984,31.748,0,-116.71,-159.551,42.8412
+BSF_SC006,i_wide_dirty_Fracture_E1_fc250,third 25.1984 Hz: no distortion-born content
+i_wide_dirty_Fracture_E1_fc250,third,31.748,40,0,-126.558,-158.474,31.9154
+BSF_SC006,i_wide_dirty_Fracture_E1_fc250,third 31.748 Hz: no distortion-born content
+i_wide_dirty_Fracture_E1_fc250,third,40,50.3968,1,-49.287,-135.976,86.6886
+i_wide_dirty_Fracture_E1_fc250,third,50.3968,63.496,1,-40.8772,-113.533,72.6557
+i_wide_dirty_Fracture_E1_fc250,third,63.496,80,0,-107.229,-155.311,48.082
+BSF_SC006,i_wide_dirty_Fracture_E1_fc250,third 63.496 Hz: no distortion-born content
+i_wide_dirty_Fracture_E1_fc250,third,80,100.794,1,-55.3767,-118.04,62.6635
+i_wide_dirty_Fracture_E1_fc250,third,100.794,126.992,1,-42.6353,-97.4325,54.7973
+i_wide_dirty_Fracture_E1_fc250,third,126.992,160,1,-44.663,-87.9317,43.2687
+i_wide_dirty_Fracture_E1_fc250,third,160,201.587,1,-43.7825,-78.7987,35.0162
+i_wide_dirty_Fracture_E1_fc250,third,201.587,250,1,-46.7984,-74.4865,27.688
+i_wide_dirty_Fracture_E1_fc250,gravity_0,20,250,1,-28.0689,-56.7991,28.7302
+BSF_SC006,gravity0,i_wide_dirty_Fracture_E1_fc250,A_B_db,28.7302
+i_wide_dirty_Fracture_E1_fc250,gravity_0.1,20,250,1,-28.0689,-57.6593,29.5904
+i_wide_dirty_Fracture_E1_fc250,gravity_0.2,20,250,1,-28.0689,-58.611,30.5421
+i_wide_dirty_Fracture_E1_fc250,gravity_0.3,20,250,1,-28.0689,-59.6752,31.6063
+i_wide_dirty_Fracture_E1_fc250,gravity_0.4,20,250,1,-28.0689,-60.8802,32.8112
+i_wide_dirty_Fracture_E1_fc250,gravity_0.5,20,250,1,-28.0689,-62.2652,34.1963
+i_wide_dirty_Fracture_E1_fc250,gravity_0.6,20,250,1,-28.0689,-63.8857,35.8168
+i_wide_dirty_Fracture_E1_fc250,gravity_0.7,20,250,1,-28.0689,-65.817,37.7481
+i_wide_dirty_Fracture_E1_fc250,gravity_0.8,20,250,1,-28.0689,-68.1417,40.0728
+i_wide_dirty_Fracture_E1_fc250,gravity_0.9,20,250,1,-28.0689,-70.8131,42.7442
+i_wide_dirty_Fracture_E1_fc250,gravity_1,20,250,1,-28.0689,-72.9606,44.8917
+BSF_SC006,validity,i_wide_dirty_Fracture_E1_fc250,valid,1,expected,1
+ii_excitation_E1_fc250,B,20,250,0,-70.2074,-98.5229,28.3155
+BSF_SC006,ii_excitation_E1_fc250,no distortion-born content in B
+BSF_SC006,validity,ii_excitation_E1_fc250,valid,0,expected,1,MISMATCH
+i_wide_dirty_Tube_E2_fc250,B,20,250,1,-22.1184,-50.9532,28.8348
+i_wide_dirty_Tube_E2_fc250,third,20,25.1984,0,-122.515,-149.967,27.4521
+BSF_SC006,i_wide_dirty_Tube_E2_fc250,third 20 Hz: no distortion-born content
+i_wide_dirty_Tube_E2_fc250,third,25.1984,31.748,0,-114.888,-148.743,33.8553
+BSF_SC006,i_wide_dirty_Tube_E2_fc250,third 25.1984 Hz: no distortion-born content
+i_wide_dirty_Tube_E2_fc250,third,31.748,40,0,-103.862,-148.843,44.9805
+BSF_SC006,i_wide_dirty_Tube_E2_fc250,third 31.748 Hz: no distortion-born content
+i_wide_dirty_Tube_E2_fc250,third,40,50.3968,0,-102.621,-147.911,45.2902
+BSF_SC006,i_wide_dirty_Tube_E2_fc250,third 40 Hz: no distortion-born content
+i_wide_dirty_Tube_E2_fc250,third,50.3968,63.496,0,-108.89,-146.506,37.616
+BSF_SC006,i_wide_dirty_Tube_E2_fc250,third 50.3968 Hz: no distortion-born content
+i_wide_dirty_Tube_E2_fc250,third,63.496,80,0,-84.3338,-144.656,60.3224
+BSF_SC006,i_wide_dirty_Tube_E2_fc250,third 63.496 Hz: no distortion-born content
+i_wide_dirty_Tube_E2_fc250,third,80,100.794,1,-26.9756,-89.6352,62.6595
+i_wide_dirty_Tube_E2_fc250,third,100.794,126.992,0,-102.878,-143.669,40.7916
+BSF_SC006,i_wide_dirty_Tube_E2_fc250,third 100.794 Hz: no distortion-born content
+i_wide_dirty_Tube_E2_fc250,third,126.992,160,0,-100.055,-138.931,38.8752
+BSF_SC006,i_wide_dirty_Tube_E2_fc250,third 126.992 Hz: no distortion-born content
+i_wide_dirty_Tube_E2_fc250,third,160,201.587,1,-27.7581,-66.4293,38.6711
+i_wide_dirty_Tube_E2_fc250,third,201.587,250,1,-26.0946,-51.0787,24.9841
+i_wide_dirty_Tube_E2_fc250,gravity_0,20,250,1,-22.1184,-45.8887,23.7703
+BSF_SC006,gravity0,i_wide_dirty_Tube_E2_fc250,A_B_db,23.7703
+i_wide_dirty_Tube_E2_fc250,gravity_0.1,20,250,1,-22.1184,-46.3164,24.198
+i_wide_dirty_Tube_E2_fc250,gravity_0.2,20,250,1,-22.1184,-46.7613,24.6429
+i_wide_dirty_Tube_E2_fc250,gravity_0.3,20,250,1,-22.1184,-47.2242,25.1058
+i_wide_dirty_Tube_E2_fc250,gravity_0.4,20,250,1,-22.1184,-47.7056,25.5872
+i_wide_dirty_Tube_E2_fc250,gravity_0.5,20,250,1,-22.1184,-48.206,26.0876
+i_wide_dirty_Tube_E2_fc250,gravity_0.6,20,250,1,-22.1184,-48.725,26.6066
+i_wide_dirty_Tube_E2_fc250,gravity_0.7,20,250,1,-22.1184,-49.262,27.1436
+i_wide_dirty_Tube_E2_fc250,gravity_0.8,20,250,1,-22.1184,-49.815,27.6966
+i_wide_dirty_Tube_E2_fc250,gravity_0.9,20,250,1,-22.1184,-50.3807,28.2623
+i_wide_dirty_Tube_E2_fc250,gravity_1,20,250,1,-22.1184,-50.9532,28.8348
+BSF_SC006,validity,i_wide_dirty_Tube_E2_fc250,valid,1,expected,1
+i_wide_dirty_Fold_E2_fc250,B,20,250,1,-28.1665,-66.9514,38.7849
+i_wide_dirty_Fold_E2_fc250,third,20,25.1984,0,-124.426,-153.905,29.4785
+BSF_SC006,i_wide_dirty_Fold_E2_fc250,third 20 Hz: no distortion-born content
+i_wide_dirty_Fold_E2_fc250,third,25.1984,31.748,0,-112.958,-153.93,40.9726
+BSF_SC006,i_wide_dirty_Fold_E2_fc250,third 25.1984 Hz: no distortion-born content
+i_wide_dirty_Fold_E2_fc250,third,31.748,40,0,-102.482,-154.281,51.7994
+BSF_SC006,i_wide_dirty_Fold_E2_fc250,third 31.748 Hz: no distortion-born content
+i_wide_dirty_Fold_E2_fc250,third,40,50.3968,0,-100.674,-153.559,52.8852
+BSF_SC006,i_wide_dirty_Fold_E2_fc250,third 40 Hz: no distortion-born content
+i_wide_dirty_Fold_E2_fc250,third,50.3968,63.496,0,-105.462,-151.356,45.8936
+BSF_SC006,i_wide_dirty_Fold_E2_fc250,third 50.3968 Hz: no distortion-born content
+i_wide_dirty_Fold_E2_fc250,third,63.496,80,0,-81.5749,-144.343,62.7686
+BSF_SC006,i_wide_dirty_Fold_E2_fc250,third 63.496 Hz: no distortion-born content
+i_wide_dirty_Fold_E2_fc250,third,80,100.794,1,-30.3735,-93.0319,62.6584
+i_wide_dirty_Fold_E2_fc250,third,100.794,126.992,0,-101.082,-146.514,45.4318
+BSF_SC006,i_wide_dirty_Fold_E2_fc250,third 100.794 Hz: no distortion-born content
+i_wide_dirty_Fold_E2_fc250,third,126.992,160,0,-98.101,-138.469,40.3678
+BSF_SC006,i_wide_dirty_Fold_E2_fc250,third 126.992 Hz: no distortion-born content
+i_wide_dirty_Fold_E2_fc250,third,160,201.587,1,-32.4518,-71.123,38.6712
+i_wide_dirty_Fold_E2_fc250,third,201.587,250,1,-44.0796,-69.0637,24.9841
+i_wide_dirty_Fold_E2_fc250,gravity_0,20,250,1,-28.1665,-55.6889,27.5224
+BSF_SC006,gravity0,i_wide_dirty_Fold_E2_fc250,A_B_db,27.5224
+i_wide_dirty_Fold_E2_fc250,gravity_0.1,20,250,1,-28.1665,-56.4156,28.2491
+i_wide_dirty_Fold_E2_fc250,gravity_0.2,20,250,1,-28.1665,-57.2038,29.0373
+i_wide_dirty_Fold_E2_fc250,gravity_0.3,20,250,1,-28.1665,-58.0635,29.8971
+i_wide_dirty_Fold_E2_fc250,gravity_0.4,20,250,1,-28.1665,-59.0072,30.8407
+i_wide_dirty_Fold_E2_fc250,gravity_0.5,20,250,1,-28.1665,-60.0493,31.8828
+i_wide_dirty_Fold_E2_fc250,gravity_0.6,20,250,1,-28.1665,-61.2061,33.0396
+i_wide_dirty_Fold_E2_fc250,gravity_0.7,20,250,1,-28.1665,-62.4933,34.3268
+i_wide_dirty_Fold_E2_fc250,gravity_0.8,20,250,1,-28.1665,-63.9166,35.7502
+i_wide_dirty_Fold_E2_fc250,gravity_0.9,20,250,1,-28.1665,-65.4463,37.2798
+i_wide_dirty_Fold_E2_fc250,gravity_1,20,250,1,-28.1665,-66.9514,38.7849
+BSF_SC006,validity,i_wide_dirty_Fold_E2_fc250,valid,1,expected,1
+i_wide_dirty_Rectify_E2_fc250,B,20,250,1,-21.4325,-48.1367,26.7042
+i_wide_dirty_Rectify_E2_fc250,third,20,25.1984,0,-126.037,-145.701,19.6642
+BSF_SC006,i_wide_dirty_Rectify_E2_fc250,third 20 Hz: no distortion-born content
+i_wide_dirty_Rectify_E2_fc250,third,25.1984,31.748,0,-117.981,-143.228,25.2463
+BSF_SC006,i_wide_dirty_Rectify_E2_fc250,third 25.1984 Hz: no distortion-born content
+i_wide_dirty_Rectify_E2_fc250,third,31.748,40,0,-110.831,-142.241,31.41
+BSF_SC006,i_wide_dirty_Rectify_E2_fc250,third 31.748 Hz: no distortion-born content
+i_wide_dirty_Rectify_E2_fc250,third,40,50.3968,0,-110.33,-141.277,30.9464
+BSF_SC006,i_wide_dirty_Rectify_E2_fc250,third 40 Hz: no distortion-born content
+i_wide_dirty_Rectify_E2_fc250,third,50.3968,63.496,0,-112.471,-142.285,29.8139
+BSF_SC006,i_wide_dirty_Rectify_E2_fc250,third 50.3968 Hz: no distortion-born content
+i_wide_dirty_Rectify_E2_fc250,third,63.496,80,0,-92.2173,-140.278,48.0612
+BSF_SC006,i_wide_dirty_Rectify_E2_fc250,third 63.496 Hz: no distortion-born content
+i_wide_dirty_Rectify_E2_fc250,third,80,100.794,1,-32.3044,-94.9719,62.6675
+i_wide_dirty_Rectify_E2_fc250,third,100.794,126.992,0,-104.63,-137.791,33.1611
+BSF_SC006,i_wide_dirty_Rectify_E2_fc250,third 100.794 Hz: no distortion-born content
+i_wide_dirty_Rectify_E2_fc250,third,126.992,160,0,-98.6704,-135.764,37.0939
+BSF_SC006,i_wide_dirty_Rectify_E2_fc250,third 126.992 Hz: no distortion-born content
+i_wide_dirty_Rectify_E2_fc250,third,160,201.587,1,-27.3466,-66.0179,38.6714
+i_wide_dirty_Rectify_E2_fc250,third,201.587,250,1,-23.224,-48.2081,24.9841
+i_wide_dirty_Rectify_E2_fc250,gravity_0,20,250,1,-21.4325,-43.6953,22.2628
+BSF_SC006,gravity0,i_wide_dirty_Rectify_E2_fc250,A_B_db,22.2628
+i_wide_dirty_Rectify_E2_fc250,gravity_0.1,20,250,1,-21.4325,-44.0628,22.6304
+i_wide_dirty_Rectify_E2_fc250,gravity_0.2,20,250,1,-21.4325,-44.4447,23.0122
+i_wide_dirty_Rectify_E2_fc250,gravity_0.3,20,250,1,-21.4325,-44.8418,23.4094
+i_wide_dirty_Rectify_E2_fc250,gravity_0.4,20,250,1,-21.4325,-45.2553,23.8228
+i_wide_dirty_Rectify_E2_fc250,gravity_0.5,20,250,1,-21.4325,-45.6861,24.2536
+i_wide_dirty_Rectify_E2_fc250,gravity_0.6,20,250,1,-21.4325,-46.1353,24.7028
+i_wide_dirty_Rectify_E2_fc250,gravity_0.7,20,250,1,-21.4325,-46.604,25.1716
+i_wide_dirty_Rectify_E2_fc250,gravity_0.8,20,250,1,-21.4325,-47.0933,25.6608
+i_wide_dirty_Rectify_E2_fc250,gravity_0.9,20,250,1,-21.4325,-47.604,26.1715
+i_wide_dirty_Rectify_E2_fc250,gravity_1,20,250,1,-21.4325,-48.1367,26.7042
+BSF_SC006,validity,i_wide_dirty_Rectify_E2_fc250,valid,1,expected,1
+i_wide_dirty_Bite_E2_fc250,B,20,250,1,-20.6133,-51.9662,31.353
+i_wide_dirty_Bite_E2_fc250,third,20,25.1984,0,-115.905,-153.367,37.4613
+BSF_SC006,i_wide_dirty_Bite_E2_fc250,third 20 Hz: no distortion-born content
+i_wide_dirty_Bite_E2_fc250,third,25.1984,31.748,0,-109.099,-151.751,42.6519
+BSF_SC006,i_wide_dirty_Bite_E2_fc250,third 25.1984 Hz: no distortion-born content
+i_wide_dirty_Bite_E2_fc250,third,31.748,40,0,-97.3569,-149.846,52.4892
+BSF_SC006,i_wide_dirty_Bite_E2_fc250,third 31.748 Hz: no distortion-born content
+i_wide_dirty_Bite_E2_fc250,third,40,50.3968,0,-96.4817,-149.554,53.0722
+BSF_SC006,i_wide_dirty_Bite_E2_fc250,third 40 Hz: no distortion-born content
+i_wide_dirty_Bite_E2_fc250,third,50.3968,63.496,0,-102.671,-148.55,45.8781
+BSF_SC006,i_wide_dirty_Bite_E2_fc250,third 50.3968 Hz: no distortion-born content
+i_wide_dirty_Bite_E2_fc250,third,63.496,80,0,-78.5955,-141.132,62.5364
+BSF_SC006,i_wide_dirty_Bite_E2_fc250,third 63.496 Hz: no distortion-born content
+i_wide_dirty_Bite_E2_fc250,third,80,100.794,1,-22.6691,-85.3295,62.6604
+i_wide_dirty_Bite_E2_fc250,third,100.794,126.992,0,-95.5224,-142.405,46.8828
+BSF_SC006,i_wide_dirty_Bite_E2_fc250,third 100.794 Hz: no distortion-born content
+i_wide_dirty_Bite_E2_fc250,third,126.992,160,0,-99.55,-138.644,39.0943
+BSF_SC006,i_wide_dirty_Bite_E2_fc250,third 126.992 Hz: no distortion-born content
+i_wide_dirty_Bite_E2_fc250,third,160,201.587,1,-28.7658,-67.4368,38.671
+i_wide_dirty_Bite_E2_fc250,third,201.587,250,1,-27.1093,-52.0933,24.984
+i_wide_dirty_Bite_E2_fc250,gravity_0,20,250,1,-20.6133,-45.9726,25.3593
+BSF_SC006,gravity0,i_wide_dirty_Bite_E2_fc250,A_B_db,25.3593
+i_wide_dirty_Bite_E2_fc250,gravity_0.1,20,250,1,-20.6133,-46.4866,25.8733
+i_wide_dirty_Bite_E2_fc250,gravity_0.2,20,250,1,-20.6133,-47.0242,26.411
+i_wide_dirty_Bite_E2_fc250,gravity_0.3,20,250,1,-20.6133,-47.5862,26.973
+i_wide_dirty_Bite_E2_fc250,gravity_0.4,20,250,1,-20.6133,-48.1726,27.5593
+i_wide_dirty_Bite_E2_fc250,gravity_0.5,20,250,1,-20.6133,-48.7823,28.1691
+i_wide_dirty_Bite_E2_fc250,gravity_0.6,20,250,1,-20.6133,-49.4128,28.7996
+i_wide_dirty_Bite_E2_fc250,gravity_0.7,20,250,1,-20.6133,-50.0588,29.4455
+i_wide_dirty_Bite_E2_fc250,gravity_0.8,20,250,1,-20.6133,-50.7109,30.0976
+i_wide_dirty_Bite_E2_fc250,gravity_0.9,20,250,1,-20.6133,-51.3542,30.7409
+i_wide_dirty_Bite_E2_fc250,gravity_1,20,250,1,-20.6133,-51.9662,31.353
+BSF_SC006,validity,i_wide_dirty_Bite_E2_fc250,valid,1,expected,1
+i_wide_dirty_Crush_E2_fc250,B,20,250,1,-12.3248,-50.7251,38.4002
+i_wide_dirty_Crush_E2_fc250,third,20,25.1984,0,-148.279,-156.326,8.04663
+BSF_SC006,i_wide_dirty_Crush_E2_fc250,third 20 Hz: no distortion-born content
+i_wide_dirty_Crush_E2_fc250,third,25.1984,31.748,0,-141.923,-155.159,13.2367
+BSF_SC006,i_wide_dirty_Crush_E2_fc250,third 25.1984 Hz: no distortion-born content
+i_wide_dirty_Crush_E2_fc250,third,31.748,40,0,-136.345,-153.793,17.4484
+BSF_SC006,i_wide_dirty_Crush_E2_fc250,third 31.748 Hz: no distortion-born content
+i_wide_dirty_Crush_E2_fc250,third,40,50.3968,0,-136.313,-153.869,17.5565
+BSF_SC006,i_wide_dirty_Crush_E2_fc250,third 40 Hz: no distortion-born content
+i_wide_dirty_Crush_E2_fc250,third,50.3968,63.496,0,-132.589,-152.37,19.7806
+BSF_SC006,i_wide_dirty_Crush_E2_fc250,third 50.3968 Hz: no distortion-born content
+i_wide_dirty_Crush_E2_fc250,third,63.496,80,0,-104.243,-151.287,47.0448
+BSF_SC006,i_wide_dirty_Crush_E2_fc250,third 63.496 Hz: no distortion-born content
+i_wide_dirty_Crush_E2_fc250,third,80,100.794,1,-13.1844,-75.8435,62.6591
+i_wide_dirty_Crush_E2_fc250,third,100.794,126.992,0,-130.036,-148.654,18.618
+BSF_SC006,i_wide_dirty_Crush_E2_fc250,third 100.794 Hz: no distortion-born content
+i_wide_dirty_Crush_E2_fc250,third,126.992,160,0,-120.373,-146.922,26.5491
+BSF_SC006,i_wide_dirty_Crush_E2_fc250,third 126.992 Hz: no distortion-born content
+i_wide_dirty_Crush_E2_fc250,third,160,201.587,1,-20.8586,-59.5298,38.6712
+i_wide_dirty_Crush_E2_fc250,third,201.587,250,1,-26.3697,-51.3537,24.9841
+i_wide_dirty_Crush_E2_fc250,gravity_0,20,250,1,-12.3248,-40.1219,27.7971
+BSF_SC006,gravity0,i_wide_dirty_Crush_E2_fc250,A_B_db,27.7971
+i_wide_dirty_Crush_E2_fc250,gravity_0.1,20,250,1,-12.3248,-40.8642,28.5393
+i_wide_dirty_Crush_E2_fc250,gravity_0.2,20,250,1,-12.3248,-41.6683,29.3435
+i_wide_dirty_Crush_E2_fc250,gravity_0.3,20,250,1,-12.3248,-42.5437,30.2188
+i_wide_dirty_Crush_E2_fc250,gravity_0.4,20,250,1,-12.3248,-43.5007,31.1758
+i_wide_dirty_Crush_E2_fc250,gravity_0.5,20,250,1,-12.3248,-44.5502,32.2254
+i_wide_dirty_Crush_E2_fc250,gravity_0.6,20,250,1,-12.3248,-45.7013,33.3764
+i_wide_dirty_Crush_E2_fc250,gravity_0.7,20,250,1,-12.3248,-46.9544,34.6295
+i_wide_dirty_Crush_E2_fc250,gravity_0.8,20,250,1,-12.3248,-48.2853,35.9605
+i_wide_dirty_Crush_E2_fc250,gravity_0.9,20,250,1,-12.3248,-49.6095,37.2847
+i_wide_dirty_Crush_E2_fc250,gravity_1,20,250,1,-12.3248,-50.7251,38.4002
+BSF_SC006,validity,i_wide_dirty_Crush_E2_fc250,valid,1,expected,1
+i_wide_dirty_Fracture_E2_fc250,B,20,250,1,-27.4803,-65.4477,37.9675
+i_wide_dirty_Fracture_E2_fc250,third,20,25.1984,0,-137.319,-159.582,22.2629
+BSF_SC006,i_wide_dirty_Fracture_E2_fc250,third 20 Hz: no distortion-born content
+i_wide_dirty_Fracture_E2_fc250,third,25.1984,31.748,0,-140.601,-157.035,16.434
+BSF_SC006,i_wide_dirty_Fracture_E2_fc250,third 25.1984 Hz: no distortion-born content
+i_wide_dirty_Fracture_E2_fc250,third,31.748,40,0,-110.009,-158.12,48.1114
+BSF_SC006,i_wide_dirty_Fracture_E2_fc250,third 31.748 Hz: no distortion-born content
+i_wide_dirty_Fracture_E2_fc250,third,40,50.3968,1,-28.7988,-115.536,86.7369
+i_wide_dirty_Fracture_E2_fc250,third,50.3968,63.496,0,-139.196,-154.741,15.5449
+BSF_SC006,i_wide_dirty_Fracture_E2_fc250,third 50.3968 Hz: no distortion-born content
+i_wide_dirty_Fracture_E2_fc250,third,63.496,80,0,-136.525,-154.385,17.8598
+BSF_SC006,i_wide_dirty_Fracture_E2_fc250,third 63.496 Hz: no distortion-born content
+i_wide_dirty_Fracture_E2_fc250,third,80,100.794,1,-52.711,-115.371,62.6599
+i_wide_dirty_Fracture_E2_fc250,third,100.794,126.992,1,-39.8116,-88.409,48.5974
+i_wide_dirty_Fracture_E2_fc250,third,126.992,160,0,-131.786,-151.619,19.8328
+BSF_SC006,i_wide_dirty_Fracture_E2_fc250,third 126.992 Hz: no distortion-born content
+i_wide_dirty_Fracture_E2_fc250,third,160,201.587,1,-57.0322,-95.7031,38.6709
+i_wide_dirty_Fracture_E2_fc250,third,201.587,250,1,-34.4855,-65.474,30.9884
+i_wide_dirty_Fracture_E2_fc250,gravity_0,20,250,1,-27.4803,-54.9992,27.5189
+BSF_SC006,gravity0,i_wide_dirty_Fracture_E2_fc250,A_B_db,27.5189
+i_wide_dirty_Fracture_E2_fc250,gravity_0.1,20,250,1,-27.4803,-55.7179,28.2377
+i_wide_dirty_Fracture_E2_fc250,gravity_0.2,20,250,1,-27.4803,-56.495,29.0148
+i_wide_dirty_Fracture_E2_fc250,gravity_0.3,20,250,1,-27.4803,-57.3392,29.8589
+i_wide_dirty_Fracture_E2_fc250,gravity_0.4,20,250,1,-27.4803,-58.2602,30.78
+i_wide_dirty_Fracture_E2_fc250,gravity_0.5,20,250,1,-27.4803,-59.269,31.7887
+i_wide_dirty_Fracture_E2_fc250,gravity_0.6,20,250,1,-27.4803,-60.3754,32.8952
+i_wide_dirty_Fracture_E2_fc250,gravity_0.7,20,250,1,-27.4803,-61.5845,34.1042
+i_wide_dirty_Fracture_E2_fc250,gravity_0.8,20,250,1,-27.4803,-62.8845,35.4042
+i_wide_dirty_Fracture_E2_fc250,gravity_0.9,20,250,1,-27.4803,-64.2211,36.7409
+i_wide_dirty_Fracture_E2_fc250,gravity_1,20,250,1,-27.4803,-65.4477,37.9675
+BSF_SC006,validity,i_wide_dirty_Fracture_E2_fc250,valid,1,expected,1
+ii_excitation_E2_fc250,B,20,250,0,-67.9316,-95.2578,27.3262
+BSF_SC006,ii_excitation_E2_fc250,no distortion-born content in B
+BSF_SC006,validity,ii_excitation_E2_fc250,valid,0,expected,1,MISMATCH
+i_wide_dirty_Tube_C3_fc250,B,20,250,1,-28.3908,-75.0277,46.6369
+i_wide_dirty_Tube_C3_fc250,third,20,25.1984,0,-107.155,-147.844,40.6895
+BSF_SC006,i_wide_dirty_Tube_C3_fc250,third 20 Hz: no distortion-born content
+i_wide_dirty_Tube_C3_fc250,third,25.1984,31.748,0,-125.993,-146.455,20.4615
+BSF_SC006,i_wide_dirty_Tube_C3_fc250,third 25.1984 Hz: no distortion-born content
+i_wide_dirty_Tube_C3_fc250,third,31.748,40,0,-108.631,-147.607,38.9758
+BSF_SC006,i_wide_dirty_Tube_C3_fc250,third 31.748 Hz: no distortion-born content
+i_wide_dirty_Tube_C3_fc250,third,40,50.3968,0,-107.57,-145.281,37.7111
+BSF_SC006,i_wide_dirty_Tube_C3_fc250,third 40 Hz: no distortion-born content
+i_wide_dirty_Tube_C3_fc250,third,50.3968,63.496,0,-112.652,-144.72,32.0676
+BSF_SC006,i_wide_dirty_Tube_C3_fc250,third 50.3968 Hz: no distortion-born content
+i_wide_dirty_Tube_C3_fc250,third,63.496,80,0,-109.749,-144.344,34.5948
+BSF_SC006,i_wide_dirty_Tube_C3_fc250,third 63.496 Hz: no distortion-born content
+i_wide_dirty_Tube_C3_fc250,third,80,100.794,0,-98.1156,-142.599,44.4833
+BSF_SC006,i_wide_dirty_Tube_C3_fc250,third 80 Hz: no distortion-born content
+i_wide_dirty_Tube_C3_fc250,third,100.794,126.992,0,-82.8343,-131.798,48.9641
+BSF_SC006,i_wide_dirty_Tube_C3_fc250,third 100.794 Hz: no distortion-born content
+i_wide_dirty_Tube_C3_fc250,third,126.992,160,1,-28.3909,-75.028,46.6371
+i_wide_dirty_Tube_C3_fc250,third,160,201.587,0,-100.255,-135.629,35.3747
+BSF_SC006,i_wide_dirty_Tube_C3_fc250,third 160 Hz: no distortion-born content
+i_wide_dirty_Tube_C3_fc250,third,201.587,250,0,-90.9247,-116.984,26.0592
+BSF_SC006,i_wide_dirty_Tube_C3_fc250,third 201.587 Hz: no distortion-born content
+i_wide_dirty_Tube_C3_fc250,gravity_0,20,250,1,-28.3908,-56.4601,28.0692
+BSF_SC006,gravity0,i_wide_dirty_Tube_C3_fc250,A_B_db,28.0692
+i_wide_dirty_Tube_C3_fc250,gravity_0.1,20,250,1,-28.3908,-57.2621,28.8713
+i_wide_dirty_Tube_C3_fc250,gravity_0.2,20,250,1,-28.3908,-58.1459,29.755
+i_wide_dirty_Tube_C3_fc250,gravity_0.3,20,250,1,-28.3908,-59.1298,30.739
+i_wide_dirty_Tube_C3_fc250,gravity_0.4,20,250,1,-28.3908,-60.2397,31.8488
+i_wide_dirty_Tube_C3_fc250,gravity_0.5,20,250,1,-28.3908,-61.5124,33.1215
+i_wide_dirty_Tube_C3_fc250,gravity_0.6,20,250,1,-28.3908,-63.0041,34.6133
+i_wide_dirty_Tube_C3_fc250,gravity_0.7,20,250,1,-28.3908,-64.8063,36.4155
+i_wide_dirty_Tube_C3_fc250,gravity_0.8,20,250,1,-28.3908,-67.083,38.6922
+i_wide_dirty_Tube_C3_fc250,gravity_0.9,20,250,1,-28.3908,-70.1771,41.7862
+i_wide_dirty_Tube_C3_fc250,gravity_1,20,250,1,-28.3908,-75.0277,46.6369
+BSF_SC006,validity,i_wide_dirty_Tube_C3_fc250,valid,1,expected,1
+i_wide_dirty_Fold_C3_fc250,B,20,250,1,-32.579,-79.215,46.6361
+i_wide_dirty_Fold_C3_fc250,third,20,25.1984,0,-113.937,-152.687,38.7504
+BSF_SC006,i_wide_dirty_Fold_C3_fc250,third 20 Hz: no distortion-born content
+i_wide_dirty_Fold_C3_fc250,third,25.1984,31.748,0,-127.481,-151.204,23.7229
+BSF_SC006,i_wide_dirty_Fold_C3_fc250,third 25.1984 Hz: no distortion-born content
+i_wide_dirty_Fold_C3_fc250,third,31.748,40,0,-114.8,-152.178,37.3776
+BSF_SC006,i_wide_dirty_Fold_C3_fc250,third 31.748 Hz: no distortion-born content
+i_wide_dirty_Fold_C3_fc250,third,40,50.3968,0,-112.093,-148.7,36.6072
+BSF_SC006,i_wide_dirty_Fold_C3_fc250,third 40 Hz: no distortion-born content
+i_wide_dirty_Fold_C3_fc250,third,50.3968,63.496,0,-114.393,-148.915,34.5218
+BSF_SC006,i_wide_dirty_Fold_C3_fc250,third 50.3968 Hz: no distortion-born content
+i_wide_dirty_Fold_C3_fc250,third,63.496,80,0,-111.84,-147.247,35.4066
+BSF_SC006,i_wide_dirty_Fold_C3_fc250,third 63.496 Hz: no distortion-born content
+i_wide_dirty_Fold_C3_fc250,third,80,100.794,0,-98.258,-146.287,48.0288
+BSF_SC006,i_wide_dirty_Fold_C3_fc250,third 80 Hz: no distortion-born content
+i_wide_dirty_Fold_C3_fc250,third,100.794,126.992,0,-82.5103,-131.664,49.1541
+BSF_SC006,i_wide_dirty_Fold_C3_fc250,third 100.794 Hz: no distortion-born content
+i_wide_dirty_Fold_C3_fc250,third,126.992,160,1,-32.579,-79.2173,46.6383
+i_wide_dirty_Fold_C3_fc250,third,160,201.587,0,-94.8173,-131.389,36.5721
+BSF_SC006,i_wide_dirty_Fold_C3_fc250,third 160 Hz: no distortion-born content
+i_wide_dirty_Fold_C3_fc250,third,201.587,250,0,-86.0418,-112.173,26.1317
+BSF_SC006,i_wide_dirty_Fold_C3_fc250,third 201.587 Hz: no distortion-born content
+i_wide_dirty_Fold_C3_fc250,gravity_0,20,250,1,-32.579,-60.6483,28.0693
+BSF_SC006,gravity0,i_wide_dirty_Fold_C3_fc250,A_B_db,28.0693
+i_wide_dirty_Fold_C3_fc250,gravity_0.1,20,250,1,-32.579,-61.4504,28.8714
+i_wide_dirty_Fold_C3_fc250,gravity_0.2,20,250,1,-32.579,-62.3341,29.7552
+i_wide_dirty_Fold_C3_fc250,gravity_0.3,20,250,1,-32.579,-63.3181,30.7391
+i_wide_dirty_Fold_C3_fc250,gravity_0.4,20,250,1,-32.579,-64.4279,31.849
+i_wide_dirty_Fold_C3_fc250,gravity_0.5,20,250,1,-32.579,-65.7006,33.1217
+i_wide_dirty_Fold_C3_fc250,gravity_0.6,20,250,1,-32.579,-67.1924,34.6134
+i_wide_dirty_Fold_C3_fc250,gravity_0.7,20,250,1,-32.579,-68.9946,36.4156
+i_wide_dirty_Fold_C3_fc250,gravity_0.8,20,250,1,-32.579,-71.2712,38.6923
+i_wide_dirty_Fold_C3_fc250,gravity_0.9,20,250,1,-32.579,-74.3651,41.7862
+i_wide_dirty_Fold_C3_fc250,gravity_1,20,250,1,-32.579,-79.215,46.6361
+BSF_SC006,validity,i_wide_dirty_Fold_C3_fc250,valid,1,expected,1
+i_wide_dirty_Rectify_C3_fc250,B,20,250,1,-27.3356,-73.973,46.6374
+i_wide_dirty_Rectify_C3_fc250,third,20,25.1984,0,-139.102,-144.071,4.96942
+BSF_SC006,i_wide_dirty_Rectify_C3_fc250,third 20 Hz: no distortion-born content
+i_wide_dirty_Rectify_C3_fc250,third,25.1984,31.748,0,-137.458,-142.713,5.25501
+BSF_SC006,i_wide_dirty_Rectify_C3_fc250,third 25.1984 Hz: no distortion-born content
+i_wide_dirty_Rectify_C3_fc250,third,31.748,40,0,-123.275,-141.959,18.6847
+BSF_SC006,i_wide_dirty_Rectify_C3_fc250,third 31.748 Hz: no distortion-born content
+i_wide_dirty_Rectify_C3_fc250,third,40,50.3968,0,-138.202,-140.675,2.4726
+BSF_SC006,i_wide_dirty_Rectify_C3_fc250,third 40 Hz: no distortion-born content
+i_wide_dirty_Rectify_C3_fc250,third,50.3968,63.496,0,-137.416,-140.17,2.75475
+BSF_SC006,i_wide_dirty_Rectify_C3_fc250,third 50.3968 Hz: no distortion-born content
+i_wide_dirty_Rectify_C3_fc250,third,63.496,80,0,-135.086,-139.915,4.82816
+BSF_SC006,i_wide_dirty_Rectify_C3_fc250,third 63.496 Hz: no distortion-born content
+i_wide_dirty_Rectify_C3_fc250,third,80,100.794,0,-125.17,-138.9,13.7306
+BSF_SC006,i_wide_dirty_Rectify_C3_fc250,third 80 Hz: no distortion-born content
+i_wide_dirty_Rectify_C3_fc250,third,100.794,126.992,0,-112.184,-137.609,25.4255
+BSF_SC006,i_wide_dirty_Rectify_C3_fc250,third 100.794 Hz: no distortion-born content
+i_wide_dirty_Rectify_C3_fc250,third,126.992,160,1,-27.3356,-73.973,46.6374
+i_wide_dirty_Rectify_C3_fc250,third,160,201.587,0,-125.148,-135.111,9.96349
+BSF_SC006,i_wide_dirty_Rectify_C3_fc250,third 160 Hz: no distortion-born content
+i_wide_dirty_Rectify_C3_fc250,third,201.587,250,0,-122.816,-135.084,12.2681
+BSF_SC006,i_wide_dirty_Rectify_C3_fc250,third 201.587 Hz: no distortion-born content
+i_wide_dirty_Rectify_C3_fc250,gravity_0,20,250,1,-27.3356,-55.4048,28.0692
+BSF_SC006,gravity0,i_wide_dirty_Rectify_C3_fc250,A_B_db,28.0692
+i_wide_dirty_Rectify_C3_fc250,gravity_0.1,20,250,1,-27.3356,-56.2069,28.8713
+i_wide_dirty_Rectify_C3_fc250,gravity_0.2,20,250,1,-27.3356,-57.0906,29.7551
+i_wide_dirty_Rectify_C3_fc250,gravity_0.3,20,250,1,-27.3356,-58.0746,30.739
+i_wide_dirty_Rectify_C3_fc250,gravity_0.4,20,250,1,-27.3356,-59.1844,31.8489
+i_wide_dirty_Rectify_C3_fc250,gravity_0.5,20,250,1,-27.3356,-60.4572,33.1216
+i_wide_dirty_Rectify_C3_fc250,gravity_0.6,20,250,1,-27.3356,-61.9489,34.6134
+i_wide_dirty_Rectify_C3_fc250,gravity_0.7,20,250,1,-27.3356,-63.7511,36.4156
+i_wide_dirty_Rectify_C3_fc250,gravity_0.8,20,250,1,-27.3356,-66.0279,38.6923
+i_wide_dirty_Rectify_C3_fc250,gravity_0.9,20,250,1,-27.3356,-69.122,41.7865
+i_wide_dirty_Rectify_C3_fc250,gravity_1,20,250,1,-27.3356,-73.973,46.6374
+BSF_SC006,validity,i_wide_dirty_Rectify_C3_fc250,valid,1,expected,1
+i_wide_dirty_Bite_C3_fc250,B,20,250,1,-24.4514,-71.089,46.6376
+i_wide_dirty_Bite_C3_fc250,third,20,25.1984,0,-111.824,-147.78,35.9558
+BSF_SC006,i_wide_dirty_Bite_C3_fc250,third 20 Hz: no distortion-born content
+i_wide_dirty_Bite_C3_fc250,third,25.1984,31.748,0,-128.856,-146.539,17.6828
+BSF_SC006,i_wide_dirty_Bite_C3_fc250,third 25.1984 Hz: no distortion-born content
+i_wide_dirty_Bite_C3_fc250,third,31.748,40,0,-113.139,-146.282,33.1431
+BSF_SC006,i_wide_dirty_Bite_C3_fc250,third 31.748 Hz: no distortion-born content
+i_wide_dirty_Bite_C3_fc250,third,40,50.3968,0,-112.643,-146.182,33.5389
+BSF_SC006,i_wide_dirty_Bite_C3_fc250,third 40 Hz: no distortion-born content
+i_wide_dirty_Bite_C3_fc250,third,50.3968,63.496,0,-117.446,-144.859,27.4126
+BSF_SC006,i_wide_dirty_Bite_C3_fc250,third 50.3968 Hz: no distortion-born content
+i_wide_dirty_Bite_C3_fc250,third,63.496,80,0,-114.268,-144.61,30.3421
+BSF_SC006,i_wide_dirty_Bite_C3_fc250,third 63.496 Hz: no distortion-born content
+i_wide_dirty_Bite_C3_fc250,third,80,100.794,0,-100.023,-141.885,41.8625
+BSF_SC006,i_wide_dirty_Bite_C3_fc250,third 80 Hz: no distortion-born content
+i_wide_dirty_Bite_C3_fc250,third,100.794,126.992,0,-83.8572,-132.531,48.6742
+BSF_SC006,i_wide_dirty_Bite_C3_fc250,third 100.794 Hz: no distortion-born content
+i_wide_dirty_Bite_C3_fc250,third,126.992,160,1,-24.4514,-71.0891,46.6377
+i_wide_dirty_Bite_C3_fc250,third,160,201.587,0,-100.253,-135.765,35.5122
+BSF_SC006,i_wide_dirty_Bite_C3_fc250,third 160 Hz: no distortion-born content
+i_wide_dirty_Bite_C3_fc250,third,201.587,250,0,-95.261,-121.101,25.8397
+BSF_SC006,i_wide_dirty_Bite_C3_fc250,third 201.587 Hz: no distortion-born content
+i_wide_dirty_Bite_C3_fc250,gravity_0,20,250,1,-24.4514,-52.5207,28.0693
+BSF_SC006,gravity0,i_wide_dirty_Bite_C3_fc250,A_B_db,28.0693
+i_wide_dirty_Bite_C3_fc250,gravity_0.1,20,250,1,-24.4514,-53.3228,28.8714
+i_wide_dirty_Bite_C3_fc250,gravity_0.2,20,250,1,-24.4514,-54.2065,29.7551
+i_wide_dirty_Bite_C3_fc250,gravity_0.3,20,250,1,-24.4514,-55.1905,30.7391
+i_wide_dirty_Bite_C3_fc250,gravity_0.4,20,250,1,-24.4514,-56.3004,31.8489
+i_wide_dirty_Bite_C3_fc250,gravity_0.5,20,250,1,-24.4514,-57.5731,33.1217
+i_wide_dirty_Bite_C3_fc250,gravity_0.6,20,250,1,-24.4514,-59.0649,34.6134
+i_wide_dirty_Bite_C3_fc250,gravity_0.7,20,250,1,-24.4514,-60.8671,36.4157
+i_wide_dirty_Bite_C3_fc250,gravity_0.8,20,250,1,-24.4514,-63.1439,38.6924
+i_wide_dirty_Bite_C3_fc250,gravity_0.9,20,250,1,-24.4514,-66.238,41.7866
+i_wide_dirty_Bite_C3_fc250,gravity_1,20,250,1,-24.4514,-71.089,46.6376
+BSF_SC006,validity,i_wide_dirty_Bite_C3_fc250,valid,1,expected,1
+i_wide_dirty_Crush_C3_fc250,B,20,250,1,-12.8936,-59.5316,46.638
+i_wide_dirty_Crush_C3_fc250,third,20,25.1984,0,-104.08,-154.267,50.1868
+BSF_SC006,i_wide_dirty_Crush_C3_fc250,third 20 Hz: no distortion-born content
+i_wide_dirty_Crush_C3_fc250,third,25.1984,31.748,0,-109.015,-152.125,43.1104
+BSF_SC006,i_wide_dirty_Crush_C3_fc250,third 25.1984 Hz: no distortion-born content
+i_wide_dirty_Crush_C3_fc250,third,31.748,40,0,-104.817,-151.804,46.9872
+BSF_SC006,i_wide_dirty_Crush_C3_fc250,third 31.748 Hz: no distortion-born content
+i_wide_dirty_Crush_C3_fc250,third,40,50.3968,0,-107.616,-149.621,42.005
+BSF_SC006,i_wide_dirty_Crush_C3_fc250,third 40 Hz: no distortion-born content
+i_wide_dirty_Crush_C3_fc250,third,50.3968,63.496,0,-105.004,-150.172,45.1684
+BSF_SC006,i_wide_dirty_Crush_C3_fc250,third 50.3968 Hz: no distortion-born content
+i_wide_dirty_Crush_C3_fc250,third,63.496,80,0,-104.54,-148.763,44.2232
+BSF_SC006,i_wide_dirty_Crush_C3_fc250,third 63.496 Hz: no distortion-born content
+i_wide_dirty_Crush_C3_fc250,third,80,100.794,0,-101.341,-147.747,46.4057
+BSF_SC006,i_wide_dirty_Crush_C3_fc250,third 80 Hz: no distortion-born content
+i_wide_dirty_Crush_C3_fc250,third,100.794,126.992,0,-91.0946,-138.782,47.6871
+BSF_SC006,i_wide_dirty_Crush_C3_fc250,third 100.794 Hz: no distortion-born content
+i_wide_dirty_Crush_C3_fc250,third,126.992,160,1,-12.8936,-59.5316,46.638
+i_wide_dirty_Crush_C3_fc250,third,160,201.587,0,-98.4363,-133.588,35.1521
+BSF_SC006,i_wide_dirty_Crush_C3_fc250,third 160 Hz: no distortion-born content
+i_wide_dirty_Crush_C3_fc250,third,201.587,250,0,-93.4183,-119.434,26.016
+BSF_SC006,i_wide_dirty_Crush_C3_fc250,third 201.587 Hz: no distortion-born content
+i_wide_dirty_Crush_C3_fc250,gravity_0,20,250,1,-12.8936,-40.963,28.0693
+BSF_SC006,gravity0,i_wide_dirty_Crush_C3_fc250,A_B_db,28.0693
+i_wide_dirty_Crush_C3_fc250,gravity_0.1,20,250,1,-12.8936,-41.765,28.8714
+i_wide_dirty_Crush_C3_fc250,gravity_0.2,20,250,1,-12.8936,-42.6488,29.7552
+i_wide_dirty_Crush_C3_fc250,gravity_0.3,20,250,1,-12.8936,-43.6328,30.7391
+i_wide_dirty_Crush_C3_fc250,gravity_0.4,20,250,1,-12.8936,-44.7426,31.849
+i_wide_dirty_Crush_C3_fc250,gravity_0.5,20,250,1,-12.8936,-46.0154,33.1217
+i_wide_dirty_Crush_C3_fc250,gravity_0.6,20,250,1,-12.8936,-47.5072,34.6135
+i_wide_dirty_Crush_C3_fc250,gravity_0.7,20,250,1,-12.8936,-49.3094,36.4158
+i_wide_dirty_Crush_C3_fc250,gravity_0.8,20,250,1,-12.8936,-51.5862,38.6926
+i_wide_dirty_Crush_C3_fc250,gravity_0.9,20,250,1,-12.8936,-54.6804,41.7868
+i_wide_dirty_Crush_C3_fc250,gravity_1,20,250,1,-12.8936,-59.5316,46.638
+BSF_SC006,validity,i_wide_dirty_Crush_C3_fc250,valid,1,expected,1
+i_wide_dirty_Fracture_C3_fc250,B,20,250,1,-28.1731,-64.5001,36.3269
+i_wide_dirty_Fracture_C3_fc250,third,20,25.1984,0,-144.19,-156.512,12.3219
+BSF_SC006,i_wide_dirty_Fracture_C3_fc250,third 20 Hz: no distortion-born content
+i_wide_dirty_Fracture_C3_fc250,third,25.1984,31.748,0,-142.665,-155.205,12.5401
+BSF_SC006,i_wide_dirty_Fracture_C3_fc250,third 25.1984 Hz: no distortion-born content
+i_wide_dirty_Fracture_C3_fc250,third,31.748,40,0,-139.394,-155.194,15.7996
+BSF_SC006,i_wide_dirty_Fracture_C3_fc250,third 31.748 Hz: no distortion-born content
+i_wide_dirty_Fracture_C3_fc250,third,40,50.3968,0,-140.229,-152.365,12.1355
+BSF_SC006,i_wide_dirty_Fracture_C3_fc250,third 40 Hz: no distortion-born content
+i_wide_dirty_Fracture_C3_fc250,third,50.3968,63.496,0,-105.213,-150.672,45.4592
+BSF_SC006,i_wide_dirty_Fracture_C3_fc250,third 50.3968 Hz: no distortion-born content
+i_wide_dirty_Fracture_C3_fc250,third,63.496,80,1,-30.6664,-101.347,70.6808
+i_wide_dirty_Fracture_C3_fc250,third,80,100.794,0,-137.074,-149.6,12.5254
+BSF_SC006,i_wide_dirty_Fracture_C3_fc250,third 80 Hz: no distortion-born content
+i_wide_dirty_Fracture_C3_fc250,third,100.794,126.992,0,-136.353,-149.273,12.9199
+BSF_SC006,i_wide_dirty_Fracture_C3_fc250,third 100.794 Hz: no distortion-born content
+i_wide_dirty_Fracture_C3_fc250,third,126.992,160,1,-55.3801,-102.021,46.6408
+i_wide_dirty_Fracture_C3_fc250,third,160,201.587,1,-31.7894,-64.5018,32.7124
+i_wide_dirty_Fracture_C3_fc250,third,201.587,250,0,-123.707,-145.5,21.7932
+BSF_SC006,i_wide_dirty_Fracture_C3_fc250,third 201.587 Hz: no distortion-born content
+i_wide_dirty_Fracture_C3_fc250,gravity_0,20,250,1,-28.1731,-54.8822,26.7091
+BSF_SC006,gravity0,i_wide_dirty_Fracture_C3_fc250,A_B_db,26.7091
+i_wide_dirty_Fracture_C3_fc250,gravity_0.1,20,250,1,-28.1731,-55.5357,27.3626
+i_wide_dirty_Fracture_C3_fc250,gravity_0.2,20,250,1,-28.1731,-56.2381,28.065
+i_wide_dirty_Fracture_C3_fc250,gravity_0.3,20,250,1,-28.1731,-56.9961,28.823
+i_wide_dirty_Fracture_C3_fc250,gravity_0.4,20,250,1,-28.1731,-57.8179,29.6447
+i_wide_dirty_Fracture_C3_fc250,gravity_0.5,20,250,1,-28.1731,-58.7126,30.5395
+i_wide_dirty_Fracture_C3_fc250,gravity_0.6,20,250,1,-28.1731,-59.6904,31.5173
+i_wide_dirty_Fracture_C3_fc250,gravity_0.7,20,250,1,-28.1731,-60.7609,32.5878
+i_wide_dirty_Fracture_C3_fc250,gravity_0.8,20,250,1,-28.1731,-61.9299,33.7567
+i_wide_dirty_Fracture_C3_fc250,gravity_0.9,20,250,1,-28.1731,-63.19,35.0168
+i_wide_dirty_Fracture_C3_fc250,gravity_1,20,250,1,-28.1731,-64.5001,36.3269
+BSF_SC006,validity,i_wide_dirty_Fracture_C3_fc250,valid,1,expected,1
+ii_excitation_C3_fc250,B,20,250,0,-71.7794,-118.374,46.5944
+BSF_SC006,ii_excitation_C3_fc250,no distortion-born content in B
+BSF_SC006,validity,ii_excitation_C3_fc250,valid,0,expected,1,MISMATCH
+BSF_SC006,summary,empty_cells,28,validity_mismatches,1
+BSF_SC006,record,ii_excitation_fc60,no audible distortion-born side content below f_c (G10-5; recorded)
+BSF_SC006,record,ii_excitation_fc120,no audible distortion-born side content below f_c (G10-5; recorded)
+BSF_SC006,record,ii_excitation_fc250,no audible distortion-born side content below f_c (G10-5; recorded)
+iii_tone_fc60,tone_34.641,20,60,1,-15.0515,-58.2786,43.2271
+iii_tone_fc60,tone_57,20,60,1,-15.052,-41.3484,26.2964
+iii_tone_fc120,tone_48.9898,20,120,1,-15.0515,-70.2794,55.2279
+iii_tone_fc120,tone_114,20,120,1,-15.0515,-41.3507,26.2992
+iii_tone_fc250,tone_70.7107,20,250,1,-15.0515,-83.0262,67.9747
+iii_tone_fc250,tone_237.5,20,250,1,-15.0515,-41.3566,26.3051
+BSF_SPECTRAL,tally,sc006_A_B_nondecreasing_in_gravity,checks,560,violations,0,worst_excess,-0.377518,at,i_wide_dirty_Rectify_E2_fc250;gravity=0.1
+229.695 s: BassStereoField_SafetyStageAttenuation
+===============================================================================
+All tests passed (7217 assertions in 1 test case)
+
+exit: 0 wall: 230 s

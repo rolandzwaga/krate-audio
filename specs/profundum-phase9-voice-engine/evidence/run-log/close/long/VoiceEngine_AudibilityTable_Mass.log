@@ -1,0 +1,32 @@
+Filters: "VoiceEngine_AudibilityTable_Mass"
+Randomness seeded to: 1885327180
+# H-17 record (tasks.md T016; spec H-17, Phase 6 handoff (8)). Base B, Mass 100, 48 kHz; steady sub-band GR
+# = median of the grid record's compressorGrDb over [0.5 s, 1.5 s). Phase 6: 4 voices at E1 detuned
+# {-6, -2, +2, +6} cents read -10.1172 dB (specs/profundum-phase6-mass-dynamics/evidence/phase9-handoff.txt:42).
+# DEVIATION: the engine's pitch API is MIDI notes plus ONE global bend (C-11: POLY f = midiNoteToFrequency(note)
+# x bend ratio), so four voices detuned by cents around E1 (E1 +- 7 / +- 13 cents) are not reachable through it.
+# Recorded instead: MONO E1 (one voice) and POLY 4 voices on the nearest distinct keys E1 / F1 / F#1 / G1.
+H17 MONO E1 gr_db=-8.56936
+H17 POLY4 E1,F1,F#1,G1 gr_db=-13.4511
+H17 PHASE6 4x detuned E1 gr_db=-10.1172
+# VoiceEngine_AudibilityTable_Mass
+row,contrast,base,note,descriptor,tap,lo,hi,value,bar,pass,gated,out_descriptor,out_lo,out_hi,ampStep,remark
+"AT-26","Mass: 0 -> 100","A + sustain 1 (C-8) + anchor level 0.5 (per-row setting, G11-2)",E1,"E_sub (dB)","Sum",-11.9198,-6.67308,5.24671,">= 3 dB",PASS,gated,"E_sub output (dB)",-9.93101,-4.86242,"n/a","H-14: L_K output -15.921102 -> -9.368590 dB; per-row setting G11-2: A's anchor level 1.0 sits at the AnchorLevel row's clamp, so Mass 100 cannot raise it"
+"AT-26","Mass: 0 -> 100","A + sustain 1 (C-8)",E1,"E_sub (dB)","Sum",-8.45341,-6.67308,1.78033,">= 3 dB",FAIL,recorded,"E_sub output (dB)",-6.46561,-4.86242,"n/a","H-14: L_K output -12.470351 -> -9.368590 dB; plain A_s, recorded (G11-2)"
+"AT-26","Mass: 0 -> 100","B (its own sustain 0.8, C-8)",E1,"E_sub (dB)","Sum",-16.722,-12.6275,4.09452,">= 3 dB",PASS,gated,"E_sub output (dB)",-14.7336,-15.1938,"n/a","H-14: L_K output -18.837904 -> -13.645299 dB | the named base reaches the bar"
+"AT-26","Mass: 0 -> 100","B + sustain 1 (B10-1)",E1,"E_sub (dB)","Sum",-15.0105,-10.916,4.09451,">= 3 dB",PASS,recorded,"E_sub output (dB)",-13.0227,-15.1152,"n/a","H-14: L_K output -17.166839 -> -13.564219 dB | recorded: a later candidate"
+"AT-27","Mass dynamics, gain: Mass 0 -> 100","B",E1,"dL_K = L_K(dynamics output) - L_K(Sum) (dB)","dynamics output tap and Sum",2.04942,-1.46653,3.51596,">= 3 dB",PASS,gated,"L_K output (dB)",-18.8379,-13.6453,"n/a",""
+"AT-27","Mass dynamics, gain: Mass 0 -> 100","B + sustain 1 (B10-1)",E1,"dL_K = L_K(dynamics output) - L_K(Sum) (dB)","dynamics output tap and Sum",2.04942,-2.55375,4.60318,">= 3 dB",PASS,recorded,"L_K output (dB)",-17.1668,-13.5642,"n/a","recorded: the B_s candidate (A_s reaches the bar)"
+"AT-28","Mass dynamics, transient: transientAttackDb 0 -> +12","B",E1,"onset ratio: peak |y| over [0, 20 ms) over RMS over [100, 300) ms (dB)","dynamics output tap",6.64052,17.059,10.4185,">= 3 dB",PASS,gated,"onset ratio of the output (dB)",9.79646,9.80638,"n/a",""
+"AT-26","Mass: 0 -> 100","A + sustain 1 (C-8) + anchor level 0.5 (per-row setting, G11-2)",C3,"E_sub (dB)","Sum",-11.9226,-6.60232,5.3203,">= 3 dB",PASS,gated,"E_sub output (dB)",-9.87668,-5.55591,"n/a","H-14: L_K output -11.220683 -> -6.052149 dB; per-row setting G11-2: A's anchor level 1.0 sits at the AnchorLevel row's clamp, so Mass 100 cannot raise it"
+"AT-26","Mass: 0 -> 100","A + sustain 1 (C-8)",C3,"E_sub (dB)","Sum",-8.47284,-6.60232,1.87052,">= 3 dB",FAIL,recorded,"E_sub output (dB)",-6.4279,-5.55591,"n/a","H-14: L_K output -7.777772 -> -6.052149 dB; plain A_s, recorded (G11-2)"
+"AT-26","Mass: 0 -> 100","B (its own sustain 0.8, C-8)",C3,"E_sub (dB)","Sum",-16.2467,-14.4489,1.79778,">= 3 dB",FAIL,recorded,"E_sub output (dB)",-14.2013,-16.2586,"n/a","H-14: L_K output -14.615294 -> -11.332068 dB | recorded at this note: the A per-row cell carries the gate; Mass 100's Depth bias lowers a1 against the Anchor-level rise"
+"AT-26","Mass: 0 -> 100","B + sustain 1 (B10-1)",C3,"E_sub (dB)","Sum",-14.5378,-12.74,1.79778,">= 3 dB",FAIL,recorded,"E_sub output (dB)",-12.4929,-16.2495,"n/a","H-14: L_K output -12.943619 -> -11.320229 dB | recorded at this note (see the B line)"
+"AT-27","Mass dynamics, gain: Mass 0 -> 100","B",C3,"dL_K = L_K(dynamics output) - L_K(Sum) (dB)","dynamics output tap and Sum",2.04942,-0.874294,2.92371,">= 3 dB",FAIL,recorded,"L_K output (dB)",-14.6153,-11.3321,"n/a","recorded: inert on A_s (B reads 2.92 dB at C3); per-row base B_s (FR-080 showcase-inert rule, B10-1 form)"
+"AT-27","Mass dynamics, gain: Mass 0 -> 100","B + sustain 1 (B10-1)",C3,"dL_K = L_K(dynamics output) - L_K(Sum) (dB)","dynamics output tap and Sum",2.04942,-1.96317,4.01259,">= 3 dB",PASS,gated,"L_K output (dB)",-12.9436,-11.3202,"n/a","per-row base B_s (FR-080 showcase-inert rule, B10-1 form; A_s recorded: B reads 2.92 dB at C3)"
+"AT-28","Mass dynamics, transient: transientAttackDb 0 -> +12","B",C3,"onset ratio: peak |y| over [0, 20 ms) over RMS over [100, 300) ms (dB)","dynamics output tap",10.1109,20.7748,10.6639,">= 3 dB",PASS,gated,"onset ratio of the output (dB)",10.0746,10.2356,"n/a",""
+57.019 s: VoiceEngine_AudibilityTable_Mass
+===============================================================================
+All tests passed (912 assertions in 1 test case)
+
+exit: 0 wall: 58 s

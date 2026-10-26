@@ -1,0 +1,224 @@
+T001 run log — Microbench unlinked Shape + Character cost (plan C-20, R-1, S10.7, S14 step 1)
+Executor: workflow implementer, 2026-10-15. Status returned: BLOCKED (STOP AND SURFACE, as the task section requires).
+
+Files written
+- specs/profundum-phase5-shape-character/bench/shape-character-bench.cpp
+- specs/profundum-phase5-shape-character/bench/run-bench.sh
+- specs/profundum-phase5-shape-character/evidence/run-log/T001.txt (this file)
+
+Reused headers included for real (-Idsp/include): primitives/polyphase_halfband_oversampler.h, biquad.h, dc_blocker.h,
+one_pole.h, svf.h, tanh_adaa.h, bit_crusher.h, smoother.h; processors/tube_stage.h, wavefolder_processor.h; core/sigmoid.h,
+db_utils.h, math_constants.h. New pieces prototyped in an anonymous namespace with a Bench prefix (BenchResidualPath,
+BenchAdaa2<Law,T>, BenchDiodeLaw/BenchRampLaw/BenchAbsLaw, BenchKeytrackedTilt, BenchHoldEngine, BenchCharacter,
+BenchShapeMorph) per plan S3, S4.1, S5.3-S5.4, S6.1, S6.3.
+
+Decisions / interpretations taken (surface; none changes a bar)
+- Per-channel Amount 1 / Tone 0.5 on both channels as the T001 cell text says; channel offsets (C-20's 0.15) not applied —
+  cost-equivalent (same branch code runs; only parameter values differ). Unlinked = both channels always processed.
+- Ramp and Drop cells chain ShapeMorph -> Character at the worst Character x worst Shape measured in the same run. Ramp
+  targets: Amount 0.9 +- 0.1, Tone 0.5 +- 0.3, SHAPE worst +- 0.1 (clamped), triangles of 0.37/0.29/0.43 s periods, set
+  per 64-sample block so the 10 ms OnePoleSmoother outputs change every base sample. Drop: f0 = E1 * 2^(d/12), d linear
+  48 -> 0 over 60 ms, re-triggered every 250 ms, held on the 16-sample grid; the input saw stays at E1 (cost does not
+  depend on input pitch except Crush step density, which follows the phasor f0).
+- Coefficient updates run whenever a smoothed value or f0 differs from the last applied value, every sample by default,
+  every 16 absolute samples with -DP5_CTRL_INTERVAL=16. Tilt 10^x pairs recompute only on a changed tone (S6.1).
+- Fold processes WavefolderProcessor::process(&buf, 1) per F-rate sample as S5.4 states. Crush runs both parity
+  engines every F-sample (the hi engine at weight frac, 0 at Amount 1).
+- ShapeMorph: inactive regimes skipped (planned lever); kLoudnessTableDb filled with a linear 1.31...3.76 dB seed
+  (cost-equivalent placeholder for the T040 harvest).
+- "--quick" = 0.2 s wall clock per cell after a 1 s audio warm-up; default 3 s per cell (13 cells ~ 45 s per run;
+  3 runs + 2 x 60 s settle ~ 4.3 min).
+- run-bench.sh takes an optional variant (base | ctrl16 | ctrl16-rectfloat) so the main loop can apply the decision
+  rule's re-runs with the same script; it compiles all three binaries each invocation (~3 s each).
+
+Compile (once, base binary, this session)
+  "/c/Program Files/LLVM/bin/clang++.exe" -std=c++20 -O2 -ffast-math -march=x86-64-v2 -DNDEBUG -Idsp/include \
+      specs/profundum-phase5-shape-character/bench/shape-character-bench.cpp -o <scratchpad>/p5-bench.exe
+  -> exit 0, 0 diagnostics, 2.7 s wall. Extra check with -Wall -Wextra -fsyntax-only: 0 warnings.
+
+Quick smoke (--quick, UNPINNED, other agents/workflow possibly running: NOT a timing reading, no decision from it)
+P5BENCH unlinked fs=48000 F=4 block=64 ctrl_interval=1 rect_adaa=double seconds_per_cell=0.20
+cell char_tube ns_per_sample 395.17 pct_core 1.8968
+cell char_fold ns_per_sample 180.72 pct_core 0.8674
+cell char_rectify ns_per_sample 149.43 pct_core 0.7172
+cell char_bite ns_per_sample 225.44 pct_core 1.0821
+cell char_crush ns_per_sample 143.49 pct_core 0.6887
+cell char_fracture ns_per_sample 564.92 pct_core 2.7116
+cell shape_0.00 ns_per_sample 294.75 pct_core 1.4148
+cell shape_0.25 ns_per_sample 333.05 pct_core 1.5986
+cell shape_0.50 ns_per_sample 141.78 pct_core 0.6805
+cell shape_0.75 ns_per_sample 266.44 pct_core 1.2789
+cell shape_1.00 ns_per_sample 225.17 pct_core 1.0808
+cell ramp ns_per_sample 917.36 pct_core 4.4033 (char_fracture x shape_0.25)
+cell drop ns_per_sample 922.93 pct_core 4.4301 (char_fracture x shape_0.25)
+worst_char char_fracture pct_core 2.7116
+worst_shape shape_0.25 pct_core 1.5986
+total_unlinked pct_core 4.3102 (worst char + worst shape; bar 2.0)
+sink 125.387
+
+Smoke verdict: every cell prints (6 Character, 5 Shape, ramp, drop, worst/total lines). The figures above are a smoke
+reading only; T001's decision is the main loop's, from the pinned 3-run median.
+Observation for the main loop (no decision taken): the smoke Total reads ~4.3 %, roughly 2x the bar, with Fracture
+(two std::sin + two std::tanh per F-sample on top of TanhADAA) and ROUND/HOLLOW+ROUND (TanhADAA + SVF) leading. If the
+pinned median confirms, the S10.7 estimate (2.1-2.8 %) was low and the C-20 decision rule's levers (ctrl16,
+rect-float) target the ramp/drop and Rectify costs, not the static Fracture / ROUND cells.
+
+STOP AND SURFACE: main loop runs `bash specs/profundum-phase5-shape-character/bench/run-bench.sh` alone (~4 min),
+applies the decision rule, records it in evidence/run-log/T001.txt and as a 'Measured' paragraph in plan S10.7, then
+resumes the build with `unblock: [T001]`.
+
+MAIN LOOP — EPOCH 1 LANE (2026-10-15, pinned via tools/pin-perf-cores.ps1, 3 runs, 60 s settle, nothing else running)
+Full per-run output: evidence/run-log/T001-bench.txt (three sections, variants base / ctrl16 / ctrl16-rectfloat).
+Medians (% of one core, 48 kHz, UNLINKED):
+  variant             tube   fold   rect   bite   crush  frac   sh0    sh.25  sh.5   sh.75  sh1    ramp   drop   TOTAL
+  base                2.013  0.890  0.784  1.157  0.660  2.654  1.536  1.741  0.702  1.319  1.079  4.863  4.516  4.396
+  ctrl16              2.067  0.968  0.786  1.169  0.707  2.856  1.571  1.819  0.753  1.361  1.094  4.498  4.318  4.675
+  ctrl16-rectfloat    1.954  0.925  0.707  1.123  0.698  2.664  1.479  1.775  0.706  1.364  1.123  4.613  4.618  4.439
+Decision rule: every variant > 2.0 % -> returned to the user (C-20). Tube at the ruled 8x is 2.0 % unlinked by itself.
+USER RULING (spec Clarifications "T001 CPU bench ruling"): SC-015 gates the mono-LINKED cell (Phase 2 precedent; bar 2.0 %
+unchanged), the unlinked cell is recorded for Phases 7 / 9; plan C-23 (linear parts at base rate) and C-24 (Fracture phasor
+functions without per-sample transcendentals) enter the design; T001 epoch 2 re-benches linked + unlinked before any header.
+
+==================================================================================================================
+EPOCH 2 (2026-10-15, workflow implementer, after the user ruling; tasks.md "T001 — EPOCH 2"). Status returned: BLOCKED
+(STOP AND SURFACE, as the epoch-2 section requires). Epoch 1 above is kept unchanged.
+
+Files edited
+- specs/profundum-phase5-shape-character/bench/shape-character-bench.cpp (epoch 1 kept as the base; edits below)
+- specs/profundum-phase5-shape-character/bench/run-bench.sh
+- specs/profundum-phase5-shape-character/evidence/run-log/T001.txt (this section)
+
+What changed in the bench
+- --linked mode (plan S2 mono link): R = copy of L at the input (L == R, zero offsets), only channel 0 is processed
+  in BenchCharacter / BenchShapeMorph and its output is copied to channel 1. Default (no flag) stays unlinked. The
+  P5BENCH banner names the mode and "epoch=2"; the total line is total_linked / total_unlinked. All 13 cells, the
+  two compile-time variants (P5_CTRL_INTERVAL, P5_RECT_ADAA_FLOAT), --quick and --seconds are kept.
+- C-24 (Fracture): s = sin(pi*phi) from a rotating phasor (complex rotation by delta = pi*inc per F-sample);
+  sMid = sin(pi*phi - delta/2) from the same state with a precomputed half-step (cos, sin)(delta/2). std::sin/cos run
+  only on re-key (f0 change, in applyControls; per 16-sample grid step in the Drop cell), which re-seeds the phasor from
+  the tracked phase phi; the phasor is re-normalised once per block (g = 1.5 - 0.5*|r|^2). sigma = benchTanhR(4s) /
+  tanh(4) (1/tanh(4) a namespace-scope constant) and the bias term = benchTanhR(g*beta*sMid). benchTanhR = Pade (7,6)
+  x(135135 + 17325x^2 + 378x^4 + x^6) / (135135 + 62370x^2 + 3150x^4 + 28x^6), argument clamped to [-4, 4];
+  measured at start-up over a 10001-point grid on [-4, 4] (float evaluation): max |err| 1.499e-05 at x = -3.9992
+  (bar 1e-4). TanhADAA stays. grep: no std::sin / std::tanh / std::cos inside the per-sample Fracture loop.
+- C-23 (every branch / regime): all KeytrackedTilts, ROUND's SVF low-pass and HOLLOW's notch + band are prepared at
+  fs (not F*fs). Character: Tube and Bite pre-tilts filter x before path.upsample; the six post-tilts filter the
+  round-tripped z after path.downsample; only TubeStage (with its branch 2x), WavefolderProcessor, the Rectify /
+  Bite ADAA2, the Crush hold engines and the Fracture TanhADAA run per F-sample. The lin / res split and its l
+  definitions are unchanged.
+  ShapeMorph: BenchResidualPath gained downsampleSplit() returning lb (decimated linear path) and rb (decimated,
+  notched, DC-blocked residual) separately. Per base sample: x -> (BITE on: emphasis tilt at base rate) -> upsample;
+  per F-sample only the active nonlinear regime runs (TanhADAA for ROUND or DiodeAdaa2 for BITE; w_R and w_B are
+  never both > 0, plan S6.3), lin = u[n-1] (unit tap), res = w_NL*(y_NL - u[n-1]); after downsample:
+  nl = w_NL*lb + rb; ROUND -> SVF low-pass(nl) at base rate; BITE -> nl; HOLLOW -> w_H*(notch(lb) + band(lb)) at base
+  rate, never inside the oversampled loop.
+
+Interpretations / open items surfaced (none changes a bar; the main loop or T013 owns them)
+- DESIGN GAP for T013 (plan S6.3 + C-23): for s in (0.5, 1) BITE and HOLLOW are both active. With BITE's emphasis
+  tilt moved in front of the SHARED upsample (C-23), the decimated linear path lb that HOLLOW filters carries BITE's
+  +12*t2 dB emphasis. The bench restores HOLLOW's input with a cost-equivalent stand-in (one extra base-rate
+  BenchKeytrackedTilt, tone mirrored, active only while BITE and HOLLOW are both on); the exact fix is the first-order
+  inverse shelf of the emphasis (same cost: one one-pole at fs) or a second upsample (not costed). T013 must choose
+  one; the bench cost is the one-pole option.
+- Optional per-cell split (F-rate nonlinearity vs base-rate filter cost) NOT added: it needs extra timer calls inside
+  the sample loop or extra cells. The per-cell totals are what the decision uses.
+- run-bench.sh: mode selector linked | unlinked (default linked), combinable with the variant and --quick. pin-perf-
+  cores.ps1 forwards -ExeArgs to Start-Process -ArgumentList, so the script passes every flag in ONE string
+  ("--linked --quick"); the smoke below shows the exe received both. BENCH_LOG overrides the evidence log path (used
+  only for this smoke, so T001-bench.txt was not touched). Decision lines follow the epoch-2 rule: linked mode prints
+  PROCEED / return-to-user on the linked Total; unlinked prints RECORDED; ramp and drop print as RECORD lines.
+
+Compile (once, base binary, this session)
+  "/c/Program Files/LLVM/bin/clang++.exe" -std=c++20 -O2 -ffast-math -march=x86-64-v2 -DNDEBUG -Idsp/include \
+      specs/profundum-phase5-shape-character/bench/shape-character-bench.cpp -o <scratchpad>/p5-bench.exe
+  -> exit 0, 0 diagnostics. Extra check with -Wall -Wextra -fsyntax-only: 0 warnings. (The script smoke also compiled
+  the ctrl16 and ctrl16-rectfloat variants: exit 0.)
+
+Quick smoke, linked (<scratchpad>/p5-bench.exe --linked --quick; UNPINNED, other workflow agents possibly running:
+NOT a timing reading, no decision from it)
+P5BENCH linked epoch=2 fs=48000 F=4 block=64 ctrl_interval=1 rect_adaa=double seconds_per_cell=0.20
+tanh_approx pade76 grid=10001 range=[-4,4] max_abs_err 1.499e-05 at x=-3.9992 (bar 1e-4)
+cell char_tube ns_per_sample 177.59 pct_core 0.8524
+cell char_fold ns_per_sample 85.69 pct_core 0.4113
+cell char_rectify ns_per_sample 79.77 pct_core 0.3829
+cell char_bite ns_per_sample 98.27 pct_core 0.4717
+cell char_crush ns_per_sample 87.48 pct_core 0.4199
+cell char_fracture ns_per_sample 207.64 pct_core 0.9967
+cell shape_0.00 ns_per_sample 171.37 pct_core 0.8226
+cell shape_0.25 ns_per_sample 169.36 pct_core 0.8129
+cell shape_0.50 ns_per_sample 67.99 pct_core 0.3263
+cell shape_0.75 ns_per_sample 111.07 pct_core 0.5331
+cell shape_1.00 ns_per_sample 117.43 pct_core 0.5637
+cell ramp ns_per_sample 399.81 pct_core 1.9191 (char_fracture x shape_0.00)
+cell drop ns_per_sample 350.19 pct_core 1.6809 (char_fracture x shape_0.00)
+worst_char char_fracture pct_core 0.9967
+worst_shape shape_0.00 pct_core 0.8226
+total_linked pct_core 1.8193 (worst char + worst shape; bar 2.0 gates the linked total)
+sink 396.77
+
+Quick smoke, unlinked (<scratchpad>/p5-bench.exe --quick; UNPINNED; NOT a timing reading)
+P5BENCH unlinked epoch=2 fs=48000 F=4 block=64 ctrl_interval=1 rect_adaa=double seconds_per_cell=0.20
+tanh_approx pade76 grid=10001 range=[-4,4] max_abs_err 1.499e-05 at x=-3.9992 (bar 1e-4)
+cell char_tube ns_per_sample 412.64 pct_core 1.9807
+cell char_fold ns_per_sample 181.58 pct_core 0.8716
+cell char_rectify ns_per_sample 153.66 pct_core 0.7376
+cell char_bite ns_per_sample 220.06 pct_core 1.0563
+cell char_crush ns_per_sample 147.48 pct_core 0.7079
+cell char_fracture ns_per_sample 383.09 pct_core 1.8389
+cell shape_0.00 ns_per_sample 331.97 pct_core 1.5935
+cell shape_0.25 ns_per_sample 326.76 pct_core 1.5685
+cell shape_0.50 ns_per_sample 135.29 pct_core 0.6494
+cell shape_0.75 ns_per_sample 250.46 pct_core 1.2022
+cell shape_1.00 ns_per_sample 184.43 pct_core 0.8852
+cell ramp ns_per_sample 872.64 pct_core 4.1887 (char_tube x shape_0.00)
+cell drop ns_per_sample 736.54 pct_core 3.5354 (char_tube x shape_0.00)
+worst_char char_tube pct_core 1.9807
+worst_shape shape_0.00 pct_core 1.5935
+total_unlinked pct_core 3.5741 (worst char + worst shape; bar 2.0 gates the linked total)
+sink 110.17
+
+Script smoke (BENCH_LOG=<scratchpad>/script-smoke.txt bash run-bench.sh linked --quick; pinned, 1 run, smoke only)
+=== T001 bench 2026-10-15T17:54:27Z mode=linked variant=base runs=1 settle=60s quick=1
+compile: "/c/Program Files/LLVM/bin/clang++.exe" -std=c++20 -O2 -ffast-math -march=x86-64-v2 -DNDEBUG -Idsp/include <variant defines> specs/profundum-phase5-shape-character/bench/shape-character-bench.cpp
+commit: 40205b86
+--- run 1
+pin-perf-cores: performance-core mask 0xFFFF
+--- medians over 1 run(s) (% of one core, 48 kHz, linked)
+median char_tube      1.0026
+median char_fold      0.4016
+median char_rectify   0.3651
+median char_bite      0.5089
+median char_crush     0.3472
+median char_fracture  0.9531
+median shape_0.00     0.7731
+median shape_0.25     0.7035
+median shape_0.50     0.3164
+median shape_0.75     0.5961
+median shape_1.00     0.5241
+median ramp           2.3248
+median drop           1.6625
+median_total_linked 1.7757 (char_tube 1.0026 + shape_0.00 0.7731)
+DECISION: PROCEED (linked Total <= 2.0 %); C-23 and C-24 REQUIRED in T009-T015 as prototyped
+RECORD: linked ramp 2.3248 / drop 1.6625 (recorded, not gated)
+
+Smoke verdict: every cell prints in both modes (6 Character, 5 Shape, ramp, drop, worst / total lines, tanh_approx).
+Observation for the main loop (no decision taken): the unpinned linked smoke Total reads ~1.8 % (Fracture ~1.0 + ROUND
+~0.8; Tube ~0.85-1.0), the linked ramp ~1.9-2.3 % and drop ~1.7 %; unlinked Total ~3.6 %. Fracture fell from ~2.7 %
+(epoch-1 unlinked smoke) to ~1.8 % unlinked. Tube (branch 2x TubeStage at 8x total) is now the largest unlinked cell.
+The linked Total is close to the 2.0 % bar, so only the pinned median of three decides.
+
+STOP AND SURFACE: main loop runs `bash specs/profundum-phase5-shape-character/bench/run-bench.sh linked` and
+`bash specs/profundum-phase5-shape-character/bench/run-bench.sh unlinked` alone (~4.5 min each incl. 2 x 60 s settle),
+applies the epoch-2 decision rule (linked Total <= 2.0 % -> proceed, C-23 and C-24 REQUIRED in T009-T015 as
+prototyped; > 2.0 % -> return to the user with both tables), records both in evidence/run-log/T001.txt and plan S10.7,
+then resumes with `unblock: [T001]`.
+
+MAIN LOOP — EPOCH 2 LANE (2026-10-15, pinned, 3 runs, 60 s settle, nothing else running; full output in T001-bench.txt)
+Medians (% of one core, 48 kHz):
+  mode      tube   fold   rect   bite   crush  frac   sh0    sh.25  sh.5   sh.75  sh1    ramp   drop   TOTAL
+  linked    0.982  0.463  0.377  0.507  0.383  0.924  0.782  0.773  0.333  0.618  0.559  2.201  1.739  1.764  (tube + shape 0)
+  unlinked  1.958  0.912  0.770  1.033  0.762  1.854  1.481  1.522  0.609  1.129  1.026  4.051  3.531  3.480  (tube + shape 0.25)
+DECISION (epoch-2 rule): linked Total 1.764 % <= 2.0 % -> PROCEED. C-23 (linear parts at base rate) and C-24 (Fracture
+phasor functions, Pade 7,6 tanh, max error 1.499e-5) are REQUIRED in T009-T015 as prototyped. Unlinked Total 3.480 %,
+ramp 2.20 / 4.05 %, Drop 1.74 / 3.53 % (linked / unlinked) RECORDED for Phases 7 and 9, not gated. Margin on the gated
+cell is 0.24 %; SC-015 (T021 / T027) decides on the real headers.

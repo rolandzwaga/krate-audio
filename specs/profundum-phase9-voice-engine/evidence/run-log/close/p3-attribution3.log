@@ -1,0 +1,18 @@
+P3ATTR fs=44100 input=-106.475
+P3ATTR fs=44100 full(+12,comp1) off=-45.8329 on2x=-69.5456 on4x=-96.8877
+P3ATTR fs=44100 shaper-neutral(0,comp1) off=-45.8329 on2x=-69.5594 on4x=-98.0004
+P3ATTR fs=44100 comp-off(+12,comp0) off=-106.475 on2x=-106.474 on4x=-107.09
+P3ATTR fs=44100 both-neutral(0,comp0) off=-106.475 on2x=-106.473 on4x=-107.091
+P3ATTR fs=44100 sustain-12(comp1) off=-41.8735 on2x=-65.7098 on4x=-93.7448
+P3ATTR fs=48000 input=-106.277
+P3ATTR fs=48000 full(+12,comp1) off=-55.0302 on2x=-72.9661 on4x=-90.8001
+P3ATTR fs=48000 shaper-neutral(0,comp1) off=-55.0323 on2x=-72.9607 on4x=-92.2644
+P3ATTR fs=48000 comp-off(+12,comp0) off=-106.277 on2x=-106.277 on4x=-106.779
+P3ATTR fs=48000 both-neutral(0,comp0) off=-106.277 on2x=-106.278 on4x=-106.78
+P3ATTR fs=48000 sustain-12(comp1) off=-51.0712 on2x=-68.943 on4x=-86.1336
+P3ATTR fs=96000 input=-102.751
+P3ATTR fs=96000 full(+12,comp1) off=-92.9413 on2x=-100.699 on4x=-92.9413
+P3ATTR fs=96000 shaper-neutral(0,comp1) off=-92.6132 on2x=-101.383 on4x=-92.6132
+P3ATTR fs=96000 comp-off(+12,comp0) off=-102.483 on2x=-102.718 on4x=-102.483
+P3ATTR fs=96000 both-neutral(0,comp0) off=-102.751 on2x=-102.751 on4x=-102.751
+P3ATTR fs=96000 sustain-12(comp1) off=-88.5038 on2x=-97.4718 on4x=-88.5038

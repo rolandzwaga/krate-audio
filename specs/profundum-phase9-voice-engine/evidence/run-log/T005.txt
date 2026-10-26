@@ -1,0 +1,198 @@
+T005 - MassDynamics::setOversampling and its unit cases (FR-082, FR-084, H-15, Q4; plan S7, C-3, R-J)
+Date: 2026-10-20  Branch: synth/profundum  Base: 0ae33b87
+
+FACTS READ THIS SESSION (dsp/include/krate/dsp/ unless stated)
+- BassCompressor's max-rate constant: systems/mass_dynamics.h:73 `static constexpr double kMaxSampleRate = 192000.0;`
+  (clamped in BassCompressor::prepare :105-106); rule ring sized for 192 kHz :70.
+- TransientShaper::prepare (processors/transient_shaper.h:129-130): `(void)maxBlockSize;` - unused.
+- BassCompressor::prepare passes maxBlockSize only to DynamicsProcessor::prepare (mass_dynamics.h:112);
+  DynamicsProcessor::prepare (processors/dynamics_processor.h:121-146) forwards it to EnvelopeFollower::prepare,
+  which ignores it (processors/envelope_follower.h:106-107). So 2*maxBlockSize when active changes no sizing.
+- PolyphaseHalfbandOversampler (primitives/polyphase_halfband_oversampler.h:32): setFactor(2) resets (:49-52),
+  upsample(float, float*) writes factor() samples (:70), downsample(const float*) identity hook (:100),
+  reset() (:57), stateFinite() (:105). Layer 1 -> downward include from L3.
+- Old MassDynamics anchors: prepare :482-488, reset :491-497, processBlock :539-561, currentOutputTrimGain :579,
+  prepared_ :591.
+- Test inputs: MassDynamicsTest::renderChain / ChainConfig / lawBaseFor (dsp/tests/unit/systems/mass_dynamics_test_helpers.h:173, :232, :372);
+  MassLaw::evaluate (systems/mass_law.h:142), Targets (:82, foldAmount range [0, 100] :86);
+  TransientShaperTest::kE2Hz / secondsToSamples (dsp/tests/unit/processors/transient_shaper_test_helpers.h:48, :61);
+  TestHelpers::AllocationScope (tests/test_helpers/allocation_detector.h:111).
+
+DEVIATION (surfaced): tasks.md says "renderChain with Phase 6's own Fold-100 ChainConfig, read from
+mass_dynamics_aliasing_test.cpp mdaRunGrid". mdaRunGrid (:285) builds no ChainConfig: its Fold-100 input is
+ShapeCharacterTest::fold100(recipeAdditive(kSawAnchor, ...)) fed to MassDynamics directly (mdaRunCell :193-206).
+The test therefore uses renderChain with that fixture's recipe (base = SpectralShapeRecipe::kSawAnchor), f0 = E2,
+fs 48 kHz, Mass 100 (massAt = kMaxMass) and targetOverride[FoldAmount] = 100; the sum tap (fold + anchor) is the
+input. The 10 s cases tile the 2 s render. The R-J record runs Mass 0 / 50 / 100 targets
+(MassLaw::evaluate(m, lawBaseFor(cfg))) on that same Fold-100 sum.
+
+OBSERVATION (no change made): with the opt-in on, BassCompressor's own 32-sample grid runs on inner samples, so it
+latches every 16 base samples. Base grid points are inner grid points (plan S7), and the path stays
+partition-invariant (absolute inner counter), but a compressor setter issued at a base offset of 16 latches there
+rather than at the next base grid point. Every Profundum caller issues setters at base grid points only.
+
+FILES WRITTEN
+- dsp/tests/unit/systems/mass_dynamics_oversampling_test.cpp (test-first; stub replaced, Phase 9 header includes kept):
+    MassDynamics_OversamplingOffUnchanged  [systems][profundum][mass-dynamics][voice-engine][fr-084][sc-030]
+    MassDynamics_OversamplingActiveRange   [...][fr-082]
+    MassDynamics_OversamplingNoAllocation  [...][fr-060]
+    MassDynamics_OversamplingPartition     [...][fr-063]
+    MassDynamics_OversamplingTransfer      [...][fr-082]  (writes evidence/os-dynamics-delta.txt: transfer table,
+                                                           40 Hz group delay, R-J GR / makeup at Mass 0/50/100)
+    MassDynamics_OversamplingStateFinite   [...][fr-061]
+  Finiteness by bit pattern (float and double), never std::isfinite (fast-math TU).
+- dsp/include/krate/dsp/systems/mass_dynamics.h: plan S7 append (public block after currentOutputTrimGain, private
+  members after prepared_, one L1 include, banner line), branch point 1 in prepare, branch point 2 at the top of
+  processBlock (the on path is a new private processOversampled() so the off loop is untouched), reset() appends
+  osL_.reset(); osR_.reset(). latencySamples() unchanged (0).
+- specs/profundum-phase9-voice-engine/evidence/os-dynamics-delta.txt: NOT written by hand - the Transfer case
+  writes it when the gate runs.
+
+ODR / NAME SWEEP: no new class or struct in the header (one private method). grep for setOversampling /
+oversamplingActive / class PolyphaseHalfbandOversampler over dsp/include and plugins: only the existing
+oversampler class and unrelated setOversamplingFactor / setOversamplingEnabled methods.
+
+REMOVED LINES vs 0ae33b87 (branch point 1 only):
+-        shaper_.prepare(sampleRate, maxBlockSize);
+-        comp_.prepare(sampleRate, maxBlockSize);
+-        trimGainS_.configure(kTrimSmoothMs, static_cast<float>(sampleRate));
+
+NOT BUILT / NOT RUN (per the task instruction: the Group 3 build agent builds and gates). Both files re-read.
+Verify: dsp_systems_tests "MassDynamics_Oversampling*" and the [profundum] per-push filter (Phase 6-8 consumers, SC-030).
+
+$ git diff 0ae33b87 -- dsp/include/krate/dsp/systems/mass_dynamics.h
+diff --git a/dsp/include/krate/dsp/systems/mass_dynamics.h b/dsp/include/krate/dsp/systems/mass_dynamics.h
+index f9e5b761..a01546d4 100644
+--- a/dsp/include/krate/dsp/systems/mass_dynamics.h
++++ b/dsp/include/krate/dsp/systems/mass_dynamics.h
+@@ -1,6 +1,7 @@
+ // ==============================================================================
+ // Layer 3: System
+ // Profundum Phase 6 (specs/profundum-phase6-mass-dynamics)
++// Profundum Phase 9 (FR-082, Q4): opt-in 2x gain application + 8x detection, off by default
+ // ==============================================================================
+ // BassCompressor (FR-010-FR-019; SC-006, SC-007, SC-022, SC-024, compressor arms of SC-012/013/016/018/019/021) and MassDynamics (FR-013, FR-015, FR-041; SC-012-SC-018). Filled by T007 (BassCompressor) and T010 (MassDynamics).
+ //   Spec:  specs/profundum-phase6-mass-dynamics/spec.md
+@@ -20,6 +21,7 @@
+ #include <krate/dsp/processors/dynamics_processor.h>
+ #include <krate/dsp/processors/period_peak_detector.h>
+ #include <krate/dsp/processors/transient_shaper.h>   // peer-lower L2 (MassDynamics, T010)
++#include <krate/dsp/primitives/polyphase_halfband_oversampler.h>   // L1 (Profundum Phase 9, FR-082)
+ 
+ #include <algorithm>
+ #include <array>
+@@ -480,9 +482,18 @@ public:
+ 
+     /// Prepares both stages at sampleRate (each applies its stored setter values), then reset().
+     void prepare(double sampleRate, std::size_t maxBlockSize) noexcept {
+-        shaper_.prepare(sampleRate, maxBlockSize);
+-        comp_.prepare(sampleRate, maxBlockSize);
+-        trimGainS_.configure(kTrimSmoothMs, static_cast<float>(sampleRate));
++        // Profundum Phase 9 (FR-082, C-3): with the opt-in off, inner == sampleRate and innerBlock ==
++        // maxBlockSize, so the three calls below are the Phase 6 calls with the same arguments.
++        osActive_ = oversamplingRequested_ && 2.0 * sampleRate <= BassCompressor::kMaxSampleRate;
++        const double inner = osActive_ ? 2.0 * sampleRate : sampleRate;
++        const std::size_t innerBlock = osActive_ ? kOversamplingFactor * maxBlockSize : maxBlockSize;
++        if (osActive_) {
++            osL_.setFactor(kOversamplingFactor);
++            osR_.setFactor(kOversamplingFactor);
++        }
++        shaper_.prepare(inner, innerBlock);
++        comp_.prepare(inner, innerBlock);
++        trimGainS_.configure(kTrimSmoothMs, static_cast<float>(inner));
+         reset();
+         prepared_ = true;
+     }
+@@ -494,6 +505,8 @@ public:
+         comp_.reset();
+         trimGainS_.snapTo(trimGainTarget_);
+         intervalPhase_ = 0;
++        osL_.reset();
++        osR_.reset();
+     }
+ 
+     // -------------------------------------------------------------------------
+@@ -539,6 +552,10 @@ public:
+     void processBlock(float* left, float* right, std::size_t numSamples) noexcept {
+         if (!prepared_ || left == nullptr || right == nullptr || numSamples == 0)
+             return;
++        if (osActive_) {   // Profundum Phase 9 (FR-082): the opt-in path; off -> the Phase 6 loop below
++            processOversampled(left, right, numSamples);
++            return;
++        }
+         std::size_t pos = 0;
+         while (pos < numSamples) {
+             // Latch on the absolute grid (plan C-11). right + pos == left + pos in mono.
+@@ -578,6 +595,16 @@ public:
+     /// The smoothed FR-021 trim gain now applied (linear; 1.0f at 0 dB).
+     [[nodiscard]] float currentOutputTrimGain() const noexcept { return trimGainS_.getCurrentValue(); }
+ 
++    // ---- Profundum Phase 9 (FR-082, H-15, ruled Q4): opt-in 2x gain application + 8x detection ----
++    static constexpr std::size_t kOversamplingFactor = 2;
++    /// Configuration-time; takes effect at the next prepare(). Off by default (every existing caller unchanged).
++    void setOversampling(bool enabled) noexcept { oversamplingRequested_ = enabled; }
++    [[nodiscard]] bool oversamplingRequested() const noexcept { return oversamplingRequested_; }
++    /// True when prepare() engaged the path: requested and 2 * fs <= BassCompressor::kMaxSampleRate (C-3).
++    [[nodiscard]] bool oversamplingActive() const noexcept { return osActive_; }
++    /// The halfband pair's state (polled by Phase 9's soak; stateFinite() itself is left untouched).
++    [[nodiscard]] bool oversamplerStateFinite() const noexcept { return osL_.stateFinite() && osR_.stateFinite(); }
++
+ private:
+     // tasks.md deviation 4: the chain's positive / negative controls need the composed stages.
+     friend struct detail::MassDynamicsProbe;
+@@ -589,6 +616,55 @@ private:
+     float pendingDurationMs_ = TransientShaper::kDefaultDurationMs;
+     std::size_t intervalPhase_ = 0;
+     bool prepared_ = false;
++    // ---- Profundum Phase 9 (FR-082, plan S7): the opt-in oversampling path ----
++    PolyphaseHalfbandOversampler osL_, osR_;
++    std::array<float, 2 * kControlInterval> upL_{}, upR_{};
++    bool oversamplingRequested_ = false;
++    bool osActive_ = false;
++
++    /// Plan S7: the same grid-run split as processBlock's Phase 6 loop. Per run of len base samples:
++    /// each input sample is sanitised (a non-finite sample would poison the halfband state for good)
++    /// and upsampled 2x, the duration latches at base intervalPhase_ == 0, the shaper, the compressor
++    /// and the trim run on the 2 * len inner samples, then each pair is decimated. Base sample G maps
++    /// to inner sample 2G, so every base grid point is an inner grid point (the compressor's own
++    /// inner 32-sample grid is absolute too, so the path is partition-invariant). Mono when right ==
++    /// left (only L and osL_ used).
++    void processOversampled(float* left, float* right, std::size_t numSamples) noexcept {
++        const bool mono = (right == left);
++        std::size_t pos = 0;
++        while (pos < numSamples) {
++            if (intervalPhase_ == 0)
++                shaper_.setTransientDurationMs(pendingDurationMs_);
++            const std::size_t len = std::min(kControlInterval - intervalPhase_, numSamples - pos);
++            const std::size_t innerLen = kOversamplingFactor * len;
++            for (std::size_t k = 0; k < len; ++k) {
++                const float xL = detail::isFinite(left[pos + k]) ? left[pos + k] : 0.0f;
++                osL_.upsample(xL, upL_.data() + kOversamplingFactor * k);
++                if (!mono) {
++                    const float xR = detail::isFinite(right[pos + k]) ? right[pos + k] : 0.0f;
++                    osR_.upsample(xR, upR_.data() + kOversamplingFactor * k);
++                }
++            }
++            float* innerR = mono ? upL_.data() : upR_.data();
++            // FR-015: shaper -> compressor, fixed, at 2 * fs.
++            shaper_.processBlock(upL_.data(), innerR, innerLen);
++            comp_.processBlock(upL_.data(), innerR, innerLen);
++            // FR-021 output trim (G8-5), per inner sample.
++            for (std::size_t i = 0; i < innerLen; ++i) {
++                const float g = trimGainS_.process();
++                upL_[i] *= g;
++                if (!mono)
++                    upR_[i] *= g;
++            }
++            for (std::size_t k = 0; k < len; ++k) {
++                left[pos + k] = osL_.downsample(upL_.data() + kOversamplingFactor * k);
++                if (!mono)
++                    right[pos + k] = osR_.downsample(upR_.data() + kOversamplingFactor * k);
++            }
++            intervalPhase_ = (intervalPhase_ + len) % kControlInterval;
++            pos += len;
++        }
++    }
+ };
+ 
+ static_assert(MassDynamics::kControlInterval == BassCompressor::kControlInterval,

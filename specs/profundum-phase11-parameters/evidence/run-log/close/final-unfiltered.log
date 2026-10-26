@@ -1,0 +1,380 @@
+Randomness seeded to: 3536396246
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+profundum_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+Profundum_StateRoundTrip
+  HostileGainKeepsCeiling
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\unit\state_roundtrip_test.cpp(566)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\unit\state_roundtrip_test.cpp(600): warning:
+  SC-011.5 HostileGainKeepsCeiling: peak L = 0.891251, R = 0.891251 (bar 0.
+  891251); stored gain = 1
+
+-------------------------------------------------------------------------------
+Profundum_MidiEventTranslation
+  PartitionInvariance
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\unit\midi_event_test.cpp(211)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\unit\midi_event_test.cpp(236): warning:
+  PartitionInvariance: 512 render rmsDb[24000, 96000) L = -16.6547 dB, R = -16.
+  5547 dB
+
+-------------------------------------------------------------------------------
+Profundum_MidiEventTranslation
+  EventOrder
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\unit\midi_event_test.cpp(248)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\unit\midi_event_test.cpp(263): warning:
+  EventOrder: reference peak over the last 0.25 s = 0.25127
+
+-------------------------------------------------------------------------------
+Profundum_MidiEventTranslation
+  Overflow
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\unit\midi_event_test.cpp(270)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\unit\midi_event_test.cpp(275): warning:
+  Overflow: droppedEvents() = 0 (control 0); slices in block B = 2
+
+F:\projects\iterum\plugins\profundum\tests\unit\midi_event_test.cpp(283): warning:
+  Overflow (a): peak over [B_end + 1 s, + 0.5 s) = 0
+
+F:\projects\iterum\plugins\profundum\tests\unit\midi_event_test.cpp(291): warning:
+  Overflow (b): control rmsDb L = -8.69245 dB, R = -9.23594 dB
+
+F:\projects\iterum\plugins\profundum\tests\unit\midi_event_test.cpp(336): warning:
+  Overflow (c): reference peak over block B + 100 ms = 0.890734; mismatches L =
+  0, R = 0
+
+-------------------------------------------------------------------------------
+Profundum_MidiEventTranslation
+  Translation
+  TinyVelocitySounds
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\unit\midi_event_test.cpp(390)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\unit\midi_event_test.cpp(400): warning:
+  Translation: velocity 0.003 rmsDb[24000, 48000) L = -17.2438 dB, R = -17.2433
+  dB
+
+-------------------------------------------------------------------------------
+Profundum_MidiEventTranslation
+  Translation
+  VelocityZeroNoteOnReleases
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\unit\midi_event_test.cpp(405)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\unit\midi_event_test.cpp(420): warning:
+  Translation: velocity-0 note-on, held peak = 0.89125, peak over [72000,
+  96000) = 1.41108e-15
+
+-------------------------------------------------------------------------------
+Profundum_ProcessorLifecycle
+  IdleIsExactZero
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\unit\lifecycle_test.cpp(347)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\unit\lifecycle_test.cpp(359): warning:
+  P-5 idle: non-zero samples L = 0, R = 0 of 4096
+
+F:\projects\iterum\plugins\profundum\tests\unit\lifecycle_test.cpp(395): warning:
+  P-5 held E1 RMS (L, 0 .. 0.5 s) = -14.3377 dBFS
+
+F:\projects\iterum\plugins\profundum\tests\unit\lifecycle_test.cpp(404): warning:
+  P-5 release: last non-zero Sum-tap sample = 28798 (bar < 30000); samples
+  above 1e-6 from 48000: L 0, R 0; last non-zero output sample L = 72527, R =
+  72527 (exact-zero tail starts at 84000)
+
+-------------------------------------------------------------------------------
+Profundum_ProcessorLifecycle
+  LatencyIsReal
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\unit\lifecycle_test.cpp(540)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\unit\lifecycle_test.cpp(556): warning:
+  SC-014 LatencyIsReal: first non-zero sample index = 65 (bar [64, 68])
+
+-------------------------------------------------------------------------------
+Profundum_ProcessorLifecycle
+  Guards
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\unit\lifecycle_test.cpp(561)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\unit\lifecycle_test.cpp(584): warning:
+  SC-017.1 Guards control: peak of the block after a valid NoteOn = 0.661112
+
+-------------------------------------------------------------------------------
+Profundum_ProcessorLifecycle
+  Reset
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\unit\lifecycle_test.cpp(588)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\unit\lifecycle_test.cpp(613): warning:
+  SC-017.4 Reset: non-zero samples after reset L = 0, R = 0; control block peak
+  = 0.219873
+
+-------------------------------------------------------------------------------
+Profundum_ProcessorLifecycle
+  ActivateNoAlloc
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\unit\lifecycle_test.cpp(639)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\unit\lifecycle_test.cpp(652): warning:
+  SC-017.7 ActivateNoAlloc: allocations in setActive(true) = 0
+
+-------------------------------------------------------------------------------
+Profundum_ProcessorLifecycle
+  ProcessNoAlloc
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\unit\lifecycle_test.cpp(657)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\unit\lifecycle_test.cpp(779): warning:
+  SC-007 ProcessNoAlloc: allocations over 188 x 512 samples = 0 (probe 1);
+  output peak = 0.999967
+
+-------------------------------------------------------------------------------
+Profundum_ProcessorRendersHeldNote
+  HeldNote
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\integration\processor_audio_test.cpp(74)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_audio_test.cpp(89): warning:
+  SC-005 HeldNote: peak = 0.89125, RMS [0.5 s, 2 s) L = -17.2766 dBFS, R = -17.
+  2767 dBFS
+
+-------------------------------------------------------------------------------
+Profundum_ProcessorRendersHeldNote
+  Ceiling
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\integration\processor_audio_test.cpp(96)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_audio_test.cpp(138): warning:
+  SC-006 Ceiling: 4 s peak L = 0.891251, R = 0.891251 (bar 0.891251, non-
+  vacuity >= 0.445625); after the -12 dBTP switch (from sample 192064) peak L =
+  0.251183, R = 0.251189 (bar 0.251189)
+
+-------------------------------------------------------------------------------
+Profundum_ProcessorRendersHeldNote
+  WrapperTransparency
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\integration\processor_audio_test.cpp(150)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_audio_test.cpp(224): warning:
+  SC-008 WrapperTransparency: arm (a) RMS L [0, 3 s) = -13.3673 dBFS;
+  mismatches L = 0, R = 0; max |a - b| L = 0, R = 0
+
+-------------------------------------------------------------------------------
+Profundum_ParamFlowReachesEngine
+  ReadBack
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(157)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(191): warning:
+  ReadBack: voiceMode 1, polyphony 5, ceiling -7.2 dBTP, macros {0.2, 0.7, 0.9,
+  0.1}
+
+-------------------------------------------------------------------------------
+Profundum_ParamFlowReachesEngine
+  Audibility
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(203)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(214): warning:
+  gain 0.9: rms ratio over [2400, 96000) L = 0.501187, R = 0.501187 (bar [0.
+  491, 0.511])
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(227): warning:
+  gain 0.0: non-zero samples from index 960 = 0, peak = 0
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(233): warning:
+  gain 1.0: mismatches vs default L = 0, R = 0
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(244): warning:
+  voice mode Mono vs Poly: maxAbsDiff = 1.27478 (bar > 1e-3)
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(257): warning:
+  polyphony 1 vs 4 (kChord4): rmsDb L -16.6464 vs -10.9182, R -16.0418 vs -10.
+  7484 (bar |diff| > 1 dB)
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(271): warning:
+  ceiling (kChord8): default peak = 0.891251, -12 dBTP peak = 0.251189 (bar 0.
+  251189)
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(289): warning:
+  macro 100 = 0: rmsDb(x - default) = -17.3485 dBFS (bar > -60)
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(289): warning:
+  macro 100 = 1: rmsDb(x - default) = -14.7945 dBFS (bar > -60)
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(289): warning:
+  macro 101 = 0: rmsDb(x - default) = -21.1065 dBFS (bar > -60)
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(289): warning:
+  macro 101 = 1: rmsDb(x - default) = -19.6822 dBFS (bar > -60)
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(289): warning:
+  macro 102 = 0: rmsDb(x - default) = -18.0462 dBFS (bar > -60)
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(289): warning:
+  macro 102 = 1: rmsDb(x - default) = -17.8273 dBFS (bar > -60)
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(289): warning:
+  macro 103 = 0: rmsDb(x - default) = -200 dBFS (recorded: inert by
+  construction on the default patch, D-2)
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(289): warning:
+  macro 103 = 1: rmsDb(x - default) = -27.8486 dBFS (bar > -60)
+
+-------------------------------------------------------------------------------
+Profundum_ParamFlowReachesEngine
+  Tempo
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(298)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(323): warning:
+  Tempo: after kTempoValid 90 = 90, after state 0 / 140 = 90, after null
+  context = 90
+
+-------------------------------------------------------------------------------
+Profundum_ParamFlowReachesEngine
+  MacrosLive
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(330)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(342): warning:
+  MacrosLive: tightLoose after a 0.8 point = 0.8
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(367): warning:
+  MacrosLive all-0.5 vs DirectEngine: mismatches L = 0, R = 0
+
+-------------------------------------------------------------------------------
+Profundum_ParamFlowReachesEngine
+  StateWhileRunning
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(373)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(406): warning:
+  StateWhileRunning: voiceMode 1, polyphony 2, ceiling -6, macros {0.1, 0.2, 0.
+  3, 0.4}
+
+-------------------------------------------------------------------------------
+Profundum_ParamFlowReachesEngine
+  GainRamp
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(417)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(490): warning:
+  GainRamp: block 0 mismatches L = 0, R = 0; gain after block 1 = 0.535848,
+  predicted = 0.535848 (|diff| 0)
+
+F:\projects\iterum\plugins\profundum\tests\integration\param_flow_test.cpp(493): warning:
+  GainRamp ratio L: count 512, increases 0, first 0.997409, last 0.535848; R:
+  count 512, increases 0, first 0.997409, last 0.535848
+
+-------------------------------------------------------------------------------
+Profundum_RestoreHandOffNoTear
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\unit\state_v2_test.cpp(989)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\unit\state_v2_test.cpp(1104): warning:
+  Profundum_RestoreHandOffNoTear: 2000 rounds in 0.62248 s (budget ~10 s)
+
+-------------------------------------------------------------------------------
+Profundum_StateRestoreRender
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\integration\state_restore_render_test.cpp(94)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\integration\state_restore_render_test.cpp(174): warning:
+  SC-011 band-level difference (aggregate, [100 ms, 2.1 s)): 0.0178014 dB (bar
+  0.1 dB)
+
+AT-27,E1,"dL_K = L_K(dyn) - L_K(Sum) (dB)","dynL/R and sumL/R",3.51596,3.51596,3.51596,3,"L_K output (dB): -18.8379 -> -13.6453",PASS
+AT-27,C3,"dL_K = L_K(dyn) - L_K(Sum) (dB)","dynL/R and sumL/R",4.01259,4.01259,4.01259,3,"L_K output (dB): -12.9436 -> -11.3202",PASS
+AT-01,E1,"D_nl (dB)","Char / twin",29.3673,29.3673,29.3673,3,"L_K output (dB): -12.0432 -> -11.834",PASS
+AT-01,C3,"D_nl (dB)","Char / twin",29.4025,29.4025,29.4025,3,"L_K output (dB): -7.34931 -> -7.22205",PASS
+AT-10,E1,"E_sub (dB)","sumL/R",5.94809,5.94809,5.94809,2,"E_sub output (dB): -11.9804 -> -6.03327",PASS
+AT-10,C3,"E_sub (dB)","sumL/R",5.92968,5.92968,5.92968,2,"E_sub output (dB): -11.926 -> -5.99733",PASS
+AT-11,E1,"E_sub over [0, punchTimeMs) (dB; LS fit)","sumL/R",2.08853,2.08853,2.08853,2,"E_sub output, same window (dB): -3.90521 -> -4.37305",PASS
+AT-11,C3,"E_sub over [0, punchTimeMs) (dB; LS fit)","sumL/R",2.03878,2.03878,2.03878,2,"E_sub output, same window (dB): -4.29641 -> -5.35114",PASS
+AT-21,E1,"alpha (mean d over [0, N] / A)","fCore / fRes voice 0",0.755316,0.755316,0.755316,0.1,"L_K output short (dB): -12.0449 -> -12.0443",PASS
+AT-21,C3,"alpha (mean d over [0, N] / A)","fCore / fRes voice 0",0.767995,0.767995,0.767995,0.1,"L_K output short (dB): -7.34588 -> -7.34605",PASS
+AT-23,E1,"t_50 ratio (samples)","fRes voice 0",287.344,287.344,287.344,2,"L_K output short (dB): -8.87114 -> -9.08858",PASS
+AT-23,C3,"t_50 ratio (samples)","fRes voice 0",287.219,287.219,287.219,2,"L_K output short (dB): -6.95915 -> -6.98893",PASS
+AT-25,E1,"D_t release reading ratio (ms)","sumL/R",38.1903,38.1903,38.1903,2,"D_t output release (ms): 40.022 -> 1454.49",PASS
+AT-25,C3,"D_t release reading ratio (ms)","sumL/R",40.3031,40.3031,40.3031,2,"D_t output release (ms): 38.2613 -> 1452.95",PASS
+AT-43,E1,"core-h1 phase jump (deg)","coreL/R",177.667,177.667,177.667,30,"L_K output short (dB): -10.9562 -> -11.0899",PASS
+AT-43,C3,"core-h1 phase jump (deg)","coreL/R",167.525,167.525,167.525,30,"L_K output short (dB): -7.2789 -> -7.31825",PASS
+AT-03,E1,"D_nl (dB)","Char / twin",47.6755,47.6755,47.6755,3,"L_K output (dB): -12.0432 -> -14.0502",PASS
+AT-03,C3,"D_nl (dB)","Char / twin",47.6593,47.6593,47.6593,3,"L_K output (dB): -7.3493 -> -10.2671",PASS
+AT-02,E1,"D_br (oct)","sumL/R",2.47299,2.47299,2.47299,0.25,"D_br output (oct): 1.37971 -> 3.84347",PASS
+AT-02,C3,"D_br (oct)","sumL/R",0.378903,0.378903,0.378903,0.25,"D_br output (oct): 0.899769 -> 1.28208",PASS
+AT-05,E1,"D_nl (dB)","Char / twin",6.50986,6.50986,6.50986,3,"L_K output (dB): -12.0432 -> -11.5414",PASS
+AT-05,C3,"D_nl (dB)","Char / twin",6.49428,6.49428,6.49428,3,"L_K output (dB): -7.3493 -> -7.06457",PASS
+AT-28,E1,"onset ratio (dB)","dynL/R",10.4185,10.4185,10.4185,3,"onset ratio output (dB): 9.79646 -> 9.80638",PASS
+AT-28,C3,"onset ratio (dB)","dynL/R",10.6639,10.6639,10.6639,3,"onset ratio output (dB): 10.0746 -> 10.2356",PASS
+AT-33,E1,"frame-wise D_st p2p (dB; G8-1)","fieldL/R",16.3826,16.3826,16.3826,3,"frame-wise D_st p2p output (dB): 0.00574777 -> 16.3433",PASS
+AT-33,C3,"frame-wise D_st p2p (dB; G8-1)","fieldL/R",11.2431,11.2431,11.2431,3,"frame-wise D_st p2p output (dB): 3.21831 -> 14.7708",PASS
+AT-38,E1,"frame-wise D_br p2p (oct)","sumL/R",0.299477,0.299477,0.299477,0.25,"frame-wise D_br p2p output (oct): 0.00216681 -> 0.305912",PASS
+AT-38,C3,"frame-wise D_br p2p (oct)","sumL/R",0.303864,0.303864,0.303864,0.25,"frame-wise D_br p2p output (oct): 0.0110474 -> 0.30992",PASS
+AT-42,E1,"D_nl (dB)","Char / twin",8.15013,8.15013,8.15013,3,"L_K output (dB): -12.0432 -> -15.1442",PASS
+AT-42,C3,"D_nl (dB)","Char / twin",6.72976,6.72976,6.72976,3,"L_K output (dB): -7.3493 -> -10.059",PASS
+Profundum_MassOffsetAudibility position 0: dL_K lo 2.04942 hi -1.46653 value 3.51596 bar 3
+Profundum_MassOffsetAudibility position 0.5: dL_K lo 2.04942 hi -2.03139 value 4.08081 bar 3
+Profundum_MassOffsetAudibility position 1: dL_K lo 2.04942 hi -2.55375 value 4.60318 bar 3
+Profundum_MassOffsetAudibility wall clock 2.42253 s
+SC-019,SOLID,MONO,field,fc_hz,128.101,sub_in_band,1,valid,1,q_sub_db,0,rho_sub,1,s2m_db,-120,gated,1
+SC-019,SOLID,MONO,out,fc_hz,128.101,sub_in_band,1,valid,1,q_sub_db,0,rho_sub,1,s2m_db,-120,gated,1
+SC-019,SOLID,POLY4,field,fc_hz,128.101,sub_in_band,1,valid,1,q_sub_db,0,rho_sub,1,s2m_db,-120,gated,1
+SC-019,SOLID,POLY4,out,fc_hz,128.101,sub_in_band,1,valid,1,q_sub_db,0,rho_sub,1,s2m_db,-120,gated,1
+SC-019,SPREAD,MONO,field,fc_hz,128.101,sub_in_band,1,valid,1,q_sub_db,-1.16201e-12,rho_sub,1,s2m_db,-120,gated,1
+SC-019,SPREAD,MONO,out,fc_hz,128.101,sub_in_band,1,valid,1,q_sub_db,-1.81631e-12,rho_sub,1,s2m_db,-120,gated,1
+SC-019,SPREAD,POLY4,field,fc_hz,128.101,sub_in_band,1,valid,1,q_sub_db,-4.20881e-12,rho_sub,1,s2m_db,-120,gated,1
+SC-019,SPREAD,POLY4,out,fc_hz,128.101,sub_in_band,1,valid,1,q_sub_db,-5.83948e-12,rho_sub,1,s2m_db,-118.714,gated,1
+SC-019,WIDE,MONO,field,fc_hz,128.101,sub_in_band,1,valid,1,q_sub_db,-3.91569e-05,rho_sub,0.999984,s2m_db,-50.4497,gated,1
+SC-019,WIDE,MONO,out,fc_hz,128.101,sub_in_band,1,valid,1,q_sub_db,-3.95596e-05,rho_sub,0.999984,s2m_db,-50.4053,gated,1
+SC-019,WIDE,POLY4,field,fc_hz,128.101,sub_in_band,1,valid,1,q_sub_db,-2.01762e-05,rho_sub,0.999993,s2m_db,-53.3294,gated,1
+SC-019,WIDE,POLY4,out,fc_hz,128.101,sub_in_band,1,valid,1,q_sub_db,-2.04404e-05,rho_sub,0.999993,s2m_db,-53.2729,gated,1
+-------------------------------------------------------------------------------
+Profundum_Determinism
+  SeedResetChangesDriftRender
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\integration\determinism_test.cpp(150)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\integration\determinism_test.cpp(175): warning:
+  SC-022 drift arm (frame-wise, [0.5 s, 4 s)): changed seed 9.30317 dB (bar >=
+  0.5), same seed 0 dB (bar == 0)
+
+===============================================================================
+All tests passed (3205993 assertions in 33 test cases)
+
+exit: 0 wall: 197 s

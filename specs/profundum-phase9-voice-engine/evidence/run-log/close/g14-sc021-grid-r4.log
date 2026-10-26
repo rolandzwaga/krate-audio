@@ -1,0 +1,20 @@
+Filters: "VoiceEngine_DynamicsAliasingGrid"
+Randomness seeded to: 3726297785
+# SC-021(b) (G14-4): MassDynamics standalone on Phase 6's Fold-100 saw at each note and rate, release pinned
+# (kP3FixedReleaseMs), shaper +12 dB, compression 1, detector keyed at f0; the opt-in on at 4x is gated
+# <= -80 dBFS on the SC-021 off-lattice mask; off and on2x recorded. The engine output per cell is
+# recorded by the VoiceEngine_Aliasing_* shards (limiter gain riding and the program-dependent release).
+SC021B midi=16 fs=44100 off=-93.7427 on2x=-92.9582 on4x=-89.553  green
+SC021B midi=16 fs=48000 off=-96.121 on2x=-94.684 on4x=-93.176  green
+SC021B midi=16 fs=96000 off=-99.5915 on2x=-92.9767 on4x=-83.6321  green
+SC021B midi=28 fs=44100 off=-92.4343 on2x=-92.6919 on4x=-92.4303  green
+SC021B midi=28 fs=48000 off=-93.5263 on2x=-92.549 on4x=-92.35  green
+SC021B midi=28 fs=96000 off=-86.5121 on2x=-85.1657 on4x=-84.0336  green
+SC021B midi=40 fs=44100 off=-45.8536 on2x=-70.1403 on4x=-88.7955  green
+SC021B midi=40 fs=48000 off=-55.0291 on2x=-72.0911 on4x=-85.2531  green
+SC021B midi=40 fs=96000 off=-92.0126 on2x=-91.7826 on4x=-91.0802  green
+SC021B VERDICT GREEN worst_on4x=-83.6321
+===============================================================================
+All tests passed (649 assertions in 1 test case)
+
+exit 0

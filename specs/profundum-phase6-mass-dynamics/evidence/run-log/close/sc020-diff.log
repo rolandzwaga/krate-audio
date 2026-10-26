@@ -1,0 +1,8 @@
+=== git diff --stat 02fecee1 -- dsp/include
+ dsp/include/krate/dsp/processors/true_peak_limiter.h | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)
+=== untracked under dsp/include
+dsp/include/krate/dsp/processors/period_peak_detector.h
+dsp/include/krate/dsp/processors/transient_shaper.h
+dsp/include/krate/dsp/systems/mass_dynamics.h
+dsp/include/krate/dsp/systems/mass_law.h

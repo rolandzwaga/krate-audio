@@ -1,0 +1,21 @@
+at_id,variant,note,base,processor_value,bar,pass,live_value,csv_value,rel_dev,anchor_phase_tap_renders
+"AT-10","",E1,"A + sustain 1 (C-8)",5.94809,"dE_sub >= 2 dB",PASS,5.94809,5.94809,4.19999e-07,n/a
+"AT-11","",E1,"A + sustain 1 (C-8) + Anchor level 1",2.08853,">= 2 dB",PASS,2.08853,2.08853,7.96951e-07,n/a
+"AT-12","",E1,"A + sustain 1 (C-8) + Anchor level 1",2.53927,">= 2 dB",PASS,2.53927,2.53927,1.81376e-06,n/a
+"AT-13","Fracture",E1,"A + sustain 1 (C-8) + Anchor level 1 + Fracture at Amount 1",-1200,"within +-5 cents of the flipped ratio's -1200.000000 cents",PASS,-1200,-1200,2.08704e-09,4
+"AT-13","Rectify",E1,"A + sustain 1 (C-8) + Anchor level 1 + Rectify at Amount 1 (half-wave-symmetric input, FR-008)",1200,"within +-5 cents of the flipped ratio's 1200.000000 cents",PASS,1200,1200,0,4
+"AT-14","",E1,"A + sustain 1 (C-8) + Anchor level 1",5.6124,">= 3 dB",PASS,5.6124,5.6124,4.48482e-07,n/a
+"AT-15","",E1,"A + sustain 1 (C-8) + Anchor level 1",15.8745,">= 3 dB",PASS,15.8745,15.8745,2.01246e-06,n/a
+"AT-16","",E1,"A + sustain 1 (C-8) + Anchor level 1",14.6589,">= 3 dB",PASS,14.6589,14.6589,6.06308e-07,n/a
+"AT-17","",E1,"A + sustain 1 (C-8) + Anchor level 1",53.9717,">= 3 dB",PASS,53.9717,53.9717,2.3503e-07,n/a
+"AT-18","",E1,"A + sustain 1 (C-8) + Fold 100 + Anchor level 1",5.51882,">= 3 dB",PASS,5.51882,5.51882,7.64686e-08,n/a
+"AT-10","",C3,"A + sustain 1 (C-8)",5.92968,"dE_sub >= 2 dB",PASS,5.92968,5.92968,6.93402e-07,n/a
+"AT-11","",C3,"A + sustain 1 (C-8) + Anchor level 1",2.03878,">= 2 dB",PASS,2.03878,2.03878,9.5767e-07,n/a
+"AT-12","",C3,"A + sustain 1 (C-8) + Anchor level 1",2.48379,">= 2 dB",PASS,2.48379,2.48379,1.55159e-06,n/a
+"AT-13","Fracture",C3,"A + sustain 1 (C-8) + Anchor level 1 + Fracture at Amount 1",-1200,"within +-5 cents of the flipped ratio's -1200.000000 cents",PASS,-1200,-1200,0,4
+"AT-13","Rectify",C3,"A + sustain 1 (C-8) + Anchor level 1 + Rectify at Amount 1 (half-wave-symmetric input, FR-008)",1200,"within +-5 cents of the flipped ratio's 1200.000000 cents",PASS,1200,1200,1.64344e-10,4
+"AT-14","",C3,"A + sustain 1 (C-8) + Anchor level 1",6.13206,">= 3 dB",PASS,6.13206,6.13206,5.38646e-07,n/a
+"AT-15","",C3,"A + sustain 1 (C-8) + Anchor level 1",15.7497,">= 3 dB",PASS,15.7497,15.7497,3.1114e-08,n/a
+"AT-16","",C3,"A + sustain 1 (C-8) + Anchor level 1",14.6591,">= 3 dB",PASS,14.6591,14.6591,2.67848e-06,n/a
+"AT-17","",C3,"A + sustain 1 (C-8) + Anchor level 1",53.9929,">= 3 dB",PASS,53.9929,53.9929,7.94367e-07,n/a
+"AT-18","",C3,"A + sustain 1 (C-8) + Fold 100 + Anchor level 1",5.49014,">= 3 dB",PASS,5.49014,5.49014,6.59036e-07,n/a

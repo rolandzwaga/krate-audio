@@ -257,7 +257,7 @@ if(NOT MSVC)
         unit/voice_pool/test_fast_release_denormals.cpp
         unit/processor/test_coupling_energy.cpp
         PROPERTIES
-            COMPILE_OPTIONS "-fno-fast-math"
+            COMPILE_OPTIONS "-fno-fast-math;-ffp-contract=off"
     )
 endif()
 

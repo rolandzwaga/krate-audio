@@ -1,0 +1,40 @@
+Filters: "VoiceEngine_AudibilityTable_Core"
+Randomness seeded to: 1915477488
+# VoiceEngine_AudibilityTable_Core
+row,contrast,base,note,descriptor,tap,lo,hi,value,bar,pass,gated,out_descriptor,out_lo,out_hi,ampStep,remark
+"AT-01","Excitation: mix 0 -> mix 1, drive 1","A + sustain 1 (C-8)",E1,"D_nl (dB)","Char / twin",0,0,0,">= 3 dB",FAIL,gated,"L_K output (dB; D_nl has no output form)",-12.0435,-11.9905,"n/a","below the bar on both endpoints: per-row setting needed (A_s has edge 0 and the excitation's drive follows Edge: D_nl 0 dB)"
+"AT-01","Excitation: mix 0 -> mix 1, drive 1","B + sustain 1 (B10-1)",E1,"D_nl (dB)","Char / twin",14.3525,14.3525,0,">= 3 dB",FAIL,gated,"L_K output (dB; D_nl has no output form)",-13.5866,-13.5866,"n/a","below the bar on both endpoints: per-row setting needed"
+"AT-02","SHAPE: 0 -> 1","A + sustain 1 (C-8)",E1,"D_br (oct)","Sum",0.000851041,0.016389,0.0155379,">= 0.25 oct",FAIL,gated,"D_br output (oct)",0.000862159,0.0166031,"n/a","below the bar on both endpoints: per-row setting needed (A_s is a sine: SHAPE moves its centroid 0.016 oct)"
+"AT-02","SHAPE: 0 -> 1","B + sustain 1 (B10-1)",E1,"D_br (oct)","Sum",1.03016,1.05407,0.0239072,">= 0.25 oct",FAIL,gated,"D_br output (oct)",1.00326,1.09911,"n/a","below the bar on both endpoints: per-row setting needed"
+"AT-03","Fold: foldAmount 0 -> 100","A + sustain 1 (C-8)",E1,"D_nl (dB)","Char / twin",0,47.6755,47.6755,">= 3 dB",PASS,gated,"L_K output (dB; D_nl has no output form)",-12.0435,-14.0505,"n/a",""
+"AT-01","Excitation: mix 0 -> mix 1, drive 1","A + sustain 1 (C-8)",C3,"D_nl (dB)","Char / twin",0,0,0,">= 3 dB",FAIL,gated,"L_K output (dB; D_nl has no output form)",-7.34907,-7.23711,"n/a","below the bar on both endpoints: per-row setting needed (A_s has edge 0 and the excitation's drive follows Edge: D_nl 0 dB)"
+"AT-01","Excitation: mix 0 -> mix 1, drive 1","B + sustain 1 (B10-1)",C3,"D_nl (dB)","Char / twin",13.8673,13.8673,0,">= 3 dB",FAIL,gated,"L_K output (dB; D_nl has no output form)",-11.3264,-11.3264,"n/a","below the bar on both endpoints: per-row setting needed"
+"AT-02","SHAPE: 0 -> 1","A + sustain 1 (C-8)",C3,"D_br (oct)","Sum",0.000855505,0.0150962,0.0142407,">= 0.25 oct",FAIL,recorded,"D_br output (oct)",0.000856616,0.0151159,"n/a","recorded: inert on A_s (A_s is a sine: SHAPE moves its centroid 0.016 oct); per-row base B_s (FR-080 showcase-inert rule, B10-1 form)"
+"AT-02","SHAPE: 0 -> 1","B + sustain 1 (B10-1)",C3,"D_br (oct)","Sum",0.894672,1.26754,0.372867,">= 0.25 oct",PASS,gated,"D_br output (oct)",0.898994,1.2792,"n/a","per-row base B_s (FR-080 showcase-inert rule, B10-1 form; A_s recorded: A_s is a sine: SHAPE moves its centroid 0.016 oct)"
+"AT-03","Fold: foldAmount 0 -> 100","A + sustain 1 (C-8)",C3,"D_nl (dB)","Char / twin",0,47.6593,47.6593,">= 3 dB",PASS,gated,"L_K output (dB; D_nl has no output form)",-7.34907,-10.2661,"n/a",""
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+VoiceEngine_AudibilityTable_Core
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_audibility_test.cpp(2087)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_audibility_test.cpp(663): FAILED:
+  REQUIRE( c.pass )
+with expansion:
+  false
+with message:
+  AT-01 E1 (Excitation: mix 0 -> mix 1, drive 1, base A + sustain 1 (C-8)):
+  D_nl (dB) lo 0 hi 0 value 0 bar >= 3 dB | below the bar on both endpoints:
+  per-row setting needed (A_s has edge 0 and the excitation's drive follows
+  Edge: D_nl 0 dB)
+
+===============================================================================
+test cases:   1 |   0 passed | 1 failed
+assertions: 582 | 581 passed | 1 failed
+
+exit 1

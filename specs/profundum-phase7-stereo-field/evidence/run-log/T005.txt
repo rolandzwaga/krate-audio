@@ -1,0 +1,37 @@
+T005 run-log (2026-10-18) - wideOffsets and wideCeiling
+
+## Files written
+- dsp/tests/unit/systems/bass_stereo_field_test.cpp (appended; + `#include <cstring>` for std::memcmp):
+  2 TEST_CASEs, [systems][profundum][stereo-field] + the task's tags:
+  BassStereoField_WideOffsetCeilings [sc-017][fr-041][fr-042]:
+    ceilings (0.15f == kMaxChannelOffset for Tube/Fold/Bite/Crush, 0.10f for Rectify/Fracture);
+    mode {Solid, Spread, Wide} x Spread i/10 x 6 algorithms after advanceControl: WIDE |o| <= ceiling
+    (exact), amount == ceiling * spread * kWideOffsetScale within 1e-6, tone bit-equal to -amount (C-10),
+    Spread 0 and SOLID / SPREAD bit 0; 36 ordered algorithm pairs at WIDE Spread 1 return the new
+    algorithm's offsets (<= 0.10 for Rectify / Fracture); latching: setControls(Wide) without
+    advanceControl keeps SPREAD's {0, 0}, and setControls(Solid) without advanceControl keeps WIDE's
+    offsets, the next advanceControl returns {0, 0} (FR-043).
+  BassStereoField_WideVectorEqualsSpread [fr-044][sc-017]: Spread vs Wide fields, Drift depth 1 rate 1,
+    Spread ramp min(1, i/1500), E1, 3000 intervals, own VoiceState each: memcmp-equal every interval;
+    non-vacuity check (some non-zero vectors) and equal handoff counts.
+- dsp/include/krate/dsp/systems/bass_stereo_field.h: the two "// T005" stubs replaced (plan S6):
+  wideCeiling(a) = Rectify || Fracture ? kWideCeilingRectifyFracture (0.10f) : BassCharacterStage::kMaxChannelOffset;
+  wideOffsets(a) = {+0, +0} unless applied_.mode == Wide and applied_.spread > 0, else
+  K = wideCeiling(a) * applied_.spread * wideOffsetScale_, {.amount = K, .tone = -K}. Header comment updated.
+- this run-log.
+
+## Facts read this session (file:line)
+- tasks.md T005 section (:485-503), stub list (:402); plan C-10 (:243-248), S6 (:661-676); spec FR-040-FR-044 (:540-560).
+- bass_character_stage.h:78 enum class Algorithm { Tube, Fold, Rectify, Bite, Crush, Fracture }; :85 kMaxChannelOffset = 0.15f.
+- bass_stereo_field.h (T004 state): kWideOffsetScale seed 1.0f (:86), kWideCeilingRectifyFracture 0.10f (:89),
+  ChannelOffsets {amount, tone} (:126), setControls latches pending_, advanceControl / reset copy it to applied_,
+  member wideOffsetScale_ = kWideOffsetScale (probe-settable, deviation 5).
+
+## Decisions
+1. The Spread-0 guard returns explicit +0 for both offsets (tone = -K would give -0 at K = 0, and the
+   test compares bit patterns).
+2. |K| <= ceiling holds in float exactly: ceiling * spread with spread <= 1 rounds to <= ceiling (ceiling
+   is representable), and * 1.0f is exact at the seed.
+
+## Build / run
+Not built or run (task instruction: the group's build agent does that).

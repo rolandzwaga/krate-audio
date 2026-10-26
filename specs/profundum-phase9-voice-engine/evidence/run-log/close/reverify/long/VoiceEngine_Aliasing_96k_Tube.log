@@ -1,0 +1,376 @@
+Filters: "VoiceEngine_Aliasing_96k_Tube"
+Randomness seeded to: 1013195873
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+VoiceEngine_Aliasing_96k_Tube
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_aliasing_test.cpp(549)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_aliasing_test.cpp(344): FAILED:
+  CHECK( r.on.out.worst() <= kVeaBarDbfs )
+with expansion:
+  -62.2963665178 <= -80.0
+with messages:
+  SC-021 96k E0 Tube SHAPE 0 Tone 0 LOCK: f0 20.6017 Hz, f_m 20.6017 Hz, frame
+  96000 + 524288
+  follow ratio on [1, 1], off [1, 1]
+  (a) Sum L -106.391 R -104.587 dBFS; (b) output (opt-in on) L -62.3009 R -62.
+  2964 dBFS, dynamics-added -62.2969 dBFS; opt-in off: output -79.1835 dBFS,
+  dynamics-added -79.2031 dBFS; excluded 0.142181, total -4.13994 / -1.07654
+  dBFS
+
+SC-021 96k E0 Tube SHAPE 0 Tone 0 LOCK: (a) Sum -104.59 dBFS, (b) out on -62.30 dBFS (added -62.30), off -79.18 dBFS (added -79.20); bar -80
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_aliasing_test.cpp(344): FAILED:
+  CHECK( r.on.out.worst() <= kVeaBarDbfs )
+with expansion:
+  -62.2963665178 <= -80.0
+with messages:
+  SC-021 96k E0 Tube SHAPE 0 Tone 0 FOLLOW: f0 20.6017 Hz, f_m 20.6017 Hz,
+  frame 96000 + 524288
+  follow ratio on [1, 1], off [1, 1]
+  (a) Sum L -106.391 R -104.587 dBFS; (b) output (opt-in on) L -62.3009 R -62.
+  2964 dBFS, dynamics-added -62.2969 dBFS; opt-in off: output -79.1835 dBFS,
+  dynamics-added -79.2031 dBFS; excluded 0.142181, total -4.13994 / -1.07654
+  dBFS
+
+SC-021 96k E0 Tube SHAPE 0 Tone 0 FOLLOW: (a) Sum -104.59 dBFS, (b) out on -62.30 dBFS (added -62.30), off -79.18 dBFS (added -79.20); bar -80
+SC-021 96k E0 Tube SHAPE 0 Tone 1 LOCK: (a) Sum -91.43 dBFS, (b) out on -85.38 dBFS (added -86.14), off -92.95 dBFS (added -102.64); bar -80
+SC-021 96k E0 Tube SHAPE 0 Tone 1 FOLLOW: (a) Sum -91.43 dBFS, (b) out on -85.38 dBFS (added -86.14), off -92.95 dBFS (added -102.64); bar -80
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_aliasing_test.cpp(344): FAILED:
+  CHECK( r.on.out.worst() <= kVeaBarDbfs )
+with expansion:
+  -65.4292695351 <= -80.0
+with messages:
+  SC-021 96k E0 Tube SHAPE 1 Tone 0 LOCK: f0 20.6017 Hz, f_m 20.6017 Hz, frame
+  96000 + 524288
+  follow ratio on [1, 1], off [1, 1]
+  (a) Sum L -87.8201 R -84.7202 dBFS; (b) output (opt-in on) L -65.4609 R -65.
+  4293 dBFS, dynamics-added -65.5222 dBFS; opt-in off: output -81.2535 dBFS,
+  dynamics-added -88.3143 dBFS; excluded 0.142181, total -7.53276 / -3.51293
+  dBFS
+
+SC-021 96k E0 Tube SHAPE 1 Tone 0 LOCK: (a) Sum -84.72 dBFS, (b) out on -65.43 dBFS (added -65.52), off -81.25 dBFS (added -88.31); bar -80
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_aliasing_test.cpp(344): FAILED:
+  CHECK( r.on.out.worst() <= kVeaBarDbfs )
+with expansion:
+  -65.4292695351 <= -80.0
+with messages:
+  SC-021 96k E0 Tube SHAPE 1 Tone 0 FOLLOW: f0 20.6017 Hz, f_m 20.6017 Hz,
+  frame 96000 + 524288
+  follow ratio on [1, 1], off [1, 1]
+  (a) Sum L -87.8201 R -84.7202 dBFS; (b) output (opt-in on) L -65.4609 R -65.
+  4293 dBFS, dynamics-added -65.5222 dBFS; opt-in off: output -81.2535 dBFS,
+  dynamics-added -88.3143 dBFS; excluded 0.142181, total -7.53276 / -3.51293
+  dBFS
+
+SC-021 96k E0 Tube SHAPE 1 Tone 0 FOLLOW: (a) Sum -84.72 dBFS, (b) out on -65.43 dBFS (added -65.52), off -81.25 dBFS (added -88.31); bar -80
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_aliasing_test.cpp(343): FAILED:
+  CHECK( r.on.sum.worst() <= kVeaBarDbfs )
+with expansion:
+  -71.7875660699 <= -80.0
+with messages:
+  SC-021 96k E0 Tube SHAPE 1 Tone 1 LOCK: f0 20.6017 Hz, f_m 20.6017 Hz, frame
+  96000 + 524288
+  follow ratio on [1, 1], off [1, 1]
+  (a) Sum L -72.4467 R -71.7876 dBFS; (b) output (opt-in on) L -71.9423 R -71.
+  9154 dBFS, dynamics-added -74.2358 dBFS; opt-in off: output -75.0122 dBFS,
+  dynamics-added -83.3479 dBFS; excluded 0.142181, total -5.58564 / -8.38507
+  dBFS
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_aliasing_test.cpp(344): FAILED:
+  CHECK( r.on.out.worst() <= kVeaBarDbfs )
+with expansion:
+  -71.9154286173 <= -80.0
+with messages:
+  SC-021 96k E0 Tube SHAPE 1 Tone 1 LOCK: f0 20.6017 Hz, f_m 20.6017 Hz, frame
+  96000 + 524288
+  follow ratio on [1, 1], off [1, 1]
+  (a) Sum L -72.4467 R -71.7876 dBFS; (b) output (opt-in on) L -71.9423 R -71.
+  9154 dBFS, dynamics-added -74.2358 dBFS; opt-in off: output -75.0122 dBFS,
+  dynamics-added -83.3479 dBFS; excluded 0.142181, total -5.58564 / -8.38507
+  dBFS
+
+SC-021 96k E0 Tube SHAPE 1 Tone 1 LOCK: (a) Sum -71.79 dBFS, (b) out on -71.92 dBFS (added -74.24), off -75.01 dBFS (added -83.35); bar -80
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_aliasing_test.cpp(343): FAILED:
+  CHECK( r.on.sum.worst() <= kVeaBarDbfs )
+with expansion:
+  -71.7875660699 <= -80.0
+with messages:
+  SC-021 96k E0 Tube SHAPE 1 Tone 1 FOLLOW: f0 20.6017 Hz, f_m 20.6017 Hz,
+  frame 96000 + 524288
+  follow ratio on [1, 1], off [1, 1]
+  (a) Sum L -72.4467 R -71.7876 dBFS; (b) output (opt-in on) L -71.9423 R -71.
+  9154 dBFS, dynamics-added -74.2358 dBFS; opt-in off: output -75.0122 dBFS,
+  dynamics-added -83.3479 dBFS; excluded 0.142181, total -5.58564 / -8.38507
+  dBFS
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_aliasing_test.cpp(344): FAILED:
+  CHECK( r.on.out.worst() <= kVeaBarDbfs )
+with expansion:
+  -71.9154286173 <= -80.0
+with messages:
+  SC-021 96k E0 Tube SHAPE 1 Tone 1 FOLLOW: f0 20.6017 Hz, f_m 20.6017 Hz,
+  frame 96000 + 524288
+  follow ratio on [1, 1], off [1, 1]
+  (a) Sum L -72.4467 R -71.7876 dBFS; (b) output (opt-in on) L -71.9423 R -71.
+  9154 dBFS, dynamics-added -74.2358 dBFS; opt-in off: output -75.0122 dBFS,
+  dynamics-added -83.3479 dBFS; excluded 0.142181, total -5.58564 / -8.38507
+  dBFS
+
+SC-021 96k E0 Tube SHAPE 1 Tone 1 FOLLOW: (a) Sum -71.79 dBFS, (b) out on -71.92 dBFS (added -74.24), off -75.01 dBFS (added -83.35); bar -80
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_aliasing_test.cpp(344): FAILED:
+  CHECK( r.on.out.worst() <= kVeaBarDbfs )
+with expansion:
+  -70.8774828239 <= -80.0
+with messages:
+  SC-021 96k E1 Tube SHAPE 0 Tone 0 LOCK: f0 41.2035 Hz, f_m 41.2035 Hz, frame
+  96000 + 262144
+  follow ratio on [1, 1], off [1, 1]
+  (a) Sum L -99.8293 R -96.8387 dBFS; (b) output (opt-in on) L -70.9149 R -70.
+  8775 dBFS, dynamics-added -70.8968 dBFS; opt-in off: output -89.6346 dBFS,
+  dynamics-added -90.6059 dBFS; excluded 0.142151, total -3.94437 / -1.39585
+  dBFS
+
+SC-021 96k E1 Tube SHAPE 0 Tone 0 LOCK: (a) Sum -96.84 dBFS, (b) out on -70.88 dBFS (added -70.90), off -89.63 dBFS (added -90.61); bar -80
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_aliasing_test.cpp(344): FAILED:
+  CHECK( r.on.out.worst() <= kVeaBarDbfs )
+with expansion:
+  -70.8774828239 <= -80.0
+with messages:
+  SC-021 96k E1 Tube SHAPE 0 Tone 0 FOLLOW: f0 41.2035 Hz, f_m 41.2035 Hz,
+  frame 96000 + 262144
+  follow ratio on [1, 1], off [1, 1]
+  (a) Sum L -99.8293 R -96.8387 dBFS; (b) output (opt-in on) L -70.9149 R -70.
+  8775 dBFS, dynamics-added -70.8968 dBFS; opt-in off: output -89.6346 dBFS,
+  dynamics-added -90.6059 dBFS; excluded 0.142151, total -3.94437 / -1.39585
+  dBFS
+
+SC-021 96k E1 Tube SHAPE 0 Tone 0 FOLLOW: (a) Sum -96.84 dBFS, (b) out on -70.88 dBFS (added -70.90), off -89.63 dBFS (added -90.61); bar -80
+SC-021 96k E1 Tube SHAPE 0 Tone 1 LOCK: (a) Sum -86.94 dBFS, (b) out on -83.08 dBFS (added -84.34), off -83.07 dBFS (added -84.34); bar -80
+SC-021 96k E1 Tube SHAPE 0 Tone 1 FOLLOW: (a) Sum -86.94 dBFS, (b) out on -83.08 dBFS (added -84.34), off -83.07 dBFS (added -84.34); bar -80
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_aliasing_test.cpp(344): FAILED:
+  CHECK( r.on.out.worst() <= kVeaBarDbfs )
+with expansion:
+  -75.9775010601 <= -80.0
+with messages:
+  SC-021 96k E1 Tube SHAPE 1 Tone 0 LOCK: f0 41.2035 Hz, f_m 41.2035 Hz, frame
+  96000 + 262144
+  follow ratio on [1, 1], off [1, 1]
+  (a) Sum L -81.9297 R -82.2037 dBFS; (b) output (opt-in on) L -77.3001 R -75.
+  9775 dBFS, dynamics-added -79.9058 dBFS; opt-in off: output -78.0317 dBFS,
+  dynamics-added -92.3417 dBFS; excluded 0.142151, total -10.02 / -5.4309 dBFS
+
+SC-021 96k E1 Tube SHAPE 1 Tone 0 LOCK: (a) Sum -81.93 dBFS, (b) out on -75.98 dBFS (added -79.91), off -78.03 dBFS (added -92.34); bar -80
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_aliasing_test.cpp(344): FAILED:
+  CHECK( r.on.out.worst() <= kVeaBarDbfs )
+with expansion:
+  -75.9775010601 <= -80.0
+with messages:
+  SC-021 96k E1 Tube SHAPE 1 Tone 0 FOLLOW: f0 41.2035 Hz, f_m 41.2035 Hz,
+  frame 96000 + 262144
+  follow ratio on [1, 1], off [1, 1]
+  (a) Sum L -81.9297 R -82.2037 dBFS; (b) output (opt-in on) L -77.3001 R -75.
+  9775 dBFS, dynamics-added -79.9058 dBFS; opt-in off: output -78.0317 dBFS,
+  dynamics-added -92.3417 dBFS; excluded 0.142151, total -10.02 / -5.4309 dBFS
+
+SC-021 96k E1 Tube SHAPE 1 Tone 0 FOLLOW: (a) Sum -81.93 dBFS, (b) out on -75.98 dBFS (added -79.91), off -78.03 dBFS (added -92.34); bar -80
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_aliasing_test.cpp(343): FAILED:
+  CHECK( r.on.sum.worst() <= kVeaBarDbfs )
+with expansion:
+  -70.0306928742 <= -80.0
+with messages:
+  SC-021 96k E1 Tube SHAPE 1 Tone 1 LOCK: f0 41.2035 Hz, f_m 41.2035 Hz, frame
+  96000 + 262144
+  follow ratio on [1, 1], off [1, 1]
+  (a) Sum L -70.0307 R -70.3628 dBFS; (b) output (opt-in on) L -73.532 R -73.
+  667 dBFS, dynamics-added -89.1591 dBFS; opt-in off: output -73.5513 dBFS,
+  dynamics-added -90.5479 dBFS; excluded 0.142151, total -5.53896 / -8.81812
+  dBFS
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_aliasing_test.cpp(344): FAILED:
+  CHECK( r.on.out.worst() <= kVeaBarDbfs )
+with expansion:
+  -73.532009099 <= -80.0
+with messages:
+  SC-021 96k E1 Tube SHAPE 1 Tone 1 LOCK: f0 41.2035 Hz, f_m 41.2035 Hz, frame
+  96000 + 262144
+  follow ratio on [1, 1], off [1, 1]
+  (a) Sum L -70.0307 R -70.3628 dBFS; (b) output (opt-in on) L -73.532 R -73.
+  667 dBFS, dynamics-added -89.1591 dBFS; opt-in off: output -73.5513 dBFS,
+  dynamics-added -90.5479 dBFS; excluded 0.142151, total -5.53896 / -8.81812
+  dBFS
+
+SC-021 96k E1 Tube SHAPE 1 Tone 1 LOCK: (a) Sum -70.03 dBFS, (b) out on -73.53 dBFS (added -89.16), off -73.55 dBFS (added -90.55); bar -80
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_aliasing_test.cpp(343): FAILED:
+  CHECK( r.on.sum.worst() <= kVeaBarDbfs )
+with expansion:
+  -70.0306928742 <= -80.0
+with messages:
+  SC-021 96k E1 Tube SHAPE 1 Tone 1 FOLLOW: f0 41.2035 Hz, f_m 41.2035 Hz,
+  frame 96000 + 262144
+  follow ratio on [1, 1], off [1, 1]
+  (a) Sum L -70.0307 R -70.3628 dBFS; (b) output (opt-in on) L -73.532 R -73.
+  667 dBFS, dynamics-added -89.1591 dBFS; opt-in off: output -73.5513 dBFS,
+  dynamics-added -90.5479 dBFS; excluded 0.142151, total -5.53896 / -8.81812
+  dBFS
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_aliasing_test.cpp(344): FAILED:
+  CHECK( r.on.out.worst() <= kVeaBarDbfs )
+with expansion:
+  -73.532009099 <= -80.0
+with messages:
+  SC-021 96k E1 Tube SHAPE 1 Tone 1 FOLLOW: f0 41.2035 Hz, f_m 41.2035 Hz,
+  frame 96000 + 262144
+  follow ratio on [1, 1], off [1, 1]
+  (a) Sum L -70.0307 R -70.3628 dBFS; (b) output (opt-in on) L -73.532 R -73.
+  667 dBFS, dynamics-added -89.1591 dBFS; opt-in off: output -73.5513 dBFS,
+  dynamics-added -90.5479 dBFS; excluded 0.142151, total -5.53896 / -8.81812
+  dBFS
+
+SC-021 96k E1 Tube SHAPE 1 Tone 1 FOLLOW: (a) Sum -70.03 dBFS, (b) out on -73.53 dBFS (added -89.16), off -73.55 dBFS (added -90.55); bar -80
+SC-021 96k E2 Tube SHAPE 0 Tone 0 LOCK: (a) Sum -89.18 dBFS, (b) out on -87.95 dBFS (added -89.98), off -88.10 dBFS (added -90.15); bar -80
+SC-021 96k E2 Tube SHAPE 0 Tone 0 FOLLOW: (a) Sum -89.18 dBFS, (b) out on -87.95 dBFS (added -89.98), off -88.10 dBFS (added -90.15); bar -80
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_aliasing_test.cpp(343): FAILED:
+  CHECK( r.on.sum.worst() <= kVeaBarDbfs )
+with expansion:
+  -76.6210480719 <= -80.0
+with messages:
+  SC-021 96k E2 Tube SHAPE 0 Tone 1 LOCK: f0 82.4069 Hz, f_m 82.4069 Hz, frame
+  96000 + 131072
+  follow ratio on [1, 1], off [1, 1]
+  (a) Sum L -85.3004 R -76.621 dBFS; (b) output (opt-in on) L -73.6144 R -72.
+  9934 dBFS, dynamics-added -73.7994 dBFS; opt-in off: output -73.0144 dBFS,
+  dynamics-added -73.8127 dBFS; excluded 0.142212, total -6.10058 / -8.01666
+  dBFS
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_aliasing_test.cpp(344): FAILED:
+  CHECK( r.on.out.worst() <= kVeaBarDbfs )
+with expansion:
+  -72.9933990447 <= -80.0
+with messages:
+  SC-021 96k E2 Tube SHAPE 0 Tone 1 LOCK: f0 82.4069 Hz, f_m 82.4069 Hz, frame
+  96000 + 131072
+  follow ratio on [1, 1], off [1, 1]
+  (a) Sum L -85.3004 R -76.621 dBFS; (b) output (opt-in on) L -73.6144 R -72.
+  9934 dBFS, dynamics-added -73.7994 dBFS; opt-in off: output -73.0144 dBFS,
+  dynamics-added -73.8127 dBFS; excluded 0.142212, total -6.10058 / -8.01666
+  dBFS
+
+SC-021 96k E2 Tube SHAPE 0 Tone 1 LOCK: (a) Sum -76.62 dBFS, (b) out on -72.99 dBFS (added -73.80), off -73.01 dBFS (added -73.81); bar -80
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_aliasing_test.cpp(343): FAILED:
+  CHECK( r.on.sum.worst() <= kVeaBarDbfs )
+with expansion:
+  -76.6210480719 <= -80.0
+with messages:
+  SC-021 96k E2 Tube SHAPE 0 Tone 1 FOLLOW: f0 82.4069 Hz, f_m 82.4069 Hz,
+  frame 96000 + 131072
+  follow ratio on [1, 1], off [1, 1]
+  (a) Sum L -85.3004 R -76.621 dBFS; (b) output (opt-in on) L -73.6144 R -72.
+  9934 dBFS, dynamics-added -73.7994 dBFS; opt-in off: output -73.0144 dBFS,
+  dynamics-added -73.8127 dBFS; excluded 0.142212, total -6.10058 / -8.01666
+  dBFS
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_aliasing_test.cpp(344): FAILED:
+  CHECK( r.on.out.worst() <= kVeaBarDbfs )
+with expansion:
+  -72.9933990447 <= -80.0
+with messages:
+  SC-021 96k E2 Tube SHAPE 0 Tone 1 FOLLOW: f0 82.4069 Hz, f_m 82.4069 Hz,
+  frame 96000 + 131072
+  follow ratio on [1, 1], off [1, 1]
+  (a) Sum L -85.3004 R -76.621 dBFS; (b) output (opt-in on) L -73.6144 R -72.
+  9934 dBFS, dynamics-added -73.7994 dBFS; opt-in off: output -73.0144 dBFS,
+  dynamics-added -73.8127 dBFS; excluded 0.142212, total -6.10058 / -8.01666
+  dBFS
+
+SC-021 96k E2 Tube SHAPE 0 Tone 1 FOLLOW: (a) Sum -76.62 dBFS, (b) out on -72.99 dBFS (added -73.80), off -73.01 dBFS (added -73.81); bar -80
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_aliasing_test.cpp(344): FAILED:
+  CHECK( r.on.out.worst() <= kVeaBarDbfs )
+with expansion:
+  -78.5120185882 <= -80.0
+with messages:
+  SC-021 96k E2 Tube SHAPE 1 Tone 0 LOCK: f0 82.4069 Hz, f_m 82.4069 Hz, frame
+  96000 + 131072
+  follow ratio on [1, 1], off [1, 1]
+  (a) Sum L -86.1671 R -82.257 dBFS; (b) output (opt-in on) L -81.9456 R -78.
+  512 dBFS, dynamics-added -88.0319 dBFS; opt-in off: output -78.4999 dBFS,
+  dynamics-added -87.9241 dBFS; excluded 0.142212, total -10.993 / -6.2702 dBFS
+
+SC-021 96k E2 Tube SHAPE 1 Tone 0 LOCK: (a) Sum -82.26 dBFS, (b) out on -78.51 dBFS (added -88.03), off -78.50 dBFS (added -87.92); bar -80
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_aliasing_test.cpp(344): FAILED:
+  CHECK( r.on.out.worst() <= kVeaBarDbfs )
+with expansion:
+  -78.5120185882 <= -80.0
+with messages:
+  SC-021 96k E2 Tube SHAPE 1 Tone 0 FOLLOW: f0 82.4069 Hz, f_m 82.4069 Hz,
+  frame 96000 + 131072
+  follow ratio on [1, 1], off [1, 1]
+  (a) Sum L -86.1671 R -82.257 dBFS; (b) output (opt-in on) L -81.9456 R -78.
+  512 dBFS, dynamics-added -88.0319 dBFS; opt-in off: output -78.4999 dBFS,
+  dynamics-added -87.9241 dBFS; excluded 0.142212, total -10.993 / -6.2702 dBFS
+
+SC-021 96k E2 Tube SHAPE 1 Tone 0 FOLLOW: (a) Sum -82.26 dBFS, (b) out on -78.51 dBFS (added -88.03), off -78.50 dBFS (added -87.92); bar -80
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_aliasing_test.cpp(343): FAILED:
+  CHECK( r.on.sum.worst() <= kVeaBarDbfs )
+with expansion:
+  -70.0201783902 <= -80.0
+with messages:
+  SC-021 96k E2 Tube SHAPE 1 Tone 1 LOCK: f0 82.4069 Hz, f_m 82.4069 Hz, frame
+  96000 + 131072
+  follow ratio on [1, 1], off [1, 1]
+  (a) Sum L -72.761 R -70.0202 dBFS; (b) output (opt-in on) L -64.4567 R -63.
+  1479 dBFS, dynamics-added -63.5012 dBFS; opt-in off: output -62.9039 dBFS,
+  dynamics-added -63.2367 dBFS; excluded 0.142212, total -5.38352 / -10.4739
+  dBFS
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_aliasing_test.cpp(344): FAILED:
+  CHECK( r.on.out.worst() <= kVeaBarDbfs )
+with expansion:
+  -63.1479323029 <= -80.0
+with messages:
+  SC-021 96k E2 Tube SHAPE 1 Tone 1 LOCK: f0 82.4069 Hz, f_m 82.4069 Hz, frame
+  96000 + 131072
+  follow ratio on [1, 1], off [1, 1]
+  (a) Sum L -72.761 R -70.0202 dBFS; (b) output (opt-in on) L -64.4567 R -63.
+  1479 dBFS, dynamics-added -63.5012 dBFS; opt-in off: output -62.9039 dBFS,
+  dynamics-added -63.2367 dBFS; excluded 0.142212, total -5.38352 / -10.4739
+  dBFS
+
+SC-021 96k E2 Tube SHAPE 1 Tone 1 LOCK: (a) Sum -70.02 dBFS, (b) out on -63.15 dBFS (added -63.50), off -62.90 dBFS (added -63.24); bar -80
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_aliasing_test.cpp(343): FAILED:
+  CHECK( r.on.sum.worst() <= kVeaBarDbfs )
+with expansion:
+  -70.0201783902 <= -80.0
+with messages:
+  SC-021 96k E2 Tube SHAPE 1 Tone 1 FOLLOW: f0 82.4069 Hz, f_m 82.4069 Hz,
+  frame 96000 + 131072
+  follow ratio on [1, 1], off [1, 1]
+  (a) Sum L -72.761 R -70.0202 dBFS; (b) output (opt-in on) L -64.4567 R -63.
+  1479 dBFS, dynamics-added -63.5012 dBFS; opt-in off: output -62.9039 dBFS,
+  dynamics-added -63.2367 dBFS; excluded 0.142212, total -5.38352 / -10.4739
+  dBFS
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_aliasing_test.cpp(344): FAILED:
+  CHECK( r.on.out.worst() <= kVeaBarDbfs )
+with expansion:
+  -63.1479323029 <= -80.0
+with messages:
+  SC-021 96k E2 Tube SHAPE 1 Tone 1 FOLLOW: f0 82.4069 Hz, f_m 82.4069 Hz,
+  frame 96000 + 131072
+  follow ratio on [1, 1], off [1, 1]
+  (a) Sum L -72.761 R -70.0202 dBFS; (b) output (opt-in on) L -64.4567 R -63.
+  1479 dBFS, dynamics-added -63.5012 dBFS; opt-in off: output -62.9039 dBFS,
+  dynamics-added -63.2367 dBFS; excluded 0.142212, total -5.38352 / -10.4739
+  dBFS
+
+SC-021 96k E2 Tube SHAPE 1 Tone 1 FOLLOW: (a) Sum -70.02 dBFS, (b) out on -63.15 dBFS (added -63.50), off -62.90 dBFS (added -63.24); bar -80
+SC-021 shard 96k Tube: 24 cells, worst (a) Sum -70.02 dBFS (96k E2 Tube SHAPE 1 Tone 1 LOCK), worst (b) output -62.30 dBFS (96k E0 Tube SHAPE 0 Tone 0 LOCK), worst opt-in-off output -62.90 dBFS (recorded); bar -80; wall clock 115.3 s
+===============================================================================
+test cases:    1 |    0 passed |  1 failed
+assertions: 1897 | 1871 passed | 26 failed
+

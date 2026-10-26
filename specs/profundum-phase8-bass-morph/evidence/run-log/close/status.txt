@@ -1,0 +1,104 @@
+START 2026-10-19T18:35:41Z commit 964045a4 base 964045a4 cores 32
+build exit=0 wall=2s warnings=0 log=specs/profundum-phase8-bass-morph/evidence/run-log/close/build.log
+scope GREEN base=964045a4 tracked_changed=[] unexpected_untracked=[] missing=[] log=specs/profundum-phase8-bass-morph/evidence/run-log/close/scope-diff.log
+long-list cases=24 jobs=24 list=specs/profundum-phase8-bass-morph/evidence/run-log/close/long/long-cases.txt
+long:BassMorph_DiscreteClickFree_FieldCycleSync exit=0 wall=13s log=specs/profundum-phase8-bass-morph/evidence/run-log/close/long/BassMorph_DiscreteClickFree_FieldCycleSync.log
+long:BassMorph_DiscreteClickFree_FieldMotionSource exit=0 wall=13s log=specs/profundum-phase8-bass-morph/evidence/run-log/close/long/BassMorph_DiscreteClickFree_FieldMotionSource.log
+long:BassMorph_DiscreteClickFree_GoverningAmount exit=8 wall=14s log=specs/profundum-phase8-bass-morph/evidence/run-log/close/long/BassMorph_DiscreteClickFree_GoverningAmount.log
+long:BassMorph_DiscreteClickFree_ImageMode exit=0 wall=32s log=specs/profundum-phase8-bass-morph/evidence/run-log/close/long/BassMorph_DiscreteClickFree_ImageMode.log
+long:BassMorph_DiscreteClickFree_FieldCycleNote exit=0 wall=35s log=specs/profundum-phase8-bass-morph/evidence/run-log/close/long/BassMorph_DiscreteClickFree_FieldCycleNote.log
+long:BassMorph_DiscreteClickFree_FieldCycleModifier exit=0 wall=35s log=specs/profundum-phase8-bass-morph/evidence/run-log/close/long/BassMorph_DiscreteClickFree_FieldCycleModifier.log
+long:BassMorph_MonoSum_AnchorThroughTail_E1 exit=0 wall=41s log=specs/profundum-phase8-bass-morph/evidence/run-log/close/long/BassMorph_MonoSum_AnchorThroughTail_E1.log
+long:BassMorph_MonoSum_AnchorThroughTail_C3 exit=0 wall=42s log=specs/profundum-phase8-bass-morph/evidence/run-log/close/long/BassMorph_MonoSum_AnchorThroughTail_C3.log
+long:BassMorph_MonoSum_E1 exit=0 wall=45s log=specs/profundum-phase8-bass-morph/evidence/run-log/close/long/BassMorph_MonoSum_E1.log
+long:BassMorph_MonoSum_C3 exit=0 wall=45s log=specs/profundum-phase8-bass-morph/evidence/run-log/close/long/BassMorph_MonoSum_C3.log
+long:BassMorph_DiscreteClickFree_AnchorMode exit=0 wall=53s log=specs/profundum-phase8-bass-morph/evidence/run-log/close/long/BassMorph_DiscreteClickFree_AnchorMode.log
+long:BassMorph_ShowcaseTrajectory_Lock_C3 exit=4 wall=55s log=specs/profundum-phase8-bass-morph/evidence/run-log/close/long/BassMorph_ShowcaseTrajectory_Lock_C3.log
+long:BassMorph_ShowcaseTrajectory_Lock_E1 exit=1 wall=57s log=specs/profundum-phase8-bass-morph/evidence/run-log/close/long/BassMorph_ShowcaseTrajectory_Lock_E1.log
+long:BassMorph_IdempotentRender exit=6 wall=59s log=specs/profundum-phase8-bass-morph/evidence/run-log/close/long/BassMorph_IdempotentRender.log
+long:BassMorph_DiscreteClickFree_AnchorWaveform exit=3 wall=79s log=specs/profundum-phase8-bass-morph/evidence/run-log/close/long/BassMorph_DiscreteClickFree_AnchorWaveform.log
+long:BassMorph_AnchorCurvesRendered exit=0 wall=80s log=specs/profundum-phase8-bass-morph/evidence/run-log/close/long/BassMorph_AnchorCurvesRendered.log
+long:BassMorph_ShowcaseTrajectory_Blend_C3 exit=3 wall=83s log=specs/profundum-phase8-bass-morph/evidence/run-log/close/long/BassMorph_ShowcaseTrajectory_Blend_C3.log
+long:BassMorph_ShowcaseTrajectory_Blend_E1 exit=0 wall=85s log=specs/profundum-phase8-bass-morph/evidence/run-log/close/long/BassMorph_ShowcaseTrajectory_Blend_E1.log
+long:BassMorph_DiscreteClickFree_Algorithm exit=4 wall=101s log=specs/profundum-phase8-bass-morph/evidence/run-log/close/long/BassMorph_DiscreteClickFree_Algorithm.log
+long:BassMorph_ShowcaseTrajectory_Punch_C3 exit=1 wall=106s log=specs/profundum-phase8-bass-morph/evidence/run-log/close/long/BassMorph_ShowcaseTrajectory_Punch_C3.log
+long:BassMorph_ShowcaseTrajectory_Punch_E1 exit=0 wall=108s log=specs/profundum-phase8-bass-morph/evidence/run-log/close/long/BassMorph_ShowcaseTrajectory_Punch_E1.log
+long:BassMorph_Aliasing_44k exit=0 wall=134s log=specs/profundum-phase8-bass-morph/evidence/run-log/close/long/BassMorph_Aliasing_44k.log
+long:BassMorph_Aliasing_48k exit=0 wall=135s log=specs/profundum-phase8-bass-morph/evidence/run-log/close/long/BassMorph_Aliasing_48k.log
+long:BassMorph_Aliasing_96k exit=0 wall=220s log=specs/profundum-phase8-bass-morph/evidence/run-log/close/long/BassMorph_Aliasing_96k.log
+long-lane shards=24 wall=222s
+perpush:dsp_systems_tests exit=0 wall=1697s log=specs/profundum-phase8-bass-morph/evidence/run-log/close/perpush-dsp_systems_tests.log
+lanes wall=1697s
+=== summary: per-shard verdict and wall clock, longest first (for the next run's sharding)
+220 s BassMorph_Aliasing_96k exit=0
+135 s BassMorph_Aliasing_48k exit=0
+134 s BassMorph_Aliasing_44k exit=0
+108 s BassMorph_ShowcaseTrajectory_Punch_E1 exit=0
+106 s BassMorph_ShowcaseTrajectory_Punch_C3 exit=1
+101 s BassMorph_DiscreteClickFree_Algorithm exit=4
+85 s BassMorph_ShowcaseTrajectory_Blend_E1 exit=0
+83 s BassMorph_ShowcaseTrajectory_Blend_C3 exit=3
+80 s BassMorph_AnchorCurvesRendered exit=0
+79 s BassMorph_DiscreteClickFree_AnchorWaveform exit=3
+59 s BassMorph_IdempotentRender exit=6
+57 s BassMorph_ShowcaseTrajectory_Lock_E1 exit=1
+55 s BassMorph_ShowcaseTrajectory_Lock_C3 exit=4
+53 s BassMorph_DiscreteClickFree_AnchorMode exit=0
+45 s BassMorph_MonoSum_E1 exit=0
+45 s BassMorph_MonoSum_C3 exit=0
+42 s BassMorph_MonoSum_AnchorThroughTail_C3 exit=0
+41 s BassMorph_MonoSum_AnchorThroughTail_E1 exit=0
+35 s BassMorph_DiscreteClickFree_FieldCycleNote exit=0
+35 s BassMorph_DiscreteClickFree_FieldCycleModifier exit=0
+32 s BassMorph_DiscreteClickFree_ImageMode exit=0
+14 s BassMorph_DiscreteClickFree_GoverningAmount exit=8
+13 s BassMorph_DiscreteClickFree_FieldMotionSource exit=0
+13 s BassMorph_DiscreteClickFree_FieldCycleSync exit=0
+=== summary: per-push cases over 15 s (re-tag candidates, T015 rule)
+37.477 s: Every cell of the enumerated parameter grid is finite and bounded
+37.478 s: HarmonicCloud_ParameterGridStaysFiniteAndBounded
+28.293 s: AtmosphereEngine_BoundedUnderStress
+42.228 s: EcosystemEngine_OutputAnchorIsScaleInvariant
+37.761 s: VoragoEngine_DeterminismHarness
+24.191 s: VoragoEngine_NoAllocationAfterPrepare
+19.310 s: clause 2: the level is EVENT-GATED, not a continuous wash
+19.310 s: VoragoEngine_GhostConfiguration
+269.125 s: VoragoEngine_EcosystemLeverBounded
+219.893 s: VoragoEngine_CapabilityLeverBounded
+40.030 s: VoragoEngine_EcosystemLeverDeterminism
+16.091 s: ProfundumEdgeFold_SampleRateChange
+16.192 s: ProfundumNoteBehaviour_RetriggerClickFreeSmoke
+15.140 s: ProfundumNoteBehaviour_MonoIdentity
+16.560 s: BassStereoField_SolidBitIdentical_Tube
+16.660 s: BassStereoField_SolidBitIdentical_Fold
+16.483 s: BassStereoField_SolidBitIdentical_Rectify
+16.837 s: BassStereoField_SolidBitIdentical_Bite
+16.361 s: BassStereoField_SolidBitIdentical_Crush
+16.655 s: BassStereoField_SolidBitIdentical_Fracture
+26.614 s: BassMorph_SampleRates
+=== summary: SC-004 worst ratio per family (recorded)
+SC004 WORST algorithm ratio=1 cells=180 at Tube->Fold E1 ramp 5 ms
+SC004 WORST anchor-mode ratio=1 cells=72 at Lock->Follow E1 ramp 5 ms
+SC004 WORST anchor-waveform ratio=1 cells=120 at Sine->Triangle E1 ramp 5 ms
+SC004 WORST field-cycle-modifier ratio=1 cells=36 at None->Dotted E1 ramp 5 ms
+SC004 WORST field-cycle-note ratio=1 cells=36 at SixtyFourth->Quarter E1 ramp 5 ms
+SC004 WORST field-cycle-sync ratio=1 cells=12 at SyncOff->SyncOn E1 ramp 5 ms
+SC004 WORST field-motion-source ratio=1 cells=12 at Drift->Cycle E1 ramp 5 ms
+SC004 WORST governing-amount ratio=1.83976 cells=32 at Character Tube/0->Fold/0.8 zeroA rise E1 ramp 40 ms
+SC004 WORST image-mode ratio=1 cells=36 at Solid->Spread E1 ramp 5 ms
+=== summary: SC-008 (c) / (d) minimum margins per shard (recorded; dB, >= 0 is inside the bar)
+SC008 BassMorph_ShowcaseTrajectory_Blend_C3 | Blend C3 (f0 130.813 Hz, fs 48000) | (c) min margin 1.5 dB at p 1 | (d) min margin 7.007 dB at p 0
+SC008 BassMorph_ShowcaseTrajectory_Blend_E1 | Blend E1 (f0 41.2034 Hz, fs 48000) | (c) min margin 0.6824 dB at p 0.6 | (d) min margin 6.896 dB at p 0.05
+SC008 BassMorph_ShowcaseTrajectory_Lock_C3 | Lock C3 (f0 130.813 Hz, fs 48000) | (c) min margin 1.5 dB at p 1 | (d) min margin 6.289 dB at p 0.85
+SC008 BassMorph_ShowcaseTrajectory_Lock_E1 | Lock E1 (f0 41.2034 Hz, fs 48000) | (c) min margin 1.439 dB at p 0.55 | (d) min margin 5.89 dB at p 0.8
+SC008 BassMorph_ShowcaseTrajectory_Punch_C3 | Punch C3 (f0 130.813 Hz, fs 48000) | (c) min margin 1.5 dB at p 1 | (d) min margin 6.677 dB at p 0.4
+SC008 BassMorph_ShowcaseTrajectory_Punch_E1 | Punch E1 (f0 41.2034 Hz, fs 48000) | (c) min margin 1.5 dB at p 1 | (d) min margin 6.268 dB at p 0.45
+=== summary: SC-017 worst dBFS per fs (recorded)
+SC017 WORST 44k -86.9055 dBFS (bar -80)
+SC017 WORST 48k -86.4095 dBFS (bar -80)
+SC017 WORST 96k -84.1187 dBFS (bar -80)
+--- perpush-dsp_systems_tests tail
+All tests passed (16148660 assertions in 1834 test cases)
+
+exit: 0 wall: 1697 s
+DONE 2026-10-19T19:04:02Z RED warnings=0 scope_red=0 perpush_red=0 long_red=8/24 consumer_red=0/0 total_wall=1701s

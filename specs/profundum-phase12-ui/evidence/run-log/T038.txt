@@ -1,0 +1,21 @@
+T038 CPU lane (main loop, 2026-10-24): bash specs/profundum-phase12-ui/evidence/close/cpu-lane.sh (node tools/run-cpu-tests.js profundum_tests, pinned)
+
+## r1 (RED, run straight after the tidy lane; every arm 10-19 % slower, incl. producer-off P/D 1.039; machine state): cpu-r1-after-tidy.log
+  SC-015 ratio P-MONO / D-MONO = 1.03877 (bar <= 1.05)
+  SC-015 ratio P-POLY / D-POLY = 1.04865 (bar <= 1.05)
+  SC-013 ratio P-ON-MONO / D-MONO = 1.09668 (bar <= 1.05)
+  SC-013 ratio P-ON-POLY / D-POLY = 1.061 (bar <= 1.05)
+No test cases matched '[benchmark]'
+
+## r2 (GREEN, alone after a 5 min idle): cpu.log
+RUN  profundum_tests ... PASS  All tests passed (2093754 assertions in 7 test cases)
+  SC-015 pct P-MONO = 2.40337 % (bar <= 8)
+  SC-015 pct P-POLY = 6.95925 % (bar <= 25)
+  SC-015 pct D-MONO = 2.40581 %, pct D-POLY = 6.94387 % (recorded)
+  SC-015 ratio P-MONO / D-MONO = 0.998987 (bar <= 1.05)
+  SC-015 ratio P-POLY / D-POLY = 1.00221 (bar <= 1.05)
+  SC-015 pct P-MAX-MONO (all four macros 1.0) = 4.50113 % (bar <= 8, Q-A gated)
+  SC-015 pct P-MAX-POLY (all four macros 1.0) = 15.3694 % (bar <= 25, Q-A
+  SC-013 pct P-ON-MONO = 2.46066 % (bar <= 8)
+  SC-013 pct P-ON-POLY = 6.9975 % (bar <= 25)
+CPU GREEN

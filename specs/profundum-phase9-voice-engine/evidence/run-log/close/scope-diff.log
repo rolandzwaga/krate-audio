@@ -1,0 +1,29 @@
+=== git diff --name-only 0ae33b87 -- dsp/include dsp/src plugins tests/test_helpers (must be exactly dsp/include/krate/dsp/systems/mass_dynamics.h)
+warning: in the working copy of 'dsp/include/krate/dsp/primitives/retrigger_declick.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'dsp/include/krate/dsp/processors/keytracked_tilt.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'dsp/include/krate/dsp/processors/oversampled_residual_path.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'dsp/include/krate/dsp/processors/period_peak_detector.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'dsp/include/krate/dsp/systems/mass_dynamics.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'dsp/include/krate/dsp/systems/profundum_core.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'dsp/include/krate/dsp/systems/shape_morph.h', LF will be replaced by CRLF the next time Git touches it
+dsp/include/krate/dsp/primitives/polyphase_halfband_oversampler.h
+dsp/include/krate/dsp/primitives/retrigger_declick.h
+dsp/include/krate/dsp/primitives/tanh_adaa.h
+dsp/include/krate/dsp/processors/dynamics_processor.h
+dsp/include/krate/dsp/processors/harmonic_fold.h
+dsp/include/krate/dsp/processors/harmonic_oscillator_bank.h
+dsp/include/krate/dsp/processors/keytracked_tilt.h
+dsp/include/krate/dsp/processors/oversampled_residual_path.h
+dsp/include/krate/dsp/processors/period_peak_detector.h
+dsp/include/krate/dsp/processors/spectral_shape_recipe.h
+dsp/include/krate/dsp/processors/true_peak_limiter.h
+dsp/include/krate/dsp/systems/mass_dynamics.h
+dsp/include/krate/dsp/systems/profundum_core.h
+dsp/include/krate/dsp/systems/shape_morph.h
+=== untracked under dsp/include (must be exactly the five Phase 9 headers)
+dsp/include/krate/dsp/primitives/lowpass_biquad_d.h
+dsp/include/krate/dsp/systems/profundum_engine.h
+dsp/include/krate/dsp/systems/profundum_engine_observer.h
+dsp/include/krate/dsp/systems/profundum_macro_matrix.h
+dsp/include/krate/dsp/systems/profundum_motion.h
+dsp/include/krate/dsp/systems/profundum_voice.h

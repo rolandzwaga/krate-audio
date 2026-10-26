@@ -1,0 +1,30 @@
+Filters: "Profundum_StateRestoreRender"
+Randomness seeded to: 3775255404
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+profundum_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+Profundum_StateRestoreRender
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\integration\state_restore_render_test.cpp(93)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\integration\state_restore_render_test.cpp(173): warning:
+  SC-011 band-level difference (aggregate, [100 ms, 2.1 s)): 1.09162 dB (bar 0.
+  1 dB)
+
+F:\projects\iterum\plugins\profundum\tests\integration\state_restore_render_test.cpp(174): FAILED:
+  CHECK( diffDb <= kMaxBandDiffDb )
+with expansion:
+  1.0916228602 <= 0.1
+with messages:
+  srcRms := -35.2715157535
+  dstRms := -34.5176935308
+  diffDb := 1.0916228602
+
+===============================================================================
+test cases:    1 |    0 passed | 1 failed
+assertions: 5572 | 5571 passed | 1 failed
+

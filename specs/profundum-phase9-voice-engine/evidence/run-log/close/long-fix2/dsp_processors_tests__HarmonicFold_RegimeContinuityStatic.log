@@ -1,0 +1,8 @@
+Filters: "HarmonicFold_RegimeContinuityStatic"
+Randomness seeded to: 3519568599
+HarmonicFold_RegimeContinuityStatic calibration sine MIDI 28 (400 pairs): worst |dL| 0.109 dB, |dCF| 0.107 dB, |dC| 0.0319 oct, |dTHD| 0.679 dB (bound 1.000) (plan D-1 sine 0.109 dB, 0.032 oct; mid 0.072 dB, 0.016 oct)
+HarmonicFold_RegimeContinuityStatic calibration sine MIDI 36 (400 pairs): worst |dL| 0.109 dB, |dCF| 0.105 dB, |dC| 0.0319 oct, |dTHD| 0.652 dB (bound 1.000) (plan D-1 sine 0.109 dB, 0.032 oct; mid 0.072 dB, 0.016 oct)
+HarmonicFold_RegimeContinuityStatic recipe mid grid MIDI 36 (400 pairs): worst |dL| 0.070 dB, |dCF| 0.072 dB, |dC| 0.0156 oct, |dTHD| 0.112 dB (bound 1.000) (plan D-1 sine 0.109 dB, 0.032 oct; mid 0.072 dB, 0.016 oct)
+===============================================================================
+All tests passed (16794 assertions in 1 test case)
+

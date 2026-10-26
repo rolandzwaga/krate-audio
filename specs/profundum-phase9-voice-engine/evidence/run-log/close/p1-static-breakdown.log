@@ -1,0 +1,31 @@
+=== static-breakdown 2026-10-20T12:20:06Z
+P1V static-breakdown Tube MONO 12.273 POLY4 39.222
+P1V static-breakdown Fracture MONO 12.417 POLY4 38.331
+P1V BREAKDOWN MONO Tube replica_full=12.192
+P1V STAGE MONO Tube core+excitation without=7.8778 cost=4.3142 per_voice=4.3142
+P1V STAGE MONO Tube shape without=10.22 cost=1.9717 per_voice=1.9717
+P1V STAGE MONO Tube fold without=11.002 cost=1.1903 per_voice=1.1903
+P1V STAGE MONO Tube character without=8.5093 cost=3.6827 per_voice=3.6827
+P1V STAGE MONO Tube anchor without=11.824 cost=0.36766 per_voice=0.36766
+P1V STAGE MONO Tube pitch(drop+lock) without=11.344 cost=0.8481 per_voice=0.8481
+P1V STAGE MONO Tube a1+meter without=11.173 cost=1.0184 per_voice=1.0184
+P1V STAGE MONO Tube amp-env without=12.097 cost=0.094534 per_voice=0.094534
+P1V STAGE MONO Tube mass-dynamics without=9.3678 cost=2.8242 per_voice=2.8242
+P1V STAGE MONO Tube field(stage+pan+wide) without=8.1428 cost=4.0492 per_voice=4.0492
+P1V STAGE MONO Tube dc+limiter without=10.321 cost=1.8707 per_voice=1.8707
+P1V STAGE MONO Tube morph+law+motion+macros without=11.525 cost=0.66671 per_voice=0.66671
+P1V BREAKDOWN POLY4 Tube replica_full=38.137
+P1V STAGE POLY4 Tube core+excitation without=23.092 cost=15.045 per_voice=3.7613
+P1V STAGE POLY4 Tube shape without=30.546 cost=7.591 per_voice=1.8977
+P1V STAGE POLY4 Tube fold without=31.017 cost=7.1205 per_voice=1.7801
+P1V STAGE POLY4 Tube character without=24.017 cost=14.12 per_voice=3.53
+P1V STAGE POLY4 Tube anchor without=37.235 cost=0.90277 per_voice=0.22569
+P1V STAGE POLY4 Tube pitch(drop+lock) without=36.426 cost=1.7116 per_voice=0.42791
+P1V STAGE POLY4 Tube a1+meter without=35.892 cost=2.2455 per_voice=0.56139
+P1V STAGE POLY4 Tube amp-env without=36.301 cost=1.836 per_voice=0.45899
+P1V STAGE POLY4 Tube mass-dynamics without=33.189 cost=4.9482 per_voice=1.237
+P1V STAGE POLY4 Tube field(stage+pan+wide) without=22.763 cost=15.374 per_voice=3.8436
+P1V STAGE POLY4 Tube dc+limiter without=35.527 cost=2.6104 per_voice=0.65259
+P1V STAGE POLY4 Tube morph+law+motion+macros without=32.521 cost=5.6164 per_voice=1.4041
+P1V DONE static-breakdown
+DONE 2026-10-20T12:23:49Z

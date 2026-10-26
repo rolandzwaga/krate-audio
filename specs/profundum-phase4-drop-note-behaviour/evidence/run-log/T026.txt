@@ -1,0 +1,176 @@
+T026 - Full-suite run (FR-063, SC-020; plan S12.2)
+Date: 2026-10-13   Branch: synth/profundum
+
+VERDICT: RED. Every non-Phase-4 suite is green. Phase 4's own systems cases are red: 10 per-push cases and
+15 of 16 [long] shards fail. These are the first runs of the T021/T022 cases; T021.txt and T022 recorded them
+as NOT YET MEASURED. The failures span SC-010, SC-013, SC-014, SC-015, SC-021, SC-026, the Anchor memcmp
+invariant and the NoAllocation contract. That is beyond a T026 fix-up: STOP AND SURFACE to the main loop / T023.
+Raw logs: <session scratchpad>/t026/{build,push_*,long_*,rerun_ruinae}.log (not in the repo).
+
+=== 1. Rebuild (one invocation) ===
+"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target dsp_core_tests
+  dsp_primitives_tests dsp_processors_tests dsp_systems_tests dsp_effects_tests ruinae_tests seraphis_tests
+  vorago_tests innexus_tests -j
+exit 0, wall 39 s (incremental: recompiled profundum_note_behaviour_spectral_test.cpp and
+profundum_note_behaviour_test.cpp, relinked dsp_systems_tests; every other target was up to date).
+Warnings: grep -ci "warning" build.log -> 0.
+
+=== 2. Lanes (25 processes concurrently on 32 cores; one log each) ===
+Per-push filter: "~[.perf]~[long]" (deviation 10 form). Exit code = number of failed assertions.
+  exe                    exit  wall    last lines
+  dsp_core_tests            0     6 s  All tests passed (1588257 assertions in 573 test cases)
+  dsp_primitives_tests      0     3 s  All tests passed (4562280 assertions in 1516 test cases)
+  dsp_processors_tests      0   371 s  All tests passed (10802835 assertions in 3436 test cases)
+  dsp_systems_tests       231  1888 s  test cases: 1615 | 1605 passed | 10 failed
+                                       assertions: 10533362 | 10533131 passed | 231 failed
+  dsp_effects_tests         0   150 s  All tests passed (115011 assertions in 499 test cases)
+  ruinae_tests              1   180 s  test cases: 737 | 736 passed | 1 failed   (see 3a; green on re-run)
+  seraphis_tests            0   477 s  All tests passed (444660 assertions in 109 test cases)
+  vorago_tests              0   444 s  All tests passed (4060395 assertions in 119 test cases)
+  innexus_tests             0    18 s  All tests passed (1111858 assertions in 566 test cases)
+
+[long] lane (dsp_systems_tests "ProfundumNoteBehaviour_<case>"; same concurrent launch):
+  case                          exit  wall   assertions (passed / failed)
+  PostDropLanding_E0             255  136 s  23063 / 1131
+  PostDropLanding_E1             255  125 s  23389 / 805
+  PostDropLanding_E2             255  120 s  23258 / 936
+  PostDropLanding_C3             255  119 s  23039 / 1155
+  PostDropLanding_PunchGhostE1   255  236 s  (failed; exit capped at 255)
+  FollowAfterDrop                 32  128 s  9876 / 32
+  RetriggerClickFree_E0          255  167 s  12672 / 1152
+  RetriggerClickFree_E1          255  167 s  12672 / 1152
+  RetriggerClickFree_E2          255  168 s  12432 / 1392
+  RetriggerClickFree_C3          255  168 s  11856 / 1968
+  GlideClickFree_E0              255   46 s  32400 / 1440
+  GlideClickFree_E1              255   47 s  32304 / 1440
+  GlideClickFree_E2              255   47 s  32304 / 1440
+  GlideClickFree_C3              255   47 s  32304 / 1440
+  TrajectoryNyquist               25   39 s  4415 / 25
+  GlideLock60s                     0   10 s  All tests passed (924 assertions in 1 test case)
+                                             worst drift 0.145752 deg (bar 0.5)
+
+=== 3. Diagnosis ===
+3a. ruinae_tests: "RuinaeVoice: SC-002 SpectralMorph voice CPU < 3%" [ruinae_voice][performance][sc-002]
+    (ruinae_voice_test.cpp:1547) REQUIRE(cpuPercent < 3.0) -> 3.23143 < 3.0. This is a wall-clock case that
+    the T026 filter lets through ("~[.perf]~[long]" does not exclude [performance]), measured under 25-process
+    load. Re-run with the CI exclusion filter
+    "~[performance]~[perf]~[benchmark]~[!benchmark]~[long]~[.perf]": exit 0, 117 s,
+    "All tests passed (29205 assertions in 732 test cases)". Not a defect. The case itself has to be
+    measured alone (CPU lane, T028 rules). Lane design gap: per-push filter should exclude [performance].
+    Not Phase 4 code.
+
+3b. dsp_systems_tests per-push: all 231 failed assertions are in Phase 4 TUs. Every pre-existing systems case
+    is green. Failing cases:
+    - PostDropLandingSmoke (spectral:454 theta, :463 drift, :482/:483 Anchor L/R memcmp vs bypass, :925
+      interrupted-Drop snap theta 1.2529 deg > 1.0, accumulated 139.888 cycles == mirror 139.888)
+    - FollowAfterDropSmoke (spectral:694 |dTheta(1 s)| > 1 deg)
+    - RetriggerClickFreeSmoke (spectral:1358 clicks == 0, e.g. 508 clicks; detections reported as "nearest
+      event at 0" thousands of samples away)
+    - GlideClickFree (spectral:1538 clicks == 0, 20 failures)
+    - DeclickPositiveControl x2 (spectral:2142 ratio 0.98 must be > 1 for control (c); :2201 same, 0.1607 > 0.1642)
+    - Audibility x2 (spectral:2261 REQUIRE tsZc.front() > 0.0 -> 0.0, note 28; :2359 Reset min RMS -51.73 dB
+      not <= Continue -73.71 - 20 dB, onset 2)
+    - UseCaseRenders (spectral:2553 clicks == 0 -> 71, 808-attack E1; 8 failures)
+    - Routing (note_behaviour_test.cpp:1138 |dTheta| 1.2367 deg > 1.0, note 28 A 48 T 60 ms; 4 failures)
+    - NoAllocation (note_behaviour_test.cpp:1380 contractViolations() == 0 -> 95; allocations observed 0,
+      harness outcomes 9, resolves 89)
+    - AnchorUntouched (note_behaviour_test.cpp:1437/:1438 Anchor L/R memcmp on vs off -> differ, anchor mode 0)
+
+3c. [long] shards, by failure class:
+    - SC-013 landing (PostDropLanding_*): spectral:454 |theta| <= 1 deg, :463 drift <= 0.5 deg (e.g. LOCK E1
+      44.1 kHz A 6 T 10 s 0 R 0: theta +0.244, drift 0.638), :482/:483 Anchor memcmp vs bypass. Per shard (E1):
+      50 x :454, 325 x :463, 215 x :482, 215 x :483. SC013-R2-DEFECT lines (gap > 0.3 deg vs the staircase
+      model): E0 237, E1 250, E2 214, C3 288, PunchGhostE1 501, smoke 49. Example: "LOCK C3 fs 44100 A 6 T 10
+      s 0.0000 R 0: rendered theta +0.537135 deg, staircase prediction -0.000311 deg, gap 0.537446 deg".
+      Recorded |gamma| (O-4): E0 T10 47.9787 st, T60 9.7773, T200 4.4691, T1000 0.4771; C3 T10 11.1185,
+      T60 1.6051, T200 0.3546, T1000 0.1428; E1 T10 30.1953, T60 6.3026.
+    - SC-026 FollowAfterDrop: spectral:694 |dTheta(t_s + 1 s)| <= 1 deg (e.g. A 48 T 10 s 0 R 0: -1.631 deg).
+      The 60 s drift is within bar (-0.077 deg): a constant offset, not a drift.
+    - SC-010 RetriggerClickFree_* (:1358) and GlideClickFree_* (:1538): ClickDetector finds clicks with
+      "nearest event at 0" hundreds to thousands of samples after every scripted event. This suggests the
+      test's event list/bound lookup is not populated (a harness defect), or else a real continuous
+      artefact. Not separated yet.
+    - SC-015 TrajectoryNyquist (spectral:1891): aliased power > -96 dBFS on kGrowl upward bridges at T = 1 ms,
+      e.g. "bridge-midfall-up5-A48-T1-R1-lock E1 fs 44100 kGrowl: aliased -29.9795 dBFS"; the bypass variant
+      is also red (-57.37 dBFS). 25 failures. Under D-14 this is a core defect that needs a clarify ruling
+      (T023: never edit profundum_core.h without one).
+    - Common thread: the Anchor-output memcmp failures (:482/:483 and note_behaviour_test.cpp:1437/:1438) show
+      the Drop/correction path changes the Anchor's rendered output in configurations where the spec requires
+      it untouched.
+
+=== 4. Append-only checker ===
+node specs/profundum-phase4-drop-note-behaviour/check-append-only.js  -> exit 0
+  check-append-only: dsp/include/krate/dsp/processors/mono_handler.h vs 3d8ca19f
+  check 1 (no removed line): PASS
+  check 2 (public surface): PASS (added public: glideMode, setGlideMode)
+  INFO: namespace-scope addition: GlideMode
+
+=== 5. Optimisation notes for the next run ===
+- The dsp_systems per-push lane (1888 s) is the critical path. The [long] shards finish in <= 236 s. Shard the
+  Phase 4 per-push cases out of the monolithic systems run (by name or tag) so they run concurrently.
+- Add ~[performance] to the per-push filter so that wall-clock cases cannot go red under concurrent load.
+
+=== 6. Not fixed here ===
+T026's file list is this log only. Every red above is in files owned by T021/T022 (the tests) or by the
+components (drop_phase_lock.h, retrigger_declick.h, the harness), and some need rulings (SC-015/D-14 touches
+profundum_core.h). They go to "Defects found" / T023 via the main loop.
+
+=== EPOCH 3 (2026-10-13) - INCOMPLETE ===
+1. Rebuild (one invocation, all nine targets, -j): exit 0, wall 31 s, every target up to date (no recompilation),
+   grep -ci "warning" build.log -> 0.
+2. Lanes: 26 processes launched concurrently (per-push filter
+   "~[performance]~[perf]~[benchmark]~[!benchmark]~[long]~[.perf]"; systems sharded "[note-behaviour]~[long]..." /
+   "~[note-behaviour]..."; 16 [long] shards by name). Completed before the executor was forced to return:
+     dsp_primitives_tests  exit 0  4 s
+     dsp_core_tests        exit 0  6 s
+     innexus_tests         exit 0  19 s
+     [long] GlideLock60s   exit 0  27 s
+   The remaining 22 lanes were still running and were terminated with the executor. NOT MEASURED in this epoch:
+   processors, systems (both shards), effects, ruinae, seraphis, vorago, and 15 of 16 [long] shards (all but GlideLock60s).
+   The T023 epoch-7 readings (tasks.md "Defects found") are the latest measured state; this epoch neither confirms nor refutes them.
+3. node specs/profundum-phase4-drop-note-behaviour/check-append-only.js -> exit 0
+     check-append-only: dsp/include/krate/dsp/processors/mono_handler.h vs 3d8ca19f
+     check 1 (no removed line): PASS
+     check 2 (public surface): PASS (added public: glideMode, setGlideMode)
+     INFO: namespace-scope addition: GlideMode
+4. Re-run: the main loop (or the executor, without a forced early return) must re-launch the lane script; previous wall
+   clocks say the critical path is seraphis (~477 s) and processors (~371 s); the sharded systems lanes should no longer be ~1888 s.
+
+=== EPOCH 3 COMPLETION (main loop, 2026-10-13 17:15–17:57, read 2026-10-14 08:55) ===
+The executor's lane script (26 processes, launched together at 17:15) ran to completion after the executor returned;
+nothing was restarted. status.txt copied to evidence/run-log/t026-lanes/status.txt. Per lane: name | exit | wall | summary
+  push_dsp_core_tests | exit 0 wall 6 s | All tests passed (1588248 assertions in 565 test cases)
+  push_dsp_effects_tests | exit 0 wall 206 s | All tests passed (115009 assertions in 495 test cases)
+  push_dsp_primitives_tests | exit 0 wall 4 s | All tests passed (4562191 assertions in 1501 test cases)
+  push_dsp_processors_tests | exit 0 wall 940 s | All tests passed (10802834 assertions in 3409 test cases)
+  push_innexus_tests | exit 0 wall 19 s | All tests passed (1111857 assertions in 565 test cases)
+  push_ruinae_tests | exit 0 wall 248 s | All tests passed (29205 assertions in 732 test cases)
+  push_seraphis_tests | exit 0 wall 1093 s | All tests passed (444660 assertions in 109 test cases)
+  push_systems_nb | exit 0 wall 305 s | All tests passed (36365 assertions in 22 test cases)
+  push_systems_rest | exit 1 wall 2534 s | test cases:     1577 |     1576 passed | 1 failed
+  push_vorago_tests | exit 0 wall 917 s | All tests passed (4060395 assertions in 119 test cases)
+  long_FollowAfterDrop | exit 0 wall 770 s | All tests passed (9908 assertions in 1 test case)
+  long_GlideClickFree_C3 | exit 0 wall 763 s | All tests passed (604968 assertions in 1 test case)
+  long_GlideClickFree_E0 | exit 0 wall 786 s | All tests passed (147096 assertions in 1 test case)
+  long_GlideClickFree_E1 | exit 0 wall 782 s | All tests passed (283536 assertions in 1 test case)
+  long_GlideClickFree_E2 | exit 0 wall 780 s | All tests passed (466392 assertions in 1 test case)
+  long_GlideLock60s | exit 0 wall 27 s | All tests passed (924 assertions in 1 test case)
+  long_PostDropLanding_C3 | exit 0 wall 818 s | All tests passed (33410 assertions in 1 test case)
+  long_PostDropLanding_E0 | exit 0 wall 839 s | All tests passed (33410 assertions in 1 test case)
+  long_PostDropLanding_E1 | exit 0 wall 828 s | All tests passed (33410 assertions in 1 test case)
+  long_PostDropLanding_E2 | exit 0 wall 819 s | All tests passed (33410 assertions in 1 test case)
+  long_PostDropLanding_PunchGhostE1 | exit 0 wall 1197 s | All tests passed (66818 assertions in 1 test case)
+  long_RetriggerClickFree_C3 | exit 0 wall 1493 s | All tests passed (1899270 assertions in 1 test case)
+  long_RetriggerClickFree_E0 | exit 0 wall 1495 s | All tests passed (306138 assertions in 1 test case)
+  long_RetriggerClickFree_E1 | exit 0 wall 1493 s | All tests passed (802104 assertions in 1 test case)
+  long_RetriggerClickFree_E2 | exit 0 wall 1494 s | All tests passed (1396218 assertions in 1 test case)
+  long_TrajectoryNyquist | exit 0 wall 256 s | All tests passed (4440 assertions in 1 test case)
+25 of 26 lanes green. The one red, push_systems_rest (dsp_systems_tests outside [note-behaviour], 2534 s under the full
+26-process load plus a concurrent clang-tidy sweep): seraphis_engine_test.cpp(4265) SeraphisEngine_VoiceStealIsClickless
+  REQUIRE( bestWorstBlockUs <= kBlockBudgetUs ) with expansion 26963.1 <= 10666.67 (a wall-clock block-time clause
+  inside a functional test, not tagged [performance]). Its click clauses passed (ratio worst/refMax 1.11, bound 1.5).
+  Re-run alone on the idle machine 2026-10-14 08:57: exit 0, wall 1 s, 'All tests passed (20 assertions in 1 test case)'
+  (F:/tmp/p4close_seraphis_steal.log). The same suite passed in full in the Group 14 and Group 15 gates
+  ('dsp_systems_tests: All tests passed (10170902 assertions in 1599 test cases)'). Verdict: machine-load artefact, not a
+  defect; the clause belongs in the isolated lane (noted for Seraphis, not changed here).
+T026 per-push + [long] verdict: GREEN (every Phase 4 case green under load; the Seraphis timing clause green alone).

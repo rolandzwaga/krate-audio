@@ -1,0 +1,27 @@
+T023 — Both clang-tidy scripts (FR-074, FR-075) — verify 2026-10-22T10:02:09+02:00
+$ awk '/"all" *\{/,/^ *\}/' tools/run-clang-tidy.ps1 | grep -c 'plugins/profundum/\(src\|tests\)'
+4
+$ awk '/^ *all\)/,/;;/' tools/run-clang-tidy.sh | grep -c 'plugins/profundum/\(src\|tests\)'
+2
+$ bash -n tools/run-clang-tidy.sh
+exit=0
+$ grep -n profundum tools/run-clang-tidy.ps1 tools/run-clang-tidy.sh
+tools/run-clang-tidy.ps1:66:    [ValidateSet("all", "dsp", "dsp-lib", "dsp-tests", "iterum", "disrumpo", "ruinae", "innexus", "gradus", "membrum", "seraphis", "vorago", "profundum")]
+tools/run-clang-tidy.ps1:229:    "profundum" {
+tools/run-clang-tidy.ps1:230:        # src and tests, matching run-clang-tidy.sh's `profundum)` case (same
+tools/run-clang-tidy.ps1:232:        $SourceDirs += "plugins/profundum/src"
+tools/run-clang-tidy.ps1:233:        $SourceDirs += "plugins/profundum/tests"
+tools/run-clang-tidy.ps1:235:        $IncludeDirs += "plugins/profundum/src"
+tools/run-clang-tidy.ps1:236:        $IncludeDirs += "plugins/profundum/tests"
+tools/run-clang-tidy.ps1:253:        $SourceDirs += "plugins/profundum/src"
+tools/run-clang-tidy.ps1:254:        $SourceDirs += "plugins/profundum/tests"
+tools/run-clang-tidy.ps1:265:        $IncludeDirs += "plugins/profundum/src"
+tools/run-clang-tidy.ps1:266:        $IncludeDirs += "plugins/profundum/tests"
+tools/run-clang-tidy.sh:68:            echo "                    profundum"
+tools/run-clang-tidy.sh:164:    profundum)
+tools/run-clang-tidy.sh:165:        SOURCE_DIRS=("plugins/profundum/src" "plugins/profundum/tests")
+tools/run-clang-tidy.sh:183:            "plugins/profundum/src"
+tools/run-clang-tidy.sh:184:            "plugins/profundum/tests"
+$ PowerShell Parser::ParseFile tools/run-clang-tidy.ps1
+ps1 parse errors: 0
+RESULT: ps1 all-block count 4 (>=2), sh all) count 2 (>=2), bash -n exit 0 — T023 GREEN

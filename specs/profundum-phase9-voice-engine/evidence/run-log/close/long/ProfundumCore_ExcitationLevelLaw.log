@@ -1,0 +1,21 @@
+Filters: "ProfundumCore_ExcitationLevelLaw"
+Randomness seeded to: 4240814009
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+ProfundumCore_ExcitationLevelLaw
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_excitation_spectral_test.cpp(718)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_excitation_spectral_test.cpp(511): warning:
+  SC-020: worst level -0.883157 dB re reference (bar +-1.5; plan -0.95)
+
+143.183 s: ProfundumCore_ExcitationLevelLaw
+===============================================================================
+All tests passed (17982 assertions in 1 test case)
+
+exit: 0 wall: 143 s

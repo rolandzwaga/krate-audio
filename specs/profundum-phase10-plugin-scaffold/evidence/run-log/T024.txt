@@ -1,0 +1,21 @@
+# T024 verify, 2026-10-22T10:03:21+02:00
+$ node --check tools/check-changelog-coverage.js
+exit=0
+$ node --check tools/gen-specs-index.js
+exit=0
+$ node --check tools/run-cpu-tests.js
+exit=0
+$ node --check tools/ci-test-shard.js
+exit=0
+$ node --check tools/run-close-lanes.js
+exit=0
+$ node --check .claude/workflows/release-readiness.js
+exit=0
+$ node tools/lint-plugin-roster.js
+lint-plugin-roster: OK — 9 plugins present in every roster (disrumpo, gradus, innexus, iterum, membrum, profundum, ruinae, seraphis, vorago)
+exit=0
+$ node tools/check-changelog-coverage.js profundum
+
+=== profundum (version.json: 0.1.0) ===
+First changelog entry — nothing earlier to diff against.
+exit=0

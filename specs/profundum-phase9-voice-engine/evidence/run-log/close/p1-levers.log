@@ -1,0 +1,34 @@
+=== setting - 2026-10-20T12:54:58Z
+P1V static-morph Tube MONO 11.477 POLY4 32.024
+P1V static-morph Fracture MONO 10.985 POLY4 32.119
+P1V DONE static-morph
+=== setting solid 2026-10-20T12:55:30Z
+P1V static-morph Tube MONO 8.0428 POLY4 19.839
+P1V static-morph Fracture MONO 8.1964 POLY4 21.173
+P1V DONE static-morph
+=== setting noexc 2026-10-20T12:55:51Z
+P1V static-morph Tube MONO 11.553 POLY4 27.817
+P1V static-morph Fracture MONO 9.8436 POLY4 27.616
+P1V DONE static-morph
+=== setting dyn2x 2026-10-20T12:56:18Z
+P1V static-morph Tube MONO 9.2942 POLY4 28.047
+P1V static-morph Fracture MONO 9.1602 POLY4 28.014
+P1V DONE static-morph
+=== setting dynoff 2026-10-20T12:56:45Z
+P1V static-morph Tube MONO 8.4474 POLY4 29.217
+P1V static-morph Fracture MONO 9.5058 POLY4 30.825
+P1V DONE static-morph
+=== setting nowidemotion 2026-10-20T12:57:13Z
+P1V static-morph Tube MONO 12.139 POLY4 33.746
+P1V static-morph Fracture MONO 11.313 POLY4 31.019
+P1V DONE static-morph
+=== setting solid,noexc,dyn2x 2026-10-20T12:57:45Z
+P1V static-morph Tube MONO 7.2794 POLY4 19.436
+P1V static-morph Fracture MONO 7.2641 POLY4 19.282
+P1V DONE static-morph
+=== full P-1 (morph ramping) 2026-10-20T12:58:04Z
+P1 MONO 12.894 12.192
+P1 POLY4 35.854 34.592
+P1 POSTSUM4 42.824 35.726
+P1 VERDICT RED mono_max=12.894 (bar 8) poly4_max=35.854 postsum4_max=42.824 (bar 25)
+DONE 2026-10-20T13:05:00Z

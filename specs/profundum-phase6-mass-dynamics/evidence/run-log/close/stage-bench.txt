@@ -1,0 +1,25 @@
+=== stage-bench (shipped headers, MSVC cl /O2 /fp:fast /std:c++20, pinned through tools/pin-perf-cores.ps1, alone) 2026-10-18
+--- before the fast dB forms (commit tree as handed back by the workflow)
+P6 stage bench fs=48000 block=64 seconds=5.0 reps=3 (pct of one core)
+cell fill_only pct 0.0166
+cell shaper pct 0.5257
+cell compressor pct 0.4583
+cell period_peak_detector_stereo pct 0.1878
+cell envelope_follower_one pct 0.0323
+cell dynamics_processor_sample pct 0.2810
+cell gainToDb_plus_dbToGain pct 0.2349
+cell mass_dynamics pct 1.1294
+cell mass_law_per_interval pct 0.0239
+cell total_gated pct 1.1453
+--- after detail::gainToDbFast / dbToGainFast in the shaper and compressor per-sample paths + the duration early-out
+P6 stage bench fs=48000 block=64 seconds=5.0 reps=3 (pct of one core)
+cell fill_only pct 0.0236
+cell shaper pct 0.2879
+cell compressor pct 0.4690
+cell period_peak_detector_stereo pct 0.1879
+cell envelope_follower_one pct 0.0428
+cell dynamics_processor_sample pct 0.2795
+cell gainToDb_plus_dbToGain pct 0.2362
+cell mass_dynamics pct 0.7857
+cell mass_law_per_interval pct 0.0255
+cell total_gated pct 0.8020

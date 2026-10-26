@@ -1,0 +1,63 @@
+T002 run-log (2026-10-18) - Phase 7 registration with compiling stubs
+
+## ODR sweep, run BEFORE creating any Phase 7 file
+$ grep -rn "BassStereoField" dsp plugins tests tools
+(no output, exit 1)
+$ find dsp plugins tests tools -iname "*bass_stereo*"
+(no output, exit 0)
+
+## ODR sweep, re-run AFTER creating the stubs (hits must be only this phase's files)
+$ grep -rn "BassStereoField" dsp plugins tests tools
+dsp/include/krate/dsp/systems/bass_stereo_field.h:4:// BassStereoField: the Profundum stereo field (image modes, MOTION, mono-safe stage).
+dsp/tests/unit/systems/bass_stereo_field_chain_test.cpp:2:// Layer 3: System Tests - BassStereoField, chain TU
+dsp/tests/unit/systems/bass_stereo_field_harvest_test.cpp:2:// Layer 3: System Tests - BassStereoField, harvest TU
+dsp/tests/unit/systems/bass_stereo_field_helpers_test.cpp:2:// Layer 3: System Tests - BassStereoField, helpers TU
+dsp/tests/unit/systems/bass_stereo_field_monosum_test.cpp:2:// Layer 3: System Tests - BassStereoField, mono-sum TU
+dsp/tests/unit/systems/bass_stereo_field_motion_test.cpp:2:// Layer 3: System Tests - BassStereoField, MOTION TU
+dsp/tests/unit/systems/bass_stereo_field_nonfinite_test.cpp:2:// Layer 3: System Tests - BassStereoField, non-finite TU
+dsp/tests/unit/systems/bass_stereo_field_perf_test.cpp:2:// Layer 3: System Tests - BassStereoField, perf TU
+dsp/tests/unit/systems/bass_stereo_field_spectral_test.cpp:2:// Layer 3: System Tests - BassStereoField, spectral TU
+dsp/tests/unit/systems/bass_stereo_field_test.cpp:2:// Layer 3: System Tests - BassStereoField, interface / law / WIDE / stage unit TU
+(exit 0)
+$ find dsp plugins tests tools -iname "*bass_stereo*"
+dsp/include/krate/dsp/systems/bass_stereo_field.h
+dsp/tests/unit/systems/bass_stereo_field_chain_test.cpp
+dsp/tests/unit/systems/bass_stereo_field_harvest_test.cpp
+dsp/tests/unit/systems/bass_stereo_field_helpers_test.cpp
+dsp/tests/unit/systems/bass_stereo_field_monosum_test.cpp
+dsp/tests/unit/systems/bass_stereo_field_motion_test.cpp
+dsp/tests/unit/systems/bass_stereo_field_nonfinite_test.cpp
+dsp/tests/unit/systems/bass_stereo_field_perf_test.cpp
+dsp/tests/unit/systems/bass_stereo_field_spectral_test.cpp
+dsp/tests/unit/systems/bass_stereo_field_test.cpp
+(exit 0)
+
+Verdict: no hit outside the files T002 created -> no STOP.
+
+## Files created
+dsp/include/krate/dsp/systems/bass_stereo_field.h (stub: banner, #pragma once, empty namespace Krate::DSP)
+dsp/tests/unit/systems/bass_stereo_field_test.cpp (stub, no TEST_CASE)
+dsp/tests/unit/systems/bass_stereo_field_helpers_test.cpp (stub, no TEST_CASE)
+dsp/tests/unit/systems/bass_stereo_field_nonfinite_test.cpp (stub, no TEST_CASE)
+dsp/tests/unit/systems/bass_stereo_field_monosum_test.cpp (stub, no TEST_CASE)
+dsp/tests/unit/systems/bass_stereo_field_spectral_test.cpp (stub, no TEST_CASE)
+dsp/tests/unit/systems/bass_stereo_field_motion_test.cpp (stub, no TEST_CASE)
+dsp/tests/unit/systems/bass_stereo_field_chain_test.cpp (stub, no TEST_CASE)
+dsp/tests/unit/systems/bass_stereo_field_harvest_test.cpp (stub, no TEST_CASE)
+dsp/tests/unit/systems/bass_stereo_field_perf_test.cpp (stub, no TEST_CASE)
+specs/profundum-phase7-stereo-field/evidence/run-log/.gitkeep, specs/profundum-phase7-stereo-field/evidence/close/.gitkeep
+
+## CMake edits
+dsp/CMakeLists.txt: comment + include/krate/dsp/systems/bass_stereo_field.h after mass_law.h (now :214-215)
+dsp/tests/CMakeLists.txt: Phase 7 comment block + nine TUs in dsp_systems_tests after mass_dynamics_perf_test.cpp (:743-762);
+  -fno-fast-math block: comment + unit/systems/bass_stereo_field_nonfinite_test.cpp after mass_dynamics_nonfinite_test.cpp (:1258-1259).
+
+## git diff --stat (tracked files)
+ .claude/workflows/profundum-phase.js |  2 +-
+ .serena/project.yml                  | 48 +++++++++++++++++++++++++-----------
+ dsp/CMakeLists.txt                   |  2 ++
+ dsp/tests/CMakeLists.txt             | 22 +++++++++++++++++
+ 4 files changed, 58 insertions(+), 16 deletions(-)
+(.claude/workflows/profundum-phase.js and .serena/project.yml were already modified at session start; not touched by T002)
+
+Not built or run here (the Group 1 gate builds dsp_systems_tests).

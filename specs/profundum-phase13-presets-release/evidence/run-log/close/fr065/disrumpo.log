@@ -1,0 +1,6 @@
+spec: [#preset_browser_e2e_test]~[.]~[performance]~[perf]~[benchmark]~[!benchmark],[#preset_save_test]~[.]~[performance]~[perf]~[benchmark]~[!benchmark],[#preset_search_test]~[.]~[performance]~[perf]~[benchmark]~[!benchmark],[#preset_integration_test]~[.]~[performance]~[perf]~[benchmark]~[!benchmark],[lifecycle]~[.]~[performance]~[perf]~[benchmark]~[!benchmark]
+Filters: [#preset_browser_e2e_test] ~[.] ~[performance] ~[perf] ~[benchmark] ~[!benchmark],[#preset_save_test] ~[.] ~[performance] ~[perf] ~[benchmark] ~[!benchmark],[#preset_search_test] ~[.] ~[performance] ~[perf] ~[benchmark] ~[!benchmark],[#preset_integration_test] ~[.] ~[performance] ~[perf] ~[benchmark] ~[!benchmark],[lifecycle] ~[.] ~[performance] ~[perf] ~[benchmark] ~[!benchmark]
+Randomness seeded to: 1443035723
+===============================================================================
+All tests passed (223 assertions in 31 test cases)
+

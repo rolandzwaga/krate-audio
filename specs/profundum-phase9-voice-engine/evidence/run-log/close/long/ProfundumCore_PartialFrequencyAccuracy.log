@@ -1,0 +1,27 @@
+Filters: "ProfundumCore_PartialFrequencyAccuracy"
+Randomness seeded to: 1780812839
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+ProfundumCore_PartialFrequencyAccuracy
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(249)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(277): warning:
+  SC-001 fs 44100: worst measured error 0.000261044 cent (bar < 0.1)
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(277): warning:
+  SC-001 fs 48000: worst measured error 0.000354654 cent (bar < 0.1)
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(277): warning:
+  SC-001 fs 96000: worst measured error 0.000355984 cent (bar < 0.1)
+
+47.012 s: ProfundumCore_PartialFrequencyAccuracy
+===============================================================================
+All tests passed (5382 assertions in 1 test case)
+
+exit: 0 wall: 47 s

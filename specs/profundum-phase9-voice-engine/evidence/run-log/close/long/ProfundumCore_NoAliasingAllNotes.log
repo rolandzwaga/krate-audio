@@ -1,0 +1,30 @@
+Filters: "ProfundumCore_NoAliasingAllNotes"
+Randomness seeded to: 1738288527
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+ProfundumCore_NoAliasingAllNotes
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(1041)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(1049): warning:
+  SC-009 static fs 44100 (MIDI 0-127, kSawAnchor edge 1 shift 1): worst aliased
+  -126.832 dBFS (bar -96), max excluded fraction 0.248047 (bar 0.5)
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(1049): warning:
+  SC-009 static fs 48000 (MIDI 0-127, kSawAnchor edge 1 shift 1): worst aliased
+  -126.901 dBFS (bar -96), max excluded fraction 0.240234 (bar 0.5)
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(1049): warning:
+  SC-009 static fs 96000 (MIDI 0-127, kSawAnchor edge 1 shift 1): worst aliased
+  -123.852 dBFS (bar -96), max excluded fraction 0.240234 (bar 0.5)
+
+34.940 s: ProfundumCore_NoAliasingAllNotes
+===============================================================================
+All tests passed (6144 assertions in 1 test case)
+
+exit: 0 wall: 35 s

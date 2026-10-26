@@ -1,0 +1,1075 @@
+82205 warnings generated.
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:97:5: warning: avoid do-while loops [cppcoreguidelines-avoid-do-while]
+   97 |     REQUIRE(Krate::DSP::isValidMorphState(a));
+      |     ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:26: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                          ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:45:5: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   45 |     do { /* NOLINT(bugprone-infinite-loop) */ \
+      |     ^
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:100:5: warning: chained comparison 'v0 <= v1 == v2' may generate unintended results, use parentheses to specify order of evaluation or a logical operator to separate comparison expressions [bugprone-chained-comparison]
+  100 |     REQUIRE(comp.size() == ::Profundum::kStateV3Bytes);
+      |     ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:26: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:47: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                               ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:100:5: note: operand 'v0' is here
+  100 |     REQUIRE(comp.size() == ::Profundum::kStateV3Bytes);
+      |     ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:26: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:47: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                               ^~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:100:13: note: operand 'v1' is here
+  100 |     REQUIRE(comp.size() == ::Profundum::kStateV3Bytes);
+      |             ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:92: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                                                                                            ^~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:70: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                                                      ^~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:100:28: note: operand 'v2' is here
+  100 |     REQUIRE(comp.size() == ::Profundum::kStateV3Bytes);
+      |                            ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:92: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                                                                                            ^~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:70: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                                                      ^~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:100:5: warning: avoid do-while loops [cppcoreguidelines-avoid-do-while]
+  100 |     REQUIRE(comp.size() == ::Profundum::kStateV3Bytes);
+      |     ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:26: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                          ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:45:5: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   45 |     do { /* NOLINT(bugprone-infinite-loop) */ \
+      |     ^
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:101:5: warning: avoid do-while loops [cppcoreguidelines-avoid-do-while]
+  101 |     REQUIRE(decodePresetState(comp).ok);
+      |     ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:26: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                          ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:45:5: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   45 |     do { /* NOLINT(bugprone-infinite-loop) */ \
+      |     ^
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:130:9: warning: chained comparison 'v0 <= v1 == v2' may generate unintended results, use parentheses to specify order of evaluation or a logical operator to separate comparison expressions [bugprone-chained-comparison]
+  130 |         REQUIRE(fx.processNoOutputs(&pc) == Steinberg::kResultOk);
+      |         ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:26: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:47: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                               ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:130:9: note: operand 'v0' is here
+  130 |         REQUIRE(fx.processNoOutputs(&pc) == Steinberg::kResultOk);
+      |         ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:26: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:47: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                               ^~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:130:17: note: operand 'v1' is here
+  130 |         REQUIRE(fx.processNoOutputs(&pc) == Steinberg::kResultOk);
+      |                 ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:92: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                                                                                            ^~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:70: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                                                      ^~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:130:45: note: operand 'v2' is here
+  130 |         REQUIRE(fx.processNoOutputs(&pc) == Steinberg::kResultOk);
+      |                                             ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:92: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                                                                                            ^~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:70: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                                                      ^~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:130:9: warning: avoid do-while loops [cppcoreguidelines-avoid-do-while]
+  130 |         REQUIRE(fx.processNoOutputs(&pc) == Steinberg::kResultOk);
+      |         ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:26: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                          ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:45:5: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   45 |     do { /* NOLINT(bugprone-infinite-loop) */ \
+      |     ^
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:163:5: warning: chained comparison 'v0 <= v1 == v2' may generate unintended results, use parentheses to specify order of evaluation or a logical operator to separate comparison expressions [bugprone-chained-comparison]
+  163 |     REQUIRE(fx.prepare(kRtFs, static_cast<Steinberg::int32>(kRtBlock)) == Steinberg::kResultOk);
+      |     ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:26: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:47: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                               ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:163:5: note: operand 'v0' is here
+  163 |     REQUIRE(fx.prepare(kRtFs, static_cast<Steinberg::int32>(kRtBlock)) == Steinberg::kResultOk);
+      |     ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:26: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:47: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                               ^~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:163:13: note: operand 'v1' is here
+  163 |     REQUIRE(fx.prepare(kRtFs, static_cast<Steinberg::int32>(kRtBlock)) == Steinberg::kResultOk);
+      |             ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:92: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                                                                                            ^~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:70: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                                                      ^~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:163:75: note: operand 'v2' is here
+  163 |     REQUIRE(fx.prepare(kRtFs, static_cast<Steinberg::int32>(kRtBlock)) == Steinberg::kResultOk);
+      |                                                                           ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:92: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                                                                                            ^~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:70: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                                                      ^~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:163:5: warning: avoid do-while loops [cppcoreguidelines-avoid-do-while]
+  163 |     REQUIRE(fx.prepare(kRtFs, static_cast<Steinberg::int32>(kRtBlock)) == Steinberg::kResultOk);
+      |     ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:26: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                          ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:45:5: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   45 |     do { /* NOLINT(bugprone-infinite-loop) */ \
+      |     ^
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:172:5: warning: chained comparison 'v0 <= v1 == v2' may generate unintended results, use parentheses to specify order of evaluation or a logical operator to separate comparison expressions [bugprone-chained-comparison]
+  172 |     REQUIRE(loadStateBytes(*fx.proc, bytes) == Steinberg::kResultOk);   // outside the measured region
+      |     ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:26: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:47: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                               ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:172:5: note: operand 'v0' is here
+  172 |     REQUIRE(loadStateBytes(*fx.proc, bytes) == Steinberg::kResultOk);   // outside the measured region
+      |     ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:26: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:47: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                               ^~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:172:13: note: operand 'v1' is here
+  172 |     REQUIRE(loadStateBytes(*fx.proc, bytes) == Steinberg::kResultOk);   // outside the measured region
+      |             ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:92: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                                                                                            ^~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:70: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                                                      ^~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:172:48: note: operand 'v2' is here
+  172 |     REQUIRE(loadStateBytes(*fx.proc, bytes) == Steinberg::kResultOk);   // outside the measured region
+      |                                                ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:92: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                                                                                            ^~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:70: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                                                      ^~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:172:5: warning: avoid do-while loops [cppcoreguidelines-avoid-do-while]
+  172 |     REQUIRE(loadStateBytes(*fx.proc, bytes) == Steinberg::kResultOk);   // outside the measured region
+      |     ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:26: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                          ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:45:5: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   45 |     do { /* NOLINT(bugprone-infinite-loop) */ \
+      |     ^
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:220:5: warning: chained comparison 'v0 <= v1 == v2' may generate unintended results, use parentheses to specify order of evaluation or a logical operator to separate comparison expressions [bugprone-chained-comparison]
+  220 |     REQUIRE(loadStateBytes(*fx.proc, bytes) == Steinberg::kResultOk);
+      |     ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:26: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:47: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                               ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:220:5: note: operand 'v0' is here
+  220 |     REQUIRE(loadStateBytes(*fx.proc, bytes) == Steinberg::kResultOk);
+      |     ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:26: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:47: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                               ^~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:220:13: note: operand 'v1' is here
+  220 |     REQUIRE(loadStateBytes(*fx.proc, bytes) == Steinberg::kResultOk);
+      |             ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:92: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                                                                                            ^~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:70: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                                                      ^~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:220:48: note: operand 'v2' is here
+  220 |     REQUIRE(loadStateBytes(*fx.proc, bytes) == Steinberg::kResultOk);
+      |                                                ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:92: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                                                                                            ^~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:70: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                                                      ^~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:220:5: warning: avoid do-while loops [cppcoreguidelines-avoid-do-while]
+  220 |     REQUIRE(loadStateBytes(*fx.proc, bytes) == Steinberg::kResultOk);
+      |     ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:26: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                          ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:45:5: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   45 |     do { /* NOLINT(bugprone-infinite-loop) */ \
+      |     ^
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:224:5: warning: chained comparison 'v0 <= v1 == v2' may generate unintended results, use parentheses to specify order of evaluation or a logical operator to separate comparison expressions [bugprone-chained-comparison]
+  224 |     REQUIRE(fx.prepare(kRtFs, static_cast<Steinberg::int32>(kRtBlock)) == Steinberg::kResultOk);
+      |     ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:26: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:47: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                               ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:224:5: note: operand 'v0' is here
+  224 |     REQUIRE(fx.prepare(kRtFs, static_cast<Steinberg::int32>(kRtBlock)) == Steinberg::kResultOk);
+      |     ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:26: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:47: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                               ^~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:224:13: note: operand 'v1' is here
+  224 |     REQUIRE(fx.prepare(kRtFs, static_cast<Steinberg::int32>(kRtBlock)) == Steinberg::kResultOk);
+      |             ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:92: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                                                                                            ^~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:70: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                                                      ^~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:224:75: note: operand 'v2' is here
+  224 |     REQUIRE(fx.prepare(kRtFs, static_cast<Steinberg::int32>(kRtBlock)) == Steinberg::kResultOk);
+      |                                                                           ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:92: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                                                                                            ^~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:70: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                                                      ^~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:224:5: warning: avoid do-while loops [cppcoreguidelines-avoid-do-while]
+  224 |     REQUIRE(fx.prepare(kRtFs, static_cast<Steinberg::int32>(kRtBlock)) == Steinberg::kResultOk);
+      |     ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:26: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                          ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:45:5: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   45 |     do { /* NOLINT(bugprone-infinite-loop) */ \
+      |     ^
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:237:5: warning: chained comparison 'v0 <= v1 == v2' may generate unintended results, use parentheses to specify order of evaluation or a logical operator to separate comparison expressions [bugprone-chained-comparison]
+  237 |     REQUIRE(fx.capturedL.size() == total);
+      |     ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:26: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:47: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                               ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:237:5: note: operand 'v0' is here
+  237 |     REQUIRE(fx.capturedL.size() == total);
+      |     ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:26: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:47: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                               ^~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:237:13: note: operand 'v1' is here
+  237 |     REQUIRE(fx.capturedL.size() == total);
+      |             ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:92: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                                                                                            ^~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:70: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                                                      ^~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:237:36: note: operand 'v2' is here
+  237 |     REQUIRE(fx.capturedL.size() == total);
+      |                                    ^
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:237:5: warning: avoid do-while loops [cppcoreguidelines-avoid-do-while]
+  237 |     REQUIRE(fx.capturedL.size() == total);
+      |     ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:26: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                          ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:45:5: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   45 |     do { /* NOLINT(bugprone-infinite-loop) */ \
+      |     ^
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:238:5: warning: chained comparison 'v0 <= v1 == v2' may generate unintended results, use parentheses to specify order of evaluation or a logical operator to separate comparison expressions [bugprone-chained-comparison]
+  238 |     REQUIRE(fx.capturedR.size() == total);
+      |     ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:26: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:47: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                               ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:238:5: note: operand 'v0' is here
+  238 |     REQUIRE(fx.capturedR.size() == total);
+      |     ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:26: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:47: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                               ^~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:238:13: note: operand 'v1' is here
+  238 |     REQUIRE(fx.capturedR.size() == total);
+      |             ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:92: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                                                                                            ^~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:70: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                                                      ^~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:238:36: note: operand 'v2' is here
+  238 |     REQUIRE(fx.capturedR.size() == total);
+      |                                    ^
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:238:5: warning: avoid do-while loops [cppcoreguidelines-avoid-do-while]
+  238 |     REQUIRE(fx.capturedR.size() == total);
+      |     ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:26: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                          ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:45:5: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   45 |     do { /* NOLINT(bugprone-infinite-loop) */ \
+      |     ^
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:259:5: warning: chained comparison 'v0 <= v1 == v2' may generate unintended results, use parentheses to specify order of evaluation or a logical operator to separate comparison expressions [bugprone-chained-comparison]
+  259 |     REQUIRE(fx.prepare(kRtFs, static_cast<Steinberg::int32>(kRtBlock)) == Steinberg::kResultOk);
+      |     ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:26: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:47: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                               ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:259:5: note: operand 'v0' is here
+  259 |     REQUIRE(fx.prepare(kRtFs, static_cast<Steinberg::int32>(kRtBlock)) == Steinberg::kResultOk);
+      |     ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:26: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:47: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                               ^~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:259:13: note: operand 'v1' is here
+  259 |     REQUIRE(fx.prepare(kRtFs, static_cast<Steinberg::int32>(kRtBlock)) == Steinberg::kResultOk);
+      |             ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:92: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                                                                                            ^~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:70: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                                                      ^~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:259:75: note: operand 'v2' is here
+  259 |     REQUIRE(fx.prepare(kRtFs, static_cast<Steinberg::int32>(kRtBlock)) == Steinberg::kResultOk);
+      |                                                                           ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:92: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                                                                                            ^~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:70: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                                                      ^~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:259:5: warning: avoid do-while loops [cppcoreguidelines-avoid-do-while]
+  259 |     REQUIRE(fx.prepare(kRtFs, static_cast<Steinberg::int32>(kRtBlock)) == Steinberg::kResultOk);
+      |     ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:26: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                          ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:45:5: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   45 |     do { /* NOLINT(bugprone-infinite-loop) */ \
+      |     ^
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:266:5: warning: chained comparison 'v0 <= v1 == v2' may generate unintended results, use parentheses to specify order of evaluation or a logical operator to separate comparison expressions [bugprone-chained-comparison]
+  266 |     REQUIRE(fx.capturedL.size() == kRtLoadAt);
+      |     ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:26: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:47: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                               ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:266:5: note: operand 'v0' is here
+  266 |     REQUIRE(fx.capturedL.size() == kRtLoadAt);
+      |     ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:26: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:47: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                               ^~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:266:13: note: operand 'v1' is here
+  266 |     REQUIRE(fx.capturedL.size() == kRtLoadAt);
+      |             ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:92: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                                                                                            ^~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:70: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                                                      ^~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:266:36: note: operand 'v2' is here
+  266 |     REQUIRE(fx.capturedL.size() == kRtLoadAt);
+      |                                    ^
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:266:5: warning: avoid do-while loops [cppcoreguidelines-avoid-do-while]
+  266 |     REQUIRE(fx.capturedL.size() == kRtLoadAt);
+      |     ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:26: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                          ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:45:5: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   45 |     do { /* NOLINT(bugprone-infinite-loop) */ \
+      |     ^
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:269:5: warning: chained comparison 'v0 <= v1 == v2' may generate unintended results, use parentheses to specify order of evaluation or a logical operator to separate comparison expressions [bugprone-chained-comparison]
+  269 |     REQUIRE(loadStateBytes(*fx.proc, bytes) == Steinberg::kResultOk);   // between two process() calls
+      |     ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:26: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:47: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                               ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:269:5: note: operand 'v0' is here
+  269 |     REQUIRE(loadStateBytes(*fx.proc, bytes) == Steinberg::kResultOk);   // between two process() calls
+      |     ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:26: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:47: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                               ^~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:269:13: note: operand 'v1' is here
+  269 |     REQUIRE(loadStateBytes(*fx.proc, bytes) == Steinberg::kResultOk);   // between two process() calls
+      |             ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:92: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                                                                                            ^~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:70: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                                                      ^~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:269:48: note: operand 'v2' is here
+  269 |     REQUIRE(loadStateBytes(*fx.proc, bytes) == Steinberg::kResultOk);   // between two process() calls
+      |                                                ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:92: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                                                                                            ^~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:70: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                                                      ^~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:269:5: warning: avoid do-while loops [cppcoreguidelines-avoid-do-while]
+  269 |     REQUIRE(loadStateBytes(*fx.proc, bytes) == Steinberg::kResultOk);   // between two process() calls
+      |     ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:26: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                          ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:45:5: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   45 |     do { /* NOLINT(bugprone-infinite-loop) */ \
+      |     ^
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:273:5: warning: chained comparison 'v0 <= v1 == v2' may generate unintended results, use parentheses to specify order of evaluation or a logical operator to separate comparison expressions [bugprone-chained-comparison]
+  273 |     REQUIRE(fx.capturedL.size() == total);
+      |     ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:26: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:47: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                               ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:273:5: note: operand 'v0' is here
+  273 |     REQUIRE(fx.capturedL.size() == total);
+      |     ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:26: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:47: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                               ^~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:273:13: note: operand 'v1' is here
+  273 |     REQUIRE(fx.capturedL.size() == total);
+      |             ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:92: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                                                                                            ^~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:70: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                                                      ^~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:273:36: note: operand 'v2' is here
+  273 |     REQUIRE(fx.capturedL.size() == total);
+      |                                    ^
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:273:5: warning: avoid do-while loops [cppcoreguidelines-avoid-do-while]
+  273 |     REQUIRE(fx.capturedL.size() == total);
+      |     ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:26: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                          ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:45:5: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   45 |     do { /* NOLINT(bugprone-infinite-loop) */ \
+      |     ^
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:274:5: warning: chained comparison 'v0 <= v1 == v2' may generate unintended results, use parentheses to specify order of evaluation or a logical operator to separate comparison expressions [bugprone-chained-comparison]
+  274 |     REQUIRE(fx.capturedR.size() == total);
+      |     ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:26: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:47: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                               ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:274:5: note: operand 'v0' is here
+  274 |     REQUIRE(fx.capturedR.size() == total);
+      |     ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:26: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:47: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                               ^~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:274:13: note: operand 'v1' is here
+  274 |     REQUIRE(fx.capturedR.size() == total);
+      |             ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:92: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                                                                                            ^~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:70: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                                                      ^~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:274:36: note: operand 'v2' is here
+  274 |     REQUIRE(fx.capturedR.size() == total);
+      |                                    ^
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:274:5: warning: avoid do-while loops [cppcoreguidelines-avoid-do-while]
+  274 |     REQUIRE(fx.capturedR.size() == total);
+      |     ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:26: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                          ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:45:5: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   45 |     do { /* NOLINT(bugprone-infinite-loop) */ \
+      |     ^
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:283:5: warning: chained comparison 'v0 <= v1 >= v2' may generate unintended results, use parentheses to specify order of evaluation or a logical operator to separate comparison expressions [bugprone-chained-comparison]
+  283 |     REQUIRE(a >= 1u);
+      |     ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:26: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:47: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                               ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:283:5: note: operand 'v0' is here
+  283 |     REQUIRE(a >= 1u);
+      |     ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:26: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:47: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                               ^~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:283:13: note: operand 'v1' is here
+  283 |     REQUIRE(a >= 1u);
+      |             ^
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:283:18: note: operand 'v2' is here
+  283 |     REQUIRE(a >= 1u);
+      |                  ^
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:283:5: warning: avoid do-while loops [cppcoreguidelines-avoid-do-while]
+  283 |     REQUIRE(a >= 1u);
+      |     ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:26: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                          ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:45:5: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   45 |     do { /* NOLINT(bugprone-infinite-loop) */ \
+      |     ^
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:284:5: warning: chained comparison 'v0 <= v1 <= v2' may generate unintended results, use parentheses to specify order of evaluation or a logical operator to separate comparison expressions [bugprone-chained-comparison]
+  284 |     REQUIRE(b <= r.L.size());
+      |     ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:26: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:47: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                               ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:284:5: note: operand 'v0' is here
+  284 |     REQUIRE(b <= r.L.size());
+      |     ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:26: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:47: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                               ^~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:284:13: note: operand 'v1' is here
+  284 |     REQUIRE(b <= r.L.size());
+      |             ^
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:284:18: note: operand 'v2' is here
+  284 |     REQUIRE(b <= r.L.size());
+      |                  ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:92: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                                                                                            ^~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:70: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                                                      ^~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:284:5: warning: avoid do-while loops [cppcoreguidelines-avoid-do-while]
+  284 |     REQUIRE(b <= r.L.size());
+      |     ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:26: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                          ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:45:5: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   45 |     do { /* NOLINT(bugprone-infinite-loop) */ \
+      |     ^
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:285:5: warning: chained comparison 'v0 <= v1 <= v2' may generate unintended results, use parentheses to specify order of evaluation or a logical operator to separate comparison expressions [bugprone-chained-comparison]
+  285 |     REQUIRE(b <= r.R.size());
+      |     ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:26: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:47: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                               ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:285:5: note: operand 'v0' is here
+  285 |     REQUIRE(b <= r.R.size());
+      |     ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:26: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:47: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                               ^~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:285:13: note: operand 'v1' is here
+  285 |     REQUIRE(b <= r.R.size());
+      |             ^
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:285:18: note: operand 'v2' is here
+  285 |     REQUIRE(b <= r.R.size());
+      |                  ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:92: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                                                                                            ^~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:70: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                                                      ^~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:285:5: warning: avoid do-while loops [cppcoreguidelines-avoid-do-while]
+  285 |     REQUIRE(b <= r.R.size());
+      |     ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:26: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                          ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:45:5: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   45 |     do { /* NOLINT(bugprone-infinite-loop) */ \
+      |     ^
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:334:9: warning: chained comparison 'v0 <= v1 > v2' may generate unintended results, use parentheses to specify order of evaluation or a logical operator to separate comparison expressions [bugprone-chained-comparison]
+  334 |         REQUIRE(teeth > 0u);
+      |         ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:26: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:47: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                               ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:334:9: note: operand 'v0' is here
+  334 |         REQUIRE(teeth > 0u);
+      |         ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:26: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:47: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                               ^~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:334:17: note: operand 'v1' is here
+  334 |         REQUIRE(teeth > 0u);
+      |                 ^
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:334:25: note: operand 'v2' is here
+  334 |         REQUIRE(teeth > 0u);
+      |                         ^
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:334:9: warning: avoid do-while loops [cppcoreguidelines-avoid-do-while]
+  334 |         REQUIRE(teeth > 0u);
+      |         ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:26: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                          ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:45:5: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   45 |     do { /* NOLINT(bugprone-infinite-loop) */ \
+      |     ^
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:345:9: warning: chained comparison 'v0 <= v1 == v2' may generate unintended results, use parentheses to specify order of evaluation or a logical operator to separate comparison expressions [bugprone-chained-comparison]
+  345 |         CHECK(r.processResult == Steinberg::kResultOk);
+      |         ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:132:24: note: expanded from macro 'CHECK'
+  132 |   #define CHECK( ... ) INTERNAL_CATCH_TEST( "CHECK", Catch::ResultDisposition::ContinueOnFailure, __VA_ARGS__ )
+      |                        ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:47: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                               ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:345:9: note: operand 'v0' is here
+  345 |         CHECK(r.processResult == Steinberg::kResultOk);
+      |         ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:132:24: note: expanded from macro 'CHECK'
+  132 |   #define CHECK( ... ) INTERNAL_CATCH_TEST( "CHECK", Catch::ResultDisposition::ContinueOnFailure, __VA_ARGS__ )
+      |                        ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:47: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                               ^~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:345:15: note: operand 'v1' is here
+  345 |         CHECK(r.processResult == Steinberg::kResultOk);
+      |               ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:132:99: note: expanded from macro 'CHECK'
+  132 |   #define CHECK( ... ) INTERNAL_CATCH_TEST( "CHECK", Catch::ResultDisposition::ContinueOnFailure, __VA_ARGS__ )
+      |                                                                                                   ^~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:70: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                                                      ^~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:345:34: note: operand 'v2' is here
+  345 |         CHECK(r.processResult == Steinberg::kResultOk);
+      |                                  ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:132:99: note: expanded from macro 'CHECK'
+  132 |   #define CHECK( ... ) INTERNAL_CATCH_TEST( "CHECK", Catch::ResultDisposition::ContinueOnFailure, __VA_ARGS__ )
+      |                                                                                                   ^~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:70: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                                                      ^~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:345:9: warning: avoid do-while loops [cppcoreguidelines-avoid-do-while]
+  345 |         CHECK(r.processResult == Steinberg::kResultOk);
+      |         ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:132:24: note: expanded from macro 'CHECK'
+  132 |   #define CHECK( ... ) INTERNAL_CATCH_TEST( "CHECK", Catch::ResultDisposition::ContinueOnFailure, __VA_ARGS__ )
+      |                        ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:45:5: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   45 |     do { /* NOLINT(bugprone-infinite-loop) */ \
+      |     ^
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:346:9: warning: chained comparison 'v0 <= v1 == v2' may generate unintended results, use parentheses to specify order of evaluation or a logical operator to separate comparison expressions [bugprone-chained-comparison]
+  346 |         CHECK(r.allocations == 0u);
+      |         ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:132:24: note: expanded from macro 'CHECK'
+  132 |   #define CHECK( ... ) INTERNAL_CATCH_TEST( "CHECK", Catch::ResultDisposition::ContinueOnFailure, __VA_ARGS__ )
+      |                        ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:47: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                               ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:346:9: note: operand 'v0' is here
+  346 |         CHECK(r.allocations == 0u);
+      |         ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:132:24: note: expanded from macro 'CHECK'
+  132 |   #define CHECK( ... ) INTERNAL_CATCH_TEST( "CHECK", Catch::ResultDisposition::ContinueOnFailure, __VA_ARGS__ )
+      |                        ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:47: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                               ^~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:346:15: note: operand 'v1' is here
+  346 |         CHECK(r.allocations == 0u);
+      |               ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:132:99: note: expanded from macro 'CHECK'
+  132 |   #define CHECK( ... ) INTERNAL_CATCH_TEST( "CHECK", Catch::ResultDisposition::ContinueOnFailure, __VA_ARGS__ )
+      |                                                                                                   ^~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:70: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                                                      ^~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:346:32: note: operand 'v2' is here
+  346 |         CHECK(r.allocations == 0u);
+      |                                ^
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:346:9: warning: avoid do-while loops [cppcoreguidelines-avoid-do-while]
+  346 |         CHECK(r.allocations == 0u);
+      |         ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:132:24: note: expanded from macro 'CHECK'
+  132 |   #define CHECK( ... ) INTERNAL_CATCH_TEST( "CHECK", Catch::ResultDisposition::ContinueOnFailure, __VA_ARGS__ )
+      |                        ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:45:5: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   45 |     do { /* NOLINT(bugprone-infinite-loop) */ \
+      |     ^
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:347:9: warning: chained comparison 'v0 <= v1 == v2' may generate unintended results, use parentheses to specify order of evaluation or a logical operator to separate comparison expressions [bugprone-chained-comparison]
+  347 |         CHECK(r.nonFinite == 0u);
+      |         ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:132:24: note: expanded from macro 'CHECK'
+  132 |   #define CHECK( ... ) INTERNAL_CATCH_TEST( "CHECK", Catch::ResultDisposition::ContinueOnFailure, __VA_ARGS__ )
+      |                        ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:47: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                               ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:347:9: note: operand 'v0' is here
+  347 |         CHECK(r.nonFinite == 0u);
+      |         ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:132:24: note: expanded from macro 'CHECK'
+  132 |   #define CHECK( ... ) INTERNAL_CATCH_TEST( "CHECK", Catch::ResultDisposition::ContinueOnFailure, __VA_ARGS__ )
+      |                        ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:47: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                               ^~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:347:15: note: operand 'v1' is here
+  347 |         CHECK(r.nonFinite == 0u);
+      |               ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:132:99: note: expanded from macro 'CHECK'
+  132 |   #define CHECK( ... ) INTERNAL_CATCH_TEST( "CHECK", Catch::ResultDisposition::ContinueOnFailure, __VA_ARGS__ )
+      |                                                                                                   ^~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:70: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                                                      ^~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:347:30: note: operand 'v2' is here
+  347 |         CHECK(r.nonFinite == 0u);
+      |                              ^
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:347:9: warning: avoid do-while loops [cppcoreguidelines-avoid-do-while]
+  347 |         CHECK(r.nonFinite == 0u);
+      |         ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:132:24: note: expanded from macro 'CHECK'
+  132 |   #define CHECK( ... ) INTERNAL_CATCH_TEST( "CHECK", Catch::ResultDisposition::ContinueOnFailure, __VA_ARGS__ )
+      |                        ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:45:5: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   45 |     do { /* NOLINT(bugprone-infinite-loop) */ \
+      |     ^
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:367:5: warning: avoid do-while loops [cppcoreguidelines-avoid-do-while]
+  367 |     REQUIRE(!presets.empty());
+      |     ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:26: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                          ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:45:5: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   45 |     do { /* NOLINT(bugprone-infinite-loop) */ \
+      |     ^
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:369:5: warning: chained comparison 'v0 <= v1 == v2' may generate unintended results, use parentheses to specify order of evaluation or a logical operator to separate comparison expressions [bugprone-chained-comparison]
+  369 |     REQUIRE(s0 == 544u);
+      |     ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:26: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:47: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                               ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:369:5: note: operand 'v0' is here
+  369 |     REQUIRE(s0 == 544u);
+      |     ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:26: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:47: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                               ^~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:369:13: note: operand 'v1' is here
+  369 |     REQUIRE(s0 == 544u);
+      |             ^
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:369:19: note: operand 'v2' is here
+  369 |     REQUIRE(s0 == 544u);
+      |                   ^
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:369:5: warning: avoid do-while loops [cppcoreguidelines-avoid-do-while]
+  369 |     REQUIRE(s0 == 544u);
+      |     ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:26: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                          ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:45:5: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   45 |     do { /* NOLINT(bugprone-infinite-loop) */ \
+      |     ^
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:374:9: warning: avoid do-while loops [cppcoreguidelines-avoid-do-while]
+  374 |         REQUIRE(d.ok);
+      |         ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:125:26: note: expanded from macro 'REQUIRE'
+  125 |   #define REQUIRE( ... ) INTERNAL_CATCH_TEST( "REQUIRE", Catch::ResultDisposition::Normal, __VA_ARGS__  )
+      |                          ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:45:5: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   45 |     do { /* NOLINT(bugprone-infinite-loop) */ \
+      |     ^
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:388:13: warning: chained comparison 'v0 <= v1 == v2' may generate unintended results, use parentheses to specify order of evaluation or a logical operator to separate comparison expressions [bugprone-chained-comparison]
+  388 |             CHECK(nonFinite == 0u);
+      |             ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:132:24: note: expanded from macro 'CHECK'
+  132 |   #define CHECK( ... ) INTERNAL_CATCH_TEST( "CHECK", Catch::ResultDisposition::ContinueOnFailure, __VA_ARGS__ )
+      |                        ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:47: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                               ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:388:13: note: operand 'v0' is here
+  388 |             CHECK(nonFinite == 0u);
+      |             ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:132:24: note: expanded from macro 'CHECK'
+  132 |   #define CHECK( ... ) INTERNAL_CATCH_TEST( "CHECK", Catch::ResultDisposition::ContinueOnFailure, __VA_ARGS__ )
+      |                        ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:47: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                               ^~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:388:19: note: operand 'v1' is here
+  388 |             CHECK(nonFinite == 0u);
+      |                   ^
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:388:32: note: operand 'v2' is here
+  388 |             CHECK(nonFinite == 0u);
+      |                                ^
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:388:13: warning: avoid do-while loops [cppcoreguidelines-avoid-do-while]
+  388 |             CHECK(nonFinite == 0u);
+      |             ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:132:24: note: expanded from macro 'CHECK'
+  132 |   #define CHECK( ... ) INTERNAL_CATCH_TEST( "CHECK", Catch::ResultDisposition::ContinueOnFailure, __VA_ARGS__ )
+      |                        ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:45:5: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   45 |     do { /* NOLINT(bugprone-infinite-loop) */ \
+      |     ^
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:389:13: warning: chained comparison 'v0 <= v1 <= v2' may generate unintended results, use parentheses to specify order of evaluation or a logical operator to separate comparison expressions [bugprone-chained-comparison]
+  389 |             CHECK(peak <= kRtTruePeakBarDb);
+      |             ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:132:24: note: expanded from macro 'CHECK'
+  132 |   #define CHECK( ... ) INTERNAL_CATCH_TEST( "CHECK", Catch::ResultDisposition::ContinueOnFailure, __VA_ARGS__ )
+      |                        ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:47: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                               ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:389:13: note: operand 'v0' is here
+  389 |             CHECK(peak <= kRtTruePeakBarDb);
+      |             ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:132:24: note: expanded from macro 'CHECK'
+  132 |   #define CHECK( ... ) INTERNAL_CATCH_TEST( "CHECK", Catch::ResultDisposition::ContinueOnFailure, __VA_ARGS__ )
+      |                        ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:47: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                               ^~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:389:19: note: operand 'v1' is here
+  389 |             CHECK(peak <= kRtTruePeakBarDb);
+      |                   ^
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:389:27: note: operand 'v2' is here
+  389 |             CHECK(peak <= kRtTruePeakBarDb);
+      |                           ^
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:389:13: warning: avoid do-while loops [cppcoreguidelines-avoid-do-while]
+  389 |             CHECK(peak <= kRtTruePeakBarDb);
+      |             ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:132:24: note: expanded from macro 'CHECK'
+  132 |   #define CHECK( ... ) INTERNAL_CATCH_TEST( "CHECK", Catch::ResultDisposition::ContinueOnFailure, __VA_ARGS__ )
+      |                        ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:45:5: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   45 |     do { /* NOLINT(bugprone-infinite-loop) */ \
+      |     ^
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:400:17: warning: chained comparison 'v0 <= v1 == v2' may generate unintended results, use parentheses to specify order of evaluation or a logical operator to separate comparison expressions [bugprone-chained-comparison]
+  400 |                 CHECK(differing == 0u);
+      |                 ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:132:24: note: expanded from macro 'CHECK'
+  132 |   #define CHECK( ... ) INTERNAL_CATCH_TEST( "CHECK", Catch::ResultDisposition::ContinueOnFailure, __VA_ARGS__ )
+      |                        ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:47: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                               ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:400:17: note: operand 'v0' is here
+  400 |                 CHECK(differing == 0u);
+      |                 ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:132:24: note: expanded from macro 'CHECK'
+  132 |   #define CHECK( ... ) INTERNAL_CATCH_TEST( "CHECK", Catch::ResultDisposition::ContinueOnFailure, __VA_ARGS__ )
+      |                        ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:47: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                               ^~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:400:23: note: operand 'v1' is here
+  400 |                 CHECK(differing == 0u);
+      |                       ^
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:400:36: note: operand 'v2' is here
+  400 |                 CHECK(differing == 0u);
+      |                                    ^
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:400:17: warning: avoid do-while loops [cppcoreguidelines-avoid-do-while]
+  400 |                 CHECK(differing == 0u);
+      |                 ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:132:24: note: expanded from macro 'CHECK'
+  132 |   #define CHECK( ... ) INTERNAL_CATCH_TEST( "CHECK", Catch::ResultDisposition::ContinueOnFailure, __VA_ARGS__ )
+      |                        ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:45:5: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   45 |     do { /* NOLINT(bugprone-infinite-loop) */ \
+      |     ^
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:408:5: warning: chained comparison 'v0 <= v1 <= v2' may generate unintended results, use parentheses to specify order of evaluation or a logical operator to separate comparison expressions [bugprone-chained-comparison]
+  408 |     CHECK(seconds <= kRtGuardSecondsBar);
+      |     ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:132:24: note: expanded from macro 'CHECK'
+  132 |   #define CHECK( ... ) INTERNAL_CATCH_TEST( "CHECK", Catch::ResultDisposition::ContinueOnFailure, __VA_ARGS__ )
+      |                        ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:47: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                               ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:408:5: note: operand 'v0' is here
+  408 |     CHECK(seconds <= kRtGuardSecondsBar);
+      |     ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:132:24: note: expanded from macro 'CHECK'
+  132 |   #define CHECK( ... ) INTERNAL_CATCH_TEST( "CHECK", Catch::ResultDisposition::ContinueOnFailure, __VA_ARGS__ )
+      |                        ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:47: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                               ^~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:408:11: note: operand 'v1' is here
+  408 |     CHECK(seconds <= kRtGuardSecondsBar);
+      |           ^
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:408:22: note: operand 'v2' is here
+  408 |     CHECK(seconds <= kRtGuardSecondsBar);
+      |                      ^
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:408:5: warning: avoid do-while loops [cppcoreguidelines-avoid-do-while]
+  408 |     CHECK(seconds <= kRtGuardSecondsBar);
+      |     ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:132:24: note: expanded from macro 'CHECK'
+  132 |   #define CHECK( ... ) INTERNAL_CATCH_TEST( "CHECK", Catch::ResultDisposition::ContinueOnFailure, __VA_ARGS__ )
+      |                        ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:45:5: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   45 |     do { /* NOLINT(bugprone-infinite-loop) */ \
+      |     ^
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:435:9: warning: chained comparison 'v0 <= v1 == v2' may generate unintended results, use parentheses to specify order of evaluation or a logical operator to separate comparison expressions [bugprone-chained-comparison]
+  435 |         CHECK(nonFinite == 0u);
+      |         ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:132:24: note: expanded from macro 'CHECK'
+  132 |   #define CHECK( ... ) INTERNAL_CATCH_TEST( "CHECK", Catch::ResultDisposition::ContinueOnFailure, __VA_ARGS__ )
+      |                        ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:47: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                               ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:435:9: note: operand 'v0' is here
+  435 |         CHECK(nonFinite == 0u);
+      |         ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:132:24: note: expanded from macro 'CHECK'
+  132 |   #define CHECK( ... ) INTERNAL_CATCH_TEST( "CHECK", Catch::ResultDisposition::ContinueOnFailure, __VA_ARGS__ )
+      |                        ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:52:47: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   52 |             catchAssertionHandler.handleExpr( Catch::Decomposer() <= __VA_ARGS__ ); \
+      |                                               ^~~~~~~~~~~~~~~~~~~
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:435:15: note: operand 'v1' is here
+  435 |         CHECK(nonFinite == 0u);
+      |               ^
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:435:28: note: operand 'v2' is here
+  435 |         CHECK(nonFinite == 0u);
+      |                            ^
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:435:9: warning: avoid do-while loops [cppcoreguidelines-avoid-do-while]
+  435 |         CHECK(nonFinite == 0u);
+      |         ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:132:24: note: expanded from macro 'CHECK'
+  132 |   #define CHECK( ... ) INTERNAL_CATCH_TEST( "CHECK", Catch::ResultDisposition::ContinueOnFailure, __VA_ARGS__ )
+      |                        ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:45:5: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   45 |     do { /* NOLINT(bugprone-infinite-loop) */ \
+      |     ^
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:436:9: warning: avoid do-while loops [cppcoreguidelines-avoid-do-while]
+  436 |         CHECK(g.pass);
+      |         ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:132:24: note: expanded from macro 'CHECK'
+  132 |   #define CHECK( ... ) INTERNAL_CATCH_TEST( "CHECK", Catch::ResultDisposition::ContinueOnFailure, __VA_ARGS__ )
+      |                        ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:45:5: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   45 |     do { /* NOLINT(bugprone-infinite-loop) */ \
+      |     ^
+F:\projects\iterum\plugins\profundum\tests\integration\preset_rt_test.cpp:447:13: warning: avoid do-while loops [cppcoreguidelines-avoid-do-while]
+  447 |             CHECK_FALSE(bad.pass);
+      |             ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/catch_test_macros.hpp:133:30: note: expanded from macro 'CHECK_FALSE'
+  133 |   #define CHECK_FALSE( ... ) INTERNAL_CATCH_TEST( "CHECK_FALSE", Catch::ResultDisposition::ContinueOnFailure | Catch::ResultDisposition::FalseTest, __VA_ARGS__ )
+      |                              ^
+F:\projects\iterum\build\windows-ninja\_deps\catch2-src\src\catch2\..\catch2/internal/catch_test_macro_impl.hpp:45:5: note: expanded from macro 'INTERNAL_CATCH_TEST'
+   45 |     do { /* NOLINT(bugprone-infinite-loop) */ \
+      |     ^

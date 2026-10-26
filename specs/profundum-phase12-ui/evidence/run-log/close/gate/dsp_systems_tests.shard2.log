@@ -1,0 +1,387 @@
+Filters: [profundum] ~[performance] ~[perf] ~[benchmark] ~[!benchmark] ~[long] ~[.]
+Randomness seeded to: 3601905254
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+ProfundumCore_ExcitationMixMonotonicSmoke
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_excitation_spectral_test.cpp(532)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_excitation_spectral_test.cpp(284): warning:
+  SC-001 mix sweep: smallest THD(mix 1) - THD(mix 0) 55.9513 dB (bar 20)
+
+-------------------------------------------------------------------------------
+ProfundumCore_EdgeDrivesExcitationRenderedSmoke
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_excitation_spectral_test.cpp(544)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_excitation_spectral_test.cpp(317): warning:
+  SC-002(b): smallest G(edge 1) - G(edge 0) 20.6776 dB (bar 6; plan 20.7)
+
+-------------------------------------------------------------------------------
+ProfundumCore_EdgeZeroStillExcites
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_excitation_spectral_test.cpp(550)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_excitation_spectral_test.cpp(565): warning:
+  SC-002(c) Edge 0 still excites: smallest THD(out) - THD(ref) 55.9462 dB (bar
+  20)
+
+-------------------------------------------------------------------------------
+ProfundumCore_MixIndependentOfEdge
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_excitation_spectral_test.cpp(572)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_excitation_spectral_test.cpp(620): warning:
+  SC-022(g): fs 44100 f0 41.2034 edge 0: as-written residual y(0.5) - (y(0) + y
+  (1))/2 -58.4348 dB re output (recorded; plan -53.6 ... -60.5)
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_excitation_spectral_test.cpp(620): warning:
+  SC-022(g): fs 44100 f0 41.2034 edge 1: as-written residual y(0.5) - (y(0) + y
+  (1))/2 -58.4261 dB re output (recorded; plan -53.6 ... -60.5)
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_excitation_spectral_test.cpp(620): warning:
+  SC-022(g): fs 44100 f0 65.4064 edge 0: as-written residual y(0.5) - (y(0) + y
+  (1))/2 -57.7934 dB re output (recorded; plan -53.6 ... -60.5)
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_excitation_spectral_test.cpp(620): warning:
+  SC-022(g): fs 44100 f0 65.4064 edge 1: as-written residual y(0.5) - (y(0) + y
+  (1))/2 -57.7841 dB re output (recorded; plan -53.6 ... -60.5)
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_excitation_spectral_test.cpp(620): warning:
+  SC-022(g): fs 48000 f0 41.2034 edge 0: as-written residual y(0.5) - (y(0) + y
+  (1))/2 -57.5141 dB re output (recorded; plan -53.6 ... -60.5)
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_excitation_spectral_test.cpp(620): warning:
+  SC-022(g): fs 48000 f0 41.2034 edge 1: as-written residual y(0.5) - (y(0) + y
+  (1))/2 -57.5058 dB re output (recorded; plan -53.6 ... -60.5)
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_excitation_spectral_test.cpp(620): warning:
+  SC-022(g): fs 48000 f0 65.4064 edge 0: as-written residual y(0.5) - (y(0) + y
+  (1))/2 -60.4027 dB re output (recorded; plan -53.6 ... -60.5)
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_excitation_spectral_test.cpp(620): warning:
+  SC-022(g): fs 48000 f0 65.4064 edge 1: as-written residual y(0.5) - (y(0) + y
+  (1))/2 -60.3929 dB re output (recorded; plan -53.6 ... -60.5)
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_excitation_spectral_test.cpp(620): warning:
+  SC-022(g): fs 96000 f0 41.2034 edge 0: as-written residual y(0.5) - (y(0) + y
+  (1))/2 -53.6064 dB re output (recorded; plan -53.6 ... -60.5)
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_excitation_spectral_test.cpp(620): warning:
+  SC-022(g): fs 96000 f0 41.2034 edge 1: as-written residual y(0.5) - (y(0) + y
+  (1))/2 -53.5981 dB re output (recorded; plan -53.6 ... -60.5)
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_excitation_spectral_test.cpp(620): warning:
+  SC-022(g): fs 96000 f0 65.4064 edge 0: as-written residual y(0.5) - (y(0) + y
+  (1))/2 -60.5031 dB re output (recorded; plan -53.6 ... -60.5)
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_excitation_spectral_test.cpp(620): warning:
+  SC-022(g): fs 96000 f0 65.4064 edge 1: as-written residual y(0.5) - (y(0) + y
+  (1))/2 -60.4944 dB re output (recorded; plan -53.6 ... -60.5)
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_excitation_spectral_test.cpp(624): warning:
+  SC-002(c) blend (C-9): worst residual -122.336 dB re output (bar -60; model
+  <= -300.9)
+
+-------------------------------------------------------------------------------
+ProfundumCore_ExcitationEvenHarmonicsMonotonicSmoke
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_excitation_spectral_test.cpp(635)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_excitation_spectral_test.cpp(369): warning:
+  SC-003(a): lowest E_gen(asymmetry 1) -17.5965 dB re h1 (bar -30; plan -17.6);
+  worst symmetry E_even(out) - E_even(ref) -0.218448 dB (bar 3)
+
+-------------------------------------------------------------------------------
+ProfundumCore_ExcitationTriangleTail
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_excitation_spectral_test.cpp(641)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_excitation_spectral_test.cpp(660): warning:
+  SC-003(b): smallest odd/even drop 93.524 dB (bar 20); lowest E_even -16.3314
+  dB re h1 (bar -30; plan -19.2)
+
+-------------------------------------------------------------------------------
+ProfundumCore_ExcitationDcFree
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_excitation_spectral_test.cpp(669)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_excitation_spectral_test.cpp(697): warning:
+  SC-011 (excitation): worst DC -109.966 dBFS (bar -80)
+
+-------------------------------------------------------------------------------
+ProfundumCore_ExcitationFundamentalPreservedSmoke
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_excitation_spectral_test.cpp(709)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_excitation_spectral_test.cpp(401): warning:
+  SC-012(a): worst ||T1|| 0.0693397 dB (bar 0.1; plan 0.06), worst |arg T1| 0.
+  138628 deg (bar 2; plan 0.13)
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_excitation_spectral_test.cpp(467): warning:
+  SC-012(b): worst |arg T1| 0.104852 deg where the bar is 2; kSawAnchor at
+  asymmetry > 0 14.9705 deg (bar 20; plan 15.04). SC-012(c): deepest dip below
+  the lower endpoint 0.0141659 dB (bar 0.5)
+
+-------------------------------------------------------------------------------
+ProfundumCore_ExcitationLevelLawSmoke
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_excitation_spectral_test.cpp(722)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_excitation_spectral_test.cpp(511): warning:
+  SC-020: worst level -0.524687 dB re reference (bar +-1.5; plan -0.95)
+
+  SC-005 excitation max excitation, SC-009 state, fs 48000, f0 41.2034 Hz, L 524288: -113.0 dBFS (excluded 0.036)
+  SC-005 excitation drive 1 asymmetry 0, SC-009 state, fs 48000, f0 41.2034 Hz, L 524288: -113.0 dBFS (excluded 0.036)
+  SC-005 excitation max excitation, kGrowl, fs 48000, f0 41.2034 Hz, L 524288: -113.5 dBFS (excluded 0.036)
+  SC-005 excitation drive 1 asymmetry 0, kGrowl, fs 48000, f0 41.2034 Hz, L 524288: -112.8 dBFS (excluded 0.036)
+  SC-005 excitation max excitation, kSawAnchor, fs 48000, f0 41.2034 Hz, L 524288: -126.5 dBFS (excluded 0.036)
+  SC-005 excitation drive 1 asymmetry 0, kSawAnchor, fs 48000, f0 41.2034 Hz, L 524288: -127.3 dBFS (excluded 0.036)
+  SC-005 excitation max excitation, mid grid, fs 48000, f0 41.2034 Hz, L 524288: -125.4 dBFS (excluded 0.036)
+  SC-005 excitation drive 1 asymmetry 0, mid grid, fs 48000, f0 41.2034 Hz, L 524288: -125.1 dBFS (excluded 0.036)
+  SC-005 excitation max excitation, kSineAnchor, fs 48000, f0 41.2034 Hz, L 524288: -126.5 dBFS (excluded 0.036)
+  SC-005 excitation drive 1 asymmetry 0, kSineAnchor, fs 48000, f0 41.2034 Hz, L 524288: -128.1 dBFS (excluded 0.036)
+ProfundumCore_ExcitationNoAliasing: excitation, fs 48000, MIDI 28: worst -112.8 dBFS (bar -80, plan S9.4)
+  SC-005 Fold amount 30, SC-009 state, fs 48000, f0 41.2034 Hz, L 524288: -124.1 dBFS (excluded 0.036)
+  SC-005 Fold amount 65, SC-009 state, fs 48000, f0 41.2034 Hz, L 524288: -119.9 dBFS (excluded 0.036)
+  SC-005 Fold amount 100, SC-009 state, fs 48000, f0 41.2034 Hz, L 524288: -102.4 dBFS (excluded 0.036)
+  SC-005 Fold amount 30, kGrowl, fs 48000, f0 41.2034 Hz, L 524288: -124.2 dBFS (excluded 0.036)
+  SC-005 Fold amount 65, kGrowl, fs 48000, f0 41.2034 Hz, L 524288: -120.6 dBFS (excluded 0.036)
+  SC-005 Fold amount 100, kGrowl, fs 48000, f0 41.2034 Hz, L 524288: -102.7 dBFS (excluded 0.036)
+  SC-005 Fold amount 30, kSawAnchor, fs 48000, f0 41.2034 Hz, L 524288: -126.3 dBFS (excluded 0.036)
+  SC-005 Fold amount 65, kSawAnchor, fs 48000, f0 41.2034 Hz, L 524288: -125.2 dBFS (excluded 0.036)
+  SC-005 Fold amount 100, kSawAnchor, fs 48000, f0 41.2034 Hz, L 524288: -115.9 dBFS (excluded 0.036)
+  SC-005 Fold amount 30, mid grid, fs 48000, f0 41.2034 Hz, L 524288: -126.3 dBFS (excluded 0.036)
+  SC-005 Fold amount 65, mid grid, fs 48000, f0 41.2034 Hz, L 524288: -124.1 dBFS (excluded 0.036)
+  SC-005 Fold amount 100, mid grid, fs 48000, f0 41.2034 Hz, L 524288: -113.9 dBFS (excluded 0.036)
+  SC-005 Fold amount 30, kSineAnchor, fs 48000, f0 41.2034 Hz, L 524288: -126.5 dBFS (excluded 0.036)
+  SC-005 Fold amount 65, kSineAnchor, fs 48000, f0 41.2034 Hz, L 524288: -127.2 dBFS (excluded 0.036)
+  SC-005 Fold amount 100, kSineAnchor, fs 48000, f0 41.2034 Hz, L 524288: -119.7 dBFS (excluded 0.036)
+HarmonicFold_NoAliasing: Fold, fs 48000, MIDI 28: worst -102.4 dBFS (bar -80, plan S9.4)
+  SC-005 chain max excitation -> Fold 100, SC-009 state, fs 48000, f0 41.2034 Hz, L 524288: -98.3 dBFS (excluded 0.036)
+  SC-005 chain max excitation -> Fold 100, kGrowl, fs 48000, f0 41.2034 Hz, L 524288: -98.5 dBFS (excluded 0.036)
+  SC-005 chain max excitation -> Fold 100, kSawAnchor, fs 48000, f0 41.2034 Hz, L 524288: -112.3 dBFS (excluded 0.036)
+  SC-005 chain max excitation -> Fold 100, mid grid, fs 48000, f0 41.2034 Hz, L 524288: -110.2 dBFS (excluded 0.036)
+  SC-005 chain max excitation -> Fold 100, kSineAnchor, fs 48000, f0 41.2034 Hz, L 524288: -118.0 dBFS (excluded 0.036)
+ProfundumEdgeFold_ChainNoAliasing: chain, fs 48000, MIDI 28: worst -98.3 dBFS (bar -80, plan S9.4)
+ProfundumEdgeFold_AliasGatePositiveControl: naive tanh(3.981·x/P) on the SC-009 state, E1/48 kHz: -36.4 dBFS (must read > -80, plan -48.0)
+HarmonicFold_TransparentAtZeroCoreInput: worst residual -3000.0 dB (bar -90); 72 of 72 channels bit-exact (expected all)
+HarmonicFold_DcFreeOnExcitationOutput: worst DC -93.3 dBFS (bar -80)
+ProfundumEdgeFold_ChainDcFree: worst DC -93.3 dBFS (bar -80)
+HarmonicFold_FundamentalPreservedCoreInput: worst |angle T1| 1.581 deg (bar 5), min |T1| -0.02 dB below 65 (bar -6), -6.33 dB on [65, 100] (bar -12)
+ProfundumCore_ExcitationMonoSum: worst inter-channel h1 0.467 deg at asymmetry 0 (bar 2), 9.516 deg at asymmetry 1 (bar 15, plan 9.36); worst mono-sum power 0.131 dB (bar 0.5)
+HarmonicFold_MonoSum (c-i) MIDI 28, mid grid, mix 0: Fold-added inter-channel h1 -1.696 deg (bar 2, plan worst 1.89)
+SC-022(h) HarmonicFold_MonoSum MIDI 28, mid grid, max excitation asymmetry 0: inter-channel h1 in -0.47 -> out -16.18 deg, L/R h1 imbalance out -21.70 dB (in -3.07), (L+R)/2 re coherent sum -0.024 dB (bar 0.5, plan worst 0.16)
+SC-022(h) HarmonicFold_MonoSum MIDI 28, mid grid, max excitation asymmetry 1: inter-channel h1 in 8.98 -> out 9.36 deg, L/R h1 imbalance out -17.74 dB (in -2.42), (L+R)/2 re coherent sum -0.012 dB (bar 0.5, plan worst 0.16)
+HarmonicFold_MonoSum (c-i) MIDI 28, kSawAnchor, mix 0: Fold-added inter-channel h1 0.138 deg (bar 2, plan worst 1.89)
+SC-022(h) HarmonicFold_MonoSum MIDI 28, kSawAnchor, max excitation asymmetry 0: inter-channel h1 in 0.09 -> out -3.84 deg, L/R h1 imbalance out 1.87 dB (in 0.66), (L+R)/2 re coherent sum -0.005 dB (bar 0.5, plan worst 0.16)
+SC-022(h) HarmonicFold_MonoSum MIDI 28, kSawAnchor, max excitation asymmetry 1: inter-channel h1 in 6.22 -> out 21.80 deg, L/R h1 imbalance out 2.90 dB (in 0.08), (L+R)/2 re coherent sum -0.154 dB (bar 0.5, plan worst 0.16)
+HarmonicFold_MonoSum (c-i) MIDI 36, mid grid, mix 0: Fold-added inter-channel h1 0.759 deg (bar 2, plan worst 1.89)
+SC-022(h) HarmonicFold_MonoSum MIDI 36, mid grid, max excitation asymmetry 0: inter-channel h1 in 0.21 -> out -20.30 deg, L/R h1 imbalance out -20.85 dB (in -3.06), (L+R)/2 re coherent sum -0.041 dB (bar 0.5, plan worst 0.16)
+SC-022(h) HarmonicFold_MonoSum MIDI 36, mid grid, max excitation asymmetry 1: inter-channel h1 in 9.52 -> out 4.44 deg, L/R h1 imbalance out -17.66 dB (in -2.37), (L+R)/2 re coherent sum -0.003 dB (bar 0.5, plan worst 0.16)
+HarmonicFold_MonoSum (c-i) MIDI 36, kSawAnchor, mix 0: Fold-added inter-channel h1 -0.065 deg (bar 2, plan worst 1.89)
+SC-022(h) HarmonicFold_MonoSum MIDI 36, kSawAnchor, max excitation asymmetry 0: inter-channel h1 in -0.04 -> out -5.01 deg, L/R h1 imbalance out 1.63 dB (in 0.66), (L+R)/2 re coherent sum -0.008 dB (bar 0.5, plan worst 0.16)
+SC-022(h) HarmonicFold_MonoSum MIDI 36, kSawAnchor, max excitation asymmetry 1: inter-channel h1 in 6.22 -> out 19.39 deg, L/R h1 imbalance out 2.88 dB (in 0.11), (L+R)/2 re coherent sum -0.121 dB (bar 0.5, plan worst 0.16)
+HarmonicFold_MonoSum: worst Fold-added phase 1.696 deg (bar 2), worst coherent-sum loss 0.154 dB (bar 0.5)
+  SC-005 excitation max excitation, SC-009 state, fs 48000, f0 41.2034 Hz, L 524288: -113.0 dBFS (excluded 0.036)
+  SC-005 excitation drive 1 asymmetry 0, SC-009 state, fs 48000, f0 41.2034 Hz, L 524288: -113.0 dBFS (excluded 0.036)
+  SC-005 excitation max excitation, kGrowl, fs 48000, f0 41.2034 Hz, L 524288: -113.5 dBFS (excluded 0.036)
+  SC-005 excitation drive 1 asymmetry 0, kGrowl, fs 48000, f0 41.2034 Hz, L 524288: -112.8 dBFS (excluded 0.036)
+  SC-005 excitation max excitation, kSawAnchor, fs 48000, f0 41.2034 Hz, L 524288: -126.5 dBFS (excluded 0.036)
+  SC-005 excitation drive 1 asymmetry 0, kSawAnchor, fs 48000, f0 41.2034 Hz, L 524288: -127.3 dBFS (excluded 0.036)
+  SC-005 excitation max excitation, mid grid, fs 48000, f0 41.2034 Hz, L 524288: -125.4 dBFS (excluded 0.036)
+  SC-005 excitation drive 1 asymmetry 0, mid grid, fs 48000, f0 41.2034 Hz, L 524288: -125.1 dBFS (excluded 0.036)
+  SC-005 excitation max excitation, kSineAnchor, fs 48000, f0 41.2034 Hz, L 524288: -126.5 dBFS (excluded 0.036)
+  SC-005 excitation drive 1 asymmetry 0, kSineAnchor, fs 48000, f0 41.2034 Hz, L 524288: -128.1 dBFS (excluded 0.036)
+ProfundumEdgeFold_SampleRateChange fs 48000: SC-005 E1 excitation worst -112.8 dBFS (bar -80)
+  SC-005 Fold amount 30, SC-009 state, fs 48000, f0 41.2034 Hz, L 524288: -124.1 dBFS (excluded 0.036)
+  SC-005 Fold amount 65, SC-009 state, fs 48000, f0 41.2034 Hz, L 524288: -119.9 dBFS (excluded 0.036)
+  SC-005 Fold amount 100, SC-009 state, fs 48000, f0 41.2034 Hz, L 524288: -102.4 dBFS (excluded 0.036)
+  SC-005 Fold amount 30, kGrowl, fs 48000, f0 41.2034 Hz, L 524288: -124.2 dBFS (excluded 0.036)
+  SC-005 Fold amount 65, kGrowl, fs 48000, f0 41.2034 Hz, L 524288: -120.6 dBFS (excluded 0.036)
+  SC-005 Fold amount 100, kGrowl, fs 48000, f0 41.2034 Hz, L 524288: -102.7 dBFS (excluded 0.036)
+  SC-005 Fold amount 30, kSawAnchor, fs 48000, f0 41.2034 Hz, L 524288: -126.3 dBFS (excluded 0.036)
+  SC-005 Fold amount 65, kSawAnchor, fs 48000, f0 41.2034 Hz, L 524288: -125.2 dBFS (excluded 0.036)
+  SC-005 Fold amount 100, kSawAnchor, fs 48000, f0 41.2034 Hz, L 524288: -115.9 dBFS (excluded 0.036)
+  SC-005 Fold amount 30, mid grid, fs 48000, f0 41.2034 Hz, L 524288: -126.3 dBFS (excluded 0.036)
+  SC-005 Fold amount 65, mid grid, fs 48000, f0 41.2034 Hz, L 524288: -124.1 dBFS (excluded 0.036)
+  SC-005 Fold amount 100, mid grid, fs 48000, f0 41.2034 Hz, L 524288: -113.9 dBFS (excluded 0.036)
+  SC-005 Fold amount 30, kSineAnchor, fs 48000, f0 41.2034 Hz, L 524288: -126.5 dBFS (excluded 0.036)
+  SC-005 Fold amount 65, kSineAnchor, fs 48000, f0 41.2034 Hz, L 524288: -127.2 dBFS (excluded 0.036)
+  SC-005 Fold amount 100, kSineAnchor, fs 48000, f0 41.2034 Hz, L 524288: -119.7 dBFS (excluded 0.036)
+ProfundumEdgeFold_SampleRateChange fs 48000: SC-005 E1 Fold worst -102.4 dBFS (bar -80)
+  SC-005 chain max excitation -> Fold 100, SC-009 state, fs 48000, f0 41.2034 Hz, L 524288: -98.3 dBFS (excluded 0.036)
+  SC-005 chain max excitation -> Fold 100, kGrowl, fs 48000, f0 41.2034 Hz, L 524288: -98.5 dBFS (excluded 0.036)
+  SC-005 chain max excitation -> Fold 100, kSawAnchor, fs 48000, f0 41.2034 Hz, L 524288: -112.3 dBFS (excluded 0.036)
+  SC-005 chain max excitation -> Fold 100, mid grid, fs 48000, f0 41.2034 Hz, L 524288: -110.2 dBFS (excluded 0.036)
+  SC-005 chain max excitation -> Fold 100, kSineAnchor, fs 48000, f0 41.2034 Hz, L 524288: -118.0 dBFS (excluded 0.036)
+ProfundumEdgeFold_SampleRateChange fs 48000: SC-005 E1 chain worst -98.3 dBFS (bar -80)
+ProfundumEdgeFold_SampleRateChange fs 48000: SC-012(a) worst ||T1|| 0.0603 dB (bar 0.1), |angle| 0.1237 deg (bar 2)
+  SC-005 excitation max excitation, SC-009 state, fs 96000, f0 41.2034 Hz, L 524288: -119.1 dBFS (excluded 0.071)
+  SC-005 excitation drive 1 asymmetry 0, SC-009 state, fs 96000, f0 41.2034 Hz, L 524288: -117.4 dBFS (excluded 0.071)
+  SC-005 excitation max excitation, kGrowl, fs 96000, f0 41.2034 Hz, L 524288: -119.3 dBFS (excluded 0.071)
+  SC-005 excitation drive 1 asymmetry 0, kGrowl, fs 96000, f0 41.2034 Hz, L 524288: -117.7 dBFS (excluded 0.071)
+  SC-005 excitation max excitation, kSawAnchor, fs 96000, f0 41.2034 Hz, L 524288: -122.3 dBFS (excluded 0.071)
+  SC-005 excitation drive 1 asymmetry 0, kSawAnchor, fs 96000, f0 41.2034 Hz, L 524288: -124.1 dBFS (excluded 0.071)
+  SC-005 excitation max excitation, mid grid, fs 96000, f0 41.2034 Hz, L 524288: -122.8 dBFS (excluded 0.071)
+  SC-005 excitation drive 1 asymmetry 0, mid grid, fs 96000, f0 41.2034 Hz, L 524288: -122.2 dBFS (excluded 0.071)
+  SC-005 excitation max excitation, kSineAnchor, fs 96000, f0 41.2034 Hz, L 524288: -122.5 dBFS (excluded 0.071)
+  SC-005 excitation drive 1 asymmetry 0, kSineAnchor, fs 96000, f0 41.2034 Hz, L 524288: -125.1 dBFS (excluded 0.071)
+ProfundumEdgeFold_SampleRateChange fs 96000: SC-005 E1 excitation worst -117.4 dBFS (bar -80)
+  SC-005 Fold amount 30, SC-009 state, fs 96000, f0 41.2034 Hz, L 524288: -124.7 dBFS (excluded 0.071)
+  SC-005 Fold amount 65, SC-009 state, fs 96000, f0 41.2034 Hz, L 524288: -119.7 dBFS (excluded 0.071)
+  SC-005 Fold amount 100, SC-009 state, fs 96000, f0 41.2034 Hz, L 524288: -106.8 dBFS (excluded 0.071)
+  SC-005 Fold amount 30, kGrowl, fs 96000, f0 41.2034 Hz, L 524288: -124.5 dBFS (excluded 0.071)
+  SC-005 Fold amount 65, kGrowl, fs 96000, f0 41.2034 Hz, L 524288: -120.9 dBFS (excluded 0.071)
+  SC-005 Fold amount 100, kGrowl, fs 96000, f0 41.2034 Hz, L 524288: -107.1 dBFS (excluded 0.071)
+  SC-005 Fold amount 30, kSawAnchor, fs 96000, f0 41.2034 Hz, L 524288: -122.9 dBFS (excluded 0.071)
+  SC-005 Fold amount 65, kSawAnchor, fs 96000, f0 41.2034 Hz, L 524288: -121.1 dBFS (excluded 0.071)
+  SC-005 Fold amount 100, kSawAnchor, fs 96000, f0 41.2034 Hz, L 524288: -114.4 dBFS (excluded 0.071)
+  SC-005 Fold amount 30, mid grid, fs 96000, f0 41.2034 Hz, L 524288: -124.2 dBFS (excluded 0.071)
+  SC-005 Fold amount 65, mid grid, fs 96000, f0 41.2034 Hz, L 524288: -121.9 dBFS (excluded 0.071)
+  SC-005 Fold amount 100, mid grid, fs 96000, f0 41.2034 Hz, L 524288: -110.6 dBFS (excluded 0.071)
+  SC-005 Fold amount 30, kSineAnchor, fs 96000, f0 41.2034 Hz, L 524288: -122.1 dBFS (excluded 0.071)
+  SC-005 Fold amount 65, kSineAnchor, fs 96000, f0 41.2034 Hz, L 524288: -125.1 dBFS (excluded 0.071)
+  SC-005 Fold amount 100, kSineAnchor, fs 96000, f0 41.2034 Hz, L 524288: -120.9 dBFS (excluded 0.071)
+ProfundumEdgeFold_SampleRateChange fs 96000: SC-005 E1 Fold worst -106.8 dBFS (bar -80)
+  SC-005 chain max excitation -> Fold 100, SC-009 state, fs 96000, f0 41.2034 Hz, L 524288: -101.2 dBFS (excluded 0.071)
+  SC-005 chain max excitation -> Fold 100, kGrowl, fs 96000, f0 41.2034 Hz, L 524288: -101.3 dBFS (excluded 0.071)
+  SC-005 chain max excitation -> Fold 100, kSawAnchor, fs 96000, f0 41.2034 Hz, L 524288: -113.3 dBFS (excluded 0.071)
+  SC-005 chain max excitation -> Fold 100, mid grid, fs 96000, f0 41.2034 Hz, L 524288: -108.4 dBFS (excluded 0.071)
+  SC-005 chain max excitation -> Fold 100, kSineAnchor, fs 96000, f0 41.2034 Hz, L 524288: -118.7 dBFS (excluded 0.071)
+ProfundumEdgeFold_SampleRateChange fs 96000: SC-005 E1 chain worst -101.2 dBFS (bar -80)
+ProfundumEdgeFold_SampleRateChange fs 96000: SC-012(a) worst ||T1|| 0.0484 dB (bar 0.1), |angle| 0.0430 deg (bar 2)
+  SC-005 excitation max excitation, SC-009 state, fs 44100, f0 41.2034 Hz, L 262144: -111.6 dBFS (excluded 0.065)
+  SC-005 excitation drive 1 asymmetry 0, SC-009 state, fs 44100, f0 41.2034 Hz, L 262144: -111.3 dBFS (excluded 0.065)
+  SC-005 excitation max excitation, kGrowl, fs 44100, f0 41.2034 Hz, L 262144: -111.6 dBFS (excluded 0.065)
+  SC-005 excitation drive 1 asymmetry 0, kGrowl, fs 44100, f0 41.2034 Hz, L 262144: -111.4 dBFS (excluded 0.065)
+  SC-005 excitation max excitation, kSawAnchor, fs 44100, f0 41.2034 Hz, L 262144: -129.6 dBFS (excluded 0.065)
+  SC-005 excitation drive 1 asymmetry 0, kSawAnchor, fs 44100, f0 41.2034 Hz, L 262144: -129.7 dBFS (excluded 0.065)
+  SC-005 excitation max excitation, mid grid, fs 44100, f0 41.2034 Hz, L 262144: -128.3 dBFS (excluded 0.065)
+  SC-005 excitation drive 1 asymmetry 0, mid grid, fs 44100, f0 41.2034 Hz, L 262144: -128.2 dBFS (excluded 0.065)
+  SC-005 excitation max excitation, kSineAnchor, fs 44100, f0 41.2034 Hz, L 262144: -129.8 dBFS (excluded 0.065)
+  SC-005 excitation drive 1 asymmetry 0, kSineAnchor, fs 44100, f0 41.2034 Hz, L 262144: -131.6 dBFS (excluded 0.065)
+ProfundumEdgeFold_SampleRateChange fs 44100: SC-005 E1 excitation worst -111.3 dBFS (bar -80)
+  SC-005 Fold amount 30, SC-009 state, fs 44100, f0 41.2034 Hz, L 262144: -126.6 dBFS (excluded 0.065)
+  SC-005 Fold amount 65, SC-009 state, fs 44100, f0 41.2034 Hz, L 262144: -122.7 dBFS (excluded 0.065)
+  SC-005 Fold amount 100, SC-009 state, fs 44100, f0 41.2034 Hz, L 262144: -102.3 dBFS (excluded 0.065)
+  SC-005 Fold amount 30, kGrowl, fs 44100, f0 41.2034 Hz, L 262144: -126.6 dBFS (excluded 0.065)
+  SC-005 Fold amount 65, kGrowl, fs 44100, f0 41.2034 Hz, L 262144: -122.9 dBFS (excluded 0.065)
+  SC-005 Fold amount 100, kGrowl, fs 44100, f0 41.2034 Hz, L 262144: -102.5 dBFS (excluded 0.065)
+  SC-005 Fold amount 30, kSawAnchor, fs 44100, f0 41.2034 Hz, L 262144: -129.0 dBFS (excluded 0.065)
+  SC-005 Fold amount 65, kSawAnchor, fs 44100, f0 41.2034 Hz, L 262144: -127.5 dBFS (excluded 0.065)
+  SC-005 Fold amount 100, kSawAnchor, fs 44100, f0 41.2034 Hz, L 262144: -116.4 dBFS (excluded 0.065)
+  SC-005 Fold amount 30, mid grid, fs 44100, f0 41.2034 Hz, L 262144: -129.3 dBFS (excluded 0.065)
+  SC-005 Fold amount 65, mid grid, fs 44100, f0 41.2034 Hz, L 262144: -127.3 dBFS (excluded 0.065)
+  SC-005 Fold amount 100, mid grid, fs 44100, f0 41.2034 Hz, L 262144: -117.1 dBFS (excluded 0.065)
+  SC-005 Fold amount 30, kSineAnchor, fs 44100, f0 41.2034 Hz, L 262144: -129.6 dBFS (excluded 0.065)
+  SC-005 Fold amount 65, kSineAnchor, fs 44100, f0 41.2034 Hz, L 262144: -131.2 dBFS (excluded 0.065)
+  SC-005 Fold amount 100, kSineAnchor, fs 44100, f0 41.2034 Hz, L 262144: -123.8 dBFS (excluded 0.065)
+ProfundumEdgeFold_SampleRateChange fs 44100: SC-005 E1 Fold worst -102.3 dBFS (bar -80)
+  SC-005 chain max excitation -> Fold 100, SC-009 state, fs 44100, f0 41.2034 Hz, L 262144: -99.5 dBFS (excluded 0.065)
+  SC-005 chain max excitation -> Fold 100, kGrowl, fs 44100, f0 41.2034 Hz, L 262144: -98.8 dBFS (excluded 0.065)
+  SC-005 chain max excitation -> Fold 100, kSawAnchor, fs 44100, f0 41.2034 Hz, L 262144: -112.5 dBFS (excluded 0.065)
+  SC-005 chain max excitation -> Fold 100, mid grid, fs 44100, f0 41.2034 Hz, L 262144: -111.8 dBFS (excluded 0.065)
+  SC-005 chain max excitation -> Fold 100, kSineAnchor, fs 44100, f0 41.2034 Hz, L 262144: -122.4 dBFS (excluded 0.065)
+ProfundumEdgeFold_SampleRateChange fs 44100: SC-005 E1 chain worst -98.8 dBFS (bar -80)
+ProfundumEdgeFold_SampleRateChange fs 44100: SC-012(a) worst ||T1|| 0.0693 dB (bar 0.1), |angle| 0.1386 deg (bar 2)
+ProfundumCore_ExcitationOutputBoundedSmoke: worst excitation pre-ceiling peak 0.650 (MIDI 28; ceiling 6.0, plan <= 1.42), worst Fold pre-ceiling peak 0.828 (MIDI 28; ceiling 6.0, plan <= 2.40)
+  SC-005 excitation max excitation, SC-009 state, fs 22050, f0 41.2034 Hz, L 65536: -93.6 dBFS (excluded 0.131)
+  SC-005 excitation drive 1 asymmetry 0, SC-009 state, fs 22050, f0 41.2034 Hz, L 65536: -93.6 dBFS (excluded 0.131)
+  SC-005 excitation max excitation, kGrowl, fs 22050, f0 41.2034 Hz, L 65536: -93.7 dBFS (excluded 0.131)
+  SC-005 excitation drive 1 asymmetry 0, kGrowl, fs 22050, f0 41.2034 Hz, L 65536: -93.7 dBFS (excluded 0.131)
+  SC-005 excitation max excitation, kSawAnchor, fs 22050, f0 41.2034 Hz, L 65536: -135.2 dBFS (excluded 0.131)
+  SC-005 excitation drive 1 asymmetry 0, kSawAnchor, fs 22050, f0 41.2034 Hz, L 65536: -135.9 dBFS (excluded 0.131)
+  SC-005 excitation max excitation, mid grid, fs 22050, f0 41.2034 Hz, L 65536: -133.7 dBFS (excluded 0.131)
+  SC-005 excitation drive 1 asymmetry 0, mid grid, fs 22050, f0 41.2034 Hz, L 65536: -132.8 dBFS (excluded 0.131)
+  SC-005 excitation max excitation, kSineAnchor, fs 22050, f0 41.2034 Hz, L 65536: -138.4 dBFS (excluded 0.131)
+  SC-005 excitation drive 1 asymmetry 0, kSineAnchor, fs 22050, f0 41.2034 Hz, L 65536: -140.0 dBFS (excluded 0.131)
+SC-022(b) ProfundumEdgeFold_RecordedAliasingRateExtremes: excitation, fs 22050, MIDI 28: worst -93.6 dBFS (recorded)
+  SC-005 Fold amount 30, SC-009 state, fs 22050, f0 41.2034 Hz, L 65536: -119.4 dBFS (excluded 0.131)
+  SC-005 Fold amount 65, SC-009 state, fs 22050, f0 41.2034 Hz, L 65536: -124.9 dBFS (excluded 0.131)
+  SC-005 Fold amount 100, SC-009 state, fs 22050, f0 41.2034 Hz, L 65536: -99.1 dBFS (excluded 0.131)
+  SC-005 Fold amount 30, kGrowl, fs 22050, f0 41.2034 Hz, L 65536: -119.8 dBFS (excluded 0.131)
+  SC-005 Fold amount 65, kGrowl, fs 22050, f0 41.2034 Hz, L 65536: -123.9 dBFS (excluded 0.131)
+  SC-005 Fold amount 100, kGrowl, fs 22050, f0 41.2034 Hz, L 65536: -97.8 dBFS (excluded 0.131)
+  SC-005 Fold amount 30, kSawAnchor, fs 22050, f0 41.2034 Hz, L 65536: -135.4 dBFS (excluded 0.131)
+  SC-005 Fold amount 65, kSawAnchor, fs 22050, f0 41.2034 Hz, L 65536: -130.3 dBFS (excluded 0.131)
+  SC-005 Fold amount 100, kSawAnchor, fs 22050, f0 41.2034 Hz, L 65536: -107.9 dBFS (excluded 0.131)
+  SC-005 Fold amount 30, mid grid, fs 22050, f0 41.2034 Hz, L 65536: -134.9 dBFS (excluded 0.131)
+  SC-005 Fold amount 65, mid grid, fs 22050, f0 41.2034 Hz, L 65536: -131.9 dBFS (excluded 0.131)
+  SC-005 Fold amount 100, mid grid, fs 22050, f0 41.2034 Hz, L 65536: -112.0 dBFS (excluded 0.131)
+  SC-005 Fold amount 30, kSineAnchor, fs 22050, f0 41.2034 Hz, L 65536: -138.3 dBFS (excluded 0.131)
+  SC-005 Fold amount 65, kSineAnchor, fs 22050, f0 41.2034 Hz, L 65536: -139.8 dBFS (excluded 0.131)
+  SC-005 Fold amount 100, kSineAnchor, fs 22050, f0 41.2034 Hz, L 65536: -132.4 dBFS (excluded 0.131)
+SC-022(b) ProfundumEdgeFold_RecordedAliasingRateExtremes: Fold, fs 22050, MIDI 28: worst -97.8 dBFS (recorded)
+  SC-005 chain max excitation -> Fold 100, SC-009 state, fs 22050, f0 41.2034 Hz, L 65536: -88.8 dBFS (excluded 0.131)
+  SC-005 chain max excitation -> Fold 100, kGrowl, fs 22050, f0 41.2034 Hz, L 65536: -87.7 dBFS (excluded 0.131)
+  SC-005 chain max excitation -> Fold 100, kSawAnchor, fs 22050, f0 41.2034 Hz, L 65536: -105.5 dBFS (excluded 0.131)
+  SC-005 chain max excitation -> Fold 100, mid grid, fs 22050, f0 41.2034 Hz, L 65536: -108.3 dBFS (excluded 0.131)
+  SC-005 chain max excitation -> Fold 100, kSineAnchor, fs 22050, f0 41.2034 Hz, L 65536: -130.4 dBFS (excluded 0.131)
+SC-022(b) ProfundumEdgeFold_RecordedAliasingRateExtremes: chain, fs 22050, MIDI 28: worst -87.7 dBFS (recorded)
+  SC-005 excitation max excitation, SC-009 state, fs 192000, f0 41.2034 Hz, L 524288: -120.1 dBFS (excluded 0.142)
+  SC-005 excitation drive 1 asymmetry 0, SC-009 state, fs 192000, f0 41.2034 Hz, L 524288: -118.2 dBFS (excluded 0.142)
+  SC-005 excitation max excitation, kGrowl, fs 192000, f0 41.2034 Hz, L 524288: -120.3 dBFS (excluded 0.142)
+  SC-005 excitation drive 1 asymmetry 0, kGrowl, fs 192000, f0 41.2034 Hz, L 524288: -118.4 dBFS (excluded 0.142)
+  SC-005 excitation max excitation, kSawAnchor, fs 192000, f0 41.2034 Hz, L 524288: -124.7 dBFS (excluded 0.142)
+  SC-005 excitation drive 1 asymmetry 0, kSawAnchor, fs 192000, f0 41.2034 Hz, L 524288: -125.8 dBFS (excluded 0.142)
+  SC-005 excitation max excitation, mid grid, fs 192000, f0 41.2034 Hz, L 524288: -125.3 dBFS (excluded 0.142)
+  SC-005 excitation drive 1 asymmetry 0, mid grid, fs 192000, f0 41.2034 Hz, L 524288: -126.0 dBFS (excluded 0.142)
+  SC-005 excitation max excitation, kSineAnchor, fs 192000, f0 41.2034 Hz, L 524288: -126.1 dBFS (excluded 0.142)
+  SC-005 excitation drive 1 asymmetry 0, kSineAnchor, fs 192000, f0 41.2034 Hz, L 524288: -127.5 dBFS (excluded 0.142)
+SC-022(b) ProfundumEdgeFold_RecordedAliasingRateExtremes: excitation, fs 192000, MIDI 28: worst -118.2 dBFS (recorded)
+  SC-005 Fold amount 30, SC-009 state, fs 192000, f0 41.2034 Hz, L 524288: -125.7 dBFS (excluded 0.142)
+  SC-005 Fold amount 65, SC-009 state, fs 192000, f0 41.2034 Hz, L 524288: -121.1 dBFS (excluded 0.142)
+  SC-005 Fold amount 100, SC-009 state, fs 192000, f0 41.2034 Hz, L 524288: -107.3 dBFS (excluded 0.142)
+  SC-005 Fold amount 30, kGrowl, fs 192000, f0 41.2034 Hz, L 524288: -125.3 dBFS (excluded 0.142)
+  SC-005 Fold amount 65, kGrowl, fs 192000, f0 41.2034 Hz, L 524288: -121.4 dBFS (excluded 0.142)
+  SC-005 Fold amount 100, kGrowl, fs 192000, f0 41.2034 Hz, L 524288: -107.4 dBFS (excluded 0.142)
+  SC-005 Fold amount 30, kSawAnchor, fs 192000, f0 41.2034 Hz, L 524288: -124.6 dBFS (excluded 0.142)
+  SC-005 Fold amount 65, kSawAnchor, fs 192000, f0 41.2034 Hz, L 524288: -123.0 dBFS (excluded 0.142)
+  SC-005 Fold amount 100, kSawAnchor, fs 192000, f0 41.2034 Hz, L 524288: -115.0 dBFS (excluded 0.142)
+  SC-005 Fold amount 30, mid grid, fs 192000, f0 41.2034 Hz, L 524288: -126.3 dBFS (excluded 0.142)
+  SC-005 Fold amount 65, mid grid, fs 192000, f0 41.2034 Hz, L 524288: -124.6 dBFS (excluded 0.142)
+  SC-005 Fold amount 100, mid grid, fs 192000, f0 41.2034 Hz, L 524288: -114.9 dBFS (excluded 0.142)
+  SC-005 Fold amount 30, kSineAnchor, fs 192000, f0 41.2034 Hz, L 524288: -126.8 dBFS (excluded 0.142)
+  SC-005 Fold amount 65, kSineAnchor, fs 192000, f0 41.2034 Hz, L 524288: -126.7 dBFS (excluded 0.142)
+  SC-005 Fold amount 100, kSineAnchor, fs 192000, f0 41.2034 Hz, L 524288: -118.2 dBFS (excluded 0.142)
+SC-022(b) ProfundumEdgeFold_RecordedAliasingRateExtremes: Fold, fs 192000, MIDI 28: worst -107.3 dBFS (recorded)
+  SC-005 chain max excitation -> Fold 100, SC-009 state, fs 192000, f0 41.2034 Hz, L 524288: -71.5 dBFS (excluded 0.142)
+  SC-005 chain max excitation -> Fold 100, kGrowl, fs 192000, f0 41.2034 Hz, L 524288: -71.1 dBFS (excluded 0.142)
+  SC-005 chain max excitation -> Fold 100, kSawAnchor, fs 192000, f0 41.2034 Hz, L 524288: -111.8 dBFS (excluded 0.142)
+  SC-005 chain max excitation -> Fold 100, mid grid, fs 192000, f0 41.2034 Hz, L 524288: -112.6 dBFS (excluded 0.142)
+  SC-005 chain max excitation -> Fold 100, kSineAnchor, fs 192000, f0 41.2034 Hz, L 524288: -116.5 dBFS (excluded 0.142)
+SC-022(b) ProfundumEdgeFold_RecordedAliasingRateExtremes: chain, fs 192000, MIDI 28: worst -71.1 dBFS (recorded)
+SC-022(c) ProfundumCore_ExcitationRecordedPhaseAt8Hz kSineAnchor, 48 kHz: |T1| -0.0424 dB, angle T1 -0.073 deg
+SC-022(c) ProfundumCore_ExcitationRecordedPhaseAt8Hz mid grid, 48 kHz: |T1| -0.0344 dB, angle T1 -0.061 deg
+SC-022(c) ProfundumCore_ExcitationRecordedPhaseAt8Hz kSawAnchor, 48 kHz: |T1| -0.0416 dB, angle T1 -0.072 deg
+SC-022(e) ProfundumCore_ExcitationRecordedAsymmetryPhase MIDI 28, SC-009 state, max excitation: angle T1 -73.79 deg, |T1| 17.21 dB
+SC-022(e) ProfundumCore_ExcitationRecordedAsymmetryPhase MIDI 28, kGrowl, max excitation: angle T1 -93.09 deg, |T1| 18.25 dB
+SC-022(e) ProfundumCore_ExcitationRecordedAsymmetryPhase MIDI 28, kSawAnchor, max excitation: angle T1 -14.83 deg, |T1| 0.33 dB
+SC-022(e) ProfundumCore_ExcitationRecordedAsymmetryPhase MIDI 28, mid grid, max excitation: angle T1 -10.12 deg, |T1| -0.13 dB
+SC-022(e) ProfundumCore_ExcitationRecordedAsymmetryPhase MIDI 28, kSineAnchor, max excitation: angle T1 -0.04 deg, |T1| -0.18 dB
+SC-022(e) ProfundumCore_ExcitationRecordedAsymmetryPhase MIDI 36, SC-009 state, max excitation: angle T1 -75.64 deg, |T1| 17.20 dB
+SC-022(e) ProfundumCore_ExcitationRecordedAsymmetryPhase MIDI 36, kGrowl, max excitation: angle T1 -95.00 deg, |T1| 18.25 dB
+SC-022(e) ProfundumCore_ExcitationRecordedAsymmetryPhase MIDI 36, kSawAnchor, max excitation: angle T1 -14.97 deg, |T1| 0.30 dB
+SC-022(e) ProfundumCore_ExcitationRecordedAsymmetryPhase MIDI 36, mid grid, max excitation: angle T1 -10.17 deg, |T1| -0.14 dB
+SC-022(e) ProfundumCore_ExcitationRecordedAsymmetryPhase MIDI 36, kSineAnchor, max excitation: angle T1 -0.07 deg, |T1| -0.14 dB
+SC-022(f) HarmonicFold_RecordedLevelNonSine kSawAnchor, C2 48 kHz: Fold-100 level change +1.72 dB (plan static +1.70)
+SC-022(f) HarmonicFold_RecordedLevelNonSine mid grid, C2 48 kHz: Fold-100 level change +2.76 dB (plan static +2.71)
+SC-022(f) HarmonicFold_RecordedLevelNonSine SC-009 state, C2 48 kHz: Fold-100 level change +6.48 dB (plan static +6.51)
+===============================================================================
+All tests passed (39160 assertions in 31 test cases)
+
+rc=0 wall=78s

@@ -1,0 +1,92 @@
+T027 -- Showcase shards, sweep family, distinctness, audition lanes (SC-007, SC-016 - SC-021, SC-023,
+SC-027 wall clock, SC-031) -- main loop
+=====================================================================================================
+
+1. Script: specs/profundum-phase13-presets-release/evidence/library/run-library-lanes.sh
+   Status file: evidence/library/status.txt (one line per lane: name, exit, wall clock); logs
+   evidence/library/<lane>.log.
+   - one build of profundum_tests (-- /nr:false; must be 0 warnings)
+   - concurrently: Profundum_PresetShowcase_<k>of8 (k = 0..7, 8 processes); one sweep-set process
+     (one comma-joined spec "Profundum_PresetSweep*,Profundum_PresetTruePeakMaxMass,Profundum_PresetMonoSum,
+     Profundum_PresetLoudnessMatch", shared render cache; run 1 passed four space-separated filters, which Catch2 ANDs:
+     "No tests ran"); "Profundum_PresetDeterminism";
+     "Profundum_PresetDistinctness"; bash evidence/listen/render.sh
+   - node evidence/merge-csv.js evidence/coverage-matrix evidence/coverage-matrix.csv <claims>, claims =
+     sum of the eight shards' "arms=" summary counts (preset_showcase_test.cpp:141)
+   - git checkout -- specs/profundum-phase9-voice-engine/evidence/
+   - Profundum_PresetRenderGuard alone after the lanes; its "wall clock <s> s" line
+     (preset_rt_test.cpp:394) above 15 s is RED "split needed (_0of2 / _1of2, R-11)"
+   Last line: "LIBRARY LANES GREEN" or "LIBRARY LANES RED <lane>: <first FAILED line>".
+
+2. State when the script was written (executor, 2026-10-24): not run by the executor (main-loop task).
+   Known input: the G22 gate measured Profundum_PresetRenderGuard at 21.28 s (21.04 s on the first run)
+   against the 15 s bar with the full library (tasks.md line 1170), and preset_rt_test.cpp has no
+   _0of2 / _1of2 split yet. Unless the split lands first, step 5 of this script reads RED "split needed".
+
+3. Status (2026-10-25): DONE -- LIBRARY LANES GREEN (section 4). Previously: BLOCKED (main loop)
+   Main loop: run
+     bash specs/profundum-phase13-presets-release/evidence/library/run-library-lanes.sh
+   detached; quote each lane's last lines and wall clock below. A red showcase / mono / loudness /
+   distinctness reading is an authoring defect: re-author the preset in tools/profundum_preset_defs.h,
+   regenerate (T026's gen-tree.sh), re-run only the affected lane. A column that cannot reach its bar
+   from the shipped surface is an FR-023 STOP. Unblock T027 on LIBRARY LANES GREEN.
+
+4. Main-loop runs (2026-10-24 / 2026-10-25)
+   Run 1 (22:19, concurrent with the FR-065 gate run 1): LIBRARY LANES RED, failed lanes showcase-1 showcase-2
+   showcase-3 showcase-6 sweep-set distinctness:
+     Heavy Mass AT-26 E_sub 2.58631 / 2.63198 (bar >= 3 dB); AT-27 secondary dL_K 1.01015 / 1.40487
+     Halfway Morph AT-42 D_nl 2.26372 at E1
+     Pressure Front AT-27 dL_K 2.92155 at C3
+     Valve Pressure AT-26 secondary E_sub 0.338103 / 0.121961
+     Envelope Mass AT-39 E_sub_p2p 1.36681 / 1.66988
+     distinctness: Triangle Floor vs Locked Floor d 0.165054 (F 1)
+     sweep-set: "No tests ran" (the filter defect above)
+     Profundum_PresetRenderGuard_0of2 / _1of2 20.84 / 20.34 s in the FR-065 gate's profundum exe (about 20 concurrent
+     processes): load, not a verdict; the alone run is in run 3.
+   Re-authoring (tools/profundum_preset_defs.h, measured with temporary hidden [.tune] cases in preset_sweep_test.cpp,
+   removed before commit; no bar moved):
+     Heavy Mass: sine recipe (depth 1, body 0, edge 0): AT-26 5.24671 / 5.3203; AT-27 secondary withdrawn (every
+       candidate 0.12 - 2.05 dB).
+     Valve Pressure: AT-26 secondary withdrawn (Tube at Amount 1 holds the sub).
+     Pressure Front: sustain 1 (the probe's B10-1 base): AT-27 4.60318 / 4.01259.
+     Envelope Mass: Mass 0, ENV attack 1000 ms, decay 1000 ms, SOLID, amp 1 ms / 150 ms: AT-39 3.26077 / 3.17683
+       (Unipolar ENV adds at most +50 Mass, profundum_motion.h kMassHalfSpan; Mass 0 -> 50 is the steepest E_sub span).
+     Halfway Morph: Mass 20 on A, 90 on B: AT-42 4.72654 / 5.90493.
+     Triangle Floor: attack 20 ms: d vs Locked Floor 2.96104; AT-14 unchanged 3.84404 / 3.87561.
+     plan.md section 7 rows 4, 14, 26, 27, 39, 42 updated to match.
+   Run 2 (00:36, concurrent with FR-065 gate run 2): showcase 0-7, determinism, distinctness, listen green;
+     sweep-set RED: Profundum_PresetLoudnessMatch 16 presets outside +-4 dB of the median -11.1262 (worst Envelope Restart
+     -12.804, Heavy Mass +6.84531). Output Gain is pinned (P-6), so each preset was re-levelled through its own sound
+     parameters (sustain; depth for Envelope Restart, Halfway Morph A, Biting Reed, Edge Cycle; Anchor 1 + Mass 100 for
+     Fault Line); each def carries a "T027 FR-061 level" comment with its before / after reading, and every claimed arm
+     was re-measured on the candidate (all PASS).
+   Run 3 (alone, wall 358 s):
+     [library] building profundum_tests -> specs/profundum-phase13-presets-release/evidence/library/build.log
+     [library] build exit=0 warnings=0 wall=21.7s
+     [library] showcase-6 exit=0 wall=31.3s
+     [library] showcase-2 exit=0 wall=39.1s
+     [library] showcase-7 exit=0 wall=39.2s
+     [library] showcase-3 exit=0 wall=41.1s
+     [library] showcase-1 exit=0 wall=52.7s
+     [library] showcase-0 exit=0 wall=64.7s
+     [library] showcase-5 exit=0 wall=67.7s
+     [library] determinism exit=0 wall=68.9s
+     [library] listen exit=0 wall=74.6s
+     [library] showcase-4 exit=0 wall=77.1s
+     [library] sweep-set exit=0 wall=215.9s
+     [library] distinctness exit=0 wall=305.9s
+     [library] lanes done wall=306.1s failed=0
+     [library] render-guard exit=0 wall=28.3s case_seconds=14.3403
+     LIBRARY LANES GREEN
+     # Profundum_PresetSweep: presets=53
+     # Profundum_PresetSweepRates: presets=53
+     # worst true-peak margin 0.070251 dB (Fault Line at 44100.000000)
+     # Profundum_PresetTruePeakMaxMass: presets=53
+     # worst true-peak margin 0.0369267 dB
+     # Profundum_PresetMonoSum: presets=53
+     # ungated=0
+     # Profundum_PresetLoudnessMatch: presets=53 median_db=-11.1537
+     # worst deviation 3.58833 dB
+     # Profundum_PresetDistinctness: presets=53 F=1 closest=Bedrock vs Locked Floor d=1.91446 masked=15
+     render-guard worst truePeak=-0.964508 dBTP (Shifting Spectrum [max Mass]); wall clock 14.3403 s over 27 presets (shard 0 of 2)
+     render-guard worst truePeak=-0.974651 dBTP (Fault Line [stored]); wall clock 13.7946 s over 27 presets (shard 1 of 2)

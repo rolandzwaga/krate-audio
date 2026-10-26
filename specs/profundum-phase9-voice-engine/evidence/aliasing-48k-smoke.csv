@@ -1,0 +1,2 @@
+fs,note,algorithm,shape,tone,anchor_mode,f0_hz,fm_hz,frame_start,frame_len,excluded_fraction,follow_ratio_min,follow_ratio_max,sum_L_dbfs,sum_R_dbfs,sum_worst_dbfs,out_on_L_dbfs,out_on_R_dbfs,out_on_worst_dbfs,dyn_added_on_dbfs,sum_off_worst_dbfs,out_off_worst_dbfs,dyn_added_off_dbfs,bar_dbfs,pass_a,pass_b
+48000,E1,Tube,0.0,0.0,LOCK,41.203453,41.203453,48000,131072,0.1422,1.000,1.000,-102.954,-103.946,-102.954,-78.810,-78.777,-78.777,-78.800,-102.954,-101.039,-110.670,-80.0,1,0

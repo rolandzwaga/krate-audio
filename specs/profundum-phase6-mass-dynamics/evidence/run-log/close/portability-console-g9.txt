@@ -1,0 +1,29 @@
+== lint-apple-globals ==
+lint-apple-globals: OK — 26 files, no macOS-only name collisions
+lint exit=0 wall=1s
+
+== check-portability ==
+check-portability: 16 translation unit(s) with g++
+
+  OK      dsp/tests/unit/processors/period_peak_detector_test.cpp
+  OK      dsp/tests/unit/processors/transient_shaper_helpers_test.cpp
+  OK      dsp/tests/unit/processors/transient_shaper_test.cpp
+  OK      dsp/tests/unit/processors/transient_shaper_nonfinite_test.cpp
+  OK      dsp/tests/unit/systems/k_weighting_helper_test.cpp
+  OK      dsp/tests/unit/systems/mass_compressor_test.cpp
+  OK      dsp/tests/unit/systems/mass_law_test.cpp
+  OK      dsp/tests/unit/systems/mass_dynamics_test.cpp
+  OK      dsp/tests/unit/systems/mass_dynamics_helpers_test.cpp
+  OK      dsp/tests/unit/systems/mass_chain_test.cpp
+  OK      dsp/tests/unit/systems/mass_compressor_chain_test.cpp
+  OK      dsp/tests/unit/systems/mass_law_spectral_test.cpp
+  OK      dsp/tests/unit/systems/mass_law_automation_test.cpp
+  OK      dsp/tests/unit/systems/mass_dynamics_aliasing_test.cpp
+  OK      dsp/tests/unit/systems/mass_dynamics_nonfinite_test.cpp
+  OK      dsp/tests/unit/systems/mass_dynamics_perf_test.cpp
+
+check-portability: all clear -- 16 compiled.
+port exit=0 wall=32s
+
+wsl --shutdown done
+PORTABILITY GREEN

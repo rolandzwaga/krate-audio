@@ -1,0 +1,55 @@
+# P3ATTR steady estimator (worst channel) on Phase 6's Fold-100 E2 saw; variants x opt-in
+P3ATTR midi=40 fs=44100 input=-106.496
+P3ATTR midi=40 fs=44100 full(+12,comp1) off=-45.8536 on2x=-70.1403 on4x=-88.7955
+P3ATTR midi=40 fs=44100 shaper-neutral(0,comp1) off=-45.8528 on2x=-70.1239 on4x=-88.6617
+P3ATTR midi=40 fs=44100 comp-off(+12,comp0) off=-106.496 on2x=-106.496 on4x=-106.496
+P3ATTR midi=40 fs=44100 both-neutral(0,comp0) off=-106.496 on2x=-106.496 on4x=-106.496
+P3ATTR midi=40 fs=44100 sustain-12(comp1) off=-41.8925 on2x=-66.1678 on4x=-84.381
+P3ATTR midi=40 fs=48000 input=-106.045
+P3ATTR midi=40 fs=48000 full(+12,comp1) off=-55.0291 on2x=-72.0911 on4x=-85.2531
+P3ATTR midi=40 fs=48000 shaper-neutral(0,comp1) off=-55.0292 on2x=-71.9882 on4x=-84.8641
+P3ATTR midi=40 fs=48000 comp-off(+12,comp0) off=-106.045 on2x=-106.045 on4x=-106.045
+P3ATTR midi=40 fs=48000 both-neutral(0,comp0) off=-106.045 on2x=-106.045 on4x=-106.045
+P3ATTR midi=40 fs=48000 sustain-12(comp1) off=-51.0688 on2x=-68.0162 on4x=-81.4136
+P3ATTR midi=40 fs=96000 input=-103.359
+P3ATTR midi=40 fs=96000 full(+12,comp1) off=-92.0126 on2x=-91.7826 on4x=-91.0802
+P3ATTR midi=40 fs=96000 shaper-neutral(0,comp1) off=-92.0125 on2x=-91.5776 on4x=-91.2436
+P3ATTR midi=40 fs=96000 comp-off(+12,comp0) off=-102.9 on2x=-102.9 on4x=-102.9
+P3ATTR midi=40 fs=96000 both-neutral(0,comp0) off=-103.359 on2x=-103.359 on4x=-103.359
+P3ATTR midi=40 fs=96000 sustain-12(comp1) off=-88.0131 on2x=-87.0892 on4x=-87.9932
+P3ATTR midi=28 fs=44100 input=-110.18
+P3ATTR midi=28 fs=44100 full(+12,comp1) off=-92.4343 on2x=-92.6919 on4x=-92.4303
+P3ATTR midi=28 fs=44100 shaper-neutral(0,comp1) off=-92.1519 on2x=-92.1356 on4x=-90.7399
+P3ATTR midi=28 fs=44100 comp-off(+12,comp0) off=-102.472 on2x=-102.472 on4x=-102.472
+P3ATTR midi=28 fs=44100 both-neutral(0,comp0) off=-110.18 on2x=-110.18 on4x=-110.18
+P3ATTR midi=28 fs=44100 sustain-12(comp1) off=-86.8502 on2x=-86.0588 on4x=-85.2558
+P3ATTR midi=28 fs=48000 input=-110.573
+P3ATTR midi=28 fs=48000 full(+12,comp1) off=-93.5263 on2x=-92.549 on4x=-92.35
+P3ATTR midi=28 fs=48000 shaper-neutral(0,comp1) off=-92.1873 on2x=-91.5989 on4x=-89.4534
+P3ATTR midi=28 fs=48000 comp-off(+12,comp0) off=-103.682 on2x=-103.682 on4x=-103.682
+P3ATTR midi=28 fs=48000 both-neutral(0,comp0) off=-110.573 on2x=-110.573 on4x=-110.573
+P3ATTR midi=28 fs=48000 sustain-12(comp1) off=-87.0403 on2x=-87.2038 on4x=-84.2262
+P3ATTR midi=28 fs=96000 input=-103.888
+P3ATTR midi=28 fs=96000 full(+12,comp1) off=-86.5121 on2x=-85.1657 on4x=-84.0336
+P3ATTR midi=28 fs=96000 shaper-neutral(0,comp1) off=-85.0875 on2x=-85.0056 on4x=-83.2881
+P3ATTR midi=28 fs=96000 comp-off(+12,comp0) off=-99.7462 on2x=-99.7462 on4x=-99.7462
+P3ATTR midi=28 fs=96000 both-neutral(0,comp0) off=-103.888 on2x=-103.888 on4x=-103.888
+P3ATTR midi=28 fs=96000 sustain-12(comp1) off=-80.348 on2x=-80.3769 on4x=-79.6557
+P3ATTR midi=16 fs=44100 input=-112.174
+P3ATTR midi=16 fs=44100 full(+12,comp1) off=-93.7427 on2x=-92.9582 on4x=-89.553
+P3ATTR midi=16 fs=44100 shaper-neutral(0,comp1) off=-93.8753 on2x=-92.621 on4x=-90.4654
+P3ATTR midi=16 fs=44100 comp-off(+12,comp0) off=-108.557 on2x=-108.557 on4x=-108.557
+P3ATTR midi=16 fs=44100 both-neutral(0,comp0) off=-112.174 on2x=-112.174 on4x=-112.174
+P3ATTR midi=16 fs=44100 sustain-12(comp1) off=-89.691 on2x=-89.8222 on4x=-87.6725
+P3ATTR midi=16 fs=48000 input=-112.473
+P3ATTR midi=16 fs=48000 full(+12,comp1) off=-96.121 on2x=-94.684 on4x=-93.176
+P3ATTR midi=16 fs=48000 shaper-neutral(0,comp1) off=-96.6075 on2x=-95.3734 on4x=-93.1521
+P3ATTR midi=16 fs=48000 comp-off(+12,comp0) off=-108.55 on2x=-108.55 on4x=-108.55
+P3ATTR midi=16 fs=48000 both-neutral(0,comp0) off=-112.473 on2x=-112.473 on4x=-112.473
+P3ATTR midi=16 fs=48000 sustain-12(comp1) off=-92.3565 on2x=-92.358 on4x=-89.2653
+P3ATTR midi=16 fs=96000 input=-105.15
+P3ATTR midi=16 fs=96000 full(+12,comp1) off=-99.5915 on2x=-92.9767 on4x=-83.6321
+P3ATTR midi=16 fs=96000 shaper-neutral(0,comp1) off=-99.1774 on2x=-93.1103 on4x=-83.3744
+P3ATTR midi=16 fs=96000 comp-off(+12,comp0) off=-105.149 on2x=-105.149 on4x=-105.149
+P3ATTR midi=16 fs=96000 both-neutral(0,comp0) off=-105.15 on2x=-105.15 on4x=-105.15
+P3ATTR midi=16 fs=96000 sustain-12(comp1) off=-95.8356 on2x=-88.45 on4x=-81.3326

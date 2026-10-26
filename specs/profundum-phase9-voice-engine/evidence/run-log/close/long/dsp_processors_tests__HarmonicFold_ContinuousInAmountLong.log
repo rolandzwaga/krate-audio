@@ -1,0 +1,10 @@
+Filters: "HarmonicFold_ContinuousInAmountLong"
+Randomness seeded to: 437563502
+HarmonicFold_ContinuousInAmountLong calibration sine MIDI 28: worst RMS(y(a+e) - y(a)) / RMS(y(a)) 0.00365 at amount 94.50 (bar 0.02)
+HarmonicFold_ContinuousInAmountLong calibration sine MIDI 36: worst RMS(y(a+e) - y(a)) / RMS(y(a)) 0.00366 at amount 94.50 (bar 0.02)
+HarmonicFold_ContinuousInAmountLong recipe mid grid MIDI 36: worst RMS(y(a+e) - y(a)) / RMS(y(a)) 0.00242 at amount 94.00 (bar 0.02)
+215.322 s: HarmonicFold_ContinuousInAmountLong
+===============================================================================
+All tests passed (2418 assertions in 1 test case)
+
+exit: 0 wall: 216 s

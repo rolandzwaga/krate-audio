@@ -1,0 +1,50 @@
+Filters: "MassLaw_AutomationContinuous_E0"
+Randomness seeded to: 1444653304
+[T015 SC-005(a)] E0 step 0->100, block 64: counted 0 (transition 7, reference 14, N 291, guarded out 0)
+[T015 SC-005(a)] E0 step 0->100, block 64: hard-switch site 96000 (step + 0), nearest reference detection 5119, jump / local max|dy| 322.432
+[T015 SC-005(a)] E0 hard +12 dB switch control, block 64: counted 1 (transition 8, reference 14, N 291, guarded out 0)
+[T015 SC-005(a)] E0 step 100->0, block 64: counted 0 (transition 7, reference 14, N 291, guarded out 0)
+[T015 SC-005(a)] E0 step 100->0, block 64: hard-switch site 96000 (step + 0), nearest reference detection 5119, jump / local max|dy| 89.7707
+[T015 SC-005(a)] E0 hard +12 dB switch control, block 64: counted 1 (transition 8, reference 14, N 291, guarded out 0)
+[T015 SC-005(a)] E0 20 ms ramp 0->100, block 64: counted 0 (transition 7, reference 14, N 291, guarded out 0)
+[T015 SC-005(a)] E0 20 ms ramp 0->100, block 64: hard-switch site 96000 (step + 0), nearest reference detection 5119, jump / local max|dy| 322.392
+[T015 SC-005(a)] E0 hard +12 dB switch control, block 64: counted 1 (transition 8, reference 14, N 291, guarded out 0)
+[T015 SC-005(a)] E0 20 ms ramp 100->0, block 64: counted 0 (transition 7, reference 14, N 291, guarded out 0)
+[T015 SC-005(a)] E0 20 ms ramp 100->0, block 64: hard-switch site 96000 (step + 0), nearest reference detection 5119, jump / local max|dy| 89.8388
+[T015 SC-005(a)] E0 hard +12 dB switch control, block 64: counted 1 (transition 8, reference 14, N 291, guarded out 0)
+[T015 SC-005(a)] E0 unsmoothedMass 0->100 control, block 64: counted 1 (transition 8, reference 14, N 291, guarded out 0)
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+MassLaw_AutomationContinuous_E0
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\mass_law_automation_test.cpp(628)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\mass_law_automation_test.cpp(376): warning:
+  E0 unsmoothedMass control, block 64: counted 1 (recorded, G8-7)
+
+[T015 SC-005(a)] E0 step 0->100, block 512: counted 0 (transition 7, reference 14, N 291, guarded out 0)
+[T015 SC-005(a)] E0 step 0->100, block 512: hard-switch site 96000 (step + 0), nearest reference detection 5119, jump / local max|dy| 322.432
+[T015 SC-005(a)] E0 hard +12 dB switch control, block 512: counted 1 (transition 8, reference 14, N 291, guarded out 0)
+[T015 SC-005(a)] E0 step 100->0, block 512: counted 0 (transition 7, reference 14, N 291, guarded out 0)
+[T015 SC-005(a)] E0 step 100->0, block 512: hard-switch site 96000 (step + 0), nearest reference detection 5119, jump / local max|dy| 89.7707
+[T015 SC-005(a)] E0 hard +12 dB switch control, block 512: counted 1 (transition 8, reference 14, N 291, guarded out 0)
+[T015 SC-005(a)] E0 20 ms ramp 0->100, block 512: counted 0 (transition 7, reference 14, N 291, guarded out 0)
+[T015 SC-005(a)] E0 20 ms ramp 0->100, block 512: hard-switch site 96000 (step + 0), nearest reference detection 5119, jump / local max|dy| 322.392
+[T015 SC-005(a)] E0 hard +12 dB switch control, block 512: counted 1 (transition 8, reference 14, N 291, guarded out 0)
+[T015 SC-005(a)] E0 20 ms ramp 100->0, block 512: counted 0 (transition 7, reference 14, N 291, guarded out 0)
+[T015 SC-005(a)] E0 20 ms ramp 100->0, block 512: hard-switch site 96000 (step + 0), nearest reference detection 5119, jump / local max|dy| 89.8388
+[T015 SC-005(a)] E0 hard +12 dB switch control, block 512: counted 1 (transition 8, reference 14, N 291, guarded out 0)
+[T015 SC-005(a)] E0 unsmoothedMass 0->100 control, block 512: counted 1 (transition 8, reference 14, N 291, guarded out 0)
+F:\projects\iterum\dsp\tests\unit\systems\mass_law_automation_test.cpp(376): warning:
+  E0 unsmoothedMass control, block 512: counted 1 (recorded, G8-7)
+
+6.275 s: MassLaw_AutomationContinuous_E0
+===============================================================================
+All tests passed (235 assertions in 1 test case)
+
+exit: 0 wall: 7 s

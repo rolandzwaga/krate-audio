@@ -1,0 +1,406 @@
+=== T001 bench 2026-10-15T17:31:41Z variant=base runs=3 settle=60s quick=0
+compile: "/c/Program Files/LLVM/bin/clang++.exe" -std=c++20 -O2 -ffast-math -march=x86-64-v2 -DNDEBUG -Idsp/include <variant defines> specs/profundum-phase5-shape-character/bench/shape-character-bench.cpp
+commit: 40205b86
+--- run 1
+pin-perf-cores: performance-core mask 0xFFFF
+P5BENCH unlinked fs=48000 F=4 block=64 ctrl_interval=1 rect_adaa=double seconds_per_cell=3.00
+cell char_tube ns_per_sample 407.96 pct_core 1.9582
+cell char_fold ns_per_sample 185.36 pct_core 0.8898
+cell char_rectify ns_per_sample 163.33 pct_core 0.7840
+cell char_bite ns_per_sample 235.75 pct_core 1.1316
+cell char_crush ns_per_sample 130.35 pct_core 0.6257
+cell char_fracture ns_per_sample 538.76 pct_core 2.5860
+cell shape_0.00 ns_per_sample 319.95 pct_core 1.5358
+cell shape_0.25 ns_per_sample 362.80 pct_core 1.7414
+cell shape_0.50 ns_per_sample 150.00 pct_core 0.7200
+cell shape_0.75 ns_per_sample 279.64 pct_core 1.3422
+cell shape_1.00 ns_per_sample 224.74 pct_core 1.0788
+cell ramp ns_per_sample 973.17 pct_core 4.6712 (char_fracture x shape_0.25)
+cell drop ns_per_sample 919.80 pct_core 4.4150 (char_fracture x shape_0.25)
+worst_char char_fracture pct_core 2.5860
+worst_shape shape_0.25 pct_core 1.7414
+total_unlinked pct_core 4.3275 (worst char + worst shape; bar 2.0)
+sink 1295.44
+--- run 2
+pin-perf-cores: performance-core mask 0xFFFF
+P5BENCH unlinked fs=48000 F=4 block=64 ctrl_interval=1 rect_adaa=double seconds_per_cell=3.00
+cell char_tube ns_per_sample 419.34 pct_core 2.0129
+cell char_fold ns_per_sample 179.83 pct_core 0.8632
+cell char_rectify ns_per_sample 160.68 pct_core 0.7712
+cell char_bite ns_per_sample 241.09 pct_core 1.1572
+cell char_crush ns_per_sample 137.48 pct_core 0.6599
+cell char_fracture ns_per_sample 552.96 pct_core 2.6542
+cell shape_0.00 ns_per_sample 312.91 pct_core 1.5020
+cell shape_0.25 ns_per_sample 356.35 pct_core 1.7105
+cell shape_0.50 ns_per_sample 146.25 pct_core 0.7020
+cell shape_0.75 ns_per_sample 274.76 pct_core 1.3188
+cell shape_1.00 ns_per_sample 230.47 pct_core 1.1063
+cell ramp ns_per_sample 1020.22 pct_core 4.8970 (char_fracture x shape_0.25)
+cell drop ns_per_sample 993.05 pct_core 4.7666 (char_fracture x shape_0.25)
+worst_char char_fracture pct_core 2.6542
+worst_shape shape_0.25 pct_core 1.7105
+total_unlinked pct_core 4.3646 (worst char + worst shape; bar 2.0)
+sink 1309.23
+--- run 3
+pin-perf-cores: performance-core mask 0xFFFF
+P5BENCH unlinked fs=48000 F=4 block=64 ctrl_interval=1 rect_adaa=double seconds_per_cell=3.00
+cell char_tube ns_per_sample 451.23 pct_core 2.1659
+cell char_fold ns_per_sample 201.30 pct_core 0.9663
+cell char_rectify ns_per_sample 163.28 pct_core 0.7837
+cell char_bite ns_per_sample 242.25 pct_core 1.1628
+cell char_crush ns_per_sample 145.69 pct_core 0.6993
+cell char_fracture ns_per_sample 586.55 pct_core 2.8154
+cell shape_0.00 ns_per_sample 341.09 pct_core 1.6373
+cell shape_0.25 ns_per_sample 381.18 pct_core 1.8297
+cell shape_0.50 ns_per_sample 138.36 pct_core 0.6641
+cell shape_0.75 ns_per_sample 258.70 pct_core 1.2418
+cell shape_1.00 ns_per_sample 221.99 pct_core 1.0656
+cell ramp ns_per_sample 1013.08 pct_core 4.8628 (char_fracture x shape_0.25)
+cell drop ns_per_sample 940.86 pct_core 4.5161 (char_fracture x shape_0.25)
+worst_char char_fracture pct_core 2.8154
+worst_shape shape_0.25 pct_core 1.8297
+total_unlinked pct_core 4.6451 (worst char + worst shape; bar 2.0)
+sink 1304.07
+--- medians over 3 run(s) (% of one core, 48 kHz, unlinked stereo)
+median char_tube      2.0129
+median char_fold      0.8898
+median char_rectify   0.7837
+median char_bite      1.1572
+median char_crush     0.6599
+median char_fracture  2.6542
+median shape_0.00     1.5358
+median shape_0.25     1.7414
+median shape_0.50     0.7020
+median shape_0.75     1.3188
+median shape_1.00     1.0788
+median ramp           4.8628
+median drop           4.5161
+median_total 4.3956 (char_fracture 2.6542 + shape_0.25 1.7414)
+DECISION: OVER 2.0 % -> re-run with the next variant (ctrl16, then ctrl16-rectfloat); none <= 2.0 % -> return to the user (C-20)
+DECISION: ramp 4.8628 / drop 4.5161 > 2.0 % -> control-interval quantisation REQUIRED regardless
+=== T001 bench 2026-10-15T17:35:54Z variant=ctrl16 runs=3 settle=60s quick=0
+compile: "/c/Program Files/LLVM/bin/clang++.exe" -std=c++20 -O2 -ffast-math -march=x86-64-v2 -DNDEBUG -Idsp/include <variant defines> specs/profundum-phase5-shape-character/bench/shape-character-bench.cpp
+commit: 40205b86
+--- run 1
+pin-perf-cores: performance-core mask 0xFFFF
+P5BENCH unlinked fs=48000 F=4 block=64 ctrl_interval=16 rect_adaa=double seconds_per_cell=3.00
+cell char_tube ns_per_sample 437.55 pct_core 2.1002
+cell char_fold ns_per_sample 213.04 pct_core 1.0226
+cell char_rectify ns_per_sample 166.82 pct_core 0.8007
+cell char_bite ns_per_sample 252.57 pct_core 1.2123
+cell char_crush ns_per_sample 147.34 pct_core 0.7072
+cell char_fracture ns_per_sample 595.04 pct_core 2.8562
+cell shape_0.00 ns_per_sample 329.05 pct_core 1.5794
+cell shape_0.25 ns_per_sample 386.46 pct_core 1.8550
+cell shape_0.50 ns_per_sample 158.16 pct_core 0.7592
+cell shape_0.75 ns_per_sample 303.63 pct_core 1.4574
+cell shape_1.00 ns_per_sample 242.65 pct_core 1.1647
+cell ramp ns_per_sample 1019.76 pct_core 4.8948 (char_fracture x shape_0.25)
+cell drop ns_per_sample 997.57 pct_core 4.7883 (char_fracture x shape_0.25)
+worst_char char_fracture pct_core 2.8562
+worst_shape shape_0.25 pct_core 1.8550
+total_unlinked pct_core 4.7112 (worst char + worst shape; bar 2.0)
+sink 1204.12
+--- run 2
+pin-perf-cores: performance-core mask 0xFFFF
+P5BENCH unlinked fs=48000 F=4 block=64 ctrl_interval=16 rect_adaa=double seconds_per_cell=3.00
+cell char_tube ns_per_sample 430.62 pct_core 2.0670
+cell char_fold ns_per_sample 201.70 pct_core 0.9682
+cell char_rectify ns_per_sample 163.82 pct_core 0.7864
+cell char_bite ns_per_sample 243.45 pct_core 1.1686
+cell char_crush ns_per_sample 149.76 pct_core 0.7189
+cell char_fracture ns_per_sample 612.42 pct_core 2.9396
+cell shape_0.00 ns_per_sample 327.22 pct_core 1.5707
+cell shape_0.25 ns_per_sample 378.86 pct_core 1.8185
+cell shape_0.50 ns_per_sample 156.84 pct_core 0.7528
+cell shape_0.75 ns_per_sample 283.62 pct_core 1.3614
+cell shape_1.00 ns_per_sample 227.96 pct_core 1.0942
+cell ramp ns_per_sample 937.11 pct_core 4.4981 (char_fracture x shape_0.25)
+cell drop ns_per_sample 899.55 pct_core 4.3179 (char_fracture x shape_0.25)
+worst_char char_fracture pct_core 2.9396
+worst_shape shape_0.25 pct_core 1.8185
+total_unlinked pct_core 4.7581 (worst char + worst shape; bar 2.0)
+sink 1249.67
+--- run 3
+pin-perf-cores: performance-core mask 0xFFFF
+P5BENCH unlinked fs=48000 F=4 block=64 ctrl_interval=16 rect_adaa=double seconds_per_cell=3.00
+cell char_tube ns_per_sample 387.95 pct_core 1.8622
+cell char_fold ns_per_sample 183.04 pct_core 0.8786
+cell char_rectify ns_per_sample 160.17 pct_core 0.7688
+cell char_bite ns_per_sample 232.15 pct_core 1.1143
+cell char_crush ns_per_sample 135.68 pct_core 0.6513
+cell char_fracture ns_per_sample 521.83 pct_core 2.5048
+cell shape_0.00 ns_per_sample 288.02 pct_core 1.3825
+cell shape_0.25 ns_per_sample 331.04 pct_core 1.5890
+cell shape_0.50 ns_per_sample 134.10 pct_core 0.6437
+cell shape_0.75 ns_per_sample 252.65 pct_core 1.2127
+cell shape_1.00 ns_per_sample 204.83 pct_core 0.9832
+cell ramp ns_per_sample 871.23 pct_core 4.1819 (char_fracture x shape_0.25)
+cell drop ns_per_sample 854.04 pct_core 4.0994 (char_fracture x shape_0.25)
+worst_char char_fracture pct_core 2.5048
+worst_shape shape_0.25 pct_core 1.5890
+total_unlinked pct_core 4.0938 (worst char + worst shape; bar 2.0)
+sink 1404.47
+--- medians over 3 run(s) (% of one core, 48 kHz, unlinked stereo)
+median char_tube      2.0670
+median char_fold      0.9682
+median char_rectify   0.7864
+median char_bite      1.1686
+median char_crush     0.7072
+median char_fracture  2.8562
+median shape_0.00     1.5707
+median shape_0.25     1.8185
+median shape_0.50     0.7528
+median shape_0.75     1.3614
+median shape_1.00     1.0942
+median ramp           4.4981
+median drop           4.3179
+median_total 4.6747 (char_fracture 2.8562 + shape_0.25 1.8185)
+DECISION: OVER 2.0 % -> re-run with the next variant (ctrl16, then ctrl16-rectfloat); none <= 2.0 % -> return to the user (C-20)
+DECISION: ramp 4.4981 / drop 4.3179 > 2.0 % -> control-interval quantisation REQUIRED regardless
+=== T001 bench 2026-10-15T17:39:57Z variant=ctrl16-rectfloat runs=3 settle=60s quick=0
+compile: "/c/Program Files/LLVM/bin/clang++.exe" -std=c++20 -O2 -ffast-math -march=x86-64-v2 -DNDEBUG -Idsp/include <variant defines> specs/profundum-phase5-shape-character/bench/shape-character-bench.cpp
+commit: 40205b86
+--- run 1
+pin-perf-cores: performance-core mask 0xFFFF
+P5BENCH unlinked fs=48000 F=4 block=64 ctrl_interval=16 rect_adaa=float seconds_per_cell=3.00
+cell char_tube ns_per_sample 404.35 pct_core 1.9409
+cell char_fold ns_per_sample 192.64 pct_core 0.9247
+cell char_rectify ns_per_sample 147.27 pct_core 0.7069
+cell char_bite ns_per_sample 233.91 pct_core 1.1228
+cell char_crush ns_per_sample 145.45 pct_core 0.6982
+cell char_fracture ns_per_sample 564.76 pct_core 2.7109
+cell shape_0.00 ns_per_sample 308.13 pct_core 1.4790
+cell shape_0.25 ns_per_sample 353.85 pct_core 1.6985
+cell shape_0.50 ns_per_sample 147.08 pct_core 0.7060
+cell shape_0.75 ns_per_sample 284.15 pct_core 1.3639
+cell shape_1.00 ns_per_sample 233.99 pct_core 1.1231
+cell ramp ns_per_sample 978.78 pct_core 4.6982 (char_fracture x shape_0.25)
+cell drop ns_per_sample 962.01 pct_core 4.6176 (char_fracture x shape_0.25)
+worst_char char_fracture pct_core 2.7109
+worst_shape shape_0.25 pct_core 1.6985
+total_unlinked pct_core 4.4093 (worst char + worst shape; bar 2.0)
+sink 448.066
+--- run 2
+pin-perf-cores: performance-core mask 0xFFFF
+P5BENCH unlinked fs=48000 F=4 block=64 ctrl_interval=16 rect_adaa=float seconds_per_cell=3.00
+cell char_tube ns_per_sample 406.98 pct_core 1.9535
+cell char_fold ns_per_sample 180.82 pct_core 0.8679
+cell char_rectify ns_per_sample 140.95 pct_core 0.6765
+cell char_bite ns_per_sample 228.93 pct_core 1.0989
+cell char_crush ns_per_sample 138.06 pct_core 0.6627
+cell char_fracture ns_per_sample 553.41 pct_core 2.6564
+cell shape_0.00 ns_per_sample 297.85 pct_core 1.4297
+cell shape_0.25 ns_per_sample 373.96 pct_core 1.7950
+cell shape_0.50 ns_per_sample 141.90 pct_core 0.6811
+cell shape_0.75 ns_per_sample 278.24 pct_core 1.3356
+cell shape_1.00 ns_per_sample 228.08 pct_core 1.0948
+cell ramp ns_per_sample 956.68 pct_core 4.5920 (char_fracture x shape_0.25)
+cell drop ns_per_sample 928.40 pct_core 4.4563 (char_fracture x shape_0.25)
+worst_char char_fracture pct_core 2.6564
+worst_shape shape_0.25 pct_core 1.7950
+total_unlinked pct_core 4.4514 (worst char + worst shape; bar 2.0)
+sink 450.635
+--- run 3
+pin-perf-cores: performance-core mask 0xFFFF
+P5BENCH unlinked fs=48000 F=4 block=64 ctrl_interval=16 rect_adaa=float seconds_per_cell=3.00
+cell char_tube ns_per_sample 420.78 pct_core 2.0197
+cell char_fold ns_per_sample 202.72 pct_core 0.9731
+cell char_rectify ns_per_sample 160.76 pct_core 0.7716
+cell char_bite ns_per_sample 254.48 pct_core 1.2215
+cell char_crush ns_per_sample 145.38 pct_core 0.6978
+cell char_fracture ns_per_sample 554.94 pct_core 2.6637
+cell shape_0.00 ns_per_sample 320.52 pct_core 1.5385
+cell shape_0.25 ns_per_sample 369.88 pct_core 1.7754
+cell shape_0.50 ns_per_sample 154.36 pct_core 0.7409
+cell shape_0.75 ns_per_sample 297.17 pct_core 1.4264
+cell shape_1.00 ns_per_sample 240.55 pct_core 1.1547
+cell ramp ns_per_sample 961.10 pct_core 4.6133 (char_fracture x shape_0.25)
+cell drop ns_per_sample 982.81 pct_core 4.7175 (char_fracture x shape_0.25)
+worst_char char_fracture pct_core 2.6637
+worst_shape shape_0.25 pct_core 1.7754
+total_unlinked pct_core 4.4392 (worst char + worst shape; bar 2.0)
+sink 472.024
+--- medians over 3 run(s) (% of one core, 48 kHz, unlinked stereo)
+median char_tube      1.9535
+median char_fold      0.9247
+median char_rectify   0.7069
+median char_bite      1.1228
+median char_crush     0.6978
+median char_fracture  2.6637
+median shape_0.00     1.4790
+median shape_0.25     1.7754
+median shape_0.50     0.7060
+median shape_0.75     1.3639
+median shape_1.00     1.1231
+median ramp           4.6133
+median drop           4.6176
+median_total 4.4391 (char_fracture 2.6637 + shape_0.25 1.7754)
+DECISION: OVER 2.0 % -> re-run with the next variant (ctrl16, then ctrl16-rectfloat); none <= 2.0 % -> return to the user (C-20)
+DECISION: ramp 4.6133 / drop 4.6176 > 2.0 % -> control-interval quantisation REQUIRED regardless
+=== T001 bench 2026-10-15T17:55:39Z mode=linked variant=base runs=3 settle=60s quick=0
+compile: "/c/Program Files/LLVM/bin/clang++.exe" -std=c++20 -O2 -ffast-math -march=x86-64-v2 -DNDEBUG -Idsp/include <variant defines> specs/profundum-phase5-shape-character/bench/shape-character-bench.cpp
+commit: 40205b86
+--- run 1
+pin-perf-cores: performance-core mask 0xFFFF
+P5BENCH linked epoch=2 fs=48000 F=4 block=64 ctrl_interval=1 rect_adaa=double seconds_per_cell=3.00
+tanh_approx pade76 grid=10001 range=[-4,4] max_abs_err 1.499e-05 at x=-3.9992 (bar 1e-4)
+cell char_tube ns_per_sample 204.59 pct_core 0.9820
+cell char_fold ns_per_sample 99.92 pct_core 0.4796
+cell char_rectify ns_per_sample 81.10 pct_core 0.3893
+cell char_bite ns_per_sample 109.68 pct_core 0.5265
+cell char_crush ns_per_sample 84.30 pct_core 0.4046
+cell char_fracture ns_per_sample 199.13 pct_core 0.9558
+cell shape_0.00 ns_per_sample 162.92 pct_core 0.7820
+cell shape_0.25 ns_per_sample 166.66 pct_core 0.8000
+cell shape_0.50 ns_per_sample 69.31 pct_core 0.3327
+cell shape_0.75 ns_per_sample 128.80 pct_core 0.6182
+cell shape_1.00 ns_per_sample 115.35 pct_core 0.5537
+cell ramp ns_per_sample 452.97 pct_core 2.1742 (char_tube x shape_0.25)
+cell drop ns_per_sample 362.33 pct_core 1.7392 (char_tube x shape_0.25)
+worst_char char_tube pct_core 0.9820
+worst_shape shape_0.25 pct_core 0.8000
+total_linked pct_core 1.7820 (worst char + worst shape; bar 2.0 gates the linked total)
+sink 5391.65
+--- run 2
+pin-perf-cores: performance-core mask 0xFFFF
+P5BENCH linked epoch=2 fs=48000 F=4 block=64 ctrl_interval=1 rect_adaa=double seconds_per_cell=3.00
+tanh_approx pade76 grid=10001 range=[-4,4] max_abs_err 1.499e-05 at x=-3.9992 (bar 1e-4)
+cell char_tube ns_per_sample 198.09 pct_core 0.9508
+cell char_fold ns_per_sample 90.06 pct_core 0.4323
+cell char_rectify ns_per_sample 73.94 pct_core 0.3549
+cell char_bite ns_per_sample 105.72 pct_core 0.5074
+cell char_crush ns_per_sample 79.06 pct_core 0.3795
+cell char_fracture ns_per_sample 192.58 pct_core 0.9244
+cell shape_0.00 ns_per_sample 157.66 pct_core 0.7568
+cell shape_0.25 ns_per_sample 161.02 pct_core 0.7729
+cell shape_0.50 ns_per_sample 68.02 pct_core 0.3265
+cell shape_0.75 ns_per_sample 128.11 pct_core 0.6149
+cell shape_1.00 ns_per_sample 116.40 pct_core 0.5587
+cell ramp ns_per_sample 458.63 pct_core 2.2014 (char_tube x shape_0.25)
+cell drop ns_per_sample 358.29 pct_core 1.7198 (char_tube x shape_0.25)
+worst_char char_tube pct_core 0.9508
+worst_shape shape_0.25 pct_core 0.7729
+total_linked pct_core 1.7237 (worst char + worst shape; bar 2.0 gates the linked total)
+sink 5563.32
+--- run 3
+pin-perf-cores: performance-core mask 0xFFFF
+P5BENCH linked epoch=2 fs=48000 F=4 block=64 ctrl_interval=1 rect_adaa=double seconds_per_cell=3.00
+tanh_approx pade76 grid=10001 range=[-4,4] max_abs_err 1.499e-05 at x=-3.9992 (bar 1e-4)
+cell char_tube ns_per_sample 206.07 pct_core 0.9891
+cell char_fold ns_per_sample 96.51 pct_core 0.4632
+cell char_rectify ns_per_sample 78.58 pct_core 0.3772
+cell char_bite ns_per_sample 104.32 pct_core 0.5007
+cell char_crush ns_per_sample 79.73 pct_core 0.3827
+cell char_fracture ns_per_sample 190.99 pct_core 0.9168
+cell shape_0.00 ns_per_sample 164.25 pct_core 0.7884
+cell shape_0.25 ns_per_sample 159.62 pct_core 0.7662
+cell shape_0.50 ns_per_sample 70.28 pct_core 0.3373
+cell shape_0.75 ns_per_sample 128.96 pct_core 0.6190
+cell shape_1.00 ns_per_sample 119.30 pct_core 0.5726
+cell ramp ns_per_sample 470.05 pct_core 2.2562 (char_tube x shape_0.00)
+cell drop ns_per_sample 376.05 pct_core 1.8050 (char_tube x shape_0.00)
+worst_char char_tube pct_core 0.9891
+worst_shape shape_0.00 pct_core 0.7884
+total_linked pct_core 1.7775 (worst char + worst shape; bar 2.0 gates the linked total)
+sink 5380.91
+--- medians over 3 run(s) (% of one core, 48 kHz, linked)
+median char_tube      0.9820
+median char_fold      0.4632
+median char_rectify   0.3772
+median char_bite      0.5074
+median char_crush     0.3827
+median char_fracture  0.9244
+median shape_0.00     0.7820
+median shape_0.25     0.7729
+median shape_0.50     0.3327
+median shape_0.75     0.6182
+median shape_1.00     0.5587
+median ramp           2.2014
+median drop           1.7392
+median_total_linked 1.7640 (char_tube 0.9820 + shape_0.00 0.7820)
+DECISION: PROCEED (linked Total <= 2.0 %); C-23 and C-24 REQUIRED in T009-T015 as prototyped
+RECORD: linked ramp 2.2014 / drop 1.7392 (recorded, not gated)
+=== T001 bench 2026-10-15T17:59:43Z mode=unlinked variant=base runs=3 settle=60s quick=0
+compile: "/c/Program Files/LLVM/bin/clang++.exe" -std=c++20 -O2 -ffast-math -march=x86-64-v2 -DNDEBUG -Idsp/include <variant defines> specs/profundum-phase5-shape-character/bench/shape-character-bench.cpp
+commit: 40205b86
+--- run 1
+pin-perf-cores: performance-core mask 0xFFFF
+P5BENCH unlinked epoch=2 fs=48000 F=4 block=64 ctrl_interval=1 rect_adaa=double seconds_per_cell=3.00
+tanh_approx pade76 grid=10001 range=[-4,4] max_abs_err 1.499e-05 at x=-3.9992 (bar 1e-4)
+cell char_tube ns_per_sample 378.32 pct_core 1.8159
+cell char_fold ns_per_sample 190.00 pct_core 0.9120
+cell char_rectify ns_per_sample 160.38 pct_core 0.7698
+cell char_bite ns_per_sample 222.72 pct_core 1.0690
+cell char_crush ns_per_sample 158.81 pct_core 0.7623
+cell char_fracture ns_per_sample 390.82 pct_core 1.8759
+cell shape_0.00 ns_per_sample 304.58 pct_core 1.4620
+cell shape_0.25 ns_per_sample 312.35 pct_core 1.4993
+cell shape_0.50 ns_per_sample 120.54 pct_core 0.5786
+cell shape_0.75 ns_per_sample 229.05 pct_core 1.0994
+cell shape_1.00 ns_per_sample 211.84 pct_core 1.0168
+cell ramp ns_per_sample 756.60 pct_core 3.6317 (char_fracture x shape_0.25)
+cell drop ns_per_sample 710.75 pct_core 3.4116 (char_fracture x shape_0.25)
+worst_char char_fracture pct_core 1.8759
+worst_shape shape_0.25 pct_core 1.4993
+total_unlinked pct_core 3.3752 (worst char + worst shape; bar 2.0 gates the linked total)
+sink 1131.6
+--- run 2
+pin-perf-cores: performance-core mask 0xFFFF
+P5BENCH unlinked epoch=2 fs=48000 F=4 block=64 ctrl_interval=1 rect_adaa=double seconds_per_cell=3.00
+tanh_approx pade76 grid=10001 range=[-4,4] max_abs_err 1.499e-05 at x=-3.9992 (bar 1e-4)
+cell char_tube ns_per_sample 432.76 pct_core 2.0772
+cell char_fold ns_per_sample 193.47 pct_core 0.9287
+cell char_rectify ns_per_sample 158.25 pct_core 0.7596
+cell char_bite ns_per_sample 215.13 pct_core 1.0326
+cell char_crush ns_per_sample 155.97 pct_core 0.7487
+cell char_fracture ns_per_sample 372.85 pct_core 1.7897
+cell shape_0.00 ns_per_sample 308.52 pct_core 1.4809
+cell shape_0.25 ns_per_sample 317.06 pct_core 1.5219
+cell shape_0.50 ns_per_sample 126.76 pct_core 0.6085
+cell shape_0.75 ns_per_sample 235.19 pct_core 1.1289
+cell shape_1.00 ns_per_sample 221.12 pct_core 1.0614
+cell ramp ns_per_sample 872.18 pct_core 4.1865 (char_tube x shape_0.25)
+cell drop ns_per_sample 753.21 pct_core 3.6154 (char_tube x shape_0.25)
+worst_char char_tube pct_core 2.0772
+worst_shape shape_0.25 pct_core 1.5219
+total_unlinked pct_core 3.5991 (worst char + worst shape; bar 2.0 gates the linked total)
+sink 1224.28
+--- run 3
+pin-perf-cores: performance-core mask 0xFFFF
+P5BENCH unlinked epoch=2 fs=48000 F=4 block=64 ctrl_interval=1 rect_adaa=double seconds_per_cell=3.00
+tanh_approx pade76 grid=10001 range=[-4,4] max_abs_err 1.499e-05 at x=-3.9992 (bar 1e-4)
+cell char_tube ns_per_sample 407.88 pct_core 1.9578
+cell char_fold ns_per_sample 189.14 pct_core 0.9079
+cell char_rectify ns_per_sample 160.68 pct_core 0.7712
+cell char_bite ns_per_sample 212.94 pct_core 1.0221
+cell char_crush ns_per_sample 171.72 pct_core 0.8243
+cell char_fracture ns_per_sample 386.33 pct_core 1.8544
+cell shape_0.00 ns_per_sample 330.22 pct_core 1.5851
+cell shape_0.25 ns_per_sample 321.00 pct_core 1.5408
+cell shape_0.50 ns_per_sample 130.60 pct_core 0.6269
+cell shape_0.75 ns_per_sample 238.88 pct_core 1.1466
+cell shape_1.00 ns_per_sample 213.82 pct_core 1.0263
+cell ramp ns_per_sample 843.86 pct_core 4.0505 (char_tube x shape_0.00)
+cell drop ns_per_sample 735.52 pct_core 3.5305 (char_tube x shape_0.00)
+worst_char char_tube pct_core 1.9578
+worst_shape shape_0.00 pct_core 1.5851
+total_unlinked pct_core 3.5429 (worst char + worst shape; bar 2.0 gates the linked total)
+sink 1187.39
+--- medians over 3 run(s) (% of one core, 48 kHz, unlinked)
+median char_tube      1.9578
+median char_fold      0.9120
+median char_rectify   0.7698
+median char_bite      1.0326
+median char_crush     0.7623
+median char_fracture  1.8544
+median shape_0.00     1.4809
+median shape_0.25     1.5219
+median shape_0.50     0.6085
+median shape_0.75     1.1289
+median shape_1.00     1.0263
+median ramp           4.0505
+median drop           3.5305
+median_total_unlinked 3.4797 (char_tube 1.9578 + shape_0.25 1.5219)
+DECISION: unlinked Total RECORDED for Phases 7 / 9 (not gated)
+RECORD: unlinked ramp 4.0505 / drop 3.5305 (recorded, not gated)

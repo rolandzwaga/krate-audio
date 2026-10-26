@@ -1,0 +1,58 @@
+# Profundum Phase 6 -> Phase 9 handoff record (FR-035). Written by MassChain_Phase9HandoffRecord
+# (dsp/tests/unit/systems/mass_chain_test.cpp). Recorded, not gated.
+
+== Global block latency ==
+MassDynamics::latencySamples() = 0 samples
+SC-017 cell: see evidence/sc017-cpu.txt (T018 / T024)
+
+== Mass-to-target table (MassLaw::kRows; target = clamp(base + (u >= 0 ? up : -down) * curve(|u|), lo, hi), u = (Mass - 50) / 50) ==
+target lo hi amountDown amountUp curve(0 Linear, 1 Exponential, 2 SCurve)
+Depth 0 1 -0.5 -0.5 0
+Body 0 1 0.5 0.4 0
+TransientDuration 5 250 30 110 0
+FoldAmount 0 100 50 61.3281 2
+CompressionAmount 0 1 0.5 1 0
+AnchorLevel 0 1 0.5 0.5 0
+OutputTrim -12 12 -2.04938 -0 0
+slew: full 0 -> 100 traversal 40 ms, advanceInterval() once per 32 samples
+
+== Compression amount table (BassCompressor::kAmountTable) ==
+amount thresholdDb slope(1 - 1/ratio) kneeDb makeupDb
+0 0 0 0 0
+0.25 -2.75391 0.25 6 0.248969
+0.5 -5.50781 0.4 6 1.2847
+0.75 -8.26172 0.55 6 3.28111
+1 -11.0156 0.67 6 5.8421
+
+== Transient duration table (TransientShaper::kDurationTable) ==
+durationMs slowAttackArgMs
+5 7.30808
+7.5 11.7715
+10 15.3192
+15 24.3181
+20 33.2881
+30 49.6756
+40 67.6639
+60 103.589
+100 175.305
+150 264.961
+250 444.157
+
+== Poly-sum sub-band GR (4 voices at Mass 100; recorded, not gated) ==
+renderPoly, reference voice, E1 detuned by {-6, -2, +2, +6} cents, keyed by lowestSoundingF0; mean BassCompressor GR over [1 s, 3 s] = -10.1172 dB
+
+== Limiter GR at note attacks (Mass 100, E1, 48 kHz; limiter in / out taps, |in| > 1e-4) ==
+fixture attackPeakGrDb attackDurationMs(GR < -0.01 dB, before 1 s) steadyMinGrDb(from 1 s)
+reference -7.8662 523.792 -0.000994595
+kSawAnchor -5.81168 502.688 -0.000994593
+kSineAnchor -6.70965 998.875 -0.178879
+
+== Keytracked-corner contract (FR-018) ==
+call setDetectorKeyHz(lowestSoundingF0(voices)) once per 32-sample interval; 0 / non-finite = no voice -> 80 Hz
+corner = clamp(2 * f0, 20, 500) Hz, smoothed in log2 over 20 ms at the interval rate
+
+== Shaper user-facing parameters (FR-009; Phase 11 700-799 registration) ==
+parameter min max default unit
+attackGain -12 12 6 dB
+sustainGain -12 12 0 dB
+transientDuration (Mass-driven, not user-facing) 5 250 40 ms

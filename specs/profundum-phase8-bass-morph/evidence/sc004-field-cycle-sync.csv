@@ -1,0 +1,13 @@
+family,pair,note,ramp_ms,g_sw,ratio_L,ratio_R,clicks_L,clicks_R,ref_clicks_L,ref_clicks_R
+field-cycle-sync,SyncOff->SyncOn,E1,5,12096,1,1,0,0,0,0
+field-cycle-sync,SyncOff->SyncOn,E1,40,12992,1,1,0,0,0,0
+field-cycle-sync,SyncOff->SyncOn,E1,2000,61888,1,1,0,0,0,0
+field-cycle-sync,SyncOn->SyncOff,E1,5,12096,1,1,0,0,0,0
+field-cycle-sync,SyncOn->SyncOff,E1,40,12992,1,1,0,0,0,0
+field-cycle-sync,SyncOn->SyncOff,E1,2000,61888,1,1,0,0,0,0
+field-cycle-sync,SyncOff->SyncOn,C3,5,12096,1,1,0,0,0,0
+field-cycle-sync,SyncOff->SyncOn,C3,40,12992,1,1,0,0,0,0
+field-cycle-sync,SyncOff->SyncOn,C3,2000,61888,1,1,0,0,0,0
+field-cycle-sync,SyncOn->SyncOff,C3,5,12096,1,1,0,0,0,0
+field-cycle-sync,SyncOn->SyncOff,C3,40,12992,1,1,0,0,0,0
+field-cycle-sync,SyncOn->SyncOff,C3,2000,61888,1,1,0,0,0,0

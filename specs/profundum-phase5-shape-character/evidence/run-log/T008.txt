@@ -1,0 +1,28 @@
+T008 run log (2026-10-15) - systems helper shape_character_test_helpers.h + helper self-tests
+
+Files written
+- dsp/tests/unit/systems/shape_character_test_helpers.h (new; read-only after T008)
+- dsp/tests/unit/systems/bass_character_spectral_test.cpp (T002 stub -> first content: five T008 self-tests)
+- specs/profundum-phase5-shape-character/evidence/run-log/T008.txt (this file, rule 13)
+
+Not built or run (rule 8: the group gate builds and runs).
+
+Decisions
+- Note constants are `inline const double` computed by noteHz(m) = 440*2^((m-69)/12) in double (std::exp2 is not constexpr).
+- kFixtures = std::array<Fixture{name, Controls}, 4>: sine, triangle, saw, growl (recipe constants spectral_shape_recipe.h:231-247).
+- describe(y, n, fs, f0): w_n = ProfundumTest::renderedHarmonicPowers on the last 262144 samples with N = ceil(fs/2/f0)
+  (the helper zeroes n*f0 >= fs/2); ratios via HarmonicFoldTest::safeDb10, unclamped. Thd guards w1 = 0 with max(w1, 1e-300).
+  I = inharmonicFractionDb, C = centroidOct, L = levelDb (T006 helpers, their own frames).
+- separate(): model separation() (shape-character-model.js:371-377) transcribed: Elow, Ehigh, I, then Roe (counts if any of the
+  four components > -40; value clamp(num) - clamp(den)), then THD; strict '>' for the winner as in the model; which = "" if
+  nothing counted. distinct = maxDb >= 3 || dC >= 0.25.
+- amountMoved(): same rule over THD, I, R_oe (model reportDescriptors SC-007 block).
+- shsCandidates(x, fs, f0): x is the 262144-sample frame. fHat = ProfundumTest::anchorShsF0. Stage-2 exact Hann-DTFT score
+  re-implemented with the same constants (15 harmonics, 0.84, re-anchor every 1024 samples, harmonics >= fs/2 dropped);
+  each candidate peak-searched by golden section over +-2 cents to 1e-4 cent, keeping the best evaluated score.
+  dB = 20*log10(S/S_best). ambiguous = best - second < 1 dB (C-2); readsF0 = !ambiguous && |cents(fHat, f0)| <= 1 (C-3).
+- FloorControl tone level "re total" = tone power re the fixture's mean power over integerPeriodLength(..., 1.0);
+  tone at 1.5*f0 (56 bins from the nearest harmonic on the E1 aliasFftLength frame, outside the +-8-bin mask).
+- FullWave: S(2f0)/S(f0) read as sOneDb - sHalfDb because fHat = 2 f0; additionally checks readsF0 false (fHat is 1200 cents off f0).
+
+Deviations: none from the T008 section.

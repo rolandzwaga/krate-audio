@@ -1,0 +1,73 @@
+=== C-9 coherence probe 2026-10-19T16:19:19Z commit 964045a4
+cmd: build/windows-x64-release/bin/Release/dsp_systems_tests.exe "BassMorph_SumTapCoherenceProbe"
+Filters: "BassMorph_SumTapCoherenceProbe"
+Randomness seeded to: 1969115126
+C-9 sum-tap coherence probe (tasks.md T008; plan C-9, R-1). showcasePair(), fs 48000 Hz, steady renders (ampEnvelope = false), host block 512.
+A anchor.level 1, B anchor.level 0.5
+c = |H_c| / (|H_a| / L), theta = arg H_c - arg H_a (deg); H = single-bin DFT at f0 of the mid over the read window (whole periods).
+
+note	p	mode	L	|H_c|	|H_a|	c	theta_deg	E_sub_sum_dB	E_sub_anchor_dB	sum_f0_rms_dB	sum_dc_dB
+E1	0	Lock	1	0.35853	0.355234	1.00928	-9.91124	-5.97173	-12	-5.97173	-149.261
+E1	0	Blend	1	0.35853	0.355234	1.00928	-9.91124	-5.97173	-12	-5.97173	-149.261
+E1	0	Punch	1	0.35853	0.355234	1.00928	-9.91124	-5.97173	-12	-5.97173	-149.261
+E1	0.5	Lock	1	0.284663	0.352682	0.807138	18.8378	-7.03935	-12.0626	-7.03935	-164.319
+E1	0.5	Blend	0.75	0.284663	0.264511	0.807138	18.8378	-8.33383	-14.5614	-8.33383	-161.104
+E1	0.5	Punch	0.9375	0.284663	0.330639	0.807138	18.8378	-7.34576	-12.6232	-7.34576	-163.406
+E1	1	Lock	1	0.277829	0.318528	0.872228	27.9085	-7.7591	-12.9473	-7.7591	-152.19
+E1	1	Blend	0.5	0.277829	0.159264	0.872228	27.9085	-10.4393	-18.9679	-10.4393	-150.62
+E1	1	Punch	0.5	0.277829	0.159264	0.872228	27.9085	-10.4393	-18.9679	-10.4393	-150.62
+C3	0	Lock	1	0.358414	0.355235	1.00895	-12.564	-5.99293	-12	-5.99293	-122.839
+C3	0	Blend	1	0.358414	0.355235	1.00895	-12.564	-5.99293	-12	-5.99293	-122.839
+C3	0	Punch	1	0.358414	0.355235	1.00895	-12.564	-5.99293	-12	-5.99293	-122.839
+C3	0.5	Lock	1	0.306833	0.352682	0.869997	2.72242	-6.62825	-12.0626	-6.62825	-123.501
+C3	0.5	Blend	0.75	0.306833	0.264512	0.869997	2.72242	-7.87479	-14.5614	-7.87478	-124.74
+C3	0.5	Punch	0.9375	0.306833	0.33064	0.869997	2.72242	-6.92353	-12.6232	-6.92352	-123.795
+C3	1	Lock	1	0.280576	0.318529	0.88085	9.84946	-7.49225	-12.9473	-7.49224	-123.432
+C3	1	Blend	0.5	0.280576	0.159264	0.88085	9.84946	-10.1741	-18.9679	-10.1741	-125.795
+C3	1	Punch	0.5	0.280576	0.159264	0.88085	9.84946	-10.1741	-18.9679	-10.1741	-125.795
+
+Predicted margins (plan C-9; dB; in-phase arithmetic, recorded, not gated):
+E1/p=1/pred-sc015	0.680212
+E1/p=0.5/Blend/pred-sc008d	7.22758
+E1/p=0.5/Punch/pred-sc008d	6.27745
+E1/p=1/Blend/pred-sc008d	9.52862
+E1/p=1/Punch/pred-sc008d	9.52862
+C3/p=1/pred-sc015	0.681831
+C3/p=0.5/Blend/pred-sc008d	7.68662
+C3/p=0.5/Punch/pred-sc008d	6.69968
+C3/p=1/Blend/pred-sc008d	9.79385
+C3/p=1/Punch/pred-sc008d	9.79385
+
+Measured margins (same renders; f0 reading; floor per B7-1 against the render's own Anchor tap; dB):
+E1/p=1/meas-sc015	0.680212
+E1/p=0/Lock/meas-sc008d-floor	7.02827
+E1/p=0/Blend/meas-sc008d-floor	7.02827
+E1/p=0/Punch/meas-sc008d-floor	7.02827
+E1/p=0/meas-sc008d-punch-vs-blend	0.1
+E1/p=0.5/Lock/meas-sc008d-floor	6.02329
+E1/p=0.5/Blend/meas-sc008d-floor	7.22758
+E1/p=0.5/Punch/meas-sc008d-floor	6.27745
+E1/p=0.5/meas-sc008d-punch-vs-blend	1.08807
+E1/p=1/Lock/meas-sc008d-floor	6.18823
+E1/p=1/Blend/meas-sc008d-floor	9.52862
+E1/p=1/Punch/meas-sc008d-floor	9.52862
+E1/p=1/meas-sc008d-punch-vs-blend	0.1
+C3/p=1/meas-sc015	0.68183
+C3/p=0/Lock/meas-sc008d-floor	7.00707
+C3/p=0/Blend/meas-sc008d-floor	7.00707
+C3/p=0/Punch/meas-sc008d-floor	7.00707
+C3/p=0/meas-sc008d-punch-vs-blend	0.1
+C3/p=0.5/Lock/meas-sc008d-floor	6.43438
+C3/p=0.5/Blend/meas-sc008d-floor	7.68662
+C3/p=0.5/Punch/meas-sc008d-floor	6.69968
+C3/p=0.5/meas-sc008d-punch-vs-blend	1.05126
+C3/p=1/Lock/meas-sc008d-floor	6.45509
+C3/p=1/Blend/meas-sc008d-floor	9.79386
+C3/p=1/Punch/meas-sc008d-floor	9.79386
+C3/p=1/meas-sc008d-punch-vs-blend	0.1
+
+C9 VERDICT GREEN
+===============================================================================
+All tests passed (1262 assertions in 1 test case)
+
+exit: 0 wall: 11 s

@@ -1,0 +1,62 @@
+Filters: "BassStereoField_WideAliasing"
+Randomness seeded to: 2951445390
+SC007,Tube,E0,44100,fft,262144,offset,0.15,aliasL_dbfs,-113.489,aliasR_dbfs,-109.723,bar,-80,PASS
+SC007,Fold,E0,44100,fft,262144,offset,0.15,aliasL_dbfs,-108.648,aliasR_dbfs,-104.824,bar,-80,PASS
+SC007,Rectify,E0,44100,fft,262144,offset,0.1,aliasL_dbfs,-105.249,aliasR_dbfs,-102.114,bar,-80,PASS
+SC007,Bite,E0,44100,fft,262144,offset,0.15,aliasL_dbfs,-111.731,aliasR_dbfs,-108.558,bar,-80,PASS
+SC007,Crush,E0,44100,fft,262144,offset,0.15,aliasL_dbfs,-124.303,aliasR_dbfs,-118.284,bar,-80,PASS
+SC007,Fracture,E0,44100,fft,524288,offset,0.1,aliasL_dbfs,-100.909,aliasR_dbfs,-92.9013,bar,-80,PASS
+SC007,Tube,E1,44100,fft,131072,offset,0.15,aliasL_dbfs,-106.113,aliasR_dbfs,-103.782,bar,-80,PASS
+SC007,Fold,E1,44100,fft,131072,offset,0.15,aliasL_dbfs,-101.474,aliasR_dbfs,-97.1082,bar,-80,PASS
+SC007,Rectify,E1,44100,fft,131072,offset,0.1,aliasL_dbfs,-99.4833,aliasR_dbfs,-99.9415,bar,-80,PASS
+SC007,Bite,E1,44100,fft,131072,offset,0.15,aliasL_dbfs,-104.093,aliasR_dbfs,-103.112,bar,-80,PASS
+SC007,Crush,E1,44100,fft,131072,offset,0.15,aliasL_dbfs,-113.084,aliasR_dbfs,-116.371,bar,-80,PASS
+SC007,Fracture,E1,44100,fft,262144,offset,0.1,aliasL_dbfs,-103.993,aliasR_dbfs,-100.214,bar,-80,PASS
+SC007,Tube,E2,44100,fft,65536,offset,0.15,aliasL_dbfs,-104.109,aliasR_dbfs,-97.2173,bar,-80,PASS
+SC007,Fold,E2,44100,fft,65536,offset,0.15,aliasL_dbfs,-99.4209,aliasR_dbfs,-95.6581,bar,-80,PASS
+SC007,Rectify,E2,44100,fft,65536,offset,0.1,aliasL_dbfs,-98.3148,aliasR_dbfs,-93.0243,bar,-80,PASS
+SC007,Bite,E2,44100,fft,65536,offset,0.15,aliasL_dbfs,-101.008,aliasR_dbfs,-98.3978,bar,-80,PASS
+SC007,Crush,E2,44100,fft,65536,offset,0.15,aliasL_dbfs,-114.936,aliasR_dbfs,-111.614,bar,-80,PASS
+SC007,Fracture,E2,44100,fft,131072,offset,0.1,aliasL_dbfs,-104.547,aliasR_dbfs,-100.193,bar,-80,PASS
+SC007,Tube,E0,48000,fft,262144,offset,0.15,aliasL_dbfs,-111.758,aliasR_dbfs,-105.768,bar,-80,PASS
+SC007,Fold,E0,48000,fft,262144,offset,0.15,aliasL_dbfs,-106.809,aliasR_dbfs,-101.154,bar,-80,PASS
+SC007,Rectify,E0,48000,fft,262144,offset,0.1,aliasL_dbfs,-103.122,aliasR_dbfs,-98.3057,bar,-80,PASS
+SC007,Bite,E0,48000,fft,262144,offset,0.15,aliasL_dbfs,-111.01,aliasR_dbfs,-104.797,bar,-80,PASS
+SC007,Crush,E0,48000,fft,262144,offset,0.15,aliasL_dbfs,-124.545,aliasR_dbfs,-119.778,bar,-80,PASS
+SC007,Fracture,E0,48000,fft,524288,offset,0.1,aliasL_dbfs,-100.126,aliasR_dbfs,-93.1368,bar,-80,PASS
+SC007,Tube,E1,48000,fft,131072,offset,0.15,aliasL_dbfs,-108.269,aliasR_dbfs,-109.881,bar,-80,PASS
+SC007,Fold,E1,48000,fft,131072,offset,0.15,aliasL_dbfs,-105.811,aliasR_dbfs,-105.591,bar,-80,PASS
+SC007,Rectify,E1,48000,fft,131072,offset,0.1,aliasL_dbfs,-101.738,aliasR_dbfs,-101.915,bar,-80,PASS
+SC007,Bite,E1,48000,fft,131072,offset,0.15,aliasL_dbfs,-105.958,aliasR_dbfs,-106.795,bar,-80,PASS
+SC007,Crush,E1,48000,fft,131072,offset,0.15,aliasL_dbfs,-132.681,aliasR_dbfs,-135.218,bar,-80,PASS
+SC007,Fracture,E1,48000,fft,262144,offset,0.1,aliasL_dbfs,-103.077,aliasR_dbfs,-99.6351,bar,-80,PASS
+SC007,Tube,E2,48000,fft,65536,offset,0.15,aliasL_dbfs,-104.762,aliasR_dbfs,-99.551,bar,-80,PASS
+SC007,Fold,E2,48000,fft,65536,offset,0.15,aliasL_dbfs,-96.578,aliasR_dbfs,-93.1419,bar,-80,PASS
+SC007,Rectify,E2,48000,fft,65536,offset,0.1,aliasL_dbfs,-100.015,aliasR_dbfs,-98.5519,bar,-80,PASS
+SC007,Bite,E2,48000,fft,65536,offset,0.15,aliasL_dbfs,-103.4,aliasR_dbfs,-97.5429,bar,-80,PASS
+SC007,Crush,E2,48000,fft,65536,offset,0.15,aliasL_dbfs,-115.18,aliasR_dbfs,-112.815,bar,-80,PASS
+SC007,Fracture,E2,48000,fft,131072,offset,0.1,aliasL_dbfs,-106.679,aliasR_dbfs,-102.205,bar,-80,PASS
+SC007,Tube,E0,96000,fft,524288,offset,0.15,aliasL_dbfs,-108.748,aliasR_dbfs,-104.593,bar,-80,PASS
+SC007,Fold,E0,96000,fft,524288,offset,0.15,aliasL_dbfs,-104.837,aliasR_dbfs,-100.171,bar,-80,PASS
+SC007,Rectify,E0,96000,fft,524288,offset,0.1,aliasL_dbfs,-101.038,aliasR_dbfs,-97.1813,bar,-80,PASS
+SC007,Bite,E0,96000,fft,524288,offset,0.15,aliasL_dbfs,-106.386,aliasR_dbfs,-103.367,bar,-80,PASS
+SC007,Crush,E0,96000,fft,524288,offset,0.15,aliasL_dbfs,-125.745,aliasR_dbfs,-122.647,bar,-80,PASS
+SC007,Fracture,E0,96000,fft,1048576,offset,0.1,aliasL_dbfs,-99.2967,aliasR_dbfs,-92.6411,bar,-80,PASS
+SC007,Tube,E1,96000,fft,262144,offset,0.15,aliasL_dbfs,-108.12,aliasR_dbfs,-106.084,bar,-80,PASS
+SC007,Fold,E1,96000,fft,262144,offset,0.15,aliasL_dbfs,-105.057,aliasR_dbfs,-101.442,bar,-80,PASS
+SC007,Rectify,E1,96000,fft,262144,offset,0.1,aliasL_dbfs,-101.522,aliasR_dbfs,-98.8035,bar,-80,PASS
+SC007,Bite,E1,96000,fft,262144,offset,0.15,aliasL_dbfs,-105.384,aliasR_dbfs,-103.211,bar,-80,PASS
+SC007,Crush,E1,96000,fft,262144,offset,0.15,aliasL_dbfs,-122.891,aliasR_dbfs,-119.126,bar,-80,PASS
+SC007,Fracture,E1,96000,fft,524288,offset,0.1,aliasL_dbfs,-102.103,aliasR_dbfs,-96.7264,bar,-80,PASS
+SC007,Tube,E2,96000,fft,131072,offset,0.15,aliasL_dbfs,-113.203,aliasR_dbfs,-109.47,bar,-80,PASS
+SC007,Fold,E2,96000,fft,131072,offset,0.15,aliasL_dbfs,-110.094,aliasR_dbfs,-104.192,bar,-80,PASS
+SC007,Rectify,E2,96000,fft,131072,offset,0.1,aliasL_dbfs,-104.195,aliasR_dbfs,-101.184,bar,-80,PASS
+SC007,Bite,E2,96000,fft,131072,offset,0.15,aliasL_dbfs,-109.409,aliasR_dbfs,-106.086,bar,-80,PASS
+SC007,Crush,E2,96000,fft,131072,offset,0.15,aliasL_dbfs,-131.974,aliasR_dbfs,-135.462,bar,-80,PASS
+SC007,Fracture,E2,96000,fft,262144,offset,0.1,aliasL_dbfs,-102.663,aliasR_dbfs,-98.2488,bar,-80,PASS
+SC007,cells,54,wall_s,103.618
+103.618 s: BassStereoField_WideAliasing
+===============================================================================
+All tests passed (1242 assertions in 1 test case)
+
+exit: 0 wall: 104 s
